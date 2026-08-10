@@ -139,9 +139,12 @@ async def _load_official_credentials() -> dict[str, object] | None:
 
     service = ConfigService()
     try:
-        raw = await service.get("wechatOfficialCredentials")
+        record = await service.get("wechatOfficialCredentials")
     except Exception:
         return None
+    if record is None:
+        return None
+    raw = record.value
     if not isinstance(raw, dict):
         return None
     app_id = raw.get("appId")
@@ -157,20 +160,39 @@ def _resolve_allowed_path(raw_path: str) -> Path:
     if not resolved.is_file():
         raise HTTPException(status_code=404, detail=f"File not found: {raw_path}")
 
-    workspace_root = _get_workspace_root()
-    if not workspace_root:
+    allowed_roots = _collect_allowed_workspace_roots()
+    if not allowed_roots:
         raise HTTPException(
             status_code=503,
             detail="Workspace root unavailable; cannot validate file paths for draft publish.",
         )
 
-    root = Path(workspace_root).resolve()
-    try:
-        resolved.relative_to(root)
-    except ValueError as exc:
-        raise HTTPException(status_code=403, detail="Access denied: path outside workspace") from exc
+    if not any(_path_is_under_root(resolved, root) for root in allowed_roots):
+        raise HTTPException(status_code=403, detail="Access denied: path outside workspace")
 
     return resolved
+
+
+def _path_is_under_root(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _collect_allowed_workspace_roots() -> list[Path]:
+    roots: list[Path] = []
+    primary = _get_workspace_root()
+    if primary:
+        roots.append(Path(primary).resolve())
+    if is_local_mode():
+        harness_workspaces = Path.home() / ".myrm" / "harness" / "workspaces"
+        if harness_workspaces.is_dir():
+            harness_resolved = harness_workspaces.resolve()
+            if harness_resolved not in roots:
+                roots.append(harness_resolved)
+    return roots
 
 
 def _get_workspace_root() -> str | None:

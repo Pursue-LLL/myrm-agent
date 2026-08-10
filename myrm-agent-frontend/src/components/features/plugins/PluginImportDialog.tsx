@@ -61,6 +61,7 @@ interface PluginSkillPreview {
   virtual_id: string;
   security_issues: string[];
   oversized_content: boolean;
+  conflict: boolean;
 }
 
 interface PluginServerPreview {
@@ -89,6 +90,14 @@ interface PluginPreviewPayload {
   is_valid: boolean;
 }
 
+interface PluginConfirmResult {
+  imported_skills: number;
+  skipped_skills: number;
+  imported_servers: number;
+  skipped_servers: number;
+  required_secret_keys: string[];
+}
+
 interface ApiErrorPayload {
   detail?: unknown;
 }
@@ -96,11 +105,15 @@ interface ApiErrorPayload {
 type ComponentDecision = {
   virtual_id: string;
   name: string;
-  resolution: 'install' | 'skip';
+  resolution: 'install' | 'replace' | 'skip';
 };
 
 function serverTypeLabel(type: string): 'local' | 'remote' {
   return type === 'stdio' ? 'local' : 'remote';
+}
+
+function isSkillBlocked(item: PluginSkillPreview): boolean {
+  return item.security_issues.length > 0 || item.oversized_content;
 }
 
 function resolveErrorMessage(error: unknown, fallback: string): string {
@@ -186,10 +199,7 @@ const PluginImportDialog = memo(
             data.skills.map((item) => ({
               virtual_id: item.virtual_id,
               name: item.name,
-              resolution:
-                item.security_issues.length > 0 || item.oversized_content
-                  ? 'skip'
-                  : 'install',
+              resolution: isSkillBlocked(item) || item.conflict ? 'skip' : 'install',
             })),
           );
           setServerDecisions(
@@ -221,7 +231,7 @@ const PluginImportDialog = memo(
 
     const setResolution = useCallback(
       (list: ComponentDecision[], setList: (v: ComponentDecision[]) => void) =>
-        (virtualId: string, resolution: 'install' | 'skip') => {
+        (virtualId: string, resolution: ComponentDecision['resolution']) => {
           setList(list.map((item) => (item.virtual_id === virtualId ? { ...item, resolution } : item)));
         },
       [],
@@ -231,10 +241,13 @@ const PluginImportDialog = memo(
       setSkillDecisions((prev) =>
         prev.map((item) => {
           const skill = preview?.skills.find((s) => s.virtual_id === item.virtual_id);
-          const isBlocked =
-            (skill?.security_issues.length ?? 0) > 0 || (skill?.oversized_content ?? false);
+          const isBlocked = skill ? isSkillBlocked(skill) : false;
           if (isBlocked && resolution === 'install') {
             return item;
+          }
+          if (skill?.conflict) {
+            // A conflicting skill is upgraded in place, not duplicated.
+            return { ...item, resolution: resolution === 'install' ? 'replace' : 'skip' };
           }
           return { ...item, resolution };
         }),
@@ -277,13 +290,22 @@ const PluginImportDialog = memo(
           throw new Error(resolveUserFacingApiError(errPayload.detail, t('errors.confirmFailed')));
         }
 
-        const result = await res.json();
+        const result = (await res.json()) as PluginConfirmResult;
+        const secretKeys = result.required_secret_keys ?? [];
         toast({
           title: t('success.title'),
-          description: t('success.description', {
-            skills: result.imported_skills,
-            servers: result.imported_servers,
-          }),
+          description: [
+            t('success.description', {
+              skills: result.imported_skills,
+              servers: result.imported_servers,
+            }),
+            secretKeys.length > 0
+              ? t('success.requiredKeys', { keys: secretKeys.join(', ') })
+              : '',
+            result.imported_servers > 0 ? t('success.disabledHint') : '',
+          ]
+            .filter(Boolean)
+            .join('\n'),
         });
         resetForm();
         onOpenChange(false);
@@ -300,7 +322,10 @@ const PluginImportDialog = memo(
     }, [preview, skillDecisions, serverDecisions, bindAgentId, resolveUserFacingApiError, t, resetForm, onOpenChange, onImportComplete]);
 
     const installedSkillCount = useMemo(
-      () => skillDecisions.filter((item) => item.resolution === 'install').length,
+      () =>
+        skillDecisions.filter(
+          (item) => item.resolution === 'install' || item.resolution === 'replace',
+        ).length,
       [skillDecisions],
     );
     const installedServerCount = useMemo(
@@ -464,8 +489,8 @@ const PluginImportDialog = memo(
                         {preview.skills.map((item) => {
                           const decision = skillDecisions.find((d) => d.virtual_id === item.virtual_id);
                           const isInstalled = decision?.resolution === 'install';
-                          const isBlocked =
-                            item.security_issues.length > 0 || item.oversized_content;
+                          const isReplacing = decision?.resolution === 'replace';
+                          const isBlocked = isSkillBlocked(item);
                           return (
                             <div key={item.virtual_id} className="flex items-center justify-between gap-3 px-4 py-3">
                               <div className="min-w-0">
@@ -481,6 +506,11 @@ const PluginImportDialog = memo(
                                     {t('security.blocked', { count: item.security_issues.length })}
                                   </p>
                                 )}
+                                {item.conflict && !isBlocked && (
+                                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                                    {t('security.conflict')}
+                                  </p>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 {!isBlocked && (
@@ -489,19 +519,31 @@ const PluginImportDialog = memo(
                                       {item.file_count} {t('sections.files')}
                                     </Badge>
                                     <Button
-                                      variant={isInstalled ? 'default' : 'ghost'}
+                                      variant={isInstalled || isReplacing ? 'default' : 'ghost'}
                                       size="sm"
                                       className="h-7 px-2 text-xs"
                                       disabled={isImporting}
                                       onClick={() =>
                                         setResolution(skillDecisions, setSkillDecisions)(
                                           item.virtual_id,
-                                          isInstalled ? 'skip' : 'install',
+                                          item.conflict
+                                            ? isReplacing
+                                              ? 'skip'
+                                              : 'replace'
+                                            : isInstalled
+                                              ? 'skip'
+                                              : 'install',
                                         )
                                       }
                                     >
-                                      {isInstalled ? <IconCheck className="w-3 h-3 mr-1" /> : <IconX className="w-3 h-3 mr-1" />}
-                                      {isInstalled ? t('actions.install') : t('actions.skip')}
+                                      {isInstalled || isReplacing ? <IconCheck className="w-3 h-3 mr-1" /> : <IconX className="w-3 h-3 mr-1" />}
+                                      {item.conflict
+                                        ? isReplacing
+                                          ? t('actions.replace')
+                                          : t('actions.skip')
+                                        : isInstalled
+                                          ? t('actions.install')
+                                          : t('actions.skip')}
                                     </Button>
                                   </>
                                 )}

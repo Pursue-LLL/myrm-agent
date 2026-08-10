@@ -149,7 +149,7 @@ async def test_eval_cases_persisted_in_review_payload() -> None:
 
     from app.database.connection import get_session as db_session
     from app.database.models import ApprovalRecord
-    from app.services.skills.evolution_review_types import approval_payload
+    from app.services.skills.evolution_review.types import approval_payload
 
     async with db_session() as db:
         stored = await db.get(ApprovalRecord, record.id)
@@ -166,7 +166,7 @@ async def test_eval_cases_default_to_empty_list() -> None:
 
     from app.database.connection import get_session as db_session
     from app.database.models import ApprovalRecord
-    from app.services.skills.evolution_review_types import approval_payload
+    from app.services.skills.evolution_review.types import approval_payload
 
     async with db_session() as db:
         stored = await db.get(ApprovalRecord, record.id)

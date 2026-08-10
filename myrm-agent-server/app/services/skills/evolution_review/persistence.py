@@ -1,7 +1,7 @@
 """
 [INPUT]
 - app.database.models.approval::ApprovalRecord
-- app.services.skills.evolution_review_types::EvolutionApprovalPayload
+- .types::EvolutionApprovalPayload
 [OUTPUT]
 - load/list/count/persist helpers for evolution ApprovalRecord rows
 [POS]
@@ -16,7 +16,7 @@ from sqlalchemy import desc, func, or_, select
 
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
-from app.services.skills.evolution_review_types import (
+from .types import (
     EVOLUTION_ACTION_TYPE,
     PENDING_EVOLUTION_GROWTH_STATUSES,
     EvolutionApprovalPayload,

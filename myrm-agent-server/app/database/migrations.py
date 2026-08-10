@@ -565,6 +565,8 @@ MIGRATION_STATEMENTS: list[str] = [
     # drift (V142) permanently skipped it (checksum mismatch; engine warns, never re-runs).
     # This is the single source of truth; INDEX_STATEMENTS no longer carries the DDL.
     "ALTER TABLE kanban_tasks ADD COLUMN require_approval BOOLEAN NOT NULL DEFAULT 0",
+    # Per-agent default chat security preset (hitl/accept_edits/explore)
+    "ALTER TABLE agents ADD COLUMN default_security_preset VARCHAR(20)",
 ]
 
 # 创建索引的SQL语句列表

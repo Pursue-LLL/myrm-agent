@@ -75,7 +75,7 @@ const MEMORY_TABS: MemoryTab[] = ['pending', 'all', 'context', 'shared', 'recall
 const MemorySection = memo(() => {
   const t = useTranslations('memory');
   const tCommon = useTranslations('common');
-  const tMigrationWizard = useTranslations('settings.knowledge.migrationWizard');
+  const tMigrationWizard = useTranslations('memory.migrationWizard');
   const searchParams = useSearchParams();
 
   const { user, isInitialized: authInitialized } = useAuthStore();

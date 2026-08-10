@@ -45,20 +45,30 @@ class AgentRepository:
             bindings = [
                 CommandBinding(
                     command_name=b["command_name"],
-                    skill_ids=tuple(b["skill_ids"]) if "skill_ids" in b else (b["skill_id"],) if "skill_id" in b else (),
+                    skill_ids=(
+                        tuple(b["skill_ids"])
+                        if "skill_ids" in b
+                        else (b["skill_id"],) if "skill_id" in b else ()
+                    ),
                     description=b.get("description", ""),
                     aliases=tuple(b.get("aliases", ())),
                     instruction=b.get("instruction", ""),
                 )
                 for b in agent.command_bindings
-                if isinstance(b, dict) and "command_name" in b and ("skill_ids" in b or "skill_id" in b)
+                if isinstance(b, dict)
+                and "command_name" in b
+                and ("skill_ids" in b or "skill_id" in b)
             ]
             if not bindings:
                 bindings = None
 
         # Decrypt tool_gateway_config.auth_token if present
         gateway_config = agent.tool_gateway_config
-        if gateway_config and isinstance(gateway_config, dict) and gateway_config.get("auth_token"):
+        if (
+            gateway_config
+            and isinstance(gateway_config, dict)
+            and gateway_config.get("auth_token")
+        ):
             try:
                 from myrm_agent_harness.utils.crypto.config_crypto import ConfigCrypto
 
@@ -78,7 +88,9 @@ class AgentRepository:
             except Exception as e:
                 import logging
 
-                logging.getLogger(__name__).warning(f"Failed to initialize crypto for gateway auth_token: {e}")
+                logging.getLogger(__name__).warning(
+                    f"Failed to initialize crypto for gateway auth_token: {e}"
+                )
 
         return AgentProfile(
             id=agent.id,
@@ -101,8 +113,10 @@ class AgentRepository:
                 "suggestion_prompts": agent.suggestion_prompts,
                 "home_directory": agent.home_directory,
                 "prompt_mode": agent.prompt_mode or "full",
-                "personality_style": agent.personality_style or DEFAULT_PERSONALITY_STYLE,
+                "personality_style": agent.personality_style
+                or DEFAULT_PERSONALITY_STYLE,
                 "security_overrides": agent.security_overrides,
+                "default_security_preset": agent.default_security_preset,
                 "subagent_ids": agent.subagent_ids,
                 "workspace_policy": agent.workspace_policy,
                 "engine_params": agent.engine_params,
@@ -116,7 +130,9 @@ class AgentRepository:
                 "browser_source": agent.browser_source,
                 "dialog_policy": agent.dialog_policy,
                 "session_recording": agent.session_recording,
-                "cron_post_run_verify": bool(getattr(agent, "cron_post_run_verify", False)),
+                "cron_post_run_verify": bool(
+                    getattr(agent, "cron_post_run_verify", False)
+                ),
             },
             built_in=agent.is_built_in or agent.is_public,
             created_at=agent.created_at,
@@ -180,7 +196,11 @@ class AgentRepository:
 
         # Encrypt tool_gateway_config.auth_token if present
         gateway_config = meta.get("tool_gateway_config")
-        if gateway_config and isinstance(gateway_config, dict) and gateway_config.get("auth_token"):
+        if (
+            gateway_config
+            and isinstance(gateway_config, dict)
+            and gateway_config.get("auth_token")
+        ):
             try:
                 from myrm_agent_harness.utils.crypto.config_crypto import ConfigCrypto
 
@@ -191,19 +211,25 @@ class AgentRepository:
 
                 # Encrypt the token and replace it in the dict
                 raw_token = gateway_config["auth_token"]
-                encrypted_token = ConfigCrypto.encrypt_value({"value": raw_token}, derived_key)
+                encrypted_token = ConfigCrypto.encrypt_value(
+                    {"value": raw_token}, derived_key
+                )
                 gateway_config["auth_token"] = encrypted_token
             except Exception as e:
                 import logging
 
-                logging.getLogger(__name__).error(f"Failed to encrypt gateway auth_token: {e}")
+                logging.getLogger(__name__).error(
+                    f"Failed to encrypt gateway auth_token: {e}"
+                )
                 # We should probably fail hard here to prevent plaintext saving, but for safety we just remove it
                 # if encryption fails, to avoid leaking.
                 gateway_config.pop("auth_token", None)
 
         full_model_selection = meta.pop("_model_selection_full", None)
         raw_auto = meta.get("auto_restore_domains")
-        auto_restore_val: list[str] | None = [str(x) for x in raw_auto] if isinstance(raw_auto, list) else None
+        auto_restore_val: list[str] | None = (
+            [str(x) for x in raw_auto] if isinstance(raw_auto, list) else None
+        )
         agent = Agent(
             id=profile.id,
             name=profile.display_name or "Unnamed Agent",
@@ -212,7 +238,12 @@ class AgentRepository:
             home_directory=meta.get("home_directory"),
             agent_type=str(meta.get("agent_type", "individual")),
             model_config={"model": profile.model} if profile.model else {},
-            model_selection=full_model_selection or ({"providerId": "auto", "model": profile.model} if profile.model else None),
+            model_selection=full_model_selection
+            or (
+                {"providerId": "auto", "model": profile.model}
+                if profile.model
+                else None
+            ),
             system_prompt=profile.system_prompt,
             memory_policy=memory_policy_to_dict(profile.memory_policy),
             max_iterations=profile.max_iterations,
@@ -229,6 +260,7 @@ class AgentRepository:
             session_recording=meta.get("session_recording"),
             auto_restore_domains=auto_restore_val,
             security_overrides=meta.get("security_overrides"),
+            default_security_preset=meta.get("default_security_preset"),
             engine_params=meta.get("engine_params"),
             suggestion_prompts=meta.get("suggestion_prompts"),
             openapi_services=meta.get("openapi_services") or None,
@@ -287,7 +319,9 @@ class AgentRepository:
         return AgentRepository._agent_to_profile(agent)
 
     @staticmethod
-    async def update_profile(db: AsyncSession, agent_id: str, updates: dict[str, object]) -> AgentProfile | None:
+    async def update_profile(
+        db: AsyncSession, agent_id: str, updates: dict[str, object]
+    ) -> AgentProfile | None:
         result = await db.execute(select(Agent).where(Agent.id == agent_id))
         agent = result.scalar_one_or_none()
         if not agent:
@@ -302,10 +336,14 @@ class AgentRepository:
         if "model" in updates:
             model = cast(str, updates["model"])
             agent.model_config = {"model": model}
-            if "model_selection" in updates and isinstance(updates["model_selection"], dict):
+            if "model_selection" in updates and isinstance(
+                updates["model_selection"], dict
+            ):
                 agent.model_selection = updates["model_selection"]
             else:
-                agent.model_selection = {"providerId": "auto", "model": model} if model else None
+                agent.model_selection = (
+                    {"providerId": "auto", "model": model} if model else None
+                )
         if "system_prompt" in updates:
             agent.system_prompt = cast(str, updates["system_prompt"])
         if "skills" in updates:
@@ -323,7 +361,9 @@ class AgentRepository:
                 updates["tools_allowed"]
             )
         if "memory_policy" in updates:
-            agent.memory_policy = memory_policy_to_dict(cast(AgentMemoryPolicy | None, updates["memory_policy"]))
+            agent.memory_policy = memory_policy_to_dict(
+                cast(AgentMemoryPolicy | None, updates["memory_policy"])
+            )
         if "workspace_policy" in updates:
             agent.workspace_policy = cast(str, updates["workspace_policy"])
         if "cron_post_run_verify" in updates:
@@ -334,15 +374,17 @@ class AgentRepository:
                 agent.command_bindings = None
             elif isinstance(raw_bindings, list):
                 agent.command_bindings = [
-                    {
-                        "command_name": b.command_name,
-                        "skill_ids": list(b.skill_ids),
-                        "description": b.description,
-                        "aliases": list(b.aliases),
-                        "instruction": b.instruction,
-                    }
-                    if isinstance(b, CommandBinding)
-                    else b
+                    (
+                        {
+                            "command_name": b.command_name,
+                            "skill_ids": list(b.skill_ids),
+                            "description": b.description,
+                            "aliases": list(b.aliases),
+                            "instruction": b.instruction,
+                        }
+                        if isinstance(b, CommandBinding)
+                        else b
+                    )
                     for b in raw_bindings
                 ]
 
@@ -352,7 +394,11 @@ class AgentRepository:
                 agent.mcp_servers = cast(list[str], metadata["mcp_ids"])
             if "mcp_tool_selections" in metadata:
                 raw_sel = metadata["mcp_tool_selections"]
-                agent.mcp_tool_selections = cast(dict[str, list[str]], raw_sel) if isinstance(raw_sel, dict) else None
+                agent.mcp_tool_selections = (
+                    cast(dict[str, list[str]], raw_sel)
+                    if isinstance(raw_sel, dict)
+                    else None
+                )
             if "enabled_builtin_tools" in metadata:
                 agent.enabled_builtin_tools = persist_enabled_builtin_tools(
                     metadata["enabled_builtin_tools"]
@@ -364,7 +410,13 @@ class AgentRepository:
             if "personality_style" in metadata:
                 agent.personality_style = cast(str, metadata["personality_style"])
             if "security_overrides" in metadata:
-                agent.security_overrides = cast(dict[str, object] | None, metadata["security_overrides"])
+                agent.security_overrides = cast(
+                    dict[str, object] | None, metadata["security_overrides"]
+                )
+            if "default_security_preset" in metadata:
+                agent.default_security_preset = cast(
+                    str | None, metadata["default_security_preset"]
+                )
             if "subagent_ids" in metadata:
                 agent.subagent_ids = cast(list[str], metadata["subagent_ids"])
             if "workspace_policy" in metadata:
@@ -398,7 +450,11 @@ class AgentRepository:
                 agent.notify_targets = raw_nt if isinstance(raw_nt, list) else None
             if "tool_gateway_config" in metadata:
                 gateway_config = metadata["tool_gateway_config"]
-                if gateway_config and isinstance(gateway_config, dict) and gateway_config.get("auth_token"):
+                if (
+                    gateway_config
+                    and isinstance(gateway_config, dict)
+                    and gateway_config.get("auth_token")
+                ):
                     # Only encrypt if it's not already encrypted (crude check: if it doesn't look like base64 AES-GCM)
                     # ConfigCrypto format is usually base64. Let's just encrypt it.
                     # Wait, if the user sends the SAME config back, it might be the placeholder or already encrypted.
@@ -408,19 +464,25 @@ class AgentRepository:
                         "ey"
                     ):  # Basic heuristic to avoid double encrypting if frontend sends back encrypted
                         try:
-                            from myrm_agent_harness.utils.crypto.config_crypto import ConfigCrypto
+                            from myrm_agent_harness.utils.crypto.config_crypto import (
+                                ConfigCrypto,
+                            )
 
                             from app.core.security.master_key import MasterKeyProvider
 
                             master_key = MasterKeyProvider.get_master_key()
                             derived_key = ConfigCrypto.derive_key(master_key)
 
-                            encrypted_token = ConfigCrypto.encrypt_value({"value": raw_token}, derived_key)
+                            encrypted_token = ConfigCrypto.encrypt_value(
+                                {"value": raw_token}, derived_key
+                            )
                             gateway_config["auth_token"] = encrypted_token
                         except Exception as e:
                             import logging
 
-                            logging.getLogger(__name__).error(f"Failed to encrypt gateway auth_token: {e}")
+                            logging.getLogger(__name__).error(
+                                f"Failed to encrypt gateway auth_token: {e}"
+                            )
                             gateway_config.pop("auth_token", None)
                 agent.tool_gateway_config = gateway_config
             if "mounted_skill_ids" in metadata:
@@ -430,12 +492,14 @@ class AgentRepository:
             if "dialog_policy" in metadata:
                 agent.dialog_policy = cast(str | None, metadata["dialog_policy"])
             if "session_recording" in metadata:
-                agent.session_recording = cast(str | None, metadata["session_recording"])
+                agent.session_recording = cast(
+                    str | None, metadata["session_recording"]
+                )
 
         # Increment version and save history if core fields changed
-        if any(k in updates for k in ["system_prompt", "display_name", "description"]) or (
-            "metadata" in updates and "personality_style" in updates["metadata"]
-        ):
+        if any(
+            k in updates for k in ["system_prompt", "display_name", "description"]
+        ) or ("metadata" in updates and "personality_style" in updates["metadata"]):
             # Optimistic locking handles the version increment automatically
             # We just need to flush to get the new version number
             from fastapi import HTTPException

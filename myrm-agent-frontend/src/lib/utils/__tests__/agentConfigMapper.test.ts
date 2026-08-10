@@ -196,6 +196,16 @@ describe('buildAgentConfig', () => {
     }
   });
 
+  it('maps default security preset', () => {
+    const config = buildAgentConfig(makeAgent({ default_security_preset: 'explore' }));
+    expect(config.defaultSecurityPreset).toBe('explore');
+  });
+
+  it('defaults default security preset to undefined when not set', () => {
+    const config = buildAgentConfig(makeAgent({ default_security_preset: null }));
+    expect(config.defaultSecurityPreset).toBeUndefined();
+  });
+
   it('maps all session recording variants', () => {
     for (const recording of ['always', 'on_failure', 'never'] as const) {
       const config = buildAgentConfig(makeAgent({ session_recording: recording }));

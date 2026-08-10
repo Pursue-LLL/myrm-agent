@@ -476,7 +476,7 @@ async def start_idle_task_listeners() -> None:
                             proposal.get("skill_id"),
                         )
                     else:
-                        from app.services.skills.growth_lifecycle import process_skill_review_result
+                        from app.services.skills.growth.lifecycle import process_skill_review_result
 
                         _form_type_map = {"skill": "skill_draft", "cron_job": "cron_suggestion"}
                         growth_type = _form_type_map.get(recommended_form, "skill_draft")

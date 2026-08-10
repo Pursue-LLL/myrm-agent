@@ -118,6 +118,10 @@ async def _hydrate_and_probe_async(
             {
                 "url": "about:blank",
                 "browserContextId": browser_context_id,
+                # Foreground create raises the Chrome app on macOS and steals
+                # focus from the user's active app (§26.26 / R026). The probe is
+                # a pure fetch — no visible rendering is needed.
+                "background": True,
             },
             deadline=deadline,
         )

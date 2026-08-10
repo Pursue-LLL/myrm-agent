@@ -1,17 +1,20 @@
 """Agent Plugins 1.0.0 import API.
 
 [INPUT]
-- app.services.plugins.import_service::parse_plugin_zip, build_preview_result, confirm_plugin_import (POS: plugin import orchestration)
+- app.services.plugins.import_service::parse_plugin_zip, build_preview_result,
+  confirm_plugin_import, _load_existing_skill_ids (POS: plugin import orchestration)
 - myrm_agent_harness.agent.plugins::AgentPluginParser (POS: framework-level parser)
 
 [OUTPUT]
-- POST /plugins/import/preview — parse + preview components
-- POST /plugins/import/confirm — persist selected components + bind agent
+- POST /plugins/import/preview — parse + preview components (incl. name-conflict flags)
+- POST /plugins/import/confirm — persist selected components (replace upgrades
+  same-name skills) + bind agent
 
 [POS]
 Business HTTP layer for Agent Plugins import. GUI-First: preview shows the plugin
-card, skills and MCP servers with diagnostics; confirm writes to SkillStore /
-mcpServers UserConfig / Agent profile.
+card, skills (with security / oversized / name-conflict markers) and MCP servers
+with diagnostics; confirm writes to SkillStore / mcpServers UserConfig / Agent
+profile.
 """
 
 from __future__ import annotations
@@ -52,6 +55,7 @@ class PluginSkillPreview(BaseModel):
     virtual_id: str
     security_issues: list[str] = Field(default_factory=list)
     oversized_content: bool = False
+    conflict: bool = False
 
 
 class PluginServerPreview(BaseModel):
@@ -84,7 +88,7 @@ class PluginConfirmComponent(BaseModel):
     component: str  # "plugin" | "skill" | "mcp"
     virtual_id: str
     name: str
-    resolution: Literal["install", "skip"]
+    resolution: Literal["install", "replace", "skip"]
 
 
 class PluginImportConfirmRequest(BaseModel):
@@ -101,6 +105,10 @@ class PluginImportConfirmResponse(BaseModel):
     skipped_skills: int
     imported_servers: int
     skipped_servers: int
+    required_secret_keys: list[str] = Field(
+        default_factory=list,
+        description="Secret keys the imported MCP servers depend on (Scoped Secret Injection)",
+    )
 
 
 @router.post("/preview", response_model=PluginImportPreviewResponse)
@@ -113,6 +121,7 @@ async def preview_plugin_import(
         PluginArchiveSecurityError,
         PluginImportSession,
         PluginStaging,
+        _load_existing_skill_ids,
         build_preview_result,
         parse_plugin_zip,
     )
@@ -156,7 +165,7 @@ async def preview_plugin_import(
     )
     background_tasks.add_task(staging.cleanup_expired_sessions)
 
-    preview = build_preview_result(result)
+    preview = build_preview_result(result, set(_load_existing_skill_ids()))
     return PluginImportPreviewResponse(
         session_id=session_id,
         plugin=PluginMetaResponse(**preview["plugin"]),
@@ -175,10 +184,10 @@ async def confirm_plugin_import(
     background_tasks: BackgroundTasks,
 ) -> PluginImportConfirmResponse:
     """Confirm import decisions and persist skills + MCP servers."""
+    from app.services.plugins import import_service as _import_service
     from app.services.plugins.import_service import (
         PluginConfirmItem,
         PluginStaging,
-        confirm_plugin_import,
     )
 
     store = get_evolution_skill_store_db_path()
@@ -213,7 +222,7 @@ async def confirm_plugin_import(
     ]
 
     try:
-        result = await confirm_plugin_import(
+        result = await _import_service.confirm_plugin_import(
             session,
             skill_decisions=skill_decisions,
             server_decisions=server_decisions,

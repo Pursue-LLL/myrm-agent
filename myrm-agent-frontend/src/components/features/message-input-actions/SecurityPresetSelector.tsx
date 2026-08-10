@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
 import useChatStore from '@/store/useChatStore';
-import { getConfigSyncManager } from '@/services/config';
+import { disarmYoloForPreset } from '@/store/chat/securityPreset';
 import type { SecurityPreset } from '@/store/chat/types/chatState';
 
 const PRESETS = ['hitl', 'accept_edits', 'explore'] as const;
@@ -79,18 +79,7 @@ const SecurityPresetSelector = () => {
   const handleSelect = (next: SecurityPreset) => {
     if (next === preset) return;
 
-    if (next !== 'hitl') {
-      const syncManager = getConfigSyncManager();
-      const config = syncManager.get('securityConfig');
-      if (config?.yoloModeEnabled) {
-        syncManager.set('securityConfig', {
-          ...config,
-          yoloModeEnabled: false,
-          yoloModeTimeout: undefined,
-          yoloModeEnabledAt: undefined,
-        });
-      }
-    }
+    disarmYoloForPreset(next);
 
     setPreset(next);
   };

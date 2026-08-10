@@ -195,6 +195,7 @@ def _to_agent_response(
         suggestion_prompts=_meta_str_list_or_none(metadata, "suggestion_prompts"),
         model_selection=_build_model_selection(agent.model, metadata),
         security_overrides=_meta_dict_or_none(metadata, "security_overrides"),
+        default_security_preset=_meta_str(metadata, "default_security_preset"),
         prompt_mode=metadata.get("prompt_mode", "full") or "full",
         personality_style=_safe_personality(metadata.get("personality_style")),
         subagent_ids=_meta_str_list(metadata, "subagent_ids", default=[]),

@@ -191,12 +191,19 @@ async def _create_background_target(
                 # background:true tabs pause requestAnimationFrame, which stalls
                 # Next.js 16's $RV Suspense flush — SSR content stays in hidden
                 # placeholders and the UI stays blank (§19.11 TAB-6b). Follow the
-                # §26.21 OFFSCREEN-NORMAL SSOT: park the tab's window offscreen
+                # §26.26 OFFSCREEN-NORMAL SSOT: park the tab's window offscreen
                 # (windowState=normal + far offscreen) so visibilityState stays
                 # visible and rAF keeps running for the whole time the tab sits
-                # in the warm-shell pool. If parking fails, fall back to
-                # Target.activateTarget (best-effort, never steals macOS focus
-                # because the E2E window is parked offscreen anyway).
+                # in the warm-shell pool. Chrome clamps macOS window positions to
+                # `-(width-40)`, so a negative `left` means the window is pushed
+                # off the visible desktop — do not expect -20000.
+                #
+                # NEVER fall back to `Target.activateTarget`: E2E Chrome shares
+                # the same .app bundle as the user's own Chrome, so any
+                # activation raises the whole app and steals macOS focus
+                # (BUG-DG-2026-08-10-R026). If the park failed, keep rendering
+                # via `Emulation.setFocusEmulationEnabled` — it reports focus +
+                # visibility to the page without touching window ordering.
                 parked = False
                 try:
                     win_info = await _cdp_request(
@@ -229,8 +236,10 @@ async def _create_background_target(
                         )
                         # setWindowBounds can return success while Chrome ignores
                         # the move on shared windows (surface/daemon also manage
-                        # it). Re-read to confirm the park actually took effect;
-                        # if not, fall through to activateTarget.
+                        # it). Re-read to confirm the park actually took effect:
+                        # Chrome clamps `left` to `-(width-40)` ≈ -1360, so any
+                        # negative `left` means the window is off the visible
+                        # desktop (§26.26 focus-theft fix).
                         win_check = await _cdp_request(
                             ws,
                             msg_id + 3,
@@ -246,17 +255,20 @@ async def _create_background_target(
                         )
                         if isinstance(check_bounds, dict):
                             left = check_bounds.get("left")
-                            parked = isinstance(left, (int, float)) and left <= -20000
+                            parked = isinstance(left, (int, float)) and left < 0
                 except (OSError, TimeoutError, RuntimeError, json.JSONDecodeError):
                     parked = False
                 if not parked:
+                    # Rendering fallback that never activates the window:
+                    # Emulation.setFocusEmulationEnabled keeps rAF + visibility
+                    # reported to the page (§26.26), without makeKeyAndOrderFront.
                     try:
                         await ws.send(
                             json.dumps(
                                 {
                                     "id": msg_id + 4,
-                                    "method": "Target.activateTarget",
-                                    "params": {"targetId": target_id},
+                                    "method": "Emulation.setFocusEmulationEnabled",
+                                    "params": {"enabled": True},
                                 }
                             )
                         )

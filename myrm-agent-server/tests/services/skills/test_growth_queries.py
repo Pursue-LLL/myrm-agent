@@ -13,8 +13,8 @@ from app.database.models import ApprovalRecord, Base
 from app.platform_utils import get_database_engine, reset_database_engine
 from app.services.skills.draft_notification import notify_skill_draft_created
 from app.services.skills.evolution_reviews import create_evolution_review_record
-from app.services.skills.growth_case_types import SkillGrowthCaseStatus
-from app.services.skills.growth_queries import (
+from app.services.skills.growth.case_types import SkillGrowthCaseStatus
+from app.services.skills.growth.queries import (
     SkillGrowthDashboardStatsRead,
     _count_cases_for_statuses,
     _count_skill_growth_cases,
@@ -46,7 +46,7 @@ def test_merge_fetch_limit_uses_limit_plus_offset() -> None:
 @pytest.mark.asyncio
 async def test_summarize_dashboard_stats_empty() -> None:
     with patch(
-        "app.services.skills.growth_queries._count_skill_growth_cases",
+        "app.services.skills.growth.queries._count_skill_growth_cases",
         AsyncMock(return_value=0),
     ):
         stats = await summarize_skill_growth_dashboard_stats()
@@ -63,11 +63,11 @@ async def test_summarize_dashboard_stats_empty() -> None:
 async def test_summarize_dashboard_stats_buckets() -> None:
     with (
         patch(
-            "app.services.skills.growth_queries._count_skill_growth_cases",
+            "app.services.skills.growth.queries._count_skill_growth_cases",
             AsyncMock(return_value=4),
         ),
         patch(
-            "app.services.skills.growth_queries._count_cases_for_statuses",
+            "app.services.skills.growth.queries._count_cases_for_statuses",
             AsyncMock(side_effect=[2, 1, 1]),
         ),
     ):

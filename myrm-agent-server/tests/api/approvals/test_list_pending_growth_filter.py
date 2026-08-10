@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.services.approvals.registry import ApprovalRegistry
-from app.services.skills.growth_constants import is_background_growth_approval
+from app.services.skills.growth.constants import is_background_growth_approval
 
 
 class TestListPendingGrowthFilter:

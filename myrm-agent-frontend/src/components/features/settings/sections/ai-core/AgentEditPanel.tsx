@@ -441,7 +441,14 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
 
           {activeTab === 'security' && (
             <div className={cn(editor.isReadonly && 'pointer-events-none opacity-70')}>
-              <AgentSecurityTab value={editor.securityOverrides} onChange={editor.setSecurityOverrides} agentId={agentId} saveVersion={editor.saveVersion} />
+              <AgentSecurityTab
+                value={editor.securityOverrides}
+                onChange={editor.setSecurityOverrides}
+                defaultSecurityPreset={editor.defaultSecurityPreset}
+                onDefaultSecurityPresetChange={editor.setDefaultSecurityPreset}
+                agentId={agentId}
+                saveVersion={editor.saveVersion}
+              />
             </div>
           )}
 

@@ -2443,7 +2443,7 @@ _WINDOW_RESTORE_COOLDOWN_SEC = 8.0
 
 
 def _restore_e2e_window_via_cdp(page: object) -> bool:
-    """Bring the owning browser window back to a visible (frontmost) state.
+    """Re-park the owning browser window offscreen-normal via direct CDP.
 
     Window policy is OFFSCREEN-NORMAL: the orchestrator parks every background
     tab at an offscreen normal position (never minimized) so Chrome keeps

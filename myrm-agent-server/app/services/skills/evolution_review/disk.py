@@ -1,6 +1,6 @@
 """
 [INPUT]
-- app.services.skills.evolution_review_types::EvolutionApprovalPayload
+- .types::EvolutionApprovalPayload
 - app.adapters.skill_optimization.quality_repo::QualityRepository (POS: 质量数据 CRUD)
 [OUTPUT]
 - Description/content apply orchestration, shadow apply, approval apply pipeline
@@ -23,12 +23,12 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.database.models import ApprovalRecord
-from app.services.skills.evolution_review_disk_content import (
+from .disk_content import (
     apply_content_update,
     rollback_content_update,
 )
-from app.services.skills.evolution_review_persistence import persist_approval_payload
-from app.services.skills.evolution_review_types import (
+from .persistence import persist_approval_payload
+from .types import (
     EvolutionApplyError,
     EvolutionApplyStatus,
     EvolutionApprovalPayload,
@@ -39,7 +39,7 @@ from app.services.skills.evolution_review_types import (
     approval_to_evolution_review_record,
     evolution_lineage_id,
 )
-from app.services.skills.experience_ledger import (
+from ..experience_ledger import (
     ExperienceEntityType,
     ExperienceEventType,
     ExperienceLedgerWrite,

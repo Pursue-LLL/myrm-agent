@@ -55,7 +55,10 @@ def test_wechat_official_test_rejects_empty_secret(client: TestClient) -> None:
 def test_wechat_official_draft_fail_closed_without_workspace(client: TestClient, tmp_path: Path) -> None:
     html_file = tmp_path / "article.wechat.html"
     html_file.write_text("<html><body><p>Hi</p></body></html>", encoding="utf-8")
-    with patch("app.api.channels.wechat_official._get_workspace_root", return_value=None):
+    with (
+        patch("app.api.channels.wechat_official._get_workspace_root", return_value=None),
+        patch("app.api.channels.wechat_official._collect_allowed_workspace_roots", return_value=[]),
+    ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
             json={"htmlPath": str(html_file), "title": "Test"},
@@ -386,19 +389,56 @@ def test_resolve_request_locale_en() -> None:
 
 
 @pytest.mark.asyncio
-async def test_load_official_credentials_returns_none_for_invalid_payload() -> None:
+async def test_load_official_credentials_reads_config_record_value() -> None:
+    from app.schemas.config import ConfigRecord
+
+    record = ConfigRecord(
+        key="wechatOfficialCredentials",
+        value={"appId": "wx_test", "appSecret": "secret_test"},
+        version="1",
+        updatedAt="2026-01-01T00:00:00Z",
+        deviceId="test-device",
+    )
     with patch(
         "app.services.config.service.ConfigService.get",
-        new=AsyncMock(return_value="not-a-dict"),
+        new=AsyncMock(return_value=record),
+    ):
+        creds = await wechat_official_module._load_official_credentials()
+    assert creds == {"appId": "wx_test", "appSecret": "secret_test"}
+
+
+@pytest.mark.asyncio
+async def test_load_official_credentials_returns_none_for_invalid_payload() -> None:
+    from app.schemas.config import ConfigRecord
+
+    record = ConfigRecord(
+        key="wechatOfficialCredentials",
+        value={"token": "only-token"},
+        version="1",
+        updatedAt="2026-01-01T00:00:00Z",
+        deviceId="test-device",
+    )
+    with patch(
+        "app.services.config.service.ConfigService.get",
+        new=AsyncMock(return_value=record),
     ):
         assert await wechat_official_module._load_official_credentials() is None
 
 
 @pytest.mark.asyncio
 async def test_load_official_credentials_returns_none_when_missing_secret() -> None:
+    from app.schemas.config import ConfigRecord
+
+    record = ConfigRecord(
+        key="wechatOfficialCredentials",
+        value={"appId": "wx_only"},
+        version="1",
+        updatedAt="2026-01-01T00:00:00Z",
+        deviceId="test-device",
+    )
     with patch(
         "app.services.config.service.ConfigService.get",
-        new=AsyncMock(return_value={"appId": "wx_only"}),
+        new=AsyncMock(return_value=record),
     ):
         assert await wechat_official_module._load_official_credentials() is None
 
@@ -425,6 +465,56 @@ def test_get_workspace_root_uses_local_default_when_available(
         return_value=str(home),
     ):
         assert wechat_official_module._get_workspace_root() == str(workspace)
+
+
+def test_collect_allowed_workspace_roots_includes_harness_in_local_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    home = tmp_path / "home"
+    harness = home / ".myrm" / "harness" / "workspaces"
+    harness.mkdir(parents=True)
+    monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
+    with patch.object(wechat_official_module, "is_local_mode", return_value=True), patch(
+        "app.api.channels.wechat_official.os.path.expanduser",
+        return_value=str(home),
+    ), patch("app.api.channels.wechat_official._get_workspace_root", return_value=None):
+        roots = wechat_official_module._collect_allowed_workspace_roots()
+    assert len(roots) == 1
+    assert roots[0] == harness.resolve()
+
+
+def test_wechat_official_draft_accepts_harness_workspace_path(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    harness = tmp_path / "harness" / "workspaces" / "chat_e2ewxd123"
+    harness.mkdir(parents=True)
+    html_file = harness / "article.wechat.html"
+    html_file.write_text(
+        "<html><body><p>集赞 20 个送礼品，分享到朋友圈解锁全文。</p></body></html>",
+        encoding="utf-8",
+    )
+    workspaces_root = harness.parent
+    with (
+        patch("app.api.channels.wechat_official._get_workspace_root", return_value=None),
+        patch.object(wechat_official_module, "is_local_mode", return_value=True),
+        patch(
+            "app.api.channels.wechat_official._collect_allowed_workspace_roots",
+            return_value=[workspaces_root.resolve()],
+        ),
+        patch(
+            "app.api.channels.wechat_official._load_official_credentials",
+            new=AsyncMock(return_value={"appId": "wx_test", "appSecret": "secret_test"}),
+        ),
+    ):
+        response = client.post(
+            "/api/v1/channels/manage/wechat-official/draft",
+            json={"htmlPath": str(html_file), "title": "Test"},
+        )
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "wechat_compliance_blocked"
 
 
 def test_wechat_official_draft_returns_404_when_service_reports_missing_cover(

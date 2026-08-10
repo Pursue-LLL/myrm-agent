@@ -8,6 +8,9 @@ persists components:
 
 The import is fully offline (no LLM calls) and applies per-component failure
 isolation so a single invalid skill or MCP server never aborts the whole import.
+Skills whose name already exists in the store are upgraded in place (reusing the
+existing ``skill_id`` with DERIVED lineage) instead of creating a duplicate, so
+the skill library never accumulates same-name records.
 
 [INPUT]
 - myrm_agent_harness.agent.plugins.parser::AgentPluginParser (POS: framework
@@ -15,11 +18,19 @@ isolation so a single invalid skill or MCP server never aborts the whole import.
 - myrm_agent_harness.agent.skills.evolution.core.types (POS: skill lineage types.)
 - myrm_agent_harness.agent.skills.evolution.db.store::SkillStore (POS: SQLite
   skill persistence; MAX_SKILL_CONTENT_CHARS is the oversized-content SSOT.)
-- app.services.skills.store / UserConfig persistence (POS: business skill/MCP stores.)
+- ._models::PluginImportSession, PluginConfirmItem (POS: business-layer DTOs.)
+- ._staging::PluginStaging (POS: import session staging persistence.)
+- ._mcp_persist (POS: MCP/agent persistence for plugin imports.)
 
 [OUTPUT]
+- build_preview_result: component preview payload with name-conflict flags.
 - confirm_plugin_import: Persist skills, MCP servers, and agent bindings from a
-  parsed plugin archive (offline, per-component failure isolation).
+  parsed plugin archive (offline, per-component failure isolation); returns
+  imported/skipped counts plus ``required_secret_keys`` for the UI to guide
+  secret configuration.
+- _load_existing_skill_ids: active skill name → skill_id map (conflict SSOT).
+- Re-exports PluginImportSession / PluginConfirmItem / PluginStaging /
+  PluginArchiveSecurityError for the API layer and callers.
 
 [POS]
 Business-layer import orchestration for the open-source product: maps framework
@@ -29,13 +40,9 @@ Agent profile binding) with blue-green writes and disabled-by-default MCP.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import pickle
 import uuid
 import zipfile
-from dataclasses import dataclass, field
-from pathlib import Path
 
 from myrm_agent_harness.agent.plugins.models import (
     PluginMcpServer,
@@ -50,9 +57,28 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 )
 from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
 
+from ._mcp_persist import (
+    _bind_agent,
+    _collect_required_secret_keys,
+    _collect_server_configs,
+    _write_mcp_servers,
+)
+from ._models import PluginConfirmItem, PluginImportSession
+from ._staging import PluginStaging
+
 MAX_SKILL_CONTENT_CHARS = SkillStore.MAX_SKILL_CONTENT_CHARS
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "PluginArchiveSecurityError",
+    "PluginConfirmItem",
+    "PluginImportSession",
+    "PluginStaging",
+    "build_preview_result",
+    "confirm_plugin_import",
+    "parse_plugin_zip",
+]
 
 
 class PluginArchiveSecurityError(ValueError):
@@ -65,95 +91,6 @@ class PluginArchiveSecurityError(ValueError):
     def __init__(self, message: str, error_code: str = "") -> None:
         super().__init__(message)
         self.error_code = error_code
-
-
-@dataclass(frozen=True)
-class PluginImportSession:
-    """A persisted import session created by /preview and consumed by /confirm."""
-
-    plugin_result: PluginParseResult
-    skills_by_key: dict[str, PluginSkill] = field(default_factory=dict)
-    servers_by_key: dict[str, PluginMcpServer] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class PluginConfirmItem:
-    """A confirm decision for a single plugin component."""
-
-    component: str  # "plugin" | "skill:<name>" | "mcp:<name>"
-    virtual_id: str  # stage key: skill:<idx> | mcp:<idx>
-    resolution: str  # "install" | "skip"
-    name: str
-
-
-class PluginStaging:
-    """Persistent staging for parsed plugin sessions (mirrors SkillStagingManager)."""
-
-    def __init__(self, base_dir: Path) -> None:
-        self.staging_dir = base_dir / "plugin_staging"
-        self.staging_dir.mkdir(parents=True, exist_ok=True)
-
-    def save_session(self, session_id: str, session: PluginImportSession) -> None:
-        path = self._session_path(session_id)
-        try:
-            with open(path, "wb") as f:
-                pickle.dump(session, f)
-        except Exception as exc:
-            logger.error(
-                "Failed to save plugin staging session %s: %s", session_id, exc
-            )
-            raise RuntimeError("Failed to persist the plugin import session.") from exc
-
-    def load_session(self, session_id: str) -> PluginImportSession:
-        path = self._session_path(session_id)
-        if not path.exists():
-            raise FileNotFoundError(
-                f"Plugin import session {session_id} not found in staging area."
-            )
-        try:
-            with open(path, "rb") as f:
-                loaded = pickle.load(f)  # noqa: S301
-            if not isinstance(loaded, PluginImportSession):
-                raise RuntimeError("Plugin staging session is corrupted")
-            return loaded
-        except Exception as exc:
-            logger.error(
-                "Failed to load plugin staging session %s: %s", session_id, exc
-            )
-            raise RuntimeError("Failed to read the plugin import session.") from exc
-
-    def cleanup_session(self, session_id: str) -> None:
-        path = self._session_path(session_id)
-        if path.exists():
-            try:
-                path.unlink()
-            except OSError as exc:
-                logger.warning(
-                    "Failed to cleanup plugin staging file %s: %s", path, exc
-                )
-
-    def _cleanup_expired_sessions_sync(self) -> None:
-        """Remove plugin sessions older than the TTL (abandoned uploads)."""
-        import time
-
-        now = time.time()
-        try:
-            for f in self.staging_dir.glob("*.pkl"):
-                if f.is_file() and now - f.stat().st_mtime > 86400:
-                    try:
-                        f.unlink()
-                    except OSError:
-                        pass
-        except Exception as exc:
-            logger.warning("Failed to cleanup expired plugin sessions: %s", exc)
-
-    async def cleanup_expired_sessions(self) -> None:
-        """Remove plugin sessions older than the TTL via background thread."""
-        await asyncio.to_thread(self._cleanup_expired_sessions_sync)
-
-    def _session_path(self, session_id: str) -> Path:
-        safe_id = "".join(c for c in session_id if c.isalnum() or c in "-_")
-        return self.staging_dir / f"{safe_id}.pkl"
 
 
 def parse_plugin_zip(zip_bytes: bytes) -> PluginParseResult:
@@ -201,9 +138,29 @@ def _scan_skill_security(skill: PluginSkill) -> list[str]:
     return result.issues if not result.passed else []
 
 
-def build_preview_result(result: PluginParseResult) -> dict[str, object]:
-    """Serialize a parse result into the preview response payload."""
+def _load_existing_skill_ids() -> dict[str, str]:
+    """Map active skill names to their skill_ids (conflict-detection SSOT).
+
+    Queried at preview and again at confirm time so the decision always reflects
+    the latest store state (preview flags are UI hints only, never trusted).
+    """
+    from app.core.skills.store.evolution_store import get_evolution_skill_store
+
+    store = get_evolution_skill_store()
+    return {skill.name: skill.skill_id for skill in store.get_active_skills()}
+
+
+def build_preview_result(
+    result: PluginParseResult,
+    existing_names: set[str] | None = None,
+) -> dict[str, object]:
+    """Serialize a parse result into the preview response payload.
+
+    ``existing_names`` marks skills that already exist in the store so the UI
+    can offer replace/skip instead of silently duplicating them.
+    """
     meta = result.meta
+    existing = existing_names or set()
     return {
         "plugin": {
             "name": meta.name if meta else "",
@@ -216,7 +173,7 @@ def build_preview_result(result: PluginParseResult) -> dict[str, object]:
             "keywords": list(meta.keywords) if meta else [],
         },
         "skills": [
-            _preview_skill(idx, skill)
+            _preview_skill(idx, skill, existing)
             for idx, skill in enumerate(result.skills)
         ],
         "servers": [
@@ -244,7 +201,9 @@ def build_preview_result(result: PluginParseResult) -> dict[str, object]:
     }
 
 
-def _preview_skill(idx: int, skill: PluginSkill) -> dict[str, object]:
+def _preview_skill(
+    idx: int, skill: PluginSkill, existing_names: set[str]
+) -> dict[str, object]:
     """Serialize one skill for the preview payload."""
     oversized = _skill_content_too_large(skill)
     return {
@@ -256,6 +215,7 @@ def _preview_skill(idx: int, skill: PluginSkill) -> dict[str, object]:
         # preview mirrors confirm-time behavior instead of doing wasted work.
         "security_issues": [] if oversized else _scan_skill_security(skill),
         "oversized_content": oversized,
+        "conflict": skill.name in existing_names,
     }
 
 
@@ -283,21 +243,33 @@ async def confirm_plugin_import(
 ) -> dict[str, object]:
     """Persist selected skills + MCP servers and optionally bind them to an agent.
 
-    Skills are installed with ``EvolutionType.FIX`` lineage (imported via plugin).
-    MCP servers are appended to the global ``mcpServers`` UserConfig disabled. When
-    ``bind_agent_id`` is set, imported skill ids and server names are appended to the
-    agent's ``skill_ids`` / ``mcp_ids``.
+    Skills are installed with ``EvolutionType.FIX`` lineage when new, or upgraded
+    in place with ``EvolutionType.DERIVED`` lineage when a same-name skill already
+    exists. MCP servers are appended to the global ``mcpServers`` UserConfig
+    disabled. When ``bind_agent_id`` is set, imported skill ids and server names
+    are appended to the agent's ``skill_ids`` / ``mcp_ids``.
     """
     skill_records, skill_ids, skipped_skills = _collect_skill_records(
-        session, skill_decisions
+        session, skill_decisions, _load_existing_skill_ids()
     )
     server_configs, skipped_servers = _collect_server_configs(session, server_decisions)
 
     if skill_records:
         await _write_skills(skill_records)
     imported_server_names: list[str] = []
+    required_secret_keys: list[str] = []
     if server_configs:
         imported_server_names = await _write_mcp_servers(server_configs)
+        persisted_names = set(imported_server_names)
+        # Only entries actually persisted (dedup skips existing names) drive the
+        # secret guidance; a name-collision skip must not ask for new secrets.
+        required_secret_keys = _collect_required_secret_keys(
+            [
+                cfg
+                for cfg in server_configs
+                if str(cfg.get("name", "")) in persisted_names
+            ]
+        )
     if bind_agent_id and (skill_ids or imported_server_names):
         await _bind_agent(
             skill_ids=skill_ids,
@@ -310,12 +282,14 @@ async def confirm_plugin_import(
         "skipped_skills": skipped_skills,
         "imported_servers": len(imported_server_names),
         "skipped_servers": skipped_servers,
+        "required_secret_keys": required_secret_keys,
     }
 
 
 def _collect_skill_records(
     session: PluginImportSession,
     decisions: list[PluginConfirmItem],
+    existing_ids: dict[str, str],
 ) -> tuple[list[SkillRecord], list[str], int]:
     plugin_name = (
         session.plugin_result.meta.name if session.plugin_result.meta else "plugin"
@@ -331,7 +305,7 @@ def _collect_skill_records(
         if skill is None:
             skipped += 1
             continue
-        if skill.content and len(skill.content) > MAX_SKILL_CONTENT_CHARS:
+        if _skill_content_too_large(skill):
             logger.warning(
                 "Skipping oversized skill '%s' (%d chars, max %d)",
                 skill.name,
@@ -343,7 +317,30 @@ def _collect_skill_records(
         if _scan_skill_security(skill):
             skipped += 1
             continue
-        skill_id = str(uuid.uuid4())
+
+        existing_id = existing_ids.get(skill.name)
+        if existing_id:
+            # Same-name skill already installed: upgrade it in place so the
+            # library never accumulates duplicate names. The authoritative map
+            # is queried at confirm time (not the frontend's decision payload),
+            # so any install/replace decision on a conflict resolves to overwrite.
+            skill_id = existing_id
+            lineage = SkillLineage(
+                evolution_type=EvolutionType.DERIVED,
+                version=1,
+                parent_id=existing_id,
+                change_summary=f"Upgraded via Agent Plugin '{plugin_name}'",
+                created_by="plugin_import",
+            )
+        else:
+            skill_id = str(uuid.uuid4())
+            lineage = SkillLineage(
+                evolution_type=EvolutionType.FIX,
+                version=1,
+                parent_id=None,
+                change_summary=f"Imported via Agent Plugin '{plugin_name}'",
+                created_by="plugin_import",
+            )
         records.append(
             SkillRecord(
                 skill_id=skill_id,
@@ -351,13 +348,7 @@ def _collect_skill_records(
                 description=skill.description,
                 content=skill.content,
                 path=f"plugins/{plugin_name}/{skill.name}/SKILL.md",
-                lineage=SkillLineage(
-                    evolution_type=EvolutionType.FIX,
-                    version=1,
-                    parent_id=None,
-                    change_summary=f"Imported via Agent Plugin '{plugin_name}'",
-                    created_by="plugin_import",
-                ),
+                lineage=lineage,
             )
         )
         skill_ids.append(skill_id)
@@ -369,127 +360,3 @@ async def _write_skills(records: list[SkillRecord]) -> None:
 
     store = get_evolution_skill_store()
     await store.save_skills_batch(records)
-
-
-def _collect_server_configs(
-    session: PluginImportSession,
-    decisions: list[PluginConfirmItem],
-) -> tuple[list[dict[str, object]], int]:
-    configs: list[dict[str, object]] = []
-    skipped = 0
-    for decision in decisions:
-        if decision.resolution == "skip":
-            skipped += 1
-            continue
-        server = session.servers_by_key.get(decision.virtual_id)
-        if server is None:
-            skipped += 1
-            continue
-        configs.append(_server_to_config_dict(server))
-    return configs, skipped
-
-
-def _server_to_config_dict(server: PluginMcpServer) -> dict[str, object]:
-    """Serialize a plugin MCP server into the mcpServers entry shape."""
-    cfg: dict[str, object] = {
-        "name": server.name,
-        "type": server.server_type,
-        "description": "Imported via Agent Plugin",
-        "enabled": False,
-        "connectTimeout": 15.0,
-        "executeTimeout": 120.0,
-        "hostSerial": False,
-    }
-    if server.command:
-        cfg["command"] = server.command
-    if server.args:
-        cfg["args"] = server.args
-    if server.url:
-        cfg["url"] = server.url
-    if server.headers:
-        # Persist only header key names (mapped to secret refs) so credential
-        # material from package headers is never stored as plaintext.
-        cfg["headers"] = {k: ("{{secret:" + k + "}}") for k in server.headers}
-    extra_params: dict[str, object] = {}
-    if server.cwd:
-        extra_params["cwd"] = server.cwd
-    if server.raw_env:
-        extra_params["env"] = server.raw_env
-    if extra_params:
-        cfg["extra_params"] = extra_params
-    return cfg
-
-
-async def _write_mcp_servers(
-    configs: list[dict[str, object]],
-) -> list[str]:
-    """Persist MCP servers, skipping existing names; returns persisted names.
-
-    The returned names reflect only entries actually written so callers can
-    count/bind exactly what landed (a duplicate name is skipped, not bound).
-    """
-    from app.services.config.service import config_service
-
-    record = await config_service.get("mcpServers")
-    existing: list[dict[str, object]] = []
-    if record is not None and isinstance(record.value, list):
-        existing = list(record.value)
-
-    existing_names = {
-        str(cfg.get("name", "")) for cfg in existing if isinstance(cfg, dict)
-    }
-    new_configs: list[dict[str, object]] = []
-    persisted_names: list[str] = []
-    for cfg in configs:
-        name = str(cfg.get("name", "")).strip()
-        if not name or name in existing_names:
-            continue
-        entry = {**cfg, "enabled": False}
-        existing.append(entry)
-        existing_names.add(name)
-        new_configs.append(entry)
-        persisted_names.append(name)
-
-    if new_configs:
-        await config_service.set("mcpServers", existing, device_id="plugin-import")
-    return persisted_names
-
-
-async def _bind_agent(
-    agent_id: str,
-    *,
-    skill_ids: list[str],
-    server_names: list[str],
-) -> None:
-    """Append imported skills + MCP server names to the agent profile.
-
-    Uses a single ``AgentUpdate`` so skill and MCP bindings land atomically.
-    Missing agents and duplicate ids are silently tolerated.
-    """
-    from app.database.dto import AgentUpdate
-    from app.services.agent.agent_service import AgentService
-
-    profile = await AgentService.get_agent_by_id(agent_id)
-    if profile is None:
-        return
-    metadata = profile.metadata or {}
-    update_fields: dict[str, list[str]] = {}
-    if skill_ids:
-        existing_skills = metadata.get("skill_ids", [])
-        update_fields["skill_ids"] = list(
-            dict.fromkeys(
-                [*(str(s) for s in existing_skills if isinstance(s, str)), *skill_ids]
-            )
-        )
-    if server_names:
-        existing_servers = metadata.get("mcp_ids", [])
-        update_fields["mcp_ids"] = list(
-            dict.fromkeys(
-                [
-                    *(str(s) for s in existing_servers if isinstance(s, str)),
-                    *server_names,
-                ]
-            )
-        )
-    if update_fields:
-        await AgentService.update_agent(agent_id, AgentUpdate(**update_fields))

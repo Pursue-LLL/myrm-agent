@@ -11,6 +11,7 @@ import io
 import json
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -69,6 +70,10 @@ def _plugin_zip_bytes() -> bytes:
 
 def test_preview_returns_component_preview(client: TestClient, tmp_path: Path) -> None:
     with (
+        patch(
+            "app.services.plugins.import_service._load_existing_skill_ids",
+            return_value={},
+        ),
         patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
             return_value=tmp_path / "skills.db",
@@ -209,6 +214,10 @@ def test_preview_flags_dangerous_skill(
         )
     with (
         patch(
+            "app.services.plugins.import_service._load_existing_skill_ids",
+            return_value={},
+        ),
+        patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
             return_value=tmp_path / "skills.db",
         ),
@@ -257,6 +266,10 @@ def test_preview_surfaces_oversized_skill_flag(
         )
     with (
         patch(
+            "app.services.plugins.import_service._load_existing_skill_ids",
+            return_value={},
+        ),
+        patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
             return_value=tmp_path / "skills.db",
         ),
@@ -275,14 +288,49 @@ def test_preview_surfaces_oversized_skill_flag(
     assert body["skills"][0]["oversized_content"] is True
 
 
+def test_preview_surfaces_name_conflict_flag(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """conflict must reach the HTTP contract, not vanish in the response model."""
+    with (
+        patch(
+            "app.services.plugins.import_service._load_existing_skill_ids",
+            return_value={"summarize": "existing-skill-id"},
+        ),
+        patch(
+            "app.api.plugins.import_.get_evolution_skill_store_db_path",
+            return_value=tmp_path / "skills.db",
+        ),
+        patch(
+            "app.services.plugins.import_service._scan_skill_security",
+            return_value=[],
+        ),
+    ):
+        response = client.post(
+            "/api/v1/plugins/import/preview",
+            files={
+                "file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["skills"][0]["conflict"] is True
+
+
 def test_confirm_persists_components(client: TestClient, tmp_path: Path) -> None:
     session_id = "sess-api-1"
 
     fake_store = AsyncMock()
+    fake_store.get_active_skills = lambda: []
     config_service = AsyncMock()
     agent_service = AsyncMock()
 
     with (
+        patch(
+            "app.services.plugins.import_service._load_existing_skill_ids",
+            return_value={},
+        ),
         patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
             return_value=tmp_path / "skills.db",
@@ -399,7 +447,10 @@ def test_preview_confirm_roundtrip(client: TestClient, tmp_path: Path) -> None:
         ),
         patch(
             "app.core.skills.store.evolution_store.get_evolution_skill_store",
-            return_value=AsyncMock(),
+            return_value=SimpleNamespace(
+                save_skills_batch=AsyncMock(),
+                get_active_skills=lambda: [],
+            ),
         ),
         patch(
             "app.services.config.service.config_service",

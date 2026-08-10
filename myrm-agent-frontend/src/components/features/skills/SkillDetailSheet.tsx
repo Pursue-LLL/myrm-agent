@@ -143,7 +143,7 @@ const SkillDetailSheet = memo(
                   className="hidden sm:flex"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {t('export')}
+                  {t('detail.export')}
                 </Button>
                 {showDeleteButton && (
                   <Button

@@ -209,6 +209,74 @@ def test_wait_turn_done_timeout_includes_latest_last() -> None:
     assert "Timed out waiting for assistant OK:" in message
 
 
+def test_wait_turn_done_ok_in_main_ignored_while_bridge_streaming() -> None:
+    """Regression: okInMain must NOT short-circuit while bridge reports streaming.
+
+    The DOM main-text heuristic (page chrome can contain "OK" tokens) previously
+    let wait_turn_done return before the assistant turn actually finished,
+    stranding wait_input_empty on a still-streaming bridge. When the bridge
+    probe succeeds with isStreaming=True, the DOM fallback must wait instead.
+    """
+    turn = _turn()
+
+    async def fake_bridge() -> dict[str, object] | None:
+        return {
+            "chatId": "s2",
+            "userCount": 1,
+            "isStreaming": True,
+            "hasCompletionSignal": False,
+            "hasOk": False,
+            "lastAssistantSample": "",
+        }
+
+    async def fake_main_state(_prompt: str, *, intent: object) -> dict[str, object]:
+        return {
+            "hasUserPrompt": True,
+            "okInMain": True,  # misleading: page chrome contains "OK"
+            "sending": False,
+            "path": "/chat/s2",
+            "sample": "…OK…",
+        }
+
+    turn._bridge_turn_snapshot = fake_bridge  # type: ignore[method-assign]
+    turn.main_state = fake_main_state  # type: ignore[method-assign]
+    turn.resolve_chat_id = AsyncMock(return_value="s2")  # type: ignore[method-assign]
+    turn.bridge_chat_id = AsyncMock(return_value="s2")  # type: ignore[method-assign]
+    turn._finish_if_api_ok = AsyncMock(return_value=None)  # type: ignore[method-assign]
+
+    with pytest.raises(TimeoutError, match="s2"):
+        asyncio.run(
+            _run(
+                lambda: turn.wait_turn_done("hi", chat_id_hint="s2", timeout_sec=0.05)
+            )
+        )
+
+
+def test_wait_turn_done_ok_in_main_still_allowed_when_bridge_null() -> None:
+    """DOM okInMain fallback remains reachable when the bridge probe fails."""
+    turn = _turn()
+
+    async def fake_bridge() -> dict[str, object] | None:
+        return None  # transport failure → bridge_streaming=False
+
+    async def fake_main_state(_prompt: str, *, intent: object) -> dict[str, object]:
+        return {"hasUserPrompt": True, "okInMain": True, "path": "/chat/d1"}
+
+    async def fake_resolve(**kwargs: object) -> str | None:
+        return "d1"
+
+    turn._bridge_turn_snapshot = fake_bridge  # type: ignore[method-assign]
+    turn.main_state = fake_main_state  # type: ignore[method-assign]
+    turn.resolve_chat_id = fake_resolve  # type: ignore[method-assign]
+    turn.bridge_chat_id = AsyncMock(return_value="d1")  # type: ignore[method-assign]
+    turn._finish_if_api_ok = AsyncMock(return_value=None)  # type: ignore[method-assign]
+
+    result = asyncio.run(
+        _run(lambda: turn.wait_turn_done("hi", chat_id_hint="d1"))
+    )
+    assert result.get("okInMain") is True
+
+
 def test_wait_turn_settled_dom_fallback_when_bridge_null() -> None:
     """wait_turn_settled recovers from persistent bridge failure via DOM probe."""
     turn = _turn()
@@ -392,3 +460,143 @@ def test_wait_e2e_goal_status_skips_non_persisted_records() -> None:
     assert goal is not None
     assert goal.get("objective") == "research topic"
     assert calls["n"] == 2
+
+
+def test_wait_input_empty_normal_completed_turn_returns_immediately() -> None:
+    """Completed turn (no Stop button, empty input, not streaming) must return fast.
+
+    Regression for the repeated ``Chat input not ready for send`` LIVE failures
+    where the old code required ``not sendDisabled`` — but the frontend send
+    button is inherently disabled when the input is empty, so the completed
+    state (inputLen=0 + sendDisabled=true) could never satisfy it.
+    """
+    turn = _turn()
+
+    async def fake_bridge() -> dict[str, object] | None:
+        return {
+            "chatId": "c1",
+            "userCount": 1,
+            "isStreaming": False,
+            "hasCompletionSignal": True,
+            "hasOk": True,
+        }
+
+    async def fake_dom() -> dict[str, object]:
+        # Completed turn: no Stop button, input already cleared.
+        return {"sending": False, "inputLen": 0, "hasStopBtn": False}
+
+    async def fake_send_state() -> dict[str, object]:
+        return {"ok": False, "inputLen": 0, "sendDisabled": True}
+
+    turn._bridge_turn_snapshot = fake_bridge  # type: ignore[method-assign]
+    turn._dom_state = fake_dom  # type: ignore[method-assign]
+    turn.send_state = fake_send_state  # type: ignore[method-assign]
+    cleared = {"n": 0}
+
+    async def fake_clear() -> None:
+        cleared["n"] += 1
+
+    turn._clear_input_via_bridge = fake_clear  # type: ignore[method-assign]
+    with patch(
+        "cdp_chat_turn.chat_messages_have_ok",
+        return_value=True,
+    ):
+        asyncio.run(
+            _run(lambda: turn.wait_input_empty(chat_id_hint="c1", timeout_sec=2.0))
+        )
+    # API confirms OK → clears then returns; must not hang to timeout.
+    assert cleared["n"] == 1
+
+
+def test_wait_input_empty_waits_while_stop_button_present() -> None:
+    """While loading (Stop button in DOM) the wait must keep polling, not return."""
+    turn = _turn()
+    state = {"loading": True}
+
+    async def fake_bridge() -> dict[str, object] | None:
+        return {
+            "chatId": "c1",
+            "userCount": 1,
+            "isStreaming": state["loading"],
+            "hasCompletionSignal": True,
+        }
+
+    async def fake_dom() -> dict[str, object]:
+        return {"sending": state["loading"], "inputLen": 0, "hasStopBtn": state["loading"]}
+
+    async def fake_send_state() -> dict[str, object]:
+        return {"ok": False, "inputLen": 0, "sendDisabled": True}
+
+    async def fake_evaluate(*_args: object, **_kwargs: object) -> object:
+        return None
+
+    calls = {"n": 0}
+
+    async def fake_clear() -> None:
+        calls["n"] += 1
+
+    turn._bridge_turn_snapshot = fake_bridge  # type: ignore[method-assign]
+    turn._dom_state = fake_dom  # type: ignore[method-assign]
+    turn.send_state = fake_send_state  # type: ignore[method-assign]
+    turn._clear_input_via_bridge = fake_clear  # type: ignore[method-assign]
+    turn.evaluate = fake_evaluate  # type: ignore[method-assign]
+
+    async def flipper() -> None:
+        await asyncio.sleep(0.05)
+        state["loading"] = False
+
+    async def scenario() -> None:
+        task = asyncio.create_task(
+            turn.wait_input_empty(chat_id_hint="c1", timeout_sec=2.0)
+        )
+        await flipper()
+        await task
+
+    with patch(
+        "cdp_chat_turn.chat_messages_have_ok",
+        return_value=False,
+    ):
+        asyncio.run(scenario())
+    assert calls["n"] == 0
+
+
+def test_wait_input_empty_clears_residual_text_when_not_loading() -> None:
+    """Residual input text (not loading) is cleared then returns."""
+    turn = _turn()
+    cleared = {"n": 0}
+
+    async def fake_bridge() -> dict[str, object] | None:
+        return {
+            "chatId": "c1",
+            "userCount": 1,
+            "isStreaming": False,
+            "hasCompletionSignal": True,
+        }
+
+    async def fake_dom() -> dict[str, object]:
+        return {"sending": False, "inputLen": 3, "hasStopBtn": False}
+
+    sends = {"n": 0}
+
+    async def fake_send_state() -> dict[str, object]:
+        sends["n"] += 1
+        if sends["n"] == 1:
+            return {"ok": False, "inputLen": 3, "sendDisabled": False}
+        return {"ok": False, "inputLen": 0, "sendDisabled": True}
+
+    async def fake_clear() -> None:
+        cleared["n"] += 1
+
+    turn._bridge_turn_snapshot = fake_bridge  # type: ignore[method-assign]
+    turn._dom_state = fake_dom  # type: ignore[method-assign]
+    turn.send_state = fake_send_state  # type: ignore[method-assign]
+    turn._clear_input_via_bridge = fake_clear  # type: ignore[method-assign]
+
+    with patch(
+        "cdp_chat_turn.chat_messages_have_ok",
+        return_value=False,
+    ):
+        asyncio.run(
+            _run(lambda: turn.wait_input_empty(chat_id_hint="c1", timeout_sec=2.0))
+        )
+    assert cleared["n"] == 1

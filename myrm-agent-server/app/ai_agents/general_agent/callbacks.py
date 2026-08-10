@@ -141,7 +141,7 @@ def make_skill_review_callback() -> Callable[[dict[str, object]], None]:
         asyncio.create_task(_notify_async(result))
 
     async def _notify_async(result: dict[str, object]) -> None:
-        from app.services.skills.growth_lifecycle import process_skill_review_result
+        from app.services.skills.growth.lifecycle import process_skill_review_result
 
         try:
             await process_skill_review_result(result)

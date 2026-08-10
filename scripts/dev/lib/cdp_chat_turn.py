@@ -406,7 +406,12 @@ class CdpChatTurn(CdpChatSubmit):
                 )
                 if finished is not None:
                     return finished
-            if last.get("hasUserPrompt") and last.get("okInMain"):
+            bridge_streaming = isinstance(bridge, dict) and bridge.get("isStreaming") is True
+            if (
+                not bridge_streaming
+                and last.get("hasUserPrompt")
+                and last.get("okInMain")
+            ):
                 if chat_id:
                     maybe_register_e2e_chat(chat_id)
                     last["chatId"] = chat_id
@@ -470,6 +475,13 @@ class CdpChatTurn(CdpChatSubmit):
         await self.evaluate(
             """(() => {
               window.__MYRM_E2E_CHAT__?.setInputMessage?.('');
+              const input = document.querySelector('[data-chat-input]');
+              if (input && (input.value || '').length > 0) {
+                const proto = Object.getPrototypeOf(input);
+                const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+                if (setter) setter.call(input, '');
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+              }
               return { ok: true };
             })()""",
             intent=EvaluateIntent.SYNC_PROBE,
@@ -483,6 +495,7 @@ class CdpChatTurn(CdpChatSubmit):
     ) -> None:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
+        last_loading: dict[str, object] = {}
         while time.monotonic() < deadline:
             if chat_id_hint:
                 try:
@@ -492,29 +505,43 @@ class CdpChatTurn(CdpChatSubmit):
                 except OSError:
                     pass
             bridge = await self._bridge_turn_snapshot()
-            if (
-                isinstance(bridge, dict)
-                and not bridge.get("isStreaming")
-                and (
-                    _bridge_has_completion(bridge)
-                    or int(bridge.get("userCount") or 0) >= 1
-                )
-            ):
-                await self._clear_input_via_bridge()
-                probe = await self.send_state()
-                if int(probe.get("inputLen") or 0) == 0:
-                    return
+            if isinstance(bridge, dict):
+                last = bridge
+            dom = await self._dom_state()
+            loading = bool(
+                (isinstance(bridge, dict) and bridge.get("isStreaming"))
+                or dom.get("sending")
+            )
             probe = await self.send_state()
-            last = probe
-            if not probe.get("sendDisabled") and int(probe.get("inputLen") or 0) == 0:
+            last = {**probe, **last}
+            last_loading = {"loading": loading, "domSending": dom.get("sending"), "bridge": bridge}
+            if not loading and int(probe.get("inputLen") or 0) == 0:
                 return
-            if not probe.get("sendDisabled") and int(probe.get("inputLen") or 0) > 0:
+            if not loading and int(probe.get("inputLen") or 0) > 0:
                 await self._clear_input_via_bridge()
                 probe = await self.send_state()
                 if int(probe.get("inputLen") or 0) == 0:
                     return
             await asyncio.sleep(1)
-        raise TimeoutError(f"Chat input not ready for send: {last}")
+        raise TimeoutError(
+            f"Chat input not ready for send: {last} loading={last_loading}"
+        )
+
+    async def _dom_state(self) -> dict[str, object]:
+        probe = await self.evaluate(
+            """(() => {
+              const main = document.querySelector('main');
+              const stop = main?.querySelector('button[aria-label="Stop"]');
+              const input = document.querySelector('[data-chat-input]');
+              return {
+                sending: !!stop,
+                inputLen: (input?.value || '').length,
+                hasStopBtn: !!stop,
+              };
+            })()""",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        return probe if isinstance(probe, dict) else {}
 
     async def _attach_chat_session(self, chat_id: str) -> None:
         payload = json.dumps(chat_id)

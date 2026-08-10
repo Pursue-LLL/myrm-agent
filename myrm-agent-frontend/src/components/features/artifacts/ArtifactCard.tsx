@@ -866,6 +866,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
                 });
               }}
               title={t('wechatDraft.openPanel')}
+              data-testid="wechat-draft-open-panel"
             >
               <Send className="w-4 h-4" />
             </Button>
@@ -1151,6 +1152,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
           </div>
           {wechatComplianceHits.length > 0 && (
             <div
+              data-testid="wechat-draft-compliance-panel"
               className={cn(
                 'rounded-md border p-3 space-y-2',
                 wechatComplianceSeverity === 'warning'
@@ -1191,6 +1193,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
             className="h-8 w-full sm:w-auto"
             variant={wechatDraftPushSucceeded ? 'outline' : 'default'}
             disabled={wechatDraftLoading}
+            data-testid="wechat-draft-confirm-push"
             onClick={() => {
               if (wechatDraftPushSucceeded) {
                 handleDismissWeChatDraftPanel();

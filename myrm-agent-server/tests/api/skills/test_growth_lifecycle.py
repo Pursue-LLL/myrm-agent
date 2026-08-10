@@ -7,7 +7,7 @@ from sqlalchemy import delete
 
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord, ExperienceLedgerEvent
-from app.services.skills.growth_lifecycle import process_skill_review_result
+from app.services.skills.growth.lifecycle import process_skill_review_result
 
 
 @pytest.fixture(autouse=True)

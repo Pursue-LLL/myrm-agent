@@ -2,7 +2,7 @@
 [INPUT]
 - app.database.models::ExperienceLedgerEvent (POS: 技能域模型。管理技能进化审批、迁移审批、学习资产事件。)
 - app.services.skills.experience_ledger::list_experience_events (POS: 学习资产事件账本服务)
-- app.services.skills.growth_projection_queries::list_skill_growth_projection_events (POS: 技能成长账本投影查询层)
+- app.services.skills.growth.projection_queries::list_skill_growth_projection_events (POS: 技能成长账本投影查询层)
 [OUTPUT]
 - Experience ledger list API and skill-growth projection APIs
 [POS]
@@ -19,7 +19,7 @@ from app.services.skills.experience_ledger import (
     count_experience_events,
     list_experience_events,
 )
-from app.services.skills.growth_projection_queries import (
+from app.services.skills.growth.projection_queries import (
     SkillGrowthProjectionEventRead,
     list_skill_growth_projection_events,
     summarize_skill_growth_projection,

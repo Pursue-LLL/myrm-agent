@@ -37,6 +37,7 @@ MemoryExtractionPresetLiteral = Literal[
     "none", "auto", "persona", "work_assistant", "research"
 ]
 PromptModeLiteral = Literal["full", "lean", "naked", "search"]
+SecurityPresetLiteral = Literal["hitl", "accept_edits", "explore"]
 WorkspacePolicyLiteral = Literal[
     "INHERIT_REQUESTER", "ISOLATED_COPY", "READ_ONLY_SANDBOX"
 ]
@@ -514,6 +515,14 @@ class AgentBase(BaseModel):
     security_overrides: dict[str, object] | None = Field(
         None, description="Per-agent security policy overrides"
     )
+    default_security_preset: SecurityPresetLiteral | None = Field(
+        None,
+        description=(
+            "Per-agent default chat security preset (hitl/accept_edits/explore). "
+            "New sessions bound to this agent start with this preset; the user can "
+            "still override it per-session."
+        ),
+    )
     required_capabilities: list[str] = Field(
         default=[],
         description="该 Agent 运行所需的渠道能力列表（如 media, voice_message）",
@@ -638,6 +647,10 @@ class AgentUpdate(BaseModel):
     model_selection: ModelSelection | None = Field(None, description="绑定的模型选择")
     security_overrides: dict[str, object] | None = Field(
         None, description="Per-agent security policy overrides"
+    )
+    default_security_preset: SecurityPresetLiteral | None = Field(
+        None,
+        description="Per-agent default chat security preset. None=不修改。",
     )
     required_capabilities: list[str] = Field(
         default=[],

@@ -2,7 +2,7 @@
 [INPUT]
 - app.database.models.approval::ApprovalRecord (POS: 审批持久化模型)
 - app.services.event.app_event_bus::AppEvent (POS: 服务器级 SSE 总线)
-- app.services.skills.growth_constants::is_background_growth_approval (POS: growth draft 分流 SSOT)
+- app.services.skills.growth.constants::is_background_growth_approval (POS: growth draft 分流 SSOT)
 
 [OUTPUT]
 - ApprovalRegistry: 统一的拦截审批注册与唤醒中枢
@@ -21,7 +21,7 @@ from sqlalchemy import and_, func, or_, select
 from app.database.connection import get_session
 from app.database.models.approval import ApprovalRecord
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-from app.services.skills.growth_constants import GROWTH_ACTION_TYPES, is_background_growth_approval
+from app.services.skills.growth.constants import GROWTH_ACTION_TYPES, is_background_growth_approval
 
 logger = logging.getLogger(__name__)
 

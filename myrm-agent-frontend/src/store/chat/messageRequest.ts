@@ -703,10 +703,9 @@ export const createMessageRequest = async (
       agentConfig?.forceDelegateAgent && {
         force_delegate_agent: agentConfig.forceDelegateAgent,
       }),
-    ...(isAgentMode &&
-      useChatStore.getState().securityPreset !== 'hitl' && {
-        security_preset: useChatStore.getState().securityPreset,
-      }),
+    ...(isAgentMode && {
+      security_preset: useChatStore.getState().securityPreset,
+    }),
     ...(isStreamingMode &&
       useConfigStore.getState().privacyEnabled && {
         privacy_enabled: true,

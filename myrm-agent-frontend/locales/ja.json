@@ -3315,24 +3315,6 @@
         "empty": {
           "title": "このビューにはケースがありません",
           "description": "Agent が新しい経験を捕捉するか、改善をレビューした後、関連する記録がここに表示されます。"
-        },
-        "export": {
-          "title": "スキルをエクスポート: {name}",
-          "description": "エクスポート前に内容を確認してください。機密情報は自動的に匿名化されます。",
-          "scanning": "機密情報をスキャン中...",
-          "safeTitle": "できますセキュリティエクスポート",
-          "safeDescription": "このスキルで機密情報（API キー、絶対パス）は検出されませんでした。",
-          "warningTitle": "機密情報が検出されました",
-          "warningDescription": "潜在的に機密の情報が見つかりました。マスキング済みバージョンをエクスポートすることを強く推奨します。",
-          "diffPreview": "匿名化プレビュー",
-          "cancel": "キャンセル",
-          "exportOriginal": "原版をエクスポート（安全でない）",
-          "exportRedacted": "匿名化版をエクスポート（安全）",
-          "export": "エクスポート",
-          "previewFailed": "プレビュースキル失敗",
-          "exportSuccess": "スキルをエクスポートしました",
-          "exportFailed": "スキルのエクスポートに失敗",
-          "toggleAll": "すべて切り替え"
         }
       },
       "upload": {
@@ -3657,6 +3639,24 @@
             "text": "リリース/公開のSOP — バージョニングチェックリスト、検証手順、ロールバック手順。"
           }
         }
+      },
+      "export": {
+        "title": "スキルをエクスポート: {name}",
+        "description": "エクスポート前に内容を確認してください。機密情報は自動的に匿名化されます。",
+        "scanning": "機密情報をスキャン中...",
+        "safeTitle": "できますセキュリティエクスポート",
+        "safeDescription": "このスキルで機密情報（API キー、絶対パス）は検出されませんでした。",
+        "warningTitle": "機密情報が検出されました",
+        "warningDescription": "潜在的に機密の情報が見つかりました。マスキング済みバージョンをエクスポートすることを強く推奨します。",
+        "diffPreview": "匿名化プレビュー",
+        "cancel": "キャンセル",
+        "exportOriginal": "原版をエクスポート（安全でない）",
+        "exportRedacted": "匿名化版をエクスポート（安全）",
+        "export": "エクスポート",
+        "previewFailed": "プレビュースキル失敗",
+        "exportSuccess": "スキルをエクスポートしました",
+        "exportFailed": "スキルのエクスポートに失敗",
+        "toggleAll": "すべて切り替え"
       }
     },
     "language": "言語",
@@ -5820,6 +5820,7 @@
           "selectAll": "すべてインストール",
           "skipAll": "すべてスキップ",
           "install": "インストール",
+          "replace": "置き換え",
           "skip": "スキップ",
           "cancel": "キャンセル",
           "confirm": "インポートを確定",
@@ -5837,7 +5838,8 @@
         },
         "security": {
           "blocked": "セキュリティリスク {count} 件のためブロックされ、自動的にスキップされました",
-          "oversized": "スキル内容がストレージ上限（64 KB）を超えているため、自動的にスキップされました"
+          "oversized": "スキル内容がストレージ上限（64 KB）を超えているため、自動的にスキップされました",
+          "conflict": "同名のスキルが既に存在します。「置き換え」で既存スキルを更新するか、「スキップ」で現在のものを保持します"
         },
         "errors": {
           "parseTitle": "解析エラー",
@@ -5847,7 +5849,9 @@
         },
         "success": {
           "title": "インポート成功",
-          "description": "スキル {skills} 個、MCP サーバー {servers} 個をインポートしました"
+          "description": "スキル {skills} 個、MCP サーバー {servers} 個をインポートしました",
+          "requiredKeys": "インポート後、Agent Secrets でこれらのキーを設定してください：{keys}",
+          "disabledHint": "インポートした MCP サーバーは初期状態で無効です。MCP 設定で有効にしてください"
         }
       }
     }
@@ -6329,7 +6333,7 @@
       "turn1BudgetServiceWarning": "このサービスの選択エンドポイントがTurn1バインド予算を超える可能性があります。エージェント起動エラーを避けるため選択を減らしてください。"
     },
     "sharedContexts": {
-      "targetLabel": "Agent",
+      "targetLabel": "エージェント",
       "title": "共有コンテキスト",
       "description": "このエージェントの実行時に継承すべき再利用可能なメモリ空間をバインドします。",
       "refresh": "更新",
@@ -6740,6 +6744,20 @@
     },
     "security": {
       "tabTitle": "セキュリティポリシー",
+      "defaultPresetTitle": "デフォルトセッションセキュリティプリセット",
+      "defaultPresetDesc": "このエージェントにバインドまたは切り替えたとき、新しいセッションはこのセキュリティプリセットで開始されます。チャット中にセッション単位で切り替えることもできます。",
+      "defaultPresetInherit": "グローバル設定を継承（手動承認）",
+      "presets": {
+        "hitl": {
+          "label": "手動承認"
+        },
+        "accept_edits": {
+          "label": "編集を自動承認"
+        },
+        "explore": {
+          "label": "読み取り専用"
+        }
+      },
       "capabilitiesTitle": "能力制限",
       "capabilitiesDesc": "このエージェントが使用を許可される能力を選択します。選択された能力のみが利用可能です（グローバルポリシーとの共通部分）。",
       "noCapabilities": "利用可能なツールがありません",
@@ -10034,7 +10052,7 @@
     "missingContext": "コンテキストメタデータを利用できません",
     "unbind": "バインド解除",
     "targets": {
-      "agent": "Agent",
+      "agent": "エージェント",
       "channel": "チャネル",
       "cron": "定期タスク",
       "conversation": "セッション",
@@ -10547,6 +10565,12 @@
       "autoLogin": "自動認証中...",
       "autoLoginFailed": "自動ログインに失敗しました。パスワードでログインしてください。"
     },
+    "oauthErrorTitle": "OAuth エラー",
+    "oauthErrorDescription": "認証に失敗しました。もう一度お試しください。",
+    "loginSuccessTitle": "ログイン成功",
+    "loginSuccessDescription": "正常にログインしました。",
+    "loginFailedTitle": "ログイン失敗",
+    "tokenVerificationFailed": "トークン検証に失敗しました。再度ログインしてください。",
     "oauth": {
       "title": "ログイン中",
       "description": "セキュアなサインインを完了中…",
@@ -12478,31 +12502,6 @@
     "triggerPrefixPlaceholder": "プレフィックスを入力（例: /ask または !ai）",
     "triggerPrefixAdd": "追加",
     "triggerMentionOverrideHint": "@メンションは選択したトリガーモードに関係なく常に返信をトリガーします。",
-    "authorizeNow": "今すぐ承認",
-    "cancelLoginFailed": "ログインのキャンセルに失敗しました",
-    "connectionError": "接続エラー",
-    "generatingQrCode": "Generating QR code…",
-    "initializing": "Initializing…",
-    "loginCancelled": "ログインがキャンセルされました",
-    "loginFailed": "ログインに失敗しました",
-    "loginSuccess": "ログインに成功しました",
-    "loginTimeout": "ログインがタイムアウトしました",
-    "oauth2Instructions": "ボタンをクリックして認証ページを開きます",
-    "oauth2Login": "OAuth2 Authorization",
-    "oauth2LoginDesc": "ブラウザで承認",
-    "oauth2LoginTitle": "Browser Authorization",
-    "oauth2Wait": "認証を待機中…",
-    "preparingOauth2": "認証を準備中…",
-    "qrCodeLogin": "QRコードログイン",
-    "qrCodeLoginDesc": "QR コードをスキャンして認証します",
-    "qrExpiresAt": "{time} に期限切れ",
-    "qr_codeLoginTitle": "QR コードログイン",
-    "scanQrCode": "モバイルアプリで QR コードをスキャンしてください",
-    "selectLoginMethod": "ログイン方法を選択",
-    "startLoginFailed": "ログインの開始に失敗しました",
-    "unknownError": "不明なエラー",
-    "validating": "Validating credentials…",
-    "waitingForUser": "Waiting for your action…",
     "dingtalk": {
       "corpId": "Corp ID",
       "agentId": "Agent ID",

@@ -1,8 +1,17 @@
 """业务层工件处理器
 
-负责处理框架层发出的 artifacts_ready 事件，按需读取并持久化。
-采用模板方法模式：基类实现完整的事件处理流程，子类只需实现 _persist_file() 定义持久化策略。
-对活跃内容（HTML/SVG/XHTML）强制设置下载模式，防止 XSS。
+[INPUT]
+- myrm_agent_harness.agent.artifacts::ArtifactInfo, infer_artifact_type (POS: Harness artifact types)
+- app.core.artifacts.listener::upsert_processor_artifact, resolve_sandbox_file_path (POS: Deploy DB rows + sandbox path resolution)
+- app.core.storage::FilesService (POS: File reference persistence)
+- app.services.artifacts.share_token::is_shareable_artifact (POS: Share eligibility for oversized artifacts)
+
+[OUTPUT]
+- LocalArtifactProcessor.process_artifacts_ready: artifacts SSE event (emit only after successful DB upsert)
+- PersistResult: file_id, file_size, resolved_path from persist
+
+[POS]
+Local-mode artifact processor: reference-only persist, resolved_path SSOT for IM deliverable deep links.
 """
 
 from __future__ import annotations

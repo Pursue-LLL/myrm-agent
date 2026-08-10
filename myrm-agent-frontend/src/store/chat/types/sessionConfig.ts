@@ -67,6 +67,8 @@ export interface AgentConfig {
   engineParams?: Record<string, unknown> | null;
   /** Agent prompt 模式（full/lean/naked/search），与 server agents.prompt_mode 对齐，用于模型切换压缩预检。 */
   promptMode?: 'full' | 'lean' | 'naked' | 'search';
+  /** Agent 默认会话安全预设（hitl/accept_edits/explore）。绑定/切换该 Agent 时用其初始化会话 securityPreset。 */
+  defaultSecurityPreset?: 'hitl' | 'accept_edits' | 'explore' | null;
 }
 
 // 已选模型配置

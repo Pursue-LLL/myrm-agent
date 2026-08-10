@@ -117,7 +117,7 @@ async def seed_approved_evolution_for_e2e(
     if not is_local_mode():
         raise HTTPException(status_code=403, detail="Only available in local mode")
 
-    from app.services.skills.evolution_review_types import EvolutionGrowthStatus
+    from app.services.skills.evolution_review.types import EvolutionGrowthStatus
     from app.services.skills.evolution_reviews import create_evolution_review_record
     from app.services.skills.experience_ledger import (
         ExperienceEntityType,

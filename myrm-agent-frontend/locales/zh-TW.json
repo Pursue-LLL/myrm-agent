@@ -3315,24 +3315,6 @@
         "empty": {
           "title": "當前檢視暫無案例",
           "description": "當 Agent 捕獲到新經驗、自動落地能力，或需要你稽核時，相關記錄會出現在這裡。"
-        },
-        "export": {
-          "title": "匯出技能: {name}",
-          "description": "在匯出前預覽內容。敏感資訊將被自動脫敏。",
-          "scanning": "正在掃描敏感資訊...",
-          "safeTitle": "可以安全匯出",
-          "safeDescription": "未在此技能中檢測到敏感資訊（API Keys、絕對路徑）。",
-          "warningTitle": "檢測到敏感資訊",
-          "warningDescription": "我們發現了潛在的敏感資訊。強烈建議匯出脫敏後的版本。",
-          "diffPreview": "脫敏預覽",
-          "cancel": "取消",
-          "exportOriginal": "匯出原版 (不安全)",
-          "exportRedacted": "匯出脫敏版 (安全)",
-          "export": "匯出",
-          "previewFailed": "預覽技能失敗",
-          "exportSuccess": "技能匯出成功",
-          "exportFailed": "匯出技能失敗",
-          "toggleAll": "全選 / 全不選"
         }
       },
       "upload": {
@@ -3657,6 +3639,24 @@
             "text": "我們的發布/上線 SOP——版本檢查清單、驗證步驟與回滾流程。"
           }
         }
+      },
+      "export": {
+        "title": "匯出技能: {name}",
+        "description": "在匯出前預覽內容。敏感資訊將被自動脫敏。",
+        "scanning": "正在掃描敏感資訊...",
+        "safeTitle": "可以安全匯出",
+        "safeDescription": "未在此技能中檢測到敏感資訊（API Keys、絕對路徑）。",
+        "warningTitle": "檢測到敏感資訊",
+        "warningDescription": "我們發現了潛在的敏感資訊。強烈建議匯出脫敏後的版本。",
+        "diffPreview": "脫敏預覽",
+        "cancel": "取消",
+        "exportOriginal": "匯出原版 (不安全)",
+        "exportRedacted": "匯出脫敏版 (安全)",
+        "export": "匯出",
+        "previewFailed": "預覽技能失敗",
+        "exportSuccess": "技能匯出成功",
+        "exportFailed": "匯出技能失敗",
+        "toggleAll": "全選 / 全不選"
       }
     },
     "language": "語言",
@@ -5820,6 +5820,7 @@
           "selectAll": "全部安裝",
           "skipAll": "全部略過",
           "install": "安裝",
+          "replace": "覆蓋",
           "skip": "略過",
           "cancel": "取消",
           "confirm": "確認匯入",
@@ -5843,11 +5844,14 @@
         },
         "success": {
           "title": "匯入成功",
-          "description": "已匯入 {skills} 個技能、{servers} 個 MCP 伺服器"
+          "description": "已匯入 {skills} 個技能、{servers} 個 MCP 伺服器",
+          "requiredKeys": "匯入後請在「智慧代理密鑰」中設定：{keys}",
+          "disabledHint": "匯入的 MCP 伺服器預設停用，請在 MCP 設定中啟用後再使用"
         },
         "security": {
           "blocked": "包含 {count} 項安全風險，已自動略過，無法安裝",
-          "oversized": "技能內容超過儲存大小限制（64 KB），已自動略過，無法安裝"
+          "oversized": "技能內容超過儲存大小限制（64 KB），已自動略過，無法安裝",
+          "conflict": "已存在同名技能：選擇「覆蓋」升級現有技能，或「略過」保留目前版本"
         }
       }
     }
@@ -6332,7 +6336,7 @@
       "turn1BudgetServiceWarning": "該服務已選 endpoint 可能超出 Turn1 綁定預算。請減少選擇，避免 Agent 啟動失敗。"
     },
     "sharedContexts": {
-      "targetLabel": "Agent",
+      "targetLabel": "智能體",
       "title": "共享上下文",
       "description": "繫結該智慧體執行時應繼承的可複用記憶空間。",
       "refresh": "重新整理",
@@ -6740,6 +6744,20 @@
     },
     "security": {
       "tabTitle": "安全策略",
+      "defaultPresetTitle": "預設會話安全預設",
+      "defaultPresetDesc": "每次綁定或切換到該智慧體時，新會話預設採用的安全預設；您仍可在對話中臨時切換。",
+      "defaultPresetInherit": "繼承全域（手動審批）",
+      "presets": {
+        "hitl": {
+          "label": "手動審批"
+        },
+        "accept_edits": {
+          "label": "自動批准編輯"
+        },
+        "explore": {
+          "label": "唯讀"
+        }
+      },
       "capabilitiesTitle": "能力限制",
       "capabilitiesDesc": "選擇此智慧體允許使用的能力。僅選中的能力可用（與全域性策略取交集）。",
       "noCapabilities": "無限制 — 繼承全域性策略的所有能力。",
@@ -10034,7 +10052,7 @@
     "missingContext": "上下文後設資料不可用",
     "unbind": "解綁",
     "targets": {
-      "agent": "Agent",
+      "agent": "智能體",
       "channel": "渠道",
       "cron": "定時任務",
       "conversation": "會話",
@@ -10547,6 +10565,12 @@
       "autoLogin": "正在自動認證...",
       "autoLoginFailed": "自動登入失敗，請使用密碼登入。"
     },
+    "oauthErrorTitle": "OAuth 錯誤",
+    "oauthErrorDescription": "授權失敗，請重試。",
+    "loginSuccessTitle": "登入成功",
+    "loginSuccessDescription": "您已成功登入。",
+    "loginFailedTitle": "登入失敗",
+    "tokenVerificationFailed": "令牌驗證失敗，請重新登入。",
     "oauth": {
       "title": "正在登入",
       "description": "正在完成安全登入…",
@@ -12478,31 +12502,6 @@
     "triggerPrefixPlaceholder": "輸入字首，如 /ask 或 !ai",
     "triggerPrefixAdd": "新增",
     "triggerMentionOverrideHint": "@提及 始終會觸發回覆，無論選擇哪種觸發方式。",
-    "authorizeNow": "立即授權",
-    "cancelLoginFailed": "取消失敗",
-    "connectionError": "連接錯誤",
-    "generatingQrCode": "Generating QR code…",
-    "initializing": "Initializing…",
-    "loginCancelled": "登錄已取消",
-    "loginFailed": "登錄失敗",
-    "loginSuccess": "Login successful!",
-    "loginTimeout": "登錄超時",
-    "oauth2Instructions": "點擊按鈕打開授權頁面",
-    "oauth2Login": "OAuth2 Authorization",
-    "oauth2LoginDesc": "通過瀏覽器授權",
-    "oauth2LoginTitle": "Browser Authorization",
-    "oauth2Wait": "Waiting for authorization…",
-    "preparingOauth2": "Preparing authorization…",
-    "qrCodeLogin": "掃碼登錄",
-    "qrCodeLoginDesc": "掃碼授權",
-    "qrExpiresAt": "Expires at {time}",
-    "qr_codeLoginTitle": "掃碼登入",
-    "scanQrCode": "請使用手機應用程式掃描 QR Code",
-    "selectLoginMethod": "選擇登錄方式",
-    "startLoginFailed": "啟動登錄失敗",
-    "unknownError": "未知錯誤",
-    "validating": "Validating credentials…",
-    "waitingForUser": "Waiting for your action…",
     "dingtalk": {
       "corpId": "Corp ID",
       "agentId": "Agent ID",

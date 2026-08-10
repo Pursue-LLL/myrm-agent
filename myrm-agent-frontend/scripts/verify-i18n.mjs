@@ -14,6 +14,9 @@
  *   （语言名/跨语言术语豁免），与 en 9f 对称
  * - zh-TW/ja 简体独有字形纯净门禁：繁体中文/日文文案中出现简体独有字形（相对繁体/日文新字体）
  *   即残留（语言名/跨语言术语豁免），与 en 9f / ko-de 9g 对称
+ * - zh/ja/ko/zh-TW 句子级纯英文残留门禁：非拉丁系语言整条文案仍是英文句子即残留
+ *   （值≠en 且纯 ASCII 且含 ≥2 纯字母英文单词且带句尾标点或英文功能词；字段名/品牌名/
+ *   单技术词天然豁免），与 9g/9h/9j「混入字形」检测互补拦截「整条还是英文」
  *
  * 支持语言必须与 src/i18n/config.ts locales 一致：zh / en / ja / ko / de / zh-TW。
  */
@@ -24,6 +27,7 @@ import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import {
   collectTranslationShells,
+  isLegitSameValue,
   loadShellAllowlist,
   resolvePath,
   walkTypes,
@@ -613,6 +617,50 @@ function containsResidue(value, residueRe) {
   return false;
 }
 
+/**
+ * 9k 句子级纯英文残留判定（zh/ja/ko/zh-TW）：
+ * 非拉丁系语言的整条文案若仍是英文句子（含 ≥2 个纯字母英文单词且带句尾标点
+ * 或英文功能词），即未本地化残留。与 9g/9h/9j 的「混入字形」检测互补——它们
+ * 拦「本语言文案混入英文」，本检测拦「整条还是英文」。
+ *
+ * 判定为「句子级」而非「任意英文」：
+ * - ≥2 个纯字母单词：排除单技术词（Agent/Token/Cookie）。
+ * - 句尾标点 `! . ?` 或功能词命中：排除字段名/品牌名（App ID/Bot Token/
+ *   Alibaba Cloud/Client Secret），这些是行业惯例保留英文的凭据名，翻译反而
+ *   降低可识别性（用户从文档/API 得知的是英文术语）。
+ */
+const PURE_EN_SENTENCE_WORDS_RE = /[A-Za-z]{2,}/g;
+const PURE_EN_SENTENCE_TAIL_RE = /[!?.]$/;
+const PURE_EN_FUNCTION_WORDS = new Set([
+  // UI 动作/状态词
+  'login', 'logged', 'sign', 'successful', 'success', 'failed', 'fail', 'error', 'please',
+  'click', 'expires', 'expired', 'waiting', 'wait', 'authorize', 'authorization', 'authorized',
+  'connecting', 'connected', 'connect', 'generating', 'generate', 'select', 'scan', 'start',
+  'prepare', 'preparing', 'validate', 'validating', 'cancel', 'cancelled', 'canceled', 'timeout',
+  'retry', 'unknown', 'initializing', 'loading', 'saving', 'save', 'open', 'close', 'done',
+  'completed', 'complete', 'processing', 'process', 'running', 'run', 'resumed', 'resume',
+  'enabled', 'disabled', 'available', 'unavailable', 'missing', 'required', 'optional',
+  'create', 'created', 'update', 'updated', 'remove', 'removed', 'add', 'added', 'search',
+  'refresh', 'send', 'sent', 'receive', 'received', 'import', 'export', 'download', 'upload',
+  'install', 'uninstall', 'enable', 'disable', 'verify', 'verification', 'check', 'testing',
+  'test', 'connection', 'disconnect', 'disconnected', 'reconnect', 'pending', 'approved',
+  'rejected', 'deleted', 'archived', 'restored', 'upgrade', 'subscribe', 'purchase',
+  'confirm', 'delete', 'back', 'next', 'reset', 'restore', 'backup', 'migrate', 'migration',
+  'share', 'shared', 'sync', 'paused', 'pause', 'blocked', 'unblocked', 'approve',
+  // 英文虚词（句子结构标记）
+  'the', 'a', 'an', 'of', 'at', 'for', 'with', 'and', 'or', 'to', 'from', 'by', 'in', 'on',
+  'your', 'you', 'is', 'are', 'was', 'were', 'has', 'have', 'will', 'would', 'can', 'could',
+  'should', 'must', 'not', 'no', 'yes', 'this', 'that', 'these', 'those', 'there', 'here',
+  'more', 'less', 'all', 'any', 'some', 'none', 'only', 'just', 'also', 'then', 'than',
+  'into', 'onto', 'over', 'under', 'about', 'after', 'before', 'during', 'between',
+]);
+function isEnglishSentenceResidue(value) {
+  const words = value.toLowerCase().match(PURE_EN_SENTENCE_WORDS_RE) ?? [];
+  if (words.length < 2) return false;
+  if (PURE_EN_SENTENCE_TAIL_RE.test(value.trim())) return true;
+  return words.some((word) => PURE_EN_FUNCTION_WORDS.has(word));
+}
+
 const enTypes = new Map();
 walkTypes(translations.en, '', enTypes);
 const enLeaves = [...enTypes.keys()];
@@ -754,6 +802,7 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
   const braceErrors = [];
   let foreignScriptErrors = [];
   let simplifiedGlyphErrors = [];
+  let pureEnErrors = [];
   const forbiddenPatterns = glossaryForbiddenByLocale[lang] || [];
 
   const checkValue = (key, enValue, localeValue) => {
@@ -894,10 +943,45 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
     simplifiedGlyphErrors.push(...gateErrors);
   }
 
+  // 9k. 非拉丁系语言（zh/ja/ko/zh-TW）句子级纯英文残留门禁：
+  // 整条文案仍是英文句子（值≠en 且纯 ASCII 且含英文实义句子）即残留。
+  // 与 9g/9h/9j 的「混入字形」检测互补（后者拦混入、本检测拦整条）；
+  // 字段名/品牌名/单技术词天然豁免。de 为拉丁语系，纯英文残留无法以字符级
+  // 与合法德文区分，不适用（由 9g 汉字/假名拦截 + glossary 语义词兜底）。
+  // 数组叶子逐元素判定（与 9d checkArray / 9g-9j containsResidue 对称）。
+  if (lang === 'zh' || lang === 'ja' || lang === 'ko' || lang === 'zh-TW') {
+    const checkLeaf = (key, enLeaf, localeLeaf) => {
+      if (typeof enLeaf !== 'string' || typeof localeLeaf !== 'string') return;
+      if (localeLeaf === enLeaf) return; // 与 en 同值走壳检测（collectTranslationShells）
+      if (localeLeaf === '' || /[\u0080-\uFFFF]/.test(localeLeaf)) return; // 空串/已含本语言字符
+      if (isLegitSameValue(localeLeaf)) return; // 技术格式/占位模板/URL 等合法保留
+      if (shellAllowlists.allowedSameValues.has(localeLeaf)) return;
+      if (isEnglishSentenceResidue(localeLeaf)) pureEnErrors.push(key);
+    };
+    for (const key of enLeaves) {
+      if (shellAllowlists.allowedSameKeys.has(key)) continue;
+      const enValue = resolvePath(translations.en, key);
+      const localeValue = resolvePath(data, key);
+      if (Array.isArray(enValue)) {
+        if (!Array.isArray(localeValue)) continue;
+        enValue.forEach((item, index) => {
+          checkLeaf(`${key}[${index}]`, item, localeValue[index]);
+        });
+      } else {
+        checkLeaf(key, enValue, localeValue);
+      }
+    }
+    if (pureEnErrors.length > 0) {
+      console.error(`  ❌ ${lang}.json 存在 ${pureEnErrors.length} 个句子级纯英文残留键：`);
+      pureEnErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+      hasErrors = true;
+    }
+  }
+
   if (missing.length === 0 && typeMismatches.length === 0 && shellErrors.length === 0
     && placeholderErrors.length === 0 && glossaryErrors.length === 0 && bilingualErrors.length === 0
     && sentinelErrors.length === 0 && braceErrors.length === 0 && foreignScriptErrors.length === 0
-    && simplifiedGlyphErrors.length === 0) {
+    && simplifiedGlyphErrors.length === 0 && pureEnErrors.length === 0) {
     console.log(`  ✅ ${lang}.json 全量 parity / 占位符 / 壳 / glossary / 双语对照 / 纯净门禁 检测 通过`);
   }
 }

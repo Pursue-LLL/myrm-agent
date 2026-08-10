@@ -1,5 +1,5 @@
 """[INPUT]
-- app.services.skills.evolution_reviews::RuntimeFailureEvidence (POS: runtime failure evidence DTO)
+- ..evolution_reviews::RuntimeFailureEvidence (POS: runtime failure evidence DTO)
 
 [OUTPUT]
 - SkillGrowthCaseSource: enum for case origin (draft vs evolution)
@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
-from app.services.skills.evolution_reviews import RuntimeFailureEvidence
+from ..evolution_reviews import RuntimeFailureEvidence
 
 
 class SkillGrowthCaseSource(StrEnum):

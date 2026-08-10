@@ -114,6 +114,7 @@ export interface Agent {
   suggestion_prompts?: string[] | null;
   model_selection?: AgentModelSelection | null;
   security_overrides?: Record<string, unknown> | null;
+  default_security_preset?: 'hitl' | 'accept_edits' | 'explore' | null;
   prompt_mode?: 'full' | 'lean' | 'naked';
   personality_style?: string;
   subagent_ids?: string[];
@@ -173,6 +174,7 @@ export interface AgentCreate {
   suggestion_prompts?: string[] | null;
   model_selection?: AgentModelSelection | null;
   security_overrides?: Record<string, unknown> | null;
+  default_security_preset?: 'hitl' | 'accept_edits' | 'explore' | null;
   prompt_mode?: 'full' | 'lean' | 'naked';
   personality_style?: string;
   subagent_ids?: string[];
@@ -212,6 +214,7 @@ export interface AgentUpdate {
   suggestion_prompts?: string[] | null;
   model_selection?: AgentModelSelection | null;
   security_overrides?: Record<string, unknown> | null;
+  default_security_preset?: 'hitl' | 'accept_edits' | 'explore' | null;
   prompt_mode?: 'full' | 'lean' | 'naked';
   personality_style?: string;
   subagent_ids?: string[];

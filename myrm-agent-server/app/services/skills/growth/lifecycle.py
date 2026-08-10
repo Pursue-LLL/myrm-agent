@@ -30,8 +30,8 @@ from app.core.skills.config_version import bump_skill_config_version
 from app.core.skills.creation.service import skill_creation_service
 from app.core.skills.providers.local import compute_local_skill_id
 from app.core.skills.store.service import skills_service
-from app.services.skills.auto_extractor import auto_extract_or_patch_skill
-from app.services.skills.draft_notification import (
+from ..auto_extractor import auto_extract_or_patch_skill
+from ..draft_notification import (
     evaluate_growth_scan,
     notify_skill_draft_created,
     persist_skill_draft_record,

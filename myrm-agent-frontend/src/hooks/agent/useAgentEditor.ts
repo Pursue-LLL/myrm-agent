@@ -109,6 +109,9 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   // 安全策略覆盖
   const [securityOverrides, setSecurityOverrides] = useState<Record<string, unknown> | null>(null);
 
+  // 默认会话安全预设
+  const [defaultSecurityPreset, setDefaultSecurityPreset] = useState<'hitl' | 'accept_edits' | 'explore' | null>(null);
+
   // 迭代次数上限
   const [maxIterations, setMaxIterations] = useState<number | null>(null);
 
@@ -176,6 +179,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     modelSelection: null as AgentModelSelection | null,
     selectedSubagentIds: [] as string[],
     securityOverrides: null as Record<string, unknown> | null,
+    defaultSecurityPreset: null as 'hitl' | 'accept_edits' | 'explore' | null,
     personalityStyle: DEFAULT_PERSONALITY_STYLE as string,
     promptMode: 'full' as 'full' | 'lean' | 'naked',
     maxIterations: null as number | null,
@@ -200,6 +204,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       JSON.stringify(modelSelection?.modelKwargs) !== JSON.stringify(originalData.modelSelection?.modelKwargs);
 
     const securityChanged = JSON.stringify(securityOverrides) !== JSON.stringify(originalData.securityOverrides);
+    const defaultPresetChanged = defaultSecurityPreset !== originalData.defaultSecurityPreset;
     const engineParamsChanged = JSON.stringify(engineParams) !== JSON.stringify(originalData.engineParams);
     const openapiChanged = JSON.stringify(openapiServices) !== JSON.stringify(originalData.openapiServices);
     const notifyChanged = JSON.stringify(notifyTargets) !== JSON.stringify(originalData.notifyTargets);
@@ -221,6 +226,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       !arraysEqual(selectedSubagentIds, originalData.selectedSubagentIds) ||
       modelChanged ||
       securityChanged ||
+      defaultPresetChanged ||
       engineParamsChanged ||
       openapiChanged ||
       personalityStyle !== originalData.personalityStyle ||
@@ -252,6 +258,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     selectedSubagentIds,
     modelSelection,
     securityOverrides,
+    defaultSecurityPreset,
     personalityStyle,
     promptMode,
     maxIterations,
@@ -320,6 +327,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setEnabledBuiltinTools(agentBuiltinTools);
       setModelSelection(data.model_selection ?? null);
       setSecurityOverrides(data.security_overrides ?? null);
+      setDefaultSecurityPreset(data.default_security_preset ?? null);
       setSelectedSubagentIds(data.subagent_ids || []);
       setPersonalityStyle(data.personality_style || DEFAULT_PERSONALITY_STYLE);
       setPromptMode(data.prompt_mode || 'full');
@@ -351,6 +359,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         selectedSubagentIds: data.subagent_ids || [],
         modelSelection: data.model_selection ?? null,
         securityOverrides: data.security_overrides ?? null,
+        defaultSecurityPreset: data.default_security_preset ?? null,
         personalityStyle: data.personality_style || DEFAULT_PERSONALITY_STYLE,
         promptMode: data.prompt_mode || 'full',
         allowDiscovery: data.allow_discovery ?? true,
@@ -446,6 +455,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           suggestion_prompts: suggestionPrompts.length > 0 ? suggestionPrompts : null,
           model_selection: modelSelection,
           security_overrides: securityOverrides,
+          default_security_preset: defaultSecurityPreset,
           prompt_mode: promptMode,
           personality_style: personalityStyle,
           allow_discovery: allowDiscovery,
@@ -484,6 +494,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           suggestion_prompts: suggestionPrompts.length > 0 ? suggestionPrompts : null,
           model_selection: modelSelection,
           security_overrides: securityOverrides,
+          default_security_preset: defaultSecurityPreset,
           prompt_mode: promptMode,
           personality_style: personalityStyle,
           allow_discovery: allowDiscovery,
@@ -526,6 +537,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           selectedSubagentIds: [...selectedSubagentIds],
           modelSelection,
           securityOverrides,
+          defaultSecurityPreset,
           personalityStyle,
           allowDiscovery,
           cronPostRunVerify,
@@ -578,6 +590,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     autoRestoreDomains,
     selectedSubagentIds,
     securityOverrides,
+    defaultSecurityPreset,
     personalityStyle,
     promptMode,
     maxIterations,
@@ -702,6 +715,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     // 安全策略
     securityOverrides,
     setSecurityOverrides,
+    defaultSecurityPreset,
+    setDefaultSecurityPreset,
     saveVersion,
     // Personality
     personalityStyle,

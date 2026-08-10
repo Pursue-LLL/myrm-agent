@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from dataclasses import dataclass
 
 
@@ -46,9 +47,15 @@ def solo_launch_denial_reason(*, workload: str) -> str | None:
 
     from runtime_identity import frontend_tcp_html_probe_ok
 
-    if not frontend_tcp_html_probe_ok("http://127.0.0.1:3000", timeout_sec=5.0):
+    probe_ok = False
+    for _attempt in range(3):
+        if frontend_tcp_html_probe_ok("http://127.0.0.1:3000", timeout_sec=5.0):
+            probe_ok = True
+            break
+        time.sleep(2.0)
+    if not probe_ok:
         return (
-            "SOLO_LAUNCH_DENIED: :3000 TCP+HTML probe failed; "
+            "SOLO_LAUNCH_DENIED: :3000 TCP+HTML probe failed after retries; "
             "run ./myrm ready --chrome / ui-heal before LIVE signoff"
         )
 

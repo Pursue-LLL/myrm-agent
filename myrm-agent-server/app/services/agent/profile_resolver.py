@@ -153,6 +153,7 @@ class ResolvedAgentProfile:
     model: str | None = None
     subagent_ids: tuple[str, ...] | None = None
     security_overrides: dict[str, object] | None = None
+    default_security_preset: str | None = None
     personality_style: str | None = None
     prompt_mode: str = "full"
     max_iterations: int | None = None
@@ -336,6 +337,11 @@ class AgentProfileResolver:
                     security_overrides=(
                         raw_security if isinstance(raw_security, dict) else None
                     ),
+                    default_security_preset=(
+                        str(metadata.get("default_security_preset"))
+                        if metadata.get("default_security_preset")
+                        else None
+                    ),
                     personality_style=str(raw_personality) if raw_personality else None,
                     prompt_mode=str(metadata.get("prompt_mode", "full")),
                     max_iterations=agent.max_iterations,
@@ -348,7 +354,9 @@ class AgentProfileResolver:
                         else None
                     ),
                     memory_decay_profile=getattr(agent, "memory_decay_profile", None),
-                    memory_extraction_preset=getattr(agent, "memory_extraction_preset", None),
+                    memory_extraction_preset=getattr(
+                        agent, "memory_extraction_preset", None
+                    ),
                     enabled_builtin_tools=tools_tuple,
                     model_kwargs=model_kwargs,
                     openapi_services=openapi_services,

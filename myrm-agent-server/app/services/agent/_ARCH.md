@@ -130,6 +130,7 @@ Design notes:
 - `enabled_builtin_tools`
 - `subagent_ids`
 - `security_overrides`
+- `default_security_preset`（per-agent 默认会话安全预设 hitl/accept_edits/explore；前端绑定/切换该 Agent 时初始化会话 `security_preset`，后端仅透出字段不套运行时逻辑，Cron/渠道无人值守保持 fail-closed）
 - `personality_style`
 - `allow_discovery`（是否允许被其他智能体动态发现并委派）
 - `max_iterations`

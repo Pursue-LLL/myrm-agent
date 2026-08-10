@@ -3335,24 +3335,6 @@
         "empty": {
           "title": "当前视图暂无案例",
           "description": "当 Agent 捕获到新经验、自动落地能力，或需要你审核时，相关记录会出现在这里。"
-        },
-        "export": {
-          "title": "导出技能: {name}",
-          "description": "在导出前预览内容。敏感信息将被自动脱敏。",
-          "scanning": "正在扫描敏感信息...",
-          "safeTitle": "可以安全导出",
-          "safeDescription": "未在此技能中检测到敏感信息（API Keys、绝对路径）。",
-          "warningTitle": "检测到敏感信息",
-          "warningDescription": "我们发现了潜在的敏感信息。强烈建议导出脱敏后的版本。",
-          "diffPreview": "脱敏预览",
-          "cancel": "取消",
-          "exportOriginal": "导出原版 (不安全)",
-          "exportRedacted": "导出脱敏版 (安全)",
-          "export": "导出",
-          "previewFailed": "预览技能失败",
-          "exportSuccess": "技能导出成功",
-          "exportFailed": "导出技能失败",
-          "toggleAll": "全选 / 全不选"
         }
       },
       "upload": {
@@ -3677,6 +3659,24 @@
       "search": {
         "empty": "未找到匹配的技能",
         "emptyDesc": "尝试调整搜索条件或清除筛选"
+      },
+      "export": {
+        "title": "导出技能: {name}",
+        "description": "在导出前预览内容。敏感信息将被自动脱敏。",
+        "scanning": "正在扫描敏感信息...",
+        "safeTitle": "可以安全导出",
+        "safeDescription": "未在此技能中检测到敏感信息（API Keys、绝对路径）。",
+        "warningTitle": "检测到敏感信息",
+        "warningDescription": "我们发现了潜在的敏感信息。强烈建议导出脱敏后的版本。",
+        "diffPreview": "脱敏预览",
+        "cancel": "取消",
+        "exportOriginal": "导出原版 (不安全)",
+        "exportRedacted": "导出脱敏版 (安全)",
+        "export": "导出",
+        "previewFailed": "预览技能失败",
+        "exportSuccess": "技能导出成功",
+        "exportFailed": "导出技能失败",
+        "toggleAll": "全选 / 全不选"
       }
     },
     "language": "语言",
@@ -5840,6 +5840,7 @@
           "selectAll": "全部安装",
           "skipAll": "全部跳过",
           "install": "安装",
+          "replace": "覆盖",
           "skip": "跳过",
           "cancel": "取消",
           "confirm": "确认导入",
@@ -5857,7 +5858,8 @@
         },
         "security": {
           "blocked": "包含 {count} 项安全风险，已自动跳过，无法安装",
-          "oversized": "技能内容超过存储大小限制（64 KB），已自动跳过，无法安装"
+          "oversized": "技能内容超过存储大小限制（64 KB），已自动跳过，无法安装",
+          "conflict": "已存在同名技能：选择「覆盖」升级现有技能，或「跳过」保留当前版本"
         },
         "errors": {
           "parseTitle": "解析失败",
@@ -5867,7 +5869,9 @@
         },
         "success": {
           "title": "导入成功",
-          "description": "已导入 {skills} 个技能、{servers} 个 MCP 服务器"
+          "description": "已导入 {skills} 个技能、{servers} 个 MCP 服务器",
+          "requiredKeys": "导入后请在「智能体密钥」中配置：{keys}",
+          "disabledHint": "导入的 MCP 服务器默认停用，请在 MCP 设置中启用后再使用"
         }
       }
     }
@@ -6442,7 +6446,7 @@
       "turn1BudgetServiceWarning": "该服务已选 endpoint 可能超出 Turn1 绑定预算。请减少选择，避免 Agent 启动失败。"
     },
     "sharedContexts": {
-      "targetLabel": "Agent",
+      "targetLabel": "智能体",
       "title": "共享上下文",
       "description": "绑定该智能体运行时应继承的可复用记忆空间。",
       "refresh": "刷新",
@@ -6850,6 +6854,20 @@
     },
     "security": {
       "tabTitle": "安全策略",
+      "defaultPresetTitle": "默认会话安全预设",
+      "defaultPresetDesc": "每次绑定或切换到该智能体时，新会话默认采用的安全预设；你仍可在对话中临时切换。",
+      "defaultPresetInherit": "继承全局（手动审批）",
+      "presets": {
+        "hitl": {
+          "label": "手动审批"
+        },
+        "accept_edits": {
+          "label": "自动批准编辑"
+        },
+        "explore": {
+          "label": "只读模式"
+        }
+      },
       "capabilitiesTitle": "能力限制",
       "capabilitiesDesc": "选择此智能体允许使用的能力。仅选中的能力可用（与全局策略取交集）。",
       "noCapabilities": "无限制 — 继承全局策略的所有能力。",
@@ -10099,7 +10117,7 @@
     "missingContext": "上下文元数据不可用",
     "unbind": "解绑",
     "targets": {
-      "agent": "Agent",
+      "agent": "智能体",
       "channel": "渠道",
       "cron": "定时任务",
       "conversation": "会话",
@@ -10612,6 +10630,12 @@
       "autoLogin": "正在自动认证...",
       "autoLoginFailed": "自动登录失败，请使用密码登录。"
     },
+    "oauthErrorTitle": "OAuth 错误",
+    "oauthErrorDescription": "授权失败，请重试。",
+    "loginSuccessTitle": "登录成功",
+    "loginSuccessDescription": "您已成功登录。",
+    "loginFailedTitle": "登录失败",
+    "tokenVerificationFailed": "令牌验证失败，请重新登录。",
     "oauth": {
       "title": "正在登录",
       "description": "正在完成安全登录…",
@@ -12560,31 +12584,6 @@
     "triggerPrefixPlaceholder": "输入前缀，如 /ask 或 !ai",
     "triggerPrefixAdd": "添加",
     "triggerMentionOverrideHint": "@提及 始终会触发回复，无论选择哪种触发方式。",
-    "authorizeNow": "立即授权",
-    "cancelLoginFailed": "取消失败",
-    "connectionError": "连接错误",
-    "generatingQrCode": "Generating QR code…",
-    "initializing": "Initializing…",
-    "loginCancelled": "登录已取消",
-    "loginFailed": "登录失败",
-    "loginSuccess": "Login successful!",
-    "loginTimeout": "登录超时",
-    "oauth2Instructions": "点击按钮打开授权页面",
-    "oauth2Login": "OAuth2 Authorization",
-    "oauth2LoginDesc": "通过浏览器授权",
-    "oauth2LoginTitle": "Browser Authorization",
-    "oauth2Wait": "Waiting for authorization…",
-    "preparingOauth2": "Preparing authorization…",
-    "qrCodeLogin": "扫码登录",
-    "qrCodeLoginDesc": "扫码授权",
-    "qrExpiresAt": "Expires at {time}",
-    "qr_codeLoginTitle": "扫码登录",
-    "scanQrCode": "请使用手机应用扫描二维码",
-    "selectLoginMethod": "选择登录方式",
-    "startLoginFailed": "启动登录失败",
-    "unknownError": "未知错误",
-    "validating": "Validating credentials…",
-    "waitingForUser": "Waiting for your action…",
     "dingtalk": {
       "corpId": "Corp ID",
       "agentId": "Agent ID",

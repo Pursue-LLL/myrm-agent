@@ -66,6 +66,15 @@ _SETTINGS_WECHAT_OFFICIAL_PROBE_JS = """(() => {
   } catch {
     // ignore
   }
+  if (!location.pathname.includes('/settings/channels')) {
+    location.href = '/settings/channels';
+    return {
+      ready: false,
+      navigating: true,
+      pathname: location.pathname,
+      onChannelsPath: false,
+    };
+  }
   const body = document.body.innerText || '';
   const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
   const channelsTab = tabs.find((tab) => /消息通道|^Channels$/i.test((tab.textContent || '').trim()));
@@ -101,40 +110,75 @@ _SETTINGS_WECHAT_OFFICIAL_PROBE_JS = """(() => {
 })()"""
 
 _ARTIFACT_WECHAT_PANEL_JS = """(() => {
-  const labels = ['推送到公众号草稿', 'Push to WeChat draft'];
-  const buttons = Array.from(document.querySelectorAll('button'));
-  const openBtn = buttons.find((btn) => {
-    const title = (btn.getAttribute('title') || '').trim();
-    return labels.some((label) => title === label);
-  });
+  const openBtn =
+    document.querySelector('[data-testid="wechat-draft-open-panel"]') ||
+    Array.from(document.querySelectorAll('button')).find((btn) => {
+      const title = (btn.getAttribute('title') || '').trim();
+      return ['推送到公众号草稿', 'Push to WeChat draft'].includes(title);
+    });
   if (!openBtn) {
-    return { ok: false, err: 'open-panel-not-found', titles: buttons.map((b) => b.getAttribute('title')).filter(Boolean).slice(0, 20) };
+    return { ok: false, err: 'open-panel-not-found' };
   }
   openBtn.click();
   return { ok: true };
 })()"""
 
-_COMPLIANCE_BLOCK_VISIBLE_JS = """(() => {
-  const body = document.body.innerText || '';
-  const hasBlocked =
-    body.includes('集赞') &&
-    (body.includes('合规') || body.includes('Compliance') || body.includes('高危') || body.includes('high risk'));
-  return {
-    ready: hasBlocked,
-    snippet: body.slice(0, 500),
-  };
-})()"""
-
 _CLICK_CONFIRM_PUSH_JS = """(() => {
-  const labels = ['确认推送', 'Push to draft'];
-  const buttons = Array.from(document.querySelectorAll('button'));
-  const confirmBtn = buttons.find((btn) => labels.includes((btn.textContent || '').trim()));
+  const confirmBtn =
+    document.querySelector('[data-testid="wechat-draft-confirm-push"]') ||
+    Array.from(document.querySelectorAll('button')).find((btn) => {
+      const text = (btn.textContent || '').trim();
+      return ['推送到草稿箱', 'Push to draft box'].includes(text);
+    });
   if (!confirmBtn) {
-    return { ok: false, err: 'confirm-not-found', labels: buttons.map((b) => (b.textContent || '').trim()).slice(0, 20) };
+    return { ok: false, err: 'confirm-not-found' };
+  }
+  if (confirmBtn.disabled) {
+    return { ok: false, err: 'confirm-disabled' };
   }
   confirmBtn.click();
   return { ok: true };
 })()"""
+
+_COMPLIANCE_BLOCK_VISIBLE_JS = """(() => {
+  const panel = document.querySelector('[data-testid="wechat-draft-compliance-panel"]');
+  const body = document.body.innerText || '';
+  const hasBlocked =
+    !!panel ||
+    (body.includes('集赞') &&
+      (body.includes('合规') || body.includes('Compliance') || body.includes('高危') || body.includes('high risk')));
+  return {
+    ready: hasBlocked,
+    hasPanel: !!panel,
+    snippet: body.slice(0, 500),
+  };
+})()"""
+
+
+def _wait_for_compliance_panel(
+    client: object,
+    page: object,
+    chat_id: str,
+    *,
+    timeout_sec: float = 90.0,
+) -> dict[str, object]:
+    """Poll compliance UI without wait_for_state blank-heal (parallel E2E navigates away)."""
+    del chat_id  # keep chat attached; re-attach would reset draft panel React state
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {"ready": False}
+    while time.monotonic() < deadline:
+        try:
+            raw = client.evaluate(page, _COMPLIANCE_BLOCK_VISIBLE_JS, timeout_sec=20.0)  # type: ignore[attr-defined]
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            last = {"ready": False, "err": str(exc)}
+            time.sleep(0.5)
+            continue
+        if isinstance(raw, dict):
+            last = raw
+            if raw.get("ready") is True:
+                return raw
+        time.sleep(0.5)
+    raise AssertionError(f"Compliance panel not visible: {last}")
 
 
 def _seed_wechat_draft_fixture(api_url: str, *, variant: str = "compliance_block") -> dict[str, object]:
@@ -162,30 +206,33 @@ def _seed_wechat_draft_fixture(api_url: str, *, variant: str = "compliance_block
 @pytest.mark.timeout(180)
 def test_wechat_official_settings_shows_ip_whitelist_hint() -> None:
     api_url = get_e2e_api_url()
+    channels_url = f"{get_e2e_ui_url().rstrip('/')}/settings/channels"
     prepare_e2e_ui_session(api_url)
 
     with open_settings_subroute("/settings/channels", timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page)
+        dismiss_blocking_modals(client, page, recover_url=channels_url)
         state = wait_for_state(
             client,
             page,
             _SETTINGS_WECHAT_OFFICIAL_PROBE_JS,
             timeout_sec=120.0,
+            page_url=channels_url,
         )
         assert state.get("ready") is True, state
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(300)
 def test_wechat_draft_panel_shows_compliance_block_for_risky_html() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
     seeded = _seed_wechat_draft_fixture(api_url, variant="compliance_block")
     chat_id = str(seeded["chat_id"])
+    chat_url = f"{ui_url}/{chat_id}"
 
-    with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
+    with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         attached = client.evaluate(
             page,
@@ -197,13 +244,20 @@ def test_wechat_draft_panel_shows_compliance_block_for_risky_html() -> None:
         opened = client.evaluate(page, _ARTIFACT_WECHAT_PANEL_JS, timeout_sec=30.0)
         assert isinstance(opened, dict) and opened.get("ok") is True, opened
 
+        panel_ready = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const btn = document.querySelector('[data-testid="wechat-draft-confirm-push"]');
+              return { ready: !!btn && !btn.disabled };
+            })()""",
+            timeout_sec=30.0,
+            page_url=chat_url,
+        )
+        assert panel_ready.get("ready") is True, panel_ready
+
         clicked = client.evaluate(page, _CLICK_CONFIRM_PUSH_JS, timeout_sec=30.0)
         assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
 
-        panel_state = wait_for_state(
-            client,
-            page,
-            _COMPLIANCE_BLOCK_VISIBLE_JS,
-            timeout_sec=60.0,
-        )
+        panel_state = _wait_for_compliance_panel(client, page, chat_id, timeout_sec=90.0)
         assert panel_state.get("ready") is True, panel_state

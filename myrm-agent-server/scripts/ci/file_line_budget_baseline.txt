@@ -148,6 +148,5 @@ app/services/memory/operations/crud/list_write.py
 app/services/memory/shared_context.py
 app/services/migration/hermes_moa_migrator.py
 app/services/onboarding/second_brain_preset.py
-app/services/plugins/import_service.py
 app/services/project/assessment_import_service.py
 app/services/repair/actions.py

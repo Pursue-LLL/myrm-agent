@@ -9,14 +9,14 @@ from sqlalchemy import case, desc, func, literal, select
 
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
-from app.services.skills.evolution_review_types import EVOLUTION_ACTION_TYPE
-from app.services.skills.evolution_reviews import (
+from ..evolution_review.types import EVOLUTION_ACTION_TYPE
+from ..evolution_reviews import (
     EvolutionReviewRecord,
     count_evolution_review_records,
     get_evolution_review_record,
     list_evolution_review_records,
 )
-from app.services.skills.growth_case_types import (
+from .case_types import (
     SkillGrowthCaseDetailRead,
     SkillGrowthCaseSource,
     SkillGrowthCaseStatus,

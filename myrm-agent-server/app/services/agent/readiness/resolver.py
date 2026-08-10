@@ -150,7 +150,7 @@ def _check_skills(profile: ResolvedAgentProfile) -> list[AgentReadinessItem]:
 
     items: list[AgentReadinessItem] = []
     try:
-        from app.services.skills.evolution_review_disk import get_skill_store
+        from app.services.skills.evolution_review.disk import get_skill_store
 
         store = get_skill_store()
         missing = [sid for sid in profile.skill_ids if store.get_skill(sid) is None]

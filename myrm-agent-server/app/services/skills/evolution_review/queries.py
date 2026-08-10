@@ -1,7 +1,7 @@
 """
 [INPUT]
 - app.services.approvals.registry::ApprovalRegistry
-- app.services.skills.evolution_review_persistence
+- .persistence
 [OUTPUT]
 - create/list/count/find/get evolution review records
 [POS]
@@ -13,7 +13,7 @@ from __future__ import annotations
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
-from app.services.skills.evolution_review_persistence import (
+from .persistence import (
     count_approval_review_records,
     filter_runtime_failure_record,
     find_matching_approval_records,
@@ -21,7 +21,7 @@ from app.services.skills.evolution_review_persistence import (
     load_approval_record,
     persist_approval_payload,
 )
-from app.services.skills.evolution_review_types import (
+from .types import (
     EVOLUTION_ACTION_TYPE,
     MAX_SKILL_CONTENT_CHARS,
     EvolutionApplyError,
@@ -35,7 +35,7 @@ from app.services.skills.evolution_review_types import (
     evolution_lineage_id,
     runtime_failure_ledger_event,
 )
-from app.services.skills.experience_ledger import (
+from ..experience_ledger import (
     ExperienceEntityType,
     ExperienceLedgerWrite,
     record_experience_event,

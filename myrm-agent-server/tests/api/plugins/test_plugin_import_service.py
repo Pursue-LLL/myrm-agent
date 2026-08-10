@@ -17,9 +17,14 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.agent.plugins.models import PluginSkill
+from myrm_agent_harness.agent.plugins.models import PluginMcpServer, PluginSkill
 from myrm_agent_harness.agent.plugins.parser import AgentPluginParser
+from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionType
 
+from app.services.plugins._mcp_persist import (
+    _collect_required_secret_keys,
+    _server_to_config_dict,
+)
 from app.services.plugins.import_service import (
     PluginConfirmItem,
     PluginImportSession,
@@ -234,6 +239,79 @@ class TestBuildPreviewResult:
         preview = build_preview_result(parse_plugin_zip(_plugin_zip_bytes()))
         assert preview["skills"][0]["oversized_content"] is False
 
+    def test_preview_marks_conflicting_skill_name(self) -> None:
+        result = parse_plugin_zip(_plugin_zip_bytes())
+        preview = build_preview_result(result, {"summarize"})
+        assert preview["skills"][0]["conflict"] is True
+
+    def test_preview_marks_normal_skill_not_conflicting(self) -> None:
+        preview = build_preview_result(parse_plugin_zip(_plugin_zip_bytes()))
+        assert preview["skills"][0]["conflict"] is False
+
+
+class TestServerToConfigDict:
+    def _server(self, **overrides: str | list[str] | dict[str, str] | None) -> PluginMcpServer:
+        base: dict[str, str | list[str] | dict[str, str] | None] = {
+            "name": "srv",
+            "server_type": "stdio",
+            "command": "./bin/srv",
+            "args": None,
+            "url": None,
+            "headers": None,
+            "cwd": None,
+            "env_key_names": [],
+            "raw_env": {},
+        }
+        base.update(overrides)
+        return PluginMcpServer(**base)
+
+    def test_env_key_names_become_required_secrets(self) -> None:
+        cfg = _server_to_config_dict(self._server(env_key_names=["API_KEY", "REGION"]))
+        assert cfg["required_secrets"] == ["API_KEY", "REGION"]
+
+    def test_no_env_keys_omit_required_secrets(self) -> None:
+        cfg = _server_to_config_dict(self._server())
+        assert "required_secrets" not in cfg
+
+    def test_existing_secret_header_ref_preserved(self) -> None:
+        cfg = _server_to_config_dict(
+            self._server(
+                server_type="streamable_http",
+                url="https://x",
+                headers={"Authorization": "Bearer {{secret:API_TOKEN}}"},
+            )
+        )
+        assert cfg["headers"]["Authorization"] == "Bearer {{secret:API_TOKEN}}"
+
+    def test_plaintext_header_rewritten_to_secret_ref(self) -> None:
+        cfg = _server_to_config_dict(
+            self._server(
+                server_type="streamable_http",
+                url="https://x",
+                headers={"X-Api-Key": "plain-secret-value"},
+            )
+        )
+        assert cfg["headers"]["X-Api-Key"] == "{{secret:X-Api-Key}}"
+
+
+class TestCollectRequiredSecretKeys:
+    def test_dedupes_env_and_header_refs(self) -> None:
+        configs: list[dict[str, object]] = [
+            {"required_secrets": ["API_TOKEN", "REGION"]},
+            {
+                "required_secrets": ["REGION"],
+                "headers": {
+                    "Authorization": "Bearer {{secret:API_TOKEN}}",
+                    "X-Region": "{{secret:REGION}}",
+                },
+            },
+            {"name": "plain"},
+        ]
+        assert _collect_required_secret_keys(configs) == ["API_TOKEN", "REGION"]
+
+    def test_empty_when_no_secrets(self) -> None:
+        assert _collect_required_secret_keys([{"name": "srv"}]) == []
+
 
 class TestConfirmPluginImport:
     def _make_session(self) -> PluginImportSession:
@@ -247,6 +325,7 @@ class TestConfirmPluginImport:
         fake_store = SimpleNamespace(
             db_path=tmp_path,
             save_skills_batch=AsyncMock(),
+            get_active_skills=lambda: [],
         )
         config_service = SimpleNamespace(
             get=AsyncMock(return_value=None),
@@ -261,11 +340,18 @@ class TestConfirmPluginImport:
 
         with (
             patch(
+                "app.services.plugins.import_service._load_existing_skill_ids",
+                return_value={},
+            ),
+            patch(
                 "app.core.skills.store.evolution_store.get_evolution_skill_store",
                 return_value=fake_store,
             ),
             patch("app.services.config.service.config_service", config_service),
             patch("app.services.agent.agent_service.AgentService", agent_service),
+            patch(
+                "app.core.channel_bridge.config_cache.invalidate_user_configs_cache"
+            ) as invalidate_cache,
         ):
             result = await confirm_plugin_import(
                 session,
@@ -299,6 +385,7 @@ class TestConfirmPluginImport:
             "skipped_skills": 0,
             "imported_servers": 1,
             "skipped_servers": 1,
+            "required_secret_keys": [],
         }
 
         # Skills persisted to SkillStore.
@@ -312,12 +399,20 @@ class TestConfirmPluginImport:
         config_service.get.assert_awaited_once_with("mcpServers")
         config_service.set.assert_awaited_once()
         set_args = config_service.set.await_args.args
+        set_kwargs = config_service.set.await_args.kwargs
         assert set_args[0] == "mcpServers"
-        persisted = set_args[1]
+        persisted_value = set_args[1]
+        assert set_kwargs["device_id"] == "plugin-import"
+        # mcpServers contract is {mcpConfigs: [...]}; a bare list would be
+        # unreadable by the frontend / runtime config loader.
+        assert set(persisted_value) == {"mcpConfigs"}
+        persisted = persisted_value["mcpConfigs"]
         assert len(persisted) == 1
         assert persisted[0]["name"] == "pdf-server"
         assert persisted[0]["enabled"] is False
         assert persisted[0]["command"] == "./bin/pdf"
+        # Import invalidates the runtime config cache so MCP loads promptly.
+        invalidate_cache.assert_called_once()
 
         # Agent binding appends only installed server names.
         agent_service.update_agent.assert_awaited_once()
@@ -330,11 +425,17 @@ class TestConfirmPluginImport:
         session = self._make_session()
         server_keys = list(session.servers_by_key.keys())
 
-        fake_store = SimpleNamespace(db_path=tmp_path, save_skills_batch=AsyncMock())
+        fake_store = SimpleNamespace(
+            db_path=tmp_path,
+            save_skills_batch=AsyncMock(),
+            get_active_skills=lambda: [],
+        )
         config_service = SimpleNamespace(
             get=AsyncMock(
                 return_value=SimpleNamespace(
-                    value=[{"name": "pdf-server", "enabled": True}]
+                    value={
+                        "mcpConfigs": [{"name": "pdf-server", "enabled": True}]
+                    }
                 )
             ),
             set=AsyncMock(),
@@ -348,11 +449,18 @@ class TestConfirmPluginImport:
 
         with (
             patch(
+                "app.services.plugins.import_service._load_existing_skill_ids",
+                return_value={},
+            ),
+            patch(
                 "app.core.skills.store.evolution_store.get_evolution_skill_store",
                 return_value=fake_store,
             ),
             patch("app.services.config.service.config_service", config_service),
             patch("app.services.agent.agent_service.AgentService", agent_service),
+            patch(
+                "app.core.channel_bridge.config_cache.invalidate_user_configs_cache"
+            ) as invalidate_cache,
         ):
             result = await confirm_plugin_import(
                 session,
@@ -374,8 +482,10 @@ class TestConfirmPluginImport:
             "skipped_skills": 0,
             "imported_servers": 0,
             "skipped_servers": 0,
+            "required_secret_keys": [],
         }
         config_service.set.assert_not_awaited()
+        invalidate_cache.assert_not_called()
         agent_service.update_agent.assert_not_awaited()
 
     async def test_confirm_skip_everything(self, tmp_path: Path) -> None:
@@ -383,7 +493,11 @@ class TestConfirmPluginImport:
         skill_keys = list(session.skills_by_key.keys())
         server_keys = list(session.servers_by_key.keys())
 
-        fake_store = SimpleNamespace(db_path=tmp_path, save_skills_batch=AsyncMock())
+        fake_store = SimpleNamespace(
+            db_path=tmp_path,
+            save_skills_batch=AsyncMock(),
+            get_active_skills=lambda: [],
+        )
         config_service = SimpleNamespace(
             get=AsyncMock(return_value=None), set=AsyncMock()
         )
@@ -392,6 +506,10 @@ class TestConfirmPluginImport:
         )
 
         with (
+            patch(
+                "app.services.plugins.import_service._load_existing_skill_ids",
+                return_value={},
+            ),
             patch(
                 "app.core.skills.store.evolution_store.get_evolution_skill_store",
                 return_value=fake_store,
@@ -425,6 +543,7 @@ class TestConfirmPluginImport:
             "skipped_skills": 1,
             "imported_servers": 0,
             "skipped_servers": 1,
+            "required_secret_keys": [],
         }
         fake_store.save_skills_batch.assert_not_awaited()
         config_service.set.assert_not_awaited()
@@ -434,11 +553,19 @@ class TestConfirmPluginImport:
         session = self._make_session()
         server_keys = list(session.servers_by_key.keys())
 
-        fake_store = SimpleNamespace(db_path=tmp_path, save_skills_batch=AsyncMock())
+        fake_store = SimpleNamespace(
+            db_path=tmp_path,
+            save_skills_batch=AsyncMock(),
+            get_active_skills=lambda: [],
+        )
         config_service = SimpleNamespace(
             get=AsyncMock(
                 return_value=SimpleNamespace(
-                    value=[{"name": "pdf-server", "enabled": True, "command": "/old"}]
+                    value={
+                        "mcpConfigs": [
+                            {"name": "pdf-server", "enabled": True, "command": "/old"}
+                        ]
+                    }
                 )
             ),
             set=AsyncMock(),
@@ -449,11 +576,18 @@ class TestConfirmPluginImport:
 
         with (
             patch(
+                "app.services.plugins.import_service._load_existing_skill_ids",
+                return_value={},
+            ),
+            patch(
                 "app.core.skills.store.evolution_store.get_evolution_skill_store",
                 return_value=fake_store,
             ),
             patch("app.services.config.service.config_service", config_service),
             patch("app.services.agent.agent_service.AgentService", agent_service),
+            patch(
+                "app.core.channel_bridge.config_cache.invalidate_user_configs_cache"
+            ) as invalidate_cache,
         ):
             await confirm_plugin_import(
                 session,
@@ -476,13 +610,80 @@ class TestConfirmPluginImport:
             )
 
         set_args = config_service.set.await_args.args
-        persisted = set_args[1]
+        persisted_value = set_args[1]
         # Existing pdf-server kept as-is; remote appended (skipping the duplicate).
-        names = [cfg["name"] for cfg in persisted]
+        names = [cfg["name"] for cfg in persisted_value["mcpConfigs"]]
         assert names == ["pdf-server", "remote"]
-        assert persisted[1]["enabled"] is False
-        assert persisted[1]["type"] == "streamable_http"
-        assert persisted[1]["url"] == "https://api.example.com/mcp"
+        assert persisted_value["mcpConfigs"][1]["enabled"] is False
+        assert persisted_value["mcpConfigs"][1]["type"] == "streamable_http"
+        assert persisted_value["mcpConfigs"][1]["url"] == "https://api.example.com/mcp"
+        invalidate_cache.assert_called_once()
+
+    async def test_confirm_preserves_legacy_bare_list_mcp_configs(
+        self, tmp_path: Path
+    ) -> None:
+        """User-configured servers (incl. legacy bare-list payloads) survive import.
+
+        The persisted shape is always ``{"mcpConfigs": [...]}`` and existing names
+        are merged with imported ones, never dropped.
+        """
+        session = self._make_session()
+        server_keys = list(session.servers_by_key.keys())
+
+        fake_store = SimpleNamespace(
+            db_path=tmp_path,
+            save_skills_batch=AsyncMock(),
+            get_active_skills=lambda: [],
+        )
+        config_service = SimpleNamespace(
+            get=AsyncMock(
+                return_value=SimpleNamespace(
+                    value=[
+                        {"name": "user-mcp", "enabled": True, "command": "/keep-me"}
+                    ]
+                )
+            ),
+            set=AsyncMock(),
+        )
+        agent_service = SimpleNamespace(
+            get_agent_by_id=AsyncMock(), update_agent=AsyncMock()
+        )
+
+        with (
+            patch(
+                "app.services.plugins.import_service._load_existing_skill_ids",
+                return_value={},
+            ),
+            patch(
+                "app.core.skills.store.evolution_store.get_evolution_skill_store",
+                return_value=fake_store,
+            ),
+            patch("app.services.config.service.config_service", config_service),
+            patch("app.services.agent.agent_service.AgentService", agent_service),
+            patch(
+                "app.core.channel_bridge.config_cache.invalidate_user_configs_cache"
+            ) as invalidate_cache,
+        ):
+            await confirm_plugin_import(
+                session,
+                skill_decisions=[],
+                server_decisions=[
+                    PluginConfirmItem(
+                        component="mcp",
+                        virtual_id=server_keys[0],
+                        resolution="install",
+                        name="pdf-server",
+                    ),
+                ],
+                bind_agent_id=None,
+            )
+
+        set_args = config_service.set.await_args.args
+        persisted_value = set_args[1]
+        names = [cfg["name"] for cfg in persisted_value["mcpConfigs"]]
+        assert names == ["user-mcp", "pdf-server"]
+        assert persisted_value["mcpConfigs"][0]["command"] == "/keep-me"
+        invalidate_cache.assert_called_once()
 
     async def test_confirm_skips_skill_with_security_issues(
         self, tmp_path: Path
@@ -490,7 +691,11 @@ class TestConfirmPluginImport:
         session = _parse_session()
         skill_keys = list(session.skills_by_key.keys())
 
-        fake_store = SimpleNamespace(db_path=tmp_path, save_skills_batch=AsyncMock())
+        fake_store = SimpleNamespace(
+            db_path=tmp_path,
+            save_skills_batch=AsyncMock(),
+            get_active_skills=lambda: [],
+        )
         config_service = SimpleNamespace(
             get=AsyncMock(return_value=None), set=AsyncMock()
         )
@@ -499,6 +704,10 @@ class TestConfirmPluginImport:
         )
 
         with (
+            patch(
+                "app.services.plugins.import_service._load_existing_skill_ids",
+                return_value={},
+            ),
             patch(
                 "app.core.skills.store.evolution_store.get_evolution_skill_store",
                 return_value=fake_store,
@@ -529,6 +738,7 @@ class TestConfirmPluginImport:
             "skipped_skills": 1,
             "imported_servers": 0,
             "skipped_servers": 0,
+            "required_secret_keys": [],
         }
         fake_store.save_skills_batch.assert_not_awaited()
         config_service.set.assert_not_awaited()
@@ -546,7 +756,11 @@ class TestConfirmPluginImport:
             files={},
         )
 
-        fake_store = SimpleNamespace(db_path=tmp_path, save_skills_batch=AsyncMock())
+        fake_store = SimpleNamespace(
+            db_path=tmp_path,
+            save_skills_batch=AsyncMock(),
+            get_active_skills=lambda: [],
+        )
         config_service = SimpleNamespace(
             get=AsyncMock(return_value=None), set=AsyncMock()
         )
@@ -555,6 +769,10 @@ class TestConfirmPluginImport:
         )
 
         with (
+            patch(
+                "app.services.plugins.import_service._load_existing_skill_ids",
+                return_value={},
+            ),
             patch(
                 "app.core.skills.store.evolution_store.get_evolution_skill_store",
                 return_value=fake_store,
@@ -581,9 +799,208 @@ class TestConfirmPluginImport:
             "skipped_skills": 1,
             "imported_servers": 0,
             "skipped_servers": 0,
+            "required_secret_keys": [],
         }
         fake_store.save_skills_batch.assert_not_awaited()
         config_service.set.assert_not_awaited()
+
+    async def test_confirm_upgrades_existing_skill_in_place(
+        self, tmp_path: Path
+    ) -> None:
+        """A same-name skill is upgraded in place instead of duplicated.
+
+        The authoritative existing map is re-queried at confirm time, so even an
+        ``install`` decision on a conflict resolves to an in-place overwrite.
+        """
+        session = _parse_session()
+        skill_keys = list(session.skills_by_key.keys())
+
+        fake_store = SimpleNamespace(
+            db_path=tmp_path,
+            save_skills_batch=AsyncMock(),
+            get_active_skills=lambda: [],
+        )
+        config_service = SimpleNamespace(
+            get=AsyncMock(return_value=None), set=AsyncMock()
+        )
+        agent_service = SimpleNamespace(
+            get_agent_by_id=AsyncMock(), update_agent=AsyncMock()
+        )
+
+        with (
+            patch(
+                "app.services.plugins.import_service._load_existing_skill_ids",
+                return_value={"summarize": "existing-skill-id"},
+            ),
+            patch(
+                "app.core.skills.store.evolution_store.get_evolution_skill_store",
+                return_value=fake_store,
+            ),
+            patch("app.services.config.service.config_service", config_service),
+            patch("app.services.agent.agent_service.AgentService", agent_service),
+        ):
+            result = await confirm_plugin_import(
+                session,
+                skill_decisions=[
+                    PluginConfirmItem(
+                        component="skill",
+                        virtual_id=skill_keys[0],
+                        resolution="install",
+                        name="summarize",
+                    ),
+                ],
+                server_decisions=[],
+                bind_agent_id=None,
+            )
+
+        assert result == {
+            "imported_skills": 1,
+            "skipped_skills": 0,
+            "imported_servers": 0,
+            "skipped_servers": 0,
+            "required_secret_keys": [],
+        }
+        fake_store.save_skills_batch.assert_awaited_once()
+        records = fake_store.save_skills_batch.await_args.args[0]
+        assert len(records) == 1
+        record = records[0]
+        # Reuses the existing skill_id and records a DERIVED lineage from it.
+        assert record.skill_id == "existing-skill-id"
+        assert record.lineage.evolution_type == EvolutionType.DERIVED
+        assert record.lineage.parent_id == "existing-skill-id"
+
+    async def test_confirm_explicit_replace_resolution_upgrades(
+        self, tmp_path: Path
+    ) -> None:
+        """An explicit ``replace`` decision has the same in-place semantics."""
+        session = _parse_session()
+        skill_keys = list(session.skills_by_key.keys())
+
+        fake_store = SimpleNamespace(
+            db_path=tmp_path,
+            save_skills_batch=AsyncMock(),
+            get_active_skills=lambda: [],
+        )
+        config_service = SimpleNamespace(
+            get=AsyncMock(return_value=None), set=AsyncMock()
+        )
+        agent_service = SimpleNamespace(
+            get_agent_by_id=AsyncMock(), update_agent=AsyncMock()
+        )
+
+        with (
+            patch(
+                "app.services.plugins.import_service._load_existing_skill_ids",
+                return_value={"summarize": "existing-skill-id"},
+            ),
+            patch(
+                "app.core.skills.store.evolution_store.get_evolution_skill_store",
+                return_value=fake_store,
+            ),
+            patch("app.services.config.service.config_service", config_service),
+            patch("app.services.agent.agent_service.AgentService", agent_service),
+        ):
+            result = await confirm_plugin_import(
+                session,
+                skill_decisions=[
+                    PluginConfirmItem(
+                        component="skill",
+                        virtual_id=skill_keys[0],
+                        resolution="replace",
+                        name="summarize",
+                    ),
+                ],
+                server_decisions=[],
+                bind_agent_id=None,
+            )
+
+        assert result["imported_skills"] == 1
+        records = fake_store.save_skills_batch.await_args.args[0]
+        record = records[0]
+        assert record.skill_id == "existing-skill-id"
+        assert record.lineage.evolution_type == EvolutionType.DERIVED
+        assert record.lineage.parent_id == "existing-skill-id"
+
+    async def test_confirm_persists_scoped_secrets_and_headers(
+        self, tmp_path: Path
+    ) -> None:
+        """Imported servers persist required_secrets and secret header refs.
+
+        ``env_key_names`` become ``required_secrets`` for runtime Scoped Secret
+        Injection, and header values that are already ``{{secret:KEY}}`` refs are
+        preserved verbatim while plaintext values are rewritten to refs, so
+        credentials never land in the store as plaintext.
+        """
+        session = _parse_session()
+        server_keys = list(session.servers_by_key.keys())
+        session.servers_by_key[server_keys[0]] = PluginMcpServer(
+            name="auth-server",
+            server_type="streamable_http",
+            command=None,
+            args=None,
+            url="https://api.example.com/mcp",
+            headers={
+                "Authorization": "Bearer {{secret:API_TOKEN}}",
+                "X-Client": "keep-plain",
+            },
+            cwd=None,
+            env_key_names=["API_TOKEN", "REGION"],
+            raw_env={},
+        )
+
+        fake_store = SimpleNamespace(
+            db_path=tmp_path,
+            save_skills_batch=AsyncMock(),
+            get_active_skills=lambda: [],
+        )
+        config_service = SimpleNamespace(
+            get=AsyncMock(return_value=None), set=AsyncMock()
+        )
+        agent_service = SimpleNamespace(
+            get_agent_by_id=AsyncMock(), update_agent=AsyncMock()
+        )
+
+        with (
+            patch(
+                "app.services.plugins.import_service._load_existing_skill_ids",
+                return_value={},
+            ),
+            patch(
+                "app.core.skills.store.evolution_store.get_evolution_skill_store",
+                return_value=fake_store,
+            ),
+            patch("app.services.config.service.config_service", config_service),
+            patch("app.services.agent.agent_service.AgentService", agent_service),
+            patch(
+                "app.core.channel_bridge.config_cache.invalidate_user_configs_cache"
+            ) as invalidate_cache,
+        ):
+            result = await confirm_plugin_import(
+                session,
+                skill_decisions=[],
+                server_decisions=[
+                    PluginConfirmItem(
+                        component="mcp",
+                        virtual_id=server_keys[0],
+                        resolution="install",
+                        name="auth-server",
+                    ),
+                ],
+                bind_agent_id=None,
+            )
+
+        assert result["imported_servers"] == 1
+        # env_key_names + header refs (incl. rewritten plaintext refs), deduped.
+        assert result["required_secret_keys"] == ["API_TOKEN", "REGION", "X-Client"]
+
+        set_args = config_service.set.await_args.args
+        persisted_value = set_args[1]
+        entry = persisted_value["mcpConfigs"][0]
+        assert entry["required_secrets"] == ["API_TOKEN", "REGION"]
+        # Existing secret ref preserved verbatim; plaintext rewritten to a ref.
+        assert entry["headers"]["Authorization"] == "Bearer {{secret:API_TOKEN}}"
+        assert entry["headers"]["X-Client"] == "{{secret:X-Client}}"
+        invalidate_cache.assert_called_once()
 
 
 class TestPluginStaging:

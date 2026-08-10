@@ -318,6 +318,64 @@ describe('messageRequest - turn capability telemetry contract', () => {
   });
 });
 
+describe('messageRequest - security preset contract', () => {
+  const makeState = (overrides: Record<string, unknown> = {}) =>
+    ({
+      chatId: 'chat-security',
+      actionMode: 'agent',
+      agentConfig: null,
+      abortController: new AbortController(),
+      loading: false,
+      loadingOlder: false,
+      messages: [],
+      compactedSummary: null,
+      compactedBeforeId: null,
+      workspaceDir: null,
+      files: [],
+      cameraFrames: [],
+      hideAttachList: false,
+      hasUsedImagesInCurrentChat: false,
+      mentionReferences: [],
+      clearMentionReferences: vi.fn(),
+      removeMentionReferencesByTypes: vi.fn(),
+      isGoalMode: false,
+      goalBudgetTokens: null,
+      goalBudgetUsd: null,
+      goalMaxTimeSeconds: null,
+      goalMaxTurns: null,
+      goalProtectedPaths: null,
+      goalLoopOnPause: false,
+      goalConvergenceWindow: null,
+      goalAcceptanceCriteria: null,
+      goalConstraints: null,
+      currentSessionMessageId: null,
+      messageAppeared: false,
+      isMessagesLoaded: true,
+      hasMoreMessages: false,
+      nextCursor: null,
+      notFound: false,
+      loadError: false,
+      newChatCreated: false,
+      currentBuiltinTools: [],
+      ...overrides,
+    }) as unknown as ChatActionsState;
+
+  it.each(['hitl', 'accept_edits', 'explore'] as const)(
+    'always sends security_preset even for %s',
+    async (preset) => {
+      const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+      createAISearchStreamMock.mockClear();
+      createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+      useChatStore.setState({ securityPreset: preset });
+
+      await createMessageRequest('security request', 'msg-sec', makeState(), null);
+
+      const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+      expect(requestBody).toMatchObject({ security_preset: preset });
+    },
+  );
+});
+
 describe('messageRequest - memory settings contract', () => {
   it('includes enable_conversation_search when memory opt-in is enabled', async () => {
     const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;

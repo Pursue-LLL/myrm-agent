@@ -178,7 +178,7 @@ class TestFrustrationRoutingUnit:
                 new=AsyncMock(return_value=mock_skill),
             ),
             patch(
-                "app.services.skills.growth_lifecycle.process_skill_review_result",
+                "app.services.skills.growth.lifecycle.process_skill_review_result",
                 new=AsyncMock(),
             ) as mock_process,
             patch(

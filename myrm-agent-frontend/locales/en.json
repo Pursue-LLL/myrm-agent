@@ -139,7 +139,8 @@
       "actionType": "action",
       "skills": "Skills",
       "skillType": "skill",
-      "createCommand": "Create command…"
+      "createCommand": "Create command…",
+      "recentlyUsed": "Recently Used"
     },
     "builtin": {
       "compact": "Compress conversation context to save tokens",
@@ -496,7 +497,10 @@
         "probeRecommendedModeStartLocalEditorMcp": "Start the MCP server in your local editor, then run the connectivity check again.",
         "probeRecommendedModeVerifyLocalNetworkAndEditor": "Check local network reachability and editor MCP settings, then run the connectivity check again.",
         "probeRecommendedActionSwitchMode": "Close and switch mode",
-        "probeRecommendedActionRetryProbe": "Retry and connect"
+        "probeRecommendedActionRetryProbe": "Retry and connect",
+        "oauthDescription": "You will be redirected to the provider to authorize access.",
+        "oauthTitle": "Connect to {name}",
+        "waitingAuth": "Waiting for authorization..."
       }
     },
     "integrationMemory": {
@@ -696,7 +700,12 @@
         "badgeLoggedIn": "Logged in",
         "badgeLoggedOut": "Not logged in",
         "badgeCliReady": "CLI ready",
-        "badgeInstalled": "Installed"
+        "badgeInstalled": "Installed",
+        "install": "Install",
+        "installInProgress": "Installing…",
+        "installSuccess": "Installed successfully",
+        "installing": "Installing {backend}",
+        "installingDesc": "This may take a few minutes. The installation log appears below."
       },
       "showSystemMessages": "Show System Messages",
       "showSystemMessagesDesc": "Display AI system prompts (System Prompts) in chat",
@@ -1752,7 +1761,8 @@
           "validating": "Validating...",
           "failed": "Validation failed"
         }
-      }
+      },
+      "modelRestricted": "Restricted by organization policy"
     },
     "modelCapabilities": {
       "vision": "Vision",
@@ -1963,7 +1973,9 @@
       "vaultDeleteFailed": "Failed to delete vault credential",
       "vaultDeleteTitle": "Delete Vault Credential",
       "vaultDeleteDesc": "Are you sure you want to delete the credential \"{label}\"? This action cannot be undone.",
-      "vaultEdit": "Edit"
+      "vaultEdit": "Edit",
+      "tokenRequired": "Token is required",
+      "xaiOauthTimeout": "Authorization timed out"
     },
     "skillQuality": {
       "title": "Skill Quality Management",
@@ -2842,7 +2854,15 @@
           "rejected": "Rejected",
           "synthesisPending": "Evolution synthesis"
         }
-      }
+      },
+      "evidenceClaimConfidence": "Claim confidence: {value}",
+      "evidenceExcerpt": "Excerpt",
+      "evidenceResourceUri": "Source: {uri}",
+      "evidenceSnapshotMissing": "Snapshot unavailable — the page may have changed.",
+      "evidenceSnapshotStale": "Snapshot may be out of date.",
+      "evidenceSnapshotVerified": "Snapshot verified against the current page.",
+      "evidenceStructuredClaim": "Structured Claim",
+      "evidenceSupersededFrom": "Superseded by: {uri}"
     },
     "skills": {
       "title": "Skills Management",
@@ -3135,7 +3155,8 @@
         "confirmAcceptTitle": "Apply Upstream Update",
         "confirmAcceptDesc": "Your local modifications to \"{name}\" will be replaced with the latest upstream version. This cannot be undone.",
         "confirmAction": "Continue",
-        "cancelAction": "Cancel"
+        "cancelAction": "Cancel",
+        "export": "Export"
       },
       "curator": {
         "safetyPromise": "Skills are never deleted. The worst case is archiving, and you can restore anytime.",
@@ -3246,7 +3267,8 @@
         "evalCases": "Regression Test Cases",
         "knownPitfalls": "Known Pitfalls",
         "pitfallTrigger": "Trigger",
-        "tokenCost": "Context cost: ~{count} tokens per conversation"
+        "tokenCost": "Context cost: ~{count} tokens per conversation",
+        "export": "Export"
       },
       "growth": {
         "title": "Skill Growth",
@@ -3336,24 +3358,8 @@
           "title": "No cases in this view",
           "description": "Recent skill growth activity will appear here after the agent captures or reviews improvements."
         },
-        "export": {
-          "title": "Export Skill: {name}",
-          "description": "Review content before exporting. Sensitive information will be redacted automatically.",
-          "scanning": "Scanning for sensitive information...",
-          "safeTitle": "Safe to Export",
-          "safeDescription": "No sensitive information (API keys, absolute paths) detected in this skill.",
-          "warningTitle": "Sensitive Information Detected",
-          "warningDescription": "We found potentially sensitive information. It is highly recommended to export the redacted version.",
-          "diffPreview": "Redaction Preview",
-          "cancel": "Cancel",
-          "exportOriginal": "Export Original (Unsafe)",
-          "exportRedacted": "Export Redacted (Safe)",
-          "export": "Export",
-          "previewFailed": "Failed to preview skill",
-          "exportSuccess": "Skill exported successfully",
-          "exportFailed": "Failed to export skill",
-          "toggleAll": "Toggle All"
-        }
+        "cronCreateFailed": "Failed to schedule recurring review for {name}",
+        "cronCreated": "Recurring review scheduled for {name}"
       },
       "upload": {
         "title": "Upload Custom Skill",
@@ -3677,6 +3683,32 @@
       "search": {
         "empty": "No matching skills found",
         "emptyDesc": "Try adjusting your search criteria or clearing filters"
+      },
+      "export": {
+        "title": "Export Skill: {name}",
+        "description": "Review content before exporting. Sensitive information will be redacted automatically.",
+        "scanning": "Scanning for sensitive information...",
+        "safeTitle": "Safe to Export",
+        "safeDescription": "No sensitive information (API keys, absolute paths) detected in this skill.",
+        "warningTitle": "Sensitive Information Detected",
+        "warningDescription": "We found potentially sensitive information. It is highly recommended to export the redacted version.",
+        "diffPreview": "Redaction Preview",
+        "cancel": "Cancel",
+        "exportOriginal": "Export Original (Unsafe)",
+        "exportRedacted": "Export Redacted (Safe)",
+        "export": "Export",
+        "previewFailed": "Failed to preview skill",
+        "exportSuccess": "Skill exported successfully",
+        "exportFailed": "Failed to export skill",
+        "toggleAll": "Toggle All"
+      },
+      "permissions": {
+        "approved": "Permissions approved",
+        "denied": "Permissions denied",
+        "error": "Failed to update permissions",
+        "skillEnabled": "Skill enabled",
+        "skillNotEnabled": "Skill not enabled",
+        "templateApplied": "Template applied"
       }
     },
     "language": "Language",
@@ -4661,7 +4693,17 @@
           "e2eeAlgorithm": "Algorithm",
           "e2eeFingerprint": "Fingerprint"
         }
-      }
+      },
+      "push": {
+        "deniedHint": "Notifications are blocked. Enable them in your browser settings.",
+        "description": "Receive a notification when a background task finishes.",
+        "label": "Browser notifications",
+        "test": "Send test notification",
+        "title": "Notifications"
+      },
+      "pushDisabled": "Notifications disabled",
+      "pushEnabled": "Notifications enabled",
+      "pushTestSent": "Test notification sent"
     },
     "push": {
       "title": "Notifications",
@@ -5389,7 +5431,8 @@
           "memory": "Memory",
           "error": "Error"
         }
-      }
+      },
+      "securityAudit": "Security Audit"
     },
     "experimentalFeatures": {
       "title": "Experimental Features",
@@ -5840,6 +5883,7 @@
           "selectAll": "Install All",
           "skipAll": "Skip All",
           "install": "Install",
+          "replace": "Replace",
           "skip": "Skip",
           "cancel": "Cancel",
           "confirm": "Confirm Import",
@@ -5857,7 +5901,8 @@
         },
         "security": {
           "blocked": "Blocked: {count} security risk(s) found — automatically skipped",
-          "oversized": "Skill content exceeds the storage size limit (64 KB) — automatically skipped"
+          "oversized": "Skill content exceeds the storage size limit (64 KB) — automatically skipped",
+          "conflict": "A skill with this name already exists — Replace upgrades it, or Skip to keep the current one"
         },
         "errors": {
           "parseTitle": "Parse Error",
@@ -5867,7 +5912,9 @@
         },
         "success": {
           "title": "Import Success",
-          "description": "Imported {skills} skills and {servers} MCP servers"
+          "description": "Imported {skills} skills and {servers} MCP servers",
+          "requiredKeys": "Configure these keys in Agent Secrets after import: {keys}",
+          "disabledHint": "Imported MCP servers are disabled by default — enable them in MCP Settings"
         }
       }
     }
@@ -6661,6 +6708,27 @@
       "blueprints": {
         "research_squad": "Deep Research Squad (Multi-Agent)",
         "code_audit_squad": "Code Red Team Audit (Multi-Agent)"
+      },
+      "actionSpaceRadar": {
+        "smartPruneFailed": "Smart prune failed",
+        "smartPruneRunning": "Pruning action space...",
+        "smartPruneSuccess": "Pruned {stale} stale, archived {archived}"
+      },
+      "mcpTools": {
+        "dangerDisabled": "{count} dangerous tools disabled",
+        "loadFailed": "Failed to load tools",
+        "loading": "Loading...",
+        "noTools": "No tools available",
+        "retry": "Retry",
+        "selectAll": "Select all",
+        "toolFilter": "Filter"
+      },
+      "skillInstance": {
+        "auto": "Auto",
+        "label": "Instance",
+        "placeholder": "Select instance",
+        "staleClear": "Clear",
+        "staleWarning": "Instance \"{name}\" is stale or unavailable"
       }
     },
     "validation": {
@@ -6824,6 +6892,18 @@
           "always": "Always",
           "alwaysDesc": "Record every browser session."
         }
+      },
+      "aiAssist": "AI Assist",
+      "aiPromptPlaceholder": "Describe the system prompt change you want to make...",
+      "generate": "Generate",
+      "generating": "Generating...",
+      "history": "History",
+      "systemPromptLabel": "System Prompt",
+      "vars": {
+        "currentDate": "Current date",
+        "currentTime": "Current time",
+        "osInfo": "Operating system info",
+        "userName": "User name"
       }
     },
     "preview": "Preview",
@@ -6850,6 +6930,20 @@
     },
     "security": {
       "tabTitle": "Security",
+      "defaultPresetTitle": "Default Session Security Preset",
+      "defaultPresetDesc": "When this agent is bound or switched to, new sessions start with this security preset; you can still switch per-session in chat.",
+      "defaultPresetInherit": "Inherit global (manual approval)",
+      "presets": {
+        "hitl": {
+          "label": "Manual Approval"
+        },
+        "accept_edits": {
+          "label": "Auto-Approve Edits"
+        },
+        "explore": {
+          "label": "Read-Only"
+        }
+      },
       "capabilitiesTitle": "Capability Restrictions",
       "capabilitiesDesc": "Select capabilities this agent is allowed to use. Only selected capabilities will be available (intersection with global policy).",
       "noCapabilities": "No restrictions — inherits all capabilities from global policy.",
@@ -7128,7 +7222,10 @@
       "retryStart": "Retry",
       "hint": "Your data is stored locally and will not be lost. Export a backup before reinstalling if needed.",
       "selectExportFolder": "Select export folder"
-    }
+    },
+    "back": "Back",
+    "noOptions": "No options available",
+    "providerDisabledWarning": "This provider is disabled"
   },
   "chat": {
     "skillActivation": {
@@ -7481,7 +7578,10 @@
         "reading": "AI is reading this file",
         "modifying": "AI is modifying this file",
         "scanning": "AI is scanning this directory/file"
-      }
+      },
+      "fileTooLarge": "File is too large, showing the first 1MB.",
+      "ghostFile": "This file was deleted or moved by the AI.",
+      "more": "more"
     },
     "deliverable": {
       "awaitingArtifact": "Waiting for artifact sync — link will activate shortly"
@@ -7533,7 +7633,10 @@
       "currentMsg": "Current Msg",
       "historyAvg": "Session Avg",
       "viewTrace": "View Detailed Trace",
-      "noSessionStats": "No performance data"
+      "noSessionStats": "No performance data",
+      "modelBreakdown": "Model Breakdown",
+      "performance": "Performance",
+      "toolBreakdown": "Tool Breakdown"
     },
     "liveness": {
       "idle": "Ready",
@@ -7673,7 +7776,9 @@
       "select": "Select",
       "dismiss": "Dismiss",
       "specialReferencesHint": "Try: @staged (staged) / @diff (working dir) / @codebase (overview) / @folder:path (directory) / @url:link (webpage) / @chat:title (prior chat) / file:10-20 (line range)",
-      "removeReference": "Remove {label}"
+      "removeReference": "Remove {label}",
+      "agentsCategory": "Agents",
+      "contextCategory": "Context"
     },
     "conversationRecall": {
       "hintTitle": "Continue past conversations",
@@ -8010,7 +8115,8 @@
       "importButton": "Open Migration Wizard",
       "dismiss": "Maybe Later",
       "apiKeysHint": "API key names detected — enter values manually in Settings"
-    }
+    },
+    "retry": "Retry"
   },
   "mode": {
     "fast": "Fast Search",
@@ -8341,7 +8447,10 @@
         "emptyGaps": "No knowledge gaps detected.",
         "emptyConnections": "No unexpected links yet.",
         "emptyCommunities": "No clusters yet — add more concepts to the vault."
-      }
+      },
+      "deselectAll": "Toggle All",
+      "legend": "Node Types",
+      "selectAll": "Select All"
     },
     "gallery": {
       "title": "Media Gallery",
@@ -8447,7 +8556,10 @@
     "audioTooLarge": "Audio file too large (exceeds 25MB limit)",
     "audioTooLargeDesc": "Please select a smaller audio file. Current: {size}",
     "largeDocIndexing": "Large document will be indexed into knowledge base for intelligent retrieval",
-    "largeDocIndexingDesc": "{name} ({size}) — AI will automatically search the knowledge base instead of reading the entire document"
+    "largeDocIndexingDesc": "{name} ({size}) — AI will automatically search the knowledge base instead of reading the entire document",
+    "uploadError": "Upload failed",
+    "uploadSuccess": "Upload successful",
+    "uploadedCount": "{count} file(s) uploaded"
   },
   "mermaidChart": {
     "syntaxError": "Mermaid Syntax Error",
@@ -8691,7 +8803,9 @@
       "image": "Generating Image",
       "video": "Generating Video",
       "safety": "Safety Fallback"
-    }
+    },
+    "copied": "Copied!",
+    "copy": "Copy"
   },
   "memory": {
     "title": "Memory Management",
@@ -10612,6 +10726,12 @@
       "autoLogin": "Authenticating automatically...",
       "autoLoginFailed": "Auto-login failed. Please sign in with your password."
     },
+    "oauthErrorTitle": "OAuth Error",
+    "oauthErrorDescription": "Authorization failed. Please try again.",
+    "loginSuccessTitle": "Login successful",
+    "loginSuccessDescription": "You have been signed in successfully.",
+    "loginFailedTitle": "Login failed",
+    "tokenVerificationFailed": "Token verification failed. Please sign in again.",
     "oauth": {
       "title": "Signing you in",
       "description": "Completing secure sign-in…",
@@ -10782,7 +10902,11 @@
     },
     "available": "Available",
     "exampleCases": "Examples",
-    "goToSettingsHint": "Please configure and enable ACP Provider in Model Services first"
+    "goToSettingsHint": "Please configure and enable ACP Provider in Model Services first",
+    "browse": "Browse",
+    "notAvailable": "Not available in this mode",
+    "recentProjects": "Recent Projects",
+    "tauriModeRequired": "This preset requires the desktop app (Tauri)"
   },
   "pricing": {
     "title": "Pricing",
@@ -11536,7 +11660,16 @@
         "desc": "Auto-ingest saved articles into your knowledge base daily",
         "prompt": "Run the read-it-later ingestion pipeline: pull unprocessed items, ingest into wiki, tag as processed. Cap at 10 items per run."
       }
-    }
+    },
+    "triggerPollAdd": "Add Poll",
+    "triggerPollDesc": "Periodically fetch a URL and fire when content changes.",
+    "triggerPollJsonPath": "JSONPath (optional)",
+    "triggerPollLabel": "Poll (HTTP)",
+    "triggerStreamAdd": "Add Stream",
+    "triggerStreamDesc": "Real-time monitoring via outbound WebSocket or SSE connection. Works behind NAT.",
+    "triggerStreamJsonPath": "JSONPath e.g. $.data.price",
+    "triggerStreamLabel": "Stream (WS/SSE)",
+    "triggerStreamRegex": "Regex filter (optional)"
   },
   "heartbeat": {
     "title": "Agent Auto-Check",
@@ -12560,31 +12693,6 @@
     "triggerPrefixPlaceholder": "Enter prefix, e.g. /ask or !ai",
     "triggerPrefixAdd": "Add",
     "triggerMentionOverrideHint": "@Mention will always trigger reply, regardless of selected trigger mode.",
-    "authorizeNow": "Authorize Now",
-    "cancelLoginFailed": "Failed to cancel login",
-    "connectionError": "Connection error",
-    "generatingQrCode": "Generating QR code...",
-    "initializing": "Initializing...",
-    "loginCancelled": "Login cancelled",
-    "loginFailed": "Login failed",
-    "loginSuccess": "Login successful",
-    "loginTimeout": "Login timeout",
-    "oauth2Instructions": "Click button to open authorization page",
-    "oauth2Login": "OAuth 2.0 Login",
-    "oauth2LoginDesc": "Authorize via browser",
-    "oauth2LoginTitle": "OAuth 2.0 Authorization",
-    "oauth2Wait": "Waiting for authorization...",
-    "preparingOauth2": "Preparing OAuth 2.0...",
-    "qrCodeLogin": "QR Code Login",
-    "qrCodeLoginDesc": "Scan QR code to authorize",
-    "qrExpiresAt": "QR code expires at: {time}",
-    "qr_codeLoginTitle": "QR Code Login",
-    "scanQrCode": "Please scan the QR code with mobile app",
-    "selectLoginMethod": "Select Login Method",
-    "startLoginFailed": "Failed to start login",
-    "unknownError": "Unknown error",
-    "validating": "Validating...",
-    "waitingForUser": "Waiting for user action...",
     "dingtalk": {
       "corpId": "Corp ID",
       "agentId": "Agent ID",
@@ -12789,7 +12897,27 @@
     "missingRequiredFields": "Missing required fields",
     "invalidFieldFormat": "Invalid field format",
     "networkError": "Network error, please try again",
-    "unexpectedError": "Unexpected error occurred"
+    "unexpectedError": "Unexpected error occurred",
+    "onebotAdvancedSettings": "Advanced Settings",
+    "onebotDmAllowlist": "Allowlist",
+    "onebotDmDisabled": "Disabled",
+    "onebotDmHint": "Allow direct messages from anyone, pairing-required, allowlisted senders only, or disable DMs.",
+    "onebotDmOpen": "Open",
+    "onebotDmPairing": "Pairing required",
+    "onebotDmPolicy": "Direct Message Policy",
+    "onebotGroupPolicy": "Group Policy",
+    "onebotGroupPolicyAllowlist": "Allowlist",
+    "onebotGroupPolicyDisabled": "Disabled",
+    "onebotGroupPolicyHint": "Allow messages from all groups, only allowlisted groups, or disable group messages.",
+    "onebotGroupPolicyOpen": "Open",
+    "onebotGroupTrigger": "Group Trigger",
+    "onebotSaveConfig": "Save Config",
+    "onebotTriggerAll": "All messages",
+    "onebotTriggerHint": "Respond to @mentions, messages starting with the prefix, or all messages.",
+    "onebotTriggerMention": "Mention only",
+    "onebotTriggerPrefix": "Prefix",
+    "optional": "optional",
+    "signalApiUrlHint": "Base URL of your signald REST API, e.g. http://localhost:8080"
   },
   "voice": {
     "sectionTitle": "Voice Settings",
@@ -13171,7 +13299,9 @@
     "highRiskDomAction": "High-Risk Browser Action Detected",
     "targetElement": "Target Element",
     "action": "Action",
-    "jsExpression": "JavaScript Expression"
+    "jsExpression": "JavaScript Expression",
+    "clarificationRequired": "Error Clarification Required",
+    "fixParameters": "Fix Parameters (JSON)"
   },
   "notifications": {
     "title": "System Notifications",
@@ -13255,7 +13385,8 @@
     "clarificationNeeded": "Agent needs your input",
     "mcpAuthRequired": "{server} requires re-authorization",
     "oauthReauthRequired": "{issuer} authorization expired. Please reauthorize to restore access.",
-    "reauthorize": "Reauthorize"
+    "reauthorize": "Reauthorize",
+    "budgetFinalization": "Budget nearly exhausted — finalizing"
   },
   "configConflict": {
     "title": "Configuration Conflict Detected",
@@ -14265,7 +14396,8 @@
     "failed": "failed",
     "approvalCardNotFound": "No pending approval card found",
     "costBudgetTitle": "Cost: {used} / {limit}",
-    "tokenBudgetTitle": "Token budget: {used} / {limit}"
+    "tokenBudgetTitle": "Token budget: {used} / {limit}",
+    "reviewAction": "Review"
   },
   "evalLab": {
     "pageTitle": "Eval Lab",
@@ -14533,7 +14665,10 @@
         "confirmTitle": "Confirm Bulk Revoke",
         "success": "Bulk Revoke Success",
         "error": "Bulk Revoke Failed",
-        "errorDesc": "Failed to bulk revoke permissions, please try again"
+        "errorDesc": "Failed to bulk revoke permissions, please try again",
+        "affectedSkills": "Revoked {count} permissions across {skills} skill(s)",
+        "confirm": "Revoke this permission from all skills?",
+        "errorDescription": "Failed to bulk revoke permissions, please try again."
       },
       "loading": "Loading...",
       "noSkillsWithPermissions": "No skills requiring permissions",
@@ -14573,7 +14708,10 @@
         },
         "highDenialRate": "High Denial Rate",
         "last90days": "Last 90 days"
-      }
+      },
+      "allowedDomainsDesc": "This skill may only send network requests to the domains listed above.",
+      "revokeConfirm": "After revoking, this skill will no longer be able to perform the related operation. Running tasks that use this permission may be interrupted.\n\nContinue?",
+      "revokeSuccess": "Permission revoked. Running tasks may be affected."
     }
   },
   "followUps": {
@@ -15081,7 +15219,8 @@
     "mcpHeaderValuePlaceholder": "Value or {{secret:API_KEY}}",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Configuration saved",
-    "mcpSecretRefSaveHintDesc": "Secret references in headers will be resolved at runtime."
+    "mcpSecretRefSaveHintDesc": "Secret references in headers will be resolved at runtime.",
+    "clearSyncedMemory": "Also remove synced memory data ({count} sources)"
   },
   "about": {
     "title": "About",
@@ -15647,7 +15786,24 @@
   "cliAgent": {
     "modeAgent": "AI Agent",
     "sidecarFailedTitle": "CLI runner unavailable",
-    "sidecarUnavailable": "CLI unavailable"
+    "sidecarUnavailable": "CLI unavailable",
+    "allow": "Allow",
+    "allowAnyway": "Allow Anyway",
+    "alwaysAllowThisTool": "Always allow this tool",
+    "dangerousCommandExplanation": "This command is flagged as dangerous. Running it could damage your system or compromise your data.",
+    "dangerousCommandWarning": "This is a dangerous command. Proceed with caution.",
+    "deny": "Deny",
+    "modeAsk": "Ask",
+    "modeAskDescription": "Prompt for approval before every tool call",
+    "modeAuto": "Auto",
+    "modeAutoDescription": "Auto-approve safe tool calls",
+    "modeExplore": "Explore",
+    "modeExploreDescription": "Read-only exploration, no changes",
+    "pendingPermissions": "{count} more pending permission request(s)",
+    "permissionRequest": "Permission Request",
+    "permissionRequestDescription": "The agent is requesting permission to run a command.",
+    "pressShiftTabToSwitch": "Press Shift+Tab to switch mode",
+    "tool": "Tool"
   },
   "sandbox": {
     "sandboxMode": "Sandbox",
@@ -15765,5 +15921,12 @@
     "switchToCard": "Switch to card view",
     "tableView": "Table",
     "cardView": "Card"
+  },
+  "messageBox": {
+    "consensusActive": "Waiting for remaining models…",
+    "consensusMetaAggregator": "Aggregator: {model}",
+    "consensusMetaElapsed": "Elapsed: {seconds}s",
+    "consensusMetaModels": "{succeeded}/{total} models responded",
+    "consensusMetaTitle": "Multi-model Consensus"
   }
 }

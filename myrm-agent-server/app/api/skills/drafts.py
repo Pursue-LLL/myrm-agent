@@ -17,7 +17,7 @@ from app.services.approvals.registry import ApprovalRegistry
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 from app.services.skills.evolution_events import publish_skill_evolved_event
 from app.services.skills.experience_ledger import record_skill_growth_event
-from app.services.skills.growth_constants import GROWTH_ACTION_TYPES
+from app.services.skills.growth.constants import GROWTH_ACTION_TYPES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

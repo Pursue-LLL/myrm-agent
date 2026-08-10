@@ -125,6 +125,9 @@ const nextConfig: NextConfig = {
   experimental: {
     // 减少并行编译任务，降低CPU占用
     cpus: 4,
+    // Next.js 16 Turbopack 持久缓存已知 bug：缓存损坏（.sst 文件丢失）会触发
+    // restore panic 导致 dev server 崩溃（Aborting）。禁用持久缓存换取稳定性。
+    turbopackFileSystemCacheForDev: false,
   },
   
   // Webpack优化配置（当使用Webpack时生效）

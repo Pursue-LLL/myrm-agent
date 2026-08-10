@@ -27,7 +27,6 @@
 | `SkillDraftReviewPanel.tsx` | 组件 | AI 生成技能草稿审阅面板；采纳 skill 后展示 `[use name]` 与 command binding 引导 | ✅ |
 | `SkillsLearnPanel.tsx` | 组件 | Settings→Installed：三字段 + 五场景 chip → raw `/learn` → server SSOT rewrite | ✅ |
 | `__tests__/SkillDraftReviewPanel.invokeGuide.test.tsx` | 测试 | 末条 draft 采纳后 invoke 引导仍可见 | ✅ |
-| `SkillsLearnPanel.tsx` | 组件 | Settings→Installed：三字段 + 五场景 chip → raw `/learn` → server SSOT rewrite | ✅ |
 | `SkillEmptyState.tsx` | 辅助 | 无技能空状态引导 | ✅ |
 | `SkillExportDialog.tsx` | 组件 | 导出技能为 zip/marketplace 包 | ✅ |
 | `SkillFilters.tsx` | 辅助 | 技能列表过滤（类别/信任/来源） | ✅ |

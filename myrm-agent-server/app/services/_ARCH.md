@@ -31,6 +31,7 @@
 | `config/` | ✅ 核心 | 配置管理服务（CRUD、加密、迁移、健康监控、首次配置） | [_ARCH.md](config/_ARCH.md) |
 | `memory/` | ✅ 核心 | 记忆业务服务（备份/恢复、Shared Context 共享上下文治理） | [_ARCH.md](memory/_ARCH.md) |
 | `skills/` | ✅ 核心 | 技能相关服务（权限、经验账本、草稿通知、自动提取） | [_ARCH.md](skills/_ARCH.md) |
+| `plugins/` | ✅ 核心 | 插件导入编排（Agent Plugins 1.0.0：ZIP 解析包装、staging 会话、预览构建、confirm 落盘 + Agent 绑定） | [_ARCH.md](plugins/_ARCH.md) |
 | `skill_optimization/` | ✅ 核心 | Skill 优化服务（AB 测试、基线同步、LLM 优化、回滚） | [_ARCH.md](skill_optimization/_ARCH.md) |
 | `event/` | ✅ 核心 | 事件记录（Agent 运行时事件持久化 + Turn 生命周期管理） | [_ARCH.md](event/_ARCH.md) |
 | `kanban/` | ✅ 核心 | Kanban 看板业务编排（mixin facade + orchestrator 模块 + TaskRunner + diagnostics） | [_ARCH.md](kanban/_ARCH.md) |
@@ -67,6 +68,12 @@
 | `files/` | ✅ 辅助 | 非 HTTP 文件内容提取（PDF/Office bytes→text） | [_ARCH.md](files/_ARCH.md) |
 | `extension/` | ✅ 辅助 | 浏览器扩展桥 WebSocket 生命周期与 CDP 代理 | [_ARCH.md](extension/_ARCH.md) |
 | `theme/` | ✅ 辅助 | 主题包 inspect/install/export（`.myrmtheme`） | [_ARCH.md](theme/_ARCH.md) |
+| `onboarding/` | ✅ 辅助 | Server 层原子 onboarding 预设编排（agent template + cron blueprint 复用） | [_ARCH.md](onboarding/_ARCH.md) |
+| `browser_recording/` | ✅ 辅助 | 浏览器录制会话业务层（session 生命周期、Harness capture 序列化、技能草稿生成） | [_ARCH.md](browser_recording/_ARCH.md) |
+| `web_fetch/` | ✅ 辅助 | Web Fetch Escalation Layer（Jina/Firecrawl L4 远程读取 fallback，默认 OFF） | [_ARCH.md](web_fetch/_ARCH.md) |
+| `workflow_templates/` | ✅ 辅助 | WorkflowTemplateStore server adapter（与 DW 引擎共享 workflow_events.db） | [_ARCH.md](workflow_templates/_ARCH.md) |
+| `hosting/` | ✅ 核心 | Artifact 多目标发布业务层（Vercel/CF Pages/Netlify/HTTP Webhook、SSRF 防护） | [_ARCH.md](hosting/_ARCH.md) |
+| `compounding_playbook/` | ✅ 辅助 | Settings「复利闭环」checklist 聚合服务（memory/skills/cron/verify 就绪状态） | [_ARCH.md](compounding_playbook/_ARCH.md) |
 ---
 
 ## 依赖关系

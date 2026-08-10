@@ -3049,24 +3049,6 @@
           "title": "Keine Fälle in dieser Ansicht",
           "description": "Aktuelle Fähigkeitswachstumsaktivitäten erscheinen hier, nachdem der Agent Verbesserungen erfasst oder geprüft hat."
         },
-        "export": {
-          "title": "Exportfähigkeit: {name}",
-          "description": "Inhalt vor dem Export prüfen. Sensible Informationen werden automatisch geschwärzt.",
-          "scanning": "Nach vertraulichen Informationen suchen...",
-          "safeTitle": "Sicher zu exportieren",
-          "safeDescription": "Keine sensiblen Informationen (API-Schlüssel, absolute Pfade) in dieser Fähigkeit erkannt.",
-          "warningTitle": "Sensible Informationen erkannt",
-          "warningDescription": "Wir haben potenziell sensible Informationen gefunden. Es wird dringend empfohlen, die geschwärzte Version zu exportieren.",
-          "diffPreview": "Schwärzungsvorschau",
-          "cancel": "Abbrechen",
-          "exportOriginal": "Original exportieren (unsicher)",
-          "exportRedacted": "Geschwärzt exportieren (sicher)",
-          "export": "Exportieren",
-          "previewFailed": "Vorschau der Fähigkeit fehlgeschlagen",
-          "exportSuccess": "Fähigkeit erfolgreich exportiert",
-          "exportFailed": "Export der Fähigkeit fehlgeschlagen",
-          "toggleAll": "Alle umschalten"
-        },
         "loadingDetail": "Loading change details…",
         "detailLoadFailed": "Laden der Änderungsdetails fehlgeschlagen",
         "listScopeHint": "Zeigt die neuesten {shown} von {total} Fällen",
@@ -3254,6 +3236,24 @@
             "text": "Our release/publish SOP — versioning checklist, verification steps, and rollback procedure."
           }
         }
+      },
+      "export": {
+        "title": "Exportfähigkeit: {name}",
+        "description": "Inhalt vor dem Export prüfen. Sensible Informationen werden automatisch geschwärzt.",
+        "scanning": "Nach vertraulichen Informationen suchen...",
+        "safeTitle": "Sicher zu exportieren",
+        "safeDescription": "Keine sensiblen Informationen (API-Schlüssel, absolute Pfade) in dieser Fähigkeit erkannt.",
+        "warningTitle": "Sensible Informationen erkannt",
+        "warningDescription": "Wir haben potenziell sensible Informationen gefunden. Es wird dringend empfohlen, die geschwärzte Version zu exportieren.",
+        "diffPreview": "Schwärzungsvorschau",
+        "cancel": "Abbrechen",
+        "exportOriginal": "Original exportieren (unsicher)",
+        "exportRedacted": "Geschwärzt exportieren (sicher)",
+        "export": "Exportieren",
+        "previewFailed": "Vorschau der Fähigkeit fehlgeschlagen",
+        "exportSuccess": "Fähigkeit erfolgreich exportiert",
+        "exportFailed": "Export der Fähigkeit fehlgeschlagen",
+        "toggleAll": "Alle umschalten"
       }
     },
     "language": "Sprache",
@@ -5686,6 +5686,7 @@
           "selectAll": "Alle installieren",
           "skipAll": "Alle überspringen",
           "install": "Installieren",
+          "replace": "Ersetzen",
           "skip": "Überspringen",
           "cancel": "Abbrechen",
           "confirm": "Import bestätigen",
@@ -5705,7 +5706,9 @@
         },
         "success": {
           "title": "Import erfolgreich",
-          "description": "{skills} Fähigkeiten und {servers} MCP-Server importiert"
+          "description": "{skills} Fähigkeiten und {servers} MCP-Server importiert",
+          "requiredKeys": "Konfigurieren Sie diese Schlüssel nach dem Import unter „Agent-Secrets“: {keys}",
+          "disabledHint": "Importierte MCP-Server sind standardmäßig deaktiviert — aktivieren Sie sie in den MCP-Einstellungen"
         },
         "empty": {
           "title": "Keine importierbaren Komponenten in diesem Plugin",
@@ -5717,7 +5720,8 @@
         },
         "security": {
           "blocked": "Blockiert: {count} Sicherheitsrisiko(n) gefunden — automatisch übersprungen",
-          "oversized": "Skill-Inhalt überschreitet das Speicherlimit (64 KB) — automatisch übersprungen"
+          "oversized": "Skill-Inhalt überschreitet das Speicherlimit (64 KB) — automatisch übersprungen",
+          "conflict": "Ein Skill mit diesem Namen ist bereits vorhanden — „Ersetzen“ aktualisiert ihn, „Überspringen“ behält den aktuellen"
         }
       }
     }
@@ -6324,6 +6328,20 @@
     },
     "security": {
       "tabTitle": "Sicherheit",
+      "defaultPresetTitle": "Standard-Sicherheitsvorgabe für Sitzungen",
+      "defaultPresetDesc": "Wenn dieser Agent gebunden oder aktiviert wird, starten neue Sitzungen mit dieser Sicherheitsvorgabe; Sie können sie pro Sitzung im Chat ändern.",
+      "defaultPresetInherit": "Global übernehmen (manuelle Genehmigung)",
+      "presets": {
+        "hitl": {
+          "label": "Manuelle Genehmigung"
+        },
+        "accept_edits": {
+          "label": "Bearbeitungen automatisch genehmigen"
+        },
+        "explore": {
+          "label": "Nur Lesen"
+        }
+      },
       "capabilitiesTitle": "Fähigkeitsbeschränkungen",
       "capabilitiesDesc": "Fähigkeiten auswählen, die dieser Agent nutzen darf. Nur ausgewählte Fähigkeiten stehen zur Verfügung (Schnittmenge mit globaler Richtlinie).",
       "noCapabilities": "No restrictions — inherits all capabilities from global policy.",
@@ -7331,7 +7349,7 @@
       "fast_5": "Was sind die wissenschaftlich fundiertesten Methoden zum Erlernen neuer Fähigkeiten?",
       "fast_6": "Was sind die Anwendungen von KI im Gesundheitswesen?",
       "fast_7": "Empfehlen Sie großartige Bücher über Produktdesign",
-      "fast_8": "Schlagen Sie ein Ziel für ein dreitägiges Wochenend-Ausflugsziel vor",
+      "fast_8": "Empfehlen Sie ein Reiseziel für einen dreitägigen Wochenendausflug",
       "fast_9": "Wie kann ich meine Remote-Arbeitsproduktivität verbessern?",
       "fast_10": "Was sind die gängigen großen Sprachmodelle und ihre Stärken?",
       "fast_11": "Erklären Sie die Kernprinzipien der RAG-Technologie",
@@ -10323,6 +10341,12 @@
       "autoLoginFailed": "Die automatische Anmeldung ist fehlgeschlagen. Bitte melden Sie sich mit Ihrem Passwort an.",
       "errorRateLimit": "Zu viele Anmeldeversuche. Bitte versuchen Sie es nach {seconds} Sekunden erneut."
     },
+    "oauthErrorTitle": "OAuth-Fehler",
+    "oauthErrorDescription": "Autorisierung fehlgeschlagen. Bitte erneut versuchen.",
+    "loginSuccessTitle": "Anmeldung erfolgreich",
+    "loginSuccessDescription": "Sie wurden erfolgreich angemeldet.",
+    "loginFailedTitle": "Anmeldung fehlgeschlagen",
+    "tokenVerificationFailed": "Token-Überprüfung fehlgeschlagen. Bitte erneut anmelden.",
     "oauth": {
       "title": "Melden Sie sich an, um fortzufahren",
       "description": "Completing secure sign-in…",
@@ -11614,31 +11638,6 @@
     "approvalUpdateError": "Genehmigungsanforderung konnte nicht aktualisiert werden"
   },
   "channels": {
-    "selectLoginMethod": "Wählen Sie Anmeldemethode",
-    "qrCodeLogin": "QR-Code-Anmeldung",
-    "qrCodeLoginDesc": "QR-Code scannen, um zu autorisieren",
-    "oauth2Login": "OAuth2 Authorization",
-    "oauth2LoginDesc": "Autorisieren Sie über den Browser",
-    "qr_codeLoginTitle": "QR-Code-Anmeldung",
-    "oauth2LoginTitle": "Browser Authorization",
-    "scanQrCode": "Bitte scannen Sie den QR-Code mit der mobilen App",
-    "qrExpiresAt": "Expires at {time}",
-    "generatingQrCode": "Generating QR code…",
-    "oauth2Instructions": "Klicken Sie auf die Schaltfläche, um die Autorisierungsseite zu öffnen",
-    "authorizeNow": "Jetzt autorisieren",
-    "oauth2Wait": "Waiting for authorization…",
-    "preparingOauth2": "Preparing authorization…",
-    "waitingForUser": "Waiting for your action…",
-    "validating": "Validating credentials…",
-    "loginSuccess": "Login successful!",
-    "loginFailed": "Fehler bei der Anmeldung",
-    "loginTimeout": "Anmeldezeitüberschreitung",
-    "loginCancelled": "Anmeldung abgebrochen",
-    "connectionError": "Verbindungsfehler",
-    "unknownError": "Unbekannter Fehler",
-    "startLoginFailed": "Die Anmeldung konnte nicht gestartet werden",
-    "cancelLoginFailed": "Die Anmeldung konnte nicht abgebrochen werden",
-    "initializing": "Initializing…",
     "cancel": "Stornieren",
     "sectionTitle": "Nachrichtenkanäle",
     "sectionDesc": "Verwalten Sie Benachrichtigungskanäle und externe Plattformintegrationen für den Empfang von Aufgabenergebnissen und bidirektionalen Gesprächen.",

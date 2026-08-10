@@ -15,8 +15,8 @@ from app.services.skills.evolution_reviews import (
     EvolutionReviewRecord,
     approval_to_evolution_review_record,
 )
-from app.services.skills.growth_case_types import SkillGrowthCaseSource
-from app.services.skills.growth_queries import (
+from app.services.skills.growth.case_types import SkillGrowthCaseSource
+from app.services.skills.growth.queries import (
     _approval_case,
     _evolution_case,
 )

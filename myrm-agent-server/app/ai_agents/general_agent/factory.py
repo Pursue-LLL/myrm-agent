@@ -799,7 +799,7 @@ async def build_general_agent(
             logger.warning("Failed to build similarity checker (non-blocking): %s", e)
 
     # Also inject into growth_lifecycle for backend auto-review dedup
-    from app.services.skills.growth_lifecycle import set_similarity_checker
+    from app.services.skills.growth.lifecycle import set_similarity_checker
 
     set_similarity_checker(sim_checker)
 

@@ -25,7 +25,9 @@ class CdpSocket(Protocol):
 
 
 def _state_dir() -> Path:
-    return Path(os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev"))
+    return Path(
+        os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev")
+    )
 
 
 def _registry_path() -> Path:
@@ -85,13 +87,14 @@ async def _cdp_request(
     raise TimeoutError(f"CDP request timed out: {method}")
 
 
-async def _park_window_offscreen(ws: CdpSocket, msg_id: int, window_id: int, *, deadline: float) -> None:
+async def _park_window_offscreen(
+    ws: CdpSocket, msg_id: int, window_id: int, *, deadline: float
+) -> None:
     """Park a window OFFSCREEN-NORMAL (§26.21/§26.23 focus-theft fix).
 
     `windowState:'minimized'` pauses requestAnimationFrame, which stalls
-    Next.js 16's $RV Suspense flush — rendering freezes, probes report
-    `__windowHidden`, and the test layer falls back to `Page.bringToFront`,
-    stealing macOS focus from the user. An offscreen normal window keeps
+    Next.js 16's $RV Suspense flush — rendering freezes and probes report
+    `__windowHidden`. An offscreen normal window keeps
     `visibilityState==='visible'` so rendering never stops while staying away
     from the user's desktop. This mirrors `cdp-plane.ts::parkTargetWindowOffscreen`.
     """
@@ -113,7 +116,9 @@ async def _park_window_offscreen(ws: CdpSocket, msg_id: int, window_id: int, *, 
     )
 
 
-async def _window_for_target(ws: CdpSocket, msg_id: int, target_id: str, *, deadline: float) -> int | None:
+async def _window_for_target(
+    ws: CdpSocket, msg_id: int, target_id: str, *, deadline: float
+) -> int | None:
     result = await _cdp_request(
         ws,
         msg_id,
@@ -181,7 +186,9 @@ async def _create_agent_window(ws: CdpSocket, *, deadline: float) -> tuple[str, 
     return target_id, window_id
 
 
-async def _park_all_page_windows_offscreen(ws: CdpSocket, cdp_port: int, *, deadline: float) -> None:
+async def _park_all_page_windows_offscreen(
+    ws: CdpSocket, cdp_port: int, *, deadline: float
+) -> None:
     targets = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/list", timeout=5.0)
     if not isinstance(targets, list):
         return
@@ -196,7 +203,9 @@ async def _park_all_page_windows_offscreen(ws: CdpSocket, cdp_port: int, *, dead
         if not isinstance(target_id, str) or not target_id:
             continue
         try:
-            window_id = await _window_for_target(ws, msg_id, target_id, deadline=deadline)
+            window_id = await _window_for_target(
+                ws, msg_id, target_id, deadline=deadline
+            )
             msg_id += 1
             if window_id is None or window_id in seen:
                 continue
@@ -211,7 +220,9 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
     try:
         import websockets
     except ImportError as exc:
-        raise RuntimeError("websockets required — cd myrm-agent-server && uv sync") from exc
+        raise RuntimeError(
+            "websockets required — cd myrm-agent-server && uv sync"
+        ) from exc
 
     version = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/version", timeout=5.0)
     if not isinstance(version, dict):
@@ -223,13 +234,21 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
     registry = _load_registry()
     deadline = time.monotonic() + 20.0
 
-    async with websockets.connect(browser_ws, open_timeout=10, max_size=4 * 1024 * 1024) as ws:
+    async with websockets.connect(
+        browser_ws, open_timeout=10, max_size=4 * 1024 * 1024
+    ) as ws:
         anchor_target = registry.get("anchorTargetId")
         window_id = registry.get("windowId")
         valid = False
-        if isinstance(anchor_target, str) and anchor_target and isinstance(window_id, int):
+        if (
+            isinstance(anchor_target, str)
+            and anchor_target
+            and isinstance(window_id, int)
+        ):
             try:
-                current = await _window_for_target(ws, 1, anchor_target, deadline=deadline)
+                current = await _window_for_target(
+                    ws, 1, anchor_target, deadline=deadline
+                )
                 valid = current == window_id
             except (TimeoutError, RuntimeError, asyncio.TimeoutError):
                 valid = False
@@ -238,7 +257,9 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
             # Reuse a live page window as the anchor instead of creating a new
             # one: Target.createTarget(newWindow=true) targets are recycled by
             # Chrome and their windowId is not reliably addressable (§26.25).
-            anchor_target, window_id = await _adopt_live_anchor(ws, cdp_port, deadline=deadline)
+            anchor_target, window_id = await _adopt_live_anchor(
+                ws, cdp_port, deadline=deadline
+            )
             registry = {
                 "windowId": window_id,
                 "anchorTargetId": anchor_target,
@@ -251,7 +272,9 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
             except (TimeoutError, RuntimeError, asyncio.TimeoutError):
                 # anchor window was closed since the registry was written —
                 # adopt a live window so the offscreen surface stays intact.
-                anchor_target, window_id = await _adopt_live_anchor(ws, cdp_port, deadline=deadline)
+                anchor_target, window_id = await _adopt_live_anchor(
+                    ws, cdp_port, deadline=deadline
+                )
                 registry = {
                     "windowId": window_id,
                     "anchorTargetId": anchor_target,
@@ -265,9 +288,15 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Myrm E2E Chrome Agent Operating Surface")
+    parser = argparse.ArgumentParser(
+        description="Myrm E2E Chrome Agent Operating Surface"
+    )
     parser.add_argument("command", choices=["ensure", "registry"])
-    parser.add_argument("--cdp-port", type=int, default=int(os.environ.get("MYRM_CHROME_E2E_PORT", "9333")))
+    parser.add_argument(
+        "--cdp-port",
+        type=int,
+        default=int(os.environ.get("MYRM_CHROME_E2E_PORT", "9333")),
+    )
     args = parser.parse_args()
 
     if args.command == "registry":
@@ -276,7 +305,13 @@ def main() -> int:
 
     try:
         registry = asyncio.run(ensure_agent_surface(cdp_port=args.cdp_port))
-    except (OSError, urllib.error.URLError, RuntimeError, TimeoutError, asyncio.TimeoutError) as exc:
+    except (
+        OSError,
+        urllib.error.URLError,
+        RuntimeError,
+        TimeoutError,
+        asyncio.TimeoutError,
+    ) as exc:
         print(f"CHROME_E2E_SURFACE_WARN: {exc}", file=os.sys.stderr)
         return 0
 

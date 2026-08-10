@@ -396,6 +396,7 @@ export const useAgentConfigPanel = () => {
           memoryExtractionPreset: agentDetail.memory_extraction_preset || 'auto',
           browserSource: agentDetail.browser_source || undefined,
           promptMode: agentDetail.prompt_mode || undefined,
+          defaultSecurityPreset: agentDetail.default_security_preset ?? undefined,
         };
         setAgentConfig(newConfig);
 

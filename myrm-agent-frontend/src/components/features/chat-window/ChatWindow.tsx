@@ -473,6 +473,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             memoryExtractionPreset: agent.memory_extraction_preset || 'auto',
             browserSource: agent.browser_source || undefined,
             promptMode: agent.prompt_mode || undefined,
+            defaultSecurityPreset: agent.default_security_preset ?? undefined,
           };
           setAgentConfig(config);
 

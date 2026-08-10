@@ -24,6 +24,7 @@ import { sendMessage } from './chat/messageRequest';
 import { generateStreamRequestMessageId } from './chat/streamRequestMessageId';
 import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat, persistActiveChatNavigationSnapshot, resolveInstantChatSnapshot } from './chat/messageManagement';
 import { processSuggestions, findAssistantMessageIndex } from './chat/messageUtils';
+import { disarmYoloForPreset } from './chat/securityPreset';
 import useQuoteStore from './useQuoteStore';
 import useWorkspaceStore from './useWorkspaceStore';
 import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent } from '@/services/chat';
@@ -397,6 +398,7 @@ const useChatStore = create<ChatState>()(
         }
         const prevId = get().agentConfig?.agentId;
         const agentChanged = prevId !== undefined && prevId !== config.agentId;
+        const firstBind = prevId === undefined && config.agentId !== undefined;
         const builtinTools = [...(config.enabledBuiltinTools ?? DEFAULT_ENABLED_BUILTIN_TOOLS)];
         const autoRestoreDomains = [...(config.autoRestoreDomains ?? [])];
         if (typeof window !== 'undefined') {
@@ -408,6 +410,13 @@ const useChatStore = create<ChatState>()(
           if (chatId && !get().incognitoMode) {
             void persistMoaPresetToServer(chatId, null);
           }
+        }
+        const defaultPreset = config.defaultSecurityPreset;
+        const isKnownPreset =
+          defaultPreset === 'hitl' || defaultPreset === 'accept_edits' || defaultPreset === 'explore';
+        const presetInitialized = isKnownPreset && (firstBind || agentChanged);
+        if (presetInitialized && defaultPreset) {
+          disarmYoloForPreset(defaultPreset);
         }
         set({
           agentConfig: {
@@ -421,6 +430,7 @@ const useChatStore = create<ChatState>()(
           },
           currentBuiltinTools: builtinTools,
           ...(agentChanged ? { activeMoaPresetId: null } : {}),
+          ...(presetInitialized && defaultPreset ? { securityPreset: defaultPreset } : {}),
         });
       },
       updateAgentConfig: (partial) => {

@@ -7,7 +7,7 @@ evolution to embed the preference permanently.
 [INPUT]
 - myrm_agent_harness.agent.skills.evolution.pipeline.frustration_detector (POS: Frustration signal detector)
 - app.core.skills.store.service::skills_service (POS: Skill store service)
-- app.services.skills.growth_lifecycle::process_skill_review_result (POS: Skill growth lifecycle)
+- app.services.skills.growth.lifecycle::process_skill_review_result (POS: Skill growth lifecycle)
 
 [OUTPUT]
 - make_frustration_skill_routing_callback: Session cleanup callback factory
@@ -216,7 +216,7 @@ async def _trigger_derived_evolution(
 ) -> None:
     """Trigger DERIVED skill evolution with the preference feedback."""
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-    from app.services.skills.growth_lifecycle import process_skill_review_result
+    from app.services.skills.growth.lifecycle import process_skill_review_result
 
     feedback = f"[PREFERENCE] {preference}"
 

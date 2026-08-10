@@ -9,6 +9,13 @@ import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import { Label } from '@/components/primitives/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/primitives/select';
 import { apiRequest } from '@/lib/api';
 import { HealthScoreCard, type AuditResult } from './HealthScoreCard';
 
@@ -110,11 +117,22 @@ function serializeOverrides(data: SecurityOverridesData): Record<string, unknown
 interface AgentSecurityTabProps {
   value: Record<string, unknown> | null;
   onChange: (value: Record<string, unknown> | null) => void;
+  defaultSecurityPreset: 'hitl' | 'accept_edits' | 'explore' | null;
+  onDefaultSecurityPresetChange: (preset: 'hitl' | 'accept_edits' | 'explore' | null) => void;
   agentId?: string | null;
   saveVersion?: number;
 }
 
-export function AgentSecurityTab({ value, onChange, agentId, saveVersion }: AgentSecurityTabProps) {
+const PRESET_OPTIONS = ['hitl', 'accept_edits', 'explore'] as const;
+
+export function AgentSecurityTab({
+  value,
+  onChange,
+  defaultSecurityPreset,
+  onDefaultSecurityPresetChange,
+  agentId,
+  saveVersion,
+}: AgentSecurityTabProps) {
   const t = useTranslations('agent.security');
   const tCap = useTranslations('cron.capability');
   const [newPath, setNewPath] = useState('');
@@ -249,6 +267,33 @@ export function AgentSecurityTab({ value, onChange, agentId, saveVersion }: Agen
 
   return (
     <div className={cn('space-y-5', 'animate-in fade-in-50 duration-300')}>
+      {/* 默认会话安全预设 */}
+      <div className="rounded-xl border border-border bg-card p-4 space-y-3 transition-all duration-300">
+        <div>
+          <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
+            <IconShieldCheck className="h-4 w-4 text-primary" />
+            {t('defaultPresetTitle')}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('defaultPresetDesc')}</p>
+        </div>
+        <Select
+          value={defaultSecurityPreset ?? 'inherit'}
+          onValueChange={(v) => onDefaultSecurityPresetChange(v === 'inherit' ? null : (v as 'hitl' | 'accept_edits' | 'explore'))}
+        >
+          <SelectTrigger className="w-full sm:w-72">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="inherit">{t('defaultPresetInherit')}</SelectItem>
+            {PRESET_OPTIONS.map((p) => (
+              <SelectItem key={p} value={p}>
+                {t(`presets.${p}.label`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Health Score Card */}
       {agentId && (
         <HealthScoreCard result={auditResult} loading={auditLoading} t={t} onFixToggle={handleFixNavigate} />

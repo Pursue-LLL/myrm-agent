@@ -1,7 +1,7 @@
 """
 [INPUT]
 - app.services.approvals.registry::ApprovalRegistry
-- app.services.skills.evolution_review_disk
+- .disk
 [OUTPUT]
 - approve/reject/revise/rollback evolution review records
 [POS]
@@ -17,14 +17,14 @@ from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionType
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.services.approvals.registry import ApprovalRegistry
-from app.services.skills.evolution_review_disk import (
+from .disk import (
     apply_approval_record,
     get_skill_store,
     rollback_content_update,
     rollback_description_update,
 )
-from app.services.skills.evolution_review_persistence import load_approval_record, persist_approval_payload
-from app.services.skills.evolution_review_types import (
+from .persistence import load_approval_record, persist_approval_payload
+from .types import (
     MAX_SKILL_CONTENT_CHARS,
     EvolutionApplyError,
     EvolutionApplyStatus,
@@ -34,7 +34,7 @@ from app.services.skills.evolution_review_types import (
     approval_to_evolution_review_record,
     evolution_lineage_id,
 )
-from app.services.skills.experience_ledger import (
+from ..experience_ledger import (
     ExperienceEntityType,
     ExperienceEventType,
     ExperienceLedgerWrite,

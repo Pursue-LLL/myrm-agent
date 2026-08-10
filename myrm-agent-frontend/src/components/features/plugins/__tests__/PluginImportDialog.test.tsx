@@ -19,6 +19,7 @@ const stableT: (key: string) => string = (key) => {
     'actions.cancel': 'Cancel',
     'actions.confirm': 'Import',
     'actions.install': 'Install',
+    'actions.replace': 'Replace',
     'actions.skip': 'Skip',
     'actions.selectAll': 'Select all',
     'actions.skipAll': 'Skip all',
@@ -39,6 +40,7 @@ const stableT: (key: string) => string = (key) => {
     'sections.envCount': '{count} env vars',
     'security.blocked': 'Blocked: {count} security risk(s) found — automatically skipped',
     'security.oversized': 'Skill content exceeds the storage size limit (64 KB) — automatically skipped',
+    'security.conflict': 'A skill with this name already exists — Replace upgrades it, or Skip to keep the current one',
   };
   return map[key] ?? key;
 };
@@ -132,8 +134,8 @@ const PLUGIN_PREVIEW = {
     keywords: ['pdf'],
   },
   skills: [
-    { name: 'summarize', description: 'Summarize a PDF', file_count: 2, virtual_id: 'skill:0', security_issues: [], oversized_content: false },
-    { name: 'extract', description: 'Extract tables', file_count: 1, virtual_id: 'skill:1', security_issues: [], oversized_content: false },
+    { name: 'summarize', description: 'Summarize a PDF', file_count: 2, virtual_id: 'skill:0', security_issues: [], oversized_content: false, conflict: false },
+    { name: 'extract', description: 'Extract tables', file_count: 1, virtual_id: 'skill:1', security_issues: [], oversized_content: false, conflict: false },
   ],
   servers: [
     {
@@ -427,5 +429,137 @@ describe('PluginImportDialog', () => {
     expect(await screen.findByText(/storage size limit|storage limit/)).toBeInTheDocument();
     // The oversized skill is pre-skipped: only the MCP server offers an Install toggle.
     expect(screen.getAllByText('Install')).toHaveLength(1);
+  });
+
+  it('marks conflicting skills, pre-skips them and allows replace', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...PLUGIN_PREVIEW,
+        skills: [
+          {
+            name: 'summarize',
+            description: 'Already installed skill',
+            file_count: 1,
+            virtual_id: 'skill:0',
+            security_issues: [],
+            oversized_content: false,
+            conflict: true,
+          },
+        ],
+      }),
+    });
+    await renderDialog();
+    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+
+    // Conflict hint is shown and the conflicting skill starts skipped (only the
+    // MCP server keeps an Install toggle).
+    expect(await screen.findByText(/already exists/)).toBeInTheDocument();
+    expect(screen.getByText('Skip')).toBeInTheDocument();
+    expect(screen.getAllByText('Install')).toHaveLength(1);
+
+    // Switching it on upgrades in place (replace), not duplicate install.
+    fireEvent.click(screen.getByText('Skip'));
+    expect(screen.getByText('Replace')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Replace'));
+    expect(screen.getByText('Skip')).toBeInTheDocument();
+  });
+
+  it('turns conflicting skills into replace when using Select all', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...PLUGIN_PREVIEW,
+        skills: [
+          {
+            name: 'fresh',
+            description: 'New skill',
+            file_count: 1,
+            virtual_id: 'skill:0',
+            security_issues: [],
+            oversized_content: false,
+            conflict: false,
+          },
+          {
+            name: 'summarize',
+            description: 'Already installed skill',
+            file_count: 1,
+            virtual_id: 'skill:1',
+            security_issues: [],
+            oversized_content: false,
+            conflict: true,
+          },
+        ],
+      }),
+    });
+    await renderDialog();
+    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+
+    await screen.findByText(/already exists/);
+    // The fresh skill starts installed; the conflicting one starts skipped.
+    expect(screen.getAllByText('Install')).toHaveLength(2);
+    expect(screen.getByText('Skip')).toBeInTheDocument();
+
+    // Select all: the conflicting skill upgrades in place (Replace) instead of
+    // creating a duplicate, while the fresh skill stays a plain install.
+    // (Skills section renders before the MCP servers section, so [0] targets it.)
+    fireEvent.click(screen.getAllByText('Select all')[0]);
+    expect(screen.getByText('Replace')).toBeInTheDocument();
+    expect(screen.getAllByText('Install')).toHaveLength(2);
+    expect(screen.queryByText('Skip')).not.toBeInTheDocument();
+  });
+
+  it('submits replace resolution for conflicting skills', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ...PLUGIN_PREVIEW,
+          skills: [
+            {
+              name: 'summarize',
+              description: 'Already installed skill',
+              file_count: 1,
+              virtual_id: 'skill:0',
+              security_issues: [],
+              oversized_content: false,
+              conflict: true,
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ imported_skills: 1, imported_servers: 0 }),
+      });
+    await renderDialog();
+    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+
+    await screen.findByText(/already exists/);
+    // Switch from default skip to replace, then confirm.
+    fireEvent.click(screen.getByText('Skip'));
+    fireEvent.click(screen.getByText('Import'));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        '/api/v1/plugins/import/confirm',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: 'sess-1',
+            skills: [
+              { component: 'skill', virtual_id: 'skill:0', name: 'summarize', resolution: 'replace' },
+            ],
+            servers: [
+              { component: 'mcp', virtual_id: 'mcp:0', name: 'pdf-server', resolution: 'install' },
+            ],
+            bind_agent_id: null,
+          }),
+        }),
+      );
+    });
   });
 });

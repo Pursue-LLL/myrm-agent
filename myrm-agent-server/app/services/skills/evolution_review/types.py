@@ -17,7 +17,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field, ValidationError
 
 from app.database.models import ApprovalRecord
-from app.services.skills.experience_ledger import ExperienceEventType
+from ..experience_ledger import ExperienceEventType
 
 logger = logging.getLogger(__name__)
 

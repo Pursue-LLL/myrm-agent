@@ -413,7 +413,28 @@ _launch_frontend_supervisor() {
   echo "STACK_START: frontend supervisor pid $(cat "${FRONTEND_PID}") (setsid detached)"
 }
 
+_frontend_turbopack_panic_residue() {
+  # Turbopack persistent-cache restore failure aborts the dev server mid-compile
+  # ("panicked at turbopack" + "Aborting."). A non-clean cold start reuses the
+  # corrupted .next cache and re-panics on later routes — force --clean instead.
+  [[ -f "${FRONTEND_LOG}" ]] || return 1
+  grep -qE "panicked at turbopack|turbo-tasks: an internal panic|Aborting\." "${FRONTEND_LOG}" 2>/dev/null
+}
+
 _try_frontend_start_with_clean_fallback() {
+  if _frontend_turbopack_panic_residue; then
+    echo "STACK_WARN: Turbopack panic residue — skip non-clean, force --clean cold start" >&2
+    _kill_frontend_supervisor
+    _repair_orphan_frontend
+    _launch_frontend_supervisor 1
+    if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
+      _sync_frontend_pid_from_lock
+      echo "STACK_OK: frontend → ${APP_URL} (after --clean; panic residue)"
+      return 0
+    fi
+    echo "STACK_WARN: frontend still not HTTP 200 after --clean (panic residue) — check ${FRONTEND_LOG}" >&2
+    return 1
+  fi
   _launch_frontend_supervisor 0
   if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
     _sync_frontend_pid_from_lock

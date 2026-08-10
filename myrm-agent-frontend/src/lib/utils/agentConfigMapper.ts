@@ -85,5 +85,6 @@ export function buildAgentConfig(agent: Agent): AgentConfig {
     busyInputMode: agent.busy_input_mode ?? undefined,
     engineParams: agent.engine_params ?? null,
     promptMode: agent.prompt_mode ?? undefined,
+    defaultSecurityPreset: agent.default_security_preset ?? undefined,
   };
 }

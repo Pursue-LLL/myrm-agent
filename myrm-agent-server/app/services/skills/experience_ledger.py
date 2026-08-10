@@ -15,7 +15,7 @@ from sqlalchemy import desc, func, select
 
 from app.database.connection import get_session
 from app.database.models import ExperienceLedgerEvent
-from app.services.skills.growth_constants import LEDGER_GROWTH_ACTION_TYPES as SKILL_GROWTH_ACTION_TYPES
+from app.services.skills.growth.constants import LEDGER_GROWTH_ACTION_TYPES as SKILL_GROWTH_ACTION_TYPES
 
 
 class ExperienceEntityType(StrEnum):

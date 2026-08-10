@@ -20,6 +20,286 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 
+def _api_task_get(api_url: str, task_id: str) -> dict[str, object]:
+    """GET a task tolerating transient 5xx (shared SQLite can briefly hit
+    disk-I/O busy under parallel load; retries are safe for reads)."""
+    deadline = time.monotonic() + 30.0
+    while True:
+        try:
+            t = http_json("GET", f"{api_url}/api/v1/kanban/tasks/{task_id}")
+            return t if isinstance(t, dict) else {}
+        except RuntimeError as exc:
+            if "returned 5" not in str(exc) or time.monotonic() >= deadline:
+                raise
+            time.sleep(1.5)
+
+
+def _http_json_write(
+    method: str,
+    url: str,
+    body: dict[str, object] | None = None,
+    *,
+    attempts: int = 10,
+) -> dict[str, object]:
+    """Run a state-changing request tolerating transient shared-SQLite 5xx.
+
+    A 500 here means the write transaction was rolled back before commit, so
+    re-issuing the same payload is safe — no duplicate rows are created. The
+    upstream retry window is short under parallel load, so this adds a slower
+    test-layer retry loop on top of it.
+    """
+    last_error: BaseException | None = None
+    for attempt in range(attempts):
+        try:
+            resp = http_json(method, url, body)
+            return resp if isinstance(resp, dict) else {}
+        except RuntimeError as exc:
+            if "returned 5" not in str(exc):
+                raise
+            last_error = exc
+            if attempt + 1 < attempts:
+                time.sleep(2.0)
+    assert last_error is not None
+    raise last_error
+
+def _api_find_task_by_title(
+    api_url: str, board_id: str, title: str
+) -> dict[str, object] | None:
+    deadline = time.monotonic() + 30.0
+    while True:
+        try:
+            resp = http_json(
+                "GET", f"{api_url}/api/v1/kanban/boards/{board_id}/tasks"
+            )
+            break
+        except RuntimeError as exc:
+            if "returned 5" not in str(exc) or time.monotonic() >= deadline:
+                raise
+            time.sleep(1.5)
+    items = resp.get("items") if isinstance(resp, dict) else None
+    if not isinstance(items, list):
+        return None
+    for t in items:
+        if isinstance(t, dict) and str(t.get("title") or "") == title:
+            return t
+    return None
+
+
+def _api_wait_task_status(
+    api_url: str,
+    task_id: str,
+    expected: str,
+    *,
+    timeout_sec: float = 150.0,
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last = ""
+    while time.monotonic() < deadline:
+        t = _api_task_get(api_url, task_id)
+        st = str(t.get("status") or "")
+        if st != last:
+            last = st
+        if st == expected:
+            return t
+        if st in ("completed", "failed"):
+            break
+        time.sleep(2)
+    raise AssertionError(
+        f"Task {task_id} did not reach {expected!r}; last status={last!r}"
+    )
+
+
+def _create_task_via_ui(client, page, title: str, description: str) -> str:
+    """Fill the READY-column inline form and submit; returns the chosen model id.
+
+    Prefers a minimax route (matches the LITE_MODEL seed) and falls back to the
+    first available option so the test never hard-codes a model.
+    """
+    add_ready = wait_for_state(
+        client,
+        page,
+        """(() => {
+          const btn = document.querySelector('[data-testid="kanban-add-task-ready"]');
+          return { ready: !!btn };
+        })()""",
+        timeout_sec=60.0,
+    )
+    assert add_ready.get("ready") is True
+    opened = client.evaluate(
+        page,
+        """(() => {
+          const btn = document.querySelector('[data-testid="kanban-add-task-ready"]');
+          if (!btn) return false;
+          btn.click();
+          return true;
+        })()""",
+        timeout_sec=5.0,
+    )
+    assert opened is True
+    form_state = wait_for_state(
+        client,
+        page,
+        """(() => {
+          const sel = document.querySelector('[data-testid="kanban-create-model-select"]');
+          const submit = document.querySelector('[data-testid="kanban-create-submit"]');
+          return { ready: !!sel && !!submit, hasSel: !!sel, hasSubmit: !!submit };
+        })()""",
+        timeout_sec=60.0,
+    )
+    assert form_state.get("hasSel") is True
+    assert form_state.get("hasSubmit") is True
+
+    chosen_model = client.evaluate(
+        page,
+        """(() => {
+          const sel = document.querySelector('[data-testid="kanban-create-model-select"]');
+          const options = Array.from(sel.options).map((o) => o.value).filter((v) => v);
+          if (options.length === 0) return '';
+          const target =
+            options.find((v) => v.toLowerCase().includes('minimax')) || options[0];
+          const setter = Object.getOwnPropertyDescriptor(
+            HTMLSelectElement.prototype, 'value',
+          ).set;
+          setter.call(sel, target);
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          return target;
+        })()""",
+        timeout_sec=5.0,
+    )
+    assert isinstance(chosen_model, str) and chosen_model
+
+    def _set_field(selector: str, value: str) -> bool:
+        return bool(
+            client.evaluate(
+                page,
+                f"""(() => {{
+                  const el = document.querySelector({json.dumps(selector)});
+                  if (!el) return false;
+                  const setter = Object.getOwnPropertyDescriptor(
+                    HTMLInputElement.prototype, 'value',
+                  ).set;
+                  setter.call(el, {json.dumps(value)});
+                  el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                  return true;
+                }})()""",
+                timeout_sec=5.0,
+            )
+        )
+
+    assert _set_field(
+        'input[placeholder="Task title"], input[placeholder="任务标题"]',
+        title,
+    )
+    assert _set_field(
+        'input[placeholder="Task description (optional)"], '
+        'input[placeholder="任务描述（可选）"]',
+        description,
+    )
+    submitted = client.evaluate(
+        page,
+        """(() => {
+          const submit = document.querySelector('[data-testid="kanban-create-submit"]');
+          if (!submit) return false;
+          submit.click();
+          return true;
+        })()""",
+        timeout_sec=5.0,
+    )
+    assert submitted is True
+    created = wait_for_state(
+        client,
+        page,
+        f"""(() => {{
+          const view = document.querySelector('[data-testid="kanban-board-view"]');
+          const text = view?.textContent || '';
+          return {{ ready: !!view && text.includes({title!r}), text }};
+        }})()""",
+        timeout_sec=120.0,
+    )
+    assert created.get("ready") is True
+    return chosen_model
+
+
+def _open_kanban_board(client, page, board_id: str, board_name: str) -> None:
+    """Enter the given board's view, tolerating two entry shapes.
+
+    After clearing the persisted last-board and reloading, the board list may be
+    shown (click the row) or the router may already land on the board view under
+    parallel shared-UI hydration. Accept either, then wait for the board view.
+    """
+    previous_board = client.evaluate(
+        page,
+        "localStorage.getItem('kanban_last_board_id')",
+        timeout_sec=5.0,
+    )
+    try:
+        client.evaluate(
+            page,
+            "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
+            timeout_sec=5.0,
+        )
+        client.reload(page, timeout_ms=60_000)
+        in_board_view = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const view = document.querySelector('[data-testid="kanban-board-view"]');
+              const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+              const text = view?.textContent || row?.textContent || '';
+              return {{ ready: !!view || !!row, hasView: !!view, hasRow: !!row, text }};
+            }})()""",
+            timeout_sec=120.0,
+            page_url="/settings/kanban",
+            pin_direct_blank_heal=True,
+        )
+        if in_board_view.get("hasView") is True:
+            # Already on the board view; board_name should be visible somewhere.
+            assert board_name in str(in_board_view.get("text") or "")
+            return
+        row_state = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+              return {{ ready: !!row, text: row?.textContent || '' }};
+            }})()""",
+            timeout_sec=90.0,
+            page_url="/settings/kanban",
+        )
+        assert board_name in str(row_state.get("text") or "")
+        clicked = client.evaluate(
+            page,
+            f"""(() => {{
+              const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+              if (!row) return false;
+              row.click();
+              return true;
+            }})()""",
+            timeout_sec=5.0,
+        )
+        assert clicked is True
+        board_ready = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const view = document.querySelector('[data-testid="kanban-board-view"]');
+              const text = view?.textContent || '';
+              return {{ ready: !!view, text }};
+            }})()""",
+            timeout_sec=90.0,
+            page_url="/settings/kanban",
+        )
+        assert board_ready.get("ready") is True
+    finally:
+        restore = (
+            "localStorage.removeItem('kanban_last_board_id')"
+            if previous_board is None
+            else "localStorage.setItem('kanban_last_board_id', "
+            f"{json.dumps(str(previous_board))})"
+        )
+        client.evaluate(page, restore, timeout_sec=5.0)
+
+
 @pytest.mark.chrome_e2e(
     execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
 )
@@ -30,7 +310,7 @@ def test_kanban_board_and_task_render_in_real_ui() -> None:
     board_name = f"Chrome MCP Board {marker}"
     task_title = f"Chrome MCP Task {marker}"
     api_url = get_e2e_api_url()
-    board = http_json(
+    board = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards",
         {"name": board_name, "description": "formal Chrome MCP E2E"},
@@ -39,7 +319,7 @@ def test_kanban_board_and_task_render_in_real_ui() -> None:
     board_id = str(board.get("board_id") or board.get("id") or "")
     assert board_id
 
-    task = http_json(
+    task = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
         {"title": task_title, "priority": "low", "initial_status": "ready"},
@@ -116,7 +396,7 @@ def test_kanban_source_chat_deep_link_filters_board_view() -> None:
     other_title = f"Other Chat Task {marker}"
     api_url = get_e2e_api_url()
 
-    board = http_json(
+    board = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards",
         {"name": board_name, "description": "source_chat deep link E2E"},
@@ -124,7 +404,7 @@ def test_kanban_source_chat_deep_link_filters_board_view() -> None:
     board_id = str(board.get("board_id") or board.get("id") or "")
     assert board_id
 
-    http_json(
+    _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
         {
@@ -134,7 +414,7 @@ def test_kanban_source_chat_deep_link_filters_board_view() -> None:
             "metadata": {"source_chat_id": chat_id},
         },
     )
-    http_json(
+    _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
         {
@@ -178,7 +458,7 @@ def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
     file_id = f"chrome-e2e-file-{marker}"
     api_url = get_e2e_api_url()
 
-    board = http_json(
+    board = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards",
         {"name": board_name, "description": "Chrome drawer attachment E2E"},
@@ -187,7 +467,7 @@ def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
     board_id = str(board.get("board_id") or board.get("id") or "")
     assert board_id
 
-    task = http_json(
+    task = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
         {
@@ -314,7 +594,7 @@ def test_kanban_stats_bar_shows_running_with_limit() -> None:
     board_name = f"Chrome Stats Board {marker}"
     api_url = get_e2e_api_url()
 
-    board = http_json(
+    board = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards",
         {
@@ -406,7 +686,7 @@ def test_kanban_ready_card_shows_queued_badge_when_concurrency_full() -> None:
     board_name = f"Chrome Queue Board {marker}"
     api_url = get_e2e_api_url()
 
-    board = http_json(
+    board = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards",
         {
@@ -427,7 +707,7 @@ def test_kanban_ready_card_shows_queued_badge_when_concurrency_full() -> None:
     # manually move it to RUNNING to deterministically occupy the only slot —
     # a READY-created task would be claimed by the real dispatcher and fail
     # instantly because the shared E2E backend has no configured LLM.
-    running_task = http_json(
+    running_task = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
         {
@@ -440,7 +720,7 @@ def test_kanban_ready_card_shows_queued_badge_when_concurrency_full() -> None:
     running_task_id = str(running_task.get("task_id") or running_task.get("id") or "")
     assert running_task_id
 
-    moved = http_json(
+    moved = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/tasks/{running_task_id}/move",
         {"status": "running"},
@@ -448,7 +728,7 @@ def test_kanban_ready_card_shows_queued_badge_when_concurrency_full() -> None:
     assert isinstance(moved, dict)
     assert str(moved.get("status") or "") == "running"
 
-    queued_task = http_json(
+    queued_task = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
         {
@@ -468,62 +748,22 @@ def test_kanban_ready_card_shows_queued_badge_when_concurrency_full() -> None:
     assert task_counts.get("ready") == 1
 
     with open_settings_subroute("/settings/kanban") as (client, page):
-        previous_board = client.evaluate(
+        _open_kanban_board(client, page, board_id, board_name)
+        badge_state = wait_for_state(
+            client,
             page,
-            "localStorage.getItem('kanban_last_board_id')",
-            timeout_sec=5.0,
+            f"""(() => {{
+              const card = document.getElementById({json.dumps(f"kanban-task-{queued_task_id}")});
+              const badge = card?.querySelector('[data-testid="kanban-task-queued-badge"]');
+              const badgeText = badge?.textContent?.trim() || '';
+              return {{ ready: !!badge, text: badgeText }};
+            }})()""",
+            timeout_sec=90.0,
         )
-        try:
-            client.evaluate(
-                page,
-                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
-                timeout_sec=5.0,
-            )
-            client.reload(page, timeout_ms=60_000)
-            row_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  return {{ ready: !!row, text: row?.textContent || '' }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert board_name in str(row_state.get("text") or "")
-            clicked = client.evaluate(
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  if (!row) return false;
-                  row.click();
-                  return true;
-                }})()""",
-                timeout_sec=5.0,
-            )
-            assert clicked is True
-            badge_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const card = document.getElementById({json.dumps(f"kanban-task-{queued_task_id}")});
-                  const badge = card?.querySelector('[data-testid="kanban-task-queued-badge"]');
-                  const badgeText = badge?.textContent?.trim() || '';
-                  return {{ ready: !!badge, text: badgeText }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert badge_state.get("ready") is True
-            assert str(badge_state.get("text") or ""), (
-                "queued badge rendered but its i18n text is empty"
-            )
-        finally:
-            restore = (
-                "localStorage.removeItem('kanban_last_board_id')"
-                if previous_board is None
-                else "localStorage.setItem('kanban_last_board_id', "
-                f"{json.dumps(str(previous_board))})"
-            )
-            client.evaluate(page, restore, timeout_sec=5.0)
+        assert badge_state.get("ready") is True
+        assert str(badge_state.get("text") or ""), (
+            "queued badge rendered but its i18n text is empty"
+        )
 
 
 @pytest.mark.chrome_e2e(
@@ -542,7 +782,7 @@ def test_kanban_ready_card_shows_no_queued_badge_when_slot_available() -> None:
     board_name = f"Chrome NoQueue Board {marker}"
     api_url = get_e2e_api_url()
 
-    board = http_json(
+    board = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards",
         {
@@ -558,7 +798,7 @@ def test_kanban_ready_card_shows_no_queued_badge_when_slot_available() -> None:
     board_id = str(board.get("board_id") or board.get("id") or "")
     assert board_id
 
-    running_task = http_json(
+    running_task = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
         {
@@ -571,7 +811,7 @@ def test_kanban_ready_card_shows_no_queued_badge_when_slot_available() -> None:
     running_task_id = str(running_task.get("task_id") or running_task.get("id") or "")
     assert running_task_id
 
-    moved = http_json(
+    moved = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/tasks/{running_task_id}/move",
         {"status": "running"},
@@ -588,65 +828,122 @@ def test_kanban_ready_card_shows_no_queued_badge_when_slot_available() -> None:
     assert task_counts.get("ready", 0) == 0
 
     with open_settings_subroute("/settings/kanban") as (client, page):
-        previous_board = client.evaluate(
+        _open_kanban_board(client, page, board_id, board_name)
+        board_state = wait_for_state(
+            client,
             page,
-            "localStorage.getItem('kanban_last_board_id')",
-            timeout_sec=5.0,
+            f"""(() => {{
+              const view = document.querySelector('[data-testid="kanban-board-view"]');
+              const card = document.getElementById({json.dumps(f"kanban-task-{running_task_id}")});
+              const badges = view?.querySelectorAll('[data-testid="kanban-task-queued-badge"]') || [];
+              return {{
+                ready: !!view && !!card,
+                cardHasBadge: !!card?.querySelector('[data-testid="kanban-task-queued-badge"]'),
+                badgeCount: badges.length,
+              }};
+            }})()""",
+            timeout_sec=90.0,
         )
-        try:
-            client.evaluate(
-                page,
-                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
-                timeout_sec=5.0,
-            )
-            client.reload(page, timeout_ms=60_000)
-            row_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  return {{ ready: !!row, text: row?.textContent || '' }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert board_name in str(row_state.get("text") or "")
-            clicked = client.evaluate(
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  if (!row) return false;
-                  row.click();
-                  return true;
-                }})()""",
-                timeout_sec=5.0,
-            )
-            assert clicked is True
-            board_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const view = document.querySelector('[data-testid="kanban-board-view"]');
-                  const card = document.getElementById({json.dumps(f"kanban-task-{running_task_id}")});
-                  const badges = view?.querySelectorAll('[data-testid="kanban-task-queued-badge"]') || [];
-                  return {{
-                    ready: !!view && !!card,
-                    cardHasBadge: !!card?.querySelector('[data-testid="kanban-task-queued-badge"]'),
-                    badgeCount: badges.length,
-                  }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert board_state.get("ready") is True
-            assert board_state.get("cardHasBadge") is False
-            assert board_state.get("badgeCount") == 0
-        finally:
-            restore = (
-                "localStorage.removeItem('kanban_last_board_id')"
-                if previous_board is None
-                else "localStorage.setItem('kanban_last_board_id', "
-                f"{json.dumps(str(previous_board))})"
-            )
-            client.evaluate(page, restore, timeout_sec=5.0)
+        assert board_state.get("ready") is True
+        assert board_state.get("cardHasBadge") is False
+        assert board_state.get("badgeCount") == 0
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_kanban_multiple_ready_cards_show_queued_badge() -> None:
+    """Every ready card shows the queued badge while the slot is saturated.
+
+    Edge case of Optimization B: with max_concurrent_tasks=1 and one RUNNING
+    occupant, TWO ready tasks must both render the badge — the hint is per-card
+    and must not be limited to a single queued task. Deterministic fixture
+    (blocked→move running) so no LLM execution is involved.
+    """
+    marker = str(time.time_ns())
+    board_name = f"Chrome MultiQueue Board {marker}"
+    api_url = get_e2e_api_url()
+
+    board = _http_json_write(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards",
+        {
+            "name": board_name,
+            "description": "Chrome multi-queued-badge E2E",
+            "max_concurrent_tasks": 1,
+            "zombie_timeout_seconds": 1800,
+        },
+    )
+    assert isinstance(board, dict)
+    board_id = str(board.get("board_id") or board.get("id") or "")
+    assert board_id
+
+    running_task = _http_json_write(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
+        {"title": f"Occupying task {marker}", "priority": "low", "initial_status": "blocked"},
+    )
+    assert isinstance(running_task, dict)
+    running_task_id = str(running_task.get("task_id") or running_task.get("id") or "")
+    assert running_task_id
+    moved = _http_json_write(
+        "POST",
+        f"{api_url}/api/v1/kanban/tasks/{running_task_id}/move",
+        {"status": "running"},
+    )
+    assert isinstance(moved, dict)
+    assert str(moved.get("status") or "") == "running"
+
+    queued_ids: list[str] = []
+    for idx in (1, 2):
+        task = _http_json_write(
+            "POST",
+            f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
+            {
+                "title": f"Queued task {idx} {marker}",
+                "priority": "low",
+                "initial_status": "ready",
+            },
+        )
+        assert isinstance(task, dict)
+        tid = str(task.get("task_id") or task.get("id") or "")
+        assert tid
+        queued_ids.append(tid)
+
+    summary = http_json("GET", f"{api_url}/api/v1/kanban/boards/{board_id}/summary")
+    assert isinstance(summary, dict)
+    task_counts = summary.get("task_counts") or {}
+    assert task_counts.get("running") == 1
+    assert task_counts.get("ready", 0) == 2
+
+    with open_settings_subroute("/settings/kanban") as (client, page):
+        _open_kanban_board(client, page, board_id, board_name)
+        badge_state = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const view = document.querySelector('[data-testid="kanban-board-view"]');
+              const q1 = document.getElementById({json.dumps(f"kanban-task-{queued_ids[0]}")});
+              const q2 = document.getElementById({json.dumps(f"kanban-task-{queued_ids[1]}")});
+              const run = document.getElementById({json.dumps(f"kanban-task-{running_task_id}")});
+              const badges = view?.querySelectorAll('[data-testid="kanban-task-queued-badge"]') || [];
+              return {{
+                ready: !!view && !!q1 && !!q2 && !!run && badges.length === 2,
+                q1Badge: !!q1?.querySelector('[data-testid="kanban-task-queued-badge"]'),
+                q2Badge: !!q2?.querySelector('[data-testid="kanban-task-queued-badge"]'),
+                runningHasBadge: !!run?.querySelector('[data-testid="kanban-task-queued-badge"]'),
+                badgeCount: badges.length,
+              }};
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert badge_state.get("ready") is True, badge_state
+        assert badge_state.get("q1Badge") is True
+        assert badge_state.get("q2Badge") is True
+        assert badge_state.get("runningHasBadge") is False
+        assert badge_state.get("badgeCount") == 2
 
 
 @pytest.mark.chrome_e2e(
@@ -670,31 +967,19 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
     # Deliberately minimal, imperative prompts (mirror the description that the
     # live pipeline completed deterministically during verification): the worker
     # lifecycle prompt already forces kanban_complete, so a terse instruction
-    # leaves the model no room to "finish" without completing the task.
+    # leaves the model no room to "finish" without completing the task. Use the
+    # same terse shape as the drain test, which passed all three real executions.
     counting_task = (
-        "Count the letters in 'antidisestablishmentarianism'. "
-        "Then call kanban_complete with summary '28 letters'. Do not use any tools."
+        "Reply with the word hello. "
+        "Then call kanban_complete with summary 'hello'. Do not use any tools."
     )
     done_task = (
-        "Reply with the word done. "
-        "Then call kanban_complete with summary 'done'. Do not use any tools."
+        "Reply with the word world. "
+        "Then call kanban_complete with summary 'world'. Do not use any tools."
     )
     api_url = get_e2e_api_url()
 
-    def _task_get(task_id: str) -> dict[str, object]:
-        """GET a task tolerating transient 5xx (shared SQLite can briefly hit
-        disk-I/O busy under parallel load; retries are safe for reads)."""
-        deadline = time.monotonic() + 30.0
-        while True:
-            try:
-                t = http_json("GET", f"{api_url}/api/v1/kanban/tasks/{task_id}")
-                return t if isinstance(t, dict) else {}
-            except RuntimeError as exc:
-                if "returned 5" not in str(exc) or time.monotonic() >= deadline:
-                    raise
-                time.sleep(1.5)
-
-    board = http_json(
+    board = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards",
         {
@@ -711,260 +996,184 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
     board_id = str(board.get("board_id") or board.get("id") or "")
     assert board_id
 
-    def _find_task_by_title(title: str) -> dict[str, object] | None:
-        resp = http_json("GET", f"{api_url}/api/v1/kanban/boards/{board_id}/tasks")
-        items = resp.get("items") if isinstance(resp, dict) else None
-        if not isinstance(items, list):
-            return None
-        for t in items:
-            if isinstance(t, dict) and str(t.get("title") or "") == title:
-                return t
-        return None
+    with open_settings_subroute("/settings/kanban") as (client, page):
+        _open_kanban_board(client, page, board_id, board_name)
 
-    def _wait_task_status(
-        task_id: str,
-        expected: str,
-        *,
-        timeout_sec: float = 150.0,
-    ) -> dict[str, object]:
-        deadline = time.monotonic() + timeout_sec
-        last = ""
-        while time.monotonic() < deadline:
-            t = _task_get(task_id)
-            st = str(t.get("status") or "")
-            if st != last:
-                last = st
-            if st == expected:
-                return t
-            if st in ("completed", "failed"):
-                break
-            time.sleep(2)
-        raise AssertionError(
-            f"Task {task_id} did not reach {expected!r}; last status={last!r}"
+        # T1: created via the UI, then REALLY claimed and executed by the dispatcher.
+        _create_task_via_ui(client, page, t1_title, counting_task)
+        t1_task = _api_find_task_by_title(api_url, board_id, t1_title)
+        assert t1_task is not None
+        t1_id = str(t1_task.get("task_id") or "")
+        assert t1_id
+        _api_wait_task_status(api_url, t1_id, "running")
+        running_task = _api_find_task_by_title(api_url, board_id, t1_title)
+        assert running_task is not None
+        assert str(running_task.get("status") or "") == "running"
+
+        # T2: queued while the only slot is occupied → badge must show on the card.
+        _create_task_via_ui(client, page, t2_title, done_task)
+        t2_task = _api_find_task_by_title(api_url, board_id, t2_title)
+        assert t2_task is not None
+        t2_id = str(t2_task.get("task_id") or "")
+        assert t2_id
+
+        badge_state = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const card = document.getElementById({json.dumps(f"kanban-task-{t2_id}")});
+              const badge = card?.querySelector('[data-testid="kanban-task-queued-badge"]');
+              const badgeText = badge?.textContent?.trim() || '';
+              return {{ ready: !!badge, hasCard: !!card, text: badgeText }};
+            }})()""",
+            timeout_sec=90.0,
         )
+        assert badge_state.get("ready") is True
+        assert str(badge_state.get("text") or ""), "queued badge text is empty"
+
+        # T1 really completes → the slot frees.
+        t1_done = _api_wait_task_status(api_url, t1_id, "completed", timeout_sec=150.0)
+        assert str(t1_done.get("result") or "").strip(), (
+            "T1 completed without a summary"
+        )
+
+        # T2 is claimed automatically → badge disappears.
+        _api_wait_task_status(api_url, t2_id, "running", timeout_sec=150.0)
+        badge_gone = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const card = document.getElementById({json.dumps(f"kanban-task-{t2_id}")});
+              const badge = card?.querySelector('[data-testid="kanban-task-queued-badge"]');
+              return {{ ready: !!card && !badge, hasCard: !!card, badge: !!badge }};
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert badge_gone.get("ready") is True
+
+        # Full loop: T2 really completes as well.
+        t2_done = _api_wait_task_status(api_url, t2_id, "completed", timeout_sec=150.0)
+        assert str(t2_done.get("result") or "").strip(), (
+            "T2 completed without a summary"
+        )
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
+@pytest.mark.integration
+@pytest.mark.timeout(540)
+def test_kanban_queued_badge_count_drains_as_slots_release() -> None:
+    """Queued badges count drains in FIFO order as real executions release slots.
+
+    Real-user scenario with THREE tasks on a single-slot board: while T1 runs,
+    T2 and T3 both carry the badge (count=2); once T1 completes, T2 is claimed
+    and only T3 still shows it (count=1); once T2 completes, T3 is claimed and
+    the board has no badge left (count=0). Verifies per-card badge state stays
+    consistent with the live running-count across the whole drain sequence.
+    """
+    marker = str(time.time_ns())
+    board_name = f"Chrome Drain Board {marker}"
+    titles = [f"Say alpha {marker}", f"Say beta {marker}", f"Say gamma {marker}"]
+    prompts = [
+        "Reply with the word alpha. Then call kanban_complete with summary 'alpha'. Do not use any tools.",
+        "Reply with the word beta. Then call kanban_complete with summary 'beta'. Do not use any tools.",
+        "Reply with the word gamma. Then call kanban_complete with summary 'gamma'. Do not use any tools.",
+    ]
+    api_url = get_e2e_api_url()
+
+    board = _http_json_write(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards",
+        {
+            "name": board_name,
+            "description": "Chrome queued-badge drain E2E",
+            "max_concurrent_tasks": 1,
+            "zombie_timeout_seconds": 1800,
+        },
+    )
+    assert isinstance(board, dict)
+    board_id = str(board.get("board_id") or board.get("id") or "")
+    assert board_id
+
+    def _task_id_by_title(title: str) -> str:
+        task = _api_find_task_by_title(api_url, board_id, title)
+        assert task is not None, f"task {title!r} not found"
+        tid = str(task.get("task_id") or "")
+        assert tid
+        return tid
 
     with open_settings_subroute("/settings/kanban") as (client, page):
-        previous_board = client.evaluate(
+        _open_kanban_board(client, page, board_id, board_name)
+
+        # T1 created first → claimed and executed immediately (slot free).
+        _create_task_via_ui(client, page, titles[0], prompts[0])
+        t1_id = _task_id_by_title(titles[0])
+        _api_wait_task_status(api_url, t1_id, "running", timeout_sec=150.0)
+
+        # T2, T3 queue behind the single occupied slot.
+        _create_task_via_ui(client, page, titles[1], prompts[1])
+        t2_id = _task_id_by_title(titles[1])
+        _create_task_via_ui(client, page, titles[2], prompts[2])
+        t3_id = _task_id_by_title(titles[2])
+
+        two_badges = wait_for_state(
+            client,
             page,
-            "localStorage.getItem('kanban_last_board_id')",
-            timeout_sec=5.0,
+            f"""(() => {{
+              const view = document.querySelector('[data-testid="kanban-board-view"]');
+              const badges = view?.querySelectorAll('[data-testid="kanban-task-queued-badge"]') || [];
+              return {{ ready: badges.length === 2, count: badges.length }};
+            }})()""",
+            timeout_sec=90.0,
         )
-        try:
-            client.evaluate(
-                page,
-                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
-                timeout_sec=5.0,
-            )
-            client.reload(page, timeout_ms=60_000)
-            row_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  return {{ ready: !!row, text: row?.textContent || '' }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert board_name in str(row_state.get("text") or "")
-            clicked = client.evaluate(
-                page,
-                f"""(() => {{
-                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-                  if (!row) return false;
-                  row.click();
-                  return true;
-                }})()""",
-                timeout_sec=5.0,
-            )
-            assert clicked is True
-            view_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const view = document.querySelector('[data-testid="kanban-board-view"]');
-                  return {{ ready: !!view && view.textContent.includes({board_name!r}) }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert view_state.get("ready") is True
+        assert two_badges.get("count") == 2, two_badges
 
-            def _create_task_via_ui(title: str, description: str) -> str:
-                """Fill the READY-column inline form and submit; returns chosen model."""
-                add_ready = wait_for_state(
-                    client,
-                    page,
-                    """(() => {
-                      const btn = document.querySelector('[data-testid="kanban-add-task-ready"]');
-                      return { ready: !!btn };
-                    })()""",
-                    timeout_sec=60.0,
-                )
-                assert add_ready.get("ready") is True
-                opened = client.evaluate(
-                    page,
-                    """(() => {
-                      const btn = document.querySelector('[data-testid="kanban-add-task-ready"]');
-                      if (!btn) return false;
-                      btn.click();
-                      return true;
-                    })()""",
-                    timeout_sec=5.0,
-                )
-                assert opened is True
-                form_state = wait_for_state(
-                    client,
-                    page,
-                    """(() => {
-                      const sel = document.querySelector('[data-testid="kanban-create-model-select"]');
-                      const submit = document.querySelector('[data-testid="kanban-create-submit"]');
-                      return { ready: !!sel && !!submit, hasSel: !!sel, hasSubmit: !!submit };
-                    })()""",
-                    timeout_sec=60.0,
-                )
-                assert form_state.get("hasSel") is True
-                assert form_state.get("hasSubmit") is True
+        # T1 completes → T2 claimed → only T3 keeps the badge.
+        t1_done = _api_wait_task_status(api_url, t1_id, "completed", timeout_sec=180.0)
+        assert str(t1_done.get("result") or "").strip()
+        _api_wait_task_status(api_url, t2_id, "running", timeout_sec=180.0)
+        one_badge = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const view = document.querySelector('[data-testid="kanban-board-view"]');
+              const badges = view?.querySelectorAll('[data-testid="kanban-task-queued-badge"]') || [];
+              const t3 = view && Array.from(view.querySelectorAll('[id^="kanban-task-"]')).find(
+                (el) => el.textContent && el.textContent.includes({json.dumps(titles[2])}),
+              );
+              return {{
+                ready: badges.length === 1 && !!t3?.querySelector('[data-testid="kanban-task-queued-badge"]'),
+                count: badges.length,
+              }};
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert one_badge.get("count") == 1, one_badge
 
-                # Prefer a minimax route (matches LITE_MODEL seed); fall back to the
-                # first available option so the test never hard-codes a model.
-                chosen_model = client.evaluate(
-                    page,
-                    """(() => {
-                      const sel = document.querySelector('[data-testid="kanban-create-model-select"]');
-                      const options = Array.from(sel.options).map((o) => o.value).filter((v) => v);
-                      if (options.length === 0) return '';
-                      const target =
-                        options.find((v) => v.toLowerCase().includes('minimax')) || options[0];
-                      const setter = Object.getOwnPropertyDescriptor(
-                        HTMLSelectElement.prototype, 'value',
-                      ).set;
-                      setter.call(sel, target);
-                      sel.dispatchEvent(new Event('change', { bubbles: true }));
-                      return target;
-                    })()""",
-                    timeout_sec=5.0,
-                )
-                assert isinstance(chosen_model, str) and chosen_model
+        # T2 completes → T3 claimed → no badge remains anywhere.
+        t2_done = _api_wait_task_status(api_url, t2_id, "completed", timeout_sec=180.0)
+        assert str(t2_done.get("result") or "").strip()
+        _api_wait_task_status(api_url, t3_id, "running", timeout_sec=180.0)
+        zero_badges = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const view = document.querySelector('[data-testid="kanban-board-view"]');
+              const badges = view?.querySelectorAll('[data-testid="kanban-task-queued-badge"]') || [];
+              return { ready: badges.length === 0, count: badges.length };
+            })()""",
+            timeout_sec=90.0,
+        )
+        assert zero_badges.get("count") == 0, zero_badges
 
-                def _set_field(selector: str, value: str) -> bool:
-                    return bool(
-                        client.evaluate(
-                            page,
-                            f"""(() => {{
-                              const el = document.querySelector({json.dumps(selector)});
-                              if (!el) return false;
-                              const setter = Object.getOwnPropertyDescriptor(
-                                HTMLInputElement.prototype, 'value',
-                              ).set;
-                              setter.call(el, {json.dumps(value)});
-                              el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                              return true;
-                            }})()""",
-                            timeout_sec=5.0,
-                        )
-                    )
-
-                assert _set_field(
-                    'input[placeholder="Task title"], input[placeholder="任务标题"]',
-                    title,
-                )
-                assert _set_field(
-                    'input[placeholder="Task description (optional)"], '
-                    'input[placeholder="任务描述（可选）"]',
-                    description,
-                )
-                submitted = client.evaluate(
-                    page,
-                    """(() => {
-                      const submit = document.querySelector('[data-testid="kanban-create-submit"]');
-                      if (!submit) return false;
-                      submit.click();
-                      return true;
-                    })()""",
-                    timeout_sec=5.0,
-                )
-                assert submitted is True
-                created = wait_for_state(
-                    client,
-                    page,
-                    f"""(() => {{
-                      const view = document.querySelector('[data-testid="kanban-board-view"]');
-                      const text = view?.textContent || '';
-                      return {{ ready: !!view && text.includes({title!r}), text }};
-                    }})()""",
-                    timeout_sec=120.0,
-                )
-                assert created.get("ready") is True
-                return chosen_model
-
-            # T1: created via the UI, then REALLY claimed and executed by the dispatcher.
-            _create_task_via_ui(t1_title, counting_task)
-            t1_task = _find_task_by_title(t1_title)
-            assert t1_task is not None
-            t1_id = str(t1_task.get("task_id") or "")
-            assert t1_id
-            _wait_task_status(t1_id, "running")
-            running_task = _find_task_by_title(t1_title)
-            assert running_task is not None
-            assert str(running_task.get("status") or "") == "running"
-
-            # T2: queued while the only slot is occupied → badge must show on the card.
-            _create_task_via_ui(t2_title, done_task)
-            t2_task = _find_task_by_title(t2_title)
-            assert t2_task is not None
-            t2_id = str(t2_task.get("task_id") or "")
-            assert t2_id
-
-            badge_state = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const card = document.getElementById({json.dumps(f"kanban-task-{t2_id}")});
-                  const badge = card?.querySelector('[data-testid="kanban-task-queued-badge"]');
-                  const badgeText = badge?.textContent?.trim() || '';
-                  return {{ ready: !!badge, hasCard: !!card, text: badgeText }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert badge_state.get("ready") is True
-            assert str(badge_state.get("text") or ""), "queued badge text is empty"
-
-            # T1 really completes → the slot frees.
-            t1_done = _wait_task_status(t1_id, "completed", timeout_sec=150.0)
-            assert str(t1_done.get("result") or "").strip(), (
-                "T1 completed without a summary"
-            )
-
-            # T2 is claimed automatically → badge disappears.
-            _wait_task_status(t2_id, "running", timeout_sec=150.0)
-            badge_gone = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const card = document.getElementById({json.dumps(f"kanban-task-{t2_id}")});
-                  const badge = card?.querySelector('[data-testid="kanban-task-queued-badge"]');
-                  return {{ ready: !!card && !badge, hasCard: !!card, badge: !!badge }};
-                }})()""",
-                timeout_sec=90.0,
-            )
-            assert badge_gone.get("ready") is True
-
-            # Full loop: T2 really completes as well.
-            t2_done = _wait_task_status(t2_id, "completed", timeout_sec=150.0)
-            assert str(t2_done.get("result") or "").strip(), (
-                "T2 completed without a summary"
-            )
-        finally:
-            restore = (
-                "localStorage.removeItem('kanban_last_board_id')"
-                if previous_board is None
-                else "localStorage.setItem('kanban_last_board_id', "
-                f"{json.dumps(str(previous_board))})"
-            )
-            client.evaluate(page, restore, timeout_sec=5.0)
+        # Full loop: T3 really completes as well.
+        t3_done = _api_wait_task_status(api_url, t3_id, "completed", timeout_sec=180.0)
+        assert str(t3_done.get("result") or "").strip()
 
 
 def _seed_kanban_closure_fixture(api_url: str) -> dict[str, object]:
-    seeded = http_json(
+    seeded = _http_json_write(
         "POST", f"{api_url}/api/v1/chats/test/seed-kanban-closure-fixture"
     )
     assert isinstance(seeded, dict)
@@ -1093,7 +1302,7 @@ def test_kanban_task_created_via_ui_form_with_model_override() -> None:
     task_title = f"Chrome UI-Create Task {marker}"
     api_url = get_e2e_api_url()
 
-    board = http_json(
+    board = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards",
         {"name": board_name, "description": "Chrome UI create form E2E"},
@@ -1283,7 +1492,7 @@ def test_kanban_task_model_override_drawer_badge_edit_and_clear() -> None:
     api_url = get_e2e_api_url()
     model_override = get_first_enabled_model(api_url)
 
-    board = http_json(
+    board = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards",
         {"name": board_name, "description": "Chrome model override E2E"},
@@ -1292,7 +1501,7 @@ def test_kanban_task_model_override_drawer_badge_edit_and_clear() -> None:
     board_id = str(board.get("board_id") or board.get("id") or "")
     assert board_id
 
-    task = http_json(
+    task = _http_json_write(
         "POST",
         f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
         {
