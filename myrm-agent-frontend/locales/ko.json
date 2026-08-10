@@ -13994,7 +13994,7 @@
         "success": "일괄 취소 성공",
         "error": "일괄 취소 실패",
         "errorDesc": "권한 일괄 취소에 실패했습니다",
-        "affectedSkills": "권한 {count}개를 취소하여 {skills}개 스킬에 영향을 미쳤습니다",
+        "affectedSkills": "권한을 일괄 취소했습니다. 여러 스킬에 영향을 줍니다",
         "confirm": "모든 스킬에서 이 권한을 취소하시겠습니까?",
         "errorDescription": "권한 일괄 취소에 실패했습니다. 다시 시도해 주세요."
       },

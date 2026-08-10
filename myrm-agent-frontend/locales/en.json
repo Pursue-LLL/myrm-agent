@@ -14666,7 +14666,7 @@
         "success": "Bulk Revoke Success",
         "error": "Bulk Revoke Failed",
         "errorDesc": "Failed to bulk revoke permissions, please try again",
-        "affectedSkills": "Revoked {count} permissions across {skills} skill(s)",
+        "affectedSkills": "Permissions revoked across multiple skills",
         "confirm": "Revoke this permission from all skills?",
         "errorDescription": "Failed to bulk revoke permissions, please try again."
       },

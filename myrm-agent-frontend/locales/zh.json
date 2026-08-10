@@ -14637,7 +14637,7 @@
         "success": "批量撤销成功",
         "error": "批量撤销失败",
         "errorDesc": "无法批量撤销权限，请重试",
-        "affectedSkills": "已撤销 {count} 个权限，影响 {skills} 个技能",
+        "affectedSkills": "已批量撤销权限，影响多个技能",
         "confirm": "从所有技能中撤销此权限？",
         "errorDescription": "批量撤销权限失败，请重试。"
       },

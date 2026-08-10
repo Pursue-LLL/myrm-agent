@@ -14572,7 +14572,7 @@
         "success": "批次撤銷成功",
         "error": "批次撤銷失敗",
         "errorDesc": "無法批次撤銷許可權，請重試",
-        "affectedSkills": "已撤銷 {count} 個權限，影響 {skills} 個技能",
+        "affectedSkills": "已批次撤銷權限，影響多個技能",
         "confirm": "從所有技能中撤銷此權限？",
         "errorDescription": "批次撤銷權限失敗，請重試。"
       },

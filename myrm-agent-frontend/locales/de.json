@@ -13994,7 +13994,7 @@
         "success": "Massenrücknahme erfolgreich",
         "error": "Massenrücknahme fehlgeschlagen",
         "errorDesc": "Berechtigungen konnten nicht widerrufen werden",
-        "affectedSkills": "{count} Berechtigungen widerrufen, betrifft {skills} Fähigkeit(en)",
+        "affectedSkills": "Berechtigungen wurden für mehrere Fähigkeiten widerrufen",
         "confirm": "Diese Berechtigung von allen Fähigkeiten widerrufen?",
         "errorDescription": "Bulk-Widerruf fehlgeschlagen. Bitte versuchen Sie es erneut."
       },
