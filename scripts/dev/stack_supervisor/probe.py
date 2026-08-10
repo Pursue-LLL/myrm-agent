@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -105,12 +106,17 @@ def _lock_generation(lock_path: Path, frontend_dir: Path) -> str | None:
     return ":".join(parts)
 
 
-def _http_ok(url: str, timeout_sec: float) -> bool:
-    try:
-        with urllib.request.urlopen(url, timeout=timeout_sec) as response:
-            return 200 <= response.status < 300
-    except (urllib.error.URLError, TimeoutError, OSError):
-        return False
+def _http_ok(url: str, timeout_sec: float, retries: int = 1) -> bool:
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(url, timeout=timeout_sec) as response:
+                if 200 <= response.status < 300:
+                    return True
+        except (urllib.error.URLError, TimeoutError, OSError):
+            pass
+        if attempt < retries - 1:
+            time.sleep(1.0)
+    return False
 
 
 def _port_listening(port: int) -> bool:
@@ -154,7 +160,7 @@ def probe_stack(paths: StackPaths) -> StackProbe:
         frontend_lock_pid=lock_pid,
         frontend_process=frontend_state,
         frontend_port_listening=_port_listening(paths.frontend_port),
-        api_http_ok=_http_ok(paths.api_health_url, 5.0),
+        api_http_ok=_http_ok(paths.api_health_url, 8.0, retries=3),
         frontend_http_ok=_http_ok(paths.app_url, 8.0),
         warmth_generation=warmth_gen if warmth_gen == lock_gen else None,
         epoch=epoch,

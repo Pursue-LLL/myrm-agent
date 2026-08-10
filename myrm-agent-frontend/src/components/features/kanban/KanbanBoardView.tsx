@@ -81,6 +81,8 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   const fetchAgents = useAgentStore((s) => s.fetchAgents);
   const [summaryData, setSummaryData] = useState<BoardSummary | null>(null);
   const summary = summaryData?.task_counts ?? {};
+  const concurrencyLimit = summaryData?.board?.settings?.max_concurrent_tasks ?? 0;
+  const concurrencyFull = concurrencyLimit > 0 && (summary.running ?? 0) >= concurrencyLimit;
   const [edges, setEdges] = useState<TaskDependency[]>([]);
   const [viewMode, setViewMode] = useState<'board' | 'graph' | 'activity'>(() => {
     if (typeof window === 'undefined') return 'board';
@@ -520,10 +522,12 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
           <span key={status} className="flex items-center gap-1">
             <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_DOT_COLORS[status])} />
             {status === 'running'
-              ? t('status.runningWithLimit', {
-                  count: summary[status] || 0,
-                  limit: summaryData?.board.settings.max_concurrent_tasks ?? 0,
-                })
+              ? concurrencyLimit > 0
+                ? t('status.runningWithLimit', {
+                    count: summary[status] || 0,
+                    limit: concurrencyLimit,
+                  })
+                : `${t('status.running')}: ${summary[status] || 0}`
               : `${t(`status.${status}`)}: ${summary[status] || 0}`}
           </span>
         ))}
@@ -613,9 +617,9 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                     agentNameMap={agentNameMap}
                     collapsedAgents={collapsedAgents}
                     onToggleAgentCollapse={toggleAgentCollapse}
+                    queuedByConcurrency={concurrencyFull}
                     footer={
-                      status === 'triage' || status === 'ready' ? (
-                        <div className="mt-1">
+                      status === 'triage' || status === 'ready' ? (                        <div className="mt-1">
                           {addingColumn === status ? (
                             <KanbanInlineAddForm
                               variant={status}

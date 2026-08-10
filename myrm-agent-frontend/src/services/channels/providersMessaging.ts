@@ -270,6 +270,13 @@ export async function testWeChatOfficialConnection(appId: string, appSecret: str
   return wechatOfficialService.test({ appId, appSecret });
 }
 
+export interface WeChatComplianceHit {
+  category: string;
+  label: string;
+  terms: string[];
+  highRisk: boolean;
+}
+
 export interface WeChatDraftPushRequest {
   htmlPath: string;
   title: string;
@@ -282,6 +289,7 @@ export interface WeChatDraftPushResponse {
   mediaId: string;
   uploadedImageCount: number;
   manageUrl: string;
+  complianceWarnings?: WeChatComplianceHit[];
 }
 
 export async function pushWeChatOfficialDraft(body: WeChatDraftPushRequest): Promise<WeChatDraftPushResponse> {

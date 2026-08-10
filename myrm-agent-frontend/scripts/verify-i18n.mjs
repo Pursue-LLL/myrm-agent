@@ -6,13 +6,14 @@
  * - agent.configPanel / kanban / artifacts / cron 关键 string 键在全部 6 种语言均存在（防 MISSING_MESSAGE）
  * - SSR shell 组件不得 useTranslations(deferred namespace)（与 locale-manifest.ts 对齐）
  * - home-route settings i18n shell contract（scan-home-i18n-shell.mjs）
- * - 全语言 vs en：key parity（缺键=ERROR / 孤儿键=ERROR）、叶子类型一致、ICU 占位符变量一致、ICU 花括号平衡、
+ * - 全语言 vs en：key parity（缺键=ERROR / 孤儿键=ERROR）、叶子类型一致、ICU 占位符变量一致、
  *   ICU 花括号平衡、翻译壳检测（含单 token 英文壳，豁免见 scripts/i18n-shell-allowlist.json）、
  *   双语对照脏值检测（"本地语 / English" 并存）、异常哨兵（[object Object] / 空串）
  * - en 纯净性门禁：en（SSOT）叶子值不得混入 CJK（语言名 allowlist 豁免），防 SSOT 污染连锁
  * - ko/de 非本语言文字纯净门禁：拉丁/谚文系语言（ko/de）文案中出现汉字或日文假名即残留
  *   （语言名/跨语言术语豁免），与 en 9f 对称
- * - zh-TW 简体独有字形纯净门禁：繁体中文文案中出现简体独有字形即残留（语言名/跨语言术语豁免）
+ * - zh-TW/ja 简体独有字形纯净门禁：繁体中文/日文文案中出现简体独有字形（相对繁体/日文新字体）
+ *   即残留（语言名/跨语言术语豁免），与 en 9f / ko-de 9g 对称
  *
  * 支持语言必须与 src/i18n/config.ts locales 一致：zh / en / ja / ko / de / zh-TW。
  */
@@ -494,7 +495,7 @@ let shellAllowlists = { allowedSameValues: new Set(), allowedSameKeys: new Set()
 let ALLOWED_SAME_KEYS = new Set();
 let ALLOWED_MIXED_VALUES = new Set();
 let ALLOWED_MIXED_KEYS = new Set();
-/** @type {Record<string, string[]>} */
+/** @type {Record<string, Array<string | RegExp | null>>} */
 let glossaryForbiddenByLocale = {};
 try {
   shellAllowlists = loadShellAllowlist(rootDir);
@@ -508,7 +509,22 @@ try {
     readFileSync(resolve(rootDir, 'scripts/i18n-glossary.json'), 'utf-8'),
   );
   for (const [locale, config] of Object.entries(glossary.locales || {})) {
-    glossaryForbiddenByLocale[locale] = (config.forbidden || []).map((p) => String(p).toLowerCase());
+    // 预编译：字符串模式转小写供 lower.includes 匹配；/正则/ 模式编译为 RegExp 复用
+    //（避免 checkValue 内每 key 重复 new RegExp，约 22 万次编译；非法正则在此 fail-fast）
+    glossaryForbiddenByLocale[locale] = (config.forbidden || []).map((p) => {
+      const s = String(p);
+      if (s.startsWith('/') && s.endsWith('/') && s.length > 2) {
+        try {
+          return new RegExp(s.slice(1, -1), 'i');
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`  ❌ ${locale}.json glossary 非法正则 ${JSON.stringify(s)}: ${message}`);
+          hasErrors = true;
+          return null;
+        }
+      }
+      return s.toLowerCase();
+    });
   }
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
@@ -550,6 +566,13 @@ const NON_LATIN_RE = /[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac0
 const FOREIGN_SCRIPT_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/;
 
 /**
+ * de（拉丁系）专用的非本语言文字范围：在 FOREIGN_SCRIPT_RE 基础上追加谚文
+ * （U+AC00–U+D7AF）。de 中出现谚文是残留；ko 的谚文是合法字符，故 ko 仅用
+ * FOREIGN_SCRIPT_RE。
+ */
+const FOREIGN_SCRIPT_DE_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
+
+/**
  * 双语对照脏值：同一语义被写成"本地语 / English"（如 "はい / Yes"、"上下文健康 / Context Health"）。
  * 判定：恰好两段，一段纯 ASCII（英文），另一段含非拉丁文字（本地语），且不含 ICU 占位符对照。
  * 排除合理情形：占位符对照（{shown} / {total}）、术语对照（MCP / 技能设置）、路径/URL。
@@ -575,6 +598,19 @@ function reportShells(locale, shells) {
   });
   if (shells.length > 15) console.error(`     ... 还有 ${shells.length - 15} 个`);
   hasErrors = true;
+}
+
+/**
+ * 值是否含指定残留字形：字符串直接检测，数组逐元素检测字符串成员。
+ * 与 9d checkArray 对齐，覆盖数组叶子（i18n 选项列表）的纯净性，
+ * 避免 9f/9g/9h 对数组 leaf 漏检。
+ */
+function containsResidue(value, residueRe) {
+  if (typeof value === 'string') return residueRe.test(value);
+  if (Array.isArray(value)) {
+    return value.some((item) => typeof item === 'string' && residueRe.test(item));
+  }
+  return false;
 }
 
 const enTypes = new Map();
@@ -606,23 +642,51 @@ const EN_PURITY_ALLOWED_KEYS = new Set([
 
 /**
  * ko/de 非本语言文字纯净门禁豁免键：在 en 9f 语言名豁免基础上，追加跨语言术语
- * agent.formalKoreanReplies.title（de 中写成「합니다体」，「体」为日语汉字，
- * 描述韩语敬语体 .합니다 时有意保留，非残留）。
+ * agent.formalKoreanReplies.title/description（de 中写成「합니다体」/「합니다체」，
+ * 「体」为日语汉字、「체」为谚文，描述韩语敬语体 .합니다 时有意保留，非残留）。
  */
 const FOREIGN_SCRIPT_ALLOWED_KEYS = new Set([
   ...EN_PURITY_ALLOWED_KEYS,
   'agent.formalKoreanReplies.title',
+  'agent.formalKoreanReplies.description',
 ]);
 
 /**
- * zh-TW 简体独有字形纯净门禁：繁体中文文案中出现简体独有字形即残留。
- * 仅收录简体独有字形（繁体另有写法，如 设→設），排除简繁同形字（感/收/效/等）
- * 与语言名/跨语言术语豁免键，确保零误伤。与 en 9f / ko-de 9g 纯净门禁对称。
+ * 加载简体独有字形集合文件并编译为检测正则。
+ * 集合来源：scripts/zh-simplified-glyphs.txt（zh-TW，opencc cn→tw 从 zh 语料生成）、
+ * scripts/ja-simplified-glyphs.txt（ja，opencc cn→jp 生成）。
+ * 文件缺失/损坏时置 hasErrors 并返回 null（门禁 fail-safe）。
  */
-const SIMPLIFIED_GLYPH_RE = /[设发过这见样为实处与关历广卫组单号乡争办队传约员结据线红纸经继严业产长车声压条张华观团记忆语认识讲课专项级联词买卖双对错时间现点营让请询论证谈该谁调计划开览选权础码库还边个东说话给觉复环变习额题态视页体举尘当惊亲务减测网场帮协阶断写读伟伪汉归问阳阴际险隐顶项顾显风飞马验鸟鸡钟层齐参击势转辆轻较汇纤纪细绳维绿讨训评试资赞针钢钥钱铁银链锁]/;
+function loadGlyphSet(relativePath, label) {
+  try {
+    const glyphs = readFileSync(resolve(rootDir, relativePath), 'utf-8').trim();
+    return new RegExp(`[${glyphs}]`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`  ❌ 无法加载 ${relativePath}（${label}）: ${message}`);
+    hasErrors = true;
+    return null;
+  }
+}
 
 /**
- * zh-TW 简体字形门禁豁免键：语言名（同 en 9f）+ 跨语言术语 합니다体（de/ko 9g 同源豁免）。
+ * zh-TW 简体独有字形纯净门禁：繁体中文文案中出现简体独有字形即残留。
+ * 集合由 generate-simplified-glyphs.mjs 从 zh.json 语料 + opencc cn→tw 生成，
+ * 覆盖项目文案的简繁异形字；台湾合法两体字已豁免，简繁同形字自动排除。
+ * 与 en 9f / ko-de 9g 纯净门禁对称。
+ */
+const SIMPLIFIED_GLYPH_RE = loadGlyphSet('scripts/zh-simplified-glyphs.txt', '简体字形集合');
+
+/**
+ * ja 简体独有字形纯净门禁：日文文案中出现简体独有字形（相对日文新字体）即残留。
+ * 集合由 generate-simplified-glyphs.mjs 从 zh.json 语料 + opencc cn→jp 生成；
+ * 日文合法同形/新字体字如 体/与/云/当/万 已豁免。
+ * 与 zh-TW 9h / en 9f / ko-de 9g 纯净门禁对称。
+ */
+const JA_SIMPLIFIED_GLYPH_RE = loadGlyphSet('scripts/ja-simplified-glyphs.txt', 'ja 简体字形集合');
+
+/**
+ * zh-TW/ja 简体字形门禁豁免键：语言名（同 en 9f）+ 跨语言术语 합니다体（de/ko 9g 同源豁免）。
  */
 const SIMPLIFIED_GLYPH_ALLOWED_KEYS = new Set([
   ...EN_PURITY_ALLOWED_KEYS,
@@ -634,7 +698,7 @@ for (const key of enLeaves) {
   if (EN_PURITY_ALLOWED_KEYS.has(key)) continue;
   if (ALLOWED_SAME_KEYS.has(key) || ALLOWED_MIXED_KEYS.has(key)) continue;
   const enValue = resolvePath(translations.en, key);
-  if (typeof enValue === 'string' && NON_LATIN_RE.test(enValue)) {
+  if (containsResidue(enValue, NON_LATIN_RE)) {
     enNonLatinErrors.push(key);
   }
 }
@@ -716,7 +780,15 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
     if (forbiddenPatterns.length > 0) {
       const lower = localeValue.toLowerCase();
       for (const pattern of forbiddenPatterns) {
-        if (lower.includes(pattern)) {
+        // 预编译模式：/正则/ → RegExp 实例（加载时已编译，非法正则在彼时 fail-fast 置 null）；
+        // 普通模式 → 小写字符串（lower.includes 匹配）
+        if (pattern === null) continue; // 非法正则已在加载阶段报错，此处跳过避免 null 参与匹配
+        if (pattern instanceof RegExp) {
+          if (pattern.test(localeValue)) {
+            glossaryErrors.push(`${key} = forbidden pattern /${pattern.source}/`);
+            break;
+          }
+        } else if (lower.includes(pattern)) {
           glossaryErrors.push(`${key} = forbidden pattern ${JSON.stringify(pattern)}`);
           break;
         }
@@ -780,37 +852,46 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
   }
 
   // 9g. 拉丁/谚文系语言（ko/de）非本语言文字纯净门禁：文案中出现汉字或日文假名即残留
-  //（豁免见 FOREIGN_SCRIPT_ALLOWED_KEYS）。与 en 9f SSOT 纯净门禁对称。
+  //（豁免见 FOREIGN_SCRIPT_ALLOWED_KEYS）；de 额外拦截谚文（FOREIGN_SCRIPT_DE_RE）。
+  // 与 en 9f SSOT 纯净门禁对称。
   if (lang === 'ko' || lang === 'de') {
+    const foreignScriptRe = lang === 'de' ? FOREIGN_SCRIPT_DE_RE : FOREIGN_SCRIPT_RE;
     for (const key of enLeaves) {
       if (FOREIGN_SCRIPT_ALLOWED_KEYS.has(key)) continue;
       const localeValue = resolvePath(data, key);
-      if (typeof localeValue === 'string' && FOREIGN_SCRIPT_RE.test(localeValue)) {
+      if (containsResidue(localeValue, foreignScriptRe)) {
         foreignScriptErrors.push(key);
       }
     }
     if (foreignScriptErrors.length > 0) {
-      console.error(`  ❌ ${lang}.json 存在 ${foreignScriptErrors.length} 个含非本语言文字（汉字/日文假名）的键：`);
+      console.error(`  ❌ ${lang}.json 存在 ${foreignScriptErrors.length} 个含非本语言文字的键：`);
       foreignScriptErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
       hasErrors = true;
     }
   }
 
-  // 9h. 繁体中文（zh-TW）简体独有字形纯净门禁：繁体文案出现简体字形即残留
+  // 9h/9j. 简体独有字形纯净门禁：zh-TW 相对繁体字形、ja 相对日文新字体字形，出现即残留
   //（豁免见 SIMPLIFIED_GLYPH_ALLOWED_KEYS）。与 en 9f / ko-de 9g 纯净门禁对称。
-  if (lang === 'zh-TW') {
+  const simplifiedGlyphGates = [
+    { lang: 'zh-TW', re: SIMPLIFIED_GLYPH_RE, label: '简体独有字形（须转繁体）' },
+    { lang: 'ja', re: JA_SIMPLIFIED_GLYPH_RE, label: '简体独有字形（须转日文标准字形）' },
+  ];
+  for (const gate of simplifiedGlyphGates) {
+    if (lang !== gate.lang || !gate.re) continue;
+    const gateErrors = [];
     for (const key of enLeaves) {
       if (SIMPLIFIED_GLYPH_ALLOWED_KEYS.has(key)) continue;
       const localeValue = resolvePath(data, key);
-      if (typeof localeValue === 'string' && SIMPLIFIED_GLYPH_RE.test(localeValue)) {
-        simplifiedGlyphErrors.push(key);
+      if (containsResidue(localeValue, gate.re)) {
+        gateErrors.push(key);
       }
     }
-    if (simplifiedGlyphErrors.length > 0) {
-      console.error(`  ❌ ${lang}.json 存在 ${simplifiedGlyphErrors.length} 个含简体独有字形的键（须转繁体）：`);
-      simplifiedGlyphErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
+    if (gateErrors.length > 0) {
+      console.error(`  ❌ ${lang}.json 存在 ${gateErrors.length} 个含${gate.label}的键：`);
+      gateErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
       hasErrors = true;
     }
+    simplifiedGlyphErrors.push(...gateErrors);
   }
 
   if (missing.length === 0 && typeMismatches.length === 0 && shellErrors.length === 0

@@ -18,6 +18,7 @@ import type { Locale } from '@/i18n/config';
 import { DeferredLocaleProvider } from '@/i18n/deferred-locale-context';
 import type { Messages } from '@/i18n/locale-manifest';
 import { mergeMessages } from '@/i18n/merge-messages';
+import { getDefaultTimezone } from '@/i18n/timezone';
 
 const DEFERRED_FETCH_MAX_ATTEMPTS = 3;
 const DEFERRED_FETCH_RETRY_BASE_MS = 400;
@@ -117,7 +118,7 @@ export default function ClientIntlProvider({ locale, shellMessages, children }: 
 
   return (
     <DeferredLocaleProvider deferredLocaleReady={deferredLocaleReady}>
-      <NextIntlClientProvider locale={locale} messages={messages}>
+      <NextIntlClientProvider locale={locale} messages={messages} timeZone={getDefaultTimezone()}>
         {children}
       </NextIntlClientProvider>
     </DeferredLocaleProvider>

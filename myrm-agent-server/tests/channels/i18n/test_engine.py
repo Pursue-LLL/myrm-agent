@@ -81,3 +81,89 @@ def test_channel_t_daily_budget_blocked_catalog() -> None:
     zh_text = channel_t("zh-CN", "daily_budget_blocked")
     assert "budget" in en_text.lower()
     assert "预算" in zh_text
+
+
+def test_zh_prefix_fallback_chain_appends_zh_cn() -> None:
+    """A bare 'zh' locale must fall back through zh-CN."""
+    eng = I18nEngine()
+    chain = eng._get_fallback_chain("zh")
+    assert "zh-CN" in chain
+    assert chain[0] == "zh"
+    # zh-TW / zh-HK / zh-MO get zh-Hant first, then zh-CN
+    tw_chain = eng._get_fallback_chain("zh-TW")
+    assert tw_chain.index("zh-Hant") < tw_chain.index("zh-CN")
+    hk_chain = eng._get_fallback_chain("zh-HK")
+    assert "zh-Hant" in hk_chain
+    assert "zh-CN" in hk_chain
+
+
+def test_add_locale_root_is_idempotent_and_clears_cache(
+    temp_locale_root: Path,
+) -> None:
+    eng = I18nEngine()
+    eng.add_root(str(temp_locale_root))
+    _first = eng.format_value("en", "flat_key", name="A")
+    eng.add_root(str(temp_locale_root))
+    # Cache cleared → re-load works
+    assert eng.format_value("en", "flat_key", name="B") == "Hello B"
+    assert len([r for r in eng._roots if r == str(temp_locale_root)]) == 1
+
+
+def test_json_non_string_value_returned_as_is(tmp_path: Path) -> None:
+    locales_dir = tmp_path / "custom_locales"
+    locales_dir.mkdir()
+    with open(locales_dir / "en.json", "w", encoding="utf-8") as f:
+        json.dump({"retry_count": 3}, f)
+    eng = I18nEngine()
+    eng.add_root(str(locales_dir))
+    assert eng.format_value("en", "retry_count") == 3
+
+
+def test_fluent_format_exception_falls_back_to_key() -> None:
+    eng = I18nEngine()
+    # A FTL message that triggers a Fluent exception is rendered as the key.
+    assert eng.format_value("xx-YY", "some_unknown_key") == "some_unknown_key"
+
+
+def test_module_level_add_locale_root() -> None:
+    """add_locale_root registers a root on the module-level engine."""
+    from app.channels import i18n
+
+    prev = list(i18n.engine._engine._roots)
+    try:
+        i18n.add_locale_root("/nonexistent/root")
+        assert "/nonexistent/root" in i18n.engine._engine._roots
+    finally:
+        i18n.engine._engine._roots[:] = prev
+        i18n.engine._engine._localizations.clear()
+        i18n.engine._engine._json_catalogs.clear()
+
+
+def test_json_bad_format_string_falls_back_to_raw(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A JSON value with an illegal format spec is returned raw with a warning."""
+    locales_dir = tmp_path / "badfmt"
+    locales_dir.mkdir()
+    with open(locales_dir / "en.json", "w", encoding="utf-8") as f:
+        json.dump({"bad": "{0:^}"}, f)
+    eng = I18nEngine()
+    eng.add_root(str(locales_dir))
+    assert eng.format_value("en", "bad") == "{0:^}"
+    assert any("JSON format failed" in r.message for r in caplog.records)
+
+
+def test_lazy_loader_created_when_absent() -> None:
+    """_get_localization lazily builds the FluentResourceLoader when it is None."""
+    eng = I18nEngine.__new__(I18nEngine)  # bypass __init__
+    eng._roots = []
+    eng._localizations = {}
+    eng._json_catalogs = {}
+    eng._loader = None
+    eng._default_locale = "en"
+
+    l10n = eng._get_localization("en")
+    assert eng._loader is not None
+    assert eng._localizations["en"] is l10n
+    # Second call returns the cached instance.
+    assert eng._get_localization("en") is l10n

@@ -331,7 +331,7 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
                 return (
                   <span
                     className="rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800"
-                    title={maxCostUsd > 0 ? t('costBudgetTitle', { used: fmtBudgetCost(costUsd, 0), limit: maxCostUsd.toFixed(2) }) : undefined}
+                    title={maxCostUsd > 0 ? t('costBudgetTitle', { used: fmtBudgetCost(costUsd, 0), limit: `$${maxCostUsd.toFixed(2)}` }) : undefined}
                   >
                     {fmtBudgetCost(costUsd, maxCostUsd)}
                   </span>
@@ -360,7 +360,7 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
                 );
               })()}
               <span className="truncate">{node.last_tool || t('processing')}</span>
-              <span>{Math.round(node.progress)}%</span>
+              {Number.isFinite(node.progress) && <span>{Math.round(node.progress)}%</span>}
               {isRunningNode && node.startedAt && (
                 <span className="flex items-center gap-0.5 shrink-0">
                   <Clock className="w-3 h-3" />

@@ -2,10 +2,11 @@
 
 [INPUT]
 - wechat_api_client::WeChatOfficialApiClient (POS: shared token client)
+- compliance::wechat_compliance_scan (POS: draft-bound visible-text compliance scan)
 - pathlib, re, httpx (HTML/image processing)
 
 [OUTPUT]
-- WeChatDraftResult: draft creation outcome
+- WeChatDraftResult: draft creation outcome (includes non-blocking compliance warnings)
 - WeChatDraftService: upload inline images + create draft article
 
 [POS]
@@ -24,6 +25,11 @@ from pathlib import Path
 import httpx
 
 from app.channels.providers.wechat.wechat_api_client import WeChatOfficialApiClient
+from app.services.compliance.wechat_compliance_scan import (
+    assert_wechat_draft_compliance_for_publish,
+    compliance_hits_payload,
+    extract_visible_text_from_html,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +37,7 @@ _IMG_SRC_RE = re.compile(r'(<img\b[^>]*\bsrc=["\'])([^"\']+)(["\'][^>]*>)', re.I
 _STYLE_BLOCK_RE = re.compile(r"<style[^>]*>(.*?)</style>", re.IGNORECASE | re.DOTALL)
 _BODY_INNER_RE = re.compile(r"<body[^>]*>(.*)</body>", re.IGNORECASE | re.DOTALL)
 _MAX_DIGEST_LEN = 120
+_MAX_AUTHOR_LEN = 8
 _MAX_REMOTE_IMAGE_BYTES = 5_000_000
 
 
@@ -38,6 +45,7 @@ _MAX_REMOTE_IMAGE_BYTES = 5_000_000
 class WeChatDraftResult:
     media_id: str
     uploaded_image_count: int
+    compliance_warnings: tuple[dict[str, object], ...] = ()
 
 
 class _ImgSrcCollector(HTMLParser):
@@ -67,11 +75,25 @@ class WeChatDraftService:
         author: str = "",
         digest: str = "",
         cover_path: Path | None = None,
+        locale: str = "zh",
     ) -> WeChatDraftResult:
         if not html_path.is_file():
             raise FileNotFoundError(f"HTML file not found: {html_path}")
 
         raw_html = html_path.read_text(encoding="utf-8")
+        resolved_digest = _resolve_digest(raw_html, digest)
+        resolved_author = _resolve_author(author)
+        compliance_result = assert_wechat_draft_compliance_for_publish(
+            raw_html,
+            title=title,
+            digest=resolved_digest,
+            locale=locale,
+        )
+        compliance_warnings = tuple(
+            hit
+            for hit in compliance_hits_payload(compliance_result, locale=locale)
+            if hit.get("highRisk") is not True
+        )
         base_dir = html_path.parent
 
         processed_html, upload_count = await self._rewrite_inline_images(raw_html, base_dir)
@@ -82,9 +104,6 @@ class WeChatDraftService:
         )
 
         draft_content = _build_draft_content(processed_html)
-        digest_source = _extract_body_inner_html(processed_html)
-        resolved_digest = digest.strip() or _extract_digest(digest_source)
-        resolved_author = author.strip() or "Myrm"
 
         payload: dict[str, object] = {
             "articles": [
@@ -104,7 +123,11 @@ class WeChatDraftService:
         media_id = data.get("media_id")
         if not isinstance(media_id, str) or not media_id:
             raise RuntimeError(f"WeChat draft/add returned no media_id: {data}")
-        return WeChatDraftResult(media_id=media_id, uploaded_image_count=upload_count)
+        return WeChatDraftResult(
+            media_id=media_id,
+            uploaded_image_count=upload_count,
+            compliance_warnings=compliance_warnings,
+        )
 
     async def _rewrite_inline_images(self, html: str, base_dir: Path) -> tuple[str, int]:
         upload_count = 0
@@ -245,7 +268,19 @@ def _build_draft_content(processed_html: str) -> str:
     return body
 
 
+def _resolve_author(author: str) -> str:
+    resolved = author.strip() or "Myrm"
+    return resolved[:_MAX_AUTHOR_LEN]
+
+
+def _resolve_digest(html: str, user_digest: str) -> str:
+    stripped = user_digest.strip()
+    if stripped:
+        return stripped[:_MAX_DIGEST_LEN]
+    return _extract_digest(html)
+
+
 def _extract_digest(html: str) -> str:
-    text = re.sub(r"<[^>]+>", " ", html)
-    text = re.sub(r"\s+", " ", text).strip()
+    visible = extract_visible_text_from_html(html)
+    text = re.sub(r"\s+", " ", visible).strip()
     return text[:_MAX_DIGEST_LEN]

@@ -11,6 +11,7 @@ from app.channels.providers.wechat.draft_service import (
     WeChatDraftService,
     _build_draft_content,
     _extract_digest,
+    _resolve_author,
 )
 from app.channels.providers.wechat.wechat_api_client import WeChatOfficialApiClient
 
@@ -110,6 +111,74 @@ async def test_create_draft_requires_cover_when_no_images(tmp_path: Path) -> Non
 
 
 @pytest.mark.asyncio
+async def test_create_draft_returns_compliance_warnings_for_non_blocking_hits(
+    html_with_local_image: tuple[Path, Path],
+) -> None:
+    html_path, _image = html_with_local_image
+    html_path.write_text(
+        '<html><body><p>这款茶能排毒养颜</p><img src="cover.png" alt="cover"></body></html>',
+        encoding="utf-8",
+    )
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    client.post_multipart = AsyncMock(
+        side_effect=[
+            {"url": "https://mmbiz.qpic.cn/content-img"},
+            {"media_id": "thumb_media_123"},
+        ]
+    )
+    client.post_json = AsyncMock(return_value={"media_id": "draft_media_456"})
+
+    service = WeChatDraftService(client)
+    result = await service.create_draft_from_html_file(html_path, title="Wellness")
+
+    assert result.media_id == "draft_media_456"
+    assert len(result.compliance_warnings) == 1
+    assert result.compliance_warnings[0]["category"] == "medical_efficacy"
+    assert result.compliance_warnings[0]["highRisk"] is False
+    assert "排毒" in result.compliance_warnings[0]["terms"]
+
+
+@pytest.mark.asyncio
+async def test_create_draft_blocks_high_risk_title_with_clean_html(
+    html_with_local_image: tuple[Path, Path],
+) -> None:
+    html_path, _image = html_with_local_image
+    html_path.write_text(
+        '<html><body><p>正常正文</p><img src="cover.png" alt="cover"></body></html>',
+        encoding="utf-8",
+    )
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    service = WeChatDraftService(client)
+
+    from app.services.compliance.wechat_compliance_scan import WeChatComplianceBlockedError
+
+    with pytest.raises(WeChatComplianceBlockedError):
+        await service.create_draft_from_html_file(html_path, title="全国第一好茶")
+
+    client.post_multipart.assert_not_called()
+    client.post_json.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_draft_blocks_high_risk_compliance(tmp_path: Path) -> None:
+    html_path = tmp_path / "risky.html"
+    html_path.write_text(
+        "<html><body><p>保本理财，稳赚不赔</p></body></html>",
+        encoding="utf-8",
+    )
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    service = WeChatDraftService(client)
+
+    from app.services.compliance.wechat_compliance_scan import WeChatComplianceBlockedError
+
+    with pytest.raises(WeChatComplianceBlockedError):
+        await service.create_draft_from_html_file(html_path, title="Risky")
+
+    client.post_multipart.assert_not_called()
+    client.post_json.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_create_draft_fails_when_remote_image_upload_fails(tmp_path: Path) -> None:
     cover = tmp_path / "cover.png"
     cover.write_bytes(b"\x89PNG\r\n\x1a\n")
@@ -130,3 +199,48 @@ async def test_create_draft_fails_when_remote_image_upload_fails(tmp_path: Path)
         )
 
     client.post_multipart.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_draft_auto_digest_omits_pre_code_high_risk_terms(
+    html_with_local_image: tuple[Path, Path],
+) -> None:
+    html_path, _image = html_with_local_image
+    html_path.write_text(
+        "<html><body><p>正常教程</p>"
+        "<pre><code>保本理财，稳赚不赔</code></pre>"
+        '<img src="cover.png" alt="cover"></body></html>',
+        encoding="utf-8",
+    )
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    client.post_multipart = AsyncMock(
+        side_effect=[
+            {"url": "https://mmbiz.qpic.cn/content-img"},
+            {"media_id": "thumb_media_123"},
+        ]
+    )
+    client.post_json = AsyncMock(return_value={"media_id": "draft_media_456"})
+
+    service = WeChatDraftService(client)
+    result = await service.create_draft_from_html_file(html_path, title="Python教程")
+
+    assert result.media_id == "draft_media_456"
+    draft_payload = client.post_json.await_args.args[1]
+    digest = str(draft_payload["articles"][0]["digest"])
+    assert "保本" not in digest
+    assert "正常教程" in digest
+
+
+def test_extract_digest_skips_pre_code_blocks() -> None:
+    html = (
+        "<html><body><p>正常正文</p>"
+        "<pre><code>保本理财，稳赚不赔</code></pre>"
+        "</body></html>"
+    )
+    assert _extract_digest(html) == "正常正文"
+
+
+def test_resolve_author_clamps_to_wechat_limit() -> None:
+    assert _resolve_author("Myrm") == "Myrm"
+    assert _resolve_author("某某科技有限公司部") == "某某科技有限公司"
+    assert _resolve_author("123456789") == "12345678"

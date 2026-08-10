@@ -5,7 +5,7 @@
 - board_summary (POS: Board summary aggregation.)
 - dispatcher_lifecycle (POS: Dispatcher lifecycle management.)
 - query_ops (POS: Read-only queries.)
-- service_core (POS: KanbanService core state.)
+- service_mixins.core (POS: KanbanService core state.)
 
 [OUTPUT]
 - KanbanServiceQueryDispatcherMixin: Mixin providing query and dispatcher lifecycle methods.
@@ -16,6 +16,7 @@ Query and dispatcher mixin: board/task reads, event/run history, dispatcher star
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
@@ -28,6 +29,7 @@ from myrm_agent_harness.toolkits.kanban.types import (
     TaskRun,
     TaskStatus,
 )
+from sqlalchemy.exc import OperationalError
 
 from app.services.kanban.board_summary import build_board_summary
 from app.services.kanban.dispatcher_lifecycle import (
@@ -79,8 +81,10 @@ from app.services.kanban.query_ops import (
 from app.services.kanban.query_ops import (
     list_tasks as run_list_tasks,
 )
-from app.services.kanban.service_core import KanbanServiceCore
-from app.services.kanban.service_types import BoardSummaryData
+from app.services.kanban.service_mixins.core import KanbanServiceCore
+from app.services.kanban.service_mixins.types import BoardSummaryData
+
+logger = logging.getLogger(__name__)
 
 
 class KanbanReadMixin(KanbanServiceCore):
@@ -89,6 +93,47 @@ class KanbanReadMixin(KanbanServiceCore):
 
     async def list_boards(self, *, project_id: str | None = None) -> list[KanbanBoard]:
         return await run_list_boards(self._store, project_id=project_id)
+
+    async def count_tasks_by_status(self, status: TaskStatus) -> int:
+        """Count tasks in a given status across all boards.
+
+        Degrades to 0 when the kanban schema is unavailable so aggregated
+        statistics never fail on a missing kanban table.
+        """
+        try:
+            boards = await run_list_boards(self._store)
+            return sum(
+                await self._store.count_tasks(board.board_id, status=status)
+                for board in boards
+            )
+        except OperationalError:
+            logger.warning(
+                "Kanban count for status %s unavailable; degrading to 0",
+                status.value,
+            )
+            return 0
+
+    async def count_review_tasks_by_agent(self) -> dict[str | None, int]:
+        """Count IN_REVIEW tasks grouped by agent across all boards.
+
+        Degrades to an empty mapping when the kanban schema is unavailable so
+        aggregated statistics never fail on a missing kanban table.
+        """
+        try:
+            boards = await run_list_boards(self._store)
+            by_agent: dict[str | None, int] = {}
+            for board in boards:
+                agent_counts = await self._store.count_tasks_by_agent(board.board_id)
+                for agent_id, status_counts in agent_counts.items():
+                    in_review = status_counts.get(TaskStatus.IN_REVIEW.value, 0)
+                    if in_review:
+                        by_agent[agent_id] = by_agent.get(agent_id, 0) + in_review
+            return by_agent
+        except OperationalError:
+            logger.warning(
+                "Kanban schema unavailable; treating review counts as empty"
+            )
+            return {}
 
     async def get_task(self, task_id: str) -> KanbanTask | None:
         return await run_get_task(self._store, task_id)

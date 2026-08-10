@@ -80,7 +80,9 @@ def spawn_ensure_orchestrator() -> None:
     node_dir = "/opt/homebrew/bin"
     path = env.get("PATH", "")
     if node_dir not in path:
-        bun_bin = os.path.expanduser("~/.bun/bin")
+        from real_user_home import real_user_home  # noqa: PLC0415
+
+        bun_bin = str(real_user_home() / ".bun/bin")
         env["PATH"] = f"{node_dir}:{bun_bin}:{path}"
     try:
         subprocess.run(

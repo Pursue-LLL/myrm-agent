@@ -7,7 +7,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.core.web_push.dispatcher import _PUSH_TEMPLATES, WebPushDispatcher
+from app.core.web_push.dispatcher import (
+    _PUSH_TEMPLATES,
+    WebPushDispatcher,
+    _background_task_title,
+)
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 
@@ -26,8 +30,13 @@ class TestPushTemplates:
     def test_goal_terminal_template(self) -> None:
         assert AppEventType.GOAL_TERMINAL in _PUSH_TEMPLATES
 
-    def test_background_task_done_template(self) -> None:
-        assert AppEventType.BACKGROUND_TASK_DONE in _PUSH_TEMPLATES
+    def test_background_task_done_status_titles(self) -> None:
+        assert _background_task_title("completed") == "Task Completed"
+        assert _background_task_title("failed") == "Task Failed"
+        assert _background_task_title("blocked") == "Task Blocked"
+        assert _background_task_title("pending_review") == "Task Pending Review"
+        assert _background_task_title("rejected") == "Task Rejected"
+        assert _background_task_title("") == "Task Update"  # fallback
 
     def test_channel_disconnected_template(self) -> None:
         assert AppEventType.CHANNEL_DISCONNECTED in _PUSH_TEMPLATES
@@ -153,6 +162,144 @@ class TestWebPushDispatcher:
             await dispatcher.stop()
 
         mock_service.broadcast.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_dispatches_background_task_done_with_status_title(self) -> None:
+        bus = ServerEventBus()
+        dispatcher = WebPushDispatcher(bus)
+
+        mock_service = AsyncMock()
+        mock_service.broadcast = AsyncMock(return_value=1)
+
+        with patch(
+            "app.core.web_push.service.get_web_push_service",
+            return_value=mock_service,
+        ):
+            await dispatcher.start()
+
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.BACKGROUND_TASK_DONE,
+                    data={
+                        "task_id": "t-1",
+                        "status": "blocked",
+                        "title": "Deploy report",
+                        "result": "Auto-blocked after 3 failures",
+                        "chat_id": "chat-1",
+                    },
+                )
+            )
+
+            await asyncio.sleep(0.1)
+            await dispatcher.stop()
+
+        mock_service.broadcast.assert_called_once()
+        kwargs = mock_service.broadcast.call_args.kwargs
+        assert kwargs["title"] == "Task Blocked"
+        assert kwargs["body"] == "Deploy report"
+        assert kwargs["url"] == "/chat-1"
+
+    @pytest.mark.asyncio
+    async def test_background_task_done_pending_review_pushes(self) -> None:
+        """pending_review publishes with its own title."""
+        bus = ServerEventBus()
+        dispatcher = WebPushDispatcher(bus)
+
+        mock_service = AsyncMock()
+        mock_service.broadcast = AsyncMock(return_value=1)
+
+        with patch(
+            "app.core.web_push.service.get_web_push_service",
+            return_value=mock_service,
+        ):
+            await dispatcher.start()
+
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.BACKGROUND_TASK_DONE,
+                    data={
+                        "task_id": "t-2",
+                        "status": "pending_review",
+                        "title": "Weekly report",
+                        "result": "draft ready",
+                        "chat_id": "chat-2",
+                    },
+                )
+            )
+
+            await asyncio.sleep(0.1)
+            await dispatcher.stop()
+
+        mock_service.broadcast.assert_called_once()
+        title = mock_service.broadcast.call_args.kwargs["title"]
+        assert title == "Task Pending Review"
+
+    @pytest.mark.asyncio
+    async def test_background_task_done_suppress_flag_skips(self) -> None:
+        """suppress_web_push still gates kanban BACKGROUND_TASK_DONE pushes."""
+        bus = ServerEventBus()
+        dispatcher = WebPushDispatcher(bus)
+
+        mock_service = AsyncMock()
+
+        with patch(
+            "app.core.web_push.service.get_web_push_service",
+            return_value=mock_service,
+        ):
+            await dispatcher.start()
+
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.BACKGROUND_TASK_DONE,
+                    data={
+                        "task_id": "t-4",
+                        "status": "completed",
+                        "title": "Quiet task",
+                        "result": "done",
+                        "chat_id": "chat-4",
+                        "suppress_web_push": True,
+                    },
+                )
+            )
+
+            await asyncio.sleep(0.1)
+            await dispatcher.stop()
+
+        mock_service.broadcast.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_background_task_done_rejected_title(self) -> None:
+        bus = ServerEventBus()
+        dispatcher = WebPushDispatcher(bus)
+
+        mock_service = AsyncMock()
+        mock_service.broadcast = AsyncMock(return_value=1)
+
+        with patch(
+            "app.core.web_push.service.get_web_push_service",
+            return_value=mock_service,
+        ):
+            await dispatcher.start()
+
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.BACKGROUND_TASK_DONE,
+                    data={
+                        "task_id": "t-3",
+                        "status": "rejected",
+                        "title": "Weekly report",
+                        "result": "add citations",
+                        "chat_id": "chat-3",
+                    },
+                )
+            )
+
+            await asyncio.sleep(0.1)
+            await dispatcher.stop()
+
+        mock_service.broadcast.assert_called_once()
+        title = mock_service.broadcast.call_args.kwargs["title"]
+        assert title == "Task Rejected"
 
     @pytest.mark.asyncio
     async def test_suppresses_with_flag(self) -> None:

@@ -12,6 +12,7 @@ import {
   IconShieldAlert,
   IconUpload,
   IconDownload,
+  IconPlug,
 } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
@@ -51,6 +52,7 @@ import SkillDetailSheet from '@/components/features/skills/SkillDetailSheet';
 import { SkillPermissionApprovalDialog } from '@/components/features/skills/SkillPermissionApprovalDialog';
 import { SkillInstanceManager } from '@/components/features/skills/SkillInstanceManager';
 import SkillBatchImportDialog from '@/components/features/skills/SkillBatchImportDialog';
+import PluginImportDialog from '@/components/features/plugins/PluginImportDialog';
 import { getSkillStatus } from '@/components/features/skills/SkillCard';
 import { isLocalMode } from '@/lib/deploy-mode';
 import SettingsSection from '../SettingsSection';
@@ -59,6 +61,7 @@ type TabValue = 'discover' | 'installed';
 
 const SkillsSection = memo(() => {
   const t = useTranslations('settings.skills');
+  const tPlugins = useTranslations('settings.plugins.import');
   const { user, isInitialized } = useAuthStore();
 
   const [isMounted, setIsMounted] = useState(false);
@@ -122,6 +125,7 @@ const SkillsSection = memo(() => {
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isBatchImportOpen, setIsBatchImportOpen] = useState(false);
+  const [isPluginImportOpen, setIsPluginImportOpen] = useState(false);
   const handleExport = useCallback(async () => {
     if (!user?.id) return;
     try {
@@ -550,6 +554,16 @@ const SkillsSection = memo(() => {
                   >
                     <IconUpload className={cn('h-4 w-4', isSyncing && 'animate-pulse')} />
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsPluginImportOpen(true)}
+                    disabled={isSyncing}
+                    className="h-9 w-9"
+                    title={tPlugins('title')}
+                  >
+                    <IconPlug className="h-4 w-4" />
+                  </Button>
                 </>
               )}
               <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isLoading} className="h-9 w-9">
@@ -849,6 +863,16 @@ const SkillsSection = memo(() => {
       <SkillBatchImportDialog
         open={isBatchImportOpen}
         onOpenChange={setIsBatchImportOpen}
+        onImportComplete={() => {
+          fetchLocalSkills();
+          fetchUserSkillConfig(true);
+        }}
+      />
+
+      {/* Agent Plugin Import Dialog */}
+      <PluginImportDialog
+        open={isPluginImportOpen}
+        onOpenChange={setIsPluginImportOpen}
         onImportComplete={() => {
           fetchLocalSkills();
           fetchUserSkillConfig(true);

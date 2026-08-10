@@ -193,7 +193,10 @@ def _queue_timeout_error_data(
             for h in holders[:3]
         ]
         if len(holders) > 3:
-            names.append(f"+{len(holders) - 3} more")
+            extra = len(holders) - 3
+            names.append(
+                f"等 {extra} 个会话" if lang == "zh" else f"+{extra} more"
+            )
         holder_summary = (
             f" 当前占用：{'、'.join(names)}。" if lang == "zh" else f" Held by: {', '.join(names)}."
         )
@@ -371,9 +374,12 @@ async def yield_stream_exception_chunks(
         yield SSEEnvelope.from_any(busy_event).to_sse_chunk()
     elif isinstance(exc, ConfigIncompleteError):
         session.had_fatal_error = True
-        lang = session.params.locale or "en"
-        user_message = exc.user_friendly_message.get(lang) or exc.user_friendly_message.get(
-            "en", str(exc)
+        raw_locale = session.params.locale or "en"
+        base_locale = raw_locale.split("-")[0].lower()
+        user_message = (
+            exc.user_friendly_message.get(raw_locale)
+            or exc.user_friendly_message.get(base_locale)
+            or exc.user_friendly_message.get("en", str(exc))
         )
         error_data = {
             "type": "error",

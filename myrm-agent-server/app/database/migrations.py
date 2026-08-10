@@ -561,6 +561,10 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE cron_jobs ADD COLUMN workflow_template_args JSON",
     # Per-task model override (KanbanPerTaskModelStrategyOverride)
     "ALTER TABLE kanban_tasks ADD COLUMN model_override VARCHAR(255)",
+    # V186: kanban require_approval — moved here from INDEX_STATEMENTS where version
+    # drift (V142) permanently skipped it (checksum mismatch; engine warns, never re-runs).
+    # This is the single source of truth; INDEX_STATEMENTS no longer carries the DDL.
+    "ALTER TABLE kanban_tasks ADD COLUMN require_approval BOOLEAN NOT NULL DEFAULT 0",
 ]
 
 # 创建索引的SQL语句列表
@@ -891,7 +895,6 @@ INDEX_STATEMENTS = [
     "ALTER TABLE projects ADD COLUMN default_agent_id VARCHAR(255) REFERENCES agents(id) ON DELETE SET NULL",
     "ALTER TABLE kanban_tasks ADD COLUMN goal_mode BOOLEAN NOT NULL DEFAULT 0",
     "ALTER TABLE kanban_tasks ADD COLUMN goal_max_turns INTEGER",
-    "ALTER TABLE kanban_tasks ADD COLUMN require_approval BOOLEAN NOT NULL DEFAULT 0",
     "ALTER TABLE chats ADD COLUMN active_moa_preset_id VARCHAR(50)",
     "UPDATE chats SET action_mode = 'agent' WHERE action_mode = 'consensus'",
     "ALTER TABLE chats ADD COLUMN compaction_failure_cooldown_until TIMESTAMP",

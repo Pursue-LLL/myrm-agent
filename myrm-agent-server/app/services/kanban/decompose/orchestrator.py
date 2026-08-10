@@ -1,6 +1,6 @@
 """Decompose orchestration helpers for KanbanService.
 
-Mirrors ``specify_orchestrator.py``: single owner of the TRIAGE → child-graph
+Mirrors ``specify.orchestrator``: single owner of the TRIAGE → child-graph
 flow that bridges the harness-layer ``TaskDecomposer`` Protocol and the
 server-layer store / event-bus / dispatcher.
 
@@ -11,7 +11,7 @@ server-layer store / event-bus / dispatcher.
 - app.services.agent.agent_service::AgentService (POS: Agent profile listing.)
 
 [OUTPUT]
-- build_agent_roster: Construct roster from the platform's agent profiles.
+- _build_agent_roster: Internal roster helper for the decompose prompt (not exported).
 - run_decompose_task: Preview a decomposition without persistence.
 - run_apply_decompose: Persist children atomically from a cached preview.
   Child tasks inherit the parent's ``model_override`` (and ``source_chat_id``).
@@ -61,7 +61,7 @@ class _EventPublisher(Protocol):
     ) -> None: ...
 
 
-async def build_agent_roster() -> tuple[list[dict[str, str]], set[str], str]:
+async def _build_agent_roster() -> tuple[list[dict[str, str]], set[str], str]:
     """Build the agent roster from the platform's AgentService.
 
     Returns:
@@ -105,7 +105,7 @@ async def run_decompose_task(
     if task is None:
         return DecomposeOutcome(task_id=task_id, ok=False, reason="unknown_task")
 
-    roster, _valid_ids, default_id = await build_agent_roster()
+    roster, _valid_ids, default_id = await _build_agent_roster()
     return await decomposer.decompose(
         task,
         roster=roster,
@@ -131,6 +131,11 @@ async def run_apply_decompose(
     Atomically creates child tasks, wires dependency edges, promotes the
     root TRIAGE → BACKLOG (waits for children), records DECOMPOSED event,
     and wakes the dispatcher so children enter dispatch immediately.
+
+    Design note: child tasks intentionally do NOT inherit ``require_approval``
+    from the parent — the approval gate applies to the aggregate deliverable
+    (the parent task after children complete and it is re-executed), not to
+    intermediate artifacts.
     """
     task = await store.get_task(task_id)
     if task is None:

@@ -6,15 +6,18 @@ Covers:
 - EDITED event emission on result/metadata change
 - Validation of result max_length (10000)
 - No EDITED event when result/metadata not in payload
+- Status guard: require_approval can only change for active tasks
 """
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 from app.api.kanban.router import router as kanban_router
 from app.services.kanban import KanbanService
@@ -352,3 +355,86 @@ class TestEdgeCases:
             json={"result": "should fail"},
         )
         assert resp.status_code == 404
+
+
+class TestRequireApprovalGuard:
+    """require_approval PATCH is guarded by task status.
+
+    The flag is a scheduling resource: it only matters while a task is still
+    headed toward (or inside) the dispatch cycle. Once a task has entered the
+    review flow or a terminal state, flipping the flag would be misleading and
+    must be rejected.
+    """
+
+    @staticmethod
+    def _force_status(tid: str, status: TaskStatus) -> None:
+        async def _set() -> None:
+            svc = KanbanService.get_instance()
+            t = await svc.get_task(tid)
+            assert t is not None
+            t.status = status
+            await svc.store.save_task(t)
+
+        asyncio.run(_set())
+
+    def _patch_approval(self, client: TestClient, tid: str, value: bool):
+        return client.patch(
+            f"/api/v1/kanban/tasks/{tid}",
+            json={"require_approval": value},
+        )
+
+    @pytest.mark.parametrize(
+        "status",
+        [
+            TaskStatus.TRIAGE,
+            TaskStatus.BACKLOG,
+            TaskStatus.READY,
+            TaskStatus.RUNNING,
+            TaskStatus.BLOCKED,
+        ],
+    )
+    def test_active_states_can_change_approval(self, client: TestClient, status: TaskStatus) -> None:
+        board = _create_board(client)
+        task = _create_task(client, str(board["board_id"]), "ActiveToggle")
+        tid = str(task["task_id"])
+        self._force_status(tid, status)
+
+        resp = self._patch_approval(client, tid, True)
+        assert resp.status_code == 200
+        assert resp.json()["require_approval"] is True
+
+        resp = self._patch_approval(client, tid, False)
+        assert resp.status_code == 200
+        assert resp.json()["require_approval"] is False
+
+    @pytest.mark.parametrize(
+        "status",
+        [
+            TaskStatus.IN_REVIEW,
+            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
+            TaskStatus.ARCHIVED,
+        ],
+    )
+    def test_review_and_terminal_states_reject_change(
+        self, client: TestClient, status: TaskStatus
+    ) -> None:
+        board = _create_board(client)
+        task = _create_task(client, str(board["board_id"]), "LockedToggle")
+        tid = str(task["task_id"])
+        self._force_status(tid, status)
+
+        resp = self._patch_approval(client, tid, True)
+        assert resp.status_code == 400
+        assert "require_approval" in resp.json()["detail"]
+
+    def test_rejected_change_does_not_mutate(self, client: TestClient) -> None:
+        """A rejected PATCH leaves require_approval untouched."""
+        board = _create_board(client)
+        task = _create_task(client, str(board["board_id"]), "NoMutation")
+        tid = str(task["task_id"])
+        self._force_status(tid, TaskStatus.IN_REVIEW)
+
+        self._patch_approval(client, tid, True)
+        data = client.get(f"/api/v1/kanban/tasks/{tid}").json()
+        assert data["require_approval"] is False

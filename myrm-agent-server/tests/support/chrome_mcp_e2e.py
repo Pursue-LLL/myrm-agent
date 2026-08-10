@@ -347,9 +347,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
             touch_wall_progress(current_node="warm_ui_route_skipped_registry_reuse")
             request = urllib.request.Request(url, method="GET")
             try:
-                with urllib.request.urlopen(
-                    request, timeout=5.0
-                ) as response:
+                with urllib.request.urlopen(request, timeout=5.0) as response:
                     if int(response.status) == 200:
                         seal_platform_shell(ui_url=url, route_path=path)
                         try:
@@ -385,6 +383,12 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
 
     def _heal_shared_frontend() -> None:
         if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+            return
+        # R291 parity: launch-force preflight validated the shared frontend —
+        # restarting it mid-test strands running pages in chrome-error and
+        # corrupts parallel peers. Skip warm heal unconditionally under
+        # launch-force so a stale shell costs a timeout instead.
+        if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
             return
         heal_timeout = 60.0
         try:
@@ -1146,12 +1150,16 @@ def open_settings_subroute(
     subroute_path: str,
     *,
     timeout_ms: int = 120_000,
-    request_timeout_sec: float = 180.0,
+    request_timeout_sec: float | None = None,
     warm: bool = True,
     layout_timeout_sec: float = 45.0,
 ) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
     """SSOT: open /settings shell, navigate to nested subroute, wait settings-layout."""
     touch_wall_progress(current_node="open_settings_subroute")
+    if request_timeout_sec is None:
+        from browser_orchestrator_client import orchestrator_socket_timeout_cap_sec
+
+        request_timeout_sec = orchestrator_socket_timeout_cap_sec()
     ui_base = get_e2e_ui_url().rstrip("/")
     route_path = _settings_route_path(subroute_path)
     if not route_path.startswith("/settings"):
@@ -1213,9 +1221,11 @@ def open_settings_subroute(
             request_timeout_sec=request_timeout_sec,
             hydrate_timeout_sec=max(
                 45.0,
-                _warm_ui_parallel_wait_sec(layout_timeout_sec)
-                if _parallel_chrome_e2e_active()
-                else layout_timeout_sec,
+                (
+                    _warm_ui_parallel_wait_sec(layout_timeout_sec)
+                    if _parallel_chrome_e2e_active()
+                    else layout_timeout_sec
+                ),
             ),
             binding_expression=_SETTINGS_DISMISSAL_BINDING_JS,
         ) as (client, page):
@@ -1223,9 +1233,11 @@ def open_settings_subroute(
             _ensure_e2e_private_api_live(
                 client,
                 page,
-                timeout_sec=_warm_ui_parallel_wait_sec(90.0)
-                if _parallel_chrome_e2e_active()
-                else 45.0,
+                timeout_sec=(
+                    _warm_ui_parallel_wait_sec(90.0)
+                    if _parallel_chrome_e2e_active()
+                    else 45.0
+                ),
             )
             try:
                 dismiss_blocking_modals(client, page, recover_url=target_url)
@@ -1251,9 +1263,11 @@ def open_settings_subroute(
         _ensure_e2e_private_api_live(
             client,
             page,
-            timeout_sec=_warm_ui_parallel_wait_sec(90.0)
-            if _parallel_chrome_e2e_active()
-            else 45.0,
+            timeout_sec=(
+                _warm_ui_parallel_wait_sec(90.0)
+                if _parallel_chrome_e2e_active()
+                else 45.0
+            ),
         )
         reload_mcp_page(
             client,
@@ -2283,9 +2297,7 @@ class _OrchestratorSharedUiChat:
                 return
         probe = await self.evaluate(inject, intent=EvaluateIntent.ROUTE_ATTACH)
         if isinstance(probe, dict) and probe.get("ok") is False:
-            raise RuntimeError(
-                f"E2E API base inject failed: {probe.get('err', probe)}"
-            )
+            raise RuntimeError(f"E2E API base inject failed: {probe.get('err', probe)}")
 
     async def ensure_react_e2e_bridge(self, *, timeout_sec: float = 90.0) -> None:
         from e2e_shared_ui_session import _bootstrap_hot_path_reused
@@ -2926,6 +2938,32 @@ def wait_for_state(
         if (
             page_url
             and reload_passes < max_reload_passes
+            and last.get("errorOverlay") is True
+            and polls in {3, 9, 27, 60}
+            and not dom_hidden
+        ):
+            # Shared dev hot reload can invalidate Turbopack chunks mid-wait; the
+            # page then mounts a Next.js error overlay and React never hydrates
+            # the store. Bypass the browser cache (about:blank → target) so the
+            # freshly compiled bundle is pulled instead of failing the poll.
+            reload_passes += 1
+            dom_hidden = False
+            touch_wall_progress(current_node="wait_for_state_overlay_heal")
+            _trigger_attach_client_warmup_once(
+                page_url=page_url if isinstance(page_url, str) else None
+            )
+            reload_mcp_page(
+                client,
+                page,
+                target_url=page_url,
+                timeout_ms=max(reload_timeout_ms, 90_000),
+                ignore_cache=True,
+            )
+            dismiss_blocking_modals(client, page, recover_url=page_url)
+            continue
+        if (
+            page_url
+            and reload_passes < max_reload_passes
             and body_probe == 0
             and not dom_hidden
             and polls in {2, 5, 10, 20, 40}
@@ -3011,6 +3049,109 @@ def wait_for_state(
             continue
         time.sleep(0.25)
     raise AssertionError(f"Browser state did not become ready: {last}")
+
+
+CHAT_ROUTE_READY_JS = """(() => ({
+  ready: !!document.querySelector('[data-testid="app-layout"]'),
+  href: location.href,
+}))()"""
+
+_CHAT_HYDRATION_JS = """(() => ({
+  hasInput: !!document.querySelector('[data-chat-input]'),
+  msgs: (window.__myrmChatStore?.getState?.()?.messages || []).length,
+  bodyLen: (document.body?.innerText || '').trim().length,
+  errorOverlay: !!document.querySelector('nextjs-portal, nextjs-error-overlay'),
+}))()"""
+
+_CURRENT_HREF_JS = "location.href"
+
+
+def ensure_chat_route(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    target_url: str,
+    timeout_ms: int = 180_000,
+) -> None:
+    """Force ``page`` onto ``target_url`` and verify React hydration.
+
+    Reused warm shells may bind a tab owned by another isolated runtime (stale
+    origin/route) or reach the URL while React is still suspended (SSR shell
+    only). Once the target route is reached, the chat input must be present and
+    free of a dev error overlay; otherwise the page is reloaded cache-bypassing
+    (about:blank → target) so the full, freshly compiled client bundle mounts.
+    A plain ``window.location.href`` navigation keeps serving stale Turbopack
+    chunks and re-triggers ``ChunkLoadError`` under shared dev hot reload.
+    """
+    target_suffix = target_url.rstrip("/")
+    deadline = time.monotonic() + timeout_ms / 1000.0
+    hard_navigations = 0
+    while time.monotonic() < deadline:
+        try:
+            current = client.evaluate(page, _CURRENT_HREF_JS, timeout_sec=5.0)
+        except (RuntimeError, TimeoutError, OSError):
+            current = None
+        if isinstance(current, str) and current.rstrip("/").endswith(target_suffix):
+            try:
+                hydrated = client.evaluate(page, _CHAT_HYDRATION_JS, timeout_sec=10.0)
+            except (RuntimeError, TimeoutError, OSError):
+                hydrated = None
+            if isinstance(hydrated, dict) and (
+                (
+                    hydrated.get("hasInput") is True
+                    and hydrated.get("errorOverlay") is not True
+                )
+                or int(hydrated.get("msgs") or 0) > 0
+            ):
+                return
+            if hard_navigations < 3:
+                hard_navigations += 1
+                try:
+                    reload_mcp_page(
+                        client,
+                        page,
+                        target_url=target_url,
+                        timeout_ms=min(90_000, timeout_ms),
+                        ignore_cache=True,
+                    )
+                except (RuntimeError, TimeoutError, OSError):
+                    pass
+                time.sleep(4.0)
+                continue
+            break
+        try:
+            client.navigate(page, target_url, timeout_ms=timeout_ms)
+        except (RuntimeError, TimeoutError, OSError):
+            pass
+        time.sleep(2.0)
+        try:
+            current = client.evaluate(page, _CURRENT_HREF_JS, timeout_sec=5.0)
+        except (RuntimeError, TimeoutError, OSError):
+            current = None
+        if isinstance(current, str) and current.rstrip("/").endswith(target_suffix):
+            continue
+        try:
+            reload_mcp_page(
+                client,
+                page,
+                target_url=target_url,
+                timeout_ms=min(90_000, timeout_ms),
+                ignore_cache=True,
+            )
+        except (RuntimeError, TimeoutError, OSError):
+            pass
+        time.sleep(3.0)
+    route = wait_for_state(
+        client,
+        page,
+        CHAT_ROUTE_READY_JS,
+        timeout_sec=min(60.0, max(5.0, deadline - time.monotonic())),
+        page_url=target_url,
+    )
+    assert route.get("ready") is True, json.dumps(route, ensure_ascii=False)
+    assert str(route.get("href") or "").startswith(
+        get_e2e_ui_url().rstrip("/")
+    ), json.dumps(route, ensure_ascii=False)
 
 
 _WORKFLOW_PLAN_CARD_JS = """(() => {
@@ -3126,7 +3267,9 @@ def _plan_confirm_state_from_messages(
 def _dw_unattended_enabled(api_base: str) -> bool:
     """True when YOLO or plan_confirm disabled — DW skips plan_confirm HITL."""
     try:
-        payload = http_json("GET", f"{api_base.rstrip('/')}/api/v1/config/securityConfig")
+        payload = http_json(
+            "GET", f"{api_base.rstrip('/')}/api/v1/config/securityConfig"
+        )
     except (RuntimeError, OSError, ValueError):
         return False
     raw = payload.get("value") if isinstance(payload, dict) else payload
@@ -3134,7 +3277,8 @@ def _dw_unattended_enabled(api_base: str) -> bool:
         return False
     yolo_enabled = bool(raw.get("yoloModeEnabled") or raw.get("yolo_mode_enabled"))
     plan_confirm_enabled = bool(
-        raw.get("planConfirmEnabled") if raw.get("planConfirmEnabled") is not None
+        raw.get("planConfirmEnabled")
+        if raw.get("planConfirmEnabled") is not None
         else raw.get("plan_confirm_enabled", True)
     )
     return yolo_enabled or not plan_confirm_enabled
@@ -3175,8 +3319,7 @@ def _wait_for_yolo_dw_plan_skip(
         completion_status = str(stream_probe.get("completionStatus") or "")
         user_count = int(stream_probe.get("userCount") or 0)
         if user_count >= 1 and (
-            completion_status in terminal_statuses
-            or len(sample.strip()) >= 15
+            completion_status in terminal_statuses or len(sample.strip()) >= 15
         ):
             return {
                 "ready": True,
@@ -3259,7 +3402,13 @@ def _api_stream_probe_from_messages(
     metadata = last_assistant.get("metadata")
     meta = metadata if isinstance(metadata, dict) else {}
     completion_status = str(meta.get("completionStatus") or "")
-    is_complete = completion_status in {"complete", "error", "cancelled", "success", "budget_blocked"}
+    is_complete = completion_status in {
+        "complete",
+        "error",
+        "cancelled",
+        "success",
+        "budget_blocked",
+    }
     sample = _assistant_text_from_api_message(last_assistant)
     message_id_raw = last_assistant.get("messageId") or last_assistant.get("id")
     message_id = message_id_raw if isinstance(message_id_raw, str) else None
@@ -3435,7 +3584,9 @@ def wait_for_workflow_plan_card(
                             resolved_api_base,
                             cached_stream_id,
                         ):
-                            touch_wall_progress(current_node="workflow_plan_api_confirm")
+                            touch_wall_progress(
+                                current_node="workflow_plan_api_confirm"
+                            )
                             return {
                                 **last,
                                 "ready": True,

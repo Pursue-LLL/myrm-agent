@@ -59,9 +59,15 @@ def test_prefer_direct_agent_stream_skips_without_shpoib(monkeypatch: pytest.Mon
     assert resolved.multiplexed is True
 
 
+def test_resolve_stream_execution_mode_defaults_pooled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MYRM_E2E_SIGNOFF_CLARIFY_POOL", raising=False)
+    assert resolve_stream_execution_mode() is ExecutionMode.POOLED
+
+
 def test_resolve_stream_execution_mode_signoff_pool_ephemeral(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("MYRM_E2E_FORCE_EPHEMERAL", raising=False)
     monkeypatch.setenv("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "1")
     assert resolve_stream_execution_mode() is ExecutionMode.EPHEMERAL

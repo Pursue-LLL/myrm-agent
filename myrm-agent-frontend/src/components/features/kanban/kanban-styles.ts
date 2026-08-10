@@ -11,6 +11,15 @@ export const NEXT_STATUSES: Partial<Record<TaskStatus, TaskStatus[]>> = {
   failed: ['ready', 'archived'],
 };
 
+/** Statuses where the `require_approval` flag is still editable (mirrors the server-side guard). */
+export const APPROVAL_EDITABLE_STATUSES: readonly TaskStatus[] = [
+  'triage',
+  'backlog',
+  'ready',
+  'running',
+  'blocked',
+];
+
 export const OUTCOME_STYLES: Record<string, string> = {
   completed: 'text-chart-2',
   blocked: 'text-chart-5',

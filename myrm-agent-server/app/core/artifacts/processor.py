@@ -340,20 +340,56 @@ class LocalArtifactProcessor(BaseArtifactProcessor):
         content_type: str,
         read_content: Callable[[str], Awaitable[bytes]] | None,
     ) -> PersistResult | None:
-        from app.core.storage import FilesService
+        import os
 
-        file_size = 0
-        if read_content is not None:
-            try:
-                content = await read_content(file_path)
-                if content is not None:
-                    file_size = len(content)
-                    if file_size > MAX_ARTIFACT_SIZE_BYTES:
-                        size_mb = file_size / 1024 / 1024
-                        logger.warning(f"📦 [Local] 跳过大文件: {filename} ({size_mb:.2f}MB > 5MB)")
-                        return None
-            except Exception as e:
-                logger.warning(f"📦 [Local] 获取文件大小失败: {file_path}, {e}")
+        from myrm_agent_harness.toolkits.code_execution.executors.base import (
+            get_executor,
+        )
+
+        from app.core.artifacts.listener import resolve_sandbox_file_path
+        from app.core.storage import FilesService
+        from app.platform_utils.workspace_root import get_workspace_root
+        from app.services.artifacts.share_token import is_shareable_artifact
+
+        _ = read_content  # local mode uses stat-only sizing; harness may still pass read_content
+
+        executor = get_executor()
+        workspace_root = (
+            executor.workspace_path if executor else str(get_workspace_root())
+        )
+        resolved = resolve_sandbox_file_path(
+            file_path,
+            workspace_root,
+            self.chat_id,
+        )
+        if resolved is None:
+            logger.warning("📦 [Local] Generated file not found on disk: %s", file_path)
+            return None
+
+        try:
+            file_size = os.path.getsize(resolved)
+        except OSError as exc:
+            logger.warning(
+                "📦 [Local] Failed to stat generated file: %s, error: %s",
+                file_path,
+                exc,
+            )
+            return None
+
+        if file_size > MAX_ARTIFACT_SIZE_BYTES:
+            if not is_shareable_artifact(filename):
+                size_mb = file_size / 1024 / 1024
+                logger.warning(
+                    "📦 [Local] Skipping oversized non-shareable file: %s (%.2fMB > 5MB)",
+                    filename,
+                    size_mb,
+                )
+                return None
+            logger.info(
+                "📦 [Local] Reference-only persist for oversized shareable artifact: %s (%.2fMB)",
+                filename,
+                file_size / 1024 / 1024,
+            )
 
         files_svc = FilesService()
         file = await files_svc.save_file_reference(

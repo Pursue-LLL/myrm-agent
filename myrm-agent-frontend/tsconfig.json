@@ -50,10 +50,10 @@
     "*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    ".next-isolated-kanban-e2e-1/types/**/*.ts",
-    ".next-isolated-kanban-e2e-1/dev/types/**/*.ts",
-    ".next-isolated-kanban-mo-e2e/types/**/*.ts",
-    ".next-isolated-kanban-mo-e2e/dev/types/**/*.ts"
+    ".next-isolated-kanban-e2e-4/types/**/*.ts",
+    ".next-isolated-kanban-e2e-4/dev/types/**/*.ts",
+    ".next-isolated-kanban-e2e-verify/types/**/*.ts",
+    ".next-isolated-kanban-e2e-verify/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import WbBenchSources from '../WbBenchSources';
 
@@ -45,6 +45,106 @@ function renderSources(history: ReportItem[]) {
   };
   return render(<WbBenchSources {...props} />);
 }
+
+describe('WbBenchSources Memory A/B entry', () => {
+  it('renders a Memory A/B button on the card', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    renderSources([]);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    const button = screen.getByRole('button', { name: /memoryab/i });
+    expect(button).toBeInTheDocument();
+  });
+
+  it('opens the confirmation dialog and confirms start with the subset id', async () => {
+    const onMemoryAb = vi.fn();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(<WbBenchSources
+      running={false}
+      history={[]}
+      onRun={vi.fn()}
+      onDownload={vi.fn()}
+      onMemoryAb={onMemoryAb}
+      refreshToken={0}
+      downloadingSubsetId={null}
+      downloadProgress={null}
+    />);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /memoryab/i }));
+    expect(await screen.findByText('confirmTitle')).toBeInTheDocument();
+    expect(screen.getByText('confirmBody')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('confirmStart'));
+    await waitFor(() => expect(onMemoryAb).toHaveBeenCalledWith('office'));
+  });
+
+  it('cancels the confirmation dialog without starting', async () => {
+    const onMemoryAb = vi.fn();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(<WbBenchSources
+      running={false}
+      history={[]}
+      onRun={vi.fn()}
+      onDownload={vi.fn()}
+      onMemoryAb={onMemoryAb}
+      refreshToken={0}
+      downloadingSubsetId={null}
+      downloadProgress={null}
+    />);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /memoryab/i }));
+    await screen.findByText('confirmTitle');
+
+    fireEvent.click(screen.getByText('confirmCancel'));
+    expect(onMemoryAb).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText('confirmTitle')).not.toBeInTheDocument());
+  });
+
+  it('disables the Memory A/B button while an evaluation is running', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(<WbBenchSources
+      running={true}
+      history={[]}
+      onRun={vi.fn()}
+      onDownload={vi.fn()}
+      onMemoryAb={vi.fn()}
+      refreshToken={0}
+      downloadingSubsetId={null}
+      downloadProgress={null}
+    />);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /memoryab/i })).toBeDisabled();
+  });
+});
 
 describe('WbBenchSources', () => {
   it('renders dataset cards and the downloaded badge', async () => {

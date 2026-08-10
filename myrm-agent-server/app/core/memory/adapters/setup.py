@@ -7,7 +7,8 @@ myrm_agent_harness.toolkits.memory.setup::create_local_memory_manager (POS: 开�
 resolve_context_binding: 统一解析业务侧上下文绑定合同
 create_memory_manager: 业务层记忆管理器工厂
 create_memory_tools_for_user: 业务层记忆工具工厂
-shutdown_cached_memory_managers: 释放进程级记忆管理器缓存
+shutdown_cached_memory_managers: 释放进程级记忆管理器缓存（联动清理 harness 嵌入式 Qdrant 单例）
+evict_cached_memory_manager: 关闭并逐出指定 base_path 的 MemoryManager，联动释放对应嵌入式 Qdrant 单例（隔离评测卷专用）
 
 [POS]
 业务层记忆适配器入口。通过 ContextBundle volume 的 memory scene 路径统一管理存储，
@@ -365,6 +366,10 @@ def resolve_context_binding(
 
 async def shutdown_cached_memory_managers() -> None:
     """Close all cached MemoryManager instances and clear the cache."""
+    from myrm_agent_harness.toolkits.vector.qdrant import (
+        clear_embedded_stores,
+    )
+
     from app.core.memory.adapters.cascade import shutdown_cascade_manager
 
     async with _memory_manager_cache_lock:
@@ -373,15 +378,16 @@ async def shutdown_cached_memory_managers() -> None:
 
     await shutdown_cascade_manager()
 
-    if not managers:
-        return
-
     results = await asyncio.gather(
         *(manager.close() for manager in managers), return_exceptions=True
     )
     for result in results:
         if isinstance(result, Exception):
             logger.warning("Failed to close cached MemoryManager: %s", result)
+
+    # Embedded Qdrant stores are cached per path for process lifetime; the
+    # process-level shutdown must release them so no QdrantClient survives.
+    await clear_embedded_stores()
 
 
 async def evict_cached_memory_manager(base_path: str | Path) -> None:
@@ -390,6 +396,10 @@ async def evict_cached_memory_manager(base_path: str | Path) -> None:
     Used after an isolated evaluation run so its throwaway memory volume
     (SQLite + embedded vector store) is closed before the directory is removed.
     """
+    from myrm_agent_harness.toolkits.vector.qdrant import (
+        evict_embedded_store,
+    )
+
     resolved = str(Path(base_path).resolve())
 
     async with _memory_manager_cache_lock:
@@ -400,12 +410,14 @@ async def evict_cached_memory_manager(base_path: str | Path) -> None:
         ]
         managers_to_close = [_memory_manager_cache.pop(key) for key in keys_to_close]
 
-    if not managers_to_close:
-        return
-
     results = await asyncio.gather(
         *(manager.close() for manager in managers_to_close), return_exceptions=True
     )
     for result in results:
         if isinstance(result, Exception):
             logger.warning("Failed to close evicted MemoryManager: %s", result)
+
+    # The embedded Qdrant store created under the isolated volume lives in the
+    # harness per-path singleton cache; release it so the directory can be
+    # removed and no file handle is retained across evaluation runs.
+    await evict_embedded_store(str(Path(base_path).resolve() / "vector_store"))

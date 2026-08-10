@@ -6,6 +6,7 @@ import { X, Copy, Check, Search, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getApiBaseUrl } from '@/lib/deploy-mode';
 import { getLineTone, TONE_CLASSES } from './lineToneUtils';
+import { formatStoredSize } from './sizeFormatUtils';
 
 interface EvictedOutputDrawerProps {
   filename: string;
@@ -464,11 +465,5 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
     </div>
   );
 };
-
-function formatStoredSize(chars: number): string {
-  if (chars < 1024) return `${chars} B`;
-  if (chars < 1024 * 1024) return `${(chars / 1024).toFixed(1)} KB`;
-  return `${(chars / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default EvictedOutputDrawer;

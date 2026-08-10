@@ -268,7 +268,9 @@ class TestExecutorEventParsing:
             yield {"type": "tasks_steps"}
             yield {
                 "type": "token_usage",
-                "data": {"input_tokens": 10, "output_tokens": 5},
+                "data": {
+                    "usage": {"prompt_tokens": 10, "completion_tokens": 5}
+                },
             }
             yield {"type": "token_usage", "data": "not-a-dict"}
             yield {"type": "message", "data": "second"}

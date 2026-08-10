@@ -1295,3 +1295,59 @@ class TestGatewayDrain:
 
         await gw.begin_drain(timeout=1.0)
         assert gw.is_draining
+
+
+class TestGatewayCoverageBranches:
+    """Cover remaining defensive branches of AgentGateway."""
+
+    def test_config_property_exposes_settings(self) -> None:
+        gw = AgentGateway(_cfg(max_global=3))
+        assert gw.config.max_global == 3
+
+    def test_is_session_active_unknown_session(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert gw.is_session_active("ghost") is False
+
+    @pytest.mark.asyncio
+    async def test_reserve_rejects_while_draining(self) -> None:
+        gw = AgentGateway(_cfg())
+        await gw.begin_drain()
+        with pytest.raises(AgentDrainingError):
+            gw.reserve_session("chat-r")
+
+    @pytest.mark.asyncio
+    async def test_non_dict_event_wrapped_in_payload(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def raw_stream():
+            yield "plain-text-event"
+
+        events = [
+            e
+            async for e in gw.execute_stream(raw_stream(), agent_type="test")
+        ]
+        assert events == [{"payload": "plain-text-event"}]
+
+    @pytest.mark.asyncio
+    async def test_list_values_scrubbed_recursively(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def raw_stream():
+            yield {"items": ["alpha", "beta"]}
+
+        events = [
+            e
+            async for e in gw.execute_stream(raw_stream(), agent_type="test")
+        ]
+        assert events == [{"items": ["alpha", "beta"]}]
+
+    @pytest.mark.asyncio
+    async def test_reserve_and_release_flow(self) -> None:
+        gw = AgentGateway(_cfg())
+        gw.reserve_session("chat-pre", agent_type="kanban")
+        assert gw.is_session_active("chat-pre")
+        info = gw._session_info["chat-pre"]
+        assert info.agent_type == "kanban"
+        assert info.reserved_only is True
+        gw.release_session("chat-pre")
+        assert not gw.is_session_active("chat-pre")

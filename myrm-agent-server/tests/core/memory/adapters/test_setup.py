@@ -22,6 +22,27 @@ def _clear_manager_cache():
     _memory_manager_cache.clear()
     yield
     _memory_manager_cache.clear()
+    _run_async_teardown(_clear_harness_embedded_stores())
+
+
+def _run_async_teardown(coro) -> None:
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+async def _clear_harness_embedded_stores() -> None:
+    from myrm_agent_harness.toolkits.vector.qdrant.factory import (
+        _embedded_clients,
+        clear_embedded_stores,
+    )
+
+    await clear_embedded_stores()
+    assert _embedded_clients == {}
 
 
 def _patch_memory_path(path: str):

@@ -193,11 +193,11 @@
   },
   "settings": {
     "lockedUse": {
-      "title": "Computer Use / Locked Use",
-      "layer1Title": "保持屏幕常亮",
+      "title": "電腦使用 / 鎖定使用",
+      "layer1Title": "保持螢幕常亮",
       "layer1Desc": "CU 回合期間自動阻止螢幕關閉，無需配置",
       "layer1Badge": "始終開啟",
-      "layer2Title": "屏幕解鎖",
+      "layer2Title": "螢幕解鎖",
       "layer2DescSupported": "螢幕已鎖定時自動臨時解鎖以執行 CU 操作",
       "layer2DescUnsupported": "當前平臺 ({platform}) 不支援自動解鎖",
       "passwordSaved": "密碼已儲存在系統 Keychain 中",
@@ -404,7 +404,7 @@
           },
           "template": {
             "label": "模板",
-            "placeholder": "Please translate the following to English:\n\n'{{input}}'",
+            "placeholder": "請將以下內容翻譯為英文：\n\n'{{input}}'",
             "hint": "使用 '{{input}}' 插入使用者輸入"
           }
         },
@@ -418,11 +418,11 @@
           "title": "示例",
           "translate": {
             "name": "translate",
-            "template": "Please translate to English: '{{input}}'"
+            "template": "請將以下內容翻譯為英文：'{{input}}'"
           },
           "review": {
             "name": "review",
-            "template": "Please review this code: '{{input}}'"
+            "template": "請審查此程式碼：'{{input}}'"
           }
         },
         "actions": {
@@ -466,7 +466,7 @@
         "probing": "正在檢測連線...",
         "probeUnreachable": "服務未啟動或埠未開放，請檢查編輯器是否已啟動 MCP 伺服器",
         "probeCloudLoopbackBlocked": "該整合依賴你本機的編輯器服務。當前為雲端模式，請切換到本地 WebUI 或 Tauri 桌面端後再連線。",
-        "probeConnectionRefused": "連接被拒絕，請先啟動編輯器側 MCP 服務或插件後重試。",
+        "probeConnectionRefused": "連接被拒絕，請先啟動編輯器側 MCP 服務或外掛後重試。",
         "probeConnectionUnreachable": "本地網絡路由不可達，請檢查 localhost 路由、VPN/代理策略與編輯器 MCP 配置。",
         "probeTlsVerificationFailed": "TLS 證書校驗失敗，請信任 MCP 證書或配置有效的 CA 證書鏈。",
         "probeConnectionTimeout": "連接超時，請檢查本地網絡連通性與編輯器 MCP 配置後重試。",
@@ -655,7 +655,7 @@
         "authModeApiKey": "API 金鑰",
         "authModeHint": "訂閱登入使用該 Agent 自身的登入態（如 ChatGPT Plus、Claude Max），無需 API 金鑰；API 金鑰模式從 Agent 環境變數注入金鑰。",
         "login": "登入",
-        "logout": "退出登入",
+        "logout": "登出",
         "loginTitle": "登入 {backend}",
         "loginConnecting": "正在啟動登入…",
         "loginSuccess": "登入成功",
@@ -672,7 +672,7 @@
         "importPlaceholder": "貼上憑據檔案內容",
         "import": "匯入",
         "importSuccess": "憑據已匯入",
-        "logoutSuccess": "已退出登入",
+        "logoutSuccess": "已登出",
         "badgeLoggedIn": "已登入",
         "badgeLoggedOut": "未登入",
         "badgeCliReady": "CLI 可用",
@@ -1170,7 +1170,7 @@
         "description": "阻斷檢測到的提示詞注入攻擊，而不僅僅是記錄日誌。IM 和 Cron 渠道無論此設置如何，默認使用阻斷模式。",
         "enableLabel": "啟用 Fail-Closed 阻斷",
         "enableDesc": "開啟後，高威脅提示詞注入模式（評分 ≥ 0.7）將被阻斷並替換為安全佔位符，阻止 LLM 處理惡意輸入。",
-        "saved": "提示詞注入策略已保存"
+        "saved": "提示詞注入策略已儲存"
       },
       "managedPolicy": {
         "lockedBadge": "組織策略",
@@ -1683,9 +1683,9 @@
           "failed": "驗證失敗"
         }
       },
-      "visionFallbackModelFallbackDescription": "當主視覺模型遇到計費、限流或過載等問題時，自動嘗試此備用模型，再回退到支持視覺的主 Agent 模型。",
+      "visionFallbackModelFallbackDescription": "當主視覺模型遇到計費、限流或過載等問題時，自動嘗試此備用模型，再回退到支援視覺的主 Agent 模型。",
       "videoFallbackModel": "視頻降級模型",
-      "videoFallbackModelDescription": "當主模型不支持原生視頻時使用。建議配置支持視頻的模型（如 Gemini）。",
+      "videoFallbackModelDescription": "當主模型不支援原生視頻時使用。建議配置支援視頻的模型（如 Gemini）。",
       "videoFallbackModelFallbackDescription": "主視頻降級模型不可用時的備用模型。",
       "selectVideoFallbackModel": "選擇視頻備用模型",
       "selectVisionFallbackModel": "選擇視覺備用模型",
@@ -1715,7 +1715,7 @@
       "visionRecommendPreview": "推薦：{provider} / {model}",
       "visionRecommendButton": "使用此模型",
       "visionRecommendApplied": "已設置視覺降級模型為 {provider} / {model}",
-      "visionRecommendNone": "已啟用的 Provider 中沒有支持視覺的模型",
+      "visionRecommendNone": "已啟用的 Provider 中沒有支援視覺的模型",
       "orgPolicyRestricted": "受組織策略限制",
       "moaPreset": {
         "groupTitle": "多智能體混合",
@@ -1724,7 +1724,7 @@
         "fastLabel": "快速",
         "activeLabel": "MoA · {preset}",
         "refCount": "{count} 個參考模型",
-        "persistFailed": "多智能體混合偏好保存失敗",
+        "persistFailed": "多智能體混合偏好儲存失敗",
         "skippedNoReferenceConfigs": "已開啟多智能體混合，但未配置參考模型。顧問疊加已跳過 — 請在智能體能力設置中添加參考模型。",
         "skippedNoReferenceLlms": "已開啟多智能體混合，但參考模型無法加載（請檢查 API Key 或 Provider 配置）。顧問疊加已跳過。",
         "skippedBudgetPressure": "會話預算已告警，多智能體顧問疊加已跳過。",
@@ -1745,7 +1745,7 @@
     },
     "account": {
       "title": "賬戶",
-      "logout": "退出登入",
+      "logout": "登出",
       "guest": "訪客",
       "localUserMode": "本地使用者模式 - 資料儲存在本地",
       "verified": "已驗證",
@@ -1877,7 +1877,7 @@
       "uploadedTitle": "已上傳憑據",
       "noCredentials": "暫無已上傳憑據",
       "valid": "有效",
-      "expiringSoon": "{days}天后過期",
+      "expiringSoon": "{days}天後過期",
       "expired": "已過期",
       "oauthTitle": "企業級 & SaaS 授權 (OAuth)",
       "oauthDescription": "安全地管理您的企業級登入與 SaaS API 授權。這些憑據會臨時、親和性地繫結至執行中的智慧體，繼承世界一流的整合執行能力。",
@@ -2177,7 +2177,7 @@
         "cognitivePending": "尚未生成",
         "cognitiveLogEntries": "{count, plural, =0 {暫無記錄} other {# 條記錄}}",
         "cognitiveHotUpdated": "更新於 {time}",
-        "cognitiveHotEmpty": "尚未刷新",
+        "cognitiveHotEmpty": "尚未重新整理",
         "brokenLinks": "{count, plural, other {# 處斷鏈}}",
         "invalidPageTypes": "{count, plural, other {# 處頁面類型無效}}",
         "provenanceGaps": "{count, plural, other {# 處缺少溯源}}",
@@ -2190,7 +2190,7 @@
         "lastMaintainSkippedNoModel": "上次維護已跳過（未配置 AI 模型）",
         "indexedAssets": "已索引 {count} 張圖片",
         "failedAssets": "{count} 張圖片索引失敗",
-        "assetsVisionHint": "圖片已導入但尚不可搜索。請在「設置 → 模型」中配置視覺降級模型以建立索引。",
+        "assetsVisionHint": "圖片已導入但尚不可搜尋。請在「設置 → 模型」中配置視覺降級模型以建立索引。",
         "synthesisPending": "{count, plural, other {# 條演化合成待審核}}",
         "duplicateGroupsPending": "{count, plural, other {# 組重複待審核}}"
       },
@@ -2250,7 +2250,7 @@
         "compileSummaryWithSynthesis": "編譯完成：{published} 篇已發布，{pending} 篇待審核，{synthesis} 篇演變合成，{blocked} 篇未生成。請在「待審草稿 → 演變合成」查看演變頁。",
         "maintainSummary": "維護完成：發現 {found} 項，修復 {fixed} 項",
         "maintainSummaryWithLinks": "維護完成：發現 {found} 項，修復 {fixed} 項，新增 {connections} 個連結",
-        "maintainRemovedSensitive": "維護已移除 {count} 個含敏感內容的 raw 文件：{paths}",
+        "maintainRemovedSensitive": "維護已移除 {count} 個含敏感內容的 raw 檔案：{paths}",
         "repairTypesComplete": "已修復 {count} 篇筆記的頁面類型",
         "repairPublicationComplete": "已修復 {repaired} 篇筆記的發布狀態，重新索引 {reindexed} 篇",
         "repairPublicationCompleteWithSkips": "已修復 {repaired} 篇，重新索引 {reindexed} 篇，保留 {skippedDrafts} 篇草稿未發布",
@@ -2267,18 +2267,18 @@
         "loadPendingFailed": "載入稽核佇列失敗",
         "approveFailed": "批准草稿失敗",
         "rejectFailed": "拒絕草稿失敗",
-        "importFailed": "文件匯入失敗",
+        "importFailed": "檔案匯入失敗",
         "compileBlockedByDedup": "請先處理精確或歸一化重複組，再執行編譯",
         "maintainCompileBusy": "Wiki 正在編譯中，請編譯完成後再試。",
         "repairTypesFailed": "修復頁面類型失敗",
         "repairPublicationFailed": "修復發布狀態失敗",
         "reindexVectorsFailed": "重建向量索引失敗",
         "approveTypeRequired": "批准前請在筆記開頭添加有效的頁面類型",
-        "approveStaleSources": "源文件已更新，請先重新編譯 Wiki 後再批准"
+        "approveStaleSources": "源檔案已更新，請先重新編譯 Wiki 後再批准"
       },
       "import": {
         "title": "批次匯入",
-        "description": "從本地資料夾或 ZIP 壓縮包批次匯入文件到知識庫",
+        "description": "從本地資料夾或 ZIP 壓縮包批次匯入檔案到知識庫",
         "selectFolder": "選擇要匯入的資料夾",
         "folder": "匯入資料夾",
         "zip": "上傳 ZIP",
@@ -2294,16 +2294,16 @@
         "migrationVaultHandoffFailed": "無法自動導入遷移接續的 Obsidian 庫",
         "dedupScanStarted": "已在後臺啟動重複掃描 — 請在「重複審核」查看結果",
         "conflictTitle": "檢測到導入衝突",
-        "conflictDescription": "有 {count} 個 raw 源文件已存在且內容不同。可保留現有文件，或用導入版本覆蓋。",
+        "conflictDescription": "有 {count} 個 raw 源檔案已存在且內容不同。可保留現有檔案，或用導入版本覆蓋。",
         "conflictMore": "……另有 {count} 個",
         "conflictKeepSkipped": "保留現有",
         "conflictSupersede": "全部覆蓋",
         "supersedeReasonLabel": "覆蓋原因",
         "supersedeReasonPlaceholder": "說明為何要用導入內容替換這些 raw 源（必填，寫入審計日誌）",
-        "conflictSkippedToast": "已保留 {count} 個現有 raw 源；非衝突文件已完成導入",
+        "conflictSkippedToast": "已保留 {count} 個現有 raw 源；非衝突檔案已完成導入",
         "securityTitle": "導入時已處理敏感內容",
-        "securityBlockedDescription": "有 {count} 個文件因含憑證或其他敏感內容被拒絕導入。",
-        "securityRedactedDescription": "有 {count} 個文件在脫敏敏感片段後已導入。",
+        "securityBlockedDescription": "有 {count} 個檔案因含憑證或其他敏感內容被拒絕導入。",
+        "securityRedactedDescription": "有 {count} 個檔案在脫敏敏感片段後已導入。",
         "securityMore": "…另有 {count} 個",
         "securityAcknowledge": "知道了"
       },
@@ -2315,8 +2315,8 @@
         "duplicateReview": "重複審核"
       },
       "queue": {
-        "title": "文件處理佇列",
-        "description": "監控和管理文件錄入流程",
+        "title": "檔案處理佇列",
+        "description": "監控和管理檔案錄入流程",
         "loading": "載入佇列狀態...",
         "loadFailed": "載入佇列狀態失敗",
         "statsPending": "待處理",
@@ -2413,9 +2413,9 @@
         "claimsTitle": "結構化主張",
         "claimsEmpty": "此頁面尚無結構化主張",
         "staleSourceModified": "關聯來源在上次編譯後有更新",
-        "claimStatusSupported": "已支持",
+        "claimStatusSupported": "已支援",
         "claimStatusContested": "有爭議",
-        "claimStatusUnsupported": "不支持",
+        "claimStatusUnsupported": "不支援",
         "claimStatusUnknown": "未知",
         "evidencePath": "來源",
         "evidenceLines": "行號",
@@ -2447,7 +2447,7 @@
         "editAliasesLabel": "別名",
         "editAliasesPlaceholder": "用逗號分隔多個別名",
         "editAdvancedWarning": "高級模式會整頁替換。建議使用其他標籤頁以保護 Timeline 與 claims。",
-        "timelineEntryRequired": "保存前請輸入 Timeline 條目",
+        "timelineEntryRequired": "儲存前請輸入 Timeline 條目",
         "timelineDuplicateSkipped": "該 Timeline 條目已存在，未重複追加。",
         "pageConflict": "該頁面已在別處被更新，請重新加載後再試。",
         "provenance": {
@@ -2455,19 +2455,19 @@
           "repaired": "修復",
           "agent": "AI 創建",
           "create_note": "筆記",
-          "chat-save": "對話保存",
+          "chat-save": "對話儲存",
           "chat-compound": "對話沉澱",
           "contradiction_synthesis": "矛盾綜合",
           "import": "導入",
           "web_fetch": "網頁抓取"
         },
-        "rawForgetTitle": "刪除 raw 源文件",
-        "rawForgetDescription": "將刪除該 raw 文件並重新錨定相關 wiki 頁面，此操作不可撤銷。",
+        "rawForgetTitle": "刪除 raw 源檔案",
+        "rawForgetDescription": "將刪除該 raw 檔案並重新錨定相關 wiki 頁面，此操作不可撤銷。",
         "rawForgetReasonLabel": "原因",
         "rawForgetReasonPlaceholder": "說明為何要刪除此 raw 源",
         "rawForgetConfirm": "確認刪除",
-        "rawForgetSuccess": "已刪除 raw 源文件",
-        "rawForgetFailed": "刪除 raw 源文件失敗"
+        "rawForgetSuccess": "已刪除 raw 源檔案",
+        "rawForgetFailed": "刪除 raw 源檔案失敗"
       },
       "saveToWiki": {
         "buttonTitle": "儲存到 Wiki",
@@ -2533,7 +2533,7 @@
           "repaired": "修復",
           "agent": "AI 創建",
           "create_note": "筆記",
-          "chat-save": "對話保存",
+          "chat-save": "對話儲存",
           "chat-compound": "對話沉澱",
           "contradiction_synthesis": "矛盾綜合",
           "import": "導入",
@@ -2566,7 +2566,7 @@
           "checklist": {
             "agentTools": "請重新應用預設，或在「智能體」中確認該智能體已啟用 wiki、memory、cron 工具。",
             "cronJob": "重新應用預設以恢復 6:00 稍後讀與 7:00 知識庫增量任務；若手動刪過定時任務，請到「設置 → 定時任務」檢查。",
-            "vaultContent": "導入 Obsidian、上傳文件或通過瀏覽器剪藏，讓 raw/ 有內容後再編譯。",
+            "vaultContent": "導入 Obsidian、上傳檔案或通過瀏覽器剪藏，讓 raw/ 有內容後再編譯。",
             "corpusDedup": "打開「重複審核」，處理阻塞性的精確或歸一化重複組後再做首次全量編譯。",
             "providerReady": "在「設置 → 模型」添加 API Key 與默認對話模型；使用代理或自定義 Base URL 時請驗證連通性。"
           },
@@ -2585,8 +2585,8 @@
           "ladder": {
             "title": "遇到問題怎麼辦",
             "stepDocs": "閱讀 Wiki 設置指南（概念、導入、編譯）",
-            "stepAgent": "把報錯信息發給 Second Brain 智能體——它可查看 vault 狀態並給出修復建議",
-            "stepCoach": "仍無法解決？在「設置 → 關於」導出日誌，並註明部署方式（本地、桌面或雲託管）聯繫支持"
+            "stepAgent": "把報錯資訊發給 Second Brain 智能體——它可查看 vault 狀態並給出修復建議",
+            "stepCoach": "仍無法解決？在「設置 → 關於」導出日誌，並註明部署方式（本地、桌面或雲託管）聯繫支援"
           },
           "teamKb": {
             "title": "團隊知識庫起步",
@@ -2595,7 +2595,7 @@
             "scenarios": {
               "opsSop": {
                 "label": "運營 SOP",
-                "prompt": "幫我起草一份團隊運營 SOP：範圍、角色、分步流程、升級路徑與檢查清單。內容適合保存為 wiki 待審核條目。"
+                "prompt": "幫我起草一份團隊運營 SOP：範圍、角色、分步流程、升級路徑與檢查清單。內容適合儲存為 wiki 待審核條目。"
               },
               "onboardingGuide": {
                 "label": "新人指南",
@@ -2607,7 +2607,7 @@
               },
               "customerFaq": {
                 "label": "客戶 FAQ",
-                "prompt": "根據常見支持主題起草客戶 FAQ：問題、簡答、深鏈錨點與最後覆核日期。適合 wiki 編譯。"
+                "prompt": "根據常見支援主題起草客戶 FAQ：問題、簡答、深鏈錨點與最後覆核日期。適合 wiki 編譯。"
               },
               "inspectionMaint": {
                 "label": "巡檢維護",
@@ -2617,35 +2617,35 @@
           },
           "extractFailures": {
             "title": "文檔導入失敗類型",
-            "body": "加密 PDF、損壞的 Office、不支持格式、需 OCR 的掃描件、超大附件各有對應處理方式——請先查看導入錯誤標記與隊列詳情再重試。"
+            "body": "加密 PDF、損壞的 Office、不支援格式、需 OCR 的掃描件、超大附件各有對應處理方式——請先查看導入錯誤標記與隊列詳情再重試。"
           }
         }
       },
       "sources": {
         "title": "外部來源",
-        "description": "定時將 Gmail 標籤、Google Drive 文件夾、飛書/ Lark 文檔與 RSS 訂閱拉入知識庫（同步過程不消耗 AI 額度）。長文與筆記進 Wiki；關於你的簡短事實進 Memory。",
+        "description": "定時將 Gmail 標籤、Google Drive 資料夾、飛書/ Lark 文檔與 RSS 訂閱拉入知識庫（同步過程不消耗 AI 額度）。長文與筆記進 Wiki；關於你的簡短事實進 Memory。",
         "feishuLabel": "飛書 / Lark 文檔",
-        "feishuFolderLabel": "飛書文件夾 token",
+        "feishuFolderLabel": "飛書資料夾 token",
         "feishuFolderPlaceholder": "留空表示根目錄",
-        "feishuFolderHint": "從飛書雲文檔 Drive 複製文件夾 token；留空同步根目錄",
+        "feishuFolderHint": "從飛書雲文檔 Drive 複製資料夾 token；留空同步根目錄",
         "feishuConnected": "飛書已連接",
         "feishuDisconnected": "請先在渠道設置中配置飛書憑證",
         "gmailLabel": "Gmail 稍後讀",
         "gmailTagLabel": "Gmail 標籤",
-        "gdriveLabel": "Google Drive 文件夾",
-        "gdriveFolderLabel": "Drive 文件夾 ID",
+        "gdriveLabel": "Google Drive 資料夾",
+        "gdriveFolderLabel": "Drive 資料夾 ID",
         "gdriveFolderPlaceholder": "root",
-        "gdriveFolderHint": "填 root 表示「我的雲端硬碟」；也可從 Drive 地址欄 URL 複製文件夾 ID",
+        "gdriveFolderHint": "填 root 表示「我的雲端硬碟」；也可從 Drive 地址欄 URL 複製資料夾 ID",
         "googleConnected": "已連接 Google",
         "googleDisconnected": "請先在集成設置中連接 Google",
         "rssFeedsLabel": "RSS 地址（每行一個）",
         "rssFeedsPlaceholder": "https://example.com/feed.xml",
         "mirrorIntegrations": "將集成同步鏡像到知識庫",
         "autoCompile": "同步後自動編譯",
-        "save": "保存",
-        "saving": "保存中…",
-        "saveSuccess": "來源設置已保存",
-        "saveError": "無法保存來源設置",
+        "save": "儲存",
+        "saving": "儲存中…",
+        "saveSuccess": "來源設置已儲存",
+        "saveError": "無法儲存來源設置",
         "syncNow": "立即同步",
         "syncing": "同步中…",
         "syncSuccess": "已同步 {count} 條新內容",
@@ -2667,19 +2667,19 @@
       "obsidianVault": {
         "title": "Obsidian 知識庫",
         "description": "在 Obsidian 中打開或下載已編譯 wiki，使用圖譜視圖",
-        "mountHint": "要在自己磁碟上的文件夾裡實時編輯？請使用「設置 → 項目 → 掛載同步目錄」。",
+        "mountHint": "要在自己磁碟上的資料夾裡實時編輯？請使用「設置 → 項目 → 掛載同步目錄」。",
         "openObsidian": "在 Obsidian 中打開",
-        "revealFolder": "在文件夾中顯示",
+        "revealFolder": "在資料夾中顯示",
         "copyPath": "複製庫路徑",
         "downloadPack": "下載 Obsidian 包",
         "exporting": "準備中...",
         "opening": "打開中...",
         "copyPathSuccess": "已複製庫路徑",
         "copyPathFailed": "複製路徑失敗",
-        "revealSuccess": "已打開庫文件夾",
-        "revealFailed": "無法打開庫文件夾",
+        "revealSuccess": "已打開庫資料夾",
+        "revealFailed": "無法打開庫資料夾",
         "openObsidianSuccess": "已在 Obsidian 中打開",
-        "openObsidianFailed": "無法打開 Obsidian，請嘗試「在文件夾中顯示」",
+        "openObsidianFailed": "無法打開 Obsidian，請嘗試「在資料夾中顯示」",
         "exportSuccess": "已下載 Obsidian 包 — 解壓後在 Obsidian 中選擇「Open folder as vault」",
         "exportFailed": "下載失敗",
         "cloudHint": "雲託管：請下載知識庫包後在本地電腦用 Obsidian 打開。",
@@ -2698,7 +2698,7 @@
         "summary": "{open, plural, =0 {無待處理項} other {# 項待處理}} · 已檢查 {total} 項",
         "loading": "正在檢查知識庫健康…",
         "allClear": "暫無待處理健康問題，知識庫狀態良好。",
-        "refresh": "刷新",
+        "refresh": "重新整理",
         "expand": "展開問題",
         "collapse": "收起問題",
         "reviewDuplicates": "審核重複 ({count})",
@@ -2717,7 +2717,7 @@
           "broken_link": "斷鏈",
           "broken_wikilink": "無效雙向連結",
           "invalid_frontmatter_type": "頁面類型無效",
-          "stale": "源文件過期",
+          "stale": "源檔案過期",
           "drift": "可能漂移",
           "incomplete": "內容不完整",
           "knowledge_gap": "圖譜缺口",
@@ -2727,19 +2727,19 @@
         }
       },
       "stale": {
-        "bannerTitle": "源文件已更新",
-        "bannerDescription": "{count, plural, other {# 個源文件}}在上次編譯後有過修改，建議重新編譯以保持知識庫同步。",
-        "fileListTitle": "待更新源文件"
+        "bannerTitle": "源檔案已更新",
+        "bannerDescription": "{count, plural, other {# 個源檔案}}在上次編譯後有過修改，建議重新編譯以保持知識庫同步。",
+        "fileListTitle": "待更新源檔案"
       },
       "wikiignore": {
         "title": "導入忽略規則",
-        "description": "類 gitignore 模式，用於文件夾導入與去重掃描。每行一條規則；# 開頭為注釋。",
+        "description": "類 gitignore 模式，用於資料夾導入與去重掃描。每行一條規則；# 開頭為注釋。",
         "placeholder": "drafts/**\n*.tmp\nprivate-notes/",
-        "save": "保存規則",
-        "saving": "保存中…",
-        "saved": "忽略規則已保存",
+        "save": "儲存規則",
+        "saving": "儲存中…",
+        "saved": "忽略規則已儲存",
         "loadFailed": "無法加載忽略規則",
-        "saveFailed": "無法保存忽略規則"
+        "saveFailed": "無法儲存忽略規則"
       },
       "duplicateReview": {
         "title": "語料重複審核",
@@ -2771,12 +2771,12 @@
           "running": "掃描中…",
           "accepted": "去重掃描已排隊 — 等待完成",
           "alreadyRunning": "去重掃描已在進行中",
-          "stillRunning": "掃描仍在進行 — 完成後請手動刷新列表",
+          "stillRunning": "掃描仍在進行 — 完成後請手動重新整理列表",
           "skipped": "掃描已跳過（編譯進行中）",
-          "complete": "掃描完成：{scanned} 個文件中 {open} 組待審核"
+          "complete": "掃描完成：{scanned} 個檔案中 {open} 組待審核"
         },
         "actions": {
-          "refresh": "刷新",
+          "refresh": "重新整理",
           "trash": "移入回收站",
           "exclude": "排除編譯",
           "dismiss": "非重複",
@@ -2807,19 +2807,19 @@
         },
         "vaultHygiene": {
           "title": "語料衛生",
-          "description": "恢復已移入語料回收站的 raw 文件，或撤銷重複審核中的編譯排除。",
+          "description": "恢復已移入語料回收站的 raw 檔案，或撤銷重複審核中的編譯排除。",
           "trashedTitle": "語料回收站",
           "excludedTitle": "編譯排除",
           "restoreTrash": "恢復到 raw",
           "restoreExclude": "撤銷排除",
           "restoring": "恢復中…",
           "success": {
-            "restoredTrash": "已從語料回收站恢復 raw 文件",
-            "restoredExclude": "已撤銷該 raw 文件的編譯排除"
+            "restoredTrash": "已從語料回收站恢復 raw 檔案",
+            "restoredExclude": "已撤銷該 raw 檔案的編譯排除"
           },
           "errors": {
             "loadFailed": "加載語料衛生條目失敗",
-            "restoreFailed": "恢復 raw 文件失敗"
+            "restoreFailed": "恢復 raw 檔案失敗"
           }
         }
       }
@@ -3337,7 +3337,7 @@
       },
       "upload": {
         "title": "上傳自定義技能",
-        "dropzone": "拖拽壓縮包到此處，或點選選擇",
+        "dropzone": "拖曳壓縮包到此處，或點選選擇",
         "dropzoneHint": "支援 .zip 或 .skill 格式",
         "skillMdRequired": "必須包含 SKILL.md 檔案",
         "singleArchiveOnly": "只能上傳一個壓縮包檔案",
@@ -3549,7 +3549,7 @@
         "subtitle": "把記憶、技能與定時任務串成複利工作流 — GUI 版 MSC Playbook。",
         "loading": "加載清單中…",
         "loadFailed": "加載複利狀態失敗",
-        "refresh": "刷新",
+        "refresh": "重新整理",
         "progress": "完成度",
         "progressValue": "{ready} / {total} 已就緒",
         "countLabel": "檢測到：{count}",
@@ -3576,11 +3576,11 @@
       },
       "workflowTemplates": {
         "tab": "工作流模板",
-        "subtitle": "保存動態工作流的編排腳本，可直接復跑而無需 LLM 重新生成 planner；也可導出或導入模板，用於備份或在其他設備上恢復。",
+        "subtitle": "儲存動態工作流的編排腳本，可直接復跑而無需 LLM 重新生成 planner；也可導出或導入模板，用於備份或在其他設備上恢復。",
         "loading": "加載模板中…",
         "loadFailed": "加載工作流模板失敗",
-        "refresh": "刷新",
-        "empty": "暫無已保存模板。完成一次動態工作流運行後，可在助手消息上使用「保存為模板」。",
+        "refresh": "重新整理",
+        "empty": "暫無已儲存模板。完成一次動態工作流運行後，可在助手消息上使用「儲存為模板」。",
         "run": "運行",
         "delete": "刪除",
         "deleted": "模板已刪除",
@@ -3612,13 +3612,13 @@
         "export": "導出",
         "import": "導入",
         "exportSuccess": "模板已導出",
-        "exportSuccessHint": "請保存 JSON 文件以便備份或分享。",
+        "exportSuccessHint": "請儲存 JSON 檔案以便備份或分享。",
         "exportFailed": "導出模板失敗",
         "importSuccess": "模板已導入",
         "importSuccessHint": "若該模板用於定時任務，請在 Cron 中重新綁定。",
         "importFailed": "導入模板失敗",
-        "importInvalidFile": "無效的工作流模板文件",
-        "importFileTooLarge": "模板文件過大（上限 512 KB）",
+        "importInvalidFile": "無效的工作流模板檔案",
+        "importFileTooLarge": "模板檔案過大（上限 512 KB）",
         "importOverwriteTitle": "替換已有模板？",
         "importOverwriteConfirm": "導入將替換「{name}」。已綁定的定時任務不會自動更新。",
         "importOverwriteAction": "替換"
@@ -3626,7 +3626,7 @@
       "learn": {
         "panelTitle": "學習技能",
         "description": "指定目錄、URL 或流程說明，智能體會在對話中收集素材並生成待審核草稿。",
-        "directoryLabel": "本地文件或目錄",
+        "directoryLabel": "本地檔案或目錄",
         "directoryPlaceholder": "~/projects/some-sdk（通過 file_read_tool / grep_tool 讀取）",
         "urlLabel": "URL",
         "urlPlaceholder": "https://docs.example.com/api（通過 web_fetch_tool 抓取）",
@@ -4165,7 +4165,7 @@
       "tunnelRotateFailed": "輪換隧道令牌失敗",
       "tunnelTokenTitle": "隧道認證令牌",
       "tunnelTokenDesc": "請立即複製此令牌，關閉後將無法再次查看。",
-      "tunnelTokenWarning": "此令牌僅顯示一次，請妥善保存。",
+      "tunnelTokenWarning": "此令牌僅顯示一次，請妥善儲存。",
       "tunnelTokenCopied": "令牌已複製到剪貼板",
       "tunnelAuthTokenLabel": "認證令牌",
       "tunnelDockerBuildLabel": "Docker 構建命令",
@@ -5377,7 +5377,7 @@
         "workspace": {
           "label": "工作目錄",
           "none": "-- 不綁定目錄 --",
-          "emptyProjects": "請先在項目中掛載文件夾"
+          "emptyProjects": "請先在項目中掛載資料夾"
         }
       }
     },
@@ -5512,7 +5512,7 @@
     "appearancePanel": {
       "workspaceTheme": "工作區主題",
       "workspaceBackground": "工作區背景",
-      "workspaceBackgroundDesc": "上傳圖片或 MP4 循環視頻，作為全窗口背景。",
+      "workspaceBackgroundDesc": "上傳圖片或 MP4 循環視頻，作為全視窗背景。",
       "uploadBackground": "上傳背景",
       "changeBackground": "更換背景",
       "clearBackground": "移除背景",
@@ -5520,9 +5520,9 @@
       "backgroundUploadFailed": "背景上傳失敗",
       "backgroundPosterFailed": "無法從該視頻提取封面幀",
       "backgroundPosterReupload": "請重新上傳一次背景，以啟用移動端與減少動效模式下的顯示。",
-      "backgroundInvalidType": "不支持的文件類型，請使用 PNG、JPEG、WebP 或 MP4。",
-      "backgroundTooLarge": "文件超過 80 MB 限制。",
-      "backgroundEmpty": "文件為空。",
+      "backgroundInvalidType": "不支援的檔案類型，請使用 PNG、JPEG、WebP 或 MP4。",
+      "backgroundTooLarge": "檔案超過 80 MB 限制。",
+      "backgroundEmpty": "檔案為空。",
       "backgroundWash": "背景濃度",
       "backgroundWashDesc": "提高濃度可改善亮背景上的文字可讀性。",
       "customPrimaryColor": "或自定義主色",
@@ -5530,13 +5530,13 @@
       "font": "字體",
       "restoreDefault": "恢復官方默認",
       "restoreConfirmTitle": "恢復官方默認？",
-      "restoreConfirmDescription": "將移除自定義主題、工作區背景和已保存的主題工作室作品。已購社區主題可重新安裝。可在「個人偏好 → 時光機」中撤銷。",
+      "restoreConfirmDescription": "將移除自定義主題、工作區背景和已儲存的主題工作室作品。已購社區主題可重新安裝。可在「個人偏好 → 時光機」中撤銷。",
       "restoreConfirmAction": "恢復",
       "restoreCancel": "取消",
       "restoreSuccess": "已恢復官方默認主題",
       "restoreFailed": "恢復官方默認失敗",
       "packageSection": "主題包",
-      "packageSectionDesc": "導入或導出 .myrmtheme 文件，分享完整工作區外觀。",
+      "packageSectionDesc": "導入或導出 .myrmtheme 檔案，分享完整工作區外觀。",
       "packageImport": "導入主題包",
       "packageExport": "導出當前主題",
       "packageImportTitle": "導入主題包",
@@ -5544,7 +5544,7 @@
       "packageApply": "應用主題",
       "packageCancel": "取消",
       "assetMissingTitle": "此設備上背景不可用",
-      "assetMissingDesc": "主題配色已生效，但壁紙文件在本設備缺失。請在外觀設置中重新上傳背景或導入 .myrmtheme 主題包。",
+      "assetMissingDesc": "主題配色已生效，但壁紙檔案在本設備缺失。請在外觀設置中重新上傳背景或導入 .myrmtheme 主題包。",
       "assetMissingAction": "打開外觀設置",
       "packageUnsignedHint": "此主題包未籤名，請僅導入您信任的來源。",
       "packageImportSuccess": "主題包已應用",
@@ -5608,7 +5608,7 @@
       "layouts": {
         "fullBleed": {
           "name": "全景沉浸",
-          "description": "背景鋪滿整個窗口。",
+          "description": "背景鋪滿整個視窗。",
           "guidance": "適合漸變或寬場景，保持中央區域可讀。"
         },
         "navRailFocus": {
@@ -5637,7 +5637,7 @@
       },
       "library": {
         "title": "我的主題",
-        "empty": "尚無已保存主題。完成嚮導並應用後會出現在這裡。",
+        "empty": "尚無已儲存主題。完成嚮導並應用後會出現在這裡。",
         "apply": "應用",
         "applied": "主題已應用",
         "delete": "刪除主題",
@@ -5654,8 +5654,8 @@
         "loading": "加載畫廊…",
         "empty": "此分類暫無主題。",
         "searchEmpty": "沒有匹配的主題。",
-        "searchLabel": "搜索主題",
-        "searchPlaceholder": "按名稱或標語搜索…",
+        "searchLabel": "搜尋主題",
+        "searchPlaceholder": "按名稱或標語搜尋…",
         "sortLabel": "排序",
         "sort": {
           "latest": "最新",
@@ -5685,7 +5685,7 @@
         "needsAuthTitle": "關聯雲帳號",
         "needsAuthBody": "登錄後即可瀏覽、購買並安裝主題市場中的主題。",
         "offlineTitle": "主題市場不可用",
-        "offlineBody": "無法連接控制平面。主題工作室第 4 步與外觀設置均可導入 .myrmtheme 文件，無需雲帳號。"
+        "offlineBody": "無法連接控制平面。主題工作室第 4 步與外觀設置均可導入 .myrmtheme 檔案，無需雲帳號。"
       },
       "creator": {
         "title": "投稿主題",
@@ -5780,7 +5780,7 @@
         }
       },
       "profilePicker": {
-        "savedTitle": "已保存主題"
+        "savedTitle": "已儲存主題"
       }
     },
     "linkEmbeds": "連結嵌入",
@@ -5792,14 +5792,71 @@
     "linkEmbedsAllowed": "已允許的服務",
     "linkEmbedsClear": "清除全部",
     "autoContinueInterruptedTurns": "崩潰自動恢復",
-    "autoContinueInterruptedTurnsDesc": "伺服器崩潰重啟後自動恢復被中斷的對話"
+    "autoContinueInterruptedTurnsDesc": "伺服器崩潰重啟後自動恢復被中斷的對話",
+    "plugins": {
+      "import": {
+        "title": "匯入 Agent 外掛程式",
+        "subtitle": "從 agent-plugins.org 生態系統匯入外掛程式套件（plugin.json + skills + mcp.json），自動安全掃描。",
+        "upload": {
+          "dropHint": "拖曳外掛程式 ZIP 至此處，或點擊上傳",
+          "parsing": "正在安全解壓並分析...",
+          "formatHint": "支援 Agent Plugins 1.0.0 標準格式，單一檔案不超過 20MB。",
+          "singleArchiveOnly": "每次僅支援上傳一個 ZIP 套件",
+          "archiveOnly": "僅支援 .zip 格式",
+          "tooLarge": "檔案大小不能超過 20MB"
+        },
+        "sections": {
+          "skills": "技能 ({count})",
+          "servers": "MCP 伺服器 ({count})",
+          "files": "檔案",
+          "envCount": "{count} 個環境變數",
+          "placeholder": "包含套件內路徑參照，匯入後請在 MCP 設定中確認"
+        },
+        "serverType": {
+          "local": "本機服務",
+          "remote": "遠端服務"
+        },
+        "actions": {
+          "selectAll": "全部安裝",
+          "skipAll": "全部略過",
+          "install": "安裝",
+          "skip": "略過",
+          "cancel": "取消",
+          "confirm": "確認匯入",
+          "reselect": "重新上傳"
+        },
+        "bind": {
+          "label": "綁定至智慧代理",
+          "placeholder": "選擇智慧代理（可選）",
+          "hint": "將匯入的技能與 MCP 伺服器掛載至所選智慧代理（僅該代理可用）；留空則僅存入全域庫。"
+        },
+        "summary": "已選 {skills} 個技能、{servers} 個 MCP 伺服器",
+        "empty": {
+          "title": "此外掛沒有可匯入的元件",
+          "hint": "請檢查上方診斷資訊，或選擇有效的外掛套件。"
+        },
+        "errors": {
+          "parseTitle": "解析失敗",
+          "previewFailed": "外掛程式解析失敗，請檢查檔案格式",
+          "confirmTitle": "匯入失敗",
+          "confirmFailed": "外掛程式匯入失敗，請重試"
+        },
+        "success": {
+          "title": "匯入成功",
+          "description": "已匯入 {skills} 個技能、{servers} 個 MCP 伺服器"
+        },
+        "security": {
+          "blocked": "包含 {count} 項安全風險，已自動略過，無法安裝"
+        }
+      }
+    }
   },
   "userMenu": {
     "openMenu": "開啟選單",
     "settings": "設定",
     "personalization": "個性化",
     "subscription": "訂閱管理",
-    "logout": "退出登入",
+    "logout": "登出",
     "login": "登入",
     "guest": "訪客",
     "loading": "載入中...",
@@ -5819,7 +5876,7 @@
     "addFromWiki": "從知識庫",
     "addFromWikiTooltip": "新增知識庫概念作為研究上下文",
     "uploadFile": "上傳",
-    "uploadFileTooltip": "上傳文件作為研究資料",
+    "uploadFileTooltip": "上傳檔案作為研究資料",
     "uploading": "上傳中...",
     "selectAll": "全選",
     "deselectAll": "取消全選",
@@ -5830,7 +5887,7 @@
     "resourceAdded": "已新增資料",
     "filesUploaded": "已上傳 {count} 個檔案",
     "emptyResources": "暫無研究資料",
-    "emptyResourcesHint": "新增文件或知識庫概念來構建研究上下文",
+    "emptyResourcesHint": "新增檔案或知識庫概念來構建研究上下文",
     "resources": "資料",
     "chat": "對話",
     "output": "產出",
@@ -5959,7 +6016,7 @@
     "unsaved": "未儲存",
     "discardConfirm": "你有未儲存的修改，確定要放棄嗎？",
     "organizeFolder": "AI 整理此目錄",
-    "organizePrompt": "使用 workspace-auto-organizer 技能整理「{path}」下的文件，生成 organize-plan.json 供我審閱後執行。"
+    "organizePrompt": "使用 workspace-auto-organizer 技能整理「{path}」下的檔案，生成 organize-plan.json 供我審閱後執行。"
   },
   "agent": {
     "title": "智慧體",
@@ -6858,7 +6915,7 @@
       "answerPlaceholder": "輸入匹配此問題時將發送的回覆...",
       "tags": "標籤",
       "tagsPlaceholder": "可選的逗號分隔標籤",
-      "save": "保存",
+      "save": "儲存",
       "cancel": "取消",
       "delete": "刪除",
       "deleteConfirm": "確認刪除此FAQ條目？",
@@ -6879,8 +6936,8 @@
       "unmatchedDesc": "近期未匹配到任何FAQ條目的查詢——用於發現新的FAQ候選問題。",
       "emptyTitle": "暫無FAQ條目",
       "emptyDesc": "添加問答對以啟用渠道消息的即時響應。",
-      "saveSuccess": "FAQ設置已保存",
-      "saveFailed": "FAQ設置保存失敗",
+      "saveSuccess": "FAQ設置已儲存",
+      "saveFailed": "FAQ設置儲存失敗",
       "entryCreated": "FAQ條目已創建",
       "entryUpdated": "FAQ條目已更新",
       "entryDeleted": "FAQ條目已刪除"
@@ -7085,7 +7142,7 @@
       "loading": "載入中...",
       "empty": "回收站為空",
       "emptyDesc": "刪除的會話將在此保留30天。",
-      "autoDeleteHint": "30天后將自動永久刪除。",
+      "autoDeleteHint": "30天後將自動永久刪除。",
       "untitled": "無標題會話",
       "deletedAt": "刪除時間",
       "restore": "恢復",
@@ -7240,7 +7297,7 @@
     "newChatPlaceholder": "輸入訊息開始對話",
     "newChatDescription": "開始一段新的對話，探索任何話題",
     "uploadFile": "上傳檔案",
-    "dragDropFiles": "拖拽檔案到此處",
+    "dragDropFiles": "拖曳檔案到此處",
     "supportedFormats": "支援的格式",
     "maxFileSize": "最大檔案大小",
     "baseModel": "基礎模型",
@@ -7439,7 +7496,7 @@
         "pinsLoading": "載入中…",
         "pinsLoadError": "固定檔案載入失敗",
         "pinsRetry": "重試",
-        "archiveRestoreHint": "較大的工具輸出會保存在 .context/…/evicted/ 下，Agent 可通過 file_read 讀回。需要時可點「壓縮上下文」摘要較早消息。"
+        "archiveRestoreHint": "較大的工具輸出會儲存在 .context/…/evicted/ 下，Agent 可通過 file_read 讀回。需要時可點「壓縮上下文」摘要較早消息。"
       }
     },
     "compactedSummary": {
@@ -7537,14 +7594,14 @@
       "workspaceMergeFailedTitle": "工作區合併失敗",
       "workspaceMergeFailedMore": "{count, plural, one {還有 # 條錯誤未顯示} other {還有 # 條錯誤未顯示}}",
       "workflowTemplateSave": {
-        "title": "保存為工作流模板",
-        "description": "保存本次編排腳本，下次可確定性復跑，無需 LLM 重新生成 planner。",
+        "title": "儲存為工作流模板",
+        "description": "儲存本次編排腳本，下次可確定性復跑，無需 LLM 重新生成 planner。",
         "displayNamePlaceholder": "顯示名稱",
         "templateIdPlaceholder": "模板 slug（如 weekly-report）",
         "trustLatch": "信任鎖",
-        "save": "保存模板",
-        "success": "工作流模板已保存",
-        "failed": "保存工作流模板失敗",
+        "save": "儲存模板",
+        "success": "工作流模板已儲存",
+        "failed": "儲存工作流模板失敗",
         "fieldsRequired": "請填寫顯示名稱和模板 slug"
       },
       "truncated": "回覆因長度限制被截斷，繼續對話可獲取完整內容。"
@@ -7614,7 +7671,7 @@
       "actionPressKey": "按鍵",
       "actionScroll": "滾動",
       "actionHover": "懸停",
-      "actionDrag": "拖拽",
+      "actionDrag": "拖曳",
       "stepScreenshotAlt": "步驟 {seq} 截圖"
     },
     "desktopInspector": {
@@ -7852,7 +7909,7 @@
     "rewind": {
       "title": "回退到這裡",
       "description": "將對話回退到此消息之前，並把原文放入輸入框。",
-      "sideEffectNotice": "對話上下文會回退。文件、記憶和工具副作用不會被撤銷。",
+      "sideEffectNotice": "對話上下文會回退。檔案、記憶和工具副作用不會被撤銷。",
       "cancel": "取消",
       "confirm": "回退",
       "rewinding": "回退中...",
@@ -8323,8 +8380,8 @@
     "videoTooLargeDesc": "請選擇更短或更小的影片檔案，當前檔案 {size}",
     "audioTooLarge": "音訊檔案過大（超過25MB限制）",
     "audioTooLargeDesc": "請選擇更小的音訊檔案，當前檔案 {size}",
-    "largeDocIndexing": "大文件將自動入庫知識庫，AI 將智慧檢索而非全文讀取",
-    "largeDocIndexingDesc": "{name}（{size}）— AI 將自動搜尋知識庫獲取相關內容，而非讀取整個文件"
+    "largeDocIndexing": "大檔案將自動入庫知識庫，AI 將智慧檢索而非全文讀取",
+    "largeDocIndexingDesc": "{name}（{size}）— AI 將自動搜尋知識庫獲取相關內容，而非讀取整個檔案"
   },
   "mermaidChart": {
     "syntaxError": "Mermaid 語法錯誤",
@@ -8336,9 +8393,9 @@
     "zoomIn": "放大",
     "zoomOut": "縮小",
     "reset": "重置",
-    "fullscreen": "全屏",
-    "exitFullscreen": "退出全屏",
-    "doubleClickZoom": "滾輪或雙指縮放 · 拖拽平移",
+    "fullscreen": "全螢幕",
+    "exitFullscreen": "退出全螢幕",
+    "doubleClickZoom": "滾輪或雙指縮放 · 拖曳平移",
     "copySource": "複製原始碼",
     "downloadSvg": "下載 SVG",
     "legend": "圖例"
@@ -8351,8 +8408,8 @@
       "filePattern": "檔案"
     },
     "evictedOutput": {
-      "savedHint": "完整工具輸出已保存至沙箱",
-      "savedStderrHint": "完整錯誤輸出已保存至沙箱",
+      "savedHint": "完整工具輸出已儲存至沙箱",
+      "savedStderrHint": "完整錯誤輸出已儲存至沙箱",
       "viewFull": "檢視完整輸出",
       "viewFullStderr": "檢視完整錯誤輸出",
       "loading": "正在載入完整輸出...",
@@ -8696,8 +8753,8 @@
     "trash": {
       "tab": "回收站",
       "empty": "回收站為空",
-      "emptyDesc": "被刪除的記憶將暫存於此，7 天后自動永久刪除",
-      "undoHint": "記憶已移至回收站，7 天后自動刪除",
+      "emptyDesc": "被刪除的記憶將暫存於此，7 天後自動永久刪除",
+      "undoHint": "記憶已移至回收站，7 天後自動刪除",
       "undo": "撤銷",
       "restore": "恢復",
       "permanentDelete": "永久刪除",
@@ -9294,7 +9351,7 @@
         "planned": "已規劃",
         "missing": "暫不可用"
       },
-      "migrationAdapterMissingHint": "{source} 暫不支持直接導入，你可以在遷移嚮導中通過兼容格式繼續遷移。",
+      "migrationAdapterMissingHint": "{source} 暫不支援直接導入，你可以在遷移嚮導中通過相容格式繼續遷移。",
       "migrationAdapterOpenWizard": "打開遷移嚮導",
       "lastImportReadiness": "執行就緒：{status}",
       "lastImportFirstTurn": "導入後首輪對話：{outcome}",
@@ -9551,9 +9608,9 @@
         "cronSkippedReason": {
           "no_agent_script": "純腳本任務（無智能體提示詞）",
           "missing_prompt": "缺少智能體提示詞",
-          "invalid_schedule": "計劃無效或不支持",
+          "invalid_schedule": "計劃無效或不支援",
           "prompt_injection": "提示詞未通過安全掃描",
-          "unsupported_job_type": "不支持的任務類型"
+          "unsupported_job_type": "不支援的任務類型"
         }
       },
       "result": {
@@ -9596,14 +9653,14 @@
         "readinessSummary": "導入後運行就緒檢查",
         "readinessResolveBeforeChat": "請先修復嚴重就緒問題，再開始對話。",
         "vaultBind": {
-          "title": "連結你的筆記文件夾",
-          "description": "可選：連接本地文件夾，讓助手就地讀寫你的文件。Wiki 導入會把筆記複製到獨立知識庫——若要用真實 vault 或同步目錄，請在此綁定。",
-          "chooseFolder": "選擇文件夾",
+          "title": "連結你的筆記資料夾",
+          "description": "可選：連接本地資料夾，讓助手就地讀寫你的檔案。Wiki 導入會把筆記複製到獨立知識庫——若要用真實 vault 或同步目錄，請在此綁定。",
+          "chooseFolder": "選擇資料夾",
           "preparing": "準備中…",
           "skip": "暫時跳過",
-          "linkedSuccess": "文件夾已連結，下一條對話將使用該工作區。",
+          "linkedSuccess": "資料夾已連結，下一條對話將使用該工作區。",
           "defaultProjectName": "我的文件",
-          "candidateGeneric": "已從先前助手配置檢測到文件夾。",
+          "candidateGeneric": "已從先前助手配置檢測到資料夾。",
           "candidateMarkdown": "檢測到 {count} 篇 Markdown 筆記。",
           "candidateObsidian": "檢測到 Obsidian 知識庫 · {count} 篇 Markdown 筆記。"
         },
@@ -9635,7 +9692,7 @@
         "startChatChecking": "正在檢查就緒狀態...",
         "startChatRecheck": "重新檢查並開始對話",
         "startChatBlocked": "先修復就緒問題",
-        "readinessRecheckFailed": "無法刷新就緒狀態，請重試。",
+        "readinessRecheckFailed": "無法重新整理就緒狀態，請重試。",
         "codexCompletion": {
           "title": "完成知識庫（Codex + Obsidian）",
           "description": "Codex 遷移已將智能體指令導入 Myrm。多數 Codex+Obsidian 用戶的筆記仍在 Obsidian vault 中——請將其導入 Wiki，再啟用 Second Brain 自動化。",
@@ -9667,7 +9724,7 @@
       "approveFailed": "批准失敗",
       "rejectSuccess": "遷移已拒絕",
       "rejectFailed": "拒絕失敗",
-      "bindTargetAgent": "On approve, skills bind to agent: {name}"
+      "bindTargetAgent": "核准後，技能將繫結到智能體：{name}"
     },
     "archiveRestore": {
       "title": "恢復記憶歸檔",
@@ -10041,7 +10098,7 @@
     "subtitle": "在一處管理你的任務、計劃和工件",
     "kanban": {
       "title": "看板",
-      "desc": "視覺化任務管理，支援拖拽排列",
+      "desc": "視覺化任務管理，支援拖曳排列",
       "statLabel": "個看板"
     },
     "cron": {
@@ -10112,9 +10169,9 @@
       "loadError": "載入失敗",
       "saveChanges": "儲存修改",
       "truncated": "顯示前 {count} 行，共 {total} 行",
-      "draftRecovered": "已恢復未保存的草稿。您之前的編輯已被還原。",
+      "draftRecovered": "已恢復未儲存的草稿。您之前的編輯已被還原。",
       "discardDraft": "丟棄草稿",
-      "fidelityWarning": "該文件包含{features}，編輯保存後可能無法完整保留。建議先下載備份。",
+      "fidelityWarning": "該檔案包含{features}，編輯儲存後可能無法完整保留。建議先下載備份。",
       "charts": "圖表",
       "macros": "宏",
       "pivotTables": "透視表",
@@ -10130,7 +10187,7 @@
     "imageLoadError": "圖片載入失敗",
     "audioLoadError": "音訊載入失敗",
     "videoLoadError": "影片載入失敗",
-    "docxLoadError": "文件載入失敗",
+    "docxLoadError": "檔案載入失敗",
     "pptxLoadError": "簡報載入失敗",
     "noContent": "無內容可預覽",
     "sharePreview": {
@@ -10351,15 +10408,23 @@
       "titlePlaceholder": "輸入草稿標題",
       "coverLabel": "封面圖（可選）",
       "coverPlaceholder": "封面圖的工作區路徑",
-      "coverHint": "打開面板會自動填入文章內首張本地圖片路徑。可修改、搜索工作區圖片；若 HTML 無本地圖則需手動填寫。",
-      "coverSuggestLoading": "正在搜索工作區圖片…",
-      "coverSuggestEmpty": "未找到匹配的圖片文件",
+      "coverHint": "打開面板會自動填入文章內首張本地圖片路徑。可修改、搜尋工作區圖片；若 HTML 無本地圖則需手動填寫。",
+      "coverSuggestLoading": "正在搜尋工作區圖片…",
+      "coverSuggestEmpty": "未找到匹配的圖片檔案",
       "confirm": "推送到草稿箱",
+      "dismiss": "知道了",
       "pushing": "推送中...",
-      "success": "已保存到公眾號草稿箱，請登錄 mp.weixin.qq.com 預覽並群發",
+      "success": "已儲存到公眾號草稿箱，請登錄 mp.weixin.qq.com 預覽並群發",
       "failed": "推送草稿失敗",
+      "complianceBlocked": "合規掃描未通過，請修改文章後重試",
+      "complianceTitle": "合規掃描發現問題",
+      "complianceHint": "請替換下列用詞後再推送到公眾號草稿。",
+      "complianceSuccessTitle": "草稿已儲存，合規掃描有提示",
+      "complianceSuccessHint": "文章已進入草稿箱，建議在 mp.weixin.qq.com 預覽前替換下列用詞。",
+      "complianceHighRisk": "高危",
+      "complianceWarning": "提示",
       "credentialsMissing": "請先在設置中配置微信公眾號憑證",
-      "pathMissing": "需要本地文件路徑才能推送草稿"
+      "pathMissing": "需要本地檔案路徑才能推送草稿"
     },
     "organizePlan": {
       "openPanel": "審閱整理計劃",
@@ -10374,8 +10439,8 @@
       "previewOk": "計劃校驗通過（{count} 項）",
       "applyOk": "已移動 {count} 項，如需撤銷請點回滾",
       "rollbackOk": "已回滾 {count} 項",
-      "rollbackPartial": "部分回滾（已恢復 {count} 項）。部分文件可能仍在新位置，請檢查文件樹。",
-      "undoHint": "文件移動請使用上方「回滾」，聊天 Turn Undo 不會還原文件位置。",
+      "rollbackPartial": "部分回滾（已恢復 {count} 項）。部分檔案可能仍在新位置，請檢查檔案樹。",
+      "undoHint": "檔案移動請使用上方「回滾」，聊天 Turn Undo 不會還原檔案位置。",
       "validateFailed": "計劃校驗失敗",
       "applyFailed": "執行失敗",
       "rollbackFailed": "回滾失敗",
@@ -10723,7 +10788,7 @@
       "dailyLimitsSubtitle": "每日配額 & 實時用量",
       "subscriptionWu": "訂閱 WU",
       "topupWu": "充值 WU",
-      "dailyRefresh": "每日刷新",
+      "dailyRefresh": "每日重新整理",
       "freeModels": "免費模型",
       "tierRateCard": "模型等級 WU 費率",
       "pricingExplainer": "Myrm 使用工作單元 (WU) 作為統一計費單位。不同等級模型的 WU 消耗倍率不同 — 輕量模型 1 倍、標準模型 3 倍、旗艦模型 10 倍。BYOK 用戶自備 API Key，費用直接向模型提供商支付。",
@@ -11361,8 +11426,8 @@
     "workflowTemplateTooltip": "動態工作流模板：{template}",
     "workflowTemplateTooltipWithArgs": "模板 {template} · {args}",
     "workflowTemplateEditorTitle": "工作流模板",
-    "workflowTemplateEditorHint": "僅可選擇已信任模板。保存後對下次定時運行生效。",
-    "workflowTemplateEditorSave": "保存模板綁定",
+    "workflowTemplateEditorHint": "僅可選擇已信任模板。儲存後對下次定時運行生效。",
+    "workflowTemplateEditorSave": "儲存模板綁定",
     "workflowTemplateEditArgs": "編輯參數",
     "workflowTemplateUpdated": "工作流模板綁定已更新",
     "workflowTemplateMissingWarning": "該模板在庫中已不可用。在解除綁定或選擇其他已信任模板之前，定時運行將會失敗。",
@@ -11572,12 +11637,13 @@
     "noEvents": "暫無事件",
     "dependencies": "依賴任務",
     "waitingForDeps": "等待前置任務完成",
+    "queuedForConcurrency": "排隊中（並發槽位已滿）",
     "autoUnblockAt": "自動解除阻塞時間",
     "addDep": "新增依賴",
     "attachFile": "附加檔案",
     "attachments": "附件",
     "addAttachment": "新增",
-    "noAttachments": "暫無附件 — 拖拽檔案到此處或點選 +",
+    "noAttachments": "暫無附件 — 拖曳檔案到此處或點選 +",
     "dropFilesHere": "拖放檔案到此處",
     "uploading": "上傳中...",
     "attachmentAdded": "附件已新增",
@@ -11709,6 +11775,8 @@
     "goalMaxTurnsOption": "最大輪次：{turns}",
     "goalMaxTurnsLabel": "最大輪次",
     "requireApproval": "完成前需人工審批",
+    "approvalUpdated": "審批要求已更新",
+    "approvalUpdateError": "更新審批要求失敗",
     "assignedAgent": "負責人",
     "updateError": "更新任務失敗",
     "addIdea": "新增草稿",
@@ -12501,7 +12569,7 @@
     "slackBotTokenPlaceholder": "xoxb-xxx",
     "slackBotTokenTooltip": "從 Slack 應用的 OAuth 與權限頁面獲取",
     "slackSigningSecretPlaceholder": "xxx",
-    "slackSigningSecretTooltip": "從 Slack 應用的基礎信息頁面獲取",
+    "slackSigningSecretTooltip": "從 Slack 應用的基礎資訊頁面獲取",
     "slackNotConfigured": "尚未配置 Slack。",
     "discordBotTokenPlaceholder": "xxx",
     "discordBotTokenTooltip": "從 Discord 開發者門戶獲取",
@@ -12561,7 +12629,7 @@
     "wecomAibotAgentId": "AI Bot Agent ID",
     "wecomAibotNotConfigured": "尚未配置企業微信 AI 機器人。",
     "wecomWxworkSupport": "WxWork Support",
-    "wecomWxworkSupportHint": "啟用對 WxWork（企業微信）的支持",
+    "wecomWxworkSupportHint": "啟用對 WxWork（企業微信）的支援",
     "dingtalkTransport": "傳輸模式",
     "dingtalkTransportWebhook": "Webhook（需要公網 IP）",
     "dingtalkTransportStream": "Stream（無需公網 IP）",
@@ -12609,7 +12677,7 @@
     "googlechatSpaceNameHint": "Google Chat 空間標識",
     "imessageAppleIdHint": "iMessage 帳號的 Apple ID",
     "imessageEnableGroups": "啟用群聊",
-    "imessageEnableGroupsHint": "啟用對群消息的支持",
+    "imessageEnableGroupsHint": "啟用對群消息的支援",
     "wecomAibotTokenHint": "企業微信 AI 機器人身份驗證令牌",
     "wecomAibotWebhookUrl": "Webhook URL",
     "wecomAibotWebhookUrlPlaceholder": "https://your-domain.com/api/wecom-aibot/webhook",
@@ -12617,12 +12685,12 @@
     "channelFormSectionAuth": "身份驗證",
     "channelFormSectionWebhook": "Webhook 設置",
     "channelFormSectionAdvanced": "高級設置",
-    "saveSuccess": "保存成功",
-    "saveFailed": "保存失敗",
+    "saveSuccess": "儲存成功",
+    "saveFailed": "儲存失敗",
     "resetToDefault": "恢復默認",
     "resetConfirm": "確定要恢復為默認配置嗎？",
     "testConnectionButton": "測試連接",
-    "testingConnection": "Testing...",
+    "testingConnection": "正在測試連線...",
     "testSuccessTitle": "連接成功",
     "testSuccessMessage": "頻道配置正確且運行正常",
     "testFailedTitle": "連接失敗",
@@ -12631,8 +12699,8 @@
     "disableChannel": "停用頻道",
     "channelEnabledSuccessfully": "頻道啟用成功",
     "channelDisabledSuccessfully": "頻道停用成功",
-    "loadingChannelConfig": "Loading channel configuration...",
-    "savingChannelConfig": "Saving channel configuration...",
+    "loadingChannelConfig": "正在載入頻道設定...",
+    "savingChannelConfig": "正在儲存頻道設定...",
     "channelConfigLoadFailed": "加載頻道配置失敗",
     "invalidConfiguration": "配置無效",
     "missingRequiredFields": "缺少必填欄位",
@@ -12648,9 +12716,9 @@
     "wechatOfficialTokenHint": "用於回調 URL 驗證（草稿功能可選）",
     "wechatOfficialEncodingAesKey": "EncodingAESKey",
     "wechatOfficialEncodingAesKeyHint": "用於消息加解密（草稿功能可選）",
-    "wechatOfficialSave": "保存",
-    "wechatOfficialSaved": "微信公眾號配置已保存",
-    "wechatOfficialSaveError": "保存微信公眾號配置失敗",
+    "wechatOfficialSave": "儲存",
+    "wechatOfficialSaved": "微信公眾號配置已儲存",
+    "wechatOfficialSaveError": "儲存微信公眾號配置失敗",
     "wechatOfficialTestConnection": "測試連接",
     "wechatOfficialTestSuccess": "微信公眾號 API 連接成功",
     "wechatOfficialTestFailed": "微信公眾號 API 連接失敗",
@@ -13404,7 +13472,7 @@
       "galleryHint": "在「寵物圖鑑」標籤頁安裝寵物",
       "clear": "清除",
       "popOut": "彈出到桌面",
-      "popIn": "收回窗口內",
+      "popIn": "收回視窗內",
       "composerPlaceholder": "輸入消息…",
       "composerSend": "發送",
       "mailOpen": "打開對話",
@@ -13429,12 +13497,12 @@
       "runHint": "點擊診斷",
       "loading": "檢查中…",
       "fix": "修復",
-      "refresh": "刷新",
+      "refresh": "重新整理",
       "rescan": "重新校驗格式",
       "openFromSprite": "健康檢查",
       "checks": {
-        "spriteEnabledPass": "界面已啟用精靈覆蓋層。",
-        "spriteEnabledFail": "界面未啟用精靈覆蓋層。"
+        "spriteEnabledPass": "介面已啟用精靈覆蓋層。",
+        "spriteEnabledFail": "介面未啟用精靈覆蓋層。"
       },
       "serverChecks": {
         "feature_gate_companion_mode": {
@@ -13450,11 +13518,11 @@
           "fail": "本機尚未安裝任何寵物。"
         },
         "disk_active_pet_files": {
-          "pass": "「{slug}」的精靈圖文件已存在。",
-          "fail": "激活寵物的精靈圖文件缺失或未安裝。"
+          "pass": "「{slug}」的精靈圖檔案已存在。",
+          "fail": "激活寵物的精靈圖檔案缺失或未安裝。"
         },
         "atlas_format": {
-          "pass": "精靈圖符合支持的 Codex 或 Legacy 圖集標準。",
+          "pass": "精靈圖符合支援的 Codex 或 Legacy 圖集標準。",
           "warn": "圖集格式非標準，但仍可能渲染。若顯示異常請重新安裝或重新驗證。",
           "fail": "精靈圖圖集格式無效。"
         },
@@ -13463,8 +13531,8 @@
           "warn": "配置校驗和與磁碟上的精靈圖不一致，請在圖鑑中重新選擇該寵物。"
         },
         "serve_file_readable": {
-          "pass": "精靈圖文件可讀，可供本地加載。",
-          "fail": "無法從磁碟讀取精靈圖文件。"
+          "pass": "精靈圖檔案可讀，可供本地加載。",
+          "fail": "無法從磁碟讀取精靈圖檔案。"
         }
       }
     },
@@ -13500,8 +13568,8 @@
     "revertSessionNotRevertible": "本會話有檔案變更，但均無法自動撤銷",
     "revertSessionFetchError": "無法載入檔案變更，請重試",
     "cancel": "取消",
-    "revertFilesWithCount": "撤銷 {count} 個文件變更",
-    "revertFilesBadgeAria": "可撤銷 {count} 個文件變更"
+    "revertFilesWithCount": "撤銷 {count} 個檔案變更",
+    "revertFilesBadgeAria": "可撤銷 {count} 個檔案變更"
   },
   "errors": {
     "configIncomplete": {
@@ -13696,7 +13764,7 @@
   "settingsTabs": {
     "evolutionRejection": {
       "title": "技能成長審計",
-      "description": "檢視技能成長鏈路中的拒絕、鎖定與掃描失敗，幫助定位系統為什麼沒有采納某次成長。",
+      "description": "檢視技能成長鏈路中的拒絕、鎖定與掃描失敗，幫助定位系統為什麼沒有採納某次成長。",
       "totalEvents": "負向事件總數",
       "avgConfidence": "平均置信度",
       "avgConfidenceHint": "僅統計帶置信度的成長事件",
@@ -13865,7 +13933,7 @@
       "weekDelta": "本週 +{count}",
       "skills": "技能",
       "evolutions": "次進化",
-      "applyFailed": "次失敗",
+      "applyFailed": "失敗",
       "activeDays": "活躍天數",
       "streak": "連續 {count} 天",
       "memoryHealth": "記憶健康度"
@@ -14071,7 +14139,7 @@
     "active": "運行中",
     "failed": "失敗",
     "approvalCardNotFound": "未找到待審批卡片",
-    "costBudgetTitle": "成本：${used} / ${limit}",
+    "costBudgetTitle": "成本：{used} / {limit}",
     "tokenBudgetTitle": "Token 預算：{used} / {limit}"
   },
   "evalLab": {
@@ -14557,10 +14625,10 @@
       "migrationCloudTitle": "從其他助手導入",
       "migrationCloudDescription": "上傳導出包，將記憶與工作區偏好遷移到你的雲端沙箱。",
       "syncFolder": {
-        "pageTitle": "關聯筆記文件夾",
+        "pageTitle": "關聯筆記資料夾",
         "pageDescription": "可選：將助手指向 Obsidian、Typora 或任意同步文檔目錄。",
-        "hint": "文件始終留在你的設備上，助手直接原地編輯，無需導入專用資料庫。",
-        "chooseFolder": "選擇文件夾",
+        "hint": "檔案始終留在你的設備上，助手直接原地編輯，無需導入專用資料庫。",
+        "chooseFolder": "選擇資料夾",
         "preparing": "準備中…",
         "skip": "暫時跳過",
         "defaultProjectName": "我的文件"
@@ -14599,9 +14667,9 @@
         "retryButton": "重試連接檢測",
         "continueButton": "先繼續進入產品",
         "skipButton": "暫時跳過",
-        "pendingTitle": "Telegram 已保存配置，連接仍在建立中",
+        "pendingTitle": "Telegram 已儲存配置，連接仍在建立中",
         "pendingDescription": "{botUsername} 可能還需要幾秒鐘才能可用。你可以先繼續，或再次檢測連接狀態。",
-        "pendingToast": "配置已保存，Telegram 連接正在初始化。",
+        "pendingToast": "配置已儲存，Telegram 連接正在初始化。",
         "retryingToast": "檢測到配置正在處理中，正在自動重試...",
         "inProgressFriendlyError": "配置仍在處理中，請稍後再試。",
         "setupFailed": "Telegram 助手配置失敗。",
@@ -14678,7 +14746,7 @@
     "inlineRouteFallbackAction": "改用當前會話路由",
     "inlineRouteFallbackApplied": "已降級為當前會話路由",
     "inlineRouteTemplateSectionTitle": "召喚專家",
-    "inlineRouteTemplateSearchPlaceholder": "搜索專家模板...",
+    "inlineRouteTemplateSearchPlaceholder": "搜尋專家模板...",
     "inlineRouteTemplateLoading": "正在加載專家模板...",
     "inlineRouteTemplateRetry": "加載模板失敗，點擊重試",
     "inlineRouteTemplateNoResults": "未找到匹配的專家模板",
@@ -14857,22 +14925,22 @@
     "mcpTlsSection": "TLS / mTLS",
     "mcpTlsConfigured": "已配置",
     "mcpSslVerify": "SSL 校驗",
-    "mcpSslVerifyPlaceholder": "true (default) / false / CA bundle path (PEM file or directory)",
+    "mcpSslVerifyPlaceholder": "true（預設）/ false / CA 憑證包路徑（PEM 檔案或目錄）",
     "mcpSslVerifyWarning": "TLS 校驗已禁用，連接將暴露於中間人攻擊風險之下。僅限本地開發使用。",
     "mcpClientCert": "客戶端證書",
     "mcpClientCertPlaceholder": "/path/to/client.pem",
     "mcpClientKey": "Client Key",
-    "mcpClientKeyPlaceholder": "/path/to/client-key.pem (optional if bundled in cert)",
+    "mcpClientKeyPlaceholder": "/path/to/client-key.pem（若憑證已包含可省略）",
     "mcpClientKeyPassword": "客戶端密鑰口令",
     "mcpClientKeyPasswordPlaceholder": "加密客戶端密鑰的口令（可選）",
-    "mcpTlsHint": "對於 mTLS：提供客戶端證書以及可選的分開密鑰。路徑支持 ~ 展開。",
+    "mcpTlsHint": "對於 mTLS：提供客戶端證書以及可選的分開密鑰。路徑支援 ~ 展開。",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "已配置",
-    "mcpHeadersHint": "Use {{secret:KEY_NAME}} to reference secrets stored in Agent Secrets.",
+    "mcpHeadersHint": "使用 {{secret:KEY_NAME}} 參照儲存在 Agent Secrets 中的密鑰。",
     "mcpHeaderKeyPlaceholder": "請求頭名稱（例如 Authorization）",
-    "mcpHeaderValuePlaceholder": "Value or {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "值或 {{secret:API_KEY}}",
     "mcpHeaderAdd": "Add Header",
-    "mcpSecretRefSaveHint": "配置已保存",
+    "mcpSecretRefSaveHint": "配置已儲存",
     "mcpSecretRefSaveHintDesc": "請求頭中的密鑰引用將在運行時解析。"
   },
   "securityDashboard": {
@@ -14983,21 +15051,21 @@
     "moveSuccess": "已成功移動 {count} 個會話",
     "moveFailed": "移動會話失敗",
     "workspaceMount": {
-      "title": "關聯文件夾",
-      "emptyHint": "選擇筆記或文檔目錄，助手將直接讀寫其中的文件。",
-      "chooseFolder": "選擇文件夾",
+      "title": "關聯資料夾",
+      "emptyHint": "選擇筆記或文檔目錄，助手將直接讀寫其中的檔案。",
+      "chooseFolder": "選擇資料夾",
       "clear": "取消關聯",
       "close": "關閉",
-      "updated": "文件夾已關聯",
+      "updated": "資料夾已關聯",
       "cleared": "已取消關聯",
-      "invalidPath": "無法關聯該文件夾",
-      "pickFolderTitle": "為 {name} 選擇文件夾",
+      "invalidPath": "無法關聯該資料夾",
+      "pickFolderTitle": "為 {name} 選擇資料夾",
       "pathPlaceholder": "輸入路徑…",
-      "selectThis": "使用此文件夾",
-      "browseTrigger": "瀏覽文件夾",
+      "selectThis": "使用此資料夾",
+      "browseTrigger": "瀏覽資料夾",
       "recent": "最近使用",
       "filter": "篩選…",
-      "noSubdirs": "沒有子文件夾"
+      "noSubdirs": "沒有子資料夾"
     }
   },
   "milestone": {
@@ -15037,24 +15105,24 @@
     "lastTool": "最後使用的工具",
     "resume": "恢復",
     "delete": "刪除",
-    "deleting": "Deleting...",
-    "refresh": "刷新",
+    "deleting": "正在刪除...",
+    "refresh": "重新整理",
     "cleanup": "清理舊檢查點",
-    "cleaning": "Cleaning...",
+    "cleaning": "正在清理...",
     "loadError": "加載檢查點失敗",
     "resumeError": "恢復檢查點失敗",
     "deleteError": "刪除檢查點失敗",
     "cleanupError": "清理檢查點失敗",
     "resumeSuccess": "檢查點恢復成功",
-    "resumeSuccessDesc": "Task {taskId} resumed",
-    "cleanupSuccess": "Cleaned up {deleted} checkpoints",
-    "loading": "Loading checkpoints...",
+    "resumeSuccessDesc": "任務 {taskId} 已恢復",
+    "cleanupSuccess": "已清理 {deleted} 個檢查點",
+    "loading": "正在載入檢查點...",
     "empty": "未找到檢查點",
     "noCheckpoints": "未找到檢查點",
-    "total": "Total {count} checkpoints",
-    "description": "管理已保存的檢查點，恢復被中斷的智能體任務",
-    "savedCheckpoints": "已保存的檢查點",
-    "savedCheckpointsDesc": "當智能體任務被中斷時，所有檢查點都會自動保存"
+    "total": "共 {count} 個檢查點",
+    "description": "管理已儲存的檢查點，恢復被中斷的智能體任務",
+    "savedCheckpoints": "已儲存的檢查點",
+    "savedCheckpointsDesc": "當智能體任務被中斷時，所有檢查點都會自動儲存"
   },
   "about": {
     "title": "關於",
@@ -15067,7 +15135,7 @@
     "features": {
       "powerful": {
         "title": "強大的 AI 能力",
-        "description": "支持多種大語言模型，集成 MCP 協議、技能體系與知識庫，打造一站式 AI 助手"
+        "description": "支援多種大語言模型，集成 MCP 協議、技能體系與知識庫，打造一站式 AI 助手"
       },
       "secure": {
         "title": "安全與隱私",
@@ -15075,7 +15143,7 @@
       },
       "extensible": {
         "title": "高度可擴展",
-        "description": "靈活的插件系統、自定義技能與 MCP 服務，輕鬆擴展 AI 能力"
+        "description": "靈活的外掛系統、自定義技能與 MCP 服務，輕鬆擴展 AI 能力"
       },
       "opensource": {
         "title": "核心產品開源",
@@ -15087,9 +15155,9 @@
       "description": "查看 MyrmAgent 的最新更新與改進",
       "v0_1_0": {
         "item1": "首次公開發布",
-        "item2": "支持多模型服務、智能體、技能與知識庫",
+        "item2": "支援多模型服務、智能體、技能與知識庫",
         "item3": "集成 MCP 協議以擴展 AI 能力",
-        "item4": "現代化的 UI 設計，支持深色模式"
+        "item4": "現代化的 UI 設計，支援深色模式"
       }
     },
     "techStack": {
@@ -15101,7 +15169,7 @@
     },
     "links": {
       "title": "相關連結",
-      "description": "獲取更多信息與支持",
+      "description": "獲取更多資訊與支援",
       "website": {
         "title": "官方網站",
         "description": "訪問 MyrmAgent 官方網站"
@@ -15129,7 +15197,7 @@
   "budget": {
     "title": "預算控制",
     "description": "多維度支出限制，智能地在對話中途終止",
-    "save": "保存",
+    "save": "儲存",
     "todaySpend": "今日支出",
     "sessionSpend": "會話支出",
     "statusWarning": "Approaching budget limit — agent has been notified",
@@ -15155,8 +15223,8 @@
   },
   "dlq": {
     "title": "死信隊列（DLQ）",
-    "description": "管理重試後仍失敗的消息，支持手動幹預。",
-    "refresh": "刷新",
+    "description": "管理重試後仍失敗的消息，支援手動幹預。",
+    "refresh": "重新整理",
     "channel": "頻道",
     "recipient": "收件人",
     "content": "內容",
@@ -15189,9 +15257,9 @@
     "noFeatures": "暫無可用的實驗性功能。",
     "customized": "自定義設置（覆蓋默認值）",
     "fetchError": "加載實驗性功能失敗",
-    "enabledSuccess": "Enabled feature {name}",
-    "disabledSuccess": "Disabled feature {name}",
-    "toggleError": "Failed to toggle feature {name}"
+    "enabledSuccess": "已啟用功能 {name}",
+    "disabledSuccess": "已停用功能 {name}",
+    "toggleError": "切換功能 {name} 失敗"
   },
   "sections": {
     "channelRouting": {
@@ -15199,7 +15267,7 @@
       "description": "為不同頻道分組管理專屬的智能體綁定",
       "connectedChannels": "已連接頻道",
       "noConnectedChannels": "沒有已連接的頻道",
-      "routingFor": "Routing for {channel}",
+      "routingFor": "路由：{channel}",
       "globalDefaultAgent": "全局默認智能體",
       "globalDefaultAgentDesc": "沒有專屬綁定的會話線程將回退到該智能體。",
       "noDefaultAgent": "-- 無默認智能體 --",
@@ -15324,7 +15392,7 @@
         "failureKinds": "失敗類型",
         "deferredReasons": "推遲原因",
         "archiveDeferredReasons": "歸檔預算原因",
-        "archiveDeferredSoftTrimmed": "{count} archive-deferred items were still trimmed.",
+        "archiveDeferredSoftTrimmed": "{count} 個延遲封存項目仍被修剪。",
         "recentRestoreBlocks": "最近的恢復阻止",
         "restoreRange": "讀取範圍",
         "restoreGuidance": "引導",
@@ -15351,8 +15419,8 @@
         "restoreRangeSubmitted": "範圍已排隊",
         "restoreRangeFailed": "提交失敗",
         "restoreRangeRequiresActiveSession": "打開目標會話",
-        "restoreActiveSessionRequired": "The active chat is not this session ({sessionId}); opening the target session will prefill the restore instruction.",
-        "restorePrompt": "Read the archived context range `{restoreArg}` and continue from that recovered evidence.",
+        "restoreActiveSessionRequired": "目前作用中的對話不是此工作階段（{sessionId}）；開啟目標工作階段將預填復原指令。",
+        "restorePrompt": "讀取已封存的上下文範圍 `{restoreArg}` 並基於復原的證據繼續。",
         "copyRestoreArg": "複製恢復範圍",
         "restoreArgCopied": "已複製",
         "copyRestoreArgUnavailable": "無法複製",
@@ -15382,7 +15450,7 @@
         "deferredWarning": "部分裁剪候選因通過預算被推遲。",
         "archiveDeferredWarning": "部分歸檔寫入被推遲，未進行回退裁剪。",
         "restoreBlockedWarning": "歸檔恢復被會話預算阻止；請讀取更窄的範圍。",
-        "adaptiveBackoffWarning": "Pruning strength was reduced because {reasons}.",
+        "adaptiveBackoffWarning": "由於 {reasons}，剪枝強度已降低。",
         "negativeSavingsWarning": "歸檔讀取消耗的 Token 多於裁剪節省的。",
         "restoreCostWarning": "恢復的 Token 消耗了過多的裁剪節省；請避免對此會話進行激進裁剪。",
         "refetchWarning": "歸檔讀取偏高；對此會話的裁剪可能過於激進。"
@@ -15434,7 +15502,7 @@
     "replay": {
       "title": "會話回放",
       "chatView": "UI 狀態",
-      "mindView": "思維窗口",
+      "mindView": "思維視窗",
       "inspector": "載荷檢查器",
       "seekToError": "跳轉到錯誤",
       "play": "播放",
@@ -15443,21 +15511,21 @@
       "scrubber": "時間線滑塊",
       "errorMarker": "錯誤",
       "keyboardHint": "Space: play/pause · ←/→: step frame",
-      "running": "running...",
-      "latestTool": "Latest Tool: {name}",
+      "running": "執行中...",
+      "latestTool": "最新工具：{name}",
       "result": "結果",
       "emptyState": "此處暫無消息",
       "noPayload": "拖動到事件幀",
       "userMessage": "用戶消息",
       "assistantMessage": "助手消息",
-      "loading": "Loading replay data...",
+      "loading": "正在載入重播資料...",
       "humanFeedback": "人工審批",
       "humanFeedbackTitle": "人工反饋",
-      "llmCallTitle": "LLM Call: {model}",
+      "llmCallTitle": "LLM 呼叫：{model}",
       "approved": "已批准",
       "rejected": "已拒絕",
       "promptPreview": "提示詞預覽",
-      "memoryEventTitle": "Memory: {phase}",
+      "memoryEventTitle": "記憶：{phase}",
       "preCompactEventTitle": "壓縮前回顧",
       "toolFailed": "工具執行失敗",
       "scrubSnapHint": "鬆開以吸附到最近的事件",
@@ -15554,7 +15622,7 @@
     "lifecycleDurationMs": "{ms}毫秒",
     "lifecycleStoredCount": "已生成 {count} 張卡片",
     "lifecycleStoredCountNone": "未生成新卡片",
-    "lifecycleVerbatimStored": "已保存 {count} 段原文",
+    "lifecycleVerbatimStored": "已儲存 {count} 段原文",
     "lifecycleSuccess": "完成",
     "lifecycleSkipped": "已跳過",
     "lifecycleError": "失敗",
@@ -15576,7 +15644,7 @@
     "title": "智能體配裝",
     "subtitle": "一瞥該智能體繼承的團隊記憶、Wiki、技能與記憶策略。",
     "loading": "正在加載配裝…",
-    "saveAgentFirst": "請先保存智能體後再查看配裝。",
+    "saveAgentFirst": "請先儲存智能體後再查看配裝。",
     "fix": "修復",
     "openTeamAssets": "團隊資產",
     "openWiki": "知識庫",
@@ -15643,7 +15711,7 @@
     "retrying": "重試中...",
     "cancelled": "任務已取消",
     "videoCompletedFallback": "視頻已完成，可在工件面板查看輸出。",
-    "videoUnsupported": "當前瀏覽器不支持視頻播放。",
+    "videoUnsupported": "當前瀏覽器不支援視頻播放。",
     "alternateLabel": "備用 {index}",
     "providerLabel": "提供商",
     "modelLabel": "模型",

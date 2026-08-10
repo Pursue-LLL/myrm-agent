@@ -12,7 +12,7 @@ import pytest
 from myrm_agent_harness.toolkits.kanban.protocols import DecomposeChildSpec
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 
-from app.services.kanban.decompose_orchestrator import run_apply_decompose
+from app.services.kanban.decompose import run_apply_decompose
 
 
 def _triage_task(model_override: str | None = None) -> KanbanTask:
@@ -130,7 +130,9 @@ async def test_root_promoted_to_backlog_and_events() -> None:
 
 @pytest.mark.asyncio
 async def test_non_triage_task_rejected() -> None:
-    store = _make_store(KanbanTask(task_id="r", board_id="b", title="R", status=TaskStatus.READY))
+    store = _make_store(
+        KanbanTask(task_id="r", board_id="b", title="R", status=TaskStatus.READY)
+    )
     outcome = await run_apply_decompose(
         "r",
         children=[DecomposeChildSpec(title="T1", body="B1")],

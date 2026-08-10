@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.dispatcher (POS: Kanban dispatcher framework.)
 - core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
-- service_types (POS: Kanban service shared types.)
+- service_mixins.types (POS: Kanban service shared types.)
 
 [OUTPUT]
 - gather_summary, build_board_summary
@@ -19,7 +19,7 @@ import asyncio
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
-from app.services.kanban.service_types import BoardSummaryData
+from app.services.kanban.service_mixins.types import BoardSummaryData
 
 
 async def gather_summary(
@@ -47,7 +47,9 @@ async def build_board_summary(
     if board is None:
         return None
 
-    status_counts, by_agent, oldest_age, stale_running = await gather_summary(store, board_id)
+    status_counts, by_agent, oldest_age, stale_running = await gather_summary(
+        store, board_id
+    )
 
     return BoardSummaryData(
         board=board,

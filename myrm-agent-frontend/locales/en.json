@@ -5812,6 +5812,63 @@
       "cleanupSuccess": "{count} expired sessions removed",
       "cleanupFailed": "Cleanup failed",
       "encryptionNote": "All sessions are encrypted with AES-256-GCM at rest"
+    },
+    "plugins": {
+      "import": {
+        "title": "Import Agent Plugin",
+        "subtitle": "Import a plugin package from the agent-plugins.org ecosystem (plugin.json + skills + mcp.json) with automatic security scanning.",
+        "upload": {
+          "dropHint": "Drop plugin ZIP here or click to upload",
+          "parsing": "Parsing & scanning...",
+          "formatHint": "Supports the Agent Plugins 1.0.0 standard, up to 20MB per file.",
+          "singleArchiveOnly": "Only one ZIP at a time",
+          "archiveOnly": "Only .zip files are supported",
+          "tooLarge": "File size cannot exceed 20MB"
+        },
+        "sections": {
+          "skills": "Skills ({count})",
+          "servers": "MCP Servers ({count})",
+          "files": "files",
+          "envCount": "{count} env vars",
+          "placeholder": "Contains in-package path references — confirm them in MCP settings after import"
+        },
+        "serverType": {
+          "local": "Local process",
+          "remote": "Remote service"
+        },
+        "actions": {
+          "selectAll": "Install All",
+          "skipAll": "Skip All",
+          "install": "Install",
+          "skip": "Skip",
+          "cancel": "Cancel",
+          "confirm": "Confirm Import",
+          "reselect": "Reselect"
+        },
+        "bind": {
+          "label": "Bind to Agent",
+          "placeholder": "Select agent (optional)",
+          "hint": "Mount the imported skills and MCP servers to the selected agent (available only to that agent); leave empty to keep them in the global library only."
+        },
+        "summary": "{skills} skills, {servers} MCP servers selected",
+        "empty": {
+          "title": "No importable components in this plugin",
+          "hint": "Review the diagnostics above, or choose a valid plugin package."
+        },
+        "security": {
+          "blocked": "Blocked: {count} security risk(s) found — automatically skipped"
+        },
+        "errors": {
+          "parseTitle": "Parse Error",
+          "previewFailed": "Failed to parse plugin, check the file format",
+          "confirmTitle": "Import Failed",
+          "confirmFailed": "Plugin import failed, please retry"
+        },
+        "success": {
+          "title": "Import Success",
+          "description": "Imported {skills} skills and {servers} MCP servers"
+        }
+      }
     }
   },
   "userMenu": {
@@ -10372,9 +10429,17 @@
       "coverSuggestLoading": "Searching workspace images...",
       "coverSuggestEmpty": "No matching image files in workspace",
       "confirm": "Push to draft box",
+      "dismiss": "Got it",
       "pushing": "Pushing...",
       "success": "Saved to WeChat draft box. Open mp.weixin.qq.com to preview and publish.",
       "failed": "Failed to push draft",
+      "complianceBlocked": "Draft blocked by compliance scan. Edit the article and try again.",
+      "complianceTitle": "Compliance issues found",
+      "complianceHint": "Replace highlighted terms before pushing to WeChat draft.",
+      "complianceSuccessTitle": "Draft saved with compliance warnings",
+      "complianceSuccessHint": "The article is in the draft box. Review and replace the terms below before previewing on mp.weixin.qq.com.",
+      "complianceHighRisk": "High risk",
+      "complianceWarning": "Warning",
       "credentialsMissing": "Configure WeChat Official Account credentials in Settings first",
       "pathMissing": "Local file path required to push draft"
     },
@@ -11637,6 +11702,7 @@
     "noEvents": "No events yet",
     "dependencies": "Dependencies",
     "waitingForDeps": "Waiting for dependencies",
+    "queuedForConcurrency": "Queued (concurrency full)",
     "autoUnblockAt": "Auto-unblock at",
     "addDep": "Add Dependency",
     "attachFile": "Attach file",
@@ -11774,6 +11840,8 @@
     "goalMaxTurnsOption": "Max turns: {turns}",
     "goalMaxTurnsLabel": "Max turns",
     "requireApproval": "Require human approval before completion",
+    "approvalUpdated": "Approval requirement updated",
+    "approvalUpdateError": "Failed to update approval requirement",
     "assignedAgent": "Assigned to",
     "updateError": "Failed to update task",
     "addIdea": "Quick idea",
@@ -14165,7 +14233,7 @@
     "active": "active",
     "failed": "failed",
     "approvalCardNotFound": "No pending approval card found",
-    "costBudgetTitle": "Cost: ${used} / ${limit}",
+    "costBudgetTitle": "Cost: {used} / {limit}",
     "tokenBudgetTitle": "Token budget: {used} / {limit}"
   },
   "evalLab": {

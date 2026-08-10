@@ -120,4 +120,20 @@ describe('SubagentDashboard budget display', () => {
     // Without budget: plain cost
     expect(screen.getByText('$1.200')).toBeTruthy();
   });
+
+  it('does not render NaN% when a node lacks progress data', async () => {
+    mockSubagentState = {
+      ...mockSubagentState,
+      nodes: {
+        [withBudgetNode.task_id]: { ...withBudgetNode, progress: undefined as unknown as number },
+      },
+    };
+    const { default: SubagentDashboard } = await import('../SubagentDashboard');
+    render(<SubagentDashboard chatId="chat-budget-e2e" />);
+
+    fireEvent.click(screen.getByTestId('subagent-dashboard-trigger'));
+    expect(await screen.findByTestId('subagent-dashboard-panel')).toBeTruthy();
+
+    expect(screen.queryByText('NaN%')).toBeNull();
+  });
 });

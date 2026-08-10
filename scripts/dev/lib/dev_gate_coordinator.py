@@ -733,6 +733,7 @@ class _BackgroundReaper:
                     maybe_reap_epoch_drift_stale_sessions,
                     maybe_reap_excess_wave_leases,
                     maybe_reap_hung_chrome_e2e_pytest,
+                    maybe_reap_orphan_shared_backends,
                     maybe_reap_stale_empty_mux_contexts,
                     maybe_reap_stale_heartbeat_leases,
                 )
@@ -742,6 +743,7 @@ class _BackgroundReaper:
                 maybe_reap_excess_wave_leases()
                 maybe_reap_hung_chrome_e2e_pytest()
                 maybe_reap_epoch_drift_stale_sessions()
+                maybe_reap_orphan_shared_backends()
                 self._maybe_apply_pending_drift()
             except Exception:
                 pass
@@ -758,19 +760,36 @@ class _BackgroundReaper:
         """
         try:
             from stack_mutation_policy import (  # noqa: PLC0415
+                _default_state_dir,
                 apply_pending_drift_if_idle,
+                maybe_detect_and_record_source_drift,
                 pending_drift_exists,
             )
 
             root = Path(__file__).resolve().parents[4]
-            from stack_mutation_policy import _default_state_dir  # noqa: PLC0415
-
             state_dir = _default_state_dir()
+            # Active detection: a code change heals the shared backend even with
+            # no new attach (attach is the other drift recorder). Cheap git walk
+            # once per cycle is amortized by the reap interval.
+            try:
+                maybe_detect_and_record_source_drift(
+                    monorepo_root=root, state_dir=state_dir
+                )
+            except Exception as exc:  # noqa: BLE001
+                print(f"DRIFT_DETECT: detection failed: {exc}")
             if not pending_drift_exists(state_dir):
                 return
-            apply_pending_drift_if_idle(monorepo_root=root, state_dir=state_dir)
-        except Exception:
-            pass
+            result = apply_pending_drift_if_idle(
+                monorepo_root=root, state_dir=state_dir
+            )
+            if result.action in {"applied", "failed"}:
+                print(
+                    f"PENDING_DRIFT_APPLY: action={result.action} detail={result.detail}"
+                )
+        except Exception as exc:  # noqa: BLE001
+            print(
+                f"PENDING_DRIFT_APPLY: action=error detail={type(exc).__name__}: {exc}"
+            )
 
 
 def _acquire_serve_singleton_lock(database_path: Path) -> int:

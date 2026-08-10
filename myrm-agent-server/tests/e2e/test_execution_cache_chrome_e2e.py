@@ -13,7 +13,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import get_e2e_ui_url  # noqa: E402
+from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url  # noqa: E402
 from cdp_chat_ui import (  # noqa: E402
     chat_id_from_path,
     chat_user_message_count,
@@ -84,7 +84,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(
         ui_base = _base_url()
         await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
         await chat.click_new_chat()
-        log_offset = snapshot_backend_log_offset()
+        log_offset = snapshot_backend_log_offset(api_url=get_e2e_api_url())
         first_send = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         first_chat_id = str(
             first_send.get("started", {}).get("chatId")
@@ -153,12 +153,16 @@ async def test_chrome_ui_same_chat_two_ok_messages(
     assert receipt.get("assistant_snippet"), f"LLMReceipt missing assistant_snippet: {receipt}"
     assert receipt.get("api_port"), f"LLMReceipt missing api_port: {receipt}"
 
-    prewarm_requests = count_turn_prewarm_in_log(since_offset=log_offset)
+    prewarm_requests = count_turn_prewarm_in_log(
+        since_offset=log_offset, api_url=get_e2e_api_url()
+    )
     assert (
         prewarm_requests >= 1
     ), f"expected Turn prewarm requested >=1 in backend log (got {prewarm_requests})"
 
-    created, reused = count_execution_cache_in_log(since_offset=log_offset)
+    created, reused = count_execution_cache_in_log(
+        since_offset=log_offset, api_url=get_e2e_api_url()
+    )
     assert (
         created == 1
     ), f"expected execution_cache_created x1 in backend log (got {created})"

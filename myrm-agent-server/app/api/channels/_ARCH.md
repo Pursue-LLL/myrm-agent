@@ -20,4 +20,4 @@
 | `test_connections.py` | 测试 | 频道连接测试路由。提供各频道凭据连通性验证端点，用于前端配置时实时测试。 | ✅ |
 | `topics.py` | 模块 | 频道 Topic 路由。提供 Topic 列表查询、Agent 绑定和频道级默认 Agent 设置功能。 | ✅ |
 | `wechat.py` | 模块 | WeChat/WhatsApp 专用路由。提供扫码登录、QR 码获取、连接状态查询和登出操作。 | ✅ |
-| `wechat_official.py` | 模块 | WeChat Official Account 凭证测试与 HITL 草稿推送 API（uploadimg + draft/add）；路径校验 `relative_to` + workspace 未知 fail-closed (503)；draft 流水线 inline 图先于 thumb，content 为 body+内嵌 style+formatter 块级 inline style；WebUI 文内首图封面预填。 | ✅ |
+| `wechat_official.py` | 模块 | WeChat Official Account 凭证测试与 HITL 草稿推送 API（uploadimg + draft/add）；路径校验 `relative_to` + workspace 未知 fail-closed (503)；合规 scan（title + resolved digest + HTML 可见正文）高危 422 hits、非高危 200 `complianceWarnings`；502 返回 locale-aware 微信 errcode 可操作提示；author ≤8；draft 流水线 inline 图先于 thumb，content 为 body+内嵌 style+formatter 块级 inline style；WebUI 文内首图封面预填。 | ✅ |

@@ -43,13 +43,14 @@ async def _finalize(
     chat_history: list[object] | None = None,
     session_was_auto_reset: bool = False,
     lite_model_cfg: object | None = None,
+    workspace_root: str | None = None,
 ) -> tuple[MagicMock, OutboundMessage]:
     """Run finalize with deep-link build mocked; return (persist_mock, reply)."""
     with (
         patch(
             "app.core.channel_bridge.agent_executor.execute_finalize.resolve_chat_workspace_root",
             new_callable=AsyncMock,
-            return_value="",
+            return_value=workspace_root or "",
         ),
         patch(
             "app.core.channel_bridge.agent_executor.execute_finalize.build_artifact_deep_links",
@@ -265,10 +266,11 @@ async def test_auto_title_generated_for_new_chat() -> None:
     acc = StreamAccumulator()
     acc.chunks.append("First reply.")
     with patch(
-        "app.core.channel_bridge.agent_executor.execute_finalize.generate_channel_title",
-    ) as title_mock:
+        "app.core.channel_bridge.agent_executor.execute_finalize.asyncio.create_task",
+    ) as create_task_mock:
         await _finalize(acc, ((), frozenset()), chat_history=[])
-    title_mock.assert_awaited_once()
+    create_task_mock.assert_called_once()
+    assert create_task_mock.call_args.args[0].__name__ == "generate_channel_title"
 
 
 @pytest.mark.asyncio
@@ -276,10 +278,10 @@ async def test_no_auto_title_for_existing_chat() -> None:
     acc = StreamAccumulator()
     acc.chunks.append("Follow-up reply.")
     with patch(
-        "app.core.channel_bridge.agent_executor.execute_finalize.generate_channel_title",
-    ) as title_mock:
+        "app.core.channel_bridge.agent_executor.execute_finalize.asyncio.create_task",
+    ) as create_task_mock:
         await _finalize(acc, ((), frozenset()), chat_history=[object()])
-    title_mock.assert_not_awaited()
+    create_task_mock.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -321,4 +323,45 @@ async def test_sources_sorted_by_index_metadata() -> None:
     _persist_mock, reply = await _finalize(acc, ((), frozenset()))
     assert reply.metadata is not None
     titles = [s["title"] for s in reply.metadata["sources"]]  # type: ignore[typeddict-item]
-    assert titles == ["a", "b", "c"]
+    # Non-numeric index → key 0 → sorts first; numeric 1 then 2 follow.
+    assert titles == ["c", "a", "b"]
+
+
+@pytest.mark.asyncio
+async def test_workspace_attachment_scanned_and_stripped(
+    tmp_path: Path,
+) -> None:
+    """A real workspace file referenced in the reply becomes an attachment."""
+    report = tmp_path / "report.pdf"
+    report.write_bytes(b"%PDF-1.4")
+    acc = StreamAccumulator()
+    acc.chunks.append("Report saved to workspace/report.pdf")
+    _persist_mock, reply = await _finalize(
+        acc,
+        ((), frozenset()),
+        workspace_root=str(tmp_path),
+    )
+    assert len(reply.media) == 1
+    assert reply.media[0].filename == "report.pdf"
+    persisted = _persist_mock.call_args.args[1]
+    assert "workspace/report.pdf" not in persisted
+
+
+@pytest.mark.asyncio
+async def test_content_and_note_lines_concatenated(tmp_path: Path) -> None:
+    """Existing content plus an oversized note is concatenated with a blank line."""
+    big = tmp_path / "big.bin"
+    big.write_bytes(b"\x00" * 1024)
+    acc = StreamAccumulator()
+    acc.oversized_deliverables.append(("big.bin", "1.0 KB"))
+    acc.chunks.append("Here is the result: workspace/big.bin")
+    persist_mock, reply = await _finalize(
+        acc,
+        ((), frozenset()),
+        workspace_root=str(tmp_path),
+    )
+    persisted = persist_mock.call_args.args[1]
+    assert "Here is the result" in persisted
+    assert "big.bin" in persisted
+    assert "1.0 KB" in persisted
+    assert "\n\n" in persisted

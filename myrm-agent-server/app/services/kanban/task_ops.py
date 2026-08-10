@@ -4,7 +4,7 @@
 - myrm_agent_harness.toolkits.kanban (POS: Kanban toolkit framework layer.)
 - core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
 - event_publisher (POS: Kanban SSE event publishing helpers.)
-- service_types (POS: Kanban service shared types.)
+- service_mixins.types (POS: Kanban service shared types.)
 
 [OUTPUT]
 - add_task, update_task, delete_task, bulk_update_tasks
@@ -20,11 +20,16 @@ import uuid
 from collections.abc import Awaitable, Callable
 
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
-from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskEventKind, TaskPriority, TaskStatus
+from myrm_agent_harness.toolkits.kanban.types import (
+    KanbanTask,
+    TaskEventKind,
+    TaskPriority,
+    TaskStatus,
+)
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
 from app.services.kanban.event_publisher import publish_kanban_event
-from app.services.kanban.service_types import UNSET, Sentinel
+from app.services.kanban.service_mixins.types import UNSET, Sentinel
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +76,9 @@ async def add_task(
         else:
             resolved_status = initial_status
     else:
-        raise ValueError(f"initial_status must be one of TRIAGE/BACKLOG/READY/BLOCKED, got {initial_status}")
+        raise ValueError(
+            f"initial_status must be one of TRIAGE/BACKLOG/READY/BLOCKED, got {initial_status}"
+        )
 
     metadata: dict[str, object] = {}
     if completion_criteria:
@@ -113,7 +120,9 @@ async def add_task(
         for pid in depends_on:
             parent = await store.get_task(pid)
             if parent is None:
-                logger.warning("Skipped dependency %s -> %s (parent not found)", pid, saved.task_id)
+                logger.warning(
+                    "Skipped dependency %s -> %s (parent not found)", pid, saved.task_id
+                )
                 continue
             valid_deps.append(pid)
         for pid in valid_deps:
@@ -190,6 +199,16 @@ async def update_task(
         task.metadata.update(metadata)
         edited_fields.append("metadata")
     if require_approval is not None:
+        if task.status in (
+            TaskStatus.IN_REVIEW,
+            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
+            TaskStatus.ARCHIVED,
+        ):
+            raise ValueError(
+                f"require_approval can only be changed for active tasks "
+                f"(TRIAGE/BACKLOG/READY/RUNNING/BLOCKED); current status is {task.status.value}"
+            )
         task.require_approval = require_approval
         edited_fields.append("require_approval")
     saved = await store.save_task(task)

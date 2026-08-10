@@ -11,6 +11,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/__tests__/setup.ts'],
     testTimeout: 30000,
+    pool: 'forks',
+    maxWorkers: 4,
     exclude: ['**/node_modules/**', '**/dist/**'],
     server: {
       deps: {

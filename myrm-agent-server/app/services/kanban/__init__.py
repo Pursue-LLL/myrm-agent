@@ -3,7 +3,7 @@
 """
 
 from .service import KanbanService
-from .service_types import (
+from .service_mixins import (
     BoardSummaryData,
     DependencyUnmetError,
     PromoteResult,

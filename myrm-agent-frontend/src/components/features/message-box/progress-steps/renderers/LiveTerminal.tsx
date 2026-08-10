@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import useChatStore from '@/store/useChatStore';
 
 import { getLineTone, TONE_CLASSES } from './lineToneUtils';
+import { formatStoredSize } from './sizeFormatUtils';
 
 const EvictedOutputDrawer = lazy(() => import('./EvictedOutputDrawer'));
 
@@ -19,12 +20,6 @@ interface LiveTerminalProps {
   evictedStderrStoredChars?: number;
   evictedStderrTotalLines?: number;
   evictedStderrStorageTruncated?: boolean;
-}
-
-function formatStoredSize(chars: number): string {
-  if (chars < 1024) return `${chars} B`;
-  if (chars < 1024 * 1024) return `${(chars / 1024).toFixed(1)} KB`;
-  return `${(chars / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export const LiveTerminal: React.FC<LiveTerminalProps> = ({

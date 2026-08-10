@@ -27,11 +27,9 @@ logger = logging.getLogger(__name__)
 
 
 def resolve_stream_execution_mode() -> ExecutionMode:
-    """POOLED by default; SHPOIB private backends force ephemeral to avoid stale security."""
+    """POOLED by default; signoff-clarify SHPOIB pool forces ephemeral (M3 stub)."""
     import os
 
-    if os.environ.get("MYRM_E2E_FORCE_EPHEMERAL", "").strip() == "1":
-        return ExecutionMode.EPHEMERAL
     if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
         return ExecutionMode.EPHEMERAL
     return ExecutionMode.POOLED

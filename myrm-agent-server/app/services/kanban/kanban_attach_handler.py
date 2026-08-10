@@ -27,7 +27,7 @@ from myrm_agent_harness.toolkits.kanban.kanban_agent_tools import KanbanTaskAtta
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
 from app.core.storage.models import File
-from app.services.kanban.task_runner_worktree import resolve_base_dir
+from app.services.kanban.task_runner import resolve_base_dir
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,9 @@ def create_kanban_attach_handler(store: KanbanStore) -> KanbanTaskAttachFn:
 
         existing = await load_task_attachment_ids(task_id)
         if len(existing) >= _MAX_ATTACHMENTS:
-            raise ValueError(f"Task already has the maximum of {_MAX_ATTACHMENTS} attachments")
+            raise ValueError(
+                f"Task already has the maximum of {_MAX_ATTACHMENTS} attachments"
+            )
 
         if source == "path":
             file_obj = await _attach_from_path(store, task_id, task, value)
@@ -92,7 +94,10 @@ async def _attach_from_path(
     candidate = candidate.resolve()
 
     base_resolved = Path(base_dir).resolve()
-    if not str(candidate).startswith(str(base_resolved) + os.sep) and candidate != base_resolved:
+    if (
+        not str(candidate).startswith(str(base_resolved) + os.sep)
+        and candidate != base_resolved
+    ):
         raise ValueError("Path must be inside the task workspace")
 
     if not candidate.is_file():
@@ -111,7 +116,9 @@ async def _attach_from_path(
         content_type=content_type,
         source_chat_id=f"kanban:{task_id}",
     )
-    logger.info("kanban_attach path task=%s file=%s bytes=%s", task_id[:8], file_obj.id, size)
+    logger.info(
+        "kanban_attach path task=%s file=%s bytes=%s", task_id[:8], file_obj.id, size
+    )
     return file_obj
 
 
@@ -142,5 +149,10 @@ async def _attach_from_url(task_id: str, url: str) -> File:
         content_type=content_type,
         source_chat_id=f"kanban:{task_id}",
     )
-    logger.info("kanban_attach url task=%s file=%s bytes=%s", task_id[:8], file_obj.id, len(content))
+    logger.info(
+        "kanban_attach url task=%s file=%s bytes=%s",
+        task_id[:8],
+        file_obj.id,
+        len(content),
+    )
     return file_obj

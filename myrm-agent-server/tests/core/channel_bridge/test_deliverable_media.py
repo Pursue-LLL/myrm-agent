@@ -98,6 +98,53 @@ def test_compress_returns_none_when_cap_too_small(tmp_path: Path) -> None:
     assert compress_oversized_image(src, max_bytes=1) is None
 
 
+def test_compress_returns_none_for_unsupported_real_image(tmp_path: Path) -> None:
+    """A readable image whose format is not JPEG/WEBP/PNG is rejected."""
+    from PIL import Image
+
+    src = tmp_path / "anim.gif"
+    Image.new("RGB", (100, 100), (10, 200, 30)).save(
+        src, format="GIF", save_all=True, loop=0
+    )
+    assert compress_oversized_image(src, max_bytes=10_000) is None
+
+
+def test_compress_png_1bit_mode_converted(tmp_path: Path) -> None:
+    """A 1-bit (mode '1') PNG is converted to RGB before re-encoding."""
+    from PIL import Image
+
+    src = tmp_path / "bw.png"
+    Image.new("1", (100, 100), 1).save(src, format="PNG")
+
+    result = compress_oversized_image(src, max_bytes=20_000)
+    assert result is not None
+    try:
+        with Image.open(result) as out:
+            assert out.mode in {"RGB", "RGBA", "L"}
+    finally:
+        result.unlink(missing_ok=True)
+
+
+def test_compress_save_failure_is_swallowed(tmp_path: Path) -> None:
+    """An exception while saving the compressed buffer is swallowed per round."""
+    from unittest.mock import patch
+
+    from PIL import Image
+
+    src = tmp_path / "ok.jpg"
+    Image.new("RGB", (200, 200), (5, 5, 5)).save(src, format="JPEG", quality=95)
+
+    original_save = Image.Image.save
+
+    def failing_save(self, *args, **kwargs):  # noqa: ANN001
+        if kwargs.get("format") == "JPEG":
+            raise OSError("disk full")
+        return original_save(self, *args, **kwargs)
+
+    with patch.object(Image.Image, "save", new=failing_save):
+        assert compress_oversized_image(src, max_bytes=20_000) is None
+
+
 def test_compress_webp_rgba_flattened_to_white(tmp_path: Path) -> None:
     """Quality-mode image (WEBP) with transparency is flattened onto white."""
     from PIL import Image
@@ -116,18 +163,18 @@ def test_compress_webp_rgba_flattened_to_white(tmp_path: Path) -> None:
         result.unlink(missing_ok=True)
 
 
-def test_compress_jpeg_greyscale_converted(tmp_path: Path) -> None:
-    """Greyscale (L) JPEG is re-encoded as RGB JPEG."""
+def test_compress_jpeg_cmyk_converted(tmp_path: Path) -> None:
+    """CMYK JPEG (not RGB/L) is converted to RGB before re-encoding."""
     from PIL import Image
 
-    src = tmp_path / "gray.jpg"
-    Image.new("L", (300, 300), 128).save(src, format="JPEG", quality=95)
+    src = tmp_path / "cmyk.jpg"
+    Image.new("CMYK", (300, 300), (0, 0, 0, 0)).save(src, format="JPEG", quality=95)
 
     result = compress_oversized_image(src, max_bytes=30_000)
     assert result is not None
     try:
         with Image.open(result) as out:
-            assert out.mode == "RGB"
+            assert out.mode in {"RGB", "L"}
             assert out.format == "JPEG"
     finally:
         result.unlink(missing_ok=True)

@@ -4,15 +4,16 @@
 @database.models.chat::Chat (agent_id, total_tokens, total_usd, total_calls)
 @database.models.cron::CronJobModel (agent_id, status)
 @database.models.approval::ApprovalRecord (agent_id, status)
+@services.kanban::KanbanService (count_review_tasks_by_agent — IN_REVIEW per agent)
 @services.agent.gateway::AgentGateway (active sessions with agent_id)
 
 [OUTPUT]
 GET /api/v1/agents/fleet-overview — per-agent stats + global KPI summary
 
 [POS]
-Fleet 聚合视图 API。从现有 Chat/CronJob/Approval 表和 Gateway 内存数据中
-按 agent_id 聚合统计信息，供前端 /agents 页面 KPI 卡片和增强 Agent 卡片使用。
-零新表，纯读聚合。
+Fleet 聚合视图 API。从现有 Chat/CronJob/Approval 表、Kanban 看板审批与 Gateway
+内存数据中按 agent_id 聚合统计信息，供前端 /agents 页面 KPI 卡片和增强 Agent
+卡片使用。零新表，纯读聚合。
 """
 
 from __future__ import annotations
@@ -94,7 +95,7 @@ async def fleet_overview(db: AsyncSession = Depends(get_db)) -> dict:
         agent_stats.setdefault(aid, _empty_stats())
         agent_stats[aid]["cronCount"] = row.cron_count
 
-    # 3. Pending approvals per agent
+    # 3. Pending goal approvals per agent
     approval_stmt = (
         select(
             ApprovalRecord.agent_id,
@@ -110,7 +111,17 @@ async def fleet_overview(db: AsyncSession = Depends(get_db)) -> dict:
         agent_stats.setdefault(aid, _empty_stats())
         agent_stats[aid]["pendingApprovals"] = row.pending_count
 
-    # 4. Real-time status from Gateway
+    # 4. Kanban tasks awaiting human review per agent
+    from app.services.kanban import KanbanService
+
+    kanban_review_by_agent = await KanbanService.get_instance().count_review_tasks_by_agent()
+    for agent_id, review_count in kanban_review_by_agent.items():
+        aid = agent_id or "default"
+        agent_stats.setdefault(aid, _empty_stats())
+        current = int(agent_stats[aid].get("pendingApprovals", 0))
+        agent_stats[aid]["pendingApprovals"] = current + review_count
+
+    # 5. Real-time status from Gateway
     gateway = get_agent_gateway()
     active_sessions = gateway.get_active_sessions()
     active_agent_ids: set[str] = set()

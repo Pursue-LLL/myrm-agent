@@ -423,7 +423,9 @@ async def get_agent_tool_health(
 async def get_nav_badges() -> JSONResponse:
     """Aggregate badge counts for NavBar: failed cron runs, pending approvals, unread notifications.
 
-    All three queries run concurrently for minimal latency.
+    Pending approvals combine goal-approval records with kanban tasks awaiting human review
+    (IN_REVIEW), so the badge reflects every human-gated decision a user must make.
+    All queries run concurrently for minimal latency.
     """
     import asyncio
     from datetime import timedelta
@@ -442,9 +444,16 @@ async def get_nav_badges() -> JSONResponse:
             return result or 0
 
     async def count_pending_approvals() -> int:
+        from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+
+        from app.services.kanban import KanbanService
+
         async with get_session() as db:
-            result = await db.scalar(select(func.count()).select_from(ApprovalRecord).where(ApprovalRecord.status == "PENDING"))
-            return result or 0
+            goal_pending = await db.scalar(
+                select(func.count()).select_from(ApprovalRecord).where(ApprovalRecord.status == "PENDING")
+            )
+        kanban_review = await KanbanService.get_instance().count_tasks_by_status(TaskStatus.IN_REVIEW)
+        return (goal_pending or 0) + kanban_review
 
     async def count_unread_notifications() -> int:
         async with get_session() as db:

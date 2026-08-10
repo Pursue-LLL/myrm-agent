@@ -386,33 +386,39 @@ function SettingsLayout() {
         )}
       >
         <div className="relative w-full">
-          {/* 非活动 Section 用 hidden 移出布局，避免 invisible 叠层子元素拦截点击 */}
-          {Array.from(renderedTabs).map((tab) => {
-            const SectionComponent = SECTION_COMPONENTS[tab];
-            const isActive = tab === activeTab;
+          {!deferredLocaleReady ? (
+            <SettingsSkeleton />
+          ) : (
+            <>
+              {/* 非活动 Section 用 hidden 移出布局，避免 invisible 叠层子元素拦截点击 */}
+              {Array.from(renderedTabs).map((tab) => {
+                const SectionComponent = SECTION_COMPONENTS[tab];
+                const isActive = tab === activeTab;
 
-            if (!isActive) {
-              return (
-                <div key={tab} hidden aria-hidden data-section={tab} data-active={false}>
-                  <SectionComponent />
-                </div>
-              );
-            }
+                if (!isActive) {
+                  return (
+                    <div key={tab} hidden aria-hidden data-section={tab} data-active={false}>
+                      <SectionComponent />
+                    </div>
+                  );
+                }
 
-            return (
-              <motion.div
-                key={tab}
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.15, ease: 'easeOut' }}
-                className="w-full"
-                data-section={tab}
-                data-active
-              >
-                <SectionComponent />
-              </motion.div>
-            );
-          })}
+                return (
+                  <motion.div
+                    key={tab}
+                    initial={false}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                    className="w-full"
+                    data-section={tab}
+                    data-active
+                  >
+                    <SectionComponent />
+                  </motion.div>
+                );
+              })}
+            </>
+          )}
         </div>
       </main>
     </div>

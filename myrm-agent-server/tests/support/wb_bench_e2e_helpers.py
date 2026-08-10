@@ -41,6 +41,7 @@ def reset_wb_bench_source(archive_stem: str) -> None:
     if (target / "tasks").is_dir():
         shutil.rmtree(target)
 
+
 _PATH_PROBE_JS = "(() => ({ path: location.pathname }))()"
 
 # Names rendered by the WBBench cards (from wb_bench.list_wb_bench_sources).
@@ -123,6 +124,7 @@ SOURCES_READY_JS = (
 })()"""
 )
 
+
 # Re-assert the eval-lab route after the shared UI session contract. The
 # contract's BRIDGE phase reloads the page to the UI root when the E2E Chrome
 # window is backgrounded (innerText reads empty), which would drop /eval-lab
@@ -184,6 +186,55 @@ def click_subset_run_js(subset_name: str) -> str:
   const target = scope.buttons.find((b) => /Run|运行/i.test(b.textContent || ''));
   if (!target) return {{ ok: false, err: 'run-button-missing' }};
   if (target.disabled) return {{ ok: false, err: 'run-button-disabled' }};
+  const opts = {{ bubbles: true, cancelable: true, view: window, button: 0, buttons: 1, detail: 1 }};
+  target.dispatchEvent(new PointerEvent('pointerdown', opts));
+  target.dispatchEvent(new MouseEvent('mousedown', opts));
+  target.dispatchEvent(new PointerEvent('pointerup', opts));
+  target.dispatchEvent(new MouseEvent('mouseup', opts));
+  target.dispatchEvent(new MouseEvent('click', opts));
+  return {{ ok: true, clicked: true }};
+}})()"""
+    )
+
+
+def all_cards_memory_ab_ready_js() -> str:
+    """Probe that every subset card exposes a working Memory A/B button.
+
+    Re-uses the same card resolver as SOURCES_READY_JS so the four cards are
+    scoped individually; returns per-card states for actionable failures.
+    """
+    return (
+        _ACTIVATE_SOURCES_TAB_JS
+        + "(() => {\n"
+        + _CARD_RESOLVER_JS
+        + """  const names = ['WBBench Code', 'WBBench Web', 'WBBench Office', 'WBBench Security'];
+  const states = names.map((name) => {
+    const scope = resolveCard(name);
+    if (!scope) return { name, found: false, hasMemoryAb: false };
+    const btn = scope.buttons.find((b) => /Memory A\\/B|记忆 A\\/B/i.test(b.textContent || ''));
+    return { name, found: true, hasMemoryAb: !!btn, disabled: btn ? btn.disabled : null };
+  });
+  const allFound = states.every((s) => s.found && s.hasMemoryAb);
+  return { ready: allFound, states };
+})()"""
+    )
+
+
+def click_subset_memory_ab_js(subset_name: str) -> str:
+    """Return a probe that clicks the Memory A/B button inside one subset card.
+
+    Only opens the confirmation dialog; the run itself starts when the dialog's
+    Start Evaluation button is clicked by a separate probe.
+    """
+    return (
+        _ACTIVATE_SOURCES_TAB_JS
+        + "(() => {\n"
+        + _CARD_RESOLVER_JS
+        + f"""  const scope = resolveCard({subset_name!r});
+  if (!scope) return {{ ok: false, err: 'card-not-found', subset: {subset_name!r} }};
+  const target = scope.buttons.find((b) => /Memory A\\/B|记忆 A\\/B/i.test(b.textContent || ''));
+  if (!target) return {{ ok: false, err: 'memory-ab-button-missing' }};
+  if (target.disabled) return {{ ok: false, err: 'memory-ab-button-disabled' }};
   const opts = {{ bubbles: true, cancelable: true, view: window, button: 0, buttons: 1, detail: 1 }};
   target.dispatchEvent(new PointerEvent('pointerdown', opts));
   target.dispatchEvent(new MouseEvent('mousedown', opts));

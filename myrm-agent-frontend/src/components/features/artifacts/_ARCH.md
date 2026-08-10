@@ -13,7 +13,7 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `ArtifactPortal.tsx` | 核心 | Artifact 预览入口容器；支持 overlay/side-by-side 双布局模式；协调加载、手势、快捷键与 Diff 截断 UX |
-| `ArtifactCard.tsx` | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染；Globe 发布；Wiki ingest（**chat agentConfig.agentId scoped**）；HTML 工件 HITL「推送到公众号草稿」；`*.organize-plan.json` HITL 整理计划审阅/执行/回滚 |
+| `ArtifactCard.tsx` | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染；Globe 发布；Wiki ingest（**chat agentConfig.agentId scoped**）；HTML 工件 HITL「推送到公众号草稿」+ 合规命中内联展示（422 红拦 / 200 黄提示）；`*.organize-plan.json` HITL 整理计划审阅/执行/回滚 |
 | `OrganizePlanPanel.tsx` | 核心 | workspace organize HITL：校验 dry-run、应用移动、回滚上一 job；Apply/Rollback 后 dispatch workspace-file-changed；Turn Undo 区分 hint；partial rollback 告警 |
 | `organizePlanUtils.ts` | 辅助 | organize-plan.json 解析/编辑/序列化 |
 | `useWechatCoverSuggest.ts` | 辅助 | 公众号草稿封面：`GET /files/suggest` debounce + 图片扩展名过滤 |

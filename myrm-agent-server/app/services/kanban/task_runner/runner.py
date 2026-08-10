@@ -11,9 +11,9 @@ tools, memory, security).
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask, TaskTimeoutError (POS: Kanban domain types.)
 - myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: Goal lifecycle protocol.)
 - app.services.agent.goal_registry::GoalRegistry (POS: Session-level goal management.)
-- task_runner_stream::build_multimodal_query (POS: Multimodal query assembly.)
-- task_runner_worktree::resolve_workspace, cleanup_worktree (POS: Git worktree isolation.)
-- task_runner_profile::resolve_agent_profile (POS: Agent profile resolution.)
+- task_runner.stream::build_multimodal_query (POS: Multimodal query assembly.)
+- task_runner.worktree::resolve_workspace, cleanup_worktree (POS: Git worktree isolation.)
+- task_runner.profile::resolve_agent_profile (POS: Agent profile resolution.)
 
 [OUTPUT]
 - KanbanTaskRunner: Concrete TaskRunner with goal-mode support.
@@ -49,16 +49,16 @@ from app.services.agent.profile_resolver import (
     resolve_builtin_tool_flags,
 )
 from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
-from app.services.kanban.task_runner_profile import (
+from app.services.kanban.task_runner.profile import (
     _ResolvedProfile,
     resolve_agent_profile,
 )
-from app.services.kanban.task_runner_stream import (
+from app.services.kanban.task_runner.stream import (
     _classify_content_type,
     _StreamAccumulator,
     build_multimodal_query,
 )
-from app.services.kanban.task_runner_worktree import cleanup_worktree, resolve_workspace
+from app.services.kanban.task_runner.worktree import cleanup_worktree, resolve_workspace
 
 logger = logging.getLogger(__name__)
 
@@ -180,21 +180,21 @@ class KanbanTaskRunner:
         await cleanup_worktree(self._store, task)
 
     async def _load_attachment_ids(self, task_id: str) -> list[str]:
-        from app.services.kanban.task_runner_stream import (
+        from app.services.kanban.task_runner.stream import (
             _load_attachment_ids as load_ids,
         )
 
         return await load_ids(task_id)
 
     async def _extract_pdf_text(self, file_id: str) -> str:
-        from app.services.kanban.task_runner_stream import (
+        from app.services.kanban.task_runner.stream import (
             _extract_pdf_text as extract_pdf,
         )
 
         return await extract_pdf(file_id)
 
     async def _extract_document_text(self, file_id: str) -> str:
-        from app.services.kanban.task_runner_stream import (
+        from app.services.kanban.task_runner.stream import (
             _extract_document_text as extract_doc,
         )
 

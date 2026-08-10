@@ -42,10 +42,6 @@ _PUSH_TEMPLATES: dict[AppEventType, tuple[str, str]] = {
         "Goal {status}",
         "{objective}",
     ),
-    AppEventType.BACKGROUND_TASK_DONE: (
-        "Task Completed",
-        "{title}",
-    ),
     AppEventType.CHANNEL_DISCONNECTED: (
         "Channel Disconnected",
         "Channel '{channel}' went offline",
@@ -59,6 +55,19 @@ _PUSH_TEMPLATES: dict[AppEventType, tuple[str, str]] = {
         "{issuer}: {reason} — re-authorize in Settings",
     ),
 }
+
+_BACKGROUND_TASK_TITLES: dict[str, str] = {
+    "completed": "Task Completed",
+    "failed": "Task Failed",
+    "blocked": "Task Blocked",
+    "pending_review": "Task Pending Review",
+    "rejected": "Task Rejected",
+}
+
+
+def _background_task_title(status: str) -> str:
+    """Notification title for a kanban BACKGROUND_TASK_DONE status."""
+    return _BACKGROUND_TASK_TITLES.get(status, "Task Update")
 
 
 class WebPushDispatcher:
@@ -111,6 +120,10 @@ class WebPushDispatcher:
         if event.data.get("suppress_web_push") is True:
             return
 
+        if event.event_type == AppEventType.BACKGROUND_TASK_DONE:
+            await self._push_background_task_done(event)
+            return
+
         template = _PUSH_TEMPLATES.get(event.event_type)
         if not template:
             return
@@ -127,6 +140,25 @@ class WebPushDispatcher:
             )
             return
 
+        await self._broadcast(event, title, body)
+
+    async def _push_background_task_done(self, event: AppEvent) -> None:
+        """Push a kanban task outcome with a status-aware title.
+
+        Covers completed/failed/blocked/pending_review/rejected so the user is
+        never told "Task Completed" for a failed, blocked, or review-pending
+        task. The caller has already honored ``suppress_web_push``.
+        """
+        title = _background_task_title(str(event.data.get("status", "")))
+        body = str(event.data.get("title", "")) or "background task"
+        await self._broadcast(event, title, body)
+
+    async def _broadcast(
+        self,
+        event: AppEvent,
+        title: str,
+        body: str,
+    ) -> None:
         from app.core.web_push.push_deep_links import resolve_push_url
         from app.core.web_push.service import get_web_push_service
 

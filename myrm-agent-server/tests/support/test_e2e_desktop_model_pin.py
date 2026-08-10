@@ -68,11 +68,11 @@ class _PinRetryChat:
         self,
         _: str,
         *,
-        await_promise: bool,
-        recv_timeout: float,
+        intent: object = None,
+        **kwargs: object,
     ) -> object:
-        _ = await_promise
-        _ = recv_timeout
+        _ = intent
+        _ = kwargs
         if self._index >= len(self._scripted_results):
             raise AssertionError("evaluate called more times than scripted")
         result = self._scripted_results[self._index]

@@ -51,7 +51,10 @@ def _wait_running_subagent_on_api(
             for row in data:
                 if not isinstance(row, dict):
                     continue
-                if str(row.get("task_id") or "") == task_id and row.get("status") == "running":
+                if (
+                    str(row.get("task_id") or "") == task_id
+                    and row.get("status") == "running"
+                ):
                     return
         time.sleep(2.0)
     raise AssertionError(f"Subagent {task_id} never reached running on API: {last!r}")
@@ -62,14 +65,19 @@ def _hydrate_subagent_tree(
     page,
     chat_id: str,
     *,
-    task_id: str,
     fallback_rows: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     payload = http_json("GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents")
     data = payload.get("data") if isinstance(payload, dict) else None
-    rows: list[dict[str, object]] = [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
-    if not any(str(row.get("task_id") or "") == task_id for row in rows) and fallback_rows:
-        rows = [*fallback_rows, *rows]
+    rows: list[dict[str, object]] = (
+        [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
+    )
+    if fallback_rows:
+        fallback_ids = {str(row.get("task_id") or "") for row in fallback_rows}
+        rows = [
+            *fallback_rows,
+            *[row for row in rows if str(row.get("task_id") or "") not in fallback_ids],
+        ]
     raw = client.evaluate(
         page,
         f"""(() => {{
@@ -95,7 +103,9 @@ def _hydrate_subagent_tree(
     return raw if isinstance(raw, dict) else {"value": raw}
 
 
-def _read_prepare_result(process: subprocess.Popen[str], timeout_sec: float) -> dict[str, object]:
+def _read_prepare_result(
+    process: subprocess.Popen[str], timeout_sec: float
+) -> dict[str, object]:
     if process.stdout is None:
         raise RuntimeError("Subagent prepare stdout is unavailable")
     selector = selectors.DefaultSelector()
@@ -108,7 +118,9 @@ def _read_prepare_result(process: subprocess.Popen[str], timeout_sec: float) -> 
                 remainder = process.stdout.read()
                 if remainder:
                     diagnostics.extend(remainder.splitlines())
-                raise RuntimeError(f"Subagent prepare exited {process.returncode}: {diagnostics[-20:]}")
+                raise RuntimeError(
+                    f"Subagent prepare exited {process.returncode}: {diagnostics[-20:]}"
+                )
             events = selector.select(timeout=min(1.0, deadline - time.monotonic()))
             if not events:
                 continue
@@ -132,7 +144,10 @@ def running_subagent(
 ) -> Iterator[dict[str, object]]:
     if shutil.which("bun") is None:
         pytest.skip("bun is required for subagent dashboard prepare")
-    if not os.environ.get("BASIC_API_KEY", "").strip() or not os.environ.get("BASIC_MODEL", "").strip():
+    if (
+        not os.environ.get("BASIC_API_KEY", "").strip()
+        or not os.environ.get("BASIC_MODEL", "").strip()
+    ):
         pytest.skip("BASIC_API_KEY and BASIC_MODEL are required")
     env = os.environ.copy()
     env["E2E_HOLD_MS"] = "240000"
@@ -159,7 +174,12 @@ def running_subagent(
                 process.wait(timeout=5)
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_subagent_dashboard_lists_and_cancels_running_task(
@@ -169,9 +189,9 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
     task_id = str(running_subagent.get("taskId") or "")
     assert chat_id and task_id
     tree_row = running_subagent.get("treeRow")
-    fallback_rows: list[dict[str, object]] = (
-        [row for row in [tree_row] if isinstance(row, dict)]
-    )
+    fallback_rows: list[dict[str, object]] = [
+        row for row in [tree_row] if isinstance(row, dict)
+    ]
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
     _wait_running_subagent_on_api(chat_id, task_id)
 
@@ -195,7 +215,9 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
             }})()""",
             timeout_sec=90.0,
         )
-        assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
+        assert (
+            attach_result.get("ready") is True
+        ), f"attachToChat failed: {attach_result}"
         shell = wait_for_state(
             client,
             page,
@@ -233,7 +255,6 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
                 client,
                 page,
                 chat_id,
-                task_id=task_id,
                 fallback_rows=fallback_rows,
             )
             raw = client.evaluate(page, trigger_expr, timeout_sec=10.0)
@@ -241,9 +262,9 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
             if trigger.get("ready") is True:
                 break
             time.sleep(1.0)
-        assert trigger.get("ready") is True, (
-            f"Subagent dashboard trigger missing: {trigger}; lastHydrate={last_hydrate}"
-        )
+        assert (
+            trigger.get("ready") is True
+        ), f"Subagent dashboard trigger missing: {trigger}; lastHydrate={last_hydrate}"
         clicked = client.evaluate(
             page,
             """(() => {
@@ -310,7 +331,6 @@ def _open_subagent_dashboard(
     page,
     chat_id: str,
     *,
-    task_id: str,
     fallback_rows: list[dict[str, object]] | None = None,
 ) -> None:
     wait_for_state(
@@ -358,7 +378,6 @@ def _open_subagent_dashboard(
             client,
             page,
             chat_id,
-            task_id=task_id,
             fallback_rows=fallback_rows,
         )
         raw = client.evaluate(page, trigger_expr, timeout_sec=10.0)
@@ -366,7 +385,9 @@ def _open_subagent_dashboard(
         if trigger.get("ready") is True:
             break
         time.sleep(1.0)
-    assert trigger.get("ready") is True, f"Subagent dashboard trigger missing: {trigger}"
+    assert (
+        trigger.get("ready") is True
+    ), f"Subagent dashboard trigger missing: {trigger}"
     clicked = client.evaluate(
         page,
         """(() => {
@@ -388,7 +409,12 @@ def _open_subagent_dashboard(
     )
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_subagent_dashboard_delegation_pause_toggle_roundtrip(
@@ -398,9 +424,9 @@ def test_subagent_dashboard_delegation_pause_toggle_roundtrip(
     task_id = str(running_subagent.get("taskId") or "")
     assert chat_id and task_id
     tree_row = running_subagent.get("treeRow")
-    fallback_rows: list[dict[str, object]] = (
-        [row for row in [tree_row] if isinstance(row, dict)]
-    )
+    fallback_rows: list[dict[str, object]] = [
+        row for row in [tree_row] if isinstance(row, dict)
+    ]
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
     _wait_running_subagent_on_api(chat_id, task_id)
 
@@ -409,7 +435,6 @@ def test_subagent_dashboard_delegation_pause_toggle_roundtrip(
             client,
             page,
             chat_id,
-            task_id=task_id,
             fallback_rows=fallback_rows,
         )
         pause_cycle = wait_for_state(
@@ -439,10 +464,17 @@ def test_subagent_dashboard_delegation_pause_toggle_roundtrip(
             }})()""",
             timeout_sec=60.0,
         )
-        assert pause_cycle.get("ready") is True, f"Delegation pause toggle failed: {pause_cycle}"
+        assert (
+            pause_cycle.get("ready") is True
+        ), f"Delegation pause toggle failed: {pause_cycle}"
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_subagent_dashboard_shows_running_token_and_model(
@@ -453,7 +485,11 @@ def test_subagent_dashboard_shows_running_token_and_model(
     assert chat_id and task_id
     tree_row = running_subagent.get("treeRow")
     enriched_row: dict[str, object] = (
-        {**tree_row, "token_usage": {"total_tokens": 1234}, "effective_model": "mimo-v2.5-pro"}
+        {
+            **tree_row,
+            "token_usage": {"total_tokens": 1234},
+            "effective_model": "mimo-v2.5-pro",
+        }
         if isinstance(tree_row, dict)
         else {
             "task_id": task_id,
@@ -470,7 +506,6 @@ def test_subagent_dashboard_shows_running_token_and_model(
             client,
             page,
             chat_id,
-            task_id=task_id,
             fallback_rows=[enriched_row],
         )
         display = wait_for_state(
@@ -487,3 +522,75 @@ def test_subagent_dashboard_shows_running_token_and_model(
             timeout_sec=30.0,
         )
         assert display.get("ready") is True, f"Token/model not rendered: {display}"
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_subagent_dashboard_shows_token_and_cost_budget_used_limit(
+    running_subagent: dict[str, object],
+) -> None:
+    chat_id = str(running_subagent.get("chatId") or "")
+    task_id = str(running_subagent.get("taskId") or "")
+    assert chat_id and task_id
+    tree_row = running_subagent.get("treeRow")
+    budget_row: dict[str, object] = (
+        {
+            **tree_row,
+            "token_usage": {"total_tokens": 12345, "total_cost_usd": 0.5},
+            "budget": {"budget_tokens": 100000, "max_cost_usd": 2.5},
+            "effective_model": "mimo-v2.5-pro",
+        }
+        if isinstance(tree_row, dict)
+        else {
+            "task_id": task_id,
+            "status": "running",
+            "agent_type": "bash_worker",
+            "token_usage": {"total_tokens": 12345, "total_cost_usd": 0.5},
+            "budget": {"budget_tokens": 100000, "max_cost_usd": 2.5},
+            "effective_model": "mimo-v2.5-pro",
+        }
+    )
+    ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+
+    with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
+        _open_subagent_dashboard(
+            client,
+            page,
+            chat_id,
+            fallback_rows=[budget_row],
+        )
+        display = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
+              const text = panel?.textContent || '';
+              const tokenTitle = panel?.querySelector('[title*="100,000"]')?.getAttribute('title') || '';
+              const costTitle = panel?.querySelector('[title*="$"]')?.getAttribute('title') || '';
+              return {
+                ready: /12k\\s*\\/\\s*100k\\s*tok/i.test(text)
+                  && /\\$0\\.500\\s*\\/\\s*2\\.50/i.test(text),
+                text: text.slice(0, 500),
+                tokenTitle,
+                costTitle,
+              };
+            })()""",
+            timeout_sec=30.0,
+        )
+        assert (
+            display.get("ready") is True
+        ), f"Budget used/limit not rendered: {display}"
+        token_title = str(display.get("tokenTitle") or "")
+        assert (
+            "12,345" in token_title and "/" in token_title and "100,000" in token_title
+        ), f"Token budget tooltip missing: {display}"
+        cost_title = str(display.get("costTitle") or "")
+        assert (
+            "$0.500" in cost_title and "/" in cost_title and "$2.50" in cost_title
+        ), f"Cost budget tooltip missing: {display}"

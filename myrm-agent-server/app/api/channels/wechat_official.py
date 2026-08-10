@@ -19,10 +19,11 @@ import logging
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.api.channels.schemas import ChannelTestResponse, WeChatOfficialTestRequest
+from app.channels.core.exceptions import ChannelConnectionError
 from app.config.deploy_mode import is_local_mode
 
 router = APIRouter()
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 class WeChatDraftRequest(BaseModel):
     html_path: str = Field(..., alias="htmlPath", min_length=1, max_length=4096)
     title: str = Field(..., min_length=1, max_length=64)
-    author: str = Field(default="", max_length=32)
+    author: str = Field(default="", max_length=8)
     digest: str = Field(default="", max_length=120)
     cover_path: str | None = Field(default=None, alias="coverPath", max_length=4096)
 
@@ -44,6 +45,7 @@ class WeChatDraftResponse(BaseModel):
     media_id: str = Field(..., alias="mediaId")
     uploaded_image_count: int = Field(..., alias="uploadedImageCount")
     manage_url: str = Field(..., alias="manageUrl")
+    compliance_warnings: list[dict[str, object]] = Field(default_factory=list, alias="complianceWarnings")
 
     class Config:
         populate_by_name = True
@@ -66,9 +68,10 @@ async def wechat_official_test_connection(
 
 
 @router.post("/wechat-official/draft", response_model=WeChatDraftResponse)
-async def push_wechat_official_draft(body: WeChatDraftRequest) -> WeChatDraftResponse:
+async def push_wechat_official_draft(body: WeChatDraftRequest, request: Request) -> WeChatDraftResponse:
     html_path = _resolve_allowed_path(body.html_path)
     cover_path = _resolve_allowed_path(body.cover_path) if body.cover_path else None
+    locale = _resolve_request_locale(request.headers.get("accept-language"))
 
     creds = await _load_official_credentials()
     if creds is None:
@@ -80,7 +83,11 @@ async def push_wechat_official_draft(body: WeChatDraftRequest) -> WeChatDraftRes
     from app.channels.providers.wechat.draft_service import WeChatDraftService
     from app.channels.providers.wechat.wechat_api_client import WeChatOfficialApiClient
 
-    client = WeChatOfficialApiClient(str(creds["appId"]), str(creds["appSecret"]))
+    client = WeChatOfficialApiClient(
+        str(creds["appId"]),
+        str(creds["appSecret"]),
+        locale=locale,
+    )
     try:
         service = WeChatDraftService(client)
         result = await service.create_draft_from_html_file(
@@ -89,12 +96,30 @@ async def push_wechat_official_draft(body: WeChatDraftRequest) -> WeChatDraftRes
             author=body.author,
             digest=body.digest,
             cover_path=cover_path,
+            locale=locale,
         )
     except FileNotFoundError as exc:
         logger.warning("WeChat draft publish cover not found: %s", exc)
         raise HTTPException(status_code=404, detail="Cover file not found") from exc
     except ValueError as exc:
+        from app.services.compliance.wechat_compliance_scan import (
+            WeChatComplianceBlockedError,
+            compliance_hits_payload,
+        )
+
+        if isinstance(exc, WeChatComplianceBlockedError):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "wechat_compliance_blocked",
+                    "message": str(exc),
+                    "hits": compliance_hits_payload(exc.result, locale=exc.locale),
+                },
+            ) from exc
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ChannelConnectionError as exc:
+        logger.error("WeChat draft publish failed: %s", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:
         logger.error("WeChat draft publish failed: %s", exc)
         raise HTTPException(status_code=502, detail="WeChat API call failed") from exc
@@ -105,6 +130,7 @@ async def push_wechat_official_draft(body: WeChatDraftRequest) -> WeChatDraftRes
         mediaId=result.media_id,
         uploadedImageCount=result.uploaded_image_count,
         manageUrl="https://mp.weixin.qq.com/",
+        complianceWarnings=list(result.compliance_warnings),
     )
 
 
@@ -169,3 +195,12 @@ def _get_workspace_root() -> str | None:
             return default_workspace
 
     return None
+
+
+def _resolve_request_locale(accept_language: str | None) -> str:
+    if not accept_language:
+        return "zh"
+    first = accept_language.split(",")[0].strip().lower()
+    if first.startswith("zh"):
+        return "zh"
+    return "en"

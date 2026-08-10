@@ -113,8 +113,7 @@ _epoch_drift_shared_attach_cap_sec() {
 import os
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_api_verify import resolve_e2e_api_context
-cap = int(os.environ.get('MYRM_E2E_EPOCH_DRIFT_ATTACH_CAP_SEC', '120'))
+from e2e_api_verify import epoch_drift_attach_cap_sec, resolve_e2e_api_context
 if os.environ.get('MYRM_E2E_SHPOIB', '').strip() == '1':
     print(0)
     raise SystemExit(0)
@@ -132,10 +131,14 @@ try:
 except Exception:
     print(0)
     raise SystemExit(0)
-if ctx.blocked and not ctx.epoch_match:
-    print(cap)
-else:
-    print(0)
+print(
+    epoch_drift_attach_cap_sec(
+        blocked=ctx.blocked,
+        epoch_match=ctx.epoch_match,
+        drift_pending=ctx.drift_pending,
+        active_leases=ctx.active_leases,
+    )
+)
 " 2>/dev/null || echo 0
 }
 
@@ -609,7 +612,7 @@ _attach_fast_path() {
   drift_cap="$(_epoch_drift_shared_attach_cap_sec)"
   [[ "${drift_cap}" =~ ^[0-9]+$ ]] || drift_cap=0
   if [[ "${drift_cap}" -gt 0 ]]; then
-    echo "CHROME_E2E_ATTACH: epoch drift SHARED attach cap=${drift_cap}s (R289; monotonic BOOTSTRAP may be higher)" >&2
+    echo "CHROME_E2E_ATTACH: epoch drift SHARED attach cap=${drift_cap}s (parallel lease aware; monotonic BOOTSTRAP may be higher)" >&2
   fi
   _attach_drift_cap_exceeded() {
     [[ "${drift_cap}" -gt 0 ]] || return 1
@@ -626,15 +629,22 @@ print(int(elapsed_wall_sec()))
     [[ "${admit_elapsed}" =~ ^[0-9]+$ ]] || admit_elapsed=0
     [[ "${admit_elapsed}" -ge "${drift_cap}" || "${waited}" -ge "${drift_cap}" ]]
   }
+  _attach_drift_cap_fail_msg() {
+    if [[ "${active_leases}" -gt 0 ]]; then
+      echo "epoch drift attach cap ${drift_cap}s exceeded (${active_leases} active leases defer shared reload) — keep this session; retry attach after leases drain; do not stop other pytest"
+    else
+      echo "epoch drift attach cap ${drift_cap}s exceeded with no active leases — run ./myrm verify-api --ensure-backend when wave idle; do not stop other pytest"
+    fi
+  }
   if _attach_drift_cap_exceeded; then
     echo "${health}" >&2
-    fail "epoch drift attach cap ${drift_cap}s exceeded — run ./myrm verify-api when wave idle; do not stop other pytest"
+    fail "$(_attach_drift_cap_fail_msg)"
   fi
   while true; do
     wait_sec="$(_bootstrap_attach_remaining_sec)"
     if _attach_drift_cap_exceeded; then
       echo "${health}" >&2
-      fail "epoch drift attach cap ${drift_cap}s exceeded — run ./myrm verify-api when wave idle; do not stop other pytest"
+      fail "$(_attach_drift_cap_fail_msg)"
     fi
     if [[ "${wait_sec}" -le 0 ]]; then
       echo "${health}" >&2

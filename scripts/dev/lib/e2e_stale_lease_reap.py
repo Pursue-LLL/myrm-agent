@@ -16,6 +16,7 @@ Admission queue relief — stale/hung leases inflate cap pressure under parallel
 
 from __future__ import annotations
 
+import json
 import os
 import signal
 import sqlite3
@@ -1231,4 +1232,144 @@ def maybe_reap_epoch_drift_stale_sessions() -> bool:
             check=False,
             env=os.environ.copy(),
         )
+    return reaped
+
+
+def _backend_recorded_pids(state_dir: Path) -> set[int]:
+    """Read backend.pid + backend-process.json to find recorded shared-backend pids."""
+    pids: set[int] = set()
+    pid_file = state_dir / "backend.pid"
+    if pid_file.is_file():
+        try:
+            raw = pid_file.read_text(encoding="utf-8").strip()
+            if raw.isdigit():
+                pids.add(int(raw))
+        except OSError:
+            pass
+    identity_file = state_dir / "backend-process.json"
+    if identity_file.is_file():
+        try:
+            payload = json.loads(identity_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = None
+        if isinstance(payload, dict):
+            pid = payload.get("pid")
+            if isinstance(pid, int):
+                pids.add(pid)
+    return pids
+
+
+def _pid_listening_on(pid: int, port: int) -> bool:
+    """True when pid currently LISTENs on 127.0.0.1:port (lsof is port-truth SSOT)."""
+    try:
+        proc = subprocess.run(
+            ["lsof", "-nP", "-iTCP:{port}".format(port=port), "-sTCP:LISTEN", "-t"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    if proc is None or proc.returncode != 0:
+        return False
+    return str(pid) in {
+        line.strip() for line in proc.stdout.splitlines() if line.strip()
+    }
+
+
+def _pid_is_shared_backend(pid: int, shared_state_dir: Path) -> bool:
+    """A recorded backend belongs to the shared stack only when its state dir matches."""
+    environ = _process_ps_environ(pid)
+    return str(shared_state_dir) in environ
+
+
+def maybe_reap_orphan_shared_backends(
+    *,
+    min_age_sec: int = 120,
+    state_dir: Path | None = None,
+) -> bool:
+    """§26.28-A: reap orphaned shared-backend run.py that no longer serve their port.
+
+    Root cause: high load + repeated drift applies left stale `run.py` processes
+    (PPID=1, no session lease, either never bound :8080 or lost it after a failed
+    restart). They write the shared backend.log, hold sqlite shm, and cause
+    `STACK_FAIL: private backend port :8080 still busy` on the next restart —
+    the observed "backend repeatedly crashing / BLOCKED" loop.
+
+    Safety invariants (port-truth SSOT, matching backend_bg.sh):
+    - Only consider pids recorded in {state}/backend.pid or backend-process.json.
+    - Only when that pid's env declares the shared state dir (never a private runtime).
+    - Never kill the live :8080 LISTEN owner (that is the authoritative backend).
+    - Skip pids referenced by any live e2e session (owner_pid).
+    """
+    if not _coordinator_reap_authorized():
+        return False
+    if state_dir is None:
+        from dev_state_paths import dev_state_dir  # noqa: PLC0415
+
+        state_dir = Path(dev_state_dir())
+    if not state_dir.is_dir():
+        return False
+    recorded = _backend_recorded_pids(state_dir)
+    if not recorded:
+        return False
+    live_owner = _pid_listening_on(0, 8080)
+    if live_owner:
+        recorded.discard(live_owner)
+    # Protect pids owned by live wave leases or live pytest sessions.
+    protected_pids: set[int] = set()
+    try:
+        import e2e_lease_liveness  # noqa: PLC0415
+        import e2e_session_registry  # noqa: PLC0415
+
+        for row in e2e_lease_liveness.build_lease_liveness(
+            e2e_lease_liveness.load_wave_snapshot()
+        ):
+            if row.owner_pid is not None:
+                protected_pids.add(row.owner_pid)
+        for row in e2e_session_registry.list_live_e2e_sessions():
+            protected_pids.add(row.pid)
+    except (ImportError, OSError):
+        pass
+    reaped = False
+    for pid in sorted(recorded):
+        if not _process_alive(pid):
+            continue
+        if pid in protected_pids:
+            continue
+        if not _pid_is_shared_backend(pid, state_dir):
+            continue
+        if _pid_listening_on(pid, 8080):
+            continue
+        try:
+            start = time.time()
+            info = subprocess.run(
+                ["ps", "-o", "lstart=", "-p", str(pid)],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+            # Best-effort age gate: skip recent starts that may still be binding.
+            if info.returncode == 0:
+                try:
+                    started = time.mktime(
+                        time.strptime(info.stdout.strip(), "%a %b %d %H:%M:%S %Y")
+                    )
+                except ValueError:
+                    started = None
+                if started is not None and (time.time() - started) < min_age_sec:
+                    continue
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        print(
+            f"E2E_ORPHAN_SHARED_BACKEND_REAP: pid={pid} recorded but not serving "
+            f":8080 — terminating orphaned shared backend (do not stop other pytest)",
+            file=sys.stderr,
+            flush=True,
+        )
+        if _terminate_hung_pytest(pid, admit_stall=False):
+            reaped = True
+            time.sleep(0.3)
     return reaped

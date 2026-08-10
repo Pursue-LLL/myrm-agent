@@ -91,6 +91,57 @@ def record_pending_drift(state_dir: Path, *, reason: str, server_dir: str) -> No
     )
 
 
+def maybe_detect_and_record_source_drift(
+    *,
+    monorepo_root: Path,
+    state_dir: Path,
+    server_dir: Path | None = None,
+) -> bool:
+    """Detect shared-backend source drift and record it as pending.
+
+    Coordinator calls this each reap cycle so a code change heals the shared
+    backend even when no new attach ever happens (attach is the other recorder).
+    Returns True when drift was recorded or already pending; False when fresh.
+    """
+    resolved_state = state_dir.resolve()
+    resolved_server = (
+        server_dir or (monorepo_root / "myrm-agent" / "myrm-agent-server")
+    ).resolve()
+    if pending_drift_exists(resolved_state):
+        return True
+    # Active leases defer apply anyway — skip the git walk until idle to avoid
+    # burning CPU under parallel load (detection is re-armed once pending clears).
+    from e2e_lease_liveness import (
+        load_wave_snapshot,
+        wave_lease_counts,
+    )  # noqa: PLC0415
+
+    if wave_lease_counts(load_wave_snapshot()).effective_total > 0:
+        return False
+    from runtime_identity import _backend_source_fingerprint  # noqa: PLC0415
+
+    epoch_file = resolved_state / "stack-epoch.json"
+    stored_fp = ""
+    if epoch_file.is_file():
+        try:
+            payload = json.loads(epoch_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        if isinstance(payload, dict):
+            raw_fp = payload.get("source_fingerprint")
+            if isinstance(raw_fp, str):
+                stored_fp = raw_fp.strip()
+    current_fp = _backend_source_fingerprint()
+    if not current_fp or current_fp == stored_fp:
+        return False
+    record_pending_drift(
+        resolved_state,
+        reason="backend_source_drift",
+        server_dir=str(resolved_server),
+    )
+    return True
+
+
 def clear_pending_drift(state_dir: Path) -> None:
     path = pending_drift_path(state_dir)
     if path.is_file():
@@ -247,6 +298,58 @@ def _api_health_url() -> str:
     return f"http://127.0.0.1:{port}/api/v1/health"
 
 
+# 私池 runtime env 变量（isolated_runtime_allocator.runtime_environment 注入）。
+# 共享栈 drift apply / crash heal 必须显式清除这些，否则继承私池 state dir /
+# namespace / 后端端口，导致 backend_bg.sh 把共享后端写入私池 identity、
+# 或 8080 owner 缺失共享 stack-epoch 指纹（§26.28-B 根因）。
+_PRIVATE_RUNTIME_ENV_KEYS: Final[tuple[str, ...]] = (
+    "MYRM_RUNTIME_NAMESPACE",
+    "MYRM_AGENT_ROOT",
+    "MYRM_SERVER_DIR",
+    "MYRM_FRONTEND_DIR",
+    "MYRM_WAVE_STATE_DIR",
+    "MYRM_DEV_STATE_DIR",
+    "MYRM_DATA_DIR",
+    "MYRM_FRONTEND_PORT",
+    "MYRM_BACKEND_PORT",
+    "PORT",
+    "API_PORT",
+    "ONEBOT_PORT",
+    "E2E_API_BASE",
+    "E2E_UI_BASE",
+    "MYRM_E2E_UI_BASE",
+    "MYRM_STACK_EPOCH_FILE",
+    "MYRM_BACKEND_IDENTITY_FILE",
+    "MYRM_SUPERVISOR_SOCKET",
+    "WEBUI_SESSION_COOKIE_NAME",
+    "MYRM_E2E_PRIVATE_RUNTIME_ID",
+    "MYRM_E2E_PRIVATE_BACKEND",
+    "MYRM_E2E_SHPOIB",
+    "MYRM_PRIVATE_BACKEND",
+)
+
+
+def _shared_stack_env() -> dict[str, str]:
+    """Environment for shared-stack ensure: purge any inherited private-runtime vars.
+
+    The coordinator / attach / heal processes may have been spawned inside a
+    private runtime (kanban-e2e-*, verify-api-*) whose env points MYRM_DEV_STATE_DIR
+    and MYRM_BACKEND_PORT at the private runtime. Running `dev-stack.sh backend-only
+    ensure` with that inherited env writes the shared backend's identity into the
+    private runtime dir (runtimeId=shared) and, when the private runtime's
+    stack-epoch file is absent, leaves the shared :8080 health probe without a
+    stack_epoch fingerprint — the §26.28-B "private pool occupies :8080" loop.
+    """
+    env = {k: v for k, v in os.environ.items() if k not in _PRIVATE_RUNTIME_ENV_KEYS}
+    env.update(
+        {
+            "MYRM_WAVE_GATE_BYPASS": "1",
+            "MYRM_SUPERVISOR_BYPASS": "1",
+        }
+    )
+    return env
+
+
 def apply_pending_drift_if_idle(
     *,
     monorepo_root: Path,
@@ -270,11 +373,7 @@ def apply_pending_drift_if_idle(
         return PendingDriftApplyResult("noop")
     if not dev_stack.is_file():
         return PendingDriftApplyResult("failed", f"missing dev-stack: {dev_stack}")
-    env = {
-        **os.environ,
-        "MYRM_WAVE_GATE_BYPASS": "1",
-        "MYRM_SUPERVISOR_BYPASS": "1",
-    }
+    env = _shared_stack_env()
     try:
         proc = _run_backend_only_ensure(dev_stack=dev_stack, root=root, env=env)
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -404,9 +503,7 @@ def attach_backend_crash_heal_inner(*, monorepo_root: Path, dev_stack: Path) -> 
         flush=True,
     )
     env = {
-        **os.environ,
-        "MYRM_WAVE_GATE_BYPASS": "1",
-        "MYRM_SUPERVISOR_BYPASS": "1",
+        **_shared_stack_env(),
         "MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC": "600",
     }
     # Parallel attach: more attempts + post-ensure api poll — transient :8080 flap under peers.
@@ -499,12 +596,22 @@ def wave_active_lease_count(monorepo_root: Path) -> int:
 
 
 def _default_state_dir() -> Path:
-    home = Path.home()
+    home = _real_user_home()
     return Path(
         os.environ.get(
             "MYRM_DEV_STATE_DIR", str(home / ".local" / "state" / "myrm-dev")
         )
     )
+
+
+def _real_user_home() -> Path:
+    """Real login home — Cursor sandboxes HOME (~/.cursor2), splitting state."""
+    try:
+        import pwd
+
+        return Path(pwd.getpwuid(os.getuid()).pw_dir)
+    except (ImportError, KeyError, OSError):
+        return Path.home()
 
 
 def default_backend_heal_flock_file() -> Path:

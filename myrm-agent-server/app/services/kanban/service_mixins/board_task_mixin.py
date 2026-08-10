@@ -7,7 +7,7 @@
 - move_orchestrator (POS: Task state transition orchestration.)
 - review_ops (POS: IN_REVIEW approval/rejection orchestration.)
 - dependency_ops (POS: Dependency graph operations.)
-- service_core (POS: KanbanService core state.)
+- service_mixins.core (POS: KanbanService core state.)
 
 [OUTPUT]
 - KanbanServiceBoardTaskMixin: Mixin providing board/task mutation methods.
@@ -66,8 +66,8 @@ from app.services.kanban.review_ops import (
 from app.services.kanban.review_ops import (
     reject_task as run_reject_task,
 )
-from app.services.kanban.service_core import KanbanServiceCore
-from app.services.kanban.service_types import UNSET, PromoteResult, Sentinel
+from app.services.kanban.service_mixins.core import KanbanServiceCore
+from app.services.kanban.service_mixins.types import UNSET, PromoteResult, Sentinel
 from app.services.kanban.task_ops import (
     add_task as run_add_task,
 )

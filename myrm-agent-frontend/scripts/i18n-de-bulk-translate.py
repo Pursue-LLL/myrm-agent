@@ -88,8 +88,8 @@ def set_leaf(obj: dict, dotted: str, value: str) -> None:
     node[parts[-1]] = value
 
 
-def collect_shells(en: dict, de: dict, allow: dict) -> list[tuple[str, str]]:
-    # mirror i18n-shell-core isLegitSameValue + shell rules (minimal)
+def collect_shells() -> list[tuple[str, str]]:
+    # 委托 i18n-shell-core 共享壳检测逻辑（subprocess），与 verify-i18n gate 同口径
     from subprocess import run
 
     proc = run(
@@ -111,11 +111,10 @@ console.log(JSON.stringify(collectTranslationShells(en,de,allow)));
 
 
 def main() -> None:
-    en = json.loads((LOCALES / "en.json").read_text(encoding="utf-8"))
     de_path = LOCALES / "de.json"
     de = json.loads(de_path.read_text(encoding="utf-8"))
 
-    shells = collect_shells(en, de, {})
+    shells = collect_shells()
     print(f"shells={len(shells)}")
 
     unique_en: dict[str, str | None] = {}

@@ -152,7 +152,7 @@ class TestBuildArtifactDeepLinks:
         "app.channels.i18n.channel_t",
         return_value="View interactive page",
     )
-    async def test_single_artifact_generates_button(
+    async def test_artifact_without_version_skipped(
         self,
         mock_t: MagicMock,
         mock_token: MagicMock,
@@ -160,6 +160,57 @@ class TestBuildArtifactDeepLinks:
         mock_base: MagicMock,
         mock_versions: AsyncMock,
     ):
+        """Artifacts absent from the version map get no button; others still do."""
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            build_artifact_deep_links,
+        )
+
+        acc = StreamAccumulator()
+        acc.shareable_artifacts.append(
+            ShareableArtifact("art-001", "chart.html", "text/html"),
+        )
+        acc.shareable_artifacts.append(
+            ShareableArtifact("art-missing", "gone.html", "text/html"),
+        )
+        buttons, linked = await build_artifact_deep_links(acc, "en")
+        assert len(buttons) == 1
+        assert linked == frozenset({"chart.html"})
+        btn = buttons[0]
+        assert btn.url == "https://app.example.com/public/artifact-share/tok-abc123"
+        assert btn.label == "View interactive page"
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
+        new_callable=AsyncMock,
+        return_value={"art-001": "ver-001"},
+    )
+    @patch(
+        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
+        return_value="https://app.example.com",
+    )
+    @patch(
+        "app.core.infra.ingress.get_public_ingress_base_url",
+        new_callable=AsyncMock,
+        return_value="https://ingress.example.com",
+    )
+    @patch(
+        "app.services.artifacts.share_token.create_artifact_share_token",
+        return_value=("tok-abc123", 604800),
+    )
+    @patch(
+        "app.channels.i18n.channel_t",
+        return_value="View interactive page",
+    )
+    async def test_single_artifact_uses_default_label(
+        self,
+        mock_t: MagicMock,
+        mock_token: MagicMock,
+        mock_ingress: AsyncMock,
+        mock_base: MagicMock,
+        mock_versions: AsyncMock,
+    ):
+        """A single artifact uses the non-named deep-link label (else branch)."""
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             build_artifact_deep_links,
         )
@@ -170,10 +221,54 @@ class TestBuildArtifactDeepLinks:
         )
         buttons, linked = await build_artifact_deep_links(acc, "en")
         assert len(buttons) == 1
-        btn = buttons[0]
-        assert btn.url == "https://app.example.com/public/artifact-share/tok-abc123"
-        assert btn.label == "View interactive page"
         assert linked == frozenset({"chart.html"})
+        # Non-named label path → channel_t called without filename kwarg.
+        call_kwargs = mock_t.call_args.kwargs
+        assert "filename" not in call_kwargs
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
+        new_callable=AsyncMock,
+        return_value={"art-001": "ver-001"},
+    )
+    @patch(
+        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
+        return_value="https://app.example.com",
+    )
+    @patch(
+        "app.core.infra.ingress.get_public_ingress_base_url",
+        new_callable=AsyncMock,
+        return_value="https://ingress.example.com",
+    )
+    @patch(
+        "app.services.artifacts.share_token.create_artifact_share_token",
+        side_effect=RuntimeError("token service down"),
+    )
+    @patch(
+        "app.channels.i18n.channel_t",
+        return_value="View interactive page",
+    )
+    async def test_share_token_failure_skipped_gracefully(
+        self,
+        mock_t: MagicMock,
+        mock_token: MagicMock,
+        mock_ingress: AsyncMock,
+        mock_base: MagicMock,
+        mock_versions: AsyncMock,
+    ):
+        """A share-token failure drops that button but keeps others alive."""
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            build_artifact_deep_links,
+        )
+
+        acc = StreamAccumulator()
+        acc.shareable_artifacts.append(
+            ShareableArtifact("art-001", "chart.html", "text/html"),
+        )
+        buttons, linked = await build_artifact_deep_links(acc, "en")
+        assert buttons == ()
+        assert linked == frozenset()
 
     @pytest.mark.asyncio
     @patch(
@@ -525,6 +620,65 @@ class TestCollectMultipleArtifacts:
         collect_channel_artifacts({"data": ["not_a_dict", 42, None]}, acc)
         assert len(acc.file_attachments) == 0
 
+    @patch(
+        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+    )
+    def test_non_string_file_path_skipped(
+        self, mock_shareable: MagicMock
+    ):  # noqa: ANN001
+        acc = StreamAccumulator()
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            collect_channel_artifacts,
+        )
+
+        collect_channel_artifacts(
+            {
+                "data": [
+                    {
+                        "id": "art-x",
+                        "type": "text/html",
+                        "file_path": 12345,
+                        "filename": "x.html",
+                    }
+                ]
+            },
+            acc,
+        )
+        assert len(acc.file_attachments) == 0
+        assert len(acc.shareable_artifacts) == 0
+
+    @patch(
+        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+    )
+    def test_getsize_oserror_skipped(
+        self, mock_shareable: MagicMock, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ):  # noqa: ANN001
+        f = tmp_path / "race.html"
+        f.write_text("<html></html>")
+        monkeypatch.setattr(
+            "app.core.channel_bridge.agent_executor.deliverable.deep_links.os.path.getsize",
+            lambda _p: (_ for _ in ()).throw(OSError("gone")),
+        )
+        acc = StreamAccumulator()
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            collect_channel_artifacts,
+        )
+
+        collect_channel_artifacts(
+            {
+                "data": [
+                    {
+                        "id": "art-race",
+                        "type": "text/html",
+                        "file_path": str(f),
+                        "filename": "race.html",
+                    }
+                ]
+            },
+            acc,
+        )
+        assert len(acc.file_attachments) == 0
+
 
 class TestFetchArtifactVersions:
     """Tests for fetch_artifact_versions DB batch lookup."""
@@ -554,7 +708,9 @@ class TestFetchArtifactVersions:
     @pytest.mark.asyncio
     async def test_real_db_latest_version_selected(self) -> None:
         """Real SQLite lookup picks the newest version per artifact."""
-        import pytest_asyncio
+        from contextlib import asynccontextmanager
+        from unittest.mock import patch
+
         from sqlalchemy import select
         from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
         from sqlalchemy.orm import sessionmaker
@@ -576,34 +732,46 @@ class TestFetchArtifactVersions:
                 [
                     Artifact(
                         id="art-1",
-                        title="report",
-                        file_name="report.pdf",
+                        name="report",
                         versions=[
-                            ArtifactVersion(id="v-old", content_type="application/pdf"),
-                            ArtifactVersion(id="v-new", content_type="application/pdf"),
+                            ArtifactVersion(
+                                id="v-old",
+                                vault_uri="vault://old",
+                                sha256_hash="a" * 64,
+                            ),
+                            ArtifactVersion(
+                                id="v-new",
+                                vault_uri="vault://new",
+                                sha256_hash="b" * 64,
+                            ),
                         ],
                     ),
                     Artifact(
                         id="art-2",
-                        title="notes",
-                        file_name="notes.md",
+                        name="notes",
                         versions=[
-                            ArtifactVersion(id="v-solo", content_type="text/markdown"),
+                            ArtifactVersion(
+                                id="v-solo",
+                                vault_uri="vault://solo",
+                                sha256_hash="c" * 64,
+                            ),
                         ],
                     ),
                     Artifact(
                         id="art-3",
-                        title="no versions",
-                        file_name="empty.html",
+                        name="no versions",
                         versions=[],
                     ),
                     Artifact(
                         id="art-4",
-                        title="deleted",
-                        file_name="gone.pdf",
+                        name="deleted",
                         is_deleted=True,
                         versions=[
-                            ArtifactVersion(id="v-del", content_type="application/pdf"),
+                            ArtifactVersion(
+                                id="v-del",
+                                vault_uri="vault://del",
+                                sha256_hash="d" * 64,
+                            ),
                         ],
                     ),
                 ]
@@ -621,21 +789,16 @@ class TestFetchArtifactVersions:
             rows[1].created_at = datetime.datetime(2025, 6, 1, tzinfo=datetime.timezone.utc)
             await db.commit()
 
+            @asynccontextmanager
             async def fake_get_session():
                 yield db
 
-            from app.core.channel_bridge.agent_executor.deliverable import (
-                deep_links as dl_mod,
-            )
-
-            original = dl_mod.get_session
-            dl_mod.get_session = fake_get_session  # type: ignore[assignment]
-            try:
+            with patch(
+                "app.database.connection.get_session", new=fake_get_session
+            ):
                 result = await fetch_artifact_versions(
                     ["art-1", "art-2", "art-3", "art-4"]
                 )
-            finally:
-                dl_mod.get_session = original  # type: ignore[assignment]
 
         assert result == {"art-1": "v-new", "art-2": "v-solo"}
         await engine.dispose()

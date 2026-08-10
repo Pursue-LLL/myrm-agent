@@ -205,7 +205,12 @@ class TaskUpdate(BaseModel):
     )
     require_approval: bool | None = Field(
         None,
-        description="When true, a successfully verified task waits for human approval before completion.",
+        description=(
+            "When true, a successfully verified task waits for human approval before "
+            "completion. Only changeable while the task is active "
+            "(TRIAGE/BACKLOG/READY/RUNNING/BLOCKED); rejected with 400 once the task "
+            "enters IN_REVIEW or a terminal state."
+        ),
     )
 
 

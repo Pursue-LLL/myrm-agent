@@ -2,9 +2,9 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.protocols (POS: Kanban protocol interfaces.)
-- decompose_orchestrator (POS: Task decomposition orchestration.)
-- specify_orchestrator (POS: Task specification orchestration.)
-- service_core (POS: KanbanService core state.)
+- decompose (POS: Server-layer decompose domain owned by KanbanService.)
+- specify (POS: Server-layer specify domain owned by KanbanService.)
+- service_mixins.core (POS: KanbanService core state.)
 
 [OUTPUT]
 - KanbanServiceAIMixin: Mixin providing specify/decompose workflow methods.
@@ -22,14 +22,16 @@ from myrm_agent_harness.toolkits.kanban.protocols import (
 )
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
-from app.services.kanban.decompose_orchestrator import (
+from app.services.kanban.decompose import (
     run_apply_decompose,
     run_apply_no_fanout,
     run_decompose_task,
 )
-from app.services.kanban.event_publisher import publish_kanban_event as _publish_kanban_event
-from app.services.kanban.service_core import KanbanServiceCore
-from app.services.kanban.specify_orchestrator import (
+from app.services.kanban.event_publisher import (
+    publish_kanban_event as _publish_kanban_event,
+)
+from app.services.kanban.service_mixins.core import KanbanServiceCore
+from app.services.kanban.specify import (
     SPECIFY_ALL_MAX_CONCURRENT,
     run_apply_spec,
     run_specify_all_triage,

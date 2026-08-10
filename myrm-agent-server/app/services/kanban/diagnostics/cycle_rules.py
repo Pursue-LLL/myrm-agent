@@ -1,7 +1,7 @@
 """Kanban cycling / review-stall diagnostic rules.
 
 [INPUT]
-- diagnostic_rules (POS: Shared thresholds, severity helpers and time formatting.)
+- diagnostics.rules (POS: Shared thresholds, severity helpers and time formatting.)
 - myrm_agent_harness.toolkits.kanban.diagnostics (POS: Kanban diagnostic framework.)
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
 
@@ -21,7 +21,7 @@ from myrm_agent_harness.toolkits.kanban.diagnostics import (
 )
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 
-from app.services.kanban.diagnostic_rules import (
+from app.services.kanban.diagnostics.rules import (
     _DEFAULT_THRESHOLDS,
     DiagnosticThresholds,
     _escalate_severity,

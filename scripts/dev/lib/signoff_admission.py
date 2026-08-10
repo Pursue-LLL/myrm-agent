@@ -62,7 +62,17 @@ def _state_dir() -> Path:
     override = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
     if override:
         return Path(override).resolve()
-    return Path.home() / ".local/state/myrm-dev"
+    return _real_user_home() / ".local/state/myrm-dev"
+
+
+def _real_user_home() -> Path:
+    """Real login home — Cursor sandboxes HOME (~/.cursor2), splitting state."""
+    try:
+        import pwd
+
+        return Path(pwd.getpwuid(os.getuid()).pw_dir)
+    except (ImportError, KeyError, OSError):
+        return Path.home()
 
 
 def _reap_stale_legacy_master_lock() -> None:

@@ -3286,12 +3286,12 @@
     "baseUrl": "API URL",
     "modelKwargs": "모델별 매개변수",
     "validateAndSave": "검증 및 저장",
-    "validating": "Validating...",
+    "validating": "검증 중...",
     "validationSuccess": "검증 성공",
     "currentModel": "현재 모델",
     "currentSearchService": "현재 검색 서비스",
     "builtInDefault": "로컬",
-    "modelPlaceholder": "provider/model (e.g., openai/gpt-4, anthropic/claude-3-opus-20240229)",
+    "modelPlaceholder": "provider/model (예: openai/gpt-4, anthropic/claude-3-opus-20240229)",
     "apiKeyPlaceholder": "API 키를 입력하세요",
     "baseUrlPlaceholder": "공급자 API URL 또는 커스텀 URL (일반 공급자 URL은 입력할 필요 없음, litellm 문서 참조)",
     "baseUrlTooltip": "모델 공급자의 API 기본 URL, http 또는 https로 시작해야 합니다. 일부 공급자는 자동으로 가져올 수 있으며 litellm 문서를 참조하세요.",
@@ -3305,14 +3305,14 @@
     "modelKwargsTooltip": "모델별 매개변수, JSON 형식, 중첩 구조 지원",
     "modelRequired": "모델 이름은 비워둘 수 없습니다",
     "apiKeyRequired": "API 키는 비워둘 수 없습니다",
-    "modelFormatError": "Model must be in provider/model format (e.g., anthropic/claude-3-5-sonnet-20240620)",
+    "modelFormatError": "모델은 provider/model 형식이어야 합니다(예: anthropic/claude-3-5-sonnet-20240620)",
     "userInstructions": "글로벌 지침",
     "userInstructionsPlaceholder": "응답 스타일 등을 안내하는 글로벌 지침을 커스터마이즈하세요.",
     "timezone": "시간대",
     "timezoneDescription": "예약 작업과 시간 관련 응답을 위한 시간대를 설정하세요.",
     "timezoneAutoDetected": "자동 감지됨",
     "timezoneCustom": "커스텀 시간대",
-    "timezonePlaceholder": "e.g. Asia/Shanghai, America/New_York",
+    "timezonePlaceholder": "예: Asia/Shanghai, America/New_York",
     "notificationChannel": "IM 알림",
     "notificationChannelDesc": "새 페어링 요청 또는 기타 이벤트 발생 시 IM 채널로 알림을 보냅니다.",
     "imChannelLabel": "채널",
@@ -3411,7 +3411,7 @@
     "completionSoundDesc": "AI 응답이 완료되고 페이지가 포그라운드에 없을 때 부드러운 알림음을 재생합니다.",
     "advancedSettings": "고급 설정",
     "fetchRawWebpage": "원시 웹페이지 가져오기",
-    "fetchRawWebpageDesc": "By default, only main content is extracted (ads/sidebars removed). Enable to keep raw webpage content (may increase token usage, recommended only when needed)",
+    "fetchRawWebpageDesc": "기본적으로 본문 콘텐츠만 추출됩니다(광고/사이드바 제거). 원본 웹페이지 콘텐츠를 유지하려면 활성화하세요(토큰 사용량이 늘어날 수 있으며 필요할 때만 권장)",
     "generateSearchSuggestions": "후속 질문 제안",
     "generateSearchSuggestionsDesc": "각 응답 후 후속 질문 제안 생성",
     "enableCostEstimation": "토큰 사용 통계",
@@ -3452,14 +3452,14 @@
     "configClipboardNote": "복사/붙여넣기 기능으로 기기 간 구성을 빠르게 동기화할 수 있습니다",
     "datasetExport": {
       "title": "데이터셋 내보내기",
-      "description": "Export conversation traces as standard fine-tuning datasets (ShareGPT / Alpaca / OpenAI JSONL) with PII redaction and quality filtering",
+      "description": "대화 추적을 표준 파인튜닝 데이터셋(ShareGPT / Alpaca / OpenAI JSONL)으로 내보내고 PII 삭제 및 품질 필터링을 적용합니다",
       "formats": "출력 형식",
       "redactPii": "PII 마스킹",
       "incremental": "증분 내보내기",
       "maxSamples": "최대 샘플 수",
       "exportBtn": "데이터셋 내보내기",
-      "exporting": "Exporting...",
-      "exportSuccess": "Exported {count} samples successfully",
+      "exporting": "내보내는 중...",
+      "exportSuccess": "{count}개 샘플을 성공적으로 내보냈습니다",
       "exportFailed": "내보내기 실패",
       "noData": "적격 추적 데이터가 없습니다",
       "selectFormat": "최소 하나의 형식을 선택하세요",
@@ -3489,8 +3489,8 @@
       "defaultModel": "기본 모델 설정",
       "customModelInfo": "커스텀 모델 정보",
       "generalSettings": "일반 설정",
-      "itemCount": "{count} items",
-      "versionMismatch": "Version notice: Import file version is {version}, will be auto-migrated",
+      "itemCount": "{count}개 항목",
+      "versionMismatch": "버전 알림: 가져오기 파일 버전은 {version}이며 자동으로 마이그레이션됩니다",
       "invalidFormat": "잘못된 구성 파일 형식",
       "parseError": "구성 파일을 구문 분석하지 못했습니다",
       "importSuccess": "구성이 성공적으로 가져와졌습니다",
@@ -4423,14 +4423,14 @@
       "button": "타임머신",
       "title": "구성 타임머신",
       "description": "구성 변경 기록을 보고 이전의 안전한 상태로 롤백합니다",
-      "loading": "Loading history...",
+      "loading": "기록을 불러오는 중...",
       "empty": "아직 기록이 없습니다",
       "restore": "이 버전 복원",
-      "restoring": "Restoring...",
+      "restoring": "복원 중...",
       "currentVersion": "현재 버전",
       "versionDevice": "Version {version} · Device {device}",
       "loadFailed": "구성 기록을 불러오지 못했습니다",
-      "restoreSuccess": "Restored to version {version}",
+      "restoreSuccess": "{version} 버전으로 복원되었습니다",
       "restoreFailed": "구성 복원 실패"
     },
     "browserPool": {
@@ -4443,7 +4443,7 @@
         "launch": "항상 새로 시작",
         "launchDesc": "항상 새 브라우저 인스턴스를 시작합니다 (Chrome의 로그인 세션 없음)",
         "connect": "기존 브라우저 연결",
-        "connectDesc": "Connect to your main Chrome via CDP (enable remote debugging once at chrome://inspect/#remote-debugging)"
+        "connectDesc": "CDP를 통해 기본 Chrome에 연결합니다(원격 디버깅은 chrome://inspect/#remote-debugging에서 한 번 활성화)"
       },
       "status": {
         "connected": "시스템 Chrome에 연결됨",
@@ -5662,6 +5662,63 @@
       "placeholder": "현재 작업 진행 상황을 설명하세요...",
       "updatedAt": "업데이트: {time}",
       "add": "추가"
+    },
+    "plugins": {
+      "import": {
+        "title": "Agent 플러그인 가져오기",
+        "subtitle": "agent-plugins.org 생태계의 플러그인 패키지(plugin.json + skills + mcp.json)를 자동 보안 스캔과 함께 가져옵니다.",
+        "upload": {
+          "dropHint": "플러그인 ZIP을 여기에 끌어놓거나 클릭하여 업로드",
+          "parsing": "안전하게 압축 해제 및 분석 중...",
+          "formatHint": "Agent Plugins 1.0.0 표준 형식 지원, 파일당 최대 20MB.",
+          "singleArchiveOnly": "한 번에 하나의 ZIP만 업로드할 수 있습니다",
+          "archiveOnly": ".zip 형식만 지원됩니다",
+          "tooLarge": "파일 크기는 20MB를 초과할 수 없습니다"
+        },
+        "sections": {
+          "skills": "스킬 ({count})",
+          "servers": "MCP 서버 ({count})",
+          "files": "파일",
+          "envCount": "환경 변수 {count}개",
+          "placeholder": "패키지 내 경로 참조 포함 — 가져온 후 MCP 설정에서 확인하세요"
+        },
+        "serverType": {
+          "local": "로컬 프로세스",
+          "remote": "원격 서비스"
+        },
+        "actions": {
+          "selectAll": "모두 설치",
+          "skipAll": "모두 건너뛰기",
+          "install": "설치",
+          "skip": "건너뛰기",
+          "cancel": "취소",
+          "confirm": "가져오기 확인",
+          "reselect": "다시 선택"
+        },
+        "bind": {
+          "label": "에이전트에 바인딩",
+          "placeholder": "에이전트 선택(선택 사항)",
+          "hint": "가져온 스킬과 MCP 서버를 선택한 에이전트에 마운트합니다(해당 에이전트에서만 사용 가능). 비워 두면 전역 라이브러리에만 저장됩니다."
+        },
+        "summary": "스킬 {skills}개, MCP 서버 {servers}개 선택됨",
+        "empty": {
+          "title": "이 플러그인에는 가져올 수 있는 구성 요소가 없습니다",
+          "hint": "위의 진단 정보를 확인하거나 유효한 플러그인 패키지를 선택하세요."
+        },
+        "security": {
+          "blocked": "차단됨: 보안 위험 {count}건 발견 — 자동으로 건너뜀"
+        },
+        "errors": {
+          "parseTitle": "분석 오류",
+          "previewFailed": "플러그인 분석에 실패했습니다. 파일 형식을 확인하세요",
+          "confirmTitle": "가져오기 실패",
+          "confirmFailed": "플러그인 가져오기에 실패했습니다. 다시 시도하세요"
+        },
+        "success": {
+          "title": "가져오기 성공",
+          "description": "스킬 {skills}개, MCP 서버 {servers}개를 가져왔습니다"
+        }
+      }
     }
   },
   "userMenu": {
@@ -10126,9 +10183,17 @@
       "coverSuggestLoading": "작업 공간 이미지 검색 중...",
       "coverSuggestEmpty": "작업 공간에 일치하는 이미지 파일이 없습니다",
       "confirm": "초안함으로 보내기",
+      "dismiss": "확인",
       "pushing": "보내는 중...",
       "success": "WeChat 초안함에 저장되었습니다. mp.weixin.qq.com에서 미리보기하고 게시하세요.",
       "failed": "초안 보내기 실패",
+      "complianceBlocked": "컴플라이언스 검사에 실패했습니다. 기사를 수정한 후 다시 시도하세요.",
+      "complianceTitle": "컴플라이언스 문제",
+      "complianceHint": "WeChat 초안으로 보내기 전에 아래 표현을 수정하세요.",
+      "complianceSuccessTitle": "초안 저장됨 — 컴플라이언스 주의",
+      "complianceSuccessHint": "기사가 초안함에 저장되었습니다. mp.weixin.qq.com에서 미리보기하기 전에 아래 표현을 검토하세요.",
+      "complianceHighRisk": "고위험",
+      "complianceWarning": "주의",
       "credentialsMissing": "먼저 설정에서 WeChat 공식 계정 자격 증명을 구성하세요",
       "pathMissing": "초안을 보내려면 로컬 파일 경로가 필요합니다"
     },
@@ -11346,6 +11411,7 @@
     "noEvents": "아직 이벤트가 없습니다",
     "dependencies": "의존성",
     "waitingForDeps": "의존성 대기 중",
+    "queuedForConcurrency": "대기 중 (동시성 슬롯 가득 참)",
     "autoUnblockAt": "자동 차단 해제 시각",
     "addDep": "의존성 추가",
     "attachFile": "파일 첨부",
@@ -11483,6 +11549,8 @@
     "goalMaxTurnsOption": "최대 턴: {turns}",
     "goalMaxTurnsLabel": "최대 턴",
     "requireApproval": "완료 전 사람 승인 필요",
+    "approvalUpdated": "승인 요건이 업데이트되었습니다",
+    "approvalUpdateError": "승인 요건 업데이트 실패",
     "assignedAgent": "담당자",
     "updateError": "작업 업데이트 실패",
     "addIdea": "빠른 아이디어",
@@ -13500,7 +13568,7 @@
     "active": "실행 중",
     "failed": "실패",
     "approvalCardNotFound": "승인 카드를 찾을 수 없습니다",
-    "costBudgetTitle": "비용: ${used} / ${limit}",
+    "costBudgetTitle": "비용: {used} / {limit}",
     "tokenBudgetTitle": "토큰 예산: {used} / {limit}",
     "staleTitle": "하위 에이전트 중단됨 — 진행이 감지되지 않음",
     "staleDescription": "{duration}분 동안 토큰 또는 도구 진행이 없습니다 ({tokens} 토큰 소모). 하위 에이전트가 멈췄을 수 있습니다. 취소를 고려하세요.",
@@ -14283,7 +14351,7 @@
     "noChangesDetected": "파일 변경이 감지되지 않았습니다",
     "binaryFileDiff": "바이너리 파일 — diff를 표시할 수 없습니다",
     "feedbackPlaceholder": "이 에이전트에 피드백 보내기...",
-    "tabDiff": "Diff ({count})",
+    "tabDiff": "차이 ({count})",
     "tabMessages": "메시지",
     "loadingMessages": "메시지 로딩 중...",
     "noMessages": "아직 메시지가 없습니다"

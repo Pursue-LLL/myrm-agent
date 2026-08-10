@@ -6,7 +6,7 @@
 
 | 文件                         | 地位 | 职责                                                                             | I/O/P |
 | ---------------------------- | ---- | -------------------------------------------------------------------------------- | ----- |
-| KanbanBoardView.tsx          | 核心 | 看板主视图（列布局 + DnD 上下文 + tab 切换 + Agent 泳道状态管理）                | ✅    |
+| KanbanBoardView.tsx          | 核心 | 看板主视图（列布局 + DnD 上下文 + tab 切换 + Agent 泳道状态管理；stats bar running 显示 `count/limit` 并发占用）                | ✅    |
 | KanbanDndComponents.tsx      | 核心 | DnD 渲染（KanbanDropColumn + DraggableTaskCard + Running 泳道 + Drawer 入口）  | ✅    |
 | useKanbanDnD.ts              | 核心 | 拖拽状态管理 hook（传感器/事件/破坏性确认）                                      | ✅    |
 | useKanbanAddTask.ts          | 辅助 | 任务内联创建表单状态 hook（含 agent/model override 状态）                        | ✅    |
@@ -17,10 +17,9 @@
 | useKanbanTaskDrawerAttachments.ts | 辅助 | 抽屉附件上传/拖拽/粘贴子 hook                                              | ✅    |
 | useKanbanTaskDrawerWorkflow.ts | 辅助 | Promote / Move / Reclaim 工作流子 hook                                           | ✅    |
 | KanbanTaskDrawerHeader.tsx   | 辅助 | 抽屉面板头部（状态操作按钮 + Reclaim/Promote 确认）                              | ✅    |
-| KanbanTaskDrawerDetails.tsx  | 辅助 | 抽屉详情（超时/技能/模型覆盖/来源 Chat 与 Board 深链）                            | ✅    |
+| KanbanTaskDrawerDetails.tsx  | 辅助 | 抽屉详情（超时/技能/模型覆盖/审批开关/来源 Chat 与 Board 深链）                            | ✅    |
 | KanbanTaskDrawerBodySections.tsx | 辅助 | 抽屉附件与结果区段组件                                                         | ✅    |
 | KanbanTaskDrawerBodyMetaSections.tsx | 辅助 | 抽屉依赖/评论/进度区段组件                                                   | ✅    |
-| KanbanTaskDrawerBody.tsx     | 辅助 | 抽屉主体区段 barrel 导出                                                       | ✅    |
 | KanbanInlineAddForm.tsx      | 辅助 | 内联新增任务表单 UI（标题/描述/agent/模型覆盖/技能/超时/依赖）                    | ✅    |
 | KanbanBulkActionBar.tsx      | 辅助 | 批量操作工具栏                                                                   | ✅    |
 | KanbanGraphView.tsx          | 辅助 | 任务依赖 DAG 可视化（含 running 节点脉冲 / failed 节点抖动动画）                | ✅    |
@@ -68,9 +67,10 @@
 - `@dnd-kit/core` — 拖拽基础设施（传感器 / 碰撞检测 / DragOverlay）
 - `@/components/features/app-shell/confirm-dialog` — 通用确认弹窗
 - `@/hooks/agent/useAgentName` — 智能体名称映射
-- `next-intl` — 国际化（`kanban` namespace；`status.verifying`、`staleRunningCount` 六语言 en/zh/de/ko/ja/zh-TW）
+- `next-intl` — 国际化（`kanban` namespace；`status.runningWithLimit`、`status.verifying`、`staleRunningCount` 六语言 en/zh/de/ko/ja/zh-TW）
 
 ## Completion intent UI
 
 - `KanbanTaskCard` / `KanbanTaskDrawerDetails`：`metadata.completion_intent` 且 `status=running` 时显示 `kanban.status.verifying`（验收中），替代 progress_note
 - `KanbanBoardView`：`board_summary.stale_running_count > 0` 时显示红色 pill（`kanban.staleRunningCount`）
+- `KanbanBoardView` stats bar：running 列显示 `kanban.status.runningWithLimit`（`执行中: {count}/{limit}`，limit 取自 `board.settings.max_concurrent_tasks`），并发占满时用户可直接判断 ready 任务在排队

@@ -61,7 +61,17 @@ def _isolated_registry_root() -> Path:
     override = os.environ.get("MYRM_ISOLATED_ROOT", "").strip()
     if override:
         return Path(override).resolve()
-    return Path.home() / ".local/state/myrm-isolated"
+    return _real_user_home() / ".local/state/myrm-isolated"
+
+
+def _real_user_home() -> Path:
+    """Real login home — Cursor sandboxes HOME (~/.cursor2), splitting state."""
+    try:
+        import pwd
+
+        return Path(pwd.getpwuid(os.getuid()).pw_dir)
+    except (ImportError, KeyError, OSError):
+        return Path.home()
 
 
 def _read_stored_fingerprint(state_dir: Path) -> str:

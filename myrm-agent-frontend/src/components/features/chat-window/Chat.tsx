@@ -31,6 +31,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState, useMemo, useCallback, useSyncExternalStore } from 'react';
+
 import { useSearchParams } from 'next/navigation';
 import MessageInput from './MessageInput';
 import CompanionWidget from '../companion/CompanionWidget';
@@ -58,6 +59,8 @@ import VisualApprovalAttentionBar from './approval/VisualApprovalAttentionBar';
 import VisualApprovalOsOverlaySync from './approval/VisualApprovalOsOverlaySync';
 import ScrollToBottomButton from './ScrollToBottomButton';
 import type { Message } from '@/store/chat/types/messages';
+
+const EMPTY_MESSAGES: Message[] = [];
 
 /**
  * 虚拟滚动开关
@@ -116,7 +119,7 @@ const Chat = ({
   const rawMessagesFromSync = useSyncExternalStore(
     (onStoreChange) => useChatStore.subscribe(onStoreChange),
     () => useChatStore.getState().messages,
-    () => [] as typeof rawMessagesFromSelector,
+    () => EMPTY_MESSAGES,
   );
 
   const rawMessages =

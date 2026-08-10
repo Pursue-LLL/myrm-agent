@@ -57,6 +57,39 @@ _CURL_STATUS_MARKER: Final[str] = "\n__MYRM_HTTP_STATUS__:"
 _LOOPBACK_HOSTS: Final[frozenset[str]] = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
+def epoch_drift_attach_cap_sec(
+    *,
+    blocked: bool,
+    epoch_match: bool,
+    drift_pending: bool,
+    active_leases: int,
+) -> int:
+    """SHARED attach drift window: seconds a new attach may wait for epoch match.
+
+    Returns 0 when no drift cap applies (attach waits on the monotonic BOOTSTRAP
+    budget). Returns >0 when the shared backend is blocked on a stale epoch.
+
+    When drift is pending while parallel tests hold leases, SMP deliberately
+    defers the shared reload (do-not-interrupt contract). A new attach must wait
+    for the lease-release window plus reload instead of failing on the fixed
+    base cap, so the cap scales with active leases (aligned with the BOOTSTRAP
+    budget `base + leases*45`). This turns a "120s wait-then-FAIL" into a
+    bounded, parallel-aware wait.
+    """
+    if not (blocked and not epoch_match):
+        return 0
+    base_raw = os.environ.get("MYRM_E2E_EPOCH_DRIFT_ATTACH_CAP_SEC", "").strip()
+    base = int(base_raw) if base_raw.isdigit() else 120
+    if drift_pending and active_leases > 0:
+        leases = max(active_leases, 0)
+        per_lease_raw = os.environ.get(
+            "MYRM_E2E_EPOCH_DRIFT_ATTACH_PER_LEASE_SEC", ""
+        ).strip()
+        per_lease = int(per_lease_raw) if per_lease_raw.isdigit() else 45
+        return base + leases * per_lease
+    return base
+
+
 @dataclass(frozen=True, slots=True)
 class BackendCandidate:
     api_base: str
@@ -194,27 +227,40 @@ def _bounded_probe_timeout(requested_sec: float) -> float:
 
 
 def _api_health_ok(
-    api_base: str, timeout_sec: float = HEALTH_PROBE_TIMEOUT_SEC
+    api_base: str,
+    timeout_sec: float = HEALTH_PROBE_TIMEOUT_SEC,
+    *,
+    allow_retry: bool = True,
 ) -> bool:
     timeout_sec = _bounded_probe_timeout(timeout_sec)
     if timeout_sec <= 0:
         return False
     base = api_base.rstrip("/")
-    for path in HEALTH_PATHS:
-        url = f"{base}{path}"
-        try:
-            with urllib.request.urlopen(url, timeout=timeout_sec) as resp:  # noqa: S310
-                if 200 <= resp.status < 300:
+    for attempt in range(2 if allow_retry else 1):
+        if attempt > 0:
+            # High-load transient failures (accept/read timeouts, ECONNRESET) are
+            # common; one fast retry avoids misreading a healthy backend (§26.28-C).
+            time.sleep(0.2)
+            timeout_sec = _bounded_probe_timeout(timeout_sec)
+            if timeout_sec <= 0:
+                return False
+        for path in HEALTH_PATHS:
+            url = f"{base}{path}"
+            try:
+                with urllib.request.urlopen(
+                    url, timeout=timeout_sec
+                ) as resp:  # noqa: S310
+                    if 200 <= resp.status < 300:
+                        return True
+            except urllib.error.URLError as exc:
+                reason = exc.reason
+                if isinstance(reason, ConnectionRefusedError | ConnectionResetError):
+                    continue
+                if _curl_loopback_get(url, timeout_sec=timeout_sec) is not None:
                     return True
-        except urllib.error.URLError as exc:
-            reason = exc.reason
-            if isinstance(reason, ConnectionRefusedError | ConnectionResetError):
-                continue
-            if _curl_loopback_get(url, timeout_sec=timeout_sec) is not None:
-                return True
-        except (TimeoutError, OSError):
-            if _curl_loopback_get(url, timeout_sec=timeout_sec) is not None:
-                return True
+            except (TimeoutError, OSError):
+                if _curl_loopback_get(url, timeout_sec=timeout_sec) is not None:
+                    return True
     return False
 
 
@@ -357,7 +403,9 @@ def _enumerate_port_scan_candidates(
         if _probe_wall_remaining_sec() is not None and _probe_wall_remaining_sec() <= 0:
             break
         api_base = f"http://127.0.0.1:{port}"
-        if _api_health_ok(api_base, timeout_sec=PORT_SCAN_PROBE_TIMEOUT_SEC):
+        if _api_health_ok(
+            api_base, timeout_sec=PORT_SCAN_PROBE_TIMEOUT_SEC, allow_retry=False
+        ):
             found.append((api_base, port, "", "port_scan"))
     return found
 
@@ -559,7 +607,6 @@ def resolve_e2e_api_context(
     state_dir: Path | None = None,
     retry_after_apply: bool = True,
 ) -> E2eApiContext:
-    _begin_context_probe_wall()
     try:
         return _resolve_e2e_api_context_impl(
             monorepo=monorepo,
@@ -597,6 +644,10 @@ def _resolve_e2e_api_context_impl(
         drift_pending=drift_pending,
     ).value
 
+    # Probe wall starts AFTER workspace fingerprint calc (git status on a large
+    # monorepo under high load can exhaust a 15s budget by itself, starving
+    # health probes → healthy backends misread as unreachable → BLOCKED, §26.28-C).
+    _begin_context_probe_wall()
     candidates = enumerate_backend_candidates(workspace_fp=workspace_fp)
     verify = _select_verify_candidate(candidates, active_leases=active_leases)
 

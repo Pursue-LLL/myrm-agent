@@ -197,6 +197,8 @@ class TestBoardApi:
         assert data["total_tasks"] == 2
         assert "by_agent" in data
         assert "oldest_ready_age_seconds" in data
+        # Frontend concurrency stats bar relies on board.settings.max_concurrent_tasks.
+        assert data["board"]["settings"]["max_concurrent_tasks"] >= 1
 
     def test_board_summary_by_agent(self, client: TestClient) -> None:
         """Summary should include per-agent task distribution."""

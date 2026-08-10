@@ -16,16 +16,25 @@ WBBench-specific knowledge out of the harness and the generic eval service:
 HuggingFace archive naming, task layout, workspace.tar.gz seeding.
 
 Grading is a two-tier story that stays in the adapter:
-- Code / Office: each task ships a pytest suite under ``tests/``; the adapter
-  copies it into the seeded workspace as ``.wb_bench/tests`` and injects a
-  ``test_suite`` sandbox assertion so the harness Rule judge runs pytest,
-  parses the JUnit XML, and yields a numeric pass_rate.
-- Security: each task ships a native scorer (``tests/scoring.py`` /
-  ``tests/test_outputs.py``) driven by ``tests/test.sh`` that writes
-  ``reward.json``; the adapter injects a ``test_suite`` assertion running that
-  scorer, and the harness parses the JSON reward.
-- Web: graded by the VLM judge pipeline (llm_judge.enabled), so the adapter
-  records the mode and ships no rule assertions.
+- Code: each task ships an official ``tests/verifier.toml`` grading protocol;
+  the adapter injects a ``test_suite`` sandbox assertion for one of the three
+  native families (``script_verifier`` runs ``verifier.py``,
+  ``pytest_injected`` injects ``tests/injected/`` and runs the declared
+  ``[run] command``, ``repo_understanding`` runs ``scorer.py``). Grading assets
+  stay in the source cache and are mounted read-only via
+  ``SandboxAssertion.readonly_paths``; the live agent workspace is addressed
+  through the ``{workspace}`` placeholder, so ``gold.patch`` never reaches the
+  agent.
+- Security: tasks ship ``tests/scoring.py`` / ``test_outputs.py`` (no
+  verifier.toml) that write ``reward.json`` directly; the adapter injects a
+  ``test_suite`` assertion running that scorer against the live workspace.
+- Office: tasks carry an Office verifier.toml (``schema_version =
+  workbuddy.office.verifier.v1``) whose ``[run] command`` runs pytest against
+  ``/tests/grading``; the adapter injects a ``test_suite`` assertion running
+  that command with Harbor paths rewritten. Tasks without one fall back to the
+  VLM/LLM judge pipeline.
+- Web: graded by the VLM/LLM judge pipeline, so the adapter records the mode
+  and ships no rule assertions.
 """
 
 from __future__ import annotations
@@ -340,8 +349,8 @@ async def _download_archive(
     )
 
 
-# Subsets whose grading is task-native (each task ships its own scorer run
-# inside the seeded workspace) rather than the harness Rule/LLM judge.
+# Subsets whose grading is task-native (each task ships its own verifier
+# protocol in tests/verifier.toml) rather than a VLM/LLM judge pipeline.
 _NATIVE_SCORING_SUBSETS = frozenset({"sec"})
 _COMPOSITE_SCORING_SUBSETS = frozenset({"code", "web", "office"})
 
@@ -349,10 +358,11 @@ _COMPOSITE_SCORING_SUBSETS = frozenset({"code", "web", "office"})
 def _scoring_mode_for(subset: WbBenchSubset) -> str:
     """Return the grading mode WBBench applies to a subset.
 
-    Security tasks grade via their own ``tests/scoring.py`` driven by
-    ``tests/test.sh`` (task-native, no LLM judge). Code/Office grade through
-    the harness Rule judge (task-native pytest suite); Web grades through the
-    VLM judge pipeline.
+    Security tasks grade via their own native scorer (``tests/scoring.py``
+    writes ``reward.json`` directly — task-native, no LLM judge). Code/Office
+    announce a composite track (web/office VLM+LLM judge; code uses task-local
+    native verifier.toml families; office uses its Office verifier pytest
+    grading); Web grades through the VLM judge pipeline.
     """
     if subset.id in _NATIVE_SCORING_SUBSETS:
         return "native"

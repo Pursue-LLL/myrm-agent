@@ -71,12 +71,16 @@ def _create_task(
     return resp.json()
 
 
-async def _force_status(tid: str, status: TaskStatus) -> None:
+async def _force_status(
+    tid: str, status: TaskStatus, *, error: str | None = None
+) -> None:
     svc = KanbanService.get_instance()
     t = await svc.get_task(tid)
     assert t is not None
     t.status = status
     t.result = "artifact built & verified"
+    if error is not None:
+        t.error = error
     await svc.store.save_task(t)
 
 
@@ -228,7 +232,9 @@ class TestFallbackNotification:
         board = _create_board(client)
         task = _create_task(client, board["board_id"], require_approval=True)
         tid = str(task["task_id"])
-        asyncio.run(_force_status(tid, TaskStatus.IN_REVIEW))
+        asyncio.run(
+            _force_status(tid, TaskStatus.IN_REVIEW, error="stale failure reason")
+        )
 
         with (
             patch(
@@ -241,6 +247,7 @@ class TestFallbackNotification:
                 json={"approver": "alice"},
             )
             assert resp.status_code == 200
+            assert resp.json()["error"] == ""
 
         mock_source.assert_called_once()
         assert mock_source.call_args.args[0] == "task_completed"
@@ -285,7 +292,7 @@ class TestPendingReviewNotification:
         assert event.data["status"] == "pending_review"
         assert event.data["chat_id"] == "chat-9"
         assert event.data["title"] == "Deploy v2.1"
-        assert event.data["suppress_web_push"] is True
+        assert event.data.get("suppress_web_push") is not True
 
     def test_pending_review_skipped_without_source_chat(self) -> None:
         """No source chat / btw target means no notification is published."""
@@ -351,7 +358,7 @@ class TestRejectedNotification:
         assert event.data["chat_id"] == "chat-9"
         assert event.data["result"] == "add unit tests"
         assert event.data["title"] == "Deploy v2.1"
-        assert event.data["suppress_web_push"] is True
+        assert event.data.get("suppress_web_push") is not True
 
     def test_rejected_skipped_without_source_chat(self) -> None:
         """No source chat / btw target means no rejection notification."""

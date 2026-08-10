@@ -213,7 +213,7 @@
   },
   "settings": {
     "lockedUse": {
-      "title": "Computer Use / Locked Use",
+      "title": "计算机使用 / 锁定使用",
       "layer1Title": "保持屏幕常亮",
       "layer1Desc": "CU 回合期间自动阻止屏幕关闭，无需配置",
       "layer1Badge": "始终开启",
@@ -424,7 +424,7 @@
           },
           "template": {
             "label": "模板",
-            "placeholder": "Please translate the following to English:\n\n'{{input}}'",
+            "placeholder": "请将以下内容翻译为英文：\n\n'{{input}}'",
             "hint": "使用 '{{input}}' 插入用户输入"
           }
         },
@@ -438,11 +438,11 @@
           "title": "示例",
           "translate": {
             "name": "translate",
-            "template": "Please translate to English: '{{input}}'"
+            "template": "请将以下内容翻译为英文：'{{input}}'"
           },
           "review": {
             "name": "review",
-            "template": "Please review this code: '{{input}}'"
+            "template": "请审查此代码：'{{input}}'"
           }
         },
         "actions": {
@@ -5812,6 +5812,63 @@
       "cleanupSuccess": "已清理 {count} 个过期会话",
       "cleanupFailed": "清理失败",
       "encryptionNote": "所有会话数据均使用 AES-256-GCM 加密存储"
+    },
+    "plugins": {
+      "import": {
+        "title": "导入 Agent 插件",
+        "subtitle": "从 agent-plugins.org 生态导入插件包（plugin.json + skills + mcp.json），自动安全扫描。",
+        "upload": {
+          "dropHint": "拖拽插件 ZIP 包到此处，或点击上传",
+          "parsing": "正在安全解压并分析...",
+          "formatHint": "支持 Agent Plugins 1.0.0 标准格式，单个文件不超过 20MB。",
+          "singleArchiveOnly": "每次仅支持上传一个 ZIP 包",
+          "archiveOnly": "仅支持 .zip 格式",
+          "tooLarge": "文件大小不能超过 20MB"
+        },
+        "sections": {
+          "skills": "技能 ({count})",
+          "servers": "MCP 服务器 ({count})",
+          "files": "文件",
+          "envCount": "{count} 个环境变量",
+          "placeholder": "包含包内路径引用，导入后请在 MCP 设置中确认"
+        },
+        "serverType": {
+          "local": "本地服务",
+          "remote": "远程服务"
+        },
+        "actions": {
+          "selectAll": "全部安装",
+          "skipAll": "全部跳过",
+          "install": "安装",
+          "skip": "跳过",
+          "cancel": "取消",
+          "confirm": "确认导入",
+          "reselect": "重新上传"
+        },
+        "bind": {
+          "label": "绑定到智能体",
+          "placeholder": "选择智能体（可选）",
+          "hint": "将导入的技能与 MCP 服务器挂载到所选智能体，绑定后仅该智能体可用；留空则仅存入全局库。"
+        },
+        "summary": "已选 {skills} 个技能、{servers} 个 MCP 服务器",
+        "empty": {
+          "title": "该插件没有可导入的组件",
+          "hint": "请检查上方诊断信息，或更换有效的插件包。"
+        },
+        "security": {
+          "blocked": "包含 {count} 项安全风险，已自动跳过，无法安装"
+        },
+        "errors": {
+          "parseTitle": "解析失败",
+          "previewFailed": "插件解析失败，请检查文件格式",
+          "confirmTitle": "导入失败",
+          "confirmFailed": "插件导入失败，请重试"
+        },
+        "success": {
+          "title": "导入成功",
+          "description": "已导入 {skills} 个技能、{servers} 个 MCP 服务器"
+        }
+      }
     }
   },
   "userMenu": {
@@ -9732,7 +9789,7 @@
       "approveFailed": "批准失败",
       "rejectSuccess": "迁移已拒绝",
       "rejectFailed": "拒绝失败",
-      "bindTargetAgent": "On approve, skills bind to agent: {name}"
+      "bindTargetAgent": "批准后，技能将绑定到智能体：{name}"
     },
     "archiveRestore": {
       "title": "恢复记忆归档",
@@ -10372,9 +10429,17 @@
       "coverSuggestLoading": "正在搜索工作区图片…",
       "coverSuggestEmpty": "未找到匹配的图片文件",
       "confirm": "推送到草稿箱",
+      "dismiss": "知道了",
       "pushing": "推送中...",
       "success": "已保存到公众号草稿箱，请登录 mp.weixin.qq.com 预览并群发",
       "failed": "推送草稿失败",
+      "complianceBlocked": "合规扫描未通过，请修改文章后重试",
+      "complianceTitle": "合规扫描发现问题",
+      "complianceHint": "请替换下列用词后再推送到公众号草稿。",
+      "complianceSuccessTitle": "草稿已保存，合规扫描有提示",
+      "complianceSuccessHint": "文章已进入草稿箱，建议在 mp.weixin.qq.com 预览前替换下列用词。",
+      "complianceHighRisk": "高危",
+      "complianceWarning": "提示",
       "credentialsMissing": "请先在设置中配置微信公众号凭证",
       "pathMissing": "需要本地文件路径才能推送草稿"
     },
@@ -11637,6 +11702,7 @@
     "noEvents": "暂无事件",
     "dependencies": "依赖任务",
     "waitingForDeps": "等待前置任务完成",
+    "queuedForConcurrency": "排队中（并发槽位占满）",
     "autoUnblockAt": "自动解除阻塞时间",
     "addDep": "添加依赖",
     "attachFile": "附加文件",
@@ -11774,6 +11840,8 @@
     "goalMaxTurnsOption": "最大轮次：{turns}",
     "goalMaxTurnsLabel": "最大轮次",
     "requireApproval": "完成前需人工审批",
+    "approvalUpdated": "审批要求已更新",
+    "approvalUpdateError": "更新审批要求失败",
     "assignedAgent": "负责人",
     "updateError": "更新任务失败",
     "addIdea": "新增草稿",
@@ -12704,7 +12772,7 @@
     "resetToDefault": "恢复默认",
     "resetConfirm": "确定要恢复为默认配置吗？",
     "testConnectionButton": "测试连接",
-    "testingConnection": "Testing...",
+    "testingConnection": "正在测试连接...",
     "testSuccessTitle": "连接成功",
     "testSuccessMessage": "频道配置正确且运行正常",
     "testFailedTitle": "连接失败",
@@ -12713,8 +12781,8 @@
     "disableChannel": "停用频道",
     "channelEnabledSuccessfully": "频道启用成功",
     "channelDisabledSuccessfully": "频道停用成功",
-    "loadingChannelConfig": "Loading channel configuration...",
-    "savingChannelConfig": "Saving channel configuration...",
+    "loadingChannelConfig": "正在加载频道配置...",
+    "savingChannelConfig": "正在保存频道配置...",
     "channelConfigLoadFailed": "加载频道配置失败",
     "invalidConfiguration": "配置无效",
     "missingRequiredFields": "缺少必填字段",
@@ -13930,7 +13998,7 @@
       "weekDelta": "本周 +{count}",
       "skills": "技能",
       "evolutions": "次进化",
-      "applyFailed": "次失败",
+      "applyFailed": "失败",
       "activeDays": "活跃天数",
       "streak": "连续 {count} 天",
       "memoryHealth": "记忆健康度"
@@ -14136,7 +14204,7 @@
     "active": "运行中",
     "failed": "失败",
     "approvalCardNotFound": "未找到待审批卡片",
-    "costBudgetTitle": "成本：${used} / ${limit}",
+    "costBudgetTitle": "成本：{used} / {limit}",
     "tokenBudgetTitle": "Token 预算：{used} / {limit}"
   },
   "evalLab": {
@@ -14937,20 +15005,20 @@
     "mcpTlsSection": "TLS / mTLS",
     "mcpTlsConfigured": "已配置",
     "mcpSslVerify": "SSL 校验",
-    "mcpSslVerifyPlaceholder": "true (default) / false / CA bundle path (PEM file or directory)",
+    "mcpSslVerifyPlaceholder": "true（默认）/ false / CA 证书包路径（PEM 文件或目录）",
     "mcpSslVerifyWarning": "TLS 校验已禁用，连接将暴露于中间人攻击风险之下。仅限本地开发使用。",
     "mcpClientCert": "客户端证书",
     "mcpClientCertPlaceholder": "/path/to/client.pem",
     "mcpClientKey": "Client Key",
-    "mcpClientKeyPlaceholder": "/path/to/client-key.pem (optional if bundled in cert)",
+    "mcpClientKeyPlaceholder": "/path/to/client-key.pem（若证书已包含可省略）",
     "mcpClientKeyPassword": "客户端密钥口令",
     "mcpClientKeyPasswordPlaceholder": "加密客户端密钥的口令（可选）",
     "mcpTlsHint": "对于 mTLS：提供客户端证书以及可选的分开密钥。路径支持 ~ 展开。",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "已配置",
-    "mcpHeadersHint": "Use {{secret:KEY_NAME}} to reference secrets stored in Agent Secrets.",
+    "mcpHeadersHint": "使用 {{secret:KEY_NAME}} 引用存储在 Agent Secrets 中的密钥。",
     "mcpHeaderKeyPlaceholder": "请求头名称（例如 Authorization）",
-    "mcpHeaderValuePlaceholder": "Value or {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "值或 {{secret:API_KEY}}",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "配置已保存",
     "mcpSecretRefSaveHintDesc": "请求头中的密钥引用将在运行时解析。"
@@ -15117,21 +15185,21 @@
     "lastTool": "最后使用的工具",
     "resume": "恢复",
     "delete": "删除",
-    "deleting": "Deleting...",
+    "deleting": "正在删除...",
     "refresh": "刷新",
     "cleanup": "清理旧检查点",
-    "cleaning": "Cleaning...",
+    "cleaning": "正在清理...",
     "loadError": "加载检查点失败",
     "resumeError": "恢复检查点失败",
     "deleteError": "删除检查点失败",
     "cleanupError": "清理检查点失败",
     "resumeSuccess": "检查点恢复成功",
-    "resumeSuccessDesc": "Task {taskId} resumed",
-    "cleanupSuccess": "Cleaned up {deleted} checkpoints",
-    "loading": "Loading checkpoints...",
+    "resumeSuccessDesc": "任务 {taskId} 已恢复",
+    "cleanupSuccess": "已清理 {deleted} 个检查点",
+    "loading": "正在加载检查点...",
     "empty": "未找到检查点",
     "noCheckpoints": "未找到检查点",
-    "total": "Total {count} checkpoints",
+    "total": "共 {count} 个检查点",
     "description": "管理已保存的检查点，恢复被中断的智能体任务",
     "savedCheckpoints": "已保存的检查点",
     "savedCheckpointsDesc": "当智能体任务被中断时，所有检查点都会自动保存"
@@ -15269,9 +15337,9 @@
     "noFeatures": "暂无可用的实验性功能。",
     "customized": "自定义设置（覆盖默认值）",
     "fetchError": "加载实验性功能失败",
-    "enabledSuccess": "Enabled feature {name}",
-    "disabledSuccess": "Disabled feature {name}",
-    "toggleError": "Failed to toggle feature {name}"
+    "enabledSuccess": "已启用功能 {name}",
+    "disabledSuccess": "已禁用功能 {name}",
+    "toggleError": "切换功能 {name} 失败"
   },
   "sections": {
     "channelRouting": {
@@ -15279,7 +15347,7 @@
       "description": "为不同频道分组管理专属的智能体绑定",
       "connectedChannels": "已连接频道",
       "noConnectedChannels": "没有已连接的频道",
-      "routingFor": "Routing for {channel}",
+      "routingFor": "路由：{channel}",
       "globalDefaultAgent": "全局默认智能体",
       "globalDefaultAgentDesc": "没有专属绑定的会话线程将回退到该智能体。",
       "noDefaultAgent": "-- 无默认智能体 --",
@@ -15404,7 +15472,7 @@
         "failureKinds": "失败类型",
         "deferredReasons": "推迟原因",
         "archiveDeferredReasons": "归档预算原因",
-        "archiveDeferredSoftTrimmed": "{count} archive-deferred items were still trimmed.",
+        "archiveDeferredSoftTrimmed": "{count} 个延迟归档项仍被修剪。",
         "recentRestoreBlocks": "最近的恢复阻止",
         "restoreRange": "读取范围",
         "restoreGuidance": "引导",
@@ -15431,8 +15499,8 @@
         "restoreRangeSubmitted": "范围已排队",
         "restoreRangeFailed": "提交失败",
         "restoreRangeRequiresActiveSession": "打开目标会话",
-        "restoreActiveSessionRequired": "The active chat is not this session ({sessionId}); opening the target session will prefill the restore instruction.",
-        "restorePrompt": "Read the archived context range `{restoreArg}` and continue from that recovered evidence.",
+        "restoreActiveSessionRequired": "当前活动会话不是本会话（{sessionId}）；打开目标会话将预填恢复指令。",
+        "restorePrompt": "读取归档上下文范围 `{restoreArg}` 并基于恢复的证据继续。",
         "copyRestoreArg": "复制恢复范围",
         "restoreArgCopied": "已复制",
         "copyRestoreArgUnavailable": "无法复制",
@@ -15462,7 +15530,7 @@
         "deferredWarning": "部分裁剪候选因通过预算被推迟。",
         "archiveDeferredWarning": "部分归档写入被推迟，未进行回退裁剪。",
         "restoreBlockedWarning": "归档恢复被会话预算阻止；请读取更窄的范围。",
-        "adaptiveBackoffWarning": "Pruning strength was reduced because {reasons}.",
+        "adaptiveBackoffWarning": "由于 {reasons}，剪枝强度已降低。",
         "negativeSavingsWarning": "归档读取消耗的 Token 多于裁剪节省的。",
         "restoreCostWarning": "恢复的 Token 消耗了过多的裁剪节省；请避免对此会话进行激进裁剪。",
         "refetchWarning": "归档读取偏高；对此会话的裁剪可能过于激进。"
@@ -15523,21 +15591,21 @@
       "scrubber": "时间线滑块",
       "errorMarker": "错误",
       "keyboardHint": "Space: play/pause · ←/→: step frame",
-      "running": "running...",
-      "latestTool": "Latest Tool: {name}",
+      "running": "运行中...",
+      "latestTool": "最新工具：{name}",
       "result": "结果",
       "emptyState": "此处暂无消息",
       "noPayload": "拖动到事件帧",
       "userMessage": "用户消息",
       "assistantMessage": "助手消息",
-      "loading": "Loading replay data...",
+      "loading": "正在加载回放数据...",
       "humanFeedback": "人工审批",
       "humanFeedbackTitle": "人工反馈",
-      "llmCallTitle": "LLM Call: {model}",
+      "llmCallTitle": "LLM 调用：{model}",
       "approved": "已批准",
       "rejected": "已拒绝",
       "promptPreview": "提示词预览",
-      "memoryEventTitle": "Memory: {phase}",
+      "memoryEventTitle": "记忆：{phase}",
       "preCompactEventTitle": "压缩前回顾",
       "toolFailed": "工具执行失败",
       "scrubSnapHint": "松开以吸附到最近的事件",

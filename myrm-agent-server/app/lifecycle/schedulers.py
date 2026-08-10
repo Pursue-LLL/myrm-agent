@@ -42,12 +42,16 @@ async def _auth_log_cleanup_job() -> None:
 
 async def _context_cleanup_job() -> None:
     """Daily context file cleanup task (module-level for APScheduler serialization)."""
-    from myrm_agent_harness.runtime.context.offload import cleanup_orphan_context_files_async
+    from myrm_agent_harness.runtime.context.offload import (
+        cleanup_orphan_context_files_async,
+    )
 
     checkpointer = None
     access_tracker = None
     try:
-        from myrm_agent_harness.runtime.context.file_access_tracker import get_file_access_tracker
+        from myrm_agent_harness.runtime.context.file_access_tracker import (
+            get_file_access_tracker,
+        )
 
         from app.platform_utils import get_checkpointer
 
@@ -96,12 +100,19 @@ async def start_cron_scheduler() -> None:
         logger.warning("Cron startup monitor_config cleanup failed: %s", exc)
 
     try:
-        from app.services.onboarding.second_brain_preset import reconcile_second_brain_cron_ids
-        from app.services.wiki.source_sync.read_it_later_hygiene import migrate_stale_read_it_later_jobs
+        from app.services.onboarding.second_brain_preset import (
+            reconcile_second_brain_cron_ids,
+        )
+        from app.services.wiki.source_sync.read_it_later_hygiene import (
+            migrate_stale_read_it_later_jobs,
+        )
 
         hygiene = await migrate_stale_read_it_later_jobs()
         if hygiene.migrated_count:
-            logger.info("Cron startup migrated %d stale read-it-later job(s)", hygiene.migrated_count)
+            logger.info(
+                "Cron startup migrated %d stale read-it-later job(s)",
+                hygiene.migrated_count,
+            )
         await reconcile_second_brain_cron_ids(hygiene.id_remaps)
     except Exception as exc:
         logger.warning("Cron startup read-it-later hygiene failed: %s", exc)
@@ -140,7 +151,9 @@ async def start_context_cleanup_scheduler() -> None:
                 # Keep scheduler reference for graceful shutdown
                 global _context_cleanup_scheduler
                 _context_cleanup_scheduler = scheduler
-                logger.info("Context cleanup scheduler started (daily at 03:00, session-aware strategy)")
+                logger.info(
+                    "Context cleanup scheduler started (daily at 03:00, session-aware strategy)"
+                )
                 # Run until cancelled
                 await asyncio.Event().wait()
 
@@ -232,7 +245,9 @@ async def _approval_ttl_job() -> None:
 
         rejected_count = await ApprovalRegistry.cleanup_expired_approvals()
         if rejected_count > 0:
-            logger.info("Approval TTL cleanup: %d expired approvals rejected", rejected_count)
+            logger.info(
+                "Approval TTL cleanup: %d expired approvals rejected", rejected_count
+            )
     except Exception as exc:
         logger.warning("Approval TTL cleanup failed: %s", exc)
 
@@ -316,7 +331,9 @@ async def start_cancellation_cleanup_scheduler() -> None:
                     IntervalTrigger(minutes=10),
                     id="cancellation_token_cleanup",
                 )
-                logger.info("CancellationToken cleanup scheduler started (every 10 min)")
+                logger.info(
+                    "CancellationToken cleanup scheduler started (every 10 min)"
+                )
                 await asyncio.Event().wait()
 
         _cancellation_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
@@ -340,7 +357,9 @@ async def stop_cancellation_cleanup_scheduler() -> None:
             pass
         logger.info("[Shutdown] CancellationToken cleanup scheduler stopped")
     except Exception as exc:
-        logger.error("[Shutdown] CancellationToken cleanup scheduler stop failed: %s", exc)
+        logger.error(
+            "[Shutdown] CancellationToken cleanup scheduler stop failed: %s", exc
+        )
     finally:
         _cancellation_cleanup_scheduler_task = None
 
@@ -378,7 +397,12 @@ async def _db_maintenance_job() -> None:
             result = await session.execute(text("PRAGMA wal_checkpoint(PASSIVE)"))
             row = result.fetchone()
             if row:
-                logger.info("SQLite WAL checkpoint: busy=%s, log=%s, checkpointed=%s", row[0], row[1], row[2])
+                logger.info(
+                    "SQLite WAL checkpoint: busy=%s, log=%s, checkpointed=%s",
+                    row[0],
+                    row[1],
+                    row[2],
+                )
             else:
                 logger.info("SQLite WAL checkpoint completed")
     except Exception as e:
@@ -411,7 +435,10 @@ async def _db_maintenance_job() -> None:
                         collection_name=col.name,
                         optimizer_config={"indexing_threshold": 10000},
                     )
-                logger.info("Qdrant optimize: %d collections updated", len(collections.collections))
+                logger.info(
+                    "Qdrant optimize: %d collections updated",
+                    len(collections.collections),
+                )
     except ImportError:
         pass
     except Exception as e:
@@ -433,7 +460,10 @@ async def _db_maintenance_job() -> None:
         async with session_factory() as session:
             deleted = await MemoryImportSessionService(session).cleanup_sessions()
         if deleted > 0:
-            logger.info("Memory import review cleanup: %d expired review sessions removed", deleted)
+            logger.info(
+                "Memory import review cleanup: %d expired review sessions removed",
+                deleted,
+            )
     except Exception as e:
         logger.warning("Memory import review cleanup failed: %s", e)
 
@@ -457,11 +487,15 @@ async def _db_maintenance_job() -> None:
 
         from app.database.repositories.chat_repo import ChatRepository
         from app.platform_utils import session_factory
-        from app.services.chat.conversation_recall_index_service import ConversationRecallIndexService
+        from app.services.chat.conversation_recall_index_service import (
+            ConversationRecallIndexService,
+        )
 
         cutoff = dt.utcnow() - timedelta(days=30)
         async with session_factory() as session:
-            expired_ids = await ChatRepository.get_expired_trashed_chat_ids(session, cutoff)
+            expired_ids = await ChatRepository.get_expired_trashed_chat_ids(
+                session, cutoff
+            )
             if expired_ids:
                 for cid in expired_ids:
                     await ConversationRecallIndexService.delete_chat(session, cid)
@@ -471,7 +505,10 @@ async def _db_maintenance_job() -> None:
 
                 await session.execute(sa_delete(Chat).where(Chat.id.in_(expired_ids)))
                 await session.commit()
-                logger.info("Chat trash auto-purge: %d expired chats permanently deleted", len(expired_ids))
+                logger.info(
+                    "Chat trash auto-purge: %d expired chats permanently deleted",
+                    len(expired_ids),
+                )
 
         if expired_ids:
             from app.services.chat.chat_crud import _ChatCrudMixin
@@ -482,7 +519,11 @@ async def _db_maintenance_job() -> None:
                 try:
                     await cleanup_chat_workspace(cid)
                 except Exception as ws_err:
-                    logger.warning("Chat trash auto-purge workspace cleanup failed (chat=%s): %s", cid, ws_err)
+                    logger.warning(
+                        "Chat trash auto-purge workspace cleanup failed (chat=%s): %s",
+                        cid,
+                        ws_err,
+                    )
     except Exception as e:
         logger.warning("Chat trash auto-purge failed: %s", e)
 
@@ -506,11 +547,15 @@ async def _incognito_cleanup_job() -> None:
 
         from app.database.models import Chat
         from app.platform_utils import session_factory
-        from app.services.chat.conversation_recall_index_service import ConversationRecallIndexService
+        from app.services.chat.conversation_recall_index_service import (
+            ConversationRecallIndexService,
+        )
 
         cutoff = dt.utcnow() - timedelta(hours=1)
         async with session_factory() as session:
-            stmt = select(Chat.id).where(Chat.is_incognito.is_(True), Chat.updated_at < cutoff)
+            stmt = select(Chat.id).where(
+                Chat.is_incognito.is_(True), Chat.updated_at < cutoff
+            )
             result = await session.execute(stmt)
             expired_incognito_ids = [row[0] for row in result.fetchall()]
 
@@ -518,10 +563,13 @@ async def _incognito_cleanup_job() -> None:
                 for cid in expired_incognito_ids:
                     await ConversationRecallIndexService.delete_chat(session, cid)
 
-                await session.execute(sa_delete(Chat).where(Chat.id.in_(expired_incognito_ids)))
+                await session.execute(
+                    sa_delete(Chat).where(Chat.id.in_(expired_incognito_ids))
+                )
                 await session.commit()
                 logger.info(
-                    "Incognito chat auto-purge: %d expired incognito chats permanently deleted", len(expired_incognito_ids)
+                    "Incognito chat auto-purge: %d expired incognito chats permanently deleted",
+                    len(expired_incognito_ids),
                 )
 
         if expired_incognito_ids:
@@ -533,7 +581,11 @@ async def _incognito_cleanup_job() -> None:
                 try:
                     await cleanup_chat_workspace(cid)
                 except Exception as ws_err:
-                    logger.warning("Incognito chat auto-purge workspace cleanup failed (chat=%s): %s", cid, ws_err)
+                    logger.warning(
+                        "Incognito chat auto-purge workspace cleanup failed (chat=%s): %s",
+                        cid,
+                        ws_err,
+                    )
     except Exception as e:
         logger.warning("Incognito chat auto-purge failed: %s", e)
 
@@ -568,7 +620,9 @@ async def start_db_maintenance_scheduler() -> None:
                 await asyncio.Event().wait()
 
         _db_maintenance_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info("Database maintenance scheduler started (every 6h: WAL checkpoint + Qdrant optimize)")
+        logger.info(
+            "Database maintenance scheduler started (every 6h: WAL checkpoint + Qdrant optimize)"
+        )
 
     except Exception as e:
         logger.error("Failed to start DB maintenance scheduler: %s", e)
@@ -599,7 +653,9 @@ async def start_login_session_cleanup_scheduler() -> None:
                 await asyncio.Event().wait()
 
         _login_session_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info("Login session cleanup scheduler started (every 5min: remove expired sessions)")
+        logger.info(
+            "Login session cleanup scheduler started (every 5min: remove expired sessions)"
+        )
 
     except Exception as exc:
         logger.error("Failed to start login session cleanup scheduler: %s", exc)
@@ -651,7 +707,9 @@ async def start_auth_log_cleanup_scheduler() -> None:
                 await asyncio.Event().wait()
 
         _auth_log_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info("Auth log cleanup scheduler started (daily at 04:00: remove old archives)")
+        logger.info(
+            "Auth log cleanup scheduler started (daily at 04:00: remove old archives)"
+        )
 
     except Exception as exc:
         logger.error("Failed to start auth log cleanup scheduler: %s", exc)
@@ -708,8 +766,8 @@ async def start_kanban_dispatchers() -> None:
     4. Start a dispatcher per board (dispatcher sleeps when no READY tasks).
     """
     from app.services.kanban import KanbanService
-    from app.services.kanban.decomposer import PlatformTaskDecomposer
-    from app.services.kanban.specifier import PlatformTaskSpecifier
+    from app.services.kanban.decompose import PlatformTaskDecomposer
+    from app.services.kanban.specify import PlatformTaskSpecifier
     from app.services.kanban.task_runner import KanbanTaskRunner
 
     svc = KanbanService.get_instance()

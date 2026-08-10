@@ -71,6 +71,7 @@ interface KanbanTaskCardProps {
   onRefresh: () => void;
   onReclaim?: (taskId: string) => void;
   onOpenTaskDrawer?: (taskId: string) => void;
+  queuedByConcurrency?: boolean;
 }
 
 export default function KanbanTaskCard({
@@ -81,6 +82,7 @@ export default function KanbanTaskCard({
   onRefresh,
   onReclaim,
   onOpenTaskDrawer,
+  queuedByConcurrency = false,
 }: KanbanTaskCardProps) {
   const t = useTranslations('kanban');
   const agentName = useAgentName(task.agent_id);
@@ -356,6 +358,15 @@ export default function KanbanTaskCard({
               <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-chart-5/10 text-chart-5 border border-chart-5/20">
                 <span className="w-1 h-1 rounded-full bg-chart-5 animate-pulse" />
                 {t('waitingForDeps')}
+              </span>
+            )}
+            {task.status === 'ready' && queuedByConcurrency && (
+              <span
+                data-testid="kanban-task-queued-badge"
+                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+              >
+                <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
+                {t('queuedForConcurrency')}
               </span>
             )}
             {task.status === 'triage' && (

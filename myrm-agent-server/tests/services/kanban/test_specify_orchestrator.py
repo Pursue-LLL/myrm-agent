@@ -6,9 +6,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 from myrm_agent_harness.toolkits.kanban.protocols import SpecifyOutcome
-from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskEventKind, TaskStatus
+from myrm_agent_harness.toolkits.kanban.types import (
+    KanbanTask,
+    TaskEventKind,
+    TaskStatus,
+)
 
-from app.services.kanban.specify_orchestrator import (
+from app.services.kanban.specify import (
     run_apply_spec,
     run_specify_all_triage,
     run_specify_task,
@@ -42,7 +46,9 @@ def _noop_wake(board_id: str) -> None:
     pass
 
 
-def _noop_publish(board_id: str, task_id: str, action: str, *, title: str = "", status: str = "") -> None:
+def _noop_publish(
+    board_id: str, task_id: str, action: str, *, title: str = "", status: str = ""
+) -> None:
     pass
 
 
@@ -207,7 +213,9 @@ class TestRunApplySpec:
 
     @pytest.mark.asyncio
     async def test_race_lost_when_not_triage(self) -> None:
-        task = KanbanTask(task_id="t1", board_id="b1", title="x", status=TaskStatus.READY)
+        task = KanbanTask(
+            task_id="t1", board_id="b1", title="x", status=TaskStatus.READY
+        )
         store = _mock_store(task)
         outcome = await run_apply_spec(
             "t1",
@@ -306,7 +314,9 @@ class TestRunSpecifyAllTriage:
             call_log.append(tid)
             if tid == "t1":
                 return SpecifyOutcome(task_id=tid, ok=False, reason="llm_error:Timeout")
-            return SpecifyOutcome(task_id=tid, ok=True, reason="specified", new_body="body")
+            return SpecifyOutcome(
+                task_id=tid, ok=True, reason="specified", new_body="body"
+            )
 
         result = await run_specify_all_triage(
             "b1",

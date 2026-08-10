@@ -34,7 +34,7 @@
     "verify:i18n": "bun scripts/verify-i18n.mjs",
     "verify:stable-mocks": "bun scripts/verify-stable-mocks.mjs",
     "verify:provider-icons": "vitest run src/components/features/settings/model-service/__tests__/",
-    "pretest": "bun run i18n:split && bun run verify:i18n && bun run verify:stable-mocks && bun run verify:provider-icons"
+    "pretest": "bun run i18n:split && bun scripts/generate-simplified-glyphs.mjs --check && bun run verify:i18n && bun run verify:stable-mocks && bun run verify:provider-icons"
   },
   "dependencies": {
     "@aiden0z/pptx-renderer": "^1.2.4",
@@ -164,6 +164,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "@vitest/ui": "^4.1.10",
     "jsdom": "^30.0.1",
+    "opencc-js": "^1.4.1",
     "oxlint": "^1.77.0",
     "prettier": "^3.9.6",
     "tailwindcss": "^4.3.3",

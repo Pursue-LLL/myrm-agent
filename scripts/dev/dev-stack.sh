@@ -746,6 +746,18 @@ _repair_orphan_private_backend() {
 }
 
 cmd_backend_only_ensure() {
+  # 与 cmd_ensure 共用 ensure.lock.d，串行化 backend 冷启动。并发 ensure 竞争
+  # 会导致两个 backend 同时启动：一个抢到端口，另一个变孤儿（health wait 超时
+  # 才自清理），造成端口抖动与进程堆积。
+  if _join_ensure_in_progress "${_lock_dir}" "${ATTACH_WAIT_SEC}"; then
+    exit 0
+  fi
+  if ! _acquire_dir_lock "${_lock_dir}" "${ATTACH_WAIT_SEC}"; then
+    echo "STACK_FAIL: could not acquire stack ensure lock within ${ATTACH_WAIT_SEC}s" >&2
+    exit 1
+  fi
+  trap '_release_dir_lock "${_lock_dir}"' EXIT
+
   if ! _ensure_backend; then
     echo "STACK_FAIL: private backend start failed" >&2
     exit 1
@@ -804,7 +816,11 @@ cmd_backend_only_stop() {
 
 cmd_frontend_only_ensure() {
   local needs_client_hot=0
-  if [[ "${MYRM_E2E_ATTACH_FRONTEND_HEAL:-}" == "1" || "${MYRM_CHROME_E2E_FRONTEND_HEAL:-}" == "1" ]]; then
+  # Only the attach heal path requires client_hot (SHPOIB shell binds a hydrated
+  # page). warm_ui_route heal sets MYRM_CHROME_E2E_FRONTEND_HEAL but runs before
+  # Chrome opens any page, so client_hot is legitimately "no" there — requiring
+  # it would clean-restart the frontend every warm heal (heal loop, §26.30).
+  if [[ "${MYRM_E2E_ATTACH_FRONTEND_HEAL:-}" == "1" ]]; then
     needs_client_hot=1
   fi
   if _frontend_healthy; then

@@ -1,14 +1,14 @@
 """Kanban diagnostic engine factory and summary helpers.
 
 [INPUT]
-- diagnostic_rules (POS: Concrete diagnostic rule implementations.)
+- diagnostics.rules (POS: Concrete diagnostic rule implementations.)
 - myrm_agent_harness.toolkits.kanban.diagnostics (POS: Kanban diagnostic framework.)
 
 [OUTPUT]
 - create_diagnostic_engine, CARD_FAST_RULES, DiagnosticSummary, compute_diagnostics_summary
 
 [POS]
-Kanban diagnostic engine setup; rules live in diagnostic_rules.py.
+Kanban diagnostic engine setup; rules live in diagnostics.rules/cycle_rules.
 """
 
 from __future__ import annotations
@@ -21,11 +21,11 @@ from myrm_agent_harness.toolkits.kanban.diagnostics import (
     TaskDiagnosticSeverity,
 )
 
-from app.services.kanban.diagnostic_cycle_rules import (
+from app.services.kanban.diagnostics.cycle_rules import (
     BlockUnblockCyclingRule,
     StrandedInReviewRule,
 )
-from app.services.kanban.diagnostic_rules import (
+from app.services.kanban.diagnostics.rules import (
     DeadDependencyRule,
     DiagnosticThresholds,
     RepeatedFailuresRule,

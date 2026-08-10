@@ -2813,12 +2813,59 @@ BRIDGE_TURN_SNAPSHOT_JS = """
 """.strip()
 
 
-def backend_log_path() -> Path:
+def _private_runtime_backend_log(api_url: str | None) -> Path | None:
+    """Map a SHPOIB/PRIVATE API port to its isolated runtime backend.log.
+
+    pytest's own env keeps ``MYRM_DEV_STATE_DIR`` on the shared stack while
+    PRIVATE items talk to a per-session backend whose log lives under the
+    isolated runtime stateDir. Resolve that log from the isolated runtime
+    registry (``backendPort`` -> ``stateDir``) so log assertions read the
+    backend that actually served the session instead of the shared one.
+    """
+    resolved = api_url or os.getenv("E2E_API_BASE", "").strip()
+    if not resolved:
+        return None
+    try:
+        port = urlsplit(resolved).port
+    except ValueError:
+        return None
+    if port is None or _is_shared_dev_api_url(resolved):
+        return None
+    override = os.getenv("MYRM_ISOLATED_ROOT", "").strip()
+    isolated_root = (
+        Path(override).resolve() if override else real_user_home() / ".local/state/myrm-isolated"
+    )
+    registry = isolated_root / "registry.json"
+    if not registry.is_file():
+        return None
+    try:
+        payload = json.loads(registry.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    records = payload.get("runtimes") if isinstance(payload, dict) else None
+    if not isinstance(records, dict):
+        return None
+    for record in records.values():
+        if not isinstance(record, dict):
+            continue
+        if record.get("backendPort") == port:
+            state_dir = record.get("stateDir")
+            if isinstance(state_dir, str) and state_dir:
+                candidate = Path(state_dir) / "backend.log"
+                if candidate.is_file():
+                    return candidate
+    return None
+
+
+def backend_log_path(api_url: str | None = None) -> Path:
     override = os.getenv("MYRM_BACKEND_LOG", "").strip()
     if not override:
         override = os.getenv("MYRM_BACKEND_LOG_FILE", "").strip()
     if override:
         return Path(override)
+    private = _private_runtime_backend_log(api_url)
+    if private is not None:
+        return private
     state_dir = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
     if state_dir:
         return Path(state_dir) / "backend.log"
@@ -2829,15 +2876,19 @@ def backend_log_path() -> Path:
     return server_root / ".myrm-dev-backend.log"
 
 
-def snapshot_backend_log_offset() -> int:
-    path = backend_log_path()
+def snapshot_backend_log_offset(api_url: str | None = None) -> int:
+    path = backend_log_path(api_url=api_url)
     if not path.is_file():
         return 0
     return path.stat().st_size
 
 
-def count_execution_cache_in_log(*, since_offset: int) -> tuple[int, int]:
-    path = backend_log_path()
+def count_execution_cache_in_log(
+    *,
+    since_offset: int,
+    api_url: str | None = None,
+) -> tuple[int, int]:
+    path = backend_log_path(api_url=api_url)
     if not path.is_file():
         return 0, 0
     with path.open("rb") as handle:
@@ -2849,9 +2900,13 @@ def count_execution_cache_in_log(*, since_offset: int) -> tuple[int, int]:
     return created, reused
 
 
-def count_turn_prewarm_in_log(*, since_offset: int) -> int:
+def count_turn_prewarm_in_log(
+    *,
+    since_offset: int,
+    api_url: str | None = None,
+) -> int:
     """Count ``Turn prewarm requested`` log lines (EmptyChat / focus proactive warm)."""
-    path = backend_log_path()
+    path = backend_log_path(api_url=api_url)
     if not path.is_file():
         return 0
     with path.open("rb") as handle:

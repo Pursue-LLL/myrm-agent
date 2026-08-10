@@ -276,3 +276,54 @@ class TestFleetOverviewAPI:
         for aid, stats in agents.items():
             assert required_keys <= set(stats.keys()), f"Agent {aid} missing keys: {required_keys - set(stats.keys())}"
             assert stats["status"] in ("idle", "busy")
+
+    @pytest.mark.asyncio
+    async def test_kanban_in_review_adds_to_pending_approvals(
+        self,
+        client: TestClient,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Kanban IN_REVIEW tasks count toward per-agent pendingApprovals."""
+        await _seed_approvals(db_session, AGENT_A, pending=1)
+
+        from app.services.kanban import KanbanService
+
+        async def _fake_review_by_agent(self) -> dict[str | None, int]:
+            return {AGENT_A: 2, AGENT_B: 1}
+
+        monkeypatch.setattr(
+            KanbanService, "count_review_tasks_by_agent", _fake_review_by_agent
+        )
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+
+        assert data["agents"][AGENT_A]["pendingApprovals"] == 3
+        assert data["agents"][AGENT_B]["pendingApprovals"] == 1
+        assert data["kpi"]["pendingApprovals"] == 4
+
+    @pytest.mark.asyncio
+    async def test_fleet_overview_survives_kanban_store_failure(
+        self,
+        client: TestClient,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """fleet-overview degrades gracefully when the kanban store is unavailable."""
+        await _seed_approvals(db_session, AGENT_A, pending=1)
+
+        from sqlalchemy.exc import OperationalError
+
+        from app.services.kanban.service_mixins import query_dispatcher_mixin as qdm
+
+        async def _boom(*args: object, **kwargs: object) -> None:
+            raise OperationalError("stmt", {}, Exception("boom"))
+
+        monkeypatch.setattr(qdm, "run_list_boards", _boom)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["agents"][AGENT_A]["pendingApprovals"] == 1

@@ -105,8 +105,8 @@ Design notes:
 所有 Agent 执行（General / FastSearch / Deep Research / Headless Wakeup）都经过 `AgentGateway`：
 
 - **全局并发控制**：`Semaphore(AGENT_MAX_CONCURRENT)` 防止服务器过载。后台异步唤醒任务（Headless）同样受此保护，防止与前台活跃会话抢占资源导致 OOM 或 429 限流。
-- **内存压力熔断**：实现 `PressureSubscriber` 协议，订阅 Harness `MemoryPressureMonitor`。当压力 ≥ CRITICAL 时，阻塞新 Agent 执行（已运行的不受影响），直到压力降至 WARNING/NORMAL 或 `queue_timeout` 到期。超时时错误消息携带压力级别信息，精确传递到前端 SSE。
-- **排队超时**：等待超过 `AGENT_QUEUE_TIMEOUT` 秒抛 `AgentQueueTimeout`
+- **内存压力熔断**：实现 `PressureSubscriber` 协议，订阅 Harness `MemoryPressureMonitor`。当压力 ≥ CRITICAL 时，阻塞新 Agent 执行（已运行的不受影响），直到压力降至 WARNING/NORMAL 或 `queue_timeout` 到期。
+- **排队超时**：等待超过 `AGENT_QUEUE_TIMEOUT` 秒抛 `AgentQueueTimeout`；异常携带 `reason`（`memory_pressure` / `user_limit` / `global_limit` 三态）与 `active_sessions` 占用者快照，供 `stream_finalize` 渲染结构化 SSE 错误（`error_kind=concurrency_limit` + `diagnostic_result` 含 i18n 用户文案与 resolution_steps）
 - **执行超时**：执行超过 `AGENT_EXECUTION_TIMEOUT` 秒抛 `AgentExecutionTimeout`
 - **中断支持**：`interrupt()` 信号全部运行中 Agent 停止；`interrupt_session(chat_id)` 单会话停止；`get_active_message_id(chat_id)` 供 chat cancel 同步 harness `CancellationRegistry`
 - **优雅排空**：`begin_drain(timeout=120)` 进入 draining 状态 → 拒绝新 turn（`AgentDrainingError`）→ 等待 `_active_sessions` 清空或超时 → 超时后 `interrupt_all()` 强制中断。`cancel_drain()` 撤销排空重新接受请求。`lifespan._shutdown()` 和 `POST /shutdown` API 均在关闭组件前先 drain；CP 通过 `POST /system/drain` + `DELETE /system/drain` 外部触发/取消

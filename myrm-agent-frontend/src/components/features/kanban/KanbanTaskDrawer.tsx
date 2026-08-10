@@ -9,13 +9,12 @@ import { useAgentName } from '@/hooks/agent/useAgentName';
 import { useKanbanTaskDrawer } from './useKanbanTaskDrawer';
 import { StatusActionsBar } from './KanbanTaskDrawerHeader';
 import { TaskDetailsSection } from './KanbanTaskDrawerDetails';
+import { AttachmentsSection, TaskResultSection } from './KanbanTaskDrawerBodySections';
 import {
-  AttachmentsSection,
-  TaskResultSection,
   DependenciesSection,
   CommentInputSection,
   LatestProgressSection,
-} from './KanbanTaskDrawerBody';
+} from './KanbanTaskDrawerBodyMetaSections';
 import KanbanDiagnosticsSection from './KanbanDiagnosticsSection';
 import KanbanTaskExecutionTraceSection from './KanbanTaskExecutionTraceSection';
 import { KanbanRunHistory, KanbanEventTimeline } from './KanbanEventTimeline';
@@ -142,6 +141,7 @@ export default function KanbanTaskDrawer({
               modelValue={drawer.modelValue}
               setModelValue={drawer.setModelValue}
               handleSaveModel={drawer.handleSaveModel}
+              handleRequireApprovalChange={drawer.handleRequireApprovalChange}
               t={t}
             />
 

@@ -36,5 +36,5 @@ Kanban 看板 REST API：Board/Task CRUD、状态迁移、依赖边、Specify/De
 
 - `app.services.kanban.KanbanService` — 业务编排
 - `app.services.kanban.diagnostics` — 任务诊断引擎
-- `app.services.kanban.pipeline_instantiator` — Pipeline 确定性实例化
+- `app.services.kanban.pipeline.instantiator` — Pipeline 确定性实例化
 - `myrm_agent_harness.toolkits.kanban.types` — 域类型与状态枚举

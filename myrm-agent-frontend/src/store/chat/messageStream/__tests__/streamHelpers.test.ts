@@ -142,3 +142,34 @@ describe('clarification notification i18n', () => {
     expect(getClarificationNotificationTitle('de')).toContain('Agent');
   });
 });
+
+describe('getUserFriendlyError', () => {
+  const originalLang = document.documentElement.lang;
+
+  afterEach(() => {
+    document.documentElement.lang = originalLang;
+  });
+
+  it('maps concurrency_limit to a friendly zh message when locale is zh', async () => {
+    document.documentElement.lang = 'zh-CN';
+    const result = await getUserFriendlyError('concurrency_limit', 'raw internal error');
+    expect(result.message).toContain('并发会话已达上限');
+  });
+
+  it('maps concurrency_limit to a friendly en message for non-zh locales', async () => {
+    document.documentElement.lang = 'en-US';
+    const result = await getUserFriendlyError('concurrency_limit', 'raw internal error');
+    expect(result.message).toContain('Concurrency limit reached');
+  });
+
+  it('passes through raw error for unknown kinds', async () => {
+    document.documentElement.lang = 'en-US';
+    const result = await getUserFriendlyError('unknown', 'Some raw error text');
+    expect(result.message).toBe('Some raw error text');
+  });
+
+  it('passes through raw error when errorKind is undefined', async () => {
+    const result = await getUserFriendlyError(undefined, 'Plain fallback');
+    expect(result.message).toBe('Plain fallback');
+  });
+});

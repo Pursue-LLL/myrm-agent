@@ -428,6 +428,12 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
         isinstance(clear_result, dict) and clear_result.get("ready") is True
     ), clear_result
 
+    client.evaluate(
+        page,
+        evicted_request_probe_js(expected_offset=0, expected_limit=500),
+        timeout_sec=5.0,
+    )
+
     clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=120.0)
     if clicked.get("clicked") is not True:
         diag = wait_for_state(
@@ -481,8 +487,11 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-, private_reason="live_shpoib")
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
 @pytest.mark.timeout(600)
 def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
     """Live LLM: API stream spill SSOT + Chrome Drawer on same chat."""

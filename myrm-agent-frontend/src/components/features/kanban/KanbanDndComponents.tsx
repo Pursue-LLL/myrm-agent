@@ -50,6 +50,7 @@ interface KanbanDropColumnProps {
   collapsedAgents?: Set<string>;
   onToggleAgentCollapse?: (agentKey: string) => void;
   footer?: React.ReactNode;
+  queuedByConcurrency?: boolean;
   t: ReturnType<typeof useTranslations<'kanban'>>;
 }
 
@@ -71,6 +72,7 @@ export function KanbanDropColumn({
   collapsedAgents,
   onToggleAgentCollapse,
   footer,
+  queuedByConcurrency,
   t,
 }: KanbanDropColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
@@ -113,6 +115,7 @@ export function KanbanDropColumn({
         onReclaimTask={onReclaimTask}
         onRefresh={onRefresh}
         onOpenTaskDrawer={onOpenTaskDrawer}
+        queuedByConcurrency={queuedByConcurrency}
       />
     ));
 
@@ -187,6 +190,7 @@ interface DraggableTaskCardProps {
   onReclaimTask: (taskId: string) => void;
   onRefresh: () => void;
   onOpenTaskDrawer?: (taskId: string) => void;
+  queuedByConcurrency?: boolean;
 }
 
 function DraggableTaskCard({
@@ -200,6 +204,7 @@ function DraggableTaskCard({
   onReclaimTask,
   onRefresh,
   onOpenTaskDrawer,
+  queuedByConcurrency = false,
 }: DraggableTaskCardProps) {
   const t = useTranslations('kanban');
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -253,6 +258,7 @@ function DraggableTaskCard({
         onRefresh={onRefresh}
         onReclaim={onReclaimTask}
         onOpenTaskDrawer={onOpenTaskDrawer}
+        queuedByConcurrency={queuedByConcurrency}
       />
     </div>
   );

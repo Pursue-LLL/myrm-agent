@@ -109,7 +109,9 @@ class SupervisorDaemon:
         return False
 
     def _dev_stack_env(self, overrides: dict[str, str] | None = None) -> dict[str, str]:
-        env = os.environ.copy()
+        from stack_mutation_policy import _shared_stack_env  # noqa: PLC0415
+
+        env = _shared_stack_env()
         env["MYRM_SUPERVISOR_BYPASS"] = "1"
         env["AGENT_ROOT"] = str(self.paths.agent_root)
         env["SERVER_DIR"] = str(self.paths.server_dir)

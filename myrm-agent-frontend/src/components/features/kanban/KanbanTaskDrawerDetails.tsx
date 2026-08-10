@@ -2,7 +2,13 @@
 
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask } from '@/services/kanban';
-import { PRIORITY_STYLES, TIMEOUT_PRESETS, formatDate, formatDuration } from './kanban-styles';
+import {
+  APPROVAL_EDITABLE_STATUSES,
+  PRIORITY_STYLES,
+  TIMEOUT_PRESETS,
+  formatDate,
+  formatDuration,
+} from './kanban-styles';
 import KanbanMarkdown from './KanbanMarkdown';
 import type { KanbanModelOption } from './KanbanInlineAddForm';
 import { Clock, ExternalLink, User } from 'lucide-react';
@@ -40,6 +46,7 @@ interface TaskDetailsSectionProps {
   modelValue: string;
   setModelValue: (v: string) => void;
   handleSaveModel: (v: string | null) => void;
+  handleRequireApprovalChange: (v: boolean) => void;
   t: (key: string) => string;
 }
 
@@ -72,12 +79,15 @@ export function TaskDetailsSection({
   modelValue,
   setModelValue,
   handleSaveModel,
+  handleRequireApprovalChange,
   t,
 }: TaskDetailsSectionProps) {
   const sourceChatId =
     typeof task.metadata?.[KANBAN_SOURCE_CHAT_METADATA_KEY] === 'string'
       ? task.metadata[KANBAN_SOURCE_CHAT_METADATA_KEY]
       : null;
+
+  const canEditApproval = APPROVAL_EDITABLE_STATUSES.includes(task.status);
 
   return (
     <div className="space-y-1.5">
@@ -321,13 +331,24 @@ export function TaskDetailsSection({
       )}
 
       {/* Human approval gate */}
-      {task.require_approval && (
+      {canEditApproval ? (
+        <label className="flex items-center gap-2 text-xs rounded px-2 py-1.5 mt-1 cursor-pointer hover:bg-muted/40 transition-colors">
+          <input
+            type="checkbox"
+            checked={task.require_approval}
+            onChange={(e) => handleRequireApprovalChange(e.target.checked)}
+            className="rounded border-muted-foreground/30"
+            data-testid="kanban-detail-require-approval"
+          />
+          <span className="text-primary/70">{t('requireApproval')}</span>
+        </label>
+      ) : task.require_approval ? (
         <div className="text-xs bg-amber-500/5 rounded px-2 py-1.5 mt-1">
           <p className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
             {t('requireApproval')}
           </p>
         </div>
-      )}
+      ) : null}
 
       {/* Progress note & blocked */}
       {task.status === 'running' && hasKanbanCompletionIntent(task.metadata) && (

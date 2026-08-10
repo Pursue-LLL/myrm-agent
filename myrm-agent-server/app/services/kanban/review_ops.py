@@ -66,6 +66,7 @@ async def approve_task(
     task.completed_at = datetime.now(UTC)
     task.consecutive_failures = 0
     task.block_cycle_count = 0
+    task.error = ""
     task.progress_note = None
     await store.save_task(task)
     await store.append_event(
@@ -99,9 +100,9 @@ async def reject_task(
 ) -> KanbanTask | None:
     """Reject an IN_REVIEW task: send it back to READY for rework.
 
-    The rejection reason is persisted on the event trail and echoed into the
-    worker context (via prior-attempt error) so a re-run adapts.
-    Non-IN_REVIEW tasks are returned unchanged (idempotent double-submit).
+    The rejection reason is persisted on the event trail and surfaced in the
+    worker context under `## Review history` (via context_builder) so a re-run
+    adapts. Non-IN_REVIEW tasks are returned unchanged (idempotent double-submit).
     """
     task = await store.get_task(task_id)
     if task is None:

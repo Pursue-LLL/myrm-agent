@@ -258,6 +258,20 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
     }
   }, [task, resultText, onRefresh, t]);
 
+  const handleRequireApprovalChange = useCallback(
+    async (value: boolean) => {
+      if (!task) return;
+      try {
+        await updateTask(task.task_id, { require_approval: value });
+        onRefresh();
+        toast.success(t('approvalUpdated'));
+      } catch {
+        toast.error(t('approvalUpdateError'));
+      }
+    },
+    [task, onRefresh, t],
+  );
+
   const isTerminal = task?.status === 'completed' || task?.status === 'failed' || task?.status === 'archived';
 
   const latestSummary = useMemo(() => {
@@ -345,5 +359,6 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
     handleSaveModel,
     handleAgentChange,
     handleSaveResult,
+    handleRequireApprovalChange,
   };
 }

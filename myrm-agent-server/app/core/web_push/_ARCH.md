@@ -28,7 +28,7 @@ SSE (Web)    NotificationDispatcher (IM)    WebPushDispatcher (Web Push)
 | `HEALTH_ALERT` | Health Alert | System health issue |
 | `BUDGET_ALERT` | Budget Alert | Daily cost threshold reached |
 | `GOAL_TERMINAL` | Goal {status} | Long-running goal completed |
-| `BACKGROUND_TASK_DONE` | Task Completed | /btw background task finished |
+| `BACKGROUND_TASK_DONE` | Task {status} | Kanban task outcome (completed/failed/blocked/pending_review/rejected) — title resolved from the `status` field |
 | `CHANNEL_DISCONNECTED` | Channel Disconnected | IM channel went offline |
 | `SYSTEM_NOTIFICATION` | {title} | Generic system notification |
 | `OAUTH_REAUTH_REQUIRED` | Authorization Expired | OAuth token expired |

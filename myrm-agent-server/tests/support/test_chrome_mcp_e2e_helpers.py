@@ -887,3 +887,17 @@ def test_open_page_attempt_count_allows_read_lane_parallel_retry(
         chrome_mcp_e2e, "_dev_private_shpoib_bootstrap_phase", lambda: False
     )
     assert _open_page_attempt_count() == 2
+
+
+def test_warm_heal_guard_launch_force_before_debounced_call() -> None:
+    """§26.31 / R291: warm_ui_route heal must skip under MYRM_E2E_LAUNCH_FORCE=1."""
+    from pathlib import Path
+
+    source = Path(__file__).resolve().parent / "chrome_mcp_e2e.py"
+    text = source.read_text(encoding="utf-8")
+    start = text.index("def _heal_shared_frontend")
+    block = text[start : start + 900]
+    assert "MYRM_E2E_LAUNCH_FORCE" in block
+    assert block.index("MYRM_E2E_LAUNCH_FORCE") < block.index(
+        "heal_shared_frontend_debounced"
+    )

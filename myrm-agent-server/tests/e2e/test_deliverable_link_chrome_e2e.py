@@ -26,22 +26,43 @@ _DISMISS_MIGRATION_JS = """(() => {
   return { ok: true };
 })()"""
 
-_CHAT_SHELL_READY_JS = """(() => {
-  const state = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {};
-  return {
-    ready:
-      state.isMessagesLoaded === true
+_ATTACH_CHAT_JS = """(async () => {
+  const chatId = %s;
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) {
+    return { ok: false, err: 'no-bridge' };
+  }
+  await bridge.attachToChat(chatId);
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const state = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {};
+    if (
+      state.chatId === chatId
+      && state.isMessagesLoaded === true
       && state.notFound !== true
-      && state.loadError !== true,
-    state,
-  };
+      && state.loadError !== true
+      && (state.messageCount ?? 0) >= 1
+    ) {
+      return { ok: true, state };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  const finalState = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {};
+  return { ok: false, state: finalState };
 })()"""
 
 _DELIVERABLE_LINK_READY_JS = """(() => {
   const label = %s;
   const buttons = Array.from(document.querySelectorAll('button'));
   const hit = buttons.find((button) => (button.textContent || '').trim() === label);
-  return { ready: !!hit, count: buttons.length };
+  const deliverableButtons = Array.from(document.querySelectorAll('[data-testid="deliverable-reference-link"]'));
+  return {
+    ready: !!hit,
+    count: buttons.length,
+    deliverableCount: deliverableButtons.length,
+    deliverableTexts: deliverableButtons.map((b) => (b.textContent || '').trim()).slice(0, 10),
+    buttonTexts: buttons.map((b) => (b.textContent || '').trim()).slice(0, 15),
+  };
 })()"""
 
 _CLICK_DELIVERABLE_JS = """(() => {
@@ -99,13 +120,12 @@ def test_deliverable_workspace_link_opens_portal() -> None:
     warm_ui_route(f"/{chat_id}")
     with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-        shell = wait_for_state(
-            client,
+        attached = client.evaluate(
             page,
-            _CHAT_SHELL_READY_JS,
-            timeout_sec=120.0,
+            _ATTACH_CHAT_JS % json.dumps(chat_id),
+            timeout_sec=90.0,
         )
-        assert shell.get("ready") is True, shell
+        assert isinstance(attached, dict) and attached.get("ok") is True, attached
 
         link_state = wait_for_state(
             client,

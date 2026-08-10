@@ -1,7 +1,7 @@
 """Pipeline Template REST API endpoints.
 
 [INPUT]
-- app.services.kanban.pipeline_instantiator (POS: Deterministic pipeline template instantiation service.)
+- app.services.kanban.pipeline (POS: Deterministic pipeline template instantiation service.)
 - .schemas (POS: Pydantic request/response models for pipeline templates.)
 
 [OUTPUT]
@@ -36,7 +36,7 @@ pipeline_router = APIRouter(prefix="/kanban", tags=["kanban-pipelines"])
 @pipeline_router.get("/pipelines", response_model=PipelineTemplateListResponse)
 async def list_pipelines() -> PipelineTemplateListResponse:
     """List available pipeline templates (category=pipeline prebuilt skills)."""
-    from app.services.kanban.pipeline_instantiator import list_pipeline_skills
+    from app.services.kanban.pipeline import list_pipeline_skills
 
     specs = list_pipeline_skills()
     items = [
@@ -54,10 +54,12 @@ async def list_pipelines() -> PipelineTemplateListResponse:
     return PipelineTemplateListResponse(items=items, total=len(items))
 
 
-@pipeline_router.get("/pipelines/{skill_id}", response_model=PipelineTemplateDetailResponse)
+@pipeline_router.get(
+    "/pipelines/{skill_id}", response_model=PipelineTemplateDetailResponse
+)
 async def get_pipeline(skill_id: str) -> PipelineTemplateDetailResponse:
     """Get full pipeline template detail including discovery questions."""
-    from app.services.kanban.pipeline_instantiator import get_pipeline_skill
+    from app.services.kanban.pipeline import get_pipeline_skill
 
     spec = get_pipeline_skill(skill_id)
     if spec is None:
@@ -73,7 +75,12 @@ async def get_pipeline(skill_id: str) -> PipelineTemplateDetailResponse:
             PipelineQuestionGroupResponse(
                 group=g.group,
                 group_label=g.group_label,
-                questions=[PipelineQuestionResponse(id=q.id, type=q.type, label=q.label, options=q.options) for q in g.questions],
+                questions=[
+                    PipelineQuestionResponse(
+                        id=q.id, type=q.type, label=q.label, options=q.options
+                    )
+                    for q in g.questions
+                ],
             )
             for g in spec.discovery_questions
         ],
@@ -126,7 +133,7 @@ async def instantiate_pipeline(
     body: PipelineInstantiateRequest,
 ) -> PipelineInstantiateResponse:
     """Instantiate a pipeline template into a Kanban task graph."""
-    from app.services.kanban.pipeline_instantiator import (
+    from app.services.kanban.pipeline import (
         instantiate_pipeline as do_instantiate,
     )
 

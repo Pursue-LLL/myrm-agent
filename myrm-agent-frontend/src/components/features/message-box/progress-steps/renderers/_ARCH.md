@@ -10,3 +10,4 @@
 | `SourcesRenderer.tsx` / `QueryItemsRenderer.tsx` / `TextItemsRenderer.tsx` | 检索与文本块 |
 | `SkillSelectRenderer.tsx` | 技能选择步骤 |
 | `EvictedOutputDrawer.tsx` | UECD 超长输出抽屉：分页 `GET /files/evicted?offset&limit=500`；404 → expired UX（`data-testid=evicted-output-expired`）；**当前页**搜索/复制（跨页搜索需翻页）；移动/桌面响应式 |
+| `sizeFormatUtils.ts` | 共享字节大小格式化（`formatStoredSize`，LiveTerminal/EvictedOutputDrawer 共用） |

@@ -111,10 +111,18 @@ def should_defer_cold_shim_restart() -> bool:
     return _cold_shim_defer_peer_load() >= cold_shim_restart_defer_peer_threshold()
 
 
+def _mux_recovery_lock_path() -> Path:
+    try:
+        import pwd
+
+        home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+    except (ImportError, KeyError, OSError):
+        home = Path.home()
+    return home / ".local/state/myrm-dev-gate/mux-recovery.lock"
+
+
 _GLOBAL_RECOVERY_LOCK = threading.Lock()
-_CROSS_PROCESS_RECOVERY_LOCK_PATH = (
-    Path.home() / ".local/state/myrm-dev-gate/mux-recovery.lock"
-)
+_CROSS_PROCESS_RECOVERY_LOCK_PATH = _mux_recovery_lock_path()
 _session_recovery_spent: dict[str, float] = {}
 _session_lock = threading.Lock()
 

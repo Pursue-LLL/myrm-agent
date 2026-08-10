@@ -20,7 +20,7 @@
 | `expert_summon.py` | 模块 | 专家召唤漏斗观测 API：写入 `surface_viewed/search_used/summon_attempted/summon_succeeded/summon_failed/route_applied/route_apply_failed/first_message_sent/dropped_report` 事件；聚合召唤成功率、路由应用率、首条发送转化率、use_case 触发率、搜索辅助率、失败原因分布，并做 90 天 retention 清理。 | ✅ |
 | `growth_dashboard.py` | 模块 | Growth Dashboard API — aggregated view of agent growth metrics, cost/savings summary, and per-skill usage efficiency trends. | ✅ |
 | `rate_limits.py` | 模块 | API endpoints for fetching real-time rate limit statistics | ✅ |
-| `router.py` | 路由 | Base statistics routes: usage, daily, sessions, activity, tool-stability, badges（含 activeGoals 计数）. | ✅ |
+| `router.py` | 路由 | Base statistics routes: usage, daily, sessions, activity, tool-stability, badges（含 activeGoals 计数；pendingApprovals = goal 审批 + kanban IN_REVIEW 待审任务）. | ✅ |
 | `session_analytics.py` | 模块 | 会话级分析 API。提供单个会话的详细统计（token、工具、事件时间线、任务指标）和执行追踪。`/session/{id}/trace` 访问条件：Chat 记录存在 **或** event_log 文件存在（支持 kanban 任务无 Chat 记录但有 event_log 的回放）。session_id 白名单 `[A-Za-z0-9:_-]` 校验（两个端点共用 `_validate_session_id`，内部调用共享 `is_safe_session_id`（app/core/utils/session_id.py），拒绝 `..`/反斜杠/空字节构造的路径逃逸）。 | ✅ |
 | `turn_capability.py` | 模块 | 单轮 Skill/MCP 能力覆写观测 API：写入 selection/applied/noop/queue/completed/failed/busy-requeue/dropped 事件；`send_failed` 仅接受 `failure_reason` 枚举（`network_error/archive_restore_invalid/abort/server_error/unknown_error`）；聚合 apply/noop/queue/completion/failure 率、selected/effective 规模均值、source 分解与失败原因分布，并做 90 天 retention 清理。 | ✅ |
 | `usage_aggregation.py` | 模块 | Coerce SQLAlchemy Row / tuple results into aggregate_usage inputs；聚合 token/cost/cache 指标并输出端到端 `streamTtft` 统计摘要（sampleCount/avg/p95，基于 `streamTtftMs` 样本，不依赖 usage 字段是否存在）。 | ✅ |

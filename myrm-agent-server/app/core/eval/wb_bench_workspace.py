@@ -1,18 +1,20 @@
 """WorkBuddy Bench workspace provisioning and case building.
 
 [INPUT]
-- wb_bench::WbBenchSubset, _SUBSET_BY_ID, _safe_extract, WORKSPACES_DIR,
-  _NATIVE_SCORING_SUBSETS, _COMPOSITE_SCORING_SUBSETS, _scoring_mode_for
+- wb_bench::WbBenchSubset, _SUBSET_BY_ID, _safe_extract, WORKSPACES_DIR, _scoring_mode_for
+- wb_bench_verifier::_test_suite_assertion_for
 - myrm_agent_harness.eval::MultiTurnEvalCase, EvalCase, SandboxAssertion
 
 [OUTPUT]
 - build_wb_bench_cases(): map a subset's tasks to MultiTurnEvalCase + seed map
 - _prepare_workspace(): extract task workspace.tar.gz into the workspace cache
-- _test_suite_assertion_for(): Rule judge assertion for a subset's tests
 
 [POS]
-Splits task-level concerns (workspace seeding, test mirroring, case mapping)
-out of the download/verify data-source management in ``wb_bench``.
+Splits task-level concerns (workspace seeding, case mapping) out of the
+download/verify data-source management in ``wb_bench``; grading-command wiring
+lives in ``wb_bench_verifier``. Seeded workspaces contain only the task skeleton
+— grading assets are mounted read-only from the source cache at grading time, so
+``gold.patch`` never reaches the agent.
 """
 
 from __future__ import annotations
@@ -26,7 +28,6 @@ from pathlib import Path
 from myrm_agent_harness.eval import EvalCase, MultiTurnEvalCase, SandboxAssertion
 
 from .wb_bench import (
-    _NATIVE_SCORING_SUBSETS,
     _SUBSET_BY_ID,
     WORKSPACES_DIR,
     DownloadAbortedError,
@@ -34,6 +35,7 @@ from .wb_bench import (
     _safe_extract,
     _scoring_mode_for,
 )
+from .wb_bench_verifier import _test_suite_assertion_for
 
 logger = logging.getLogger(__name__)
 
@@ -58,33 +60,6 @@ def _read_instruction(task_dir: Path) -> str:
     return f"Complete the task described in the {task_dir.name} WorkBuddy Bench task."
 
 
-def _test_suite_assertion_for(subset: WbBenchSubset) -> SandboxAssertion:
-    """Build the Rule judge assertion that grades a task's own test suite.
-
-    Code/Office tasks ship a pytest suite under ``tests/``; the assertion runs
-    pytest with a JUnit XML report and the harness parses pass/total from it.
-    Security tasks ship a native scorer driven by ``tests/test.sh`` that writes
-    a numeric ``reward.json``; the assertion runs that script and the harness
-    parses the reward. ``.wb_bench/tests`` is the mirrored copy the adapter
-    places inside the seeded workspace (see ``_mirror_task_tests``). Commands
-    default to a 600s timeout to match WBBench's ``[verifier] timeout_sec``.
-    """
-    timeout = 600
-    if subset.id in _NATIVE_SCORING_SUBSETS:
-        return SandboxAssertion(
-            type="test_suite",
-            target="bash .wb_bench/tests/test.sh",
-            result_file=".wb_bench/reward.json",
-            timeout=timeout,
-        )
-    return SandboxAssertion(
-        type="test_suite",
-        target="python -m pytest -q .wb_bench/tests --junitxml=.wb_bench/results.xml",
-        result_file=".wb_bench/results.xml",
-        timeout=timeout,
-    )
-
-
 def _single_root_dir(stage: Path) -> Path:
     """Return the effective content root, unwrapping a single top-level directory.
 
@@ -100,23 +75,6 @@ def _single_root_dir(stage: Path) -> Path:
     return stage
 
 
-def _mirror_task_tests(task_dir: Path, workspace_dir: Path) -> None:
-    """Copy a task's grading tests into the workspace as ``.wb_bench/tests``.
-
-    Idempotent: an existing mirror (from a previous run or a pre-built cache)
-    is left untouched, so this is cheap on the hot path and never overwrites
-    work an agent may have produced under that hidden directory.
-    """
-    tests_src = task_dir / "tests"
-    if not tests_src.is_dir():
-        return
-    tests_dst = workspace_dir / ".wb_bench" / "tests"
-    if tests_dst.exists():
-        return
-    tests_dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(tests_src, tests_dst)
-
-
 def _prepare_workspace(task_dir: Path, subset: WbBenchSubset) -> Path | None:
     """Extract a task's workspace.tar.gz into the WBBench workspace cache.
 
@@ -126,11 +84,10 @@ def _prepare_workspace(task_dir: Path, subset: WbBenchSubset) -> Path | None:
     marker at the cache root marks the extraction as complete so repeat runs
     are cheap and idempotent.
 
-    Task-owned grading assets (``tests/``) are mirrored into the workspace
-    under ``.wb_bench/tests`` so the harness Rule judge can run them inside
-    the same directory the agent worked in. The hidden dot-directory keeps the
-    test suite out of the agent's working files while remaining reachable by
-    the injected ``test_suite`` assertion command.
+    Grading assets (``tests/``) intentionally stay out of the seeded workspace:
+    they are mounted read-only from the source cache by the injected
+    ``test_suite`` assertion (see ``wb_bench_verifier``), keeping ``gold.patch``
+    unreachable during agent execution.
     """
     workspace_archive = task_dir / "environment" / "workspace.tar.gz"
     if not workspace_archive.is_file():
@@ -140,7 +97,6 @@ def _prepare_workspace(task_dir: Path, subset: WbBenchSubset) -> Path | None:
     marker = cache_dir / ".ready"
     workspace_dir = cache_dir / "workspace"
     if marker.is_file() and workspace_dir.is_dir():
-        _mirror_task_tests(task_dir, workspace_dir)
         return workspace_dir
 
     cache_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -160,7 +116,6 @@ def _prepare_workspace(task_dir: Path, subset: WbBenchSubset) -> Path | None:
         if stage.exists():
             shutil.rmtree(stage)
     marker.touch()
-    _mirror_task_tests(task_dir, workspace_dir)
     return workspace_dir
 
 
@@ -180,16 +135,18 @@ def _case_for_task(
     if workspace_dir:
         metadata["wb_bench_workspace"] = str(workspace_dir)
 
-    # Web tasks grade through the VLM judge pipeline; Code/Office/Security
-    # carry a rule assertion that runs the task's own tests inside the seeded
-    # workspace (only when the task ships a workspace with mirrored tests).
+    # Web tasks grade through the VLM judge pipeline; any non-Web task that
+    # ships a native verifier (Code/Security families, an Office task carrying
+    # an Office verifier.toml, or a Security-style scoring.py) gets a Rule
+    # assertion running its own grading command against the seeded workspace
+    # (agent execution finished, so grading assets mounted read-only are never
+    # reachable by the agent). Tasks without any verifier assets fall back to
+    # the VLM/LLM judge pipeline via metadata only.
     sandbox_assertions: list[SandboxAssertion] = []
-    if (
-        subset.id != "web"
-        and workspace_dir is not None
-        and (workspace_dir / ".wb_bench" / "tests").is_dir()
-    ):
-        sandbox_assertions.append(_test_suite_assertion_for(subset))
+    if subset.id != "web" and workspace_dir is not None:
+        assertion = _test_suite_assertion_for(task_dir)
+        if assertion is not None:
+            sandbox_assertions.append(assertion)
 
     return MultiTurnEvalCase(
         turns=[

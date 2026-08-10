@@ -105,29 +105,50 @@ def drawer_expired_js() -> str:
 }})()"""
 
 
-def evicted_request_probe_js(*, expected_offset: int = 0, expected_limit: int = 500) -> str:
-    """Probe browser resource entries for evicted API pagination params."""
+def evicted_request_probe_js(
+    *, expected_offset: int = 0, expected_limit: int = 500
+) -> str:
+    """Probe evicted API pagination params via a fetch monkey-patch.
+
+    Resource-timing probes miss requests served from cache and can be dropped
+    when the browser's 150-entry buffer is saturated under dev-mode chunk
+    load; patching window.fetch observes the call regardless.
+    """
     target_offset = max(0, expected_offset)
     target_limit = max(1, expected_limit)
     return f"""(() => {{
+  if (!window.__myrmEvictedFetchProbe) {{
+    window.__myrmEvictedFetchProbe = [];
+    const origFetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {{
+      let url = '';
+      try {{
+        url = typeof input === 'string'
+          ? input
+          : (input instanceof Request ? input.url : String(input));
+      }} catch {{
+        url = String(input);
+      }}
+      if (url.includes('/api/v1/files/evicted?')) {{
+        window.__myrmEvictedFetchProbe.push(url);
+      }}
+      return origFetch(input, init);
+    }};
+  }}
   const expectedOffset = String({target_offset});
   const expectedLimit = String({target_limit});
-  const requests = performance
-    .getEntriesByType('resource')
-    .map((entry) => (entry && typeof entry.name === 'string' ? entry.name : ''))
-    .filter((name) => name.includes('/api/v1/files/evicted?'))
-    .map((name) => {{
-      try {{
-        const parsed = new URL(name, window.location.origin);
-        return {{
-          url: name,
-          offset: parsed.searchParams.get('offset'),
-          limit: parsed.searchParams.get('limit'),
-        }};
-      }} catch {{
-        return {{ url: name, offset: null, limit: null }};
-      }}
-    }});
+  const requests = window.__myrmEvictedFetchProbe.map((u) => {{
+    try {{
+      const parsed = new URL(u, window.location.origin);
+      return {{
+        url: u,
+        offset: parsed.searchParams.get('offset'),
+        limit: parsed.searchParams.get('limit'),
+      }};
+    }} catch {{
+      return {{ url: u, offset: null, limit: null }};
+    }}
+  }});
   const hit = requests.some(
     (item) => item.offset === expectedOffset && item.limit === expectedLimit,
   );

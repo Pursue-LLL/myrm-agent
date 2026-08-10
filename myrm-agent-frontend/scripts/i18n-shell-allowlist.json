@@ -1,6 +1,18 @@
 {
   "comment": "Shell-detection allowlists for verify-i18n.mjs. allowedSameValues: string values that legitimately stay identical to English (brands, credential field names, formats, placeholder examples). allowedSameKeys: full dotted key paths that are legitimately identical. Add entries here ONLY for values/keys that must remain English; anything else flagged as a translation shell must be translated.",
   "allowedSameValues": [
+    "-{wu} WU",
+    "PID {pid}",
+    "TLS / mTLS",
+    "sk-...",
+    "{wu} WU",
+    "SDK / API",
+    "Bearer sk-...",
+    "Status: {status}",
+    "Live: {hostname}",
+    "Aggregator: {model}",
+    "Fallback: {reason}",
+    "Code / IT",
     "Account ID",
     "Access Key ID",
     "Access Token",

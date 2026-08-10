@@ -10,7 +10,43 @@ import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { apiRequest, getApiUrl, getStorageUrl } from '@/lib/api';
-import { pushWeChatOfficialDraft } from '@/services/channels';
+import { pushWeChatOfficialDraft, type WeChatComplianceHit } from '@/services/channels';
+import { ApiError } from '@/lib/api';
+
+type WeChatComplianceSeverity = 'blocked' | 'warning';
+
+function normalizeWeChatComplianceHits(items: unknown): WeChatComplianceHit[] {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  const hits: WeChatComplianceHit[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+    const record = item as Record<string, unknown>;
+    const terms = Array.isArray(record.terms)
+      ? record.terms.filter((term): term is string => typeof term === 'string')
+      : [];
+    if (typeof record.category !== 'string' || typeof record.label !== 'string') {
+      continue;
+    }
+    hits.push({
+      category: record.category,
+      label: record.label,
+      terms,
+      highRisk: record.highRisk === true,
+    });
+  }
+  return hits;
+}
+
+function parseWeChatComplianceHits(data: Record<string, unknown> | undefined): WeChatComplianceHit[] {
+  if (!data || !Array.isArray(data.hits)) {
+    return [];
+  }
+  return normalizeWeChatComplianceHits(data.hits);
+}
 import { useWechatCoverSuggest } from './useWechatCoverSuggest';
 import { extractFirstLocalImageSrc } from './wechatDraftCoverUtils';
 import { OrganizePlanPanel } from './OrganizePlanPanel';
@@ -116,6 +152,9 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const [wechatDraftTitle, setWechatDraftTitle] = useState('');
   const [wechatDraftCoverPath, setWechatDraftCoverPath] = useState('');
   const [wechatDraftLoading, setWechatDraftLoading] = useState(false);
+  const [wechatDraftPushSucceeded, setWechatDraftPushSucceeded] = useState(false);
+  const [wechatComplianceHits, setWechatComplianceHits] = useState<WeChatComplianceHit[]>([]);
+  const [wechatComplianceSeverity, setWechatComplianceSeverity] = useState<WeChatComplianceSeverity | null>(null);
   const isOrganizePlan = isOrganizePlanArtifact(artifact.filename);
   const [organizePlanOpen, setOrganizePlanOpen] = useState(false);
   const [organizePlanContent, setOrganizePlanContent] = useState<string | null>(null);
@@ -554,6 +593,13 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     };
   }, [organizePlanOpen, organizePlanContent, fetchInlineContent]);
 
+  const handleDismissWeChatDraftPanel = useCallback(() => {
+    setWechatDraftOpen(false);
+    setWechatDraftPushSucceeded(false);
+    setWechatComplianceHits([]);
+    setWechatComplianceSeverity(null);
+  }, []);
+
   const handlePushWeChatDraft = useCallback(async () => {
     const htmlPath = artifactState.file_path;
     if (!htmlPath) {
@@ -566,6 +612,9 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
       return;
     }
     setWechatDraftLoading(true);
+    setWechatDraftPushSucceeded(false);
+    setWechatComplianceHits([]);
+    setWechatComplianceSeverity(null);
     try {
       const payload: Parameters<typeof pushWeChatOfficialDraft>[0] = {
         htmlPath,
@@ -576,12 +625,29 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         payload.coverPath = coverPath;
       }
       const result = await pushWeChatOfficialDraft(payload);
+      const warnings = normalizeWeChatComplianceHits(result.complianceWarnings);
       toast.success(t('wechatDraft.success'));
       if (result.manageUrl) {
         window.open(result.manageUrl, '_blank', 'noopener,noreferrer');
       }
+      if (warnings.length > 0) {
+        setWechatComplianceHits(warnings);
+        setWechatComplianceSeverity('warning');
+        setWechatDraftPushSucceeded(true);
+        return;
+      }
       setWechatDraftOpen(false);
+      setWechatDraftPushSucceeded(false);
+      setWechatComplianceHits([]);
+      setWechatComplianceSeverity(null);
     } catch (error) {
+      if (error instanceof ApiError && error.businessCode === 'wechat_compliance_blocked') {
+        const hits = parseWeChatComplianceHits(error.data);
+        setWechatComplianceHits(hits);
+        setWechatComplianceSeverity('blocked');
+        toast.error(error.message || t('wechatDraft.complianceBlocked'), { duration: 6000 });
+        return;
+      }
       const message = error instanceof Error ? error.message : t('wechatDraft.failed');
       if (message.toLowerCase().includes('credentials not configured')) {
         toast.error(t('wechatDraft.credentialsMissing'));
@@ -789,7 +855,15 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               )}
               onClick={(e) => {
                 e.stopPropagation();
-                setWechatDraftOpen((prev) => !prev);
+                setWechatDraftOpen((prev) => {
+                  const next = !prev;
+                  if (next) {
+                    setWechatDraftPushSucceeded(false);
+                    setWechatComplianceHits([]);
+                    setWechatComplianceSeverity(null);
+                  }
+                  return next;
+                });
               }}
               title={t('wechatDraft.openPanel')}
             >
@@ -1075,15 +1149,61 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               {t('wechatDraft.coverHint')}
             </p>
           </div>
+          {wechatComplianceHits.length > 0 && (
+            <div
+              className={cn(
+                'rounded-md border p-3 space-y-2',
+                wechatComplianceSeverity === 'warning'
+                  ? 'border-amber-500/30 bg-amber-500/5'
+                  : 'border-destructive/30 bg-destructive/5',
+              )}
+            >
+              <p
+                className={cn(
+                  'text-xs font-medium',
+                  wechatComplianceSeverity === 'warning' ? 'text-amber-700 dark:text-amber-400' : 'text-destructive',
+                )}
+              >
+                {wechatComplianceSeverity === 'warning'
+                  ? t('wechatDraft.complianceSuccessTitle')
+                  : t('wechatDraft.complianceTitle')}
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                {wechatComplianceSeverity === 'warning'
+                  ? t('wechatDraft.complianceSuccessHint')
+                  : t('wechatDraft.complianceHint')}
+              </p>
+              <ul className="space-y-2">
+                {wechatComplianceHits.map((hit) => (
+                  <li key={hit.category} className="text-xs leading-snug">
+                    <span className="font-medium text-foreground">{hit.label}</span>
+                    <span className="ml-2 text-[11px] text-muted-foreground">
+                      {hit.highRisk ? t('wechatDraft.complianceHighRisk') : t('wechatDraft.complianceWarning')}
+                    </span>
+                    <p className="mt-1 text-muted-foreground break-words">{hit.terms.join(' · ')}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <Button
             size="sm"
             className="h-8 w-full sm:w-auto"
+            variant={wechatDraftPushSucceeded ? 'outline' : 'default'}
             disabled={wechatDraftLoading}
             onClick={() => {
+              if (wechatDraftPushSucceeded) {
+                handleDismissWeChatDraftPanel();
+                return;
+              }
               void handlePushWeChatDraft();
             }}
           >
-            {wechatDraftLoading ? t('wechatDraft.pushing') : t('wechatDraft.confirm')}
+            {wechatDraftLoading
+              ? t('wechatDraft.pushing')
+              : wechatDraftPushSucceeded
+                ? t('wechatDraft.dismiss')
+                : t('wechatDraft.confirm')}
           </Button>
         </div>
       )}

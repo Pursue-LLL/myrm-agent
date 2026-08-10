@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Start myrm-agent-server on :8080 in background. Sets SERVER_DIR, writes pid/log under server dir.
 # Health-aware self-healing (R61/R61-A):
-#   - identity mismatch: recycle state files
-#   - health probe fail + leases=0: kill+restart
+#   - port truth SSOT: the lsof listener on the backend port is the only
+#     authority for liveness; a desynced pid record is re-synced to the port
+#     owner, never kill a healthy listener
+#   - health probe fail + leases=0: kill+restart the port owner (not the record)
 #   - health probe fail + leases>0: defer kill (protect parallel E2E)
 #   - health probe fail + leases>0 + SUPERVISOR/WAVE bypass: SHC leader crash heal may kill+restart
 #   - source drift + leases>0: defer reload + record-pending (R31-G SMP)
+#   - cold-start health wait requires new_pid to own the listen port before success
 # [POS] Dev 栈 backend 进程管理。source stack-epoch.sh 获取 _wave_active_lease_count。
 set -euo pipefail
 
@@ -80,6 +83,7 @@ _start_backend_bg() {
   identity_helper="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/process_identity.py"
   local runtime_id="${MYRM_RUNTIME_NAMESPACE:-shared}"
   local health_url="${E2E_API_BASE:-http://127.0.0.1:${backend_port}}/api/v1/health"
+  local health_timeout="${MYRM_BACKEND_HEALTH_TIMEOUT_SEC:-8}"
   mkdir -p "${state_dir}"
 
   local py=""
@@ -93,149 +97,155 @@ _start_backend_bg() {
     return 1
   fi
 
+  # 端口真值 SSOT：lsof 的实际 listener 是 backend 存活性的唯一权威。
+  # pid_file / identity 只是记录；记录与端口 owner 失步时以端口 owner 为准，
+  # 绝不 kill 健康 listener（否则 kill 的只是 phantom 记录，真 owner 仍在服务，
+  # 新实例永远抢不到端口，无限重启 + 进程堆积）。
+  local port_owner_pid=""
+  port_owner_pid="$(lsof -nP -iTCP:"${backend_port}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
+
+  # 冷启动前端口回收标记：某分支决定重建时，先杀真 owner，再等端口释放。
+  local need_rebuild=0
+  local rebuild_target=""
+
   if [[ -f "${pid_file}" ]]; then
     local old_pid
     old_pid="$(cat "${pid_file}")"
-    if kill -0 "${old_pid}" 2>/dev/null; then
-      if ! "${py}" "${identity_helper}" verify \
+
+    if [[ -n "${port_owner_pid}" ]]; then
+      # ---- 端口有监听者：owner 是唯一真值，记录无条件同步到 owner ----
+      if ! "${py}" "${identity_helper}" record \
+        --pid "${port_owner_pid}" \
         --identity-file "${identity_file}" \
-        --expected-pid "${old_pid}" \
-        --expected-runtime-id "${runtime_id}" >/dev/null; then
-        echo "STACK_WARN: stale PID ownership mismatch (pid=${old_pid}) — recycling state files" >&2
-        if kill -0 "${old_pid}" 2>/dev/null; then
-          kill -TERM "${old_pid}" 2>/dev/null || true
-          local mismatch_i
-          for mismatch_i in $(seq 1 20); do
-            kill -0 "${old_pid}" 2>/dev/null || break
-            sleep 0.25
-          done
-          if kill -0 "${old_pid}" 2>/dev/null; then
-            kill -KILL "${old_pid}" 2>/dev/null || true
-          fi
+        --runtime-id "${runtime_id}" \
+        --role backend \
+        --expected-command-token run.py >/dev/null 2>&1; then
+        echo "STACK_FAIL: :${backend_port} owned by non-backend pid ${port_owner_pid} — refusing to reclaim foreign process" >&2
+        return 1
+      fi
+      if [[ "${port_owner_pid}" != "${old_pid}" ]]; then
+        echo "STACK_SYNC: backend record ${old_pid} → port owner ${port_owner_pid}" >&2
+      fi
+      echo "${port_owner_pid}" > "${pid_file}"
+
+      # owner 健康 → 走 drift 检查；不健康 → 重试 3 次仍失败才重建（抗瞬时负载误杀）。
+      local owner_healthy=0
+      local retry_i
+      for retry_i in 1 2 3; do
+        if curl -sf --max-time "${health_timeout}" "${health_url}" >/dev/null 2>&1; then
+          owner_healthy=1
+          break
         fi
-        rm -f "${pid_file}" "${identity_file}"
-      else
-        local health_timeout="${MYRM_BACKEND_HEALTH_TIMEOUT_SEC:-8}"
-        if ! curl -sf --max-time "${health_timeout}" "${health_url}" >/dev/null 2>&1; then
-          local stack_epoch_lib_heal monorepo_root_heal agent_root_heal active_leases_heal
-          stack_epoch_lib_heal="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
-          if [[ -f "${stack_epoch_lib_heal}" ]]; then
-            # shellcheck source=stack-epoch.sh
-            source "${stack_epoch_lib_heal}"
+        sleep 2
+      done
+
+      if [[ "${owner_healthy}" -eq 1 ]]; then
+        _require_harness_editable_for_monorepo "${server_dir}"
+        local stack_epoch_lib stored_fp current_fp
+        stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
+        if [[ -f "${stack_epoch_lib}" ]]; then
+          # shellcheck source=stack-epoch.sh
+          source "${stack_epoch_lib}"
+          if [[ ! -f "$(_stack_epoch_file)" ]]; then
+            _bump_stack_epoch "${port_owner_pid}" "${server_dir}" >/dev/null || true
           fi
-          agent_root_heal="$(cd "${server_dir}/.." && pwd)"
-          monorepo_root_heal="$(cd "${agent_root_heal}/.." && pwd)"
-          active_leases_heal="$(_wave_active_lease_count "${monorepo_root_heal}" 2>/dev/null || echo 0)"
-          if [[ "${active_leases_heal}" != "0" ]]; then
-            if [[ "${MYRM_SUPERVISOR_BYPASS:-}" != "1" && "${MYRM_WAVE_GATE_BYPASS:-}" != "1" ]]; then
-              echo "STACK_WARN: backend unresponsive (pid=${old_pid}) but ${active_leases_heal} active leases — defer kill" >&2
-              echo "Backend already running (pid ${old_pid})"
-              return 0
-            fi
-            echo "STACK_HEAL: bypass crash heal — unresponsive backend (pid=${old_pid}, ${active_leases_heal} active leases)" >&2
-          fi
-          # R92: defer kill while backend is still in startup grace (health_wait window).
-          local backend_start_grace_sec="${MYRM_BACKEND_START_GRACE_SEC:-180}"
-          if [[ -f "${identity_file}" ]]; then
-            local backend_age_sec=""
-            backend_age_sec="$("${py}" -c "
-import json, sys, time
-from pathlib import Path
-path = Path(sys.argv[1])
-try:
-    payload = json.loads(path.read_text(encoding='utf-8'))
-    recorded = float(payload.get('recordedAt', 0))
-    if recorded > 0:
-        print(int(time.time() - recorded))
-except Exception:
-    pass
-" "${identity_file}" 2>/dev/null || true)"
-            if [[ "${backend_age_sec}" =~ ^[0-9]+$ ]] && [[ "${backend_age_sec}" -lt "${backend_start_grace_sec}" ]]; then
-              echo "STACK_WARN: backend starting (age=${backend_age_sec}s < grace=${backend_start_grace_sec}s) — defer kill (pid=${old_pid})" >&2
-              echo "Backend starting (pid ${old_pid})"
-              return 0
-            fi
-          fi
-          # Port truth: process alive AND port still owned by old_pid ⇒ slow health probe,
-          # not a crash. Under high load the HTTP probe can time out while the backend
-          # keeps serving — never heal-kill a backend that still owns its listen port.
-          local port_listener_pid
-          port_listener_pid="$(lsof -nP -iTCP:"${backend_port}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
-          if [[ "${port_listener_pid}" == "${old_pid}" ]]; then
-            echo "STACK_WARN: backend alive on :${backend_port} but health probe slow (pid=${old_pid}) — defer kill" >&2
-            echo "Backend already running (pid ${old_pid})"
-            return 0
-          fi
-          echo "STACK_HEAL: backend PID alive but not responding (pid=${old_pid}) — kill and restart" >&2
-          kill -TERM "${old_pid}" 2>/dev/null || true
-          local heal_i
-          for heal_i in $(seq 1 20); do
-            kill -0 "${old_pid}" 2>/dev/null || break
-            sleep 0.25
-          done
-          if kill -0 "${old_pid}" 2>/dev/null; then
-            kill -KILL "${old_pid}" 2>/dev/null || true
-          fi
-          rm -f "${pid_file}" "${identity_file}"
-        else
-          _require_harness_editable_for_monorepo "${server_dir}"
-          local stack_epoch_lib stored_fp current_fp
-          stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
-          if [[ -f "${stack_epoch_lib}" ]]; then
-            # shellcheck source=stack-epoch.sh
-            source "${stack_epoch_lib}"
-            if [[ ! -f "$(_stack_epoch_file)" ]]; then
-              _bump_stack_epoch "${old_pid}" "${server_dir}" >/dev/null || true
-            fi
-            stored_fp="$(_read_stack_epoch_source_fingerprint)"
-            current_fp="$(_backend_source_fingerprint "${server_dir}")"
-            if [[ -n "${current_fp}" && ( -z "${stored_fp}" || "${stored_fp}" != "${current_fp}" ) ]]; then
-              local monorepo_root agent_root active_leases policy_py defer_reason
-              agent_root="$(cd "${server_dir}/.." && pwd)"
-              monorepo_root="$(cd "${agent_root}/.." && pwd)"
-              active_leases="$(_wave_active_lease_count "${monorepo_root}")"
-              if [[ "${active_leases}" != "0" ]]; then
-                policy_py="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py"
-                defer_reason="backend_source_drift"
-                if [[ -z "${stored_fp}" ]]; then
-                  defer_reason="backend_source_fingerprint_missing"
-                fi
-                python3 "${policy_py}" record-pending \
-                  --state-dir "${state_dir}" \
-                  --reason "${defer_reason}" \
-                  --server-dir "${server_dir}" >/dev/null 2>&1 || true
-                echo "CHROME_E2E_ATTACH: defer backend reload (${active_leases} active wave leases)" >&2
-                echo "Backend already running (pid ${old_pid})"
-                return 0
-              fi
+          stored_fp="$(_read_stack_epoch_source_fingerprint)"
+          current_fp="$(_backend_source_fingerprint "${server_dir}")"
+          if [[ -n "${current_fp}" && ( -z "${stored_fp}" || "${stored_fp}" != "${current_fp}" ) ]]; then
+            local monorepo_root agent_root active_leases policy_py defer_reason
+            agent_root="$(cd "${server_dir}/.." && pwd)"
+            monorepo_root="$(cd "${agent_root}/.." && pwd)"
+            active_leases="$(_wave_active_lease_count "${monorepo_root}")"
+            if [[ "${active_leases}" != "0" ]]; then
+              policy_py="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py"
+              defer_reason="backend_source_drift"
               if [[ -z "${stored_fp}" ]]; then
-                echo "STACK_WARN: shared backend missing source_fingerprint — reloading pid=${old_pid}" >&2
-              else
-                echo "STACK_WARN: shared backend source drift detected — reloading pid=${old_pid}" >&2
+                defer_reason="backend_source_fingerprint_missing"
               fi
-              kill -TERM "${old_pid}" 2>/dev/null || true
-              local wait_i
-              for wait_i in $(seq 1 20); do
-                kill -0 "${old_pid}" 2>/dev/null || break
-                sleep 0.25
-              done
-              if kill -0 "${old_pid}" 2>/dev/null; then
-                kill -KILL "${old_pid}" 2>/dev/null || true
-              fi
-              rm -f "${pid_file}" "${identity_file}"
-            else
-              echo "Backend already running (pid ${old_pid})"
+              python3 "${policy_py}" record-pending \
+                --state-dir "${state_dir}" \
+                --reason "${defer_reason}" \
+                --server-dir "${server_dir}" >/dev/null 2>&1 || true
+              echo "CHROME_E2E_ATTACH: defer backend reload (${active_leases} active wave leases)" >&2
+              echo "Backend already running (pid ${port_owner_pid})"
               return 0
             fi
+            if [[ -z "${stored_fp}" ]]; then
+              echo "STACK_WARN: shared backend missing source_fingerprint — reloading pid=${port_owner_pid}" >&2
+            else
+              echo "STACK_WARN: shared backend source drift detected — reloading pid=${port_owner_pid}" >&2
+            fi
+            need_rebuild=1
+            rebuild_target="${port_owner_pid}"
           else
-            echo "Backend already running (pid ${old_pid})"
+            echo "Backend already running (pid ${port_owner_pid})"
             return 0
           fi
+        else
+          echo "Backend already running (pid ${port_owner_pid})"
+          return 0
+        fi
+      else
+        # owner 存在但连续 3 次探活失败：kill 真 owner（不是记录 pid），重启。
+        echo "STACK_HEAL: backend on :${backend_port} unhealthy after retries (pid=${port_owner_pid}) — kill and restart" >&2
+        need_rebuild=1
+        rebuild_target="${port_owner_pid}"
+      fi
+    else
+      # ---- 端口无监听者：记录 pid 若存活则是 phantom/僵尸，verify 后回收 ----
+      if kill -0 "${old_pid}" 2>/dev/null; then
+        if "${py}" "${identity_helper}" verify \
+          --identity-file "${identity_file}" \
+          --expected-pid "${old_pid}" \
+          --expected-runtime-id "${runtime_id}" >/dev/null 2>&1; then
+          echo "STACK_HEAL: backend pid ${old_pid} not listening on :${backend_port} — kill and restart" >&2
+          need_rebuild=1
+          rebuild_target="${old_pid}"
+        else
+          echo "STACK_WARN: stale backend record pid ${old_pid} (identity mismatch) — discarding record" >&2
         fi
       fi
+      rm -f "${pid_file}" "${identity_file}"
     fi
-    rm -f "${pid_file}"
-    rm -f "${identity_file}"
+  else
+    # 无 pid_file 但端口被 backend 占用：接管记录，不重建（端口 owner 是权威）。
+    if [[ -n "${port_owner_pid}" ]]; then
+      if ! "${py}" "${identity_helper}" record \
+        --pid "${port_owner_pid}" \
+        --identity-file "${identity_file}" \
+        --runtime-id "${runtime_id}" \
+        --role backend \
+        --expected-command-token run.py >/dev/null 2>&1; then
+        echo "STACK_FAIL: :${backend_port} owned by non-backend pid ${port_owner_pid} — refusing to reclaim foreign process" >&2
+        return 1
+      fi
+      echo "${port_owner_pid}" > "${pid_file}"
+      echo "Backend already running (pid ${port_owner_pid})"
+      return 0
+    fi
+  fi
+
+  # ---- 重建：kill 真 owner（若有），等待 LISTEN 端口释放后再冷启动 ----
+  if [[ "${need_rebuild}" -eq 1 ]]; then
+    if [[ -n "${rebuild_target}" ]] && kill -0 "${rebuild_target}" 2>/dev/null; then
+      kill -TERM "${rebuild_target}" 2>/dev/null || true
+      local wait_i
+      for wait_i in $(seq 1 20); do
+        kill -0 "${rebuild_target}" 2>/dev/null || break
+        sleep 0.25
+      done
+      if kill -0 "${rebuild_target}" 2>/dev/null; then
+        kill -KILL "${rebuild_target}" 2>/dev/null || true
+      fi
+    fi
+    local free_i
+    for free_i in $(seq 1 20); do
+      if ! lsof -nP -iTCP:"${backend_port}" -sTCP:LISTEN -t >/dev/null 2>&1; then
+        break
+      fi
+      sleep 0.5
+    done
+    rm -f "${pid_file}" "${identity_file}"
   fi
 
   export DEPLOY_MODE="${DEPLOY_MODE:-local}"
@@ -295,19 +305,52 @@ os.execv(sys.argv[1], sys.argv[1:])
   local health_wait_sec="${MYRM_BACKEND_HEALTH_WAIT_SEC:-180}"
 
   for _ in $(seq 1 "${health_wait_sec}"); do
+    local listener_pid
+    listener_pid="$(lsof -nP -iTCP:"${backend_port}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
     if curl -sf "${health_url}" >/dev/null 2>&1; then
-      local stack_epoch_lib
-      stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
-      if [[ -f "${stack_epoch_lib}" ]]; then
-        # shellcheck source=stack-epoch.sh
-        source "${stack_epoch_lib}"
-        _bump_stack_epoch "${new_pid}" "${server_dir}" >/dev/null || true
+      if [[ "${listener_pid}" == "${new_pid}" ]]; then
+        local stack_epoch_lib
+        stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
+        if [[ -f "${stack_epoch_lib}" ]]; then
+          # shellcheck source=stack-epoch.sh
+          source "${stack_epoch_lib}"
+          _bump_stack_epoch "${new_pid}" "${server_dir}" >/dev/null || true
+        fi
+        return 0
       fi
-      return 0
+      if [[ -n "${listener_pid}" ]]; then
+        # 端口已被另一个健康 backend 抢先占用（并发 ensure 竞争）：不争抢，
+        # 接管端口 owner 记录并回收本实例，避免孤儿进程堆积。
+        echo "STACK_SYNC: :${backend_port} served by existing pid ${listener_pid} — adopting record, killing new pid ${new_pid}" >&2
+        kill -TERM "${new_pid}" 2>/dev/null || true
+        if "${py}" "${identity_helper}" record \
+          --pid "${listener_pid}" \
+          --identity-file "${identity_file}" \
+          --runtime-id "${runtime_id}" \
+          --role backend \
+          --expected-command-token run.py >/dev/null 2>&1; then
+          echo "${listener_pid}" > "${pid_file}"
+        fi
+        local stack_epoch_lib_adopt
+        stack_epoch_lib_adopt="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
+        if [[ -f "${stack_epoch_lib_adopt}" ]]; then
+          # shellcheck source=stack-epoch.sh
+          source "${stack_epoch_lib_adopt}"
+          _bump_stack_epoch "${listener_pid}" "${server_dir}" >/dev/null || true
+        fi
+        return 0
+      fi
     fi
     sleep 1
   done
 
+  # 超时仍未获得端口：终止本实例，避免孤儿进程，清除记录。
+  kill -TERM "${new_pid}" 2>/dev/null || true
+  sleep 1
+  if kill -0 "${new_pid}" 2>/dev/null; then
+    kill -KILL "${new_pid}" 2>/dev/null || true
+  fi
+  rm -f "${pid_file}" "${identity_file}"
   echo "ERROR: backend not ready on :${backend_port}. See ${log_file}" >&2
   return 1
 }

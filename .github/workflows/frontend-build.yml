@@ -33,8 +33,8 @@ jobs:
         run: python3 scripts/check_fractal_docs.py --no-stub
       - name: Barrel export policy (cross-domain index.ts whitelist)
         run: python3 scripts/check_barrel_exports.py
-      - name: i18n completeness (verify:i18n)
-        run: bun run verify:i18n
+      - name: i18n completeness (verify:i18n + glyph sets fresh)
+        run: bun scripts/generate-simplified-glyphs.mjs --check && bun run verify:i18n
       - name: Vitest (shared provider remap contract)
         run: bunx vitest run src/store/config/__tests__/providerIdentityMigration.test.ts
       - name: Next.js build (module graph)

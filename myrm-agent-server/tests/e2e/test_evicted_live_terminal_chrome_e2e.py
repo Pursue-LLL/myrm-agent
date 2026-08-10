@@ -11,6 +11,7 @@ from tests.support.chrome_mcp_e2e import (
     ChromeMcpClient,
     McpPage,
     dismiss_blocking_modals,
+    ensure_chat_route,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -49,7 +50,12 @@ _PROGRESS_STEPS_READY_JS = f"""(() => {{
   const msg = (store?.messages || []).find(
     (item) => item.role === 'assistant' && (item.content || '').includes(target),
   );
-  if (!msg) return {{ ready: false, count: store?.messages?.length ?? 0 }};
+  const errorOverlay = !!document.querySelector('nextjs-portal, nextjs-error-overlay');
+  if (!msg) return {{
+    ready: false,
+    count: store?.messages?.length ?? 0,
+    errorOverlay,
+  }};
   const metaSteps = Array.isArray(msg.metadata?.progressSteps) ? msg.metadata.progressSteps : [];
   const steps = (msg.progressSteps?.length ? msg.progressSteps : metaSteps) || [];
   const step = steps.find((s) => s.evicted_file_ref);
@@ -57,12 +63,9 @@ _PROGRESS_STEPS_READY_JS = f"""(() => {{
     ready: !!step?.evicted_file_ref,
     ref: step?.evicted_file_ref || null,
     hasStdout: !!step?.stdout,
+    errorOverlay,
   }};
 }})()"""
-
-_CHAT_ROUTE_READY_JS = """(() => ({
-  ready: !!document.querySelector('[data-testid="app-layout"]'),
-}))()"""
 
 
 def _seed_uecd_fixture(api_base: str, *, variant: str = "full") -> dict[str, object]:
@@ -142,7 +145,17 @@ def _run_drawer_flow(
         terminal = wait_for_state(client, page, _TERMINAL_PREVIEW_JS, timeout_sec=60.0)
         assert terminal.get("ready") is True, json.dumps(terminal, ensure_ascii=False)
     clear_result = client.evaluate(page, _CLEAR_RESOURCE_TIMINGS_JS, timeout_sec=5.0)
-    assert isinstance(clear_result, dict) and clear_result.get("ready") is True, clear_result
+    assert (
+        isinstance(clear_result, dict) and clear_result.get("ready") is True
+    ), clear_result
+
+    # Pre-register the fetch probe so the click-triggered evicted API request is
+    # observed regardless of resource-timing buffer saturation.
+    client.evaluate(
+        page,
+        evicted_request_probe_js(expected_offset=0, expected_limit=500),
+        timeout_sec=5.0,
+    )
 
     clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=60.0)
     assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
@@ -169,7 +182,9 @@ def _run_drawer_flow(
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(360)
 def test_live_terminal_evicted_drawer_reads_uecd_spill_and_expired() -> None:
@@ -194,6 +209,13 @@ def test_live_terminal_evicted_drawer_reads_uecd_spill_and_expired() -> None:
         client,
         page,
     ):
+        dismiss_blocking_modals(client, page)
+        ensure_chat_route(
+            client,
+            page,
+            target_url=f"{ui_url}/{chat_full}",
+            timeout_ms=_PAGE_TIMEOUT_MS,
+        )
         _run_drawer_flow(
             client,
             page,
@@ -201,8 +223,12 @@ def test_live_terminal_evicted_drawer_reads_uecd_spill_and_expired() -> None:
             expect_expired=False,
         )
 
-        client.navigate(page, f"{ui_url}/{chat_expired}", timeout_ms=_PAGE_TIMEOUT_MS)
-        wait_for_state(client, page, _CHAT_ROUTE_READY_JS, timeout_sec=90.0)
+        ensure_chat_route(
+            client,
+            page,
+            target_url=f"{ui_url}/{chat_expired}",
+            timeout_ms=_PAGE_TIMEOUT_MS,
+        )
 
         _run_drawer_flow(
             client,

@@ -16,6 +16,7 @@ from tests.support.chrome_mcp_e2e import (
     ChromeMcpClient,
     McpPage,
     dismiss_blocking_modals,
+    ensure_chat_route,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -49,7 +50,12 @@ _PROGRESS_STEPS_READY_JS = f"""(() => {{
   const msg = (store?.messages || []).find(
     (item) => item.role === 'assistant' && (item.content || '').includes(target),
   );
-  if (!msg) return {{ ready: false, count: store?.messages?.length ?? 0 }};
+  const errorOverlay = !!document.querySelector('nextjs-portal, nextjs-error-overlay');
+  if (!msg) return {{
+    ready: false,
+    count: store?.messages?.length ?? 0,
+    errorOverlay,
+  }};
   const metaSteps = Array.isArray(msg.metadata?.progressSteps) ? msg.metadata.progressSteps : [];
   const steps = (msg.progressSteps?.length ? msg.progressSteps : metaSteps) || [];
   const step = steps.find((s) => s.evicted_file_ref);
@@ -57,6 +63,7 @@ _PROGRESS_STEPS_READY_JS = f"""(() => {{
     ready: !!step?.evicted_file_ref && !!step?.evicted_stderr_file_ref,
     stdoutRef: step?.evicted_file_ref || null,
     stderrRef: step?.evicted_stderr_file_ref || null,
+    errorOverlay,
   }};
 }})()"""
 
@@ -150,7 +157,9 @@ def _assert_drawer_reads(client: ChromeMcpClient, page: McpPage, marker: str) ->
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(360)
 def test_failed_bash_dual_evicted_drawers_read_stdout_and_stderr() -> None:
@@ -174,9 +183,16 @@ def test_failed_bash_dual_evicted_drawers_read_stdout_and_stderr() -> None:
         page,
     ):
         dismiss_blocking_modals(client, page)
+        ensure_chat_route(
+            client, page, target_url=f"{ui_url}/{chat_id}", timeout_ms=_PAGE_TIMEOUT_MS
+        )
         try:
             loaded = wait_for_state(
-                client, page, _PROGRESS_STEPS_READY_JS, timeout_sec=120.0
+                client,
+                page,
+                _PROGRESS_STEPS_READY_JS,
+                timeout_sec=120.0,
+                page_url=f"{ui_url}/{chat_id}",
             )
         except AssertionError:
             try:
@@ -184,10 +200,17 @@ def test_failed_bash_dual_evicted_drawers_read_stdout_and_stderr() -> None:
                     page,
                     """(() => ({
                       body: (document.body?.innerText || '').slice(0, 1600),
+                      bodyHtmlLen: (document.body?.innerHTML || '').length,
+                      bodyHtmlHead: (document.body?.innerHTML || '').slice(0, 300),
                       hasStore: !!window.__myrmChatStore,
                       storeMsgs: (window.__myrmChatStore?.getState?.()?.messages || []).length,
+                      storeChatId: window.__myrmChatStore?.getState?.()?.chatId ?? null,
+                      errorOverlay: !!document.querySelector('nextjs-portal, nextjs-error-overlay'),
+                      overlayText: (document.querySelector('nextjs-portal')?.innerText || document.querySelector('nextjs-error-overlay')?.innerText || '').slice(0, 800),
+                      hasAppLayout: !!document.querySelector('[data-testid="app-layout"]'),
                       apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
                       href: location.href,
+                      readyState: document.readyState,
                     }))()""",
                     timeout_sec=10.0,
                 )
@@ -197,15 +220,21 @@ def test_failed_bash_dual_evicted_drawers_read_stdout_and_stderr() -> None:
             raise
         assert loaded.get("ready") is True, json.dumps(loaded, ensure_ascii=False)
 
-        dom_ready = wait_for_state(client, page, _WAIT_PROGRESS_UI_DOM_JS, timeout_sec=90.0)
+        dom_ready = wait_for_state(
+            client, page, _WAIT_PROGRESS_UI_DOM_JS, timeout_sec=90.0
+        )
         assert dom_ready.get("ready") is True, json.dumps(dom_ready, ensure_ascii=False)
 
-        expanded = wait_for_state(client, page, _EXPAND_PROGRESS_PANEL_JS, timeout_sec=30.0)
+        expanded = wait_for_state(
+            client, page, _EXPAND_PROGRESS_PANEL_JS, timeout_sec=30.0
+        )
         assert expanded.get("ready") is True, json.dumps(expanded, ensure_ascii=False)
 
         terminal = wait_for_state(client, page, _TERMINAL_PREVIEW_JS, timeout_sec=60.0)
         assert terminal.get("ready") is True, json.dumps(terminal, ensure_ascii=False)
-        clear_result = client.evaluate(page, _CLEAR_RESOURCE_TIMINGS_JS, timeout_sec=5.0)
+        clear_result = client.evaluate(
+            page, _CLEAR_RESOURCE_TIMINGS_JS, timeout_sec=5.0
+        )
         assert (
             isinstance(clear_result, dict) and clear_result.get("ready") is True
         ), clear_result

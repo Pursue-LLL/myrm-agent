@@ -187,6 +187,82 @@ async def _create_background_target(
                 if isinstance(candidate, str) and candidate:
                     target_id = candidate
                     break
+            if target_id is not None:
+                # background:true tabs pause requestAnimationFrame, which stalls
+                # Next.js 16's $RV Suspense flush — SSR content stays in hidden
+                # placeholders and the UI stays blank (§19.11 TAB-6b). Follow the
+                # §26.21 OFFSCREEN-NORMAL SSOT: park the tab's window offscreen
+                # (windowState=normal + far offscreen) so visibilityState stays
+                # visible and rAF keeps running for the whole time the tab sits
+                # in the warm-shell pool. If parking fails, fall back to
+                # Target.activateTarget (best-effort, never steals macOS focus
+                # because the E2E window is parked offscreen anyway).
+                parked = False
+                try:
+                    win_info = await _cdp_request(
+                        ws,
+                        msg_id + 1,
+                        "Browser.getWindowForTarget",
+                        {"targetId": target_id},
+                        deadline=time.monotonic() + 10.0,
+                    )
+                    result = win_info.get("result")
+                    window_id = (
+                        result.get("windowId") if isinstance(result, dict) else None
+                    )
+                    if isinstance(window_id, int) and window_id > 0:
+                        await _cdp_request(
+                            ws,
+                            msg_id + 2,
+                            "Browser.setWindowBounds",
+                            {
+                                "windowId": window_id,
+                                "bounds": {
+                                    "windowState": "normal",
+                                    "left": -24000,
+                                    "top": -24000,
+                                    "width": 1400,
+                                    "height": 900,
+                                },
+                            },
+                            deadline=time.monotonic() + 10.0,
+                        )
+                        # setWindowBounds can return success while Chrome ignores
+                        # the move on shared windows (surface/daemon also manage
+                        # it). Re-read to confirm the park actually took effect;
+                        # if not, fall through to activateTarget.
+                        win_check = await _cdp_request(
+                            ws,
+                            msg_id + 3,
+                            "Browser.getWindowForTarget",
+                            {"targetId": target_id},
+                            deadline=time.monotonic() + 10.0,
+                        )
+                        check_result = win_check.get("result")
+                        check_bounds = (
+                            check_result.get("bounds")
+                            if isinstance(check_result, dict)
+                            else None
+                        )
+                        if isinstance(check_bounds, dict):
+                            left = check_bounds.get("left")
+                            parked = isinstance(left, (int, float)) and left <= -20000
+                except (OSError, TimeoutError, RuntimeError, json.JSONDecodeError):
+                    parked = False
+                if not parked:
+                    try:
+                        await ws.send(
+                            json.dumps(
+                                {
+                                    "id": msg_id + 4,
+                                    "method": "Target.activateTarget",
+                                    "params": {"targetId": target_id},
+                                }
+                            )
+                        )
+                        await asyncio.wait_for(ws.recv(), timeout=5.0)
+                    except (OSError, asyncio.TimeoutError, json.JSONDecodeError):
+                        pass
     except Exception as exc:
         fallback = _pick_existing_page_target(cdp_port)
         if fallback is not None:

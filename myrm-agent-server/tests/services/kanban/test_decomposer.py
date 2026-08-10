@@ -11,7 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 
-from app.services.kanban.decomposer import PlatformTaskDecomposer, _normalize_assignee
+from app.services.kanban.decompose import PlatformTaskDecomposer
+from app.services.kanban.decompose.decomposer import _normalize_assignee
 
 
 def _make_triage_task(
@@ -44,7 +45,10 @@ def _make_llm_response(
     return resp
 
 
-ROSTER = [{"name": "coder", "description": "Writes code"}, {"name": "reviewer", "description": "Reviews code"}]
+ROSTER = [
+    {"name": "coder", "description": "Writes code"},
+    {"name": "reviewer", "description": "Reviews code"},
+]
 
 
 class TestNormalizeAssignee:
@@ -156,9 +160,7 @@ async def test_fanout_true_parses_children() -> None:
 async def test_fanout_false_returns_spec() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
-    content = (
-        '{"fanout": false, "rationale": "single task", "title": "Refined title", "body": "Detailed body", "assignee": "coder"}'
-    )
+    content = '{"fanout": false, "rationale": "single task", "title": "Refined title", "body": "Detailed body", "assignee": "coder"}'
     llm_resp = _make_llm_response(content)
     with (
         patch(
@@ -270,7 +272,11 @@ async def test_llm_error_returns_not_ok() -> None:
             new_callable=AsyncMock,
             return_value={"model": "gpt-4o"},
         ),
-        patch("litellm.acompletion", new_callable=AsyncMock, side_effect=ConnectionError("fail")),
+        patch(
+            "litellm.acompletion",
+            new_callable=AsyncMock,
+            side_effect=ConnectionError("fail"),
+        ),
     ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 

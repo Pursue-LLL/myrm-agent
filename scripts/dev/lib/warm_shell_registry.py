@@ -52,11 +52,21 @@ class HotPathDecision:
 def _state_dir() -> Path:
     raw = os.environ.get(
         "MYRM_E2E_STATE_DIR",
-        str(Path.home() / ".local" / "state" / "myrm-e2e"),
+        str(_real_user_home() / ".local" / "state" / "myrm-e2e"),
     )
     path = Path(raw)
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def _real_user_home() -> Path:
+    """Real login home — Cursor sandboxes HOME (~/.cursor2), splitting state."""
+    try:
+        import pwd
+
+        return Path(pwd.getpwuid(os.getuid()).pw_dir)
+    except (ImportError, KeyError, OSError):
+        return Path.home()
 
 
 def _registry_path(workspace_fp: str) -> Path:

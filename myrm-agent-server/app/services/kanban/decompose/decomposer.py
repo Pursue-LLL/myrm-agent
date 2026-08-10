@@ -2,7 +2,7 @@
 
 Implements the ``TaskDecomposer`` Protocol from the harness layer using the
 platform's WebUI-configured LiteLLM model.  Mirrors the design of
-``specifier.py``: CJK-aware prompts, lenient JSON parsing, never-raise
+``specify.specifier``: CJK-aware prompts, lenient JSON parsing, never-raise
 contract.
 
 [INPUT]
@@ -224,14 +224,20 @@ class PlatformTaskDecomposer:
 
             llm_kwargs = await build_platform_litellm_kwargs()
         except Exception as exc:
-            logger.info("decompose: platform LLM unavailable for %s: %s", task.task_id[:8], exc)
+            logger.info(
+                "decompose: platform LLM unavailable for %s: %s", task.task_id[:8], exc
+            )
             return DecomposeOutcome(
                 task_id=task.task_id,
                 ok=False,
                 reason="decomposer_unavailable",
             )
 
-        system_prompt = _SYSTEM_PROMPT_ZH if has_cjk(task.title) or has_cjk(task.description) else _SYSTEM_PROMPT_EN
+        system_prompt = (
+            _SYSTEM_PROMPT_ZH
+            if has_cjk(task.title) or has_cjk(task.description)
+            else _SYSTEM_PROMPT_EN
+        )
         user_msg = _USER_TEMPLATE.format(
             task_id=task.task_id,
             title=truncate(task.title or "", _MAX_TITLE_FORWARD),
@@ -285,9 +291,17 @@ class PlatformTaskDecomposer:
 
         if not fanout:
             new_title_raw = parsed.get("title")
-            new_title = new_title_raw.strip()[:200] if isinstance(new_title_raw, str) and new_title_raw.strip() else None
+            new_title = (
+                new_title_raw.strip()[:200]
+                if isinstance(new_title_raw, str) and new_title_raw.strip()
+                else None
+            )
             new_body_raw = parsed.get("body")
-            new_body = new_body_raw.strip() if isinstance(new_body_raw, str) and new_body_raw.strip() else None
+            new_body = (
+                new_body_raw.strip()
+                if isinstance(new_body_raw, str) and new_body_raw.strip()
+                else None
+            )
             new_assignee_raw = parsed.get("assignee")
             new_assignee = (
                 _normalize_assignee(
@@ -360,7 +374,11 @@ class PlatformTaskDecomposer:
             parents_raw = entry.get("parents") or []
             if not isinstance(parents_raw, list):
                 parents_raw = []
-            clean_parents = tuple(p for p in parents_raw if isinstance(p, int) and 0 <= p < len(raw_tasks) and p != idx)
+            clean_parents = tuple(
+                p
+                for p in parents_raw
+                if isinstance(p, int) and 0 <= p < len(raw_tasks) and p != idx
+            )
             children.append(
                 DecomposeChildSpec(
                     title=title.strip()[:200],

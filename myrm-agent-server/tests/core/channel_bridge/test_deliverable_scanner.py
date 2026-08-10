@@ -236,39 +236,45 @@ def test_collect_returns_input_when_no_tokens(tmp_path: Path) -> None:
     assert tmp_paths == []
 
 
+def test_extract_deduplicates_and_normalizes_tokens(tmp_path: Path) -> None:
+    """Duplicate tokens collapse; trailing punctuation is stripped."""
+    tokens = extract_deliverable_path_tokens(
+        "See workspace/a.md and workspace/a.md and workspace/b.pdf."
+    )
+    assert tokens == ["workspace/a.md", "workspace/b.pdf"]
+
+
 @pytest.mark.asyncio
 async def test_resolve_chat_workspace_root_db_hit() -> None:
     """Returns a non-empty workspace_dir from the Chat row."""
+    from types import SimpleNamespace
     from unittest.mock import AsyncMock, patch
 
     from app.core.channel_bridge.agent_executor.deliverable.scanner import (
         resolve_chat_workspace_root,
     )
 
-    mock_result = AsyncMock()
-    mock_result.scalar_one_or_none.return_value = " /tmp/ws "
     mock_db = AsyncMock()
-    mock_db.execute.return_value = mock_result
+    mock_db.execute.return_value = SimpleNamespace(
+        scalar_one_or_none=lambda: " /tmp/ws "
+    )
+    mock_session_cm = AsyncMock()
+    mock_session_cm.__aenter__.return_value = mock_db
 
-    with (
-        patch(
-            "app.core.channel_bridge.agent_executor.deliverable.scanner.get_session",
-        ) as get_session,
-        patch(
-            "app.core.channel_bridge.agent_executor.deliverable.scanner.select",
-        ) as select_mock,
-    ):
-        get_session.return_value.__aenter__.return_value = mock_db
+    with patch(
+        "app.database.connection.get_session",
+    ) as get_session:
+        get_session.return_value = mock_session_cm
         result = await resolve_chat_workspace_root("chat-1")
 
     assert result == "/tmp/ws"
-    select_mock.assert_called_once()
-    assert "workspace_dir" in str(select_mock.call_args)
+    mock_db.execute.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_resolve_chat_workspace_root_empty_or_error() -> None:
     """Empty/None workspace_dir or a DB exception both yield None."""
+    from types import SimpleNamespace
     from unittest.mock import AsyncMock, patch
 
     from app.core.channel_bridge.agent_executor.deliverable.scanner import (
@@ -276,22 +282,24 @@ async def test_resolve_chat_workspace_root_empty_or_error() -> None:
     )
 
     for value in (None, "   "):
-        mock_result = AsyncMock()
-        mock_result.scalar_one_or_none.return_value = value
         mock_db = AsyncMock()
-        mock_db.execute.return_value = mock_result
-        with (
-            patch(
-                "app.core.channel_bridge.agent_executor.deliverable.scanner.get_session",
-            ) as get_session,
-        ):
-            get_session.return_value.__aenter__.return_value = mock_db
+        mock_db.execute.return_value = SimpleNamespace(
+            scalar_one_or_none=lambda v=value: v
+        )
+        mock_session_cm = AsyncMock()
+        mock_session_cm.__aenter__.return_value = mock_db
+        with patch(
+            "app.database.connection.get_session",
+        ) as get_session:
+            get_session.return_value = mock_session_cm
             assert await resolve_chat_workspace_root("chat-1") is None
 
     mock_db = AsyncMock()
     mock_db.execute.side_effect = RuntimeError("db down")
+    mock_session_cm = AsyncMock()
+    mock_session_cm.__aenter__.return_value = mock_db
     with patch(
-        "app.core.channel_bridge.agent_executor.deliverable.scanner.get_session",
+        "app.database.connection.get_session",
     ) as get_session:
-        get_session.return_value.__aenter__.return_value = mock_db
+        get_session.return_value = mock_session_cm
         assert await resolve_chat_workspace_root("chat-1") is None

@@ -20,7 +20,9 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_board_and_task_render_in_real_ui() -> None:
@@ -55,7 +57,7 @@ def test_kanban_board_and_task_render_in_real_ui() -> None:
         try:
             client.evaluate(
                 page,
-                "localStorage.removeItem('kanban_last_board_id')",
+                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
                 timeout_sec=5.0,
             )
             client.reload(page, timeout_ms=60_000)
@@ -100,7 +102,9 @@ def test_kanban_board_and_task_render_in_real_ui() -> None:
             client.evaluate(page, restore, timeout_sec=5.0)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_source_chat_deep_link_filters_board_view() -> None:
@@ -161,7 +165,9 @@ def test_kanban_source_chat_deep_link_filters_board_view() -> None:
         assert other_title not in str(view_state.get("text") or "")
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
@@ -204,7 +210,7 @@ def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
         try:
             client.evaluate(
                 page,
-                "localStorage.removeItem('kanban_last_board_id')",
+                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
                 timeout_sec=5.0,
             )
             client.reload(page, timeout_ms=60_000)
@@ -293,6 +299,352 @@ def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
             client.evaluate(page, restore, timeout_sec=5.0)
 
 
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_kanban_stats_bar_shows_running_with_limit() -> None:
+    """Stats bar renders `Running: {count}/{limit}` when board max_concurrent_tasks is set.
+
+    Covers Optimization B: the running column switches from `Running: N` to the
+    limit-aware `Running: N/M` label sourced from board.settings.max_concurrent_tasks.
+    """
+    marker = str(time.time_ns())
+    board_name = f"Chrome Stats Board {marker}"
+    api_url = get_e2e_api_url()
+
+    board = http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards",
+        {
+            "name": board_name,
+            "description": "Chrome stats bar E2E",
+            "max_concurrent_tasks": 1,
+        },
+    )
+    assert isinstance(board, dict)
+    board_id = str(board.get("board_id") or board.get("id") or "")
+    assert board_id
+
+    summary = http_json("GET", f"{api_url}/api/v1/kanban/boards/{board_id}/summary")
+    assert isinstance(summary, dict)
+    assert summary["board"]["settings"]["max_concurrent_tasks"] == 1
+
+    with open_settings_subroute("/settings/kanban") as (client, page):
+        previous_board = client.evaluate(
+            page,
+            "localStorage.getItem('kanban_last_board_id')",
+            timeout_sec=5.0,
+        )
+        try:
+            client.evaluate(
+                page,
+                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
+                timeout_sec=5.0,
+            )
+            client.reload(page, timeout_ms=60_000)
+            row_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+                  return {{ ready: !!row, text: row?.textContent || '' }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert board_name in str(row_state.get("text") or "")
+            clicked = client.evaluate(
+                page,
+                f"""(() => {{
+                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+                  if (!row) return false;
+                  row.click();
+                  return true;
+                }})()""",
+                timeout_sec=5.0,
+            )
+            assert clicked is True
+            stats_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const view = document.querySelector('[data-testid="kanban-board-view"]');
+                  const text = view?.textContent || '';
+                  return {{
+                    ready: !!view && text.includes('0/1'),
+                    text,
+                  }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert "0/1" in str(stats_state.get("text") or "")
+        finally:
+            restore = (
+                "localStorage.removeItem('kanban_last_board_id')"
+                if previous_board is None
+                else "localStorage.setItem('kanban_last_board_id', "
+                f"{json.dumps(str(previous_board))})"
+            )
+            client.evaluate(page, restore, timeout_sec=5.0)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_kanban_ready_card_shows_queued_badge_when_concurrency_full() -> None:
+    """Ready task shows queued badge when the board concurrency slot is saturated.
+
+    Covers Optimization B: a ready task waiting for a concurrency slot is marked
+    on the card. Deterministic fixture: board max_concurrent_tasks=1, T1 is moved
+    to running (occupying the only slot) without relying on the dispatcher, T2
+    stays ready and must show the badge.
+    """
+    marker = str(time.time_ns())
+    board_name = f"Chrome Queue Board {marker}"
+    api_url = get_e2e_api_url()
+
+    board = http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards",
+        {
+            "name": board_name,
+            "description": "Chrome queued badge E2E",
+            "max_concurrent_tasks": 1,
+            # Zombie check interval = max(zombie_timeout_seconds // 2, 30) = 900s,
+            # far beyond the 180s test window, so the manually RUNNING task is
+            # never reclaimed mid-test (shared E2E backend has no LLM runner).
+            "zombie_timeout_seconds": 1800,
+        },
+    )
+    assert isinstance(board, dict)
+    board_id = str(board.get("board_id") or board.get("id") or "")
+    assert board_id
+
+    # Create T1 as BLOCKED (the dispatcher never claims blocked tasks), then
+    # manually move it to RUNNING to deterministically occupy the only slot —
+    # a READY-created task would be claimed by the real dispatcher and fail
+    # instantly because the shared E2E backend has no configured LLM.
+    running_task = http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
+        {
+            "title": f"Occupying task {marker}",
+            "priority": "low",
+            "initial_status": "blocked",
+        },
+    )
+    assert isinstance(running_task, dict)
+    running_task_id = str(running_task.get("task_id") or running_task.get("id") or "")
+    assert running_task_id
+
+    moved = http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/tasks/{running_task_id}/move",
+        {"status": "running"},
+    )
+    assert isinstance(moved, dict)
+    assert str(moved.get("status") or "") == "running"
+
+    queued_task = http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
+        {
+            "title": f"Queued task {marker}",
+            "priority": "low",
+            "initial_status": "ready",
+        },
+    )
+    assert isinstance(queued_task, dict)
+    queued_task_id = str(queued_task.get("task_id") or queued_task.get("id") or "")
+    assert queued_task_id
+
+    summary = http_json("GET", f"{api_url}/api/v1/kanban/boards/{board_id}/summary")
+    assert isinstance(summary, dict)
+    assert summary["task_counts"]["running"] == 1
+    assert summary["task_counts"]["ready"] == 1
+
+    with open_settings_subroute("/settings/kanban") as (client, page):
+        previous_board = client.evaluate(
+            page,
+            "localStorage.getItem('kanban_last_board_id')",
+            timeout_sec=5.0,
+        )
+        try:
+            client.evaluate(
+                page,
+                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
+                timeout_sec=5.0,
+            )
+            client.reload(page, timeout_ms=60_000)
+            row_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+                  return {{ ready: !!row, text: row?.textContent || '' }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert board_name in str(row_state.get("text") or "")
+            clicked = client.evaluate(
+                page,
+                f"""(() => {{
+                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+                  if (!row) return false;
+                  row.click();
+                  return true;
+                }})()""",
+                timeout_sec=5.0,
+            )
+            assert clicked is True
+            badge_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const card = document.getElementById({json.dumps(f"kanban-task-{queued_task_id}")});
+                  const badge = card?.querySelector('[data-testid="kanban-task-queued-badge"]');
+                  const badgeText = badge?.textContent?.trim() || '';
+                  return {{ ready: !!badge, text: badgeText }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert badge_state.get("ready") is True
+            assert str(badge_state.get("text") or ""), (
+                "queued badge rendered but its i18n text is empty"
+            )
+        finally:
+            restore = (
+                "localStorage.removeItem('kanban_last_board_id')"
+                if previous_board is None
+                else "localStorage.setItem('kanban_last_board_id', "
+                f"{json.dumps(str(previous_board))})"
+            )
+            client.evaluate(page, restore, timeout_sec=5.0)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_kanban_ready_card_shows_no_queued_badge_when_slot_available() -> None:
+    """No queued badge is rendered while a concurrency slot is still free.
+
+    Negative counterpart of the queued-badge test: board max_concurrent_tasks=2
+    with a single RUNNING task leaves one slot free, so the running card must
+    not carry the badge and no queued badge may exist anywhere on the board.
+    """
+    marker = str(time.time_ns())
+    board_name = f"Chrome NoQueue Board {marker}"
+    api_url = get_e2e_api_url()
+
+    board = http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards",
+        {
+            "name": board_name,
+            "description": "Chrome no-queued-badge E2E",
+            "max_concurrent_tasks": 2,
+            # Same zombie guard as the positive test: keep the manually RUNNING
+            # task alive for the whole test window in the shared backend.
+            "zombie_timeout_seconds": 1800,
+        },
+    )
+    assert isinstance(board, dict)
+    board_id = str(board.get("board_id") or board.get("id") or "")
+    assert board_id
+
+    running_task = http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
+        {
+            "title": f"Running task {marker}",
+            "priority": "low",
+            "initial_status": "blocked",
+        },
+    )
+    assert isinstance(running_task, dict)
+    running_task_id = str(running_task.get("task_id") or running_task.get("id") or "")
+    assert running_task_id
+
+    moved = http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/tasks/{running_task_id}/move",
+        {"status": "running"},
+    )
+    assert isinstance(moved, dict)
+    assert str(moved.get("status") or "") == "running"
+
+    summary = http_json("GET", f"{api_url}/api/v1/kanban/boards/{board_id}/summary")
+    assert isinstance(summary, dict)
+    assert summary["task_counts"]["running"] == 1
+    assert summary["task_counts"]["ready"] == 0
+
+    with open_settings_subroute("/settings/kanban") as (client, page):
+        previous_board = client.evaluate(
+            page,
+            "localStorage.getItem('kanban_last_board_id')",
+            timeout_sec=5.0,
+        )
+        try:
+            client.evaluate(
+                page,
+                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
+                timeout_sec=5.0,
+            )
+            client.reload(page, timeout_ms=60_000)
+            row_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+                  return {{ ready: !!row, text: row?.textContent || '' }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert board_name in str(row_state.get("text") or "")
+            clicked = client.evaluate(
+                page,
+                f"""(() => {{
+                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+                  if (!row) return false;
+                  row.click();
+                  return true;
+                }})()""",
+                timeout_sec=5.0,
+            )
+            assert clicked is True
+            board_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const view = document.querySelector('[data-testid="kanban-board-view"]');
+                  const card = document.getElementById({json.dumps(f"kanban-task-{running_task_id}")});
+                  const badges = view?.querySelectorAll('[data-testid="kanban-task-queued-badge"]') || [];
+                  return {{
+                    ready: !!view && !!card,
+                    cardHasBadge: !!card?.querySelector('[data-testid="kanban-task-queued-badge"]'),
+                    badgeCount: badges.length,
+                  }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert board_state.get("ready") is True
+            assert board_state.get("cardHasBadge") is False
+            assert board_state.get("badgeCount") == 0
+        finally:
+            restore = (
+                "localStorage.removeItem('kanban_last_board_id')"
+                if previous_board is None
+                else "localStorage.setItem('kanban_last_board_id', "
+                f"{json.dumps(str(previous_board))})"
+            )
+            client.evaluate(page, restore, timeout_sec=5.0)
+
+
 def _seed_kanban_closure_fixture(api_url: str) -> dict[str, object]:
     seeded = http_json(
         "POST", f"{api_url}/api/v1/chats/test/seed-kanban-closure-fixture"
@@ -309,7 +661,9 @@ def _seed_kanban_closure_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_chat_created_card_opens_filtered_board_view() -> None:
@@ -405,7 +759,9 @@ def test_kanban_chat_created_card_opens_filtered_board_view() -> None:
         assert task_title in str(board_state.get("text") or "")
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_task_created_via_ui_form_with_model_override() -> None:
@@ -437,7 +793,7 @@ def test_kanban_task_created_via_ui_form_with_model_override() -> None:
         try:
             client.evaluate(
                 page,
-                "localStorage.removeItem('kanban_last_board_id')",
+                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
                 timeout_sec=5.0,
             )
             client.reload(page, timeout_ms=60_000)
@@ -474,6 +830,17 @@ def test_kanban_task_created_via_ui_form_with_model_override() -> None:
                 timeout_sec=90.0,
             )
             assert view_ready.get("ready") is True
+
+            add_ready = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const btn = document.querySelector('[data-testid="kanban-add-task-ready"]');
+                  return { ready: !!btn };
+                })()""",
+                timeout_sec=90.0,
+            )
+            assert add_ready.get("ready") is True
 
             form_opened = client.evaluate(
                 page,
@@ -569,7 +936,7 @@ def test_kanban_task_created_via_ui_form_with_model_override() -> None:
                 f"{api_url}/api/v1/kanban/boards/{board_id}/tasks?status=ready",
             )
             assert isinstance(task_id, dict)
-            tasks = task_id.get("tasks") or []
+            tasks = task_id.get("items") or []
             assert isinstance(tasks, list) and len(tasks) == 1
             persisted = tasks[0]
             assert str(persisted.get("model_override") or "") == chosen_model
@@ -584,7 +951,9 @@ def test_kanban_task_created_via_ui_form_with_model_override() -> None:
             client.evaluate(page, restore, timeout_sec=5.0)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_task_model_override_drawer_badge_edit_and_clear() -> None:
@@ -630,7 +999,7 @@ def test_kanban_task_model_override_drawer_badge_edit_and_clear() -> None:
         try:
             client.evaluate(
                 page,
-                "localStorage.removeItem('kanban_last_board_id')",
+                "localStorage.removeItem('kanban_last_board_id'); localStorage.removeItem('kanban_view_mode')",
                 timeout_sec=5.0,
             )
             client.reload(page, timeout_ms=60_000)
@@ -730,6 +1099,31 @@ def test_kanban_task_model_override_drawer_badge_edit_and_clear() -> None:
             )
             assert edit_state.get("hasSelect") is True
 
+            set_model = client.evaluate(
+                page,
+                """(async () => {
+                  const drawer =
+                    document.querySelector('[data-testid="kanban-task-drawer"]')
+                    || document.querySelector('[role="dialog"]');
+                  if (!drawer) return { ok: false, reason: 'no-drawer' };
+                  const sel = Array.from(drawer.querySelectorAll('select')).find(
+                    (s) => (s.className || '').includes('chart-2'),
+                  );
+                  if (!sel) return { ok: false, reason: 'no-select' };
+                  const setter = Object.getOwnPropertyDescriptor(
+                    HTMLSelectElement.prototype, 'value',
+                  ).set;
+                  setter.call(sel, '');
+                  sel.dispatchEvent(new Event('change', { bubbles: true }));
+                  // Wait two animation frames so React flushes the modelValue state
+                  // update before the Save button closure is re-created.
+                  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+                  return { ok: true, value: sel.value };
+                })()""",
+                timeout_sec=5.0,
+            )
+            assert set_model == {"ok": True, "value": ""}
+
             saved = client.evaluate(
                 page,
                 """(() => {
@@ -741,11 +1135,6 @@ def test_kanban_task_model_override_drawer_badge_edit_and_clear() -> None:
                     (s) => (s.className || '').includes('chart-2'),
                   );
                   if (!sel) return false;
-                  const setter = Object.getOwnPropertyDescriptor(
-                    HTMLSelectElement.prototype, 'value',
-                  ).set;
-                  setter.call(sel, '');
-                  sel.dispatchEvent(new Event('change', { bubbles: true }));
                   const box = sel.closest('div');
                   const buttons = Array.from(box?.querySelectorAll('button') || []);
                   if (buttons.length === 0) return false;

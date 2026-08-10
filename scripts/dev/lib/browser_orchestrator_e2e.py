@@ -504,7 +504,9 @@ def _spawn_ensure_orchestrator() -> None:
     node_dir = "/opt/homebrew/bin"
     path = env.get("PATH", "")
     if node_dir not in path:
-        bun_bin = os.path.expanduser("~/.bun/bin")
+        from real_user_home import real_user_home  # noqa: PLC0415
+
+        bun_bin = str(real_user_home() / ".bun/bin")
         env["PATH"] = f"{node_dir}:{bun_bin}:{path}"
     try:
         subprocess.run(
@@ -1278,7 +1280,7 @@ def open_orchestrator_mcp_page(
 def open_app_route_page(
     url: str,
     *,
-    request_timeout_sec: float = 180.0,
+    request_timeout_sec: float | None = None,
     hydrate_timeout_sec: float = 60.0,
     binding_expression: str | None = None,
 ) -> Iterator[tuple[OrchestratorChromeClient, OrchestratorMcpPage]]:
@@ -1307,10 +1309,16 @@ def open_app_route_page(
     assert_gate_allowed(manifest.hydration_gate, url)
 
     parallel_load = _effective_parallel_load()
-    effective_timeout = min(
-        request_timeout_sec,
-        orchestrator_socket_timeout_cap_sec() if parallel_load >= 2 else request_timeout_sec,
+    ssot_cap = orchestrator_socket_timeout_cap_sec()
+    resolved_request = (
+        request_timeout_sec if request_timeout_sec is not None else ssot_cap
     )
+    # R299-SSOT: under parallel load the client must not abandon before the daemon
+    # queue budget (open_app_route queue wait ≤ DEV_OPEN_PAGE_TRANSACTION_WALL_SEC).
+    if parallel_load >= 2:
+        effective_timeout = max(resolved_request, ssot_cap)
+    else:
+        effective_timeout = resolved_request
     daemon = BrowserOrchestratorClient(timeout_sec=effective_timeout)
     wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))
     _wait_orchestrator_daemon_ready(daemon, wall_sec=max(20.0, wait_wall))
@@ -1319,7 +1327,7 @@ def open_app_route_page(
         # keep a single API (NAV-3); capability drops once daemon is rebuilt.
         with open_orchestrator_mcp_page(
             url,
-            request_timeout_sec=request_timeout_sec,
+            request_timeout_sec=effective_timeout,
         ) as (legacy_client, legacy_page):
             yield legacy_client, legacy_page  # type: ignore[misc]
         return

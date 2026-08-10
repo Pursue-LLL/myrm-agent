@@ -23,11 +23,11 @@ _REQUIRED_SURFACE_FILES: tuple[tuple[str, str], ...] = (
         "vision_fallback_model_cfg=vision_fallback_model_cfg",
     ),
     (
-        "app/services/kanban/task_runner.py",
+        "app/services/kanban/task_runner/runner.py",
         "vision_fallback_model_cfg=vision_fallback_model_cfg",
     ),
     (
-        "app/services/kanban/task_runner.py",
+        "app/services/kanban/task_runner/runner.py",
         "vision_fallback_model_cfgs=",
     ),
 )
@@ -41,9 +41,9 @@ def test_execution_surface_injects_vision_fallback_cfg(
     source_path = _SERVER_ROOT / relative_path
     assert source_path.is_file(), f"Missing execution surface file: {relative_path}"
     content = source_path.read_text(encoding="utf-8")
-    assert needle in content, (
-        f"{relative_path} must inject vision_fallback_model_cfg into GeneralAgentParams"
-    )
+    assert (
+        needle in content
+    ), f"{relative_path} must inject vision_fallback_model_cfg into GeneralAgentParams"
 
 
 def test_ssot_extract_function_exists() -> None:

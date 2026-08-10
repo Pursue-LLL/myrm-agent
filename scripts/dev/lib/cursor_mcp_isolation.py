@@ -297,7 +297,7 @@ def _read_devtools_active_port(port_file: Path) -> int | None:
 
 
 def _devtools_active_port_candidates() -> list[int]:
-    home = Path.home()
+    home = _real_home()
     port_files = [
         home / "Library/Application Support/Google/Chrome/DevToolsActivePort",
         home / "Library/Application Support/Google/Chrome Canary/DevToolsActivePort",
@@ -331,7 +331,7 @@ def _probe_cdp_port(port: int) -> bool:
 
 
 def probe_daily_chrome_reachable() -> ChromeProbe:
-    home = Path.home()
+    home = _real_home()
     active_port_file = (
         home / "Library/Application Support/Google/Chrome/DevToolsActivePort"
     )

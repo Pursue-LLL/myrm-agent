@@ -66,6 +66,7 @@ from app.api.migration.discovery import router as migration_discovery_router
 from app.api.migration.upload import router as migration_upload_router
 from app.api.notifications.router import router as notifications_router
 from app.api.progression import router as progression_router
+from app.api.plugins import import_router as plugins_import_router
 from app.api.projects import router as project_router
 from app.api.remote_access.router import router as remote_access_router
 from app.api.risk.router import router as risk_router
@@ -262,6 +263,9 @@ api_router.include_router(features_router, prefix="/features", tags=["features"]
 api_router.include_router(
     progression_router, prefix="/progression", tags=["progression"]
 )
+
+# Agent Plugins (Agent Plugins 1.0.0 import)
+api_router.include_router(plugins_import_router, prefix="/plugins", tags=["plugins"])
 
 # 集成与基础设施
 api_router.include_router(

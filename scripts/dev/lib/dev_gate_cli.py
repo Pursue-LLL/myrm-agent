@@ -41,6 +41,7 @@ _COORDINATOR_CODE_FP_FILES: tuple[str, ...] = (
     "e2e_stale_lease_reap.py",
     "e2e_pytest_dedupe.py",
     "e2e_session_registry.py",
+    "stack_mutation_policy.py",
 )
 
 

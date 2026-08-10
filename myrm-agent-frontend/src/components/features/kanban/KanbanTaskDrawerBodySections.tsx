@@ -198,5 +198,3 @@ export function TaskResultSection({
     </div>
   );
 }
-
-export { DependenciesSection, CommentInputSection, LatestProgressSection } from './KanbanTaskDrawerBodyMetaSections';

@@ -12,14 +12,16 @@ Tests cover:
 
 from __future__ import annotations
 
-from app.services.kanban.pipeline_instantiator import (
+from app.services.kanban.pipeline import (
     RoleTemplate,
+    get_pipeline_skill,
+    list_pipeline_skills,
+)
+from app.services.kanban.pipeline.instantiator import (
     _match_role_to_agent,
     _parse_pipeline_spec,
     _split_repeat_items,
     _substitute_template,
-    get_pipeline_skill,
-    list_pipeline_skills,
 )
 
 
@@ -27,7 +29,9 @@ class TestSubstituteTemplate:
     """Deterministic string template substitution."""
 
     def test_basic_substitution(self) -> None:
-        result = _substitute_template("调研：{video_type}领域素材", {"video_type": "产品宣传"})
+        result = _substitute_template(
+            "调研：{video_type}领域素材", {"video_type": "产品宣传"}
+        )
         assert result == "调研：产品宣传领域素材"
 
     def test_multiple_placeholders(self) -> None:
@@ -37,7 +41,9 @@ class TestSubstituteTemplate:
         assert result == "为AI产品撰写30s的教程脚本"
 
     def test_missing_key_preserved(self) -> None:
-        result = _substitute_template("调研：{video_type}领域{missing}", {"video_type": "教程"})
+        result = _substitute_template(
+            "调研：{video_type}领域{missing}", {"video_type": "教程"}
+        )
         assert result == "调研：教程领域{missing}"
 
     def test_empty_answers(self) -> None:
@@ -57,21 +63,34 @@ class TestMatchRoleToAgent:
     """Role-to-agent matching by skill overlap."""
 
     def test_no_agents_returns_default(self) -> None:
-        role = RoleTemplate(role_id="writer", description="写作", required_skills=["creative-ideation"])
+        role = RoleTemplate(
+            role_id="writer", description="写作", required_skills=["creative-ideation"]
+        )
         result = _match_role_to_agent(role, [], "default-agent")
         assert result == "default-agent"
 
     def test_exact_skill_match(self) -> None:
-        role = RoleTemplate(role_id="researcher", description="研究", required_skills=["deep-research", "web-scraping"])
+        role = RoleTemplate(
+            role_id="researcher",
+            description="研究",
+            required_skills=["deep-research", "web-scraping"],
+        )
         agents = [
-            {"id": "agent-1", "skill_ids": ["deep-research", "web-scraping", "data-analysis"]},
+            {
+                "id": "agent-1",
+                "skill_ids": ["deep-research", "web-scraping", "data-analysis"],
+            },
             {"id": "agent-2", "skill_ids": ["creative-ideation"]},
         ]
         result = _match_role_to_agent(role, agents, "default")
         assert result == "agent-1"
 
     def test_partial_match_picks_best(self) -> None:
-        role = RoleTemplate(role_id="analyst", description="分析", required_skills=["data-analysis", "web-scraping"])
+        role = RoleTemplate(
+            role_id="analyst",
+            description="分析",
+            required_skills=["data-analysis", "web-scraping"],
+        )
         agents = [
             {"id": "agent-1", "skill_ids": ["data-analysis"]},
             {"id": "agent-2", "skill_ids": ["data-analysis", "web-scraping"]},
@@ -80,7 +99,9 @@ class TestMatchRoleToAgent:
         assert result == "agent-2"
 
     def test_no_overlap_returns_default(self) -> None:
-        role = RoleTemplate(role_id="reviewer", description="审核", required_skills=["code-review"])
+        role = RoleTemplate(
+            role_id="reviewer", description="审核", required_skills=["code-review"]
+        )
         agents = [
             {"id": "agent-1", "skill_ids": ["creative-ideation"]},
         ]
@@ -108,10 +129,19 @@ class TestParsePipelineSpec:
                     },
                 ],
                 "role_templates": [
-                    {"role_id": "worker", "description": "工作者", "required_skills": ["skill-a"]},
+                    {
+                        "role_id": "worker",
+                        "description": "工作者",
+                        "required_skills": ["skill-a"],
+                    },
                 ],
                 "task_graph_seed": [
-                    {"title_template": "任务 {q1}", "description_template": "执行 {q1}", "role": "worker", "parents": []},
+                    {
+                        "title_template": "任务 {q1}",
+                        "description_template": "执行 {q1}",
+                        "role": "worker",
+                        "parents": [],
+                    },
                 ],
                 "task_graph_variants": [
                     {
@@ -119,7 +149,12 @@ class TestParsePipelineSpec:
                         "label": "Quick Mode",
                         "description": "Fast execution",
                         "seeds": [
-                            {"title_template": "Quick {q1}", "description_template": "Fast {q1}", "role": "worker", "parents": []},
+                            {
+                                "title_template": "Quick {q1}",
+                                "description_template": "Fast {q1}",
+                                "role": "worker",
+                                "parents": [],
+                            },
                         ],
                     }
                 ],
@@ -142,7 +177,10 @@ class TestParsePipelineSpec:
         assert spec.task_graph_variants[0].seeds[0].title_template == "Quick {q1}"
 
     def test_no_pipeline_spec_returns_none(self) -> None:
-        frontmatter: dict[str, object] = {"name": "normal-skill", "description": "Not a pipeline"}
+        frontmatter: dict[str, object] = {
+            "name": "normal-skill",
+            "description": "Not a pipeline",
+        }
         spec = _parse_pipeline_spec("normal-skill", frontmatter)
         assert spec is None
 
@@ -155,9 +193,24 @@ class TestParsePipelineSpec:
                 "discovery_questions": [],
                 "role_templates": [],
                 "task_graph_seed": [
-                    {"title_template": "T0", "description_template": "D0", "role": "a", "parents": []},
-                    {"title_template": "T1", "description_template": "D1", "role": "b", "parents": [0]},
-                    {"title_template": "T2", "description_template": "D2", "role": "c", "parents": [0, 1]},
+                    {
+                        "title_template": "T0",
+                        "description_template": "D0",
+                        "role": "a",
+                        "parents": [],
+                    },
+                    {
+                        "title_template": "T1",
+                        "description_template": "D1",
+                        "role": "b",
+                        "parents": [0],
+                    },
+                    {
+                        "title_template": "T2",
+                        "description_template": "D2",
+                        "role": "c",
+                        "parents": [0, 1],
+                    },
                 ],
             },
         }
@@ -178,7 +231,12 @@ class TestParsePipelineSpec:
                         "group": "focus",
                         "group_label": "重点",
                         "questions": [
-                            {"id": "focus", "type": "multi-select", "label": "重点", "options": ["A", "B", "C"]},
+                            {
+                                "id": "focus",
+                                "type": "multi-select",
+                                "label": "重点",
+                                "options": ["A", "B", "C"],
+                            },
                         ],
                     },
                 ],
@@ -262,15 +320,21 @@ class TestEdgeCases:
     """Edge cases and robustness tests."""
 
     def test_substitute_special_chars_in_answer(self) -> None:
-        result = _substitute_template("标题：{topic}", {"topic": "C++ {templates} & std::vector"})
+        result = _substitute_template(
+            "标题：{topic}", {"topic": "C++ {templates} & std::vector"}
+        )
         assert "C++ {templates} & std::vector" in result
 
     def test_substitute_curly_braces_in_template(self) -> None:
-        result = _substitute_template("代码 {{literal}} 和 {topic}", {"topic": "Python"})
+        result = _substitute_template(
+            "代码 {{literal}} 和 {topic}", {"topic": "Python"}
+        )
         assert "Python" in result
 
     def test_match_role_skills_field_alternative(self) -> None:
-        role = RoleTemplate(role_id="coder", description="编码", required_skills=["code-exec"])
+        role = RoleTemplate(
+            role_id="coder", description="编码", required_skills=["code-exec"]
+        )
         agents = [{"id": "a1", "skills": ["code-exec", "debug"]}]
         result = _match_role_to_agent(role, agents, None)
         assert result == "a1"
@@ -289,7 +353,12 @@ class TestEdgeCases:
                 "discovery_questions": [],
                 "role_templates": [],
                 "task_graph_seed": [
-                    {"title_template": "T0", "description_template": "D0", "role": "a", "parents": ["invalid", None, 1.5]},
+                    {
+                        "title_template": "T0",
+                        "description_template": "D0",
+                        "role": "a",
+                        "parents": ["invalid", None, 1.5],
+                    },
                 ],
             },
         }
@@ -303,10 +372,17 @@ class TestEdgeCases:
             "description": "t",
             "category": "pipeline",
             "pipeline_spec": {
-                "discovery_questions": [{"group": "g", "group_label": "G", "questions": []}],
+                "discovery_questions": [
+                    {"group": "g", "group_label": "G", "questions": []}
+                ],
                 "role_templates": [],
                 "task_graph_seed": [
-                    {"title_template": "T0", "description_template": "D0", "role": "a", "parents": []},
+                    {
+                        "title_template": "T0",
+                        "description_template": "D0",
+                        "role": "a",
+                        "parents": [],
+                    },
                 ],
             },
         }
@@ -324,7 +400,10 @@ class TestEdgeCases:
                     "invalid",
                     {
                         "id": "v1",
-                        "seeds": ["invalid", {"title_template": "T0", "role": "a", "parents": []}],
+                        "seeds": [
+                            "invalid",
+                            {"title_template": "T0", "role": "a", "parents": []},
+                        ],
                     },
                 ],
             },
@@ -338,7 +417,7 @@ class TestEdgeCases:
     def test_load_frontmatter_nonexistent(self) -> None:
         from pathlib import Path
 
-        from app.services.kanban.pipeline_instantiator import _load_frontmatter
+        from app.services.kanban.pipeline.instantiator import _load_frontmatter
 
         result = _load_frontmatter(Path("/nonexistent/path/SKILL.md"))
         assert result is None
@@ -349,7 +428,9 @@ class TestEdgeCases:
         for spec in specs:
             for i, seed in enumerate(spec.task_graph_seed):
                 for p in seed.parents:
-                    assert 0 <= p < i, f"{spec.skill_id}: task[{i}] references parent[{p}] >= self index"
+                    assert (
+                        0 <= p < i
+                    ), f"{spec.skill_id}: task[{i}] references parent[{p}] >= self index"
 
 
 class TestRepeatFor:
@@ -409,7 +490,12 @@ class TestRepeatFor:
                 "discovery_questions": [],
                 "role_templates": [],
                 "task_graph_seed": [
-                    {"title_template": "T0", "description_template": "D0", "role": "a", "parents": []},
+                    {
+                        "title_template": "T0",
+                        "description_template": "D0",
+                        "role": "a",
+                        "parents": [],
+                    },
                 ],
             },
         }
@@ -418,7 +504,9 @@ class TestRepeatFor:
         assert spec.task_graph_seed[0].repeat_for is None
 
     def test_substitute_item_placeholder(self) -> None:
-        result = _substitute_template("Research: {_item}", {"_item": "Quantum Computing", "depth": "deep"})
+        result = _substitute_template(
+            "Research: {_item}", {"_item": "Quantum Computing", "depth": "deep"}
+        )
         assert result == "Research: Quantum Computing"
 
 
@@ -442,11 +530,13 @@ class TestFanOutTemplates:
         assert spec.task_graph_seed[0].repeat_for == "platforms"
         assert spec.task_graph_seed[1].repeat_for is None
         assert spec.task_graph_seed[1].parents == [0]
-        adapter = next(role for role in spec.role_templates if role.role_id == "adapter")
+        adapter = next(
+            role for role in spec.role_templates if role.role_id == "adapter"
+        )
         assert "wechat-article-formatter" not in adapter.required_skills
-        assert spec.task_graph_seed[0].repeat_for_item_skills.get("WeChat (微信公众号)") == [
-            "wechat-article-formatter"
-        ]
+        assert spec.task_graph_seed[0].repeat_for_item_skills.get(
+            "WeChat (微信公众号)"
+        ) == ["wechat-article-formatter"]
 
     def test_parse_repeat_for_item_skills(self) -> None:
         frontmatter: dict[str, object] = {
@@ -471,9 +561,9 @@ class TestFanOutTemplates:
         }
         spec = _parse_pipeline_spec("repeat-skills", frontmatter)
         assert spec is not None
-        assert spec.task_graph_seed[0].repeat_for_item_skills["WeChat (微信公众号)"] == [
-            "wechat-article-formatter"
-        ]
+        assert spec.task_graph_seed[0].repeat_for_item_skills[
+            "WeChat (微信公众号)"
+        ] == ["wechat-article-formatter"]
 
     def test_competitive_analysis_pipeline(self) -> None:
         spec = get_pipeline_skill("competitive-analysis-pipeline")
@@ -492,9 +582,15 @@ class TestFanOutTemplates:
         assert "competitive-analysis-pipeline" in skill_ids
 
     def test_fan_out_dags_valid(self) -> None:
-        for sid in ("multi-topic-research-pipeline", "content-distribution-pipeline", "competitive-analysis-pipeline"):
+        for sid in (
+            "multi-topic-research-pipeline",
+            "content-distribution-pipeline",
+            "competitive-analysis-pipeline",
+        ):
             spec = get_pipeline_skill(sid)
             assert spec is not None
             for i, seed in enumerate(spec.task_graph_seed):
                 for p in seed.parents:
-                    assert 0 <= p < i, f"{sid}: task[{i}] references parent[{p}] >= self index"
+                    assert (
+                        0 <= p < i
+                    ), f"{sid}: task[{i}] references parent[{p}] >= self index"

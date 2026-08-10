@@ -5,7 +5,7 @@
 - core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
 - dependency_ops (POS: Dependency graph operations.)
 - event_publisher (POS: Kanban SSE event publishing helpers.)
-- service_types (POS: Kanban service shared types.)
+- service_mixins.types (POS: Kanban service shared types.)
 
 [OUTPUT]
 - move_task, reclaim_task, cancel_task_execution (approve/reject live in review_ops)
@@ -34,7 +34,7 @@ from myrm_agent_harness.toolkits.kanban.types import (
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
 from app.services.kanban.dependency_ops import promote_dependents
 from app.services.kanban.event_publisher import publish_kanban_event
-from app.services.kanban.service_types import (
+from app.services.kanban.service_mixins.types import (
     STATUS_TO_EVENT_KIND,
     SYNTHETIC_RUN_TARGETS,
     TARGET_TO_RUN_OUTCOME,

@@ -353,10 +353,17 @@ class LocalEvalExecutor:
                     if tool_name:
                         tools_called.append(tool_name)
                 elif event_type == "token_usage":
+                    # The harness emits token events as {"usage": {"prompt_tokens": ...,
+                    # "completion_tokens": ..., ...}}; the usage dict never carries
+                    # input_tokens/output_tokens aliases, so read the canonical keys.
                     data = event.get("data")
                     if isinstance(data, dict):
-                        total_input_tokens += int(data.get("input_tokens") or 0)
-                        total_output_tokens += int(data.get("output_tokens") or 0)
+                        usage = data.get("usage")
+                        if isinstance(usage, dict):
+                            total_input_tokens += int(usage.get("prompt_tokens") or 0)
+                            total_output_tokens += int(
+                                usage.get("completion_tokens") or 0
+                            )
         finally:
             await finalize_agent_session(
                 agent,

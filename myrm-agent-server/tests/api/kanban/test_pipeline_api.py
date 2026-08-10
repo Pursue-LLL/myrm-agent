@@ -53,7 +53,9 @@ def client() -> TestClient:
         yield c
 
 
-def _create_board(client: TestClient, name: str = "Pipeline Test Board") -> dict[str, object]:
+def _create_board(
+    client: TestClient, name: str = "Pipeline Test Board"
+) -> dict[str, object]:
     resp = client.post("/api/v1/kanban/boards", json={"name": name})
     assert resp.status_code == 201
     return resp.json()
@@ -82,7 +84,9 @@ class TestListPipelines:
     def test_template_fields(self, client: TestClient) -> None:
         resp = client.get("/api/v1/kanban/pipelines")
         data = resp.json()
-        video = next(i for i in data["items"] if i["skill_id"] == "video-production-pipeline")
+        video = next(
+            i for i in data["items"] if i["skill_id"] == "video-production-pipeline"
+        )
         assert video["category"] == "pipeline"
         assert video["task_count"] == 5
         assert len(video["roles"]) == 5
@@ -164,8 +168,14 @@ class TestInstantiatePipeline:
         assert len(data["task_ids"]) == 5
         assert len(data["edges"]) == 4  # T0→T2, T1→T3, T2→T3, T3→T4
 
-    def test_creates_task_graph_with_variant(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.services.kanban.pipeline_spec_io import PipelineSpec, TaskGraphVariant, TaskSeed
+    def test_creates_task_graph_with_variant(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from app.services.kanban.pipeline import (
+            PipelineSpec,
+            TaskGraphVariant,
+            TaskSeed,
+        )
 
         # Mock get_pipeline_skill to return a spec with variants
         def mock_get_pipeline_skill(skill_id: str) -> PipelineSpec:
@@ -193,7 +203,10 @@ class TestInstantiatePipeline:
                 ],
             )
 
-        monkeypatch.setattr("app.services.kanban.pipeline_instantiator.get_pipeline_skill", mock_get_pipeline_skill)
+        monkeypatch.setattr(
+            "app.services.kanban.pipeline.instantiator.get_pipeline_skill",
+            mock_get_pipeline_skill,
+        )
 
         board = _create_board(client)
         board_id = board["board_id"]
@@ -211,8 +224,14 @@ class TestInstantiatePipeline:
         assert len(data["task_ids"]) == 2
         assert len(data["edges"]) == 1
 
-    def test_instantiate_invalid_variant_id_returns_400(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.services.kanban.pipeline_spec_io import PipelineSpec, TaskGraphVariant, TaskSeed
+    def test_instantiate_invalid_variant_id_returns_400(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from app.services.kanban.pipeline import (
+            PipelineSpec,
+            TaskGraphVariant,
+            TaskSeed,
+        )
 
         def mock_get_pipeline_skill(skill_id: str) -> PipelineSpec:
             return PipelineSpec(
@@ -225,11 +244,19 @@ class TestInstantiatePipeline:
                 role_templates=[],
                 task_graph_seed=[TaskSeed("Default", "", "a", [])],
                 task_graph_variants=[
-                    TaskGraphVariant(id="quick", label="Quick", description="", seeds=[TaskSeed("Quick", "", "a", [])])
+                    TaskGraphVariant(
+                        id="quick",
+                        label="Quick",
+                        description="",
+                        seeds=[TaskSeed("Quick", "", "a", [])],
+                    )
                 ],
             )
 
-        monkeypatch.setattr("app.services.kanban.pipeline_instantiator.get_pipeline_skill", mock_get_pipeline_skill)
+        monkeypatch.setattr(
+            "app.services.kanban.pipeline.instantiator.get_pipeline_skill",
+            mock_get_pipeline_skill,
+        )
 
         board = _create_board(client)
         board_id = board["board_id"]
@@ -245,8 +272,10 @@ class TestInstantiatePipeline:
         assert resp.status_code == 400
         assert "Invalid variant_id: invalid-id" in resp.json()["detail"]
 
-    def test_instantiate_empty_graph_returns_400(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.services.kanban.pipeline_spec_io import PipelineSpec
+    def test_instantiate_empty_graph_returns_400(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from app.services.kanban.pipeline import PipelineSpec
 
         def mock_get_pipeline_skill(skill_id: str) -> PipelineSpec:
             return PipelineSpec(
@@ -261,7 +290,10 @@ class TestInstantiatePipeline:
                 task_graph_variants=[],
             )
 
-        monkeypatch.setattr("app.services.kanban.pipeline_instantiator.get_pipeline_skill", mock_get_pipeline_skill)
+        monkeypatch.setattr(
+            "app.services.kanban.pipeline.instantiator.get_pipeline_skill",
+            mock_get_pipeline_skill,
+        )
 
         board = _create_board(client)
         board_id = board["board_id"]
@@ -284,7 +316,11 @@ class TestInstantiatePipeline:
             f"/api/v1/kanban/boards/{board_id}/pipeline/instantiate",
             json={
                 "skill_id": "video-production-pipeline",
-                "answers": {"video_type": "教程", "duration": "1min", "topic": "Python"},
+                "answers": {
+                    "video_type": "教程",
+                    "duration": "1min",
+                    "topic": "Python",
+                },
             },
         )
 
@@ -389,7 +425,9 @@ class TestInstantiatePipeline:
         assert any("Twitter" in t for t in titles)
         assert any("LinkedIn" in t for t in titles)
 
-    def test_content_distribution_wechat_injects_formatter_skill(self, client: TestClient) -> None:
+    def test_content_distribution_wechat_injects_formatter_skill(
+        self, client: TestClient
+    ) -> None:
         board = _create_board(client)
         board_id = board["board_id"]
 

@@ -1,7 +1,7 @@
 """Pipeline template instantiator.
 
 [INPUT]
-- pipeline_spec_io (POS: Pipeline SKILL.md types and frontmatter parsing.)
+- pipeline.spec_io (POS: Pipeline SKILL.md types and frontmatter parsing.)
 - app.services.kanban::KanbanService (POS: Kanban business orchestration.)
 
 [OUTPUT]
@@ -24,7 +24,7 @@ from myrm_agent_harness.toolkits.kanban.types import TaskPriority, inherit_sourc
 if TYPE_CHECKING:
     from app.services.kanban import KanbanService
 
-from app.services.kanban.pipeline_spec_io import (
+from app.services.kanban.pipeline.spec_io import (
     MAX_REPEAT,
     SEEDS_DIR,
     InstantiateResult,

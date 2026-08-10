@@ -20,7 +20,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SEEDS_DIR = Path(__file__).resolve().parents[3] / "assets" / "prebuilt_skills"
+SEEDS_DIR = Path(__file__).resolve().parents[4] / "assets" / "prebuilt_skills"
 
 MAX_REPEAT: int = 20
 

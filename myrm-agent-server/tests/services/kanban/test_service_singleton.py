@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.services.kanban.service import KanbanService
-from app.services.kanban.service_core import KanbanServiceCore
+from app.services.kanban.service_mixins import KanbanServiceCore
 
 
 @pytest.fixture(autouse=True)
