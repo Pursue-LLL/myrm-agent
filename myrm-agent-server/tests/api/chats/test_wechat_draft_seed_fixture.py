@@ -77,3 +77,14 @@ def test_seed_wechat_draft_fixture_creates_html_artifact(client: TestClient, tmp
     assert isinstance(artifacts, list) and artifacts
     assert artifacts[0]["filename"] == "article.wechat.html"
     assert artifacts[0]["type"] == "html"
+
+
+@pytest.mark.integration
+def test_seed_wechat_official_settings_fixture(client: TestClient) -> None:
+    with patch("app.api.chats.test_fixtures_wechat_draft.is_local_mode", return_value=True):
+        resp = client.post("/api/v1/chats/test/seed-wechat-official-settings-fixture")
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body.get("ok") == "true"
+    assert "channel_status" in body

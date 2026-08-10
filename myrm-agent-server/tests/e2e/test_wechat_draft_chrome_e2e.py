@@ -129,25 +129,10 @@ _CLICK_CONFIRM_PUSH_JS = """(() => {
 
 
 def _prepare_wechat_official_settings(api_url: str) -> None:
-    """Seed credentials and best-effort enable channel so config card renders."""
+    """Seed credentials + best-effort channel enable via namespace-safe test fixture."""
     http_json(
-        "PUT",
-        f"{api_url}/api/v1/config/wechatOfficialCredentials",
-        {
-            "deviceId": "wechat-settings-e2e",
-            "value": {
-                "appId": "wx_e2e_settings",
-                "appSecret": "e2e_settings_secret",
-                "token": "",
-                "encodingAesKey": "",
-            },
-        },
-    )
-    http_json(
-        "PATCH",
-        f"{api_url}/api/v1/channels/manage/wechat_official/toggle",
-        {"enabled": True},
-        expected_statuses=frozenset({200, 409}),
+        "POST",
+        f"{api_url}/api/v1/chats/test/seed-wechat-official-settings-fixture",
     )
 
 

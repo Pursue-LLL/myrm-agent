@@ -5,8 +5,11 @@ reachable after a real agent completes a require_approval run; a UI probe
 cannot dispatch a live agent), then verifies the /agents Fleet "Pending" KPI
 ticks up in the real UI and falls back after a real REST approve.
 
-Incremental assertions (N -> N+1 -> N) immunize against concurrent activity
-from other developers sharing the same dev server.
+Every UI assertion is anchored by an independent API-level reading of the same
+metric, so a wrong DB path or a broken aggregation is diagnosed immediately
+instead of surfacing as a confusing UI-only diff. Incremental assertions
+(N -> N+1 -> N) immunize against concurrent activity from other developers
+sharing the server.
 """
 
 from __future__ import annotations
@@ -26,6 +29,25 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
+
+# Reads the /agents Fleet "Pending" KPI. Stays not-ready until the label match
+# AND a rendered value are both present, so the baseline read cannot race the
+# fleet-overview fetch (the KPI card only mounts once the API has answered).
+_PENDING_KPI_JS = """(() => {
+  if (!document.querySelector('[data-testid="app-layout"]')) {
+    return { ready: false, text: '' };
+  }
+  const cards = [...document.querySelectorAll('div.rounded-lg.border.p-3')];
+  for (const card of cards) {
+    const labelEl = card.querySelector('p.text-xs');
+    if (labelEl && /pend|待审批/i.test(labelEl.textContent || '')) {
+      const valEl = card.querySelector('p.text-lg');
+      const text = valEl ? valEl.textContent.trim() : '';
+      return text === '' ? { ready: false, text: '' } : { ready: true, text };
+    }
+  }
+  return { ready: false, text: '' };
+})()"""
 
 
 def _live_db_path() -> str:
@@ -63,26 +85,15 @@ def _live_db_path() -> str:
     raise RuntimeError(f"live kanban DB not found; probed {sorted(seen)}")
 
 
+def _api_pending_approvals(api_url: str) -> int:
+    """Server-side pendingApprovals (goal approvals + kanban IN_REVIEW)."""
+    body = http_json("GET", f"{api_url}/api/v1/statistics/badges")
+    return int(body["data"]["pendingApprovals"])
+
+
 def _read_pending_kpi(client: object, page: object) -> str:
-    """Read the /agents Fleet 'Pending' KPI value ('' while unknown)."""
-    state = wait_for_state(
-        client,
-        page,
-        """(() => {
-          if (!document.querySelector('[data-testid="app-layout"]')) {
-            return { ready: false, text: '' };
-          }
-          const cards = [...document.querySelectorAll('div.rounded-lg.border.p-3')];
-          for (const card of cards) {
-            const labelEl = card.querySelector('p.text-xs');
-            if (labelEl && /pend|待审批/i.test(labelEl.textContent || '')) {
-              const valEl = card.querySelector('p.text-lg');
-              return { ready: true, text: valEl ? valEl.textContent.trim() : '' };
-            }
-          }
-          return { ready: true, text: '' };
-        })()""",
-    )
+    """Read the /agents Fleet 'Pending' KPI value (blocks until it renders)."""
+    state = wait_for_state(client, page, _PENDING_KPI_JS)
     return str(state.get("text") or "")
 
 
@@ -107,48 +118,40 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
 
     task_id = f"fleetkpi-{marker}"
     db_path = _live_db_path()
-    with sqlite3.connect(db_path, timeout=15.0) as conn:
-        conn.execute(
-            "INSERT INTO kanban_tasks "
-            "(id, board_id, title, description, status, priority, retry_count, "
-            "max_retries, consecutive_failures, result, error, created_at, "
-            "updated_at, goal_mode, require_approval) "
-            "VALUES (?, ?, ?, '', 'in_review', 'normal', 0, 3, 0, '', '', "
-            "datetime('now'), datetime('now'), 0, 1)",
-            (task_id, board_id, f"E2E Fleet KPI Task {marker}"),
-        )
+
+    def seed_task() -> None:
+        with sqlite3.connect(db_path, timeout=15.0) as conn:
+            conn.execute(
+                "INSERT INTO kanban_tasks "
+                "(id, board_id, title, description, status, priority, retry_count, "
+                "max_retries, consecutive_failures, result, error, created_at, "
+                "updated_at, goal_mode, require_approval) "
+                "VALUES (?, ?, ?, '', 'in_review', 'normal', 0, 3, 0, '', '', "
+                "datetime('now'), datetime('now'), 0, 1)",
+                (task_id, board_id, f"E2E Fleet KPI Task {marker}"),
+            )
 
     try:
         with open_mcp_page(f"{ui_url}/agents") as (client, page):
+            # Baseline: the KPI card must be rendered, so 'before' is a digit.
             before = _read_pending_kpi(client, page)
+            assert before.isdigit(), f"Pending KPI not rendered; before={before!r}"
+            api_before = _api_pending_approvals(api_url)
 
-            seeded = wait_for_state(
-                client,
-                page,
-                """(() => {
-                  if (!document.querySelector('[data-testid="app-layout"]')) {
-                    return { ready: false, text: '' };
-                  }
-                  const cards = [...document.querySelectorAll('div.rounded-lg.border.p-3')];
-                  for (const card of cards) {
-                    const labelEl = card.querySelector('p.text-xs');
-                    if (labelEl && /pend|待审批/i.test(labelEl.textContent || '')) {
-                      const valEl = card.querySelector('p.text-lg');
-                      return { ready: true, text: valEl ? valEl.textContent.trim() : '' };
-                    }
-                  }
-                  return { ready: true, text: '' };
-                })()""",
+            # Seed AFTER the baseline read; seeding earlier would make N already
+            # include the task and the N -> N+1 UI delta would never appear.
+            seed_task()
+            assert _api_pending_approvals(api_url) == api_before + 1, (
+                f"badges API must count the seeded IN_REVIEW task: "
+                f"api_before={api_before}"
             )
+
+            seeded = wait_for_state(client, page, _PENDING_KPI_JS)
             seeded_text = str(seeded.get("text") or "")
-            if before:
-                assert seeded_text == str(int(before) + 1), (
-                    f"KPI should tick +1 after IN_REVIEW seed: before={before} seeded={seeded_text}"
-                )
-            else:
-                assert seeded_text.isdigit() and int(seeded_text) >= 1, (
-                    f"KPI should appear after IN_REVIEW seed: before={before!r} seeded={seeded_text!r}"
-                )
+            assert seeded_text == str(int(before) + 1), (
+                f"KPI should tick +1 after IN_REVIEW seed: before={before} "
+                f"seeded={seeded_text}"
+            )
 
             approved = http_json(
                 "POST",
@@ -157,27 +160,15 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
             )
             assert str(approved.get("status") or "") == "completed"
 
-            settled = wait_for_state(
-                client,
-                page,
-                """(() => {
-                  if (!document.querySelector('[data-testid="app-layout"]')) {
-                    return { ready: false, text: '' };
-                  }
-                  const cards = [...document.querySelectorAll('div.rounded-lg.border.p-3')];
-                  for (const card of cards) {
-                    const labelEl = card.querySelector('p.text-xs');
-                    if (labelEl && /pend|待审批/i.test(labelEl.textContent || '')) {
-                      const valEl = card.querySelector('p.text-lg');
-                      return { ready: true, text: valEl ? valEl.textContent.trim() : '' };
-                    }
-                  }
-                  return { ready: true, text: '' };
-                })()""",
+            assert _api_pending_approvals(api_url) == api_before, (
+                f"badges API must fall back after approve: api_before={api_before}"
             )
+
+            settled = wait_for_state(client, page, _PENDING_KPI_JS)
             settled_text = str(settled.get("text") or "")
             assert settled_text == before, (
-                f"KPI should fall back after approve: before={before!r} settled={settled_text!r}"
+                f"KPI should fall back after approve: before={before!r} "
+                f"settled={settled_text!r}"
             )
     finally:
         with sqlite3.connect(db_path, timeout=15.0) as conn:

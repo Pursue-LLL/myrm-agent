@@ -117,6 +117,120 @@ async def test_create_skill_backend_loads_prebuilt(
     assert "systematic-debugging" in names
 
 
+@pytest.mark.asyncio
+async def test_resolve_skill_env_map_with_real_backend(
+    storage: LocalStorageBackend,
+) -> None:
+    """resolve_skill_env_map filters env against real installed prebuilt skills.
+
+    Uses the real create_skill_backend pipeline (seed sync → StorageSkillBackend)
+    with zero mocks on the backend. Verifies the self-healing contract:
+    installed skill env is kept (keyed under its runtime name) and env for
+    uninstalled skills is dropped.
+    """
+    from app.ai_agents.general_agent.config_builders import resolve_skill_env_map
+    from app.core.skills.loader import create_skill_backend
+
+    service = SkillsService(storage=storage)
+    with patch("app.core.skills.store.service.skills_service", service):
+        backend = await create_skill_backend(storage=storage)
+
+    installed = await backend.list_skills()
+    assert installed, "prebuilt seeds must be loaded through the real pipeline"
+    real_name = installed[0].name
+
+    env_vars = {
+        real_name: {"GOOGLE_API_KEY": "test-key"},
+        "nonexistent-skill-xyz": {"SECRET": "should-be-dropped"},
+    }
+
+    resolved = await resolve_skill_env_map(backend, env_vars)
+
+    assert resolved == {real_name: {"GOOGLE_API_KEY": "test-key"}}
+    assert "nonexistent-skill-xyz" not in resolved
+
+
+@pytest.mark.asyncio
+async def test_skill_env_vars_endpoints_persist_and_resolve(
+    storage: LocalStorageBackend,
+) -> None:
+    """Full contract: API env endpoints (keyed by skill_id) → resolve_skill_env_map.
+
+    The real WebUI saves env vars via PUT /skills/{skill_id}/env, which stores
+    them under the skill_id key. get_skill_env_vars reads them back, and
+    resolve_skill_env_map must match that stored key against installed skills
+    via the runtime name so the agent runtime receives the env.
+    """
+    from app.ai_agents.general_agent.config_builders import resolve_skill_env_map
+    from app.api.skills.config import (
+        get_skill_env_vars,
+        update_skill_env_vars,
+    )
+    from app.api.skills.schemas import UpdateSkillEnvVarsRequest
+    from app.core.skills.loader import create_skill_backend
+
+    service = SkillsService(storage=storage)
+    await prebuilt_sync.sync_prebuilt_seeds(storage)
+    await service.user_config.ensure_prebuilt_enabled_after_sync(
+        ["code-review", "systematic-debugging"]
+    )
+
+    with patch("app.api.skills.config.skills_service", service):
+        saved = await update_skill_env_vars(
+            "code-review",
+            UpdateSkillEnvVarsRequest(env_vars={"GOOGLE_API_KEY": "test-key"}),
+        )
+        assert saved.env_vars == {"GOOGLE_API_KEY": "test-key"}
+
+        loaded = await get_skill_env_vars("code-review")
+        assert loaded.env_vars == {"GOOGLE_API_KEY": "test-key"}
+        assert loaded.skill_id == "code-review"
+
+    with patch("app.core.skills.store.service.skills_service", service):
+        backend = await create_skill_backend(storage=storage)
+
+    resolved = await resolve_skill_env_map(
+        backend, {"code-review": {"GOOGLE_API_KEY": "test-key"}}
+    )
+    assert resolved == {"code-review": {"GOOGLE_API_KEY": "test-key"}}
+
+
+@pytest.mark.asyncio
+async def test_get_skill_env_vars_404_for_missing_skill(
+    storage: LocalStorageBackend,
+) -> None:
+    """get_skill_env_vars raises 404 for a skill that does not exist."""
+    from app.api.skills.config import get_skill_env_vars
+
+    service = SkillsService(storage=storage)
+    await prebuilt_sync.sync_prebuilt_seeds(storage)
+
+    with patch("app.api.skills.config.skills_service", service):
+        with pytest.raises(HTTPException) as exc_info:
+            await get_skill_env_vars("nonexistent-skill-xyz")
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_skill_env_vars_404_for_missing_skill(
+    storage: LocalStorageBackend,
+) -> None:
+    """update_skill_env_vars raises 404 for a skill that does not exist."""
+    from app.api.skills.config import update_skill_env_vars
+    from app.api.skills.schemas import UpdateSkillEnvVarsRequest
+
+    service = SkillsService(storage=storage)
+    await prebuilt_sync.sync_prebuilt_seeds(storage)
+
+    with patch("app.api.skills.config.skills_service", service):
+        with pytest.raises(HTTPException) as exc_info:
+            await update_skill_env_vars(
+                "nonexistent-skill-xyz",
+                UpdateSkillEnvVarsRequest(env_vars={"SECRET": "x"}),
+            )
+    assert exc_info.value.status_code == 404
+
+
 # --- Prebuilt update management (reset-to-default / accept-upstream) ---
 
 

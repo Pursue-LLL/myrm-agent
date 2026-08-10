@@ -24,14 +24,14 @@ from app.services.plugins.import_service import PluginImportSession
 PLUGIN_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
 
-_FAKE_DB_PATH = Path("/tmp/plugin-import-test/skills.db")
-
 
 @pytest.fixture(scope="function")
 def client() -> TestClient:
     test_app = FastAPI(title="Plugin Import Test App")
     test_app.include_router(import_module.router, prefix="/api/v1/plugins")
-    return TestClient(test_app)
+    # Map uncaught exceptions to 500 responses so tests assert HTTP behavior
+    # rather than exception propagation through the test client.
+    return TestClient(test_app, raise_server_exceptions=False)
 
 
 def _plugin_zip_bytes() -> bytes:
@@ -105,6 +105,20 @@ def test_preview_rejects_non_zip(client: TestClient) -> None:
     assert response.status_code == 400
 
 
+def test_preview_rejects_corrupt_zip_bytes(client: TestClient) -> None:
+    """A .zip-named upload with garbage bytes must be a 400, not a 500.
+
+    ``zipfile.BadZipFile`` (raised by safe_extract_zip on non-zip content)
+    is not a ``ValueError`` subclass, so the endpoint relies on
+    ``parse_plugin_zip`` mapping it to a user-facing 400.
+    """
+    response = client.post(
+        "/api/v1/plugins/import/preview",
+        files={"file": ("plugin.zip", b"\x00\x01not a real zip", "application/zip")},
+    )
+    assert response.status_code == 400
+
+
 def test_preview_rejects_empty_file(client: TestClient) -> None:
     response = client.post(
         "/api/v1/plugins/import/preview",
@@ -120,6 +134,57 @@ def test_preview_rejects_oversized_zip(client: TestClient) -> None:
         files={"file": ("plugin.zip", oversize, "application/zip")},
     )
     assert response.status_code == 400
+
+
+def test_preview_security_error_returns_structured_detail(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Archive security violations map to a 400 with a structured detail.
+
+    The ``{message, error_code}`` detail is the contract the frontend uses to
+    localize archive-security errors (``resolveUserFacingArchiveSecurityError``).
+    """
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Highly compressible entry drives the compression ratio above the
+        # 100:1 zip-bomb threshold.
+        zf.writestr("bomb-plugin/plugin.json", "x" * 5_000_000)
+    response = client.post(
+        "/api/v1/plugins/import/preview",
+        files={"file": ("bomb.zip", buf.getvalue(), "application/zip")},
+    )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["error_code"] == "archive_security.compression_ratio_exceeded"
+    assert detail["message"]
+
+
+def test_preview_returns_500_when_session_persist_fails(
+    client: TestClient, tmp_path: Path
+) -> None:
+    with (
+        patch(
+            "app.api.plugins.import_.get_evolution_skill_store_db_path",
+            return_value=tmp_path / "skills.db",
+        ),
+        patch(
+            "app.services.plugins.import_service._scan_skill_security",
+            return_value=[],
+        ),
+        patch(
+            "app.services.plugins.import_service.PluginStaging.save_session",
+            side_effect=RuntimeError("disk full"),
+        ),
+    ):
+        response = client.post(
+            "/api/v1/plugins/import/preview",
+            files={
+                "file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")
+            },
+        )
+
+    assert response.status_code == 500
 
 
 def test_preview_flags_dangerous_skill(
@@ -234,3 +299,94 @@ def test_confirm_rejects_stale_session(client: TestClient, tmp_path: Path) -> No
         )
 
     assert response.status_code == 400
+
+
+def test_confirm_returns_500_on_service_failure(
+    client: TestClient, tmp_path: Path
+) -> None:
+    with (
+        patch(
+            "app.api.plugins.import_.get_evolution_skill_store_db_path",
+            return_value=tmp_path / "skills.db",
+        ),
+        patch(
+            "app.services.plugins.import_service.PluginStaging.load_session",
+            return_value=PluginImportSession(
+                plugin_result=PluginParseResult(),
+                skills_by_key={},
+                servers_by_key={},
+            ),
+        ),
+        patch(
+            "app.services.plugins.import_service.confirm_plugin_import",
+            side_effect=RuntimeError("db down"),
+        ),
+    ):
+        response = client.post(
+            "/api/v1/plugins/import/confirm",
+            json={
+                "session_id": "boom",
+                "skills": [],
+                "servers": [],
+                "bind_agent_id": None,
+            },
+        )
+
+    assert response.status_code == 500
+
+
+def test_preview_confirm_roundtrip(client: TestClient, tmp_path: Path) -> None:
+    """Real preview → real confirm roundtrip against a tmp staging dir.
+
+    No ``load_session`` mock: the session file written by /preview is
+    read back by /confirm, then removed by ``cleanup_session``.
+    """
+    with (
+        patch(
+            "app.api.plugins.import_.get_evolution_skill_store_db_path",
+            return_value=tmp_path / "skills.db",
+        ),
+        patch(
+            "app.services.plugins.import_service._scan_skill_security",
+            return_value=[],
+        ),
+        patch(
+            "app.core.skills.store.evolution_store.get_evolution_skill_store",
+            return_value=AsyncMock(),
+        ),
+        patch(
+            "app.services.config.service.config_service",
+            AsyncMock(),
+        ),
+        patch(
+            "app.services.agent.agent_service.AgentService",
+            AsyncMock(),
+        ),
+    ):
+        preview_response = client.post(
+            "/api/v1/plugins/import/preview",
+            files={
+                "file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")
+            },
+        )
+
+        assert preview_response.status_code == 200
+        session_id = preview_response.json()["session_id"]
+        staging_file = tmp_path / "plugin_staging" / f"{session_id}.pkl"
+        assert staging_file.exists()
+
+        confirm_response = client.post(
+            "/api/v1/plugins/import/confirm",
+            json={
+                "session_id": session_id,
+                "skills": [],
+                "servers": [],
+                "bind_agent_id": None,
+            },
+        )
+
+    assert confirm_response.status_code == 200
+    body = confirm_response.json()
+    assert body["imported_skills"] == 0
+    assert body["imported_servers"] == 0
+    assert not staging_file.exists(), "confirm must clean up its session file"

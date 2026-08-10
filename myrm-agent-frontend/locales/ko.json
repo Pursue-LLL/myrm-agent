@@ -103,7 +103,7 @@
       "usageStatistics": "사용 통계",
       "system": "시스템",
       "about": "정보",
-      "checkpoint": "Checkpoint",
+      "checkpoint": "체크포인트",
       "integrationCatalog": "서비스 카탈로그",
       "searchPlaceholder": "설정 검색...",
       "noResults": "일치하는 결과가 없습니다",
@@ -120,7 +120,7 @@
       "eval": "평가",
       "memory": "메모리 관리",
       "channelRouting": "채널 라우팅",
-      "openaiApi": "API Access",
+      "openaiApi": "에이전트 API",
       "integrationMemory": "통합 메모리",
       "extensionBridge": "브라우저 확장",
       "connect": "외부 에이전트",
@@ -245,7 +245,7 @@
         "title": "외부 에이전트",
         "description": "작업 위임을 위한 외부 AI 에이전트(예: Claude Code, Codex CLI) 구성.",
         "empty": "구성된 외부 에이전트가 없습니다",
-        "emptyHint": "Add an external agent to enable the delegate_to_agent tool.",
+        "emptyHint": "외부 에이전트 백엔드를 추가한 후, 위임하려는 각 에이전트의 내장 도구에서 외부 CLI를 활성화하세요.",
         "tauriAutoDetect": "Tauri 모드에서는 로컬에 설치된 CLI 에이전트가 자동으로 감지됩니다.",
         "add": "에이전트 추가",
         "edit": "편집",
@@ -311,8 +311,8 @@
         "agentToggleHint": "delegate_to_agent 를 호출해야 하는 에이전트는 에이전트 → 내장 도구 아래의 외부 CLI 도 켜세요."
       },
       "showSystemMessages": "시스템 메시지 표시",
-      "showSystemMessagesDesc": "Display AI system prompts in chat",
-      "showSystemMessagesWarning": "System messages for development debugging only.",
+      "showSystemMessagesDesc": "채팅 메시지에 AI 시스템 프롬프트를 표시합니다",
+      "showSystemMessagesWarning": "시스템 메시지에는 AI 동작 지침이 포함됩니다. 디버깅 전용입니다. 프로덕션에서는 비활성화하세요.",
       "title": "개발자",
       "description": "개발자 구성 및 디버깅 옵션",
       "systemHealth": {
@@ -998,7 +998,7 @@
       "addKeyFirst": "먼저 API 키를 추가하세요",
       "apiUrl": "API URL",
       "apiUrlPlaceholder": "https://api.example.com/v1",
-      "apiUrlHint": "Usually no modification needed, use default URL",
+      "apiUrlHint": "기본 URL만 입력하세요. /chat/completions 엔드포인트 경로는 포함하지 마세요",
       "checkConnection": "연결 테스트",
       "checking": "확인 중...",
       "reachable": "연결 가능",
@@ -1658,7 +1658,7 @@
     },
     "wiki": {
       "title": "LLM 위키 지식 베이스",
-      "description": "AI-maintained structured knowledge base that grows with your conversations",
+      "description": "AI가 자동으로 관리하는 구조화된 지식 베이스로, 대화와 함께 성장합니다. Wiki는 문서와 참고 자료를 보관하고, 메모리는 개인에 대한 짧은 사실과 선호도를 보관합니다. 각각의 장점에 맞게 사용하세요.",
       "loading": "로딩 중...",
       "querying": "쿼리 중...",
       "compiling": "컴파일 중...",
@@ -1898,19 +1898,19 @@
         "rawForgetFailed": "원본 소스 제거 실패"
       },
       "saveToWiki": {
-        "buttonTitle": "Save to Wiki",
-        "title": "Save to Wiki",
-        "description": "Select a folder to save this message as a new Wiki concept.",
+        "buttonTitle": "Wiki로 정리 (검토 대기)",
+        "title": "Wiki로 정리",
+        "description": "이 Q&A를 검토 대기 초안으로 제출합니다. 지식 베이스에 들어가기 전에 설정에서 승인해야 합니다.",
         "filenameLabel": "파일 이름",
         "filenamePlaceholder": "예: react-hooks-guide",
         "folderLabel": "폴더 선택 (선택)",
         "noFolders": "폴더를 찾을 수 없습니다. 루트에 저장됩니다.",
         "selectedPath": "선택된 경로:",
         "cancel": "취소",
-        "save": "Save",
+        "save": "검토용 제출",
         "loadFailed": "폴더 로드 실패",
         "filenameRequired": "파일 이름은 필수입니다",
-        "saveFailed": "Failed to save to Wiki",
+        "saveFailed": "Wiki 초안 제출에 실패했습니다",
         "compoundSuccess": "위키 검토용으로 스테이징됨",
         "alreadyStaged": "이 메시지는 이미 검토 대기 중입니다",
         "openPending": "보류 열기",
@@ -2697,7 +2697,7 @@
       "curator": {
         "safetyPromise": "스킬은 절대 삭제되지 않습니다. 최악의 경우 보관 처리되며 언제든 복원할 수 있습니다.",
         "title": "스킬 큐레이터",
-        "description": "Automatically manages skill lifecycle",
+        "description": "스킬 수명주기를 자동으로 관리 — 사용하지 않는 스킬을 유휴로 표시하고, 오랫동안 사용하지 않은 스킬은 보관 처리합니다",
         "enabled": "큐레이터 활성화",
         "enabledDesc": "주기적으로 스캔하여 스킬 수명주기 상태 관리",
         "intervalHours": "스캔 간격 (시간)",
@@ -2708,7 +2708,7 @@
         "gracePeriodDays": "유예 기간 (일)",
         "gracePeriodDaysDesc": "새 스킬은 이 기간 동안 큐레이터에서 제외됩니다",
         "protectInstalled": "설치된 스킬 보호",
-        "protectInstalledDesc": "Hub/registry skills will not be affected",
+        "protectInstalledDesc": "허브/레지스트리의 스킬은 큐레이터의 영향을 받지 않습니다",
         "maxSkills": "최대 활성 스킬 수",
         "maxSkillsDesc": "초과 시 가장 오래 사용되지 않은 스킬이 유휴로 표시됩니다",
         "runNow": "지금 실행",
@@ -2718,7 +2718,7 @@
         "runResult": "{scanned}개 스킬 검사: {stale}개 유휴, {archived}개 보관",
         "noChanges": "변경 사항 없음",
         "save": "저장",
-        "configSaved": "Settings saved",
+        "configSaved": "큐레이터 설정이 저장되었습니다",
         "configSaveFailed": "설정 저장 실패",
         "recentRuns": "최근 실행",
         "loadingHistory": "기록 로딩 중...",
@@ -2986,7 +2986,7 @@
         "rejectSuccess": "\"{name}\"이(가) 거부되었습니다",
         "rejectFailed": "\"{name}\" 거부 실패",
         "summary": {
-          "total": "Recent Cases",
+          "total": "최근 사례",
           "pendingReview": "검토 대기",
           "autoApplied": "자동 적용",
           "blocked": "차단됨 또는 실패"
@@ -3526,7 +3526,7 @@
       "restarting": "다시 시작 중...",
       "restartFailed": "다시 시작 실패",
       "config": {
-        "title": "WebUI Mode Configuration",
+        "title": "시스템 구성",
         "enableWebUI": "WebUI 모드 활성화",
         "enableWebUIDesc": "로컬 네트워크에서 브라우저로 앱에 액세스",
         "enableRemote": "원격 액세스 활성화",
@@ -4124,7 +4124,7 @@
         "teamHub": "공유 컨텍스트, Wiki, 스킬, 메모리 — 팀 구성을 한곳에서"
       },
       "migrationUnavailable": {
-        "title": "External source migration requires Local or Desktop",
+        "title": "어시스턴트 가져오기는 로컬 또는 데스크톱에서만 지원됩니다",
         "description": "SaaS cloud sandboxes cannot read Hermes, OpenClaw, or other folders on your machine. Download the Tauri desktop app or run Local WebUI, then open Settings → Memory → Migration.",
         "downloadCta": "다운로드 페이지로 이동"
       }
@@ -4189,8 +4189,8 @@
       "removeError": "통합 트리 제거 실패."
     },
     "openaiApi": {
-      "title": "API Access",
-      "description": "Manage API keys for OpenAI-compatible endpoint access. Use these keys with any OpenAI SDK or tool to interact with your agents.",
+      "title": "에이전트 API",
+      "description": "OpenAI 호환 에이전트 엔드포인트의 API 키를 관리합니다. 모든 OpenAI SDK를 사용하여 메모리, 도구, 스킬을 갖춘 Myrm 에이전트를 실행할 수 있습니다.",
       "createKey": "API 키 만들기",
       "keyName": "키 이름",
       "keyNamePlaceholder": "예: My Integration",
@@ -4218,7 +4218,7 @@
       "endpoint": "API 엔드포인트",
       "endpointDesc": "모든 OpenAI 호환 클라이언트에서 이 기본 URL을 사용하세요:",
       "docsTitle": "빠른 시작",
-      "docsDesc": "Use your API key with the OpenAI SDK or any compatible client.",
+      "docsDesc": "API 키를 OpenAI SDK 또는 호환 클라이언트에서 사용하세요. model 필드로 에이전트를 선택합니다 (기본 에이전트는 \"default\" 사용).",
       "createdAt": "생성됨"
     },
     "hosting": {
@@ -4397,7 +4397,7 @@
     "publicIngressBaseUrl": "공용 인그레스 URL",
     "publicIngressBaseUrlDesc": "공용 인그레스를 통한 외부 콜백의 기본 URL",
     "notificationDeliveries": "알림 전달",
-    "notificationDeliveriesDesc": "Custom notification channels and delivery targets",
+    "notificationDeliveriesDesc": "시스템 이벤트 알림 (OAuth, 예산, 페어링, 채널 상태). 에이전트 태스크 완료 알림은 각 에이전트의 알림 채널에서 설정하세요.",
     "webPushTitle": "백그라운드 푸시 알림",
     "webPushDesc": "브라우저가 닫혀 있어도 알림 수신. Web Push(VAPID) 기반.",
     "webPushUnsupported": "브라우저가 Web Push 알림을 지원하지 않습니다.",

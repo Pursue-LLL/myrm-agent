@@ -16,7 +16,7 @@ isolation so a single invalid skill or MCP server never aborts the whole import.
 - app.services.skills.store / UserConfig persistence (POS: business skill/MCP stores.)
 
 [OUTPUT]
-- import_agent_plugin: Persist skills, MCP servers, and agent bindings from a
+- confirm_plugin_import: Persist skills, MCP servers, and agent bindings from a
   parsed plugin archive (offline, per-component failure isolation).
 
 [POS]
@@ -31,6 +31,7 @@ import asyncio
 import logging
 import pickle
 import uuid
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -169,6 +170,8 @@ def parse_plugin_zip(zip_bytes: bytes) -> PluginParseResult:
         )
         error_code = violation.code.value if violation is not None else ""
         raise PluginArchiveSecurityError(message, error_code=error_code) from exc
+    except zipfile.BadZipFile as exc:
+        raise ValueError("The uploaded file is not a valid ZIP archive.") from exc
 
 
 def _scan_skill_security(skill: PluginSkill) -> list[str]:
@@ -269,9 +272,7 @@ async def confirm_plugin_import(
     skill_records, skill_ids, skipped_skills = _collect_skill_records(
         session, skill_decisions
     )
-    server_configs, _, skipped_servers = _collect_server_configs(
-        session, server_decisions
-    )
+    server_configs, skipped_servers = _collect_server_configs(session, server_decisions)
 
     if skill_records:
         await _write_skills(skill_records)
@@ -345,8 +346,7 @@ async def _write_skills(records: list[SkillRecord]) -> None:
 def _collect_server_configs(
     session: PluginImportSession,
     decisions: list[PluginConfirmItem],
-) -> tuple[list[dict[str, object]], list[str], int]:
-    names: list[str] = []
+) -> tuple[list[dict[str, object]], int]:
     configs: list[dict[str, object]] = []
     skipped = 0
     for decision in decisions:
@@ -357,10 +357,8 @@ def _collect_server_configs(
         if server is None:
             skipped += 1
             continue
-        config = _server_to_config_dict(server)
-        names.append(server.name)
-        configs.append(config)
-    return configs, names, skipped
+        configs.append(_server_to_config_dict(server))
+    return configs, skipped
 
 
 def _server_to_config_dict(server: PluginMcpServer) -> dict[str, object]:

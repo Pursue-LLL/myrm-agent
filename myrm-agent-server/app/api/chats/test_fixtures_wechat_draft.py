@@ -36,6 +36,41 @@ _VARIANT_HTML: dict[str, str] = {
 }
 
 
+@router.post("/test/seed-wechat-official-settings-fixture", include_in_schema=False)
+async def seed_wechat_official_settings_fixture() -> dict[str, str]:
+    """Seed WeChat Official credentials for Settings Chrome E2E (namespace-safe)."""
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    config = ConfigService()
+    await config.set(
+        "wechatOfficialCredentials",
+        {
+            "appId": "wx_e2e_settings",
+            "appSecret": "e2e_settings_secret",
+            "token": "",
+            "encodingAesKey": "",
+        },
+        device_id="wechat-settings-e2e-seed",
+    )
+
+    enabled = False
+    status_val = "unknown"
+    try:
+        from app.core.channel_bridge import channel_gateway
+        from app.services.channels.sdk_registration import hot_register_channel
+
+        if channel_gateway.bus.get_channel("wechat_official") is None:
+            await hot_register_channel("wechat_official")
+        enabled = await channel_gateway.enable_channel("wechat_official")
+        ch = channel_gateway.bus.get_channel("wechat_official")
+        status_val = ch.status.value if ch else "unknown"
+    except Exception:
+        enabled = False
+
+    return {"ok": "true", "channel_enabled": str(enabled).lower(), "channel_status": status_val}
+
+
 @router.post("/test/seed-wechat-draft-fixture", include_in_schema=False)
 async def seed_wechat_draft_fixture(variant: str = "compliance_block") -> dict[str, str]:
     """Seed html artifact + optional WeChat credentials for Chrome E2E."""

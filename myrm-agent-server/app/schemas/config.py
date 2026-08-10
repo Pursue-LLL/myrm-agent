@@ -58,6 +58,7 @@ ConfigKey = Literal[
     "webFetchEscalation",
     "orgModelPolicy",
     "extensionClipAgent",
+    "user_progression",
 ]
 
 # ============================================================================

@@ -119,7 +119,7 @@ async def preview_plugin_import(
     if not file.filename or not file.filename.endswith(".zip"):
         raise HTTPException(status_code=400, detail="A .zip file is required")
 
-    zip_bytes = await file.read()
+    zip_bytes = await file.read(MAX_PLUGIN_ZIP_BYTES + 1)
     if not zip_bytes:
         raise HTTPException(status_code=400, detail="The uploaded file is empty")
     if len(zip_bytes) > MAX_PLUGIN_ZIP_BYTES:

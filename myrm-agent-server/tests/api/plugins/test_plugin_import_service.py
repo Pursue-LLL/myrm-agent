@@ -127,6 +127,15 @@ class TestParsePluginZip:
             parse_plugin_zip(buf.getvalue())
         assert not isinstance(excinfo.value, ArchiveSecurityError)
 
+    def test_bad_zip_bytes_mapped_to_value_error(self) -> None:
+        """Garbage bytes with a .zip name must surface as a 400-friendly ValueError.
+
+        ``zipfile.BadZipFile`` is not a ``ValueError`` subclass, so this mapping is
+        what keeps the preview endpoint from returning a 500 on corrupt uploads.
+        """
+        with pytest.raises(ValueError, match="valid ZIP"):
+            parse_plugin_zip(b"\x00\x01not a real zip")
+
 
 class TestScanSkillSecurity:
     def _make_skill(self, content: str) -> PluginSkill:

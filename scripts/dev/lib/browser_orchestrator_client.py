@@ -527,7 +527,6 @@ class BrowserOrchestratorClient:
             self._timeout_sec = min(
                 max(prior_timeout, cdp_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC),
                 orchestrator_socket_timeout_cap_sec(),
-                90.0,
             )
         try:
             payload: dict[str, object] = {
