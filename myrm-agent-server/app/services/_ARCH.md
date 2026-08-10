@@ -30,7 +30,7 @@
 | `auth/` | ✅ 核心 | 认证服务（OAuth、本地认证） | [_ARCH.md](auth/_ARCH.md) |
 | `config/` | ✅ 核心 | 配置管理服务（CRUD、加密、迁移、健康监控、首次配置） | [_ARCH.md](config/_ARCH.md) |
 | `memory/` | ✅ 核心 | 记忆业务服务（备份/恢复、Shared Context 共享上下文治理） | [_ARCH.md](memory/_ARCH.md) |
-| `skills/` | ✅ 核心 | 技能相关服务（权限、经验账本、草稿通知、自动提取） | [_ARCH.md](skills/_ARCH.md) |
+| `skills/` | ✅ 核心 | 技能相关服务（权限、经验账本、草稿通知、自动提取；按域收敛为 `evolution_review/` 与 `growth/` 两个子包 + 门面） | [_ARCH.md](skills/_ARCH.md) |
 | `plugins/` | ✅ 核心 | 插件导入编排（Agent Plugins 1.0.0：ZIP 解析包装、staging 会话、预览构建、confirm 落盘 + Agent 绑定） | [_ARCH.md](plugins/_ARCH.md) |
 | `skill_optimization/` | ✅ 核心 | Skill 优化服务（AB 测试、基线同步、LLM 优化、回滚） | [_ARCH.md](skill_optimization/_ARCH.md) |
 | `event/` | ✅ 核心 | 事件记录（Agent 运行时事件持久化 + Turn 生命周期管理） | [_ARCH.md](event/_ARCH.md) |

@@ -464,7 +464,7 @@ async def get_nav_badges() -> JSONResponse:
 
     async def count_active_goals() -> int:
         from app.api.goals.router import _NON_TERMINAL_STATUSES
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         count = 0
         with GoalRegistry._lock:

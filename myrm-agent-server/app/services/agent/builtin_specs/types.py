@@ -1,7 +1,7 @@
 """Built-in agent spec types and tool-set constants.
 
 [INPUT]
-app.services.agent.builtin_tool_ids::DEFAULT_ENABLED_BUILTIN_TOOLS (POS: enabled_builtin_tools SSOT)
+app.services.agent.builtin_specs.builtin_tool_ids::DEFAULT_ENABLED_BUILTIN_TOOLS (POS: enabled_builtin_tools SSOT)
 
 [OUTPUT]
 _BuiltInAgentSpec, _TOOL_* presets for builtin agent data modules.
@@ -12,7 +12,7 @@ builtin_specs 子包：类型与工具集常量 SSOT。
 
 from dataclasses import dataclass, field
 
-from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+from app.services.agent.builtin_specs.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
 
 
 def _extend_default_tools(*extra: str) -> tuple[str, ...]:

@@ -1639,6 +1639,19 @@ export default function E2EChatBridge() {
       },
       getChatShellState: () => {
         const state = useChatStore.getState();
+        let artifactCount = 0;
+        let htmlArtifactWithPath = false;
+        for (const message of state.messages) {
+          const artifacts = message.artifacts ?? [];
+          artifactCount += artifacts.length;
+          if (
+            artifacts.some(
+              (artifact) => artifact.type === 'html' && typeof artifact.file_path === 'string' && artifact.file_path.length > 0,
+            )
+          ) {
+            htmlArtifactWithPath = true;
+          }
+        }
         return {
           chatId: state.chatId?.trim() || null,
           notFound: state.notFound,
@@ -1646,6 +1659,8 @@ export default function E2EChatBridge() {
           isMessagesLoaded: state.isMessagesLoaded,
           loading: state.loading,
           messageCount: state.messages.length,
+          artifactCount,
+          htmlArtifactWithPath,
         };
       },
       setLoading: (loading: boolean) => {

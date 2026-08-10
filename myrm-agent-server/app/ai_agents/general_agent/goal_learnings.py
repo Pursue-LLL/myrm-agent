@@ -142,7 +142,7 @@ async def _try_dequeue_next(session_id: str, *, _depth: int = 0) -> None:
         logger.warning("Dequeue recursion limit reached for session %s", session_id)
         return
 
-    from app.services.agent.goal_registry import GoalRegistry
+    from app.services.agent.goals.goal_registry import GoalRegistry
 
     provider = GoalRegistry.get_provider(session_id)
     if not provider:
@@ -181,7 +181,7 @@ async def _try_dequeue_next(session_id: str, *, _depth: int = 0) -> None:
     except Exception:
         pass
 
-    from app.services.agent.goal_stream_trigger import trigger_goal_stream_with_failure_policy
+    from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream_with_failure_policy
 
     triggered = await trigger_goal_stream_with_failure_policy(
         session_id,
@@ -210,8 +210,8 @@ def build_loop_restart_callback() -> Callable[[str, "Goal"], Awaitable[None]]:
             goal.objective[:60],
         )
 
-        from app.services.agent.goal_registry import GoalRegistry
-        from app.services.agent.goal_stream_trigger import trigger_goal_stream_with_failure_policy
+        from app.services.agent.goals.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream_with_failure_policy
 
         restart_provider = GoalRegistry.get_provider(session_id)
         await trigger_goal_stream_with_failure_policy(

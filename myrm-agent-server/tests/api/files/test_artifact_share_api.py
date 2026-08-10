@@ -22,7 +22,10 @@ from app.api.files.artifact_share_api import router as share_router
 from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactVersion
-from app.services.artifacts.share_bundle import bundle_asset_count, bundle_dir_for_claims
+from app.services.artifacts.share_bundle import (
+    bundle_asset_count,
+    bundle_dir_for_claims,
+)
 from app.services.artifacts.share_token import parse_artifact_share_token
 from app.services.hosting.packager import PublishFile
 
@@ -1070,3 +1073,4 @@ async def test_nested_css_asset_no_csp(share_client, html_artifact) -> None:
     assert css.status_code == 200
     assert "content-security-policy" not in css.headers
     assert css.headers.get("x-content-type-options") is None
+

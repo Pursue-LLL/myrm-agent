@@ -391,11 +391,11 @@ class TestTryDequeueNext:
 
         with (
             patch(
-                "app.services.agent.goal_registry.GoalRegistry",
+                "app.services.agent.goals.goal_registry.GoalRegistry",
                 mock_registry,
             ),
             patch(
-                "app.services.agent.goal_stream_trigger.trigger_goal_stream_with_failure_policy",
+                "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream_with_failure_policy",
                 new_callable=AsyncMock,
                 return_value=True,
             ) as mock_trigger,
@@ -427,11 +427,11 @@ class TestTryDequeueNext:
 
         with (
             patch(
-                "app.services.agent.goal_registry.GoalRegistry",
+                "app.services.agent.goals.goal_registry.GoalRegistry",
                 mock_registry,
             ),
             patch(
-                "app.services.agent.goal_stream_trigger.trigger_goal_stream",
+                "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
                 new_callable=AsyncMock,
             ) as mock_trigger,
         ):
@@ -447,7 +447,7 @@ class TestTryDequeueNext:
         from app.ai_agents.general_agent.goal_learnings import _try_dequeue_next
 
         with patch(
-            "app.services.agent.goal_registry.GoalRegistry",
+            "app.services.agent.goals.goal_registry.GoalRegistry",
         ) as mock_registry:
             await _try_dequeue_next("session-deep", _depth=5)
             mock_registry.get_provider.assert_not_called()
@@ -460,11 +460,11 @@ class TestTryDequeueNext:
 
         with (
             patch(
-                "app.services.agent.goal_registry.GoalRegistry",
+                "app.services.agent.goals.goal_registry.GoalRegistry",
                 mock_registry,
             ),
             patch(
-                "app.services.agent.goal_stream_trigger.trigger_goal_stream",
+                "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
                 new_callable=AsyncMock,
             ) as mock_trigger,
         ):

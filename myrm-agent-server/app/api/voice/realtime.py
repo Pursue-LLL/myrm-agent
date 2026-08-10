@@ -14,7 +14,7 @@ The server's role is limited to:
 [INPUT]
 - app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader)
 - app.api.voice.realtime_background::BACKGROUND_TOOL_HANDLERS (POS: voice background task lifecycle)
-- app.services.agent.profile_resolver (POS: Agent profile resolver)
+- app.services.agent.profile.profile_resolver (POS: Agent profile resolver)
 - app.api.voice.voice_memory_context::voice_memory_context_from (POS: voice memory ACL SSOT)
 - app.api.voice.tool_catalog (POS: Realtime tool declarations + memory_search_tool)
 - app.core.utils.errors::validation_error (POS: HTTP 400 factory)
@@ -103,7 +103,7 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
     import httpx
 
     from app.core.channel_bridge.config_loader import load_user_configs
-    from app.services.agent.profile_resolver import get_agent_profile_resolver
+    from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
     configs = await load_user_configs()
     providers = configs.providers_dict or {}
@@ -247,7 +247,7 @@ async def execute_realtime_tool(
         configs = await load_user_configs()
         providers = configs.providers_dict or {}
 
-        from app.services.agent.profile_resolver import (
+        from app.services.agent.profile.profile_resolver import (
             DEFAULT_ENABLED_BUILTIN_TOOLS,
             get_agent_profile_resolver,
         )

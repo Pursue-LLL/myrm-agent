@@ -2443,7 +2443,7 @@ _WINDOW_RESTORE_COOLDOWN_SEC = 8.0
 
 
 def _restore_e2e_window_via_cdp(page: object) -> bool:
-    """Re-park the owning browser window offscreen-normal via direct CDP.
+    """Restore render focus and re-park the owning window via direct CDP.
 
     Window policy is OFFSCREEN-NORMAL: the orchestrator parks every background
     tab at an offscreen normal position (never minimized) so Chrome keeps
@@ -2517,9 +2517,9 @@ def _restore_e2e_window_via_cdp(page: object) -> bool:
                     break
     except (OSError, TimeoutError, ValueError):
         return False
-    # Page.bringToFront (target session) makes the tab its window's active tab
-    # and raises the window to the front — the only way to flip visibilityState
-    # from 'hidden' to 'visible' on macOS.
+    # Focus emulation restores the renderer signal without changing macOS window
+    # ordering. Page.bringToFront/Target.activateTarget are forbidden because the
+    # E2E Chrome process shares the user's Chrome app bundle and steals focus.
     try:
         with urllib.request.urlopen(
             f"http://127.0.0.1:{port}/json/list", timeout=5
@@ -2536,15 +2536,18 @@ def _restore_e2e_window_via_cdp(page: object) -> bool:
         if not target_ws:
             return False
         with _ws_connect(target_ws, open_timeout=10, close_timeout=5) as ws:
-            ws.send(json.dumps({"id": 1, "method": "Page.enable"}))
+            ws.send(
+                json.dumps(
+                    {
+                        "id": 1,
+                        "method": "Emulation.setFocusEmulationEnabled",
+                        "params": {"enabled": True},
+                    }
+                )
+            )
             while True:
                 msg = json.loads(ws.recv(timeout=15))
                 if msg.get("id") == 1:
-                    break
-            ws.send(json.dumps({"id": 2, "method": "Page.bringToFront"}))
-            while True:
-                msg = json.loads(ws.recv(timeout=15))
-                if msg.get("id") == 2:
                     break
     except (OSError, TimeoutError, ValueError):
         return False

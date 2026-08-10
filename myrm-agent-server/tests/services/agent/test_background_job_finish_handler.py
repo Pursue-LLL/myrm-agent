@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.api.hooks import BackgroundJobFinishResult
 
-from app.services.agent.background_job_finish_handler import (
+from app.services.agent.background_job.background_job_finish_handler import (
     ServerBackgroundJobFinishHandler,
     _command_preview,
     _format_finish_message,
@@ -64,15 +64,15 @@ async def test_handler_appends_message_and_publishes_event() -> None:
     mock_bus = MagicMock()
     with (
         patch(
-            "app.services.agent.background_job_finish_handler._resolve_user_locale",
+            "app.services.agent.background_job.background_job_finish_handler._resolve_user_locale",
             AsyncMock(return_value="en"),
         ),
         patch(
-            "app.services.agent.background_job_finish_handler.ChatService.append_message",
+            "app.services.agent.background_job.background_job_finish_handler.ChatService.append_message",
             AsyncMock(),
         ) as mock_append,
         patch(
-            "app.services.agent.background_job_finish_handler.get_event_bus",
+            "app.services.agent.background_job.background_job_finish_handler.get_event_bus",
             return_value=mock_bus,
         ),
     ):
@@ -119,7 +119,7 @@ async def test_handler_skips_non_exited_status() -> None:
     )
 
     with patch(
-        "app.services.agent.background_job_finish_handler.ChatService.append_message",
+        "app.services.agent.background_job.background_job_finish_handler.ChatService.append_message",
         AsyncMock(),
     ) as mock_append:
         await handler.on_background_job_finish(result)
@@ -216,7 +216,7 @@ async def test_handler_ignores_missing_session_id() -> None:
     )
 
     with patch(
-        "app.services.agent.background_job_finish_handler.ChatService.append_message",
+        "app.services.agent.background_job.background_job_finish_handler.ChatService.append_message",
         AsyncMock(),
     ) as mock_append:
         await handler.on_background_job_finish(result)
@@ -238,15 +238,15 @@ async def test_process_logs_exception_without_raising() -> None:
 
     with (
         patch(
-            "app.services.agent.background_job_finish_handler._resolve_user_locale",
+            "app.services.agent.background_job.background_job_finish_handler._resolve_user_locale",
             AsyncMock(return_value="en"),
         ),
         patch(
-            "app.services.agent.background_job_finish_handler.ChatService.append_message",
+            "app.services.agent.background_job.background_job_finish_handler.ChatService.append_message",
             AsyncMock(side_effect=RuntimeError("db")),
         ),
         patch(
-            "app.services.agent.background_job_finish_handler.get_event_bus",
+            "app.services.agent.background_job.background_job_finish_handler.get_event_bus",
             return_value=MagicMock(),
         ),
     ):
@@ -268,19 +268,19 @@ async def test_finish_handler_dedupes_duplicate_pid() -> None:
 
     with (
         patch(
-            "app.services.agent.background_job_finish_handler._resolve_user_locale",
+            "app.services.agent.background_job.background_job_finish_handler._resolve_user_locale",
             AsyncMock(return_value="en"),
         ),
         patch(
-            "app.services.agent.background_job_finish_handler.ChatService.append_message",
+            "app.services.agent.background_job.background_job_finish_handler.ChatService.append_message",
             AsyncMock(),
         ) as mock_append,
         patch(
-            "app.services.agent.background_job_finish_handler.get_event_bus",
+            "app.services.agent.background_job.background_job_finish_handler.get_event_bus",
             return_value=MagicMock(),
         ),
         patch(
-            "app.services.agent.goal_wait_background_resume.maybe_resume_goal_after_background_job",
+            "app.services.agent.goals.goal_wait_background_resume.maybe_resume_goal_after_background_job",
             AsyncMock(),
         ),
     ):

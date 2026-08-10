@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.ai_agents.prompts.deliverable_discipline import KNOWLEDGE_WORK_SYSTEM_PROMPT
-from app.services.agent.builtin_initializer import (
+from app.services.agent.builtin_specs.builtin_initializer import (
     _BUILTIN_AGENTS,
     _TOOL_CODING,
     _TOOL_COWORK,

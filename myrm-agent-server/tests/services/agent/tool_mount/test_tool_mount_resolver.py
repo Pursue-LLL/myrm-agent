@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 
-from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
 from app.services.agent.tool_mount import (
     ExecutionSurface,
     apply_ptc_meta_mount,
@@ -74,7 +74,7 @@ class TestResolveAgentMount:
 
     def test_cron_restricted_returns_profile_flags_unchanged(self) -> None:
         base = resolve_builtin_tool_flags(["web_search"])
-        from app.services.agent.profile_resolver import BuiltinToolFlags
+        from app.services.agent.profile.profile_resolver import BuiltinToolFlags
 
         restricted = BuiltinToolFlags(
             **{

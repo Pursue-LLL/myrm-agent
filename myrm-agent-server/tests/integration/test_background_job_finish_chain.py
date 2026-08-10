@@ -31,7 +31,7 @@ from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind impo
 
 from app.database.models.chat import Chat
 from app.platform_utils import get_session_factory
-from app.services.agent.background_job_finish_handler import (
+from app.services.agent.background_job.background_job_finish_handler import (
     ServerBackgroundJobFinishHandler,
 )
 from app.services.chat.chat_service import ChatService

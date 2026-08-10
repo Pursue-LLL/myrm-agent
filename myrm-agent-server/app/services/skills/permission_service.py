@@ -4,6 +4,19 @@
 提供permission checker factory，供Agent运行时使用。
 
 包含per-session权限缓存，避免每次tool call都查数据库。
+
+[INPUT]
+- myrm_agent_harness.backends.skills::SkillPermission, check_permission_for_tool_call, log_permission_usage (POS: 框架层技能权限映射与校验)
+- app.database.connection::get_session (POS: 数据库连接管理)
+- app.database.models::SkillPermissionGrant (POS: 安全域模型)
+
+[OUTPUT]
+- create_permission_checker / create_async_permission_checker: 同步/异步权限检查器工厂
+- load_granted_permissions / load_granted_permissions_cached: 权限加载（含 per-session 缓存）
+- clear_permission_cache: 缓存清理
+
+[POS]
+技能权限服务：桥接数据库授权与框架层权限验证，提供 per-session 缓存避免每次 tool call 查库。
 """
 
 import logging

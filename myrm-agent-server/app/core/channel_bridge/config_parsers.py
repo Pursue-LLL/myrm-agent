@@ -104,6 +104,45 @@ def extract_mcp_configs(mcp_dict: dict[str, object] | None) -> list["MCPServerCo
     return result
 
 
+def extract_org_mcp_configs(
+    org_mcp_dict: dict[str, object] | None,
+) -> list["MCPServerConfig"]:
+    """Extract org-managed MCP server configs pushed by the Control Plane.
+
+    Org MCPs are read-only and always available to every agent; the runtime merge
+    in converter.py appends them to the user config and tags them with
+    ``extra_params.scope == "org"``. Structure mirrors the frontend
+    ``orgMcpServers`` config: ``{"servers": [...]}``.
+    """
+    from app.core.types import MCPServerConfig
+
+    if not org_mcp_dict:
+        return []
+
+    raw_servers = org_mcp_dict.get("servers")
+    if not isinstance(raw_servers, list):
+        return []
+
+    result: list[MCPServerConfig] = []
+    for raw in raw_servers:
+        if not isinstance(raw, dict) or not raw.get("name"):
+            continue
+        cfg = {
+            **raw,
+            "extra_params": {**(raw.get("extra_params") or {}), "scope": "org"},
+        }
+        try:
+            result.append(MCPServerConfig.model_validate(cfg))
+        except Exception as e:
+            logger.warning(
+                "config_parsers: skipping invalid org MCP config '%s': %s",
+                raw.get("name", "?"),
+                e,
+            )
+
+    return result
+
+
 def _build_voice_config_from_dict(voice_dict: dict[str, object]) -> "VoiceConfig":
     """Build VoiceConfig from the frontend voice settings dict."""
     from app.channels.types import VoiceConfig

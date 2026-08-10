@@ -84,7 +84,7 @@ async def add_task(
     if completion_criteria:
         metadata["completion_criteria"] = completion_criteria
 
-    from app.services.agent.goal_registry import get_current_git_branch
+    from app.services.agent.goals.goal_registry import get_current_git_branch
 
     current_branch = await get_current_git_branch()
     if current_branch:

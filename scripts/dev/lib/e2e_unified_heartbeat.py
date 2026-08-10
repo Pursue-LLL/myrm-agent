@@ -109,7 +109,7 @@ def _heartbeat_private_runtime_once() -> None:
     if not runtime_id or not token:
         return
     dev_dir = Path(__file__).resolve().parents[1]
-    script = dev_dir / "isolated_runtime.py"
+    script = dev_dir / "isolated_runtime/cli.py"
     if not script.is_file():
         return
     try:

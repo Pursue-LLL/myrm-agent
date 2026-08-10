@@ -448,7 +448,7 @@ class AgentJobRunner:
 
         Returns True if the job was enqueued (caller should skip direct execution).
         """
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         chat_id = job.chat_id
         if not chat_id:
@@ -581,7 +581,7 @@ class AgentJobRunner:
             agent_engine_params = None
             user_instructions: str | None = None
             agent_model_override: str | None = None
-            from app.services.agent.profile_resolver import (
+            from app.services.agent.profile.profile_resolver import (
                 DEFAULT_ENABLED_BUILTIN_TOOLS,
             )
 
@@ -592,7 +592,7 @@ class AgentJobRunner:
             cron_post_run_verify = False
 
             if job.agent_id:
-                from app.services.agent.profile_resolver import (
+                from app.services.agent.profile.profile_resolver import (
                     get_agent_profile_resolver,
                 )
 

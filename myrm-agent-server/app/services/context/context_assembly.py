@@ -105,7 +105,7 @@ class ContextAssemblyService:
         memory_decay_profile: str | None = None
 
         if chat.agent_id:
-            from app.services.agent.profile_resolver import get_agent_profile_resolver
+            from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
             profile = await get_agent_profile_resolver().resolve(chat.agent_id)
             if profile is not None:

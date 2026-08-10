@@ -4397,6 +4397,12 @@
         "test": "傳送測試通知",
         "title": "通知"
       },
+      "pushStatus": {
+        "enabled": "通知已啟用",
+        "disabled": "通知已停用",
+        "denied": "通知已被封鎖",
+        "unsupported": "瀏覽器不支援通知"
+      },
       "pushDisabled": "通知已停用",
       "pushEnabled": "通知已啟用",
       "pushTestSent": "測試通知已傳送"
@@ -6224,6 +6230,7 @@
     "modelBinding": "選擇模型",
     "onlyOwnerCanViewPrompt": "只有智慧體所有者才能檢視系統提示詞",
     "failedToLoadPrompt": "載入系統提示詞失敗，請重試",
+    "loadFailed": "智能體載入失敗",
     "systemPromptLoaded": "系統提示詞已載入",
     "modelBindingDesc": "為此智慧體繫結專用模型",
     "orgMapBadgeTitle": "組織審批策略",
@@ -6880,7 +6887,9 @@
         "subagent_risk": "子智能體風險",
         "cron_risk": "定時任務風險",
         "policy_gap": "策略覆蓋度"
-      }
+      },
+      "injectionPolicyTitle": "提示注入防護",
+      "injectionPolicyDesc": "阻止此智慧體的高風險提示注入模式。與全域策略採用 OR 語意合併——任一端啟用封鎖即生效。"
     },
     "secrets": {
       "tabTitle": "金鑰管理",
@@ -7904,6 +7913,14 @@
       "clearOverride": "使用全部技能",
       "noSkills": "該智慧體未配置任何技能"
     },
+    "wechatArticleHint": {
+      "title": "偵測到微信公眾號文章連結",
+      "description": "請為目前智能體掛載「WeChat Article Formatter」技能，以便產生可推送至公眾號草稿箱的 HTML。",
+      "readyTitle": "微信排版技能已就緒",
+      "readyDescription": "Agent 完成後開啟 HTML 工件，即可使用「推送到公眾號草稿」。",
+      "openSkills": "開啟智能體技能",
+      "dismiss": "關閉"
+    },
     "samplePrompts": {
       "fast_0": "最新的 AI 監管政策有哪些？",
       "fast_1": "健康均衡飲食有哪些實用建議？",
@@ -8051,7 +8068,11 @@
       "usingAgentDefaults": "使用智能體默認能力",
       "nextTurnOnly": "僅對下一條消息生效"
     },
-    "retry": "重試"
+    "retry": "重試",
+    "archiveRestore": {
+      "invalidTitle": "封存復原失敗",
+      "invalidDescription": "無法復原封存上下文：{error}"
+    }
   },
   "mode": {
     "fast": "快速搜尋",
@@ -8956,6 +8977,21 @@
       "spacesEmpty": "暫無生效中的記憶空間",
       "bindingCount": "{count} 個繫結",
       "liveStreamTitle": "實時記憶流",
+      "layerGuide": {
+        "title": "分層對應關係",
+        "workingSet": "工作集",
+        "workingSetTypes": "對話",
+        "workingSetHint": "會話內上下文，影響本輪回覆",
+        "taskState": "任務狀態",
+        "taskStateTypes": "任務摘要",
+        "taskStateHint": "進行中與已完成的任務成果",
+        "longTerm": "長期記憶",
+        "longTermTypes": "畫像 · 知識 · 經歷 · 方法 · 已驗證",
+        "longTermHint": "跨會話持久的事實與偏好",
+        "rawEvidence": "原始證據",
+        "rawEvidenceTypes": "對話歷史",
+        "rawEvidenceHint": "摘要背後可追溯的原始記錄"
+      },
       "liveStreamHint": "SSE 實時推送",
       "recallBurstSummary": "{count} 個檢索步驟 · {summary}",
       "preCompactLiveDescription": "壓縮前召回已注入 {count} 條記憶",
@@ -9458,6 +9494,15 @@
         "shared_context": "共享上下文",
         "memory_manager": "記憶管理器"
       },
+      "seedingDemo": "正在產生示範資料...",
+      "seedDemo": "體驗 30 秒記憶示範",
+      "rollingBackDemo": "正在清除示範資料...",
+      "rollbackDemo": "清除示範資料",
+      "embeddingNotReady": "嵌入服務未就緒",
+      "embeddingNotReadyDesc": "請先在「設定 > 模型服務」中設定嵌入模型，再使用示範功能。",
+      "demoSeedSuccess": "示範資料已成功產生！",
+      "demoSeedSuccessDesc": "現在可以探索記憶圖譜和語義搜尋。",
+      "demoRollbackSuccess": "示範資料已成功清除！",
       "allProjects": "全部項目",
       "clearFilter": "清除",
       "migrationAdapterStatusTitle": "適配器就緒狀態",
@@ -10521,6 +10566,13 @@
       "openPanel": "推送到公眾號草稿",
       "titleLabel": "文章標題",
       "titlePlaceholder": "輸入草稿標題",
+      "authorLabel": "作者",
+      "authorPlaceholder": "顯示名稱（最多 8 字）",
+      "authorHint": "顯示在公眾號草稿卡片上，預設使用目前智能體名稱。",
+      "authorRequired": "請填寫作者（最多 8 字）",
+      "digestLabel": "摘要",
+      "digestPlaceholder": "可選，卡片摘要（最多 120 字）",
+      "digestHint": "留空則自動從正文提取摘要。",
       "coverLabel": "封面圖（可選）",
       "coverPlaceholder": "封面圖的工作區路徑",
       "coverHint": "打開面板會自動填入文章內首張本地圖片路徑。可修改、搜尋工作區圖片；若 HTML 無本地圖則需手動填寫。",
@@ -12818,7 +12870,14 @@
     "unexpectedError": "發生意外錯誤",
     "wechatOfficialTitle": "微信公眾號",
     "wechatOfficialDesc": "配置認證服務號憑證，用於將文章推送到公眾號草稿箱。",
-    "wechatOfficialIpWhitelistHint": "請將此伺服器的公網 IP 加入公眾號 IP 白名單（mp.weixin.qq.com → 設置與開發 → 基本配置）。未配置時 API 會返回 40164 錯誤。",
+    "wechatOfficialIpWhitelistHint": "請將下方公網 IP 加入公眾號 IP 白名單（mp.weixin.qq.com → 設置與開發 → 基本配置）。",
+    "wechatOfficialEgressLabel": "伺服器公網 IP",
+    "wechatOfficialEgressLoading": "正在偵測出口 IP…",
+    "wechatOfficialEgressUnavailable": "無法偵測出口 IP，請檢查網路後重新整理。",
+    "wechatOfficialEgressCopy": "複製 IP",
+    "wechatOfficialEgressCopied": "IP 已複製",
+    "wechatOfficialEgressCopyFailed": "複製 IP 失敗",
+    "wechatOfficialEgressRefresh": "重新整理",
     "wechatOfficialAppId": "AppID",
     "wechatOfficialAppSecret": "AppSecret",
     "wechatOfficialToken": "令牌",
@@ -13920,7 +13979,11 @@
         "monthTokens": "本月 Token",
         "monthCost": "本月費用",
         "pending": "待審批"
-      }
+      },
+      "builtin": "內建",
+      "noDescription": "暫無描述",
+      "testChat": "測試聊天",
+      "settings": "設定"
     }
   },
   "settingsTabs": {
@@ -15864,12 +15927,25 @@
     "teamHub": {
       "title": "團隊資產",
       "subtitle": "共享上下文、Wiki、技能與對話記憶 — 團隊配置與審核的一站式入口。",
+      "builtIn": "內建",
       "wikiTitle": "知識庫",
       "wikiDesc": "知識庫與智能體作用域筆記",
       "skillsTitle": "技能",
       "skillsDesc": "已掛載能力與進化待審隊列",
       "memoryTitle": "記憶",
-      "memoryDesc": "個人大腦、策略與命令中心"
+      "memoryDesc": "個人大腦、策略與命令中心",
+      "summaryLoading": "正在載入資產總覽…",
+      "overviewTitle": "資產總覽",
+      "blockedCount": "{count, plural, =1 {# 個智能體需要處理} other {# 個智能體需要處理}}",
+      "memoryStat": "記憶",
+      "memoryOn": "已開啟",
+      "memoryOff": "已關閉",
+      "skillsStat": "技能",
+      "pendingStat": "待審核",
+      "unavailable": "不可用",
+      "agentSummary": "{skills} 個技能 · 知識庫{wiki} · {cron} 個定時任務",
+      "wikiOn": "開",
+      "wikiOff": "關"
     }
   },
   "copilot": {

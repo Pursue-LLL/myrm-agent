@@ -155,7 +155,7 @@ async def test_personality_template_coexists_with_im_persona() -> None:
 @pytest.mark.asyncio
 async def test_response_locale_suffix_from_profile() -> None:
     """Agent profile response_locale_policy appends Korean honorific suffix."""
-    from app.services.agent.profile_resolver import ResolvedAgentProfile
+    from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
     profile = ResolvedAgentProfile(
         agent_id="agent-ko",

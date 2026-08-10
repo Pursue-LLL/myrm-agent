@@ -3717,6 +3717,12 @@
         "test": "Testbenachrichtigung senden",
         "title": "Benachrichtigungen"
       },
+      "pushStatus": {
+        "enabled": "Benachrichtigungen aktiviert",
+        "disabled": "Benachrichtigungen deaktiviert",
+        "denied": "Benachrichtigungen blockiert",
+        "unsupported": "Benachrichtigungen nicht unterstützt"
+      },
       "pushDisabled": "Benachrichtigungen deaktiviert",
       "pushEnabled": "Benachrichtigungen aktiviert",
       "pushTestSent": "Testbenachrichtigung gesendet"
@@ -6464,7 +6470,9 @@
         "subagent_risk": "Subagent-Risiko",
         "cron_risk": "Geplante Aufgaben-Risiko",
         "policy_gap": "Richtlinienabdeckung"
-      }
+      },
+      "injectionPolicyTitle": "Prompt-Injection-Schutz",
+      "injectionPolicyDesc": "Blockiert hochriskante Prompt-Injection-Muster für diesen Agenten. Wird mit der globalen Richtlinie per ODER-Semantik zusammengeführt — aktiviert eine Seite die Blockierung, gewinnt sie."
     },
     "suggestionPrompts": {
       "title": "Starter-Prompts",
@@ -6639,6 +6647,7 @@
     },
     "onlyOwnerCanViewPrompt": "Nur der Agenten-Eigentümer kann den System-Prompt ansehen",
     "failedToLoadPrompt": "Systemprompt konnte nicht geladen werden, bitte erneut versuchen",
+    "loadFailed": "Agent konnte nicht geladen werden",
     "systemPromptLoaded": "System-Prompt geladen",
     "clone": "Klonen",
     "cloneDialogTitle": "Agent klonen",
@@ -7839,6 +7848,14 @@
       "clearOverride": "Alle Fähigkeiten verwenden",
       "noSkills": "Keine Fähigkeiten für diesen Agenten konfiguriert"
     },
+    "wechatArticleHint": {
+      "title": "WeChat-Artikellink erkannt",
+      "description": "Binden Sie die WeChat-Article-Formatter-Fähigkeit an diesen Agenten, um HTML für den WeChat-Entwurf zu erzeugen.",
+      "readyTitle": "WeChat-Formatter-Fähigkeit ist bereit",
+      "readyDescription": "Öffnen Sie nach Abschluss des Agenten das HTML-Artefakt und nutzen Sie „Push zum WeChat-Entwurf“.",
+      "openSkills": "Agenten-Fähigkeiten öffnen",
+      "dismiss": "Schließen"
+    },
     "turnCapabilities": {
       "tooltip": "Fähigkeiten der nächsten Nachricht",
       "popoverTitle": "Fähigkeiten für nächste Nachricht",
@@ -7851,7 +7868,11 @@
       "usingAgentDefaults": "Agent-Standards verwenden",
       "nextTurnOnly": "Gilt nur für die nächste Nachricht"
     },
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "archiveRestore": {
+      "invalidTitle": "Archivwiederherstellung fehlgeschlagen",
+      "invalidDescription": "Archivierter Kontext konnte nicht wiederhergestellt werden: {error}"
+    }
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -8935,6 +8956,21 @@
       "spacesEmpty": "Noch keine aktiven Speicherplätze",
       "bindingCount": "{count}-Bindungen",
       "liveStreamTitle": "Live-Erinnerungsstream",
+      "layerGuide": {
+        "title": "Ebenen-Zuordnung",
+        "workingSet": "Arbeitssatz",
+        "workingSetTypes": "Dialog",
+        "workingSetHint": "kontext in der Sitzung, prägt Antworten",
+        "taskState": "Aufgabenstatus",
+        "taskStateTypes": "Aufgabenzusammenfassung",
+        "taskStateHint": "laufende und abgeschlossene Ergebnisse",
+        "longTerm": "Langzeitgedächtnis",
+        "longTermTypes": "Profil · Wissen · Erfahrung · Methode · Verifiziert",
+        "longTermHint": "bleibende Fakten und Vorlieben über Sitzungen",
+        "rawEvidence": "Rohbeweise",
+        "rawEvidenceTypes": "Dialoghistorie",
+        "rawEvidenceHint": "nachvollziehbare Originale hinter Zusammenfassungen"
+      },
       "liveStreamHint": "Live über SSE",
       "recallBurstSummary": "{count} retrieval steps · {summary}",
       "preCompactLiveDescription": "Der Rückruf vor der Verdichtung injizierte {count}-Erinnerungen",
@@ -9437,6 +9473,15 @@
         "shared_context": "Geteilter Kontext",
         "memory_manager": "Speichermanager"
       },
+      "seedingDemo": "Demodaten werden erstellt...",
+      "seedDemo": "30-Sekunden-Speicherdemo erleben",
+      "rollingBackDemo": "Demodaten werden entfernt...",
+      "rollbackDemo": "Demodaten entfernen",
+      "embeddingNotReady": "Einbettungsdienst nicht bereit",
+      "embeddingNotReadyDesc": "Bitte konfigurieren Sie vor der Verwendung der Demo ein Einbettungsmodell unter Einstellungen > Modell-Service.",
+      "demoSeedSuccess": "Demodaten erfolgreich erstellt!",
+      "demoSeedSuccessDesc": "Sie können jetzt den Speichergraphen und die semantische Suche erkunden.",
+      "demoRollbackSuccess": "Demodaten erfolgreich entfernt!",
       "allProjects": "Alle Projekte",
       "clearFilter": "Klar",
       "migrationAdapterStatusTitle": "Adapterbereitschaft",
@@ -10292,6 +10337,13 @@
       "openPanel": "Push zum WeChat-Entwurf",
       "titleLabel": "Titel des Artikels",
       "titlePlaceholder": "Geben Sie den Titel des Entwurfs ein",
+      "authorLabel": "Autor",
+      "authorPlaceholder": "Anzeigename (max. 8 Zeichen)",
+      "authorHint": "Wird auf der WeChat-Entwurfskarte angezeigt. Standard: Agentenname.",
+      "authorRequired": "Autor ist erforderlich (max. 8 Zeichen)",
+      "digestLabel": "Zusammenfassung",
+      "digestPlaceholder": "Optionale Karten-Zusammenfassung (max. 120 Zeichen)",
+      "digestHint": "Leer lassen für automatische Extraktion aus dem Artikeltext.",
       "coverLabel": "Titelbild (optional)",
       "coverPlaceholder": "Arbeitsbereichspfad zum Titelbild",
       "coverHint": "Beim Öffnen des Panels wird automatisch das erste lokale Bild aus dem Artikel ausgefüllt. Bearbeiten Sie den Pfad, durchsuchen Sie Arbeitsbereichsbilder oder lassen Sie das Feld leer, wenn der Server ein Cover aus HTML auswählen kann.",
@@ -12583,7 +12635,14 @@
     "unexpectedError": "Es ist ein unerwarteter Fehler aufgetreten",
     "wechatOfficialTitle": "Offizielles WeChat-Konto",
     "wechatOfficialDesc": "Konfigurieren Sie verifizierte Dienstkonto-Anmeldeinformationen für die Veröffentlichung von Artikelentwürfen.",
-    "wechatOfficialIpWhitelistHint": "Add this server's public IP to the Official Account IP whitelist (mp.weixin.qq.com → Settings → Development → Basic configuration). Missing whitelist entries cause API error 40164.",
+    "wechatOfficialIpWhitelistHint": "Fügen Sie die untenstehende öffentliche IP zur WeChat-Offiziellen-Konto-IP-Whitelist hinzu (mp.weixin.qq.com → Einstellungen → Entwicklung → Grundeinstellung).",
+    "wechatOfficialEgressLabel": "Öffentliche Server-IP",
+    "wechatOfficialEgressLoading": "Ausgehende IP wird ermittelt…",
+    "wechatOfficialEgressUnavailable": "Ausgehende IP konnte nicht ermittelt werden. Netzwerk prüfen und aktualisieren.",
+    "wechatOfficialEgressCopy": "IP kopieren",
+    "wechatOfficialEgressCopied": "IP kopiert",
+    "wechatOfficialEgressCopyFailed": "IP konnte nicht kopiert werden",
+    "wechatOfficialEgressRefresh": "Aktualisieren",
     "wechatOfficialAppId": "App ID",
     "wechatOfficialAppSecret": "App Secret",
     "wechatOfficialToken": "Zugriffstoken",
@@ -13664,7 +13723,11 @@
         "monthTokens": "Monats-Tokens",
         "monthCost": "Monatskosten",
         "pending": "Ausstehend"
-      }
+      },
+      "builtin": "Integriert",
+      "noDescription": "Keine Beschreibung verfügbar",
+      "testChat": "Test-Chat",
+      "settings": "Einstellungen"
     }
   },
   "subagentDashboard": {
@@ -15711,12 +15774,25 @@
     "teamHub": {
       "title": "Teamvermögen",
       "subtitle": "Shared contexts, wiki, skills, and chat memory — one place for team setup and review.",
+      "builtIn": "Integriert",
       "wikiTitle": "Wiki",
       "wikiDesc": "Wissensdatenbank und agentenbezogene Notizen",
       "skillsTitle": "Fähigkeiten",
       "skillsDesc": "Bereitgestellte Funktionen und Evolutionswarteschlange",
       "memoryTitle": "Erinnerung",
-      "memoryDesc": "Persönliches Gehirn, Richtlinien und Kommandozentrale"
+      "memoryDesc": "Persönliches Gehirn, Richtlinien und Kommandozentrale",
+      "summaryLoading": "Asset-Übersicht wird geladen…",
+      "overviewTitle": "Asset-Übersicht",
+      "blockedCount": "{count, plural, =1 {# Agent erfordert Aufmerksamkeit} other {# Agents erfordern Aufmerksamkeit}}",
+      "memoryStat": "Speicher",
+      "memoryOn": "Aktiviert",
+      "memoryOff": "Aus",
+      "skillsStat": "Fähigkeiten",
+      "pendingStat": "Ausstehende Prüfungen",
+      "unavailable": "Nicht verfügbar",
+      "agentSummary": "{skills} Fähigkeiten · Wiki {wiki} · Cron {cron}",
+      "wikiOn": "an",
+      "wikiOff": "aus"
     }
   },
   "copilot": {

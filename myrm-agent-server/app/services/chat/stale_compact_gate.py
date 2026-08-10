@@ -5,7 +5,7 @@ full stale history into the first LLM call is wasteful. Reuses ``compact_chat``;
 does not implement a separate summarize pipeline.
 
 [INPUT]
-- app.services.agent.profile_resolver::AgentProfileResolver.resolve (POS: engine_params SSOT)
+- app.services.agent.profile.profile_resolver::AgentProfileResolver.resolve (POS: engine_params SSOT)
 - app.core.channel_bridge.config_loader::load_user_configs (POS: model window for idle floor)
 - app.services.chat.compact_service::compact_chat (POS: lossless compaction SSOT; honors anti-thrash via harness guard; idle path receives request-level ``request_tokens_for_guard``)
 - app.services.chat.compact_service::estimate_idle_compact_request_tokens (POS: idle gate request-level token estimate incl. compacted_summary)
@@ -78,7 +78,7 @@ async def resolve_idle_compact_after_seconds(
     """Resolve idle compact seconds from agent profile + per-request engine_params."""
     engine_params: dict[str, object] | None = None
     if agent_id:
-        from app.services.agent.profile_resolver import get_agent_profile_resolver
+        from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
         resolved = await get_agent_profile_resolver().resolve(agent_id)
         engine_params = resolved.engine_params

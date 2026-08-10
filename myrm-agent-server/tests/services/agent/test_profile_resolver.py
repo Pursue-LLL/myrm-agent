@@ -6,13 +6,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.agent.profile_resolver import (
+from app.services.agent.profile.profile_resolver import (
     _CACHE_TTL_SECONDS,
     DEFAULT_ENABLED_BUILTIN_TOOLS,
     AgentProfileResolver,
     ResolvedAgentProfile,
-    _coerce_str_tuple,
-    _coerce_tool_selections,
+    coerce_str_tuple,
+    coerce_tool_selections,
     get_agent_profile_resolver,
     resolve_builtin_tool_flags,
 )
@@ -306,7 +306,7 @@ class TestSingleton:
     """get_agent_profile_resolver() returns the same instance."""
 
     def test_singleton_returns_same_instance(self):
-        import app.services.agent.profile_resolver as mod
+        import app.services.agent.profile.profile_resolver as mod
 
         old = mod._resolver_instance
         try:
@@ -319,25 +319,25 @@ class TestSingleton:
 
 
 class TestCoerceStrTuple:
-    """_coerce_str_tuple correctly normalizes various input types."""
+    """coerce_str_tuple correctly normalizes various input types."""
 
     def test_none_returns_empty_tuple(self):
-        assert _coerce_str_tuple(None) == ()
+        assert coerce_str_tuple(None) == ()
 
     def test_string_returns_single_element_tuple(self):
-        assert _coerce_str_tuple("web_search") == ("web_search",)
+        assert coerce_str_tuple("web_search") == ("web_search",)
 
     def test_list_returns_tuple(self):
-        assert _coerce_str_tuple(["a", "b"]) == ("a", "b")
+        assert coerce_str_tuple(["a", "b"]) == ("a", "b")
 
     def test_empty_list_returns_empty_tuple(self):
-        assert _coerce_str_tuple([]) == ()
+        assert coerce_str_tuple([]) == ()
 
     def test_tuple_returns_same(self):
-        assert _coerce_str_tuple(("x", "y")) == ("x", "y")
+        assert coerce_str_tuple(("x", "y")) == ("x", "y")
 
     def test_scalar_returns_string_tuple(self):
-        assert _coerce_str_tuple(42) == ("42",)
+        assert coerce_str_tuple(42) == ("42",)
 
 
 class TestFalsyEdgeCases:
@@ -546,33 +546,33 @@ class TestSessionPolicyField:
 
 
 class TestCoerceToolSelections:
-    """_coerce_tool_selections normalizes metadata mcp_tool_selections."""
+    """coerce_tool_selections normalizes metadata mcp_tool_selections."""
 
     def test_none_returns_empty(self):
-        assert _coerce_tool_selections(None) == {}
+        assert coerce_tool_selections(None) == {}
 
     def test_non_dict_returns_empty(self):
-        assert _coerce_tool_selections("invalid") == {}
-        assert _coerce_tool_selections(42) == {}
-        assert _coerce_tool_selections([]) == {}
+        assert coerce_tool_selections("invalid") == {}
+        assert coerce_tool_selections(42) == {}
+        assert coerce_tool_selections([]) == {}
 
     def test_valid_dict(self):
-        result = _coerce_tool_selections(
+        result = coerce_tool_selections(
             {"server1": ["read", "write"], "server2": ["delete"]}
         )
         assert result == {"server1": ("read", "write"), "server2": ("delete",)}
 
     def test_empty_tool_list_skipped(self):
-        result = _coerce_tool_selections({"server1": ["read"], "server2": []})
+        result = coerce_tool_selections({"server1": ["read"], "server2": []})
         assert result == {"server1": ("read",)}
         assert "server2" not in result
 
     def test_filters_non_string_values(self):
-        result = _coerce_tool_selections({"srv": [123, True]})
+        result = coerce_tool_selections({"srv": [123, True]})
         assert result == {}
 
     def test_string_tool_value_coerced_to_single_tuple(self):
-        result = _coerce_tool_selections({"srv": "single_tool"})
+        result = coerce_tool_selections({"srv": "single_tool"})
         assert result == {"srv": ("single_tool",)}
 
 
@@ -701,7 +701,7 @@ class TestDefaultEnabledBuiltinTools:
         assert "memory" in DEFAULT_ENABLED_BUILTIN_TOOLS
 
     def test_baseline_tools_not_in_default(self):
-        from app.services.agent.builtin_tool_ids import AGENT_BASELINE_BUILTIN_TOOLS
+        from app.services.agent.builtin_specs.builtin_tool_ids import AGENT_BASELINE_BUILTIN_TOOLS
 
         for tool_id in AGENT_BASELINE_BUILTIN_TOOLS:
             assert tool_id not in DEFAULT_ENABLED_BUILTIN_TOOLS

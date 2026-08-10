@@ -11,8 +11,8 @@ from fastapi.testclient import TestClient
 
 pytest.importorskip("app.api.channels.wechat_official", reason="Backend import issues")
 
-from app.channels.core.exceptions import ChannelConnectionError
 from app.api.channels import wechat_official as wechat_official_module
+from app.channels.core.exceptions import ChannelConnectionError
 
 
 @asynccontextmanager
@@ -35,13 +35,31 @@ def client() -> TestClient:
 def test_wechat_official_draft_requires_credentials(client: TestClient, tmp_path: Path) -> None:
     html_file = tmp_path / "article.wechat.html"
     html_file.write_text("<html><body><p>Hi</p></body></html>", encoding="utf-8")
-    with patch("app.api.channels.wechat_official._get_workspace_root", return_value=str(tmp_path)):
+    with (
+        patch("app.api.channels.wechat_official._get_workspace_root", return_value=str(tmp_path)),
+        patch(
+            "app.api.channels.wechat_official._load_official_credentials",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
-            json={"htmlPath": str(html_file), "title": "Test"},
+            json={"htmlPath": str(html_file), "title": "Test", "author": "Author"},
         )
     assert response.status_code == 400
     assert "credentials" in response.json()["detail"].lower()
+
+
+def test_wechat_official_draft_rejects_empty_author(client: TestClient, tmp_path: Path) -> None:
+    html_file = tmp_path / "article.wechat.html"
+    html_file.write_text("<html><body><p>Hi</p></body></html>", encoding="utf-8")
+    with patch("app.api.channels.wechat_official._get_workspace_root", return_value=str(tmp_path)):
+        response = client.post(
+            "/api/v1/channels/manage/wechat-official/draft",
+            json={"htmlPath": str(html_file), "title": "Test", "author": "   "},
+        )
+    assert response.status_code == 400
+    assert "author" in response.json()["detail"].lower()
 
 
 def test_wechat_official_test_rejects_empty_secret(client: TestClient) -> None:
@@ -61,7 +79,7 @@ def test_wechat_official_draft_fail_closed_without_workspace(client: TestClient,
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
-            json={"htmlPath": str(html_file), "title": "Test"},
+            json={"htmlPath": str(html_file), "title": "Test", "author": "Author"},
         )
     assert response.status_code == 503
     assert "workspace root unavailable" in response.json()["detail"].lower()
@@ -146,7 +164,7 @@ def test_wechat_official_draft_returns_compliance_warnings_on_success(
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
-            json={"htmlPath": str(html_file), "title": "Wellness"},
+            json={"htmlPath": str(html_file), "title": "Wellness", "author": "Author"},
         )
     assert response.status_code == 200
     body = response.json()
@@ -175,7 +193,7 @@ def test_wechat_official_draft_blocks_high_risk_compliance(
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
-            json={"htmlPath": str(html_file), "title": "Risky"},
+            json={"htmlPath": str(html_file), "title": "Risky", "author": "Author"},
         )
     assert response.status_code == 422
     detail = response.json()["detail"]
@@ -260,7 +278,7 @@ def test_wechat_official_draft_success_without_warnings(client: TestClient, tmp_
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
-            json={"htmlPath": str(html_file), "title": "家常菜教程"},
+            json={"htmlPath": str(html_file), "title": "家常菜教程", "author": "Author"},
             headers={"Accept-Language": "en-US"},
         )
     assert response.status_code == 200
@@ -294,7 +312,7 @@ def test_wechat_official_draft_returns_400_for_cover_required(client: TestClient
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
-            json={"htmlPath": str(html_file), "title": "No Cover"},
+            json={"htmlPath": str(html_file), "title": "No Cover", "author": "Author"},
         )
     assert response.status_code == 400
     assert "cover" in response.json()["detail"].lower()
@@ -330,7 +348,7 @@ def test_wechat_official_draft_returns_502_for_channel_connection_error(
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
-            json={"htmlPath": str(html_file), "title": "API Error"},
+            json={"htmlPath": str(html_file), "title": "API Error", "author": "Author"},
         )
     assert response.status_code == 502
     assert "IP 白名单" in response.json()["detail"]
@@ -364,7 +382,7 @@ def test_wechat_official_draft_returns_502_for_unexpected_exception(
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
-            json={"htmlPath": str(html_file), "title": "Unexpected"},
+            json={"htmlPath": str(html_file), "title": "Unexpected", "author": "Author"},
         )
     assert response.status_code == 502
     assert response.json()["detail"] == "WeChat API call failed"
@@ -510,7 +528,7 @@ def test_wechat_official_draft_accepts_harness_workspace_path(
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
-            json={"htmlPath": str(html_file), "title": "Test"},
+            json={"htmlPath": str(html_file), "title": "Test", "author": "Author"},
         )
     assert response.status_code == 422
     detail = response.json()["detail"]
@@ -540,9 +558,30 @@ def test_wechat_official_draft_returns_404_when_service_reports_missing_cover(
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
-            json={"htmlPath": str(html_file), "title": "Cover Missing"},
+            json={"htmlPath": str(html_file), "title": "Cover Missing", "author": "Author"},
         )
     assert response.status_code == 404
     body = response.json()
     assert body["success"] is False
     assert "not found" in body["message"].lower()
+
+
+def test_wechat_official_egress_ip_returns_probe_result(client: TestClient) -> None:
+    with patch(
+        "app.channels.providers.wechat.egress_ip.resolve_public_egress_ip",
+        new=AsyncMock(return_value="203.0.113.10"),
+    ):
+        response = client.get("/api/v1/channels/manage/wechat-official/egress-ip")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["egressIp"] == "203.0.113.10"
+
+
+def test_wechat_official_egress_ip_probe_failure_returns_503(client: TestClient) -> None:
+    with patch(
+        "app.channels.providers.wechat.egress_ip.resolve_public_egress_ip",
+        new=AsyncMock(side_effect=RuntimeError("probe failed")),
+    ):
+        response = client.get("/api/v1/channels/manage/wechat-official/egress-ip")
+    assert response.status_code == 503
+    assert "egress ip" in response.json()["detail"].lower()

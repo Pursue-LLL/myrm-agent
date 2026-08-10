@@ -209,7 +209,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         logger.error("[Startup] Memory extract retry worker failed to start: %s", e)
 
     try:
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         GoalRegistry.start_branch_watcher()
         logger.info("[Startup] Branch watcher started")
@@ -514,7 +514,7 @@ async def _phase_1b_parallel() -> None:
             )
 
     async def _init_builtin_agents() -> None:
-        from app.services.agent.builtin_initializer import initialize_builtin_agents
+        from app.services.agent.builtin_specs.builtin_initializer import initialize_builtin_agents
 
         await initialize_builtin_agents()
 
@@ -651,7 +651,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
             logger.error("[Shutdown] SkillWatcher stop failed: %s", e)
 
     try:
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         GoalRegistry.stop_branch_watcher()
     except Exception as e:

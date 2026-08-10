@@ -55,7 +55,7 @@ async def test_realtime_token_http_declares_sessions_corpus_when_settings_on() -
     app = _voice_app()
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -101,7 +101,7 @@ async def test_realtime_tool_exec_http_passes_conversation_search_acl() -> None:
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
         patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=None),
         patch("app.core.channel_bridge.config_parsers.extract_retrieval_models", return_value=(None, None)),
-        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
         patch("app.api.voice.realtime._ensure_model_rebuild_for_tool_exec", return_value=None),
         patch("app.ai_agents.agents.GeneralAgentParams", side_effect=capture_params),
         patch("app.services.agent.streaming.ai_agent_service_stream", mock_stream),
@@ -153,7 +153,7 @@ async def test_realtime_tool_exec_http_blocks_sessions_when_opt_in_off() -> None
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
         patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=None),
         patch("app.core.channel_bridge.config_parsers.extract_retrieval_models", return_value=(None, None)),
-        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
         patch("app.api.voice.realtime._ensure_model_rebuild_for_tool_exec", return_value=None),
         patch("app.ai_agents.agents.GeneralAgentParams", side_effect=capture_params),
         patch("app.services.agent.streaming.ai_agent_service_stream", mock_stream),
@@ -201,7 +201,7 @@ async def test_gemini_live_token_http_declares_sessions_corpus_when_settings_on(
     app = _voice_app(include_gemini=True)
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post("/api/v1/voice/gemini-live-token", json={})

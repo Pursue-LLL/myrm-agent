@@ -14,7 +14,7 @@ preamble 子模块：将渠道/Agent 输出约束注入 user_instructions 尾部
 from __future__ import annotations
 
 from app.channels.types import InboundMessage
-from app.services.agent.profile_resolver import ResolvedAgentProfile
+from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
 
 async def enrich_channel_user_instructions(

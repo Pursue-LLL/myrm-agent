@@ -22,7 +22,7 @@ from myrm_agent_harness.agent.security.guards.loop_guard import (
 )
 from myrm_agent_harness.core.security.tool_registry import TOOL_GROUP_MAP
 
-from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
 
 
 class _ExistsBackend:

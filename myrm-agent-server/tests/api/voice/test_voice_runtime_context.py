@@ -74,7 +74,7 @@ async def test_realtime_tool_exec_injects_runtime_context() -> None:
             return_value=(None, None),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch(

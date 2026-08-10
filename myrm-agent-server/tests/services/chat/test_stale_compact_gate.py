@@ -32,7 +32,7 @@ async def test_resolve_idle_compact_after_seconds_merges_request_override() -> N
     mock_profile = AsyncMock()
     mock_profile.engine_params = {"idle_compact_after_seconds": 900}
     with patch(
-        "app.services.agent.profile_resolver.get_agent_profile_resolver",
+        "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
     ) as mock_get_resolver:
         mock_get_resolver.return_value.resolve = AsyncMock(return_value=mock_profile)
         seconds = await resolve_idle_compact_after_seconds(

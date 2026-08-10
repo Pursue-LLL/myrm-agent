@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconEye, IconEyeOff, IconLoader, IconWifi } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
@@ -9,9 +9,12 @@ import { Label } from '@/components/primitives/label';
 import type { WeChatOfficialCredentials } from '@/services/channels';
 import {
   getWeChatOfficialCredentials,
+  getWeChatOfficialEgressIp,
   saveWeChatOfficialCredentials,
   testWeChatOfficialConnection,
 } from '@/services/channels';
+import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { toast } from 'sonner';
 import { ConnectionBadge } from './ConnectionBadge';
 import { useChannelConfig } from './useChannelConfig';
 
@@ -25,6 +28,9 @@ const EMPTY_CREDS: WeChatOfficialCredentials = {
 export function WeChatOfficialConfigCard() {
   const t = useTranslations('channels');
   const [showSecret, setShowSecret] = useState(false);
+  const [egressIp, setEgressIp] = useState<string | null>(null);
+  const [egressLoading, setEgressLoading] = useState(true);
+  const [egressError, setEgressError] = useState(false);
 
   const { creds, dirty, loading, saving, testing, connStatus, statusLabel, handleChange, handleSave, handleTest } =
     useChannelConfig<WeChatOfficialCredentials>({
@@ -35,6 +41,36 @@ export function WeChatOfficialConfigCard() {
       testConnection: (c) => testWeChatOfficialConnection(c.appId, c.appSecret),
       i18nPrefix: 'wechatOfficial',
     });
+
+  const loadEgressIp = useCallback(async () => {
+    setEgressLoading(true);
+    setEgressError(false);
+    try {
+      const result = await getWeChatOfficialEgressIp();
+      setEgressIp(result.egressIp);
+    } catch {
+      setEgressIp(null);
+      setEgressError(true);
+    } finally {
+      setEgressLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadEgressIp();
+  }, [loadEgressIp]);
+
+  const handleCopyEgressIp = useCallback(async () => {
+    if (!egressIp) {
+      return;
+    }
+    const copied = await writeToClipboard(egressIp);
+    if (copied) {
+      toast.success(t('wechatOfficialEgressCopied'));
+    } else {
+      toast.error(t('wechatOfficialEgressCopyFailed'));
+    }
+  }, [egressIp, t]);
 
   if (loading) {
     return (
@@ -47,7 +83,40 @@ export function WeChatOfficialConfigCard() {
   return (
     <div className="space-y-4" data-testid="wechat-official-config-card">
       <p className="text-xs text-muted-foreground">{t('wechatOfficialDesc')}</p>
-      <p className="text-xs text-muted-foreground leading-relaxed">{t('wechatOfficialIpWhitelistHint')}</p>
+      <div
+        className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2"
+        data-testid="wechat-official-egress-ip-panel"
+      >
+        <p className="text-xs text-muted-foreground leading-relaxed">{t('wechatOfficialIpWhitelistHint')}</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <Label className="text-xs text-muted-foreground">{t('wechatOfficialEgressLabel')}</Label>
+            {egressLoading ? (
+              <p className="mt-1 text-sm text-muted-foreground">{t('wechatOfficialEgressLoading')}</p>
+            ) : egressError || !egressIp ? (
+              <p className="mt-1 text-sm text-destructive">{t('wechatOfficialEgressUnavailable')}</p>
+            ) : (
+              <p className="mt-1 font-mono text-sm text-foreground" data-testid="wechat-official-egress-ip">
+                {egressIp}
+              </p>
+            )}
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={egressLoading || !egressIp}
+              onClick={() => void handleCopyEgressIp()}
+            >
+              {t('wechatOfficialEgressCopy')}
+            </Button>
+            <Button type="button" variant="ghost" size="sm" disabled={egressLoading} onClick={() => void loadEgressIp()}>
+              {t('wechatOfficialEgressRefresh')}
+            </Button>
+          </div>
+        </div>
+      </div>
       <ConnectionBadge status={connStatus} label={statusLabel} />
 
       <div className="grid gap-4 sm:grid-cols-2">

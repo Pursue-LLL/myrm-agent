@@ -21,7 +21,7 @@ from app.core.cron.adapters.tools_policy import (
     normalize_cron_tools_allowed,
     resolve_cron_runtime_tool_flags,
 )
-from app.services.agent.builtin_tool_ids import InvalidBuiltinToolIdsError
+from app.services.agent.builtin_specs.builtin_tool_ids import InvalidBuiltinToolIdsError
 
 
 class FakeDelivery:

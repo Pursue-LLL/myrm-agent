@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -67,6 +68,62 @@ def test_resolve_share_bundle_file_blocks_traversal(tmp_path: Path, monkeypatch:
 
     escaped = resolve_share_bundle_file(claims, "../outside.txt")
     assert escaped is None
+
+
+def test_resolve_share_bundle_file_blocks_prefix_sibling(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A sibling dir whose name is a string-prefix of the digest must not be reachable.
+
+    The containment check is path-relative (is_relative_to), so prefix-matching
+    directory names cannot escape the bundle boundary.
+    """
+    monkeypatch.setattr(
+        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        str(tmp_path),
+    )
+    claims = ArtifactShareClaims(
+        artifact_id="a1",
+        version_id="v1",
+        exp=int(time.time()) + 3600,
+    )
+    bundle_root = bundle_dir_for_claims(claims)
+    _write_deploy_files(
+        bundle_root,
+        {"index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8")},
+    )
+    _write_manifest(bundle_root, entry="index.html", exp=claims.exp)
+
+    sibling = bundle_root.parent / f"{bundle_root.name}_evil"
+    sibling.mkdir(parents=True, exist_ok=True)
+    (sibling / "secret.txt").write_text("LEAKED", encoding="utf-8")
+
+    escaped = resolve_share_bundle_file(claims, f"../{bundle_root.name}_evil/secret.txt")
+    assert escaped is None
+
+
+def test_resolve_share_bundle_file_allows_nested_asset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Nested assets inside the bundle must still resolve after the strict containment check."""
+    monkeypatch.setattr(
+        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        str(tmp_path),
+    )
+    claims = ArtifactShareClaims(
+        artifact_id="a1",
+        version_id="v1",
+        exp=int(time.time()) + 3600,
+    )
+    bundle_root = bundle_dir_for_claims(claims)
+    _write_deploy_files(
+        bundle_root,
+        {"index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8")},
+    )
+    _write_manifest(bundle_root, entry="index.html", exp=claims.exp)
+    (bundle_root / "assets").mkdir(parents=True, exist_ok=True)
+    (bundle_root / "assets" / "style.css").write_text("body{}", encoding="utf-8")
+
+    resolved = resolve_share_bundle_file(claims, "assets/style.css")
+    assert resolved is not None
+    assert resolved[0].name == "style.css"
+    assert resolved[1] == "text/css"
 
 
 def test_manifest_round_trip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

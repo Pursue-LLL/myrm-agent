@@ -9,13 +9,13 @@
 | 文件 | 职责 |
 |------|------|
 | `AgentBasicInfoTab.tsx` | 名称、描述、头像、**正式韩语回复 Switch**（`engine_params.response_locale_policy`）等基础信息 |
-| `AgentCapabilitiesTab.tsx` | 模型绑定、引擎参数、共识、会话策略等能力 Tab 入口；顶部 `AgentLoadoutSummary`（`refreshKey` + SC tile→`#shared-context-binding`）；`#loadout` 深链 |
+| `AgentCapabilitiesTab.tsx` | 模型绑定、引擎参数、共识、会话策略等能力 Tab 入口；顶部 `AgentLoadoutSummary`（`refreshKey`（bind/unbind 与保存后重拉）+ SC tile→`#shared-context-binding`）；`#loadout` 深链 |
 | `AgentCapabilitiesTabSections.tsx` | 能力 Tab 基础区段（模型绑定含 org MAP 约束 badge（hook refetch 同步）、路由覆盖/迭代/工作区/**IdleCompactSection** 等） |
 | `AgentCapabilitiesConsensusSection.tsx` | MoA overlay 参考模型选择器（`ConsensusRefModels`，供 MoaOverlaySection 复用） |
 | `AgentCapabilitiesMoaOverlaySection.tsx` | Agent 环 MoA 顾问叠加配置（fanout / privacy / 参考模型） |
 | `AgentCapabilitiesSessionSection.tsx` | 会话策略区段 |
 | `AgentInstinctInboxTab.tsx` | **Agent Draft Inbox（洞察 tab）**：审阅后台 growth `skill_draft`，走 `/skills/drafts` API |
-| `AgentSecretsTab.tsx` | Agent 级密钥；`listAgentSecrets` 经 service normalize 为 key 名列表；失败 toast 展示后端 detail |
+| `AgentSecretsTab.tsx` | Agent 级密钥；`listAgentSecrets` 经 service normalize 为 key 名列表；失败 toast 展示后端 detail；保存/删除成功后 invalidate readiness 缓存并 SWR mutate 即时刷新 |
 | `AgentSecurityTab.tsx` | 安全策略（默认会话安全预设三档下拉 + 能力/路径/域名白名单与 blocklist/HITL 超时）+ 审计触发与修复导航 |
 | `HealthScoreCard.tsx` | 安全健康评分卡（6 维度分组审计 findings 展示 + policy_gap 分级修复引导） |
 | `AgentSubagentBinding.tsx` | 子智能体绑定 |

@@ -195,6 +195,14 @@ def write_session_snapshot(
         "progressAtMonotonic": now,
         "updatedAtEpoch": time.time(),
     }
+    lane = os.environ.get("MYRM_E2E_LANE", "").strip()
+    if lane:
+        payload["lane"] = lane.upper()
+    workload = os.environ.get("MYRM_E2E_WORKLOAD", "").strip()
+    if workload:
+        payload["workload"] = workload.upper()
+    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1":
+        payload["shpoib"] = True
     try:
         from e2e_session_lifecycle import phase_cap_sec
 
@@ -225,10 +233,11 @@ def write_session_snapshot(
         pass
     if existing is not None and existing.get("holderPid") is not None:
         payload["holderPid"] = existing["holderPid"]
-    if existing is not None and existing.get("lane"):
-        payload["lane"] = existing["lane"]
-    if existing is not None and existing.get("shpoib") is not None:
-        payload["shpoib"] = existing["shpoib"]
+    if existing is not None:
+        if "lane" not in payload and existing.get("lane"):
+            payload["lane"] = existing["lane"]
+        if "shpoib" not in payload and existing.get("shpoib") is not None:
+            payload["shpoib"] = existing["shpoib"]
     hot_path = os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip()
     if hot_path:
         payload["bootstrapHotPath"] = hot_path

@@ -14,9 +14,9 @@ from app.database.migrations import ensure_raw_sql_schema
 from app.database.models import Agent, AgentProfileSnapshot, Base
 from app.database.repositories.agent_repo import AgentRepository
 from app.services.agent.agent_service import AgentService
-from app.services.agent.builtin_tool_ids import InvalidBuiltinToolIdsError
-from app.services.agent.profile_resolver import get_agent_profile_resolver
-from app.services.agent.profile_snapshot_service import ProfileSnapshotService, updates_from_snapshot_data
+from app.services.agent.builtin_specs.builtin_tool_ids import InvalidBuiltinToolIdsError
+from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
+from app.services.agent.profile.profile_snapshot_service import ProfileSnapshotService, updates_from_snapshot_data
 
 
 @pytest_asyncio.fixture

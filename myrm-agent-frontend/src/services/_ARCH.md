@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-对 `myrm-agent-server` REST/SSE 的类型化客户端（约 55 个模块）。按业务域单文件或小子目录组织；**顶层单文件禁止** `index.ts` barrel，跨域门面见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」与 `scripts/ci/barrel_whitelist.txt`。
+对 `myrm-agent-server` REST/SSE 的类型化客户端（约 85 个模块）。按业务域单文件或小子目录组织；**顶层单文件禁止** `index.ts` barrel，跨域门面见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」与 `scripts/ci/barrel_whitelist.txt`。
 
 ## 域划分（文件 → API）
 
@@ -28,7 +28,7 @@
 | `onboarding.ts` | Onboarding readiness/complete + Telegram assistant 一键接入编排接口 `/config/onboarding/telegram-assistant/apply` |
 | `google-workspace-oauth.ts` | `/integrations/google-workspace/oauth/*`：config/start/poll/status/disconnect；Tauri 用 shell.open |
 | `kanban.ts` | `/kanban/*`：Board/Task CRUD、move/promote/reclaim、bulk、依赖边、Specify/Decompose、Pipeline 实例化；`listBoards({ projectId })` + `createBoard({ project_id, milestone_id })` 作用域链路 |
-| `agent.ts` | `/user-agents/*` CRUD、密钥、快照回滚、导入导出；`getAgent(..., signal)` 支持请求级 abort；fetch 错误与 secret list normalize 见 `agentFetchErrorCore.ts` |
+| `agent.ts` | `/user-agents/*` CRUD、密钥、快照回滚、导入导出、readiness（get/invalidate + `READINESS_SWR_KEY_PREFIX`）；`getAgent(..., signal)` 支持请求级 abort；fetch 错误与 secret list normalize 见 `agentFetchErrorCore.ts` |
 | `agentFetchErrorCore.ts` | 纯函数：`parseUserAgentFetchErrorMessage`（detail/顶层 message）、`normalizeAgentSecretKeyNames`（`{key_name}[]` → `string[]`） |
 | `runs.ts` | `GET /runs`：Cron / Kanban / Shell 后台任务统一运行历史（只读聚合） |
 | `background-tasks.ts` | `GET/POST /background-tasks/*`：Panel 列表、cancel、steer、**shell stdin**（`sendShellBackgroundStdin` → `POST …/stdin`） |
@@ -43,7 +43,45 @@
 | `themeMarketplace.ts` | **仅 SaaS/sandbox** 公开主题市场：CP catalog/checkout + admin suspend/restore + server install-from-marketplace |
 | `enterprise-org.ts` | **仅 SaaS/sandbox** Enterprise Org 管理：create/members/offboard/transfer |
 | `org-model-policy.ts` | **仅 SaaS/sandbox** 组织模型白名单客户端：`fetchOrgModelPolicy` + `isModelAllowedByPolicy` glob 匹配 |
-| `*-api.ts` | 零散 REST 封装 |
+| `apiKeys.ts` | `/api-keys/*` CRUD（OpenAI 兼容密钥） |
+| `budget.ts` | `/budget/*` 策略 CRUD 与状态（multi-dimension） |
+| `batch-image.ts` | 批量图片任务：`createBatchJob` / `startBatchJob` |
+| `chatTrash.ts` | 会话回收站：分页列表、计数、级联恢复信息 |
+| `fork-api.ts` | `POST /chat/{id}/fork` 会话派生 REST 封装 |
+| `checkpoint.ts` | File Snapshot 检查点：列表 / 恢复 / 清理 |
+| `cli-agent.ts` | CLI Agent 服务：Tauri IPC → Rust → Sidecar → 本机 CLI |
+| `compoundingPlaybook.ts` | 复合剧本就绪清单状态（memory/skills/cron/verify） |
+| `contextBundle.ts` | Context Bundle：健康检查 + 迁移应用 |
+| `contextHealth.ts` | 会话 context-health 响应 DTO（压缩/归档恢复契约） |
+| `copilot.ts` | Run digest 顾问：`fetchRunDigest` / `askAdvisor` |
+| `credentials.ts` | 渠道/模型凭证文件与列表 API |
+| `dataset-export.ts` | 数据集导出：格式信息与导出请求 |
+| `enterprise-admin.ts` | 企业审计与用量 API（**仅**云托管企业版，经 sandbox 代理 CP） |
+| `eval.ts` | Eval 评估：summary / run / report / status / cases |
+| `external-agents.ts` | 外部 Agent 认证状态 + 登录流（SSE 喂入） |
+| `followUps.ts` | 记忆 follow-ups：列表 / dismiss / snooze |
+| `heartbeat.ts` | 心跳调度（interval/cron）：`getHeartbeatStatus` / `enableHeartbeat` |
+| `i18nToastService.ts` | 非 React 环境（store 等）带 i18n 的 toast |
+| `integrationMemory.ts` | Integration Memory：sync / browse / status |
+| `localCapabilitiesProbe.ts` | Onboarding 本地能力探测缓存（Ollama/LM Studio + SearXNG） |
+| `media.ts` | 媒体列表 / 标签 |
+| `models-dev.ts` | models.dev 模型信息（成本等，自 `models.dev/api.json`） |
+| `notification.ts` | 浏览器系统通知服务 |
+| `organize.ts` / `organizeTypes.ts` | 文件整理计划：apply / rollback / latest；类型 DTO |
+| `provider-oauth.ts` | Provider OAuth（anthropic/openai/copilot）：start / poll / status |
+| `provider.ts` | Provider 用量 + 批量迁移预览/执行 |
+| `rate-limits.ts` | 速率限制状态 |
+| `remoteAccess.ts` | 远程访问隧道：TunnelStatus / PairingToken / Spawn 选项 |
+| `runtime-health.ts` | 运行时健康报告 + 修复动作类型 |
+| `searxngSetup.ts` | 本地 SearXNG Docker 启动（仅本地部署） |
+| `statistics.ts` | 全局用量统计 + context-health 查询 |
+| `system.ts` | 系统服务：ingress 需求快照 / 公开 ingress 基址 |
+| `uploadController.ts` | 模块级 AbortController：会话切换取消进行中的上传 |
+| `wikiSectionLabels.ts` | Wiki 区块标题 i18n key 解析（Chat/设置共享） |
+| `wikiSourceSync.ts` | Wiki 源同步：配置 / 状态 / 结果 |
+| `workflowTemplates.ts` | 工作流模板：CRUD / 从 run 保存 / upsert |
+| `xai-oauth.ts` | xAI OAuth：start / poll / status |
+| `ConnectionManager.ts` | multiplex 流连接管理：window 全局桥 + pending 缓冲 + terminal chunk 检测 |
 | `file.ts` | HTTP 上传、`UploadProgress`、PDF/文档内容提取（**非**本地选文件） |
 | `file-service/` | 平台 `FileService` 策略（Tauri FS vs Sandbox）；见 [_ARCH.md](file-service/_ARCH.md) |
 | `wikiService.ts` | `/wiki/*` 客户端：概念树/队列/导入/审批与 query；`queryWiki` 返回结构化 `source_snippets(level/path/section/snippet)` 供设置页与聊天证据链复用 |
@@ -59,7 +97,6 @@
 | `deliverable/` | Workspace 交付物 Portal 打开 SSOT · [_ARCH.md](deliverable/_ARCH.md) |
 | `theme-packages/` | `.myrmtheme` inspect / install / export · [_ARCH.md](theme-packages/_ARCH.md) |
 | `theme-assets/` | 主题背景上传 + `file:` 资产解析 + MP4 poster 提取 |
-| `deliverable/` | workspace deliverable 打开编排（ArtifactPortal + `/files/browse/content`） |
 | `companion/` | Petdex 客户端 · [_ARCH.md](companion/_ARCH.md)（install/doctor/spritesheet/i18n core） |
 
 ## 依赖

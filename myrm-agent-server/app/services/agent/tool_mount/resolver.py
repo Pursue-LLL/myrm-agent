@@ -23,7 +23,7 @@ from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from app.services.agent.tool_mount.surfaces import ExecutionSurface
 
 if TYPE_CHECKING:
-    from app.services.agent.profile_resolver import BuiltinToolFlags
+    from app.services.agent.profile.profile_resolver import BuiltinToolFlags
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ def _with_meta_mount(
     file_access_mode: FileAccessMode | None = None,
     enable_shell_tools: bool | None = None,
 ) -> BuiltinToolFlags:
-    from app.services.agent.profile_resolver import BuiltinToolFlags
+    from app.services.agent.profile.profile_resolver import BuiltinToolFlags
 
     resolved_file_access = (
         file_access_mode if file_access_mode is not None else flags["file_access_mode"]

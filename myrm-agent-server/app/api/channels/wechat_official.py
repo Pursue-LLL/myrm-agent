@@ -7,6 +7,7 @@
 
 [OUTPUT]
 - POST /wechat-official/test: credential connectivity test
+- GET /wechat-official/egress-ip: sandbox public egress IP for Official Account whitelist setup
 - POST /wechat-official/draft: HITL draft publish from HTML artifact (path validation before credentials)
 
 [POS]
@@ -41,6 +42,13 @@ class WeChatDraftRequest(BaseModel):
         populate_by_name = True
 
 
+class WeChatEgressIpResponse(BaseModel):
+    egress_ip: str = Field(..., alias="egressIp")
+
+    class Config:
+        populate_by_name = True
+
+
 class WeChatDraftResponse(BaseModel):
     media_id: str = Field(..., alias="mediaId")
     uploaded_image_count: int = Field(..., alias="uploadedImageCount")
@@ -49,6 +57,21 @@ class WeChatDraftResponse(BaseModel):
 
     class Config:
         populate_by_name = True
+
+
+@router.get("/wechat-official/egress-ip", response_model=WeChatEgressIpResponse)
+async def wechat_official_egress_ip() -> WeChatEgressIpResponse:
+    from app.channels.providers.wechat.egress_ip import resolve_public_egress_ip
+
+    try:
+        egress_ip = await resolve_public_egress_ip()
+    except Exception as exc:
+        logger.warning("WeChat egress IP probe failed: %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to resolve server egress IP. Try again later or check outbound network access.",
+        ) from exc
+    return WeChatEgressIpResponse(egressIp=egress_ip)
 
 
 @router.post("/wechat-official/test", response_model=ChannelTestResponse)
@@ -71,6 +94,13 @@ async def wechat_official_test_connection(
 async def push_wechat_official_draft(body: WeChatDraftRequest, request: Request) -> WeChatDraftResponse:
     html_path = _resolve_allowed_path(body.html_path)
     cover_path = _resolve_allowed_path(body.cover_path) if body.cover_path else None
+
+    if not body.author.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Author is required (max 8 characters).",
+        )
+
     locale = _resolve_request_locale(request.headers.get("accept-language"))
 
     creds = await _load_official_credentials()

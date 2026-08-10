@@ -291,7 +291,7 @@ async def build_general_agent(
             delegate_cwd=str(workspace_root) if workspace_root else None,
         )
 
-    from app.services.agent.goal_registry import GoalRegistry
+    from app.services.agent.goals.goal_registry import GoalRegistry
 
     enable_planning = agent_wrapper.enable_planning
     goal_provider = GoalRegistry.get_provider(effective_chat_id)

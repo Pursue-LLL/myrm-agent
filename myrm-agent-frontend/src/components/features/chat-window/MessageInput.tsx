@@ -77,6 +77,7 @@ import { useInputHistory } from '@/hooks/message-input/useInputHistory';
 import InputHistoryPopup from './InputHistoryPopup';
 import { SkillActivationChips } from '../message-box/SkillActivationChips';
 import { WorkflowTemplateArmedBar } from './WorkflowTemplateArmedBar';
+import { WechatArticleComposerHint } from './WechatArticleComposerHint';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
 
 const KEYTERM_PATTERN =
@@ -513,6 +514,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                 onRemove={() => setPendingExplicitSkillActivation(null)}
               />
             ) : null}
+            <WechatArticleComposerHint inputMessage={inputMessage} />
             {showBtwDisambiguation ? (
               <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
                 {commandsT('builtin.btwDisambiguation')}

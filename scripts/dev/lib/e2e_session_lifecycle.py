@@ -376,6 +376,63 @@ def complete_bootstrap_phase(*, phase_label: str = "pytest_body") -> None:
         )
         return
     begin_body_wall_budget(phase_label=phase_label)
+    _transition_dev_gate_to_body(current_node=phase_label)
+
+
+def _transition_dev_gate_to_body(*, current_node: str) -> None:
+    """Seal coordinator PAGE_OPEN→BODY and emit the product SLO measurement."""
+    session_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+    owner_token = os.environ.get("MYRM_E2E_RUNTIME_OWNER_TOKEN", "").strip()
+    if not session_id or not owner_token:
+        return
+    from dev_gate_cli import send
+
+    response = send({"operation": "snapshot", "session_id": session_id})
+    session = response.get("session") if isinstance(response, dict) else None
+    if not isinstance(session, dict):
+        raise RuntimeError(f"E2E_DEV_GATE_BODY_TRANSITION: session missing {session_id}")
+    state = str(session.get("state", ""))
+    if state == "PREPARING":
+        response = send(
+            {
+                "operation": "transition",
+                "session_id": session_id,
+                "owner_token": owner_token,
+                "target": "PAGE_OPEN",
+                "current_node": "E2E_PYTEST_SUBPROCESS",
+            }
+        )
+        session = response.get("session") if isinstance(response, dict) else None
+        state = str(session.get("state", "")) if isinstance(session, dict) else ""
+    if state == "PAGE_OPEN":
+        response = send(
+            {
+                "operation": "transition",
+                "session_id": session_id,
+                "owner_token": owner_token,
+                "target": "BODY",
+                "current_node": current_node,
+            }
+        )
+        session = response.get("session") if isinstance(response, dict) else None
+        state = str(session.get("state", "")) if isinstance(session, dict) else ""
+    if state != "BODY" or not isinstance(session, dict):
+        raise RuntimeError(
+            f"E2E_DEV_GATE_BODY_TRANSITION: expected BODY, got {state or 'UNKNOWN'}"
+        )
+    submitted_at = session.get("submitted_at")
+    phase_started_at = session.get("phase_started_at")
+    if not isinstance(submitted_at, (int, float)) or not isinstance(
+        phase_started_at, (int, float)
+    ):
+        raise RuntimeError("E2E_DEV_GATE_BODY_TRANSITION: timestamps unavailable")
+    admit_to_body = max(0.0, float(phase_started_at) - float(submitted_at))
+    print(
+        f"E2E_DEV_GATE_BODY_START: admit_to_body_sec={admit_to_body:.3f} "
+        f"session={session_id} node={current_node}",
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 def begin_body_wall_budget(*, phase_label: str = "pytest_body") -> None:

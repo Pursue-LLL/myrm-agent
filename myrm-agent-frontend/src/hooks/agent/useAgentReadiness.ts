@@ -18,17 +18,16 @@ import {
   type AgentReadinessReport,
   type ReadinessLevel,
   getAgentReadiness,
-  invalidateAgentReadiness,
+  READINESS_SWR_KEY_PREFIX,
 } from '@/services/agent';
 
-const SWR_KEY_PREFIX = 'agent-readiness:';
 const REVALIDATE_INTERVAL_MS = 5 * 60 * 1000; // 5min — matches server TTL
 
 export function useAgentReadiness() {
   const agentId = useChatStore(useShallow((s) => s.agentConfig?.agentId));
 
-  const { data, error, isLoading, mutate } = useSWR<AgentReadinessReport>(
-    agentId ? `${SWR_KEY_PREFIX}${agentId}` : null,
+  const { data, error, isLoading } = useSWR<AgentReadinessReport>(
+    agentId ? `${READINESS_SWR_KEY_PREFIX}${agentId}` : null,
     () => getAgentReadiness(agentId!),
     {
       suspense: false,
@@ -39,18 +38,11 @@ export function useAgentReadiness() {
     },
   );
 
-  const refresh = async () => {
-    if (!agentId) return;
-    await invalidateAgentReadiness(agentId);
-    await mutate();
-  };
-
   return {
     report: data ?? null,
     overallLevel: (data?.overall_level ?? 'ready') as ReadinessLevel,
     hasIssues: !!data && data.overall_level !== 'ready',
     isLoading,
     error,
-    refresh,
   };
 }

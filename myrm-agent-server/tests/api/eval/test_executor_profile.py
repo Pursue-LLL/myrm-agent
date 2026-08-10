@@ -81,7 +81,7 @@ async def test_server_eval_executor_profile(tmp_path):
             mock_configs.return_value = mock_cfg
 
             with patch(
-                "app.services.agent.profile_resolver.get_agent_profile_resolver"
+                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver"
             ) as mock_resolver_getter:
                 mock_resolver_getter.return_value = MockProfileResolver(
                     MockResolvedProfile()

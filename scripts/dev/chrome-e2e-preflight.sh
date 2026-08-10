@@ -3,6 +3,13 @@
 # Exit 0 prints CHROME_E2E_READY; exit 1 prints actionable failures.
 set -euo pipefail
 
+PREFLIGHT_STARTED_SECONDS=${SECONDS}
+
+_preflight_progress() {
+  local phase="$1"
+  echo "CHROME_E2E_PROGRESS: phase=${phase} elapsed_sec=$((SECONDS - PREFLIGHT_STARTED_SECONDS))" >&2
+}
+
 # Ensure toolchain bins (bun for model seed, node for orchestrator) are
 # reachable even when the caller's shell lacks the standard Homebrew PATH
 # (e.g. Cursor agent shells that never sourced .zshrc). Mirror the explicit
@@ -850,7 +857,7 @@ if [[ "${MYRM_E2E_API_ONLY:-}" == "1" && "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; 
 fi
 
 _preflight_readiness_gate() {
-  if [[ "${MYRM_E2E_LAUNCH_FORCE:-}" == "1" || "${E2E_SIGNOFF:-}" == "1" ]]; then
+  if [[ "${MYRM_E2E_LAUNCH_FORCE:-}" == "1" ]]; then
     return 0
   fi
   local py_out rc=0
@@ -864,7 +871,20 @@ _preflight_readiness_gate() {
   fi
 }
 
+# A dead shared backend must be healed before the unified readiness predicate:
+# otherwise the predicate correctly reports BLOCKED and makes its own recovery
+# path unreachable. The policy is backend-only + cross-process flock, so peers,
+# frontend, Chrome, pages and ownership remain untouched.
+if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] \
+  && [[ "${MYRM_PRIVATE_BACKEND:-}" != "1" ]] \
+  && ! _smp_shared_api_http_ok \
+  && [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
+  echo "CHROME_E2E_ATTACH_HEAL: pre-readiness shared api crash heal" >&2
+  _smp_attach_backend_crash_heal "${MONOREPO_ROOT}" "${SCRIPT_DIR}/dev-stack.sh"
+fi
+
 _preflight_readiness_gate
+_preflight_progress "readiness"
 
 # 1. Dev servers (Next.js cold compile can exceed 3s)
 # R202: mux-heal-only signoff must not block on attach endpoint wait + frontend dogpile.
@@ -932,6 +952,7 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] && ! curl -sf --max-time 10 "$API_BA
   curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null || fail "Backend not reachable at $API_BASE — run: cd open-perplexity && ./myrm ready"
 fi
 ok "dev servers :${FRONTEND_PORT}/${MYRM_BACKEND_PORT:-8080}"
+_preflight_progress "dev_servers"
 
 # 1b. Shared-stack attach is read-only; private-backend pools seed into E2E_API_BASE.
 if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] || [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
@@ -969,8 +990,16 @@ print(resolve_chrome_data_dir())
   export MYRM_CHROME_E2E_DATA_DIR="${data_dir}"
   export CHROME_DATA_DIR="${data_dir}"
   if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-    myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable on port ${port} — first Agent must run: ./myrm ready --chrome"
-    ensure_one_out="MYRM_CHROME_E2E_ATTACH: existing CDP port=${port}"
+    if myrm_chrome_e2e_cdp_healthy; then
+      ensure_one_out="MYRM_CHROME_E2E_ATTACH: existing CDP port=${port}"
+    else
+      echo "CHROME_E2E_ATTACH_HEAL: shared Chrome/CDP collapsed — recover exact :${port} namespace without waiting for peers" >&2
+      if ! ensure_one_out="$(bash "${ENSURE_CHROME}" 2>&1)"; then
+        echo "${ensure_one_out}" >&2
+        fail "Myrm E2E Chrome crash recovery failed on port ${port}"
+      fi
+      ensure_one_out+=$'\n'"CHROME_E2E_CDP_RECOVERED: port=${port}"
+    fi
   elif ! ensure_one_out="$(bash "${ENSURE_CHROME}" 2>&1)"; then
     echo "${ensure_one_out}" >&2
     fail "Myrm E2E Chrome failed to start on port ${port} — see MYRM_CHROME_E2E_FAIL above"
@@ -982,6 +1011,10 @@ print(resolve_chrome_data_dir())
 ensure_out=""
 ensure_out="$(_ensure_browser_pool_chrome "${MYRM_CHROME_E2E_PORT:-9333}")"
 echo "${ensure_out}"
+_preflight_progress "chrome_cdp"
+if [[ "${ensure_out}" == *"CHROME_E2E_CDP_RECOVERED:"* ]]; then
+  export MYRM_CHROME_E2E_CDP_RECOVERED=1
+fi
 CHROME_E2E_CLI_EARLY="${SCRIPT_DIR}/chrome-e2e/cli.sh"
 if [[ -f "${CHROME_E2E_CLI_EARLY}" ]]; then
   bash "${CHROME_E2E_CLI_EARLY}" ensure-surface >/dev/null 2>&1 || true
@@ -1452,10 +1485,68 @@ _ensure_mux_daemon() {
   fail "cdmcp-mux daemon failed to start — run: node scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs daemon"
 }
 
+_recover_mux_after_cdp_restart() {
+  [[ -f "${MUX_BIN}" ]] || fail "Missing mux bin ${MUX_BIN} during Chrome crash recovery"
+  MUX_USING=1
+  if _mux_daemon_pid_alive; then
+    local attempt
+    for attempt in 1 2 3; do
+      if _mux_upstream_ready; then
+        _stamp_mux_ws_url || true
+        _stamp_mux_daemon_ws_url || true
+        ok "cdmcp-mux reattached after Chrome crash without restart"
+        return 0
+      fi
+      sleep 1
+    done
+    echo "CHROME_E2E_ATTACH_HEAL: mux upstream stayed down after Chrome recovery — restart exact owned namespace" >&2
+    _stop_mux_daemon
+  fi
+  _start_mux_daemon
+  local attempt
+  for attempt in $(seq 1 15); do
+    if _mux_daemon_pid_alive && _mux_upstream_ready; then
+      _stamp_mux_ws_url || true
+      _stamp_mux_daemon_ws_url || true
+      ok "cdmcp-mux recovered after Chrome crash"
+      return 0
+    fi
+    sleep 1
+  done
+  fail "cdmcp-mux did not recover after Chrome/CDP restart"
+}
+
+_ensure_browser_orchestrator_after_data_plane() {
+  [[ "${MYRM_BROWSER_ORCHESTRATOR:-}" == "1" ]] || return 0
+  local orchestrator_ensure="${MONOREPO_ROOT}/scripts/dev/ensure-browser-orchestrator.sh"
+  [[ -f "${orchestrator_ensure}" ]] || return 0
+  local ensure_rc=0
+  if bash "${orchestrator_ensure}"; then
+    return 0
+  else
+    ensure_rc=$?
+  fi
+  if [[ "${ensure_rc}" -ne 75 ]]; then
+    fail "browser-orchestrator daemon required after Chrome/CDP/mux readiness"
+  fi
+  echo "CHROME_E2E_INFRA_RACE_HEAL: CDP collapsed after preflight — recover Chrome→mux→orchestrator" >&2
+  bash "${ENSURE_CHROME}" \
+    || fail "Chrome/CDP recovery failed after orchestrator CDP_UNAVAILABLE"
+  export MYRM_CHROME_E2E_CDP_RECOVERED=1
+  _recover_mux_after_cdp_restart
+  bash "${orchestrator_ensure}" \
+    || fail "browser-orchestrator failed after Chrome/CDP race recovery"
+}
+
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
   # R73-B: mux-only must exit before attach crash/drift heal (parallel signoff stack heal).
   if [[ "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" == "1" ]]; then
-    _heal_mux_request_timeout_drift
+    if [[ "${MYRM_CHROME_E2E_CDP_RECOVERED:-}" == "1" ]]; then
+      _recover_mux_after_cdp_restart
+    else
+      _heal_mux_request_timeout_drift
+    fi
+    _ensure_browser_orchestrator_after_data_plane
     ok "mux heal-only complete (attach mode, timeout=${MUX_REQUEST_TIMEOUT_MS}ms)"
     exit 0
   fi
@@ -1470,17 +1561,27 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
   fi
   attach_parallel_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}" 2>/dev/null || echo 0)"
   if [[ "${attach_parallel_leases}" =~ ^[0-9]+$ && "${attach_parallel_leases}" -gt 0 ]]; then
-    echo "CHROME_E2E_ATTACH: parallel leases=${attach_parallel_leases} — skip SMP stack heal (R123-D; ADMIT queue SSOT)" >&2
-  elif [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
+    echo "CHROME_E2E_ATTACH: parallel leases=${attach_parallel_leases} — keep healthy pinned backend; defer source-drift reload" >&2
+  fi
+  if [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
+    # Crash recovery is independent of source promotion and remains available
+    # under parallel load. Both helpers are idempotent when :8080 is healthy;
+    # drift handling records metadata only and never restarts the pinned backend.
     _smp_attach_backend_crash_heal "${MONOREPO_ROOT}" "${SCRIPT_DIR}/dev-stack.sh"
     _smp_attach_backend_drift_heal "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh"
   fi
+  _preflight_progress "mux_begin"
   _heal_mux_request_timeout_drift
+  _preflight_progress "mux_ready"
   if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
     _private_backend_attach_path
+    _ensure_browser_orchestrator_after_data_plane
     exit 0
   fi
   _attach_fast_path
+  _preflight_progress "attach_health"
+  _ensure_browser_orchestrator_after_data_plane
+  _preflight_progress "orchestrator"
   exit 0
 fi
 
@@ -1495,7 +1596,7 @@ if [[ "${MUX_USING}" -eq 1 ]]; then
     if [[ "${MYRM_BROWSER_ORCHESTRATOR:-}" == "1" ]]; then
       echo "CHROME_E2E_WARN: legacy vanilla chrome-devtools-mcp (${VANILLA_MCP_COUNT}) ignored — formal E2E uses browser orchestrator RPC-only" >&2
     else
-      fail "Legacy vanilla chrome-devtools-mcp still running (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor; Agent MCP must use --auto-connect (./myrm doctor --mcp-isolation)"
+      fail "Legacy vanilla chrome-devtools-mcp still running (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor; Agent MCP must use ChromeAgent :9410 (./myrm doctor --mcp-isolation --strict-live)"
     fi
   fi
   if [[ ! -f "${MUX_PID_FILE}" ]]; then
@@ -1656,10 +1757,7 @@ FRONTEND_LOCK="$(resolve_frontend_lock_path "${FRONTEND_DIR}")"
 # Preflight must not run parallel prune hooks — they raced BODY leases and masked orphan storms.
 
 if [[ "${MYRM_BROWSER_ORCHESTRATOR:-}" == "1" ]]; then
-  orchestrator_ensure="${MONOREPO_ROOT}/scripts/dev/ensure-browser-orchestrator.sh"
-  if [[ -f "${orchestrator_ensure}" ]]; then
-    bash "${orchestrator_ensure}" || fail "browser-orchestrator daemon required for chrome_e2e (RPC-only TabCreateTransaction)"
-  fi
+  _ensure_browser_orchestrator_after_data_plane
   if [[ "${MYRM_CHROME_E2E_ATTACH:-}" != "1" ]] && declare -f _mux_daemon_count >/dev/null 2>&1; then
     mux_count="$(_mux_daemon_count 2>/dev/null || echo 0)"
     if [[ "${mux_count}" != "1" ]]; then

@@ -271,7 +271,7 @@ class TestFinalizeCrossTurnUiPatch:
                 "app.services.agent.stream_session.stream_finalize.CancellationRegistry"
             ),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
-            patch("app.services.agent.goal_registry.GoalRegistry"),
+            patch("app.services.agent.goals.goal_registry.GoalRegistry"),
             patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
             patch(
                 "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",

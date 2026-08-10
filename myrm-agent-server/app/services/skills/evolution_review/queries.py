@@ -1,7 +1,9 @@
 """
 [INPUT]
 - app.services.approvals.registry::ApprovalRegistry
-- .persistence
+- .persistence::load_approval_record, list_approval_review_records (POS: Evolution 审核 ApprovalRecord 持久化读写)
+- .types::EvolutionReviewRecord (POS: Evolution 审核域类型)
+- ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
 [OUTPUT]
 - create/list/count/find/get evolution review records
 [POS]
@@ -13,6 +15,12 @@ from __future__ import annotations
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
+
+from ..experience_ledger import (
+    ExperienceEntityType,
+    ExperienceLedgerWrite,
+    record_experience_event,
+)
 from .persistence import (
     count_approval_review_records,
     filter_runtime_failure_record,
@@ -34,11 +42,6 @@ from .types import (
     creation_outcome,
     evolution_lineage_id,
     runtime_failure_ledger_event,
-)
-from ..experience_ledger import (
-    ExperienceEntityType,
-    ExperienceLedgerWrite,
-    record_experience_event,
 )
 
 

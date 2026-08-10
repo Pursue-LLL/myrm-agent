@@ -20,7 +20,7 @@
 | `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx` / `PairingManager.tsx` | 连接状态、Ingress 提示与配对管理 |
 | `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks |
 | `@/hooks/billing/useIngressRequirement.ts` | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge` |
-| `*ConfigCard.tsx` / `WhatsAppCard.tsx` | 各平台配置 UI（含 `WeChatOfficialConfigCard` 认证服务号凭证 + IP 白名单指引） |
+| `*ConfigCard.tsx` / `WhatsAppCard.tsx` | 各平台配置 UI（含 `WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引） |
 | `DmPolicySelector.tsx` / `GroupManager.tsx` | DM 策略与群组管理 |
 | `NotificationChannelEditor.tsx` | 通知渠道编辑（Preferences 复用） |
 

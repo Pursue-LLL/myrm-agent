@@ -67,6 +67,7 @@ export function StatusActionsBar({
           <button
             onClick={handleApprove}
             disabled={approving}
+            data-testid="kanban-task-approve"
             className="text-[10px] px-2.5 py-1 rounded-full bg-chart-2/15 hover:bg-chart-2/25 text-chart-2 font-medium transition-colors disabled:opacity-50"
           >
             {t('approve')}
@@ -74,6 +75,7 @@ export function StatusActionsBar({
           <button
             onClick={() => setShowRejectDialog(true)}
             disabled={rejecting}
+            data-testid="kanban-task-reject"
             className="text-[10px] px-2.5 py-1 rounded-full bg-destructive/10 hover:bg-destructive/20 text-destructive font-medium transition-colors disabled:opacity-50"
           >
             {t('reject')}
@@ -113,12 +115,14 @@ export function StatusActionsBar({
             onChange={(e) => setRejectReason(e.target.value)}
             placeholder={t('rejectReasonPlaceholder')}
             rows={3}
+            data-testid="kanban-task-reject-reason"
             className="w-full text-[10px] px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-destructive/50 resize-none"
           />
           <div className="flex gap-2 pt-1">
             <button
               onClick={handleReject}
               disabled={rejecting}
+              data-testid="kanban-task-reject-confirm"
               className="text-[10px] px-2.5 py-1 rounded-full bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium disabled:opacity-50"
             >
               {t('rejectConfirm')}

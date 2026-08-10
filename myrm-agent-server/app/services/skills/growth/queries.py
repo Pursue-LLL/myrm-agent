@@ -1,7 +1,6 @@
 """[INPUT]
-- ..evolution_review::EvolutionReviewRecord, list/count/get_evolution_review_records (POS: evolution 审核记录查询)
-- ..evolution_review.types::EVOLUTION_ACTION_TYPE (POS: evolution action 类型 SSOT)
-- ..case_types::SkillGrowthCase* (POS: growth case DTO)
+- ..evolution_reviews::EVOLUTION_ACTION_TYPE, EvolutionReviewRecord, list/count/get_evolution_review_records (POS: Evolution 审核生命周期门面)
+- .case_types::SkillGrowthCase* (POS: growth case DTO)
 
 [OUTPUT]
 - 审批主链 evolution / draft case 查询：列表 summary、detail 单条加载、stats 分桶计数
@@ -19,8 +18,9 @@ from sqlalchemy import case, desc, func, literal, select
 
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
-from ..evolution_review.types import EVOLUTION_ACTION_TYPE
+
 from ..evolution_reviews import (
+    EVOLUTION_ACTION_TYPE,
     EvolutionReviewRecord,
     count_evolution_review_records,
     get_evolution_review_record,
@@ -34,7 +34,9 @@ from .case_types import (
     SkillGrowthFormMetadataRead,
 )
 
-_GROWTH_STATUS_VALUES: tuple[str, ...] = tuple(status.value for status in SkillGrowthCaseStatus)
+_GROWTH_STATUS_VALUES: tuple[str, ...] = tuple(
+    status.value for status in SkillGrowthCaseStatus
+)
 
 SKILL_GROWTH_CASE_ACTION_TYPES: tuple[str, ...] = (
     "skill_draft",
@@ -116,7 +118,9 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         or _text(payload.get("content"))
         or draft_name
     )
-    proposed_content = _text(payload.get("patch_content")) or _text(payload.get("content"))
+    proposed_content = _text(payload.get("patch_content")) or _text(
+        payload.get("content")
+    )
     return SkillGrowthCaseDetailRead(
         id=f"draft:{record.id}",
         source=SkillGrowthCaseSource.DRAFT,
@@ -206,7 +210,9 @@ def _approval_case_summary(record: ApprovalRecord) -> SkillGrowthCaseSummaryRead
     return detail_to_summary(_approval_case_detail(record))
 
 
-def _evolution_case_summary(record: EvolutionReviewRecord) -> SkillGrowthCaseSummaryRead:
+def _evolution_case_summary(
+    record: EvolutionReviewRecord,
+) -> SkillGrowthCaseSummaryRead:
     return detail_to_summary(_evolution_case_detail(record))
 
 
@@ -232,8 +238,14 @@ def _approval_effective_growth_status_expr():
     growth_status = ApprovalRecord.payload["growth_status"].as_string()
     return case(
         (growth_status.in_(_GROWTH_STATUS_VALUES), growth_status),
-        (ApprovalRecord.status == "APPROVED", literal(SkillGrowthCaseStatus.APPROVED.value)),
-        (ApprovalRecord.status == "REJECTED", literal(SkillGrowthCaseStatus.REJECTED.value)),
+        (
+            ApprovalRecord.status == "APPROVED",
+            literal(SkillGrowthCaseStatus.APPROVED.value),
+        ),
+        (
+            ApprovalRecord.status == "REJECTED",
+            literal(SkillGrowthCaseStatus.REJECTED.value),
+        ),
         else_=literal(SkillGrowthCaseStatus.PENDING_REVIEW.value),
     )
 
@@ -246,7 +258,9 @@ def _evolution_effective_growth_status_expr():
     )
 
 
-async def _count_approval_cases_for_statuses(statuses: set[SkillGrowthCaseStatus]) -> int:
+async def _count_approval_cases_for_statuses(
+    statuses: set[SkillGrowthCaseStatus],
+) -> int:
     if not statuses:
         return 0
     status_values = {status.value for status in statuses}
@@ -261,7 +275,9 @@ async def _count_approval_cases_for_statuses(statuses: set[SkillGrowthCaseStatus
         return int(result.scalar_one())
 
 
-async def _count_evolution_cases_for_statuses(statuses: set[SkillGrowthCaseStatus]) -> int:
+async def _count_evolution_cases_for_statuses(
+    statuses: set[SkillGrowthCaseStatus],
+) -> int:
     if not statuses:
         return 0
     status_values = {status.value for status in statuses}
@@ -334,12 +350,17 @@ async def list_skill_growth_cases(
     return items[offset : offset + limit], total
 
 
-async def get_skill_growth_case_detail(case_id: str) -> SkillGrowthCaseDetailRead | None:
+async def get_skill_growth_case_detail(
+    case_id: str,
+) -> SkillGrowthCaseDetailRead | None:
     if case_id.startswith("draft:"):
         record_id = case_id.removeprefix("draft:")
         async with get_session() as db:
             record = await db.get(ApprovalRecord, record_id)
-            if record is None or record.action_type not in SKILL_GROWTH_CASE_ACTION_TYPES:
+            if (
+                record is None
+                or record.action_type not in SKILL_GROWTH_CASE_ACTION_TYPES
+            ):
                 return None
             return _approval_case_detail(record)
 
@@ -355,8 +376,14 @@ async def get_skill_growth_case_detail(case_id: str) -> SkillGrowthCaseDetailRea
 
 async def summarize_skill_growth_dashboard_stats() -> SkillGrowthDashboardStatsRead:
     """Return dashboard counters with SQL status bucket counts."""
-    pending_statuses = {SkillGrowthCaseStatus.PENDING_REVIEW, SkillGrowthCaseStatus.APPLY_FAILED}
-    blocked_statuses = {SkillGrowthCaseStatus.BLOCKED_LOCKED, SkillGrowthCaseStatus.FAILED_SCAN}
+    pending_statuses = {
+        SkillGrowthCaseStatus.PENDING_REVIEW,
+        SkillGrowthCaseStatus.APPLY_FAILED,
+    }
+    blocked_statuses = {
+        SkillGrowthCaseStatus.BLOCKED_LOCKED,
+        SkillGrowthCaseStatus.FAILED_SCAN,
+    }
     total, pending_review, auto_applied, blocked = await asyncio.gather(
         _count_skill_growth_cases(status=None),
         _count_cases_for_statuses(pending_statuses),

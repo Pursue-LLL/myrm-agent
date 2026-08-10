@@ -6,7 +6,7 @@ sentence-split and piped to TTS in real-time.
 
 [INPUT]
 - app.services.agent.streaming::ai_agent_service_stream (POS: Agent SSE streaming)
-- app.services.agent.profile_resolver::get_agent_profile_resolver (POS: Agent profile resolver)
+- app.services.agent.profile.profile_resolver::get_agent_profile_resolver (POS: Agent profile resolver)
 - app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader)
 - app.core.channel_bridge.config_parsers (POS: config extraction utilities)
 - app.core.channel_bridge.model_resolver (POS: model config resolution)
@@ -210,7 +210,7 @@ class VoiceAgentBridge:
             enrich_model_context_window,
             resolve_model_config,
         )
-        from app.services.agent.profile_resolver import get_agent_profile_resolver
+        from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
         try:
             configs = await load_user_configs()
@@ -308,7 +308,7 @@ class VoiceAgentBridge:
 
         from app.api.voice.voice_memory_context import voice_memory_context_from
         from app.core.agent.tool_description_locale import resolve_agent_params_locale
-        from app.services.agent.profile_resolver import (
+        from app.services.agent.profile.profile_resolver import (
             DEFAULT_ENABLED_BUILTIN_TOOLS,
             resolve_builtin_tool_flags,
         )

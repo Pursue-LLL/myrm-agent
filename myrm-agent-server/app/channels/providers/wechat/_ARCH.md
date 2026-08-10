@@ -14,3 +14,4 @@
 | `wechat_api_client.py` | 模块 | Shared Official Account API token client (messaging + drafts); token refresh; transient retry (-1/45009); locale-aware errcode hints. | ✅ |
 | `draft_service.py` | 模块 | HITL draft pipeline: resolve digest/author → title/digest/HTML visible-text compliance scan before upload (high-risk block; non-blocking hits returned); inline images before thumb; draft content = body + embedded `<style>` (from formatter SSOT) + block inline styles; uploadimg + draft/add; inline failures fail-loud. | ✅ |
 | `wechat_api_errors.py` | 模块 | Locale-aware WeChat API errcode hints for HITL onboarding (IP whitelist, busy, rate limit). | ✅ |
+| `egress_ip.py` | 模块 | Sandbox outbound public IP probe for Official Account IP whitelist setup UI. | ✅ |

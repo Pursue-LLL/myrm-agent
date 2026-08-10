@@ -4701,6 +4701,12 @@
         "test": "发送测试通知",
         "title": "通知"
       },
+      "pushStatus": {
+        "enabled": "通知已启用",
+        "disabled": "通知已禁用",
+        "denied": "通知已被阻止",
+        "unsupported": "浏览器不支持通知"
+      },
       "pushDisabled": "通知已禁用",
       "pushEnabled": "通知已启用",
       "pushTestSent": "测试通知已发送"
@@ -6123,12 +6129,25 @@
     "teamHub": {
       "title": "团队资产",
       "subtitle": "共享上下文、Wiki、技能与对话记忆 — 团队配置与审核的一站式入口。",
+      "builtIn": "内置",
       "wikiTitle": "知识库",
       "wikiDesc": "知识库与智能体作用域笔记",
       "skillsTitle": "技能",
       "skillsDesc": "已挂载能力与进化待审队列",
       "memoryTitle": "记忆",
-      "memoryDesc": "个人大脑、策略与命令中心"
+      "memoryDesc": "个人大脑、策略与命令中心",
+      "summaryLoading": "正在加载资产总览…",
+      "overviewTitle": "资产总览",
+      "blockedCount": "{count, plural, =1 {# 个智能体需要处理} other {# 个智能体需要处理}}",
+      "memoryStat": "记忆",
+      "memoryOn": "已开启",
+      "memoryOff": "已关闭",
+      "skillsStat": "技能",
+      "pendingStat": "待审核",
+      "unavailable": "不可用",
+      "agentSummary": "{skills} 个技能 · 知识库{wiki} · {cron} 个定时任务",
+      "wikiOn": "开",
+      "wikiOff": "关"
     }
   },
   "agent": {
@@ -6294,6 +6313,8 @@
     "modelBinding": "选择模型",
     "onlyOwnerCanViewPrompt": "只有智能体所有者才能查看系统提示词",
     "failedToLoadPrompt": "加载系统提示词失败，请重试",
+    "loadFailed": "智能体加载失败",
+    "loadFailed": "加载智能体失败",
     "systemPromptLoaded": "系统提示词已加载",
     "modelBindingDesc": "为此智能体绑定专用模型",
     "orgMapBadgeTitle": "组织审批策略",
@@ -6990,7 +7011,9 @@
         "subagent_risk": "子智能体风险",
         "cron_risk": "定时任务风险",
         "policy_gap": "策略覆盖度"
-      }
+      },
+      "injectionPolicyTitle": "提示注入防护",
+      "injectionPolicyDesc": "阻止此智能体的高危提示注入模式。与全局策略采用 OR 语义合并——任一侧启用拦截即生效。"
     },
     "secrets": {
       "tabTitle": "密钥管理",
@@ -8000,6 +8023,14 @@
       "clearOverride": "使用全部技能",
       "noSkills": "该智能体未配置任何技能"
     },
+    "wechatArticleHint": {
+      "title": "检测到微信公众号文章链接",
+      "description": "请为当前智能体挂载「WeChat Article Formatter」技能，以便生成可推送至公众号草稿箱的 HTML。",
+      "readyTitle": "微信排版技能已就绪",
+      "readyDescription": "Agent 完成后打开 HTML 工件，即可使用「推送到公众号草稿」。",
+      "openSkills": "打开智能体技能",
+      "dismiss": "关闭"
+    },
     "turnCapabilities": {
       "tooltip": "下一条消息能力",
       "popoverTitle": "下一条消息能力范围",
@@ -8116,7 +8147,11 @@
       "apiKeysHint": "检测到 API Key 名称，请在设置中手动填写"
     },
     "reasoningModelDisabledWithImage": "启用视觉增强后，图片需由视觉模型处理",
-    "retry": "重试"
+    "retry": "重试",
+    "archiveRestore": {
+      "invalidTitle": "归档恢复失败",
+      "invalidDescription": "无法恢复归档上下文：{error}"
+    }
   },
   "mode": {
     "fast": "快速搜索",
@@ -9023,6 +9058,21 @@
       "spacesEmpty": "暂无生效中的记忆空间",
       "bindingCount": "{count} 个绑定",
       "liveStreamTitle": "实时记忆流",
+      "layerGuide": {
+        "title": "分层对应关系",
+        "workingSet": "工作集",
+        "workingSetTypes": "对话",
+        "workingSetHint": "会话内上下文，影响本轮回复",
+        "taskState": "任务状态",
+        "taskStateTypes": "任务摘要",
+        "taskStateHint": "进行中与已完成的任务成果",
+        "longTerm": "长期记忆",
+        "longTermTypes": "画像 · 知识 · 经历 · 方法 · 已验证",
+        "longTermHint": "跨会话持久的事实与偏好",
+        "rawEvidence": "原始证据",
+        "rawEvidenceTypes": "对话历史",
+        "rawEvidenceHint": "摘要背后可追溯的原始记录"
+      },
       "liveStreamHint": "SSE 实时推送",
       "recallBurstSummary": "{count} 个检索步骤 · {summary}",
       "preCompactLiveDescription": "压缩前召回已注入 {count} 条记忆",
@@ -9539,7 +9589,16 @@
         "shared_context_write_proposal": "共享上下文提案",
         "shared_context": "共享上下文",
         "memory_manager": "记忆管理器"
-      }
+      },
+      "seedingDemo": "正在生成演示数据...",
+      "seedDemo": "体验 30 秒记忆演示",
+      "rollingBackDemo": "正在清理演示数据...",
+      "rollbackDemo": "清理演示数据",
+      "embeddingNotReady": "嵌入服务未就绪",
+      "embeddingNotReadyDesc": "请先在「设置 > 模型服务」中配置嵌入模型，再使用演示功能。",
+      "demoSeedSuccess": "演示数据已生成！",
+      "demoSeedSuccessDesc": "现在可以探索记忆图谱和语义搜索。",
+      "demoRollbackSuccess": "演示数据已清理！"
     },
     "createDialog": {
       "title": "添加记忆",
@@ -10538,6 +10597,13 @@
       "openPanel": "推送到公众号草稿",
       "titleLabel": "文章标题",
       "titlePlaceholder": "输入草稿标题",
+      "authorLabel": "作者",
+      "authorPlaceholder": "显示名称（最多 8 字）",
+      "authorHint": "显示在公众号草稿卡片上，默认使用当前智能体名称。",
+      "authorRequired": "请填写作者（最多 8 字）",
+      "digestLabel": "摘要",
+      "digestPlaceholder": "可选，卡片摘要（最多 120 字）",
+      "digestHint": "留空则自动从正文提取摘要。",
       "coverLabel": "封面图（可选）",
       "coverPlaceholder": "封面图的工作区路径",
       "coverHint": "打开面板会自动填入文章内首张本地图片路径。可修改、搜索工作区图片；若 HTML 无本地图则需手动填写。",
@@ -12194,7 +12260,14 @@
     "wechatLabelSaveError": "保存标签失败",
     "wechatOfficialTitle": "微信公众号",
     "wechatOfficialDesc": "配置认证服务号凭证，用于将文章推送到公众号草稿箱。",
-    "wechatOfficialIpWhitelistHint": "请将此服务器的公网 IP 加入公众号 IP 白名单（mp.weixin.qq.com → 设置与开发 → 基本配置）。未配置时 API 会返回 40164 错误。",
+    "wechatOfficialIpWhitelistHint": "请将下方公网 IP 加入公众号 IP 白名单（mp.weixin.qq.com → 设置与开发 → 基本配置）。",
+    "wechatOfficialEgressLabel": "服务器公网 IP",
+    "wechatOfficialEgressLoading": "正在检测出口 IP…",
+    "wechatOfficialEgressUnavailable": "无法检测出口 IP，请检查网络后刷新。",
+    "wechatOfficialEgressCopy": "复制 IP",
+    "wechatOfficialEgressCopied": "IP 已复制",
+    "wechatOfficialEgressCopyFailed": "复制 IP 失败",
+    "wechatOfficialEgressRefresh": "刷新",
     "wechatOfficialAppId": "AppID",
     "wechatOfficialAppSecret": "AppSecret",
     "wechatOfficialToken": "令牌",
@@ -13985,7 +14058,11 @@
         "monthTokens": "本月 Token",
         "monthCost": "本月费用",
         "pending": "待审批"
-      }
+      },
+      "builtin": "内置",
+      "noDescription": "暂无描述",
+      "testChat": "测试对话",
+      "settings": "设置"
     }
   },
   "settingsTabs": {

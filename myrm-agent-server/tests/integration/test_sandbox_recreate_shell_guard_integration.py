@@ -17,7 +17,7 @@ from myrm_agent_harness.api.hooks import (
     set_global_background_job_finish_handler,
 )
 
-from app.services.agent.background_job_finish_handler import (
+from app.services.agent.background_job.background_job_finish_handler import (
     ServerBackgroundJobFinishHandler,
 )
 from tests.integration.test_background_tasks_rest_api import _spawn_background

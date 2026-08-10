@@ -1,8 +1,8 @@
 """
 [INPUT]
 - app.database.models::ExperienceLedgerEvent (POS: 技能域模型。管理技能进化审批、迁移审批、学习资产事件。)
-- ..experience_ledger::list_experience_events (POS: 学习资产事件账本服务)
-- ..experience_ledger::count_experience_events (POS: 学习资产事件账本服务)
+- ..experience_ledger::list_experience_events (POS: 学习资产事件账本)
+- ..experience_ledger::count_experience_events (POS: 学习资产事件账本)
 [OUTPUT]
 - SkillGrowthProjectionEventRead / SkillGrowthProjectionSummaryRead / projection query helpers
 [POS]
@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from app.database.models import ExperienceLedgerEvent
+
 from ..experience_ledger import (
     SKILL_GROWTH_STATUS_MAP,
     ExperienceEntityType,

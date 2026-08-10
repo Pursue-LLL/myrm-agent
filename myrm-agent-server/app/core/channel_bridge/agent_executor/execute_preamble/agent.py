@@ -30,7 +30,7 @@ from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.channel_bridge.config_parsers import verify_search_service_available
 from app.core.types import MCPServerConfig
 from app.core.types.business import ModelConfig
-from app.services.agent.profile_resolver import ResolvedAgentProfile
+from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
 from ..helpers import _extract_code_exec_network, _resolve_inbound_memory_identity
 from .types import (
@@ -74,7 +74,7 @@ async def build_channel_execution_agent(
         resolve_conversation_search_enabled,
         resolve_memory_enabled,
     )
-    from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+    from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
     from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
     user_timezone = str(memory_settings.get("timezone", "")) or None

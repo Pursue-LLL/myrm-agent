@@ -13,6 +13,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from myrm_agent_harness.backends.skills.protocols import SkillBackend
+from myrm_agent_harness.backends.skills.types_metadata import SkillMetadata
 
 from app.ai_agents.general_agent.config_builders import (
     build_execution_config,
@@ -20,8 +22,6 @@ from app.ai_agents.general_agent.config_builders import (
     resolve_skill_env_map,
     wrap_with_privacy_routing,
 )
-from myrm_agent_harness.backends.skills.protocols import SkillBackend
-from myrm_agent_harness.backends.skills.types_metadata import SkillMetadata
 
 
 class _FakeSkillBackend(SkillBackend):

@@ -16,7 +16,7 @@ from typing import Annotated
 
 from pydantic import BeforeValidator
 
-from app.services.agent.builtin_tool_ids import (
+from app.services.agent.builtin_specs.builtin_tool_ids import (
     DEFAULT_ENABLED_BUILTIN_TOOLS,
     normalize_enabled_builtin_tools,
 )

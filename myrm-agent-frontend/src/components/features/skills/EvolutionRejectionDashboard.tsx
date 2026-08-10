@@ -113,10 +113,10 @@ export function EvolutionRejectionDashboard() {
         void fetchStats();
       }, 1000);
     };
-    window.addEventListener('skill_growth_updated', handleSseEvent);
+    window.addEventListener('skill-growth-updated', handleSseEvent);
     window.addEventListener('app_resync_required', handleSseEvent);
     return () => {
-      window.removeEventListener('skill_growth_updated', handleSseEvent);
+      window.removeEventListener('skill-growth-updated', handleSseEvent);
       window.removeEventListener('app_resync_required', handleSseEvent);
       clearTimeout(timeoutId);
     };

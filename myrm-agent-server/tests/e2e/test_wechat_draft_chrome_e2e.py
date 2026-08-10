@@ -36,21 +36,29 @@ _ATTACH_CHAT_JS = """(async () => {
     return { ok: false, err: 'no-bridge' };
   }
   await bridge.attachToChat(chatId);
-  const deadline = Date.now() + 30000;
+  const deadline = Date.now() + 90000;
   while (Date.now() < deadline) {
     const state = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {};
+    const openBtn = document.querySelector('[data-testid="wechat-draft-open-panel"]');
     if (
       state.chatId === chatId
       && state.isMessagesLoaded === true
       && state.notFound !== true
       && state.loadError !== true
-      && (state.messageCount ?? 0) >= 1
+      && (state.messageCount ?? 0) >= 2
+      && state.htmlArtifactWithPath === true
+      && openBtn
     ) {
-      return { ok: true, state };
+      return { ok: true, state, hasOpenBtn: true };
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  return { ok: false, state: window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {} };
+  return {
+    ok: false,
+    state: window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {},
+    hasOpenBtn: !!document.querySelector('[data-testid="wechat-draft-open-panel"]'),
+    bodySnippet: (document.body?.innerText || '').slice(0, 400),
+  };
 })()"""
 
 _SETTINGS_WECHAT_OFFICIAL_PROBE_JS = """(() => {
@@ -90,16 +98,22 @@ _SETTINGS_WECHAT_OFFICIAL_PROBE_JS = """(() => {
     channelBtn.click();
   }
   const configCard = document.querySelector('[data-testid="wechat-official-config-card"]');
+  const egressPanel = document.querySelector('[data-testid="wechat-official-egress-ip-panel"]');
   const appId = document.querySelector('#wechat-official-app-id');
   const hasHint =
     body.includes('IP 白名单') ||
     body.includes('IP whitelist') ||
-    body.includes('40164');
+    body.includes('40164') ||
+    body.includes('Server public IP') ||
+    body.includes('服务器公网 IP');
   const loading = !!document.querySelector('.animate-pulse');
+  const egressIpNode = document.querySelector('[data-testid="wechat-official-egress-ip"]');
   return {
-    ready: (!!appId || !!configCard) && hasHint && !loading,
+    ready: (!!appId || !!configCard) && !!egressPanel && hasHint && !loading,
     hasAppId: !!appId,
     hasConfigCard: !!configCard,
+    hasEgressPanel: !!egressPanel,
+    hasEgressIp: !!egressIpNode,
     hasHint,
     loading,
     pathname: location.pathname,
@@ -123,13 +137,14 @@ _ARTIFACT_WECHAT_PANEL_JS = """(() => {
   return { ok: true };
 })()"""
 
-_CLICK_CONFIRM_PUSH_JS = """(() => {
-  const confirmBtn =
-    document.querySelector('[data-testid="wechat-draft-confirm-push"]') ||
-    Array.from(document.querySelectorAll('button')).find((btn) => {
-      const text = (btn.textContent || '').trim();
-      return ['推送到草稿箱', 'Push to draft box'].includes(text);
-    });
+_CLICK_CONFIRM_AND_WAIT_COMPLIANCE_JS = """(async () => {
+  const authorInput = document.querySelector('[data-testid="wechat-draft-author-input"]');
+  if (authorInput && !(authorInput.value || '').trim()) {
+    authorInput.focus();
+    authorInput.value = 'E2EAuth';
+    authorInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  const confirmBtn = document.querySelector('[data-testid="wechat-draft-confirm-push"]');
   if (!confirmBtn) {
     return { ok: false, err: 'confirm-not-found' };
   }
@@ -137,7 +152,24 @@ _CLICK_CONFIRM_PUSH_JS = """(() => {
     return { ok: false, err: 'confirm-disabled' };
   }
   confirmBtn.click();
-  return { ok: true };
+  const deadline = Date.now() + 90000;
+  while (Date.now() < deadline) {
+    const panel = document.querySelector('[data-testid="wechat-draft-compliance-panel"]');
+    const body = document.body.innerText || '';
+    const hasBlocked =
+      !!panel ||
+      (body.includes('集赞') &&
+        (body.includes('合规') || body.includes('Compliance') || body.includes('高危') || body.includes('high risk')));
+    if (hasBlocked) {
+      return { ok: true, hasPanel: !!panel };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return {
+    ok: false,
+    err: 'compliance-timeout',
+    snippet: (document.body?.innerText || '').slice(0, 500),
+  };
 })()"""
 
 _COMPLIANCE_BLOCK_VISIBLE_JS = """(() => {
@@ -237,7 +269,7 @@ def test_wechat_draft_panel_shows_compliance_block_for_risky_html() -> None:
         attached = client.evaluate(
             page,
             _ATTACH_CHAT_JS % json.dumps(chat_id),
-            timeout_sec=90.0,
+            timeout_sec=180.0,
         )
         assert isinstance(attached, dict) and attached.get("ok") is True, attached
 
@@ -249,15 +281,18 @@ def test_wechat_draft_panel_shows_compliance_block_for_risky_html() -> None:
             page,
             """(() => {
               const btn = document.querySelector('[data-testid="wechat-draft-confirm-push"]');
-              return { ready: !!btn && !btn.disabled };
+              const author = document.querySelector('[data-testid="wechat-draft-author-input"]');
+              const authorReady = !!(author && (author.value || '').trim());
+              return { ready: !!btn && !btn.disabled && authorReady };
             })()""",
             timeout_sec=30.0,
             page_url=chat_url,
         )
         assert panel_ready.get("ready") is True, panel_ready
 
-        clicked = client.evaluate(page, _CLICK_CONFIRM_PUSH_JS, timeout_sec=30.0)
-        assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
-
-        panel_state = _wait_for_compliance_panel(client, page, chat_id, timeout_sec=90.0)
-        assert panel_state.get("ready") is True, panel_state
+        panel_state = client.evaluate(
+            page,
+            _CLICK_CONFIRM_AND_WAIT_COMPLIANCE_JS,
+            timeout_sec=120.0,
+        )
+        assert isinstance(panel_state, dict) and panel_state.get("ok") is True, panel_state

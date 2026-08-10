@@ -4701,6 +4701,12 @@
         "test": "Send test notification",
         "title": "Notifications"
       },
+      "pushStatus": {
+        "enabled": "Notifications enabled",
+        "disabled": "Notifications disabled",
+        "denied": "Notifications blocked",
+        "unsupported": "Notifications not supported"
+      },
       "pushDisabled": "Notifications disabled",
       "pushEnabled": "Notifications enabled",
       "pushTestSent": "Test notification sent"
@@ -6123,12 +6129,25 @@
     "teamHub": {
       "title": "Team assets",
       "subtitle": "Shared contexts, wiki, skills, and chat memory — one place for team setup and review.",
+      "builtIn": "Built-in",
       "wikiTitle": "Wiki",
       "wikiDesc": "Knowledge base and agent-scoped notes",
       "skillsTitle": "Skills",
       "skillsDesc": "Mounted capabilities and evolution queue",
       "memoryTitle": "Memory",
-      "memoryDesc": "Personal brain, policies, and command center"
+      "memoryDesc": "Personal brain, policies, and command center",
+      "summaryLoading": "Loading asset overview…",
+      "overviewTitle": "Asset overview",
+      "blockedCount": "{count, plural, =1 {# agent needs attention} other {# agents need attention}}",
+      "memoryStat": "Memory",
+      "memoryOn": "Enabled",
+      "memoryOff": "Off",
+      "skillsStat": "Skills",
+      "pendingStat": "Pending reviews",
+      "unavailable": "Unavailable",
+      "agentSummary": "{skills} skills · wiki {wiki} · {cron} cron",
+      "wikiOn": "on",
+      "wikiOff": "off"
     }
   },
   "agent": {
@@ -6511,6 +6530,7 @@
     "useDefaultModel": "Select model...",
     "onlyOwnerCanViewPrompt": "Only the agent owner can view the system prompt",
     "failedToLoadPrompt": "Failed to load system prompt, please try again",
+    "loadFailed": "Failed to load agent",
     "systemPromptLoaded": "System prompt loaded",
     "loginRequired": "Login Required",
     "loginRequiredDesc": "Sign in to create and manage agents",
@@ -6990,7 +7010,9 @@
         "subagent_risk": "Subagent Risk",
         "cron_risk": "Scheduled Task Risk",
         "policy_gap": "Policy Coverage"
-      }
+      },
+      "injectionPolicyTitle": "Prompt Injection Guard",
+      "injectionPolicyDesc": "Block high-threat prompt injection patterns for this agent. Merges with the global policy using OR semantics — either side enabling blocking wins."
     },
     "secrets": {
       "tabTitle": "Secrets",
@@ -8001,6 +8023,14 @@
       "clearOverride": "Use All Skills",
       "noSkills": "No skills configured for this agent"
     },
+    "wechatArticleHint": {
+      "title": "WeChat article link detected",
+      "description": "Mount the WeChat Article Formatter skill on this agent to produce HTML you can push to the Official Account draft box.",
+      "readyTitle": "WeChat formatter skill is ready",
+      "readyDescription": "After the agent finishes, open the HTML artifact and use Push to WeChat draft.",
+      "openSkills": "Open agent skills",
+      "dismiss": "Dismiss"
+    },
     "turnCapabilities": {
       "tooltip": "Next message capabilities",
       "popoverTitle": "Capabilities for Next Message",
@@ -8116,7 +8146,11 @@
       "dismiss": "Maybe Later",
       "apiKeysHint": "API key names detected — enter values manually in Settings"
     },
-    "retry": "Retry"
+    "retry": "Retry",
+    "archiveRestore": {
+      "invalidTitle": "Archive Restore Failed",
+      "invalidDescription": "Could not restore archived context: {error}"
+    }
   },
   "mode": {
     "fast": "Fast Search",
@@ -9021,6 +9055,21 @@
       "bindingCount": "{count} bindings",
       "liveStreamTitle": "Live Memory Stream",
       "liveStreamHint": "Live via SSE",
+      "layerGuide": {
+        "title": "How layers map",
+        "workingSet": "Working set",
+        "workingSetTypes": "Dialogue",
+        "workingSetHint": "in-session context that shapes replies",
+        "taskState": "Task state",
+        "taskStateTypes": "Task Summary",
+        "taskStateHint": "in-progress and finished task outcomes",
+        "longTerm": "Long-term memory",
+        "longTermTypes": "Profile · Knowledge · Experience · Method · Verified",
+        "longTermHint": "persistent facts and preferences across sessions",
+        "rawEvidence": "Raw evidence",
+        "rawEvidenceTypes": "Dialogue history",
+        "rawEvidenceHint": "traceable original records behind summaries"
+      },
       "recallBurstSummary": "{count} retrieval steps · {summary}",
       "preCompactLiveDescription": "Pre-compaction recall injected {count} memories",
       "archiveCheckpointLiveDescription": "Archive summary stored for {tool} ({path})",
@@ -9536,7 +9585,16 @@
         "shared_context_write_proposal": "Shared context proposal",
         "shared_context": "Shared context",
         "memory_manager": "Memory manager"
-      }
+      },
+      "seedingDemo": "Seeding demo data...",
+      "seedDemo": "Experience a 30-second memory demo",
+      "rollingBackDemo": "Removing demo data...",
+      "rollbackDemo": "Remove demo data",
+      "embeddingNotReady": "Embedding service not ready",
+      "embeddingNotReadyDesc": "Please configure an embedding model in Settings > Model Service before using the demo.",
+      "demoSeedSuccess": "Demo data seeded successfully!",
+      "demoSeedSuccessDesc": "You can now explore the memory graph and semantic search.",
+      "demoRollbackSuccess": "Demo data removed successfully!"
     },
     "createDialog": {
       "title": "Add Memory",
@@ -10538,6 +10596,13 @@
       "openPanel": "Push to WeChat draft",
       "titleLabel": "Article title",
       "titlePlaceholder": "Enter draft title",
+      "authorLabel": "Author",
+      "authorPlaceholder": "Display name (max 8 chars)",
+      "authorHint": "Shown on the WeChat draft card. Defaults to your agent name.",
+      "authorRequired": "Author is required (max 8 characters)",
+      "digestLabel": "Summary",
+      "digestPlaceholder": "Optional card summary (max 120 chars)",
+      "digestHint": "Leave empty to auto-generate from the article body.",
       "coverLabel": "Cover image (optional)",
       "coverPlaceholder": "Workspace path to cover image",
       "coverHint": "Opening the panel auto-fills the first local image from the article. Edit the path, search workspace images, or leave empty when the server can pick a cover from HTML.",
@@ -12194,7 +12259,14 @@
     "wechatLabelSaveError": "Failed to save label",
     "wechatOfficialTitle": "WeChat Official Account",
     "wechatOfficialDesc": "Configure verified service account credentials for article draft publishing.",
-    "wechatOfficialIpWhitelistHint": "Add this server's public IP to the Official Account IP whitelist (mp.weixin.qq.com → Settings → Development → Basic configuration). Missing whitelist entries cause API error 40164.",
+    "wechatOfficialIpWhitelistHint": "Add this server's public IP to the Official Account IP whitelist in WeChat (mp.weixin.qq.com → Settings → Development → Basic configuration).",
+    "wechatOfficialEgressLabel": "Server public IP",
+    "wechatOfficialEgressLoading": "Detecting outbound IP…",
+    "wechatOfficialEgressUnavailable": "Unable to detect outbound IP. Check network access and refresh.",
+    "wechatOfficialEgressCopy": "Copy IP",
+    "wechatOfficialEgressCopied": "IP copied",
+    "wechatOfficialEgressCopyFailed": "Failed to copy IP",
+    "wechatOfficialEgressRefresh": "Refresh",
     "wechatOfficialAppId": "App ID",
     "wechatOfficialAppSecret": "App Secret",
     "wechatOfficialToken": "Token",
@@ -14014,7 +14086,11 @@
         "monthTokens": "Month Tokens",
         "monthCost": "Month Cost",
         "pending": "Pending"
-      }
+      },
+      "builtin": "Built-in",
+      "noDescription": "No description provided.",
+      "testChat": "Test Chat",
+      "settings": "Settings"
     }
   },
   "settingsTabs": {

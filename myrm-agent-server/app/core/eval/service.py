@@ -147,7 +147,7 @@ async def _build_eval_manifest(
     prompt_fingerprint = "none"
 
     if profile_id:
-        from app.services.agent.profile_resolver import get_agent_profile_resolver
+        from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
         resolved = await get_agent_profile_resolver().resolve(profile_id)
         if resolved:

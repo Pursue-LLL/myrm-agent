@@ -163,14 +163,14 @@ class TestFastModeConverterParams:
         assert openapi_services is None
 
     def test_builtin_initializer_search_agents_exist(self):
-        from app.services.agent.builtin_initializer import _BUILTIN_AGENTS
+        from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
 
         agent_ids = {spec.id for spec in _BUILTIN_AGENTS}
         assert "builtin-fast-search" in agent_ids
         assert "builtin-deep-search" in agent_ids
 
     def test_builtin_fast_search_config(self):
-        from app.services.agent.builtin_initializer import _BUILTIN_AGENTS
+        from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
 
         spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-fast-search")
         assert spec.prompt_mode == "search"
@@ -181,7 +181,7 @@ class TestFastModeConverterParams:
         assert spec.system_prompt == ""
 
     def test_builtin_deep_search_config(self):
-        from app.services.agent.builtin_initializer import _BUILTIN_AGENTS
+        from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
 
         spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-deep-search")
         assert spec.prompt_mode == "search"

@@ -45,6 +45,29 @@ if lsof -iTCP:"${MYRM_CHROME_E2E_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
   if ! myrm_chrome_e2e_process_owns_port; then
     fail "Port ${MYRM_CHROME_E2E_PORT} is in use by a non-Myrm Chrome — free the port or set MYRM_CHROME_E2E_PORT"
   fi
+  stale_owner="$(myrm_chrome_e2e_owner_pid)"
+  [[ -n "${stale_owner}" ]] \
+    || fail "owned unhealthy Chrome listener has no resolvable pid on port ${MYRM_CHROME_E2E_PORT}"
+  echo "MYRM_CHROME_E2E_HEAL: terminate unhealthy dedicated listener pid=${stale_owner} port=${MYRM_CHROME_E2E_PORT}" >&2
+  kill "${stale_owner}" 2>/dev/null || true
+  for _ in $(seq 1 30); do
+    if ! kill -0 "${stale_owner}" 2>/dev/null \
+      && ! lsof -iTCP:"${MYRM_CHROME_E2E_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.1
+  done
+  if kill -0 "${stale_owner}" 2>/dev/null; then
+    kill -9 "${stale_owner}" 2>/dev/null || true
+  fi
+  for _ in $(seq 1 20); do
+    if ! lsof -iTCP:"${MYRM_CHROME_E2E_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.1
+  done
+  lsof -iTCP:"${MYRM_CHROME_E2E_PORT}" -sTCP:LISTEN >/dev/null 2>&1 \
+    && fail "unhealthy dedicated Chrome still owns port ${MYRM_CHROME_E2E_PORT} after exact-pid recovery"
 fi
 
 echo "MYRM_CHROME_E2E_START: launching Chrome port=${MYRM_CHROME_E2E_PORT}" >&2

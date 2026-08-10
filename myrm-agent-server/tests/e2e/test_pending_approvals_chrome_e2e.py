@@ -1,26 +1,24 @@
 """Real Chrome E2E: Fleet pendingApprovals KPI reflects kanban IN_REVIEW.
 
-Seeds IN_REVIEW tasks directly in the live server DB (the state is only
-reachable after a real agent completes a require_approval run; a UI probe
-cannot dispatch a live agent), then verifies the /agents Fleet "Pending" KPI
-ticks up in the real UI and falls back after both real REST transitions:
-approve (IN_REVIEW -> COMPLETED) and reject (IN_REVIEW -> READY).
+The IN_REVIEW state is only reachable after a real agent completes a
+require_approval run, which an E2E probe cannot dispatch. The server exposes a
+local-only fixture endpoint (`POST /chats/test/seed-kanban-in-review-fixture`)
+that drives the real KanbanService/store — the backend stays the single writer,
+so no second sqlite3 writer can corrupt its WAL. The test then verifies the
+/agents Fleet "Pending" KPI ticks up in the real UI and falls back after the
+approve (IN_REVIEW -> COMPLETED) and reject (IN_REVIEW -> READY) transitions,
+both performed like a real user inside the kanban task drawer.
 
 Every UI assertion is anchored by an independent API-level reading of the same
-metric, so a wrong DB path or a broken aggregation is diagnosed immediately
-instead of surfacing as a confusing UI-only diff. Incremental assertions
-(N -> N+1 -> N) immunize against concurrent activity from other developers
-sharing the server.
+metric (badges `pendingApprovals`), so a wrong aggregation is diagnosed
+immediately instead of surfacing as a confusing UI-only diff. Incremental
+assertions (N -> N+1 -> N) immunize against concurrent activity from other
+developers sharing the server.
 """
 
 from __future__ import annotations
 
-import json
-import os
-import sqlite3
 import time
-from pathlib import Path
-from urllib.parse import urlsplit
 
 import pytest
 
@@ -28,7 +26,9 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
+    navigate_mcp_page,
     open_mcp_page,
+    reload_mcp_page,
     wait_for_state,
     warm_ui_route,
 )
@@ -36,8 +36,6 @@ from tests.support.chrome_mcp_e2e import (
 # Reads the /agents Fleet "Pending" KPI. Stays not-ready until the label match
 # AND a rendered value are both present, so the baseline read cannot race the
 # fleet-overview fetch (the KPI card only mounts once the API has answered).
-# Diagnostic fields (href/appLayout/cards/apiBase) are attached to the not-ready
-# state so a timeout surfaces the real DOM condition instead of a bare diff.
 _PENDING_KPI_JS = """(() => {
   const appLayout = !!document.querySelector('[data-testid="app-layout"]');
   const cards = [...document.querySelectorAll('div.rounded-lg.border.p-3')]
@@ -53,7 +51,7 @@ _PENDING_KPI_JS = """(() => {
       href: location.href,
       appLayout,
       cards,
-      apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
+      visibility: document.visibilityState,
     };
   }
   const text = (pending.value ?? '').trim();
@@ -63,141 +61,9 @@ _PENDING_KPI_JS = """(() => {
     href: location.href,
     appLayout,
     cards,
-    apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
+    visibility: document.visibilityState,
   };
 })()"""
-
-
-def _probe_sqlite(
-    db_path: str, sql: str, params: tuple[object, ...] = ()
-) -> bool:
-    """Run a read probe against a possibly WAL-mode SQLite DB.
-
-    The shared E2E backend keeps `data.db` in WAL mode. A fresh connection can
-    only see rows committed after the last checkpoint when it can access the
-    `-shm` index; forcing `journal_mode=WAL` on connect rebuilds that index for
-    this reader. Without it a board seeded milliseconds earlier can be
-    invisible, which surfaces as a bogus "live DB not found" failure.
-    """
-    try:
-        conn = sqlite3.connect(db_path, timeout=15.0, isolation_level=None)
-        try:
-            conn.execute("PRAGMA busy_timeout=15000")
-            try:
-                conn.execute("PRAGMA journal_mode=WAL")
-            except sqlite3.Error:
-                # Read-only file or a foreign lock; fall back to whatever
-                # snapshot is visible through the existing -shm index.
-                pass
-            return conn.execute(sql, params).fetchone() is not None
-        finally:
-            conn.close()
-    except sqlite3.Error:
-        return False
-
-
-def _real_user_home() -> Path:
-    """Real login home (Cursor redirects HOME for spawned processes)."""
-    try:
-        import pwd
-
-        return Path(pwd.getpwuid(os.getuid()).pw_dir)
-    except (ImportError, KeyError, OSError):
-        return Path.home()
-
-
-def _private_runtime_data_dir(api_url: str) -> Path | None:
-    """Map a PRIVATE E2E API port to its isolated runtime data dir.
-
-    The dev-gate allocator registers every isolated backend in
-    `~/.local/state/myrm-isolated/registry.json` keyed by backendPort. The
-    shared stack (:8080) is not a registered runtime and returns None.
-    """
-    if not api_url:
-        return None
-    try:
-        port = int(urlsplit(api_url).port or 0)
-    except ValueError:
-        return None
-    if not port or port == 8080:
-        return None
-    registry = _real_user_home() / ".local/state/myrm-isolated/registry.json"
-    if not registry.is_file():
-        return None
-    try:
-        payload = json.loads(registry.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    records = payload.get("runtimes") if isinstance(payload, dict) else None
-    if not isinstance(records, dict):
-        return None
-    for record in records.values():
-        if not isinstance(record, dict):
-            continue
-        if record.get("backendPort") == port:
-            data_dir = record.get("dataDir")
-            if isinstance(data_dir, str) and data_dir:
-                return Path(data_dir)
-    return None
-
-
-def _resolve_live_db_path(board_id: str, api_url: str) -> str:
-    """Resolve the server's SQLite path by matching the just-created board.
-
-    In PRIVATE mode the pytest process talks to an isolated backend whose DB
-    lives under the isolated runtime data dir (registered by dev-gate keyed on
-    backendPort); the shared :8080 stack is probed by candidate instead. Every
-    candidate that owns the kanban schema is probed for the board created
-    through the API — the DB containing it is the live one. Each candidate is
-    retried a few times because the board was committed into the WAL only
-    moments ago and a WAL read can lag a checkpoint cycle.
-    """
-    candidates: list[Path] = []
-    private_data_dir = _private_runtime_data_dir(api_url)
-    if private_data_dir is not None:
-        candidates.append(private_data_dir / "data.db")
-    data_dir = os.environ.get("MYRM_DATA_DIR")
-    if data_dir:
-        candidates.append(Path(data_dir) / "data.db")
-    from app.config.settings import settings
-
-    candidates.append(Path(settings.database.sqlite_path).expanduser())
-    candidates.append(Path("/Users/yululiu/.myrm/data.db"))
-    candidates.append(Path.home() / ".myrm" / "data.db")
-
-    seen: set[str] = set()
-    for candidate in candidates:
-        key = str(candidate)
-        if key in seen:
-            continue
-        seen.add(key)
-        has_schema = _probe_sqlite(
-            key,
-            "SELECT 1 FROM sqlite_master "
-            "WHERE type='table' AND name='kanban_boards'",
-        )
-        if not has_schema:
-            continue
-        for attempt in range(3):
-            if _probe_sqlite(
-                key,
-                "SELECT 1 FROM kanban_boards WHERE id = ?",
-                (board_id,),
-            ):
-                return key
-            if attempt < 2:
-                time.sleep(1.0)
-    env_hint = {
-        "MYRM_DATA_DIR": os.environ.get("MYRM_DATA_DIR", ""),
-        "MYRM_E2E_PRIVATE_RUNTIME_ID": os.environ.get(
-            "MYRM_E2E_PRIVATE_RUNTIME_ID", ""
-        ),
-        "E2E_API_BASE": os.environ.get("E2E_API_BASE", ""),
-    }
-    raise RuntimeError(
-        f"live kanban DB not found for board {board_id}; api_url={api_url} "
-        f"env={env_hint} probed={sorted(seen)}"
-    )
 
 
 def _api_pending_approvals(api_url: str) -> int:
@@ -206,38 +72,177 @@ def _api_pending_approvals(api_url: str) -> int:
     return int(body["data"]["pendingApprovals"])
 
 
+def _wait_pending_approvals(
+    api_url: str, expected: int, *, timeout_sec: float = 15.0
+) -> int:
+    """Poll the badges API until it settles on ``expected``."""
+    deadline = time.monotonic() + timeout_sec
+    last = -1
+    while time.monotonic() < deadline:
+        last = _api_pending_approvals(api_url)
+        if last == expected:
+            return last
+        time.sleep(1.0)
+    return last
+
+
+def _seed_in_review(api_url: str) -> dict[str, str]:
+    """Create an IN_REVIEW task through the server fixture (single writer)."""
+    seeded = http_json(
+        "POST", f"{api_url}/api/v1/chats/test/seed-kanban-in-review-fixture"
+    )
+    assert isinstance(seeded, dict)
+    board_id = str(seeded.get("board_id") or "")
+    task_id = str(seeded.get("task_id") or "")
+    task_title = str(seeded.get("task_title") or "")
+    board_name = str(seeded.get("board_name") or "")
+    assert board_id and task_id and task_title and board_name
+    return {
+        "board_id": board_id,
+        "task_id": task_id,
+        "task_title": task_title,
+        "board_name": board_name,
+    }
+
+
 def _read_pending_kpi(
-    client: object, page: object, *, timeout_sec: float = 90.0
+    client: object,
+    page: object,
+    *,
+    timeout_sec: float = 90.0,
+    page_url: str | None = None,
 ) -> str:
     """Read the /agents Fleet 'Pending' KPI value (blocks until it renders)."""
-    state = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=timeout_sec)
+    state = wait_for_state(
+        client,
+        page,
+        _PENDING_KPI_JS,
+        timeout_sec=timeout_sec,
+        page_url=page_url,
+    )
     return str(state.get("text") or "")
 
 
-def _seed_in_review(db_path: str, task_id: str, board_id: str, title: str) -> None:
-    """Insert an IN_REVIEW task directly in the server DB.
+def _reload_agents(client: object, page: object, agents_url: str) -> None:
+    """Reload /agents like a real user so SWR refetches fleet-overview."""
+    reload_mcp_page(
+        client,
+        page,
+        target_url=agents_url,
+        timeout_ms=90_000,
+        ignore_cache=True,
+    )
 
-    The server keeps this DB in WAL mode, so the writer must use WAL too —
-    otherwise its commit can leave the WAL in a state the server's readers
-    cannot see. Explicit close matters as well: a live sqlite3 writer keeps the
-    WAL index pinned, so never hold the connection across the API assertions.
-    """
-    conn = sqlite3.connect(db_path, timeout=15.0)
-    try:
-        conn.execute("PRAGMA busy_timeout=15000")
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute(
-            "INSERT INTO kanban_tasks "
-            "(id, board_id, title, description, status, priority, retry_count, "
-            "max_retries, consecutive_failures, result, error, created_at, "
-            "updated_at, goal_mode, require_approval) "
-            "VALUES (?, ?, ?, '', 'in_review', 'normal', 0, 3, 0, '', '', "
-            "datetime('now'), datetime('now'), 0, 1)",
-            (task_id, board_id, title),
+
+def _open_task_drawer_and_click(
+    client: object,
+    page: object,
+    *,
+    ui_url: str,
+    board_id: str,
+    board_name: str,
+    task_id: str,
+    action: str,
+    reject_reason: str | None = None,
+) -> None:
+    """Open the kanban board, click the task card, then approve/reject in the
+    drawer — every step through the real UI like a user."""
+    kanban_url = f"{ui_url}/settings/kanban?board_id={board_id}"
+    navigate_mcp_page(client, page, kanban_url, timeout_ms=90_000)
+    view_state = wait_for_state(
+        client,
+        page,
+        f"""(() => {{
+          const view = document.querySelector('[data-testid="kanban-board-view"]');
+          const text = view?.textContent || '';
+          return {{ ready: !!view && text.includes({board_name!r}), text }};
+        }})()""",
+        timeout_sec=120.0,
+        page_url="/settings/kanban",
+    )
+    assert board_name in str(view_state.get("text") or "")
+
+    card_ready = wait_for_state(
+        client,
+        page,
+        f"""(() => {{
+          const card = document.getElementById({task_id!r});
+          return {{ ready: !!card, hasCard: !!card }};
+        }})()""",
+        timeout_sec=90.0,
+        page_url="/settings/kanban",
+    )
+    assert card_ready.get("hasCard") is True
+
+    opened = client.evaluate(
+        page,
+        f"""(() => {{
+          const card = document.getElementById({task_id!r});
+          if (!card) return false;
+          card.click();
+          return true;
+        }})()""",
+        timeout_sec=5.0,
+    )
+    assert opened is True
+
+    if action == "approve":
+        clicked = client.evaluate(
+            page,
+            """(() => {
+              const btn = document.querySelector('[data-testid="kanban-task-approve"]');
+              if (!btn) return false;
+              btn.click();
+              return true;
+            })()""",
+            timeout_sec=5.0,
         )
-        conn.commit()
-    finally:
-        conn.close()
+        assert clicked is True, "approve button not found in the drawer"
+    elif action == "reject":
+        assert reject_reason is not None
+        clicked = client.evaluate(
+            page,
+            """(() => {
+              const btn = document.querySelector('[data-testid="kanban-task-reject"]');
+              if (!btn) return false;
+              btn.click();
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert clicked is True, "reject button not found in the drawer"
+        reason_set = client.evaluate(
+            page,
+            f"""(() => {{
+              const area = document.querySelector(
+                '[data-testid="kanban-task-reject-reason"]',
+              );
+              if (!area) return false;
+              const setter = Object.getOwnPropertyDescriptor(
+                HTMLTextAreaElement.prototype, 'value',
+              ).set;
+              setter.call(area, {reject_reason!r});
+              area.dispatchEvent(new Event('input', {{ bubbles: true }}));
+              return true;
+            }})()""",
+            timeout_sec=5.0,
+        )
+        assert reason_set is True
+        confirmed = client.evaluate(
+            page,
+            """(() => {
+              const btn = document.querySelector(
+                '[data-testid="kanban-task-reject-confirm"]',
+              );
+              if (!btn) return false;
+              btn.click();
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert confirmed is True, "reject confirm button not found"
+    else:
+        raise AssertionError(f"unknown drawer action {action!r}")
 
 
 @pytest.mark.chrome_e2e(
@@ -248,101 +253,92 @@ def _seed_in_review(db_path: str, task_id: str, board_id: str, title: str) -> No
 )
 @pytest.mark.integration
 def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
-    marker = str(time.time_ns())
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
 
-    board = http_json(
-        "POST",
-        f"{api_url}/api/v1/kanban/boards",
-        {"name": f"E2E Fleet KPI Board {marker}"},
-    )
-    board_id = str(board.get("board_id") or board.get("id") or "")
-    assert board_id
-
     warm_ui_route("/agents")
+    agents_url = f"{ui_url}/agents"
 
-    approve_task_id = f"fleetkpi-apr-{marker}"
-    reject_task_id = f"fleetkpi-rej-{marker}"
-    db_path = _resolve_live_db_path(board_id, api_url)
+    with open_mcp_page(agents_url) as (client, page):
+        navigate_mcp_page(client, page, agents_url, timeout_ms=90_000)
+        # Baseline: the KPI card must be rendered, so 'before' is a digit.
+        before = _read_pending_kpi(client, page, page_url=agents_url)
+        assert before.isdigit(), f"Pending KPI not rendered; before={before!r}"
+        api_before = _api_pending_approvals(api_url)
 
-    try:
-        with open_mcp_page(f"{ui_url}/agents") as (client, page):
-            # Baseline: the KPI card must be rendered, so 'before' is a digit.
-            before = _read_pending_kpi(client, page)
-            assert before.isdigit(), f"Pending KPI not rendered; before={before!r}"
-            api_before = _api_pending_approvals(api_url)
+        # Lifecycle 1: IN_REVIEW -> approve -> COMPLETED releases the KPI.
+        seeded_apr = _seed_in_review(api_url)
+        api_after = _wait_pending_approvals(api_url, api_before + 1)
+        assert api_after == api_before + 1, (
+            f"badges API must count the seeded IN_REVIEW task: "
+            f"api_before={api_before} actual={api_after}"
+        )
+        _reload_agents(client, page, agents_url)
+        seeded = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
+        seeded_text = str(seeded.get("text") or "")
+        assert seeded_text == str(int(before) + 1), (
+            f"KPI should tick +1 after IN_REVIEW seed: before={before} "
+            f"seeded={seeded_text}"
+        )
 
-            def assert_after_seed(task_id: str, title: str) -> None:
-                # Seed AFTER the baseline read; seeding earlier would make N
-                # already include the task and the N -> N+1 delta never appear.
-                _seed_in_review(db_path, task_id, board_id, title)
-                seeded_ok = False
-                for attempt in range(3):
-                    if _probe_sqlite(
-                        db_path,
-                        "SELECT 1 FROM kanban_tasks WHERE id = ?",
-                        (task_id,),
-                    ):
-                        seeded_ok = True
-                        break
-                    if attempt < 2:
-                        time.sleep(1.0)
-                actual = _api_pending_approvals(api_url)
-                assert seeded_ok, f"IN_REVIEW seed failed for {task_id}"
-                assert actual == api_before + 1, (
-                    f"badges API must count the seeded IN_REVIEW task: "
-                    f"api_before={api_before} actual={actual} db_path={db_path}"
-                )
-                seeded = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
-                seeded_text = str(seeded.get("text") or "")
-                assert seeded_text == str(int(before) + 1), (
-                    f"KPI should tick +1 after IN_REVIEW seed: before={before} "
-                    f"seeded={seeded_text}"
-                )
+        _open_task_drawer_and_click(
+            client,
+            page,
+            ui_url=ui_url,
+            board_id=seeded_apr["board_id"],
+            board_name=seeded_apr["board_name"],
+            task_id=seeded_apr["task_id"],
+            action="approve",
+        )
+        api_released = _wait_pending_approvals(api_url, api_before)
+        assert api_released == api_before, (
+            f"badges API must fall back after approve: api_before={api_before} "
+            f"actual={api_released}"
+        )
+        _reload_agents(client, page, agents_url)
+        settled = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
+        settled_text = str(settled.get("text") or "")
+        assert settled_text == before, (
+            f"KPI should fall back after approve: before={before!r} "
+            f"settled={settled_text!r}"
+        )
 
-            def assert_after_release(action_label: str) -> None:
-                assert _api_pending_approvals(api_url) == api_before, (
-                    f"badges API must fall back after {action_label}: "
-                    f"api_before={api_before}"
-                )
-                settled = wait_for_state(
-                    client, page, _PENDING_KPI_JS, timeout_sec=90.0
-                )
-                settled_text = str(settled.get("text") or "")
-                assert settled_text == before, (
-                    f"KPI should fall back after {action_label}: before={before!r} "
-                    f"settled={settled_text!r}"
-                )
+        # Lifecycle 2: IN_REVIEW -> reject -> READY also releases the KPI.
+        seeded_rej = _seed_in_review(api_url)
+        api_after_rej = _wait_pending_approvals(api_url, api_before + 1)
+        assert api_after_rej == api_before + 1, (
+            f"badges API must count the second seeded IN_REVIEW task: "
+            f"api_before={api_before} actual={api_after_rej}"
+        )
+        _reload_agents(client, page, agents_url)
+        seeded_rej_state = wait_for_state(
+            client, page, _PENDING_KPI_JS, timeout_sec=90.0
+        )
+        seeded_rej_text = str(seeded_rej_state.get("text") or "")
+        assert seeded_rej_text == str(int(before) + 1), (
+            f"KPI should tick +1 after second IN_REVIEW seed: before={before} "
+            f"seeded={seeded_rej_text}"
+        )
 
-            # Lifecycle 1: IN_REVIEW -> approve -> COMPLETED releases the KPI.
-            assert_after_seed(approve_task_id, f"E2E Fleet KPI Task {marker}")
-            approved = http_json(
-                "POST",
-                f"{api_url}/api/v1/kanban/tasks/{approve_task_id}/approve",
-                {"approver": "e2e-operator"},
-            )
-            assert str(approved.get("status") or "") == "completed"
-            assert_after_release("approve")
-
-            # Lifecycle 2: IN_REVIEW -> reject -> READY also releases the KPI.
-            assert_after_seed(reject_task_id, f"E2E Fleet KPI Reject Task {marker}")
-            rejected = http_json(
-                "POST",
-                f"{api_url}/api/v1/kanban/tasks/{reject_task_id}/reject",
-                {"reason": "e2e reject", "approver": "e2e-operator"},
-            )
-            assert str(rejected.get("status") or "") == "ready"
-            assert_after_release("reject")
-    finally:
-        conn = sqlite3.connect(db_path, timeout=15.0)
-        try:
-            conn.execute("PRAGMA busy_timeout=15000")
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute(
-                "DELETE FROM kanban_tasks WHERE id IN (?, ?)",
-                (approve_task_id, reject_task_id),
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        _open_task_drawer_and_click(
+            client,
+            page,
+            ui_url=ui_url,
+            board_id=seeded_rej["board_id"],
+            board_name=seeded_rej["board_name"],
+            task_id=seeded_rej["task_id"],
+            action="reject",
+            reject_reason="e2e reject",
+        )
+        api_released_rej = _wait_pending_approvals(api_url, api_before)
+        assert api_released_rej == api_before, (
+            f"badges API must fall back after reject: api_before={api_before} "
+            f"actual={api_released_rej}"
+        )
+        _reload_agents(client, page, agents_url)
+        settled_rej = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
+        settled_rej_text = str(settled_rej.get("text") or "")
+        assert settled_rej_text == before, (
+            f"KPI should fall back after reject: before={before!r} "
+            f"settled={settled_rej_text!r}"
+        )

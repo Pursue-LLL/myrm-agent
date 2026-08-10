@@ -2,6 +2,20 @@
 
 Append-only event ledger for high-value learning artifacts such as migration,
 evolution, human review outcomes, and unified skill growth lifecycle events.
+
+[INPUT]
+- app.database.connection::get_session (POS: 数据库连接管理)
+- app.database.models::ExperienceLedgerEvent (POS: 学习资产事件 ORM 模型)
+- app.services.skills.growth.constants::LEDGER_GROWTH_ACTION_TYPES (POS: growth draft 分流 SSOT)
+
+[OUTPUT]
+- record_experience_event / record_skill_growth_event: 追加式事件写入
+- list_experience_events / count_experience_events: 通用事件查询
+- list_skill_growth_events / summarize_skill_growth_events: 技能成长聚合查询
+- ExperienceEntityType / ExperienceEventType / ExperienceLedgerWrite / SkillGrowthLedgerSummary: 账本枚举与 DTO
+
+[POS]
+学习资产事件账本：append-only 统一记录 migration/evolution/review/skill_growth 事件，为 evolution_review 与 growth 子域提供事件写入与聚合查询。
 """
 
 from __future__ import annotations

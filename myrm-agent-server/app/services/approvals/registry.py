@@ -138,16 +138,17 @@ class ApprovalRegistry:
             await db.commit()
             await db.refresh(record)
 
-        # Broadcast SSE (background growth drafts use NEW_SKILL_DRAFT from draft_notification)
+        # Broadcast SSE. Background growth drafts never emit from here:
+        # draft_notification owns SKILL_GROWTH_UPDATED / NEW_SKILL_DRAFT for them.
         try:
             bus = get_event_bus()
             event_type: AppEventType | None
-            if status == "PENDING" and not is_background_growth_approval(action_type, thread_id):
-                event_type = AppEventType.APPROVAL_REQUIRED
-            elif status != "PENDING":
-                event_type = AppEventType.SKILL_GROWTH_UPDATED
-            else:
+            if is_background_growth_approval(action_type, thread_id):
                 event_type = None
+            elif status == "PENDING":
+                event_type = AppEventType.APPROVAL_REQUIRED
+            else:
+                event_type = AppEventType.SKILL_GROWTH_UPDATED
 
             if event_type is not None and event_type in [e.value for e in AppEventType]:
                 bus.publish(

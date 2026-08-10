@@ -3,7 +3,7 @@
 [INPUT]
 - Hermes config.yaml ``moa`` block (flat legacy or named presets)
 - app.services.agent.agent_service::AgentService (POS: Agent CRUD)
-- app.services.agent.profile_snapshot_service::ProfileSnapshotService (POS: Agent 配置快照与回滚)
+- app.services.agent.profile.profile_snapshot_service::ProfileSnapshotService (POS: Agent 配置快照与回滚)
 - Target agent id from migration wizard instruction lane
 
 [OUTPUT]
@@ -31,7 +31,7 @@ from app.services.agent.moa_preset_resolver import (
     MOA_PRESET_FAST_ID,
     MOA_PRESET_REVIEW_ID,
 )
-from app.services.agent.profile_snapshot_service import ProfileSnapshotService
+from app.services.agent.profile.profile_snapshot_service import ProfileSnapshotService
 
 logger = logging.getLogger(__name__)
 

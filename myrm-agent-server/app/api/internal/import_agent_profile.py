@@ -2,7 +2,7 @@
 
 [INPUT]
 - services.agent.marketplace.import_::import_agent_package (POS: Server-side marketplace import)
-- services.agent.profile_snapshot_service::ProfileSnapshotService (POS: 快照服务)
+- services.agent.profile.profile_snapshot_service::ProfileSnapshotService (POS: 快照服务)
 - database.repositories.uow::UnitOfWork (POS: Unit of Work 事务层)
 
 [OUTPUT]
@@ -221,7 +221,7 @@ async def _force_update_agent(
 ) -> ImportAgentProfileResponse:
     """Snapshot existing Agent then overwrite with the marketplace package."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.profile_snapshot_service import ProfileSnapshotService
+    from app.services.agent.profile.profile_snapshot_service import ProfileSnapshotService
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
     existing = await AgentService.get_agent(agent_id)
@@ -270,7 +270,7 @@ async def _force_update_agent(
     if "cron_post_run_verify" in profile_data:
         updates["cron_post_run_verify"] = bool(profile_data["cron_post_run_verify"])
     if "enabled_builtin_tools" in profile_data:
-        from app.services.agent.builtin_tool_ids import normalize_enabled_builtin_tools
+        from app.services.agent.builtin_specs.builtin_tool_ids import normalize_enabled_builtin_tools
 
         updates["tools_allowed"] = normalize_enabled_builtin_tools(
             profile_data["enabled_builtin_tools"]

@@ -929,9 +929,9 @@ main() {
       _supervisor_delegate_or_fail ensure
       ;;
     attach)
-      if _supervisor_internal_call; then cmd_attach; exit $?; fi
-      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_attach; exit $?; fi
-      _supervisor_delegate_or_fail attach
+      # Read plane: attach only observes/waits for health and must never queue
+      # behind supervisor mutations such as ensure/reset.
+      cmd_attach
       ;;
     reset)
       if _supervisor_internal_call; then cmd_reset; exit $?; fi
@@ -939,9 +939,9 @@ main() {
       _supervisor_delegate_or_fail reset
       ;;
     status)
-      if _supervisor_internal_call; then cmd_status; exit $?; fi
-      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_status; exit $?; fi
-      _supervisor_delegate_or_fail status
+      # Read plane: status is side-effect free and must remain available while
+      # a long ensure is in flight; routing it through RPC caused false hangs.
+      cmd_status
       ;;
     backend-only)
       local subcmd="${2:-}"

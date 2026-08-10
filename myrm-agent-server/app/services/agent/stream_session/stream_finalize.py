@@ -592,7 +592,7 @@ async def finalize_agent_stream_session(
     CancellationRegistry.unregister(session.params.message_id)
     if session.request.chat_id:
         SteeringRegistry.unregister(session.request.chat_id)
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         GoalRegistry.unregister(session.request.chat_id)
 

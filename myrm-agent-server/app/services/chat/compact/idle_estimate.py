@@ -3,7 +3,7 @@
 [INPUT]
 - compact.message_io::load_chat, load_compactable_messages (POS: incremental tail slice)
 - compact._constants::idle/overhead token constants (POS: floor + overhead heuristics)
-- app.services.agent.profile_resolver (POS: agent system prompt + tool/MCP overhead)
+- app.services.agent.profile.profile_resolver (POS: agent system prompt + tool/MCP overhead)
 
 [OUTPUT]
 - estimate_idle_compact_request_tokens: request-level tokens for idle gate floor
@@ -84,7 +84,7 @@ async def estimate_idle_compact_request_overhead(agent_id: str | None) -> int:
     if not agent_id:
         return overhead
 
-    from app.services.agent.profile_resolver import get_agent_profile_resolver
+    from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
     resolved = await get_agent_profile_resolver().resolve(agent_id)
     if resolved.system_prompt:

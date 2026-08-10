@@ -39,7 +39,11 @@ Design notes:
 | `outbound_notify/` | ✅ 辅助 | Agent 主动出站 Channel 通知 | [_ARCH.md](outbound_notify/_ARCH.md) |
 | `memory_brief_telemetry/` | ✅ 核心 | Memory Brief CP 遥测（契约、dropped 落盘、metrics、flush、dispatcher） | [_ARCH.md](memory_brief_telemetry/_ARCH.md) |
 | `memory_guardian_guard_telemetry/` | ✅ 核心 | Memory Guardian 守卫不可用 CP 遥测（dispatcher + pending 落盘） | [_ARCH.md](memory_guardian_guard_telemetry/_ARCH.md) |
-| `builtin_specs/` | ✅ 核心 | 预置智能体规格数据（types + core/search/extended/vertical 分段） | [_ARCH.md](builtin_specs/_ARCH.md) |
+| `builtin_specs/` | ✅ 核心 | 预置智能体规格与 builtin 工具 SSOT（types + core/search/extended/vertical 分段；`builtin_initializer` 自动初始化 / `builtin_tool_ids` 工具 ID 清单 / `builtin_tool_validation` DTO validators） | [_ARCH.md](builtin_specs/_ARCH.md) |
+| `goals/` | ✅ 核心 | Goal 域：会话级 Goal 注册表 + draft 生成 + headless 流触发 + WAIT/orphan 恢复 | [_ARCH.md](goals/_ARCH.md) |
+| `profile/` | ✅ 核心 | Agent Profile 域：配置解析（`profile_resolver`）+ builtin 工具标志映射 + 快照回滚服务 | [_ARCH.md](profile/_ARCH.md) |
+| `background_job/` | ✅ 核心 | 后台 bash 任务域：启动 reconcile + finish 闭环 WebUI 通知 | [_ARCH.md](background_job/_ARCH.md) |
+| `tool_mount/` | ✅ 核心 | Meta-tool mount SSOT — `resolve_agent_mount` / `apply_ptc_meta_mount` | [_ARCH.md](tool_mount/_ARCH.md) |
 | `marketplace/` | ✅ 核心 | Agent Marketplace 导入/导出与包契约 SSOT | [_ARCH.md](marketplace/_ARCH.md) |
 | `params/` | ✅ 核心 | HTTP 请求 → `GeneralAgentParams` 转换层 | [_ARCH.md](params/_ARCH.md) |
 | `readiness/` | ✅ 核心 | Per-agent 配置就绪预检（6 维度 ready/warning/blocked + Settings deep link） | [_ARCH.md](readiness/_ARCH.md) |
@@ -60,33 +64,19 @@ Design notes:
 | `mcp_runtime_prepare.py` | ✅ 核心 | MCP 配置 secret/OAuth 注入 SSOT；factory build 共用 | ✅ |
 | `moa_preset_resolver.py` | ✅ 核心 | 会话级 MoA preset 激活：`presets.{default,review,fast}` 独立 ref 池 + 参数模板；profile `moa_overlay.enabled` 为 picker SSOT；请求 `active_moa_preset_id` 决定运行时 overlay `enabled` 与 ref 解析 | ✅ |
 | `mcp_surface_mode.py` | ✅ 辅助 | `engine_params.mcp_surface_mode` 归一化（obsolete `catalog_invoke` → `auto`） | ✅ |
-| `profile_snapshot_service.py` | ✅ 核心 | Agent 配置快照与回滚专用服务 — `save_profile_snapshot` / `list_profile_snapshots` / `count_profile_snapshots` / `rollback_profile` / `rollback_profile_to_snapshot`。含完整 mutable 字段 diff 检测（`has_mutable_diff`，含 `cron_post_run_verify` DB 列）、pre-rollback 保险快照、10 条 retention 裁剪；`updates_from_snapshot_data` 回滚时写回该列。由 `AgentService` 委托，供 WebUI 时光机 API 使用。 |
-| `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析 — re-export `resolve_builtin_tool_flags`（见 `profile_builtin_tools.py`）；TTL 缓存 | ✅ |
-| `profile_builtin_tools.py` | ✅ 核心 | `enabled_builtin_tools` → enable_xxx 标志映射唯一入口（`resolve_builtin_tool_flags(..., allow_answer_tool=False)`，strip deploy 不兼容工具；Fast Search 在 converter 显式 `allow_answer_tool=True`）+ metadata 规范化 helper | ✅ |
-| `tool_mount/` | ✅ 核心 | Meta-tool mount SSOT — `resolve_agent_mount` / `apply_ptc_meta_mount` | [_ARCH.md](tool_mount/_ARCH.md) |
-| `builtin_tool_ids.py` | ✅ 核心 | `enabled_builtin_tools` SSOT：19 canonical IDs（17 UI 可切换 + 2 Agent 基线无开关）；含 `skill_market` / `skill_manage`（默认 OFF，Turn1 条件挂载 `skill_market_tool` / `skill_manage_tool`）；`strip_deploy_incompatible_builtin_tools()` 按 deploy 剔除 `computer_use`（VNC）与 `external_cli`（仅 local/Tauri）；`external_cli` ON + UserConfig 有 CLI backend → Turn1 挂载 `delegate_to_agent_tool`；**persist 前** `external_cli_gate.assert_external_cli_tools_allowed()` 拒绝无 backend 的 `external_cli` 开关；`cron` 开启 → Turn1 eager（`enable_cron_eager`）；关闭则不加载；`structured_clarify` 开启 → 挂载 `ask_question_tool`（默认 ON）；`DEFAULT_ENABLED_BUILTIN_TOOLS=(web_search, memory, structured_clarify, render_ui)`；`normalize` 静默剥离 baseline ID；`persist_enabled_builtin_tools` DB 写校验 |
 | `external_cli_gate.py` | ✅ 核心 | Local persist gate：`external_cli` ∈ `enabled_builtin_tools` 时要求 Settings CLI backend 或本地 auto-detect；与 runtime `_resolve_external_agent_cfgs` 同源 |
-| `builtin_tool_validation.py` | ✅ 辅助 | Pydantic `RequiredBuiltinTools` / `OptionalBuiltinTools` validators for DTO/API models |
 | `builtin_agent_specs.py` | ✅ 门面 | 聚合 `_BUILTIN_AGENTS`（27 段规格 tuple）+ re-export 类型/工具常量；实现位于 `builtin_specs/` |
-| `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — lifespan Phase 1b 幂等创建 27 个预置智能体（从 `builtin_agent_specs` 导入规格）；sync spec-controlled 字段含 `memory_extraction_preset`；`suggestion_prompts` 仅在 DB 值为空时填充（保护用户自定义）；re-export `_BUILTIN_AGENTS`/`_TOOL_*` 保持外部导入兼容 |
 | `approval_payload.py` | ✅ 辅助 | LangGraph interrupt → ApprovalRegistry payload SSOT（nested payload 优先，flat semantic DOM HITL 字段回退） |
 | `streaming.py` | ✅ 核心 | General Agent / Deep Research Harness 流式桥接（Gateway + SSE 事件转换）；`PhaseWaiter` 通用阶段暂停/恢复门控（Clarification + Plan Confirmation HITL）；browser takeover 事件在服务端直出 `live_assist_url`（approval_required + browser_takeover_requested 同源签名链接）；finally 中检测 interrupt 类事件（approval/clarification）并发布 `awaiting_approval` session_status 激活侧边栏 per-chat 注意力指示；POOLED 路径经 `finalize_agent_session` 释放 execution cache | ✅ |
 | `swarm_fission_resume.py` | ✅ 核心 | Swarm Fission 流式包装器：拦截 `swarm_fission` 事件，调用 Harness `execute_swarm_fission`，发射带 `failed_count`/`partial_success` 的 `tasks_steps`，再以 `Command(resume=...)` 恢复父 Agent | ✅ |
 | `fission_config.py` | ✅ 辅助 | 从 Agent `engine_params.max_parallel_fission` 解析并发上限（默认 3，上限 5），供 Web/Channel/Kanban/FastSearch 统一传入 `execute_swarm_fission` |
 | `steering_registry.py` | ✅ 核心 | 会话级 Steering 令牌注册表 — 通过 chat_id 管理运行中的 SteeringToken，使 HTTP API 能在运行时注入引导消息（steer）或立即中断并注入（redirect）。与 CancellationRegistry 对称设计。 |
 | `wakeup_handler.py` | ✅ 核心 | **Idle Wakeup & Event-Driven Continuation** 的 Server 层实现（`AsyncWakeupHandler`）。Headless 续跑在 `convert_to_general_agent_params` 之后将 `channel_name` 置为 **`headless_wakeup`**（`delivery_provenance` 映射 `async_wake_consumer`），并在 `memory_channel_id` 缺省时 **固定回写 `web_chat`**，避免记忆命名空间随投递标签漂移；`_run_headless_agent` 投递流式执行前必须通过 `app.core.utils.chat_utils.convert_chat_history` 将历史转为 LangChain 消息。 |
-| `background_job_finish_handler.py` | ✅ 核心 | Harness 后台 bash 自然退出时的 WebUI 闭环：Store finish 幂等 → locale 双语完成消息 → `append_message` → `goal_wait_background_resume` → `SYSTEM_NOTIFICATION` SSE。 |
-| `background_job_startup.py` | ✅ 核心 | 启动 configure `BackgroundJobStore`（harness_dir/.myrm/background_jobs.db）并 reconcile orphaned running 行。 |
-| `goal_wait_orphan_recovery.py` | ✅ 核心 | 启动时在 Store reconcile 之后：WAIT + orphaned background pid → NEEDS_HUMAN_REVIEW + goal_needs_review SSE（对称 `pause_orphaned_active_goals`）。 |
-| `goal_wait_background_resume.py` | ✅ 核心 | background job finish 匹配 wait_on_background_job_id → exit_wait → `trigger_goal_stream_with_failure_policy(needs_human_review)`；前端 refreshActiveGoal 同步 Card |
 | `shell_background_tasks.py` | ✅ 核心 | registry + Store 合并 REST 门面；`task_id=shell:{job_id}`；`list_shell_background_tasks` / `cancel_shell_background_task` / `find_shell_background_task` / `write_shell_background_stdin`。 |
 | `context_compaction_telemetry.py` | ✅ 核心 | Context 压缩遥测分发器。配置来自 `settings.control_plane` + `settings.context_compaction_telemetry`（`ContextCompactionTelemetryConfig.from_settings()`）；读取 Harness `TaskMetrics` 快照，有界队列 + 批量 flush + 背压保护异步上报 Control Plane（`events` 契约，`X-Telemetry-Subject` 头）。 |
 | `search.py` | ✅ 辅助 | Web 搜索服务封装 | ✅ |
 | `routing_advisor.py` | ✅ 核心 | 智能路由顾问 — 根据历史事件提供高危模型的降级建议 | ✅ |
 | `browser_skill_binding.py` | ✅ 辅助 | `enable_browser` 时合并 peripheral prebuilt `browser-automation` skill（`is_core:false`）；由 `AgentFactory.create_general_agent` 调用，覆盖 Web/Cron/Channel/Kanban 全入口 | ✅ |
-| `goal_registry.py` | ✅ 核心 | 会话级 Goal 句柄全局注册表。`ServerGoalManager` 扩展 harness `GoalManager`，Goal 完成时收集 session artifacts 写入 metadata.deliverables 供前端 bundle 展示；semantic judge 通过 `platform_config.build_platform_litellm_kwargs()` 读 WebUI 默认模型（无 env fallback）。 | ✅ |
-| `goal_stream_trigger.py` | ✅ 辅助 | Goal 队列 dequeue / bg WAIT resume / loop_restart 统一 unattended headless stream；从 chat 绑定 profile 注入 `agent_id` + `user_instructions`（team protocol + output suffixes + `subagent_ids` + `agent_skill_ids` + `enabled_builtin_tools` → `resolve_agent_mount(WEB_CHAT)` + `agent_security_raw`/`enable_web_fetch`，与 Web turn1 对齐）；`GeneralAgentParams` 显式注入 `enable_memory=resolve_memory_enabled(...)`（与 cron/kanban 一致），并走 `build_agent_runtime_context` 注入 `goal_provider`（会话 GoalProvider，使 goal 生命周期「受保护路径/终态回调/dequeue」在 unattended 运行中保持激活）+ `execution_mode` + `disabled_skill_roots`（与其余入口对齐）；`handle_unattended_goal_stream_failure` SSOT（setup + runtime → NEEDS_HUMAN_REVIEW 或 keep ACTIVE + SSE）；`publish_goal_needs_review_notification` 供 orphan WAIT 恢复复用 | ✅ |
-| `goal_draft.py` | ✅ 辅助 | Goal 创建前 draft — 从 objective 生成 constraints / acceptance_criteria（Server lite LLM） | ✅ |
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置 SSOT：`load_platform_model_config` / `build_platform_litellm_kwargs` / `webui_model_preflight_warning` / `resolve_xai_search_config`；`require_platform_embedding_config` embedding 配置结构检查，`verify_platform_embedding_ready` 结构检查 + 真实探活（供 Memory A/B 评测入口 fail-fast，缺失或不可用即抛 `ConfigIncompleteError`） | ✅ |
 | `session_access_service.py` | ✅ 核心 | 会话目录 grant 持久化：bootstrap/resume/persist/revoke · 云卷部署边界 gate · resume 与 path-ASK 统一验证链 | ✅ |
 | `runtime_context.py` | ✅ 核心 | `build_agent_runtime_context` — 统一注入 `execution_mode` + `disabled_skill_roots` 至全部 agent 入口（Web/IM/Cron/Kanban/Wakeup/Eval/Goal stream/Timeout auto-resume/Offline recovery/OpenAI-compatible API/Voice） | ✅ |
@@ -125,13 +115,13 @@ Design notes:
 - `agent_type`（`individual` | `team`，团队型 Agent 运行时自动注入 Leader Operating Protocol + 成员名册）
 - `skill_configs`（per-skill `is_core` + optional `instance_name` for multi-instance skills；save 时 server 校验 instance 存在）
 - `skill_ids`
-- `mounted_skill_ids`（legacy DB column；Agent execution runtime 与产品 UI 不读；skill evolution CoW 仍通过 `evolution_review_disk_content.py` 维护）
+- `mounted_skill_ids`（legacy DB column；Agent execution runtime 与产品 UI 不读；skill evolution CoW 仍通过 `evolution_review/disk_content.py` 维护）
 - `mcp_ids`
 - `mcp_tool_selections`（per-MCP-server 工具白名单 `{server_name: [tool_name, ...]}`，由前端智能体编辑器管理，注入 `MCPConfig.tool_include` 实现工具级最小权限）
 - `enabled_builtin_tools`
 - `subagent_ids`
 - `security_overrides`
-- `default_security_preset`（per-agent 默认会话安全预设 hitl/accept_edits/explore；前端绑定/切换该 Agent 时初始化会话 `security_preset`，后端仅透出字段不套运行时逻辑，Cron/渠道无人值守保持 fail-closed）
+- `default_security_preset`（per-agent 默认会话安全预设 hitl/accept_edits/explore；前端绑定/切换该 Agent 及进入任意聊天时按默认重置会话 `security_preset`（无默认回落 hitl），后端仅透出字段不套运行时逻辑，Cron/渠道无人值守保持 fail-closed）
 - `personality_style`
 - `allow_discovery`（是否允许被其他智能体动态发现并委派）
 - `max_iterations`

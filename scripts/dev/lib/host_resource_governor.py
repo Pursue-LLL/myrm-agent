@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -84,6 +85,74 @@ def _override_slots() -> int | None:
     return max(MIN_BROWSER_SLOTS, min(MAX_BROWSER_SLOTS, value))
 
 
+def _darwin_available_memory_bytes() -> int:
+    """Return reclaimable macOS memory without spawning ``vm_stat`` per probe."""
+    import ctypes
+
+    class VmStatistics64(ctypes.Structure):
+        _fields_ = [
+            ("free_count", ctypes.c_uint32),
+            ("active_count", ctypes.c_uint32),
+            ("inactive_count", ctypes.c_uint32),
+            ("wire_count", ctypes.c_uint32),
+            ("zero_fill_count", ctypes.c_uint64),
+            ("reactivations", ctypes.c_uint64),
+            ("pageins", ctypes.c_uint64),
+            ("pageouts", ctypes.c_uint64),
+            ("faults", ctypes.c_uint64),
+            ("cow_faults", ctypes.c_uint64),
+            ("lookups", ctypes.c_uint64),
+            ("hits", ctypes.c_uint64),
+            ("purges", ctypes.c_uint64),
+            ("purgeable_count", ctypes.c_uint32),
+            ("speculative_count", ctypes.c_uint32),
+            ("decompressions", ctypes.c_uint64),
+            ("compressions", ctypes.c_uint64),
+            ("swapins", ctypes.c_uint64),
+            ("swapouts", ctypes.c_uint64),
+            ("compressor_page_count", ctypes.c_uint32),
+            ("throttled_count", ctypes.c_uint32),
+            ("external_page_count", ctypes.c_uint32),
+            ("internal_page_count", ctypes.c_uint32),
+            ("total_uncompressed_pages_in_compressor", ctypes.c_uint64),
+        ]
+
+    libsystem = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+    host = libsystem.mach_host_self()
+    stats = VmStatistics64()
+    count = ctypes.c_uint32(ctypes.sizeof(stats) // ctypes.sizeof(ctypes.c_uint32))
+    kern_success = 0
+    host_vm_info64 = 4
+    result = libsystem.host_statistics64(
+        host,
+        host_vm_info64,
+        ctypes.byref(stats),
+        ctypes.byref(count),
+    )
+    if result != kern_success:
+        return 0
+    page_size = int(os.sysconf("SC_PAGE_SIZE"))
+    available_pages = (
+        int(stats.free_count)
+        + int(stats.inactive_count)
+        + int(stats.speculative_count)
+        + int(stats.purgeable_count)
+    )
+    return available_pages * page_size
+
+
+def _available_memory_bytes() -> int:
+    if sys.platform == "darwin":
+        try:
+            return _darwin_available_memory_bytes()
+        except (AttributeError, OSError, TypeError, ValueError):
+            return 0
+    try:
+        return int(os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE"))
+    except (AttributeError, OSError, TypeError, ValueError):
+        return 0
+
+
 def collect_host_pressure_snapshot(*, now: float | None = None) -> HostPressureSnapshot:
     captured_at = time.time() if now is None else now
     cpu_count = max(1, os.cpu_count() or 1)
@@ -93,13 +162,7 @@ def collect_host_pressure_snapshot(*, now: float | None = None) -> HostPressureS
         load_1m, _, load_5m = os.getloadavg()
     except (AttributeError, OSError):
         pass
-    memory_available = 0
-    try:
-        memory_available = int(
-            os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
-        )
-    except (OSError, ValueError):
-        pass
+    memory_available = _available_memory_bytes()
     return HostPressureSnapshot(
         load_avg_1m=float(load_1m),
         load_avg_5m=float(load_5m),

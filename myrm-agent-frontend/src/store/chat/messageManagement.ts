@@ -36,6 +36,7 @@ import {
   saveChatNavigationSnapshot,
 } from '@/store/chat/chatNavigationSnapshotCache';
 import { resolveHydratedMoaPresetId, writeStoredMoaPresetId } from '@/store/chat/moaPresetStorage';
+import { normalizeSecurityPreset } from '@/store/chat/securityPreset';
 import { mergeChatSessionConfig } from '@/store/chat/chatSessionConfig';
 import { useProjectStore } from '@/store/useProjectStore';
 import { consumeMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
@@ -416,6 +417,7 @@ export const initializeChat = (
       state.incognitoMode = false;
       state.sandboxMode = false;
       state.activeMoaPresetId = null;
+      state.securityPreset = normalizeSecurityPreset(state.agentConfig?.defaultSecurityPreset);
       const timestamp = Date.now().toString(36);
       const microTime = (performance.now() * 1000).toString(36).replace('.', '');
       const randomBytes = crypto.randomBytes(8).toString('hex');
@@ -447,6 +449,7 @@ export const initializeChat = (
         draft.incognitoMode = false;
         draft.sandboxMode = false;
         draft.activeMoaPresetId = null;
+        draft.securityPreset = normalizeSecurityPreset(draft.agentConfig?.defaultSecurityPreset);
         draft.chatId = id;
       });
       actions.clearCurrentSessionMessageId();
@@ -461,6 +464,7 @@ export const initializeChat = (
         Object.assign(draft, snapshot);
         draft.chatId = id;
         draft.isMessagesLoaded = true;
+        draft.securityPreset = normalizeSecurityPreset(draft.agentConfig?.defaultSecurityPreset);
         draft.activeMoaPresetId = snapshot.incognitoMode
           ? null
           : (snapshot.activeMoaPresetId ?? null);
@@ -505,6 +509,7 @@ export const initializeChat = (
         draft.incognitoMode = false;
         draft.sandboxMode = false;
         draft.activeMoaPresetId = null;
+        draft.securityPreset = normalizeSecurityPreset(draft.agentConfig?.defaultSecurityPreset);
         draft.chatId = id;
       });
       actions.clearCurrentSessionMessageId();

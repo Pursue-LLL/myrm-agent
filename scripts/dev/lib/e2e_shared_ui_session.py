@@ -32,7 +32,7 @@ DEFAULT_SEARCH_POLICY: SearchPolicy = "hydrate_private"
 _EMPTY_POLICY_STRONG_CLEAR_DONE: set[tuple[str, str]] = set()
 _PARALLEL_BRIDGE_READY_CAP_SEC = 180.0
 _SIGNOFF_PARALLEL_BRIDGE_READY_CAP_SEC = 240.0
-_SERIAL_BRIDGE_READY_CAP_SEC = 60.0
+_SERIAL_BRIDGE_READY_CAP_SEC = 120.0
 
 
 def _parallel_bridge_ready_cap_sec() -> float:

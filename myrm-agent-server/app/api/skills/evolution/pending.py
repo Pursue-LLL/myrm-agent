@@ -1,7 +1,7 @@
 """
 [INPUT]
 - app.services.skills.evolution_reviews::EvolutionReviewRecord (POS: 以 ApprovalRecord 为唯一事实源的 evolution 审核生命周期服务)
-- app.services.skills.experience_ledger::record_experience_event (POS: 学习资产事件账本服务)
+- app.services.skills.experience_ledger::record_experience_event (POS: 学习资产事件账本)
 [OUTPUT]
 - Pending evolution review APIs
 [POS]

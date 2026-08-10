@@ -43,7 +43,7 @@ from myrm_agent_harness.utils.errors import ToolError
 from app.ai_agents.agents import AgentFactory
 from app.services.agent.params.converter import convert_to_general_agent_params
 from app.services.agent.params.models import AgentRequest
-from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
 from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 from tests.api.agent.conftest import _build_mock_user_configs
 from tests.api.agent.utils import get_model_selection

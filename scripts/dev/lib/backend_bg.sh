@@ -152,21 +152,29 @@ _start_backend_bg() {
           stored_fp="$(_read_stack_epoch_source_fingerprint)"
           current_fp="$(_backend_source_fingerprint "${server_dir}")"
           if [[ -n "${current_fp}" && ( -z "${stored_fp}" || "${stored_fp}" != "${current_fp}" ) ]]; then
-            local monorepo_root agent_root active_leases policy_py defer_reason
+            local monorepo_root agent_root active_leases policy_py defer_reason drift_action
             agent_root="$(cd "${server_dir}/.." && pwd)"
             monorepo_root="$(cd "${agent_root}/.." && pwd)"
             active_leases="$(_wave_active_lease_count "${monorepo_root}")"
-            if [[ "${active_leases}" != "0" ]]; then
-              policy_py="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py"
-              defer_reason="backend_source_drift"
-              if [[ -z "${stored_fp}" ]]; then
-                defer_reason="backend_source_fingerprint_missing"
-              fi
-              python3 "${policy_py}" record-pending \
-                --state-dir "${state_dir}" \
-                --reason "${defer_reason}" \
-                --server-dir "${server_dir}" >/dev/null 2>&1 || true
-              echo "CHROME_E2E_ATTACH: defer backend reload (${active_leases} active wave leases)" >&2
+            policy_py="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py"
+            defer_reason="backend_source_drift"
+            if [[ -z "${stored_fp}" ]]; then
+              defer_reason="backend_source_fingerprint_missing"
+            fi
+            python3 "${policy_py}" record-pending \
+              --state-dir "${state_dir}" \
+              --reason "${defer_reason}" \
+              --server-dir "${server_dir}" >/dev/null 2>&1 || true
+
+            # A healthy SHARED backend is immutable for daily attach, watchdog,
+            # coordinator and crash-heal paths. Source changes belong to a
+            # PRIVATE epoch; only an explicit maintenance command may promote
+            # them to :8080, and even that must fail closed while any logical
+            # SHARED session is live (PREPARING included, not just wave leases).
+            drift_action="$(python3 "${policy_py}" decide-drift \
+              --active-leases "${active_leases}" --drift-pending 1 2>/dev/null || echo defer)"
+            if [[ "${MYRM_SHARED_BACKEND_MAINTENANCE:-0}" != "1" || "${drift_action}" != "apply" ]]; then
+              echo "STACK_DRIFT_PENDING: keep healthy shared backend pid=${port_owner_pid}; use PRIVATE for changed backend code or explicit maintenance promotion" >&2
               echo "Backend already running (pid ${port_owner_pid})"
               return 0
             fi
@@ -178,6 +186,10 @@ _start_backend_bg() {
             need_rebuild=1
             rebuild_target="${port_owner_pid}"
           else
+            if [[ "${runtime_id}" == "shared" ]]; then
+              python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py" \
+                clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
+            fi
             echo "Backend already running (pid ${port_owner_pid})"
             return 0
           fi
@@ -315,6 +327,10 @@ os.execv(sys.argv[1], sys.argv[1:])
           # shellcheck source=stack-epoch.sh
           source "${stack_epoch_lib}"
           _bump_stack_epoch "${new_pid}" "${server_dir}" >/dev/null || true
+          if [[ "${runtime_id}" == "shared" ]]; then
+            python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py" \
+              clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
+          fi
         fi
         return 0
       fi

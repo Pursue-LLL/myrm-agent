@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.agent.skills.evolution.core.types::EvolutionProposal (POS: 标准化进化提案数据结构)
 - app.services.skills.evolution_reviews (POS: 统一的 evolution 审核生命周期服务)
+- app.services.skills.evolution_events::publish_skill_evolved_event (POS: SKILL_EVOLVED 前端刷新事件单一出口)
 [OUTPUT]
 - ApprovalResult: 审批流结果（含风控降级原因）
 - ConfidenceApprovalFlow: 多信号风控审批流

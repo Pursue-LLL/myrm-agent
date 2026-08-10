@@ -1,6 +1,7 @@
 """
 [INPUT]
 - app.database.models.approval::ApprovalRecord (POS: 统一审批记录模型)
+- ..experience_ledger::ExperienceEventType (POS: 学习资产事件账本)
 [OUTPUT]
 - Evolution growth/apply enums, approval payload models, review record DTO, payload normalization helpers
 [POS]
@@ -17,6 +18,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field, ValidationError
 
 from app.database.models import ApprovalRecord
+
 from ..experience_ledger import ExperienceEventType
 
 logger = logging.getLogger(__name__)

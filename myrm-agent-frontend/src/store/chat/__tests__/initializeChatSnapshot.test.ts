@@ -123,6 +123,74 @@ describe('initializeChat navigation snapshot', () => {
     expect(currentState.isMessagesLoaded).toBe(true);
   });
 
+  it('resets securityPreset to agent default when switching back via snapshot', () => {
+    const agentConfig = {
+      agentId: 'agent-1',
+      name: 'Test Agent',
+      defaultSecurityPreset: 'accept_edits',
+    } as unknown as AgentConfig;
+    const messages = [{ id: 'm1', role: 'user', content: 'hello' } as unknown as Message];
+
+    saveChatNavigationSnapshot('chat-a', {
+      messages,
+      agentConfig,
+      actionMode: 'agent',
+      isMessagesLoaded: true,
+      loading: false,
+    });
+
+    let currentState = {
+      chatId: 'chat-b',
+      messages: [] as Message[],
+      securityPreset: 'explore',
+    } as unknown as ChatState;
+
+    const actions = {
+      setMessages: (updater: (state: ChatState) => void) => {
+        const draft = { ...currentState } as ChatState;
+        updater(draft);
+        currentState = draft;
+      },
+      clearCurrentSessionMessageId: vi.fn(),
+    };
+
+    initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
+
+    expect(currentState.securityPreset).toBe('accept_edits');
+  });
+
+  it('falls back securityPreset to hitl on snapshot restore when agent has no default', () => {
+    const agentConfig = { agentId: 'agent-1', name: 'Test Agent' } as unknown as AgentConfig;
+    const messages = [{ id: 'm1', role: 'user', content: 'hello' } as unknown as Message];
+
+    saveChatNavigationSnapshot('chat-a', {
+      messages,
+      agentConfig,
+      actionMode: 'agent',
+      isMessagesLoaded: true,
+      loading: false,
+    });
+
+    let currentState = {
+      chatId: 'chat-b',
+      messages: [] as Message[],
+      securityPreset: 'accept_edits',
+    } as unknown as ChatState;
+
+    const actions = {
+      setMessages: (updater: (state: ChatState) => void) => {
+        const draft = { ...currentState } as ChatState;
+        updater(draft);
+        currentState = draft;
+      },
+      clearCurrentSessionMessageId: vi.fn(),
+    };
+
+    initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
+
+    expect(currentState.securityPreset).toBe('hitl');
+  });
+
   it('keeps isMessagesLoaded true during silent background refresh', async () => {
     saveChatNavigationSnapshot('chat-a', {
       messages: [{ id: 'm1', role: 'user', content: 'cached' } as unknown as Message],

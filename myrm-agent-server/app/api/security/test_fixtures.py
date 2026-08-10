@@ -128,7 +128,7 @@ async def hitl_runtime_probe(
     raw = configs.security_config_dict if configs else None
     agent_raw: dict[str, object] | None = None
     if agent_id:
-        from app.services.agent.profile_resolver import AgentProfileResolver
+        from app.services.agent.profile.profile_resolver import AgentProfileResolver
 
         resolved = await AgentProfileResolver().resolve(agent_id)
         if resolved and resolved.security_overrides:

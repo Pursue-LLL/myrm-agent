@@ -270,6 +270,14 @@ export async function testWeChatOfficialConnection(appId: string, appSecret: str
   return wechatOfficialService.test({ appId, appSecret });
 }
 
+export interface WeChatOfficialEgressIpResponse {
+  egressIp: string;
+}
+
+export async function getWeChatOfficialEgressIp(): Promise<WeChatOfficialEgressIpResponse> {
+  return apiRequest('/channels/manage/wechat-official/egress-ip');
+}
+
 export interface WeChatComplianceHit {
   category: string;
   label: string;

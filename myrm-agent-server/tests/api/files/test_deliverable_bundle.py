@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.artifact import Artifact, ArtifactVersion
-from app.services.agent.goal_registry import ServerGoalManager
+from app.services.agent.goals.goal_registry import ServerGoalManager
 
 # ══════════════════════════════════════════════════════════════════════════════
 # §1: _collect_session_deliverables
@@ -38,7 +38,7 @@ class TestCollectSessionDeliverables:
         async def _mock_get_session():
             yield db_session
 
-        from app.services.agent.goal_registry import _collect_session_deliverables
+        from app.services.agent.goals.goal_registry import _collect_session_deliverables
 
         with patch("app.database.connection.get_session", _mock_get_session):
             result = await _collect_session_deliverables(session_id)
@@ -54,7 +54,7 @@ class TestCollectSessionDeliverables:
         async def _mock_get_session():
             yield db_session
 
-        from app.services.agent.goal_registry import _collect_session_deliverables
+        from app.services.agent.goals.goal_registry import _collect_session_deliverables
 
         with patch("app.database.connection.get_session", _mock_get_session):
             result = await _collect_session_deliverables("nonexistent-session")

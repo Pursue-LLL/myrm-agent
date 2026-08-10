@@ -124,7 +124,6 @@ def run_attach_health_preflight(
     only; pending drift apply runs exclusively when wave leases == 0.
     """
     from stack_mutation_policy import (  # noqa: PLC0415
-        apply_pending_drift_if_idle,
         shared_api_http_ok,
         wave_active_lease_count,
     )
@@ -163,21 +162,8 @@ def run_attach_health_preflight(
         )
         return 1
 
-    result = apply_pending_drift_if_idle(
-        monorepo_root=monorepo_root,
-        server_dir=server_dir,
-    )
-    if result.action == "failed":
-        print(
-            f"CHROME_E2E_FAIL: attach health pending drift apply failed: {result.detail}",
-            file=sys.stderr,
-            flush=True,
-        )
-        return 1
-    if shared_api_http_ok():
-        return 0
     print(
-        "CHROME_E2E_ATTACH_HEALTH_PROBE_FAIL: shared api still down after idle drift apply",
+        "CHROME_E2E_ATTACH_HEALTH_PROBE_FAIL: shared api still down after bounded crash heal",
         file=sys.stderr,
         flush=True,
     )

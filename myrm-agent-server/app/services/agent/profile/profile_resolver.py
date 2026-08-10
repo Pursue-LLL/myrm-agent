@@ -26,17 +26,15 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Sequence
 
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 
-from app.services.agent.builtin_tool_ids import (
+from app.services.agent.builtin_specs.builtin_tool_ids import (
     DEFAULT_ENABLED_BUILTIN_TOOLS,
     InvalidBuiltinToolIdsError,
     normalize_enabled_builtin_tools,
 )
-
-from app.services.agent.profile_builtin_tools import (
+from app.services.agent.profile.profile_builtin_tools import (
     BuiltinToolFlags,
     coerce_str_tuple,
     coerce_tool_selections,
@@ -44,6 +42,15 @@ from app.services.agent.profile_builtin_tools import (
 )
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "AgentProfileResolver",
+    "BuiltinToolFlags",
+    "DEFAULT_ENABLED_BUILTIN_TOOLS",
+    "ResolvedAgentProfile",
+    "get_agent_profile_resolver",
+    "resolve_builtin_tool_flags",
+]
 
 
 _CACHE_TTL_SECONDS = 300.0
@@ -167,7 +174,7 @@ class AgentProfileResolver:
                     if raw_builtin_tools is not None
                     else DEFAULT_ENABLED_BUILTIN_TOOLS
                 )
-                from app.services.agent.builtin_tool_ids import (
+                from app.services.agent.builtin_specs.builtin_tool_ids import (
                     strip_deploy_incompatible_builtin_tools,
                     strip_legacy_builtin_tool_ids,
                 )

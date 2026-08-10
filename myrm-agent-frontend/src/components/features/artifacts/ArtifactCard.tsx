@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Artifact, ArtifactType } from '@/store/chat/types';
@@ -10,46 +10,8 @@ import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { apiRequest, getApiUrl, getStorageUrl } from '@/lib/api';
-import { pushWeChatOfficialDraft, type WeChatComplianceHit } from '@/services/channels';
-import { ApiError } from '@/lib/api';
-
-type WeChatComplianceSeverity = 'blocked' | 'warning';
-
-function normalizeWeChatComplianceHits(items: unknown): WeChatComplianceHit[] {
-  if (!Array.isArray(items)) {
-    return [];
-  }
-  const hits: WeChatComplianceHit[] = [];
-  for (const item of items) {
-    if (!item || typeof item !== 'object') {
-      continue;
-    }
-    const record = item as Record<string, unknown>;
-    const terms = Array.isArray(record.terms)
-      ? record.terms.filter((term): term is string => typeof term === 'string')
-      : [];
-    if (typeof record.category !== 'string' || typeof record.label !== 'string') {
-      continue;
-    }
-    hits.push({
-      category: record.category,
-      label: record.label,
-      terms,
-      highRisk: record.highRisk === true,
-    });
-  }
-  return hits;
-}
-
-function parseWeChatComplianceHits(data: Record<string, unknown> | undefined): WeChatComplianceHit[] {
-  if (!data || !Array.isArray(data.hits)) {
-    return [];
-  }
-  return normalizeWeChatComplianceHits(data.hits);
-}
-import { useWechatCoverSuggest } from './useWechatCoverSuggest';
-import { extractFirstLocalImageSrc } from './wechatDraftCoverUtils';
 import { OrganizePlanPanel } from './OrganizePlanPanel';
+import { WeChatDraftPanel } from './WeChatDraftPanel';
 import { isOrganizePlanArtifact } from './organizePlanUtils';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
@@ -149,29 +111,14 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const [shareTtlDays, setShareTtlDays] = useState(7);
   const [ingestLoading, setIngestLoading] = useState(false);
   const [wechatDraftOpen, setWechatDraftOpen] = useState(false);
-  const [wechatDraftTitle, setWechatDraftTitle] = useState('');
-  const [wechatDraftCoverPath, setWechatDraftCoverPath] = useState('');
-  const [wechatDraftLoading, setWechatDraftLoading] = useState(false);
-  const [wechatDraftPushSucceeded, setWechatDraftPushSucceeded] = useState(false);
-  const [wechatComplianceHits, setWechatComplianceHits] = useState<WeChatComplianceHit[]>([]);
-  const [wechatComplianceSeverity, setWechatComplianceSeverity] = useState<WeChatComplianceSeverity | null>(null);
   const isOrganizePlan = isOrganizePlanArtifact(artifact.filename);
   const [organizePlanOpen, setOrganizePlanOpen] = useState(false);
   const [organizePlanContent, setOrganizePlanContent] = useState<string | null>(null);
   const [organizePlanLoading, setOrganizePlanLoading] = useState(false);
   const chatId = useChatStore((state) => state.chatId);
   const workspaceDir = useChatStore((state) => state.workspaceDir);
-  const {
-    suggestions: wechatCoverSuggestions,
-    panelOpen: wechatCoverSuggestOpen,
-    setPanelOpen: setWechatCoverSuggestOpen,
-    loading: wechatCoverSuggestLoading,
-    selectSuggestion: selectWechatCoverSuggestion,
-  } = useWechatCoverSuggest({
-    enabled: wechatDraftOpen,
-    chatId,
-    query: wechatDraftCoverPath,
-  });
+  const agentName = useChatStore((state) => state.agentConfig?.agentName);
+  const presetName = useChatStore((state) => state.agentConfig?.presetName);
   const [artifactState, setArtifactState] = useState(artifact);
   const hasLocalPath = Boolean(artifact.file_path);
   const canPushWeChatDraft = (artifact.type as ArtifactType) === 'html' && hasLocalPath;
@@ -535,46 +482,9 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     isPublicationStale(pub, artifactState.latest_version_id),
   );
 
-  const defaultWechatDraftTitle = useMemo(() => {
-    const base = artifactState.filename.replace(/\.(wechat\.)?html?$/i, '').trim();
-    return base || artifactState.filename;
-  }, [artifactState.filename]);
-
-  useEffect(() => {
-    if (wechatDraftOpen && !wechatDraftTitle) {
-      setWechatDraftTitle(defaultWechatDraftTitle);
-    }
-  }, [wechatDraftOpen, wechatDraftTitle, defaultWechatDraftTitle]);
-
-  useEffect(() => {
-    if (!wechatDraftOpen || wechatDraftCoverPath.trim()) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void (async () => {
-      const html = await fetchInlineContent();
-      if (cancelled || !html) {
-        return;
-      }
-      const suggestedCover = extractFirstLocalImageSrc(html);
-      if (suggestedCover) {
-        setWechatDraftCoverPath((prev) => (prev.trim() ? prev : suggestedCover));
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [wechatDraftOpen, wechatDraftCoverPath, fetchInlineContent]);
-
-  const handleSelectWechatCoverSuggestion = useCallback(
-    (relativePath: string) => {
-      setWechatDraftCoverPath(relativePath);
-    },
-    [],
-  );
+  const handleDismissWeChatDraftPanel = useCallback(() => {
+    setWechatDraftOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!organizePlanOpen || organizePlanContent) {
@@ -592,72 +502,6 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
       cancelled = true;
     };
   }, [organizePlanOpen, organizePlanContent, fetchInlineContent]);
-
-  const handleDismissWeChatDraftPanel = useCallback(() => {
-    setWechatDraftOpen(false);
-    setWechatDraftPushSucceeded(false);
-    setWechatComplianceHits([]);
-    setWechatComplianceSeverity(null);
-  }, []);
-
-  const handlePushWeChatDraft = useCallback(async () => {
-    const htmlPath = artifactState.file_path;
-    if (!htmlPath) {
-      toast.error(t('wechatDraft.pathMissing'));
-      return;
-    }
-    const title = wechatDraftTitle.trim() || defaultWechatDraftTitle;
-    if (!title) {
-      toast.error(t('wechatDraft.titlePlaceholder'));
-      return;
-    }
-    setWechatDraftLoading(true);
-    setWechatDraftPushSucceeded(false);
-    setWechatComplianceHits([]);
-    setWechatComplianceSeverity(null);
-    try {
-      const payload: Parameters<typeof pushWeChatOfficialDraft>[0] = {
-        htmlPath,
-        title,
-      };
-      const coverPath = wechatDraftCoverPath.trim();
-      if (coverPath) {
-        payload.coverPath = coverPath;
-      }
-      const result = await pushWeChatOfficialDraft(payload);
-      const warnings = normalizeWeChatComplianceHits(result.complianceWarnings);
-      toast.success(t('wechatDraft.success'));
-      if (result.manageUrl) {
-        window.open(result.manageUrl, '_blank', 'noopener,noreferrer');
-      }
-      if (warnings.length > 0) {
-        setWechatComplianceHits(warnings);
-        setWechatComplianceSeverity('warning');
-        setWechatDraftPushSucceeded(true);
-        return;
-      }
-      setWechatDraftOpen(false);
-      setWechatDraftPushSucceeded(false);
-      setWechatComplianceHits([]);
-      setWechatComplianceSeverity(null);
-    } catch (error) {
-      if (error instanceof ApiError && error.businessCode === 'wechat_compliance_blocked') {
-        const hits = parseWeChatComplianceHits(error.data);
-        setWechatComplianceHits(hits);
-        setWechatComplianceSeverity('blocked');
-        toast.error(error.message || t('wechatDraft.complianceBlocked'), { duration: 6000 });
-        return;
-      }
-      const message = error instanceof Error ? error.message : t('wechatDraft.failed');
-      if (message.toLowerCase().includes('credentials not configured')) {
-        toast.error(t('wechatDraft.credentialsMissing'));
-      } else {
-        toast.error(message || t('wechatDraft.failed'));
-      }
-    } finally {
-      setWechatDraftLoading(false);
-    }
-  }, [artifactState.file_path, defaultWechatDraftTitle, t, wechatDraftCoverPath, wechatDraftTitle]);
 
   return (
     <>
@@ -855,15 +699,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               )}
               onClick={(e) => {
                 e.stopPropagation();
-                setWechatDraftOpen((prev) => {
-                  const next = !prev;
-                  if (next) {
-                    setWechatDraftPushSucceeded(false);
-                    setWechatComplianceHits([]);
-                    setWechatComplianceSeverity(null);
-                  }
-                  return next;
-                });
+                setWechatDraftOpen((prev) => !prev);
               }}
               title={t('wechatDraft.openPanel')}
               data-testid="wechat-draft-open-panel"
@@ -1078,137 +914,17 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         </div>
       )}
 
-      {canPushWeChatDraft && wechatDraftOpen && (
-        <div
-          className="mx-3 mb-3 rounded-lg border border-border/60 bg-muted/20 p-3 space-y-3"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="space-y-2">
-            <Label htmlFor={`wechat-draft-title-${artifact.id}`} className="text-xs">
-              {t('wechatDraft.titleLabel')}
-            </Label>
-            <Input
-              id={`wechat-draft-title-${artifact.id}`}
-              value={wechatDraftTitle}
-              onChange={(e) => setWechatDraftTitle(e.target.value)}
-              placeholder={t('wechatDraft.titlePlaceholder')}
-              className="h-8 text-sm"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={`wechat-draft-cover-${artifact.id}`} className="text-xs">
-              {t('wechatDraft.coverLabel')}
-            </Label>
-            <div className="space-y-1">
-              <Input
-                id={`wechat-draft-cover-${artifact.id}`}
-                value={wechatDraftCoverPath}
-                onChange={(e) => {
-                  setWechatDraftCoverPath(e.target.value);
-                  setWechatCoverSuggestOpen(true);
-                }}
-                onFocus={() => {
-                  if (chatId) {
-                    setWechatCoverSuggestOpen(true);
-                  }
-                }}
-                placeholder={t('wechatDraft.coverPlaceholder')}
-                className="h-8 text-sm"
-                autoComplete="off"
-              />
-              {chatId && wechatCoverSuggestOpen && (
-                <div className="overflow-hidden rounded-md border border-border/60 bg-popover/95 shadow-sm">
-                  {wechatCoverSuggestLoading ? (
-                    <p className="px-3 py-2 text-xs text-muted-foreground">{t('wechatDraft.coverSuggestLoading')}</p>
-                  ) : wechatCoverSuggestions.length === 0 ? (
-                    <p className="px-3 py-2 text-xs text-muted-foreground">{t('wechatDraft.coverSuggestEmpty')}</p>
-                  ) : (
-                    <ul className="max-h-36 overflow-y-auto py-1">
-                      {wechatCoverSuggestions.map((item) => (
-                        <li key={`${item.reference_type}:${item.relative_path ?? item.file_id ?? item.label}`}>
-                          <button
-                            type="button"
-                            className="flex w-full flex-col items-start px-3 py-1.5 text-left text-xs transition-colors hover:bg-accent/60"
-                            onClick={() => {
-                              const path = selectWechatCoverSuggestion(item);
-                              if (path) {
-                                handleSelectWechatCoverSuggestion(path);
-                              }
-                            }}
-                          >
-                            <span className="w-full truncate font-medium">{item.basename}</span>
-                            <span className="w-full truncate text-muted-foreground">{item.relative_path}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-snug">
-              {t('wechatDraft.coverHint')}
-            </p>
-          </div>
-          {wechatComplianceHits.length > 0 && (
-            <div
-              data-testid="wechat-draft-compliance-panel"
-              className={cn(
-                'rounded-md border p-3 space-y-2',
-                wechatComplianceSeverity === 'warning'
-                  ? 'border-amber-500/30 bg-amber-500/5'
-                  : 'border-destructive/30 bg-destructive/5',
-              )}
-            >
-              <p
-                className={cn(
-                  'text-xs font-medium',
-                  wechatComplianceSeverity === 'warning' ? 'text-amber-700 dark:text-amber-400' : 'text-destructive',
-                )}
-              >
-                {wechatComplianceSeverity === 'warning'
-                  ? t('wechatDraft.complianceSuccessTitle')
-                  : t('wechatDraft.complianceTitle')}
-              </p>
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                {wechatComplianceSeverity === 'warning'
-                  ? t('wechatDraft.complianceSuccessHint')
-                  : t('wechatDraft.complianceHint')}
-              </p>
-              <ul className="space-y-2">
-                {wechatComplianceHits.map((hit) => (
-                  <li key={hit.category} className="text-xs leading-snug">
-                    <span className="font-medium text-foreground">{hit.label}</span>
-                    <span className="ml-2 text-[11px] text-muted-foreground">
-                      {hit.highRisk ? t('wechatDraft.complianceHighRisk') : t('wechatDraft.complianceWarning')}
-                    </span>
-                    <p className="mt-1 text-muted-foreground break-words">{hit.terms.join(' · ')}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <Button
-            size="sm"
-            className="h-8 w-full sm:w-auto"
-            variant={wechatDraftPushSucceeded ? 'outline' : 'default'}
-            disabled={wechatDraftLoading}
-            data-testid="wechat-draft-confirm-push"
-            onClick={() => {
-              if (wechatDraftPushSucceeded) {
-                handleDismissWeChatDraftPanel();
-                return;
-              }
-              void handlePushWeChatDraft();
-            }}
-          >
-            {wechatDraftLoading
-              ? t('wechatDraft.pushing')
-              : wechatDraftPushSucceeded
-                ? t('wechatDraft.dismiss')
-                : t('wechatDraft.confirm')}
-          </Button>
-        </div>
+      {canPushWeChatDraft && wechatDraftOpen && artifactState.file_path && (
+        <WeChatDraftPanel
+          artifactId={artifact.id}
+          filename={artifactState.filename}
+          htmlPath={artifactState.file_path}
+          chatId={chatId ?? null}
+          agentName={agentName}
+          presetName={presetName}
+          fetchInlineContent={fetchInlineContent}
+          onComplete={handleDismissWeChatDraftPanel}
+        />
       )}
 
       {isOrganizePlan && organizePlanOpen && (

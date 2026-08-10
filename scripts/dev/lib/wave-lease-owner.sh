@@ -23,8 +23,8 @@ _wave_reap_stale_lease_state() {
   else
     bash "${wave}" reap >/dev/null 2>&1 || true
   fi
-  if [[ -f "${dev_dir}/isolated_runtime.py" ]]; then
-    python3 "${dev_dir}/isolated_runtime.py" prune >/dev/null 2>&1 || true
+  if [[ -f "${dev_dir}/isolated_runtime/cli.py" ]]; then
+    python3 "${dev_dir}/isolated_runtime/cli.py" prune >/dev/null 2>&1 || true
   fi
 }
 

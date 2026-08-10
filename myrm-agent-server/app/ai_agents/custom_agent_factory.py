@@ -670,7 +670,7 @@ class EphemeralAgentFactory:
 
         raw_builtin = self._metadata.get("enabled_builtin_tools")
         if not isinstance(raw_builtin, (list, tuple)):
-            from app.services.agent.profile_resolver import (
+            from app.services.agent.profile.profile_resolver import (
                 DEFAULT_ENABLED_BUILTIN_TOOLS,
             )
 

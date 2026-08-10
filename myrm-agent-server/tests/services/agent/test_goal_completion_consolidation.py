@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.agent.goal_registry import ServerGoalManager
+from app.services.agent.goals.goal_registry import ServerGoalManager
 
 
 @pytest.fixture
@@ -33,7 +33,7 @@ class TestGoalCompletionConsolidation:
         goal = SimpleNamespace(goal_id="goal-1", metadata={}, budget=None)
 
         with patch(
-            "app.services.agent.goal_registry._collect_session_deliverables",
+            "app.services.agent.goals.goal_registry._collect_session_deliverables",
             new_callable=AsyncMock,
             return_value=mock_deliverables,
         ):
@@ -47,7 +47,7 @@ class TestGoalCompletionConsolidation:
         goal = SimpleNamespace(goal_id="goal-2", metadata={})
 
         with patch(
-            "app.services.agent.goal_registry._collect_session_deliverables",
+            "app.services.agent.goals.goal_registry._collect_session_deliverables",
             new_callable=AsyncMock,
             return_value=[],
         ):
@@ -66,7 +66,7 @@ class TestGoalCompletionConsolidation:
         goal = SimpleNamespace(goal_id="goal-4", metadata={})
 
         with patch(
-            "app.services.agent.goal_registry._collect_session_deliverables",
+            "app.services.agent.goals.goal_registry._collect_session_deliverables",
             new_callable=AsyncMock,
             side_effect=RuntimeError("DB connection lost"),
         ):

@@ -12,7 +12,7 @@ _JOB_ID = "a" * 32
 
 @pytest.mark.asyncio
 async def test_maybe_resume_goal_after_background_job_exits_wait_and_triggers_stream():
-    from app.services.agent.goal_wait_background_resume import maybe_resume_goal_after_background_job
+    from app.services.agent.goals.goal_wait_background_resume import maybe_resume_goal_after_background_job
 
     wait_goal = Goal(
         goal_id="g1",
@@ -46,11 +46,11 @@ async def test_maybe_resume_goal_after_background_job_exits_wait_and_triggers_st
 
     with (
         patch(
-            "app.services.agent.goal_registry.GoalRegistry.get_provider",
+            "app.services.agent.goals.goal_registry.GoalRegistry.get_provider",
             return_value=provider,
         ),
         patch(
-            "app.services.agent.goal_stream_trigger.trigger_goal_stream_with_failure_policy",
+            "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream_with_failure_policy",
             new_callable=AsyncMock,
             return_value=True,
         ) as mock_trigger,
@@ -70,7 +70,7 @@ async def test_maybe_resume_goal_after_background_job_exits_wait_and_triggers_st
 
 @pytest.mark.asyncio
 async def test_maybe_resume_goal_skips_unmatched_job_id():
-    from app.services.agent.goal_wait_background_resume import maybe_resume_goal_after_background_job
+    from app.services.agent.goals.goal_wait_background_resume import maybe_resume_goal_after_background_job
 
     goal = Goal(
         goal_id="g1",
@@ -95,11 +95,11 @@ async def test_maybe_resume_goal_skips_unmatched_job_id():
 
     with (
         patch(
-            "app.services.agent.goal_registry.GoalRegistry.get_provider",
+            "app.services.agent.goals.goal_registry.GoalRegistry.get_provider",
             return_value=provider,
         ),
         patch(
-            "app.services.agent.goal_stream_trigger.trigger_goal_stream",
+            "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
             new_callable=AsyncMock,
         ) as mock_trigger,
     ):
@@ -112,7 +112,7 @@ async def test_maybe_resume_goal_skips_unmatched_job_id():
 
 @pytest.mark.asyncio
 async def test_maybe_resume_goal_returns_false_when_stream_trigger_fails():
-    from app.services.agent.goal_wait_background_resume import maybe_resume_goal_after_background_job
+    from app.services.agent.goals.goal_wait_background_resume import maybe_resume_goal_after_background_job
 
     wait_goal = Goal(
         goal_id="g1",
@@ -146,11 +146,11 @@ async def test_maybe_resume_goal_returns_false_when_stream_trigger_fails():
 
     with (
         patch(
-            "app.services.agent.goal_registry.GoalRegistry.get_provider",
+            "app.services.agent.goals.goal_registry.GoalRegistry.get_provider",
             return_value=provider,
         ),
         patch(
-            "app.services.agent.goal_stream_trigger.trigger_goal_stream",
+            "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
             new_callable=AsyncMock,
             side_effect=RuntimeError("stream failed"),
         ),

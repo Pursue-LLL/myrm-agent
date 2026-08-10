@@ -5,7 +5,7 @@ source_fingerprint matches the workspace fingerprint. Fail-closed when no match.
 
 [INPUT]
 - runtime_identity._backend_source_fingerprint (workspace FP SSOT)
-- isolated_runtime_registry (private backend ports + stateDir)
+- isolated_runtime.registry (private backend ports + stateDir)
 - stack-epoch.json per backend state dir (stored FP SSOT)
 - stack_mutation_policy (pending drift, active lease count)
 
@@ -53,8 +53,32 @@ AGENT_NEVER_SAY: Final[str] = (
     "停其他pytest|只跑一个E2E|kill其他pytest|先清wave|先清wave/tab|"
     "共享只能N个session|停止并行测试|kill wave"
 )
+CHROME_AGENT_MCP_PORT: Final[int] = 9410
+CHROME_E2E_HARNESS_PORT: Final[int] = 9333
+CHROME_INSTANCE_ISOLATION_RULE: Final[str] = (
+    "CHROME_INSTANCE_ISOLATION: chrome_e2e/parallel E2E must use ./myrm test harness "
+    f"→ ChromeE2E :{CHROME_E2E_HARNESS_PORT}; do NOT call chrome-devtools MCP "
+    f"(:{CHROME_AGENT_MCP_PORT} ChromeAgent). ChromeAgent is for URL-extraction Agent tasks only."
+)
 _CURL_STATUS_MARKER: Final[str] = "\n__MYRM_HTTP_STATUS__:"
 _LOOPBACK_HOSTS: Final[frozenset[str]] = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def browser_isolation_payload() -> dict[str, object]:
+    """Structured Chrome instance contract for Agent vs E2E (SSOT for e2e-context json)."""
+    return {
+        "agentMcp": {
+            "port": CHROME_AGENT_MCP_PORT,
+            "profile": "ChromeAgent",
+            "allowedTasks": ["提取网址"],
+            "forbiddenDuringE2e": "chrome-devtools MCP",
+        },
+        "e2eHarness": {
+            "port": CHROME_E2E_HARNESS_PORT,
+            "profile": "ChromeE2E",
+            "entry": "./myrm test -m chrome_e2e",
+        },
+    }
 
 
 def epoch_drift_attach_cap_sec(
@@ -117,6 +141,16 @@ class E2eApiContext:
     blocked: bool
     blocked_reason: str
     candidates: tuple[BackendCandidate, ...]
+
+
+def _shared_epoch_match(ctx: E2eApiContext) -> bool:
+    """Whether the shared UI backend is healthy and runs the workspace epoch."""
+    shared = [candidate for candidate in ctx.candidates if candidate.source == "shared"]
+    if shared:
+        return any(candidate.health_ok and candidate.epoch_match for candidate in shared)
+    # Empty candidates are used by focused unit fixtures. A real non-empty set
+    # without a shared candidate means only API/private verification is ready.
+    return ctx.epoch_match if not ctx.candidates else False
 
 
 def monorepo_root() -> Path:
@@ -370,7 +404,7 @@ def _port_from_api_base(api_base: str) -> int:
 
 def _enumerate_registry_candidates() -> list[tuple[str, int, str, str]]:
     _ensure_scripts_dev_importable()
-    from isolated_runtime_registry import ACTIVE_PHASES, read_registry  # noqa: PLC0415
+    from isolated_runtime.registry import ACTIVE_PHASES, read_registry  # noqa: PLC0415
 
     registry_path = isolated_registry_root() / "registry.json"
     if not registry_path.is_file():
@@ -521,20 +555,17 @@ def _blocked_reason(
     if not workspace_fp:
         return "workspace backend source_fingerprint unavailable"
     if not healthy:
-        return "no healthy backend reachable; run ./myrm ready --attach"
+        return "no healthy backend reachable; attach crash recovery required"
     stale = [item for item in healthy if not item.epoch_match]
     if stale and active_leases > 0:
         return (
             f"no backend at workspace epoch ({active_leases} active leases; "
-            "SMP may defer shared reload)"
+            "workspace backend code requires PRIVATE epoch)"
         )
     if stale and drift_pending:
-        return "pending stack drift; no private backend at workspace epoch"
+        return "pending workspace backend drift; PRIVATE epoch required"
     if stale:
-        return (
-            "all healthy backends run stale code; retry with "
-            "./myrm verify-api --ensure-backend (do not restart shared stack during parallel E2E)"
-        )
+        return "healthy shared backend is pinned to a deployed epoch; PRIVATE epoch required for workspace backend code"
     return "no verify target selected"
 
 
@@ -549,12 +580,17 @@ def _build_context_from_resolution(
     drift_action: str,
 ) -> E2eApiContext:
     if verify is not None:
-        rule = (
-            "verify-api routed to epoch-matched backend; "
-            "do not curl shared :8080; "
-            "do not use Chrome Settings UI to verify new server logic during drift "
-            "(shared :3000 always proxies :8080)"
-        )
+        if verify.source == "shared":
+            rule = (
+                "shared backend is healthy and runs the workspace epoch; SHARED browser "
+                "sessions may launch after launch-check; do not restart or stop peers"
+            )
+        else:
+            rule = (
+                "verify-api routed to an epoch-matched isolated backend; this proves "
+                "API-only readiness, not SHARED browser readiness because shared :3000 "
+                "always proxies :8080; follow next_action and do not stop peers"
+            )
         return E2eApiContext(
             verify_api_base=verify.api_base,
             shared_api_base=shared.rstrip("/"),
@@ -581,9 +617,24 @@ def _build_context_from_resolution(
         if item.source == "shared" and item.health_ok:
             fallback_base = item.api_base
             break
+    healthy = [item for item in candidates if item.health_ok]
+    stale = [item for item in healthy if not item.epoch_match]
+    if not healthy:
+        action = (
+            "Run ./myrm ready --attach --chrome for single-flight backend-only crash heal, "
+            "then reread ./myrm e2e-context json"
+        )
+    elif stale:
+        action = (
+            "Do not promote or restart shared :8080 from a browser session; the node "
+            "planner must declare PRIVATE for workspace backend code, while tests targeting "
+            "the deployed shared epoch remain SHARED; do not change mode after collect"
+        )
+    else:
+        action = "Follow the node planner result and preserve the deployed shared epoch"
     rule = (
-        f"BLOCKED: {blocked_reason}. "
-        "Use verify-api only; do not curl shared :8080; do not stop other tests."
+        f"BLOCKED: {blocked_reason}. {action}; "
+        "do not curl shared :8080 or stop other tests."
     )
     return E2eApiContext(
         verify_api_base=fallback_base,
@@ -623,7 +674,6 @@ def _resolve_e2e_api_context_impl(
     state_dir: Path | None = None,
     retry_after_apply: bool = True,  # noqa: ARG001 — kept for caller compat; drift apply moved to Coordinator
 ) -> E2eApiContext:
-    root = (monorepo or monorepo_root()).resolve()
     resolved_state = state_dir or _default_state_dir()
     shared = shared_api_base()
     workspace_fp = workspace_backend_fingerprint()
@@ -701,12 +751,10 @@ def _mux_context_fields() -> dict[str, object]:
     }
 
 
-from e2e_parallel_status import (
-    load_parallel_runtime_snapshot as _load_parallel_runtime_snapshot,
+from e2e_parallel_status import (  # noqa: E402
+    load_parallel_runtime_snapshot as _load_parallel_runtime_snapshot,  # noqa: F401
     resolve_parallel_runtime_snapshot as _resolve_parallel_runtime_snapshot,
     resolve_cap_headroom_active_test_count as _resolve_cap_headroom_active_test_count,
-    safe_active_test_count as _safe_active_test_count,
-    compute_queue_state as _compute_queue_state,
     cap_headroom_fields as _cap_headroom_fields,
     format_cap_headroom_human as _format_cap_headroom_human,
     format_queue_human as _format_queue_human,
@@ -806,6 +854,33 @@ def _compute_next_action(
 
                 if not cluster_fail_fast_suppressed_for_active_test(row):
                     return "FAIL_FAST"
+    shared_candidates = [
+        candidate for candidate in ctx.candidates if candidate.source == "shared"
+    ]
+    shared_match = _shared_epoch_match(ctx)
+    shared_healthy = any(candidate.health_ok for candidate in shared_candidates)
+    if shared_candidates and not shared_healthy:
+        # A dead shared backend is a crash-heal problem, not epoch verification.
+        # ready --attach --chrome performs a flocked backend-only heal before readiness.
+        return "ATTACH_CRASH_HEAL"
+    if (
+        not shared_match
+        and shared_healthy
+        and ctx.active_leases > 0
+    ):
+        # Running SHARED sessions pin the healthy shared backend generation.
+        # Workspace drift means new backend code must use PRIVATE; it must not
+        # serialize unrelated SHARED sessions behind an idle-only restart.
+        return "PRIVATE_EPOCH_REQUIRED"
+    if (
+        not shared_match
+        and ctx.active_leases == 0
+        and any(
+            candidate.health_ok and not candidate.epoch_match
+            for candidate in shared_candidates
+        )
+    ):
+        return "PRIVATE_EPOCH_REQUIRED"
     if headroom.get("parallelQueueExpected") is True:
         reasons = headroom.get("queueReasons", [])
         reason_list = (
@@ -819,17 +894,19 @@ def _compute_next_action(
         if operation_queue or mux_fields.get("muxColdAttachSaturated") is True:
             return "QUEUE"
     if ctx.blocked and admit_active > 0:
-        # R284: epoch-aligned SHARED must launch while peers ADMIT — not heal-wait 900s.
+        # Epoch-aligned SHARED launches immediately. A blocked epoch must not
+        # create a hidden SHARED session queue; PRIVATE has its own explicit
+        # collect-time bypass and bounded credit queue.
         if (
-            ctx.epoch_match
+            shared_match
             and str(
                 getattr(ctx, "verify_api_base", "") or ctx.shared_api_base or ""
             ).strip()
         ):
             return "PARALLEL_OK" if active_tests else "READY"
-        return "ADMIT_STACK_HEAL_WAIT"
-    if ctx.blocked and not ctx.epoch_match:
-        return "SHPOIB_OR_VERIFY_API"
+        return "PRIVATE_EPOCH_REQUIRED"
+    if not shared_match:
+        return "PRIVATE_EPOCH_REQUIRED"
     if mux_fields.get("muxColdAttachSaturated") is True:
         return "QUEUE"
     snapshot = parallel_snapshot if parallel_snapshot is not None else {}
@@ -837,7 +914,7 @@ def _compute_next_action(
         str(snapshot.get("snapshot_error")).strip()
     )
     if ctx.drift_pending and ctx.active_leases == 0 and not snapshot_unavailable:
-        return "RESTART_WHEN_IDLE"
+        return "PRIVATE_EPOCH_REQUIRED"
     if ctx.blocked:
         return "SHPOIB_OR_VERIFY_API"
     if active_tests:
@@ -847,17 +924,19 @@ def _compute_next_action(
 
 def _compute_stack_reuse(ctx: E2eApiContext, *, next_action: str) -> str:
     """Machine-readable stack reuse hint for Agent (browser-mcp §1b SSOT)."""
+    if next_action == "ATTACH_CRASH_HEAL":
+        return "attach_crash_heal"
+    if next_action == "PRIVATE_EPOCH_REQUIRED":
+        return "private_epoch"
     if next_action == "SHPOIB_OR_VERIFY_API":
         return "verify_api"
-    if ctx.epoch_match:
+    if _shared_epoch_match(ctx):
         return "attach"
     if ctx.active_leases > 0:
         return "defer_parallel"
-    if next_action == "RESTART_WHEN_IDLE":
-        return "restart_when_idle"
     if ctx.blocked:
         return "verify_api"
-    return "restart_when_idle"
+    return "private_epoch"
 
 
 def _format_agent_decision_human(
@@ -970,6 +1049,8 @@ def _context_to_dict(
     )
     payload = asdict(ctx)
     payload["candidates"] = [_candidate_to_dict(item) for item in ctx.candidates]
+    payload["verify_epoch_match"] = ctx.epoch_match
+    payload["epoch_match"] = _shared_epoch_match(ctx)
     payload["verifyTarget"] = ctx.verify_api_base
     payload.update(resolved_mux)
     payload["parallelSnapshot"] = resolved_parallel
@@ -1087,7 +1168,8 @@ def _context_to_dict(
         payload["agent_rule"] = (
             f"{payload.get('agent_rule', ctx.agent_rule)} "
             "STALE_LEASE_SUSPECT: owner test.sh dead but lease active; "
-            "./myrm wave reap; do NOT ask user to kill pytest."
+            "keep peer state intact and let Coordinator reap automatically; "
+            "re-read e2e-context with bounded retries; do NOT run wave reap or kill pytest."
         )
     next_action = _compute_next_action(
         ctx,
@@ -1097,6 +1179,10 @@ def _context_to_dict(
     )
     payload["next_action"] = next_action
     payload["agent_never_say"] = AGENT_NEVER_SAY
+    payload["browserIsolation"] = browser_isolation_payload()
+    payload["agent_rule"] = (
+        f"{payload.get('agent_rule', ctx.agent_rule)} {CHROME_INSTANCE_ISOLATION_RULE}"
+    )
     return payload
 
 
@@ -1119,7 +1205,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     wave_snapshot = load_wave_snapshot()
     counts = wave_lease_counts(wave_snapshot)
     drift_note = "yes" if ctx.drift_pending else "no"
-    match_note = "yes" if ctx.epoch_match else "no"
+    match_note = "yes" if _shared_epoch_match(ctx) else "no"
     sys.stdout.write(
         "E2E_VERIFY_API="
         f"{ctx.verify_api_base} "
@@ -1173,7 +1259,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         pass
     if ctx.blocked:
         sys.stdout.write(f"BLOCKED_REASON={ctx.blocked_reason}\n")
-        if not ctx.epoch_match:
+        if not _shared_epoch_match(ctx):
             sys.stdout.write(
                 "E2E_BLOCKED_EPOCH: shared reload deferred "
                 f"({ctx.active_leases} active leases); use SHPOIB verify-api; "
@@ -1326,7 +1412,9 @@ def _cmd_verify_api(args: argparse.Namespace) -> int:
     sys.stderr.write(
         f"MYRM_VERIFY_API: {method} {url} "
         f"(shared={ctx.shared_api_base} drift_pending={ctx.drift_pending} "
-        f"epoch_match={ctx.epoch_match} wave_leases_total={ctx.active_leases} source={ctx.source})\n"
+        f"verify_epoch_match={ctx.epoch_match} "
+        f"shared_epoch_match={_shared_epoch_match(ctx)} "
+        f"wave_leases_total={ctx.active_leases} source={ctx.source})\n"
     )
     curl_cmd: list[str] = [
         "curl",

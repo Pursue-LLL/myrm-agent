@@ -246,6 +246,8 @@ def test_resolve_author_clamps_to_wechat_limit() -> None:
     assert _resolve_author("Myrm") == "Myrm"
     assert _resolve_author("某某科技有限公司部") == "某某科技有限公司"
     assert _resolve_author("123456789") == "12345678"
+    assert _resolve_author("") == ""
+    assert _resolve_author("   ") == ""
 
 
 @pytest.mark.asyncio

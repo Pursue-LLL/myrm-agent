@@ -14,7 +14,7 @@ app = build_minimal_app("user_agents", preset="channels_local")
 
 
 async def _ensure_builtin_agents_seeded() -> None:
-    from app.services.agent.builtin_initializer import initialize_builtin_agents
+    from app.services.agent.builtin_specs.builtin_initializer import initialize_builtin_agents
 
     await initialize_builtin_agents()
 

@@ -1039,9 +1039,6 @@ def open_orchestrator_mcp_page(
     )
     try:
         from warm_shell_registry import (  # noqa: PLC0415
-            claim_sealed_target_id,
-            read_sealed_target_id,
-            seal_platform_shell,
             set_bootstrap_hot_path,
             shared_read_hot_path_decision,
         )
@@ -1058,110 +1055,41 @@ def open_orchestrator_mcp_page(
         open_url = atomic_open_url
 
         if hot.eligible:
-            route = _normalize_hot_route(url)
-            reclaim_route = open_plan.reclaim_route
-            parallel_load = _effective_parallel_load()
-            sealed_target: str | None = None
-            preassigned = os.environ.get(
-                "MYRM_E2E_PREASSIGNED_SEALED_TARGET_ID", ""
-            ).strip()
-            burst_preassigned = bool(preassigned)
-            if preassigned:
-                sealed_target = preassigned
-            # Parallel: atomic claim from TargetPool; solo: read registry (§19.13 W3b).
-            elif parallel_load >= 2:
-                sealed_target = claim_sealed_target_id(route_path=reclaim_route)
-            if sealed_target is None:
-                sealed_target = read_sealed_target_id(route_path=reclaim_route)
-            # TAB-6b: reclaim shell then post-navigate nested /settings/* (solo + parallel).
-            use_reclaim = sealed_target is not None
-            if use_reclaim and sealed_target is not None:
-                set_bootstrap_hot_path("reused")
+            # A physical page cannot move from the warmup/default BrowserContext
+            # into a session's exclusive BrowserContext. Reclaiming it only
+            # changed bookkeeping and leaked the borrowed target at teardown.
+            # The epoch seal therefore proves shared bundle warmth; every
+            # logical session still creates its own page in its own context.
+            set_bootstrap_hot_path("fast_create")
+            if _parallel_nested_settings_open(open_plan, parallel_load):
+                created = _open_parallel_nested_settings_page(
+                    daemon,
+                    session_id,
+                    url=open_url,
+                    burst_preassigned=False,
+                )
+            else:
                 try:
-                    reclaim_attempts = 1 if parallel_load >= 2 else None
-                    created = _open_page_reclaim_with_retry(
+                    created = _open_page_fast_create_with_retry(
                         daemon,
                         session_id,
-                        url=open_plan.reclaim_url,
-                        sealed_target_id=sealed_target,
-                        max_attempts=reclaim_attempts,
+                        url=open_url,
                     )
-                    if not bool(created.get("reclaimed")):
-                        set_bootstrap_hot_path("fast_create")
-                        _recreate_orchestrator_session(daemon, session_id)
-                        created = _open_page_fast_create_with_retry(
-                            daemon,
-                            session_id,
-                            url=open_url,
-                            max_attempts=4 if burst_preassigned else None,
-                        )
-                    elif parallel_load >= 2 and open_plan.post_navigate_url is None:
-                        with daemon.elevated_request_timeout(
-                            _parallel_open_page_timeout_sec(daemon)
-                        ):
-                            daemon.navigate_page(
-                                session_id,
-                                str(created["targetId"]),
-                                open_url,
-                            )
-                        created["url"] = open_url
-                    if binding_source or hot.needs_binding or force_runtime_binding:
-                        pending_binding = _resolve_pending_binding(
-                            binding_source,
-                            needs_binding=hot.needs_binding,
-                            force_binding=force_runtime_binding,
-                        )
-                except (RuntimeError, TimeoutError, OSError) as reclaim_exc:
-                    if not _is_retryable_open_page_error(str(reclaim_exc)):
+                except (RuntimeError, TimeoutError, OSError) as hot_exc:
+                    if not _is_retryable_open_page_error(str(hot_exc)):
                         raise
-                    set_bootstrap_hot_path("fast_create")
                     _recreate_orchestrator_session(daemon, session_id)
                     created = _open_page_fast_create_with_retry(
                         daemon,
                         session_id,
                         url=open_url,
-                        max_attempts=4 if burst_preassigned else None,
                     )
-                    if binding_source or hot.needs_binding or force_runtime_binding:
-                        pending_binding = _resolve_pending_binding(
-                            binding_source,
-                            needs_binding=hot.needs_binding,
-                            force_binding=force_runtime_binding,
-                        )
-            else:
-                if _parallel_nested_settings_open(open_plan, parallel_load):
-                    created = _open_parallel_nested_settings_page(
-                        daemon,
-                        session_id,
-                        url=open_url,
-                        burst_preassigned=burst_preassigned,
-                    )
-                else:
-                    set_bootstrap_hot_path("fast_create")
-                    try:
-                        created = _open_page_fast_create_with_retry(
-                            daemon,
-                            session_id,
-                            url=open_url,
-                            max_attempts=4 if burst_preassigned else None,
-                        )
-                    except (RuntimeError, TimeoutError, OSError) as hot_exc:
-                        if not _is_retryable_open_page_error(str(hot_exc)):
-                            raise
-                        set_bootstrap_hot_path("fast_create")
-                        _recreate_orchestrator_session(daemon, session_id)
-                        created = _open_page_fast_create_with_retry(
-                            daemon,
-                            session_id,
-                            url=open_url,
-                            max_attempts=4 if burst_preassigned else None,
-                        )
-                if binding_source or hot.needs_binding or force_runtime_binding:
-                    pending_binding = _resolve_pending_binding(
-                        binding_source,
-                        needs_binding=hot.needs_binding,
-                        force_binding=force_runtime_binding,
-                    )
+            if binding_source or hot.needs_binding or force_runtime_binding:
+                pending_binding = _resolve_pending_binding(
+                    binding_source,
+                    needs_binding=hot.needs_binding,
+                    force_binding=force_runtime_binding,
+                )
         elif binding_source:
             set_bootstrap_hot_path("cold")
             try:
@@ -1239,7 +1167,6 @@ def open_orchestrator_mcp_page(
                         session_id,
                         url=open_url,
                     )
-        seal_platform_shell(ui_url=url)
         page.page_id = int(created["pageId"])
         page.target_id = str(created["targetId"])
         page.url = str(created.get("url", url))
@@ -1340,19 +1267,11 @@ def open_app_route_page(
         request_timeout_sec=effective_timeout,
     )
     try:
-        sealed_target: str | None = None
-        preassigned = os.environ.get("MYRM_E2E_PREASSIGNED_SEALED_TARGET_ID", "").strip()
-        if preassigned:
-            sealed_target = preassigned
-        elif parallel_load >= 2:
-            # Parallel sealed-shell claim caused cross-session "does not own target"
-            # under loaded 3-way; openAppRoute cold-create is safe (§19.11.6).
-            sealed_target = None
         result = daemon.open_app_route(
             session_id,
             url=url,
             shell_path=f"{get_e2e_ui_url().rstrip('/')}{manifest.shell_path}",
-            sealed_target_id=sealed_target,
+            sealed_target_id=None,
             hydration_probe=probe_js,
             hydrate_timeout_sec=hydrate_timeout_sec,
             binding_expression=binding_expression,

@@ -30,6 +30,12 @@ import {
 
 type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets' | 'faq' | 'inbox';
 
+/** Settings page URL hashes that auto-select a tab on the agent editor. */
+const HASH_TAB_MAP: Record<string, ConfigTab> = {
+  loadout: 'capabilities',
+  secrets: 'secrets',
+};
+
 interface AgentEditPanelProps {
   agentId: string | null;
   isNew?: boolean;
@@ -59,9 +65,14 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
 
   useEffect(() => {
     if (typeof window === 'undefined' || isNew) return;
-    const hash = window.location.hash.replace(/^#/, '');
-    if (hash !== 'loadout') return;
-    setActiveTab('capabilities');
+    const applyHashTab = () => {
+      const hash = window.location.hash.replace(/^#/, '');
+      const tab = HASH_TAB_MAP[hash];
+      if (tab) setActiveTab(tab);
+    };
+    applyHashTab();
+    window.addEventListener('hashchange', applyHashTab);
+    return () => window.removeEventListener('hashchange', applyHashTab);
   }, [agentId, isNew]);
 
   const fetchMarketSkills = useSkillStore((state) => state.fetchMarketSkills);

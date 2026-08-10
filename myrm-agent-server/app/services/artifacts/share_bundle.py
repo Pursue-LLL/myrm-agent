@@ -186,8 +186,7 @@ def resolve_share_bundle_file(
         rel = manifest.entry
 
     target = (bundle_root / rel).resolve()
-    root_resolved = bundle_root.resolve()
-    if not str(target).startswith(str(root_resolved)):
+    if not target.is_relative_to(bundle_root.resolve()):
         return None
     if not target.is_file() or target.name == _MANIFEST_NAME:
         return None

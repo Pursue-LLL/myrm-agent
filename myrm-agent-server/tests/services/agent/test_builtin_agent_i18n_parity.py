@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from app.services.agent.builtin_initializer import _BUILTIN_AGENTS
+from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
 
 _FRONTEND_I18N_DATA = (
     Path(__file__).resolve().parents[4]

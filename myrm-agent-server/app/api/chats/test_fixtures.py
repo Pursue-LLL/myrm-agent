@@ -13,6 +13,7 @@ seed_skill_chip_transcript_fixture: 创建带 `[use skill]` wire 前缀的用户
 seed_skill_chip_composer_fixture: 创建绑定 systematic-debugging 的空会话（Slash chip composer Chrome E2E）
 seed_embed_fixture: 创建带 YouTube markdown 链接的 assistant 消息（Link Embeds Chrome E2E）
 seed_kanban_closure_fixture: 创建 Kanban 看板/任务 + Chat 内 kanban_tasks_created 卡片数据
+seed_kanban_in_review_fixture: 创建 IN_REVIEW 看板任务（Fleet pendingApprovals KPI Chrome E2E）
 seed_deliverable_link_fixture: 见 test_fixtures_deliverable.py（workspace 文件 + inline deliverable markdown）
 seed_copilot_fixture: 见 test_fixtures_copilot.py（assistant markdown + active run digest，Lean Co-Pilot Chrome E2E）
 seed_prior_chat_fixture: 见 test_fixtures_prior_chat.py（composer @chat: mention Chrome E2E）
@@ -61,15 +62,16 @@ from .test_fixtures_guardrail_bash import router as guardrail_bash_fixture_route
 from .test_fixtures_memory_lifecycle import router as memory_lifecycle_fixture_router
 from .test_fixtures_prior_chat import router as prior_chat_fixture_router
 from .test_fixtures_revert import router as revert_fixture_router
+from .test_fixtures_security_preset import router as security_preset_fixture_router
 from .test_fixtures_stream_retry_busy import (
     router as stream_retry_busy_fixture_router,
 )
 from .test_fixtures_tool_history_recovery import (
     router as tool_history_recovery_fixture_router,
 )
+from .test_fixtures_wechat_draft import router as wechat_draft_fixture_router
 from .test_fixtures_wiki_dedup import router as wiki_dedup_fixture_router
 from .test_fixtures_wiki_provenance import router as wiki_provenance_fixture_router
-from .test_fixtures_wechat_draft import router as wechat_draft_fixture_router
 from .test_fixtures_workspace_merge import router as workspace_merge_fixture_router
 
 router = APIRouter()
@@ -378,6 +380,50 @@ async def seed_kanban_closure_fixture() -> dict[str, str]:
     }
 
 
+@router.post("/test/seed-kanban-in-review-fixture", include_in_schema=False)
+async def seed_kanban_in_review_fixture() -> dict[str, str]:
+    """Local dev/test only: seed a board task in IN_REVIEW state for Chrome E2E.
+
+    The IN_REVIEW state is only reachable after a real agent completes a
+    require_approval run, which an E2E probe cannot dispatch. Instead of
+    writing the SQLite file directly (a second writer corrupts the server's
+    WAL), this fixture drives the same KanbanService/store the HTTP layer
+    uses — the backend remains the single writer.
+    """
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    marker = uuid4().hex[:8]
+    board_name = f"Kanban IN_REVIEW E2E {marker}"
+    task_title = f"IN_REVIEW task {marker}"
+
+    kanban = KanbanService.get_instance()
+    board = await kanban.create_board(
+        board_name, description="Kanban IN_REVIEW Fleet KPI Chrome E2E"
+    )
+    task = await kanban.add_task(
+        board.board_id,
+        task_title,
+        priority=TaskPriority.NORMAL,
+        require_approval=True,
+    )
+    moved = await kanban.store.transition_task_status(
+        task.task_id, TaskStatus.READY, TaskStatus.IN_REVIEW
+    )
+    if moved is None:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to move task {task.task_id} to IN_REVIEW",
+        )
+
+    return {
+        "board_id": board.board_id,
+        "task_id": task.task_id,
+        "task_title": task_title,
+        "board_name": board_name,
+    }
+
+
 router.include_router(deliverable_fixture_router)
 router.include_router(copilot_fixture_router)
 router.include_router(clarify_refresh_fixture_router)
@@ -393,6 +439,7 @@ router.include_router(guardrail_bash_fixture_router)
 router.include_router(wiki_dedup_fixture_router)
 router.include_router(wiki_provenance_fixture_router)
 router.include_router(context_retention_fixture_router)
+router.include_router(security_preset_fixture_router)
 router.include_router(memory_lifecycle_fixture_router)
 router.include_router(prior_chat_fixture_router)
 router.include_router(wechat_draft_fixture_router)

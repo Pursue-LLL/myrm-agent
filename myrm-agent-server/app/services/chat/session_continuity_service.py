@@ -5,7 +5,7 @@
 - app.core.utils.chat_utils::convert_chat_history (POS: DB history → LangChain)
 - app.platform_utils::get_checkpointer (POS: LangGraph checkpointer)
 - app.services.agent.gateway::get_agent_gateway (POS: active session guard)
-- app.services.agent.goal_registry::GoalRegistry (POS: goal pause on rewind)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: goal pause on rewind)
 
 [OUTPUT]
 - SessionBusyError: raised when chat session is actively streaming
@@ -38,7 +38,7 @@ __all__ = [
 
 from app.core.utils.chat_utils import convert_chat_history
 from app.services.agent.gateway import get_agent_gateway
-from app.services.agent.goal_registry import GoalRegistry
+from app.services.agent.goals.goal_registry import GoalRegistry
 from app.services.chat.chat_service import ChatService
 
 logger = logging.getLogger(__name__)

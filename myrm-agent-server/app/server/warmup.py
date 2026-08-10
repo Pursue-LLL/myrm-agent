@@ -292,10 +292,10 @@ async def run_async_warmup() -> None:
 
     from myrm_agent_harness.api.hooks import set_global_background_job_finish_handler
 
-    from app.services.agent.background_job_finish_handler import (
+    from app.services.agent.background_job.background_job_finish_handler import (
         ServerBackgroundJobFinishHandler,
     )
-    from app.services.agent.background_job_startup import init_background_job_store
+    from app.services.agent.background_job.background_job_startup import init_background_job_store
 
     init_background_job_store()
     set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
@@ -304,7 +304,7 @@ async def run_async_warmup() -> None:
     )
 
     try:
-        from app.services.agent.goal_wait_orphan_recovery import (
+        from app.services.agent.goals.goal_wait_orphan_recovery import (
             release_orphaned_wait_goals,
         )
 

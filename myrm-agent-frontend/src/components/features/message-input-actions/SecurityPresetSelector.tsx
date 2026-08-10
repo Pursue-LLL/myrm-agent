@@ -8,7 +8,8 @@
  *
  * [POS]
  * 输入框工具栏安全预设选择器。Agent 模式下提供 HITL/Auto-Approve Edits/Read-Only 三档，
- * 与 YOLO 模式互斥。选择后通过 security_preset 字段随消息发送至 server。
+ * 与 YOLO 模式互斥：YOLO 开启时做任何选择（含点击当前项）都先关闭 YOLO。
+ * 选择后通过 security_preset 字段随消息发送至 server。
  */
 'use client';
 
@@ -22,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
 import useChatStore from '@/store/useChatStore';
-import { disarmYoloForPreset } from '@/store/chat/securityPreset';
+import { resolvePresetWithYoloMutex } from '@/store/chat/securityPreset';
 import type { SecurityPreset } from '@/store/chat/types/chatState';
 
 const PRESETS = ['hitl', 'accept_edits', 'explore'] as const;
@@ -77,11 +78,8 @@ const SecurityPresetSelector = () => {
   const colors = PRESET_COLORS[preset];
 
   const handleSelect = (next: SecurityPreset) => {
-    if (next === preset) return;
-
-    disarmYoloForPreset(next);
-
-    setPreset(next);
+    const resolved = resolvePresetWithYoloMutex(preset, next);
+    if (resolved !== null) setPreset(resolved);
   };
 
   return (
@@ -93,6 +91,7 @@ const SecurityPresetSelector = () => {
               <button
                 type="button"
                 aria-label={t('label')}
+                data-testid="security-preset-trigger"
                 className={cn(
                   'relative flex shrink-0 items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 cursor-pointer select-none',
                   isDefault ? INACTIVE_STYLE : colors.active,
@@ -116,6 +115,7 @@ const SecurityPresetSelector = () => {
         {PRESETS.map((p) => (
           <DropdownMenuItem
             key={p}
+            data-testid={`security-preset-option-${p}`}
             onClick={() => handleSelect(p)}
             className={cn('flex flex-col items-start gap-0.5 py-2', preset === p && 'bg-accent')}
           >

@@ -1,7 +1,7 @@
 """Agent profile resolution for KanbanTaskRunner.
 
 [INPUT]
-- app.services.agent.profile_resolver (POS: Agent profile resolution service.)
+- app.services.agent.profile.profile_resolver (POS: Agent profile resolution service.)
 
 [OUTPUT]
 - resolve_runner_profile: Resolves agent profile for task execution.
@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from app.services.agent.profile_resolver import DEFAULT_ENABLED_BUILTIN_TOOLS
+from app.services.agent.profile.profile_resolver import DEFAULT_ENABLED_BUILTIN_TOOLS
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ async def resolve_agent_profile(agent_id: str | None) -> _ResolvedProfile | None
     if not agent_id:
         return None
     try:
-        from app.services.agent.profile_resolver import get_agent_profile_resolver
+        from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
         resolved = await get_agent_profile_resolver().resolve(agent_id)
         if resolved is None:

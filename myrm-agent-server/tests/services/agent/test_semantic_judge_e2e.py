@@ -12,7 +12,7 @@ from myrm_agent_harness.agent.goals.audit import build_judge_criteria
 from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
 
 from app.core.types import ModelConfig
-from app.services.agent.goal_registry import ServerGoalManager, _parse_judge_json
+from app.services.agent.goals.goal_registry import ServerGoalManager, _parse_judge_json
 
 load_dotenv(override=False)
 

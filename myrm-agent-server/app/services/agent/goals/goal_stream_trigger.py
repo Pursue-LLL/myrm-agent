@@ -132,7 +132,7 @@ async def _resolve_goal_stream_agent_context(
     from app.services.agent.params.profile_output_suffixes import (
         apply_profile_output_suffixes,
     )
-    from app.services.agent.profile_resolver import get_agent_profile_resolver
+    from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
     from app.services.chat.chat_service import ChatService
 
     try:
@@ -262,7 +262,7 @@ async def trigger_goal_stream(
 
     from app.core.agent.tool_description_locale import resolve_agent_params_locale
     from app.core.memory.proactive.settings import resolve_memory_enabled
-    from app.services.agent.profile_resolver import (
+    from app.services.agent.profile.profile_resolver import (
         DEFAULT_ENABLED_BUILTIN_TOOLS,
         resolve_builtin_tool_flags,
     )

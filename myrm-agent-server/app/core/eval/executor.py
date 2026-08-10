@@ -151,8 +151,8 @@ class LocalEvalExecutor:
         agent_engine_params = None
 
         agent_model_override: str | None = None
-        from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
-        from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+        from app.services.agent.builtin_specs.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+        from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
         from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
         enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
@@ -161,7 +161,7 @@ class LocalEvalExecutor:
         memory_extraction_preset: str | None = None
 
         if self.profile_id:
-            from app.services.agent.profile_resolver import get_agent_profile_resolver
+            from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
             resolved = await get_agent_profile_resolver().resolve(self.profile_id)
             if resolved:

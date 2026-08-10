@@ -1,3 +1,26 @@
+"""Skill drafts HTTP API.
+
+Exposes REST endpoints for listing and reviewing skill growth drafts
+(pending/approved/rejected), materializing approved skills, and emitting
+front-end refresh events through the single-source publish helpers.
+
+[INPUT]
+- app.database.connection::get_session (POS: 数据库连接管理)
+- app.services.approvals.registry::ApprovalRegistry (POS: 统一的拦截审批注册与唤醒中枢)
+- app.services.skills.draft_notification::publish_skill_growth_event (POS: SKILL_GROWTH_UPDATED 前端刷新事件单一出口)
+- app.services.skills.evolution_events::publish_skill_evolved_event (POS: SKILL_EVOLVED 前端刷新事件单一出口)
+- app.services.skills.experience_ledger::record_skill_growth_event (POS: 学习资产事件账本)
+- app.core.skills.config_version::bump_skill_config_version (POS: skill 配置版本自增)
+
+[OUTPUT]
+- GET /drafts: 草稿分页列表 + 未审核计数
+- POST /drafts/{draft_id}/approve: 审批通过 → 技能落地 + 前端事件
+- POST /drafts/{draft_id}/reject: 审批拒绝 → 负反馈记忆 + 前端事件
+
+[POS]
+技能草稿 HTTP API：草稿列表、审批通过/拒绝、技能落地编排与前端刷新事件发布。
+"""
+
 from __future__ import annotations
 
 import logging
@@ -14,7 +37,7 @@ from app.core.skills.config_version import bump_skill_config_version
 from app.database.connection import get_session
 from app.database.models import Agent, ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
-from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+from app.services.skills.draft_notification import publish_skill_growth_event
 from app.services.skills.evolution_events import publish_skill_evolved_event
 from app.services.skills.experience_ledger import record_skill_growth_event
 from app.services.skills.growth.constants import GROWTH_ACTION_TYPES
@@ -135,6 +158,16 @@ def _skill_draft_response(draft: SkillDraftRecord) -> SkillDraftResponse:
     )
 
 
+def _publish_draft_event(draft: SkillDraftRecord) -> None:
+    """Publish the SKILL_GROWTH_UPDATED refresh event for a draft record."""
+    publish_skill_growth_event(
+        case_id=draft.id,
+        draft_type=draft.draft_type,
+        status=draft.status,
+        name=draft.name or draft.draft_type,
+    )
+
+
 async def _get_approval_skill_draft(draft_id: str) -> ApprovalRecord | None:
     async with get_session() as db:
         result = await db.execute(
@@ -144,24 +177,6 @@ async def _get_approval_skill_draft(draft_id: str) -> ApprovalRecord | None:
             )
         )
         return result.scalar_one_or_none()
-
-
-def _publish_skill_growth_event(draft: SkillDraftRecord) -> None:
-    try:
-        bus = get_event_bus()
-        bus.publish(
-            AppEvent(
-                event_type=AppEventType.SKILL_GROWTH_UPDATED,
-                data={
-                    "case_id": draft.id,
-                    "draft_type": draft.draft_type,
-                    "status": draft.status,
-                    "name": draft.name or draft.draft_type,
-                },
-            )
-        )
-    except Exception as exc:
-        logger.error("Failed to publish skill growth event: %s", exc)
 
 
 async def get_skill_drafts(
@@ -344,7 +359,8 @@ async def approve_skill_draft(
         await _rollback_draft_status(draft_id)
         pending_record = await _get_approval_skill_draft(draft_id)
         if pending_record is not None:
-            _publish_skill_growth_event(_to_skill_draft_record(pending_record))
+            pending_draft = _to_skill_draft_record(pending_record)
+            _publish_draft_event(pending_draft)
     else:
         await record_skill_growth_event(
             entity_id=approved_draft.id,
@@ -356,7 +372,7 @@ async def approve_skill_draft(
             or approved_draft.draft_type,
             detail={"approval_status": approved_draft.approval_status},
         )
-        _publish_skill_growth_event(approved_draft)
+        _publish_draft_event(approved_draft)
 
         if (
             approved_draft.draft_type in {"skill_draft", "skill_patch"}
@@ -742,7 +758,7 @@ async def reject_skill_draft(draft_id: str) -> dict[str, object]:
         or rejected_draft.draft_type,
         detail={"approval_status": rejected_draft.approval_status},
     )
-    _publish_skill_growth_event(rejected_draft)
+    _publish_draft_event(rejected_draft)
 
     # Add negative feedback loop: Write rejected draft to memory to prevent re-extraction
     if rejected_draft.description or rejected_draft.name:

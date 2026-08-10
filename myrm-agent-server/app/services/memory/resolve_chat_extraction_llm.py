@@ -4,7 +4,7 @@
 app.services.chat.chat_service::ChatService (POS: chat metadata)
 app.ai_agents.general_agent.llm_factory::create_agent_llms (POS: LLM 实例工厂)
 app.ai_agents.general_agent.llm_factory::apply_lite_context_downgrade (POS: Dynamic Ratio Shield)
-app.services.agent.profile_resolver::AgentProfileResolver (POS: 统一智能体配置解析服务)
+app.services.agent.profile.profile_resolver::AgentProfileResolver (POS: 统一智能体配置解析服务)
 
 [OUTPUT]
 resolve_chat_extraction_llm: Returns (main_llm, extraction_llm) aligned with auto-extract.
@@ -49,7 +49,7 @@ async def _resolve_main_model_cfg(
     if not agent_id:
         return model_cfg
 
-    from app.services.agent.profile_resolver import get_agent_profile_resolver
+    from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
     resolved = await get_agent_profile_resolver().resolve(agent_id)
     if resolved is None or not resolved.model:

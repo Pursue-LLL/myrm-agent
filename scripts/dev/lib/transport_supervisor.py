@@ -139,8 +139,13 @@ def session_key() -> str:
 
 
 def _mux_peer_count(*, pessimistic: bool = False) -> int:
-    """Peer load for cap scaling; pessimistic floor for pytest-timeout under signoff waves (R108)."""
-    peers = parallel_mux_peer_count()
+    """Session-plane peer load for pure budget math; never live-probe mux here."""
+    try:
+        from dev_gate_contract import _parallel_signoff_pressure_peers
+
+        peers = _parallel_signoff_pressure_peers()
+    except ImportError:
+        peers = parallel_mux_peer_count()
     if not pessimistic:
         return peers
     from dev_gate_contract import (  # noqa: PLC0415

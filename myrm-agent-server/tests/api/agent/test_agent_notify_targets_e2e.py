@@ -72,7 +72,7 @@ async def test_notify_targets_omitted_on_create_returns_none(async_client: Async
 @pytest.mark.asyncio
 async def test_notify_targets_flows_to_profile_resolver(async_client: AsyncClient) -> None:
     """API persist → profile_resolver.resolve() → factory-ready notify_targets tuple."""
-    from app.services.agent.profile_resolver import get_agent_profile_resolver
+    from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
     create_payload = {
         "name": "Resolver Notify Agent",
@@ -107,7 +107,7 @@ async def test_notify_targets_flows_to_profile_resolver(async_client: AsyncClien
 
 @pytest.mark.asyncio
 async def test_profile_resolver_empty_notify_skips_factory_tool(async_client: AsyncClient) -> None:
-    from app.services.agent.profile_resolver import get_agent_profile_resolver
+    from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
     response = await async_client.post(
         "/api/agents",

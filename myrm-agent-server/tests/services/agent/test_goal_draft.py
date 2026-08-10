@@ -2,7 +2,7 @@
 
 
 def test_normalize_draft_parses_shell_and_semantic():
-    from app.services.agent.goal_draft import _normalize_draft
+    from app.services.agent.goals.goal_draft import _normalize_draft
 
     raw = {
         "ui_summary": "Ship feature X",
@@ -25,7 +25,7 @@ def test_normalize_draft_parses_shell_and_semantic():
 
 
 def test_parse_draft_json_from_markdown_fence():
-    from app.services.agent.goal_draft import _parse_draft_json
+    from app.services.agent.goals.goal_draft import _parse_draft_json
 
     text = 'Here you go:\n```json\n{"ui_summary": "A", "constraints": [], "acceptance_criteria": []}\n```'
     parsed = _parse_draft_json(text)

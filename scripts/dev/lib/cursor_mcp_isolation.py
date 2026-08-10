@@ -3,12 +3,14 @@
 [INPUT]
 - Global and multi-instance Cursor mcp.json paths
 - Optional project-level .cursor/mcp.json
-- Live daily Chrome DevToolsActivePort / CDP probe
+- Live ChromeAgent pipe-proxy (:9410) health probe
 
 [OUTPUT]
 - inspect_mcp_json(): per-file contract verdict
 - assert_agent_mcp_contract(): aggregate FAIL/WARN across instances
-- probe_daily_chrome_reachable(): live auto-connect prerequisite
+- probe_chrome_agent_reachable(): live ChromeAgent prerequisite
+- probe_chrome_agent_launchagent(): LaunchAgent daemon state
+- probe_chrome_agent_focus(): macOS focus theft mechanical check
 
 [POS]
 Harness lib for ./myrm doctor --mcp-isolation and static SSOT tests.
@@ -20,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -30,7 +33,9 @@ from typing import Literal, TypedDict
 ViolationCode = Literal[
     "AGENT_MUX_FORBIDDEN",
     "AGENT_E2E_PORT_FORBIDDEN",
-    "AGENT_MISSING_AUTO_CONNECT",
+    "AGENT_AUTO_CONNECT_FORBIDDEN",
+    "AGENT_DAILY_PORT_FORBIDDEN",
+    "AGENT_MISSING_CHROME_AGENT",
     "MCP_JSON_INVALID",
     "MCP_MISSING_CHROME_DEVTOOLS",
     "MCP_FILE_MISSING",
@@ -39,11 +44,15 @@ ViolationCode = Literal[
 Severity = Literal["fail", "warn"]
 
 E2E_CDP_PORT = 9333
-FIX_AUTO_CONNECT_HINT = (
+AGENT_CDP_PORT = 9410
+CHROME_AGENT_LAUNCHAGENT_LABEL = "com.myrm.chrome-agent"
+CHROME_AGENT_FOCUS_PROBES = 5
+FIX_CHROME_AGENT_HINT = (
     "Set chrome-devtools to: npx -y chrome-devtools-mcp@latest "
-    "--auto-connect --no-usage-statistics "
-    "(see scripts/dev/CHROME_MCP_E2E.md)"
+    f"--browserUrl http://127.0.0.1:{AGENT_CDP_PORT} --no-usage-statistics "
+    "(see scripts/dev/CHROME_MCP_E2E.md; run ./myrm ready --chrome-agent)"
 )
+FIX_AUTO_CONNECT_HINT = FIX_CHROME_AGENT_HINT
 
 
 class McpInspection(TypedDict):
@@ -66,22 +75,32 @@ class ChromeProbe(TypedDict):
     port: int | None
 
 
+class LiveProbe(TypedDict):
+    ok: bool
+    detail: str
+
+
 @dataclass
 class DoctorReport:
     contract: ContractReport
     chrome_probe: ChromeProbe | None
+    launchagent_probe: LiveProbe | None
+    focus_probe: LiveProbe | None
     strict_live: bool = False
     ok: bool = field(init=False)
 
     def __post_init__(self) -> None:
         contract_ok = self.contract["ok"]
-        if self.chrome_probe is None:
-            probe_ok = True
-        elif self.strict_live:
-            probe_ok = self.chrome_probe["ok"]
+        live_probes: list[LiveProbe | None] = [
+            self.chrome_probe,
+            self.launchagent_probe,
+            self.focus_probe,
+        ]
+        if self.strict_live:
+            probes_ok = all(p is None or p["ok"] for p in live_probes)
         else:
-            probe_ok = True
-        self.ok = contract_ok and probe_ok
+            probes_ok = True
+        self.ok = contract_ok and probes_ok
 
 
 def _real_home() -> Path:
@@ -162,38 +181,57 @@ def _references_e2e_chrome(entry: dict[str, object]) -> bool:
     return any(marker in blob for marker in markers)
 
 
-def _has_auto_connect(entry: dict[str, object]) -> bool:
-    if _references_e2e_chrome(entry):
-        return False
-    command = _command_text(entry)
-    if "cdmcp-mux" in command:
-        return False
-    args = _args_list(entry)
-    normalized = {arg.lower().replace("_", "-") for arg in args}
-    if "--auto-connect" in normalized or "--autoconnect" in normalized:
-        return True
-    if any(arg.startswith("--browser-url=") or arg == "--browserUrl" for arg in args):
-        return True
-    if "--browser-url" in normalized:
-        return True
-    return "chrome-devtools-mcp" in command and "--auto-connect" in command
+def _references_auto_connect(entry: dict[str, object]) -> bool:
+    normalized = {arg.lower().replace("_", "-") for arg in _args_list(entry)}
+    return "--auto-connect" in normalized or "--autoconnect" in normalized
+
+
+def _references_daily_cdp_port(entry: dict[str, object]) -> bool:
+    blob = " ".join((_command_text(entry), _entry_env_text(entry))).lower()
+    daily_markers = (
+        ":9222",
+        "127.0.0.1:9222",
+        "localhost:9222",
+    )
+    return any(marker in blob for marker in daily_markers)
+
+
+def _has_chrome_agent_browser_url(entry: dict[str, object]) -> bool:
+    blob = " ".join((_command_text(entry), _entry_env_text(entry))).lower()
+    agent_markers = (
+        f":{AGENT_CDP_PORT}",
+        f"127.0.0.1:{AGENT_CDP_PORT}",
+        f"localhost:{AGENT_CDP_PORT}",
+    )
+    return any(marker in blob for marker in agent_markers)
 
 
 def _violation_message(code: ViolationCode, *, path: Path) -> str:
     if code == "AGENT_MUX_FORBIDDEN":
         return (
             f"{path}: chrome-devtools must not use cdmcp-mux in Agent layer — "
-            f"{FIX_AUTO_CONNECT_HINT}"
+            f"{FIX_CHROME_AGENT_HINT}"
         )
     if code == "AGENT_E2E_PORT_FORBIDDEN":
         return (
             f"{path}: chrome-devtools must not reference E2E :9333 / Myrm ChromeE2E — "
-            f"{FIX_AUTO_CONNECT_HINT}"
+            f"{FIX_CHROME_AGENT_HINT}"
         )
-    if code == "AGENT_MISSING_AUTO_CONNECT":
+    if code == "AGENT_AUTO_CONNECT_FORBIDDEN":
         return (
-            f"{path}: chrome-devtools missing --auto-connect (or --browser-url) — "
-            f"{FIX_AUTO_CONNECT_HINT}"
+            f"{path}: chrome-devtools --auto-connect steals macOS focus — "
+            f"{FIX_CHROME_AGENT_HINT}"
+        )
+    if code == "AGENT_DAILY_PORT_FORBIDDEN":
+        return (
+            f"{path}: chrome-devtools must not use daily Chrome :9222 — "
+            f"{FIX_CHROME_AGENT_HINT}"
+        )
+    if code == "AGENT_MISSING_CHROME_AGENT":
+        return (
+            f"{path}: chrome-devtools must use ChromeAgent "
+            f"--browserUrl http://127.0.0.1:{AGENT_CDP_PORT} — "
+            f"{FIX_CHROME_AGENT_HINT}"
         )
     if code == "MCP_JSON_INVALID":
         return f"{path}: invalid JSON"
@@ -242,8 +280,12 @@ def inspect_mcp_json(path: Path) -> McpInspection:
             violations.append(_violation_message("AGENT_MUX_FORBIDDEN", path=path))
         else:
             violations.append(_violation_message("AGENT_E2E_PORT_FORBIDDEN", path=path))
-    elif not _has_auto_connect(entry):
-        violations.append(_violation_message("AGENT_MISSING_AUTO_CONNECT", path=path))
+    elif _references_auto_connect(entry):
+        violations.append(_violation_message("AGENT_AUTO_CONNECT_FORBIDDEN", path=path))
+    elif _references_daily_cdp_port(entry):
+        violations.append(_violation_message("AGENT_DAILY_PORT_FORBIDDEN", path=path))
+    elif not _has_chrome_agent_browser_url(entry):
+        violations.append(_violation_message("AGENT_MISSING_CHROME_AGENT", path=path))
 
     return {
         "ok": not violations,
@@ -283,91 +325,135 @@ def assert_agent_mcp_contract(
     return {"ok": not violations, "inspections": inspections, "violations": violations}
 
 
-def _read_devtools_active_port(port_file: Path) -> int | None:
-    if not port_file.is_file():
-        return None
+def _run_osascript(script: str) -> str | None:
     try:
-        first_line = port_file.read_text(encoding="utf-8").splitlines()[0].strip()
-        port = int(first_line)
-    except (OSError, ValueError, IndexError):
+        completed = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
         return None
-    if port <= 0 or port == E2E_CDP_PORT:
+    if completed.returncode != 0:
         return None
-    return port
+    text = completed.stdout.strip()
+    return text or None
 
 
-def _devtools_active_port_candidates() -> list[int]:
-    home = _real_home()
-    port_files = [
-        home / "Library/Application Support/Google/Chrome/DevToolsActivePort",
-        home / "Library/Application Support/Google/Chrome Canary/DevToolsActivePort",
-        home / "Library/Application Support/Chromium/DevToolsActivePort",
-        home / ".config/google-chrome/DevToolsActivePort",
-        home / ".config/chromium/DevToolsActivePort",
-    ]
-    ports: list[int] = []
-    for port_file in port_files:
-        port = _read_devtools_active_port(port_file)
-        if port is not None:
-            ports.append(port)
-    if 9222 not in ports:
-        ports.append(9222)
-    return ports
-
-
-def _probe_cdp_port(port: int) -> bool:
-    for suffix in ("/json/version", "/json/list"):
-        url = f"http://127.0.0.1:{port}{suffix}"
-        try:
-            with urllib.request.urlopen(url, timeout=2) as response:
-                payload = json.loads(response.read().decode("utf-8"))
-        except (OSError, urllib.error.URLError, json.JSONDecodeError):
-            continue
-        if isinstance(payload, dict) and payload.get("Browser"):
-            return True
-        if isinstance(payload, list) and payload:
-            return True
-    return False
-
-
-def probe_daily_chrome_reachable() -> ChromeProbe:
-    home = _real_home()
-    active_port_file = (
-        home / "Library/Application Support/Google/Chrome/DevToolsActivePort"
-    )
-    active_port = _read_devtools_active_port(active_port_file)
-    if active_port is not None:
-        if _probe_cdp_port(active_port):
-            return {
-                "ok": True,
-                "detail": f"daily Chrome CDP reachable on :{active_port}",
-                "port": active_port,
-            }
+def probe_chrome_agent_launchagent() -> LiveProbe:
+    label = CHROME_AGENT_LAUNCHAGENT_LABEL
+    target = f"gui/{os.getuid()}/{label}"
+    try:
+        completed = subprocess.run(
+            ["launchctl", "print", target],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
         return {
-            "ok": True,
+            "ok": False,
             "detail": (
-                f"DevToolsActivePort present (:{active_port}) — "
-                "auto-connect profile likely active"
+                f"LaunchAgent {label} check failed — "
+                "run ./myrm ready --chrome-agent --daemon"
             ),
-            "port": active_port,
+        }
+    if completed.returncode != 0:
+        return {
+            "ok": False,
+            "detail": (
+                f"LaunchAgent {label} not loaded — "
+                "run ./myrm ready --chrome-agent --daemon"
+            ),
+        }
+    if "state = running" not in completed.stdout:
+        return {
+            "ok": False,
+            "detail": f"LaunchAgent {label} loaded but not running",
+        }
+    return {"ok": True, "detail": f"LaunchAgent {label} running"}
+
+
+def probe_chrome_agent_focus(*, probes: int = CHROME_AGENT_FOCUS_PROBES) -> LiveProbe:
+    chrome_probe = probe_chrome_agent_reachable()
+    if not chrome_probe["ok"]:
+        return {
+            "ok": False,
+            "detail": f"focus skipped: {chrome_probe['detail']}",
         }
 
-    for port in _devtools_active_port_candidates():
-        if port == E2E_CDP_PORT:
-            continue
-        if _probe_cdp_port(port):
+    _run_osascript('tell application "Cursor" to activate')
+    before = _run_osascript(
+        'tell application "System Events" to get name of first application process '
+        "whose frontmost is true"
+    )
+    if before is None:
+        return {"ok": False, "detail": "focus check failed: could not read frontmost app"}
+
+    for _ in range(max(1, probes)):
+        list_url = f"http://127.0.0.1:{AGENT_CDP_PORT}/json/list"
+        try:
+            with urllib.request.urlopen(list_url, timeout=5) as response:
+                response.read()
+        except (OSError, urllib.error.URLError):
             return {
-                "ok": True,
-                "detail": f"daily Chrome CDP reachable on :{port}",
-                "port": port,
+                "ok": False,
+                "detail": "focus check failed: ChromeAgent /json/list unreachable during probes",
             }
+
+    after = _run_osascript(
+        'tell application "System Events" to get name of first application process '
+        "whose frontmost is true"
+    )
+    if after is None:
+        return {"ok": False, "detail": "focus check failed: could not read frontmost app after probes"}
+
+    if after == "Google Chrome" and before != "Google Chrome":
+        return {
+            "ok": False,
+            "detail": (
+                f"Chrome stole focus ({before} -> {after}) after {probes} CDP probes"
+            ),
+        }
     return {
-        "ok": False,
+        "ok": True,
+        "detail": f"focus ok before={before} after={after} probes={probes}",
+    }
+
+
+def probe_chrome_agent_reachable() -> ChromeProbe:
+    status_url = f"http://127.0.0.1:{AGENT_CDP_PORT}/proxy/status"
+    try:
+        with urllib.request.urlopen(status_url, timeout=3) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError, json.JSONDecodeError):
+        return {
+            "ok": False,
+            "detail": (
+                f"ChromeAgent pipe-proxy not reachable on :{AGENT_CDP_PORT} — "
+                "run ./myrm ready --chrome-agent"
+            ),
+            "port": None,
+        }
+    if not isinstance(payload, dict) or not payload.get("chromeRunning"):
+        return {
+            "ok": False,
+            "detail": (
+                f"ChromeAgent proxy up but Chrome not running on :{AGENT_CDP_PORT} — "
+                "see ~/.local/state/myrm-dev/chrome-agent-proxy.log"
+            ),
+            "port": AGENT_CDP_PORT,
+        }
+    return {
+        "ok": True,
         "detail": (
-            "daily Chrome CDP not reachable — launch Chrome 144+ before using "
-            "Cursor browser MCP (--auto-connect)"
+            f"ChromeAgent pipe-proxy healthy on :{AGENT_CDP_PORT} "
+            f"(clients={payload.get('clients', 0)})"
         ),
-        "port": None,
+        "port": AGENT_CDP_PORT,
     }
 
 
@@ -378,10 +464,14 @@ def build_doctor_report(
         extra_paths=project_cursor_mcp_paths(),
         require_present_paths=False,
     )
-    chrome_probe = None if skip_live else probe_daily_chrome_reachable()
+    chrome_probe = None if skip_live else probe_chrome_agent_reachable()
+    launchagent_probe = None if skip_live else probe_chrome_agent_launchagent()
+    focus_probe = None if skip_live else probe_chrome_agent_focus()
     return DoctorReport(
         contract=contract,
         chrome_probe=chrome_probe,
+        launchagent_probe=launchagent_probe,
+        focus_probe=focus_probe,
         strict_live=strict_live,
     )
 
@@ -404,8 +494,24 @@ def _print_doctor_report(report: DoctorReport) -> None:
         if report.chrome_probe["ok"]:
             print(f"CURSOR_MCP_ISOLATION_OK: {report.chrome_probe['detail']}")
         else:
+            level = "FAIL" if report.strict_live else "WARN"
             print(
-                f"CURSOR_MCP_ISOLATION_WARN: {report.chrome_probe['detail']}",
+                f"CURSOR_MCP_ISOLATION_{level}: {report.chrome_probe['detail']}",
+                file=sys.stderr,
+            )
+
+    for probe_name, probe in (
+        ("LAUNCHAGENT", report.launchagent_probe),
+        ("FOCUS", report.focus_probe),
+    ):
+        if probe is None:
+            continue
+        if probe["ok"]:
+            print(f"CURSOR_MCP_ISOLATION_OK: {probe_name} {probe['detail']}")
+        else:
+            level = "FAIL" if report.strict_live else "WARN"
+            print(
+                f"CURSOR_MCP_ISOLATION_{level}: {probe_name} {probe['detail']}",
                 file=sys.stderr,
             )
 
@@ -422,12 +528,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--skip-live",
         action="store_true",
-        help="Skip daily Chrome CDP live probe",
+        help="Skip ChromeAgent pipe-proxy live probe",
     )
     parser.add_argument(
         "--strict-live",
         action="store_true",
-        help="Treat unreachable daily Chrome as FAIL (default WARN only)",
+        help="Treat live probe failures (proxy, LaunchAgent, focus) as FAIL",
     )
     parser.add_argument(
         "--json",
@@ -445,6 +551,8 @@ def main(argv: list[str] | None = None) -> int:
             "ok": report.ok,
             "contract": report.contract,
             "chrome_probe": report.chrome_probe,
+            "launchagent_probe": report.launchagent_probe,
+            "focus_probe": report.focus_probe,
         }
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:

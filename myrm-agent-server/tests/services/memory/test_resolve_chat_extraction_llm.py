@@ -29,7 +29,7 @@ async def test_resolve_main_model_cfg_applies_agent_override() -> None:
             side_effect=[default_cfg, agent_cfg],
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=resolver,
         ),
     ):

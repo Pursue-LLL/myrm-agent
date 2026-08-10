@@ -119,7 +119,7 @@ class TestBuildEvalManifest:
                 new=AsyncMock(return_value=configs),
             ),
             patch(
-                "app.services.agent.profile_resolver.get_agent_profile_resolver",
+                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
                 return_value=FakeResolver(),
             ),
         ):

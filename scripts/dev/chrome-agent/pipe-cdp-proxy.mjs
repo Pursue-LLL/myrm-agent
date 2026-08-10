@@ -1,0 +1,613 @@
+#!/usr/bin/env node
+/**
+ * pipe-cdp-proxy — multi-client WebSocket front for a single pipe-connected Chrome
+ *
+ * Lets multiple chrome-devtools-mcp instances (one per Claude Code session) share
+ * one Chrome instance via --browserUrl. CDP traffic to Chrome flows over stdio
+ * pipes (--remote-debugging-pipe), bypassing the macOS NSApplication-activation
+ * bug that affects WebSocket-CDP transport (chrome-devtools-mcp#1254).
+ *
+ * Architecture:
+ *
+ *   [MCP-A] ─┐
+ *   [MCP-B] ─┼── WebSocket(localhost:9410) ── Pipe Multiplexer ── stdio ── [Chrome]
+ *   [MCP-C] ─┘
+ *
+ * State sharing:
+ *   - The proxy itself enables Target discovery + auto-attach with Chrome on boot.
+ *   - It caches every Target.targetCreated and Target.attachedToTarget event.
+ *   - When a client calls Target.setDiscoverTargets / Target.setAutoAttach the proxy
+ *     synthesizes the cached events for that client (instead of forwarding to Chrome,
+ *     which would treat the call as a no-op since discovery/auto-attach is already
+ *     enabled by the proxy itself).
+ *   - All session-level events from Chrome are broadcast to every client. Sessions
+ *     are shared across clients — race conditions on stateful commands are possible
+ *     but acceptable for the typical "one primary session, others passive" workflow.
+ */
+
+import http from 'http';
+import { spawn } from 'child_process';
+import { WebSocketServer, WebSocket } from 'ws';
+
+const args = process.argv.slice(2);
+const getArg = (name, def) => {
+    const i = args.indexOf(name);
+    return i >= 0 ? args[i + 1] : def;
+};
+
+const PROXY_PORT = parseInt(getArg('--port', '9410'));
+const CHROME_PATH = getArg(
+    '--chrome-path',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+);
+const USER_DATA_DIR = getArg(
+    '--user-data-dir',
+    `${process.env.HOME}/Library/Application Support/Chrome-Pipe-Proxy`
+);
+const INITIAL_URL = getArg('--initial-url', '');
+const FOREGROUND = process.env.MYRM_CHROME_AGENT_FOREGROUND === '1';
+const ALLOW_E2E_URLS = process.env.MYRM_CHROME_AGENT_ALLOW_E2E_URLS === '1';
+
+const E2E_URL_REJECT_MESSAGE =
+    'CHROME_AGENT_E2E_URL_REJECTED: ChromeAgent :9410 is for Agent tasks (e.g. URL extraction) only; '
+    + 'chrome_e2e must use ./myrm test harness → ChromeE2E :9333';
+
+/** Block localhost UI URLs that belong on ChromeE2E :9333, not ChromeAgent :9410. */
+function isForbiddenE2eUrl(rawUrl) {
+    if (ALLOW_E2E_URLS || typeof rawUrl !== 'string' || !rawUrl.trim()) {
+        return false;
+    }
+    let parsed;
+    try {
+        parsed = new URL(rawUrl);
+    } catch (_) {
+        return false;
+    }
+    const host = parsed.hostname.toLowerCase();
+    if (host !== '127.0.0.1' && host !== 'localhost') {
+        return false;
+    }
+    const port = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
+    return port === '3000' || port === '3002';
+}
+
+function navigateUrlFromCdpMethod(msg) {
+    if (msg.method === 'Page.navigate' || msg.method === 'Target.createTarget') {
+        return msg.params?.url;
+    }
+    return undefined;
+}
+
+function rejectE2eUrlToClient(clientWs, msg, rawUrl) {
+    if (msg.id === undefined) {
+        return;
+    }
+    console.error(`[Proxy] Rejected E2E URL on ChromeAgent (${msg.method}): ${rawUrl}`);
+    safeSend(clientWs, {
+        id: msg.id,
+        error: { code: -32001, message: E2E_URL_REJECT_MESSAGE },
+    });
+}
+
+function buildChromeLaunchArgs() {
+    const chromeArgs = [
+        `--user-data-dir=${USER_DATA_DIR}`,
+        '--remote-debugging-pipe',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-features=DialMediaRouteProvider',
+        // Keep ChromeAgent alive when the last window closes (macOS Cmd+W).
+        '--keep-alive-for-test',
+        // E2E-parity render flags: occluded/offscreen windows must keep rAF
+        // so X lazy-load / scroll extraction still works (cdp-plane TAB-6b).
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-background-timer-throttling',
+    ];
+    if (!FOREGROUND) {
+        chromeArgs.push('--window-position=-24000,-24000');
+    }
+    if (INITIAL_URL) {
+        chromeArgs.push(INITIAL_URL);
+    }
+    return chromeArgs;
+}
+
+// ═══════════════════════════════════════════
+// Chrome process management
+// ═══════════════════════════════════════════
+
+let chromeProcess = null;
+let chromeWritable = null;     // fd 3: parent → Chrome
+let chromeReadable = null;     // fd 4: Chrome → parent
+let chromeBuffer = Buffer.alloc(0);
+let restartTimer = null;
+
+function launchChrome() {
+    if (chromeProcess) return;
+    console.log(`[Proxy] Launching Chrome (--user-data-dir=${USER_DATA_DIR})`);
+
+    const chromeArgs = buildChromeLaunchArgs();
+
+    chromeProcess = spawn(CHROME_PATH, chromeArgs, {
+        stdio: ['ignore', 'ignore', 'inherit', 'pipe', 'pipe'],
+    });
+
+    chromeWritable = chromeProcess.stdio[3];
+    chromeReadable = chromeProcess.stdio[4];
+
+    chromeReadable.on('data', handleChromeData);
+    chromeReadable.on('error', (err) =>
+        console.error('[Proxy] Chrome read error:', err.message)
+    );
+
+    let launchedAt = Date.now();
+    chromeProcess.on('exit', (code, signal) => {
+        const lifetime = Date.now() - launchedAt;
+        console.error(
+            `[Proxy] Chrome exited (code=${code}, signal=${signal}, lived ${lifetime}ms)`
+        );
+        const wasRunning = chromeProcess !== null;
+        chromeProcess = null;
+        chromeWritable = null;
+        chromeReadable = null;
+        chromeBuffer = Buffer.alloc(0);
+        knownTargets.clear();
+        knownSessions.clear();
+        for (const [, req] of pendingRequests) {
+            safeSend(req.clientWs, {
+                id: req.originalId,
+                error: { code: -32000, message: 'Chrome exited' },
+            });
+        }
+        pendingRequests.clear();
+        // Don't auto-restart Chrome that died too fast — it's a config error,
+        // not a transient failure. Looping would spam windows / processes.
+        if (lifetime < 3000) {
+            console.error(
+                '[Proxy] Chrome died too fast; not auto-restarting (likely a launch-flag/profile error)'
+            );
+            return;
+        }
+        if (wasRunning && !restartTimer) {
+            restartTimer = setTimeout(() => {
+                restartTimer = null;
+                launchChrome();
+                // Give Chrome a beat to come up before re-enabling discovery.
+                setTimeout(() => enableProxyDiscovery().catch((e) =>
+                    console.error('[Proxy] Failed to re-enable discovery after restart:', e.message)
+                ), 500);
+            }, 2000);
+        }
+    });
+
+    chromeProcess.on('error', (err) =>
+        console.error('[Proxy] Chrome spawn error:', err.message)
+    );
+}
+
+function handleChromeData(chunk) {
+    chromeBuffer = Buffer.concat([chromeBuffer, chunk]);
+    let nullIdx;
+    while ((nullIdx = chromeBuffer.indexOf(0)) !== -1) {
+        const msgBuf = chromeBuffer.subarray(0, nullIdx);
+        chromeBuffer = chromeBuffer.subarray(nullIdx + 1);
+        if (msgBuf.length === 0) continue;
+        try {
+            const msg = JSON.parse(msgBuf.toString('utf-8'));
+            routeChromeMessage(msg);
+        } catch (e) {
+            console.error('[Proxy] Failed to parse Chrome message:', e.message);
+        }
+    }
+}
+
+function sendToChrome(msg) {
+    if (!chromeWritable) return false;
+    chromeWritable.write(JSON.stringify(msg) + '\0');
+    return true;
+}
+
+// ═══════════════════════════════════════════
+// State caches (shared across clients)
+// ═══════════════════════════════════════════
+
+let globalIdCounter = 1;
+const pendingRequests = new Map();   // proxyId → { clientWs, originalId, method, createdAt }
+const clientState = new Map();       // clientWs → { proxyIds: Set, discoveryEnabled: bool, autoAttachEnabled: bool }
+const knownTargets = new Map();      // targetId → targetInfo (latest)
+const knownSessions = new Map();     // sessionId → { targetInfo, waitingForDebugger }
+
+function getOrCreateState(clientWs) {
+    if (!clientState.has(clientWs)) {
+        clientState.set(clientWs, {
+            proxyIds: new Set(),
+            discoveryEnabled: false,
+            autoAttachEnabled: false,
+        });
+    }
+    return clientState.get(clientWs);
+}
+
+function safeSend(ws, data) {
+    if (!ws) return;
+    if (typeof ws.send !== 'function') return;
+    if (ws.readyState !== undefined && ws.readyState !== WebSocket.OPEN) return;
+    ws.send(typeof data === 'string' ? data : JSON.stringify(data));
+}
+
+function broadcastToRealClients(msg) {
+    const payload = JSON.stringify(msg);
+    for (const [ws] of clientState) safeSend(ws, payload);
+}
+
+// ═══════════════════════════════════════════
+// Chrome message routing
+// ═══════════════════════════════════════════
+
+// Set PROXY_DEBUG=1 in the env to trace every CDP message. Off by default
+// because chatty traffic (Page.*, Runtime.*) drowns the log.
+const DEBUG = process.env.PROXY_DEBUG === '1';
+const dbg = (...args) => DEBUG && console.log('[Proxy.dbg]', ...args);
+
+function routeChromeMessage(msg) {
+    if (DEBUG) {
+        const summary = msg.method
+            ? `EVENT ${msg.method}${msg.sessionId ? ' sess=' + msg.sessionId.substring(0, 8) : ''}`
+            : `RESP id=${msg.id}${msg.sessionId ? ' sess=' + msg.sessionId.substring(0, 8) : ''}${msg.error ? ' ERR=' + msg.error.message : ''}`;
+        dbg('← Chrome', summary);
+    }
+
+    // Always update caches for Target.* events (regardless of routing).
+    if (msg.method === 'Target.targetCreated' && msg.params?.targetInfo) {
+        knownTargets.set(msg.params.targetInfo.targetId, msg.params.targetInfo);
+    } else if (msg.method === 'Target.targetInfoChanged' && msg.params?.targetInfo) {
+        knownTargets.set(msg.params.targetInfo.targetId, msg.params.targetInfo);
+    } else if (msg.method === 'Target.targetDestroyed' && msg.params?.targetId) {
+        knownTargets.delete(msg.params.targetId);
+    } else if (msg.method === 'Target.attachedToTarget' && msg.params?.sessionId) {
+        knownSessions.set(msg.params.sessionId, {
+            targetInfo: msg.params.targetInfo,
+            waitingForDebugger: msg.params.waitingForDebugger ?? false,
+        });
+        if (msg.params.targetInfo) {
+            knownTargets.set(msg.params.targetInfo.targetId, msg.params.targetInfo);
+        }
+    } else if (msg.method === 'Target.detachedFromTarget' && msg.params?.sessionId) {
+        knownSessions.delete(msg.params.sessionId);
+    }
+
+    // Response: route by id back to originating client.
+    if (msg.id !== undefined && pendingRequests.has(msg.id)) {
+        const { clientWs, originalId } = pendingRequests.get(msg.id);
+        pendingRequests.delete(msg.id);
+        const state = clientState.get(clientWs);
+        if (state) state.proxyIds.delete(msg.id);
+        msg.id = originalId;
+        safeSend(clientWs, msg);
+        return;
+    }
+
+    // Event from Chrome: broadcast to every connected client.
+    // Sessions are shared across clients (the proxy holds the only real session
+    // to Chrome and exposes it to all). Clients ignore events for sessionIds they
+    // don't track — Puppeteer in particular is tolerant of unknown sessions.
+    if (msg.method) {
+        broadcastToRealClients(msg);
+    }
+}
+
+// Stale-request reaper
+setInterval(() => {
+    const now = Date.now();
+    for (const [proxyId, req] of pendingRequests) {
+        if (now - req.createdAt > 60000) {
+            safeSend(req.clientWs, {
+                id: req.originalId,
+                error: { code: -32000, message: 'CDP request timeout (60s)' },
+            });
+            pendingRequests.delete(proxyId);
+            const state = clientState.get(req.clientWs);
+            if (state) state.proxyIds.delete(proxyId);
+        }
+    }
+}, 30000);
+
+// ═══════════════════════════════════════════
+// Internal CDP request (proxy-initiated, used for discovery setup + HTTP endpoints)
+// ═══════════════════════════════════════════
+
+function cdpRequest(method, params = {}) {
+    return new Promise((resolve, reject) => {
+        if (!chromeWritable) return reject(new Error('Chrome not running'));
+        const proxyId = globalIdCounter++;
+        const timeout = setTimeout(() => {
+            pendingRequests.delete(proxyId);
+            reject(new Error(`CDP request '${method}' timed out`));
+        }, 5000);
+        const fakeClient = {
+            send: (data) => {
+                clearTimeout(timeout);
+                resolve(typeof data === 'string' ? JSON.parse(data) : data);
+            },
+            readyState: WebSocket.OPEN,
+        };
+        pendingRequests.set(proxyId, {
+            clientWs: fakeClient,
+            originalId: proxyId,
+            method,
+            createdAt: Date.now(),
+        });
+        sendToChrome({ id: proxyId, method, params });
+    });
+}
+
+// On Chrome boot/restart: enable discovery + auto-attach so the proxy receives
+// (and caches) every Target.* event, even before any real clients connect.
+async function enableProxyDiscovery() {
+    if (!chromeWritable) return;
+    await cdpRequest('Target.setDiscoverTargets', { discover: true });
+    await cdpRequest('Target.setAutoAttach', {
+        autoAttach: true,
+        waitForDebuggerOnStart: false,
+        flatten: true,
+    });
+    console.log('[Proxy] Discovery + auto-attach enabled by proxy itself');
+}
+
+// ═══════════════════════════════════════════
+// Per-client state replay
+// ═══════════════════════════════════════════
+
+function replayDiscoveryToClient(clientWs) {
+    dbg('replay discovery', knownTargets.size, 'targets');
+    for (const [, targetInfo] of knownTargets) {
+        safeSend(clientWs, {
+            method: 'Target.targetCreated',
+            params: { targetInfo },
+        });
+    }
+}
+
+function replayAutoAttachToClient(clientWs) {
+    dbg('replay auto-attach', knownSessions.size, 'sessions');
+    for (const [sessionId, { targetInfo, waitingForDebugger }] of knownSessions) {
+        safeSend(clientWs, {
+            method: 'Target.attachedToTarget',
+            params: { sessionId, targetInfo, waitingForDebugger },
+        });
+    }
+}
+
+// ═══════════════════════════════════════════
+// HTTP discovery endpoints
+// ═══════════════════════════════════════════
+
+const server = http.createServer(async (req, res) => {
+    try {
+        if (req.url === '/json/version') {
+            // Mimic Chrome's /json/version so chrome-devtools-mcp's --browserUrl probe succeeds
+            let version = {};
+            if (chromeWritable) {
+                try {
+                    const result = await cdpRequest('Browser.getVersion');
+                    version = result.result || {};
+                } catch (e) { /* fall through with empty */ }
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                Browser: version.product || 'Chrome (via Pipe CDP Proxy)',
+                'Protocol-Version': version.protocolVersion || '1.3',
+                'User-Agent': version.userAgent || '',
+                'V8-Version': version.jsVersion || '',
+                'WebKit-Version': version.product || '',
+                webSocketDebuggerUrl: `ws://127.0.0.1:${PROXY_PORT}/devtools/browser/proxy`,
+            }));
+            return;
+        }
+
+        if (req.url === '/json/list' || req.url === '/json') {
+            if (!chromeWritable) {
+                res.writeHead(503);
+                res.end('Chrome not running');
+                return;
+            }
+            try {
+                const result = await cdpRequest('Target.getTargets');
+                const targets = (result.result?.targetInfos || []).map((t) => ({
+                    ...t,
+                    id: t.targetId,
+                    description: '',
+                    devtoolsFrontendUrl: '',
+                    webSocketDebuggerUrl: `ws://127.0.0.1:${PROXY_PORT}/devtools/page/${t.targetId}`,
+                }));
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(targets));
+            } catch (e) {
+                res.writeHead(500);
+                res.end(e.message);
+            }
+            return;
+        }
+
+        if (req.url === '/proxy/status') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                chromeRunning: chromeProcess !== null,
+                chromePid: chromeProcess?.pid || null,
+                clients: clientState.size,
+                knownTargets: knownTargets.size,
+                knownSessions: knownSessions.size,
+                pendingRequests: pendingRequests.size,
+            }, null, 2));
+            return;
+        }
+
+        if (req.url?.startsWith('/proxy/open')) {
+            if (!chromeWritable) {
+                res.writeHead(503);
+                res.end('Chrome not running');
+                return;
+            }
+            const parsed = new URL(req.url, `http://127.0.0.1:${PROXY_PORT}`);
+            const openUrl = parsed.searchParams.get('url') || 'about:blank';
+            if (isForbiddenE2eUrl(openUrl)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: E2E_URL_REJECT_MESSAGE }));
+                return;
+            }
+            const activate = parsed.searchParams.get('activate') === '1';
+            try {
+                const result = await cdpRequest('Target.createTarget', { url: openUrl });
+                if (activate && result.result?.targetId) {
+                    try {
+                        await cdpRequest('Target.activateTarget', {
+                            targetId: result.result.targetId,
+                        });
+                    } catch (e) {
+                        console.error('[Proxy] Target.activateTarget failed:', e.message);
+                    }
+                }
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result.result || {}));
+            } catch (e) {
+                res.writeHead(500);
+                res.end(e.message);
+            }
+            return;
+        }
+
+        res.writeHead(404);
+        res.end('Not found');
+    } catch (e) {
+        res.writeHead(500);
+        res.end(e.message);
+    }
+});
+
+// ═══════════════════════════════════════════
+// WebSocket server (CDP traffic from MCP clients)
+// ═══════════════════════════════════════════
+
+const wss = new WebSocketServer({ server });
+
+wss.on('connection', (clientWs) => {
+    const state = getOrCreateState(clientWs);
+    console.log(`[Proxy] Client connected (total: ${clientState.size})`);
+
+    clientWs.on('message', (data) => {
+        if (!chromeWritable) {
+            try {
+                const msg = JSON.parse(data.toString());
+                if (msg.id !== undefined) {
+                    safeSend(clientWs, {
+                        id: msg.id,
+                        error: { code: -1, message: 'Chrome not running' },
+                    });
+                }
+            } catch (_) { /* ignore */ }
+            return;
+        }
+
+        let msg;
+        try {
+            msg = JSON.parse(data.toString());
+        } catch (e) {
+            console.error('[Proxy] Bad client message:', e.message);
+            return;
+        }
+
+        // Intercept discovery + auto-attach so each client gets a fresh stream
+        // of Target.targetCreated / Target.attachedToTarget events for state
+        // that already existed when it connected. Forwarding to Chrome would
+        // be a no-op (the proxy itself already enabled discovery + auto-attach).
+        // Intercept browser-level (no sessionId) discovery + auto-attach so the
+        // client sees the cached state. Per-session calls (sessionId set) are
+        // session-scoped (e.g., iframe auto-attach within a target) and must be
+        // forwarded normally — intercepting them caused infinite replay loops.
+        if (msg.method === 'Target.setDiscoverTargets' && !msg.sessionId) {
+            const enable = msg.params?.discover === true;
+            state.discoveryEnabled = enable;
+            // Match Chrome's ordering: emit initial targetCreated events first,
+            // then respond. Puppeteer captures the events then resolves on response.
+            if (enable) replayDiscoveryToClient(clientWs);
+            if (msg.id !== undefined) {
+                safeSend(clientWs, { id: msg.id, result: {} });
+            }
+            return;
+        }
+        if (msg.method === 'Target.setAutoAttach' && !msg.sessionId) {
+            const enable = msg.params?.autoAttach === true;
+            state.autoAttachEnabled = enable;
+            if (enable) replayAutoAttachToClient(clientWs);
+            if (msg.id !== undefined) {
+                safeSend(clientWs, { id: msg.id, result: {} });
+            }
+            return;
+        }
+
+        const navigateUrl = navigateUrlFromCdpMethod(msg);
+        if (isForbiddenE2eUrl(navigateUrl)) {
+            rejectE2eUrlToClient(clientWs, msg, navigateUrl);
+            return;
+        }
+
+        // ID remap so multiple clients don't collide on Chrome's request IDs.
+        const origId = msg.id;
+        if (msg.id !== undefined) {
+            const proxyId = globalIdCounter++;
+            pendingRequests.set(proxyId, {
+                clientWs,
+                originalId: msg.id,
+                method: msg.method,
+                createdAt: Date.now(),
+            });
+            state.proxyIds.add(proxyId);
+            msg.id = proxyId;
+        }
+
+        dbg('→ Chrome', `${msg.method}${msg.sessionId ? ' sess=' + msg.sessionId.substring(0, 8) : ''} (cid=${origId} pid=${msg.id})`);
+        sendToChrome(msg);
+    });
+
+    const cleanup = () => {
+        for (const pid of state.proxyIds) pendingRequests.delete(pid);
+        clientState.delete(clientWs);
+        console.log(`[Proxy] Client disconnected (remaining: ${clientState.size})`);
+    };
+
+    clientWs.on('close', cleanup);
+    clientWs.on('error', cleanup);
+});
+
+// ═══════════════════════════════════════════
+// Lifecycle
+// ═══════════════════════════════════════════
+
+process.on('uncaughtException', (err) =>
+    console.error('[Proxy] Uncaught exception:', err.message, err.stack)
+);
+process.on('unhandledRejection', (reason) =>
+    console.error('[Proxy] Unhandled rejection:', reason)
+);
+// Stay alive when launched via nohup / background shell (macOS SIGHUP).
+process.on('SIGHUP', () => {
+    console.log('[Proxy] Ignoring SIGHUP (daemon mode)');
+});
+
+function shutdown() {
+    console.log('[Proxy] Shutting down');
+    try { chromeProcess?.kill('SIGTERM'); } catch (_) {}
+    process.exit(0);
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+
+server.listen(PROXY_PORT, '127.0.0.1', () => {
+    console.log(`[Proxy] Listening on http://127.0.0.1:${PROXY_PORT}`);
+    launchChrome();
+    // Wait a beat for Chrome to come up before enabling discovery.
+    setTimeout(() => enableProxyDiscovery().catch((e) =>
+        console.error('[Proxy] Failed to enable discovery on boot:', e.message)
+    ), 500);
+});

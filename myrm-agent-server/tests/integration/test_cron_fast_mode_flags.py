@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
 
 
 def test_fast_mode_builtin_list_excludes_cron_eager() -> None:

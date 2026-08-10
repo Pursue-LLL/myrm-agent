@@ -269,8 +269,7 @@ def _build_draft_content(processed_html: str) -> str:
 
 
 def _resolve_author(author: str) -> str:
-    resolved = author.strip() or "Myrm"
-    return resolved[:_MAX_AUTHOR_LEN]
+    return author.strip()[:_MAX_AUTHOR_LEN]
 
 
 def _resolve_digest(html: str, user_digest: str) -> str:

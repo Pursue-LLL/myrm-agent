@@ -29,6 +29,7 @@ import type {
 } from '@/services/memoryCommandCenter';
 import type { MemoryType } from '@/services/memory';
 import { MemoryAdvancedVerifyPanels } from './MemoryCommandCenterAdvancedPanels';
+import { MemoryLayerGuide } from './MemoryLayerGuide';
 import { resolveReplaySessionId } from './memoryLiveStream';
 
 const MemoryHealthDashboard = lazy(() => import('./MemoryHealthDashboard'));
@@ -91,6 +92,7 @@ export const ObserveSection = ({
           <MetricTile key={type} label={t(`types.${type}`)} value={snapshot.overview.by_type[type] ?? 0} dense />
         ))}
       </div>
+      <MemoryLayerGuide />
     </Panel>
     <Panel title={t('commandCenter.liveStreamTitle')} liveHint={t('commandCenter.liveStreamHint')}>
       <EventList

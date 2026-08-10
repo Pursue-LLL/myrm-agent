@@ -4397,6 +4397,12 @@
         "test": "テスト通知を送信",
         "title": "通知"
       },
+      "pushStatus": {
+        "enabled": "通知が有効です",
+        "disabled": "通知が無効です",
+        "denied": "通知がブロックされています",
+        "unsupported": "通知はサポートされていません"
+      },
       "pushDisabled": "通知が無効になりました",
       "pushEnabled": "通知が有効になりました",
       "pushTestSent": "テスト通知を送信しました"
@@ -6401,6 +6407,8 @@
     "useDefaultModel": "モデルを選択...",
     "onlyOwnerCanViewPrompt": "エージェントの所有者のみシステムプロンプトを表示できます",
     "failedToLoadPrompt": "システムプロンプトの読み込みに失敗、再試行してください",
+    "loadFailed": "エージェントの読み込みに失敗しました",
+    "loadFailed": "エージェントの読み込みに失敗しました",
     "systemPromptLoaded": "システムプロンプトを読み込みました",
     "loginRequired": "ログインが必要です",
     "loginRequiredDesc": "エージェントの作成と管理にはログインが必要です",
@@ -6880,7 +6888,9 @@
         "subagent_risk": "サブエージェントリスク",
         "cron_risk": "スケジュールタスクリスク",
         "policy_gap": "ポリシーカバレッジ"
-      }
+      },
+      "injectionPolicyTitle": "プロンプトインジェクションガード",
+      "injectionPolicyDesc": "このエージェントの高リスクなプロンプトインジェクションパターンをブロックします。グローバルポリシーと OR セマンティクスで統合されます（どちらかがブロックを有効にすれば有効になります）。"
     },
     "secrets": {
       "tabTitle": "キー管理",
@@ -7877,6 +7887,14 @@
       "clearOverride": "使用すべてスキル",
       "noSkills": "このエージェントにはスキルが設定されていません"
     },
+    "wechatArticleHint": {
+      "title": "WeChat記事リンクを検出しました",
+      "description": "WeChat Article Formatterスキルをこのエージェントに追加すると、公式アカウント下書き用HTMLを生成できます。",
+      "readyTitle": "WeChatフォーマッタースキル準備完了",
+      "readyDescription": "エージェント完了後、HTMLアーティファクトを開き「WeChat下書きに送信」を使用してください。",
+      "openSkills": "エージェントスキルを開く",
+      "dismiss": "閉じる"
+    },
     "samplePrompts": {
       "fast_0": "最新の AI 規制ポリシーは？",
       "fast_1": "健康的な食事の実用的なアドバイスは？",
@@ -8051,7 +8069,11 @@
       "usingAgentDefaults": "エージェントのデフォルトを使用",
       "nextTurnOnly": "次のメッセージのみに適用"
     },
-    "retry": "再試行"
+    "retry": "再試行",
+    "archiveRestore": {
+      "invalidTitle": "アーカイブ復元に失敗しました",
+      "invalidDescription": "アーカイブされたコンテキストを復元できませんでした: {error}"
+    }
   },
   "mode": {
     "fast": "高速検索",
@@ -8953,6 +8975,21 @@
       "spacesEmpty": "有効なメモリスペースはまだありません",
       "bindingCount": "{count} 個バインド",
       "liveStreamTitle": "ライブメモリストリーム",
+      "layerGuide": {
+        "title": "レイヤー対応",
+        "workingSet": "作業セット",
+        "workingSetTypes": "対話",
+        "workingSetHint": "セッション内コンテキスト、応答に影響",
+        "taskState": "タスク状態",
+        "taskStateTypes": "タスク要約",
+        "taskStateHint": "進行中・完了したタスク成果",
+        "longTerm": "長期記憶",
+        "longTermTypes": "プロフィール · 知識 · 経験 · 方法 · 検証済み",
+        "longTermHint": "セッションを超えて保持される事実と嗜好",
+        "rawEvidence": "生の証拠",
+        "rawEvidenceTypes": "対話履歴",
+        "rawEvidenceHint": "要約の背後にある追跡可能な元記録"
+      },
       "liveStreamHint": "SSE 経由でライブ",
       "recallBurstSummary": "{count} 個の検索ステップ · {summary}",
       "preCompactLiveDescription": "圧縮前リコールで {count} 件のメモリを注入しました",
@@ -9455,6 +9492,15 @@
         "shared_context": "共有コンテキスト",
         "memory_manager": "メモリマネージャー"
       },
+      "seedingDemo": "デモデータを作成中...",
+      "seedDemo": "30秒の記憶デモを体験",
+      "rollingBackDemo": "デモデータを削除中...",
+      "rollbackDemo": "デモデータを削除",
+      "embeddingNotReady": "埋め込みサービスが準備できていません",
+      "embeddingNotReadyDesc": "デモを使用する前に、「設定 > モデルサービス」で埋め込みモデルを設定してください。",
+      "demoSeedSuccess": "デモデータが正常に作成されました！",
+      "demoSeedSuccessDesc": "記憶グラフとセマンティック検索を探索できます。",
+      "demoRollbackSuccess": "デモデータが正常に削除されました！",
       "allProjects": "すべてのプロジェクト",
       "clearFilter": "クリア",
       "migrationAdapterStatusTitle": "アダプターの準備状態",
@@ -10521,6 +10567,13 @@
       "openPanel": "WeChat下書きに送信",
       "titleLabel": "記事タイトル",
       "titlePlaceholder": "下書きタイトルを入力",
+      "authorLabel": "著者",
+      "authorPlaceholder": "表示名（最大8文字）",
+      "authorHint": "WeChat下書きカードに表示されます。既定値はエージェント名です。",
+      "authorRequired": "著者を入力してください（最大8文字）",
+      "digestLabel": "要約",
+      "digestPlaceholder": "任意、カード要約（最大120文字）",
+      "digestHint": "空欄の場合は本文から自動生成します。",
       "coverLabel": "カバー画像（任意）",
       "coverPlaceholder": "カバー画像へのワークスペースパス",
       "coverHint": "パネルを開くと記事の最初のローカル画像が自動入力されます。パスを編集するか、ワークスペース画像を検索するか、サーバーがHTMLからカバーを選べる場合は空のままにします。",
@@ -12818,7 +12871,14 @@
     "unexpectedError": "予期しないエラーが発生しました",
     "wechatOfficialTitle": "WeChat公式アカウント",
     "wechatOfficialDesc": "記事の下書き公開用に認証済みサービスアカウントの資格情報を設定します。",
-    "wechatOfficialIpWhitelistHint": "このサーバーのパブリックIPを公式アカウントのIPホワイトリストに追加してください（mp.weixin.qq.com → 設定 → 開発 → 基本設定）。ホワイトリストにない場合APIエラー40164が発生します。",
+    "wechatOfficialIpWhitelistHint": "下記の公開IPをWeChat公式アカウントのIPホワイトリストに追加してください（mp.weixin.qq.com → 設定 → 開発 → 基本設定）。",
+    "wechatOfficialEgressLabel": "サーバー公開IP",
+    "wechatOfficialEgressLoading": "送信元IPを確認中…",
+    "wechatOfficialEgressUnavailable": "送信元IPを取得できません。ネットワークを確認して更新してください。",
+    "wechatOfficialEgressCopy": "IPをコピー",
+    "wechatOfficialEgressCopied": "IPをコピーしました",
+    "wechatOfficialEgressCopyFailed": "IPのコピーに失敗しました",
+    "wechatOfficialEgressRefresh": "更新",
     "wechatOfficialAppId": "App ID",
     "wechatOfficialAppSecret": "App Secret",
     "wechatOfficialToken": "トークン",
@@ -13949,7 +14009,11 @@
         "monthTokens": "今月の Token",
         "monthCost": "今月コスト",
         "pending": "待承認"
-      }
+      },
+      "builtin": "組み込み",
+      "noDescription": "説明はありません",
+      "testChat": "テストチャット",
+      "settings": "設定"
     }
   },
   "settingsTabs": {
@@ -15864,12 +15928,25 @@
     "teamHub": {
       "title": "チーム資産",
       "subtitle": "Shared contexts, wiki, skills, and chat memory — one place for team setup and review.",
+      "builtIn": "組み込み",
       "wikiTitle": "Wiki",
       "wikiDesc": "ナレッジベースとエージェントスコープのノート",
       "skillsTitle": "スキル",
       "skillsDesc": "マウントされた機能と進化キュー",
       "memoryTitle": "メモリ",
-      "memoryDesc": "パーソナルブレイン、ポリシー、コマンドセンター"
+      "memoryDesc": "パーソナルブレイン、ポリシー、コマンドセンター",
+      "summaryLoading": "資産概要を読み込み中…",
+      "overviewTitle": "資産概要",
+      "blockedCount": "{count, plural, =1 {# 個のエージェントに対応が必要です} other {# 個のエージェントに対応が必要です}}",
+      "memoryStat": "メモリ",
+      "memoryOn": "有効",
+      "memoryOff": "無効",
+      "skillsStat": "スキル",
+      "pendingStat": "未審査",
+      "unavailable": "利用不可",
+      "agentSummary": "{skills} スキル · Wiki {wiki} · 定時 {cron}",
+      "wikiOn": "オン",
+      "wikiOff": "オフ"
     }
   },
   "copilot": {

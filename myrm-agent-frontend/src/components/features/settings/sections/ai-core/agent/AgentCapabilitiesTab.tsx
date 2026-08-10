@@ -65,6 +65,7 @@ export interface AgentCapabilitiesTabProps {
     useGlobalInstruction: boolean;
     enabledBuiltinTools: BuiltinToolId[];
     isReadonly: boolean;
+    saveVersion: number;
     setEditDialogType: (type: ConfigCardType) => void;
     setEditDialogOpen: (open: boolean) => void;
     openapiServices: OpenAPIServiceConfig[];
@@ -121,7 +122,7 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
         <AgentLoadoutSummary
           agentId={agentId}
           skillCount={editor.selectedSkillDetails.length}
-          refreshKey={loadoutRefreshKey}
+          refreshKey={loadoutRefreshKey + editor.saveVersion}
           sharedContextTileHref={agentSharedContextBindingAnchor()}
           className="rounded-xl border border-border/50 bg-secondary/20 p-4 sm:p-5"
         />

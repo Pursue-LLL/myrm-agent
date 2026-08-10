@@ -279,9 +279,12 @@ def cap_headroom_fields(
         private_waiting=private_waiting,
         mux_saturated=mux_saturated,
     )
-    registry_unknown = (
-        dev_gate.get("registry_observability") == "unknown" or observability_mismatch
-    )
+    # A disagreement between the detailed process registry and independent live
+    # signals is diagnostic, not an absence of observability.  The resolved
+    # count above deliberately takes the maximum of Dev Gate, wave leases, and
+    # pytest peers, so SHARED admission remains safe without serializing behind
+    # a temporarily incomplete process scan.
+    registry_unknown = dev_gate.get("registry_observability") == "unknown"
     return {
         "waveLeasesActive": counts.total,
         "waveLeasesEffective": counts.effective_total,
@@ -301,6 +304,7 @@ def cap_headroom_fields(
             dev_gate.get("private_credit_idle_reason", "unknown")
         ),
         "registryObservabilityUnknown": registry_unknown,
+        "parallelObservabilityMismatch": observability_mismatch,
         "operationQueueDepth": orch.get("queueDepth", 0),
         "estimatedOperationWaitSec": orch.get("estimatedWaitSec", 0),
         "operationWithinSlo": orch.get("withinOperationSlo", True),

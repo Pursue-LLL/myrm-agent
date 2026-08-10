@@ -59,7 +59,7 @@ def test_api_draft_compliance_blocks_before_wechat_api(client: TestClient, tmp_p
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/draft",
-            json={"htmlPath": str(html_file), "title": "Blocked Article"},
+            json={"htmlPath": str(html_file), "title": "Blocked Article", "author": "Author"},
         )
 
     assert response.status_code == 422

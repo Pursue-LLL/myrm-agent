@@ -102,7 +102,7 @@ class TestDialogPolicyConverterIntegration:
     async def test_dialog_policy_from_resolved_profile(self, base_request: dict):
         """dialog_policy stored in agent profile flows through resolver."""
         from app.services.agent.params.converter import convert_to_general_agent_params
-        from app.services.agent.profile_resolver import ResolvedAgentProfile
+        from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
         base_request["agent_id"] = "test-agent-with-dialog-policy"
         request = AgentRequest(**base_request)
@@ -122,7 +122,7 @@ class TestDialogPolicyConverterIntegration:
         mock_resolver.resolve = AsyncMock(return_value=mock_profile)
 
         with patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ):
             params, _, _, _ = await convert_to_general_agent_params(request, [])
@@ -194,7 +194,7 @@ class TestSessionRecordingConverterIntegration:
     async def test_session_recording_from_resolved_profile(self, base_request: dict):
         """session_recording stored in agent profile flows through resolver."""
         from app.services.agent.params.converter import convert_to_general_agent_params
-        from app.services.agent.profile_resolver import ResolvedAgentProfile
+        from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
         base_request["agent_id"] = "test-agent-with-recording"
         request = AgentRequest(**base_request)
@@ -214,7 +214,7 @@ class TestSessionRecordingConverterIntegration:
         mock_resolver.resolve = AsyncMock(return_value=mock_profile)
 
         with patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ):
             params, _, _, _ = await convert_to_general_agent_params(request, [])

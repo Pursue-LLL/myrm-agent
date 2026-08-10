@@ -1,7 +1,7 @@
 """On-demand backend-only isolated runtime for verify-api when epoch match is missing.
 
 [INPUT]
-- isolated_runtime_allocator.runtime_environment (POS: per-runtime env SSOT)
+- isolated_runtime.allocator.runtime_environment (POS: per-runtime env SSOT)
 - dev_gate_contract.LIVE_SHPOIB_MAX_CONCURRENT (POS: private backend cap)
 - runtime_identity._backend_source_fingerprint (POS: workspace epoch SSOT)
 
@@ -98,7 +98,7 @@ def _health_ok(api_base: str) -> bool:
 
 
 def _count_active_backend_only() -> int:
-    from isolated_runtime_registry import (  # noqa: PLC0415
+    from isolated_runtime.registry import (  # noqa: PLC0415
         ACTIVE_PHASES,
         owner_is_active,
         process_is_alive,
@@ -272,8 +272,8 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
 
 
 def _mark_runtime_cleaning(runtime_id: str) -> None:
-    from isolated_runtime_allocator import isolated_root  # noqa: PLC0415
-    from isolated_runtime_registry import (  # noqa: PLC0415
+    from isolated_runtime.allocator import isolated_root  # noqa: PLC0415
+    from isolated_runtime.registry import (  # noqa: PLC0415
         locked_registry,
         read_registry,
         write_registry,
@@ -298,14 +298,14 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
         )
 
     _ensure_scripts_dev_importable(root)
-    from isolated_runtime_allocator import (  # noqa: PLC0415
+    from isolated_runtime.allocator import (  # noqa: PLC0415
         allocate_runtime,
         claim_bootstrap_slot,
         heartbeat_runtime,
         runtime_environment,
     )
-    from isolated_runtime_process import record_backend_process  # noqa: PLC0415
-    from isolated_runtime_reaper import start_reaper_daemon  # noqa: PLC0415
+    from isolated_runtime.process import record_backend_process  # noqa: PLC0415
+    from isolated_runtime.reaper import start_reaper_daemon  # noqa: PLC0415
 
     runtime_id = f"verify-api-{uuid.uuid4().hex[:12]}"
     owner_token = f"verify-{uuid.uuid4().hex}"

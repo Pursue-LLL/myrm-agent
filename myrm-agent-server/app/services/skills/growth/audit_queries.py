@@ -1,6 +1,7 @@
 """[INPUT]
 - app.database.models::ApprovalRecord, SkillGrowthCase (POS: ORM models for growth audit)
-- ..evolution_reviews::EvolutionReviewRecord (POS: review record DTO)
+- ..experience_ledger (POS: 学习资产事件账本)
+- .case_types::SkillGrowthCaseSource, SkillGrowthCaseStatus (POS: growth case DTO)
 
 [OUTPUT]
 - get_growth_audit_timeline(): paginated audit trail of skill growth events
@@ -20,6 +21,7 @@ from sqlalchemy import desc, select
 
 from app.database.connection import get_session
 from app.database.models import ExperienceLedgerEvent
+
 from ..experience_ledger import (
     SKILL_GROWTH_EVENT_TYPES,
     SKILL_GROWTH_NEGATIVE_EVENT_TYPES,

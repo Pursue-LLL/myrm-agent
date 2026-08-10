@@ -17,8 +17,9 @@ Supports optional password-protected share links.
 from __future__ import annotations
 
 import logging
+import time
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -28,7 +29,11 @@ from sqlalchemy.orm import selectinload
 from app.api.dependencies import get_workspace_root
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
-from app.core.security.share_hmac import is_password_protected
+from app.core.security.share_hmac import (
+    create_share_token,
+    is_password_protected,
+    parse_share_token,
+)
 from app.core.security.share_password_page import render_password_gate_html
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
@@ -103,6 +108,55 @@ def _file_response(path: str, media_type: str, filename: str) -> FileResponse:
         media_type=media_type,
         filename=filename,
         content_disposition_type="inline",
+    )
+
+
+_UNLOCK_COOKIE_NAME = "artifact_share_unlock"
+_UNLOCK_SALT = "artifact-share-unlock"
+_UNLOCK_COOKIE_PATH = "/api/v1/public/artifact-share"
+
+
+def _build_unlock_credential(claims: ArtifactShareClaims) -> str | None:
+    """Issue a short-lived credential after a correct password unlock.
+
+    Stateless HMAC token bound to the same artifact version so subsequent
+    static-asset requests (which cannot carry the password) are authorized
+    without re-entering it.
+    """
+    remaining = claims.exp - int(time.time())
+    if remaining < 60:
+        return None
+    credential, _ = create_share_token(
+        {"aid": claims.artifact_id, "vid": claims.version_id},
+        salt=_UNLOCK_SALT,
+        ttl_seconds=remaining,
+        max_ttl_seconds=30 * 24 * 3600,
+    )
+    return credential
+
+
+def _is_valid_unlock_credential(value: str, claims: ArtifactShareClaims) -> bool:
+    parsed = parse_share_token(value, salt=_UNLOCK_SALT)
+    if parsed is None:
+        return False
+    return parsed.get("aid") == claims.artifact_id and parsed.get("vid") == claims.version_id
+
+
+def _attach_unlock_cookie(
+    response: Response, claims: ArtifactShareClaims, password: str | None,
+) -> None:
+    if not password:
+        return
+    credential = _build_unlock_credential(claims)
+    if credential is None:
+        return
+    response.set_cookie(
+        key=_UNLOCK_COOKIE_NAME,
+        value=credential,
+        max_age=max(0, claims.exp - int(time.time())),
+        path=_UNLOCK_COOKIE_PATH,
+        httponly=True,
+        samesite="strict",
     )
 
 
@@ -196,17 +250,24 @@ async def create_artifact_share_preview(
     )
 
 
-def _parse_or_gate(
-    token: str, password: str | None,
+def _auth_or_gate(
+    request: Request, token: str, password: str | None,
 ) -> ArtifactShareClaims | HTMLResponse:
-    """Parse token with optional password.
+    """Authenticate a password-protected share using ``p`` or a prior unlock cookie.
 
-    Returns ``ArtifactShareClaims`` on success, or an ``HTMLResponse``
-    password-gate page when a password is required but missing/wrong.
+    Returns ``ArtifactShareClaims`` on success, or a ``HTMLResponse`` password-gate
+    page when a password is required but missing/wrong. The unlock cookie lets
+    static-asset requests (which do not carry the password) pass once unlocked.
     """
     protected = is_password_protected(token)
     if protected and not password:
+        unlock = request.cookies.get(_UNLOCK_COOKIE_NAME)
+        if unlock:
+            claims = parse_artifact_share_token(token)
+            if claims is not None and _is_valid_unlock_credential(unlock, claims):
+                return claims
         return HTMLResponse(render_password_gate_html(), status_code=403)
+
     claims = parse_artifact_share_token(token, password=password)
     if claims is None:
         if protected and password:
@@ -227,12 +288,17 @@ async def get_public_artifact_share(
     workspace_root: str = Depends(get_workspace_root),
 ):
     """Serve the bundle entry file for a valid share token (no API key)."""
-    result = _parse_or_gate(token, pwd)
+    result = _auth_or_gate(request, token, pwd)
     if isinstance(result, HTMLResponse):
         return result
     if bundle_asset_count(result) > 1 and not str(request.url.path).endswith("/"):
-        return RedirectResponse(url=str(request.url) + "/", status_code=307)
-    return await _serve_share_bundle(result, db, workspace_root, None)
+        redirect_url = str(request.url.replace(path=str(request.url.path) + "/"))
+        response = RedirectResponse(url=redirect_url, status_code=307)
+        _attach_unlock_cookie(response, result, pwd)
+        return response
+    response = await _serve_share_bundle(result, db, workspace_root, None)
+    _attach_unlock_cookie(response, result, pwd)
+    return response
 
 
 @public_router.get("/{token}/")
@@ -245,10 +311,12 @@ async def get_public_artifact_share_index(
     workspace_root: str = Depends(get_workspace_root),
 ):
     """Serve bundle entry under a trailing slash so relative static assets resolve."""
-    result = _parse_or_gate(token, pwd)
+    result = _auth_or_gate(request, token, pwd)
     if isinstance(result, HTMLResponse):
         return result
-    return await _serve_share_bundle(result, db, workspace_root, None)
+    response = await _serve_share_bundle(result, db, workspace_root, None)
+    _attach_unlock_cookie(response, result, pwd)
+    return response
 
 
 @public_router.get("/{token}/{asset_path:path}")
@@ -262,7 +330,7 @@ async def get_public_artifact_share_asset(
     workspace_root: str = Depends(get_workspace_root),
 ):
     """Serve a static asset from a multi-file share bundle."""
-    result = _parse_or_gate(token, pwd)
+    result = _auth_or_gate(request, token, pwd)
     if isinstance(result, HTMLResponse):
         return result
     return await _serve_share_bundle(result, db, workspace_root, asset_path)

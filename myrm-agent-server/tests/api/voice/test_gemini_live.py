@@ -138,7 +138,7 @@ async def test_create_gemini_live_token_success() -> None:
 
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
     ):
         result = await create_gemini_live_token(GeminiLiveTokenRequest(agent_id="test-agent"))
 
@@ -165,7 +165,7 @@ async def test_create_gemini_live_token_custom_model() -> None:
 
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
     ):
         result = await create_gemini_live_token(GeminiLiveTokenRequest(model="gemini-2.0-flash-live-001"))
 
@@ -202,7 +202,7 @@ async def test_create_gemini_live_token_no_profile() -> None:
 
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
     ):
         result = await create_gemini_live_token(GeminiLiveTokenRequest())
 

@@ -145,7 +145,7 @@ async def test_finalize_marks_clarification_answered_after_successful_resume() -
         patch(
             "app.services.agent.stream_session.stream_finalize.SteeringRegistry"
         ),
-        patch("app.services.agent.goal_registry.GoalRegistry"),
+        patch("app.services.agent.goals.goal_registry.GoalRegistry"),
         patch(
             "myrm_agent_harness.agent.security.user_credentials_ctx"
         ) as mock_ctx,
@@ -208,7 +208,7 @@ async def test_finalize_marks_clarification_answered_after_dr_resolved_status() 
         patch(
             "app.services.agent.stream_session.stream_finalize.SteeringRegistry"
         ),
-        patch("app.services.agent.goal_registry.GoalRegistry"),
+        patch("app.services.agent.goals.goal_registry.GoalRegistry"),
         patch(
             "myrm_agent_harness.agent.security.user_credentials_ctx"
         ) as mock_ctx,

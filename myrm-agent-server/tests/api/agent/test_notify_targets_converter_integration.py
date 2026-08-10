@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.services.agent.params.models import AgentRequest
-from app.services.agent.profile_resolver import ResolvedAgentProfile
+from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ class TestNotifyTargetsConverterIntegration:
         request = AgentRequest(**base_request)
 
         with patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ):
             params, _, _, _ = await convert_to_general_agent_params(request, [])
@@ -77,7 +77,7 @@ class TestNotifyTargetsConverterIntegration:
         request = AgentRequest(**base_request)
 
         with patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ):
             params, _, _, _ = await convert_to_general_agent_params(request, [])

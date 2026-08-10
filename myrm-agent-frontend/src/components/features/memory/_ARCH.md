@@ -26,6 +26,7 @@
 | `MemoryHealthDashboard.tsx` | 组件 | 记忆健康度指标仪表盘 | ✅ |
 | `MemoryImportReviewDialog.tsx` | 组件 | 批量导入 dry-run 结果审阅 | ✅ |
 | `MemoryKnowledgeGraph.tsx` | 组件 | 记忆知识图谱 force-graph 可视化 | ✅ |
+| `MemoryLayerGuide.tsx` | 组件 | Command Center 记忆分层说明卡（工作集/任务状态/长期记忆/原始证据，只读注释型） | ✅ |
 | `MemorySettingsToggles.tsx` | 组件 | 记忆功能开关组（auto-save/recall 等） | ✅ |
 | `MemoryStats.tsx` | 组件 | 记忆数量/类型统计摘要 | ✅ |
 | `MemoryTabSwitcher.tsx` | 组件 | All/Pending/Archive Tab 切换 | ✅ |

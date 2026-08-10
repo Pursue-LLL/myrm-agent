@@ -1,4 +1,16 @@
-"""Evolution proposal WebSocket hub — connection pool and broadcast (service layer)."""
+"""Evolution proposal WebSocket hub — connection pool and broadcast (service layer).
+
+[INPUT]
+- fastapi::WebSocket, WebSocketDisconnect (POS: WebSocket 连接抽象)
+
+[OUTPUT]
+- register_connection / unregister_connection: 连接池管理
+- broadcast_proposal / broadcast_message: 提案/消息广播（含死连接清理）
+- get_active_connection_count: 活跃连接数查询（监控用）
+
+[POS]
+Evolution 提案 WebSocket 中枢：服务层维护按 user_key 分组的连接池，向前端广播 NEW_EVOLUTION_PROPOSAL 消息。
+"""
 
 from __future__ import annotations
 

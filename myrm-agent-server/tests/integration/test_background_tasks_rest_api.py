@@ -25,7 +25,7 @@ from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind impo
     bind_workspace_storage_root,
 )
 
-from app.services.agent.background_job_finish_handler import (
+from app.services.agent.background_job.background_job_finish_handler import (
     ServerBackgroundJobFinishHandler,
 )
 from tests.integration.test_background_job_finish_chain import _make_local_executor

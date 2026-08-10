@@ -32,70 +32,9 @@ _smp_python() {
   printf '%s' "python3"
 }
 
-_smp_apply_backend_drift_ensure() {
-  local dev_stack="${1:?}" policy_py="${2:?}" state_dir="${3:?}"
-  local attempt max_attempts backoff_sec flock_wait_sec
-  max_attempts="${MYRM_E2E_ATTACH_BACKEND_ENSURE_MAX_ATTEMPTS:-3}"
-  [[ "${max_attempts}" =~ ^[0-9]+$ && "${max_attempts}" -gt 0 ]] || max_attempts=3
-  flock_wait_sec="${MYRM_E2E_CRASH_HEAL_FLOCK_WAIT_SEC:-180}"
-  for attempt in $(seq 1 "${max_attempts}"); do
-    if _smp_with_backend_heal_flock "${flock_wait_sec}" \
-      env MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure; then
-      "$(_smp_python)" "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
-      return 0
-    fi
-    # backend-only ensure can return early while shared api is still converging;
-    # treat immediate post-failure recovery as success to avoid false fail-fast.
-    if _smp_shared_api_http_ok; then
-      echo "CHROME_E2E_ATTACH_HEAL: backend drift ensure failed but api recovered (attempt ${attempt}/${max_attempts})" >&2
-      "$(_smp_python)" "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
-      return 0
-    fi
-    if [[ "${attempt}" -lt "${max_attempts}" ]]; then
-      echo "CHROME_E2E_ATTACH_HEAL: backend drift ensure retry ${attempt}/${max_attempts}" >&2
-      backoff_sec=$((attempt * 3))
-      sleep "${backoff_sec}"
-    fi
-  done
-  echo "CHROME_E2E_FAIL: attach backend drift ensure failed" >&2
-  return 1
-}
-
-_smp_apply_pending_drift_if_idle() {
-  local monorepo_root="${1:?}" server_dir="${2:?}" dev_stack="${3:?}"
-  local stack_epoch_lib policy_py state_dir active_leases
-  stack_epoch_lib="$(dirname "${dev_stack}")/lib/stack-epoch.sh"
-  policy_py="$(_smp_policy_py "$(dirname "${stack_epoch_lib}")")"
-  state_dir="$(_smp_state_dir)"
-  # shellcheck source=stack-epoch.sh
-  source "${stack_epoch_lib}"
-  active_leases="$(_wave_active_lease_count "${monorepo_root}")"
-  if [[ "${active_leases}" != "0" ]]; then
-    return 0
-  fi
-  if _smp_ensure_lock_active "${state_dir}"; then
-    return 0
-  fi
-  if ! "$(_smp_python)" "${policy_py}" pending-exists --state-dir "${state_dir}" | grep -q '^1$'; then
-    return 0
-  fi
-  echo "CHROME_E2E_ATTACH_HEAL: apply pending stack drift (0 active wave leases)" >&2
-  _smp_apply_backend_drift_ensure "${dev_stack}" "${policy_py}" "${state_dir}"
-}
-
 _smp_shared_api_http_ok() {
   local health_url="${API_HEALTH:-http://127.0.0.1:${MYRM_BACKEND_PORT:-${PORT:-8080}}/api/v1/health}"
   curl -sf --max-time 5 "${health_url}" >/dev/null 2>&1
-}
-
-_smp_ensure_lock_active() {
-  local state_dir="${1:?}"
-  local lockdir="${state_dir}/ensure.lock.d"
-  local owner_file="${lockdir}/pid"
-  local owner=""
-  [[ -f "${owner_file}" ]] || return 1
-  owner="$(tr -d '[:space:]' <"${owner_file}")"
-  [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null
 }
 
 _smp_run_backend_crash_ensure() {

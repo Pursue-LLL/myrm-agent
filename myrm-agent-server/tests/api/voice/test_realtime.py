@@ -283,7 +283,7 @@ async def test_create_realtime_token_success() -> None:
             AsyncMock(return_value=mock_configs),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch("httpx.AsyncClient", return_value=mock_client),
@@ -342,7 +342,7 @@ async def test_create_realtime_token_no_profile_returns_default_tools() -> None:
             AsyncMock(return_value=mock_configs),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch("httpx.AsyncClient", return_value=mock_client),
@@ -390,7 +390,7 @@ async def test_create_realtime_token_voice_from_config() -> None:
             AsyncMock(return_value=mock_configs),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch("httpx.AsyncClient", return_value=mock_client),
@@ -435,7 +435,7 @@ async def test_create_realtime_token_invalid_voice_uses_default() -> None:
             AsyncMock(return_value=mock_configs),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch("httpx.AsyncClient", return_value=mock_client),
@@ -481,7 +481,7 @@ async def test_create_realtime_token_tools_payload_format() -> None:
             AsyncMock(return_value=mock_configs),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch("httpx.AsyncClient", return_value=mock_client),
@@ -549,7 +549,7 @@ async def test_create_realtime_token_openai_error() -> None:
             AsyncMock(return_value=mock_configs),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch("httpx.AsyncClient", return_value=mock_client),
@@ -649,7 +649,7 @@ async def test_execute_tool_success() -> None:
             return_value=(None, None),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch(
@@ -713,7 +713,7 @@ async def test_execute_tool_honors_disabled_conversation_search() -> None:
             return_value=(None, None),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch(
@@ -775,7 +775,7 @@ async def test_execute_tool_honors_net_fetch_gate() -> None:
             return_value=(None, None),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch(
@@ -875,7 +875,7 @@ async def test_execute_tool_accepts_safe_chat_id() -> None:
             return_value=(None, None),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch(

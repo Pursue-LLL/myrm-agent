@@ -718,6 +718,12 @@ async def _run_warmup(
                     unregister_infra_target(target_id)
 
             if ready and closed and not seal_target:
+                try:
+                    from warm_shell_registry import seal_platform_shell
+
+                    seal_platform_shell(ui_url=page_url, route_path="/")
+                except ImportError:
+                    pass
                 return
             if ready:
                 if seal_target and isinstance(target_id, str) and target_id:

@@ -24,7 +24,7 @@ from myrm_agent_harness.toolkits.storage.types import SkillType
 from app.core.skills import prebuilt_sync
 from app.core.skills.store.service import SkillsService
 from app.core.skills.store.user_config import UserSkillConfigManager
-from app.services.agent.builtin_initializer import _BUILTIN_AGENTS
+from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
 
 
 @pytest.fixture

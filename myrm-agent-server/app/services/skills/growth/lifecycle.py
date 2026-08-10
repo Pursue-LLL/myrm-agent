@@ -5,8 +5,8 @@
 - app.core.skills.creation.service::skill_creation_service (POS: Skill creation service)
 - app.core.skills.providers.local::compute_local_skill_id (POS: Local skill ID computation)
 - app.core.skills.store.service::skills_service (POS: Skill store service)
-- app.services.skills.auto_extractor::auto_extract_or_patch_skill (POS: Skill materialization helper)
-- app.services.skills.draft_notification (POS: Skill draft persistence and notification)
+- ..auto_extractor::auto_extract_or_patch_skill (POS: 技能物化辅助器)
+- ..draft_notification (POS: 技能成长记录持久化)
 - myrm_agent_harness.backends.skills.similarity::SkillSimilarityChecker (POS: Skill similarity checking protocol)
 
 [OUTPUT]
@@ -30,6 +30,7 @@ from app.core.skills.config_version import bump_skill_config_version
 from app.core.skills.creation.service import skill_creation_service
 from app.core.skills.providers.local import compute_local_skill_id
 from app.core.skills.store.service import skills_service
+
 from ..auto_extractor import auto_extract_or_patch_skill
 from ..draft_notification import (
     evaluate_growth_scan,

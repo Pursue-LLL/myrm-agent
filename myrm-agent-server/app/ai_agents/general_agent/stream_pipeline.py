@@ -245,7 +245,7 @@ async def execute_stream_pipeline(
         )
 
         if agent_wrapper.agent_id:
-            from app.services.agent.profile_resolver import get_agent_profile_resolver
+            from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
             resolved_profile = await get_agent_profile_resolver().resolve(
                 agent_wrapper.agent_id

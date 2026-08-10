@@ -14,8 +14,8 @@ from app.config.computer_use_deploy import (
     is_computer_use_deploy_supported,
 )
 from app.config.deploy_mode import get_deploy_mode
-from app.services.agent.builtin_tool_ids import strip_deploy_incompatible_builtin_tools
-from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+from app.services.agent.builtin_specs.builtin_tool_ids import strip_deploy_incompatible_builtin_tools
+from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
 
 
 def _reset_deploy_caches() -> None:

@@ -3717,6 +3717,12 @@
         "test": "테스트 알림 보내기",
         "title": "알림"
       },
+      "pushStatus": {
+        "enabled": "알림이 활성화되어 있습니다",
+        "disabled": "알림이 비활성화되어 있습니다",
+        "denied": "알림이 차단되어 있습니다",
+        "unsupported": "알림이 지원되지 않습니다"
+      },
       "pushDisabled": "알림이 비활성화되었습니다",
       "pushEnabled": "알림이 활성화되었습니다",
       "pushTestSent": "테스트 알림을 보냈습니다"
@@ -6464,7 +6470,9 @@
         "subagent_risk": "하위 에이전트 위험",
         "cron_risk": "예약 작업 위험",
         "policy_gap": "정책 적용 범위"
-      }
+      },
+      "injectionPolicyTitle": "프롬프트 인젝션 가드",
+      "injectionPolicyDesc": "이 에이전트의 고위험 프롬프트 인젝션 패턴을 차단합니다. 전역 정책과 OR 의미 체계로 병합됩니다(어느 쪽이든 차단을 활성화하면 적용됩니다)."
     },
     "suggestionPrompts": {
       "title": "시작 프롬프트",
@@ -6639,6 +6647,7 @@
     },
     "onlyOwnerCanViewPrompt": "에이전트 소유자만 시스템 프롬프트를 볼 수 있습니다",
     "failedToLoadPrompt": "시스템 프롬프트를 불러오지 못했습니다. 다시 시도하세요",
+    "loadFailed": "에이전트를 불러오지 못했습니다",
     "systemPromptLoaded": "시스템 프롬프트가 로드되었습니다",
     "clone": "복제",
     "cloneDialogTitle": "에이전트 복제",
@@ -7839,6 +7848,14 @@
       "clearOverride": "모든 스킬 사용",
       "noSkills": "이 에이전트에 구성된 스킬이 없습니다"
     },
+    "wechatArticleHint": {
+      "title": "WeChat 기사 링크가 감지되었습니다",
+      "description": "WeChat Article Formatter 스킬을 이 에이전트에 연결하면 공식 계정 초안으로 보낼 HTML을 만들 수 있습니다.",
+      "readyTitle": "WeChat 포맷터 스킬 준비 완료",
+      "readyDescription": "에이전트가 끝난 뒤 HTML 아티팩트를 열고 WeChat 초안으로 보내기를 사용하세요.",
+      "openSkills": "에이전트 스킬 열기",
+      "dismiss": "닫기"
+    },
     "turnCapabilities": {
       "tooltip": "다음 메시지 기능",
       "popoverTitle": "다음 메시지 기능",
@@ -7851,7 +7868,11 @@
       "usingAgentDefaults": "에이전트 기본값 사용 중",
       "nextTurnOnly": "다음 메시지에만 적용됩니다"
     },
-    "retry": "다시 시도"
+    "retry": "다시 시도",
+    "archiveRestore": {
+      "invalidTitle": "아카이브 복원 실패",
+      "invalidDescription": "아카이브된 컨텍스트를 복원할 수 없습니다: {error}"
+    }
   },
   "mode": {
     "fast": "빠른 검색",
@@ -8935,6 +8956,21 @@
       "spacesEmpty": "활성 메모리 공간이 아직 없습니다",
       "bindingCount": "바인딩 {count}개",
       "liveStreamTitle": "라이브 메모리 스트림",
+      "layerGuide": {
+        "title": "레이어 매핑",
+        "workingSet": "작업 집합",
+        "workingSetTypes": "대화",
+        "workingSetHint": "세션 내 컨텍스트로 답변에 영향",
+        "taskState": "작업 상태",
+        "taskStateTypes": "작업 요약",
+        "taskStateHint": "진행 중·완료된 작업 결과",
+        "longTerm": "장기 기억",
+        "longTermTypes": "프로필 · 지식 · 경험 · 방법 · 검증됨",
+        "longTermHint": "세션을 넘어 유지되는 사실과 선호",
+        "rawEvidence": "원본 증거",
+        "rawEvidenceTypes": "대화 기록",
+        "rawEvidenceHint": "요약 뒤의 추적 가능한 원본 기록"
+      },
       "liveStreamHint": "SSE를 통한 라이브",
       "recallBurstSummary": "검색 단계 {count}개 · {summary}",
       "preCompactLiveDescription": "압축 전 검색이 메모리 {count}개를 주입했습니다",
@@ -9437,6 +9473,15 @@
         "shared_context": "공유 컨텍스트",
         "memory_manager": "메모리 관리자"
       },
+      "seedingDemo": "데모 데이터 생성 중...",
+      "seedDemo": "30초 메모리 데모 체험",
+      "rollingBackDemo": "데모 데이터 삭제 중...",
+      "rollbackDemo": "데모 데이터 삭제",
+      "embeddingNotReady": "임베딩 서비스가 준비되지 않았습니다",
+      "embeddingNotReadyDesc": "데모를 사용하기 전에 설정 > 모델 서비스에서 임베딩 모델을 구성하세요.",
+      "demoSeedSuccess": "데모 데이터가 성공적으로 생성되었습니다!",
+      "demoSeedSuccessDesc": "이제 메모리 그래프와 의미 검색을 탐색할 수 있습니다.",
+      "demoRollbackSuccess": "데모 데이터가 성공적으로 제거되었습니다!",
       "allProjects": "모든 프로젝트",
       "clearFilter": "지우기",
       "migrationAdapterStatusTitle": "어댑터 준비 상태",
@@ -10292,6 +10337,13 @@
       "openPanel": "WeChat 초안으로 보내기",
       "titleLabel": "기사 제목",
       "titlePlaceholder": "초안 제목 입력",
+      "authorLabel": "작성자",
+      "authorPlaceholder": "표시 이름 (최대 8자)",
+      "authorHint": "WeChat 초안 카드에 표시됩니다. 기본값은 에이전트 이름입니다.",
+      "authorRequired": "작성자를 입력하세요 (최대 8자)",
+      "digestLabel": "요약",
+      "digestPlaceholder": "선택, 카드 요약 (최대 120자)",
+      "digestHint": "비워 두면 본문에서 자동 추출합니다.",
       "coverLabel": "표지 이미지 (선택)",
       "coverPlaceholder": "표지 이미지의 작업 공간 경로",
       "coverHint": "패널을 열면 기사의 첫 번째 로컬 이미지가 자동으로 채워집니다. 경로를 편집하거나 작업 공간 이미지를 검색하거나, 서버가 HTML에서 표지를 선택할 수 있으면 비워 둘 수 있습니다.",
@@ -12583,7 +12635,14 @@
     "unexpectedError": "예기치 않은 오류가 발생했습니다",
     "wechatOfficialTitle": "WeChat 공식 계정",
     "wechatOfficialDesc": "기사 초안 게시를 위해 검증된 서비스 계정 자격 증명을 구성하세요.",
-    "wechatOfficialIpWhitelistHint": "이 서버의 공개 IP를 공식 계정 IP 허용 목록에 추가하세요 (mp.weixin.qq.com → 설정 → 개발 → 기본 구성). 허용 목록 항목이 없으면 API 오류 40164가 발생합니다.",
+    "wechatOfficialIpWhitelistHint": "아래 공인 IP를 WeChat 공식 계정 IP 허용 목록에 추가하세요 (mp.weixin.qq.com → 설정 → 개발 → 기본 구성).",
+    "wechatOfficialEgressLabel": "서버 공인 IP",
+    "wechatOfficialEgressLoading": "아웃바운드 IP 확인 중…",
+    "wechatOfficialEgressUnavailable": "아웃바운드 IP를 확인할 수 없습니다. 네트워크를 확인한 뒤 새로고침하세요.",
+    "wechatOfficialEgressCopy": "IP 복사",
+    "wechatOfficialEgressCopied": "IP가 복사되었습니다",
+    "wechatOfficialEgressCopyFailed": "IP 복사에 실패했습니다",
+    "wechatOfficialEgressRefresh": "새로고침",
     "wechatOfficialAppId": "앱 ID",
     "wechatOfficialAppSecret": "앱 시크릿",
     "wechatOfficialToken": "토큰",
@@ -13664,7 +13723,11 @@
         "monthTokens": "월 토큰",
         "monthCost": "월 비용",
         "pending": "대기 중"
-      }
+      },
+      "builtin": "내장",
+      "noDescription": "설명이 없습니다",
+      "testChat": "테스트 채팅",
+      "settings": "설정"
     }
   },
   "subagentDashboard": {
@@ -15711,12 +15774,25 @@
     "teamHub": {
       "title": "팀 자산",
       "subtitle": "공유 컨텍스트, 위키, 스킬, 채팅 메모리 — 팀 설정과 검토를 위한 원스톱 공간.",
+      "builtIn": "기본 제공",
       "wikiTitle": "위키",
       "wikiDesc": "지식 베이스 및 에이전트 범위 노트",
       "skillsTitle": "스킬",
       "skillsDesc": "마운트된 기능과 진화 대기열",
       "memoryTitle": "메모리",
-      "memoryDesc": "개인 브레인, 정책, 커맨드 센터"
+      "memoryDesc": "개인 브레인, 정책, 커맨드 센터",
+      "summaryLoading": "자산 개요 불러오는 중…",
+      "overviewTitle": "자산 개요",
+      "blockedCount": "{count, plural, =1 {조치가 필요한 에이전트 #개} other {조치가 필요한 에이전트 #개}}",
+      "memoryStat": "메모리",
+      "memoryOn": "사용 중",
+      "memoryOff": "꺼짐",
+      "skillsStat": "스킬",
+      "pendingStat": "검토 대기",
+      "unavailable": "사용 불가",
+      "agentSummary": "스킬 {skills} · 위키 {wiki} · 크론 {cron}",
+      "wikiOn": "켬",
+      "wikiOff": "끔"
     }
   },
   "copilot": {

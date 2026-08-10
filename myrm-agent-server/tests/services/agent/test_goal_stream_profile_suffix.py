@@ -9,12 +9,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
 
-from app.services.agent.goal_stream_trigger import (
+from app.services.agent.goals.goal_stream_trigger import (
     GoalStreamAgentContext,
     _resolve_goal_stream_agent_context,
     trigger_goal_stream,
 )
-from app.services.agent.profile_resolver import ResolvedAgentProfile
+from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
 
 @pytest.mark.asyncio
@@ -46,7 +46,7 @@ async def test_resolve_goal_stream_agent_context_applies_ko_formal_suffix() -> N
             return_value=chat,
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
     ):
@@ -92,7 +92,7 @@ async def test_resolve_goal_stream_agent_context_team_includes_protocol_and_suba
             return_value=chat,
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
         patch(
@@ -157,7 +157,7 @@ async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -
 
     with (
         patch(
-            "app.services.agent.goal_stream_trigger._resolve_goal_stream_agent_context",
+            "app.services.agent.goals.goal_stream_trigger._resolve_goal_stream_agent_context",
             new_callable=AsyncMock,
             return_value=agent_ctx,
         ),
@@ -275,7 +275,7 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
 
     with (
         patch(
-            "app.services.agent.goal_stream_trigger._resolve_goal_stream_agent_context",
+            "app.services.agent.goals.goal_stream_trigger._resolve_goal_stream_agent_context",
             new_callable=AsyncMock,
             return_value=agent_ctx,
         ),
@@ -371,7 +371,7 @@ async def test_resolve_goal_stream_agent_context_loads_security_overrides() -> N
             return_value=chat,
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ),
     ):

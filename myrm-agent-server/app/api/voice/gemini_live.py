@@ -11,7 +11,7 @@ via WebSocket, bypassing the server for audio streaming. The server's role:
 
 [INPUT]
 - app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader)
-- app.services.agent.profile_resolver (POS: Agent profile resolver)
+- app.services.agent.profile.profile_resolver (POS: Agent profile resolver)
 - app.api.voice.voice_memory_context::voice_memory_context_from (POS: voice memory ACL SSOT)
 - app.api.voice.tool_catalog (POS: dynamic memory_search_tool voice declarations)
 
@@ -69,7 +69,7 @@ async def create_gemini_live_token(req: GeminiLiveTokenRequest) -> GeminiLiveTok
     for our architecture where the server is the trusted intermediary.
     """
     from app.core.channel_bridge.config_loader import load_user_configs
-    from app.services.agent.profile_resolver import get_agent_profile_resolver
+    from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
     configs = await load_user_configs()
     providers = configs.providers_dict or {}

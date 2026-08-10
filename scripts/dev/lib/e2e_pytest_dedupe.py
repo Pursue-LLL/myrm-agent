@@ -124,70 +124,40 @@ def _file_scope_bootstrap_stall_sec(scope_key: str | None = None) -> float:
 
 
 def _holder_process_tree_has_pytest(holder_pid: int) -> bool:
-    """True when holder's process tree includes a pytest invocation."""
+    """True when holder's process tree includes pytest, without spawning OS tools."""
     try:
-        import subprocess
+        import psutil
+    except ImportError:
+        return True
 
-        holder_cmd = subprocess.run(
-            ["ps", "-o", "command=", "-p", str(holder_pid)],
-            capture_output=True,
-            text=True,
-            timeout=2.0,
-            check=False,
-        )
-        holder_command = holder_cmd.stdout.strip()
-        if "run_pytest_safe" in holder_command:
-            return True
+    try:
+        root = psutil.Process(holder_pid)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return False
 
-        proc = subprocess.run(
-            ["pgrep", "-P", str(holder_pid)],
-            capture_output=True,
-            text=True,
-            timeout=2.0,
-            check=False,
-        )
-        child_pids = [
-            int(token) for token in proc.stdout.split() if token.strip().isdigit()
-        ]
-    except (OSError, subprocess.TimeoutExpired, ValueError):
-        child_pids = []
-    stack = list(child_pids)
+    deadline = time.monotonic() + 0.1
+    stack = [root]
     seen: set[int] = set()
-    while stack:
-        pid = stack.pop()
-        if pid in seen or pid <= 0:
+    while stack and len(seen) < 128:
+        process = stack.pop()
+        pid = process.pid
+        if pid in seen:
             continue
         seen.add(pid)
         try:
-            cmd = subprocess.run(
-                ["ps", "-o", "command=", "-p", str(pid)],
-                capture_output=True,
-                text=True,
-                timeout=2.0,
-                check=False,
-            )
-        except (OSError, subprocess.TimeoutExpired):
+            command = " ".join(process.cmdline())
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
-        command = cmd.stdout.strip()
         if "run_pytest_safe" in command:
             return True
         if "pytest" in command and "chrome_e2e" in command:
             return True
         try:
-            child_proc = subprocess.run(
-                ["pgrep", "-P", str(pid)],
-                capture_output=True,
-                text=True,
-                timeout=2.0,
-                check=False,
-            )
-            stack.extend(
-                int(token)
-                for token in child_proc.stdout.split()
-                if token.strip().isdigit()
-            )
-        except (OSError, subprocess.TimeoutExpired, ValueError):
-            continue
+            stack.extend(process.children())
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+        if time.monotonic() >= deadline:
+            return True
     return False
 
 

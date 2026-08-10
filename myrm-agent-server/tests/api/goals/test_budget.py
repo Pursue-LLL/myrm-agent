@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.services.agent.goal_registry import GoalRegistry
+from app.services.agent.goals.goal_registry import GoalRegistry
 
 
 @pytest.fixture

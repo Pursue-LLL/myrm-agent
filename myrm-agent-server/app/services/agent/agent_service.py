@@ -27,7 +27,7 @@ from app.config.settings import settings
 from app.core.memory.adapters.policy import memory_policy_from_dict
 from app.database.dto import AgentCreate, AgentUpdate, CommandBindingConfig
 from app.database.repositories.uow import UnitOfWork
-from app.services.agent.profile_snapshot_service import (
+from app.services.agent.profile.profile_snapshot_service import (
     ProfileSnapshotService,
     has_mutable_diff,
 )
@@ -111,7 +111,7 @@ def _command_bindings_from_request(
 def _invalidate_agent_profile_cache(agent_id: str) -> None:
     """Ensure profile-bound entry points see the newest agent contract immediately."""
     try:
-        from app.services.agent.profile_resolver import get_agent_profile_resolver
+        from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
         get_agent_profile_resolver().invalidate(agent_id)
     except Exception as e:

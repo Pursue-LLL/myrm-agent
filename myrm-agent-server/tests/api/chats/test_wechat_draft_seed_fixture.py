@@ -77,6 +77,7 @@ def test_seed_wechat_draft_fixture_creates_html_artifact(client: TestClient, tmp
     assert isinstance(artifacts, list) and artifacts
     assert artifacts[0]["filename"] == "article.wechat.html"
     assert artifacts[0]["type"] == "html"
+    assert isinstance(artifacts[0].get("file_path"), str) and artifacts[0]["file_path"]
 
 
 @pytest.mark.integration

@@ -147,6 +147,7 @@ async def convert_to_general_agent_params(
     from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.channel_bridge.config_parsers import (
         extract_mcp_configs,
+        extract_org_mcp_configs,
         extract_retrieval_models,
     )
 
@@ -392,22 +393,9 @@ async def convert_to_general_agent_params(
 
     # Merge org-level MCP servers (read-only, pushed by Control Plane)
     if configs and configs.org_mcp_dict:
-        org_servers = configs.org_mcp_dict.get("servers")
-        if isinstance(org_servers, list):
-            org_mcp_list: list[MCPServerConfig] = []
-            for raw in org_servers:
-                if not isinstance(raw, dict) or not raw.get("name"):
-                    continue
-                cfg = {
-                    **raw,
-                    "extra_params": {**(raw.get("extra_params") or {}), "scope": "org"},
-                }
-                try:
-                    org_mcp_list.append(MCPServerConfig.model_validate(cfg))
-                except Exception:
-                    logger.debug("Skipping invalid org MCP config: %s", raw.get("name"))
-            if org_mcp_list:
-                mcp_configs = (mcp_configs or []) + org_mcp_list
+        org_mcp_list = extract_org_mcp_configs(configs.org_mcp_dict)
+        if org_mcp_list:
+            mcp_configs = (mcp_configs or []) + org_mcp_list
 
     user_instructions = request.user_instructions
     agent_skill_ids: list[str] = []
@@ -421,7 +409,7 @@ async def convert_to_general_agent_params(
     engine_params: dict[str, object] | None = None
     openapi_services: list[dict[str, object]] | None = None
 
-    from app.services.agent.profile_resolver import (
+    from app.services.agent.profile.profile_resolver import (
         DEFAULT_ENABLED_BUILTIN_TOOLS,
         resolve_builtin_tool_flags,
     )
@@ -436,7 +424,7 @@ async def convert_to_general_agent_params(
     resolved = None
 
     if request.agent_id:
-        from app.services.agent.profile_resolver import get_agent_profile_resolver
+        from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
         resolved = await get_agent_profile_resolver().resolve(request.agent_id)
         if resolved:

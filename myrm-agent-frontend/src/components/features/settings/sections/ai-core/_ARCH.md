@@ -13,7 +13,7 @@ Settings「AI Core」分组：模型、搜索、Agent 与评估相关 Section。
 | `ModelServiceSection.tsx` | 模型服务与路由 |
 | `SearchSection.tsx` | 搜索服务 Settings：manifest 驱动 provider 列表、Priority 1–5、启用冲突提示、单卡 verify |
 | `AgentsSection.tsx` | Agent 列表与管理 |
-| `AgentEditPanel.tsx` | Agent 编辑侧栏 |
+| `AgentEditPanel.tsx` | Agent 编辑侧栏；`#loadout`/`#secrets` hash 自动选中对应 Tab |
 | `CloneAgentDialog.tsx` | 克隆 Agent 对话框 |
 | `WorkspaceRulesSection.tsx` | 工作区规则 |
 | `EvaluationSection.tsx` | 评估与 Instinct Inbox 入口 |

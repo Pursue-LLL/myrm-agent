@@ -24,6 +24,7 @@ from __future__ import annotations
 import ast
 import os
 import re
+import time
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -176,7 +177,7 @@ MUX_RESPONSIVE_PROBE_RETRY_ATTEMPTS: Final[int] = 3
 # R275: launch-check / test.sh readiness subprocess wall — scales under parallel attach.
 E2E_LAUNCH_CHECK_WALL_SOLO_SEC: Final[float] = 45.0
 E2E_LAUNCH_CHECK_WALL_LEASE_SCALE_SEC: Final[float] = 15.0
-E2E_LAUNCH_CHECK_WALL_MAX_SEC: Final[float] = 180.0
+E2E_LAUNCH_CHECK_WALL_MAX_SEC: Final[float] = 8.0
 # R170: bootstrap provider readiness gate scales under parallel (align desktop runner 180s).
 PROVIDER_READINESS_GATE_BASE_SEC: Final[float] = 60.0
 PROVIDER_READINESS_GATE_LEASE_SCALE_SEC: Final[float] = 15.0
@@ -348,6 +349,7 @@ CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
 E2E_ADMISSION_WALL_CLOCK_SEC: Final[int] = 900
 # R122: attach crash-heal try-lock; defer instead of 180s×N dogpile under parallel attach.
 E2E_ATTACH_CRASH_HEAL_FLOCK_WAIT_SEC: Final[float] = 5.0
+SHARED_ATTACH_RECOVERY_WAIT_SEC: Final[int] = 20
 # R132: attach UI heal must cover frontend cold compile + post-ensure warm streak (not 72s).
 E2E_ATTACH_UI_HEAL_POST_ENSURE_FLOOR_SEC: Final[int] = 120
 E2E_ATTACH_UI_HEAL_TIMEOUT_FLOOR_SEC: Final[int] = 300
@@ -373,40 +375,17 @@ def attach_ui_heal_timeout_sec(active_leases: int = 0) -> int:
 
 
 def attach_parallel_wait_sec(active_leases: int = 0, *, base: int = 180) -> int:
-    """Parallel ADMIT attach endpoint wait — must cover at least one UI heal cycle (R161)."""
-    leases = max(active_leases, 0)
-    if is_e2e_signoff_runtime():
-        cap_raw = os.environ.get("MYRM_CHROME_E2E_ATTACH_WAIT_CAP_SEC", "").strip()
-        signoff_cap = SIGNOFF_ATTACH_WAIT_SEC
-        if cap_raw.isdigit() and int(cap_raw) > 0:
-            signoff_cap = min(signoff_cap, int(cap_raw))
-        if leases <= 0:
-            return min(base, signoff_cap)
-        scaled = min(
-            base + leases * 45,
-            signoff_cap + leases * 30,
-            SIGNOFF_ATTACH_PARALLEL_CAP_SEC,
-            E2E_ADMISSION_WALL_CLOCK_SEC,
-        )
-        # R207: signoff parallel attach must allow at least one frontend heal cycle.
-        heal_floor = attach_ui_heal_timeout_sec(leases) + 120
-        return min(
-            max(scaled, heal_floor),
-            E2E_ADMISSION_WALL_CLOCK_SEC,
-        )
-    if leases <= 0:
-        cap_raw = os.environ.get("MYRM_CHROME_E2E_ATTACH_WAIT_CAP_SEC", "").strip()
-        if cap_raw.isdigit() and int(cap_raw) > 0:
-            return min(base, int(cap_raw))
-        return base
-    scaled = base + leases * 45
-    heal_floor = attach_ui_heal_timeout_sec(leases) + 120
-    scaled = max(scaled, heal_floor)
-    cap = E2E_ADMISSION_WALL_CLOCK_SEC
+    """Bound attach recovery independently from logical SHARED session count.
+
+    PRIVATE capacity waiting happens before bootstrap. Once admitted, both modes use
+    the same shared frontend/Chrome recovery SLO; peer count must never enlarge it.
+    """
+    del active_leases
+    cap = SHARED_ATTACH_RECOVERY_WAIT_SEC
     cap_raw = os.environ.get("MYRM_CHROME_E2E_ATTACH_WAIT_CAP_SEC", "").strip()
     if cap_raw.isdigit() and int(cap_raw) > 0:
-        cap = int(cap_raw)
-    return min(scaled, cap)
+        cap = min(cap, int(cap_raw))
+    return max(1, min(max(1, base), cap))
 
 
 LIVE_SHARED_HOT_MAX_CONCURRENT: Final[int] = 1
@@ -690,18 +669,27 @@ def attach_ui_probe_timeout_sec() -> float:
     return min(25.0, 8.0 + pressure * 2.0)
 
 
+_PARALLEL_SIGNOFF_PRESSURE_CACHE: tuple[float, int] | None = None
+
+
 def _parallel_signoff_pressure_peers() -> int:
-    """Peak parallel chrome_e2e pressure for signoff wall scaling (R164-G2)."""
-    pressure = _wave_active_lease_count_for_mux()
+    """Cheap session-plane pressure for wall scaling; never live-probe mux here."""
+    global _PARALLEL_SIGNOFF_PRESSURE_CACHE
+
     raw = os.environ.get("MYRM_E2E_PARALLEL_ACTIVE_COUNT", "").strip()
     if raw.isdigit():
-        pressure = max(pressure, int(raw))
-    try:
-        from transport_supervisor import parallel_mux_peer_count
-
-        pressure = max(pressure, parallel_mux_peer_count())
-    except ImportError:
-        pass
+        return max(0, int(raw))
+    now = time.monotonic()
+    if (
+        _PARALLEL_SIGNOFF_PRESSURE_CACHE is not None
+        and now - _PARALLEL_SIGNOFF_PRESSURE_CACHE[0] <= 2.0
+    ):
+        return _PARALLEL_SIGNOFF_PRESSURE_CACHE[1]
+    # Wall-budget calculation is on the launch hot path. Wave leases are the
+    # session SSOT; forcing mux/CDP status here made every helper subprocess
+    # block for 10–20 seconds under load and multiplied admit latency.
+    pressure = _wave_active_lease_count_for_mux()
+    _PARALLEL_SIGNOFF_PRESSURE_CACHE = (now, max(0, pressure))
     return max(0, pressure)
 
 

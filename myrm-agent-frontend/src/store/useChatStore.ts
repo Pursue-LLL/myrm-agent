@@ -24,7 +24,7 @@ import { sendMessage } from './chat/messageRequest';
 import { generateStreamRequestMessageId } from './chat/streamRequestMessageId';
 import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat, persistActiveChatNavigationSnapshot, resolveInstantChatSnapshot } from './chat/messageManagement';
 import { processSuggestions, findAssistantMessageIndex } from './chat/messageUtils';
-import { disarmYoloForPreset } from './chat/securityPreset';
+import { disarmYoloForPreset, normalizeSecurityPreset } from './chat/securityPreset';
 import useQuoteStore from './useQuoteStore';
 import useWorkspaceStore from './useWorkspaceStore';
 import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent } from '@/services/chat';
@@ -393,7 +393,7 @@ const useChatStore = create<ChatState>()(
           if (chatId && !get().incognitoMode) {
             void persistMoaPresetToServer(chatId, null);
           }
-          set({ agentConfig: null, activeMoaPresetId: null });
+          set({ agentConfig: null, activeMoaPresetId: null, securityPreset: 'hitl' });
           return;
         }
         const prevId = get().agentConfig?.agentId;
@@ -411,12 +411,10 @@ const useChatStore = create<ChatState>()(
             void persistMoaPresetToServer(chatId, null);
           }
         }
-        const defaultPreset = config.defaultSecurityPreset;
-        const isKnownPreset =
-          defaultPreset === 'hitl' || defaultPreset === 'accept_edits' || defaultPreset === 'explore';
-        const presetInitialized = isKnownPreset && (firstBind || agentChanged);
-        if (presetInitialized && defaultPreset) {
-          disarmYoloForPreset(defaultPreset);
+        const shouldInitPreset = firstBind || agentChanged;
+        const sessionPreset = normalizeSecurityPreset(config.defaultSecurityPreset);
+        if (shouldInitPreset) {
+          disarmYoloForPreset(sessionPreset);
         }
         set({
           agentConfig: {
@@ -430,7 +428,7 @@ const useChatStore = create<ChatState>()(
           },
           currentBuiltinTools: builtinTools,
           ...(agentChanged ? { activeMoaPresetId: null } : {}),
-          ...(presetInitialized && defaultPreset ? { securityPreset: defaultPreset } : {}),
+          ...(shouldInitPreset ? { securityPreset: sessionPreset } : {}),
         });
       },
       updateAgentConfig: (partial) => {

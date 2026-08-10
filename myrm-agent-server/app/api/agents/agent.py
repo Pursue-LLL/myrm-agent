@@ -2,7 +2,7 @@
 
 [INPUT]
 services.agent.agent_service::AgentService (POS: 业务层 Agent CRUD 服务)
-services.agent.profile_snapshot_service::ProfileSnapshotService (POS: Agent 配置快照与回滚)
+services.agent.profile.profile_snapshot_service::ProfileSnapshotService (POS: Agent 配置快照与回滚)
 database.dto::AgentCreate, AgentUpdate, AgentResponse (POS: Agent API 契约)
 _agent_response::_to_agent_response, _metadata_as_mapping (POS: 序列化共享层)
 services.agent.external_cli_gate::ExternalCliBackendUnavailableError (POS: 外部 CLI 后端不可用异常)

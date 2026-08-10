@@ -322,7 +322,7 @@ async def execute_agent_turn_after_reserve(
     if steering_token and request.chat_id:
         SteeringRegistry.register(request.chat_id, steering_token)
 
-    from app.services.agent.goal_registry import (
+    from app.services.agent.goals.goal_registry import (
         GoalRegistry,
         check_and_handle_branch_stash,
     )

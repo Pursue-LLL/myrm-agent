@@ -345,9 +345,6 @@ def seed_sealed_target_pool_via_cdp(
         os.environ.get("MYRM_WARM_SHELL_POOL_SEED_TIMEOUT_SEC", "25") or "25"
     )
     poll_ms = int(os.environ.get("MYRM_WARM_SHELL_POOL_SEED_POLL_MS", "400") or "400")
-    light_seed = os.environ.get("MYRM_WARM_SHELL_POOL_LIGHT", "1").strip() != "0"
-    settle_sec = float(os.environ.get("MYRM_WARM_SHELL_POOL_SETTLE_SEC", "6") or "6")
-
     async def _seed_one() -> bool:
         target = await create_background_target(cdp_port, initial_url=ui_url)
         target_id = str(target.get("id") or "").strip()
@@ -356,17 +353,13 @@ def seed_sealed_target_pool_via_cdp(
             return False
         if register_infra_target is not None:
             register_infra_target(target_id, ui_url)
-        if light_seed:
-            await asyncio.sleep(max(2.0, settle_sec))
-            ready = True
-        else:
-            ready = await wait_for_hydration(
-                ws_url,
-                ui_url,
-                timeout_sec=per_target_timeout,
-                poll_ms=poll_ms,
-                skip_navigate=False,
-            )
+        ready = await wait_for_hydration(
+            ws_url,
+            ui_url,
+            timeout_sec=per_target_timeout,
+            poll_ms=poll_ms,
+            skip_navigate=False,
+        )
         if not ready:
             return False
         record = seal_platform_shell(

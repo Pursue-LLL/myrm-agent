@@ -2,7 +2,7 @@
 
 [INPUT]
 SourceInstructionPlan, MigrationWizardOptions.
-app.services.agent.profile_snapshot_service::ProfileSnapshotService (POS: Agent 配置快照与回滚)
+app.services.agent.profile.profile_snapshot_service::ProfileSnapshotService (POS: Agent 配置快照与回滚)
 
 [OUTPUT]
 InstructionApplyResult with target_agent_id and rollback metadata.
@@ -20,7 +20,7 @@ from pathlib import Path
 from app.database.dto import AgentCreate, AgentUpdate
 from app.database.repositories.uow import UnitOfWork
 from app.services.agent.agent_service import AgentService
-from app.services.agent.profile_snapshot_service import ProfileSnapshotService
+from app.services.agent.profile.profile_snapshot_service import ProfileSnapshotService
 from app.services.config.service import config_service
 from app.services.migration.source_migration_types import (
     InstructionApplyResult,

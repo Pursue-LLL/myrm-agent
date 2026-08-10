@@ -921,7 +921,7 @@ def test_agent_stream_default_builtin_tools_persist_togglable_only(
     client: TestClient,
 ) -> None:
     """Default agent-stream persists togglable tools only; baseline is runtime-forced."""
-    from app.services.agent.builtin_tool_ids import (
+    from app.services.agent.builtin_specs.builtin_tool_ids import (
         AGENT_BASELINE_BUILTIN_TOOLS,
         DEFAULT_ENABLED_BUILTIN_TOOLS,
     )

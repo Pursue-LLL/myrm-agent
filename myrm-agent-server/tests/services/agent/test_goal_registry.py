@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.agent.goal_registry import (
+from app.services.agent.goals.goal_registry import (
     GoalRegistry,
     ServerGoalManager,
     _normalize_done,

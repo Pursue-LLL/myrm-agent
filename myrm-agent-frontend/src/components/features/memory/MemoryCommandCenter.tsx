@@ -458,8 +458,8 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
             >
               <IconGlow className="h-3.5 w-3.5" />
               {isSeeding
-                ? t('commandCenter.seedingDemo', { fallback: 'Seeding...' })
-                : t('commandCenter.seedDemo', { fallback: '体验 30 秒记忆魔法' })}
+                ? t('commandCenter.seedingDemo', { fallback: 'Seeding demo data...' })
+                : t('commandCenter.seedDemo', { fallback: 'Experience a 30-second memory demo' })}
             </button>
           )}
           {hasDemoData && (
@@ -470,8 +470,8 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
               className="w-full rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-60 sm:w-auto flex items-center justify-center gap-1.5"
             >
               {isRollingBack
-                ? t('commandCenter.rollingBackDemo', { fallback: 'Removing...' })
-                : t('commandCenter.rollbackDemo', { fallback: '清理 Demo 数据' })}
+                ? t('commandCenter.rollingBackDemo', { fallback: 'Removing demo data...' })
+                : t('commandCenter.rollbackDemo', { fallback: 'Remove demo data' })}
             </button>
           )}
           <button

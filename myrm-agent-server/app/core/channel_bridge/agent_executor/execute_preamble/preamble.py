@@ -28,7 +28,7 @@ from app.core.channel_bridge.config_parsers import (
     extract_user_instructions,
     extract_vision_fallback_model_config,
 )
-from app.services.agent.profile_resolver import (
+from app.services.agent.profile.profile_resolver import (
     DEFAULT_ENABLED_BUILTIN_TOOLS,
     ResolvedAgentProfile,
     get_agent_profile_resolver,

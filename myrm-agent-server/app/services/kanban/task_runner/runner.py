@@ -10,7 +10,7 @@ tools, memory, security).
 - myrm_agent_harness.toolkits.kanban.context_builder::build_task_context (POS: Worker context.)
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask, TaskTimeoutError (POS: Kanban domain types.)
 - myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: Goal lifecycle protocol.)
-- app.services.agent.goal_registry::GoalRegistry (POS: Session-level goal management.)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: Session-level goal management.)
 - task_runner.stream::build_multimodal_query (POS: Multimodal query assembly.)
 - task_runner.worktree::resolve_workspace, cleanup_worktree (POS: Git worktree isolation.)
 - task_runner.profile::resolve_agent_profile (POS: Agent profile resolution.)
@@ -43,8 +43,8 @@ from myrm_agent_harness.toolkits.kanban.types import (
 )
 
 from app.core.channel_bridge.persistent_background import is_persistent_background
-from app.services.agent.goal_registry import GoalRegistry
-from app.services.agent.profile_resolver import (
+from app.services.agent.goals.goal_registry import GoalRegistry
+from app.services.agent.profile.profile_resolver import (
     DEFAULT_ENABLED_BUILTIN_TOOLS,
     resolve_builtin_tool_flags,
 )

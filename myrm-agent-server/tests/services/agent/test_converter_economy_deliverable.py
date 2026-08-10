@@ -9,7 +9,7 @@ import pytest
 from app.ai_agents.prompts.deliverable_discipline import KNOWLEDGE_WORK_SYSTEM_PROMPT
 from app.services.agent.params.converter import convert_to_general_agent_params
 from app.services.agent.params.models import AgentRequest
-from app.services.agent.profile_resolver import ResolvedAgentProfile
+from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 from tests.api.agent.utils import get_model_selection
 
 
@@ -51,7 +51,7 @@ class TestEconomyDeliverableConverterIntegration:
         mock_configs = _build_mock_user_configs()
         with (
             patch(
-                "app.services.agent.profile_resolver.get_agent_profile_resolver",
+                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
                 return_value=mock_resolver,
             ),
             patch(

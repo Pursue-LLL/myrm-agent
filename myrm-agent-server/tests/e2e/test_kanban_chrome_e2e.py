@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
-import os
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    ChromeMcpClient,
+    McpPage,
     get_e2e_api_url,
     get_e2e_ui_url,
     get_first_enabled_model,
@@ -62,6 +65,45 @@ def _http_json_write(
                 time.sleep(2.0)
     assert last_error is not None
     raise last_error
+
+
+def _is_attach_failure(exc: BaseException) -> bool:
+    """True only for shared-UI attach/bridge failures, never body assertion errors."""
+    if isinstance(exc, TimeoutError):
+        # asyncio.wait_for cancels ensure_react_e2e_bridge on BRIDGE_READY
+        # timeout — the dominant chat-attach contention failure mode.
+        return True
+    message = str(exc).lower()
+    return "shared ui session" in message or "react e2e bridge" in message
+
+
+@contextmanager
+def _open_chat_page_with_attach_retry(
+    chat_url: str, *, attempts: int = 3
+) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
+    """Open a chat page, retrying on transient shared-UI attach contention.
+
+    The orchestrator's cold-attach path can briefly fail BRIDGE_READY when
+    several shared pytest sessions attach to the same UI at once. A short
+    backoff between fresh page sessions usually clears the contention. Only
+    attach-phase failures (before the test body runs) are retried — assertion
+    errors inside the body propagate immediately via the ``entered`` guard.
+    """
+    last_exc: BaseException | None = None
+    for attempt in range(attempts):
+        entered = False
+        try:
+            with open_mcp_page(chat_url) as (client, page):
+                entered = True
+                yield client, page
+            return
+        except BaseException as exc:
+            last_exc = exc
+            if entered or not _is_attach_failure(exc) or attempt + 1 >= attempts:
+                raise
+            time.sleep(5.0)
+    assert last_exc is not None
+    raise last_exc
 
 def _api_find_task_by_title(
     api_url: str, board_id: str, title: str
@@ -521,14 +563,14 @@ def test_kanban_stats_bar_shows_running_with_limit() -> None:
             stats_state = wait_for_state(
                 client,
                 page,
-                f"""(() => {{
+                """(() => {
                   const view = document.querySelector('[data-testid="kanban-board-view"]');
                   const text = view?.textContent || '';
-                  return {{
+                  return {
                     ready: !!view && text.includes('0/1'),
                     text,
-                  }};
-                }})()""",
+                  };
+                })()""",
                 timeout_sec=90.0,
             )
             assert "0/1" in str(stats_state.get("text") or "")
@@ -993,11 +1035,11 @@ def test_kanban_queued_badge_count_drains_as_slots_release() -> None:
         two_badges = wait_for_state(
             client,
             page,
-            f"""(() => {{
+            """(() => {
               const view = document.querySelector('[data-testid="kanban-board-view"]');
               const badges = view?.querySelectorAll('[data-testid="kanban-task-queued-badge"]') || [];
-              return {{ ready: badges.length === 2, count: badges.length }};
-            }})()""",
+              return { ready: badges.length === 2, count: badges.length };
+            })()""",
             timeout_sec=90.0,
         )
         assert two_badges.get("count") == 2, two_badges
@@ -1065,7 +1107,7 @@ def _seed_kanban_closure_fixture(api_url: str) -> dict[str, object]:
     execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
 )
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(600)
 def test_kanban_chat_created_card_opens_filtered_board_view() -> None:
     """Seed chat with KanbanTaskCreatedCard → click open board → filtered board shows task."""
     api_url = get_e2e_api_url()
@@ -1077,11 +1119,26 @@ def test_kanban_chat_created_card_opens_filtered_board_view() -> None:
     task_title = str(seeded["task_title"])
     deep_link_path = str(seeded.get("board_deep_link_path") or "")
 
-    warm_ui_route(f"/{chat_id}")
+    warm_ui_route("/")
     if deep_link_path.startswith("/"):
         warm_ui_route(deep_link_path)
 
-    with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
+    with _open_chat_page_with_attach_retry(f"{ui_url}/{chat_id}") as (client, page):
+        attach_result = wait_for_state(
+            client,
+            page,
+            f"""(async () => {{
+              try {{
+                await window.__MYRM_E2E_CHAT__?.attachToChat?.({json.dumps(chat_id)});
+                return {{ ready: true }};
+              }} catch (error) {{
+                return {{ ready: false, err: String(error) }};
+              }}
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
+
         card_state = wait_for_state(
             client,
             page,

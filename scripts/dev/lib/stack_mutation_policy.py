@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - decide_drift_heal / pending-stack-drift.json persistence
-- ensure_lock_active / apply_pending_drift_if_idle (defer while ensure.lock.d held)
+- ensure_lock_active / apply_pending_drift_for_maintenance (explicit promotion only)
 - shared_api_http_ok via E2E_API_BASE / MYRM_BACKEND_PORT SSOT
 - CLI: decide-drift, record-pending, clear-pending, session-safe-timeout
 
@@ -298,7 +298,7 @@ def _api_health_url() -> str:
     return f"http://127.0.0.1:{port}/api/v1/health"
 
 
-# 私池 runtime env 变量（isolated_runtime_allocator.runtime_environment 注入）。
+# 私池 runtime env 变量由 isolated_runtime.allocator.runtime_environment 注入。
 # 共享栈 drift apply / crash heal 必须显式清除这些，否则继承私池 state dir /
 # namespace / 后端端口，导致 backend_bg.sh 把共享后端写入私池 identity、
 # 或 8080 owner 缺失共享 stack-epoch 指纹（§26.28-B 根因）。
@@ -350,22 +350,31 @@ def _shared_stack_env() -> dict[str, str]:
     return env
 
 
-def apply_pending_drift_if_idle(
+def apply_pending_drift_for_maintenance(
     *,
     monorepo_root: Path,
     state_dir: Path | None = None,
     server_dir: Path | None = None,
 ) -> PendingDriftApplyResult:
-    """Apply deferred shared-backend drift heal when no active wave leases remain (R31 / SMP R3)."""
+    """Promote deferred source drift during an explicit maintenance window.
+
+    Daily SHARED admission, Wave release, coordinator reaping and watchdog
+    recovery must never call this function. New backend code is exercised in a
+    PRIVATE immutable epoch; this promotion exists only for the formal
+    maintainer signoff path and fails closed while any logical session is live.
+    """
     root = monorepo_root.resolve()
     resolved_state = state_dir or _default_state_dir()
     resolved_server = server_dir or (root / "myrm-agent" / "myrm-agent-server")
     dev_stack = root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
     active_leases = wave_active_lease_count(root)
-    if active_leases > 0:
+    if decide_drift_heal(
+        active_leases=active_leases,
+        drift_pending=pending_drift_exists(resolved_state),
+    ) is DriftHealAction.DEFER:
         return PendingDriftApplyResult(
             "skipped",
-            f"active_leases={active_leases}",
+            f"live_sessions_or_leases={active_leases}",
         )
     if ensure_lock_active(resolved_state):
         return PendingDriftApplyResult("skipped", "ensure_in_progress")
@@ -373,7 +382,10 @@ def apply_pending_drift_if_idle(
         return PendingDriftApplyResult("noop")
     if not dev_stack.is_file():
         return PendingDriftApplyResult("failed", f"missing dev-stack: {dev_stack}")
-    env = _shared_stack_env()
+    env = {
+        **_shared_stack_env(),
+        "MYRM_SHARED_BACKEND_MAINTENANCE": "1",
+    }
     try:
         proc = _run_backend_only_ensure(dev_stack=dev_stack, root=root, env=env)
     except (OSError, subprocess.TimeoutExpired) as exc:

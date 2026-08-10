@@ -25,7 +25,7 @@
 | `ImageLightbox.tsx` | 组件 | 附件图片 Lightbox 全屏预览 | ✅ |
 | `IncognitoModeToggle.tsx` | 组件 | 无痕/不写入记忆模式切换 | ✅ |
 | `SandboxModeToggle.tsx` | 组件 | 沙箱模式切换：Agent 模式下可见，一键隔离 workspace 到 git worktree | ✅ |
-| `SecurityPresetSelector.tsx` | 组件 | 会话级安全预设三档下拉（HITL/Auto-Approve Edits/Read-Only）：Agent 模式下可见；选择 accept_edits 时互斥关闭 YOLO；发送 `security_preset` 字段到 server | ✅ |
+| `SecurityPresetSelector.tsx` | 组件 | 会话级安全预设三档下拉（HITL/Auto-Approve Edits/Read-Only）：Agent 模式下可见；与 YOLO 互斥——YOLO 开启时做任何选择（含点击当前项）都先关闭 YOLO（经 `resolvePresetWithYoloMutex`）；发送 `security_preset` 字段到 server | ✅ |
 | `SearchModeSelector.tsx` | 组件 | 分段式模式选择器：Fast / Agent | ✅ |
 | `SessionSkillsToggle.tsx` | 组件 | 会话级 Skill 作用域切换：Agent 模式下 Popover 列出当前 Agent 绑定的 Skill（`agentConfig.selectedSkillIds`），用户 toggle 子集覆盖默认全量加载，PATCH `/session-skills` 持久化 | ✅ |
 | `TurnCapabilityToggle.tsx` | 组件 | 单轮能力作用域切换：Agent 模式下按“下一条消息”临时收敛 Skill/MCP 子集，不持久化，发送后自动清空 | ✅ |
@@ -34,6 +34,7 @@
 | `ToolsPanel.tsx` | 组件 | 输入区工具/MCP 快捷面板 Popover | ✅ |
 | `VisionCapabilityNotice.tsx` | 组件 | 当前模型无 Vision 能力时的提示条 | ✅ |
 | `VoiceSessionButton.tsx` | 组件 | 全双工语音会话启动按钮；所有语音模式下监听 `voice-bg-done` 事件播报后台任务完成（title + queue 安全插入），agent 说话期间延迟播报 | ✅ |
+| `WorkflowModeToggle.tsx` | 组件 | 输入区 Workflow 模式开关：`isWorkflowMode` 切换（`aria-pressed` 语义），激活态渐变高亮 + shimmer 动效，Tooltip 说明 | ✅ |
 
 ## 依赖
 

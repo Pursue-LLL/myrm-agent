@@ -14,7 +14,7 @@ from app.database.migrations import ensure_raw_sql_schema
 from app.database.models import Base
 from app.database.repositories.agent_repo import AgentRepository
 from app.services.agent.agent_service import AgentService
-from app.services.agent.builtin_tool_ids import (
+from app.services.agent.builtin_specs.builtin_tool_ids import (
     InvalidBuiltinToolIdsError,
     persist_enabled_builtin_tools,
 )
@@ -52,7 +52,7 @@ def test_persist_enabled_builtin_tools_rejects_non_list() -> None:
 
 
 def test_persist_enabled_builtin_tools_defaults_when_none() -> None:
-    from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+    from app.services.agent.builtin_specs.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
 
     assert persist_enabled_builtin_tools(None) == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
 

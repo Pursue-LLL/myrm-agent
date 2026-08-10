@@ -219,8 +219,8 @@ export function AgentBasicInfoTab({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-sm font-medium text-foreground">{t('agent.allowDiscovery.title', { fallback: '允许被其他智能体发现并委派 (Allow Discovery)' })}</label>
-              <p className="text-xs text-muted-foreground">{t('agent.allowDiscovery.description', { fallback: '开启后，其他智能体可以通过 @ 提及或自动组队时发现并调用此智能体。关闭可隐藏半成品。' })}</p>
+              <label className="text-sm font-medium text-foreground">{t('agent.allowDiscovery.title')}</label>
+              <p className="text-xs text-muted-foreground">{t('agent.allowDiscovery.description')}</p>
             </div>
             <Switch
               checked={allowDiscovery}

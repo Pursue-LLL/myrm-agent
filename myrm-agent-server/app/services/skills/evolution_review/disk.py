@@ -1,6 +1,9 @@
 """
 [INPUT]
-- .types::EvolutionApprovalPayload
+- .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
+- .disk_content::apply_content_update, rollback_content_update (POS: Evolution 全量内容更新落盘与回滚)
+- .persistence::persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写)
+- ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
 - app.adapters.skill_optimization.quality_repo::QualityRepository (POS: 质量数据 CRUD)
 [OUTPUT]
 - Description/content apply orchestration, shadow apply, approval apply pipeline
@@ -23,6 +26,13 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.database.models import ApprovalRecord
+
+from ..experience_ledger import (
+    ExperienceEntityType,
+    ExperienceEventType,
+    ExperienceLedgerWrite,
+    record_experience_event,
+)
 from .disk_content import (
     apply_content_update,
     rollback_content_update,
@@ -38,12 +48,6 @@ from .types import (
     approval_payload,
     approval_to_evolution_review_record,
     evolution_lineage_id,
-)
-from ..experience_ledger import (
-    ExperienceEntityType,
-    ExperienceEventType,
-    ExperienceLedgerWrite,
-    record_experience_event,
 )
 
 logger = logging.getLogger(__name__)

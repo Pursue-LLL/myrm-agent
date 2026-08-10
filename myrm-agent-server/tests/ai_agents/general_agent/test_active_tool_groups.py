@@ -162,7 +162,7 @@ def test_builtin_tool_id_to_group_keys_match_togglable_catalog() -> None:
         CAPABILITY_GAP_REGISTRY,
     )
 
-    from app.services.agent.builtin_tool_ids import TOGGLABLE_BUILTIN_TOOL_IDS
+    from app.services.agent.builtin_specs.builtin_tool_ids import TOGGLABLE_BUILTIN_TOOL_IDS
 
     gap_excluded = frozenset({"skill_market", "skill_manage"})
 

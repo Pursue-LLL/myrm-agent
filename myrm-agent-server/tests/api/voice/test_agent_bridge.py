@@ -628,7 +628,7 @@ class TestBuildAgentParamsWebFetchGate:
     @pytest.mark.asyncio
     async def test_enable_web_fetch_false_when_profile_omits_net_fetch(self) -> None:
         from app.core.types import ModelConfig
-        from app.services.agent.profile_resolver import ResolvedAgentProfile
+        from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
         bridge = _make_bridge()
         profile = ResolvedAgentProfile(
@@ -654,7 +654,7 @@ class TestBuildAgentParamsWebFetchGate:
                 return_value=mock_configs,
             ),
             patch(
-                "app.services.agent.profile_resolver.get_agent_profile_resolver",
+                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             ) as mock_get_resolver,
             patch(
                 "app.core.channel_bridge.config_parsers.verify_search_service_available",
@@ -695,7 +695,7 @@ class TestBuildAgentParamsWebFetchGate:
     @pytest.mark.asyncio
     async def test_enable_web_fetch_true_when_no_security_overrides(self) -> None:
         from app.core.types import ModelConfig
-        from app.services.agent.profile_resolver import ResolvedAgentProfile
+        from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
         bridge = _make_bridge()
         profile = ResolvedAgentProfile(
@@ -720,7 +720,7 @@ class TestBuildAgentParamsWebFetchGate:
                 return_value=mock_configs,
             ),
             patch(
-                "app.services.agent.profile_resolver.get_agent_profile_resolver",
+                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             ) as mock_get_resolver,
             patch(
                 "app.core.channel_bridge.config_parsers.verify_search_service_available",

@@ -744,52 +744,8 @@ class _BackgroundReaper:
                 maybe_reap_hung_chrome_e2e_pytest()
                 maybe_reap_epoch_drift_stale_sessions()
                 maybe_reap_orphan_shared_backends()
-                self._maybe_apply_pending_drift()
             except Exception:
                 pass
-
-    def _maybe_apply_pending_drift(self) -> None:
-        """P0-A: drift apply moved here from readiness observation path.
-
-        Coordinator only *applies* drift recorded by the attach path
-        (chrome-e2e-preflight.sh / backend_bg.sh) — it deliberately does not
-        actively detect new drift. Detection costs a git fingerprint walk and
-        is done once by attach; applying here defers the shared-backend restart
-        until no active wave leases remain, so parallel tests never get
-        interrupted by a mid-run reload (§26.27 end-to-end verified).
-        """
-        try:
-            from stack_mutation_policy import (  # noqa: PLC0415
-                _default_state_dir,
-                apply_pending_drift_if_idle,
-                maybe_detect_and_record_source_drift,
-                pending_drift_exists,
-            )
-
-            root = Path(__file__).resolve().parents[4]
-            state_dir = _default_state_dir()
-            # Active detection: a code change heals the shared backend even with
-            # no new attach (attach is the other drift recorder). Cheap git walk
-            # once per cycle is amortized by the reap interval.
-            try:
-                maybe_detect_and_record_source_drift(
-                    monorepo_root=root, state_dir=state_dir
-                )
-            except Exception as exc:  # noqa: BLE001
-                print(f"DRIFT_DETECT: detection failed: {exc}")
-            if not pending_drift_exists(state_dir):
-                return
-            result = apply_pending_drift_if_idle(
-                monorepo_root=root, state_dir=state_dir
-            )
-            if result.action in {"applied", "failed"}:
-                print(
-                    f"PENDING_DRIFT_APPLY: action={result.action} detail={result.detail}"
-                )
-        except Exception as exc:  # noqa: BLE001
-            print(
-                f"PENDING_DRIFT_APPLY: action=error detail={type(exc).__name__}: {exc}"
-            )
 
 
 def _acquire_serve_singleton_lock(database_path: Path) -> int:

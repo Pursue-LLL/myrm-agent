@@ -65,8 +65,8 @@ from app.api.message_filter import router as message_filter_router
 from app.api.migration.discovery import router as migration_discovery_router
 from app.api.migration.upload import router as migration_upload_router
 from app.api.notifications.router import router as notifications_router
-from app.api.progression import router as progression_router
 from app.api.plugins import import_router as plugins_import_router
+from app.api.progression import router as progression_router
 from app.api.projects import router as project_router
 from app.api.remote_access.router import router as remote_access_router
 from app.api.risk.router import router as risk_router

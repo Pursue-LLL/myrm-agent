@@ -20,8 +20,8 @@ Growth drafts（`skill_draft` / `skill_patch` / `semantic_memory`）统一存储
 ## `list_pending` 契约
 
 - **包含**：工具 HITL、`thread_id` 非空的 inline `skill_draft` 等需全局 Drawer recovery 的项。
-- **排除**：`action_type ∈ growth_constants.GROWTH_ACTION_TYPES` 且 `thread_id` 为空（Agent Draft Inbox / `/skills/drafts`）。
-- **SSE**：后台 growth 创建时不广播 `APPROVAL_REQUIRED`（由 `draft_notification` 发 `NEW_SKILL_DRAFT`）。
+- **排除**：`action_type ∈ growth/constants.py::GROWTH_ACTION_TYPES` 且 `thread_id` 为空（Agent Draft Inbox / `/skills/drafts`）。
+- **SSE**：后台 growth 创建时（`PENDING` 或非 `PENDING`）一律不广播 `APPROVAL_REQUIRED` / `SKILL_GROWTH_UPDATED`（由 `draft_notification` 统一发 `NEW_SKILL_DRAFT` / `SKILL_GROWTH_UPDATED`，避免双发）。
 
 ## 模块依赖
 

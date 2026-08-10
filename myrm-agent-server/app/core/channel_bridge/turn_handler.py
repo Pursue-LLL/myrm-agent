@@ -60,7 +60,7 @@ async def _resolve_session_with_agent(msg: InboundMessage) -> tuple[str, str | N
     agent_id = await ChannelCompactHandler._resolve_bound_agent_id(msg)
 
     if agent_id:
-        from app.services.agent.profile_resolver import get_agent_profile_resolver
+        from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
         profile = await get_agent_profile_resolver().resolve(agent_id)
         if profile and profile.session_policy and isinstance(profile.session_policy, dict):

@@ -11,7 +11,7 @@ from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 from starlette.testclient import TestClient
 
-from app.services.agent.profile_resolver import ResolvedAgentProfile
+from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 from tests.api.agent.utils import get_model_selection
 
 
@@ -94,7 +94,7 @@ class TestLlmMapWithdrawalConverterIntegration:
         request = AgentRequest(**base_request)
 
         with patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ):
             params, _, _, _ = await convert_to_general_agent_params(request, [])

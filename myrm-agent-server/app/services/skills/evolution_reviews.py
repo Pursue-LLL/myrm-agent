@@ -1,10 +1,10 @@
 """
 [INPUT]
-- app.services.skills.evolution_review.types
-- app.services.skills.evolution_review.queries
-- app.services.skills.evolution_review.actions
+- app.services.skills.evolution_review.types (POS: Evolution 审核域类型)
+- app.services.skills.evolution_review.queries (POS: Evolution 审核记录创建与只读查询)
+- app.services.skills.evolution_review.actions (POS: Evolution 审核写操作)
 [OUTPUT]
-- Public evolution review lifecycle API (backward-compatible re-exports)
+- Public evolution review lifecycle API (类型 + 查询 + 写操作统一 re-export)
 [POS]
 Evolution 审核生命周期门面：类型 + 查询 + 写操作统一导出。
 """

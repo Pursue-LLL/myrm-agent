@@ -37,7 +37,7 @@ class _InboundMemoryIdentity:
 
 def invalidate_agent_overrides_cache(agent_id: str) -> None:
     """Backward-compatible shim — delegates to AgentProfileResolver.invalidate()."""
-    from app.services.agent.profile_resolver import get_agent_profile_resolver
+    from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
     get_agent_profile_resolver().invalidate(agent_id)
 

@@ -1,19 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { CheckCircle2, Copy, Link2, RefreshCw, Unlink, Zap } from 'lucide-react';
 
 import { Button } from '@/components/primitives/button';
 import { Checkbox } from '@/components/primitives/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/primitives/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import {
   type ConnectProfile,
   type GenerateConfigResponse,
@@ -24,6 +18,7 @@ import {
 } from '@/services/connect';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { countProviderTrees } from '@/services/integrationMemory';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface ConnectWizardDialogProps {
@@ -34,6 +29,7 @@ interface ConnectWizardDialogProps {
 type WizardStep = 'select' | 'config' | 'done';
 
 export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogProps) {
+  const locale = useLocale();
   const t = useTranslations('connectWizard');
   const [step, setStep] = useState<WizardStep>('select');
   const [profiles, setProfiles] = useState<ConnectProfile[]>([]);
@@ -186,7 +182,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
                 <SelectContent>
                   {agents.map((agent) => (
                     <SelectItem key={agent.id} value={agent.id}>
-                      {agent.name || agent.id}
+                      {getBuiltinAgentName(agent.id, agent.name || agent.id, locale)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -233,9 +229,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
               <p className="text-sm font-medium text-green-700 dark:text-green-400">{t('configReady')}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {t('memoryScopeAgent', {
-                  agent:
-                    agents.find((agent) => agent.id === configResult.agent_id)?.name ??
-                    configResult.agent_id,
+                  agent: agents.find((agent) => agent.id === configResult.agent_id)?.name ?? configResult.agent_id,
                 })}
               </p>
               <p className="text-xs text-muted-foreground mt-1">{configResult.instructions}</p>

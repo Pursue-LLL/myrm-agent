@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.channels.types::InboundMessage, app.channels.protocols.goal_command (POS)
-- app.services.agent.goal_registry::GoalRegistry, app.services.chat.chat_service::ChatService (POS)
+- app.services.agent.goals.goal_registry::GoalRegistry, app.services.chat.chat_service::ChatService (POS)
 
 [OUTPUT]
 - ChannelGoalCommandHandler: GoalCommandHandler protocol implementation
@@ -141,7 +141,7 @@ class ChannelGoalCommandHandler:
         )
 
     async def _set_goal(self, msg: InboundMessage, chat_id: str | None, objective: str) -> str:
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         if not objective.strip():
             return get_text(msg, "usage_goal")
@@ -151,7 +151,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "goal_set", goal=parsed_objective)
 
-        from app.services.agent.goal_registry import check_and_handle_branch_stash
+        from app.services.agent.goals.goal_registry import check_and_handle_branch_stash
 
         await check_and_handle_branch_stash(chat_id)
         provider = GoalRegistry.get_or_create_provider(chat_id)
@@ -178,7 +178,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_goal_is_set")
 
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
         if not provider:
@@ -241,7 +241,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_active_goal_to_pause")
 
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
         if not provider:
@@ -261,7 +261,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_active_goal_to_pause")
 
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
         if not provider:
@@ -282,7 +282,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_active_goal_to_pause")
 
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
         if not provider:
@@ -308,7 +308,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_active_goal_session")
 
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
         if not provider:
@@ -352,7 +352,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_goal_to_resume")
 
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
         if not provider:
@@ -375,7 +375,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_goal_to_clear")
 
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
         if not provider:
@@ -399,7 +399,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_active_goal_set_first")
 
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
         if not provider:
@@ -429,7 +429,7 @@ class ChannelGoalCommandHandler:
         if not chat_id:
             return get_text(msg, "no_active_goal_set_first")
 
-        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = GoalRegistry.get_provider(chat_id)
         if not provider:

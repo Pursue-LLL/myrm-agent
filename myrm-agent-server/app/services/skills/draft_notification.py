@@ -3,11 +3,30 @@
 Persists reviewed skill growth cases into ``ApprovalRecord`` rows, mirrors the
 final lifecycle status into the experience ledger, and publishes front-end
 refresh events.
+
+[INPUT]
+- myrm_agent_harness.backends.skills.scanning::ScanResult, ScanSeverity, scan_skill_content (POS: 技能内容安全扫描)
+- app.database.connection::get_session (POS: 数据库连接管理)
+- app.services.approvals.registry::ApprovalRegistry (POS: 统一的拦截审批注册与唤醒中枢)
+- app.services.skills.experience_ledger::record_skill_growth_event (POS: 学习资产事件账本)
+- app.core.skills.creation.service::skill_creation_service (POS: Skill creation service)
+- app.core.skills.providers.local::compute_local_skill_id (POS: Local skill ID computation)
+- app.core.skills.store.service::skills_service (POS: Skill store service)
+- myrm_agent_harness.utils.fuzzy_match::fuzzy_replace (POS: 通用模糊匹配模块)
+- app.services.event.app_event_bus::AppEvent, AppEventType, get_event_bus (POS: 业务层 SSE 事件总线)
+
+[OUTPUT]
+- publish_skill_growth_event: SKILL_GROWTH_UPDATED 前端刷新事件单一出口
+- notify_skill_draft_created: Harness 审核输出 → 可审核草稿
+- persist_skill_draft_record: ApprovalRecord 落库 + 去重抑制 + ledger 镜像 + 前端事件
+- evaluate_growth_scan / build_scannable_growth_content: 落库前安全预检
+
+[POS]
+技能成长记录持久化：成长 case 落库、安全预检、去重抑制与前端刷新事件发布。
 """
 
 import logging
 from datetime import datetime
-from typing import Any
 
 from myrm_agent_harness.backends.skills.scanning import (
     ScanResult,
@@ -16,7 +35,9 @@ from myrm_agent_harness.backends.skills.scanning import (
 )
 
 from app.database.connection import get_session
+from app.database.models.approval import ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
+from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 from app.services.skills.experience_ledger import record_skill_growth_event
 
 logger = logging.getLogger(__name__)
@@ -46,6 +67,48 @@ def _append_scan_failure(description: str, scan_result: ScanResult) -> str:
     if base:
         return f"{base}\n\n**PRE-FLIGHT SECURITY SCAN FAILED:**\n{suffix}"
     return f"**PRE-FLIGHT SECURITY SCAN FAILED:**\n{suffix}"
+
+
+def _publish_sse_event(
+    event_type: AppEventType, data: dict[str, object]
+) -> None:
+    """Publish an SSE event through the shared bus, logging failures."""
+    try:
+        bus = get_event_bus()
+        bus.publish(AppEvent(event_type=event_type, data=data))
+    except Exception as e:
+        logger.error("Failed to publish SSE event %s: %s", event_type, e)
+
+
+def publish_skill_growth_event(
+    *,
+    case_id: str,
+    draft_type: str,
+    status: str,
+    name: str,
+) -> None:
+    """Publish the single-source SKILL_GROWTH_UPDATED refresh event."""
+    _publish_sse_event(
+        AppEventType.SKILL_GROWTH_UPDATED,
+        {
+            "case_id": case_id,
+            "draft_type": draft_type,
+            "status": status,
+            "name": name,
+        },
+    )
+
+
+def _publish_new_skill_draft_event(*, draft_id: str, draft_type: str, name: str) -> None:
+    """Publish the NEW_SKILL_DRAFT event for a pending review draft."""
+    _publish_sse_event(
+        AppEventType.NEW_SKILL_DRAFT,
+        {
+            "draft_id": draft_id,
+            "draft_type": draft_type,
+            "name": name,
+        },
+    )
 
 
 async def build_scannable_growth_content(result: dict[str, object]) -> str:
@@ -135,7 +198,7 @@ async def persist_skill_draft_record(
     description: str | None = None,
     reviewed_at: datetime | None = None,
     dedupe_statuses: tuple[str, ...] = ("PENDING_REVIEW",),
-) -> Any:
+) -> ApprovalRecord | None:
     """Persist a skill growth case using ApprovalRegistry."""
     agent_id = str(result.get("agent_id") or "default")
     chat_id = result.get("chat_id")
@@ -252,43 +315,21 @@ async def persist_skill_draft_record(
             },
         )
 
-    try:
-        from app.services.event.app_event_bus import (
-            AppEvent,
-            AppEventType,
-            get_event_bus,
+    publish_skill_growth_event(
+        case_id=record.id if record else "",
+        draft_type=draft_type,
+        status=status,
+        name=draft_name,
+    )
+    if record is not None and status == "PENDING_REVIEW":
+        _publish_new_skill_draft_event(
+            draft_id=record.id, draft_type=draft_type, name=draft_name
         )
-
-        bus = get_event_bus()
-        bus.publish(
-            AppEvent(
-                event_type=AppEventType.SKILL_GROWTH_UPDATED,
-                data={
-                    "case_id": record.id if record else "",
-                    "draft_type": draft_type,
-                    "status": status,
-                    "name": draft_name,
-                },
-            )
-        )
-        if status == "PENDING_REVIEW":
-            bus.publish(
-                AppEvent(
-                    event_type=AppEventType.NEW_SKILL_DRAFT,
-                    data={
-                        "draft_id": record.id if record else "",
-                        "draft_type": draft_type,
-                        "name": draft_name,
-                    },
-                )
-            )
-    except Exception as e:
-        logger.error("Failed to publish skill growth event: %s", e)
 
     return record
 
 
-async def notify_skill_draft_created(result: dict[str, object]) -> Any:
+async def notify_skill_draft_created(result: dict[str, object]) -> ApprovalRecord | None:
     """Persist a reviewable skill draft from Harness review output."""
     if not result.get("has_value"):
         return None

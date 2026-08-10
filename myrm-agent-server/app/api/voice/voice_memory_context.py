@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.core.memory.proactive.settings (POS: enableMemory / sessions opt-in SSOT)
-- app.services.agent.profile_resolver (POS: Agent profile resolver)
+- app.services.agent.profile.profile_resolver (POS: Agent profile resolver)
 
 [OUTPUT]
 - VoiceMemoryContext: memory_search_tool ACL flags for voice sessions
@@ -23,7 +23,7 @@ from app.core.memory.proactive.settings import (
     resolve_conversation_search_enabled,
     resolve_memory_enabled,
 )
-from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
 from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
 

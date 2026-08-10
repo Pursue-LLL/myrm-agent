@@ -1,6 +1,6 @@
 """
 [INPUT]
-- .types::EvolutionApprovalPayload
+- .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
 [OUTPUT]
 - Full skill content apply + rollback (file system + SkillStore + agent fork bindings)
 [POS]
@@ -27,6 +27,7 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 )
 
 from app.database.dto import AgentUpdate
+
 from .types import EvolutionApprovalPayload
 
 logger = logging.getLogger(__name__)

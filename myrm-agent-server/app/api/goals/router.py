@@ -1,7 +1,7 @@
 """Goal HTTP API endpoints.
 
 [INPUT]
-- app.services.agent.goal_registry::GoalRegistry (POS: Goal registry)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: Goal registry)
 - myrm_agent_harness.agent.goals.types::GoalStatus (POS: Goal status enum)
 
 [OUTPUT]
@@ -21,7 +21,7 @@ from myrm_agent_harness.core.features import get_features
 from pydantic import BaseModel
 
 from app.api.dependencies import get_optional_llm_for_user
-from app.services.agent.goal_registry import GoalRegistry
+from app.services.agent.goals.goal_registry import GoalRegistry
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.types import Goal
@@ -283,7 +283,7 @@ async def draft_goal(
     llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
 ) -> GoalDraftResponse:
     """Generate draft constraints and acceptance criteria for a goal objective."""
-    from app.services.agent.goal_draft import draft_goal_spec
+    from app.services.agent.goals.goal_draft import draft_goal_spec
 
     try:
         spec = await draft_goal_spec(

@@ -1,7 +1,21 @@
 """Auto skill materialization helpers.
 
 Materializes safe growth outcomes to disk and emits user-facing evolution
-events. Orchestration and policy decisions live in ``growth_lifecycle.py``.
+events. Orchestration and policy decisions live in ``growth/lifecycle.py``.
+
+[INPUT]
+- myrm_agent_harness.agent.skills.evolution.core.types::EnvironmentFingerprint, EvolutionType, SkillLineage, SkillRecord (POS: Harness 技能演化核心类型)
+- myrm_agent_harness.agent.skills.evolution.pipeline.patch::PatchType, apply_skill_patch (POS: Harness 技能补丁应用)
+- app.core.skills.creation.service::skill_creation_service (POS: Skill creation service)
+- app.core.skills.store.evolution_store::get_evolution_skill_store (POS: core/skills/store 进化 SQLite 入口)
+- app.services.skills.evolution_events::publish_skill_evolved_event (POS: 技能进化事件发布)
+
+[OUTPUT]
+- auto_extract_or_patch_skill: 将已通过策略判断的成长结果落盘为真实技能或补丁
+- SkillMaterializationResult: 物化结果 DTO
+
+[POS]
+技能物化辅助器：仅在策略判定通过后把成长结果写入技能文件（新建或补丁），并发布 ``SKILL_EVOLVED`` 事件。
 """
 
 import logging
@@ -19,7 +33,7 @@ from myrm_agent_harness.agent.skills.evolution.pipeline.patch import (
 )
 
 from app.core.skills.creation.service import skill_creation_service
-from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+from app.services.skills.evolution_events import publish_skill_evolved_event
 
 logger = logging.getLogger(__name__)
 
@@ -33,26 +47,6 @@ class SkillMaterializationResult:
     description: str = ""
     skill_name: str | None = None
     error: str | None = None
-
-
-def _publish_evolution_event(
-    skill_name: str, evolution_type: str, description: str
-) -> None:
-    try:
-        bus = get_event_bus()
-        bus.publish(
-            AppEvent(
-                event_type=AppEventType.SKILL_EVOLVED,
-                data={
-                    "skill_name": skill_name,
-                    "evolution_type": evolution_type,
-                    "description": description[:200],
-                },
-            )
-        )
-        logger.info("Skill evolved notification published: %s", skill_name)
-    except Exception as e:
-        logger.error("Failed to publish skill evolution event: %s", e)
 
 
 async def _persist_review_eval_cases(
@@ -161,7 +155,11 @@ async def auto_extract_or_patch_skill(
             logger.warning(
                 "🚀 Auto-Extractor: Successfully extracted NEW skill '%s'", skill_name
             )
-            _publish_evolution_event(skill_name, "new", description)
+            publish_skill_evolved_event(
+                skill_name=skill_name,
+                evolution_type="new",
+                description=description,
+            )
             return SkillMaterializationResult(
                 success=True,
                 evolution_type="new",
@@ -235,8 +233,10 @@ async def auto_extract_or_patch_skill(
                     "🛠️ Auto-Extractor: Successfully applied PATCH to skill '%s'",
                     skill_name,
                 )
-                _publish_evolution_event(
-                    skill_name, "patch", "Applied optimization patch"
+                publish_skill_evolved_event(
+                    skill_name=skill_name,
+                    evolution_type="patch",
+                    description="Applied optimization patch",
                 )
                 return SkillMaterializationResult(
                     success=True,

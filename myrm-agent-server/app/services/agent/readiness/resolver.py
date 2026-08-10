@@ -2,17 +2,22 @@
 
 Checks 6 dimensions (model / mcp / skills / tools / search / deployment) against
 a resolved agent profile and global user config. Returns a structured report with
-ready / warning / blocked levels and settings deep-link paths.
+ready / warning / blocked levels and settings deep-link paths. The mcp dimension
+also preflights scoped secrets (``required_secrets`` + ``{{secret:KEY}}`` header
+references) against the agent vault so missing credentials surface before runtime.
 
 [INPUT]
-- app.services.agent.profile_resolver::AgentProfileResolver (POS: per-agent profile SSOT)
+- app.services.agent.profile.profile_resolver::AgentProfileResolver (POS: per-agent profile SSOT)
 - app.core.channel_bridge.config_readiness::ProviderConfigChecker (POS: provider readiness)
 - app.core.channel_bridge.config_loader::load_user_configs (POS: global user config)
+- app.services.agent.backends.secret_backend::DatabaseSecretBackend (POS: agent secret vault)
 
 [OUTPUT]
 - ReadinessLevel: ready / warning / blocked
 - AgentReadinessItem: single-dimension check result
 - AgentReadinessReport: aggregated per-agent report
+- _agent_settings_path: canonical deep-link to the agent editor tab on Settings
+- _collect_bound_secret_keys: dedupe secret keys bound MCP servers depend on
 - resolve_agent_readiness: async entry point
 - get_readiness_resolver: global singleton accessor
 
@@ -26,19 +31,26 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
+from urllib.parse import quote
 
-from app.services.agent.profile_resolver import (
+from app.services.agent.profile.profile_resolver import (
     ResolvedAgentProfile,
     get_agent_profile_resolver,
 )
 
+if TYPE_CHECKING:
+    from app.core.types import MCPServerConfig
+
 logger = logging.getLogger(__name__)
 
 _CACHE_TTL_SECONDS = 300.0
+
+_SECRET_REF_PATTERN = re.compile(r"\{\{secret:([^}]+)\}\}")
 
 
 class ReadinessLevel(str, Enum):
@@ -94,6 +106,15 @@ def _aggregate_level(items: Sequence[AgentReadinessItem]) -> ReadinessLevel:
     return ReadinessLevel.READY
 
 
+def _agent_settings_path(agent_id: str, anchor: str = "loadout") -> str:
+    """Deep-link to the agent editor tab on the Settings page.
+
+    Mirrors the frontend ``agentSettingsHref`` (loadoutDeepLinks.ts) so the
+    readiness badge and the agent editor agree on the same canonical route.
+    """
+    return f"/settings/agents?agentId={quote(agent_id, safe='')}#{anchor}"
+
+
 def _check_model(
     profile: ResolvedAgentProfile,
     providers_dict: dict[str, object] | None,
@@ -107,29 +128,64 @@ def _check_model(
     return AgentReadinessItem(
         dimension="model",
         level=ReadinessLevel.BLOCKED,
-        reason=result.missing_items[0] if result.missing_items else "provider_not_configured",
-        next_action=result.suggestions[0] if result.suggestions else "Configure model provider",
+        reason=(
+            result.missing_items[0]
+            if result.missing_items
+            else "provider_not_configured"
+        ),
+        next_action=(
+            result.suggestions[0] if result.suggestions else "Configure model provider"
+        ),
         settings_path="/settings/models",
     )
 
 
-def _check_mcp(
+def _collect_bound_secret_keys(servers: Sequence["MCPServerConfig"]) -> list[str]:
+    """Collect secret keys bound MCP servers depend on (env + header references).
+
+    ``required_secrets`` declares the scoped env keys; ``{{secret:KEY}}`` header
+    references are resolved at connection time by ``MCPSecretAuthProvider``. Both
+    must exist in the agent vault for the server to authenticate.
+    """
+    keys: list[str] = []
+    for server in servers:
+        for key in server.required_secrets or []:
+            stripped = key.strip()
+            if stripped:
+                keys.append(stripped)
+        for value in (server.headers or {}).values():
+            keys.extend(_SECRET_REF_PATTERN.findall(value))
+    return list(dict.fromkeys(key.strip() for key in keys if key.strip()))
+
+
+async def _check_mcp(
     profile: ResolvedAgentProfile,
     mcp_dict: dict[str, object] | None,
+    org_mcp_dict: dict[str, object] | None = None,
 ) -> list[AgentReadinessItem]:
-    """Check if bound MCP servers exist in user config."""
+    """Check bound MCP servers exist in config and their secrets are configured.
+
+    The configured set covers both user-managed servers (``mcp_dict``) and
+    org-managed servers pushed by the Control Plane (``org_mcp_dict``), matching
+    the runtime merge in converter.py so the report agrees with actual execution.
+    """
     if not profile.mcp_ids:
         return []
 
-    from app.core.channel_bridge.config_parsers import extract_mcp_configs
+    from app.core.channel_bridge.config_parsers import (
+        extract_mcp_configs,
+        extract_org_mcp_configs,
+    )
 
-    configured_ids: set[str] = set()
+    configured: dict[str, MCPServerConfig] = {}
     if mcp_dict:
         for cfg in extract_mcp_configs(mcp_dict):
-            configured_ids.add(cfg.name)
+            configured[cfg.name] = cfg
+    for cfg in extract_org_mcp_configs(org_mcp_dict):
+        configured[cfg.name] = cfg
 
-    missing = [mid for mid in profile.mcp_ids if mid not in configured_ids]
     items: list[AgentReadinessItem] = []
+    missing = [mid for mid in profile.mcp_ids if mid not in configured]
     if missing:
         items.append(
             AgentReadinessItem(
@@ -140,6 +196,31 @@ def _check_mcp(
                 settings_path="/settings/mcp",
             )
         )
+
+    bound = [configured[mid] for mid in profile.mcp_ids if mid in configured]
+    required_keys = _collect_bound_secret_keys(bound)
+    if required_keys:
+        try:
+            from app.services.agent.backends.secret_backend import DatabaseSecretBackend
+
+            existing = set(
+                await DatabaseSecretBackend().list_secret_keys(profile.agent_id)
+            )
+            missing_keys = [key for key in required_keys if key not in existing]
+            if missing_keys:
+                items.append(
+                    AgentReadinessItem(
+                        dimension="mcp",
+                        level=ReadinessLevel.WARNING,
+                        reason=f"MCP servers missing secrets: {', '.join(missing_keys[:3])}",
+                        next_action="Add the missing secrets in agent settings",
+                        settings_path=_agent_settings_path(
+                            profile.agent_id, anchor="secrets"
+                        ),
+                    )
+                )
+        except Exception as exc:
+            logger.debug("MCP secret preflight skipped: %s", exc)
     return items
 
 
@@ -161,7 +242,7 @@ def _check_skills(profile: ResolvedAgentProfile) -> list[AgentReadinessItem]:
                     level=ReadinessLevel.WARNING,
                     reason=f"{len(missing)} skill(s) not found: {', '.join(missing[:3])}",
                     next_action="Remove or replace missing skills in agent settings",
-                    settings_path=f"/agents/{profile.agent_id}/edit",
+                    settings_path=_agent_settings_path(profile.agent_id),
                 )
             )
     except Exception as exc:
@@ -179,7 +260,7 @@ def _check_tools(profile: ResolvedAgentProfile) -> list[AgentReadinessItem]:
                 level=ReadinessLevel.WARNING,
                 reason="No built-in tools enabled",
                 next_action="Enable at least one tool in agent settings",
-                settings_path=f"/agents/{profile.agent_id}/edit",
+                settings_path=_agent_settings_path(profile.agent_id),
             )
         )
     return items
@@ -204,18 +285,23 @@ def _check_deployment(profile: ResolvedAgentProfile) -> list[AgentReadinessItem]
     """Check deployment-specific constraints (cloud sandbox / Tauri / local)."""
     items: list[AgentReadinessItem] = []
     try:
-        from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+        from app.platform_utils.deployment_capabilities import (
+            get_deployment_capabilities,
+        )
 
         caps = get_deployment_capabilities()
 
-        if "computer_use" in set(profile.enabled_builtin_tools) and caps.is_sandbox_instance:
+        if (
+            "computer_use" in set(profile.enabled_builtin_tools)
+            and caps.is_sandbox_instance
+        ):
             items.append(
                 AgentReadinessItem(
                     dimension="deployment",
                     level=ReadinessLevel.WARNING,
                     reason="Computer Use may have limited capabilities in sandbox",
                     next_action="Verify browser tools are available in sandbox",
-                    settings_path=f"/agents/{profile.agent_id}/edit",
+                    settings_path=_agent_settings_path(profile.agent_id),
                 )
             )
         if not caps.allows_local_skills and profile.skill_ids:
@@ -225,7 +311,7 @@ def _check_deployment(profile: ResolvedAgentProfile) -> list[AgentReadinessItem]
                     level=ReadinessLevel.WARNING,
                     reason="Local skills not available in current deployment",
                     next_action="Use prebuilt or marketplace skills instead",
-                    settings_path=f"/agents/{profile.agent_id}/edit",
+                    settings_path=_agent_settings_path(profile.agent_id),
                 )
             )
     except Exception as exc:
@@ -253,7 +339,7 @@ async def resolve_agent_readiness(agent_id: str) -> AgentReadinessReport:
                     level=ReadinessLevel.BLOCKED,
                     reason="Agent not found",
                     next_action="Check agent ID or create a new agent",
-                    settings_path="/agents",
+                    settings_path="/settings/agents",
                 ),
             ),
             agent_id=agent_id,
@@ -266,6 +352,7 @@ async def resolve_agent_readiness(agent_id: str) -> AgentReadinessReport:
 
     providers_dict = configs.providers_dict if configs else None
     mcp_dict = configs.mcp_dict if configs else None
+    org_mcp_dict = configs.org_mcp_dict if configs else None
     search_configured = bool(configs and configs.search_is_user_configured)
 
     items: list[AgentReadinessItem] = []
@@ -274,7 +361,7 @@ async def resolve_agent_readiness(agent_id: str) -> AgentReadinessReport:
     if model_item is not None:
         items.append(model_item)
 
-    items.extend(_check_mcp(profile, mcp_dict))
+    items.extend(await _check_mcp(profile, mcp_dict, org_mcp_dict))
 
     items.extend(_check_skills(profile))
     items.extend(_check_tools(profile))

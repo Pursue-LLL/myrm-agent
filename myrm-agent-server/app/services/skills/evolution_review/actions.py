@@ -1,7 +1,10 @@
 """
 [INPUT]
 - app.services.approvals.registry::ApprovalRegistry
-- .disk
+- .disk (POS: Evolution 落盘编排)
+- .persistence::load_approval_record, persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写)
+- .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
+- ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
 [OUTPUT]
 - approve/reject/revise/rollback evolution review records
 [POS]
@@ -17,6 +20,13 @@ from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionType
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.services.approvals.registry import ApprovalRegistry
+
+from ..experience_ledger import (
+    ExperienceEntityType,
+    ExperienceEventType,
+    ExperienceLedgerWrite,
+    record_experience_event,
+)
 from .disk import (
     apply_approval_record,
     get_skill_store,
@@ -33,12 +43,6 @@ from .types import (
     approval_payload,
     approval_to_evolution_review_record,
     evolution_lineage_id,
-)
-from ..experience_ledger import (
-    ExperienceEntityType,
-    ExperienceEventType,
-    ExperienceLedgerWrite,
-    record_experience_event,
 )
 
 logger = logging.getLogger(__name__)

@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.services.skills.auto_extractor import (
-    _publish_evolution_event,
     auto_extract_or_patch_skill,
+    publish_skill_evolved_event,
 )
 
 
@@ -34,7 +34,7 @@ def mock_skill_creation_service():
 @pytest.fixture
 def mock_publish_event():
     with patch(
-        "app.services.skills.auto_extractor._publish_evolution_event"
+        "app.services.skills.auto_extractor.publish_skill_evolved_event"
     ) as mock_pub:
         yield mock_pub
 
@@ -70,7 +70,11 @@ async def test_auto_extract_new_skill(mock_skill_creation_service, mock_publish_
     assert "Trigger Condition" in kwargs["content"]
     assert "When asked" in kwargs["content"]
 
-    mock_publish_event.assert_called_once_with("test_skill", "new", "A new skill")
+    mock_publish_event.assert_called_once_with(
+        skill_name="test_skill",
+        evolution_type="new",
+        description="A new skill",
+    )
 
 
 @pytest.mark.asyncio
@@ -95,17 +99,19 @@ async def test_auto_patch_existing_skill(
     assert kwargs["content"] == "Patched content"
 
     mock_publish_event.assert_called_once_with(
-        "existing_skill", "patch", "Applied optimization patch"
+        skill_name="existing_skill",
+        evolution_type="patch",
+        description="Applied optimization patch",
     )
 
 
 @pytest.mark.asyncio
-@patch("app.services.skills.auto_extractor.get_event_bus")
+@patch("app.services.skills.evolution_events.get_event_bus")
 async def test_publish_evolution_event(mock_get_bus):
     mock_bus = MagicMock()
     mock_get_bus.return_value = mock_bus
 
-    _publish_evolution_event("my_skill", "new", "desc")
+    publish_skill_evolved_event(skill_name="my_skill", evolution_type="new", description="desc")
 
     mock_bus.publish.assert_called_once()
     event = mock_bus.publish.call_args.args[0]

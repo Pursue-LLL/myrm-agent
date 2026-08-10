@@ -18,6 +18,18 @@
 | `auth-cp-token.ts` | CP HMAC API token client decode（userId + expiry） | 内联 |
 | `tauri-system-config-cache.ts` | Tauri 桌面 `saveAndRestart`/`resetConfig` 前写入 `myrm-tauri-system-config` localStorage，供 `deploy-mode.ts` 冷启动读端口 | 内联 |
 | `backend-health.ts` | 后端健康轮询、`fetchBackendHealth`（含 `system_status`）、`ensureLocalBackendReady` 单飞 gate（Boot 复访 fail-fast、不可达后 fast re-probe、`markLocalBackendUnreachable` 运输失败后失效缓存）、`checkBackendReadyOnce` | 内联 |
+| `backend-health-probe.ts` | 无状态后端健康探测 + 有界轮询原语（leaf transport，不依赖平台就绪或 API gate） | 内联 |
+| `platform-readiness.ts` | 平台就绪 SSOT：业务 API 等待后端 DB 可达后才放行（`whenDatabaseReady()` gate，ConfigSync / 审批恢复 / TauriAdapter 配置拉取订阅） | 内联 |
+| `billing-plans.ts` | 定价页展示层：`BILLING_PLAN_PRESENTATION`（icon/highlight UI 元数据）、`mergeBillingCatalog` 合并 CP catalog、`formatWu`（**仅 SaaS/sandbox**） | 内联 |
+| `builtin-tool-entitlements.ts` | 内置工具 entitlement 裁剪：`stripEntitlementBlockedBuiltinTools`（sandbox 屏蔽 cron/computer_use/external_cli 时移除，镜像 BuiltinToolsPanel 禁用规则） | 内联 |
+| `guest.ts` | 认证状态检查 + Token 管理（无「访客模式」：Tauri 自动登录 local_user；Sandbox 强制 OAuth） | 内联 |
+| `marketing-paths.ts` | 独立布局路由常量：`PET_OVERLAY_PATH`（桌面桌宠浮窗）、`STANDALONE_PATHS`（无 AppLayout 侧栏的公开/认证/计费/桌宠路径） | 内联 |
+| `migrationChatHandoff.ts` | 外部迁移向导 → 主聊天会话的 one-shot 交接 SSOT（agent / readiness anchor / bound project / workspace candidates，localStorage 锚点） | 内联 |
+| `reasoning-model-detection.ts` | Reasoning 模型名称正则检测（`customModelInfo.supports_reasoning` 的 fallback；覆盖 Claude/o 系列/Gemini/DeepSeek/Qwen） | 内联 |
+| `tauri.ts` | Tauri 原生桥接层：`isTauriEnvironment`、`invokeTauriCommand`/`listenTauriEvent`/`emitTauriEvent`、`getBackendBaseUrl`（避免无效配置污染桌面请求） | 内联 |
+| `tunnel-deploy.ts` | 企业隧道部署：`TunnelDeployParams` + `buildTunnelDockerBuildCommand`（`myrm/tunnel-agent` 镜像本地构建） | 内联 |
+| `utils.ts` | shadcn/ui 兼容门面：从 `utils/classnameUtils` re-export `cn`（与 `utils/` 目录同名，`@/lib/utils` 解析到此文件） | 内联 |
+| `webui-access-prefs.ts` | 浏览器本地 WebUI 访问偏好（`myrm-webui-access-prefs`；Tauri 用原生系统配置） | 内联 |
 | `local-backend-dev.ts` | Boot session SSOT + health-aware local setup hint（Boot/Banner/Settings）；`resolveBackendUnreachableMessage`（api 层从 `#locales` en/zh 读取 `common.configLoadError`） | 内联 |
 | `local-backend-e2e-probe.ts` | Chrome E2E tab 判定 + 私 Backend 绑定等待（Banner 抑制 shared `:8080` 误报） | 内联 |
 | `locale-personal-sync.ts` | 登录后将 cookie locale 写入 `personalSettings`（对齐 Agent 消息 locale） | 内联 |

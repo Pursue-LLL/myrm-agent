@@ -3,7 +3,7 @@
 [INPUT]
 services.agent.agent_service::AgentService (POS: 业务层 Agent CRUD 服务)
 services.agent.backends::DatabaseSecretBackend (POS: Agent Secrets 加密存储)
-services.agent.builtin_tool_validation::RequiredBuiltinTools (POS: 内建工具类型)
+services.agent.builtin_specs.builtin_tool_validation::RequiredBuiltinTools (POS: 内建工具类型)
 
 [OUTPUT]
 - GET    /{agent_id}/secrets: 列出 Agent 机密名称（不含明文）
@@ -33,7 +33,7 @@ from app.database.connection import get_db
 from app.schemas.responses import StandardSuccessResponse
 from app.services.agent.agent_service import AgentService
 from app.services.agent.backends import DatabaseSecretBackend
-from app.services.agent.builtin_tool_validation import RequiredBuiltinTools
+from app.services.agent.builtin_specs.builtin_tool_validation import RequiredBuiltinTools
 
 logger = logging.getLogger(__name__)
 

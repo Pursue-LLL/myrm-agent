@@ -29,7 +29,7 @@ from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind impo
     bind_workspace_storage_root,
 )
 
-from app.services.agent.background_job_finish_handler import (
+from app.services.agent.background_job.background_job_finish_handler import (
     ServerBackgroundJobFinishHandler,
 )
 from tests.integration.test_background_job_finish_chain import _make_local_executor
@@ -196,19 +196,19 @@ async def test_finish_handler_dedupe_integration() -> None:
 
     with (
         patch(
-            "app.services.agent.background_job_finish_handler._resolve_user_locale",
+            "app.services.agent.background_job.background_job_finish_handler._resolve_user_locale",
             AsyncMock(return_value="en"),
         ),
         patch(
-            "app.services.agent.background_job_finish_handler.ChatService.append_message",
+            "app.services.agent.background_job.background_job_finish_handler.ChatService.append_message",
             AsyncMock(),
         ) as mock_append,
         patch(
-            "app.services.agent.background_job_finish_handler.get_event_bus",
+            "app.services.agent.background_job.background_job_finish_handler.get_event_bus",
             return_value=AsyncMock(),
         ),
         patch(
-            "app.services.agent.goal_wait_background_resume.maybe_resume_goal_after_background_job",
+            "app.services.agent.goals.goal_wait_background_resume.maybe_resume_goal_after_background_job",
             AsyncMock(),
         ),
     ):

@@ -58,7 +58,7 @@ async def _require_embedding_config() -> EmbeddingConfig:
 
 
 async def _wiki_boundary_enabled_for_agent(agent_id: str) -> bool:
-    from app.services.agent.profile_resolver import (
+    from app.services.agent.profile.profile_resolver import (
         get_agent_profile_resolver,
         resolve_builtin_tool_flags,
     )

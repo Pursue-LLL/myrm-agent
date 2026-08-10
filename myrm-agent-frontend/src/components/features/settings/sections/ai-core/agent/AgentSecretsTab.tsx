@@ -7,8 +7,15 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
-import { listAgentSecrets, createOrUpdateAgentSecret, deleteAgentSecret } from '@/services/agent';
+import {
+  listAgentSecrets,
+  createOrUpdateAgentSecret,
+  deleteAgentSecret,
+  invalidateAgentReadiness,
+  READINESS_SWR_KEY_PREFIX,
+} from '@/services/agent';
 import { toast } from '@/hooks/shared/useToast';
+import { mutate } from 'swr';
 
 interface AgentSecretsTabProps {
   agentId: string | null;
@@ -55,6 +62,16 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
     }
   }, [agentId, isNew, fetchSecrets]);
 
+  const refreshReadiness = useCallback(async () => {
+    if (!agentId) return;
+    try {
+      await invalidateAgentReadiness(agentId);
+      await mutate(`${READINESS_SWR_KEY_PREFIX}${agentId}`);
+    } catch (err) {
+      console.warn('Readiness refresh skipped after secret update:', err);
+    }
+  }, [agentId]);
+
   const handleSave = async () => {
     if (!agentId) return;
     if (!keyName.trim() || !secretValue.trim()) {
@@ -73,6 +90,7 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
       setIsFormOpen(false);
       setIsEditing(false);
       await fetchSecrets();
+      await refreshReadiness();
     } catch (err: unknown) {
       console.error('Failed to save secret:', err);
       toast.error(t('agent.secrets.saveError', { fallback: 'Failed to save secret.' }), {
@@ -89,6 +107,7 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
     try {
       await deleteAgentSecret(agentId, deleteTarget);
       await fetchSecrets();
+      await refreshReadiness();
     } catch (err: unknown) {
       console.error('Failed to delete secret:', err);
       toast.error(t('agent.secrets.deleteError', { fallback: 'Failed to delete secret.' }), {
@@ -98,7 +117,7 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
     } finally {
       setDeleteTarget(null);
     }
-  }, [agentId, deleteTarget, fetchSecrets, t]);
+  }, [agentId, deleteTarget, fetchSecrets, refreshReadiness, t]);
 
   const openAddForm = () => {
     setKeyName('');

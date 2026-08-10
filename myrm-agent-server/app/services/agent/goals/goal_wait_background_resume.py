@@ -2,8 +2,8 @@
 
 [INPUT]
 - myrm_agent_harness.api.hooks::BackgroundJobFinishResult (POS: harness finish payload)
-- app.services.agent.goal_registry::GoalRegistry (POS: session GoalProvider lookup)
-- app.services.agent.goal_stream_trigger::trigger_goal_stream_with_failure_policy (POS: unattended headless stream + failure SSOT)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: session GoalProvider lookup)
+- app.services.agent.goals.goal_stream_trigger::trigger_goal_stream_with_failure_policy (POS: unattended headless stream + failure SSOT)
 
 [OUTPUT]
 - maybe_resume_goal_after_background_job: exit WAIT, trigger goal stream (or NEEDS_HUMAN_REVIEW on failure), return success flag
@@ -29,7 +29,7 @@ async def maybe_resume_goal_after_background_job(result: BackgroundJobFinishResu
     if not result.session_id or result.status != "exited" or not result.job_id:
         return False
 
-    from app.services.agent.goal_registry import GoalRegistry
+    from app.services.agent.goals.goal_registry import GoalRegistry
 
     provider = GoalRegistry.get_provider(result.session_id)
     if provider is None:
@@ -66,7 +66,7 @@ async def maybe_resume_goal_after_background_job(result: BackgroundJobFinishResu
         result.job_id,
     )
 
-    from app.services.agent.goal_stream_trigger import trigger_goal_stream_with_failure_policy
+    from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream_with_failure_policy
 
     return await trigger_goal_stream_with_failure_policy(
         result.session_id,

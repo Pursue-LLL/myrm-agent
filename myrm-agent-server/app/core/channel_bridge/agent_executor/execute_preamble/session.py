@@ -28,7 +28,7 @@ from app.core.channel_bridge.executor_helpers import (
     persist_and_load_history,
 )
 from app.core.channel_bridge.executor_helpers.topic_workspace_sync import ChannelWorkspaceSyncError
-from app.services.agent.profile_resolver import ResolvedAgentProfile
+from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
 from ..session import resolve_session_key
 from .backfill import maybe_backfill_channel_history

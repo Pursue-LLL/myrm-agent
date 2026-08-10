@@ -17,7 +17,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database.models import Agent
 from app.database.models.base import Base
-from app.services.agent.builtin_initializer import (
+from app.services.agent.builtin_specs.builtin_initializer import (
     _BUILTIN_AGENTS,
     initialize_builtin_agents,
 )
@@ -45,7 +45,7 @@ async def test_db():
 
     with (
         patch("app.database.connection.get_session", mock_get_session),
-        patch("app.services.agent.builtin_initializer.get_session", mock_get_session),
+        patch("app.services.agent.builtin_specs.builtin_initializer.get_session", mock_get_session),
         patch(
             "app.database.repositories.uow.get_session_factory",
             mock_get_session_factory,

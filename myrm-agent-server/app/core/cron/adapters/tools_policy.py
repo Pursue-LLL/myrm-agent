@@ -17,13 +17,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from app.services.agent.builtin_tool_ids import (
+from app.services.agent.builtin_specs.builtin_tool_ids import (
     AGENT_BASELINE_BUILTIN_TOOLS,
     BUILTIN_TOOL_ID_SET,
     LEGACY_REJECTED_BUILTIN_TOOL_IDS,
     InvalidBuiltinToolIdsError,
 )
-from app.services.agent.profile_resolver import (
+from app.services.agent.profile.profile_resolver import (
     BuiltinToolFlags,
     resolve_builtin_tool_flags,
 )

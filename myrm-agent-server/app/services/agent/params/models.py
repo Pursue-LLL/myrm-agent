@@ -7,8 +7,8 @@ from myrm_agent_harness.core.config.gateway import ToolGatewayConfig
 from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
 
-from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
-from app.services.agent.builtin_tool_validation import RequiredBuiltinTools
+from app.services.agent.builtin_specs.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+from app.services.agent.builtin_specs.builtin_tool_validation import RequiredBuiltinTools
 
 MultimodalQuery = str | list[dict[str, object]]
 

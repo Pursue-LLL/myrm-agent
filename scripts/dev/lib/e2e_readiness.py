@@ -31,13 +31,14 @@ from e2e_api_verify import (
     _load_parallel_runtime_snapshot,
     _mux_context_fields,
     _resolve_cap_headroom_active_test_count,
+    _shared_epoch_match,
     resolve_e2e_api_context,
 )
 
 ReadinessStatus = Literal["READY", "WAIT", "FAIL"]
 
 _LAUNCH_ALLOWED_ACTIONS: Final[frozenset[str]] = frozenset(
-    {"READY", "PARALLEL_OK", "QUEUE"}
+    {"READY", "PARALLEL_OK", "QUEUE", "ATTACH_CRASH_HEAL"}
 )
 
 
@@ -59,10 +60,12 @@ def _status_for_next_action(next_action: str, *, ctx_blocked: bool) -> Readiness
         return "FAIL"
     if next_action == "OBSERVABILITY_UNKNOWN":
         return "WAIT"
+    if next_action in ("READY", "PARALLEL_OK"):
+        return "READY"
     if ctx_blocked or next_action in (
+        "ATTACH_CRASH_HEAL",
         "SHPOIB_OR_VERIFY_API",
-        "ADMIT_STACK_HEAL_WAIT",
-        "RESTART_WHEN_IDLE",
+        "PRIVATE_EPOCH_REQUIRED",
         "QUEUE",
     ):
         return "WAIT"
@@ -87,8 +90,6 @@ def _observability_unknown(
 ) -> bool:
     if mux_fields.get("muxSnapshotAvailable") is False:
         return True
-    if parallel_snapshot.get("parallel_observability_mismatch") is True:
-        return True
     snapshot_error = parallel_snapshot.get("snapshot_error")
     return isinstance(snapshot_error, str) and bool(snapshot_error.strip())
 
@@ -104,6 +105,10 @@ def _reason_for_verdict(*, next_action: str, ctx: E2eApiContext) -> str:
             "cluster has hung chrome_e2e peer — run ./myrm e2e-context; "
             "do not stop other pytest"
         )
+    if next_action == "PARALLEL_OK":
+        return "parallel chrome_e2e active; healthy shared backend generation remains pinned"
+    if next_action == "PRIVATE_EPOCH_REQUIRED":
+        return "workspace backend code requires a PRIVATE immutable epoch; do not restart shared :8080"
     if ctx.blocked:
         blocked_reason = ctx.blocked_reason.strip() or "verification plane blocked"
         return f"{blocked_reason}; NEXT_ACTION={next_action}"
@@ -111,14 +116,13 @@ def _reason_for_verdict(*, next_action: str, ctx: E2eApiContext) -> str:
         return (
             "PRIVATE ADMIT queue expected; launch may defer — do not stop other pytest"
         )
-    if next_action == "ADMIT_STACK_HEAL_WAIT":
-        return "shared stack heal in ADMIT — wait for peer recovery"
-    if next_action == "RESTART_WHEN_IDLE":
-        return "pending drift — restart when wave idle"
+    if next_action == "ATTACH_CRASH_HEAL":
+        return (
+            "shared backend is down; session remains launchable and attach preflight "
+            "performs single-flight backend-only recovery"
+        )
     if next_action == "SHPOIB_OR_VERIFY_API":
         return "no epoch-matched backend — verify-api or SHPOIB seed required"
-    if next_action == "PARALLEL_OK":
-        return "parallel chrome_e2e active; stack attach allowed"
     return "cluster ready for chrome_e2e launch"
 
 
@@ -132,11 +136,11 @@ def _launch_allowed(*, next_action: str, ctx: E2eApiContext) -> bool:
         return False
     if next_action in _LAUNCH_ALLOWED_ACTIONS:
         return True
-    # R219-D: blocked epoch + parallel peers must enter ADMIT/queue in test.sh — not hard deny.
-    if next_action == "ADMIT_STACK_HEAL_WAIT":
-        return True
     # R298: SHPOIB PRIVATE tests seed isolated backend in bootstrap — shared epoch block is OK.
-    if next_action == "SHPOIB_OR_VERIFY_API" and _shpoib_launch_bypass_enabled():
+    if (
+        next_action in {"SHPOIB_OR_VERIFY_API", "PRIVATE_EPOCH_REQUIRED"}
+        and _shpoib_launch_bypass_enabled()
+    ):
         return True
     if ctx.blocked:
         return False
@@ -146,9 +150,14 @@ def _launch_allowed(*, next_action: str, ctx: E2eApiContext) -> bool:
 def _ready_chrome_full(
     *, next_action: str, ctx: E2eApiContext, mux_fields: dict[str, object]
 ) -> bool:
-    if ctx.blocked or not ctx.epoch_match:
+    if ctx.blocked or not _shared_epoch_match(ctx):
         return False
-    if next_action in ("FAIL_FAST", "SHPOIB_OR_VERIFY_API", "RESTART_WHEN_IDLE"):
+    if next_action in (
+        "FAIL_FAST",
+        "ATTACH_CRASH_HEAL",
+        "SHPOIB_OR_VERIFY_API",
+        "PRIVATE_EPOCH_REQUIRED",
+    ):
         return False
     if mux_fields.get("muxColdAttachSaturated") is True:
         return False
@@ -160,42 +169,7 @@ def _ready_chrome_full(
 def _launch_force_bypass_enabled() -> bool:
     return (
         os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1"
-        or os.environ.get("E2E_SIGNOFF", "").strip() == "1"
         or os.environ.get("MYRM_E2E_P0A_GATE", "").strip() == "1"
-    )
-
-
-def _signoff_holder_launch_denial(
-    ctx: E2eApiContext,
-) -> ChromeE2eReadinessVerdict | None:
-    """P0-SAO-8: block new daily chrome_e2e while Step1 signoff episode is RUNNING."""
-    if _launch_force_bypass_enabled():
-        return None
-    if os.environ.get("MYRM_E2E_P0A_GATE", "").strip() == "1":
-        return None
-    if os.environ.get("MYRM_SIGNOFF_CRITICAL", "").strip() == "1":
-        return None
-    try:
-        from signoff_admission import signoff_critical_section_holder
-    except ImportError:
-        return None
-    holder = signoff_critical_section_holder()
-    if holder is None:
-        return None
-    reason = (
-        f"signoff gate active ({holder.label}); "
-        "wait for STEP1_EXIT or run ./myrm e2e-context signoffAdmission"
-    )
-    return ChromeE2eReadinessVerdict(
-        status="WAIT",
-        token="WAIT:SIGNOFF_HOLDER",
-        reason=reason,
-        next_action="SIGNOFF_HOLDER",
-        launch_allowed=False,
-        attach_allowed=True,
-        ready_chrome_full=False,
-        blocked=ctx.blocked,
-        epoch_match=ctx.epoch_match,
     )
 
 
@@ -207,9 +181,7 @@ def evaluate_chrome_e2e_readiness(
     mux_fields: dict[str, object],
     parallel_snapshot: dict[str, object] | None = None,
 ) -> ChromeE2eReadinessVerdict:
-    holder_denial = _signoff_holder_launch_denial(ctx)
-    if holder_denial is not None:
-        return holder_denial
+    shared_epoch_match = _shared_epoch_match(ctx)
     if _launch_force_bypass_enabled():
         return ChromeE2eReadinessVerdict(
             status="READY",
@@ -223,7 +195,7 @@ def evaluate_chrome_e2e_readiness(
             attach_allowed=True,
             ready_chrome_full=False,
             blocked=ctx.blocked,
-            epoch_match=ctx.epoch_match,
+            epoch_match=shared_epoch_match,
         )
     snapshot = parallel_snapshot if parallel_snapshot is not None else {}
     if _observability_unknown(mux_fields, snapshot):
@@ -239,7 +211,7 @@ def evaluate_chrome_e2e_readiness(
             attach_allowed=True,
             ready_chrome_full=False,
             blocked=ctx.blocked,
-            epoch_match=ctx.epoch_match,
+            epoch_match=shared_epoch_match,
         )
     next_action = _compute_next_action(
         ctx,
@@ -248,8 +220,6 @@ def evaluate_chrome_e2e_readiness(
         mux_fields=mux_fields,
         parallel_snapshot=snapshot,
     )
-    if ctx.blocked and next_action in ("READY", "PARALLEL_OK"):
-        next_action = "SHPOIB_OR_VERIFY_API"
     status = _status_for_next_action(next_action, ctx_blocked=ctx.blocked)
     token = _token_for_verdict(status=status, next_action=next_action, ctx=ctx)
     reason = _reason_for_verdict(next_action=next_action, ctx=ctx)
@@ -266,7 +236,7 @@ def evaluate_chrome_e2e_readiness(
             mux_fields=mux_fields,
         ),
         blocked=ctx.blocked,
-        epoch_match=ctx.epoch_match,
+        epoch_match=shared_epoch_match,
     )
 
 
@@ -318,7 +288,7 @@ def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
             attach_allowed=True,
             ready_chrome_full=False,
             blocked=ctx.blocked,
-            epoch_match=ctx.epoch_match,
+            epoch_match=_shared_epoch_match(ctx),
         )
     return evaluate_chrome_e2e_readiness(
         ctx,
@@ -354,8 +324,8 @@ def launch_denial_line(verdict: ChromeE2eReadinessVerdict) -> str | None:
         return None
     return (
         f"E2E_LAUNCH_DENIED: {verdict.token}; {verdict.reason}; "
-        "run ./myrm e2e-context; maintainer override MYRM_E2E_LAUNCH_FORCE=1 "
-        "(do not stop other pytest)"
+        "run ./myrm e2e-context json and execute agent_rule (do not force launch "
+        "or stop other pytest)"
     )
 
 
@@ -443,8 +413,8 @@ def _cmd_check(_args: argparse.Namespace) -> int:
     reason = fields.get("MYRM_READINESS_REASON", proc.stderr.strip() or "launch denied")
     sys.stderr.write(
         f"E2E_LAUNCH_DENIED: {token}; {reason}; "
-        "run ./myrm e2e-context; maintainer override MYRM_E2E_LAUNCH_FORCE=1 "
-        "(do not stop other pytest)\n"
+        "run ./myrm e2e-context json and execute agent_rule (do not force launch "
+        "or stop other pytest)\n"
     )
     return 2
 

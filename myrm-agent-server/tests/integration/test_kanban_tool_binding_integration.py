@@ -164,7 +164,7 @@ def test_agent_factory_default_kanban_tool_mode_is_orchestrator() -> None:
 
 @pytest.mark.integration
 def test_default_profile_excludes_kanban_from_auto_bind() -> None:
-    from app.services.agent.profile_resolver import (
+    from app.services.agent.profile.profile_resolver import (
         DEFAULT_ENABLED_BUILTIN_TOOLS,
         resolve_builtin_tool_flags,
     )
@@ -176,7 +176,7 @@ def test_default_profile_excludes_kanban_from_auto_bind() -> None:
 
 @pytest.mark.integration
 def test_task_runner_params_pattern_forces_worker_mode() -> None:
-    from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+    from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
 
     flags = resolve_builtin_tool_flags(["web_search", "memory", "kanban"])
     params = GeneralAgentParams(
@@ -214,7 +214,7 @@ async def test_invalid_whitespace_mode_falls_back_to_orchestrator_tools() -> Non
 
 @pytest.mark.integration
 def test_kanban_in_enabled_builtin_tools_maps_enable_kanban() -> None:
-    from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+    from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
 
     flags = resolve_builtin_tool_flags(["web_search", "memory", "kanban"])
     assert flags["enable_kanban"] is True

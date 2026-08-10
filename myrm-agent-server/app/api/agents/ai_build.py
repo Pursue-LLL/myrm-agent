@@ -40,7 +40,7 @@ from app.core.channel_bridge.model_resolver import (
 )
 from app.core.skills.store.service import skills_service
 from app.schemas.streaming import SSE_RESPONSE_HEADERS, SSEEnvelope
-from app.services.agent.builtin_tool_ids import BUILTIN_TOOL_CATALOG
+from app.services.agent.builtin_specs.builtin_tool_ids import BUILTIN_TOOL_CATALOG
 
 logger = logging.getLogger(__name__)
 

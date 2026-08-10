@@ -10,7 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.database.dto import AgentCreate, AgentUpdate
-from app.services.agent.builtin_tool_ids import (
+from app.services.agent.builtin_specs.builtin_tool_ids import (
     BUILTIN_TOOL_ID_SET,
     BUILTIN_TOOL_IDS,
     DEFAULT_ENABLED_BUILTIN_TOOLS,
@@ -79,7 +79,7 @@ def test_normalize_rejects_legacy_ids() -> None:
 
 
 def test_strip_legacy_task_tracking_on_read_path() -> None:
-    from app.services.agent.builtin_tool_ids import (
+    from app.services.agent.builtin_specs.builtin_tool_ids import (
         normalize_enabled_builtin_tools,
         strip_legacy_builtin_tool_ids,
     )
@@ -90,7 +90,7 @@ def test_strip_legacy_task_tracking_on_read_path() -> None:
 
 
 def test_normalize_migrates_renamed_skill_evolution_to_skill_manage() -> None:
-    from app.services.agent.builtin_tool_ids import (
+    from app.services.agent.builtin_specs.builtin_tool_ids import (
         normalize_enabled_builtin_tools,
         strip_legacy_builtin_tool_ids,
     )
@@ -101,7 +101,7 @@ def test_normalize_migrates_renamed_skill_evolution_to_skill_manage() -> None:
 
 
 def test_strip_deploy_incompatible_removes_computer_use_when_unsupported() -> None:
-    from app.services.agent.builtin_tool_ids import (
+    from app.services.agent.builtin_specs.builtin_tool_ids import (
         strip_deploy_incompatible_builtin_tools,
     )
 
@@ -115,7 +115,7 @@ def test_strip_deploy_incompatible_removes_computer_use_when_unsupported() -> No
 
 
 def test_strip_deploy_incompatible_keeps_computer_use_when_supported() -> None:
-    from app.services.agent.builtin_tool_ids import (
+    from app.services.agent.builtin_specs.builtin_tool_ids import (
         strip_deploy_incompatible_builtin_tools,
     )
 
@@ -130,7 +130,7 @@ def test_strip_deploy_incompatible_keeps_computer_use_when_supported() -> None:
 
 
 def test_strip_deploy_incompatible_removes_external_cli_when_unsupported() -> None:
-    from app.services.agent.builtin_tool_ids import (
+    from app.services.agent.builtin_specs.builtin_tool_ids import (
         strip_deploy_incompatible_builtin_tools,
     )
 
@@ -146,7 +146,7 @@ def test_strip_deploy_incompatible_removes_external_cli_when_unsupported() -> No
 
 
 def test_strip_deploy_incompatible_keeps_external_cli_when_supported() -> None:
-    from app.services.agent.builtin_tool_ids import (
+    from app.services.agent.builtin_specs.builtin_tool_ids import (
         strip_deploy_incompatible_builtin_tools,
     )
 
@@ -204,39 +204,39 @@ def test_normalize_skips_empty_strings() -> None:
 
 
 def test_coerce_enabled_builtin_tools_none_uses_default() -> None:
-    from app.services.agent.builtin_tool_ids import coerce_enabled_builtin_tools
+    from app.services.agent.builtin_specs.builtin_tool_ids import coerce_enabled_builtin_tools
 
     assert coerce_enabled_builtin_tools(None) == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
 
 
 def test_coerce_enabled_builtin_tools_normalizes() -> None:
-    from app.services.agent.builtin_tool_ids import coerce_enabled_builtin_tools
+    from app.services.agent.builtin_specs.builtin_tool_ids import coerce_enabled_builtin_tools
 
     assert coerce_enabled_builtin_tools(["wiki", "wiki"]) == ["wiki"]
 
 
 def test_persist_enabled_builtin_tools_none_uses_default() -> None:
-    from app.services.agent.builtin_tool_ids import persist_enabled_builtin_tools
+    from app.services.agent.builtin_specs.builtin_tool_ids import persist_enabled_builtin_tools
 
     assert persist_enabled_builtin_tools(None) == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
 
 
 def test_persist_enabled_builtin_tools_rejects_non_list() -> None:
-    from app.services.agent.builtin_tool_ids import persist_enabled_builtin_tools
+    from app.services.agent.builtin_specs.builtin_tool_ids import persist_enabled_builtin_tools
 
     with pytest.raises(ValueError, match="must be a list"):
         persist_enabled_builtin_tools("web_search")
 
 
 def test_persist_enabled_builtin_tools_normalizes_list() -> None:
-    from app.services.agent.builtin_tool_ids import persist_enabled_builtin_tools
+    from app.services.agent.builtin_specs.builtin_tool_ids import persist_enabled_builtin_tools
 
     assert persist_enabled_builtin_tools(["wiki", "kanban"]) == ["wiki", "kanban"]
 
 
 def test_builtin_initializer_specs_exclude_agent_baseline_tools() -> None:
-    from app.services.agent.builtin_initializer import _BUILTIN_AGENTS
-    from app.services.agent.builtin_tool_ids import AGENT_BASELINE_BUILTIN_TOOLS
+    from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
+    from app.services.agent.builtin_specs.builtin_tool_ids import AGENT_BASELINE_BUILTIN_TOOLS
 
     baseline = set(AGENT_BASELINE_BUILTIN_TOOLS)
     for spec in _BUILTIN_AGENTS:
@@ -249,7 +249,7 @@ def test_builtin_initializer_specs_exclude_agent_baseline_tools() -> None:
 
 
 def test_optional_builtin_tools_validator_accepts_none() -> None:
-    from app.services.agent.builtin_tool_validation import (
+    from app.services.agent.builtin_specs.builtin_tool_validation import (
         _validate_optional_builtin_tools,
     )
 
@@ -257,7 +257,7 @@ def test_optional_builtin_tools_validator_accepts_none() -> None:
 
 
 def test_optional_builtin_tools_validator_rejects_non_list() -> None:
-    from app.services.agent.builtin_tool_validation import (
+    from app.services.agent.builtin_specs.builtin_tool_validation import (
         _validate_optional_builtin_tools,
     )
 
@@ -266,7 +266,7 @@ def test_optional_builtin_tools_validator_rejects_non_list() -> None:
 
 
 def test_required_builtin_tools_validator_defaults_when_none() -> None:
-    from app.services.agent.builtin_tool_validation import (
+    from app.services.agent.builtin_specs.builtin_tool_validation import (
         _validate_required_builtin_tools,
     )
 
@@ -274,7 +274,7 @@ def test_required_builtin_tools_validator_defaults_when_none() -> None:
 
 
 def test_required_builtin_tools_validator_rejects_non_list() -> None:
-    from app.services.agent.builtin_tool_validation import (
+    from app.services.agent.builtin_specs.builtin_tool_validation import (
         _validate_required_builtin_tools,
     )
 

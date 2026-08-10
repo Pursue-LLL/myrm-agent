@@ -307,7 +307,7 @@ class CdpChatTurn(CdpChatSubmit):
         def _maybe_touch_progress(node: str = "wait_turn_done") -> None:
             nonlocal last_progress_touch
             now = time.monotonic()
-            if now - last_progress_touch >= 30.0:
+            if now - last_progress_touch >= 15.0:
                 _touch_live_turn_progress(node)
                 last_progress_touch = now
 
@@ -496,7 +496,11 @@ class CdpChatTurn(CdpChatSubmit):
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         last_loading: dict[str, object] = {}
+        last_touch = time.monotonic()
         while time.monotonic() < deadline:
+            if time.monotonic() - last_touch >= 15.0:
+                _touch_live_turn_progress("wait_input_empty")
+                last_touch = time.monotonic()
             if chat_id_hint:
                 try:
                     if chat_messages_have_ok(chat_id_hint, min_user_count=1):
@@ -932,6 +936,7 @@ class CdpChatTurn(CdpChatSubmit):
         ).rstrip("/")
         baseline_user_msgs = 0
         chat_id = chat_id_hint
+        _touch_live_turn_progress("send_prepare")
         await self.dismiss_modals()
         await self.wait_dev_bridge()
         await self.ensure_e2e_api_base_binding()
@@ -950,6 +955,7 @@ class CdpChatTurn(CdpChatSubmit):
                     )
             except (RuntimeError, TimeoutError):
                 on_chat_page = False
+            _touch_live_turn_progress("send_navigate")
             if on_chat_page:
                 await self.wait_shell_ready(timeout_sec=90.0, require_bridge=True)
             else:
@@ -1037,6 +1043,7 @@ class CdpChatTurn(CdpChatSubmit):
                         flush=True,
                     )
             try:
+                _touch_live_turn_progress("send_submit")
                 submit = await self.send_chat_message_atomic(
                     text,
                     baseline_user_msgs=baseline_user_msgs,

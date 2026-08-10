@@ -772,6 +772,9 @@ export async function getAgentReadiness(agentId: string): Promise<AgentReadiness
   });
 }
 
+/** SWR cache key for per-agent readiness — shared by the poller and secret-save invalidation. */
+export const READINESS_SWR_KEY_PREFIX = 'agent-readiness:';
+
 export async function invalidateAgentReadiness(agentId: string): Promise<void> {
   await apiRequest(`/user-agents/${agentId}/readiness/invalidate`, {
     method: 'POST',

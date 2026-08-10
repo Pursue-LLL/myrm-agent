@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.agent.goals.storage::GoalStorage (POS: latest goal lookup)
 - myrm_agent_harness.api.hooks (POS: orphaned job ledger via get_background_job_store)
-- app.services.agent.goal_stream_trigger::publish_goal_needs_review_notification (POS: SSE)
+- app.services.agent.goals.goal_stream_trigger::publish_goal_needs_review_notification (POS: SSE)
 
 [OUTPUT]
 - release_orphaned_wait_goals: WAIT + orphaned background job_id → NEEDS_HUMAN_REVIEW
@@ -108,7 +108,7 @@ async def release_orphaned_wait_goals() -> None:
     if not goal_ids:
         return
 
-    from app.services.agent.goal_stream_trigger import publish_goal_needs_review_notification
+    from app.services.agent.goals.goal_stream_trigger import publish_goal_needs_review_notification
 
     released = 0
     for session_id, goal in goals_by_session.items():

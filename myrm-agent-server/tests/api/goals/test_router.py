@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.goals.types import GoalStatus
 
-from app.services.agent.goal_registry import GoalRegistry
+from app.services.agent.goals.goal_registry import GoalRegistry
 
 
 @pytest.fixture

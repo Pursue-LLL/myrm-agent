@@ -4,7 +4,7 @@
 - myrm_agent_harness.api.hooks::BackgroundJobFinishResult (POS: harness finish payload)
 - app.services.chat.chat_service::ChatService (POS: message persistence)
 - app.services.event.app_event_bus (POS: SSE bus)
-- app.services.agent.goal_wait_background_resume::maybe_resume_goal_after_background_job (POS: WAIT exit + headless resume)
+- app.services.agent.goals.goal_wait_background_resume::maybe_resume_goal_after_background_job (POS: WAIT exit + headless resume)
 
 [OUTPUT]
 - ServerBackgroundJobFinishHandler.on_background_job_finish: append finish message → goal resume → SYSTEM_NOTIFICATION SSE
@@ -157,7 +157,7 @@ class ServerBackgroundJobFinishHandler:
                 },
             )
 
-            from app.services.agent.goal_wait_background_resume import (
+            from app.services.agent.goals.goal_wait_background_resume import (
                 maybe_resume_goal_after_background_job,
             )
 

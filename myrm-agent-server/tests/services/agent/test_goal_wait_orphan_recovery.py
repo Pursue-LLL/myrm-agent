@@ -29,7 +29,7 @@ def _goal(*, session_id: str, status: GoalStatus, wait_job_id: str | None = None
 
 
 def test_find_goals_to_release_matches_session_and_job_id() -> None:
-    from app.services.agent.goal_wait_orphan_recovery import find_goals_to_release_from_orphaned_jobs
+    from app.services.agent.goals.goal_wait_orphan_recovery import find_goals_to_release_from_orphaned_jobs
 
     orphaned = (
         BackgroundJobRecord(
@@ -99,11 +99,11 @@ async def test_release_orphaned_wait_goals_updates_status() -> None:
             return_value=mock_storage,
         ),
         patch(
-            "app.services.agent.goal_stream_trigger.publish_goal_needs_review_notification",
+            "app.services.agent.goals.goal_stream_trigger.publish_goal_needs_review_notification",
             new_callable=AsyncMock,
         ) as notify,
     ):
-        from app.services.agent.goal_wait_orphan_recovery import release_orphaned_wait_goals
+        from app.services.agent.goals.goal_wait_orphan_recovery import release_orphaned_wait_goals
 
         await release_orphaned_wait_goals()
 

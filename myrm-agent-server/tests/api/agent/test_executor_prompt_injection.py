@@ -9,7 +9,7 @@ from app.core.channel_bridge.agent_executor import (
     ChannelAgentExecutor,
     invalidate_agent_overrides_cache,
 )
-from app.services.agent.profile_resolver import get_agent_profile_resolver
+from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
 
 @pytest.fixture
@@ -304,7 +304,7 @@ async def test_channel_injects_auto_restore_domains_from_resolved_profile(
     mock_load_user_configs,
 ):
     """Channel executor must pass ResolvedAgentProfile.auto_restore_domains into GeneralAgentParams (Web parity)."""
-    from app.services.agent.profile_resolver import ResolvedAgentProfile
+    from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
     resolved = ResolvedAgentProfile(
         agent_id="agent-chan-1",

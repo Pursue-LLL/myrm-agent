@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from myrm_agent_harness.agent.goals.types import GoalStatus
 
-from app.services.agent.goal_registry import (
+from app.services.agent.goals.goal_registry import (
     GoalRegistry,
     check_and_handle_branch_stash,
 )
@@ -51,7 +51,7 @@ async def test_check_and_handle_branch_stash_integration(mock_storage) -> None:
     session_id = "test-branch-stash-session"
 
     with (
-        patch("app.services.agent.goal_registry.get_current_git_branch", new_callable=AsyncMock) as mock_branch_getter,
+        patch("app.services.agent.goals.goal_registry.get_current_git_branch", new_callable=AsyncMock) as mock_branch_getter,
         patch("app.platform_utils.get_storage_provider", return_value=mock_storage),
     ):
         # Ensure GoalRegistry has a clean provider for this session

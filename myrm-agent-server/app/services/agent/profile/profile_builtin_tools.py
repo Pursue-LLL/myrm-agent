@@ -1,7 +1,7 @@
 """Builtin tool flags resolution shared by all agent entry points.
 
 [INPUT]
-- app.services.agent.builtin_tool_ids::strip_deploy_incompatible_builtin_tools (POS: 部署不兼容工具裁剪)
+- app.services.agent.builtin_specs.builtin_tool_ids::strip_deploy_incompatible_builtin_tools (POS: 部署不兼容工具裁剪)
 - app.config.computer_use_deploy::is_computer_use_deploy_supported (POS: computer_use 部署能力开关)
 - app.config.external_cli_deploy::is_external_cli_deploy_supported (POS: external_cli 部署能力开关)
 - app.services.agent.params.mcp_selection::coerce_tool_selections (POS: mcp tool selections 规范化)
@@ -55,7 +55,7 @@ def resolve_builtin_tool_flags(
     ``answer_tool`` is only mounted for Fast Search via ``allow_answer_tool=True``
     in ``converter.py``; profile opt-in is ignored.
     """
-    from app.services.agent.builtin_tool_ids import (
+    from app.services.agent.builtin_specs.builtin_tool_ids import (
         strip_deploy_incompatible_builtin_tools,
     )
 

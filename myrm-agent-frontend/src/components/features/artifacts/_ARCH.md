@@ -13,7 +13,9 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `ArtifactPortal.tsx` | 核心 | Artifact 预览入口容器；支持 overlay/side-by-side 双布局模式；协调加载、手势、快捷键与 Diff 截断 UX |
-| `ArtifactCard.tsx` | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染；Globe 发布；Wiki ingest（**chat agentConfig.agentId scoped**）；HTML 工件 HITL「推送到公众号草稿」+ 合规命中内联展示（422 红拦 / 200 黄提示）；`*.organize-plan.json` HITL 整理计划审阅/执行/回滚 |
+| `ArtifactCard.tsx` | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染；Globe 发布；Wiki ingest（**chat agentConfig.agentId scoped**）；HTML 工件 HITL「推送到公众号草稿」入口；`*.organize-plan.json` HITL 整理计划审阅/执行/回滚 |
+| `WeChatDraftPanel.tsx` | 核心 | 公众号草稿 HITL 面板：author/digest/title/cover、合规命中展示、封面 suggest |
+| `wechatDraftPanelUtils.ts` | 辅助 | 草稿 author/digest clamp、默认标题/作者、合规 hits 归一化 |
 | `OrganizePlanPanel.tsx` | 核心 | workspace organize HITL：校验 dry-run、应用移动、回滚上一 job；Apply/Rollback 后 dispatch workspace-file-changed；Turn Undo 区分 hint；partial rollback 告警 |
 | `organizePlanUtils.ts` | 辅助 | organize-plan.json 解析/编辑/序列化 |
 | `useWechatCoverSuggest.ts` | 辅助 | 公众号草稿封面：`GET /files/suggest` debounce + 图片扩展名过滤 |
@@ -38,6 +40,7 @@
 | `renderers/SpreadsheetEditor/` | 辅助 | XLSX Live 编辑器（Univer Sheet SDK，Edit 模式下可编辑，SheetJS 双向 XLSX 转换） |
 | `__tests__/largeFileInlinePreview.test.ts` | 测试 | large-file inline preview 文案与阈值回归守卫 |
 | `__tests__/useWechatCoverSuggest.test.ts` | 测试 | 封面 suggest 图片扩展名过滤 |
+| `__tests__/wechatDraftPanelUtils.test.ts` | 测试 | author/digest clamp、默认标题/作者 |
 | `__tests__/wechatDraftCoverUtils.test.ts` | 测试 | 文内首图 `src` 解析（本地路径 / 跳过远程） |
 | `__tests__/organizePlanUtils.test.ts` | 测试 | organize-plan 文件名检测与 JSON 编辑工具 |
 

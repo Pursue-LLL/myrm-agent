@@ -334,9 +334,9 @@ def heal_mux_when_solo(monorepo_root: Path) -> PreflightResult:
 
 
 def _apply_drift_when_idle(monorepo_root: Path) -> None:
-    from stack_mutation_policy import apply_pending_drift_if_idle
+    from stack_mutation_policy import apply_pending_drift_for_maintenance
 
-    result = apply_pending_drift_if_idle(monorepo_root=monorepo_root)
+    result = apply_pending_drift_for_maintenance(monorepo_root=monorepo_root)
     _emit(f"GATE_EPOCH_DRIFT action={result.action} detail={result.detail!r}")
 
 

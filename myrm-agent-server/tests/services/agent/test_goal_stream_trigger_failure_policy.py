@@ -8,7 +8,7 @@ from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
 
 @pytest.mark.asyncio
 async def test_failure_policy_marks_needs_human_review():
-    from app.services.agent.goal_stream_trigger import trigger_goal_stream_with_failure_policy
+    from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream_with_failure_policy
 
     goal = Goal(
         goal_id="g-review",
@@ -20,7 +20,7 @@ async def test_failure_policy_marks_needs_human_review():
     provider = AsyncMock()
 
     with patch(
-        "app.services.agent.goal_stream_trigger.trigger_goal_stream",
+        "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
         new_callable=AsyncMock,
         side_effect=RuntimeError("boom"),
     ):
@@ -38,7 +38,7 @@ async def test_failure_policy_marks_needs_human_review():
 
 @pytest.mark.asyncio
 async def test_failure_policy_keep_active_skips_status_update():
-    from app.services.agent.goal_stream_trigger import trigger_goal_stream_with_failure_policy
+    from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream_with_failure_policy
 
     goal = Goal(
         goal_id="g-active",
@@ -50,7 +50,7 @@ async def test_failure_policy_keep_active_skips_status_update():
     provider = AsyncMock()
 
     with patch(
-        "app.services.agent.goal_stream_trigger.trigger_goal_stream",
+        "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
         new_callable=AsyncMock,
         side_effect=RuntimeError("boom"),
     ):
@@ -68,7 +68,7 @@ async def test_failure_policy_keep_active_skips_status_update():
 
 @pytest.mark.asyncio
 async def test_failure_policy_success_returns_true():
-    from app.services.agent.goal_stream_trigger import trigger_goal_stream_with_failure_policy
+    from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream_with_failure_policy
 
     goal = Goal(
         goal_id="g-ok",
@@ -80,7 +80,7 @@ async def test_failure_policy_success_returns_true():
     provider = AsyncMock()
 
     with patch(
-        "app.services.agent.goal_stream_trigger.trigger_goal_stream",
+        "app.services.agent.goals.goal_stream_trigger.trigger_goal_stream",
         new_callable=AsyncMock,
     ) as mock_trigger:
         ok = await trigger_goal_stream_with_failure_policy(
@@ -97,7 +97,7 @@ async def test_failure_policy_success_returns_true():
 
 @pytest.mark.asyncio
 async def test_handle_unattended_goal_stream_failure_publishes_notification():
-    from app.services.agent.goal_stream_trigger import handle_unattended_goal_stream_failure
+    from app.services.agent.goals.goal_stream_trigger import handle_unattended_goal_stream_failure
 
     provider = AsyncMock()
     mock_bus = MagicMock()
@@ -108,7 +108,7 @@ async def test_handle_unattended_goal_stream_failure_publishes_notification():
             return_value=mock_bus,
         ),
         patch(
-            "app.services.agent.goal_stream_trigger._resolve_user_locale",
+            "app.services.agent.goals.goal_stream_trigger._resolve_user_locale",
             new_callable=AsyncMock,
             return_value="en",
         ),
@@ -136,7 +136,7 @@ async def test_handle_unattended_goal_stream_failure_publishes_notification():
 async def test_runtime_stream_failure_invokes_failure_handler():
     import asyncio
 
-    from app.services.agent.goal_stream_trigger import trigger_goal_stream
+    from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream
 
     goal = Goal(
         goal_id="g-runtime",
@@ -157,7 +157,7 @@ async def test_runtime_stream_failure_invokes_failure_handler():
             failing_stream,
         ),
         patch(
-            "app.services.agent.goal_stream_trigger.handle_unattended_goal_stream_failure",
+            "app.services.agent.goals.goal_stream_trigger.handle_unattended_goal_stream_failure",
             new_callable=AsyncMock,
         ) as mock_handle,
         patch(

@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslations } from 'next-intl';
-import { LazyMonacoEditor as Editor, LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
+import { useLocale, useTranslations } from 'next-intl';
+import {
+  LazyMonacoEditor as Editor,
+  LazyMonacoDiffEditor as DiffEditor,
+} from '@/components/features/app-shell/lazy-monaco-editor';
 import { toast } from 'sonner';
 import {
   RefreshCw,
@@ -33,6 +36,7 @@ import MatrixResultView, { type MatrixReportData } from './MatrixResultView';
 import CaseFormatReference from './CaseFormatReference';
 import WbBenchSources from './WbBenchSources';
 import MemoryAbHistoryTable, { type MemoryAbHistoryItem } from './MemoryAbHistoryTable';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 
 interface EvalDataset {
   id: string;
@@ -86,6 +90,7 @@ function formatMib(bytes: number): string {
 }
 
 export default function EvalLabDashboard() {
+  const locale = useLocale();
   const t = useTranslations('evalLab');
   const [cases, setCases] = useState('');
   const [casesDraft, setCasesDraft] = useState('');
@@ -115,10 +120,24 @@ export default function EvalLabDashboard() {
   const createInputRef = useRef<HTMLInputElement>(null);
   const [matrixReport, setMatrixReport] = useState<MatrixReportData | null>(null);
   const [matrixRunning, setMatrixRunning] = useState(false);
-  const [matrixProgress, setMatrixProgress] = useState({ current_profile: '', profile_progress: 0, profile_total: 0, case_completed: 0, case_total: 0 });
+  const [matrixProgress, setMatrixProgress] = useState({
+    current_profile: '',
+    profile_progress: 0,
+    profile_total: 0,
+    case_completed: 0,
+    case_total: 0,
+  });
   const [memoryAbReport, setMemoryAbReport] = useState<MatrixReportData | null>(null);
   const [memoryAbRunning, setMemoryAbRunning] = useState(false);
-  const [memoryAbProgress, setMemoryAbProgress] = useState({ current_arm: '', stage: '', profile_progress: 0, profile_total: 0, case_completed: 0, case_total: 0, download_progress: null as { downloaded_bytes: number; total_bytes: number } | null });
+  const [memoryAbProgress, setMemoryAbProgress] = useState({
+    current_arm: '',
+    stage: '',
+    profile_progress: 0,
+    profile_total: 0,
+    case_completed: 0,
+    case_total: 0,
+    download_progress: null as { downloaded_bytes: number; total_bytes: number } | null,
+  });
   const [memoryAbHistory, setMemoryAbHistory] = useState<MemoryAbHistoryItem[]>([]);
   const [selectedMemoryAbTs, setSelectedMemoryAbTs] = useState<number | null>(null);
 
@@ -160,11 +179,13 @@ export default function EvalLabDashboard() {
     try {
       const { listAgents } = await import('@/services/agent');
       const res = await listAgents(1, 200);
-      setProfiles(res.items.map((item) => ({ agent_id: item.id, name: item.name })));
+      setProfiles(
+        res.items.map((item) => ({ agent_id: item.id, name: getBuiltinAgentName(item.id, item.name, locale) })),
+      );
     } catch (e) {
       console.error('Failed to fetch profiles', e);
     }
-  }, []);
+  }, [locale]);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -252,26 +273,36 @@ export default function EvalLabDashboard() {
     }
   }, []);
 
-  const loadMemoryAbReport = useCallback(async (timestamp: number) => {
-    try {
-      const res = await fetch(`/api/v1/eval/memory-ab/reports/${timestamp}`);
-      const data = (await res.json()) as { status?: string; report?: MatrixReportData | null };
-      if (data.status === 'success' && data.report) {
-        setMemoryAbReport(data.report);
-        setSelectedMemoryAbTs(timestamp);
-      } else {
+  const loadMemoryAbReport = useCallback(
+    async (timestamp: number) => {
+      try {
+        const res = await fetch(`/api/v1/eval/memory-ab/reports/${timestamp}`);
+        const data = (await res.json()) as { status?: string; report?: MatrixReportData | null };
+        if (data.status === 'success' && data.report) {
+          setMemoryAbReport(data.report);
+          setSelectedMemoryAbTs(timestamp);
+        } else {
+          toast.error(t('loadReportFailed'));
+        }
+      } catch (e) {
+        console.error('Failed to load memory A/B report:', e);
         toast.error(t('loadReportFailed'));
       }
-    } catch (e) {
-      console.error('Failed to load memory A/B report:', e);
-      toast.error(t('loadReportFailed'));
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   useEffect(() => {
-    Promise.all([fetchDatasets(), fetchStatus(), fetchReport(), fetchProfiles(), fetchHistory(), fetchMatrixReport(), fetchMemoryAbReport(), fetchMemoryAbHistory()]).finally(() =>
-      setLoading(false),
-    );
+    Promise.all([
+      fetchDatasets(),
+      fetchStatus(),
+      fetchReport(),
+      fetchProfiles(),
+      fetchHistory(),
+      fetchMatrixReport(),
+      fetchMemoryAbReport(),
+      fetchMemoryAbHistory(),
+    ]).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -308,7 +339,9 @@ export default function EvalLabDashboard() {
           }
 
           if (!data.is_running) {
-            if (data.error) { toast.error(data.error); }
+            if (data.error) {
+              toast.error(data.error);
+            }
             finalize();
           }
         } catch (e) {
@@ -365,7 +398,9 @@ export default function EvalLabDashboard() {
             case_total: data.case_total || 0,
           });
           if (!data.is_running) {
-            if (data.error) { toast.error(data.error); }
+            if (data.error) {
+              toast.error(data.error);
+            }
             finalize();
           }
         } catch (e) {
@@ -378,7 +413,9 @@ export default function EvalLabDashboard() {
         setMatrixRunning(false);
       };
     }
-    return () => { eventSource?.close(); };
+    return () => {
+      eventSource?.close();
+    };
   }, [matrixRunning]);
 
   useEffect(() => {
@@ -411,7 +448,9 @@ export default function EvalLabDashboard() {
             download_progress: data.download_progress || null,
           });
           if (!data.is_running) {
-            if (data.error) { toast.error(data.error); }
+            if (data.error) {
+              toast.error(data.error);
+            }
             finalize();
           }
         } catch (e) {
@@ -429,7 +468,9 @@ export default function EvalLabDashboard() {
         fetchMemoryAbHistory();
       };
     }
-    return () => { eventSource?.close(); };
+    return () => {
+      eventSource?.close();
+    };
   }, [memoryAbRunning, fetchMemoryAbReport, fetchMemoryAbHistory]);
 
   const handleSave = async () => {
@@ -641,9 +682,7 @@ export default function EvalLabDashboard() {
               <TabsTrigger value="sources">{t('tabs.sources')}</TabsTrigger>
               <TabsTrigger value="report">{t('tabs.report')}</TabsTrigger>
               {(matrixReport || matrixRunning) && <TabsTrigger value="matrix">{t('tabs.matrix')}</TabsTrigger>}
-              {(memoryAbReport || memoryAbRunning) && (
-                <TabsTrigger value="memory-ab">{t('tabs.memoryAb')}</TabsTrigger>
-              )}
+              {(memoryAbReport || memoryAbRunning) && <TabsTrigger value="memory-ab">{t('tabs.memoryAb')}</TabsTrigger>}
               <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
               {diffView && <TabsTrigger value="diff">{t('tabs.diff')}</TabsTrigger>}
             </TabsList>
@@ -854,7 +893,9 @@ export default function EvalLabDashboard() {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                       <div>
                         <span className="text-muted-foreground">{t('report.envModel')}</span>
-                        <p className="font-mono text-xs mt-0.5">{report.manifest.model_provider}/{report.manifest.model_id}</p>
+                        <p className="font-mono text-xs mt-0.5">
+                          {report.manifest.model_provider}/{report.manifest.model_id}
+                        </p>
                       </div>
                       <div>
                         <span className="text-muted-foreground">{t('report.envThinking')}</span>
@@ -866,7 +907,10 @@ export default function EvalLabDashboard() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">{t('report.envTools')}</span>
-                        <p className="font-mono text-xs mt-0.5 truncate" title={report.manifest.tool_policy?.join(', ')}>
+                        <p
+                          className="font-mono text-xs mt-0.5 truncate"
+                          title={report.manifest.tool_policy?.join(', ')}
+                        >
                           {report.manifest.tool_policy?.join(', ') || '-'}
                         </p>
                       </div>
@@ -886,9 +930,7 @@ export default function EvalLabDashboard() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">{t('report.envBenchmark')}</span>
-                        <p className="font-mono text-xs mt-0.5">
-                          {report.manifest.benchmark_mode ? 'ON' : 'OFF'}
-                        </p>
+                        <p className="font-mono text-xs mt-0.5">{report.manifest.benchmark_mode ? 'ON' : 'OFF'}</p>
                       </div>
                     </div>
                   </div>
@@ -952,14 +994,19 @@ export default function EvalLabDashboard() {
                               <td className="px-4 py-3">
                                 {c.details ? (
                                   <div className="flex flex-col items-start gap-1">
-                                    <p className="max-w-[320px] truncate text-xs text-muted-foreground" title={String(c.details)}>
+                                    <p
+                                      className="max-w-[320px] truncate text-xs text-muted-foreground"
+                                      title={String(c.details)}
+                                    >
                                       {String(c.details)}
                                     </p>
                                     <button
                                       onClick={() => {
                                         const expected = {
                                           tools: c.case?.expected_tools || [],
-                                          output: c.case?.state_assertions?.length ? c.case.state_assertions : undefined,
+                                          output: c.case?.state_assertions?.length
+                                            ? c.case.state_assertions
+                                            : undefined,
                                         };
                                         const actual = {
                                           tools: c.actual_tools || [],
@@ -1086,9 +1133,7 @@ export default function EvalLabDashboard() {
                       />
                       <Line
                         type="monotone"
-                        dataKey={(d: ReportItem) =>
-                          d.total && d.passed != null ? (d.passed / d.total) * 100 : 0
-                        }
+                        dataKey={(d: ReportItem) => (d.total && d.passed != null ? (d.passed / d.total) * 100 : 0)}
                         stroke="#10b981"
                         strokeWidth={2}
                         dot={{ r: 4 }}

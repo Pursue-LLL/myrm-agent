@@ -449,7 +449,7 @@ async def iter_agent_stream_chunks(
                             chunk["turn_prewarm_ms"] = prewarm_ms
 
                     if session.request.chat_id:
-                        from app.services.agent.goal_registry import (
+                        from app.services.agent.goals.goal_registry import (
                             GoalRegistry,
                         )
 

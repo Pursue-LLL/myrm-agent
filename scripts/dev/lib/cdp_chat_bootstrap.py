@@ -958,7 +958,20 @@ class CdpChatBootstrap(CdpChatTransport):
                         ) from exc
                     continue
             await asyncio.sleep(0.5)
-        raise TimeoutError(f"Chat shell not ready within {timeout_sec:.0f}s: {last}")
+        extra = ""
+        try:
+            diag = await self.evaluate(
+                "(() => ({ apiBase: window.__MYRM_E2E_API_BASE__, "
+                "chatApi: window.__MYRM_E2E_CHAT__ ? {hasSetInput: !!window.__MYRM_E2E_CHAT__.setInputMessage, hasBridge: true} : null, "
+                "layout: !!document.querySelector('[data-testid=\"app-layout\"]'), "
+                "errDetails: (document.querySelector('details pre')?.innerText || '').slice(0, 1200), "
+                "bodyText: (document.querySelector('body')?.innerText || '').slice(0, 120) }))()",
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
+            extra = f" diag={diag}"
+        except (RuntimeError, TimeoutError):
+            pass
+        raise TimeoutError(f"Chat shell not ready within {timeout_sec:.0f}s: {last}{extra}")
 
     async def _wait_react_hydration(self, *, timeout_sec: float) -> None:
         """Wait until MessageInput hydrates. Skip reload — MCP-owned tabs detach on reload."""
@@ -1088,6 +1101,14 @@ class CdpChatBootstrap(CdpChatTransport):
             await self.ensure_e2e_api_base_binding()
             await self.wait_shell_ready(timeout_sec=min(timeout_sec, 30.0))
             return
+        import sys as _sys
+
+        print(
+            f"E2E_NAVIGATE_CHAT: before_path={probe.get('path') if isinstance(probe, dict) else 'probe_failed'} "
+            f"expected={expected_path}",
+            file=_sys.stderr,
+            flush=True,
+        )
         await self.ensure_e2e_api_base_binding()
         await self.cdp(
             "Page.navigate",
@@ -1096,6 +1117,18 @@ class CdpChatBootstrap(CdpChatTransport):
         )
         await asyncio.sleep(2)
         await self.ensure_e2e_api_base_binding()
+        try:
+            after_probe = await self.evaluate(
+                "(() => ({ path: location.pathname, hasInput: !!document.querySelector('[data-chat-input]') }))()",
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
+        except RuntimeError:
+            after_probe = {"probeError": "evaluate_timeout"}
+        print(
+            f"E2E_NAVIGATE_CHAT: after_path={after_probe.get('path') if isinstance(after_probe, dict) else after_probe}",
+            file=_sys.stderr,
+            flush=True,
+        )
         await self.wait_shell_ready(timeout_sec=timeout_sec)
 
     async def _reload_chat_shell_burst(self) -> None:

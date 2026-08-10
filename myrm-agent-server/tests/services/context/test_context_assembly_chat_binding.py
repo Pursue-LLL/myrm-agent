@@ -40,7 +40,7 @@ async def test_resolve_binding_for_chat_uses_agent_id_and_shared_context() -> No
             new=AsyncMock(return_value=chat),
         ),
         patch(
-            "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=resolver,
         ),
         patch(
