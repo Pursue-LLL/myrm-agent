@@ -126,6 +126,13 @@ def test_eval_api_e2e() -> None:
         assert summary.get("total_cases") == 1
         assert summary.get("pass_count", 0) >= 0
 
+        # Manifest model disclosure: no profile selected, so the agent model
+        # falls back to model_cfg and the judge reuses the same credentials.
+        manifest = summary.get("manifest") or {}
+        assert manifest.get("judge_model") == os.environ.get("BASIC_MODEL")
+        assert manifest.get("model_provider") == "openai-like"
+        assert manifest.get("model_id") == "agnes-2.5-flash"
+
         response = client.get(f"{p}/internal/metrics/eval")
         assert response.status_code == 200
         metrics_data = response.json()

@@ -156,6 +156,7 @@ def _run_full_chain() -> None:
         *,
         progress_callback=None,
         should_abort=None,
+        limit: int | None = None,
     ):
         """Real download + full workspace build; return only the first case.
 
@@ -168,6 +169,7 @@ def _run_full_chain() -> None:
             benchmark_id,
             progress_callback=progress_callback,
             should_abort=should_abort,
+            limit=limit,
         )
         limited = cases[:1]
         limited_seed_map = {
@@ -242,6 +244,24 @@ def _run_full_chain() -> None:
         report = report_data["report"]
         assert report is not None
         assert report.get("dataset_id") == "wb-bench-office"
+
+        # Model disclosure: with no profile selected the agent model follows
+        # the user model_cfg; WBBench is task-native so the judge is "none".
+        assert report.get("agent_model") == mock_configs.model_cfg.model
+        assert report.get("judge_model") == "none"
+
+        # The history summary must disclose the same model labels.
+        history_resp = client.get(f"{p}/memory-ab/reports/history")
+        assert history_resp.status_code == 200, history_resp.text
+        history_body = history_resp.json()
+        assert history_body.get("status") == "success"
+        history = history_body.get("reports", [])
+        assert any(
+            h.get("dataset_id") == "wb-bench-office"
+            and h.get("agent_model") == mock_configs.model_cfg.model
+            and h.get("judge_model") == "none"
+            for h in history
+        ), history
 
         per_profile = report.get("per_profile", {})
         assert "memory_off" in per_profile
