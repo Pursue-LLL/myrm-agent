@@ -14402,7 +14402,21 @@
     "approvalCardNotFound": "未找到待審批卡片",
     "costBudgetTitle": "成本：{used} / {limit}",
     "tokenBudgetTitle": "Token 預算：{used} / {limit}",
-    "reviewAction": "審查"
+    "reviewAction": "審查",
+    "statusLabel": {
+      "pending": "待處理",
+      "running": "執行中",
+      "verifying": "驗證中",
+      "completed": "已完成",
+      "failed": "失敗",
+      "timed_out": "已逾時",
+      "cancelled": "已取消",
+      "cancelled_by_budget": "預算終止",
+      "pending_approval": "待審批",
+      "yielded": "已讓出",
+      "interrupted": "已中斷",
+      "checkpoint": "檢查點"
+    }
   },
   "evalLab": {
     "pageTitle": "評測實驗室",

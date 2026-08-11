@@ -33,7 +33,7 @@ import { Card } from '@/components/primitives/card';
 const NODE_WIDTH = 280;
 const NODE_HEIGHT = 130;
 
-function getLayoutedElements(nodes: Node[], edges: Edge[], direction = 'TB') {
+function getLayoutedElements<T extends Record<string, unknown>>(nodes: Node<T>[], edges: Edge[], direction = 'TB') {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({ rankdir: direction });
@@ -102,9 +102,27 @@ function formatDuration(totalSeconds: number): string {
 }
 
 function CustomNode({ data }: NodeProps<Node<TopologyNodeData & Record<string, unknown>>>) {
+  const t = useTranslations('subagentDashboard');
   const { label, agentType, status, tone, progress, costUsd, tokens, durationSeconds, error, isRoot } = data;
   const config = STATUS_ICON[status] ?? { icon: CircleDashed, className: 'text-muted-foreground' };
   const StatusIcon = config.icon;
+  const statusLabel = useMemo<Record<string, string>>(
+    () => ({
+      pending: t('statusLabel.pending'),
+      running: t('statusLabel.running'),
+      verifying: t('statusLabel.verifying'),
+      completed: t('statusLabel.completed'),
+      failed: t('statusLabel.failed'),
+      timed_out: t('statusLabel.timed_out'),
+      cancelled: t('statusLabel.cancelled'),
+      cancelled_by_budget: t('statusLabel.cancelled_by_budget'),
+      pending_approval: t('statusLabel.pending_approval'),
+      yielded: t('statusLabel.yielded'),
+      interrupted: t('statusLabel.interrupted'),
+      checkpoint: t('statusLabel.checkpoint'),
+    }),
+    [t],
+  );
 
   return (
     <Card className={cn('w-[280px] p-3.5 shadow-md bg-background flex flex-col gap-2.5', TONE_BORDER[tone])}>
@@ -136,7 +154,7 @@ function CustomNode({ data }: NodeProps<Node<TopologyNodeData & Record<string, u
       )}
       <div className="flex items-center justify-between gap-2 mt-auto">
         <Badge variant="outline" className="text-[10px]">
-          {status}
+          {statusLabel[status] ?? status}
         </Badge>
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground tabular-nums">
           {costUsd > 0 && <span>{fmtCost(costUsd)}</span>}
@@ -222,7 +240,7 @@ export const AgentWorkMap = ({ chatId: chatIdProp }: AgentWorkMapProps) => {
       return;
     }
 
-    const initialNodes: Node[] = model.nodes.map((n) => ({
+    const initialNodes: Node<TopologyNodeData & Record<string, unknown>>[] = model.nodes.map((n) => ({
       id: n.taskId,
       type: 'custom',
       data: { ...n },
@@ -263,7 +281,7 @@ export const AgentWorkMap = ({ chatId: chatIdProp }: AgentWorkMapProps) => {
   return (
     <div className="flex flex-col h-[440px]">
       <TopologySummary model={model} />
-      <div className="flex-1 bg-dot-pattern bg-background relative min-h-0 overflow-hidden">
+      <div className="flex-1 bg-background relative min-h-0 overflow-hidden">
         <ReactFlow
           nodes={nodes}
           edges={edges}

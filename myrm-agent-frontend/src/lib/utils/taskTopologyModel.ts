@@ -51,7 +51,7 @@ const FISSION_ROOT_ID = 'fission-root';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-/** Strip long free-text labels so dagre/mermaid-safe single-line graph labels stay readable. */
+/** Strip long free-text labels so graph node labels stay readable on a single line. */
 export function truncateLabel(text: string, maxLength = MAX_LABEL_LENGTH): string {
   const trimmed = text.trim();
   if (trimmed.length <= maxLength) return trimmed;
@@ -145,12 +145,14 @@ export function buildFissionTopologyModel(topology: FissionTopology | null): Top
   const model = emptyTopologyModel();
   if (!topology || topology.nodes.length === 0) return model;
 
+  const hasActive = topology.nodes.some((n) => toneForStatus(n.status) === 'active');
+
   model.nodes.push({
     taskId: FISSION_ROOT_ID,
     label: truncateLabel(topology.fission_id.slice(0, 8), 16),
     agentType: 'orchestrator',
-    status: 'running',
-    tone: 'active',
+    status: hasActive ? 'running' : 'completed',
+    tone: hasActive ? 'active' : 'success',
     progress: null,
     costUsd: 0,
     tokens: 0,

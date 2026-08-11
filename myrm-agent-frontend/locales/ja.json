@@ -14430,7 +14430,21 @@
     "approvalCardNotFound": "承認カードが見つかりません",
     "costBudgetTitle": "コスト：{used} / {limit}",
     "tokenBudgetTitle": "トークン予算：{used} / {limit}",
-    "reviewAction": "確認"
+    "reviewAction": "確認",
+    "statusLabel": {
+      "pending": "保留",
+      "running": "実行中",
+      "verifying": "検証中",
+      "completed": "完了",
+      "failed": "失敗",
+      "timed_out": "タイムアウト",
+      "cancelled": "キャンセル済み",
+      "cancelled_by_budget": "予算で停止",
+      "pending_approval": "承認待ち",
+      "yielded": "譲渡済み",
+      "interrupted": "中断済み",
+      "checkpoint": "チェックポイント"
+    }
   },
   "evalLab": {
     "pageTitle": "評価ラボ",

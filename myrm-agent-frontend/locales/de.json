@@ -13840,7 +13840,21 @@
     "delegationResumeFailed": "Die Delegierung konnte nicht fortgesetzt werden",
     "delegationPauseNetworkError": "Netzwerkfehler: Delegierung konnte nicht angehalten werden",
     "delegationResumeNetworkError": "Netzwerkfehler: Die Delegierung konnte nicht fortgesetzt werden",
-    "reviewAction": "Prüfen"
+    "reviewAction": "Prüfen",
+    "statusLabel": {
+      "pending": "Ausstehend",
+      "running": "Läuft",
+      "verifying": "Überprüfung",
+      "completed": "Abgeschlossen",
+      "failed": "Fehlgeschlagen",
+      "timed_out": "Zeitüberschreitung",
+      "cancelled": "Abgebrochen",
+      "cancelled_by_budget": "Durch Budget gestoppt",
+      "pending_approval": "Auf Genehmigung wartend",
+      "yielded": "Übergeben",
+      "interrupted": "Unterbrochen",
+      "checkpoint": "Kontrollpunkt"
+    }
   },
   "evalLab": {
     "pageTitle": "Eval-Labor",

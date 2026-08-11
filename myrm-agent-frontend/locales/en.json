@@ -14508,7 +14508,21 @@
     "approvalCardNotFound": "No pending approval card found",
     "costBudgetTitle": "Cost: {used} / {limit}",
     "tokenBudgetTitle": "Token budget: {used} / {limit}",
-    "reviewAction": "Review"
+    "reviewAction": "Review",
+    "statusLabel": {
+      "pending": "Pending",
+      "running": "Running",
+      "verifying": "Verifying",
+      "completed": "Completed",
+      "failed": "Failed",
+      "timed_out": "Timed out",
+      "cancelled": "Cancelled",
+      "cancelled_by_budget": "Stopped by budget",
+      "pending_approval": "Awaiting approval",
+      "yielded": "Yielded",
+      "interrupted": "Interrupted",
+      "checkpoint": "Checkpoint"
+    }
   },
   "evalLab": {
     "pageTitle": "Eval Lab",

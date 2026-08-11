@@ -13840,7 +13840,21 @@
     "delegationResumeFailed": "위임 재개 실패",
     "delegationPauseNetworkError": "네트워크 오류: 위임 일시 중지 실패",
     "delegationResumeNetworkError": "네트워크 오류: 위임 재개 실패",
-    "reviewAction": "검토"
+    "reviewAction": "검토",
+    "statusLabel": {
+      "pending": "대기 중",
+      "running": "실행 중",
+      "verifying": "검증 중",
+      "completed": "완료",
+      "failed": "실패",
+      "timed_out": "시간 초과",
+      "cancelled": "취소됨",
+      "cancelled_by_budget": "예산으로 중단",
+      "pending_approval": "승인 대기",
+      "yielded": "양보됨",
+      "interrupted": "중단됨",
+      "checkpoint": "체크포인트"
+    }
   },
   "evalLab": {
     "pageTitle": "평가 실험실",

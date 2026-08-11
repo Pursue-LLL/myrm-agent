@@ -135,6 +135,27 @@ describe('buildFissionTopologyModel', () => {
     expect(m.edges[0].source).toBe(m.nodes[0].taskId);
   });
 
+  it('marks the root active while any fission node is running', () => {
+    const m = buildFissionTopologyModel(topology);
+    expect(m.nodes[0].status).toBe('running');
+    expect(m.nodes[0].tone).toBe('active');
+  });
+
+  it('marks the root completed when every fission node has finished', () => {
+    const done: FissionTopology = {
+      fission_id: 'fission-12345678',
+      nodes: [
+        { node_id: 'n1', agent_type: 'researcher', objective: 'research', status: 'completed' },
+        { node_id: 'n2', agent_type: 'writer', objective: 'write', status: 'failed', error: 'boom' },
+      ],
+      total_cost_usd: 0,
+    };
+    const m = buildFissionTopologyModel(done);
+    expect(m.nodes[0].status).toBe('completed');
+    expect(m.nodes[0].tone).toBe('success');
+    expect(m.failedCount).toBe(1);
+  });
+
   it('counts running fission nodes as active', () => {
     const m = buildFissionTopologyModel(topology);
     expect(m.activeCount).toBe(1);
