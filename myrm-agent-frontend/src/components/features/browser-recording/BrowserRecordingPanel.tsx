@@ -222,6 +222,7 @@ const BrowserRecordingPanel: React.FC = () => {
               setSkillNameError('');
             }}
             placeholder={t('skillNamePlaceholder')}
+            maxLength={64}
             className={cn(
               'w-full px-2.5 py-1.5 rounded-lg text-sm',
               'bg-muted border border-border',

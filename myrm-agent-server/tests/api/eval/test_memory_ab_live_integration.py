@@ -147,12 +147,12 @@ def _run_full_chain() -> None:
     fastapi_app = build_minimal_app(preset="eval")
     mock_configs = _build_user_configs_from_env()
 
-    from app.core.eval import wb_bench
+    from app.core.eval import benchmarks
 
-    real_build = wb_bench.build_wb_bench_cases
+    real_build = benchmarks.build_benchmark_cases
 
     def _limited_build(
-        subset_id: str,
+        benchmark_id: str,
         *,
         progress_callback=None,
         should_abort=None,
@@ -165,7 +165,7 @@ def _run_full_chain() -> None:
         integration time budget.
         """
         cases, seed_map = real_build(
-            subset_id,
+            benchmark_id,
             progress_callback=progress_callback,
             should_abort=should_abort,
         )
@@ -205,7 +205,7 @@ def _run_full_chain() -> None:
                 return_value=mock_configs,
             ),
             patch(
-                "app.core.eval.wb_bench.build_wb_bench_cases",
+                "app.core.eval.benchmarks.build_benchmark_cases",
                 side_effect=_limited_build,
             ),
             patch.object(
@@ -215,7 +215,7 @@ def _run_full_chain() -> None:
             ),
         ):
             response = client.post(
-                f"{p}/memory-ab/run", json={"subset_id": "office"}
+                f"{p}/memory-ab/run", json={"benchmark_id": "wb-bench-office"}
             )
             assert response.status_code == 200, response.text
             body = response.json()

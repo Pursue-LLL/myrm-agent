@@ -203,3 +203,39 @@ async def test_approve_skill_migration_binds_target_agent(
 
     assert approve.status_code == 200
     update_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_approve_skill_migration_blocked_in_sandbox(
+    async_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Skill migration approval writes ~/.myrm/skills — fail closed in sandbox."""
+    from app.config.deploy_mode import get_deploy_mode
+    from app.platform_utils.deployment_capabilities import (
+        _reset_capabilities_cache_for_testing,
+    )
+
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+    monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+
+    submit = await async_client.post(
+        "/api/v1/migrations/skills/submit",
+        json={
+            "source": "hermes",
+            "skills": [{"name": "deploy", "content": "---\nname: deploy\n---\nDeploy", "source": "hermes"}],
+        },
+    )
+    assert submit.status_code == 200
+    migration_id = submit.json()["migration_id"]
+
+    try:
+        approve = await async_client.post(f"/api/v1/migrations/pending/{migration_id}/approve")
+        assert approve.status_code == 403
+    finally:
+        monkeypatch.delenv("DEPLOY_MODE", raising=False)
+        get_deploy_mode.cache_clear()
+        _reset_capabilities_cache_for_testing()

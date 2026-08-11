@@ -25,7 +25,7 @@
 | `history.py` | 模块 | HTTP API for skill modification history and rollback operations；`POST /{skill_id}/rollback` 经 `HistoryTrackingSkillWriteBackend` 写 `~/.myrm/skills`，受沙箱能力门控（延迟导入避免 router 循环依赖） | ✅ |
 | `instances.py` | 模块 | Skill instances API - CRUD operations for multi-instance skill support. | ✅ |
 | `local.py` | 模块 | Local skills management endpoints | ✅ |
-| `migrations.py` | 模块 | Controlled migration review API. | ✅ |
+| `migrations.py` | 模块 | Controlled migration review API；approve skill_import 直接写 `~/.myrm/skills`，受沙箱能力门控（延迟导入避免独立加载循环依赖） | ✅ |
 | `packaging.py` | 模块 | Skill packaging and upload endpoints | ✅ |
 | `permissions.py` | 模块 | Skill Permission Management API | ✅ |
 | `prebuilt.py` | 模块 | Prebuilt skill admin and update management API. | ✅ |

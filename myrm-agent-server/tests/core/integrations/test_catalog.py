@@ -231,6 +231,18 @@ class TestCatalogRegistry:
         assert entry.mcp_config.post_connect_guide
         assert entry.mcp_config.post_connect_guide_zh
 
+    def test_microsoft_todo_chinese_discoverability(self, registry: CatalogRegistry) -> None:
+        """Microsoft To Do must be discoverable by its official Chinese name and tags."""
+        entry = registry.get_by_id("microsoft-todo")
+        assert entry is not None
+        assert entry.name_zh == "微软待办"
+        assert "待办" in entry.tags
+        assert "微软" in entry.tags
+        for query in ("待办", "微软待办", "微软"):
+            assert any(e.id == "microsoft-todo" for e in registry.search(query)), (
+                f"search '{query}' must return microsoft-todo"
+            )
+
     def test_google_catalog_entries_removed(self, registry: CatalogRegistry) -> None:
         """Google abilities are covered by the google-workspace skill; catalog entries are gone."""
         loaded_ids = {e.id for e in registry.list_all()}

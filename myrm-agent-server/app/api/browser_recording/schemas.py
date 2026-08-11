@@ -32,6 +32,8 @@ class RecordingStepResponse(BaseModel):
     element_text: str = ""
     element_role: str = ""
     is_password: bool = False
+    modifiers: list[str] = Field(default_factory=list)
+    label: str = ""
     screenshot_b64: str | None = None
 
 

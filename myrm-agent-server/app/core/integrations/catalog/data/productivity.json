@@ -267,7 +267,7 @@
   {
     "id": "microsoft-todo",
     "name": "Microsoft To Do",
-    "name_zh": "Microsoft To Do",
+    "name_zh": "微软待办",
     "description": "Manage your Microsoft To Do lists, tasks, and checklist items via your Microsoft account",
     "description_zh": "通过你的 Microsoft 账户管理 Microsoft To Do 清单、任务和子任务",
     "icon": "microsoft-todo",
@@ -296,7 +296,9 @@
       "todo",
       "microsoft",
       "365",
-      "checklist"
+      "checklist",
+      "待办",
+      "微软"
     ],
     "website": "https://to-do.office.com"
   }

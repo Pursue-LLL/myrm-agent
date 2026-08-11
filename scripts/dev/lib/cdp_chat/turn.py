@@ -68,20 +68,20 @@ class CdpChatTurn(CdpChatSubmit):
                 : null;
               const allAssistantText = assistantNodes.map((el) => el.innerText || '').join('\\n');
               let okInAssistant = false;
-              for (let i = assistantNodes.length - 1; i >= 0; i -= 1) {
+              for (let i = assistantNodes.length - 1; i >= 0; i -= 1) {{
                 const t = assistantNodes[i]?.innerText || '';
                 if (!t.trim()) continue;
-                if (/(?:\bOK\b|GOAL_OK|\bDONE\b)/i.test(t) || /\bOK\b/i.test(t.replace(/\s+/g, ' '))) {
+                if (/(?:\\bOK\\b|GOAL_OK|\\bDONE\\b)/i.test(t) || /\\bOK\\b/i.test(t.replace(/\\s+/g, ' '))) {{
                   okInAssistant = true;
                   break;
-                }
-              }
+                }}
+              }}
               const sending = !!main?.querySelector('button[aria-label="Stop"]');
               const hasUserPrompt = userMsgs > 0 || text.includes({json.dumps(prompt)});
               const okInMain =
                 hasUserPrompt &&
                 (okInAssistant ||
-                  /(?:\bOK\b|GOAL_OK|\bDONE\b)/i.test(text) ||
+                  /(?:\\bOK\\b|GOAL_OK|\\bDONE\\b)/i.test(text) ||
                   /^\\s*(?:OK|DONE)\\s*$/m.test(text) ||
                   ((text.includes('OK') || text.includes('DONE')) && !sending));
               return {{

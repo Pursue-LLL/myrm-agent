@@ -278,6 +278,14 @@ async def approve_pending_migration_record(
             skip_duplicates = raw_skip_duplicates if isinstance(raw_skip_duplicates, bool) else True
             counts = await manager.import_memories(data, skip_duplicates=skip_duplicates)
         elif record.migration_type == "skill_import":
+            # Applying a skill migration writes directly to the local skill
+            # directory (~/.myrm/skills), which the agent cannot load in sandbox
+            # mode — fail closed there. Delayed import keeps this module loadable
+            # standalone (tests load it via spec_from_file_location).
+            from app.api.skills._deploy_capability import require_local_skills_capability
+
+            require_local_skills_capability()
+
             skills_raw = payload.get("skills")
             if not isinstance(skills_raw, list):
                 raise HTTPException(status_code=400, detail="Pending skill migration payload is invalid")

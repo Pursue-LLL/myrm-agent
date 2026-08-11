@@ -16,7 +16,7 @@ Falls back to manual step injection when no active browser session exists.
 |------|------|-------------|-------|
 | `__init__.py` | Package | Module entry — exports `router` | — |
 | `schemas.py` | Contract | Pydantic request/response models | ✅ |
-| `router.py` | Core | WebSocket `/ws/recording` + REST endpoints + CaptureEngine integration | ✅ |
+| `router.py` | Core | WebSocket `/ws/recording` + REST endpoints + CaptureEngine integration；`POST /recording/generate-skill` 写 `~/.myrm/skills` 受沙箱能力门控 | ✅ |
 
 ## Endpoints
 

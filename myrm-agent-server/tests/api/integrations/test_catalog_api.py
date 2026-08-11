@@ -61,6 +61,14 @@ class TestCatalogListEndpoint:
         assert data["total"] == 1
         assert data["entries"][0]["id"] == "microsoft-todo"
 
+    def test_list_with_search_microsoft_todo_chinese(self, client: TestClient) -> None:
+        """Chinese users searching by 待办/微软待办/微软 must find microsoft-todo."""
+        for query in ("待办", "微软待办", "微软"):
+            response = client.get(f"/api/v1/integrations/catalog?q={query}")
+            assert response.status_code == 200
+            ids = {e["id"] for e in response.json()["data"]["entries"]}
+            assert "microsoft-todo" in ids, f"search '{query}' must return microsoft-todo"
+
     def test_list_search_no_results(self, client: TestClient) -> None:
         response = client.get("/api/v1/integrations/catalog?q=xyznonexistent")
         assert response.status_code == 200

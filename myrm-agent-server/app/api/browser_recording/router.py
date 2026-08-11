@@ -78,7 +78,15 @@ async def get_session_detail(session_id: str) -> RecordingSessionResponse:
 
 @router.post("/recording/generate-skill", response_model=GenerateSkillResponse)
 async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
-    """Generate a Browser Skill from a completed recording session."""
+    """Generate a Browser Skill from a completed recording session.
+
+    Generating a skill writes to the local skill store (~/.myrm/skills),
+    which the agent cannot load in sandbox mode — fail closed there.
+    """
+    from app.api.skills._deploy_capability import require_local_skills_capability
+
+    require_local_skills_capability()
+
     session = get_session(req.session_id)
     if not session:
         raise HTTPException(status_code=404, detail=f"Session not found: {req.session_id}")
@@ -121,7 +129,7 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
     )
     if not save_result.success:
         logger.error("Failed to save skill from recording %s: %s", req.session_id, save_result.error)
-        raise HTTPException(status_code=500, detail="Failed to save skill")
+        raise HTTPException(status_code=500, detail=save_result.error or "Failed to save skill")
 
     # The skill system keys skills by name and computes the canonical id on
     # save; surface that real id (falling back to the name) instead of the

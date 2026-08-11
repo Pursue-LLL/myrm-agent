@@ -122,9 +122,46 @@ def _iter_json_objects(text: str) -> Iterable[str]:
                     start = -1
 
 
+def _iter_json_arrays(text: str) -> Iterable[str]:
+    """Yield every balanced ``[...]`` array in ``text``.
+
+    Mirrors :func:`_iter_json_objects` with a state machine that respects
+    string literals, escape sequences, and nesting. Reasoning providers
+    occasionally precede a real array with a format example, so callers
+    inspect all candidates instead of committing to the first ``[``.
+    """
+    depth = 0
+    start = -1
+    in_string = False
+    escape_next = False
+    for i, ch in enumerate(text):
+        if in_string:
+            if escape_next:
+                escape_next = False
+                continue
+            if ch == "\\":
+                escape_next = True
+                continue
+            if ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "[":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "]":
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and start != -1:
+                    yield text[start : i + 1]
+                    start = -1
+
+
 def _iter_json_candidates(content: str) -> Iterable[str]:
     """Yield candidate JSON texts: every fence body, every balanced object,
-    and finally the stripped raw text."""
+    every balanced array, and finally the stripped raw text."""
     stripped = content.strip()
     if not stripped:
         return
@@ -133,14 +170,17 @@ def _iter_json_candidates(content: str) -> Iterable[str]:
         if body:
             yield body
     yield from _iter_json_objects(stripped)
+    yield from _iter_json_arrays(stripped)
     yield stripped
 
 
-def _iter_parsed_dicts(content: str) -> Iterable[dict[str, object]]:
-    """Yield every dict recoverable from ``content``.
+def _iter_parsed_containers(
+    content: str,
+) -> Iterable[dict[str, object] | list[object]]:
+    """Yield every dict or list recoverable from ``content``.
 
-    Each candidate (fence body, balanced object, stripped raw text) is
-    tried raw first and then with unescaped newlines inside string
+    Each candidate (fence body, balanced object/array, stripped raw text)
+    is tried raw first and then with unescaped newlines inside string
     literals escaped, matching the artifacts reasoning providers emit.
     """
     for candidate in _iter_json_candidates(content):
@@ -149,7 +189,7 @@ def _iter_parsed_dicts(content: str) -> Iterable[dict[str, object]]:
                 parsed = json.loads(candidate_text)
             except json.JSONDecodeError:
                 continue
-            if isinstance(parsed, dict):
+            if isinstance(parsed, (dict, list)):
                 yield parsed
 
 
@@ -166,8 +206,24 @@ def parse_llm_json_object(content: str) -> dict[str, object] | None:
     Returns ``None`` when no object can be recovered.
     """
     parsed_last: dict[str, object] | None = None
-    for parsed in _iter_parsed_dicts(content):
-        parsed_last = parsed
+    for parsed in _iter_parsed_containers(content):
+        if isinstance(parsed, dict):
+            parsed_last = parsed
+    return parsed_last
+
+
+def parse_llm_json_list(content: str) -> list[object] | None:
+    """Parse a JSON array out of an LLM reply.
+
+    Mirrors :func:`parse_llm_json_object` for arrays: tolerates fences,
+    prose framing, unescaped newlines inside string literals, and multiple
+    arrays where the last one is the real result. Returns ``None`` when no
+    array can be recovered.
+    """
+    parsed_last: list[object] | None = None
+    for parsed in _iter_parsed_containers(content):
+        if isinstance(parsed, list):
+            parsed_last = parsed
     return parsed_last
 
 

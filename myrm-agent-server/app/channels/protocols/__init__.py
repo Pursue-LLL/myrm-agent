@@ -15,7 +15,6 @@ from app.channels.protocols.inbound_profile import (
     ChannelInboundSpec,
     InboundMode,
     IngressTransport,
-    is_channel_configured,
     resolve_channel_ingress_mode,
 )
 from app.channels.protocols.pairing import (
@@ -86,6 +85,5 @@ __all__ = [
     "TopicManager",
     "UndoHandler",
     "UndoResult",
-    "is_channel_configured",
     "resolve_channel_ingress_mode",
 ]
