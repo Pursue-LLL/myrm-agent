@@ -196,6 +196,11 @@ asyncio_default_fixture_loop_scope = "function"
 anyio_backends = ["asyncio"] # 只使用asyncio后端（项目不需要trio）
 asyncio_mode = "auto"
 
+[tool.coverage.run]
+# SQLAlchemy async 通过 greenlet 桥接 asyncio，coverage 需同时跟踪
+# greenlet 与 thread 上下文，否则 await 之后的代码行不被记录。
+concurrency = ["greenlet", "thread"]
+
 # 日志配置：启用日志输出以便调试
 # log_cli = true            # 启用 pytest 的实时日志输出
 # log_cli_level = "WARNING" # 只显示 WARNING 及以上级别

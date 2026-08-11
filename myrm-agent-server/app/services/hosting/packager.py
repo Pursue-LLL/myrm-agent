@@ -5,8 +5,8 @@
 
 [OUTPUT]
 - PublishFile: dataclass for a single deployable file
-- collect_deploy_files: read vault file/directory + HTML-relative static assets
-- validate_deploy_payload: ensure deployable HTML entry exists
+- collect_publish_files: read vault file/directory + HTML-relative static assets
+- validate_publish_payload: ensure deployable HTML entry exists
 
 [POS]
 Server business layer — packages vault/workspace artifacts for third-party hosting.
@@ -176,9 +176,12 @@ def _scan_html_references(content: str) -> list[str]:
     for style_block in re.findall(r"<style[^>]*>(.*?)</style>", content, re.I | re.S):
         refs.extend(CSS_IMPORT_PATTERN.findall(style_block))
         refs.extend(CSS_URL_PATTERN.findall(style_block))
-    for inline_style in re.findall(r"""style\s*=\s*["']([^"']+)["']""", content, re.I):
-        refs.extend(CSS_IMPORT_PATTERN.findall(inline_style))
-        refs.extend(CSS_URL_PATTERN.findall(inline_style))
+    for inline_style in re.findall(
+        r"""style\s*=\s*("([^"]*)"|'([^']*)')""", content, re.I
+    ):
+        inline = inline_style[1] or inline_style[2]
+        refs.extend(CSS_IMPORT_PATTERN.findall(inline))
+        refs.extend(CSS_URL_PATTERN.findall(inline))
     return refs
 
 
@@ -255,7 +258,11 @@ def _read_file_entry(file_path: Path, entry_name: str, total_bytes: int) -> tupl
     if next_total > MAX_TOTAL_BYTES:
         raise ValueError(f"Total deploy payload exceeds limit ({MAX_TOTAL_BYTES} bytes)")
 
-    if file_path.suffix.lower() in TEXT_EXTENSIONS:
+    # Classify by the logical entry name, not the physical file suffix: vault
+    # objects are extension-less UUID files, yet their real type (HTML text,
+    # binary PDF) lives in the entry name. Physical-suffix probing would store
+    # an HTML vault object as base64 (33% bloat) even though it is UTF-8 text.
+    if Path(entry_name).suffix.lower() in TEXT_EXTENSIONS:
         try:
             text = raw.decode("utf-8")
         except UnicodeDecodeError:
@@ -314,7 +321,18 @@ def collect_publish_files(
     entry_hint = (allowed_root / entry_name_hint) if allowed_root and entry_name_hint else None
 
     if obj_path.is_file():
-        entry_name = _normalize_entry_name(obj_path, obj_path)
+        # Vault objects are stored as extension-less UUID files while the real
+        # filename lives in artifact.name (entry_name_hint). Without the hint
+        # the bundle entry becomes the opaque UUID: it leaks a duplicate file
+        # alongside the sandbox mirror and breaks media-type detection (a PDF
+        # object would be served as text/html via the fallback guesser).
+        if not obj_path.suffix and entry_name_hint:
+            hint = Path(entry_name_hint)
+            entry_name = (
+                "index.html" if hint.suffix.lower() in {".html", ".htm"} else hint.name
+            )
+        else:
+            entry_name = _normalize_entry_name(obj_path, obj_path)
         deploy_file, total_bytes = _read_file_entry(obj_path, entry_name, total_bytes)
         files[entry_name] = deploy_file
         if allowed_root is not None:
@@ -328,6 +346,8 @@ def collect_publish_files(
             if not file_path.is_file():
                 continue
             if not _is_allowed_static_file(file_path):
+                continue
+            if file_path.name in EXCLUDED_FILE_NAMES:
                 continue
             relative = file_path.relative_to(root)
             if any(part in EXCLUDED_DIRECTORY_NAMES or part in SENSITIVE_DIRECTORY_NAMES for part in relative.parts[:-1]):

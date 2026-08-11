@@ -38,6 +38,10 @@ def test_is_shareable_artifact_accepts_client_type_without_suffix() -> None:
     assert is_shareable_artifact("Q3报告", artifact_type="document") is True
 
 
+def test_is_shareable_artifact_suffix_short_circuits() -> None:
+    assert is_shareable_artifact("report.html") is True
+
+
 def test_is_shareable_artifact_rejects_code_type_without_suffix() -> None:
     assert is_shareable_artifact("app", artifact_type="code") is False
 
@@ -82,3 +86,24 @@ def test_password_token_rejects_wrong_password() -> None:
 def test_non_password_token_not_protected() -> None:
     token, _ = create_artifact_share_token("art-1", "ver-1")
     assert is_password_protected(token) is False
+
+
+def test_parse_rejects_malformed_claims() -> None:
+    """Signed-but-malformed payloads (wrong field types) yield None, not a crash."""
+    import hashlib
+    import hmac
+    import json
+
+    from app.core.security.share_hmac import (
+        _TOKEN_VERSION,
+        _derive_key,
+        b64url_encode,
+    )
+    from app.services.artifacts.share_token import _SALT
+
+    payload = {"v": _TOKEN_VERSION, "aid": 123, "vid": "ver-1", "exp": 9_999_999_999}
+    body = b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    key = _derive_key(_SALT, None)
+    sig = hmac.new(key, body.encode("ascii"), hashlib.sha256).hexdigest()
+    token = f"{body}.{sig}"
+    assert parse_artifact_share_token(token) is None

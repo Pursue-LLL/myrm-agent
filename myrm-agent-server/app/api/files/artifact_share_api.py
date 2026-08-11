@@ -3,7 +3,7 @@
 [INPUT]
 - app.services.artifacts.share_token (POS: HMAC token create/parse)
 - app.services.artifacts.share_bundle (POS: multi-file static bundle materialization)
-- app.core.security.share_hmac (POS: password-protection detection)
+- app.core.security.share_hmac (POS: HMAC signing + password-protection detection)
 
 [OUTPUT]
 - router: authenticated create-share endpoints
@@ -16,6 +16,7 @@ Supports optional password-protected share links.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
 
@@ -81,7 +82,9 @@ def _share_path(token: str) -> str:
     return f"/api/v1/public/artifact-share/{token}"
 
 
-_HTML_MEDIA_TYPES = frozenset({"text/html", "text/html; charset=utf-8", "application/xhtml+xml"})
+_HTML_MEDIA_TYPES = frozenset(
+    {"text/html", "text/html; charset=utf-8", "application/xhtml+xml"}
+)
 
 _SHARE_SECURITY_HEADERS: dict[str, str] = {
     "Content-Security-Policy": (
@@ -116,18 +119,29 @@ _UNLOCK_SALT = "artifact-share-unlock"
 _UNLOCK_COOKIE_PATH = "/api/v1/public/artifact-share"
 
 
+def _unlock_cookie_name(token: str) -> str:
+    """Per-share cookie name so concurrent password shares never collide.
+
+    A single fixed cookie name would be overwritten when a user opens several
+    password-protected shares, causing later asset requests to authorize against
+    the wrong share's credentials.
+    """
+    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
+    return f"{_UNLOCK_COOKIE_NAME}_{digest}"
+
+
 def _build_unlock_credential(claims: ArtifactShareClaims) -> str | None:
     """Issue a short-lived credential after a correct password unlock.
 
-    Stateless HMAC token bound to the same artifact version so subsequent
-    static-asset requests (which cannot carry the password) are authorized
-    without re-entering it.
+    Stateless HMAC token that carries the same artifact identity and expiry as
+    the share token, so static-asset requests (which cannot carry the password)
+    are authorized without re-entering it.
     """
     remaining = claims.exp - int(time.time())
     if remaining < 60:
         return None
     credential, _ = create_share_token(
-        {"aid": claims.artifact_id, "vid": claims.version_id},
+        {"aid": claims.artifact_id, "vid": claims.version_id, "exp": claims.exp},
         salt=_UNLOCK_SALT,
         ttl_seconds=remaining,
         max_ttl_seconds=30 * 24 * 3600,
@@ -135,15 +149,30 @@ def _build_unlock_credential(claims: ArtifactShareClaims) -> str | None:
     return credential
 
 
-def _is_valid_unlock_credential(value: str, claims: ArtifactShareClaims) -> bool:
+def _unlock_claims_from_cookie(value: str) -> ArtifactShareClaims | None:
+    """Recover share claims from a signed unlock credential, or ``None``."""
     parsed = parse_share_token(value, salt=_UNLOCK_SALT)
     if parsed is None:
-        return False
-    return parsed.get("aid") == claims.artifact_id and parsed.get("vid") == claims.version_id
+        return None
+    artifact_id = parsed.get("aid")
+    version_id = parsed.get("vid")
+    exp = parsed.get("exp")
+    if (
+        not isinstance(artifact_id, str)
+        or not isinstance(version_id, str)
+        or not isinstance(exp, int)
+    ):
+        return None
+    return ArtifactShareClaims(artifact_id=artifact_id, version_id=version_id, exp=exp)
 
 
 def _attach_unlock_cookie(
-    response: Response, claims: ArtifactShareClaims, password: str | None,
+    response: Response,
+    claims: ArtifactShareClaims,
+    token: str,
+    password: str | None,
+    *,
+    secure: bool,
 ) -> None:
     if not password:
         return
@@ -151,12 +180,13 @@ def _attach_unlock_cookie(
     if credential is None:
         return
     response.set_cookie(
-        key=_UNLOCK_COOKIE_NAME,
+        key=_unlock_cookie_name(token),
         value=credential,
         max_age=max(0, claims.exp - int(time.time())),
         path=_UNLOCK_COOKIE_PATH,
         httponly=True,
         samesite="strict",
+        secure=secure,
     )
 
 
@@ -176,10 +206,14 @@ async def _serve_share_bundle(
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except FileNotFoundError as exc:
-            raise HTTPException(status_code=404, detail="Artifact content not found") from exc
+            raise HTTPException(
+                status_code=404, detail="Artifact content not found"
+            ) from exc
         except Exception as exc:
             logger.error("Share bundle materialize failed: %s", exc)
-            raise HTTPException(status_code=500, detail="Failed to load shared artifact") from exc
+            raise HTTPException(
+                status_code=500, detail="Failed to load shared artifact"
+            ) from exc
         resolved = resolve_share_bundle_file(claims, relative_path)
 
     if resolved is None:
@@ -238,7 +272,9 @@ async def create_artifact_share_preview(
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="Artifact content not found") from exc
+        raise HTTPException(
+            status_code=404, detail="Artifact content not found"
+        ) from exc
 
     return CreateArtifactShareResponse(
         token=token,
@@ -251,7 +287,9 @@ async def create_artifact_share_preview(
 
 
 def _auth_or_gate(
-    request: Request, token: str, password: str | None,
+    request: Request,
+    token: str,
+    password: str | None,
 ) -> ArtifactShareClaims | HTMLResponse:
     """Authenticate a password-protected share using ``p`` or a prior unlock cookie.
 
@@ -261,18 +299,19 @@ def _auth_or_gate(
     """
     protected = is_password_protected(token)
     if protected and not password:
-        unlock = request.cookies.get(_UNLOCK_COOKIE_NAME)
+        unlock = request.cookies.get(_unlock_cookie_name(token))
         if unlock:
-            claims = parse_artifact_share_token(token)
-            if claims is not None and _is_valid_unlock_credential(unlock, claims):
-                return claims
+            unlocked_claims = _unlock_claims_from_cookie(unlock)
+            if unlocked_claims is not None:
+                return unlocked_claims
         return HTMLResponse(render_password_gate_html(), status_code=403)
 
     claims = parse_artifact_share_token(token, password=password)
     if claims is None:
         if protected and password:
             return HTMLResponse(
-                render_password_gate_html(wrong_password=True), status_code=403,
+                render_password_gate_html(wrong_password=True),
+                status_code=403,
             )
         raise HTTPException(status_code=404, detail="Share link is invalid or expired")
     return claims
@@ -291,13 +330,14 @@ async def get_public_artifact_share(
     result = _auth_or_gate(request, token, pwd)
     if isinstance(result, HTMLResponse):
         return result
+    secure = request.url.scheme == "https"
     if bundle_asset_count(result) > 1 and not str(request.url.path).endswith("/"):
         redirect_url = str(request.url.replace(path=str(request.url.path) + "/"))
         response = RedirectResponse(url=redirect_url, status_code=307)
-        _attach_unlock_cookie(response, result, pwd)
+        _attach_unlock_cookie(response, result, token, pwd, secure=secure)
         return response
     response = await _serve_share_bundle(result, db, workspace_root, None)
-    _attach_unlock_cookie(response, result, pwd)
+    _attach_unlock_cookie(response, result, token, pwd, secure=secure)
     return response
 
 
@@ -315,7 +355,7 @@ async def get_public_artifact_share_index(
     if isinstance(result, HTMLResponse):
         return result
     response = await _serve_share_bundle(result, db, workspace_root, None)
-    _attach_unlock_cookie(response, result, pwd)
+    _attach_unlock_cookie(response, result, token, pwd, secure=request.url.scheme == "https")
     return response
 
 

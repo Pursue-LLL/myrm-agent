@@ -51,7 +51,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/eval/test_memory_ab_live_integration.py` | 模块 | Memory A/B Live 集成（`@pytest.mark.e2e`）：真实 embedding probe + WBBench office 真实下载构建 + 双臂真实 LLM 执行 + `memory_tool_calls` 报告 + 临时记忆卷清理（关键路径禁 mock；执行 case 数受限） |
 | `e2e/test_memory_ab_chrome_e2e.py` | 模块 | Memory A/B Chrome E2E（READ×1 + NAMESPACE_WRITE×2）：WBBench 卡片 Memory A/B 入口 + 确认对话框取消（READ）；预置双报告渲染双臂矩阵 + Run History 表（per-arm pass-rate + `memory_tool_calls`）+ 点击历史 View 加载（NAMESPACE_WRITE）；真实 run 启动（SSE running + header Stop）+ Stop abort 清理（NAMESPACE_WRITE） |
 | `services/agent/test_subagent_rebind_event.py` | 模块 | `SUBAGENT_REBIND_REQUIRED` 事件：`subagent_ids` 变更时 publish、同值/非绑定字段不 emit |
-| `services/agent/readiness/test_readiness_mcp_secrets.py` | 模块 | readiness mcp 维度密钥预检（`_check_mcp` 六分支：requiredSecrets 全齐不报 / 缺失报 / headers `{{secret:KEY}}` 引用报 / disabled 跳过 / 无声明不查 / vault 异常跳过） |
+| `services/agent/readiness/test_readiness_mcp_secrets.py` | 模块 | readiness mcp 维度密钥预检（`_check_mcp` 六分支：requiredSecrets 全齐不报 / 缺失报 / headers `{{secret:KEY}}` 引用报 / disabled 跳过 / 无声明不查 / vault 异常跳过）+ org MCP 合并单测 |
+| `api/internal/test_org_mcp_sync_integration.py` | 模块 | org MCP 真实 DB 全链路集成：CP `POST /api/admin/org-mcp-sync` → ConfigService 加密落库 → `load_user_config_entry` 解密加载 → `merge_org_mcp_configs` 合并（scope=org）→ readiness `_check_mcp` 识别绑定 org server（关键路径无 mock） |
 | `services/agent/backends/test_secret_backend_list_keys.py` | 模块 | `DatabaseSecretBackend.list_secret_keys` 真实 DB（保存后键名列表、未知 agent 空列表；FK 预置 agent + 测后清理） |
 | `api/chats/test_citation_seed_fixture.py` | 模块 | citation fixture seed HTTP 单测（local-only，`/chats/test/seed-citation-fixture`） |
 | `api/chats/test_deliverable_seed_fixture.py` | 模块 | deliverable link fixture seed HTTP 单测（`/chats/test/seed-deliverable-link-fixture`） |
@@ -70,6 +71,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/files/test_evicted_web_fetch_spill.py` | 模块 | UECD evicted-file API 单测（`web_fetch_{hex8}.md` basename + GET content） |
 | `api/files/test_evicted_background_spill.py` | 模块 | UECD bash/background spill → evicted API 单测 |
 | `integration/test_evicted_uecd_live_api_integration.py` | 模块 | UECD live API 集成（`resolve_verify_api_base()` 私池 · seed POST `_LIVE_SEED_POST_TIMEOUT_SEC=60` · GET evicted · 404 `expired` envelope） |
+| `integration/test_artifact_share_integration.py` | 模块 | 工件分享真实全链路集成（无 mock）：`ArtifactVault.put` 真实落盘 → DB artifact/version → create share 真实物化 → public entry redirect → 静态资源放行；密码分享 gate + 签名解锁 cookie 授权 asset；SQLite 内存库 + TestClient 进程内 |
 | `api/config/test_telegram_onboarding_apply.py` | 模块 | Telegram onboarding 原子编排回归（成功、失败回滚、同名冲突复用、并发防重、跨进程锁占用冲突） |
 | `api/config/test_search_services_validation.py` | 模块 | searchServices Omni 422：unknown slug、duplicate enabled priority、non-selectable enabled slug |
 | `api/config/test_omni_config.py` | 模块 | Omni-Config schema/sync/history/rollback；batch sync duplicate search priority 422 |
@@ -128,6 +130,12 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `remote_access/` | 模块 | 远程访问 trust_zone / pairing / E2EE / mobile_gate / host_allowlist 单测（16 文件） |
 | `tasks/test_task_worker_retry.py` | 模块 | TaskWorker 自动重试回归（transient 重入 pending + datetime `next_retry_at`、permanent 失败终止、retries exhausted 终止；`next_retry_at` 未到期不消费、到期后执行，终态清空 `next_retry_at` 语义） |
 | `tasks/test_task_event_bus.py` | 模块 | TaskEventBus 回归（事件正常入队；队列满时淘汰最旧并投递带 `sync_required` 的最新事件，断言 emitted/dropped/replaced 指标与 queue_full warning 节流） |
+| `e2e/test_team_hub_builtin_badge_chrome_e2e.py` | 模块 | Team Assets Hub 内置 Agent 徽标 + 名称本地化 Chrome E2E（PRIVATE+READ×1：API 数据契约 `is_built_in` + `/settings/memory?sub=team-hub` 渲染「内置」徽标与 `getBuiltinAgentName` 本地化名 + follow-ups 筛选下拉本地化 + zh 界面无英文名泄漏） |
+| `e2e/test_pending_approvals_chrome_e2e.py` | 模块 | Fleet pendingApprovals KPI Chrome E2E（PRIVATE+NAMESPACE_WRITE×1：`POST /chats/test/seed-kanban-in-review-fixture` 单写者建 IN_REVIEW 任务 → 真实 UI /agents Fleet「Pending」KPI +1 → 双击卡片开抽屉 approve/reject 双生命周期回落） |
+| `api/statistics/test_badges.py` | 模块 | Nav badges API 单测（monkeypatch kanban 合并 + OperationalError 降级；`TestKanbanCountRealStore` 真 SQL store 链验证 `count_tasks_by_agent`/`count_tasks` 聚合） |
+| `api/statistics/test_pending_approvals_integration.py` | 模块 | pendingApprovals 全链路集成（真实 store seed IN_REVIEW → badges/fleet KPI 反映真实行；approve/reject 后回落；goal+kanban 合并） |
+| `api/agent/test_fleet_overview_integration.py` | 模块 | Fleet Overview API 集成（Chat/CronJob/Approval 真实 DB 聚合 + kanban IN_REVIEW 并入 pendingApprovals + kanban store 故障降级） |
+| `api/chats/test_kanban_in_review_seed_integration.py` | 模块 | IN_REVIEW seed fixture 集成（fixture → badges 计数 + approve/reject 转换回落） |
 
 ---
 

@@ -1,7 +1,7 @@
 """Per-pid Chrome E2E session snapshot SSOT (R62 Phase B).
 
 [INPUT]
-- e2e_session_lifecycle ENV_WALL_* (phase + monotonic clocks)
+- e2e_session_runtime.lifecycle ENV_WALL_* (phase + monotonic clocks)
 
 [OUTPUT]
 - write_session_snapshot / read_session_snapshot / body_elapsed_from_snapshot
@@ -18,7 +18,7 @@ import os
 import time
 from pathlib import Path
 
-from e2e_session_lifecycle import (
+from e2e_session_runtime.lifecycle import (
     ENV_PROGRESS_AT,
     ENV_WALL_PHASE,
     ENV_WALL_STARTED,
@@ -105,6 +105,9 @@ def write_holder_session_snapshot(
         "progressAtMonotonic": now,
         "updatedAtEpoch": time.time(),
     }
+    run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+    if run_id:
+        payload["runId"] = run_id
     _write_snapshot_file(pid=holder_pid, payload=payload)
 
 
@@ -201,10 +204,13 @@ def write_session_snapshot(
     workload = os.environ.get("MYRM_E2E_WORKLOAD", "").strip()
     if workload:
         payload["workload"] = workload.upper()
+    run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+    if run_id:
+        payload["runId"] = run_id
     if os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1":
         payload["shpoib"] = True
     try:
-        from e2e_session_lifecycle import phase_cap_sec
+        from e2e_session_runtime.lifecycle import phase_cap_sec
 
         if resolved_phase in {"admit", "bootstrap", "body", "teardown"}:
             existing_cap = existing.get("phaseCapSec") if existing is not None else None

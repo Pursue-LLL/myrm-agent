@@ -83,67 +83,21 @@ def _private_shpoib_bootstrap_lane(lane: str) -> bool:
 
 def resolve_budget_policy() -> BudgetPolicy:
     profile = resolve_lifecycle_profile()
-    lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
-    body_sec = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
-    if profile == "dev" and (
-        lane == "LIVE_AGENT" or _private_shpoib_bootstrap_lane(lane)
-    ):
-        try:
-            from transport_supervisor import live_agent_body_wall_cap_sec
-
-            body_sec = live_agent_body_wall_cap_sec()
-        except ImportError:
-            body_sec = LIVE_AGENT_BODY_WALL_CLOCK_SEC
-    bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
-    if profile == "dev":
-        try:
-            from dev_gate_contract import boot_mux_body_transport_gate_required
-            from transport_supervisor import (
-                MUX_BOOTSTRAP_WALL_MAX_SEC,
-                MUX_UPSTREAM_WAIT_MAX_SEC,
-            )
-
-            # R250: hot-path progress snapshots must not live-probe mux/coordinator.
-            if (
-                boot_mux_body_transport_gate_required()
-                or _private_shpoib_bootstrap_lane(lane)
-            ):
-                bootstrap_sec = int(
-                    MUX_BOOTSTRAP_WALL_MAX_SEC + MUX_UPSTREAM_WAIT_MAX_SEC
-                )
-        except ImportError:
-            bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
-        try:
-            from dev_gate_contract import phase_c_burst_read_bootstrap_wall_sec
-
-            burst_bootstrap = phase_c_burst_read_bootstrap_wall_sec()
-            if burst_bootstrap is not None:
-                bootstrap_sec = max(bootstrap_sec, burst_bootstrap)
-        except ImportError:
-            pass
     if profile == "signoff":
-        from dev_gate_contract import signoff_effective_body_wall_sec
-
-        body_sec = signoff_effective_body_wall_sec()
         from dev_gate_contract import signoff_effective_bootstrap_wall_sec
-
-        bootstrap_sec = int(signoff_effective_bootstrap_wall_sec())
-        from dev_gate_contract import admit_wall_clock_sec
 
         return BudgetPolicy(
             profile=profile,
-            admit_sec=admit_wall_clock_sec(),
-            bootstrap_sec=bootstrap_sec,
-            body_sec=body_sec,
+            admit_sec=E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC,
+            bootstrap_sec=int(signoff_effective_bootstrap_wall_sec()),
+            body_sec=LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
             teardown_sec=E2E_TEARDOWN_WALL_CLOCK_SEC,
         )
-    from dev_gate_contract import admit_wall_clock_sec
-
     return BudgetPolicy(
         profile=profile,
-        admit_sec=admit_wall_clock_sec(),
-        bootstrap_sec=bootstrap_sec,
-        body_sec=body_sec,
+        admit_sec=E2E_ADMISSION_WALL_CLOCK_SEC,
+        bootstrap_sec=E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV,
+        body_sec=LIVE_AGENT_BODY_WALL_CLOCK_SEC,
         teardown_sec=E2E_TEARDOWN_WALL_CLOCK_SEC,
     )
 
@@ -213,7 +167,7 @@ def _cumulative_phase_cap_sec(phase: SessionPhase) -> int:
 def touch_wall_progress(*, current_node: str | None = None) -> None:
     os.environ[ENV_PROGRESS_AT] = str(time.monotonic())
     try:
-        from e2e_session_snapshot import touch_session_progress
+        from e2e_session_runtime.snapshot import touch_session_progress
 
         touch_session_progress(current_node=current_node)
     except ImportError:
@@ -363,7 +317,7 @@ def complete_bootstrap_phase(*, phase_label: str = "pytest_body") -> None:
     if current_phase() == "body":
         touch_wall_progress(current_node=phase_label)
         try:
-            from e2e_session_snapshot import touch_session_progress
+            from e2e_session_runtime.snapshot import touch_session_progress
 
             touch_session_progress()
         except ImportError:
@@ -375,6 +329,11 @@ def complete_bootstrap_phase(*, phase_label: str = "pytest_body") -> None:
             flush=True,
         )
         return
+    print(
+        f"E2E_PAGE_OPEN_SEAL: phase={phase_label}",
+        file=sys.stderr,
+        flush=True,
+    )
     begin_body_wall_budget(phase_label=phase_label)
     _transition_dev_gate_to_body(current_node=phase_label)
 
@@ -438,7 +397,7 @@ def _transition_dev_gate_to_body(*, current_node: str) -> None:
 def begin_body_wall_budget(*, phase_label: str = "pytest_body") -> None:
     transition_to_phase("body", label=phase_label)
     try:
-        from e2e_session_snapshot import touch_session_progress
+        from e2e_session_runtime.snapshot import touch_session_progress
 
         touch_session_progress()
     except ImportError:

@@ -1,7 +1,7 @@
 """Unified E2E session registry — ADMIT through BODY (R144 SSOT).
 
 [INPUT]
-- e2e_session_snapshot sidecars
+- e2e_session_runtime.snapshot sidecars
 - dev_gate_cli (POS: Unix socket 协调器自动启动客户端) — coordinator 活跃性检测
 - ps(1) etime for live holder/pytest pids (degraded mode fallback only)
 
@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from e2e_live_chrome_pytest_scan import (  # noqa: PLC0415
     extract_chrome_e2e_test_id,
 )
-from e2e_session_snapshot import (
+from e2e_session_runtime.snapshot import (
     admit_elapsed_from_snapshot,
     body_elapsed_from_snapshot,
     phase_elapsed_from_snapshot,
@@ -275,7 +275,7 @@ def _list_pytest_scan_fallback(
 
 def list_live_e2e_sessions() -> tuple[LiveE2ESessionRow, ...]:
     """Live chrome_e2e sessions from sidecar registry (ADMIT + BODY)."""
-    from e2e_session_snapshot import _load_all_session_snapshots  # noqa: PLC0415
+    from e2e_session_runtime.snapshot import _load_all_session_snapshots  # noqa: PLC0415
 
     prune_stale_session_snapshots()
     grouped: dict[str, LiveE2ESessionRow] = {}

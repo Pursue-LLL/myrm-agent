@@ -38,6 +38,14 @@ logger = logging.getLogger(__name__)
 _MANIFEST_NAME = "manifest.json"
 _BUNDLE_SUBDIR = "artifact-shares"
 
+# Extension-less share entries (e.g. a document named without a suffix) cannot
+# be classified by filename; the artifact_type carried in the share token fills
+# the gap. HTML falls back to the text/html default in _guess_media_type.
+_MEDIA_TYPE_BY_ARTIFACT_TYPE: dict[str, str] = {
+    "pdf": "application/pdf",
+    "document": "text/markdown; charset=utf-8",
+}
+
 
 @dataclass(frozen=True)
 class ShareBundleManifest:
@@ -192,4 +200,7 @@ def resolve_share_bundle_file(
         return None
 
     filename = target.name
-    return target, _guess_media_type(filename), filename
+    media_type = _guess_media_type(filename)
+    if not Path(filename).suffix and claims.artifact_type:
+        media_type = _MEDIA_TYPE_BY_ARTIFACT_TYPE.get(claims.artifact_type, media_type)
+    return target, media_type, filename
