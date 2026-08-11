@@ -49,7 +49,10 @@
 | `ExtensionDisconnectedBanner.tsx` | 组件/模块 | Extension 断开警告横幅（条件性：仅 browserSource=extension 且未连接时显示，可 dismiss，SSE 驱动） | ✅ |
 | `ExtensionTakeoverBanner.tsx` | 组件/模块 | 外部浏览器 HITL 横幅（harness `is_managed=false` → `uiMode=extension`：CDP/auto/extension 均 in-chat 引导本地 Chrome + Done/Skip；支持打开/复制签名远程接管链接；CAPTCHA auto_detect 时隐藏按钮） | ✅ |
 | `SessionTrashPanel.tsx` | 组件 | 软删除会话回收站面板（恢复/永久删除） | ✅ |
-| `SubagentDashboard.tsx` | 核心 | 子代理控制面板：三视图 tab（树/Gantt/画布）；树形视图、排序/过滤、预算 token/cost 已用上限（`extractBudgetTokens`/`extractMaxCostUsd`）、甘特图、取消/steer/resume、overtime/stale 告警、teammate 消息；画布 tab 挂载 `AgentWorkMap`，画布节点点击切树视图定位（`data-subagent-tree-id`） | ✅ |
+| `SubagentDashboard.tsx` | 核心 | 子代理控制面板入口：三视图 tab（树/Gantt/画布）；排序/过滤条、头部汇总、预算 token/cost（`extractBudgetTokens`/`extractMaxCostUsd`）、取消全部/委托暂停、overtime/stale 汇总态、画布 tab 挂载 `AgentWorkMap`，画布节点点击切树视图定位（`data-subagent-tree-id`）；SSE `subagents_updated`/`teammate_message` 消费 + 轮询拉取 | ✅ |
+| `subagent-tree.tsx` | 组件 | 子代理树视图：`SubagentTreeNode` 递归节点（展开/折叠、状态图标、cost/tokens/model/进度/耗时、steer/cancel/resume/审批跳转、overtime/stale 告警、teammate 消息、stream、取消确认弹窗）+ 聚合徽章 + role/scope 格式化；依赖 `subagent-stream` | ✅ |
+| `subagent-gantt.tsx` | 组件 | 子代理迷你甘特图：基于 startedAt/duration 的并行时间条（状态色条、相对缩放），少于 2 个时间跨度的节点时隐藏 | ✅ |
+| `subagent-stream.tsx` | 组件 | 子代理状态图标（12 态 STATUS_ICON_MAP）与实时流条目展示（NodeStream/StreamLine：tool/progress/thinking/error 字形 + 耗时 + 滚动跟随） | ✅ |
 | `AgentToolDiagnostics.tsx` | 组件 | Agent 工具健康诊断弹窗（tool 成功率/耗时） | ✅ |
 | `SubagentPromptButton.tsx` | 组件 | 子代理 prompt 入口按钮（5s 倒计时自动 sendMessage） | ✅ |
 | `ToolApprovalExpiryWatcher.tsx` | 组件/模块 | 工具审批过期 watcher（queue 过期 toast） | ✅ |
