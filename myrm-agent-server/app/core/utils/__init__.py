@@ -12,6 +12,8 @@ from app.core.utils.chat_utils import (
     ChatHistory,
     ChatHistoryReq,
     convert_chat_history,
+    extract_answer_text,
+    extract_litellm_answer_text,
 )
 
 # 从 errors.py 导出（业务层异常）
@@ -50,6 +52,8 @@ __all__ = [
     "ChatHistory",
     "ChatHistoryReq",
     "convert_chat_history",
+    "extract_answer_text",
+    "extract_litellm_answer_text",
     # 文件工具
     "extract_file_id_from_url",
     "read_image_as_base64",
