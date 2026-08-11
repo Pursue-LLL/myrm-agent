@@ -1,7 +1,7 @@
 """Obsidian Vault adapter for Wiki import.
 
 [INPUT]
-myrm_agent_harness.agent.meta_tools.file_ops.utils.markdown_frontmatter::parse_frontmatter (POS: YAML FM parse SSOT)
+myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: YAML FM parse SSOT)
 myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::infer_type_for_import, serialize_frontmatter (POS: wiki page type gate SSOT)
 
 [OUTPUT]

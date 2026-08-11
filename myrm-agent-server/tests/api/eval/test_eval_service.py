@@ -141,6 +141,112 @@ class TestBuildEvalManifest:
         assert manifest.tool_policy == ("web_search", "file")
         assert manifest.prompt_fingerprint != "none"
 
+    @pytest.mark.asyncio
+    async def test_manifest_bare_model_and_numeric_string_max_tokens(
+        self,
+    ) -> None:
+        class FakeTurn:
+            pass
+
+        class FakeProfile:
+            model = "claude-sonnet-4"
+            engine_params = {"thinking_effort": "high", "max_tokens": "2048"}
+            enabled_builtin_tools = ("web_search", "file")
+            system_prompt = "You are great"
+            skill_ids = []
+            subagent_ids = None
+            security_overrides = None
+            max_iterations = None
+            memory_policy = None
+            auto_restore_domains = []
+            memory_decay_profile = None
+            memory_extraction_preset = None
+            mcp_ids = None
+            mcp_tool_selections = None
+            personality_style = None
+
+        class FakeResolver:
+            async def resolve(self, profile_id: str) -> FakeProfile:
+                return FakeProfile()
+
+        with patch(
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
+            return_value=FakeResolver(),
+        ):
+            manifest = await _build_eval_manifest(
+                profile_id="builder",
+                dataset_id="wb-bench-code",
+                cases_path=Path("/nonexistent.jsonl"),
+                benchmark_mode=True,
+                external_cases=[FakeTurn()],
+            )
+
+        # A bare model name without ``provider/id`` keeps the provider unknown.
+        assert manifest.model_provider == "unknown"
+        assert manifest.model_id == "claude-sonnet-4"
+        # Numeric-string max_tokens is coerced, not dropped.
+        assert manifest.budget_max_tokens == 2048
+
+    @pytest.mark.asyncio
+    async def test_manifest_fallback_bare_model_label(self) -> None:
+        class FakeTurn:
+            pass
+
+        class FakeProfile:
+            model = None
+            engine_params = None
+            enabled_builtin_tools = ()
+            system_prompt = None
+            skill_ids = []
+            subagent_ids = None
+            security_overrides = None
+            max_iterations = None
+            memory_policy = None
+            auto_restore_domains = []
+            memory_decay_profile = None
+            memory_extraction_preset = None
+            mcp_ids = None
+            mcp_tool_selections = None
+            personality_style = None
+
+        class FakeResolver:
+            async def resolve(self, profile_id: str) -> FakeProfile:
+                return FakeProfile()
+
+        from app.core.channel_bridge.config_loader import UserConfigs
+        from app.core.types import ModelConfig
+
+        configs = UserConfigs(
+            model_cfg=ModelConfig(model="gpt-4o", api_key="x"),
+            search_cfg=None,
+            search_is_user_configured=False,
+            retrieval_dict={},
+            personal_settings_dict={},
+            mcp_dict={},
+            providers_dict={},
+        )
+        with (
+            patch(
+                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
+                return_value=FakeResolver(),
+            ),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new=AsyncMock(return_value=configs),
+            ),
+        ):
+            manifest = await _build_eval_manifest(
+                profile_id="builder",
+                dataset_id="wb-bench-code",
+                cases_path=Path("/nonexistent.jsonl"),
+                benchmark_mode=True,
+                external_cases=[FakeTurn()],
+            )
+
+        # Profile declares no model: falls back to the bare model_cfg label.
+        assert manifest.model_provider == "unknown"
+        assert manifest.model_id == "gpt-4o"
+
 
 class FakeJsonlReporter:
     """Writes a real file so the suite's copy2/latest steps can run."""

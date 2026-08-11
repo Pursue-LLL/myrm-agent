@@ -18,5 +18,6 @@ Obsidian 集成域子包 — 导入适配与导出 presets。
 
 ## 依赖
 
-- `myrm_agent_harness.toolkits.wiki.core.frontmatter` — `parse_frontmatter` (POS: frontmatter SSOT)
+- `myrm_agent_harness.utils.markdown_frontmatter` — `parse_frontmatter` (POS: frontmatter SSOT)
+- `myrm_agent_harness.toolkits.wiki.core.frontmatter_contract` — `infer_type_for_import` / `serialize_frontmatter` (POS: wiki page type gate SSOT)
 - `app.services.wiki.vault` — vault 路径与 export 目标

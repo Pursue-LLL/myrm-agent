@@ -489,6 +489,7 @@ myrm_agent_harness.utils.image_utils
 myrm_agent_harness.utils.locale
 myrm_agent_harness.utils.log_rotation
 myrm_agent_harness.utils.logger_utils
+myrm_agent_harness.utils.markdown_frontmatter
 myrm_agent_harness.utils.media
 myrm_agent_harness.utils.media.image_compressor
 myrm_agent_harness.utils.mime_types
