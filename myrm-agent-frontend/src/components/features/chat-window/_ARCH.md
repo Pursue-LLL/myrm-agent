@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `AgentInfoBanner.tsx` | 组件 | 当前 Agent 信息横幅：头像+名称+描述+会话内切换下拉；设置快捷入口跳转 `/settings/wiki?agentId=` | ✅ |
-| `AgentWorkMap.tsx` | 组件 | ReactFlow 子代理/Goal 工作拓扑可视化 | ✅ |
+| `AgentWorkMap.tsx` | 组件 | 长任务拓扑画布（Task Tray「画布」tab）：ReactFlow+dagre 渲染 subagent 树/fission 拓扑；墓碑（failed/cancelled 红高亮+error）、焦点（running 脉冲）、进度条、cost/tokens/耗时元数据、空态；数据源 `taskTopologyModel` | ✅ |
 | `BudgetBadge.tsx` | 组件 | 输入区旁会话/日预算用量微型进度指示（eco 模式叶标） | ✅ |
 | `Chat.tsx` | 核心 | 消息列表容器：虚拟滚动阈值、JumpBar、审批 attention bar | ✅ |
 | `ChatWindow.tsx` | 核心 | 主对话窗口入口：EmptyChat 与 Chat/ArtifactPortal 分轨 dynamic import；URL 深链 `restore_arg` / `approval`（Web Push 点击）；chips 行集成 `SessionRevertButton`（会话级文件 Undo）；`RunStatusChip` + `SessionAdvisorPanel`（Co-Pilot） | ✅ |
@@ -49,7 +49,7 @@
 | `ExtensionDisconnectedBanner.tsx` | 组件/模块 | Extension 断开警告横幅（条件性：仅 browserSource=extension 且未连接时显示，可 dismiss，SSE 驱动） | ✅ |
 | `ExtensionTakeoverBanner.tsx` | 组件/模块 | 外部浏览器 HITL 横幅（harness `is_managed=false` → `uiMode=extension`：CDP/auto/extension 均 in-chat 引导本地 Chrome + Done/Skip；支持打开/复制签名远程接管链接；CAPTCHA auto_detect 时隐藏按钮） | ✅ |
 | `SessionTrashPanel.tsx` | 组件 | 软删除会话回收站面板（恢复/永久删除） | ✅ |
-| `SubagentDashboard.tsx` | 核心 | 子代理控制面板：树形视图、排序/过滤、预算 token/cost 已用上限（`extractBudgetTokens`/`extractMaxCostUsd`）、甘特图、取消/steer/resume、overtime/stale 告警、teammate 消息 | ✅ |
+| `SubagentDashboard.tsx` | 核心 | 子代理控制面板：三视图 tab（树/Gantt/画布）；树形视图、排序/过滤、预算 token/cost 已用上限（`extractBudgetTokens`/`extractMaxCostUsd`）、甘特图、取消/steer/resume、overtime/stale 告警、teammate 消息；画布 tab 挂载 `AgentWorkMap` | ✅ |
 | `AgentToolDiagnostics.tsx` | 组件 | Agent 工具健康诊断弹窗（tool 成功率/耗时） | ✅ |
 | `SubagentPromptButton.tsx` | 组件 | 子代理 prompt 入口按钮（5s 倒计时自动 sendMessage） | ✅ |
 | `ToolApprovalExpiryWatcher.tsx` | 组件/模块 | 工具审批过期 watcher（queue 过期 toast） | ✅ |

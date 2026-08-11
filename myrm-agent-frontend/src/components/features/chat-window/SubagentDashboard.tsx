@@ -35,12 +35,14 @@ import {
   ArrowUpDown,
   Filter,
   BarChart3,
+  ListTree,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithTimeout } from '@/lib/api';
 import { normalizeTeammateEntry } from '@/lib/utils/teammateMessage';
 import type { TeammateMessageEntry } from '@/store/chat/useSubagentStore';
 import { AgentToolDiagnostics } from './AgentToolDiagnostics';
+import AgentWorkMap from './AgentWorkMap';
 import {
   buildTree,
   treeTotals,
@@ -704,6 +706,32 @@ const HeaderSummary = ({ nodes, t }: { nodes: TreeNode[]; t: (key: string) => st
   );
 };
 
+// ── View Tabs ───────────────────────────────────────────────────────
+
+const ViewTab = ({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: typeof Network;
+  label: string;
+}) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border transition-colors ${
+      active
+        ? 'bg-primary text-primary-foreground border-primary'
+        : 'bg-transparent text-muted-foreground border-border/50 hover:bg-muted'
+    }`}
+  >
+    <Icon className="w-3.5 h-3.5" />
+    {label}
+  </button>
+);
+
 export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) => {
   const t = useTranslations('subagentDashboard');
   const [open, setOpen] = useState(false);
@@ -711,6 +739,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   const [delegationPaused, setDelegationPaused] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('spawn');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [viewMode, setViewMode] = useState<'tree' | 'canvas'>('tree');
   const nodes = useSubagentStore((s) => s.nodes);
   const fissionBatch = useSubagentStore((s) => s.fissionBatch);
   const storeChatId = useChatStore((s) => s.chatId);
@@ -904,6 +933,15 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
             </div>
           </div>
         </SheetHeader>
+        <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-border/30">
+          <ViewTab active={viewMode === 'tree'} onClick={() => setViewMode('tree')} icon={ListTree} label={t('treeTab')} />
+          <ViewTab active={viewMode === 'canvas'} onClick={() => setViewMode('canvas')} icon={Network} label={t('canvasTab')} />
+        </div>
+        {viewMode === 'canvas' ? (
+          <div className="flex-1 min-h-0">
+            <AgentWorkMap chatId={chatId || undefined} />
+          </div>
+        ) : (
         <ScrollArea className="flex-1 p-4">
           <div className="flex flex-col pb-10">
             {Object.keys(nodes).length > 1 && (
@@ -947,6 +985,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
             ))}
           </div>
         </ScrollArea>
+        )}
       </SheetContent>
       <ConfirmDialog
         open={stopAllOpen}

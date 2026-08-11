@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -15,21 +15,28 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from '@dagrejs/dagre';
-import { useSubagentStore, type FissionTopologyNode } from '@/store/chat/useSubagentStore';
-import useChatStore from '@/store/useChatStore';
+import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
+import {
+  buildTopologyModel,
+  buildFissionTopologyModel,
+  type TopologyModel,
+  type TopologyNodeData,
+  type TopologyTone,
+} from '@/lib/utils/taskTopologyModel';
+import { fmtCost, fmtTokens } from '@/lib/utils/subagentTree';
+import { useTranslations } from 'next-intl';
 import { Bot, CheckCircle2, CircleDashed, Loader2, XCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/primitives/badge';
 import { Card } from '@/components/primitives/card';
 
 const NODE_WIDTH = 280;
-const NODE_HEIGHT = 120;
+const NODE_HEIGHT = 130;
 
 function getLayoutedElements(nodes: Node[], edges: Edge[], direction = 'TB') {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({ rankdir: direction });
-  const isHorizontal = direction === 'LR';
 
   for (const node of nodes) {
     g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
@@ -44,8 +51,8 @@ function getLayoutedElements(nodes: Node[], edges: Edge[], direction = 'TB') {
     const pos = g.node(node.id);
     return {
       ...node,
-      targetPosition: isHorizontal ? Position.Left : Position.Top,
-      sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
+      targetPosition: Position.Top,
+      sourcePosition: Position.Bottom,
       position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 },
     };
   });
@@ -53,81 +60,89 @@ function getLayoutedElements(nodes: Node[], edges: Edge[], direction = 'TB') {
   return { nodes: layoutedNodes, edges };
 }
 
-interface SubagentNodeData extends FissionTopologyNode {
-  [key: string]: unknown;
+const STATUS_ICON: Record<string, { icon: typeof Loader2; className: string; spin?: boolean }> = {
+  pending: { icon: CircleDashed, className: 'text-slate-400' },
+  running: { icon: Loader2, className: 'text-blue-500', spin: true },
+  verifying: { icon: Loader2, className: 'text-purple-500', spin: true },
+  completed: { icon: CheckCircle2, className: 'text-green-500' },
+  failed: { icon: XCircle, className: 'text-red-500' },
+  timed_out: { icon: AlertCircle, className: 'text-orange-500' },
+  cancelled: { icon: XCircle, className: 'text-muted-foreground' },
+  cancelled_by_budget: { icon: XCircle, className: 'text-orange-500' },
+  pending_approval: { icon: AlertCircle, className: 'text-yellow-500' },
+  yielded: { icon: CircleDashed, className: 'text-muted-foreground' },
+  interrupted: { icon: AlertCircle, className: 'text-orange-500' },
+  checkpoint: { icon: CircleDashed, className: 'text-muted-foreground' },
+};
+
+const TONE_BORDER: Record<TopologyTone, string> = {
+  active: 'border-blue-500',
+  pending: 'border-yellow-400',
+  success: 'border-green-500',
+  danger: 'border-red-500',
+  warning: 'border-purple-400',
+  muted: 'border-border',
+};
+
+const TONE_PROGRESS_BAR: Record<TopologyTone, string> = {
+  active: 'bg-blue-500',
+  pending: 'bg-yellow-400',
+  success: 'bg-green-500',
+  danger: 'bg-red-500',
+  warning: 'bg-purple-400',
+  muted: 'bg-gray-400',
+};
+
+function formatDuration(totalSeconds: number): string {
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return '';
+  if (totalSeconds < 60) return `${Math.round(totalSeconds)}s`;
+  const min = Math.floor(totalSeconds / 60);
+  const sec = Math.round(totalSeconds % 60);
+  return `${min}m${sec}s`;
 }
 
-function CustomNode({ data }: NodeProps<Node<SubagentNodeData>>) {
-  const { objective, status, agent_type, cost_usd, error } = data;
-
-  const StatusIcon = {
-    pending: CircleDashed,
-    running: Loader2,
-    verifying: Loader2,
-    completed: CheckCircle2,
-    failed: XCircle,
-    timed_out: XCircle,
-    cancelled: XCircle,
-    cancelled_by_budget: XCircle,
-    pending_approval: AlertCircle,
-    yielded: CircleDashed,
-    interrupted: AlertCircle,
-    checkpoint: CircleDashed,
-    paused: AlertCircle,
-  }[status as string] || CircleDashed;
-
-  const statusColor = {
-    pending: 'text-muted-foreground',
-    running: 'text-blue-500 animate-spin',
-    verifying: 'text-purple-500 animate-spin',
-    completed: 'text-green-500',
-    failed: 'text-red-500',
-    timed_out: 'text-orange-500',
-    cancelled: 'text-muted-foreground',
-    cancelled_by_budget: 'text-orange-500',
-    pending_approval: 'text-yellow-500',
-    yielded: 'text-muted-foreground',
-    interrupted: 'text-orange-500',
-    checkpoint: 'text-muted-foreground',
-    paused: 'text-yellow-500',
-  }[status as string] || 'text-muted-foreground';
-
-  const borderColor = {
-    pending: 'border-border',
-    running: 'border-blue-500',
-    verifying: 'border-purple-500',
-    completed: 'border-green-500',
-    failed: 'border-red-500',
-    timed_out: 'border-orange-500',
-    cancelled: 'border-border',
-    cancelled_by_budget: 'border-orange-500',
-    pending_approval: 'border-yellow-500',
-    yielded: 'border-border',
-    interrupted: 'border-orange-500',
-    checkpoint: 'border-border',
-    paused: 'border-yellow-500',
-  }[status as string] || 'border-border';
+function CustomNode({ data }: NodeProps<Node<TopologyNodeData & Record<string, unknown>>>) {
+  const { label, agentType, status, tone, progress, costUsd, tokens, durationSeconds, error, isRoot } = data;
+  const config = STATUS_ICON[status] ?? { icon: CircleDashed, className: 'text-muted-foreground' };
+  const StatusIcon = config.icon;
 
   return (
-    <Card className={cn("w-[280px] p-4 shadow-md bg-background flex flex-col gap-3", borderColor)}>
+    <Card className={cn('w-[280px] p-3.5 shadow-md bg-background flex flex-col gap-2.5', TONE_BORDER[tone])}>
       <Handle type="target" position={Position.Top} className="w-2 h-2" />
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bot className="w-4 h-4 text-muted-foreground" />
-          <span className="font-semibold text-sm truncate">{agent_type}</span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {isRoot ? (
+            <Bot className="w-4 h-4 shrink-0 text-primary" />
+          ) : (
+            <Bot className="w-4 h-4 shrink-0 text-muted-foreground" />
+          )}
+          <span className="font-semibold text-sm truncate">{isRoot ? label : agentType}</span>
         </div>
-        <StatusIcon className={cn("w-4 h-4", statusColor)} />
+        <StatusIcon className={cn('w-4 h-4 shrink-0', config.className, config.spin && 'animate-spin')} />
       </div>
-      <p className="text-xs text-muted-foreground line-clamp-2" title={objective}>
-        {objective}
+      <p className="text-xs text-muted-foreground line-clamp-2" title={label}>
+        {label}
       </p>
-      <div className="flex items-center justify-between mt-auto">
+      {progress != null && Number.isFinite(progress) && (
+        <div className="flex items-center gap-1.5">
+          <div className="flex-1 h-1.5 bg-muted/40 rounded-full overflow-hidden">
+            <div
+              className={cn('h-full rounded-full transition-all duration-500', TONE_PROGRESS_BAR[tone])}
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <span className="text-[10px] text-muted-foreground tabular-nums">{Math.round(progress)}%</span>
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-2 mt-auto">
         <Badge variant="outline" className="text-[10px]">
           {status}
         </Badge>
-        {cost_usd !== undefined && cost_usd > 0 && (
-          <span className="text-[10px] text-muted-foreground">${cost_usd.toFixed(4)}</span>
-        )}
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground tabular-nums">
+          {costUsd > 0 && <span>{fmtCost(costUsd)}</span>}
+          {tokens > 0 && <span>{fmtTokens(tokens)} tok</span>}
+          {formatDuration(durationSeconds) && <span>{formatDuration(durationSeconds)}</span>}
+        </div>
       </div>
       {error && (
         <p className="text-[10px] text-red-500 line-clamp-1" title={error}>
@@ -139,108 +154,131 @@ function CustomNode({ data }: NodeProps<Node<SubagentNodeData>>) {
   );
 }
 
-const nodeTypes = {
-  custom: CustomNode,
+const nodeTypes = { custom: CustomNode };
+
+const TopologySummary = ({ model }: { model: TopologyModel }) => {
+  const t = useTranslations('subagentDashboard');
+  const parts: string[] = [`${model.nodes.length} ${t('agents')}`];
+  if (model.activeCount > 0) parts.push(`${model.activeCount} ${t('active')}`);
+  if (model.failedCount > 0) parts.push(`${model.failedCount} ${t('failed')}`);
+  const cost = fmtCost(model.totalCostUsd);
+  if (cost) parts.push(cost);
+  if (model.totalTokens > 0) parts.push(`${fmtTokens(model.totalTokens)} tok`);
+  const duration = formatDuration(model.totalDurationSeconds);
+  if (duration) parts.push(duration);
+  if (parts.length === 0) return null;
+  return (
+    <div className="px-4 pt-2 pb-1 text-[11px] text-muted-foreground border-b border-border/30">
+      {parts.join(' · ')}
+    </div>
+  );
 };
 
-export const AgentWorkMap = () => {
-  const fissionTopology = useSubagentStore((state) => state.fissionTopology);
-  const setFissionTopology = useSubagentStore((state) => state.setFissionTopology);
-  const chatId = useChatStore((state) => state.chatId);
+interface AgentWorkMapProps {
+  chatId?: string;
+}
 
+export const AgentWorkMap = ({ chatId: chatIdProp }: AgentWorkMapProps) => {
+  const t = useTranslations('subagentDashboard');
+  const nodesMap = useSubagentStore((s) => s.nodes);
+  const fissionTopology = useSubagentStore((s) => s.fissionTopology);
+  const setFissionTopology = useSubagentStore((s) => s.setFissionTopology);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  // Fetch initial topology on mount
+  const subagentNodes = useMemo<SubagentNode[]>(() => Object.values(nodesMap), [nodesMap]);
+
+  const model = useMemo<TopologyModel>(() => {
+    if (subagentNodes.length > 0) return buildTopologyModel(subagentNodes);
+    return buildFissionTopologyModel(fissionTopology);
+  }, [subagentNodes, fissionTopology]);
+
+  // Fetch persisted fission topology once when the canvas mounts (Task Tray tab).
   useEffect(() => {
-    if (chatId) {
-      import('@/services/chat').then(({ getFissionTopology }) => {
-        getFissionTopology(chatId).then((topology) => {
-          if (topology) {
-            setFissionTopology({
-              fission_id: topology.fission_id,
-              nodes: topology.nodes,
-              total_cost_usd: topology.total_cost_usd,
-            });
-          }
-        });
+    if (!chatIdProp) return;
+    import('@/services/chat').then(({ getFissionTopology }) => {
+      getFissionTopology(chatIdProp).then((topology) => {
+        if (topology) {
+          setFissionTopology({
+            fission_id: topology.fission_id,
+            nodes: topology.nodes,
+            total_cost_usd: topology.total_cost_usd,
+          });
+        }
       });
-    }
-  }, [chatId, setFissionTopology]);
+    });
+  }, [chatIdProp, setFissionTopology]);
+
+  const nodeById = useMemo(() => {
+    const m = new Map<string, TopologyNodeData>();
+    for (const n of model.nodes) m.set(n.taskId, n);
+    return m;
+  }, [model]);
 
   useEffect(() => {
-    if (!fissionTopology) {
+    if (model.nodes.length === 0) {
       setNodes([]);
       setEdges([]);
       return;
     }
 
-    const initialNodes: Node[] = [
-      {
-        id: 'root',
-        type: 'default',
-        data: { label: `Fission Batch: ${fissionTopology.fission_id.slice(0, 8)}...` },
-        position: { x: 0, y: 0 },
-        className: 'font-semibold !bg-primary/10 !border-primary text-primary shadow-sm rounded-lg',
-      },
-    ];
+    const initialNodes: Node[] = model.nodes.map((n) => ({
+      id: n.taskId,
+      type: 'custom',
+      data: { ...n },
+      position: { x: 0, y: 0 },
+      className: n.isRoot ? '!bg-primary/10' : undefined,
+    }));
 
-    const initialEdges: Edge[] = [];
-
-    fissionTopology.nodes.forEach((node) => {
-      initialNodes.push({
-        id: node.node_id,
-        type: 'custom',
-        data: { ...node },
-        position: { x: 0, y: 0 },
+    const initialEdges: Edge[] = model.edges
+      .filter((e) => nodeById.has(e.source) && nodeById.has(e.target))
+      .map((e) => {
+        const target = nodeById.get(e.target);
+        return {
+          id: `edge-${e.source}-${e.target}`,
+          source: e.source,
+          target: e.target,
+          type: 'smoothstep',
+          animated: target?.tone === 'active',
+          markerEnd: { type: MarkerType.ArrowClosed, color: 'currentColor' },
+          style: { stroke: 'currentColor', opacity: 0.5 },
+        };
       });
 
-      initialEdges.push({
-        id: `edge-root-${node.node_id}`,
-        source: 'root',
-        target: node.node_id,
-        type: 'smoothstep',
-        animated: node.status === 'running',
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: 'currentColor',
-        },
-        style: { stroke: 'currentColor', opacity: 0.5 },
-      });
-    });
+    const layout = getLayoutedElements(initialNodes, initialEdges);
+    setNodes(layout.nodes);
+    setEdges(layout.edges);
+  }, [model, nodeById, setNodes, setEdges]);
 
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-      initialNodes,
-      initialEdges
+  if (model.nodes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[320px] gap-2 text-muted-foreground">
+        <Bot className="w-8 h-8 opacity-40" />
+        <p className="text-sm">{t('canvasEmpty')}</p>
+        <p className="text-xs">{t('canvasEmptyHint')}</p>
+      </div>
     );
-
-    setNodes(layoutedNodes);
-    setEdges(layoutedEdges);
-  }, [fissionTopology, setNodes, setEdges]);
-
-  if (!fissionTopology) return null;
+  }
 
   return (
-    <div className="w-full h-[400px] border rounded-lg overflow-hidden bg-dot-pattern bg-background relative my-4">
-      <div className="absolute top-4 left-4 z-10 bg-background/80 backdrop-blur-sm p-2 rounded-md border shadow-sm flex flex-col gap-1 pointer-events-none">
-        <h3 className="font-semibold text-sm">Agent Work Map</h3>
-        <p className="text-xs text-muted-foreground">
-          Total Cost: <span className="font-mono">${fissionTopology.total_cost_usd.toFixed(4)}</span>
-        </p>
+    <div className="flex flex-col h-[440px]">
+      <TopologySummary model={model} />
+      <div className="flex-1 bg-dot-pattern bg-background relative min-h-0 overflow-hidden">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
+          fitView
+          minZoom={0.2}
+          attributionPosition="bottom-right"
+        >
+          <Controls />
+          <MiniMap zoomable pannable nodeClassName="bg-primary/20" />
+          <Background gap={12} size={1} />
+        </ReactFlow>
       </div>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
-        fitView
-        attributionPosition="bottom-right"
-      >
-        <Controls />
-        <MiniMap zoomable pannable nodeClassName="bg-primary/20" />
-        <Background gap={12} size={1} />
-      </ReactFlow>
     </div>
   );
 };

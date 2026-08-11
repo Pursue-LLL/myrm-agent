@@ -1,0 +1,185 @@
+/**
+ * [POS] Task topology model. Pure functions that turn live subagent tree /
+ *       fission topology data into a renderable ReactFlow graph model.
+ * [INPUT] useSubagentStore::SubagentNode / FissionTopology
+ * [OUTPUT] buildTopologyModel, buildFissionTopologyModel, toneForStatus,
+ *       truncateLabel, TopologyModel, TopologyNodeData, TopologyTone
+ */
+import type { FissionTopology, SubagentNode } from '@/store/chat/useSubagentStore';
+import { extractCostUsd, extractTotalTokens } from './subagentTree';
+
+// ── Types ────────────────────────────────────────────────────────────
+
+/** Semantic tone used to style a topology node (border / icon / pulse). */
+export type TopologyTone = 'active' | 'pending' | 'success' | 'danger' | 'warning' | 'muted';
+
+export interface TopologyNodeData {
+  taskId: string;
+  label: string;
+  agentType: string;
+  status: string;
+  tone: TopologyTone;
+  /** 0-100, null when unknown */
+  progress: number | null;
+  costUsd: number;
+  tokens: number;
+  durationSeconds: number;
+  error?: string;
+  parentTaskId?: string;
+  /** Fission fallback root marker */
+  isRoot?: boolean;
+}
+
+export interface TopologyEdgeData {
+  source: string;
+  target: string;
+}
+
+export interface TopologyModel {
+  nodes: TopologyNodeData[];
+  edges: TopologyEdgeData[];
+  activeCount: number;
+  failedCount: number;
+  totalTokens: number;
+  totalCostUsd: number;
+  totalDurationSeconds: number;
+}
+
+export const MAX_LABEL_LENGTH = 60;
+
+const FISSION_ROOT_ID = 'fission-root';
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+/** Strip long free-text labels so dagre/mermaid-safe single-line graph labels stay readable. */
+export function truncateLabel(text: string, maxLength = MAX_LABEL_LENGTH): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  return `${trimmed.slice(0, maxLength - 1)}…`;
+}
+
+export function toneForStatus(status: string): TopologyTone {
+  switch (status) {
+    case 'running':
+    case 'verifying':
+      return 'active';
+    case 'pending':
+    case 'pending_approval':
+    case 'checkpoint':
+      return 'pending';
+    case 'completed':
+      return 'success';
+    case 'failed':
+    case 'timed_out':
+    case 'interrupted':
+    case 'cancelled':
+    case 'cancelled_by_budget':
+      return 'danger';
+    case 'yielded':
+      return 'warning';
+    default:
+      return 'muted';
+  }
+}
+
+function emptyTopologyModel(): TopologyModel {
+  return {
+    nodes: [],
+    edges: [],
+    activeCount: 0,
+    failedCount: 0,
+    totalTokens: 0,
+    totalCostUsd: 0,
+    totalDurationSeconds: 0,
+  };
+}
+
+// ── Builders ─────────────────────────────────────────────────────────
+
+/** Build a graph from the live subagent tree. Dangling parents are dropped. */
+export function buildTopologyModel(nodes: SubagentNode[]): TopologyModel {
+  const model = emptyTopologyModel();
+  if (nodes.length === 0) return model;
+
+  const map: Record<string, TopologyNodeData> = {};
+  for (const n of nodes) {
+    const tone = toneForStatus(n.status);
+    const data: TopologyNodeData = {
+      taskId: n.task_id,
+      label: truncateLabel(n.description || n.agent_type || n.task_id),
+      agentType: n.agent_type,
+      status: n.status,
+      tone,
+      progress: Number.isFinite(n.progress) ? n.progress : null,
+      costUsd: extractCostUsd(n),
+      tokens: extractTotalTokens(n),
+      durationSeconds: n.duration_seconds ?? 0,
+      error: n.error,
+      parentTaskId: n.parent_task_id || undefined,
+    };
+    map[n.task_id] = data;
+    model.nodes.push(data);
+
+    if (tone === 'active') model.activeCount++;
+    if (tone === 'danger') model.failedCount++;
+    model.totalTokens += data.tokens;
+    model.totalCostUsd += data.costUsd;
+    model.totalDurationSeconds += data.durationSeconds;
+  }
+
+  for (const n of nodes) {
+    const parentId = n.parent_task_id;
+    if (parentId && map[parentId]) {
+      model.edges.push({ source: parentId, target: n.task_id });
+    }
+  }
+
+  return model;
+}
+
+/**
+ * Fallback model for the persisted fission topology when no live subagent
+ * tree exists (e.g. after reload where the runtime has no in-memory state).
+ */
+export function buildFissionTopologyModel(topology: FissionTopology | null): TopologyModel {
+  const model = emptyTopologyModel();
+  if (!topology || topology.nodes.length === 0) return model;
+
+  model.nodes.push({
+    taskId: FISSION_ROOT_ID,
+    label: truncateLabel(topology.fission_id.slice(0, 8), 16),
+    agentType: 'orchestrator',
+    status: 'running',
+    tone: 'active',
+    progress: null,
+    costUsd: 0,
+    tokens: 0,
+    durationSeconds: 0,
+    isRoot: true,
+  });
+
+  for (const n of topology.nodes) {
+    const tone = toneForStatus(n.status);
+    const data: TopologyNodeData = {
+      taskId: n.node_id,
+      label: truncateLabel(n.objective || n.agent_type || n.node_id),
+      agentType: n.agent_type,
+      status: n.status,
+      tone,
+      progress: null,
+      costUsd: n.cost_usd ?? 0,
+      tokens: 0,
+      durationSeconds: 0,
+      error: n.error ?? undefined,
+      parentTaskId: FISSION_ROOT_ID,
+    };
+    model.nodes.push(data);
+    model.edges.push({ source: FISSION_ROOT_ID, target: n.node_id });
+
+    if (tone === 'active') model.activeCount++;
+    if (tone === 'danger') model.failedCount++;
+    model.totalCostUsd += data.costUsd;
+  }
+
+  return model;
+}
