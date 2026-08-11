@@ -192,15 +192,18 @@ const TopologySummary = ({ model }: { model: TopologyModel }) => {
 
 interface AgentWorkMapProps {
   chatId?: string;
+  /** Called when a topology node is clicked, with the node task id. */
+  onNodeClick?: (taskId: string) => void;
 }
 
-export const AgentWorkMap = ({ chatId: chatIdProp }: AgentWorkMapProps) => {
+export const AgentWorkMap = ({ chatId: chatIdProp, onNodeClick }: AgentWorkMapProps) => {
   const t = useTranslations('subagentDashboard');
   const nodesMap = useSubagentStore((s) => s.nodes);
   const fissionTopology = useSubagentStore((s) => s.fissionTopology);
   const setFissionTopology = useSubagentStore((s) => s.setFissionTopology);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const rfRef = useRef<ReactFlowInstance | null>(null);
 
   const subagentNodes = useMemo<SubagentNode[]>(() => Object.values(nodesMap), [nodesMap]);
 
@@ -267,6 +270,11 @@ export const AgentWorkMap = ({ chatId: chatIdProp }: AgentWorkMapProps) => {
     const layout = getLayoutedElements(initialNodes, initialEdges);
     setNodes(layout.nodes);
     setEdges(layout.edges);
+    // Follow the latest topology: after dagre relayout, newly added branches may
+    // sit outside the current viewport, so refit the canvas to the whole graph.
+    requestAnimationFrame(() => {
+      rfRef.current?.fitView({ padding: 0.25, duration: 300, maxZoom: 1.2 });
+    });
   }, [nodeIdKey, setNodes, setEdges]);
 
   // Data pass: progress/status/meta updates refresh node data and edge animation
@@ -304,12 +312,16 @@ export const AgentWorkMap = ({ chatId: chatIdProp }: AgentWorkMapProps) => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
+          onInit={(instance) => {
+            rfRef.current = instance;
+          }}
+          onNodeClick={(_, node) => onNodeClick?.(node.id)}
           fitView
           minZoom={0.2}
           attributionPosition="bottom-right"
         >
           <Controls />
-          <MiniMap zoomable pannable nodeClassName="bg-primary/20" />
+          <MiniMap zoomable pannable nodeClassName="bg-primary/20" className="hidden sm:block" />
           <Background gap={12} size={1} />
         </ReactFlow>
       </div>

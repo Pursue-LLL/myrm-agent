@@ -5994,8 +5994,7 @@
     "batchDirectories": "批次目錄",
     "extensionConnected": "瀏覽器擴充套件已連線",
     "extensionDisconnected": "瀏覽器擴充套件未連線",
-    "remoteGateway": "已連接遠程伺服器",
-    "batchDirectories": "批次目錄"
+    "remoteGateway": "已連接遠程伺服器"
   },
   "health": {
     "title": "系統診斷",
@@ -14398,6 +14397,7 @@
     "canvasTab": "畫布",
     "canvasEmpty": "暫無任務可視覺化",
     "canvasEmptyHint": "智能體派發子任務後，畫布將自動顯示。",
+    "canvasLocateFail": "該節點位於已摺疊分支或裂變群組中，無法在樹狀檢視中定位。",
     "agents": "代理",
     "active": "運行中",
     "failed": "失敗",
@@ -16174,6 +16174,25 @@
     "confirmRerunDescription": "所有目錄將使用原始提示詞重新執行，歷史結果會保留。",
     "confirmRerunAction": "全部重跑",
     "rerunSuccess": "已重新排隊 {count} 個目錄",
-    "rerunError": "重跑批次失敗"
+    "rerunError": "重跑批次失敗",
+    "statusPaused": "已暫停",
+    "pauseAction": "暫停",
+    "pauseSuccess": "已暫停 — 凍結 {count} 個目錄",
+    "pauseError": "暫停批次失敗",
+    "confirmPauseTitle": "暫停「{name}」？",
+    "confirmPauseDescription": "剩餘目錄將立即停止執行。已完成結果會保留，之後可恢復或取消。",
+    "confirmPauseAction": "暫停",
+    "resumeAction": "恢復",
+    "resumeSuccess": "已恢復 — {count} 個目錄繼續執行",
+    "resumeError": "恢復批次失敗",
+    "approveAllAction": "接收全部（{count}）",
+    "approveAllSuccess": "已接收 {count} 個結果",
+    "approveAllError": "接收結果失敗",
+    "confirmApproveAllTitle": "接收全部 {count} 個結果？",
+    "confirmApproveAllDescription": "所有待確認結果將標記為已接收。你仍可在工作台逐條審查每個任務。",
+    "confirmApproveAllAction": "接收全部",
+    "pausedHint": "已暫停 — {count} 個目錄已凍結，恢復後將繼續執行。",
+    "openDetailLabel": "開啟專案 {name}",
+    "deleteLabel": "刪除專案 {name}"
   }
 }

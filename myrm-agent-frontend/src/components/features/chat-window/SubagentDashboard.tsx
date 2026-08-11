@@ -291,7 +291,10 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
   }, [node.task_id, setOpen, t]);
 
   return (
-    <div className="flex flex-col gap-2 my-2 ml-4 border-l pl-2 border-gray-200 dark:border-gray-800">
+    <div
+      data-subagent-tree-id={node.task_id}
+      className="flex flex-col gap-2 my-2 ml-4 border-l pl-2 border-gray-200 dark:border-gray-800"
+    >
       <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900 rounded-full border text-sm">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <button
@@ -740,6 +743,24 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   const [sortMode, setSortMode] = useState<SortMode>('spawn');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [viewMode, setViewMode] = useState<'tree' | 'canvas'>('tree');
+
+  // Canvas → tree bridge: locate the clicked node in the tree view.
+  const handleCanvasNodeClick = useCallback(
+    (taskId: string) => {
+      setViewMode('tree');
+      requestAnimationFrame(() => {
+        const el = document.querySelector(`[data-subagent-tree-id="${taskId}"]`);
+        if (el instanceof HTMLElement) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg', 'transition-all');
+          setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg'), 2000);
+        } else {
+          toast.error(t('canvasLocateFail'));
+        }
+      });
+    },
+    [t],
+  );
   const nodes = useSubagentStore((s) => s.nodes);
   const fissionBatch = useSubagentStore((s) => s.fissionBatch);
   const storeChatId = useChatStore((s) => s.chatId);
@@ -939,7 +960,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
         </div>
         {viewMode === 'canvas' ? (
           <div className="flex-1 min-h-0">
-            <AgentWorkMap chatId={chatId || undefined} />
+            <AgentWorkMap chatId={chatId || undefined} onNodeClick={handleCanvasNodeClick} />
           </div>
         ) : (
         <ScrollArea className="flex-1 p-4">
