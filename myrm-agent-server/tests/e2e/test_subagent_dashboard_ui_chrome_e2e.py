@@ -222,6 +222,34 @@ def test_subagent_dashboard_stop_all_confirms_and_cancels(
             timeout_sec=30.0,
         )
         assert stop_all.get("hasBtn") is True, f"Stop-all button missing: {stop_all}"
+        hooked = client.evaluate(
+            page,
+            """(() => {
+              window.__diagFetch = [];
+              const orig = window.fetch.bind(window);
+              window.fetch = async (...args) => {
+                const urlStr = String(args[0]);
+                if (urlStr.includes('cancel-all')) {
+                  try {
+                    const resp = await orig(...args);
+                    window.__diagFetch.push({
+                      url: urlStr,
+                      status: resp.status,
+                      body: (await resp.clone().text()).slice(0, 200),
+                    });
+                    return resp;
+                  } catch (error) {
+                    window.__diagFetch.push({ url: urlStr, err: String(error) });
+                    throw error;
+                  }
+                }
+                return orig(...args);
+              };
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert hooked is True, "fetch hook install failed"
         clicked = client.evaluate(
             page,
             """(() => {
@@ -260,12 +288,13 @@ def test_subagent_dashboard_stop_all_confirms_and_cancels(
             page,
             """(() => {
               const store = window.__myrmSubagentStore?.getState?.();
-              if (!store) return { ready: false, reason: 'store missing' };
+              if (!store) return { ready: false, reason: 'store missing', diagFetch: window.__diagFetch ?? [] };
               const nodes = store.nodes ?? {};
               const all = Object.values(nodes);
               return {
                 ready: all.length > 0 && all.every((n) => n.status === 'cancelled'),
                 statuses: all.map((n) => n.status),
+                diagFetch: window.__diagFetch ?? [],
               };
             })()""",
             timeout_sec=30.0,

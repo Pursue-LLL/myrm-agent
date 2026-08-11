@@ -153,7 +153,10 @@ const DiagnosticTrendSection = ({
     <div className="rounded-lg border border-border/50 bg-background/70 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs font-medium text-foreground">{t('commandCenter.doctorTrendTitle')}</span>
-        <span className="text-[10px] text-muted-foreground">{t('commandCenter.doctorTrendRuns', { count: points.length })}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {latest.status !== 'ready' && <StatusPill status={latest.status} t={t} />}
+          <span className="text-[10px] text-muted-foreground">{t('commandCenter.doctorTrendRuns', { count: points.length })}</span>
+        </div>
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         {TREND_METRICS.map((metric) => (

@@ -25,9 +25,15 @@ from myrm_agent_harness.backends.skills.scanning.archive_security import (
     classify_archive_security_issue,
     format_archive_security_user_message,
 )
-from pydantic import BaseModel
 
 from app.api.skills._deploy_capability import require_local_skills_capability
+from app.api.skills.batch_import_schemas import (
+    ConfirmImportItem,
+    ConfirmImportRequest,
+    ConfirmImportResponse,
+    ImportPreviewResponse,
+    ImportPreviewSkillItem,
+)
 from app.api.skills.evolution.helpers import _get_skill_store
 
 logger = logging.getLogger(__name__)
@@ -56,42 +62,6 @@ def _build_batch_import_error_detail(
         "message": message,
         "error_code": violation.code.value if violation is not None else "",
     }
-
-
-class ImportPreviewSkillItem(BaseModel):
-    name: str
-    description: str
-    conflict_type: Literal["none", "conflict"]
-    existing_skill_id: str | None = None
-    # 将 ZIP 中的相对路径作为内部索引
-    virtual_id: str
-    # 新增前置安全扫描结果
-    security_issues: str | None = None
-
-
-class ImportPreviewResponse(BaseModel):
-    session_id: str
-    items: list[ImportPreviewSkillItem]
-    total_found: int
-    total_conflicts: int
-
-
-class ConfirmImportItem(BaseModel):
-    virtual_id: str
-    name: str
-    description: str
-    resolution: Literal["replace", "rename_cow", "skip", "new"]
-    existing_skill_id: str | None = None
-
-
-class ConfirmImportRequest(BaseModel):
-    session_id: str
-    items: list[ConfirmImportItem]
-
-
-class ConfirmImportResponse(BaseModel):
-    imported_count: int
-    skipped_count: int
 
 
 @router.post("/preview", response_model=ImportPreviewResponse)

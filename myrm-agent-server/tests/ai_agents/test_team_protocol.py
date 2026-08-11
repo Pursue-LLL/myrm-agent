@@ -214,6 +214,75 @@ class TestResolveRosterDynamicDiscovery:
         assert result == []
         mock_list.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_dynamic_discovery_caps_at_fifteen(self):
+        """The dynamic roster must stop after the cap of 15 discoverable agents."""
+        profiles = [
+            self._profile(f"agent-{i}", description=f"Description {i}", metadata={"allow_discovery": True})
+            for i in range(20)
+        ]
+
+        async def mock_list(page: int, page_size: int):
+            return profiles, len(profiles)
+
+        with patch(
+            "app.services.agent.agent_service.AgentService.get_agent_list",
+            new_callable=AsyncMock,
+            side_effect=mock_list,
+        ):
+            result = await _resolve_roster([], dynamic_discovery=True)
+
+        assert len(result) == 15
+
+    @pytest.mark.asyncio
+    async def test_dynamic_discovery_skips_existing_static_members(self):
+        """Dynamic candidates already bound as static subagents must not be duplicated."""
+        profiles = [
+            self._profile("member", description="A member", metadata={"allow_discovery": True}),
+            self._profile("extra", description="Extra agent", metadata={"allow_discovery": True}),
+        ]
+
+        async def mock_list(page: int, page_size: int):
+            return profiles, len(profiles)
+
+        with patch(
+            "app.services.agent.agent_service.AgentService.get_agent_by_id",
+            new_callable=AsyncMock,
+            side_effect=lambda agent_id: MagicMock(
+                display_name=f"Agent-{agent_id}", description=f"Description {agent_id}"
+            ),
+        ):
+            with patch(
+                "app.services.agent.agent_service.AgentService.get_agent_list",
+                new_callable=AsyncMock,
+                side_effect=mock_list,
+            ):
+                result = await _resolve_roster(
+                    ["member"], dynamic_discovery=True
+                )
+
+        ids = [entry.agent_id for entry in result]
+        assert ids == ["member", "extra"]
+
+    @pytest.mark.asyncio
+    async def test_dynamic_discovery_handles_list_error(self):
+        """A failure while scanning must be swallowed, keeping static members."""
+        with patch(
+            "app.services.agent.agent_service.AgentService.get_agent_by_id",
+            new_callable=AsyncMock,
+            side_effect=lambda agent_id: MagicMock(
+                display_name=f"Agent-{agent_id}", description=f"Description {agent_id}"
+            ),
+        ):
+            with patch(
+                "app.services.agent.agent_service.AgentService.get_agent_list",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("list failed"),
+            ):
+                result = await _resolve_roster(["member"], dynamic_discovery=True)
+
+        assert [entry.agent_id for entry in result] == ["member"]
+
 
 class TestBuildLeaderProtocolPrompt:
     @pytest.mark.asyncio
