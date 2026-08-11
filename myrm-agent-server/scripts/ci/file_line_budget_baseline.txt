@@ -133,6 +133,7 @@ app/services/agent/stream_session/stream_loop.py
 app/services/agent/streaming.py
 app/services/agent/streaming_support/stream_collector.py
 app/services/approvals/registry.py
+app/services/batch_directory/service.py
 app/services/chat/chat_crud.py
 app/services/chat/chat_message.py
 app/services/chat/conversation_fork_manager.py
