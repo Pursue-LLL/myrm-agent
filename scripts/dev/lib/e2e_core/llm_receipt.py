@@ -70,7 +70,7 @@ def emit_llm_receipt(
     Writes ``LLM_RECEIPT={"model_id": ..., "assistant_snippet": ..., "api_port": ...}``
     to stdout (captured by the detach log) and returns the dict for assertions.
     """
-    from cdp_chat_support import (
+    from cdp_chat.support import (
         fetch_chat_messages,
         fetch_config_value,
         get_e2e_api_url,

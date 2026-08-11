@@ -333,11 +333,15 @@ class WeComChannel(BaseChannel):
                 return
         elif attachment.url:
             from app.channels.media import (
+                MAX_FORWARD_DOWNLOAD_BYTES,
                 MediaDownloadConfig,
                 MediaDownloader,
             )
 
-            config = MediaDownloadConfig(timeout_seconds=_UPLOAD_TIMEOUT)
+            config = MediaDownloadConfig(
+                timeout_seconds=_UPLOAD_TIMEOUT,
+                max_size_bytes=MAX_FORWARD_DOWNLOAD_BYTES,
+            )
             downloader = MediaDownloader(http_client=self._http, enable_default_cache=True)
             result = await downloader.download(attachment.url, config=config)
             if result.success and result.data:

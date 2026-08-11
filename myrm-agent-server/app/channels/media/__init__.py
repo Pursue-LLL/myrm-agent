@@ -30,7 +30,11 @@ Example:
 """
 
 from .cache import CacheBackendProtocol, LRUMemoryCache, url_to_cache_key
-from .config import DEFAULT_ALLOWED_CONTENT_TYPES, MediaDownloadConfig
+from .config import (
+    DEFAULT_ALLOWED_CONTENT_TYPES,
+    MAX_FORWARD_DOWNLOAD_BYTES,
+    MediaDownloadConfig,
+)
 from .downloader import MediaDownloader, MediaDownloadResult
 from .exceptions import (
     ContentTypeError,
@@ -58,6 +62,7 @@ __all__ = [
     "MediaDownloadConfig",
     "MediaDownloadResult",
     "DEFAULT_ALLOWED_CONTENT_TYPES",
+    "MAX_FORWARD_DOWNLOAD_BYTES",
     # Exceptions
     "MediaDownloadError",
     "SizeExceededError",

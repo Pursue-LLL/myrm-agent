@@ -1,8 +1,6 @@
 """Batch directory retry/rerun lifecycle helpers.
 
 [INPUT]
-- app.database.connection::get_session (POS: 数据库会话)
-- app.database.models.batch_directory::BatchDirectoryProjectModel (POS: 批量项目持久化)
 - app.database.models.kanban::KanbanTaskModel (POS: 看板任务持久化)
 - app.services.batch_directory._helpers (POS: 序列化/查询/状态聚合助手)
 - app.services.batch_directory._run::fan_out_batch_tasks (POS: 任务扇出助手)
@@ -10,7 +8,7 @@
 
 [OUTPUT]
 - retry_failed / retry_task / rerun_project: 失败重试与全量重跑
-- _fan_out / _reopen_running / _next_attempt / _is_retryable_task / _retryable_directories: 内部助手
+- _fan_out / _next_attempt / _is_retryable_task / _retryable_directories: 内部助手
 
 [POS]
 BatchDirectory 重试/重跑层。负责失败目录重发任务、单目录重试、全量重跑，
@@ -23,16 +21,13 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
-from app.database.connection import get_session
-from app.database.models.batch_directory import BatchDirectoryProjectModel
 from app.database.models.kanban import KanbanTaskModel
 from app.services.batch_directory._helpers import (
     _PROJECT_TERMINAL_STATUSES,
-    _aggregate_statuses,
     _artifact_status_for_task,
     _latest_tasks_per_directory,
+    _reopen_running,
     _task_attempt,
-    fetch_project_task_models,
 )
 from app.services.batch_directory._lifecycle import (
     _load_project_snapshot,
@@ -180,28 +175,6 @@ async def _fan_out(
         artifact_patterns=settings.artifact_patterns,
         attempt=_next_attempt(tasks),
     )
-
-
-async def _reopen_running(project_id: str) -> None:
-    """Reopen a project to ``running`` and refresh aggregation counters.
-
-    Shared by retry/rerun/resume entry points: after tasks are fanned out or
-    unblocked, the counters are recomputed from the current task set (one per
-    directory) and the finish timestamp is cleared.
-    """
-    async with get_session() as session:
-        model = await session.get(BatchDirectoryProjectModel, project_id)
-        if model is None:
-            return
-        refreshed = await fetch_project_task_models(project_id)
-        latest = _latest_tasks_per_directory(refreshed)
-        total, completed, failed = _aggregate_statuses(latest)
-        model.status = "running"
-        model.total_tasks = total
-        model.completed_tasks = completed
-        model.failed_tasks = failed
-        model.finished_at = None
-        await session.commit()
 
 
 def _next_attempt(tasks: list[KanbanTaskModel]) -> int:

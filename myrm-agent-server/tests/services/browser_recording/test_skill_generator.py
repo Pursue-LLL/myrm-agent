@@ -222,10 +222,10 @@ class TestGenerateSkillFromSession:
 
         _, content, _ = generate_skill_from_session(session, "multi-select-flow")
 
-        assert 'Select "en; zh" (English, Chinese)' in content
+        assert 'Select "en; zh" (English, Chinese) from select "Language"' in content
         assert "from dropdown" not in content
 
-    def test_select_single_value_keeps_dropdown_template(self) -> None:
+    def test_select_single_value_includes_element_context(self) -> None:
         session = _make_session(
             [
                 _make_step(
@@ -240,7 +240,7 @@ class TestGenerateSkillFromSession:
 
         _, content, _ = generate_skill_from_session(session, "single-select")
 
-        assert 'Select "en" from dropdown' in content
+        assert 'Select "en" from select "Language"' in content
 
     def test_allowed_tools_use_registered_names(self) -> None:
         session = _make_session([_make_step(1)])

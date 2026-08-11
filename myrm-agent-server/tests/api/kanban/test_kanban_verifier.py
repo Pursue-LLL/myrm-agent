@@ -12,66 +12,71 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 
+from app.core.utils.chat_utils import parse_judge_json
 from app.core.kanban.verifier import (
     KanbanCompletionVerifier,
-    _normalize_done,
     _parse_criteria,
-    _parse_judge_json,
 )
 
-# --------------- _parse_judge_json tests ---------------
+# --------------- parse_judge_json tests ---------------
 
 
 class TestParseJudgeJson:
     def test_valid_json_directly(self) -> None:
-        result = _parse_judge_json('{"done": true, "reason": "all good"}')
+        result = parse_judge_json('{"done": true, "reason": "all good"}')
         assert result is not None
         assert result["done"] is True
         assert result["reason"] == "all good"
 
     def test_json_in_code_block(self) -> None:
         raw = '```json\n{"done": false, "reason": "missing step"}\n```'
-        result = _parse_judge_json(raw)
+        result = parse_judge_json(raw)
         assert result is not None
         assert result["done"] is False
 
     def test_json_in_bare_code_block(self) -> None:
         raw = '```\n{"done": true, "reason": "ok"}\n```'
-        result = _parse_judge_json(raw)
+        result = parse_judge_json(raw)
         assert result is not None
         assert result["done"] is True
 
     def test_inline_json_extraction(self) -> None:
         raw = 'Analysis: {"done": false, "reason": "incomplete"} extra text'
-        result = _parse_judge_json(raw)
+        result = parse_judge_json(raw)
         assert result is not None
         assert result["done"] is False
         assert result["reason"] == "incomplete"
 
     def test_no_json_returns_none(self) -> None:
-        assert _parse_judge_json("no json here") is None
+        assert parse_judge_json("no json here") is None
 
     def test_json_without_done_key_returns_none(self) -> None:
-        assert _parse_judge_json('{"result": true}') is None
+        assert parse_judge_json('{"result": true}') is None
 
     def test_invalid_json_returns_none(self) -> None:
-        assert _parse_judge_json('{done: true, reason: "ok"}') is None
+        assert parse_judge_json('{done: true, reason: "ok"}') is None
+
+    def test_unescaped_newline_in_reasoning(self) -> None:
+        raw = '{"done": true, "reason": "verified\\nby inspection"}'
+        result = parse_judge_json(raw)
+        assert result is not None
+        assert result["done"] is True
 
 
 class TestNormalizeDone:
     def test_bool_passthrough(self) -> None:
-        obj = {"done": True, "reason": "x"}
-        assert _normalize_done(obj)["done"] is True
+        obj = '{"done": true, "reason": "x"}'
+        assert parse_judge_json(obj)["done"] is True
 
     def test_string_true_variations(self) -> None:
         for val in ("true", "True", "TRUE", "yes", "Yes", "1"):
-            obj = {"done": val}
-            assert _normalize_done(obj)["done"] is True, f"Failed for {val!r}"
+            raw = f'{{"done": "{val}", "reason": "r"}}'
+            assert parse_judge_json(raw)["done"] is True, f"Failed for {val!r}"
 
     def test_string_false_variations(self) -> None:
         for val in ("false", "no", "0", "nope"):
-            obj = {"done": val}
-            assert _normalize_done(obj)["done"] is False, f"Failed for {val!r}"
+            raw = f'{{"done": "{val}", "reason": "r"}}'
+            assert parse_judge_json(raw)["done"] is False, f"Failed for {val!r}"
 
 
 # --------------- KanbanCompletionVerifier tests ---------------

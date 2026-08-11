@@ -10,11 +10,8 @@ Covers:
 
 import pytest
 
-from app.services.skill_optimization.semantic_comparator import (
-    SemanticComparator,
-    _escape_newlines_in_strings,
-    _parse_judge_json,
-)
+from app.core.utils.chat_utils import parse_llm_json_object
+from app.services.skill_optimization.semantic_comparator import SemanticComparator
 
 
 @pytest.mark.asyncio
@@ -82,7 +79,7 @@ async def test_one_side_empty() -> None:
 
 @pytest.mark.asyncio
 async def test_parse_judge_json_plain() -> None:
-    parsed = _parse_judge_json('{"score": 0.95, "reasoning": "identical"}')
+    parsed = parse_llm_json_object('{"score": 0.95, "reasoning": "identical"}')
     assert parsed == {"score": 0.95, "reasoning": "identical"}
 
 
@@ -90,7 +87,7 @@ async def test_parse_judge_json_plain() -> None:
 async def test_parse_judge_json_unescaped_newline_in_string() -> None:
     """reasoning 字段内裸换行（minimax 等 reasoning 模型输出）不应导致解析失败。"""
     raw = '{"score": 0.95, "reasoning": "the only difference is\\na wording choice"}'
-    parsed = _parse_judge_json(raw)
+    parsed = parse_llm_json_object(raw)
     assert parsed is not None
     assert parsed["score"] == pytest.approx(0.95)
     assert "a wording choice" in str(parsed["reasoning"])
@@ -99,7 +96,7 @@ async def test_parse_judge_json_unescaped_newline_in_string() -> None:
 @pytest.mark.asyncio
 async def test_parse_judge_json_pretty_printed() -> None:
     raw = '{\n  "score": 0.9,\n  "reasoning": "ok"\n}'
-    parsed = _parse_judge_json(raw)
+    parsed = parse_llm_json_object(raw)
     assert parsed is not None
     assert parsed["score"] == pytest.approx(0.9)
 
@@ -107,23 +104,29 @@ async def test_parse_judge_json_pretty_printed() -> None:
 @pytest.mark.asyncio
 async def test_parse_judge_json_markdown_fence() -> None:
     raw = '```json\n{"score": 1.0, "reasoning": "same"}\n```'
-    parsed = _parse_judge_json(raw)
+    parsed = parse_llm_json_object(raw)
     assert parsed == {"score": 1.0, "reasoning": "same"}
 
 
 @pytest.mark.asyncio
 async def test_parse_judge_json_garbage_returns_none() -> None:
-    assert _parse_judge_json("hello world, not json at all") is None
-    assert _parse_judge_json("") is None
+    assert parse_llm_json_object("hello world, not json at all") is None
+    assert parse_llm_json_object("") is None
 
 
 @pytest.mark.asyncio
-async def test_escape_newlines_only_touches_string_literals() -> None:
+async def test_parse_llm_json_object_structural_whitespace_preserved() -> None:
     """结构性空白必须保留，仅字符串字面量内的裸换行被转义。"""
     src = '{\n  "reasoning": "line one\nline two"\n}'
-    escaped = _escape_newlines_in_strings(src)
-    assert '"line one\\nline two"' in escaped
-    assert '{\n  "reasoning":' in escaped
-    parsed = _parse_judge_json(src)
+    parsed = parse_llm_json_object(src)
     assert parsed is not None
     assert parsed["reasoning"] == "line one\nline two"
+
+
+@pytest.mark.asyncio
+async def test_parse_llm_json_object_prose_framing() -> None:
+    """judge 输出带前后缀文字时仍能提取对象。"""
+    raw = 'Analysis complete. {"score": 0.8, "reasoning": "close"} Done.'
+    parsed = parse_llm_json_object(raw)
+    assert parsed is not None
+    assert parsed["score"] == pytest.approx(0.8)

@@ -18,7 +18,9 @@ import { Button } from '@/components/primitives/button';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
 import { useToolApprovalResolve } from '@/hooks/approval/useToolApprovalResolve';
 import { useVisualApprovalSnapshot } from '@/hooks/approval/useVisualApprovalSnapshot';
-import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
+import useBrowserInspectorStore, {
+  selectScopedBrowserViewData,
+} from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
@@ -48,7 +50,9 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
 
   const approvalQueue = useToolApprovalStore((s) => s.queue);
   const desktopViewData = useDesktopInspectorStore((state) => state.viewData);
-  const browserViewData = useBrowserInspectorStore((state) => state.viewData);
+  const browserViewData = useBrowserInspectorStore((state) =>
+    selectScopedBrowserViewData(state.viewData, chatId),
+  );
   const desktopLoading = useDesktopInspectorStore((state) => state.isSnapshotLoading);
   const browserLoading = useBrowserInspectorStore((state) => state.isSnapshotLoading);
   const { resolveRequest, approveAll, rejectAll, isLoading: isApprovalLoading } = useToolApprovalResolve();

@@ -32,11 +32,16 @@ DEFAULT_ALLOWED_CONTENT_TYPES = frozenset(
         "audio/mpeg",  # .mp3
         "audio/ogg",
         "audio/wav",
-        # Documents
-        "application/pdf",
-        "text/plain",
+    # Documents
+    "application/pdf",
+    "text/plain",
     }
 )
+
+# Upper bound for cross-channel media forwarding downloads. The 10 MB default
+# `max_size_bytes` is a conservative image-grade cap; forwarding flows pass this
+# explicitly so larger videos/files are not silently dropped before upload.
+MAX_FORWARD_DOWNLOAD_BYTES = 200 * 1024 * 1024
 
 
 @dataclass(frozen=True)

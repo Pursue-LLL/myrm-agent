@@ -12,7 +12,9 @@ from pathlib import Path
 import httpx
 import pytest
 from dotenv import load_dotenv
-from myrm_agent_harness.agent.meta_tools.bash.output_compressor import compress_output
+from myrm_agent_harness.agent.meta_tools.bash._compression.output_compressor import (
+    compress_output,
+)
 
 from tests.support.bash_compressor_e2e import resolve_working_base_selection
 

@@ -219,8 +219,8 @@ def apply_epoch_pin_for_shared_live(
     )
     if outcome.seeded:
         try:
-            from cdp_chat_support import get_e2e_ui_url
-            from warm_shell_registry import seal_platform_shell
+            from cdp_chat.support import get_e2e_ui_url
+            from e2e_core.warm_shell_registry import seal_platform_shell
 
             seal_platform_shell(ui_url=get_e2e_ui_url(), route_path="/")
         except ImportError:

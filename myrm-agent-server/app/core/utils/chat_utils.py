@@ -7,6 +7,7 @@ extract_litellm_answer_text）。
 
 import json
 import logging
+import re
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
@@ -31,6 +32,9 @@ from app.core.utils.files_utils import read_image_as_base64
 
 logger = logging.getLogger(__name__)
 
+_JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
+_JSON_INLINE_RE = re.compile(r"\{[^{}]*\}", re.DOTALL)
+
 _INLINE_COMPRESS_THRESHOLD = 5 * 1024 * 1024
 
 __all__ = [
@@ -40,7 +44,124 @@ __all__ = [
     "convert_chat_history",
     "extract_answer_text",
     "extract_litellm_answer_text",
+    "parse_llm_json_object",
+    "parse_judge_json",
 ]
+
+# =============================================================================
+# LLM Judge JSON Parsing (shared across server-side semantic judges)
+# =============================================================================
+
+_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
+
+
+def _escape_newlines_in_strings(text: str) -> str:
+    """Escape unescaped CR/LF that appear inside JSON string literals."""
+    out: list[str] = []
+    in_string = False
+    escape_next = False
+    for ch in text:
+        if in_string:
+            if escape_next:
+                out.append(ch)
+                escape_next = False
+                continue
+            if ch == "\\":
+                out.append(ch)
+                escape_next = True
+                continue
+            if ch == '"':
+                out.append(ch)
+                in_string = False
+                continue
+            if ch in "\r\n":
+                out.append("\\n")
+                continue
+            out.append(ch)
+            continue
+        if ch == '"':
+            in_string = True
+        out.append(ch)
+    return "".join(out)
+
+
+def _find_json_object(text: str) -> str | None:
+    """Find the first balanced JSON object (``{...}``) in text."""
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_string = False
+    escape_next = False
+    for i, ch in enumerate(text[start:], start=start):
+        if in_string:
+            if escape_next:
+                escape_next = False
+                continue
+            if ch == "\\":
+                escape_next = True
+                continue
+            if ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    return None
+
+
+def parse_llm_json_object(content: str) -> dict[str, object] | None:
+    """Parse a JSON object out of an LLM judge reply.
+
+    Tolerates the artifacts reasoning providers actually emit:
+    markdown fences, prose framing around the object, and unescaped
+    newlines inside string literals (e.g. minimax). Returns ``None``
+    when no object can be recovered.
+    """
+    stripped = content.strip()
+    if not stripped:
+        return None
+
+    candidates: list[str] = []
+    fence = _JSON_FENCE_RE.search(stripped)
+    if fence:
+        candidates.append(fence.group(1).strip())
+    embedded = _find_json_object(stripped)
+    if embedded:
+        candidates.append(embedded)
+    candidates.append(stripped)
+
+    for candidate in candidates:
+        for text in (candidate, _escape_newlines_in_strings(candidate)):
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                return parsed
+    return None
+
+
+def parse_judge_json(raw: str) -> dict[str, object] | None:
+    """Parse a judge verdict object that requires a ``done`` key.
+
+    Extends :func:`parse_llm_json_object` with the contract shared by the
+    kanban verifier and the goal semantic judge: the object must carry a
+    ``done`` field, whose string forms (``"True"``/``"yes"``/``"1"``) are
+    normalized to Python bools.
+    """
+    obj = parse_llm_json_object(raw)
+    if obj is None or "done" not in obj:
+        return None
+    done = obj.get("done")
+    if isinstance(done, str):
+        obj["done"] = done.strip().lower() in ("true", "yes", "1")
+    return obj
 
 # =============================================================================
 # Agent History Expansion

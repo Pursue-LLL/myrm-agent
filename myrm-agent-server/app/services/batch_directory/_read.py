@@ -175,8 +175,14 @@ def _schedule_finalize_if_due(
 ) -> None:
     """Self-heal the case where the last task reached a terminal state
     without a dispatcher event (e.g. REST manual move to a terminal
-    status) — schedule the (idempotent) finalize check."""
-    if status in _PROJECT_TERMINAL_STATUSES or not total or done < total:
+    status) — schedule the (idempotent) finalize check. Paused batches are
+    excluded: freezing must be stable until the operator resumes/cancels."""
+    if (
+        status in _PROJECT_TERMINAL_STATUSES
+        or status == "paused"
+        or not total
+        or done < total
+    ):
         return
     try:
         asyncio.get_running_loop().create_task(service.maybe_finalize(project_id))

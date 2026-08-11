@@ -11,11 +11,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.core.utils.chat_utils import parse_judge_json
 from app.services.agent.goals.goal_registry import (
     GoalRegistry,
     ServerGoalManager,
-    _normalize_done,
-    _parse_judge_json,
 )
 
 
@@ -24,69 +23,75 @@ def mock_storage():
     return AsyncMock()
 
 
-# ── _parse_judge_json ──
+# ── parse_judge_json ──
 
 
 class TestParseJudgeJson:
     def test_direct_json(self):
-        result = _parse_judge_json('{"done": true, "reason": "completed"}')
+        result = parse_judge_json('{"done": true, "reason": "completed"}')
         assert result is not None
         assert result["done"] is True
         assert result["reason"] == "completed"
 
     def test_markdown_fenced(self):
         raw = 'Here is my verdict:\n```json\n{"done": false, "reason": "not yet"}\n```'
-        result = _parse_judge_json(raw)
+        result = parse_judge_json(raw)
         assert result is not None
         assert result["done"] is False
 
     def test_inline_json(self):
         raw = 'Based on my analysis, {"done": true, "reason": "all tasks finished"} is my answer.'
-        result = _parse_judge_json(raw)
+        result = parse_judge_json(raw)
         assert result is not None
         assert result["done"] is True
 
     def test_boolean_string_normalization(self):
         raw = '{"done": "True", "reason": "completed"}'
-        result = _parse_judge_json(raw)
+        result = parse_judge_json(raw)
         assert result is not None
         assert result["done"] is True
 
     def test_boolean_string_false(self):
         raw = '{"done": "False", "reason": "incomplete"}'
-        result = _parse_judge_json(raw)
+        result = parse_judge_json(raw)
         assert result is not None
         assert result["done"] is False
 
     def test_no_done_key(self):
         raw = '{"status": "ok"}'
-        result = _parse_judge_json(raw)
+        result = parse_judge_json(raw)
         assert result is None
 
     def test_invalid_json(self):
-        result = _parse_judge_json("This is not JSON at all")
+        result = parse_judge_json("This is not JSON at all")
         assert result is None
 
     def test_empty_string(self):
-        result = _parse_judge_json("")
+        result = parse_judge_json("")
         assert result is None
 
+    def test_unescaped_newline_in_reason(self):
+        raw = '{"done": false, "reason": "still\\nrunning"}'
+        result = parse_judge_json(raw)
+        assert result is not None
+        assert result["done"] is False
 
-# ── _normalize_done ──
+
+# ── done 布尔归一化（经 parse_judge_json）──
 
 
 class TestNormalizeDone:
     def test_bool_passthrough(self):
-        assert _normalize_done({"done": True})["done"] is True
-        assert _normalize_done({"done": False})["done"] is False
+        assert parse_judge_json('{"done": true}')["done"] is True
+        assert parse_judge_json('{"done": false}')["done"] is False
 
     def test_string_true_variants(self):
         for val in ("true", "True", "TRUE", "yes", "Yes", "1"):
-            assert _normalize_done({"done": val})["done"] is True
+            assert parse_judge_json(f'{{"done": "{val}"}}')["done"] is True
 
     def test_string_false_variants(self):
         for val in ("false", "False", "no", "No", "0", "nope"):
-            assert _normalize_done({"done": val})["done"] is False
+            assert parse_judge_json(f'{{"done": "{val}"}}')["done"] is False
 
 
 # ── ServerGoalManager.evaluate_semantic ──

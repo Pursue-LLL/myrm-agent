@@ -29,7 +29,9 @@ import HandoverModeView from './approval/HandoverModeView';
 import BrowserSessionView from './approval/BrowserSessionView';
 import AllowAlwaysConfirmDialog from './approval/AllowAlwaysConfirmDialog';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
-import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
+import useBrowserInspectorStore, {
+  selectScopedBrowserViewData,
+} from '@/store/useBrowserInspectorStore';
 import { resolveVisualApprovalContextForRequest } from '@/lib/approval/visualApprovalContext';
 import {
   extractShellCommand,
@@ -91,7 +93,9 @@ export default function SingleApprovalCard({
   const [grantDirectoryAccess, setGrantDirectoryAccess] = useState(false);
 
   const desktopViewData = useDesktopInspectorStore((s) => s.viewData);
-  const browserViewData = useBrowserInspectorStore((s) => s.viewData);
+  const browserViewData = useBrowserInspectorStore((s) =>
+    selectScopedBrowserViewData(s.viewData, request.chatId),
+  );
 
   const visualContext = useMemo(
     () => resolveVisualApprovalContextForRequest(request, desktopViewData, browserViewData),

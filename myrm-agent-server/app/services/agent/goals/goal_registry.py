@@ -19,16 +19,14 @@ Agent 会话的 GoalProvider，从而在运行时控制 Goal 状态（暂停/恢
 与 SteeringRegistry 和 CancellationRegistry 形成对称设计。
 """
 
-import json
 import logging
-import re
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.goals.manager import GoalManager
 
-from app.core.utils.chat_utils import extract_litellm_answer_text
+from app.core.utils.chat_utils import extract_litellm_answer_text, parse_judge_json
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider
@@ -36,56 +34,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.verification.base import VerificationResult
 
 logger = logging.getLogger(__name__)
-
-_JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
-_JSON_INLINE_RE = re.compile(
-    r"\{[^{}]*\"done\"\s*:\s*(?:true|false)[^{}]*\}", re.DOTALL
-)
-
-
-def _parse_judge_json(raw: str) -> dict[str, object] | None:
-    """Robustly extract {"done": bool, "reason": str} from LLM judge output.
-
-    Handles: raw JSON, markdown-fenced JSON, JSON embedded in prose,
-    and boolean strings like "True"/"False".
-    """
-    # 1. Direct JSON parse
-    try:
-        obj = json.loads(raw)
-        if isinstance(obj, dict) and "done" in obj:
-            return _normalize_done(obj)
-    except (json.JSONDecodeError, ValueError):
-        pass
-
-    # 2. Markdown fenced block
-    m = _JSON_BLOCK_RE.search(raw)
-    if m:
-        try:
-            obj = json.loads(m.group(1))
-            if isinstance(obj, dict) and "done" in obj:
-                return _normalize_done(obj)
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    # 3. Inline JSON extraction
-    m = _JSON_INLINE_RE.search(raw)
-    if m:
-        try:
-            obj = json.loads(m.group(0))
-            if isinstance(obj, dict) and "done" in obj:
-                return _normalize_done(obj)
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    return None
-
-
-def _normalize_done(obj: dict[str, object]) -> dict[str, object]:
-    """Normalize the 'done' value to a Python bool."""
-    done = obj.get("done")
-    if isinstance(done, str):
-        obj["done"] = done.strip().lower() in ("true", "yes", "1")
-    return obj
 
 
 async def _resolve_shared_context_ids_for_goal(session_id: str) -> list[str]:
@@ -263,7 +211,7 @@ class ServerGoalManager(GoalManager):
             # 统一提取：兼容 Anthropic 块列表 / reasoning 模型 content 空回退（含 think 剥离）
             raw = extract_litellm_answer_text(response).strip()
 
-            parsed = _parse_judge_json(raw)
+            parsed = parse_judge_json(raw)
 
             if parsed is not None:
                 done = parsed.get("done", False)

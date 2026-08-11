@@ -251,7 +251,7 @@ def shared_read_hot_path_decision(*, url: str) -> HotPathDecision:
 
     needs_binding = False
     try:
-        from cdp_chat_support import get_open_page_api_url
+        from cdp_chat.support import get_open_page_api_url
 
         api_base = get_open_page_api_url().rstrip("/")
         if api_base and api_base != "http://127.0.0.1:8080":
@@ -260,7 +260,7 @@ def shared_read_hot_path_decision(*, url: str) -> HotPathDecision:
         pass
 
     try:
-        from cdp_chat_support import e2e_runtime_binding_source
+        from cdp_chat.support import e2e_runtime_binding_source
 
         if e2e_runtime_binding_source():
             needs_binding = True
@@ -268,7 +268,7 @@ def shared_read_hot_path_decision(*, url: str) -> HotPathDecision:
         pass
 
     try:
-        from cdp_chat_support import get_e2e_ui_url
+        from cdp_chat.support import get_e2e_ui_url
 
         ui_origin = _ui_origin(get_e2e_ui_url())
     except ImportError:

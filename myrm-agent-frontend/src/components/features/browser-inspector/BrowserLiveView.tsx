@@ -4,7 +4,9 @@ import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Globe } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
+import useBrowserInspectorStore, {
+  selectScopedBrowserViewData,
+} from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import InspectorToolbar from './InspectorToolbar';
@@ -37,8 +39,7 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
     fetchSnapshot,
   } = useBrowserInspectorStore();
   const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
-  const scopedViewData =
-    viewData && viewData.sourceChatId === chatId ? viewData : null;
+  const scopedViewData = selectScopedBrowserViewData(viewData, chatId);
 
   useEffect(() => {
     if (!isOpen || !viewData?.sourceChatId || !chatId) return;

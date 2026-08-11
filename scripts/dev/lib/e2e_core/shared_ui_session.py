@@ -23,7 +23,7 @@ import time
 import urllib.error
 from typing import Literal, Protocol, runtime_checkable
 
-from cdp_chat_support import ensure_e2e_search_cleared_in_browser, get_e2e_api_url
+from cdp_chat.support import ensure_e2e_search_cleared_in_browser, get_e2e_api_url
 from dev_gate_contract import EvaluateIntent
 
 E2E_SEARCH_POLICY_ENV = "MYRM_E2E_SEARCH_POLICY"

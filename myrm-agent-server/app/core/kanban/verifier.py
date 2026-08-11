@@ -27,60 +27,15 @@ Kanban completion verifier — hallucination gate.
 
 from __future__ import annotations
 
-import json
 import logging
-import re
 
 from myrm_agent_harness.agent.goals.verification.base import VerificationResult
 from myrm_agent_harness.agent.goals.verification.shell import ShellCriterion
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
-from app.core.utils.chat_utils import extract_litellm_answer_text
+from app.core.utils.chat_utils import extract_litellm_answer_text, parse_judge_json
 
 logger = logging.getLogger(__name__)
-
-_JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
-_JSON_INLINE_RE = re.compile(
-    r"\{[^{}]*\"done\"\s*:\s*(?:true|false)[^{}]*\}",
-    re.DOTALL,
-)
-
-
-def _parse_judge_json(raw: str) -> dict[str, object] | None:
-    """Extract {"done": bool, "reason": str} from LLM judge output."""
-    try:
-        obj = json.loads(raw)
-        if isinstance(obj, dict) and "done" in obj:
-            return _normalize_done(obj)
-    except (json.JSONDecodeError, ValueError):
-        pass
-
-    m = _JSON_BLOCK_RE.search(raw)
-    if m:
-        try:
-            obj = json.loads(m.group(1))
-            if isinstance(obj, dict) and "done" in obj:
-                return _normalize_done(obj)
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    m = _JSON_INLINE_RE.search(raw)
-    if m:
-        try:
-            obj = json.loads(m.group(0))
-            if isinstance(obj, dict) and "done" in obj:
-                return _normalize_done(obj)
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    return None
-
-
-def _normalize_done(obj: dict[str, object]) -> dict[str, object]:
-    done = obj.get("done")
-    if isinstance(done, str):
-        obj["done"] = done.strip().lower() in ("true", "yes", "1")
-    return obj
 
 
 def _parse_criteria(
@@ -208,7 +163,7 @@ class KanbanCompletionVerifier:
             # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
             raw = extract_litellm_answer_text(response).strip()
 
-            parsed = _parse_judge_json(raw)
+            parsed = parse_judge_json(raw)
             if parsed is not None:
                 done = parsed.get("done", False)
                 reason = str(parsed.get("reason", ""))

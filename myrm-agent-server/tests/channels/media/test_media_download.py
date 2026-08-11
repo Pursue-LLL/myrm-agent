@@ -10,6 +10,7 @@ from myrm_agent_harness.core.security.http.secure_fetch import SecureHttpTarget
 from app.channels.media import (
     ContentTypeError,
     LRUMemoryCache,
+    MAX_FORWARD_DOWNLOAD_BYTES,
     MediaDownloadConfig,
     MediaDownloader,
     SizeExceededError,
@@ -69,6 +70,12 @@ async def test_config_validation():
     # Invalid timeout
     with pytest.raises(ValueError, match="timeout_seconds must be > 0"):
         MediaDownloadConfig(timeout_seconds=-1)
+
+
+def test_forward_download_cap_is_explicit_override():
+    """Forward flows raise the conservative default while the default stays put."""
+    assert MAX_FORWARD_DOWNLOAD_BYTES == 200 * 1024 * 1024
+    assert MediaDownloadConfig().max_size_bytes == 10 * 1024 * 1024
 
 
 @pytest.mark.asyncio
@@ -185,6 +192,42 @@ async def test_size_limit_validation():
 
     assert result.success is False
     assert isinstance(result.error, SizeExceededError)
+
+
+@pytest.mark.asyncio
+async def test_forward_cap_allows_larger_content():
+    """Forward flows with MAX_FORWARD_DOWNLOAD_BYTES accept content above the default 10MB cap."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {"content-type": "video/mp4"}
+
+    payload = b"x" * (12 * 1024 * 1024)  # 12 MB — over the 10MB default, under the 200MB cap
+
+    async def mock_aiter_bytes(chunk_size):
+        for i in range(0, len(payload), chunk_size):
+            yield payload[i : i + chunk_size]
+
+    mock_response.aiter_bytes = mock_aiter_bytes
+
+    mock_client = MagicMock()
+
+    class MockStreamContext:
+        async def __aenter__(self):
+            return mock_response
+
+        async def __aexit__(self, *args):
+            pass
+
+    mock_client.stream = MagicMock(return_value=MockStreamContext())
+
+    config = MediaDownloadConfig(max_size_bytes=MAX_FORWARD_DOWNLOAD_BYTES)
+
+    with patch_ssrf_and_pinning():
+        downloader = MediaDownloader(http_client=mock_client, enable_default_cache=False)
+        result = await downloader.download("https://example.com/big.mp4", config=config)
+
+    assert result.success is True
+    assert result.size_bytes == len(payload)
 
 
 @pytest.mark.asyncio

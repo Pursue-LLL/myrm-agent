@@ -344,11 +344,15 @@ class IMessageChannel(BaseChannel):
         """Read media bytes from URL or local path."""
         if att.url:
             from app.channels.media import (
+                MAX_FORWARD_DOWNLOAD_BYTES,
                 MediaDownloadConfig,
                 MediaDownloader,
             )
 
-            config = MediaDownloadConfig(timeout_seconds=MEDIA_TIMEOUT)
+            config = MediaDownloadConfig(
+                timeout_seconds=MEDIA_TIMEOUT,
+                max_size_bytes=MAX_FORWARD_DOWNLOAD_BYTES,
+            )
             downloader = MediaDownloader(http_client=self._http, enable_default_cache=True)
             result = await downloader.download(att.url, config=config)
             if result.success and result.data:

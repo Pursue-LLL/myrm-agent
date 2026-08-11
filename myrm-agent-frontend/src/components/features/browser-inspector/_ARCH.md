@@ -16,7 +16,7 @@ Enables users to visually select page elements and send natural language instruc
 
 ## Dependencies
 
-- `@/store/useBrowserInspectorStore` (POS: Browser Inspector state management)
+- `@/store/useBrowserInspectorStore` (POS: Browser Inspector state management; `selectScopedBrowserViewData` for chat-scoped SSE view)
 - `@/store/chat/types` (POS: Chat type definitions — BrowserRefInfo, BrowserViewUpdateStreamEvent)
 - `@/lib/utils/classnameUtils` (POS: Tailwind class name utilities)
 

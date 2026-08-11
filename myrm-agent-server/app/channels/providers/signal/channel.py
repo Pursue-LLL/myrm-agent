@@ -276,11 +276,15 @@ class SignalChannel(BaseChannel, CachedGroupMixin):
 
         if att.url:
             from app.channels.media import (
+                MAX_FORWARD_DOWNLOAD_BYTES,
                 MediaDownloadConfig,
                 MediaDownloader,
             )
 
-            config = MediaDownloadConfig(timeout_seconds=_SEND_TIMEOUT)
+            config = MediaDownloadConfig(
+                timeout_seconds=_SEND_TIMEOUT,
+                max_size_bytes=MAX_FORWARD_DOWNLOAD_BYTES,
+            )
             downloader = MediaDownloader(http_client=self._api._http, enable_default_cache=True)
             result = await downloader.download(att.url, config=config)
             if not result.success or not result.data:

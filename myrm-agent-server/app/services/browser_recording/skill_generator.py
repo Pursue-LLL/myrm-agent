@@ -124,7 +124,7 @@ def _build_skill_content(
         credential_section = f"""
 ## Credentials
 
-Some steps below target password fields. The `fill_credential` action on those
+Some steps above target password fields. The `fill_credential` action on those
 steps provides the real value automatically:
 
 {"\n".join(cred_lines)}

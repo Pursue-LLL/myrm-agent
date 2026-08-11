@@ -8,7 +8,9 @@ import uuid
 from pathlib import Path
 
 import httpx
-from myrm_agent_harness.agent.meta_tools.bash.output_compressor import compress_output
+from myrm_agent_harness.agent.meta_tools.bash._compression.output_compressor import (
+    compress_output,
+)
 
 from tests.api.agent.utils import get_lite_model_selection, get_model_selection
 

@@ -43,6 +43,26 @@ def _lock_path() -> Path:
     return _state_dir() / "shared-ui-hydrate.lock"
 
 
+def _bound_runtime_cell_id() -> str:
+    """Return a cell binding only when its metadata still exists.
+
+    A released cell environment can survive in an in-process test runner or a
+    reused subprocess.  Treating that stale value as authoritative silently
+    diverts the SHARED hydrate burst to a non-existent per-cell lock.
+    """
+    cell_id = os.environ.get("MYRM_E2E_CELL_ID", "").strip()
+    if not cell_id:
+        return ""
+    try:
+        from e2e_runtime_cell import cell_hydrate_lock_path
+
+        if cell_hydrate_lock_path(cell_id).parent.joinpath("cell-meta.json").is_file():
+            return cell_id
+    except (ImportError, OSError, RuntimeError):
+        return ""
+    return ""
+
+
 def _monorepo_root() -> Path | None:
     override = os.environ.get("MYRM_MONOREPO_ROOT", "").strip()
     if override:
@@ -98,7 +118,7 @@ def shared_ui_hydrate_slot() -> Iterator[None]:
         yield
         return
 
-    cell_id = os.environ.get("MYRM_E2E_CELL_ID", "").strip()
+    cell_id = _bound_runtime_cell_id()
     if cell_id:
         from e2e_runtime_cell import cell_ui_hydrate_slot
 

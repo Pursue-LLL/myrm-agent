@@ -304,11 +304,15 @@ class WeChatOfficialChannel(BaseChannel):
 
         if attachment.url:
             from app.channels.media import (
+                MAX_FORWARD_DOWNLOAD_BYTES,
                 MediaDownloadConfig,
                 MediaDownloader,
             )
 
-            config = MediaDownloadConfig(timeout_seconds=30.0)
+            config = MediaDownloadConfig(
+                timeout_seconds=30.0,
+                max_size_bytes=MAX_FORWARD_DOWNLOAD_BYTES,
+            )
             downloader = MediaDownloader(http_client=self._http, enable_default_cache=True)
             result = await downloader.download(attachment.url, config=config)
             if not result.success or not result.data:

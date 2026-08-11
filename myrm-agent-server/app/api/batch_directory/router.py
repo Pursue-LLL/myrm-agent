@@ -5,7 +5,7 @@
 - app.api.batch_directory.schemas (POS: 请求/响应模型)
 
 [OUTPUT]
-- router: BatchDirectory CRUD/cancel 端点
+- router: BatchDirectory CRUD/cancel/pause/resume/approve-all/retry/rerun 端点
 
 [POS]
 BatchDirectory HTTP 层。负责请求校验、错误映射和 service 调用装配，

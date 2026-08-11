@@ -5,7 +5,6 @@
 - app.database.models.batch_directory::BatchDirectoryProjectModel (POS: 批量项目持久化)
 - app.database.models.kanban::KanbanTaskModel (POS: 看板任务持久化)
 - app.services.batch_directory._helpers (POS: 序列化/查询/状态聚合助手)
-- app.services.batch_directory._retry::_reopen_running (POS: 项目回置 running 助手)
 
 [OUTPUT]
 - pause_project / resume_project: 批次暂停冻结与恢复
@@ -35,6 +34,7 @@ from app.services.batch_directory._helpers import (
     _BATCH_PAUSE_BLOCK_REASON,
     _PROJECT_TERMINAL_STATUSES,
     _latest_tasks_per_directory,
+    _reopen_running,
     fetch_project_task_models,
 )
 
@@ -112,14 +112,14 @@ async def pause_project(
 ) -> dict[str, object] | None:
     """Pause a running batch: freeze the queued work and stop executing tasks.
 
-    Non-terminal tasks are moved to ``BLOCKED(HUMAN, batch_pause)`` so the
-    dispatcher stops picking them up; running tasks are cancelled first to
-    stop the agent promptly. Completed/failed/archived results are untouched,
-    and IN_REVIEW results keep waiting for approval. The project flips to
-    ``paused`` and can be reopened via :func:`resume_project`.
-
-    A second convergence pass handles the narrow window where the dispatcher
-    re-claims a READY task while the queue is being frozen.
+    Every non-terminal executable task (READY/BACKLOG/RUNNING) is moved to
+    ``BLOCKED(HUMAN, batch_pause)`` so the dispatcher stops picking it up;
+    running tasks are cancelled first to stop the agent promptly, and the
+    per-pass re-fetch converges any task the dispatcher claimed or a
+    concurrent retry created while the queue was being frozen. Completed/
+    failed/archived results are untouched, and IN_REVIEW results keep waiting
+    for approval. The project flips to ``paused`` and can be reopened via
+    :func:`resume_project`.
     """
     async with get_session() as session:
         model = await session.get(BatchDirectoryProjectModel, project_id)
@@ -147,6 +147,9 @@ async def pause_project(
 
     async def _freeze(t: KanbanTaskModel) -> None:
         try:
+            # 先停止 dispatcher 中的 agent 执行，再置 BLOCKED：若任务刚被
+            # dispatcher claim，cancel 幂等地中断执行，避免冻结后仍在跑。
+            await service.kanban.cancel_task_execution(t.id)
             await service.kanban.move_task(
                 t.id,
                 TaskStatus.BLOCKED,
@@ -159,19 +162,22 @@ async def pause_project(
                 "Batch project %s: pause task %s failed: %s", project_id, t.id, exc
             )
 
-    for t in latest:
-        status = TaskStatus(t.status) if t.status else None
-        if status in (TaskStatus.READY, TaskStatus.BACKLOG):
-            await _freeze(t)
-
-    for _ in range(2):  # 双轮收敛：中断运行中任务并消除 dispatcher 重拾窗口
-        running = [
-            t for t in latest if t.status == TaskStatus.RUNNING.value
+    # 多轮收敛：每轮冻结当前所有可执行任务（READY/BACKLOG/RUNNING），
+    # 重新拉取后捕获暂停窗口内 dispatcher 新 claim 或并发重试新创建的任务。
+    for _ in range(3):
+        to_freeze = [
+            t
+            for t in latest
+            if t.status
+            in {
+                TaskStatus.READY.value,
+                TaskStatus.BACKLOG.value,
+                TaskStatus.RUNNING.value,
+            }
         ]
-        if not running:
+        if not to_freeze:
             break
-        for t in running:
-            await service.kanban.cancel_task_execution(t.id)
+        for t in to_freeze:
             await _freeze(t)
         latest = await fetch_project_task_models(project_id)
 
@@ -214,10 +220,20 @@ async def resume_project(
                 "Batch project %s: resume task %s failed: %s", project_id, t.id, exc
             )
 
+    # 重开条件：至少解冻了一个任务，或已无 batch_pause 冻结任务残留（任务
+    # 全部终态，重开后由读取路径自愈收尾）。若解冻全部失败且仍有冻结任务，
+    # 保持 paused，避免项目回 running 却无任务可调度而卡死。
     if resumed_ids:
-        from app.services.batch_directory._retry import _reopen_running
-
         await _reopen_running(project_id)
+    else:
+        tasks_after = await fetch_project_task_models(project_id)
+        still_frozen = any(
+            t.status == TaskStatus.BLOCKED.value
+            and t.blocked_reason == _BATCH_PAUSE_BLOCK_REASON
+            for t in _latest_tasks_per_directory(tasks_after)
+        )
+        if not still_frozen:
+            await _reopen_running(project_id)
     base = await service.get_project(project_id)
     if base is None:
         return None

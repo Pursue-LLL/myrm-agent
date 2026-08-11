@@ -6,6 +6,7 @@
 - app.services.batch_directory._helpers (POS: 序列化/查询/路径校验助手)
 - app.services.batch_directory._read (POS: 只读聚合层)
 - app.services.batch_directory._retry (POS: 重试/重跑层)
+- app.services.batch_directory._lifecycle (POS: 暂停/恢复/审批层)
 
 [OUTPUT]
 - BatchDirectoryService: 批量项目编排（创建/列表/详情/取消/删除/完成检测/重试/重跑）
@@ -329,8 +330,8 @@ class BatchDirectoryService:
             model = await session.get(BatchDirectoryProjectModel, project_id)
             if model is None:
                 return
-            if model.status in _PROJECT_TERMINAL_STATUSES:
-                return  # 已终态，避免重复通知
+            if model.status in _PROJECT_TERMINAL_STATUSES or model.status == "paused":
+                return  # 已终态（避免重复通知）或已暂停（冻结稳定，恢复后再判定）
             notify_enabled = model.notify_enabled
 
         tasks = await fetch_project_task_models(project_id)

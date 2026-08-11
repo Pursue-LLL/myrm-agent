@@ -4,6 +4,7 @@
  *
  * [OUTPUT]
  * useBrowserInspectorStore: Zustand store for Browser Inspector panel state.
+ * selectScopedBrowserViewData: chat-scoped viewData selector for multi-pane SSE isolation.
  *
  * [POS]
  * State management for the Browser Live View + Interactive Inspector feature.
@@ -16,7 +17,7 @@ import type { BrowserRefInfo } from '@/store/chat/types';
 
 type InspectorMode = 'view' | 'inspect';
 
-interface BrowserViewData {
+export interface BrowserViewData {
   screenshotBase64: string;
   mimeType: string;
   refs: Record<string, BrowserRefInfo>;
@@ -26,6 +27,18 @@ interface BrowserViewData {
   viewportHeight: number;
   sourceChatId: string;
   updatedAt: number;
+}
+
+/** Return browser view data only when it belongs to the active chat (multi-pane SSE isolation). */
+export function selectScopedBrowserViewData(
+  viewData: BrowserViewData | null,
+  chatId: string | null | undefined,
+): BrowserViewData | null {
+  const normalizedChatId = chatId?.trim() ?? '';
+  if (!normalizedChatId || !viewData) {
+    return null;
+  }
+  return viewData.sourceChatId === normalizedChatId ? viewData : null;
 }
 
 interface BrowserSnapshotResponse {

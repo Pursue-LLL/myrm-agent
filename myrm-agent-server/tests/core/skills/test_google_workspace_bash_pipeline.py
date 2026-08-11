@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from myrm_agent_harness.agent.meta_tools.bash.bash_executor import BashExecutor
+from myrm_agent_harness.agent.meta_tools.bash import BashExecutor
 from myrm_agent_harness.agent.skills.runtime.command_paths import (
     detect_skill_script_command,
 )

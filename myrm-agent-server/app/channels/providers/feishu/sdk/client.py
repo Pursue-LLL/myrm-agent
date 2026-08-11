@@ -13,6 +13,7 @@ API methods are split across Mixins by domain:
 - ._messaging::FeishuMessagingMixin (POS: IM messaging, media, and group operations.)
 - ._documents::FeishuDocumentsMixin (POS: Drive, comment, wiki, CardKit, Bitable, Docx operations.)
 - myrm_agent_harness.utils.coercion::parse_float (POS: Safe numeric parsing with bounds clamping.)
+- myrm_agent_harness.core.security.http.secure_fetch::secure_get / ContentTooLargeError (POS: SSRF-safe HTTP with manual redirect loop and size cap)
 
 [OUTPUT]
 - FeishuClient: async API client for Feishu OpenAPI

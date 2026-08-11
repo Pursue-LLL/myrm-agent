@@ -8,6 +8,7 @@
 - fetch_project_task_models: 按 batch_project_id 查询任务（服务内复用）
 - _latest_tasks_per_directory: 每目录取最新任务（重试后聚合口径）
 - _project_to_dict / _aggregate_statuses / _resolve_directory: 序列化与校验助手
+- _reopen_running: 项目回置 running 并刷新聚合（重试/重跑/恢复共用）
 - _send_completion_notification: 批次终态系统通知（携带 action_url 深链）
 - _PROJECT_TERMINAL_STATUSES / _BATCH_PAUSE_BLOCK_REASON / _BATCH_APPROVER: 批次终态与暂停/审批标记常量
 
@@ -226,6 +227,28 @@ def _aggregate_statuses(tasks: list[KanbanTaskModel]) -> tuple[int, int, int]:
         if t.status in (TaskStatus.FAILED.value, TaskStatus.ARCHIVED.value)
     )
     return total, completed, failed
+
+
+async def _reopen_running(project_id: str) -> None:
+    """Reopen a project to ``running`` and refresh aggregation counters.
+
+    Shared by retry/rerun/resume entry points: after tasks are fanned out or
+    unblocked, the counters are recomputed from the current task set (one per
+    directory) and the finish timestamp is cleared.
+    """
+    async with get_session() as session:
+        model = await session.get(BatchDirectoryProjectModel, project_id)
+        if model is None:
+            return
+        refreshed = await fetch_project_task_models(project_id)
+        latest = _latest_tasks_per_directory(refreshed)
+        total, completed, failed = _aggregate_statuses(latest)
+        model.status = "running"
+        model.total_tasks = total
+        model.completed_tasks = completed
+        model.failed_tasks = failed
+        model.finished_at = None
+        await session.commit()
 
 
 async def _send_completion_notification(

@@ -1166,6 +1166,130 @@ class TestPauseResume:
         with pytest.raises(ValueError, match="paused"):
             await service.rerun_project(project_id)
 
+    @pytest.mark.asyncio
+    async def test_pause_cancels_running_execution_before_block(
+        self, client, tmp_path
+    ) -> None:
+        from app.database.connection import get_session
+        from app.database.models.kanban import KanbanTaskModel
+
+        dir_a = tmp_path / "alpha"
+        dir_b = tmp_path / "beta"
+        dir_a.mkdir()
+        dir_b.mkdir()
+        project = _create_project(client, [str(dir_a), str(dir_b)])
+        project_id = project["project_id"]
+        task_ids = project["created_task_ids"]
+
+        # alpha 运行中（有活跃 agent 执行需要被取消）
+        async with get_session() as session:
+            task = await session.get(KanbanTaskModel, task_ids[0])
+            assert task is not None
+            task.status = TaskStatus.RUNNING.value
+            await session.commit()
+
+        service = BatchDirectoryService.get_instance()
+        real_cancel = service.kanban.cancel_task_execution
+        cancel_spy = AsyncMock(side_effect=lambda tid: real_cancel(tid))
+        with patch.object(service.kanban, "cancel_task_execution", new=cancel_spy):
+            result = await service.pause_project(project_id)
+        assert result is not None
+        assert result["status"] == "paused"
+        assert len(result["paused_task_ids"]) == 2
+        cancelled = {c.args[0] for c in cancel_spy.await_args_list}
+        assert task_ids[0] in cancelled
+
+    @pytest.mark.asyncio
+    async def test_pause_then_cancel_archives_frozen_tasks(
+        self, client, tmp_path
+    ) -> None:
+        from app.database.connection import get_session
+        from app.database.models.kanban import KanbanTaskModel
+
+        dir_a = tmp_path / "alpha"
+        dir_a.mkdir()
+        project = _create_project(client, [str(dir_a)])
+        project_id = project["project_id"]
+        task_id = project["created_task_ids"][0]
+
+        service = BatchDirectoryService.get_instance()
+        await service.pause_project(project_id)
+
+        result = await service.cancel_project(project_id)
+        assert result is not None
+        assert result["status"] == "cancelled"
+        assert task_id in result["cancelled_task_ids"]
+
+        async with get_session() as session:
+            task = await session.get(KanbanTaskModel, task_id)
+            assert task is not None
+            assert task.status == TaskStatus.ARCHIVED.value
+
+    @pytest.mark.asyncio
+    async def test_resume_without_frozen_tasks_still_reopens(
+        self, client, tmp_path
+    ) -> None:
+        from app.database.connection import get_session
+        from app.database.models.kanban import KanbanTaskModel
+
+        dir_a = tmp_path / "alpha"
+        dir_a.mkdir()
+        project = _create_project(client, [str(dir_a)])
+        project_id = project["project_id"]
+        task_id = project["created_task_ids"][0]
+
+        service = BatchDirectoryService.get_instance()
+        await service.pause_project(project_id)
+
+        # 暂停期间任务已全部终态（例如审批在别处完成），无 batch_pause 冻结任务
+        async with get_session() as session:
+            task = await session.get(KanbanTaskModel, task_id)
+            assert task is not None
+            task.status = TaskStatus.COMPLETED.value
+            task.result = "ok"
+            await session.commit()
+
+        result = await service.resume_project(project_id)
+        assert result is not None
+        assert result["status"] == "running"
+        assert result["resumed_task_ids"] == []
+        assert result["finished_at"] is None
+
+    @pytest.mark.asyncio
+    async def test_resume_keeps_paused_when_unblock_fails(
+        self, client, tmp_path
+    ) -> None:
+        from app.database.connection import get_session
+        from app.database.models.kanban import KanbanTaskModel
+
+        dir_a = tmp_path / "alpha"
+        dir_a.mkdir()
+        project = _create_project(client, [str(dir_a)])
+        project_id = project["project_id"]
+
+        service = BatchDirectoryService.get_instance()
+        await service.pause_project(project_id)
+
+        real_move = service.kanban.move_task
+
+        async def fail_move(task_id: str, target, **kwargs):
+            if target == TaskStatus.READY:
+                raise RuntimeError("boom")
+            return await real_move(task_id, target, **kwargs)
+
+        with patch.object(service.kanban, "move_task", new=fail_move):
+            result = await service.resume_project(project_id)
+        assert result is not None
+        assert result["status"] == "paused"
+        assert result["resumed_task_ids"] == []
+
+        async with get_session() as session:
+            task = await session.get(
+                KanbanTaskModel, project["created_task_ids"][0]
+            )
+            assert task is not None
+            assert task.status == TaskStatus.BLOCKED.value
+
 
 class TestApproveAllResults:
     @pytest.mark.asyncio
