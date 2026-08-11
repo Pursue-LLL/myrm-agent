@@ -27,7 +27,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
 | `e2e/test_migration_readiness_gap_chrome_e2e.py` | 模块 | migration post-import readiness gap（LIVE×3 SHPOIB：`mcp_warning` · `provider_critical` · `diagnostic_critical` 各独立 `::test_*` · R139 禁 batch） |
 | `e2e/test_mcp_reload_confirm_chrome_e2e.py` | 模块 | MCP Settings reload 确认 Chrome E2E（READ×1 SHPOIB 单会话：toggle cancel/confirm · delete · import JSON · add/save → `GET /config/mcpServers` 断言） |
-| `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×12：看板渲染 + source_chat 深链过滤 + Drawer 附件 + Chat 成功卡片→看板 + stats bar running N/M + ready 排队 badge ±（占满显示/未满不显示）+ 多 ready 同时排队 badge + 真实执行排队释放闭环 + 队列按序释放 badge 递减 + model_override UI 建卡 / 抽屉徽章编辑清除） |
+| `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×13：看板渲染 + source_chat 深链过滤 + Drawer 附件 + Chat 成功卡片→看板 + stats bar running N/M + ready 排队 badge ±（占满显示/未满不显示）+ 多 ready 同时排队 badge + 真实执行排队释放闭环 + 队列按序释放 badge 递减 + model_override UI 建卡 / 抽屉徽章编辑清除 + 技能选择器 UI 建卡（真实技能集，picker 搜索选择 → extra_skill_ids 持久化）） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
 | `e2e/test_wiki_dedup_chrome_e2e.py` | 模块 | Wiki corpus dedup Chrome MCP E2E（SHARED+READ×1：seed-after-warm → duplicateReview exact group panel） |
 | `e2e/test_wiki_compound_chrome_e2e.py` | 模块 | Wiki chat compound Chrome E2E（SHARED+READ×3：`POST /chats/` seed Q&A → `POST /wiki/compound` happy+409 dedup · incognito 403 · user role 422） |
@@ -139,6 +139,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_kanban_in_review_seed_integration.py` | 模块 | IN_REVIEW seed fixture 集成（fixture → badges 计数 + approve/reject 转换回落） |
 | `core/web_push/test_push_deep_links.py` | 模块 | Web Push 点击路由（resolve_push_url：APPROVAL_REQUIRED 深链、pending_review+board_id 直达看板 in_review 列、非 review 状态回退聊天页、缺 chat 回首页） |
 | `api/kanban/test_in_review_api.py` | 模块 | IN_REVIEW 审批 API（approve/reject 转换、守卫、pending_review 通知 payload 含 board_id） |
+| `platform_utils/sandbox/_ARCH.md` | 模块 | SaaS platform provider seed 逻辑回归（14 例，见子目录清单） |
 
 ---
 
