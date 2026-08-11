@@ -8,7 +8,6 @@ parse_judge_json（done 键规范化）。
 
 import json
 import logging
-import re
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage

@@ -282,6 +282,37 @@ def test_eval_router_remaining_branches(client: TestClient):
         assert res.json()["status"] == "started"
         mock_bg.assert_called_once()
 
+    # --- /benchmarks/run: preflight passes but another run started meanwhile ---
+    # Two concurrent requests can both pass the opening guard; only the awaited
+    # preflight keeps the window open long enough to matter, so a synchronous
+    # re-check after it must return already_running and never double-schedule.
+    with (
+        patch(
+            "app.api.eval.benchmarks_router.get_eval_status",
+            side_effect=[
+                {"is_running": False},
+                {"is_running": True, "stage": "evaluating"},
+            ],
+        ),
+        patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
+        patch(
+            "app.core.channel_bridge.config_parsers.verify_search_service_available"
+        ) as mock_verify,
+        patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
+    ):
+        mock_cfg.return_value = SimpleNamespace(
+            search_is_user_configured=True,
+            search_cfg=object(),
+        )
+        mock_verify.return_value = True
+        res = client.post(
+            "/api/v1/eval/benchmarks/run",
+            json={"benchmark_id": "browsecomp", "benchmark_mode": True},
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "already_running"
+        mock_bg.assert_not_called()
+
     # --- /benchmarks/run: benchmark_mode off skips web-search preflight ---
     with (
         patch(

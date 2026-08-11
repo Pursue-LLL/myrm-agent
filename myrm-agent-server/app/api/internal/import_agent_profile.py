@@ -287,7 +287,6 @@ async def _force_update_agent(
         "engine_params",
         "auto_restore_domains",
         "openapi_services",
-        "workspace_policy",
         "prompt_mode",
         "suggestion_prompts",
         "agent_type",
@@ -296,6 +295,7 @@ async def _force_update_agent(
         "browser_source",
         "dialog_policy",
         "session_recording",
+        "home_directory",
     )
     meta_update: dict[str, object] = {}
     for mk in metadata_keys:

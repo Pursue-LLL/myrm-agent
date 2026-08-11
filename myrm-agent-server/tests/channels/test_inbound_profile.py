@@ -2,7 +2,16 @@
 
 import pytest
 
-from app.channels.protocols.inbound_profile import resolve_channel_ingress_mode
+from app.channels.protocols.inbound_profile import CHANNEL_INBOUND_SPECS, resolve_channel_ingress_mode
+from app.channels.providers.registry import get_channel_class
+
+# Derived once at collection time from the SSOT so a newly added channel is
+# automatically covered instead of requiring a manual parameter sync.
+_CONFIGURED_FIELD_PARAMS: tuple[tuple[str, str], ...] = tuple(
+    (name, spec.configured_field)
+    for name, spec in CHANNEL_INBOUND_SPECS.items()
+    if spec.configured_field is not None
+)
 
 
 @pytest.mark.parametrize(
@@ -88,32 +97,7 @@ def test_matrix_configured_is_outbound() -> None:
 
 @pytest.mark.parametrize(
     ("channel", "configured_field"),
-    [
-        ("telegram", "botToken"),
-        ("feishu", "appId"),
-        ("slack", "botToken"),
-        ("discord", "botToken"),
-        ("dingtalk", "clientId"),
-        ("wecom_aibot", "botId"),
-        ("wechat", "botToken"),
-        ("wechat_official", "appId"),
-        ("imessage", "apiUrl"),
-        ("line", "channelAccessToken"),
-        ("sms", "accountSid"),
-        ("wecom", "corpId"),
-        ("teams", "appId"),
-        ("googlechat", "serviceAccountJson"),
-        ("matrix", "homeserverUrl"),
-        ("mattermost", "serverUrl"),
-        ("email", "imapHost"),
-        ("signal", "phoneNumber"),
-        ("irc", "server"),
-        ("zalo", "accessToken"),
-        ("qq", "appId"),
-        ("onebot", "host"),
-        ("voice", "accountSid"),
-        ("github", "webhookSecret"),
-    ],
+    _CONFIGURED_FIELD_PARAMS,
 )
 def test_configured_field_is_recognized(channel: str, configured_field: str) -> None:
     # Any channel whose configured_field is present must resolve to a mode (not None),
@@ -121,8 +105,22 @@ def test_configured_field_is_recognized(channel: str, configured_field: str) -> 
     assert resolve_channel_ingress_mode(channel, {configured_field: "x"}) is not None
 
 
+@pytest.mark.parametrize(
+    ("channel", "configured_field"),
+    _CONFIGURED_FIELD_PARAMS,
+)
+def test_configured_field_matches_channel_credential_spec(channel: str, configured_field: str) -> None:
+    # configured_field is used to look up credentials from the store, whose keys are
+    # the channel's credential db_keys (app.channels.core.credentials resolve loop).
+    # If it drifts from the real credential field (e.g. zalo used "oaId" while the
+    # channel stores "accessToken"), configured channels are silently skipped during
+    # Ingress assessment. This assertion makes such drift fail CI immediately.
+    cls = get_channel_class(channel)
+    db_keys = {field.db_key for _, field in cls.credential_spec.fields}
+    assert configured_field in db_keys
+
+
 def test_inbound_specs_cover_all_registry_channels() -> None:
-    from app.channels.protocols.inbound_profile import CHANNEL_INBOUND_SPECS
     from app.channels.providers.registry import _BUILTIN_SPECS
 
     # Guard against drift: every built-in channel must declare an Ingress profile.

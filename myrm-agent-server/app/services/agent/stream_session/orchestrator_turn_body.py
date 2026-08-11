@@ -165,6 +165,12 @@ async def execute_agent_turn_after_reserve(
         None,
     )
     load_chat_history = getattr(chat_history_bootstrap, "load_chat_history", None)
+    logger.info(
+        "E1 turn setup chat_id=%s message_id=%s split_helpers=%s",
+        request.chat_id,
+        request.message_id,
+        callable(persist_user_message) and callable(load_chat_history),
+    )
     if callable(persist_user_message) and callable(load_chat_history):
         persisted_message_id = await persist_user_message(
             request,

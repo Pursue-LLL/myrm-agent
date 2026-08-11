@@ -319,8 +319,7 @@ function buildSendTurnDiagnostic(chatId: string | null): Record<string, unknown>
   return {
     rev: SEND_TURN_REV,
     directSse: Boolean(
-      typeof window !== 'undefined' &&
-        (window as unknown as Record<string, unknown>).__MYRM_E2E_DIRECT_SSE__,
+      typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).__MYRM_E2E_DIRECT_SSE__,
     ),
     turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,
     provider: window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null,
@@ -382,10 +381,10 @@ function resolveE2eTurnProgress(
   const userCount = progressState.messages.filter((msg) => msg.role === 'user').length;
   const streaming = Boolean(
     progressState.loading ||
-      progressState.abortController ||
-      paneAbort ||
-      chatState.loading ||
-      chatState.abortController,
+    progressState.abortController ||
+    paneAbort ||
+    chatState.loading ||
+    chatState.abortController,
   );
   return {
     userCount,
@@ -599,10 +598,7 @@ async function submitAndObserveTurn(
           },
         };
       }
-      if (
-        elapsedMs >= resolveSendTurnNoOpMs() &&
-        !uiProgress
-      ) {
+      if (elapsedMs >= resolveSendTurnNoOpMs() && !uiProgress) {
         const apiUsersProbe = await countApiUserMessages(chatId);
         if (apiUsersProbe <= baselineUsers) {
           return {
@@ -627,7 +623,11 @@ async function submitAndObserveTurn(
       }
       const apiUsers = await countApiUserMessages(chatId);
       const apiOk = apiUsers > baselineUsers;
-      const liveOk = uiProgress && (apiOk || streaming);
+      // A local placeholder/stream can be produced before the private backend
+      // accepts the POST. It is not an admission signal: sealing here would
+      // let the E2E flow continue while the API still has no user row. Every
+      // live turn must therefore have both UI progress and an API-side row.
+      const liveOk = apiOk && uiProgress;
       const readOk = apiOk && uiProgress;
       if ((profile === 'live' && liveOk) || (profile === 'read' && readOk)) {
         return {
@@ -825,9 +825,7 @@ export default function E2EChatBridge() {
         });
         const configuredAttachMs = Number(window.__MYRM_E2E_ATTACH_TIMEOUT_MS__);
         const attachMs =
-          Number.isFinite(configuredAttachMs) && configuredAttachMs >= 60_000
-            ? configuredAttachMs
-            : 90_000;
+          Number.isFinite(configuredAttachMs) && configuredAttachMs >= 60_000 ? configuredAttachMs : 90_000;
         const deadline = Date.now() + attachMs;
         while (Date.now() < deadline) {
           const state = useChatStore.getState();
@@ -840,24 +838,20 @@ export default function E2EChatBridge() {
                 messageAppeared: true,
               });
             });
-            window.dispatchEvent(
-              new CustomEvent('myrm-e2e-chat-route-hydrated', { detail: { chatId: id } }),
-            );
+            window.dispatchEvent(new CustomEvent('myrm-e2e-chat-route-hydrated', { detail: { chatId: id } }));
             return;
           }
           await new Promise((resolve) => setTimeout(resolve, 200));
         }
         const finalState = useChatStore.getState();
         if (
-          finalState.chatId === id
-          && finalState.isMessagesLoaded
-          && !finalState.notFound
-          && !finalState.loadError
-          && !finalState.loading
+          finalState.chatId === id &&
+          finalState.isMessagesLoaded &&
+          !finalState.notFound &&
+          !finalState.loadError &&
+          !finalState.loading
         ) {
-          window.dispatchEvent(
-            new CustomEvent('myrm-e2e-chat-route-hydrated', { detail: { chatId: id } }),
-          );
+          window.dispatchEvent(new CustomEvent('myrm-e2e-chat-route-hydrated', { detail: { chatId: id } }));
           return;
         }
         throw new Error(
@@ -881,21 +875,18 @@ export default function E2EChatBridge() {
             messages: Array.isArray(state.messages) ? [...state.messages] : [],
           });
         });
-        window.dispatchEvent(
-          new CustomEvent('myrm-e2e-chat-route-hydrated', { detail: { chatId: id } }),
-        );
+        window.dispatchEvent(new CustomEvent('myrm-e2e-chat-route-hydrated', { detail: { chatId: id } }));
         const next = useChatStore.getState();
         const routeReady =
-          next.chatId === id
-          && next.isMessagesLoaded
-          && (next.messages.length > 0 || Boolean(next.compactedSummary?.trim()));
+          next.chatId === id &&
+          next.isMessagesLoaded &&
+          (next.messages.length > 0 || Boolean(next.compactedSummary?.trim()));
         return {
           ok: true,
           routeReady,
           msgCount: next.messages.length,
           hasSkeleton: Boolean(
-            typeof document !== 'undefined'
-            && document.querySelector('[data-testid="message-list-skeleton"]'),
+            typeof document !== 'undefined' && document.querySelector('[data-testid="message-list-skeleton"]'),
           ),
         };
       },
@@ -973,12 +964,7 @@ export default function E2EChatBridge() {
             ? opts.baselineUserCount
             : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
         const profile = opts?.profile === 'read' ? 'read' : 'live';
-        const result = await submitAndObserveTurn(
-          text,
-          baselineUsers,
-          profile,
-          opts?.preserveActionMode === true,
-        );
+        const result = await submitAndObserveTurn(text, baselineUsers, profile, opts?.preserveActionMode === true);
         window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
         return result;
       },
@@ -995,12 +981,7 @@ export default function E2EChatBridge() {
             ? opts.baselineUserCount
             : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
         const profile = opts?.profile === 'read' ? 'read' : 'live';
-        const result = await submitAndObserveTurn(
-          text,
-          baselineUsers,
-          profile,
-          opts?.preserveActionMode === true,
-        );
+        const result = await submitAndObserveTurn(text, baselineUsers, profile, opts?.preserveActionMode === true);
         window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
         return result;
       },
@@ -1017,12 +998,7 @@ export default function E2EChatBridge() {
             ? opts.baselineUserCount
             : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
         const profile = opts?.profile === 'read' ? 'read' : 'live';
-        const result = await submitAndObserveTurn(
-          text,
-          baselineUsers,
-          profile,
-          opts?.preserveActionMode === true,
-        );
+        const result = await submitAndObserveTurn(text, baselineUsers, profile, opts?.preserveActionMode === true);
         window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
         return result;
       },
@@ -1046,11 +1022,7 @@ export default function E2EChatBridge() {
           typeof window.__MYRM_E2E_CHAT__?._submitBaselineUsers === 'number'
             ? window.__MYRM_E2E_CHAT__!._submitBaselineUsers!
             : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
-        const result = await submitAndObserveTurn(
-          resolveMessage(),
-          baselineUsers,
-          'live',
-        );
+        const result = await submitAndObserveTurn(resolveMessage(), baselineUsers, 'live');
         window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
       },
       getInputMessage: () => useChatStore.getState().inputMessage,
@@ -1558,8 +1530,7 @@ export default function E2EChatBridge() {
           setHideAttachList: (hide: boolean) => useChatStore.setState({ hideAttachList: hide }),
           setHasUsedImagesInCurrentChat: (hasUsed: boolean) =>
             useChatStore.setState({ hasUsedImagesInCurrentChat: hasUsed }),
-          setSelectedModels: (models: typeof state.selectedModels) =>
-            useChatStore.setState({ selectedModels: models }),
+          setSelectedModels: (models: typeof state.selectedModels) => useChatStore.setState({ selectedModels: models }),
           setHasUserSelectedModel: (hasSelected: boolean) =>
             useChatStore.setState({ hasUserSelectedModel: hasSelected }),
           clearCurrentSessionMessageId: () => useChatStore.setState({ currentSessionMessageId: null }),
@@ -1645,7 +1616,8 @@ export default function E2EChatBridge() {
           artifactCount += artifacts.length;
           if (
             artifacts.some(
-              (artifact) => artifact.type === 'html' && typeof artifact.file_path === 'string' && artifact.file_path.length > 0,
+              (artifact) =>
+                artifact.type === 'html' && typeof artifact.file_path === 'string' && artifact.file_path.length > 0,
             )
           ) {
             htmlArtifactWithPath = true;

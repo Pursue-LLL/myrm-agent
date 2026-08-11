@@ -15,10 +15,13 @@ Orchestrator helper isolating DB persist + history load from stream session life
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 
 from app.services.agent.params import AgentRequest, _extract_text_from_query
 from app.services.chat.chat_service import ChatService
+
+logger = logging.getLogger(__name__)
 
 
 async def persist_user_message_and_load_history(
@@ -51,10 +54,18 @@ async def persist_user_message(
     doing setup.
     """
     if not request.chat_id:
+        logger.info("E1 user persist skipped: missing chat_id message_id=%s", request.message_id)
         return None
 
     is_regenerate = request.sibling_group_id is not None
     if request.resume_value is not None or is_regenerate:
+        logger.info(
+            "E1 user persist skipped: resume_or_regenerate chat_id=%s message_id=%s resume=%s regenerate=%s",
+            request.chat_id,
+            request.message_id,
+            request.resume_value is not None,
+            is_regenerate,
+        )
         return None
 
     if request.timestamp is not None:
@@ -82,6 +93,12 @@ async def persist_user_message(
         persist_moa_preset=(
             request.action_mode == "agent" and not request.incognito_mode
         ),
+    )
+    logger.info(
+        "E1 user row committed chat_id=%s message_id=%s persisted_id=%s",
+        request.chat_id,
+        request.message_id,
+        msg.id,
     )
     return msg.id
 

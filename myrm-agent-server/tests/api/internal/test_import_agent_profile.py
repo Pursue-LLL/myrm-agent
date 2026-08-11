@@ -186,6 +186,7 @@ async def test_force_push_still_applies_config_updates(
             "skill_ids": ["publisher-skill-id"],
             "subagent_ids": [],
             "enabled_builtin_tools": ["web_search"],
+            "home_directory": "/home/sandbox",
         },
     )
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -210,6 +211,10 @@ async def test_force_push_still_applies_config_updates(
     assert updated["personality_style"] == "friendly"
     assert updated["max_iterations"] == 25
     assert "tools_allowed" in updated
+    metadata = updated.get("metadata")
+    assert isinstance(metadata, dict)
+    assert metadata["home_directory"] == "/home/sandbox"
+    assert "workspace_policy" not in metadata
 
 
 @pytest.mark.asyncio
