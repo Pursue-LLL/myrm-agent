@@ -21,8 +21,10 @@ from app.core.skills.store.service import skills_service
 async def validate_extra_skill_ids(extra_skill_ids: list[str]) -> None:
     """Reject task skill ids that do not exist in the discoverable skill set.
 
-    User-facing guard on the create/update path only; decompose and pipeline
-    instantiation call the service layer directly and bypass this check.
+    User-facing guard on the create/update path only. Internal task creation
+    bypasses this check and is safe by construction: decompose/specify do not
+    emit skill ids today (``DecomposeChildSpec.extra_skill_ids`` stays empty),
+    and pipeline instantiation only injects template-defined skills.
     """
     if not extra_skill_ids:
         return

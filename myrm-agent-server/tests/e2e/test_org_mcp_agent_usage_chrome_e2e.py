@@ -23,7 +23,12 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import fetch_chat_messages, get_e2e_api_url, get_e2e_ui_url  # noqa: E402
+from cdp_chat_support import (  # noqa: E402
+    ensure_e2e_yolo_mode,
+    fetch_chat_messages,
+    get_e2e_api_url,
+    get_e2e_ui_url,
+)
 from cdp_chat_ui import chat_id_from_path, wait_e2e_provider_ready  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate_contract import EvaluateIntent  # noqa: E402
@@ -32,7 +37,7 @@ from mcp_chat_ui import McpChatSession  # noqa: E402
 from tests.support.chrome_mcp_e2e import http_json  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once  # noqa: E402
 
-_ORG_PROBE_NAME = "org-e2e-agent-probe"
+_ORG_PROBE_NAME = "e2e-minimal"
 _ORG_MCP_SYNC_PATH = "/api/admin/org-mcp-sync"
 _STDIO_STUB = (
     Path(__file__).resolve().parents[1] / "support" / "e2e_minimal_stdio_mcp_server.py"
@@ -139,6 +144,7 @@ async def test_org_mcp_tool_invoked_in_live_chat(
     api_url = get_e2e_api_url()
     probe = {
         "name": _ORG_PROBE_NAME,
+        "type": "stdio",
         "command": sys.executable,
         "args": [str(_STDIO_STUB)],
         "description": "E2E org-managed MCP probe",
@@ -147,6 +153,7 @@ async def test_org_mcp_tool_invoked_in_live_chat(
     assert _org_mcp_server_names(api_url) == [_ORG_PROBE_NAME], (
         "org MCP config not visible on the private E2E backend"
     )
+    ensure_e2e_yolo_mode(api_url=api_url)
     try:
         client = ChromeMcpClient(request_timeout_sec=180.0)
         await asyncio.to_thread(client.start)

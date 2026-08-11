@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from dev_gate_contract import LIVE_SHPOIB_MAX_CONCURRENT
@@ -71,13 +72,32 @@ def private_capacity_credits() -> int:
 
 
 class PrivateResourceController:
-    def __init__(self, store: DevGateStore, *, capacity_credits: int) -> None:
+    def __init__(
+        self,
+        store: DevGateStore,
+        *,
+        capacity_credits: int,
+        capacity_provider: Callable[[], int] | None = None,
+    ) -> None:
         if capacity_credits < 1:
             raise ValueError("capacity_credits must be positive")
         self.store = store
         self.capacity_credits = capacity_credits
+        self._capacity_provider = capacity_provider
         with self._connect() as connection:
             connection.executescript(_QUEUE_SCHEMA)
+
+    def _effective_capacity_credits(self) -> int:
+        """Read the current host capacity without revoking active work."""
+        if self._capacity_provider is None:
+            return self.capacity_credits
+        capacity = int(self._capacity_provider())
+        if not 1 <= capacity <= PRIVATE_CAPACITY_MAX:
+            raise ValueError(
+                "capacity_provider returned a value outside the supported "
+                f"range 1..{PRIVATE_CAPACITY_MAX}: {capacity}"
+            )
+        return capacity
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.store.path, timeout=30.0)
@@ -95,6 +115,7 @@ class PrivateResourceController:
         now: float | None = None,
     ) -> PrivateAdmission:
         admitted_at = time.time() if now is None else now
+        capacity = self._effective_capacity_credits()
         with self._connect() as connection:
             _begin_immediate(connection)
             self._release_terminal_sessions(connection, admitted_at)
@@ -123,13 +144,13 @@ class PrivateResourceController:
                     f"PRIVATE_ADMIT_TIMEOUT: session={session_id} "
                     f"waited={int(waited)}s"
                 )
-            self._grant_waiters(connection, admitted_at)
+            self._grant_waiters(connection, admitted_at, capacity_credits=capacity)
             queued = self._queue_row(connection, session_id)
             active = self._active_credits(connection)
             if queued["granted_at"] is not None:
                 idle = self._credit_idle_reason(
                     active_credits=active,
-                    available_credits=max(0, self.capacity_credits - active),
+                    available_credits=max(0, capacity - active),
                     waiting_rows=self._ordered_waiters(connection, admitted_at),
                 )
                 connection.commit()
@@ -137,11 +158,11 @@ class PrivateResourceController:
                     granted=True,
                     queue_position=0,
                     active_credits=active,
-                    capacity_credits=self.capacity_credits,
+                    capacity_credits=capacity,
                     waited_sec=waited,
                     next_progress_sec=0.0,
                     idle_reason=idle,
-                    available_credits=max(0, self.capacity_credits - active),
+                    available_credits=max(0, capacity - active),
                 )
             position = self._queue_position(connection, session_id, admitted_at)
             next_progress = PRIVATE_QUEUE_PROGRESS_SEC - (
@@ -149,7 +170,7 @@ class PrivateResourceController:
             )
             idle = self._credit_idle_reason(
                 active_credits=active,
-                available_credits=max(0, self.capacity_credits - active),
+                available_credits=max(0, capacity - active),
                 waiting_rows=self._ordered_waiters(connection, admitted_at),
             )
             connection.commit()
@@ -157,11 +178,11 @@ class PrivateResourceController:
                 granted=False,
                 queue_position=position,
                 active_credits=active,
-                capacity_credits=self.capacity_credits,
+                capacity_credits=capacity,
                 waited_sec=waited,
                 next_progress_sec=next_progress,
                 idle_reason=idle,
-                available_credits=max(0, self.capacity_credits - active),
+                available_credits=max(0, capacity - active),
             )
 
     def release(
@@ -172,6 +193,7 @@ class PrivateResourceController:
         now: float | None = None,
     ) -> tuple[str, ...]:
         released_at = time.time() if now is None else now
+        capacity = self._effective_capacity_credits()
         with self._connect() as connection:
             _begin_immediate(connection)
             row = self._queue_row(connection, session_id)
@@ -184,12 +206,17 @@ class PrivateResourceController:
                 """,
                 (released_at, session_id),
             )
-            granted = self._grant_waiters(connection, released_at)
+            granted = self._grant_waiters(
+                connection,
+                released_at,
+                capacity_credits=capacity,
+            )
             connection.commit()
             return granted
 
     def snapshot(self, *, now: float | None = None) -> dict[str, object]:
         captured_at = time.time() if now is None else now
+        capacity = self._effective_capacity_credits()
         last_error: sqlite3.OperationalError | None = None
         for attempt in range(8):
             try:
@@ -215,14 +242,14 @@ class PrivateResourceController:
             if last_error is not None:
                 raise last_error
             raise RuntimeError("private admission snapshot failed")
-        available = max(0, self.capacity_credits - active)
+        available = max(0, capacity - active)
         idle_reason = self._credit_idle_reason(
             active_credits=active,
             available_credits=available,
             waiting_rows=waiting,
         )
         return {
-            "capacity_credits": self.capacity_credits,
+            "capacity_credits": capacity,
             "active_credits": active,
             "available_credits": available,
             "idle_reason": idle_reason,
@@ -240,10 +267,15 @@ class PrivateResourceController:
     def sweep_stale_credits(self, *, now: float | None = None) -> tuple[str, ...]:
         """Release terminal/abandoned credits and grant waiters (ADMIT wait loop tick)."""
         captured_at = time.time() if now is None else now
+        capacity = self._effective_capacity_credits()
         with self._connect() as connection:
             _begin_immediate(connection)
             self._release_terminal_sessions(connection, captured_at)
-            granted = self._grant_waiters(connection, captured_at)
+            granted = self._grant_waiters(
+                connection,
+                captured_at,
+                capacity_credits=capacity,
+            )
             connection.commit()
             return granted
 
@@ -379,8 +411,15 @@ class PrivateResourceController:
         self,
         connection: sqlite3.Connection,
         now: float,
+        *,
+        capacity_credits: int | None = None,
     ) -> tuple[str, ...]:
-        available = self.capacity_credits - self._active_credits(connection)
+        capacity = (
+            self._effective_capacity_credits()
+            if capacity_credits is None
+            else capacity_credits
+        )
+        available = capacity - self._active_credits(connection)
         granted: list[str] = []
         for waiter in self._ordered_waiters(connection, now):
             credits = int(waiter["credits"])

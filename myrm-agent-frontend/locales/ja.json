@@ -3392,6 +3392,9 @@
         "networkWarning": "スキルはネットワークアクセスなしのセキュアなサンドボックスで実行されます。ネットワーク依存のスキルはサポートされていません。ネットワーク操作には MCP サービスを使用するか、Myrm AI をローカルにデプロイしてください。"
       },
       "batchImport": {
+        "importSuccess": "インポート成功",
+        "importSuccessDesc": "{imported} 個のスキルをインポートし、{skipped} 個をスキップし、回帰テストケース {restored} 件を復元しました",
+        "importFailed": "インポート失敗",
         "errors": {
           "archiveSecurity": {
             "entryLimitExceeded": "セキュリティポリシーによりアップロードがブロックされました：ZIP に含まれるエントリが多すぎます。",
@@ -9116,9 +9119,9 @@
       "doctorEmpty": "利用可能なメモリ診断チェックはまだありません",
       "doctorRunTitle": "メモリ診断を実行",
       "doctorRunAll": "すべての診断を実行",
-      "doctorTrendTitle": "診断トレンド",
+      "doctorTrendTitle": "ベンチマーク傾向",
       "doctorTrendRuns": "{count} 回の実行",
-      "doctorTrendModelShift": "埋め込みモデルが {model} に変更されました",
+      "doctorTrendModelShift": "Embedding モデルが変更されました。過去のスコアは比較できない場合があります（{model}）",
       "bundleMigrateAction": "コンテキストバンドルを初期化中",
       "bundleMigrating": "初期化中...",
       "bundleMigrateSuccess": "コンテキストバンドルを初期化しました",
@@ -9141,9 +9144,6 @@
       "doctorAuditStatus": "監査ステータス",
       "doctorAuditRecorded": "診断監査を記録しました",
       "doctorAuditMissing": "診断監査が記録されていません",
-      "doctorTrendTitle": "ベンチマーク傾向",
-      "doctorTrendRuns": "{count} 回の実行",
-      "doctorTrendModelShift": "Embedding モデルが変更されました。過去のスコアは比較できない場合があります（{model}）",
       "doctorSloTitle": "診断信頼性 SLO",
       "doctorSloWindow": "ウィンドウ実行数",
       "doctorSloPassRate": "合格率",
@@ -14639,8 +14639,12 @@
       "historyTitle": "実行履歴",
       "historyTime": "時刻",
       "historyDataset": "データセット",
+      "historyAgentModel": "Agent モデル",
+      "historyJudge": "判定モデル",
       "historyCurrent": "現在",
-      "historyView": "表示"
+      "historyView": "表示",
+      "sampled": "サンプル",
+      "sampledTitle": "この実行ではベンチマークタスクをランダムに抽出しました（再現可能）"
     }
   },
   "vault": {

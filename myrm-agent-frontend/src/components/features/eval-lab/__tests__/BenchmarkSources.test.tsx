@@ -296,6 +296,52 @@ describe('BenchmarkSources', () => {
     expect(screen.getByText('requiresWebSearch')).toBeInTheDocument();
   });
 
+  it('prefills a default sample size for large benchmarks', async () => {
+    const payload = {
+      status: 'success',
+      sources: [
+        {
+          benchmark_id: 'browsecomp',
+          name: 'BrowseComp',
+          description: 'OpenAI web-research benchmark',
+          task_count: 1266,
+          approx_size_mb: 1,
+          is_downloaded: true,
+          local_size_bytes: 1024,
+          scoring: 'llm_judge',
+          supports_memory_ab: true,
+          provider: 'external',
+          required_tools: ['web_search'],
+        },
+      ],
+    };
+    const onRun = vi.fn();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(<BenchmarkSources
+      running={false}
+      history={[]}
+      onRun={onRun}
+      onDownload={vi.fn()}
+      onMemoryAb={vi.fn()}
+      refreshToken={0}
+      downloadingBenchmarkId={null}
+      downloadProgress={null}
+    />);
+
+    await waitFor(() => expect(screen.getByText('BrowseComp')).toBeInTheDocument());
+    const limitInput = screen.getByRole('spinbutton');
+    expect(limitInput).toHaveValue(20);
+
+    fireEvent.click(screen.getByRole('button', { name: /run/i }));
+    await waitFor(() => expect(onRun).toHaveBeenCalledWith('browsecomp', 20));
+  });
+
   it('omits the web-search badge for benchmarks without that requirement', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify(sourcesPayload()), {

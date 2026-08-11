@@ -156,7 +156,9 @@ async def test_force_push_preserves_skill_bindings(
 
     assert fake_repo.updated is not None
     assert "skills" not in fake_repo.updated
-    assert fake_repo.updated["skill_configs"] == {"publisher-skill-id": {"enabled": True}}
+    assert fake_repo.updated["skill_configs"] == {
+        "publisher-skill-id": {"enabled": True}
+    }
     assert fake_repo.committed
 
 
@@ -251,7 +253,11 @@ async def test_force_push_snapshots_and_publishes_event(
     assert fake_bus.publish.called
     event = fake_bus.publish.call_args.args[0]
     assert event.event_type.value == "agent_config_updated"
-    assert event.data == {"agent_id": "target-1", "action": "force_push", "snapshot_id": "snapshot-1"}
+    assert event.data == {
+        "agent_id": "target-1",
+        "action": "force_push",
+        "snapshot_id": "snapshot-1",
+    }
 
 
 @pytest.mark.asyncio
@@ -514,19 +520,25 @@ class TestExtractModelUpdate:
 
 class TestNormalizeMarketplaceEntryId:
     def test_strips_whitespace(self) -> None:
-        from app.api.internal.import_agent_profile import _normalize_marketplace_entry_id
+        from app.api.internal.import_agent_profile import (
+            _normalize_marketplace_entry_id,
+        )
 
         assert _normalize_marketplace_entry_id("  entry-1  ") == "entry-1"
 
     def test_none_passes_through(self) -> None:
-        from app.api.internal.import_agent_profile import _normalize_marketplace_entry_id
+        from app.api.internal.import_agent_profile import (
+            _normalize_marketplace_entry_id,
+        )
 
         assert _normalize_marketplace_entry_id(None) is None
 
     def test_empty_raises_400(self) -> None:
         from fastapi import HTTPException
 
-        from app.api.internal.import_agent_profile import _normalize_marketplace_entry_id
+        from app.api.internal.import_agent_profile import (
+            _normalize_marketplace_entry_id,
+        )
 
         with pytest.raises(HTTPException) as exc_info:
             _normalize_marketplace_entry_id("   ")
@@ -545,8 +557,14 @@ class TestResolveForcePushAgentId:
         repo = MagicMock()
         repo.list_profiles = AsyncMock(
             return_value=[
-                MagicMock(id="p1", metadata={"engine_params": {"marketplace_entry_id": "entry-1"}}),
-                MagicMock(id="p2", metadata={"engine_params": {"marketplace_entry_id": "other"}}),
+                MagicMock(
+                    id="p1",
+                    metadata={"engine_params": {"marketplace_entry_id": "entry-1"}},
+                ),
+                MagicMock(
+                    id="p2",
+                    metadata={"engine_params": {"marketplace_entry_id": "other"}},
+                ),
             ]
         )
         fake_uow = MagicMock()
@@ -588,8 +606,14 @@ class TestResolveForcePushAgentId:
         repo = MagicMock()
         repo.list_profiles = AsyncMock(
             return_value=[
-                MagicMock(id="p1", metadata={"engine_params": {"marketplace_entry_id": "entry-1"}}),
-                MagicMock(id="p2", metadata={"engine_params": {"marketplace_entry_id": "entry-1"}}),
+                MagicMock(
+                    id="p1",
+                    metadata={"engine_params": {"marketplace_entry_id": "entry-1"}},
+                ),
+                MagicMock(
+                    id="p2",
+                    metadata={"engine_params": {"marketplace_entry_id": "entry-1"}},
+                ),
             ]
         )
         fake_uow = MagicMock()
@@ -615,7 +639,9 @@ class TestEndpointBranches:
         package = _build_package()
         monkeypatch.setattr(
             "app.api.internal.import_agent_profile.validate_marketplace_package",
-            MagicMock(return_value=MagicMock(model_dump=MagicMock(return_value=package))),
+            MagicMock(
+                return_value=MagicMock(model_dump=MagicMock(return_value=package))
+            ),
         )
         monkeypatch.setattr(
             "app.api.internal.import_agent_profile.import_agent_package",
@@ -642,7 +668,9 @@ class TestEndpointBranches:
         package = _build_package()
         monkeypatch.setattr(
             "app.api.internal.import_agent_profile.validate_marketplace_package",
-            MagicMock(return_value=MagicMock(model_dump=MagicMock(return_value=package))),
+            MagicMock(
+                return_value=MagicMock(model_dump=MagicMock(return_value=package))
+            ),
         )
         monkeypatch.setattr(
             "app.api.internal.import_agent_profile.import_agent_package",
@@ -668,7 +696,9 @@ class TestEndpointBranches:
         package = _build_package()
         monkeypatch.setattr(
             "app.api.internal.import_agent_profile.validate_marketplace_package",
-            MagicMock(return_value=MagicMock(model_dump=MagicMock(return_value=package))),
+            MagicMock(
+                return_value=MagicMock(model_dump=MagicMock(return_value=package))
+            ),
         )
         transport = ASGITransport(app=app)
 

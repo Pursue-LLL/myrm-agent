@@ -3412,6 +3412,9 @@
         "networkWarning": "Skills run in a secure sandbox without network access. Network-dependent skills are not supported. For network operations, please use MCP services or deploy Myrm AI locally."
       },
       "batchImport": {
+        "importSuccess": "Import successful",
+        "importSuccessDesc": "Imported {imported} skill(s), skipped {skipped}, restored {restored} regression test case(s)",
+        "importFailed": "Import failed",
         "errors": {
           "archiveSecurity": {
             "entryLimitExceeded": "Upload blocked by security policy: ZIP contains too many entries.",
@@ -9195,9 +9198,9 @@
       "doctorEmpty": "No memory doctor checks are available yet",
       "doctorRunTitle": "Run memory diagnostics",
       "doctorRunAll": "Run all diagnostics",
-      "doctorTrendTitle": "Diagnostic trend",
+      "doctorTrendTitle": "Benchmark trend",
       "doctorTrendRuns": "{count} runs",
-      "doctorTrendModelShift": "Embedding model changed to {model}",
+      "doctorTrendModelShift": "Embedding model changed; earlier scores may not be comparable ({model})",
       "bundleMigrateAction": "Initialize context bundle",
       "bundleMigrating": "Initializing...",
       "bundleMigrateSuccess": "Context bundle initialized",
@@ -9220,9 +9223,6 @@
       "doctorAuditStatus": "Audit status",
       "doctorAuditRecorded": "Diagnostic audit recorded",
       "doctorAuditMissing": "Diagnostic audit not recorded",
-      "doctorTrendTitle": "Benchmark trend",
-      "doctorTrendRuns": "{count} runs",
-      "doctorTrendModelShift": "Embedding model changed; earlier scores may not be comparable ({model})",
       "doctorSloTitle": "Diagnostic Reliability SLO",
       "doctorSloWindow": "Window runs",
       "doctorSloPassRate": "Pass rate",
@@ -14717,8 +14717,12 @@
       "historyTitle": "Run History",
       "historyTime": "Time",
       "historyDataset": "Dataset",
+      "historyAgentModel": "Agent Model",
+      "historyJudge": "Judge Model",
       "historyCurrent": "Current",
-      "historyView": "View"
+      "historyView": "View",
+      "sampled": "sampled",
+      "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)"
     }
   },
   "vault": {

@@ -2858,6 +2858,9 @@
         "networkWarning": "스킬은 네트워크 접근이 없는 보안 샌드박스에서 실행됩니다. 네트워크 의존 스킬은 지원되지 않습니다. 네트워크 작업이 필요하면 MCP 서비스를 사용하거나 Myrm AI를 로컬에 배포하세요."
       },
       "batchImport": {
+        "importSuccess": "가져오기 성공",
+        "importSuccessDesc": "{imported}개 스킬 가져옴, {skipped}개 건너뜀, 회귀 테스트 케이스 {restored}개 복원",
+        "importFailed": "가져오기 실패",
         "errors": {
           "archiveSecurity": {
             "entryLimitExceeded": "보안 정책에 따라 업로드가 차단되었습니다: ZIP에 항목이 너무 많습니다.",
@@ -9097,9 +9100,9 @@
       "doctorEmpty": "사용 가능한 메모리 닥터 검사가 아직 없습니다",
       "doctorRunTitle": "메모리 진단 실행",
       "doctorRunAll": "모든 진단 실행",
-      "doctorTrendTitle": "진단 추세",
+      "doctorTrendTitle": "벤치마크 추이",
       "doctorTrendRuns": "{count}회 실행",
-      "doctorTrendModelShift": "임베딩 모델이 {model}(으)로 변경됨",
+      "doctorTrendModelShift": "Embedding 모델이 변경되어 이전 점수는 비교하기 어려울 수 있습니다({model})",
       "bundleMigrateAction": "컨텍스트 번들 초기화",
       "bundleMigrating": "초기화 중...",
       "bundleMigrateSuccess": "컨텍스트 번들이 초기화되었습니다",
@@ -9122,9 +9125,6 @@
       "doctorAuditStatus": "감사 상태",
       "doctorAuditRecorded": "진단 감사 기록됨",
       "doctorAuditMissing": "진단 감사가 기록되지 않음",
-      "doctorTrendTitle": "벤치마크 추이",
-      "doctorTrendRuns": "{count}회 실행",
-      "doctorTrendModelShift": "Embedding 모델이 변경되어 이전 점수는 비교하기 어려울 수 있습니다({model})",
       "doctorSloTitle": "진단 신뢰성 SLO",
       "doctorSloWindow": "창 실행",
       "doctorSloPassRate": "통과율",
@@ -14049,8 +14049,12 @@
       "historyTitle": "실행 기록",
       "historyTime": "시간",
       "historyDataset": "데이터셋",
+      "historyAgentModel": "에이전트 모델",
+      "historyJudge": "평가 모델",
       "historyCurrent": "현재",
-      "historyView": "보기"
+      "historyView": "보기",
+      "sampled": "샘플",
+      "sampledTitle": "이 실행은 벤치마크 태스크를 무작위로 추출했습니다 (재현 가능)"
     }
   },
   "vault": {

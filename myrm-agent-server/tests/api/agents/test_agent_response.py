@@ -23,16 +23,12 @@ def _profile(*, metadata: dict | None) -> AgentProfile:
 
 
 def test_allow_discovery_false_is_serialized() -> None:
-    response = _to_agent_response(
-        _profile(metadata={"allow_discovery": False})
-    )
+    response = _to_agent_response(_profile(metadata={"allow_discovery": False}))
     assert response.allow_discovery is False
 
 
 def test_allow_discovery_true_is_serialized() -> None:
-    response = _to_agent_response(
-        _profile(metadata={"allow_discovery": True})
-    )
+    response = _to_agent_response(_profile(metadata={"allow_discovery": True}))
     assert response.allow_discovery is True
 
 
@@ -52,10 +48,9 @@ class TestSerializationHelpers:
         assert _meta_str_list({}, "missing") == []
 
     def test_meta_str_list_or_none_converts(self) -> None:
-        assert (
-            _meta_str_list_or_none({"suggestion_prompts": ["p"]}, "suggestion_prompts")
-            == ["p"]
-        )
+        assert _meta_str_list_or_none(
+            {"suggestion_prompts": ["p"]}, "suggestion_prompts"
+        ) == ["p"]
 
     def test_meta_dict_or_none_converts(self) -> None:
         assert _meta_dict_or_none(
@@ -127,7 +122,9 @@ class TestSerializationHelpers:
                 "workspace_policy": "ISOLATED_COPY",
                 "session_policy": {"mode": "daily"},
                 "openapi_services": [{"url": "https://api.example.com/openapi.json"}],
-                "notify_targets": [{"channel": "im", "recipient_id": "u1", "label": "me"}],
+                "notify_targets": [
+                    {"channel": "im", "recipient_id": "u1", "label": "me"}
+                ],
                 "suggestion_prompts": ["p1"],
                 "busy_input_mode": "steer",
                 "cron_post_run_verify": True,

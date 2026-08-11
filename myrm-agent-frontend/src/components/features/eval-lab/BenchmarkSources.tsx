@@ -35,6 +35,7 @@ interface ReportItem {
   avg_pass_rate?: number | null;
   manifest?: {
     task_set_id?: string;
+    limit?: number;
   };
 }
 
@@ -60,6 +61,16 @@ function parseLimit(raw: string): number | undefined {
   if (raw.trim() === '') return undefined;
   const value = Number(raw);
   return Number.isFinite(value) && value > 0 ? Math.round(value) : undefined;
+}
+
+// Large benchmarks (e.g. BrowseComp with 1266 tasks) would take hours and
+// cost a lot when run in full. Prefill a conservative default sample so a
+// one-click run stays cheap; the user can still edit or clear it.
+const LARGE_TASK_THRESHOLD = 100;
+const DEFAULT_SAMPLE_SIZE = 20;
+
+function defaultSampleSize(source: BenchmarkSource): string | null {
+  return source.task_count > LARGE_TASK_THRESHOLD ? String(DEFAULT_SAMPLE_SIZE) : null;
 }
 
 function scoringLabel(source: BenchmarkSource, t: (key: string) => string): { label: string; title: string } {
@@ -97,6 +108,18 @@ export default function BenchmarkSources({
       const data = await res.json();
       if (data.status === 'success' && Array.isArray(data.sources)) {
         setSources(data.sources);
+        // Prefill a default sample for large benchmarks only when the user has
+        // not entered anything for that card yet (clear = intentionally full).
+        setSampleLimits((prev) => {
+          const next = { ...prev };
+          for (const source of data.sources as BenchmarkSource[]) {
+            const prefilled = defaultSampleSize(source);
+            if (prefilled != null && next[source.benchmark_id] == null) {
+              next[source.benchmark_id] = prefilled;
+            }
+          }
+          return next;
+        });
       }
     } catch (e) {
       console.error('Failed to fetch benchmark sources:', e);
@@ -227,12 +250,12 @@ export default function BenchmarkSources({
                       <div className="flex items-center justify-between mt-1">
                         <span className="text-xs text-muted-foreground">
                           {t('reportTotal')}: {report.total_cases ?? 0}
-                          {source.task_count > 0 && report.total_cases != null && report.total_cases < source.task_count && (
+                          {report.manifest?.limit != null && (
                             <span
                               className="ml-1.5 px-1.5 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded"
                               title={t('sampledTitle')}
                             >
-                              {t('sampled')}
+                              {t('sampled')} · {report.manifest.limit}
                             </span>
                           )}
                         </span>

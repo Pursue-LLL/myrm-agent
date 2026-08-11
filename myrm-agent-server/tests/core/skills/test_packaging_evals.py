@@ -13,7 +13,11 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     SkillLineage,
     SkillRecord,
 )
-from myrm_agent_harness.agent.skills.packaging import EVALS_FILE, parse_evals_json, serialize_eval_cases
+from myrm_agent_harness.agent.skills.packaging import (
+    EVALS_FILE,
+    parse_evals_json,
+    serialize_eval_cases,
+)
 
 from app.core.skills.models import Skill, SkillType
 from app.core.skills.packaging import PackageResult, SkillPackagingService
@@ -201,7 +205,9 @@ def _build_zip_with_evals(eval_cases: list[dict] | None) -> bytes:
         zf.writestr("demo_skill/SKILL.md", SKILL_MD)
         zf.writestr("demo_skill/helper.py", "def run():\n    return 42\n")
         if eval_cases is not None:
-            zf.writestr("demo_skill/evals.json", serialize_eval_cases("demo_skill", eval_cases))
+            zf.writestr(
+                "demo_skill/evals.json", serialize_eval_cases("demo_skill", eval_cases)
+            )
     return buffer.getvalue()
 
 
@@ -215,7 +221,9 @@ async def test_export_ignores_user_evals_json_file(
         "app.core.skills.packaging._load_evolution_record",
         lambda skill_name: record,
     )
-    packaging_service._skills_svc._files["evals.json"] = b'{"schema_version":999,"evals":[]}'
+    packaging_service._skills_svc._files["evals.json"] = (
+        b'{"schema_version":999,"evals":[]}'
+    )
 
     result: PackageResult = await packaging_service.package_skill("demo_skill")
 
@@ -259,8 +267,12 @@ async def test_import_strips_all_evals_json_locations(
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("demo_skill/SKILL.md", SKILL_MD)
-        zf.writestr("demo_skill/evals.json", serialize_eval_cases("demo_skill", EVAL_CASES))
-        zf.writestr("demo_skill/nested/evals.json", serialize_eval_cases("demo_skill", []))
+        zf.writestr(
+            "demo_skill/evals.json", serialize_eval_cases("demo_skill", EVAL_CASES)
+        )
+        zf.writestr(
+            "demo_skill/nested/evals.json", serialize_eval_cases("demo_skill", [])
+        )
     result = await service.unpack_and_register(buffer.getvalue())
 
     assert result.success
@@ -320,6 +332,8 @@ async def test_import_restores_eval_cases(
         verify_store.close()
     assert saved is not None
     assert saved.eval_cases == EVAL_CASES
+    # 还原后 updated_at 被刷新（不早于创建时间）
+    assert saved.updated_at >= saved.created_at
 
     # evals.json 未写入技能存储目录
     assert fake_svc.registered_files is not None
@@ -410,10 +424,12 @@ async def test_import_with_invalid_evals_ignored(
 
 
 def test_sync_skill_md_version_injects_and_replaces() -> None:
-    from app.core.skills.packaging import _sync_skill_md_version
+    from app.core.skills.packaging._helpers import _sync_skill_md_version
 
     # 替换已有 version
-    assert _sync_skill_md_version(SKILL_MD, "7") == SKILL_MD.replace("version: 1.0.0", "version: 7")
+    assert _sync_skill_md_version(SKILL_MD, "7") == SKILL_MD.replace(
+        "version: 1.0.0", "version: 7"
+    )
 
     # 无 frontmatter 不修改
     plain = "# No frontmatter\n"

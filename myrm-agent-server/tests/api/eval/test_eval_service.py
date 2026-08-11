@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -159,6 +160,61 @@ class FakeJsonlReporter:
             )
             + "\n"
         )
+
+
+class TestResolveAgentModelLabel:
+    """Shared agent-model resolution: profile priority, config fallback, unknown."""
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_user_model_config(self) -> None:
+        from app.core.channel_bridge.config_loader import UserConfigs
+        from app.core.eval.service import _resolve_agent_model_label
+        from app.core.types import ModelConfig
+
+        configs = UserConfigs(
+            model_cfg=ModelConfig(model="openai-like/gpt-test", api_key="x"),
+            search_cfg=None,
+            search_is_user_configured=False,
+            retrieval_dict={},
+            personal_settings_dict={},
+            mcp_dict={},
+            providers_dict={},
+        )
+        with patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new=AsyncMock(return_value=configs),
+        ):
+            label = await _resolve_agent_model_label(None)
+        assert label == "openai-like/gpt-test"
+
+    @pytest.mark.asyncio
+    async def test_profile_model_takes_priority(self) -> None:
+        from app.core.eval.service import _resolve_agent_model_label
+
+        class FakeProfile:
+            model = "anthropic/claude-sonnet-4-20250514"
+
+        class FakeResolver:
+            async def resolve(self, profile_id: str) -> FakeProfile:
+                return FakeProfile()
+
+        with patch(
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
+            return_value=FakeResolver(),
+        ):
+            label = await _resolve_agent_model_label("builder")
+        assert label == "anthropic/claude-sonnet-4-20250514"
+
+    @pytest.mark.asyncio
+    async def test_unknown_when_nothing_resolvable(self) -> None:
+        from app.core.eval.service import _resolve_agent_model_label
+
+        with patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new=AsyncMock(return_value=SimpleNamespace(model_cfg=None)),
+        ):
+            label = await _resolve_agent_model_label(None)
+        assert label == "unknown"
 
 
 class TestRunEvalSuite:

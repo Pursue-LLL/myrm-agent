@@ -12,6 +12,13 @@ import { apiBase, apiFetch, ensureLoggedIn } from './subagent-dashboard-e2e-auth
 
 const uiBase = process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000';
 
+const E2E_BASH_EPHEMERAL = {
+  bash_worker: {
+    system_prompt: 'You are a bash execution worker.',
+    tools: ['bash_code_execute_tool'],
+  },
+};
+
 async function main() {
   await ensureLoggedIn();
   const chatId = randomUUID();
@@ -22,6 +29,7 @@ async function main() {
       title: `E2E Subagent Dashboard Light ${Date.now()}`,
       action_mode: 'agent',
       agent_id: 'builtin-general',
+      ephemeral_subagents: E2E_BASH_EPHEMERAL,
       messages: [],
     }),
   });

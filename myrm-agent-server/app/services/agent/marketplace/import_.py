@@ -250,12 +250,12 @@ def _remap_ids(
 
     old_skill_ids_obj = remapped.get("skill_ids")
     old_skill_ids = old_skill_ids_obj if isinstance(old_skill_ids_obj, list) else []
-    remapped["skill_ids"] = [
-        skill_id_map.get(sid, sid) for sid in old_skill_ids
-    ]
+    remapped["skill_ids"] = [skill_id_map.get(sid, sid) for sid in old_skill_ids]
 
     old_subagent_ids_obj = remapped.get("subagent_ids")
-    old_subagent_ids = old_subagent_ids_obj if isinstance(old_subagent_ids_obj, list) else []
+    old_subagent_ids = (
+        old_subagent_ids_obj if isinstance(old_subagent_ids_obj, list) else []
+    )
     remapped["subagent_ids"] = [
         subagent_id_map.get(sid, sid) for sid in old_subagent_ids
     ]
@@ -294,7 +294,11 @@ def _agent_create_payload_from_profile(
     is_subagent: bool,
 ) -> dict[str, object]:
     display_name = profile.get("display_name")
-    resolved_name = display_name if isinstance(display_name, str) and display_name.strip() else fallback_name
+    resolved_name = (
+        display_name
+        if isinstance(display_name, str) and display_name.strip()
+        else fallback_name
+    )
     payload: dict[str, object] = {
         "name": resolved_name,
         "description": profile.get("description") or "",
@@ -345,7 +349,9 @@ def _agent_create_payload_from_profile(
     return payload
 
 
-def _derive_model_selection_payload(profile: Mapping[str, object]) -> dict[str, object] | None:
+def _derive_model_selection_payload(
+    profile: Mapping[str, object],
+) -> dict[str, object] | None:
     raw_model_selection = profile.get("model_selection")
     if isinstance(raw_model_selection, dict):
         model_value = raw_model_selection.get("model")
@@ -374,9 +380,7 @@ def _with_subagent_origin_key(
     origin_key: str,
 ) -> dict[str, object]:
     merged: dict[str, object] = (
-        dict(engine_params)
-        if isinstance(engine_params, dict)
-        else {}
+        dict(engine_params) if isinstance(engine_params, dict) else {}
     )
     merged[_SUBAGENT_ORIGIN_ENGINE_PARAM_KEY] = origin_key
     return merged
@@ -387,7 +391,9 @@ def _normalize_marketplace_entry_id(entry_id: str | None) -> str | None:
         return None
     normalized = entry_id.strip()
     if not normalized:
-        raise ValueError("marketplace_entry_id must be a non-empty string when provided")
+        raise ValueError(
+            "marketplace_entry_id must be a non-empty string when provided"
+        )
     return normalized
 
 
@@ -400,9 +406,7 @@ def _with_marketplace_entry_id(
             return dict(engine_params)
         return None
     merged: dict[str, object] = (
-        dict(engine_params)
-        if isinstance(engine_params, dict)
-        else {}
+        dict(engine_params) if isinstance(engine_params, dict) else {}
     )
     merged[_MARKETPLACE_ENTRY_ENGINE_PARAM_KEY] = marketplace_entry_id
     return merged

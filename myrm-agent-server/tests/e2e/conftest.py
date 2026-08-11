@@ -70,7 +70,7 @@ def running_subagent(
     ):
         pytest.skip("BASIC_API_KEY and BASIC_MODEL are required")
     env = os.environ.copy()
-    env["E2E_HOLD_MS"] = "240000"
+    env["E2E_HOLD_MS"] = "600000"
     env["WAVE_LEDGER_LEASE_ID"] = e2e_resource_ledger.lease_id
     env["WAVE_LEDGER_NAMESPACE"] = e2e_resource_ledger.namespace
     process = subprocess.Popen(

@@ -52,6 +52,26 @@ def _verify_cp_token(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Invalid CP token")
 
 
+def _normalize_mcp_server_types(servers: list[dict]) -> list[dict]:
+    """Infer the ``type`` field for org MCP servers pushed without one.
+
+    Control Plane payloads may omit ``type``; without it
+    ``extract_org_mcp_configs`` rejects the server via ``MCPServerConfig``
+    validation and the org MCP silently disappears from every agent. Infer
+    from the transport fields instead (command/args → stdio, url → sse).
+    """
+    normalized: list[dict] = []
+    for server in servers:
+        entry = dict(server)
+        if not entry.get("type"):
+            if entry.get("command"):
+                entry["type"] = "stdio"
+            elif entry.get("url"):
+                entry["type"] = "sse"
+        normalized.append(entry)
+    return normalized
+
+
 def _filter_mcp_servers_for_sandbox(servers: list[dict]) -> list[dict]:
     """Drop stdio org MCP entries when sandbox policy disables stdio."""
     if settings.mcp.allow_stdio:
@@ -73,7 +93,8 @@ async def org_mcp_sync(request: Request, body: OrgMCPSyncRequest) -> OrgMCPSyncR
     """Receive org-level MCP servers from Control Plane and persist locally."""
     _verify_cp_token(request)
 
-    filtered_servers = _filter_mcp_servers_for_sandbox(body.mcp_servers)
+    normalized_servers = _normalize_mcp_server_types(body.mcp_servers)
+    filtered_servers = _filter_mcp_servers_for_sandbox(normalized_servers)
     config_svc = ConfigService()
     servers_data = {"servers": filtered_servers}
 

@@ -3392,6 +3392,9 @@
         "networkWarning": "技能在安全沙箱中執行，無網路訪問許可權，不支援需要聯網的技能，如需聯網操作，請使用 MCP 服務或本地部署 Myrm AI。"
       },
       "batchImport": {
+        "importSuccess": "匯入成功",
+        "importSuccessDesc": "成功匯入 {imported} 個技能，跳過 {skipped} 個，還原 {restored} 條回歸測試用例",
+        "importFailed": "匯入失敗",
         "errors": {
           "archiveSecurity": {
             "entryLimitExceeded": "上傳被系統安全策略攔截：ZIP 檔案條目數過多。",
@@ -9119,9 +9122,9 @@
       "doctorEmpty": "暫無記憶診斷項",
       "doctorRunTitle": "執行記憶診斷",
       "doctorRunAll": "執行全部診斷",
-      "doctorTrendTitle": "診斷趨勢",
-      "doctorTrendRuns": "{count} 次執行",
-      "doctorTrendModelShift": "嵌入模型已切換為 {model}",
+      "doctorTrendTitle": "基準趨勢",
+      "doctorTrendRuns": "{count} 次運行",
+      "doctorTrendModelShift": "Embedding 模型已變更，歷史分數可能無法直接對比（{model}）",
       "bundleMigrateAction": "初始化上下文包",
       "bundleMigrating": "初始化中...",
       "bundleMigrateSuccess": "上下文包已初始化",
@@ -9144,9 +9147,6 @@
       "doctorAuditStatus": "審計狀態",
       "doctorAuditRecorded": "已寫入診斷審計",
       "doctorAuditMissing": "未寫入診斷審計",
-      "doctorTrendTitle": "基準趨勢",
-      "doctorTrendRuns": "{count} 次運行",
-      "doctorTrendModelShift": "Embedding 模型已變更，歷史分數可能無法直接對比（{model}）",
       "doctorSloTitle": "診斷可靠性 SLO",
       "doctorSloWindow": "視窗執行數",
       "doctorSloPassRate": "透過率",
@@ -14610,8 +14610,12 @@
       "historyTitle": "執行歷史",
       "historyTime": "時間",
       "historyDataset": "資料集",
+      "historyAgentModel": "Agent 模型",
+      "historyJudge": "評分模型",
       "historyCurrent": "目前",
-      "historyView": "檢視"
+      "historyView": "檢視",
+      "sampled": "抽樣",
+      "sampledTitle": "本次執行隨機抽取了基準任務的一部分（結果可重現）"
     }
   },
   "vault": {

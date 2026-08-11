@@ -219,6 +219,7 @@ export function TaskDetailsSection({
           <div className="flex gap-1">
             <button
               onClick={handleSaveSkills}
+              data-testid="kanban-save-skills"
               className="rounded bg-chart-3 px-2 py-0.5 text-[10px] text-white hover:bg-chart-3/80"
             >
               {t('save')}

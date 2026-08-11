@@ -112,10 +112,11 @@ export function KanbanSkillPicker({ value, onChange, placeholder }: KanbanSkillP
             })}
           </div>
         )}
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className={cn(
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                data-testid="kanban-skill-picker-trigger"
+                className={cn(
               'flex w-full items-center gap-1.5 rounded border bg-background px-2 py-1 text-left text-xs focus:outline-none focus:ring-1 focus:ring-chart-3',
               selectedIds.length === 0 && 'text-muted-foreground',
             )}

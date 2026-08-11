@@ -28,7 +28,9 @@ from app.core.memory.adapters.policy import (
     memory_policy_to_dict,
 )
 from app.database.models import Agent
-from app.services.agent.builtin_specs.builtin_tool_ids import persist_enabled_builtin_tools
+from app.services.agent.builtin_specs.builtin_tool_ids import (
+    persist_enabled_builtin_tools,
+)
 
 
 class AgentRepository:

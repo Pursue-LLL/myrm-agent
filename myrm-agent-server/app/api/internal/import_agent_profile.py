@@ -30,7 +30,10 @@ from pydantic import BaseModel
 
 from app.core.memory.adapters.policy import memory_policy_from_dict
 from app.database.repositories.uow import UnitOfWork
-from app.services.agent.marketplace import import_agent_package, validate_marketplace_package
+from app.services.agent.marketplace import (
+    import_agent_package,
+    validate_marketplace_package,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -206,7 +209,9 @@ async def _resolve_force_push_agent_id(marketplace_entry_id: str) -> str | None:
     return matched_ids[0]
 
 
-def _extract_model_update(profile_data: dict[str, object]) -> tuple[str | None, dict[str, object] | None]:
+def _extract_model_update(
+    profile_data: dict[str, object],
+) -> tuple[str | None, dict[str, object] | None]:
     model_selection = profile_data.get("model_selection")
     if isinstance(model_selection, dict):
         model = model_selection.get("model")
@@ -227,7 +232,9 @@ async def _force_update_agent(
 ) -> ImportAgentProfileResponse:
     """Snapshot existing Agent then overwrite with the marketplace package."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.profile.profile_snapshot_service import ProfileSnapshotService
+    from app.services.agent.profile.profile_snapshot_service import (
+        ProfileSnapshotService,
+    )
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
     existing = await AgentService.get_agent_by_id(agent_id)
@@ -235,7 +242,8 @@ async def _force_update_agent(
         raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
 
     snapshot_id = await ProfileSnapshotService.save_profile_snapshot(
-        agent_id, reason="pre-force-push",
+        agent_id,
+        reason="pre-force-push",
     )
     logger.info("Pre-force-push snapshot %s for agent %s", snapshot_id, agent_id)
 
@@ -274,7 +282,9 @@ async def _force_update_agent(
     if "cron_post_run_verify" in profile_data:
         updates["cron_post_run_verify"] = bool(profile_data["cron_post_run_verify"])
     if "enabled_builtin_tools" in profile_data:
-        from app.services.agent.builtin_specs.builtin_tool_ids import normalize_enabled_builtin_tools
+        from app.services.agent.builtin_specs.builtin_tool_ids import (
+            normalize_enabled_builtin_tools,
+        )
 
         updates["tools_allowed"] = normalize_enabled_builtin_tools(
             profile_data["enabled_builtin_tools"]
@@ -316,10 +326,16 @@ async def _force_update_agent(
             await repo.update_profile(agent_id, updates)
             await uow.commit()
 
-    get_event_bus().publish(AppEvent(
-        event_type=AppEventType.AGENT_CONFIG_UPDATED,
-        data={"agent_id": agent_id, "action": "force_push", "snapshot_id": snapshot_id},
-    ))
+    get_event_bus().publish(
+        AppEvent(
+            event_type=AppEventType.AGENT_CONFIG_UPDATED,
+            data={
+                "agent_id": agent_id,
+                "action": "force_push",
+                "snapshot_id": snapshot_id,
+            },
+        )
+    )
 
     return ImportAgentProfileResponse(
         agent_id=agent_id,
@@ -333,9 +349,7 @@ def _with_marketplace_entry_binding(
     marketplace_entry_id: str,
 ) -> dict[str, object]:
     merged: dict[str, object] = (
-        dict(engine_params)
-        if isinstance(engine_params, dict)
-        else {}
+        dict(engine_params) if isinstance(engine_params, dict) else {}
     )
     merged[_MARKETPLACE_ENTRY_ENGINE_PARAM_KEY] = marketplace_entry_id
     return merged

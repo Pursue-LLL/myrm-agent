@@ -24,7 +24,7 @@ stays focused on the single-profile eval, datasets, cases, and reports.
 from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.eval.benchmarks import (
     benchmark_needs_judge,
@@ -55,7 +55,7 @@ class BenchmarkRunRequest(BaseModel):
     benchmark_id: str
     profile_id: str | None = None
     benchmark_mode: bool = False
-    limit: int | None = None
+    limit: int | None = Field(default=None, ge=1)
 
 
 class BenchmarkDownloadRequest(BaseModel):

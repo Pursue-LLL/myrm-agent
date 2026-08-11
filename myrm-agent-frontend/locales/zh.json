@@ -3412,6 +3412,9 @@
         "networkWarning": "技能在安全沙箱中运行，无网络访问权限，不支持需要联网的技能，如需联网操作，请使用 MCP 服务或本地部署 Myrm AI。"
       },
       "batchImport": {
+        "importSuccess": "导入成功",
+        "importSuccessDesc": "成功导入 {imported} 个技能，跳过 {skipped} 个，还原 {restored} 条回归测试用例",
+        "importFailed": "导入失败",
         "errors": {
           "archiveSecurity": {
             "entryLimitExceeded": "上传被系统安全策略拦截：ZIP 文件条目数过多。",
@@ -9199,9 +9202,9 @@
       "doctorEmpty": "暂无记忆诊断项",
       "doctorRunTitle": "运行记忆诊断",
       "doctorRunAll": "运行全部诊断",
-      "doctorTrendTitle": "诊断趋势",
+      "doctorTrendTitle": "基准趋势",
       "doctorTrendRuns": "{count} 次运行",
-      "doctorTrendModelShift": "Embedding 模型已变更为 {model}",
+      "doctorTrendModelShift": "Embedding 模型已变更，历史分数可能不可直接对比（{model}）",
       "bundleMigrateAction": "初始化上下文包",
       "bundleMigrating": "初始化中...",
       "bundleMigrateSuccess": "上下文包已初始化",
@@ -9224,9 +9227,6 @@
       "doctorAuditStatus": "审计状态",
       "doctorAuditRecorded": "已写入诊断审计",
       "doctorAuditMissing": "未写入诊断审计",
-      "doctorTrendTitle": "基准趋势",
-      "doctorTrendRuns": "{count} 次运行",
-      "doctorTrendModelShift": "Embedding 模型已变更，历史分数可能不可直接对比（{model}）",
       "doctorSloTitle": "诊断可靠性 SLO",
       "doctorSloWindow": "窗口运行数",
       "doctorSloPassRate": "通过率",
@@ -14688,8 +14688,12 @@
       "historyTitle": "运行历史",
       "historyTime": "时间",
       "historyDataset": "数据集",
+      "historyAgentModel": "Agent 模型",
+      "historyJudge": "判分模型",
       "historyCurrent": "当前",
-      "historyView": "查看"
+      "historyView": "查看",
+      "sampled": "抽样",
+      "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）"
     }
   },
   "vault": {

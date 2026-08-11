@@ -7,9 +7,20 @@
 
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { appendFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { apiBase, apiFetch, authCookieHeader, ensureLoggedIn } from './subagent-dashboard-e2e-auth.mjs';
+
+const DIAG_LOG = '/tmp/subagent-prepare-diag.log';
+
+function diag(message) {
+  try {
+    appendFileSync(DIAG_LOG, `${new Date().toISOString()} ${message}\n`);
+  } catch {
+    /* diagnostics are best-effort */
+  }
+}
 
 const uiBase = process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000';
 const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'tauri-local';
@@ -23,7 +34,10 @@ const E2E_BASH_EPHEMERAL = {
 };
 
 const DELEGATE_SLEEP_QUERY =
-  "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'bash_worker'，wait 设为 false，让它执行 bash 命令 sleep 300。注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，绝对不要在文本中输出 XML 格式的工具调用！";
+  "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'bash_worker'，wait 设为 false。" +
+  "子智能体的任务：调用 bash_code_execute_tool 执行命令 `sleep 300`，关键要求：run_in_background 必须为 false（前台运行），" +
+  "timeout 参数必须显式设为 600，绝对禁止使用后台方式或 & 符号，必须等待命令完成后才能汇报结果并结束。" +
+  "注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，绝对不要在文本中输出 XML 格式的工具调用！";
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -247,6 +261,7 @@ async function readAgentStreamUntilSubagentStart(payload, timeoutMs) {
   let needsResume = false;
 
   try {
+    diag(`post:${apiBase}/api/v1/agents/agent-stream body_keys=${Object.keys(payload).join(',')}`);
     const response = await fetch(`${apiBase}/api/v1/agents/agent-stream`, {
       method: 'POST',
       headers: {
@@ -257,8 +272,10 @@ async function readAgentStreamUntilSubagentStart(payload, timeoutMs) {
       signal: controller.signal,
     });
     if (!response.ok) {
+      diag(`http_status:${response.status}`);
       throw new Error(`agent-stream failed: ${response.status} ${(await response.text()).slice(0, 400)}`);
     }
+    diag(`http_ok:${response.status} has_body=${Boolean(response.body)}`);
     if (!response.body) {
       throw new Error('agent-stream returned empty body');
     }
@@ -274,6 +291,7 @@ async function readAgentStreamUntilSubagentStart(payload, timeoutMs) {
       const chunk = consumeSseBuffer(buffer);
       buffer = chunk.remainder;
       events.push(...chunk.events);
+      diag(`sse:${events.map((e) => e?.type).join(',')}`);
 
       capturedSeed = extractRunningSubagent(events);
       if (capturedSeed) {
@@ -307,6 +325,7 @@ async function readAgentStreamUntilSubagentStart(payload, timeoutMs) {
     }
     return { seed: null, events, needsResume: false, keepStreamAlive: null };
   } catch (error) {
+    diag(`error:name=${error?.name} message=${error instanceof Error ? error.message : String(error)}`);
     if (error instanceof Error && error.name === 'AbortError') {
       if (capturedSeed) return { seed: capturedSeed, events, needsResume: false, keepStreamAlive: null };
       if (needsResume) return { seed: null, events, needsResume: true, keepStreamAlive: null };
@@ -328,7 +347,9 @@ async function delegateSubagentViaAgentStream(chatId, timeoutMs = 180_000) {
   while (Date.now() < deadline) {
     const payload = buildAgentStreamPayload(chatId, query, messageId, resumeDecisions);
     const streamBudget = Math.min(120_000, deadline - Date.now());
+    diag(`attempt:${messageId} budget=${streamBudget}ms query_len=${query.length} resume=${resumeDecisions?.length ?? 0}`);
     const { seed, events, needsResume, keepStreamAlive } = await readAgentStreamUntilSubagentStart(payload, streamBudget);
+    diag(`attempt_done:${messageId} seed=${Boolean(seed)} needsResume=${needsResume} events=${events.map((e) => e?.type).join(',')}`);
     if (seed) return { ...seed, keepStreamAlive };
 
     const errorEvent = events.find((event) => event?.type === 'error');
@@ -381,17 +402,21 @@ async function main() {
   try {
     await seedProviders();
     await seedYoloSecurity();
-    const chatId = await seedSubagentChat();
-    registerWaveLedger(chatId);
-    const { taskId, treeRow, keepStreamAlive } = await delegateSubagentViaAgentStream(chatId);
-    await assertListSubagents(chatId, taskId);
-    await assertListSubagentsStillRunning(chatId, taskId);
+    const chatArg = process.argv.find((arg) => arg.startsWith("--chat="));
+    const chatId = chatArg ? chatArg.split("=")[1] ?? "" : "";
+    const resolvedChatId = chatId || (await seedSubagentChat());
+    registerWaveLedger(resolvedChatId);
+    const { taskId, treeRow, keepStreamAlive } = await delegateSubagentViaAgentStream(
+      resolvedChatId,
+    );
+    await assertListSubagents(resolvedChatId, taskId);
+    await assertListSubagentsStillRunning(resolvedChatId, taskId);
 
     const result = {
-      chatId,
+      chatId: resolvedChatId,
       taskId,
       treeRow,
-      uiUrl: `${uiBase}/${chatId}`,
+      uiUrl: `${uiBase}/${resolvedChatId}`,
       apiBase,
     };
     console.log(`E2E_PREPARE_JSON=${JSON.stringify(result)}`);

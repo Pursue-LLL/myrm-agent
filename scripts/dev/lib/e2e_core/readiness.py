@@ -28,7 +28,9 @@ from typing import Final, Literal
 from e2e_api_verify import (
     E2eApiContext,
     _cap_headroom_fields,
+    _cohere_mux_observability,
     _compute_next_action,
+    _load_orchestrator_observability,
     _load_parallel_runtime_snapshot,
     _mux_context_fields,
     _resolve_cap_headroom_active_test_count,
@@ -253,7 +255,14 @@ def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
     )
 
     ctx = resolve_e2e_api_context()
-    mux_fields = _mux_context_fields()
+    (
+        browser_orchestrator,
+        orchestrator_observability,
+    ) = _load_orchestrator_observability()
+    mux_fields = _cohere_mux_observability(
+        _mux_context_fields(),
+        browser_orchestrator,
+    )
     parallel_snapshot, _lines = _load_parallel_runtime_snapshot()
     counts = wave_lease_counts(load_wave_snapshot())
     active_tests_raw = parallel_snapshot.get("active_tests")
@@ -280,6 +289,7 @@ def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
         active_test_count=active_test_count,
         parallel_snapshot=parallel_snapshot,
         observability_mismatch=observability_mismatch,
+        orchestrator_observability=orchestrator_observability,
     )
     if headroom.get("registryObservabilityUnknown") is True:
         return ChromeE2eReadinessVerdict(

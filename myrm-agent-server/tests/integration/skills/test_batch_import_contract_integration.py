@@ -18,7 +18,9 @@ def _make_client() -> TestClient:
     return TestClient(app)
 
 
-def _build_zip_with_skill(skill_dir: str, *, name: str, description: str, content: str) -> bytes:
+def _build_zip_with_skill(
+    skill_dir: str, *, name: str, description: str, content: str
+) -> bytes:
     buffer = io.BytesIO()
     skill_md = f"---\nname: {name}\ndescription: {description}\n---\n{content}\n"
     with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -33,15 +35,23 @@ def _build_zip_without_skill_md(skill_dir: str) -> bytes:
     return buffer.getvalue()
 
 
-def _build_zip_with_evals(skill_dir: str, *, name: str, description: str, content: str) -> bytes:
+def _build_zip_with_evals(
+    skill_dir: str, *, name: str, description: str, content: str
+) -> bytes:
     buffer = io.BytesIO()
     skill_md = f"---\nname: {name}\ndescription: {description}\n---\n{content}\n"
     eval_cases = [
-        {"message": "sum 1 and 2", "expected_tools": ["code_interpreter"], "require_all": True}
+        {
+            "message": "sum 1 and 2",
+            "expected_tools": ["code_interpreter"],
+            "require_all": True,
+        }
     ]
     with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(f"{skill_dir}/SKILL.md", skill_md)
-        archive.writestr(f"{skill_dir}/evals.json", serialize_eval_cases(name, eval_cases))
+        archive.writestr(
+            f"{skill_dir}/evals.json", serialize_eval_cases(name, eval_cases)
+        )
     return buffer.getvalue()
 
 
@@ -54,7 +64,9 @@ def _preview_batch_import(client: TestClient, zip_bytes: bytes) -> dict:
     return response.json()
 
 
-def _confirm_batch_import(client: TestClient, session_id: str, items: list[dict]) -> dict:
+def _confirm_batch_import(
+    client: TestClient, session_id: str, items: list[dict]
+) -> dict:
     response = client.post(
         "/api/v1/skills/batch-import/confirm",
         json={"session_id": session_id, "items": items},
@@ -63,7 +75,9 @@ def _confirm_batch_import(client: TestClient, session_id: str, items: list[dict]
     return response.json()
 
 
-def test_batch_import_preview_returns_empty_payload_when_zip_contains_no_skill_md() -> None:
+def test_batch_import_preview_returns_empty_payload_when_zip_contains_no_skill_md() -> (
+    None
+):
     client = _make_client()
     zip_bytes = _build_zip_without_skill_md("no-skill")
 
@@ -148,6 +162,7 @@ def test_batch_import_preview_then_confirm_succeeds_on_real_zip_flow() -> None:
     assert confirm.json() == {
         "imported_count": 1,
         "skipped_count": 0,
+        "restored_eval_cases": 0,
     }
 
     store = _get_skill_store()
@@ -221,7 +236,11 @@ def test_batch_import_conflict_rename_cow_creates_copy_skill() -> None:
             }
         ],
     )
-    assert first_confirm == {"imported_count": 1, "skipped_count": 0}
+    assert first_confirm == {
+        "imported_count": 1,
+        "skipped_count": 0,
+        "restored_eval_cases": 0,
+    }
 
     conflict_preview = _preview_batch_import(
         client,
@@ -250,7 +269,11 @@ def test_batch_import_conflict_rename_cow_creates_copy_skill() -> None:
             }
         ],
     )
-    assert conflict_confirm == {"imported_count": 1, "skipped_count": 0}
+    assert conflict_confirm == {
+        "imported_count": 1,
+        "skipped_count": 0,
+        "restored_eval_cases": 0,
+    }
 
     store = _get_skill_store()
     try:
@@ -316,7 +339,11 @@ def test_batch_import_conflict_replace_updates_existing_record() -> None:
             }
         ],
     )
-    assert replace_result == {"imported_count": 1, "skipped_count": 0}
+    assert replace_result == {
+        "imported_count": 1,
+        "skipped_count": 0,
+        "restored_eval_cases": 0,
+    }
 
     store = _get_skill_store()
     try:
@@ -324,7 +351,9 @@ def test_batch_import_conflict_replace_updates_existing_record() -> None:
         assert replaced is not None
         assert replaced.name == skill_name
         assert replaced.content == "print('updated')"
-        assert not any(record.name == f"{skill_name}_copy" for record in store.get_active_skills())
+        assert not any(
+            record.name == f"{skill_name}_copy" for record in store.get_active_skills()
+        )
     finally:
         store.close()
 
@@ -357,7 +386,11 @@ def test_batch_import_restores_evals_json_and_excludes_from_disk() -> None:
             }
         ],
     )
-    assert confirm == {"imported_count": 1, "skipped_count": 0}
+    assert confirm == {
+        "imported_count": 1,
+        "skipped_count": 0,
+        "restored_eval_cases": 1,
+    }
 
     store = _get_skill_store()
     try:
@@ -404,7 +437,11 @@ def test_batch_import_ignores_invalid_evals_json() -> None:
             }
         ],
     )
-    assert confirm == {"imported_count": 1, "skipped_count": 0}
+    assert confirm == {
+        "imported_count": 1,
+        "skipped_count": 0,
+        "restored_eval_cases": 0,
+    }
 
     store = _get_skill_store()
     try:

@@ -1567,3 +1567,455 @@ def test_kanban_task_model_override_drawer_badge_edit_and_clear() -> None:
                 f"{json.dumps(str(previous_board))})"
             )
             client.evaluate(page, restore, timeout_sec=5.0)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_kanban_task_created_via_ui_form_with_skills() -> None:
+    """Real-user flow: inline create form → skill picker → select skill → submit.
+
+    Uses a real discoverable skill from the live backend (never mocked). The
+    picker selection is driven through the actual Popover/Command UI, and the
+    persisted task must carry the selected ``extra_skill_ids``.
+    """
+    marker = str(time.time_ns())
+    board_name = f"Chrome Skills Board {marker}"
+    task_title = f"Chrome Skills Task {marker}"
+    api_url = get_e2e_api_url()
+
+    board = _http_json_write(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards",
+        {"name": board_name, "description": "Chrome UI skill picker E2E"},
+    )
+    assert isinstance(board, dict)
+    board_id = str(board.get("board_id") or board.get("id") or "")
+    assert board_id
+
+    prebuilt_resp = http_json(
+        "GET", f"{api_url}/api/v1/skills?type=prebuilt&sort_by=name&order=asc"
+    )
+    local_resp = http_json(
+        "GET", f"{api_url}/api/v1/skills?type=local&sort_by=name&order=asc"
+    )
+    prebuilt = (
+        prebuilt_resp.get("skills") if isinstance(prebuilt_resp, dict) else None
+    ) or []
+    local = (
+        local_resp.get("skills") if isinstance(local_resp, dict) else None
+    ) or []
+    skills = [*prebuilt, *local]
+    if not skills:
+        pytest.skip(
+            "live backend exposes no discoverable skills; picker selection flow untestable"
+        )
+
+    target = skills[0]
+    target_id = str(target.get("id") or "")
+    assert target_id
+
+    with open_settings_subroute("/settings/kanban") as (client, page):
+        previous_board = client.evaluate(
+            page,
+            "localStorage.getItem('kanban_last_board_id')",
+            timeout_sec=5.0,
+        )
+        try:
+            _open_kanban_board(client, page, board_id, board_name)
+
+            wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const btn = document.querySelector('[data-testid="kanban-add-task-ready"]');
+                  return { ready: !!btn };
+                })()""",
+                timeout_sec=90.0,
+            )
+            client.evaluate(
+                page,
+                """(() => {
+                  const btn = document.querySelector('[data-testid="kanban-add-task-ready"]');
+                  if (!btn) return false;
+                  btn.click();
+                  return true;
+                })()""",
+                timeout_sec=5.0,
+            )
+
+            form_state = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const titleInput = document.querySelector(
+                    'input[placeholder="Task title"], input[placeholder="任务标题"]',
+                  );
+                  const submit = document.querySelector('[data-testid="kanban-create-submit"]');
+                  const picker = document.querySelector('[data-testid="kanban-skill-picker-trigger"]');
+                  return { ready: !!titleInput && !!submit && !!picker, hasPicker: !!picker };
+                })()""",
+                timeout_sec=60.0,
+            )
+            assert form_state.get("hasPicker") is True
+
+            title_typed = client.evaluate(
+                page,
+                f"""(() => {{
+                  const input = document.querySelector(
+                    'input[placeholder="Task title"], input[placeholder="任务标题"]',
+                  );
+                  if (!input) return false;
+                  const setter = Object.getOwnPropertyDescriptor(
+                    HTMLInputElement.prototype, 'value',
+                  ).set;
+                  setter.call(input, {task_title!r});
+                  input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                  return true;
+                }})()""",
+                timeout_sec=5.0,
+            )
+            assert title_typed is True
+
+            opened = client.evaluate(
+                page,
+                """(() => {
+                  const trigger = document.querySelector('[data-testid="kanban-skill-picker-trigger"]');
+                  if (!trigger) return false;
+                  trigger.click();
+                  return true;
+                })()""",
+                timeout_sec=5.0,
+            )
+            assert opened is True
+
+            searched = client.evaluate(
+                page,
+                f"""(() => {{
+                  const input = document.querySelector(
+                    'input[data-cmdk-input], input[cmdk-input]',
+                  );
+                  if (!input) return false;
+                  const setter = Object.getOwnPropertyDescriptor(
+                    HTMLInputElement.prototype, 'value',
+                  ).set;
+                  setter.call(input, {target_id!r});
+                  input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                  return true;
+                }})()""",
+                timeout_sec=5.0,
+            )
+            assert searched is True
+
+            selected = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const option = document.querySelector('[role="option"]');
+                  if (!option) return { ready: false };
+                  option.click();
+                  return { ready: true, text: option.textContent || '' };
+                })()""",
+                timeout_sec=15.0,
+            )
+            assert selected.get("ready") is True
+
+            submitted = client.evaluate(
+                page,
+                """(() => {
+                  const submit = document.querySelector('[data-testid="kanban-create-submit"]');
+                  if (!submit) return false;
+                  submit.click();
+                  return true;
+                })()""",
+                timeout_sec=5.0,
+            )
+            assert submitted is True
+
+            created_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const view = document.querySelector('[data-testid="kanban-board-view"]');
+                  const text = view?.textContent || '';
+                  return {{ ready: !!view && text.includes({task_title!r}), text }};
+                }})()""",
+                timeout_sec=120.0,
+            )
+            assert created_state.get("ready") is True
+
+            persisted = http_json(
+                "GET",
+                f"{api_url}/api/v1/kanban/boards/{board_id}/tasks?status=ready",
+            )
+            assert isinstance(persisted, dict)
+            tasks = persisted.get("items") or []
+            assert isinstance(tasks, list) and len(tasks) == 1
+            task = tasks[0]
+            assert str(task.get("title") or "") == task_title
+            assert target_id in (task.get("extra_skill_ids") or [])
+        finally:
+            restore = (
+                "localStorage.removeItem('kanban_last_board_id')"
+                if previous_board is None
+                else "localStorage.setItem('kanban_last_board_id', "
+                f"{json.dumps(str(previous_board))})"
+            )
+            client.evaluate(page, restore, timeout_sec=5.0)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_kanban_task_skill_drawer_edit_and_clear() -> None:
+    """Drawer skill chips → edit mode → picker add/keep → save → persisted (real UI).
+
+    Seeds a task with one real discoverable skill via REST, opens the drawer,
+    enters skill edit mode through the chip row, adds a second skill through the
+    picker when available (otherwise keeps the existing one), saves, and asserts
+    the persisted ``extra_skill_ids`` reflect the drawer state.
+    """
+    marker = str(time.time_ns())
+    board_name = f"Chrome Skills Edit Board {marker}"
+    task_title = f"Chrome Skills Edit Task {marker}"
+    file_id = f"chrome-e2e-skills-edit-{marker}"
+    api_url = get_e2e_api_url()
+
+    board = _http_json_write(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards",
+        {"name": board_name, "description": "Chrome UI skill drawer edit E2E"},
+    )
+    assert isinstance(board, dict)
+    board_id = str(board.get("board_id") or board.get("id") or "")
+    assert board_id
+
+    prebuilt_resp = http_json(
+        "GET", f"{api_url}/api/v1/skills?type=prebuilt&sort_by=name&order=asc"
+    )
+    local_resp = http_json(
+        "GET", f"{api_url}/api/v1/skills?type=local&sort_by=name&order=asc"
+    )
+    prebuilt = (
+        prebuilt_resp.get("skills") if isinstance(prebuilt_resp, dict) else None
+    ) or []
+    local = (
+        local_resp.get("skills") if isinstance(local_resp, dict) else None
+    ) or []
+    skills = [*prebuilt, *local]
+    if not skills:
+        pytest.skip(
+            "live backend exposes no discoverable skills; drawer skill edit untestable"
+        )
+
+    target_id = str(skills[0].get("id") or "")
+    assert target_id
+    add_id = str(skills[1].get("id") or "") if len(skills) > 1 else ""
+
+    task = _http_json_write(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
+        {
+            "title": task_title,
+            "priority": "low",
+            "initial_status": "ready",
+            "extra_skill_ids": [target_id],
+            "attachment_ids": [file_id],
+        },
+    )
+    assert isinstance(task, dict)
+    task_id = str(task.get("task_id") or task.get("id") or "")
+    assert task_id
+    assert target_id in (task.get("extra_skill_ids") or [])
+
+    with open_settings_subroute("/settings/kanban") as (client, page):
+        previous_board = client.evaluate(
+            page,
+            "localStorage.getItem('kanban_last_board_id')",
+            timeout_sec=5.0,
+        )
+        try:
+            _open_kanban_board(client, page, board_id, board_name)
+
+            card_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const card = document.getElementById({json.dumps(f"kanban-task-{task_id}")});
+                  return {{ ready: !!card }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert card_state.get("ready") is True
+
+            drawer_opened = client.evaluate(
+                page,
+                f"""(() => {{
+                  const badge = document.querySelector(
+                    '[data-testid="kanban-task-attachment-badge-{task_id}"]',
+                  );
+                  if (!badge) return false;
+                  badge.click();
+                  return true;
+                }})()""",
+                timeout_sec=5.0,
+            )
+            assert drawer_opened is True
+
+            chips_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const drawer =
+                    document.querySelector('[data-testid="kanban-task-drawer"]')
+                    || document.querySelector('[role="dialog"]');
+                  const chip = Array.from(drawer?.querySelectorAll('span') || []).find(
+                    (s) => (s.textContent || '').trim() === {target_id!r},
+                  );
+                  return {{ ready: !!drawer && !!chip, hasChip: !!chip }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert chips_state.get("hasChip") is True
+
+            entered_edit = client.evaluate(
+                page,
+                f"""(() => {{
+                  const drawer =
+                    document.querySelector('[data-testid="kanban-task-drawer"]')
+                    || document.querySelector('[role="dialog"]');
+                  const chip = Array.from(drawer?.querySelectorAll('span') || []).find(
+                    (s) => (s.textContent || '').trim() === {target_id!r},
+                  );
+                  if (!chip) return false;
+                  chip.click();
+                  return true;
+                }})()""",
+                timeout_sec=5.0,
+            )
+            assert entered_edit is True
+
+            picker_state = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const drawer =
+                    document.querySelector('[data-testid="kanban-task-drawer"]')
+                    || document.querySelector('[role="dialog"]');
+                  const trigger = drawer?.querySelector(
+                    '[data-testid="kanban-skill-picker-trigger"]',
+                  );
+                  return { ready: !!trigger, hasTrigger: !!trigger };
+                })()""",
+                timeout_sec=60.0,
+            )
+            assert picker_state.get("hasTrigger") is True
+
+            if add_id:
+                opened = client.evaluate(
+                    page,
+                    """(() => {
+                      const drawer =
+                        document.querySelector('[data-testid="kanban-task-drawer"]')
+                        || document.querySelector('[role="dialog"]');
+                      const trigger = drawer?.querySelector(
+                        '[data-testid="kanban-skill-picker-trigger"]',
+                      );
+                      if (!trigger) return false;
+                      trigger.click();
+                      return true;
+                    })()""",
+                    timeout_sec=5.0,
+                )
+                assert opened is True
+
+                searched = client.evaluate(
+                    page,
+                    f"""(() => {{
+                      const input = document.querySelector(
+                        'input[data-cmdk-input], input[cmdk-input]',
+                      );
+                      if (!input) return false;
+                      const setter = Object.getOwnPropertyDescriptor(
+                        HTMLInputElement.prototype, 'value',
+                      ).set;
+                      setter.call(input, {add_id!r});
+                      input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                      return true;
+                    }})()""",
+                    timeout_sec=5.0,
+                )
+                assert searched is True
+
+                selected = wait_for_state(
+                    client,
+                    page,
+                    """(() => {
+                      const option = document.querySelector('[role="option"]');
+                      if (!option) return { ready: false };
+                      option.click();
+                      return { ready: true, text: option.textContent || '' };
+                    })()""",
+                    timeout_sec=15.0,
+                )
+                assert selected.get("ready") is True
+
+            saved = client.evaluate(
+                page,
+                """(() => {
+                  const drawer =
+                    document.querySelector('[data-testid="kanban-task-drawer"]')
+                    || document.querySelector('[role="dialog"]');
+                  const save = drawer?.querySelector('[data-testid="kanban-save-skills"]');
+                  if (!save) return false;
+                  save.click();
+                  return true;
+                })()""",
+                timeout_sec=5.0,
+            )
+            assert saved is True
+
+            # Wait until the drawer exits skill-edit mode and shows the saved chips
+            # (unlike raw text matching, this cannot pass while edit mode is active).
+            final_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const drawer =
+                    document.querySelector('[data-testid="kanban-task-drawer"]')
+                    || document.querySelector('[role="dialog"]');
+                  if (!drawer) return {{ ready: false, editing: false, chips: [], detail: 'no drawer' }};
+                  const editing = !!drawer.querySelector(
+                    '[data-testid="kanban-save-skills"]',
+                  );
+                  const wanted = [{target_id!r}, {json.dumps(add_id)}].filter(Boolean);
+                  const chips = Array.from(drawer.querySelectorAll('span'))
+                    .map((s) => (s.textContent || '').trim())
+                    .filter((t) => wanted.includes(t));
+                  const ready = !editing && wanted.every((id) => chips.includes(id));
+                  return {{ ready, editing, chips, detail: drawer.textContent.slice(0, 300) }};
+                }})()""",
+                timeout_sec=60.0,
+            )
+            assert final_state.get("ready") is True, (
+                f"drawer did not exit skill edit mode: {final_state}"
+            )
+
+            fetched = http_json("GET", f"{api_url}/api/v1/kanban/tasks/{task_id}")
+            assert isinstance(fetched, dict)
+            persisted_ids = fetched.get("extra_skill_ids") or []
+            assert target_id in persisted_ids
+            if add_id:
+                assert add_id in persisted_ids
+        finally:
+            restore = (
+                "localStorage.removeItem('kanban_last_board_id')"
+                if previous_board is None
+                else "localStorage.setItem('kanban_last_board_id', "
+                f"{json.dumps(str(previous_board))})"
+            )
+            client.evaluate(page, restore, timeout_sec=5.0)

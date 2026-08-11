@@ -6,7 +6,6 @@ app.api.kanban.routes.tasks_list::list_tasks (POS: 任务列表查询端点)
 app.api.kanban.routes.skill_ids::validate_extra_skill_ids (POS: 任务技能 id 存在性校验)
 app.services.kanban::KanbanService (POS: Kanban 业务编排)
 app.services.kanban.task_attachment_ids::save_task_attachment_ids (POS: 任务附件 ID 持久化)
-app.core.skills.store.service::skills_service (POS: 技能全集查询，用于 extra_skill_ids 存在性校验)
 
 [OUTPUT]
 Task-domain REST endpoints under /api/v1/kanban/tasks and /boards/{board_id}/tasks.
@@ -29,6 +28,9 @@ from app.api.kanban.http_common import (
     get_kanban_service,
     router,
 )
+from app.api.kanban.routes.skill_ids import (
+    validate_extra_skill_ids as _validate_extra_skill_ids,
+)
 from app.api.kanban.schemas import (
     ApproveTaskRequest,
     PromoteRequest,
@@ -40,37 +42,16 @@ from app.api.kanban.schemas import (
     TaskMoveRequest,
     TaskResponse,
     TaskUpdate,
+    UnmetParent,
 )
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.model_resolver import validate_model_override
-from app.core.skills.store.service import skills_service
 from app.services.kanban import DependencyUnmetError
 from app.services.kanban.task_attachment_ids import save_task_attachment_ids as _save_task_attachment_ids
 
 # ---------------------------------------------------------------------------
 # Task endpoints
 # ---------------------------------------------------------------------------
-
-
-async def _validate_extra_skill_ids(extra_skill_ids: list[str]) -> None:
-    """Reject task skill ids that do not exist in the discoverable skill set.
-
-    User-facing guard on the create/update path only; decompose and pipeline
-    instantiation call the service layer directly and bypass this check.
-    """
-    if not extra_skill_ids:
-        return
-    skills = await skills_service.list_skills(skill_type=None)
-    known_ids = {skill.id for skill in skills}
-    unknown_ids = sorted({sid for sid in extra_skill_ids if sid not in known_ids})
-    if unknown_ids:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Unknown skill id(s): {', '.join(unknown_ids)}. "
-                f"Available skills: {', '.join(sorted(known_ids)) or '(none)'}."
-            ),
-        )
 
 
 @router.post("/boards/{board_id}/tasks", response_model=TaskResponse, status_code=201)
@@ -282,7 +263,7 @@ async def promote_task(task_id: str, body: PromoteRequest) -> PromoteResponse:
         promoted=result.promoted,
         forced=result.forced,
         reason=result.reason,
-        unmet_parents=[{"task_id": p["task_id"], "title": p["title"], "status": p["status"]} for p in result.unmet_parents],
+        unmet_parents=[UnmetParent(**p) for p in result.unmet_parents],
     )
 
 

@@ -149,9 +149,7 @@ class TestCreateProfile:
             await AgentRepository.create_profile(db, profile)
 
         agent = self._added_agent(db)
-        assert agent.tool_gateway_config == {
-            "auth_token": {"value": "encrypted"}
-        }
+        assert agent.tool_gateway_config == {"auth_token": {"value": "encrypted"}}
 
 
 class TestUpdateProfileCoreFields:

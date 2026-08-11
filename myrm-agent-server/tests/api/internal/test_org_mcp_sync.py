@@ -46,3 +46,32 @@ async def test_org_mcp_sync_filters_stdio_when_disabled(org_mcp_sync_app: FastAP
     saved_value = mock_config.set.await_args.kwargs["value"]
     assert len(saved_value["servers"]) == 1
     assert saved_value["servers"][0]["type"] == "sse"
+
+
+@pytest.mark.asyncio
+async def test_org_mcp_sync_infers_missing_type(org_mcp_sync_app: FastAPI) -> None:
+    """Servers pushed without ``type`` get inferred (command→stdio, url→sse)."""
+    transport = ASGITransport(app=org_mcp_sync_app)
+
+    with patch("app.api.internal.org_mcp_sync.settings") as mock_settings:
+        mock_settings.mcp.allow_stdio = True
+        with patch("app.api.internal.org_mcp_sync.ConfigService") as mock_config_cls:
+            mock_config = AsyncMock()
+            mock_config_cls.return_value = mock_config
+
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                resp = await client.post(
+                    "/api/admin/org-mcp-sync",
+                    json={
+                        "mcp_servers": [
+                            {"id": "1", "name": "cmd-only", "command": "python", "args": ["x.py"]},
+                            {"id": "2", "name": "url-only", "url": "https://a/sse"},
+                        ]
+                    },
+                )
+
+    assert resp.status_code == 200
+    assert resp.json()["count"] == 2
+    saved_value = mock_config.set.await_args.kwargs["value"]
+    inferred = {str(s["name"]): str(s["type"]) for s in saved_value["servers"]}
+    assert inferred == {"cmd-only": "stdio", "url-only": "sse"}

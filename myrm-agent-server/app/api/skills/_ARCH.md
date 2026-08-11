@@ -12,8 +12,8 @@
 | `_deploy_capability.py` | 模块 | 部署能力门控：`require_local_skills_capability()` 供所有落盘本地技能的 install/import/export API 复用，沙箱模式 fail-closed。 | ✅ |
 | `_staging.py` | 模块 | 管理批量导入技能时的持久化暂存区 (Persistent Staging Area)。 | ✅ |
 | `audit.py` | 模块 | Structured audit log for skill lifecycle operations. | ✅ |
-| `batch_import.py` | 模块 | 批量导入 (GUI-First 技能迁移) 接口；`preview/confirm` 错误统一输出 `detail={message,error_code}`，归档安全错误映射为用户安全文案；本地落盘入口受沙箱能力门控；confirm 时剥离包内 `evals.json` 并还原 eval_cases 到 evolution SkillRecord。 | ✅ |
-| `batch_import_schemas.py` | 模块 | 批量导入接口的请求/响应 Pydantic 模型（`ImportPreviewSkillItem`/`ImportPreviewResponse`/`ConfirmImportItem`/`ConfirmImportRequest`/`ConfirmImportResponse`），与路由拆分保持 `batch_import.py` 聚焦业务编排。 | ✅ |
+| `batch_import.py` | 模块 | 批量导入 (GUI-First 技能迁移) 接口；`preview/confirm` 错误统一输出 `detail={message,error_code}`，归档安全错误映射为用户安全文案；本地落盘入口受沙箱能力门控；confirm 时剥离包内 `evals.json`（仅第一个有效者还原）并返回 `restored_eval_cases` 累计数，还原 eval_cases 到 evolution SkillRecord。 | ✅ |
+| `batch_import_schemas.py` | 模块 | 批量导入接口的请求/响应 Pydantic 模型（`ImportPreviewSkillItem`/`ImportPreviewResponse`/`ConfirmImportItem`/`ConfirmImportRequest`/`ConfirmImportResponse`），`ConfirmImportResponse` 含 `restored_eval_cases` 字段，与路由拆分保持 `batch_import.py` 聚焦业务编排。 | ✅ |
 | `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url | ✅ |
 | `config_version.py` | 模块 | Re-export from app.core.skills.config_version（单一来源）。 | ✅ |
 | `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |

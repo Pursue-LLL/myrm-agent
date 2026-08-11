@@ -67,4 +67,90 @@ describe('MemoryAbHistoryTable', () => {
     await userEvent.click(screen.getByText('historyView'));
     expect(onSelect).toHaveBeenCalledWith(1000);
   });
+
+  it('discloses the agent model when available and hides it otherwise', () => {
+    const agentItems: MemoryAbHistoryItem[] = [
+      {
+        timestamp: 3000,
+        dataset_id: 'browsecomp',
+        agent_model: 'deepseek/deepseek-chat',
+        judge_model: 'gpt-4o',
+        per_profile: {
+          memory_off: { pass_rate: 0.5 },
+          memory_on: { pass_rate: 0.7 },
+        },
+      },
+      {
+        timestamp: 2000,
+        dataset_id: 'wb-bench-office',
+        agent_model: 'unknown',
+        per_profile: {
+          memory_off: { pass_rate: 0.6 },
+          memory_on: { pass_rate: 0.8 },
+        },
+      },
+    ];
+    render(<MemoryAbHistoryTable items={agentItems} onSelect={vi.fn()} />);
+
+    const agentRow = screen.getByText('browsecomp').closest('tr');
+    expect(agentRow).not.toBeNull();
+    expect(agentRow!.textContent).toContain('deepseek/deepseek-chat');
+
+    // Unresolvable agent models stay hidden in the table.
+    const unknownRow = screen.getByText('office').closest('tr');
+    expect(unknownRow).not.toBeNull();
+    expect(unknownRow!.textContent).not.toContain('deepseek/deepseek-chat');
+  });
+
+  it('discloses the judge model when the run was LLM-graded', () => {
+    const judgeItems: MemoryAbHistoryItem[] = [
+      {
+        timestamp: 3000,
+        dataset_id: 'browsecomp',
+        judge_model: 'deepseek/deepseek-chat',
+        per_profile: {
+          memory_off: { pass_rate: 0.5 },
+          memory_on: { pass_rate: 0.7 },
+        },
+      },
+      {
+        timestamp: 2000,
+        dataset_id: 'wb-bench-office',
+        judge_model: 'none',
+        per_profile: {
+          memory_off: { pass_rate: 0.6 },
+          memory_on: { pass_rate: 0.8 },
+        },
+      },
+    ];
+    render(<MemoryAbHistoryTable items={judgeItems} onSelect={vi.fn()} />);
+
+    const judgeRow = screen.getByText('browsecomp').closest('tr');
+    expect(judgeRow).not.toBeNull();
+    expect(judgeRow!.textContent).toContain('deepseek/deepseek-chat');
+
+    // Native-scored runs stay hidden (no LLM judge was invoked).
+    const nativeRow = screen.getByText('office').closest('tr');
+    expect(nativeRow).not.toBeNull();
+    expect(nativeRow!.textContent).not.toContain('deepseek/deepseek-chat');
+  });
+
+  it('discloses the sample size badge when the run was sampled', () => {
+    const sampledItems: MemoryAbHistoryItem[] = [
+      {
+        timestamp: 3000,
+        dataset_id: 'browsecomp',
+        limit: 20,
+        per_profile: {
+          memory_off: { pass_rate: 0.5 },
+          memory_on: { pass_rate: 0.7 },
+        },
+      },
+    ];
+    render(<MemoryAbHistoryTable items={sampledItems} onSelect={vi.fn()} />);
+
+    const row = screen.getByText('browsecomp').closest('tr');
+    expect(row!.textContent).toContain('sampled');
+    expect(row!.textContent).toContain('20');
+  });
 });

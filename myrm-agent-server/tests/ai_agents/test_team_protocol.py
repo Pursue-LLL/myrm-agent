@@ -143,8 +143,16 @@ class TestResolveRosterDynamicDiscovery:
     async def test_filters_allow_discovery_false(self):
         """Agents with allow_discovery=False must be excluded from the dynamic roster."""
         profiles = [
-            self._profile("visible", description="Has a description", metadata={"allow_discovery": True}),
-            self._profile("hidden", description="Private agent", metadata={"allow_discovery": False}),
+            self._profile(
+                "visible",
+                description="Has a description",
+                metadata={"allow_discovery": True},
+            ),
+            self._profile(
+                "hidden",
+                description="Private agent",
+                metadata={"allow_discovery": False},
+            ),
         ]
 
         async def mock_list(page: int, page_size: int):
@@ -184,9 +192,17 @@ class TestResolveRosterDynamicDiscovery:
     async def test_excludes_leader_and_descriptionless(self):
         """Leader itself and agents without a description must be skipped."""
         profiles = [
-            self._profile("leader", description="I am the leader", metadata={"allow_discovery": True}),
-            self._profile("no-desc", description="", metadata={"allow_discovery": True}),
-            self._profile("member", description="A member", metadata={"allow_discovery": True}),
+            self._profile(
+                "leader",
+                description="I am the leader",
+                metadata={"allow_discovery": True},
+            ),
+            self._profile(
+                "no-desc", description="", metadata={"allow_discovery": True}
+            ),
+            self._profile(
+                "member", description="A member", metadata={"allow_discovery": True}
+            ),
         ]
 
         async def mock_list(page: int, page_size: int):
@@ -197,7 +213,9 @@ class TestResolveRosterDynamicDiscovery:
             new_callable=AsyncMock,
             side_effect=mock_list,
         ):
-            result = await _resolve_roster([], leader_id="leader", dynamic_discovery=True)
+            result = await _resolve_roster(
+                [], leader_id="leader", dynamic_discovery=True
+            )
 
         ids = [entry.agent_id for entry in result]
         assert ids == ["member"]
@@ -218,7 +236,11 @@ class TestResolveRosterDynamicDiscovery:
     async def test_dynamic_discovery_caps_at_fifteen(self):
         """The dynamic roster must stop after the cap of 15 discoverable agents."""
         profiles = [
-            self._profile(f"agent-{i}", description=f"Description {i}", metadata={"allow_discovery": True})
+            self._profile(
+                f"agent-{i}",
+                description=f"Description {i}",
+                metadata={"allow_discovery": True},
+            )
             for i in range(20)
         ]
 
@@ -238,8 +260,12 @@ class TestResolveRosterDynamicDiscovery:
     async def test_dynamic_discovery_skips_existing_static_members(self):
         """Dynamic candidates already bound as static subagents must not be duplicated."""
         profiles = [
-            self._profile("member", description="A member", metadata={"allow_discovery": True}),
-            self._profile("extra", description="Extra agent", metadata={"allow_discovery": True}),
+            self._profile(
+                "member", description="A member", metadata={"allow_discovery": True}
+            ),
+            self._profile(
+                "extra", description="Extra agent", metadata={"allow_discovery": True}
+            ),
         ]
 
         async def mock_list(page: int, page_size: int):
@@ -257,9 +283,7 @@ class TestResolveRosterDynamicDiscovery:
                 new_callable=AsyncMock,
                 side_effect=mock_list,
             ):
-                result = await _resolve_roster(
-                    ["member"], dynamic_discovery=True
-                )
+                result = await _resolve_roster(["member"], dynamic_discovery=True)
 
         ids = [entry.agent_id for entry in result]
         assert ids == ["member", "extra"]

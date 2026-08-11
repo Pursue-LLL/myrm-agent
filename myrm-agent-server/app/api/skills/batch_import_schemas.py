@@ -52,3 +52,5 @@ class ConfirmImportRequest(BaseModel):
 class ConfirmImportResponse(BaseModel):
     imported_count: int
     skipped_count: int
+    # 从包内 evals.json 还原的回归门禁用例总数（跨全部导入技能累计）
+    restored_eval_cases: int = 0

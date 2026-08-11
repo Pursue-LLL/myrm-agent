@@ -38,8 +38,8 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/boards/{board_id}/tasks` | POST body 可选 `metadata`（如 `source_chat_id`）、`model_override`（`provider/model`，经 `validate_model_override` 校验，非法 400）、`extra_skill_ids`（经 `_validate_extra_skill_ids` 校验，id 不在可发现技能集内 400；仅用户路径生效，decompose/pipeline 走 service 层不受影响） |
-| GET/PATCH/DELETE | `/tasks/{task_id}` | PATCH 支持 `result`/`metadata`/`require_approval` 等字段；`extra_skill_ids` 同样经 `_validate_extra_skill_ids` 校验；`require_approval` 仅活动状态（TRIAGE/BACKLOG/READY/RUNNING/BLOCKED）可改，IN_REVIEW 与终态返回 400（守卫在 `task_ops.update_task`） |
+| POST | `/boards/{board_id}/tasks` | POST body 可选 `metadata`（如 `source_chat_id`）、`model_override`（`provider/model`，经 `validate_model_override` 校验，非法 400）、`extra_skill_ids`（经 `validate_extra_skill_ids` 校验，id 不在可发现技能集内 400；仅用户路径生效——decompose/specify 输出不含技能、pipeline 仅注入预置模板技能，均走 service 层不受影响） |
+| GET/PATCH/DELETE | `/tasks/{task_id}` | PATCH 支持 `result`/`metadata`/`require_approval` 等字段；`extra_skill_ids` 同样经 `validate_extra_skill_ids` 校验；`require_approval` 仅活动状态（TRIAGE/BACKLOG/READY/RUNNING/BLOCKED）可改，IN_REVIEW 与终态返回 400（守卫在 `task_ops.update_task`） |
 | POST | `/tasks/{task_id}/move` | - |
 | POST | `/tasks/{task_id}/promote` | - |
 | POST | `/tasks/{task_id}/reclaim` | - |

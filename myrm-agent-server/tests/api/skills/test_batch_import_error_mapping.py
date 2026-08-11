@@ -10,15 +10,18 @@ from myrm_agent_harness.backends.skills.scanning.archive_security import (
     ArchiveSecurityViolation,
 )
 
-from app.api.skills.batch_import import (
+from app.api.skills._staging import SkillStagingManager
+from app.api.skills.batch_import import router
+from app.api.skills.batch_import_helpers import (
     _build_batch_import_error_detail,
     _resolve_batch_import_error_message,
-    router,
 )
 
 
 class _FakeSkillStore:
-    def __init__(self, db_dir: Path, *, existing_skills: list[SimpleNamespace] | None = None) -> None:
+    def __init__(
+        self, db_dir: Path, *, existing_skills: list[SimpleNamespace] | None = None
+    ) -> None:
         self.db_path = db_dir / "skills.db"
         self._existing_skills = existing_skills or []
         self.saved_batches: list[list[object]] = []
@@ -43,7 +46,9 @@ class _FakeSkillStoreNoBatch:
         self.saved_records.append(record)
 
 
-def _make_imported_skill(name: str = "skill-one", description: str = "demo") -> SimpleNamespace:
+def _make_imported_skill(
+    name: str = "skill-one", description: str = "demo"
+) -> SimpleNamespace:
     content = "print('ok')"
     skill_md = f"---\nname: {name}\ndescription: {description}\n---\n{content}\n"
     return SimpleNamespace(
@@ -55,7 +60,35 @@ def _make_imported_skill(name: str = "skill-one", description: str = "demo") -> 
     )
 
 
-def _install_fake_app_optimization_modules(monkeypatch, *, passed: bool, issues: list[str] | None = None) -> None:
+def _make_imported_skill_with_evals(
+    name: str,
+    description: str,
+    *,
+    first_evals: list[dict],
+    extra_evals_files: list[bytes] | None = None,
+) -> SimpleNamespace:
+    from myrm_agent_harness.agent.skills.packaging import serialize_eval_cases
+
+    content = "print('ok')"
+    skill_md = f"---\nname: {name}\ndescription: {description}\n---\n{content}\n"
+    files = {
+        "SKILL.md": skill_md.encode("utf-8"),
+        "evals.json": serialize_eval_cases(name, first_evals).encode("utf-8"),
+    }
+    for evals_content in extra_evals_files or []:
+        files["nested/evals.json"] = evals_content
+    return SimpleNamespace(
+        name=name,
+        description=description,
+        content=content,
+        metadata={"name": name, "description": description},
+        files=files,
+    )
+
+
+def _install_fake_app_optimization_modules(
+    monkeypatch, *, passed: bool, issues: list[str] | None = None
+) -> None:
     issues_list = issues or []
 
     config_module = ModuleType("app.api.skills.optimization.config")
@@ -74,9 +107,17 @@ def _install_fake_app_optimization_modules(monkeypatch, *, passed: bool, issues:
     config_module.SecurityConfig = SecurityConfig
     security_module.SkillSecurityValidator = SkillSecurityValidator
 
-    monkeypatch.setitem(sys.modules, "app.api.skills.optimization", ModuleType("app.api.skills.optimization"))
-    monkeypatch.setitem(sys.modules, "app.api.skills.optimization.config", config_module)
-    monkeypatch.setitem(sys.modules, "app.api.skills.optimization.security", security_module)
+    monkeypatch.setitem(
+        sys.modules,
+        "app.api.skills.optimization",
+        ModuleType("app.api.skills.optimization"),
+    )
+    monkeypatch.setitem(
+        sys.modules, "app.api.skills.optimization.config", config_module
+    )
+    monkeypatch.setitem(
+        sys.modules, "app.api.skills.optimization.security", security_module
+    )
 
 
 def test_resolve_batch_import_error_message_for_archive_security_error() -> None:
@@ -86,7 +127,9 @@ def test_resolve_batch_import_error_message_for_archive_security_error() -> None
         actual=5001,
         limit=4096,
     )
-    error = ArchiveSecurityError(violation, "ZIP contains too many entries (5001 > 4096)")
+    error = ArchiveSecurityError(
+        violation, "ZIP contains too many entries (5001 > 4096)"
+    )
 
     message = _resolve_batch_import_error_message(error)
 
@@ -120,7 +163,9 @@ def test_build_batch_import_error_detail_without_code() -> None:
     assert payload == {"message": "generic failure", "error_code": ""}
 
 
-def test_preview_batch_import_archive_violation_uses_structured_detail(monkeypatch) -> None:
+def test_preview_batch_import_archive_violation_uses_structured_detail(
+    monkeypatch,
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
@@ -131,9 +176,14 @@ def test_preview_batch_import_archive_violation_uses_structured_detail(monkeypat
     )
 
     def _raise_archive_security(*args, **kwargs):
-        raise ArchiveSecurityError(violation, "ZIP contains executable binary member: payload.bin")
+        raise ArchiveSecurityError(
+            violation, "ZIP contains executable binary member: payload.bin"
+        )
 
-    monkeypatch.setattr("app.api.skills.batch_import.HermesBatchParser.parse_zip", _raise_archive_security)
+    monkeypatch.setattr(
+        "app.api.skills.batch_import.HermesBatchParser.parse_zip",
+        _raise_archive_security,
+    )
 
     response = client.post(
         "/api/v1/skills/batch-import/preview",
@@ -183,14 +233,21 @@ def test_preview_batch_import_rejects_oversized_file() -> None:
 
     response = client.post(
         "/api/v1/skills/batch-import/preview",
-        files={"file": ("skills.zip", b"x" * (10 * 1024 * 1024 + 1), "application/zip")},
+        files={
+            "file": ("skills.zip", b"x" * (10 * 1024 * 1024 + 1), "application/zip")
+        },
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "上传被系统安全拦截：文件大小不能超过 10MB，保护内存免遭拒绝服务攻击。"
+    assert (
+        response.json()["detail"]
+        == "上传被系统安全拦截：文件大小不能超过 10MB，保护内存免遭拒绝服务攻击。"
+    )
 
 
-def test_preview_batch_import_generic_parse_error_uses_structured_detail(monkeypatch) -> None:
+def test_preview_batch_import_generic_parse_error_uses_structured_detail(
+    monkeypatch,
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
@@ -213,7 +270,9 @@ def test_preview_batch_import_generic_parse_error_uses_structured_detail(monkeyp
     }
 
 
-def test_preview_batch_import_returns_empty_response_when_no_skills(monkeypatch) -> None:
+def test_preview_batch_import_returns_empty_response_when_no_skills(
+    monkeypatch,
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
@@ -246,7 +305,9 @@ def test_preview_batch_import_uses_server_optimization_modules_when_available(
 
     _install_fake_app_optimization_modules(monkeypatch, passed=True, issues=[])
     fake_store = _FakeSkillStore(tmp_path)
-    monkeypatch.setattr("app.api.skills.batch_import._get_skill_store", lambda: fake_store)
+    monkeypatch.setattr(
+        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+    )
     monkeypatch.setattr(
         "app.api.skills.batch_import.HermesBatchParser.parse_zip",
         lambda *args, **kwargs: [_make_imported_skill()],
@@ -263,7 +324,9 @@ def test_preview_batch_import_uses_server_optimization_modules_when_available(
     assert payload["items"][0]["security_issues"] is None
 
 
-def test_preview_batch_import_success_persists_session_and_marks_conflict(monkeypatch, tmp_path: Path) -> None:
+def test_preview_batch_import_success_persists_session_and_marks_conflict(
+    monkeypatch, tmp_path: Path
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
@@ -272,7 +335,9 @@ def test_preview_batch_import_success_persists_session_and_marks_conflict(monkey
         tmp_path,
         existing_skills=[SimpleNamespace(name="skill-one", skill_id="existing-1")],
     )
-    monkeypatch.setattr("app.api.skills.batch_import._get_skill_store", lambda: fake_store)
+    monkeypatch.setattr(
+        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+    )
     monkeypatch.setattr(
         "app.api.skills.batch_import.HermesBatchParser.parse_zip",
         lambda *args, **kwargs: [_make_imported_skill()],
@@ -297,7 +362,9 @@ def test_preview_batch_import_success_persists_session_and_marks_conflict(monkey
     assert payload["items"][0]["security_issues"] == "blocked"
 
 
-def test_confirm_batch_import_blank_load_session_error_uses_default_message(monkeypatch, tmp_path: Path) -> None:
+def test_confirm_batch_import_blank_load_session_error_uses_default_message(
+    monkeypatch, tmp_path: Path
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
@@ -313,7 +380,9 @@ def test_confirm_batch_import_blank_load_session_error_uses_default_message(monk
         "app.api.skills.batch_import._get_skill_store",
         lambda: SimpleNamespace(db_path=tmp_path / "skills.db"),
     )
-    monkeypatch.setattr("app.api.skills._staging.SkillStagingManager.load_session", _raise_blank_message)
+    monkeypatch.setattr(
+        "app.api.skills._staging.SkillStagingManager.load_session", _raise_blank_message
+    )
 
     response = client.post(
         "/api/v1/skills/batch-import/confirm",
@@ -339,13 +408,17 @@ def test_confirm_batch_import_blank_load_session_error_uses_default_message(monk
     }
 
 
-def test_confirm_batch_import_success_returns_counts_and_saves_batch(monkeypatch, tmp_path: Path) -> None:
+def test_confirm_batch_import_success_returns_counts_and_saves_batch(
+    monkeypatch, tmp_path: Path
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
 
     fake_store = _FakeSkillStore(tmp_path)
-    monkeypatch.setattr("app.api.skills.batch_import._get_skill_store", lambda: fake_store)
+    monkeypatch.setattr(
+        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+    )
     monkeypatch.setattr(
         "app.api.skills.batch_import.HermesBatchParser.parse_zip",
         lambda *args, **kwargs: [_make_imported_skill()],
@@ -388,18 +461,23 @@ def test_confirm_batch_import_success_returns_counts_and_saves_batch(monkeypatch
     assert response.json() == {
         "imported_count": 1,
         "skipped_count": 1,
+        "restored_eval_cases": 0,
     }
     assert len(fake_store.saved_batches) == 1
     assert len(fake_store.saved_batches[0]) == 1
 
 
-def test_confirm_batch_import_success_falls_back_to_save_skill(monkeypatch, tmp_path: Path) -> None:
+def test_confirm_batch_import_success_falls_back_to_save_skill(
+    monkeypatch, tmp_path: Path
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
 
     fake_store = _FakeSkillStoreNoBatch(tmp_path)
-    monkeypatch.setattr("app.api.skills.batch_import._get_skill_store", lambda: fake_store)
+    monkeypatch.setattr(
+        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+    )
     monkeypatch.setattr(
         "app.api.skills.batch_import.HermesBatchParser.parse_zip",
         lambda *args, **kwargs: [_make_imported_skill()],
@@ -435,18 +513,95 @@ def test_confirm_batch_import_success_falls_back_to_save_skill(monkeypatch, tmp_
     assert response.json() == {
         "imported_count": 1,
         "skipped_count": 0,
+        "restored_eval_cases": 0,
     }
     assert len(fake_store.saved_records) == 1
 
 
-def test_confirm_batch_import_replace_and_rename_use_server_validator(monkeypatch, tmp_path: Path) -> None:
+def test_confirm_batch_import_accumulates_restored_eval_cases_and_keeps_first_valid(
+    monkeypatch, tmp_path: Path
+) -> None:
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1/skills")
+    client = TestClient(app)
+
+    fake_store = _FakeSkillStore(tmp_path)
+    monkeypatch.setattr(
+        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+    )
+    monkeypatch.setattr(
+        "myrm_agent_harness.agent.skills.optimization.security.SkillSecurityValidator.validate_skill",
+        lambda *args, **kwargs: SimpleNamespace(passed=True, issues=[]),
+    )
+
+    from myrm_agent_harness.agent.skills.packaging import serialize_eval_cases
+
+    first_skill = _make_imported_skill_with_evals(
+        "eval-a",
+        "demo-a",
+        first_evals=[{"message": "case-a1"}],
+    )
+    second_skill = _make_imported_skill_with_evals(
+        "eval-b",
+        "demo-b",
+        # 第二个 evals.json 有效但被忽略（第一个有效者胜出）
+        first_evals=[{"message": "case-b1"}],
+        extra_evals_files=[
+            serialize_eval_cases("eval-b", [{"message": "case-b-dup"}]).encode("utf-8")
+        ],
+    )
+    staging_manager = SkillStagingManager(tmp_path)
+    staging_manager.save_session("session-evals-multi", [first_skill, second_skill])
+
+    response = client.post(
+        "/api/v1/skills/batch-import/confirm",
+        json={
+            "session_id": "session-evals-multi",
+            "items": [
+                {
+                    "virtual_id": "import_0",
+                    "name": "eval-a",
+                    "description": "demo-a",
+                    "resolution": "new",
+                    "existing_skill_id": None,
+                },
+                {
+                    "virtual_id": "import_1",
+                    "name": "eval-b",
+                    "description": "demo-b",
+                    "resolution": "new",
+                    "existing_skill_id": None,
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "imported_count": 2,
+        "skipped_count": 0,
+        "restored_eval_cases": 2,
+    }
+
+    saved = fake_store.saved_batches[0]
+    saved_by_name = {record.name: record for record in saved}
+    assert saved_by_name["eval-a"].eval_cases == [{"message": "case-a1"}]
+    # 第一个有效者胜出，忽略后续重复文件
+    assert saved_by_name["eval-b"].eval_cases == [{"message": "case-b1"}]
+
+
+def test_confirm_batch_import_replace_and_rename_use_server_validator(
+    monkeypatch, tmp_path: Path
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
 
     _install_fake_app_optimization_modules(monkeypatch, passed=True, issues=[])
     fake_store = _FakeSkillStore(tmp_path)
-    monkeypatch.setattr("app.api.skills.batch_import._get_skill_store", lambda: fake_store)
+    monkeypatch.setattr(
+        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+    )
 
     from app.api.skills._staging import SkillStagingManager
 
@@ -489,13 +644,16 @@ def test_confirm_batch_import_replace_and_rename_use_server_validator(monkeypatc
     assert response.json() == {
         "imported_count": 2,
         "skipped_count": 0,
+        "restored_eval_cases": 0,
     }
     assert len(fake_store.saved_batches) == 1
     saved_names = {record.name for record in fake_store.saved_batches[0]}
     assert saved_names == {"replace-skill", "rename-skill_copy"}
 
 
-def test_confirm_batch_import_archive_violation_uses_structured_detail(monkeypatch, tmp_path: Path) -> None:
+def test_confirm_batch_import_archive_violation_uses_structured_detail(
+    monkeypatch, tmp_path: Path
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
@@ -506,13 +664,18 @@ def test_confirm_batch_import_archive_violation_uses_structured_detail(monkeypat
     )
 
     def _raise_archive_security(*args, **kwargs):
-        raise ArchiveSecurityError(violation, "ZIP contains executable binary member: payload.bin")
+        raise ArchiveSecurityError(
+            violation, "ZIP contains executable binary member: payload.bin"
+        )
 
     monkeypatch.setattr(
         "app.api.skills.batch_import._get_skill_store",
         lambda: SimpleNamespace(db_path=tmp_path / "skills.db"),
     )
-    monkeypatch.setattr("app.api.skills._staging.SkillStagingManager.load_session", _raise_archive_security)
+    monkeypatch.setattr(
+        "app.api.skills._staging.SkillStagingManager.load_session",
+        _raise_archive_security,
+    )
 
     response = client.post(
         "/api/v1/skills/batch-import/confirm",
@@ -538,7 +701,9 @@ def test_confirm_batch_import_archive_violation_uses_structured_detail(monkeypat
     }
 
 
-def test_confirm_batch_import_generic_load_session_error_uses_structured_detail(monkeypatch, tmp_path: Path) -> None:
+def test_confirm_batch_import_generic_load_session_error_uses_structured_detail(
+    monkeypatch, tmp_path: Path
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
@@ -550,7 +715,9 @@ def test_confirm_batch_import_generic_load_session_error_uses_structured_detail(
         "app.api.skills.batch_import._get_skill_store",
         lambda: SimpleNamespace(db_path=tmp_path / "skills.db"),
     )
-    monkeypatch.setattr("app.api.skills._staging.SkillStagingManager.load_session", _raise_generic_error)
+    monkeypatch.setattr(
+        "app.api.skills._staging.SkillStagingManager.load_session", _raise_generic_error
+    )
 
     response = client.post(
         "/api/v1/skills/batch-import/confirm",
@@ -576,7 +743,9 @@ def test_confirm_batch_import_generic_load_session_error_uses_structured_detail(
     }
 
 
-def test_confirm_batch_import_invalid_virtual_id_uses_structured_detail(monkeypatch, tmp_path: Path) -> None:
+def test_confirm_batch_import_invalid_virtual_id_uses_structured_detail(
+    monkeypatch, tmp_path: Path
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
@@ -585,7 +754,10 @@ def test_confirm_batch_import_invalid_virtual_id_uses_structured_detail(monkeypa
         "app.api.skills.batch_import._get_skill_store",
         lambda: SimpleNamespace(db_path=tmp_path / "skills.db"),
     )
-    monkeypatch.setattr("app.api.skills._staging.SkillStagingManager.load_session", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        "app.api.skills._staging.SkillStagingManager.load_session",
+        lambda *args, **kwargs: [],
+    )
 
     response = client.post(
         "/api/v1/skills/batch-import/confirm",
@@ -611,7 +783,9 @@ def test_confirm_batch_import_invalid_virtual_id_uses_structured_detail(monkeypa
     }
 
 
-def test_confirm_batch_import_security_scan_failure_uses_structured_detail(monkeypatch, tmp_path: Path) -> None:
+def test_confirm_batch_import_security_scan_failure_uses_structured_detail(
+    monkeypatch, tmp_path: Path
+) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)

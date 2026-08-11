@@ -2858,6 +2858,9 @@
         "networkWarning": "Fähigkeiten laufen in einer sicheren Sandbox ohne Netzwerkzugriff. Netzwerkabhängige Fähigkeiten werden nicht unterstützt. Für Netzwerkoperationen verwenden Sie bitte MCP-Dienste oder stellen Sie Myrm AI lokal bereit."
       },
       "batchImport": {
+        "importSuccess": "Import erfolgreich",
+        "importSuccessDesc": "{imported} Skill(s) importiert, {skipped} übersprungen, {restored} Regressionstestfall/-fälle wiederhergestellt",
+        "importFailed": "Import fehlgeschlagen",
         "errors": {
           "archiveSecurity": {
             "entryLimitExceeded": "Upload durch Sicherheitsrichtlinie blockiert: ZIP enthält zu viele Einträge.",
@@ -9098,9 +9101,9 @@
       "doctorEmpty": "Es sind noch keine Gedächtnisarzt-Checks verfügbar",
       "doctorRunTitle": "Führen Sie eine Speicherdiagnose aus",
       "doctorRunAll": "Führen Sie alle Diagnosen aus",
-      "doctorTrendTitle": "Diagnose-Trend",
+      "doctorTrendTitle": "Benchmark-Trend",
       "doctorTrendRuns": "{count} Läufe",
-      "doctorTrendModelShift": "Embedding-Modell geändert zu {model}",
+      "doctorTrendModelShift": "Embedding-Modell geändert; frühere Werte sind möglicherweise nicht vergleichbar ({model})",
       "bundleMigrateAction": "Kontextpaket initialisieren",
       "bundleMigrating": "Initialisierung...",
       "bundleMigrateSuccess": "Kontextpaket initialisiert",
@@ -9123,9 +9126,6 @@
       "doctorAuditStatus": "Audit-Status",
       "doctorAuditRecorded": "Diagnoseaudit aufgezeichnet",
       "doctorAuditMissing": "Diagnoseaudit nicht aufgezeichnet",
-      "doctorTrendTitle": "Benchmark-Trend",
-      "doctorTrendRuns": "{count} Läufe",
-      "doctorTrendModelShift": "Embedding-Modell geändert; frühere Werte sind möglicherweise nicht vergleichbar ({model})",
       "doctorSloTitle": "Diagnosezuverlässigkeit SLO",
       "doctorSloWindow": "Fenster läuft",
       "doctorSloPassRate": "Erfolgsquote",
@@ -14049,8 +14049,12 @@
       "historyTitle": "Verlauf",
       "historyTime": "Zeit",
       "historyDataset": "Datensatz",
+      "historyAgentModel": "Agent-Modell",
+      "historyJudge": "Bewertungsmodell",
       "historyCurrent": "Aktuell",
-      "historyView": "Anzeigen"
+      "historyView": "Anzeigen",
+      "sampled": "Stichprobe",
+      "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)"
     }
   },
   "vault": {

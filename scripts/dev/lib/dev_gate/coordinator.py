@@ -91,9 +91,15 @@ class CoordinatorService:
         desktop_capacity: int | None = None,
     ) -> None:
         self.store = store
+        capacity_provider = None if private_capacity is not None else private_capacity_credits
         self.private_controller = PrivateResourceController(
             store,
-            capacity_credits=private_capacity or private_capacity_credits(),
+            capacity_credits=(
+                private_capacity
+                if private_capacity is not None
+                else private_capacity_credits()
+            ),
+            capacity_provider=capacity_provider,
         )
         self.desktop_controller = DesktopSeatController(
             store,

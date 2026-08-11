@@ -65,7 +65,10 @@ def owner_process_matches(*, pid: int, expected_start: str) -> bool:
 
     current = capture_process(pid, role="e2e-owner", runtime_id="owner")
     if current is None:
-        # Distinguish zombie (dead for reap) from transient ps parse failure.
+        # A missing identity is not proof of ownership.  In particular, a
+        # sandbox may deny spawning `ps`; treating that uncertainty as a match
+        # would let deadline cleanup signal the coordinator or a peer process.
+        # Keep the reaper fail-closed until PID + start token are observable.
         try:
             result = subprocess.run(
                 ["ps", "-p", str(pid), "-o", "stat="],
@@ -74,7 +77,7 @@ def owner_process_matches(*, pid: int, expected_start: str) -> bool:
                 check=False,
             )
         except OSError:
-            return True
+            return False
         if result.returncode != 0:
             return False
         if "Z" in result.stdout:

@@ -152,7 +152,9 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
 
   useEffect(() => {
     void loadSnapshot();
-    return () => { abortRef.current?.abort(); };
+    return () => {
+      abortRef.current?.abort();
+    };
   }, [loadSnapshot]);
 
   useEffect(() => {

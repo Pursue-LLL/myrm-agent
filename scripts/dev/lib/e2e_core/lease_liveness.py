@@ -134,7 +134,9 @@ def load_wave_snapshot_observation() -> dict[str, object]:
     import sys
     from pathlib import Path
 
-    dev_dir = Path(__file__).resolve().parent.parent
+    from dev_paths import scripts_dev_dir
+
+    dev_dir = scripts_dev_dir(Path(__file__))
     dev_text = str(dev_dir)
     if dev_text not in sys.path:
         sys.path.insert(0, dev_text)
@@ -294,7 +296,9 @@ def build_lease_liveness(
     import sys
     from pathlib import Path
 
-    dev_dir = Path(__file__).resolve().parent.parent
+    from dev_paths import scripts_dev_dir
+
+    dev_dir = scripts_dev_dir(Path(__file__))
     dev_text = str(dev_dir)
     if dev_text not in sys.path:
         sys.path.insert(0, dev_text)

@@ -6,6 +6,9 @@ export interface MemoryAbHistoryItem {
   timestamp?: number;
   dataset_id?: string;
   profile_id?: string | null;
+  agent_model?: string | null;
+  judge_model?: string | null;
+  limit?: number | null;
   per_profile?: Record<
     string,
     {
@@ -42,6 +45,8 @@ export default function MemoryAbHistoryTable({ items, selectedTimestamp, onSelec
             <tr>
               <th className="px-4 py-2 font-medium">{t('historyTime')}</th>
               <th className="px-4 py-2 font-medium">{t('historyDataset')}</th>
+              <th className="px-4 py-2 font-medium">{t('historyAgentModel')}</th>
+              <th className="px-4 py-2 font-medium">{t('historyJudge')}</th>
               <th className="px-4 py-2 font-medium">{t('armNoMemory')}</th>
               <th className="px-4 py-2 font-medium">{t('armWithMemory')}</th>
               <th className="px-4 py-2 font-medium" />
@@ -63,6 +68,20 @@ export default function MemoryAbHistoryTable({ items, selectedTimestamp, onSelec
                   </td>
                   <td className="px-4 py-2 font-mono text-xs">
                     {item.dataset_id?.replace(/^wb-bench-/, '') ?? '-'}
+                    {item.limit != null && (
+                      <span
+                        className="ml-1.5 px-1.5 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded"
+                        title={t('sampledTitle')}
+                      >
+                        {t('sampled')} · {item.limit}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                    {item.agent_model && item.agent_model !== 'unknown' ? item.agent_model : '-'}
+                  </td>
+                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                    {item.judge_model && item.judge_model !== 'none' ? item.judge_model : '-'}
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap">
                     {off != null ? `${Math.round((off.pass_rate ?? 0) * 100)}%` : '-'}

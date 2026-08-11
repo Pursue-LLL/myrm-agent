@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.eval.streaming import stream_status_events
 from app.core.eval.memory_ab import (
@@ -49,7 +49,7 @@ router = APIRouter(tags=["eval"])
 class RunMemoryAbRequest(BaseModel):
     benchmark_id: str
     profile_id: str | None = None
-    limit: int | None = None
+    limit: int | None = Field(default=None, ge=1)
 
 
 @router.post("/memory-ab/run")

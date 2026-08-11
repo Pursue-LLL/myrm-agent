@@ -10,7 +10,7 @@
 [OUTPUT]
 - list_benchmark_sources(): merged catalog (WBBench + registered third-party)
 - ensure_benchmark_source(): download-only dispatch
-- build_benchmark_cases(): case-building dispatch (returns cases + seed map)
+- build_benchmark_cases(): case-building dispatch (returns cases + seed map + sampled flag)
 
 [POS]
 Business-layer facade that merges the WorkBuddy Bench dedicated adapter with
@@ -28,6 +28,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 from myrm_agent_harness.eval import MultiTurnEvalCase, get_benchmark, list_benchmarks
+
+# Importing browse_comp registers its BenchmarkSpec in the framework registry
+# (module-level side effect); the catalog/run guards below rely on that
+# registration even on a cold process that never listed the catalog first.
+from app.core.eval import browse_comp as _browse_comp_registry  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +134,7 @@ def build_benchmark_cases(
     limit: int | None = None,
     progress_callback: Callable[[int, int], None] | None = None,
     should_abort: Callable[[], bool] | None = None,
-) -> tuple[list[MultiTurnEvalCase], dict[str, str]]:
+) -> tuple[list[MultiTurnEvalCase], dict[str, str], bool]:
     """Build runnable cases + workspace seed map for a benchmark handle.
 
     ``limit`` caps the number of cases (random uniform sample with a fixed
@@ -137,8 +142,12 @@ def build_benchmark_cases(
     simple-evals' ``num_examples``). Sampling applies to every benchmark type,
     which lets users validate a small slice before paying for a full run.
 
-    Returns ``(cases, workspace_seed_map)``; the seed map is empty for
-    benchmarks without a pre-provisioned task workspace (e.g. BrowseComp).
+    Returns ``(cases, workspace_seed_map, sampled)``; ``sampled`` reports
+    whether a sample was actually drawn (``limit`` below the full count). A
+    limit at or above the full count is a full run and reports ``False`` so
+    callers can disclose the applied sample size without mislabeling a full
+    run as sampled. The seed map is empty for benchmarks without a
+    pre-provisioned task workspace (e.g. BrowseComp).
     """
     import random
 
@@ -160,14 +169,16 @@ def build_benchmark_cases(
     else:
         raise ValueError(f"Unknown benchmark: {benchmark_id}")
 
+    sampled = False
     if limit is not None and limit > 0 and len(cases) > limit:
         rng = random.Random(42)
-        sampled = rng.sample(list(range(len(cases))), limit)
-        kept = [cases[i] for i in sampled]
+        sampled_indices = rng.sample(list(range(len(cases))), limit)
+        kept = [cases[i] for i in sampled_indices]
         kept_messages = {c.turns[0].message for c in kept}
         seed_map = {msg: seed_map[msg] for msg in kept_messages if msg in seed_map}
         cases = kept
-    return cases, seed_map
+        sampled = True
+    return cases, seed_map, sampled
 
 
 def benchmark_required_tools(benchmark_id: str) -> tuple[str, ...]:

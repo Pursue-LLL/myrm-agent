@@ -125,8 +125,15 @@ export const MemoryDoctorPanel = ({
   );
 };
 
-const TREND_METRICS = [{ key: 'recall_at_k' }, { key: 'ndcg_at_k' }, { key: 'mrr_score' }] as const;
+const TREND_METRICS = [
+  { key: 'recall_at_k', kind: 'percent' },
+  { key: 'ndcg_at_k', kind: 'percent' },
+  { key: 'mrr_score', kind: 'percent' },
+  { key: 'latency_p50_ms', kind: 'ms' },
+  { key: 'latency_p95_ms', kind: 'ms' },
+] as const;
 
+type TrendMetricKind = (typeof TREND_METRICS)[number]['kind'];
 type TrendMetricKey = (typeof TREND_METRICS)[number]['key'];
 
 const DiagnosticTrendSection = ({
@@ -157,7 +164,15 @@ const DiagnosticTrendSection = ({
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         {TREND_METRICS.map((metric) => (
-          <TrendMetric key={metric.key} metric={metric.key} points={points} latest={latest} previous={previous} t={t} />
+          <TrendMetric
+            key={metric.key}
+            metric={metric.key}
+            kind={metric.kind}
+            points={points}
+            latest={latest}
+            previous={previous}
+            t={t}
+          />
         ))}
       </div>
       {latest.embedding_model && previous.embedding_model && latest.embedding_model !== previous.embedding_model && (
@@ -210,12 +225,14 @@ const CategoryBreakdown = ({
 
 const TrendMetric = ({
   metric,
+  kind,
   points,
   latest,
   previous,
   t,
 }: {
   metric: TrendMetricKey;
+  kind: TrendMetricKind;
   points: MemoryCommandDiagnosticHistoryItem[];
   latest: MemoryCommandDiagnosticHistoryItem;
   previous: MemoryCommandDiagnosticHistoryItem;
@@ -234,39 +251,51 @@ const TrendMetric = ({
       ? t('commandCenter.benchmarkRecall', { k })
       : metric === 'ndcg_at_k'
         ? t('commandCenter.benchmarkNdcg', { k })
-        : t('commandCenter.benchmarkMrr');
+        : metric === 'mrr_score'
+          ? t('commandCenter.benchmarkMrr')
+          : metric === 'latency_p50_ms'
+            ? t('commandCenter.benchmarkLatencyP50')
+            : t('commandCenter.benchmarkLatencyP95');
+
+  const isMs = kind === 'ms';
+  const improved = isMs ? delta <= 0 : delta >= 0;
+  const pointsToRender = points.slice(-8);
+  const maxBar = isMs ? Math.max(...pointsToRender.map((item) => item.benchmark?.[metric] ?? 0), 1) : 1;
 
   return (
     <div className="rounded-full border border-border/40 bg-muted/30 px-3 py-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] text-muted-foreground">{label}</span>
-        <span className={delta >= 0 ? 'text-emerald-500' : 'text-red-500'}>
-          {delta >= 0 ? '+' : ''}
-          {formatPercent(delta)}
+        <span className={improved ? 'text-emerald-500' : 'text-red-500'}>
+          {delta > 0 ? '+' : ''}
+          {isMs ? formatDuration(delta) : formatPercent(delta)}
         </span>
       </div>
       <div className="mt-1 flex h-10 items-end gap-1">
-        {points.slice(-8).map((item, index) => (
+        {pointsToRender.map((item, index) => (
           <MiniTrendBar
             key={`${item.run_id}-${index}`}
-            value={item.benchmark?.[metric] ?? 0}
-            latest={index === points.slice(-8).length - 1}
+            value={(item.benchmark?.[metric] ?? 0) / maxBar}
+            latest={index === pointsToRender.length - 1}
+            title={isMs ? formatDuration(item.benchmark?.[metric]) : formatPercent(item.benchmark?.[metric] ?? 0)}
           />
         ))}
       </div>
       <div className="mt-1 flex items-center justify-between">
-        <span className="text-xs font-semibold text-foreground">{formatPercent(latestValue)}</span>
+        <span className="text-xs font-semibold text-foreground">
+          {isMs ? formatDuration(latestValue) : formatPercent(latestValue)}
+        </span>
         <span className="text-[10px] text-muted-foreground">{formatTime(latest.occurred_at)}</span>
       </div>
     </div>
   );
 };
 
-const MiniTrendBar = ({ value, latest }: { value: number; latest: boolean }) => (
+const MiniTrendBar = ({ value, latest, title }: { value: number; latest: boolean; title: string }) => (
   <div
     className={`flex-1 rounded-t-sm ${latest ? 'bg-primary' : 'bg-primary/40'}`}
     style={{ height: `${Math.max(value * 100, 3)}%`, minHeight: 3 }}
-    title={formatPercent(value)}
+    title={title}
   />
 );
 

@@ -24,6 +24,7 @@ from tests.support.chrome_mcp_e2e import (
     open_mcp_page,
     wait_for_state,
 )
+from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 _PREPARE_PREFIX = "E2E_PREPARE_JSON="
 
@@ -32,8 +33,11 @@ def _wait_running_subagent_on_api(
     chat_id: str,
     task_id: str,
     *,
+    e2e_resource_ledger: E2EResourceLedger | None = None,
     timeout_sec: float = 120.0,
 ) -> None:
+    if e2e_resource_ledger is not None:
+        e2e_resource_ledger.register("chat", chat_id)
     api_url = get_e2e_api_url()
     deadline = time.monotonic() + timeout_sec
     last: object = None
@@ -142,6 +146,7 @@ def _read_prepare_result(
 @pytest.mark.timeout(300)
 def test_subagent_dashboard_lists_and_cancels_running_task(
     running_subagent: dict[str, object],
+    e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     chat_id = str(running_subagent.get("chatId") or "")
     task_id = str(running_subagent.get("taskId") or "")
@@ -151,7 +156,11 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
         row for row in [tree_row] if isinstance(row, dict)
     ]
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
-    _wait_running_subagent_on_api(chat_id, task_id)
+    _wait_running_subagent_on_api(
+        chat_id,
+        task_id,
+        e2e_resource_ledger=e2e_resource_ledger,
+    )
 
     with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
         wait_for_state(

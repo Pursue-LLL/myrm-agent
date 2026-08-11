@@ -39,9 +39,7 @@ class Agent(Base):
     agent_type: Mapped[str] = mapped_column(
         String(20), default="individual", nullable=False
     )
-    allow_discovery: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False
-    )
+    allow_discovery: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     model_config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     model_selection: Mapped[dict[str, object] | None] = mapped_column(

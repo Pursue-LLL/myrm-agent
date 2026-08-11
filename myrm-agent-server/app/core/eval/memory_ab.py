@@ -5,6 +5,7 @@
 - app.core.eval.reports::DEFAULT_REPORTS_DIR
 - app.core.eval.adaptive::AdaptiveEvalManager
 - app.core.memory.adapters.setup::evict_cached_memory_manager
+- app.core.eval.service::_resolve_agent_model_label / _resolve_judge_config (POS: 单评测编排服务，统一模型解析与 judge 注入)
 
 [OUTPUT]
 - get_memory_ab_status / abort_memory_ab: progress query and abort.
@@ -139,7 +140,7 @@ async def run_memory_ab_background(
             build_benchmark_cases,
         )
 
-        cases, seed_map = await asyncio.to_thread(
+        cases, seed_map, sampled = await asyncio.to_thread(
             build_benchmark_cases,
             benchmark_id,
             limit=limit,
@@ -156,14 +157,22 @@ async def run_memory_ab_background(
 
         from myrm_agent_harness.eval import MatrixRunner
 
+        # Disclose which agent model was evaluated, regardless of the scoring
+        # mode, so a later score change caused by switching the user's model
+        # stays traceable (same resolution as benchmark-report manifests).
+        from app.core.eval.service import _resolve_agent_model_label
+
+        agent_model = await _resolve_agent_model_label(profile_id)
+
         # Only LLM-judge benchmarks need the caller's judge credentials; for
         # native-scored suites (e.g. WorkBuddy Bench) the judge is never
         # invoked, so skip the config resolution entirely.
         judge_config = None
+        judge_model = "none"
         if benchmark_needs_judge(benchmark_id):
             from app.core.eval.service import _resolve_judge_config
 
-            judge_config, _judge_label = await _resolve_judge_config()
+            judge_config, judge_model = await _resolve_judge_config()
 
         benchmark_tools = benchmark_required_tools(benchmark_id)
         executors: dict[str, AgentExecutor] = {
@@ -221,6 +230,17 @@ async def run_memory_ab_background(
         report_data["dataset_id"] = benchmark_id
         report_data["profile_id"] = profile_id
         report_data["benchmark_mode"] = True
+        # Disclose the judge model used for LLM-graded benchmarks so a later
+        # score change caused by switching the user's model stays traceable;
+        # native-scored suites never invoke a judge and stay "none".
+        report_data["judge_model"] = judge_model
+        # The evaluated agent's model, paired with the judge model above, so
+        # the report stays self-contained regardless of later profile changes.
+        report_data["agent_model"] = agent_model
+        # Disclose the sample size only when a sample was actually drawn
+        # (limit < full case count); a limit at/above the full count is a
+        # full run and must not be flagged as sampled.
+        report_data["limit"] = limit if sampled else None
 
         # Annotate each arm with how many times the agent actually invoked
         # memory tools. Identical pass rates mean different things when memory
@@ -334,6 +354,9 @@ def get_memory_ab_report_history(
                     "timestamp": data.get("timestamp"),
                     "dataset_id": data.get("dataset_id"),
                     "profile_id": data.get("profile_id"),
+                    "judge_model": data.get("judge_model"),
+                    "agent_model": data.get("agent_model"),
+                    "limit": data.get("limit"),
                     "per_profile": data.get("per_profile", {}),
                 }
             )

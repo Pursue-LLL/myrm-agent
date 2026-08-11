@@ -129,6 +129,32 @@ def abort_eval() -> bool:
     return True
 
 
+async def _resolve_agent_model_label(profile_id: str | None) -> str:
+    """Resolve the model label of the evaluated agent.
+
+    Prefers the agent profile's declared model, falling back to the user's
+    active model config (``model_cfg``) when no profile is selected or the
+    profile does not declare a model. Returns ``"unknown"`` when neither
+    source is available. ``_build_eval_manifest`` uses the same resolution so
+    benchmark reports and Memory A/B reports disclose the identical label.
+    """
+    from app.core.channel_bridge.config_loader import load_user_configs
+
+    if profile_id:
+        from app.services.agent.profile.profile_resolver import (
+            get_agent_profile_resolver,
+        )
+
+        resolved = await get_agent_profile_resolver().resolve(profile_id)
+        if resolved and resolved.model:
+            return resolved.model
+
+    configs = await load_user_configs()
+    model_cfg = getattr(configs, "model_cfg", None)
+    model = getattr(model_cfg, "model", None)
+    return str(model) if model else "unknown"
+
+
 async def _build_eval_manifest(
     profile_id: str | None,
     dataset_id: str,
@@ -137,16 +163,13 @@ async def _build_eval_manifest(
     benchmark_mode: bool = False,
     external_cases: list["MultiTurnEvalCase"] | None = None,
     judge_model: str = "none",
+    limit: int | None = None,
 ) -> EvalManifest:
     """Build an EvalManifest capturing the current evaluation environment."""
     import hashlib
     from datetime import datetime, timezone
 
     import myrm_agent_harness
-
-    from app.core.channel_bridge.config_loader import load_user_configs
-
-    configs = await load_user_configs()
 
     model_provider = "unknown"
     model_id = "unknown"
@@ -185,12 +208,16 @@ async def _build_eval_manifest(
                     resolved.system_prompt.encode("utf-8")
                 ).hexdigest()
 
-    if model_id == "unknown" and configs.model_cfg:
-        model_id = str(getattr(configs.model_cfg, "model", "unknown"))
-        raw_model = model_id
-        parts = raw_model.split("/", 1)
+    if model_id == "unknown":
+        # Model not declared by the profile (or no profile selected): fall
+        # back through the shared resolver so the manifest and the Memory A/B
+        # report disclose the identical agent-model label.
+        fallback_label = await _resolve_agent_model_label(profile_id)
+        parts = fallback_label.split("/", 1)
         if len(parts) == 2:
             model_provider, model_id = parts
+        else:
+            model_id = fallback_label
 
     task_set_hash = "empty"
     if cases_path.exists():
@@ -221,6 +248,7 @@ async def _build_eval_manifest(
         profile_id=profile_id or "default",
         benchmark_mode=benchmark_mode,
         judge_model=judge_model,
+        limit=limit,
     )
 
 
@@ -291,7 +319,7 @@ async def run_benchmark_background(
             build_benchmark_cases,
         )
 
-        cases, seed_map = await asyncio.to_thread(
+        cases, seed_map, sampled = await asyncio.to_thread(
             build_benchmark_cases,
             benchmark_id,
             limit=limit,
@@ -304,6 +332,10 @@ async def run_benchmark_background(
             logger.info("Benchmark %s aborted by user before evaluation", benchmark_id)
             return
         _eval_state["stage"] = "evaluating"
+        # The manifest records the sample size only when a sample was actually
+        # drawn (limit < full case count); a limit at/above the full count is
+        # a full run and must not be flagged as sampled.
+        sample_size = limit if sampled else None
         await run_eval_suite(
             dataset_id=benchmark_id,
             reports_dir=reports_dir,
@@ -312,6 +344,7 @@ async def run_benchmark_background(
             benchmark_tools=benchmark_required_tools(benchmark_id),
             external_cases=cases,
             workspace_seed_map=seed_map,
+            limit=sample_size,
         )
     except Exception as exc:
         if _eval_state.get("abort_requested"):
@@ -433,6 +466,7 @@ async def run_eval_suite(
     benchmark_tools: tuple[str, ...] = (),
     external_cases: list["MultiTurnEvalCase"] | None = None,
     workspace_seed_map: dict[str, str] | None = None,
+    limit: int | None = None,
 ) -> dict[str, object]:
     """Run the standard evaluation suite for a user.
 
@@ -450,6 +484,8 @@ async def run_eval_suite(
         workspace_seed_map: Maps a case message to a pre-provisioned workspace
             directory that is copied into the session workspace before the
             agent runs (used by external dataset adapters).
+        limit: Effective sample size already applied to ``external_cases``
+            (recorded in the manifest so reports disclose sampled runs).
 
     Returns:
         A summary dictionary of the evaluation results.
@@ -518,6 +554,7 @@ async def run_eval_suite(
         benchmark_mode=benchmark_mode,
         external_cases=external_cases,
         judge_model=judge_model_label,
+        limit=limit,
     )
 
     logger.info(

@@ -143,3 +143,32 @@ class TestTaskSkillValidation:
         )
         assert resp.status_code == 200
         assert resp.json()["extra_skill_ids"] == ["content-writer"]
+
+    def test_update_clears_skills(self, client: TestClient) -> None:
+        """Clearing the skill list ([] or null) is a valid update, not a rejection."""
+        board_id = _create_board(client)
+        created = client.post(
+            f"/api/v1/kanban/boards/{board_id}/tasks",
+            json={"title": "Task", "extra_skill_ids": ["web-search"]},
+        )
+        task_id = created.json()["task_id"]
+        resp = client.patch(
+            f"/api/v1/kanban/tasks/{task_id}",
+            json={"extra_skill_ids": []},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["extra_skill_ids"] == []
+
+    def test_update_without_skills_field_skips_validation(self, client: TestClient) -> None:
+        """PATCHing unrelated fields must not trigger the skill validator."""
+        board_id = _create_board(client)
+        created = client.post(
+            f"/api/v1/kanban/boards/{board_id}/tasks",
+            json={"title": "Task"},
+        )
+        task_id = created.json()["task_id"]
+        resp = client.patch(
+            f"/api/v1/kanban/tasks/{task_id}",
+            json={"description": "Only touching description"},
+        )
+        assert resp.status_code == 200

@@ -375,6 +375,16 @@ def test_eval_router_remaining_branches(client: TestClient):
         _, call_kwargs = mock_bg.call_args
         assert call_kwargs["limit"] == 50
 
+    # --- /benchmarks/run: limit below 1 is rejected by the schema ---
+    with patch(
+        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+    ):
+        res = client.post(
+            "/api/v1/eval/benchmarks/run",
+            json={"benchmark_id": "browsecomp", "benchmark_mode": False, "limit": 0},
+        )
+        assert res.status_code == 422
+
     # --- /benchmarks/download: already running ---
     with patch(
         "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}

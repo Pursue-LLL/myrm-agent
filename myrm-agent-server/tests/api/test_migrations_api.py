@@ -19,7 +19,9 @@ from app.platform_utils import get_database_engine
 @pytest.fixture
 async def async_client():
     pass
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         yield client
     app.dependency_overrides.clear()
 
@@ -40,7 +42,9 @@ async def cleanup_pending_migrations():
 
 
 @pytest.mark.asyncio
-async def test_submit_memory_migration_stages_review_record(async_client: AsyncClient) -> None:
+async def test_submit_memory_migration_stages_review_record(
+    async_client: AsyncClient,
+) -> None:
     response = await async_client.post(
         "/api/v1/migrations/memory/submit",
         json={
@@ -68,14 +72,22 @@ async def test_submit_memory_migration_stages_review_record(async_client: AsyncC
 
 
 @pytest.mark.asyncio
-async def test_list_pending_migrations_includes_target_agent_fields(async_client: AsyncClient) -> None:
+async def test_list_pending_migrations_includes_target_agent_fields(
+    async_client: AsyncClient,
+) -> None:
     agent_id = "agent-list-bind-test"
     submit = await async_client.post(
         "/api/v1/migrations/skills/submit",
         json={
             "source": "hermes",
             "target_agent_id": agent_id,
-            "skills": [{"name": "lint", "content": "---\nname: lint\n---\nLint", "source": "hermes"}],
+            "skills": [
+                {
+                    "name": "lint",
+                    "content": "---\nname: lint\n---\nLint",
+                    "source": "hermes",
+                }
+            ],
         },
     )
     assert submit.status_code == 200
@@ -92,7 +104,9 @@ async def test_list_pending_migrations_includes_target_agent_fields(async_client
 
 
 @pytest.mark.asyncio
-async def test_list_pending_migrations_returns_staged_records(async_client: AsyncClient) -> None:
+async def test_list_pending_migrations_returns_staged_records(
+    async_client: AsyncClient,
+) -> None:
     pending_id = uuid.uuid4().hex
     async with get_session() as db:
         db.add(
@@ -103,7 +117,11 @@ async def test_list_pending_migrations_returns_staged_records(async_client: Asyn
                 summary="Pending migration from hermes (1 items; semantic:1)",
                 total_items=1,
                 item_counts={"semantic": 1},
-                payload={"version": 1, "skip_duplicates": True, "data": {"semantic": [{"content": "x"}]}},
+                payload={
+                    "version": 1,
+                    "skip_duplicates": True,
+                    "data": {"semantic": [{"content": "x"}]},
+                },
                 status="pending",
             )
         )
@@ -132,26 +150,42 @@ async def test_approve_skill_migration_writes_local_skill(
         "/api/v1/migrations/skills/submit",
         json={
             "source": "hermes",
-            "skills": [{"name": "deploy", "content": "---\nname: deploy\n---\nDeploy", "source": "hermes"}],
+            "skills": [
+                {
+                    "name": "deploy",
+                    "content": "---\nname: deploy\n---\nDeploy",
+                    "source": "hermes",
+                }
+            ],
         },
     )
     assert submit.status_code == 200
     migration_id = submit.json()["migration_id"]
 
-    approve = await async_client.post(f"/api/v1/migrations/pending/{migration_id}/approve")
+    approve = await async_client.post(
+        f"/api/v1/migrations/pending/{migration_id}/approve"
+    )
     assert approve.status_code == 200
     assert (skills_dir / "deploy" / "SKILL.md").is_file()
 
 
 @pytest.mark.asyncio
-async def test_submit_skill_migration_persists_target_agent_id(async_client: AsyncClient) -> None:
+async def test_submit_skill_migration_persists_target_agent_id(
+    async_client: AsyncClient,
+) -> None:
     agent_id = "agent-migration-bind-test"
     response = await async_client.post(
         "/api/v1/migrations/skills/submit",
         json={
             "source": "hermes",
             "target_agent_id": agent_id,
-            "skills": [{"name": "lint", "content": "---\nname: lint\n---\nLint", "source": "hermes"}],
+            "skills": [
+                {
+                    "name": "lint",
+                    "content": "---\nname: lint\n---\nLint",
+                    "source": "hermes",
+                }
+            ],
         },
     )
     assert response.status_code == 200
@@ -181,7 +215,13 @@ async def test_approve_skill_migration_binds_target_agent(
         json={
             "source": "hermes",
             "target_agent_id": agent_id,
-            "skills": [{"name": "deploy", "content": "---\nname: deploy\n---\nDeploy", "source": "hermes"}],
+            "skills": [
+                {
+                    "name": "deploy",
+                    "content": "---\nname: deploy\n---\nDeploy",
+                    "source": "hermes",
+                }
+            ],
         },
     )
     migration_id = submit.json()["migration_id"]
@@ -199,7 +239,9 @@ async def test_approve_skill_migration_binds_target_agent(
             new=update_mock,
         ),
     ):
-        approve = await async_client.post(f"/api/v1/migrations/pending/{migration_id}/approve")
+        approve = await async_client.post(
+            f"/api/v1/migrations/pending/{migration_id}/approve"
+        )
 
     assert approve.status_code == 200
     update_mock.assert_awaited_once()
@@ -226,14 +268,22 @@ async def test_approve_skill_migration_blocked_in_sandbox(
         "/api/v1/migrations/skills/submit",
         json={
             "source": "hermes",
-            "skills": [{"name": "deploy", "content": "---\nname: deploy\n---\nDeploy", "source": "hermes"}],
+            "skills": [
+                {
+                    "name": "deploy",
+                    "content": "---\nname: deploy\n---\nDeploy",
+                    "source": "hermes",
+                }
+            ],
         },
     )
     assert submit.status_code == 200
     migration_id = submit.json()["migration_id"]
 
     try:
-        approve = await async_client.post(f"/api/v1/migrations/pending/{migration_id}/approve")
+        approve = await async_client.post(
+            f"/api/v1/migrations/pending/{migration_id}/approve"
+        )
         assert approve.status_code == 403
     finally:
         monkeypatch.delenv("DEPLOY_MODE", raising=False)

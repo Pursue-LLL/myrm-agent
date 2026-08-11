@@ -140,22 +140,94 @@ class TestMemoryAbService:
                 {"is_running": False, "abort_requested": False},
             ),
             patch(
-                "app.core.eval.benchmarks.build_benchmark_cases", return_value=(cases, {})
+                "app.core.eval.benchmarks.build_benchmark_cases",
+                return_value=(cases, {}, True),
+            ),
+            patch(
+                "app.core.eval.service._resolve_agent_model_label",
+                new=AsyncMock(return_value="deepseek/deepseek-chat"),
             ),
             patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
             patch(
                 "app.core.memory.adapters.setup.evict_cached_memory_manager", evict_mock
             ),
         ):
-            await memory_ab_mod.run_memory_ab_background("wb-bench-code", profile_id="agent_x")
+            await memory_ab_mod.run_memory_ab_background(
+                "wb-bench-code", profile_id="agent_x", limit=1
+            )
 
         latest = reports_dir / "latest.json"
         assert latest.exists()
         report = latest.read_text()
         assert '"memory_off"' in report
         assert '"memory_on"' in report
+        assert '"limit": 1' in report
+        assert '"judge_model": "none"' in report
+        assert '"agent_model": "deepseek/deepseek-chat"' in report
         evict_mock.assert_awaited_once()
         assert not memory_dir.exists()
+
+    @pytest.mark.asyncio
+    async def test_run_memory_ab_discloses_judge_and_agent_model(
+        self, tmp_path: Path
+    ) -> None:
+        """LLM-judged benchmarks record the resolved judge and agent model."""
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        class FakeMatrixResult:
+            per_profile_results: dict[str, object] = {}
+
+            def to_dict(self) -> dict[str, object]:
+                return {"profile_ids": ["memory_off", "memory_on"], "total_cases": 1}
+
+        class FakeMatrixRunner:
+            def __init__(self, executors, **kwargs):
+                self.executors = executors
+                self.kwargs = kwargs
+
+            def abort(self) -> None:
+                pass
+
+            async def run_multi_turn(self, cases, **kwargs):
+                return FakeMatrixResult()
+
+        cases = [MagicMock()]
+        cases[0].turns = [MagicMock()]
+
+        reports_dir = tmp_path / "reports"
+        memory_dir = tmp_path / "memory"
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+        memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = memory_dir
+
+        with (
+            patch(
+                "app.core.eval.memory_ab._memory_ab_state",
+                {"is_running": False, "abort_requested": False},
+            ),
+            patch(
+                "app.core.eval.benchmarks.build_benchmark_cases",
+                return_value=(cases, {}, False),
+            ),
+            patch(
+                "app.core.eval.service._resolve_judge_config",
+                new=AsyncMock(return_value=("judge-cfg", "deepseek/deepseek-chat")),
+            ),
+            patch(
+                "app.core.eval.service._resolve_agent_model_label",
+                new=AsyncMock(return_value="gpt-4o"),
+            ),
+            patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
+            patch(
+                "app.core.memory.adapters.setup.evict_cached_memory_manager", AsyncMock()
+            ),
+        ):
+            await memory_ab_mod.run_memory_ab_background(
+                "browsecomp", profile_id="agent_x", limit=None
+            )
+
+        report = json.loads((reports_dir / "latest.json").read_text())
+        assert report["judge_model"] == "deepseek/deepseek-chat"
+        assert report["agent_model"] == "gpt-4o"
 
     @pytest.mark.asyncio
     async def test_run_memory_ab_builds_two_arms(self, tmp_path: Path) -> None:
@@ -190,7 +262,11 @@ class TestMemoryAbService:
             ),
             patch(
                 "app.core.eval.benchmarks.build_benchmark_cases",
-                return_value=(cases, {"msg": "seed"}),
+                return_value=(cases, {"msg": "seed"}, True),
+            ),
+            patch(
+                "app.core.eval.service._resolve_agent_model_label",
+                new=AsyncMock(return_value="unknown"),
             ),
             patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
             patch(
@@ -274,7 +350,14 @@ async def test_memory_ab_report_records_memory_tool_calls(tmp_path: Path) -> Non
             "app.core.eval.memory_ab._memory_ab_state",
             {"is_running": False, "abort_requested": False},
         ),
-        patch("app.core.eval.benchmarks.build_benchmark_cases", return_value=(cases, {})),
+        patch(
+            "app.core.eval.benchmarks.build_benchmark_cases",
+            return_value=(cases, {}, False),
+        ),
+        patch(
+            "app.core.eval.service._resolve_agent_model_label",
+            new=AsyncMock(return_value="unknown"),
+        ),
         patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
         patch(
             "app.core.memory.adapters.setup.evict_cached_memory_manager", AsyncMock()
@@ -316,6 +399,13 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
     ):
         res = client.post("/api/v1/eval/memory-ab/run", json={"benchmark_id": "nope"})
         assert res.json()["status"] == "error"
+
+    # limit below 1 is rejected by the schema
+    res = client.post(
+        "/api/v1/eval/memory-ab/run",
+        json={"benchmark_id": benchmark_id, "limit": 0},
+    )
+    assert res.status_code == 422
 
     # started → background task receives benchmark_id + profile_id
     with (
@@ -605,6 +695,8 @@ class TestMemoryAbReportHistory:
                 {
                     "timestamp": 1000,
                     "dataset_id": "wb-bench-code",
+                    "judge_model": "none",
+                    "agent_model": "deepseek/deepseek-chat",
                     "per_profile": {"memory_off": {"pass_rate": 0.5}},
                 }
             )
@@ -614,6 +706,8 @@ class TestMemoryAbReportHistory:
                 {
                     "timestamp": 2000,
                     "dataset_id": "wb-bench-research",
+                    "judge_model": "deepseek/deepseek-chat",
+                    "agent_model": "gpt-4o",
                     "per_profile": {"memory_off": {"pass_rate": 0.8}},
                 }
             )
@@ -622,7 +716,10 @@ class TestMemoryAbReportHistory:
         history = memory_ab_mod.get_memory_ab_report_history(reports_dir)
         assert [h["timestamp"] for h in history] == [2000, 1000]
         assert history[0]["dataset_id"] == "wb-bench-research"
+        assert history[0]["judge_model"] == "deepseek/deepseek-chat"
+        assert history[0]["agent_model"] == "gpt-4o"
         assert history[0]["per_profile"]["memory_off"]["pass_rate"] == 0.8
+        assert history[1]["agent_model"] == "deepseek/deepseek-chat"
 
     def test_report_history_skips_corrupt_files(self, tmp_path: Path) -> None:
         import app.core.eval.memory_ab as memory_ab_mod
@@ -729,7 +826,7 @@ class TestMemoryAbEdgeBranches:
             ),
             patch(
                 "app.core.eval.benchmarks.build_benchmark_cases",
-                return_value=([MagicMock()], {}),
+                return_value=([MagicMock()], {}, False),
             ),
             patch(
                 "app.core.memory.adapters.setup.evict_cached_memory_manager",

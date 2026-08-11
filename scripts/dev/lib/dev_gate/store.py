@@ -36,7 +36,14 @@ def _cleanup_dict_from_row(row: sqlite3.Row) -> dict[str, object]:
 
 def _require_cleanup_sealed_for_success(row: sqlite3.Row) -> None:
     cleanup = _cleanup_dict_from_row(row)
-    if cleanup.get("sealed") is True:
+    observed_at = cleanup.get("observed_at")
+    if (
+        cleanup.get("sealed") is True
+        and cleanup.get("ledger_cleaned") is True
+        and cleanup.get("physical_released") is True
+        and isinstance(observed_at, (int, float))
+        and observed_at > 0.0
+    ):
         return
     session_id = str(row["session_id"])
     raise CleanupUnsealedError(

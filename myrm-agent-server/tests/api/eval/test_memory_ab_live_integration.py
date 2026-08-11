@@ -164,7 +164,7 @@ def _run_full_chain() -> None:
         executed cases is reduced so the dual-arm run stays within the
         integration time budget.
         """
-        cases, seed_map = real_build(
+        cases, seed_map, _sampled = real_build(
             benchmark_id,
             progress_callback=progress_callback,
             should_abort=should_abort,
@@ -175,7 +175,7 @@ def _run_full_chain() -> None:
             for k, v in seed_map.items()
             if k in {c.turns[0].message for c in limited}
         }
-        return limited, limited_seed_map
+        return limited, limited_seed_map, False
 
     from app.core.eval import wb_bench_workspace as _wb_ws
 

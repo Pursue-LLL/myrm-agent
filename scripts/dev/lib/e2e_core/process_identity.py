@@ -62,12 +62,47 @@ def _capture_ps_line(pid: int) -> str | None:
     return result.stdout.strip()
 
 
+def _capture_psutil_identity(
+    pid: int,
+    *,
+    role: str,
+    runtime_id: str,
+) -> ProcessIdentity | None:
+    """Capture identity without spawning `ps` when the host denies it."""
+    try:
+        import psutil  # type: ignore[import-not-found]
+    except ImportError:
+        return None
+    try:
+        process = psutil.Process(pid)
+        if process.status() == psutil.STATUS_ZOMBIE:
+            return None
+        started_at = f"unix:{process.create_time():.6f}"
+        try:
+            pgid = os.getpgid(pid)
+        except OSError:
+            pgid = pid
+        command = " ".join(process.cmdline())
+        return {
+            "schemaVersion": SCHEMA_VERSION,
+            "role": role,
+            "runtimeId": runtime_id,
+            "pid": pid,
+            "pgid": pgid,
+            "startedAt": started_at,
+            "command": command,
+            "recordedAt": time.time(),
+        }
+    except (OSError, psutil.Error):
+        return None
+
+
 def capture_process(pid: int, *, role: str, runtime_id: str) -> ProcessIdentity | None:
     if pid <= 0:
         return None
     line = _capture_ps_line(pid)
     if line is None:
-        return None
+        return _capture_psutil_identity(pid, role=role, runtime_id=runtime_id)
     parts = line.split(maxsplit=7)
     if len(parts) != 8 or not parts[0].isdigit():
         raise RuntimeError(f"PROCESS_IDENTITY_PARSE_FAILED: pid={pid} output={line!r}")

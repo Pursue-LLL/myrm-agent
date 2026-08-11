@@ -927,6 +927,11 @@ def _compute_next_action(
     )
 
     admit_wall_cap = float(admit_wall_clock_sec())
+    # The operation plane is the authority for browser isolation and credit
+    # state. If its snapshot is unavailable, no epoch/lease signal can prove
+    # that a new launch is safe; fail closed before drift or queue routing.
+    if mux_fields.get("muxSnapshotAvailable") is False:
+        return "OBSERVABILITY_UNKNOWN"
     admit_active = 0
     shared_candidates = [
         candidate for candidate in ctx.candidates if candidate.source == "shared"
@@ -1340,6 +1345,12 @@ def _context_to_dict(
         mux_fields=resolved_mux,
     )
     payload["next_action"] = next_action
+    if next_action == "OBSERVABILITY_UNKNOWN":
+        payload["agent_rule"] = (
+            f"{payload.get('agent_rule', ctx.agent_rule)} "
+            "OBSERVABILITY_UNKNOWN: stop new launch; retain peer sessions and "
+            "obtain a fresh mux/parallel snapshot; do not infer idle from zero counts."
+        )
     payload["agent_never_say"] = AGENT_NEVER_SAY
     payload["browserIsolation"] = browser_isolation_payload()
     payload["agent_rule"] = (

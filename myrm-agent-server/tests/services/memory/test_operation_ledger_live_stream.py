@@ -39,3 +39,30 @@ def test_publish_memory_operation_event_emits_timeline_payload() -> None:
     assert event.data["target_id"] == "chat-123"
     assert event.data["metadata"]["chat_id"] == "chat-123"
     assert event.data["description"] == "Recalled 3 memories for routing"
+
+
+def test_publish_memory_operation_event_drops_nested_metadata_for_sse() -> None:
+    """SSE payloads keep scalars only; nested diagnostic detail stays out of the wire format."""
+    bus = ServerEventBus()
+    queue = bus.subscribe()
+    row = MemoryOperationEventModel(
+        id="evt-nested",
+        kind="health_check",
+        status="success",
+        occurred_at=datetime.now(UTC),
+        source="memory_diagnostics",
+        summary="Memory diagnostics completed",
+        target_kind="health",
+        target_id="diagnostic_run",
+        metadata_json={
+            "benchmark_recall_at_k": 0.9,
+            "benchmark_categories": {"profile": "2/2"},
+        },
+    )
+
+    with patch("app.services.event.app_event_bus.get_event_bus", return_value=bus):
+        _publish_memory_operation_event(row)
+
+    event = queue.get_nowait()
+    assert event.data["metadata"]["benchmark_recall_at_k"] == 0.9
+    assert "benchmark_categories" not in event.data["metadata"]

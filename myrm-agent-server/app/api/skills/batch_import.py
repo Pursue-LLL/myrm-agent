@@ -21,12 +21,14 @@ from myrm_agent_harness.agent.skills.market.installers.batch_installer import (
 )
 from myrm_agent_harness.agent.skills.packaging import is_evals_file, parse_evals_json
 from myrm_agent_harness.backends.skills.scanning.archive_security import (
-    ArchiveSecurityViolation,
     classify_archive_security_issue,
-    format_archive_security_user_message,
 )
 
 from app.api.skills._deploy_capability import require_local_skills_capability
+from app.api.skills.batch_import_helpers import (
+    _build_batch_import_error_detail,
+    _resolve_batch_import_error_message,
+)
 from app.api.skills.batch_import_schemas import (
     ConfirmImportRequest,
     ConfirmImportResponse,
@@ -38,29 +40,6 @@ from app.api.skills.evolution.helpers import _get_skill_store
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/batch-import", tags=["skills-batch-import"])
-
-
-def _resolve_batch_import_error_message(
-    error: Exception,
-    violation: ArchiveSecurityViolation | None = None,
-) -> str:
-    resolved_violation = violation if violation is not None else classify_archive_security_issue(error)
-    if resolved_violation is not None:
-        return format_archive_security_user_message(resolved_violation)
-    detail = str(error).strip()
-    if detail:
-        return f"解析压缩包失败，防爆防护触发或格式错误: {detail}"
-    return "解析压缩包失败，防爆防护触发或格式错误"
-
-
-def _build_batch_import_error_detail(
-    message: str,
-    violation: ArchiveSecurityViolation | None = None,
-) -> dict[str, str]:
-    return {
-        "message": message,
-        "error_code": violation.code.value if violation is not None else "",
-    }
 
 
 @router.post("/preview", response_model=ImportPreviewResponse)
@@ -78,7 +57,10 @@ async def preview_batch_import(
         raise HTTPException(status_code=400, detail="文件为空")
 
     if len(zip_bytes) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="上传被系统安全拦截：文件大小不能超过 10MB，保护内存免遭拒绝服务攻击。")
+        raise HTTPException(
+            status_code=400,
+            detail="上传被系统安全拦截：文件大小不能超过 10MB，保护内存免遭拒绝服务攻击。",
+        )
 
     parser = HermesBatchParser()
     try:
@@ -88,7 +70,9 @@ async def preview_batch_import(
         detail = _resolve_batch_import_error_message(e, violation=violation)
         payload = _build_batch_import_error_detail(detail, violation=violation)
         if violation is not None:
-            logger.warning("Batch import blocked by archive security policy: %s", detail)
+            logger.warning(
+                "Batch import blocked by archive security policy: %s", detail
+            )
         else:
             logger.error(f"Failed to parse ZIP: {e}")
         raise HTTPException(
@@ -97,7 +81,9 @@ async def preview_batch_import(
         ) from e
 
     if not imported_skills:
-        return ImportPreviewResponse(session_id="", items=[], total_found=0, total_conflicts=0)
+        return ImportPreviewResponse(
+            session_id="", items=[], total_found=0, total_conflicts=0
+        )
 
     store = _get_skill_store()
 
@@ -113,7 +99,9 @@ async def preview_batch_import(
         validator = SkillSecurityValidator(config=SecurityConfig())
     except ImportError:
         from myrm_agent_harness.agent.skills.optimization.config import SecurityConfig
-        from myrm_agent_harness.agent.skills.optimization.security import SkillSecurityValidator
+        from myrm_agent_harness.agent.skills.optimization.security import (
+            SkillSecurityValidator,
+        )
 
         validator = SkillSecurityValidator(config=SecurityConfig())
 
@@ -134,7 +122,9 @@ async def preview_batch_import(
         security_issues = None
 
         # 前置安全扫描
-        val_result = validator.validate_skill(f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n{skill.content}")
+        val_result = validator.validate_skill(
+            f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n{skill.content}"
+        )
         if not val_result.passed:
             security_issues = "; ".join(val_result.issues)
 
@@ -184,12 +174,18 @@ async def confirm_batch_import(
         imported_skills = staging_manager.load_session(request.session_id)
     except Exception as e:
         violation = classify_archive_security_issue(e)
-        detail = _resolve_batch_import_error_message(e, violation=violation) if violation is not None else str(e)
+        detail = (
+            _resolve_batch_import_error_message(e, violation=violation)
+            if violation is not None
+            else str(e)
+        )
         if not detail.strip():
             detail = "导入会话无效或已过期。"
         payload = _build_batch_import_error_detail(detail, violation=violation)
         if violation is not None:
-            logger.warning("Batch import confirm blocked by archive security policy: %s", detail)
+            logger.warning(
+                "Batch import confirm blocked by archive security policy: %s", detail
+            )
         else:
             logger.error("Batch import confirm failed to load session: %s", e)
         raise HTTPException(status_code=400, detail=payload) from e
@@ -203,12 +199,15 @@ async def confirm_batch_import(
     except ImportError:
         # Fallback to harness if imported there
         from myrm_agent_harness.agent.skills.optimization.config import SecurityConfig
-        from myrm_agent_harness.agent.skills.optimization.security import SkillSecurityValidator
+        from myrm_agent_harness.agent.skills.optimization.security import (
+            SkillSecurityValidator,
+        )
 
         validator = SkillSecurityValidator(config=SecurityConfig())
 
     imported_count = 0
     skipped_count = 0
+    restored_eval_cases = 0
 
     # Phase 1: 安全预检 (Defense-in-depth, 拦截恶意请求)
     for item in request.items:
@@ -224,9 +223,13 @@ async def confirm_batch_import(
                 detail=_build_batch_import_error_detail("非法的 virtual_id"),
             ) from e
 
-        val_result = validator.validate_skill(f"---\nname: {item.name}\ndescription: {item.description}\n---\n{skill.content}")
+        val_result = validator.validate_skill(
+            f"---\nname: {item.name}\ndescription: {item.description}\n---\n{skill.content}"
+        )
         if not val_result.passed:
-            logger.warning(f"Skill {item.name} failed security scan during confirm: {val_result.issues}")
+            logger.warning(
+                f"Skill {item.name} failed security scan during confirm: {val_result.issues}"
+            )
             # 立即清理暂存区并阻断
             staging_manager.cleanup_session(request.session_id)
             raise HTTPException(
@@ -292,14 +295,18 @@ async def confirm_batch_import(
             )
 
             # 剥离包内保留文件 evals.json 并还原回归门禁快照
+            # 与单包导入 unpack_and_register 语义一致：仅第一个有效者胜出
+            restored = False
             for rel_path, file_content in list(skill.files.items()):
                 if not is_evals_file(rel_path):
                     continue
                 parsed = parse_evals_json(file_content)
-                if parsed is not None:
-                    record.eval_cases = parsed
-                else:
+                if parsed is None:
                     logger.warning("Skill %s: ignoring invalid %s", name, rel_path)
+                elif not restored:
+                    record.eval_cases = parsed
+                    restored = True
+                    restored_eval_cases += len(parsed)
                 skill.files.pop(rel_path)
 
             records_to_save.append(record)
@@ -315,15 +322,23 @@ async def confirm_batch_import(
                     new_metadata["name"] = name
                     new_metadata["description"] = item.description
                     # 生成合法 frontmatter
-                    fm_yaml = yaml.safe_dump(new_metadata, allow_unicode=True, sort_keys=False).strip()
-                    file_content = f"---\n{fm_yaml}\n---\n{skill.content}".encode("utf-8")
+                    fm_yaml = yaml.safe_dump(
+                        new_metadata, allow_unicode=True, sort_keys=False
+                    ).strip()
+                    file_content = f"---\n{fm_yaml}\n---\n{skill.content}".encode(
+                        "utf-8"
+                    )
 
                 with open(target_path, "wb") as f:
                     f.write(file_content)
 
             # 记录蓝绿切换任务
             blue_green_tasks.append(
-                {"skill_dir": skill_dir, "tmp_dir": tmp_dir, "old_dir": skills_root / f".{skill_id}.{uuid.uuid4().hex}.old"}
+                {
+                    "skill_dir": skill_dir,
+                    "tmp_dir": tmp_dir,
+                    "old_dir": skills_root / f".{skill_id}.{uuid.uuid4().hex}.old",
+                }
             )
 
             imported_count += 1
@@ -378,4 +393,8 @@ async def confirm_batch_import(
         # 异步触发全局垃圾回收，不阻塞当前请求
         background_tasks.add_task(staging_manager._cleanup_expired_sessions_sync)
 
-    return ConfirmImportResponse(imported_count=imported_count, skipped_count=skipped_count)
+    return ConfirmImportResponse(
+        imported_count=imported_count,
+        skipped_count=skipped_count,
+        restored_eval_cases=restored_eval_cases,
+    )

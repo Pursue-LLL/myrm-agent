@@ -197,9 +197,14 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
       }
       
       const result = await res.json();
+      const restoredCount = typeof result.restored_eval_cases === 'number' ? result.restored_eval_cases : 0;
       toast({
-        title: '导入成功 / Import Success',
-        description: `成功导入 ${result.imported_count} 个技能，跳过 ${result.skipped_count} 个 / Imported ${result.imported_count}, skipped ${result.skipped_count}`,
+        title: t('batchImport.importSuccess'),
+        description: t('batchImport.importSuccessDesc', {
+          imported: String(result.imported_count),
+          skipped: String(result.skipped_count),
+          restored: String(restoredCount),
+        }),
       });
       resetForm();
       onOpenChange(false);
@@ -207,7 +212,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
       
     } catch (error: unknown) {
       toast({
-        title: '导入失败 / Import Failed',
+        title: t('batchImport.importFailed'),
         description: resolveErrorMessage(error, t('installed.importFailed')),
         variant: 'destructive',
       });

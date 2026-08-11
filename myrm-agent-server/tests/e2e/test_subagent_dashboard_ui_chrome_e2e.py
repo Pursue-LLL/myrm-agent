@@ -41,6 +41,7 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 _AGENT_ROOT = Path(__file__).resolve().parents[3]
 _PREPARE_LIGHT = _AGENT_ROOT / "scripts/dev/subagent-dashboard-e2e-chat.mjs"
+_PREPARE = _AGENT_ROOT / "scripts/dev/subagent-dashboard-e2e-prepare.mjs"
 
 _DELEGATE_QUERY = (
     "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'bash_worker'，"
@@ -92,6 +93,24 @@ def _open_dashboard_seeded(client, page, chat_id: str, rows: list[dict[str, obje
         timeout_sec=10.0,
     )
     assert seeded is True, "Store seed via bridge failed"
+
+
+def _wait_running_row(chat_id: str, timeout_sec: float = 240.0) -> dict[str, object]:
+    """Poll the subagents API until a running row appears for a freshly spawned agent."""
+    deadline = time.monotonic() + timeout_sec
+    last: object = {}
+    while time.monotonic() < deadline:
+        payload = http_json(
+            "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
+        )
+        last = payload
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if isinstance(data, list):
+            for row in data:
+                if isinstance(row, dict) and row.get("status") == "running":
+                    return row
+        time.sleep(2.0)
+    raise AssertionError(f"No running subagent spawned for chat {chat_id}: {last!r}")
 
 
 def _tree_order_expr() -> str:
@@ -188,131 +207,159 @@ def test_subagent_dashboard_sort_reorders_tree(light_chat: dict[str, object]) ->
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_subagent_dashboard_stop_all_confirms_and_cancels(
-    running_subagent: dict[str, object],
+    light_chat: dict[str, object],
+    e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    """Stop-all opens the confirm dialog and cancels every running subagent via API."""
-    chat_id = str(running_subagent.get("chatId") or "")
-    task_id = str(running_subagent.get("taskId") or "")
-    assert chat_id and task_id
-    tree_row = running_subagent.get("treeRow")
-    rows: list[dict[str, object]] = [
-        row for row in [tree_row] if isinstance(row, dict)
-    ]
-    rows.append(
-        {
-            "task_id": "stop-all-beta",
-            "parent_task_id": "",
-            "status": "running",
-            "agent_type": "bash_worker",
-            "description": "Stop All Beta",
-            "startedAt": int(time.time() * 1000) - 5_000,
-        }
-    )
-    ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+    """Stop-all opens the confirm dialog and cancels every running subagent via API.
+
+    The UI is opened and attached first; the real subagent is spawned afterwards
+    through the agent-stream delegate path, so the cancel window never competes
+    with UI cold-start latency (bash foreground execution defaults to a 60s
+    timeout, which would otherwise terminate the spawned agent too early).
+    """
+    chat_id = str(light_chat.get("chatId") or "")
+    assert chat_id
+    ui_url = str(light_chat.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+    placeholder_row: dict[str, object] = {
+        "task_id": "stop-all-placeholder",
+        "parent_task_id": "",
+        "status": "running",
+        "agent_type": "bash_worker",
+        "description": "Stop All Placeholder",
+        "startedAt": int(time.time() * 1000) - 5_000,
+    }
 
     with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
-        _open_dashboard_seeded(client, page, chat_id, rows)
-        stop_all = wait_for_state(
-            client,
-            page,
-            """(() => {
-              const btn = document.querySelector('[data-testid="subagent-stop-all-btn"]');
-              return { ready: !!btn, hasBtn: !!btn };
-            })()""",
-            timeout_sec=30.0,
+        _open_subagent_dashboard(
+            client, page, chat_id, fallback_rows=[placeholder_row]
         )
-        assert stop_all.get("hasBtn") is True, f"Stop-all button missing: {stop_all}"
-        hooked = client.evaluate(
-            page,
-            """(() => {
-              window.__diagFetch = [];
-              const orig = window.fetch.bind(window);
-              window.fetch = async (...args) => {
-                const urlStr = String(args[0]);
-                if (urlStr.includes('cancel-all')) {
-                  try {
-                    const resp = await orig(...args);
-                    window.__diagFetch.push({
-                      url: urlStr,
-                      status: resp.status,
-                      body: (await resp.clone().text()).slice(0, 200),
-                    });
-                    return resp;
-                  } catch (error) {
-                    window.__diagFetch.push({ url: urlStr, err: String(error) });
-                    throw error;
-                  }
+
+        spawn_env = os.environ.copy()
+        spawn_env["E2E_HOLD_MS"] = "600000"
+        spawn_env["WAVE_LEDGER_LEASE_ID"] = e2e_resource_ledger.lease_id
+        spawn_env["WAVE_LEDGER_NAMESPACE"] = e2e_resource_ledger.namespace
+        spawn = subprocess.Popen(
+            ["bun", str(_PREPARE), f"--chat={chat_id}"],
+            cwd=str(_AGENT_ROOT),
+            env=spawn_env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            task_row = _wait_running_row(chat_id, timeout_sec=240.0)
+            task_id = str(task_row.get("task_id") or "")
+            assert task_id, f"Spawned subagent missing task_id: {task_row}"
+            print("DIAG_TASK_ROW=" + json.dumps(task_row, default=str)[:800])
+            rows: list[dict[str, object]] = [task_row]
+            rows.append(
+                {
+                    "task_id": "stop-all-beta",
+                    "parent_task_id": "",
+                    "status": "running",
+                    "agent_type": "bash_worker",
+                    "description": "Stop All Beta",
+                    "startedAt": int(time.time() * 1000) - 5_000,
                 }
-                return orig(...args);
-              };
-              return true;
-            })()""",
-            timeout_sec=5.0,
-        )
-        assert hooked is True, "fetch hook install failed"
-        clicked = client.evaluate(
-            page,
-            """(() => {
-              const btn = document.querySelector('[data-testid="subagent-stop-all-btn"]');
-              if (!btn) return false;
-              btn.click();
-              return true;
-            })()""",
-            timeout_sec=5.0,
-        )
-        assert clicked is True
-        dialog = wait_for_state(
-            client,
-            page,
-            """(() => {
-              const dlg = document.querySelector('[role="alertdialog"]');
-              return { ready: !!dlg, hasDialog: !!dlg };
-            })()""",
-            timeout_sec=15.0,
-        )
-        assert dialog.get("hasDialog") is True, f"Stop-all confirm dialog missing: {dialog}"
-        confirmed = client.evaluate(
-            page,
-            """(() => {
-              const buttons = Array.from(document.querySelectorAll('[role="alertdialog"] button'));
-              const confirmBtn = buttons[buttons.length - 1];
-              if (!confirmBtn) return false;
-              confirmBtn.click();
-              return true;
-            })()""",
-            timeout_sec=5.0,
-        )
-        assert confirmed is True
-        diag_list = http_json(
-            "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
-        )
-        print(f"DIAG_LIST={json.dumps(diag_list, default=str)[:800]}")
-        cancelled = wait_for_state(
-            client,
-            page,
-            """(() => {
-              const store = window.__myrmSubagentStore?.getState?.();
-              if (!store) return { ready: false, reason: 'store missing', diagFetch: window.__diagFetch ?? [] };
-              const nodes = store.nodes ?? {};
-              const all = Object.values(nodes);
-              return {
-                ready: all.length > 0 && all.every((n) => n.status === 'cancelled'),
-                statuses: all.map((n) => n.status),
-                diagFetch: window.__diagFetch ?? [],
-              };
-            })()""",
-            timeout_sec=30.0,
-        )
-        assert (
-            cancelled.get("ready") is True
-        ), f"Stop-all did not cancel all running nodes: {cancelled}"
-        api_payload = http_json("GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents")
-        data = api_payload.get("data") if isinstance(api_payload, dict) else None
-        rows_after = [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
-        running_after = [row for row in rows_after if row.get("status") == "running"]
-        assert (
-            not running_after
-        ), f"Real subagent still running after stop-all: {running_after}"
+            )
+            seeded = client.evaluate(
+                page,
+                f"""(() => {{
+                  const store = window.__myrmSubagentStore?.getState?.();
+                  if (!store?.setNodes) return false;
+                  store.setNodes({json.dumps(rows)});
+                  return true;
+                }})()""",
+                timeout_sec=10.0,
+            )
+            assert seeded is True, "Store seed via bridge failed"
+            stop_all = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const btn = document.querySelector('[data-testid="subagent-stop-all-btn"]');
+                  return { ready: !!btn, hasBtn: !!btn };
+                })()""",
+                timeout_sec=30.0,
+            )
+            assert stop_all.get("hasBtn") is True, f"Stop-all button missing: {stop_all}"
+            clicked = client.evaluate(
+                page,
+                """(() => {
+                  const btn = document.querySelector('[data-testid="subagent-stop-all-btn"]');
+                  if (!btn) return false;
+                  btn.click();
+                  return true;
+                })()""",
+                timeout_sec=5.0,
+            )
+            assert clicked is True
+            dialog = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const dlg = document.querySelector('[role="alertdialog"]');
+                  return { ready: !!dlg, hasDialog: !!dlg };
+                })()""",
+                timeout_sec=15.0,
+            )
+            assert dialog.get("hasDialog") is True, f"Stop-all confirm dialog missing: {dialog}"
+            confirmed = client.evaluate(
+                page,
+                """(() => {
+                  const buttons = Array.from(document.querySelectorAll('[role="alertdialog"] button'));
+                  const confirmBtn = buttons[buttons.length - 1];
+                  if (!confirmBtn) return false;
+                  confirmBtn.click();
+                  return true;
+                })()""",
+                timeout_sec=5.0,
+            )
+            assert confirmed is True
+            cancelled = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const store = window.__myrmSubagentStore?.getState?.();
+                  if (!store) return { ready: false, reason: 'store missing' };
+                  const nodes = store.nodes ?? {};
+                  const all = Object.values(nodes);
+                  return {
+                    ready: all.length > 0 && all.every((n) => n.status === 'cancelled'),
+                    statuses: all.map((n) => n.status),
+                  };
+                })()""",
+                timeout_sec=30.0,
+            )
+            assert (
+                cancelled.get("ready") is True
+            ), f"Stop-all did not cancel all running nodes: {cancelled}"
+            api_payload = http_json(
+                "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
+            )
+            data = api_payload.get("data") if isinstance(api_payload, dict) else None
+            rows_after = [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
+            deadline_cancel = time.monotonic() + 90.0
+            while time.monotonic() < deadline_cancel and any(
+                row.get("status") == "running" for row in rows_after
+            ):
+                time.sleep(3.0)
+                api_payload = http_json(
+                    "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
+                )
+                data = api_payload.get("data") if isinstance(api_payload, dict) else None
+                rows_after = [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
+            running_after = [row for row in rows_after if row.get("status") == "running"]
+            assert (
+                not running_after
+            ), f"Real subagent still running after stop-all: {running_after}"
+        finally:
+            if spawn.poll() is None:
+                spawn.terminate()
+                try:
+                    spawn.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    spawn.kill()
+                    spawn.wait(timeout=5)
 
 
 @pytest.mark.chrome_e2e(
@@ -338,23 +385,23 @@ def test_subagent_dashboard_teammate_messages_render(
             "status": "running",
             "agent_type": "research",
             "description": "Mate Alpha",
-                   "startedAt": now - 10_000,
-                   "teammate_messages": [
-                       {
-                           "message_id": "m1",
-                           "from_task_id": "mate-b",
-                           "to_task_id": "mate-a",
-                           "body": "E2E teammate ping from B",
-                           "created_at": now - 5_000,
-                       },
-                       {
-                           "message_id": "m2",
-                           "from_task_id": "mate-a",
-                           "to_task_id": "mate-b",
-                           "body": "E2E teammate ack from A",
-                           "created_at": now - 3_000,
-                       },
-                   ],
+            "startedAt": now - 10_000,
+            "teammate_messages": [
+                {
+                    "message_id": "m1",
+                    "from_task_id": "mate-b",
+                    "to_task_id": "mate-a",
+                    "body": "E2E teammate ping from B",
+                    "created_at": now - 5_000,
+                },
+                {
+                    "message_id": "m2",
+                    "from_task_id": "mate-a",
+                    "to_task_id": "mate-b",
+                    "body": "E2E teammate ack from A",
+                    "created_at": now - 3_000,
+                },
+            ],
         },
         {
             "task_id": "mate-b",
