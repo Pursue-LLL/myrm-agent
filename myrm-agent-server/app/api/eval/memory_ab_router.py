@@ -138,7 +138,7 @@ async def run_memory_ab_evaluation(
     # judge reuses the user's active model config). Without one every task in
     # both arms fails with a misleading all-zero comparison.
     if benchmark_needs_judge(request.benchmark_id):
-        from app.core.eval.service import _resolve_judge_config
+        from app.core.eval.model_config import _resolve_judge_config
 
         judge, _judge_label = await _resolve_judge_config()
         if judge is None:

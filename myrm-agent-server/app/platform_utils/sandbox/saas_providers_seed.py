@@ -7,6 +7,7 @@
 [OUTPUT]
 - seed_saas_platform_providers_if_needed(): 沙箱启动时幂等 seed 平台 lite model provider
 - _parse_lite_model_ref(): 解析 ``openrouter/provider/model`` 模型引用
+- 写入成功后调用 invalidate_user_configs_cache()，保证 channel_bridge 立即读到新配置
 
 [POS]
 当新 SaaS 沙箱启动且 WebUI 尚未配置任何 model provider 时，写入一个平台托管的
@@ -105,4 +106,7 @@ async def seed_saas_platform_providers_if_needed() -> None:
     else:
         await service.set("providers", providers_payload, _SAAS_SEED_DEVICE_ID)
 
+    from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+
+    invalidate_user_configs_cache()
     logger.info("Seeded SaaS platform lite model config: %s", model_id)

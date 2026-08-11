@@ -1,7 +1,9 @@
 """Eval Service for the Server Layer.
 
 [INPUT]
-- myrm_agent_harness.eval::EvalRunner, EvalManifest, JsonlReporter
+- myrm_agent_harness.eval::EvalRunner, JsonlReporter
+- app.core.eval.manifest::_build_eval_manifest (POS: 构建评测环境快照，含模型/tool policy/指纹/抽样披露)
+- app.core.eval.model_config::_resolve_agent_model_label / _resolve_judge_config (POS: 统一模型解析与 judge 注入)
 - app.core.eval.executor::LocalEvalExecutor
 - app.core.eval.adaptive::AdaptiveEvalManager
 - app.core.eval.datasets::get_dataset_path
@@ -33,15 +35,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.eval import (
-    EvalManifest,
     EvalRunner,
     JsonlReporter,
-    JudgeConfig,
 )
 
 from app.core.eval.adaptive import AdaptiveEvalManager
 from app.core.eval.datasets import get_dataset_path
 from app.core.eval.executor import LocalEvalExecutor
+from app.core.eval.manifest import _build_eval_manifest
+from app.core.eval.model_config import (
+    _resolve_agent_model_label,
+    _resolve_judge_config,
+)
 from app.core.eval.reports import DEFAULT_REPORTS_DIR
 
 if TYPE_CHECKING:
@@ -127,129 +132,6 @@ def abort_eval() -> bool:
         _active_runner.abort()
         _eval_state["error"] = "Aborted by user"
     return True
-
-
-async def _resolve_agent_model_label(profile_id: str | None) -> str:
-    """Resolve the model label of the evaluated agent.
-
-    Prefers the agent profile's declared model, falling back to the user's
-    active model config (``model_cfg``) when no profile is selected or the
-    profile does not declare a model. Returns ``"unknown"`` when neither
-    source is available. ``_build_eval_manifest`` uses the same resolution so
-    benchmark reports and Memory A/B reports disclose the identical label.
-    """
-    from app.core.channel_bridge.config_loader import load_user_configs
-
-    if profile_id:
-        from app.services.agent.profile.profile_resolver import (
-            get_agent_profile_resolver,
-        )
-
-        resolved = await get_agent_profile_resolver().resolve(profile_id)
-        if resolved and resolved.model:
-            return resolved.model
-
-    configs = await load_user_configs()
-    model_cfg = getattr(configs, "model_cfg", None)
-    model = getattr(model_cfg, "model", None)
-    return str(model) if model else "unknown"
-
-
-async def _build_eval_manifest(
-    profile_id: str | None,
-    dataset_id: str,
-    cases_path: Path,
-    *,
-    benchmark_mode: bool = False,
-    external_cases: list["MultiTurnEvalCase"] | None = None,
-    judge_model: str = "none",
-    limit: int | None = None,
-) -> EvalManifest:
-    """Build an EvalManifest capturing the current evaluation environment."""
-    import hashlib
-    from datetime import datetime, timezone
-
-    import myrm_agent_harness
-
-    model_provider = "unknown"
-    model_id = "unknown"
-    budget_max_tokens = 4096
-    thinking_effort = "default"
-    tool_policy: list[str] = []
-    prompt_fingerprint = "none"
-
-    if profile_id:
-        from app.services.agent.profile.profile_resolver import (
-            get_agent_profile_resolver,
-        )
-
-        resolved = await get_agent_profile_resolver().resolve(profile_id)
-        if resolved:
-            if resolved.model:
-                parts = resolved.model.split("/", 1)
-                if len(parts) == 2:
-                    model_provider, model_id = parts
-                else:
-                    model_id = resolved.model
-            if resolved.engine_params:
-                thinking_effort = str(
-                    resolved.engine_params.get("thinking_effort", "default")
-                )
-                max_tokens_value = resolved.engine_params.get(
-                    "max_tokens", budget_max_tokens
-                )
-                if isinstance(max_tokens_value, int):
-                    budget_max_tokens = max_tokens_value
-                elif isinstance(max_tokens_value, str) and max_tokens_value.isdigit():
-                    budget_max_tokens = int(max_tokens_value)
-            tool_policy = list(resolved.enabled_builtin_tools)
-            if resolved.system_prompt:
-                prompt_fingerprint = hashlib.sha256(
-                    resolved.system_prompt.encode("utf-8")
-                ).hexdigest()
-
-    if model_id == "unknown":
-        # Model not declared by the profile (or no profile selected): fall
-        # back through the shared resolver so the manifest and the Memory A/B
-        # report disclose the identical agent-model label.
-        fallback_label = await _resolve_agent_model_label(profile_id)
-        parts = fallback_label.split("/", 1)
-        if len(parts) == 2:
-            model_provider, model_id = parts
-        else:
-            model_id = fallback_label
-
-    task_set_hash = "empty"
-    if cases_path.exists():
-        content = cases_path.read_bytes()
-        task_set_hash = hashlib.sha256(content).hexdigest()
-    else:
-        import pickle
-
-        try:
-            task_set_hash = hashlib.sha256(pickle.dumps(external_cases)).hexdigest()
-        except (
-            Exception
-        ):  # noqa: BLE001 - fall back to a stable marker on any serialization edge case
-            task_set_hash = f"external-{dataset_id}"
-
-    return EvalManifest(
-        model_provider=model_provider,
-        model_id=model_id,
-        thinking_effort=thinking_effort,
-        harness_version=myrm_agent_harness.__version__,
-        tool_policy=tuple(tool_policy),
-        task_set_id=dataset_id,
-        task_set_hash=task_set_hash,
-        prompt_fingerprint=prompt_fingerprint,
-        budget_max_tokens=budget_max_tokens,
-        timeout_seconds=300,
-        created_at=datetime.now(timezone.utc).isoformat(),
-        profile_id=profile_id or "default",
-        benchmark_mode=benchmark_mode,
-        judge_model=judge_model,
-        limit=limit,
-    )
 
 
 async def run_eval_suite_background(
@@ -424,37 +306,6 @@ async def run_wb_bench_download_background(subset_id: str) -> None:
         f"wb-bench-{subset_id}",
         stage_label=subset_id,
     )
-
-
-async def _resolve_judge_config() -> tuple[JudgeConfig | None, str]:
-    """Resolve the LLM judge configuration from the user's active model.
-
-    The judge for semantic assertions (LLM-as-a-Judge) runs independently of
-    the evaluated agent, so it can reuse the user's own LLM credentials even
-    in ``benchmark_mode`` (which only strips the *agent's* user-specific
-    configuration). Returns the judge credentials plus a display label for the
-    manifest (e.g. ``"deepseek/deepseek-chat"`` or ``"none"``).
-    """
-    from myrm_agent_harness.api.config import ConfigIncompleteError
-
-    from app.core.channel_bridge.config_loader import load_user_configs
-
-    try:
-        configs = await load_user_configs()
-    except ConfigIncompleteError:
-        # No LLM provider configured — the judge cannot run. The router turns
-        # this into explicit guidance before the benchmark starts.
-        return None, "none"
-    model_cfg = getattr(configs, "model_cfg", None)
-    if model_cfg is None or not getattr(model_cfg, "model", None):
-        return None, "none"
-    model = str(model_cfg.model)
-    judge = JudgeConfig(
-        model=model,
-        api_key=getattr(model_cfg, "api_key", None),
-        api_base=getattr(model_cfg, "base_url", None),
-    )
-    return judge, model
 
 
 async def run_eval_suite(

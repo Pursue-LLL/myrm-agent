@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN_PROVIDER_INFO, getInitialProviders, getLiteLLMModelName, resolveCustomProviderTypeInfo } from '../providerTypes';
+import {
+  BUILT_IN_PROVIDER_INFO,
+  getInitialProviders,
+  getLiteLLMModelName,
+  hasActiveApiKey,
+  hasUsableProviderAuth,
+  resolveCustomProviderTypeInfo,
+  resolveProviderApiKeyForRequests,
+} from '../providerTypes';
 
 describe('providerTypes defaults', () => {
   it('uses the official Xiaomi MiMo API endpoint', () => {
@@ -32,5 +40,29 @@ describe('resolveCustomProviderTypeInfo', () => {
     expect(resolveCustomProviderTypeInfo('openai')).toBeUndefined();
     expect(resolveCustomProviderTypeInfo('anthropic')).toBeUndefined();
     expect(resolveCustomProviderTypeInfo('ollama')).toBeUndefined();
+  });
+});
+
+describe('SaaS platform provider seed auth contract', () => {
+  const seededPlatformProvider = {
+    id: 'platform-openrouter',
+    name: 'Platform OpenRouter',
+    providerType: 'openrouter',
+    isEnabled: true,
+    apiKeys: [{ key: 'platform-managed', isActive: true }],
+    apiUrl: 'https://example.test/llm-relay/v1',
+    enabledModels: ['anthropic/claude-sonnet-4'],
+  };
+
+  it('treats the platform-managed placeholder key as an active key', () => {
+    expect(hasActiveApiKey(seededPlatformProvider)).toBe(true);
+  });
+
+  it('reports the seeded provider as usable so NoProviderBanner hides', () => {
+    expect(hasUsableProviderAuth(seededPlatformProvider)).toBe(true);
+  });
+
+  it('forwards the platform-managed marker to the request key resolver', () => {
+    expect(resolveProviderApiKeyForRequests(seededPlatformProvider)).toBe('platform-managed');
   });
 });

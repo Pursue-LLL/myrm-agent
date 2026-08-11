@@ -330,6 +330,17 @@ class CoordinatorService:
             return verify_signoff_artifact(Path(path_raw.strip()))
         raise ValueError(f"unsupported operation: {operation}")
 
+    def sweep_private_admission(self) -> tuple[str, ...]:
+        """Re-evaluate host capacity and grant newly eligible PRIVATE waiters."""
+        granted = self.private_controller.sweep_stale_credits()
+        if granted:
+            from dev_gate_event_hub import coordinator_event_hub  # noqa: PLC0415
+
+            hub = coordinator_event_hub()
+            for session_id in granted:
+                hub.notify(session_id)
+        return granted
+
     def _submit(self, request: dict[str, object]) -> dict[str, object]:
         policy_raw = request.get("policy")
         if not isinstance(policy_raw, dict):
@@ -750,6 +761,14 @@ class _BackgroundReaper:
                 maybe_reap_hung_chrome_e2e_pytest()
                 maybe_reap_epoch_drift_stale_sessions()
                 maybe_reap_orphan_shared_backends()
+            except Exception:
+                pass
+            try:
+                # Host capacity can rise without a release event (for example
+                # after CPU pressure falls). Re-evaluate admission on every
+                # maintenance tick so a waiter never remains queued behind
+                # newly available PRIVATE credits.
+                self._service.sweep_private_admission()
             except Exception:
                 pass
 

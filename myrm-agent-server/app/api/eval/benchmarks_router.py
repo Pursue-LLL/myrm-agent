@@ -128,7 +128,7 @@ async def run_benchmark(
     # a misleading all-zero score. Fail fast with explicit guidance, mirroring
     # the web-search pre-flight above.
     if benchmark_needs_judge(request.benchmark_id):
-        from app.core.eval.service import _resolve_judge_config
+        from app.core.eval.model_config import _resolve_judge_config
 
         judge, _judge_label = await _resolve_judge_config()
         if judge is None:

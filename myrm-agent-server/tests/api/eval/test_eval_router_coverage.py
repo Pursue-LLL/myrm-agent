@@ -191,7 +191,7 @@ def test_eval_router_remaining_branches(client: TestClient):
         patch(
             "app.core.channel_bridge.config_parsers.verify_search_service_available"
         ) as mock_verify,
-        patch("app.core.eval.service._resolve_judge_config") as mock_judge,
+        patch("app.core.eval.model_config._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
         mock_cfg.return_value = SimpleNamespace(
@@ -270,7 +270,7 @@ def test_eval_router_remaining_branches(client: TestClient):
         patch(
             "app.core.channel_bridge.config_parsers.verify_search_service_available"
         ) as mock_verify,
-        patch("app.core.eval.service._resolve_judge_config") as mock_judge,
+        patch("app.core.eval.model_config._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
         mock_cfg.return_value = SimpleNamespace(
@@ -302,7 +302,7 @@ def test_eval_router_remaining_branches(client: TestClient):
         patch(
             "app.core.channel_bridge.config_parsers.verify_search_service_available"
         ) as mock_verify,
-        patch("app.core.eval.service._resolve_judge_config") as mock_judge,
+        patch("app.core.eval.model_config._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
         mock_cfg.return_value = SimpleNamespace(
@@ -325,7 +325,7 @@ def test_eval_router_remaining_branches(client: TestClient):
             "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
         ),
         patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
-        patch("app.core.eval.service._resolve_judge_config") as mock_judge,
+        patch("app.core.eval.model_config._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
         mock_cfg.return_value = SimpleNamespace(
@@ -347,7 +347,7 @@ def test_eval_router_remaining_branches(client: TestClient):
         patch(
             "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
         ),
-        patch("app.core.eval.service._resolve_judge_config", return_value=(None, "none")),
+        patch("app.core.eval.model_config._resolve_judge_config", return_value=(None, "none")),
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
         res = client.post(
@@ -363,7 +363,7 @@ def test_eval_router_remaining_branches(client: TestClient):
         patch(
             "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
         ),
-        patch("app.core.eval.service._resolve_judge_config") as mock_judge,
+        patch("app.core.eval.model_config._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
         mock_judge.return_value = (object(), "deepseek/deepseek-chat")

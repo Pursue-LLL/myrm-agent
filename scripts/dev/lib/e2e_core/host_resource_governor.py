@@ -303,8 +303,12 @@ def tick_governor(*, now: float | None = None) -> int:
             if snapshot.load_avg_1m / snapshot.cpu_count >= CRITICAL_LOAD_RATIO:
                 target = _critical_browser_slot_floor(snapshot)
                 reason = high_reason
-            elif current > MIN_BROWSER_SLOTS:
-                target = current - 1
+            elif current > MAX_BROWSER_SLOTS - 1:
+                # Elevated pressure is a tier, not a per-probe decrement. A
+                # short-lived e2e-context process can call this function several
+                # times; repeatedly subtracting one would collapse 4 lanes to
+                # one in milliseconds and make separate processes disagree.
+                target = MAX_BROWSER_SLOTS - 1
                 reason = high_reason
             else:
                 target = current
@@ -381,7 +385,7 @@ def _snapshot_effective_slots(snapshot: HostPressureSnapshot) -> int:
     with _lock:
         current = _state.effective_slots
     if _pressure_high(snapshot)[0]:
-        return max(MIN_BROWSER_SLOTS, current - 1)
+        return min(current, MAX_BROWSER_SLOTS - 1)
     return current
 
 

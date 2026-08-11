@@ -6,14 +6,15 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncIterator
 
 import pytest
 from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.config.deploy_mode import get_deploy_mode
-from app.database.models import Base, UserConfig
+from app.core.channel_bridge.config_cache import _config_cache, _get_cached
+from app.database.models import UserConfig
 from app.platform_utils.sandbox.saas_providers_seed import (
     _PLATFORM_PROVIDER_ID,
     seed_saas_platform_providers_if_needed,
@@ -26,25 +27,28 @@ _INGRESS = "https://example.test"
 
 @pytest.fixture
 async def sandbox_db(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[None]:
-    """内存 SQLite + sandbox env；退出时清理 providers 并恢复 session factory。"""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """sandbox env + 共享测试 DB 的 providers 行清理；退出时还原。"""
+    from app.database.connection import get_session_factory
 
-    factory = async_sessionmaker(engine, expire_on_commit=False)
-    monkeypatch.setattr("app.platform_utils.get_session_factory", lambda: factory)
     monkeypatch.setenv("DEPLOY_MODE", "sandbox")
     monkeypatch.setenv("MYRM_SAAS_DEFAULT_LITE_MODEL", _LITE_MODEL)
     monkeypatch.setenv("CP_PUBLIC_INGRESS_URL", _INGRESS)
     get_deploy_mode.cache_clear()
 
-    yield
+    async def _clear_providers() -> None:
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            await session.execute(
+                delete(UserConfig).where(UserConfig.config_key == "providers")
+            )
+            await session.commit()
 
+    await _clear_providers()
+    _config_cache.clear()
+    yield
     get_deploy_mode.cache_clear()
-    async with factory() as session:
-        await session.execute(delete(UserConfig).where(UserConfig.config_key == "providers"))
-        await session.commit()
-    await engine.dispose()
+    await _clear_providers()
+    _config_cache.clear()
 
 
 class TestSeedIntegration:
@@ -90,3 +94,13 @@ class TestSeedIntegration:
         providers = value["providers"]
         assert isinstance(providers, list) and len(providers) == 1
         assert providers[0]["id"] == "anthropic"
+
+    async def test_seed_invalidates_config_cache(self, sandbox_db: None) -> None:
+        """seed 写入后 config cache 必须失效，否则 channel_bridge 读到旧空配置。"""
+        # 模拟 seed 前已产生的旧缓存（TTL 未过期）
+        _config_cache["sandbox"] = (time.monotonic(), object())
+        assert _get_cached("sandbox") is not None
+
+        await seed_saas_platform_providers_if_needed()
+
+        assert _get_cached("sandbox") is None

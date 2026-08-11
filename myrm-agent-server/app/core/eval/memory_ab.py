@@ -5,7 +5,7 @@
 - app.core.eval.reports::DEFAULT_REPORTS_DIR
 - app.core.eval.adaptive::AdaptiveEvalManager
 - app.core.memory.adapters.setup::evict_cached_memory_manager
-- app.core.eval.service::_resolve_agent_model_label / _resolve_judge_config (POS: 单评测编排服务，统一模型解析与 judge 注入)
+- app.core.eval.model_config::_resolve_agent_model_label / _resolve_judge_config (POS: 统一模型解析与 judge 注入)
 
 [OUTPUT]
 - get_memory_ab_status / abort_memory_ab: progress query and abort.
@@ -160,7 +160,7 @@ async def run_memory_ab_background(
         # Disclose which agent model was evaluated, regardless of the scoring
         # mode, so a later score change caused by switching the user's model
         # stays traceable (same resolution as benchmark-report manifests).
-        from app.core.eval.service import _resolve_agent_model_label
+        from app.core.eval.model_config import _resolve_agent_model_label
 
         agent_model = await _resolve_agent_model_label(profile_id)
 
@@ -170,7 +170,7 @@ async def run_memory_ab_background(
         judge_config = None
         judge_model = "none"
         if benchmark_needs_judge(benchmark_id):
-            from app.core.eval.service import _resolve_judge_config
+            from app.core.eval.model_config import _resolve_judge_config
 
             judge_config, judge_model = await _resolve_judge_config()
 

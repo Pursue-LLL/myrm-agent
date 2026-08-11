@@ -144,7 +144,7 @@ class TestMemoryAbService:
                 return_value=(cases, {}, True),
             ),
             patch(
-                "app.core.eval.service._resolve_agent_model_label",
+                "app.core.eval.model_config._resolve_agent_model_label",
                 new=AsyncMock(return_value="deepseek/deepseek-chat"),
             ),
             patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
@@ -209,11 +209,11 @@ class TestMemoryAbService:
                 return_value=(cases, {}, False),
             ),
             patch(
-                "app.core.eval.service._resolve_judge_config",
+                "app.core.eval.model_config._resolve_judge_config",
                 new=AsyncMock(return_value=("judge-cfg", "deepseek/deepseek-chat")),
             ),
             patch(
-                "app.core.eval.service._resolve_agent_model_label",
+                "app.core.eval.model_config._resolve_agent_model_label",
                 new=AsyncMock(return_value="gpt-4o"),
             ),
             patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
@@ -265,7 +265,7 @@ class TestMemoryAbService:
                 return_value=(cases, {"msg": "seed"}, True),
             ),
             patch(
-                "app.core.eval.service._resolve_agent_model_label",
+                "app.core.eval.model_config._resolve_agent_model_label",
                 new=AsyncMock(return_value="unknown"),
             ),
             patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
@@ -565,7 +565,7 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
             new=AsyncMock(return_value=True),
         ),
         patch(
-            "app.core.eval.service._resolve_judge_config", return_value=(None, "none")
+            "app.core.eval.model_config._resolve_judge_config", return_value=(None, "none")
         ),
         patch("app.api.eval.memory_ab_router.run_memory_ab_background") as mock_bg,
     ):

@@ -11,6 +11,8 @@ Receives organization-level MCP server configurations from Control Plane
 and persists them locally under the 'orgMcpServers' config key.
 At agent execution time, `config_parsers.merge_org_mcp_configs` appends org
 MCPs to the user MCP config across every execution entry point.
+Servers pushed without `type` are normalized (command→stdio, url→sse) so
+`MCPServerConfig` validation never silently drops them.
 """
 
 from __future__ import annotations

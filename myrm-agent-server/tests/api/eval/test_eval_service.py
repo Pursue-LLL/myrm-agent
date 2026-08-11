@@ -15,8 +15,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.core.eval import service as service_mod
+from app.core.eval.manifest import _build_eval_manifest
 from app.core.eval.service import (
-    _build_eval_manifest,
     abort_eval,
     run_eval_suite,
     run_eval_suite_background,
@@ -168,7 +168,7 @@ class TestResolveAgentModelLabel:
     @pytest.mark.asyncio
     async def test_falls_back_to_user_model_config(self) -> None:
         from app.core.channel_bridge.config_loader import UserConfigs
-        from app.core.eval.service import _resolve_agent_model_label
+        from app.core.eval.model_config import _resolve_agent_model_label
         from app.core.types import ModelConfig
 
         configs = UserConfigs(
@@ -189,7 +189,7 @@ class TestResolveAgentModelLabel:
 
     @pytest.mark.asyncio
     async def test_profile_model_takes_priority(self) -> None:
-        from app.core.eval.service import _resolve_agent_model_label
+        from app.core.eval.model_config import _resolve_agent_model_label
 
         class FakeProfile:
             model = "anthropic/claude-sonnet-4-20250514"
@@ -206,8 +206,42 @@ class TestResolveAgentModelLabel:
         assert label == "anthropic/claude-sonnet-4-20250514"
 
     @pytest.mark.asyncio
+    async def test_unresolvable_profile_falls_back_to_user_model_config(
+        self,
+    ) -> None:
+        from app.core.channel_bridge.config_loader import UserConfigs
+        from app.core.eval.model_config import _resolve_agent_model_label
+        from app.core.types import ModelConfig
+
+        class FakeResolver:
+            async def resolve(self, profile_id: str) -> None:
+                return None
+
+        configs = UserConfigs(
+            model_cfg=ModelConfig(model="deepseek/deepseek-chat", api_key="x"),
+            search_cfg=None,
+            search_is_user_configured=False,
+            retrieval_dict={},
+            personal_settings_dict={},
+            mcp_dict={},
+            providers_dict={},
+        )
+        with (
+            patch(
+                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
+                return_value=FakeResolver(),
+            ),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new=AsyncMock(return_value=configs),
+            ),
+        ):
+            label = await _resolve_agent_model_label("missing_profile")
+        assert label == "deepseek/deepseek-chat"
+
+    @pytest.mark.asyncio
     async def test_unknown_when_nothing_resolvable(self) -> None:
-        from app.core.eval.service import _resolve_agent_model_label
+        from app.core.eval.model_config import _resolve_agent_model_label
 
         with patch(
             "app.core.channel_bridge.config_loader.load_user_configs",
