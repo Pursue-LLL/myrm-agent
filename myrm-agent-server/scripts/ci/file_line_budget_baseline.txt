@@ -15,6 +15,7 @@ app/api/companion/router.py
 app/api/config/router.py
 app/api/cron/schemas.py
 app/api/events/permissions.py
+app/api/extension/router.py
 app/api/files/artifact_api.py
 app/api/files/browse.py
 app/api/files/workspace_ops.py
@@ -131,11 +132,13 @@ app/services/agent/stream_session/stream_lane_factory.py
 app/services/agent/stream_session/stream_loop.py
 app/services/agent/streaming.py
 app/services/agent/streaming_support/stream_collector.py
+app/services/approvals/registry.py
 app/services/chat/chat_crud.py
 app/services/chat/chat_message.py
 app/services/chat/conversation_fork_manager.py
 app/services/chat/conversation_search_service.py
 app/services/extension/bridge.py
+app/services/extension/cdp_relay/bridge.py
 app/services/kanban/task_runner/runner.py
 app/services/memory/archive_restore.py
 app/services/memory/archive_restore_executor.py
