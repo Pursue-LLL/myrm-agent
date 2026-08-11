@@ -604,20 +604,20 @@ print(
 }
 
 _prepare_auth_template_before_attach() {
-  PYTHONPATH="\${SCRIPT_DIR}/lib:\${PYTHONPATH:-}" \
-    "\${PREFLIGHT_PY}" -c "
+  PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" -c "
 import sys
-sys.path.insert(0, '\${SCRIPT_DIR}/lib')
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from e2e_auth_provisioner import prepare_auth_template_for_attach
 from e2e_api_verify import workspace_backend_fingerprint
-origin = '\${UI_BASE:-http://127.0.0.1:3000}'
+origin = '${UI_BASE:-http://127.0.0.1:3000}'
 status = prepare_auth_template_for_attach(
     origin=origin,
     workspace_fingerprint=workspace_backend_fingerprint(),
 )
 print(
-    f'CHROME_E2E_AUTH_PREPARE: status={status["status"]} '
-    f'next={status["next_action"]} runtime_fp={status.get("runtimeFingerprint", "")}',
+    f'CHROME_E2E_AUTH_PREPARE: status={status[\"status\"]} '
+    f'next={status[\"next_action\"]} runtime_fp={status.get(\"runtimeFingerprint\", \"\")}',
     flush=True,
 )
 if status['next_action'] not in {'READY', 'AUTH_SETUP_REQUIRED'}:
@@ -937,7 +937,7 @@ _preflight_progress "readiness"
 
 # Repair an existing runtime-mismatched template before isolated context attach;
 # missing/expired templates remain an explicit setup requirement.
-if [[ "\${MYRM_E2E_API_ONLY:-}" != "1" ]]; then
+if [[ "${MYRM_E2E_API_ONLY:-}" != "1" ]]; then
   _prepare_auth_template_before_attach
 fi
 

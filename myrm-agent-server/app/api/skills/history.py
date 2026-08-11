@@ -185,6 +185,12 @@ async def rollback_skill(
         if not skill:
             raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
 
+        # Rollback rewrites skill content through the local skill write backend —
+        # disabled in sandbox where local skills cannot be loaded.
+        from app.api.skills._deploy_capability import require_local_skills_capability
+
+        require_local_skills_capability()
+
         thread_id = http_request.headers.get("X-Thread-ID")
         session_id = http_request.headers.get("X-Session-ID")
         request_id = getattr(http_request.state, "request_id", None)

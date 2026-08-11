@@ -4215,7 +4215,8 @@
         "probeRecommendedActionRetryProbe": "Erneut versuchen und verbinden",
         "oauthDescription": "Sie werden zum Anbieter weitergeleitet, um den Zugriff zu autorisieren.",
         "oauthTitle": "Mit {name} verbinden",
-        "waitingAuth": "Warten auf Autorisierung…"
+        "waitingAuth": "Warten auf Autorisierung…",
+        "learnMore": "Mehr erfahren"
       }
     },
     "integrationMemory": {

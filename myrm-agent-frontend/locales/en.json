@@ -500,7 +500,8 @@
         "probeRecommendedActionRetryProbe": "Retry and connect",
         "oauthDescription": "You will be redirected to the provider to authorize access.",
         "oauthTitle": "Connect to {name}",
-        "waitingAuth": "Waiting for authorization..."
+        "waitingAuth": "Waiting for authorization...",
+        "learnMore": "Learn more"
       }
     },
     "integrationMemory": {
@@ -7907,8 +7908,6 @@
       "credentialGuide": "These credentials are filled automatically when this skill runs. Create them in Settings → Integration → Credentials if you haven't yet.",
       "goToCredentials": "Manage Credentials",
       "openSkillLibrary": "Open Skill Library",
-      "skillNameInvalid": "Skill name must start with a letter and contain only letters, numbers, dashes, or underscores.",
-      "skillNameInvalid": "Skill name must start with a letter and contain only letters, numbers, dashes, or underscores.",
       "skillNameInvalid": "Skill name must start with a letter and contain only letters, numbers, dashes, or underscores.",
       "actionClick": "Click",
       "actionDblclick": "Double Click",

@@ -167,7 +167,12 @@ const BrowserRecordingPanel: React.FC = () => {
         {(isStopped || generatedSkill) && (
           <button
             type="button"
-            onClick={reset}
+            onClick={() => {
+              reset();
+              setSkillName('');
+              setSkillDesc('');
+              setSkillNameError('');
+            }}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm bg-accent text-foreground hover:bg-accent/80"
           >
             {t('newRecording')}

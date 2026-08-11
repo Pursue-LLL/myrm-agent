@@ -52,22 +52,23 @@ _ALLOWED_BROWSER_TOOLS = (
 
 
 async def generate_skill_description(
-    llm: BaseChatModel, session: CaptureSession
+    llm: BaseChatModel | None, session: CaptureSession
 ) -> str | None:
     """Generate a semantic skill description from recorded steps via LLM.
 
     The skill description tells the agent when a skill applies, so a plain
     URL-based template description leaves recorded skills unreachable. Returns
-    None on any failure so callers fall back to the template description.
+    None when no model is configured or generation fails, so callers fall back
+    to the template description.
 
     Args:
-        llm: The chat model to use.
+        llm: The chat model to use; None skips generation.
         session: The completed recording session.
 
     Returns:
         A concise one-sentence description, or None when generation fails.
     """
-    if not session.steps:
+    if not session.steps or llm is None:
         return None
     credential_labels = _build_credential_labels(session)
     step_lines = steps_to_natural_language(

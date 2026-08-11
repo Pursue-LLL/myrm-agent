@@ -154,19 +154,93 @@ def test_eval_router_coverage(client: TestClient):
 
 
 def test_eval_router_remaining_branches(client: TestClient):
-    """Cover wb-bench run/download, datasets read, cases read, metrics, stream."""
+    """Cover benchmark run/download, wb-bench legacy, datasets, cases, metrics, stream."""
     from app.core.eval import wb_bench as wb
+    from app.core.eval.benchmarks import list_benchmark_sources
+
+    # --- /benchmarks catalog ---
+    res_catalog = client.get("/api/v1/eval/benchmarks")
+    assert res_catalog.status_code == 200
+    assert res_catalog.json()["status"] == "success"
+    sources = res_catalog.json()["sources"]
+    assert len(sources) == len(list_benchmark_sources())
+    # BrowseComp registered in the framework registry is discoverable.
+    assert any(s.get("benchmark_id") == "browsecomp" for s in sources)
+
+    # --- /benchmarks/run: already running ---
+    with patch(
+        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}
+    ):
+        res = client.post("/api/v1/eval/benchmarks/run", json={"benchmark_id": "browsecomp"})
+        assert res.json()["status"] == "already_running"
+
+    # --- /benchmarks/run: unknown benchmark ---
+    with patch(
+        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+    ):
+        res = client.post("/api/v1/eval/benchmarks/run", json={"benchmark_id": "unknown_bench"})
+        assert res.json()["status"] == "error"
+
+    # --- /benchmarks/run: started (synchronous state init + background task) ---
+    with (
+        patch(
+            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+        ),
+        patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
+    ):
+        res = client.post(
+            "/api/v1/eval/benchmarks/run",
+            json={
+                "benchmark_id": "browsecomp",
+                "profile_id": "agent_x",
+                "benchmark_mode": True,
+            },
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "started"
+        _, call_kwargs = mock_bg.call_args
+        assert call_kwargs["benchmark_id"] == "browsecomp"
+        assert call_kwargs["profile_id"] == "agent_x"
+        assert call_kwargs["benchmark_mode"] is True
+
+    # --- /benchmarks/download: already running ---
+    with patch(
+        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}
+    ):
+        res = client.post(
+            "/api/v1/eval/benchmarks/download", json={"benchmark_id": "browsecomp"}
+        )
+        assert res.json()["status"] == "already_running"
+
+    # --- /benchmarks/download: started ---
+    with (
+        patch(
+            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+        ),
+        patch("app.api.eval.benchmarks_router.run_benchmark_download_background") as mock_dl,
+    ):
+        res = client.post(
+            "/api/v1/eval/benchmarks/download", json={"benchmark_id": "browsecomp"}
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "started"
+        _, call_kwargs = mock_dl.call_args
+        assert call_kwargs["benchmark_id"] == "browsecomp"
 
     # --- wb-bench/run: already running ---
-    with patch("app.api.eval.router.get_eval_status", return_value={"is_running": True}):
+    with patch(
+        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}
+    ):
         res = client.post("/api/v1/eval/wb-bench/run", json={"subset_id": "web"})
         assert res.json()["status"] == "already_running"
 
     # --- wb-bench/run: started (synchronous state init + background task) ---
     subset_id = next(iter(wb.WB_BENCH_SUBSETS))
     with (
-        patch("app.api.eval.router.get_eval_status", return_value={"is_running": False}),
-        patch("app.api.eval.router.run_wb_bench_background") as mock_bg,
+        patch(
+            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+        ),
+        patch("app.api.eval.benchmarks_router.run_wb_bench_background") as mock_bg,
     ):
         res = client.post(
             "/api/v1/eval/wb-bench/run",
@@ -180,14 +254,18 @@ def test_eval_router_remaining_branches(client: TestClient):
         assert call_kwargs["benchmark_mode"] is True
 
     # --- wb-bench/download: already running ---
-    with patch("app.api.eval.router.get_eval_status", return_value={"is_running": True}):
+    with patch(
+        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}
+    ):
         res = client.post("/api/v1/eval/wb-bench/download", json={"subset_id": "web"})
         assert res.json()["status"] == "already_running"
 
     # --- wb-bench/download: started ---
     with (
-        patch("app.api.eval.router.get_eval_status", return_value={"is_running": False}),
-        patch("app.api.eval.router.run_wb_bench_download_background") as mock_dl,
+        patch(
+            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+        ),
+        patch("app.api.eval.benchmarks_router.run_wb_bench_download_background") as mock_dl,
     ):
         res = client.post(
             "/api/v1/eval/wb-bench/download", json={"subset_id": subset_id}

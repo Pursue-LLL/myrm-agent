@@ -25,7 +25,7 @@ Falls back to manual step injection when no active browser session exists.
 | WebSocket | `/ws/recording` | Real-time recording control (start/stop/pause/resume/step/delete_step) |
 | GET | `/recording/sessions` | List active recording sessions |
 | GET | `/recording/sessions/{id}` | Get session details with steps |
-| POST | `/recording/generate-skill` | Generate Browser Skill from completed session (LLM description when omitted) |
+| POST | `/recording/generate-skill` | Generate Browser Skill from completed session (LLM description when omitted; template fallback otherwise) |
 
 ## Data Flow
 

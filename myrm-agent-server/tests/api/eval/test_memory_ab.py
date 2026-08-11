@@ -138,14 +138,14 @@ class TestMemoryAbService:
                 {"is_running": False, "abort_requested": False},
             ),
             patch(
-                "app.core.eval.wb_bench.build_wb_bench_cases", return_value=(cases, {})
+                "app.core.eval.benchmarks.build_benchmark_cases", return_value=(cases, {})
             ),
             patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
             patch(
                 "app.core.memory.adapters.setup.evict_cached_memory_manager", evict_mock
             ),
         ):
-            await memory_ab_mod.run_memory_ab_background("code", profile_id="agent_x")
+            await memory_ab_mod.run_memory_ab_background("wb-bench-code", profile_id="agent_x")
 
         latest = reports_dir / "latest.json"
         assert latest.exists()
@@ -187,7 +187,7 @@ class TestMemoryAbService:
                 {"is_running": False, "abort_requested": False},
             ),
             patch(
-                "app.core.eval.wb_bench.build_wb_bench_cases",
+                "app.core.eval.benchmarks.build_benchmark_cases",
                 return_value=(cases, {"msg": "seed"}),
             ),
             patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
@@ -196,7 +196,7 @@ class TestMemoryAbService:
                 AsyncMock(),
             ),
         ):
-            await memory_ab_mod.run_memory_ab_background("code")
+            await memory_ab_mod.run_memory_ab_background("wb-bench-code")
 
         assert set(captured_executors) == {"memory_off", "memory_on"}
         off_executor = captured_executors["memory_off"]
@@ -272,13 +272,13 @@ async def test_memory_ab_report_records_memory_tool_calls(tmp_path: Path) -> Non
             "app.core.eval.memory_ab._memory_ab_state",
             {"is_running": False, "abort_requested": False},
         ),
-        patch("app.core.eval.wb_bench.build_wb_bench_cases", return_value=(cases, {})),
+        patch("app.core.eval.benchmarks.build_benchmark_cases", return_value=(cases, {})),
         patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
         patch(
             "app.core.memory.adapters.setup.evict_cached_memory_manager", AsyncMock()
         ),
     ):
-        await memory_ab_mod.run_memory_ab_background("code")
+        await memory_ab_mod.run_memory_ab_background("wb-bench-code")
 
     report = json.loads((reports_dir / "latest.json").read_text())
     assert report["per_profile"]["memory_off"]["memory_tool_calls"] == 0
@@ -299,22 +299,23 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
     from app.core.eval.wb_bench import WB_BENCH_SUBSETS
 
     subset_id = next(iter(WB_BENCH_SUBSETS))
+    benchmark_id = f"wb-bench-{subset_id}"
 
     # already running
     with patch(
         "app.api.eval.memory_ab_router.get_memory_ab_status", return_value={"is_running": True}
     ):
-        res = client.post("/api/v1/eval/memory-ab/run", json={"subset_id": subset_id})
+        res = client.post("/api/v1/eval/memory-ab/run", json={"benchmark_id": benchmark_id})
         assert res.json()["status"] == "already_running"
 
-    # unknown subset
+    # unknown benchmark
     with patch(
         "app.api.eval.memory_ab_router.get_memory_ab_status", return_value={"is_running": False}
     ):
-        res = client.post("/api/v1/eval/memory-ab/run", json={"subset_id": "nope"})
+        res = client.post("/api/v1/eval/memory-ab/run", json={"benchmark_id": "nope"})
         assert res.json()["status"] == "error"
 
-    # started → background task receives subset_id + profile_id
+    # started → background task receives benchmark_id + profile_id
     with (
         patch(
             "app.api.eval.memory_ab_router.get_memory_ab_status",
@@ -328,12 +329,12 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
     ):
         res = client.post(
             "/api/v1/eval/memory-ab/run",
-            json={"subset_id": subset_id, "profile_id": "agent_abc"},
+            json={"benchmark_id": benchmark_id, "profile_id": "agent_abc"},
         )
         assert res.status_code == 200
         assert res.json()["status"] == "started"
         _, call_kwargs = mock_bg.call_args
-        assert call_kwargs["subset_id"] == subset_id
+        assert call_kwargs["benchmark_id"] == benchmark_id
         assert call_kwargs["profile_id"] == "agent_abc"
 
     # missing embedding → explicit error, background task not started
@@ -361,7 +362,7 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
         patch("app.api.eval.memory_ab_router.run_memory_ab_background") as mock_bg,
     ):
         res = client.post(
-            "/api/v1/eval/memory-ab/run", json={"subset_id": subset_id}
+            "/api/v1/eval/memory-ab/run", json={"benchmark_id": benchmark_id}
         )
         assert res.status_code == 200
         assert res.json()["status"] == "error"
@@ -395,7 +396,7 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
         patch("app.api.eval.memory_ab_router.run_memory_ab_background") as mock_bg,
     ):
         res = client.post(
-            "/api/v1/eval/memory-ab/run", json={"subset_id": subset_id}
+            "/api/v1/eval/memory-ab/run", json={"benchmark_id": benchmark_id}
         )
         assert res.status_code == 200
         assert res.json()["status"] == "error"
@@ -420,7 +421,7 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
         patch("app.api.eval.memory_ab_router.run_memory_ab_background") as mock_bg,
     ):
         res = client.post(
-            "/api/v1/eval/memory-ab/run", json={"subset_id": subset_id}
+            "/api/v1/eval/memory-ab/run", json={"benchmark_id": benchmark_id}
         )
         assert res.status_code == 200
         assert res.json()["status"] == "already_running"
@@ -665,7 +666,7 @@ class TestMemoryAbEdgeBranches:
                 {"is_running": True, "abort_requested": True},
             ),
             patch(
-                "app.core.eval.wb_bench.build_wb_bench_cases",
+                "app.core.eval.benchmarks.build_benchmark_cases",
                 return_value=([MagicMock()], {}),
             ),
             patch(
@@ -673,7 +674,7 @@ class TestMemoryAbEdgeBranches:
                 AsyncMock(),
             ),
         ):
-            await memory_ab_mod.run_memory_ab_background("code")
+            await memory_ab_mod.run_memory_ab_background("wb-bench-code")
 
         # No report should be written when aborted before evaluation.
         assert not (tmp_path / "reports").exists()
@@ -690,7 +691,7 @@ class TestMemoryAbEdgeBranches:
 
         with (
             patch(
-                "app.core.eval.wb_bench.build_wb_bench_cases",
+                "app.core.eval.benchmarks.build_benchmark_cases",
                 side_effect=RuntimeError("download exploded"),
             ),
             patch(
@@ -698,7 +699,7 @@ class TestMemoryAbEdgeBranches:
                 AsyncMock(),
             ),
         ):
-            await memory_ab_mod.run_memory_ab_background("code")
+            await memory_ab_mod.run_memory_ab_background("wb-bench-code")
 
         assert memory_ab_mod._memory_ab_state["error"] == "download exploded"
         assert memory_ab_mod._memory_ab_state["is_running"] is False

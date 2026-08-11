@@ -347,7 +347,11 @@ async def run_benchmark_download_background(
     try:
         from app.core.eval.benchmarks import ensure_benchmark_source
 
-        await ensure_benchmark_source(
+        # ensure_benchmark_source is sync (spawns its own event loop for the
+        # download), so it must run off the calling loop — same pattern as the
+        # full run flow below.
+        await asyncio.to_thread(
+            ensure_benchmark_source,
             benchmark_id,
             progress_callback=_report_wb_bench_download_progress,
             should_abort=_wb_bench_abort_requested,

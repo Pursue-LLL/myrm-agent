@@ -480,7 +480,8 @@
         "probeRecommendedActionRetryProbe": "重新檢測並連接",
         "oauthDescription": "你將被重新導向至供應商處授權存取。",
         "oauthTitle": "連線至 {name}",
-        "waitingAuth": "等待授權…"
+        "waitingAuth": "等待授權…",
+        "learnMore": "了解更多"
       }
     },
     "integrationMemory": {
@@ -7797,7 +7798,6 @@
       "credentialGuide": "執行此技能時會自動填入這些憑據。如尚未建立，請前往「設定 → 整合 → 憑據」建立。",
       "goToCredentials": "前往憑據設定",
       "openSkillLibrary": "打開技能庫",
-      "skillNameInvalid": "技能名稱必須以字母開頭，且僅包含字母、數字、短橫線或底線。",
       "skillNameInvalid": "技能名稱必須以字母開頭，且只能包含字母、數字、短橫線或底線。",
       "actionClick": "點選",
       "actionDblclick": "雙擊",

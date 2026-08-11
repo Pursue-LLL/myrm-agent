@@ -416,4 +416,86 @@ describe('IntegrationConnectDialog', () => {
     expect(mockApiRequest).toHaveBeenCalledTimes(1);
     expect(mockSetMCPConfigs).not.toHaveBeenCalled();
   });
+
+  it('renders helpText and learnMore link for auth=none entries', () => {
+    const entry = makeCatalogEntry({
+      authType: 'none',
+      helpText: 'Sign in with your Microsoft account through the assistant.',
+      helpTextZh: '通过助手使用你的 Microsoft 账户登录。',
+      helpUrl: 'https://to-do.office.com',
+    });
+
+    render(
+      <IntegrationConnectDialog
+        entry={entry}
+        locale="en"
+        onClose={vi.fn()}
+        onConnected={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Sign in with your Microsoft account through the assistant.')).toBeInTheDocument();
+    expect(screen.queryByText('noAuthRequired')).not.toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'learnMore' });
+    expect(link).toHaveAttribute('href', 'https://to-do.office.com');
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  it('renders localized helpTextZh for auth=none entries in zh locale', () => {
+    const entry = makeCatalogEntry({
+      authType: 'none',
+      helpText: 'English help',
+      helpTextZh: '通过助手使用你的 Microsoft 账户登录。',
+    });
+
+    render(
+      <IntegrationConnectDialog
+        entry={entry}
+        locale="zh"
+        onClose={vi.fn()}
+        onConnected={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('通过助手使用你的 Microsoft 账户登录。')).toBeInTheDocument();
+    expect(screen.queryByText('English help')).not.toBeInTheDocument();
+  });
+
+  it('falls back to noAuthRequired when helpText is absent for auth=none entries', () => {
+    const entry = makeCatalogEntry({
+      authType: 'none',
+      helpText: null,
+      helpUrl: null,
+    });
+
+    render(
+      <IntegrationConnectDialog
+        entry={entry}
+        locale="en"
+        onClose={vi.fn()}
+        onConnected={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('noAuthRequired')).toBeInTheDocument();
+  });
+
+  it('omits learnMore link when helpUrl is absent for auth=none entries', () => {
+    const entry = makeCatalogEntry({
+      authType: 'none',
+      helpText: 'No API key needed',
+    });
+
+    render(
+      <IntegrationConnectDialog
+        entry={entry}
+        locale="en"
+        onClose={vi.fn()}
+        onConnected={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('No API key needed')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
 });

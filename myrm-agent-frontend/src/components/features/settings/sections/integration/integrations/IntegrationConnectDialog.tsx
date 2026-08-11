@@ -591,7 +591,26 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
                 )}
               </>
             )}
-            {entry.authType === 'none' && <p className="text-muted-foreground text-sm">{t('noAuthRequired')}</p>}
+            {entry.authType === 'none' && (
+              <div className="space-y-2">
+                {helpText ? (
+                  <p className="text-muted-foreground text-xs">{helpText}</p>
+                ) : (
+                  <p className="text-muted-foreground text-sm">{t('noAuthRequired')}</p>
+                )}
+                {entry.helpUrl && (
+                  <a
+                    href={entry.helpUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
+                  >
+                    {t('learnMore')}
+                    <IconExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter>

@@ -480,7 +480,8 @@
         "probeRecommendedActionRetryProbe": "再試行して接続",
         "oauthDescription": "アクセスを承認するため、プロバイダーにリダイレクトされます。",
         "oauthTitle": "{name} に接続",
-        "waitingAuth": "認証を待っています…"
+        "waitingAuth": "認証を待っています…",
+        "learnMore": "詳しく見る"
       }
     },
     "integrationMemory": {

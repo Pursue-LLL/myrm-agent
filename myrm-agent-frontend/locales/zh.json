@@ -500,7 +500,8 @@
         "probeRecommendedActionRetryProbe": "重新检测并连接",
         "oauthDescription": "你将被重定向到服务商处授权访问。",
         "oauthTitle": "连接到 {name}",
-        "waitingAuth": "等待授权…"
+        "waitingAuth": "等待授权…",
+        "learnMore": "了解更多"
       }
     },
     "integrationMemory": {
@@ -7906,8 +7907,6 @@
       "credentialGuide": "执行此技能时会自动填充这些凭据。如尚未创建，请前往「设置 → 集成 → 凭据」创建。",
       "goToCredentials": "前往凭据设置",
       "openSkillLibrary": "打开技能库",
-      "skillNameInvalid": "技能名必须以字母开头，且仅包含字母、数字、短横线或下划线。",
-      "skillNameInvalid": "技能名必须以字母开头，且只能包含字母、数字、短横线或下划线。",
       "skillNameInvalid": "技能名必须以字母开头，且只能包含字母、数字、短横线或下划线。",
       "actionClick": "点击",
       "actionDblclick": "双击",

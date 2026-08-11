@@ -892,6 +892,25 @@ def _load_orchestrator_observability() -> tuple[dict[str, object], dict[str, obj
         return {"health": "UNKNOWN"}, {}
 
 
+def _cohere_mux_observability(
+    mux_fields: dict[str, object],
+    browser_orchestrator: dict[str, object],
+) -> dict[str, object]:
+    """Keep legacy cold-attach fields consistent with the authoritative plane.
+
+    The compatibility mux probe can still read a stale status file after the
+    Browser Orchestrator daemon has become unreachable.  Reporting that stale
+    value as an available snapshot contradicts ``browserOrchestrator`` and
+    lets callers launch with an unobservable data plane.  Unknown stays
+    fail-closed; a healthy/degraded but observable plane keeps the probe data.
+    """
+    health = str(browser_orchestrator.get("health") or "UNKNOWN").upper()
+    mux_available = browser_orchestrator.get("mux_snapshot_available")
+    if mux_available is not True or health in {"UNKNOWN", "FAILED"}:
+        return {**mux_fields, "muxSnapshotAvailable": False}
+    return mux_fields
+
+
 def _compute_next_action(
     ctx: E2eApiContext,
     *,
@@ -1160,6 +1179,10 @@ def _context_to_dict(
     browser_orchestrator_payload: dict[str, object] = {"health": "UNKNOWN"}
     orchestrator_obs: dict[str, object] = {}
     browser_orchestrator_payload, orchestrator_obs = _load_orchestrator_observability()
+    resolved_mux = _cohere_mux_observability(
+        resolved_mux,
+        browser_orchestrator_payload,
+    )
     headroom = _cap_headroom_fields(
         lease_counts=counts,
         mux_fields=resolved_mux,
@@ -1423,6 +1446,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     _browser_orchestrator_payload, orchestrator_obs = (
         _load_orchestrator_observability()
     )
+    mux_fields = _cohere_mux_observability(mux_fields, _browser_orchestrator_payload)
     active_tests_raw = parallel_snapshot.get("active_tests")
     active_tests = (
         [item for item in active_tests_raw if isinstance(item, dict)]

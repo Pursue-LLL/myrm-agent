@@ -4215,7 +4215,8 @@
         "probeRecommendedActionRetryProbe": "재시도 및 연결",
         "oauthDescription": "액세스 권한을 부여하기 위해 공급자로 리디렉션됩니다.",
         "oauthTitle": "{name}에 연결",
-        "waitingAuth": "인증을 기다리는 중…"
+        "waitingAuth": "인증을 기다리는 중…",
+        "learnMore": "자세히 보기"
       }
     },
     "integrationMemory": {
