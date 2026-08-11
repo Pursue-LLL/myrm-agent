@@ -53,6 +53,10 @@ def owner_process_matches(*, pid: int, expected_start: str) -> bool:
         return False
     try:
         os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        pass
     except OSError:
         return False
     if not expected_start.strip():

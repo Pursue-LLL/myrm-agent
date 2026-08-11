@@ -49,6 +49,7 @@ router = APIRouter(tags=["eval"])
 class RunMemoryAbRequest(BaseModel):
     benchmark_id: str
     profile_id: str | None = None
+    limit: int | None = None
 
 
 @router.post("/memory-ab/run")
@@ -133,6 +134,24 @@ async def run_memory_ab_evaluation(
                 ),
             }
 
+    # A benchmark graded by an LLM judge needs a resolvable judge model (the
+    # judge reuses the user's active model config). Without one every task in
+    # both arms fails with a misleading all-zero comparison.
+    is_wb_bench_run = request.benchmark_id.startswith("wb-bench-")
+    if not is_wb_bench_run:
+        from app.core.eval.service import _resolve_judge_config
+
+        judge, _judge_label = await _resolve_judge_config()
+        if judge is None:
+            return {
+                "status": "error",
+                "error": (
+                    f"{request.benchmark_id} is graded by an LLM judge, but no "
+                    "model provider is configured. Configure a model in settings "
+                    "before running this benchmark."
+                ),
+            }
+
     # Re-check after the (potentially slow) embedding probe: two concurrent
     # requests can both pass the pre-probe guard, and only the probe keeps
     # the window open long enough to matter. The re-check is synchronous, so
@@ -149,6 +168,7 @@ async def run_memory_ab_evaluation(
         run_memory_ab_background,
         benchmark_id=request.benchmark_id,
         profile_id=request.profile_id,
+        limit=request.limit,
     )
     return {"status": "started"}
 

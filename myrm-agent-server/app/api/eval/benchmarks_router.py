@@ -44,6 +44,21 @@ from app.core.eval.wb_bench import WB_BENCH_SUBSETS, list_wb_bench_sources
 router = APIRouter(tags=["eval"])
 
 
+def _benchmark_needs_judge(benchmark_id: str) -> bool:
+    """Return whether a benchmark is graded by an LLM judge.
+
+    WorkBuddy Bench subsets are scored by task-native test suites (no judge
+    LLM); registered third-party benchmarks declare their scoring strategy on
+    the spec (BrowseComp uses ``llm_judge``).
+    """
+    if benchmark_id.startswith("wb-bench-"):
+        return False
+    from myrm_agent_harness.eval import get_benchmark
+
+    spec = get_benchmark(benchmark_id)
+    return spec.scoring == "llm_judge" if spec else False
+
+
 @router.get("/benchmarks")
 async def list_benchmarks() -> dict[str, object]:
     """List all external benchmarks (WBBench subsets + registered third-party)."""
@@ -54,6 +69,7 @@ class BenchmarkRunRequest(BaseModel):
     benchmark_id: str
     profile_id: str | None = None
     benchmark_mode: bool = False
+    limit: int | None = None
 
 
 class BenchmarkDownloadRequest(BaseModel):
@@ -120,6 +136,25 @@ async def run_benchmark(
                 ),
             }
 
+    # A benchmark graded by an LLM judge (scoring == "llm_judge") depends on a
+    # resolvable judge model. The judge reuses the user's active model config
+    # (API key/base URL), so a missing model config makes every task fail with
+    # a misleading all-zero score. Fail fast with explicit guidance, mirroring
+    # the web-search pre-flight above.
+    if _benchmark_needs_judge(request.benchmark_id):
+        from app.core.eval.service import _resolve_judge_config
+
+        judge, _judge_label = await _resolve_judge_config()
+        if judge is None:
+            return {
+                "status": "error",
+                "error": (
+                    f"{request.benchmark_id} is graded by an LLM judge, but no "
+                    "model provider is configured. Configure a model in settings "
+                    "before running this benchmark."
+                ),
+            }
+
     # Re-check after the (potentially slow) pre-flight: two concurrent
     # requests can both pass the guard above, and only the awaited probes
     # keep the window open long enough to matter. The re-check is
@@ -139,6 +174,7 @@ async def run_benchmark(
         profile_id=request.profile_id,
         benchmark_mode=request.benchmark_mode,
         stage_label=request.benchmark_id,
+        limit=request.limit,
     )
     return {"status": "started"}
 
@@ -182,6 +218,7 @@ class WbBenchRunRequest(BaseModel):
     subset_id: str
     profile_id: str | None = None
     benchmark_mode: bool = False
+    limit: int | None = None
 
 
 class WbBenchDownloadRequest(BaseModel):
@@ -217,6 +254,7 @@ async def run_wb_bench(
         subset_id=request.subset_id,
         profile_id=request.profile_id,
         benchmark_mode=request.benchmark_mode,
+        limit=request.limit,
     )
     return {"status": "started"}
 

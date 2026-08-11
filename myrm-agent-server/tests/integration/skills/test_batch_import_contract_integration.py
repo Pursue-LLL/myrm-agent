@@ -6,6 +6,7 @@ import zipfile
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from myrm_agent_harness.agent.skills.packaging import serialize_eval_cases
 
 from app.api.skills.batch_import import router
 from app.api.skills.evolution.helpers import _get_skill_store
@@ -29,6 +30,18 @@ def _build_zip_without_skill_md(skill_dir: str) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(f"{skill_dir}/README.txt", "not a skill")
+    return buffer.getvalue()
+
+
+def _build_zip_with_evals(skill_dir: str, *, name: str, description: str, content: str) -> bytes:
+    buffer = io.BytesIO()
+    skill_md = f"---\nname: {name}\ndescription: {description}\n---\n{content}\n"
+    eval_cases = [
+        {"message": "sum 1 and 2", "expected_tools": ["code_interpreter"], "require_all": True}
+    ]
+    with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(f"{skill_dir}/SKILL.md", skill_md)
+        archive.writestr(f"{skill_dir}/evals.json", serialize_eval_cases(name, eval_cases))
     return buffer.getvalue()
 
 
@@ -312,5 +325,90 @@ def test_batch_import_conflict_replace_updates_existing_record() -> None:
         assert replaced.name == skill_name
         assert replaced.content == "print('updated')"
         assert not any(record.name == f"{skill_name}_copy" for record in store.get_active_skills())
+    finally:
+        store.close()
+
+
+def test_batch_import_restores_evals_json_and_excludes_from_disk() -> None:
+    client = _make_client()
+    skill_name = f"evals-import-{uuid.uuid4().hex[:8]}"
+
+    preview = _preview_batch_import(
+        client,
+        _build_zip_with_evals(
+            "evals-skill",
+            name=skill_name,
+            description="with evals",
+            content="print('with evals')",
+        ),
+    )
+    assert preview["total_found"] == 1
+
+    confirm = _confirm_batch_import(
+        client,
+        preview["session_id"],
+        [
+            {
+                "virtual_id": preview["items"][0]["virtual_id"],
+                "name": skill_name,
+                "description": "with evals",
+                "resolution": "new",
+                "existing_skill_id": None,
+            }
+        ],
+    )
+    assert confirm == {"imported_count": 1, "skipped_count": 0}
+
+    store = _get_skill_store()
+    try:
+        record = next(r for r in store.get_active_skills() if r.name == skill_name)
+        assert record.eval_cases == [
+            {
+                "message": "sum 1 and 2",
+                "expected_tools": ["code_interpreter"],
+                "require_all": True,
+            }
+        ]
+        # evals.json 不应作为普通文件写入技能目录
+        import os
+
+        skill_dir = os.path.dirname(record.path)
+        assert not os.path.exists(os.path.join(skill_dir, "evals.json"))
+    finally:
+        store.close()
+
+
+def test_batch_import_ignores_invalid_evals_json() -> None:
+    client = _make_client()
+    skill_name = f"bad-evals-{uuid.uuid4().hex[:8]}"
+
+    buffer = io.BytesIO()
+    skill_md = f"---\nname: {skill_name}\ndescription: bad evals\n---\nprint('bad')\n"
+    with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("bad-evals-skill/SKILL.md", skill_md)
+        archive.writestr("bad-evals-skill/evals.json", "{invalid json")
+
+    preview = _preview_batch_import(client, buffer.getvalue())
+    assert preview["total_found"] == 1
+
+    confirm = _confirm_batch_import(
+        client,
+        preview["session_id"],
+        [
+            {
+                "virtual_id": preview["items"][0]["virtual_id"],
+                "name": skill_name,
+                "description": "bad evals",
+                "resolution": "new",
+                "existing_skill_id": None,
+            }
+        ],
+    )
+    assert confirm == {"imported_count": 1, "skipped_count": 0}
+
+    store = _get_skill_store()
+    try:
+        record = next(r for r in store.get_active_skills() if r.name == skill_name)
+        assert record.eval_cases == []
     finally:
         store.close()

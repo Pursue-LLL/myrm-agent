@@ -112,6 +112,8 @@ def abort_memory_ab() -> bool:
 async def run_memory_ab_background(
     benchmark_id: str,
     profile_id: str | None = None,
+    *,
+    limit: int | None = None,
 ) -> None:
     """Run a memory-on vs memory-off A/B comparison on an external benchmark.
 
@@ -120,6 +122,8 @@ async def run_memory_ab_background(
     is pointed at a throwaway volume that is evicted from the memory manager
     cache and deleted when the run finishes. The benchmark's declared tool
     whitelist (e.g. ``web_search`` for BrowseComp) is injected into both arms.
+    ``limit`` caps the case count for both arms (same sample, so the
+    comparison stays fair) for low-cost validation runs.
     """
     global _memory_ab_state, _active_memory_ab_runner
 
@@ -137,6 +141,7 @@ async def run_memory_ab_background(
         cases, seed_map = await asyncio.to_thread(
             build_benchmark_cases,
             benchmark_id,
+            limit=limit,
             progress_callback=_report_memory_ab_download_progress,
             should_abort=_memory_ab_abort_requested,
         )
@@ -149,6 +154,16 @@ async def run_memory_ab_background(
         _memory_ab_state["case_total"] = total_turns * 2
 
         from myrm_agent_harness.eval import MatrixRunner
+
+        # Only LLM-judge benchmarks need the caller's judge credentials; for
+        # native-scored suites (e.g. WorkBuddy Bench) the judge is never
+        # invoked, so skip the config resolution entirely.
+
+        judge_config = None
+        if not benchmark_id.startswith("wb-bench-"):
+            from app.core.eval.service import _resolve_judge_config
+
+            judge_config, _judge_label = await _resolve_judge_config()
 
         benchmark_tools = benchmark_required_tools(benchmark_id)
         executors: dict[str, AgentExecutor] = {
@@ -185,6 +200,7 @@ async def run_memory_ab_background(
             on_profile_start=_on_arm_start,
             on_case_complete=_on_case_complete,
             yielding_strategy=adaptive_manager,
+            judge_config=judge_config,
         )
         _active_memory_ab_runner = runner
         try:

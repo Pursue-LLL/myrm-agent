@@ -11,7 +11,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 
 **Mixin 组合模式**：`ChatService` 通过 Python Mixin 组合模式，各域方法定义在独立文件中（每个 < 410 行），ChatService 作为统一入口。消费者使用单一 import 路径。
 
-**会话**：`ChatService` 所有写相关方法内部自动通过 `async with UnitOfWork() as uow:` 管理数据库会话与原子事务。API 层不再需要显式传递 `AsyncSession`，彻底隔离了业务事务与请求生命周期的直接耦合，保障强一致性。
+**会话**：`ChatService` 所有写相关方法内部自动通过 `async with UnitOfWork() as uow:` 管理数据库会话与事务。Chat/Message 主表是权威数据源，先完成提交；Conversation Recall 属于可重建的派生索引，在主表提交后以有界 best-effort 方式追加，失败或超时由启动 `bootstrap_missing` 回填。这样索引锁或 FTS 故障不会阻塞用户消息对后续请求可见。
 
 **智能会话专注与刷新 (Focus & Flush)**：在不销毁底层沙箱环境（进程、依赖、文件系统）的前提下，通过数据库层面的**软删除** (`soft_delete_all_messages_for_chat`) 来清空当前会话的 LLM 上下文，同时清除 `compacted_summary` 与 ConversationRecall。实现零上下文重新出发，大幅节省 Token 并提升模型专注度。
 
@@ -92,7 +92,7 @@ ChatService
 ## 依赖关系
 
 ### 内部依赖
-- `app/database/repositories/uow.py`：使用 UnitOfWork 管理整个跨领域实体（Chat/Message）的事务，确保失败自动回滚。
+- `app/database/repositories/uow.py`：使用 UnitOfWork 管理 Chat/Message 主表事务，确保主表失败自动回滚；派生 recall 索引不再阻塞主表提交。
 - `app/database/repositories/chat_repo.py`：Chat/Message CRUD、compaction CAS 与 sibling group 持久化仓储；消息级全文检索由其委托给 `chat_message_search_repo.py`。
 - `app/database/repositories/conversation_recall/`：Conversation Recall 索引子包；`repo.py` 编排索引写入与 health 查询，`sql.py`/`types.py` 承担 SQL 契约与 DTO 转换。
 - `app/database/repositories/conversation_recall/lookup_repo.py`：Conversation Recall 只读可见性查找仓储，用于 semantic-only 命中按统一 scope/exclusion/lineage 策略补齐 snippet/source_ref。

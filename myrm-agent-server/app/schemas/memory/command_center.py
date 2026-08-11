@@ -345,7 +345,6 @@ class MemoryCommandDiagnosticHistoryResponse(BaseModel):
     """Chronological diagnostic history for Memory Doctor trend rendering."""
 
     items: list[MemoryCommandDiagnosticHistoryItem] = Field(default_factory=list)
-    total: int = 0
 
 
 class MemoryCommandPlaneSummary(BaseModel):

@@ -44,6 +44,7 @@ from app.services.memory.command_center import MemoryCommandCenterService
 from app.services.memory.diagnostic_repair_executor import MemoryDiagnosticRepairExecutor
 from app.services.memory.diagnostics import MemoryDiagnosticsService
 from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.operation_ledger_guardian import as_aware
 from app.services.memory.shared_context import SharedContextService
 from app.services.memory.shared_context_materializer import SharedContextProposalMaterializer
 
@@ -196,7 +197,7 @@ async def list_memory_diagnostic_history(
 
     events = await MemoryOperationLedgerService(db).list_diagnostic_events(limit=limit, offset=offset)
     items = [_diagnostic_history_item(event) for event in events]
-    return MemoryCommandDiagnosticHistoryResponse(items=items, total=len(items))
+    return MemoryCommandDiagnosticHistoryResponse(items=items)
 
 
 @router.post("/diagnostics/repairs", response_model=MemoryCommandRepairActionResponse)
@@ -301,14 +302,15 @@ def _diagnostic_action_status(run_status: str) -> Literal["completed", "complete
 def _diagnostic_history_item(event: MemoryOperationEventModel) -> MemoryCommandDiagnosticHistoryItem:
     """Map one diagnostic audit ledger row into a trend-ready history item.
 
-    Benchmark metrics are reconstructed from flat metadata keys persisted by
-    `MemoryDiagnosticsService._record_run_event`; `categories` detail is not
-    persisted and therefore omitted from history items.
+    Benchmark metrics are reconstructed from metadata keys persisted by
+    `MemoryDiagnosticsService._record_run_event`; per-category detail is stored
+    under `benchmark_categories` and restored as the summary `categories` map.
     """
 
     metadata = event.metadata_json or {}
     benchmark = None
     if isinstance(metadata.get("benchmark_recall_at_k"), (int, float)):
+        categories_raw = metadata.get("benchmark_categories")
         benchmark = MemoryCommandBenchmarkSummary(
             case_count=int(metadata.get("benchmark_case_count") or 0),
             passed_count=int(metadata.get("benchmark_passed_count") or 0),
@@ -319,17 +321,20 @@ def _diagnostic_history_item(event: MemoryOperationEventModel) -> MemoryCommandD
             latency_p50_ms=float(metadata.get("benchmark_latency_p50_ms") or 0.0),
             latency_p95_ms=float(metadata.get("benchmark_latency_p95_ms") or 0.0),
             top_k=int(metadata.get("benchmark_top_k") or 5),
+            categories={str(k): str(v) for k, v in categories_raw.items()}
+            if isinstance(categories_raw, dict)
+            else {},
         )
     embedding_model = metadata.get("benchmark_embedding_model")
     return MemoryCommandDiagnosticHistoryItem(
         run_id=str(metadata.get("diagnostic_run_id") or event.id),
         status=_history_status(event.status, metadata),
-        occurred_at=event.occurred_at,
+        occurred_at=as_aware(event.occurred_at),
         duration_ms=float(metadata.get("duration_ms") or 0.0),
         probe_count=int(metadata.get("probe_count") or 0),
         failed_count=int(metadata.get("failed_count") or 0),
         benchmark=benchmark,
-        embedding_model=embedding_model if isinstance(embedding_model, str) else None,
+        embedding_model=embedding_model if isinstance(embedding_model, str) and embedding_model else None,
     )
 
 

@@ -264,8 +264,8 @@ def test_subagent_dashboard_stop_all_confirms_and_cancels(
               const nodes = store.nodes ?? {};
               const all = Object.values(nodes);
               return {
-                ready: all.length > 0 && all.every((n) => (n as { status?: string }).status === 'cancelled'),
-                statuses: all.map((n) => (n as { status?: string }).status),
+                ready: all.length > 0 && all.every((n) => n.status === 'cancelled'),
+                statuses: all.map((n) => n.status),
               };
             })()""",
             timeout_sec=30.0,
@@ -305,23 +305,23 @@ def test_subagent_dashboard_teammate_messages_render(
             "status": "running",
             "agent_type": "research",
             "description": "Mate Alpha",
-            "startedAt": now - 10_000,
-            "teammateMessages": [
-                {
-                    "message_id": "m1",
-                    "from_task_id": "mate-b",
-                    "to_task_id": "mate-a",
-                    "body": "E2E teammate ping from B",
-                    "created_at": now - 5_000,
-                },
-                {
-                    "message_id": "m2",
-                    "from_task_id": "mate-a",
-                    "to_task_id": "mate-b",
-                    "body": "E2E teammate ack from A",
-                    "created_at": now - 3_000,
-                },
-            ],
+                   "startedAt": now - 10_000,
+                   "teammate_messages": [
+                       {
+                           "message_id": "m1",
+                           "from_task_id": "mate-b",
+                           "to_task_id": "mate-a",
+                           "body": "E2E teammate ping from B",
+                           "created_at": now - 5_000,
+                       },
+                       {
+                           "message_id": "m2",
+                           "from_task_id": "mate-a",
+                           "to_task_id": "mate-b",
+                           "body": "E2E teammate ack from A",
+                           "created_at": now - 3_000,
+                       },
+                   ],
         },
         {
             "task_id": "mate-b",
@@ -448,8 +448,8 @@ def test_subagent_dashboard_overtime_stale_badges_dismiss(
             page,
             """(() => {
               const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
-              const amber = panel?.querySelector('[class*="bg-amber-50"]');
-              const red = panel?.querySelector('[class*="bg-red-50"]');
+              const amber = panel?.querySelector('[class~="bg-amber-50"]');
+              const red = panel?.querySelector('[class~="bg-red-50"]');
               return { ready: !!amber && !!red, hasAmber: !!amber, hasRed: !!red };
             })()""",
             timeout_sec=30.0,
@@ -460,7 +460,7 @@ def test_subagent_dashboard_overtime_stale_badges_dismiss(
             page,
             """(() => {
               const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
-              const buttons = panel ? Array.from(panel.querySelectorAll('[class*="bg-amber-50"] button, [class*="bg-red-50"] button')) : [];
+              const buttons = panel ? Array.from(panel.querySelectorAll('[class~="bg-amber-50"] > button, [class~="bg-red-50"] > button')) : [];
               if (buttons.length < 2) return false;
               buttons[0].click();
               buttons[1].click();
@@ -474,8 +474,8 @@ def test_subagent_dashboard_overtime_stale_badges_dismiss(
             page,
             """(() => {
               const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
-              const amber = panel?.querySelector('[class*="bg-amber-50"]');
-              const red = panel?.querySelector('[class*="bg-red-50"]');
+              const amber = panel?.querySelector('[class~="bg-amber-50"]');
+              const red = panel?.querySelector('[class~="bg-red-50"]');
               return { ready: !amber && !red };
             })()""",
             timeout_sec=15.0,

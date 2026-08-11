@@ -162,7 +162,7 @@ class TestResolveRosterDynamicDiscovery:
 
     @pytest.mark.asyncio
     async def test_defaults_to_true_when_metadata_missing(self):
-        """Agents without an allow_discovery key remain discoverable (legacy behavior)."""
+        """Agents without an allow_discovery key remain discoverable (default behavior)."""
         profiles = [
             self._profile("no-meta", description="Described", metadata=None),
         ]

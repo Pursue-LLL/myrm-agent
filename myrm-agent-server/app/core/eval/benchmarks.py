@@ -126,30 +126,48 @@ def ensure_benchmark_source(
 def build_benchmark_cases(
     benchmark_id: str,
     *,
+    limit: int | None = None,
     progress_callback: Callable[[int, int], None] | None = None,
     should_abort: Callable[[], bool] | None = None,
 ) -> tuple[list[MultiTurnEvalCase], dict[str, str]]:
     """Build runnable cases + workspace seed map for a benchmark handle.
 
+    ``limit`` caps the number of cases (random uniform sample with a fixed
+    seed, so repeated runs with the same limit are reproducible — aligned with
+    simple-evals' ``num_examples``). Sampling applies to every benchmark type,
+    which lets users validate a small slice before paying for a full run.
+
     Returns ``(cases, workspace_seed_map)``; the seed map is empty for
     benchmarks without a pre-provisioned task workspace (e.g. BrowseComp).
     """
+    import random
+
     from app.core.eval.browse_comp import build_browse_comp_cases
     from app.core.eval.wb_bench import build_wb_bench_cases
 
     if benchmark_id.startswith(WB_BENCH_PREFIX):
         subset_id = benchmark_id.removeprefix(WB_BENCH_PREFIX)
-        return build_wb_bench_cases(
+        cases, seed_map = build_wb_bench_cases(
             subset_id,
             progress_callback=progress_callback,
             should_abort=should_abort,
         )
-    if benchmark_id == "browsecomp":
-        return build_browse_comp_cases(
+    elif benchmark_id == "browsecomp":
+        cases, seed_map = build_browse_comp_cases(
             progress_callback=progress_callback,
             should_abort=should_abort,
         )
-    raise ValueError(f"Unknown benchmark: {benchmark_id}")
+    else:
+        raise ValueError(f"Unknown benchmark: {benchmark_id}")
+
+    if limit is not None and limit > 0 and len(cases) > limit:
+        rng = random.Random(42)
+        sampled = rng.sample(list(range(len(cases))), limit)
+        kept = [cases[i] for i in sampled]
+        kept_messages = {c.turns[0].message for c in kept}
+        seed_map = {msg: seed_map[msg] for msg in kept_messages if msg in seed_map}
+        cases = kept
+    return cases, seed_map
 
 
 def benchmark_required_tools(benchmark_id: str) -> tuple[str, ...]:

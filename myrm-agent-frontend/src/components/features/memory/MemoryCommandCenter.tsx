@@ -127,7 +127,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
       const [snap, consolSummary, history] = await Promise.all([
         getMemoryCommandCenter(selectedProjectId, { signal: controller.signal }),
         getConsolidationLastSummary().catch(() => null),
-        getMemoryDiagnosticHistory(24).catch(() => ({ items: [], total: 0 })),
+        getMemoryDiagnosticHistory(24).catch(() => ({ items: [] })),
       ]);
       if (controller.signal.aborted) return;
       registerMigrationSourceManifest(snap.migration.source_manifest, {

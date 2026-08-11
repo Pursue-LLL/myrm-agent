@@ -18,6 +18,7 @@
 | useKanbanTaskDrawerWorkflow.ts | 辅助 | Promote / Move / Reclaim 工作流子 hook                                           | ✅    |
 | KanbanTaskDrawerHeader.tsx   | 辅助 | 抽屉面板头部（状态操作按钮 + Reclaim/Promote 确认）                              | ✅    |
 | KanbanTaskDrawerDetails.tsx  | 辅助 | 抽屉详情（超时/技能/模型覆盖/审批开关/来源 Chat 与 Board 深链）                            | ✅    |
+| KanbanSkillPicker.tsx        | 辅助 | 任务技能多选选择器（搜索 + 已选 chip + 未知 id 标记；数据源 useSkillStore，创建/详情共用）    | ✅    |
 | KanbanTaskDrawerBodySections.tsx | 辅助 | 抽屉附件与结果区段组件                                                         | ✅    |
 | KanbanTaskDrawerBodyMetaSections.tsx | 辅助 | 抽屉依赖/评论/进度区段组件                                                   | ✅    |
 | KanbanInlineAddForm.tsx      | 辅助 | 内联新增任务表单 UI（标题/描述/agent/模型覆盖/技能/超时/依赖）                    | ✅    |

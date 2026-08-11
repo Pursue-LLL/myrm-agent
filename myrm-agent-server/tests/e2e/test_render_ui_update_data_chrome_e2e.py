@@ -32,6 +32,7 @@ from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import open_mcp_page  # noqa: E402
+from tests.support.e2e_lite_model_pin import pin_lite_model_for_e2e  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 try:
@@ -331,6 +332,10 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
         await _apply_e2e_runtime_bootstrap(chat)
+        # LIVE tool-call assertions use the SSOT LITE_MODEL pin; the default
+        # BASIC route can answer the instruction without invoking the requested
+        # structured UI tool.
+        await pin_lite_model_for_e2e(chat)
 
         enabled = await chat.evaluate(
             _ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE

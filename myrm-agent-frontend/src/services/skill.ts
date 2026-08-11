@@ -213,6 +213,7 @@ export interface UploadSkillResponse {
   skill_id: string | null;
   skill_name: string | null;
   error: string | null;
+  restored_eval_cases: number;
 }
 
 export interface RedactionResponse {
@@ -227,6 +228,7 @@ export interface PackagePreviewResponse {
   is_safe: boolean;
   error: string | null;
   redactions: Record<string, RedactionResponse[]> | null;
+  eval_cases_count: number;
 }
 
 /**
@@ -242,12 +244,13 @@ export async function previewSkillPackage(skillId: string): Promise<PackagePrevi
  * @param skillId 技能 ID
  * @param applyRedactions 是否应用脱敏
  * @param ignoredRedactions 忽略脱敏的索引字典 (filename -> indices)
+ * @returns blob 与后端 Content-Disposition 提供的文件名
  */
 export async function downloadSkill(
   skillId: string,
   applyRedactions: boolean = false,
   ignoredRedactions: Record<string, number[]> = {},
-): Promise<Blob> {
+): Promise<{ blob: Blob; filename: string | null }> {
   const response = await fetchWithTimeout(`${SKILLS_API_PREFIX}/${skillId}/export`, {
     method: 'POST',
     headers: {
@@ -265,7 +268,10 @@ export async function downloadSkill(
     throw new Error(`下载失败: ${error}`);
   }
 
-  return response.blob();
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
+  return { blob, filename: filenameMatch ? filenameMatch[1] : null };
 }
 
 /**

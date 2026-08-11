@@ -3720,7 +3720,8 @@
         "previewFailed": "Failed to preview skill",
         "exportSuccess": "Skill exported successfully",
         "exportFailed": "Failed to export skill",
-        "toggleAll": "Toggle All"
+        "toggleAll": "Toggle All",
+        "evalCasesIncluded": "{count} regression test cases included"
       },
       "permissions": {
         "approved": "Permissions approved",
@@ -6480,7 +6481,7 @@
     "dismissRebindHint": "Dismiss",
     "allowDiscovery": {
       "title": "Allow discovery and delegation by other agents",
-      "description": "When enabled, other agents can find and delegate to this agent via @ mentions or auto team formation. Disable to hide work-in-progress agents."
+      "description": "When enabled, other agents can discover and call this agent during automatic team formation. When disabled, this agent is not discovered automatically, but you can still reference it explicitly with @."
     },
     "formalKoreanReplies": {
       "title": "Formal Korean replies",
@@ -10728,6 +10729,7 @@
       "packageSuccess": "Package successful",
       "packageFailed": "Package failed",
       "registerSuccess": "Skill registered successfully",
+      "evalCasesRestored": "{count} regression test cases restored",
       "registerFailed": "Failed to register skill",
       "skillDetected": "Skill Detected",
       "skillDetectedDesc": "Workspace contains SKILL.md, you can register it as a skill",
@@ -12044,9 +12046,15 @@
     "latestProgress": "Latest Progress",
     "completionCriteria": "Acceptance Criteria",
     "criteriaPlaceholder": "Acceptance criteria (optional)",
-    "skillsPlaceholder": "Skills (optional, comma-separated)",
+    "skillsPlaceholder": "Select skills (optional)",
     "branchPlaceholder": "Git branch (optional, auto-creates worktree)",
     "skillsLabel": "Task Skills",
+    "skillsSearch": "Search skills...",
+    "skillsEmpty": "No matching skills",
+    "skillsUnknown": "unknown",
+    "skillsRemove": "Remove skill",
+    "skillsCount": "skills",
+    "skillsRunningNotice": "Task is running — skill changes apply to the next run",
     "showCriteria": "Criteria",
     "hideCriteria": "Hide criteria",
     "editCriteria": "Edit criteria",
@@ -14608,6 +14616,7 @@
       "envPrompt": "Prompt FP",
       "envProfile": "Profile",
       "envBenchmark": "Benchmark",
+      "envJudge": "LLM Judge",
       "status": "Status",
       "messageSnippet": "Message Snippet",
       "tokenUsage": "Token Usage",
@@ -14689,7 +14698,11 @@
       "requiresWebSearchTitle": "This benchmark runs in benchmark mode with web search enabled — configure a search provider first",
       "pendingScoring": "Scoring pending",
       "testPassRate": "Avg test pass rate",
-      "memoryAb": "Memory A/B"
+      "memoryAb": "Memory A/B",
+      "sampleLimitPlaceholder": "All",
+      "sampleLimitTitle": "Optional sample size — run only this many tasks (empty = full benchmark)",
+      "sampled": "sampled",
+      "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)"
     },
     "memoryAb": {
       "started": "Memory A/B evaluation started",

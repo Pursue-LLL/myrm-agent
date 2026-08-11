@@ -46,7 +46,8 @@ from app.services.memory.operation_ledger_guardian import (
 )
 
 JsonScalar = str | int | float | bool | None
-JsonObject = dict[str, JsonScalar]
+JsonValue = JsonScalar | dict[str, "JsonValue"] | list["JsonValue"]
+JsonObject = dict[str, JsonValue]
 
 logger = logging.getLogger(__name__)
 

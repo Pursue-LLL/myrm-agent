@@ -3700,7 +3700,8 @@
         "previewFailed": "プレビュースキル失敗",
         "exportSuccess": "スキルをエクスポートしました",
         "exportFailed": "スキルのエクスポートに失敗",
-        "toggleAll": "すべて切り替え"
+        "toggleAll": "すべて切り替え",
+        "evalCasesIncluded": "回帰テスト ケース {count} 件を含む"
       },
       "permissions": {
         "approved": "権限が承認されました",
@@ -6357,7 +6358,7 @@
     "dismissRebindHint": "了解",
     "allowDiscovery": {
       "title": "他のエージェントによる発見と委任を許可",
-      "description": "有効にすると、他のエージェントが @ メンションや自動チーム編成でこのエージェントを発見し委任できます。作業中のエージェントを非表示にするには無効にします。"
+      "description": "有効にすると、自動チーム編成時に他のエージェントがこのエージェントを発見して呼び出すことができます。無効にすると自動では発見されませんが、@ で明示的に指定することはできます。"
     },
     "formalKoreanReplies": {
       "title": "正式韓国語返信（합니다体）",
@@ -10589,6 +10590,7 @@
       "packageSuccess": "パッケージングしました",
       "packageFailed": "パッケージングに失敗",
       "registerSuccess": "スキルを登録しました",
+      "evalCasesRestored": "{count} 件の回帰テスト ケースを復元しました",
       "registerFailed": "スキル登録失敗",
       "skillDetected": "スキルを検出しました",
       "skillDetectedDesc": "ワークスペースに SKILL.md が含まれています。スキルとして登録できます",
@@ -11966,9 +11968,15 @@
     "latestProgress": "最新の進捗",
     "completionCriteria": "検収条件",
     "criteriaPlaceholder": "検収条件（任意）",
-    "skillsPlaceholder": "専用スキル（任意、カンマ区切り）",
+    "skillsPlaceholder": "スキルを選択（任意）",
     "branchPlaceholder": "Git ブランチ（任意、自動作成 worktree）",
     "skillsLabel": "タスクスキル",
+    "skillsSearch": "スキルを検索...",
+    "skillsEmpty": "一致するスキルがありません",
+    "skillsUnknown": "不明",
+    "skillsRemove": "スキルを削除",
+    "skillsCount": "個のスキル",
+    "skillsRunningNotice": "タスク実行中——スキル変更は次回の実行時に反映されます",
     "showCriteria": "検収条件",
     "hideCriteria": "閉じる条件",
     "editCriteria": "検収条件を編集",
@@ -14527,6 +14535,7 @@
       "envPrompt": "プロンプトFP",
       "envProfile": "エージェント",
       "envBenchmark": "ベンチマーク",
+      "envJudge": "LLM判定者",
       "status": "ステータス",
       "messageSnippet": "メッセージ抜粋",
       "tokenUsage": "Token消費",
@@ -14611,7 +14620,11 @@
       "requiresWebSearchTitle": "このベンチマークはベンチマークモードで実行されWeb検索が有効になります——先に検索プロバイダーを設定してください",
       "pendingScoring": "採点待ち",
       "testPassRate": "平均テスト合格率",
-      "memoryAb": "メモリ A/B"
+      "memoryAb": "メモリ A/B",
+      "sampleLimitPlaceholder": "すべて",
+      "sampleLimitTitle": "オプションのサンプル数——この数のタスクだけ実行します（空欄 = 全ベンチマーク）",
+      "sampled": "サンプル",
+      "sampledTitle": "この実行ではベンチマークタスクをランダムに抽出しました（再現可能）"
     },
     "memoryAb": {
       "started": "メモリ A/B 評価を開始しました",

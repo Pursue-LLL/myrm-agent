@@ -41,9 +41,9 @@ interface ReportItem {
 interface Props {
   running: boolean;
   history: ReportItem[];
-  onRun: (benchmarkId: string) => void;
+  onRun: (benchmarkId: string, limit?: number) => void;
   onDownload: (benchmarkId: string) => void;
-  onMemoryAb: (benchmarkId: string) => void;
+  onMemoryAb: (benchmarkId: string, limit?: number) => void;
   refreshToken: number;
   downloadingBenchmarkId: string | null;
   downloadProgress: { downloaded_bytes: number; total_bytes: number } | null;
@@ -54,6 +54,12 @@ function formatBytes(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB'];
   const idx = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / 1024 ** idx).toFixed(1)} ${units[idx]}`;
+}
+
+function parseLimit(raw: string): number | undefined {
+  if (raw.trim() === '') return undefined;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : undefined;
 }
 
 function scoringLabel(source: BenchmarkSource, t: (key: string) => string): { label: string; title: string } {
@@ -82,6 +88,8 @@ export default function BenchmarkSources({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pendingMemoryAbBenchmark, setPendingMemoryAbBenchmark] = useState<string | null>(null);
+  const [pendingMemoryAbLimit, setPendingMemoryAbLimit] = useState<number | undefined>(undefined);
+  const [sampleLimits, setSampleLimits] = useState<Record<string, string>>({});
 
   const fetchSources = useCallback(async () => {
     try {
@@ -219,6 +227,14 @@ export default function BenchmarkSources({
                       <div className="flex items-center justify-between mt-1">
                         <span className="text-xs text-muted-foreground">
                           {t('reportTotal')}: {report.total_cases ?? 0}
+                          {source.task_count > 0 && report.total_cases != null && report.total_cases < source.task_count && (
+                            <span
+                              className="ml-1.5 px-1.5 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded"
+                              title={t('sampledTitle')}
+                            >
+                              {t('sampled')}
+                            </span>
+                          )}
                         </span>
                         {passRate !== null ? (
                           <span className={`font-semibold ${passRate >= 80 ? 'text-emerald-500' : 'text-amber-500'}`}>
@@ -261,7 +277,22 @@ export default function BenchmarkSources({
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between gap-2 mt-auto flex-wrap">
+                  <div className="flex items-center gap-2 mt-auto flex-wrap">
+                    <div className="flex items-center gap-1.5 rounded-lg border bg-muted/20 px-2 py-1">
+                      <Boxes className="w-3.5 h-3.5 text-muted-foreground" />
+                      <input
+                        type="number"
+                        min={1}
+                        value={sampleLimits[source.benchmark_id] ?? ''}
+                        onChange={(e) =>
+                          setSampleLimits((prev) => ({ ...prev, [source.benchmark_id]: e.target.value }))
+                        }
+                        disabled={running}
+                        placeholder={t('sampleLimitPlaceholder')}
+                        className="w-20 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
+                        title={t('sampleLimitTitle')}
+                      />
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
@@ -274,7 +305,7 @@ export default function BenchmarkSources({
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => onRun(source.benchmark_id)}
+                      onClick={() => onRun(source.benchmark_id, parseLimit(sampleLimits[source.benchmark_id] ?? ''))}
                       disabled={running}
                       className="flex-1 min-w-[96px]"
                     >
@@ -285,7 +316,10 @@ export default function BenchmarkSources({
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => setPendingMemoryAbBenchmark(source.benchmark_id)}
+                        onClick={() => {
+                          setPendingMemoryAbBenchmark(source.benchmark_id);
+                          setPendingMemoryAbLimit(parseLimit(sampleLimits[source.benchmark_id] ?? ''));
+                        }}
                         disabled={running}
                         className="flex-1 min-w-[96px]"
                       >
@@ -320,8 +354,10 @@ export default function BenchmarkSources({
             <Button
               onClick={() => {
                 const benchmarkId = pendingMemoryAbBenchmark;
+                const limit = pendingMemoryAbLimit;
                 setPendingMemoryAbBenchmark(null);
-                if (benchmarkId) onMemoryAb(benchmarkId);
+                setPendingMemoryAbLimit(undefined);
+                if (benchmarkId) onMemoryAb(benchmarkId, limit);
               }}
             >
               {tMemoryAb('confirmStart')}

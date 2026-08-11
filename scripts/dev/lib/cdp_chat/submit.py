@@ -59,14 +59,13 @@ class CdpChatSubmit(CdpChatInput):
             if isinstance(debug, dict):
                 phase = str(debug.get("phase") or "SUBMIT")
                 chat_id = str(result.get("chatId") or "").strip()
-                detail = ""
-                if not result.get("ok"):
-                    detail = (
-                        f" apiUsers={debug.get('apiUsers')} "
-                        f"userCount={debug.get('userCount')} "
-                        f"streaming={debug.get('streaming')} "
-                        f"baseline={debug.get('baselineUsers')}"
-                    )
+                detail = (
+                    f" apiUsers={debug.get('apiUsers')} "
+                    f"userCount={debug.get('userCount')} "
+                    f"streaming={debug.get('streaming')} "
+                    f"baseline={debug.get('baselineUsers')} "
+                    f"rev={debug.get('rev')}"
+                )
                 print(
                     f"{SEND_TURN_LOG_TOKEN}: phase={phase} ok={result.get('ok')} "
                     f"mode={result.get('mode')} chatId={chat_id or '-'} profile={profile}{detail}",

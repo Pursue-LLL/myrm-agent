@@ -3277,7 +3277,8 @@
         "previewFailed": "Vorschau der Fähigkeit fehlgeschlagen",
         "exportSuccess": "Fähigkeit erfolgreich exportiert",
         "exportFailed": "Export der Fähigkeit fehlgeschlagen",
-        "toggleAll": "Alle umschalten"
+        "toggleAll": "Alle umschalten",
+        "evalCasesIncluded": "{count} Regressionstestfälle enthalten"
       },
       "permissions": {
         "approved": "Berechtigungen genehmigt",
@@ -6817,7 +6818,7 @@
     "dismissRebindHint": "Schließen",
     "allowDiscovery": {
       "title": "Entdeckung und Delegation durch andere Agenten erlauben",
-      "description": "Wenn aktiviert, können andere Agenten diesen Agenten über @-Erwähnungen oder automatische Teambildung finden und Aufgaben delegieren. Deaktivieren Sie dies, um Agenten in Entwicklung auszublenden."
+      "description": "Wenn aktiviert, können andere Agenten diesen Agenten bei der automatischen Teambildung entdecken und aufrufen. Wenn deaktiviert, wird dieser Agent nicht automatisch entdeckt, kann aber weiterhin explizit mit @ referenziert werden."
     },
     "formalKoreanReplies": {
       "title": "Formelle koreanische Antworten (합니다体)",
@@ -9097,6 +9098,9 @@
       "doctorEmpty": "Es sind noch keine Gedächtnisarzt-Checks verfügbar",
       "doctorRunTitle": "Führen Sie eine Speicherdiagnose aus",
       "doctorRunAll": "Führen Sie alle Diagnosen aus",
+      "doctorTrendTitle": "Diagnose-Trend",
+      "doctorTrendRuns": "{count} Läufe",
+      "doctorTrendModelShift": "Embedding-Modell geändert zu {model}",
       "bundleMigrateAction": "Kontextpaket initialisieren",
       "bundleMigrating": "Initialisierung...",
       "bundleMigrateSuccess": "Kontextpaket initialisiert",
@@ -10249,6 +10253,7 @@
       "packageSuccess": "Paket erfolgreich",
       "packageFailed": "Paket fehlgeschlagen",
       "registerSuccess": "Fertigkeit erfolgreich registriert",
+      "evalCasesRestored": "{count} Regressionstestfälle wiederhergestellt",
       "registerFailed": "Der Skill konnte nicht registriert werden",
       "skillDetected": "Fähigkeit erkannt",
       "skillDetectedDesc": "Workspace enthält SKILL.md, Sie können es als Skill registrieren",
@@ -11730,9 +11735,15 @@
     "addCommentError": "Kommentar konnte nicht hinzugefügt werden",
     "defaultWorkdir": "Standardarbeitsbereich",
     "defaultWorkdirPlaceholder": "Standard-Arbeitsbereichspfad für Aufgaben (optional)",
-    "skillsPlaceholder": "Fähigkeiten (optional, durch Kommas getrennt)",
+    "skillsPlaceholder": "Fähigkeiten auswählen (optional)",
     "branchPlaceholder": "Git-Zweig (optional, erstellt automatisch Arbeitsbaum)",
     "skillsLabel": "Aufgabenfähigkeiten",
+    "skillsSearch": "Fähigkeiten suchen...",
+    "skillsEmpty": "Keine passenden Fähigkeiten",
+    "skillsUnknown": "unbekannt",
+    "skillsRemove": "Fähigkeit entfernen",
+    "skillsCount": "Fähigkeiten",
+    "skillsRunningNotice": "Aufgabe läuft — Änderungen an Fähigkeiten gelten ab dem nächsten Lauf",
     "skillsUpdated": "Aufgabenfähigkeiten aktualisiert",
     "skillsUpdateError": "Fertigkeiten konnten nicht aktualisiert werden",
     "timeoutUpdated": "Zeitüberschreitung der Aufgabe aktualisiert",
@@ -13939,6 +13950,7 @@
       "evalRunning": "Evaluierungsaufgabe läuft, bitte warten",
       "envProfile": "Agent",
       "envBenchmark": "Leistungstest",
+      "envJudge": "LLM-Bewerter",
       "environment": "Umgebungsschnappschuss",
       "envModel": "Modell",
       "envThinking": "Denken",
@@ -14018,7 +14030,11 @@
       "scoringCompositeTitle": "Bewertet durch die CompositeVerifier-Engine (Regel + LLM/VLM)",
       "pendingScoring": "Wertung steht noch aus",
       "testPassRate": "Ø Test-Bestehensquote",
-      "memoryAb": "Speicher A/B"
+      "memoryAb": "Speicher A/B",
+      "sampleLimitPlaceholder": "Alle",
+      "sampleLimitTitle": "Optionale Stichprobengröße — nur so viele Aufgaben ausführen (leer = voller Benchmark)",
+      "sampled": "Stichprobe",
+      "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)"
     },
     "memoryAb": {
       "started": "Memory-A/B-Auswertung gestartet",

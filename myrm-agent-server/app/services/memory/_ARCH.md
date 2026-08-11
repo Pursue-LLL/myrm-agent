@@ -24,7 +24,7 @@
 | `diagnostic_repair_plans.py` | 辅助 | Memory Doctor 修复计划目录。把 compact action id 映射为风险等级、dry-run、预期效果和可执行性，不修改配置、不读取业务记忆内容 | ✅ |
 | `diagnostic_slo.py` | 辅助 | Memory Doctor 诊断 SLO 汇总。读取最近诊断审计事件的 metadata，计算窗口通过率、失败次数和平均耗时 | ✅ |
 | `diagnostic_static_checks.py` | 辅助 | Memory Doctor 静态检查构建器。生成 relational store、memory path、vector index、knowledge graph、embedding provider、event ledger、health snapshot、deployment boundary 快照检查 | ✅ |
-| `diagnostics.py` | 核心 | Memory Diagnostics 服务。生成 Memory Doctor 静态检查并执行 relational store、memory path、vector index、knowledge graph、embedding provider、embedding live、retrieval pipeline、sparse CJK recall、golden recall benchmark、memory quality governance、event ledger、migration integrity、health snapshot、deployment boundary 探针，写入不含业务内容的诊断审计事件并返回审计写入状态与诊断 SLO；诊断审计事件将 benchmark 标量指标与 embedding 模型平铺进 ledger metadata 供历史趋势回归分析 | ✅ |
+| `diagnostics.py` | 核心 | Memory Diagnostics 服务。生成 Memory Doctor 静态检查并执行 relational store、memory path、vector index、knowledge graph、embedding provider、embedding live、retrieval pipeline、sparse CJK recall、golden recall benchmark、memory quality governance、event ledger、migration integrity、health snapshot、deployment boundary 探针，写入不含业务内容的诊断审计事件并返回审计写入状态与诊断 SLO；诊断审计事件将 benchmark 标量指标、类别通过率与 embedding 模型平铺进 ledger metadata 供历史趋势回归分析（含类别级退化定位与模型漂移提示） | ✅ |
 | `import_adapter_registry.py` | 核心 | 记忆导入 adapter 目录。为导入 dry-run 和个人大脑指挥中心提供一致的来源支持状态，标记 native-json/myrm-archive/agentmemory/claude-code/hermes/openclaw/cursor/codex/chatgpt/gbrain ready 与其他来源计划或缺失状态 | ✅ |
 | `import_adapters.py` | 核心 | 记忆导入 dry-run dispatcher。Wizard 五源 `_MIGRATION_SOURCE_TO_ADAPTER`（含 chatgpt upload-only）；Memory Center 手动导入仍支持 cursor_rules/mem0 等；`_source` 标签优先于 Markdown 启发式 | ✅ |
 | `import_adapter_utils.py` | 辅助 | 导入适配器共享工具。集中 `build_result`、`unsupported_result`、`object_dict`、`text` 和 warning code 常量 | ✅ |
@@ -46,7 +46,7 @@
 | `import_rollback.py` | 核心 | 记忆导入回滚辅助。封装账本条目分类、profile revision 并发冲突检测、结构化 warning 生成、普通记忆 exact mutation refs 回滚和 profile 乐观回滚 | ✅ |
 | `command_center_projection_utils.py` | 辅助 | 个人大脑指挥中心投影辅助。集中维护阶段映射、瀑布流状态、预览、数值解析和 eval metric 构建，避免洞察服务膨胀 | ✅ |
 | `guardian_policy.py` | 核心 | Memory Guardian 调度策略服务。持久化 `frequency_tier`/`quiet_window` 配置，提供运行窗口判定与下次窗口开启时间计算，并记录 `timezone_source`；首访时完成浏览器时区初始化，无浏览器时区头时由 API 使用服务端本地时区兜底，后续收到真实客户端时区头时可自动纠偏 | ✅ |
-| `operation_ledger.py` | 核心 | 单用户记忆操作账本服务。持久化记忆事件、健康快照缓存和外部记忆导入来源；`record_event` 同步发布 `memory_operation` SSE；提供 `list_events_for_session` 供 Session Replay memory_events 叠加查询；`list_diagnostic_events` 按 source/target 约定检索诊断审计事件供历史趋势 | ✅ |
+| `operation_ledger.py` | 核心 | 单用户记忆操作账本服务。持久化记忆事件、健康快照缓存和外部记忆导入来源；`record_event` 同步发布 `memory_operation` SSE；提供 `list_events_for_session` 供 Session Replay memory_events 叠加查询；`list_diagnostic_events` 按 source/target 约定检索诊断审计事件供历史趋势；metadata 列支持嵌套 JSON（标量 SSE 收缩与嵌套趋势反投影并存） | ✅ |
 | `operation_ledger_guardian.py` | 辅助 | Guardian 晨间摘要按维护窗口聚合读取与守卫不可用告警聚合快照（按 frequency tier 自适应最小事件阈值 + escalation 阈值元数据） | ✅ |
 | `manager_deps.py` | ✅ 辅助 | MemoryManager FastAPI 依赖工厂（`get_memory_manager` / `get_crud_memory_manager` / `get_optional_memory_manager`） | ✅ |
 | `presentation.py` | ✅ 辅助 | 记忆实体→`MemoryItem` DTO 转换与 `parse_memory_type` 校验 | ✅ |

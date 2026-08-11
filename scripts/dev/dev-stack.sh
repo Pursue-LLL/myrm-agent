@@ -95,7 +95,7 @@ _acquire_dir_lock() {
     if [[ -f "${lockdir}/pid" ]]; then
       owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
     fi
-    if [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null; then
+    if [[ -n "${owner}" ]] && dev_pid_alive "${owner}"; then
       local lock_mtime now age
       lock_mtime="$(stat -f %m "${lockdir}/pid" 2>/dev/null || stat -c %Y "${lockdir}/pid" 2>/dev/null || echo 0)"
       now="$(date +%s)"
@@ -106,7 +106,7 @@ _acquire_dir_lock() {
         sleep 1
         _release_dir_lock "${lockdir}"
       fi
-    elif [[ -z "${owner}" ]] || ! kill -0 "${owner}" 2>/dev/null; then
+    elif [[ -z "${owner}" ]] || ! dev_pid_alive "${owner}"; then
       echo "STACK_WARN: reclaiming stale lock ${lockdir}" >&2
       _release_dir_lock "${lockdir}"
     fi
@@ -136,7 +136,7 @@ _ensure_lock_owner_alive() {
   if [[ -f "${lockdir}/pid" ]]; then
     owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
   fi
-  [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null
+  [[ -n "${owner}" ]] && dev_pid_alive "${owner}"
 }
 
 _join_ensure_in_progress() {
@@ -247,7 +247,7 @@ _wait_frontend_http_200() {
     if [[ -f "${FRONTEND_PID}" ]]; then
       local supervisor_pid
       supervisor_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
-      if [[ -n "${supervisor_pid}" ]] && ! kill -0 "${supervisor_pid}" 2>/dev/null; then
+      if [[ -n "${supervisor_pid}" ]] && ! dev_pid_alive "${supervisor_pid}"; then
         echo "STACK_WARN: frontend supervisor exited before HTTP readiness — check ${FRONTEND_LOG}" >&2
         return 1
       fi
@@ -325,7 +325,7 @@ _backend_supervisor_alive() {
   [[ -f "${BACKEND_PID}" ]] || return 1
   local pid
   pid="$(tr -d '[:space:]' <"${BACKEND_PID}")"
-  [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
+  [[ -n "${pid}" ]] && dev_pid_alive "${pid}"
 }
 
 _frontend_port_listening() {
@@ -707,14 +707,14 @@ cmd_reset() {
   if [[ -f "${BACKEND_PID}" ]]; then
     local dev_pid
     dev_pid="$(cat "${BACKEND_PID}")"
-    if kill -0 "${dev_pid}" 2>/dev/null; then
+    if dev_pid_alive "${dev_pid}"; then
       kill -TERM "${dev_pid}" 2>/dev/null || true
       local _
       for _ in $(seq 1 15); do
-        kill -0 "${dev_pid}" 2>/dev/null || break
+        dev_pid_alive "${dev_pid}" || break
         sleep 1
       done
-      if kill -0 "${dev_pid}" 2>/dev/null; then
+      if dev_pid_alive "${dev_pid}"; then
         kill -9 "${dev_pid}" 2>/dev/null || true
       fi
     fi
@@ -808,7 +808,7 @@ _private_backend_scope() {
 _shared_backend_listens_on_port() {
   local port="$1" shared_pid="$2" owner_pid
   [[ -n "${shared_pid}" && "${shared_pid}" =~ ^[0-9]+$ ]] || return 1
-  kill -0 "${shared_pid}" 2>/dev/null || return 1
+  dev_pid_alive "${shared_pid}" || return 1
   for owner_pid in $(lsof -nP -iTCP:"${port}" -sTCP:LISTEN -t 2>/dev/null); do
     [[ "${owner_pid}" == "${shared_pid}" ]] && return 0
   done
@@ -1024,7 +1024,7 @@ _supervisor_internal_call() {
   supervisor_pid="$(tr -d '[:space:]' <"${supervisor_pid_file}")"
   [[ "${supervisor_pid}" =~ ^[0-9]+$ ]] || return 1
   [[ "${supervisor_pid}" == "${PPID}" ]] || return 1
-  kill -0 "${supervisor_pid}" 2>/dev/null
+  dev_pid_alive "${supervisor_pid}"
 }
 
 main() {

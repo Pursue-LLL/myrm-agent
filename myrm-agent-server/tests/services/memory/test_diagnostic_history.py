@@ -6,7 +6,7 @@ event filtering, and the command-center history item projection.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -71,8 +71,8 @@ class TestFlattenBenchmarkMetrics:
         assert metrics["benchmark_latency_p50_ms"] == 10.5
         assert metrics["benchmark_latency_p95_ms"] == 24.0
         assert metrics["benchmark_top_k"] == 5
-        # categories must not leak into flat scalar metadata
-        assert "benchmark_categories" not in metrics
+        # per-category detail must persist for trend-localized regression analysis
+        assert metrics["benchmark_categories"] == {"arch": "2/2"}
 
     def test_empty_when_no_benchmark_probe(self) -> None:
         service = MemoryDiagnosticsService(AsyncMock(), None)
@@ -120,6 +120,13 @@ class TestFlattenBenchmarkMetrics:
         metrics = service._flatten_benchmark_metrics(_make_diagnostic_run(benchmark=True))
         assert metrics["benchmark_embedding_model"] == "text-embedding-3-small"
 
+    def test_empty_embedding_model_omitted_from_flattened_metrics(self) -> None:
+        manager = MagicMock()
+        manager.config.embedding_model = ""
+        service = MemoryDiagnosticsService(AsyncMock(), manager)
+        metrics = service._flatten_benchmark_metrics(_make_diagnostic_run(benchmark=True))
+        assert "benchmark_embedding_model" not in metrics
+
 
 class TestRecordRunEventMetadata:
     async def test_metadata_merged_into_record_event_call(self) -> None:
@@ -135,8 +142,8 @@ class TestRecordRunEventMetadata:
         call_kwargs = ledger.record_event.await_args.kwargs
         assert call_kwargs["metadata"]["benchmark_recall_at_k"] == 0.94
         assert call_kwargs["metadata"]["diagnostic_run_id"] == "run-1"
-        # categories stay out of flat scalar ledger metadata
-        assert "benchmark_categories" not in call_kwargs["metadata"]
+        # per-category detail must reach ledger metadata for history reconstruction
+        assert call_kwargs["metadata"]["benchmark_categories"] == {"arch": "2/2"}
 
     async def test_record_event_failure_returns_error(self) -> None:
         service = MemoryDiagnosticsService(AsyncMock(), None)
@@ -180,6 +187,7 @@ class TestDiagnosticHistoryItemProjection:
                 "benchmark_latency_p50_ms": 10.5,
                 "benchmark_latency_p95_ms": 24.0,
                 "benchmark_top_k": 5,
+                "benchmark_categories": {"arch": "2/2", "workflow": "1/2"},
                 "benchmark_embedding_model": "text-embedding-3-small",
             },
         )
@@ -194,8 +202,45 @@ class TestDiagnosticHistoryItemProjection:
         assert item.benchmark.mrr_score == 0.91
         assert item.benchmark.case_count == 16
         assert item.benchmark.top_k == 5
-        assert item.benchmark.categories == {}
+        # per-category detail is restored from ledger metadata for trend regression analysis
+        assert item.benchmark.categories == {"arch": "2/2", "workflow": "1/2"}
         assert item.embedding_model == "text-embedding-3-small"
+        assert item.occurred_at.tzinfo is not None
+
+    def test_projects_naive_occurred_at_as_utc(self) -> None:
+        row = MemoryOperationEventModel(
+            id="evt-5",
+            kind="health_check",
+            status="ready",
+            occurred_at=datetime(2026, 8, 1, 12, 0),
+            source="memory_diagnostics",
+            target_kind="health",
+            target_id="diagnostic_run",
+            metadata_json={"diagnostic_run_id": "run-11", "benchmark_recall_at_k": 0.9},
+        )
+
+        item = _diagnostic_history_item(row)
+        assert item.occurred_at.tzinfo is not None
+        assert item.occurred_at.utcoffset() == timedelta(0)
+
+    def test_drops_empty_embedding_model(self) -> None:
+        row = MemoryOperationEventModel(
+            id="evt-6",
+            kind="health_check",
+            status="ready",
+            occurred_at=datetime(2026, 8, 1, 12, 0, tzinfo=UTC),
+            source="memory_diagnostics",
+            target_kind="health",
+            target_id="diagnostic_run",
+            metadata_json={
+                "diagnostic_run_id": "run-12",
+                "benchmark_recall_at_k": 0.9,
+                "benchmark_embedding_model": "",
+            },
+        )
+
+        item = _diagnostic_history_item(row)
+        assert item.embedding_model is None
 
     def test_projects_without_benchmark_metadata(self) -> None:
         row = MemoryOperationEventModel(

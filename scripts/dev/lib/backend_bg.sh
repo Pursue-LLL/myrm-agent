@@ -226,7 +226,7 @@ _start_backend_bg() {
       fi
     else
       # ---- 端口无监听者：记录 pid 若存活则是 phantom/僵尸，verify 后回收 ----
-      if kill -0 "${old_pid}" 2>/dev/null; then
+      if dev_pid_alive "${old_pid}"; then
         if "${py}" "${identity_helper}" verify \
           --identity-file "${identity_file}" \
           --expected-pid "${old_pid}" \
@@ -260,14 +260,14 @@ _start_backend_bg() {
 
   # ---- 重建：kill 真 owner（若有），等待 LISTEN 端口释放后再冷启动 ----
   if [[ "${need_rebuild}" -eq 1 ]]; then
-    if [[ -n "${rebuild_target}" ]] && kill -0 "${rebuild_target}" 2>/dev/null; then
+    if [[ -n "${rebuild_target}" ]] && dev_pid_alive "${rebuild_target}"; then
       kill -TERM "${rebuild_target}" 2>/dev/null || true
       local wait_i
       for wait_i in $(seq 1 20); do
-        kill -0 "${rebuild_target}" 2>/dev/null || break
+        dev_pid_alive "${rebuild_target}" || break
         sleep 0.25
       done
-      if kill -0 "${rebuild_target}" 2>/dev/null; then
+      if dev_pid_alive "${rebuild_target}"; then
         kill -KILL "${rebuild_target}" 2>/dev/null || true
       fi
     fi
@@ -384,7 +384,7 @@ os.execv(sys.argv[1], sys.argv[1:])
   # 超时仍未获得端口：终止本实例，避免孤儿进程，清除记录。
   kill -TERM "${new_pid}" 2>/dev/null || true
   sleep 1
-  if kill -0 "${new_pid}" 2>/dev/null; then
+  if dev_pid_alive "${new_pid}"; then
     kill -KILL "${new_pid}" 2>/dev/null || true
   fi
   rm -f "${pid_file}" "${identity_file}"

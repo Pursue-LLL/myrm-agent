@@ -28,7 +28,7 @@
 | `SkillsLearnPanel.tsx` | 组件 | Settings→Installed：三字段 + 五场景 chip → raw `/learn` → server SSOT rewrite | ✅ |
 | `__tests__/SkillDraftReviewPanel.invokeGuide.test.tsx` | 测试 | 末条 draft 采纳后 invoke 引导仍可见 | ✅ |
 | `SkillEmptyState.tsx` | 辅助 | 无技能空状态引导 | ✅ |
-| `SkillExportDialog.tsx` | 组件 | 导出技能为 zip/marketplace 包 | ✅ |
+| `SkillExportDialog.tsx` | 组件 | 导出技能为 zip/marketplace 包；展示回归门禁用例数（`eval_cases_count`）、用后端返回 filename（含 fallback）、脱敏 diff 预览/忽略 | ✅ |
 | `SkillFilters.tsx` | 辅助 | 技能列表过滤（类别/信任/来源） | ✅ |
 | `SkillGrowthCaseCard.tsx` | 核心 | 技能进化提案卡片：列表 summary + 展开/修订时 lazy 拉 detail；Simple/Detailed 双视图、Monaco DiffEditor 就地修订、审批/拒绝 | ✅ |
 | `SkillHistoryPanel.tsx` | 核心 | 技能进化历史面板：已处理记录列表、一键回滚（接 evolution API） | ✅ |

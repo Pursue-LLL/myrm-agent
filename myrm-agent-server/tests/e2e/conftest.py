@@ -1,10 +1,13 @@
+import json
 import os
+import selectors
 import shutil
 import socket
 import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Iterator
 from pathlib import Path
 
 import httpx
@@ -12,6 +15,83 @@ import pytest
 
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 # Root tests/conftest.py already loads .env + [T] test secrets.
+
+_AGENT_ROOT = _SERVER_ROOT.parent
+_PREPARE = _AGENT_ROOT / "scripts/dev/subagent-dashboard-e2e-prepare.mjs"
+_PREPARE_PREFIX = "E2E_PREPARE_JSON="
+
+from tests.support.e2e_runtime_guard import E2EResourceLedger  # noqa: E402
+
+
+def _read_prepare_result(
+    process: subprocess.Popen[str], timeout_sec: float
+) -> dict[str, object]:
+    if process.stdout is None:
+        raise RuntimeError("Subagent prepare stdout is unavailable")
+    selector = selectors.DefaultSelector()
+    selector.register(process.stdout, selectors.EVENT_READ)
+    deadline = time.monotonic() + timeout_sec
+    diagnostics: list[str] = []
+    try:
+        while time.monotonic() < deadline:
+            if process.poll() is not None:
+                remainder = process.stdout.read()
+                if remainder:
+                    diagnostics.extend(remainder.splitlines())
+                raise RuntimeError(
+                    f"Subagent prepare exited {process.returncode}: {diagnostics[-20:]}"
+                )
+            events = selector.select(timeout=min(1.0, deadline - time.monotonic()))
+            if not events:
+                continue
+            line = process.stdout.readline().strip()
+            if not line:
+                continue
+            if line.startswith(_PREPARE_PREFIX):
+                payload = json.loads(line.removeprefix(_PREPARE_PREFIX))
+                if not isinstance(payload, dict):
+                    raise RuntimeError(f"Invalid subagent prepare payload: {payload!r}")
+                return payload
+            diagnostics.append(line)
+    finally:
+        selector.close()
+    raise TimeoutError(f"Subagent prepare timed out: {diagnostics[-20:]}")
+
+
+@pytest.fixture
+def running_subagent(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> Iterator[dict[str, object]]:
+    if shutil.which("bun") is None:
+        pytest.skip("bun is required for subagent dashboard prepare")
+    if (
+        not os.environ.get("BASIC_API_KEY", "").strip()
+        or not os.environ.get("BASIC_MODEL", "").strip()
+    ):
+        pytest.skip("BASIC_API_KEY and BASIC_MODEL are required")
+    env = os.environ.copy()
+    env["E2E_HOLD_MS"] = "240000"
+    env["WAVE_LEDGER_LEASE_ID"] = e2e_resource_ledger.lease_id
+    env["WAVE_LEDGER_NAMESPACE"] = e2e_resource_ledger.namespace
+    process = subprocess.Popen(
+        ["bun", str(_PREPARE)],
+        cwd=str(_AGENT_ROOT),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    try:
+        yield _read_prepare_result(process, timeout_sec=210.0)
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
 
 
 def get_free_port() -> int:

@@ -427,7 +427,6 @@ export interface MemoryCommandDiagnosticHistoryItem {
 
 export interface MemoryCommandDiagnosticHistoryResponse {
   items: MemoryCommandDiagnosticHistoryItem[];
-  total: number;
 }
 
 export interface MemoryCommandDiagnosticActionRequest {

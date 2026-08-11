@@ -623,7 +623,11 @@ def read_frontend_hot_state(frontend: FrontendEpoch | None) -> tuple[bool, bool]
         return False, False
     try:
         os.kill(frontend["pid"], 0)
-    except (OSError, ProcessLookupError):
+    except ProcessLookupError:
+        return False, False
+    except PermissionError:
+        pass
+    except OSError:
         return False, False
     warmth = _read_json_file(_state_dir() / "frontend-warmth.json")
     if warmth is None:

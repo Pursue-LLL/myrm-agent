@@ -165,6 +165,45 @@ const DiagnosticTrendSection = ({
           {t('commandCenter.doctorTrendModelShift', { model: latest.embedding_model })}
         </div>
       )}
+      {latest.benchmark && Object.keys(latest.benchmark.categories).length > 0 && (
+        <CategoryBreakdown categories={latest.benchmark.categories} t={t} />
+      )}
+    </div>
+  );
+};
+
+const CategoryBreakdown = ({
+  categories,
+  t,
+  bordered = true,
+}: {
+  categories: Record<string, string>;
+  t: MemoryTranslation;
+  bordered?: boolean;
+}) => {
+  const entries = Object.entries(categories);
+  if (!entries.length) return null;
+  return (
+    <div className={bordered ? 'mt-2 border-t border-border/40 pt-2' : ''}>
+      <div className="mb-1 text-[10px] text-muted-foreground">{t('commandCenter.benchmarkCategories')}</div>
+      <div className="flex flex-wrap gap-1">
+        {entries.map(([cat, ratio]) => {
+          const [passed, total] = ratio.split('/').map(Number);
+          const allPassed = passed === total;
+          return (
+            <span
+              key={cat}
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                allPassed
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+              }`}
+            >
+              {cat.replace(/_/g, ' ')} {ratio}
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -377,7 +416,6 @@ const metricColor = (value: number, thresholds: { good: number; warn: number }):
 
 const BenchmarkMetrics = ({ summary, t }: { summary: MemoryCommandBenchmarkSummary; t: MemoryTranslation }) => {
   const k = String(summary.top_k);
-  const entries = Object.entries(summary.categories);
 
   return (
     <div className="mt-2 space-y-2">
@@ -409,29 +447,7 @@ const BenchmarkMetrics = ({ summary, t }: { summary: MemoryCommandBenchmarkSumma
         <MetricCard label={t('commandCenter.benchmarkLatencyP50')} value={`${Math.round(summary.latency_p50_ms)}ms`} />
         <MetricCard label={t('commandCenter.benchmarkLatencyP95')} value={`${Math.round(summary.latency_p95_ms)}ms`} />
       </div>
-      {entries.length > 0 && (
-        <div>
-          <div className="mb-1 text-[10px] text-muted-foreground">{t('commandCenter.benchmarkCategories')}</div>
-          <div className="flex flex-wrap gap-1">
-            {entries.map(([cat, ratio]) => {
-              const [passed, total] = ratio.split('/').map(Number);
-              const allPassed = passed === total;
-              return (
-                <span
-                  key={cat}
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                    allPassed
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                  }`}
-                >
-                  {cat.replace(/_/g, ' ')} {ratio}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <CategoryBreakdown categories={summary.categories} t={t} bordered={false} />
     </div>
   );
 };

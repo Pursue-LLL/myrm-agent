@@ -63,8 +63,8 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
       if (!skill) return;
       setIsExporting(true);
       try {
-        const blob = await downloadSkill(skill.id, applyRedactions, ignoredRedactions);
-        triggerDownload(blob, `${skill.name}_v${skill.version || '1.0.0'}.zip`);
+        const { blob, filename } = await downloadSkill(skill.id, applyRedactions, ignoredRedactions);
+        triggerDownload(blob, filename || `${skill.name}_v${skill.version || '1.0.0'}.zip`);
         toast({
           title: t('exportSuccess'),
         });
@@ -131,13 +131,17 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
                   <AlertTitle className="text-green-800 dark:text-green-300">{t('safeTitle')}</AlertTitle>
                   <AlertDescription className="text-green-700 dark:text-green-400">
                     {t('safeDescription')}
+                    {preview.eval_cases_count > 0 ? ` ${t('evalCasesIncluded', { count: preview.eval_cases_count })}` : ''}
                   </AlertDescription>
                 </Alert>
               ) : (
                 <Alert variant="destructive" className="bg-destructive/5">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>{t('warningTitle')}</AlertTitle>
-                  <AlertDescription>{t('warningDescription')}</AlertDescription>
+                  <AlertDescription>
+                    {t('warningDescription')}
+                    {preview.eval_cases_count > 0 ? ` ${t('evalCasesIncluded', { count: preview.eval_cases_count })}` : ''}
+                  </AlertDescription>
                 </Alert>
               )}
 

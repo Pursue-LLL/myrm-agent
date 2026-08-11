@@ -23,6 +23,7 @@ import { Paperclip, X } from 'lucide-react';
 import type { KanbanTask } from '@/services/kanban';
 import type { AgentListItem } from '@/services/agent';
 import { TIMEOUT_PRESETS } from './kanban-styles';
+import { KanbanSkillPicker } from './KanbanSkillPicker';
 
 export interface KanbanAttachment {
   file_id: string;
@@ -300,12 +301,7 @@ export default function KanbanInlineAddForm({
         )}
       </div>
 
-      <input
-        value={skills}
-        onChange={(e) => onSkillsChange(e.target.value)}
-        placeholder={t('skillsPlaceholder')}
-        className="text-xs px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-      />
+      <KanbanSkillPicker value={skills} onChange={onSkillsChange} placeholder={t('skillsPlaceholder')} />
 
       <input
         value={branch}

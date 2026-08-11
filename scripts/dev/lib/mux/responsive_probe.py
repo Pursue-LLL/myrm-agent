@@ -50,6 +50,10 @@ def _read_daemon_pid(state_dir: Path) -> int | None:
 def _process_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
     except OSError:
         return False
     return True

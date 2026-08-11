@@ -74,6 +74,16 @@ _read_pid_from_file() {
   echo "${raw}"
 }
 
+dev_pid_alive() {
+  local pid="${1:-}" probe=""
+  [[ "${pid}" =~ ^[0-9]+$ ]] || return 1
+  probe="$(kill -0 "${pid}" 2>&1)" && return 0
+  case "${probe}" in
+    *"Operation not permitted"*|*"operation not permitted"*) return 0 ;;
+  esac
+  return 1
+}
+
 read_backend_dev_pid() {
   _read_pid_from_file "$(dev_backend_pid_file)" 2>/dev/null || return 1
 }
@@ -85,12 +95,12 @@ read_frontend_dev_pid() {
 _kill_pid_gracefully() {
   local pid="$1"
   [[ -n "${pid}" ]] || return 0
-  kill -0 "${pid}" 2>/dev/null || return 0
+  dev_pid_alive "${pid}" || return 0
   kill -TERM "-${pid}" 2>/dev/null || kill -TERM "${pid}" 2>/dev/null || true
   pkill -TERM -P "${pid}" 2>/dev/null || true
   local i
   for i in $(seq 1 15); do
-    kill -0 "${pid}" 2>/dev/null || return 0
+    dev_pid_alive "${pid}" || return 0
     sleep 1
   done
   pkill -9 -P "${pid}" 2>/dev/null || true

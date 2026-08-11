@@ -41,7 +41,11 @@ function makeTask(overrides: Partial<KanbanTask> = {}): KanbanTask {
   };
 }
 
-function renderSection(task: KanbanTask, onRequireApprovalChange = vi.fn()) {
+function renderSection(
+  task: KanbanTask,
+  onRequireApprovalChange = vi.fn(),
+  editingSkills = false,
+) {
   return render(
     <TaskDetailsSection
       task={task}
@@ -52,7 +56,7 @@ function renderSection(task: KanbanTask, onRequireApprovalChange = vi.fn()) {
       timeoutValue={null}
       setTimeoutValue={() => {}}
       handleSaveTimeout={() => {}}
-      editingSkills={false}
+      editingSkills={editingSkills}
       setEditingSkills={() => {}}
       skillsText=""
       setSkillsText={() => {}}
@@ -107,5 +111,17 @@ describe('TaskDetailsSection approval gate', () => {
     renderSection(makeTask({ status: 'completed', require_approval: false }));
     expect(screen.queryByTestId('kanban-detail-require-approval')).toBeNull();
     expect(screen.queryByText('requireApproval')).toBeNull();
+  });
+});
+
+describe('TaskDetailsSection running skill notice', () => {
+  it('shows a notice when editing skills on a running task', () => {
+    renderSection(makeTask({ status: 'running' }), vi.fn(), true);
+    expect(screen.getByText('skillsRunningNotice')).toBeTruthy();
+  });
+
+  it('hides the notice for non-running tasks', () => {
+    renderSection(makeTask({ status: 'ready' }), vi.fn(), true);
+    expect(screen.queryByText('skillsRunningNotice')).toBeNull();
   });
 });

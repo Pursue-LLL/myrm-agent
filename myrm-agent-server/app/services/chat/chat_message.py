@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime
 from uuid import uuid4
@@ -32,9 +33,60 @@ from .conversation_recall_index_service import ConversationRecallIndexService
 
 logger = logging.getLogger(__name__)
 
+_RECALL_INDEX_TIMEOUT_SECONDS = 2.0
+
 
 class _ChatMessageMixin(_ChatServiceBase):
     """Message persistence operations."""
+
+    @staticmethod
+    async def _append_recall_index_after_primary_commit(
+        uow: UnitOfWork,
+        *,
+        chat_id: str,
+        message_id: str,
+        role: str,
+        content: str,
+        sent_at: datetime,
+    ) -> None:
+        """Persist the derived recall index without gating the canonical message row.
+
+        Chat/message rows are the source of truth.  The recall tables are rebuilt by
+        startup bootstrap when this bounded best-effort side effect is unavailable.
+        Keeping the index out of the primary transaction prevents SQLite/FTS locks
+        from hiding a user turn from the next request.
+        """
+        session = uow.session
+        assert session is not None
+        try:
+            await asyncio.wait_for(
+                ConversationRecallIndexService.append_message(
+                    session,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    role=role,
+                    content=content,
+                    sent_at=sent_at,
+                ),
+                timeout=_RECALL_INDEX_TIMEOUT_SECONDS,
+            )
+            await uow.commit()
+        except TimeoutError:
+            await uow.rollback()
+            logger.warning(
+                "Conversation recall index timed out after %.2fs; canonical message committed chat_id=%s message_id=%s",
+                _RECALL_INDEX_TIMEOUT_SECONDS,
+                chat_id,
+                message_id,
+            )
+        except Exception:
+            await uow.rollback()
+            logger.warning(
+                "Conversation recall index append failed; canonical message committed chat_id=%s message_id=%s",
+                chat_id,
+                message_id,
+                exc_info=True,
+            )
 
     @staticmethod
     async def append_message(
@@ -82,8 +134,9 @@ class _ChatMessageMixin(_ChatServiceBase):
             sess = uow.session
             assert sess is not None
             await sess.flush()
-            await ConversationRecallIndexService.append_message(
-                sess,
+            await uow.commit()
+            await _ChatMessageMixin._append_recall_index_after_primary_commit(
+                uow,
                 chat_id=chat_id,
                 message_id=msg.id,
                 role=role,
@@ -194,8 +247,9 @@ class _ChatMessageMixin(_ChatServiceBase):
             sess = uow.session
             assert sess is not None
             await sess.flush()
-            await ConversationRecallIndexService.append_message(
-                sess,
+            await uow.commit()
+            await _ChatMessageMixin._append_recall_index_after_primary_commit(
+                uow,
                 chat_id=chat_id,
                 message_id=msg.id,
                 role="user",

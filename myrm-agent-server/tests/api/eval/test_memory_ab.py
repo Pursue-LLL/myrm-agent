@@ -456,6 +456,39 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
         assert "requires web search" in res.json()["error"]
         mock_bg.assert_not_called()
 
+    # A BrowseComp memory A/B with search+embedding ready but no resolvable
+    # judge model must fail fast (both arms would otherwise score all-zero).
+    with (
+        patch(
+            "app.api.eval.memory_ab_router.get_memory_ab_status",
+            return_value={"is_running": False},
+        ),
+        patch(
+            "app.services.agent.platform_config.verify_platform_embedding_ready",
+            new=AsyncMock(),
+        ),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+        ) as mock_load_configs,
+        patch(
+            "app.core.channel_bridge.config_parsers.verify_search_service_available",
+            new=AsyncMock(return_value=True),
+        ),
+        patch(
+            "app.core.eval.service._resolve_judge_config", return_value=(None, "none")
+        ),
+        patch("app.api.eval.memory_ab_router.run_memory_ab_background") as mock_bg,
+    ):
+        configs = SimpleNamespace(search_is_user_configured=True, search_cfg=object())
+        mock_load_configs.return_value = configs
+        res = client.post(
+            "/api/v1/eval/memory-ab/run", json={"benchmark_id": "browsecomp"}
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "error"
+        assert "no model provider is configured" in res.json()["error"]
+        mock_bg.assert_not_called()
+
     # abort not running
     with patch("app.api.eval.memory_ab_router.abort_memory_ab", return_value=False):
         res = client.post("/api/v1/eval/memory-ab/abort")

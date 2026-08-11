@@ -166,9 +166,14 @@ const SkillDetectionCard: React.FC<SkillDetectionCardProps> = ({ artifacts, chat
           await fetchMarketSkills(true);
         }
 
+        const restoredInfo =
+          result.restored_eval_cases > 0
+            ? ` (${t('evalCasesRestored', { count: result.restored_eval_cases })})`
+            : '';
+
         toast({
           title: t('registerSuccess'),
-          description: result.skill_name || undefined,
+          description: `${result.skill_name || ''}${restoredInfo}`,
         });
       } else {
         toast({

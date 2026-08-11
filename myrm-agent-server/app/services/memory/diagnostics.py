@@ -401,19 +401,21 @@ class MemoryDiagnosticsService:
             await self._db.rollback()
             return False, f"Diagnostic audit event failed to persist: {type(exc).__name__}"
 
-    def _flatten_benchmark_metrics(self, run: MemoryCommandDiagnosticRun) -> dict[str, str | int | float | None]:
-        """Flatten golden recall benchmark metrics into scalar ledger metadata.
+    def _flatten_benchmark_metrics(self, run: MemoryCommandDiagnosticRun) -> dict[str, object]:
+        """Flatten golden recall benchmark metrics into ledger metadata.
 
-        `categories` is intentionally excluded: the ledger metadata model only
-        persists flat scalar values, and per-category detail is already rendered
-        from the live run response.
+        Scalar metrics are stored directly; per-category pass/total detail is
+        stored as a nested object so trend history can localize regressions to a
+        specific memory category. The JSON `metadata` column supports nested
+        values; SSE coercion keeps only scalars, and the history projection reads
+        the raw column.
         """
 
         probe = next((p for p in run.probes if p.id == "golden_recall_benchmark" and p.benchmark_summary), None)
         if probe is None or probe.benchmark_summary is None:
             return {}
         summary = probe.benchmark_summary
-        metrics: dict[str, str | int | float | None] = {
+        metrics: dict[str, object] = {
             "benchmark_case_count": summary.case_count,
             "benchmark_passed_count": summary.passed_count,
             "benchmark_recall_at_k": summary.recall_at_k,
@@ -424,8 +426,10 @@ class MemoryDiagnosticsService:
             "benchmark_latency_p95_ms": summary.latency_p95_ms,
             "benchmark_top_k": summary.top_k,
         }
+        if summary.categories:
+            metrics["benchmark_categories"] = dict(summary.categories)
         embedding_model = self._resolve_embedding_model()
-        if embedding_model is not None:
+        if embedding_model:
             metrics["benchmark_embedding_model"] = embedding_model
         return metrics
 

@@ -3720,7 +3720,8 @@
         "previewFailed": "预览技能失败",
         "exportSuccess": "技能导出成功",
         "exportFailed": "导出技能失败",
-        "toggleAll": "全选 / 全不选"
+        "toggleAll": "全选 / 全不选",
+        "evalCasesIncluded": "包含 {count} 条回归测试用例"
       },
       "permissions": {
         "approved": "权限已批准",
@@ -6484,7 +6485,7 @@
     "dismissRebindHint": "知道了",
     "allowDiscovery": {
       "title": "允许被其他智能体发现并委派",
-      "description": "开启后，其他智能体可以通过 @ 提及或自动组队时发现并调用此智能体。关闭可隐藏半成品。"
+      "description": "开启后，其他智能体在自动组队时可发现并调用此智能体。关闭后，此智能体不会被自动组队发现，但你仍可通过 @ 显式指定它。"
     },
     "formalKoreanReplies": {
       "title": "正式韩语回复（합니다体）",
@@ -9198,6 +9199,9 @@
       "doctorEmpty": "暂无记忆诊断项",
       "doctorRunTitle": "运行记忆诊断",
       "doctorRunAll": "运行全部诊断",
+      "doctorTrendTitle": "诊断趋势",
+      "doctorTrendRuns": "{count} 次运行",
+      "doctorTrendModelShift": "Embedding 模型已变更为 {model}",
       "bundleMigrateAction": "初始化上下文包",
       "bundleMigrating": "初始化中...",
       "bundleMigrateSuccess": "上下文包已初始化",
@@ -10725,6 +10729,7 @@
       "packageSuccess": "打包成功",
       "packageFailed": "打包失败",
       "registerSuccess": "技能注册成功",
+      "evalCasesRestored": "已还原 {count} 条回归测试用例",
       "registerFailed": "技能注册失败",
       "skillDetected": "检测到技能",
       "skillDetectedDesc": "工作区包含 SKILL.md，可以将其注册为可用技能",
@@ -12041,9 +12046,15 @@
     "latestProgress": "最近进展",
     "completionCriteria": "验收条件",
     "criteriaPlaceholder": "验收条件（可选）",
-    "skillsPlaceholder": "专属技能（可选，逗号分隔）",
-    "branchPlaceholder": "Git 分支（可选，自动创建 worktree）",
+    "skillsPlaceholder": "选择技能（可选）",
+    "branchPlaceholder": "Git 分支（可选，自动创建工作树）",
     "skillsLabel": "任务技能",
+    "skillsSearch": "搜索技能...",
+    "skillsEmpty": "没有匹配的技能",
+    "skillsUnknown": "未知",
+    "skillsRemove": "移除技能",
+    "skillsCount": "个技能",
+    "skillsRunningNotice": "任务运行中——技能修改将在下次运行时生效",
     "showCriteria": "验收条件",
     "hideCriteria": "收起条件",
     "editCriteria": "编辑验收条件",
@@ -14576,6 +14587,7 @@
       "envPrompt": "提示词指纹",
       "envProfile": "智能体",
       "envBenchmark": "基准模式",
+      "envJudge": "LLM 判分器",
       "status": "状态",
       "messageSnippet": "消息片段",
       "tokenUsage": "Token消耗",
@@ -14657,7 +14669,11 @@
       "requiresWebSearchTitle": "该基准在基准模式下运行并启用联网搜索——请先配置搜索服务",
       "pendingScoring": "评分待定",
       "testPassRate": "平均测试通过率",
-      "memoryAb": "记忆 A/B"
+      "memoryAb": "记忆 A/B",
+      "sampleLimitPlaceholder": "全部",
+      "sampleLimitTitle": "可选的样本数——只运行这么多道题（留空 = 全量基准）",
+      "sampled": "抽样",
+      "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）"
     },
     "memoryAb": {
       "started": "记忆 A/B 评测已开始",

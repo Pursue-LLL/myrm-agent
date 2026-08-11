@@ -66,7 +66,7 @@ if not isinstance(pid, int):
     sys.exit(1)
 print(pid)
 " 2>/dev/null)" || return 1
-  [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
+  [[ -n "${pid}" ]] && dev_pid_alive "${pid}"
 }
 
 _frontend_port_listening() {
@@ -252,7 +252,7 @@ _client_warmup_reclaim_stale_lock() {
   if [[ -f "${lockdir}/pid" ]]; then
     owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
   fi
-  if [[ -z "${owner}" ]] || ! kill -0 "${owner}" 2>/dev/null; then
+  if [[ -z "${owner}" ]] || ! dev_pid_alive "${owner}"; then
     rm -f "${lockdir}/pid" 2>/dev/null || true
     rmdir "${lockdir}" 2>/dev/null || true
   fi
@@ -270,7 +270,7 @@ _client_warmup_lock_owner_alive() {
   local owner=""
   [[ -f "${owner_file}" ]] || return 1
   owner="$(tr -d '[:space:]' <"${owner_file}")"
-  [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null
+  [[ -n "${owner}" ]] && dev_pid_alive "${owner}"
 }
 
 _client_warmup_release_lock() {

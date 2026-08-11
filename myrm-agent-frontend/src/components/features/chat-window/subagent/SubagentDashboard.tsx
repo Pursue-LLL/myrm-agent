@@ -174,7 +174,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     return filterNodes(sorted, filterMode);
   }, [treeNodes, sortMode, filterMode]);
 
-  const flatNodes = useMemo(() => flattenTree(treeNodes), [treeNodes]);
+  const displayFlatNodes = useMemo(() => flattenTree(displayNodes), [displayNodes]);
 
   const runningCount = useMemo(() => Object.values(nodes).filter((n) => n.status === 'running').length, [nodes]);
 
@@ -396,7 +396,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
                 />
               </div>
             )}
-            <MiniGantt nodes={flatNodes} t={t} />
+            <MiniGantt nodes={displayFlatNodes} t={t} />
             {fissionBatch && fissionBatch.total > 0 && (
               <div
                 data-testid="subagent-fission-summary"

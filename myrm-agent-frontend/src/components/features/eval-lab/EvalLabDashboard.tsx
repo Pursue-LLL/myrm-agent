@@ -65,6 +65,7 @@ interface ReportItem {
     harness_version?: string;
     tool_policy?: string[];
     prompt_fingerprint?: string;
+    judge_model?: string;
   };
   avg_time_secs?: number;
   avg_total_tokens?: number;
@@ -544,7 +545,7 @@ export default function EvalLabDashboard() {
     }
   };
 
-  const handleBenchmarkRun = async (benchmarkId: string) => {
+  const handleBenchmarkRun = async (benchmarkId: string, limit?: number) => {
     if (running || matrixRunning || memoryAbRunning) return;
     try {
       const res = await fetch('/api/v1/eval/benchmarks/run', {
@@ -554,6 +555,7 @@ export default function EvalLabDashboard() {
           benchmark_id: benchmarkId,
           profile_id: selectedProfileIds[0] || null,
           benchmark_mode: benchmarkMode,
+          ...(limit !== undefined ? { limit } : {}),
         }),
       });
       const data = await res.json();
@@ -593,7 +595,7 @@ export default function EvalLabDashboard() {
     }
   };
 
-  const handleMemoryAbRun = async (benchmarkId: string) => {
+  const handleMemoryAbRun = async (benchmarkId: string, limit?: number) => {
     if (running || matrixRunning || memoryAbRunning) return;
     try {
       const res = await fetch('/api/v1/eval/memory-ab/run', {
@@ -602,6 +604,7 @@ export default function EvalLabDashboard() {
         body: JSON.stringify({
           benchmark_id: benchmarkId,
           profile_id: selectedProfileIds[0] || null,
+          ...(limit !== undefined ? { limit } : {}),
         }),
       });
       const data = await res.json();
@@ -932,6 +935,12 @@ export default function EvalLabDashboard() {
                         <span className="text-muted-foreground">{t('report.envBenchmark')}</span>
                         <p className="font-mono text-xs mt-0.5">{report.manifest.benchmark_mode ? 'ON' : 'OFF'}</p>
                       </div>
+                      {report.manifest.judge_model && report.manifest.judge_model !== 'none' && (
+                        <div>
+                          <span className="text-muted-foreground">{t('report.envJudge')}</span>
+                          <p className="font-mono text-xs mt-0.5">{report.manifest.judge_model}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

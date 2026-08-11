@@ -93,7 +93,7 @@ describe('BenchmarkSources Memory A/B entry', () => {
     expect(screen.getByText('confirmBody')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('confirmStart'));
-    await waitFor(() => expect(onMemoryAb).toHaveBeenCalledWith('wb-bench-office'));
+    await waitFor(() => expect(onMemoryAb).toHaveBeenCalledWith('wb-bench-office', undefined));
   });
 
   it('cancels the confirmation dialog without starting', async () => {

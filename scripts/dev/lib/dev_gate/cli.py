@@ -34,8 +34,12 @@ _IN_PROCESS_SERVICE_LOCK = threading.Lock()
 
 _COORDINATOR_CODE_FP_FILES: tuple[str, ...] = (
     "dev_gate_coordinator.py",
+    "dev_gate/coordinator.py",
     "dev_gate_cli.py",
     "dev_gate_contract.py",
+    "dev_gate/cleanup_observed_seal.py",
+    "dev_gate/owner_identity.py",
+    "dev_gate/session.py",
     "private_resource_controller.py",
     "dev_gate_store.py",
     "e2e_stale_lease_reap.py",
@@ -165,6 +169,10 @@ def _pid_alive(pid: int) -> bool:
         return False
     try:
         os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
     except OSError:
         return False
     return True

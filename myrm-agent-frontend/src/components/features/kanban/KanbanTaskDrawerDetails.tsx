@@ -10,6 +10,7 @@ import {
   formatDuration,
 } from './kanban-styles';
 import KanbanMarkdown from './KanbanMarkdown';
+import { KanbanSkillPicker } from './KanbanSkillPicker';
 import type { KanbanModelOption } from './KanbanInlineAddForm';
 import { Clock, ExternalLink, User } from 'lucide-react';
 import Link from 'next/link';
@@ -203,28 +204,28 @@ export function TaskDetailsSection({
 
       {/* Skills */}
       {editingSkills ? (
-        <div className="mt-1 rounded border border-chart-3/30 bg-chart-3/5 px-2 py-1.5 space-y-1">
-          <span className="text-[10px] font-semibold text-chart-3 uppercase tracking-wider">
+        <div className="mt-1 space-y-1 rounded border border-chart-3/30 bg-chart-3/5 px-2 py-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-chart-3">
             {t('skillsLabel')}
           </span>
-          <input
+          <KanbanSkillPicker
             value={skillsText}
-            onChange={(e) => setSkillsText(e.target.value)}
+            onChange={setSkillsText}
             placeholder={t('skillsPlaceholder')}
-            className="w-full text-xs px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-chart-3"
-            autoFocus
-            onKeyDown={(e) => e.key === 'Enter' && handleSaveSkills()}
           />
+          {task.status === 'running' && (
+            <p className="text-[10px] text-amber-500">{t('skillsRunningNotice')}</p>
+          )}
           <div className="flex gap-1">
             <button
               onClick={handleSaveSkills}
-              className="text-[10px] px-2 py-0.5 rounded bg-chart-3 text-white hover:bg-chart-3/80"
+              className="rounded bg-chart-3 px-2 py-0.5 text-[10px] text-white hover:bg-chart-3/80"
             >
               {t('save')}
             </button>
             <button
               onClick={() => setEditingSkills(false)}
-              className="text-[10px] px-2 py-0.5 rounded hover:bg-muted"
+              className="rounded px-2 py-0.5 text-[10px] hover:bg-muted"
             >
               {t('cancel')}
             </button>

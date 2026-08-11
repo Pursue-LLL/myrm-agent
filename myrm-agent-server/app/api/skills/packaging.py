@@ -45,7 +45,11 @@ async def preview_skill_package(
         }
 
     return PackagePreviewResponse(
-        success=result.success, is_safe=result.is_safe, error=result.error, redactions=redactions_response
+        success=result.success,
+        is_safe=result.is_safe,
+        error=result.error,
+        redactions=redactions_response,
+        eval_cases_count=result.eval_cases_count,
     )
 
 
@@ -117,6 +121,7 @@ async def upload_skill(
         skill_id=result.skill_id,
         skill_name=result.skill_name,
         error=result.error,
+        restored_eval_cases=result.restored_eval_cases,
     )
 
 

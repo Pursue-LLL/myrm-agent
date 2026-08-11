@@ -31,7 +31,7 @@ _supervisor_alive() {
   [[ -f "${PID_FILE}" ]] || return 1
   local pid
   pid="$(tr -d '[:space:]' <"${PID_FILE}")"
-  [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null && [[ -S "${SOCK_FILE}" ]]
+  [[ -n "${pid}" ]] && dev_pid_alive "${pid}" && [[ -S "${SOCK_FILE}" ]]
 }
 
 _supervisor_ping() {
@@ -145,7 +145,7 @@ _acquire_start_lock() {
   if [[ -f "${START_LOCK_OWNER}" ]]; then
     owner="$(tr -d '[:space:]' <"${START_LOCK_OWNER}")"
   fi
-  if [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null; then
+  if [[ -n "${owner}" ]] && dev_pid_alive "${owner}"; then
     return 1
   fi
   rm -f "${START_LOCK_OWNER}" 2>/dev/null || true
@@ -238,7 +238,7 @@ cmd_stop() {
   for attempt in $(seq 1 20); do
     remaining=0
     while IFS= read -r daemon_pid; do
-      if [[ -n "${daemon_pid}" ]] && kill -0 "${daemon_pid}" 2>/dev/null; then
+      if [[ -n "${daemon_pid}" ]] && dev_pid_alive "${daemon_pid}"; then
         remaining=1
       fi
     done <<<"${daemon_pids}"
@@ -246,12 +246,12 @@ cmd_stop() {
     sleep 0.1
   done
   while IFS= read -r daemon_pid; do
-    [[ -n "${daemon_pid}" ]] && kill -0 "${daemon_pid}" 2>/dev/null && kill -9 "${daemon_pid}" 2>/dev/null || true
+    [[ -n "${daemon_pid}" ]] && dev_pid_alive "${daemon_pid}" && kill -9 "${daemon_pid}" 2>/dev/null || true
   done <<<"${daemon_pids}"
   sleep 0.1
   remaining=0
   while IFS= read -r daemon_pid; do
-    if [[ -n "${daemon_pid}" ]] && kill -0 "${daemon_pid}" 2>/dev/null; then
+    if [[ -n "${daemon_pid}" ]] && dev_pid_alive "${daemon_pid}"; then
       remaining=1
     fi
   done <<<"${daemon_pids}"

@@ -191,6 +191,7 @@ def test_eval_router_remaining_branches(client: TestClient):
         patch(
             "app.core.channel_bridge.config_parsers.verify_search_service_available"
         ) as mock_verify,
+        patch("app.core.eval.service._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
         mock_cfg.return_value = SimpleNamespace(
@@ -198,6 +199,7 @@ def test_eval_router_remaining_branches(client: TestClient):
             search_cfg=object(),
         )
         mock_verify.return_value = True
+        mock_judge.return_value = (object(), "deepseek/deepseek-chat")
         res = client.post(
             "/api/v1/eval/benchmarks/run",
             json={
@@ -268,6 +270,7 @@ def test_eval_router_remaining_branches(client: TestClient):
         patch(
             "app.core.channel_bridge.config_parsers.verify_search_service_available"
         ) as mock_verify,
+        patch("app.core.eval.service._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
         mock_cfg.return_value = SimpleNamespace(
@@ -275,6 +278,7 @@ def test_eval_router_remaining_branches(client: TestClient):
             search_cfg=object(),
         )
         mock_verify.return_value = True
+        mock_judge.return_value = (object(), "deepseek/deepseek-chat")
         res = client.post(
             "/api/v1/eval/benchmarks/run",
             json={"benchmark_id": "browsecomp", "benchmark_mode": True},
@@ -298,6 +302,7 @@ def test_eval_router_remaining_branches(client: TestClient):
         patch(
             "app.core.channel_bridge.config_parsers.verify_search_service_available"
         ) as mock_verify,
+        patch("app.core.eval.service._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
         mock_cfg.return_value = SimpleNamespace(
@@ -305,6 +310,7 @@ def test_eval_router_remaining_branches(client: TestClient):
             search_cfg=object(),
         )
         mock_verify.return_value = True
+        mock_judge.return_value = (object(), "deepseek/deepseek-chat")
         res = client.post(
             "/api/v1/eval/benchmarks/run",
             json={"benchmark_id": "browsecomp", "benchmark_mode": True},
@@ -319,18 +325,55 @@ def test_eval_router_remaining_branches(client: TestClient):
             "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
         ),
         patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
+        patch("app.core.eval.service._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
         mock_cfg.return_value = SimpleNamespace(
             search_is_user_configured=False,
             search_cfg=None,
         )
+        mock_judge.return_value = (object(), "deepseek/deepseek-chat")
         res = client.post(
             "/api/v1/eval/benchmarks/run",
             json={"benchmark_id": "browsecomp", "benchmark_mode": False},
         )
         assert res.json()["status"] == "started"
         mock_bg.assert_called_once()
+
+    # --- /benchmarks/run: LLM-judge benchmark without a resolvable judge ---
+    # BrowseComp is graded by an LLM judge; a missing model config must fail
+    # fast with explicit guidance instead of a misleading all-zero score.
+    with (
+        patch(
+            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+        ),
+        patch("app.core.eval.service._resolve_judge_config", return_value=(None, "none")),
+        patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
+    ):
+        res = client.post(
+            "/api/v1/eval/benchmarks/run",
+            json={"benchmark_id": "browsecomp", "benchmark_mode": False},
+        )
+        assert res.json()["status"] == "error"
+        assert "no model provider is configured" in res.json()["error"]
+        mock_bg.assert_not_called()
+
+    # --- /benchmarks/run: limit is passed through to the background task ---
+    with (
+        patch(
+            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+        ),
+        patch("app.core.eval.service._resolve_judge_config") as mock_judge,
+        patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
+    ):
+        mock_judge.return_value = (object(), "deepseek/deepseek-chat")
+        res = client.post(
+            "/api/v1/eval/benchmarks/run",
+            json={"benchmark_id": "browsecomp", "benchmark_mode": False, "limit": 50},
+        )
+        assert res.json()["status"] == "started"
+        _, call_kwargs = mock_bg.call_args
+        assert call_kwargs["limit"] == 50
 
     # --- /benchmarks/download: already running ---
     with patch(

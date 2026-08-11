@@ -19,6 +19,7 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 from myrm_agent_harness.agent.skills.market.installers.batch_installer import (
     HermesBatchParser,
 )
+from myrm_agent_harness.agent.skills.packaging import is_evals_file, parse_evals_json
 from myrm_agent_harness.backends.skills.scanning.archive_security import (
     ArchiveSecurityViolation,
     classify_archive_security_issue,
@@ -320,6 +321,18 @@ async def confirm_batch_import(
                     created_by="human",
                 ),
             )
+
+            # 剥离包内保留文件 evals.json 并还原回归门禁快照
+            for rel_path, file_content in list(skill.files.items()):
+                if not is_evals_file(rel_path):
+                    continue
+                parsed = parse_evals_json(file_content)
+                if parsed is not None:
+                    record.eval_cases = parsed
+                else:
+                    logger.warning("Skill %s: ignoring invalid %s", name, rel_path)
+                skill.files.pop(rel_path)
+
             records_to_save.append(record)
 
             # 多文件全保真原子写入：为所有 file 生成到 .tmp 目录

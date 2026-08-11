@@ -119,8 +119,10 @@ class AgentRepository:
                 "default_security_preset": agent.default_security_preset,
                 "subagent_ids": agent.subagent_ids,
                 "workspace_policy": agent.workspace_policy,
-                "allow_discovery": bool(
-                    getattr(agent, "allow_discovery", True)
+                "allow_discovery": (
+                    bool(agent.allow_discovery)
+                    if agent.allow_discovery is not None
+                    else True
                 ),
                 "engine_params": agent.engine_params,
                 "openapi_services": agent.openapi_services or [],
@@ -255,7 +257,11 @@ class AgentRepository:
             mcp_servers=meta.get("mcp_ids", []),
             mcp_tool_selections=meta.get("mcp_tool_selections"),
             subagent_ids=meta.get("subagent_ids", []),
-            allow_discovery=bool(meta.get("allow_discovery", True)),
+            allow_discovery=(
+                bool(meta["allow_discovery"])
+                if meta.get("allow_discovery") is not None
+                else True
+            ),
             enabled_builtin_tools=persist_enabled_builtin_tools(
                 meta.get("enabled_builtin_tools", profile.tools_allowed)
             ),
@@ -423,7 +429,10 @@ class AgentRepository:
                 )
             if "subagent_ids" in metadata:
                 agent.subagent_ids = cast(list[str], metadata["subagent_ids"])
-            if "allow_discovery" in metadata:
+            if (
+                "allow_discovery" in metadata
+                and metadata["allow_discovery"] is not None
+            ):
                 agent.allow_discovery = bool(metadata["allow_discovery"])
             if "workspace_policy" in metadata:
                 agent.workspace_policy = cast(str, metadata["workspace_policy"])

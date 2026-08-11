@@ -36,6 +36,7 @@ from myrm_agent_harness.eval import (
     EvalManifest,
     EvalRunner,
     JsonlReporter,
+    JudgeConfig,
 )
 
 from app.core.eval.adaptive import AdaptiveEvalManager
@@ -135,6 +136,7 @@ async def _build_eval_manifest(
     *,
     benchmark_mode: bool = False,
     external_cases: list["MultiTurnEvalCase"] | None = None,
+    judge_model: str = "none",
 ) -> EvalManifest:
     """Build an EvalManifest capturing the current evaluation environment."""
     import hashlib
@@ -218,6 +220,7 @@ async def _build_eval_manifest(
         created_at=datetime.now(timezone.utc).isoformat(),
         profile_id=profile_id or "default",
         benchmark_mode=benchmark_mode,
+        judge_model=judge_model,
     )
 
 
@@ -263,6 +266,7 @@ async def run_benchmark_background(
     *,
     benchmark_mode: bool = False,
     stage_label: str | None = None,
+    limit: int | None = None,
 ) -> None:
     """Run an external benchmark (WBBench subset or registered third-party).
 
@@ -270,7 +274,8 @@ async def run_benchmark_background(
     framework registry), downloads if needed, builds runnable cases, and runs
     the eval suite with the benchmark's declared tool whitelist. ``stage_label``
     overrides the SSE ``stage_subset_id`` (WBBench keeps its bare subset id for
-    existing frontend compatibility).
+    existing frontend compatibility). ``limit`` caps the case count (random
+    sample, reproducible).
     """
     global _eval_state
 
@@ -289,6 +294,7 @@ async def run_benchmark_background(
         cases, seed_map = await asyncio.to_thread(
             build_benchmark_cases,
             benchmark_id,
+            limit=limit,
             progress_callback=_report_benchmark_download_progress,
             should_abort=_benchmark_abort_requested,
         )
@@ -360,6 +366,7 @@ async def run_wb_bench_background(
     profile_id: str | None = None,
     *,
     benchmark_mode: bool = False,
+    limit: int | None = None,
 ) -> None:
     """Run a WorkBuddy Bench subset in the background (legacy-compatible handle).
 
@@ -371,6 +378,7 @@ async def run_wb_bench_background(
         profile_id=profile_id,
         benchmark_mode=benchmark_mode,
         stage_label=subset_id,
+        limit=limit,
     )
 
 
@@ -383,6 +391,37 @@ async def run_wb_bench_download_background(subset_id: str) -> None:
         f"wb-bench-{subset_id}",
         stage_label=subset_id,
     )
+
+
+async def _resolve_judge_config() -> tuple[JudgeConfig | None, str]:
+    """Resolve the LLM judge configuration from the user's active model.
+
+    The judge for semantic assertions (LLM-as-a-Judge) runs independently of
+    the evaluated agent, so it can reuse the user's own LLM credentials even
+    in ``benchmark_mode`` (which only strips the *agent's* user-specific
+    configuration). Returns the judge credentials plus a display label for the
+    manifest (e.g. ``"deepseek/deepseek-chat"`` or ``"none"``).
+    """
+    from myrm_agent_harness.api.config import ConfigIncompleteError
+
+    from app.core.channel_bridge.config_loader import load_user_configs
+
+    try:
+        configs = await load_user_configs()
+    except ConfigIncompleteError:
+        # No LLM provider configured — the judge cannot run. The router turns
+        # this into explicit guidance before the benchmark starts.
+        return None, "none"
+    model_cfg = getattr(configs, "model_cfg", None)
+    if model_cfg is None or not getattr(model_cfg, "model", None):
+        return None, "none"
+    model = str(model_cfg.model)
+    judge = JudgeConfig(
+        model=model,
+        api_key=getattr(model_cfg, "api_key", None),
+        api_base=getattr(model_cfg, "base_url", None),
+    )
+    return judge, model
 
 
 async def run_eval_suite(
@@ -462,12 +501,14 @@ async def run_eval_suite(
         benchmark_tools=benchmark_tools,
         workspace_seed_map=workspace_seed_map,
     )
+    judge_config, judge_model_label = await _resolve_judge_config()
     adaptive_manager = AdaptiveEvalManager(max_concurrency=3, idle_wait_seconds=3.0)
     runner = EvalRunner(
         executor,
         max_concurrency=3,
         on_case_complete=_on_case_complete,
         yielding_strategy=adaptive_manager,
+        judge_config=judge_config,
     )
 
     manifest = await _build_eval_manifest(
@@ -476,6 +517,7 @@ async def run_eval_suite(
         cases_path=cases_path,
         benchmark_mode=benchmark_mode,
         external_cases=external_cases,
+        judge_model=judge_model_label,
     )
 
     logger.info(

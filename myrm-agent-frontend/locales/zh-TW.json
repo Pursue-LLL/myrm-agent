@@ -3700,7 +3700,8 @@
         "previewFailed": "預覽技能失敗",
         "exportSuccess": "技能匯出成功",
         "exportFailed": "匯出技能失敗",
-        "toggleAll": "全選 / 全不選"
+        "toggleAll": "全選 / 全不選",
+        "evalCasesIncluded": "包含 {count} 條回歸測試用例"
       },
       "permissions": {
         "approved": "權限已批准",
@@ -6361,7 +6362,7 @@
     "dismissRebindHint": "知道了",
     "allowDiscovery": {
       "title": "允許被其他智慧體發現並委派",
-      "description": "開啟後，其他智慧體可以透過 @ 提及或自動組隊時發現並呼叫此智慧體。關閉可隱藏半成品。"
+      "description": "開啟後，其他智慧體在自動組隊時可發現並呼叫此智慧體。關閉後，此智慧體不會被自動組隊發現，但你仍可透過 @ 明確指定它。"
     },
     "formalKoreanReplies": {
       "title": "正式韓語回覆（합니다体）",
@@ -10589,6 +10590,7 @@
       "packageSuccess": "打包成功",
       "packageFailed": "打包失敗",
       "registerSuccess": "技能註冊成功",
+      "evalCasesRestored": "已還原 {count} 條回歸測試用例",
       "registerFailed": "技能註冊失敗",
       "skillDetected": "檢測到技能",
       "skillDetectedDesc": "工作區包含 SKILL.md，可以將其註冊為可用技能",
@@ -11966,9 +11968,15 @@
     "latestProgress": "最近進展",
     "completionCriteria": "驗收條件",
     "criteriaPlaceholder": "驗收條件（可選）",
-    "skillsPlaceholder": "專屬技能（可選，逗號分隔）",
+    "skillsPlaceholder": "選擇技能（可選）",
     "branchPlaceholder": "Git 分支（可選，自動建立 worktree）",
     "skillsLabel": "任務技能",
+    "skillsSearch": "搜尋技能...",
+    "skillsEmpty": "沒有相符的技能",
+    "skillsUnknown": "未知",
+    "skillsRemove": "移除技能",
+    "skillsCount": "個技能",
+    "skillsRunningNotice": "任務執行中——技能修改將在下次執行時生效",
     "showCriteria": "驗收條件",
     "hideCriteria": "收起條件",
     "editCriteria": "編輯驗收條件",
@@ -14508,7 +14516,8 @@
       "noReport": "暫無最新評測報告，請點選右上角「執行評測」",
       "evalRunning": "評測任務執行中，請耐心等待",
       "envProfile": "智能體",
-      "envBenchmark": "基準模式"
+      "envBenchmark": "基準模式",
+      "envJudge": "LLM 評分器"
     },
     "history": {
       "passRateTrend": "透過率歷史趨勢 (Pass Rate %)",
@@ -14582,7 +14591,11 @@
       "scoringCompositeTitle": "由 CompositeVerifier 引擎（規則 + LLM/VLM）評分",
       "pendingScoring": "評分待定",
       "testPassRate": "平均測試通過率",
-      "memoryAb": "記憶 A/B"
+      "memoryAb": "記憶 A/B",
+      "sampleLimitPlaceholder": "全部",
+      "sampleLimitTitle": "可選的樣本數——只執行這麼多道題（留空 = 全量基準）",
+      "sampled": "抽樣",
+      "sampledTitle": "本次執行隨機抽取了基準任務的一部分（結果可重現）"
     },
     "memoryAb": {
       "started": "記憶 A/B 評測已開始",
