@@ -41,7 +41,11 @@ async def seed_saas_platform_providers_if_needed() -> None:
 
     lite_ref = os.getenv("MYRM_SAAS_DEFAULT_LITE_MODEL", "").strip()
     ingress = os.getenv("CP_PUBLIC_INGRESS_URL", "").strip().rstrip("/")
-    if not lite_ref or not ingress:
+    if not lite_ref:
+        logger.warning("SaaS platform provider seed skipped: MYRM_SAAS_DEFAULT_LITE_MODEL is not set")
+        return
+    if not ingress:
+        logger.warning("SaaS platform provider seed skipped: CP_PUBLIC_INGRESS_URL is not set")
         return
 
     parsed = _parse_lite_model_ref(lite_ref)

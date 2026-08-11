@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Mapping, cast
@@ -201,26 +202,44 @@ class TestSeedGuardClauses:
         get_deploy_mode.cache_clear()
 
     async def test_returns_early_without_lite_model_env(
-        self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch
+        self,
+        sandbox_env: None,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
+        """缺 MYRM_SAAS_DEFAULT_LITE_MODEL 时跳过 seed 且发出 WARNING 锚点。"""
         monkeypatch.delenv("MYRM_SAAS_DEFAULT_LITE_MODEL", raising=False)
         fake = _FakeConfigService(record=None)
         _patch_service(monkeypatch, fake)
 
-        await seed_saas_platform_providers_if_needed()
+        with caplog.at_level(
+            logging.WARNING,
+            logger="app.platform_utils.sandbox.saas_providers_seed",
+        ):
+            await seed_saas_platform_providers_if_needed()
 
         assert fake.set_calls == []
+        assert any("MYRM_SAAS_DEFAULT_LITE_MODEL" in rec.message for rec in caplog.records)
 
     async def test_returns_early_without_ingress_env(
-        self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch
+        self,
+        sandbox_env: None,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
+        """缺 CP_PUBLIC_INGRESS_URL 时跳过 seed 且发出 WARNING 锚点。"""
         monkeypatch.delenv("CP_PUBLIC_INGRESS_URL", raising=False)
         fake = _FakeConfigService(record=None)
         _patch_service(monkeypatch, fake)
 
-        await seed_saas_platform_providers_if_needed()
+        with caplog.at_level(
+            logging.WARNING,
+            logger="app.platform_utils.sandbox.saas_providers_seed",
+        ):
+            await seed_saas_platform_providers_if_needed()
 
         assert fake.set_calls == []
+        assert any("CP_PUBLIC_INGRESS_URL" in rec.message for rec in caplog.records)
 
     async def test_returns_early_on_invalid_lite_model_ref(
         self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch
