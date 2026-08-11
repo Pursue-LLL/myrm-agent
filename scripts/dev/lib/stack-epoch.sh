@@ -147,3 +147,35 @@ except Exception:
  print(0)" 2>/dev/null || echo 0)"
   printf '%s' "${count}"
 }
+
+# Backend recovery must fail closed when lease state cannot be observed.  The
+# regular counter intentionally degrades to zero for read-only telemetry, but
+# a zero produced by a failed status probe must never authorize killing the
+# shared backend while a peer may still be running.
+_wave_active_lease_count_strict() {
+  local monorepo_root="${1:-}"
+  local wave_bin status_json count
+  if [[ -z "${monorepo_root}" ]]; then
+    echo unknown
+    return 0
+  fi
+  wave_bin="${monorepo_root}/scripts/dev/wave.sh"
+  if [[ ! -f "${wave_bin}" ]]; then
+    echo unknown
+    return 0
+  fi
+  if ! status_json="$(bash "${wave_bin}" status 2>/dev/null)"; then
+    echo unknown
+    return 0
+  fi
+  count="$(printf '%s' "${status_json}" | python3 -c "import json,sys
+try:
+ d=json.loads(sys.stdin.read() or '{}'); print(int(d['activeLeaseCount']))
+except Exception:
+ print('unknown')" 2>/dev/null)"
+  if [[ "${count}" =~ ^[0-9]+$ ]]; then
+    printf '%s' "${count}"
+  else
+    echo unknown
+  fi
+}

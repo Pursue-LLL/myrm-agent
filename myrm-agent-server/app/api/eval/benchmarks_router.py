@@ -2,10 +2,14 @@
 
 [INPUT]
 - fastapi::APIRouter, BackgroundTasks
-- app.core.eval.service::get_eval_status, run_benchmark_background,
-  run_benchmark_download_background, run_wb_bench_background,
-  run_wb_bench_download_background
-- app.core.eval.benchmarks::list_benchmark_sources, is_known_benchmark
+- app.core.eval.service::get_eval_status, _init_benchmark_state,
+  run_benchmark_background, run_benchmark_download_background,
+  run_wb_bench_background, run_wb_bench_download_background
+- app.core.eval.benchmarks::list_benchmark_sources, is_known_benchmark,
+  benchmark_required_tools
+- app.core.channel_bridge.config_loader::load_user_configs,
+  app.core.channel_bridge.config_parsers::verify_search_service_available
+  (POS: benchmark_mode 下 web-search 基准运行前的搜索配置/健康前置校验)
 - app.core.eval.wb_bench::list_wb_bench_sources, WB_BENCH_SUBSETS
 
 [OUTPUT]
@@ -22,10 +26,13 @@ from __future__ import annotations
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
-from app.core.eval.benchmarks import is_known_benchmark, list_benchmark_sources
+from app.core.eval.benchmarks import (
+    benchmark_required_tools,
+    is_known_benchmark,
+    list_benchmark_sources,
+)
 from app.core.eval.service import (
     _init_benchmark_state,
-    _init_wb_bench_state,
     get_eval_status,
     run_benchmark_background,
     run_benchmark_download_background,
@@ -68,6 +75,58 @@ async def run_benchmark(
             "status": "error",
             "error": f"Unknown benchmark: {request.benchmark_id}",
         }
+
+    # A benchmark_mode run strips user configuration down to the benchmark's
+    # declared tool whitelist. When that whitelist requires web search, a
+    # missing or unreachable search backend silently produces a near-zero
+    # score with no hint of the cause (the executor only enables web search
+    # when both configured and healthy). Fail fast so the user gets explicit
+    # guidance instead of a misleading result — mirroring the embedding
+    # pre-flight check in the memory A/B run flow.
+    if request.benchmark_mode and "web_search" in benchmark_required_tools(
+        request.benchmark_id
+    ):
+        from myrm_agent_harness.api.config import ConfigIncompleteError
+
+        from app.core.channel_bridge.config_loader import load_user_configs
+        from app.core.channel_bridge.config_parsers import (
+            verify_search_service_available,
+        )
+
+        try:
+            configs = await load_user_configs()
+        except ConfigIncompleteError as exc:
+            # No LLM provider configured yet — evaluation cannot run at all.
+            return {
+                "status": "error",
+                "error": exc.user_friendly_message.get("en", str(exc)),
+            }
+        if not configs.search_is_user_configured:
+            return {
+                "status": "error",
+                "error": (
+                    f"{request.benchmark_id} requires web search, but no search "
+                    "provider is configured. Enable a search provider in settings "
+                    "before running this benchmark."
+                ),
+            }
+        if not await verify_search_service_available(configs.search_cfg):
+            return {
+                "status": "error",
+                "error": (
+                    f"{request.benchmark_id} requires web search, but the "
+                    "configured search provider is unreachable. Fix the search "
+                    "service before running this benchmark."
+                ),
+            }
+
+    # Re-check after the (potentially slow) pre-flight: two concurrent
+    # requests can both pass the guard above, and only the awaited probes
+    # keep the window open long enough to matter. The re-check is
+    # synchronous, so the following _init_benchmark_state cannot interleave.
+    post_preflight_status = get_eval_status()
+    if post_preflight_status.get("is_running"):
+        return {"status": "already_running", "info": post_preflight_status}
 
     # Mark the eval state as running synchronously before the response is sent.
     # FastAPI BackgroundTasks run only after the response, so the SSE stream the
@@ -152,7 +211,7 @@ async def run_wb_bench(
     # FastAPI BackgroundTasks run only after the response, so the SSE stream the
     # frontend opens on "started" would otherwise read a stale is_running=false
     # first frame and immediately drop the running flag (race on run start).
-    _init_wb_bench_state(request.subset_id)
+    _init_benchmark_state(request.subset_id)
     background_tasks.add_task(
         run_wb_bench_background,
         subset_id=request.subset_id,
@@ -183,7 +242,7 @@ async def download_wb_bench(
             "error": f"Unknown WBBench subset: {request.subset_id}",
         }
 
-    _init_wb_bench_state(request.subset_id)
+    _init_benchmark_state(request.subset_id)
     background_tasks.add_task(
         run_wb_bench_download_background,
         subset_id=request.subset_id,

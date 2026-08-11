@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.language_models import BaseChatModel
+from myrm_agent_harness.toolkits.llms.fallback import ManagedLLM
 
 from app.ai_agents.general_agent.llm_factory import (
     apply_lite_context_downgrade,
@@ -9,7 +10,6 @@ from app.ai_agents.general_agent.llm_factory import (
     create_agent_llms,
 )
 from app.core.types import ModelConfig
-from myrm_agent_harness.toolkits.llms.fallback import ManagedLLM
 
 
 def _cfg(model: str) -> ModelConfig:
@@ -122,7 +122,6 @@ async def test_apply_lite_context_downgrade_returns_main_cfg_when_degraded() -> 
 @pytest.mark.asyncio
 async def test_apply_lite_managed_fallback_uses_effective_cfg_after_downgrade() -> None:
     main_cfg = _cfg("openai/main-model")
-    lite_cfg = _cfg("openai/lite-model")
     fallback_cfg = _cfg("openai/lite-fallback")
     degraded_llm = MagicMock(spec=BaseChatModel)
     mock_fallback = MagicMock(spec=BaseChatModel)

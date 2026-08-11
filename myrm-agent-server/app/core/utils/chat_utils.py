@@ -1,15 +1,14 @@
 """聊天工具函数模块（业务层扩展）
 
 扩展框架层的聊天工具，添加图片处理、视频处理和 Agent 历史还原等业务功能。
-另提供 LLM 响应文本提取工具（re-export 框架层 extract_answer_text 与
-extract_litellm_answer_text），以及 LLM judge 回复的容错 JSON 解析
-（parse_llm_json_object / parse_judge_json）。
+LLM 响应文本提取与容错 JSON 解析（parse_llm_json_object / parse_llm_json_list）
+re-export 自框架层 utils.chat_utils，本层补充 judge 判定语义的
+parse_judge_json（done 键规范化）。
 """
 
 import json
 import logging
 import re
-from collections.abc import Iterable
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
@@ -17,8 +16,11 @@ from myrm_agent_harness.utils.chat_utils import (
     ChatHistory,
     ChatHistoryReq,
     ContentItem,
+    _iter_parsed_containers,
     extract_answer_text,
     extract_litellm_answer_text,
+    parse_llm_json_list,
+    parse_llm_json_object,
 )
 from myrm_agent_harness.utils.image_utils import (
     MAX_IMAGE_PAYLOAD_BYTES,
@@ -43,188 +45,14 @@ __all__ = [
     "convert_chat_history",
     "extract_answer_text",
     "extract_litellm_answer_text",
+    "parse_llm_json_list",
     "parse_llm_json_object",
     "parse_judge_json",
 ]
 
 # =============================================================================
-# LLM Judge JSON Parsing (shared across server-side semantic judges)
+# Judge Verdict Parsing (business semantics on top of framework parsing)
 # =============================================================================
-
-_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
-
-
-def _escape_newlines_in_strings(text: str) -> str:
-    """Escape unescaped CR/LF that appear inside JSON string literals."""
-    out: list[str] = []
-    in_string = False
-    escape_next = False
-    for ch in text:
-        if in_string:
-            if escape_next:
-                out.append(ch)
-                escape_next = False
-                continue
-            if ch == "\\":
-                out.append(ch)
-                escape_next = True
-                continue
-            if ch == '"':
-                out.append(ch)
-                in_string = False
-                continue
-            if ch in "\r\n":
-                out.append("\\n")
-                continue
-            out.append(ch)
-            continue
-        if ch == '"':
-            in_string = True
-        out.append(ch)
-    return "".join(out)
-
-
-def _iter_json_objects(text: str) -> Iterable[str]:
-    """Yield every balanced ``{...}`` object in ``text``.
-
-    A single state-machine pass that respects string literals, escape
-    sequences, and nesting, and ignores orphan ``}`` tokens outside any
-    object. This lets callers inspect *all* candidate objects instead of
-    committing to the first ``{`` (which reasoning providers occasionally
-    precede with a format example before the real verdict).
-    """
-    depth = 0
-    start = -1
-    in_string = False
-    escape_next = False
-    for i, ch in enumerate(text):
-        if in_string:
-            if escape_next:
-                escape_next = False
-                continue
-            if ch == "\\":
-                escape_next = True
-                continue
-            if ch == '"':
-                in_string = False
-            continue
-        if ch == '"':
-            in_string = True
-        elif ch == "{":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "}":
-            if depth > 0:
-                depth -= 1
-                if depth == 0 and start != -1:
-                    yield text[start : i + 1]
-                    start = -1
-
-
-def _iter_json_arrays(text: str) -> Iterable[str]:
-    """Yield every balanced ``[...]`` array in ``text``.
-
-    Mirrors :func:`_iter_json_objects` with a state machine that respects
-    string literals, escape sequences, and nesting. Reasoning providers
-    occasionally precede a real array with a format example, so callers
-    inspect all candidates instead of committing to the first ``[``.
-    """
-    depth = 0
-    start = -1
-    in_string = False
-    escape_next = False
-    for i, ch in enumerate(text):
-        if in_string:
-            if escape_next:
-                escape_next = False
-                continue
-            if ch == "\\":
-                escape_next = True
-                continue
-            if ch == '"':
-                in_string = False
-            continue
-        if ch == '"':
-            in_string = True
-        elif ch == "[":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "]":
-            if depth > 0:
-                depth -= 1
-                if depth == 0 and start != -1:
-                    yield text[start : i + 1]
-                    start = -1
-
-
-def _iter_json_candidates(content: str) -> Iterable[str]:
-    """Yield candidate JSON texts: every fence body, every balanced object,
-    every balanced array, and finally the stripped raw text."""
-    stripped = content.strip()
-    if not stripped:
-        return
-    for match in _JSON_FENCE_RE.finditer(stripped):
-        body = match.group(1).strip()
-        if body:
-            yield body
-    yield from _iter_json_objects(stripped)
-    yield from _iter_json_arrays(stripped)
-    yield stripped
-
-
-def _iter_parsed_containers(
-    content: str,
-) -> Iterable[dict[str, object] | list[object]]:
-    """Yield every dict or list recoverable from ``content``.
-
-    Each candidate (fence body, balanced object/array, stripped raw text)
-    is tried raw first and then with unescaped newlines inside string
-    literals escaped, matching the artifacts reasoning providers emit.
-    """
-    for candidate in _iter_json_candidates(content):
-        for candidate_text in (candidate, _escape_newlines_in_strings(candidate)):
-            try:
-                parsed = json.loads(candidate_text)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(parsed, (dict, list)):
-                yield parsed
-
-
-def parse_llm_json_object(content: str) -> dict[str, object] | None:
-    """Parse a JSON object out of an LLM judge reply.
-
-    Tolerates the artifacts reasoning providers actually emit:
-    markdown fences, prose framing around the object, unescaped
-    newlines inside string literals (e.g. minimax), and multiple
-    objects/fences where the last one is the real verdict
-    (format examples preceding the actual result). When several
-    objects are recoverable, the *last* parseable dict wins, matching
-    how reasoning providers tend to end with the final verdict.
-    Returns ``None`` when no object can be recovered.
-    """
-    parsed_last: dict[str, object] | None = None
-    for parsed in _iter_parsed_containers(content):
-        if isinstance(parsed, dict):
-            parsed_last = parsed
-    return parsed_last
-
-
-def parse_llm_json_list(content: str) -> list[object] | None:
-    """Parse a JSON array out of an LLM reply.
-
-    Mirrors :func:`parse_llm_json_object` for arrays: tolerates fences,
-    prose framing, unescaped newlines inside string literals, and multiple
-    arrays where the last one is the real result. Returns ``None`` when no
-    array can be recovered.
-    """
-    parsed_last: list[object] | None = None
-    for parsed in _iter_parsed_containers(content):
-        if isinstance(parsed, list):
-            parsed_last = parsed
-    return parsed_last
 
 
 def parse_judge_json(raw: str) -> dict[str, object] | None:
@@ -239,8 +67,8 @@ def parse_judge_json(raw: str) -> dict[str, object] | None:
     forms (``1``/``0``) are normalized to Python bools.
     """
     last_verdict: dict[str, object] | None = None
-    for parsed in _iter_parsed_dicts(raw):
-        if "done" in parsed:
+    for parsed in _iter_parsed_containers(raw):
+        if isinstance(parsed, dict) and "done" in parsed:
             last_verdict = parsed
     if last_verdict is None:
         return None

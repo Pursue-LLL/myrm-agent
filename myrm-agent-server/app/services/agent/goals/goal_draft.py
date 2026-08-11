@@ -3,6 +3,7 @@
 [INPUT]
 - langchain_core.language_models::BaseChatModel (POS: Lite model for structured draft)
 - core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
+- core.utils.chat_utils::parse_llm_json_object (POS: 容错 JSON 对象解析 SSOT)
 
 [OUTPUT]
 - draft_goal_spec: Generate constraints, acceptance_criteria, ui_summary from objective text
@@ -15,12 +16,10 @@ creating a Goal — never silently applied.
 
 from __future__ import annotations
 
-import json
 import logging
-import re
 from typing import TYPE_CHECKING
 
-from app.core.utils.chat_utils import extract_answer_text
+from app.core.utils.chat_utils import extract_answer_text, parse_llm_json_object
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
@@ -77,34 +76,11 @@ async def draft_goal_spec(
 
 
 def _parse_draft_json(text: str) -> dict[str, object]:
-    text = text.strip()
-    try:
-        data = json.loads(text)
-        if isinstance(data, dict):
-            return data
-    except json.JSONDecodeError:
-        pass
-
-    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if fence:
-        try:
-            data = json.loads(fence.group(1))
-            if isinstance(data, dict):
-                return data
-        except json.JSONDecodeError:
-            pass
-
-    brace = re.search(r"\{.*\}", text, re.DOTALL)
-    if brace:
-        try:
-            data = json.loads(brace.group(0))
-            if isinstance(data, dict):
-                return data
-        except json.JSONDecodeError:
-            pass
-
-    logger.warning("Goal draft: failed to parse LLM JSON, using empty draft")
-    return {}
+    parsed = parse_llm_json_object(text)
+    if parsed is None:
+        logger.warning("Goal draft: failed to parse LLM JSON, using empty draft")
+        return {}
+    return parsed
 
 
 def _normalize_draft(data: dict[str, object], objective: str) -> dict[str, object]:

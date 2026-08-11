@@ -15,6 +15,7 @@ import type { useTranslations } from 'next-intl';
 import type {
   MemoryCommandBenchmarkSummary,
   MemoryCommandCenterResponse,
+  MemoryCommandDiagnosticHistoryItem,
   MemoryCommandDiagnosticProbeResult,
   MemoryCommandDiagnosticRun,
   MemoryCommandDoctorCheck,
@@ -81,12 +82,14 @@ export const MemoryDoctorPanel = ({
   t,
   actionId,
   diagnosticRun,
+  diagnosticHistory,
   onDoctorAction,
 }: {
   snapshot: MemoryCommandCenterResponse;
   t: MemoryTranslation;
   actionId: string | null;
   diagnosticRun: MemoryCommandDiagnosticRun | null;
+  diagnosticHistory: MemoryCommandDiagnosticHistoryItem[];
   onDoctorAction: (action: DoctorExecutableAction) => void;
 }) => {
 
@@ -108,6 +111,7 @@ export const MemoryDoctorPanel = ({
     {diagnosticRun && (
       <DiagnosticRunSummary run={diagnosticRun} t={t} actionId={actionId} onDoctorAction={onDoctorAction} />
     )}
+    {diagnosticHistory.length > 0 && <DiagnosticTrendSection history={diagnosticHistory} t={t} />}
     <div className="grid gap-2 md:grid-cols-2">
       {snapshot.doctor_checks.map((check) => (
         <DoctorCheckRow key={check.id} check={check} t={t} actionId={actionId} onDoctorAction={onDoctorAction} />
@@ -121,6 +125,107 @@ export const MemoryDoctorPanel = ({
   </>
   );
 };
+
+const TREND_METRICS = [
+  { key: 'recall_at_k' },
+  { key: 'ndcg_at_k' },
+  { key: 'mrr_score' },
+] as const;
+
+type TrendMetricKey = (typeof TREND_METRICS)[number]['key'];
+
+const DiagnosticTrendSection = ({
+  history,
+  t,
+}: {
+  history: MemoryCommandDiagnosticHistoryItem[];
+  t: MemoryTranslation;
+}) => {
+  const withBenchmark = history.filter((item) => item.benchmark);
+  if (withBenchmark.length < 2) return null;
+
+  const points = [...withBenchmark].reverse();
+  const latest = points[points.length - 1];
+  const previous = points[points.length - 2];
+  if (!latest.benchmark || !previous.benchmark) return null;
+
+  return (
+    <div className="rounded-lg border border-border/50 bg-background/70 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs font-medium text-foreground">{t('commandCenter.doctorTrendTitle')}</span>
+        <span className="text-[10px] text-muted-foreground">{t('commandCenter.doctorTrendRuns', { count: points.length })}</span>
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        {TREND_METRICS.map((metric) => (
+          <TrendMetric key={metric.key} metric={metric.key} points={points} latest={latest} previous={previous} t={t} />
+        ))}
+      </div>
+      {latest.embedding_model && previous.embedding_model && latest.embedding_model !== previous.embedding_model && (
+        <div className="mt-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-700 dark:text-amber-300">
+          {t('commandCenter.doctorTrendModelShift', { model: latest.embedding_model })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TrendMetric = ({
+  metric,
+  points,
+  latest,
+  previous,
+  t,
+}: {
+  metric: TrendMetricKey;
+  points: MemoryCommandDiagnosticHistoryItem[];
+  latest: MemoryCommandDiagnosticHistoryItem;
+  previous: MemoryCommandDiagnosticHistoryItem;
+  t: MemoryTranslation;
+}) => {
+  const latestSummary = latest.benchmark;
+  const previousSummary = previous.benchmark;
+  if (!latestSummary || !previousSummary) return null;
+
+  const latestValue = latestSummary[metric];
+  const previousValue = previousSummary[metric];
+  const delta = latestValue - previousValue;
+  const k = latestSummary.top_k;
+  const label =
+    metric === 'recall_at_k'
+      ? t('commandCenter.benchmarkRecall', { k })
+      : metric === 'ndcg_at_k'
+        ? t('commandCenter.benchmarkNdcg', { k })
+        : t('commandCenter.benchmarkMrr');
+
+  return (
+    <div className="rounded-full border border-border/40 bg-muted/30 px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] text-muted-foreground">{label}</span>
+        <span className={delta >= 0 ? 'text-emerald-500' : 'text-red-500'}>
+          {delta >= 0 ? '+' : ''}
+          {formatPercent(delta)}
+        </span>
+      </div>
+      <div className="mt-1 flex h-10 items-end gap-1">
+        {points.slice(-8).map((item, index) => (
+          <MiniTrendBar key={`${item.run_id}-${index}`} value={item.benchmark?.[metric] ?? 0} latest={index === points.slice(-8).length - 1} />
+        ))}
+      </div>
+      <div className="mt-1 flex items-center justify-between">
+        <span className="text-xs font-semibold text-foreground">{formatPercent(latestValue)}</span>
+        <span className="text-[10px] text-muted-foreground">{formatTime(latest.occurred_at)}</span>
+      </div>
+    </div>
+  );
+};
+
+const MiniTrendBar = ({ value, latest }: { value: number; latest: boolean }) => (
+  <div
+    className={`flex-1 rounded-t-sm ${latest ? 'bg-primary' : 'bg-primary/40'}`}
+    style={{ height: `${Math.max(value * 100, 3)}%`, minHeight: 3 }}
+    title={formatPercent(value)}
+  />
+);
 
 const DoctorCheckRow = ({
   check,

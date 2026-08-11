@@ -231,22 +231,11 @@ describe('streamConsumer resilience paths', () => {
       messageId: 'msg-busy-sse',
       data: 'Agent is busy processing another request for this session.',
     };
-    mockCreateMessageRequest.mockResolvedValue(
-      createSseResponse(`data: ${JSON.stringify(busyEvent)}\n\n`),
-    );
+    mockCreateMessageRequest.mockResolvedValue(createSseResponse(`data: ${JSON.stringify(busyEvent)}\n\n`));
     mockParseSseEnvelope.mockReturnValue(busyEvent);
 
     await expect(
-      executeStreamWithRetry(
-        'hello',
-        'msg-busy-sse',
-        state,
-        actions,
-        null,
-        abortController,
-        false,
-        '',
-      ),
+      executeStreamWithRetry('hello', 'msg-busy-sse', state, actions, null, abortController, false, ''),
     ).rejects.toBeInstanceOf(AgentBusyError);
 
     expect(mockHandleMessageStream).not.toHaveBeenCalled();
@@ -267,22 +256,11 @@ describe('streamConsumer resilience paths', () => {
     (window as Window & { __MYRM_E2E_DIRECT_SSE__?: boolean }).__MYRM_E2E_DIRECT_SSE__ = false;
     mockResolveE2eApiBase.mockReturnValue(null);
     mockCreateMultiplexReadableStream.mockReturnValue(createChunkStream(''));
-    mockCreateMessageRequest.mockResolvedValue(
-      createSseResponse(`data: ${JSON.stringify(busyEvent)}\n\n`),
-    );
+    mockCreateMessageRequest.mockResolvedValue(createSseResponse(`data: ${JSON.stringify(busyEvent)}\n\n`));
     mockParseSseEnvelope.mockReturnValue(busyEvent);
 
     await expect(
-      executeStreamWithRetry(
-        'hello',
-        'msg-multiplex-busy',
-        state,
-        actions,
-        null,
-        abortController,
-        false,
-        '',
-      ),
+      executeStreamWithRetry('hello', 'msg-multiplex-busy', state, actions, null, abortController, false, ''),
     ).rejects.toBeInstanceOf(AgentBusyError);
 
     expect(mockHandleMessageStream).not.toHaveBeenCalled();
@@ -305,14 +283,12 @@ describe('streamConsumer resilience paths', () => {
   });
 
   it('retries transient HTTP and eventually succeeds', async () => {
-    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(
-      ((handler: TimerHandler) => {
-        if (typeof handler === 'function') {
-          handler();
-        }
-        return 0 as unknown as ReturnType<typeof setTimeout>;
-      }) as unknown as typeof setTimeout,
-    );
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((handler: TimerHandler) => {
+      if (typeof handler === 'function') {
+        handler();
+      }
+      return 0 as unknown as ReturnType<typeof setTimeout>;
+    }) as unknown as typeof setTimeout);
     const state = createBaseState();
     const actions = createActions(state);
     const abortController = new AbortController();
@@ -518,28 +494,11 @@ describe('streamConsumer resilience paths', () => {
     mockHandleMessageStream.mockResolvedValue({ added: true, recievedMessage: 'ok' });
 
     await expect(
-      executeStreamWithRetry(
-        'hello',
-        requestMessageId,
-        state,
-        actions,
-        null,
-        abortController,
-        false,
-        '',
-      ),
+      executeStreamWithRetry('hello', requestMessageId, state, actions, null, abortController, false, ''),
     ).resolves.toBeUndefined();
 
-    expect(mockCreateMultiplexReadableStream).toHaveBeenNthCalledWith(
-      1,
-      requestMessageId,
-      abortController.signal,
-    );
-    expect(mockCreateMultiplexReadableStream).toHaveBeenNthCalledWith(
-      2,
-      acceptedMessageId,
-      abortController.signal,
-    );
+    expect(mockCreateMultiplexReadableStream).toHaveBeenNthCalledWith(1, requestMessageId, abortController.signal);
+    expect(mockCreateMultiplexReadableStream).toHaveBeenNthCalledWith(2, acceptedMessageId, abortController.signal);
     expect(mockHandleMessageStream).toHaveBeenCalledTimes(1);
   });
 
@@ -564,6 +523,31 @@ describe('streamConsumer resilience paths', () => {
     expect(mockRecoverPendingApprovals).toHaveBeenCalledTimes(1);
   });
 
+  it('consumes protocol heartbeat without schema parsing or warnings', async () => {
+    const state = createBaseState({ loading: false });
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    try {
+      await consumeStream(
+        createSseResponse('event: heartbeat\ndata: null\n\n'),
+        'hello',
+        state,
+        actions,
+        abortController,
+        false,
+        '',
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+
+    expect(mockParseSseEnvelope).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(mockHandleMessageStream).not.toHaveBeenCalled();
+  });
+
   it('throws timeout error when no data arrives for too long', async () => {
     const nowSpy = vi.spyOn(Date, 'now');
     nowSpy.mockReturnValueOnce(0).mockReturnValue(5 * 60 * 1000 + 1);
@@ -582,9 +566,9 @@ describe('streamConsumer resilience paths', () => {
     const abortController = new AbortController();
 
     try {
-      await expect(
-        consumeStream(response, 'hello', state, actions, abortController, false, ''),
-      ).rejects.toThrow('Service response timeout');
+      await expect(consumeStream(response, 'hello', state, actions, abortController, false, '')).rejects.toThrow(
+        'Service response timeout',
+      );
 
       expect(mockRecoverPendingApprovals).toHaveBeenCalledTimes(1);
     } finally {

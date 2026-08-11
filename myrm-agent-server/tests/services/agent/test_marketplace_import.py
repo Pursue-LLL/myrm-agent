@@ -10,6 +10,7 @@ Tests cover:
 - Atomic rollback on import failure
 - Empty package import
 - _remap_ids preserves unmapped IDs
+- Sandbox fails closed for bundled skills; skill-free packages still import
 """
 
 from __future__ import annotations
@@ -155,6 +156,25 @@ def patch_marketplace_origin_helpers():
         return_value=None,
     ):
         yield
+
+
+@pytest.fixture(autouse=True)
+def pin_local_deploy_mode(monkeypatch: pytest.MonkeyPatch):
+    """Pin DEPLOY_MODE=local so default tests run against local capabilities.
+
+    Capability gating reads DEPLOY_MODE; sandbox-specific cases override it via
+    _set_deploy_mode and restore afterwards.
+    """
+    _set_deploy_mode(monkeypatch, "local")
+    yield
+    monkeypatch.delenv("DEPLOY_MODE", raising=False)
+    from app.config.deploy_mode import get_deploy_mode
+    from app.platform_utils.deployment_capabilities import (
+        _reset_capabilities_cache_for_testing,
+    )
+
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
 
 
 @pytest.mark.asyncio
@@ -305,6 +325,90 @@ async def test_empty_package(mock_skill_svc: AsyncMock, patch_agent_service: Non
     result = await import_agent_package(mock_skill_svc, package)
     assert result == "new-empty-agent"
     mock_skill_svc.save_skill.assert_not_called()
+
+
+def _set_deploy_mode(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
+    """Set DEPLOY_MODE and clear both caches so the capabilities gate re-reads it."""
+    from app.config.deploy_mode import get_deploy_mode
+    from app.platform_utils.deployment_capabilities import (
+        _reset_capabilities_cache_for_testing,
+    )
+
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+    monkeypatch.setenv("DEPLOY_MODE", mode)
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+
+
+@pytest.mark.asyncio
+async def test_rejects_bundled_skills_in_sandbox(
+    mock_skill_svc: AsyncMock, monkeypatch: pytest.MonkeyPatch
+):
+    """Sandbox disables local skills — a package with bundled skills must fail closed.
+
+    Writing skills to a store the agent can never load is a silent failure, so
+    sandbox deployment must reject the import before any skill write happens.
+    """
+    from app.services.agent.marketplace.import_ import import_agent_package
+
+    _set_deploy_mode(monkeypatch, "sandbox")
+    try:
+        package = _make_package(bundled_subagents=[])
+        with pytest.raises(ValueError, match="bundled skills are not supported in sandbox"):
+            await import_agent_package(mock_skill_svc, package)
+        mock_skill_svc.save_skill.assert_not_called()
+    finally:
+        _set_deploy_mode(monkeypatch, "local")
+
+
+@pytest.mark.asyncio
+async def test_allows_package_without_skills_in_sandbox(
+    mock_skill_svc: AsyncMock,
+    patch_agent_service: None,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Sandbox must still accept skill-free packages (profile/subagents only)."""
+    from app.services.agent.marketplace.import_ import import_agent_package
+
+    _set_deploy_mode(monkeypatch, "sandbox")
+    try:
+        package = _make_package(
+            agent_profile={
+                "display_name": "Skillless Agent",
+                "description": "no skills",
+                "system_prompt": "sys",
+                "skill_ids": [],
+                "subagent_ids": [],
+                "enabled_builtin_tools": [],
+            },
+            bundled_skills=[],
+            bundled_subagents=[],
+        )
+        result = await import_agent_package(mock_skill_svc, package)
+        assert result == "new-skillless-agent"
+        mock_skill_svc.save_skill.assert_not_called()
+    finally:
+        _set_deploy_mode(monkeypatch, "local")
+
+
+@pytest.mark.asyncio
+async def test_allows_bundled_skills_in_local(
+    mock_skill_svc: AsyncMock,
+    patch_agent_service: None,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Local deployment keeps bundled-skill imports working unchanged."""
+    from app.services.agent.marketplace.import_ import import_agent_package
+
+    _set_deploy_mode(monkeypatch, "local")
+    try:
+        package = _make_package(bundled_subagents=[])
+        result = await import_agent_package(mock_skill_svc, package)
+        assert result == "new-test-agent"
+        mock_skill_svc.save_skill.assert_called_once()
+    finally:
+        _set_deploy_mode(monkeypatch, "local")
 
 
 @pytest.mark.asyncio

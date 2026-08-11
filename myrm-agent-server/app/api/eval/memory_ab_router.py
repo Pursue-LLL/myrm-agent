@@ -5,21 +5,27 @@
 - app.api.eval.streaming::stream_status_events (POS: eval SSE 状态流公共 helper)
 - app.core.eval.memory_ab::run_memory_ab_background, get_memory_ab_status, ...
 - app.services.agent.platform_config::verify_platform_embedding_ready
+- app.core.eval.benchmarks::is_known_benchmark, benchmark_required_tools
+- app.core.channel_bridge.config_loader::load_user_configs,
+  app.core.channel_bridge.config_parsers::verify_search_service_available
+  (POS: memory A/B 在 benchmark_mode 下运行，web-search 基准需前置校验
+  搜索配置/健康，避免两臂静默降级出误导性对比)
 
 [OUTPUT]
 - router: APIRouter mounted under /eval (included by app.api.eval.router).
 
 [POS]
 HTTP layer for the Memory A/B evaluation. The /memory-ab/run endpoint
-validates that an embedding model is both configured and reachable before
-starting the run — a missing or unusable embedding backend makes the
-memory-on arm silently degrade to a memory-free agent and produce a
-misleading "memory has no effect" result.
+validates, before starting the run, that the environment can actually
+exercise both arms: an embedding model must be configured and reachable
+(a missing embedding silently degrades the memory-on arm to a memory-free
+agent), and — when the benchmark's tool whitelist requires web search —
+a search provider must be configured and reachable (a missing search
+backend silently produces a near-zero score on both arms). Both checks
+fail fast with explicit guidance instead of a misleading comparison.
 """
 
 from __future__ import annotations
-
-import logging
 
 from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import StreamingResponse
@@ -36,8 +42,6 @@ from app.core.eval.memory_ab import (
     run_memory_ab_background,
 )
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["eval"])
 
@@ -57,8 +61,9 @@ async def run_memory_ab_evaluation(
     if status_info.get("is_running"):
         return {"status": "already_running", "info": status_info}
 
-    from app.core.eval.benchmarks import is_known_benchmark
     from myrm_agent_harness.eval import get_benchmark
+
+    from app.core.eval.benchmarks import is_known_benchmark
 
     spec = get_benchmark(request.benchmark_id)
     is_wb_bench = request.benchmark_id.startswith("wb-bench-")
@@ -88,6 +93,45 @@ async def run_memory_ab_evaluation(
             "status": "error",
             "error": exc.user_friendly_message.get("en", str(exc)),
         }
+
+    # A memory A/B run executes both arms in benchmark_mode with the
+    # benchmark's declared tool whitelist. When that whitelist requires web
+    # search, a missing or unreachable search backend silently produces a
+    # near-zero score on both arms — mirror the benchmark-run pre-flight so
+    # the user gets explicit guidance instead of a misleading comparison.
+    from app.core.eval.benchmarks import benchmark_required_tools
+
+    if "web_search" in benchmark_required_tools(request.benchmark_id):
+        from app.core.channel_bridge.config_loader import load_user_configs
+        from app.core.channel_bridge.config_parsers import (
+            verify_search_service_available,
+        )
+
+        try:
+            configs = await load_user_configs()
+        except ConfigIncompleteError as exc:
+            return {
+                "status": "error",
+                "error": exc.user_friendly_message.get("en", str(exc)),
+            }
+        if not configs.search_is_user_configured:
+            return {
+                "status": "error",
+                "error": (
+                    f"{request.benchmark_id} requires web search, but no search "
+                    "provider is configured. Enable a search provider in settings "
+                    "before running this benchmark."
+                ),
+            }
+        if not await verify_search_service_available(configs.search_cfg):
+            return {
+                "status": "error",
+                "error": (
+                    f"{request.benchmark_id} requires web search, but the "
+                    "configured search provider is unreachable. Fix the search "
+                    "service before running this benchmark."
+                ),
+            }
 
     # Re-check after the (potentially slow) embedding probe: two concurrent
     # requests can both pass the pre-probe guard, and only the probe keeps

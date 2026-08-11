@@ -9,5 +9,5 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 服务导出 | ✅ |
-| `session_manager.py` | 核心 | 录制 session 注册/步进/结束 | ✅ |
+| `session_manager.py` | 核心 | 录制 session 注册/步进/结束；`remove_session` 在技能生成成功后立即调用，TTL 30 分钟兜底清理 | ✅ |
 | `skill_generator.py` | 扩展 | 将 capture 序列化为可安装 skill 草稿；description 为空时经 LLM 生成语义描述（失败回退 `default_skill_description` 模板，与 frontmatter/API 响应同源一致） | ✅ |

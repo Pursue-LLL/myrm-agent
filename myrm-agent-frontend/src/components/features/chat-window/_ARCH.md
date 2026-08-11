@@ -74,10 +74,10 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `SubagentDashboard.tsx` | 核心 | 子代理控制面板入口：三视图 tab（树/Gantt/画布）；排序/过滤条、头部汇总、预算 token/cost（`extractBudgetTokens`/`extractMaxCostUsd`）、取消全部/委托暂停、overtime/stale 汇总态、画布 tab 挂载 `AgentWorkMap`，画布节点点击切树视图定位（`data-subagent-tree-id`）；SSE `subagents_updated`/`teammate_message` 消费 + 轮询拉取 | ✅ |
+| `SubagentDashboard.tsx` | 核心 | 子代理控制面板入口：两视图 tab（树/画布）；树视图内排序/过滤条（`subagent-sort-*`/`subagent-filter-*`）、MiniGantt、fission 摘要条（`subagent-fission-summary`）、头部汇总、预算 token/cost（`extractBudgetTokens`/`extractMaxCostUsd`）、取消全部/委托暂停、overtime/stale 汇总态、画布 tab 挂载 `AgentWorkMap`，画布节点点击切树视图定位（`data-subagent-tree-id`）；SSE `subagents_updated`/`teammate_message` 消费 + 轮询拉取；面板/触发器 `data-testid` 供 E2E 选择 | ✅ |
 | `AgentWorkMap.tsx` | 组件 | 长任务拓扑画布（Task Tray「画布」tab）：ReactFlow+dagre 渲染 subagent 树/fission 拓扑（merge 并行）；结构/数据双 effect（节点增删才重排，实时进度更新保留拖拽坐标）；结构变化 fitView 平滑跟随；节点点击回调（画布→树定位桥接）；移动端紧凑节点+窄屏隐藏 MiniMap；墓碑（failed/cancelled 红高亮+error）、焦点（running 脉冲）、进度条、cost/tokens/耗时元数据、空态；数据源 `taskTopologyModel` | ✅ |
 | `subagent-tree.tsx` | 组件 | 子代理树视图：`SubagentTreeNode` 递归节点（展开/折叠、状态图标、cost/tokens/model/进度/耗时、steer/cancel/resume/审批跳转、overtime/stale 告警、teammate 消息、stream、取消确认弹窗）+ 聚合徽章 + role/scope 格式化；依赖 `subagent-stream` | ✅ |
-| `subagent-gantt.tsx` | 组件 | 子代理迷你甘特图：基于 startedAt/duration 的并行时间条（状态色条、相对缩放），少于 2 个时间跨度的节点时隐藏 | ✅ |
+| `subagent-gantt.tsx` | 组件 | 子代理迷你甘特图：基于 startedAt/duration 的并行时间条（状态色条、相对缩放），少于 2 个时间跨度的节点时隐藏；折叠开关 `subagent-gantt-toggle`、容器 `subagent-gantt` 供 E2E 选择 | ✅ |
 | `subagent-stream.tsx` | 组件 | 子代理状态图标（12 态 STATUS_ICON_MAP）与实时流条目展示（NodeStream/StreamLine：tool/progress/thinking/error 字形 + 耗时 + 滚动跟随） | ✅ |
 
 ## goals/

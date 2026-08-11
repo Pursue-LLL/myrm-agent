@@ -5,7 +5,7 @@ rely on: JSON extraction, text truncation, CJK detection, and LiteLLM
 response usage parsing.
 
 [INPUT]
-- (none — pure utility functions)
+- core.utils.chat_utils::parse_llm_json_object (POS: 容错 JSON 对象解析 SSOT)
 
 [OUTPUT]
 - extract_json_blob: Lenient JSON extraction tolerating fences and prose.
@@ -19,10 +19,7 @@ Shared LLM helpers for kanban specifier / decomposer.
 
 from __future__ import annotations
 
-import json
-import re
-
-_FENCE_RE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
+from app.core.utils.chat_utils import parse_llm_json_object
 
 
 def truncate(text: str, limit: int) -> str:
@@ -42,22 +39,14 @@ def has_cjk(text: str) -> bool:
 
 
 def extract_json_blob(raw: str) -> dict[str, object] | None:
-    """Lenient JSON extraction tolerating markdown fences and prose framing."""
-    if not raw:
-        return None
-    stripped = _FENCE_RE.sub("", raw.strip())
-    first = stripped.find("{")
-    last = stripped.rfind("}")
-    if first == -1 or last == -1 or last <= first:
-        return None
-    candidate = stripped[first : last + 1]
-    try:
-        val = json.loads(candidate)
-    except (ValueError, json.JSONDecodeError):
-        return None
-    if not isinstance(val, dict):
-        return None
-    return val
+    """Lenient JSON extraction tolerating markdown fences and prose framing.
+
+    Delegates to :func:`app.core.utils.chat_utils.parse_llm_json_object`,
+    the shared robust parser that additionally survives unescaped newlines
+    inside string literals and multiple objects where the last one is the
+    real result (format examples preceding the actual verdict).
+    """
+    return parse_llm_json_object(raw)
 
 
 def extract_usage(response: object) -> tuple[int | None, int | None]:

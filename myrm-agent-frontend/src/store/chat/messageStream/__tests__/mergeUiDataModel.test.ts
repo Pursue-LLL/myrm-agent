@@ -8,18 +8,22 @@ describe('mergeUiDataModel', () => {
   });
 
   it('deep-merges nested plain objects without wiping sibling fields', () => {
-    const result = mergeUiDataModel(
-      { form: { note: '', env: 'staging' } },
-      { form: { note: 'confirmed' } },
-    );
+    const result = mergeUiDataModel({ form: { note: '', env: 'staging' } }, { form: { note: 'confirmed' } });
     expect(result).toEqual({ form: { note: 'confirmed', env: 'staging' } });
   });
 
   it('replaces arrays by key', () => {
-    const result = mergeUiDataModel(
-      { items: [{ title: 'A' }] },
-      { items: [{ title: 'A' }, { title: 'B' }] },
-    );
+    const result = mergeUiDataModel({ items: [{ title: 'A' }] }, { items: [{ title: 'A' }, { title: 'B' }] });
     expect(result.items).toHaveLength(2);
+  });
+
+  it('preserves non-cloneable host values instead of dropping the update', () => {
+    const hostValue = () => 'host-value';
+
+    expect(() => mergeUiDataModel({ hostValue }, { status: 'ready' })).not.toThrow();
+    const result = mergeUiDataModel({ hostValue }, { status: 'ready' });
+
+    expect(result.hostValue).toBe(hostValue);
+    expect(result.status).toBe('ready');
   });
 });

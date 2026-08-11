@@ -81,7 +81,7 @@ def _init_memory_ab_state(benchmark_id: str) -> None:
 
 
 def _report_memory_ab_download_progress(downloaded: int, total: int) -> None:
-    """Record the WBBench download progress into the memory A/B state."""
+    """Record the benchmark download progress into the memory A/B state."""
     _memory_ab_state["download_progress"] = {
         "downloaded_bytes": downloaded,
         "total_bytes": total,

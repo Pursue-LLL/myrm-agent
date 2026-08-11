@@ -44,6 +44,7 @@ interface BrowserRecordingState {
   isOpen: boolean;
   status: RecordingStatus;
   sessionId: string | null;
+  mode: 'auto' | 'manual' | null;
   steps: RecordedStep[];
   generatedSkill: GeneratedSkill | null;
   error: string | null;
@@ -66,6 +67,7 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
   isOpen: false,
   status: 'idle',
   sessionId: null,
+  mode: null,
   steps: [],
   generatedSkill: null,
   error: null,
@@ -90,7 +92,13 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
         const msg = JSON.parse(event.data);
         switch (msg.type) {
           case 'session_started':
-            set({ sessionId: msg.session_id, status: 'recording', steps: [], error: null });
+            set({
+              sessionId: msg.session_id,
+              status: 'recording',
+              steps: [],
+              error: null,
+              mode: msg.mode === 'auto' || msg.mode === 'manual' ? msg.mode : null,
+            });
             break;
           case 'step':
             set((s) => ({
@@ -148,7 +156,7 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
       set({ error: 'WebSocket connection failed', status: 'idle' });
     };
 
-    set({ status: 'recording', steps: [], error: null, generatedSkill: null });
+    set({ status: 'recording', steps: [], error: null, generatedSkill: null, mode: null });
   },
 
   stopRecording: () => {
@@ -215,6 +223,7 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
     set({
       status: 'idle',
       sessionId: null,
+      mode: null,
       steps: [],
       generatedSkill: null,
       error: null,

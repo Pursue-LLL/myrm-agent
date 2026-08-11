@@ -104,6 +104,31 @@ class MemoryOperationLedgerService:
         )
         return list(result.scalars().all())
 
+    async def list_diagnostic_events(
+        self,
+        *,
+        limit: int = 24,
+        offset: int = 0,
+    ) -> list[MemoryOperationEventModel]:
+        """Return diagnostic run audit events (newest first) with benchmark metadata.
+
+        Diagnostic audit events are identified by source/target convention set in
+        `MemoryDiagnosticsService._record_run_event`.
+        """
+
+        result = await self._db.execute(
+            select(MemoryOperationEventModel)
+            .where(
+                MemoryOperationEventModel.source == "memory_diagnostics",
+                MemoryOperationEventModel.target_kind == "health",
+                MemoryOperationEventModel.target_id == "diagnostic_run",
+            )
+            .order_by(desc(MemoryOperationEventModel.occurred_at))
+            .offset(max(offset, 0))
+            .limit(min(max(limit, 1), 200))
+        )
+        return list(result.scalars().all())
+
     async def list_events_for_session(self, session_id: str, *, limit: int = 48) -> list[MemoryOperationEventModel]:
         from sqlalchemy import or_
 

@@ -42,9 +42,7 @@ from app.services.agent.params import (
     convert_to_general_agent_params,
 )
 from app.services.agent.steering_registry import SteeringRegistry
-from app.services.agent.stream_session.chat_history_bootstrap import (
-    persist_user_message_and_load_history,
-)
+from app.services.agent.stream_session import chat_history_bootstrap
 from app.services.agent.stream_session.migration_bound_project import (
     apply_migration_bound_project,
 )
@@ -152,6 +150,34 @@ async def execute_agent_turn_after_reserve(
     record_terminal_failure: Callable[[TurnCapabilityFailureReason], Awaitable[None]],
 ) -> None:
     """Run compact → persist → session build → pump after HTTP stream is already open."""
+    # Commit the user row before any optional profile/model-window/compact work.
+    # The multiplexed HTTP response is already accepted at this point; API
+    # observers must see the turn even when stale-context setup is slow.
+    #
+    # Resolve helpers from the module at call time.  Uvicorn's dev reloader can
+    # reload this module before reloading its dependency; the fallback keeps an
+    # in-flight old worker from crashing with a mixed-generation ImportError.
+    persisted_message_id: str | None = None
+    chat_history: list[list[str | dict[str, object]]] | None = None
+    persist_user_message = getattr(
+        chat_history_bootstrap,
+        "persist_user_message",
+        None,
+    )
+    load_chat_history = getattr(chat_history_bootstrap, "load_chat_history", None)
+    if callable(persist_user_message) and callable(load_chat_history):
+        persisted_message_id = await persist_user_message(
+            request,
+            text_content=text_content,
+        )
+    else:
+        # Mixed-generation hot reload fallback.  A fresh process always takes
+        # the split path above; an old worker remains functional until it exits.
+        chat_history = await chat_history_bootstrap.persist_user_message_and_load_history(
+            request,
+            text_content=text_content,
+        )
+
     pre_reply_compact_result: CompactResult | None = None
     pre_reply_compact_sse_sent = False
     if request.resume_value is None and request.chat_id and request.message_id:
@@ -177,10 +203,11 @@ async def execute_agent_turn_after_reserve(
             )
         )
 
-    chat_history = await persist_user_message_and_load_history(
-        request,
-        text_content=text_content,
-    )
+    if chat_history is None:
+        chat_history = await load_chat_history(
+            request,
+            exclude_message_id=persisted_message_id,
+        )
 
     await apply_migration_bound_project(request)
 

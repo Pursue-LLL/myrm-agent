@@ -98,13 +98,12 @@ async def test_org_mcp_sync_persists_and_merges_full_chain() -> None:
 
     # Real DB row persisted (encrypted at rest) and decryptable via the
     # real single-config loader.
-    from app.core.types import MCPServerConfig
-
     from app.core.channel_bridge.config_loader import load_user_config_entry
     from app.core.channel_bridge.config_parsers import (
         extract_mcp_configs,
         merge_org_mcp_configs,
     )
+    from app.core.types import MCPServerConfig
 
     org_mcp_dict = await load_user_config_entry("orgMcpServers")
     assert org_mcp_dict is not None

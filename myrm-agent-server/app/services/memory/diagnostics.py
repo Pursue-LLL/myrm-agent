@@ -376,6 +376,14 @@ class MemoryDiagnosticsService:
         )
 
     async def _record_run_event(self, run: MemoryCommandDiagnosticRun) -> tuple[bool, str | None]:
+        metadata = {
+            "diagnostic_run_id": run.id,
+            "diagnostic_status": run.status,
+            "probe_count": run.probe_count,
+            "failed_count": run.failed_count,
+            "duration_ms": run.duration_ms,
+        }
+        metadata.update(self._flatten_benchmark_metrics(run))
         try:
             await self._ledger.record_event(
                 kind=MemoryOperationKind.HEALTH_CHECK,
@@ -385,19 +393,47 @@ class MemoryDiagnosticsService:
                 target_kind="health",
                 target_id="diagnostic_run",
                 correlation_id=run.id,
-                metadata={
-                    "diagnostic_run_id": run.id,
-                    "diagnostic_status": run.status,
-                    "probe_count": run.probe_count,
-                    "failed_count": run.failed_count,
-                    "duration_ms": run.duration_ms,
-                },
+                metadata=metadata,
                 commit=True,
             )
             return True, None
         except Exception as exc:
             await self._db.rollback()
             return False, f"Diagnostic audit event failed to persist: {type(exc).__name__}"
+
+    def _flatten_benchmark_metrics(self, run: MemoryCommandDiagnosticRun) -> dict[str, str | int | float | None]:
+        """Flatten golden recall benchmark metrics into scalar ledger metadata.
+
+        `categories` is intentionally excluded: the ledger metadata model only
+        persists flat scalar values, and per-category detail is already rendered
+        from the live run response.
+        """
+
+        probe = next((p for p in run.probes if p.id == "golden_recall_benchmark" and p.benchmark_summary), None)
+        if probe is None or probe.benchmark_summary is None:
+            return {}
+        summary = probe.benchmark_summary
+        metrics: dict[str, str | int | float | None] = {
+            "benchmark_case_count": summary.case_count,
+            "benchmark_passed_count": summary.passed_count,
+            "benchmark_recall_at_k": summary.recall_at_k,
+            "benchmark_ndcg_at_k": summary.ndcg_at_k,
+            "benchmark_mrr_score": summary.mrr_score,
+            "benchmark_precision_at_k": summary.precision_at_k,
+            "benchmark_latency_p50_ms": summary.latency_p50_ms,
+            "benchmark_latency_p95_ms": summary.latency_p95_ms,
+            "benchmark_top_k": summary.top_k,
+        }
+        embedding_model = self._resolve_embedding_model()
+        if embedding_model is not None:
+            metrics["benchmark_embedding_model"] = embedding_model
+        return metrics
+
+    def _resolve_embedding_model(self) -> str | None:
+        """Resolve the active embedding model for baseline-shift annotation in trends."""
+        if self._memory_manager is None:
+            return None
+        return self._memory_manager.config.embedding_model
 
 
 type ProbeFactory = Callable[[], MemoryCommandDoctorCheck]

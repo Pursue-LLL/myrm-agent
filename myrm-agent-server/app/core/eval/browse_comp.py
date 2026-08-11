@@ -108,7 +108,7 @@ def _decrypt(ciphertext: str, password: str) -> str:
     encrypted = base64.b64decode(ciphertext)
     digest = hashlib.sha256(password.encode("utf-8")).digest()
     key = (digest * (len(encrypted) // len(digest) + 1))[: len(encrypted)]
-    return bytes(a ^ b for a, b in zip(encrypted, key)).decode("utf-8")
+    return bytes(a ^ b for a, b in zip(encrypted, key, strict=True)).decode("utf-8")
 
 
 def _verify_sha256(path: Path, expected: str) -> bool:
@@ -226,7 +226,11 @@ async def ensure_browse_comp_source(
 
 
 def _load_tasks() -> list[dict[str, str]]:
-    """Read and decrypt all BrowseComp rows into plain question/answer tasks."""
+    """Read and decrypt all BrowseComp rows into plain question/answer tasks.
+
+    Rows that fail to decrypt (corrupt base64 or undecodable plaintext) are
+    skipped so a single bad row cannot abort the whole benchmark build.
+    """
     tasks: list[dict[str, str]] = []
     with BROWSECOMP_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
         for row in csv.DictReader(handle):
@@ -235,10 +239,16 @@ def _load_tasks() -> list[dict[str, str]]:
             answer = str(row.get("answer") or "")
             if not problem or not answer or not canary:
                 continue
+            try:
+                question = _decrypt(problem, canary)
+                reference = _decrypt(answer, canary)
+            except (ValueError, UnicodeDecodeError):
+                logger.warning("Skipping BrowseComp row with undecryptable payload")
+                continue
             tasks.append(
                 {
-                    "question": _decrypt(problem, canary),
-                    "answer": _decrypt(answer, canary),
+                    "question": question,
+                    "answer": reference,
                     "problem_topic": str(row.get("problem_topic") or ""),
                 }
             )

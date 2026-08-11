@@ -13,7 +13,7 @@
 | `queries.py` | 核心 | 审批主链 evolution / draft case 查询；列表 summary、detail 单条加载；stats SQL 分桶计数；list merge fetch=limit+offset | ✅ |
 | `audit_queries.py` | 核心 | Ledger 事件审计与 timeline 查询（audit entries / stats / timeline） | ✅ |
 | `projection_queries.py` | 核心 | 技能成长账本投影查询层。把 `skill_growth.*` ledger 事件规范化为 projection 事件列表与摘要，补齐 `APPLY_FAILED` 等负向状态 | ✅ |
-| `lifecycle.py` | 核心 | 技能成长统一编排入口。接收 Harness 复盘结果，按类型与风险决定自动落地、人工审核、锁定拦截或扫描失败降级 | ✅ |
+| `lifecycle.py` | 核心 | 技能成长统一编排入口。接收 Harness 复盘结果，按类型与风险决定自动落地、人工审核、锁定拦截或扫描失败降级；sandbox 下 skill_draft/skill_patch 物化 fail-closed 跳过（写盘 agent 永不加载），semantic_memory 保留 | ✅ |
 
 ## 设计原则
 

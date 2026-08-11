@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import type {
   MemoryCommandCenterResponse,
   MemoryCommandConnectorStatus,
+  MemoryCommandDiagnosticHistoryItem,
   MemoryCommandDiagnosticRun,
   MemoryCommandEvalMetric,
   MemoryCommandPrivacySignal,
@@ -97,6 +98,7 @@ export const MemoryAdvancedVerifyPanels = ({
   t,
   actionId,
   diagnosticRun,
+  diagnosticHistory,
   onDoctorAction,
   onConnectClick,
 }: {
@@ -104,6 +106,7 @@ export const MemoryAdvancedVerifyPanels = ({
   t: MemoryTranslation;
   actionId: string | null;
   diagnosticRun: MemoryCommandDiagnosticRun | null;
+  diagnosticHistory: MemoryCommandDiagnosticHistoryItem[];
   onDoctorAction: (action: DoctorExecutableAction) => void;
   onConnectClick?: () => void;
 }) => {
@@ -131,6 +134,7 @@ export const MemoryAdvancedVerifyPanels = ({
           t={t}
           actionId={actionId}
           diagnosticRun={diagnosticRun}
+          diagnosticHistory={diagnosticHistory}
           onDoctorAction={onDoctorAction}
         />
       </Panel>

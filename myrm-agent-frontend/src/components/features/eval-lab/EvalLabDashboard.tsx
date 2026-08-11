@@ -34,7 +34,7 @@ import {
 } from '@/components/features/app-shell/lazy-recharts';
 import MatrixResultView, { type MatrixReportData } from './MatrixResultView';
 import CaseFormatReference from './CaseFormatReference';
-import WbBenchSources from './WbBenchSources';
+import BenchmarkSources from './BenchmarkSources';
 import MemoryAbHistoryTable, { type MemoryAbHistoryItem } from './MemoryAbHistoryTable';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 
@@ -820,7 +820,7 @@ export default function EvalLabDashboard() {
           </TabsContent>
 
           <TabsContent value="sources" className="h-full p-6 m-0">
-            <WbBenchSources
+            <BenchmarkSources
               running={running || matrixRunning || memoryAbRunning}
               history={history}
               onRun={handleBenchmarkRun}

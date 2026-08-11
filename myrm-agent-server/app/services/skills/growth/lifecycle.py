@@ -5,6 +5,7 @@
 - app.core.skills.creation.service::skill_creation_service (POS: Skill creation service)
 - app.core.skills.providers.local::compute_local_skill_id (POS: Local skill ID computation)
 - app.core.skills.store.service::skills_service (POS: Skill store service)
+- app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: 部署能力门控语义旗标)
 - ..auto_extractor::auto_extract_or_patch_skill (POS: 技能物化辅助器)
 - ..draft_notification (POS: 技能成长记录持久化)
 - myrm_agent_harness.backends.skills.similarity::SkillSimilarityChecker (POS: Skill similarity checking protocol)
@@ -30,6 +31,7 @@ from app.core.skills.config_version import bump_skill_config_version
 from app.core.skills.creation.service import skill_creation_service
 from app.core.skills.providers.local import compute_local_skill_id
 from app.core.skills.store.service import skills_service
+from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 
 from ..auto_extractor import auto_extract_or_patch_skill
 from ..draft_notification import (
@@ -108,6 +110,17 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
 
     if result_type == "semantic_memory":
         return cast(object | None, await notify_skill_draft_created(result))
+
+    # Local skill writes are disabled in sandbox mode — materializing would
+    # persist to a store the agent can never load. Fail closed: skip skill
+    # drafts/patches entirely, while semantic-memory drafts stay available
+    # (they do not touch the local skill store).
+    if not get_deployment_capabilities().allows_local_skills:
+        logger.info(
+            "Skill growth materialization skipped: local skills disabled in sandbox mode (%s)",
+            result_type,
+        )
+        return None
 
     skill_name = str(result.get("skill_name") or "")
     description = str(result.get("skill_description") or "")

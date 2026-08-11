@@ -311,6 +311,15 @@ PY
 _seed_providers_for_runtime() {
   if [[ "${MYRM_PRIVATE_BACKEND:-0}" == "1" ]] \
     || [[ "${MYRM_E2E_PRIVATE_BACKEND:-0}" == "1" ]]; then
+    # Attach-time PRIVATE seed targets a warm-pool backend that a short-lived
+    # maintainer may have already released; a failure here only delays attach
+    # and cannot cause a false product failure, because every PRIVATE item
+    # re-seeds its own backend in the bootstrap preflight_seed phase, which
+    # stays fail-closed below. Keep bootstrap-time (MYRM_E2E_API_ONLY=1) strict.
+    if [[ "${MYRM_E2E_API_ONLY:-0}" != "1" ]]; then
+      _maybe_seed_providers || true
+      return 0
+    fi
     # PRIVATE owns an isolated backend/database; allowing a failed seed to
     # pass would make the test observe stale provider state and report a
     # product failure unrelated to the requested scenario.

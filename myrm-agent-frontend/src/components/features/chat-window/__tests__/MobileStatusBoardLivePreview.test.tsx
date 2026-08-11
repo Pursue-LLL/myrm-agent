@@ -89,9 +89,7 @@ vi.mock('@/store/chat/goals/useGoalStore', () => ({
 
 vi.mock('@/store/useChatStore', () => {
   const store = {
-    messages: [
-      { role: 'assistant', messageId: '1', content: 'done', progressSteps: [], thinkingItems: [] },
-    ],
+    messages: [{ role: 'assistant', messageId: '1', content: 'done', progressSteps: [], thinkingItems: [] }],
     loading: false,
     stopMessage: vi.fn(),
     isMessagesLoaded: true,
@@ -111,30 +109,53 @@ vi.mock('@/store/useToolApprovalStore', () => {
 });
 
 const _browserState = {
-  viewData: null as null | { screenshotBase64: string; mimeType: string; pageUrl: string; updatedAt: number },
+  viewData: null as null | {
+    screenshotBase64: string;
+    mimeType: string;
+    pageUrl: string;
+    sourceChatId: string;
+    updatedAt: number;
+  },
   isSnapshotLoading: false,
 };
 
 const _desktopState = {
   viewData: null as null | {
-    screenshotBase64: string; mimeType: string; windowTitle: string;
-    appName: string; updatedAt: number;
+    screenshotBase64: string;
+    mimeType: string;
+    windowTitle: string;
+    appName: string;
+    sourceChatId: string;
+    updatedAt: number;
   },
   isSnapshotLoading: false,
 };
 
 vi.mock('@/store/useBrowserInspectorStore', () => {
   const fn = (selector: (s: typeof _browserState) => unknown) => selector(_browserState);
-  return { __esModule: true, default: fn };
+  return {
+    __esModule: true,
+    default: fn,
+    selectScopedBrowserViewData: (viewData: typeof _browserState.viewData, chatId: string | null | undefined) =>
+      viewData?.sourceChatId === chatId ? viewData : null,
+  };
 });
 
 vi.mock('@/store/useDesktopInspectorStore', () => {
   const fn = (selector: (s: typeof _desktopState) => unknown) => selector(_desktopState);
-  return { __esModule: true, default: fn };
+  return {
+    __esModule: true,
+    default: fn,
+    selectScopedDesktopViewData: (viewData: typeof _desktopState.viewData, chatId: string | null | undefined) =>
+      viewData?.sourceChatId === chatId ? viewData : null,
+  };
 });
 
 vi.mock('@/components/primitives/button', () => ({
-  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
+  Button: ({
+    children,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
     <button {...props}>{children}</button>
   ),
 }));
@@ -163,6 +184,7 @@ describe('MobileStatusBoard Live Preview', () => {
       screenshotBase64: 'abc',
       mimeType: 'image/png',
       pageUrl: 'https://example.com',
+      sourceChatId: 'test',
       updatedAt: Date.now(),
     };
     render(<MobileStatusBoard chatId="test" />);
@@ -176,6 +198,7 @@ describe('MobileStatusBoard Live Preview', () => {
       mimeType: 'image/png',
       windowTitle: 'Figma - Design',
       appName: 'Figma',
+      sourceChatId: 'test',
       updatedAt: Date.now(),
     };
     render(<MobileStatusBoard chatId="test" />);
@@ -189,6 +212,7 @@ describe('MobileStatusBoard Live Preview', () => {
       mimeType: 'image/png',
       windowTitle: '',
       appName: 'Excel',
+      sourceChatId: 'test',
       updatedAt: Date.now(),
     };
     render(<MobileStatusBoard chatId="test" />);
@@ -200,6 +224,7 @@ describe('MobileStatusBoard Live Preview', () => {
       screenshotBase64: 'abc',
       mimeType: 'image/png',
       pageUrl: 'https://example.com',
+      sourceChatId: 'test',
       updatedAt: Date.now(),
     };
     render(<MobileStatusBoard chatId="test" />);
@@ -216,6 +241,7 @@ describe('MobileStatusBoard Live Preview', () => {
       screenshotBase64: 'abc',
       mimeType: 'image/png',
       pageUrl: 'https://example.com',
+      sourceChatId: 'test',
       updatedAt: Date.now(),
     };
     render(<MobileStatusBoard chatId="test" />);
@@ -235,6 +261,7 @@ describe('MobileStatusBoard Live Preview', () => {
       screenshotBase64: 'abc',
       mimeType: 'image/png',
       pageUrl: 'https://example.com',
+      sourceChatId: 'test',
       updatedAt: Date.now(),
     };
     render(<MobileStatusBoard chatId="test" />);
@@ -252,6 +279,7 @@ describe('MobileStatusBoard Live Preview', () => {
       screenshotBase64: 'abc',
       mimeType: 'image/png',
       pageUrl: 'https://example.com',
+      sourceChatId: 'test',
       updatedAt: Date.now(),
     };
     render(<MobileStatusBoard chatId="test" />);

@@ -27,7 +27,7 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 
-from myrm_agent_harness.eval import get_benchmark, list_benchmarks
+from myrm_agent_harness.eval import MultiTurnEvalCase, get_benchmark, list_benchmarks
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ def build_benchmark_cases(
     *,
     progress_callback: Callable[[int, int], None] | None = None,
     should_abort: Callable[[], bool] | None = None,
-) -> tuple[list[object], dict[str, str]]:
+) -> tuple[list[MultiTurnEvalCase], dict[str, str]]:
     """Build runnable cases + workspace seed map for a benchmark handle.
 
     Returns ``(cases, workspace_seed_map)``; the seed map is empty for

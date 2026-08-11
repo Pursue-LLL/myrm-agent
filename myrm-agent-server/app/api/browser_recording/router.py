@@ -39,6 +39,7 @@ from app.services.browser_recording.session_manager import (
     get_session_export,
     list_active_sessions,
     register_session,
+    remove_session,
     step_to_dict,
 )
 from app.services.browser_recording.skill_generator import (
@@ -130,6 +131,10 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
     if not save_result.success:
         logger.error("Failed to save skill from recording %s: %s", req.session_id, save_result.error)
         raise HTTPException(status_code=500, detail=save_result.error or "Failed to save skill")
+
+    # The recording session is no longer needed once the skill is saved;
+    # drop it eagerly instead of waiting for the 30-minute TTL prune.
+    remove_session(req.session_id)
 
     # The skill system keys skills by name and computes the canonical id on
     # save; surface that real id (falling back to the name) instead of the

@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.browser::SessionVault (POS: 加密 session 存储)
-- myrm_agent_harness.toolkits.browser.backends::FileVaultBackend (POS: 文件后端)
+- myrm_agent_harness.toolkits.browser.session_vault.backends::FileVaultBackend (POS: 文件后端)
 - app.config.settings::DatabaseSettings (POS: 数据库配置，提供 state_dir)
 
 [OUTPUT]
@@ -21,7 +21,7 @@ import re
 from pathlib import Path
 
 from myrm_agent_harness.toolkits.browser import SessionVault
-from myrm_agent_harness.toolkits.browser.backends.file_backend import FileVaultBackend, load_or_create_key
+from myrm_agent_harness.toolkits.browser.session_vault.backends.file_backend import FileVaultBackend, load_or_create_key
 
 logger = logging.getLogger(__name__)
 

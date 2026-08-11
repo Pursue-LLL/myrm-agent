@@ -10,11 +10,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
-    create_bash_code_execute_tool,
-)
 from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
     reset_spawn_lifecycle_for_tests,
+)
+from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
+    create_bash_code_execute_tool,
 )
 from myrm_agent_harness.api.hooks import (
     get_background_registry,

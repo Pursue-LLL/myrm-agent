@@ -7,7 +7,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `orchestrator.py` | 核心 | 流式会话主编排：校验 → **`try_reserve` → E1 early `StreamingResponse`**（`orchestrator_turn_body.launch_early_buffered_stream`）；busy → `agent_busy_streaming_response`；`finally` release 预占 | ✅ |
-| `orchestrator_turn_body.py` | 核心 | E1 后台 turn：`run_pre_reply_compact_with_sse` → persist → prewarm → **`pump_to_buffer`**；multiplexed → JSON accepted；校验失败 → buffer error SSE | ✅ |
+| `orchestrator_turn_body.py` | 核心 | E1 后台 turn：**先提交 user row** → `run_pre_reply_compact_with_sse` → load history → prewarm → **`pump_to_buffer`**；multiplexed → JSON accepted；校验失败 → buffer error SSE | ✅ |
 | `pre_reply_compact_sse.py` | 核心 | Web pre-reply idle compact SSE 生命周期（active → gate → completed/failure；gate exception → failure SSE；复用 frontend `context_compaction` progress steps） | ✅ |
 | `stream_session_types.py` | 核心 | `AgentStreamSession` 数据类与断连宽限常量；承载流式会话起点时钟与端到端 TTFT 采样值（`stream_started_at_monotonic` / `stream_ttft_ms`）；`pre_reply_compact_result` + `pre_reply_compact_sse_sent` 供 pump 去重 SSE | ✅ |
 | `stream_disconnect.py` | 核心 | PWA 断连宽限与 Offline Durable Guardian 注册 | ✅ |

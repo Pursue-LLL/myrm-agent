@@ -19,7 +19,7 @@ vi.mock('next-intl', () => ({
         approve: 'Approve',
         reject: 'Reject',
         edit: 'Edit',
-        'expiresIn': 'Expires in {seconds}s',
+        expiresIn: 'Expires in {seconds}s',
         'permissionTypes.default': 'Tool',
       },
       humanize: {
@@ -43,10 +43,12 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/store/useDesktopInspectorStore', () => ({
   default: (selector: (state: { viewData: null }) => unknown) => selector({ viewData: null }),
+  selectScopedDesktopViewData: () => null,
 }));
 
 vi.mock('@/store/useBrowserInspectorStore', () => ({
   default: (selector: (state: { viewData: null }) => unknown) => selector({ viewData: null }),
+  selectScopedBrowserViewData: () => null,
 }));
 
 const saveSkillRequest: ToolApprovalRequest = {
@@ -70,13 +72,7 @@ const saveSkillRequest: ToolApprovalRequest = {
 
 describe('SingleApprovalCard save_skill', () => {
   it('renders SaveSkillApprovalPreview and custom approve/deny labels', () => {
-    render(
-      <SingleApprovalCard
-        request={saveSkillRequest}
-        onResolve={async () => {}}
-        isLoading={false}
-      />,
-    );
+    render(<SingleApprovalCard request={saveSkillRequest} onResolve={async () => {}} isLoading={false} />);
 
     expect(screen.getByTestId('save-skill-approval-preview')).toBeInTheDocument();
     expect(screen.getByText('Weekly digest skill')).toBeInTheDocument();

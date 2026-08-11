@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -186,8 +187,17 @@ def test_eval_router_remaining_branches(client: TestClient):
         patch(
             "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
         ),
+        patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
+        patch(
+            "app.core.channel_bridge.config_parsers.verify_search_service_available"
+        ) as mock_verify,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
+        mock_cfg.return_value = SimpleNamespace(
+            search_is_user_configured=True,
+            search_cfg=object(),
+        )
+        mock_verify.return_value = True
         res = client.post(
             "/api/v1/eval/benchmarks/run",
             json={
@@ -202,6 +212,94 @@ def test_eval_router_remaining_branches(client: TestClient):
         assert call_kwargs["benchmark_id"] == "browsecomp"
         assert call_kwargs["profile_id"] == "agent_x"
         assert call_kwargs["benchmark_mode"] is True
+
+    # --- /benchmarks/run: benchmark_mode web-search preflight (not configured) ---
+    with (
+        patch(
+            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+        ),
+        patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
+        patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
+    ):
+        mock_cfg.return_value = SimpleNamespace(
+            search_is_user_configured=False,
+            search_cfg=None,
+        )
+        res = client.post(
+            "/api/v1/eval/benchmarks/run",
+            json={"benchmark_id": "browsecomp", "benchmark_mode": True},
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "error"
+        assert "no search provider is configured" in res.json()["error"]
+        mock_bg.assert_not_called()
+
+    # --- /benchmarks/run: benchmark_mode web-search preflight (unreachable) ---
+    with (
+        patch(
+            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+        ),
+        patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
+        patch(
+            "app.core.channel_bridge.config_parsers.verify_search_service_available"
+        ) as mock_verify,
+        patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
+    ):
+        mock_cfg.return_value = SimpleNamespace(
+            search_is_user_configured=True,
+            search_cfg=object(),
+        )
+        mock_verify.return_value = False
+        res = client.post(
+            "/api/v1/eval/benchmarks/run",
+            json={"benchmark_id": "browsecomp", "benchmark_mode": True},
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "error"
+        assert "is unreachable" in res.json()["error"]
+        mock_bg.assert_not_called()
+
+    # --- /benchmarks/run: benchmark_mode web-search preflight (healthy) ---
+    with (
+        patch(
+            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+        ),
+        patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
+        patch(
+            "app.core.channel_bridge.config_parsers.verify_search_service_available"
+        ) as mock_verify,
+        patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
+    ):
+        mock_cfg.return_value = SimpleNamespace(
+            search_is_user_configured=True,
+            search_cfg=object(),
+        )
+        mock_verify.return_value = True
+        res = client.post(
+            "/api/v1/eval/benchmarks/run",
+            json={"benchmark_id": "browsecomp", "benchmark_mode": True},
+        )
+        assert res.json()["status"] == "started"
+        mock_bg.assert_called_once()
+
+    # --- /benchmarks/run: benchmark_mode off skips web-search preflight ---
+    with (
+        patch(
+            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
+        ),
+        patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
+        patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
+    ):
+        mock_cfg.return_value = SimpleNamespace(
+            search_is_user_configured=False,
+            search_cfg=None,
+        )
+        res = client.post(
+            "/api/v1/eval/benchmarks/run",
+            json={"benchmark_id": "browsecomp", "benchmark_mode": False},
+        )
+        assert res.json()["status"] == "started"
+        mock_bg.assert_called_once()
 
     # --- /benchmarks/download: already running ---
     with patch(

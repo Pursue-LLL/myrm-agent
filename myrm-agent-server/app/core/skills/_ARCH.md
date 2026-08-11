@@ -32,7 +32,6 @@
 | `store/sanitizer.py` | 核心 | 技能内容清洗 | — |
 | `store/user_config.py` | 核心 | 用户技能配置（enabled/disabled prebuilt、本地路径） | ✅ |
 | `packaging/__init__.py` | 核心 | 技能打包业务 Facade 适配 | — |
-| `history_tracking_service.py` | 核心 | 技能用量历史统计的业务 Facade 适配 | — |
 | `providers/local.py` | 核心 | 本地文件系统技能提供者 | — |
 | `config_version.py` | 核心 | 技能配置版本号管理（bump/get，Agent 热重载检测） | ✅ |
 | `state_manager_instance.py` | 核心 | 全局 SkillStateManager 单例（init/get） | ✅ |

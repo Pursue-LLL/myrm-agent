@@ -30,7 +30,7 @@ def _encrypt(plaintext: str, canary: str) -> str:
     data = plaintext.encode("utf-8")
     digest = hashlib.sha256(canary.encode("utf-8")).digest()
     key = (digest * (len(data) // len(digest) + 1))[: len(data)]
-    return base64.b64encode(bytes(a ^ b for a, b in zip(data, key))).decode("ascii")
+    return base64.b64encode(bytes(a ^ b for a, b in zip(data, key, strict=True))).decode("ascii")
 
 
 def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:
@@ -133,6 +133,34 @@ def test_build_browse_comp_cases_skips_malformed_rows() -> None:
     with patch.object(bc, "ensure_browse_comp_source", new=AsyncMock()):
         with pytest.raises(ValueError, match="No runnable BrowseComp tasks found"):
             bc.build_browse_comp_cases()
+
+
+def test_build_browse_comp_cases_skips_undecryptable_rows() -> None:
+    """A row with an undecryptable payload is skipped, not fatal."""
+    canary = "canary-A"
+    _write_csv(
+        bc.BROWSECOMP_CSV,
+        [
+            {
+                "canary": canary,
+                "problem": "not-base64!!",
+                "answer": _encrypt("Reference answer.", canary),
+                "problem_topic": "",
+            },
+            {
+                "canary": canary,
+                "problem": _encrypt("Research question B?", canary),
+                "answer": _encrypt("Reference answer B.", canary),
+                "problem_topic": "",
+            },
+        ],
+    )
+    with patch.object(bc, "ensure_browse_comp_source", new=AsyncMock()):
+        cases, seed_map = bc.build_browse_comp_cases()
+
+    assert seed_map == {}
+    assert len(cases) == 1
+    assert cases[0].turns[0].message == "Research question B?"
 
 
 def test_registry_exposes_browsecomp() -> None:

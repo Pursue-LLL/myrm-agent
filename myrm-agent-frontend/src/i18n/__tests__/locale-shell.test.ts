@@ -3,10 +3,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  DEFERRED_SETTINGS_SECTIONS,
-  SSR_SHELL_SETTINGS_SECTIONS,
-} from '@/i18n/locale-manifest';
+import { DEFERRED_SETTINGS_SECTIONS, SSR_SHELL_SETTINGS_SECTIONS } from '@/i18n/locale-manifest';
 import { mergeMessages } from '@/i18n/merge-messages';
 import type { Messages } from '@/i18n/locale-manifest';
 
@@ -24,6 +21,7 @@ describe('locale shell settings', () => {
     expect(SSR_SHELL_SETTINGS_SECTIONS).toContain('title');
     expect(SSR_SHELL_SETTINGS_SECTIONS).toContain('defaultModel');
     expect(SSR_SHELL_SETTINGS_SECTIONS).toContain('modelCapabilities');
+    expect(SSR_SHELL_SETTINGS_SECTIONS).toContain('wiki');
 
     const required = ['primaryModel', 'fallbackSlot', 'notSet', 'searchModels', 'noEnabledModels', 'noMatchingModels'];
     for (const locale of ['zh', 'en'] as const) {

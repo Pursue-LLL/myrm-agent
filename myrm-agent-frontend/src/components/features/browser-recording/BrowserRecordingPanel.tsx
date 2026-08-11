@@ -23,6 +23,7 @@ const BrowserRecordingPanel: React.FC = () => {
   const {
     isOpen,
     status,
+    mode,
     steps,
     error,
     generatedSkill,
@@ -179,6 +180,14 @@ const BrowserRecordingPanel: React.FC = () => {
           </button>
         )}
       </div>
+
+      {/* Manual mode hint */}
+      {isRecording && mode === 'manual' && (
+        <div className="flex items-start gap-2 px-3 py-2 bg-yellow-500/10 border-b border-yellow-500/20">
+          <AlertTriangle size={14} className="text-yellow-600 flex-shrink-0 mt-0.5" />
+          <span className="text-xs text-yellow-700 dark:text-yellow-400">{t('manualModeHint')}</span>
+        </div>
+      )}
 
       {/* Steps List */}
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1.5 max-h-[40vh]">

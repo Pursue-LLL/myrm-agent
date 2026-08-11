@@ -33,12 +33,13 @@ export const SSR_SHELL_SETTINGS_SECTIONS = [
   'languageChannelSyncDesc',
   'languageOptions',
   'themeStudio',
+  // Chat citations render Wiki claim labels before deferred settings load.
+  'wiki',
 ] as const satisfies readonly SettingsSection[];
 
 /** Remaining settings/* sections loaded via /api/i18n/deferred after mount. */
 export const DEFERRED_SETTINGS_SECTIONS = SETTINGS_SECTIONS.filter(
-  (section): section is SettingsSection =>
-    !(SSR_SHELL_SETTINGS_SECTIONS as readonly string[]).includes(section),
+  (section): section is SettingsSection => !(SSR_SHELL_SETTINGS_SECTIONS as readonly string[]).includes(section),
 );
 
 /** Top-level namespaces inlined in SSR shell (everything except deferred). */

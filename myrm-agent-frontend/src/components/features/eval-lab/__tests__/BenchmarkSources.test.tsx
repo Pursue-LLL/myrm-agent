@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import WbBenchSources from '../WbBenchSources';
+import BenchmarkSources from '../BenchmarkSources';
 
 interface ReportItem {
   timestamp?: number;
@@ -47,10 +47,10 @@ function renderSources(history: ReportItem[]) {
     downloadingBenchmarkId: null,
     downloadProgress: null,
   };
-  return render(<WbBenchSources {...props} />);
+  return render(<BenchmarkSources {...props} />);
 }
 
-describe('WbBenchSources Memory A/B entry', () => {
+describe('BenchmarkSources Memory A/B entry', () => {
   it('renders a Memory A/B button on the card', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify(sourcesPayload()), {
@@ -75,7 +75,7 @@ describe('WbBenchSources Memory A/B entry', () => {
       }),
     );
 
-    render(<WbBenchSources
+    render(<BenchmarkSources
       running={false}
       history={[]}
       onRun={vi.fn()}
@@ -105,7 +105,7 @@ describe('WbBenchSources Memory A/B entry', () => {
       }),
     );
 
-    render(<WbBenchSources
+    render(<BenchmarkSources
       running={false}
       history={[]}
       onRun={vi.fn()}
@@ -134,7 +134,7 @@ describe('WbBenchSources Memory A/B entry', () => {
       }),
     );
 
-    render(<WbBenchSources
+    render(<BenchmarkSources
       running={true}
       history={[]}
       onRun={vi.fn()}
@@ -166,7 +166,7 @@ describe('WbBenchSources Memory A/B entry', () => {
   });
 });
 
-describe('WbBenchSources', () => {
+describe('BenchmarkSources', () => {
   it('renders dataset cards and the downloaded badge', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify(sourcesPayload()), {
@@ -262,5 +262,51 @@ describe('WbBenchSources', () => {
     await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
     expect(screen.getByText('noReport')).toBeInTheDocument();
     expect(screen.queryByText('testPassRate')).not.toBeInTheDocument();
+  });
+
+  it('shows the web-search requirement badge when the benchmark declares it', async () => {
+    const payload = {
+      status: 'success',
+      sources: [
+        {
+          benchmark_id: 'browsecomp',
+          name: 'BrowseComp',
+          description: 'OpenAI web-research benchmark',
+          task_count: 1266,
+          approx_size_mb: 1,
+          is_downloaded: false,
+          local_size_bytes: 0,
+          scoring: 'llm_judge',
+          supports_memory_ab: true,
+          provider: 'external',
+          required_tools: ['web_search'],
+        },
+      ],
+    };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    renderSources([]);
+
+    await waitFor(() => expect(screen.getByText('BrowseComp')).toBeInTheDocument());
+    expect(screen.getByText('requiresWebSearch')).toBeInTheDocument();
+  });
+
+  it('omits the web-search badge for benchmarks without that requirement', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    renderSources([]);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    expect(screen.queryByText('requiresWebSearch')).not.toBeInTheDocument();
   });
 });

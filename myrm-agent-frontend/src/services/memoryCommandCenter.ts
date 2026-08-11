@@ -4,7 +4,7 @@
  * ./memory::MemoryType (POS: Frontend memory API client)
  *
  * [OUTPUT]
- * getMemoryCommandCenter, runMemoryCommandAction, runMemoryDiagnosticAction: Personal Brain Command Center API client with migration diagnostics and cleanup DTOs.
+ * getMemoryCommandCenter, runMemoryCommandAction, runMemoryDiagnosticAction, getMemoryDiagnosticHistory: Personal Brain Command Center API client with migration diagnostics and cleanup DTOs.
  *
  * [POS]
  * Frontend Personal Brain Command Center client. Owns command-center DTOs, GUI governance actions, executable diagnostics, migration integrity state, and import cleanup metrics.
@@ -414,6 +414,22 @@ export interface MemoryCommandActionResponse {
   action: string;
 }
 
+export interface MemoryCommandDiagnosticHistoryItem {
+  run_id: string;
+  status: 'ready' | 'warning' | 'critical' | 'missing';
+  occurred_at: string;
+  duration_ms: number;
+  probe_count: number;
+  failed_count: number;
+  benchmark?: MemoryCommandBenchmarkSummary | null;
+  embedding_model?: string | null;
+}
+
+export interface MemoryCommandDiagnosticHistoryResponse {
+  items: MemoryCommandDiagnosticHistoryItem[];
+  total: number;
+}
+
 export interface MemoryCommandDiagnosticActionRequest {
   action: 'run_diagnostics' | 'run_health_refresh';
 }
@@ -475,6 +491,16 @@ export const runMemoryDiagnosticAction = async (
     method: 'POST',
     body: JSON.stringify(body),
   });
+};
+
+export const getMemoryDiagnosticHistory = async (
+  limit = 24,
+  offset = 0,
+): Promise<MemoryCommandDiagnosticHistoryResponse> => {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  return apiRequest<MemoryCommandDiagnosticHistoryResponse>(
+    `/memory/command-center/diagnostics/history?${params.toString()}`,
+  );
 };
 
 export const getMemoryGraph = async (

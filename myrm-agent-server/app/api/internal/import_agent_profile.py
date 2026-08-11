@@ -12,7 +12,11 @@
 CP-to-sandbox internal endpoint for marketplace Agent installation and force-push updates.
 Receives a serialized Agent package, enforces contract/integrity + optional CP transport
 signature verification, then creates/updates the Agent + dependencies locally.
+Bundled-skill packages are rejected in sandbox deployment (local skills disabled).
 When `force=True`, snapshots the existing Agent before overwriting so the user can rollback.
+Force-push is a config update path: skill/subagent bindings are established by the
+initial import (which remaps IDs to the local store) and are never overwritten by
+publisher-side IDs.
 """
 
 from __future__ import annotations
@@ -150,6 +154,8 @@ async def import_agent_profile_endpoint(
             marketplace_entry_id=normalized_entry_id,
         )
         return ImportAgentProfileResponse(agent_id=agent_id, status="installed")
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -224,7 +230,7 @@ async def _force_update_agent(
     from app.services.agent.profile.profile_snapshot_service import ProfileSnapshotService
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
-    existing = await AgentService.get_agent(agent_id)
+    existing = await AgentService.get_agent_by_id(agent_id)
     if not existing:
         raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
 
@@ -252,8 +258,6 @@ async def _force_update_agent(
     if model_selection is not None:
         updates["model_selection"] = model_selection
 
-    if "skill_ids" in profile_data:
-        updates["skills"] = profile_data["skill_ids"]
     if "skill_configs" in profile_data:
         updates["skill_configs"] = profile_data["skill_configs"]
     if "memory_policy" in profile_data:
@@ -279,7 +283,6 @@ async def _force_update_agent(
     metadata_keys = (
         "mcp_ids",
         "mcp_tool_selections",
-        "subagent_ids",
         "security_overrides",
         "engine_params",
         "auto_restore_domains",

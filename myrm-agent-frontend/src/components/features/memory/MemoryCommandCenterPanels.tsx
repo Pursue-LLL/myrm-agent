@@ -21,6 +21,7 @@ import type {
   ConsolidationLastSummary,
   MemoryCommandCenterResponse,
   MemoryCommandConflictItem,
+  MemoryCommandDiagnosticHistoryItem,
   MemoryCommandDiagnosticRun,
   MemoryCommandGovernanceItem,
   MemoryCommandInfluenceItem,
@@ -237,6 +238,7 @@ export const VerifySection = ({
   t,
   actionId,
   diagnosticRun,
+  diagnosticHistory,
   onDoctorAction,
   onConnectClick,
 }: {
@@ -244,6 +246,7 @@ export const VerifySection = ({
   t: MemoryTranslation;
   actionId: string | null;
   diagnosticRun: MemoryCommandDiagnosticRun | null;
+  diagnosticHistory: MemoryCommandDiagnosticHistoryItem[];
   onDoctorAction: (action: DoctorAction) => void;
   onConnectClick?: () => void;
 }) => (
@@ -270,6 +273,7 @@ export const VerifySection = ({
       t={t}
       actionId={actionId}
       diagnosticRun={diagnosticRun}
+      diagnosticHistory={diagnosticHistory}
       onDoctorAction={onDoctorAction}
       onConnectClick={onConnectClick}
     />

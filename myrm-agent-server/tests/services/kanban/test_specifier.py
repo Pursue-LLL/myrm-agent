@@ -64,6 +64,19 @@ class TestExtractJsonBlob:
     def test_non_dict_json(self) -> None:
         assert extract_json_blob("[1, 2, 3]") is None
 
+    def test_unescaped_newline_in_string(self) -> None:
+        """推理模型在字符串字面量内输出裸换行时应容错提取。"""
+        raw = '{"title": "line one\nline two", "body": "B"}'
+        assert extract_json_blob(raw) == {"title": "line one\nline two", "body": "B"}
+
+    def test_multiple_objects_picks_last(self) -> None:
+        """格式示例对象在前、真实结果在后时应取真实结果（最后者）。"""
+        raw = (
+            '```json\n{"title": "example", "body": "demo"}\n```\n'
+            'real spec:\n{"title": "T", "body": "B"}'
+        )
+        assert extract_json_blob(raw) == {"title": "T", "body": "B"}
+
 
 # ---------------------------------------------------------------------------
 # PlatformTaskSpecifier tests

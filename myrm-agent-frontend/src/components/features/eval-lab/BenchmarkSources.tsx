@@ -14,7 +14,6 @@ import {
 } from '@/components/primitives/dialog';
 
 interface BenchmarkSource {
-  id: string;
   benchmark_id: string;
   name: string;
   description?: string;
@@ -24,7 +23,7 @@ interface BenchmarkSource {
   local_size_bytes: number;
   scoring?: string;
   supports_memory_ab?: boolean;
-  provider?: string;
+  required_tools?: string[];
 }
 
 interface ReportItem {
@@ -67,7 +66,7 @@ function scoringLabel(source: BenchmarkSource, t: (key: string) => string): { la
   return { label: t('scoringLlmsJudge'), title: t('scoringLlmsJudgeTitle') };
 }
 
-export default function WbBenchSources({
+export default function BenchmarkSources({
   running,
   history,
   onRun,
@@ -172,6 +171,11 @@ export default function WbBenchSources({
                       <Badge variant="secondary" className="bg-primary/10 text-primary" title={scoring.title}>
                         {scoring.label}
                       </Badge>
+                      {source.required_tools?.includes('web_search') && (
+                        <Badge variant="secondary" className="bg-sky-500/10 text-sky-600 dark:text-sky-400" title={t('requiresWebSearchTitle')}>
+                          {t('requiresWebSearch')}
+                        </Badge>
+                      )}
                       {source.is_downloaded ? (
                         <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                           {t('downloaded')}

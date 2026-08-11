@@ -21,13 +21,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db_session
 from app.api.memory.utils import get_crud_memory_manager
-from app.database.models.memory import PendingMemory
+from app.database.models.memory import MemoryOperationEventModel, PendingMemory
 from app.schemas.memory.command_center import (
     MemoryCommandActionRequest,
     MemoryCommandActionResponse,
+    MemoryCommandBenchmarkSummary,
     MemoryCommandCenterResponse,
     MemoryCommandDiagnosticActionRequest,
     MemoryCommandDiagnosticActionResponse,
+    MemoryCommandDiagnosticHistoryItem,
+    MemoryCommandDiagnosticHistoryResponse,
     MemoryCommandGraphEdge,
     MemoryCommandGraphNode,
     MemoryCommandGraphResponse,
@@ -183,6 +186,19 @@ async def run_memory_diagnostic_action(
     return MemoryCommandDiagnosticActionResponse(status=_diagnostic_action_status(run.status), action=body.action, run=run)
 
 
+@router.get("/diagnostics/history", response_model=MemoryCommandDiagnosticHistoryResponse)
+async def list_memory_diagnostic_history(
+    limit: int = 24,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db_session),
+) -> MemoryCommandDiagnosticHistoryResponse:
+    """Return persisted Memory Doctor benchmark history for regression trends."""
+
+    events = await MemoryOperationLedgerService(db).list_diagnostic_events(limit=limit, offset=offset)
+    items = [_diagnostic_history_item(event) for event in events]
+    return MemoryCommandDiagnosticHistoryResponse(items=items, total=len(items))
+
+
 @router.post("/diagnostics/repairs", response_model=MemoryCommandRepairActionResponse)
 async def run_memory_diagnostic_repair(
     body: MemoryCommandRepairActionRequest,
@@ -280,6 +296,50 @@ def _diagnostic_action_status(run_status: str) -> Literal["completed", "complete
     if run_status in {"warning", "missing"}:
         return "completed_with_findings"
     return "failed"
+
+
+def _diagnostic_history_item(event: MemoryOperationEventModel) -> MemoryCommandDiagnosticHistoryItem:
+    """Map one diagnostic audit ledger row into a trend-ready history item.
+
+    Benchmark metrics are reconstructed from flat metadata keys persisted by
+    `MemoryDiagnosticsService._record_run_event`; `categories` detail is not
+    persisted and therefore omitted from history items.
+    """
+
+    metadata = event.metadata_json or {}
+    benchmark = None
+    if isinstance(metadata.get("benchmark_recall_at_k"), (int, float)):
+        benchmark = MemoryCommandBenchmarkSummary(
+            case_count=int(metadata.get("benchmark_case_count") or 0),
+            passed_count=int(metadata.get("benchmark_passed_count") or 0),
+            recall_at_k=float(metadata["benchmark_recall_at_k"]),
+            ndcg_at_k=float(metadata.get("benchmark_ndcg_at_k") or 0.0),
+            mrr_score=float(metadata.get("benchmark_mrr_score") or 0.0),
+            precision_at_k=float(metadata.get("benchmark_precision_at_k") or 0.0),
+            latency_p50_ms=float(metadata.get("benchmark_latency_p50_ms") or 0.0),
+            latency_p95_ms=float(metadata.get("benchmark_latency_p95_ms") or 0.0),
+            top_k=int(metadata.get("benchmark_top_k") or 5),
+        )
+    embedding_model = metadata.get("benchmark_embedding_model")
+    return MemoryCommandDiagnosticHistoryItem(
+        run_id=str(metadata.get("diagnostic_run_id") or event.id),
+        status=_history_status(event.status, metadata),
+        occurred_at=event.occurred_at,
+        duration_ms=float(metadata.get("duration_ms") or 0.0),
+        probe_count=int(metadata.get("probe_count") or 0),
+        failed_count=int(metadata.get("failed_count") or 0),
+        benchmark=benchmark,
+        embedding_model=embedding_model if isinstance(embedding_model, str) else None,
+    )
+
+
+def _history_status(event_status: str, metadata: dict[str, object]) -> Literal["ready", "warning", "critical", "missing"]:
+    diagnostic_status = metadata.get("diagnostic_status")
+    if isinstance(diagnostic_status, str) and diagnostic_status in {"ready", "warning", "critical", "missing"}:
+        return diagnostic_status  # type: ignore[return-value]
+    if event_status in {"ready", "warning", "critical", "missing"}:
+        return event_status  # type: ignore[return-value]
+    return "missing"
 
 
 # ── Consolidation Rollback Endpoints ──

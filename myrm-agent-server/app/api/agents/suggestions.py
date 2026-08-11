@@ -5,6 +5,7 @@
 - core.channel_bridge.config_parsers::extract_lite_model_config (POS: resolve lite/filter model)
 - myrm_agent_harness.toolkits.llms.llm_manager::get_llm_from_config (POS: LangChain LLM construction)
 - core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
+- core.utils.chat_utils::parse_llm_json_list (POS: 容错 JSON 数组解析 SSOT)
 
 [OUTPUT]
 - POST /agents/suggestions: JSON array of 3 concise follow-up questions
@@ -15,7 +16,6 @@ configured lite/filter model. Falls back to default model if no lite model set.
 """
 
 import asyncio
-import json
 import logging
 
 from fastapi import APIRouter, Request
@@ -26,7 +26,7 @@ from pydantic.alias_generators import to_camel
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
 from app.core.types import ModelConfig
-from app.core.utils.chat_utils import extract_answer_text
+from app.core.utils.chat_utils import extract_answer_text, parse_llm_json_list
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -113,18 +113,16 @@ def _resolve_lite_model(
 def _parse_suggestions(content: str) -> list[str]:
     """Extract a list of suggestion strings from LLM output.
 
-    Tries JSON array first, falls back to line-based extraction.
+    Prefers a JSON array parsed by :func:`parse_llm_json_list`, which
+    tolerates fences, prose framing, unescaped newlines inside string
+    literals, and format examples preceding the real array. Falls back to
+    line-based extraction for non-JSON replies.
     """
-    content = content.strip()
-    start = content.find("[")
-    end = content.rfind("]")
-    if start != -1 and end != -1:
-        try:
-            parsed = json.loads(content[start : end + 1])
-            if isinstance(parsed, list):
-                return [str(item).strip() for item in parsed[:5] if str(item).strip()]
-        except (json.JSONDecodeError, ValueError):
-            pass
+    parsed = parse_llm_json_list(content)
+    if parsed is not None:
+        suggestions = [str(item).strip() for item in parsed[:5] if str(item).strip()]
+        if suggestions:
+            return suggestions
 
     lines = [line.strip().lstrip("0123456789.-) ") for line in content.splitlines() if line.strip()]
     return [line for line in lines if len(line) > 5][:5]

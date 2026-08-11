@@ -7,7 +7,7 @@ Covers the three-branch event determination introduced by Optimization B:
 3. Non-PENDING (resolved) approvals emit SKILL_GROWTH_UPDATED.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

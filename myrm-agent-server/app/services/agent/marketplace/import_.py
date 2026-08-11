@@ -9,6 +9,8 @@ created via SkillCreationService; Agents are persisted via AgentService.
 - services.agent.agent_service::AgentService (POS: Agent CRUD 服务)
 - services.agent.marketplace.package_contract::validate_marketplace_package
   (POS: Marketplace 包契约与完整性校验)
+- platform_utils.deployment_capabilities::get_deployment_capabilities
+  (POS: 部署能力判据，sandbox 下 bundled skills 写盘 fail-closed)
 - Marketplace package dict (from marketplace_export)
 
 [OUTPUT]
@@ -28,6 +30,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Mapping
 
+from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 from app.services.agent.marketplace.package_contract import (
     MarketplaceBundledSkillContract,
     MarketplaceBundledSubagentContract,
@@ -78,6 +81,16 @@ async def import_agent_package(
     bundled_skills = validated_package.bundled_skills
     bundled_subagents = validated_package.bundled_subagents
     package_payload_sha256 = validated_package.trust.payload_sha256
+
+    # Bundled skills are written to the local skill store, which the agent can
+    # never load in sandbox deployment (local skills disabled). Fail closed so a
+    # package never installs skills that silently go missing at runtime.
+    if bundled_skills and not get_deployment_capabilities().allows_local_skills:
+        raise ValueError(
+            "Marketplace import rejected: bundled skills are not supported in "
+            "sandbox deployment (local skills are disabled). Use a local "
+            "deployment or a package without bundled skills."
+        )
 
     _preflight_skill_name_conflicts(skill_svc, bundled_skills)
 

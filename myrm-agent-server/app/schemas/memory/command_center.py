@@ -328,6 +328,26 @@ class MemoryCommandDiagnosticRun(BaseModel):
     probes: list[MemoryCommandDiagnosticProbeResult] = Field(default_factory=list)
 
 
+class MemoryCommandDiagnosticHistoryItem(BaseModel):
+    """One historical diagnostic run with persisted golden recall benchmark metrics."""
+
+    run_id: str
+    status: Literal["ready", "warning", "critical", "missing"]
+    occurred_at: datetime
+    duration_ms: float
+    probe_count: int
+    failed_count: int
+    benchmark: MemoryCommandBenchmarkSummary | None = None
+    embedding_model: str | None = None
+
+
+class MemoryCommandDiagnosticHistoryResponse(BaseModel):
+    """Chronological diagnostic history for Memory Doctor trend rendering."""
+
+    items: list[MemoryCommandDiagnosticHistoryItem] = Field(default_factory=list)
+    total: int = 0
+
+
 class MemoryCommandPlaneSummary(BaseModel):
     """Content-free memory health summary safe for a control plane."""
 

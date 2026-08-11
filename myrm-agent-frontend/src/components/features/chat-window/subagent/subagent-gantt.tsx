@@ -38,8 +38,9 @@ export const MiniGantt = ({ nodes, t }: { nodes: TreeNode[]; t: (key: string) =>
   const totalSec = totalSpan / 1000;
 
   return (
-    <div className="mb-2">
+    <div className="mb-2" data-testid="subagent-gantt">
       <button
+        data-testid="subagent-gantt-toggle"
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
       >

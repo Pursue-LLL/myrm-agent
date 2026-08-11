@@ -40,11 +40,13 @@ import { ActSection, ObserveSection, UnderstandSection, VerifySection } from './
 import {
   getMemoryCommandCenter,
   getConsolidationLastSummary,
+  getMemoryDiagnosticHistory,
   rollbackConsolidation,
   runMemoryCommandAction,
   runMemoryDiagnosticRepair,
   type ConsolidationLastSummary,
   type MemoryCommandCenterResponse,
+  type MemoryCommandDiagnosticHistoryItem,
   type MemoryCommandDiagnosticRun,
   type MemoryCommandGovernanceItem,
   type MemoryCommandTimelineEvent,
@@ -85,6 +87,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   const [actionId, setActionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [diagnosticRun, setDiagnosticRun] = useState<MemoryCommandDiagnosticRun | null>(null);
+  const [diagnosticHistory, setDiagnosticHistory] = useState<MemoryCommandDiagnosticHistoryItem[]>([]);
   const [rollbackPreview, setRollbackPreview] = useState<MemoryImportRollbackPreviewResponse | null>(null);
   const [rollbackResult, setRollbackResult] = useState<MemoryImportRollbackResponse | null>(null);
   const [rollbackDialogOpen, setRollbackDialogOpen] = useState(false);
@@ -121,9 +124,10 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
     setLoading(true);
     setError(null);
     try {
-      const [snap, consolSummary] = await Promise.all([
+      const [snap, consolSummary, history] = await Promise.all([
         getMemoryCommandCenter(selectedProjectId, { signal: controller.signal }),
         getConsolidationLastSummary().catch(() => null),
+        getMemoryDiagnosticHistory(24).catch(() => ({ items: [], total: 0 })),
       ]);
       if (controller.signal.aborted) return;
       registerMigrationSourceManifest(snap.migration.source_manifest, {
@@ -131,6 +135,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
       });
       setSnapshot(snap);
       setConsolidationSummary(consolSummary);
+      setDiagnosticHistory(history.items);
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : t('unknownError'));
@@ -567,6 +572,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
           t={t}
           actionId={actionId}
           diagnosticRun={diagnosticRun}
+          diagnosticHistory={diagnosticHistory}
           onDoctorAction={runDoctorAction}
           onConnectClick={() => setConnectWizardOpen(true)}
         />

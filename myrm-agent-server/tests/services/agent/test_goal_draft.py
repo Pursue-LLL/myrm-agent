@@ -30,3 +30,29 @@ def test_parse_draft_json_from_markdown_fence():
     text = 'Here you go:\n```json\n{"ui_summary": "A", "constraints": [], "acceptance_criteria": []}\n```'
     parsed = _parse_draft_json(text)
     assert parsed.get("ui_summary") == "A"
+
+
+def test_parse_draft_json_unescaped_newline():
+    from app.services.agent.goals.goal_draft import _parse_draft_json
+
+    text = '{"ui_summary": "Ship\nfast", "constraints": [], "acceptance_criteria": []}'
+    parsed = _parse_draft_json(text)
+    assert parsed.get("ui_summary") == "Ship\nfast"
+
+
+def test_parse_draft_json_picks_last_object():
+    """格式示例对象在前、真实草稿在后时应取真实结果（最后者）。"""
+    from app.services.agent.goals.goal_draft import _parse_draft_json
+
+    text = (
+        '```json\n{"ui_summary": "example", "constraints": [], "acceptance_criteria": []}\n```\n'
+        'real draft:\n{"ui_summary": "A", "constraints": [], "acceptance_criteria": []}'
+    )
+    parsed = _parse_draft_json(text)
+    assert parsed.get("ui_summary") == "A"
+
+
+def test_parse_draft_json_garbage_returns_empty():
+    from app.services.agent.goals.goal_draft import _parse_draft_json
+
+    assert _parse_draft_json("no json at all") == {}

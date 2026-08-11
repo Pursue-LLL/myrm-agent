@@ -1,6 +1,6 @@
 """Tests for shared LLM judge JSON parsing helpers in chat_utils.
 
-Covers the tolerant object extraction (markdown fences, prose framing,
+Covers the tolerant object/array extraction (markdown fences, prose framing,
 unescaped newlines inside string literals) and the done-key judge contract
 used by the kanban verifier and the goal semantic judge.
 """
@@ -9,7 +9,11 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.utils.chat_utils import parse_judge_json, parse_llm_json_object
+from app.core.utils.chat_utils import (
+    parse_judge_json,
+    parse_llm_json_list,
+    parse_llm_json_object,
+)
 
 # ── parse_llm_json_object ──
 
@@ -37,6 +41,20 @@ class TestParseLlmJsonObject:
         assert parsed is not None
         assert parsed["reasoning"] == "line one\nline two"
 
+    def test_unescaped_tab_in_string(self) -> None:
+        """字符串字面量内的裸 tab 等控制字符也应容错转义。"""
+        raw = '{"score": 0.9, "reasoning": "col1\tcol2"}'
+        parsed = parse_llm_json_object(raw)
+        assert parsed is not None
+        assert parsed["reasoning"] == "col1\tcol2"
+
+    def test_unescaped_bell_char_in_string(self) -> None:
+        """罕见控制字符（如 \\x07）也应通过 \\uXXXX 转义恢复。"""
+        raw = '{"score": 0.8, "reasoning": "beep\x07stop"}'
+        parsed = parse_llm_json_object(raw)
+        assert parsed is not None
+        assert parsed["reasoning"] == "beep\x07stop"
+
     def test_multiple_fences_picks_last_parseable_dict(self) -> None:
         """推理模型先给格式示例块、再给真实结果块时应取真实结果（最后者）。"""
         raw = (
@@ -53,6 +71,12 @@ class TestParseLlmJsonObject:
         parsed = parse_llm_json_object(raw)
         assert parsed is not None
         assert parsed["score"] == pytest.approx(0.8)
+
+    def test_brackets_inside_strings_ignored(self) -> None:
+        """字符串字面量内的花括号/方括号不参与结构计数。"""
+        raw = '{"reason": "He said {ok} and [fine]", "done": false}'
+        parsed = parse_llm_json_object(raw)
+        assert parsed == {"reason": "He said {ok} and [fine]", "done": False}
 
     def test_fence_then_bare_object_picks_last(self) -> None:
         """fence 块在前、裸对象在后（真实判定）时应取裸对象。"""
@@ -86,6 +110,51 @@ class TestParseLlmJsonObject:
 
     def test_non_dict_json_returns_none(self) -> None:
         assert parse_llm_json_object("[1, 2, 3]") is None
+
+
+# ── parse_llm_json_list ──
+
+
+class TestParseLlmJsonList:
+    def test_plain_array(self) -> None:
+        parsed = parse_llm_json_list('["a", "b", "c"]')
+        assert parsed == ["a", "b", "c"]
+
+    def test_markdown_fence(self) -> None:
+        raw = '```json\n["a", "b", "c"]\n```'
+        assert parse_llm_json_list(raw) == ["a", "b", "c"]
+
+    def test_prose_framing(self) -> None:
+        raw = 'Here are questions: ["a", "b"] Thanks!'
+        assert parse_llm_json_list(raw) == ["a", "b"]
+
+    def test_unescaped_newline_in_string(self) -> None:
+        raw = '["first line\nsecond", "plain"]'
+        parsed = parse_llm_json_list(raw)
+        assert parsed == ["first line\nsecond", "plain"]
+
+    def test_multiple_arrays_picks_last(self) -> None:
+        """推理模型先给格式示例数组、再给真实结果数组时应取真实结果（最后者）。"""
+        raw = (
+            '```json\n["example one", "example two"]\n```\n'
+            'final questions:\n```json\n["real one", "real two", "real three"]\n```'
+        )
+        parsed = parse_llm_json_list(raw)
+        assert parsed == ["real one", "real two", "real three"]
+
+    def test_array_wrapped_in_object(self) -> None:
+        """LLM 偶发返回 {suggestions: [...]} 包裹对象时应提取内层数组。"""
+        raw = '{"suggestions": ["q1", "q2", "q3"]}'
+        assert parse_llm_json_list(raw) == ["q1", "q2", "q3"]
+
+    def test_empty_and_garbage_return_none(self) -> None:
+        assert parse_llm_json_list("") is None
+        assert parse_llm_json_list("   ") is None
+        assert parse_llm_json_list("not json at all") is None
+
+    def test_non_array_json_returns_none(self) -> None:
+        assert parse_llm_json_list('{"score": 0.9}') is None
+        assert parse_llm_json_list('"just a string"') is None
 
 
 # ── parse_judge_json ──

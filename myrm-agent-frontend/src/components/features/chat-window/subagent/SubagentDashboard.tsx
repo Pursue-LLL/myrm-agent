@@ -56,6 +56,7 @@ const SortFilterBar = ({
     {SORT_OPTIONS.map((opt) => (
       <button
         key={opt.value}
+        data-testid={`subagent-sort-${opt.value}`}
         onClick={() => onSortChange(opt.value)}
         className={`px-2 py-0.5 text-[11px] rounded-full border transition-colors ${
           sort === opt.value
@@ -71,6 +72,7 @@ const SortFilterBar = ({
     {FILTER_OPTIONS.map((opt) => (
       <button
         key={opt.value}
+        data-testid={`subagent-filter-${opt.value}`}
         onClick={() => onFilterChange(opt.value)}
         className={`px-2 py-0.5 text-[11px] rounded-full border transition-colors ${
           filter === opt.value
@@ -391,6 +393,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
             <MiniGantt nodes={flatNodes} t={t} />
             {fissionBatch && fissionBatch.total > 0 && (
               <div
+                data-testid="subagent-fission-summary"
                 className={`mb-4 rounded-lg border p-3 text-sm ${
                   fissionBatch.failed > 0 ? 'border-amber-500/30 bg-amber-500/5' : 'border-primary/20 bg-primary/5'
                 }`}

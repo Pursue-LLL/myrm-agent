@@ -12,11 +12,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 
-from app.core.utils.chat_utils import parse_judge_json
 from app.core.kanban.verifier import (
     KanbanCompletionVerifier,
     _parse_criteria,
 )
+from app.core.utils.chat_utils import parse_judge_json
 
 # --------------- parse_judge_json tests ---------------
 

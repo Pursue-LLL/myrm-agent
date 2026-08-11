@@ -22,7 +22,6 @@
 | `drafts.py` | 模块 | Agent Draft Inbox API：按 status 查询 growth drafts；`POST /drafts/test/seed-mock?agent_id=` 本地 E2E seed；approve skill_draft/skill_patch 受沙箱能力门控（延迟导入避免 router 循环依赖） | ✅ |
 | `experience_ledger.py` | 模块 | 经验账本接口层。对外暴露原始 ledger 事件查询，以及 skill-growth projection 事件/摘要查询。 | ✅ |
 | `growth.py` | 模块 | Unified skill growth API：`GET /cases` summary、`GET /cases/{id}` detail、`GET /stats` 全量 status COUNT 统计 | ✅ |
-| `history.py` | 模块 | HTTP API for skill modification history and rollback operations；`POST /{skill_id}/rollback` 经 `HistoryTrackingSkillWriteBackend` 写 `~/.myrm/skills`，受沙箱能力门控（延迟导入避免 router 循环依赖） | ✅ |
 | `instances.py` | 模块 | Skill instances API - CRUD operations for multi-instance skill support. | ✅ |
 | `local.py` | 模块 | Local skills management endpoints | ✅ |
 | `migrations.py` | 模块 | Controlled migration review API；approve skill_import 直接写 `~/.myrm/skills`，受沙箱能力门控（延迟导入避免独立加载循环依赖） | ✅ |

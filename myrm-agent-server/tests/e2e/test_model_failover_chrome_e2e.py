@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import copy
 import json
 import sys
 import time
@@ -56,7 +55,7 @@ _FAILOVER_STEP_JS = """(() => {
   return { ready: false, msg_count: msgs.length };
 })()"""
 
-_ASISTANT_OK_JS = """(() => {
+_ASSISTANT_OK_JS = """(() => {
   const store = window.__myrmChatStore?.getState?.();
   const msgs = store?.messages || [];
   for (let i = msgs.length - 1; i >= 0; i -= 1) {

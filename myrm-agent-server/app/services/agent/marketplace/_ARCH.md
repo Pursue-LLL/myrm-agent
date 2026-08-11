@@ -14,7 +14,7 @@ Agent Marketplace 导入/导出与包契约 SSOT。跨沙箱分发 Agent 配置 
 |------|------|------|-------|
 | `package_contract.py` | 核心 | 包类型/版本/trust 契约 + 完整性校验 + transport HMAC | ✅ |
 | `export.py` | 核心 | `export_agent_package` — 剥离敏感字段、打包依赖 | ✅ |
-| `import_.py` | 核心 | `import_agent_package` — 契约门 + 原子回滚安装 | ✅ |
+| `import_.py` | 核心 | `import_agent_package` — 契约门 + 原子回滚安装；sandbox 下 bundled skills 写盘 fail-closed（本地技能禁用，写盘 agent 永不加载） | ✅ |
 | `__init__.py` | 门面 | 对外 re-export 公共 API | ✅ |
 
 ---

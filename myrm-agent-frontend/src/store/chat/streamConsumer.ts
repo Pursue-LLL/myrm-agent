@@ -270,9 +270,7 @@ export async function executeStreamWithRetry(
       if (multiplexBridge) {
         const workspaceReady = await connectionManager.waitUntilReady(30_000);
         if (!workspaceReady.ok) {
-          throw new Error(
-            workspaceReady.err ?? 'Workspace multiplex stream not ready before agent-stream POST',
-          );
+          throw new Error(workspaceReady.err ?? 'Workspace multiplex stream not ready before agent-stream POST');
         }
       }
 
@@ -336,45 +334,22 @@ export async function executeStreamWithRetry(
           headers: { 'Content-Type': 'text/event-stream' },
         });
 
-        await consumeStream(
-          mockResponse,
-          input,
-          state,
-          actions,
-          abortController,
-          added,
-          recievedMessage,
-          { onBusinessEvent },
-        );
+        await consumeStream(mockResponse, input, state, actions, abortController, added, recievedMessage, {
+          onBusinessEvent,
+        });
       } else if (multiplexBridge) {
         // Multiplex success returns JSON accepted; text/event-stream on POST is an early
         // terminal response (AgentBusyError, risk_blocked, etc.) — must not drain it.
         if (contentType.includes('text/event-stream')) {
-          await consumeStream(
-            res,
-            input,
-            state,
-            actions,
-            abortController,
-            added,
-            recievedMessage,
-            { onBusinessEvent },
-          );
+          await consumeStream(res, input, state, actions, abortController, added, recievedMessage, { onBusinessEvent });
         } else {
           void drainResponseBodyInBackground(res);
           const mockResponse = new Response(multiplexBridge, {
             headers: { 'Content-Type': 'text/event-stream' },
           });
-          await consumeStream(
-            mockResponse,
-            input,
-            state,
-            actions,
-            abortController,
-            added,
-            recievedMessage,
-            { onBusinessEvent },
-          );
+          await consumeStream(mockResponse, input, state, actions, abortController, added, recievedMessage, {
+            onBusinessEvent,
+          });
         }
       } else {
         await consumeStream(res, input, state, actions, abortController, added, recievedMessage, { onBusinessEvent });
@@ -475,8 +450,7 @@ export async function consumeStream(
   const DATA_TIMEOUT = 5 * 60 * 1000;
   let firstDataReceived = false;
   let stoppedEarly = false;
-  const recoveryDeadline =
-    options?.maxWaitMs !== undefined ? Date.now() + Math.max(0, options.maxWaitMs) : null;
+  const recoveryDeadline = options?.maxWaitMs !== undefined ? Date.now() + Math.max(0, options.maxWaitMs) : null;
 
   const scheduler = new AdaptiveScheduler();
 
@@ -543,6 +517,13 @@ export async function consumeStream(
 
         if (line.startsWith(dataPrefix)) {
           const jsonStr = line.substring(dataPrefix.length).trim();
+          if (currentSseEvent === 'heartbeat') {
+            // ResilientStreamBuffer emits protocol keepalives with a null body.
+            // They must not enter the business-event schema or warning path.
+            currentSseEvent = '';
+            startIndex = newlineIndex + 1;
+            continue;
+          }
           if (jsonStr && currentSseEvent === 'e2ee_frame') {
             const session = loadStoredE2EESession();
             if (session) {
@@ -570,9 +551,7 @@ export async function consumeStream(
                 continue;
               }
               if (isAgentBusySseEvent(event as { type: string } & Record<string, unknown>)) {
-                throw new AgentBusyError(
-                  'Agent is busy processing another request for this session.',
-                );
+                throw new AgentBusyError('Agent is busy processing another request for this session.');
               }
               try {
                 options?.onBusinessEvent?.(event);
@@ -589,10 +568,7 @@ export async function consumeStream(
                 streamActions,
                 state.files,
               ));
-              if (
-                options?.untilApprovalQueued &&
-                useToolApprovalStore.getState().queue.length > 0
-              ) {
+              if (options?.untilApprovalQueued && useToolApprovalStore.getState().queue.length > 0) {
                 stoppedEarly = true;
                 break;
               }

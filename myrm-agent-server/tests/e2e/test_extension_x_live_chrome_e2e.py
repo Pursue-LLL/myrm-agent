@@ -16,11 +16,11 @@ if str(_LIB) not in sys.path:
 from cdp_chat_support import (  # noqa: E402
     ensure_e2e_memory_disabled,
     ensure_e2e_yolo_mode,
+    get_e2e_api_url,
     wait_chat_messages_done,
     wait_e2e_backend_ready,
     wait_e2e_cdp_ready,
     wait_e2e_provider_ready,
-    get_e2e_api_url,
 )
 from dev_gate_contract import EvaluateIntent  # noqa: E402
 from e2e_live_flows._flow_base import FlowLogger  # noqa: E402

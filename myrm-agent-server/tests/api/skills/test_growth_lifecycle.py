@@ -153,3 +153,82 @@ async def test_process_skill_review_result_marks_failed_scan_for_malicious_skill
         if persisted is not None:
             await db.delete(persisted)
             await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_process_skill_review_result_skipped_in_sandbox(
+    mock_local_skills_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sandbox disables local skills — skill growth materialization must fail closed.
+
+    Writing a grown skill to a store the agent can never load is a silent failure,
+    so sandbox mode must skip skill drafts/patches entirely (no write, no draft).
+    """
+    from app.config.deploy_mode import get_deploy_mode
+    from app.platform_utils.deployment_capabilities import (
+        _reset_capabilities_cache_for_testing,
+    )
+
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+    monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+
+    result = {
+        "has_value": True,
+        "user_id": "growth_user_sandbox",
+        "type": "skill_draft",
+        "skill_name": "sandbox-grown-skill",
+        "skill_description": "Capture a workflow in sandbox.",
+    }
+
+    draft = await process_skill_review_result(result)
+
+    assert draft is None
+    assert not (mock_local_skills_dir / "sandbox-grown-skill" / "SKILL.md").exists()
+
+    monkeypatch.delenv("DEPLOY_MODE", raising=False)
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+
+
+@pytest.mark.asyncio
+async def test_process_skill_review_result_keeps_semantic_memory_in_sandbox(
+    mock_local_skills_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Semantic-memory drafts do not touch local skills — they stay available in sandbox."""
+    from app.config.deploy_mode import get_deploy_mode
+    from app.platform_utils.deployment_capabilities import (
+        _reset_capabilities_cache_for_testing,
+    )
+
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+    monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+
+    result = {
+        "has_value": True,
+        "user_id": "growth_user_mem_sandbox",
+        "type": "semantic_memory",
+        "skill_name": "sandbox-memory",
+        "skill_description": "A durable memory fact captured by the agent.",
+    }
+
+    draft = await process_skill_review_result(result)
+
+    assert draft is not None
+
+    monkeypatch.delenv("DEPLOY_MODE", raising=False)
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+
+    async with get_session() as db:
+        persisted = await db.get(type(draft), draft.id)
+        if persisted is not None:
+            await db.delete(persisted)
+            await db.commit()

@@ -11,7 +11,7 @@ Control Plane → sandbox internal 控制端点（中断、killswitch、归档�
 | `agent_interrupt.py` | 模块 | CP-to-sandbox internal endpoint for interrupting agent execution | ✅ |
 | `import_archive.py` | 模块 | CP-to-sandbox internal endpoint for importing offboarding volume archive | ✅ |
 | `skills_killswitch.py` | 模块 | CP-to-sandbox internal endpoint for remote skill killswitch management | ✅ |
-| `import_agent_profile.py` | 模块 | CP-to-sandbox internal endpoint for marketplace Agent profile installation and force-push updates (with pre-snapshot for rollback) | ✅ |
+| `import_agent_profile.py` | 模块 | CP-to-sandbox internal endpoint for marketplace Agent profile installation and force-push updates (with pre-snapshot for rollback; force-push never overwrites skill/subagent bindings established by import) | ✅ |
 | `org_mcp_sync.py` | 模块 | CP-to-sandbox internal endpoint for syncing org-level MCP server configurations; filters stdio when `MCP_ALLOW_STDIO=false` | ✅ |
 | `org_model_policy_sync.py` | 模块 | CP-to-sandbox model policy sync；POST 落盘 + bump revision + `execution_cache.close_all()`；GET `/org-policy/allowed-models` 返回 canonical patterns 供 FE 灰显 | ✅ |
 | `org_managed_approval_policy_sync.py` | 模块 | CP-to-sandbox internal endpoint for syncing org managed approval policy; POST sync + `AppEventType.MANAGED_POLICY_UPDATED` SSE fanout | ✅ |

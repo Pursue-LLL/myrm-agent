@@ -3,11 +3,13 @@
 import json
 from collections.abc import Generator
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.eval import browse_comp  # noqa: F401  (module-level benchmark registration)
 from app.core.eval.executor import LocalEvalExecutor
 from tests.support.minimal_app import build_minimal_app
 
@@ -425,6 +427,33 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
         )
         assert res.status_code == 200
         assert res.json()["status"] == "already_running"
+        mock_bg.assert_not_called()
+
+    # BrowseComp requires web search in benchmark_mode; a missing search
+    # provider must fail fast with guidance instead of a misleading 0-score
+    # comparison on both memory arms (mirrors the benchmark-run pre-flight).
+    with (
+        patch(
+            "app.api.eval.memory_ab_router.get_memory_ab_status",
+            return_value={"is_running": False},
+        ),
+        patch(
+            "app.services.agent.platform_config.verify_platform_embedding_ready",
+            new=AsyncMock(),
+        ),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+        ) as mock_load_configs,
+        patch("app.api.eval.memory_ab_router.run_memory_ab_background") as mock_bg,
+    ):
+        configs = SimpleNamespace(search_is_user_configured=False, search_cfg=None)
+        mock_load_configs.return_value = configs
+        res = client.post(
+            "/api/v1/eval/memory-ab/run", json={"benchmark_id": "browsecomp"}
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "error"
+        assert "requires web search" in res.json()["error"]
         mock_bg.assert_not_called()
 
     # abort not running

@@ -104,13 +104,13 @@ vi.mock('@/store/useToolApprovalStore', () => {
 vi.mock('@/store/useBrowserInspectorStore', () => {
   const fn = (selector: (s: Record<string, unknown>) => unknown) =>
     selector({ viewData: null, isSnapshotLoading: false });
-  return { __esModule: true, default: fn };
+  return { __esModule: true, default: fn, selectScopedBrowserViewData: () => null };
 });
 
 vi.mock('@/store/useDesktopInspectorStore', () => {
   const fn = (selector: (s: Record<string, unknown>) => unknown) =>
     selector({ viewData: null, isSnapshotLoading: false });
-  return { __esModule: true, default: fn };
+  return { __esModule: true, default: fn, selectScopedDesktopViewData: () => null };
 });
 
 vi.mock('@/components/primitives/button', () => ({

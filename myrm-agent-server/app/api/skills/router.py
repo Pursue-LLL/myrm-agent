@@ -9,7 +9,6 @@ from app.api.skills import (
     curator,
     discovery,
     drafts,
-    history,
     instances,
     local,
     packaging,
@@ -36,7 +35,6 @@ router.include_router(curator.router, tags=["skills-curator"])
 # These routers have /{skill_id}/... patterns that could match /curator/...
 router.include_router(packaging.router, tags=["skills-packaging"])
 router.include_router(permissions.router, tags=["skills-permissions"])
-router.include_router(history.router, tags=["skills-history"])
 router.include_router(instances.router, tags=["skills-instances"])
 router.include_router(config.router, tags=["skills-config"])
 router.include_router(test_fixtures.router, tags=["skills-test-fixtures"])

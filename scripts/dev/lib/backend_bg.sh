@@ -203,8 +203,24 @@ _start_backend_bg() {
           return 0
         fi
       else
-        # owner 存在但连续 3 次探活失败：kill 真 owner（不是记录 pid），重启。
-        echo "STACK_HEAL: backend on :${backend_port} unhealthy after retries (pid=${port_owner_pid}) — kill and restart" >&2
+        # owner 存在但连续 3 次探活失败：只有确认没有活跃 peer 时才可
+        # kill 真 owner。共享并行会话期间必须保留 owner，避免一次探活
+        # 抖动把其他 session 的 backend 一并中断；特权 crash-heal 只在
+        # 已明确授权的 supervisor/wave recovery 路径允许重建。
+        local guard_root strict_active_leases
+        guard_root="$(cd "${server_dir}/../.." && pwd)"
+        strict_active_leases="$(_wave_active_lease_count_strict "${guard_root}")"
+        if [[ "${strict_active_leases}" == "unknown" ]]; then
+          echo "STACK_DEFER: backend on :${backend_port} unhealthy after retries (pid=${port_owner_pid}); lease state unavailable — preserving listener" >&2
+          return 1
+        fi
+        if [[ "${strict_active_leases}" -gt 0 ]] \
+          && [[ "${MYRM_SUPERVISOR_BYPASS:-0}" != "1" ]] \
+          && [[ "${MYRM_WAVE_GATE_BYPASS:-0}" != "1" ]]; then
+          echo "STACK_DEFER: backend on :${backend_port} unhealthy after retries (pid=${port_owner_pid}); active leases=${strict_active_leases} — preserving listener" >&2
+          return 1
+        fi
+        echo "STACK_HEAL: backend on :${backend_port} unhealthy after retries (pid=${port_owner_pid}); active leases=${strict_active_leases} — kill and restart" >&2
         need_rebuild=1
         rebuild_target="${port_owner_pid}"
       fi

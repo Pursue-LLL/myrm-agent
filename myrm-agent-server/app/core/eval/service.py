@@ -10,8 +10,11 @@
 [OUTPUT]
 - run_eval_suite: runs the standard eval suite for a user.
 - run_eval_suite_background: background wrapper with progress via _eval_state.
-- run_wb_bench_background / run_wb_bench_download_background: WorkBuddy Bench
-  subset run and download-only flows with progress via _eval_state.
+- run_benchmark_background / run_benchmark_download_background: generic
+  benchmark run and download-only flows (WBBench subsets + registered
+  third-party benchmarks) with progress via _eval_state.
+- run_wb_bench_background / run_wb_bench_download_background: legacy
+  WorkBuddy Bench entry points delegating to the generic flows.
 
 [POS]
 Orchestrates the execution of the evaluation framework within the Server layer.
@@ -55,7 +58,7 @@ _eval_state: dict[str, object] = {
 }
 
 
-def _report_wb_bench_download_progress(downloaded: int, total: int) -> None:
+def _report_benchmark_download_progress(downloaded: int, total: int) -> None:
     """Record the current WorkBuddy Bench download progress into global state.
 
     Called from the download stream (potentially a worker thread for the run
@@ -68,26 +71,9 @@ def _report_wb_bench_download_progress(downloaded: int, total: int) -> None:
     }
 
 
-def _wb_bench_abort_requested() -> bool:
+def _benchmark_abort_requested() -> bool:
     """Report whether the user requested abort of the current download."""
     return bool(_eval_state.get("abort_requested"))
-
-
-def _init_wb_bench_state(subset_id: str) -> None:
-    """Reset global eval state for a WBBench background flow (run or download-only)."""
-    _eval_state.clear()
-    _eval_state.update(
-        {
-            "is_running": True,
-            "total": 0,
-            "completed": 0,
-            "error": None,
-            "abort_requested": False,
-            "stage": "downloading",
-            "stage_subset_id": subset_id,
-            "download_progress": {"downloaded_bytes": 0, "total_bytes": 0},
-        }
-    )
 
 
 def _init_benchmark_state(stage_label: str) -> None:
@@ -111,8 +97,8 @@ def _init_benchmark_state(stage_label: str) -> None:
     )
 
 
-def _reset_wb_bench_state() -> None:
-    """Clear run flags and stage markers when a WBBench flow finishes."""
+def _reset_benchmark_state() -> None:
+    """Clear run flags and stage markers when a benchmark flow finishes."""
     _eval_state["is_running"] = False
     _eval_state["stage"] = None
     _eval_state["stage_subset_id"] = None
@@ -168,7 +154,9 @@ async def _build_eval_manifest(
     prompt_fingerprint = "none"
 
     if profile_id:
-        from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
+        from app.services.agent.profile.profile_resolver import (
+            get_agent_profile_resolver,
+        )
 
         resolved = await get_agent_profile_resolver().resolve(profile_id)
         if resolved:
@@ -294,15 +282,15 @@ async def run_benchmark_background(
 
     try:
         from app.core.eval.benchmarks import (
-            build_benchmark_cases,
             benchmark_required_tools,
+            build_benchmark_cases,
         )
 
         cases, seed_map = await asyncio.to_thread(
             build_benchmark_cases,
             benchmark_id,
-            progress_callback=_report_wb_bench_download_progress,
-            should_abort=_wb_bench_abort_requested,
+            progress_callback=_report_benchmark_download_progress,
+            should_abort=_benchmark_abort_requested,
         )
         # An abort during the download/extract worker phase is only visible
         # after the thread returns; never start evaluating after a cancel.
@@ -326,7 +314,7 @@ async def run_benchmark_background(
             logger.exception("Benchmark %s evaluation failed", benchmark_id)
             _eval_state["error"] = str(exc)
     finally:
-        _reset_wb_bench_state()
+        _reset_benchmark_state()
 
 
 async def run_benchmark_download_background(
@@ -353,8 +341,8 @@ async def run_benchmark_download_background(
         await asyncio.to_thread(
             ensure_benchmark_source,
             benchmark_id,
-            progress_callback=_report_wb_bench_download_progress,
-            should_abort=_wb_bench_abort_requested,
+            progress_callback=_report_benchmark_download_progress,
+            should_abort=_benchmark_abort_requested,
         )
     except Exception as exc:
         if _eval_state.get("abort_requested"):
@@ -363,7 +351,7 @@ async def run_benchmark_download_background(
             logger.exception("Benchmark %s download failed", benchmark_id)
             _eval_state["error"] = str(exc)
     finally:
-        _reset_wb_bench_state()
+        _reset_benchmark_state()
 
 
 async def run_wb_bench_background(

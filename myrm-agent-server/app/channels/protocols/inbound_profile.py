@@ -44,7 +44,7 @@ CHANNEL_INBOUND_SPECS: dict[str, ChannelInboundSpec] = {
     "wecom_aibot": ChannelInboundSpec(InboundMode.OUTBOUND, "wecomAibotCredentials", "botId"),
     "webhook": ChannelInboundSpec(InboundMode.OUTBOUND, None, None),
     "whatsapp": ChannelInboundSpec(InboundMode.OUTBOUND, None, None),
-    "wechat": ChannelInboundSpec(InboundMode.OUTBOUND, "wechatCredentials", "botId"),
+    "wechat": ChannelInboundSpec(InboundMode.OUTBOUND, "wechatCredentials", "botToken"),
     "wechat_official": ChannelInboundSpec(InboundMode.INBOUND, "wechatOfficialCredentials", "appId"),
     "imessage": ChannelInboundSpec(InboundMode.OUTBOUND, "imessageCredentials", "apiUrl"),
     "line": ChannelInboundSpec(InboundMode.INBOUND, "lineCredentials", "channelAccessToken"),
@@ -52,13 +52,13 @@ CHANNEL_INBOUND_SPECS: dict[str, ChannelInboundSpec] = {
     "wecom": ChannelInboundSpec(InboundMode.INBOUND, "wecomCredentials", "corpId"),
     "teams": ChannelInboundSpec(InboundMode.INBOUND, "teamsCredentials", "appId"),
     "googlechat": ChannelInboundSpec(InboundMode.INBOUND, "googlechatCredentials", "serviceAccountJson"),
-    "matrix": ChannelInboundSpec(InboundMode.INBOUND, "matrixCredentials", "homeserver"),
-    "mattermost": ChannelInboundSpec(InboundMode.INBOUND, "mattermostCredentials", "serverUrl"),
-    "email": ChannelInboundSpec(InboundMode.INBOUND, "emailCredentials", "imapHost"),
-    "signal": ChannelInboundSpec(InboundMode.INBOUND, "signalCredentials", "phoneNumber"),
-    "irc": ChannelInboundSpec(InboundMode.INBOUND, "ircCredentials", "server"),
-    "zalo": ChannelInboundSpec(InboundMode.INBOUND, "zaloCredentials", "oaId"),
-    "qq": ChannelInboundSpec(InboundMode.INBOUND, "qqCredentials", "appId"),
+    "matrix": ChannelInboundSpec(InboundMode.OUTBOUND, "matrixCredentials", "homeserverUrl"),
+    "mattermost": ChannelInboundSpec(InboundMode.OUTBOUND, "mattermostCredentials", "serverUrl"),
+    "email": ChannelInboundSpec(InboundMode.OUTBOUND, "emailCredentials", "imapHost"),
+    "signal": ChannelInboundSpec(InboundMode.OUTBOUND, "signalCredentials", "phoneNumber"),
+    "irc": ChannelInboundSpec(InboundMode.OUTBOUND, "ircCredentials", "server"),
+    "zalo": ChannelInboundSpec(InboundMode.INBOUND, "zaloCredentials", "accessToken"),
+    "qq": ChannelInboundSpec(InboundMode.OUTBOUND, "qqCredentials", "appId"),
     "onebot": ChannelInboundSpec(InboundMode.INBOUND, "onebotCredentials", "host"),
     "voice": ChannelInboundSpec(InboundMode.INBOUND, "twilioCredentials", "accountSid"),
     "github": ChannelInboundSpec(InboundMode.INBOUND, "githubCredentials", "webhookSecret"),
@@ -94,8 +94,9 @@ def resolve_channel_ingress_mode(channel: str, creds: dict[str, object] | None) 
     if spec.mode == InboundMode.INBOUND:
         return "inbound"
 
-    if not creds:
-        return "outbound"
+    if spec.mode == InboundMode.CONDITIONAL:
+        # Config-key guard above guarantees credentials for conditional channels.
+        assert creds is not None
 
     if channel == "feishu":
         transport = _field_value(creds, "transport") or "websocket"

@@ -763,3 +763,186 @@ def test_subagent_dashboard_canvas_merges_fission_topology(
             merged.get("ready") is True
         ), f"Fission topology not merged into canvas: {merged}"
         assert int(merged.get("nodeCount") or 0) >= 3, f"Expected >=3 canvas nodes: {merged}"
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_subagent_dashboard_tree_renders_gantt_fission_and_filter(
+    running_subagent: dict[str, object],
+) -> None:
+    """Tree view renders the gantt chart, the fission summary banner and live filter controls."""
+    chat_id = str(running_subagent.get("chatId") or "")
+    task_id = str(running_subagent.get("taskId") or "")
+    assert chat_id and task_id
+    tree_row = running_subagent.get("treeRow")
+    fallback_rows: list[dict[str, object]] = [
+        row for row in [tree_row] if isinstance(row, dict)
+    ]
+    ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+
+    with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
+        _open_subagent_dashboard(
+            client,
+            page,
+            chat_id,
+            fallback_rows=fallback_rows,
+        )
+        seeded = client.evaluate(
+            page,
+            """(() => {
+              const store = window.__myrmSubagentStore?.getState?.();
+              if (!store) return false;
+              const now = Date.now();
+              store.setNodes([
+                {
+                  task_id: 'tree-seed-alpha',
+                  parent_task_id: '',
+                  agent_type: 'research',
+                  description: 'Research Alpha',
+                  status: 'running',
+                  progress: 40,
+                  startedAt: now - 120000,
+                  duration_seconds: 300,
+                },
+                {
+                  task_id: 'tree-seed-beta',
+                  parent_task_id: '',
+                  agent_type: 'review',
+                  description: 'Review Beta',
+                  status: 'completed',
+                  progress: 100,
+                  startedAt: now - 90000,
+                  duration_seconds: 60,
+                },
+              ]);
+              store.setFissionBatch({
+                active: true,
+                total: 3,
+                completed: 1,
+                failed: 1,
+                partial: true,
+              });
+              return true;
+            })()""",
+            timeout_sec=10.0,
+        )
+        assert seeded is True, "Tree seed via store bridge failed"
+        tree_view = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
+              const summary = panel?.querySelector('[data-testid="subagent-fission-summary"]');
+              const gantt = panel?.querySelector('[data-testid="subagent-gantt"]');
+              return {
+                ready: !!summary && !!gantt,
+                hasSummary: !!summary,
+                hasGantt: !!gantt,
+                summaryText: summary?.textContent || '',
+                panelText: panel?.textContent?.slice(0, 400) || '',
+              };
+            })()""",
+            timeout_sec=30.0,
+        )
+        assert (
+            tree_view.get("ready") is True
+        ), f"Fission summary or gantt missing: {tree_view}"
+        summary_text = str(tree_view.get("summaryText") or "")
+        assert (
+            "/3" in summary_text and "1" in summary_text
+        ), f"Fission partial progress (1/3) not rendered: {tree_view}"
+        summary_cls = client.evaluate(
+            page,
+            """(() => {
+              const el = document.querySelector('[data-testid="subagent-fission-summary"]');
+              return el ? (el.className || '') : '';
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert (
+            isinstance(summary_cls, str) and "border-amber" in summary_cls
+        ), f"Fission failed summary should use warning style: {summary_cls}"
+        gantt_expanded = client.evaluate(
+            page,
+            """(() => {
+              const toggle = document.querySelector('[data-testid="subagent-gantt-toggle"]');
+              if (!toggle) return false;
+              toggle.click();
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert gantt_expanded is True, "Gantt toggle missing"
+        gantt_bars = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const gantt = document.querySelector('[data-testid="subagent-gantt"]');
+              const bars = gantt ? gantt.querySelectorAll('div[title]').length : 0;
+              const labels = gantt ? Array.from(gantt.querySelectorAll('span[title]')).map((n) => n.getAttribute('title') || '') : [];
+              return {
+                ready: bars >= 2 && labels.some((l) => /Research Alpha/.test(l)) && labels.some((l) => /Review Beta/.test(l)),
+                bars,
+                labels,
+              };
+            })()""",
+            timeout_sec=15.0,
+        )
+        assert gantt_bars.get("ready") is True, f"Gantt bars missing: {gantt_bars}"
+        filter_result = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const runningBtn = document.querySelector('[data-testid="subagent-filter-running"]');
+              if (!runningBtn) return { ready: false, reason: 'filter-running missing' };
+              runningBtn.click();
+              return { ready: true };
+            })()""",
+            timeout_sec=10.0,
+        )
+        assert filter_result.get("ready") is True, filter_result
+        filtered = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
+              const text = panel?.textContent || '';
+              return {
+                ready: /Research Alpha/.test(text) && !/Review Beta/.test(text),
+                text: text.slice(0, 400),
+              };
+            })()""",
+            timeout_sec=15.0,
+        )
+        assert filtered.get("ready") is True, f"Filter running did not hide completed: {filtered}"
+        all_restored = client.evaluate(
+            page,
+            """(() => {
+              const allBtn = document.querySelector('[data-testid="subagent-filter-all"]');
+              if (!allBtn) return false;
+              allBtn.click();
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert all_restored is True
+        restored = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
+              const text = panel?.textContent || '';
+              return {
+                ready: /Research Alpha/.test(text) && /Review Beta/.test(text),
+                text: text.slice(0, 400),
+              };
+            })()""",
+            timeout_sec=15.0,
+        )
+        assert restored.get("ready") is True, f"Filter all did not restore nodes: {restored}"

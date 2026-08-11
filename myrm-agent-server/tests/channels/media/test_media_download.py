@@ -8,9 +8,9 @@ import pytest
 from myrm_agent_harness.core.security.http.secure_fetch import SecureHttpTarget
 
 from app.channels.media import (
+    MAX_FORWARD_DOWNLOAD_BYTES,
     ContentTypeError,
     LRUMemoryCache,
-    MAX_FORWARD_DOWNLOAD_BYTES,
     MediaDownloadConfig,
     MediaDownloader,
     SizeExceededError,
