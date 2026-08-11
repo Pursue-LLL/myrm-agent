@@ -28,6 +28,8 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.goals.manager import GoalManager
 
+from app.core.utils.chat_utils import extract_litellm_answer_text
+
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider
     from myrm_agent_harness.agent.goals.types import Goal, GoalStatus
@@ -231,14 +233,8 @@ class ServerGoalManager(GoalManager):
                 timeout=10,
                 **llm_kwargs,
             )
-            msg = response.choices[0].message
-            raw = (msg.content or "").strip()
-
-            # Reasoning models may produce empty content with reasoning in a separate field
-            if not raw:
-                reasoning = getattr(msg, "reasoning_content", None) or ""
-                if reasoning:
-                    raw = reasoning.strip()
+            # 统一提取：兼容 Anthropic 块列表 / reasoning 模型 content 空回退（含 think 剥离）
+            raw = extract_litellm_answer_text(response).strip()
 
             parsed = _parse_judge_json(raw)
 
