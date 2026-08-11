@@ -296,6 +296,7 @@ async def _force_update_agent(
         "dialog_policy",
         "session_recording",
         "home_directory",
+        "allow_discovery",
     )
     meta_update: dict[str, object] = {}
     for mk in metadata_keys:

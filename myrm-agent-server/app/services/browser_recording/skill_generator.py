@@ -142,7 +142,10 @@ def _yaml_single_line(value: str) -> str:
     break the frontmatter YAML block.
     """
     escaped = (
-        value.replace("\\", "\\\\").replace('"', '\\"').replace("\r", " ").replace("\n", " ")
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\r", " ")
+        .replace("\n", " ")
     )
     return f'"{escaped}"'
 
@@ -166,7 +169,8 @@ def _build_skill_content(
     credential_section = ""
     if credential_labels:
         cred_lines = [
-            f'- Step {seq}: `fill_credential "{label}"`' for seq, label in credential_labels.items()
+            f'- Step {seq}: `fill_credential "{label}"`'
+            for seq, label in credential_labels.items()
         ]
         credential_section = f"""
 ## Credentials

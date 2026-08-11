@@ -20,7 +20,11 @@ import logging
 import re
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.browser import FileVaultBackend, SessionVault, load_or_create_key
+from myrm_agent_harness.toolkits.browser import (
+    FileVaultBackend,
+    SessionVault,
+    load_or_create_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +106,11 @@ def get_agent_session_vault(agent_id: str) -> SessionVault:
     )
 
     _agent_vaults[agent_id] = vault
-    logger.info("Agent SessionVault initialized (agent_id=%s, vault_dir=%s)", agent_id, vault_dir)
+    logger.info(
+        "Agent SessionVault initialized (agent_id=%s, vault_dir=%s)",
+        agent_id,
+        vault_dir,
+    )
     return vault
 
 
@@ -139,6 +147,8 @@ async def cleanup_all_agent_vaults() -> int:
             removed = await vault.cleanup_expired()
             total_removed += removed
         except Exception as exc:
-            logger.warning("Failed to cleanup expired sessions for agent %s: %s", agent_id, exc)
+            logger.warning(
+                "Failed to cleanup expired sessions for agent %s: %s", agent_id, exc
+            )
 
     return total_removed

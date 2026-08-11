@@ -423,6 +423,8 @@ class AgentRepository:
                 )
             if "subagent_ids" in metadata:
                 agent.subagent_ids = cast(list[str], metadata["subagent_ids"])
+            if "allow_discovery" in metadata:
+                agent.allow_discovery = bool(metadata["allow_discovery"])
             if "workspace_policy" in metadata:
                 agent.workspace_policy = cast(str, metadata["workspace_policy"])
             if "engine_params" in metadata:

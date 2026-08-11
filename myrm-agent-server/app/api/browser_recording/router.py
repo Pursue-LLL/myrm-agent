@@ -90,7 +90,9 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
 
     session = get_session(req.session_id)
     if not session:
-        raise HTTPException(status_code=404, detail=f"Session not found: {req.session_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Session not found: {req.session_id}"
+        )
 
     if session.status != "stopped":
         raise HTTPException(
@@ -129,8 +131,14 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
         description=description,
     )
     if not save_result.success:
-        logger.error("Failed to save skill from recording %s: %s", req.session_id, save_result.error)
-        raise HTTPException(status_code=500, detail=save_result.error or "Failed to save skill")
+        logger.error(
+            "Failed to save skill from recording %s: %s",
+            req.session_id,
+            save_result.error,
+        )
+        raise HTTPException(
+            status_code=500, detail=save_result.error or "Failed to save skill"
+        )
 
     # The recording session is no longer needed once the skill is saved;
     # drop it eagerly instead of waiting for the 30-minute TTL prune.
@@ -217,7 +225,9 @@ async def recording_websocket(ws: WebSocket) -> None:
             try:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
-                await ws.send_text(json.dumps({"type": "error", "message": "Invalid JSON"}))
+                await ws.send_text(
+                    json.dumps({"type": "error", "message": "Invalid JSON"})
+                )
                 continue
 
             msg_type = msg.get("type", "")
@@ -233,7 +243,9 @@ async def recording_websocket(ws: WebSocket) -> None:
                     capture_engine = ActionCaptureEngine(page, capture_screenshots=True)
                     forwarder = _WsStepForwarder(ws)
                     capture_engine.add_callback(forwarder)
-                    current_session = await capture_engine.start(start_url=msg.get("url", ""))
+                    current_session = await capture_engine.start(
+                        start_url=msg.get("url", "")
+                    )
                 else:
                     session_id = uuid.uuid4().hex[:12]
                     current_session = CaptureSession(
@@ -243,13 +255,19 @@ async def recording_websocket(ws: WebSocket) -> None:
                     )
 
                 register_session(current_session)
-                await ws.send_text(json.dumps({
-                    "type": "session_started",
-                    "session_id": current_session.session_id,
-                    "mode": mode,
-                }))
+                await ws.send_text(
+                    json.dumps(
+                        {
+                            "type": "session_started",
+                            "session_id": current_session.session_id,
+                            "mode": mode,
+                        }
+                    )
+                )
                 if mode == "manual":
-                    logger.info("Recording started in manual mode (no active browser page)")
+                    logger.info(
+                        "Recording started in manual mode (no active browser page)"
+                    )
 
             elif msg_type == "stop":
                 if capture_engine:
@@ -257,11 +275,15 @@ async def recording_websocket(ws: WebSocket) -> None:
                     capture_engine = None
                 if current_session:
                     current_session.status = "stopped"
-                    await ws.send_text(json.dumps({
-                        "type": "session_stopped",
-                        "session_id": current_session.session_id,
-                        "step_count": len(current_session.steps),
-                    }))
+                    await ws.send_text(
+                        json.dumps(
+                            {
+                                "type": "session_stopped",
+                                "session_id": current_session.session_id,
+                                "step_count": len(current_session.steps),
+                            }
+                        )
+                    )
                     current_session = None
 
             elif msg_type == "pause":
@@ -280,19 +302,27 @@ async def recording_websocket(ws: WebSocket) -> None:
 
             elif msg_type == "step":
                 if not current_session or current_session.status != "recording":
-                    await ws.send_text(json.dumps({
-                        "type": "error",
-                        "message": "No active recording session",
-                    }))
+                    await ws.send_text(
+                        json.dumps(
+                            {
+                                "type": "error",
+                                "message": "No active recording session",
+                            }
+                        )
+                    )
                     continue
 
                 try:
                     action_type = ActionType(msg.get("action", "click"))
                 except ValueError:
-                    await ws.send_text(json.dumps({
-                        "type": "error",
-                        "message": f"Unknown action type: {msg.get('action')}",
-                    }))
+                    await ws.send_text(
+                        json.dumps(
+                            {
+                                "type": "error",
+                                "message": f"Unknown action type: {msg.get('action')}",
+                            }
+                        )
+                    )
                     continue
 
                 step = ActionStep(
@@ -310,21 +340,31 @@ async def recording_websocket(ws: WebSocket) -> None:
                     screenshot_b64=msg.get("screenshot_b64"),
                 )
                 current_session.add_step(step)
-                await ws.send_text(json.dumps({
-                    "type": "step",
-                    **step_to_dict(step),
-                }))
+                await ws.send_text(
+                    json.dumps(
+                        {
+                            "type": "step",
+                            **step_to_dict(step),
+                        }
+                    )
+                )
 
             elif msg_type == "delete_step":
                 if not current_session:
                     continue
                 seq = msg.get("seq")
                 if seq is not None:
-                    current_session.steps = [s for s in current_session.steps if s.seq != seq]
-                    await ws.send_text(json.dumps({
-                        "type": "step_deleted",
-                        "seq": seq,
-                    }))
+                    current_session.steps = [
+                        s for s in current_session.steps if s.seq != seq
+                    ]
+                    await ws.send_text(
+                        json.dumps(
+                            {
+                                "type": "step_deleted",
+                                "seq": seq,
+                            }
+                        )
+                    )
 
     except WebSocketDisconnect:
         logger.info("Recording WebSocket client disconnected")

@@ -8,11 +8,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from myrm_agent_harness.agent.skills.packaging import (
+    EVALS_FILE,
     SkillPackageInfo,
     SkillPacker,
     SkillUnpacker,
     is_forbidden_file,
+    parse_evals_json,
     parse_skill_md,
+    serialize_eval_cases,
     validate_skill_zip,
 )
 from myrm_agent_harness.agent.skills.packaging.validator import (
