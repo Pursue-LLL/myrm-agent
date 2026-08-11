@@ -97,8 +97,8 @@ class TestSeedIntegration:
 
     async def test_seed_invalidates_config_cache(self, sandbox_db: None) -> None:
         """seed 写入后 config cache 必须失效，否则 channel_bridge 读到旧空配置。"""
-        # 模拟 seed 前已产生的旧缓存（TTL 未过期）
-        _config_cache["sandbox"] = (time.monotonic(), object())
+        # 模拟 seed 前已产生的旧缓存（TTL 未过期）；占位对象仅用于验证失效
+        _config_cache["sandbox"] = (time.monotonic(), object())  # type: ignore[assignment]
         assert _get_cached("sandbox") is not None
 
         await seed_saas_platform_providers_if_needed()
