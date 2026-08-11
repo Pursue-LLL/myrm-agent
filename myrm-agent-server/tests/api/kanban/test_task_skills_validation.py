@@ -120,6 +120,16 @@ class TestTaskSkillValidation:
         assert resp.status_code == 400
         assert "nope-skill" in resp.json()["detail"]
 
+    def test_duplicate_unknown_ids_are_reported_once(self, client: TestClient) -> None:
+        board_id = _create_board(client)
+        resp = client.post(
+            f"/api/v1/kanban/boards/{board_id}/tasks",
+            json={"title": "Task", "extra_skill_ids": ["typo-skill", "typo-skill"]},
+        )
+        assert resp.status_code == 400
+        detail = resp.json()["detail"]
+        assert detail.count("typo-skill") == 1
+
     def test_update_accepts_known_skill_id(self, client: TestClient) -> None:
         board_id = _create_board(client)
         created = client.post(

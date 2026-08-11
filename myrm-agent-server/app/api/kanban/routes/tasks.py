@@ -72,7 +72,7 @@ async def _validate_extra_skill_ids(extra_skill_ids: list[str]) -> None:
         return
     skills = await skills_service.list_skills(skill_type=None)
     known_ids = {skill.id for skill in skills}
-    unknown_ids = sorted(sid for sid in extra_skill_ids if sid not in known_ids)
+    unknown_ids = sorted({sid for sid in extra_skill_ids if sid not in known_ids})
     if unknown_ids:
         raise HTTPException(
             status_code=400,
