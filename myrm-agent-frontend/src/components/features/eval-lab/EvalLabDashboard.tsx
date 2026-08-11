@@ -544,14 +544,14 @@ export default function EvalLabDashboard() {
     }
   };
 
-  const handleWbRun = async (subsetId: string) => {
+  const handleBenchmarkRun = async (benchmarkId: string) => {
     if (running || matrixRunning || memoryAbRunning) return;
     try {
-      const res = await fetch('/api/v1/eval/wb-bench/run', {
+      const res = await fetch('/api/v1/eval/benchmarks/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          subset_id: subsetId,
+          benchmark_id: benchmarkId,
           profile_id: selectedProfileIds[0] || null,
           benchmark_mode: benchmarkMode,
         }),
@@ -559,7 +559,7 @@ export default function EvalLabDashboard() {
       const data = await res.json();
       if (data.status === 'started') {
         setRunning(true);
-        toast.success(t('wbBenchRunStarted'));
+        toast.success(t('benchmarksRunStarted'));
         setActiveTab('report');
       } else if (data.status === 'already_running') {
         toast.info(t('alreadyRunning'));
@@ -571,13 +571,13 @@ export default function EvalLabDashboard() {
     }
   };
 
-  const handleWbDownload = async (subsetId: string) => {
+  const handleBenchmarkDownload = async (benchmarkId: string) => {
     if (running || matrixRunning || memoryAbRunning) return;
     try {
-      const res = await fetch('/api/v1/eval/wb-bench/download', {
+      const res = await fetch('/api/v1/eval/benchmarks/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subset_id: subsetId }),
+        body: JSON.stringify({ benchmark_id: benchmarkId }),
       });
       const data = await res.json();
       if (data.status === 'started') {
@@ -593,14 +593,14 @@ export default function EvalLabDashboard() {
     }
   };
 
-  const handleMemoryAbRun = async (subsetId: string) => {
+  const handleMemoryAbRun = async (benchmarkId: string) => {
     if (running || matrixRunning || memoryAbRunning) return;
     try {
       const res = await fetch('/api/v1/eval/memory-ab/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          subset_id: subsetId,
+          benchmark_id: benchmarkId,
           profile_id: selectedProfileIds[0] || null,
         }),
       });
@@ -823,11 +823,11 @@ export default function EvalLabDashboard() {
             <WbBenchSources
               running={running || matrixRunning || memoryAbRunning}
               history={history}
-              onRun={handleWbRun}
-              onDownload={handleWbDownload}
+              onRun={handleBenchmarkRun}
+              onDownload={handleBenchmarkDownload}
               onMemoryAb={handleMemoryAbRun}
               refreshToken={sourcesRefreshToken}
-              downloadingSubsetId={evalStage === 'downloading' ? evalStageSubsetId : null}
+              downloadingBenchmarkId={evalStage === 'downloading' ? evalStageSubsetId : null}
               downloadProgress={downloadProgress}
             />
           </TabsContent>

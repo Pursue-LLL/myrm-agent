@@ -91,6 +91,8 @@ describe('completionEvents pendingGapRetry flush', () => {
 
   it('calls scheduleFlushPendingGapRetry after MESSAGE_END loading settles', async () => {
     const ctx = makeCtx();
+    const clearActiveStream = vi.fn();
+    ctx.actions.clearActiveStream = clearActiveStream;
     await completionEvents(ctx);
     await vi.dynamicImportSettled();
 
@@ -100,5 +102,6 @@ describe('completionEvents pendingGapRetry flush', () => {
     await vi.dynamicImportSettled();
 
     expect(mockScheduleFlushPendingGapRetry).toHaveBeenCalledTimes(1);
+    expect(clearActiveStream).toHaveBeenCalledTimes(1);
   });
 });

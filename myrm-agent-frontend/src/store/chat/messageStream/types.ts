@@ -27,6 +27,8 @@ export interface StreamHandlerActions {
   setMessages: (updater: (state: StreamMutableState) => void) => void;
   setMessageAppeared: (appeared: boolean) => void;
   setLoading: (loading: boolean) => void;
+  /** Mark a terminal SSE event as no longer streaming in the owning chat/pane. */
+  clearActiveStream?: () => void;
   _processSuggestions: (lastMsg: Message) => Promise<void>;
   scheduleAutoSave: () => void;
 }

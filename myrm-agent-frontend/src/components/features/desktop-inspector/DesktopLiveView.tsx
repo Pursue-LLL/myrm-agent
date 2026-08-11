@@ -4,7 +4,10 @@ import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Monitor, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
+import useDesktopInspectorStore, {
+  selectScopedDesktopViewData,
+} from '@/store/useDesktopInspectorStore';
+import useChatStore from '@/store/useChatStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import { ElementOverlay } from '@/components/features/browser-inspector';
 import { apiRequest } from '@/lib/api';
@@ -125,6 +128,15 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
     fetchSnapshot,
     isSnapshotLoading,
   } = useDesktopInspectorStore();
+  const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
+  const scopedViewData = selectScopedDesktopViewData(viewData, chatId);
+
+  useEffect(() => {
+    if (!isOpen || !viewData?.sourceChatId || !chatId) return;
+    if (viewData.sourceChatId !== chatId) {
+      closePanel();
+    }
+  }, [chatId, viewData?.sourceChatId, isOpen, closePanel]);
 
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
@@ -205,7 +217,7 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
 
   if (!isOpen) return null;
 
-  const headerTitle = viewData?.windowTitle || viewData?.appName || t('title');
+  const headerTitle = scopedViewData?.windowTitle || scopedViewData?.appName || t('title');
 
   return (
     <div
@@ -238,10 +250,10 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
           onRefresh={fetchSnapshot}
           isLoading={isSnapshotLoading}
           title={headerTitle}
-          subtitle={viewData?.appName}
+          subtitle={scopedViewData?.appName}
         />
 
-        {viewData?.needsPermission && (
+        {scopedViewData?.needsPermission && (
           <PermissionBanner t={t} />
         )}
 
@@ -249,11 +261,11 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
           ref={imageContainerRef}
           className="flex-1 relative overflow-hidden bg-muted/30 flex items-center justify-center"
         >
-          {viewData?.screenshotBase64 ? (
+          {scopedViewData?.screenshotBase64 ? (
             <div className="relative" style={{ width: imageSize.width, height: imageSize.height }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`data:${viewData.mimeType};base64,${viewData.screenshotBase64}`}
+                src={`data:${scopedViewData.mimeType};base64,${scopedViewData.screenshotBase64}`}
                 alt={t('screenshotAlt')}
                 className="w-full h-full object-contain"
                 onLoad={handleImageLoad}
@@ -262,11 +274,11 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
 
               {mode === 'inspect' && imageSize.width > 0 && (
                 <ElementOverlay
-                  refs={viewData.refs}
+                  refs={scopedViewData.refs}
                   imageWidth={imageSize.width}
                   imageHeight={imageSize.height}
-                  viewportWidth={viewData.viewportWidth}
-                  viewportHeight={viewData.viewportHeight}
+                  viewportWidth={scopedViewData.viewportWidth}
+                  viewportHeight={scopedViewData.viewportHeight}
                   selectedRefId={selectedElement?.refId ?? null}
                   onElementClick={handleElementClick}
                 />
@@ -291,7 +303,7 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
             onInstructionChange={setInstructionText}
             onSubmit={handleSubmit}
             onClearSelection={clearSelection}
-            disabled={!viewData}
+            disabled={!scopedViewData}
           />
         )}
       </div>

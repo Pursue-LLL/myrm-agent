@@ -21,12 +21,16 @@ function sourcesPayload() {
     sources: [
       {
         id: 'office',
+        benchmark_id: 'wb-bench-office',
         name: 'Office',
+        description: 'WorkBuddy Bench Office track',
         task_count: 50,
         approx_size_mb: 12,
         is_downloaded: true,
         local_size_bytes: 12 * 1024 * 1024,
         scoring: 'composite',
+        supports_memory_ab: true,
+        provider: 'wb_bench',
       },
     ],
   };
@@ -40,7 +44,7 @@ function renderSources(history: ReportItem[]) {
     onDownload: vi.fn(),
     onMemoryAb: vi.fn(),
     refreshToken: 0,
-    downloadingSubsetId: null,
+    downloadingBenchmarkId: null,
     downloadProgress: null,
   };
   return render(<WbBenchSources {...props} />);
@@ -62,7 +66,7 @@ describe('WbBenchSources Memory A/B entry', () => {
     expect(button).toBeInTheDocument();
   });
 
-  it('opens the confirmation dialog and confirms start with the subset id', async () => {
+  it('opens the confirmation dialog and confirms start with the benchmark id', async () => {
     const onMemoryAb = vi.fn();
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify(sourcesPayload()), {
@@ -78,7 +82,7 @@ describe('WbBenchSources Memory A/B entry', () => {
       onDownload={vi.fn()}
       onMemoryAb={onMemoryAb}
       refreshToken={0}
-      downloadingSubsetId={null}
+      downloadingBenchmarkId={null}
       downloadProgress={null}
     />);
 
@@ -89,7 +93,7 @@ describe('WbBenchSources Memory A/B entry', () => {
     expect(screen.getByText('confirmBody')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('confirmStart'));
-    await waitFor(() => expect(onMemoryAb).toHaveBeenCalledWith('office'));
+    await waitFor(() => expect(onMemoryAb).toHaveBeenCalledWith('wb-bench-office'));
   });
 
   it('cancels the confirmation dialog without starting', async () => {
@@ -108,7 +112,7 @@ describe('WbBenchSources Memory A/B entry', () => {
       onDownload={vi.fn()}
       onMemoryAb={onMemoryAb}
       refreshToken={0}
-      downloadingSubsetId={null}
+      downloadingBenchmarkId={null}
       downloadProgress={null}
     />);
 
@@ -137,12 +141,28 @@ describe('WbBenchSources Memory A/B entry', () => {
       onDownload={vi.fn()}
       onMemoryAb={vi.fn()}
       refreshToken={0}
-      downloadingSubsetId={null}
+      downloadingBenchmarkId={null}
       downloadProgress={null}
     />);
 
     await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /memoryab/i })).toBeDisabled();
+  });
+
+  it('hides the Memory A/B button when the benchmark does not support it', async () => {
+    const payload = sourcesPayload();
+    payload.sources[0] = { ...payload.sources[0], supports_memory_ab: false };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    renderSources([]);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /memoryab/i })).not.toBeInTheDocument();
   });
 });
 

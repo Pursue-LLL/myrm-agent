@@ -90,6 +90,27 @@ def _init_wb_bench_state(subset_id: str) -> None:
     )
 
 
+def _init_benchmark_state(stage_label: str) -> None:
+    """Reset global eval state for an external benchmark background flow.
+
+    ``stage_label`` is the handle shown in the SSE stream (a WBBench subset id
+    or a third-party benchmark id); the run/download flows share this state.
+    """
+    _eval_state.clear()
+    _eval_state.update(
+        {
+            "is_running": True,
+            "total": 0,
+            "completed": 0,
+            "error": None,
+            "abort_requested": False,
+            "stage": "downloading",
+            "stage_subset_id": stage_label,
+            "download_progress": {"downloaded_bytes": 0, "total_bytes": 0},
+        }
+    )
+
+
 def _reset_wb_bench_state() -> None:
     """Clear run flags and stage markers when a WBBench flow finishes."""
     _eval_state["is_running"] = False
@@ -247,58 +268,73 @@ async def run_eval_suite_background(
         _eval_state["is_running"] = False
 
 
-async def run_wb_bench_background(
-    subset_id: str,
+async def run_benchmark_background(
+    benchmark_id: str,
     reports_dir: Path | None = None,
     profile_id: str | None = None,
     *,
     benchmark_mode: bool = False,
+    stage_label: str | None = None,
 ) -> None:
-    """Run a WorkBuddy Bench subset in the background, updating global eval state."""
+    """Run an external benchmark (WBBench subset or registered third-party).
+
+    Resolves the benchmark through ``benchmarks`` (WBBench subsets or the
+    framework registry), downloads if needed, builds runnable cases, and runs
+    the eval suite with the benchmark's declared tool whitelist. ``stage_label``
+    overrides the SSE ``stage_subset_id`` (WBBench keeps its bare subset id for
+    existing frontend compatibility).
+    """
     global _eval_state
 
     # The router marks is_running synchronously before scheduling this task so
     # the SSE stream opened on "started" never reads a stale idle first frame.
     # If the state was not pre-initialized (direct/legacy callers), do it here.
     if not _eval_state.get("is_running"):
-        _init_wb_bench_state(subset_id)
+        _init_benchmark_state(stage_label or benchmark_id)
 
     try:
-        from app.core.eval.wb_bench import build_wb_bench_cases
+        from app.core.eval.benchmarks import (
+            build_benchmark_cases,
+            benchmark_required_tools,
+        )
 
         cases, seed_map = await asyncio.to_thread(
-            build_wb_bench_cases,
-            subset_id,
+            build_benchmark_cases,
+            benchmark_id,
             progress_callback=_report_wb_bench_download_progress,
             should_abort=_wb_bench_abort_requested,
         )
         # An abort during the download/extract worker phase is only visible
         # after the thread returns; never start evaluating after a cancel.
         if _eval_state.get("abort_requested"):
-            logger.info("WBBench evaluation aborted by user before evaluation")
+            logger.info("Benchmark %s aborted by user before evaluation", benchmark_id)
             return
         _eval_state["stage"] = "evaluating"
-        dataset_id = f"wb-bench-{subset_id}"
         await run_eval_suite(
-            dataset_id=dataset_id,
+            dataset_id=benchmark_id,
             reports_dir=reports_dir,
             profile_id=profile_id,
             benchmark_mode=benchmark_mode,
+            benchmark_tools=benchmark_required_tools(benchmark_id),
             external_cases=cases,
             workspace_seed_map=seed_map,
         )
     except Exception as exc:
         if _eval_state.get("abort_requested"):
-            logger.info("WBBench evaluation aborted by user")
+            logger.info("Benchmark %s aborted by user", benchmark_id)
         else:
-            logger.exception("WBBench evaluation suite failed")
+            logger.exception("Benchmark %s evaluation failed", benchmark_id)
             _eval_state["error"] = str(exc)
     finally:
         _reset_wb_bench_state()
 
 
-async def run_wb_bench_download_background(subset_id: str) -> None:
-    """Download a WorkBuddy Bench subset in the background (download-only flow).
+async def run_benchmark_download_background(
+    benchmark_id: str,
+    *,
+    stage_label: str | None = None,
+) -> None:
+    """Download a benchmark in the background (download-only flow).
 
     Reuses the same global eval state and SSE stream as a full run so the UI
     can show live download progress; no evaluation is scheduled.
@@ -306,24 +342,55 @@ async def run_wb_bench_download_background(subset_id: str) -> None:
     global _eval_state
 
     if not _eval_state.get("is_running"):
-        _init_wb_bench_state(subset_id)
+        _init_benchmark_state(stage_label or benchmark_id)
 
     try:
-        from app.core.eval.wb_bench import ensure_wb_bench_source
+        from app.core.eval.benchmarks import ensure_benchmark_source
 
-        await ensure_wb_bench_source(
-            subset_id,
+        await ensure_benchmark_source(
+            benchmark_id,
             progress_callback=_report_wb_bench_download_progress,
             should_abort=_wb_bench_abort_requested,
         )
     except Exception as exc:
         if _eval_state.get("abort_requested"):
-            logger.info("WBBench download aborted by user")
+            logger.info("Benchmark %s download aborted by user", benchmark_id)
         else:
-            logger.exception("WBBench download failed")
+            logger.exception("Benchmark %s download failed", benchmark_id)
             _eval_state["error"] = str(exc)
     finally:
         _reset_wb_bench_state()
+
+
+async def run_wb_bench_background(
+    subset_id: str,
+    reports_dir: Path | None = None,
+    profile_id: str | None = None,
+    *,
+    benchmark_mode: bool = False,
+) -> None:
+    """Run a WorkBuddy Bench subset in the background (legacy-compatible handle).
+
+    Delegates to the generic benchmark flow with the WBBench benchmark id.
+    """
+    await run_benchmark_background(
+        f"wb-bench-{subset_id}",
+        reports_dir=reports_dir,
+        profile_id=profile_id,
+        benchmark_mode=benchmark_mode,
+        stage_label=subset_id,
+    )
+
+
+async def run_wb_bench_download_background(subset_id: str) -> None:
+    """Download a WorkBuddy Bench subset in the background (legacy-compatible handle).
+
+    Delegates to the generic benchmark download flow.
+    """
+    await run_benchmark_download_background(
+        f"wb-bench-{subset_id}",
+        stage_label=subset_id,
+    )
 
 
 async def run_eval_suite(
@@ -332,6 +399,7 @@ async def run_eval_suite(
     profile_id: str | None = None,
     *,
     benchmark_mode: bool = False,
+    benchmark_tools: tuple[str, ...] = (),
     external_cases: list["MultiTurnEvalCase"] | None = None,
     workspace_seed_map: dict[str, str] | None = None,
 ) -> dict[str, object]:
@@ -343,6 +411,9 @@ async def run_eval_suite(
         profile_id: Optional ID of a specific Agent Profile to evaluate.
         benchmark_mode: When True, strips all user-specific configuration
             to produce a clean, fair baseline for harness-level benchmarks.
+        benchmark_tools: Builtin-tool whitelist a benchmark declares for
+            ``benchmark_mode`` (e.g. ``("web_search",)`` for BrowseComp),
+            mounted on top of the CORE file/shell baseline.
         external_cases: Optional pre-built cases (e.g. WorkBuddy Bench) that
             bypass the JSONL dataset loading step.
         workspace_seed_map: Maps a case message to a pre-provisioned workspace
@@ -396,6 +467,7 @@ async def run_eval_suite(
     executor = LocalEvalExecutor(
         profile_id=profile_id,
         benchmark_mode=benchmark_mode,
+        benchmark_tools=benchmark_tools,
         workspace_seed_map=workspace_seed_map,
     )
     adaptive_manager = AdaptiveEvalManager(max_concurrency=3, idle_wait_seconds=3.0)

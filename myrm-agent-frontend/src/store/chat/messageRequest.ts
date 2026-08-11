@@ -161,6 +161,8 @@ export interface ChatActionsState {
 export interface ChatActionsMethods {
   setMessages: (updater: (state: ChatState) => void) => void;
   setLoading: (loading: boolean) => void;
+  /** Clear terminal stream state without aborting the already-completed transport. */
+  clearActiveStream?: () => void;
   setMessageAppeared: (appeared: boolean) => void;
   setHideAttachList: (hide: boolean) => void;
   setHasUsedImagesInCurrentChat: (hasUsed: boolean) => void;
@@ -1110,7 +1112,12 @@ export const sendMessage = async (
     }
 
     actions.setHideAttachList(false);
-    actions.clearCurrentSessionMessageId();
+    // A terminal transport can finish after the user has already started the
+    // next turn.  Only clear the request id that this invocation owns; an
+    // unconditional clear would detach the next turn from its stream.
+    if (useChatStore.getState().currentSessionMessageId === requestMessageId) {
+      actions.clearCurrentSessionMessageId();
+    }
     actions.scheduleAutoSave();
 
     // Always release the processing lock on finally

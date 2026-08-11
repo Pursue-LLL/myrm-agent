@@ -66,6 +66,34 @@ def _write_coordinator_code_stamp(database_target: Path) -> None:
     stamp_path.write_text(coordinator_code_fingerprint(), encoding="utf-8")
 
 
+def _coordinator_source_preflight(lib_root: Path) -> str | None:
+    """Validate the coordinator import before spawning a daemon.
+
+    A concurrent source edit can leave one compatibility shim syntactically
+    invalid for a brief window.  Starting a child during that window creates a
+    dead coordinator and strands live session/credit state until another caller
+    happens to recover it.  Fail before spawn and return the exact import error
+    instead of creating a zombie daemon.
+    """
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(lib_root)
+    try:
+        probe = subprocess.run(
+            [sys.executable, "-c", "import dev_gate_coordinator"],
+            capture_output=True,
+            text=True,
+            timeout=3.0,
+            check=False,
+            env=env,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return f"{type(exc).__name__}: {exc}"
+    if probe.returncode == 0:
+        return None
+    detail = (probe.stderr or probe.stdout).strip().replace("\n", " ")
+    return detail or f"coordinator import exited {probe.returncode}"
+
+
 def _coordinator_code_stale(*, database_target: Path, live_pid: int | None) -> bool:
     if live_pid is None or not _pid_alive(live_pid):
         return False
@@ -86,13 +114,14 @@ def _active_sessions_exist(database_target: Path) -> bool:
     changed local helper code.  Restarting the singleton in that window races
     submit/heartbeat/transition RPCs and can strand an otherwise valid session
     between bootstrap and BODY.  The SQLite registry is the authoritative
-    source; failures are fail-closed so a broken registry still takes the
-    normal crash-recovery path instead of silently accepting a stale daemon.
+    source; failures are fail-closed by treating the generation as pinned. A
+    broken registry must never be interpreted as an idle system and trigger a
+    destructive code-drift restart.
     """
     try:
         return bool(DevGateStore(database_target).list_active())
     except (OSError, sqlite3.Error, RuntimeError):
-        return False
+        return True
 
 
 def _restart_coordinator_for_code_drift(
@@ -147,13 +176,17 @@ def _write_coordinator_pid(pid_path: Path, pid: int) -> None:
     os.chmod(pid_path, 0o600)
 
 
-def _clear_stale_coordinator_pid(pid_path: Path) -> None:
+def _clear_stale_coordinator_pid(pid_path: Path) -> bool:
     existing = _read_coordinator_pid(pid_path)
     if existing is None:
-        return
+        return True
     if _pid_alive(existing):
-        return
-    pid_path.unlink(missing_ok=True)
+        return True
+    try:
+        pid_path.unlink(missing_ok=True)
+    except OSError:
+        return False
+    return True
 
 
 def _wait_for_ping(socket_path: Path, *, budget_sec: float) -> bool:
@@ -358,7 +391,8 @@ def ensure_coordinator(
         database_target=database_target,
         pid_path=pid_path,
     )
-    _clear_stale_coordinator_pid(pid_path)
+    if not _clear_stale_coordinator_pid(pid_path):
+        return None
     live_pid = _read_coordinator_pid(pid_path)
     if live_pid is not None and _coordinator_code_stale(
         database_target=database_target, live_pid=live_pid
@@ -391,7 +425,8 @@ def ensure_coordinator(
     ):
         return socket_target
     with _startup_lock(database_target):
-        _clear_stale_coordinator_pid(pid_path)
+        if not _clear_stale_coordinator_pid(pid_path):
+            return None
         live_pid = _read_coordinator_pid(pid_path)
         if live_pid is not None and _pid_alive(live_pid):
             if _ping(socket_target) or _wait_for_ping(
@@ -415,11 +450,23 @@ def ensure_coordinator(
             )
         log_path = database_target.with_name("coordinator.log")
         log_path.parent.mkdir(parents=True, exist_ok=True)
+        lib_root = Path(__file__).resolve().parent.parent
+        preflight_error: str | None = None
+        for attempt in range(3):
+            preflight_error = _coordinator_source_preflight(lib_root)
+            if preflight_error is None:
+                break
+            if attempt < 2:
+                time.sleep(0.25 * float(attempt + 1))
+        if preflight_error is not None:
+            raise RuntimeError(
+                "DEV_GATE_COORDINATOR_SOURCE_INVALID: "
+                f"{preflight_error}"
+            )
         with log_path.open("ab", buffering=0) as log_handle:
             # Spawn via the root-level shim (dev_gate_coordinator.py) at dev lib root,
             # not inside this package dir; shim imports the dev_gate package, so
             # export the dev lib root on PYTHONPATH for the child.
-            lib_root = Path(__file__).resolve().parent.parent
             coordinator_module = str(lib_root / "dev_gate_coordinator.py")
             spawn_env = dict(os.environ)
             spawn_env["PYTHONPATH"] = str(lib_root)
@@ -515,7 +562,14 @@ def _handle_in_process(payload: dict[str, object]) -> dict[str, object]:
 
 
 def send(payload: dict[str, object]) -> dict[str, object]:
-    socket_path = ensure_coordinator()
+    try:
+        socket_path = ensure_coordinator()
+    except PermissionError:
+        # The coordinator state directory can be temporarily read-only during
+        # host maintenance.  Do not turn stale-PID cleanup into a session
+        # admission failure; the SQLite service remains the safe local
+        # fallback and preserves the same transactional admission rules.
+        socket_path = None
     if socket_path is None:
         return _handle_in_process(payload)
     operation = payload.get("operation")

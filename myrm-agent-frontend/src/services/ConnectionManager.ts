@@ -84,10 +84,15 @@ class ConnectionManager {
   }
 
   private resetReadyPromise(): void {
-    this.readyPromise = new Promise<void>((resolve, reject) => {
+    const readyPromise = new Promise<void>((resolve, reject) => {
       this.readyResolve = resolve;
       this.readyReject = reject;
     });
+    // `connect()` may replace a pending connection before any caller has
+    // entered waitUntilReady().  Mark the rejection as observed so a normal
+    // reconnect does not become a browser-level unhandledRejection.
+    void readyPromise.catch(() => undefined);
+    this.readyPromise = readyPromise;
   }
 
   private resolveReady(): void {

@@ -26,6 +26,7 @@ from myrm_agent_harness.backends.skills.scanning.archive_security import (
 )
 from pydantic import BaseModel
 
+from app.api.skills._deploy_capability import require_local_skills_capability
 from app.api.skills.evolution.helpers import _get_skill_store
 
 logger = logging.getLogger(__name__)
@@ -98,6 +99,7 @@ async def preview_batch_import(
     file: UploadFile = File(...),
 ) -> ImportPreviewResponse:
     """接收ZIP并返回带冲突标记的技能预览列表"""
+    require_local_skills_capability()
     if not file.filename or not file.filename.endswith(".zip"):
         raise HTTPException(status_code=400, detail="必须上传 .zip 文件")
 
@@ -202,6 +204,7 @@ async def confirm_batch_import(
     background_tasks: BackgroundTasks,
 ) -> ConfirmImportResponse:
     """确认导入策略并落盘"""
+    require_local_skills_capability()
     store = _get_skill_store()
     from app.api.skills._staging import SkillStagingManager
 

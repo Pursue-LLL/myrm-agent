@@ -49,6 +49,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
+from myrm_agent_harness.eval import BenchmarkSpec, register_benchmark
 
 logger = logging.getLogger(__name__)
 

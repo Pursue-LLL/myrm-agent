@@ -114,13 +114,16 @@ const ViewTab = ({
   onClick,
   icon: Icon,
   label,
+  testId,
 }: {
   active: boolean;
   onClick: () => void;
   icon: typeof Network;
   label: string;
+  testId: string;
 }) => (
   <button
+    data-testid={testId}
     onClick={onClick}
     className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border transition-colors ${
       active
@@ -352,8 +355,20 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
           </div>
         </SheetHeader>
         <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-border/30">
-          <ViewTab active={viewMode === 'tree'} onClick={() => setViewMode('tree')} icon={ListTree} label={t('treeTab')} />
-          <ViewTab active={viewMode === 'canvas'} onClick={() => setViewMode('canvas')} icon={Network} label={t('canvasTab')} />
+          <ViewTab
+            active={viewMode === 'tree'}
+            onClick={() => setViewMode('tree')}
+            icon={ListTree}
+            label={t('treeTab')}
+            testId="subagent-view-tab-tree"
+          />
+          <ViewTab
+            active={viewMode === 'canvas'}
+            onClick={() => setViewMode('canvas')}
+            icon={Network}
+            label={t('canvasTab')}
+            testId="subagent-view-tab-canvas"
+          />
         </div>
         {viewMode === 'canvas' ? (
           <div className="flex-1 min-h-0">

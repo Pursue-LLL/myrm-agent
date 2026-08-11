@@ -16,7 +16,7 @@ from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
 from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
     create_bash_process_tool,
 )
-from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
+from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
     reset_spawn_lifecycle_for_tests,
 )
 from myrm_agent_harness.api.hooks import (

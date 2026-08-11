@@ -360,3 +360,35 @@ def reseal_auth_template_for_current_runtime(
         cookies=cookies or None,
         probe_path=probe_path,
     )
+
+
+def prepare_auth_template_for_attach(
+    *,
+    origin: str,
+    workspace_fingerprint: str = "",
+    lock_wait_sec: float = 5.0,
+) -> AuthTemplateStatus:
+    """Make an existing template usable before an isolated attach starts.
+
+    A runtime fingerprint changes when the workspace or Chrome E2E profile
+    changes.  Waiting for an isolated context to attach before repairing that
+    metadata creates a circular gate: context creation requires READY, while
+    the old flow only resealed after attach.  Only an existing mismatch is
+    repaired; MISSING/EXPIRED templates remain fail-closed and require setup.
+    """
+    workspace = workspace_fingerprint.strip() or _resolve_workspace_fingerprint()
+    status = auth_template_status(workspace_fingerprint=workspace)
+    if status["next_action"] != "AUTH_HYDRATE_REQUIRED":
+        return status
+    try:
+        with auth_setup_leader_lock(wait_sec=lock_wait_sec):
+            # auth_template_status reports SETUP_IN_PROGRESS while this lock
+            # is held, so inspect the pre-lock decision and reseal once under
+            # the single-flight lock.
+            reseal_auth_template_for_current_runtime(
+                origin=origin,
+                workspace_fingerprint=workspace,
+            )
+    except TimeoutError:
+        return auth_template_status(workspace_fingerprint=workspace)
+    return auth_template_status(workspace_fingerprint=workspace)

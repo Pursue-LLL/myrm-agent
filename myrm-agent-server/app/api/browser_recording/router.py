@@ -92,10 +92,23 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
     if not session.steps:
         raise HTTPException(status_code=400, detail="No recorded steps in session")
 
-    skill_id, content, credential_placeholders = generate_skill_from_session(
+    description = req.description
+    if not description:
+        from app.services.agent.llm_access import get_optional_llm_for_user
+        from app.services.browser_recording.skill_generator import (
+            default_skill_description,
+            generate_skill_description,
+        )
+
+        generated = await generate_skill_description(
+            await get_optional_llm_for_user(), session
+        )
+        description = generated or default_skill_description(session)
+
+    _, content, credential_placeholders = generate_skill_from_session(
         session=session,
         skill_name=req.skill_name,
-        description=req.description,
+        description=description,
     )
 
     from app.core.skills.creation.service import SkillCreationService
@@ -104,16 +117,19 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
     save_result = await skill_svc.save_skill(
         name=req.skill_name,
         content=content,
-        description=req.description or f"Browser skill from recording {req.session_id}",
+        description=description,
     )
     if not save_result.success:
         logger.error("Failed to save skill from recording %s: %s", req.session_id, save_result.error)
         raise HTTPException(status_code=500, detail="Failed to save skill")
 
+    # The skill system keys skills by name and computes the canonical id on
+    # save; surface that real id (falling back to the name) instead of the
+    # throwaway recording id so the response matches stored skill metadata.
     return GenerateSkillResponse(
-        skill_id=skill_id,
+        skill_id=save_result.skill_id or req.skill_name,
         skill_name=req.skill_name,
-        description=req.description or f"Browser skill from recording {req.session_id}",
+        description=description,
         step_count=len(session.steps),
         credential_placeholders=credential_placeholders,
         skill_content=content,
@@ -140,11 +156,8 @@ def _get_active_page() -> object | None:
     session = get_agent_gateway().get_first_active_browser_session()
     if session is None:
         return None
-    tab_ctrl = getattr(session, "_tab_controller", None)
-    if tab_ctrl is None:
-        return None
     try:
-        return tab_ctrl.get_active_page()
+        return session.get_active_page()
     except Exception:
         return None
 

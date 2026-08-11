@@ -43,7 +43,7 @@ router = APIRouter(tags=["eval"])
 
 
 class RunMemoryAbRequest(BaseModel):
-    subset_id: str
+    benchmark_id: str
     profile_id: str | None = None
 
 
@@ -52,24 +52,29 @@ async def run_memory_ab_evaluation(
     background_tasks: BackgroundTasks,
     request: RunMemoryAbRequest,
 ) -> dict[str, object]:
-    """Start a memory-on vs memory-off A/B comparison on a WBBench subset."""
+    """Start a memory-on vs memory-off A/B comparison on an external benchmark."""
     status_info = get_memory_ab_status()
     if status_info.get("is_running"):
         return {"status": "already_running", "info": status_info}
 
-    from app.core.eval.wb_bench import WB_BENCH_SUBSETS
+    from app.core.eval.benchmarks import is_known_benchmark
+    from myrm_agent_harness.eval import get_benchmark
 
-    if request.subset_id not in WB_BENCH_SUBSETS:
+    spec = get_benchmark(request.benchmark_id)
+    is_wb_bench = request.benchmark_id.startswith("wb-bench-")
+    if not is_known_benchmark(request.benchmark_id) or not (
+        is_wb_bench or (spec is not None and spec.supports_memory_ab)
+    ):
         return {
             "status": "error",
-            "error": f"Unknown WBBench subset: {request.subset_id}",
+            "error": f"Benchmark does not support memory A/B: {request.benchmark_id}",
         }
 
     # A memory A/B test is only meaningful when an embedding model is both
     # configured and reachable: without one the memory-on arm silently
     # degrades to a memory-free agent (tool_setup._create_memory_tools) and
     # the run yields a misleading "memory has no effect" result. Fail fast
-    # before the WBBench download so the user gets explicit guidance instead.
+    # before the benchmark download so the user gets explicit guidance instead.
     from myrm_agent_harness.api.config import ConfigIncompleteError
 
     from app.services.agent.platform_config import (
@@ -93,12 +98,12 @@ async def run_memory_ab_evaluation(
         return {"status": "already_running", "info": post_probe_status}
 
     # Mark state as running synchronously before the response is sent (same
-    # race guard as the WBBench run flow: BackgroundTasks start after the
+    # race guard as the benchmark run flow: BackgroundTasks start after the
     # response, so the SSE stream would otherwise read a stale idle frame).
-    _init_memory_ab_state(request.subset_id)
+    _init_memory_ab_state(request.benchmark_id)
     background_tasks.add_task(
         run_memory_ab_background,
-        subset_id=request.subset_id,
+        benchmark_id=request.benchmark_id,
         profile_id=request.profile_id,
     )
     return {"status": "started"}

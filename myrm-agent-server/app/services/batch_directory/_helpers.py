@@ -8,7 +8,7 @@
 - fetch_project_task_models: 按 batch_project_id 查询任务（服务内复用）
 - _latest_tasks_per_directory: 每目录取最新任务（重试后聚合口径）
 - _project_to_dict / _aggregate_statuses / _resolve_directory: 序列化与校验助手
-- _reopen_running: 项目回置 running 并刷新聚合（重试/重跑/恢复共用）
+- _reopen_running: 项目回置 running 并刷新聚合（重试/重跑/恢复共用，支持 expected_status 条件更新防并发覆盖）
 - _send_completion_notification: 批次终态系统通知（携带 action_url 深链）
 - _PROJECT_TERMINAL_STATUSES / _BATCH_PAUSE_BLOCK_REASON / _BATCH_APPROVER: 批次终态与暂停/审批标记常量
 
@@ -24,6 +24,7 @@ from pathlib import Path
 
 from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 from sqlalchemy import select
+from sqlalchemy import update as sa_update
 
 from app.database.connection import get_session
 from app.database.models.batch_directory import BatchDirectoryProjectModel
@@ -229,25 +230,36 @@ def _aggregate_statuses(tasks: list[KanbanTaskModel]) -> tuple[int, int, int]:
     return total, completed, failed
 
 
-async def _reopen_running(project_id: str) -> None:
+async def _reopen_running(
+    project_id: str, *, expected_status: str | None = None
+) -> None:
     """Reopen a project to ``running`` and refresh aggregation counters.
 
     Shared by retry/rerun/resume entry points: after tasks are fanned out or
     unblocked, the counters are recomputed from the current task set (one per
-    directory) and the finish timestamp is cleared.
+    directory) and the finish timestamp is cleared. When ``expected_status``
+    is given the UPDATE is conditional — the project only reopens if it is
+    still in that status, so a concurrent state change (e.g. cancel) wins
+    instead of being overwritten.
     """
+    refreshed = await fetch_project_task_models(project_id)
+    latest = _latest_tasks_per_directory(refreshed)
+    total, completed, failed = _aggregate_statuses(latest)
+    stmt = (
+        sa_update(BatchDirectoryProjectModel)
+        .where(BatchDirectoryProjectModel.id == project_id)
+        .values(
+            status="running",
+            total_tasks=total,
+            completed_tasks=completed,
+            failed_tasks=failed,
+            finished_at=None,
+        )
+    )
+    if expected_status is not None:
+        stmt = stmt.where(BatchDirectoryProjectModel.status == expected_status)
     async with get_session() as session:
-        model = await session.get(BatchDirectoryProjectModel, project_id)
-        if model is None:
-            return
-        refreshed = await fetch_project_task_models(project_id)
-        latest = _latest_tasks_per_directory(refreshed)
-        total, completed, failed = _aggregate_statuses(latest)
-        model.status = "running"
-        model.total_tasks = total
-        model.completed_tasks = completed
-        model.failed_tasks = failed
-        model.finished_at = None
+        await session.execute(stmt)
         await session.commit()
 
 

@@ -63,10 +63,21 @@ class CdpChatTurn(CdpChatSubmit):
               const assistantNodes = Array.from(
                 main?.querySelectorAll('[data-test-id="assistant-message"]') || [],
               );
-              const assistantText = assistantNodes.map((el) => el.innerText || '').join('\\n');
+              const lastAssistant = assistantNodes.length
+                ? assistantNodes[assistantNodes.length - 1]
+                : null;
+              const allAssistantText = assistantNodes.map((el) => el.innerText || '').join('\\n');
+              let okInAssistant = false;
+              for (let i = assistantNodes.length - 1; i >= 0; i -= 1) {
+                const t = assistantNodes[i]?.innerText || '';
+                if (!t.trim()) continue;
+                if (/(?:\bOK\b|GOAL_OK|\bDONE\b)/i.test(t) || /\bOK\b/i.test(t.replace(/\s+/g, ' '))) {
+                  okInAssistant = true;
+                  break;
+                }
+              }
               const sending = !!main?.querySelector('button[aria-label="Stop"]');
               const hasUserPrompt = userMsgs > 0 || text.includes({json.dumps(prompt)});
-              const okInAssistant = /(?:\bOK\b|GOAL_OK|\bDONE\b)/i.test(assistantText);
               const okInMain =
                 hasUserPrompt &&
                 (okInAssistant ||
@@ -83,7 +94,7 @@ class CdpChatTurn(CdpChatSubmit):
                 okInMain,
                 okInAssistant,
                 sample: text.slice(0, 500),
-                assistantSample: assistantText.slice(0, 300),
+                assistantSample: allAssistantText.slice(0, 300),
               }};
             }})()""",
             intent=intent,
@@ -411,6 +422,16 @@ class CdpChatTurn(CdpChatSubmit):
                 not bridge_streaming
                 and last.get("hasUserPrompt")
                 and last.get("okInMain")
+            ):
+                if chat_id:
+                    maybe_register_e2e_chat(chat_id)
+                    last["chatId"] = chat_id
+                return last
+            if (
+                is_live_send_turn_profile()
+                and last.get("hasUserPrompt")
+                and not last.get("sending")
+                and last.get("okInAssistant")
             ):
                 if chat_id:
                     maybe_register_e2e_chat(chat_id)

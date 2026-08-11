@@ -456,7 +456,8 @@ def test_warm_ui_route_uses_shared_ui_hydrate_slot_when_shpoib(
 
 def test_browser_operation_credit_slot_acquires_upstream_registry() -> None:
     source = (
-        Path(__file__).resolve().parents[3] / "scripts/dev/lib/browser_orchestrator.py"
+        Path(__file__).resolve().parents[3]
+        / "scripts/dev/lib/browser_orchestrator/core.py"
     ).read_text(encoding="utf-8")
     block = source.split("def browser_operation_credit_slot", 1)[1].split("\ndef ", 1)[
         0

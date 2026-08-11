@@ -41,6 +41,8 @@ logger = logging.getLogger(__name__)
 
 _BRIEF_BACKGROUND_TIMEOUT_SECONDS = 2.5
 _DEFAULT_JOIN_TIMEOUT_SECONDS = 0.3
+_AGENT_READY_TTL_SECONDS = 600.0
+_AGENT_READY_MAX_ENTRIES = 1024
 
 
 class TurnPrewarmCoordinator:
@@ -50,6 +52,24 @@ class TurnPrewarmCoordinator:
         self._inflight_brief: dict[str, asyncio.Task[None]] = {}
         self._brief_cache = BriefCache()
         self._agent_ready_at: dict[str, float] = {}
+
+    def _prune_agent_ready_at(self) -> None:
+        self._brief_cache.prune_expired()
+        now = time.monotonic()
+        stale_keys = [
+            key
+            for key, ready_at in self._agent_ready_at.items()
+            if now - ready_at > _AGENT_READY_TTL_SECONDS
+        ]
+        for key in stale_keys:
+            self._agent_ready_at.pop(key, None)
+        if len(self._agent_ready_at) > _AGENT_READY_MAX_ENTRIES:
+            excess = len(self._agent_ready_at) - _AGENT_READY_MAX_ENTRIES
+            oldest = sorted(self._agent_ready_at, key=lambda key: self._agent_ready_at[key])[
+                :excess
+            ]
+            for key in oldest:
+                self._agent_ready_at.pop(key, None)
 
     @staticmethod
     def _task_key(scope_key: str, fingerprint: str) -> str:
@@ -69,6 +89,7 @@ class TurnPrewarmCoordinator:
         *,
         action_mode: str = "agent",
     ) -> None:
+        self._prune_agent_ready_at()
         if params.incognito_mode or not params.chat_id or not params.chat_id.strip():
             return
 
@@ -105,6 +126,11 @@ class TurnPrewarmCoordinator:
                 k: v for k, v in self._inflight_brief.items() if not k.startswith(prefix)
             }
         self._brief_cache.invalidate_scope(scope_key)
+        self._agent_ready_at = {
+            key: ready_at
+            for key, ready_at in self._agent_ready_at.items()
+            if not key.startswith(prefix)
+        }
 
     async def join_for_turn(
         self,
@@ -113,6 +139,7 @@ class TurnPrewarmCoordinator:
         action_mode: str = "agent",
         join_timeout: float = _DEFAULT_JOIN_TIMEOUT_SECONDS,
     ) -> TurnPrewarmJoinResult:
+        self._prune_agent_ready_at()
         if not params.chat_id or not params.chat_id.strip():
             return TurnPrewarmJoinResult(
                 preview=None,
@@ -155,7 +182,7 @@ class TurnPrewarmCoordinator:
         if warm_agent:
             if await cache.is_warm(scope_key, fingerprint):
                 prewarm_hit = True
-                ready_at = self._agent_ready_at.get(task_key)
+                ready_at = self._agent_ready_at.pop(task_key, None)
                 if ready_at is not None:
                     prewarm_ms = max(0, int((time.monotonic() - ready_at) * 1000))
             else:
@@ -217,6 +244,7 @@ class TurnPrewarmCoordinator:
         fingerprint: str,
         build_unit: BuildUnitFn,
     ) -> BuiltExecutionUnit:
+        self._prune_agent_ready_at()
         task_key = self._task_key(scope_key, fingerprint)
         cache = get_execution_cache()
         if await cache.is_warm(scope_key, fingerprint):

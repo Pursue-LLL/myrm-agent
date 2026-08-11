@@ -88,7 +88,8 @@ _ENABLE_UPDATE_UI_JS = """(() => {
 _INITIAL_READY_JS = """(() => {
   const assistant = document.querySelector('[data-test-id="assistant-message"]');
   const main = document.querySelector('main');
-  const cardTitle = assistant?.querySelector('h4')?.textContent || '';
+  const h4Texts = Array.from(assistant?.querySelectorAll('h4') || []).map((h) => h.textContent || '');
+  const cardTitle = h4Texts.join(' ');
   const text = assistant?.innerText || main?.innerText || '';
   const hasTitle = /E2E_UPDATE_MARKER_ALPHA/.test(cardTitle) || /E2E_UPDATE_MARKER_ALPHA/.test(text);
   const hasInitial = /E2E_UPDATE_INITIAL/.test(text);
@@ -116,7 +117,8 @@ _INITIAL_READY_JS = """(() => {
 _UPDATE_DATA_READY_JS = """(() => {
   const assistant = document.querySelector('[data-test-id="assistant-message"]');
   const main = document.querySelector('main');
-  const cardTitle = assistant?.querySelector('h4')?.textContent || '';
+  const h4Texts = Array.from(assistant?.querySelectorAll('h4') || []).map((h) => h.textContent || '');
+  const cardTitle = h4Texts.join(' ');
   const text = assistant?.innerText || main?.innerText || '';
   const hasTitle = /E2E_UPDATE_MARKER_ALPHA/.test(cardTitle) || /E2E_UPDATE_MARKER_ALPHA/.test(text);
   const hasInitial = /E2E_UPDATE_INITIAL/.test(text);
@@ -371,21 +373,6 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         )
         require_e2e_api_binding_probe(binding_probe, api_base)
         await chat._attach_chat_session(chat_id)
-        _attach_diag = await chat.evaluate(
-            """(() => {
-              const main = document.querySelector('main');
-              const uiContainer = document.querySelector('.interactive-ui-container');
-              return {
-                loading: !!main?.querySelector('button[aria-label="Stop"]'),
-                h4Texts: Array.from(document.querySelectorAll('h4')).map((h) => h.textContent || ''),
-                hasUiContainer: !!uiContainer,
-                uiContainerText: uiContainer?.innerText?.slice(0, 200) || '',
-                bodySample: main?.innerText?.slice(0, 200) || '',
-              };
-            })()""",
-            intent=EvaluateIntent.SYNC_PROBE,
-        )
-        print(f"\n[ATTACH_DIAG] post-attach state={_attach_diag}\n", flush=True)
         kickoff_deadline = time.monotonic() + signoff_parallel_force_chat_timeout_sec(
             45.0
         )

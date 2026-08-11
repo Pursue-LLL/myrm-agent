@@ -12,6 +12,8 @@ typing a masked placeholder.
 
 [OUTPUT]
 - generate_skill_from_session: (skill_id, content, credential_labels) tuple
+- generate_skill_description: async LLM description generation from recorded steps (None on failure)
+- default_skill_description: template fallback description shared by generator and API layer
 
 [POS]
 Skill generation service for browser recordings. Produces SKILL.md content
@@ -32,16 +34,60 @@ from myrm_agent_harness.toolkits.browser.action_capture import (
     steps_to_natural_language,
 )
 
+from app.core.utils.chat_utils import extract_answer_text
+
 if TYPE_CHECKING:
+    from langchain_core.language_models import BaseChatModel
     from myrm_agent_harness.toolkits.browser.action_capture import CaptureSession
 
 logger = logging.getLogger(__name__)
+
+_DESCRIPTION_MAX_CHARS = 200
 
 # Real harness-registered browser tool names (see toolkits/browser/tools/*.py).
 _ALLOWED_BROWSER_TOOLS = (
     "browser_navigate_tool browser_interact_tool browser_snapshot_tool "
     "browser_extract_tool browser_manage_tool"
 )
+
+
+async def generate_skill_description(
+    llm: BaseChatModel, session: CaptureSession
+) -> str | None:
+    """Generate a semantic skill description from recorded steps via LLM.
+
+    The skill description tells the agent when a skill applies, so a plain
+    URL-based template description leaves recorded skills unreachable. Returns
+    None on any failure so callers fall back to the template description.
+
+    Args:
+        llm: The chat model to use.
+        session: The completed recording session.
+
+    Returns:
+        A concise one-sentence description, or None when generation fails.
+    """
+    if not session.steps:
+        return None
+    credential_labels = _build_credential_labels(session)
+    step_lines = steps_to_natural_language(
+        session.steps, credential_labels=credential_labels
+    )
+    prompt = (
+        "Write a concise one-sentence description of the browser automation "
+        "skill these steps describe. Focus on what the skill does and when an "
+        "agent should use it:\n\n"
+        f"{step_lines}\n"
+    )
+    try:
+        response = await llm.ainvoke(prompt)
+        text = extract_answer_text(response).strip()
+    except Exception as exc:
+        logger.warning("LLM description generation failed: %s", exc)
+        return None
+    if not text:
+        return None
+    return text[:_DESCRIPTION_MAX_CHARS]
 
 
 def _slugify(text: str, fallback: str) -> str:
@@ -153,6 +199,19 @@ Start URL: {session.start_url}
 {credential_section}"""
 
 
+def default_skill_description(session: CaptureSession) -> str:
+    """Return the template fallback description for a recording session.
+
+    Shared by the generator and the API layer so the SKILL.md frontmatter
+    description, the saved skill metadata, and the API response always agree
+    when neither a user description nor an LLM-generated one is available.
+    """
+    if session.steps:
+        first_url = session.start_url or session.steps[0].url
+        return f"Browser automation skill recorded from {first_url}"
+    return "Browser automation skill"
+
+
 def generate_skill_from_session(
     session: CaptureSession,
     skill_name: str,
@@ -169,11 +228,7 @@ def generate_skill_from_session(
         Tuple of (skill_id, skill_content, credential_placeholders).
     """
     if not description:
-        if session.steps:
-            first_url = session.start_url or session.steps[0].url
-            description = f"Browser automation skill recorded from {first_url}"
-        else:
-            description = "Browser automation skill"
+        description = default_skill_description(session)
 
     credential_labels = _build_credential_labels(session)
     content = _build_skill_content(session, skill_name, description, credential_labels)

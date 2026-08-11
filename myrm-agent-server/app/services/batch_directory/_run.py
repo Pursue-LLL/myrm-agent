@@ -16,14 +16,18 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.kanban.types import TaskPriority, TaskStatus
+
+if TYPE_CHECKING:
+    from app.services.kanban import KanbanService
 
 logger = logging.getLogger(__name__)
 
 
 async def fan_out_batch_tasks(
-    kanban,
+    kanban: KanbanService,
     *,
     board_id: str,
     project_id: str,
@@ -56,8 +60,8 @@ async def fan_out_batch_tasks(
         annotations: list[str] = []
         if artifact_patterns:
             annotations.append(
-                f"Required output artifacts (glob patterns): "
-                f"{', '.join(artifact_patterns)}"
+                f"Required output artifacts (glob patterns, relative to "
+                f"the workspace root): {', '.join(artifact_patterns)}"
             )
         try:
             task = await kanban.add_task(

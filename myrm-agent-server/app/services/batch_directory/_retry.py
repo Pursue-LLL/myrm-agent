@@ -68,7 +68,9 @@ async def retry_failed(
         return base
 
     created, errors = await _fan_out(service, project_id, settings, retry_dirs, tasks)
-    await _reopen_running(project_id)
+    # 条件更新：仅当项目仍为快照时的状态才回置 running。并发取消把项目置
+    # cancelled 后，重试不得覆盖取消意图（与 resume 同款守卫）。
+    await _reopen_running(project_id, expected_status=settings.status)
     base = await service.get_project(project_id)
     if base is None:
         return None
@@ -104,7 +106,8 @@ async def retry_task(
     created, errors = await _fan_out(
         service, project_id, settings, [str(target.workspace_path)], tasks
     )
-    await _reopen_running(project_id)
+    # 条件更新：并发取消优先，不把 cancelled 覆盖回 running。
+    await _reopen_running(project_id, expected_status=settings.status)
     base = await service.get_project(project_id)
     if base is None:
         return None
@@ -143,7 +146,8 @@ async def rerun_project(
     created, errors = await _fan_out(
         service, project_id, settings, settings.directories, tasks
     )
-    await _reopen_running(project_id)
+    # 条件更新：并发取消优先，不把 cancelled 覆盖回 running。
+    await _reopen_running(project_id, expected_status=settings.status)
     base = await service.get_project(project_id)
     if base is None:
         return None

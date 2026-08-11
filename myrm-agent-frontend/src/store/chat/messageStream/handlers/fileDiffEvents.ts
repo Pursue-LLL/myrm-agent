@@ -171,6 +171,10 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   if (data.type === H.AgentEventType.DESKTOP_VIEW_UPDATE) {
     const { default: useDesktopInspectorStore } = await import('@/store/useDesktopInspectorStore');
     const store = useDesktopInspectorStore.getState();
+    const sourceChatId = state.messages[0]?.chatId?.trim() ?? '';
+    if (!sourceChatId) {
+      return done(ctx);
+    }
     store.setDesktopActive(true);
     store.updateViewData({
       screenshotBase64: data.data.screenshot_base64,
@@ -185,6 +189,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       screenWidth: data.data.screen_width,
       screenHeight: data.data.screen_height,
       dpiScale: data.data.dpi_scale,
+      sourceChatId,
       updatedAt: Date.now(),
     });
     if (typeof window !== 'undefined' && data.data.refs) {
@@ -212,8 +217,13 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     };
     useDesktopControlApprovalStore.getState().requestApproval(approvalPayload);
 
-    const { default: useDesktopInspectorStore } = await import('@/store/useDesktopInspectorStore');
-    useDesktopInspectorStore.getState().openPanel();
+    const streamChatId = state.messages[0]?.chatId?.trim() ?? '';
+    const { default: useChatStore } = await import('@/store/useChatStore');
+    const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
+    if (streamChatId && activeChatId && streamChatId === activeChatId) {
+      const { default: useDesktopInspectorStore } = await import('@/store/useDesktopInspectorStore');
+      useDesktopInspectorStore.getState().openPanel();
+    }
 
     actions.setLoading(false);
 

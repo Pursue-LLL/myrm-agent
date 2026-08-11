@@ -8,6 +8,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from myrm_agent_harness.toolkits.storage.types import SkillType
 
+from app.api.skills._deploy_capability import require_local_skills_capability
 from app.api.skills.schemas import (
     LocalSkillPathsRequest,
     LocalSkillPathsResponse,
@@ -21,16 +22,6 @@ from app.core.skills.store.service import skills_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-def _require_local_skills_capability() -> None:
-    from app.platform_utils.deployment_capabilities import get_deployment_capabilities
-
-    if not get_deployment_capabilities().allows_local_skills:
-        raise HTTPException(
-            status_code=403,
-            detail="Local skills are not available in sandbox mode",
-        )
 
 
 @router.get("/local/paths", response_model=LocalSkillPathsResponse)
@@ -62,7 +53,7 @@ async def update_local_skill_paths(
     Returns:
         Updated paths configuration
     """
-    _require_local_skills_capability()
+    require_local_skills_capability()
     from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
     # Validate path format (must be absolute path or start with ~)
@@ -96,7 +87,7 @@ async def toggle_local_skill(
     Returns:
         Toggled status
     """
-    _require_local_skills_capability()
+    require_local_skills_capability()
 
     # Validate skill ID format
     if not request.skill_id.startswith("local::"):
@@ -127,7 +118,7 @@ async def scan_local_skills() -> SkillListResponse:
     Returns:
         List of scanned local skills
     """
-    _require_local_skills_capability()
+    require_local_skills_capability()
 
     # Only get LOCAL type skills
     skills = await skills_service.list_skills(

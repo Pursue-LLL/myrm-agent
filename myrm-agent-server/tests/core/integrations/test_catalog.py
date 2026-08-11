@@ -217,6 +217,27 @@ class TestCatalogRegistry:
         assert entry.mcp_config is not None
         assert entry.mcp_config.deployment_scope == DeploymentScope.ALL_MODES
 
+    def test_microsoft_todo_entry(self, registry: CatalogRegistry) -> None:
+        """Microsoft To Do entry must ship with zero-config auth and a bilingual guide."""
+        entry = registry.get_by_id("microsoft-todo")
+        assert entry is not None
+        assert entry.name == "Microsoft To Do"
+        assert entry.category == "productivity"
+        assert entry.auth.type == AuthType.NONE
+        assert entry.mcp_config is not None
+        assert entry.mcp_config.type == "stdio"
+        assert entry.mcp_config.command == "npx"
+        assert entry.mcp_config.deployment_scope == DeploymentScope.ALL_MODES
+        assert entry.mcp_config.post_connect_guide
+        assert entry.mcp_config.post_connect_guide_zh
+
+    def test_google_catalog_entries_removed(self, registry: CatalogRegistry) -> None:
+        """Google abilities are covered by the google-workspace skill; catalog entries are gone."""
+        loaded_ids = {e.id for e in registry.list_all()}
+        assert "gmail" not in loaded_ids
+        assert "google_calendar" not in loaded_ids
+        assert "google_drive" not in loaded_ids
+
     def test_get_by_id_not_found(self, registry: CatalogRegistry) -> None:
         assert registry.get_by_id("nonexistent") is None
 

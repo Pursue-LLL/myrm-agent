@@ -18,9 +18,9 @@
 | `statusStreamProgressSteps.ts` | 辅助 | STATUS `progress.step_key` 分支与 toast（含 stream recovery；`model_failover_unconfigured` → `/settings/defaultModel`；`safety_fallback_unconfigured` → `/settings/agents#loadout`；`turn_prewarm_*` · `wiki_knowledge_lane`） | ✅ |
 | `statusStreamPhaseData.ts` | 辅助 | STATUS `data.phase` 多阶段 payload 处理 | ✅ |
 | `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态与进度 | ✅ |
-| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、BROWSER/DESKTOP_VIEW_UPDATE（browser SSE 写 `sourceChatId`、不 openPanel）、BROWSER_TAKEOVER_*（`setLoading(false)`；pet waiting 由 PetOverlay store SSOT；`is_managed=false` 自动签发 `browser_takeover` pair token 并写入 `liveAssistUrl`；managed POST 失败 toast） | ✅ |
+| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、BROWSER/DESKTOP_VIEW_UPDATE（browser/desktop SSE 写 `sourceChatId`、不 openPanel）、DESKTOP_CONTROL_APPROVAL（openPanel 仅前台 chat 匹配）、BROWSER_TAKEOVER_*（`setLoading(false)`；pet waiting 由 PetOverlay store SSOT；`is_managed=false` 自动签发 `browser_takeover` pair token 并写入 `liveAssistUrl`；managed POST 失败 toast） | ✅ |
 | `takeoverVncMessages.ts` | 辅助 | managed VNC takeover POST 失败 toast 文案（与 locales billing.vnc.takeoverVncOpenFailed 同步） | ✅ |
-| `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果；`browser_*` TOOL_START 在前台 chat 匹配时 openPanel；`kanban_add_task`/`cron_manage` 成功写入 message metadata；`kanban_add_task` 软错误 JSON 标记 progress error | ✅ |
+| `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果；`browser_*` TOOL_START 在前台 chat 匹配时 openPanel；`desktop_*` TOOL_END REST re-fetch 仅前台 chat 匹配时执行；`kanban_add_task`/`cron_manage` 成功写入 message metadata；`kanban_add_task` 软错误 JSON 标记 progress error | ✅ |
 | `memoryBriefEvents.ts` | 核心 | `memory_brief` 发送前记忆简报事件：创建/更新 assistant 占位消息并挂载简报快照 | ✅ |
 | `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | ✅ |
 | `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA 文本流合并；当 `personalSettings.reasoningDisplayMode=off` 时直接丢弃 reasoning chunk 以减少前端内存占用；clarify metadata 合并时保留既有 `isResumeMode`/form | ✅ |
@@ -38,7 +38,10 @@
 | `__tests__/agentControlEvents.pendingGapRetry.test.ts` | 测试 | ERROR/CANCEL 后 flush pending gap | ✅ |
 | `__tests__/fileDiffEvents.takeover.test.ts` | 测试 | BROWSER_TAKEOVER is_managed 分支 + setLoading(false)（local 跳过 VNC 并校验签名接管链接生成；managed POST） | ✅ |
 | `__tests__/fileDiffEvents.browserViewUpdate.test.ts` | 测试 | BROWSER_VIEW_UPDATE：sourceChatId 写入、不 openPanel | ✅ |
+| `__tests__/fileDiffEvents.desktopViewUpdate.test.ts` | 测试 | DESKTOP_VIEW_UPDATE：sourceChatId 写入 | ✅ |
+| `__tests__/fileDiffEvents.desktopControlApproval.test.ts` | 测试 | DESKTOP_CONTROL_APPROVAL openPanel 仅前台 chat 匹配 | ✅ |
 | `__tests__/toolLifecycleEvents.browserInspector.test.ts` | 测试 | browser_* TOOL_START 前台 chat 匹配时才 openPanel | ✅ |
+| `__tests__/toolLifecycleEvents.desktopInspector.test.ts` | 测试 | desktop_* TOOL_END REST re-fetch 仅前台 chat 匹配时执行 | ✅ |
 | `__tests__/statusStreamProgressSteps.allowedToolsRecovery.test.ts` | 测试 | stream recovery + `allowed_tools_rejected_recovery` progress step 白名单 | ✅ |
 | `__tests__/statusStreamProgressSteps.modelFailoverKey.test.ts` | 测试 | `model_failover` displayKey 按 `error_kind` 派生；`model_failover_unconfigured` step 白名单 | ✅ |
 | `tests/e2e/test_model_failover_chrome_e2e.py` | Chrome E2E | primary key 故意失效 → base fallback MiniMax → WebUI progress step + assistant OK（PRIVATE + MCP mux） | ✅ |

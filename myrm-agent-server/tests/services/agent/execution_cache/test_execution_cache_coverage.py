@@ -131,6 +131,62 @@ async def test_registry_idle_eviction() -> None:
 
 
 @pytest.mark.asyncio
+async def test_registry_proactively_evicts_idle_units_without_new_acquire() -> None:
+    registry = ChatAgentExecutionCache(idle_seconds=0.02)
+
+    async def build_unit() -> BuiltExecutionUnit:
+        skill = MagicMock()
+        skill.close = AsyncMock()
+        return BuiltExecutionUnit(skill_agent=skill)
+
+    first = await registry.acquire("chat-idle:default", "fp-a", build_unit)
+    await registry.release("chat-idle:default")
+    await asyncio.sleep(0.08)
+
+    assert await registry.snapshot_warm_units() == []
+    first.skill_agent.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_registry_idle_reaper_preserves_active_turn() -> None:
+    registry = ChatAgentExecutionCache(idle_seconds=0.02)
+
+    async def build_unit() -> BuiltExecutionUnit:
+        skill = MagicMock()
+        skill.close = AsyncMock()
+        return BuiltExecutionUnit(skill_agent=skill)
+
+    first = await registry.acquire("chat-active:default", "fp-a", build_unit)
+    async with registry.guard_turn("chat-active:default"):
+        await asyncio.sleep(0.08)
+        assert await registry.snapshot_warm_units() != []
+        first.skill_agent.close.assert_not_awaited()
+
+    await asyncio.sleep(0.08)
+    assert await registry.snapshot_warm_units() == []
+    first.skill_agent.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_registry_close_all_stops_idle_reaper() -> None:
+    registry = ChatAgentExecutionCache(idle_seconds=60.0)
+
+    async def build_unit() -> BuiltExecutionUnit:
+        skill = MagicMock()
+        skill.close = AsyncMock()
+        return BuiltExecutionUnit(skill_agent=skill)
+
+    await registry.acquire("chat-close:default", "fp-a", build_unit)
+    reaper = registry._idle_reaper_task
+    assert reaper is not None
+
+    await registry.close_all()
+
+    assert registry._idle_reaper_task is None
+    assert reaper.done()
+
+
+@pytest.mark.asyncio
 async def test_registry_defer_replace_during_active_turn() -> None:
     registry = ChatAgentExecutionCache(idle_seconds=3600.0)
     skill = MagicMock()

@@ -594,3 +594,172 @@ def test_subagent_dashboard_shows_token_and_cost_budget_used_limit(
         assert (
             "$0.500" in cost_title and "/" in cost_title and "$2.50" in cost_title
         ), f"Cost budget tooltip missing: {display}"
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_subagent_dashboard_canvas_topology_renders_and_locates(
+    running_subagent: dict[str, object],
+) -> None:
+    """Canvas topology view renders the live subagent graph and click-to-locate works."""
+    chat_id = str(running_subagent.get("chatId") or "")
+    task_id = str(running_subagent.get("taskId") or "")
+    assert chat_id and task_id
+    tree_row = running_subagent.get("treeRow")
+    fallback_rows: list[dict[str, object]] = [
+        row for row in [tree_row] if isinstance(row, dict)
+    ]
+    ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+
+    with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
+        _open_subagent_dashboard(
+            client,
+            page,
+            chat_id,
+            fallback_rows=fallback_rows,
+        )
+        switched = client.evaluate(
+            page,
+            """(() => {
+              const tab = document.querySelector('[data-testid="subagent-view-tab-canvas"]');
+              if (!tab) return false;
+              tab.click();
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert switched is True, "Canvas view tab missing"
+        canvas = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const flow = document.querySelector('.react-flow');
+              const nodes = document.querySelectorAll('.react-flow__node');
+              return {
+                ready: !!flow && nodes.length > 0,
+                nodeCount: nodes.length,
+                text: document.querySelector('[data-testid="subagent-dashboard-panel"]')?.textContent?.slice(0, 200) || '',
+              };
+            })()""",
+            timeout_sec=30.0,
+        )
+        assert (
+            canvas.get("ready") is True
+        ), f"Canvas topology not rendered: {canvas}"
+        clicked = client.evaluate(
+            page,
+            """(() => {
+              const node = document.querySelector('.react-flow__node');
+              if (!node) return false;
+              node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert clicked is True
+        located = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
+              const backOnTree = !!panel?.querySelector('[data-testid="subagent-view-tab-tree"]');
+              const locatedNode = document.querySelector('[data-subagent-tree-id]');
+              return {
+                ready: backOnTree && !!locatedNode,
+                hasFlow: !!panel?.querySelector('.react-flow'),
+                located: !!locatedNode,
+              };
+            })()""",
+            timeout_sec=30.0,
+        )
+        assert (
+            located.get("ready") is True
+        ), f"Click-to-locate did not return to tree view: {located}"
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_subagent_dashboard_canvas_merges_fission_topology(
+    running_subagent: dict[str, object],
+) -> None:
+    """Canvas topology merges the persisted fission swarm group next to the subagent tree."""
+    chat_id = str(running_subagent.get("chatId") or "")
+    task_id = str(running_subagent.get("taskId") or "")
+    assert chat_id and task_id
+    tree_row = running_subagent.get("treeRow")
+    fallback_rows: list[dict[str, object]] = [
+        row for row in [tree_row] if isinstance(row, dict)
+    ]
+    ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+
+    with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
+        _open_subagent_dashboard(
+            client,
+            page,
+            chat_id,
+            fallback_rows=fallback_rows,
+        )
+        switched = client.evaluate(
+            page,
+            """(() => {
+              const tab = document.querySelector('[data-testid="subagent-view-tab-canvas"]');
+              if (!tab) return false;
+              tab.click();
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert switched is True, "Canvas view tab missing"
+        seeded = client.evaluate(
+            page,
+            """(() => {
+              const store = window.__myrmSubagentStore?.getState?.();
+              if (!store?.setFissionTopology) return false;
+              store.setFissionTopology({
+                fission_id: 'fission-e2e-demo',
+                nodes: [
+                  { node_id: 'a', agent_type: 'research', objective: 'Research A', status: 'running' },
+                  { node_id: 'b', agent_type: 'research', objective: 'Research B', status: 'completed', cost_usd: 0.25 },
+                ],
+                total_cost_usd: 0.25,
+              });
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert seeded is True, "Fission topology seed via store bridge failed"
+        merged = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
+              const text = panel?.textContent || '';
+              const flow = panel?.querySelector('.react-flow');
+              const nodeTexts = Array.from(document.querySelectorAll('.react-flow__node')).map((n) => n.textContent || '');
+              return {
+                ready: !!flow && nodeTexts.some((t) => /fission-/.test(t))
+                  && nodeTexts.some((t) => /Research A/.test(t))
+                  && nodeTexts.some((t) => /Research B/.test(t)),
+                nodeCount: nodeTexts.length,
+                fissionRoot: nodeTexts.filter((t) => /fission-/.test(t)).length,
+                summaryText: text.slice(0, 200),
+              };
+            })()""",
+            timeout_sec=30.0,
+        )
+        assert (
+            merged.get("ready") is True
+        ), f"Fission topology not merged into canvas: {merged}"
+        assert int(merged.get("nodeCount") or 0) >= 3, f"Expected >=3 canvas nodes: {merged}"

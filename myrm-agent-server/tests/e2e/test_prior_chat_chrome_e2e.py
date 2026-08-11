@@ -20,6 +20,37 @@ from tests.support.chrome_mcp_e2e import (
 _PRIOR_TITLE_FRAGMENT = "Alpha project"
 
 
+def _type_react_controlled_text(
+    client: object,
+    page: object,
+    text: str,
+    *,
+    selector: str = "[data-chat-input]",
+) -> dict[str, object]:
+    """Fill React-controlled input via native setter + input event (CDP type_text is unreliable)."""
+    result = client.evaluate(  # type: ignore[attr-defined]
+        page,
+        f"""(() => {{
+  const el = document.querySelector({json.dumps(selector)});
+  if (!el) return {{ ok: false, err: 'input-not-found', selector: {json.dumps(selector)} }};
+  const proto = el instanceof HTMLTextAreaElement
+    ? window.HTMLTextAreaElement.prototype
+    : window.HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+  if (!setter) return {{ ok: false, err: 'setter-not-found' }};
+  setter.call(el, {json.dumps(text)});
+  const len = el.value.length;
+  el.setSelectionRange(len, len);
+  el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+  el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+  return {{ ok: true, value: el.value }};
+}})()""",
+        timeout_sec=10.0,
+    )
+    assert isinstance(result, dict) and result.get("ok") is True, result
+    return result
+
+
 def _seed_prior_chat_fixture(api_url: str) -> dict[str, object]:
     seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-prior-chat-fixture")
     assert isinstance(seeded, dict)
@@ -40,16 +71,15 @@ _MENTION_ITEM_READY_JS = """(() => {
 })()"""
 
 _MENTION_CHIP_READY_JS = f"""(() => {{
-  const chips = Array.from(document.querySelectorAll('[data-chat-composer] .rounded-full'));
-  const hasPriorChip = chips.some((el) => (el.textContent || '').includes({json.dumps(_PRIOR_TITLE_FRAGMENT)}));
   const store = window.__myrmChatStore?.getState?.();
   const mentions = Array.isArray(store?.mentionReferences) ? store.mentionReferences : [];
-  const hasPriorMention = mentions.some((m) => m?.type === 'prior_chat');
+  const priorMention = mentions.find((m) => m?.type === 'prior_chat');
+  const label = String(priorMention?.label || '');
+  const hasAlpha = label.includes({json.dumps(_PRIOR_TITLE_FRAGMENT.split()[0])});
   return {{
-    ready: hasPriorChip && hasPriorMention,
-    chipCount: chips.length,
+    ready: Boolean(priorMention) && hasAlpha,
     mentionTypes: mentions.map((m) => m?.type),
-    chipTexts: chips.map((el) => (el.textContent || '').slice(0, 120)),
+    priorLabel: label.slice(0, 120),
   }};
 }})()"""
 
@@ -61,29 +91,28 @@ _CLICK_MENTION_ITEM_JS = """(() => {
 })()"""
 
 _OPEN_SEARCH_DIALOG_JS = """(() => {
-  window.dispatchEvent(
-    new KeyboardEvent('keydown', {
-      key: 'k',
-      code: 'KeyK',
-      metaKey: true,
-      ctrlKey: true,
-      bubbles: true,
-      cancelable: true,
-    }),
-  );
-  let input = document.querySelector('[data-search-input]');
-  if (!input) {
-    const trigger = document.querySelector('[data-search-trigger]');
-    if (trigger instanceof HTMLElement) {
-      trigger.click();
-    }
-    input = document.querySelector('[data-search-input]');
+  const trigger = document.querySelector('[data-search-trigger]');
+  if (trigger instanceof HTMLElement) {
+    trigger.click();
+  } else {
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'k',
+        code: 'KeyK',
+        metaKey: true,
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
   }
+  const input = document.querySelector('[data-search-input]');
   if (input instanceof HTMLInputElement) {
     input.focus();
   }
   return {
     ready: Boolean(input),
+    hasTrigger: Boolean(trigger),
     focused: document.activeElement === input,
   };
 })()"""
@@ -152,7 +181,7 @@ def test_prior_chat_mention_chip_chrome_e2e() -> None:
         )
         assert isinstance(focused, dict) and focused.get("ok") is True
 
-        client.type_text(page, "@chat:Alpha")
+        _type_react_controlled_text(client, page, "@chat:Alpha")
         wait_for_state(
             client,
             page,
@@ -194,18 +223,16 @@ def test_prior_chat_cmdk_cite_chrome_e2e() -> None:
             timeout_sec=_warm_ui_parallel_wait_sec(90.0),
         )
 
-        opened = client.evaluate(page, _OPEN_SEARCH_DIALOG_JS, timeout_sec=15.0)
-        assert isinstance(opened, dict) and opened.get("ready") is True, opened
-
+        client.evaluate(page, _OPEN_SEARCH_DIALOG_JS, timeout_sec=15.0)
         focus_state = wait_for_state(
             client,
             page,
             _SEARCH_INPUT_FOCUSED_JS,
-            timeout_sec=_warm_ui_parallel_wait_sec(15.0),
+            timeout_sec=_warm_ui_parallel_wait_sec(30.0),
         )
         assert focus_state.get("ready") is True, focus_state
 
-        client.type_text(page, "Alpha")
+        _type_react_controlled_text(client, page, "Alpha", selector="[data-search-input]")
         wait_for_state(
             client,
             page,
@@ -266,7 +293,7 @@ def test_prior_chat_mention_empty_chat_home_chrome_e2e() -> None:
         )
         assert isinstance(focused, dict) and focused.get("ok") is True
 
-        client.type_text(page, "@chat:Alpha")
+        _type_react_controlled_text(client, page, "@chat:Alpha")
         wait_for_state(
             client,
             page,

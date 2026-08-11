@@ -5,6 +5,8 @@
 
 [OUTPUT]
 - MediaDownloadConfig: Configuration for media downloads.
+- MAX_FORWARD_DOWNLOAD_BYTES: Shared download cap for cross-channel media forwarding flows.
+- DEFAULT_ALLOWED_CONTENT_TYPES: Default safe MIME types for channel media downloads.
 
 [POS]
 Media download configuration.
@@ -32,9 +34,9 @@ DEFAULT_ALLOWED_CONTENT_TYPES = frozenset(
         "audio/mpeg",  # .mp3
         "audio/ogg",
         "audio/wav",
-    # Documents
-    "application/pdf",
-    "text/plain",
+        # Documents
+        "application/pdf",
+        "text/plain",
     }
 )
 

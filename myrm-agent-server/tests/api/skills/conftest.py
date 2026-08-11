@@ -1,5 +1,6 @@
 """Skills API test fixtures."""
 
+import importlib
 import importlib.util
 from pathlib import Path
 
@@ -18,6 +19,15 @@ def _load_module_by_path(module_name: str, filename: str):
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Cannot load module from {module_path}")
     import sys
+
+    # Fully import the parent package first. spec_from_file_location bypasses
+    # the package __init__; a module body that does `from <pkg>.<sub> import …`
+    # (e.g. `_deploy_capability`) would otherwise re-trigger the package init,
+    # which imports the aggregated router and circularly re-enters this module
+    # before its `router` is defined.
+    parent_name = module_name.rpartition(".")[0]
+    if parent_name:
+        importlib.import_module(parent_name)
 
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module

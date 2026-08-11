@@ -54,6 +54,13 @@ class TestCatalogListEndpoint:
         assert data["total"] == 1
         assert data["entries"][0]["id"] == "notion"
 
+    def test_list_with_search_microsoft_todo(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog?q=checklist")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["total"] == 1
+        assert data["entries"][0]["id"] == "microsoft-todo"
+
     def test_list_search_no_results(self, client: TestClient) -> None:
         response = client.get("/api/v1/integrations/catalog?q=xyznonexistent")
         assert response.status_code == 200
@@ -120,6 +127,28 @@ class TestCatalogDetailEndpoint:
         assert mcp["name"] == "notion"
         assert mcp["type"] == "stdio"
         assert "args" in mcp
+
+    def test_get_microsoft_todo_entry(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/microsoft-todo")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["id"] == "microsoft-todo"
+        assert data["name"] == "Microsoft To Do"
+        assert data["category"] == "productivity"
+        assert data["connectorType"] == "mcp"
+        assert data["authType"] == "none"
+        mcp = data["mcpConfig"]
+        assert mcp is not None
+        assert mcp["type"] == "stdio"
+        assert mcp["command"] == "npx"
+        assert any("microsoft-todo-mcp" in arg for arg in mcp["args"])
+        assert mcp["postConnectGuide"] is not None
+        assert mcp["postConnectGuideZh"] is not None
+
+    def test_google_catalog_entries_not_exposed(self, client: TestClient) -> None:
+        """Dead google entries are gone; the google-workspace skill is the single entry point."""
+        for entry_id in ("gmail", "google_calendar", "google_drive"):
+            assert client.get(f"/api/v1/integrations/catalog/{entry_id}").status_code == 404
 
     def test_get_nonexistent_entry(self, client: TestClient) -> None:
         response = client.get("/api/v1/integrations/catalog/does_not_exist")

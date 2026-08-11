@@ -1,6 +1,6 @@
 """Tests for channel inbound profile resolution."""
 
-from app.channels.inbound_profile import resolve_channel_ingress_mode
+from app.channels.protocols.inbound_profile import resolve_channel_ingress_mode
 
 
 def test_feishu_websocket_is_outbound() -> None:

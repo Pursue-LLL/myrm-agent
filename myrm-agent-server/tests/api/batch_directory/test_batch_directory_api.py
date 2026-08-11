@@ -272,8 +272,7 @@ class TestFinalize:
             assert kwargs["meta_data"]["status"] == "completed"
             assert kwargs["meta_data"]["completed"] == 2
             assert (
-                kwargs["meta_data"]["action_url"]
-                == f"/batch-directories/{project_id}"
+                kwargs["meta_data"]["action_url"] == f"/batch-directories/{project_id}"
             )
 
         detail = client.get(f"/api/v1/batch-directories/{project_id}").json()
@@ -787,6 +786,57 @@ class TestRetryFailed:
         service = BatchDirectoryService.get_instance()
         assert await service.retry_failed("does-not-exist") is None
 
+    @pytest.mark.asyncio
+    async def test_retry_failed_does_not_overwrite_concurrent_cancel(
+        self, client, tmp_path
+    ) -> None:
+        """A concurrent cancel that flips the project to ``cancelled`` while
+        retry is fanning out must win — retry reopens the project with a
+        conditional ``expected_status`` guard, so a concurrent cancel is never
+        overwritten back to ``running`` (same guard as resume).
+
+        The race window requires a non-terminal project: ``cancel_project``
+        only flips non-terminal projects (``service.py`` guards on
+        ``_PROJECT_TERMINAL_STATUSES``), so the project stays ``running``
+        while a failed directory is retried and the user cancels concurrently.
+        """
+        from app.database.connection import get_session
+        from app.database.models.kanban import KanbanTaskModel
+        from app.services.batch_directory._run import (
+            fan_out_batch_tasks as real_fan_out,
+        )
+
+        dir_a = tmp_path / "alpha"
+        dir_a.mkdir()
+        project = _create_project(client, [str(dir_a)])
+        project_id = project["project_id"]
+        task_ids = project["created_task_ids"]
+
+        # 项目保持 running（非终态），仅将任务置 FAILED 模拟部分目录失败
+        async with get_session() as session:
+            task = await session.get(KanbanTaskModel, task_ids[0])
+            assert task is not None
+            task.status = TaskStatus.FAILED.value
+            task.error = "boom"
+            await session.commit()
+
+        service = BatchDirectoryService.get_instance()
+
+        async def cancel_after_fanout(kanban, **kwargs):
+            created, errors = await real_fan_out(kanban, **kwargs)
+            # 模拟并发取消：fan_out 完成后、_reopen_running 前项目被置 cancelled
+            await service.cancel_project(project_id)
+            return created, errors
+
+        with patch(
+            "app.services.batch_directory._retry.fan_out_batch_tasks",
+            new=cancel_after_fanout,
+        ):
+            result = await service.retry_failed(project_id)
+
+        assert result is not None
+        assert result["status"] == "cancelled"
+
 
 class TestRetryTask:
     @pytest.mark.asyncio
@@ -1027,7 +1077,9 @@ class TestRetryThenComplete:
 
 class TestPauseResume:
     @pytest.mark.asyncio
-    async def test_pause_freezes_queue_and_running_tasks(self, client, tmp_path) -> None:
+    async def test_pause_freezes_queue_and_running_tasks(
+        self, client, tmp_path
+    ) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -1142,7 +1194,9 @@ class TestPauseResume:
             await service.resume_project(project_id)
 
     @pytest.mark.asyncio
-    async def test_retry_and_rerun_rejected_while_paused(self, client, tmp_path) -> None:
+    async def test_retry_and_rerun_rejected_while_paused(
+        self, client, tmp_path
+    ) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -1284,11 +1338,99 @@ class TestPauseResume:
         assert result["resumed_task_ids"] == []
 
         async with get_session() as session:
-            task = await session.get(
-                KanbanTaskModel, project["created_task_ids"][0]
-            )
+            task = await session.get(KanbanTaskModel, project["created_task_ids"][0])
             assert task is not None
             assert task.status == TaskStatus.BLOCKED.value
+
+    @pytest.mark.asyncio
+    async def test_pause_skips_task_that_finished_during_freeze(
+        self, client, tmp_path
+    ) -> None:
+        """W1: a task that reaches a terminal state after the pause snapshot
+        (while the freeze is in flight) must keep its result and be skipped —
+        no cancel/move is issued against it, avoiding a redundant re-run."""
+        from app.database.connection import get_session
+        from app.database.models.kanban import KanbanTaskModel
+
+        dir_a = tmp_path / "alpha"
+        dir_b = tmp_path / "beta"
+        dir_a.mkdir()
+        dir_b.mkdir()
+        project = _create_project(client, [str(dir_a), str(dir_b)])
+        project_id = project["project_id"]
+        task_ids = project["created_task_ids"]
+
+        # alpha 运行中，beta 排队等待
+        async with get_session() as session:
+            task = await session.get(KanbanTaskModel, task_ids[0])
+            assert task is not None
+            task.status = TaskStatus.RUNNING.value
+            await session.commit()
+
+        service = BatchDirectoryService.get_instance()
+        real_get = service.kanban.get_task
+        real_cancel = service.kanban.cancel_task_execution
+
+        async def get_task_fresh(task_id: str):
+            task = await real_get(task_id)
+            if task_id == task_ids[0]:
+                # 模拟 pause 快照后 alpha 立即完成：复查时已是终态
+                task.status = TaskStatus.COMPLETED
+                task.result = "done"
+            return task
+
+        cancel_spy = AsyncMock(side_effect=lambda tid: real_cancel(tid))
+        with patch.object(service.kanban, "get_task", new=get_task_fresh), patch.object(
+            service.kanban, "cancel_task_execution", new=cancel_spy
+        ):
+            result = await service.pause_project(project_id)
+
+        assert result is not None
+        assert result["status"] == "paused"
+        # alpha 已终态：不冻结、不触发 cancel；beta 仍被冻结
+        assert task_ids[0] not in result["paused_task_ids"]
+        assert task_ids[1] in result["paused_task_ids"]
+        assert not any(c.args[0] == task_ids[0] for c in cancel_spy.await_args_list)
+
+        async with get_session() as session:
+            task = await session.get(KanbanTaskModel, task_ids[0])
+            assert task is not None
+            # 冻结被跳过：alpha 未被置 BLOCKED，保持原运行状态
+            assert task.status == TaskStatus.RUNNING.value
+            task_b = await session.get(KanbanTaskModel, task_ids[1])
+            assert task_b is not None
+            assert task_b.status == TaskStatus.BLOCKED.value
+
+    @pytest.mark.asyncio
+    async def test_resume_does_not_overwrite_concurrent_cancel(
+        self, client, tmp_path
+    ) -> None:
+        """W2: when a concurrent cancel flips the project to ``cancelled``
+        while resume is unblocking, resume must not overwrite it back to
+        ``running`` — cancel wins, the state machine stays consistent."""
+        dir_a = tmp_path / "alpha"
+        dir_a.mkdir()
+        project = _create_project(client, [str(dir_a)])
+        project_id = project["project_id"]
+
+        service = BatchDirectoryService.get_instance()
+        await service.pause_project(project_id)
+
+        real_move = service.kanban.move_task
+
+        async def cancel_on_unblock(task_id: str, target, **kwargs):
+            if target == TaskStatus.READY:
+                # 模拟并发取消：项目置 cancelled 且冻结任务被归档
+                await service.cancel_project(project_id)
+                raise RuntimeError("boom")
+            return await real_move(task_id, target, **kwargs)
+
+        with patch.object(service.kanban, "move_task", new=cancel_on_unblock):
+            result = await service.resume_project(project_id)
+
+        assert result is not None
+        assert result["status"] == "cancelled"
+        assert result["resumed_task_ids"] == []
 
 
 class TestApproveAllResults:

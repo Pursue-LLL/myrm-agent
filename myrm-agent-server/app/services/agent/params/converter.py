@@ -208,6 +208,19 @@ async def convert_to_general_agent_params(
         except ValueError:
             pass
 
+    if fallback_model_cfg is None or fallback_lite_model_cfg is None:
+        from app.core.channel_bridge.config_parsers import (
+            extract_fallback_model_configs,
+        )
+
+        config_base_fallback, config_lite_fallback = extract_fallback_model_configs(
+            providers_dict
+        )
+        if fallback_model_cfg is None:
+            fallback_model_cfg = config_base_fallback
+        if fallback_lite_model_cfg is None:
+            fallback_lite_model_cfg = config_lite_fallback
+
     vision_fallback_model_cfg = None
     if request.vision_fallback_model_selection:
         try:
@@ -406,7 +419,9 @@ async def convert_to_general_agent_params(
     resolved = None
 
     if request.agent_id:
-        from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
+        from app.services.agent.profile.profile_resolver import (
+            get_agent_profile_resolver,
+        )
 
         resolved = await get_agent_profile_resolver().resolve(request.agent_id)
         if resolved:

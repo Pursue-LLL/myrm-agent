@@ -5,7 +5,9 @@ import { useMemo } from 'react';
 import useBrowserInspectorStore, {
   selectScopedBrowserViewData,
 } from '@/store/useBrowserInspectorStore';
-import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
+import useDesktopInspectorStore, {
+  selectScopedDesktopViewData,
+} from '@/store/useDesktopInspectorStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { usesInlineVisualApprovalSurface } from '@/lib/approval/visualApprovalSurface';
 import { useToolApprovalResolve } from '@/hooks/approval/useToolApprovalResolve';
@@ -19,7 +21,9 @@ interface VisualApprovalInlineSectionProps {
 
 export default function VisualApprovalInlineSection({ messageId, chatId }: VisualApprovalInlineSectionProps) {
   const queue = useToolApprovalStore((state) => state.queue);
-  const desktopViewData = useDesktopInspectorStore((state) => state.viewData);
+  const desktopViewData = useDesktopInspectorStore((state) =>
+    selectScopedDesktopViewData(state.viewData, chatId),
+  );
   const browserViewData = useBrowserInspectorStore((state) =>
     selectScopedBrowserViewData(state.viewData, chatId),
   );

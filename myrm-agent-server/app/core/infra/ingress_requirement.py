@@ -1,7 +1,7 @@
 """Resolve whether public Ingress is required for the current deployment.
 
 [INPUT]
-- app.channels.inbound_profile (POS: per-channel inbound/outbound classification)
+- app.channels.protocols.inbound_profile (POS: per-channel inbound/outbound classification)
 - app.core.channel_bridge.config_loader::load_user_config_entry (POS: decrypted config entries)
 - app.core.infra.ingress::get_public_ingress_base_url (POS: Ingress URL resolver)
 - app.core.cron.adapters.setup::get_cron_store (POS: cron job persistence)
@@ -21,7 +21,7 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 
-from app.channels.inbound_profile import (
+from app.channels.protocols.inbound_profile import (
     CHANNEL_INBOUND_SPECS,
     IngressTransport,
     resolve_channel_ingress_mode,

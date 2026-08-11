@@ -60,14 +60,14 @@ DEFAULT_MEMORY_AB_REPORTS_DIR = DEFAULT_REPORTS_DIR.parent / "memory_ab_reports"
 DEFAULT_MEMORY_AB_MEMORY_DIR = DEFAULT_REPORTS_DIR.parent / "eval_memory_ab"
 
 
-def _init_memory_ab_state(subset_id: str) -> None:
+def _init_memory_ab_state(benchmark_id: str) -> None:
     """Reset global state for a memory A/B run (called synchronously by the router)."""
     _memory_ab_state.clear()
     _memory_ab_state.update(
         {
             "is_running": True,
             "stage": "downloading",
-            "stage_subset_id": subset_id,
+            "stage_subset_id": benchmark_id,
             "download_progress": {"downloaded_bytes": 0, "total_bytes": 0},
             "current_arm": None,
             "profile_progress": 0,
@@ -110,29 +110,33 @@ def abort_memory_ab() -> bool:
 
 
 async def run_memory_ab_background(
-    subset_id: str,
+    benchmark_id: str,
     profile_id: str | None = None,
 ) -> None:
-    """Run a memory-on vs memory-off A/B comparison on a WBBench subset.
+    """Run a memory-on vs memory-off A/B comparison on an external benchmark.
 
     Both arms use ``benchmark_mode`` so they share a clean, user-config-free
     environment; the only difference is ``enable_memory``. The memory-on arm
     is pointed at a throwaway volume that is evicted from the memory manager
-    cache and deleted when the run finishes.
+    cache and deleted when the run finishes. The benchmark's declared tool
+    whitelist (e.g. ``web_search`` for BrowseComp) is injected into both arms.
     """
     global _memory_ab_state, _active_memory_ab_runner
 
     if not _memory_ab_state.get("is_running"):
-        _init_memory_ab_state(subset_id)
+        _init_memory_ab_state(benchmark_id)
 
     memory_dir = Path(DEFAULT_MEMORY_AB_MEMORY_DIR) / f"memory_ab_{int(time.time())}"
 
     try:
-        from app.core.eval.wb_bench import build_wb_bench_cases
+        from app.core.eval.benchmarks import (
+            benchmark_required_tools,
+            build_benchmark_cases,
+        )
 
         cases, seed_map = await asyncio.to_thread(
-            build_wb_bench_cases,
-            subset_id,
+            build_benchmark_cases,
+            benchmark_id,
             progress_callback=_report_memory_ab_download_progress,
             should_abort=_memory_ab_abort_requested,
         )
@@ -146,16 +150,19 @@ async def run_memory_ab_background(
 
         from myrm_agent_harness.eval import MatrixRunner
 
+        benchmark_tools = benchmark_required_tools(benchmark_id)
         executors: dict[str, AgentExecutor] = {
             "memory_off": LocalEvalExecutor(
                 profile_id=profile_id,
                 benchmark_mode=True,
+                benchmark_tools=benchmark_tools,
                 enable_memory=False,
                 workspace_seed_map=seed_map,
             ),
             "memory_on": LocalEvalExecutor(
                 profile_id=profile_id,
                 benchmark_mode=True,
+                benchmark_tools=benchmark_tools,
                 enable_memory=True,
                 memory_base_path=str(memory_dir),
                 workspace_seed_map=seed_map,
@@ -195,7 +202,7 @@ async def run_memory_ab_background(
 
         report_data = matrix_result.to_dict()
         report_data["timestamp"] = timestamp
-        report_data["dataset_id"] = f"wb-bench-{subset_id}"
+        report_data["dataset_id"] = benchmark_id
         report_data["profile_id"] = profile_id
         report_data["benchmark_mode"] = True
 

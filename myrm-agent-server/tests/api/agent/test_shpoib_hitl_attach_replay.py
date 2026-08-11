@@ -6,11 +6,15 @@ is flaky: pending tool_approval_request → collector replay → hitl-probe / at
 
 from __future__ import annotations
 
+import asyncio
+from typing import Any
 from unittest.mock import patch
 
 import pytest
+from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
+from app.api.agents.general_agent.active_sessions import attach_to_chat
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS, StreamContentCollector
 from tests.support.minimal_app import build_minimal_app
@@ -98,3 +102,49 @@ def test_hitl_probe_exposes_pending_interrupt_events() -> None:
 
 def test_sse_response_headers_enable_shpoib_cross_origin_reads() -> None:
     assert SSE_RESPONSE_HEADERS.get("Cross-Origin-Resource-Policy") == "cross-origin"
+
+
+class _FakeRequest:
+    """Minimal Request stand-in: never disconnected, no E2EE session bound."""
+
+    def __init__(self) -> None:
+        self.state: Any = type("State", (), {})()
+        self.state.e2ee_session = None
+        self.state.auth_source = None
+
+    async def is_disconnected(self) -> bool:
+        return False
+
+
+@pytest.mark.asyncio
+async def test_attach_stream_terminates_after_collector_cleanup() -> None:
+    """After a turn finalizes (collector removed), the attach SSE stream must end.
+
+    Regression guard for the frontend loading-hang: if the attach stream stays open
+    after `collector.cleanup()`, `consumeStream` never sees EOF and the chat store's
+    `loading` flag is never reset.
+    """
+    chat_id = "chat-attach-terminates-on-cleanup"
+    collector = StreamContentCollector(chat_id=chat_id)
+    try:
+        collector.feed_event({"type": "message", "data": "partial"})
+
+        response = await attach_to_chat(chat_id, _FakeRequest())  # type: ignore[arg-type]
+        assert isinstance(response, StreamingResponse)
+        body = response.body_iterator
+
+        # 1. catchup_snapshot is yielded first
+        first = await anext(body)
+        assert "catchup_snapshot" in first
+
+        # 2. Real-time event is streamed while collector is active
+        collector.feed_event({"type": "message", "data": "live-chunk"})
+        second = await anext(body)
+        assert "live-chunk" in second
+
+        # 3. Once the turn finalizes, the stream must terminate promptly
+        collector.cleanup()
+        with pytest.raises(StopAsyncIteration):
+            await asyncio.wait_for(anext(body), timeout=5)
+    finally:
+        collector.cleanup()

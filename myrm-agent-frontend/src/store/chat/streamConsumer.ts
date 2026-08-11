@@ -493,6 +493,7 @@ export async function consumeStream(
     },
     setMessageAppeared: actions.setMessageAppeared,
     setLoading: actions.setLoading,
+    clearActiveStream: actions.clearActiveStream,
     _processSuggestions: actions._processSuggestions,
     scheduleAutoSave: actions.scheduleAutoSave,
   };

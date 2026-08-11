@@ -1,10 +1,23 @@
+/**
+ * [INPUT]
+ * @/store/chat/types::BrowserRefInfo (POS: element reference info with BBox)
+ *
+ * [OUTPUT]
+ * useDesktopInspectorStore: Zustand store for Desktop Inspector panel state.
+ * selectScopedDesktopViewData: chat-scoped viewData selector for multi-pane SSE isolation.
+ *
+ * [POS]
+ * State management for the Desktop Live View + Interactive Inspector feature.
+ * Tracks panel visibility, active mode, latest desktop view data, and selected element.
+ */
+
 import { create } from 'zustand';
 import { apiRequest } from '@/lib/api';
 import type { BrowserRefInfo } from '@/store/chat/types';
 
 type InspectorMode = 'view' | 'inspect';
 
-interface DesktopViewData {
+export interface DesktopViewData {
   screenshotBase64: string;
   mimeType: string;
   refs: Record<string, BrowserRefInfo>;
@@ -17,7 +30,20 @@ interface DesktopViewData {
   screenWidth?: number;
   screenHeight?: number;
   dpiScale?: number;
+  sourceChatId: string;
   updatedAt: number;
+}
+
+/** Return desktop view data only when it belongs to the active chat (multi-pane SSE isolation). */
+export function selectScopedDesktopViewData(
+  viewData: DesktopViewData | null,
+  chatId: string | null | undefined,
+): DesktopViewData | null {
+  const normalizedChatId = chatId?.trim() ?? '';
+  if (!normalizedChatId || !viewData) {
+    return null;
+  }
+  return viewData.sourceChatId === normalizedChatId ? viewData : null;
 }
 
 interface SelectedElement {
@@ -90,6 +116,9 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
   setInstructionText: (text) => set({ instructionText: text }),
   fetchSnapshot: async () => {
     if (get().isSnapshotLoading) return false;
+    const { default: useChatStore } = await import('@/store/useChatStore');
+    const chatId = useChatStore.getState().chatId?.trim();
+    if (!chatId) return false;
     set({ isSnapshotLoading: true });
     try {
       const data = await apiRequest<DesktopSnapshotResponse>('/webui/desktop/snapshot', {
@@ -110,6 +139,7 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
           screenWidth: data.screen_width,
           screenHeight: data.screen_height,
           dpiScale: data.dpi_scale,
+          sourceChatId: chatId,
           updatedAt: Date.now(),
         },
       });

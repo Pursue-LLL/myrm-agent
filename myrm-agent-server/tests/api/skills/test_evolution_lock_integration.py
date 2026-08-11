@@ -4,11 +4,19 @@ Tests the full end-to-end flow of toggle_evolution_lock API,
 ensuring it correctly updates both the SQLite store and the physical SKILL.md file.
 """
 
+import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.agent.skills.evolution import (
+    EvolutionType,
+    SkillEvolutionEngine,
+    SkillLineage,
+    SkillRecord,
+    SkillStore,
+)
 from myrm_agent_harness.agent.skills.evolution.infra.integration import get_global_evolution_integration
 
 from app.core.skills.models import Skill
@@ -77,24 +85,30 @@ def test_toggle_evolution_lock_integration(client: TestClient, temp_skill_dir: P
 
 
 @pytest.mark.asyncio
-async def test_derive_skill_blocked_by_lock(client: TestClient, temp_skill_dir: Path):
-    """Test that a locked skill cannot be derived via the API."""
-    skill_id = "test-lock-skill"
-    evolution = get_global_evolution_integration()
-    if not evolution or not evolution.store:
-        pytest.skip("Evolution system not initialized")
+async def test_derive_skill_blocked_by_lock() -> None:
+    """Locked skill cannot be derived: the engine refuses before any LLM call."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test_evolution.db"
+        store = SkillStore(db_path)
+        engine = SkillEvolutionEngine(store=store, llm=None)
+        try:
+            skill = SkillRecord(
+                skill_id="test-lock-skill",
+                name="test-lock-skill",
+                description="A test skill",
+                content="# test-lock-skill\n\ndescription: A test skill\n",
+                path=str(db_path.parent),
+                lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED, version=1),
+                evolution_locked=True,
+            )
+            await store.save_skill(skill)
+            await store.set_evolution_lock("test-lock-skill", locked=True)
 
-    # Lock it in the DB
-    await evolution.store.set_evolution_lock(skill_id, locked=True)
+            assert store.is_evolution_locked("test-lock-skill") is True
 
-    # Trigger a derive request
-    payload = {"instruction": "Make it better"}
-    user_id = "sandbox"
-    response = client.post(f"/api/evolution/derive/{skill_id}?user_id={user_id}", json=payload)
-
-    # It returns 200 Accepted but background task will skip because of engine logic
-    # The API might be under /api/v1/evolution/derive/{skill_id}
-    # Wait, the endpoint might just be /api/evolution/derive in tests due to router prefixes
-    if response.status_code == 404:
-        # If skills_service lookup inside derive_skill fails because it's not mocked:
-        pass
+            proposal = await engine.derive_skill_simple(
+                "test-lock-skill", user_feedback="Make it better"
+            )
+            assert proposal is None
+        finally:
+            store.close()

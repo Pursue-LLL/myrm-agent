@@ -329,7 +329,14 @@ _backend_supervisor_alive() {
 }
 
 _frontend_port_listening() {
-  lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t >/dev/null 2>&1
+  python3 -c '
+import socket, sys
+try:
+    with socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=0.25):
+        pass
+except (OSError, ValueError):
+    raise SystemExit(1)
+' "${FRONTEND_PORT}" >/dev/null 2>&1
 }
 
 _sync_frontend_pid_from_lock() {
@@ -559,18 +566,40 @@ _ensure_backend() {
 
 cmd_attach() {
   local attach_start="${SECONDS}"
-  local elapsed remaining
-  if _stack_healthy; then
+  local elapsed remaining probe_sec
+
+  _attach_wall_remaining() {
+    elapsed=$((SECONDS - attach_start))
+    remaining=$((ATTACH_WAIT_SEC - elapsed))
+    if (( remaining <= 0 )); then
+      return 1
+    fi
+    echo "${remaining}"
+  }
+
+  probe_sec="$(_attach_wall_remaining)" || {
+    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+    exit 1
+  }
+  if _api_healthy "${probe_sec}" && _frontend_healthy "${probe_sec}"; then
     echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=http"
     exit 0
   fi
-  if _wait_stack_warm "${ATTACH_WAIT_SEC}"; then
+
+  remaining="$(_attach_wall_remaining)" || {
+    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+    exit 1
+  }
+  if _wait_stack_warm "${remaining}"; then
     echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
     exit 0
   fi
-  elapsed=$((SECONDS - attach_start))
-  remaining=$((ATTACH_WAIT_SEC - elapsed))
-  if (( remaining > 0 )) && _wait_stack_health "${remaining}"; then
+
+  remaining="$(_attach_wall_remaining)" || {
+    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+    exit 1
+  }
+  if _wait_stack_health "${remaining}"; then
     echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=http"
     exit 0
   fi

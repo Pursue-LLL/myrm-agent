@@ -52,7 +52,7 @@ import { SkillInstanceManager } from '@/components/features/skills/SkillInstance
 import SkillBatchImportDialog from '@/components/features/skills/SkillBatchImportDialog';
 import PluginImportDialog from '@/components/features/plugins/PluginImportDialog';
 import { getSkillStatus } from '@/components/features/skills/SkillCard';
-import { isLocalMode } from '@/lib/deploy-mode';
+import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import SettingsSection from '../SettingsSection';
 
 type TabValue = 'discover' | 'installed';
@@ -87,7 +87,7 @@ const SkillsSection = memo(() => {
 
   const { unreviewedCount, fetchUnreviewedCount } = useSkillDraftStore();
 
-  const [activeTab, setActiveTab] = useState<TabValue>('discover');
+  const [activeTab, setActiveTab] = useState<TabValue>(() => (isSandbox() ? 'installed' : 'discover'));
   const [detailSkill, setDetailSkill] = useState<Skill | null>(null);
   const [installedSearch, setInstalledSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState<SkillSourceFilter>('all');
@@ -477,6 +477,7 @@ const SkillsSection = memo(() => {
 
   const isLoggedIn = isMounted && !!user;
   const isLocal = isMounted && isLocalMode();
+  const isSandboxMode = isMounted && isSandbox();
   const isLoading = isLoadingMarket || isLoadingLocal || isLoadingConfig;
   const enabledCount = enabledPrebuiltIds.length + enabledLocalSkillIds.length;
 
@@ -512,11 +513,13 @@ const SkillsSection = memo(() => {
       <SettingsSection title={t('title')} description={t('description')}>
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <TabsList className="grid w-full sm:w-auto grid-cols-2">
-              <TabsTrigger value="discover" className="gap-2">
-                <IconExplore className="h-4 w-4" />
-                {t('tabs.discover')}
-              </TabsTrigger>
+            <TabsList className={cn('grid w-full sm:w-auto', isSandboxMode ? 'grid-cols-1' : 'grid-cols-2')}>
+              {!isSandboxMode && (
+                <TabsTrigger value="discover" className="gap-2">
+                  <IconExplore className="h-4 w-4" />
+                  {t('tabs.discover')}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="installed" className="gap-2">
                 <IconFolder className="h-4 w-4" />
                 {t('tabs.installed')}
@@ -530,7 +533,7 @@ const SkillsSection = memo(() => {
             </TabsList>
 
             <div className="flex items-center gap-2">
-              {isLoggedIn && activeTab === 'installed' && (
+              {isLoggedIn && activeTab === 'installed' && !isSandboxMode && (
                 <>
                   <Button
                     variant="ghost"
@@ -552,17 +555,19 @@ const SkillsSection = memo(() => {
                   >
                     <IconUpload className={cn('h-4 w-4', isSyncing && 'animate-pulse')} />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsPluginImportOpen(true)}
-                    disabled={isSyncing}
-                    className="h-9 w-9"
-                    title={tPlugins('title')}
-                  >
-                    <IconPlug className="h-4 w-4" />
-                  </Button>
                 </>
+              )}
+              {isLoggedIn && activeTab === 'installed' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsPluginImportOpen(true)}
+                  disabled={isSyncing}
+                  className="h-9 w-9"
+                  title={tPlugins('title')}
+                >
+                  <IconPlug className="h-4 w-4" />
+                </Button>
               )}
               <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isLoading} className="h-9 w-9">
                 <IconRefresh className={cn('h-4 w-4', isLoading && 'animate-spin')} />
@@ -571,12 +576,22 @@ const SkillsSection = memo(() => {
           </div>
 
           {/* Discover Tab */}
-          <TabsContent value="discover" className="mt-0">
-            <SkillDiscoverTab onInstalled={handleRefresh} />
-          </TabsContent>
+          {!isSandboxMode && (
+            <TabsContent value="discover" className="mt-0">
+              <SkillDiscoverTab onInstalled={handleRefresh} />
+            </TabsContent>
+          )}
 
           {/* Installed Tab */}
           <TabsContent value="installed" className="mt-0 space-y-4">
+            {/* Sandbox notice — cloud deployments ship prebuilt skills only */}
+            {isSandboxMode && (
+              <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
+                <IconExplore className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{t('installed.sandboxNotice')}</span>
+              </div>
+            )}
+
             {/* Skill Sync Status */}
             {isLoggedIn && <SkillSyncIndicator />}
 

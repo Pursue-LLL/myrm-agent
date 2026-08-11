@@ -5,22 +5,33 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { LayoutGrid } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
-import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
+import useDesktopInspectorStore, {
+  selectScopedDesktopViewData,
+} from '@/store/useDesktopInspectorStore';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 
 const DesktopInspectorToggle: React.FC = () => {
   const t = useTranslations('chat.desktopInspector');
+  const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
   const computerUseEnabled = useChatStore((state) => state.currentBuiltinTools.includes('computer_use'));
-  const { isDesktopActive, isOpen, togglePanel, closePanel } = useDesktopInspectorStore();
+  const { isDesktopActive, isOpen, togglePanel, closePanel, viewData } = useDesktopInspectorStore();
+  const hasScopedView = Boolean(selectScopedDesktopViewData(viewData, chatId));
 
-  const isVisible = computerUseEnabled || isDesktopActive;
-  const isPending = !isDesktopActive;
+  const isVisible = computerUseEnabled || (isDesktopActive && hasScopedView);
+  const isPending = !isDesktopActive || (isDesktopActive && !hasScopedView);
 
   useEffect(() => {
     if (!computerUseEnabled && !isDesktopActive && isOpen) {
       closePanel();
     }
   }, [computerUseEnabled, isDesktopActive, isOpen, closePanel]);
+
+  useEffect(() => {
+    if (!isOpen || !viewData?.sourceChatId || !chatId) return;
+    if (viewData.sourceChatId !== chatId) {
+      closePanel();
+    }
+  }, [chatId, viewData?.sourceChatId, isOpen, closePanel]);
 
   if (!isVisible) return null;
 

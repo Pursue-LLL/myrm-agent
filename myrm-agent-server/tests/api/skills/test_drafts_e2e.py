@@ -129,3 +129,36 @@ class TestDraftsE2E:
         assert first.status_code == 200
         second = client.post(f"/api/v1/skills/drafts/{record.id}/reject")
         assert second.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_approve_skill_draft_blocked_in_sandbox(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from app.config.deploy_mode import get_deploy_mode
+        from app.platform_utils.deployment_capabilities import (
+            _reset_capabilities_cache_for_testing,
+        )
+        from app.services.approvals.registry import ApprovalRegistry
+
+        get_deploy_mode.cache_clear()
+        _reset_capabilities_cache_for_testing()
+        monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+        get_deploy_mode.cache_clear()
+        _reset_capabilities_cache_for_testing()
+        try:
+            record = await ApprovalRegistry.create_approval(
+                agent_id="sandbox_agent",
+                chat_id="sandbox_chat",
+                action_type="skill_draft",
+                payload={"skill_name": "sandbox-skill", "content": "# x", "score": 0.5},
+                reason="sandbox gate",
+            )
+            resp = client.post(
+                f"/api/v1/skills/drafts/{record.id}/approve",
+                json={"skill_name": "sandbox-skill"},
+            )
+            assert resp.status_code == 403
+        finally:
+            monkeypatch.delenv("DEPLOY_MODE", raising=False)
+            get_deploy_mode.cache_clear()
+            _reset_capabilities_cache_for_testing()

@@ -151,7 +151,7 @@ IDLE ──start()──→ RUNNING ──error──→ DEGRADED ──recover�
 - 状态聚合（`get_status()` / `collect_all_issues()`）
 - 事件订阅（`status_change` / `groups_change`）
 
-**公网 Ingress 需求（与 `inbound_profile.py` 联动）**：
+**公网 Ingress 需求（与 `protocols/inbound_profile.py` 联动）**：
 
 - 每个内置渠道在 `inbound_profile.CHANNEL_INBOUND_SPECS` 声明 `outbound` / `inbound` / `conditional` 传输模式
 - `core/infra/ingress_requirement.resolve_ingress_requirement()` 读取 UserConfig 凭证 + Cron Webhook + SaaS 已注册 CP 渠道，输出 `GET /api/v1/system/ingress-requirement`

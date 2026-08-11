@@ -603,6 +603,28 @@ print(
 " 2>/dev/null || true
 }
 
+_prepare_auth_template_before_attach() {
+  PYTHONPATH="\${SCRIPT_DIR}/lib:\${PYTHONPATH:-}" \
+    "\${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '\${SCRIPT_DIR}/lib')
+from e2e_auth_provisioner import prepare_auth_template_for_attach
+from e2e_api_verify import workspace_backend_fingerprint
+origin = '\${UI_BASE:-http://127.0.0.1:3000}'
+status = prepare_auth_template_for_attach(
+    origin=origin,
+    workspace_fingerprint=workspace_backend_fingerprint(),
+)
+print(
+    f'CHROME_E2E_AUTH_PREPARE: status={status["status"]} '
+    f'next={status["next_action"]} runtime_fp={status.get("runtimeFingerprint", "")}',
+    flush=True,
+)
+if status['next_action'] not in {'READY', 'AUTH_SETUP_REQUIRED'}:
+    raise SystemExit('AUTH_TEMPLATE_PREPARE_UNAVAILABLE')
+" 2>/dev/null || fail "auth template preparation failed before attach"
+}
+
 _attach_fast_path() {
   if _attach_epoch_pin_fast_path; then
     return 0
@@ -912,6 +934,12 @@ fi
 
 _preflight_readiness_gate
 _preflight_progress "readiness"
+
+# Repair an existing runtime-mismatched template before isolated context attach;
+# missing/expired templates remain an explicit setup requirement.
+if [[ "\${MYRM_E2E_API_ONLY:-}" != "1" ]]; then
+  _prepare_auth_template_before_attach
+fi
 
 # 1. Dev servers (Next.js cold compile can exceed 3s)
 # R202: mux-heal-only signoff must not block on attach endpoint wait + frontend dogpile.

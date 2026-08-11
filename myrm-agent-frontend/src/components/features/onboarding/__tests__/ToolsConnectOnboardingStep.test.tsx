@@ -73,7 +73,7 @@ const MOCK_CATALOG: CatalogResponse = {
   entries: [
     makeCatalogEntry('github', 'GitHub'),
     makeCatalogEntry('notion', 'Notion'),
-    makeCatalogEntry('gmail', 'Gmail'),
+    makeCatalogEntry('microsoft-todo', 'Microsoft To Do'),
     makeCatalogEntry('slack', 'Slack'),
     makeCatalogEntry('linear', 'Linear'),
   ],

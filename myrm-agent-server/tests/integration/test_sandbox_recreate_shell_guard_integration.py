@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
+from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
     reset_spawn_lifecycle_for_tests,
 )
 from myrm_agent_harness.api.hooks import (

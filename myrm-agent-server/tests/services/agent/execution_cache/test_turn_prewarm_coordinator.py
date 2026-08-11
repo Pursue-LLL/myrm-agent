@@ -117,3 +117,25 @@ async def test_cancel_scope_clears_inflight_and_brief_cache() -> None:
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
+
+
+@pytest.mark.asyncio
+async def test_cancel_scope_clears_agent_ready_timestamp() -> None:
+    coordinator = TurnPrewarmCoordinator()
+    coordinator._agent_ready_at["c-test:default:fp-c"] = 1.0
+
+    await coordinator.cancel_scope("c-test", "default")
+
+    assert coordinator._agent_ready_at == {}
+
+
+def test_prune_agent_ready_timestamps_removes_expired_entries() -> None:
+    coordinator = TurnPrewarmCoordinator()
+    coordinator._agent_ready_at["expired"] = 1.0
+    coordinator._brief_cache.put("c-expired:default", "fp", {}, {})
+    coordinator._brief_cache._ttl_seconds = 0.0
+
+    coordinator._prune_agent_ready_at()
+
+    assert coordinator._agent_ready_at == {}
+    assert coordinator._brief_cache.get("c-expired:default", "fp") is None

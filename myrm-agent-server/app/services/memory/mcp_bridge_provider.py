@@ -45,14 +45,30 @@ _FETCH_TOOL_PATTERNS = (
     "find",
 )
 
-_CONSUMED_LEAF_KEYS = frozenset({
-    "title", "name", "content", "text", "body",
-    "description", "snippet", "id", "type", "object", "kind",
-})
+_CONSUMED_LEAF_KEYS = frozenset(
+    {
+        "title",
+        "name",
+        "content",
+        "text",
+        "body",
+        "description",
+        "snippet",
+        "id",
+        "type",
+        "object",
+        "kind",
+    }
+)
 
 _SINCE_PARAM_NAMES = (
-    "since", "after", "updated_since", "modified_after",
-    "from_date", "start_date", "cursor",
+    "since",
+    "after",
+    "updated_since",
+    "modified_after",
+    "from_date",
+    "start_date",
+    "cursor",
 )
 
 
@@ -100,7 +116,10 @@ class MCPBridgeProvider(IntegrationProvider):
         if not tool_name:
             tool_name = self._detect_fetch_tool()
             if not tool_name:
-                logger.warning("No suitable fetch tool found for MCP server '%s'", self._server_name)
+                logger.warning(
+                    "No suitable fetch tool found for MCP server '%s'",
+                    self._server_name,
+                )
                 return []
             self._fetch_tool_name = tool_name
 
@@ -114,7 +133,12 @@ class MCPBridgeProvider(IntegrationProvider):
         try:
             raw_result = await self._conn.call(self._server_name, tool_name, params)
         except Exception as exc:
-            logger.error("MCP fetch failed: server=%s tool=%s error=%s", self._server_name, tool_name, exc)
+            logger.error(
+                "MCP fetch failed: server=%s tool=%s error=%s",
+                self._server_name,
+                tool_name,
+                exc,
+            )
             return []
 
         leaves = self._parse_results(raw_result, max_items)
@@ -130,7 +154,9 @@ class MCPBridgeProvider(IntegrationProvider):
 
     # ── Internal ─────────────────────────────────────────────────────
 
-    def _inject_since_cursor(self, params: dict[str, object], since_cursor: str) -> None:
+    def _inject_since_cursor(
+        self, params: dict[str, object], since_cursor: str
+    ) -> None:
         """Inject since_cursor into params if the tool schema accepts a time filter.
 
         Inspects the detected tool's input schema for common incremental-fetch
@@ -146,10 +172,17 @@ class MCPBridgeProvider(IntegrationProvider):
                 schema = getattr(tool, "args_schema", None)
                 if schema is None:
                     break
-                schema_fields = set(schema.model_fields) if hasattr(schema, "model_fields") else set()
-                if not schema_fields:
-                    schema_props = getattr(schema, "schema", lambda: {})()
-                    schema_fields = set(schema_props.get("properties", {}))
+                if isinstance(schema, dict):
+                    schema_fields = set(schema.get("properties", {}))
+                else:
+                    schema_fields = (
+                        set(schema.model_fields)
+                        if hasattr(schema, "model_fields")
+                        else set()
+                    )
+                    if not schema_fields:
+                        schema_props = getattr(schema, "schema", lambda: {})()
+                        schema_fields = set(schema_props.get("properties", {}))
                 for param_name in _SINCE_PARAM_NAMES:
                     if param_name in schema_fields:
                         params[param_name] = since_cursor
@@ -169,10 +202,16 @@ class MCPBridgeProvider(IntegrationProvider):
             for pattern in _FETCH_TOOL_PATTERNS:
                 for name in tool_names:
                     if pattern in name.lower():
-                        logger.info("Auto-detected fetch tool '%s' for MCP server '%s'", name, self._server_name)
+                        logger.info(
+                            "Auto-detected fetch tool '%s' for MCP server '%s'",
+                            name,
+                            self._server_name,
+                        )
                         return name
         except Exception as exc:
-            logger.warning("Failed to detect fetch tool for '%s': %s", self._server_name, exc)
+            logger.warning(
+                "Failed to detect fetch tool for '%s': %s", self._server_name, exc
+            )
         return ""
 
     def _parse_results(self, raw: object, max_items: int) -> list[IntegrationLeaf]:
@@ -228,8 +267,16 @@ class MCPBridgeProvider(IntegrationProvider):
         if len(title) + len(content) < _MIN_CONTENT_LENGTH:
             return None
 
-        ext_id = str(item.get("id") or item.get("url") or item.get("uri") or item.get("external_id") or "")
-        source_type = str(item.get("type") or item.get("object") or item.get("kind") or "document")
+        ext_id = str(
+            item.get("id")
+            or item.get("url")
+            or item.get("uri")
+            or item.get("external_id")
+            or ""
+        )
+        source_type = str(
+            item.get("type") or item.get("object") or item.get("kind") or "document"
+        )
 
         safe_metadata: dict[str, str | int | float | bool] = {}
         for k, v in item.items():

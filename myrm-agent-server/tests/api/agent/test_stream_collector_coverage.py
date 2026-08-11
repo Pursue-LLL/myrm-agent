@@ -33,11 +33,19 @@ async def test_stream_collector_full_coverage():
 
     # 3. Test tasks_steps
     collector.feed_event(
-        {"type": "tasks_steps", "step_key": "step1", "tool_name": "tool1", "data": [{"item": "val"}], "count": 1}
+        {
+            "type": "tasks_steps",
+            "step_key": "step1",
+            "tool_name": "tool1",
+            "data": [{"item": "val"}],
+            "count": 1,
+        }
     )
 
     # 4. Test token_usage
-    collector.feed_event({"type": "token_usage", "data": {"usage": {"prompt_tokens": 10}}})
+    collector.feed_event(
+        {"type": "token_usage", "data": {"usage": {"prompt_tokens": 10}}}
+    )
 
     # 5. Test message_end
     collector.feed_event(
@@ -54,16 +62,51 @@ async def test_stream_collector_full_coverage():
             "usage_alert": {"alert": "high"},
         }
     )
-    collector.feed_event({"type": "error", "error": "temporary failure", "error_type": "runtime"})
-    collector.feed_event({"type": "iteration_limit_reached", "data": {"limit": 50, "nodes_completed": 50}})
+    collector.feed_event(
+        {"type": "error", "error": "temporary failure", "error_type": "runtime"}
+    )
+    collector.feed_event(
+        {
+            "type": "iteration_limit_reached",
+            "data": {"limit": 50, "nodes_completed": 50},
+        }
+    )
 
     # 6. Test routing, privacy
     collector.feed_event({"type": "routing_decision", "data": {"tier": "reasoning"}})
-    collector.feed_event({"type": "privacy_level", "data": {"current_turn_level": "strict"}})
+    collector.feed_event(
+        {"type": "privacy_level", "data": {"current_turn_level": "strict"}}
+    )
     collector.feed_event({"type": "privacy_route", "data": {"route": "local"}})
 
     # 7. Test cache break
-    collector.feed_event({"type": "status", "step_key": "cache_break", "data": {"raw_reasons": ["ttl_expiry"]}})
+    collector.feed_event(
+        {
+            "type": "status",
+            "step_key": "cache_break",
+            "data": {"raw_reasons": ["ttl_expiry"]},
+        }
+    )
+
+    # 7b. Test model failover STATUS + SSE notify persistence
+    collector.feed_event(
+        {
+            "type": "status",
+            "step_key": "model_failover",
+            "error_kind": "auth",
+            "fallback_model": "MiniMax-M3",
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "model_failover",
+            "data": {
+                "fromModel": "agnes",
+                "toModel": "MiniMax-M3",
+                "reason": "auth_permanent",
+            },
+        }
+    )
 
     # 8. Test memory recall tool end
     collector.feed_event(
@@ -105,6 +148,15 @@ async def test_stream_collector_full_coverage():
     assert extra["privacyLevel"] == "strict"
     assert extra["privacyRoute"] == "local"
     assert extra["cacheBreak"]["raw_reasons"] == ["ttl_expiry"]
+    failover_steps = [
+        step
+        for step in extra["progressSteps"]
+        if isinstance(step, dict)
+        and str(step.get("step_key", "")).startswith("model_failover")
+    ]
+    assert len(failover_steps) == 2
+    assert failover_steps[0]["step_key"] == "model_failover_auth"
+    assert failover_steps[1]["step_key"] == "model_failover_auth"
     assert extra["citedMemoryIds"] == ["m1", "m2"]
     assert extra["citedMemoryRefs"][0]["id"] == "m1"
     assert extra["memoryRetrievalTraces"][0]["id"] == "t1"
@@ -122,7 +174,11 @@ def test_stream_collector_replays_pending_interrupts_to_late_subscriber() -> Non
     approval = {
         "type": "tool_approval_request",
         "messageId": "msg-1",
-        "data": {"actionRequests": [{"action": "bash_code_execute_tool", "args": {"command": "echo hi"}}]},
+        "data": {
+            "actionRequests": [
+                {"action": "bash_code_execute_tool", "args": {"command": "echo hi"}}
+            ]
+        },
     }
     collector.feed_event(approval)
     _snapshot, queue = collector.subscribe()
@@ -137,14 +193,16 @@ async def test_stream_collector_session_recording():
     collector = StreamContentCollector(chat_id="test_recording")
 
     collector.feed_event({"type": "message", "data": "test content"})
-    collector.feed_event({
-        "type": "session_recording",
-        "data": {
-            "filename": "session-2025.webm",
-            "preview_url": "/api/v1/files/vault/render?filepath=recordings/session-2025.webm&workspace=/tmp",
-            "content_type": "video/webm",
-        },
-    })
+    collector.feed_event(
+        {
+            "type": "session_recording",
+            "data": {
+                "filename": "session-2025.webm",
+                "preview_url": "/api/v1/files/vault/render?filepath=recordings/session-2025.webm&workspace=/tmp",
+                "content_type": "video/webm",
+            },
+        }
+    )
 
     assert collector.has_content
     extra = collector.extra_data
@@ -205,7 +263,9 @@ def test_stream_collector_has_pending_hitl_replay() -> None:
     ACTIVE_COLLECTORS.clear()
     collector = StreamContentCollector(chat_id="chat-hitl-pending")
     assert collector.has_pending_hitl_replay() is False
-    collector.feed_event({"type": "tool_approval_request", "data": {"actionRequests": []}})
+    collector.feed_event(
+        {"type": "tool_approval_request", "data": {"actionRequests": []}}
+    )
     assert collector.has_pending_hitl_replay() is True
     collector.cleanup()
 
@@ -285,7 +345,9 @@ def test_stream_collector_persists_plan_confirmation_waiting() -> None:
 
 def test_stream_collector_clamps_reasoning_and_marks_truncation() -> None:
     collector = StreamContentCollector()
-    collector.feed_event({"type": "reasoning", "data": "x" * (_MAX_REASONING_CHARS + 64)})
+    collector.feed_event(
+        {"type": "reasoning", "data": "x" * (_MAX_REASONING_CHARS + 64)}
+    )
     collector.feed_event({"type": "reasoning", "data": "y" * 128})
 
     extra = collector.extra_data
@@ -299,7 +361,9 @@ def test_stream_collector_clamps_reasoning_and_marks_truncation() -> None:
 
 def test_stream_collector_reasoning_is_scrubbed_before_persist() -> None:
     collector = StreamContentCollector()
-    collector.feed_event({"type": "reasoning", "data": "api_key=sk-test-12345 /Users/alice/private"})
+    collector.feed_event(
+        {"type": "reasoning", "data": "api_key=sk-test-12345 /Users/alice/private"}
+    )
 
     extra = collector.extra_data
     assert extra is not None

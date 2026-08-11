@@ -27,7 +27,12 @@ import { processSuggestions, findAssistantMessageIndex } from './chat/messageUti
 import { disarmYoloForPreset, normalizeSecurityPreset } from './chat/securityPreset';
 import useQuoteStore from './useQuoteStore';
 import useWorkspaceStore from './useWorkspaceStore';
-import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent } from '@/services/chat';
+import {
+  getChatHistory,
+  cancelAgentRequest,
+  cancelActiveChatAgent,
+  type ChatItem,
+} from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
 import { fetchWithTimeout } from '@/lib/api';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -37,6 +42,25 @@ import {
   resolveHydratedMoaPresetId,
   writeStoredMoaPresetId,
 } from '@/store/chat/moaPresetStorage';
+
+/**
+ * Keep history pagination idempotent when a page overlaps with a prior request.
+ * The API normally returns disjoint pages, but retries and concurrent sentinel
+ * callbacks can deliver the same chat more than once; React list keys must stay
+ * unique even when that happens.
+ */
+function mergeChatHistoryItems(
+  existing: ChatItem[],
+  incoming: ChatItem[],
+): ChatItem[] {
+  const byId = new Map<string, ChatItem>();
+  for (const item of [...existing, ...incoming]) {
+    if (item.id) {
+      byId.set(item.id, item);
+    }
+  }
+  return [...byId.values()];
+}
 
 function readStoredBuiltinTools(): BuiltinToolId[] {
   if (typeof window === 'undefined') {
@@ -764,6 +788,7 @@ const useChatStore = create<ChatState>()(
         turnCapabilityTelemetry,
       ) => {
         const state = get();
+        const streamChatId = state.chatId;
         set({ isConfigPanelExpanded: false, environmentAlerts: new Set<string>() });
         await sendMessage(
           input,
@@ -772,6 +797,18 @@ const useChatStore = create<ChatState>()(
           {
             setMessages: set,
             setLoading: (loading) => set({ loading }),
+            clearActiveStream: () => {
+              const currentChatId = get().chatId;
+              if (currentChatId === streamChatId) {
+                set({ loading: false, abortController: null });
+              }
+              const paneId = useWorkspaceStore.getState().panes.find(
+                (pane) => pane.chatId === streamChatId,
+              )?.id;
+              if (paneId) {
+                useWorkspaceStore.getState().setPaneAbortController(paneId, null);
+              }
+            },
             setMessageAppeared: (appeared) => set({ messageAppeared: appeared }),
             setHideAttachList: (hide) => set({ hideAttachList: hide }),
             setHasUsedImagesInCurrentChat: (hasUsed) => set({ hasUsedImagesInCurrentChat: hasUsed }),
@@ -890,7 +927,7 @@ const useChatStore = create<ChatState>()(
           const kw = chatHistorySearchKeyword.trim() || undefined;
           const response = await getChatHistory(page, pageSize, chatHistorySourceFilter ?? undefined, projectId, kw);
           const updates: Partial<ChatState> = {
-            chatHistoryItems: response.items,
+            chatHistoryItems: mergeChatHistoryItems([], response.items),
             chatHistoryPagination: response.pagination,
             chatHistoryLoading: false,
           };
@@ -929,7 +966,7 @@ const useChatStore = create<ChatState>()(
           );
 
           set({
-            chatHistoryItems: [...chatHistoryItems, ...response.items],
+            chatHistoryItems: mergeChatHistoryItems(chatHistoryItems, response.items),
             chatHistoryPagination: response.pagination,
             chatHistoryLoading: false,
           });

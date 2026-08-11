@@ -9,7 +9,7 @@ import { IntegrationConnectDialog } from '@/components/features/settings/section
 import { SERVICE_ICONS } from '@/components/features/settings/sections/integration/integrations/service-icons';
 import type { CatalogEntry, CatalogResponse } from '@/components/features/settings/sections/integration/integrations/catalog-types';
 
-const FEATURED_SERVICE_IDS = ['github', 'notion', 'gmail', 'slack', 'linear'] as const;
+const FEATURED_SERVICE_IDS = ['github', 'notion', 'microsoft-todo', 'slack', 'linear'] as const;
 
 interface ToolsConnectOnboardingStepProps {
   onComplete: () => void;

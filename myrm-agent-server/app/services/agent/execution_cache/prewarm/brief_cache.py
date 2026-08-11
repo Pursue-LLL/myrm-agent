@@ -56,6 +56,16 @@ class BriefCache:
             return None
         return entry
 
+    def prune_expired(self) -> None:
+        now = time.monotonic()
+        stale = [
+            key
+            for key, entry in self._entries.items()
+            if now - entry.stored_at > self._ttl_seconds
+        ]
+        for key in stale:
+            self._entries.pop(key, None)
+
     def invalidate_scope(self, scope_key: str) -> None:
         prefix = f"{scope_key}:"
         stale = [key for key in self._entries if key.startswith(prefix)]

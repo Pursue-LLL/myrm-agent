@@ -42,6 +42,8 @@ from app.core.eval.reports import (
 from app.core.eval.service import (
     abort_eval,
     get_eval_status,
+    run_benchmark_background,
+    run_benchmark_download_background,
     run_eval_suite_background,
     run_wb_bench_background,
     run_wb_bench_download_background,
@@ -61,7 +63,96 @@ class EvalCasesRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# WorkBuddy Bench — external benchmark dataset sources
+# External benchmarks — unified catalog + run/download flows
+# ---------------------------------------------------------------------------
+
+
+@router.get("/benchmarks")
+async def list_benchmarks() -> dict[str, object]:
+    """List all external benchmarks (WBBench subsets + registered third-party)."""
+    from app.core.eval.benchmarks import list_benchmark_sources
+
+    return {"status": "success", "sources": list_benchmark_sources()}
+
+
+class BenchmarkRunRequest(BaseModel):
+    benchmark_id: str
+    profile_id: str | None = None
+    benchmark_mode: bool = False
+
+
+class BenchmarkDownloadRequest(BaseModel):
+    benchmark_id: str
+
+
+@router.post("/benchmarks/run")
+async def run_benchmark(
+    background_tasks: BackgroundTasks,
+    request: BenchmarkRunRequest,
+) -> dict[str, object]:
+    """Download (if needed) and run an external benchmark in the background."""
+    status_info = get_eval_status()
+    if status_info.get("is_running"):
+        return {"status": "already_running", "info": status_info}
+
+    from app.core.eval.benchmarks import is_known_benchmark
+    from app.core.eval.service import _init_benchmark_state
+
+    if not is_known_benchmark(request.benchmark_id):
+        return {
+            "status": "error",
+            "error": f"Unknown benchmark: {request.benchmark_id}",
+        }
+
+    # Mark the eval state as running synchronously before the response is sent.
+    # FastAPI BackgroundTasks run only after the response, so the SSE stream the
+    # frontend opens on "started" would otherwise read a stale is_running=false
+    # first frame and immediately drop the running flag (race on run start).
+    _init_benchmark_state(request.benchmark_id)
+    background_tasks.add_task(
+        run_benchmark_background,
+        benchmark_id=request.benchmark_id,
+        profile_id=request.profile_id,
+        benchmark_mode=request.benchmark_mode,
+        stage_label=request.benchmark_id,
+    )
+    return {"status": "started"}
+
+
+@router.post("/benchmarks/download")
+async def download_benchmark(
+    background_tasks: BackgroundTasks,
+    request: BenchmarkDownloadRequest,
+) -> dict[str, object]:
+    """Download an external benchmark in the background without running it.
+
+    Lets users pre-fetch large archives (e.g. the ~480 MB WBBench Security
+    subset) and surface the download status before starting a benchmark run.
+    """
+    status_info = get_eval_status()
+    if status_info.get("is_running"):
+        return {"status": "already_running", "info": status_info}
+
+    from app.core.eval.benchmarks import is_known_benchmark
+    from app.core.eval.service import _init_benchmark_state
+
+    if not is_known_benchmark(request.benchmark_id):
+        return {
+            "status": "error",
+            "error": f"Unknown benchmark: {request.benchmark_id}",
+        }
+
+    _init_benchmark_state(request.benchmark_id)
+    background_tasks.add_task(
+        run_benchmark_download_background,
+        benchmark_id=request.benchmark_id,
+        stage_label=request.benchmark_id,
+    )
+    return {"status": "started"}
+
+
+# ---------------------------------------------------------------------------
+# WorkBuddy Bench — external benchmark dataset sources (legacy endpoints)
 # ---------------------------------------------------------------------------
 
 
@@ -88,7 +179,10 @@ async def run_wb_bench(
     background_tasks: BackgroundTasks,
     request: WbBenchRunRequest,
 ) -> dict[str, object]:
-    """Download (if needed) and run a WorkBuddy Bench subset in the background."""
+    """Download (if needed) and run a WorkBuddy Bench subset in the background.
+
+    Legacy endpoint; delegates to the unified benchmark run flow.
+    """
     status_info = get_eval_status()
     if status_info.get("is_running"):
         return {"status": "already_running", "info": status_info}
@@ -123,7 +217,8 @@ async def download_wb_bench(
 ) -> dict[str, object]:
     """Download a WorkBuddy Bench subset in the background without running it.
 
-    Lets users pre-fetch large archives (e.g. the ~480 MB Security subset) and
+    Legacy endpoint; delegates to the unified benchmark download flow. Lets
+    users pre-fetch large archives (e.g. the ~480 MB Security subset) and
     surface the download status before starting a benchmark run.
     """
     status_info = get_eval_status()

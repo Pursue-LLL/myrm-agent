@@ -2,12 +2,14 @@
 
 扩展框架层的聊天工具，添加图片处理、视频处理和 Agent 历史还原等业务功能。
 另提供 LLM 响应文本提取工具（re-export 框架层 extract_answer_text 与
-extract_litellm_answer_text）。
+extract_litellm_answer_text），以及 LLM judge 回复的容错 JSON 解析
+（parse_llm_json_object / parse_judge_json）。
 """
 
 import json
 import logging
 import re
+from collections.abc import Iterable
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
@@ -31,9 +33,6 @@ from myrm_agent_harness.utils.url_utils import is_image_url, is_valid_image_url
 from app.core.utils.files_utils import read_image_as_base64
 
 logger = logging.getLogger(__name__)
-
-_JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
-_JSON_INLINE_RE = re.compile(r"\{[^{}]*\}", re.DOTALL)
 
 _INLINE_COMPRESS_THRESHOLD = 5 * 1024 * 1024
 
@@ -85,15 +84,20 @@ def _escape_newlines_in_strings(text: str) -> str:
     return "".join(out)
 
 
-def _find_json_object(text: str) -> str | None:
-    """Find the first balanced JSON object (``{...}``) in text."""
-    start = text.find("{")
-    if start == -1:
-        return None
+def _iter_json_objects(text: str) -> Iterable[str]:
+    """Yield every balanced ``{...}`` object in ``text``.
+
+    A single state-machine pass that respects string literals, escape
+    sequences, and nesting, and ignores orphan ``}`` tokens outside any
+    object. This lets callers inspect *all* candidate objects instead of
+    committing to the first ``{`` (which reasoning providers occasionally
+    precede with a format example before the real verdict).
+    """
     depth = 0
+    start = -1
     in_string = False
     escape_next = False
-    for i, ch in enumerate(text[start:], start=start):
+    for i, ch in enumerate(text):
         if in_string:
             if escape_next:
                 escape_next = False
@@ -107,61 +111,89 @@ def _find_json_object(text: str) -> str | None:
         if ch == '"':
             in_string = True
         elif ch == "{":
+            if depth == 0:
+                start = i
             depth += 1
         elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start : i + 1]
-    return None
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and start != -1:
+                    yield text[start : i + 1]
+                    start = -1
+
+
+def _iter_json_candidates(content: str) -> Iterable[str]:
+    """Yield candidate JSON texts: every fence body, every balanced object,
+    and finally the stripped raw text."""
+    stripped = content.strip()
+    if not stripped:
+        return
+    for match in _JSON_FENCE_RE.finditer(stripped):
+        body = match.group(1).strip()
+        if body:
+            yield body
+    yield from _iter_json_objects(stripped)
+    yield stripped
+
+
+def _iter_parsed_dicts(content: str) -> Iterable[dict[str, object]]:
+    """Yield every dict recoverable from ``content``.
+
+    Each candidate (fence body, balanced object, stripped raw text) is
+    tried raw first and then with unescaped newlines inside string
+    literals escaped, matching the artifacts reasoning providers emit.
+    """
+    for candidate in _iter_json_candidates(content):
+        for candidate_text in (candidate, _escape_newlines_in_strings(candidate)):
+            try:
+                parsed = json.loads(candidate_text)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                yield parsed
 
 
 def parse_llm_json_object(content: str) -> dict[str, object] | None:
     """Parse a JSON object out of an LLM judge reply.
 
     Tolerates the artifacts reasoning providers actually emit:
-    markdown fences, prose framing around the object, and unescaped
-    newlines inside string literals (e.g. minimax). Returns ``None``
-    when no object can be recovered.
+    markdown fences, prose framing around the object, unescaped
+    newlines inside string literals (e.g. minimax), and multiple
+    objects/fences where the last one is the real verdict
+    (format examples preceding the actual result). When several
+    objects are recoverable, the *last* parseable dict wins, matching
+    how reasoning providers tend to end with the final verdict.
+    Returns ``None`` when no object can be recovered.
     """
-    stripped = content.strip()
-    if not stripped:
-        return None
-
-    candidates: list[str] = []
-    fence = _JSON_FENCE_RE.search(stripped)
-    if fence:
-        candidates.append(fence.group(1).strip())
-    embedded = _find_json_object(stripped)
-    if embedded:
-        candidates.append(embedded)
-    candidates.append(stripped)
-
-    for candidate in candidates:
-        for text in (candidate, _escape_newlines_in_strings(candidate)):
-            try:
-                parsed = json.loads(text)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(parsed, dict):
-                return parsed
-    return None
+    parsed_last: dict[str, object] | None = None
+    for parsed in _iter_parsed_dicts(content):
+        parsed_last = parsed
+    return parsed_last
 
 
 def parse_judge_json(raw: str) -> dict[str, object] | None:
     """Parse a judge verdict object that requires a ``done`` key.
 
     Extends :func:`parse_llm_json_object` with the contract shared by the
-    kanban verifier and the goal semantic judge: the object must carry a
-    ``done`` field, whose string forms (``"True"``/``"yes"``/``"1"``) are
-    normalized to Python bools.
+    kanban verifier and the goal semantic judge: the returned object must
+    carry a ``done`` field. When several objects are recoverable, the one
+    with ``done`` is preferred and, among those, the *last* one wins —
+    reasoning providers tend to put format examples first and the real
+    verdict last. String forms (``"True"``/``"yes"``/``"1"``) and numeric
+    forms (``1``/``0``) are normalized to Python bools.
     """
-    obj = parse_llm_json_object(raw)
-    if obj is None or "done" not in obj:
+    last_verdict: dict[str, object] | None = None
+    for parsed in _iter_parsed_dicts(raw):
+        if "done" in parsed:
+            last_verdict = parsed
+    if last_verdict is None:
         return None
-    done = obj.get("done")
+    done = last_verdict.get("done")
     if isinstance(done, str):
-        obj["done"] = done.strip().lower() in ("true", "yes", "1")
-    return obj
+        last_verdict["done"] = done.strip().lower() in ("true", "yes", "1")
+    elif isinstance(done, (int, float)):
+        last_verdict["done"] = done != 0
+    return last_verdict
 
 # =============================================================================
 # Agent History Expansion

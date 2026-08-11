@@ -148,19 +148,45 @@ def clear_pending_drift(state_dir: Path) -> None:
         path.unlink()
 
 
+def _authoritative_live_sessions() -> tuple[dict[str, object], ...]:
+    """Return the authoritative non-terminal Dev Gate sessions.
+
+    The sidecar registry is a useful diagnostic view, but it is not the
+    admission source of truth and can be empty while SQLite still owns live
+    sessions.  Stack mutation decisions must consult the same SQLite snapshot
+    used by ``dev_gate_status`` and fail closed when that snapshot is not
+    observable or malformed.
+    """
+    from dev_gate.status import dev_gate_status
+
+    status = dev_gate_status()
+    if status.get("registry_observability") != "ok":
+        raise RuntimeError("dev gate registry unavailable")
+    raw_sessions = status.get("sessions")
+    if not isinstance(raw_sessions, list):
+        raise RuntimeError("dev gate session snapshot invalid")
+    sessions: list[dict[str, object]] = []
+    for raw_session in raw_sessions:
+        if not isinstance(raw_session, dict):
+            raise RuntimeError("dev gate session row invalid")
+        sessions.append(raw_session)
+    return tuple(sessions)
+
+
 def decide_drift_heal(*, active_leases: int, drift_pending: bool) -> DriftHealAction:
     if not drift_pending:
         return DriftHealAction.NOOP
     if active_leases > 0:
         return DriftHealAction.DEFER
     try:
-        from e2e_session_runtime.registry import list_live_e2e_sessions
-
-        sessions = list_live_e2e_sessions()
+        sessions = _authoritative_live_sessions()
         if len(sessions) > 0:
             return DriftHealAction.DEFER
-    except (ImportError, OSError, RuntimeError, ValueError):
-        pass
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+        # Registry observability is part of the safety predicate.  Applying a
+        # source-drift restart while the session registry is unreadable can
+        # tear down a live shared session, so fail closed and retry later.
+        return DriftHealAction.DEFER
     return DriftHealAction.APPLY
 
 
@@ -169,12 +195,11 @@ def should_defer_harness_install(active_leases: int) -> bool:
     if active_leases > 0:
         return True
     try:
-        from e2e_session_runtime.registry import list_live_e2e_sessions
-
-        if len(list_live_e2e_sessions()) > 1:
+        if len(_authoritative_live_sessions()) > 1:
             return True
-    except (ImportError, OSError, RuntimeError, ValueError):
-        pass
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+        # Never install/reload shared code with unknown session ownership.
+        return True
     return False
 
 
@@ -196,15 +221,12 @@ def should_defer_supervisor_backend_heal(
     if active_leases > 0:
         return True
     try:
-        from e2e_session_runtime.registry import (
-            body_active_count,
-            list_live_e2e_sessions,
-        )
-
-        if body_active_count(list_live_e2e_sessions()) > 0:
+        if _authoritative_live_sessions():
             return True
-    except (ImportError, OSError, RuntimeError, ValueError):
-        pass
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+        # A healthy shared backend must not be restarted while session
+        # observability is unavailable; the next watchdog tick can retry.
+        return True
     return False
 
 

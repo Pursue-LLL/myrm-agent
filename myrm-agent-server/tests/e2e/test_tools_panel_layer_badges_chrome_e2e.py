@@ -478,6 +478,25 @@ async def _run_tools_panel_layer_badges_flow(
     e2e_resource_ledger.register("chat", chat_id)
 
     heartbeat_once()
+    await _wait_for_eval_ready(
+        chat,
+        """(() => {
+          const turn = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+          const sse = window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [];
+          return {
+            ready:
+              sse.includes('tools_snapshot') ||
+              turn.hasDone === true ||
+              (turn.hasCompletionSignal === true && turn.isStreaming !== true),
+            turn,
+            sseTypes: sse.slice(0, 16),
+          };
+        })()""",
+        timeout_sec=signoff_parallel_force_chat_timeout_sec(180.0),
+        intent=EvaluateIntent.BRIDGE_POLL,
+        progress_node="tools_panel_stream_settle",
+    )
+
     panel = await _wait_for_tools_panel_ready(
         chat,
         api_url=api_url,

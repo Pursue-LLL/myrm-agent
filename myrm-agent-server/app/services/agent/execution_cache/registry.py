@@ -15,6 +15,7 @@ Server business layer. Mirrors ChatRuntimePoolRegistry lifecycle semantics.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -27,6 +28,7 @@ from app.services.agent.execution_cache.types import BuiltExecutionUnit
 logger = logging.getLogger(__name__)
 
 _DEFAULT_IDLE_SECONDS = 600.0
+_IDLE_REAPER_MAX_INTERVAL_SECONDS = 60.0
 
 BuildUnitFn: TypeAlias = Callable[[], Awaitable[BuiltExecutionUnit]]
 
@@ -46,6 +48,28 @@ class ChatAgentExecutionCache:
         self._entries: dict[str, _CacheEntry] = {}
         self._turn_locks: dict[str, asyncio.Lock] = {}
         self._lock = asyncio.Lock()
+        self._idle_reaper_task: asyncio.Task[None] | None = None
+
+    def _ensure_idle_reaper(self) -> None:
+        if self._idle_reaper_task is not None and not self._idle_reaper_task.done():
+            return
+        self._idle_reaper_task = asyncio.create_task(
+            self._idle_reaper_loop(),
+            name="execution-cache-idle-reaper",
+        )
+
+    async def _idle_reaper_loop(self) -> None:
+        interval = min(
+            _IDLE_REAPER_MAX_INTERVAL_SECONDS,
+            max(0.01, self._idle_seconds / 2),
+        )
+        try:
+            while True:
+                await asyncio.sleep(interval)
+                async with self._lock:
+                    await self._evict_idle_unlocked()
+        except asyncio.CancelledError:
+            return
 
     @asynccontextmanager
     async def guard_turn(self, scope_key: str | None) -> AsyncGenerator[None, None]:
@@ -62,6 +86,7 @@ class ChatAgentExecutionCache:
         config_fingerprint: str,
         build_unit: BuildUnitFn,
     ) -> BuiltExecutionUnit:
+        self._ensure_idle_reaper()
         async with self._lock:
             await self._evict_idle_unlocked()
             entry = self._entries.get(scope_key)
@@ -158,6 +183,12 @@ class ChatAgentExecutionCache:
                     logger.warning("execution_cache_close_all_failed scope=%s", scope_key, exc_info=True)
             self._entries.clear()
             self._turn_locks.clear()
+        reaper = self._idle_reaper_task
+        self._idle_reaper_task = None
+        if reaper is not None and not reaper.done():
+            reaper.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await reaper
 
     async def _evict_idle_unlocked(self) -> None:
         now = time.monotonic()
@@ -165,6 +196,10 @@ class ChatAgentExecutionCache:
             scope_key
             for scope_key, entry in self._entries.items()
             if now - entry.last_used > self._idle_seconds
+            and not (
+                (turn_lock := self._turn_locks.get(scope_key)) is not None
+                and turn_lock.locked()
+            )
         ]
         for scope_key in stale:
             entry = self._entries.pop(scope_key)

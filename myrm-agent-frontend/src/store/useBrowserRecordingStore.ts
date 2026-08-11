@@ -75,6 +75,9 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
   closePanel: () => set({ isOpen: false }),
 
   startRecording: (url?: string) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.close();
+    }
     const wsUrl = getWsUrl('/api/v1/browser/ws/recording');
     ws = new WebSocket(wsUrl);
 

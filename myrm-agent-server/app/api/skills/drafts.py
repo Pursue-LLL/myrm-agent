@@ -335,6 +335,15 @@ async def approve_skill_draft(
             status_code=400, detail=f"Cannot approve draft in status: {draft.status}"
         )
 
+    if draft.draft_type in {"skill_draft", "skill_patch"}:
+        # Local skill writes are disabled in sandbox — materialization would
+        # otherwise persist to a store the agent can never load. Delayed import
+        # avoids a circular import through app.api.skills.router when this
+        # module is loaded standalone by tests.
+        from app.api.skills._deploy_capability import require_local_skills_capability
+
+        require_local_skills_capability()
+
     resolved = await ApprovalRegistry.resolve_approval(
         approval_id=draft_id,
         decision="approve",

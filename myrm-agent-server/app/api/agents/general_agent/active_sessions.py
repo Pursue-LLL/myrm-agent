@@ -58,6 +58,17 @@ async def attach_to_chat(
                 if await request.is_disconnected():
                     break
 
+                # Collector 已从 ACTIVE_COLLECTORS 移除意味着 turn 已正常结束
+                # （含无 pending HITL 时 finalize 调用的 cleanup）。若此时仍保持
+                # 长连接，前端 consumeStream 将永远读不到流结束，attachToChat 的
+                # loading 复位永不执行。检测到 collector 注销后主动终止 attach 流。
+                if ACTIVE_COLLECTORS.get(chat_id) is not collector:
+                    logger.info(
+                        "Collector for chat %s no longer active, ending attach stream",
+                        chat_id,
+                    )
+                    break
+
                 try:
                     # Wait for next event with a small timeout to check for disconnects
                     event = await asyncio.wait_for(q.get(), timeout=2.0)

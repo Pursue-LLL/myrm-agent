@@ -38,6 +38,7 @@ const BrowserRecordingPanel: React.FC = () => {
 
   const [skillName, setSkillName] = useState('');
   const [skillDesc, setSkillDesc] = useState('');
+  const [skillNameError, setSkillNameError] = useState('');
   const [showPreview, setShowPreview] = useState(true);
   const stepsEndRef = useRef<HTMLDivElement>(null);
 
@@ -50,9 +51,15 @@ const BrowserRecordingPanel: React.FC = () => {
   }, [startRecording]);
 
   const handleGenerateSkill = useCallback(async () => {
-    if (!skillName.trim()) return;
-    await generateSkill(skillName.trim(), skillDesc.trim());
-  }, [generateSkill, skillName, skillDesc]);
+    const name = skillName.trim();
+    if (!name) return;
+    if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)) {
+      setSkillNameError(t('skillNameInvalid'));
+      return;
+    }
+    setSkillNameError('');
+    await generateSkill(name, skillDesc.trim());
+  }, [generateSkill, skillName, skillDesc, t]);
 
   if (!isOpen) return null;
 
@@ -205,7 +212,10 @@ const BrowserRecordingPanel: React.FC = () => {
           <input
             type="text"
             value={skillName}
-            onChange={(e) => setSkillName(e.target.value)}
+            onChange={(e) => {
+              setSkillName(e.target.value);
+              setSkillNameError('');
+            }}
             placeholder={t('skillNamePlaceholder')}
             className={cn(
               'w-full px-2.5 py-1.5 rounded-lg text-sm',
@@ -214,6 +224,9 @@ const BrowserRecordingPanel: React.FC = () => {
             )}
             pattern="^[a-zA-Z][a-zA-Z0-9_-]*$"
           />
+          {skillNameError && (
+            <p className="text-xs text-destructive">{skillNameError}</p>
+          )}
           <input
             type="text"
             value={skillDesc}
@@ -295,6 +308,13 @@ const BrowserRecordingPanel: React.FC = () => {
               {generatedSkill.skillContent}
             </pre>
           )}
+          <button
+            type="button"
+            onClick={() => router.push('/library?tab=skills')}
+            className="w-full text-xs px-2 py-1.5 rounded border border-border text-foreground hover:bg-accent"
+          >
+            {t('openSkillLibrary')}
+          </button>
         </div>
       )}
     </div>

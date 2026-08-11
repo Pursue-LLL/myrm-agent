@@ -77,7 +77,12 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       // desktop_snapshot_tool already pushed refs via DESKTOP_VIEW_UPDATE SSE;
       // re-fetch here would re-capture the wrong foreground window (e.g. Chrome).
       const { default: desktopStore } = await import('@/store/useDesktopInspectorStore');
-      void desktopStore.getState().fetchSnapshot();
+      const { default: useChatStore } = await import('@/store/useChatStore');
+      const streamChatId = state.messages[0]?.chatId?.trim() ?? '';
+      const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
+      if (streamChatId && activeChatId && streamChatId === activeChatId) {
+        void desktopStore.getState().fetchSnapshot();
+      }
     }
 
     if (data.tool_name === 'cron_manage' && data.result) {

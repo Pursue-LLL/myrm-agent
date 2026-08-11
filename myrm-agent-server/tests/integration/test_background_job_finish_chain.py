@@ -16,7 +16,7 @@ from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
 from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
     BASH_PROCESS_TOOL_NAME,
 )
-from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
+from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
     reset_spawn_lifecycle_for_tests,
 )
 from myrm_agent_harness.api.hooks import (
@@ -311,7 +311,7 @@ async def test_background_nonzero_exit_persists_finish_message(tmp_path: Path) -
 @pytest.mark.asyncio
 async def test_kill_session_jobs_clears_spawn_and_skips_chat(tmp_path: Path) -> None:
     """Stream-cancel path: kill_session_jobs kills all jobs and clears spawn markers."""
-    from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
+    from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
         get_session_spawn_tool_names,
     )
 

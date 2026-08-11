@@ -116,7 +116,9 @@ async def pause_project(
     ``BLOCKED(HUMAN, batch_pause)`` so the dispatcher stops picking it up;
     running tasks are cancelled first to stop the agent promptly, and the
     per-pass re-fetch converges any task the dispatcher claimed or a
-    concurrent retry created while the queue was being frozen. Completed/
+    concurrent retry created while the queue was being frozen. A task that
+    completes while its cancel is in flight keeps its result — it is skipped
+    instead of being frozen and re-run after resume. Completed/
     failed/archived results are untouched, and IN_REVIEW results keep waiting
     for approval. The project flips to ``paused`` and can be reopened via
     :func:`resume_project`.
@@ -147,6 +149,15 @@ async def pause_project(
 
     async def _freeze(t: KanbanTaskModel) -> None:
         try:
+            # 复查最新状态：cancel 等待期间任务可能已完成/失败落库，
+            # 已终态则保留结果跳过冻结，避免恢复后重复执行浪费 token。
+            fresh = await service.kanban.get_task(t.id)
+            if fresh is None or fresh.status.value not in {
+                TaskStatus.READY.value,
+                TaskStatus.BACKLOG.value,
+                TaskStatus.RUNNING.value,
+            }:
+                return
             # 先停止 dispatcher 中的 agent 执行，再置 BLOCKED：若任务刚被
             # dispatcher claim，cancel 幂等地中断执行，避免冻结后仍在跑。
             await service.kanban.cancel_task_execution(t.id)
@@ -195,7 +206,9 @@ async def resume_project(
     :func:`pause_project` back to READY so the dispatcher schedules them again.
 
     Only tasks carrying the batch-pause block reason are reopened; unrelated
-    BLOCKED tasks (manual or scheduled blocks) are left untouched.
+    BLOCKED tasks (manual or scheduled blocks) are left untouched. The
+    project reopens to ``running`` only if it is still ``paused`` — a
+    concurrent cancel wins and is never overwritten.
     """
     async with get_session() as session:
         model = await session.get(BatchDirectoryProjectModel, project_id)
@@ -223,8 +236,10 @@ async def resume_project(
     # 重开条件：至少解冻了一个任务，或已无 batch_pause 冻结任务残留（任务
     # 全部终态，重开后由读取路径自愈收尾）。若解冻全部失败且仍有冻结任务，
     # 保持 paused，避免项目回 running 却无任务可调度而卡死。
+    # 重开使用条件更新（仅仍为 paused 才置 running）：并发取消把项目置
+    # cancelled 后，恢复不得覆盖取消意图。
     if resumed_ids:
-        await _reopen_running(project_id)
+        await _reopen_running(project_id, expected_status="paused")
     else:
         tasks_after = await fetch_project_task_models(project_id)
         still_frozen = any(
@@ -233,7 +248,7 @@ async def resume_project(
             for t in _latest_tasks_per_directory(tasks_after)
         )
         if not still_frozen:
-            await _reopen_running(project_id)
+            await _reopen_running(project_id, expected_status="paused")
     base = await service.get_project(project_id)
     if base is None:
         return None

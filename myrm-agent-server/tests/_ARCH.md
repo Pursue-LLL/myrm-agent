@@ -47,7 +47,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `ai_agents/test_custom_agent_factory.py` | 模块 | Custom/Ephemeral 子 Agent `memory_search_tool` rebind + factory build 路径（38 项；`--cov-fail-under=90` on factory） |
 | `ai_agents/test_conversation_search_opt_in_integration.py` | 模块 | conversation-search opt-in 与 tool_setup 绑定集成 |
 | `e2e/test_theme_marketplace_gallery_chrome_e2e.py` | 模块 | Theme Studio Gallery 免费安装 Chrome MCP smoke（READ×1：CP seed→acquire→download→install-from-marketplace） |
-| `e2e/test_subagent_dashboard_chrome_e2e.py` | 模块 | Subagent Dashboard Chrome MCP E2E（LIVE×3：cancel running、delegation pause toggle、SSE token/model 展示） |
+| `e2e/test_subagent_dashboard_chrome_e2e.py` | 模块 | Subagent Dashboard Chrome MCP E2E（LIVE×6：cancel running、delegation pause toggle、SSE token/model 展示、budget used/limit、canvas 拓扑渲染 + 点击定位回树、fission 拓扑合并渲染） |
 | `api/eval/test_memory_ab_live_integration.py` | 模块 | Memory A/B Live 集成（`@pytest.mark.e2e`）：真实 embedding probe + WBBench office 真实下载构建 + 双臂真实 LLM 执行 + `memory_tool_calls` 报告 + 临时记忆卷清理（关键路径禁 mock；执行 case 数受限） |
 | `e2e/test_memory_ab_chrome_e2e.py` | 模块 | Memory A/B Chrome E2E（READ×1 + NAMESPACE_WRITE×2）：WBBench 卡片 Memory A/B 入口 + 确认对话框取消（READ）；预置双报告渲染双臂矩阵 + Run History 表（per-arm pass-rate + `memory_tool_calls`）+ 点击历史 View 加载（NAMESPACE_WRITE）；真实 run 启动（SSE running + header Stop）+ Stop abort 清理（NAMESPACE_WRITE） |
 | `services/agent/test_subagent_rebind_event.py` | 模块 | `SUBAGENT_REBIND_REQUIRED` 事件：`subagent_ids` 变更时 publish、同值/非绑定字段不 emit |
@@ -204,7 +204,7 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - **Chrome E2E 共享路由/heal helpers**：`tests/support/chrome_mcp_e2e.py` 提供 `ensure_chat_route`（复用 warm shell 时强制导航到目标 chat 路由并校验 React hydration，`errorOverlay`/`ChunkLoadError` 下 cache-bypass reload 自愈）、`wait_for_state`（含 errorOverlay 检测的 overlay-heal 阶段）、`warm_ui_route`（turbopack 预编译）。凡 `open_mcp_page` 后直接进入 chat 页的 E2E 均经 `ensure_chat_route`，禁止绕过
 - **UECD LIVE fast+deep Chrome E2E**：`tests/e2e/test_fast_deep_search_evicted_read_chrome_e2e.py`（LIVE×1 SHPOIB：真实 MiniMax + fast/deep + Wikipedia `web_fetch_tool` spill → `file_read_tool`；`preserveActionMode` + progress **UI 优先 / API 自愈**（Chrome CDP flake 时 `_api_deep_search_progress` 不断言中断））
 - **UECD LIVE bash foreground Chrome E2E**：`tests/e2e/test_bash_foreground_evicted_live_chrome_e2e.py`（LIVE×1 SHPOIB：yolo code_execute agent → 前台 `bash_code_execute_tool` 大输出 spill → GET `/files/evicted` + LiveTerminal Drawer；**无 enrich 端点**，断言真实 `tool_call_id` 绑定 reload 路径）
-- **Subagent Dashboard Chrome E2E**：`tests/e2e/test_subagent_dashboard_chrome_e2e.py`（LIVE lane ×3：`subagent-dashboard-e2e-prepare.mjs` delegate → Dashboard cancel / pause toggle / token+model；`open_mcp_page(..., timeout_ms=MAX_PAGE_TIMEOUT_MS)`）
+- **Subagent Dashboard Chrome E2E**：`tests/e2e/test_subagent_dashboard_chrome_e2e.py`（LIVE lane ×6：`subagent-dashboard-e2e-prepare.mjs` delegate → Dashboard cancel / pause toggle / token+model / budget used-limit / canvas 拓扑渲染+点击节点定位回树 / fission 拓扑经 store bridge 注入后合并渲染；`open_mcp_page(..., timeout_ms=MAX_PAGE_TIMEOUT_MS)`）
 - **Subagent rebind 单测**：`tests/services/agent/test_subagent_rebind_event.py`（`AgentService.update_agent` 变更 `subagent_ids` → `SUBAGENT_REBIND_REQUIRED`）
 - **Citation seed 集成单测**：`tests/api/chats/test_citation_seed_integration.py`（seed → GET messages 断言 `citedMemoryIds`；默认 CI 套件执行，不依赖 Chrome）
 - **Prior chat recall SSOT 集成单测**：`tests/api/chats/test_prior_chat_recall_integration.py`（seed-prior-chat-fixture → GET `/recall/search` → mention inject；默认 CI，不依赖 Chrome）

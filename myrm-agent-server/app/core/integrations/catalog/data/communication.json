@@ -1,38 +1,5 @@
 [
   {
-    "id": "gmail",
-    "name": "Gmail",
-    "name_zh": "Gmail 邮箱",
-    "description": "Read, search, and send emails through your Gmail account",
-    "description_zh": "通过 Gmail 账户读取、搜索和发送邮件",
-    "icon": "gmail",
-    "category": "communication",
-    "connector_type": "mcp",
-    "mcp_config": {
-      "name": "gmail",
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@anthropic/gmail-mcp"
-      ],
-      "description": "Gmail - read, search, draft, send emails"
-    },
-    "auth": {
-      "type": "oauth2",
-      "help_url": "https://console.cloud.google.com/apis/credentials",
-      "help_text": "Create OAuth 2.0 credentials in Google Cloud Console with Gmail API enabled",
-      "help_text_zh": "在 Google Cloud Console 创建 OAuth 2.0 凭据并启用 Gmail API"
-    },
-    "tags": [
-      "email",
-      "google",
-      "inbox",
-      "messages"
-    ],
-    "website": "https://gmail.com"
-  },
-  {
     "id": "slack",
     "name": "Slack",
     "name_zh": "Slack",

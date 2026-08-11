@@ -55,9 +55,14 @@ class LocalEvalExecutor:
         workspace_seed_map: dict[str, str] | None = None,
         enable_memory: bool | None = None,
         memory_base_path: str | None = None,
+        benchmark_tools: tuple[str, ...] = (),
     ) -> None:
         self.profile_id = profile_id
         self.benchmark_mode = benchmark_mode
+        # Builtin-tool whitelist a benchmark may declare to be runnable in
+        # benchmark_mode (e.g. BrowseComp requires web_search). Default empty:
+        # a plain benchmark run keeps the CORE file/shell baseline only.
+        self.benchmark_tools = benchmark_tools
         # Maps a case message to a pre-provisioned workspace directory whose
         # contents are copied into the session workspace before the agent runs.
         # Generic capability for external datasets (e.g. WorkBuddy Bench) that
@@ -217,7 +222,7 @@ class LocalEvalExecutor:
 
         if self.benchmark_mode:
             user_instructions = ""
-            enabled_builtin_tools = []
+            enabled_builtin_tools = list(self.benchmark_tools)
             agent_skill_ids = []
             agent_subagent_ids = None
             mcp_configs = None
@@ -293,7 +298,11 @@ class LocalEvalExecutor:
             embedding_config=embedding_cfg,
             reranker_config=reranker_cfg,
             channel_name="eval",
-            enable_web_search=not self.benchmark_mode
+            enable_web_search=(
+                "web_search" in self.benchmark_tools
+                if self.benchmark_mode
+                else True
+            )
             and configs.search_is_user_configured
             and await verify_search_service_available(configs.search_cfg),
             enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),

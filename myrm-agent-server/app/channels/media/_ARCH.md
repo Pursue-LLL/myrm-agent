@@ -9,7 +9,7 @@ Media download system with streaming, validation, retry, cache, sticker visual u
 |------|------|-------------|-------|
 | __init__.py | Package | Media download system with streaming, validation, retry, cache, and sticker vision. | — |
 | cache.py | Core | Media download cache with LRU eviction. | ✅ |
-| config.py | Config | Media download configuration. | ✅ |
+| config.py | Config | Media download configuration; exposes shared `MAX_FORWARD_DOWNLOAD_BYTES` cap for cross-channel forwarding flows. | ✅ |
 | contact_enrichment.py | Core | vCard contact attachment parsing (2.1/3.0/4.0) and enrichment; stores `metadata["contact_cards"]` for LLM context injection. | ✅ |
 | downloader.py | Core | Core media downloader with streaming, SSRF-pinned fetch (`secure_fetch`), retry, cache, and metrics. | ✅ |
 | exceptions.py | Core | Media download exceptions. | ✅ |

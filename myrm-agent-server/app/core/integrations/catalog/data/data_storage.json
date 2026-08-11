@@ -1,38 +1,5 @@
 [
   {
-    "id": "google_drive",
-    "name": "Google Drive",
-    "name_zh": "Google Drive",
-    "description": "Access and manage files in your Google Drive",
-    "description_zh": "访问和管理 Google Drive 中的文件",
-    "icon": "google-drive",
-    "category": "data_storage",
-    "connector_type": "mcp",
-    "mcp_config": {
-      "name": "google-drive",
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@anthropic/google-drive-mcp"
-      ],
-      "description": "Google Drive - list, read, search files and folders"
-    },
-    "auth": {
-      "type": "oauth2",
-      "help_url": "https://console.cloud.google.com/apis/credentials",
-      "help_text": "Create OAuth 2.0 credentials in Google Cloud Console with Drive API enabled",
-      "help_text_zh": "在 Google Cloud Console 创建 OAuth 2.0 凭据并启用 Drive API"
-    },
-    "tags": [
-      "files",
-      "storage",
-      "documents",
-      "google"
-    ],
-    "website": "https://drive.google.com"
-  },
-  {
     "id": "postgres",
     "name": "PostgreSQL",
     "name_zh": "PostgreSQL 数据库",

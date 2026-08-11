@@ -28,7 +28,9 @@ import RejectModeView from './approval/RejectModeView';
 import HandoverModeView from './approval/HandoverModeView';
 import BrowserSessionView from './approval/BrowserSessionView';
 import AllowAlwaysConfirmDialog from './approval/AllowAlwaysConfirmDialog';
-import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
+import useDesktopInspectorStore, {
+  selectScopedDesktopViewData,
+} from '@/store/useDesktopInspectorStore';
 import useBrowserInspectorStore, {
   selectScopedBrowserViewData,
 } from '@/store/useBrowserInspectorStore';
@@ -92,7 +94,9 @@ export default function SingleApprovalCard({
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [grantDirectoryAccess, setGrantDirectoryAccess] = useState(false);
 
-  const desktopViewData = useDesktopInspectorStore((s) => s.viewData);
+  const desktopViewData = useDesktopInspectorStore((s) =>
+    selectScopedDesktopViewData(s.viewData, request.chatId),
+  );
   const browserViewData = useBrowserInspectorStore((s) =>
     selectScopedBrowserViewData(s.viewData, request.chatId),
   );

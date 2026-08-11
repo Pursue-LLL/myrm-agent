@@ -148,6 +148,11 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
         state.loading = false;
         state.messageAppeared = true;
       });
+      // MESSAGE_END is the terminal event for this turn.  Clear the UI's
+      // active controller as soon as the terminal payload is applied; the
+      // transport may still take a tick to close (notably through multiplex).
+      // Do not abort it here: the reader still owns the stream teardown.
+      actions.clearActiveStream?.();
 
       const lastMsg = state.messages[state.messages.length - 1];
       if (lastMsg) {

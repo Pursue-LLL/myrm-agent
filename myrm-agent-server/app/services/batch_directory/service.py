@@ -22,8 +22,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+from myrm_agent_harness.toolkits.kanban.types import BoardSettings, TaskStatus
 from sqlalchemy import update as sa_update
 
 from app.database.connection import get_session
@@ -44,6 +45,11 @@ from app.services.batch_directory._helpers import (
 from app.services.batch_directory._read import _resolve_artifact_results
 from app.services.batch_directory._run import fan_out_batch_tasks
 
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.kanban.types import KanbanTask
+
+    from app.services.kanban import KanbanService
+
 logger = logging.getLogger(__name__)
 
 # dispatcher 终态事件名（触发项目完成检测）
@@ -58,7 +64,7 @@ class BatchDirectoryService:
     _instance: BatchDirectoryService | None = None
 
     def __init__(self) -> None:
-        self._kanban = None  # lazy: KanbanService.get_instance()
+        self._kanban: KanbanService | None = None  # lazy: KanbanService.get_instance()
 
     @classmethod
     def get_instance(cls) -> BatchDirectoryService:
@@ -67,7 +73,7 @@ class BatchDirectoryService:
         return cls._instance
 
     @property
-    def kanban(self):
+    def kanban(self) -> KanbanService:
         if self._kanban is None:
             from app.services.kanban import KanbanService
 
@@ -119,8 +125,6 @@ class BatchDirectoryService:
         # 解析目标 board：未指定则自动创建（并设置并发上限）
         target_board_id = board_id
         if not target_board_id:
-            from myrm_agent_harness.toolkits.kanban.types import BoardSettings
-
             board = await self.kanban.create_board(
                 name=f"{name.strip()} (Batch)",
                 description=f"Batch directory project: {name.strip()}",
@@ -383,7 +387,7 @@ class BatchDirectoryService:
     # Dispatcher event hook factory
     # ------------------------------------------------------------------
 
-    def dispatcher_event_hook(self, event_type: str, task) -> None:
+    def dispatcher_event_hook(self, event_type: str, task: KanbanTask) -> None:
         """Synchronous dispatcher callback; schedules async finalize check.
 
         Registered in ``start_dispatcher`` so every board carrying batch

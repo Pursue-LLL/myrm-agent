@@ -10,6 +10,8 @@ from myrm_agent_harness.toolkits.browser.action_capture.types import (
 )
 
 from app.services.browser_recording.skill_generator import (
+    default_skill_description,
+    generate_skill_description,
     generate_skill_from_session,
 )
 
@@ -300,3 +302,98 @@ class TestGenerateSkillFromSession:
         fm = parse_skill_frontmatter(content, "multi-line-skill")
         assert "Line one" in fm.description
         assert "quotes" in fm.description
+
+
+class TestGenerateSkillDescription:
+    async def test_generates_description_from_steps(self) -> None:
+        session = _make_session(
+            [
+                _make_step(1, ActionType.NAVIGATE, value="https://example.com"),
+                _make_step(2, ActionType.CLICK, element_text="Login"),
+                _make_step(
+                    3,
+                    ActionType.FILL,
+                    value="alice",
+                    element_text="Username",
+                    element_role="textbox",
+                ),
+            ]
+        )
+
+        class _FakeLLM:
+            async def ainvoke(self, prompt: str) -> object:
+                return type("R", (), {"content": "Logs the user into the example site"})
+
+        description = await generate_skill_description(_FakeLLM(), session)
+        assert description == "Logs the user into the example site"
+
+    async def test_returns_none_when_llm_fails(self) -> None:
+        session = _make_session([_make_step(1, ActionType.CLICK)])
+
+        class _FakeLLM:
+            async def ainvoke(self, prompt: str) -> None:
+                raise RuntimeError("LLM unavailable")
+
+        assert await generate_skill_description(_FakeLLM(), session) is None
+
+    async def test_returns_none_without_steps(self) -> None:
+        session = _make_session()
+
+        class _FakeLLM:
+            async def ainvoke(self, prompt: str) -> object:
+                raise AssertionError("should not be called")
+
+        assert await generate_skill_description(_FakeLLM(), session) is None
+
+    async def test_prompt_never_contains_password_values(self) -> None:
+        session = _make_session(
+            [
+                _make_step(1, ActionType.NAVIGATE, value="https://example.com"),
+                _make_step(
+                    2,
+                    ActionType.FILL,
+                    value="s3cret-plaintext",
+                    element_text="Password",
+                    element_role="textbox",
+                    is_password=True,
+                ),
+            ]
+        )
+
+        captured: list[str] = []
+
+        class _FakeLLM:
+            async def ainvoke(self, prompt: str) -> object:
+                captured.append(prompt)
+                return type("R", (), {"content": "Logs the user in"})
+
+        await generate_skill_description(_FakeLLM(), session)
+        assert captured
+        assert "s3cret-plaintext" not in captured[0]
+        assert 'Fill credential "example.com-password"' in captured[0]
+        assert "password field" not in captured[0]
+
+    async def test_truncates_overlong_description(self) -> None:
+        session = _make_session([_make_step(1, ActionType.CLICK)])
+
+        class _FakeLLM:
+            async def ainvoke(self, prompt: str) -> object:
+                return type("R", (), {"content": "x" * 500})
+
+        description = await generate_skill_description(_FakeLLM(), session)
+        assert description is not None
+        assert len(description) <= 200
+
+
+class TestDefaultSkillDescription:
+    def test_with_steps_uses_first_url(self) -> None:
+        session = _make_session(
+            [_make_step(1, ActionType.NAVIGATE, value="https://example.com/login")]
+        )
+        assert default_skill_description(session) == (
+            "Browser automation skill recorded from https://example.com"
+        )
+
+    def test_empty_session(self) -> None:
+        session = _make_session()
+        assert default_skill_description(session) == "Browser automation skill"

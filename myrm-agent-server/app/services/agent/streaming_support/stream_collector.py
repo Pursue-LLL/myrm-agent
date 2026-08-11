@@ -51,6 +51,18 @@ _MAX_REASONING_CHARS = 24_000
 _PERSISTED_STATUS_STEP_KEYS = frozenset(
     {"archive_restore_blocked", "archive_restore_result"}
 )
+_FAILOVER_REASON_TO_STEP_KEY: dict[str, str] = {
+    "rate_limit": "model_failover_rate_limit",
+    "overloaded": "model_failover_overloaded",
+    "timeout": "model_failover_timeout",
+    "billing": "model_failover_billing",
+    "context_overflow": "model_failover_context_overflow",
+    "response_format": "model_failover_response_format_error",
+    "format": "model_failover_response_format_error",
+    "model_not_found": "model_failover_model_not_found",
+    "auth_permanent": "model_failover_auth",
+    "session_expired": "model_failover_auth",
+}
 logger = logging.getLogger(__name__)
 _STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
 
@@ -792,6 +804,22 @@ class StreamContentCollector:
                         }
             if step_key == "cache_break" and isinstance(data, dict):
                 self._cache_break = data
+            if step_key == "model_failover":
+                error_kind = event.get("error_kind")
+                display_key = (
+                    f"model_failover_{error_kind}"
+                    if isinstance(error_kind, str) and error_kind
+                    else "model_failover"
+                )
+                fallback_model = event.get("fallback_model")
+                item_text = str(fallback_model) if fallback_model else ""
+                self._progress_steps.append(
+                    {
+                        "step_key": display_key,
+                        "items": [{"text": item_text}] if item_text else [],
+                        "status": "success",
+                    }
+                )
             if isinstance(step_key, str) and step_key in _PERSISTED_STATUS_STEP_KEYS:
                 step = {
                     "step_key": step_key,
@@ -811,6 +839,21 @@ class StreamContentCollector:
                     if archive_restore_result is not None:
                         step["archive_restore_result"] = archive_restore_result
                 self._progress_steps.append(step)
+
+        elif event_type == "model_failover" and isinstance(data, dict):
+            reason = data.get("reason")
+            from_model = data.get("fromModel")
+            to_model = data.get("toModel")
+            reason_key = str(reason) if reason is not None else ""
+            display_key = _FAILOVER_REASON_TO_STEP_KEY.get(reason_key, "model_failover")
+            label_parts = [str(v) for v in (from_model, to_model) if v]
+            self._progress_steps.append(
+                {
+                    "step_key": display_key,
+                    "items": [{"text": " → ".join(label_parts)}] if label_parts else [],
+                    "status": "success",
+                }
+            )
 
     @property
     def content(self) -> str:

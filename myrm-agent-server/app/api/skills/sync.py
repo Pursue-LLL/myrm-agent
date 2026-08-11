@@ -24,6 +24,7 @@ from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
 from myrm_agent_harness.agent.skills.evolution.execution.sandbox_validator import SandboxValidator
 from pydantic import BaseModel
 
+from app.api.skills._deploy_capability import require_local_skills_capability
 from app.core.skills.creation.service import skill_creation_service
 from app.core.skills.store.service import skills_service
 
@@ -139,6 +140,7 @@ async def import_user_skills(
     file: Annotated[UploadFile, File(description="A ZIP file containing SKILL.md directories")],
 ) -> dict[str, str | int]:
     """Import a ZIP file containing skills into the user's local skill directory."""
+    require_local_skills_capability()
     fname = file.filename or ""
     if not fname.endswith(".zip"):
         raise HTTPException(status_code=400, detail="Only ZIP files are supported.")

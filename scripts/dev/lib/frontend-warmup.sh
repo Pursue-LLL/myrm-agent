@@ -71,7 +71,14 @@ print(pid)
 
 _frontend_port_listening() {
   local port="${FRONTEND_PORT:-3000}"
-  lsof -iTCP:"${port}" -sTCP:LISTEN -t >/dev/null 2>&1
+  python3 -c '
+import socket, sys
+try:
+    with socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=0.25):
+        pass
+except (OSError, ValueError):
+    raise SystemExit(1)
+' "${port}" >/dev/null 2>&1
 }
 
 _frontend_warmup_state_file() {

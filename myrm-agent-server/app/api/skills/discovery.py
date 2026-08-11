@@ -25,6 +25,7 @@ from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.agent.skills.market.service import BaseSkillMarketService
 from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
 
+from app.api.skills._deploy_capability import require_local_skills_capability
 from app.api.skills.audit import _audit_skill_action
 from app.api.skills.discovery_schemas import (
     CustomSourceListResponse,
@@ -239,6 +240,7 @@ async def install_skill(
     request: SkillInstallRequest,
 ) -> SkillInstallResponse:
     """Install a skill from external source to local filesystem."""
+    require_local_skills_capability()
     await market_service.ensure_clawhub_registry()
     result = await market_service.install(request.skill_id, request.source)
     mount_result = None
@@ -316,6 +318,7 @@ async def update_skill(
 
     Uses the quarantine install flow: download -> scan -> replace.
     """
+    require_local_skills_capability()
     from myrm_agent_harness.agent.skills.market.autoupdate import SkillUpdateInfo
 
     update_info = SkillUpdateInfo(
@@ -348,6 +351,7 @@ async def uninstall_skill(
     request: SkillUninstallRequest,
 ) -> SkillInstallResponse:
     """Uninstall a locally installed skill."""
+    require_local_skills_capability()
     result = await market_service.uninstall(request.skill_id)
     if result.success:
         _audit_skill_action("uninstall", request.skill_id)
@@ -387,6 +391,7 @@ async def install_skill_from_url(
     request: SkillInstallFromUrlRequest,
 ) -> SkillInstallResponse:
     """Install a skill directly from a GitHub URL."""
+    require_local_skills_capability()
     await market_service.ensure_clawhub_registry()
     result = await market_service.install_from_url(request.url)
     mount_result = None

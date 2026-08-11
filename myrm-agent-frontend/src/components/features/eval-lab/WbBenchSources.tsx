@@ -13,14 +13,18 @@ import {
   DialogTitle,
 } from '@/components/primitives/dialog';
 
-interface WbBenchSource {
+interface BenchmarkSource {
   id: string;
+  benchmark_id: string;
   name: string;
+  description?: string;
   task_count: number;
   approx_size_mb: number;
   is_downloaded: boolean;
   local_size_bytes: number;
   scoring?: string;
+  supports_memory_ab?: boolean;
+  provider?: string;
 }
 
 interface ReportItem {
@@ -38,11 +42,11 @@ interface ReportItem {
 interface Props {
   running: boolean;
   history: ReportItem[];
-  onRun: (subsetId: string) => void;
-  onDownload: (subsetId: string) => void;
-  onMemoryAb: (subsetId: string) => void;
+  onRun: (benchmarkId: string) => void;
+  onDownload: (benchmarkId: string) => void;
+  onMemoryAb: (benchmarkId: string) => void;
   refreshToken: number;
-  downloadingSubsetId: string | null;
+  downloadingBenchmarkId: string | null;
   downloadProgress: { downloaded_bytes: number; total_bytes: number } | null;
 }
 
@@ -53,6 +57,16 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 ** idx).toFixed(1)} ${units[idx]}`;
 }
 
+function scoringLabel(source: BenchmarkSource, t: (key: string) => string): { label: string; title: string } {
+  if (source.scoring === 'native') {
+    return { label: t('scoringNative'), title: t('scoringNativeTitle') };
+  }
+  if (source.scoring === 'composite') {
+    return { label: t('scoringComposite'), title: t('scoringCompositeTitle') };
+  }
+  return { label: t('scoringLlmsJudge'), title: t('scoringLlmsJudgeTitle') };
+}
+
 export default function WbBenchSources({
   running,
   history,
@@ -60,25 +74,25 @@ export default function WbBenchSources({
   onDownload,
   onMemoryAb,
   refreshToken,
-  downloadingSubsetId,
+  downloadingBenchmarkId,
   downloadProgress,
 }: Props) {
   const t = useTranslations('evalLab.wbBench');
   const tMemoryAb = useTranslations('evalLab.memoryAb');
-  const [sources, setSources] = useState<WbBenchSource[]>([]);
+  const [sources, setSources] = useState<BenchmarkSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [pendingMemoryAbSubset, setPendingMemoryAbSubset] = useState<string | null>(null);
+  const [pendingMemoryAbBenchmark, setPendingMemoryAbBenchmark] = useState<string | null>(null);
 
   const fetchSources = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/eval/wb-bench/sources');
+      const res = await fetch('/api/v1/eval/benchmarks');
       const data = await res.json();
       if (data.status === 'success' && Array.isArray(data.sources)) {
         setSources(data.sources);
       }
     } catch (e) {
-      console.error('Failed to fetch WBBench sources:', e);
+      console.error('Failed to fetch benchmark sources:', e);
     } finally {
       setLoading(false);
     }
@@ -94,8 +108,8 @@ export default function WbBenchSources({
     setRefreshing(false);
   };
 
-  const latestReportFor = (subsetId: string): ReportItem | null => {
-    const matches = history.filter((h) => h?.manifest?.task_set_id === `wb-bench-${subsetId}`);
+  const latestReportFor = (benchmarkId: string): ReportItem | null => {
+    const matches = history.filter((h) => h?.manifest?.task_set_id === benchmarkId);
     return matches.length > 0 ? matches[matches.length - 1] : null;
   };
 
@@ -129,8 +143,8 @@ export default function WbBenchSources({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {sources.map((source) => {
-            const report = latestReportFor(source.id);
-            const downloadingThis = running && downloadingSubsetId === source.id;
+            const report = latestReportFor(source.benchmark_id);
+            const downloadingThis = running && downloadingBenchmarkId === source.benchmark_id;
             const downloadPct =
               downloadingThis && downloadProgress && downloadProgress.total_bytes > 0
                 ? Math.min(100, (downloadProgress.downloaded_bytes / downloadProgress.total_bytes) * 100)
@@ -145,8 +159,9 @@ export default function WbBenchSources({
                 : null;
             const testPassRate =
               report?.avg_pass_rate != null && isScored ? Math.round(report.avg_pass_rate * 100) : null;
+            const scoring = scoringLabel(source, (key) => t(key));
             return (
-              <Card key={source.id} className="flex flex-col">
+              <Card key={source.benchmark_id} className="flex flex-col">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-2">
                     <CardTitle className="text-base flex items-center gap-2">
@@ -154,12 +169,8 @@ export default function WbBenchSources({
                       {source.name}
                     </CardTitle>
                     <div className="flex items-center gap-1.5">
-                      <Badge
-                        variant="secondary"
-                        className="bg-primary/10 text-primary"
-                        title={source.scoring === 'native' ? t('scoringNativeTitle') : t('scoringCompositeTitle')}
-                      >
-                        {source.scoring === 'native' ? t('scoringNative') : t('scoringComposite')}
+                      <Badge variant="secondary" className="bg-primary/10 text-primary" title={scoring.title}>
+                        {scoring.label}
                       </Badge>
                       {source.is_downloaded ? (
                         <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
@@ -174,6 +185,9 @@ export default function WbBenchSources({
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col gap-4">
+                  {source.description && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">{source.description}</p>
+                  )}
                   <div className="grid grid-cols-3 gap-3 text-sm">
                     <div className="flex flex-col">
                       <span className="text-muted-foreground text-xs">{t('taskCount')}</span>
@@ -247,27 +261,34 @@ export default function WbBenchSources({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onDownload(source.id)}
+                      onClick={() => onDownload(source.benchmark_id)}
                       disabled={running || source.is_downloaded}
                       className="flex-1 min-w-[96px]"
                     >
                       <DownloadCloud className="w-4 h-4" />
                       {source.is_downloaded ? t('downloaded') : downloadingThis ? t('downloading') : t('download')}
                     </Button>
-                    <Button size="sm" onClick={() => onRun(source.id)} disabled={running} className="flex-1 min-w-[96px]">
-                      <Play className="w-4 h-4" />
-                      {running ? t('running') : t('run')}
-                    </Button>
                     <Button
-                      variant="secondary"
                       size="sm"
-                      onClick={() => setPendingMemoryAbSubset(source.id)}
+                      onClick={() => onRun(source.benchmark_id)}
                       disabled={running}
                       className="flex-1 min-w-[96px]"
                     >
-                      <BrainCircuit className="w-4 h-4" />
-                      {t('memoryAb')}
+                      <Play className="w-4 h-4" />
+                      {running ? t('running') : t('run')}
                     </Button>
+                    {source.supports_memory_ab !== false && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setPendingMemoryAbBenchmark(source.benchmark_id)}
+                        disabled={running}
+                        className="flex-1 min-w-[96px]"
+                      >
+                        <BrainCircuit className="w-4 h-4" />
+                        {t('memoryAb')}
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -277,8 +298,8 @@ export default function WbBenchSources({
       </div>
 
       <Dialog
-        open={pendingMemoryAbSubset != null}
-        onOpenChange={(open) => !open && setPendingMemoryAbSubset(null)}
+        open={pendingMemoryAbBenchmark != null}
+        onOpenChange={(open) => !open && setPendingMemoryAbBenchmark(null)}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -289,14 +310,14 @@ export default function WbBenchSources({
             <DialogDescription className="text-sm leading-relaxed">{tMemoryAb('confirmBody')}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingMemoryAbSubset(null)}>
+            <Button variant="outline" onClick={() => setPendingMemoryAbBenchmark(null)}>
               {tMemoryAb('confirmCancel')}
             </Button>
             <Button
               onClick={() => {
-                const subsetId = pendingMemoryAbSubset;
-                setPendingMemoryAbSubset(null);
-                if (subsetId) onMemoryAb(subsetId);
+                const benchmarkId = pendingMemoryAbBenchmark;
+                setPendingMemoryAbBenchmark(null);
+                if (benchmarkId) onMemoryAb(benchmarkId);
               }}
             >
               {tMemoryAb('confirmStart')}

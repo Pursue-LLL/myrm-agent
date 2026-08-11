@@ -10,6 +10,14 @@ from app.channels.protocols.async_login import (
     LoginStatus,
 )
 from app.channels.protocols.compact import CompactHandler, CompactResult
+from app.channels.protocols.inbound_profile import (
+    CHANNEL_INBOUND_SPECS,
+    ChannelInboundSpec,
+    InboundMode,
+    IngressTransport,
+    is_channel_configured,
+    resolve_channel_ingress_mode,
+)
 from app.channels.protocols.pairing import (
     ChannelPolicyProvider,
     DmPolicy,
@@ -44,7 +52,9 @@ from app.channels.protocols.turn_management import (
 __all__ = [
     "AgentExecutor",
     "AsyncLoginProtocol",
+    "CHANNEL_INBOUND_SPECS",
     "CORSConfig",
+    "ChannelInboundSpec",
     "ChannelPolicyProvider",
     "CompactHandler",
     "CompactResult",
@@ -55,6 +65,8 @@ __all__ = [
     "GroupTriggerMode",
     "HttpMethod",
     "InMemoryRateLimiter",
+    "InboundMode",
+    "IngressTransport",
     "LoginEvent",
     "LoginMethod",
     "LoginState",
@@ -74,4 +86,6 @@ __all__ = [
     "TopicManager",
     "UndoHandler",
     "UndoResult",
+    "is_channel_configured",
+    "resolve_channel_ingress_mode",
 ]
