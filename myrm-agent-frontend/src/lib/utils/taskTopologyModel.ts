@@ -2,8 +2,8 @@
  * [POS] Task topology model. Pure functions that turn live subagent tree /
  *       fission topology data into a renderable ReactFlow graph model.
  * [INPUT] useSubagentStore::SubagentNode / FissionTopology
- * [OUTPUT] buildTopologyModel, buildFissionTopologyModel, toneForStatus,
- *       truncateLabel, TopologyModel, TopologyNodeData, TopologyTone
+ * [OUTPUT] buildTopologyModel, buildFissionTopologyModel, buildMergedTopologyModel,
+ *       toneForStatus, truncateLabel, TopologyModel, TopologyNodeData, TopologyTone
  */
 import type { FissionTopology, SubagentNode } from '@/store/chat/useSubagentStore';
 import { extractCostUsd, extractTotalTokens } from './subagentTree';
@@ -47,7 +47,10 @@ export interface TopologyModel {
 
 export const MAX_LABEL_LENGTH = 60;
 
-const FISSION_ROOT_ID = 'fission-root';
+/** Fission root is keyed by fission id so it can coexist with subagent task ids in a merged graph. */
+function fissionRootId(fissionId: string): string {
+  return `fission-${fissionId}`;
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -145,10 +148,11 @@ export function buildFissionTopologyModel(topology: FissionTopology | null): Top
   const model = emptyTopologyModel();
   if (!topology || topology.nodes.length === 0) return model;
 
+  const rootId = fissionRootId(topology.fission_id);
   const hasActive = topology.nodes.some((n) => toneForStatus(n.status) === 'active');
 
   model.nodes.push({
-    taskId: FISSION_ROOT_ID,
+    taskId: rootId,
     label: truncateLabel(topology.fission_id.slice(0, 8), 16),
     agentType: 'orchestrator',
     status: hasActive ? 'running' : 'completed',
@@ -173,10 +177,10 @@ export function buildFissionTopologyModel(topology: FissionTopology | null): Top
       tokens: 0,
       durationSeconds: 0,
       error: n.error ?? undefined,
-      parentTaskId: FISSION_ROOT_ID,
+      parentTaskId: rootId,
     };
     model.nodes.push(data);
-    model.edges.push({ source: FISSION_ROOT_ID, target: n.node_id });
+    model.edges.push({ source: rootId, target: n.node_id });
 
     if (tone === 'active') model.activeCount++;
     if (tone === 'danger') model.failedCount++;
@@ -184,4 +188,26 @@ export function buildFissionTopologyModel(topology: FissionTopology | null): Top
   }
 
   return model;
+}
+
+/**
+ * Combined model for the live subagent tree plus an active/persisted fission
+ * swarm group. Both sources are independent (fission nodes are not part of the
+ * subagent tree), so the canvas renders them side by side with accumulated
+ * summary metrics.
+ */
+export function buildMergedTopologyModel(nodes: SubagentNode[], topology: FissionTopology | null): TopologyModel {
+  const tree = buildTopologyModel(nodes);
+  const fission = buildFissionTopologyModel(topology);
+  if (fission.nodes.length === 0) return tree;
+
+  return {
+    nodes: [...tree.nodes, ...fission.nodes],
+    edges: [...tree.edges, ...fission.edges],
+    activeCount: tree.activeCount + fission.activeCount,
+    failedCount: tree.failedCount + fission.failedCount,
+    totalTokens: tree.totalTokens + fission.totalTokens,
+    totalCostUsd: tree.totalCostUsd + fission.totalCostUsd,
+    totalDurationSeconds: tree.totalDurationSeconds + fission.totalDurationSeconds,
+  };
 }

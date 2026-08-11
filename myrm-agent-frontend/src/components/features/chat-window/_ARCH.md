@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `AgentInfoBanner.tsx` | 组件 | 当前 Agent 信息横幅：头像+名称+描述+会话内切换下拉；设置快捷入口跳转 `/settings/wiki?agentId=` | ✅ |
-| `AgentWorkMap.tsx` | 组件 | 长任务拓扑画布（Task Tray「画布」tab）：ReactFlow+dagre 渲染 subagent 树/fission 拓扑；墓碑（failed/cancelled 红高亮+error）、焦点（running 脉冲）、进度条、cost/tokens/耗时元数据、空态；数据源 `taskTopologyModel` | ✅ |
+| `AgentWorkMap.tsx` | 组件 | 长任务拓扑画布（Task Tray「画布」tab）：ReactFlow+dagre 渲染 subagent 树/fission 拓扑（merge 并行）；结构/数据双 effect（节点增删才重排，实时进度更新保留拖拽坐标）；墓碑（failed/cancelled 红高亮+error）、焦点（running 脉冲）、进度条、cost/tokens/耗时元数据、空态；数据源 `taskTopologyModel` | ✅ |
 | `BudgetBadge.tsx` | 组件 | 输入区旁会话/日预算用量微型进度指示（eco 模式叶标） | ✅ |
 | `Chat.tsx` | 核心 | 消息列表容器：虚拟滚动阈值、JumpBar、审批 attention bar | ✅ |
 | `ChatWindow.tsx` | 核心 | 主对话窗口入口：EmptyChat 与 Chat/ArtifactPortal 分轨 dynamic import；URL 深链 `restore_arg` / `approval`（Web Push 点击）；chips 行集成 `SessionRevertButton`（会话级文件 Undo）；`RunStatusChip` + `SessionAdvisorPanel`（Co-Pilot） | ✅ |

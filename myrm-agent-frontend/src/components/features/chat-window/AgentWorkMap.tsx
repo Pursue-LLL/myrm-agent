@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -17,8 +17,7 @@ import '@xyflow/react/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import {
-  buildTopologyModel,
-  buildFissionTopologyModel,
+  buildMergedTopologyModel,
   type TopologyModel,
   type TopologyNodeData,
   type TopologyTone,
@@ -159,7 +158,7 @@ function CustomNode({ data }: NodeProps<Node<TopologyNodeData & Record<string, u
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground tabular-nums">
           {costUsd > 0 && <span>{fmtCost(costUsd)}</span>}
           {tokens > 0 && <span>{fmtTokens(tokens)} tok</span>}
-          {formatDuration(durationSeconds) && <span>{formatDuration(durationSeconds)}</span>}
+          {durationSeconds > 0 && <span>{formatDuration(durationSeconds)}</span>}
         </div>
       </div>
       {error && (
@@ -206,10 +205,10 @@ export const AgentWorkMap = ({ chatId: chatIdProp }: AgentWorkMapProps) => {
 
   const subagentNodes = useMemo<SubagentNode[]>(() => Object.values(nodesMap), [nodesMap]);
 
-  const model = useMemo<TopologyModel>(() => {
-    if (subagentNodes.length > 0) return buildTopologyModel(subagentNodes);
-    return buildFissionTopologyModel(fissionTopology);
-  }, [subagentNodes, fissionTopology]);
+  const model = useMemo<TopologyModel>(
+    () => buildMergedTopologyModel(subagentNodes, fissionTopology),
+    [subagentNodes, fissionTopology],
+  );
 
   // Fetch persisted fission topology once when the canvas mounts (Task Tray tab).
   useEffect(() => {
@@ -227,20 +226,23 @@ export const AgentWorkMap = ({ chatId: chatIdProp }: AgentWorkMapProps) => {
     });
   }, [chatIdProp, setFissionTopology]);
 
-  const nodeById = useMemo(() => {
-    const m = new Map<string, TopologyNodeData>();
-    for (const n of model.nodes) m.set(n.taskId, n);
-    return m;
-  }, [model]);
+  const modelRef = useRef(model);
+  modelRef.current = model;
 
+  const nodeIdKey = useMemo(() => model.nodes.map((n) => n.taskId).sort().join('|'), [model]);
+
+  // Structure pass: dagre layout only when the node set changes (add/remove),
+  // so user-dragged positions survive live data updates.
   useEffect(() => {
-    if (model.nodes.length === 0) {
+    const m = modelRef.current;
+    if (m.nodes.length === 0) {
       setNodes([]);
       setEdges([]);
       return;
     }
 
-    const initialNodes: Node<TopologyNodeData & Record<string, unknown>>[] = model.nodes.map((n) => ({
+    const idSet = new Set(m.nodes.map((n) => n.taskId));
+    const initialNodes: Node<TopologyNodeData & Record<string, unknown>>[] = m.nodes.map((n) => ({
       id: n.taskId,
       type: 'custom',
       data: { ...n },
@@ -248,10 +250,10 @@ export const AgentWorkMap = ({ chatId: chatIdProp }: AgentWorkMapProps) => {
       className: n.isRoot ? '!bg-primary/10' : undefined,
     }));
 
-    const initialEdges: Edge[] = model.edges
-      .filter((e) => nodeById.has(e.source) && nodeById.has(e.target))
+    const initialEdges: Edge[] = m.edges
+      .filter((e) => idSet.has(e.source) && idSet.has(e.target))
       .map((e) => {
-        const target = nodeById.get(e.target);
+        const target = m.nodes.find((n) => n.taskId === e.target);
         return {
           id: `edge-${e.source}-${e.target}`,
           source: e.source,
@@ -266,7 +268,22 @@ export const AgentWorkMap = ({ chatId: chatIdProp }: AgentWorkMapProps) => {
     const layout = getLayoutedElements(initialNodes, initialEdges);
     setNodes(layout.nodes);
     setEdges(layout.edges);
-  }, [model, nodeById, setNodes, setEdges]);
+  }, [nodeIdKey, setNodes, setEdges]);
+
+  // Data pass: progress/status/meta updates refresh node data and edge animation
+  // in place, keeping node coordinates stable.
+  useEffect(() => {
+    if (model.nodes.length === 0) return;
+    const dataById = new Map(model.nodes.map((n) => [n.taskId, n]));
+    setNodes((prev) =>
+      prev.map((n) => {
+        const d = dataById.get(n.id);
+        return d ? { ...n, data: { ...d } } : n;
+      }),
+    );
+    const activeIds = new Set(model.nodes.filter((n) => n.tone === 'active').map((n) => n.taskId));
+    setEdges((prev) => prev.map((e) => ({ ...e, animated: activeIds.has(e.target) })));
+  }, [model, setNodes, setEdges]);
 
   if (model.nodes.length === 0) {
     return (

@@ -3,6 +3,7 @@ import type { FissionTopology, SubagentNode } from '@/store/chat/useSubagentStor
 import {
   buildTopologyModel,
   buildFissionTopologyModel,
+  buildMergedTopologyModel,
   toneForStatus,
   truncateLabel,
 } from '../taskTopologyModel';
@@ -164,5 +165,54 @@ describe('buildFissionTopologyModel', () => {
   it('aggregates fission costs', () => {
     const m = buildFissionTopologyModel(topology);
     expect(m.totalCostUsd).toBeCloseTo(0.5);
+  });
+
+  it('keys the fission root by fission id so it never collides with subagent task ids', () => {
+    const m = buildFissionTopologyModel(topology);
+    expect(m.nodes[0].taskId).toBe(`fission-${topology.fission_id}`);
+    expect(m.nodes[0].taskId).not.toBe('fission-root');
+  });
+});
+
+// ── buildMergedTopologyModel ──────────────────────────────────────────
+
+describe('buildMergedTopologyModel', () => {
+  const topology: FissionTopology = {
+    fission_id: 'fission-12345678',
+    nodes: [{ node_id: 'n1', agent_type: 'researcher', objective: 'research', status: 'running', cost_usd: 0.5 }],
+    total_cost_usd: 0.5,
+  };
+
+  it('falls back to the subagent tree when no fission topology exists', () => {
+    const m = buildMergedTopologyModel([mkNode({ task_id: 'root', status: 'running' })], null);
+    expect(m.nodes).toHaveLength(1);
+    expect(m.edges).toHaveLength(0);
+    expect(m.nodes[0].isRoot).toBeFalsy();
+  });
+
+  it('merges tree and fission nodes into one graph with unique ids', () => {
+    const m = buildMergedTopologyModel([mkNode({ task_id: 'root', status: 'running' })], topology);
+    expect(m.nodes).toHaveLength(3);
+    expect(m.edges).toHaveLength(1);
+    const ids = new Set(m.nodes.map((n) => n.taskId));
+    expect(ids.size).toBe(3);
+    expect(m.nodes.find((n) => n.isRoot)?.taskId).toBe(`fission-${topology.fission_id}`);
+  });
+
+  it('accumulates summary metrics from both sources', () => {
+    const m = buildMergedTopologyModel(
+      [{ ...mkNode({ task_id: 'root', status: 'completed' }), token_usage: { total_cost_usd: 1, total_tokens: 100 } }],
+      { ...topology, nodes: [{ node_id: 'n1', agent_type: 'researcher', objective: 'research', status: 'completed', cost_usd: 0.5 }] },
+    );
+    expect(m.activeCount).toBe(0);
+    expect(m.totalCostUsd).toBeCloseTo(1.5);
+    expect(m.totalTokens).toBe(100);
+    expect(m.totalDurationSeconds).toBe(0);
+  });
+
+  it('counts active nodes from both sources', () => {
+    const m = buildMergedTopologyModel([mkNode({ task_id: 'root', status: 'completed' })], topology);
+    expect(m.activeCount).toBe(1);
+    expect(m.failedCount).toBe(0);
   });
 });
