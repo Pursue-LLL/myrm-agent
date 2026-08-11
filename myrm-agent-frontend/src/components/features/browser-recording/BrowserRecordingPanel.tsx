@@ -13,11 +13,13 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import useBrowserRecordingStore from '@/store/useBrowserRecordingStore';
 import RecordingStepCard from './RecordingStepCard';
 
 const BrowserRecordingPanel: React.FC = () => {
   const t = useTranslations('chat.browserRecording');
+  const router = useRouter();
   const {
     isOpen,
     status,
@@ -36,6 +38,7 @@ const BrowserRecordingPanel: React.FC = () => {
 
   const [skillName, setSkillName] = useState('');
   const [skillDesc, setSkillDesc] = useState('');
+  const [showPreview, setShowPreview] = useState(true);
   const stepsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -241,9 +244,18 @@ const BrowserRecordingPanel: React.FC = () => {
       {/* Generated Skill Result */}
       {generatedSkill && (
         <div className="px-3 py-3 border-t border-border space-y-2">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-chart-2" />
-            <span className="text-sm font-medium text-chart-2">{t('skillGenerated')}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-chart-2" />
+              <span className="text-sm font-medium text-chart-2">{t('skillGenerated')}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowPreview((v) => !v)}
+              className="text-xs text-muted-foreground hover:text-foreground hover:bg-accent px-1.5 py-0.5 rounded"
+            >
+              {showPreview ? t('hidePreview') : t('showPreview')}
+            </button>
           </div>
           <div className="text-xs text-muted-foreground space-y-1">
             <p>
@@ -253,11 +265,36 @@ const BrowserRecordingPanel: React.FC = () => {
               <span className="font-medium">{t('labelSteps')}</span> {generatedSkill.stepCount}
             </p>
             {generatedSkill.credentialPlaceholders.length > 0 && (
-              <p className="text-yellow-600">
-                {t('credentialDetected', { count: generatedSkill.credentialPlaceholders.length })}
-              </p>
+              <div className="space-y-1.5">
+                <p className="text-yellow-600">
+                  {t('credentialDetected', { count: generatedSkill.credentialPlaceholders.length })}
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {generatedSkill.credentialPlaceholders.map((label) => (
+                    <span
+                      key={label}
+                      className="px-1.5 py-0.5 rounded bg-muted border border-border text-[11px] font-mono text-foreground"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">{t('credentialGuide')}</p>
+                <button
+                  type="button"
+                  onClick={() => router.push('/settings/credentials')}
+                  className="text-xs px-2 py-1 rounded border border-border text-foreground hover:bg-accent"
+                >
+                  {t('goToCredentials')}
+                </button>
+              </div>
             )}
           </div>
+          {showPreview && (
+            <pre className="max-h-48 overflow-y-auto p-2 rounded-lg bg-muted border border-border text-[11px] leading-relaxed text-foreground whitespace-pre-wrap break-words">
+              {generatedSkill.skillContent}
+            </pre>
+          )}
         </div>
       )}
     </div>

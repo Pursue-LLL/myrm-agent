@@ -135,7 +135,9 @@ def _mirror_shared_providers_to_private(api_url: str) -> None:
         pytest.fail("shared providers have no enabled minimax provider")
     if not any(
         isinstance(k, dict) and k.get("isActive") and k.get("key")
-        for k in (minimax.get("apiKeys") if isinstance(minimax.get("apiKeys"), list) else [])
+        for k in (
+            minimax.get("apiKeys") if isinstance(minimax.get("apiKeys"), list) else []
+        )
     ):
         pytest.fail("shared minimax provider has no active API key")
 
@@ -146,7 +148,11 @@ def _mirror_shared_providers_to_private(api_url: str) -> None:
     base = {"primary": selection, "fallback": None, "temperature": 0.7}
     dmc = dict(dmc)
     dmc["baseModel"] = base
-    dmc["liteModel"] = {"primary": dict(selection), "fallback": None, "temperature": 0.7}
+    dmc["liteModel"] = {
+        "primary": dict(selection),
+        "fallback": None,
+        "temperature": 0.7,
+    }
     dmc["fastModeModel"] = None
 
     merged = dict(shared)
@@ -404,7 +410,9 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
         )
 
     yolo_off = _wait_yolo_state(api_url, False, timeout_sec=45.0)
-    assert yolo_off is False, "YOLO must be auto-disabled after binding accept_edits agent"
+    assert (
+        yolo_off is False
+    ), "YOLO must be auto-disabled after binding accept_edits agent"
 
     # --- Scenario 4: explore default preset hydrates to explore (third tier) ---
     explore_path = seeded["explore_ui_path"]
@@ -491,7 +499,9 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
         )
 
     yolo_disarmed = _wait_yolo_state(api_url, False, timeout_sec=45.0)
-    assert yolo_disarmed is False, "YOLO must be disabled after selector picks accept_edits"
+    assert (
+        yolo_disarmed is False
+    ), "YOLO must be disabled after selector picks accept_edits"
 
     # Sanity: the live turn really persisted both a user and an assistant message.
     users = chat_user_message_count(preset_chat_id, api_url=api_url)

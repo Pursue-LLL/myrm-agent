@@ -38,7 +38,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
-_JSON_INLINE_RE = re.compile(r"\{[^{}]*\"done\"\s*:\s*(?:true|false)[^{}]*\}", re.DOTALL)
+_JSON_INLINE_RE = re.compile(
+    r"\{[^{}]*\"done\"\s*:\s*(?:true|false)[^{}]*\}", re.DOTALL
+)
 
 
 def _parse_judge_json(raw: str) -> dict[str, object] | None:
@@ -156,7 +158,9 @@ class ServerGoalManager(GoalManager):
                 goal.metadata["deliverables"] = deliverables
                 await self._storage.save_goal(goal)
         except Exception as exc:
-            logger.warning("Failed to collect deliverables for goal %s: %s", goal.goal_id, exc)
+            logger.warning(
+                "Failed to collect deliverables for goal %s: %s", goal.goal_id, exc
+            )
 
     async def evaluate_semantic(
         self, criteria: str, content: str, context_messages: list[object] | None = None
@@ -172,7 +176,9 @@ class ServerGoalManager(GoalManager):
             requires_vision = False
             if context_messages:
                 for msg in context_messages:
-                    if getattr(msg, "type", "") == "tool" and getattr(msg, "name", "") in (
+                    if getattr(msg, "type", "") == "tool" and getattr(
+                        msg, "name", ""
+                    ) in (
                         "browser_interact_tool",
                         "browser_snapshot_tool",
                         "browser_extract_tool",
@@ -194,19 +200,33 @@ class ServerGoalManager(GoalManager):
                 browser_session = gateway.get_active_browser_session(self.session_id)
                 if browser_session is not None:
                     try:
-                        screenshot_b64 = await browser_session.extract_screenshot(scale=1.0)
+                        screenshot_b64 = await browser_session.extract_screenshot(
+                            scale=1.0
+                        )
                     except Exception as e:
-                        logger.warning("Failed to extract browser screenshot for semantic evaluation: %s", e)
+                        logger.warning(
+                            "Failed to extract browser screenshot for semantic evaluation: %s",
+                            e,
+                        )
 
                 if not screenshot_b64:
-                    desktop_session = gateway.get_active_desktop_session(self.session_id)
+                    desktop_session = gateway.get_active_desktop_session(
+                        self.session_id
+                    )
                     if desktop_session is not None:
                         try:
                             action_result = await desktop_session.take_screenshot()
-                            if action_result and action_result.success and action_result.screenshot_base64:
+                            if (
+                                action_result
+                                and action_result.success
+                                and action_result.screenshot_base64
+                            ):
                                 screenshot_b64 = action_result.screenshot_base64
                         except Exception as e:
-                            logger.warning("Failed to extract desktop screenshot for semantic evaluation: %s", e)
+                            logger.warning(
+                                "Failed to extract desktop screenshot for semantic evaluation: %s",
+                                e,
+                            )
 
             messages: list[dict[str, object]] = [
                 {"role": "system", "content": criteria},
@@ -218,11 +238,18 @@ class ServerGoalManager(GoalManager):
                         "role": "user",
                         "content": [
                             {"type": "text", "text": content},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{screenshot_b64}"}},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{screenshot_b64}"
+                                },
+                            },
                         ],
                     }
                 )
-                logger.info("Multimodal Evaluator triggered: Injected visual proof (screenshot) for goal evaluation.")
+                logger.info(
+                    "Multimodal Evaluator triggered: Injected visual proof (screenshot) for goal evaluation."
+                )
             else:
                 messages.append({"role": "user", "content": content})
 
@@ -249,13 +276,19 @@ class ServerGoalManager(GoalManager):
             # Judge output was not parseable as JSON — signal parse_failed
             # so the harness can track consecutive failures and auto-pause.
             lower = raw.lower()
-            if lower.startswith("pass") or '"done": true' in lower or '"done":true' in lower:
+            if (
+                lower.startswith("pass")
+                or '"done": true' in lower
+                or '"done":true' in lower
+            ):
                 return VerificationResult(passed=True, reason=raw)
             return VerificationResult(passed=False, reason=raw, parse_failed=True)
 
         except Exception as e:
             logger.error("Semantic evaluation failed: %s", e)
-            return VerificationResult(passed=False, reason="Server evaluation failed", error_logs=str(e))
+            return VerificationResult(
+                passed=False, reason="Server evaluation failed", error_logs=str(e)
+            )
 
 
 class GoalRegistry:
@@ -281,7 +314,9 @@ class GoalRegistry:
             if session_id not in cls._providers:
                 from app.platform_utils import get_storage_provider
 
-                cls._providers[session_id] = ServerGoalManager(get_storage_provider(), session_id=session_id)
+                cls._providers[session_id] = ServerGoalManager(
+                    get_storage_provider(), session_id=session_id
+                )
                 logger.debug("Created new goal provider: session_id=%s", session_id)
             return cls._providers[session_id]
 
@@ -325,11 +360,16 @@ class GoalRegistry:
                     # In a real setup, workspace_dir should be injected, but we fallback to cwd
                     from app.config.settings import settings
 
-                    workspace_dir = str(Path(settings.project_dir).expanduser().resolve())
+                    workspace_dir = str(
+                        Path(settings.project_dir).expanduser().resolve()
+                    )
                     if not git_head_path:
                         git_head_path = os.path.join(workspace_dir, ".git", "HEAD")
                         if not os.path.exists(git_head_path):
-                            logger.debug("Branch watcher: .git/HEAD not found at %s. Pausing watcher.", git_head_path)
+                            logger.debug(
+                                "Branch watcher: .git/HEAD not found at %s. Pausing watcher.",
+                                git_head_path,
+                            )
                             git_head_path = None
                             disabled = True
                             continue
@@ -343,9 +383,13 @@ class GoalRegistry:
                         last_mtime = current_mtime
                         for sid in session_ids:
                             try:
-                                await check_and_handle_branch_stash(sid, workspace_dir=workspace_dir)
+                                await check_and_handle_branch_stash(
+                                    sid, workspace_dir=workspace_dir
+                                )
                             except Exception as e:
-                                logger.error("Branch watcher error for session %s: %s", sid, e)
+                                logger.error(
+                                    "Branch watcher error for session %s: %s", sid, e
+                                )
                 except asyncio.CancelledError:
                     break
                 except Exception as e:
@@ -406,7 +450,9 @@ async def get_current_git_branch(workspace_dir: str | None = None) -> str | None
     return None
 
 
-async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | None = None) -> None:
+async def check_and_handle_branch_stash(
+    session_id: str, workspace_dir: str | None = None
+) -> None:
     """Perceive git branch changes, auto stash/restore/migrate goals and todo progress."""
     branch = await get_current_git_branch(workspace_dir)
     if not branch:
@@ -430,7 +476,9 @@ async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | No
     from myrm_agent_harness.agent.goals.storage import _GOAL_NAMESPACE
 
     try:
-        stash_raw = await storage.read(key=f"{_GOAL_NAMESPACE}_stash/{session_id}/{branch}")
+        stash_raw = await storage.read(
+            key=f"{_GOAL_NAMESPACE}_stash/{session_id}/{branch}"
+        )
         has_stash = bool(stash_raw)
     except FileNotFoundError:
         has_stash = False
@@ -440,7 +488,9 @@ async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | No
     if last_branch:
         active_goal = await provider.get_active_goal(session_id)
         if active_goal:
-            from myrm_agent_harness.agent.meta_tools.progress.storage import read_todos_sync_from_workspace
+            from myrm_agent_harness.agent.meta_tools.progress.storage import (
+                read_todos_sync_from_workspace,
+            )
 
             ws_root = workspace_dir or ""
             progress_state: dict[str, object] | None = None
@@ -450,7 +500,10 @@ async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | No
                     progress_state = store.model_dump()
 
             if not has_stash:
-                logger.info("Intent-Aware Migration: Migrating active goal to new branch %s", branch)
+                logger.info(
+                    "Intent-Aware Migration: Migrating active goal to new branch %s",
+                    branch,
+                )
                 migrated = True
             else:
                 stashed = await provider.stash_goal(
@@ -465,7 +518,9 @@ async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | No
                         last_branch,
                     )
                     if ws_root:
-                        from myrm_agent_harness.agent.meta_tools.progress.storage import delete_todos_sync_from_workspace
+                        from myrm_agent_harness.agent.meta_tools.progress.storage import (
+                            delete_todos_sync_from_workspace,
+                        )
 
                         delete_todos_sync_from_workspace(ws_root)
 
@@ -477,7 +532,9 @@ async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | No
         from app.services.kanban.service import KanbanService
 
         kanban_svc = KanbanService.get_instance()
-        await kanban_svc.update_active_tasks_branch_metadata(new_branch=branch, old_branch=last_branch, migrated=migrated)
+        await kanban_svc.update_active_tasks_branch_metadata(
+            new_branch=branch, old_branch=last_branch, migrated=migrated
+        )
     except Exception as e:
         logger.warning("Kanban branch metadata update skipped: %s", e)
 
@@ -488,8 +545,12 @@ async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | No
         if restored:
             progress_raw = restored.get("progress_state")
             if isinstance(progress_raw, dict) and workspace_dir:
-                from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoStore
-                from myrm_agent_harness.agent.meta_tools.progress.storage import write_todos_sync_to_workspace
+                from myrm_agent_harness.agent.meta_tools.progress.schemas import (
+                    TodoStore,
+                )
+                from myrm_agent_harness.agent.meta_tools.progress.storage import (
+                    write_todos_sync_to_workspace,
+                )
 
                 try:
                     store = TodoStore.model_validate(progress_raw)

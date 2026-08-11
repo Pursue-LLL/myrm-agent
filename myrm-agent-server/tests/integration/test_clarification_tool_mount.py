@@ -74,13 +74,6 @@ def test_should_mount_predicate_matrix() -> None:
         prompt_mode="full",
         enable_structured_clarify=False,
     )
-    assert _should_mount_ask_question_tool(
-        unattended_mode=True,
-        channel_name="web_chat",
-        prompt_mode="full",
-        enable_structured_clarify=False,
-        signoff_clarify_contract=True,
-    )
 
 
 def test_ask_question_mounted_for_interactive_web_chat() -> None:

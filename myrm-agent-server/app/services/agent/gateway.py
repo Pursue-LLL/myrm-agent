@@ -222,18 +222,22 @@ class AgentGateway:
     def get_active_browser_session(
         self, session_id: str | None = None
     ) -> object | None:
-        """Get the BrowserSession from any currently active agent, if available.
+        """Get BrowserSession for a specific chat/session id.
 
         Args:
-            session_id: Optional chat/session ID to filter by.
+            session_id: Chat/session id (required). Returns None when omitted.
         """
-        if session_id:
-            info = self._session_info.get(session_id)
-            if not info or info.agent is None:
-                return None
-            agent = info.agent()
-            return getattr(agent, "_browser_session", None) if agent else None
+        if not session_id:
+            return None
 
+        info = self._session_info.get(session_id)
+        if not info or info.agent is None:
+            return None
+        agent = info.agent()
+        return getattr(agent, "_browser_session", None) if agent else None
+
+    def get_first_active_browser_session(self) -> object | None:
+        """Return the first active browser session across chats (legacy internal callers only)."""
         for info in self._session_info.values():
             if info.agent is None:
                 continue

@@ -66,7 +66,7 @@ class ToolSelectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         request: ModelRequest,
         handler: Callable[[ModelRequest], ModelResponse],
     ) -> ModelResponse:
-        # Sync path (rare): pass through without tool_choice mutation — signoff warm uses it.
+        # Sync path (rare): pass through without tool_choice mutation.
         return handler(request)
 
     async def awrap_model_call(

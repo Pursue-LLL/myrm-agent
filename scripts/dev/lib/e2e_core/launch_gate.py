@@ -59,7 +59,7 @@ def _launch_gate_subprocess_env() -> dict[str, str]:
     env = os.environ.copy()
     lib = Path(__file__).resolve().parent
     scripts_dev = lib.parent
-    monorepo = scripts_dev.parent.parent
+    monorepo = Path(__file__).resolve().parents[5]
     paths = [str(lib), str(scripts_dev), str(monorepo / "scripts" / "dev")]
     existing = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = os.pathsep.join([*paths, existing] if existing else paths)
@@ -73,8 +73,6 @@ def chrome_e2e_launch_denial_reason() -> str | None:
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         return None
     if os.environ.get("MYRM_E2E_P0A_GATE", "").strip() == "1":
-        return None
-    if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
         return None
     if os.environ.get("MYRM_E2E_LAUNCH_CHECK_SUBPROCESS", "0") == "1":
         from e2e_readiness import (  # noqa: PLC0415

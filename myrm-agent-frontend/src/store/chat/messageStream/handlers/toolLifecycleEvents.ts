@@ -15,7 +15,13 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const toolName = data.tool_name ?? '';
     if (toolName.startsWith('browser_')) {
       const { default: inspectorStore } = await import('@/store/useBrowserInspectorStore');
+      const { default: useChatStore } = await import('@/store/useChatStore');
       inspectorStore.getState().setBrowserActive(true);
+      const streamChatId = state.messages[0]?.chatId?.trim() ?? '';
+      const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
+      if (streamChatId && activeChatId && streamChatId === activeChatId) {
+        inspectorStore.getState().openPanel();
+      }
     }
     if (toolName.startsWith('desktop_')) {
       const { default: desktopStore } = await import('@/store/useDesktopInspectorStore');
@@ -62,11 +68,6 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       } else if (data.duration_ms != null && !lastStep.status) {
         lastStep.status = 'success';
       }
-    }
-
-    if (data.tool_name?.startsWith('browser_')) {
-      const { default: inspectorStore } = await import('@/store/useBrowserInspectorStore');
-      void inspectorStore.getState().fetchSnapshot();
     }
 
     if (

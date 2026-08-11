@@ -63,11 +63,8 @@ def _should_mount_ask_question_tool(
     channel_name: str,
     prompt_mode: str,
     enable_structured_clarify: bool,
-    signoff_clarify_contract: bool = False,
 ) -> bool:
     """Return True when structured HITL clarification is safe and product-appropriate."""
-    if signoff_clarify_contract:
-        return True
     if not enable_structured_clarify:
         return False
     if unattended_mode:
@@ -402,7 +399,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             channel_name=getattr(self, "channel_name", "web_chat"),
             prompt_mode=getattr(self, "prompt_mode", "full"),
             enable_structured_clarify=getattr(self, "enable_structured_clarify", False),
-            signoff_clarify_contract=getattr(self, "signoff_clarify_contract", False),
         ):
             return
 

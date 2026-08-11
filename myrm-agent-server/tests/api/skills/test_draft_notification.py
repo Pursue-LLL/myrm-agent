@@ -58,7 +58,9 @@ def mock_local_skills_dir(tmp_path: Path) -> Path:
 
 
 @pytest.mark.asyncio
-async def test_notify_skill_draft_patch_and_security(mock_local_skills_dir: Path) -> None:
+async def test_notify_skill_draft_patch_and_security(
+    mock_local_skills_dir: Path,
+) -> None:
     """Test creating skill drafts and catching security threats."""
 
     # Create base skill for patching
@@ -88,7 +90,10 @@ async def test_notify_skill_draft_patch_and_security(mock_local_skills_dir: Path
     assert draft1 is not None
     assert draft1.status == "PENDING"
     assert draft1.payload["growth_status"] == "FAILED_SCAN"
-    assert "destructive" in str(draft1.reason).lower() or "failed" in str(draft1.reason).lower()
+    assert (
+        "destructive" in str(draft1.reason).lower()
+        or "failed" in str(draft1.reason).lower()
+    )
 
     # 2. Test safe patch draft -> should be PENDING_REVIEW
     patch_result = {
@@ -106,7 +111,13 @@ async def test_notify_skill_draft_patch_and_security(mock_local_skills_dir: Path
 
     async with get_session() as db:
         events = list(
-            (await db.execute(select(ExperienceLedgerEvent).where(ExperienceLedgerEvent.entity_id.in_([draft1.id, draft2.id]))))
+            (
+                await db.execute(
+                    select(ExperienceLedgerEvent).where(
+                        ExperienceLedgerEvent.entity_id.in_([draft1.id, draft2.id])
+                    )
+                )
+            )
             .scalars()
             .all()
         )
@@ -129,14 +140,21 @@ async def test_notify_skill_draft_patch_and_security(mock_local_skills_dir: Path
 def test_resolve_growth_status_priority() -> None:
     from app.services.skills.draft_notification import _resolve_growth_status
 
-    assert _resolve_growth_status("APPROVED", {"growth_status": "FAILED_SCAN"}) == "FAILED_SCAN"
+    assert (
+        _resolve_growth_status("APPROVED", {"growth_status": "FAILED_SCAN"})
+        == "FAILED_SCAN"
+    )
     assert _resolve_growth_status("PENDING", {}) == "PENDING_REVIEW"
     assert _resolve_growth_status("APPROVED", {}) == "APPROVED"
     assert _resolve_growth_status("REJECTED", {}) == "REJECTED"
 
 
 def test_append_scan_failure_formats_findings() -> None:
-    from myrm_agent_harness.backends.skills.scanning import ScanFinding, ScanResult, ScanSeverity
+    from myrm_agent_harness.backends.skills.scanning import (
+        ScanFinding,
+        ScanResult,
+        ScanSeverity,
+    )
 
     from app.services.skills.draft_notification import _append_scan_failure
 
@@ -160,7 +178,9 @@ def test_append_scan_failure_formats_findings() -> None:
 
 
 @pytest.mark.asyncio
-async def test_evaluate_growth_scan_handles_scan_error(mock_local_skills_dir: Path) -> None:
+async def test_evaluate_growth_scan_handles_scan_error(
+    mock_local_skills_dir: Path,
+) -> None:
     from unittest.mock import patch as mock_patch
 
     from app.services.skills.draft_notification import evaluate_growth_scan
@@ -194,21 +214,34 @@ async def test_evaluate_growth_scan_clean_content(mock_local_skills_dir: Path) -
 
 
 @pytest.mark.asyncio
-async def test_build_scannable_content_patch_no_skill(mock_local_skills_dir: Path) -> None:
+async def test_build_scannable_content_patch_no_skill(
+    mock_local_skills_dir: Path,
+) -> None:
     from app.services.skills.draft_notification import build_scannable_growth_content
 
     content = await build_scannable_growth_content(
-        {"type": "skill_patch", "patch_content": "---\nname: x\n---\nfull md", "skill_name": ""}
+        {
+            "type": "skill_patch",
+            "patch_content": "---\nname: x\n---\nfull md",
+            "skill_name": "",
+        }
     )
     assert content == "---\nname: x\n---\nfull md"
 
 
 @pytest.mark.asyncio
 async def test_persist_draft_content_too_large(mock_local_skills_dir: Path) -> None:
-    from app.services.skills.draft_notification import MAX_SKILL_CONTENT_CHARS, persist_skill_draft_record
+    from app.services.skills.draft_notification import (
+        MAX_SKILL_CONTENT_CHARS,
+        persist_skill_draft_record,
+    )
 
     record = await persist_skill_draft_record(
-        {"type": "skill_draft", "skill_name": "big-skill", "content": "x" * (MAX_SKILL_CONTENT_CHARS + 1)},
+        {
+            "type": "skill_draft",
+            "skill_name": "big-skill",
+            "content": "x" * (MAX_SKILL_CONTENT_CHARS + 1),
+        },
         status="PENDING_REVIEW",
     )
     assert record is None
@@ -223,7 +256,9 @@ async def test_persist_draft_no_value_returns_none() -> None:
 
 
 @pytest.mark.asyncio
-async def test_persist_draft_dedupe_suppresses_duplicate(mock_local_skills_dir: Path) -> None:
+async def test_persist_draft_dedupe_suppresses_duplicate(
+    mock_local_skills_dir: Path,
+) -> None:
     """Same skill_name + same pending status is suppressed (dedupe)."""
     from app.services.skills.draft_notification import notify_skill_draft_created
 
@@ -258,7 +293,9 @@ async def test_persist_draft_pending_limit_rejects(mock_local_skills_dir: Path) 
 
     # Simulate a full pending queue via list_pending_growth returning 50 records.
     fake_records = [
-        SimpleNamespace(id=f"rec-{i}", action_type="other", payload={}, status="PENDING")
+        SimpleNamespace(
+            id=f"rec-{i}", action_type="other", payload={}, status="PENDING"
+        )
         for i in range(MAX_PENDING_PROPOSALS)
     ]
     with mock_patch(
@@ -283,7 +320,10 @@ async def test_persist_draft_dedupe_no_matching_returns_none(
 
     fake_records = [
         SimpleNamespace(
-            id="other-rec", action_type="other", payload={"skill_name": "other"}, status="PENDING"
+            id="other-rec",
+            action_type="other",
+            payload={"skill_name": "other"},
+            status="PENDING",
         )
     ]
     with (
@@ -304,7 +344,9 @@ async def test_persist_draft_dedupe_no_matching_returns_none(
 
 
 @pytest.mark.asyncio
-async def test_persist_draft_reviewed_at_sets_resolved_at(mock_local_skills_dir: Path) -> None:
+async def test_persist_draft_reviewed_at_sets_resolved_at(
+    mock_local_skills_dir: Path,
+) -> None:
     """A non-pending status with reviewed_at stamps resolved_at on the record."""
     from datetime import datetime, timezone
 
@@ -331,7 +373,9 @@ async def test_persist_draft_reviewed_at_sets_resolved_at(mock_local_skills_dir:
 
 
 @pytest.mark.asyncio
-async def test_build_scannable_unknown_type_uses_content(mock_local_skills_dir: Path) -> None:
+async def test_build_scannable_unknown_type_uses_content(
+    mock_local_skills_dir: Path,
+) -> None:
     """Non-skill_draft/patch types fall back to plain content for scanning."""
     from app.services.skills.draft_notification import build_scannable_growth_content
 
@@ -342,7 +386,9 @@ async def test_build_scannable_unknown_type_uses_content(mock_local_skills_dir: 
 
 
 @pytest.mark.asyncio
-async def test_build_scannable_patch_missing_skill_file(mock_local_skills_dir: Path) -> None:
+async def test_build_scannable_patch_missing_skill_file(
+    mock_local_skills_dir: Path,
+) -> None:
     """Skill file missing -> scan the raw patch content instead of failing."""
     from app.services.skills.draft_notification import build_scannable_growth_content
 

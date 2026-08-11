@@ -478,6 +478,13 @@ const DefaultModelSection = memo(() => {
               </div>
             )}
 
+          {defaultModelConfig.baseModel.primary && !defaultModelConfig.baseModel.fallback && (
+            <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500">
+              <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="text-xs font-medium leading-relaxed">{t('noFallbackWarning')}</div>
+            </div>
+          )}
+
           {/* Fallback Model */}
           <div className="p-5 bg-background/50 rounded-xl border border-border/50">
             <div className="flex items-center gap-2 mb-3">
@@ -825,6 +832,13 @@ const DefaultModelSection = memo(() => {
               </div>
             );
           })()}
+
+          {defaultModelConfig.liteModel.primary && !defaultModelConfig.liteModel.fallback && (
+            <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500">
+              <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="text-xs font-medium leading-relaxed">{t('liteNoFallbackWarning')}</div>
+            </div>
+          )}
 
           {/* Fallback Filter Model */}
           <div className="p-5 bg-background/50 rounded-xl border border-border/50">

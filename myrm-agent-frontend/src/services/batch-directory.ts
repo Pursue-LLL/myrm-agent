@@ -23,6 +23,7 @@ export interface BatchTaskItem {
   agent_id: string | null;
   result: string;
   error: string;
+  artifact_status?: 'verified' | 'missing' | 'not_specified';
   created_at: string | null;
   completed_at: string | null;
 }
@@ -44,6 +45,8 @@ export interface BatchProject {
   total_tasks: number;
   completed_tasks: number;
   failed_tasks: number;
+  failed_directories?: string[];
+  missing_artifact_directories?: string[];
   created_at: string | null;
   updated_at: string | null;
   started_at: string | null;
@@ -53,8 +56,11 @@ export interface BatchProject {
 export interface BatchProjectDetail extends BatchProject {
   tasks: BatchTaskItem[];
   created_task_ids?: string[];
-  failed_directories?: string[];
   cancelled_task_ids?: string[];
+  retried_task_ids?: string[];
+  retry_failed_directories?: string[];
+  rerun_task_ids?: string[];
+  rerun_failed_directories?: string[];
 }
 
 export interface CreateBatchProjectInput {
@@ -89,6 +95,21 @@ export async function createBatchProject(input: CreateBatchProjectInput): Promis
 
 export async function cancelBatchProject(projectId: string): Promise<BatchProjectDetail> {
   return apiRequest(`/batch-directories/${projectId}/cancel`, { method: 'POST' });
+}
+
+export async function retryBatchProject(projectId: string): Promise<BatchProjectDetail> {
+  return apiRequest(`/batch-directories/${projectId}/retry`, { method: 'POST' });
+}
+
+export async function rerunBatchProject(projectId: string): Promise<BatchProjectDetail> {
+  return apiRequest(`/batch-directories/${projectId}/rerun`, { method: 'POST' });
+}
+
+export async function retryBatchTask(
+  projectId: string,
+  taskId: string,
+): Promise<BatchProjectDetail> {
+  return apiRequest(`/batch-directories/${projectId}/tasks/${taskId}/retry`, { method: 'POST' });
 }
 
 export async function deleteBatchProject(projectId: string): Promise<void> {

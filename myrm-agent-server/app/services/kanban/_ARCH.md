@@ -20,7 +20,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 | ├─ `board_task_mixin.py` | ✅ 核心 | Board/Task 写操作薄壳（`update_board` 透传 `dispatchers` 使 settings 变更热生效） | ❌ |
 | └─ `query_dispatcher_mixin.py` | ✅ 核心 | 读查询薄壳 + dispatcher 生命周期（`KanbanReadMixin` / `KanbanDispatcherMixin`） | ❌ |
 | `task_runner/` | ✅ 子包 | TaskRunner 执行域（聚合出口见其 `__init__.py`） | - |
-| ├─ `runner.py` | ✅ 核心 | KanbanTaskRunner 编排入口；worker 工具绑定 + goal-mode GoalProvider 注入；team protocol 与 **`profile_output_suffixes`**（人格 + `response_locale_policy`）注入 `user_instructions` 尾；注入 `event_log_dir` 使 kanban 任务写 event_log（供 RunsHub/看板 drawer trace 回放）；per-task `model_override` 优先于 agent profile 默认模型解析（override 无效时回退默认模型并记录 WARNING）；**`enable_memory` 遵循用户全局 `enableMemory` 开关（`resolve_memory_enabled`，与 channel/voice/cron 一致），看板无人值守任务不写用户已关闭的记忆** | ✅ |
+| ├─ `runner.py` | ✅ 核心 | KanbanTaskRunner 编排入口；worker 工具绑定 + goal-mode GoalProvider 注入；team protocol 与 **`profile_output_suffixes`**（人格 + `response_locale_policy`）注入 `user_instructions` 尾；注入 `event_log_dir` 使 kanban 任务写 event_log（供 RunsHub/看板 drawer trace 回放）；per-task `model_override` 优先于 agent profile 默认模型解析（override 无效时回退默认模型并记录 WARNING）；**`enable_memory` 遵循用户全局 `enableMemory` 开关（`resolve_memory_enabled`，与 channel/voice/cron 一致），看板无人值守任务不写用户已关闭的记忆**；`_augment_context` 把 `workspace_root`（工作目录）与 metadata `context_annotations`（业务注入的执行指令，如批量目录产物要求）追加进 worker 上下文 | ✅ |
 | ├─ `stream.py` | ✅ 核心 | Stream 累积、附件、multimodal query；PDF/Office 提取经 `files_service.get_content` SSOT | ❌ |
 | ├─ `worktree.py` | ✅ 核心 | Git worktree 隔离 | ❌ |
 | └─ `profile.py` | ✅ 核心 | Agent profile 解析 | ❌ |

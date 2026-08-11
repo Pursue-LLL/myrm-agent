@@ -63,7 +63,9 @@ def _preflight_timeout_sec() -> float:
 
 
 def _attach_restart_stamp_path() -> Path:
-    dev_dir = Path(__file__).resolve().parent.parent
+    from dev_paths import scripts_dev_dir
+
+    dev_dir = scripts_dev_dir(Path(__file__))
     dev_dir_str = str(dev_dir)
     import sys
 
@@ -108,7 +110,7 @@ def force_mux_attach_restart(
         )
         sys.stderr.flush()
         return False
-    monorepo_root = Path(__file__).resolve().parents[4]
+    monorepo_root = Path(__file__).resolve().parents[5]
     preflight = (
         monorepo_root / "myrm-agent" / "scripts" / "dev" / "chrome-e2e-preflight.sh"
     )

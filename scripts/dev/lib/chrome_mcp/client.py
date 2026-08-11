@@ -203,7 +203,7 @@ class ChromeMcpClient:
             or f"pytest-mcp:{os.getpid()}:{uuid.uuid4().hex}"
         )
         self._parent_lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
-        self._monorepo_root = Path(__file__).resolve().parents[4]
+        self._monorepo_root = Path(__file__).resolve().parents[5]
         self._wave = self._monorepo_root / "myrm-agent/scripts/dev/wave.sh"
         self._mux_load_cache: MuxLoadSnapshot | None = None
         self._reclaim_in_progress = False

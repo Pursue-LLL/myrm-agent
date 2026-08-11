@@ -7,8 +7,8 @@
 - build_general_agent(): 将已解析配置组装为可执行的 GeneralAgent SkillAgent
 
 [POS]
-GeneralAgent 装配层。负责把业务配置、工具、存储、中间件和 LLM 组装为最终的可执行 Agent，
-并在启动时确保主模型具备工具调用能力。
+GeneralAgent 装配层。负责把业务配置、工具、存储、中间件和 LLM 组装为最终的可执行 Agent；
+尊重用户在 WebUI 选择的主模型，failover 由 harness `stream_recovery` 在 API 报错时触发。
 """
 
 import logging
@@ -62,9 +62,6 @@ async def build_general_agent(
     from app.core.utils.media_file_reader import read_uploaded_media_file_content
 
     from .agent_middlewares.citation_rules_middleware import citation_rules_middleware
-    from .agent_middlewares.signoff_clarify_contract_middleware import (
-        build_signoff_clarify_contract_middleware,
-    )
     from .agent_middlewares.tool_selection_middleware import tool_selection_middleware
     from .callbacks import (
         make_loaded_skills_persist_callback,
@@ -79,98 +76,72 @@ async def build_general_agent(
         resolve_skill_env_map,
         wrap_with_privacy_routing,
     )
-    from .llm_factory import create_agent_llms
-    from .signoff_clarify_contract_core import (
-        build_signoff_clarify_deterministic_model,
-        signoff_clarify_contract_enabled,
-        signoff_clarify_pool_active,
+    from .llm_factory import apply_lite_managed_fallback, create_agent_llms
+
+    llm, agent_wrapper._lite_llm, fallback_llm, safety_fallback_llm = (
+        await create_agent_llms(
+            agent_wrapper.model_cfg,
+            agent_wrapper.lite_model_cfg,
+            agent_wrapper.fallback_model_cfg,
+            agent_wrapper.safety_fallback_model_cfg,
+        )
     )
 
-    signoff_contract_active = signoff_clarify_contract_enabled(
-        flag=bool(getattr(agent_wrapper, "signoff_clarify_contract", False))
-    )
-    if signoff_contract_active:
-        agent_wrapper.signoff_clarify_contract = True
-        agent_wrapper.enable_structured_clarify = True
-
-    # 1. Create LLM instances — signoff pool skips real provider LLM init (R125 warm).
-    if signoff_contract_active:
-        stub_llm = build_signoff_clarify_deterministic_model()
-        llm = stub_llm
-        agent_wrapper._lite_llm = stub_llm
-        fallback_llm = stub_llm
-        safety_fallback_llm = stub_llm
-        logger.warning(
-            "SignoffClarifyContract: deterministic stub LLM only "
-            "(chat_id=%s pool=%s)",
-            effective_chat_id,
-            signoff_clarify_pool_active(),
-        )
-    else:
-        llm, agent_wrapper._lite_llm, fallback_llm, safety_fallback_llm = (
-            await create_agent_llms(
-                agent_wrapper.model_cfg,
-                agent_wrapper.lite_model_cfg,
-                agent_wrapper.fallback_model_cfg,
-                agent_wrapper.safety_fallback_model_cfg,
-            )
-        )
-
-    # 1.3–1.5 Real-LLM post-processing (skip for signoff deterministic stub path).
     privacy_routing_cfg = build_privacy_routing_config(
         agent_wrapper.privacy_routing_raw
     )
-    if not signoff_contract_active:
-        if agent_wrapper._lite_llm is not None:
-            from app.ai_agents.general_agent.llm_factory import (
-                apply_lite_context_downgrade,
-            )
+    if agent_wrapper._lite_llm is not None:
+        from app.ai_agents.general_agent.llm_factory import (
+            apply_lite_context_downgrade,
+        )
 
-            agent_wrapper._lite_llm = await apply_lite_context_downgrade(
+        agent_wrapper._lite_llm, lite_cfg_for_fallback = (
+            await apply_lite_context_downgrade(
                 llm,
                 agent_wrapper._lite_llm,
                 agent_wrapper.model_cfg,
+                agent_wrapper.lite_model_cfg,
             )
+        )
+        agent_wrapper._lite_llm = await apply_lite_managed_fallback(
+            agent_wrapper._lite_llm,
+            lite_cfg_for_fallback,
+            agent_wrapper.fallback_lite_model_cfg,
+        )
 
-        # 1.4 Auto-escalation target LLM (model self-upgrade: e.g. flash → pro)
-        escalation_target_llm = None
-        if agent_wrapper.reasoning_model_cfg is not None:
-            reasoning_model_name = agent_wrapper.reasoning_model_cfg.model
-            main_model_name = agent_wrapper.model_cfg.model
-            if reasoning_model_name != main_model_name:
-                try:
-                    reasoning_api_keys = getattr(
-                        agent_wrapper.reasoning_model_cfg, "api_keys", None
-                    )
-                    from myrm_agent_harness.toolkits.llms import llm_manager
+    escalation_target_llm = None
+    if agent_wrapper.reasoning_model_cfg is not None:
+        reasoning_model_name = agent_wrapper.reasoning_model_cfg.model
+        main_model_name = agent_wrapper.model_cfg.model
+        if reasoning_model_name != main_model_name:
+            try:
+                reasoning_api_keys = getattr(
+                    agent_wrapper.reasoning_model_cfg, "api_keys", None
+                )
+                from myrm_agent_harness.toolkits.llms import llm_manager
 
-                    escalation_target_llm = await llm_manager.get_llm_from_config(
-                        agent_wrapper.reasoning_model_cfg, api_keys=reasoning_api_keys
-                    )
-                    logger.warning(
-                        "Escalation target model: %s (auto-upgrade from %s)",
-                        reasoning_model_name,
-                        main_model_name,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "Failed to create escalation target LLM: %s, auto-escalation disabled",
-                        e,
-                    )
+                escalation_target_llm = await llm_manager.get_llm_from_config(
+                    agent_wrapper.reasoning_model_cfg, api_keys=reasoning_api_keys
+                )
+                logger.warning(
+                    "Escalation target model: %s (auto-upgrade from %s)",
+                    reasoning_model_name,
+                    main_model_name,
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to create escalation target LLM: %s, auto-escalation disabled",
+                    e,
+                )
 
-        # 1.5 Privacy routing wrapper for auxiliary LLM
-        if privacy_routing_cfg is not None and agent_wrapper._lite_llm is not None:
-            agent_wrapper._lite_llm = wrap_with_privacy_routing(
-                agent_wrapper._lite_llm, privacy_routing_cfg
-            )
-    else:
-        escalation_target_llm = None
+    if privacy_routing_cfg is not None and agent_wrapper._lite_llm is not None:
+        agent_wrapper._lite_llm = wrap_with_privacy_routing(
+            agent_wrapper._lite_llm, privacy_routing_cfg
+        )
 
-    # 1.6 Org model policy enforcement (cloud-hosted only; no-op when patterns empty)
-    if not signoff_contract_active:
-        from app.services.org_model_policy.enforce import enforce_org_model_policy
+    from app.services.org_model_policy.enforce import enforce_org_model_policy
 
-        await enforce_org_model_policy(agent_wrapper)
+    await enforce_org_model_policy(agent_wrapper)
 
     # 2. Storage backend (adapts to DEPLOY_MODE)
     from app.platform_utils import get_storage_provider
@@ -190,24 +161,13 @@ async def build_general_agent(
     allowed_prebuilt = frozenset(_user_skill_cfg.enabled_prebuilt_ids)
     runtime_skill_ids = await resolve_runtime_skill_ids(agent_wrapper.skill_ids)
 
-    if signoff_clarify_contract_enabled(
-        flag=bool(getattr(agent_wrapper, "signoff_clarify_contract", False))
-    ):
-        skill_backend = None
-        runtime_skill_ids = []
-        logger.info(
-            "SignoffClarifyContract: skipping skill backend cold-start (chat_id=%s pool=%s)",
-            effective_chat_id,
-            signoff_clarify_pool_active(),
-        )
-    else:
-        skill_backend = await create_skill_backend(
-            storage=storage_backend,
-            skill_ids=runtime_skill_ids or None,
-            user_id=user_id,
-            workspace_path=workspace_root,
-            allowed_prebuilt_ids=allowed_prebuilt,
-        )
+    skill_backend = await create_skill_backend(
+        storage=storage_backend,
+        skill_ids=runtime_skill_ids or None,
+        user_id=user_id,
+        workspace_path=workspace_root,
+        allowed_prebuilt_ids=allowed_prebuilt,
+    )
 
     # 4. Create tools (delegated to ToolSetupMixin)
     tools: list[object] = []
@@ -506,21 +466,6 @@ async def build_general_agent(
     if guardrail_middleware:
         middlewares_list.insert(0, guardrail_middleware)
 
-    if signoff_clarify_contract_enabled(
-        flag=bool(getattr(agent_wrapper, "signoff_clarify_contract", False))
-    ):
-        agent_wrapper.signoff_clarify_contract = True
-        insert_at = middlewares_list.index(tool_selection_middleware)
-        middlewares_list.insert(
-            insert_at,
-            build_signoff_clarify_contract_middleware(enabled=True),
-        )
-        logger.info(
-            "SignoffClarifyContractMiddleware mounted (chat_id=%s pool=%s)",
-            effective_chat_id,
-            signoff_clarify_pool_active(),
-        )
-
     if workspace_root:
         middlewares_list.append(
             FilesystemFileSearchMiddleware(root_path=workspace_root)
@@ -557,16 +502,6 @@ async def build_general_agent(
             "\n\n[Unattended Mode] You are running without human supervision. "
             "Do not ask the user for clarification or approval. "
             "Make reasonable decisions independently and proceed to completion."
-        )
-
-    if signoff_clarify_contract_enabled(
-        flag=bool(getattr(agent_wrapper, "signoff_clarify_contract", False))
-    ):
-        system_prompt += (
-            "\n\n[Signoff Clarify Contract] Your first and only action MUST be "
-            'ask_question_tool with title "Pick stack", one question id "stack", '
-            'prompt "Which stack?", options a/Option A and b/Option B, '
-            "requires_confirmation false. No text before the tool call."
         )
 
     from app.ai_agents.general_agent.kanban_tool_mode import resolve_kanban_tool_mode

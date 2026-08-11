@@ -80,8 +80,80 @@ async def cancel_project(project_id: str) -> BatchProjectDetailResponse:
     return BatchProjectDetailResponse(**result)
 
 
+@router.post("/{project_id}/retry", response_model=BatchProjectDetailResponse)
+async def retry_failed(project_id: str) -> BatchProjectDetailResponse:
+    try:
+        result = await _svc().retry_failed(project_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if result is None:
+        raise HTTPException(404, f"Batch project {project_id} not found")
+    return BatchProjectDetailResponse(**result)
+
+
+@router.post("/{project_id}/rerun", response_model=BatchProjectDetailResponse)
+async def rerun_project(project_id: str) -> BatchProjectDetailResponse:
+    try:
+        result = await _svc().rerun_project(project_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if result is None:
+        raise HTTPException(404, f"Batch project {project_id} not found")
+    return BatchProjectDetailResponse(**result)
+
+
+@router.post(
+    "/{project_id}/tasks/{task_id}/retry",
+    response_model=BatchProjectDetailResponse,
+)
+async def retry_task(project_id: str, task_id: str) -> BatchProjectDetailResponse:
+    try:
+        result = await _svc().retry_task(project_id, task_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if result is None:
+        raise HTTPException(404, f"Batch project {project_id} not found")
+    return BatchProjectDetailResponse(**result)
+
+
+@router.post("/{project_id}/pause", response_model=BatchProjectDetailResponse)
+async def pause_project(project_id: str) -> BatchProjectDetailResponse:
+    try:
+        result = await _svc().pause_project(project_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if result is None:
+        raise HTTPException(404, f"Batch project {project_id} not found")
+    return BatchProjectDetailResponse(**result)
+
+
+@router.post("/{project_id}/resume", response_model=BatchProjectDetailResponse)
+async def resume_project(project_id: str) -> BatchProjectDetailResponse:
+    try:
+        result = await _svc().resume_project(project_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if result is None:
+        raise HTTPException(404, f"Batch project {project_id} not found")
+    return BatchProjectDetailResponse(**result)
+
+
+@router.post("/{project_id}/approve-all", response_model=BatchProjectDetailResponse)
+async def approve_all_results(project_id: str) -> BatchProjectDetailResponse:
+    try:
+        result = await _svc().approve_all_results(project_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if result is None:
+        raise HTTPException(404, f"Batch project {project_id} not found")
+    return BatchProjectDetailResponse(**result)
+
+
 @router.delete("/{project_id}", status_code=204)
 async def delete_project(project_id: str) -> None:
-    deleted = await _svc().delete_project(project_id)
+    try:
+        deleted = await _svc().delete_project(project_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     if not deleted:
         raise HTTPException(404, f"Batch project {project_id} not found")

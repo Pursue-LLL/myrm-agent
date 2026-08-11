@@ -26,6 +26,7 @@ interface RecordedStep {
   elementText: string;
   elementRole: string;
   isPassword: boolean;
+  modifiers?: string[];
   screenshotB64?: string;
 }
 
@@ -35,6 +36,7 @@ interface GeneratedSkill {
   description: string;
   stepCount: number;
   credentialPlaceholders: string[];
+  skillContent: string;
 }
 
 interface BrowserRecordingState {
@@ -101,6 +103,7 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
                   elementText: msg.element_text ?? '',
                   elementRole: msg.element_role ?? '',
                   isPassword: msg.is_password ?? false,
+                  modifiers: msg.modifiers ?? [],
                   screenshotB64: msg.screenshot_b64,
                 },
               ],
@@ -172,6 +175,7 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
         description: string;
         step_count: number;
         credential_placeholders: string[];
+        skill_content: string;
       }>('/api/v1/browser/recording/generate-skill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -189,6 +193,7 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
           description: result.description,
           stepCount: result.step_count,
           credentialPlaceholders: result.credential_placeholders,
+          skillContent: result.skill_content,
         },
         status: 'stopped',
       });

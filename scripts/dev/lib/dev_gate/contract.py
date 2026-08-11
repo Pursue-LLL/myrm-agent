@@ -221,7 +221,7 @@ _SIGNOFF_TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on"})
 STALL_PROGRESS_SEC: Final[int] = 90
 # LIVE WebUI turns (TURN_WAIT_SEC=300) may legitimately stall snapshot progress >90s.
 LIVE_AGENT_STALL_PROGRESS_FLOOR_SEC: Final[int] = 240
-# R281: M3 signoff desktop wait_shell_layout may block on mux evaluate >90s even solo.
+# E2E signoff: desktop wait_shell_layout may block on mux evaluate >90s even solo.
 SIGNOFF_STALL_PROGRESS_FLOOR_SEC: Final[int] = 150
 # Watchdog: expire heartbeat-stale leases (display stale remains STALL_PROGRESS_SEC).
 E2E_STALE_HEARTBEAT_REAP_SEC: Final[int] = 45
@@ -264,7 +264,7 @@ def shpoib_parallel_stall_progress_sec(
 
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError, ValueError):
         active_leases = 0
@@ -310,7 +310,7 @@ def mux_reset_after_orphan_timeout_sec() -> float:
 
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError, ValueError):
         active_leases = 0
@@ -404,11 +404,11 @@ E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (
 
 
 def is_e2e_signoff_runtime() -> bool:
-    """True when M3 signoff thin shell exported E2E_SIGNOFF=1."""
+    """True when E2E_SIGNOFF=1 (desktop soak / signoff batch extended budgets)."""
     return os.environ.get("E2E_SIGNOFF", "").strip().lower() in _SIGNOFF_TRUTHY
 
 
-# Beats PRIVATE_AGING (+1 per 60s) so signoff clarifies ahead of parallel chrome_e2e.
+# Beats PRIVATE_AGING (+1 per 60s) so E2E_SIGNOFF sessions queue ahead of parallel chrome_e2e.
 E2E_SIGNOFF_PRIVATE_QUEUE_PRIORITY: Final[int] = 1000
 
 
@@ -419,40 +419,11 @@ def resolve_dev_gate_submit_priority() -> int:
     return 0
 
 
-def is_e2e_signoff_clarify_api_runtime() -> bool:
-    """True when signoff clarify leg runs API-only contract (R66, no chrome bootstrap)."""
-    return (
-        is_e2e_signoff_runtime()
-        and os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_API", "").strip().lower()
-        in _SIGNOFF_TRUTHY
-    )
-
-
 def is_desktop_soak_signoff_runtime() -> bool:
     """True when M3 desktop leg soak runs under signoff (parallel chrome_e2e)."""
     return (
         is_e2e_signoff_runtime()
         and os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY
-    )
-
-
-def signoff_clarify_backend_ready_wait_sec() -> int:
-    """SHPOIB provider_ready poll cap for signoff clarify API leg."""
-    if is_e2e_signoff_clarify_api_runtime():
-        return SIGNOFF_CLARIFY_BACKEND_READY_WAIT_SEC
-    override = os.environ.get("MYRM_E2E_BACKEND_READY_WAIT_SEC", "").strip()
-    if override.isdigit() and int(override) > 0:
-        return int(override)
-    return 180
-
-
-def signoff_clarify_backend_ensure_subprocess_timeout_sec() -> int:
-    """Subprocess cap for dev-stack backend-only ensure (must exceed health poll)."""
-    return max(
-        _SIGNOFF_CLARIFY_SEED_START_TIMEOUT_SEC,
-        E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF,
-        SIGNOFF_CLARIFY_BACKEND_HEALTH_WAIT_SEC + 120,
-        SIGNOFF_CLARIFY_BACKEND_READY_WAIT_SEC + 360,
     )
 
 
@@ -462,7 +433,7 @@ def _wave_active_lease_count_for_mux() -> int:
 
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         return max(0, wave_active_lease_count(monorepo_root))
     except (ImportError, OSError, RuntimeError, ValueError):
         return 0
@@ -548,9 +519,7 @@ def signoff_stack_recovery_admit_budget_sec(
         if active_leases is not None
         else _parallel_signoff_pressure_peers()
     )
-    return attach_parallel_wait_sec(
-        leases, base=SHARED_ATTACH_RECOVERY_WAIT_SEC
-    )
+    return attach_parallel_wait_sec(leases, base=SHARED_ATTACH_RECOVERY_WAIT_SEC)
 
 
 def provider_readiness_gate_wait_sec(*, active_leases: int | None = None) -> float:
@@ -1269,7 +1238,7 @@ def shared_ui_hydrate_wait_sec() -> int:
 
 
 def chrome_e2e_skips_signoff_private_preflight() -> bool:
-    """Signoff clarify API-only still runs api-only preflight seed (no Chrome/mux)."""
+    """Private SHPOIB preflight seed always runs (no API-only signoff bypass)."""
     return False
 
 
@@ -1319,30 +1288,8 @@ LIVE_AGENT_PYTEST_WALL_CAP_SEC: Final[int] = (
 LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = LIVE_AGENT_BODY_WALL_CLOCK_SEC
 # SHPOIB clarify skip API poll under parallel load (API-first path).
 CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
-# M3 signoff: clarify API wait — must cover SHPOIB agent cold-start under parallel load.
+# E2E signoff: clarify skip API poll under parallel load.
 SIGNOFF_CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 300
-# R100/R105: one-shot agent-stream warm during SHPOIB pool acquire (parallel cold start).
-SIGNOFF_CLARIFY_AGENT_WARM_TIMEOUT_SEC: Final[int] = 600
-# R66/R67: signoff clarify SHPOIB bootstrap wait (BOOTSTRAP phase; warm pool uses 120s).
-SIGNOFF_CLARIFY_BACKEND_READY_WAIT_SEC: Final[int] = (
-    E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
-)
-# R118: harness import smoke under parallel signoff load (cold editable import).
-SIGNOFF_CLARIFY_HARNESS_SMOKE_TIMEOUT_SEC: Final[int] = 180
-# R115: dev-stack /health poll during backend-only ensure under parallel signoff load.
-SIGNOFF_CLARIFY_BACKEND_HEALTH_WAIT_SEC: Final[int] = (
-    E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF * 2
-)
-# Align verify_backend_seed.SEED_START_TIMEOUT_SEC (avoid cross-module import).
-_SIGNOFF_CLARIFY_SEED_START_TIMEOUT_SEC: Final[int] = 180
-# R66: signoff clarify SHPOIB cold bootstrap quality gate (BODY startup+junit excluded).
-SIGNOFF_CLARIFY_STARTUP_QUALITY_MAX_SEC: Final[int] = 90
-SIGNOFF_CLARIFY_API_SEAL_CLARIFY: Final[str] = (
-    "E2E_SIGNOFF_CLARIFY_API_SEAL: clarify_confirmed"
-)
-SIGNOFF_CLARIFY_API_SEAL_SKIP: Final[str] = (
-    "E2E_SIGNOFF_CLARIFY_API_SEAL: skip_resume_ok"
-)
 # R47: hard wall for mux page reopen/reclaim (nested call_tool must not burn 600s).
 MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC: Final[int] = 120
 # R83: signoff desktop under parallel chrome_e2e may block on bind_lease >120s.
@@ -1446,7 +1393,7 @@ SEND_TURN_LOG_TOKEN: Final[str] = "E2E_SEND_TURN"
 SEND_TURN_GENERATION_WINDOW_KEY: Final[str] = "__MYRM_E2E_SEND_GENERATION__"
 # run_pytest_safe outer budget padding beyond pytest floor (bootstrap/MCP setup).
 PYTEST_SAFE_BOOTSTRAP_BUFFER_SEC: Final[int] = 120
-# M3 signoff: outer kill aligned with R62 four-phase signoff budgets.
+# E2E signoff: outer kill aligned with four-phase signoff budgets.
 SIGNOFF_PYTEST_SAFE_BUFFER_SEC: Final[int] = 60
 SIGNOFF_OUTER_KILL_SEC: Final[int] = (
     E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
@@ -1664,7 +1611,7 @@ def parallel_live_pytest_timeout_floor_sec(base: int) -> int:
 
         from stack_mutation_policy import wave_active_lease_count
 
-        load = wave_active_lease_count(Path(__file__).resolve().parents[4])
+        load = wave_active_lease_count(Path(__file__).resolve().parents[5])
     except (ImportError, OSError, RuntimeError, ValueError):
         load = 0
     if load < 2:
@@ -1741,7 +1688,7 @@ def _normalize_pytest_timeout_value(raw: str, *, floor: int, ceiling: bool) -> s
 
 
 _CHROME_E2E_PYTEST_FILE = re.compile(r"(^|[/\\])test_[^/\\]*_chrome_e2e\.py(::|$)")
-_SERVER_E2E_ROOT = Path(__file__).resolve().parents[3] / "myrm-agent-server"
+_SERVER_E2E_ROOT = Path(__file__).resolve().parents[4] / "myrm-agent-server"
 
 
 def _resolve_chrome_e2e_test_path(path_arg: str) -> Path | None:

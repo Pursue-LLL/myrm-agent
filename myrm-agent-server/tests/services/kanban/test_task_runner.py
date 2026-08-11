@@ -41,7 +41,8 @@ async def test_kanban_task_runner_uses_unattended_mode():
             "app.ai_agents.agents.AgentFactory.create_general_agent"
         ) as mock_create_agent,
         patch(
-            "app.services.kanban.task_runner.runner.build_task_context", new_callable=AsyncMock
+            "app.services.kanban.task_runner.runner.build_task_context",
+            new_callable=AsyncMock,
         ) as mock_build_context,
         patch.object(
             runner, "_resolve_profile", new_callable=AsyncMock
@@ -864,3 +865,40 @@ class TestKanbanEnableMemory:
             mock_create_agent.assert_called_once()
             params = mock_create_agent.call_args[0][0]
             assert params.enable_memory is expected
+
+
+class TestAugmentContext:
+    """Direct unit tests for KanbanTaskRunner._augment_context."""
+
+    def _task(self, metadata: dict | None) -> KanbanTask:
+        return KanbanTask(
+            task_id="ctx-task",
+            board_id="board-1",
+            title="Context task",
+            description="d",
+            metadata=metadata or {},
+        )
+
+    def test_augment_context_appends_workspace_root(self) -> None:
+        task = self._task({})
+        out = KanbanTaskRunner._augment_context(task, "base context", "/tmp/ws")
+        assert "## Execution environment" in out
+        assert "Workspace root: /tmp/ws" in out
+        assert out.startswith("base context")
+
+    def test_augment_context_appends_annotations(self) -> None:
+        task = self._task({"context_annotations": ["Pattern A", "Pattern B"]})
+        out = KanbanTaskRunner._augment_context(task, "base", None)
+        assert "Pattern A" in out
+        assert "Pattern B" in out
+
+    def test_augment_context_keeps_context_when_nothing_to_add(self) -> None:
+        task = self._task({})
+        out = KanbanTaskRunner._augment_context(task, "base", None)
+        assert out == "base"
+
+    def test_augment_context_ignores_non_list_annotations(self) -> None:
+        task = self._task({"context_annotations": "not-a-list"})
+        out = KanbanTaskRunner._augment_context(task, "base", "/tmp/ws")
+        assert "not-a-list" not in out
+        assert "Workspace root: /tmp/ws" in out

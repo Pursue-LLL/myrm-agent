@@ -81,6 +81,7 @@ class TestKanbanInReviewSeedIntegration:
         baseline = client.get("/api/v1/statistics/badges").json()["data"][
             "pendingApprovals"
         ]
+
         # The badge mixes goal-approval and kanban counts; assert on the kanban
         # increment directly so parallel suites' residual rows never skew it.
         async def _read_kanban_review_count() -> int:
@@ -91,9 +92,7 @@ class TestKanbanInReviewSeedIntegration:
         before_kanban = asyncio.run(_read_kanban_review_count())
 
         with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
-            seed_resp = client.post(
-                "/api/v1/chats/test/seed-kanban-in-review-fixture"
-            )
+            seed_resp = client.post("/api/v1/chats/test/seed-kanban-in-review-fixture")
 
         assert seed_resp.status_code == 200
         seed_body = seed_resp.json()
@@ -127,15 +126,11 @@ class TestKanbanInReviewSeedIntegration:
             "pendingApprovals"
         ]
         with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
-            seed_resp = client.post(
-                "/api/v1/chats/test/seed-kanban-in-review-fixture"
-            )
+            seed_resp = client.post("/api/v1/chats/test/seed-kanban-in-review-fixture")
         task_id = str(seed_resp.json()["task_id"])
 
         assert (
-            client.get("/api/v1/statistics/badges").json()["data"][
-                "pendingApprovals"
-            ]
+            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
             == baseline + 1
         )
 
@@ -146,9 +141,7 @@ class TestKanbanInReviewSeedIntegration:
         assert approve_resp.json()["status"] == "completed"
 
         assert (
-            client.get("/api/v1/statistics/badges").json()["data"][
-                "pendingApprovals"
-            ]
+            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
             == baseline
         )
 
@@ -157,15 +150,11 @@ class TestKanbanInReviewSeedIntegration:
             "pendingApprovals"
         ]
         with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
-            seed_resp = client.post(
-                "/api/v1/chats/test/seed-kanban-in-review-fixture"
-            )
+            seed_resp = client.post("/api/v1/chats/test/seed-kanban-in-review-fixture")
         task_id = str(seed_resp.json()["task_id"])
 
         assert (
-            client.get("/api/v1/statistics/badges").json()["data"][
-                "pendingApprovals"
-            ]
+            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
             == baseline + 1
         )
 
@@ -177,8 +166,6 @@ class TestKanbanInReviewSeedIntegration:
         assert reject_resp.json()["status"] == "ready"
 
         assert (
-            client.get("/api/v1/statistics/badges").json()["data"][
-                "pendingApprovals"
-            ]
+            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
             == baseline
         )

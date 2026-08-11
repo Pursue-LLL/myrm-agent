@@ -49,7 +49,7 @@ def _maybe_heal_shared_api_on_refused() -> None:
     try:
         from stack_mutation_policy import attach_backend_crash_heal_inner
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         dev_stack = monorepo_root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
         attach_backend_crash_heal_inner(
             monorepo_root=monorepo_root, dev_stack=dev_stack
@@ -161,7 +161,7 @@ def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
     try:
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
@@ -189,7 +189,7 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
     try:
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
@@ -231,7 +231,7 @@ def e2e_attach_timeout_ms(base_ms: int = 60_000) -> int:
     try:
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
@@ -260,7 +260,7 @@ def e2e_private_api_ready_timeout_sec(base_sec: float = 60.0) -> float:
     try:
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
@@ -282,7 +282,7 @@ def e2e_parallel_config_api_timeout_sec(base_sec: float) -> float:
     try:
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
@@ -312,7 +312,7 @@ def signoff_parallel_desktop_wall_clock_fail_sec(base_sec: float = 280.0) -> flo
     try:
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
@@ -345,7 +345,7 @@ def signoff_parallel_desktop_progress_api_wall_sec(base_sec: float = 15.0) -> fl
     try:
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
@@ -379,7 +379,7 @@ def _signoff_desktop_soak_parallel_load() -> int:
     try:
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
@@ -447,7 +447,7 @@ def ensure_shared_hot_api_ready(*, max_attempts: int | None = None) -> str:
             from stack_mutation_policy import wave_active_lease_count
             from transport_supervisor import parallel_active_test_count
 
-            monorepo_root = Path(__file__).resolve().parents[4]
+            monorepo_root = Path(__file__).resolve().parents[5]
             parallel_load = max(
                 wave_active_lease_count(monorepo_root),
                 parallel_active_test_count(),
@@ -1956,18 +1956,14 @@ def ensure_e2e_hitl_mode(*, api_url: str | None = None) -> None:
     may briefly stream via Next ``/api/v1`` proxy before ``__MYRM_E2E_API_BASE__``
     inject completes, and parallel LIVE tests leave YOLO on the shared backend.
 
-    Signoff clarify SHPOIB pool (API-only warm) pins only the private backend;
-    shared ``:8080`` may be down under parallel wave without blocking clarify warm.
-
     Also clears wildcard ``permissions.*=allow`` left by ``ensure_e2e_yolo_mode``.
     """
     targets: list[str] = []
     if api_url:
         targets.append(api_url.rstrip("/"))
-    if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() != "1":
-        shared = shared_hot_e2e_api_base()
-        if shared not in targets:
-            targets.append(shared)
+    shared = shared_hot_e2e_api_base()
+    if shared not in targets:
+        targets.append(shared)
     for target in targets:
         _pin_hitl_on_api_with_retry(target)
 
@@ -2453,11 +2449,6 @@ def _collect_agent_stream_events(
         resolved_idle_timeout = min(
             120.0, max(resolved_idle_timeout, timeout_sec * 0.5)
         )
-        if os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1":
-            # SHPOIB pool: agent may stall >120s between progress and ask_question under wave load.
-            resolved_idle_timeout = min(
-                240.0, max(resolved_idle_timeout, timeout_sec * 0.85)
-            )
     last_event_at = time.monotonic()
     connect_timeout_sec = min(30.0, max(5.0, timeout_sec / 3.0))
     clarification_seen = False
@@ -2478,11 +2469,7 @@ def _collect_agent_stream_events(
                 }
             while time.monotonic() < deadline:
                 now = time.monotonic()
-                skip_idle_break = (
-                    stop_on_clarification
-                    and os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip()
-                    == "1"
-                )
+                skip_idle_break = False
                 if not skip_idle_break and now - last_event_at >= resolved_idle_timeout:
                     error_event = {
                         "type": "error",
@@ -2592,7 +2579,7 @@ def start_clarify_turn_via_api(
     api_url: str | None = None,
     timeout_sec: float = 120.0,
 ) -> dict[str, object]:
-    """POST agent-stream until clarification_required (signoff chrome send fallback)."""
+    """POST agent-stream until clarification_required (API fallback for LIVE clarify E2E)."""
     payload: dict[str, object] = {
         "messageId": f"msg_{uuid.uuid4().hex[:8]}",
         "chatId": chat_id,
@@ -2601,7 +2588,6 @@ def start_clarify_turn_via_api(
         "actionMode": "agent",
         "enableMemory": False,
         "agentConfig": {"enabledBuiltinTools": ["structured_clarify"]},
-        "engineParams": {"signoffClarifyContract": True},
     }
     collected = _collect_agent_stream_events(
         payload,
@@ -2876,7 +2862,7 @@ def backend_log_path(api_url: str | None = None) -> Path:
     default = real_user_home() / ".local/state/myrm-dev/backend.log"
     if default.is_file():
         return default
-    server_root = Path(__file__).resolve().parents[3] / "myrm-agent-server"
+    server_root = Path(__file__).resolve().parents[4] / "myrm-agent-server"
     return server_root / ".myrm-dev-backend.log"
 
 

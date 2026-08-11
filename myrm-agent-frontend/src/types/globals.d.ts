@@ -47,6 +47,12 @@ interface Window {
     appName: string;
     updatedAt: number;
   };
+  /** Dev E2E: last BROWSER_VIEW_UPDATE refs (survives TOOL_END inspector re-fetch). */
+  __MYRM_E2E_BROWSER_REFS__?: {
+    refs: Record<string, { role?: string; name?: string }>;
+    pageUrl: string;
+    updatedAt: number;
+  };
   /** Dev-only bridge for CDP Chrome E2E (AppLayout E2EChatBridge). */
   __MYRM_E2E_CHAT__?: {
     __e2eFallback: boolean;

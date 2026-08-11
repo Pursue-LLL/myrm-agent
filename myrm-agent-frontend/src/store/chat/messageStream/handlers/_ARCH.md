@@ -15,19 +15,20 @@
 | `agentControlEvents.ts` | 核心 | ERROR、取消、澄清、Goal、审批；ERROR/CANCEL 后 `scheduleFlushPendingGapRetry` | ✅ |
 | `toolsProgressEvents.ts` | 核心 | TOOL_PROGRESS、TASKS_STEPS、CLARIFICATION_REQUIRED（unwrap `{type,form}`；`source=deep_research` 或 `actionMode=deep_research` → `isResumeMode=false`）、进度项合并 | ✅ |
 | `statusStreamEvents.ts` | 核心 | STATUS、归档恢复、上下文溢出提示 | ✅ |
-| `statusStreamProgressSteps.ts` | 辅助 | STATUS `progress.step_key` 分支与 toast（含 stream recovery、`turn_prewarm_*` · `wiki_knowledge_lane`） | ✅ |
+| `statusStreamProgressSteps.ts` | 辅助 | STATUS `progress.step_key` 分支与 toast（含 stream recovery；`model_failover_unconfigured` → `/settings/defaultModel`；`safety_fallback_unconfigured` → `/settings/agents#loadout`；`turn_prewarm_*` · `wiki_knowledge_lane`） | ✅ |
 | `statusStreamPhaseData.ts` | 辅助 | STATUS `data.phase` 多阶段 payload 处理 | ✅ |
 | `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态与进度 | ✅ |
-| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、BROWSER_TAKEOVER_*（`setLoading(false)`；pet waiting 由 PetOverlay store SSOT；`is_managed=false` 自动签发 `browser_takeover` pair token 并写入 `liveAssistUrl`；managed POST 失败 toast） | ✅ |
+| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、BROWSER/DESKTOP_VIEW_UPDATE（browser SSE 写 `sourceChatId`、不 openPanel）、BROWSER_TAKEOVER_*（`setLoading(false)`；pet waiting 由 PetOverlay store SSOT；`is_managed=false` 自动签发 `browser_takeover` pair token 并写入 `liveAssistUrl`；managed POST 失败 toast） | ✅ |
 | `takeoverVncMessages.ts` | 辅助 | managed VNC takeover POST 失败 toast 文案（与 locales billing.vnc.takeoverVncOpenFailed 同步） | ✅ |
-| `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果；`kanban_add_task`/`cron_manage` 成功写入 message metadata；`kanban_add_task` 软错误 JSON 标记 progress error | ✅ |
+| `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果；`browser_*` TOOL_START 在前台 chat 匹配时 openPanel；`kanban_add_task`/`cron_manage` 成功写入 message metadata；`kanban_add_task` 软错误 JSON 标记 progress error | ✅ |
 | `memoryBriefEvents.ts` | 核心 | `memory_brief` 发送前记忆简报事件：创建/更新 assistant 占位消息并挂载简报快照 | ✅ |
 | `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | ✅ |
 | `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA 文本流合并；当 `personalSettings.reasoningDisplayMode=off` 时直接丢弃 reasoning chunk 以减少前端内存占用；clarify metadata 合并时保留既有 `isResumeMode`/form | ✅ |
 | `artifactEvents.ts` | 核心 | ARTIFACTS、UI_UPDATE（`ui_artifact` 追加；`data_update` 按 `surface_id` 跨 assistant 消息 merge data） | ✅ |
 | `captchaEvents.ts` | 核心 | CAPTCHA 进度展示与状态更新 | ✅ |
 | `sessionRecordingEvents.ts` | 核心 | SESSION_RECORDING 视频回放元数据 | ✅ |
-| `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、降级/切换通知 | ✅ |
+| `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、MODEL_FAILOVER、MODEL_RECOVERY（toast 经 `modelNotifyToastKey` 6-locale i18n SSOT） | ✅ |
+| `modelNotifyToastKey.ts` | 辅助 | MODEL_ESCALATED/FAILOVER/RECOVERY → `progressSteps.*` i18n key 映射 | ✅ |
 | `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存；FILE_MUTATION_FAILED / WORKSPACE_MERGE_FAILED 持久化到 message；持久化 `execution_lane` / wiki lane metrics；回填 `memory_brief_snapshot_id` + `memory_brief_status`；`flushPendingGapRetry` 于 loading 落盘后自动重发 | ✅ |
 | `gapEvents.ts` | 核心 | CAPABILITY_GAP / SKILL_GAP SSE → toast 开启并重发；`surface_unavailable` → info-only toast；`web_search` + `not_configured|unreachable` → `webSearchConfigGap` SSOT toast；`migration_readiness_critical|warning` → issue-aware settings CTA toast | ✅ |
 | `renderUiSurfaceUnavailableMessage.ts` | 辅助 | `capability_gap` surface_unavailable fallback 文案（与 `agent.configPanel.renderUiWebOnlyHint` 同步） | ✅ |
@@ -36,8 +37,12 @@
 | `__tests__/completionEvents.workspaceMerge.test.ts` | 测试 | WORKSPACE_MERGE_FAILED → message workspaceMergeFailures/count/truncated | ✅ |
 | `__tests__/agentControlEvents.pendingGapRetry.test.ts` | 测试 | ERROR/CANCEL 后 flush pending gap | ✅ |
 | `__tests__/fileDiffEvents.takeover.test.ts` | 测试 | BROWSER_TAKEOVER is_managed 分支 + setLoading(false)（local 跳过 VNC 并校验签名接管链接生成；managed POST） | ✅ |
+| `__tests__/fileDiffEvents.browserViewUpdate.test.ts` | 测试 | BROWSER_VIEW_UPDATE：sourceChatId 写入、不 openPanel | ✅ |
+| `__tests__/toolLifecycleEvents.browserInspector.test.ts` | 测试 | browser_* TOOL_START 前台 chat 匹配时才 openPanel | ✅ |
 | `__tests__/statusStreamProgressSteps.allowedToolsRecovery.test.ts` | 测试 | stream recovery + `allowed_tools_rejected_recovery` progress step 白名单 | ✅ |
-| `__tests__/statusStreamProgressSteps.modelFailoverKey.test.ts` | 测试 | `model_failover` displayKey 按 `error_kind` 派生（含 response_format_error） | ✅ |
+| `__tests__/statusStreamProgressSteps.modelFailoverKey.test.ts` | 测试 | `model_failover` displayKey 按 `error_kind` 派生；`model_failover_unconfigured` step 白名单 | ✅ |
+| `tests/e2e/test_model_failover_chrome_e2e.py` | Chrome E2E | primary key 故意失效 → base fallback MiniMax → WebUI progress step + assistant OK（PRIVATE + MCP mux） | ✅ |
+| `__tests__/modelNotifyToastKey.test.ts` | 测试 | modelNotify toast → progressSteps i18n key 映射 | ✅ |
 
 ## 依赖
 

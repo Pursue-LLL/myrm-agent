@@ -800,26 +800,28 @@ class TestGetActiveBrowserSession:
         info.agent = weakref.ref(agent)
         gw._session_info["s1"] = info
 
-        result = gw.get_active_browser_session()
+        result = gw.get_active_browser_session(session_id="s1")
         assert result is agent._browser_session
 
-    def test_dead_weakref_returns_none(self) -> None:
+    def test_without_session_id_returns_none_even_when_browser_active(self) -> None:
         gw = AgentGateway(_cfg())
+
+        class FakeBrowserSession:
+            pass
 
         class FakeAgent:
             def __init__(self) -> None:
-                self._browser_session = object()
+                self._browser_session = FakeBrowserSession()
 
         agent = FakeAgent()
         info = ActiveSessionInfo(chat_id="s1", agent_type="test")
         info.agent = weakref.ref(agent)
         gw._session_info["s1"] = info
 
-        del agent
-
         assert gw.get_active_browser_session() is None
+        assert gw.get_active_browser_session(session_id="s1") is agent._browser_session
 
-    def test_multiple_agents_returns_first_with_browser(self) -> None:
+    def test_get_first_active_browser_session_returns_first_match(self) -> None:
         gw = AgentGateway(_cfg())
 
         class FakeAgent:
@@ -840,8 +842,24 @@ class TestGetActiveBrowserSession:
         info2.agent = weakref.ref(agent_with_browser)
         gw._session_info["s2"] = info2
 
-        result = gw.get_active_browser_session()
+        result = gw.get_first_active_browser_session()
         assert result == "mock_browser"
+
+    def test_dead_weakref_returns_none(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._browser_session = object()
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        del agent
+
+        assert gw.get_active_browser_session(session_id="s1") is None
 
     def test_agent_weakref_is_none(self) -> None:
         """Session info exists but agent weakref was never set."""
@@ -849,7 +867,7 @@ class TestGetActiveBrowserSession:
         info = ActiveSessionInfo(chat_id="s1", agent_type="test")
         gw._session_info["s1"] = info
 
-        assert gw.get_active_browser_session() is None
+        assert gw.get_active_browser_session(session_id="s1") is None
 
     def test_browser_session_is_none_attribute(self) -> None:
         """Agent has _browser_session = None (browser not yet started)."""
@@ -863,7 +881,7 @@ class TestGetActiveBrowserSession:
         info.agent = weakref.ref(agent)
         gw._session_info["s1"] = info
 
-        assert gw.get_active_browser_session() is None
+        assert gw.get_active_browser_session(session_id="s1") is None
 
 
 class TestGetActiveDesktopSession:

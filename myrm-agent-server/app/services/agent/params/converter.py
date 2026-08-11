@@ -1046,16 +1046,6 @@ async def convert_to_general_agent_params(
         )
         prompt_mode = resolved.prompt_mode if resolved else "full"
 
-    signoff_clarify_contract = _resolve_signoff_clarify_contract(request)
-    if signoff_clarify_contract and not is_fast_search:
-        tool_flags = {**tool_flags, "enable_structured_clarify": True}
-        logger.info(
-            "SignoffClarifyContract resolved for chat_id=%s (engine_params=%s pool=%s)",
-            request.chat_id,
-            bool(request.engine_params),
-            _signoff_clarify_pool_env_active(),
-        )
-
     params = GeneralAgentParams(
         message_id=request.message_id,
         chat_id=request.chat_id,
@@ -1156,24 +1146,8 @@ async def convert_to_general_agent_params(
         tool_gateway_config=tool_gateway_config,
         client_surface=request.client_surface,
         force_skill_manage=_is_learn_skill_authoring_query(final_query),
-        signoff_clarify_contract=signoff_clarify_contract,
     )
     return params, routing_tier, mention_warnings, archive_restore_results
-
-
-def _resolve_signoff_clarify_contract(request: AgentRequest) -> bool:
-    """Enable first-turn ask_question stub for M3 signoff clarify SHPOIB pool."""
-    engine_params = request.engine_params or {}
-    for key in ("signoffClarifyContract", "signoff_clarify_contract"):
-        if engine_params.get(key) is True:
-            return True
-    return _signoff_clarify_pool_env_active()
-
-
-def _signoff_clarify_pool_env_active() -> bool:
-    import os
-
-    return os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1"
 
 
 def _is_learn_skill_authoring_query(query: object) -> bool:

@@ -46,7 +46,8 @@ _COORDINATOR_CODE_FP_FILES: tuple[str, ...] = (
 
 
 def coordinator_code_fingerprint() -> str:
-    lib = Path(__file__).resolve().parent
+    # Dev lib root (parent of this package): flat module paths + root-level shims live there.
+    lib = Path(__file__).resolve().parent.parent
     parts: list[str] = []
     for name in _COORDINATOR_CODE_FP_FILES:
         path = lib / name
@@ -76,6 +77,22 @@ def _coordinator_code_stale(*, database_target: Path, live_pid: int | None) -> b
     except OSError:
         return True
     return recorded != coordinator_code_fingerprint()
+
+
+def _active_sessions_exist(database_target: Path) -> bool:
+    """Return whether a live Dev Gate session pins the coordinator generation.
+
+    A healthy coordinator must not be restarted merely because another test
+    changed local helper code.  Restarting the singleton in that window races
+    submit/heartbeat/transition RPCs and can strand an otherwise valid session
+    between bootstrap and BODY.  The SQLite registry is the authoritative
+    source; failures are fail-closed so a broken registry still takes the
+    normal crash-recovery path instead of silently accepting a stale daemon.
+    """
+    try:
+        return bool(DevGateStore(database_target).list_active())
+    except (OSError, sqlite3.Error, RuntimeError):
+        return False
 
 
 def _restart_coordinator_for_code_drift(
@@ -346,12 +363,22 @@ def ensure_coordinator(
     if live_pid is not None and _coordinator_code_stale(
         database_target=database_target, live_pid=live_pid
     ):
-        _restart_coordinator_for_code_drift(
-            live_pid=live_pid,
-            socket_target=socket_target,
-            pid_path=pid_path,
-        )
-        live_pid = None
+        # Keep a healthy generation pinned while any session is active.  The
+        # next idle caller will perform the code-drift restart after all
+        # terminal cleanup has committed.  This is a maintenance handoff, not
+        # a session-layer queue and never kills a peer test.
+        if _active_sessions_exist(database_target):
+            if _ping(socket_target) or _wait_for_ping(
+                socket_target, budget_sec=_PING_WAIT_SEC
+            ):
+                return socket_target
+        else:
+            _restart_coordinator_for_code_drift(
+                live_pid=live_pid,
+                socket_target=socket_target,
+                pid_path=pid_path,
+            )
+            live_pid = None
     if live_pid is not None and _pid_alive(live_pid):
         if _ping(socket_target) or _wait_for_ping(
             socket_target, budget_sec=_PING_WAIT_SEC
@@ -389,10 +416,17 @@ def ensure_coordinator(
         log_path = database_target.with_name("coordinator.log")
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with log_path.open("ab", buffering=0) as log_handle:
+            # Spawn via the root-level shim (dev_gate_coordinator.py) at dev lib root,
+            # not inside this package dir; shim imports the dev_gate package, so
+            # export the dev lib root on PYTHONPATH for the child.
+            lib_root = Path(__file__).resolve().parent.parent
+            coordinator_module = str(lib_root / "dev_gate_coordinator.py")
+            spawn_env = dict(os.environ)
+            spawn_env["PYTHONPATH"] = str(lib_root)
             proc = subprocess.Popen(
                 [
                     sys.executable,
-                    str(Path(__file__).with_name("dev_gate_coordinator.py")),
+                    coordinator_module,
                     "serve",
                     "--socket",
                     str(socket_target),
@@ -404,6 +438,7 @@ def ensure_coordinator(
                 stderr=log_handle,
                 start_new_session=True,
                 close_fds=True,
+                env=spawn_env,
             )
         _write_coordinator_pid(pid_path, proc.pid)
         _write_coordinator_code_stamp(database_target)

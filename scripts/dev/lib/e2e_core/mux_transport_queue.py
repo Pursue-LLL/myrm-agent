@@ -53,7 +53,7 @@ def _emit_stderr(token: str, *, peers: TransportQueueSnapshot | None = None) -> 
 def _resolve_peer_node(owner_pid: int) -> str:
     """Best-effort node label for observability; credit ownership is SSOT."""
     support_path = (
-        Path(__file__).resolve().parents[3] / "myrm-agent-server" / "tests" / "support"
+        Path(__file__).resolve().parents[4] / "myrm-agent-server" / "tests" / "support"
     )
     support_text = str(support_path)
     inserted = False

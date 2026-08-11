@@ -4,12 +4,14 @@
 
 [OUTPUT]
 - create_agent_llms(): 创建 main / lite / fallback / safety_fallback LLM 实例（lite LLM 自动注入 reasoning_effort='low'）
-- apply_lite_context_downgrade(): Dynamic Ratio Shield — lite context 不足时降级到 main 配置
+- apply_lite_context_downgrade(): Dynamic Ratio Shield — lite context 不足时降级到 main 配置；返回 (lite_llm, effective_lite_cfg)
+- apply_lite_managed_fallback(): lite 模型 ManagedLLM 包装（fast search / 摘要路径 failover）
 - _inject_low_reasoning_effort(): 为 ModelConfig 注入低推理力度参数，供 Dynamic Ratio Shield 降级复用
 
 [POS]
 LLM 实例工厂。负责把业务层 `ModelConfig` 转换为可执行的 LiteLLM/LangChain 实例。
 主模型 failover 由 harness `stream_recovery` 在 API 报错时触发，不在启动阶段静默替换用户选择。
+有 fallback 时 main 仍返回 raw_fallback_llm 供 StreamExecutor graph rebuild（ManagedLLM._astream 只调 main）。
 """
 
 from __future__ import annotations
@@ -58,10 +60,11 @@ async def create_agent_llms(
         fallback_model_cfg: 备用主模型配置（None 时无备用）
 
     Returns:
-        (main_llm, lite_llm, fallback_llm_for_legacy_compatibility, safety_fallback_llm)
-        - main_llm: ManagedLLM（如果有fallback）或原始LLM（如果无fallback）
-        - lite_llm: 过滤/摘要模型
-        - fallback_llm: None（已集成到main_llm中，仅为保持接口兼容性）
+        (main_llm, lite_llm, stream_fallback_llm, safety_fallback_llm)
+        - main_llm: ManagedLLM（如果有 fallback）或原始 LLM
+        - lite_llm: 过滤/摘要模型（lite fallback 由 apply_lite_managed_fallback 在 downgrade 后包装）
+        - stream_fallback_llm: 供 StreamExecutor graph rebuild；与 ManagedLLM 内嵌 fallback 相同实例
+        - safety_fallback_llm: 安全拦截备用模型
 
     Raises:
         ValueError: 主模型或过滤模型创建失败
@@ -109,7 +112,7 @@ async def create_agent_llms(
             "Lite model: %s (dedicated instance, reasoning_effort=low)", model_cfg.model
         )
 
-    # 4. 创建安全审核拦截降级模型
+    # 3. 创建安全审核拦截降级模型
     safety_fallback_llm = None
     if safety_fallback_model_cfg is not None:
         try:
@@ -123,7 +126,7 @@ async def create_agent_llms(
                 f"Failed to create safety fallback LLM: {e}, proceeding without safety failover"
             )
 
-    # 3. 创建备用主模型并集成 ModelFallbackManager
+    # 4. 创建备用主模型并集成 ModelFallbackManager
     if fallback_model_cfg is not None:
         try:
             fallback_api_keys = getattr(fallback_model_cfg, "api_keys", None)
@@ -132,7 +135,6 @@ async def create_agent_llms(
             )
             logger.info("Fallback model: %s", fallback_model_cfg.model)
 
-            # 创建 ManagedLLM 包装器，集成智能降级管理
             managed_llm = ManagedLLM(
                 main_llm=raw_main_llm,
                 fallback_llm=raw_fallback_llm,
@@ -146,37 +148,80 @@ async def create_agent_llms(
                 fallback_model_cfg.model,
             )
 
-            # 返回 ManagedLLM 作为主模型，fallback_llm=None（已集成）
-            return managed_llm, lite_llm, None, safety_fallback_llm
+            # ManagedLLM handles agenerate/SSE; stream_fallback_llm feeds StreamExecutor._astream rebuild.
+            return managed_llm, lite_llm, raw_fallback_llm, safety_fallback_llm
 
         except Exception as e:
             logger.warning(
                 f"Failed to create fallback LLM: {e}, proceeding without failover"
             )
-            # 降级处理失败，返回原始 LLM
             return raw_main_llm, lite_llm, None, safety_fallback_llm
-    else:
-        # 无备用模型，返回原始 LLM
-        return raw_main_llm, lite_llm, None, safety_fallback_llm
+
+    return raw_main_llm, lite_llm, None, safety_fallback_llm
+
+
+async def apply_lite_managed_fallback(
+    lite_llm: BaseChatModel,
+    lite_model_cfg: ModelConfig,
+    fallback_lite_model_cfg: ModelConfig | None,
+) -> BaseChatModel:
+    """Wrap lite LLM with ManagedLLM when a lite fallback is configured.
+
+    Call after apply_lite_context_downgrade so Dynamic Ratio Shield runs first.
+    Lite paths use agenerate (extraction/summary), not StreamExecutor graph rebuild.
+    """
+    if fallback_lite_model_cfg is None:
+        return lite_llm
+
+    try:
+        fallback_api_keys = getattr(fallback_lite_model_cfg, "api_keys", None)
+        raw_lite_fallback = await llm_manager.get_llm_from_config(
+            fallback_lite_model_cfg, api_keys=fallback_api_keys
+        )
+        managed_lite = ManagedLLM(
+            main_llm=lite_llm,
+            fallback_llm=raw_lite_fallback,
+            main_model_name=lite_model_cfg.model,
+            fallback_model_name=fallback_lite_model_cfg.model,
+            scenario=ScenarioType.BALANCED,
+        )
+        logger.info(
+            "Lite ModelFallbackManager active: main=%s, fallback=%s",
+            lite_model_cfg.model,
+            fallback_lite_model_cfg.model,
+        )
+        return managed_lite
+    except Exception as e:
+        logger.warning(
+            "Failed to create lite fallback LLM: %s, proceeding without lite failover",
+            e,
+        )
+        return lite_llm
 
 
 async def apply_lite_context_downgrade(
     main_llm: BaseChatModel,
     lite_llm: BaseChatModel,
     model_cfg: ModelConfig,
-) -> BaseChatModel:
-    """Degrade lite LLM to main model when lite context window is too small (Dynamic Ratio Shield)."""
+    lite_model_cfg: ModelConfig | None = None,
+) -> tuple[BaseChatModel, ModelConfig]:
+    """Degrade lite LLM to main model when lite context window is too small (Dynamic Ratio Shield).
+
+    Returns the lite LLM instance and the ModelConfig that matches the running instance
+    (main config after downgrade, otherwise lite or main when lite is unset).
+    """
     from myrm_agent_harness.toolkits.llms.utils.model_utils import (
         get_model_context_limit,
     )
 
+    effective_cfg = lite_model_cfg or model_cfg
     main_limit = get_model_context_limit(main_llm) or 128000
     lite_limit = get_model_context_limit(lite_llm)
     if not lite_limit or not main_limit:
-        return lite_llm
+        return lite_llm, effective_cfg
 
     if lite_limit >= main_limit * 0.85:
-        return lite_llm
+        return lite_llm, effective_cfg
 
     logger.warning(
         "Context capacity mismatch: main model %s (%s tokens) vs lite (%s tokens). "
@@ -186,7 +231,8 @@ async def apply_lite_context_downgrade(
         lite_limit,
     )
     main_api_keys = getattr(model_cfg, "api_keys", None)
-    fallback_lite_cfg = _inject_low_reasoning_effort(model_cfg)
-    return await llm_manager.get_llm_from_config(
-        fallback_lite_cfg, api_keys=main_api_keys
+    degraded_cfg = _inject_low_reasoning_effort(model_cfg)
+    degraded_llm = await llm_manager.get_llm_from_config(
+        degraded_cfg, api_keys=main_api_keys
     )
+    return degraded_llm, degraded_cfg

@@ -1,10 +1,10 @@
 """Kanban board settings hot-swap: update_board must refresh the live dispatcher.
 
-Regression for runtime config changes: editing ``max_concurrent_tasks`` (or other
-board settings) via the GUI/API previously left the running dispatcher on its
-startup snapshot, so the frontend's concurrency badge disagreed with real
-scheduling. ``update_board`` now calls ``dispatcher.refresh_board`` whenever
-settings change, while name/description-only edits must not disturb it.
+Runtime config changes: editing ``max_concurrent_tasks`` (or other board settings)
+via the GUI/API must keep the running dispatcher in sync with the persisted
+settings, so the frontend's concurrency badge agrees with real scheduling.
+``update_board`` calls ``dispatcher.refresh_board`` on settings changes;
+name/description-only edits leave the dispatcher untouched.
 """
 
 from __future__ import annotations

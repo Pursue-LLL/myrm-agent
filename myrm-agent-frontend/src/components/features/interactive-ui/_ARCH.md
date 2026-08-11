@@ -9,10 +9,10 @@ Agent 在对话内渲染的声明式 UI（`UI_UPDATE` SSE → `uiArtifacts` → 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `InteractiveUIDisplay.tsx` | 组件 | 多 surface 容器；artifact.title 为唯一用户可见标题 | ✅ |
-| `InteractiveUIRenderer.tsx` | 组件 | 递归渲染组件树（`.interactive-ui-container`） | ✅ |
+| `InteractiveUIRenderer.tsx` | 组件 | 递归渲染组件树（`.interactive-ui-container`）；渲染时统一将 `bindings`（prop 名 → 数据路径）从数据模型解析并覆盖 props，所有展示/表单组件自动获得数据驱动能力 | ✅ |
 | `UIComponentRegistry.tsx` | 核心 | 组件 type → React 映射注册表 | ✅ |
 | `UIComponentErrorBoundary.tsx` | 组件 | 单组件 fail-closed 错误边界 | ✅ |
-| `utils.ts` | 辅助 | `formatUIActionAsMessage`（Agent 载荷 + 用户可读正文） | ✅ |
+| `utils.ts` | 辅助 | `formatUIActionAsMessage`（Agent 载荷 + 用户可读正文）；`getValueByPath`/`setValueByPath`/`resolveBindings`（A2UI 数据绑定解析） | ✅ |
 | `components/UIChart.tsx` | 组件 | 图表渲染（bar/line/pie/donut）；原生 SVG 绘制，百分比坐标 | ✅ |
 | `components/UITable.tsx` | 组件 | 表格展示；`selectable` + `bindings.selected` 支持行勾选 | ✅ |
 | `components/UIList.tsx` | 组件 | 列表展示；`bindings.data` 绑定 `{title,subtitle?,description?}[]` | ✅ |

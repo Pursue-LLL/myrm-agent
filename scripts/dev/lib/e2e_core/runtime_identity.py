@@ -29,11 +29,11 @@ import sys
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import TypedDict
 from urllib.parse import urlparse
 
 from real_user_home import real_user_home
-from pathlib import Path
-from typing import TypedDict
 
 
 class BackendEpoch(TypedDict):
@@ -282,7 +282,7 @@ def frontend_tcp_html_probe_ok(ui_base: str, *, timeout_sec: float = 5.0) -> boo
                 while len(buffered) < 65_536:
                     try:
                         chunk = sock.recv(4096)
-                    except (TimeoutError, socket.timeout):
+                    except TimeoutError:
                         break
                     if not chunk:
                         break
@@ -384,7 +384,9 @@ def _state_dir() -> Path:
     override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
     if override:
         return Path(override)
-    dev_dir = Path(__file__).resolve().parent.parent
+    from dev_paths import scripts_dev_dir
+
+    dev_dir = scripts_dev_dir(Path(__file__))
     dev_dir_str = str(dev_dir)
     if dev_dir_str not in sys.path:
         sys.path.insert(0, dev_dir_str)
@@ -444,7 +446,9 @@ def read_backend_epoch() -> BackendEpoch | None:
     epoch_path = _stack_epoch_file()
     raw = _read_json_file(epoch_path)
     if raw is None:
-        dev_dir = Path(__file__).resolve().parent.parent
+        from dev_paths import scripts_dev_dir
+
+        dev_dir = scripts_dev_dir(Path(__file__))
         dev_dir_str = str(dev_dir)
         if dev_dir_str not in sys.path:
             sys.path.insert(0, dev_dir_str)
@@ -489,7 +493,7 @@ def read_backend_epoch() -> BackendEpoch | None:
 
 def _backend_source_fingerprint() -> str:
     """Hash backend and harness source changes that do not restart the server."""
-    root = Path(__file__).resolve().parents[3]
+    root = Path(__file__).resolve().parents[4]
     server_dir = Path(os.environ.get("MYRM_SERVER_DIR", root / "myrm-agent-server"))
     harness_dir = Path(
         os.environ.get("MYRM_HARNESS_DIR", root.parent / "myrm-agent-harness")
@@ -717,7 +721,7 @@ def _fetch_cdp_version(port: int) -> dict[str, object]:
     with urllib.request.urlopen(url, timeout=5) as resp:
         payload = json.load(resp)
     if not isinstance(payload, dict):
-        raise ValueError(f"Invalid /json/version payload on port {port}")
+        raise TypeError(f"Invalid /json/version payload on port {port}")
     return payload
 
 
@@ -736,7 +740,7 @@ def read_chrome_epoch(
     profile = profile_dir if profile_dir is not None else _default_chrome_data_dir()
     try:
         payload = _fetch_cdp_version(cdp_port)
-    except (OSError, urllib.error.URLError, ValueError, json.JSONDecodeError):
+    except (OSError, TypeError, urllib.error.URLError, ValueError, json.JSONDecodeError):
         return None
     ws_url = payload.get("webSocketDebuggerUrl")
     if not isinstance(ws_url, str) or not ws_url.startswith("ws://"):

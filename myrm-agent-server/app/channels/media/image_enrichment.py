@@ -13,6 +13,7 @@ enriches an InboundMessage, called from Router._handle_merged.
 
 [INPUT]
 - channels.types::InboundMessage, MediaType, MediaAttachment (POS: inbound message types)
+- myrm_agent_harness.core.security.http.secure_fetch::secure_get / ContentTooLargeError (POS: SSRF-protected image download with size cap)
 
 [OUTPUT]
 - has_image_attachment(): check for image media
@@ -236,15 +237,21 @@ async def _download_via_channel_api(
 async def _download_via_http(url: str) -> bytes | None:
     """Download image from a remote URL via HTTP."""
     try:
-        from myrm_agent_harness.core.security.http.secure_fetch import secure_get
+        from myrm_agent_harness.core.security.http.secure_fetch import (
+            ContentTooLargeError,
+            secure_get,
+        )
 
-        response = await secure_get(url, timeout=DOWNLOAD_TIMEOUT)
+        response = await secure_get(
+            url,
+            timeout=DOWNLOAD_TIMEOUT,
+            max_content_length=MAX_IMAGE_BYTES * 2,
+        )
         response.raise_for_status()
-        data = response.content
-        if len(data) > MAX_IMAGE_BYTES * 2:
-            logger.warning("Image too large from URL (%d bytes), skipping", len(data))
-            return None
-        return data
+        return response.content
+    except ContentTooLargeError:
+        logger.warning("Image too large from URL (cap %d), skipping", MAX_IMAGE_BYTES * 2)
+        return None
     except Exception as exc:
         logger.warning("Image HTTP download failed for %s: %s", url[:120], exc)
         return None

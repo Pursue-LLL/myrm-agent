@@ -291,7 +291,10 @@ PY
         sleep 2
       fi
     done
-    if [[ "${parallel_leases}" -gt 0 ]] && _shared_stack_endpoints_ok; then
+    if [[ "${MYRM_PRIVATE_BACKEND:-0}" != "1" ]] \
+      && [[ "${MYRM_E2E_PRIVATE_BACKEND:-0}" != "1" ]] \
+      && [[ "${parallel_leases}" -gt 0 ]] \
+      && _shared_stack_endpoints_ok; then
       echo "CHROME_E2E_WARN: model seed non-fatal under parallel load (R214; shared stack healthy)" >&2
       MYRM_E2E_MODEL_SEED_FAILED=0
       MYRM_E2E_MODEL_SEED_DONE=1
@@ -303,6 +306,20 @@ PY
   fi
   echo "CHROME_E2E_WARN: skip model seed (set BASIC_MODEL and BASIC_API_KEY in .env.test)" >&2
   return 0
+}
+
+_seed_providers_for_runtime() {
+  if [[ "${MYRM_PRIVATE_BACKEND:-0}" == "1" ]] \
+    || [[ "${MYRM_E2E_PRIVATE_BACKEND:-0}" == "1" ]]; then
+    # PRIVATE owns an isolated backend/database; allowing a failed seed to
+    # pass would make the test observe stale provider state and report a
+    # product failure unrelated to the requested scenario.
+    _maybe_seed_providers
+    return $?
+  fi
+  # SHARED attach remains non-blocking when another session already owns the
+  # healthy deployed stack; its model seed is not a session admission gate.
+  _maybe_seed_providers || true
 }
 
 _parallel_attach_active_leases() {
@@ -823,7 +840,7 @@ _private_backend_attach_path() {
   local shared_ui="${E2E_UI_BASE:-http://127.0.0.1:3000}"
   ok "private backend attach deferred (SHPOIB bootstrap will bind private pool)"
   _wait_shared_ui_reachable "${shared_ui}"
-  _maybe_seed_providers || true
+  _seed_providers_for_runtime
   _wait_shared_stack_healthy_before_ready || return $?
   myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable — run: ./myrm ready --chrome"
   ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"
@@ -966,7 +983,7 @@ _preflight_progress "dev_servers"
 
 # 1b. Shared-stack attach is read-only; private-backend pools seed into E2E_API_BASE.
 if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] || [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
-  _maybe_seed_providers || true
+  _seed_providers_for_runtime
   _wait_shared_stack_healthy_before_ready || exit $?
 fi
 

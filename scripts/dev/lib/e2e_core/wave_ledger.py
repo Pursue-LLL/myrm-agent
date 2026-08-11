@@ -8,7 +8,9 @@ from pathlib import Path
 
 
 def _wave_script() -> Path:
-    return Path(__file__).resolve().parent.parent / "wave.sh"
+    from dev_paths import scripts_dev_dir
+
+    return scripts_dev_dir(Path(__file__)) / "wave.sh"
 
 
 def maybe_register_e2e_chat(chat_id: str) -> None:

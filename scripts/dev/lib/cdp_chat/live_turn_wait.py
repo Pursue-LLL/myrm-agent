@@ -17,7 +17,7 @@ def parallel_live_agent_peer_count() -> int:
         return max(int(load.wave_leases), int(load.mux_contexts))
     except (ImportError, OSError, RuntimeError, TypeError, ValueError):
         pass
-    root = Path(__file__).resolve().parents[3]
+    root = Path(__file__).resolve().parents[5]
     try:
         from stack_mutation_policy import wave_active_lease_count
 

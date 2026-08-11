@@ -18,7 +18,9 @@ def client() -> TestClient:
 class TestSecurityPresetSeedFixture:
     """Verify seed-security-preset-fixture route mounting, guards and payload."""
 
-    def test_seed_security_preset_fixture_http_endpoint(self, client: TestClient) -> None:
+    def test_seed_security_preset_fixture_http_endpoint(
+        self, client: TestClient
+    ) -> None:
         preset_agent = MagicMock()
         preset_agent.id = "agent-e2e-sec-preset"
         plain_agent = MagicMock()

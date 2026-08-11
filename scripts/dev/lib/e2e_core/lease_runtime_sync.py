@@ -26,7 +26,9 @@ from wave_state_paths import resolve_wave_state_file
 
 
 def _dev_scripts_dir() -> Path:
-    return Path(__file__).resolve().parent.parent
+    from dev_paths import scripts_dev_dir
+
+    return scripts_dev_dir(Path(__file__))
 
 
 def _ensure_wave_orchestrator_path() -> None:
@@ -107,14 +109,14 @@ def _sync_lease_runtime_once(
     normalized_lease_id = lease_id.strip()
     state_path = resolve_wave_state_file()
     _ensure_wave_orchestrator_path()
-    from wave_orchestrator.lease_state import (  # noqa: PLC0415
+    from wave_orchestrator.lease_state import (
         find_active_lease,
         heal_open_wave_runtime_id_for_acquire,
         reap_abandoned_leases,
         reap_expired_leases,
         reap_runtime_drift,
     )
-    from wave_orchestrator.store import run_locked  # noqa: PLC0415
+    from wave_orchestrator.store import run_locked
 
     outcome: tuple[bool, str] = (False, "sync failed")
 
@@ -144,9 +146,7 @@ def _sync_lease_runtime_once(
             state,  # type: ignore[arg-type]
             live_runtime_id,
             agent_id,
-        ):
-            changed = True
-        elif reap_runtime_drift(state, live_runtime_id):  # type: ignore[arg-type]
+        ) or reap_runtime_drift(state, live_runtime_id):
             changed = True
         else:
             wave = state.get("wave")

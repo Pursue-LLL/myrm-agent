@@ -61,3 +61,4 @@ class GenerateSkillResponse(BaseModel):
     description: str
     step_count: int
     credential_placeholders: list[str] = Field(default_factory=list)
+    skill_content: str = Field(default="", description="Generated SKILL.md content for preview")

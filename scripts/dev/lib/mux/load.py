@@ -220,7 +220,7 @@ def parallel_open_page_peer_count(*, signoff: bool = False) -> int:
     try:
         from stack_mutation_policy import wave_active_lease_count
 
-        monorepo_root = Path(__file__).resolve().parents[4]
+        monorepo_root = Path(__file__).resolve().parents[5]
         return wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError, ValueError):
         pass

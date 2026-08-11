@@ -35,7 +35,7 @@ def _coordinator_reap_authorized() -> bool:
 
 
 def _monorepo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
+    return Path(__file__).resolve().parents[5]
 
 
 def _process_ps_environ(pid: int) -> str:
@@ -1206,7 +1206,7 @@ def maybe_reap_epoch_drift_stale_sessions() -> bool:
     for row in list_live_e2e_sessions():
         if row.phase not in ("bootstrap", "admit"):
             continue
-        # R279: M3 signoff legs queue through drift — do not coordinator-reap at 180s.
+        # E2E signoff legs queue through drift — do not coordinator-reap at 180s.
         if _process_has_signoff_env(row.pid):
             continue
         budget_sec = _epoch_drift_reaper_budget_sec(row)

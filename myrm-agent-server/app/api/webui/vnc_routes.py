@@ -97,7 +97,7 @@ async def _capture_page_state() -> tuple[str, str]:
         from app.services.agent.gateway import get_agent_gateway
 
         gateway = get_agent_gateway()
-        session = gateway.get_active_browser_session()
+        session = gateway.get_first_active_browser_session()
         if session is None:
             return "", ""
 

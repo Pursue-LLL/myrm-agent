@@ -19,7 +19,16 @@ case "${1:-}" in
         ;;
     esac
     namespace=""
-    if [[ "${lane}" == "RESOURCE_WRITE" ]]; then
+    if [[ "${MYRM_PRIVATE_BACKEND:-0}" == "1" ]]; then
+      # PRIVATE sessions have an isolated backend. Persist that identity on
+      # every wave lease so shared-stack gates can ignore private work while
+      # retaining ownership, heartbeat, and cleanup semantics.
+      namespace="${MYRM_E2E_LEASE_NAMESPACE:-e2e:private:${MYRM_E2E_RUN_ID:-}}"
+      [[ -n "${namespace}" ]] || {
+        echo "E2E_PRIVATE_NAMESPACE_REQUIRED: PRIVATE E2E needs MYRM_E2E_RUN_ID" >&2
+        exit 2
+      }
+    elif [[ "${lane}" == "RESOURCE_WRITE" ]]; then
       namespace="${MYRM_E2E_NAMESPACE:-${MYRM_E2E_RUN_ID:-}}"
       [[ -n "${namespace}" ]] || {
         echo "E2E_NAMESPACE_REQUIRED: ./myrm test must provide MYRM_E2E_NAMESPACE" >&2

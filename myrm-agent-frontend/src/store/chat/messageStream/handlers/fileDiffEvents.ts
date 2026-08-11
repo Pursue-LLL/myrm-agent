@@ -142,6 +142,10 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   if (data.type === H.AgentEventType.BROWSER_VIEW_UPDATE) {
     const { default: useBrowserInspectorStore } = await import('@/store/useBrowserInspectorStore');
     const store = useBrowserInspectorStore.getState();
+    const sourceChatId = state.messages[0]?.chatId?.trim() ?? '';
+    if (!sourceChatId) {
+      return done(ctx);
+    }
     store.setBrowserActive(true);
     store.updateViewData({
       screenshotBase64: data.data.screenshot_base64,
@@ -151,8 +155,16 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       pageTitle: data.data.page_title,
       viewportWidth: data.data.viewport_width,
       viewportHeight: data.data.viewport_height,
+      sourceChatId,
       updatedAt: Date.now(),
     });
+    if (typeof window !== 'undefined' && data.data.refs) {
+      window.__MYRM_E2E_BROWSER_REFS__ = {
+        refs: data.data.refs,
+        pageUrl: String(data.data.page_url ?? ''),
+        updatedAt: Date.now(),
+      };
+    }
     return done(ctx);
   }
 

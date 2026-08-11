@@ -87,7 +87,6 @@ class GeneralAgent(ToolSetupMixin):
         reranker_config: "RerankerConfig | None" = None,
         enable_render_ui: bool = False,
         enable_structured_clarify: bool = False,
-        signoff_clarify_contract: bool = False,
         client_surface: str | None = None,
         enable_web_search: bool = True,
         enable_web_fetch: bool = True,
@@ -198,7 +197,6 @@ class GeneralAgent(ToolSetupMixin):
         self.reranker_config = reranker_config
         self.enable_render_ui = enable_render_ui
         self.enable_structured_clarify = enable_structured_clarify
-        self.signoff_clarify_contract = signoff_clarify_contract
         self.client_surface = client_surface
         self.enable_web_search = enable_web_search
         self.enable_web_fetch = enable_web_fetch

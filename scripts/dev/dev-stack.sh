@@ -26,7 +26,15 @@ STATE_DIR="$(dev_state_dir)"
 BACKEND_PORT="${MYRM_BACKEND_PORT:-${PORT:-8080}}"
 FRONTEND_PORT="${MYRM_FRONTEND_PORT:-3000}"
 APP_URL="${E2E_UI_BASE:-http://127.0.0.1:${FRONTEND_PORT}}"
-API_BASE="${E2E_API_BASE:-http://127.0.0.1:${BACKEND_PORT}}"
+# Private SHPOIB backends must probe their assigned port — inherited shared
+# E2E_API_BASE (:8080) makes ensure succeed against the wrong API while :18080
+# lacks identity, triggering orphan reclaim loops.
+if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" ]] \
+  || [[ "${MYRM_DEV_STATE_DIR:-}" != "$(_real_home_default_state_dir)" ]]; then
+  API_BASE="http://127.0.0.1:${BACKEND_PORT}"
+else
+  API_BASE="${E2E_API_BASE:-http://127.0.0.1:${BACKEND_PORT}}"
+fi
 API_HEALTH="${API_BASE}/api/v1/health"
 
 BACKEND_PID="${MYRM_BACKEND_PID_FILE:-${STATE_DIR}/backend.pid}"
@@ -39,6 +47,7 @@ export MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}"
 export E2E_UI_BASE="${APP_URL}" E2E_API_BASE="${API_BASE}"
 export MYRM_BACKEND_PID_FILE="${BACKEND_PID}" MYRM_BACKEND_LOG_FILE="${BACKEND_LOG}"
 export MYRM_BACKEND_IDENTITY_FILE="${BACKEND_IDENTITY}"
+export MYRM_RUNTIME_NAMESPACE="${MYRM_RUNTIME_NAMESPACE:-shared}"
 
 ENSURE_FRONTEND_WAIT_SEC="${MYRM_STACK_FRONTEND_WAIT_SEC:-180}"
 # Wait budget must cover a full ensure (frontend cold compile) plus lock handoff.
@@ -742,9 +751,16 @@ _stop_private_backend() {
 }
 
 _private_backend_identity_valid() {
-  [[ -f "${BACKEND_PID}" && -f "${BACKEND_IDENTITY}" ]] || return 1
-  local dev_pid py="${SERVER_DIR}/.venv/bin/python"
-  dev_pid="$(tr -d '[:space:]' <"${BACKEND_PID}")"
+  [[ -f "${BACKEND_IDENTITY}" ]] || return 1
+  local dev_pid port_owner_pid py="${SERVER_DIR}/.venv/bin/python"
+  dev_pid=""
+  if [[ -f "${BACKEND_PID}" ]]; then
+    dev_pid="$(tr -d '[:space:]' <"${BACKEND_PID}")"
+  fi
+  port_owner_pid="$(lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
+  if [[ -n "${port_owner_pid}" && "${port_owner_pid}" =~ ^[0-9]+$ ]]; then
+    dev_pid="${port_owner_pid}"
+  fi
   [[ "${dev_pid}" =~ ^[0-9]+$ ]] || return 1
   if [[ ! -x "${py}" ]]; then
     py="python3"
@@ -760,6 +776,39 @@ _private_backend_scope() {
     || [[ "${MYRM_DEV_STATE_DIR:-}" != "$(_real_home_default_state_dir)" ]]
 }
 
+_shared_backend_listens_on_port() {
+  local port="$1" shared_pid="$2" owner_pid
+  [[ -n "${shared_pid}" && "${shared_pid}" =~ ^[0-9]+$ ]] || return 1
+  kill -0 "${shared_pid}" 2>/dev/null || return 1
+  for owner_pid in $(lsof -nP -iTCP:"${port}" -sTCP:LISTEN -t 2>/dev/null); do
+    [[ "${owner_pid}" == "${shared_pid}" ]] && return 0
+  done
+  return 1
+}
+
+_sync_private_backend_identity_from_port() {
+  if _private_backend_identity_valid; then
+    return 0
+  fi
+  dev_port_in_use "${BACKEND_PORT}" || return 1
+  local port_owner_pid py="${SERVER_DIR}/.venv/bin/python"
+  port_owner_pid="$(lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
+  [[ -n "${port_owner_pid}" && "${port_owner_pid}" =~ ^[0-9]+$ ]] || return 1
+  if [[ ! -x "${py}" ]]; then
+    py="python3"
+  fi
+  if ! "${py}" "${SCRIPT_DIR}/lib/process_identity.py" record \
+    --pid "${port_owner_pid}" \
+    --identity-file "${BACKEND_IDENTITY}" \
+    --runtime-id "${MYRM_RUNTIME_NAMESPACE:-shared}" \
+    --role backend \
+    --expected-command-token run.py >/dev/null 2>&1; then
+    return 1
+  fi
+  echo "${port_owner_pid}" >"${BACKEND_PID}"
+  _private_backend_identity_valid
+}
+
 _repair_orphan_private_backend() {
   if ! _private_backend_scope; then
     return 1
@@ -767,15 +816,16 @@ _repair_orphan_private_backend() {
   if _private_backend_identity_valid; then
     return 0
   fi
-  # Port ownership truth: if the shared backend (default state dir) still owns
-  # BACKEND_PORT, never reclaim it — the kill below would take down peer work.
+  # Port ownership truth: refuse reclaim only when the shared backend (default
+  # state dir) is the actual LISTEN owner on BACKEND_PORT — not merely alive on
+  # :8080 while a private orphan occupies :18080.
   local shared_pid_file shared_pid
   shared_pid_file="$(_real_home_default_state_dir)/backend.pid"
   shared_pid=""
   if [[ -f "${shared_pid_file}" ]]; then
     shared_pid="$(tr -d '[:space:]' <"${shared_pid_file}")"
   fi
-  if [[ -n "${shared_pid}" ]] && kill -0 "${shared_pid}" 2>/dev/null && dev_port_in_use "${BACKEND_PORT}"; then
+  if _shared_backend_listens_on_port "${BACKEND_PORT}" "${shared_pid}"; then
     echo "STACK_FAIL: private backend port :${BACKEND_PORT} owned by shared backend pid=${shared_pid} — refuse orphan reclaim" >&2
     return 1
   fi
@@ -828,29 +878,15 @@ cmd_backend_only_ensure() {
 
   if _api_healthy 5; then
     if ! _private_backend_identity_valid; then
-      # R117: signoff clarify pool — _start_backend_bg may still be settling identity;
-      # do not orphan-reclaim a healthy private backend (kills in-flight ensure).
-      if [[ "${MYRM_E2E_SIGNOFF_CLARIFY_POOL:-}" == "1" ]]; then
-        local signoff_identity_wait_i
-        for signoff_identity_wait_i in $(seq 1 15); do
-          if _private_backend_identity_valid; then
-            break
-          fi
-          sleep 1
-        done
-        if _private_backend_identity_valid; then
-          echo "STACK_OK: signoff clarify pool private backend healthy → ${API_BASE}"
-          echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
-          exit 0
+      if ! _sync_private_backend_identity_from_port; then
+        if ! _repair_orphan_private_backend; then
+          echo "STACK_FAIL: healthy private port lacks matching process ownership" >&2
+          exit 1
         fi
-      fi
-      if ! _repair_orphan_private_backend; then
-        echo "STACK_FAIL: healthy private port lacks matching process ownership" >&2
-        exit 1
-      fi
-      if ! _ensure_backend; then
-        echo "STACK_FAIL: private backend restart after orphan reclaim failed" >&2
-        exit 1
+        if ! _ensure_backend; then
+          echo "STACK_FAIL: private backend restart after orphan reclaim failed" >&2
+          exit 1
+        fi
       fi
       if ! _private_backend_identity_valid; then
         echo "STACK_FAIL: healthy private port lacks matching process ownership after reclaim" >&2

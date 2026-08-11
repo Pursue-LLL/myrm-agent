@@ -73,7 +73,9 @@ class TestResolvePushUrl:
             == "/settings/kanban?board_id=board-kpi-1&status=in_review"
         )
 
-    def test_background_task_done_pending_review_without_board_falls_back_to_chat(self) -> None:
+    def test_background_task_done_pending_review_without_board_falls_back_to_chat(
+        self,
+    ) -> None:
         event = AppEvent(
             event_type=AppEventType.BACKGROUND_TASK_DONE,
             data={

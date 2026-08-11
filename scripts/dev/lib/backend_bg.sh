@@ -82,7 +82,12 @@ _start_backend_bg() {
   local identity_helper
   identity_helper="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/process_identity.py"
   local runtime_id="${MYRM_RUNTIME_NAMESPACE:-shared}"
-  local health_url="${E2E_API_BASE:-http://127.0.0.1:${backend_port}}/api/v1/health"
+  local health_url
+  if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" ]]; then
+    health_url="http://127.0.0.1:${backend_port}/api/v1/health"
+  else
+    health_url="${E2E_API_BASE:-http://127.0.0.1:${backend_port}}/api/v1/health"
+  fi
   local health_timeout="${MYRM_BACKEND_HEALTH_TIMEOUT_SEC:-8}"
   mkdir -p "${state_dir}"
 

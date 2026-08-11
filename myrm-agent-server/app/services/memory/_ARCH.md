@@ -60,4 +60,4 @@
 | `retry_chat_memory_extract.py` | 核心 | 对指定 chat 最近一轮 user/assistant 重新调度 `auto_extract_memories`；`ContextAssemblyService.resolve_binding_for_chat` + dedup_llm · incognito 拒绝 · 持久化队列幂等入队（`scheduled`/`already_in_flight`）· 重试仅压缩轨（`enable_verbatim=False` 防 verbatim 重复写入）；`run_retry_extract_for_chat` 供 worker 与手动共用（source 区分 `worker_retry_extract`/`manual_retry_extract`） | ✅ |
 | `extract_retry_queue.py` | 核心 | 记忆提取持久化重试队列（SQLite 表 `memory_extract_retries`）。幂等入队/原子领取(attempt 自增)/成功删除/失败指数退避与终态 failed/聊天删除级联清理；单进程语义，重启由启动扫描恢复 | ✅ |
 | `extract_retry_worker.py` | 核心 | 记忆提取重试后台 worker（lifespan 管理）。启动即扫描（重启恢复）+ 每 60s 扫描 + `wake()` 即时唤醒（手动重试/observer 入队后立即扫描，sweep 期间到达的 wake 不丢失）；`asyncio.timeout(240s)` 包裹提取；失败按退避重试至 `MAX_ATTEMPTS` 后写 ERROR 账本事件 | ✅ |
-| `resolve_chat_extraction_llm.py` | 核心 | chat→agent→`create_agent_llms` + `apply_lite_context_downgrade` 解析 extraction LLM（与 auto-extract SSOT 对齐；不 replay  per-turn privacy_routing） | ✅ |
+| `resolve_chat_extraction_llm.py` | 核心 | chat→agent→`create_agent_llms` + `apply_lite_context_downgrade`（返回 effective lite cfg）解析 extraction LLM（与 auto-extract SSOT 对齐；不 replay per-turn privacy_routing） | ✅ |

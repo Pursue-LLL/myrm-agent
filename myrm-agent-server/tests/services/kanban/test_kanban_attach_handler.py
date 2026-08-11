@@ -301,6 +301,36 @@ async def test_attach_url_happy_path_sets_source_chat_id() -> None:
 
 
 @pytest.mark.asyncio
+async def test_attach_url_rejects_oversized_download() -> None:
+    """A URL response exceeding the byte limit is rejected by secure_get's cap."""
+    store = InMemoryKanbanStore()
+    await _seed_task_with_workspace(store, "/tmp/ws")
+    handler = create_kanban_attach_handler(store)
+
+    from myrm_agent_harness.core.security.http.secure_fetch import ContentTooLargeError
+
+    with (
+        patch(
+            "app.services.kanban.task_attachment_ids.load_task_attachment_ids",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "app.services.kanban.kanban_attach_handler.async_validate_url_for_ssrf",
+            new_callable=AsyncMock,
+            return_value=SSRFResult(safe=True),
+        ),
+        patch(
+            "app.services.kanban.kanban_attach_handler.secure_get",
+            new_callable=AsyncMock,
+            side_effect=ContentTooLargeError("Response body exceeds 20971520 byte limit"),
+        ),
+    ):
+        with pytest.raises(ValueError, match="Download exceeds 20971520 byte limit"):
+            await handler("task_attach", "url", "https://cdn.example/huge.bin")
+
+
+@pytest.mark.asyncio
 async def test_attach_rejects_when_attachment_limit_reached() -> None:
     store = InMemoryKanbanStore()
     await _seed_task_with_workspace(store, "/tmp/ws")

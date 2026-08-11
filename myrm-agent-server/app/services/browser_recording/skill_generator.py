@@ -1,8 +1,9 @@
 """Generate Browser Skills from recorded action steps.
 
 Takes a completed CaptureSession and produces a SKILL.md file with structured
-browser instructions. Detects credential fields and replaces values with
-`{{credential:label}}` placeholders for secure replay via CredentialVault.
+browser instructions. Detects credential fields and emits `fill_credential`
+directives so the agent pulls the real secret from CredentialVault instead of
+typing a masked placeholder.
 
 
 [INPUT]
@@ -14,16 +15,20 @@ browser instructions. Detects credential fields and replaces values with
 
 [POS]
 Skill generation service for browser recordings. Produces SKILL.md content
-with allowed-tools, credential placeholders, and step descriptions.
+with allowed-tools (real harness tool names), semantic credential labels,
+and step descriptions.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from myrm_agent_harness.toolkits.browser.action_capture import (
+    ActionType,
     steps_to_natural_language,
 )
 
@@ -32,54 +37,120 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Real harness-registered browser tool names (see toolkits/browser/tools/*.py).
+_ALLOWED_BROWSER_TOOLS = (
+    "browser_navigate_tool browser_interact_tool browser_snapshot_tool "
+    "browser_extract_tool browser_manage_tool"
+)
 
-def _detect_credential_steps(session: CaptureSession) -> list[int]:
-    """Return seq numbers of steps that involve password/sensitive fields."""
-    return [step.seq for step in session.steps if step.is_password]
+
+def _slugify(text: str, fallback: str) -> str:
+    """Normalize free-form element text into a stable lowercase label slug."""
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", text).strip("-").lower()
+    return slug or fallback
+
+
+def _site_prefix(session: CaptureSession) -> str:
+    """Derive a stable per-site label prefix from the session start URL.
+
+    CredentialVault labels are globally unique, so namespacing them by site
+    host prevents two recorded skills for different sites from resolving the
+    same vault entry (and silently reusing the wrong password).
+    """
+    host = urlparse(session.start_url or "").netloc
+    return host or "site"
+
+
+def _build_credential_labels(session: CaptureSession) -> dict[int, str]:
+    """Map credential step seq -> semantic CredentialVault label.
+
+    Only fill/type steps on sensitive fields are treated as credential steps —
+    a click landing on a password input is a locator action, not a value input.
+    Labels derive from the captured element text/role namespaced by the site
+    host (e.g. `example.com-password`), and collisions are de-duplicated.
+    """
+    prefix = _site_prefix(session)
+    labels: dict[int, str] = {}
+    used: set[str] = set()
+    for step in session.steps:
+        if not step.is_password:
+            continue
+        if step.action not in (ActionType.FILL, ActionType.TYPE):
+            continue
+        base = _slugify(step.element_text or step.element_role, f"field-{step.seq}")
+        label = f"{prefix}-{base}"
+        n = 2
+        while label in used:
+            label = f"{prefix}-{base}-{n}"
+            n += 1
+        used.add(label)
+        labels[step.seq] = label
+    return labels
+
+
+def _yaml_single_line(value: str) -> str:
+    """Escape a free-form string as a single-line YAML double-quoted scalar.
+
+    Recording descriptions may contain newlines or quotes that would otherwise
+    break the frontmatter YAML block.
+    """
+    escaped = (
+        value.replace("\\", "\\\\").replace('"', '\\"').replace("\r", " ").replace("\n", " ")
+    )
+    return f'"{escaped}"'
 
 
 def _build_skill_content(
     session: CaptureSession,
     skill_name: str,
     description: str,
-    credential_seqs: list[int],
+    credential_labels: dict[int, str],
 ) -> str:
-    """Build SKILL.md content from recorded steps."""
-    nl_steps = steps_to_natural_language(session.steps)
+    """Build agentskills.io-compliant SKILL.md content from recorded steps.
+
+    The YAML frontmatter (name/description/allowed-tools) is what the skill
+    system validates on save — it must be present or `save_skill` rejects the
+    file. Body sections are free-form instructions for the agent.
+    """
+    nl_steps = steps_to_natural_language(
+        session.steps, credential_labels=credential_labels
+    )
 
     credential_section = ""
-    if credential_seqs:
+    if credential_labels:
         cred_lines = [
-            f"- Step {seq}: Uses credential — value will be injected from CredentialVault at runtime"
-            for seq in credential_seqs
+            f'- Step {seq}: `fill_credential "{label}"`' for seq, label in credential_labels.items()
         ]
         credential_section = f"""
 ## Credentials
 
-This skill requires credentials stored in CredentialVault. Sensitive values
-detected during recording are replaced with `{{{{credential:label}}}}` placeholders.
+Some steps below target password fields. The `fill_credential` action on those
+steps provides the real value automatically:
 
-{chr(10).join(cred_lines)}
+{"\n".join(cred_lines)}
 """
 
-    return f"""# {skill_name}
+    frontmatter = (
+        "---\n"
+        f"name: {skill_name}\n"
+        f"description: {_yaml_single_line(description)}\n"
+        f"allowed-tools: {_ALLOWED_BROWSER_TOOLS}\n"
+        "---\n"
+    )
+
+    return f"""{frontmatter}
+# {skill_name}
 
 {description}
 
 ## Source
 
-Generated from browser recording session `{session.session_id}`.
 Start URL: {session.start_url}
 
 ## Steps
 
 {nl_steps}
-{credential_section}
-## Configuration
-
-- `allowed-tools`: browser_navigate, browser_click, browser_type, browser_snapshot, browser_select
-- `primary-env`: browser
-"""
+{credential_section}"""
 
 
 def generate_skill_from_session(
@@ -104,10 +175,8 @@ def generate_skill_from_session(
         else:
             description = "Browser automation skill"
 
-    credential_seqs = _detect_credential_steps(session)
-    credential_labels = [f"credential_step_{seq}" for seq in credential_seqs]
-
-    content = _build_skill_content(session, skill_name, description, credential_seqs)
+    credential_labels = _build_credential_labels(session)
+    content = _build_skill_content(session, skill_name, description, credential_labels)
 
     skill_id = f"recorded-{skill_name}-{uuid.uuid4().hex[:8]}"
 
@@ -117,7 +186,7 @@ def generate_skill_from_session(
         skill_id,
         session.session_id,
         len(session.steps),
-        len(credential_seqs),
+        len(credential_labels),
     )
 
-    return skill_id, content, credential_labels
+    return skill_id, content, list(credential_labels.values())

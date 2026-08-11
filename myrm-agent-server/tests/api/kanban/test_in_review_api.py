@@ -100,7 +100,9 @@ class TestRequireApprovalFlag:
         board = _create_board(client)
         task = _create_task(client, board["board_id"])
         tid = str(task["task_id"])
-        resp = client.patch(f"/api/v1/kanban/tasks/{tid}", json={"require_approval": True})
+        resp = client.patch(
+            f"/api/v1/kanban/tasks/{tid}", json={"require_approval": True}
+        )
         assert resp.status_code == 200
         assert resp.json()["require_approval"] is True
 
@@ -121,7 +123,9 @@ class TestApproveEndpoint:
 
     def test_approve_releases_dependents(self, client: TestClient) -> None:
         board = _create_board(client)
-        parent = _create_task(client, board["board_id"], "Parent", require_approval=True)
+        parent = _create_task(
+            client, board["board_id"], "Parent", require_approval=True
+        )
         child = _create_task(
             client,
             board["board_id"],
@@ -279,9 +283,7 @@ class TestPendingReviewNotification:
         )
         published: list[object] = []
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus"
-        ) as mock_bus:
+        with patch("app.services.kanban.event_publisher.get_event_bus") as mock_bus:
             bus = mock_bus.return_value
             bus.publish = lambda ev: published.append(ev)  # type: ignore[method-assign]
             emit_review_requested(task)
@@ -311,9 +313,7 @@ class TestPendingReviewNotification:
         )
         published: list[object] = []
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus"
-        ) as mock_bus:
+        with patch("app.services.kanban.event_publisher.get_event_bus") as mock_bus:
             bus = mock_bus.return_value
             bus.publish = lambda ev: published.append(ev)  # type: ignore[method-assign]
             emit_review_requested(task)
@@ -345,9 +345,7 @@ class TestRejectedNotification:
         )
         published: list[object] = []
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus"
-        ) as mock_bus:
+        with patch("app.services.kanban.event_publisher.get_event_bus") as mock_bus:
             bus = mock_bus.return_value
             bus.publish = lambda ev: published.append(ev)  # type: ignore[method-assign]
             emit_task_rejected(task)
@@ -378,9 +376,7 @@ class TestRejectedNotification:
         )
         published: list[object] = []
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus"
-        ) as mock_bus:
+        with patch("app.services.kanban.event_publisher.get_event_bus") as mock_bus:
             bus = mock_bus.return_value
             bus.publish = lambda ev: published.append(ev)  # type: ignore[method-assign]
             emit_task_rejected(task)

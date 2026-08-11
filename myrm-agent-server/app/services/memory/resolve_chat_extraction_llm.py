@@ -166,5 +166,7 @@ async def resolve_chat_extraction_llm(
         None,
         None,
     )
-    lite_llm = await apply_lite_context_downgrade(llm, lite_llm, model_cfg)
+    lite_llm, _effective_lite_cfg = await apply_lite_context_downgrade(
+        llm, lite_llm, model_cfg, lite_model_cfg
+    )
     return llm, lite_llm

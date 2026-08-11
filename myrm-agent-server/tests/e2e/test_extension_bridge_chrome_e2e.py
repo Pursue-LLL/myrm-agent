@@ -265,7 +265,9 @@ def _reset_access_policy(api_url: str) -> None:
     )
 
 
-def _wait_stub_tabs_visible(api_url: str, *, timeout_sec: float = 20.0) -> dict[str, object]:
+def _wait_stub_tabs_visible(
+    api_url: str, *, timeout_sec: float = 20.0
+) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         status = http_json("GET", f"{api_url}/api/v1/extension/status")
@@ -423,7 +425,9 @@ def test_extension_bridge_access_policy_add_domain_in_real_ui() -> None:
             assert invalid_state.get("invalidHelp") is True, invalid_state
 
             add_result = client.evaluate(page, _ADD_EXAMPLE_DOMAIN_JS, timeout_sec=30.0)
-            assert isinstance(add_result, dict) and add_result.get("ok") is True, add_result
+            assert (
+                isinstance(add_result, dict) and add_result.get("ok") is True
+            ), add_result
 
             valid_state = wait_for_state(
                 client,

@@ -44,7 +44,7 @@ def _parallel_bridge_ready_cap_sec() -> float:
 def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
     """Parallel SHPOIB hydrate queue can defer React mount beyond 60s."""
     from dev_gate_contract import shared_ui_hydrate_wait_sec
-    from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+    from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
     if parallel_shared_ui_hydrate_queue_enabled():
         parallel_cap = min(

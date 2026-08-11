@@ -7766,6 +7766,8 @@
       "labelName": "名前：",
       "labelSteps": "ステップ：",
       "credentialDetected": "{count} 個の資格情報フィールドを検出",
+      "credentialGuide": "このスキルの実行時にこれらの資格情報が自動入力されます。未作成の場合は「設定 → 統合 → 資格情報」で作成してください。",
+      "goToCredentials": "資格情報を管理",
       "actionClick": "クリック",
       "actionDblclick": "ダブルクリック",
       "actionType": "入力",

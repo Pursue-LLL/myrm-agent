@@ -1,4 +1,4 @@
-"""Signoff stack heal — SHC wrapper for e2e-m3-signoff.sh (Phase3 P0#1).
+"""Signoff stack heal — SHC attach-heal wrapper for maintainer epoch preflight.
 
 Routes shared-stack backend heal through StackHealCoordinator instead of
 direct dev-stack frontend-only / verify-api --ensure-backend dogpile paths.
@@ -18,7 +18,7 @@ _DEFAULT_WAIT_SEC = 45.0
 
 
 def _monorepo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
+    return Path(__file__).resolve().parents[5]
 
 
 def _dev_stack(root: Path) -> Path:

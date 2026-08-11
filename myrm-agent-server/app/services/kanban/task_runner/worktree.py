@@ -1,8 +1,9 @@
 """Git worktree isolation helpers for KanbanTaskRunner.
 
 [INPUT]
-- myrm_agent_harness.toolkits.kanban.protocols (POS: Kanban protocol interfaces.)
+- myrm_agent_harness.api::KanbanStore (POS: Public protocol re-exports; KanbanStore defined in toolkits.kanban.protocols.)
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
+- app.services.chat.sandbox_worktree (POS: Shared git worktree lifecycle management for chat sandbox sessions.)
 
 [OUTPUT]
 - resolve_base_dir, resolve_workspace, cleanup_worktree

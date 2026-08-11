@@ -19,9 +19,11 @@ from __future__ import annotations
 import subprocess
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+
 from dev_gate_contract import STALL_PROGRESS_SEC
 
 LIVE_E2E_SHARED_HOT_NAMESPACE = "e2e:shared_hot"
+PRIVATE_BACKEND_NAMESPACE_PREFIX = "e2e:private:"
 
 
 def _lease_parent_id(item: dict[str, object]) -> str | None:
@@ -33,6 +35,31 @@ def _lease_parent_id(item: dict[str, object]) -> str | None:
 
 def _lease_is_root(item: dict[str, object]) -> bool:
     return _lease_parent_id(item) is None
+
+
+def is_private_backend_lease(item: dict[str, object]) -> bool:
+    """Return whether a wave lease belongs to an isolated PRIVATE backend."""
+    namespace = str(item.get("namespace", "")).strip()
+    return namespace.startswith(PRIVATE_BACKEND_NAMESPACE_PREFIX)
+
+
+def shared_effective_lease_count(snapshot: dict[str, object]) -> int:
+    """Count root leases that can mutate or pin the shared backend stack.
+
+    PRIVATE sessions keep their wave lease for ownership and cleanup, but their
+    isolated backend must not defer shared epoch promotion or shared-backend
+    crash healing.
+    """
+    raw_leases = snapshot.get("activeLeases")
+    if not isinstance(raw_leases, list):
+        return 0
+    return sum(
+        1
+        for item in raw_leases
+        if isinstance(item, dict)
+        and _lease_is_root(item)
+        and not is_private_backend_lease(item)
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,19 +92,21 @@ def load_wave_snapshot() -> dict[str, object]:
     import sys
     from pathlib import Path
 
-    dev_dir = Path(__file__).resolve().parent.parent
+    from dev_paths import scripts_dev_dir
+
+    dev_dir = scripts_dev_dir(Path(__file__))
     dev_text = str(dev_dir)
     if dev_text not in sys.path:
         sys.path.insert(0, dev_text)
-    from wave_orchestrator.core import wave_status  # noqa: PLC0415
+    from wave_orchestrator.core import wave_status
 
     try:
         return wave_status()
     except PermissionError:
-        from wave_orchestrator.lease_state import active_leases  # noqa: PLC0415
-        from wave_orchestrator.paths import resolve_wave_paths  # noqa: PLC0415
-        from wave_orchestrator.stack_pin import read_stack_pin  # noqa: PLC0415
-        from wave_orchestrator.store import load_state  # noqa: PLC0415
+        from wave_orchestrator.lease_state import active_leases
+        from wave_orchestrator.paths import resolve_wave_paths
+        from wave_orchestrator.stack_pin import read_stack_pin
+        from wave_orchestrator.store import load_state
 
         paths = resolve_wave_paths()
         state = load_state(paths.state_file)
@@ -109,10 +138,10 @@ def load_wave_snapshot_observation() -> dict[str, object]:
     dev_text = str(dev_dir)
     if dev_text not in sys.path:
         sys.path.insert(0, dev_text)
-    from wave_orchestrator.lease_state import active_leases  # noqa: PLC0415
-    from wave_orchestrator.paths import resolve_wave_paths  # noqa: PLC0415
-    from wave_orchestrator.stack_pin import read_stack_pin  # noqa: PLC0415
-    from wave_orchestrator.store import load_state  # noqa: PLC0415
+    from wave_orchestrator.lease_state import active_leases
+    from wave_orchestrator.paths import resolve_wave_paths
+    from wave_orchestrator.stack_pin import read_stack_pin
+    from wave_orchestrator.store import load_state
 
     paths = resolve_wave_paths()
     state = load_state(paths.state_file)
@@ -269,7 +298,7 @@ def build_lease_liveness(
     dev_text = str(dev_dir)
     if dev_text not in sys.path:
         sys.path.insert(0, dev_text)
-    from wave_orchestrator.lease_state import (  # noqa: PLC0415
+    from wave_orchestrator.lease_state import (
         _process_is_alive,
         owner_bashpid_from_agent_id,
     )

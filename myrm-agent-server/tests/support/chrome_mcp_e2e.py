@@ -12,10 +12,11 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Iterator
+from collections.abc import Callable, Coroutine, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
 if str(_DEV_LIB) not in sys.path:
@@ -2301,6 +2302,38 @@ class _OrchestratorSharedUiChat:
         )
 
 
+def _run_coroutine_any_loop(coro_factory: Callable[[], Coroutine[Any, Any, object]]) -> object:
+    """Run a coroutine whether or not an event loop is already running.
+
+    chrome_e2e tests may be sync or async (pytest-asyncio). Inside an async
+    test the surrounding loop is already running, so ``asyncio.run`` would
+    raise here — and Python 3.12+ forbids nesting even a fresh loop
+    (``run_forever`` checks for any running loop). The contract's I/O runs on
+    worker threads (asyncio.to_thread), so a dedicated thread with its own
+    ``asyncio.run`` is safe and never deadlocks the caller's loop.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro_factory())
+
+    outcome: list[object] = []
+    errors: list[BaseException] = []
+
+    def _target() -> None:
+        try:
+            outcome.append(asyncio.run(coro_factory()))
+        except BaseException as exc:  # pragma: no cover - re-raised on caller thread
+            errors.append(exc)
+
+    thread = threading.Thread(target=_target, daemon=True)
+    thread.start()
+    thread.join()
+    if errors:
+        raise errors[0]
+    return outcome[0]
+
+
 def _ensure_orchestrator_shared_ui_session(
     client: ChromeMcpClient,
     page: McpPage,
@@ -2317,8 +2350,8 @@ def _ensure_orchestrator_shared_ui_session(
     last_exc: BaseException | None = None
     for attempt in range(2):
         try:
-            asyncio.run(
-                maybe_apply_shared_ui_session_contract(
+            _run_coroutine_any_loop(
+                lambda: maybe_apply_shared_ui_session_contract(
                     chat,
                     timeout_sec=120.0,
                 )

@@ -21,7 +21,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TypedDict
 
-from wave_orchestrator.lanes import lane_conflict_reason
+from wave_orchestrator.lanes import is_private_backend_namespace, lane_conflict_reason
 from wave_orchestrator.lease_cleanup import (
     cleanup_expired_leases as _cleanup_expired_leases,
 )
@@ -500,15 +500,38 @@ def heartbeat_lease(
 def check_stack_write_gate(*, paths: WavePaths | None = None) -> GateResult:
     resolved = paths or resolve_wave_paths()
 
+    def _belongs_to_private_backend(
+        lease: LeaseRecord, by_id: dict[str, LeaseRecord]
+    ) -> bool:
+        current = lease
+        visited: set[str] = set()
+        while True:
+            if is_private_backend_namespace(str(current.get("namespace", ""))):
+                return True
+            parent_id = str(current.get("parentLeaseId", "")).strip()
+            if not parent_id or parent_id in visited:
+                return False
+            visited.add(parent_id)
+            parent = by_id.get(parent_id)
+            if parent is None:
+                return False
+            current = parent
+
     def _view(state: OrchestratorState) -> tuple[GateResult, bool]:
         changed = reaper(state, cleanup=False)
         active = active_leases(state)
-        stack_write_only = bool(active) and all(
-            lease["lane"] == "STACK_WRITE" for lease in active
+        active_by_id = {lease["leaseId"]: lease for lease in active}
+        shared_active = [
+            lease
+            for lease in active
+            if not _belongs_to_private_backend(lease, active_by_id)
+        ]
+        stack_write_only = bool(shared_active) and all(
+            lease["lane"] == "STACK_WRITE" for lease in shared_active
         )
         blockers: list[GateBlocker] = []
-        if active and not stack_write_only:
-            for lease in active:
+        if shared_active and not stack_write_only:
+            for lease in shared_active:
                 blockers.append(
                     {
                         "leaseId": lease["leaseId"],
@@ -516,7 +539,11 @@ def check_stack_write_gate(*, paths: WavePaths | None = None) -> GateResult:
                         "lane": lease["lane"],
                     }
                 )
-        stack_pin = None if stack_write_only else _stack_pin_blocker(state)
+        stack_pin = (
+            None
+            if stack_write_only or (active and not shared_active)
+            else _stack_pin_blocker(state)
+        )
         allowed = len(blockers) == 0 and stack_pin is None
         return {
             "allowed": allowed,

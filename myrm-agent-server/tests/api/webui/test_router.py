@@ -31,9 +31,17 @@ async def test_get_qrcode_image_endpoint_with_host_port(client: httpx.AsyncClien
     assert response.content.startswith(b"\x89PNG\r\n\x1a\n")
 
 
+async def test_browser_snapshot_requires_chat_id(client: httpx.AsyncClient) -> None:
+    """GET /webui/browser/snapshot returns 400 when chat_id is missing."""
+    response = await client.get("/webui/browser/snapshot")
+    assert response.status_code == 400
+    data = response.json()
+    assert data["error"] == "missing_chat_id"
+
+
 async def test_browser_snapshot_no_active_session(client: httpx.AsyncClient) -> None:
     """GET /webui/browser/snapshot returns 404 when no browser session is active."""
-    response = await client.get("/webui/browser/snapshot")
+    response = await client.get("/webui/browser/snapshot?chat_id=chat-missing")
     assert response.status_code == 404
     data = response.json()
     assert data["error"] == "no_active_browser"

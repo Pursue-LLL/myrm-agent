@@ -1,20 +1,18 @@
-"""SoloLaunchGate — LIVE workload signoff solo window (§19.12 W5 · §23.4 W5 #17).
+"""SoloLaunchGate — optional LIVE solo window for maintainer batches (§19.12 W5).
 
-SSOT: ``ifm/profile.yaml`` browser-mcp L49-52 · ``CHROME_MCP_E2E.md`` Playbook 6.
+SSOT: ``ifm/profile.yaml`` browser-mcp · ``CHROME_MCP_E2E.md`` Playbook 6.
 
 并行是目标：多个 ``./myrm test`` 同时运行是正常用法；日常 LIVE workload 并行由
 ``wave_orchestrator/lanes.py`` 的并发上限（SHPOIB cap=4 / shared_hot 共享）控制，
 门禁只拒错误 launch（同 run id、FAIL_FAST），不拒并行。
 
-「solo 窗口」仅适用于 guardrail 维护者 formal signoff batch：
-当显式 ``E2E_SIGNOFF=1`` 或 ``MYRM_E2E_SOLO_SIGNOFF=1`` 时，本 gate 强制 solo：
+显式 ``E2E_SIGNOFF=1`` 或 ``MYRM_E2E_SOLO_SIGNOFF=1`` 时强制 solo（desktop soak 等）：
 
-- 有其他 LIVE lease 在跑 → 拒绝（QUIT/等待维护者确认）
+- 有其他 LIVE lease 在跑 → 拒绝
 - ``:3000`` TCP+HTML probe 不绿 → 拒绝
 - browser orchestrator daemon 非 READY → 拒绝
 
-日常 LIVE（无 signoff 标记）仅保留环境健康检查（:3000 + orchestrator READY），
-不拦截并行。
+日常 LIVE（无上述标记）仅保留环境健康检查（:3000 + orchestrator READY），不拦截并行。
 """
 
 from __future__ import annotations
@@ -32,7 +30,7 @@ class SoloLaunchVerdict:
 
 
 def _signoff_mode() -> bool:
-    """True when this is a guardrail maintainer formal signoff batch."""
+    """True when desktop soak or maintainer batch requests solo LIVE window."""
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         return True
     return os.environ.get("MYRM_E2E_SOLO_SIGNOFF", "").strip() == "1"

@@ -12,6 +12,8 @@ function requireStatusStreamEvent(event: StreamCtx['data']): StatusStreamEvent {
 
 const PROGRESS_STEP_KEYS = new Set([
   'model_failover',
+  'model_failover_unconfigured',
+  'safety_fallback_unconfigured',
   'context_compaction',
   'context_truncation',
   'safety_fallback_active',
@@ -328,6 +330,29 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
               ? 'settings.defaultModel.moaPreset.skippedInsufficientRefs'
               : 'settings.defaultModel.moaPreset.skippedGeneric';
     showI18nToast(reasonKey, undefined, { type: 'warning', duration: 8000 });
+  }
+
+  if (stepKey === 'model_failover_unconfigured' || stepKey === 'safety_fallback_unconfigured') {
+    const { showI18nToast } = await import('@/services/i18nToastService');
+    const { SETTINGS_AGENTS_LOADOUT_PATH, SETTINGS_DEFAULT_MODEL_PATH } = await import(
+      '@/lib/skills/integrationOAuthDisplay'
+    );
+    const settingsPath =
+      stepKey === 'safety_fallback_unconfigured'
+        ? SETTINGS_AGENTS_LOADOUT_PATH
+        : SETTINGS_DEFAULT_MODEL_PATH;
+    showI18nToast(`progressSteps.${stepKey}`, undefined, {
+      type: 'warning',
+      duration: 8000,
+      action: {
+        label: 'chat.configError.goToSettings',
+        onClick: () => {
+          if (typeof window !== 'undefined') {
+            window.location.assign(settingsPath);
+          }
+        },
+      },
+    });
   }
 }
 

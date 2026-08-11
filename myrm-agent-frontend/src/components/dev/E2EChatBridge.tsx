@@ -31,6 +31,7 @@ import { guardSearchServiceConfigured } from '@/store/config/searchService';
 import type { SearchServiceConfigItem } from '@/store/config/types';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
+import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
 import type { ActionMode, AgentConfig, BuiltinToolId, GoalStatusPayload, ToolSnapshotItem } from '@/store/chat/types';
@@ -1724,6 +1725,19 @@ export default function E2EChatBridge() {
           takeoverUiMode: takeover.pending ? takeover.uiMode : null,
           stepCount: browserSteps.length,
           lastTool: browserSteps[browserSteps.length - 1]?.tool_name ?? '',
+        };
+      },
+      getBrowserInspectorSnapshot: () => {
+        const store = useBrowserInspectorStore.getState();
+        const refs = store.viewData?.refs ?? {};
+        return {
+          isOpen: store.isOpen,
+          isBrowserActive: store.isBrowserActive,
+          hasScreenshot: Boolean(store.viewData?.screenshotBase64),
+          pageUrl: store.viewData?.pageUrl ?? '',
+          pageTitle: store.viewData?.pageTitle ?? '',
+          refCount: Object.keys(refs).length,
+          updatedAt: store.viewData?.updatedAt ?? null,
         };
       },
       dismissBrowserTakeover: () => {

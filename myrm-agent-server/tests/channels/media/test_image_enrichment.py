@@ -502,11 +502,10 @@ class TestDownloadViaHttp:
 
     @pytest.mark.asyncio
     async def test_http_oversized_returns_none(self) -> None:
-        oversized = b"\x00" * (MAX_IMAGE_BYTES * 2 + 1)
-        mock_resp = MagicMock()
-        mock_resp.raise_for_status = MagicMock()
-        mock_resp.content = oversized
-        mock_secure_get = AsyncMock(return_value=mock_resp)
+        """A response exceeding the download cap is rejected by secure_get and skipped."""
+        from myrm_agent_harness.core.security.http.secure_fetch import ContentTooLargeError
+
+        mock_secure_get = AsyncMock(side_effect=ContentTooLargeError("too large"))
         with patch("myrm_agent_harness.core.security.http.secure_fetch.secure_get", mock_secure_get):
             result = await _download_via_http("https://example.com/huge.jpg")
         assert result is None

@@ -4,6 +4,7 @@ import React from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   MousePointerClick,
+  MousePointer2,
   Type,
   ChevronDown,
   CheckSquare,
@@ -26,6 +27,7 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
   navigate: Navigation,
   upload: Upload,
   press: Type,
+  hover: MousePointer2,
 };
 
 const ACTION_LABEL_KEYS: Record<string, string> = {
@@ -55,6 +57,10 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
   const Icon = ACTION_ICONS[step.action] || MousePointerClick;
   const labelKey = ACTION_LABEL_KEYS[step.action];
   const label = labelKey ? t(labelKey) : step.action;
+  const displayValue =
+    step.action === 'press' && step.modifiers && step.modifiers.length > 0
+      ? `${step.modifiers.map((m) => m.charAt(0).toUpperCase() + m.slice(1)).join('+')}+${step.value}`
+      : step.value;
 
   return (
     <div
@@ -87,9 +93,9 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
           </p>
         )}
 
-        {step.value && !step.isPassword && (
+        {displayValue && !step.isPassword && (
           <p className="text-xs text-muted-foreground/70 truncate mt-0.5 font-mono">
-            {step.value}
+            {displayValue}
           </p>
         )}
         {step.value && step.isPassword && (

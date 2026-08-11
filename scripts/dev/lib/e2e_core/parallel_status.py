@@ -29,7 +29,7 @@ import time
 from pathlib import Path
 from typing import Final
 
-_MONOREPO_ROOT: Final[Path] = Path(__file__).resolve().parents[4]
+_MONOREPO_ROOT: Final[Path] = Path(__file__).resolve().parents[5]
 
 
 def _server_tests_support_dir() -> Path:

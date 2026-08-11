@@ -11,6 +11,7 @@ import {
   type Node,
   type Edge,
   type NodeProps,
+  type ReactFlowInstance,
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -124,7 +125,9 @@ function CustomNode({ data }: NodeProps<Node<TopologyNodeData & Record<string, u
   );
 
   return (
-    <Card className={cn('w-[280px] p-3.5 shadow-md bg-background flex flex-col gap-2.5', TONE_BORDER[tone])}>
+    <Card
+      className={cn('w-[240px] sm:w-[280px] p-3.5 shadow-md bg-background flex flex-col gap-2.5', TONE_BORDER[tone])}
+    >
       <Handle type="target" position={Position.Top} className="w-2 h-2" />
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">

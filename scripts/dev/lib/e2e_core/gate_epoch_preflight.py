@@ -1,4 +1,4 @@
-"""Gate epoch preflight SSOT — stack/mux/epoch readiness for Step1 signoff gate (P0-STACK-2).
+"""Gate epoch preflight SSOT — stack/mux/epoch readiness for maintainer gates and Phase C ramp.
 
 [INPUT]
 - peer_count_ssot, e2e_api_verify, mux_load, stack_mutation_policy, e2e_stale_lease_reap
@@ -8,7 +8,7 @@
 - quick_epoch_ready() → bool
 
 [POS]
-Replaces bash _gate_assert_epoch_ready / _gate_heal_epoch_when_solo chains in e2e-p0a-1lane-gate.sh.
+Used by phase-c ramp and maintainer epoch preflight loops.
 Never trusts ./myrm ready --chrome exit code; uses resolve_e2e_api_context() as SSOT.
 """
 
@@ -18,12 +18,10 @@ import argparse
 import json
 import os
 import subprocess
-import sys
 import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal
 
 
 class PreflightOutcome(StrEnum):
@@ -89,9 +87,9 @@ SIGNOFF_GATE_CDP_PAGE_CEILING = 8
 
 def attach_parallel_leases() -> int:
     """Match e2e_bootstrap.sh _e2e_parallel_active_leases (wave first, then live sessions)."""
-    from e2e_lease_liveness import load_wave_snapshot, wave_lease_counts
+    from e2e_lease_liveness import load_wave_snapshot, shared_effective_lease_count
 
-    effective = wave_lease_counts(load_wave_snapshot()).effective_total
+    effective = shared_effective_lease_count(load_wave_snapshot())
     if effective > 0:
         return effective
     from e2e_session_runtime.registry import list_live_e2e_sessions
@@ -122,7 +120,7 @@ def _chrome_e2e_listener_pids() -> list[str]:
 
     port = _chrome_port()
     result = subprocess.run(
-        ["lsof", "-tiTCP:{port}", "-sTCP:LISTEN"],
+        ["lsof", f"-tiTCP:{port}", "-sTCP:LISTEN"],
         capture_output=True,
         text=True,
         check=False,
@@ -506,12 +504,6 @@ def epoch_preflight_loop(
 
     while time.monotonic() < deadline:
         attempt += 1
-        try:
-            from signoff_runtime_guard import guard_signoff_runtime
-
-            guard_signoff_runtime(reap=True)
-        except ImportError:
-            pass
         snap = read_solo_snapshot()
 
         if snap.peers > 0 or snap.mux_peers > 1:

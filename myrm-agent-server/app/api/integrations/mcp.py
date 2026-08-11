@@ -6,7 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.toolkits.mcp import MCPAgent, MCPClientManager
+from myrm_agent_harness.toolkits.mcp import MCPAgent
 from myrm_agent_harness.toolkits.mcp.security import (
     MCPConfigScanResult,
     MCPResponseError,
@@ -173,19 +173,36 @@ def _runtime_scan_to_data(result: MCPRuntimeScanResult) -> MCPScanData:
 
 
 async def _get_server_instructions(server_name: str, mcp_config: list[MCPServerConfig]) -> str | None:
-    """获取 MCP 服务器的 instructions"""
+    """获取 MCP 服务器的 instructions。
+
+    MCP SDK 2.x 的 ``Client`` 会在进入异步上下文时完成 initialize 握手；
+    旧版 ``MCPClientManager.initialize_client`` 已不存在，不能再通过已移除
+    的 manager API 读取 instructions。这里复用 MCPAgent 的 transport builder，
+    保持与工具枚举完全一致，并确保上下文退出时 stdio/HTTP 资源立即释放。
+    """
     try:
-        client = await MCPClientManager.initialize_client(mcp_config)
-        async with client.session(server_name, auto_initialize=False) as session:
-            init_result = await session.initialize()
-            raw_instr = init_result.instructions
-            out: str | None = raw_instr if isinstance(raw_instr, str) else None
-            if out is None and hasattr(init_result, "serverInfo"):
-                server_info = getattr(init_result, "serverInfo", None)
-                if server_info is not None:
-                    alt = getattr(server_info, "instructions", None)
-                    out = alt if isinstance(alt, str) else None
-            return out
+        from mcp.client import Client
+        from mcp.types import Implementation
+        from myrm_agent_harness import __version__
+
+        config = next((item for item in mcp_config if item.name == server_name), None)
+        if config is None:
+            return None
+
+        target = MCPAgent._build_enumeration_target(config)
+        client = Client(
+            target,
+            client_info=Implementation(name="myrm-agent", version=__version__),
+        )
+        async with client:
+            async with asyncio.timeout(config.connect_timeout):
+                await client.list_tools()
+            raw_instr = client.instructions
+            if isinstance(raw_instr, str):
+                return raw_instr
+            server_info = client.server_info
+            alt = getattr(server_info, "instructions", None) if server_info else None
+            return alt if isinstance(alt, str) else None
     except Exception as e:
         logger.warning(f"Failed to get instructions from {server_name}: {e}")
         return None
@@ -345,7 +362,11 @@ async def verify_mcp_service(
         mcp_agent = get_mcp_agent()  # 使用单例实例
         mcp_config_list = [mcp_server_config]
 
-        # 并发获取工具和 instructions
+        # stdio transport uses two short-lived subprocesses (tool listing and
+        # instructions). Start them sequentially: concurrent handshakes are a
+        # known source of SDK TaskGroup failures under host process pressure.
+        # HTTP transports remain concurrent because they do not share stdio
+        # pipes and benefit from the lower verification latency.
         tools_task = asyncio.wait_for(
             mcp_agent.get_tools(mcp_config_list),
             timeout=settings.mcp.verify_timeout,
@@ -355,7 +376,12 @@ async def verify_mcp_service(
             timeout=settings.mcp.verify_timeout,
         )
 
-        results = await asyncio.gather(tools_task, instructions_task, return_exceptions=True)
+        if mcp_server_config.type == "stdio":
+            tools_result = await tools_task
+            instructions_result = await instructions_task
+            results = (tools_result, instructions_result)
+        else:
+            results = await asyncio.gather(tools_task, instructions_task, return_exceptions=True)
         tools_result, instructions_result = results[0], results[1]
 
         # 处理工具获取结果

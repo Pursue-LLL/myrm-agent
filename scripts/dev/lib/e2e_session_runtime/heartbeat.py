@@ -151,8 +151,15 @@ def _heartbeat_private_runtime_once() -> None:
     token = os.environ.get("MYRM_E2E_RUNTIME_OWNER_TOKEN", "").strip()
     if not runtime_id or not token:
         return
-    dev_dir = Path(__file__).resolve().parents[1]
-    script = dev_dir / "isolated_runtime/cli.py"
+    # isolated_runtime stays a root-level domain package; resolve it from the
+    # monorepo root rather than this package dir (scripts/dev/lib/e2e_session_runtime).
+    script = (
+        Path(__file__).resolve().parents[5]
+        / "scripts"
+        / "dev"
+        / "isolated_runtime"
+        / "cli.py"
+    )
     if not script.is_file():
         return
     try:

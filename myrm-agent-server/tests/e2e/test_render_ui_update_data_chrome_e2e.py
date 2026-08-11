@@ -95,6 +95,7 @@ _INITIAL_READY_JS = """(() => {
   const hasFinal = /E2E_UPDATE_FINAL/.test(text);
   const hasStructuredCard = !!assistant && /E2E_UPDATE_MARKER_ALPHA/.test(cardTitle);
   const sending = !!main?.querySelector('button[aria-label="Stop"]');
+  const uiContainer = document.querySelector('.interactive-ui-container');
   return {
     ready: hasStructuredCard && hasInitial && !hasFinal && !sending,
     hasAssistant: !!assistant,
@@ -103,6 +104,9 @@ _INITIAL_READY_JS = """(() => {
     hasInitial,
     hasFinal,
     sending,
+    hasUiContainer: !!uiContainer,
+    uiContainerText: uiContainer?.innerText?.slice(0, 300) || '',
+    h4Texts: Array.from(document.querySelectorAll('h4')).map((h) => h.textContent || ''),
     onChat: /^\\/c-/.test(location.pathname),
     path: location.pathname,
     sample: text.slice(0, 900),
@@ -367,6 +371,21 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         )
         require_e2e_api_binding_probe(binding_probe, api_base)
         await chat._attach_chat_session(chat_id)
+        _attach_diag = await chat.evaluate(
+            """(() => {
+              const main = document.querySelector('main');
+              const uiContainer = document.querySelector('.interactive-ui-container');
+              return {
+                loading: !!main?.querySelector('button[aria-label="Stop"]'),
+                h4Texts: Array.from(document.querySelectorAll('h4')).map((h) => h.textContent || ''),
+                hasUiContainer: !!uiContainer,
+                uiContainerText: uiContainer?.innerText?.slice(0, 200) || '',
+                bodySample: main?.innerText?.slice(0, 200) || '',
+              };
+            })()""",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        print(f"\n[ATTACH_DIAG] post-attach state={_attach_diag}\n", flush=True)
         kickoff_deadline = time.monotonic() + signoff_parallel_force_chat_timeout_sec(
             45.0
         )

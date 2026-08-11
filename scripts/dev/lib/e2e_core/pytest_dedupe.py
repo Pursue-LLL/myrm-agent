@@ -28,7 +28,9 @@ class _DedupeRecord(TypedDict, total=False):
 
 
 def _dev_state_dir() -> Path:
-    dev_dir = Path(__file__).resolve().parent.parent
+    from dev_paths import scripts_dev_dir
+
+    dev_dir = scripts_dev_dir(Path(__file__))
     dev_dir_str = str(dev_dir)
     if dev_dir_str not in sys.path:
         sys.path.insert(0, dev_dir_str)

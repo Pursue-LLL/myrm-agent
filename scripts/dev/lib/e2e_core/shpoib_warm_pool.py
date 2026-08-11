@@ -1,8 +1,7 @@
 """SHPOIB warm backend pool for LIVE chrome_e2e (R159).
 
 [POS] Dev Gate layer. Keeps hot private backends ready for borrow to cut
-cold bootstrap (~89s) to near-zero on pool hit. Pattern derived from
-signoff_clarify_shpoib_pool.py (flock + registry + progress tokens).
+cold bootstrap (~89s) to near-zero on pool hit. Pattern derived from flock + registry + progress tokens (R159).
 """
 
 from __future__ import annotations
@@ -21,6 +20,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Final, TypedDict
+
 from real_user_home import real_user_home
 
 DEFAULT_POOL_SIZE: Final[int] = 2
@@ -58,7 +58,7 @@ def _monorepo_root() -> Path:
     raw = os.environ.get("MYRM_MONOREPO_ROOT", "").strip()
     if raw:
         return Path(raw).resolve()
-    return Path(__file__).resolve().parents[4]
+    return Path(__file__).resolve().parents[5]
 
 
 def _pool_root() -> Path:
@@ -119,7 +119,7 @@ def _fetch_health_payload(api_base: str) -> dict[str, object] | None:
     """Fetch ``/api/v1/health`` and return its payload dict, or None on any failure."""
     url = f"{api_base.rstrip('/')}/api/v1/health"
     try:
-        with urllib.request.urlopen(url, timeout=2.0) as resp:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=2.0) as resp:
             if not (200 <= resp.status < 300):
                 return None
             payload = json.loads(resp.read().decode("utf-8"))
@@ -159,7 +159,7 @@ def warm_backend_source_fingerprint(api_base: str) -> str:
 def _workspace_source_fingerprint() -> str:
     """Current workspace backend source fingerprint (lazy; cached per process)."""
     try:
-        from runtime_identity import _backend_source_fingerprint  # noqa: PLC0415
+        from runtime_identity import _backend_source_fingerprint
     except ImportError:
         return ""
     try:
@@ -211,7 +211,7 @@ def _prune_stale(registry: WarmPoolRegistry, *, now: float) -> int:
 
 
 def _spawn_warm_backend(*, monorepo: Path) -> WarmBorrowResult:
-    from verify_backend_seed import _spawn_verify_backend_seed  # noqa: PLC0415
+    from verify_backend_seed import _spawn_verify_backend_seed
 
     spawned = _spawn_verify_backend_seed(monorepo=monorepo)
     if not spawned.ok:
@@ -239,6 +239,21 @@ def _spawn_warm_backend(*, monorepo: Path) -> WarmBorrowResult:
         detail="spawned",
         environment=environment,
     )
+
+
+def _backend_process_pid(runtime_id: str) -> int | None:
+    """Read the detached backend PID, not the short-lived pool maintainer PID."""
+    try:
+        from isolated_runtime.allocator import get_runtime
+
+        record = get_runtime(runtime_id)
+    except (ImportError, OSError, RuntimeError, ValueError):
+        return None
+    identity = record.get("backendProcess")
+    if not isinstance(identity, dict):
+        return None
+    pid = identity.get("pid")
+    return pid if isinstance(pid, int) and pid > 0 else None
 
 
 def _count_ready(registry: WarmPoolRegistry) -> int:
@@ -280,12 +295,28 @@ def maintain_warm_pool(*, target_size: int | None = None) -> int:
                     )
                     break
                 key = result.runtime_id
+                backend_pid = _backend_process_pid(result.runtime_id)
+                if backend_pid is None or not _pid_alive(backend_pid):
+                    # Never publish a warm row owned by the short-lived
+                    # `ready.sh` process; that row would be pruned immediately
+                    # on the next borrow and hide a real pool failure.
+                    try:
+                        from isolated_runtime.reaper import release_runtime
+
+                        release_runtime(result.runtime_id, result.owner_token)
+                    except (ImportError, OSError, RuntimeError, ValueError):
+                        pass
+                    print(
+                        "E2E_SHPOIB_WARM_POOL_SPAWN_FAIL: backend process identity missing",
+                        file=sys.stderr,
+                    )
+                    break
                 registry["backends"][key] = {
                     "runtimeId": result.runtime_id,
                     "ownerToken": result.owner_token,
                     "apiBase": result.api_base,
                     "state": "ready",
-                    "ownerPid": os.getpid(),
+                    "ownerPid": backend_pid,
                     "heartbeatAt": now,
                     "acquiredAt": now,
                     "sourceFingerprint": _workspace_source_fingerprint(),

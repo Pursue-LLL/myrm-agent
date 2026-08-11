@@ -4,9 +4,11 @@
 - app.services.kanban::KanbanService (POS: Kanban 业务编排，任务执行完全委托)
 - app.database.models.batch_directory::BatchDirectoryProjectModel (POS: 批量项目持久化)
 - app.services.batch_directory._helpers (POS: 序列化/查询/路径校验助手)
+- app.services.batch_directory._read (POS: 只读聚合层)
+- app.services.batch_directory._retry (POS: 重试/重跑层)
 
 [OUTPUT]
-- BatchDirectoryService: 批量项目编排（创建/列表/详情/取消/删除/完成检测）
+- BatchDirectoryService: 批量项目编排（创建/列表/详情/取消/删除/完成检测/重试/重跑）
 
 [POS]
 BatchDirectory 业务编排层。批量项目是 Kanban 任务的轻量编排器：
@@ -19,31 +21,34 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from collections.abc import Awaitable, Callable
-from pathlib import Path
 
-from myrm_agent_harness.toolkits.kanban.types import TaskPriority, TaskStatus
-from sqlalchemy import select
+from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+from sqlalchemy import update as sa_update
 
 from app.database.connection import get_session
 from app.database.models.batch_directory import BatchDirectoryProjectModel
-from app.database.models.kanban import KanbanTaskModel
+from app.services.batch_directory import _read, _retry
 from app.services.batch_directory._helpers import (
+    _PROJECT_TERMINAL_STATUSES,
     _TERMINAL_STATUSES,
     _aggregate_statuses,
+    _latest_tasks_per_directory,
     _now,
     _project_to_dict,
     _resolve_directory,
     _send_completion_notification,
+    _validate_artifact_patterns,
     fetch_project_task_models,
 )
+from app.services.batch_directory._read import _resolve_artifact_results
+from app.services.batch_directory._run import fan_out_batch_tasks
 
 logger = logging.getLogger(__name__)
 
-TerminalCallback = Callable[[str], Awaitable[None]]
-
 # dispatcher 终态事件名（触发项目完成检测）
-_FINAL_EVENTS = frozenset({"task_completed", "task_failed", "task_blocked"})
+_FINAL_EVENTS = frozenset(
+    {"task_completed", "task_failed", "task_blocked", "task_archived"}
+)
 
 
 class BatchDirectoryService:
@@ -93,6 +98,7 @@ class BatchDirectoryService:
             raise ValueError("Prompt is required")
         if not directories:
             raise ValueError("At least one target directory is required")
+        artifact_patterns = _validate_artifact_patterns(artifact_patterns)
 
         # 去重 + 校验目录存在且安全
         seen: set[str] = set()
@@ -147,42 +153,39 @@ class BatchDirectoryService:
         )
 
         # 每目录创建一条 Kanban 任务（workspace_path=目录，metadata 标记 batch_project_id）
-        created: list[str] = []
-        errors: list[tuple[str, str]] = []
-        for index, directory in enumerate(resolved_dirs):
-            title = f"[{name.strip()}] {Path(directory).name or directory}"
-            try:
-                task = await self.kanban.add_task(
-                    board_id=target_board_id,
-                    title=title,
-                    description=prompt.strip(),
-                    priority=TaskPriority.NORMAL,
-                    agent_id=agent_id,
-                    model_override=model_override,
-                    max_runtime_seconds=max_runtime_seconds,
-                    require_approval=require_approval,
-                    initial_status=TaskStatus.READY,
-                    workspace_path=directory,
-                    metadata_patch={
-                        "batch_project_id": project_id,
-                        "batch_project_name": name.strip(),
-                        "batch_directory": directory,
-                        "batch_index": index,
-                    },
-                )
-                created.append(task.task_id)
-            except Exception as exc:  # noqa: BLE001 - 单目录失败不阻断整批
-                logger.warning(
-                    "Batch project %s: failed to create task for %s: %s",
-                    project_id,
-                    directory,
-                    exc,
-                )
-                errors.append((directory, str(exc)))
-
-        if not created:
+        created, errors = await fan_out_batch_tasks(
+            self.kanban,
+            board_id=target_board_id,
+            project_id=project_id,
+            name=name,
+            prompt=prompt,
+            directories=resolved_dirs,
+            agent_id=agent_id,
+            model_override=model_override,
+            max_runtime_seconds=max_runtime_seconds,
+            require_approval=require_approval,
+            artifact_patterns=artifact_patterns,
+        )
+        if errors:
+            # 原子创建：任一目录建任务失败即整体失败，回滚已建任务，
+            # 避免批次静默丢弃目录（无任务目录既不可见也不可重试）。
+            for tid in created:
+                try:
+                    await self.kanban.move_task(
+                        tid,
+                        TaskStatus.ARCHIVED,
+                        result="",
+                        metadata={"aborted_by": "batch_creation_failed"},
+                    )
+                except Exception as exc:  # noqa: BLE001 - 回滚失败不掩盖根因
+                    logger.warning(
+                        "Batch project %s: rollback task %s failed: %s",
+                        project_id,
+                        tid,
+                        exc,
+                    )
             raise ValueError(
-                "All target directories failed task creation: "
+                "Failed to create batch tasks for some directories: "
                 + "; ".join(f"{d}: {e}" for d, e in errors[:3])
             )
 
@@ -196,95 +199,50 @@ class BatchDirectoryService:
 
         result = _project_to_dict(project_model)
         result["created_task_ids"] = created
-        result["failed_directories"] = [d for d, _ in errors]
         return result
 
     # ------------------------------------------------------------------
-    # Read
+    # Read (aggregation in _read.py)
     # ------------------------------------------------------------------
 
     async def list_projects(self) -> list[dict[str, object]]:
-        async with get_session() as session:
-            stmt = select(BatchDirectoryProjectModel).order_by(
-                BatchDirectoryProjectModel.created_at.desc()
-            )
-            result = await session.execute(stmt)
-            projects = list(result.scalars().all())
-
-        if not projects:
-            return []
-
-        # 批量刷新聚合统计（避免 N+1）
-        ids = [p.id for p in projects]
-        rows: dict[str, list[KanbanTaskModel]] = {}
-        async with get_session() as session:
-            from sqlalchemy import or_
-
-            stmt = select(KanbanTaskModel).where(
-                or_(
-                    *[
-                        KanbanTaskModel.metadata_json["batch_project_id"].as_string() == pid
-                        for pid in ids
-                    ]
-                )
-            )
-            result = await session.execute(stmt)
-            for task in result.scalars().all():
-                meta = task.metadata_json or {}
-                pid = meta.get("batch_project_id")
-                if pid:
-                    rows.setdefault(str(pid), []).append(task)
-
-        items: list[dict[str, object]] = []
-        for p in projects:
-            d = _project_to_dict(p)
-            tasks = rows.get(p.id, [])
-            total, completed, failed = _aggregate_statuses(tasks)
-            d["total_tasks"] = total if total else p.total_tasks
-            d["completed_tasks"] = completed if total else p.completed_tasks
-            d["failed_tasks"] = failed if total else p.failed_tasks
-            items.append(d)
-        return items
+        return await _read.list_projects(self)
 
     async def get_project(self, project_id: str) -> dict[str, object] | None:
-        async with get_session() as session:
-            model = await session.get(BatchDirectoryProjectModel, project_id)
-            if model is None:
-                return None
-            base = _project_to_dict(model)
-
-        tasks = await fetch_project_task_models(project_id)
-        total, completed, failed = _aggregate_statuses(tasks)
-        base["total_tasks"] = total if total else model.total_tasks
-        base["completed_tasks"] = completed if total else model.completed_tasks
-        base["failed_tasks"] = failed if total else model.failed_tasks
-        base["tasks"] = [
-            {
-                "task_id": t.id,
-                "title": t.title,
-                "status": t.status,
-                "workspace_path": t.workspace_path,
-                "agent_id": t.agent_id,
-                "result": t.result,
-                "error": t.error,
-                "created_at": t.created_at.isoformat() if t.created_at else None,
-                "completed_at": t.completed_at.isoformat() if t.completed_at else None,
-            }
-            for t in tasks
-        ]
-        return base
+        return await _read.get_project(self, project_id)
 
     # ------------------------------------------------------------------
     # Cancel / delete
     # ------------------------------------------------------------------
 
     async def cancel_project(self, project_id: str) -> dict[str, object] | None:
-        """Cancel all non-terminal tasks of a project (archive them)."""
+        """Cancel all non-terminal tasks of a project.
+
+        The project is atomically marked ``cancelled`` first: archiving tasks
+        fires ``task_archived`` dispatcher events, and a concurrent
+        ``maybe_finalize`` must observe the terminal status and skip instead of
+        misreporting a failure. Running tasks are then cancelled in the
+        dispatcher (stops agent execution promptly, no wasted compute); tasks
+        awaiting approval are rejected before archiving (manual moves out of
+        IN_REVIEW are guarded by the orchestrator). Non-terminal tasks are
+        then archived.
+        """
         async with get_session() as session:
             model = await session.get(BatchDirectoryProjectModel, project_id)
             if model is None:
                 return None
-            base = _project_to_dict(model)
+            if model.status not in _PROJECT_TERMINAL_STATUSES:
+                await session.execute(
+                    sa_update(BatchDirectoryProjectModel)
+                    .where(
+                        BatchDirectoryProjectModel.id == project_id,
+                        BatchDirectoryProjectModel.status.notin_(
+                            list(_PROJECT_TERMINAL_STATUSES)
+                        ),
+                    )
+                    .values(status="cancelled", finished_at=_now())
+                )
+                await session.commit()
 
         tasks = await fetch_project_task_models(project_id)
         cancelled: list[str] = []
@@ -293,6 +251,12 @@ class BatchDirectoryService:
             if status is None or status in _TERMINAL_STATUSES:
                 continue
             try:
+                if status == TaskStatus.RUNNING:
+                    await self.kanban.cancel_task_execution(t.id)
+                elif status == TaskStatus.IN_REVIEW:
+                    await self.kanban.reject_task(
+                        t.id, reason="Batch project cancelled"
+                    )
                 await self.kanban.move_task(
                     t.id,
                     TaskStatus.ARCHIVED,
@@ -301,21 +265,46 @@ class BatchDirectoryService:
                 )
                 cancelled.append(t.id)
             except Exception as exc:  # noqa: BLE001 - 单任务取消失败不阻断
-                logger.warning("Batch project %s: cancel task %s failed: %s", project_id, t.id, exc)
+                logger.warning(
+                    "Batch project %s: cancel task %s failed: %s", project_id, t.id, exc
+                )
 
-        async with get_session() as session:
-            model = await session.get(BatchDirectoryProjectModel, project_id)
-            if model is not None:
-                model.status = "cancelled"
-                model.finished_at = _now()
-                await session.commit()
-                await session.refresh(model)
-                base = _project_to_dict(model)
-
+        base = await self.get_project(project_id)
+        if base is None:
+            return None
         base["cancelled_task_ids"] = cancelled
         return base
 
+    # Retry / rerun / pause / resume / approve-all (logic in _retry.py)
+
+    async def retry_failed(self, project_id: str) -> dict[str, object] | None:
+        return await _retry.retry_failed(self, project_id)
+
+    async def retry_task(
+        self, project_id: str, task_id: str
+    ) -> dict[str, object] | None:
+        return await _retry.retry_task(self, project_id, task_id)
+
+    async def rerun_project(self, project_id: str) -> dict[str, object] | None:
+        return await _retry.rerun_project(self, project_id)
+
+    async def pause_project(self, project_id: str) -> dict[str, object] | None:
+        return await _retry.pause_project(self, project_id)
+
+    async def resume_project(self, project_id: str) -> dict[str, object] | None:
+        return await _retry.resume_project(self, project_id)
+
+    async def approve_all_results(
+        self, project_id: str
+    ) -> dict[str, object] | None:
+        return await _retry.approve_all_results(self, project_id)
+
     async def delete_project(self, project_id: str) -> bool:
+        tasks = await fetch_project_task_models(project_id)
+        if any(t.status not in {s.value for s in _TERMINAL_STATUSES} for t in tasks):
+            raise ValueError(
+                "Batch project still has running tasks; cancel it before deleting"
+            )
         async with get_session() as session:
             model = await session.get(BatchDirectoryProjectModel, project_id)
             if model is None:
@@ -330,40 +319,64 @@ class BatchDirectoryService:
 
     async def maybe_finalize(self, project_id: str) -> None:
         """Check whether all project tasks reached a terminal state; if so,
-        update the project status and emit a completion notification."""
+        update the project status and emit a completion notification.
+
+        Atomic conditional UPDATE makes concurrent dispatcher callbacks
+        idempotent — exactly one caller wins the status transition and sends
+        the notification; losers observe the terminal status and skip.
+        """
         async with get_session() as session:
             model = await session.get(BatchDirectoryProjectModel, project_id)
             if model is None:
                 return
-            if model.status in ("completed", "failed", "cancelled"):
+            if model.status in _PROJECT_TERMINAL_STATUSES:
                 return  # 已终态，避免重复通知
+            notify_enabled = model.notify_enabled
 
         tasks = await fetch_project_task_models(project_id)
         if not tasks:
             return
+        latest = _latest_tasks_per_directory(tasks)
 
-        pending = [t for t in tasks if t.status not in {s.value for s in _TERMINAL_STATUSES}]
+        pending = [
+            t for t in latest if t.status not in {s.value for s in _TERMINAL_STATUSES}
+        ]
         if pending:
             return  # 仍有未终态任务
 
-        total, completed, failed = _aggregate_statuses(tasks)
+        total, completed, failed = _aggregate_statuses(latest)
         final_status = "completed" if failed == 0 else "failed"
-        notify = False
-        async with get_session() as session:
-            model = await session.get(BatchDirectoryProjectModel, project_id)
-            if model is not None:
-                was_terminal = model.status in ("completed", "failed", "cancelled")
-                if not was_terminal:
-                    notify = model.notify_enabled
-                model.status = final_status
-                model.completed_tasks = completed
-                model.failed_tasks = failed
-                model.total_tasks = total
-                model.finished_at = _now()
-                await session.commit()
+        _, missing_artifacts = await _resolve_artifact_results(latest)
 
-        if notify:
-            await _send_completion_notification(project_id, final_status, total, completed, failed)
+        async with get_session() as session:
+            result = await session.execute(
+                sa_update(BatchDirectoryProjectModel)
+                .where(
+                    BatchDirectoryProjectModel.id == project_id,
+                    BatchDirectoryProjectModel.status.notin_(
+                        list(_PROJECT_TERMINAL_STATUSES)
+                    ),
+                )
+                .values(
+                    status=final_status,
+                    completed_tasks=completed,
+                    failed_tasks=failed,
+                    total_tasks=total,
+                    finished_at=_now(),
+                )
+            )
+            await session.commit()
+            finalized = result.rowcount > 0
+
+        if finalized and notify_enabled:
+            await _send_completion_notification(
+                project_id,
+                final_status,
+                total,
+                completed,
+                failed,
+                missing_artifacts,
+            )
 
     # ------------------------------------------------------------------
     # Dispatcher event hook factory

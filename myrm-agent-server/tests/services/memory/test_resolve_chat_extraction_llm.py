@@ -81,7 +81,7 @@ async def test_resolve_chat_extraction_llm_uses_create_agent_llms() -> None:
         ),
         patch(
             "app.ai_agents.general_agent.llm_factory.apply_lite_context_downgrade",
-            new=AsyncMock(return_value=lite_llm),
+            new=AsyncMock(return_value=(lite_llm, lite_cfg)),
         ),
     ):
         llm, extraction_llm = await resolve_chat_extraction_llm("chat-1")
@@ -114,8 +114,11 @@ async def test_apply_lite_context_downgrade_when_lite_too_small() -> None:
             new=AsyncMock(return_value=degraded_llm),
         ) as get_llm_mock,
     ):
-        result = await apply_lite_context_downgrade(main_llm, lite_llm, model_cfg)
+        result_llm, effective_cfg = await apply_lite_context_downgrade(
+            main_llm, lite_llm, model_cfg
+        )
 
     inject_mock.assert_called_once_with(model_cfg)
     get_llm_mock.assert_awaited_once()
-    assert result is degraded_llm
+    assert result_llm is degraded_llm
+    assert effective_cfg is model_cfg

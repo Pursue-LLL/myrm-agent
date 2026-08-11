@@ -89,8 +89,9 @@ class KanbanTaskRunner:
     async def run(self, task: KanbanTask) -> tuple[bool, str]:
         context = await build_task_context(self._store, task.task_id)
         profile = await resolve_agent_profile(task.agent_id)
-        query_input = await build_multimodal_query(task, context)
         workspace_root = await resolve_workspace(self._store, task)
+        context = self._augment_context(task, context, workspace_root)
+        query_input = await build_multimodal_query(task, context)
 
         is_background_task = is_persistent_background(task.metadata)
         default_timeout = (
@@ -140,6 +141,30 @@ class KanbanTaskRunner:
             self._unregister_background_tokens(task)
             if goal_provider:
                 GoalRegistry.unregister(f"kanban:{task.task_id}")
+
+    @staticmethod
+    def _augment_context(
+        task: KanbanTask,
+        context: str,
+        workspace_root: str | None,
+    ) -> str:
+        """Append execution-environment hints to the worker context.
+
+        Every kanban agent learns its workspace root; business layers can
+        additionally inject task-specific instructions through the
+        ``context_annotations`` metadata key (a list of strings).
+        """
+        additions: list[str] = []
+        if workspace_root:
+            additions.append(f"Workspace root: {workspace_root}")
+        annotations = (
+            task.metadata.get("context_annotations") if task.metadata else None
+        )
+        if isinstance(annotations, list):
+            additions.extend(str(item) for item in annotations if item)
+        if not additions:
+            return context
+        return f"{context}\n\n## Execution environment\n" + "\n".join(additions)
 
     def _register_background_tokens(self, task: KanbanTask) -> None:
         if not is_persistent_background(task.metadata):

@@ -30,6 +30,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Final
 
@@ -48,6 +49,9 @@ HEALTH_PATHS: Final[tuple[str, ...]] = ("/api/v1/health", "/health")
 HEALTH_PROBE_TIMEOUT_SEC: Final[float] = 2.0
 PORT_SCAN_PROBE_TIMEOUT_SEC: Final[float] = 0.5
 DEFAULT_CONTEXT_PROBE_WALL_SEC: Final[float] = 15.0
+# The supervisor watchdog publishes a live probe every 30s. Allow one
+# watchdog interval plus scheduling jitter, but never trust an older snapshot.
+SUPERVISOR_STATE_MAX_AGE_SEC: Final[float] = 45.0
 _CONTEXT_PROBE_STARTED_MONO: float | None = None
 AGENT_NEVER_SAY: Final[str] = (
     "停其他pytest|只跑一个E2E|kill其他pytest|先清wave|先清wave/tab|"
@@ -155,7 +159,7 @@ def _shared_epoch_match(ctx: E2eApiContext) -> bool:
 
 
 def monorepo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
+    return Path(__file__).resolve().parents[5]
 
 
 def shared_api_base() -> str:
@@ -195,13 +199,33 @@ def workspace_backend_fingerprint() -> str:
 
 
 def _scripts_dev_dir() -> Path:
-    return monorepo_root() / "scripts" / "dev"
+    root = monorepo_root()
+    # The dev gate lives in the myrm-agent product repository.  Keep a
+    # root-level fallback for older checkouts, but select the directory that
+    # actually owns the wave_orchestrator package so lazy imports cannot split
+    # state or fail only in context-json diagnostics.
+    candidates = (
+        root / "myrm-agent" / "scripts" / "dev",
+        root / "scripts" / "dev",
+    )
+    return next(
+        (candidate for candidate in candidates if (candidate / "wave_orchestrator").is_dir()),
+        candidates[0],
+    )
 
 
 def _ensure_scripts_dev_importable() -> None:
-    dev_dir = str(_scripts_dev_dir())
-    if dev_dir not in sys.path:
-        sys.path.insert(0, dev_dir)
+    # The dev domain is split across two locations: e2e_core and dev_gate live
+    # under myrm-agent/scripts/dev, while isolated_runtime remains a root-level
+    # domain package. Inject both so lazy imports resolve regardless of which
+    # package owns wave_orchestrator.
+    root = monorepo_root()
+    for dev_dir in (
+        str(root / "myrm-agent" / "scripts" / "dev"),
+        str(root / "scripts" / "dev"),
+    ):
+        if dev_dir not in sys.path:
+            sys.path.insert(0, dev_dir)
 
 
 def _read_stored_epoch(state_dir: Path) -> tuple[int | None, str]:
@@ -321,6 +345,42 @@ def _api_health_ok(
         )
         is True
     )
+
+
+def _supervisor_state_health(state_dir: Path) -> bool | None:
+    """Use a fresh supervisor live-probe snapshot when loopback is sandboxed.
+
+    ``stack_supervisor`` writes this file from pid + port + HTTP probes. The
+    E2E context command can run where Python and curl are denied loopback
+    access, so a fresh live snapshot must not be misclassified as UNKNOWN.
+    Stale or malformed snapshots remain UNKNOWN; this is not a warmth bypass.
+    """
+    if state_dir == Path() or not state_dir.is_absolute():
+        return None
+    path = state_dir / "supervisor-state.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    updated_at = payload.get("updated_at")
+    if not isinstance(updated_at, str):
+        return None
+    try:
+        observed_at = datetime.fromisoformat(updated_at)
+    except ValueError:
+        return None
+    if observed_at.tzinfo is None:
+        observed_at = observed_at.replace(tzinfo=timezone.utc)
+    age_sec = time.time() - observed_at.timestamp()
+    if age_sec < -5.0 or age_sec > SUPERVISOR_STATE_MAX_AGE_SEC:
+        return None
+    backend_process = payload.get("backend_process")
+    api_http_ok = payload.get("api_http_ok")
+    if not isinstance(backend_process, str) or not isinstance(api_http_ok, bool):
+        return None
+    return backend_process == "alive" and api_http_ok
 
 
 def _curl_loopback_get(url: str, *, timeout_sec: float) -> str | None:
@@ -475,10 +535,10 @@ def _should_skip_port_scan_under_parallel_block(
     """Port scan cannot mint workspace epoch under active leases — avoid 41× probe burn."""
     from e2e_lease_liveness import (
         load_wave_snapshot,
-        wave_lease_counts,
+        shared_effective_lease_count,
     )
 
-    if wave_lease_counts(load_wave_snapshot()).effective_total <= 0:
+    if shared_effective_lease_count(load_wave_snapshot()) <= 0:
         return False
     if any(item.epoch_match and item.health_ok for item in candidates):
         return False
@@ -497,6 +557,12 @@ def _build_candidates_from_specs(
     for api_base, port, state_dir_raw, source in specs:
         state_dir = Path(state_dir_raw) if state_dir_raw else Path()
         health_result = _api_health_probe(api_base)
+        supervisor_health = _supervisor_state_health(state_dir)
+        if supervisor_health is not None:
+            # A probe can race a supervisor restart or be denied by the
+            # sandbox. Prefer the fresher supervisor live-probe result; stale
+            # snapshots remain unavailable and cannot affect the decision.
+            health_result = supervisor_health
         health_ok = health_result is True
         epoch, stored_fp = _resolve_candidate_fingerprint(
             api_base=api_base,
@@ -579,7 +645,11 @@ def _blocked_reason(
     workspace_fp: str,
 ) -> str:
     healthy = [item for item in candidates if item.health_ok]
-    if candidates and any(not item.health_observable for item in candidates):
+    shared_candidates = [item for item in candidates if item.source == "shared"]
+    observation_candidates = shared_candidates or candidates
+    if observation_candidates and any(
+        not item.health_observable for item in observation_candidates
+    ):
         return "backend health observability unavailable; preserve runtime and peers"
     if not workspace_fp:
         return "workspace backend source_fingerprint unavailable"
@@ -648,7 +718,11 @@ def _build_context_from_resolution(
             break
     healthy = [item for item in candidates if item.health_ok]
     stale = [item for item in healthy if not item.epoch_match]
-    unobservable = [item for item in candidates if not item.health_observable]
+    shared_candidates = [item for item in candidates if item.source == "shared"]
+    observation_candidates = shared_candidates or candidates
+    unobservable = [
+        item for item in observation_candidates if not item.health_observable
+    ]
     if unobservable:
         action = (
             "Preserve the runtime and peers; rerun through the normal ./myrm test "
@@ -714,12 +788,11 @@ def _resolve_e2e_api_context_impl(
     workspace_fp = workspace_backend_fingerprint()
     from e2e_lease_liveness import (
         load_wave_snapshot,
-        wave_lease_counts,
+        shared_effective_lease_count,
     )
 
     wave_snapshot = load_wave_snapshot()
-    lease_counts = wave_lease_counts(wave_snapshot)
-    active_leases = lease_counts.effective_total
+    active_leases = shared_effective_lease_count(wave_snapshot)
 
     # P0-A: drift apply removed from observation path — Coordinator daemon owns mutation.
     # Here we only read drift state for context reporting.
@@ -836,6 +909,17 @@ def _compute_next_action(
 
     admit_wall_cap = float(admit_wall_clock_sec())
     admit_active = 0
+    shared_candidates = [
+        candidate for candidate in ctx.candidates if candidate.source == "shared"
+    ]
+    shared_match = _shared_epoch_match(ctx)
+    if any(not candidate.health_observable for candidate in shared_candidates):
+        return "OBSERVABILITY_UNKNOWN"
+    shared_healthy = any(candidate.health_ok for candidate in shared_candidates)
+    if shared_candidates and not shared_healthy:
+        # Crash heal must win over hung-peer FAIL_FAST: peers stuck in bootstrap
+        # while :8080 is down cannot block the single-flight backend-only recovery.
+        return "ATTACH_CRASH_HEAL"
     for row in active_tests:
         wall_phase = str(row.get("wall_phase") or "").strip().lower()
         admit_elapsed = row.get("admit_elapsed_sec")
@@ -900,17 +984,6 @@ def _compute_next_action(
 
             if not cluster_fail_fast_suppressed_for_active_test(row):
                 return "FAIL_FAST"
-    shared_candidates = [
-        candidate for candidate in ctx.candidates if candidate.source == "shared"
-    ]
-    shared_match = _shared_epoch_match(ctx)
-    if any(not candidate.health_observable for candidate in shared_candidates):
-        return "OBSERVABILITY_UNKNOWN"
-    shared_healthy = any(candidate.health_ok for candidate in shared_candidates)
-    if shared_candidates and not shared_healthy:
-        # A dead shared backend is a crash-heal problem, not epoch verification.
-        # ready --attach --chrome performs a flocked backend-only heal before readiness.
-        return "ATTACH_CRASH_HEAL"
     if (
         not shared_match
         and shared_healthy

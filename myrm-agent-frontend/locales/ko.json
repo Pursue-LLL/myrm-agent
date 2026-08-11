@@ -7817,6 +7817,8 @@
       "labelName": "이름:",
       "labelSteps": "단계:",
       "credentialDetected": "{count}개의 자격 증명 필드 감지됨",
+      "credentialGuide": "이 자격 증명은 이 스킬이 실행될 때 자동으로 입력됩니다. 아직 생성하지 않았다면 설정 → 통합 → 자격 증명에서 생성하세요.",
+      "goToCredentials": "자격 증명 관리",
       "actionClick": "클릭",
       "actionDblclick": "더블 클릭",
       "actionType": "입력",

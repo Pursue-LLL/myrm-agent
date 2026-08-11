@@ -392,7 +392,9 @@ class TestWebPushDispatcher:
         dispatcher = WebPushDispatcher(bus)
         await dispatcher.start()
 
-        with patch.object(bus, "unsubscribe", side_effect=ValueError("already removed")):
+        with patch.object(
+            bus, "unsubscribe", side_effect=ValueError("already removed")
+        ):
             await dispatcher.stop()
 
         assert dispatcher._queue is None

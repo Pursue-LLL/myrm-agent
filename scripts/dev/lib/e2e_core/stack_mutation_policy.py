@@ -113,12 +113,12 @@ def maybe_detect_and_record_source_drift(
     # burning CPU under parallel load (detection is re-armed once pending clears).
     from e2e_lease_liveness import (
         load_wave_snapshot,
-        wave_lease_counts,
-    )  # noqa: PLC0415
+        shared_effective_lease_count,
+    )
 
-    if wave_lease_counts(load_wave_snapshot()).effective_total > 0:
+    if shared_effective_lease_count(load_wave_snapshot()) > 0:
         return False
-    from runtime_identity import _backend_source_fingerprint  # noqa: PLC0415
+    from runtime_identity import _backend_source_fingerprint
 
     epoch_file = resolved_state / "stack-epoch.json"
     stored_fp = ""
@@ -196,7 +196,10 @@ def should_defer_supervisor_backend_heal(
     if active_leases > 0:
         return True
     try:
-        from e2e_session_runtime.registry import body_active_count, list_live_e2e_sessions
+        from e2e_session_runtime.registry import (
+            body_active_count,
+            list_live_e2e_sessions,
+        )
 
         if body_active_count(list_live_e2e_sessions()) > 0:
             return True
@@ -367,7 +370,7 @@ def apply_pending_drift_for_maintenance(
     resolved_state = state_dir or _default_state_dir()
     resolved_server = server_dir or (root / "myrm-agent" / "myrm-agent-server")
     dev_stack = root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
-    active_leases = wave_active_lease_count(root)
+    active_leases = wave_shared_active_lease_count(root)
     if decide_drift_heal(
         active_leases=active_leases,
         drift_pending=pending_drift_exists(resolved_state),
@@ -505,7 +508,7 @@ def backend_heal_file_lock(lock_file: Path, wait_sec: float) -> Iterator[None]:
 
 
 def attach_backend_crash_heal_inner(*, monorepo_root: Path, dev_stack: Path) -> int:
-    active_leases = wave_active_lease_count(monorepo_root)
+    active_leases = wave_shared_active_lease_count(monorepo_root)
     if shared_api_http_ok():
         return 0
     print(
@@ -607,6 +610,34 @@ def wave_active_lease_count(monorepo_root: Path) -> int:
     return 0
 
 
+def wave_shared_active_lease_count(monorepo_root: Path) -> int:
+    """Count only leases that pin or mutate the shared backend stack."""
+    wave_bin = monorepo_root / "scripts" / "dev" / "wave.sh"
+    if not wave_bin.is_file():
+        return 0
+    try:
+        result = subprocess.run(
+            ["bash", str(wave_bin), "status"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return 0
+    if result.returncode != 0:
+        return 0
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError:
+        return 0
+    if not isinstance(payload, dict):
+        return 0
+    from e2e_lease_liveness import shared_effective_lease_count
+
+    return shared_effective_lease_count(payload)
+
+
 def _default_state_dir() -> Path:
     home = _real_user_home()
     return Path(
@@ -690,7 +721,7 @@ def _cmd_pending_exists(args: argparse.Namespace) -> int:
 
 
 def _cmd_session_safe_timeout(args: argparse.Namespace) -> int:
-    from dev_gate_contract import chrome_e2e_pytest_safe_timeout_sec  # noqa: PLC0415
+    from dev_gate_contract import chrome_e2e_pytest_safe_timeout_sec
 
     timeout_sec = chrome_e2e_pytest_safe_timeout_sec(
         str(args.lane),
@@ -712,7 +743,7 @@ def _cmd_attach_crash_heal(args: argparse.Namespace) -> int:
 
 
 def _cmd_attach_health_preflight(args: argparse.Namespace) -> int:
-    from stack_heal_coordinator import run_attach_health_preflight  # noqa: PLC0415
+    from stack_heal_coordinator import run_attach_health_preflight
 
     return run_attach_health_preflight(
         monorepo_root=Path(args.monorepo_root),

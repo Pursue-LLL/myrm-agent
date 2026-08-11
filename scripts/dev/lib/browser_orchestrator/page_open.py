@@ -5,7 +5,7 @@ Transport queue routes through browser orchestrator operation credits (P0-B).
 
 from __future__ import annotations
 
-from browser_orchestrator import wait_for_operation_credit
+from browser_orchestrator.core import wait_for_operation_credit
 from e2e_mux_transport_queue import (
     MUX_TRANSPORT_QUEUE_OK_TOKEN,
     MUX_TRANSPORT_QUEUE_TIMEOUT_TOKEN,

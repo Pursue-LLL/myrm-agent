@@ -12,7 +12,7 @@ vi.mock('../handlerDeps', () => {
   };
 });
 
-import { applyStatusProgressStep } from '../statusStreamProgressSteps';
+import { applyStatusProgressStep, isStatusProgressStep } from '../statusStreamProgressSteps';
 import type { ProgressItem } from '@/store/chat/types';
 import type { StreamCtx } from '../../streamContext';
 
@@ -94,5 +94,92 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
 
     const step = state.messages[0].progressSteps![0];
     expect(step.step_key).toBe('model_failover');
+  });
+
+  it('recognizes unconfigured failover progress steps', () => {
+    expect(isStatusProgressStep('model_failover_unconfigured')).toBe(true);
+    expect(isStatusProgressStep('safety_fallback_unconfigured')).toBe(true);
+  });
+
+  it('routes unconfigured failover toast CTA to default model settings', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('window', { location: { assign } });
+
+    const showI18nToast = vi.fn((_key, _params, opts?: { action?: { onClick?: () => void } }) => {
+      opts?.action?.onClick?.();
+    });
+    vi.doMock('@/services/i18nToastService', () => ({ showI18nToast }));
+
+    vi.resetModules();
+    const { applyStatusProgressStep: applyUnconfigured } = await import('../statusStreamProgressSteps');
+
+    const state = makeMessagesState();
+    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+      updater(state);
+    });
+
+    const ctx: StreamCtx = {
+      data: {
+        type: 'status',
+        step_key: 'model_failover_unconfigured',
+        messageId: 'msg-1',
+        status: 'warning',
+      } as never,
+      input: '',
+      sources: undefined,
+      added: true,
+      recievedMessage: '',
+      state: {} as never,
+      actions: { setLoading: vi.fn(), setMessages: setMessages as never } as never,
+      files: [],
+    };
+
+    await applyUnconfigured(ctx, 'model_failover_unconfigured');
+    expect(assign).toHaveBeenCalledWith('/settings/defaultModel');
+
+    vi.unstubAllGlobals();
+    vi.doUnmock('@/services/i18nToastService');
+    vi.resetModules();
+  });
+
+  it('routes safety unconfigured toast CTA to agent loadout settings', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('window', { location: { assign } });
+
+    const showI18nToast = vi.fn((_key, _params, opts?: { action?: { onClick?: () => void } }) => {
+      opts?.action?.onClick?.();
+    });
+    vi.doMock('@/services/i18nToastService', () => ({ showI18nToast }));
+
+    vi.resetModules();
+    const { applyStatusProgressStep: applySafety } = await import('../statusStreamProgressSteps');
+
+    const state = makeMessagesState();
+    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+      updater(state);
+    });
+
+    const ctx: StreamCtx = {
+      data: {
+        type: 'status',
+        step_key: 'safety_fallback_unconfigured',
+        messageId: 'msg-1',
+        status: 'warning',
+      } as never,
+      input: '',
+      sources: undefined,
+      added: true,
+      recievedMessage: '',
+      state: {} as never,
+      actions: { setLoading: vi.fn(), setMessages: setMessages as never } as never,
+      files: [],
+    };
+
+    await applySafety(ctx, 'safety_fallback_unconfigured');
+    expect(assign).toHaveBeenCalledWith('/settings/agents#loadout');
+
+    vi.unstubAllGlobals();
+    vi.doUnmock('@/services/i18nToastService');
+    vi.resetModules();
   });
 });

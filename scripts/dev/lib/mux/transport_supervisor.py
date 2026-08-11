@@ -95,7 +95,7 @@ def _cold_shim_defer_peer_load() -> int:
         from stack_mutation_policy import wave_active_lease_count
 
         policy_wave_leases = max(
-            0, wave_active_lease_count(Path(__file__).resolve().parents[4])
+            0, wave_active_lease_count(Path(__file__).resolve().parents[5])
         )
     except ImportError:
         pass
@@ -112,6 +112,9 @@ def should_defer_cold_shim_restart() -> bool:
 
 
 def _mux_recovery_lock_path() -> Path:
+    override = os.environ.get("MYRM_DEV_GATE_LOCK", "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
     try:
         import pwd
 
@@ -299,7 +302,7 @@ def parallel_mux_peer_count() -> int:
         from stack_mutation_policy import wave_active_lease_count
 
         policy_wave_leases = max(
-            0, wave_active_lease_count(Path(__file__).resolve().parents[4])
+            0, wave_active_lease_count(Path(__file__).resolve().parents[5])
         )
     except ImportError:
         pass

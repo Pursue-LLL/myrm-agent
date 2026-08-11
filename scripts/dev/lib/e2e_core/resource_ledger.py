@@ -16,7 +16,7 @@ ResourceKind = Literal[
 
 
 def _wave_script() -> Path:
-    return Path(__file__).resolve().parents[1] / "wave.sh"
+    return Path(__file__).resolve().parents[2] / "wave.sh"
 
 
 def _ledger_agent_id() -> str:

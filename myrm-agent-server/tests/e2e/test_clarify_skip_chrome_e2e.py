@@ -53,7 +53,7 @@ def _clarify_skip_api_wait_sec() -> float:
 
 
 # WebUI path: avoid CRITICAL/MUST phrasing for dev chrome_e2e (MiniMax-M3 injection risk).
-# M3 signoff (E2E_SIGNOFF=1) uses E2E_PROMPT_SIGNOFF with CRITICAL prefix for fail-fast tool call.
+# E2E_SIGNOFF=1 uses E2E_PROMPT_SIGNOFF with CRITICAL prefix for fail-fast tool call.
 E2E_PROMPT = (
     "Before doing anything else, use ask_question_tool exactly once to ask which stack I prefer "
     "for a small demo project. "
@@ -63,7 +63,7 @@ E2E_PROMPT = (
     "If I skip without answering, reply with exactly: DONE-SKIPPED"
 )
 
-# M3 signoff: align with API E2E prompt that reliably triggers ask_question_tool first.
+# E2E_SIGNOFF=1: align with API E2E prompt that reliably triggers ask_question_tool first.
 E2E_PROMPT_SIGNOFF = (
     "CRITICAL: Your very first action MUST be a single ask_question_tool call — no text reply before it. "
     "You MUST call ask_question_tool exactly once before any other action. "

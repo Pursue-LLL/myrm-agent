@@ -179,9 +179,9 @@ def _click_pending_kpi_and_verify_kanban_deep_link(
     )
     assert clicked.get("clicked") is True, f"pending KPI link not clickable: {clicked}"
     href = str(clicked.get("href") or "")
-    assert href.endswith("/settings/kanban?status=in_review"), (
-        f"pending KPI must deep link to kanban in_review filter: {href}"
-    )
+    assert href.endswith(
+        "/settings/kanban?status=in_review"
+    ), f"pending KPI must deep link to kanban in_review filter: {href}"
 
     # Client-side nav: the board view mounts and KanbanSection auto-selects a
     # board holding the status. The in-review column must show our seeded card.
@@ -209,9 +209,9 @@ def _click_pending_kpi_and_verify_kanban_deep_link(
         timeout_sec=90.0,
         page_url="/settings/kanban",
     )
-    assert landed.get("ready") is True, (
-        f"kanban deep link did not land on the in-review task: {landed}"
-    )
+    assert (
+        landed.get("ready") is True
+    ), f"kanban deep link did not land on the in-review task: {landed}"
 
     # Return to /agents for the rest of the lifecycle like a real user.
     agents_url = f"{ui_url}/agents"

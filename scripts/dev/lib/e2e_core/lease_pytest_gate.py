@@ -23,7 +23,7 @@ def _server_root() -> Path:
     override = os.environ.get("MYRM_AGENT_SERVER_ROOT", "").strip()
     if override:
         return Path(override).resolve()
-    return Path(__file__).resolve().parents[2] / "myrm-agent-server"
+    return Path(__file__).resolve().parents[4] / "myrm-agent-server"
 
 
 def main() -> int:

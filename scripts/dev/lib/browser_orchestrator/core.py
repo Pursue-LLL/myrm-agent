@@ -22,6 +22,7 @@ from __future__ import annotations
 import enum
 import logging
 import os
+import sys
 import time
 from contextlib import contextmanager
 from typing import Generator
@@ -121,6 +122,15 @@ def _effective_operation_credit_cap() -> int:
     if override:
         return max(1, min(MAX_OPERATION_CREDITS, int(override)))
     return MAX_OPERATION_CREDITS
+
+
+def _facade_override(name: str, fallback: object) -> object:
+    """Read test/compatibility overrides from the public package facade."""
+    facade = sys.modules.get("browser_orchestrator")
+    if facade is None:
+        return fallback
+    override = getattr(facade, name, fallback)
+    return override if override is not fallback else fallback
 
 
 def _browser_orchestrator_daemon_required() -> bool:
@@ -244,11 +254,15 @@ def browser_orchestrator_snapshot() -> dict[str, object]:
     - DEGRADED: in-flight >= effective cap, or recovery budget exhausted
     - RECOVERING: recovery in progress (detected via mux generation change)
     """
-    daemon_snap = _try_daemon_snapshot()
+    daemon_probe = _facade_override("_try_daemon_snapshot", _try_daemon_snapshot)
+    daemon_snap = daemon_probe() if callable(daemon_probe) else None
     if daemon_snap is not None:
         return daemon_snap
     if _browser_orchestrator_daemon_required():
-        effective_cap = _effective_operation_credit_cap()
+        cap_probe = _facade_override(
+            "_effective_operation_credit_cap", _effective_operation_credit_cap
+        )
+        effective_cap = cap_probe() if callable(cap_probe) else MAX_OPERATION_CREDITS
         return {
             "health": BrowserPlaneHealth.UNKNOWN.value,
             "mux_snapshot_available": False,
@@ -261,14 +275,20 @@ def browser_orchestrator_snapshot() -> dict[str, object]:
             "governor_bound": True,
         }
 
-    alive, active, queued = _mux_probe()
+    mux_probe = _facade_override("_mux_scheduler_probe", _mux_scheduler_probe)
+    alive, active, queued = (
+        mux_probe() if callable(mux_probe) else (False, 0, 0)
+    )
 
     from mux_upstream_admission import list_active_upstream_operations  # noqa: PLC0415
 
     try:
         ops = list_active_upstream_operations()
     except OSError:
-        effective_cap = _effective_operation_credit_cap()
+        cap_probe = _facade_override(
+            "_effective_operation_credit_cap", _effective_operation_credit_cap
+        )
+        effective_cap = cap_probe() if callable(cap_probe) else MAX_OPERATION_CREDITS
         return {
             "health": BrowserPlaneHealth.UNKNOWN.value,
             "mux_snapshot_available": False,
@@ -281,7 +301,10 @@ def browser_orchestrator_snapshot() -> dict[str, object]:
             "governor_bound": False,
         }
     in_flight = min(len(ops), MAX_OPERATION_CREDITS)
-    effective_cap = _effective_operation_credit_cap()
+    cap_probe = _facade_override(
+        "_effective_operation_credit_cap", _effective_operation_credit_cap
+    )
+    effective_cap = cap_probe() if callable(cap_probe) else MAX_OPERATION_CREDITS
 
     if not alive:
         return {

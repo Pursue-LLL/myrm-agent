@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
@@ -73,6 +73,7 @@ interface CreateFormState {
   board_id: string;
   concurrency: string;
   notify_enabled: boolean;
+  require_approval: boolean;
   artifact_patterns: string;
 }
 
@@ -82,6 +83,7 @@ const EMPTY_FORM: CreateFormState = {
   board_id: '',
   concurrency: '3',
   notify_enabled: true,
+  require_approval: false,
   artifact_patterns: '',
 };
 
@@ -94,9 +96,7 @@ function formatDateTime(iso: string | null | undefined): string {
 
 export default function BatchDirectoriesPage() {
   const t = useTranslations('batchDirectory');
-  const locale = useLocale();
   const router = useRouter();
-  const isChinese = locale.startsWith('zh');
 
   const [projects, setProjects] = useState<BatchProject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,6 +224,7 @@ export default function BatchDirectoriesPage() {
       board_id: form.board_id || null,
       concurrency: Number(form.concurrency) || 3,
       notify_enabled: form.notify_enabled,
+      require_approval: form.require_approval,
       artifact_patterns: form.artifact_patterns
         .split(',')
         .map((s) => s.trim())
@@ -424,9 +425,7 @@ export default function BatchDirectoriesPage() {
                 </div>
                 {selectedDirs.length > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    {isChinese
-                      ? `已选择 ${selectedDirs.length} 个目录`
-                      : `${selectedDirs.length} director${selectedDirs.length > 1 ? 'ies' : 'y'} selected`}
+                    {t('dirsSelectedCount', { count: selectedDirs.length })}
                   </p>
                 )}
               </div>
@@ -477,6 +476,14 @@ export default function BatchDirectoriesPage() {
                   onCheckedChange={(v) => setForm((f) => ({ ...f, notify_enabled: v }))}
                 />
                 <Label htmlFor="bd-notify">{t('notifyLabel')}</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="bd-approval"
+                  checked={form.require_approval}
+                  onCheckedChange={(v) => setForm((f) => ({ ...f, require_approval: v }))}
+                />
+                <Label htmlFor="bd-approval">{t('approvalLabel')}</Label>
               </div>
             </div>
 
@@ -537,7 +544,7 @@ export default function BatchDirectoriesPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {isChinese ? `${p.directories.length} 个目录` : `${p.directories.length} dirs`}
+                      {t('dirsCount', { count: p.directories.length })}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{formatDateTime(p.created_at)}</TableCell>
                     <TableCell className="text-right">

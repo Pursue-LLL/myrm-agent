@@ -663,12 +663,6 @@ def _require_live_e2e_lease(
     if not _is_formal_chrome_e2e(request):
         yield
         return
-    if (
-        os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1"
-        and os.environ.get("MYRM_E2E_API_ONLY", "").strip() == "1"
-    ):
-        yield
-        return
     from tests.support.e2e_runtime_guard import (
         _heal_stale_e2e_lease,
         assert_chrome_attach_health,
@@ -702,8 +696,7 @@ def _require_live_e2e_lease(
             skip_attach_reprobe = chrome_e2e_skips_attach_health_reprobe(
                 chrome_attach=os.environ.get("MYRM_CHROME_E2E_ATTACH", "").strip()
                 == "1",
-                api_only=os.environ.get("MYRM_E2E_API_ONLY", "").strip() == "1"
-                or os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1",
+                api_only=os.environ.get("MYRM_E2E_API_ONLY", "").strip() == "1",
             )
             if _chrome_e2e_item_runtime is None and not skip_attach_reprobe:
                 assert_chrome_attach_health()

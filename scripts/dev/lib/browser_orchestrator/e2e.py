@@ -479,7 +479,7 @@ def _resolve_session_id() -> str:
 
 
 def _monorepo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
+    return Path(__file__).resolve().parents[5]
 
 
 def _orchestrator_daemon_unreachable(message: str) -> bool:

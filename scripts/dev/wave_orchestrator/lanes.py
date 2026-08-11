@@ -26,6 +26,7 @@ from dev_gate_contract import (
     LIVE_SHARED_HOT_MAX_CONCURRENT,
     LIVE_SHPOIB_MAX_CONCURRENT,
 )
+
 from wave_orchestrator.types import Lane, LeaseRecord
 
 ALL_LANES: frozenset[Lane] = frozenset(
@@ -34,6 +35,12 @@ ALL_LANES: frozenset[Lane] = frozenset(
 
 LIVE_E2E_SHPOIB_NAMESPACE = "e2e:shpoib"
 LIVE_E2E_SHARED_HOT_NAMESPACE = "e2e:shared_hot"
+PRIVATE_BACKEND_NAMESPACE_PREFIX = "e2e:private:"
+
+
+def is_private_backend_namespace(namespace: str) -> bool:
+    """Return whether a lease belongs to an isolated PRIVATE backend."""
+    return namespace.strip().startswith(PRIVATE_BACKEND_NAMESPACE_PREFIX)
 
 
 def live_agent_max_concurrent() -> int:
@@ -80,16 +87,37 @@ def lane_conflict_reason(
         return "LEASE_DENIED: STACK_WRITE lease holds the stack"
 
     if lane == "READ":
-        global_holders = [item for item in active if item["lane"] == "GLOBAL_WRITE"]
+        global_holders = [
+            item
+            for item in active
+            if item["lane"] == "GLOBAL_WRITE"
+            and not is_private_backend_namespace(str(item.get("namespace", "")))
+        ]
         if global_holders:
             return "LEASE_DENIED: GLOBAL_WRITE lease active"
         return None
 
     if lane == "GLOBAL_WRITE":
+        if is_private_backend_namespace(ns):
+            # PRIVATE GLOBAL_WRITE is isolated by backend identity. Its wave
+            # lease is retained for lifecycle/ledger integrity, but it must
+            # not block shared sessions or other private backends. Only an
+            # accidental same-namespace lease is a conflict.
+            for item in active:
+                if str(item.get("namespace", "")).strip() == ns:
+                    return (
+                        "LEASE_DENIED: PRIVATE GLOBAL_WRITE namespace "
+                        f"{ns} already held by {item['agentId']}"
+                    )
+            return None
         blockers = [
             item
             for item in active
             if item["lane"] in {"GLOBAL_WRITE", "LIVE_AGENT", "RESOURCE_WRITE", "READ"}
+            and not (
+                item["lane"] == "GLOBAL_WRITE"
+                and is_private_backend_namespace(str(item.get("namespace", "")))
+            )
         ]
         if blockers:
             owners = ", ".join(f"{item['agentId']}/{item['lane']}" for item in blockers)
@@ -97,7 +125,12 @@ def lane_conflict_reason(
         return None
 
     if lane == "LIVE_AGENT":
-        global_holders = [item for item in active if item["lane"] == "GLOBAL_WRITE"]
+        global_holders = [
+            item
+            for item in active
+            if item["lane"] == "GLOBAL_WRITE"
+            and not is_private_backend_namespace(str(item.get("namespace", "")))
+        ]
         if global_holders:
             return "LEASE_DENIED: GLOBAL_WRITE lease active"
         live_leases = [item for item in active if item["lane"] == "LIVE_AGENT"]
@@ -124,7 +157,12 @@ def lane_conflict_reason(
     if lane == "RESOURCE_WRITE":
         if not ns:
             return "LEASE_DENIED: RESOURCE_WRITE requires --namespace"
-        global_holders = [item for item in active if item["lane"] == "GLOBAL_WRITE"]
+        global_holders = [
+            item
+            for item in active
+            if item["lane"] == "GLOBAL_WRITE"
+            and not is_private_backend_namespace(str(item.get("namespace", "")))
+        ]
         if global_holders:
             return "LEASE_DENIED: GLOBAL_WRITE lease active"
         for item in active:

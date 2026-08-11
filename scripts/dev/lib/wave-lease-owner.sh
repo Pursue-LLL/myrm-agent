@@ -16,6 +16,7 @@ _wave_reap_stale_lease_state() {
   local lib_dir
   lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   local dev_dir="${lib_dir}/.."
+  local root_dir="$(cd "${dev_dir}/../.." && pwd)"
   local wave_dir="${dev_dir}/wave_orchestrator"
   if [[ -d "${wave_dir}" ]]; then
     PYTHONPATH="${dev_dir}:${lib_dir}:${PYTHONPATH:-}" \
@@ -23,8 +24,13 @@ _wave_reap_stale_lease_state() {
   else
     bash "${wave}" reap >/dev/null 2>&1 || true
   fi
-  if [[ -f "${dev_dir}/isolated_runtime/cli.py" ]]; then
-    python3 "${dev_dir}/isolated_runtime/cli.py" prune >/dev/null 2>&1 || true
+  # isolated_runtime stays a root-level domain package (scripts/dev/isolated_runtime).
+  local isolated_cli="${root_dir}/scripts/dev/isolated_runtime/cli.py"
+  if [[ ! -f "${isolated_cli}" ]]; then
+    isolated_cli="${dev_dir}/isolated_runtime/cli.py"
+  fi
+  if [[ -f "${isolated_cli}" ]]; then
+    python3 "${isolated_cli}" prune >/dev/null 2>&1 || true
   fi
 }
 

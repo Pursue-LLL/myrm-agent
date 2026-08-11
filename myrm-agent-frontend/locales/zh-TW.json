@@ -7794,6 +7794,8 @@
       "labelName": "名稱：",
       "labelSteps": "步驟：",
       "credentialDetected": "檢測到 {count} 個憑據欄位",
+      "credentialGuide": "執行此技能時會自動填入這些憑據。如尚未建立，請前往「設定 → 整合 → 憑據」建立。",
+      "goToCredentials": "前往憑據設定",
       "actionClick": "點選",
       "actionDblclick": "雙擊",
       "actionType": "輸入",

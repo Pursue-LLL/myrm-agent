@@ -116,6 +116,7 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
         description=req.description or f"Browser skill from recording {req.session_id}",
         step_count=len(session.steps),
         credential_placeholders=credential_placeholders,
+        skill_content=content,
     )
 
 
@@ -136,7 +137,7 @@ def _get_active_page() -> object | None:
     """Retrieve the Playwright Page from the active Agent's BrowserSession."""
     from app.services.agent.gateway import get_agent_gateway
 
-    session = get_agent_gateway().get_active_browser_session()
+    session = get_agent_gateway().get_first_active_browser_session()
     if session is None:
         return None
     tab_ctrl = getattr(session, "_tab_controller", None)

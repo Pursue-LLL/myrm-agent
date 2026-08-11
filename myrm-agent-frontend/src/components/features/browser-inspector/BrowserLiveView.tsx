@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Globe } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
+import useChatStore from '@/store/useChatStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import InspectorToolbar from './InspectorToolbar';
 import ElementOverlay from './ElementOverlay';
@@ -35,6 +36,16 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
     setInstructionText,
     fetchSnapshot,
   } = useBrowserInspectorStore();
+  const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
+  const scopedViewData =
+    viewData && viewData.sourceChatId === chatId ? viewData : null;
+
+  useEffect(() => {
+    if (!isOpen || !viewData?.sourceChatId || !chatId) return;
+    if (viewData.sourceChatId !== chatId) {
+      closePanel();
+    }
+  }, [chatId, viewData?.sourceChatId, isOpen, closePanel]);
 
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
@@ -145,8 +156,8 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
           onModeChange={setMode}
           onClose={closePanel}
           onRefresh={fetchSnapshot}
-          pageUrl={viewData?.pageUrl}
-          pageTitle={viewData?.pageTitle}
+          pageUrl={scopedViewData?.pageUrl}
+          pageTitle={scopedViewData?.pageTitle}
           isLoading={isSnapshotLoading}
         />
 
@@ -154,11 +165,11 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
           ref={imageContainerRef}
           className="flex-1 relative overflow-hidden bg-muted/30 flex items-center justify-center"
         >
-          {viewData ? (
+          {scopedViewData ? (
             <div className="relative" style={{ width: imageSize.width, height: imageSize.height }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`data:${viewData.mimeType};base64,${viewData.screenshotBase64}`}
+                src={`data:${scopedViewData.mimeType};base64,${scopedViewData.screenshotBase64}`}
                 alt={t('screenshotAlt')}
                 className="w-full h-full object-contain"
                 onLoad={handleImageLoad}
@@ -167,11 +178,11 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
 
               {mode === 'inspect' && imageSize.width > 0 && (
                 <ElementOverlay
-                  refs={viewData.refs}
+                  refs={scopedViewData.refs}
                   imageWidth={imageSize.width}
                   imageHeight={imageSize.height}
-                  viewportWidth={viewData.viewportWidth}
-                  viewportHeight={viewData.viewportHeight}
+                  viewportWidth={scopedViewData.viewportWidth}
+                  viewportHeight={scopedViewData.viewportHeight}
                   selectedRefId={selectedElement?.refId ?? null}
                   onElementClick={handleElementClick}
                 />
@@ -196,7 +207,7 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
             onInstructionChange={setInstructionText}
             onSubmit={handleSubmit}
             onClearSelection={clearSelection}
-            disabled={!viewData}
+            disabled={!scopedViewData}
           />
         )}
       </div>

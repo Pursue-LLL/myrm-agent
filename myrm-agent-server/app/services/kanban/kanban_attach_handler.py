@@ -5,6 +5,8 @@
 - app.services.kanban.task_attachment_ids (POS: Kanban task attachment ID persistence.)
 - app.services.kanban.task_runner::resolve_workspace (POS: Resolve effective workspace, creating a per-task worktree when branch isolation is set.)
 - myrm_agent_harness.toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Bidirectional container/local path resolver with intelligent workspace auto-detection.)
+- myrm_agent_harness.core.security.guards.ssrf::async_validate_url_for_ssrf (POS: Blocked URL errors.)
+- myrm_agent_harness.core.security.http.secure_fetch::secure_get / ContentTooLargeError (POS: SSRF-safe HTTP with manual redirect loop and size cap.)
 
 [OUTPUT]
 - create_kanban_attach_handler: Factory returning harness KanbanTaskAttachFn callback.
@@ -24,7 +26,10 @@ from urllib.parse import urlparse
 
 from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.core.security.guards.ssrf import async_validate_url_for_ssrf
-from myrm_agent_harness.core.security.http.secure_fetch import secure_get
+from myrm_agent_harness.core.security.http.secure_fetch import (
+    ContentTooLargeError,
+    secure_get,
+)
 from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import (
     WorkspacePathResolver,
 )
@@ -146,14 +151,14 @@ async def _attach_from_url(task_id: str, url: str) -> File:
     if not ssrf.safe:
         raise ValueError(ssrf.error or "URL blocked by SSRF policy")
 
-    response = await secure_get(url)
+    try:
+        response = await secure_get(url, max_content_length=_MAX_ATTACH_BYTES)
+    except ContentTooLargeError as exc:
+        raise ValueError(f"Download exceeds {_MAX_ATTACH_BYTES} byte limit") from exc
     if response.status_code >= 400:
         raise ValueError(f"Failed to fetch URL (HTTP {response.status_code})")
 
     content = response.content
-    if len(content) > _MAX_ATTACH_BYTES:
-        raise ValueError(f"Download exceeds {_MAX_ATTACH_BYTES} byte limit")
-
     filename = Path(parsed.path).name or "attachment.bin"
     content_type = response.content_type or mimetypes.guess_type(filename)[0]
     file_obj = await files_service.save_generated_file(

@@ -44,11 +44,13 @@ Chrome MCP UI E2E 的 **Immutable Test Wave** 状态机。冻结 `runtimeId`、�
 |------|------|------|
 | `READ` | UI 只读并行 | 多租约；GLOBAL_WRITE / STACK_WRITE 阻断 |
 | `RESOURCE_WRITE` | namespace 资源写 | 同 namespace 独占；可与私池 LIVE_AGENT 并行；GLOBAL_WRITE / STACK_WRITE 阻断 |
-| `GLOBAL_WRITE` | 全局配置写入 | 全局独占；阻断 READ / LIVE_AGENT / RESOURCE_WRITE |
+| `GLOBAL_WRITE` | 全局配置写入 | 共享栈全局独占；阻断 READ / LIVE_AGENT / RESOURCE_WRITE；PRIVATE 后端使用 `e2e:private:<run>` namespace，仅保留本 lease 生命周期/ledger 约束，不阻断共享栈或其他私池 |
 | `LIVE_AGENT` | API E2E / 真实模型流 | `./myrm test` 默认双路真实并行；环境变量可显式调到 4 |
 | `STACK_WRITE` | reset/restart | 全局独占 |
 
 `./myrm test` 先向 Dev Gate coordinator 注册显式 execution/access/workload，再使用 `wave-e2e-lease.sh acquire`。页面 READ lease 通过 `parentLeaseId` 归属当前 Session；trap 只级联本 Session 子 lease/page。Wave 负责资源写冲突与 stack pin，不负责浏览器 session admission。共享逻辑 session 不限量；mux 固定 4 个物理 worker。PRIVATE 的昂贵后端由 coordinator 按机器容量限制为 1–4 credits，容量满自动排队。
+
+PRIVATE session 的 root wave lease（以及其 page/context 子 lease）带有 `e2e:private:<run>` namespace。它们仍参与 ownership、heartbeat、ledger 和最终 cleanup，但不会阻断共享后端的 epoch/heal/stack-write 决策；只有共享 lease 才能 pin 共享栈。
 
 **Resource Ledger**：`RESOURCE_WRITE` 或 `GLOBAL_WRITE` 租约创建 chat 等业务资源后，须 `./myrm wave ledger register <leaseId> chat <chatId>`；`lease release` / TTL 过期自动 HTTP 清理（`resource_cleanup.py` → `DELETE /api/v1/chats/...`）。
 

@@ -5,12 +5,15 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { ScanSearch } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
+import useChatStore from '@/store/useChatStore';
 
 const BrowserInspectorToggle: React.FC = () => {
   const t = useTranslations('chat.browserInspector');
   const { isBrowserActive, isOpen, togglePanel, viewData } = useBrowserInspectorStore();
+  const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
+  const hasScopedView = Boolean(viewData && viewData.sourceChatId === chatId);
 
-  if (!isBrowserActive || !viewData) return null;
+  if (!isBrowserActive || !hasScopedView) return null;
 
   return (
     <button

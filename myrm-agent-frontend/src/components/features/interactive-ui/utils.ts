@@ -210,6 +210,27 @@ export function getValueByPath(data: Record<string, unknown>, path: string): unk
 }
 
 /**
+ * 解析组件 bindings（A2UI 数据绑定：prop 名 -> 数据路径）。
+ * 将 bindings 中声明的属性从数据模型解析出动态值并覆盖到 props 上（数据驱动优先），
+ * 未绑定的静态 props 原样保留。返回新对象，不修改原 props。
+ */
+export function resolveBindings(
+  props: Record<string, unknown>,
+  bindings: Record<string, string>,
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const bindingKeys = bindings ? Object.keys(bindings) : [];
+  if (bindingKeys.length === 0) {
+    return props;
+  }
+  const resolved = { ...props };
+  for (const propName of bindingKeys) {
+    resolved[propName] = getValueByPath(data, bindings[propName]);
+  }
+  return resolved;
+}
+
+/**
  * 根据路径设置数据对象的值
  * 返回一个新的数据对象（不可变更新）
  */

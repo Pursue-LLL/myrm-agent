@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
@@ -41,6 +41,7 @@ import {
   FolderOpen,
   Loader2,
   RefreshCw,
+  RotateCcw,
   XCircle,
 } from 'lucide-react';
 import { toast } from '@/hooks/shared/useToast';
@@ -50,6 +51,9 @@ import {
   deleteBatchProject,
   getBatchProject,
   isBatchTerminalStatus,
+  rerunBatchProject,
+  retryBatchProject,
+  retryBatchTask,
   type BatchProjectDetail,
 } from '@/services/batch-directory';
 
@@ -62,16 +66,19 @@ function formatDateTime(iso: string | null | undefined): string {
 
 export default function BatchProjectDetailPage({ params }: { params: Promise<{ projectId: string }> }) {
   const t = useTranslations('batchDirectory');
-  const locale = useLocale();
   const router = useRouter();
-  const isChinese = locale.startsWith('zh');
 
   const [projectId, setProjectId] = useState<string | null>(null);
   const [project, setProject] = useState<BatchProjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [rerunning, setRerunning] = useState(false);
+  const [retryingTaskId, setRetryingTaskId] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmRerun, setConfirmRerun] = useState(false);
+  const [confirmRetryTaskId, setConfirmRetryTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -125,6 +132,53 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
     }
   }, [projectId, project?.name, fetchDetail, t]);
 
+  const handleRetry = useCallback(async () => {
+    if (!projectId) return;
+    setRetrying(true);
+    try {
+      const updated = await retryBatchProject(projectId);
+      toast.success(t('retrySuccess', { count: updated.retried_task_ids?.length ?? 0 }));
+      await fetchDetail(projectId);
+    } catch {
+      toast.error(t('retryError'));
+    } finally {
+      setRetrying(false);
+    }
+  }, [projectId, fetchDetail, t]);
+
+  const handleRerun = useCallback(async () => {
+    if (!projectId) return;
+    setRerunning(true);
+    try {
+      const updated = await rerunBatchProject(projectId);
+      toast.success(t('rerunSuccess', { count: updated.rerun_task_ids?.length ?? 0 }));
+      setConfirmRerun(false);
+      await fetchDetail(projectId);
+    } catch {
+      toast.error(t('rerunError'));
+    } finally {
+      setRerunning(false);
+    }
+  }, [projectId, fetchDetail, t]);
+
+  const handleRetryTask = useCallback(
+    async (taskId: string) => {
+      if (!projectId) return;
+      setRetryingTaskId(taskId);
+      try {
+        const updated = await retryBatchTask(projectId, taskId);
+        toast.success(t('retryTaskSuccess', { count: updated.retried_task_ids?.length ?? 0 }));
+        setConfirmRetryTaskId(null);
+        await fetchDetail(projectId);
+      } catch {
+        toast.error(t('retryTaskError'));
+      } finally {
+        setRetryingTaskId(null);
+      }
+    },
+    [projectId, fetchDetail, t],
+  );
+
   const handleDelete = useCallback(async () => {
     if (!projectId) return;
     try {
@@ -162,6 +216,15 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   const done = project.completed_tasks + project.failed_tasks;
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
   const running = project.status === 'running';
+  const terminal = isBatchTerminalStatus(project.status);
+  const hasRetryable =
+    (project.failed_directories?.length ?? 0) > 0 ||
+    (project.missing_artifact_directories?.length ?? 0) > 0;
+
+  const isTaskRetryable = (task: BatchProjectDetail['tasks'][number]) =>
+    task.status === 'failed' ||
+    task.status === 'archived' ||
+    (task.status === 'completed' && task.artifact_status === 'missing');
 
   const statusLabel = (status: string) => {
     switch (status) {
@@ -182,21 +245,43 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
     switch (status) {
       case 'completed':
         return {
+          label: t('taskStatusCompleted'),
           icon: <CheckCircle2 className="size-3.5 text-emerald-500" />,
           className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600',
         };
       case 'failed':
         return {
+          label: t('taskStatusFailed'),
           icon: <XCircle className="size-3.5 text-destructive" />,
           className: 'border-destructive/30 bg-destructive/10 text-destructive',
         };
       case 'running':
         return {
+          label: t('taskStatusRunning'),
           icon: <Loader2 className="size-3.5 animate-spin" />,
           className: 'border-muted bg-muted/50 text-foreground',
         };
+      case 'archived':
+        return {
+          label: t('taskStatusArchived'),
+          icon: <Clock className="size-3.5" />,
+          className: 'border-muted bg-muted/50 text-muted-foreground',
+        };
+      case 'in_review':
+        return {
+          label: t('taskStatusInReview'),
+          icon: <Clock className="size-3.5" />,
+          className: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+        };
+      case 'blocked':
+        return {
+          label: t('taskStatusBlocked'),
+          icon: <Clock className="size-3.5" />,
+          className: 'border-muted bg-muted/50 text-muted-foreground',
+        };
       default:
         return {
+          label: t('taskStatusPending'),
           icon: <Clock className="size-3.5" />,
           className: 'border-muted bg-muted/50 text-muted-foreground',
         };
@@ -205,24 +290,50 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3 min-w-0">
           <Button variant="ghost" size="icon" onClick={() => router.push('/batch-directories')} aria-label={t('backToList')}>
-            <ChevronLeft className="size-5" />
+            <ChevronLeft className="size-5 shrink-0" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
-            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-2xl font-semibold tracking-tight truncate">{project.name}</h1>
+            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
               {statusLabel(project.status)}
               <span className="text-xs">{t('projectIdLabel', { id: project.project_id })}</span>
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => fetchDetail(project.project_id)}>
             <RefreshCw className="size-4 mr-1" />
             {t('refresh')}
           </Button>
+          {hasRetryable && (
+            <Button variant="outline" size="sm" onClick={() => void handleRetry()} disabled={retrying || rerunning}>
+              {retrying ? <Loader2 className="size-4 mr-1 animate-spin" /> : <RotateCcw className="size-4 mr-1" />}
+              {t('retryAction')}
+            </Button>
+          )}
+          {terminal && (
+            <AlertDialog open={confirmRerun} onOpenChange={setConfirmRerun}>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" disabled={rerunning}>
+                  {rerunning ? <Loader2 className="size-4 mr-1 animate-spin" /> : <RefreshCw className="size-4 mr-1" />}
+                  {t('rerunAction')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('confirmRerunTitle', { name: project.name })}</AlertDialogTitle>
+                  <AlertDialogDescription>{t('confirmRerunDescription')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('cancelButton')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => void handleRerun()}>{t('confirmRerunAction')}</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           {running && (
             <AlertDialog open={confirmCancel} onOpenChange={setConfirmCancel}>
               <AlertDialogTrigger asChild>
@@ -373,9 +484,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
         <CardHeader>
           <CardTitle className="text-base">{t('directoriesTitle')}</CardTitle>
           <CardDescription>
-            {isChinese
-              ? `共 ${project.directories.length} 个目标目录`
-              : `${project.directories.length} target director${project.directories.length > 1 ? 'ies' : 'y'}`}
+            {t('dirsCountTitle', { count: project.directories.length })}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -401,6 +510,28 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
         </CardContent>
       </Card>
 
+      {(project.missing_artifact_directories?.length ?? 0) > 0 && (
+        <Card className="mt-6 border-destructive/40 bg-destructive/5">
+          <CardHeader>
+            <CardTitle className="text-base text-destructive">{t('missingArtifactsTitle')}</CardTitle>
+            <CardDescription>{t('missingArtifactsDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {project.missing_artifact_directories?.map((dir) => (
+                <span
+                  key={dir}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-mono text-destructive"
+                >
+                  <XCircle className="size-3" />
+                  <span className="max-w-64 truncate">{dir}</span>
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="mt-6">
         <CardHeader>
           <CardTitle className="text-base">{t('tasksTitle')}</CardTitle>
@@ -413,12 +544,13 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
                 <TableHead>{t('tableStatus')}</TableHead>
                 <TableHead>{t('tableDirectory')}</TableHead>
                 <TableHead>{t('tableResult')}</TableHead>
+                <TableHead className="w-24">{t('tableAction')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {project.tasks.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
                     {t('emptyTasks')}
                   </TableCell>
                 </TableRow>
@@ -426,6 +558,8 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
               {project.tasks.map((task) => {
                 const meta = taskStatusMeta(task.status);
                 const isFailed = task.status === 'failed';
+                const retryable = isTaskRetryable(task);
+                const taskRetrying = retryingTaskId === task.task_id;
                 return (
                   <TableRow key={task.task_id}>
                     <TableCell className="font-medium max-w-56">
@@ -434,7 +568,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
                     <TableCell>
                       <Badge className={meta.className}>
                         {meta.icon}
-                        {task.status}
+                        {meta.label}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground font-mono max-w-56">
@@ -446,11 +580,54 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
                           {task.error || t('taskFailedUnknown')}
                         </span>
                       ) : task.status === 'completed' ? (
-                        <span className="block max-w-72 truncate" title={task.result}>
-                          {task.result || t('taskCompletedNoResult')}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          {task.artifact_status === 'verified' && (
+                            <span className="inline-flex items-center gap-1 text-emerald-600 shrink-0">
+                              <CheckCircle2 className="size-3.5" />
+                              {t('artifactVerified')}
+                            </span>
+                          )}
+                          {task.artifact_status === 'missing' && (
+                            <span className="inline-flex items-center gap-1 text-destructive shrink-0">
+                              <XCircle className="size-3.5" />
+                              {t('artifactMissing')}
+                            </span>
+                          )}
+                          {task.result && (
+                            <span className="block max-w-72 truncate" title={task.result}>
+                              {task.result}
+                            </span>
+                          )}
+                          {!task.result && task.artifact_status !== 'verified' && task.artifact_status !== 'missing' && (
+                            <span>{t('taskCompletedNoResult')}</span>
+                          )}
+                        </div>
                       ) : (
                         <span className="block max-w-72 truncate">{t('taskPending')}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {retryable ? (
+                        <AlertDialog open={confirmRetryTaskId === task.task_id} onOpenChange={(open) => setConfirmRetryTaskId(open ? task.task_id : null)}>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" disabled={taskRetrying || retrying || rerunning}>
+                              {taskRetrying ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+                              <span className="ml-1">{t('retryTaskAction')}</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t('confirmRetryTaskTitle')}</AlertDialogTitle>
+                              <AlertDialogDescription>{t('confirmRetryTaskDescription')}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t('cancelButton')}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => void handleRetryTask(task.task_id)}>{t('confirmRetryTaskAction')}</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
                   </TableRow>

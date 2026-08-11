@@ -24,6 +24,7 @@ interface BrowserViewData {
   pageTitle: string;
   viewportWidth: number;
   viewportHeight: number;
+  sourceChatId: string;
   updatedAt: number;
 }
 
@@ -92,11 +93,17 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
   setInstructionText: (text) => set({ instructionText: text }),
   fetchSnapshot: async () => {
     if (get().isSnapshotLoading) return false;
+    const { default: useChatStore } = await import('@/store/useChatStore');
+    const chatId = useChatStore.getState().chatId?.trim();
+    if (!chatId) return false;
     set({ isSnapshotLoading: true });
     try {
-      const data = await apiRequest<BrowserSnapshotResponse>('/webui/browser/snapshot', {
-        silent: true,
-      });
+      const data = await apiRequest<BrowserSnapshotResponse>(
+        `/webui/browser/snapshot?chat_id=${encodeURIComponent(chatId)}`,
+        {
+          silent: true,
+        },
+      );
       set({
         isBrowserActive: true,
         viewData: {
@@ -107,6 +114,7 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
           pageTitle: data.page_title,
           viewportWidth: data.viewport_width,
           viewportHeight: data.viewport_height,
+          sourceChatId: chatId,
           updatedAt: Date.now(),
         },
       });

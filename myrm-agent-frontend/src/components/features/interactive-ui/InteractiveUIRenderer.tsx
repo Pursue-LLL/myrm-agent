@@ -16,6 +16,7 @@ import {
   buildComponentMap,
   setValueByPath,
   getValueByPath,
+  resolveBindings,
   extractValidationRules,
   validateField,
   ValidationRule,
@@ -260,10 +261,10 @@ export const InteractiveUIRenderer: React.FC<InteractiveUIRendererProps> = ({ ar
       const errorInfo = valuePath ? validationErrors.get(valuePath) : undefined;
       const validationError = errorInfo ? translateError(errorInfo) : undefined;
 
-      // 构建属性
+      // 构建属性：bindings 声明的 prop 由数据模型动态解析并覆盖静态 props
       const props: UIComponentProps = {
         id: component.id,
-        props: component.props,
+        props: resolveBindings(component.props, component.bindings, localData),
         bindings: component.bindings,
         events: component.events,
         data: localData,

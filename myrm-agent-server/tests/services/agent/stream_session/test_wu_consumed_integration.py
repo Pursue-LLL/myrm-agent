@@ -1,11 +1,8 @@
 """Integration test: _inject_wu_consumed in stream_lane_factory MESSAGE_END chain.
 
-Uses ASGI TestClient via conftest-level app fixture (same approach as the
-disconnect tolerance E2E). The conftest.py that provides ``app`` and ``client``
-lives under tests/api/agent/; this file redirects to avoid moving test ownership.
-
-When the ``client`` fixture is unavailable (running from this directory only),
-these tests are auto-skipped.
+Requires a running backend on :8080 with a configured search service and LLM
+provider (BASIC_API_KEY / SEARCH_SERVICE). When the live server lacks full
+session context, these tests are auto-skipped.
 """
 
 from __future__ import annotations
@@ -90,8 +87,8 @@ def test_live_message_end_sse_chain() -> None:
             or "requires full session context" in error_data
         ):
             pytest.skip(
-                "Live server lacks full session context "
-                "(run via tests/api/agent/ with client fixture)"
+                "Live server lacks search service / full session context "
+                "(requires SEARCH_SERVICE + LLM provider on :8080)"
             )
 
     message_ends = [e for e in events if e.get("type") == "message_end"]
@@ -146,8 +143,8 @@ def test_live_message_end_has_usage_field() -> None:
             or "requires full session context" in error_data
         ):
             pytest.skip(
-                "Live server lacks full session context "
-                "(run via tests/api/agent/ with client fixture)"
+                "Live server lacks search service / full session context "
+                "(requires SEARCH_SERVICE + LLM provider on :8080)"
             )
 
     message_ends = [e for e in events if e.get("type") == "message_end"]

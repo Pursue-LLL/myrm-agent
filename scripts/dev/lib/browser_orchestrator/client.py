@@ -55,7 +55,7 @@ def _daemon_unreachable_message(message: str) -> bool:
 
 
 def _monorepo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
+    return Path(__file__).resolve().parents[5]
 
 
 def _try_claim_daemon_respawn() -> bool:
@@ -170,7 +170,7 @@ def _wave_lease_count_probe() -> int:
     try:
         from stack_mutation_policy import wave_active_lease_count
 
-        root = Path(__file__).resolve().parents[4]
+        root = Path(__file__).resolve().parents[5]
         return wave_active_lease_count(root)
     except (ImportError, OSError, RuntimeError, ValueError):
         return 0

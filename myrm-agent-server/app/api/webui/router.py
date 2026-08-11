@@ -314,11 +314,12 @@ async def welcome_page(
 
 
 @router.get("/browser/snapshot")
-async def get_browser_snapshot() -> JSONResponse:
+async def get_browser_snapshot(chat_id: str | None = None) -> JSONResponse:
     """Get the latest browser snapshot (screenshot + ARIA refs with BBox data).
 
     Returns screenshot, page metadata, and interactive element bounding boxes
     for the Browser Inspector panel in the frontend.
+    Requires ``chat_id`` to scope the lookup to the active chat session.
     """
     from app.services.agent.browser_snapshot import (
         BrowserSnapshotUnavailableError,
@@ -326,7 +327,7 @@ async def get_browser_snapshot() -> JSONResponse:
     )
 
     try:
-        payload = await collect_browser_snapshot_payload()
+        payload = await collect_browser_snapshot_payload(chat_id=chat_id)
     except BrowserSnapshotUnavailableError as exc:
         return JSONResponse(
             status_code=exc.status_code,

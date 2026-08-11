@@ -7817,6 +7817,8 @@
       "labelName": "Bezeichnung:",
       "labelSteps": "Schritte:",
       "credentialDetected": "{count} Anmeldeinformationsfelder erkannt",
+      "credentialGuide": "Diese Anmeldeinformationen werden bei der Ausführung dieses Skills automatisch ausgefüllt. Erstellen Sie sie unter Einstellungen → Integrationen → Anmeldeinformationen, falls noch nicht geschehen.",
+      "goToCredentials": "Anmeldeinformationen verwalten",
       "actionClick": "Klicken",
       "actionDblclick": "Doppelklick",
       "actionType": "Eingeben",

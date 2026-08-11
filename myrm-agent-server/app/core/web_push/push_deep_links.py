@@ -82,7 +82,11 @@ def resolve_push_url(event: AppEvent) -> str:
         if event_type == AppEventType.BACKGROUND_TASK_DONE:
             board_id = data.get("board_id")
             status = data.get("status")
-            if isinstance(board_id, str) and board_id.strip() and status == "pending_review":
+            if (
+                isinstance(board_id, str)
+                and board_id.strip()
+                and status == "pending_review"
+            ):
                 board = board_id.strip()
                 return f"/settings/kanban?board_id={quote(board, safe='')}&status=in_review"
         chat_id = _first_chat_id(data)

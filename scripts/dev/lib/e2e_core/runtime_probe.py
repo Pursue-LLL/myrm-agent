@@ -39,8 +39,8 @@ def _default_frontend_dir() -> Path | None:
     override = os.getenv("MYRM_FRONTEND_DIR", "").strip()
     if override:
         return Path(override)
-    lib_dir = Path(__file__).resolve().parent
-    candidate = lib_dir.parent.parent.parent / "myrm-agent-frontend"
+    agent_root = Path(__file__).resolve().parents[4]
+    candidate = agent_root / "myrm-agent-frontend"
     if candidate.is_dir():
         return candidate
     return None
@@ -66,8 +66,7 @@ def _resolve_mux_bin() -> Path | None:
     if override:
         path = Path(override)
         return path if path.is_file() else None
-    lib_dir = Path(__file__).resolve().parent
-    agent_root = lib_dir.parent.parent.parent
+    agent_root = Path(__file__).resolve().parents[4]
     monorepo_override = os.getenv("MYRM_MONOREPO_ROOT", "").strip()
     monorepo_root = Path(monorepo_override) if monorepo_override else agent_root.parent
     candidate = (

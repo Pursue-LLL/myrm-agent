@@ -1,4 +1,4 @@
-"""Signoff stack preflight SSOT — hot attach vs bounded heal for solo signoff gates (§17).
+"""Stack preflight SSOT — hot attach vs bounded heal for epoch preflight (Phase C / maintainer gates).
 
 [INPUT]
 - gate_epoch_preflight.SoloSnapshot, e2e_api_verify, runtime_identity hot state
@@ -7,7 +7,7 @@
 - run_signoff_ready_under_flock() → exit rc for subprocess myrm ready
 
 [POS]
-Dev gate layer only. Replaces blind full `ready --chrome` during solo signoff preflight.
+Dev gate layer only. Bounded `ready --chrome` during solo-cluster epoch preflight.
 """
 
 from __future__ import annotations

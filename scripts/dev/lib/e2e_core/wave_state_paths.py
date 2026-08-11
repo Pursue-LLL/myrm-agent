@@ -17,7 +17,9 @@ from pathlib import Path
 
 
 def resolve_wave_state_file() -> Path:
-    dev_dir = Path(__file__).resolve().parent.parent
+    # wave_orchestrator lives at scripts/dev level (sibling of lib); inject that
+    # directory so lazy import resolves after the dev_gate repack.
+    dev_dir = Path(__file__).resolve().parent.parent.parent
     dev_dir_str = str(dev_dir)
     if dev_dir_str not in sys.path:
         sys.path.insert(0, dev_dir_str)

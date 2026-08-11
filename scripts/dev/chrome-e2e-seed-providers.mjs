@@ -176,69 +176,101 @@ async function readProvidersConfig() {
   return body?.value ?? body;
 }
 
-async function ensureLiteModelFromEnv(existingConfig) {
-  const liteModelRaw = process.env.LITE_MODEL?.trim();
-  if (!liteModelRaw) {
-    return { patched: false, reason: 'no_lite_env' };
-  }
+async function ensureProvidersFromEnv(existingConfig) {
   const config = existingConfig ?? (await readProvidersConfig());
   if (!config) {
     return { patched: false, reason: 'providers_unreadable' };
   }
-  const litePrimary = config?.defaultModelConfig?.liteModel?.primary;
-  const expectedProviderId = inferProviderId(liteModelRaw);
-  const expectedModelId = stripProviderPrefix(liteModelRaw);
 
+  // An existing default model is not proof that the complete E2E provider
+  // catalog is present. PRIVATE runtimes can reuse a database seeded by a
+  // previous test (for example, with only the lite MiniMax provider). Always
+  // reconcile both env-declared providers before the UI policy E2E runs.
+  const basicModelRaw = process.env.BASIC_MODEL?.trim();
   const basicKey = process.env.BASIC_API_KEY?.trim();
+  const basicUrl = process.env.BASIC_BASE_URL?.trim() || 'https://api.minimaxi.com/v1';
+  const basicEntry =
+    basicModelRaw && basicKey
+      ? buildProviderEntry({
+          providerId: inferProviderId(basicModelRaw),
+          modelId: stripProviderPrefix(basicModelRaw),
+          apiUrl: basicUrl,
+          apiKey: basicKey,
+        })
+      : null;
+
+  const liteModelRaw = process.env.LITE_MODEL?.trim();
+  if (!liteModelRaw && !basicEntry) {
+    return { patched: false, reason: 'no_provider_env' };
+  }
+
+  const litePrimary = config?.defaultModelConfig?.liteModel?.primary;
+  const expectedProviderId = liteModelRaw ? inferProviderId(liteModelRaw) : null;
+  const expectedModelId = liteModelRaw ? stripProviderPrefix(liteModelRaw) : null;
   const liteKey = process.env.LITE_API_KEY?.trim() || basicKey;
-  if (!liteKey) {
+  const liteUrl = process.env.LITE_BASE_URL?.trim() || basicUrl;
+  const liteProviderId = liteModelRaw ? inferProviderId(liteModelRaw) : null;
+  const liteModelId = liteModelRaw ? stripProviderPrefix(liteModelRaw) : null;
+  if (liteModelRaw && !liteKey) {
     throw new Error('Missing LITE_API_KEY or BASIC_API_KEY for lite model seed');
   }
-  const basicUrl = process.env.BASIC_BASE_URL?.trim() || 'https://api.minimaxi.com/v1';
-  const liteUrl = process.env.LITE_BASE_URL?.trim() || basicUrl;
-  const liteProviderId = inferProviderId(liteModelRaw);
-  const liteModelId = stripProviderPrefix(liteModelRaw);
-  const liteEntry = buildProviderEntry({
-    providerId: liteProviderId,
-    modelId: liteModelId,
-    apiUrl: liteUrl,
-    apiKey: liteKey,
-  });
+  const liteEntry =
+    liteModelRaw && liteProviderId && liteModelId
+      ? buildProviderEntry({
+          providerId: liteProviderId,
+          modelId: liteModelId,
+          apiUrl: liteUrl,
+          apiKey: liteKey,
+        })
+      : null;
 
   const existingProviders = Array.isArray(config.providers) ? config.providers : [];
   const byId = new Map(existingProviders.map((provider) => [provider.id, provider]));
+  const existingBasic = basicEntry ? byId.get(basicEntry.id) : null;
   const existingLite = byId.get(liteProviderId);
-  const providerChanged = upsertProviderEntry(byId, liteEntry);
+  const basicChanged = basicEntry ? upsertProviderEntry(byId, basicEntry) : false;
+  const liteChanged = liteEntry ? upsertProviderEntry(byId, liteEntry) : false;
+  const providerChanged = basicChanged || liteChanged;
   const primaryMatches =
-    litePrimary?.providerId === expectedProviderId &&
-    litePrimary?.model === expectedModelId;
-  const endpointDrift = providerEndpointDrift(existingLite, liteEntry);
+    !liteEntry ||
+    (litePrimary?.providerId === expectedProviderId && litePrimary?.model === expectedModelId);
+  const endpointDrift =
+    (basicEntry && providerEndpointDrift(existingBasic, basicEntry)) ||
+    (liteEntry && providerEndpointDrift(existingLite, liteEntry));
 
   if (primaryMatches && !providerChanged && !endpointDrift) {
-    return { patched: false, reason: 'lite_already_configured', litePrimary };
+    return {
+      patched: false,
+      reason: 'providers_already_configured',
+      litePrimary,
+      basicProviderId: basicEntry?.id ?? null,
+    };
   }
 
-  const litePrimarySelection = { providerId: liteProviderId, model: liteModelId };
   const defaultModelConfig = {
     ...(config.defaultModelConfig ?? {}),
-    liteModel: {
-      ...(config.defaultModelConfig?.liteModel ?? {}),
-      primary: litePrimarySelection,
-      fallback: config.defaultModelConfig?.liteModel?.fallback ?? null,
-    },
-    fastModeModel: {
-      ...(config.defaultModelConfig?.fastModeModel ?? {}),
-      primary: litePrimarySelection,
-      fallback: config.defaultModelConfig?.fastModeModel?.fallback ?? null,
-      temperature:
-        config.defaultModelConfig?.fastModeModel?.temperature ??
-        config.defaultModelConfig?.baseModel?.temperature ??
-        0.7,
-      modelKwargs:
-        config.defaultModelConfig?.fastModeModel?.modelKwargs ??
-        config.defaultModelConfig?.baseModel?.modelKwargs ??
-        {},
-    },
+    ...(liteEntry
+      ? {
+          liteModel: {
+            ...(config.defaultModelConfig?.liteModel ?? {}),
+            primary: { providerId: liteProviderId, model: liteModelId },
+            fallback: config.defaultModelConfig?.liteModel?.fallback ?? null,
+          },
+          fastModeModel: {
+            ...(config.defaultModelConfig?.fastModeModel ?? {}),
+            primary: { providerId: liteProviderId, model: liteModelId },
+            fallback: config.defaultModelConfig?.fastModeModel?.fallback ?? null,
+            temperature:
+              config.defaultModelConfig?.fastModeModel?.temperature ??
+              config.defaultModelConfig?.baseModel?.temperature ??
+              0.7,
+            modelKwargs:
+              config.defaultModelConfig?.fastModeModel?.modelKwargs ??
+              config.defaultModelConfig?.baseModel?.modelKwargs ??
+              {},
+          },
+        }
+      : {}),
   };
 
   await putConfig('providers', {
@@ -249,8 +281,10 @@ async function ensureLiteModelFromEnv(existingConfig) {
   });
   return {
     patched: true,
-    liteProviderId,
-    liteModelId,
+    basicProviderId: basicEntry?.id ?? null,
+    basicModelId: basicEntry?.enabledModels?.[0] ?? null,
+    liteProviderId: liteProviderId ?? null,
+    liteModelId: liteModelId ?? null,
     endpointDrift,
   };
 }
@@ -258,8 +292,8 @@ async function ensureLiteModelFromEnv(existingConfig) {
 export async function seedChromeE2eProviders() {
   const forceSeed = process.env.MYRM_E2E_FORCE_MODEL_SEED === '1';
   if (!forceSeed && (await hasDefaultModel())) {
-    const litePatch = await ensureLiteModelFromEnv();
-    return { seeded: false, reason: 'default_model_already_configured', ...litePatch };
+    const providerPatch = await ensureProvidersFromEnv();
+    return { seeded: false, reason: 'default_model_already_configured', ...providerPatch };
   }
   const basicModel = requireEnv('BASIC_MODEL');
   const basicKey = requireEnv('BASIC_API_KEY');

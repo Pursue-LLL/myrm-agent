@@ -350,12 +350,6 @@ async def ai_agent_service_stream(
 
     reset_session_budget(chat_id=params.chat_id)
 
-    from app.services.agent.signoff_clarify_stream_gate import (
-        apply_signoff_clarify_stream_gate,
-    )
-
-    extra_context = apply_signoff_clarify_stream_gate(params, extra_context)
-
     agent = AgentFactory.create_general_agent(params)
     try:
         chat_history = await convert_chat_history(params.chat_history)

@@ -77,6 +77,8 @@ export function stepKeyToPetEvent(stepKey: string): PetEvent | null {
       return { state: PetState.REVIEWING, mode: 'transient', ttlMs: 2000 };
 
     case 'model_failover':
+    case 'model_failover_unconfigured':
+    case 'safety_fallback_unconfigured':
     case 'safety_fallback_active':
     case 'transient_retry':
       return { state: PetState.FAILED, mode: 'transient', ttlMs: 2500 };

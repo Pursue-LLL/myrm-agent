@@ -7903,6 +7903,8 @@
       "labelName": "Name:",
       "labelSteps": "Steps:",
       "credentialDetected": "{count} credential field(s) detected",
+      "credentialGuide": "These credentials are filled automatically when this skill runs. Create them in Settings → Integration → Credentials if you haven't yet.",
+      "goToCredentials": "Manage Credentials",
       "actionClick": "Click",
       "actionDblclick": "Double Click",
       "actionType": "Type",

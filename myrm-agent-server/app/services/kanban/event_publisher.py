@@ -172,7 +172,9 @@ def emit_task_rejected(task: KanbanTask) -> None:
     or /btw user learns the rework reason instead of silently waiting for the
     next attempt. The rejection reason is carried in ``task.error``.
     """
-    _publish_task_notice(task, status="rejected", result=task.error or task.result or "")
+    _publish_task_notice(
+        task, status="rejected", result=task.error or task.result or ""
+    )
 
 
 def _terminal_status(event_type: str, task: KanbanTask) -> str | None:

@@ -8,6 +8,8 @@ export const XURL_SKILL_ID = 'xurl';
 
 export const SETTINGS_GOOGLE_OAUTH_PATH = '/settings/credentials';
 export const SETTINGS_PROVIDERS_PATH = '/settings/models';
+export const SETTINGS_DEFAULT_MODEL_PATH = '/settings/defaultModel';
+export const SETTINGS_AGENTS_LOADOUT_PATH = '/settings/agents#loadout';
 export const SETTINGS_SKILLS_PATH = '/settings/skills';
 
 type SkillsCardTranslator = (

@@ -11,7 +11,9 @@ BatchProjectCreate/BatchProjectResponse/BatchProjectListResponse 等 API 请求�
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.services.batch_directory._helpers import _validate_artifact_patterns
 
 
 class BatchProjectCreate(BaseModel):
@@ -31,6 +33,13 @@ class BatchProjectCreate(BaseModel):
     notify_enabled: bool = True
     artifact_patterns: list[str] | None = None
 
+    @field_validator("artifact_patterns")
+    @classmethod
+    def _check_artifact_patterns(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return None
+        return _validate_artifact_patterns(v)
+
 
 class BatchTaskItem(BaseModel):
     task_id: str
@@ -40,6 +49,7 @@ class BatchTaskItem(BaseModel):
     agent_id: str | None = None
     result: str = ""
     error: str = ""
+    artifact_status: str = "not_specified"
     created_at: str | None = None
     completed_at: str | None = None
 
@@ -61,6 +71,8 @@ class BatchProjectResponse(BaseModel):
     total_tasks: int = 0
     completed_tasks: int = 0
     failed_tasks: int = 0
+    failed_directories: list[str] = Field(default_factory=list)
+    missing_artifact_directories: list[str] = Field(default_factory=list)
     created_at: str | None = None
     updated_at: str | None = None
     started_at: str | None = None
@@ -70,8 +82,14 @@ class BatchProjectResponse(BaseModel):
 class BatchProjectDetailResponse(BatchProjectResponse):
     tasks: list[BatchTaskItem] = Field(default_factory=list)
     created_task_ids: list[str] = Field(default_factory=list)
-    failed_directories: list[str] = Field(default_factory=list)
     cancelled_task_ids: list[str] = Field(default_factory=list)
+    retried_task_ids: list[str] = Field(default_factory=list)
+    retry_failed_directories: list[str] = Field(default_factory=list)
+    rerun_task_ids: list[str] = Field(default_factory=list)
+    rerun_failed_directories: list[str] = Field(default_factory=list)
+    paused_task_ids: list[str] = Field(default_factory=list)
+    resumed_task_ids: list[str] = Field(default_factory=list)
+    approved_task_ids: list[str] = Field(default_factory=list)
 
 
 class BatchProjectListResponse(BaseModel):

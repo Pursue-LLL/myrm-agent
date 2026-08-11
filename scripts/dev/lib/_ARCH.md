@@ -6,6 +6,10 @@
 
 **Chrome E2E 域**（§19.10）已收编至 [chrome_e2e/_ARCH.md](chrome_e2e/_ARCH.md)：`gates/` · `mux/` · orchestrator 门面。
 
+**Dev Gate 域**（P1 repack 2026-08-11）已收编至 [dev_gate/_ARCH.md](dev_gate/_ARCH.md)；根级 `dev_gate_*.py` 等为 module-alias shim，canonical 实现在 `dev_gate/`。
+
+**Dev Gate 基建 pytest** 唯一根在 monorepo [`open-perplexity/scripts/dev/tests/`](../../../../scripts/dev/tests/)（`conftest.py` 注入本目录至 `sys.path`）。
+
 ## 文件清单
 
 | 文件 | 职责 |
