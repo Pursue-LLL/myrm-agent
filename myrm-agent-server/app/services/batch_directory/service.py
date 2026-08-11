@@ -27,7 +27,7 @@ from sqlalchemy import update as sa_update
 
 from app.database.connection import get_session
 from app.database.models.batch_directory import BatchDirectoryProjectModel
-from app.services.batch_directory import _read, _retry
+from app.services.batch_directory import _lifecycle, _read, _retry
 from app.services.batch_directory._helpers import (
     _PROJECT_TERMINAL_STATUSES,
     _TERMINAL_STATUSES,
@@ -275,7 +275,7 @@ class BatchDirectoryService:
         base["cancelled_task_ids"] = cancelled
         return base
 
-    # Retry / rerun / pause / resume / approve-all (logic in _retry.py)
+    # Retry / rerun (logic in _retry.py), pause / resume / approve-all (in _lifecycle.py)
 
     async def retry_failed(self, project_id: str) -> dict[str, object] | None:
         return await _retry.retry_failed(self, project_id)
@@ -289,15 +289,15 @@ class BatchDirectoryService:
         return await _retry.rerun_project(self, project_id)
 
     async def pause_project(self, project_id: str) -> dict[str, object] | None:
-        return await _retry.pause_project(self, project_id)
+        return await _lifecycle.pause_project(self, project_id)
 
     async def resume_project(self, project_id: str) -> dict[str, object] | None:
-        return await _retry.resume_project(self, project_id)
+        return await _lifecycle.resume_project(self, project_id)
 
     async def approve_all_results(
         self, project_id: str
     ) -> dict[str, object] | None:
-        return await _retry.approve_all_results(self, project_id)
+        return await _lifecycle.approve_all_results(self, project_id)
 
     async def delete_project(self, project_id: str) -> bool:
         tasks = await fetch_project_task_models(project_id)

@@ -53,6 +53,7 @@ def _resolve_timeout(default: float, override: float | None = None) -> float:
 _TIMEOUT = _resolve_timeout(15.0)
 _MEDIA_TIMEOUT = _resolve_timeout(30.0)
 _TOKEN_REFRESH_BUFFER = 300
+_MAX_DOWNLOAD_BYTES = 200 * 1024 * 1024  # 200 MB cap for forwarded media
 
 
 class FeishuClient(FeishuMessagingMixin, FeishuDocumentsMixin):
@@ -152,13 +153,31 @@ class FeishuClient(FeishuMessagingMixin, FeishuDocumentsMixin):
             return False
 
     async def download_url(self, url: str, *, timeout: float = 30.0) -> bytes | None:
-        """Download arbitrary URL content with SSRF protection."""
-        try:
-            from myrm_agent_harness.core.security.http.secure_fetch import secure_get
+        """Download arbitrary URL content with SSRF protection.
 
-            response = await secure_get(url, timeout=timeout)
+        Downloads are size-capped via ``max_content_length`` so an oversized or
+        malicious response cannot exhaust memory (SSRF shield stays enabled).
+        """
+        from myrm_agent_harness.core.security.http.secure_fetch import (
+            ContentTooLargeError,
+            secure_get,
+        )
+
+        try:
+            response = await secure_get(
+                url,
+                timeout=timeout,
+                max_content_length=_MAX_DOWNLOAD_BYTES,
+            )
             response.raise_for_status()
             return response.content
+        except ContentTooLargeError:
+            logger.warning(
+                "Failed to download URL (exceeds %d byte limit): %s",
+                _MAX_DOWNLOAD_BYTES,
+                url,
+            )
+            return None
         except Exception:
             logger.warning("Failed to download URL: %s", url)
             return None

@@ -203,6 +203,45 @@ class TestGenerateSkillFromSession:
 
         assert 'Fill "Alice" into textbox "Username"' in content
 
+    def test_select_step_includes_option_labels(self) -> None:
+        session = _make_session(
+            [
+                _make_step(1, ActionType.NAVIGATE, value="https://example.com"),
+                ActionStep(
+                    seq=2,
+                    action=ActionType.SELECT,
+                    selector="#lang",
+                    value="en; zh",
+                    label="English, Chinese",
+                    url="https://example.com",
+                    element_text="Language",
+                    element_role="select",
+                ),
+            ]
+        )
+
+        _, content, _ = generate_skill_from_session(session, "multi-select-flow")
+
+        assert 'Select "en; zh" (English, Chinese)' in content
+        assert "from dropdown" not in content
+
+    def test_select_single_value_keeps_dropdown_template(self) -> None:
+        session = _make_session(
+            [
+                _make_step(
+                    1,
+                    ActionType.SELECT,
+                    value="en",
+                    element_text="Language",
+                    element_role="select",
+                ),
+            ]
+        )
+
+        _, content, _ = generate_skill_from_session(session, "single-select")
+
+        assert 'Select "en" from dropdown' in content
+
     def test_allowed_tools_use_registered_names(self) -> None:
         session = _make_session([_make_step(1)])
         _, content, _ = generate_skill_from_session(session, "s1")

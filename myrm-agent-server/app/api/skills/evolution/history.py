@@ -145,7 +145,7 @@ async def seed_approved_evolution_for_e2e(
     await record_experience_event(
         ExperienceLedgerWrite(
             event_type=ExperienceEventType.EVOLUTION_APPROVED,
-            entity_type=ExperienceEntityType.SKILL,
+            entity_type=ExperienceEntityType.EVOLUTION,
             entity_id=record.id,
             lineage_id=f"evolution::{record.id}",
             outcome="applied",

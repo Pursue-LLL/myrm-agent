@@ -58,9 +58,11 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
   const labelKey = ACTION_LABEL_KEYS[step.action];
   const label = labelKey ? t(labelKey) : step.action;
   const displayValue =
-    step.action === 'press' && step.modifiers && step.modifiers.length > 0
-      ? `${step.modifiers.map((m) => m.charAt(0).toUpperCase() + m.slice(1)).join('+')}+${step.value}`
-      : step.value;
+    step.action === 'select' && step.label
+      ? `${step.value} (${step.label})`
+      : step.action === 'press' && step.modifiers && step.modifiers.length > 0
+        ? `${step.modifiers.map((m) => m.charAt(0).toUpperCase() + m.slice(1)).join('+')}+${step.value}`
+        : step.value;
 
   return (
     <div

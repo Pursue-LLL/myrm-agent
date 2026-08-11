@@ -10,7 +10,11 @@ Covers:
 
 import pytest
 
-from app.services.skill_optimization.semantic_comparator import SemanticComparator
+from app.services.skill_optimization.semantic_comparator import (
+    SemanticComparator,
+    _escape_newlines_in_strings,
+    _parse_judge_json,
+)
 
 
 @pytest.mark.asyncio

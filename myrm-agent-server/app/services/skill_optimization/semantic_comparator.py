@@ -26,6 +26,58 @@ from app.core.utils.chat_utils import extract_litellm_answer_text
 
 logger = logging.getLogger(__name__)
 
+
+def _parse_judge_json(content: str) -> dict[str, object] | None:
+    """Parse the judge's JSON reply, tolerating unescaped newlines inside string values.
+
+    Some reasoning providers (e.g. minimax) emit literal newlines inside the
+    ``reasoning`` value, which makes ``json.loads`` fail. We first try the strict
+    parse, then fall back to escaping only newlines that sit inside a JSON string
+    literal (structural whitespace between tokens is preserved).
+    """
+    stripped = content.removeprefix("```json").removesuffix("```").strip()
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        escaped = _escape_newlines_in_strings(stripped)
+        try:
+            parsed = json.loads(escaped)
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
+def _escape_newlines_in_strings(text: str) -> str:
+    """Escape unescaped CR/LF that appear inside JSON string literals."""
+    out: list[str] = []
+    in_string = False
+    escape_next = False
+    for ch in text:
+        if in_string:
+            if escape_next:
+                out.append(ch)
+                escape_next = False
+                continue
+            if ch == "\\":
+                out.append(ch)
+                escape_next = True
+                continue
+            if ch == '"':
+                out.append(ch)
+                in_string = False
+                continue
+            if ch in "\r\n":
+                out.append("\\n")
+                continue
+            out.append(ch)
+            continue
+        if ch == '"':
+            in_string = True
+        out.append(ch)
+    return "".join(out)
+
 _SEMANTIC_JUDGE_PROMPT = """You are a result comparator. Compare the BASELINE and CANDIDATE outputs of the same tool/skill call.
 
 Your task: determine if they are semantically equivalent (same meaning, possibly different format/wording).
@@ -131,17 +183,19 @@ class SemanticComparator:
                 messages=[{"role": "user", "content": prompt}],
                 timeout=self.llm_timeout,
                 temperature=0.0,
-                max_tokens=100,
+                # Reasoning models burn tokens on chain-of-thought; keep headroom
+                # so the final JSON object is not truncated mid-string.
+                max_tokens=600,
             )
 
             # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
             content = extract_litellm_answer_text(response).strip()
 
-            content = content.removeprefix("```json").removesuffix("```").strip()
-            parsed_obj = json.loads(content)
-            if not isinstance(parsed_obj, dict):
+            parsed_obj = _parse_judge_json(content)
+            if parsed_obj is None:
+                logger.warning("LLM semantic judge returned no parseable JSON")
                 return None
-            parsed: dict[str, object] = parsed_obj
+            parsed = parsed_obj
             score_raw = parsed.get("score", 0.5)
             if isinstance(score_raw, bool) or not isinstance(
                 score_raw, int | float | str

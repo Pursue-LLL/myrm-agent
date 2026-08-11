@@ -170,6 +170,12 @@ export default function BatchDirectoriesPage() {
             icon: <Loader2 className="size-3 mr-1 animate-spin" />,
             className: '',
           };
+        case 'paused':
+          return {
+            label: t('statusPaused'),
+            icon: <Clock className="size-3 mr-1" />,
+            className: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+          };
         case 'completed':
           return {
             label: t('statusCompleted'),
@@ -549,7 +555,7 @@ export default function BatchDirectoriesPage() {
                     <TableCell className="text-xs text-muted-foreground">{formatDateTime(p.created_at)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="sm" asChild>
+                        <Button variant="ghost" size="sm" asChild aria-label={t('openDetailLabel', { name: p.name })}>
                           <Link href={`/batch-directories/${p.project_id}`}>
                             <ArrowRight className="size-4" />
                           </Link>
@@ -583,6 +589,7 @@ export default function BatchDirectoriesPage() {
                                 size="sm"
                                 className="text-destructive"
                                 onClick={() => setConfirming(p)}
+                                aria-label={t('deleteLabel', { name: p.name })}
                               >
                                 <XCircle className="size-4" />
                               </Button>

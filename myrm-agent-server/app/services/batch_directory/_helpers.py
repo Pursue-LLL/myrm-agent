@@ -8,6 +8,8 @@
 - fetch_project_task_models: 按 batch_project_id 查询任务（服务内复用）
 - _latest_tasks_per_directory: 每目录取最新任务（重试后聚合口径）
 - _project_to_dict / _aggregate_statuses / _resolve_directory: 序列化与校验助手
+- _send_completion_notification: 批次终态系统通知（携带 action_url 深链）
+- _PROJECT_TERMINAL_STATUSES / _BATCH_PAUSE_BLOCK_REASON / _BATCH_APPROVER: 批次终态与暂停/审批标记常量
 
 [POS]
 纯助手函数（无业务编排）。`_validate_artifact_patterns` 同时被 API schemas

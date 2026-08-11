@@ -27,6 +27,7 @@ interface RecordedStep {
   elementRole: string;
   isPassword: boolean;
   modifiers?: string[];
+  label?: string;
   screenshotB64?: string;
 }
 
@@ -104,6 +105,7 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
                   elementRole: msg.element_role ?? '',
                   isPassword: msg.is_password ?? false,
                   modifiers: msg.modifiers ?? [],
+                  label: msg.label ?? '',
                   screenshotB64: msg.screenshot_b64,
                 },
               ],

@@ -13,7 +13,7 @@
 
 import { apiRequest } from '@/lib/api';
 
-export type BatchProjectStatus = 'draft' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type BatchProjectStatus = 'draft' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 
 export interface BatchTaskItem {
   task_id: string;
@@ -61,6 +61,9 @@ export interface BatchProjectDetail extends BatchProject {
   retry_failed_directories?: string[];
   rerun_task_ids?: string[];
   rerun_failed_directories?: string[];
+  paused_task_ids?: string[];
+  resumed_task_ids?: string[];
+  approved_task_ids?: string[];
 }
 
 export interface CreateBatchProjectInput {
@@ -110,6 +113,18 @@ export async function retryBatchTask(
   taskId: string,
 ): Promise<BatchProjectDetail> {
   return apiRequest(`/batch-directories/${projectId}/tasks/${taskId}/retry`, { method: 'POST' });
+}
+
+export async function pauseBatchProject(projectId: string): Promise<BatchProjectDetail> {
+  return apiRequest(`/batch-directories/${projectId}/pause`, { method: 'POST' });
+}
+
+export async function resumeBatchProject(projectId: string): Promise<BatchProjectDetail> {
+  return apiRequest(`/batch-directories/${projectId}/resume`, { method: 'POST' });
+}
+
+export async function approveAllBatchResults(projectId: string): Promise<BatchProjectDetail> {
+  return apiRequest(`/batch-directories/${projectId}/approve-all`, { method: 'POST' });
 }
 
 export async function deleteBatchProject(projectId: string): Promise<void> {

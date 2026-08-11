@@ -36,10 +36,13 @@ import {
 } from '@/components/primitives/alert-dialog';
 import {
   CheckCircle2,
+  CheckCheck,
   ChevronLeft,
   Clock,
   FolderOpen,
   Loader2,
+  Pause,
+  Play,
   RefreshCw,
   RotateCcw,
   XCircle,
@@ -51,6 +54,9 @@ import {
   deleteBatchProject,
   getBatchProject,
   isBatchTerminalStatus,
+  pauseBatchProject,
+  resumeBatchProject,
+  approveAllBatchResults,
   rerunBatchProject,
   retryBatchProject,
   retryBatchTask,
@@ -74,10 +80,15 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   const [cancelling, setCancelling] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [rerunning, setRerunning] = useState(false);
+  const [pausing, setPausing] = useState(false);
+  const [resuming, setResuming] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [retryingTaskId, setRetryingTaskId] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmRerun, setConfirmRerun] = useState(false);
+  const [confirmPause, setConfirmPause] = useState(false);
+  const [confirmApproveAll, setConfirmApproveAll] = useState(false);
   const [confirmRetryTaskId, setConfirmRetryTaskId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -161,6 +172,50 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
     }
   }, [projectId, fetchDetail, t]);
 
+  const handlePause = useCallback(async () => {
+    if (!projectId) return;
+    setPausing(true);
+    try {
+      const updated = await pauseBatchProject(projectId);
+      toast.success(t('pauseSuccess', { count: updated.paused_task_ids?.length ?? 0 }));
+      setConfirmPause(false);
+      await fetchDetail(projectId);
+    } catch {
+      toast.error(t('pauseError'));
+    } finally {
+      setPausing(false);
+    }
+  }, [projectId, fetchDetail, t]);
+
+  const handleResume = useCallback(async () => {
+    if (!projectId) return;
+    setResuming(true);
+    try {
+      const updated = await resumeBatchProject(projectId);
+      toast.success(t('resumeSuccess', { count: updated.resumed_task_ids?.length ?? 0 }));
+      await fetchDetail(projectId);
+    } catch {
+      toast.error(t('resumeError'));
+    } finally {
+      setResuming(false);
+    }
+  }, [projectId, fetchDetail, t]);
+
+  const handleApproveAll = useCallback(async () => {
+    if (!projectId) return;
+    setApproving(true);
+    try {
+      const updated = await approveAllBatchResults(projectId);
+      toast.success(t('approveAllSuccess', { count: updated.approved_task_ids?.length ?? 0 }));
+      setConfirmApproveAll(false);
+      await fetchDetail(projectId);
+    } catch {
+      toast.error(t('approveAllError'));
+    } finally {
+      setApproving(false);
+    }
+  }, [projectId, fetchDetail, t]);
+
   const handleRetryTask = useCallback(
     async (taskId: string) => {
       if (!projectId) return;
@@ -216,7 +271,10 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   const done = project.completed_tasks + project.failed_tasks;
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
   const running = project.status === 'running';
+  const paused = project.status === 'paused';
   const terminal = isBatchTerminalStatus(project.status);
+  const active = running || paused;
+  const inReviewCount = project.tasks.filter((task) => task.status === 'in_review').length;
   const hasRetryable =
     (project.failed_directories?.length ?? 0) > 0 ||
     (project.missing_artifact_directories?.length ?? 0) > 0;
@@ -230,6 +288,8 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
     switch (status) {
       case 'running':
         return <Badge className="border-muted bg-muted/50 text-foreground">{t('statusRunning')}</Badge>;
+      case 'paused':
+        return <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-600">{t('statusPaused')}</Badge>;
       case 'completed':
         return <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600">{t('statusCompleted')}</Badge>;
       case 'failed':
@@ -308,7 +368,27 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
             <RefreshCw className="size-4 mr-1" />
             {t('refresh')}
           </Button>
-          {hasRetryable && (
+          {!terminal && inReviewCount > 0 && (
+            <AlertDialog open={confirmApproveAll} onOpenChange={setConfirmApproveAll}>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" disabled={approving || pausing || resuming}>
+                  {approving ? <Loader2 className="size-4 mr-1 animate-spin" /> : <CheckCheck className="size-4 mr-1" />}
+                  {t('approveAllAction', { count: inReviewCount })}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('confirmApproveAllTitle', { count: inReviewCount })}</AlertDialogTitle>
+                  <AlertDialogDescription>{t('confirmApproveAllDescription')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('cancelButton')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => void handleApproveAll()}>{t('confirmApproveAllAction')}</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {hasRetryable && !paused && (
             <Button variant="outline" size="sm" onClick={() => void handleRetry()} disabled={retrying || rerunning}>
               {retrying ? <Loader2 className="size-4 mr-1 animate-spin" /> : <RotateCcw className="size-4 mr-1" />}
               {t('retryAction')}
@@ -335,6 +415,32 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
             </AlertDialog>
           )}
           {running && (
+            <AlertDialog open={confirmPause} onOpenChange={setConfirmPause}>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" disabled={pausing || cancelling}>
+                  {pausing ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Pause className="size-4 mr-1" />}
+                  {t('pauseAction')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('confirmPauseTitle', { name: project.name })}</AlertDialogTitle>
+                  <AlertDialogDescription>{t('confirmPauseDescription')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('cancelButton')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => void handlePause()}>{t('confirmPauseAction')}</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {paused && (
+            <Button variant="outline" size="sm" onClick={() => void handleResume()} disabled={resuming || cancelling}>
+              {resuming ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Play className="size-4 mr-1" />}
+              {t('resumeAction')}
+            </Button>
+          )}
+          {active && (
             <AlertDialog open={confirmCancel} onOpenChange={setConfirmCancel}>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" disabled={cancelling}>
@@ -354,7 +460,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
               </AlertDialogContent>
             </AlertDialog>
           )}
-          {!running && (
+          {terminal && (
             <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="text-destructive">
@@ -378,6 +484,13 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
           )}
         </div>
       </div>
+
+      {paused && (
+        <div className="mb-6 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600">
+          <Clock className="size-4 mt-0.5 shrink-0" />
+          <span>{t('pausedHint', { count: project.tasks.filter((task) => task.status === 'blocked').length })}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <Card>

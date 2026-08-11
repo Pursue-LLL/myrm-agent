@@ -279,6 +279,8 @@ async def recording_websocket(ws: WebSocket) -> None:
                     element_text=msg.get("element_text", ""),
                     element_role=msg.get("element_role", ""),
                     is_password=msg.get("is_password", False),
+                    modifiers=msg.get("modifiers", []),
+                    label=msg.get("label", ""),
                     screenshot_b64=msg.get("screenshot_b64"),
                 )
                 current_session.add_step(step)
