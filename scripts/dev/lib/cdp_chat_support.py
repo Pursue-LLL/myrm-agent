@@ -953,16 +953,20 @@ _CHAT_ID_PATH_RE = re.compile(
 PAGE_PROBE_JS = """
 (() => {
   const input = document.querySelector('[data-chat-input]');
+  const layout = document.querySelector('[data-testid="app-layout"]');
   const skeleton = !!document.querySelector('[aria-label="Loading messages"]');
   const fiberKey = input
     ? Object.keys(input).find((k) => k.startsWith('__reactFiber$'))
     : null;
+  const layoutFiberKey = layout
+    ? Object.keys(layout).find((k) => k.startsWith('__reactFiber$'))
+    : null;
   return {
     hasInput: !!input,
-    clientHydrated: !!fiberKey || !!(window.__MYRM_E2E_CHAT__?.setInputMessage),
+    clientHydrated: !!fiberKey || !!layoutFiberKey,
     hasBridge: !!window.__MYRM_E2E_CHAT__,
     skeleton,
-    hasLayout: !!document.querySelector('[data-testid="app-layout"]'),
+    hasLayout: !!layout,
     path: location.pathname,
   };
 })()

@@ -16,7 +16,7 @@ SERVER_ROOT = Path(__file__).resolve().parents[4]
 AUTOMATED_RUNNER_FILES: dict[str, str] = {
     "app/core/cron/adapters/agent_runner.py": "Cron tasks run on schedule without user interaction",
     "app/core/eval/executor.py": "Eval runs automated benchmarks without user interaction",
-    "app/services/kanban/task_runner.py": "Kanban background tasks run without user interaction",
+    "app/services/kanban/task_runner/runner.py": "Kanban background tasks run without user interaction",
 }
 
 

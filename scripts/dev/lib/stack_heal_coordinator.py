@@ -91,7 +91,7 @@ def _touch_admit_progress() -> None:
     holder_raw = os.environ.get("MYRM_E2E_DEDUPE_HOLDER_PID", "").strip()
     if not holder_raw.isdigit():
         return
-    from e2e_session_snapshot import touch_holder_session_progress  # noqa: PLC0415
+    from e2e_session_runtime.snapshot import touch_holder_session_progress  # noqa: PLC0415
 
     node = os.environ.get("E2E_ADMIT_NODE", "STACK_HEAL_DEFERRED")
     touch_holder_session_progress(holder_pid=int(holder_raw), current_node=node)

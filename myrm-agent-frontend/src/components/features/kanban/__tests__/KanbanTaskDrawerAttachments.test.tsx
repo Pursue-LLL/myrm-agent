@@ -6,6 +6,7 @@ const stableT = (key: string) => key;
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
+  useLocale: () => 'en',
 }));
 
 vi.mock('@/hooks/agent/useAgentName', () => ({

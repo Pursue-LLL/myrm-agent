@@ -21,7 +21,7 @@ EXPECTED_GENERAL_AGENT_PARAMS_DIRECT: frozenset[str] = frozenset(
     {
         "app/api/voice/agent_bridge.py",
         "app/api/voice/realtime.py",
-        "app/services/agent/goal_stream_trigger.py",
+        "app/services/agent/goals/goal_stream_trigger.py",
         "app/services/agent/params/converter.py",
         "app/core/channel_bridge/agent_executor/execute_preamble/agent.py",
         "app/core/cron/adapters/agent_runner.py",
@@ -44,7 +44,7 @@ LOCALE_REQUIRED_GENERAL_AGENT_PARAMS_CALLSITES: frozenset[str] = frozenset(
         "app/api/voice/realtime.py",
         "app/core/channel_bridge/agent_executor/execute_preamble/agent.py",
         "app/core/cron/adapters/agent_runner.py",
-        "app/services/agent/goal_stream_trigger.py",
+        "app/services/agent/goals/goal_stream_trigger.py",
         "app/services/agent/params/converter.py",
         "app/services/kanban/task_runner/runner.py",
     }

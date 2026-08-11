@@ -119,7 +119,7 @@ async def run_desktop_approval_chrome_e2e(
                     break
                 progress(f"retry after: {last_error}")
                 try:
-                    from e2e_session_lifecycle import remaining_wall_sec
+                    from e2e_session_runtime.lifecycle import remaining_wall_sec
 
                     body_remaining = remaining_wall_sec()
                 except ImportError:

@@ -38,6 +38,27 @@
   "sectionServerWsUrl": {
     "message": "服务器 WebSocket 地址"
   },
+  "sectionPairingCode": {
+    "message": "配对码"
+  },
+  "placeholderPairingCode": {
+    "message": "粘贴 WebUI 中的一次性配对码"
+  },
+  "btnApplyPairing": {
+    "message": "应用配对"
+  },
+  "hintPairingCode": {
+    "message": "在设置 → 浏览器扩展中生成配对码，然后粘贴到此处。"
+  },
+  "errPairingNeedsServerUrl": {
+    "message": "请先填写 WebSocket 地址，以便配对请求能访问服务器。"
+  },
+  "errPairingNeedsBundle": {
+    "message": "请粘贴 Settings 中的配对码，或从 WebUI 复制完整配对包。"
+  },
+  "errPairingInvalid": {
+    "message": "配对码无效或已过期。"
+  },
   "sectionAuthToken": {
     "message": "认证令牌（可选）"
   },

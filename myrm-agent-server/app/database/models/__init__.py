@@ -14,7 +14,13 @@ from .assessment_import import AssessmentImportLedger
 from .assessment_import_metric import AssessmentImportMetricEvent
 from .base import Base
 from .channel import ChannelPairingModel
-from .chat import Chat, ConversationFork, InterruptedTurnMarker, Message, OfflineDurableTask
+from .chat import (
+    Chat,
+    ConversationFork,
+    InterruptedTurnMarker,
+    Message,
+    OfflineDurableTask,
+)
 from .commitment import CommitmentModel
 from .config import ConfigAuditLog, UserConfig
 from .cron import CronJobModel, CronRunModel, MonitorStateModel
@@ -59,7 +65,6 @@ from .security import (
     UserToolAllowlist,
 )
 from .skill import ExperienceLedgerEvent, PendingEvolution, PendingMigration
-from .skill_alert_rule import SkillAlertRule
 from .skill_optimization import (
     ABTestResultModel,
     BatchAuditLog,
@@ -157,8 +162,6 @@ __all__ = [
     "MessageFilterRule",
     "MessageFilterAudit",
     "MessageFilterConfigHistory",
-    # Skill Alert
-    "SkillAlertRule",
     # Skill Optimization
     "OptimizationRecord",
     "ABTestResultModel",

@@ -26,7 +26,7 @@ from send_turn_contract import SendTurnError, SendTurnPhase, is_live_send_turn_p
 def _touch_live_turn_progress(node: str) -> None:
     """Refresh hung-reap progress during LIVE LLM turn waits (parallel-safe)."""
     try:
-        from e2e_session_snapshot import touch_session_progress
+        from e2e_session_runtime.snapshot import touch_session_progress
 
         touch_session_progress(current_node=node)
     except ImportError:

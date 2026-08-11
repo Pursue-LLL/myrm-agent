@@ -103,10 +103,16 @@ async def _register_mcp_providers(
     """
     try:
         from app.core.channel_bridge.config_loader import load_user_configs
-        from app.core.channel_bridge.config_parsers import extract_mcp_configs
+        from app.core.channel_bridge.config_parsers import (
+            extract_mcp_configs,
+            merge_org_mcp_configs,
+        )
 
         user_cfgs = await load_user_configs()
-        mcp_configs = extract_mcp_configs(user_cfgs.mcp_dict)
+        mcp_configs = merge_org_mcp_configs(
+            extract_mcp_configs(user_cfgs.mcp_dict),
+            user_cfgs.org_mcp_dict,
+        )
         if not mcp_configs:
             return
 

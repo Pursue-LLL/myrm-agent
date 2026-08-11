@@ -154,7 +154,7 @@ def decide_drift_heal(*, active_leases: int, drift_pending: bool) -> DriftHealAc
     if active_leases > 0:
         return DriftHealAction.DEFER
     try:
-        from e2e_session_registry import list_live_e2e_sessions
+        from e2e_session_runtime.registry import list_live_e2e_sessions
 
         sessions = list_live_e2e_sessions()
         if len(sessions) > 0:
@@ -169,7 +169,7 @@ def should_defer_harness_install(active_leases: int) -> bool:
     if active_leases > 0:
         return True
     try:
-        from e2e_session_registry import list_live_e2e_sessions
+        from e2e_session_runtime.registry import list_live_e2e_sessions
 
         if len(list_live_e2e_sessions()) > 1:
             return True
@@ -196,7 +196,7 @@ def should_defer_supervisor_backend_heal(
     if active_leases > 0:
         return True
     try:
-        from e2e_session_registry import body_active_count, list_live_e2e_sessions
+        from e2e_session_runtime.registry import body_active_count, list_live_e2e_sessions
 
         if body_active_count(list_live_e2e_sessions()) > 0:
             return True

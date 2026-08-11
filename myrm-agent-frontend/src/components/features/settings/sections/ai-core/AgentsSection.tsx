@@ -354,7 +354,7 @@ export default function AgentsSection() {
                           ) : parsed?.type === 'image' ? (
                             <Image
                               src={parsed.src}
-                              alt={agent.name}
+                              alt={getBuiltinAgentName(agent.id, agent.name, locale)}
                               fill
                               sizes="40px"
                               unoptimized={parsed.src.startsWith('http://') || parsed.src.startsWith('https://')}

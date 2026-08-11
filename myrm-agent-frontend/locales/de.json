@@ -5039,7 +5039,7 @@
       "disconnectFailed": "Trennen fehlgeschlagen",
       "setupGuide": "Schnelleinrichtung",
       "step1": "Laden Sie den Ordner myrm-agent-extension als entpackte Erweiterung in Chrome oder Edge (Entwicklermodus)",
-      "step2": "Öffnen Sie das Erweiterungs-Popup und geben Sie die WebSocket-URL und das Auth-Token dieses Servers ein",
+      "step2": "Erstellen Sie auf dieser Seite ein Pairing-Bundle, fügen Sie es im Erweiterungs-Popup ein und tippen Sie auf Anwenden",
       "step3": "Click Connect — the extension maintains a persistent connection",
       "extensionPathLabel": "Erweiterungsordnerpfad (für „Entpackt laden\")",
       "authorizedDomains": "Autorisierte Domains",
@@ -5050,6 +5050,10 @@
       "saveFailed": "Speichern der Domain-Einstellungen fehlgeschlagen",
       "availableTabs": "Verfügbare Tabs",
       "tabActive": "Aktiv",
+      "tabPause": "Pausieren",
+      "tabResume": "Fortsetzen",
+      "tabPaused": "Pausiert",
+      "tabPauseHint": "Pausierte Tabs bleiben in Chrome, sind für den Agenten aber unsichtbar. Praktisch bei „Alle zulässigen Websites erlauben“, z. B. für Banking- oder E-Mail-Tabs.",
       "connectionInfo": "Verbindungsinformationen",
       "websocketUrl": "WebSocket URL",
       "authTokenStatus": "Auth-Token",
@@ -5087,7 +5091,19 @@
       "clipAgentHint": "Browser-Clips werden im Wiki-Tresor dieses Agenten gespeichert. Die Erweiterung synchronisiert automatisch, wenn verbunden.",
       "clipAgentDefault": "Standardagent",
       "clipAgentSaved": "Wiki-Clip-Agent aktualisiert",
-      "clipAgentSaveFailed": "Aktualisieren des Wiki-Clip-Agenten fehlgeschlagen"
+      "clipAgentSaveFailed": "Aktualisieren des Wiki-Clip-Agenten fehlgeschlagen",
+      "relayAutomationStatus": "Automatisierung des Anmeldestatus",
+      "relayAutomationReady": "Bereit",
+      "relayAutomationNotReady": "Nicht bereit",
+      "relayAutomationHelp": "Die Erweiterung ist verbunden, aber das Automatisierungsrelais ist nicht bereit. Verbinden Sie die Erweiterung erneut oder aktualisieren Sie auf die neueste Version.",
+      "createPairingCode": "Pairing-Bundle erstellen",
+      "pairingHint": "Kopieren Sie das Pairing-Bundle, fügen Sie es im Erweiterungs-Popup ein und tippen Sie auf Anwenden — die Verbindung startet automatisch.",
+      "pairingCopied": "Pairing-Bundle kopiert",
+      "pairingCreated": "Pairing-Bundle erstellt",
+      "pairingFailed": "Fehler beim Erstellen des Pairing-Bundles",
+      "allowAllEligibleTabs": "Alle zulässigen Websites erlauben",
+      "allowAllEligibleTabsHint": "Wenn aktiviert, kann der Agent normale http(s)-Tabs in Ihrem angemeldeten Chrome nutzen. Für engere Kontrolle nutzen Sie die Domain-Liste unten.",
+      "accessPolicyInvalidHelp": "Fügen Sie mindestens eine autorisierte Domain hinzu oder aktivieren Sie „Alle erlauben“, bevor die Automatisierung starten kann."
     },
     "appearancePanel": {
       "workspaceTheme": "Arbeitsbereichsthema",
@@ -8843,6 +8859,7 @@
       "title": "Neue Erinnerungen ausstehend",
       "description": "{count, plural, =1 {1 neue Erinnerung} other {# neue Erinnerungen}} warten auf Ihre Überprüfung"
     },
+    "enabled": "Aktiviert",
     "disabled": "Deaktiviert",
     "locked": "Vor automatischen Änderungen geschützt",
     "enable": "Aktivieren",
@@ -16004,5 +16021,6 @@
     "consensusMetaElapsed": "Verstrichen: {seconds} s",
     "consensusMetaModels": "{succeeded}/{total} Modelle haben geantwortet",
     "consensusMetaTitle": "Multi-Modell-Konsens"
-  }
+  },
+  "error": "Fehler"
 }

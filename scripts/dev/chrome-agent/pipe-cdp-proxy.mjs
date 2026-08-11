@@ -383,9 +383,17 @@ function replayAutoAttachToClient(clientWs) {
 // HTTP discovery endpoints
 // ═══════════════════════════════════════════
 
+/** Normalize CDP discovery paths for Playwright/Patchright (trailing slash tolerant). */
+function normalizeDiscoveryPath(rawUrl) {
+    if (!rawUrl) return '';
+    const pathOnly = rawUrl.split('?')[0].replace(/\/+$/, '') || '/';
+    return pathOnly.toLowerCase();
+}
+
 const server = http.createServer(async (req, res) => {
     try {
-        if (req.url === '/json/version') {
+        const discoveryPath = normalizeDiscoveryPath(req.url);
+        if (discoveryPath === '/json/version') {
             // Mimic Chrome's /json/version so chrome-devtools-mcp's --browserUrl probe succeeds
             let version = {};
             if (chromeWritable) {
@@ -406,7 +414,7 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
-        if (req.url === '/json/list' || req.url === '/json') {
+        if (discoveryPath === '/json/list' || discoveryPath === '/json') {
             if (!chromeWritable) {
                 res.writeHead(503);
                 res.end('Chrome not running');

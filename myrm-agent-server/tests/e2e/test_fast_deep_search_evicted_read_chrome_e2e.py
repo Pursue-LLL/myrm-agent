@@ -1333,7 +1333,7 @@ async def _run_fast_evicted_read_live_e2e_once(
         await _assert_e2e_api_binding(chat, api_base)
 
         if search_depth == "deep":
-            from e2e_session_lifecycle import begin_body_wall_budget
+            from e2e_session_runtime.lifecycle import begin_body_wall_budget
 
             begin_body_wall_budget(phase_label="fast_deep_search_kickoff_send")
 
@@ -1637,7 +1637,7 @@ async def _run_fast_evicted_read_live_e2e_once(
                 assert "file_read_tool" in api_tools, api_tools
 
     touch_wall_progress(current_node="open_mcp_page_pending")
-    from e2e_session_lifecycle import begin_bootstrap_phase
+    from e2e_session_runtime.lifecycle import begin_bootstrap_phase
 
     begin_bootstrap_phase(phase_label="fast_search_page_open")
     session = await open_mcp_page_async(

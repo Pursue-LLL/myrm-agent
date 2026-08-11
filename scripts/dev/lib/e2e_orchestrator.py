@@ -1,7 +1,7 @@
 """E2EOrchestrator — Dev Gate E2E session SSOT (R65-B over R62 lifecycle).
 
 [INPUT]
-- e2e_session_lifecycle.py (phase budgets)
+- e2e_session_runtime/lifecycle.py (phase budgets)
 - transport_supervisor.py (recovery budget)
 
 [OUTPUT]
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from e2e_session_lifecycle import (
+from e2e_session_runtime.lifecycle import (
     ENV_PROGRESS_AT,
     ENV_WALL_PHASE,
     ENV_WALL_STARTED,

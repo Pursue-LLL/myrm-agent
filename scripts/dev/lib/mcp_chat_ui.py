@@ -160,13 +160,13 @@ class McpChatSession(CdpChatSession):
                         self._client.discard_mux_reset_executor()
                         raise TimeoutError()
                     try:
-                        from e2e_session_lifecycle import touch_wall_progress
+                        from e2e_session_runtime.lifecycle import touch_wall_progress
 
                         touch_wall_progress(current_node="mux_reset_after_orphan")
                     except ImportError:
                         pass
                     try:
-                        from e2e_lease_heartbeat import heartbeat_e2e_lease
+                        from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
 
                         heartbeat_e2e_lease()
                     except ImportError:

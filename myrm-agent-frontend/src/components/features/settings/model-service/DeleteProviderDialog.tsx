@@ -1,5 +1,5 @@
 import { memo, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/ale
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { getProviderUsage, ProviderUsageResponse } from '@/services/provider';
 import { toast } from '@/hooks/shared/useToast';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 
 interface DeleteProviderDialogProps {
   open: boolean;
@@ -25,6 +26,7 @@ interface DeleteProviderDialogProps {
 export const DeleteProviderDialog = memo<DeleteProviderDialogProps>(
   ({ open, onOpenChange, providerId, providerName, onConfirm }) => {
     const t = useTranslations('settings.modelService.deleteProvider');
+    const locale = useLocale();
     const [usage, setUsage] = useState<ProviderUsageResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [confirming, setConfirming] = useState(false);
@@ -89,7 +91,7 @@ export const DeleteProviderDialog = memo<DeleteProviderDialogProps>(
                   <ul className="list-disc pl-4 space-y-1">
                     {usage.agents.map((agent) => (
                       <li key={agent.id}>
-                        <span className="font-medium">{agent.name}</span>
+                        <span className="font-medium">{getBuiltinAgentName(agent.id, agent.name || agent.id, locale)}</span>
                         {agent.model && <span className="text-muted-foreground ml-1">({agent.model})</span>}
                       </li>
                     ))}

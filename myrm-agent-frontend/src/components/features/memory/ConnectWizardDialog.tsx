@@ -229,7 +229,11 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
               <p className="text-sm font-medium text-green-700 dark:text-green-400">{t('configReady')}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {t('memoryScopeAgent', {
-                  agent: agents.find((agent) => agent.id === configResult.agent_id)?.name ?? configResult.agent_id,
+                  agent: getBuiltinAgentName(
+                    configResult.agent_id,
+                    agents.find((agent) => agent.id === configResult.agent_id)?.name ?? configResult.agent_id,
+                    locale,
+                  ),
                 })}
               </p>
               <p className="text-xs text-muted-foreground mt-1">{configResult.instructions}</p>

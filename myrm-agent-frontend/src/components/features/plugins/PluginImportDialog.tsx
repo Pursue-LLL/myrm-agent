@@ -1,8 +1,9 @@
 'use client';
 
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { useDragDrop } from '@/hooks/ui/useDragDrop';
 import {
   Dialog,
@@ -126,6 +127,7 @@ function resolveErrorMessage(error: unknown, fallback: string): string {
 const PluginImportDialog = memo(
   ({ open, onOpenChange, onImportComplete }: PluginImportDialogProps) => {
     const t = useTranslations('settings.plugins.import');
+    const locale = useLocale();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { agents, fetchAgents } = useAgentStore();
@@ -630,7 +632,7 @@ const PluginImportDialog = memo(
                         <SelectContent>
                           {agents.map((agent) => (
                             <SelectItem key={agent.id} value={agent.id}>
-                              {agent.name}
+                              {getBuiltinAgentName(agent.id, agent.name || agent.id, locale)}
                             </SelectItem>
                           ))}
                         </SelectContent>

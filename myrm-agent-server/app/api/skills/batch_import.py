@@ -40,6 +40,9 @@ def _resolve_batch_import_error_message(
     resolved_violation = violation if violation is not None else classify_archive_security_issue(error)
     if resolved_violation is not None:
         return format_archive_security_user_message(resolved_violation)
+    detail = str(error).strip()
+    if detail:
+        return f"解析压缩包失败，防爆防护触发或格式错误: {detail}"
     return "解析压缩包失败，防爆防护触发或格式错误"
 
 

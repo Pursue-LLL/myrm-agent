@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Final
 
@@ -84,13 +85,50 @@ def load_parallel_runtime_snapshot_lite() -> tuple[dict[str, object], list[str]]
         shared = int(dev_gate.get("shared_active", 0))
         private = int(dev_gate.get("private_active", 0))
         active = max(counts.effective_total, shared + private)
+        sessions_raw = dev_gate.get("sessions", [])
+        sessions = sessions_raw if isinstance(sessions_raw, list) else []
+        now = time.time()
+        active_tests: list[dict[str, object]] = []
+        admit_count = 0
+        body_count = 0
+        for raw in sessions:
+            if not isinstance(raw, dict):
+                continue
+            state = str(raw.get("state", ""))
+            submitted_at = float(raw.get("submitted_at", 0.0) or 0.0)
+            phase_started_at = float(raw.get("phase_started_at", 0.0) or 0.0)
+            wall_phase = "body" if state in {"BODY", "TEARDOWN"} else "bootstrap"
+            if state in {"SUBMITTED", "PRIVATE_ADMIT", "PREPARING", "PAGE_OPEN"}:
+                admit_count += 1
+            if state in {"BODY", "TEARDOWN"}:
+                body_count += 1
+            active_tests.append(
+                {
+                    "pid": int(raw.get("owner_pid", 0) or 0),
+                    "test_id": str(raw.get("test_node_id", "")),
+                    "elapsed_sec": max(0.0, now - submitted_at),
+                    "state": state,
+                    "current_node": str(raw.get("current_node", "")) or None,
+                    "wall_phase": wall_phase,
+                    "admit_elapsed_sec": (
+                        max(0.0, now - submitted_at) if wall_phase == "bootstrap" else None
+                    ),
+                    "body_elapsed_sec": (
+                        max(0.0, now - phase_started_at) if wall_phase == "body" else None
+                    ),
+                    "node_elapsed_sec": max(
+                        0.0, now - float(raw.get("node_started_at", 0.0) or now)
+                    ),
+                    "batch_mode": False,
+                }
+            )
         payload: dict[str, object] = {
             "agent_stream_lock": None,
             "desktop_approval_lock": None,
-            "active_tests": [],
+            "active_tests": active_tests,
             "active_test_count": active,
-            "admit_active_count": 0,
-            "body_active_count": active,
+            "admit_active_count": admit_count,
+            "body_active_count": body_count,
             "snapshot_lite": True,
             "snapshot_lite_source": "dev_gate+wave",
         }

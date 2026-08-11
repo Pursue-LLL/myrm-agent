@@ -15,12 +15,13 @@ Growth drafts（`skill_draft` / `skill_patch` / `semantic_memory`）统一存储
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `registry.py` | 核心 | 拦截审批流注册、多端推送 (SSE + Channels)、`list_pending` 过滤后台 growth draft、`send_outbound_draft_payload()` 共享的草稿发送逻辑；create/resolve 后 `_sync_copilot_pending` 刷新 RunDigest 待审批计数 | ✅ |
+| `registry.py` | 核心 | 拦截审批流注册、多端推送 (SSE + Channels)、`list_pending` 过滤后台 growth draft、`list_pending_growth`（背景 growth 去重/上限 SSOT）、`send_outbound_draft_payload()` 共享的草稿发送逻辑；create/resolve 后 `_sync_copilot_pending` 刷新 RunDigest 待审批计数 | ✅ |
 
-## `list_pending` 契约
+## `list_pending` / `list_pending_growth` 契约
 
-- **包含**：工具 HITL、`thread_id` 非空的 inline `skill_draft` 等需全局 Drawer recovery 的项。
-- **排除**：`action_type ∈ growth/constants.py::GROWTH_ACTION_TYPES` 且 `thread_id` 为空（Agent Draft Inbox / `/skills/drafts`）。
+- **`list_pending` 包含**：工具 HITL、`thread_id` 非空的 inline `skill_draft` 等需全局 Drawer recovery 的项。
+- **`list_pending` 排除**：`action_type ∈ growth/constants.py::GROWTH_ACTION_TYPES` 且 `thread_id` 为空（Agent Draft Inbox / `/skills/drafts`）。
+- **`list_pending_growth`**：仅返回 PENDING 后台 growth drafts（与 `list_pending` 互补），供 `draft_notification.persist_skill_draft_record` 做去重抑制与 pending 上限检查；避免 `list_pending` 的过滤导致重复提案无限堆积。
 - **SSE**：后台 growth 创建时（`PENDING` 或非 `PENDING`）一律不广播 `APPROVAL_REQUIRED` / `SKILL_GROWTH_UPDATED`（由 `draft_notification` 统一发 `NEW_SKILL_DRAFT` / `SKILL_GROWTH_UPDATED`，避免双发）。
 
 ## 模块依赖

@@ -54,7 +54,7 @@ def _desktop_tool_activity_tick() -> None:
     """R249: lease + BODY wall progress during desktop tool-activity poll."""
     heartbeat_e2e_lease()
     try:
-        from e2e_session_lifecycle import touch_wall_progress
+        from e2e_session_runtime.lifecycle import touch_wall_progress
 
         touch_wall_progress(current_node="wait_desktop_tool_activity")
     except ImportError:

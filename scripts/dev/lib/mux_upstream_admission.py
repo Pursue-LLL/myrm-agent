@@ -15,10 +15,11 @@ import sys
 import threading
 import time
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, TypedDict
+from typing import TypedDict
 
 from dev_gate_contract import (
     MUX_COLD_ATTACH_SLOTS,
@@ -70,6 +71,23 @@ def _locked_registry() -> Iterator[Path]:
         fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
         try:
             yield root / "registry.json"
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def _locked_registry_snapshot() -> Iterator[Path]:
+    """Read the atomic registry without creating or mutating runtime state."""
+    root = _state_root()
+    registry_path = root / "registry.json"
+    lock_path = root / "registry.lock"
+    if not lock_path.is_file():
+        yield registry_path
+        return
+    with lock_path.open("r", encoding="utf-8") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_SH)
+        try:
+            yield registry_path
         finally:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
@@ -217,7 +235,7 @@ def list_active_upstream_operations() -> tuple[ActiveUpstreamOperation, ...]:
     if _admission_disabled():
         return ()
     now = time.time()
-    with _locked_registry() as registry_path:
+    with _locked_registry_snapshot() as registry_path:
         registry = _load_registry(registry_path)
         _prune_stale(registry, now=now)
         active: list[ActiveUpstreamOperation] = []
@@ -251,7 +269,6 @@ def read_mux_cold_attach_status() -> MuxColdAttachStatus:
             "saturated": False,
             "handProbeAllowed": True,
         }
-    prune_stale()
     active, resolved_cap = _active_snapshot()
     saturated = active >= resolved_cap
     peers = _parallel_mux_peer_count()
@@ -299,7 +316,7 @@ def wait_mux_hand_probe_allowed(*, budget_sec: float | None = None) -> None:
 
 def _active_snapshot() -> tuple[int, int]:
     now = time.time()
-    with _locked_registry() as registry_path:
+    with _locked_registry_snapshot() as registry_path:
         registry = _load_registry(registry_path)
         _prune_stale(registry, now=now)
         cap = effective_max_slots()
@@ -439,19 +456,19 @@ def acquire_with_wait(
             file=sys.stderr,
         )
         try:
-            from e2e_session_snapshot import touch_session_progress
+            from e2e_session_runtime.snapshot import touch_session_progress
 
             touch_session_progress()
         except ImportError:
             pass
         try:
-            from e2e_session_lifecycle import touch_wall_progress
+            from e2e_session_runtime.lifecycle import touch_wall_progress
 
             touch_wall_progress(current_node="parallel_mux_upstream_wait")
         except ImportError:
             pass
         try:
-            from e2e_lease_heartbeat import heartbeat_e2e_lease
+            from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
 
             heartbeat_e2e_lease()
         except ImportError:

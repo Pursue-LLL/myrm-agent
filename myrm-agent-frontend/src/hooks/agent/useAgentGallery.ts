@@ -32,6 +32,7 @@ import { AGENT_LIST_BUILTIN_PAGE_SIZE } from '@/services/agent';
 import useAgentStore from '@/store/useAgentStore';
 import useProviderStore from '@/store/useProviderStore';
 import { isLocalMode } from '@/lib/deploy-mode';
+import { getBuiltinAgentName, getBuiltinAgentDescription } from '@/components/agent/builtin-agent-i18n';
 import { toast } from '@/lib/utils/toast';
 import { isAbsolutePath, normalizePath } from '@/lib/utils/pathValidation';
 import { CLI_WORKING_DIRECTORY_STORAGE_KEY } from '@/components/features/chat-window/agent-config-panel/constants';
@@ -109,9 +110,9 @@ export function useAgentGallery({
 
         return {
           id: bp.id,
-          name: bp.name,
+          name: getBuiltinAgentName(bp.id, bp.name, locale),
           nameKey: bp.id.replace('builtin-', ''), // Map ID to translation key
-          description: bp.description || '',
+          description: getBuiltinAgentDescription(bp.id, bp.description || '', locale),
           descriptionKey: bp.id.replace('builtin-', ''),
           category: category as any,
           icon: bp.avatar_url?.replace('icon:', '') || 'MessageCircle',

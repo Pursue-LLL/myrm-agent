@@ -19,7 +19,7 @@ import logging
 from pathlib import Path
 
 from filelock import FileLock, Timeout
-from myrm_agent_harness.runtime.lazy_deps import FeatureUnavailable, ensure, feature_missing
+from myrm_agent_harness.runtime.lazy_deps import FeatureUnavailableError, ensure, feature_missing
 
 from app.channels.providers.registry import clear_cache
 from app.channels.types import ChannelIssue, IssueKind, IssueSeverity
@@ -98,7 +98,7 @@ def _run_install(features: tuple[str, ...]) -> tuple[bool, str]:
     for feature in features:
         try:
             ensure(feature, prompt=False)
-        except FeatureUnavailable as exc:
+        except FeatureUnavailableError as exc:
             errors.append(str(exc))
     if errors:
         return False, "; ".join(errors)

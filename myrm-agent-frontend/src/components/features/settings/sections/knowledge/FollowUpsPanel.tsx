@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { IconHeart } from '@/components/features/icons/PremiumIcons';
 import useAgentStore from '@/store/useAgentStore';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import SettingsSection from '../SettingsSection';
 import { dismissFollowUp, fetchFollowUps, snoozeFollowUp, type FollowUp } from '@/services/followUps';
 
@@ -162,7 +163,7 @@ const FollowUpsPanel = memo(function FollowUpsPanel() {
               <option value="all">{t('agentFilterAll')}</option>
               {agents.map((agent) => (
                 <option key={agent.id} value={agent.id}>
-                  {agent.name}
+                  {getBuiltinAgentName(agent.id, agent.name || agent.id, locale)}
                 </option>
               ))}
             </select>

@@ -20,6 +20,7 @@ import argparse
 import os
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal
@@ -136,9 +137,16 @@ def _launch_allowed(*, next_action: str, ctx: E2eApiContext) -> bool:
         return False
     if next_action in _LAUNCH_ALLOWED_ACTIONS:
         return True
+    # Workspace drift is a routing decision, not an admission blocker. The
+    # generic launch-check runs before pytest collection knows the node profile;
+    # test.sh subsequently routes SHARED to the healthy deployed epoch or
+    # PRIVATE to an immutable workspace backend and keeps the profile-specific
+    # gate fail-closed.
+    if next_action == "PRIVATE_EPOCH_REQUIRED":
+        return True
     # R298: SHPOIB PRIVATE tests seed isolated backend in bootstrap — shared epoch block is OK.
     if (
-        next_action in {"SHPOIB_OR_VERIFY_API", "PRIVATE_EPOCH_REQUIRED"}
+        next_action == "SHPOIB_OR_VERIFY_API"
         and _shpoib_launch_bypass_enabled()
     ):
         return True
@@ -304,6 +312,26 @@ def resolve_chrome_e2e_readiness() -> ChromeE2eReadinessVerdict:
     return _build_readiness_verdict()
 
 
+def resolve_chrome_e2e_readiness_stable(
+    *, max_attempts: int = 3, retry_interval_sec: float = 0.1
+) -> ChromeE2eReadinessVerdict:
+    """Re-sample only transient observability UNKNOWN with bounded progress."""
+    attempts = max(1, int(max_attempts))
+    verdict = resolve_chrome_e2e_readiness()
+    for attempt in range(1, attempts):
+        if verdict.next_action != "OBSERVABILITY_UNKNOWN":
+            return verdict
+        sys.stderr.write(
+            f"E2E_OBSERVABILITY_RETRY: attempt={attempt + 1}/{attempts} "
+            "fresh_snapshot=yes\n"
+        )
+        sys.stderr.flush()
+        if retry_interval_sec > 0:
+            time.sleep(retry_interval_sec)
+        verdict = resolve_chrome_e2e_readiness()
+    return verdict
+
+
 def format_shell_tokens(verdict: ChromeE2eReadinessVerdict) -> str:
     lines = [
         f"MYRM_READINESS_STATUS={verdict.status}",
@@ -330,7 +358,7 @@ def launch_denial_line(verdict: ChromeE2eReadinessVerdict) -> str | None:
 
 
 def _cmd_emit(_args: argparse.Namespace) -> int:
-    verdict = resolve_chrome_e2e_readiness()
+    verdict = resolve_chrome_e2e_readiness_stable()
     sys.stdout.write(format_shell_tokens(verdict) + "\n")
     if verdict.status == "FAIL":
         return 2
@@ -365,7 +393,7 @@ def _parse_emit_fields(stdout: str) -> dict[str, str]:
 
 
 def _cmd_check_inprocess(_args: argparse.Namespace) -> int:
-    verdict = resolve_chrome_e2e_readiness()
+    verdict = resolve_chrome_e2e_readiness_stable()
     if verdict.launch_allowed:
         sys.stdout.write("E2E_LAUNCH_OK\n")
         sys.stdout.write(f"E2E_READINESS={verdict.token}\n")

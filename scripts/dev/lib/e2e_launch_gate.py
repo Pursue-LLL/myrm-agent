@@ -18,9 +18,37 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 
 from dev_gate_contract import e2e_launch_check_wall_sec
+
+if TYPE_CHECKING:
+    from e2e_api_verify import BackendCandidate
+
+
+def shared_profile_can_use_deployed_epoch(
+    *,
+    next_action: str,
+    execution_mode: str | None = None,
+    candidates: tuple[BackendCandidate, ...] | None = None,
+) -> bool:
+    """SHARED profiles target the healthy deployed backend, not workspace code."""
+    mode = execution_mode or os.environ.get("MYRM_E2E_EXECUTION_MODE", "")
+    if mode.strip() != "SHARED":
+        return False
+    if next_action != "PRIVATE_EPOCH_REQUIRED":
+        return False
+    resolved_candidates = candidates
+    if resolved_candidates is None:
+        from e2e_api_verify import resolve_e2e_api_context  # noqa: PLC0415
+
+        context = resolve_e2e_api_context(retry_after_apply=False)
+        resolved_candidates = context.candidates
+    return any(
+        candidate.source == "shared" and candidate.health_ok
+        for candidate in resolved_candidates
+    )
 
 
 def _launch_gate_wall_sec() -> float:
@@ -55,6 +83,8 @@ def chrome_e2e_launch_denial_reason() -> str | None:
         )
 
         verdict = resolve_chrome_e2e_readiness()
+        if shared_profile_can_use_deployed_epoch(next_action=verdict.next_action):
+            return None
         return launch_denial_line(verdict)
     from e2e_readiness import _parse_emit_fields  # noqa: PLC0415
 
@@ -79,6 +109,10 @@ def chrome_e2e_launch_denial_reason() -> str | None:
         )
     fields = _parse_emit_fields(proc.stdout)
     if fields.get("E2E_LAUNCH_ALLOWED", "no").lower() == "yes":
+        return None
+    if shared_profile_can_use_deployed_epoch(
+        next_action=fields.get("NEXT_ACTION", "")
+    ):
         return None
     token = fields.get("MYRM_READINESS_TOKEN", "UNKNOWN")
     reason = fields.get("MYRM_READINESS_REASON", proc.stderr.strip() or "launch denied")

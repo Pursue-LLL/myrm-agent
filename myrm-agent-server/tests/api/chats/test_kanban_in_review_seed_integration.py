@@ -103,7 +103,9 @@ class TestKanbanInReviewSeedIntegration:
             == baseline + 1
         )
 
-        approve_resp = client.post(f"/api/v1/kanban/tasks/{task_id}/approve")
+        approve_resp = client.post(
+            f"/api/v1/kanban/tasks/{task_id}/approve", json={"approver": None}
+        )
         assert approve_resp.status_code == 200
         assert approve_resp.json()["status"] == "completed"
 

@@ -8,7 +8,8 @@ silently at connection time.
 
 Also covers org-managed MCP servers (pushed by the Control Plane): they are
 treated as configured even when absent from the user's own MCP config, matching
-the runtime merge in converter.py.
+the runtime merge via config_parsers.merge_org_mcp_configs. Also covers the shared
+``merge_org_mcp_configs`` helper used by every execution entry point.
 """
 
 from __future__ import annotations
@@ -185,8 +186,8 @@ async def test_vault_error_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_org_mcp_bound_no_missing_warning(_vault: AsyncMock) -> None:
     """Agent bound to an org-managed MCP must not report 'not found in config'.
 
-    Org MCPs are merged into runtime config by converter.py regardless of user
-    config, so readiness must treat them as configured.
+    Org MCPs are merged into runtime config via config_parsers.merge_org_mcp_configs
+    regardless of user config, so readiness must treat them as configured.
     """
     from app.services.agent.readiness.resolver import _check_mcp
 
@@ -251,3 +252,97 @@ def test_extract_org_mcp_configs_tags_scope_and_skips_invalid() -> None:
     assert parsed[0].extra_params == {"scope": "org"}
     assert extract_org_mcp_configs(None) == []
     assert extract_org_mcp_configs({"servers": "not-a-list"}) == []
+
+
+def test_merge_org_mcp_configs_appends_org_servers() -> None:
+    """User configs come first, then org servers tagged scope=org."""
+    from app.core.channel_bridge.config_parsers import (
+        extract_mcp_configs,
+        merge_org_mcp_configs,
+    )
+
+    user = extract_mcp_configs(
+        _mcp_dict(
+            [
+                {
+                    "name": "user-db",
+                    "type": "sse",
+                    "url": "https://user.example.com/mcp",
+                    "enabled": True,
+                }
+            ]
+        )
+    )
+    org_mcp_dict = _org_mcp_dict(
+        [
+            {
+                "name": "org-crm",
+                "type": "sse",
+                "url": "https://crm.example.com/mcp",
+            }
+        ]
+    )
+    merged = merge_org_mcp_configs(user, org_mcp_dict)
+    assert [c.name for c in merged] == ["user-db", "org-crm"]
+    assert merged[1].extra_params == {"scope": "org"}
+    assert merged[0].extra_params is None
+
+
+def test_merge_org_mcp_configs_org_only() -> None:
+    """Org servers are available even when the user has no MCP config of their own."""
+    from app.core.channel_bridge.config_parsers import merge_org_mcp_configs
+
+    org_mcp_dict = _org_mcp_dict(
+        [
+            {
+                "name": "org-wiki",
+                "type": "sse",
+                "url": "https://wiki.example.com/mcp",
+            }
+        ]
+    )
+    merged = merge_org_mcp_configs(None, org_mcp_dict)
+    assert [c.name for c in merged] == ["org-wiki"]
+    assert merged[0].extra_params == {"scope": "org"}
+
+
+def test_merge_org_mcp_configs_none_inputs() -> None:
+    """Both inputs empty yields an empty list (no crash, fresh list)."""
+    from app.core.channel_bridge.config_parsers import merge_org_mcp_configs
+
+    assert merge_org_mcp_configs(None, None) == []
+    assert merge_org_mcp_configs([], None) == []
+    assert merge_org_mcp_configs(None, {"servers": "not-a-list"}) == []
+
+
+def test_merge_org_mcp_configs_does_not_mutate_input() -> None:
+    """The user list is copied; callers can reuse their original reference."""
+    from app.core.channel_bridge.config_parsers import (
+        extract_mcp_configs,
+        merge_org_mcp_configs,
+    )
+
+    user = extract_mcp_configs(
+        _mcp_dict(
+            [
+                {
+                    "name": "user-db",
+                    "type": "sse",
+                    "url": "https://user.example.com/mcp",
+                    "enabled": True,
+                }
+            ]
+        )
+    )
+    org_mcp_dict = _org_mcp_dict(
+        [
+            {
+                "name": "org-crm",
+                "type": "sse",
+                "url": "https://crm.example.com/mcp",
+            }
+        ]
+    )
+    before = len(user)
+    merge_org_mcp_configs(user, org_mcp_dict)
+    assert len(user) == before

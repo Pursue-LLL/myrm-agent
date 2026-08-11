@@ -12,6 +12,7 @@ from cdp_chat_support import (
     E2E_BRIDGE_INSTALL_JS,
     MODEL_PROBE_JS,
     PAGE_PROBE_JS,
+    PREPARE_AUTOMATION_SEND_JS,
     SELECT_FIRST_ENABLED_MODEL_JS,
     SELECT_MIMO_MODEL_JS,
     _api_provider_ready,
@@ -19,7 +20,6 @@ from cdp_chat_support import (
     chat_user_message_count,
     fetch_provider_readiness_snapshot,
     get_e2e_ui_url,
-    PREPARE_AUTOMATION_SEND_JS,
 )
 from dev_gate_contract import EvaluateIntent
 
@@ -212,7 +212,7 @@ class CdpChatInput(CdpChatBootstrap):
             polls += 1
             if polls % 5 == 0:
                 try:
-                    from e2e_session_lifecycle import touch_wall_progress
+                    from e2e_session_runtime.lifecycle import touch_wall_progress
 
                     touch_wall_progress(current_node="ensure_react_e2e_bridge")
                 except ImportError:
@@ -982,12 +982,12 @@ class CdpChatInput(CdpChatBootstrap):
     async def pause_goal_via_ui(self, note: str) -> dict[str, object]:
         payload = json.dumps(note)
         result = await self.evaluate(
-            f"""(() => {{
+            """(() => {
               const trigger = document.querySelector('[data-testid="goal-pause-trigger"]');
-              if (!trigger) return {{ ok: false, err: 'no-pause-trigger' }};
+              if (!trigger) return { ok: false, err: 'no-pause-trigger' };
               trigger.click();
-              return {{ ok: true, step: 'opened' }};
-            }})()""",
+              return { ok: true, step: 'opened' };
+            })()""",
             intent=EvaluateIntent.SYNC_PROBE,
         )
         if not isinstance(result, dict) or not result.get("ok"):

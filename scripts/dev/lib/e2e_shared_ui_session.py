@@ -32,7 +32,7 @@ DEFAULT_SEARCH_POLICY: SearchPolicy = "hydrate_private"
 _EMPTY_POLICY_STRONG_CLEAR_DONE: set[tuple[str, str]] = set()
 _PARALLEL_BRIDGE_READY_CAP_SEC = 180.0
 _SIGNOFF_PARALLEL_BRIDGE_READY_CAP_SEC = 240.0
-_SERIAL_BRIDGE_READY_CAP_SEC = 120.0
+_SERIAL_BRIDGE_READY_CAP_SEC = 60.0
 
 
 def _parallel_bridge_ready_cap_sec() -> float:
@@ -86,7 +86,7 @@ HYDRATE_PRIVATE_SEARCH_JS = """(async () => {
     const liveBridge = window.__MYRM_E2E_CHAT__;
     if (liveBridge?.syncSearchServicesFromE2eApi) {
       const sync = await liveBridge.syncSearchServicesFromE2eApi();
-      if (sync?.ok && (sync.count ?? 0) > 0) {
+      if (sync?.ok) {
         return { ok: true, count: sync.count, phase: 'SEARCH_POLICY' };
       }
     }
@@ -244,7 +244,7 @@ def _extend_shared_ui_deadline_if_wall_allows(
     """Extend an expired inner deadline when outer bootstrap/body wall still has budget."""
     if deadline is None or time.monotonic() < deadline:
         return deadline
-    from e2e_session_lifecycle import current_phase, remaining_wall_sec
+    from e2e_session_runtime.lifecycle import current_phase, remaining_wall_sec
 
     remaining = remaining_wall_sec()
     extend_floor = 20.0 if os.environ.get("E2E_SIGNOFF", "").strip() == "1" else 45.0
@@ -290,7 +290,7 @@ async def _apply_empty_search_block(
         if isinstance(probe, dict) and probe.get("blocked") is True:
             return {"ok": True, "phase": "SEARCH_POLICY", "skipped": "already_blocked"}
     try:
-        from e2e_session_lifecycle import touch_wall_progress
+        from e2e_session_runtime.lifecycle import touch_wall_progress
 
         touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_SEARCH_BLOCK")
     except ImportError:
@@ -312,7 +312,7 @@ async def _ensure_bridge_probe_ready(
     deadline: float | None,
 ) -> dict[str, object]:
     """Final bridge probe with CDP re-hydrate retries after SEARCH_POLICY side effects."""
-    from e2e_session_lifecycle import assert_phase_budget
+    from e2e_session_runtime.lifecycle import assert_phase_budget
 
     ensure_bridge = getattr(chat, "ensure_react_e2e_bridge", None)
     last_probe: dict[str, object] = {}
@@ -357,7 +357,7 @@ async def _ensure_bridge_probe_ready(
 
         assert_phase_budget("E2E_SHARED_UI_SESSION_BRIDGE")
         try:
-            from e2e_session_lifecycle import touch_wall_progress
+            from e2e_session_runtime.lifecycle import touch_wall_progress
 
             touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_BRIDGE_REHYDRATE")
         except ImportError:
@@ -409,7 +409,7 @@ async def apply_shared_ui_session_contract(
     deadline: float | None = None,
 ) -> dict[str, object]:
     """Run RESET_GLOBALS → BIND_API → BRIDGE_READY → SEARCH_POLICY on an owned page."""
-    from e2e_session_lifecycle import assert_phase_budget
+    from e2e_session_runtime.lifecycle import assert_phase_budget
 
     policy = search_policy or current_search_policy()
     if policy is None:
@@ -424,7 +424,7 @@ async def apply_shared_ui_session_contract(
 
     assert_phase_budget("E2E_SHARED_UI_SESSION_RESET")
     try:
-        from e2e_session_lifecycle import touch_wall_progress
+        from e2e_session_runtime.lifecycle import touch_wall_progress
 
         touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_RESET")
     except ImportError:
@@ -500,7 +500,7 @@ async def apply_shared_ui_session_contract(
     if callable(ensure_bridge):
         assert_phase_budget("E2E_SHARED_UI_SESSION_BRIDGE")
         try:
-            from e2e_session_lifecycle import touch_wall_progress
+            from e2e_session_runtime.lifecycle import touch_wall_progress
 
             touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_BRIDGE")
         except ImportError:
@@ -558,7 +558,7 @@ async def apply_shared_ui_session_contract(
                 flush=True,
             )
             try:
-                from e2e_session_lifecycle import touch_wall_progress
+                from e2e_session_runtime.lifecycle import touch_wall_progress
 
                 touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_FASTPATH_EMPTY")
             except ImportError:
@@ -680,7 +680,7 @@ async def reapply_shared_ui_session_after_new_chat(
         flush=True,
     )
     try:
-        from e2e_session_lifecycle import touch_wall_progress
+        from e2e_session_runtime.lifecycle import touch_wall_progress
 
         touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_REAPPLY")
     except ImportError:

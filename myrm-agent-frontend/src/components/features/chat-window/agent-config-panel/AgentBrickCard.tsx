@@ -160,7 +160,7 @@ const AgentBrickCard = ({
           ) : parsed?.type === 'lucide' ? (
             <LucideAgentIcon iconName={parsed.iconName} size="md" className="w-10 h-10 text-white" />
           ) : parsed?.type === 'image' ? (
-            <img src={parsed.src} alt={agent.name} className="w-full h-full rounded-lg object-cover" />
+            <img src={parsed.src} alt={displayName} className="w-full h-full rounded-lg object-cover" />
           ) : parsed?.type === 'emoji' ? (
             <span className="text-lg">{parsed.emoji}</span>
           ) : (

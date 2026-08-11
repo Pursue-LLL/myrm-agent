@@ -125,6 +125,7 @@ class BackendCandidate:
     epoch_match: bool
     health_ok: bool
     epoch: int | None
+    health_observable: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,16 +261,17 @@ def _bounded_probe_timeout(requested_sec: float) -> float:
     return min(requested_sec, remaining)
 
 
-def _api_health_ok(
+def _api_health_probe(
     api_base: str,
     timeout_sec: float = HEALTH_PROBE_TIMEOUT_SEC,
     *,
     allow_retry: bool = True,
-) -> bool:
+) -> bool | None:
     timeout_sec = _bounded_probe_timeout(timeout_sec)
     if timeout_sec <= 0:
         return False
     base = api_base.rstrip("/")
+    permission_denied = False
     for attempt in range(2 if allow_retry else 1):
         if attempt > 0:
             # High-load transient failures (accept/read timeouts, ECONNRESET) are
@@ -292,10 +294,33 @@ def _api_health_ok(
                     continue
                 if _curl_loopback_get(url, timeout_sec=timeout_sec) is not None:
                     return True
-            except (TimeoutError, OSError):
+                permission_denied = permission_denied or isinstance(
+                    reason, PermissionError
+                )
+            except (TimeoutError, OSError) as exc:
                 if _curl_loopback_get(url, timeout_sec=timeout_sec) is not None:
                     return True
-    return False
+                permission_denied = permission_denied or isinstance(
+                    exc, PermissionError
+                )
+    return None if permission_denied else False
+
+
+def _api_health_ok(
+    api_base: str,
+    timeout_sec: float = HEALTH_PROBE_TIMEOUT_SEC,
+    *,
+    allow_retry: bool = True,
+) -> bool:
+    """Compatibility predicate; observation code must use the tri-state probe."""
+    return (
+        _api_health_probe(
+            api_base,
+            timeout_sec=timeout_sec,
+            allow_retry=allow_retry,
+        )
+        is True
+    )
 
 
 def _curl_loopback_get(url: str, *, timeout_sec: float) -> str | None:
@@ -471,7 +496,8 @@ def _build_candidates_from_specs(
     candidates: list[BackendCandidate] = []
     for api_base, port, state_dir_raw, source in specs:
         state_dir = Path(state_dir_raw) if state_dir_raw else Path()
-        health_ok = _api_health_ok(api_base)
+        health_result = _api_health_probe(api_base)
+        health_ok = health_result is True
         epoch, stored_fp = _resolve_candidate_fingerprint(
             api_base=api_base,
             state_dir=state_dir,
@@ -489,6 +515,7 @@ def _build_candidates_from_specs(
                 epoch_match=epoch_match,
                 health_ok=health_ok,
                 epoch=epoch,
+                health_observable=health_result is not None,
             )
         )
     return candidates
@@ -552,6 +579,8 @@ def _blocked_reason(
     workspace_fp: str,
 ) -> str:
     healthy = [item for item in candidates if item.health_ok]
+    if candidates and any(not item.health_observable for item in candidates):
+        return "backend health observability unavailable; preserve runtime and peers"
     if not workspace_fp:
         return "workspace backend source_fingerprint unavailable"
     if not healthy:
@@ -619,7 +648,13 @@ def _build_context_from_resolution(
             break
     healthy = [item for item in candidates if item.health_ok]
     stale = [item for item in healthy if not item.epoch_match]
-    if not healthy:
+    unobservable = [item for item in candidates if not item.health_observable]
+    if unobservable:
+        action = (
+            "Preserve the runtime and peers; rerun through the normal ./myrm test "
+            "harness where loopback health is observable; never infer a crash or restart"
+        )
+    elif not healthy:
         action = (
             "Run ./myrm ready --attach --chrome for single-flight backend-only crash heal, "
             "then reread ./myrm e2e-context json"
@@ -858,6 +893,8 @@ def _compute_next_action(
         candidate for candidate in ctx.candidates if candidate.source == "shared"
     ]
     shared_match = _shared_epoch_match(ctx)
+    if any(not candidate.health_observable for candidate in shared_candidates):
+        return "OBSERVABILITY_UNKNOWN"
     shared_healthy = any(candidate.health_ok for candidate in shared_candidates)
     if shared_candidates and not shared_healthy:
         # A dead shared backend is a crash-heal problem, not epoch verification.
@@ -1261,9 +1298,10 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         sys.stdout.write(f"BLOCKED_REASON={ctx.blocked_reason}\n")
         if not _shared_epoch_match(ctx):
             sys.stdout.write(
-                "E2E_BLOCKED_EPOCH: shared reload deferred "
-                f"({ctx.active_leases} active leases); use SHPOIB verify-api; "
-                "do not stop other tests.\n"
+                "E2E_BLOCKED_EPOCH: workspace backend differs from the deployed "
+                "shared epoch; use the node planner's PRIVATE immutable epoch for "
+                "workspace backend code, while tests targeting the deployed shared "
+                "epoch remain SHARED; do not wait, restart shared :8080, or stop peers.\n"
             )
     mux_fields = _mux_context_fields()
     parallel_snapshot, parallel_lines = _resolve_parallel_runtime_snapshot()

@@ -14,6 +14,12 @@ from contextlib import contextmanager, nullcontext, suppress
 from pathlib import Path
 from typing import TypeVar
 
+# Re-exported shared fixtures from sub-tree conftests. pytest 9 requires
+# pytest_plugins at the top-level conftest only; the referenced modules define
+# explicit-request fixtures (db_session/fts_db) and an artifact-upsert autouse
+# mock that is inert for tests that never touch the artifact pipeline.
+pytest_plugins = ("tests.services.chat.conftest", "tests.core.artifacts.conftest")
+
 # coverage/pytest-cov patches imports before mcp.types builds RootModel generics.
 import pydantic.root_model  # noqa: F401
 import pytest
@@ -615,7 +621,7 @@ def _chrome_e2e_item_runtime(
     if str(dev_infra) not in sys.path:
         sys.path.insert(0, str(dev_infra))
     from e2e_orchestrator import begin_bootstrap_phase
-    from e2e_session_snapshot import write_session_snapshot
+    from e2e_session_runtime.snapshot import write_session_snapshot
 
     begin_bootstrap_phase(phase_label=request.node.name)
     write_session_snapshot(
@@ -711,7 +717,7 @@ def _require_live_e2e_lease(
         from e2e_orchestrator import begin_bootstrap_phase
 
         begin_bootstrap_phase(phase_label=request.node.name)
-        from e2e_session_snapshot import write_session_snapshot
+        from e2e_session_runtime.snapshot import write_session_snapshot
 
         write_session_snapshot(
             current_node=request.node.nodeid,
@@ -730,7 +736,7 @@ def _require_live_e2e_lease(
             lib = _e2e_dev_lib_path()
             if str(lib) not in sys.path:
                 sys.path.insert(0, str(lib))
-            from e2e_session_lifecycle import begin_bootstrap_phase
+            from e2e_session_runtime.lifecycle import begin_bootstrap_phase
 
             begin_bootstrap_phase(phase_label="page_open_pending")
             write_session_snapshot(

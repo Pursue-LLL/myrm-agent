@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - ApprovalRegistry: 统一的拦截审批注册与唤醒中枢
+- list_pending_growth: PENDING 背景成长草稿查询（去重/上限 SSOT）
 - send_outbound_draft_payload: Outbound draft 消息重建与发送（WebUI/Channel/TTL 共享）
 
 [POS]
@@ -314,6 +315,31 @@ class ApprovalRegistry:
             return list(result.scalars().all())
 
     @classmethod
+    async def list_pending_growth(cls, limit: int = 50, offset: int = 0) -> list[ApprovalRecord]:
+        """List PENDING background-growth drafts (hidden from the global approvals inbox).
+
+        `list_pending` intentionally excludes background growth drafts (skill_draft /
+        skill_patch / semantic_memory without a thread_id) because they live in the
+        /skills/drafts inbox. `persist_skill_draft_record` uses this to enforce
+        deduplication and the pending-proposal cap on those same drafts.
+        """
+        background_growth = and_(
+            ApprovalRecord.action_type.in_(GROWTH_ACTION_TYPES),
+            or_(ApprovalRecord.thread_id.is_(None), ApprovalRecord.thread_id == ""),
+        )
+        async with get_session() as db:
+            stmt = (
+                select(ApprovalRecord)
+                .where(ApprovalRecord.status == "PENDING")
+                .where(background_growth)
+                .order_by(ApprovalRecord.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+            )
+            result = await db.execute(stmt)
+            return list(result.scalars().all())
+
+    @classmethod
     async def resolve_pending_browser_takeover_for_chat(
         cls,
         chat_id: str,
@@ -382,7 +408,7 @@ async def send_outbound_draft_payload(
                 mt = MediaType(raw_type)
             except ValueError:
                 mt = MediaType.DOCUMENT
-            media.append(MediaAttachment(url=str(item["url"]), type=mt))
+            media.append(MediaAttachment(url=str(item["url"]), media_type=mt))
 
     outbound = OutboundMessage(
         channel=str(payload.get("channel", "")),

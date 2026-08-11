@@ -19,7 +19,7 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from e2e_lease_heartbeat import heartbeat_e2e_lease
+from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
 from e2e_resource_ledger import E2EResourceLedger as _E2EResourceLedger
 
 _E2E_HEARTBEAT_INTERVAL_SEC = 30.0
@@ -53,7 +53,7 @@ def e2e_lease_heartbeat_loop(
     *, interval_sec: float = _E2E_HEARTBEAT_INTERVAL_SEC
 ) -> Iterator[None]:
     """Background heartbeat for long-running live E2E tests."""
-    from e2e_unified_heartbeat import heartbeat_once, pytest_should_spawn_heartbeat_loop
+    from e2e_session_runtime.heartbeat import heartbeat_once, pytest_should_spawn_heartbeat_loop
 
     heartbeat_once()
     if not pytest_should_spawn_heartbeat_loop():

@@ -160,7 +160,7 @@ def parallel_active_test_count_ssot() -> int:
     session_peers = 0
     if pytest_peers < 2:
         try:
-            from e2e_session_registry import list_live_e2e_sessions
+            from e2e_session_runtime.registry import list_live_e2e_sessions
 
             session_peers = len(list_live_e2e_sessions())
         except ImportError:

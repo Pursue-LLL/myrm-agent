@@ -329,9 +329,16 @@ _ADD_MODAL_OPEN_JS = """(() => {
 })()"""
 
 _MCP_SAVE_VALIDATION_IDLE_JS = """(() => {
-  const saveBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+  const allBtns = Array.from(document.querySelectorAll('button'));
+  const saveBtn = allBtns.find((b) =>
     /Save Configuration|保存配置|Konfiguration speichern|구성 저장/i.test((b.textContent || '').trim())
   );
+  const validatingBtn = allBtns.find((b) =>
+    /Validating|验证中|驗證中|검증 중|Validierung/i.test((b.textContent || '').trim())
+  );
+  if (!saveBtn && validatingBtn) {
+    return { ready: false, validating: true, text: (validatingBtn.textContent || '').trim() };
+  }
   if (!saveBtn) return { ready: true, phase: 'no-save-btn' };
   const text = (saveBtn.textContent || '').trim();
   const validating = saveBtn.disabled || /Validating|验证|驗證|검증|Validierung/i.test(text);

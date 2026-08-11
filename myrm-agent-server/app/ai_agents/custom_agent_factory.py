@@ -355,6 +355,7 @@ class CustomAgentFactory:
                     from app.core.channel_bridge.config_loader import load_user_configs
                     from app.core.channel_bridge.config_parsers import (
                         extract_mcp_configs,
+                        merge_org_mcp_configs,
                     )
                     from app.services.agent.params.mcp_selection import (
                         apply_agent_mcp_selection,
@@ -362,8 +363,11 @@ class CustomAgentFactory:
                     )
 
                     configs = await load_user_configs()
-                    if configs and configs.mcp_dict:
-                        all_mcp = extract_mcp_configs(configs.mcp_dict) or []
+                    if configs:
+                        all_mcp = merge_org_mcp_configs(
+                            extract_mcp_configs(configs.mcp_dict),
+                            configs.org_mcp_dict,
+                        )
                         tool_selections = coerce_tool_selections(
                             metadata.get("mcp_tool_selections")
                         )

@@ -14,11 +14,9 @@
 | `experience_ledger.py` | 核心 | 学习资产事件账本（append-only，统一记录 migration/evolution/review/skill_growth 事件，并提供技能成长聚合查询） | ✅ |
 | `draft_notification.py` | 核心 | 技能成长记录持久化 + 安全预检 + 24h 去重 + `ApprovalRecord` rich status 落库 + `SKILL_GROWTH_UPDATED` 事件发布单一出口 + `NEW_SKILL_DRAFT` 事件发布 + ledger 镜像 | ✅ |
 | `auto_extractor.py` | 核心 | 技能物化辅助器。仅负责把已通过策略判断的成长结果落盘成真实技能或补丁，并发布 `SKILL_EVOLVED` 事件 | ✅ |
-| `evolution_growth.py` | 核心 | Harness 演化提案到 Server 技能成长生命周期的适配层（含 form routing: skill_draft/cron_suggestion/skip），以 ApprovalRecord 为唯一事实源 | ✅ |
 | `permission_service.py` | 核心 | 技能权限管理服务 | ✅ |
 | `similarity_checker.py` | 核心 | 技能语义去重实现。基于 HybridSkillSearchEngine 检查新技能是否与已有技能功能重复，防止技能熵增 | ✅ |
 | `evolution_events.py` | 辅助 | 技能进化 `SKILL_EVOLVED` 事件发布（services 层单一入口） | ✅ |
-| `quality_alert_webhook.py` | 辅助 | 技能质量主动监控与告警 webhook | ✅ |
 | `ws_hub.py` | 核心 | Evolution WebSocket 连接池与广播（`broadcast_proposal` / `broadcast_message`） | ✅ |
 
 ## 设计原则

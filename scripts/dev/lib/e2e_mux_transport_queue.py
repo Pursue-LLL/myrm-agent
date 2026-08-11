@@ -129,14 +129,14 @@ def wait_mux_transport_turn(
 ) -> None:
     """Block until no peer holds an operation credit, then mark this session ready."""
     try:
-        from e2e_session_lifecycle import touch_wall_progress  # noqa: PLC0415
+        from e2e_session_runtime.lifecycle import touch_wall_progress  # noqa: PLC0415
     except ImportError:
 
         def touch_wall_progress(*, current_node: str | None = None) -> None:
             del current_node
 
     try:
-        from e2e_lease_heartbeat import heartbeat_e2e_lease  # noqa: PLC0415
+        from e2e_session_runtime.heartbeat import heartbeat_e2e_lease  # noqa: PLC0415
     except ImportError:
 
         def heartbeat_e2e_lease() -> None:

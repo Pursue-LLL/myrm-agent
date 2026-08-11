@@ -221,7 +221,7 @@ async def persist_skill_draft_record(
         return None
 
     if draft_name and status in dedupe_statuses:
-        pending_records = await ApprovalRegistry.list_pending(
+        pending_records = await ApprovalRegistry.list_pending_growth(
             limit=MAX_PENDING_PROPOSALS + 1
         )
         is_dup = False

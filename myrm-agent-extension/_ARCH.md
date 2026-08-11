@@ -35,7 +35,10 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 |----|------|
 | WebSocket | `ws://<server>/api/v1/ws/extension?token=<extension_auth_token>` |
 | 握手 | 扩展发送 `hello`（version、browser、capabilities=`navigate_url|list_tabs|attach_debugger|detach_debugger`）；Server 校验 `settings.extension_auth_token` 并按 capability 执行动作门禁 |
-| 域名授权 | `authorizedDomains` 存于 `chrome.storage.local`；Server REST `/api/v1/extension/domains` 与 WebUI 同步 |
+| 域名授权 | `authorizedDomains` / `allowAllEligibleTabs` / `pausedTabIds` 存于 `chrome.storage.local`；Server REST `/api/v1/extension/domains` 与 `/extension/access-policy` 与 WebUI 同步 |
+| Relay 域名门禁 | `createTab`、`navigate_url`、relay `attach`/`cdp`（每次 tab URL recheck + `Page.navigate` 目标校验）共用 access policy |
+| Per-tab pause | WebUI「可用标签页」暂停/恢复；tab 关闭时 extension+server 自动 prune `paused_tab_ids`；`applyAccessPolicyPayload` 在 policy 变更（WebUI / popup / server push）后统一 detach 不再授权的 debugger |
+| 配对 One-Shot | popup 粘贴 WebUI JSON bundle → `POST /extension/pairing/consume` → 自动 connect |
 | 保活 | `chrome.alarms` 周期唤醒；断线指数退避重连 |
 
 ## Side Panel API 契约

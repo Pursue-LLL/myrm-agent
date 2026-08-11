@@ -9,7 +9,8 @@
 [POS]
 Receives organization-level MCP server configurations from Control Plane
 and persists them locally under the 'orgMcpServers' config key.
-On next agent execution, config_loader merges org MCPs with user MCPs.
+At agent execution time, `config_parsers.merge_org_mcp_configs` appends org
+MCPs to the user MCP config across every execution entry point.
 """
 
 from __future__ import annotations

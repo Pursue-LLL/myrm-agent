@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { IconActivity, IconArrowRight, IconChevronUp, IconPlus } from '@/components/features/icons/PremiumIcons';
 import { scheduleMobilePairRefresh, storeMobilePairToken } from '@/lib/mobileRemote';
@@ -10,11 +10,13 @@ import E2EESecurityPanel from '@/components/features/e2ee/E2EESecurityPanel';
 import type { ActiveSession } from '@/services/agent';
 import { remoteAccessService } from '@/services/remoteAccess';
 import type { SpawnOptionAgent, SpawnOptionProject } from '@/services/remoteAccess';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 
 const AUTOSTART_SESSION_KEY = 'myrm_mobile_autostart_message';
 
 export default function MobileSessionHub() {
   const t = useTranslations('mobileHub');
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pairToken = searchParams.get('pair') ?? undefined;
@@ -207,7 +209,7 @@ export default function MobileSessionHub() {
                 >
                   {agents.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name}
+                      {getBuiltinAgentName(a.id, a.name, locale)}
                     </option>
                   ))}
                 </select>

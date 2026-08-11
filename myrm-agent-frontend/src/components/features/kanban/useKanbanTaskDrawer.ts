@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useLocale } from 'next-intl';
 import type { KanbanTask, TaskRun, TaskEvent, TaskDiagnostic } from '@/services/kanban';
 import {
   listRuns,
@@ -14,6 +15,7 @@ import {
 } from '@/services/kanban';
 import type { TaskDepInfo } from './kanban-styles';
 import useAgentStore from '@/store/useAgentStore';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { resolveTaskDepInfos } from './resolveTaskDepInfos';
 import { useKanbanTaskDrawerAttachments } from './useKanbanTaskDrawerAttachments';
 import { useKanbanTaskDrawerWorkflow } from './useKanbanTaskDrawerWorkflow';
@@ -28,6 +30,7 @@ interface UseKanbanTaskDrawerParams {
 }
 
 export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefresh, t }: UseKanbanTaskDrawerParams) {
+  const locale = useLocale();
   const agents = useAgentStore((s) => s.agents);
   const fetchAgents = useAgentStore((s) => s.fetchAgents);
   const [runs, setRuns] = useState<TaskRun[]>([]);
@@ -292,9 +295,19 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
     return null;
   }, [children, task]);
 
+  const localizedAgents = useMemo(
+    () => agents.map((a) => ({ ...a, name: getBuiltinAgentName(a.id, a.name, locale) })),
+    [agents, locale],
+  );
+
   const assignedAgent = useMemo(
-    () => (task?.agent_id ? (agents.find((a) => a.id === task.agent_id) ?? null) : null),
-    [task?.agent_id, agents],
+    () => {
+      if (!task?.agent_id) return null;
+      const agent = agents.find((a) => a.id === task.agent_id) ?? null;
+      if (!agent) return null;
+      return { ...agent, name: getBuiltinAgentName(agent.id, agent.name, locale) };
+    },
+    [task?.agent_id, agents, locale],
   );
 
   const availableParents = useMemo(
@@ -306,7 +319,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
   );
 
   return {
-    agents,
+    agents: localizedAgents,
     runs,
     events,
     parents,

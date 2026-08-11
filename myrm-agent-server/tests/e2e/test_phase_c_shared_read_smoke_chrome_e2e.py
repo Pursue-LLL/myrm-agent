@@ -2,20 +2,13 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
-    _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
-    get_e2e_api_url,
     get_e2e_ui_url,
     open_mcp_page,
-    prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
     wait_for_state,
-    warm_ui_route,
 )
 
 _HOME_SHELL_STATE = """(() => {
@@ -42,29 +35,13 @@ _HOME_SHELL_STATE = """(() => {
 def test_phase_c_shared_read_home_shell_smoke() -> None:
     """Shared hot UI attach opens home and exposes the composer shell."""
     ui_url = get_e2e_ui_url()
-    prepare_e2e_ui_session(get_e2e_api_url())
-
-    if os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() != "1":
-        burst_lanes = os.environ.get("MYRM_E2E_PHASE_C_BURST_LANES", "").strip()
-        if burst_lanes.isdigit() and int(burst_lanes) >= 2:
-            warm_ui_route("/", timeout_sec=30.0)
-        else:
-            warm_ui_route("/")
     with open_mcp_page(f"{ui_url}/", timeout_ms=90_000) as (client, page):
-        dismiss_blocking_modals(client, page)
-        wait_for_react_e2e_bridge(
-            client,
-            page,
-            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
-            page_url=f"{ui_url}/",
-        )
-        client.navigate(page, f"{ui_url}/", timeout_ms=90_000)
         dismiss_blocking_modals(client, page)
         state = wait_for_state(
             client,
             page,
             _HOME_SHELL_STATE,
-            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+            timeout_sec=30.0,
             page_url=f"{ui_url}/",
         )
         assert state.get("ready") is True, state

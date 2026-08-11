@@ -1,6 +1,8 @@
 """Integration tests for skill draft notification and patching logic."""
 
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -121,4 +123,177 @@ async def test_notify_skill_draft_patch_and_security(mock_local_skills_dir: Path
             await db.delete(event)
         await db.delete(draft1)
         await db.delete(draft2)
+        await db.commit()
+
+
+def test_resolve_growth_status_priority() -> None:
+    from app.services.skills.draft_notification import _resolve_growth_status
+
+    assert _resolve_growth_status("APPROVED", {"growth_status": "FAILED_SCAN"}) == "FAILED_SCAN"
+    assert _resolve_growth_status("PENDING", {}) == "PENDING_REVIEW"
+    assert _resolve_growth_status("APPROVED", {}) == "APPROVED"
+    assert _resolve_growth_status("REJECTED", {}) == "REJECTED"
+
+
+def test_append_scan_failure_formats_findings() -> None:
+    from myrm_agent_harness.backends.skills.scanning import ScanFinding, ScanResult, ScanSeverity
+
+    from app.services.skills.draft_notification import _append_scan_failure
+
+    finding = ScanFinding(
+        threat_type="executable_binary",
+        description="ZIP contains executable",
+        severity=ScanSeverity.CRITICAL,
+    )
+    scan_result = ScanResult(
+        skill_name="demo", findings=[finding], scan_duration_ms=1.0
+    )
+
+    with_base = _append_scan_failure("Base description", scan_result)
+    assert "Base description" in with_base
+    assert "PRE-FLIGHT SECURITY SCAN FAILED" in with_base
+    assert "[CRITICAL] executable_binary" in with_base
+
+    no_base = _append_scan_failure("", scan_result)
+    assert "PRE-FLIGHT SECURITY SCAN FAILED" in no_base
+    assert no_base.startswith("**PRE-FLIGHT")
+
+
+@pytest.mark.asyncio
+async def test_evaluate_growth_scan_handles_scan_error(mock_local_skills_dir: Path) -> None:
+    from unittest.mock import patch as mock_patch
+
+    from app.services.skills.draft_notification import evaluate_growth_scan
+
+    with mock_patch(
+        "app.services.skills.draft_notification.scan_skill_content",
+        side_effect=RuntimeError("scanner broken"),
+    ):
+        status, description = await evaluate_growth_scan(
+            {"type": "skill_draft", "content": "---\nname: x\n---\ncontent"},
+            skill_name="scan-error-skill",
+            description="desc",
+        )
+
+    assert status == "PENDING_REVIEW"
+    assert description == "desc"
+
+
+@pytest.mark.asyncio
+async def test_evaluate_growth_scan_clean_content(mock_local_skills_dir: Path) -> None:
+    from app.services.skills.draft_notification import evaluate_growth_scan
+
+    status, description = await evaluate_growth_scan(
+        {"type": "skill_draft", "content": "print('hello')"},
+        skill_name="clean-skill",
+        description="safe",
+    )
+
+    assert status == "PENDING_REVIEW"
+    assert description == "safe"
+
+
+@pytest.mark.asyncio
+async def test_build_scannable_content_patch_no_skill(mock_local_skills_dir: Path) -> None:
+    from app.services.skills.draft_notification import build_scannable_growth_content
+
+    content = await build_scannable_growth_content(
+        {"type": "skill_patch", "patch_content": "---\nname: x\n---\nfull md", "skill_name": ""}
+    )
+    assert content == "---\nname: x\n---\nfull md"
+
+
+@pytest.mark.asyncio
+async def test_persist_draft_content_too_large(mock_local_skills_dir: Path) -> None:
+    from app.services.skills.draft_notification import MAX_SKILL_CONTENT_CHARS, persist_skill_draft_record
+
+    record = await persist_skill_draft_record(
+        {"type": "skill_draft", "skill_name": "big-skill", "content": "x" * (MAX_SKILL_CONTENT_CHARS + 1)},
+        status="PENDING_REVIEW",
+    )
+    assert record is None
+
+
+@pytest.mark.asyncio
+async def test_persist_draft_no_value_returns_none() -> None:
+    from app.services.skills.draft_notification import notify_skill_draft_created
+
+    result = await notify_skill_draft_created({"has_value": False})
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_persist_draft_dedupe_suppresses_duplicate(mock_local_skills_dir: Path) -> None:
+    """Same skill_name + same pending status is suppressed (dedupe)."""
+    from app.services.skills.draft_notification import notify_skill_draft_created
+
+    base = {
+        "has_value": True,
+        "type": "skill_draft",
+        "skill_name": "dedupe-skill",
+        "content": "---\nname: dedupe-skill\n---\n## Steps\n1. x",
+    }
+    first = await notify_skill_draft_created(dict(base))
+    second = await notify_skill_draft_created(dict(base))
+
+    assert first is not None
+    assert second is not None
+    assert second.id == first.id  # suppressed duplicate returns the existing record
+
+    async with get_session() as db:
+        await db.execute(delete(ExperienceLedgerEvent))
+        await db.execute(delete(ApprovalRecord))
+        await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_persist_draft_pending_limit_rejects(mock_local_skills_dir: Path) -> None:
+    """Exceeding MAX_PENDING_PROPOSALS rejects new drafts."""
+    from unittest.mock import patch as mock_patch
+
+    from app.services.skills.draft_notification import (
+        MAX_PENDING_PROPOSALS,
+        persist_skill_draft_record,
+    )
+
+    # Simulate a full pending queue via list_pending_growth returning 50 records.
+    fake_records = [
+        SimpleNamespace(id=f"rec-{i}", action_type="other", payload={}, status="PENDING")
+        for i in range(MAX_PENDING_PROPOSALS)
+    ]
+    with mock_patch(
+        "app.services.skills.draft_notification.ApprovalRegistry.list_pending_growth",
+        new=AsyncMock(return_value=fake_records),
+    ):
+        record = await persist_skill_draft_record(
+            {"type": "skill_draft", "skill_name": "over-limit", "content": "# x"},
+            status="PENDING_REVIEW",
+        )
+    assert record is None
+
+
+@pytest.mark.asyncio
+async def test_persist_draft_reviewed_at_sets_resolved_at(mock_local_skills_dir: Path) -> None:
+    """A non-pending status with reviewed_at stamps resolved_at on the record."""
+    from datetime import datetime, timezone
+
+    from app.services.skills.draft_notification import persist_skill_draft_record
+
+    reviewed_at = datetime(2026, 8, 1, 12, 0, 0, tzinfo=timezone.utc)
+    record = await persist_skill_draft_record(
+        {
+            "type": "skill_draft",
+            "skill_name": "reviewed-skill",
+            "content": "---\nname: reviewed-skill\n---\n## Steps\n1. x",
+        },
+        status="APPROVED",
+        reviewed_at=reviewed_at,
+    )
+    assert record is not None
+    assert record.resolved_at is not None
+    assert record.resolved_at.replace(tzinfo=timezone.utc) == reviewed_at
+
+    async with get_session() as db:
+        await db.execute(delete(ExperienceLedgerEvent))
+        await db.execute(delete(ApprovalRecord))
         await db.commit()

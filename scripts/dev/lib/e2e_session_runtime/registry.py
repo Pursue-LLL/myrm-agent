@@ -14,21 +14,20 @@ Dev Gate observability — coordinator 为主 truth source；coordinator 不可�
 
 from __future__ import annotations
 
-import os
 import subprocess
 from dataclasses import dataclass
 
 from e2e_live_chrome_pytest_scan import (  # noqa: PLC0415
     extract_chrome_e2e_test_id,
 )
+from e2e_stall_guard import node_elapsed_from_snapshot
+
 from e2e_session_runtime.snapshot import (
     admit_elapsed_from_snapshot,
     body_elapsed_from_snapshot,
-    phase_elapsed_from_snapshot,
     prune_stale_session_snapshots,
     read_session_snapshot,
 )
-from e2e_stall_guard import node_elapsed_from_snapshot
 
 
 @dataclass(frozen=True, slots=True)

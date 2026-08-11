@@ -307,7 +307,7 @@ _parallel_attach_active_leases() {
     active_leases="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_session_registry import list_live_e2e_sessions
+from e2e_session_runtime.registry import list_live_e2e_sessions
 print(len(list_live_e2e_sessions()))
 " 2>/dev/null || echo 0)"
     [[ "${active_leases}" =~ ^[0-9]+$ ]] || active_leases=0
@@ -629,7 +629,7 @@ _attach_fast_path() {
         "${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_session_lifecycle import elapsed_wall_sec
+from e2e_session_runtime.lifecycle import elapsed_wall_sec
 print(int(elapsed_wall_sec()))
 " 2>/dev/null || echo 0
     )"
@@ -858,6 +858,10 @@ fi
 
 _preflight_readiness_gate() {
   if [[ "${MYRM_E2E_LAUNCH_FORCE:-}" == "1" ]]; then
+    return 0
+  fi
+  if [[ "${MYRM_E2E_LAUNCH_DECISION_PINNED:-}" == "1" ]]; then
+    echo "CHROME_E2E_ADMISSION_PINNED: skip duplicate workspace readiness; continue health probes" >&2
     return 0
   fi
   local py_out rc=0

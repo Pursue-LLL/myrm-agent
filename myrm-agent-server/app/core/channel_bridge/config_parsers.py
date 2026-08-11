@@ -15,6 +15,7 @@ Extract typed configs from frontend dict structures.
 
 [OUTPUT]
 - extract_* functions: parse frontend config to typed objects
+- merge_org_mcp_configs: append org-managed MCP servers to resolved user MCP configs
 - build_vision_fallback_config_chain / resolve_vision_fallback_chain_for_agent: ordered vision auxiliary provider chain
 - build_vision_fallback_engine_from_providers: build harness VisionFallbackEngine from WebUI settings
 - extract_web_tts_config: Web read-aloud TTS config (ignores channel ttsMode gate)
@@ -110,9 +111,9 @@ def extract_org_mcp_configs(
     """Extract org-managed MCP server configs pushed by the Control Plane.
 
     Org MCPs are read-only and always available to every agent; the runtime merge
-    in converter.py appends them to the user config and tags them with
-    ``extra_params.scope == "org"``. Structure mirrors the frontend
-    ``orgMcpServers`` config: ``{"servers": [...]}``.
+    via config_parsers.merge_org_mcp_configs appends them to the user config and
+    tags them with ``extra_params.scope == "org"``. Structure mirrors the
+    frontend ``orgMcpServers`` config: ``{"servers": [...]}``.
     """
     from app.core.types import MCPServerConfig
 
@@ -141,6 +142,24 @@ def extract_org_mcp_configs(
             )
 
     return result
+
+
+def merge_org_mcp_configs(
+    user_mcp_configs: list["MCPServerConfig"] | None,
+    org_mcp_dict: dict[str, object] | None,
+) -> list["MCPServerConfig"]:
+    """Append org-managed MCP servers to the user MCP config list.
+
+    Org MCPs are read-only servers pushed by the Control Plane; they are always
+    available to every agent regardless of user config. The order is user
+    servers first, then org servers tagged with ``extra_params.scope == "org"``.
+    Shared by every execution entry point so the Web conversation path and all
+    other entry points agree on the effective MCP set.
+    """
+    org_configs = extract_org_mcp_configs(org_mcp_dict)
+    if not org_configs:
+        return list(user_mcp_configs or [])
+    return list(user_mcp_configs or []) + org_configs
 
 
 def _build_voice_config_from_dict(voice_dict: dict[str, object]) -> "VoiceConfig":

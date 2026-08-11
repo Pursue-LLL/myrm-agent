@@ -15,12 +15,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
 import { Layers, Sparkles, Users } from 'lucide-react';
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import type { KanbanBoard, KanbanTask, TaskStatus, TaskDependency, BoardSummary } from '@/services/kanban';
 import {
   listTasks,
@@ -71,6 +72,7 @@ interface KanbanBoardViewProps {
 
 export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps) {
   const t = useTranslations('kanban');
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -749,7 +751,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
           fetchTasks();
           fetchSummary();
         }}
-        agents={agents.map((ag) => ({ id: ag.id, name: ag.name }))}
+        agents={agents.map((ag) => ({ id: ag.id, name: getBuiltinAgentName(ag.id, ag.name, locale) }))}
       />
 
       <ConfirmDialog

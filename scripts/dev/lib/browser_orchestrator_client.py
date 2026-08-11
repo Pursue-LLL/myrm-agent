@@ -261,18 +261,10 @@ class OpenPageTransactionResult(TypedDict):
     url: str
 
 
-class ReclaimPageResult(TypedDict):
-    pageId: int
-    targetId: str
-    url: str
-    reclaimed: bool
-
-
 class OpenAppRouteResult(TypedDict):
     pageId: int
     targetId: str
     url: str
-    reclaimed: bool
     hydrated: bool
 
 
@@ -371,53 +363,22 @@ class BrowserOrchestratorClient:
         result = self._request("page/create", params)
         return PageResult(pageId=result["pageId"], targetId=result["targetId"])
 
-    def reclaim_page(
-        self,
-        session_id: str,
-        *,
-        url: str,
-        sealed_target_id: str,
-    ) -> ReclaimPageResult:
-        """Attach epoch-sealed shell tab or fall back to createPage (§19.11 TAB-6b)."""
-        from chrome_e2e.gates.lease_gate import (
-            assert_orchestrator_lease_allowed,
-            validated_wave_state_file,
-        )
-
-        lease_id = assert_orchestrator_lease_allowed()
-        params: dict[str, object] = {
-            "sessionId": session_id,
-            "url": url,
-            "sealedTargetId": sealed_target_id,
-        }
-        if lease_id:
-            params["leaseId"] = lease_id
-        params["waveStateFile"] = str(validated_wave_state_file())
-        result = self._request("page/reclaim", params)
-        return ReclaimPageResult(
-            pageId=int(result["pageId"]),
-            targetId=str(result["targetId"]),
-            url=str(result.get("url", url)),
-            reclaimed=bool(result.get("reclaimed", False)),
-        )
-
     def open_app_route(
         self,
         session_id: str,
         *,
         url: str,
         shell_path: str,
-        sealed_target_id: str | None = None,
         hydration_probe: str | None = None,
         hydrate_timeout_sec: float | None = None,
         binding_expression: str | None = None,
     ) -> OpenAppRouteResult:
-        """Atomically open an app route: reclaim/create shell → navigate → hydrate.
+        """Atomically create an isolated app route, bind, navigate, and hydrate.
 
-        §19.11.10 NAV-2: single operation credit, single transaction. The daemon
-        reclaims an epoch shell (or cold-creates), injects the same-origin binding,
-        navigates the subroute, then polls the RouteManifest hydration probe until
-        ready or deadline.
+        §19.11.10 NAV-2: single operation credit, single transaction. Every page
+        is created in the session BrowserContext; the daemon injects the
+        same-origin binding, navigates the subroute, then polls the RouteManifest
+        hydration probe until ready or deadline.
         """
         from chrome_e2e.gates.lease_gate import (
             assert_orchestrator_lease_allowed,
@@ -430,8 +391,6 @@ class BrowserOrchestratorClient:
             "url": url,
             "shellPath": shell_path,
         }
-        if sealed_target_id:
-            params["sealedTargetId"] = sealed_target_id
         if hydration_probe and hydration_probe.strip():
             params["hydrationProbe"] = hydration_probe
         if hydrate_timeout_sec is not None:
@@ -457,7 +416,6 @@ class BrowserOrchestratorClient:
             pageId=int(result["pageId"]),
             targetId=str(result["targetId"]),
             url=str(result.get("url", url)),
-            reclaimed=bool(result.get("reclaimed", False)),
             hydrated=bool(result.get("hydrated", False)),
         )
 
@@ -573,6 +531,20 @@ class BrowserOrchestratorClient:
                 str(cap) for cap in result.get("capabilities", [])
             ],
         )
+
+    def set_effective_credits(self, credits: int) -> int:
+        """Bind Host Governor output to the daemon's live fair scheduler."""
+        if not 1 <= credits <= 4:
+            raise ValueError("credits must be between 1 and 4")
+        result = self._request(
+            "scheduler/setEffectiveCredits",
+            {"credits": credits},
+            allow_daemon_recovery=False,
+        )
+        effective = result.get("effectiveCredits")
+        if not isinstance(effective, int):
+            raise RuntimeError("orchestrator did not acknowledge effective credits")
+        return effective
 
     def supports_open_app_route(self) -> bool:
         """True when the daemon exposes the atomic ``page/openAppRoute`` RPC (NAV-2)."""

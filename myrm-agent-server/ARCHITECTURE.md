@@ -172,7 +172,7 @@
 
 - **扩展包**：`myrm-agent-extension/`（Chrome/Edge MV3）— WebSocket 客户端 + `chrome.debugger` CDP 代理，使用用户真实浏览器会话。
 - **Server API**：`app/api/extension/` — `ws://…/api/v1/ws/extension` 持久连接（`chrome-extension://` origin 守卫；remote 模式强制 token）；REST `/api/v1/extension/status|domains|tabs|disconnect|setup-hints`。
-- **服务层**：`app/services/extension/bridge.py` — 连接生命周期、`hello.capabilities` 四动作合同门禁（`navigate_url|list_tabs|attach_debugger|detach_debugger`）、`ExtensionStatus.handshake_ready` 握手可见性、直连 CDP 风险 WARNING、域名授权（`*.example.com` 匹配根域+子域）、私网 `navigate_url` relay 与浏览器连接；实现 harness `ExtensionBridge` Protocol。
+- **服务层**：`app/services/extension/bridge.py` — 连接生命周期、`hello.capabilities` 四动作合同门禁（`navigate_url|list_tabs|attach_debugger|detach_debugger`）、`ExtensionStatus.handshake_ready` 握手可见性、extension 模式 CDP relay fail-closed（无 local direct CDP fallback）、域名授权（`*.example.com` 匹配根域+子域）、私网 `navigate_url` relay 与浏览器连接；实现 harness `ExtensionBridge` Protocol。
 - **认证**：`settings.extension_auth_token`（SecretStr）；WS 查询参数 `token` 校验，remote 模式未配置 token 时拒绝连接。
 - **前端**：Settings → `extensionBridge`（`ExtensionBridgeSection.tsx` 含 WS URL 复制、Token/CDP 状态、握手三态与 relay 能力矩阵）；API 客户端 `src/services/extension.ts`（**`apiRequest('/extension/...')` 相对路径**，禁止 `getApiUrl()` 二次前缀）。Tab 路由 SSOT：`page.tsx` `VALID_TABS` + `SettingsLayout.tsx` `BASE_TABS` + `SettingsMenu` + `locales/*/metadata.settingsTabs`。
 

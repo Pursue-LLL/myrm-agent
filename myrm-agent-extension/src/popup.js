@@ -10,8 +10,11 @@ import { applyDocumentI18n, msg } from "./i18n.js";
 const serverUrlInput = document.getElementById("server-url");
 const authTokenInput = document.getElementById("auth-token");
 const domainsTextarea = document.getElementById("domains");
+const allowAllCheckbox = document.getElementById("allow-all-tabs");
 const btnConnect = document.getElementById("btn-connect");
 const btnDisconnect = document.getElementById("btn-disconnect");
+const btnApplyPairing = document.getElementById("btn-apply-pairing");
+const pairingCodeInput = document.getElementById("pairing-code");
 const statusBadge = document.getElementById("status-badge");
 const statusText = document.getElementById("status-text");
 const errorHint = document.getElementById("error-hint");
@@ -26,11 +29,80 @@ const tabsList = document.getElementById("tabs-list");
 applyDocumentI18n();
 document.title = msg("extName");
 
+function readPausedTabIds(callback) {
+  chrome.storage.local.get(["pausedTabIds"], (data) => {
+    const pausedTabIds = Array.isArray(data.pausedTabIds)
+      ? data.pausedTabIds.filter((id) => Number.isInteger(id))
+      : [];
+    callback(pausedTabIds);
+  });
+}
+
+function pushAccessPolicyToBackground() {
+  const domains = domainsTextarea.value
+    .split("\n")
+    .map((d) => d.trim())
+    .filter(Boolean);
+  const allowAllEligibleTabs = Boolean(allowAllCheckbox?.checked);
+  readPausedTabIds((pausedTabIds) => {
+    chrome.storage.local.set({ authorizedDomains: domains, allowAllEligibleTabs, pausedTabIds });
+    chrome.runtime.sendMessage({
+      type: "update_access_policy",
+      domains,
+      allowAllEligibleTabs,
+      pausedTabIds,
+    });
+  });
+}
+
+function connectWithCurrentSettings() {
+  const serverUrl = serverUrlInput.value.trim();
+  const authToken = authTokenInput.value.trim();
+  const domains = domainsTextarea.value
+    .split("\n")
+    .map((d) => d.trim())
+    .filter(Boolean);
+  const allowAllEligibleTabs = Boolean(allowAllCheckbox?.checked);
+
+  if (!serverUrl) {
+    serverUrlInput.style.borderColor = "#ef4444";
+    return false;
+  }
+
+  chrome.storage.local.set({
+    serverUrl,
+    authToken,
+    authorizedDomains: domains,
+    allowAllEligibleTabs,
+    pairingHttpBase: "",
+  });
+
+  chrome.runtime.sendMessage({
+    type: "connect",
+    serverUrl,
+    authToken,
+  });
+
+  readPausedTabIds((pausedTabIds) => {
+    chrome.runtime.sendMessage({
+      type: "update_access_policy",
+      domains,
+      allowAllEligibleTabs,
+      pausedTabIds,
+    });
+  });
+
+  return true;
+}
+
 // Load saved settings
-chrome.storage.local.get(["serverUrl", "authToken", "authorizedDomains"], (data) => {
+chrome.storage.local.get(["serverUrl", "authToken", "authorizedDomains", "allowAllEligibleTabs"], (data) => {
   serverUrlInput.value = data.serverUrl || "";
   authTokenInput.value = data.authToken || "";
   domainsTextarea.value = (data.authorizedDomains || []).join("\n");
+  if (allowAllCheckbox) {
+    allowAllCheckbox.checked = data.allowAllEligibleTabs === true;
+  }
   refreshStatus();
 });
 
@@ -110,32 +182,9 @@ function refreshStatus() {
 }
 
 btnConnect.addEventListener("click", () => {
-  const serverUrl = serverUrlInput.value.trim();
-  const authToken = authTokenInput.value.trim();
-  const domains = domainsTextarea.value
-    .split("\n")
-    .map((d) => d.trim())
-    .filter(Boolean);
-
-  if (!serverUrl) {
-    serverUrlInput.style.borderColor = "#ef4444";
-    return;
+  if (connectWithCurrentSettings()) {
+    setTimeout(refreshStatus, 1000);
   }
-
-  chrome.storage.local.set({ serverUrl, authToken, authorizedDomains: domains });
-
-  chrome.runtime.sendMessage({
-    type: "connect",
-    serverUrl,
-    authToken,
-  });
-
-  chrome.runtime.sendMessage({
-    type: "update_domains",
-    domains,
-  });
-
-  setTimeout(refreshStatus, 1000);
 });
 
 btnDisconnect.addEventListener("click", () => {
@@ -143,15 +192,102 @@ btnDisconnect.addEventListener("click", () => {
   setTimeout(refreshStatus, 500);
 });
 
+function resolveHttpBaseFromWsUrl(wsUrl) {
+  const trimmed = (wsUrl || "").trim();
+  if (!trimmed) return "";
+  return trimmed
+    .replace(/^wss:\/\//i, "https://")
+    .replace(/^ws:\/\//i, "http://")
+    .replace(/\/api\/v1\/ws\/extension.*$/i, "");
+}
+
+function parsePairingInput(raw) {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) {
+    return { code: "", httpBase: "" };
+  }
+
+  if (trimmed.startsWith("{")) {
+    try {
+      const bundle = JSON.parse(trimmed);
+      const httpBase = String(bundle.http_base || bundle.httpBase || bundle.base || "").replace(/\/$/, "");
+      const code = String(bundle.code || "").trim();
+      return { code, httpBase };
+    } catch {
+      return { code: trimmed, httpBase: "" };
+    }
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const url = new URL(trimmed);
+      const segments = url.pathname.split("/").filter(Boolean);
+      const code = decodeURIComponent(segments[segments.length - 1] || "");
+      return { code, httpBase: url.origin };
+    } catch {
+      return { code: trimmed, httpBase: "" };
+    }
+  }
+
+  if (trimmed.includes("\n")) {
+    const [first, second] = trimmed.split("\n").map((part) => part.trim());
+    if (/^https?:\/\//i.test(first)) {
+      return { httpBase: first.replace(/\/$/, ""), code: second };
+    }
+  }
+
+  return { code: trimmed, httpBase: "" };
+}
+
+btnApplyPairing.addEventListener("click", async () => {
+  const parsed = parsePairingInput(pairingCodeInput?.value || "");
+  if (!parsed.code) return;
+
+  const stored = await chrome.storage.local.get(["pairingHttpBase", "serverUrl"]);
+  const httpBase =
+    parsed.httpBase ||
+    stored.pairingHttpBase ||
+    resolveHttpBaseFromWsUrl(stored.serverUrl || serverUrlInput.value.trim());
+
+  if (!httpBase) {
+    errorHint.textContent = msg("errPairingNeedsBundle");
+    errorHint.style.display = "block";
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${httpBase.replace(/\/$/, "")}/api/v1/extension/pairing/consume`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: parsed.code }),
+    });
+    if (!resp.ok) throw new Error("pairing failed");
+    const data = await resp.json();
+    serverUrlInput.value = data.ws_url || "";
+    authTokenInput.value = data.auth_token || "";
+    await chrome.storage.local.set({
+      serverUrl: serverUrlInput.value,
+      authToken: authTokenInput.value,
+      pairingHttpBase: data.http_base || httpBase,
+    });
+    pairingCodeInput.value = "";
+    errorHint.style.display = "none";
+    if (connectWithCurrentSettings()) {
+      setTimeout(refreshStatus, 1000);
+    }
+  } catch {
+    errorHint.textContent = msg("errPairingInvalid");
+    errorHint.style.display = "block";
+  }
+});
+
 // Auto-save domains on change
 domainsTextarea.addEventListener("change", () => {
-  const domains = domainsTextarea.value
-    .split("\n")
-    .map((d) => d.trim())
-    .filter(Boolean);
+  pushAccessPolicyToBackground();
+});
 
-  chrome.storage.local.set({ authorizedDomains: domains });
-  chrome.runtime.sendMessage({ type: "update_domains", domains });
+allowAllCheckbox?.addEventListener("change", () => {
+  pushAccessPolicyToBackground();
 });
 
 // Refresh status periodically while popup is open

@@ -32,7 +32,7 @@ _CLICK_INSTALLED_TAB_JS = """(() => {
 
 _SKILL_HISTORY_STATE = """(() => {
   const bodyText = document.body.innerText || '';
-  const isSkillsPage = location.search.includes('tab=skills');
+  const isSkillsPage = location.pathname.includes('/settings/skills');
   if (!isSkillsPage) return { ready: false, reason: 'not_on_skills_page' };
 
   // Look for the SkillHistoryPanel (title: "Auto-Learned History" / "Auto-Learned 技能历史")
@@ -108,7 +108,7 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
     # Step 5: Navigate to the Skills tab in real Chrome
     # The SkillHistoryPanel renders under Settings > Skills > Installed tab
     # and requires user session (isLoggedIn=true)
-    with open_settings_subroute("/settings?tab=skills", timeout_ms=30_000) as (client, page):
+    with open_settings_subroute("/settings/skills", timeout_ms=30_000) as (client, page):
         time.sleep(3)
         # Switch to "Installed" tab inside the SkillsSection (the inner tab, not the outer)
         client.evaluate(page, _CLICK_INSTALLED_TAB_JS, timeout_sec=10.0)
@@ -123,7 +123,7 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
             snapshot = client.evaluate(page, """(() => {
               return {
                 url: location.href,
-                hasSkillsTab: /tab=skills/.test(location.search),
+                hasSkillsTab: /\\/settings\\/skills/.test(location.pathname),
                 bodyLength: document.body.innerText.length,
                 visibleTabs: Array.from(document.querySelectorAll('[role="tab"]'))
                   .map(el => el.textContent?.trim() || ''),

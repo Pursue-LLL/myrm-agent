@@ -126,6 +126,13 @@
   </div>
 
   <div class="section">
+    <div class="section-title" data-i18n="sectionPairingCode">Pairing Code</div>
+    <input type="text" id="pairing-code" data-i18n-placeholder="placeholderPairingCode" placeholder="Paste one-time code from WebUI" />
+    <button class="btn btn-secondary" id="btn-apply-pairing" data-i18n="btnApplyPairing">Apply Pairing</button>
+    <div class="hint" data-i18n="hintPairingCode">Generate the code in Settings → Browser Extension, then paste it here.</div>
+  </div>
+
+  <div class="section">
     <div class="section-title" data-i18n="sectionServerWsUrl">Server WebSocket URL</div>
     <input type="text" id="server-url" data-i18n-placeholder="placeholderServerUrl" placeholder="ws://localhost:25808/api/v1/ws/extension" />
   </div>
@@ -136,6 +143,10 @@
   </div>
 
   <div class="section">
+    <label class="hint" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <input type="checkbox" id="allow-all-tabs" />
+      <span data-i18n="allowAllEligibleTabs">Allow all eligible websites</span>
+    </label>
     <div class="section-title" data-i18n="sectionAuthorizedDomains">Authorized Domains (one per line)</div>
     <textarea id="domains" data-i18n-placeholder="placeholderDomains" placeholder="github.com&#10;*.google.com&#10;mail.example.com"></textarea>
     <div class="hint" data-i18n="hintAuthorizedDomains">Only tabs matching these domains can be controlled by the Agent.</div>

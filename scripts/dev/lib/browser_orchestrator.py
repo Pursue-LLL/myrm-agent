@@ -158,7 +158,9 @@ def _scheduler_int(scheduler: dict[str, object], key: str) -> int:
     return raw if isinstance(raw, int) else 0
 
 
-def _snapshot_from_daemon_status(status: dict[str, object]) -> dict[str, object]:
+def _snapshot_from_daemon_status(
+    status: dict[str, object], *, governor_bound: bool
+) -> dict[str, object]:
     scheduler = status.get("scheduler")
     sched: dict[str, object] = scheduler if isinstance(scheduler, dict) else {}
     recovery = status.get("recovery")
@@ -169,6 +171,18 @@ def _snapshot_from_daemon_status(status: dict[str, object]) -> dict[str, object]
         _scheduler_int(sched, "effectiveCredits") or _effective_operation_credit_cap()
     )
     max_credits = _scheduler_int(sched, "maxCredits") or MAX_OPERATION_CREDITS
+    active_operations_raw = sched.get("activeOperations")
+    active_operations = (
+        active_operations_raw if isinstance(active_operations_raw, list) else []
+    )
+    queued_operations_raw = sched.get("queuedOperations")
+    queued_operations = (
+        queued_operations_raw if isinstance(queued_operations_raw, list) else []
+    )
+    recent_queue_waits_raw = sched.get("recentQueueWaits")
+    recent_queue_waits = (
+        recent_queue_waits_raw if isinstance(recent_queue_waits_raw, list) else []
+    )
     daemon_state = str(status.get("state", "UNKNOWN"))
     if recovery_map.get("recovering") is True:
         health = BrowserPlaneHealth.RECOVERING
@@ -186,8 +200,11 @@ def _snapshot_from_daemon_status(status: dict[str, object]) -> dict[str, object]
         "operation_credits_in_flight": in_flight,
         "operation_credits_available": max(0, effective_cap - in_flight),
         "operation_credits_queued": queued,
+        "active_operations": active_operations,
+        "queued_operations": queued_operations,
+        "recent_queue_waits": recent_queue_waits,
         "credit_registry": "browser_orchestrator_daemon",
-        "governor_bound": True,
+        "governor_bound": governor_bound,
         "daemon_state": daemon_state,
         "daemon_generation": status.get("generation", 0),
     }
@@ -203,8 +220,19 @@ def _try_daemon_snapshot() -> dict[str, object] | None:
     client = BrowserOrchestratorClient()
     if not client.is_alive():
         return None
+    governor_bound = False
+    try:
+        from host_resource_governor import host_resource_governor_snapshot
+
+        governor = host_resource_governor_snapshot()
+        effective = governor.get("effective_browser_slots")
+        if isinstance(effective, int):
+            client.set_effective_credits(effective)
+            governor_bound = True
+    except (AttributeError, OSError, TimeoutError, RuntimeError, ValueError):
+        governor_bound = False
     status = client.status()
-    return _snapshot_from_daemon_status(dict(status))
+    return _snapshot_from_daemon_status(dict(status), governor_bound=governor_bound)
 
 
 def browser_orchestrator_snapshot() -> dict[str, object]:
@@ -237,7 +265,21 @@ def browser_orchestrator_snapshot() -> dict[str, object]:
 
     from mux_upstream_admission import list_active_upstream_operations  # noqa: PLC0415
 
-    ops = list_active_upstream_operations()
+    try:
+        ops = list_active_upstream_operations()
+    except OSError:
+        effective_cap = _effective_operation_credit_cap()
+        return {
+            "health": BrowserPlaneHealth.UNKNOWN.value,
+            "mux_snapshot_available": False,
+            "operation_credits_max": MAX_OPERATION_CREDITS,
+            "operation_credits_effective": effective_cap,
+            "operation_credits_in_flight": 0,
+            "operation_credits_available": 0,
+            "operation_credits_queued": 0,
+            "credit_registry": "unavailable",
+            "governor_bound": False,
+        }
     in_flight = min(len(ops), MAX_OPERATION_CREDITS)
     effective_cap = _effective_operation_credit_cap()
 

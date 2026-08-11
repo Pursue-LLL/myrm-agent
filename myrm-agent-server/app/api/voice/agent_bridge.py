@@ -202,6 +202,7 @@ class VoiceAgentBridge:
             extract_mcp_configs,
             extract_retrieval_models,
             extract_user_instructions,
+            merge_org_mcp_configs,
             resolve_vision_fallback_chain_for_agent,
             verify_search_service_available,
         )
@@ -253,7 +254,10 @@ class VoiceAgentBridge:
         )
         lite_model_cfg = extract_lite_model_config(configs.providers_dict)
         embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
-        mcp_configs = extract_mcp_configs(configs.mcp_dict)
+        mcp_configs = merge_org_mcp_configs(
+            extract_mcp_configs(configs.mcp_dict),
+            configs.org_mcp_dict,
+        )
 
         if mcp_configs and profile:
             from app.services.agent.params.mcp_selection import (

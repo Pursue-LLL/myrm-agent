@@ -12,6 +12,7 @@ import pytest
 from tests.support.chrome_mcp_e2e import (
     ChromeMcpClient,
     McpPage,
+    ensure_chat_route,
     get_e2e_api_url,
     get_e2e_ui_url,
     get_first_enabled_model,
@@ -1124,6 +1125,7 @@ def test_kanban_chat_created_card_opens_filtered_board_view() -> None:
         warm_ui_route(deep_link_path)
 
     with _open_chat_page_with_attach_retry(f"{ui_url}/{chat_id}") as (client, page):
+        ensure_chat_route(client, page, target_url=f"{ui_url}/{chat_id}")
         attach_result = wait_for_state(
             client,
             page,

@@ -6,6 +6,7 @@ import { Globe, PlugZap, Trash2, RefreshCw, ExternalLink, Copy, AlertCircle } fr
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Input } from '@/components/primitives/input';
+import { Switch } from '@/components/primitives/switch';
 import { toast } from '@/hooks/shared/useToast';
 import SettingsSection from '../SettingsSection';
 import {
@@ -18,8 +19,10 @@ import {
   getExtensionStatus,
   getExtensionSetupHints,
   getExtensionWebSocketUrl,
-  updateAuthorizedDomains,
+  updateExtensionAccessPolicy,
   disconnectExtension,
+  createExtensionPairing,
+  buildExtensionPairingBundle,
   type ExtensionSetupHints,
   type ExtensionStatus,
   type ExtensionTab,
@@ -29,9 +32,13 @@ import ExtensionClipAgentField from './extension/ExtensionClipAgentField';
 const EMPTY_STATUS: ExtensionStatus = {
   connected: false,
   handshake_ready: false,
+  relay_cdp_ready: false,
   extension_version: '',
   browser_name: '',
   authorized_domains: [],
+  allow_all_eligible_tabs: false,
+  paused_tab_ids: [],
+  access_policy_valid: false,
   capabilities: [],
   available_tabs: [],
 };
@@ -40,6 +47,8 @@ const EMPTY_HINTS: ExtensionSetupHints = {
   auth_token_configured: false,
   auth_token_required: false,
   cdp_endpoint_discovered: false,
+  relay_cdp_ready: false,
+  access_policy_valid: false,
 };
 
 const ExtensionBridgeSection = memo(() => {
@@ -50,6 +59,8 @@ const ExtensionBridgeSection = memo(() => {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [domainInput, setDomainInput] = useState('');
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairingLoading, setPairingLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const relayCapabilityRows = useMemo(
     () =>
@@ -116,6 +127,24 @@ const ExtensionBridgeSection = memo(() => {
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
+  const handleCreatePairing = useCallback(async () => {
+    setPairingLoading(true);
+    try {
+      const ticket = await createExtensionPairing();
+      setPairingCode(ticket.code);
+      const bundle = buildExtensionPairingBundle(ticket);
+      const ok = await writeToClipboard(bundle, true);
+      toast({
+        title: ok ? t('extension.pairingCopied') : t('extension.pairingCreated'),
+        variant: 'default',
+      });
+    } catch {
+      toast({ title: t('extension.pairingFailed'), variant: 'destructive' });
+    } finally {
+      setPairingLoading(false);
+    }
+  }, [t]);
+
   const handleCopyWsUrl = useCallback(async () => {
     const ok = await writeToClipboard(wsUrl, true);
     if (ok) {
@@ -130,8 +159,18 @@ const ExtensionBridgeSection = memo(() => {
     const domains = [...status.authorized_domains, domain];
     setSaving(true);
     try {
-      const result = await updateAuthorizedDomains(domains);
-      setStatus((prev) => ({ ...prev, authorized_domains: result.authorized_domains }));
+      const result = await updateExtensionAccessPolicy({
+        allow_all_eligible_tabs: status.allow_all_eligible_tabs,
+        domains,
+        paused_tab_ids: status.paused_tab_ids,
+      });
+      setStatus((prev) => ({
+        ...prev,
+        authorized_domains: result.authorized_domains,
+        allow_all_eligible_tabs: result.allow_all_eligible_tabs,
+        paused_tab_ids: result.paused_tab_ids,
+        access_policy_valid: result.policy_valid,
+      }));
       const wildcardWarning = result.warnings.find((w) => w.code === 'wildcard_includes_root');
       if (wildcardWarning) {
         toast({
@@ -151,14 +190,24 @@ const ExtensionBridgeSection = memo(() => {
     } finally {
       setSaving(false);
     }
-  }, [domainInput, status.authorized_domains, t]);
+  }, [domainInput, status.authorized_domains, status.allow_all_eligible_tabs, status.paused_tab_ids, t]);
 
   const handleRemoveDomain = useCallback(async (domain: string) => {
     const domains = status.authorized_domains.filter((d) => d !== domain);
     setSaving(true);
     try {
-      const result = await updateAuthorizedDomains(domains);
-      setStatus((prev) => ({ ...prev, authorized_domains: result.authorized_domains }));
+      const result = await updateExtensionAccessPolicy({
+        allow_all_eligible_tabs: status.allow_all_eligible_tabs,
+        domains,
+        paused_tab_ids: status.paused_tab_ids,
+      });
+      setStatus((prev) => ({
+        ...prev,
+        authorized_domains: result.authorized_domains,
+        allow_all_eligible_tabs: result.allow_all_eligible_tabs,
+        paused_tab_ids: result.paused_tab_ids,
+        access_policy_valid: result.policy_valid,
+      }));
       const wildcardWarning = result.warnings.find((w) => w.code === 'wildcard_includes_root');
       if (wildcardWarning) {
         toast({
@@ -176,7 +225,74 @@ const ExtensionBridgeSection = memo(() => {
     } finally {
       setSaving(false);
     }
-  }, [status.authorized_domains, t]);
+  }, [status.authorized_domains, status.allow_all_eligible_tabs, status.paused_tab_ids, t]);
+
+  const handleAllowAllChange = useCallback(async (checked: boolean) => {
+    setSaving(true);
+    try {
+      const result = await updateExtensionAccessPolicy({
+        allow_all_eligible_tabs: checked,
+        domains: status.authorized_domains,
+        paused_tab_ids: status.paused_tab_ids,
+      });
+      setStatus((prev) => ({
+        ...prev,
+        allow_all_eligible_tabs: result.allow_all_eligible_tabs,
+        authorized_domains: result.authorized_domains,
+        paused_tab_ids: result.paused_tab_ids,
+        access_policy_valid: result.policy_valid,
+      }));
+      setFetchError(false);
+    } catch {
+      toast({ title: t('extension.saveFailed'), variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  }, [status.authorized_domains, status.paused_tab_ids, t]);
+
+  const pausedTabIdSet = useMemo(
+    () => new Set(status.paused_tab_ids),
+    [status.paused_tab_ids],
+  );
+
+  const handleToggleTabPause = useCallback(
+    async (tabId: number) => {
+      const nextPaused = new Set(status.paused_tab_ids);
+      if (nextPaused.has(tabId)) {
+        nextPaused.delete(tabId);
+      } else {
+        nextPaused.add(tabId);
+      }
+      setSaving(true);
+      try {
+        const result = await updateExtensionAccessPolicy({
+          allow_all_eligible_tabs: status.allow_all_eligible_tabs,
+          domains: status.authorized_domains,
+          paused_tab_ids: [...nextPaused],
+        });
+        setStatus((prev) => ({
+          ...prev,
+          allow_all_eligible_tabs: result.allow_all_eligible_tabs,
+          authorized_domains: result.authorized_domains,
+          paused_tab_ids: result.paused_tab_ids,
+          access_policy_valid: result.policy_valid,
+        }));
+        setFetchError(false);
+        await fetchStatus();
+      } catch {
+        toast({ title: t('extension.saveFailed'), variant: 'destructive' });
+      } finally {
+        setSaving(false);
+      }
+    },
+    [
+      fetchStatus,
+      status.allow_all_eligible_tabs,
+      status.authorized_domains,
+      status.paused_tab_ids,
+      t,
+    ],
+  );
 
   const handleDisconnect = useCallback(async () => {
     try {
@@ -236,6 +352,25 @@ const ExtensionBridgeSection = memo(() => {
           </span>
         </p>
         <p className="text-xs text-muted-foreground">
+          {t('extension.relayAutomationStatus')}:{' '}
+          <span className="text-foreground">
+            {setupHints.relay_cdp_ready
+              ? t('extension.relayAutomationReady')
+              : t('extension.relayAutomationNotReady')}
+          </span>
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button variant="secondary" size="sm" onClick={handleCreatePairing} disabled={pairingLoading}>
+            {t('extension.createPairingCode')}
+          </Button>
+          {pairingCode && (
+            <code className="text-xs font-mono p-2 rounded bg-background border border-border/50 break-all">
+              {pairingCode}
+            </code>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">{t('extension.pairingHint')}</p>
+        <p className="text-xs text-muted-foreground">
           {t('extension.cdpStatus')}:{' '}
           <span className="text-foreground">
             {setupHints.cdp_endpoint_discovered
@@ -281,8 +416,11 @@ const ExtensionBridgeSection = memo(() => {
             {t('extension.relayCapabilityMissingListHelp', { missing: missingRelayCapabilityLabels.join(', ') })}
           </p>
         )}
-        {!setupHints.cdp_endpoint_discovered && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">{t('extension.cdpSetupHelp')}</p>
+        {!setupHints.relay_cdp_ready && status.connected && status.handshake_ready && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">{t('extension.relayAutomationHelp')}</p>
+        )}
+        {status.connected && !status.access_policy_valid && (
+          <p className="text-xs text-destructive">{t('extension.accessPolicyInvalidHelp')}</p>
         )}
         {setupHints.cdp_endpoint_discovered && (
           <p className="text-xs text-amber-600 dark:text-amber-400">{t('extension.cdpRiskHelp')}</p>
@@ -367,6 +505,18 @@ const ExtensionBridgeSection = memo(() => {
         </h4>
         <p className="text-xs text-muted-foreground">{t('extension.domainsHint')}</p>
 
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/50 p-3">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium">{t('extension.allowAllEligibleTabs')}</p>
+            <p className="text-xs text-muted-foreground">{t('extension.allowAllEligibleTabsHint')}</p>
+          </div>
+          <Switch
+            checked={status.allow_all_eligible_tabs}
+            onCheckedChange={(checked) => void handleAllowAllChange(checked)}
+            disabled={saving}
+          />
+        </div>
+
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             value={domainInput}
@@ -405,21 +555,46 @@ const ExtensionBridgeSection = memo(() => {
             <ExternalLink className="h-4 w-4" />
             {t('extension.availableTabs')}
           </h4>
-          <div className="space-y-1 max-h-40 overflow-y-auto">
-            {status.available_tabs.map((tab: ExtensionTab) => (
-              <div
-                key={tab.tab_id}
-                className="flex items-center gap-2 text-xs p-2 rounded bg-muted/30"
-              >
-                <span className="text-primary font-mono shrink-0">{tab.domain}</span>
-                <span className="text-muted-foreground truncate flex-1">{tab.title}</span>
-                {tab.active && (
-                  <Badge variant="outline" className="text-[10px] shrink-0">
-                    {t('extension.tabActive')}
-                  </Badge>
-                )}
-              </div>
-            ))}
+          {status.allow_all_eligible_tabs && (
+            <p className="text-xs text-muted-foreground">{t('extension.tabPauseHint')}</p>
+          )}
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {status.available_tabs.map((tab: ExtensionTab) => {
+              const isPaused = pausedTabIdSet.has(tab.tab_id);
+              return (
+                <div
+                  key={tab.tab_id}
+                  className={cn(
+                    'flex flex-col gap-2 sm:flex-row sm:items-center text-xs p-2 rounded border border-border/40',
+                    isPaused ? 'bg-muted/50 opacity-80' : 'bg-muted/30',
+                  )}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="text-primary font-mono shrink-0">{tab.domain}</span>
+                    <span className="text-muted-foreground truncate flex-1">{tab.title}</span>
+                    {tab.active && (
+                      <Badge variant="outline" className="text-[10px] shrink-0">
+                        {t('extension.tabActive')}
+                      </Badge>
+                    )}
+                    {isPaused && (
+                      <Badge variant="secondary" className="text-[10px] shrink-0">
+                        {t('extension.tabPaused')}
+                      </Badge>
+                    )}
+                  </div>
+                  <Button
+                    variant={isPaused ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="shrink-0 h-7 text-xs"
+                    disabled={saving}
+                    onClick={() => void handleToggleTabPause(tab.tab_id)}
+                  >
+                    {isPaused ? t('extension.tabResume') : t('extension.tabPause')}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

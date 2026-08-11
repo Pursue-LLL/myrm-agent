@@ -177,7 +177,7 @@ MUX_RESPONSIVE_PROBE_RETRY_ATTEMPTS: Final[int] = 3
 # R275: launch-check / test.sh readiness subprocess wall — scales under parallel attach.
 E2E_LAUNCH_CHECK_WALL_SOLO_SEC: Final[float] = 45.0
 E2E_LAUNCH_CHECK_WALL_LEASE_SCALE_SEC: Final[float] = 15.0
-E2E_LAUNCH_CHECK_WALL_MAX_SEC: Final[float] = 8.0
+E2E_LAUNCH_CHECK_WALL_MAX_SEC: Final[float] = 180.0
 # R170: bootstrap provider readiness gate scales under parallel (align desktop runner 180s).
 PROVIDER_READINESS_GATE_BASE_SEC: Final[float] = 60.0
 PROVIDER_READINESS_GATE_LEASE_SCALE_SEC: Final[float] = 15.0
@@ -466,7 +466,7 @@ def _parallel_chrome_e2e_pressure() -> int:
     """Wave leases plus live ADMIT/BODY sessions — drives attach UI probe scaling (R148)."""
     pressure = _wave_active_lease_count_for_mux()
     try:
-        from e2e_session_registry import list_live_e2e_sessions
+        from e2e_session_runtime.registry import list_live_e2e_sessions
 
         pressure = max(pressure, len(list_live_e2e_sessions()))
     except (ImportError, OSError, RuntimeError, ValueError):
@@ -477,7 +477,7 @@ def _parallel_chrome_e2e_pressure() -> int:
 def e2e_launch_check_wall_sec(*, active_leases: int | None = None) -> float:
     """Readiness emit subprocess budget for launch-check and test.sh gate (R275).
 
-    Solo 45s; under parallel chrome_e2e pressure min(120, 45+peers×15)s so
+    Solo 45s; under parallel chrome_e2e pressure min(180, 45+peers×15)s so
     ``e2e_readiness emit`` is not falsely denied while peers hold the stack.
     """
     raw = os.environ.get("E2E_LAUNCH_CHECK_WALL_SEC", "").strip()
@@ -703,81 +703,24 @@ def _scaled_parallel_admit_wait_sec(*, solo_base: int) -> int:
 
 
 def admit_wall_clock_sec() -> int:
-    """ADMIT-phase hung-reap / queue SSOT (900 dev · 300 signoff solo).
+    """Fixed ADMIT hard cap: PRIVATE ≤900s; formal signoff ≤300s.
 
-    Signoff under parallel wave load scales like mux ADMIT (R164) so stack recovery /
-    deferred mux are not killed at 300s while peers≥2.
+    Parallel pressure is handled by explicit credits and queues. Extending this
+    deadline with peer count hides stalls and violates the product contract.
     """
-    # R202: desktop leg soak keeps E2E_SIGNOFF=1 for lane/body SSOT but needs dev ADMIT
-    # budget — stack drift heal + parallel attach queue exceed 300+peers×45s (e.g. 435s).
-    if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
-        return E2E_ADMISSION_WALL_CLOCK_SEC
     if is_e2e_signoff_runtime():
-        if _parallel_signoff_pressure_peers() >= 2:
-            scaled = _scaled_parallel_admit_wait_sec(
-                solo_base=E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
-            )
-            # R216: parent holder stays in ADMIT until inner pytest spawns; cap must
-            # cover parallel attach queue + SHPOIB/bootstrap (v121 @ 472s>435s).
-            try:
-                from transport_supervisor import bootstrap_wall_cap_sec
-
-                bootstrap_headroom = int(
-                    bootstrap_wall_cap_sec(pessimistic=False) * 0.65
-                )
-            except ImportError:
-                bootstrap_headroom = 180
-            # R218: bounded frontend heal + SHARED_UI_REACHABLE_WAIT under parallel attach
-            # (v130 @672s>552s cap during E2E_ATTACH_UI_HALF_DEAD_QUEUE).
-            ui_heal_headroom = 180 if _parallel_signoff_pressure_peers() >= 1 else 0
-            return min(
-                E2E_ADMISSION_WALL_CLOCK_SEC,
-                scaled + bootstrap_headroom + ui_heal_headroom,
-            )
         return E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
-    pressure = _parallel_signoff_pressure_peers()
-    if pressure >= 2:
-        scaled = E2E_ADMISSION_WALL_CLOCK_SEC + int(pressure) * 180
-        return min(1830, max(E2E_ADMISSION_WALL_CLOCK_SEC, scaled))
     return E2E_ADMISSION_WALL_CLOCK_SEC
 
 
 def signoff_read_shpoib_body_wall_sec() -> int:
-    """Signoff READ SHPOIB BODY wall; scales under parallel turbopack/mux (R164)."""
-    base = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
-    if not is_e2e_signoff_runtime():
-        return base
-    shpoib = os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
-    lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
-    if not (shpoib and lane == "READ"):
-        return base
-    active_leases = _parallel_signoff_pressure_peers()
-    if active_leases >= 2:
-        scaled = base + active_leases * MUX_ADMISSION_WAIT_LEASE_SEC
-        return min(E2E_ADMISSION_WALL_CLOCK_SEC, scaled)
-    return base
+    """Signoff BODY uses the same non-scalable 600s hard cap."""
+    return LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 
 
 def signoff_effective_body_wall_sec() -> int:
-    """Runtime signoff BODY phase cap (600s SSOT).
-
-    ``MYRM_E2E_SIGNOFF_BATCH_BODY_SEC`` affects pytest-timeout ceiling only
-    (``signoff_pytest_timeout_ceiling_sec``); must not inflate runtime BODY
-    (Phase3-B TPMc PageOpen Seal).
-
-    R212: desktop leg soak under parallel chrome_e2e needs >600s BODY (textedit
-    AX + tool-activity wall + internal retry); honor batch body env when set.
-    """
-    if (
-        os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY
-        and is_e2e_signoff_runtime()
-    ):
-        from transport_supervisor import live_agent_body_wall_cap_sec
-
-        # R248: BATCH_BODY env is pytest-timeout ceiling only; runtime BODY uses
-        # live_agent_body_wall_cap_sec (R247 floor 1200s under desktop soak).
-        return int(live_agent_body_wall_cap_sec())
-    return signoff_read_shpoib_body_wall_sec()
+    """Runtime signoff BODY hard cap; never scales with peers or workload."""
+    return LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 
 
 DEV_GATE_SUBMIT_HARD_TIMEOUT_GRACE_SEC: Final[int] = 60
@@ -1274,26 +1217,13 @@ def dev_bootstrap_wall_cap_for_hung_reap(*, lane: str, shpoib: bool) -> float:
 
 
 def signoff_effective_bootstrap_wall_sec() -> float:
-    """R221: signoff bootstrap wall SSOT (lifecycle + hung-reap + mux queue wait)."""
+    """Signoff bootstrap cap; explicit batch override only, never peer-scaled."""
     bootstrap_sec = float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF)
     batch_bootstrap_raw = os.environ.get(
         "MYRM_E2E_SIGNOFF_BATCH_BOOTSTRAP_SEC", ""
     ).strip()
     if batch_bootstrap_raw.isdigit():
         bootstrap_sec = max(bootstrap_sec, float(int(batch_bootstrap_raw)))
-    try:
-        from transport_supervisor import bootstrap_wall_cap_sec, mux_upstream_wait_cap
-
-        peers = _parallel_signoff_pressure_peers()
-        pessimistic = peers >= 2
-        bootstrap_sec = max(
-            bootstrap_sec,
-            float(bootstrap_wall_cap_sec(pessimistic=pessimistic)),
-        )
-        if pessimistic:
-            bootstrap_sec += float(mux_upstream_wait_cap(pessimistic=True))
-    except ImportError:
-        pass
     return bootstrap_sec
 
 
@@ -1307,7 +1237,7 @@ def signoff_mux_transport_wait_budget_sec(
     if is_e2e_signoff_runtime():
         if bootstrap_phase is None:
             try:
-                from e2e_session_lifecycle import current_phase
+                from e2e_session_runtime.lifecycle import current_phase
 
                 bootstrap_phase = current_phase() == "bootstrap"
             except ImportError:

@@ -13,7 +13,7 @@ _LIB = Path(__file__).resolve().parents[1] / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from e2e_session_lifecycle import (  # noqa: E402
+from e2e_session_runtime.lifecycle import (  # noqa: E402
     ENV_WALL_PHASE,
     ENV_WALL_STARTED,
     export_session_env,

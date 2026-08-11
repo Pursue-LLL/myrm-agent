@@ -1840,8 +1840,8 @@
       "disconnectFailed": "Failed to disconnect",
       "setupGuide": "Quick Setup",
       "step1": "Load the myrm-agent-extension folder as an unpacked extension in Chrome or Edge (Developer mode)",
-      "step2": "Open the extension popup, enter this server's WebSocket URL and auth token",
-      "step3": "Click Connect — the extension maintains a persistent connection",
+      "step2": "Generate a pairing bundle on this page, paste it in the extension popup, and tap Apply",
+      "step3": "Authorize domains (e.g. *.x.com) — the extension keeps a persistent connection",
       "extensionPathLabel": "Extension folder path (for Load unpacked)",
       "authorizedDomains": "Authorized Domains",
       "domainsHint": "Only tabs on authorized domains can be controlled by the Agent. This is your security boundary.",
@@ -1851,6 +1851,10 @@
       "saveFailed": "Failed to save domain settings",
       "availableTabs": "Available Tabs",
       "tabActive": "Active",
+      "tabPause": "Pause",
+      "tabResume": "Resume",
+      "tabPaused": "Paused",
+      "tabPauseHint": "Paused tabs stay in Chrome but are hidden from the Agent. Useful when allow-all is enabled.",
       "connectionInfo": "Connection Info",
       "websocketUrl": "WebSocket URL",
       "authTokenStatus": "Auth token",
@@ -1888,7 +1892,19 @@
       "clipAgentHint": "Browser clips are saved to this agent's wiki vault. The extension syncs automatically when connected.",
       "clipAgentDefault": "Default agent",
       "clipAgentSaved": "Wiki clip agent updated",
-      "clipAgentSaveFailed": "Failed to update wiki clip agent"
+      "clipAgentSaveFailed": "Failed to update wiki clip agent",
+      "relayAutomationStatus": "Login-state automation",
+      "relayAutomationReady": "Ready",
+      "relayAutomationNotReady": "Not ready",
+      "relayAutomationHelp": "Extension is connected but automation relay is not ready. Reconnect the extension or update to the latest build.",
+      "createPairingCode": "Generate pairing bundle",
+      "pairingHint": "Copy the pairing bundle, paste it in the extension popup, and tap Apply — connection starts automatically.",
+      "pairingCopied": "Pairing bundle copied",
+      "pairingCreated": "Pairing bundle created",
+      "pairingFailed": "Failed to create pairing bundle",
+      "allowAllEligibleTabs": "Allow all eligible websites",
+      "allowAllEligibleTabsHint": "When enabled, the Agent can use ordinary http(s) tabs in your signed-in Chrome. Use domain list below for tighter control.",
+      "accessPolicyInvalidHelp": "Add at least one authorized domain or enable allow-all before automation can start."
     },
     "credentials": {
       "title": "Credentials Management",
@@ -10256,7 +10272,8 @@
     },
     "context": {
       "tab": "Identity & Relations"
-    }
+    },
+    "enabled": "Enabled"
   },
   "sharedContextTargetBinding": {
     "title": "Inherited Shared Contexts",
@@ -16004,5 +16021,6 @@
     "consensusMetaElapsed": "Elapsed: {seconds}s",
     "consensusMetaModels": "{succeeded}/{total} models responded",
     "consensusMetaTitle": "Multi-model Consensus"
-  }
+  },
+  "error": "Error"
 }

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from e2e_lease_heartbeat import heartbeat_e2e_lease
+from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
 
 ResourceKind = Literal[
     "chat", "project", "agent", "cron", "file", "kanban_board", "kanban_task"

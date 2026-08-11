@@ -17,13 +17,13 @@ PROFILE_OUTPUT_SUFFIX_REQUIRED: frozenset[str] = frozenset(
         "app/services/agent/params/converter.py",
         "app/core/channel_bridge/agent_executor/execute_preamble/instructions.py",
         "app/core/cron/adapters/agent_runner.py",
-        "app/services/kanban/task_runner.py",
+        "app/services/kanban/task_runner/runner.py",
         "app/core/eval/executor.py",
         "app/api/voice/agent_bridge.py",
         "app/api/voice/realtime.py",
         "app/api/voice/gemini_live.py",
         "app/ai_agents/custom_agent_factory.py",
-        "app/services/agent/goal_stream_trigger.py",
+        "app/services/agent/goals/goal_stream_trigger.py",
     }
 )
 

@@ -47,6 +47,7 @@ const stableT: (key: string) => string = (key) => {
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
+  useLocale: () => 'en',
 }));
 
 const mockFetchAgents = vi.fn();

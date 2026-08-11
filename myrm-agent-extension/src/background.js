@@ -35,6 +35,8 @@ let reconnectDelay = RECONNECT_DELAY_MS;
 let isConnecting = false;
 let lastError = "";
 let authorizedDomains = [];
+let allowAllEligibleTabs = false;
+let pausedTabIds = new Set();
 let attachedTabs = new Map(); // tabId -> debugger target
 let backgroundWindowId = null; // Isolated background window for non-disruptive automation
 let lastClipSuccessUrl = "";
@@ -45,11 +47,13 @@ let lastClipErrorKind = "";
 
 function restoreState() {
   chrome.storage.local.get(
-    ["serverUrl", "authToken", "authorizedDomains", "backgroundWindowId", "clipAgentId", "webUiOrigin"],
+    ["serverUrl", "authToken", "authorizedDomains", "allowAllEligibleTabs", "pausedTabIds", "backgroundWindowId", "clipAgentId", "webUiOrigin"],
     (data) => {
     serverUrl = data.serverUrl || "";
     authToken = data.authToken || "";
     authorizedDomains = data.authorizedDomains || [];
+    allowAllEligibleTabs = data.allowAllEligibleTabs === true;
+    pausedTabIds = new Set(Array.isArray(data.pausedTabIds) ? data.pausedTabIds : []);
     backgroundWindowId = data.backgroundWindowId || null;
     clipAgentId = data.clipAgentId || "";
     webUiOrigin = data.webUiOrigin || "";
@@ -130,11 +134,13 @@ function connect() {
       type: "hello",
       version: chrome.runtime.getManifest().version,
       browser: navigator.userAgent.includes("Edg/") ? "Edge" : "Chrome",
+      userAgent: navigator.userAgent,
+      browserVersion: navigator.userAgent.match(/Chrome\/[\d.]+|Edg\/[\d.]+/)?.[0] || "Chrome/unknown",
       capabilities: EXTENSION_CAPABILITIES,
     }));
 
     sendTabsUpdate();
-    sendDomainsUpdate();
+    sendAccessPolicyUpdate();
     syncClipAgentConfig();
   };
 
@@ -193,13 +199,30 @@ async function handleServerMessage(msg) {
 
   if (type === "set_domains") {
     authorizedDomains = domains || [];
-    chrome.storage.local.set({ authorizedDomains });
-    send({ type: "domains_update", domains: authorizedDomains });
+    await detachUnauthorizedAttachedTabs();
+    persistAccessPolicyLocal();
+    sendAccessPolicyUpdate();
+    return;
+  }
+
+  if (type === "set_access_policy") {
+    await applyAccessPolicyPayload(msg, { notifyServer: false });
+    persistAccessPolicyLocal();
+    sendTabsUpdate();
     return;
   }
 
   if (type === "clip_agent_update") {
     applyClipAgentConfig(msg.agent_id, msg.web_ui_origin);
+    return;
+  }
+
+  if (type === "relay") {
+    try {
+      await executeRelayCommand(msg.seq, msg.command || {});
+    } catch (e) {
+      send({ type: "relay_error", seq: msg.seq, message: e.message || String(e) });
+    }
     return;
   }
 
@@ -214,13 +237,83 @@ async function handleServerMessage(msg) {
   }
 }
 
+async function executeRelayCommand(seq, command) {
+  if (!Number.isInteger(seq)) {
+    throw new Error("relay command requires integer seq");
+  }
+  switch (command.type) {
+    case "attach": {
+      const tabId = command.tabId;
+      if (!Number.isInteger(tabId)) {
+        throw new Error("attach requires tabId");
+      }
+      await assertRelayTabAuthorized(tabId);
+      const result = await attachDebugger(tabId);
+      send({ type: "relay_result", seq, result });
+      return;
+    }
+    case "detach": {
+      const tabId = command.tabId;
+      if (Number.isInteger(tabId)) {
+        await detachDebugger(tabId);
+      }
+      send({ type: "relay_result", seq, result: {} });
+      return;
+    }
+    case "cdp": {
+      const tabId = command.tabId;
+      const method = command.method;
+      if (!Number.isInteger(tabId) || typeof method !== "string") {
+        throw new Error("cdp requires tabId and method");
+      }
+      assertRelayCdpNavigateAuthorized(method, command.params);
+      await assertRelayTabAuthorized(tabId);
+      if (!attachedTabs.has(tabId)) {
+        await attachDebugger(tabId);
+      }
+      const target = command.sessionId
+        ? { tabId, sessionId: command.sessionId }
+        : { tabId };
+      const result = await chrome.debugger.sendCommand(
+        target,
+        method,
+        command.params || {},
+      );
+      send({ type: "relay_result", seq, result: result ?? {} });
+      return;
+    }
+    case "createTab": {
+      const url = typeof command.url === "string" && command.url ? command.url : "about:blank";
+      const targetDomain = extractDomain(url).toLowerCase();
+      if (targetDomain && !isNavigationTargetAuthorized(url)) {
+        throw new Error(`Domain ${targetDomain} is not authorized`);
+      }
+      const background = command.background === true;
+      let tabId;
+      if (background) {
+        tabId = await getOrCreateBackgroundTab(url);
+      } else {
+        const created = await chrome.tabs.create({ url, active: true });
+        tabId = created.id;
+      }
+      if (!Number.isInteger(tabId)) {
+        throw new Error("createTab failed to allocate tabId");
+      }
+      send({ type: "relay_result", seq, result: { tabId } });
+      return;
+    }
+    default:
+      throw new Error(`unknown relay command: ${command.type || "(missing)"}`);
+  }
+}
+
 async function executeAction(action, payload) {
   switch (action) {
     case "list_tabs":
       return await getAuthorizedTabs();
 
     case "attach_debugger": {
-      const { domain, tabId, background = true } = payload;
+      const { domain, tabId, background = false } = payload;
 
       // Explicit tab targeting bypasses background isolation
       if (tabId) {
@@ -255,7 +348,7 @@ async function executeAction(action, payload) {
 
       const targetDomain = extractDomain(url).toLowerCase();
       const requestedDomain = (domain || "").toLowerCase();
-      if (!targetDomain || !isDomainAuthorized(targetDomain)) {
+      if (!targetDomain || !isNavigationTargetAuthorized(url)) {
         throw new Error(`Domain ${targetDomain || "(empty)"} is not authorized`);
       }
       if (
@@ -329,6 +422,19 @@ async function getAuthorizedTabs() {
     }));
 }
 
+async function getListableTabs() {
+  const tabs = await chrome.tabs.query({});
+  return tabs
+    .filter((tab) => isTabEligibleForPolicy(tab))
+    .map((tab) => ({
+      id: tab.id,
+      url: tab.url || "",
+      title: tab.title || "",
+      domain: extractDomain(tab.url || ""),
+      active: tab.active,
+    }));
+}
+
 async function findTabForDomain(domain) {
   const tabs = await chrome.tabs.query({});
   const authorized = tabs.filter((tab) => isTabAuthorized(tab));
@@ -372,10 +478,120 @@ async function waitForTabLoad(tabId, timeoutMs = 20000) {
   });
 }
 
+const RELAY_CDP_NAVIGATE_METHODS = new Set(["Page.navigate"]);
+
+function isInternalBrowserUrl(url) {
+  const trimmed = (url || "").trim();
+  if (!trimmed) return true;
+  const lowered = trimmed.toLowerCase();
+  if (lowered === "about:blank" || lowered === "about:newtab") return false;
+  return (
+    lowered.startsWith("chrome://")
+    || lowered.startsWith("chrome-extension://")
+    || lowered.startsWith("devtools://")
+    || lowered.startsWith("edge://")
+    || lowered.startsWith("brave://")
+  );
+}
+
+function isEligibleHttpUrl(url) {
+  const trimmed = (url || "").trim();
+  if (!trimmed || isInternalBrowserUrl(trimmed)) return false;
+  try {
+    const parsed = new URL(trimmed);
+    const scheme = (parsed.protocol || "").replace(":", "").toLowerCase();
+    if (!["http", "https", "file"].includes(scheme)) return false;
+    return Boolean(parsed.hostname) || scheme === "file";
+  } catch {
+    return false;
+  }
+}
+
+async function applyAccessPolicyPayload(payload, { notifyServer = true } = {}) {
+  if ("allow_all_eligible_tabs" in payload) {
+    allowAllEligibleTabs = payload.allow_all_eligible_tabs === true;
+  }
+  if (Array.isArray(payload.domains)) {
+    authorizedDomains = payload.domains.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (Array.isArray(payload.paused_tab_ids)) {
+    pausedTabIds = new Set(
+      payload.paused_tab_ids
+        .map((item) => Number.parseInt(String(item), 10))
+        .filter((item) => Number.isInteger(item)),
+    );
+  }
+  if (notifyServer) {
+    sendAccessPolicyUpdate();
+  }
+  await detachUnauthorizedAttachedTabs();
+}
+
+function persistAccessPolicyLocal() {
+  chrome.storage.local.set({
+    authorizedDomains,
+    allowAllEligibleTabs,
+    pausedTabIds: [...pausedTabIds],
+  });
+}
+
+function sendAccessPolicyUpdate() {
+  send({
+    type: "access_policy_update",
+    allow_all_eligible_tabs: allowAllEligibleTabs,
+    domains: authorizedDomains,
+    paused_tab_ids: [...pausedTabIds],
+  });
+}
+
+function assertRelayCdpNavigateAuthorized(method, params) {
+  if (!RELAY_CDP_NAVIGATE_METHODS.has(method)) {
+    return;
+  }
+  const rawParams = params && typeof params === "object" ? params : {};
+  const url = typeof rawParams.url === "string" ? rawParams.url : "";
+  if (!url) {
+    return;
+  }
+  if (!isNavigationTargetAuthorized(url)) {
+    const targetDomain = extractDomain(url).toLowerCase();
+    throw new Error(`Domain ${targetDomain || "(empty)"} is not authorized`);
+  }
+}
+
+async function assertRelayTabAuthorized(tabId) {
+  const tab = await chrome.tabs.get(tabId);
+  if (!isTabAuthorized(tab)) {
+    throw new Error(`Tab ${tabId} is not authorized`);
+  }
+}
+
 function isTabAuthorized(tab) {
-  if (!tab.url) return false;
-  const domain = extractDomain(tab.url);
+  if (!tab || !Number.isInteger(tab.id)) return false;
+  if (pausedTabIds.has(tab.id)) return false;
+  return isTabEligibleForPolicy(tab);
+}
+
+function isTabEligibleForPolicy(tab) {
+  if (!tab || !Number.isInteger(tab.id)) return false;
+  const url = tab.url || "";
+  if (isInternalBrowserUrl(url)) return false;
+  if (allowAllEligibleTabs) {
+    return isEligibleHttpUrl(url);
+  }
+  if (!authorizedDomains.length) return false;
+  const domain = extractDomain(url);
   return isDomainAuthorized(domain);
+}
+
+function isNavigationTargetAuthorized(url) {
+  if (isInternalBrowserUrl(url)) return false;
+  if (allowAllEligibleTabs) {
+    return isEligibleHttpUrl(url);
+  }
+  if (!authorizedDomains.length) return false;
+  const domain = extractDomain(url).toLowerCase();
+  return domain ? isDomainAuthorized(domain) : false;
 }
 
 function isDomainAuthorized(domain) {
@@ -399,13 +615,9 @@ function extractDomain(url) {
 }
 
 function sendTabsUpdate() {
-  getAuthorizedTabs().then((tabs) => {
+  getListableTabs().then((tabs) => {
     send({ type: "tabs_update", tabs });
   });
-}
-
-function sendDomainsUpdate() {
-  send({ type: "domains_update", domains: authorizedDomains });
 }
 
 chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
@@ -417,6 +629,17 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (attachedTabs.has(tabId)) {
     attachedTabs.delete(tabId);
+  }
+  let pauseChanged = false;
+  if (pausedTabIds.has(tabId)) {
+    pausedTabIds.delete(tabId);
+    pauseChanged = true;
+  }
+  if (pauseChanged) {
+    persistAccessPolicyLocal();
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      sendAccessPolicyUpdate();
+    }
   }
   sendTabsUpdate();
 });
@@ -479,7 +702,20 @@ async function attachDebugger(tabId) {
     attachedTabs.set(tabId, target);
   }
 
-  return { attached: true, tabId };
+  return { attached: true, tabId, targetId: `tab-${tabId}` };
+}
+
+async function detachUnauthorizedAttachedTabs() {
+  for (const tabId of [...attachedTabs.keys()]) {
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (!isTabAuthorized(tab)) {
+        await detachDebugger(tabId);
+      }
+    } catch {
+      await detachDebugger(tabId);
+    }
+  }
 }
 
 async function detachDebugger(tabId) {
@@ -525,6 +761,19 @@ function cleanupBackgroundTabs() {
 }
 
 // --- Chrome Debugger Events ---
+
+chrome.debugger.onEvent.addListener((source, method, params) => {
+  if (!source.tabId || !attachedTabs.has(source.tabId)) {
+    return;
+  }
+  send({
+    type: "cdp_event",
+    tabId: source.tabId,
+    sessionId: source.sessionId || undefined,
+    method,
+    params: params || {},
+  });
+});
 
 chrome.debugger.onDetach.addListener((source, reason) => {
   if (source.tabId && attachedTabs.has(source.tabId)) {
@@ -690,12 +939,75 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.type === "update_domains") {
-    authorizedDomains = msg.domains || [];
-    chrome.storage.local.set({ authorizedDomains });
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      send({ type: "domains_update", domains: authorizedDomains });
+    void (async () => {
+      try {
+        await applyAccessPolicyPayload(
+          { domains: msg.domains || [] },
+          { notifyServer: true },
+        );
+        persistAccessPolicyLocal();
+        sendResponse({ ok: true });
+      } catch (error) {
+        sendResponse({ ok: false, error: error?.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
+  if (msg.type === "update_access_policy") {
+    void (async () => {
+      try {
+        await applyAccessPolicyPayload(
+          {
+            allow_all_eligible_tabs: msg.allowAllEligibleTabs,
+            domains: msg.domains,
+            paused_tab_ids: msg.pausedTabIds,
+          },
+          { notifyServer: true },
+        );
+        persistAccessPolicyLocal();
+        sendTabsUpdate();
+        sendResponse({ ok: true });
+      } catch (error) {
+        sendResponse({ ok: false, error: error?.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
+  if (msg.type === "toggle_pause_tab") {
+    const tabId = Number.parseInt(String(msg.tabId), 10);
+    if (!Number.isInteger(tabId)) {
+      sendResponse({ ok: false });
+      return true;
     }
-    sendResponse({ ok: true });
+    void (async () => {
+      try {
+        if (pausedTabIds.has(tabId)) {
+          pausedTabIds.delete(tabId);
+        } else {
+          pausedTabIds.add(tabId);
+          await detachDebugger(tabId);
+        }
+        persistAccessPolicyLocal();
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          sendAccessPolicyUpdate();
+        }
+        sendTabsUpdate();
+        sendResponse({ ok: true, paused: pausedTabIds.has(tabId) });
+      } catch (error) {
+        sendResponse({ ok: false, error: error?.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
+  if (msg.type === "get_access_policy") {
+    sendResponse({
+      authorizedDomains,
+      allowAllEligibleTabs,
+      pausedTabIds: [...pausedTabIds],
+    });
     return true;
   }
 

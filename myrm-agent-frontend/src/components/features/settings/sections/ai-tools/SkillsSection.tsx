@@ -37,15 +37,13 @@ import useAuthStore from '@/store/useAuthStore';
 import { useSkillStore } from '@/store/skill';
 import { useSkillDraftStore } from '@/store/skill/useSkillDraftStore';
 import type { Skill, SkillLifecycleAction, SkillSourceFilter, SkillStatusFilter } from '@/store/skill/types';
-import {
-  SkillList,
-  SkillDiscoverTab,
-  LocalPathsConfig,
-  SkillDraftReviewPanel,
-  SkillHistoryPanel,
-  SkillSyncIndicator,
-  SkillsLearnPanel,
-} from '@/components/features/skills';
+import SkillList from '@/components/features/skills/SkillList';
+import SkillDiscoverTab from '@/components/features/skills/SkillDiscoverTab';
+import LocalPathsConfig from '@/components/features/skills/LocalPathsConfig';
+import SkillDraftReviewPanel from '@/components/features/skills/SkillDraftReviewPanel';
+import SkillHistoryPanel from '@/components/features/skills/SkillHistoryPanel';
+import SkillSyncIndicator from '@/components/features/skills/SkillSyncIndicator';
+import SkillsLearnPanel from '@/components/features/skills/SkillsLearnPanel';
 import { EvolutionStrategyConfig } from '@/components/features/skills/EvolutionStrategyConfig';
 import CuratorSettingsPanel from '@/components/features/skills/CuratorSettingsPanel';
 import SkillDetailSheet from '@/components/features/skills/SkillDetailSheet';

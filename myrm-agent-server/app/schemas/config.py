@@ -22,6 +22,7 @@ ConfigKey = Literal[
     "chatSettings",
     "personalSettings",
     "mcpServers",
+    "orgMcpServers",
     "searchServices",
     "commands",
     "retrieval",

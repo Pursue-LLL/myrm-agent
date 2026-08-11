@@ -27,6 +27,7 @@ from app.core.channel_bridge.config_parsers import (
     extract_retrieval_models,
     extract_user_instructions,
     extract_vision_fallback_model_config,
+    merge_org_mcp_configs,
 )
 from app.services.agent.profile.profile_resolver import (
     DEFAULT_ENABLED_BUILTIN_TOOLS,
@@ -107,7 +108,10 @@ async def prepare_channel_execution(
 
     embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
     memory_settings = configs.personal_settings_dict or {}
-    mcp_configs = extract_mcp_configs(configs.mcp_dict)
+    mcp_configs = merge_org_mcp_configs(
+        extract_mcp_configs(configs.mcp_dict),
+        configs.org_mcp_dict,
+    )
     lite_model_cfg = extract_lite_model_config(configs.providers_dict)
     fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(configs.providers_dict)
     vision_fallback_model_cfg = extract_vision_fallback_model_config(configs.providers_dict)

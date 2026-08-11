@@ -125,6 +125,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
             name=name,
             description=description,
             settings=settings,
+            dispatchers=self._dispatchers,
         )
 
     async def delete_board(self, board_id: str) -> bool:

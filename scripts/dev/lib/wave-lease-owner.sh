@@ -129,5 +129,13 @@ _wave_release_owned_lease_and_close_if_idle() {
   local wave="$1" prefix="$2" lease_id="$3" agent_id
   [[ -n "${lease_id}" ]] || return 0
   agent_id="$(_wave_new_agent_id "${prefix}")"
-  bash "${wave}" --agent "${agent_id}" lease release "${lease_id}" --close-wave-if-idle >/dev/null
+  if bash "${wave}" --agent "${agent_id}" lease release "${lease_id}" --close-wave-if-idle >/dev/null 2>&1; then
+    return 0
+  fi
+  # Long-running fault/soak gates can outlive their lease TTL.  Releasing an
+  # already-reaped lease fails before --close-wave-if-idle is evaluated and
+  # would otherwise leave an empty stack pin behind.  `wave close` is itself
+  # ownership- and active-lease-guarded, so this fallback is idempotent and
+  # cannot close a peer's wave or interrupt parallel work.
+  bash "${wave}" --agent "${agent_id}" close >/dev/null
 }

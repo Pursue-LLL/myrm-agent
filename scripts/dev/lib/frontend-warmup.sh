@@ -350,7 +350,6 @@ _warmup_frontend_client() {
     export MYRM_CHROME_E2E_SAVED_FRONTMOST_PID="${saved_frontmost_pid}"
   fi
   echo "STACK_WAIT: frontend client hydration via CDP (up to ${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-120}s)..." >&2
-  export MYRM_WARM_SHELL_SEAL_TARGET=1
   if ! "${py}" "${warmup_py}" \
     --cdp-port "${cdp_port}" \
     --url "${APP_URL}/" \

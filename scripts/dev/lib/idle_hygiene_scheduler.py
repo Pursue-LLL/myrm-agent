@@ -22,9 +22,24 @@ class IdleHygieneSchedulerResult(TypedDict, total=False):
     reason: str
     detail: str
     infra_closed: int
+    infra_failed: int
     orphan_closed: int
+    orphan_failed: int
+    active_tests: int
     trigger: str
     orphan_budget: str
+
+
+def _positive_count(payload: IdleHygieneSchedulerResult, key: str) -> bool:
+    value = payload.get(key)
+    return isinstance(value, int) and value > 0
+
+
+def _has_material_hygiene_event(payload: IdleHygieneSchedulerResult) -> bool:
+    return any(
+        _positive_count(payload, key)
+        for key in ("infra_closed", "infra_failed", "orphan_closed", "orphan_failed")
+    )
 
 
 def run_idle_tab_hygiene_if_safe(*, trigger: str) -> IdleHygieneSchedulerResult:
@@ -46,13 +61,13 @@ def run_idle_tab_hygiene_if_safe(*, trigger: str) -> IdleHygieneSchedulerResult:
             )
     except ImportError:
         pass
-    if result.get("ok"):
+    if result.get("ok") and _has_material_hygiene_event(payload):
         print(
             "IDLE_HYGIENE_SCHEDULER: "
             f"{json.dumps(payload, sort_keys=True)}",
             flush=True,
         )
-    elif result.get("skipped"):
+    elif result.get("skipped") and result.get("skipped") != "active_tests":
         print(
             "IDLE_HYGIENE_SCHEDULER_SKIP: "
             f"{json.dumps(payload, sort_keys=True)}",

@@ -1820,7 +1820,7 @@
       "disconnectFailed": "切断失敗",
       "setupGuide": "クイック設定",
       "step1": "Chrome または Edge のデベロッパーモードで、myrm-agent-extension フォルダを「パッケージ化されていない拡張機能を読み込む」で読み込みます",
-      "step2": "拡張機能ポップアップを開き、このサーバーの WebSocket アドレスと認証トークンを入力",
+      "step2": "このページでペアリングバンドルを生成し、拡張機能ポップアップに貼り付けて適用",
       "step3": "クリック接続 — 拡張機能が永続接続を維持します",
       "extensionPathLabel": "拡張機能フォルダのパス（パッケージ化されていない拡張機能の読み込み用）",
       "authorizedDomains": "認可済みドメイン",
@@ -1831,6 +1831,10 @@
       "saveFailed": "ドメイン設定の保存に失敗しました",
       "availableTabs": "利用可能なタブ",
       "tabActive": "現在",
+      "tabPause": "一時停止",
+      "tabResume": "再開",
+      "tabPaused": "一時停止中",
+      "tabPauseHint": "一時停止したタブは Chrome に残りますが、Agent からは使えません。「すべての対象サイトを許可」利用時に銀行・メール等を止めるのに便利です。",
       "connectionInfo": "接続情報",
       "websocketUrl": "WebSocket アドレス",
       "authTokenStatus": "認証トークン",
@@ -1868,7 +1872,19 @@
       "clipAgentHint": "ブラウザのクリップはこのエージェントのWikiボールトに保存されます。拡張機能は接続時に自動的に同期されます。",
       "clipAgentDefault": "デフォルトエージェント",
       "clipAgentSaved": "Wikiクリップエージェントを更新しました",
-      "clipAgentSaveFailed": "Wikiクリップエージェントの更新に失敗しました"
+      "clipAgentSaveFailed": "Wikiクリップエージェントの更新に失敗しました",
+      "relayAutomationStatus": "ログイン状態の自動化",
+      "relayAutomationReady": "準備完了",
+      "relayAutomationNotReady": "未準備",
+      "relayAutomationHelp": "拡張機能は接続されていますが、自動化リレーは準備できていません。拡張機能を再接続するか、最新バージョンに更新してください。",
+      "createPairingCode": "ペアリングバンドルを生成",
+      "pairingHint": "ペアリングバンドルをコピーし、拡張機能ポップアップに貼り付けて適用 — 自動的に接続されます。",
+      "pairingCopied": "ペアリングバンドルをコピーしました",
+      "pairingCreated": "ペアリングバンドルを生成しました",
+      "pairingFailed": "ペアリングバンドルの生成に失敗しました",
+      "allowAllEligibleTabs": "すべての対象サイトを許可",
+      "allowAllEligibleTabsHint": "有効にすると、ログイン済み Chrome 内の通常の http(s) タブを Agent が使用できます。より厳密な制御には下のドメイン一覧を使ってください。",
+      "accessPolicyInvalidHelp": "自動化を開始する前に、認可ドメインを少なくとも 1 つ追加するか、すべて許可を有効にしてください。"
     },
     "credentials": {
       "title": "認証情報管理",
@@ -6408,7 +6424,6 @@
     "onlyOwnerCanViewPrompt": "エージェントの所有者のみシステムプロンプトを表示できます",
     "failedToLoadPrompt": "システムプロンプトの読み込みに失敗、再試行してください",
     "loadFailed": "エージェントの読み込みに失敗しました",
-    "loadFailed": "エージェントの読み込みに失敗しました",
     "systemPromptLoaded": "システムプロンプトを読み込みました",
     "loginRequired": "ログインが必要です",
     "loginRequiredDesc": "エージェントの作成と管理にはログインが必要です",
@@ -8797,6 +8812,7 @@
       "claim": "検証済み",
       "task_digest": "タスク要約"
     },
+    "enabled": "有効",
     "disabled": "無効",
     "locked": "自動変更からロック済み",
     "enable": "有効",
@@ -16005,5 +16021,6 @@
     "consensusMetaElapsed": "経過時間: {seconds} 秒",
     "consensusMetaModels": "{succeeded}/{total} のモデルが応答しました",
     "consensusMetaTitle": "マルチモデルコンセンサス"
-  }
+  },
+  "error": "エラー"
 }

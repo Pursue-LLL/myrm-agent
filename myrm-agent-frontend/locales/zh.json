@@ -1840,8 +1840,8 @@
       "disconnectFailed": "断开失败",
       "setupGuide": "快速设置",
       "step1": "在 Chrome 或 Edge 开发者模式下，以「加载已解压的扩展程序」方式加载 myrm-agent-extension 目录",
-      "step2": "打开扩展弹窗，输入此服务器的 WebSocket 地址与认证 Token",
-      "step3": "点击连接 — 扩展将保持持久连接",
+      "step2": "在本页生成配对包，粘贴到扩展弹窗并点击应用",
+      "step3": "授权域名（如 *.x.com）— 扩展将保持持久连接",
       "extensionPathLabel": "扩展目录路径（用于「加载已解压的扩展程序」）",
       "authorizedDomains": "授权域名",
       "domainsHint": "仅授权域名上的标签页可被 Agent 控制。这是你的安全边界。",
@@ -1851,6 +1851,10 @@
       "saveFailed": "保存域名设置失败",
       "availableTabs": "可用标签页",
       "tabActive": "当前",
+      "tabPause": "暂停",
+      "tabResume": "恢复",
+      "tabPaused": "已暂停",
+      "tabPauseHint": "已暂停的标签页仍在 Chrome 中，但 Agent 无法使用。开启「允许所有网站」时建议暂停银行、邮件等敏感页面。",
       "connectionInfo": "连接信息",
       "websocketUrl": "WebSocket 地址",
       "authTokenStatus": "认证 Token",
@@ -1888,7 +1892,19 @@
       "clipAgentHint": "浏览器剪藏将写入该 Agent 的 Wiki 知识库。扩展连接后会自动同步此设置。",
       "clipAgentDefault": "默认 Agent",
       "clipAgentSaved": "Wiki 剪藏 Agent 已更新",
-      "clipAgentSaveFailed": "更新 Wiki 剪藏 Agent 失败"
+      "clipAgentSaveFailed": "更新 Wiki 剪藏 Agent 失败",
+      "relayAutomationStatus": "登录态自动化",
+      "relayAutomationReady": "就绪",
+      "relayAutomationNotReady": "未就绪",
+      "relayAutomationHelp": "扩展已连接但自动化中继未就绪。请重新连接扩展或更新到最新版本。",
+      "createPairingCode": "生成配对包",
+      "pairingHint": "复制配对包，粘贴到扩展弹窗并点击应用 — 将自动完成连接。",
+      "pairingCopied": "配对包已复制",
+      "pairingCreated": "配对包已生成",
+      "pairingFailed": "生成配对包失败",
+      "allowAllEligibleTabs": "允许所有符合条件的网站",
+      "allowAllEligibleTabsHint": "开启后，Agent 可使用已登录 Chrome 中的普通 http(s) 标签页。需要更细控制请使用下方域名列表。",
+      "accessPolicyInvalidHelp": "请至少添加一个授权域名，或开启「允许所有符合条件的网站」，自动化才能启动。"
     },
     "credentials": {
       "title": "凭据管理",
@@ -6313,7 +6329,6 @@
     "modelBinding": "选择模型",
     "onlyOwnerCanViewPrompt": "只有智能体所有者才能查看系统提示词",
     "failedToLoadPrompt": "加载系统提示词失败，请重试",
-    "loadFailed": "智能体加载失败",
     "loadFailed": "加载智能体失败",
     "systemPromptLoaded": "系统提示词已加载",
     "modelBindingDesc": "为此智能体绑定专用模型",
@@ -8875,6 +8890,7 @@
       "claim": "已验证",
       "task_digest": "任务摘要"
     },
+    "enabled": "已启用",
     "disabled": "已禁用",
     "locked": "已锁定，不受自动修改影响",
     "enable": "启用",
@@ -16005,5 +16021,6 @@
     "consensusMetaElapsed": "耗时：{seconds} 秒",
     "consensusMetaModels": "{succeeded}/{total} 个模型已响应",
     "consensusMetaTitle": "多模型共识"
-  }
+  },
+  "error": "错误"
 }

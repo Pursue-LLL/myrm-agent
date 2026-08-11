@@ -7,13 +7,13 @@ import sys
 
 
 def touch_admit_progress(*, node: str) -> None:
-    from e2e_session_lifecycle import touch_wall_progress
+    from e2e_session_runtime.lifecycle import touch_wall_progress
 
     touch_wall_progress(current_node=node)
 
 
 def assert_admit_phase_budget(*, node: str) -> None:
-    from e2e_session_lifecycle import assert_phase_budget
+    from e2e_session_runtime.lifecycle import assert_phase_budget
 
     assert_phase_budget(node)
 

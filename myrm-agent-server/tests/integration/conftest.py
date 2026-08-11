@@ -1,3 +1,1 @@
-"""Integration test fixtures."""
-
-pytest_plugins = ("tests.services.chat.conftest",)
+"""Integration test fixtures are registered at the top-level ``tests/conftest.py``."""

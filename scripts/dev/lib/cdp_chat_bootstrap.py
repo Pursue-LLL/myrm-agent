@@ -10,7 +10,6 @@ from cdp_chat_support import (
     DISMISS_MODALS_JS,
     MODEL_PROBE_JS,
     PAGE_PROBE_JS,
-    RESET_CHAT_JS,
     _api_provider_ready,
     chat_id_from_path,
     e2e_api_base_inject_js,
@@ -272,7 +271,7 @@ class CdpChatBootstrap(CdpChatTransport):
         import sys
 
         try:
-            from e2e_session_lifecycle import touch_wall_progress
+            from e2e_session_runtime.lifecycle import touch_wall_progress
 
             touch_wall_progress(current_node=phase)
         except ImportError:
@@ -339,7 +338,7 @@ class CdpChatBootstrap(CdpChatTransport):
         timeout_sec: float = 180.0,
         navigate: bool = False,
     ) -> dict[str, object]:
-        from e2e_session_lifecycle import (  # noqa: PLC0415
+        from e2e_session_runtime.lifecycle import (  # noqa: PLC0415
             begin_bootstrap_phase,
             provider_readiness_gate_sync,
         )
@@ -433,7 +432,7 @@ class CdpChatBootstrap(CdpChatTransport):
     ) -> dict[str, object]:
         bridge_timeout = max(0.0, deadline - time.monotonic())
         if bridge_timeout <= 0.0:
-            from e2e_session_lifecycle import current_phase, remaining_wall_sec
+            from e2e_session_runtime.lifecycle import current_phase, remaining_wall_sec
 
             remaining = remaining_wall_sec()
             if current_phase() == "bootstrap" and remaining > 20.0:
@@ -471,7 +470,7 @@ class CdpChatBootstrap(CdpChatTransport):
                 else:
                     last = {"probeError": probe}
         await self._maybe_apply_shared_ui_session_contract(deadline=deadline)
-        from e2e_session_lifecycle import complete_bootstrap_phase
+        from e2e_session_runtime.lifecycle import complete_bootstrap_phase
 
         complete_bootstrap_phase(phase_label="post_cdp_bootstrap")
         return last
@@ -1206,7 +1205,7 @@ class CdpChatBootstrap(CdpChatTransport):
         mux_recover_attempts = 0
         while time.monotonic() < deadline:
             try:
-                from e2e_session_lifecycle import touch_wall_progress
+                from e2e_session_runtime.lifecycle import touch_wall_progress
 
                 touch_wall_progress(current_node="ensure_chat_surface")
             except ImportError:

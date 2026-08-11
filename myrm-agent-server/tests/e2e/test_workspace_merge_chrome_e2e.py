@@ -573,9 +573,6 @@ def _api_url_for_seed() -> str:
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_workspace_merge_shows_warning_panel() -> None:
-    from e2e_session_lifecycle import complete_bootstrap_phase
-
-    complete_bootstrap_phase(phase_label="test_workspace_merge_shows_warning_panel")
     api_url = _api_url_for_seed()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
@@ -590,11 +587,6 @@ def test_workspace_merge_shows_warning_panel() -> None:
 @pytest.mark.timeout(600)
 def test_workspace_merge_warning_survives_page_reload() -> None:
     """Hydrate from DB: reload must still show WorkspaceMergeWarning from metadata."""
-    from e2e_session_lifecycle import complete_bootstrap_phase
-
-    complete_bootstrap_phase(
-        phase_label="test_workspace_merge_warning_survives_page_reload"
-    )
     api_url = _api_url_for_seed()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)

@@ -125,6 +125,7 @@ async def update_board(
     name: str | None = None,
     description: str | None = None,
     settings: BoardSettings | None = None,
+    dispatchers: dict[str, KanbanDispatcher] | None = None,
 ) -> KanbanBoard | None:
     board = await store.get_board(board_id)
     if board is None:
@@ -135,7 +136,12 @@ async def update_board(
         board.description = description
     if settings is not None:
         board.settings = settings
-    return await store.save_board(board)
+    saved = await store.save_board(board)
+    if settings is not None and dispatchers is not None:
+        dispatcher = dispatchers.get(board_id)
+        if dispatcher is not None:
+            dispatcher.refresh_board(saved)
+    return saved
 
 
 async def delete_board(

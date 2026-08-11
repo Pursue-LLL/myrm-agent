@@ -2,7 +2,7 @@
 
 [INPUT]
 - ps(1) process list
-- e2e_session_snapshot per-pid / per-test_id sidecars
+- e2e_session_runtime.snapshot per-pid / per-test_id sidecars
 
 [OUTPUT]
 - list_live_chrome_e2e_pytest_rows(): canonical one row per test_id (inner pytest preferred)
@@ -21,7 +21,7 @@ from dataclasses import dataclass, replace
 
 _PS_PROBE_TIMEOUT_SEC = 2.0
 
-from e2e_session_snapshot import (
+from e2e_session_runtime.snapshot import (
     read_session_snapshot,
     read_session_snapshot_by_test_id,
     test_ids_match,

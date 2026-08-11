@@ -101,7 +101,7 @@ async def _force_mux_heal_before_retry() -> None:
 
 def _touch_wall_progress(node: str) -> None:
     try:
-        from e2e_session_lifecycle import touch_wall_progress
+        from e2e_session_runtime.lifecycle import touch_wall_progress
 
         touch_wall_progress(current_node=node)
     except ImportError:

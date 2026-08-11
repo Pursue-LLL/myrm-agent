@@ -455,6 +455,7 @@ export function TaskDetailsSection({
             </span>
           ) : null}
           <select
+            data-testid="kanban-task-agent-select"
             value={task.agent_id ?? ''}
             onChange={(e) => handleAgentChange(e.target.value || null)}
             className="text-[10px] px-1.5 py-0.5 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary max-w-[140px]"

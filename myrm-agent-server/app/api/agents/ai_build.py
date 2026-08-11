@@ -33,7 +33,10 @@ from myrm_agent_harness.toolkits.llms import llm_manager
 from pydantic import BaseModel
 
 from app.core.channel_bridge.config_loader import load_user_configs
-from app.core.channel_bridge.config_parsers import extract_mcp_configs
+from app.core.channel_bridge.config_parsers import (
+    extract_mcp_configs,
+    merge_org_mcp_configs,
+)
 from app.core.channel_bridge.model_resolver import (
     enrich_model_context_window,
     resolve_model_config,
@@ -66,8 +69,11 @@ async def _collect_available_resources() -> tuple[list[dict[str, str]], list[dic
     mcp_summaries: list[dict[str, str]] = []
     try:
         configs = await load_user_configs()
-        if configs.mcp_dict:
-            mcp_configs = extract_mcp_configs(configs.mcp_dict)
+        if configs:
+            mcp_configs = merge_org_mcp_configs(
+                extract_mcp_configs(configs.mcp_dict),
+                configs.org_mcp_dict,
+            )
             for m in mcp_configs:
                 mcp_summaries.append({"id": m.name, "name": m.name})
     except Exception as exc:

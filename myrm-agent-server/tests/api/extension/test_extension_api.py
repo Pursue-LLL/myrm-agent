@@ -317,18 +317,38 @@ class TestConnectToDomainWildcard:
         bridge = ExtensionBridgeService()
         bridge._connected = True
         bridge._ws = MagicMock()
+        bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
         bridge._authorized_domains = ["*.google.com"]
-        bridge._cdp_endpoint = "ws://127.0.0.1:9222/devtools/browser/abc"
 
         mock_pw = MagicMock()
         mock_browser = MagicMock()
         mock_pw.chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
         bridge._playwright = mock_pw
+        bridge._tabs = [
+            ExtensionTab(
+                tab_id=42,
+                url="https://mail.google.com",
+                title="Gmail",
+                domain="mail.google.com",
+                active=True,
+            )
+        ]
 
-        with patch.object(
-            bridge, "_request_debugger_attach", new_callable=AsyncMock
-        ) as mock_attach:
-            mock_attach.return_value = 42
+        with (
+            patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
+            patch.object(bridge, "_refresh_tabs", new_callable=AsyncMock),
+            patch(
+                "app.services.extension.bridge.get_cdp_relay_manager"
+            ) as mock_manager_factory,
+        ):
+            manager = MagicMock()
+            manager.relay_cdp_ready = AsyncMock(return_value=True)
+            manager.ensure_http_endpoint = AsyncMock(
+                return_value="http://127.0.0.1:9222"
+            )
+            manager.bind_extension_transport = AsyncMock()
+            mock_manager_factory.return_value = manager
             result = await bridge.connect_to_domain("mail.google.com")
 
         assert result.browser is mock_browser
@@ -339,18 +359,38 @@ class TestConnectToDomainWildcard:
         bridge = ExtensionBridgeService()
         bridge._connected = True
         bridge._ws = MagicMock()
+        bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
         bridge._authorized_domains = ["*.google.com"]
-        bridge._cdp_endpoint = "ws://127.0.0.1:9222/devtools/browser/abc"
 
         mock_pw = MagicMock()
         mock_browser = MagicMock()
         mock_pw.chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
         bridge._playwright = mock_pw
+        bridge._tabs = [
+            ExtensionTab(
+                tab_id=7,
+                url="https://google.com",
+                title="Google",
+                domain="google.com",
+                active=True,
+            )
+        ]
 
-        with patch.object(
-            bridge, "_request_debugger_attach", new_callable=AsyncMock
-        ) as mock_attach:
-            mock_attach.return_value = 42
+        with (
+            patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
+            patch.object(bridge, "_refresh_tabs", new_callable=AsyncMock),
+            patch(
+                "app.services.extension.bridge.get_cdp_relay_manager"
+            ) as mock_manager_factory,
+        ):
+            manager = MagicMock()
+            manager.relay_cdp_ready = AsyncMock(return_value=True)
+            manager.ensure_http_endpoint = AsyncMock(
+                return_value="http://127.0.0.1:9222"
+            )
+            manager.bind_extension_transport = AsyncMock()
+            mock_manager_factory.return_value = manager
             result = await bridge.connect_to_domain("google.com")
 
         assert result.browser is mock_browser
@@ -375,6 +415,7 @@ class TestNavigateToUrl:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
         bridge._capabilities = {"navigate_url"}
         bridge._authorized_domains = ["*.corp.local"]
         bridge._send_request = AsyncMock(
@@ -402,6 +443,7 @@ class TestNavigateToUrl:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
         bridge._capabilities = set()
         bridge._authorized_domains = ["*.corp.local"]
 
@@ -459,6 +501,7 @@ class TestActionCapabilityContract:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
         bridge._capabilities = set()
 
         with pytest.raises(
@@ -485,6 +528,7 @@ class TestActionCapabilityContract:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
         bridge._capabilities = set()
 
         with pytest.raises(
@@ -499,6 +543,7 @@ class TestActionCapabilityContract:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
         bridge._capabilities = {"attach_debugger"}
 
         with pytest.raises(
@@ -535,26 +580,38 @@ class TestDirectCdpRiskGovernance:
     """Test explicit direct CDP risk warning emission."""
 
     @pytest.mark.asyncio
-    async def test_connect_warns_once_when_using_direct_cdp(self) -> None:
+    async def test_connect_uses_relay_endpoint(self) -> None:
         bridge = ExtensionBridgeService()
         bridge._connected = True
         bridge._ws = MagicMock()
-        bridge._cdp_endpoint = "ws://127.0.0.1:9222/devtools/browser/abc"
+        bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
 
         mock_pw = MagicMock()
         mock_browser = MagicMock()
         mock_pw.chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
         bridge._playwright = mock_pw
 
-        with patch.object(
-            bridge, "_request_debugger_attach", new_callable=AsyncMock
-        ) as mock_attach:
-            mock_attach.return_value = 42
-            with patch("app.services.extension.bridge.logger.warning") as mock_warning:
-                await bridge.connect()
-                await bridge.connect()
+        with (
+            patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
+            patch(
+                "app.services.extension.bridge.get_cdp_relay_manager"
+            ) as mock_manager_factory,
+        ):
+            manager = MagicMock()
+            manager.relay_cdp_ready = AsyncMock(return_value=True)
+            manager.ensure_http_endpoint = AsyncMock(
+                return_value="http://127.0.0.1:9222"
+            )
+            manager.bind_extension_transport = AsyncMock()
+            mock_manager_factory.return_value = manager
 
-        mock_warning.assert_called_once()
+            instance = await bridge.connect()
+
+        mock_pw.chromium.connect_over_cdp.assert_awaited_once_with(
+            "http://127.0.0.1:9222", timeout=10000
+        )
+        assert instance.browser is mock_browser
 
 
 class TestSendRequest:
@@ -595,7 +652,7 @@ class TestSetAuthorizedDomainsNotify:
 
         mock_ws.send_text.assert_called_once()
         sent = json.loads(mock_ws.send_text.call_args[0][0])
-        assert sent["type"] == "set_domains"
+        assert sent["type"] == "set_access_policy"
         assert sent["domains"] == ["github.com", "*.google.com"]
 
     @pytest.mark.asyncio
@@ -1023,6 +1080,10 @@ class TestExtensionRouterHints:
 
         bridge = MagicMock()
         bridge.has_direct_cdp_endpoint.return_value = False
+        bridge.relay_cdp_ready = AsyncMock(return_value=False)
+        bridge.is_access_policy_valid.return_value = True
+
+        mock_request = MagicMock()
 
         with (
             patch("app.api.extension.router.get_extension_bridge", return_value=bridge),
@@ -1031,7 +1092,7 @@ class TestExtensionRouterHints:
                 "app.config.settings.settings.extension_auth_token", new=SecretStr("")
             ),
         ):
-            hints = await get_extension_setup_hints()
+            hints = await get_extension_setup_hints(mock_request)
 
         assert hints.auth_token_configured is False
         assert hints.auth_token_required is True
@@ -1044,6 +1105,10 @@ class TestExtensionRouterHints:
 
         bridge = MagicMock()
         bridge.has_direct_cdp_endpoint.return_value = True
+        bridge.relay_cdp_ready = AsyncMock(return_value=True)
+        bridge.is_access_policy_valid.return_value = True
+
+        mock_request = MagicMock()
 
         with (
             patch("app.api.extension.router.get_extension_bridge", return_value=bridge),
@@ -1053,7 +1118,7 @@ class TestExtensionRouterHints:
                 new=SecretStr("abc"),
             ),
         ):
-            hints = await get_extension_setup_hints()
+            hints = await get_extension_setup_hints(mock_request)
 
         assert hints.auth_token_configured is True
         assert hints.auth_token_required is False
@@ -1110,6 +1175,13 @@ class TestExtensionRouterStatus:
                 available_tabs=[],
             )
         )
+        bridge.get_access_policy.return_value = SimpleNamespace(
+            allow_all_eligible_tabs=False,
+            authorized_domains=["corp.local"],
+            paused_tab_ids=frozenset(),
+        )
+        bridge.relay_cdp_ready = AsyncMock(return_value=True)
+        bridge.is_access_policy_valid.return_value = True
 
         with patch(
             "app.api.extension.router.get_extension_bridge", return_value=bridge
@@ -1288,6 +1360,7 @@ class TestNavigateToUrlAdditionalErrors:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
         bridge._capabilities = {"navigate_url"}
         bridge._authorized_domains = ["example.com"]
         bridge._send_request = AsyncMock(return_value="bad")
@@ -1303,6 +1376,7 @@ class TestNavigateToUrlAdditionalErrors:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
         bridge._capabilities = {"navigate_url"}
         bridge._authorized_domains = ["example.com"]
         bridge._send_request = AsyncMock(
@@ -1322,6 +1396,7 @@ class TestRefreshTabsSuccess:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
         bridge._capabilities = {"list_tabs"}
         bridge._authorized_domains = ["github.com"]
         bridge._send_request = AsyncMock(
@@ -1343,33 +1418,63 @@ class TestRefreshTabsSuccess:
 
 
 class TestConnectWithoutCdpEndpoint:
-    """Cover connect() failure when local CDP endpoint is unavailable."""
+    """Cover connect() failure when CDP relay is unavailable."""
 
     @pytest.mark.asyncio
-    async def test_connect_raises_when_cdp_missing(self) -> None:
+    async def test_connect_raises_when_relay_missing(self) -> None:
         bridge = ExtensionBridgeService()
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
-        bridge._capabilities = {"attach_debugger"}
-
-        mock_pw = MagicMock()
-        bridge._playwright = mock_pw
+        bridge._authorized_domains = ["example.com"]
 
         with (
-            patch.object(
-                bridge,
-                "_request_debugger_attach",
-                new_callable=AsyncMock,
-                return_value=1,
-            ),
-            patch.object(bridge, "_resolve_cdp_endpoint", return_value=None),
+            patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
+            patch(
+                "app.services.extension.bridge.get_cdp_relay_manager"
+            ) as mock_manager_factory,
         ):
-            with pytest.raises(
-                ExtensionBridgeNotAvailable,
-                match="does not expose a direct CDP endpoint",
-            ):
-                await bridge.connect()
+            manager = MagicMock()
+            manager.relay_cdp_ready = AsyncMock(return_value=False)
+            manager.bind_extension_transport = AsyncMock()
+            mock_manager_factory.return_value = manager
+            with patch.object(bridge, "_resolve_cdp_endpoint", return_value=None):
+                with pytest.raises(
+                    ExtensionBridgeNotAvailable,
+                    match="CDP relay is not ready",
+                ):
+                    await bridge.connect()
+
+    @pytest.mark.asyncio
+    async def test_connect_rejects_direct_cdp_fallback_when_relay_missing(self) -> None:
+        """Extension mode must not bypass policy via local :9222 discovery."""
+        bridge = ExtensionBridgeService()
+        bridge._connected = True
+        bridge._ws = MagicMock()
+        bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
+
+        with (
+            patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
+            patch(
+                "app.services.extension.bridge.get_cdp_relay_manager"
+            ) as mock_manager_factory,
+        ):
+            manager = MagicMock()
+            manager.relay_cdp_ready = AsyncMock(return_value=False)
+            manager.bind_extension_transport = AsyncMock()
+            mock_manager_factory.return_value = manager
+            with patch.object(
+                bridge,
+                "_resolve_cdp_endpoint",
+                return_value="http://127.0.0.1:9222",
+            ) as mock_resolve:
+                with pytest.raises(
+                    ExtensionBridgeNotAvailable,
+                    match="CDP relay is not ready",
+                ):
+                    await bridge.connect()
+                mock_resolve.assert_not_called()
 
 
 class TestRequestDebuggerAttachErrors:
@@ -1511,23 +1616,33 @@ class TestConnectToDomainWithoutCdp:
         bridge._ws = MagicMock()
         bridge._authorized_domains = ["example.com"]
         bridge._hello_received = True
-        bridge._capabilities = {"attach_debugger"}
-        bridge._playwright = MagicMock()
+        bridge._tabs = [
+            ExtensionTab(
+                tab_id=7,
+                url="https://example.com",
+                title="Example",
+                domain="example.com",
+                active=True,
+            )
+        ]
 
         with (
-            patch.object(
-                bridge,
-                "_request_debugger_attach",
-                new_callable=AsyncMock,
-                return_value=7,
-            ),
-            patch.object(bridge, "_resolve_cdp_endpoint", return_value=None),
+            patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
+            patch.object(bridge, "_refresh_tabs", new_callable=AsyncMock),
+            patch(
+                "app.services.extension.bridge.get_cdp_relay_manager"
+            ) as mock_manager_factory,
         ):
-            with pytest.raises(
-                ExtensionBridgeNotAvailable,
-                match="does not expose a direct CDP endpoint for domain 'example.com'",
-            ):
-                await bridge.connect_to_domain("example.com")
+            manager = MagicMock()
+            manager.relay_cdp_ready = AsyncMock(return_value=False)
+            manager.bind_extension_transport = AsyncMock()
+            mock_manager_factory.return_value = manager
+            with patch.object(bridge, "_resolve_cdp_endpoint", return_value=None):
+                with pytest.raises(
+                    ExtensionBridgeNotAvailable,
+                    match="CDP relay is not ready",
+                ):
+                    await bridge.connect_to_domain("example.com")
 
 
 class TestRequestDebuggerAttachPayload:
@@ -1566,6 +1681,7 @@ class TestRefreshTabsFailureSwallowed:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._hello_received = True
+        bridge._authorized_domains = ["example.com"]
         bridge._capabilities = set()
         bridge._tabs = [
             ExtensionTab(

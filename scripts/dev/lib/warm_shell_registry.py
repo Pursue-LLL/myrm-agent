@@ -18,7 +18,6 @@ from __future__ import annotations
 import fcntl
 import json
 import os
-import sys
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -38,8 +37,6 @@ class WarmShellRecord:
     ui_origin: str
     routes: frozenset[str]
     sealed_at: float
-    sealed_target_id: str | None = None
-    sealed_target_ids: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,25 +89,6 @@ def _registry_file_lock(*, workspace_fp: str) -> Iterator[None]:
             yield
         finally:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-
-
-def _normalize_sealed_target_pool(payload: dict[str, object]) -> list[str]:
-    pool: list[str] = []
-    seen: set[str] = set()
-    ids_raw = payload.get("sealedTargetIds")
-    if isinstance(ids_raw, list):
-        for item in ids_raw:
-            if isinstance(item, str):
-                target_id = item.strip()
-                if target_id and target_id not in seen:
-                    seen.add(target_id)
-                    pool.append(target_id)
-    legacy_raw = payload.get("sealedTargetId")
-    if isinstance(legacy_raw, str):
-        legacy_id = legacy_raw.strip()
-        if legacy_id and legacy_id not in seen:
-            pool.insert(0, legacy_id)
-    return pool
 
 
 def _write_registry_payload(path: Path, payload: dict[str, object]) -> None:
@@ -193,15 +171,11 @@ def read_platform_shell(*, workspace_fp: str | None = None) -> WarmShellRecord |
         for item in routes_raw:
             if isinstance(item, str) and item.strip():
                 routes.add(_normalize_route(item))
-    pool = _normalize_sealed_target_pool(payload)
-    sealed_target_id = pool[0] if pool else None
     return WarmShellRecord(
         workspace_fingerprint=fp,
         ui_origin=ui_origin,
         routes=frozenset(routes),
         sealed_at=float(sealed_raw),
-        sealed_target_id=sealed_target_id,
-        sealed_target_ids=frozenset(pool),
     )
 
 
@@ -210,8 +184,6 @@ def seal_platform_shell(
     ui_url: str,
     route_path: str = "/",
     workspace_fp: str | None = None,
-    sealed_target_id: str | None = None,
-    append_sealed_target: bool = False,
 ) -> WarmShellRecord | None:
     fp = (workspace_fp or current_workspace_fingerprint()).strip()
     if not fp:
@@ -235,14 +207,6 @@ def seal_platform_shell(
                 if isinstance(item, str) and item.strip():
                     routes.add(_normalize_route(item))
         routes.add(route)
-        pool = _normalize_sealed_target_pool(existing_payload)
-        effective_target_id = (sealed_target_id or "").strip() or None
-        if effective_target_id:
-            if append_sealed_target:
-                if effective_target_id not in pool:
-                    pool.append(effective_target_id)
-            else:
-                pool = [effective_target_id]
         sealed_at = time.time()
         payload: dict[str, object] = {
             "workspaceFingerprint": fp,
@@ -250,16 +214,11 @@ def seal_platform_shell(
             "routes": sorted(routes),
             "sealedAt": sealed_at,
         }
-        if pool:
-            payload["sealedTargetIds"] = pool
-            payload["sealedTargetId"] = pool[0]
         record = WarmShellRecord(
             workspace_fingerprint=fp,
             ui_origin=origin,
             routes=frozenset(routes),
             sealed_at=sealed_at,
-            sealed_target_id=pool[0] if pool else None,
-            sealed_target_ids=frozenset(pool),
         )
         _write_registry_payload(path, payload)
         return record
@@ -279,337 +238,6 @@ def platform_shell_fresh(
         return False
     age = time.time() - record.sealed_at
     return age <= float(ttl_sec)
-
-
-def count_sealed_target_pool(
-    *,
-    route_path: str = "/",
-    workspace_fp: str | None = None,
-) -> int:
-    if not platform_shell_fresh(route_path=route_path, workspace_fp=workspace_fp):
-        return 0
-    record = read_platform_shell(workspace_fp=workspace_fp)
-    if record is None:
-        return 0
-    return len(record.sealed_target_ids)
-
-
-def seed_sealed_target_pool_via_cdp(
-    *,
-    ui_url: str,
-    need_count: int,
-    cdp_port: int = 9333,
-    workspace_fp: str | None = None,
-    route_path: str = "/",
-) -> int:
-    """Append background CDP tabs to the warm-shell pool (platform shell must already be hot)."""
-    import asyncio
-    import importlib.util
-    from pathlib import Path
-
-    warmup_path = Path(__file__).with_name("frontend-client-warmup.py")
-    lib_dir = str(warmup_path.parent.resolve())
-    if lib_dir not in sys.path:
-        sys.path.insert(0, lib_dir)
-    module_name = f"_myrm_warmup_seed_{warmup_path.stat().st_mtime_ns}"
-    spec = importlib.util.spec_from_file_location(
-        module_name,
-        warmup_path,
-    )
-    if spec is None or spec.loader is None:
-        return count_sealed_target_pool(
-            route_path=route_path, workspace_fp=workspace_fp
-        )
-    warmup_mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(warmup_mod)
-    create_background_target = getattr(warmup_mod, "_create_background_target", None)
-    wait_for_hydration = getattr(warmup_mod, "_wait_for_hydration", None)
-    if create_background_target is None or wait_for_hydration is None:
-        return count_sealed_target_pool(
-            route_path=route_path, workspace_fp=workspace_fp
-        )
-
-    try:
-        from infra_browser_registry import register_infra_target
-    except ImportError:
-        register_infra_target = None  # type: ignore[assignment,misc]
-
-    target_need = max(0, int(need_count))
-    if target_need <= 0:
-        return count_sealed_target_pool(
-            route_path=route_path, workspace_fp=workspace_fp
-        )
-
-    seeded = 0
-    per_target_timeout = float(
-        os.environ.get("MYRM_WARM_SHELL_POOL_SEED_TIMEOUT_SEC", "25") or "25"
-    )
-    poll_ms = int(os.environ.get("MYRM_WARM_SHELL_POOL_SEED_POLL_MS", "400") or "400")
-    async def _seed_one() -> bool:
-        target = await create_background_target(cdp_port, initial_url=ui_url)
-        target_id = str(target.get("id") or "").strip()
-        ws_url = str(target.get("webSocketDebuggerUrl") or "").strip()
-        if not target_id or not ws_url:
-            return False
-        if register_infra_target is not None:
-            register_infra_target(target_id, ui_url)
-        ready = await wait_for_hydration(
-            ws_url,
-            ui_url,
-            timeout_sec=per_target_timeout,
-            poll_ms=poll_ms,
-            skip_navigate=False,
-        )
-        if not ready:
-            return False
-        record = seal_platform_shell(
-            ui_url=ui_url,
-            route_path=route_path,
-            workspace_fp=workspace_fp,
-            sealed_target_id=target_id,
-            append_sealed_target=True,
-        )
-        return record is not None
-
-    for _ in range(target_need):
-        try:
-            ok = asyncio.run(_seed_one())
-        except (OSError, RuntimeError, ValueError):
-            ok = False
-        if not ok:
-            break
-        seeded += 1
-    return count_sealed_target_pool(route_path=route_path, workspace_fp=workspace_fp)
-
-
-def ensure_sealed_target_pool(
-    *,
-    ui_url: str,
-    route_path: str = "/",
-    min_pool_size: int | None = None,
-    workspace_fp: str | None = None,
-) -> int:
-    """Ensure epoch warm-shell pool has enough CDP tabs for parallel reclaim (§19.13 W3b)."""
-    if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() != "1":
-        return count_sealed_target_pool(
-            route_path=route_path, workspace_fp=workspace_fp
-        )
-    if not platform_shell_fresh(route_path=route_path, workspace_fp=workspace_fp):
-        return 0
-    need = min_pool_size
-    if need is None:
-        need = 2
-        try:
-            from peer_count_ssot import parallel_active_test_count_ssot
-
-            need = max(2, min(4, parallel_active_test_count_ssot()))
-        except ImportError:
-            pass
-    current = count_sealed_target_pool(route_path=route_path, workspace_fp=workspace_fp)
-    remaining = max(0, int(need) - current)
-    if remaining <= 0:
-        return current
-    return seed_sealed_target_pool_via_cdp(
-        ui_url=ui_url,
-        need_count=remaining,
-        route_path=route_path,
-        workspace_fp=workspace_fp,
-    )
-
-
-def read_sealed_target_id(
-    *,
-    route_path: str = "/",
-    workspace_fp: str | None = None,
-) -> str | None:
-    """Return first epoch shell targetId when registry entry is fresh for route."""
-    if not platform_shell_fresh(route_path=route_path, workspace_fp=workspace_fp):
-        return None
-    record = read_platform_shell(workspace_fp=workspace_fp)
-    if record is None:
-        return None
-    for target_id in record.sealed_target_ids:
-        if target_id.strip():
-            return target_id.strip()
-    legacy = (record.sealed_target_id or "").strip()
-    return legacy or None
-
-
-def _cdp_page_target_ids(*, cdp_port: int) -> set[str]:
-    import urllib.error
-    import urllib.request
-
-    try:
-        with urllib.request.urlopen(
-            f"http://127.0.0.1:{cdp_port}/json/list",
-            timeout=8.0,
-        ) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except (OSError, urllib.error.URLError, ValueError, json.JSONDecodeError):
-        return set()
-    if not isinstance(payload, list):
-        return set()
-    alive: set[str] = set()
-    for entry in payload:
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("type") != "page":
-            continue
-        target_id = entry.get("id")
-        if isinstance(target_id, str) and target_id.strip():
-            alive.add(target_id.strip())
-    return alive
-
-
-def _url_path_from_cdp_url(url: str) -> str:
-    parsed = urlsplit(url.strip())
-    return _normalize_route(parsed.path or "/")
-
-
-def _cdp_page_target_ids_for_route(*, cdp_port: int, route_path: str = "/") -> set[str]:
-    import urllib.error
-    import urllib.request
-
-    route = _normalize_route(route_path)
-    try:
-        with urllib.request.urlopen(
-            f"http://127.0.0.1:{cdp_port}/json/list",
-            timeout=8.0,
-        ) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except (OSError, urllib.error.URLError, ValueError, json.JSONDecodeError):
-        return set()
-    if not isinstance(payload, list):
-        return set()
-    matched: set[str] = set()
-    for entry in payload:
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("type") != "page":
-            continue
-        target_id = entry.get("id")
-        if not isinstance(target_id, str) or not target_id.strip():
-            continue
-        if _url_path_from_cdp_url(str(entry.get("url") or "")) != route:
-            continue
-        matched.add(target_id.strip())
-    return matched
-
-
-def _burst_pool_path(log_dir: str) -> Path:
-    return Path(log_dir) / "sealed-pool.json"
-
-
-def write_burst_sealed_pool(*, log_dir: str, target_ids: list[str]) -> None:
-    path = _burst_pool_path(log_dir)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"targetIds": [tid.strip() for tid in target_ids if tid.strip()]}
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n",
-        encoding="utf-8",
-    )
-
-
-def _claim_from_burst_pool(
-    *, log_dir: str, cdp_port: int, route_path: str = "/"
-) -> str | None:
-    path = _burst_pool_path(log_dir)
-    if not path.is_file():
-        return None
-    route_targets = _cdp_page_target_ids_for_route(
-        cdp_port=cdp_port, route_path=route_path
-    )
-    alive_targets = _cdp_page_target_ids(cdp_port=cdp_port)
-    with _registry_file_lock(workspace_fp=f"burst-pool-{Path(log_dir).name}"):
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError, json.JSONDecodeError):
-            return None
-        if not isinstance(payload, dict):
-            return None
-        pool_raw = payload.get("targetIds")
-        if not isinstance(pool_raw, list):
-            return None
-        pool = [str(item).strip() for item in pool_raw if str(item).strip()]
-        claimed: str | None = None
-        while pool:
-            candidate = pool.pop(0)
-            if route_targets and candidate not in route_targets:
-                continue
-            if alive_targets and candidate not in alive_targets:
-                continue
-            claimed = candidate
-            break
-        payload["targetIds"] = pool
-        path.write_text(
-            json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n",
-            encoding="utf-8",
-        )
-        return claimed
-
-
-def claim_sealed_target_id(
-    *,
-    route_path: str = "/",
-    workspace_fp: str | None = None,
-    claim_token: str = "",
-    cdp_port: int | None = None,
-) -> str | None:
-    """Atomically claim one sealed shell tab for parallel burst reclaim (§19.11 TAB-6b)."""
-    port = int(cdp_port or os.environ.get("MYRM_CHROME_E2E_PORT", "9333") or "9333")
-    burst_log_dir = os.environ.get("MYRM_E2E_PHASE_C_LOG_DIR", "").strip()
-    if burst_log_dir:
-        burst_claimed = _claim_from_burst_pool(
-            log_dir=burst_log_dir, cdp_port=port, route_path=route_path
-        )
-        if burst_claimed:
-            return burst_claimed
-    resolved_fp = (workspace_fp or current_workspace_fingerprint()).strip()
-    if not platform_shell_fresh(
-        route_path=route_path,
-        workspace_fp=resolved_fp or None,
-    ):
-        return None
-    fp = resolved_fp
-    if not fp:
-        return None
-    path = _registry_path(fp)
-    with _registry_file_lock(workspace_fp=fp):
-        if not path.is_file():
-            return None
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError, json.JSONDecodeError):
-            return None
-        if not isinstance(payload, dict):
-            return None
-        pool = _normalize_sealed_target_pool(payload)
-        if not pool:
-            return None
-        alive_targets = _cdp_page_target_ids(cdp_port=port)
-        claimed: str | None = None
-        while pool:
-            candidate = pool.pop(0)
-            if alive_targets and candidate not in alive_targets:
-                continue
-            claimed = candidate
-            break
-        if claimed is None:
-            payload["sealedTargetIds"] = pool
-            if pool:
-                payload["sealedTargetId"] = pool[0]
-            else:
-                payload.pop("sealedTargetId", None)
-            _write_registry_payload(path, payload)
-            return None
-        payload["sealedTargetIds"] = pool
-        if pool:
-            payload["sealedTargetId"] = pool[0]
-        else:
-            payload.pop("sealedTargetId", None)
-        _ = claim_token  # reserved for future claim audit trails
-        _write_registry_payload(path, payload)
-        return claimed
 
 
 def shared_read_hot_path_decision(*, url: str) -> HotPathDecision:
@@ -692,7 +320,7 @@ def set_bootstrap_hot_path(mode: BootstrapHotPath) -> None:
 
     print(f"E2E_BOOTSTRAP_HOT_PATH: mode={mode}", file=sys.stderr, flush=True)
     try:
-        from e2e_session_snapshot import annotate_bootstrap_hot_path
+        from e2e_session_runtime.snapshot import annotate_bootstrap_hot_path
 
         annotate_bootstrap_hot_path(mode)
     except ImportError:

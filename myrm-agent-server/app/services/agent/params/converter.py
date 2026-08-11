@@ -147,8 +147,8 @@ async def convert_to_general_agent_params(
     from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.channel_bridge.config_parsers import (
         extract_mcp_configs,
-        extract_org_mcp_configs,
         extract_retrieval_models,
+        merge_org_mcp_configs,
     )
 
     configs = await load_user_configs()
@@ -391,11 +391,9 @@ async def convert_to_general_agent_params(
     elif configs and configs.mcp_dict:
         mcp_configs = extract_mcp_configs(configs.mcp_dict) or None
 
-    # Merge org-level MCP servers (read-only, pushed by Control Plane)
-    if configs and configs.org_mcp_dict:
-        org_mcp_list = extract_org_mcp_configs(configs.org_mcp_dict)
-        if org_mcp_list:
-            mcp_configs = (mcp_configs or []) + org_mcp_list
+    # Append org-level MCP servers (read-only, pushed by Control Plane)
+    if configs:
+        mcp_configs = merge_org_mcp_configs(mcp_configs, configs.org_mcp_dict) or None
 
     user_instructions = request.user_instructions
     agent_skill_ids: list[str] = []

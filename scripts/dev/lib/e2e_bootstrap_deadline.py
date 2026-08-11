@@ -100,7 +100,25 @@ def _write_session(session: BootstrapSession) -> None:
     path.write_text(json.dumps(asdict(session), indent=2), encoding="utf-8")
 
 
+def prune_dead_sessions() -> int:
+    directory = dev_state_dir() / "bootstrap-attach"
+    if not directory.is_dir():
+        return 0
+    removed = 0
+    current = session_path()
+    for path in directory.glob("*.json"):
+        if path == current or not path.stem.isdigit():
+            continue
+        try:
+            os.kill(int(path.stem), 0)
+        except OSError:
+            path.unlink(missing_ok=True)
+            removed += 1
+    return removed
+
+
 def begin_session(*, active_leases: int) -> BootstrapSession:
+    prune_dead_sessions()
     existing = load_session()
     if existing is not None:
         left = remaining_sec(existing)

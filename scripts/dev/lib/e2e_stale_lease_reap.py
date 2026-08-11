@@ -2,8 +2,8 @@
 
 [INPUT]
 - stack_mutation_policy.wave_active_lease_count (POS: active wave lease tally)
-- e2e_session_registry list_live_e2e_sessions (R144/R146 SSOT — ADMIT+BODY sidecar)
-- e2e_session_snapshot body_elapsed / progress stall (R62 Phase B)
+- e2e_session_runtime.registry list_live_e2e_sessions (R144/R146 SSOT — ADMIT+BODY sidecar)
+- e2e_session_runtime.snapshot body_elapsed / progress stall (R62 Phase B)
 
 [OUTPUT]
 - maybe_reap_excess_wave_leases: run wave reap when leases exceed live tests + slack
@@ -26,7 +26,7 @@ import time
 from pathlib import Path
 
 from e2e_live_chrome_pytest_scan import LiveChromeE2ERow
-from e2e_session_registry import LiveE2ESessionRow, list_live_e2e_sessions
+from e2e_session_runtime.registry import LiveE2ESessionRow, list_live_e2e_sessions
 
 
 def _coordinator_reap_authorized() -> bool:
@@ -139,7 +139,7 @@ def _body_wall_cap_for_pid(pid: int) -> float:
 
             return float(LIVE_AGENT_BODY_WALL_CLOCK_SEC)
     with _with_process_signoff_budget_env(pid):
-        from e2e_session_lifecycle import resolve_budget_policy  # noqa: PLC0415
+        from e2e_session_runtime.lifecycle import resolve_budget_policy  # noqa: PLC0415
 
         return float(resolve_budget_policy().body_sec)
 
@@ -172,7 +172,7 @@ def _hung_reason_for_row(
     root = _monorepo_root()
     sys.path.insert(0, str(root / "myrm-agent" / "scripts" / "dev" / "lib"))
     from dev_gate_contract import shpoib_parallel_stall_progress_sec  # noqa: PLC0415
-    from e2e_session_snapshot import (  # noqa: PLC0415
+    from e2e_session_runtime.snapshot import (  # noqa: PLC0415
         body_elapsed_from_snapshot,
         phase_elapsed_from_snapshot,
         progress_stale_sec,
@@ -190,7 +190,7 @@ def _hung_reason_for_row(
                 admit_elapsed if admit_elapsed is not None else row.elapsed_sec
             )
             if signoff and row.test_id:
-                from e2e_session_snapshot import (  # noqa: PLC0415
+                from e2e_session_runtime.snapshot import (  # noqa: PLC0415
                     read_session_snapshot_by_test_id,
                 )
 
@@ -464,7 +464,7 @@ def _admit_semantic_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
 
     current_node = str(row.current_node or "").strip()
     try:
-        from e2e_session_snapshot import (  # noqa: PLC0415
+        from e2e_session_runtime.snapshot import (  # noqa: PLC0415
             progress_stale_sec,
             resolve_session_snapshot,
         )
@@ -667,7 +667,7 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
         return parallel_stuck
     wall = str(row.wall_phase or row.phase or "").strip().lower()
     if wall == "bootstrap":
-        from e2e_session_snapshot import (  # noqa: PLC0415
+        from e2e_session_runtime.snapshot import (  # noqa: PLC0415
             phase_elapsed_from_snapshot,
             resolve_session_snapshot,
         )
@@ -742,7 +742,7 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
 def _session_row_is_healthy_body(row: LiveE2ESessionRow) -> bool:
     """True when session has fresh BODY progress (peer defer guard)."""
     from dev_gate_contract import shpoib_parallel_stall_progress_sec  # noqa: PLC0415
-    from e2e_session_snapshot import (  # noqa: PLC0415
+    from e2e_session_runtime.snapshot import (  # noqa: PLC0415
         body_elapsed_from_snapshot,
         progress_stale_sec,
         resolve_session_snapshot,
@@ -992,7 +992,7 @@ def _signoff_peer_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
         if _past_body_wall_cap(row, reason):
             return False
         try:
-            from e2e_session_snapshot import resolve_session_snapshot  # noqa: PLC0415
+            from e2e_session_runtime.snapshot import resolve_session_snapshot  # noqa: PLC0415
         except ImportError:
             return False
         return resolve_session_snapshot(pid=row.pid, test_id=row.test_id) is not None
@@ -1105,7 +1105,7 @@ def maybe_reap_excess_wave_leases(*, slack: int = 2) -> bool:
         return False
     maybe_reap_hung_chrome_e2e_pytest()
     try:
-        from e2e_session_snapshot import prune_stale_session_snapshots
+        from e2e_session_runtime.snapshot import prune_stale_session_snapshots
 
         prune_stale_session_snapshots()
     except ImportError:
@@ -1169,7 +1169,7 @@ def _epoch_drift_elapsed_sec(row: LiveE2ESessionRow) -> float:
     if phase == "admit" and row.admit_elapsed_sec is not None:
         return float(row.admit_elapsed_sec)
     if phase == "bootstrap":
-        from e2e_session_snapshot import (  # noqa: PLC0415
+        from e2e_session_runtime.snapshot import (  # noqa: PLC0415
             phase_elapsed_from_snapshot,
             resolve_session_snapshot,
         )
@@ -1321,14 +1321,14 @@ def maybe_reap_orphan_shared_backends(
     protected_pids: set[int] = set()
     try:
         import e2e_lease_liveness  # noqa: PLC0415
-        import e2e_session_registry  # noqa: PLC0415
+        import e2e_session_runtime.registry  # noqa: PLC0415
 
         for row in e2e_lease_liveness.build_lease_liveness(
             e2e_lease_liveness.load_wave_snapshot()
         ):
             if row.owner_pid is not None:
                 protected_pids.add(row.owner_pid)
-        for row in e2e_session_registry.list_live_e2e_sessions():
+        for row in e2e_session_runtime.registry.list_live_e2e_sessions():
             protected_pids.add(row.pid)
     except (ImportError, OSError):
         pass

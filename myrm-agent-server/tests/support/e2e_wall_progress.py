@@ -12,8 +12,8 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from e2e_session_lifecycle import ENV_PROGRESS_AT  # noqa: E402
-from e2e_session_snapshot import (  # noqa: E402
+from e2e_session_runtime.lifecycle import ENV_PROGRESS_AT  # noqa: E402
+from e2e_session_runtime.snapshot import (  # noqa: E402
     body_elapsed_from_snapshot,
     clear_session_snapshot,
     read_session_snapshot,

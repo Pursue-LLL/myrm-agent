@@ -20,6 +20,7 @@ from cdp_chat_support import (
     e2e_api_base_inject_js,
     e2e_private_api_ready_timeout_sec,
     e2e_page_binding_source,
+    e2e_runtime_bootstrap_apply_js,
     get_e2e_api_url,
     get_open_page_api_url,
     wait_e2e_provider_ready,
@@ -28,6 +29,27 @@ from cdp_chat_support import (
 # OrchestratorWatchdog (§24 W3e): daemon ensure is at most once per window.
 ORCHESTRATOR_WATCHDOG_SPAWN_COOLDOWN_SEC = 15.0
 _orchestrator_watchdog_last_spawn_at: float = 0.0
+
+
+def _route_binding_expression(extra_expression: str | None) -> str | None:
+    """Bind a PRIVATE runtime before the final route can issue API requests."""
+    runtime_expression = e2e_runtime_bootstrap_apply_js()
+    expressions = [
+        expression.strip()
+        for expression in (runtime_expression, extra_expression)
+        if expression and expression.strip()
+    ]
+    if not expressions:
+        return None
+    if len(expressions) == 1:
+        return expressions[0]
+    runtime_js, extra_js = expressions
+    return f"""(async () => {{
+  const runtimeResult = await ({runtime_js});
+  if (runtimeResult?.ok === false) return runtimeResult;
+  const extraResult = await ({extra_js});
+  return extraResult ?? runtimeResult;
+}})()"""
 
 
 @dataclass
@@ -308,9 +330,17 @@ class OrchestratorChromeClient:
         await_promise: bool = True,
         intent: str | None = None,
     ) -> object:
+        from dev_gate_contract import EvaluateIntent, resolve_evaluate_budget
+
         effective = min(max(5.0, timeout_sec), self._request_timeout_sec)
         last_exc: BaseException | None = None
         max_attempts = 2 if _effective_parallel_load() >= 2 else 5
+        if intent:
+            try:
+                budget = resolve_evaluate_budget(EvaluateIntent(intent))
+                max_attempts = 1 + max(0, budget.mux_max_attempts)
+            except ValueError:
+                pass
         for attempt in range(1, max_attempts + 1):
             try:
                 payload = self._daemon.evaluate_page(
@@ -603,19 +633,6 @@ def _parallel_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
     return min(cap, wall, daemon_budget)
 
 
-def _reclaim_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
-    """Reclaim should be fast; cap harder under parallel load (§19.13 W3b)."""
-    base = _parallel_open_page_timeout_sec(daemon)
-    try:
-        from peer_count_ssot import parallel_active_test_count_ssot
-
-        if parallel_active_test_count_ssot() > 1:
-            return min(base, 45.0)
-    except ImportError:
-        pass
-    return min(base, 90.0)
-
-
 def _ensure_orchestrator_session(
     daemon: BrowserOrchestratorClient,
     session_id: str,
@@ -692,58 +709,6 @@ def _open_page_fast_create_with_retry(
     if last_exc is not None:
         raise last_exc
     raise RuntimeError("open_page_fast_create failed without exception")
-
-
-def _open_page_reclaim_with_retry(
-    daemon: BrowserOrchestratorClient,
-    session_id: str,
-    *,
-    url: str,
-    sealed_target_id: str,
-    max_attempts: int | None = None,
-) -> dict[str, object]:
-    """Epoch shell reclaim for solo SHARED+READ bootstrap (§19.11 TAB-6b)."""
-    attempts = (
-        max_attempts if max_attempts is not None else _parallel_open_page_max_attempts()
-    )
-    open_timeout_sec = _reclaim_open_page_timeout_sec(daemon)
-    last_exc: BaseException | None = None
-    target_url = url.strip() or "about:blank"
-    for attempt in range(1, attempts + 1):
-        try:
-            if attempt > 1:
-                _recreate_orchestrator_session(daemon, session_id)
-            from e2e_orchestrator import touch_wall_progress  # noqa: PLC0415
-
-            touch_wall_progress(current_node="open_page_reclaim")
-            with daemon.bounded_request_timeout(open_timeout_sec):
-                created = daemon.reclaim_page(
-                    session_id,
-                    url=target_url,
-                    sealed_target_id=sealed_target_id,
-                )
-            payload = dict(created)
-            return {
-                "pageId": int(payload["pageId"]),
-                "targetId": str(payload["targetId"]),
-                "url": str(payload.get("url", target_url)),
-                "reclaimed": bool(payload.get("reclaimed", False)),
-            }
-        except (TimeoutError, OSError, RuntimeError) as exc:
-            last_exc = exc
-            message = str(exc)
-            if not _is_retryable_open_page_error(message):
-                raise
-            if _recover_orchestrator_daemon(daemon, message):
-                _recreate_orchestrator_session(daemon, session_id)
-            elif _open_page_error_needs_session_recreate(message):
-                _recreate_orchestrator_session(daemon, session_id)
-            if attempt >= attempts:
-                break
-            time.sleep(min(3.0 * float(attempt), 8.0))
-    if last_exc is not None:
-        raise last_exc
-    raise RuntimeError("open_page_reclaim failed without exception")
 
 
 def _open_page_transaction_with_retry(
@@ -1213,7 +1178,7 @@ def open_app_route_page(
 ) -> Iterator[tuple[OrchestratorChromeClient, OrchestratorMcpPage]]:
     """SSOT single entry for atomic app-route opens (§19.11.10 NAV-2/NAV-3).
 
-    Delegates the whole reclaim/create → binding → subroute navigate → hydration
+    Delegates the whole isolated create → binding → subroute navigate → hydration
     wait into one Orchestrator ``open_app_route`` transaction (one operation
     credit, progress token). Route/hydration-probe identity comes from the
     RouteManifest — no test-layer navigate or second hydrate wait.
@@ -1267,19 +1232,28 @@ def open_app_route_page(
         request_timeout_sec=effective_timeout,
     )
     try:
+        route_binding_expression = _route_binding_expression(binding_expression)
         result = daemon.open_app_route(
             session_id,
             url=url,
             shell_path=f"{get_e2e_ui_url().rstrip('/')}{manifest.shell_path}",
-            sealed_target_id=None,
             hydration_probe=probe_js,
             hydrate_timeout_sec=hydrate_timeout_sec,
-            binding_expression=binding_expression,
+            binding_expression=route_binding_expression,
         )
         page.page_id = int(result["pageId"])
         page.target_id = str(result["targetId"])
         page.url = str(result.get("url", url))
         client.bind_primary_page(page)
+        if os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper() == "SHARED":
+            from cdp_chat_support import get_open_page_api_url  # noqa: PLC0415
+            from warm_shell_registry import seal_platform_shell  # noqa: PLC0415
+
+            if get_open_page_api_url().rstrip("/") == "http://127.0.0.1:8080":
+                seal_platform_shell(
+                    ui_url=url,
+                    route_path=manifest.shell_path,
+                )
         from e2e_orchestrator import touch_wall_progress  # noqa: PLC0415
 
         touch_wall_progress(current_node="open_app_route")

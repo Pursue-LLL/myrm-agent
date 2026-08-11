@@ -741,15 +741,6 @@ async def test_voice_settings_no_local_banner_when_available(
 ) -> None:
     _ensure_voice_feature_enabled()
     _put_local_voice_config()
-    write_e2e_session_snapshot(
-        current_node="test_voice_settings_no_local_banner_when_available",
-        phase="body",
-    )
-    from e2e_session_lifecycle import complete_bootstrap_phase
-
-    complete_bootstrap_phase(
-        phase_label="test_voice_settings_no_local_banner_when_available"
-    )
     state = await asyncio.to_thread(
         _chrome_probe_voice_settings_with_retry,
         progress_node="test_voice_settings_no_local_banner_when_available",

@@ -38,6 +38,27 @@
   "sectionServerWsUrl": {
     "message": "Server WebSocket URL"
   },
+  "sectionPairingCode": {
+    "message": "Pairing Code"
+  },
+  "placeholderPairingCode": {
+    "message": "Paste one-time code from WebUI"
+  },
+  "btnApplyPairing": {
+    "message": "Apply Pairing"
+  },
+  "hintPairingCode": {
+    "message": "Generate the code in Settings → Browser Extension, then paste it here."
+  },
+  "errPairingNeedsServerUrl": {
+    "message": "Enter a WebSocket URL first so pairing can reach the server."
+  },
+  "errPairingNeedsBundle": {
+    "message": "Paste the pairing code from Settings, or copy the full pairing bundle from WebUI."
+  },
+  "errPairingInvalid": {
+    "message": "Pairing code is invalid or expired."
+  },
   "sectionAuthToken": {
     "message": "Auth Token (optional)"
   },

@@ -12,7 +12,7 @@ from cdp_chat_support import (
     wait_e2e_backend_ready,
 )
 from mcp_chat_ui import McpChatSession
-from e2e_lease_heartbeat import heartbeat_e2e_lease
+from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
 from dev_gate_contract import EvaluateIntent, GATE_MUX_STALL_FAIL_FAST_SEC
 
 E2E_PROMPT = (

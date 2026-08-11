@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useLocale } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -28,6 +29,7 @@ import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getMigrationSourceDisplayName, type ExternalSource, type DiscoveryResponse } from '@/services/migrationDiscovery';
 import type { AgentListItem } from '@/services/agent';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import type {
   MemoryImportConfirmResponse,
   MemoryImportCoverageItem,
@@ -208,6 +210,7 @@ export function ScanStep({
   onPreview: (source: ExternalSource) => void;
   t: TranslationFn;
 }) {
+  const locale = useLocale();
   const sources = discovery?.sources ?? [];
   const hasOpenClawSource = sources.some((source) => source.competitor === 'openclaw');
   const isCloudMode = discovery !== null && discovery.available === false;
@@ -255,7 +258,7 @@ export function ScanStep({
             <option value="">{t('targetAgentCreate')}</option>
             {agents.map((agent) => (
               <option key={agent.id} value={agent.id}>
-                {agent.name}
+                {getBuiltinAgentName(agent.id, agent.name || agent.id, locale)}
               </option>
             ))}
           </select>

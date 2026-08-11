@@ -1820,7 +1820,7 @@
       "disconnectFailed": "斷開失敗",
       "setupGuide": "快速設定",
       "step1": "在 Chrome 或 Edge 開發者模式下，以「載入已解壓的擴充套件程式」方式載入 myrm-agent-extension 目錄",
-      "step2": "開啟擴充套件彈窗，輸入此伺服器的 WebSocket 地址與認證 Token",
+      "step2": "在本頁產生配對包，貼到擴充功能彈出視窗並點擊套用",
       "step3": "點選連線 — 擴充套件將保持持久連線",
       "extensionPathLabel": "擴充套件目錄路徑（用於「載入已解壓的擴充套件程式」）",
       "authorizedDomains": "授權域名",
@@ -1831,6 +1831,10 @@
       "saveFailed": "儲存域名設定失敗",
       "availableTabs": "可用標籤頁",
       "tabActive": "當前",
+      "tabPause": "暫停",
+      "tabResume": "恢復",
+      "tabPaused": "已暫停",
+      "tabPauseHint": "已暫停的分頁仍在 Chrome 中，但 Agent 無法使用。開啟「允許所有符合條件的網站」時，建議暫停銀行、郵件等敏感頁面。",
       "connectionInfo": "連線資訊",
       "websocketUrl": "WebSocket 地址",
       "authTokenStatus": "認證 Token",
@@ -1868,7 +1872,19 @@
       "clipAgentHint": "瀏覽器剪藏將寫入該 Agent 的 Wiki 知識庫。擴展連接後會自動同步此設置。",
       "clipAgentDefault": "默認 Agent",
       "clipAgentSaved": "Wiki 剪藏 Agent 已更新",
-      "clipAgentSaveFailed": "更新 Wiki 剪藏 Agent 失敗"
+      "clipAgentSaveFailed": "更新 Wiki 剪藏 Agent 失敗",
+      "relayAutomationStatus": "登入狀態自動化",
+      "relayAutomationReady": "就緒",
+      "relayAutomationNotReady": "未就緒",
+      "relayAutomationHelp": "擴充功能已連線，但自動化中繼尚未就緒。請重新連線擴充功能或更新至最新版本。",
+      "createPairingCode": "產生配對包",
+      "pairingHint": "複製配對包，貼到擴充功能彈出視窗並點擊套用 — 將自動完成連線。",
+      "pairingCopied": "配對包已複製",
+      "pairingCreated": "配對包已產生",
+      "pairingFailed": "產生配對包失敗",
+      "allowAllEligibleTabs": "允許所有符合條件的網站",
+      "allowAllEligibleTabsHint": "開啟後，Agent 可使用已登入 Chrome 中的普通 http(s) 分頁。需要更細控制請使用下方域名列表。",
+      "accessPolicyInvalidHelp": "請至少新增一個授權域名，或開啟「允許所有符合條件的網站」，自動化才能啟動。"
     },
     "credentials": {
       "title": "憑據管理",
@@ -8796,6 +8812,7 @@
       "claim": "已驗證",
       "task_digest": "任務摘要"
     },
+    "enabled": "已啟用",
     "disabled": "已禁用",
     "locked": "已鎖定，不受自動修改影響",
     "enable": "啟用",
@@ -16004,5 +16021,6 @@
     "consensusMetaElapsed": "耗時：{seconds} 秒",
     "consensusMetaModels": "{succeeded}/{total} 個模型已回應",
     "consensusMetaTitle": "多模型共識"
-  }
+  },
+  "error": "錯誤"
 }

@@ -13,9 +13,11 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocale } from 'next-intl';
 import { suggestReferences, searchCitableChats, type ReferenceSuggestion, type SearchResult } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import type { MentionReference } from '@/store/chat/types';
 
 interface ReferenceMentionState {
@@ -216,6 +218,7 @@ function replacementFor(item: ReferenceSuggestion, folderMode: boolean): string 
 }
 
 export const useReferenceMention = (inputMessage: string, cursorPosition: number) => {
+  const locale = useLocale();
   const [state, setState] = useState<ReferenceMentionState>({
     isOpen: false,
     results: [],
@@ -307,23 +310,33 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
         if (!folderMode && !wikiMode && !chatMode) {
           const agents = useAgentStore.getState().agents;
           agentResults = agents
-            .filter(a => !query || a.name.toLowerCase().includes(query.toLowerCase()))
-            .map(a => ({
-              source: 'agent',
-              reference_type: 'agent',
-              kind: 'agent',
-              label: a.name,
-              basename: a.name,
-              directory: a.description || 'Agent',
-              relative_path: null,
-              file_id: a.id,
-              description: a.description || null,
-              size: null,
-              score_tier: 'prefix',
-              score: 2000,
-              match_ranges: [],
-              avatar_url: a.avatar_url
-            }));
+            .filter(a => {
+              if (!query) return true;
+              const localized = getBuiltinAgentName(a.id, a.name, locale);
+              return (
+                a.name.toLowerCase().includes(query.toLowerCase()) ||
+                localized.toLowerCase().includes(query.toLowerCase())
+              );
+            })
+            .map(a => {
+              const localized = getBuiltinAgentName(a.id, a.name, locale);
+              return {
+                source: 'agent',
+                reference_type: 'agent',
+                kind: 'agent',
+                label: localized,
+                basename: localized,
+                directory: a.description || 'Agent',
+                relative_path: null,
+                file_id: a.id,
+                description: a.description || null,
+                size: null,
+                score_tier: 'prefix',
+                score: 2000,
+                match_ranges: [],
+                avatar_url: a.avatar_url,
+              };
+            });
         }
 
         setState((prev) => ({
@@ -338,23 +351,33 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
         if (!folderMode && !wikiMode && !chatMode) {
           const agents = useAgentStore.getState().agents;
           agentResults = agents
-            .filter(a => !query || a.name.toLowerCase().includes(query.toLowerCase()))
-            .map(a => ({
-              source: 'agent',
-              reference_type: 'agent',
-              kind: 'agent',
-              label: a.name,
-              basename: a.name,
-              directory: a.description || 'Agent',
-              relative_path: null,
-              file_id: a.id,
-              description: a.description || null,
-              size: null,
-              score_tier: 'prefix',
-              score: 2000,
-              match_ranges: [],
-              avatar_url: a.avatar_url
-            }));
+            .filter(a => {
+              if (!query) return true;
+              const localized = getBuiltinAgentName(a.id, a.name, locale);
+              return (
+                a.name.toLowerCase().includes(query.toLowerCase()) ||
+                localized.toLowerCase().includes(query.toLowerCase())
+              );
+            })
+            .map(a => {
+              const localized = getBuiltinAgentName(a.id, a.name, locale);
+              return {
+                source: 'agent',
+                reference_type: 'agent',
+                kind: 'agent',
+                label: localized,
+                basename: localized,
+                directory: a.description || 'Agent',
+                relative_path: null,
+                file_id: a.id,
+                description: a.description || null,
+                size: null,
+                score_tier: 'prefix',
+                score: 2000,
+                match_ranges: [],
+                avatar_url: a.avatar_url,
+              };
+            });
         }
 
         setState((prev) => ({ ...prev, results: [...agentResults, ...specialResults], selectedIndex: 0 }));

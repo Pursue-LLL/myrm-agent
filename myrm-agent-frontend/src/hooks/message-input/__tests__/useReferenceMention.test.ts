@@ -9,6 +9,10 @@ vi.mock('@/services/chat', () => ({
   suggestReferences: (...args: unknown[]) => suggestReferencesMock(...args),
 }));
 
+vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
+}));
+
 vi.mock('@/store/useAgentStore', () => ({
   default: {
     getState: () => ({ agents: [], fetchAgents: vi.fn(async () => undefined) }),

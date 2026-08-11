@@ -40,7 +40,7 @@ _COORDINATOR_CODE_FP_FILES: tuple[str, ...] = (
     "dev_gate_store.py",
     "e2e_stale_lease_reap.py",
     "e2e_pytest_dedupe.py",
-    "e2e_session_registry.py",
+    "e2e_session_runtime/registry.py",
     "stack_mutation_policy.py",
 )
 
@@ -791,8 +791,8 @@ def _build_observed_cleanup_receipt(args: argparse.Namespace) -> dict[str, objec
         collect_cdp_target_ids,
         lease_released,
         observe_cleanup_seal,
-        poll_physical_targets_absent,
         physical_targets_absent,
+        poll_physical_targets_absent,
     )
 
     requested_at = time.time()

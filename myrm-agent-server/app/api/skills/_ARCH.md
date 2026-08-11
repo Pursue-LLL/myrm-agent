@@ -10,7 +10,6 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Skills management API module | ✅ |
 | `_staging.py` | 模块 | 管理批量导入技能时的持久化暂存区 (Persistent Staging Area)。 | ✅ |
-| `alert_rules.py` | 模块 | Business layer API for alert rule configuration management (CRUD operations) | ✅ |
 | `audit.py` | 模块 | Structured audit log for skill lifecycle operations. | ✅ |
 | `batch_import.py` | 模块 | 批量导入 (GUI-First 技能迁移) 接口；`preview/confirm` 错误统一输出 `detail={message,error_code}`，归档安全错误映射为用户安全文案。 | ✅ |
 | `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url | ✅ |
@@ -33,5 +32,4 @@
 | `router.py` | 路由 | Skills API router — aggregates all skill-related endpoints. | ✅ |
 | `schemas.py` | 模块 | Skills API request/response schemas. | ✅ |
 | `sync.py` | 模块 | Skill synchronization and backup protocol. | ✅ |
-| `templates.py` | 模块 | Skill instance templates (business layer). | ✅ |
 | `ws_evolution.py` | 模块 | WebSocket Evolution Proposal Streaming — HTTP transport only. | ✅ |

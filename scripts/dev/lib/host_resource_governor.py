@@ -14,6 +14,7 @@ from real_user_home import real_user_home
 
 MAX_BROWSER_SLOTS = 4
 MIN_BROWSER_SLOTS = 1
+CPU_CRITICAL_MIN_BROWSER_SLOTS = 2
 
 DOWNGRADE_LOAD_RATIO = 0.90
 UPGRADE_LOAD_RATIO = 0.55
@@ -24,6 +25,8 @@ MEMORY_UPGRADE_BYTES = int(3.0 * 1024**3)
 CRITICAL_MEMORY_BYTES = int(1.0 * 1024**3)
 
 COOLDOWN_SEC = 30.0
+TRANSITION_LOG_COMPACT_BYTES = 256 * 1024
+TRANSITION_LOG_RETAIN_ROWS = 128
 
 
 class HostGovernorSnapshot(TypedDict, total=False):
@@ -208,6 +211,13 @@ def _pressure_low(snapshot: HostPressureSnapshot) -> bool:
     return snapshot.memory_available_bytes >= MEMORY_UPGRADE_BYTES
 
 
+def _critical_browser_slot_floor(snapshot: HostPressureSnapshot) -> int:
+    """CPU-only pressure keeps two I/O credits; critical memory may fall to one."""
+    if 0 < snapshot.memory_available_bytes < CRITICAL_MEMORY_BYTES:
+        return MIN_BROWSER_SLOTS
+    return CPU_CRITICAL_MIN_BROWSER_SLOTS
+
+
 def _transition_log_path() -> Path:
     override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
     base = Path(override) if override else real_user_home() / ".local/state/myrm-dev"
@@ -217,6 +227,14 @@ def _transition_log_path() -> Path:
 def _persist_transition(entry: dict[str, object]) -> None:
     path = _transition_log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.is_file() and path.stat().st_size > TRANSITION_LOG_COMPACT_BYTES:
+        retained = path.read_text(encoding="utf-8").splitlines()[
+            -TRANSITION_LOG_RETAIN_ROWS:
+        ]
+        path.write_text(
+            "\n".join(retained) + ("\n" if retained else ""),
+            encoding="utf-8",
+        )
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(entry, sort_keys=True) + "\n")
 
@@ -283,7 +301,7 @@ def tick_governor(*, now: float | None = None) -> int:
         high, high_reason = _pressure_high(snapshot)
         if high:
             if snapshot.load_avg_1m / snapshot.cpu_count >= CRITICAL_LOAD_RATIO:
-                target = MIN_BROWSER_SLOTS
+                target = _critical_browser_slot_floor(snapshot)
                 reason = high_reason
             elif current > MIN_BROWSER_SLOTS:
                 target = current - 1
@@ -349,12 +367,32 @@ def reset_governor_for_tests(*, slots: int = MAX_BROWSER_SLOTS) -> None:
         _state.transition_log.clear()
 
 
+def _snapshot_effective_slots(snapshot: HostPressureSnapshot) -> int:
+    override = _override_slots()
+    if override is not None:
+        return override
+    if not _governor_enabled():
+        return MAX_BROWSER_SLOTS
+    load_ratio = snapshot.load_avg_1m / snapshot.cpu_count
+    if load_ratio >= CRITICAL_LOAD_RATIO:
+        return _critical_browser_slot_floor(snapshot)
+    if 0 < snapshot.memory_available_bytes < CRITICAL_MEMORY_BYTES:
+        return MIN_BROWSER_SLOTS
+    with _lock:
+        current = _state.effective_slots
+    if _pressure_high(snapshot)[0]:
+        return max(MIN_BROWSER_SLOTS, current - 1)
+    return current
+
+
 def host_resource_governor_snapshot(
     *, now: float | None = None
 ) -> HostGovernorSnapshot:
     captured_at = time.time() if now is None else now
     snapshot = collect_host_pressure_snapshot(now=captured_at)
-    effective = tick_governor(now=captured_at)
+    # Observability is read-only. Calling tick here made every short-lived
+    # `e2e-context` process reset 4→1 and append another transition row.
+    effective = _snapshot_effective_slots(snapshot)
     with _lock:
         last_change_at = _state.last_change_at
         last_reason = _state.last_change_reason

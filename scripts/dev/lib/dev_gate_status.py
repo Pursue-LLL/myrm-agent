@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import time
+from contextlib import closing
 
 from dev_gate_session import ExecutionMode, SessionState
 from dev_gate_store import DevGateStore, default_store_path
@@ -11,7 +12,7 @@ from private_resource_controller import (
     PrivateResourceController,
     private_capacity_credits,
 )
-from desktop_seat_controller import DesktopSeatController, desktop_seat_capacity
+from desktop_seat_controller import desktop_seat_capacity
 
 
 def _unavailable_registry_status(*, registry_error: str = "") -> dict[str, object]:
@@ -42,23 +43,98 @@ def _dev_gate_status_once() -> dict[str, object]:
     if not database.is_file():
         return _unavailable_registry_status()
     try:
-        store = DevGateStore(database)
-    except (OSError, PermissionError):
+        connection = sqlite3.connect(
+            f"{database.as_uri()}?mode=ro",
+            uri=True,
+            timeout=2.0,
+        )
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA query_only=ON")
+        connection.execute("PRAGMA busy_timeout=2000")
+    except (OSError, PermissionError, sqlite3.OperationalError):
         return _unavailable_registry_status()
-    sessions = store.list_active()
-    capacity = private_capacity_credits()
-    controller = PrivateResourceController(
-        store,
-        capacity_credits=capacity,
+    with closing(connection), connection:
+        terminal = tuple(
+            state.value
+            for state in (
+                SessionState.SUCCEEDED,
+                SessionState.FAILED,
+                SessionState.CANCELLED,
+            )
+        )
+        session_rows = connection.execute(
+            """
+            SELECT * FROM sessions
+            WHERE state NOT IN (?, ?, ?)
+            ORDER BY submitted_at, session_id
+            """,
+            terminal,
+        ).fetchall()
+        sessions = tuple(DevGateStore._record(row) for row in session_rows)
+        capacity = private_capacity_credits()
+        tables = {
+            str(row["name"])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        private_active_credits = 0
+        waiting: list[sqlite3.Row] = []
+        if "private_admission" in tables:
+            private_active_row = connection.execute(
+                """
+                SELECT COALESCE(SUM(credits), 0) AS total
+                FROM private_admission
+                WHERE granted_at IS NOT NULL AND released_at IS NULL
+                """
+            ).fetchone()
+            private_active_credits = (
+                int(private_active_row["total"])
+                if private_active_row is not None
+                else 0
+            )
+            now = time.time()
+            waiting = list(
+                connection.execute(
+                    """
+                    SELECT session_id, credits, priority, enqueued_at
+                    FROM private_admission
+                    WHERE granted_at IS NULL AND released_at IS NULL
+                    ORDER BY priority + CAST((? - enqueued_at) / 60 AS INTEGER) DESC,
+                        enqueued_at, session_id
+                    """,
+                    (now,),
+                ).fetchall()
+            )
+        desktop_active = 0
+        desktop_waiting: list[sqlite3.Row] = []
+        if "desktop_seat_admission" in tables:
+            desktop_active_row = connection.execute(
+                """
+                SELECT COUNT(*) AS total FROM desktop_seat_admission
+                WHERE granted_at IS NOT NULL AND released_at IS NULL
+                """
+            ).fetchone()
+            desktop_active = (
+                int(desktop_active_row["total"])
+                if desktop_active_row is not None
+                else 0
+            )
+            desktop_waiting = list(
+                connection.execute(
+                    """
+                    SELECT session_id, enqueued_at FROM desktop_seat_admission
+                    WHERE granted_at IS NULL AND released_at IS NULL
+                    ORDER BY enqueued_at, session_id
+                    """
+                ).fetchall()
+            )
+    private_available = max(0, capacity - private_active_credits)
+    private_idle_reason = PrivateResourceController._credit_idle_reason(
+        active_credits=private_active_credits,
+        available_credits=private_available,
+        waiting_rows=list(waiting),
     )
-    private = controller.snapshot()
-    desktop_controller = DesktopSeatController(
-        store,
-        capacity_seats=desktop_seat_capacity(),
-    )
-    desktop = desktop_controller.snapshot()
-    waiting_raw = private.get("waiting", [])
-    waiting = waiting_raw if isinstance(waiting_raw, list) else []
     shared_active = sum(
         record.policy.execution_mode is ExecutionMode.SHARED for record in sessions
     )
@@ -67,22 +143,18 @@ def _dev_gate_status_once() -> dict[str, object]:
         and record.state is not SessionState.PRIVATE_ADMIT
         for record in sessions
     )
-    desktop_waiting_raw = desktop.get("waiting", [])
-    desktop_waiting = (
-        desktop_waiting_raw if isinstance(desktop_waiting_raw, list) else []
-    )
     return {
         "shared_unlimited": True,
         "shared_active": shared_active,
         "private_active": private_active,
         "private_waiting": len(waiting),
-        "private_active_credits": int(private.get("active_credits", 0)),
-        "private_capacity_credits": int(private.get("capacity_credits", 0)),
-        "private_available_credits": int(private.get("available_credits", 0)),
-        "private_credit_idle_reason": str(private.get("idle_reason", "unknown")),
-        "desktop_active_seats": int(desktop.get("active_seats", 0)),
+        "private_active_credits": private_active_credits,
+        "private_capacity_credits": capacity,
+        "private_available_credits": private_available,
+        "private_credit_idle_reason": private_idle_reason,
+        "desktop_active_seats": desktop_active,
         "desktop_waiting": len(desktop_waiting),
-        "desktop_capacity_seats": int(desktop.get("capacity_seats", 0)),
+        "desktop_capacity_seats": desktop_seat_capacity(),
         "sessions": [record.to_dict() for record in sessions],
         "reaped_session_ids": [],
         "registry_observability": "ok",

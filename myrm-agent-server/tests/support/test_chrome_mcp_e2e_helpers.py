@@ -56,7 +56,11 @@ def test_open_mcp_page_rpc_only_orchestrator_contract() -> None:
     source = Path(__file__).with_name("chrome_mcp_e2e.py").read_text(encoding="utf-8")
     block = source.split("def open_mcp_page", 1)[1].split("\ndef ", 1)[0]
     assert "_require_orchestrator_for_formal_e2e" in block
-    assert "open_orchestrator_mcp_page" in block
+    assert "open_app_route_page" in block
+    assert "complete_bootstrap_phase" in block
+    assert block.index("complete_bootstrap_phase(phase_label=") < block.index(
+        "_ensure_orchestrator_shared_ui_session"
+    )
     assert "BROWSER_ORCHESTRATOR_REQUIRED" in block
     assert "open_mcp_page_blocking" not in block
     assert "ChromeMcpClient(request_timeout_sec=" not in block
@@ -67,6 +71,17 @@ def test_open_mcp_page_rpc_only_orchestrator_contract() -> None:
     assert reload_block.index("client.reload") < reload_block.index(
         "_reapply_shpoib_runtime_after_reload"
     )
+
+
+def test_e2e_nodes_cannot_start_body_before_owned_page_open() -> None:
+    """The page helpers exclusively own the bootstrap-to-BODY transition."""
+    e2e_dir = Path(__file__).parents[1] / "e2e"
+    offenders = [
+        path.name
+        for path in e2e_dir.glob("test_*_chrome_e2e.py")
+        if "complete_bootstrap_phase(" in path.read_text(encoding="utf-8")
+    ]
+    assert offenders == []
 
 
 def test_sync_open_page_tool_wall_allocates_remaining_steps(
@@ -136,7 +151,7 @@ def test_refresh_signoff_open_nav_tool_wall_restores_bootstrap_remaining(
     )
     monkeypatch.setitem(
         sys.modules,
-        "e2e_session_lifecycle",
+        "e2e_session_runtime.lifecycle",
         type(
             "LifecycleStub",
             (),
@@ -183,7 +198,7 @@ def test_refresh_signoff_open_nav_tool_wall_grants_nav_slice_when_mux_queue_exha
     )
     monkeypatch.setitem(
         sys.modules,
-        "e2e_session_lifecycle",
+        "e2e_session_runtime.lifecycle",
         type(
             "LifecycleStub",
             (),
@@ -831,11 +846,11 @@ def test_signoff_mux_drain_budget_uses_bootstrap_remaining(
         lambda: 57.0,
     )
     monkeypatch.setattr(
-        "e2e_session_lifecycle.current_phase",
+        "e2e_session_runtime.lifecycle.current_phase",
         lambda: "bootstrap",
     )
     monkeypatch.setattr(
-        "e2e_session_lifecycle.remaining_wall_sec",
+        "e2e_session_runtime.lifecycle.remaining_wall_sec",
         lambda: 387.0,
     )
     assert chrome_mcp_e2e._signoff_mux_drain_budget_sec() == 57.0
@@ -854,11 +869,11 @@ def test_signoff_mux_drain_budget_parallel_skips_bootstrap_remaining_cap(
         lambda: 69.0,
     )
     monkeypatch.setattr(
-        "e2e_session_lifecycle.current_phase",
+        "e2e_session_runtime.lifecycle.current_phase",
         lambda: "bootstrap",
     )
     monkeypatch.setattr(
-        "e2e_session_lifecycle.remaining_wall_sec",
+        "e2e_session_runtime.lifecycle.remaining_wall_sec",
         lambda: 45.0,
     )
     assert chrome_mcp_e2e._signoff_mux_drain_budget_sec() >= 69.0

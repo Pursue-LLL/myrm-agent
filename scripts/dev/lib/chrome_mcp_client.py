@@ -33,8 +33,6 @@ import shutil
 import subprocess
 import threading
 import time
-import urllib.error
-import urllib.request
 import uuid
 from builtins import BaseExceptionGroup, ExceptionGroup
 from collections import deque
@@ -43,66 +41,105 @@ from pathlib import Path
 from typing import TextIO
 from urllib.parse import urlsplit
 
+from browser_orchestrator import browser_operation_credit_slot
+from cdp_chat_support import (
+    e2e_runtime_binding,
+    e2e_runtime_binding_source,
+    e2e_runtime_bootstrap_apply_js,
+    wait_e2e_provider_ready,
+)
 from chrome_mcp_errors import (
     is_benign_cleanup_error as _is_benign_cleanup_error,
+)
+from chrome_mcp_errors import (
     is_context_reset_error as is_context_reset_error,
+)
+from chrome_mcp_errors import (
     is_page_ownership_error as is_page_ownership_error,
+)
+from chrome_mcp_errors import (
     is_page_ownership_error_message as _is_page_ownership_error,
+)
+from chrome_mcp_errors import (
     is_transient_mux_error as _is_transient_mux_error,
+)
+from dev_gate_contract import (
+    LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
+    MUX_RECLAIM_STALL_TOKEN,
+    NEW_PAGE_TOOL_RETRY_ATTEMPTS,
+    TOOL_RETRY_ATTEMPTS,
+)
+from mcp_page_helpers import (
+    _STALE_MUX_PAGE_TOKEN,
+)
+from mcp_page_helpers import (
+    ensure_cdp_ready_before_parallel_new_page as _ensure_cdp_ready_before_parallel_new_page,
+)
+from mcp_page_helpers import (
+    http_close_exact_target as _http_close_exact_target,
+)
+from mcp_page_helpers import (
+    is_mux_parallel_fail_fast_message as _is_mux_parallel_fail_fast_message,
+)
+from mcp_page_helpers import (
+    is_new_page_cdp_drift_message as _is_new_page_cdp_drift_message,
+)
+from mcp_page_helpers import (
+    is_retryable_new_page_parse_exc as _is_retryable_new_page_parse_exc,
+)
+from mcp_page_helpers import (
+    new_page_retry_attempts as _new_page_retry_attempts,
+)
+from mcp_page_helpers import (
+    new_page_tool_max_attempts as _new_page_tool_max_attempts,
+)
+from mcp_page_helpers import (
+    parallel_mux_peer_count as _parallel_mux_peer_count,
+)
+from mcp_page_helpers import (
+    parallel_scaled_page_timeout_ms as _parallel_scaled_page_timeout_ms,
+)
+from mcp_page_helpers import (
+    reclaim_wall_deadline as _reclaim_wall_deadline,
+)
+from mcp_page_helpers import (
+    recover_new_page_chrome_drift as _recover_new_page_chrome_drift,
+)
+from mcp_page_helpers import (
+    remaining_reclaim_sec as _remaining_reclaim_sec,
+)
+from mcp_page_helpers import (
+    shim_process_alive as _shim_process_alive,
+)
+from mcp_page_helpers import (
+    should_recover_mux_after_tool_error as _should_recover_mux_after_tool_error,
+)
+from mcp_page_helpers import (
+    tool_retry_attempts as _tool_retry_attempts,
+)
+from mcp_page_helpers import (
+    tool_retry_backoff_sec as _tool_retry_backoff_sec,
+)
+from mcp_page_helpers import (
+    wave_command_timeout_sec as _wave_command_timeout_sec,
 )
 from mcp_page_lease_heartbeat import PageLeaseHeartbeat
 from mcp_protocol import (
-    is_retryable_incomplete_new_page_error,
     parse_evaluate_result,
     parse_new_page,
     text_content,
 )
 from mcp_transport_adapter import (
-    TrackedRLock as _TrackedRLock,
-    TransportDeadError as _TransportDeadError,
-    chrome_e2e_port as _chrome_e2e_port,
-    parallel_request_lock_cap_sec as _parallel_request_lock_cap_sec,
-    resolve_request_lock_acquire_sec as _resolve_request_lock_acquire_sec_raw,
     _TRANSPORT_RECOVER_ATTEMPTS,
 )
-from mcp_page_helpers import (
-    _STALE_MUX_PAGE_TOKEN,
-    check_mux_reclaim_deadline as _check_mux_reclaim_deadline,
-    ensure_cdp_ready_before_parallel_new_page as _ensure_cdp_ready_before_parallel_new_page,
-    http_close_exact_target as _http_close_exact_target,
-    is_mux_parallel_fail_fast_message as _is_mux_parallel_fail_fast_message,
-    is_new_page_cdp_drift_message as _is_new_page_cdp_drift_message,
-    is_retryable_new_page_parse_exc as _is_retryable_new_page_parse_exc,
-    new_page_retry_attempts as _new_page_retry_attempts,
-    new_page_tool_max_attempts as _new_page_tool_max_attempts,
-    parallel_mux_peer_count as _parallel_mux_peer_count,
-    parallel_scaled_page_timeout_ms as _parallel_scaled_page_timeout_ms,
-    raise_mux_reclaim_stall as _raise_mux_reclaim_stall,
-    reclaim_wall_deadline as _reclaim_wall_deadline,
-    recover_new_page_chrome_drift as _recover_new_page_chrome_drift,
-    remaining_reclaim_sec as _remaining_reclaim_sec,
-    shim_process_alive as _shim_process_alive,
-    should_recover_mux_after_tool_error as _should_recover_mux_after_tool_error,
-    tool_retry_attempts as _tool_retry_attempts,
-    tool_retry_backoff_sec as _tool_retry_backoff_sec,
-    wave_command_timeout_sec as _wave_command_timeout_sec,
+from mcp_transport_adapter import (
+    TrackedRLock as _TrackedRLock,
 )
-
-
-from cdp_chat_support import (
-    e2e_runtime_binding,
-    e2e_runtime_binding_source,
-    e2e_runtime_bootstrap_apply_js,
-    wait_e2e_cdp_ready,
-    wait_e2e_provider_ready,
+from mcp_transport_adapter import (
+    TransportDeadError as _TransportDeadError,
 )
-from dev_gate_contract import (
-    LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
-    MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN,
-    mux_page_reclaim_hard_timeout_sec,
-    MUX_RECLAIM_STALL_TOKEN,
-    NEW_PAGE_TOOL_RETRY_ATTEMPTS,
-    TOOL_RETRY_ATTEMPTS,
+from mcp_transport_adapter import (
+    resolve_request_lock_acquire_sec as _resolve_request_lock_acquire_sec_raw,
 )
 from mux_load import (
     MuxLoadSnapshot,
@@ -110,7 +147,6 @@ from mux_load import (
     adaptive_tool_timeout_sec,
     snapshot_mux_load,
 )
-from browser_orchestrator import browser_operation_credit_slot
 
 _CLEANUP_TIMEOUT_SEC = 15.0
 _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
@@ -1874,7 +1910,7 @@ class ChromeMcpClient:
     def reset_after_orphan(self) -> None:
         """Single orphan recovery entry: invalidate in-flight mux I/O and restart transport."""
         try:
-            from e2e_session_lifecycle import touch_wall_progress
+            from e2e_session_runtime.lifecycle import touch_wall_progress
 
             touch_wall_progress(current_node="reset_after_orphan")
         except ImportError:

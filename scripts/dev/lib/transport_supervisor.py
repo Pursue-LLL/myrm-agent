@@ -158,22 +158,9 @@ def _mux_peer_count(*, pessimistic: bool = False) -> int:
 
 
 def session_recovery_budget_cap(*, pessimistic: bool = False) -> float:
-    """Scale mux recovery budget under parallel wave/mux peers (R100)."""
-    peers = _mux_peer_count(pessimistic=pessimistic)
-    if peers <= 1:
-        scaled = MUX_SESSION_RECOVERY_BUDGET_SEC
-    else:
-        scaled = MUX_SESSION_RECOVERY_BUDGET_SEC + (
-            (peers - 1) * MUX_SESSION_RECOVERY_BUDGET_PER_PEER_SEC
-        )
-    cap = min(MUX_SESSION_RECOVERY_BUDGET_MAX_SEC, scaled)
-    if os.environ.get("E2E_SIGNOFF", "").strip() == "1" and os.environ.get(
-        "MYRM_E2E_DESKTOP_SOAK", ""
-    ).strip() in ("1", "true", "yes"):
-        # Desktop leg soak runs under parallel chrome_e2e; force-chat-shell recover
-        # can consume the default 120–300s budget before approval BODY starts.
-        cap = min(MUX_SESSION_RECOVERY_BUDGET_MAX_SEC + 180.0, cap + 180.0)
-    return cap
+    """Fixed per-session recovery budget; peer load must not extend deadlines."""
+    del pessimistic
+    return MUX_SESSION_RECOVERY_BUDGET_SEC
 
 
 def mux_upstream_wait_cap(*, pessimistic: bool = False) -> int:
@@ -243,28 +230,9 @@ def bootstrap_wall_cap_sec(*, pessimistic: bool = False) -> int:
 
 
 def live_agent_body_wall_cap_sec(*, pessimistic: bool = False) -> int:
-    """LIVE_AGENT BODY hard wall; scales under parallel mux load (R171)."""
-    import os
-
-    peers = _mux_peer_count(pessimistic=pessimistic)
-    base = int(LIVE_AGENT_BODY_WALL_BASE_SEC)
-    max_cap = float(LIVE_AGENT_BODY_WALL_MAX_SEC)
-    desktop_soak = os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in (
-        "1",
-        "true",
-        "yes",
-    )
-    if desktop_soak:
-        # R236: seeded R233 path needs body budget under parallel chrome_e2e.
-        max_cap = max(max_cap, 1200.0)
-    floor = float(base)
-    if desktop_soak:
-        # R247: parallel chrome_e2e + seeded R244 path needs full 1200s BODY floor.
-        floor = max(floor, 1200.0)
-    if peers < 2:
-        return int(min(max_cap, floor))
-    scaled = base + peers * LIVE_AGENT_BODY_WALL_PER_PEER_SEC
-    return int(min(max_cap, max(scaled, floor)))
+    """LIVE_AGENT BODY hard wall is always 600s."""
+    del pessimistic
+    return int(LIVE_AGENT_BODY_WALL_BASE_SEC)
 
 
 def live_agent_pytest_wall_cap_sec(*, pessimistic_peers: bool = False) -> int:

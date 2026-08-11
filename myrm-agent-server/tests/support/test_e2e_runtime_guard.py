@@ -30,7 +30,7 @@ def test_heartbeat_swallows_wave_subprocess_timeout(
 ) -> None:
     import subprocess
 
-    import e2e_unified_heartbeat as unified_module
+    import e2e_session_runtime.heartbeat as unified_module
 
     monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-timeout")
     monkeypatch.setenv("MYRM_E2E_AGENT_ID", "agent-timeout")
@@ -47,7 +47,7 @@ def test_heartbeat_loop_extends_lease_without_peer_reaper(
 ) -> None:
     import time
 
-    import e2e_unified_heartbeat
+    import e2e_session_runtime.heartbeat
 
     from tests.support.e2e_runtime_guard import e2e_lease_heartbeat_loop
 
@@ -57,7 +57,7 @@ def test_heartbeat_loop_extends_lease_without_peer_reaper(
         heartbeat_calls.append(1)
 
     monkeypatch.delenv("MYRM_E2E_SESSION_HEARTBEAT_PID", raising=False)
-    monkeypatch.setattr(e2e_unified_heartbeat, "heartbeat_once", _fake_heartbeat)
+    monkeypatch.setattr(e2e_session_runtime.heartbeat, "heartbeat_once", _fake_heartbeat)
     with e2e_lease_heartbeat_loop(interval_sec=0.05):
         time.sleep(0.12)
     assert len(heartbeat_calls) >= 2
@@ -69,7 +69,7 @@ def test_heartbeat_loop_skips_thread_when_shell_loop_active(
     import threading
     import time
 
-    import e2e_unified_heartbeat
+    import e2e_session_runtime.heartbeat
 
     from tests.support.e2e_runtime_guard import e2e_lease_heartbeat_loop
 
@@ -79,7 +79,7 @@ def test_heartbeat_loop_skips_thread_when_shell_loop_active(
         heartbeat_calls.append(1)
 
     monkeypatch.setenv("MYRM_E2E_SESSION_HEARTBEAT_PID", str(os.getpid()))
-    monkeypatch.setattr(e2e_unified_heartbeat, "heartbeat_once", _fake_heartbeat)
+    monkeypatch.setattr(e2e_session_runtime.heartbeat, "heartbeat_once", _fake_heartbeat)
     before = threading.active_count()
     with e2e_lease_heartbeat_loop(interval_sec=0.05):
         time.sleep(0.08)
@@ -492,7 +492,7 @@ def test_snapshot_live_e2e_processes_reads_session_registry(
     def _fake_run(cmd: list[str], **kwargs: object) -> object:
         return type("Result", (), {"returncode": 1, "stdout": "", "stderr": ""})()
 
-    monkeypatch.setattr("e2e_session_registry.subprocess.run", _fake_run)
+    monkeypatch.setattr("e2e_session_runtime.registry.subprocess.run", _fake_run)
 
     snapshot = snapshot_live_e2e_processes(
         agent_stream_lock_path=stream_lock,
@@ -520,7 +520,7 @@ def test_snapshot_live_e2e_processes_empty_when_no_sessions(
     def _fake_run(cmd: list[str], **kwargs: object) -> object:
         return type("Result", (), {"returncode": 1, "stdout": "", "stderr": ""})()
 
-    monkeypatch.setattr("e2e_session_registry.subprocess.run", _fake_run)
+    monkeypatch.setattr("e2e_session_runtime.registry.subprocess.run", _fake_run)
 
     snapshot = snapshot_live_e2e_processes(
         agent_stream_lock_path=stream_lock,

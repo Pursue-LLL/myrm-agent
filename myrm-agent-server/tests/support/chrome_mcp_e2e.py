@@ -340,7 +340,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
         raise ValueError(f"warm_ui_route expects an absolute path, got: {path!r}")
     url = f"{get_e2e_ui_url()}{path}"
     try:
-        from warm_shell_registry import platform_shell_fresh, seal_platform_shell
+        from warm_shell_registry import platform_shell_fresh
 
         if platform_shell_fresh(route_path=path):
             heartbeat_e2e_lease()
@@ -349,13 +349,6 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
             try:
                 with urllib.request.urlopen(request, timeout=5.0) as response:
                     if int(response.status) == 200:
-                        seal_platform_shell(ui_url=url, route_path=path)
-                        try:
-                            from warm_shell_registry import ensure_sealed_target_pool
-
-                            ensure_sealed_target_pool(ui_url=url, route_path=path)
-                        except ImportError:
-                            pass
                         return
             except (
                 urllib.error.HTTPError,
@@ -408,7 +401,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
         """Single GET attempt; True when HTTP 200."""
         nonlocal last_error, next_heal_at
         try:
-            from e2e_unified_heartbeat import shell_heartbeat_loop_active
+            from e2e_session_runtime.heartbeat import shell_heartbeat_loop_active
         except ImportError:
             shell_heartbeat_loop_active = None  # type: ignore[misc, assignment]
         if shell_heartbeat_loop_active is not None and shell_heartbeat_loop_active():
@@ -436,16 +429,6 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
             else:
                 status = _do_get()
             if status == 200:
-                try:
-                    from warm_shell_registry import (
-                        ensure_sealed_target_pool,
-                        seal_platform_shell,
-                    )
-
-                    seal_platform_shell(ui_url=url, route_path=path)
-                    ensure_sealed_target_pool(ui_url=url, route_path=path)
-                except (ImportError, AttributeError, RuntimeError, OSError):
-                    pass
                 return True
             last_error = RuntimeError(f"warm_ui_route GET {url} returned HTTP {status}")
             if status in {404, 502, 503}:
@@ -1229,6 +1212,9 @@ def open_settings_subroute(
             ),
             binding_expression=_SETTINGS_DISMISSAL_BINDING_JS,
         ) as (client, page):
+            from e2e_session_runtime.lifecycle import complete_bootstrap_phase
+
+            complete_bootstrap_phase(phase_label="owned_settings_page_ready")
             _ensure_orchestrator_shared_ui_session(client, page)
             _ensure_e2e_private_api_live(
                 client,
@@ -1390,7 +1376,7 @@ def _blocking_progress_loop(
                 _open_page_body_fraction_cap_sec(),
             )
     try:
-        from e2e_session_lifecycle import current_phase
+        from e2e_session_runtime.lifecycle import current_phase
 
         if current_phase() == "bootstrap":
             if is_e2e_signoff_runtime() or _dev_private_shpoib_bootstrap_phase():
@@ -1677,7 +1663,7 @@ def _shared_read_bootstrap_phase() -> bool:
     if os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper() != "SHARED":
         return False
     try:
-        from e2e_session_lifecycle import current_phase
+        from e2e_session_runtime.lifecycle import current_phase
 
         return current_phase() == "bootstrap"
     except ImportError:
@@ -1692,7 +1678,7 @@ def _open_page_queue_wait_extends_deadlines() -> bool:
         return True
     if is_e2e_signoff_runtime():
         try:
-            from e2e_session_lifecycle import current_phase
+            from e2e_session_runtime.lifecycle import current_phase
 
             return current_phase() == "bootstrap"
         except ImportError:
@@ -1739,7 +1725,7 @@ def _wait_open_page_mux_turn(
 def _dev_private_shpoib_bootstrap_phase() -> bool:
     try:
         from dev_gate_contract import private_shpoib_runtime_active
-        from e2e_session_lifecycle import current_phase
+        from e2e_session_runtime.lifecycle import current_phase
 
         return current_phase() == "bootstrap" and private_shpoib_runtime_active()
     except ImportError:
@@ -1765,7 +1751,7 @@ def _open_page_parallel_budgets(
 
         bootstrap_phase = False
         try:
-            from e2e_session_lifecycle import current_phase
+            from e2e_session_runtime.lifecycle import current_phase
 
             bootstrap_phase = current_phase() == "bootstrap"
         except ImportError:
@@ -1898,7 +1884,7 @@ def _signoff_mux_drain_budget_sec() -> float:
         except ImportError:
             pass
     try:
-        from e2e_session_lifecycle import current_phase, remaining_wall_sec
+        from e2e_session_runtime.lifecycle import current_phase, remaining_wall_sec
 
         if current_phase() == "bootstrap" and peers < 1:
             remaining = remaining_wall_sec()
@@ -2218,7 +2204,7 @@ def _refresh_signoff_open_nav_tool_wall(
     )
     bootstrap_remaining = attempt_remaining
     try:
-        from e2e_session_lifecycle import current_phase, remaining_wall_sec
+        from e2e_session_runtime.lifecycle import current_phase, remaining_wall_sec
 
         if current_phase() == "bootstrap":
             bootstrap_remaining = max(attempt_remaining, remaining_wall_sec())
@@ -2280,6 +2266,8 @@ class _OrchestratorSharedUiChat:
             self.page,
             expr,
             timeout_sec=timeout,
+            await_promise=await_promise,
+            intent=intent.value if intent is not None else None,
         )
 
     async def ensure_e2e_api_base_binding(self) -> None:
@@ -2367,12 +2355,15 @@ def open_mcp_page(
     if is_e2e_signoff_runtime():
         resolved_timeout_ms = min(resolved_timeout_ms, 90_000)
     if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1":
-        from browser_orchestrator_e2e import open_orchestrator_mcp_page
+        from browser_orchestrator_e2e import open_app_route_page
+        from e2e_session_runtime.lifecycle import complete_bootstrap_phase
 
-        with open_orchestrator_mcp_page(
+        with open_app_route_page(
             url,
             request_timeout_sec=request_timeout_sec,
+            hydrate_timeout_sec=_bounded_settings_ui_wait_sec(45.0),
         ) as (client, page):
+            complete_bootstrap_phase(phase_label="owned_page_ready")
             _ensure_orchestrator_shared_ui_session(client, page)
             if _is_settings_route(url) and not skip_settings_layout_wait:
                 wait_for_settings_layout(
@@ -2668,9 +2659,6 @@ def wait_for_react_e2e_bridge(
     strands the contract with a transient ``no-bridge``.
     """
     target_url = page_url or getattr(page, "url", None)
-    _trigger_attach_client_warmup_once(
-        page_url=target_url if isinstance(target_url, str) else None
-    )
     deadline = time.monotonic() + _react_bridge_wait_timeout_sec(timeout_sec)
     last: dict[str, object] = {}
     polls = 0

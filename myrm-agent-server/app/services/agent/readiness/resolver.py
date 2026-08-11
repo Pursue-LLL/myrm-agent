@@ -167,22 +167,24 @@ async def _check_mcp(
 
     The configured set covers both user-managed servers (``mcp_dict``) and
     org-managed servers pushed by the Control Plane (``org_mcp_dict``), matching
-    the runtime merge in converter.py so the report agrees with actual execution.
+    the runtime merge via config_parsers.merge_org_mcp_configs so the report
+    agrees with actual execution.
     """
     if not profile.mcp_ids:
         return []
 
     from app.core.channel_bridge.config_parsers import (
         extract_mcp_configs,
-        extract_org_mcp_configs,
+        merge_org_mcp_configs,
     )
 
-    configured: dict[str, MCPServerConfig] = {}
-    if mcp_dict:
-        for cfg in extract_mcp_configs(mcp_dict):
-            configured[cfg.name] = cfg
-    for cfg in extract_org_mcp_configs(org_mcp_dict):
-        configured[cfg.name] = cfg
+    configured: dict[str, MCPServerConfig] = {
+        cfg.name: cfg
+        for cfg in merge_org_mcp_configs(
+            extract_mcp_configs(mcp_dict),
+            org_mcp_dict,
+        )
+    }
 
     items: list[AgentReadinessItem] = []
     missing = [mid for mid in profile.mcp_ids if mid not in configured]

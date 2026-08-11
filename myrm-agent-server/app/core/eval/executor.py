@@ -36,6 +36,7 @@ from app.core.channel_bridge.config_parsers import (
     extract_mcp_configs,
     extract_retrieval_models,
     extract_user_instructions,
+    merge_org_mcp_configs,
     verify_search_service_available,
 )
 from app.core.types import MCPServerConfig
@@ -134,8 +135,9 @@ class LocalEvalExecutor:
         configs = await load_user_configs()
 
         embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
-        mcp_configs: list[MCPServerConfig] | None = extract_mcp_configs(
-            configs.mcp_dict
+        mcp_configs: list[MCPServerConfig] | None = merge_org_mcp_configs(
+            extract_mcp_configs(configs.mcp_dict),
+            configs.org_mcp_dict,
         )
         lite_model_cfg = extract_lite_model_config(configs.providers_dict)
         fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(

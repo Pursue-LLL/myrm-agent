@@ -44,12 +44,20 @@ def _patch_integration_db(
     integration_db: async_sessionmaker[AsyncSession],
     skills_storage: LocalStorageBackend,
 ) -> SkillsService:
-    service = SkillsService(storage=skills_storage)
-    monkeypatch.setattr("app.core.skills.store.service.skills_service", service)
+    from app.core.skills.store.service import skills_service
+
+    # API modules bind `skills_service` at import time; rebinding the shared
+    # instance's storage (not swapping the instance) keeps every already-imported
+    # module pointing at the same service while routing it to the test storage/DB.
+    # setattr(instance, ...) registers automatic teardown restore.
+    monkeypatch.setattr(skills_service, "_storage", skills_storage)  # noqa: SLF001
+    monkeypatch.setattr(skills_service, "_user_config", None)  # noqa: SLF001
+    monkeypatch.setattr(skills_service, "_local_skills", None)  # noqa: SLF001
+    monkeypatch.setattr("app.core.skills.store.service.skills_service", skills_service)
     monkeypatch.setattr("app.platform_utils.get_storage_provider", lambda: skills_storage)
     monkeypatch.setattr("app.platform_utils.get_session_factory", lambda: integration_db)
     monkeypatch.setattr("app.database.connection.get_session_factory", lambda: integration_db)
-    return service
+    return skills_service
 
 
 @pytest.fixture

@@ -65,6 +65,19 @@ _PENDING_KPI_JS = """(() => {
   };
 })()"""
 
+# Raw English display names of built-in agents (from builtin-agent-i18n-data).
+# A zh kanban drawer must never render these verbatim; localization replaces
+# them via getBuiltinAgentName.
+_KNOWN_BUILTIN_ENGLISH_NAMES: tuple[str, ...] = (
+    "General Assistant",
+    "Deep Researcher",
+    "Data Analyst",
+    "Scheduled Agent",
+    "Code Assistant",
+    "Wiki Agent",
+    "Sub-agent",
+)
+
 
 def _api_pending_approvals(api_url: str) -> int:
     """Server-side pendingApprovals (goal approvals + kanban IN_REVIEW)."""
@@ -96,12 +109,14 @@ def _seed_in_review(api_url: str) -> dict[str, str]:
     task_id = str(seeded.get("task_id") or "")
     task_title = str(seeded.get("task_title") or "")
     board_name = str(seeded.get("board_name") or "")
+    agent_id = str(seeded.get("agent_id") or "")
     assert board_id and task_id and task_title and board_name
     return {
         "board_id": board_id,
         "task_id": task_id,
         "task_title": task_title,
         "board_name": board_name,
+        "agent_id": agent_id,
     }
 
 
@@ -144,6 +159,7 @@ def _open_task_drawer_and_click(
     task_id: str,
     action: str,
     reject_reason: str | None = None,
+    agent_id: str | None = None,
 ) -> None:
     """Open the kanban board, click the task card, then approve/reject in the
     drawer — every step through the real UI like a user."""
@@ -166,7 +182,7 @@ def _open_task_drawer_and_click(
         client,
         page,
         f"""(() => {{
-          const card = document.getElementById({task_id!r});
+          const card = document.getElementById('kanban-task-' + {task_id!r});
           return {{ ready: !!card, hasCard: !!card }};
         }})()""",
         timeout_sec=90.0,
@@ -174,17 +190,118 @@ def _open_task_drawer_and_click(
     )
     assert card_ready.get("hasCard") is True
 
+    # Open the drawer like a real user would (double-click the card). Keep the
+    # dispatch synchronous (no Promise in the evaluated script) so the CDP
+    # Runtime.evaluate result stays trivially serializable.
     opened = client.evaluate(
         page,
         f"""(() => {{
-          const card = document.getElementById({task_id!r});
-          if (!card) return false;
-          card.click();
-          return true;
+          const card = document.getElementById('kanban-task-' + {task_id!r});
+          if (!card) return {{ opened: false, reason: 'card-not-found' }};
+          window.__e2eErrors = [];
+          window.onerror = (msg, src, line, col, errObj) => {{
+            window.__e2eErrors.push(
+              `error: ${{msg}} @ ${{src}}:${{line}}`
+              + (errObj && errObj.stack ? ` | ${{errObj.stack.split('\\n').slice(0, 3).join(' <- ')}}` : ''),
+            );
+            return false;
+          }};
+          window.addEventListener('unhandledrejection', (e) => {{
+            const r = (e && e.reason) || {{}};
+            window.__e2eErrors.push(
+              `rejection: ${{r.stack || String(r)}}`,
+            );
+          }});
+          card.dispatchEvent(new MouseEvent('dblclick', {{ bubbles: true }}));
+          return {{ opened: true, url: location.href }};
         }})()""",
         timeout_sec=5.0,
     )
-    assert opened is True
+    assert opened.get("opened") is True, f"dblclick open failed: {opened}"
+
+    # The drawer mounts asynchronously (task detail fetch), so wait until the
+    # action control for the requested review state is actually rendered.
+    action_testid = (
+        "kanban-task-approve" if action == "approve" else "kanban-task-reject"
+    )
+    drawer_state = wait_for_state(
+        client,
+        page,
+        f"""(() => {{
+          const drawer =
+            document.querySelector('[data-testid="kanban-task-drawer"]')
+            || document.querySelector('[role="dialog"]');
+          const btn = document.querySelector('[data-testid="{action_testid}"]');
+          return {{
+            ready: !!drawer && !!btn,
+            drawer: !!drawer,
+            actionBtn: !!btn,
+            errors: (window.__e2eErrors || []).slice(-8),
+            overlay: !!document.querySelector('nextjs-portal, nextjs-error-overlay'),
+          }};
+        }})()""",
+        timeout_sec=90.0,
+        page_url="/settings/kanban",
+    )
+    if not drawer_state.get("actionBtn"):
+        diag = client.evaluate(
+            page,
+            """(() => {
+              const errors = (window.__e2eErrors || []).slice(-10);
+              const overlay = !!document.querySelector('nextjs-portal, nextjs-error-overlay');
+              const bodySnippet = (document.body?.innerText || '').slice(0, 400);
+              return { errors, overlay, bodySnippet };
+            })()""",
+            timeout_sec=10.0,
+        )
+        raise AssertionError(
+            f"kanban drawer did not render approve/reject; state={drawer_state} "
+            f"diag={diag}"
+        )
+    assert drawer_state.get("actionBtn") is True, drawer_state
+
+    if agent_id:
+        # The seeded task is bound to a built-in agent; the drawer's agent
+        # select must render a localized name (not a raw English leak in zh).
+        agent_state = client.evaluate(
+            page,
+            f"""(() => {{
+              const select = document.querySelector(
+                '[data-testid="kanban-task-agent-select"]',
+              ) || null;
+              const lang = (document.documentElement.lang || '').toLowerCase();
+              const isZh = lang.startsWith('zh');
+              const options = select
+                ? Array.from(select.options).map((o) => o.textContent.trim())
+                : [];
+              const selectedText = select
+                ? (select.selectedOptions[0]?.textContent || '').trim()
+                : '';
+              const knownEnglish = {list(_KNOWN_BUILTIN_ENGLISH_NAMES)!r};
+              const leaksEnglish = isZh
+                ? options.some((o) => knownEnglish.includes(o))
+                : false;
+              return {{
+                ready: !!select && options.length > 0,
+                hasSelect: !!select,
+                options,
+                selectedText,
+                leaksEnglish,
+                isZh,
+                lang,
+              }};
+            }})()""",
+            timeout_sec=10.0,
+        )
+        assert agent_state.get("ready") is True, agent_state
+        assert agent_state.get("leaksEnglish") is False, (
+            f"zh kanban drawer leaked raw English built-in agent name; "
+            f"state={agent_state}"
+        )
+        assert agent_state.get("selectedText"), (
+            f"kanban drawer agent select should show a selected agent name; "
+            f"state={agent_state}"
+        )
 
     if action == "approve":
         clicked = client.evaluate(
@@ -289,6 +406,7 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
             board_name=seeded_apr["board_name"],
             task_id=seeded_apr["task_id"],
             action="approve",
+            agent_id=seeded_apr["agent_id"],
         )
         api_released = _wait_pending_approvals(api_url, api_before)
         assert api_released == api_before, (
@@ -329,6 +447,7 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
             task_id=seeded_rej["task_id"],
             action="reject",
             reject_reason="e2e reject",
+            agent_id=seeded_rej["agent_id"],
         )
         api_released_rej = _wait_pending_approvals(api_url, api_before)
         assert api_released_rej == api_before, (

@@ -51,6 +51,8 @@ def _probe_hydrated(probe_value: object) -> bool:
         return False
     if probe_value.get("hasInput") and probe_value.get("clientHydrated"):
         return True
+    if probe_value.get("hasLayout") and probe_value.get("clientHydrated"):
+        return True
     return False
 
 
@@ -76,28 +78,6 @@ class CdpSocket(Protocol):
     async def send(self, message: str) -> None: ...
 
     async def recv(self) -> str | bytes: ...
-
-
-def _count_page_targets(cdp_port: int) -> int:
-    try:
-        targets = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/list", timeout=10.0)
-    except (urllib.error.URLError, TimeoutError, OSError, RuntimeError):
-        return -1
-    if not isinstance(targets, list):
-        return -1
-    return sum(
-        1
-        for entry in targets
-        if isinstance(entry, dict) and entry.get("type") == "page"
-    )
-
-
-def _reuse_page_target_ceiling() -> int:
-    raw = os.environ.get("MYRM_CLIENT_WARMUP_REUSE_PAGE_CEILING", "8").strip()
-    try:
-        return max(0, int(raw))
-    except ValueError:
-        return 8
 
 
 def _fetch_json(url: str, *, timeout: float = 10.0, method: str = "GET") -> object:
@@ -193,8 +173,8 @@ async def _create_background_target(
                 # placeholders and the UI stays blank (§19.11 TAB-6b). Follow the
                 # §26.26 OFFSCREEN-NORMAL SSOT: park the tab's window offscreen
                 # (windowState=normal + far offscreen) so visibilityState stays
-                # visible and rAF keeps running for the whole time the tab sits
-                # in the warm-shell pool. Chrome clamps macOS window positions to
+                # visible and rAF keeps running until this temporary warmup tab
+                # is closed. Chrome clamps macOS window positions to
                 # `-(width-40)`, so a negative `left` means the window is pushed
                 # off the visible desktop — do not expect -20000.
                 #
@@ -275,73 +255,19 @@ async def _create_background_target(
                         await asyncio.wait_for(ws.recv(), timeout=5.0)
                     except (OSError, asyncio.TimeoutError, json.JSONDecodeError):
                         pass
-    except Exception as exc:
-        fallback = _pick_existing_page_target(cdp_port)
-        if fallback is not None:
-            return fallback
+    except Exception:
+        if target_id is not None:
+            await _close_target(cdp_port, target_id)
         raise
 
     if target_id is None:
-        fallback = _pick_existing_page_target(cdp_port)
-        if fallback is not None:
-            return fallback
         raise RuntimeError("Target.createTarget timed out waiting for targetId")
 
     try:
         return await _target_from_list_retry(cdp_port, target_id)
     except RuntimeError:
-        fallback = _pick_existing_page_target(cdp_port)
-        if fallback is not None:
-            return fallback
+        await _close_target(cdp_port, target_id)
         raise
-
-
-def _collect_page_targets(cdp_port: int) -> list[dict[str, object]]:
-    """Prefer reusing live page targets — browser-level Target.createTarget fails under mux load."""
-    try:
-        targets = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/list", timeout=10.0)
-    except (urllib.error.URLError, TimeoutError, OSError, RuntimeError):
-        return []
-    if not isinstance(targets, list):
-        return []
-
-    ui_base = os.environ.get("MYRM_E2E_UI_BASE", "").strip().rstrip("/")
-    if not ui_base:
-        ui_base = os.environ.get("APP_URL", "http://127.0.0.1:3000").strip().rstrip("/")
-    ui_host = ui_base or "http://127.0.0.1:3000"
-
-    home_exact = f"{ui_host}/"
-    home_preferred: list[dict[str, object]] = []
-    ui_other: list[dict[str, object]] = []
-    localhost: list[dict[str, object]] = []
-    for entry in targets:
-        if not isinstance(entry, dict) or entry.get("type") != "page":
-            continue
-        url = entry.get("url")
-        if not isinstance(url, str):
-            continue
-        if url.startswith("chrome://") or url.startswith("devtools://"):
-            continue
-        ws_url = entry.get("webSocketDebuggerUrl")
-        if not isinstance(ws_url, str) or not ws_url.startswith("ws://"):
-            continue
-        item = dict(entry)
-        item["__warmup_owned_target"] = False
-        normalized = url.rstrip("/") + "/"
-        if normalized == home_exact:
-            home_preferred.append(item)
-        elif url.startswith(f"{ui_host}/"):
-            ui_other.append(item)
-        elif "127.0.0.1" in url or "localhost" in url:
-            localhost.append(item)
-
-    return home_preferred + ui_other + localhost
-
-
-def _pick_existing_page_target(cdp_port: int) -> dict[str, object] | None:
-    """Parallel mux load can reject browser-level WebSocket (HTTP 500); reuse a live page."""
-    candidates = _collect_page_targets(cdp_port)
-    return candidates[0] if candidates else None
 
 
 async def _cdp_request(
@@ -471,7 +397,7 @@ async def _wait_for_hydration(
     timeout_sec: float,
     poll_ms: int,
     skip_navigate: bool = False,
-) -> bool:
+) -> tuple[bool, object]:
     try:
         import websockets
     except ImportError as exc:
@@ -481,6 +407,7 @@ async def _wait_for_hydration(
 
     deadline = time.monotonic() + timeout_sec
     hydration_probe = _hydration_probe_for_url(page_url)
+    last_probe: object = None
 
     try:
         async with websockets.connect(
@@ -550,8 +477,9 @@ async def _wait_for_hydration(
                     if isinstance(inner_result, dict)
                     else None
                 )
+                last_probe = value
                 if _probe_hydrated(value):
-                    return True
+                    return True, value
                 if poll_count % 10 == 0:
                     _chrome_e2e_lifecycle("warmup-navigate")
                     try:
@@ -569,11 +497,11 @@ async def _wait_for_hydration(
                         pass
                 await asyncio.sleep(poll_ms / 1000.0)
     except TimeoutError:
-        return False
-    except Exception:
-        return False
+        return False, last_probe
+    except Exception as exc:
+        return False, {"cdpError": f"{type(exc).__name__}: {exc}"}
 
-    return False
+    return False, last_probe
 
 
 async def _close_target(cdp_port: int, target_id: str) -> bool:
@@ -641,60 +569,51 @@ async def _run_warmup(
         60.0,
         max(20.0, timeout_sec / max(1, max_attempts)),
     )
-    seal_target = os.environ.get("MYRM_WARM_SHELL_SEAL_TARGET", "").strip() == "1"
     for attempt in range(1, max_attempts + 1):
-        candidates: list[dict[str, object]] = []
-        page_count = _count_page_targets(cdp_port)
-        reuse_ceiling = _reuse_page_target_ceiling()
-        force_new_target = (
-            os.environ.get("MYRM_WARM_SHELL_SEAL_APPEND", "").strip() == "1"
-            or os.environ.get("MYRM_WARM_SHELL_SEAL_TARGET", "").strip() == "1"
-        )
-        if (
-            not force_new_target
-            and attempt <= 2
-            and page_count >= 0
-            and page_count <= reuse_ceiling
-        ):
-            candidates = _collect_page_targets(cdp_port)[:1]
-        if not candidates:
-            try:
-                candidates = [await _create_background_target(cdp_port)]
-            except Exception as exc:
-                last_error = (
-                    f"{type(exc).__name__}: {exc or 'no message'} (attempt {attempt})"
-                )
-                if attempt < max_attempts:
-                    await asyncio.sleep(retry_sleep_sec)
-                continue
+        try:
+            # Create directly at the owned route. An about:blank target is visible
+            # to idle hygiene before this process can register its targetId and
+            # can be reclaimed as a stray tab, closing the page WebSocket during
+            # hydration. Target.createTarget performs this navigation atomically.
+            candidates = [
+                await _create_background_target(cdp_port, initial_url=page_url)
+            ]
+        except Exception as exc:
+            last_error = (
+                f"{type(exc).__name__}: {exc or 'no message'} (attempt {attempt})"
+            )
+            if attempt < max_attempts:
+                await asyncio.sleep(retry_sleep_sec)
+            continue
 
         hydrated = False
         for target in candidates:
             ws_url = str(target["webSocketDebuggerUrl"])
             target_id = target.get("id")
-            owned_target = target.get("__warmup_owned_target") is not False
             if not isinstance(target_id, str) or not target_id:
                 continue
-            target_url = str(target.get("url") or "")
-            home_url = page_url.rstrip("/") + "/"
-            skip_navigate = not owned_target and (
-                target_url.rstrip("/") + "/" == home_url
-            )
             register_infra_target(target_id, page_url)
             ready = False
             closed = False
             try:
-                ready = await _wait_for_hydration(
+                ready, last_probe = await _wait_for_hydration(
                     ws_url,
                     page_url,
                     timeout_sec=per_target_timeout,
                     poll_ms=poll_ms,
-                    skip_navigate=skip_navigate,
+                    skip_navigate=True,
                 )
                 if not ready:
+                    probe_json = json.dumps(
+                        last_probe,
+                        sort_keys=True,
+                        default=str,
+                        separators=(",", ":"),
+                    )
                     last_error = (
                         f"hydration timeout after {per_target_timeout:.0f}s "
-                        f"(attempt {attempt}, target {target_id[:8]})"
+                        f"(attempt {attempt}, target {target_id[:8]}, "
+                        f"last_probe={probe_json[:600]})"
                     )
             except TimeoutError:
                 last_error = f"CDP session timeout (attempt {attempt})"
@@ -704,20 +623,13 @@ async def _run_warmup(
                     f"(attempt {attempt}, target {target_id[:8]})"
                 )
             finally:
-                if owned_target:
-                    if seal_target:
-                        closed = False
-                    else:
-                        try:
-                            closed = await _close_target(cdp_port, target_id)
-                        finally:
-                            if closed:
-                                unregister_infra_target(target_id)
-                else:
-                    closed = True
-                    unregister_infra_target(target_id)
+                try:
+                    closed = await _close_target(cdp_port, target_id)
+                finally:
+                    if closed:
+                        unregister_infra_target(target_id)
 
-            if ready and closed and not seal_target:
+            if ready and closed:
                 try:
                     from warm_shell_registry import seal_platform_shell
 
@@ -726,30 +638,6 @@ async def _run_warmup(
                     pass
                 return
             if ready:
-                if seal_target and isinstance(target_id, str) and target_id:
-                    try:
-                        from warm_shell_registry import seal_platform_shell
-
-                        seal_platform_shell(
-                            ui_url=page_url,
-                            route_path="/",
-                            sealed_target_id=target_id,
-                            append_sealed_target=(
-                                os.environ.get(
-                                    "MYRM_WARM_SHELL_SEAL_APPEND", ""
-                                ).strip()
-                                == "1"
-                                or seal_target
-                            ),
-                        )
-                    except ImportError:
-                        pass
-                    print(
-                        f"CLIENT_WARMUP_SEAL: kept epoch shell target {target_id[:8]}",
-                        file=sys.stderr,
-                    )
-                    hydrated = True
-                    break
                 last_error = f"hydrated target {target_id} could not be closed"
                 hydrated = True
                 break

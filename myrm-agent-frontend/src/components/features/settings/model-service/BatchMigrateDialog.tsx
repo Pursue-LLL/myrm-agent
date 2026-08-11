@@ -1,5 +1,5 @@
 import { memo, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import { batchMigrateProvider, previewBatchMigrateProvider, BatchMigratePreviewR
 import { toast } from '@/hooks/shared/useToast';
 import useProviderStore from '@/store/useProviderStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 
 interface BatchMigrateDialogProps {
   open: boolean;
@@ -26,6 +27,7 @@ interface BatchMigrateDialogProps {
 export const BatchMigrateDialog = memo<BatchMigrateDialogProps>(
   ({ open, onOpenChange, fromProviderId, fromProviderName, onSuccess }) => {
     const t = useTranslations('settings.modelService.migrateProvider');
+    const locale = useLocale();
     const providers = useProviderStore((state) => state.providers);
     const [toProviderId, setToProviderId] = useState<string>('');
     const [toModel, setToModel] = useState<string>('');
@@ -147,7 +149,7 @@ export const BatchMigrateDialog = memo<BatchMigrateDialogProps>(
                         key={agent.id}
                         className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0"
                       >
-                        <span className="font-medium">{agent.name}</span>
+                        <span className="font-medium">{getBuiltinAgentName(agent.id, agent.name || agent.id, locale)}</span>
                         <div className="flex items-center text-xs text-muted-foreground">
                           <span>{agent.current_model || 'none'}</span>
                           {toModel && (

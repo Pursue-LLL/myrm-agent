@@ -54,11 +54,20 @@ def _store_preset_probe(expected: str, agent_id: str | None = None) -> str:
     return f"""(() => {{
   const store = window.__myrmChatStore?.getState?.();
   if (!store) return {{ ready: false, err: 'no-store' }};
-  if ({agent_json} && store.agentConfig?.agentId !== {agent_json}) {{
-    return {{ ready: false, err: 'agent-not-bound', agentId: store.agentConfig?.agentId ?? null }};
-  }}
   const preset = store.securityPreset;
-  return {{ ready: preset === {expected_json}, preset, err: null }};
+  const boundAgentId = store.agentConfig?.agentId ?? null;
+  const ready = preset === {expected_json}
+    && ({agent_json} === null || boundAgentId === {agent_json});
+  return {{
+    ready,
+    preset,
+    expected: {expected_json},
+    boundAgentId,
+    expectedAgentId: {agent_json},
+    actionMode: store.actionMode ?? null,
+    apiBase: window.__MYRM_E2E_API_BASE__ ?? window.__MYRM_E2E_RUNTIME__?.apiBase ?? null,
+    err: null,
+  }};
 }})()"""
 
 
@@ -67,16 +76,38 @@ _TRIGGER_READY_JS = """(() => {
   return { ready: !!trigger, hasTrigger: !!trigger };
 })()"""
 
-_CLICK_OPTION_JS = """((preset) => {
-  const option = document.querySelector(`[data-testid="security-preset-option-${preset}"]`);
+_CLICK_TRIGGER_JS = """(() => {
+  const target = document.querySelector('[data-testid="security-preset-trigger"]');
+  if (!target) return { ok: false, err: 'no-trigger' };
+  const opts = { bubbles: true, cancelable: true, composed: true, button: 0 };
+  target.dispatchEvent(new PointerEvent('pointerdown', opts));
+  target.dispatchEvent(new MouseEvent('mousedown', opts));
+  target.dispatchEvent(new PointerEvent('pointerup', opts));
+  target.dispatchEvent(new MouseEvent('mouseup', opts));
+  target.dispatchEvent(new MouseEvent('click', opts));
+  return { ok: true };
+})()"""
+
+
+_CLICK_EXPLORE_OPTION_JS = """(() => {
+  const preset = 'explore';
+  const option = document.querySelector('[data-testid="security-preset-option-explore"]');
   if (!option) return { ok: false, err: 'no-option', preset };
-  option.click();
+  const opts = { bubbles: true, cancelable: true, composed: true, button: 0 };
+  option.dispatchEvent(new PointerEvent('pointerdown', opts));
+  option.dispatchEvent(new MouseEvent('mousedown', opts));
+  option.dispatchEvent(new PointerEvent('pointerup', opts));
+  option.dispatchEvent(new MouseEvent('mouseup', opts));
+  option.dispatchEvent(new MouseEvent('click', opts));
   return { ok: true, preset };
-})"""
+})()"""
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
@@ -117,7 +148,7 @@ def test_security_preset_initialization_and_ui_switch_and_fail_closed() -> None:
         # --- Scenario 2: UI switch to explore via dropdown ---
         clicked = client.evaluate(
             page,
-            "((preset) => { const t = document.querySelector('[data-testid=\"security-preset-trigger\"]'); if (!t) return { ok: false, err: 'no-trigger' }; t.click(); return { ok: true }; })('explore')",
+            _CLICK_TRIGGER_JS,
             timeout_sec=15.0,
         )
         assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
@@ -137,8 +168,7 @@ def test_security_preset_initialization_and_ui_switch_and_fail_closed() -> None:
 
         clicked_option = client.evaluate(
             page,
-            _CLICK_OPTION_JS,
-            "explore",
+            _CLICK_EXPLORE_OPTION_JS,
             timeout_sec=15.0,
         )
         assert isinstance(clicked_option, dict) and clicked_option.get("ok") is True, (

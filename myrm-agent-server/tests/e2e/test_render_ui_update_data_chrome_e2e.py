@@ -35,7 +35,7 @@ from tests.support.chrome_mcp_e2e import open_mcp_page  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
 try:
-    from e2e_session_lifecycle import touch_wall_progress
+    from e2e_session_runtime.lifecycle import touch_wall_progress
 except ImportError:  # pragma: no cover - lib on PYTHONPATH in e2e only
 
     def touch_wall_progress(*, current_node: str | None = None) -> None:

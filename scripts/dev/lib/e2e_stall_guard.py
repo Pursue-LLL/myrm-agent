@@ -1,7 +1,7 @@
 """Unified stall tripwires for parallel Chrome E2E (R96-B6 SSOT).
 
 [INPUT]
-- e2e_session_snapshot nodeStartedMonotonic / currentNode
+- e2e_session_runtime.snapshot nodeStartedMonotonic / currentNode
 - dev_gate_contract NODE_STUCK_FAIL_FAST_SEC + TRANSPORT_STALL_NODE_PREFIXES
 
 [OUTPUT]
@@ -17,8 +17,8 @@ from __future__ import annotations
 import time
 
 from dev_gate_contract import (
-    E2E_ADMIT_NODE_STUCK_TOKEN,
     E2E_ADMISSION_WALL_CLOCK_SEC,
+    E2E_ADMIT_NODE_STUCK_TOKEN,
     E2E_NODE_STUCK_TOKEN,
     MUX_RECLAIM_STALL_TOKEN,
     NODE_STUCK_FAIL_FAST_SEC,
@@ -88,7 +88,7 @@ def admit_node_stuck_reason_from_snapshot(snapshot: dict[str, object]) -> str | 
     elapsed = node_elapsed_from_snapshot(snapshot)
     if elapsed is None:
         try:
-            from e2e_session_snapshot import phase_elapsed_from_snapshot
+            from e2e_session_runtime.snapshot import phase_elapsed_from_snapshot
         except ImportError:
             return None
         elapsed = phase_elapsed_from_snapshot(snapshot)
@@ -217,7 +217,7 @@ def parallel_active_test_node_stuck_fail_fast(row: dict[str, object]) -> bool:
     Delegates to hung-reap ``_parallel_node_stuck_reason`` so readiness and reap
     share bootstrap/admit/body wall defer SSOT.
     """
-    from e2e_session_registry import LiveE2ESessionRow
+    from e2e_session_runtime.registry import LiveE2ESessionRow
     from e2e_stale_lease_reap import _parallel_node_stuck_reason
 
     pid = row.get("pid")
@@ -271,7 +271,7 @@ def assert_transport_node_not_stuck(
     if elapsed >= resolved_cap:
         token = MUX_RECLAIM_STALL_TOKEN
         try:
-            from e2e_session_lifecycle import current_phase
+            from e2e_session_runtime.lifecycle import current_phase
 
             if current_phase() == "bootstrap":
                 from dev_gate_contract import E2E_BOOTSTRAP_OPEN_MCP_EXCEEDED_TOKEN

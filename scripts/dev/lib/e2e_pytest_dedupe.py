@@ -7,12 +7,12 @@ may target the same ``tests/e2e/*.py`` file or node in parallel.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
 import sys
 import time
-import fcntl
 from pathlib import Path
 from typing import TypedDict
 
@@ -132,7 +132,7 @@ def _holder_process_tree_has_pytest(holder_pid: int) -> bool:
 
     try:
         root = psutil.Process(holder_pid)
-    except (psutil.NoSuchProcess, psutil.AccessDenied):
+    except (psutil.NoSuchProcess, psutil.AccessDenied, PermissionError):
         return False
 
     deadline = time.monotonic() + 0.1
@@ -146,7 +146,12 @@ def _holder_process_tree_has_pytest(holder_pid: int) -> bool:
         seen.add(pid)
         try:
             command = " ".join(process.cmdline())
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        except (
+            psutil.NoSuchProcess,
+            psutil.AccessDenied,
+            psutil.ZombieProcess,
+            PermissionError,
+        ):
             continue
         if "run_pytest_safe" in command:
             return True
@@ -154,7 +159,7 @@ def _holder_process_tree_has_pytest(holder_pid: int) -> bool:
             return True
         try:
             stack.extend(process.children())
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except (psutil.NoSuchProcess, psutil.AccessDenied, PermissionError):
             pass
         if time.monotonic() >= deadline:
             return True
@@ -250,7 +255,7 @@ def fingerprint_argv(argv: tuple[str, ...]) -> str:
     """Stable hash for chrome_e2e submission idempotency."""
     run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
     if run_id:
-        payload = f"submission:{run_id}".encode("utf-8")
+        payload = f"submission:{run_id}".encode()
         return hashlib.sha256(payload).hexdigest()[:16]
     payload = "\0".join(_normalize_argv(argv)).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()[:16]
@@ -316,9 +321,10 @@ def _record_is_stale(record: _DedupeRecord, *, now: float) -> bool:
     ) > _max_holder_wall_sec(record):
         return True
     heartbeat_at = record.get("heartbeatAt")
-    if isinstance(heartbeat_at, (int, float)) and now - float(heartbeat_at) > 7200.0:
-        return True
-    return False
+    return (
+        isinstance(heartbeat_at, (int, float))
+        and now - float(heartbeat_at) > 7200.0
+    )
 
 
 def _prune_stale_records(root: Path) -> None:
@@ -389,25 +395,20 @@ def acquire_session_lock(
             file=sys.stderr,
         )
         raise SystemExit(2)
-    batch_key = file_batch_key(argv)
     scope_key = e2e_file_scope_key(argv)
-    execution_mode = os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper()
-    access_scope = os.environ.get("MYRM_E2E_ACCESS_SCOPE", "").strip().upper()
-    if (
-        execution_mode == "SHARED"
-        and access_scope not in {"NAMESPACE_WRITE", "GLOBAL_WRITE"}
-        and not _is_guardrail_file_scope(scope_key)
-    ):
-        # P1: SHARED READ sessions may whole-file parallel under mux scheduler.
-        # NAMESPACE_WRITE / GLOBAL_WRITE seed SQLite — must file-scope dedupe (R298).
-        scope_key = None
-        batch_key = None
     batch_flock_handle = None
-    lock_key = scope_key or batch_key
+    # A file path is not a physical resource. Daily SHARED and PRIVATE sessions
+    # therefore dedupe only by submission id; otherwise an unrelated session is
+    # rejected outside the PRIVATE credit queue. The maintainer-only guardrail
+    # formal batch remains singleton because its acceptance procedure is the
+    # resource being signed, not because pytest files are globally exclusive.
+    lock_key = scope_key if _is_guardrail_file_scope(scope_key) else None
     if lock_key is not None:
         batch_root = _file_batch_root()
         batch_root.mkdir(parents=True, exist_ok=True)
-        batch_flock_handle = open(batch_root / ".claim.lock", "a+", encoding="utf-8")
+        batch_flock_handle = open(  # noqa: SIM115 - conditional lock spans record CAS
+            batch_root / ".claim.lock", "a+", encoding="utf-8"
+        )
         fcntl.flock(batch_flock_handle.fileno(), fcntl.LOCK_EX)
         scope_duplicate = find_file_scope_duplicate(
             lock_key, exclude_pids=(resolved_pid, os.getppid())

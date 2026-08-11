@@ -13,6 +13,15 @@ from myrm_agent_harness.toolkits.llms import ChatLiteLLM
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY") or os.environ.get("BASIC_API_KEY")
 _TEST_MODEL = os.environ.get("BASIC_MODEL", "gpt-4o-mini")
+_TEST_API_BASE = os.environ.get("BASIC_BASE_URL")
+
+
+def _normalized_model() -> str:
+    from myrm_agent_harness.agent.config.litellm_routing import (
+        normalize_env_model_selection_string,
+    )
+
+    return normalize_env_model_selection_string(_TEST_MODEL)
 
 
 @pytest.mark.asyncio
@@ -21,8 +30,9 @@ async def test_normal_request_with_retry_enabled():
     """Test normal LLM request with retry enabled (doesn't trigger retry)."""
     # Create LLM with retry enabled
     llm = ChatLiteLLM(
-        model=_TEST_MODEL,
+        model=_normalized_model(),
         openai_api_key=OPENAI_API_KEY,
+        api_base=_TEST_API_BASE,
         empty_retry_enabled=True,
         empty_retry_max_attempts=3,
         empty_retry_delay=0.5,

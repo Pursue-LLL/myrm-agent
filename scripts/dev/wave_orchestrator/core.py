@@ -16,31 +16,41 @@ Dev test wave orchestrator core. Enforces immutable test waves for Chrome MCP E2
 
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import timedelta
+from pathlib import Path
 from typing import TypedDict
 
+from wave_orchestrator.lanes import lane_conflict_reason
 from wave_orchestrator.lease_cleanup import (
     cleanup_expired_leases as _cleanup_expired_leases,
+)
+from wave_orchestrator.lease_cleanup import (
     cleanup_released_lease as _cleanup_released_lease,
 )
 from wave_orchestrator.lease_state import (
     active_leases,
-    close_wave_after_last_expired_lease as _close_wave_after_last_expired_lease,
     default_agent_id,
     expire_active_lease_by_id,
-    find_active_lease as _find_active_lease,
-    heal_open_wave_runtime_id,
     heal_open_wave_runtime_id_for_acquire,
-    iso_timestamp as _iso,
     reap_abandoned_leases,
-    reap_expired_leases as reaper,
     reap_runtime_drift,
-    restore_drifted_formal_e2e_wave,
+)
+from wave_orchestrator.lease_state import (
+    close_wave_after_last_expired_lease as _close_wave_after_last_expired_lease,
+)
+from wave_orchestrator.lease_state import (
+    find_active_lease as _find_active_lease,
+)
+from wave_orchestrator.lease_state import (
+    iso_timestamp as _iso,
+)
+from wave_orchestrator.lease_state import (
+    reap_expired_leases as reaper,
+)
+from wave_orchestrator.lease_state import (
     utc_now as _utc_now,
 )
-from wave_orchestrator.lanes import lane_conflict_reason
 from wave_orchestrator.paths import WavePaths, resolve_wave_paths
 from wave_orchestrator.stack_pin import clear_stack_pin, read_stack_pin, write_stack_pin
 from wave_orchestrator.store import run_locked
@@ -106,9 +116,8 @@ def _stack_pin_blocker(state: OrchestratorState) -> StackPinBlocker | None:
     }
 
 
-def _prune_infra_browser_registry() -> tuple[int, int]:
+def _prune_infra_browser_registry(state_dir: Path) -> tuple[int, int]:
     import sys
-    from pathlib import Path
 
     lib_dir = Path(__file__).resolve().parent.parent / "lib"
     lib_str = str(lib_dir)
@@ -116,7 +125,7 @@ def _prune_infra_browser_registry() -> tuple[int, int]:
         sys.path.insert(0, lib_str)
     import infra_browser_registry
 
-    return infra_browser_registry.prune_infra_registry()
+    return infra_browser_registry.prune_infra_registry(state_dir=state_dir)
 
 
 def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
@@ -128,9 +137,7 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
         changed = reap_abandoned_leases(state)
         if reaper(state, cleanup=False):
             changed = True
-        if reap_runtime_drift(state, current_runtime):
-            changed = True
-        elif _close_wave_after_last_expired_lease(state):
+        if reap_runtime_drift(state, current_runtime) or _close_wave_after_last_expired_lease(state):
             changed = True
         return {
             "wave": state["wave"],
@@ -145,7 +152,7 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
     elif isinstance(wave, dict) and wave.get("status") in {"closed", "drifted"}:
         clear_stack_pin(paths=resolved)
     _cleanup_expired_leases(paths=resolved)
-    closed, failed = _prune_infra_browser_registry()
+    closed, failed = _prune_infra_browser_registry(resolved.state_dir)
     result["infraPruneClosed"] = closed
     result["infraPruneFailed"] = failed
     return result
@@ -293,21 +300,19 @@ def acquire_lease(
     ns = namespace.strip()
     parent_id = parent_lease_id.strip()
 
-    def _edit(state: OrchestratorState) -> tuple[LeaseRecord, bool]:
+    def _edit(
+        state: OrchestratorState,
+    ) -> tuple[tuple[LeaseRecord, WaveRecord], bool]:
         reaper(state, cleanup=False)
         wave = state["wave"]
         if wave is None or wave["status"] != "open":
             raise RuntimeError("LEASE_DENIED: no open wave")
-        if current_runtime != wave["runtimeId"]:
-            if not heal_open_wave_runtime_id_for_acquire(
-                state, current_runtime, holder
-            ) and not (
-                wave.get("status") == "drifted"
-                and restore_drifted_formal_e2e_wave(state, current_runtime)
-            ):
-                raise RuntimeError(
-                    f"LEASE_DENIED: RUNTIME_DRIFT expected={wave['runtimeId']} current={current_runtime}"
-                )
+        if current_runtime != wave["runtimeId"] and not (
+            heal_open_wave_runtime_id_for_acquire(state, current_runtime, holder)
+        ):
+            raise RuntimeError(
+                f"LEASE_DENIED: RUNTIME_DRIFT expected={wave['runtimeId']} current={current_runtime}"
+            )
         if parent_id:
             parent = _find_active_lease(state, parent_id)
             if parent["agentId"] != holder:
@@ -340,9 +345,11 @@ def acquire_lease(
         if parent_id:
             lease["parentLeaseId"] = parent_id
         state["leases"].append(lease)
-        return lease, True
+        return (lease, dict(wave)), True
 
-    return run_locked(resolved.state_file, _edit)
+    lease, wave = run_locked(resolved.state_file, _edit)
+    write_stack_pin(wave, paths=resolved, pinned_at=_iso(_utc_now()))
+    return lease
 
 
 def release_lease(

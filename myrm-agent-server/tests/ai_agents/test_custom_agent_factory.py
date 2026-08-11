@@ -199,6 +199,7 @@ async def test_custom_agent_factory_ensure_initialized_loads_mcp_configs(monkeyp
 
     class FakeConfigs:
         mcp_dict = {"mcp-a": {}}
+        org_mcp_dict = None
 
         def providers_dict(self) -> dict[str, object]:
             return {}

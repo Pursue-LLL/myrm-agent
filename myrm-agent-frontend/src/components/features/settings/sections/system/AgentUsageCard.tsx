@@ -1,12 +1,13 @@
 'use client';
 
 import { memo, useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import SettingsSection from '../SettingsSection';
 import { getAgentUsage, type AgentUsageItem } from '@/services/statistics';
 import { formatTokenCount, formatCost } from './RoutingAnalyticsPanel';
 import { cn } from '@/lib/utils/classnameUtils';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 
 const SPARKLINE_WIDTH = 80;
 const SPARKLINE_HEIGHT = 24;
@@ -35,6 +36,7 @@ MiniSparkline.displayName = 'MiniSparkline';
 
 const AgentUsageCard = memo(() => {
   const t = useTranslations('settings.usageStatistics');
+  const locale = useLocale();
   const [agents, setAgents] = useState<AgentUsageItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -76,17 +78,23 @@ const AgentUsageCard = memo(() => {
             >
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
                 {agent.avatar ? (
-                  <img src={agent.avatar} alt={agent.name} className="w-full h-full object-cover" />
+                  <img
+                    src={agent.avatar}
+                    alt={getBuiltinAgentName(agent.agentId, agent.name || agent.agentId, locale)}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <span className="text-xs font-bold text-primary">
-                    {agent.name.charAt(0).toUpperCase()}
+                    {getBuiltinAgentName(agent.agentId, agent.name || agent.agentId, locale).charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium text-foreground truncate">{agent.name}</span>
+                  <span className="text-sm font-medium text-foreground truncate">
+                    {getBuiltinAgentName(agent.agentId, agent.name || agent.agentId, locale)}
+                  </span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                     {agent.percentUsd.toFixed(0)}%
                   </span>

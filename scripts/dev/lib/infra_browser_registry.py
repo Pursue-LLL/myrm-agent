@@ -20,9 +20,11 @@ import json
 import os
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, TypedDict
+from typing import TypedDict
+
 from real_user_home import real_user_home
 
 
@@ -38,13 +40,13 @@ def _state_dir() -> Path:
     return Path(override) if override else real_user_home() / ".local/state/myrm-dev"
 
 
-def _ledger_path() -> Path:
-    return _state_dir() / "infra-browser-targets.json"
+def _ledger_path(state_dir: Path | None = None) -> Path:
+    return (state_dir or _state_dir()) / "infra-browser-targets.json"
 
 
 @contextmanager
-def _locked_ledger() -> Iterator[Path]:
-    ledger = _ledger_path()
+def _locked_ledger(state_dir: Path | None = None) -> Iterator[Path]:
+    ledger = _ledger_path(state_dir)
     ledger.parent.mkdir(parents=True, exist_ok=True)
     lock_path = ledger.with_suffix(".lock")
     with lock_path.open("a+", encoding="utf-8") as handle:
@@ -153,9 +155,11 @@ def _chrome_port() -> int:
         return 9333
 
 
-def prune_infra_registry(cdp_port: int | None = None) -> tuple[int, int]:
+def prune_infra_registry(
+    cdp_port: int | None = None, *, state_dir: Path | None = None
+) -> tuple[int, int]:
     port = cdp_port if cdp_port is not None else _chrome_port()
-    with _locked_ledger() as ledger:
+    with _locked_ledger(state_dir) as ledger:
         records = _read(ledger)
         stale = [item for item in records if _owner_stale(item)]
         closed_ids = {

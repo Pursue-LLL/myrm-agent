@@ -9,7 +9,7 @@
 | `useAgentGallery.ts` | Agent gallery |
 | `usePresetAgent.ts` | 预设智能体 |
 | `useAgentResources.ts` | 资源选择解析 |
-| `useAgentName.ts` | agent_id → 显示名 |
+| `useAgentName.ts` | agent_id → 本地化显示名（内置 agent 走 `getBuiltinAgentName`） |
 | `useCLIAgent.ts` | 外部 CLI agent |
 | `useAgentReadiness.ts` | Per-agent readiness SWR hook (5min polling) |
 | `useSkillDiscovery.ts` | 技能发现 |

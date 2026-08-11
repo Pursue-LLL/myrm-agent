@@ -94,7 +94,7 @@ def attach_parallel_leases() -> int:
     effective = wave_lease_counts(load_wave_snapshot()).effective_total
     if effective > 0:
         return effective
-    from e2e_session_registry import list_live_e2e_sessions
+    from e2e_session_runtime.registry import list_live_e2e_sessions
 
     return len(list_live_e2e_sessions())
 

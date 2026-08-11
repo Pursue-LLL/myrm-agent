@@ -67,6 +67,7 @@ async def seed_security_preset_fixture() -> dict[str, str]:
             chat_id=preset_chat_id,
             title="SecurityPreset accept_edits Chrome E2E",
             agent_id=preset_agent.id,
+            action_mode="agent",
             messages=[],
         ),
     )
@@ -75,6 +76,7 @@ async def seed_security_preset_fixture() -> dict[str, str]:
             chat_id=plain_chat_id,
             title="SecurityPreset plain Chrome E2E",
             agent_id=plain_agent.id,
+            action_mode="agent",
             messages=[],
         ),
     )

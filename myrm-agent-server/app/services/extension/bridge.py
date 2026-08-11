@@ -5,6 +5,7 @@
 - myrm_agent_harness.toolkits.browser.pool.extension_bridge::ExtensionBridge (POS: Protocol contract)
 - myrm_agent_harness.toolkits.browser.pool.extension_bridge::ExtensionTab, ExtensionStatus
 - myrm_agent_harness.toolkits.browser.pool.browser_launcher::BrowserInstance
+- app.services.extension.access_policy (POS: 统一 tab 访问策略评估)
 
 [OUTPUT]
 - ExtensionBridgeService: Singleton managing extension WebSocket connection and tab control
@@ -13,7 +14,8 @@
 Business layer bridge connecting the browser extension (MV3 WebSocket) to the harness
 BrowserLauncher. Implements the ExtensionBridge Protocol defined in the harness layer.
 Handles: connection lifecycle, heartbeat, domain authorization, tab listing, debugger
-attach orchestration, and browser connection via local CDP endpoint discovery.
+attach orchestration, CDP relay orchestration for Playwright connect_over_cdp (fail-closed;
+no direct local CDP fallback in extension mode).
 """
 
 from __future__ import annotations
@@ -60,9 +62,20 @@ except ImportError:
 
 
 if TYPE_CHECKING:
-    from patchright.async_api import Playwright
+    from patchright.async_api import Browser, Playwright
 
 from app.services.event import AppEvent, AppEventType, get_event_bus
+from app.services.extension.access_policy import (
+    ExtensionAccessPolicy,
+    is_navigation_target_allowed,
+    is_policy_valid_for_automation,
+    is_tab_accessible,
+    match_domain,
+    normalize_domain_patterns,
+    prune_paused_tab_ids,
+)
+from app.services.extension.cdp_relay.manager import get_cdp_relay_manager
+from app.services.extension.cdp_relay.protocol import RelayTabInfo
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +123,8 @@ class ExtensionBridgeService:
         self._hello_received = False
         self._capabilities: set[str] = set()
         self._authorized_domains: list[str] = []
+        self._allow_all_eligible_tabs = False
+        self._paused_tab_ids: frozenset[int] = frozenset()
         self._tabs: list[ExtensionTab] = []
         self._last_heartbeat: float = 0.0
         self._pending_requests: dict[str, asyncio.Future[object]] = {}
@@ -118,7 +133,6 @@ class ExtensionBridgeService:
         self._receive_task: asyncio.Task[None] | None = None
         self._cdp_endpoint: str | None = None
         self._last_cdp_probe_monotonic = 0.0
-        self._direct_cdp_risk_notified = False
         self._lock = asyncio.Lock()
         self._playwright: Playwright | None = None
 
@@ -134,27 +148,35 @@ class ExtensionBridgeService:
 
     @staticmethod
     def _match_domain(domain: str, patterns: list[str]) -> bool:
-        """Check if *domain* matches any pattern in *patterns*.
+        """Check if *domain* matches any pattern in *patterns*."""
+        return match_domain(domain, patterns)
 
-        Supports wildcard prefixes: ``*.example.com`` matches ``example.com``,
-        ``sub.example.com``, and ``deep.sub.example.com``.
-        """
-        domain_lower = domain.strip().lower().rstrip(".")
-        if not domain_lower:
-            return False
-        for pattern in patterns:
-            p = pattern.strip().lower().rstrip(".")
-            if not p:
-                continue
-            if p == domain_lower:
-                return True
-            if p.startswith("*."):
-                suffix = p[2:]
-                if not suffix:
-                    continue
-                if domain_lower == suffix or domain_lower.endswith(f".{suffix}"):
-                    return True
-        return False
+    def _current_access_policy(self) -> ExtensionAccessPolicy:
+        return ExtensionAccessPolicy(
+            allow_all_eligible_tabs=self._allow_all_eligible_tabs,
+            authorized_domains=list(self._authorized_domains),
+            paused_tab_ids=self._paused_tab_ids,
+        )
+
+    def _tab_is_accessible(self, tab: ExtensionTab) -> bool:
+        return is_tab_accessible(
+            tab_id=tab.tab_id,
+            url=tab.url,
+            domain=tab.domain,
+            policy=self._current_access_policy(),
+        )
+
+    def _tab_is_visible_in_ui(self, tab: ExtensionTab) -> bool:
+        return is_tab_accessible(
+            tab_id=tab.tab_id,
+            url=tab.url,
+            domain=tab.domain,
+            policy=self._current_access_policy(),
+            respect_pause=False,
+        )
+
+    def is_access_policy_valid(self) -> bool:
+        return is_policy_valid_for_automation(self._current_access_policy())
 
     def _resolve_cdp_endpoint(self) -> str | None:
         """Discover main Chrome CDP endpoint when extension bridge has no cached value."""
@@ -220,18 +242,6 @@ class ExtensionBridgeService:
         if capability:
             self._require_capability(capability)
 
-    def _warn_direct_cdp_risk_once(self, *, domain: str | None = None) -> None:
-        """Emit one runtime warning when privileged direct CDP is used."""
-        if self._direct_cdp_risk_notified:
-            return
-        scope = f" for domain '{domain}'" if domain else ""
-        logger.warning(
-            "Extension bridge: using direct local CDP endpoint%s. "
-            "This path has high privileges; keep the host trusted and do not expose remote-debugging ports.",
-            scope,
-        )
-        self._direct_cdp_risk_notified = True
-
     @staticmethod
     def analyze_domain_policy_warnings(domains: list[str]) -> list[DomainPolicyWarning]:
         """Return warnings for surprising but valid domain policy inputs."""
@@ -261,27 +271,51 @@ class ExtensionBridgeService:
             )
         return warnings
 
+    async def relay_cdp_ready(self) -> bool:
+        """True when extension CDP relay responds to automation probe."""
+        if not self.is_access_policy_valid():
+            return False
+        relay = get_cdp_relay_manager()
+        if self._connected and self._ws is not None:
+            await relay.bind_extension_transport(self._send_ws_message)
+            await self._sync_relay_tabs()
+        return await relay.relay_cdp_ready()
+
+    async def _resolve_playwright_cdp_endpoint(self) -> str:
+        relay = get_cdp_relay_manager()
+        await relay.bind_extension_transport(self._send_ws_message)
+        if await relay.relay_cdp_ready():
+            return await relay.ensure_http_endpoint()
+
+        raise ExtensionBridgeNotAvailable(
+            "Extension CDP relay is not ready. Reconnect the browser extension and retry."
+        )
+
     async def connect(self, *, timeout: float = 10.0) -> BrowserInstance:
         if not self._connected or self._ws is None:
             raise ExtensionBridgeNotAvailable(
                 "Browser extension is not connected. Please install and connect the extension."
             )
-
-        await self._request_debugger_attach(timeout=timeout)
-        pw = await self._ensure_playwright()
-
-        cdp_endpoint = self._resolve_cdp_endpoint()
-        if not cdp_endpoint:
+        if not self._hello_received:
             raise ExtensionBridgeNotAvailable(
-                "Extension bridge does not expose a direct CDP endpoint. "
-                "Enable remote debugging on your main Chrome at chrome://inspect/#remote-debugging, "
-                "then use LaunchMode.CONNECT_OVER_CDP or AUTO (do not launch a second isolated Chrome)."
+                "Extension handshake is not completed yet. Reconnect extension and retry."
+            )
+        if not self.is_access_policy_valid():
+            raise ExtensionBridgeNotAvailable(
+                "Extension access policy is not configured. "
+                "Add authorized domains or enable allow-all in Settings → Browser Extension."
             )
 
-        self._warn_direct_cdp_risk_once()
+        await self._sync_relay_tabs()
+        cdp_endpoint = await self._resolve_playwright_cdp_endpoint()
+        pw = await self._ensure_playwright()
+
         browser = await pw.chromium.connect_over_cdp(
             cdp_endpoint, timeout=timeout * 1000
         )
+        preferred = self._pick_preferred_extension_tab()
+        if preferred is not None:
+            await self._focus_browser_on_domain(browser, preferred.domain)
         return BrowserInstance(
             browser=browser,
             engine="chromium-patchright",
@@ -292,30 +326,67 @@ class ExtensionBridgeService:
     async def connect_to_domain(
         self, domain: str, *, timeout: float = 10.0
     ) -> BrowserInstance:
-        if not self._match_domain(domain, self._authorized_domains):
+        policy = self._current_access_policy()
+        domain_lower = domain.strip().lower().rstrip(".")
+        if not domain_lower:
+            raise ExtensionBridgeNotAvailable("Domain must not be empty.")
+        if policy.allow_all_eligible_tabs:
+            probe_url = f"https://{domain_lower}"
+            if not is_navigation_target_allowed(probe_url, policy):
+                raise ExtensionBridgeNotAvailable(
+                    f"Domain '{domain}' is not an eligible automation target."
+                )
+        elif not self._match_domain(domain_lower, policy.authorized_domains):
             raise ExtensionBridgeNotAvailable(
                 f"Domain '{domain}' is not authorized. "
-                f"Authorized domains: {self._authorized_domains}"
+                f"Authorized domains: {policy.authorized_domains}"
             )
 
         if not self._connected or self._ws is None:
             raise ExtensionBridgeNotAvailable("Browser extension is not connected.")
 
-        await self._request_debugger_attach(domain=domain, timeout=timeout)
-        pw = await self._ensure_playwright()
-
-        cdp_endpoint = self._resolve_cdp_endpoint()
-        if not cdp_endpoint:
+        if not self._hello_received:
             raise ExtensionBridgeNotAvailable(
-                f"Extension bridge does not expose a direct CDP endpoint for domain '{domain}'. "
-                "Enable remote debugging on your main Chrome at chrome://inspect/#remote-debugging, "
-                "then use LaunchMode.CONNECT_OVER_CDP or AUTO (do not launch a second isolated Chrome)."
+                "Extension handshake is not completed yet. Reconnect extension and retry."
             )
 
-        self._warn_direct_cdp_risk_once(domain=domain)
+        await self._refresh_tabs()
+        domain_lower = domain.strip().lower().rstrip(".")
+        matching = [
+            tab
+            for tab in self._tabs
+            if self._match_domain(tab.domain, [domain_lower])
+        ]
+        if not matching:
+            await self.navigate_to_url(
+                f"https://{domain_lower}",
+                domain=domain_lower,
+                background=False,
+                timeout=timeout,
+            )
+            await self._refresh_tabs()
+            matching = [
+                tab
+                for tab in self._tabs
+                if self._match_domain(tab.domain, [domain_lower])
+            ]
+
+        if not matching:
+            raise ExtensionBridgeNotAvailable(
+                f"No extension tab available for domain '{domain_lower}'."
+            )
+
+        active_matches = [tab for tab in matching if tab.active]
+        target_tab = active_matches[0] if active_matches else matching[0]
+
+        await self._sync_relay_tabs()
+        cdp_endpoint = await self._resolve_playwright_cdp_endpoint()
+        pw = await self._ensure_playwright()
+
         browser = await pw.chromium.connect_over_cdp(
             cdp_endpoint, timeout=timeout * 1000
         )
+        await self._focus_browser_on_domain(browser, target_tab.domain)
         return BrowserInstance(
             browser=browser,
             engine="chromium-patchright",
@@ -350,10 +421,11 @@ class ExtensionBridgeService:
                 f"Domain '{requested_domain}' does not match navigation target '{target_domain}'."
             )
 
-        if not self._match_domain(target_domain, self._authorized_domains):
+        if not is_navigation_target_allowed(url, self._current_access_policy()):
+            policy = self._current_access_policy()
             raise ExtensionBridgeNotAvailable(
                 f"Domain '{target_domain}' is not authorized. "
-                f"Authorized domains: {self._authorized_domains}"
+                f"Authorized domains: {policy.authorized_domains}"
             )
         if not self._connected or self._ws is None:
             raise ExtensionBridgeNotAvailable("Browser extension is not connected.")
@@ -383,13 +455,14 @@ class ExtensionBridgeService:
         )
 
     async def get_status(self) -> ExtensionStatus:
+        accessible_tabs = [tab for tab in self._tabs if self._tab_is_visible_in_ui(tab)]
         return ExtensionStatus(
             connected=self._connected,
             handshake_ready=self._hello_received,
             extension_version=self._extension_version,
             browser_name=self._browser_name,
             authorized_domains=list(self._authorized_domains),
-            available_tabs=list(self._tabs),
+            available_tabs=accessible_tabs,
             last_heartbeat_at=self._last_heartbeat,
             capabilities=sorted(self._capabilities),
         )
@@ -401,11 +474,7 @@ class ExtensionBridgeService:
         if not self._connected:
             return []
         await self._refresh_tabs()
-        return [
-            t
-            for t in self._tabs
-            if self._match_domain(t.domain, self._authorized_domains)
-        ]
+        return [tab for tab in self._tabs if self._tab_is_accessible(tab)]
 
     async def disconnect(self) -> None:
         if self._heartbeat_task and not self._heartbeat_task.done():
@@ -417,6 +486,7 @@ class ExtensionBridgeService:
                 await self._ws.close()
             except Exception:
                 pass
+        await get_cdp_relay_manager().bind_extension_transport(None)
         if self._playwright is not None:
             try:
                 await self._playwright.stop()
@@ -487,12 +557,23 @@ class ExtensionBridgeService:
                         msg.get("capabilities")
                     )
                     self._hello_received = True
+                    relay = get_cdp_relay_manager()
+                    relay.set_identity(
+                        user_agent=str(msg.get("userAgent") or ""),
+                        browser_version=str(msg.get("browserVersion") or self._browser_name),
+                    )
+                    await relay.bind_extension_transport(self._send_ws_message)
+                    await self._notify_extension_access_policy()
+                    await self._sync_relay_tabs()
                     logger.info(
                         "Extension hello: %s on %s (capabilities=%s)",
                         self._extension_version,
                         self._browser_name,
                         sorted(self._capabilities),
                     )
+
+                elif msg_type in ("relay_result", "relay_error", "cdp_event", "debugger_detached"):
+                    await get_cdp_relay_manager().dispatch_extension_message(msg)
 
                 elif msg_type == "tabs_update":
                     self._tabs = [
@@ -505,6 +586,15 @@ class ExtensionBridgeService:
                         )
                         for t in msg.get("tabs", [])
                     ]
+                    active_tab_ids = frozenset(tab.tab_id for tab in self._tabs)
+                    pruned_paused = prune_paused_tab_ids(
+                        self._paused_tab_ids,
+                        active_tab_ids,
+                    )
+                    if pruned_paused != self._paused_tab_ids:
+                        self._paused_tab_ids = pruned_paused
+                        await self._notify_extension_access_policy()
+                    await self._sync_relay_tabs()
 
                 elif msg_type == "response":
                     req_id = msg.get("id", "")
@@ -516,7 +606,16 @@ class ExtensionBridgeService:
                             fut.set_result(msg.get("data"))
 
                 elif msg_type == "domains_update":
-                    self._authorized_domains = msg.get("domains", [])
+                    raw_domains = msg.get("domains", [])
+                    if isinstance(raw_domains, list):
+                        self._authorized_domains = normalize_domain_patterns(
+                            [str(item) for item in raw_domains]
+                        )
+                    await self._sync_relay_tabs()
+
+                elif msg_type == "access_policy_update":
+                    self._apply_access_policy_payload(msg)
+                    await self._sync_relay_tabs()
 
         except WebSocketDisconnect:
             logger.info("Extension disconnected by client")
@@ -547,6 +646,51 @@ class ExtensionBridgeService:
             pass
 
     # --- Internal Helpers ---
+
+    async def _send_ws_message(self, msg: dict[str, object]) -> None:
+        if not self._connected or self._ws is None:
+            raise ExtensionBridgeNotAvailable("Extension not connected")
+        await self._ws.send_text(json.dumps(msg))
+
+    async def _sync_relay_tabs(self) -> None:
+        relay = get_cdp_relay_manager()
+        relay.sync_tabs_from_extension(
+            [
+                RelayTabInfo(
+                    tab_id=tab.tab_id,
+                    url=tab.url,
+                    title=tab.title,
+                    active=tab.active,
+                )
+                for tab in self._tabs
+                if self._tab_is_accessible(tab)
+            ]
+        )
+
+    def _pick_preferred_extension_tab(self) -> ExtensionTab | None:
+        authorized = [tab for tab in self._tabs if self._tab_is_accessible(tab)]
+        if not authorized:
+            return None
+        active = [tab for tab in authorized if tab.active]
+        return active[0] if active else authorized[0]
+
+    async def _focus_browser_on_domain(self, browser: Browser, domain: str) -> None:
+        from urllib.parse import urlparse
+
+        domain_lower = domain.strip().lower().rstrip(".")
+        for context in browser.contexts:
+            for page in context.pages:
+                try:
+                    page_url = page.url or ""
+                except Exception:
+                    continue
+                host = (urlparse(page_url).hostname or "").strip().lower().rstrip(".")
+                if host and self._match_domain(host, [domain_lower]):
+                    try:
+                        await page.bring_to_front()
+                    except Exception as exc:
+                        logger.debug("Failed to focus page for domain %s: %s", domain, exc)
+                    return
 
     async def _send_request(
         self,
@@ -585,7 +729,7 @@ class ExtensionBridgeService:
         domain: str | None = None,
         tab_id: int | None = None,
         *,
-        background: bool = True,
+        background: bool = False,
         timeout: float = 10.0,
     ) -> int:
         """Request the extension to attach chrome.debugger to a tab.
@@ -594,8 +738,8 @@ class ExtensionBridgeService:
         chrome.debugger API to control the tab — no external CDP endpoint needed.
 
         When *tab_id* is provided the extension attaches directly to that tab.
-        When *background* is True (default), the extension creates an isolated
-        non-focused window for automation, preventing user disruption.
+        When *background* is False (default for login-state tabs), the extension
+        prefers the user's existing foreground tab for the domain.
         """
         payload: dict[str, object] = {}
         if tab_id is not None:
@@ -636,7 +780,66 @@ class ExtensionBridgeService:
         except ExtensionBridgeNotAvailable:
             pass
 
-    # --- Domain Authorization ---
+    # --- Access policy ---
+
+    def get_access_policy(self) -> ExtensionAccessPolicy:
+        return self._current_access_policy()
+
+    def _apply_access_policy_payload(self, msg: dict[str, object]) -> None:
+        if "allow_all_eligible_tabs" in msg:
+            self._allow_all_eligible_tabs = msg.get("allow_all_eligible_tabs") is True
+        if "domains" in msg:
+            raw_domains = msg.get("domains")
+            if isinstance(raw_domains, list):
+                self._authorized_domains = normalize_domain_patterns(
+                    [str(item) for item in raw_domains]
+                )
+        if "paused_tab_ids" in msg:
+            raw_paused = msg.get("paused_tab_ids")
+            if isinstance(raw_paused, list):
+                paused: set[int] = set()
+                for item in raw_paused:
+                    if isinstance(item, int):
+                        paused.add(item)
+                    elif isinstance(item, str) and item.isdigit():
+                        paused.add(int(item))
+                self._paused_tab_ids = frozenset(paused)
+
+    async def set_access_policy(
+        self,
+        *,
+        allow_all_eligible_tabs: bool | None = None,
+        authorized_domains: list[str] | None = None,
+        paused_tab_ids: list[int] | None = None,
+    ) -> ExtensionAccessPolicy:
+        if allow_all_eligible_tabs is not None:
+            self._allow_all_eligible_tabs = allow_all_eligible_tabs
+        if authorized_domains is not None:
+            self._authorized_domains = normalize_domain_patterns(authorized_domains)
+        if paused_tab_ids is not None:
+            self._paused_tab_ids = frozenset(paused_tab_ids)
+        await self._notify_extension_access_policy()
+        if self._connected:
+            await self._sync_relay_tabs()
+        return self._current_access_policy()
+
+    async def _notify_extension_access_policy(self) -> None:
+        if not self._connected or self._ws is None:
+            return
+        policy = self._current_access_policy()
+        try:
+            await self._ws.send_text(
+                json.dumps(
+                    {
+                        "type": "set_access_policy",
+                        "allow_all_eligible_tabs": policy.allow_all_eligible_tabs,
+                        "domains": list(policy.authorized_domains),
+                        "paused_tab_ids": sorted(policy.paused_tab_ids),
+                    }
+                )
+            )
+        except Exception as exc:
+            logger.warning("Failed to notify extension of access policy: %s", exc)
 
     def get_authorized_domains(self) -> list[str]:
         """Get the list of domains the user has authorized."""
@@ -644,19 +847,7 @@ class ExtensionBridgeService:
 
     async def set_authorized_domains(self, domains: list[str]) -> None:
         """Update authorized domains and notify extension."""
-        self._authorized_domains = domains
-        if self._connected and self._ws:
-            try:
-                await self._ws.send_text(
-                    json.dumps(
-                        {
-                            "type": "set_domains",
-                            "domains": domains,
-                        }
-                    )
-                )
-            except Exception as exc:
-                logger.warning("Failed to notify extension of domain change: %s", exc)
+        await self.set_access_policy(authorized_domains=domains)
 
     async def notify_clip_agent_config(
         self,

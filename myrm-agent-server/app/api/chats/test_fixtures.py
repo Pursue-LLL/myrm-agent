@@ -397,6 +397,17 @@ async def seed_kanban_in_review_fixture() -> dict[str, str]:
     board_name = f"Kanban IN_REVIEW E2E {marker}"
     task_title = f"IN_REVIEW task {marker}"
 
+    agents, _total = await AgentService.get_agent_list(1, 100)
+    if not agents:
+        raise HTTPException(
+            status_code=500, detail="No agents available for kanban in-review E2E seed"
+        )
+    agent = next(
+        (a for a in agents if a.id == "builtin-general"),
+        agents[0],
+    )
+    agent_id = agent.id
+
     kanban = KanbanService.get_instance()
     board = await kanban.create_board(
         board_name, description="Kanban IN_REVIEW Fleet KPI Chrome E2E"
@@ -406,6 +417,7 @@ async def seed_kanban_in_review_fixture() -> dict[str, str]:
         task_title,
         priority=TaskPriority.NORMAL,
         require_approval=True,
+        agent_id=agent_id,
     )
     moved = await kanban.store.transition_task_status(
         task.task_id, TaskStatus.READY, TaskStatus.IN_REVIEW
@@ -421,6 +433,7 @@ async def seed_kanban_in_review_fixture() -> dict[str, str]:
         "task_id": task.task_id,
         "task_title": task_title,
         "board_name": board_name,
+        "agent_id": agent_id,
     }
 
 

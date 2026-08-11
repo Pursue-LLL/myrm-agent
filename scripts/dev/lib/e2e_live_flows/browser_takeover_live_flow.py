@@ -40,7 +40,7 @@ from resume_turn_contract import (
     resolve_done_poll_fetch_timeout_sec,
     resolve_stream_converge_poll_timeout_sec,
 )
-from e2e_lease_heartbeat import heartbeat_e2e_lease
+from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
 from dev_gate_contract import EvaluateIntent
 from e2e_resource_ledger import E2EResourceLedger
 
