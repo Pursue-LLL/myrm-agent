@@ -1031,6 +1031,8 @@ def _compute_next_action(
         reason_list = (
             [str(item) for item in reasons] if isinstance(reasons, list) else []
         )
+        if "private_queue_headroom" in reason_list:
+            return "PRIVATE_QUEUE_HEADROOM_BUG"
         # A PRIVATE credit queue is session-layer state owned by the admitted
         # PRIVATE session. It must not alter cluster launch readiness.
         operation_queue = [
@@ -1295,6 +1297,12 @@ def _context_to_dict(
             else "unknown"
         )
         rules: list[str] = []
+        if "private_queue_headroom" in reason_str.split(","):
+            rules.append(
+                "PRIVATE_QUEUE_HEADROOM_BUG: usable PRIVATE credits exist while a "
+                "waiter remains queued; diagnose coordinator capacity sweep now; "
+                "do not wait, kill peers, or serialize."
+            )
         if "private_credit_queue" in reason_str.split(","):
             rules.append(
                 f"PRIVATE_SESSION_QUEUE reasons={reason_str}: retain the admitted "
