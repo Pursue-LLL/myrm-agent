@@ -95,3 +95,37 @@ def _aggregate_statuses(tasks: list[KanbanTaskModel]) -> tuple[int, int, int]:
     completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED.value)
     failed = sum(1 for t in tasks if t.status in (TaskStatus.FAILED.value, TaskStatus.ARCHIVED.value))
     return total, completed, failed
+
+
+async def _send_completion_notification(
+    project_id: str,
+    status: str,
+    total: int,
+    completed: int,
+    failed: int,
+) -> None:
+    async with get_session() as session:
+        model = await session.get(BatchDirectoryProjectModel, project_id)
+        project_name = model.name if model is not None else project_id
+
+    from app.services.infra.system_notification import SystemNotificationService
+
+    if status == "completed":
+        title = f"✅ Batch complete: {project_name}"
+        message = f"{completed}/{total} directories completed."
+    else:
+        title = f"⚠️ Batch finished with failures: {project_name}"
+        message = f"{completed} completed, {failed} failed of {total} directories."
+    await SystemNotificationService.create_notification(
+        title=title,
+        message=message,
+        type="info",
+        source="batch_directory",
+        meta_data={
+            "project_id": project_id,
+            "status": status,
+            "total": total,
+            "completed": completed,
+            "failed": failed,
+        },
+    )

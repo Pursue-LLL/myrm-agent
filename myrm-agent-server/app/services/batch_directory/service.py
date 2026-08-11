@@ -33,6 +33,7 @@ from app.services.batch_directory._helpers import (
     _now,
     _project_to_dict,
     _resolve_directory,
+    _send_completion_notification,
     fetch_project_task_models,
 )
 
@@ -361,41 +362,7 @@ class BatchDirectoryService:
                 await session.commit()
 
         if notify:
-            await self._send_completion_notification(project_id, final_status, total, completed, failed)
-
-    async def _send_completion_notification(
-        self,
-        project_id: str,
-        status: str,
-        total: int,
-        completed: int,
-        failed: int,
-    ) -> None:
-        async with get_session() as session:
-            model = await session.get(BatchDirectoryProjectModel, project_id)
-            project_name = model.name if model is not None else project_id
-
-        from app.services.infra.system_notification import SystemNotificationService
-
-        if status == "completed":
-            title = f"✅ Batch complete: {project_name}"
-            message = f"{completed}/{total} directories completed."
-        else:
-            title = f"⚠️ Batch finished with failures: {project_name}"
-            message = f"{completed} completed, {failed} failed of {total} directories."
-        await SystemNotificationService.create_notification(
-            title=title,
-            message=message,
-            type="info",
-            source="batch_directory",
-            meta_data={
-                "project_id": project_id,
-                "status": status,
-                "total": total,
-                "completed": completed,
-                "failed": failed,
-            },
-        )
+            await _send_completion_notification(project_id, final_status, total, completed, failed)
 
     # ------------------------------------------------------------------
     # Dispatcher event hook factory
