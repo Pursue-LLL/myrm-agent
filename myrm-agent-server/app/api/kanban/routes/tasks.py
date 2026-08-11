@@ -4,7 +4,7 @@
 app.api.kanban.http_common::router/get_kanban_service (POS: Kanban API 共享路由与 DTO 装配)
 app.services.kanban::KanbanService (POS: Kanban 业务编排)
 app.services.kanban.task_attachment_ids::save_task_attachment_ids (POS: 任务附件 ID 持久化)
-app.core.skills.store.service::skills_service (POS: 技能全集查询，用于 extra_skill_ids 存在性校验)
+app.api.kanban.routes.skill_ids::validate_extra_skill_ids (POS: 任务技能 id 存在性校验)
 
 [OUTPUT]
 Task-domain REST endpoints under /api/v1/kanban/tasks and /boards/{board_id}/tasks.
@@ -32,6 +32,7 @@ from app.api.kanban.http_common import (
     get_kanban_service,
     router,
 )
+from app.api.kanban.routes.skill_ids import validate_extra_skill_ids
 from app.api.kanban.schemas import (
     ApproveTaskRequest,
     AttachmentInfo,
@@ -49,7 +50,6 @@ from app.api.kanban.schemas import (
 )
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.model_resolver import validate_model_override
-from app.core.skills.store.service import skills_service
 from app.services.kanban import DependencyUnmetError
 from app.services.kanban.diagnostics import (
     CARD_FAST_RULES,
@@ -60,27 +60,6 @@ from app.services.kanban.task_attachment_ids import save_task_attachment_ids as 
 # ---------------------------------------------------------------------------
 # Task endpoints
 # ---------------------------------------------------------------------------
-
-
-async def _validate_extra_skill_ids(extra_skill_ids: list[str]) -> None:
-    """Reject task skill ids that do not exist in the discoverable skill set.
-
-    User-facing guard on the create/update path only; decompose and pipeline
-    instantiation call the service layer directly and bypass this check.
-    """
-    if not extra_skill_ids:
-        return
-    skills = await skills_service.list_skills(skill_type=None)
-    known_ids = {skill.id for skill in skills}
-    unknown_ids = sorted({sid for sid in extra_skill_ids if sid not in known_ids})
-    if unknown_ids:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Unknown skill id(s): {', '.join(unknown_ids)}. "
-                f"Available skills: {', '.join(sorted(known_ids)) or '(none)'}."
-            ),
-        )
 
 
 @router.get("/boards/{board_id}/tasks", response_model=TaskListResponse)
@@ -203,7 +182,7 @@ async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
         model_override = body.model_override
 
     if body.extra_skill_ids:
-        await _validate_extra_skill_ids(body.extra_skill_ids)
+        await validate_extra_skill_ids(body.extra_skill_ids)
 
     try:
         task = await svc.add_task(
@@ -280,7 +259,7 @@ async def update_task(task_id: str, body: TaskUpdate) -> TaskResponse:
             kwargs["model_override"] = value or None
         if "extra_skill_ids" in body.model_fields_set:
             if body.extra_skill_ids:
-                await _validate_extra_skill_ids(body.extra_skill_ids)
+                await validate_extra_skill_ids(body.extra_skill_ids)
             kwargs["extra_skill_ids"] = body.extra_skill_ids
         if "max_runtime_seconds" in body.model_fields_set:
             kwargs["max_runtime_seconds"] = body.max_runtime_seconds

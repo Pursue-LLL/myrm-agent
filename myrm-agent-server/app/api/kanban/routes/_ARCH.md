@@ -17,6 +17,7 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 | `__init__.py` | 入口 | 触发子模块路由注册 | — |
 | `boards.py` | 路由 | Board CRUD、summary、board 级 events | ✅ |
 | `tasks.py` | 路由 | Task CRUD、move、promote、reclaim、approve/reject | ✅ |
+| `skill_ids.py` | 辅助 | `validate_extra_skill_ids`：任务技能 id 存在性校验（非法 400） | ✅ |
 | `bulk.py` | 路由 | `bulk-action`：move/archive/reassign/reclaim/delete | ✅ |
 | `task_meta.py` | 路由 | runs、events、comments、diagnostics、依赖边 | ✅ |
 | `specify.py` | 路由 | specify/apply-spec/specify-all、decompose/apply-decompose | ✅ |
