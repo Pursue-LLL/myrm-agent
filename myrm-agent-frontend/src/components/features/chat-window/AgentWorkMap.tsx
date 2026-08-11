@@ -272,9 +272,10 @@ export const AgentWorkMap = ({ chatId: chatIdProp, onNodeClick }: AgentWorkMapPr
     setEdges(layout.edges);
     // Follow the latest topology: after dagre relayout, newly added branches may
     // sit outside the current viewport, so refit the canvas to the whole graph.
-    requestAnimationFrame(() => {
+    const raf = requestAnimationFrame(() => {
       rfRef.current?.fitView({ padding: 0.25, duration: 300, maxZoom: 1.2 });
     });
+    return () => cancelAnimationFrame(raf);
   }, [nodeIdKey, setNodes, setEdges]);
 
   // Data pass: progress/status/meta updates refresh node data and edge animation
