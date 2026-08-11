@@ -189,7 +189,6 @@ myrm_agent_harness.backends.skills.creation_protocols
 myrm_agent_harness.backends.skills.credential_checker
 myrm_agent_harness.backends.skills.decorators.version_aware
 myrm_agent_harness.backends.skills.forgetting_strategy
-myrm_agent_harness.backends.skills.instance_templates
 myrm_agent_harness.backends.skills.local
 myrm_agent_harness.backends.skills.local_skill_id
 myrm_agent_harness.backends.skills.market_protocols
