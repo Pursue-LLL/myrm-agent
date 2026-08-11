@@ -282,3 +282,55 @@ export async function deleteOrgMcpServer(
   if (!res.ok) throw new Error(`Delete org MCP server failed: ${res.status}`);
   return res.json();
 }
+
+export interface OrgOidcConfig {
+  org_id: string;
+  issuer_url: string;
+  client_id: string;
+  client_secret_masked: string;
+  auto_provision: boolean;
+  allowed_groups: string[];
+  enabled: boolean;
+  updated_at: number;
+}
+
+export interface UpsertOrgOidcConfigInput {
+  issuer_url: string;
+  client_id: string;
+  client_secret?: string;
+  auto_provision?: boolean;
+  allowed_groups?: string[];
+  enabled?: boolean;
+}
+
+function ssoUrl(orgId: string): string {
+  return cpUrl(`/${orgId}/sso`);
+}
+
+export async function getOrgSsoConfig(orgId: string): Promise<OrgOidcConfig | null> {
+  const res = await fetch(ssoUrl(orgId));
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Get org SSO config failed: ${res.status}`);
+  return res.json();
+}
+
+export async function upsertOrgSsoConfig(
+  orgId: string,
+  input: UpsertOrgOidcConfigInput,
+): Promise<OrgOidcConfig> {
+  const res = await fetch(ssoUrl(orgId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || `Upsert org SSO config failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function deleteOrgSsoConfig(orgId: string): Promise<void> {
+  const res = await fetch(ssoUrl(orgId), { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Delete org SSO config failed: ${res.status}`);
+}
