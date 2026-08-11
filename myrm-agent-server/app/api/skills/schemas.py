@@ -173,6 +173,7 @@ class PackagePreviewResponse(BaseModel):
     is_safe: bool
     error: str | None = None
     redactions: dict[str, list[RedactionResponse]] | None = None
+    eval_cases_count: int = 0
 
 
 class UploadSkillResponse(BaseModel):
@@ -180,6 +181,7 @@ class UploadSkillResponse(BaseModel):
     skill_id: str | None
     skill_name: str | None
     error: str | None
+    restored_eval_cases: int = 0
 
 
 class ScanFindingResponse(BaseModel):

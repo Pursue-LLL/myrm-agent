@@ -187,6 +187,7 @@ async def test_force_push_still_applies_config_updates(
             "subagent_ids": [],
             "enabled_builtin_tools": ["web_search"],
             "home_directory": "/home/sandbox",
+            "allow_discovery": False,
         },
     )
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -214,6 +215,7 @@ async def test_force_push_still_applies_config_updates(
     metadata = updated.get("metadata")
     assert isinstance(metadata, dict)
     assert metadata["home_directory"] == "/home/sandbox"
+    assert metadata["allow_discovery"] is False
     assert "workspace_policy" not in metadata
 
 

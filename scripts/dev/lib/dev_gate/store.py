@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 from dev_gate_session import (
+    TERMINAL_STATES,
     AccessScope,
     CleanupReceipt,
     CleanupUnsealedError,
@@ -17,13 +18,11 @@ from dev_gate_session import (
     SessionPolicy,
     SessionRecord,
     SessionState,
-    TERMINAL_STATES,
     TerminalConflictError,
     Workload,
     assert_transition,
     initial_state,
 )
-
 from real_user_home import real_user_home
 
 

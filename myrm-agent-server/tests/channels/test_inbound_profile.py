@@ -95,6 +95,52 @@ def test_matrix_configured_is_outbound() -> None:
     assert resolve_channel_ingress_mode("matrix", {"homeserverUrl": "https://m.example.com"}) == "outbound"
 
 
+def test_unknown_channel_returns_none() -> None:
+    assert resolve_channel_ingress_mode("unknown_channel", {"anything": "x"}) is None
+
+
+def test_feishu_default_transport_is_outbound() -> None:
+    # When transport is absent the default is the outbound websocket connection.
+    assert resolve_channel_ingress_mode("feishu", {"appId": "id"}) == "outbound"
+
+
+def test_telegram_webhook_is_inbound() -> None:
+    mode = resolve_channel_ingress_mode("telegram", {"botToken": "bt", "webhookUrl": "https://t.example.com/hook"})
+    assert mode == "inbound"
+
+
+def test_telegram_polling_is_outbound() -> None:
+    assert resolve_channel_ingress_mode("telegram", {"botToken": "bt"}) == "outbound"
+
+
+def test_slack_app_token_is_outbound() -> None:
+    mode = resolve_channel_ingress_mode("slack", {"botToken": "xoxb", "appToken": "xapp"})
+    assert mode == "outbound"
+
+
+def test_slack_socket_mode_is_inbound() -> None:
+    assert resolve_channel_ingress_mode("slack", {"botToken": "xoxb"}) == "inbound"
+
+
+def test_discord_gateway_is_outbound() -> None:
+    mode = resolve_channel_ingress_mode("discord", {"botToken": "bt", "enableGateway": True})
+    assert mode == "outbound"
+
+
+def test_discord_webhook_is_inbound() -> None:
+    mode = resolve_channel_ingress_mode("discord", {"botToken": "bt", "enableGateway": False})
+    assert mode == "inbound"
+
+
+def test_field_value_snake_case_fallback() -> None:
+    # configured_field uses camelCase, but historical stores may expose snake_case
+    # keys; _field_value must normalize both so configured channels are never
+    # silently skipped during Ingress assessment.
+    assert resolve_channel_ingress_mode("zalo", {"access_token": "za-123"}) == "inbound"
+    assert resolve_channel_ingress_mode("matrix", {"homeserver_url": "https://m.example.com"}) == "outbound"
+    assert resolve_channel_ingress_mode("telegram", {"bot_token": "bt", "webhook_url": "https://t.example.com/hook"}) == "inbound"
+
+
 @pytest.mark.parametrize(
     ("channel", "configured_field"),
     _CONFIGURED_FIELD_PARAMS,
@@ -115,7 +161,9 @@ def test_configured_field_matches_channel_credential_spec(channel: str, configur
     # Any drift between the two silently skips configured channels during Ingress
     # assessment, so this assertion must fail CI the moment they diverge.
     cls = get_channel_class(channel)
-    db_keys = {field.db_key for _, field in cls.credential_spec.fields}
+    credential_spec = cls.credential_spec
+    assert credential_spec is not None
+    db_keys = {field.db_key for _, field in credential_spec.fields}
     assert configured_field in db_keys
 
 

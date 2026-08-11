@@ -130,6 +130,91 @@ class TestResolveRoster:
         assert result[0].description == "No description"
 
 
+class TestResolveRosterDynamicDiscovery:
+    def _profile(self, agent_id: str, *, description: str, metadata: dict | None):
+        return MagicMock(
+            id=agent_id,
+            display_name=f"Agent-{agent_id}",
+            description=description,
+            metadata=metadata,
+        )
+
+    @pytest.mark.asyncio
+    async def test_filters_allow_discovery_false(self):
+        """Agents with allow_discovery=False must be excluded from the dynamic roster."""
+        profiles = [
+            self._profile("visible", description="Has a description", metadata={"allow_discovery": True}),
+            self._profile("hidden", description="Private agent", metadata={"allow_discovery": False}),
+        ]
+
+        async def mock_list(page: int, page_size: int):
+            return profiles, len(profiles)
+
+        with patch(
+            "app.services.agent.agent_service.AgentService.get_agent_list",
+            new_callable=AsyncMock,
+            side_effect=mock_list,
+        ):
+            result = await _resolve_roster([], dynamic_discovery=True)
+
+        ids = [entry.agent_id for entry in result]
+        assert ids == ["visible"]
+
+    @pytest.mark.asyncio
+    async def test_defaults_to_true_when_metadata_missing(self):
+        """Agents without an allow_discovery key remain discoverable (legacy behavior)."""
+        profiles = [
+            self._profile("no-meta", description="Described", metadata=None),
+        ]
+
+        async def mock_list(page: int, page_size: int):
+            return profiles, len(profiles)
+
+        with patch(
+            "app.services.agent.agent_service.AgentService.get_agent_list",
+            new_callable=AsyncMock,
+            side_effect=mock_list,
+        ):
+            result = await _resolve_roster([], dynamic_discovery=True)
+
+        ids = [entry.agent_id for entry in result]
+        assert ids == ["no-meta"]
+
+    @pytest.mark.asyncio
+    async def test_excludes_leader_and_descriptionless(self):
+        """Leader itself and agents without a description must be skipped."""
+        profiles = [
+            self._profile("leader", description="I am the leader", metadata={"allow_discovery": True}),
+            self._profile("no-desc", description="", metadata={"allow_discovery": True}),
+            self._profile("member", description="A member", metadata={"allow_discovery": True}),
+        ]
+
+        async def mock_list(page: int, page_size: int):
+            return profiles, len(profiles)
+
+        with patch(
+            "app.services.agent.agent_service.AgentService.get_agent_list",
+            new_callable=AsyncMock,
+            side_effect=mock_list,
+        ):
+            result = await _resolve_roster([], leader_id="leader", dynamic_discovery=True)
+
+        ids = [entry.agent_id for entry in result]
+        assert ids == ["member"]
+
+    @pytest.mark.asyncio
+    async def test_dynamic_discovery_off_adds_nothing(self):
+        """Without dynamic_discovery no agents are scanned."""
+        with patch(
+            "app.services.agent.agent_service.AgentService.get_agent_list",
+            new_callable=AsyncMock,
+        ) as mock_list:
+            result = await _resolve_roster([], dynamic_discovery=False)
+
+        assert result == []
+        mock_list.assert_not_called()
+
+
 class TestBuildLeaderProtocolPrompt:
     @pytest.mark.asyncio
     async def test_contains_protocol_tags(self):

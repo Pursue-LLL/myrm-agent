@@ -26,6 +26,10 @@ if str(_LIB) not in sys.path:
 
 from dev_gate_contract import MAX_PAGE_TIMEOUT_MS  # noqa: E402
 
+from tests.e2e.test_subagent_dashboard_chrome_e2e import (
+    _open_subagent_dashboard,
+    _read_prepare_result,
+)
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -34,11 +38,6 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
 )
 from tests.support.e2e_runtime_guard import E2EResourceLedger
-
-from tests.e2e.test_subagent_dashboard_chrome_e2e import (
-    _open_subagent_dashboard,
-    _read_prepare_result,
-)
 
 _AGENT_ROOT = Path(__file__).resolve().parents[3]
 _PREPARE_LIGHT = _AGENT_ROOT / "scripts/dev/subagent-dashboard-e2e-chat.mjs"
@@ -527,12 +526,12 @@ def test_subagent_dashboard_tree_expand_collapse_children(
         expanded = wait_for_state(
             client,
             page,
-            f"""(() => {{
+            """(() => {
               const ids = Array.from(document.querySelectorAll('[data-subagent-tree-id]'))
                 .map((el) => el.getAttribute('data-subagent-tree-id'));
               const parent = document.querySelector('[data-subagent-tree-id="parent-1"]');
-              return {{ ready: ids.length === 3 && !!parent, ids }};
-            }})()""",
+              return { ready: ids.length === 3 && !!parent, ids };
+            })()""",
             timeout_sec=30.0,
         )
         assert expanded.get("ready") is True, f"Children not expanded by default: {expanded}"
