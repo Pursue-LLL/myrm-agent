@@ -7837,6 +7837,7 @@
       "actionHover": "Schweben",
       "actionDrag": "Ziehen",
       "stepScreenshotAlt": "Schritt {seq} Screenshot",
+      "manualModeHint": "Keine aktive Browsersitzung erkannt – Schritte werden nicht automatisch erfasst. Öffnen Sie zuerst einen Browser-Tab, stoppen Sie dann die Aufzeichnung und starten Sie sie neu.",
       "showPreview": "Vorschau anzeigen",
       "hidePreview": "Vorschau ausblenden"
     },

@@ -7923,6 +7923,7 @@
       "actionHover": "Hover",
       "actionDrag": "Drag",
       "stepScreenshotAlt": "Step {seq} screenshot",
+      "manualModeHint": "No active browser session detected — steps won't be captured automatically. Open a browser tab first, then stop and start recording again.",
       "showPreview": "Show Preview",
       "hidePreview": "Hide Preview"
     },

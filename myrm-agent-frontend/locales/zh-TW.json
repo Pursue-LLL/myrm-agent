@@ -7813,6 +7813,7 @@
       "actionHover": "懸停",
       "actionDrag": "拖曳",
       "stepScreenshotAlt": "步驟 {seq} 截圖",
+      "manualModeHint": "未偵測到活動的瀏覽器會話，步驟將無法自動擷取。請先開啟瀏覽器分頁，然後停止並重新開始錄製。",
       "showPreview": "顯示預覽",
       "hidePreview": "隱藏預覽"
     },

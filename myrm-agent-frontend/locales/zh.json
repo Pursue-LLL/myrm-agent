@@ -7922,6 +7922,7 @@
       "actionHover": "悬停",
       "actionDrag": "拖拽",
       "stepScreenshotAlt": "步骤 {seq} 截图",
+      "manualModeHint": "未检测到活动的浏览器会话，步骤将无法自动捕获。请先打开浏览器标签页，然后停止并重新开始录制。",
       "showPreview": "显示预览",
       "hidePreview": "隐藏预览"
     },
