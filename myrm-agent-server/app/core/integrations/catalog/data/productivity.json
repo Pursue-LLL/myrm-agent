@@ -281,7 +281,7 @@
         "-y",
         "microsoft-todo-mcp"
       ],
-      "description": "Microsoft To Do - lists, tasks, checklist items via Microsoft Graph",
+      "description": "Microsoft To Do - lists, tasks, checklist items",
       "post_connect_guide": "Microsoft To Do has been added. In the chat, tell the assistant: \"Sign me in to Microsoft To Do\", then open the returned link and enter the code in your browser to finish authorization.",
       "post_connect_guide_zh": "Microsoft To Do 已添加。请在对话中告诉助手：「帮我登录 Microsoft To Do」，然后打开返回的链接，在浏览器中输入授权码完成登录。"
     },

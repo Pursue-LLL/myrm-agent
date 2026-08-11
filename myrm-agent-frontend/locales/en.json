@@ -7909,6 +7909,7 @@
       "openSkillLibrary": "Open Skill Library",
       "skillNameInvalid": "Skill name must start with a letter and contain only letters, numbers, dashes, or underscores.",
       "skillNameInvalid": "Skill name must start with a letter and contain only letters, numbers, dashes, or underscores.",
+      "skillNameInvalid": "Skill name must start with a letter and contain only letters, numbers, dashes, or underscores.",
       "actionClick": "Click",
       "actionDblclick": "Double Click",
       "actionType": "Type",

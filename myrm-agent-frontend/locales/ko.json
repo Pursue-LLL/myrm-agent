@@ -7821,6 +7821,7 @@
       "credentialGuide": "이 자격 증명은 이 스킬이 실행될 때 자동으로 입력됩니다. 아직 생성하지 않았다면 설정 → 통합 → 자격 증명에서 생성하세요.",
       "goToCredentials": "자격 증명 관리",
       "openSkillLibrary": "스킬 라이브러리 열기",
+      "skillNameInvalid": "스킬 이름은 영문자로 시작하고 문자, 숫자, 하이픈, 밑줄만 사용할 수 있습니다.",
       "actionClick": "클릭",
       "actionDblclick": "더블 클릭",
       "actionType": "입력",

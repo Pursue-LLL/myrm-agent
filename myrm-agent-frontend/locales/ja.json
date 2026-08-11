@@ -7770,6 +7770,7 @@
       "credentialGuide": "このスキルの実行時にこれらの資格情報が自動入力されます。未作成の場合は「設定 → 統合 → 資格情報」で作成してください。",
       "goToCredentials": "資格情報を管理",
       "openSkillLibrary": "スキルライブラリを開く",
+      "skillNameInvalid": "スキル名は英字で始まり、英字・数字・ハイフン・アンダースコアのみ使用できます。",
       "actionClick": "クリック",
       "actionDblclick": "ダブルクリック",
       "actionType": "入力",

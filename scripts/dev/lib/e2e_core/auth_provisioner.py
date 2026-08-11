@@ -345,6 +345,19 @@ def reseal_auth_template_for_current_runtime(
         return status
     template = _load_template()
     cookies = _resolve_template_cookies(template) if template is not None else None
+    has_cookie_ref = bool(
+        template is not None
+        and isinstance(template.get("cookiesRef"), str)
+        and template["cookiesRef"].strip()
+    )
+    has_inline_cookies = bool(
+        template is not None and isinstance(template.get("cookies"), list)
+    )
+    # A Keychain read can fail transiently (locked session, permission prompt,
+    # or securityd restart).  Never turn that into a READY template without
+    # cookies: preserve the old record and let the caller retry/fail closed.
+    if has_cookie_ref and not cookies and not has_inline_cookies:
+        return status
     test_account = (
         str(template.get("testAccount", "")).strip() if template is not None else ""
     )
@@ -378,6 +391,13 @@ def prepare_auth_template_for_attach(
     """
     workspace = workspace_fingerprint.strip() or _resolve_workspace_fingerprint()
     status = auth_template_status(workspace_fingerprint=workspace)
+    if status["next_action"] == "AUTH_SETUP_WAIT":
+        deadline = time.monotonic() + max(0.1, lock_wait_sec)
+        while time.monotonic() < deadline:
+            time.sleep(min(0.2, max(0.0, deadline - time.monotonic())))
+            status = auth_template_status(workspace_fingerprint=workspace)
+            if status["next_action"] != "AUTH_SETUP_WAIT":
+                break
     if status["next_action"] != "AUTH_HYDRATE_REQUIRED":
         return status
     try:

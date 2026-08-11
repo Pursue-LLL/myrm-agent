@@ -7906,6 +7906,7 @@
       "credentialGuide": "执行此技能时会自动填充这些凭据。如尚未创建，请前往「设置 → 集成 → 凭据」创建。",
       "goToCredentials": "前往凭据设置",
       "openSkillLibrary": "打开技能库",
+      "skillNameInvalid": "技能名必须以字母开头，且仅包含字母、数字、短横线或下划线。",
       "skillNameInvalid": "技能名必须以字母开头，且只能包含字母、数字、短横线或下划线。",
       "skillNameInvalid": "技能名必须以字母开头，且只能包含字母、数字、短横线或下划线。",
       "actionClick": "点击",

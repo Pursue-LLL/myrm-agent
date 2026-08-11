@@ -8,7 +8,7 @@ Integration Catalog 的静态预配置数据。按服务分类组织，每个 JS
 
 | 文件 | 分类 | 条目数 | 内容 |
 |------|------|--------|------|
-| `productivity.json` | productivity | 8 | Notion, Todoist, Microsoft To Do, Linear, Tencent Docs, WPS, HubSpot, Salesforce |
+| `productivity.json` | productivity | 8 | Notion, Todoist, Linear, Tencent Docs, WPS, HubSpot, Salesforce, Microsoft To Do |
 | `development.json` | development | 7 | GitHub, GitLab, Sentry, Code Review Graph, CodeGraph, Gitee, Gitee Enterprise |
 | `communication.json` | communication | 4 | Slack, 飞书, 钉钉, QQ Mail |
 | `data_storage.json` | data_storage | 3 | PostgreSQL, File System, Supabase |

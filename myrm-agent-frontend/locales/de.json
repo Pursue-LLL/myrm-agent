@@ -7821,6 +7821,7 @@
       "credentialGuide": "Diese Anmeldeinformationen werden bei der Ausführung dieses Skills automatisch ausgefüllt. Erstellen Sie sie unter Einstellungen → Integrationen → Anmeldeinformationen, falls noch nicht geschehen.",
       "goToCredentials": "Anmeldeinformationen verwalten",
       "openSkillLibrary": "Skill-Bibliothek öffnen",
+      "skillNameInvalid": "Der Skill-Name muss mit einem Buchstaben beginnen und darf nur Buchstaben, Zahlen, Bindestriche oder Unterstriche enthalten.",
       "actionClick": "Klicken",
       "actionDblclick": "Doppelklick",
       "actionType": "Eingeben",

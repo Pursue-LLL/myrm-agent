@@ -1,7 +1,7 @@
 """Channel inbound transport profiles for Ingress requirement resolution.
 
 [INPUT]
-- app.channels.providers.registry::CHANNEL_META (POS: Central registry for all channel providers)
+- (none)
 
 [OUTPUT]
 - InboundMode: outbound | inbound | conditional classification
