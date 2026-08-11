@@ -76,6 +76,12 @@ def test_agent_stream_external_cli_off_excludes_delegate_tool(client: TestClient
 
 
 @pytest.mark.integration
+@patch(
+    "app.ai_agents.general_agent.external_agents._resolve_external_agent_cfgs",
+    new=AsyncMock(
+        return_value=[{"name": "echo-cli", "type": "cli", "command": "echo", "args": []}]
+    ),
+)
 def test_agent_stream_external_cli_on_mounts_delegate_when_backends_exist(
     client: TestClient,
 ) -> None:

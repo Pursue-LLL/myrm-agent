@@ -808,9 +808,13 @@ def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel() -> None:
             page,
             """(() => {
               const status = window.__MYRM_E2E_CHAT__?.ephSubagentsStatus?.();
-              return status ?? { hasConfig: null, ephKeys: null, applied: null };
+              return status ?? { hasConfig: null, ephKeys: null, applied: null, sendOpts: null };
             })()""",
             timeout_sec=10.0,
+        )
+        send_opts = eph_status.get("sendOpts") if isinstance(eph_status, dict) else None
+        assert isinstance(send_opts, dict) and send_opts.get("hasEph") is True, (
+            f"sendChatMessage did not receive ephemeralSubagents: opts={send_opts!r}"
         )
 
         task_id: str | None = None
@@ -834,7 +838,8 @@ def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel() -> None:
             time.sleep(2.0)
         assert task_id, (
             f"No running subagent after front-end send: {last_payload!r} "
-            f"sent={sent!r} eph_status={eph_status!r} sent_eph_keys={(sent.get('debug') or {}).get('ephKeys')!r}"
+            f"sent={sent!r} eph_status={eph_status!r} "
+            f"sent_eph_keys={(sent.get('debug') or {}).get('ephKeys')!r}"
         )
 
         ui_url = f"{ui_base}/{chat_id}"

@@ -22,6 +22,19 @@ interface Window {
     error?: string;
     source?: string;
   };
+  /** E2E ephemeral subagent application diagnostic (set right before message POST). */
+  __MYRM_E2E_EPH_APPLIED__?: {
+    keys: string[];
+    at: number;
+    forced?: boolean;
+  };
+  /** E2E ephemeral subagent raw opts as received by sendChatMessage (for post-mortem). */
+  __MYRM_E2E_EPH_OPTS__?: {
+    hasOpts: boolean;
+    hasEph: boolean;
+    keys: string[];
+    at: number;
+  };
   /** Page-local private runtime identity parsed from window.name before hydration. */
   __MYRM_E2E_RUNTIME__?: Readonly<{
     version: 1;
@@ -63,6 +76,7 @@ interface Window {
         baselineUserCount?: number;
         waitForStreamCompletion?: boolean;
         preserveActionMode?: boolean;
+        ephemeralSubagents?: Record<string, unknown>;
       },
     ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
     kickoffChatMessage?: (
@@ -85,6 +99,17 @@ interface Window {
     ensureProviders?: () => Promise<void>;
     prepareAutomationSend?: () => void;
     ensureChatSession?: (opts?: { preserveActionMode?: boolean }) => Promise<void>;
+    ephSubagentsStatus?: () => {
+      hasConfig: boolean;
+      ephKeys: string[];
+      applied: { keys: string[]; at: number; forced?: boolean } | null;
+      sendOpts: {
+        hasOpts: boolean;
+        hasEph: boolean;
+        keys: string[];
+        at: number;
+      } | null;
+    };
     attachToChat?: (chatId: string) => Promise<void>;
     recoverHitlStream?: (
       chatId: string,

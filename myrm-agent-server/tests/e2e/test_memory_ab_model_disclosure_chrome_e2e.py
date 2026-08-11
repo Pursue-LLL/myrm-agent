@@ -78,15 +78,11 @@ _SOURCES_TAB_JS = """(() => {
 })()"""
 
 _OFFICE_CARD_JS = """(() => {
-  const cards = Array.from(document.querySelectorAll('[data-slot="card"], [class*="card"]'));
-  const card = cards.find(c => /WBBench Office/i.test(c.textContent || ''));
-  if (!card) return {
-    ready: false,
-    found: false,
-    reason: 'no_card',
-    cardCount: cards.length,
-    cardTexts: cards.slice(0, 6).map(c => (c.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 110)),
-  };
+  const cards = Array.from(document.querySelectorAll('[class*="card"]'))
+    .filter(c => /WBBench Office/i.test(c.textContent || ''))
+    .sort((a, b) => (a.textContent || '').length - (b.textContent || '').length);
+  const card = cards[0];
+  if (!card) return { ready: false, found: false, reason: 'no_card' };
   const limit = card.querySelector('input[type="number"]');
   const memBtn = Array.from(card.querySelectorAll('button'))
     .find(b => /Memory A\\/B|记忆 A\\/B/i.test(b.textContent || ''));
@@ -100,8 +96,10 @@ _OFFICE_CARD_JS = """(() => {
 })()"""
 
 _CLICK_MEMORY_AB_ATOMIC_JS = """(async () => {
-  const cards = Array.from(document.querySelectorAll('[data-slot="card"], [class*="card"]'));
-  const card = cards.find(c => /WBBench Office/i.test(c.textContent || ''));
+  const cards = Array.from(document.querySelectorAll('[class*="card"]'))
+    .filter(c => /WBBench Office/i.test(c.textContent || ''))
+    .sort((a, b) => (a.textContent || '').length - (b.textContent || '').length);
+  const card = cards[0];
   if (!card) return { ready: false, reason: 'no_card' };
 
   const limit = card.querySelector('input[type="number"]');
@@ -114,9 +112,17 @@ _CLICK_MEMORY_AB_ATOMIC_JS = """(async () => {
   const memBtn = Array.from(card.querySelectorAll('button'))
     .find(b => /Memory A\\/B|记忆 A\\/B/i.test(b.textContent || ''));
   if (!memBtn) return { ready: false, reason: 'no_memory_button' };
-  const disabled = memBtn.disabled || memBtn.getAttribute('aria-disabled') === 'true';
-  if (!disabled) memBtn.click();
 
+  const propKey = Object.keys(memBtn).find(k => k.startsWith('__reactProps$'));
+  const props = propKey ? memBtn[propKey] : null;
+  const onClickType = props ? typeof props.onClick : 'no-props';
+  let invokedPropsOnClick = false;
+  if (props && typeof props.onClick === 'function') {
+    props.onClick();
+    invokedPropsOnClick = true;
+  } else {
+    memBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  }
   await new Promise(resolve => setTimeout(resolve, 1500));
 
   const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'));
@@ -124,12 +130,12 @@ _CLICK_MEMORY_AB_ATOMIC_JS = """(async () => {
     .find(t => t.getAttribute('data-state') === 'active');
   return {
     ready: dialogs.length > 0,
-    clicked: !disabled,
-    disabled,
+    invokedPropsOnClick,
+    onClickType,
+    btnOuter: memBtn.outerHTML.slice(0, 200),
     dialogCount: dialogs.length,
     dialogTexts: dialogs.map(d => (d.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 150)),
-    activeTab: (activeTab && activeTab.textContent || '').trim(),
-    bodyHasStart: /开始记忆|Start Memory/i.test(document.body.innerText || ''),
+    activeTab: ((activeTab && activeTab.textContent) || '').trim(),
   };
 })()"""
 

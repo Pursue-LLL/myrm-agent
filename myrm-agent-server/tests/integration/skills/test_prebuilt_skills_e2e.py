@@ -392,3 +392,26 @@ async def test_accept_upstream_endpoint_succeeds_with_pending(
 
     new_meta = json.loads(await storage.read_text(meta_path))
     assert new_meta["has_upstream_update"] is False
+
+
+@pytest.mark.asyncio
+async def test_evidence_discipline_synced_and_economy_bound(
+    skills_service: SkillsService,
+) -> None:
+    """evidence-discipline seed syncs and builtin-economy default binding resolves.
+
+    Full pipeline with no mocks on storage or sync: seed sync → metadata
+    discovery → get_skills_by_ids for the builtin-economy default binding.
+    """
+    economy_spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-economy")
+    assert "evidence-discipline" in economy_spec.default_skill_ids
+
+    sync_result = await prebuilt_sync.sync_prebuilt_seeds(skills_service.storage)
+    assert "evidence-discipline" in sync_result.skill_ids
+
+    resolved = await skills_service.get_skills_by_ids(["evidence-discipline"])
+    assert {s.id for s in resolved} == {"evidence-discipline"}
+    skill = resolved[0]
+    assert skill.description
+    assert skill.storage_path
+    assert skill.type == SkillType.PREBUILT

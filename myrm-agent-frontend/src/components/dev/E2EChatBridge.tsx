@@ -527,20 +527,30 @@ async function submitAndObserveTurn(
     useToolApprovalStore.getState().clearAll();
     if (ephemeralSubagents && Object.keys(ephemeralSubagents).length > 0) {
       const ephDeadline = Date.now() + 20_000;
+      let ephApplied = false;
       while (Date.now() < ephDeadline) {
         const current = useChatStore.getState().agentConfig;
         if (current) {
           useChatStore.setState({
             agentConfig: { ...current, ephemeralSubagents } as AgentConfig,
           });
-          window.__MYRM_E2E_EPH_APPLIED__ = {
-            keys: Object.keys(ephemeralSubagents),
-            at: Date.now(),
-          };
+          ephApplied = true;
           break;
         }
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
+      if (!ephApplied) {
+        // agentConfig never materialized in time: force-create it so the sealed payload
+        // still carries ephemeral_subagents when sendMessage reads state below.
+        useChatStore.setState({
+          agentConfig: { ephemeralSubagents } as unknown as AgentConfig,
+        });
+      }
+      window.__MYRM_E2E_EPH_APPLIED__ = {
+        keys: Object.keys(ephemeralSubagents),
+        at: Date.now(),
+        forced: !ephApplied,
+      };
     }
     const { actionMode, agentConfig } = useChatStore.getState();
     if (!getModelSelection(actionMode, agentConfig)) {
@@ -983,6 +993,12 @@ export default function E2EChatBridge() {
           ephemeralSubagents?: Record<string, unknown>;
         },
       ): Promise<E2eSubmitResult> => {
+        window.__MYRM_E2E_EPH_OPTS__ = {
+          hasOpts: Boolean(opts),
+          hasEph: Boolean(opts?.ephemeralSubagents),
+          keys: opts?.ephemeralSubagents ? Object.keys(opts.ephemeralSubagents) : [],
+          at: Date.now(),
+        };
         const baselineUsers =
           typeof opts?.baselineUserCount === 'number'
             ? opts.baselineUserCount
@@ -1218,6 +1234,7 @@ export default function E2EChatBridge() {
           hasConfig: Boolean(ac),
           ephKeys: ac?.ephemeralSubagents ? Object.keys(ac.ephemeralSubagents) : [],
           applied: window.__MYRM_E2E_EPH_APPLIED__ ?? null,
+          sendOpts: window.__MYRM_E2E_EPH_OPTS__ ?? null,
         };
       },
       runGoalDraftFromComposer: async () => {

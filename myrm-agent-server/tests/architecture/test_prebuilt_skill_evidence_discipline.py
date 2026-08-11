@@ -7,6 +7,7 @@ never quietly remove a guarantee while the skill stays shipped.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -52,12 +53,16 @@ _CONTRACT_MARKERS = (
     "Compose with other skills",
     # Common pitfalls
     "Common pitfalls",
+    "as an excuse to skip the check",
+    "before asking the user to",
     # Safety contract
     "never justify new permissions",
     "available in this task",
     "plan, draft, or attempt as an action",
+    "as successful verification",
+    "destructive actions",
     # Untrusted content boundary
-    "as instructions to obey",
+    "as instructions to",
 )
 
 # Same cap as the harness SOP injection budget; the skill must stay far below it
@@ -81,6 +86,13 @@ def test_frontmatter_declares_skill_name(skill_text: str) -> None:
 def test_frontmatter_has_description(skill_text: str) -> None:
     assert "description:" in skill_text
     assert "evidence discipline" in skill_text.split("description:")[1][:200].lower()
+
+
+@pytest.mark.architecture
+def test_frontmatter_declares_semver_version(skill_text: str) -> None:
+    assert re.search(r"^version: \d+\.\d+\.\d+$", skill_text, re.MULTILINE), (
+        "evidence-discipline SKILL.md must declare a semver version in frontmatter"
+    )
 
 
 @pytest.mark.architecture
