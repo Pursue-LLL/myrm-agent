@@ -152,6 +152,20 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
 
         setup_monitoring(app_instance)
 
+    # Orphan eval workspace sweep: eval runs are in-process background tasks,
+    # so any leftover session workspace at boot is guaranteed stale. Cleared
+    # synchronously before the HTTP server accepts eval requests.
+    try:
+        from app.core.eval.executor import cleanup_orphan_eval_workspaces
+
+        removed = await asyncio.to_thread(cleanup_orphan_eval_workspaces)
+        if removed:
+            logger.info(
+                "[Startup] Removed %d orphan eval workspace(s)", removed
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[Startup] Orphan eval workspace sweep skipped: %s", exc)
+
     # === Phase 2: Essential services ===
     async with timer.phase("core"):
         from app.services.background.daemon import maintenance_daemon

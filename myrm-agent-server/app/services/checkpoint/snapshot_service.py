@@ -60,11 +60,13 @@ class SnapshotInterceptor(ExecutionInterceptor):
         if not session_id:
             return
 
-        from app.ai_agents.general_agent.context import get_current_agent_id, get_current_chat_id, get_current_turn_id
+        from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
+            get_bound_message_id,
+        )
 
-        turn_id = get_current_turn_id() or "unknown_turn"
-        chat_id = get_current_chat_id() or "unknown_chat"
-        agent_id = get_current_agent_id() or "unknown_agent"
+        turn_id = get_bound_message_id() or "unknown_turn"
+        chat_id = str(session_id)
+        agent_id = self._current_agent_id()
 
         cache_key = (workspace_path, turn_id)
 
@@ -88,6 +90,16 @@ class SnapshotInterceptor(ExecutionInterceptor):
             logger.warning("Snapshot creation for %s exceeded 3s timeout, continuing in background", workspace_path)
         except Exception as e:
             logger.warning("Snapshot creation error: %s", e)
+
+    @staticmethod
+    def _current_agent_id() -> str:
+        """Best-effort agent id from the current turn context; unknown when unset."""
+        try:
+            from app.ai_agents.general_agent.context import get_current_agent_id
+
+            return get_current_agent_id() or "unknown_agent"
+        except Exception:
+            return "unknown_agent"
 
     async def _safe_snapshot_with_lock(
         self,

@@ -1,10 +1,11 @@
 /**
- * Rewind Dialog — confirm rewinding conversation to before a user message.
+ * Rewind Dialog — choose what to roll back (conversation and/or file changes)
+ * and confirm before rewinding to before a user message.
  */
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Undo2 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
@@ -16,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/primitives/dialog';
-import { rewindToMessage } from '@/services/chat';
+import { rewindToMessage, type RewindResult } from '@/services/chat';
 import { ApiError } from '@/lib/api';
 import { useToast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
@@ -30,6 +31,23 @@ interface RewindDialogProps {
   messageIndex: number;
 }
 
+interface FileChangeInfo {
+  path: string;
+  operation: string;
+  has_original: boolean;
+  timestamp: number;
+  revertible: boolean;
+  skip_reason?: string | null;
+}
+
+type RewindScope = 'conversation' | 'both';
+
+interface FilePreview {
+  status: 'checking' | 'ready' | 'empty';
+  fileCount: number;
+  skippedCount: number;
+}
+
 export function RewindDialog({
   open,
   onOpenChange,
@@ -40,6 +58,64 @@ export function RewindDialog({
   const { toast } = useToast();
   const t = useTranslations('chat.rewind');
   const [isRewinding, setIsRewinding] = useState(false);
+  const [scope, setScope] = useState<RewindScope>('both');
+  const [preview, setPreview] = useState<FilePreview>({
+    status: 'checking',
+    fileCount: 0,
+    skippedCount: 0,
+  });
+
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    setPreview({ status: 'checking', fileCount: 0, skippedCount: 0 });
+
+    const assistantIds = useChatStore
+      .getState()
+      .messages.slice(messageIndex)
+      .filter((m) => m.role === 'assistant')
+      .map((m) => m.messageId);
+
+    if (assistantIds.length === 0) {
+      setPreview({ status: 'empty', fileCount: 0, skippedCount: 0 });
+      return;
+    }
+
+    (async () => {
+      const results = await Promise.all(
+        assistantIds.map(async (mid) => {
+          try {
+            const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${mid}`);
+            if (!res.ok) return [] as FileChangeInfo[];
+            const body = (await res.json()) as unknown;
+            return Array.isArray(body) ? (body as FileChangeInfo[]) : [];
+          } catch {
+            return [] as FileChangeInfo[];
+          }
+        }),
+      );
+      if (cancelled) return;
+
+      const fileCount = results.reduce(
+        (acc, list) => acc + list.filter((c) => c.revertible).length,
+        0,
+      );
+      const skippedCount = results.reduce(
+        (acc, list) => acc + list.filter((c) => !c.revertible).length,
+        0,
+      );
+      setPreview({
+        status: fileCount > 0 ? 'ready' : 'empty',
+        fileCount,
+        skippedCount,
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, chatId, messageId, messageIndex]);
 
   const handleRewind = async () => {
     if (useChatStore.getState().loading) {
@@ -53,9 +129,9 @@ export function RewindDialog({
 
     setIsRewinding(true);
     try {
-      const response = await rewindToMessage(chatId, messageId);
-      const envelope = response as { data?: { composer_text?: string; goal_paused?: boolean } };
-      const payload = envelope.data ?? (response as { composer_text?: string; goal_paused?: boolean });
+      const response = await rewindToMessage(chatId, messageId, scope);
+      const envelope = response as { data?: RewindResult };
+      const payload = envelope.data ?? (response as RewindResult);
       const composerRaw = typeof payload.composer_text === 'string' ? payload.composer_text : '';
       const activation = parseExplicitSkillActivation(composerRaw);
       const composerText = activation
@@ -67,10 +143,16 @@ export function RewindDialog({
         inputMessage: composerText,
       }));
 
+      const revertedCount = payload.reverted_files?.length ?? 0;
       if (payload.goal_paused) {
         toast({
           title: t('success'),
           description: t('goalPausedNotice'),
+        });
+      } else if (scope === 'both' && revertedCount > 0) {
+        toast({
+          title: t('success'),
+          description: t('filesRevertedToast', { count: revertedCount }),
         });
       } else {
         toast({
@@ -99,6 +181,19 @@ export function RewindDialog({
     }
   };
 
+  const scopeOptions: Array<{ value: RewindScope; title: string; description: string }> = [
+    {
+      value: 'conversation',
+      title: t('scopeConversation'),
+      description: t('scopeConversationDesc'),
+    },
+    {
+      value: 'both',
+      title: t('scopeBoth'),
+      description: t('scopeBothDesc'),
+    },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -110,7 +205,48 @@ export function RewindDialog({
           <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
-        <p className="text-sm text-muted-foreground">{t('sideEffectNotice')}</p>
+        <div className="space-y-3">
+          <p className="text-sm font-medium">{t('scopeTitle')}</p>
+          <div className="grid gap-2">
+            {scopeOptions.map((option) => {
+              const active = scope === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setScope(option.value)}
+                  className={`rounded-lg border p-3 text-left transition-colors ${
+                    active
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:bg-muted'
+                  }`}
+                >
+                  <span className="block text-sm font-medium">{option.title}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {option.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {scope === 'both' && preview.status === 'checking' && (
+            <p className="text-sm text-muted-foreground">{t('filesChecking')}</p>
+          )}
+          {scope === 'both' && preview.status === 'ready' && (
+            <p className="text-sm text-muted-foreground">
+              {t('fileRevertSummary', { count: preview.fileCount })}
+            </p>
+          )}
+          {scope === 'both' && preview.status === 'empty' && (
+            <p className="text-sm text-muted-foreground">{t('noFileSnapshots')}</p>
+          )}
+          {scope === 'both' && preview.skippedCount > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {t('filesSkippedNotice', { count: preview.skippedCount })}
+            </p>
+          )}
+        </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isRewinding}>

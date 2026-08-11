@@ -8,6 +8,7 @@
 
 [OUTPUT]
 - LocalEvalExecutor: implements AgentExecutor for local evaluation.
+- cleanup_orphan_eval_workspaces: startup sweep of stale eval session workspaces.
 
 [POS]
 Adapts the Server's AgentFactory to the Harness's Eval framework.
@@ -16,6 +17,7 @@ Provides a clean, isolated execution environment for each eval case.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import shutil
 import time
@@ -70,6 +72,10 @@ class LocalEvalExecutor:
         self._workspace_seed_map = workspace_seed_map or {}
         self._sandbox_executors: dict[str, CodeExecutor] = {}
         self._session_id: str | None = None
+        # Physical session workspaces created by this executor. Both
+        # create_session and execute register here so cleanup() can remove
+        # every directory it created (including any implicit execute-only one).
+        self._created_workspaces: set[Path] = set()
         # Memory participation in this run. `None` means "inherit benchmark
         # semantics": benchmark runs disable memory for a fair, uncontaminated
         # baseline; interactive runs keep it on. Pass an explicit bool to
@@ -93,6 +99,7 @@ class LocalEvalExecutor:
         # Create an isolated workspace directory for this evaluation session
         workspace_dir = (Path(".myrm/eval_workspaces") / self._session_id).resolve()
         workspace_dir.mkdir(parents=True, exist_ok=True)
+        self._created_workspaces.add(workspace_dir)
 
         # Initialize a sandbox executor for this session if needed by assertions
         # We use the local executor for testing purposes and bind it to the isolated workspace
@@ -112,6 +119,23 @@ class LocalEvalExecutor:
             return self._sandbox_executors[self._session_id]
         return None
 
+    async def cleanup(self) -> None:
+        """Remove the physical session workspaces created by this executor.
+
+        Called after a run finishes (success, error, or abort) so eval never
+        leaves throwaway directories behind. Idempotent: each path is removed
+        with ignore_errors, and cleared state means a second call is a no-op.
+        Deletion runs in a worker thread to keep the event loop unblocked.
+        """
+        count = len(self._created_workspaces)
+        for workspace_dir in self._created_workspaces:
+            await asyncio.to_thread(shutil.rmtree, workspace_dir, ignore_errors=True)
+        self._created_workspaces.clear()
+        self._sandbox_executors.clear()
+        self._session_id = None
+        if count:
+            logger.info("Removed %d eval workspace(s)", count)
+
     async def execute(
         self, message: str, *, session_id: str | None = None
     ) -> AgentResponse:
@@ -121,6 +145,7 @@ class LocalEvalExecutor:
         # Resolve the isolated physical workspace directory for this execution
         workspace_dir = (Path(".myrm/eval_workspaces") / chat_id).resolve()
         workspace_dir.mkdir(parents=True, exist_ok=True)
+        self._created_workspaces.add(workspace_dir)
 
         # Seed the workspace from a pre-provisioned task directory when the
         # dataset ships an initial workspace (e.g. WorkBuddy Bench task assets).
@@ -396,3 +421,28 @@ class LocalEvalExecutor:
                 "total_tokens": total_tokens,
             },
         )
+
+
+def cleanup_orphan_eval_workspaces() -> int:
+    """Remove leftover eval session workspaces from previous server runs.
+
+    Called once at server startup: eval runs are in-process background tasks,
+    so any workspace directory present at boot is guaranteed orphaned (the
+    process that created it no longer exists). Reports the number of removed
+    entries so the startup sequence can log a concise summary.
+    """
+    root = Path(".myrm/eval_workspaces").resolve()
+    if not root.is_dir():
+        return 0
+    removed = 0
+    for entry in root.iterdir():
+        if not entry.is_dir():
+            continue
+        shutil.rmtree(entry, ignore_errors=True)
+        removed += 1
+    # Drop the now-empty root as well so a boot leaves no trace of eval state.
+    try:
+        root.rmdir()
+    except OSError:
+        pass
+    return removed

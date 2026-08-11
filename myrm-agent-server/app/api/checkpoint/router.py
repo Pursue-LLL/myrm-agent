@@ -33,12 +33,18 @@ _file_snapshot_store: FileSnapshotProtocol | None = None
 
 
 async def _get_file_snapshot_store() -> FileSnapshotProtocol:
-    """Lazy-initialize the file snapshot store via harness local store."""
+    """Lazy-initialize the file snapshot store via the shared harness factory.
+
+    Uses create_file_snapshot_store() (ShadowGit preferred, LocalFile fallback) so
+    the API reads the same store written by SnapshotInterceptor. Previously the API
+    hardcoded LocalFileSnapshotStore(), which made snapshots created by the shadow-git
+    interceptor invisible in Git environments.
+    """
     global _file_snapshot_store
     if _file_snapshot_store is None:
-        from myrm_agent_harness.agent.file_snapshot.local_store import LocalFileSnapshotStore
+        from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
 
-        _file_snapshot_store = LocalFileSnapshotStore()
+        _file_snapshot_store = await create_file_snapshot_store()
     return _file_snapshot_store
 
 

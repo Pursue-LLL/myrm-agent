@@ -108,6 +108,9 @@ class RewindResult(NamedTuple):
     message_index: int
     goal_paused: bool
     error: str | None = None
+    reverted_files: list[str] | None = None
+    file_warnings: list[str] | None = None
+    skipped_files: list[str] | None = None
 
 
 class ChannelHistoryEntry(NamedTuple):

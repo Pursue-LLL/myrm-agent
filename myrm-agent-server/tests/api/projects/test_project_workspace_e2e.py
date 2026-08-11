@@ -1,5 +1,6 @@
 import json
 import os
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -15,6 +16,45 @@ from tests.api.agent.utils import (
     check_e2e_errors,
     get_model_selection,
 )
+
+
+def _build_user_configs_from_env():
+    """Build ``UserConfigs`` from ``.env.test`` env vars.
+
+    Mirrors ``tests/api/eval/test_workspace_isolation_e2e.py``: ``openai-like/``
+    prefixes need ``openai/`` normalization with a ``base_url`` so LiteLLM can
+    reach the custom OpenAI-compatible endpoint.
+    """
+    from app.core.channel_bridge.config_loader import UserConfigs
+    from app.core.types import ModelConfig
+
+    api_key = os.environ.get("BASIC_API_KEY", "")
+    base_url = os.environ.get("BASIC_BASE_URL")
+    raw_model = os.environ.get("BASIC_MODEL", "openai-like/test")
+
+    if raw_model.startswith("openai-like/"):
+        model = "openai/" + raw_model.split("/", 1)[1]
+    else:
+        model = raw_model
+
+    return UserConfigs(
+        model_cfg=ModelConfig(model=model, api_key=api_key, base_url=base_url),
+        search_cfg=None,
+        search_is_user_configured=False,
+        retrieval_dict={},
+        personal_settings_dict={},
+        mcp_dict={},
+        providers_dict={
+            "providers": [
+                {
+                    "id": "openai-like",
+                    "isEnabled": True,
+                    "apiKeys": [{"isActive": True, "key": api_key}],
+                    "apiUrl": base_url,
+                }
+            ]
+        },
+    )
 
 
 @pytest.fixture
@@ -38,52 +78,63 @@ class TestProjectWorkspaceE2E:
     """Project Workspace & Multi-Agent Collaboration E2E Tests"""
 
     async def test_project_workspace_agent_routing(self, async_client: httpx.AsyncClient):
-        # 1. Create a project
-        project_resp = await async_client.post("/api/v1/projects/", json={"name": "E2E Project Workspace"})
-        assert project_resp.status_code == 200
-        project_id = project_resp.json()["data"]["project"]["id"]
+        from langgraph.checkpoint.memory import MemorySaver
 
-        # 2. Create a chat and assign it to the project
-        chat_id = "c-test-proj-e2e"
-        await async_client.post("/api/v1/chats/", json={"id": chat_id, "title": "E2E Chat"})
-        await async_client.patch(f"/api/v1/projects/chats/{chat_id}/project", json={"projectId": project_id})
+        from app.platform_utils import (
+            _reset_checkpointer_for_testing,
+            set_checkpointer,
+        )
 
-        # 3. Send a message referencing an agent
-        model_selection = get_model_selection()
-        search_request = {
-            "query": "Hello, @builtin-fast-search please tell me what is 1+1?",
-            "message_id": "test-msg-id-1",
-            "chat_id": chat_id,
-            "action_mode": "chat",
-            "mentioned_agent_ids": ["builtin-fast-search"],
-            "model_selection": model_selection,
-            "timezone": "UTC",
-        }
+        _reset_checkpointer_for_testing()
+        set_checkpointer(MemorySaver())
+        mock_configs = _build_user_configs_from_env()
+        try:
+            with patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new=AsyncMock(return_value=mock_configs),
+            ):
+                # 1. Create a project
+                project_resp = await async_client.post("/api/v1/projects/", json={"name": "E2E Project Workspace"})
+                assert project_resp.status_code == 200
+                project_id = project_resp.json()["data"]["project"]["id"]
 
-        collected_data = []
-        message_chunks = []
+                # 2. Create a chat and assign it to the project
+                chat_id = "c-test-proj-e2e"
+                await async_client.post("/api/v1/chats/", json={"id": chat_id, "title": "E2E Chat"})
+                await async_client.patch(f"/api/v1/projects/chats/{chat_id}/project", json={"projectId": project_id})
 
-        async with async_client.stream("POST", "/api/v1/agents/agent-stream", json=search_request) as response:
-            assert response.status_code == 200
-            async for line in response.aiter_lines():
-                if not line or not line.startswith("data: "):
-                    continue
-                try:
-                    data = json.loads(line[6:])
-                    if not isinstance(data, dict):
-                        continue
-                    collected_data.append(data)
-                    event_type = data.get("type", "unknown")
-                    if event_type == "message":
-                        content = data.get("data", "")
-                        if content:
-                            message_chunks.append(content)
-                except json.JSONDecodeError:
-                    pass
+                # 3. Send a message referencing an agent
+                model_selection = get_model_selection()
+                search_request = {
+                    "query": "Hello, @builtin-fast-search please tell me what is 1+1?",
+                    "message_id": "test-msg-id-1",
+                    "chat_id": chat_id,
+                    "action_mode": "chat",
+                    "mentioned_agent_ids": ["builtin-fast-search"],
+                    "model_selection": model_selection,
+                    "timezone": "UTC",
+                }
 
-        check_e2e_errors(collected_data)
-        has_message_end = any(d.get("type") == "message_end" for d in collected_data)
-        assert has_message_end, "Should have message_end event"
+                collected_data = []
 
-        # Clean up
-        await async_client.delete(f"/api/v1/projects/{project_id}")
+                async with async_client.stream("POST", "/api/v1/agents/agent-stream", json=search_request) as response:
+                    assert response.status_code == 200
+                    async for line in response.aiter_lines():
+                        if not line or not line.startswith("data: "):
+                            continue
+                        try:
+                            data = json.loads(line[6:])
+                            if not isinstance(data, dict):
+                                continue
+                            collected_data.append(data)
+                        except json.JSONDecodeError:
+                            pass
+
+                check_e2e_errors(collected_data)
+                has_message_end = any(d.get("type") == "message_end" for d in collected_data)
+                assert has_message_end, "Should have message_end event"
+
+                # Clean up
+                await async_client.delete(f"/api/v1/projects/{project_id}")
+        finally:
+            _reset_checkpointer_for_testing()

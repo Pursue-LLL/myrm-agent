@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Building2, UserMinus, UserPlus, ArrowRightLeft, Shield, Clock } from 'lucide-react';
+import { Building2, UserMinus, UserPlus, ArrowRightLeft, Shield, Clock, Link2Off } from 'lucide-react';
 import SettingsSection from '../SettingsSection';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -28,6 +28,7 @@ import {
   listMembers,
   addMember,
   removeMember,
+  unlinkOauth,
   offboardUser,
   transferVolume,
   listHandoffLogs,
@@ -55,11 +56,13 @@ const EnterpriseMembersTab = memo(() => {
   const [showAddMember, setShowAddMember] = useState(false);
   const [showOffboard, setShowOffboard] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
+  const [showUnlink, setShowUnlink] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberRole, setNewMemberRole] = useState('member');
   const [offboardUserId, setOffboardUserId] = useState('');
   const [transferSourceId, setTransferSourceId] = useState('');
   const [transferTargetId, setTransferTargetId] = useState('');
+  const [unlinkUserId, setUnlinkUserId] = useState('');
 
   const orgId = org?.id ?? '';
   const authUserId = useAuthStore((s) => s.user?.id);
@@ -144,6 +147,19 @@ const EnterpriseMembersTab = memo(() => {
       toast.error(e instanceof Error ? e.message : 'Transfer failed');
     }
   }, [orgId, transferSourceId, transferTargetId, t, loadData]);
+
+  const handleUnlinkOauth = useCallback(async () => {
+    if (!unlinkUserId.trim()) return;
+    try {
+      await unlinkOauth(orgId, unlinkUserId.trim());
+      toast.success(t('unlinkSuccess'));
+      setShowUnlink(false);
+      setUnlinkUserId('');
+      await loadData();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to unlink OAuth');
+    }
+  }, [orgId, unlinkUserId, t, loadData]);
 
   if (loading) {
     return (
@@ -232,6 +248,20 @@ const EnterpriseMembersTab = memo(() => {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{formatTimestamp(m.joined_at)}</span>
+                {isOrgAdmin && m.oauth_bound && m.user_id !== authUserId && m.role !== 'owner' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-muted-foreground hover:text-foreground"
+                    title={t('unlinkOauth')}
+                    onClick={() => {
+                      setUnlinkUserId(m.user_id);
+                      setShowUnlink(true);
+                    }}
+                  >
+                    <Link2Off className="h-3.5 w-3.5" />
+                  </Button>
+                )}
                 {m.role !== 'owner' && (
                   <Button
                     size="sm"
@@ -394,6 +424,26 @@ const EnterpriseMembersTab = memo(() => {
               {t('cancel')}
             </Button>
             <Button onClick={handleTransfer}>{t('confirmTransfer')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unlink OAuth Dialog */}
+      <Dialog open={showUnlink} onOpenChange={setShowUnlink}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('unlinkOauth')}</DialogTitle>
+            <DialogDescription>
+              {t('unlinkOauthDesc')} <code className="text-xs bg-muted px-1 py-0.5 rounded">{unlinkUserId}</code>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUnlink(false)}>
+              {t('cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleUnlinkOauth}>
+              {t('unlinkOauthConfirm')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

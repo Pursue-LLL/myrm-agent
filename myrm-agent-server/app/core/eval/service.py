@@ -415,6 +415,9 @@ async def run_eval_suite(
         result = await runner.run_multi_turn(cases, manifest=manifest)
     finally:
         _active_runner = None
+        # Remove per-case session workspaces so eval never leaves throwaway
+        # directories behind (success, error, or abort all land here).
+        await executor.cleanup()
 
     # Save the report
     reports_dir.mkdir(parents=True, exist_ok=True)

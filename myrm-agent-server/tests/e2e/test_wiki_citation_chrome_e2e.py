@@ -70,15 +70,15 @@ def _bind_private_runtime_and_navigate(client, page, chat_url: str, api_url: str
     from cdp_chat_support import e2e_runtime_binding_source  # noqa: PLC0415
 
     source = e2e_runtime_binding_source()
-    assert source, (
-        "SHPOIB runtime binding source missing — "
-        f"E2E_API_BASE={api_url!r}"
-    )
-    client.evaluate(
-        page,
-        f"(() => {{{source} return window.__MYRM_E2E_API_BASE__; }})()",
-        timeout_sec=30.0,
-    )
+    # SHARED execution relies on Next.js rewrites for API proxying and carries no
+    # private runtime binding (get_open_page_api_url returns the :8080 sentinel).
+    # Only PRIVATE lanes seed a binding; navigate is needed in both modes.
+    if source is not None:
+        client.evaluate(
+            page,
+            f"(() => {{{source} return window.__MYRM_E2E_API_BASE__; }})()",
+            timeout_sec=30.0,
+        )
     client.navigate(page, chat_url, timeout_ms=90_000)
 
 

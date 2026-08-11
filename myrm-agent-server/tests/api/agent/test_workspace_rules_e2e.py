@@ -1,4 +1,5 @@
 import json
+import os
 import uuid
 from pathlib import Path
 
@@ -56,7 +57,11 @@ def perform_agent_stream(
 
 
 class TestWorkspaceRulesE2E:
-    """E2E tests for workspace rules injection (First-Match-Wins)."""
+    """E2E tests for workspace rules injection (First-Match-Wins).
+
+    Requires a real LLM (agent-stream), so it is gated behind the ``e2e``
+    marker and an API-key skip to keep the default CI suite hermetic.
+    """
 
     @pytest.fixture
     def temp_workspace(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -70,6 +75,11 @@ class TestWorkspaceRulesE2E:
         )
         yield tmp_path
 
+    @pytest.mark.e2e
+    @pytest.mark.skipif(
+        not os.environ.get("BASIC_API_KEY"),
+        reason="E2E test requires BASIC_API_KEY environment variable",
+    )
     def test_first_match_wins_e2e(self, client: TestClient, temp_workspace: Path):
         """Test that AGENTS.md overrides .cursorrules due to First-Match-Wins."""
         

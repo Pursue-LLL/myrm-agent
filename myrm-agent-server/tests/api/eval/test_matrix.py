@@ -177,7 +177,7 @@ class TestRunMatrixEvalCore:
             patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
             patch(
                 "app.core.eval.matrix.LocalEvalExecutor",
-                return_value=MagicMock(),
+                return_value=AsyncMock(),
             ),
         ):
             result = await _run_matrix_eval(
@@ -219,7 +219,7 @@ class TestRunMatrixEvalCore:
                 return_value=[MagicMock(turns=["t1"])],
             ),
             patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
-            patch("app.core.eval.matrix.LocalEvalExecutor", return_value=MagicMock()),
+            patch("app.core.eval.matrix.LocalEvalExecutor", return_value=AsyncMock()),
         ):
             with pytest.raises(RuntimeError, match="aborted mid-run"):
                 await _run_matrix_eval(dataset_id="ds", profile_ids=["a", "b"])

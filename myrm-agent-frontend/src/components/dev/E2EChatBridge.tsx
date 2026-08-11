@@ -527,6 +527,12 @@ async function submitAndObserveTurn(
     useToolApprovalStore.getState().clearAll();
     let agentConfigOverride: AgentConfig | undefined;
     if (ephemeralSubagents && Object.keys(ephemeralSubagents).length > 0) {
+      // JIT delegation is an agent-mode flow: the backend drops ephemeral_subagents
+      // when action_mode=fast (converter.py sets jit_subagents=None for fast search).
+      // Chrome E2E profile can persist actionMode=fast in localStorage, so force agent.
+      if (!preserveActionMode) {
+        useChatStore.getState().setActionMode('agent');
+      }
       // 不依赖 store.agentConfig 的稳定性：直接通过 sendMessage 的
       // agentConfigOverride 参数注入，requestState 在入口即固定，payload
       // 一定携带 ephemeral_subagents（store 后续被 attach 重置也不受影响）。
@@ -673,6 +679,7 @@ async function submitAndObserveTurn(
             baselineUsers,
             chatIdBeforeSend: chatIdBeforeSend !== chatId ? chatIdBeforeSend : undefined,
             ephKeys,
+            actionModeAtSeal: useChatStore.getState().actionMode,
           },
         };
       }

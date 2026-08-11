@@ -284,6 +284,20 @@ async def build_general_agent(
     logger.info(f"创建沙箱执行器: {executor.get_executor_name()}")
     agent_wrapper._executor = executor
 
+    # Register the workspace snapshot interceptor for WebUI main conversations.
+    # ChannelExecutor already registers it via app.core.channel_bridge.agent_executor;
+    # this idempotent call covers the main-conversation path so FileSnapshotPanel
+    # shows turn-level snapshots for WebUI users too.
+    try:
+        from app.services.checkpoint.snapshot_service import SnapshotInterceptor
+        from myrm_agent_harness.toolkits.code_execution.interceptor import (
+            set_execution_interceptor,
+        )
+
+        set_execution_interceptor(SnapshotInterceptor())
+    except Exception as e:
+        logger.warning("Failed to register snapshot interceptor: %s", e)
+
     from myrm_agent_harness.runtime.context.offload import (
         create_compress_offload_callback,
         create_context_snapshot_callback,

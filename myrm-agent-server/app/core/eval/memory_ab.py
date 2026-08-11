@@ -132,6 +132,7 @@ async def run_memory_ab_background(
         _init_memory_ab_state(benchmark_id)
 
     memory_dir = Path(DEFAULT_MEMORY_AB_MEMORY_DIR) / f"memory_ab_{int(time.time())}"
+    executors: dict[str, AgentExecutor] = {}
 
     try:
         from app.core.eval.benchmarks import (
@@ -175,7 +176,7 @@ async def run_memory_ab_background(
             judge_config, judge_model = await _resolve_judge_config()
 
         benchmark_tools = benchmark_required_tools(benchmark_id)
-        executors: dict[str, AgentExecutor] = {
+        executors = {
             "memory_off": LocalEvalExecutor(
                 profile_id=profile_id,
                 benchmark_mode=True,
@@ -288,6 +289,9 @@ async def run_memory_ab_background(
 
         await evict_cached_memory_manager(memory_dir)
         shutil.rmtree(memory_dir, ignore_errors=True)
+        # Also remove the per-case session workspaces both arms created.
+        for eval_executor in executors.values():
+            await eval_executor.cleanup()
 
 
 def get_latest_memory_ab_report() -> dict[str, object] | None:

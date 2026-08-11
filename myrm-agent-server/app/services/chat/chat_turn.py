@@ -151,8 +151,14 @@ class _ChatTurnMixin(_ChatServiceBase):
         return result
 
     @staticmethod
-    async def rewind_to_message(chat_id: str, message_id: str) -> RewindResult:
-        """Rewind conversation to before a user message and return composer seed text."""
+    async def rewind_to_message(
+        chat_id: str, message_id: str, revert_files: bool = False
+    ) -> RewindResult:
+        """Rewind conversation to before a user message and return composer seed text.
+
+        When ``revert_files`` is set, file changes made by the deleted messages are
+        also reverted (newest first) so the workspace matches the pre-rewind state.
+        """
         from myrm_agent_harness.utils.text_sanitizer import extract_and_strip_think_blocks
 
         from app.services.chat.session_continuity_service import (
@@ -227,13 +233,65 @@ class _ChatTurnMixin(_ChatServiceBase):
 
         await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
         goal_paused = await pause_active_goal_for_rewind(chat_id)
+
+        file_revert: dict[str, list[str]] = {}
+        if revert_files:
+            file_revert = await _ChatTurnMixin._revert_files_for_messages(chat_id, deleted_ids)
+
         return RewindResult(
             success=True,
             deleted_count=len(deleted_ids),
             composer_text=composer_text,
             message_index=message_index,
             goal_paused=goal_paused,
+            reverted_files=file_revert.get("reverted_files"),
+            file_warnings=file_revert.get("warnings"),
+            skipped_files=file_revert.get("skipped_files"),
         )
+
+    @staticmethod
+    async def _revert_files_for_messages(
+        chat_id: str, deleted_message_ids: list[str]
+    ) -> dict[str, list[str]]:
+        """Revert file changes made by deleted messages, newest message first.
+
+        A later message may overwrite a file touched by an earlier one, so reverting
+        in reverse chronological order restores each file to its state before the
+        rewind target message. Messages without snapshots are skipped gracefully.
+        """
+        from myrm_agent_harness.agent.meta_tools.file_ops.revert_service import RevertService
+
+        from app.services.files.revert_agent_notify import notify_agent_of_turn_revert
+        from app.services.files.revert_hydrate import (
+            cleanup_persisted_snapshots,
+            ensure_session_snapshots_hydrated,
+        )
+
+        await ensure_session_snapshots_hydrated(chat_id)
+
+        reverted_files: list[str] = []
+        warnings: list[str] = []
+        skipped_files: list[str] = []
+        for message_id in reversed(deleted_message_ids):
+            result = await RevertService.revert_message(chat_id, message_id)
+            if result.reverted_files:
+                await cleanup_persisted_snapshots(chat_id, message_id)
+                reverted_files.extend(result.reverted_files)
+            warnings.extend(result.warnings)
+            skipped_files.extend(result.skipped_files)
+
+        if reverted_files:
+            notify_agent_of_turn_revert(
+                session_id=chat_id,
+                message_id=None,
+                reverted_files=reverted_files,
+            )
+
+        return {
+            "reverted_files": reverted_files,
+            "warnings": warnings,
+            "skipped_files": skipped_files,
+        }
 
     @staticmethod
     async def generate_chat_title(

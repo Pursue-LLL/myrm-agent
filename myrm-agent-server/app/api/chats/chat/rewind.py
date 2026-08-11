@@ -13,6 +13,8 @@ HTTP boundary for checkpoint rewind actions in the chat API.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -30,6 +32,7 @@ router = APIRouter()
 
 class RewindMessageBody(BaseModel):
     message_id: str = Field(..., alias="message_id")
+    scope: Literal["conversation", "both"] = "conversation"
 
     class Config:
         populate_by_name = True
@@ -41,14 +44,22 @@ async def rewind_to_message(
     body: RewindMessageBody,
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
-    """Rewind conversation to before a user message and return composer seed text."""
+    """Rewind conversation to before a user message and return composer seed text.
+
+    ``scope`` selects what to roll back:
+    - ``conversation`` (default): delete messages only, files untouched.
+    - ``both``: also revert file changes made by the deleted messages so the
+      workspace matches the state before the target message.
+    """
     del db
     try:
         chat = await ChatService.get_chat_metadata(chat_id)
         if not chat:
             raise not_found_error("Chat session")
 
-        result = await ChatService.rewind_to_message(chat_id, body.message_id)
+        result = await ChatService.rewind_to_message(
+            chat_id, body.message_id, revert_files=body.scope == "both"
+        )
         if result.error == "SESSION_BUSY":
             raise HTTPException(
                 status_code=409,
@@ -71,6 +82,9 @@ async def rewind_to_message(
                 "composer_text": result.composer_text,
                 "message_index": result.message_index,
                 "goal_paused": result.goal_paused,
+                "reverted_files": result.reverted_files or [],
+                "file_warnings": result.file_warnings or [],
+                "skipped_files": result.skipped_files or [],
             }
         )
     except HTTPException:

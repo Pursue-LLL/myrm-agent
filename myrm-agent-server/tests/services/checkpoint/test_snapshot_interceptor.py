@@ -250,10 +250,8 @@ async def test_timeout_does_not_block_caller(interceptor: SnapshotInterceptor):
 
 @pytest.mark.asyncio
 async def test_before_destructive_action_handles_none_context(interceptor: SnapshotInterceptor):
-    """When context functions return None, defaults to 'unknown_*' and still works."""
+    """chat_id comes from payload session_id; missing turn/agent context falls back."""
     mock_context = MagicMock(
-        get_current_turn_id=MagicMock(return_value=None),
-        get_current_chat_id=MagicMock(return_value=None),
         get_current_agent_id=MagicMock(return_value=None),
     )
 
@@ -261,13 +259,23 @@ async def test_before_destructive_action_handles_none_context(interceptor: Snaps
         patch.dict("sys.modules", {"app.ai_agents.general_agent.context": mock_context}),
         patch.object(interceptor, "_safe_snapshot_with_lock", new_callable=AsyncMock) as mock_snapshot,
     ):
-        await interceptor.before_destructive_action("/tmp/ws", "bash", _make_payload())
+        await interceptor.before_destructive_action("/tmp/ws", "bash", _make_payload("sess-1"))
 
     mock_snapshot.assert_awaited_once()
     call_args = mock_snapshot.call_args
-    assert call_args.args[2] == "unknown_chat"
+    assert call_args.args[2] == "sess-1"
     assert call_args.args[3] == "unknown_agent"
     assert call_args.args[4] == "unknown_turn"
+
+
+@pytest.mark.asyncio
+async def test_before_destructive_action_uses_payload_session_id(interceptor: SnapshotInterceptor):
+    """chat_id is sourced from the hook payload session_id (harness chat context)."""
+    with patch.object(interceptor, "_safe_snapshot_with_lock", new_callable=AsyncMock) as mock_snapshot:
+        await interceptor.before_destructive_action("/tmp/ws", "bash", _make_payload("chat-abc"))
+
+    mock_snapshot.assert_awaited_once()
+    assert mock_snapshot.call_args.args[2] == "chat-abc"
 
 
 # ---------------------------------------------------------------------------

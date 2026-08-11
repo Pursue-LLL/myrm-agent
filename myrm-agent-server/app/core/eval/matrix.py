@@ -152,6 +152,10 @@ async def _run_matrix_eval(
         matrix_result = await runner.run_multi_turn(multi_cases)
     finally:
         _active_matrix_runner = None
+        # Remove per-case session workspaces so matrix eval never leaves
+        # throwaway directories behind (success, error, or abort).
+        for eval_executor in executors.values():
+            await eval_executor.cleanup()
 
     _matrix_state["profile_progress"] = len(profile_ids)
 

@@ -20,6 +20,7 @@ export interface OrgMember {
   role: string;
   idp_groups: string[] | null;
   joined_at: number;
+  oauth_bound?: boolean | null;
 }
 
 export interface HandoffLog {
@@ -90,6 +91,13 @@ export async function addMember(orgId: string, userId: string, role = 'member'):
 export async function removeMember(orgId: string, userId: string): Promise<void> {
   const res = await fetch(cpUrl(`/${orgId}/members/${userId}`), { method: 'DELETE' });
   if (!res.ok) throw new Error(`Remove member failed: ${res.status}`);
+}
+
+export async function unlinkOauth(orgId: string, userId: string): Promise<void> {
+  const res = await fetch(cpUrl(`/${orgId}/members/${userId}/unlink-oauth`), {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Unlink OAuth failed: ${res.status}`);
 }
 
 export async function offboardUser(orgId: string, sourceUserId: string): Promise<HandoffLog> {

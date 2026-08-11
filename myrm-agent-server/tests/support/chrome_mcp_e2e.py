@@ -1027,6 +1027,12 @@ def _is_settings_route(url_or_path: str) -> bool:
     return _settings_route_path(url_or_path).startswith("/settings")
 
 
+def _is_blank_page_url(url_or_path: str) -> bool:
+    """True for manual-navigation hosts (about:blank/empty) with no app content."""
+    stripped = (url_or_path or "").strip()
+    return not stripped or stripped == "about:blank"
+
+
 def wait_for_settings_layout(
     client: ChromeMcpClient,
     page: McpPage,
@@ -2397,7 +2403,10 @@ def open_mcp_page(
             hydrate_timeout_sec=_bounded_settings_ui_wait_sec(45.0),
         ) as (client, page):
             complete_bootstrap_phase(phase_label="owned_page_ready")
-            _ensure_orchestrator_shared_ui_session(client, page)
+            if not _is_blank_page_url(url):
+                # Blank hosts carry no app content; the shared-UI bridge contract
+                # only applies to real app routes.
+                _ensure_orchestrator_shared_ui_session(client, page)
             if _is_settings_route(url) and not skip_settings_layout_wait:
                 wait_for_settings_layout(
                     client,

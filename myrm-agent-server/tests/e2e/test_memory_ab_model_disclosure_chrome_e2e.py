@@ -2,7 +2,7 @@
 
 Prerequisites:
   ./myrm ready --chrome
-  .env.test with BASIC_* and EMBEDDING_* credentials
+  .env.test with BASIC_* credentials
 
 The disclosure is verified honestly end-to-end: providers and the embedding
 model are configured through the same config API the WebUI settings page
@@ -11,6 +11,11 @@ Sources card (limit=1 keeps the LLM cost tiny while the dataset download,
 workspace provisioning, embedding probe and both agent arms run for real),
 and the browser asserts the run-history table discloses the agent model the
 run really used plus a judge placeholder (WBBench is task-native).
+
+The embedding backend is a local OpenAI-compatible endpoint
+(tests/support/local_embedding_server.py): the product supports arbitrary
+self-hosted embedding endpoints, so this is a real usage path and makes the
+run independent of external embedding account quota.
 """
 
 from __future__ import annotations
@@ -42,6 +47,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     wait_for_state,
     warm_ui_route,
 )
+from tests.support.local_embedding_server import LocalEmbeddingServer  # noqa: E402
 from tests.support.test_secrets import load_test_secrets  # noqa: E402
 
 EVAL_LAB_URL = f"{get_e2e_ui_url()}/eval-lab"
@@ -289,7 +295,11 @@ def _upsert_provider(
     return merged
 
 
-def _configure_eval_stack(api_url: str) -> dict[str, object]:
+def _configure_eval_stack(
+    api_url: str,
+    *,
+    embedding_override: dict[str, str] | None = None,
+) -> dict[str, object]:
     """Configure LLM providers + default model + embedding via the settings API."""
     secrets = load_test_secrets()
     basic_model = secrets.basic_model
@@ -345,8 +355,20 @@ def _configure_eval_stack(api_url: str) -> dict[str, object]:
     }
     put_config_value("providers", merged, api_url=api_url)
 
-    embedding_key = secrets.get("EMBEDDING_API_KEY")
-    if embedding_key:
+    if embedding_override is not None:
+        retrieval: dict[str, object] = {
+            "embeddingApplied": True,
+            "embeddingConfig": {
+                "provider": embedding_override["provider"],
+                "model": embedding_override["model"],
+                "apiKey": embedding_override["apiKey"],
+                "apiBase": embedding_override["apiBase"],
+            },
+        }
+    else:
+        embedding_key = secrets.get("EMBEDDING_API_KEY")
+        if not embedding_key:
+            return merged
         retrieval = {
             "embeddingApplied": True,
             "embeddingConfig": {
@@ -356,7 +378,7 @@ def _configure_eval_stack(api_url: str) -> dict[str, object]:
                 "apiBase": secrets.get("EMBEDDING_BASE_URL", ""),
             },
         }
-        put_config_value("retrieval", retrieval, api_url=api_url)
+    put_config_value("retrieval", retrieval, api_url=api_url)
     return merged
 
 
@@ -391,82 +413,91 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
 
     if not load_test_secrets().has_basic_credentials:
         pytest.skip("BASIC_* credentials missing in .env.test")
-    if not load_test_secrets().get("EMBEDDING_API_KEY"):
-        pytest.skip("EMBEDDING_* credentials missing in .env.test")
 
-    _configure_eval_stack(api_base)
-    assert wait_e2e_provider_ready(api_url=api_base), "provider stack not ready"
-
-    prepare_e2e_ui_session(api_base)
-    warm_ui_route("/eval-lab")
-    with open_mcp_page(EVAL_LAB_URL, timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page)
-
-        # T0: The Eval Lab SPA has mounted and rendered its tabs
-        page_state = wait_for_state(client, page, _PAGE_READY_JS, timeout_sec=60.0)
-        assert page_state.get("ready") is True, page_state
-        assert "eval" in page_state.get("url", "").lower(), page_state
-
-        # T1: Sources tab shows the Office card with the Memory A/B action
-        sources = wait_for_state(client, page, _SOURCES_TAB_JS, timeout_sec=45.0)
-        assert sources.get("clicked") is True, sources
-        card = wait_for_state(client, page, _OFFICE_CARD_JS, timeout_sec=30.0)
-        assert card.get("ready") is True, card
-        assert card.get("hasMemoryButton") is True, card
-
-        # T2: Real user flow — sample 1 task, open the Memory A/B confirmation
-        # dialog from the card and confirm the run. The click + dialog wait is
-        # atomic so the run state can never interleave with other probes.
-        click_res = client.evaluate(page, _CLICK_MEMORY_AB_ATOMIC_JS, timeout_sec=25.0)
-        with open("/tmp/myrm_click_res.json", "w", encoding="utf-8") as _f:
-            _f.write(json.dumps(click_res, ensure_ascii=False, default=str))
-        assert isinstance(click_res, dict) and click_res.get("ready") is True, (
-            f"dialog did not open: {json.dumps(click_res, ensure_ascii=False, default=str)}"
+    # A local OpenAI-compatible embedding endpoint stands in for a self-hosted
+    # embedding provider (a supported product usage) so the run does not depend
+    # on the availability/quota of any external embedding account.
+    embedding_server = LocalEmbeddingServer(port=8399).start()
+    try:
+        _configure_eval_stack(
+            api_base,
+            embedding_override={
+                "provider": "openai",
+                "model": "test-embed-v1",
+                "apiKey": "test-key",
+                "apiBase": embedding_server.base_url,
+            },
         )
-        dialog = wait_for_state(client, page, _MEMORY_AB_DIALOG_JS, timeout_sec=15.0)
-        assert dialog.get("ready") is True, dialog
-        started = wait_for_state(client, page, _CLICK_START_EVAL_JS, timeout_sec=15.0)
-        assert started.get("ready") is True and started.get("clicked") is True, started
-        with open("/tmp/myrm_start.json", "w", encoding="utf-8") as _f:
-            _f.write(json.dumps(started, ensure_ascii=False, default=str))
-        # Confirm the run was really dispatched by the UI before waiting.
-        time.sleep(2.0)
-        early_status = http_json("GET", f"{api_base}/api/v1/eval/memory-ab/status")
-        early_history = http_json("GET", f"{api_base}/api/v1/eval/memory-ab/reports/history")
-        with open("/tmp/myrm_early_status.json", "w", encoding="utf-8") as _f:
-            _f.write(json.dumps(early_status, ensure_ascii=False, default=str))
-        with open("/tmp/myrm_early_history.json", "w", encoding="utf-8") as _f:
-            _f.write(json.dumps(early_history, ensure_ascii=False, default=str))
+        assert wait_e2e_provider_ready(api_url=api_base), "provider stack not ready"
 
-        # T3: Wait for the real dual-arm run to complete (download + workspaces
-        # + embedding probe + both agent arms with the real LLM)
-        status_data = _wait_memory_ab_finished(api_base, budget_sec=480.0)
-        assert status_data.get("error") is None, status_data.get("error")
-        with open("/tmp/myrm_status.json", "w", encoding="utf-8") as _f:
-            _f.write(json.dumps(status_data, ensure_ascii=False, default=str))
+        prepare_e2e_ui_session(api_base)
+        warm_ui_route("/eval-lab")
+        with open_mcp_page(EVAL_LAB_URL, timeout_ms=120_000) as (client, page):
+            dismiss_blocking_modals(client, page)
 
-        # The run-history table (MemoryAbHistoryTable) lives on the memory-ab
-        # tab. Reload so the report + history are re-fetched from the backend.
-        client.evaluate(page, "location.reload()", timeout_sec=10.0)
-        page_state = wait_for_state(client, page, _PAGE_READY_JS, timeout_sec=60.0)
-        assert page_state.get("ready") is True, page_state
-        tab = wait_for_state(client, page, _OPEN_MEMORY_AB_TAB_JS, timeout_sec=30.0)
-        assert tab.get("found") is True, tab
+            # T0: The Eval Lab SPA has mounted and rendered its tabs
+            page_state = wait_for_state(client, page, _PAGE_READY_JS, timeout_sec=60.0)
+            assert page_state.get("ready") is True, page_state
+            assert "eval" in page_state.get("url", "").lower(), page_state
 
-        table = wait_for_state(client, page, _HISTORY_TABLE_JS, timeout_sec=45.0)
-        assert table.get("ready") is True, table
-        headers = table.get("headers", [])
-        assert table.get("headerCount", 0) >= 7, f"columns missing: {headers}"
+            # T1: Sources tab shows the Office card with the Memory A/B action
+            sources = wait_for_state(client, page, _SOURCES_TAB_JS, timeout_sec=45.0)
+            assert sources.get("clicked") is True, sources
+            card = wait_for_state(client, page, _OFFICE_CARD_JS, timeout_sec=30.0)
+            assert card.get("ready") is True, card
+            assert card.get("hasMemoryButton") is True, card
 
-        agent_col = table.get("agentCol", -1)
-        judge_col = table.get("judgeCol", -1)
-        assert agent_col >= 0, f"Agent Model column missing: {headers}"
-        assert judge_col >= 0, f"Judge Model column missing: {headers}"
+            # T2: Real user flow — sample 1 task, open the Memory A/B confirmation
+            # dialog from the card and confirm the run. The click + dialog wait is
+            # atomic so the run state can never interleave with other probes.
+            click_res = client.evaluate(page, _CLICK_MEMORY_AB_ATOMIC_JS, timeout_sec=25.0)
+            assert isinstance(click_res, dict) and click_res.get("ready") is True, (
+                f"dialog did not open: {json.dumps(click_res, ensure_ascii=False, default=str)}"
+            )
+            dialog = wait_for_state(client, page, _MEMORY_AB_DIALOG_JS, timeout_sec=15.0)
+            assert dialog.get("ready") is True, dialog
+            started = wait_for_state(client, page, _CLICK_START_EVAL_JS, timeout_sec=15.0)
+            assert started.get("ready") is True and started.get("clicked") is True, started
 
-        row_text = table.get("firstRowText", "")
-        expected_model = load_test_secrets().basic_model
-        assert expected_model in row_text, (
-            f"agent_model disclosure missing; expected {expected_model} in row: {row_text}"
-        )
-        # WBBench is task-native, so the judge label is 'none' -> '-' in the table.
-        assert " | " in row_text
+            # Confirm the run was really dispatched by the UI before waiting.
+            time.sleep(2.0)
+            early_status = http_json("GET", f"{api_base}/api/v1/eval/memory-ab/status")
+            assert early_status.get("is_running") is True, (
+                f"run not started by UI: {json.dumps(early_status, ensure_ascii=False, default=str)}"
+            )
+
+            # T3: Wait for the real dual-arm run to complete (download + workspaces
+            # + embedding probe + both agent arms with the real LLM)
+            status_data = _wait_memory_ab_finished(api_base, budget_sec=480.0)
+            assert status_data.get("error") is None, status_data.get("error")
+
+            # The run-history table (MemoryAbHistoryTable) lives on the memory-ab
+            # tab. Reload so the report + history are re-fetched from the backend.
+            client.evaluate(page, "location.reload()", timeout_sec=10.0)
+            page_state = wait_for_state(client, page, _PAGE_READY_JS, timeout_sec=60.0)
+            assert page_state.get("ready") is True, page_state
+            tab = wait_for_state(client, page, _OPEN_MEMORY_AB_TAB_JS, timeout_sec=30.0)
+            assert tab.get("found") is True, tab
+
+            table = wait_for_state(client, page, _HISTORY_TABLE_JS, timeout_sec=45.0)
+            assert table.get("ready") is True, table
+            headers = table.get("headers", [])
+            assert table.get("headerCount", 0) >= 7, f"columns missing: {headers}"
+
+            agent_col = table.get("agentCol", -1)
+            judge_col = table.get("judgeCol", -1)
+            assert agent_col >= 0, f"Agent Model column missing: {headers}"
+            assert judge_col >= 0, f"Judge Model column missing: {headers}"
+
+            row_text = table.get("firstRowText", "")
+            # .env.test declares BASIC_MODEL=openai-like/agnes-2.5-flash; the
+            # disclosed label is the litellm-normalized form (openai/agnes-2.5-flash).
+            expected_model = load_test_secrets().basic_model
+            model_name = expected_model.rsplit("/", 1)[-1]
+            assert f"/{model_name}" in row_text, (
+                f"agent_model disclosure missing; expected *{model_name} in row: {row_text}"
+            )
+            # WBBench is task-native, so the judge label is 'none' -> '-' in the table.
+            assert " | " in row_text
+    finally:
+        embedding_server.stop()

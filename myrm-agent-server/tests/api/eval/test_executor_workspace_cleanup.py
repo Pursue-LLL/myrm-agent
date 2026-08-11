@@ -1,0 +1,106 @@
+"""Unit tests for LocalEvalExecutor workspace lifecycle cleanup.
+
+Verifies that eval session workspaces are removed after a run and that the
+startup orphan sweep clears leftovers from previous server runs:
+- cleanup() removes every workspace the executor created (create_session and
+  execute paths), is idempotent, and never touches another executor's sessions.
+- cleanup_orphan_eval_workspaces() removes stale directories at boot only.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from app.core.eval.executor import LocalEvalExecutor, cleanup_orphan_eval_workspaces
+
+
+@pytest.mark.asyncio
+async def test_cleanup_removes_created_session_workspaces(monkeypatch, tmp_path) -> None:
+    """cleanup must delete the physical workspace and reset executor state."""
+    monkeypatch.chdir(tmp_path)
+
+    executor = LocalEvalExecutor()
+    session_id = await executor.create_session()
+    workspace_dir = (Path(".myrm/eval_workspaces") / session_id).resolve()
+
+    assert workspace_dir.is_dir()
+    assert executor._session_id == session_id
+    assert session_id in executor._sandbox_executors
+
+    await executor.cleanup()
+
+    assert not workspace_dir.exists()
+    assert executor._session_id is None
+    assert executor._sandbox_executors == {}
+    assert executor._created_workspaces == set()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_is_idempotent(monkeypatch, tmp_path) -> None:
+    """Repeated cleanup (and cleanup with no sessions) must be a no-op."""
+    monkeypatch.chdir(tmp_path)
+
+    executor = LocalEvalExecutor()
+    await executor.cleanup()
+    await executor.cleanup()
+
+    await executor.create_session()
+    await executor.cleanup()
+    await executor.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_only_removes_own_sessions(monkeypatch, tmp_path) -> None:
+    """cleanup must not delete workspaces owned by another executor."""
+    monkeypatch.chdir(tmp_path)
+
+    executor_a = LocalEvalExecutor()
+    executor_b = LocalEvalExecutor()
+    session_a = await executor_a.create_session()
+    session_b = await executor_b.create_session()
+
+    workspace_a = (Path(".myrm/eval_workspaces") / session_a).resolve()
+    workspace_b = (Path(".myrm/eval_workspaces") / session_b).resolve()
+
+    await executor_a.cleanup()
+
+    assert not workspace_a.exists()
+    assert workspace_b.is_dir()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_handles_missing_workspace(monkeypatch, tmp_path) -> None:
+    """cleanup must survive a workspace deleted externally (e.g. by the OS)."""
+    monkeypatch.chdir(tmp_path)
+
+    executor = LocalEvalExecutor()
+    await executor.create_session()
+    for workspace_dir in list(executor._created_workspaces):
+        workspace_dir.rmdir() if workspace_dir.is_dir() else None
+
+    await executor.cleanup()
+
+    assert executor._created_workspaces == set()
+    assert executor._sandbox_executors == {}
+
+
+def test_cleanup_orphan_eval_workspaces_removes_leftovers(monkeypatch, tmp_path) -> None:
+    """Startup sweep must remove every stale session directory and count them."""
+    root = Path(tmp_path / ".myrm" / "eval_workspaces")
+    root.mkdir(parents=True)
+    (root / "eval_orphan1").mkdir()
+    (root / "eval_orphan2").mkdir()
+
+    monkeypatch.chdir(tmp_path)
+    count = cleanup_orphan_eval_workspaces()
+
+    assert count == 2
+    assert not root.exists()
+
+
+def test_cleanup_orphan_eval_workspaces_noop_when_absent(monkeypatch, tmp_path) -> None:
+    """Startup sweep must return 0 when no eval workspaces exist."""
+    monkeypatch.chdir(tmp_path)
+    assert cleanup_orphan_eval_workspaces() == 0

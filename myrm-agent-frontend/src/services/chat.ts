@@ -972,6 +972,9 @@ export interface RewindResult {
   composer_text: string;
   message_index: number;
   goal_paused: boolean;
+  reverted_files?: string[];
+  file_warnings?: string[];
+  skipped_files?: string[];
 }
 
 /**
@@ -987,14 +990,16 @@ export const truncateAfterMessage = async (chatId: string, messageId: string): P
 
 /**
  * Rewind conversation to before a user message and seed the composer.
+ * scope: "conversation" (messages only) or "both" (also revert file changes).
  */
 export const rewindToMessage = async (
   chatId: string,
   messageId: string,
+  scope: 'conversation' | 'both' = 'conversation',
 ): Promise<{ data: RewindResult } & RewindResult> => {
   return (await apiRequest(`/chats/${chatId}/rewind`, {
     method: 'POST',
-    body: JSON.stringify({ message_id: messageId }),
+    body: JSON.stringify({ message_id: messageId, scope }),
   })) as { data: RewindResult } & RewindResult;
 };
 

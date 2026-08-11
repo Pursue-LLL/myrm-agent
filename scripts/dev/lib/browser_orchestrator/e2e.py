@@ -591,6 +591,12 @@ def _is_retryable_open_page_error(message: str) -> bool:
     )
 
 
+def _is_blank_page_url(url: str) -> bool:
+    """True for manual-navigation hosts (about:blank/empty) with no app content."""
+    stripped = (url or "").strip()
+    return not stripped or stripped == "about:blank"
+
+
 def _effective_parallel_load() -> int:
     for key in ("MYRM_E2E_PHASE_C_BURST_LANES", "MYRM_E2E_PARALLEL_ACTIVE_LEASES"):
         raw = os.environ.get(key, "").strip()
@@ -1183,6 +1189,9 @@ def open_app_route_page(
     credit, progress token). Route/hydration-probe identity comes from the
     RouteManifest — no test-layer navigate or second hydrate wait.
 
+    Blank hosts (``about:blank`` / empty) are manual-navigation pages with no app
+    content; they send an empty probe so the daemon skips the hydration wait.
+
     Must be used for every /settings/* open — new deep-link tests must call this
     (or the tests/support thin wrapper), never client.navigate.
     """
@@ -1197,8 +1206,14 @@ def open_app_route_page(
     from cdp_chat_support import get_e2e_ui_url  # noqa: PLC0415
 
     manifest = resolve_route_manifest(url)
-    probe_js = hydration_probe_js(manifest.hydration_gate)
-    assert_gate_allowed(manifest.hydration_gate, url)
+    # Blank pages (about:blank / empty) are manual-navigation hosts with no app
+    # content to hydrate; the daemon skips the hydration wait when the probe is
+    # empty (§19.11.10 NAV-3). Only real app routes resolve a probe + gate check.
+    if _is_blank_page_url(url):
+        probe_js = ""
+    else:
+        probe_js = hydration_probe_js(manifest.hydration_gate)
+        assert_gate_allowed(manifest.hydration_gate, url)
 
     parallel_load = _effective_parallel_load()
     ssot_cap = orchestrator_socket_timeout_cap_sec()
