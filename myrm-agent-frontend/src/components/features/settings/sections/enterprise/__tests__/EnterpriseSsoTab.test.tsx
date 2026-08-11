@@ -200,6 +200,43 @@ describe('EnterpriseSsoTab', () => {
     );
   });
 
+  it('saves the SSO email domain via PUT and toasts success', async () => {
+    const fetchMock = mockFetchRoutes([
+      ...orgRoutes(true, 'owner', 'acme.com', []),
+      {
+        method: 'PUT',
+        url: '/api/enterprise/org/org-1',
+        body: {
+          id: 'org-1',
+          name: 'Acme',
+          owner_user_id: 'owner-1',
+          sso_domain: 'corp.example.com',
+          archive_retention_days: 30,
+        },
+      },
+    ]);
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<EnterpriseSsoTab />);
+    await waitFor(() => {
+      expect(screen.getByLabelText('ssoDomainLabel')).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText('ssoDomainLabel')).toHaveValue('acme.com');
+
+    await userEvent.clear(screen.getByLabelText('ssoDomainLabel'));
+    await userEvent.type(screen.getByLabelText('ssoDomainLabel'), 'corp.example.com');
+    await userEvent.click(screen.getByText('saveDomain'));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith('success', 'ssoDomainSaved');
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/enterprise/org/org-1'),
+      expect.objectContaining({ method: 'PUT' }),
+    );
+    expect(screen.getByLabelText('ssoDomainLabel')).toHaveValue('corp.example.com');
+  });
+
   it('removes the config via DELETE and toasts success', async () => {
     const fetchMock = mockFetchRoutes([
       ...orgRoutes(true),

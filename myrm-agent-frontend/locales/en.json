@@ -4576,7 +4576,13 @@
         "loginLinkCopyFailed": "Failed to copy sign-in link",
         "copyLink": "Copy",
         "groupsHintDomain": "No group filter is set. Auto-join is restricted to the {domain} email domain.",
-        "autoProvisionHintDomain": "Automatically add members after their first SSO login. Only users from the {domain} email domain are eligible."
+        "autoProvisionHintDomain": "Automatically add members after their first SSO login. Only users from the {domain} email domain are eligible.",
+        "ssoDomainLabel": "SSO email domain (optional)",
+        "ssoDomainPlaceholder": "e.g. acme.com",
+        "ssoDomainHint": "When no group whitelist is set, users whose email matches this domain auto-join on their first SSO login.",
+        "ssoDomainSaved": "SSO email domain saved",
+        "ssoDomainSaveFailed": "Failed to save SSO email domain",
+        "saveDomain": "Save"
       }
     },
     "system": {

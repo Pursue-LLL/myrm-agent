@@ -525,34 +525,24 @@ async function submitAndObserveTurn(
       prepareAutomationSend();
     }
     useToolApprovalStore.getState().clearAll();
+    let agentConfigOverride: AgentConfig | undefined;
     if (ephemeralSubagents && Object.keys(ephemeralSubagents).length > 0) {
-      const ephDeadline = Date.now() + 20_000;
-      let ephApplied = false;
-      while (Date.now() < ephDeadline) {
-        const current = useChatStore.getState().agentConfig;
-        if (current) {
-          useChatStore.setState({
-            agentConfig: { ...current, ephemeralSubagents } as AgentConfig,
-          });
-          ephApplied = true;
-          break;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-      if (!ephApplied) {
-        // agentConfig never materialized in time: force-create it so the sealed payload
-        // still carries ephemeral_subagents when sendMessage reads state below.
-        useChatStore.setState({
-          agentConfig: { ephemeralSubagents } as unknown as AgentConfig,
-        });
-      }
+      // 不依赖 store.agentConfig 的稳定性：直接通过 sendMessage 的
+      // agentConfigOverride 参数注入，requestState 在入口即固定，payload
+      // 一定携带 ephemeral_subagents（store 后续被 attach 重置也不受影响）。
+      const currentConfig = useChatStore.getState().agentConfig;
+      agentConfigOverride = {
+        ...((currentConfig ?? {}) as Partial<AgentConfig>),
+        ephemeralSubagents,
+      } as AgentConfig;
       window.__MYRM_E2E_EPH_APPLIED__ = {
         keys: Object.keys(ephemeralSubagents),
         at: Date.now(),
-        forced: !ephApplied,
+        forced: !currentConfig,
       };
     }
-    const { actionMode, agentConfig } = useChatStore.getState();
+    const { actionMode } = useChatStore.getState();
+    const agentConfig = agentConfigOverride ?? useChatStore.getState().agentConfig;
     if (!getModelSelection(actionMode, agentConfig)) {
       return {
         ok: false,
@@ -565,7 +555,14 @@ async function submitAndObserveTurn(
     let submitError: string | null = null;
     let sendSettledEmpty = false;
     const kickoffAt = Date.now();
-    const sendPromise = useChatStore.getState().sendMessage(trimmed, undefined);
+    const sendPromise = useChatStore.getState().sendMessage(
+      trimmed,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      agentConfigOverride,
+    );
     await Promise.resolve();
     void sendPromise
       .then(() => {
@@ -658,10 +655,9 @@ async function submitAndObserveTurn(
       const liveOk = apiOk && uiProgress;
       const readOk = apiOk && uiProgress;
       if ((profile === 'live' && liveOk) || (profile === 'read' && readOk)) {
-        const sealedAgentConfig = useChatStore.getState().agentConfig;
-        const ephKeys = sealedAgentConfig?.ephemeralSubagents
-          ? Object.keys(sealedAgentConfig.ephemeralSubagents)
-          : [];
+        // store.agentConfig may have been reset by attach after POST; the payload
+        // itself is guaranteed by agentConfigOverride, so reflect that in diagnostics.
+        const ephKeys = window.__MYRM_E2E_EPH_APPLIED__?.keys ?? [];
         return {
           ok: true,
           chatId,

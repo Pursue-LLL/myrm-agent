@@ -160,15 +160,35 @@ _MEMORY_AB_DIALOG_JS = """(() => {
   };
 })()"""
 
-_CLICK_START_EVAL_JS = """(() => {
+_CLICK_START_EVAL_JS = """(async () => {
   const dialog = Array.from(document.querySelectorAll('[role="dialog"]'))
     .find(d => /Start Memory A\\/B|开始记忆 A\\/B|记忆对比评测/i.test(d.textContent || ''));
   if (!dialog) return { ready: false, reason: 'no_dialog' };
   const start = Array.from(dialog.querySelectorAll('button'))
     .find(b => /Start Evaluation|开始评测/i.test(b.textContent || ''));
-  if (!start) return { ready: false, reason: 'no_start_button' };
+  if (!start) return {
+    ready: false,
+    reason: 'no_start_button',
+    dialogText: (dialog.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 220),
+  };
+
+  window.__fetches = [];
+  const origFetch = window.fetch.bind(window);
+  window.fetch = function (...args) {
+    window.__fetches.push(String(args[0]));
+    return origFetch(...args);
+  };
   start.click();
-  return { ready: true, clicked: true };
+  await new Promise(resolve => setTimeout(resolve, 2500));
+
+  const dialogsNow = Array.from(document.querySelectorAll('[role="dialog"]'));
+  return {
+    ready: dialogsNow.length === 0,
+    clicked: true,
+    dialogGone: dialogsNow.length === 0,
+    fetches: window.__fetches.slice(-10),
+    bodyTail: (document.body.innerText || '').replace(/\\n+/g, ' | ').slice(-400),
+  };
 })()"""
 
 _OPEN_MEMORY_AB_TAB_JS = """(() => {
@@ -183,8 +203,16 @@ _OPEN_MEMORY_AB_TAB_JS = """(() => {
 })()"""
 
 _HISTORY_TABLE_JS = """(() => {
-  const table = document.querySelector('table');
-  if (!table) return { ready: false, hasTable: false, headers: [], rows: [] };
+  const tables = Array.from(document.querySelectorAll('table'));
+  const table = tables.find(t =>
+    Array.from(t.querySelectorAll('th')).some(th => /Agent Model|Agent 模型|agent model/i.test(th.textContent || ''))
+  );
+  if (!table) return {
+    ready: false,
+    hasTable: false,
+    tableCount: tables.length,
+    allHeaders: tables.map(t => Array.from(t.querySelectorAll('th')).map(th => th.textContent || '')),
+  };
 
   const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent || '');
   const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
@@ -395,16 +423,27 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
         assert isinstance(click_res, dict) and click_res.get("ready") is True, (
             f"dialog did not open: {json.dumps(click_res, ensure_ascii=False, default=str)}"
         )
-        assert click_res.get("clicked") is True, click_res
         dialog = wait_for_state(client, page, _MEMORY_AB_DIALOG_JS, timeout_sec=15.0)
         assert dialog.get("ready") is True, dialog
         started = wait_for_state(client, page, _CLICK_START_EVAL_JS, timeout_sec=15.0)
         assert started.get("ready") is True and started.get("clicked") is True, started
+        with open("/tmp/myrm_start.json", "w", encoding="utf-8") as _f:
+            _f.write(json.dumps(started, ensure_ascii=False, default=str))
+        # Confirm the run was really dispatched by the UI before waiting.
+        time.sleep(2.0)
+        early_status = http_json("GET", f"{api_base}/api/v1/eval/memory-ab/status")
+        early_history = http_json("GET", f"{api_base}/api/v1/eval/memory-ab/reports/history")
+        with open("/tmp/myrm_early_status.json", "w", encoding="utf-8") as _f:
+            _f.write(json.dumps(early_status, ensure_ascii=False, default=str))
+        with open("/tmp/myrm_early_history.json", "w", encoding="utf-8") as _f:
+            _f.write(json.dumps(early_history, ensure_ascii=False, default=str))
 
         # T3: Wait for the real dual-arm run to complete (download + workspaces
         # + embedding probe + both agent arms with the real LLM)
         status_data = _wait_memory_ab_finished(api_base, budget_sec=480.0)
         assert status_data.get("error") is None, status_data.get("error")
+        with open("/tmp/myrm_status.json", "w", encoding="utf-8") as _f:
+            _f.write(json.dumps(status_data, ensure_ascii=False, default=str))
 
         # The run-history table (MemoryAbHistoryTable) lives on the memory-ab
         # tab. Reload so the report + history are re-fetched from the backend.

@@ -816,6 +816,10 @@ def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel() -> None:
         assert isinstance(send_opts, dict) and send_opts.get("hasEph") is True, (
             f"sendChatMessage did not receive ephemeralSubagents: opts={send_opts!r}"
         )
+        applied = eph_status.get("applied") if isinstance(eph_status, dict) else None
+        assert isinstance(applied, dict) and applied.get("keys") == ["bash_worker"], (
+            f"ephemeral subagents not injected into send payload: {eph_status!r}"
+        )
 
         task_id: str | None = None
         deadline = time.monotonic() + 300.0

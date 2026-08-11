@@ -5626,7 +5626,13 @@
         "loginLinkCopyFailed": "Kopieren des Anmeldelinks fehlgeschlagen",
         "copyLink": "Kopieren",
         "groupsHintDomain": "Kein Gruppenfilter festgelegt. Die automatische Aufnahme ist auf die E-Mail-Domain {domain} beschränkt.",
-        "autoProvisionHintDomain": "Mitglieder werden nach ihrer ersten SSO-Anmeldung automatisch hinzugefügt. Nur Benutzer der E-Mail-Domain {domain} sind berechtigt."
+        "autoProvisionHintDomain": "Mitglieder werden nach ihrer ersten SSO-Anmeldung automatisch hinzugefügt. Nur Benutzer der E-Mail-Domain {domain} sind berechtigt.",
+        "ssoDomainLabel": "SSO-E-Mail-Domain (optional)",
+        "ssoDomainPlaceholder": "z. B. acme.com",
+        "ssoDomainHint": "Wenn keine Gruppen-Whitelist festgelegt ist, werden Benutzer mit E-Mail-Adressen dieser Domain bei der ersten SSO-Anmeldung automatisch hinzugefügt.",
+        "ssoDomainSaved": "SSO-E-Mail-Domain gespeichert",
+        "ssoDomainSaveFailed": "Speichern der SSO-E-Mail-Domain fehlgeschlagen",
+        "saveDomain": "Speichern"
       }
     },
     "push": {

@@ -4272,7 +4272,13 @@
         "loginLinkCopyFailed": "サインインリンクのコピーに失敗しました",
         "copyLink": "コピー",
         "groupsHintDomain": "グループフィルターは未設定です。自動参加は {domain} メールドメインのユーザーのみに制限されます。",
-        "autoProvisionHintDomain": "初回の SSO ログイン後にメンバーを自動追加します。{domain} メールドメインのユーザーのみ対象です。"
+        "autoProvisionHintDomain": "初回の SSO ログイン後にメンバーを自動追加します。{domain} メールドメインのユーザーのみ対象です。",
+        "ssoDomainLabel": "SSO メールドメイン（任意）",
+        "ssoDomainPlaceholder": "例: acme.com",
+        "ssoDomainHint": "グループホワイトリストが設定されていない場合、このドメインのメールアドレスを持つユーザーは初回 SSO ログイン時に自動的に参加します。",
+        "ssoDomainSaved": "SSO メールドメインを保存しました",
+        "ssoDomainSaveFailed": "SSO メールドメインの保存に失敗しました",
+        "saveDomain": "保存"
       }
     },
     "system": {

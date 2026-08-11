@@ -83,12 +83,12 @@ function makeSkillArtifact(): Artifact {
   return {
     id: 'file-1',
     filename: 'files/my-skill/SKILL.md',
-    type: 'document',
+    type: 'document' as const,
     content_type: 'text/markdown',
     size: 100,
     preview_url: '',
     download_url: '',
-  } as Artifact;
+  };
 }
 
 describe('SkillDetectionCard', () => {

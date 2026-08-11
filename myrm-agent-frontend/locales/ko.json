@@ -5626,7 +5626,13 @@
         "loginLinkCopyFailed": "로그인 링크 복사에 실패했습니다",
         "copyLink": "복사",
         "groupsHintDomain": "그룹 필터가 설정되지 않았습니다. 자동 참여는 {domain} 이메일 도메인 사용자로 제한됩니다.",
-        "autoProvisionHintDomain": "첫 SSO 로그인 후 멤버를 자동 추가합니다. {domain} 이메일 도메인의 사용자만 해당됩니다."
+        "autoProvisionHintDomain": "첫 SSO 로그인 후 멤버를 자동 추가합니다. {domain} 이메일 도메인의 사용자만 해당됩니다.",
+        "ssoDomainLabel": "SSO 이메일 도메인(선택 사항)",
+        "ssoDomainPlaceholder": "예: acme.com",
+        "ssoDomainHint": "그룹 화이트리스트가 설정되지 않은 경우 이 도메인의 이메일을 가진 사용자는 첫 SSO 로그인 시 자동으로 가입됩니다.",
+        "ssoDomainSaved": "SSO 이메일 도메인이 저장되었습니다",
+        "ssoDomainSaveFailed": "SSO 이메일 도메인 저장 실패",
+        "saveDomain": "저장"
       }
     },
     "push": {

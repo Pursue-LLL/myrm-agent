@@ -4576,7 +4576,13 @@
         "loginLinkCopyFailed": "复制登录链接失败",
         "copyLink": "复制",
         "groupsHintDomain": "未设置组过滤。自动加入仅限 {domain} 邮箱域用户。",
-        "autoProvisionHintDomain": "首次 SSO 登录后自动添加成员；仅 {domain} 邮箱域的用户符合条件。"
+        "autoProvisionHintDomain": "首次 SSO 登录后自动添加成员；仅 {domain} 邮箱域的用户符合条件。",
+        "ssoDomainLabel": "SSO 邮箱域名（可选）",
+        "ssoDomainPlaceholder": "例如 acme.com",
+        "ssoDomainHint": "未设置群组白名单时，邮箱属于该域名的用户会在首次 SSO 登录时自动加入组织。",
+        "ssoDomainSaved": "SSO 邮箱域名已保存",
+        "ssoDomainSaveFailed": "保存 SSO 邮箱域名失败",
+        "saveDomain": "保存"
       }
     },
     "system": {

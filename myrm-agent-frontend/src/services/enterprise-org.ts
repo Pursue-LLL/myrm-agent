@@ -61,6 +61,16 @@ export async function getMyOrg(): Promise<OrgInfo> {
   return res.json();
 }
 
+export async function updateOrgSsoDomain(orgId: string, ssoDomain: string): Promise<OrgInfo> {
+  const res = await fetch(cpUrl(`/${orgId}`), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sso_domain: ssoDomain.trim() || null }),
+  });
+  if (!res.ok) throw new Error(`Update org SSO domain failed: ${res.status}`);
+  return res.json();
+}
+
 export async function listMembers(orgId: string): Promise<OrgMember[]> {
   const res = await fetch(cpUrl(`/${orgId}/members`));
   if (!res.ok) throw new Error(`List members failed: ${res.status}`);

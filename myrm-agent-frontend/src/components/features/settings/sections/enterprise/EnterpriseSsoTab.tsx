@@ -19,6 +19,7 @@ import {
   getMyOrg,
   getOrgSsoConfig,
   listMembers,
+  updateOrgSsoDomain,
   upsertOrgSsoConfig,
 } from '@/services/enterprise-org';
 import { canManageOrgMcp } from './orgMcpAccess';
@@ -51,6 +52,8 @@ const EnterpriseSsoTab = memo(() => {
 
   const [orgId, setOrgId] = useState('');
   const [orgSsoDomain, setOrgSsoDomain] = useState('');
+  const [ssoDomainInput, setSsoDomainInput] = useState('');
+  const [domainSaving, setDomainSaving] = useState(false);
   const [config, setConfig] = useState<OrgOidcConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -82,6 +85,7 @@ const EnterpriseSsoTab = memo(() => {
       const org = await getMyOrg();
       setOrgId(org.id);
       setOrgSsoDomain(org.sso_domain ?? '');
+      setSsoDomainInput(org.sso_domain ?? '');
       const [sso, memberRows] = await Promise.all([
         getOrgSsoConfig(org.id),
         listMembers(org.id),
@@ -148,6 +152,21 @@ const EnterpriseSsoTab = memo(() => {
       toast.error(e instanceof Error ? e.message : t('deleteFailed'));
     }
   }, [orgId, t]);
+
+  const handleSaveDomain = useCallback(async () => {
+    if (!orgId) return;
+    setDomainSaving(true);
+    try {
+      const org = await updateOrgSsoDomain(orgId, ssoDomainInput);
+      setOrgSsoDomain(org.sso_domain ?? '');
+      setSsoDomainInput(org.sso_domain ?? '');
+      toast.success(t('ssoDomainSaved'));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('ssoDomainSaveFailed'));
+    } finally {
+      setDomainSaving(false);
+    }
+  }, [orgId, ssoDomainInput, t]);
 
   const copyLoginLink = useCallback(async () => {
     try {
@@ -229,6 +248,29 @@ const EnterpriseSsoTab = memo(() => {
                 ? t('secretKeepHint', { masked: maskSecret(config.client_secret_masked) })
                 : t('secretPlaceholderHint')}
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sso-domain">{t('ssoDomainLabel')}</Label>
+            <div className="flex gap-2">
+              <Input
+                id="sso-domain"
+                value={ssoDomainInput}
+                onChange={(e) => setSsoDomainInput(e.target.value)}
+                placeholder={t('ssoDomainPlaceholder')}
+                className="flex-1"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSaveDomain}
+                disabled={domainSaving || ssoDomainInput.trim() === orgSsoDomain}
+              >
+                {domainSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {t('saveDomain')}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">{t('ssoDomainHint')}</p>
           </div>
 
           <div className="space-y-2">
