@@ -31,6 +31,18 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 
+_OPEN_VERIFY_TAB_JS = """(() => {
+  const btn = Array.from(document.querySelectorAll('button')).find(
+    (el) => {
+      const label = (el.textContent || '').trim();
+      return /^(验证|Verify)$/.test(label);
+    },
+  );
+  if (!btn) return { ready: false, clicked: false };
+  btn.click();
+  return { ready: true, clicked: true };
+})()"""
+
 _DOCTOR_PANEL_READY_JS = """(() => {
   const text = document.body?.innerText || '';
   const hasTitle = /Memory Doctor|记忆医生/.test(text);
@@ -108,6 +120,9 @@ def _memory_doctor_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
 def test_memory_doctor_panel_run_and_latency_trend_chrome_e2e() -> None:
     """Real user flow: open doctor panel, run diagnostics, verify latency trend."""
     with _memory_doctor_panel() as (client, page):
+        opened = wait_for_state(client, page, _OPEN_VERIFY_TAB_JS, timeout_sec=60.0)
+        assert opened.get("clicked") is True, opened
+
         panel = wait_for_state(client, page, _DOCTOR_PANEL_READY_JS, timeout_sec=90.0)
         assert panel.get("ready") is True, panel
 

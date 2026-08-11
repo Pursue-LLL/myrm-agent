@@ -355,7 +355,7 @@ async def test_memory_ab_report_records_memory_tool_calls(tmp_path: Path) -> Non
             return_value=(cases, {}, False),
         ),
         patch(
-            "app.core.eval.service._resolve_agent_model_label",
+            "app.core.eval.model_config._resolve_agent_model_label",
             new=AsyncMock(return_value="unknown"),
         ),
         patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),

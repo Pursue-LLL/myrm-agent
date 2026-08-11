@@ -21,8 +21,6 @@ from __future__ import annotations
 from myrm_agent_harness.api.config import ConfigIncompleteError
 from myrm_agent_harness.eval import JudgeConfig
 
-from app.core.channel_bridge.config_loader import load_user_configs
-
 
 async def _resolve_agent_model_label(profile_id: str | None) -> str:
     """Resolve the model label of the evaluated agent.
@@ -34,6 +32,8 @@ async def _resolve_agent_model_label(profile_id: str | None) -> str:
     use the same resolution so benchmark reports and Memory A/B reports
     disclose the identical label.
     """
+    from app.core.channel_bridge.config_loader import load_user_configs
+
     if profile_id:
         from app.services.agent.profile.profile_resolver import (
             get_agent_profile_resolver,
@@ -58,6 +58,8 @@ async def _resolve_judge_config() -> tuple[JudgeConfig | None, str]:
     configuration). Returns the judge credentials plus a display label for the
     manifest (e.g. ``"deepseek/deepseek-chat"`` or ``"none"``).
     """
+    from app.core.channel_bridge.config_loader import load_user_configs
+
     try:
         configs = await load_user_configs()
     except ConfigIncompleteError:

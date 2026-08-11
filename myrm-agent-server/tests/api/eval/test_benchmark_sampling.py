@@ -176,7 +176,7 @@ async def test_build_eval_manifest_records_limit_and_judge(tmp_path, monkeypatch
     """The eval manifest discloses the applied sample size and judge model."""
     from types import SimpleNamespace
 
-    from app.core.eval.service import _build_eval_manifest
+    from app.core.eval.manifest import _build_eval_manifest
 
     async def fake_load() -> SimpleNamespace:
         return SimpleNamespace(
