@@ -78,3 +78,52 @@ async def test_one_side_empty() -> None:
     result = await comp.compare({"key": "value"}, {})
     assert result.similarity_score == 0.0
     assert result.is_match is False
+
+
+@pytest.mark.asyncio
+async def test_parse_judge_json_plain() -> None:
+    parsed = _parse_judge_json('{"score": 0.95, "reasoning": "identical"}')
+    assert parsed == {"score": 0.95, "reasoning": "identical"}
+
+
+@pytest.mark.asyncio
+async def test_parse_judge_json_unescaped_newline_in_string() -> None:
+    """reasoning 字段内裸换行（minimax 等 reasoning 模型输出）不应导致解析失败。"""
+    raw = '{"score": 0.95, "reasoning": "the only difference is\\na wording choice"}'
+    parsed = _parse_judge_json(raw)
+    assert parsed is not None
+    assert parsed["score"] == pytest.approx(0.95)
+    assert "a wording choice" in str(parsed["reasoning"])
+
+
+@pytest.mark.asyncio
+async def test_parse_judge_json_pretty_printed() -> None:
+    raw = '{\n  "score": 0.9,\n  "reasoning": "ok"\n}'
+    parsed = _parse_judge_json(raw)
+    assert parsed is not None
+    assert parsed["score"] == pytest.approx(0.9)
+
+
+@pytest.mark.asyncio
+async def test_parse_judge_json_markdown_fence() -> None:
+    raw = '```json\n{"score": 1.0, "reasoning": "same"}\n```'
+    parsed = _parse_judge_json(raw)
+    assert parsed == {"score": 1.0, "reasoning": "same"}
+
+
+@pytest.mark.asyncio
+async def test_parse_judge_json_garbage_returns_none() -> None:
+    assert _parse_judge_json("hello world, not json at all") is None
+    assert _parse_judge_json("") is None
+
+
+@pytest.mark.asyncio
+async def test_escape_newlines_only_touches_string_literals() -> None:
+    """结构性空白必须保留，仅字符串字面量内的裸换行被转义。"""
+    src = '{\n  "reasoning": "line one\nline two"\n}'
+    escaped = _escape_newlines_in_strings(src)
+    assert '"line one\\nline two"' in escaped
+    assert '{\n  "reasoning":' in escaped
+    parsed = _parse_judge_json(src)
+    assert parsed is not None
+    assert parsed["reasoning"] == "line one\nline two"

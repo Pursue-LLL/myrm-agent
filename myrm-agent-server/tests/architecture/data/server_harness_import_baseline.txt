@@ -289,7 +289,7 @@ myrm_agent_harness.toolkits.browser.pool.config
 myrm_agent_harness.toolkits.browser.pool.extension_bridge
 myrm_agent_harness.toolkits.browser.pool.proxy
 myrm_agent_harness.toolkits.browser.session
-myrm_agent_harness.toolkits.browser.session.snapshot_result
+myrm_agent_harness.toolkits.browser.session.view_update_payload
 myrm_agent_harness.toolkits.browser.snapshot.page_snapshot
 myrm_agent_harness.toolkits.code_execution
 myrm_agent_harness.toolkits.code_execution.config

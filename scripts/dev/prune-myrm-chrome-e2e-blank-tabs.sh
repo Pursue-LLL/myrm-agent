@@ -16,12 +16,9 @@ if [[ ! -x "${PREFLIGHT_PY}" ]]; then
   PREFLIGHT_PY="python3"
 fi
 
-ORCHESTRATOR_PY="${SCRIPT_DIR}/lib/browser_orchestrator.py"
-threshold="${MYRM_CHROME_E2E_TAB_PRUNE_THRESHOLD:-20}"
-orch_out="$("${PREFLIGHT_PY}" "${ORCHESTRATOR_PY}" \
-  --prune-self-blanks \
-  --threshold "${threshold}" \
-  --cdp-port "${MYRM_CHROME_E2E_PORT}" 2>&1)" || {
+ORCHESTRATOR_PY="${SCRIPT_DIR}/lib/idle_tab_hygiene.py"
+export PYTHONPATH="${SCRIPT_DIR}/lib${PYTHONPATH:+:${PYTHONPATH}}"
+orch_out="$("${PREFLIGHT_PY}" "${ORCHESTRATOR_PY}" 2>&1)" || {
   echo "CHROME_E2E_WARN: orchestrator prune failed — ${orch_out}" >&2
   exit 0
 }

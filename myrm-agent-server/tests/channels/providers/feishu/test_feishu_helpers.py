@@ -15,6 +15,7 @@ from app.channels.providers.feishu.cards import (
     merge_streaming_text,
     parse_card_action,
 )
+from app.channels.providers.feishu.sdk.client import _MAX_DOWNLOAD_BYTES
 from app.channels.types import OutboundMessage
 from app.channels.types.components import (
     ActionButton,
@@ -614,6 +615,7 @@ class TestFeishuClient:
         mock_secure_get.assert_awaited_once_with(
             "https://example.com/img.png",
             timeout=30.0,
+            max_content_length=_MAX_DOWNLOAD_BYTES,
         )
 
     @pytest.mark.asyncio
@@ -634,6 +636,30 @@ class TestFeishuClient:
             result = await client.download_url("https://example.com/missing.png")
 
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_download_url_too_large_returns_none(self) -> None:
+        from myrm_agent_harness.core.security.http.secure_fetch import (
+            ContentTooLargeError,
+        )
+
+        client = FeishuClient("app_id", "app_secret")
+        client._token = "tok"
+        client._token_expires_at = float("inf")
+
+        with patch(
+            "myrm_agent_harness.core.security.http.secure_fetch.secure_get",
+            new_callable=AsyncMock,
+        ) as mock_secure_get:
+            mock_secure_get.side_effect = ContentTooLargeError("body too large")
+            result = await client.download_url("https://example.com/big.mp4")
+
+        assert result is None
+        mock_secure_get.assert_awaited_once_with(
+            "https://example.com/big.mp4",
+            timeout=30.0,
+            max_content_length=_MAX_DOWNLOAD_BYTES,
+        )
 
     @pytest.mark.asyncio
     async def test_close(self) -> None:
