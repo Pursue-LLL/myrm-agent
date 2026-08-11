@@ -3,6 +3,8 @@
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.protocols::KanbanStore (POS: Kanban persistence.)
 - app.services.kanban.task_attachment_ids (POS: Kanban task attachment ID persistence.)
+- app.services.kanban.task_runner::resolve_workspace (POS: Resolve effective workspace, creating a per-task worktree when branch isolation is set.)
+- myrm_agent_harness.toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Bidirectional container/local path resolver with intelligent workspace auto-detection.)
 
 [OUTPUT]
 - create_kanban_attach_handler: Factory returning harness KanbanTaskAttachFn callback.

@@ -3,11 +3,10 @@
 [INPUT]
 - app.services.kanban::KanbanService (POS: Kanban 业务编排，任务执行完全委托)
 - app.database.models.batch_directory::BatchDirectoryProjectModel (POS: 批量项目持久化)
-- myrm_agent_harness.agent.security.path_security::is_dangerous_path (POS: 路径安全校验)
+- app.services.batch_directory._helpers (POS: 序列化/查询/路径校验助手)
 
 [OUTPUT]
 - BatchDirectoryService: 批量项目编排（创建/列表/详情/取消/删除/完成检测）
-- fetch_project_task_models: 按 batch_project_id 查询任务（服务内复用）
 
 [POS]
 BatchDirectory 业务编排层。批量项目是 Kanban 任务的轻量编排器：
@@ -21,93 +20,28 @@ import asyncio
 import logging
 import uuid
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
-from pathlib import Path
 
 from myrm_agent_harness.toolkits.kanban.types import TaskPriority, TaskStatus
 from sqlalchemy import select
 
-from app.core.kanban.adapters import SqlAlchemyKanbanStore
 from app.database.connection import get_session
 from app.database.models.batch_directory import BatchDirectoryProjectModel
 from app.database.models.kanban import KanbanTaskModel
+from app.services.batch_directory._helpers import (
+    _TERMINAL_STATUSES,
+    _aggregate_statuses,
+    _now,
+    _project_to_dict,
+    _resolve_directory,
+    fetch_project_task_models,
+)
 
 logger = logging.getLogger(__name__)
 
 TerminalCallback = Callable[[str], Awaitable[None]]
 
-# 任务终态：completed/failed/archived 视为不再由 dispatcher 调度
-_TERMINAL_STATUSES = frozenset(
-    {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED}
-)
 # dispatcher 终态事件名（触发项目完成检测）
 _FINAL_EVENTS = frozenset({"task_completed", "task_failed", "task_blocked"})
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _project_to_dict(p: BatchDirectoryProjectModel) -> dict[str, object]:
-    return {
-        "project_id": p.id,
-        "name": p.name,
-        "prompt": p.prompt,
-        "board_id": p.board_id,
-        "status": p.status,
-        "concurrency": p.concurrency,
-        "agent_id": p.agent_id,
-        "model_override": p.model_override,
-        "max_runtime_seconds": p.max_runtime_seconds,
-        "require_approval": p.require_approval,
-        "notify_enabled": p.notify_enabled,
-        "directories": list(p.directories_json) if p.directories_json else [],
-        "artifact_patterns": list(p.artifact_patterns_json) if p.artifact_patterns_json else [],
-        "total_tasks": p.total_tasks,
-        "completed_tasks": p.completed_tasks,
-        "failed_tasks": p.failed_tasks,
-        "created_at": p.created_at.isoformat() if p.created_at else None,
-        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
-        "started_at": p.started_at.isoformat() if p.started_at else None,
-        "finished_at": p.finished_at.isoformat() if p.finished_at else None,
-    }
-
-
-def _is_dangerous(path: Path) -> bool:
-    from myrm_agent_harness.agent.security.path_security import is_dangerous_path
-
-    try:
-        return is_dangerous_path(str(path))
-    except Exception:  # pragma: no cover - 安全函数失败时保守拒绝
-        return True
-
-
-def _resolve_directory(path: str) -> Path:
-    """Resolve and validate a target directory path."""
-    resolved = Path(path).expanduser().resolve()
-    if _is_dangerous(resolved):
-        raise ValueError(f"Access denied for path: {path}")
-    if not resolved.is_dir():
-        raise ValueError(f"Directory does not exist: {path}")
-    return resolved
-
-
-async def fetch_project_task_models(project_id: str) -> list[KanbanTaskModel]:
-    """Load Kanban tasks linked to a batch project via metadata `batch_project_id`."""
-    async with get_session() as session:
-        stmt = select(KanbanTaskModel).where(
-            KanbanTaskModel.metadata_json["batch_project_id"].as_string() == project_id
-        ).order_by(KanbanTaskModel.created_at)
-        result = await session.execute(stmt)
-        return list(result.scalars().all())
-
-
-def _aggregate_statuses(tasks: list[KanbanTaskModel]) -> tuple[int, int, int]:
-    """Return (total, completed, failed) counts from the given tasks."""
-    total = len(tasks)
-    completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED.value)
-    failed = sum(1 for t in tasks if t.status in (TaskStatus.FAILED.value, TaskStatus.ARCHIVED.value))
-    return total, completed, failed
 
 
 class BatchDirectoryService:

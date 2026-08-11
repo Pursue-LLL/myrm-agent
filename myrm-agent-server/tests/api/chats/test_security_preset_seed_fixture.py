@@ -54,9 +54,9 @@ class TestSecurityPresetSeedFixture:
         assert body["preset_agent_id"] == "agent-e2e-sec-preset"
         assert body["plain_agent_id"] == "agent-e2e-sec-plain"
         assert body["explore_agent_id"] == "agent-e2e-sec-explore"
-        assert body["preset_ui_path"] == f"/?agentId=agent-e2e-sec-preset"
-        assert body["plain_ui_path"] == f"/?agentId=agent-e2e-sec-plain"
-        assert body["explore_ui_path"] == f"/?agentId=agent-e2e-sec-explore"
+        assert body["preset_ui_path"] == "/?agentId=agent-e2e-sec-preset"
+        assert body["plain_ui_path"] == "/?agentId=agent-e2e-sec-plain"
+        assert body["explore_ui_path"] == "/?agentId=agent-e2e-sec-explore"
         assert create_chat.await_count == 3
 
     def test_seed_security_preset_fixture_hidden_outside_local_mode(
