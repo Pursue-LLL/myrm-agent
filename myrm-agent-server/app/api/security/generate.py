@@ -8,6 +8,7 @@ and human-readable explanations.
 - myrm_agent_harness.agent.security.policy_generator (build_messages, parse, validate, explain)
 - litellm for LLM calls
 - User's configured model via config loader
+- core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
 
 [OUTPUT]
 - router: FastAPI APIRouter for POST /security/generate-policy
@@ -30,6 +31,8 @@ from myrm_agent_harness.agent.security.policy_generator import (
     validate_generated_policy,
 )
 from pydantic import BaseModel, Field
+
+from app.core.utils.chat_utils import extract_litellm_answer_text
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +94,8 @@ async def generate_policy(req: GeneratePolicyRequest) -> GeneratePolicyResponse:
             llm_kwargs["api_base"] = model_cfg.base_url
 
         response = await acompletion(**llm_kwargs)  # type: ignore[arg-type]
-        raw_output = (response.choices[0].message.content or "").strip()
+        # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
+        raw_output = extract_litellm_answer_text(response).strip()
     except Exception as exc:
         logger.error("Policy generation LLM call failed: %s", exc)
         raise HTTPException(

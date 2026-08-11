@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from app.config.deploy_mode import is_local_mode
 from app.core.types import ModelConfig
+from app.core.utils.chat_utils import extract_answer_text
 from app.core.utils.errors import handle_llm_exception
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
@@ -318,8 +319,9 @@ async def verify_llm_connection(request: LLMVerifyRequest) -> JSONResponse:
         test_message = HumanMessage(content="Hello")
         result = await llm.ainvoke([test_message], config={"tags": ["connection_test"]})
 
-        # 检查返回内容是否有效
-        if result is None or result.content is None or result.content == "":
+        # reasoning 模型（DeepSeek-R1/Qwen3 等）content 可能为空但 reasoning_content 有值，
+        # 需按统一提取结果判定，避免误报"连接失败"
+        if result is None or not extract_answer_text(result):
             raise ValueError("LLM returned empty response content, verification failed")
 
         # 如果没有抛出异常且内容非空，说明连接成功

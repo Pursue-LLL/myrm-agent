@@ -10,6 +10,7 @@ so there's no second-set-of-credentials surface and no env fallback.
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask, TaskStatus
 - app.services.agent.platform_config::build_platform_litellm_kwargs
     (POS: WebUI-configured LLM kwargs, no env fallback.)
+- app.core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
 
 [OUTPUT]
 - PlatformTaskSpecifier: Concrete TaskSpecifier using LiteLLM + WebUI config.
@@ -26,6 +27,7 @@ import logging
 from myrm_agent_harness.toolkits.kanban.protocols import SpecifyOutcome
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 
+from app.core.utils.chat_utils import extract_litellm_answer_text
 from app.services.kanban.llm_utils import extract_json_blob, extract_usage, has_cjk, truncate
 
 logger = logging.getLogger(__name__)
@@ -193,8 +195,8 @@ class PlatformTaskSpecifier:
         prompt_tokens, completion_tokens = extract_usage(response)
 
         try:
-            raw_content = response.choices[0].message.content or ""
-            raw = str(raw_content).strip()
+            # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
+            raw = extract_litellm_answer_text(response).strip()
         except Exception:
             raw = ""
 

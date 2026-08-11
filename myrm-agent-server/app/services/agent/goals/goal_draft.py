@@ -2,6 +2,7 @@
 
 [INPUT]
 - langchain_core.language_models::BaseChatModel (POS: Lite model for structured draft)
+- core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 
 [OUTPUT]
 - draft_goal_spec: Generate constraints, acceptance_criteria, ui_summary from objective text
@@ -18,6 +19,8 @@ import json
 import logging
 import re
 from typing import TYPE_CHECKING
+
+from app.core.utils.chat_utils import extract_answer_text
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
@@ -66,13 +69,10 @@ async def draft_goal_spec(
             {"role": "user", "content": user_prompt},
         ]
     )
-    raw = response.content if hasattr(response, "content") else str(response)
-    if isinstance(raw, list):
-        raw = " ".join(
-            block.get("text", "") if isinstance(block, dict) else str(block) for block in raw
-        )
+    # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
+    raw = extract_answer_text(response)
 
-    parsed = _parse_draft_json(str(raw))
+    parsed = _parse_draft_json(raw)
     return _normalize_draft(parsed, objective_clean)
 
 

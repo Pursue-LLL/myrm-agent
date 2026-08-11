@@ -10,6 +10,7 @@ optional ``voice-tts`` extra is installed:
 
 [INPUT]
 - channels.types::VoiceConfig, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
 
 [OUTPUT]
 - synthesize(): Text -> audio file path (Path)
@@ -35,6 +36,7 @@ from types import ModuleType
 import httpx
 
 from app.channels.types import VoiceConfig
+from app.core.utils.chat_utils import extract_litellm_answer_text
 
 logger = logging.getLogger(__name__)
 
@@ -422,7 +424,7 @@ async def _summarize_for_tts(text: str, config: VoiceConfig) -> str | None:
             temperature=0.3,
             timeout=_SUMMARY_TIMEOUT,
         )
-        summary = resp.choices[0].message.content.strip()
+        summary = extract_litellm_answer_text(resp).strip()
         if not summary:
             return None
 

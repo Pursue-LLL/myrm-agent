@@ -11,6 +11,7 @@ contract.
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask, TaskStatus
 - app.services.kanban.llm_utils (POS: Shared LLM helpers.)
 - app.services.agent.platform_config::build_platform_litellm_kwargs
+- app.core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
 
 [OUTPUT]
 - PlatformTaskDecomposer: Concrete TaskDecomposer using LiteLLM + WebUI config.
@@ -29,6 +30,7 @@ from myrm_agent_harness.toolkits.kanban.protocols import (
 )
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 
+from app.core.utils.chat_utils import extract_litellm_answer_text
 from app.services.kanban.llm_utils import (
     extract_json_blob,
     extract_usage,
@@ -270,8 +272,8 @@ class PlatformTaskDecomposer:
         prompt_tokens, completion_tokens = extract_usage(response)
 
         try:
-            raw_content = response.choices[0].message.content or ""
-            raw = str(raw_content).strip()
+            # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
+            raw = extract_litellm_answer_text(response).strip()
         except Exception:
             raw = ""
 

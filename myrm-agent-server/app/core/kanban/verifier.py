@@ -16,6 +16,7 @@ Verification strategy (layered):
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask (POS: Domain entity)
 - myrm_agent_harness.agent.goals.verification.base::VerificationResult (POS: Result type)
 - myrm_agent_harness.agent.goals.verification.shell::ShellCriterion (POS: Sandbox shell verifier)
+- app.core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
 
 [OUTPUT]
 - KanbanCompletionVerifier: Server-side CompletionVerifier implementation.
@@ -33,6 +34,8 @@ import re
 from myrm_agent_harness.agent.goals.verification.base import VerificationResult
 from myrm_agent_harness.agent.goals.verification.shell import ShellCriterion
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
+
+from app.core.utils.chat_utils import extract_litellm_answer_text
 
 logger = logging.getLogger(__name__)
 
@@ -152,8 +155,9 @@ class KanbanCompletionVerifier:
         """Execute shell criteria in order. Returns first failure or None."""
         for cfg in configs:
             command = str(cfg.get("command", ""))
+            raw_timeout: object = cfg.get("timeout_seconds", 60)
             try:
-                timeout = int(cfg.get("timeout_seconds", 60))
+                timeout = int(raw_timeout)  # type: ignore[call-overload]
             except (TypeError, ValueError):
                 timeout = 60
             criterion = ShellCriterion(command=command, timeout_seconds=timeout)
@@ -201,19 +205,8 @@ class KanbanCompletionVerifier:
                 timeout=30,
                 **llm_kwargs,
             )
-            raw = (response.choices[0].message.content or "").strip()
-
-            if not raw:
-                reasoning = (
-                    getattr(
-                        response.choices[0].message,
-                        "reasoning_content",
-                        None,
-                    )
-                    or ""
-                )
-                if reasoning:
-                    raw = reasoning.strip()
+            # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
+            raw = extract_litellm_answer_text(response).strip()
 
             parsed = _parse_judge_json(raw)
             if parsed is not None:

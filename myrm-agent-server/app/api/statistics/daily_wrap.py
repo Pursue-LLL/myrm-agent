@@ -9,6 +9,7 @@ cached in the main SQLite database (one row per date) to minimize LLM costs.
 - app.core.channel_bridge.config_loader (POS: load user LLM configs)
 - app.core.channel_bridge.config_parsers (POS: extract lite model config)
 - myrm_agent_harness.toolkits.llms (POS: create_litellm_model for LLM calls)
+- core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 
 [OUTPUT]
 - router: Daily Wrap APIRouter (get_daily_wrap, regenerate_daily_wrap)
@@ -38,6 +39,7 @@ from app.api.statistics.daily_journal import (
     _fetch_sessions,
     _parse_day,
 )
+from app.core.utils.chat_utils import extract_answer_text
 from app.core.utils.errors import StandardHTTPException, internal_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
@@ -145,7 +147,8 @@ async def _generate_wrap_via_llm(
         config={"max_tokens": 500, "timeout": 15},
     )
 
-    raw = str(response.content).strip()
+    # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
+    raw = extract_answer_text(response).strip()
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
 

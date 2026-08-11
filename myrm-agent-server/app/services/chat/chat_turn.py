@@ -4,6 +4,7 @@
 - _base::_ChatServiceBase (POS: repository 协议和访问器)
 - chat_helpers::RetryResult, RegenerateResult, UndoResult, TruncateResult (POS: 操作结果 DTO)
 - database.repositories.chat_repo::SiblingDetail (POS: 兄弟消息详情)
+- core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 
 [OUTPUT]
 - _ChatTurnMixin: 重试、撤销、截断、重新生成、兄弟切换、标题生成
@@ -18,6 +19,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, cast
 
+from app.core.utils.chat_utils import extract_answer_text
 from app.database.repositories.chat_repo import SiblingDetail
 from app.database.repositories.uow import UnitOfWork
 
@@ -333,7 +335,8 @@ class _ChatTurnMixin(_ChatServiceBase):
         llm = await llm_manager.get_llm_from_config(cfg, streaming=False)
         prompt = f"Summarize this conversation into a short title (5-15 characters). Reply strictly in the SAME LANGUAGE as the user input. Output ONLY the title:\n<user_input>\n{content[:200]}\n</user_input>"
         response = await llm.ainvoke([HumanMessage(content=prompt)])
-        title = str(response.content).strip().strip("\"'「」【】：:。.")
+        # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退（title_model 为用户可配置模型）
+        title = extract_answer_text(response).strip().strip("\"'「」【】：:。.")
         title = re.sub(r"^(Title|标题|Chat Title)[:：\s]*", "", title, flags=re.IGNORECASE)
         if len(title) < 2 or len(title) > 50:
             return _ChatTurnMixin._generate_fallback_title(content)

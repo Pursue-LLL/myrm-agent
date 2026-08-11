@@ -5,6 +5,7 @@
 - User question
 - Optional selection snippet
 - Accept-Language for Tier-1 reply language
+- core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
 
 [OUTPUT]
 - Advisor reply text (does not enter main agent transcript)
@@ -22,6 +23,7 @@ from myrm_agent_harness.utils.locale import normalize_locale
 
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.config_parsers import extract_lite_model_config
+from app.core.utils.chat_utils import extract_litellm_answer_text
 from app.services.copilot.run_digest_store import RunDigestStore
 
 logger = logging.getLogger(__name__)
@@ -133,7 +135,8 @@ async def ask_advisor(
             max_tokens=256,
             temperature=0.2,
         )
-        text = (response.choices[0].message.content or "").strip()
+        # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
+        text = extract_litellm_answer_text(response).strip()
         if not text:
             if _is_zh(locale):
                 return ("无法根据当前运行上下文生成回答。", "tier1")

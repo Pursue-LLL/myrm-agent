@@ -4,6 +4,7 @@
 - core.channel_bridge.config_loader::load_user_configs (POS: load merged user config bundles)
 - core.channel_bridge.config_parsers::extract_lite_model_config (POS: resolve lite/filter model)
 - myrm_agent_harness.toolkits.llms.llm_manager::get_llm_from_config (POS: LangChain LLM construction)
+- core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 
 [OUTPUT]
 - POST /agents/suggestions: JSON array of 3 concise follow-up questions
@@ -25,6 +26,7 @@ from pydantic.alias_generators import to_camel
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
 from app.core.types import ModelConfig
+from app.core.utils.chat_utils import extract_answer_text
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -82,9 +84,10 @@ async def get_suggestions(
         async with asyncio.timeout(15):
             result = await llm.ainvoke(prompt)
 
-        content = result.content if hasattr(result, "content") else str(result)
+        # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
+        content = extract_answer_text(result)
 
-        suggestions = _parse_suggestions(str(content))
+        suggestions = _parse_suggestions(content)
         return success_response(data={"suggestions": suggestions})
     except TimeoutError:
         logger.warning("suggestions_generation_timed_out")

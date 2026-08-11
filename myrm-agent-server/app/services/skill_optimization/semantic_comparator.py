@@ -19,6 +19,8 @@ from myrm_agent_harness.agent.skills.optimization.result_comparator import (
     StructuredComparator,
 )
 
+from app.core.utils.chat_utils import extract_litellm_answer_text
+
 logger = logging.getLogger(__name__)
 
 _SEMANTIC_JUDGE_PROMPT = """You are a result comparator. Compare the BASELINE and CANDIDATE outputs of the same tool/skill call.
@@ -129,8 +131,8 @@ class SemanticComparator:
                 max_tokens=100,
             )
 
-            raw_content = response.choices[0].message.content
-            content = str(raw_content).strip() if raw_content is not None else ""
+            # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
+            content = extract_litellm_answer_text(response).strip()
 
             content = content.removeprefix("```json").removesuffix("```").strip()
             parsed_obj = json.loads(content)

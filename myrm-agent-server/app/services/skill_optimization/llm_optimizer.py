@@ -4,6 +4,8 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from app.core.utils.chat_utils import extract_answer_text
+
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
     from myrm_agent_harness.agent.skills.optimization import OptimizationConfig
@@ -59,15 +61,5 @@ Quality Metrics:
 Return the complete optimized SKILL.md content."""
 
         response = await self.llm.ainvoke(prompt)
-        content = response.content
-        if isinstance(content, str):
-            return content
-        if isinstance(content, list):
-            parts: list[str] = []
-            for item in content:
-                if isinstance(item, str):
-                    parts.append(item)
-                else:
-                    parts.append(str(item))
-            return "\n".join(parts)
-        return str(content)
+        # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
+        return extract_answer_text(response)

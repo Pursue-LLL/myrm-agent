@@ -3,6 +3,7 @@
 [INPUT]
 app.api.dependencies::get_deploy_identity (POS: 全局依赖注入)
 app.core.channel_bridge.config_loader (POS: 用户模型配置加载)
+app.core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
 app.database.connection::get_db (POS: 数据库会话工厂)
 app.database.models::Chat, Message (POS: 数据库 ORM 模型)
 app.services.companion.pet_store (POS: on-disk Petdex install store)
@@ -28,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.config_parsers import extract_lite_model_config
+from app.core.utils.chat_utils import extract_litellm_answer_text
 from app.database.connection import get_db
 from app.database.models import Chat, Message
 
@@ -113,8 +115,9 @@ async def companion_react(
             max_tokens=_MAX_REACTION_TOKENS,
             temperature=0.9,
         )
-        text = response.choices[0].message.content or ""
-        reaction = text.strip().strip('"').strip("'")
+        # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
+        text = extract_litellm_answer_text(response).strip().strip('"').strip("'")
+        reaction = text.strip()
         if not reaction:
             raise HTTPException(status_code=204, detail="Empty reaction")
         return CompanionReactResponse(reaction=reaction[:100])
