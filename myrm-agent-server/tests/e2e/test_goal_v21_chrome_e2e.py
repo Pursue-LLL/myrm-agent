@@ -31,7 +31,7 @@ from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 E2E_PROMPT = (
@@ -109,7 +109,7 @@ async def test_chrome_ui_goal_v21_pause_draft_bg_refresh(
         ).strip()
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
-        heartbeat_e2e_lease()
+        heartbeat_once()
         after_turn = await chat.wait_turn_done(
             E2E_PROMPT,
             timeout_sec=180,

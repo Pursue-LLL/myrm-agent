@@ -33,7 +33,7 @@ from cdp_chat_support import (  # noqa: E402
 from e2e_orchestrator import touch_wall_progress  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import guarded_httpx_request  # noqa: E402
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 _MARKETPLACE_TOOL = "skill_market_tool"
 _DISCOVER_TOOL = "skill_search_tool"
@@ -188,7 +188,7 @@ def _stream_marketplace_search(
     ) as response:
         response.raise_for_status()
         for line in response.iter_lines():
-            heartbeat_e2e_lease()
+            heartbeat_once()
             touch_wall_progress(current_node="skill_market_live_stream")
             if line == "data: [DONE]":
                 break
@@ -244,7 +244,7 @@ def test_live_agent_skill_marketplace_search_in_real_ui(
 
     for attempt in range(_MAX_STREAM_ATTEMPTS):
         chat_id = f"e2e-skillmkt-{uuid.uuid4().hex[:10]}"
-        heartbeat_e2e_lease()
+        heartbeat_once()
         touch_wall_progress(current_node="skill_market_live_attempt")
         try:
             with httpx.Client() as client:

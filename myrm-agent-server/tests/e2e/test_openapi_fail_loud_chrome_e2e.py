@@ -34,7 +34,7 @@ from tests.support.chrome_openapi_fail_loud_e2e import (
     send_and_wait_openapi_error_js,
     wait_agent_applied_js,
 )
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 
 def _heavy_openapi_spec_yaml() -> str:
@@ -138,7 +138,7 @@ async def _wait_agent_applied(
     last: dict[str, object] = {}
     js = wait_agent_applied_js(expected_agent_id)
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         raw = await chat.evaluate(js, intent=EvaluateIntent.AGENT_SUBMIT)
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ok") is True:
@@ -151,7 +151,7 @@ async def _wait_bridge_ready(chat: McpChatSession, *, timeout_sec: float = 90.0)
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         raw = await chat.evaluate(_AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ready") is True:
@@ -185,7 +185,7 @@ async def _run_openapi_fail_loud_ui(
     message_pattern: str,
 ) -> dict[str, object]:
     api_url = get_e2e_api_url()
-    heartbeat_e2e_lease()
+    heartbeat_once()
     prepare_e2e_ui_session(api_url)
     await asyncio.to_thread(warm_ui_route, agent_path)
 

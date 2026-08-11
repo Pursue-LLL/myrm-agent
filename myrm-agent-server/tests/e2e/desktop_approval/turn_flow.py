@@ -56,12 +56,12 @@ from tests.support.e2e_desktop_model_pin import (
     expected_desktop_e2e_model,
     ui_provider_debug_matches_expected,
 )
-from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import heartbeat_once
 
 
 def _api_done_wait_tick() -> None:
     """R249: lease + BODY wall progress during blocking API DONE poll."""
-    heartbeat_e2e_lease()
+    heartbeat_once()
     try:
         from e2e_session_runtime.lifecycle import touch_wall_progress
 
@@ -339,7 +339,7 @@ async def _verify_bridge_seal_api_kickoff(
     """R257: short API-only probe after bridge SEAL before trusting kickoff."""
     deadline = asyncio.get_event_loop().time() + timeout_sec
     while asyncio.get_event_loop().time() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         try:
             started = await asyncio.to_thread(
                 _bridge_seal_agent_started_probe,
@@ -425,7 +425,7 @@ async def _wait_seeded_resend_turn_kickoff(
     nudged = False
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
-        heartbeat_e2e_lease()
+        heartbeat_once()
         if normalized:
             try:
                 activity = await asyncio.to_thread(
@@ -491,7 +491,7 @@ async def wait_stream_done_with_marker(
     nudged_done = False
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
-        heartbeat_e2e_lease()
+        heartbeat_once()
         try:
             probe = await chat.evaluate(
                 f"""(() => {{
@@ -579,7 +579,7 @@ async def wait_stream_done_with_marker(
                         f"R254 nudge send_message timeout after {nudge_timeout:.0f}s "
                         f"— continue DONE poll (non-fatal): {exc}"
                     )
-                heartbeat_e2e_lease()
+                heartbeat_once()
                 continue
         await asyncio.sleep(2.0)
     return {**last, "ok": False, "err": "turn-timeout"}
@@ -596,7 +596,7 @@ async def wait_for_trusted_app_display_name(
     apps: list[dict[str, object]] = []
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
-        heartbeat_e2e_lease()
+        heartbeat_once()
         apps = await asyncio.to_thread(list_trusted_apps_via_api)
         for app in apps:
             if not isinstance(app, dict):
@@ -633,7 +633,7 @@ async def verify_settings_revoke_trusted_app(
     revoke_selector = desktop_trust_revoke_selector_js(trust_key)
     probe: dict[str, object] = {}
     while asyncio.get_event_loop().time() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         probe = await chat.evaluate(
             f"""(() => {{
               const body = document.body?.innerText || '';
@@ -670,7 +670,7 @@ async def verify_settings_revoke_trusted_app(
 
     empty_deadline = asyncio.get_event_loop().time() + 60.0
     while asyncio.get_event_loop().time() < empty_deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         apps = await asyncio.to_thread(list_trusted_apps_via_api)
         if not apps:
             return
@@ -927,7 +927,7 @@ async def wait_for_approval_banner_clickable(
 
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
-        heartbeat_e2e_lease()
+        heartbeat_once()
         server_pending = await asyncio.to_thread(server_pending_approval_count)
         probe = await chat.probe_desktop_approval_once()
         if isinstance(probe, dict):
@@ -1037,7 +1037,7 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
     )
     attempts = 3
     for attempt in range(1, attempts + 1):
-        heartbeat_e2e_lease()
+        heartbeat_once()
         progress(f"force chat shell ({label}) attempt {attempt}/{attempts}")
         try:
             await asyncio.to_thread(
@@ -1246,7 +1246,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     if isinstance(provider_debug, dict):
         chat_id = str(provider_debug.get("chatId") or "").strip()
 
-    heartbeat_e2e_lease()
+    heartbeat_once()
     progress("preflight TextEdit foreground before agent send")
     await asyncio.to_thread(preflight_textedit_foreground)
     initial_api_kickoff = False
@@ -1283,7 +1283,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         chat_id = str(submit.get("chatId") or chat_id or "").strip()
     progress("activate TextEdit foreground for AX snapshot @drefs")
     await asyncio.to_thread(preflight_textedit_foreground)
-    heartbeat_e2e_lease()
+    heartbeat_once()
 
     progress("wait desktop tool activity")
     # R271: per-attempt wall must not include force_chat_shell/textedit prep —

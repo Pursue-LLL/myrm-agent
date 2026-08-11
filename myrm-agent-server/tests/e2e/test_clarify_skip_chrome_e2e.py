@@ -277,7 +277,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         normalized_chat_id = chat_id.strip()
         while time.monotonic() < deadline:
             touch_wall_progress()
-            heartbeat_e2e_lease()
+            heartbeat_once()
             if normalized_chat_id:
                 api_pending = await asyncio.to_thread(
                     chat_has_pending_clarification,
@@ -342,7 +342,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         deadline = time.monotonic() + wait_sec
         while time.monotonic() < deadline:
             touch_wall_progress()
-            heartbeat_e2e_lease()
+            heartbeat_once()
             api_ready = await asyncio.to_thread(
                 chat_messages_have_clarify_skip_done,
                 chat_id,
@@ -373,7 +373,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             touch_wall_progress()
-            heartbeat_e2e_lease()
+            heartbeat_once()
             raw = await chat.evaluate(
                 _UI_SKIP_DONE_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
@@ -453,7 +453,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             touch_wall_progress()
-            heartbeat_e2e_lease()
+            heartbeat_once()
             try:
                 raw = await chat.evaluate(
                     _CLARIFY_FORM_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
@@ -571,7 +571,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     },
                 }
             if _is_no_user_query_error(last):
-                heartbeat_e2e_lease()
+                heartbeat_once()
                 try:
                     last = await asyncio.wait_for(
                         asyncio.to_thread(
@@ -604,18 +604,18 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             if is_hitl_already_resolved_by_timeout(last):
                 return last
             if clarify_skip_resume_should_retry(last):
-                heartbeat_e2e_lease()
+                heartbeat_once()
                 await asyncio.sleep(pause)
                 continue
             if (
                 _is_resume_retryable_transient_error(last)
                 and attempt + 1 < max_attempts
             ):
-                heartbeat_e2e_lease()
+                heartbeat_once()
                 await asyncio.sleep(pause)
                 continue
             if _is_resume_progress_stall(last) and attempt + 1 < max_attempts:
-                heartbeat_e2e_lease()
+                heartbeat_once()
                 await asyncio.sleep(pause)
                 continue
             return last
@@ -852,7 +852,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     f"SendTurnContract expected sendTurnSealed, got: {send_result}"
                 )
 
-            heartbeat_e2e_lease()
+            heartbeat_once()
             try:
                 form_state = await _ensure_clarify_after_send(
                     chat,

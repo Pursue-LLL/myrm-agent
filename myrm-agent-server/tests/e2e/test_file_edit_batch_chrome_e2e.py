@@ -39,7 +39,7 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
@@ -232,7 +232,7 @@ async def test_file_edit_batch_live_agent_webui(
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
+            heartbeat_once()
             raw = await chat.evaluate(
                 _AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
@@ -268,7 +268,7 @@ async def test_file_edit_batch_live_agent_webui(
         deadline = time.monotonic() + timeout_sec
         last_api = ("", False)
         while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
+            heartbeat_once()
             invoked, assistant = _file_edit_invoked_in_messages(
                 chat_id, api_url=api_base
             )
@@ -354,7 +354,7 @@ async def test_file_edit_batch_live_agent_webui(
             or chat_id
         ).strip()
 
-        heartbeat_e2e_lease()
+        heartbeat_once()
         started = await chat.wait_stream_started(
             _LIVE_USER_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
         )
@@ -401,7 +401,7 @@ async def test_file_edit_batch_live_agent_webui(
     try:
         agent_url = f"{ui_base}/?agentId={agent_id}"
         for attempt in range(_MAX_CHAT_ATTEMPTS):
-            heartbeat_e2e_lease()
+            heartbeat_once()
             try:
                 page: McpPage | None = None
                 for page_attempt in range(3):

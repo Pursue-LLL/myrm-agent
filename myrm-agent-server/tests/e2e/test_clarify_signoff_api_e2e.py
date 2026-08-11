@@ -32,7 +32,7 @@ from dev_gate_contract import (  # noqa: E402
 from e2e_orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
 
 from tests.api.agent.utils import get_lite_model_selection  # noqa: E402
-from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import heartbeat_once
 
 E2E_PROMPT_SIGNOFF = (
     "CRITICAL: Your very first action MUST be a single ask_question_tool call — no text reply before it. "
@@ -78,7 +78,7 @@ def test_clarify_signoff_api_contract_on_shpoib() -> None:
     chat_id = ""
     clarify_result: dict[str, object] = {}
     for attempt in range(4):
-        heartbeat_e2e_lease()
+        heartbeat_once()
         touch_wall_progress()
         chat_id = f"signoff_clarify_{uuid.uuid4().hex[:8]}"
         create_e2e_chat_via_api(chat_id, api_url=api_base)

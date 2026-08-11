@@ -37,7 +37,7 @@ from tests.support.chrome_mcp_e2e import (
     open_mcp_page_async,
     prepare_e2e_ui_session,
 )
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 _RECOVER_HITL_JS = """((chatId) => {
   const bridge = window.__MYRM_E2E_CHAT__;
@@ -210,7 +210,7 @@ async def _wait_for_tools_panel_ready(
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         _touch_wall_progress("tools_panel_wait_snapshot")
         raw = await chat.evaluate(
             _WAIT_TOOLS_PANEL_READY_JS,
@@ -265,7 +265,7 @@ async def _wait_for_eval_ready(
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         _touch_wall_progress(progress_node)
         raw = await chat.evaluate(
             expression,
@@ -301,7 +301,7 @@ async def _wait_api_user_messages(
     deadline = time.monotonic() + timeout_sec
     last = 0
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         _touch_wall_progress("tools_panel_api_user_gate")
         try:
             last = await asyncio.wait_for(
@@ -350,7 +350,7 @@ async def _run_tools_panel_layer_badges_flow(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     _USER_PROMPT = "Reply OK."
-    heartbeat_e2e_lease()
+    heartbeat_once()
     _touch_wall_progress("tools_panel_flow_start")
     chat._client.set_tool_wall_deadline(None)
 
@@ -369,14 +369,14 @@ async def _run_tools_panel_layer_badges_flow(
     )
     assert chat_ready.get("sendReady") is True, chat_ready
 
-    heartbeat_e2e_lease()
+    heartbeat_once()
     workspace = await chat.evaluate(
         WAIT_WORKSPACE_STREAM_JS,
         intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert isinstance(workspace, dict) and workspace.get("ok") is True, workspace
 
-    heartbeat_e2e_lease()
+    heartbeat_once()
     _touch_wall_progress("tools_panel_kickoff")
     send_result = await chat.send_message(_USER_PROMPT, _USER_PROMPT)
     assert isinstance(send_result, dict), send_result
@@ -477,7 +477,7 @@ async def _run_tools_panel_layer_badges_flow(
 
     e2e_resource_ledger.register("chat", chat_id)
 
-    heartbeat_e2e_lease()
+    heartbeat_once()
     panel = await _wait_for_tools_panel_ready(
         chat,
         api_url=api_url,

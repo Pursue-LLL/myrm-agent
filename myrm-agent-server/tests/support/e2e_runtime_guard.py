@@ -19,7 +19,7 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from e2e_session_runtime.heartbeat import heartbeat_once
+from e2e_session_runtime.heartbeat import heartbeat_once as _unified_heartbeat_once
 from e2e_resource_ledger import E2EResourceLedger as _E2EResourceLedger
 
 _E2E_HEARTBEAT_INTERVAL_SEC = 30.0
@@ -41,6 +41,11 @@ class E2ERuntimeLease:
     runtime_id: str
     lane: str
     isolated: bool = False
+
+
+def heartbeat_once() -> None:
+    """Test-support boundary for the unified coordinator/wave/runtime heartbeat."""
+    _unified_heartbeat_once()
 
 
 def reap_chrome_e2e_session_hygiene() -> None:
@@ -358,13 +363,13 @@ def _heal_stale_e2e_lease() -> None:
 
     ok, _ = lease_runtime_matches_shared_hot(lease_id=lease_id)
     if ok:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         time.sleep(0.25)
         return
     sync_lease_runtime_with_shared_hot(lease_id=lease_id)
     ok, _ = lease_runtime_matches_shared_hot(lease_id=lease_id)
     if ok:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         time.sleep(0.25)
         return
     if _reacquire_e2e_lease_from_wave():
@@ -453,7 +458,7 @@ def require_e2e_runtime_lease(
     *,
     runtime_id_reader: Callable[[], str] = _runtime_id_reader,
 ) -> E2ERuntimeLease:
-    heartbeat_e2e_lease()
+    heartbeat_once()
     last_error: RuntimeError | None = None
     for attempt in range(3):
         try:

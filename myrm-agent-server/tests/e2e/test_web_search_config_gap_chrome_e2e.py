@@ -28,7 +28,7 @@ from chrome_mcp_client import ChromeMcpClient  # noqa: E402
 from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 AGENT_PROMPT = "搜索一下今天的新闻"
@@ -434,7 +434,7 @@ async def _send_and_collect_gap_while_streaming(
 
     while time.monotonic() < deadline:
         _assert_gap_wall_budget(wall_deadline)
-        heartbeat_e2e_lease()
+        heartbeat_once()
         snapshot = await _evaluate_gap_snapshot(
             chat,
             message_id=stream_message_id,

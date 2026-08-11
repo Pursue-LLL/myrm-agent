@@ -40,7 +40,7 @@ from e2e_orchestrator import (  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import http_json, open_mcp_page_async  # noqa: E402
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 from tests.support.test_secrets import resolve_test_env  # noqa: E402
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
@@ -1082,7 +1082,7 @@ async def _progress_heartbeat(*, stop: asyncio.Event, current_node: str) -> None
     """Keep hung-reap node progress fresh while blocking CDP/mux operations."""
     while not stop.is_set():
         touch_wall_progress(current_node=current_node)
-        heartbeat_e2e_lease()
+        heartbeat_once()
         try:
             await asyncio.wait_for(stop.wait(), timeout=12.0)
         except TimeoutError:
@@ -1414,7 +1414,7 @@ async def _run_fast_evicted_read_live_e2e_once(
             chat, cached=stream_request_message_id
         )
         while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
+            heartbeat_once()
             assert_phase_budget(f"fast_{search_depth}_search_poll")
             touch_wall_progress(current_node=f"fast_{search_depth}_search_poll")
             ui_last, api_last = await _poll_fast_search_progress(
@@ -1583,12 +1583,12 @@ async def _run_fast_evicted_read_live_e2e_once(
                     touch_wall_progress(
                         current_node=f"fast_{search_depth}_wall_grace_poll"
                     )
-                    heartbeat_e2e_lease()
+                    heartbeat_once()
                     await asyncio.sleep(2.0)
                     continue
                 break
             for _ in range(2):
-                heartbeat_e2e_lease()
+                heartbeat_once()
                 touch_wall_progress(
                     current_node=f"fast_{search_depth}_search_poll_wait"
                 )

@@ -13,7 +13,7 @@ from e2e_resource_ledger import register_e2e_resource
 from tests.support.e2e_runtime_guard import (
     assert_chrome_attach_health,
     assert_e2e_runtime_unchanged,
-    heartbeat_e2e_lease,
+    heartbeat_once,
     reap_chrome_e2e_session_hygiene,
     require_e2e_runtime_lease,
 )
@@ -22,7 +22,7 @@ from tests.support.e2e_runtime_guard import (
 def test_heartbeat_noop_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("MYRM_E2E_LEASE_ID", raising=False)
     monkeypatch.delenv("MYRM_E2E_AGENT_ID", raising=False)
-    heartbeat_e2e_lease()
+    heartbeat_once()
 
 
 def test_heartbeat_swallows_wave_subprocess_timeout(
@@ -39,7 +39,7 @@ def test_heartbeat_swallows_wave_subprocess_timeout(
         raise subprocess.TimeoutExpired(cmd=["wave.sh"], timeout=30)
 
     monkeypatch.setattr(unified_module.subprocess, "run", _timeout_run)
-    heartbeat_e2e_lease()
+    heartbeat_once()
 
 
 def test_heartbeat_loop_extends_lease_without_peer_reaper(
@@ -148,7 +148,7 @@ def test_reap_chrome_e2e_session_hygiene_is_heartbeat_only(
         heartbeat_calls += 1
 
     monkeypatch.setattr(
-        "tests.support.e2e_runtime_guard.heartbeat_e2e_lease",
+        "tests.support.e2e_runtime_guard.heartbeat_once",
         _fake_heartbeat,
     )
     monkeypatch.setattr(
@@ -422,7 +422,7 @@ def test_formal_chrome_e2e_auto_heals_stale_lease_on_runtime_drift(
     monkeypatch.setenv("MYRM_E2E_STACK_FP", "runtime-healed")
 
     monkeypatch.setattr(
-        "tests.support.e2e_runtime_guard.heartbeat_e2e_lease",
+        "tests.support.e2e_runtime_guard.heartbeat_once",
         lambda: None,
     )
     monkeypatch.setattr(

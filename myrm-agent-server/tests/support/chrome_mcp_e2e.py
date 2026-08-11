@@ -52,7 +52,7 @@ from e2e_shared_ui_hydrate import (  # noqa: E402
 )
 from e2e_warm_ui_heal import heal_shared_frontend_debounced  # noqa: E402
 
-from tests.support.e2e_runtime_guard import heartbeat_e2e_lease  # noqa: E402
+from tests.support.e2e_runtime_guard import heartbeat_once  # noqa: E402
 
 __all__ = [
     "ChromeMcpClient",
@@ -343,7 +343,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
         from warm_shell_registry import platform_shell_fresh
 
         if platform_shell_fresh(route_path=path):
-            heartbeat_e2e_lease()
+            heartbeat_once()
             touch_wall_progress(current_node="warm_ui_route_skipped_registry_reuse")
             request = urllib.request.Request(url, method="GET")
             try:
@@ -407,7 +407,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
         if shell_heartbeat_loop_active is not None and shell_heartbeat_loop_active():
             touch_wall_progress(current_node="warm_ui_route")
         else:
-            heartbeat_e2e_lease()
+            heartbeat_once()
         if time.monotonic() >= next_heal_at:
             next_heal_at = time.monotonic() + heal_interval
             _heal_shared_frontend()
@@ -1231,7 +1231,7 @@ def open_settings_subroute(
                 pass
             _recover_chrome_error_page(client, page, target_url=target_url)
             _ensure_e2e_private_api_live(client, page, timeout_sec=45.0)
-            heartbeat_e2e_lease()
+            heartbeat_once()
             yield client, page  # type: ignore[misc]
         return
 
@@ -1274,7 +1274,7 @@ def open_settings_subroute(
                 timeout_sec=layout_timeout_sec,
             )
         _ensure_e2e_private_api_live(client, page, timeout_sec=45.0)
-        heartbeat_e2e_lease()
+        heartbeat_once()
         yield client, page
 
 
@@ -1411,7 +1411,7 @@ def _blocking_progress_loop(
                 # Stall tripwire must interrupt the main thread blocked in MCP I/O.
                 os.kill(os.getpid(), signal.SIGINT)
                 continue
-            heartbeat_e2e_lease()
+            heartbeat_once()
             touch_wall_progress(current_node=current_node)
             now = time.monotonic()
             if now - last_transport_emit >= _TRANSPORT_PROGRESS_INTERVAL_SEC:
@@ -1614,7 +1614,7 @@ def _restart_open_page_mux_budget(
     open_page_total_budget_sec: float,
 ) -> tuple[float, float, float]:
     """Reset open_mcp_page clocks after mux restart for signoff retry."""
-    heartbeat_e2e_lease()
+    heartbeat_once()
     touch_wall_progress(current_node="open_mcp_page_mux_retry")
     if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1":
         transport_session_started = time.monotonic()
@@ -2102,7 +2102,7 @@ def _require_e2e_cdp_ready(*, budget_sec: float | None = None) -> None:
     deadline = time.monotonic() + wait_budget
 
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         touch_wall_progress(current_node="open_mcp_page_cdp_probe")
         remaining = deadline - time.monotonic()
         if remaining <= 0:

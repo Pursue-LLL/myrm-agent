@@ -42,7 +42,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     wait_for_state,
     warm_ui_route,
 )
-from tests.support.e2e_runtime_guard import heartbeat_e2e_lease  # noqa: E402
+from tests.support.e2e_runtime_guard import heartbeat_once  # noqa: E402
 from tests.support.e2e_wall_progress import (
     touch_e2e_wall_progress,
     write_e2e_session_snapshot,
@@ -488,7 +488,7 @@ def _voice_e2e_progress_loop(*, current_node: str) -> Iterator[None]:
 
     def _loop() -> None:
         while not stop.wait(15.0):
-            heartbeat_e2e_lease()
+            heartbeat_once()
             touch_e2e_wall_progress(current_node=current_node)
 
     worker = threading.Thread(target=_loop, name="voice-e2e-progress", daemon=True)
@@ -507,7 +507,7 @@ def _chrome_probe_voice_settings_with_retry(*, progress_node: str) -> dict[str, 
     last_exc: BaseException | None = None
     for outer in range(2):
         with _voice_e2e_progress_loop(current_node=progress_node):
-            heartbeat_e2e_lease()
+            heartbeat_once()
             touch_e2e_wall_progress(current_node=progress_node)
             try:
                 with open_mcp_page(
@@ -516,12 +516,12 @@ def _chrome_probe_voice_settings_with_retry(*, progress_node: str) -> dict[str, 
                     client,
                     page,
                 ):
-                    heartbeat_e2e_lease()
+                    heartbeat_once()
                     write_e2e_session_snapshot(
                         current_node="voice_settings_dismiss_migration", phase="body"
                     )
                     client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-                    heartbeat_e2e_lease()
+                    heartbeat_once()
                     write_e2e_session_snapshot(
                         current_node="voice_settings_wait_panel", phase="body"
                     )

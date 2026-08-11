@@ -24,7 +24,7 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 from tests.support.test_secrets import resolve_test_env
 
 E2E_PROMPT = "只回复 OK"
@@ -160,7 +160,7 @@ def test_opencode_go_settings_fetch_models_dialog(
                 if attempt >= 2:
                     raise
         assert state.get("ready") is True, state
-        heartbeat_e2e_lease()
+        heartbeat_once()
         result = client.evaluate(
             page,
             _FETCH_MODELS_JS,
@@ -202,7 +202,7 @@ async def test_opencode_go_chat_reply_ok(
         chat = McpChatSession(client, page)
         await chat.bootstrap(ui_base, navigate=False, timeout_sec=120.0)
         await chat.click_new_chat()
-        heartbeat_e2e_lease()
+        heartbeat_once()
         await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         state = await chat.wait_turn_done(E2E_PROMPT, timeout_sec=TURN_WAIT_SEC)
         if str(state.get("path", "")).startswith("/settings"):

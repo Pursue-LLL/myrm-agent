@@ -43,7 +43,7 @@ from tests.e2e.desktop_approval.trust_api import (
 )
 from tests.e2e.desktop_approval.turn_flow import run_approval_attempt
 from tests.support.chrome_mcp_e2e import OpenMcpPageSession, open_mcp_page_async
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 
 async def run_desktop_approval_chrome_e2e(
@@ -91,7 +91,7 @@ async def run_desktop_approval_chrome_e2e(
         last_error: dict[str, object] | None = None
         attempts = max_send_attempts(scope)
         for attempt in range(1, attempts + 1):
-            heartbeat_e2e_lease()
+            heartbeat_once()
             progress(f"{label} attempt {attempt}/{attempts}")
             ensure_e2e_hitl_mode(api_url=get_e2e_api_url())
             clear_persisted_desktop_approvals()

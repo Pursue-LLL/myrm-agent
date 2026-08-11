@@ -25,7 +25,7 @@ from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
@@ -140,7 +140,7 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
+            heartbeat_once()
             raw = await chat.evaluate(
                 _INLINE_UI_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
@@ -158,7 +158,7 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
+            heartbeat_once()
             raw = await chat.evaluate(
                 _UI_ACTION_FEEDBACK_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
@@ -196,7 +196,7 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
 
-        heartbeat_e2e_lease()
+        heartbeat_once()
         started = await chat.wait_stream_started(
             E2E_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint
         )
@@ -234,7 +234,7 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
         deadline = time.monotonic() + 45.0
         ui_action_persisted = False
         while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
+            heartbeat_once()
             if (
                 chat_user_message_count(chat_id, api_url=api_base)
                 >= baseline_user_count + 1

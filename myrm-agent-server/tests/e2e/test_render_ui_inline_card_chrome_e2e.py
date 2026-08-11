@@ -20,7 +20,7 @@ from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
@@ -76,7 +76,7 @@ async def test_render_ui_inline_card_renders_in_real_chat(
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
+            heartbeat_once()
             raw = await chat.evaluate(_INLINE_UI_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
@@ -103,7 +103,7 @@ async def test_render_ui_inline_card_renders_in_real_chat(
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
 
-        heartbeat_e2e_lease()
+        heartbeat_once()
         await chat.wait_stream_started(E2E_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint)
         ui_state = await _wait_inline_ui(chat, timeout_sec=300.0)
 

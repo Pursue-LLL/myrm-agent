@@ -493,7 +493,7 @@ def test_blocking_progress_loop_emits_transport_progress_token(
 
     monkeypatch.setattr(chrome_mcp_e2e, "_PROGRESS_HEARTBEAT_INTERVAL_SEC", 0.01)
     monkeypatch.setattr(chrome_mcp_e2e, "_TRANSPORT_PROGRESS_INTERVAL_SEC", 0.01)
-    monkeypatch.setattr(chrome_mcp_e2e, "heartbeat_e2e_lease", lambda: None)
+    monkeypatch.setattr(chrome_mcp_e2e, "heartbeat_once", lambda: None)
     monkeypatch.setattr(chrome_mcp_e2e, "touch_wall_progress", lambda **_: None)
     import e2e_stall_guard
 
@@ -541,7 +541,7 @@ def test_blocking_progress_loop_stall_sends_sigint(
         "_open_page_parallel_budgets",
         lambda *args, **kwargs: (60.0, 120_000, 30.0, 5.0, 2),
     )
-    monkeypatch.setattr(chrome_mcp_e2e, "heartbeat_e2e_lease", lambda: None)
+    monkeypatch.setattr(chrome_mcp_e2e, "heartbeat_once", lambda: None)
     monkeypatch.setattr(chrome_mcp_e2e, "touch_wall_progress", lambda **_: None)
 
     import e2e_stall_guard

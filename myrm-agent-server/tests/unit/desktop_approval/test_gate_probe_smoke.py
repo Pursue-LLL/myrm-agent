@@ -297,7 +297,7 @@ async def test_wait_desktop_tool_activity_raises_when_pending_seed_budget_exceed
         lambda **_: "seed-1",
     )
     monkeypatch.setattr(
-        "tests.e2e.desktop_approval.gate_probe.heartbeat_e2e_lease",
+        "tests.e2e.desktop_approval.gate_probe.heartbeat_once",
         lambda: None,
     )
     monkeypatch.setattr(
@@ -374,7 +374,7 @@ async def test_wait_desktop_tool_activity_raises_on_cumulative_api_timeout_budge
         lambda **_: "seed-1",
     )
     monkeypatch.setattr(
-        "tests.e2e.desktop_approval.gate_probe.heartbeat_e2e_lease",
+        "tests.e2e.desktop_approval.gate_probe.heartbeat_once",
         lambda: None,
     )
     monkeypatch.setattr(

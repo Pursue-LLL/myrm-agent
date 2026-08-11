@@ -56,7 +56,7 @@ from tests.support.chrome_allowlist_live_e2e import (
 )
 from tests.support.chrome_allowlist_settings_e2e import SETTINGS_SECURITY_SHELL_READY_JS
 from tests.support.chrome_mcp_e2e import get_e2e_ui_url, http_json, wait_for_state, warm_ui_route
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 
 def _parse_browser_eval(raw: object) -> dict[str, object]:
@@ -148,7 +148,7 @@ async def _wait_for_pattern_allowlist_on_api(
     deadline = time.monotonic() + timeout_sec
     last_rows: list[dict[str, object]] = []
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         last_rows = _fetch_allowlist_rows(api_url)
         pattern_rows = [row for row in last_rows if row.get("granularity") == "pattern"]
         if any(_is_live_probe_pattern_row(row) for row in pattern_rows):
@@ -257,7 +257,7 @@ async def _wait_for_eval(chat: McpChatSession, expression: str, *, timeout_sec: 
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         raw = await chat.evaluate(expression, intent=EvaluateIntent.SYNC_PROBE)
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ready") is True or last.get("ok") is True:
@@ -322,7 +322,7 @@ async def _wait_agent_applied(chat: McpChatSession, *, timeout_sec: float = 90.0
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         raw = await chat.evaluate(_AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ready") is True:
@@ -372,7 +372,7 @@ async def _wait_for_shell_approval_ui(
     stream_idle_since: float | None = None
     last_recover_at: float = 0.0
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         await chat.dismiss_modals()
         raw = await chat.evaluate(_APPROVAL_VISIBLE_JS, intent=EvaluateIntent.BRIDGE_POLL)
         last_ui = _parse_browser_eval(raw)
@@ -573,7 +573,7 @@ async def test_live_agent_shell_allow_always_pattern_settings_roundtrip(
         last_error = ""
         chat_id = ""
         for attempt in range(1, _MAX_CHAT_ATTEMPTS + 1):
-            heartbeat_e2e_lease()
+            heartbeat_once()
             try:
                 for page_attempt in range(3):
                     try:

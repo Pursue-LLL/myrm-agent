@@ -29,7 +29,7 @@ from tests.support.chrome_mcp_e2e import (
     prepare_e2e_ui_session,
     warm_ui_route,
 )
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 _AGENT_PROMPT = "Hello after migration import"
 _E2E_GAP_TEST_WALL_SEC = 480.0
@@ -410,7 +410,7 @@ async def _send_and_collect_migration_gap(
 
     while time.monotonic() < gap_deadline:
         _assert_gap_wall_budget(wall_deadline)
-        heartbeat_e2e_lease()
+        heartbeat_once()
         snapshot = await _evaluate_gap_snapshot(
             chat,
             message_id=stream_message_id,

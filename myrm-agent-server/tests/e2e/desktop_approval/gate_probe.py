@@ -47,12 +47,12 @@ from tests.e2e.desktop_approval.trust_api import (
     seed_pending_desktop_approval_for_test,
     server_pending_approval_count,
 )
-from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import heartbeat_once
 
 
 def _desktop_tool_activity_tick() -> None:
     """R249: lease + BODY wall progress during desktop tool-activity poll."""
-    heartbeat_e2e_lease()
+    heartbeat_once()
     try:
         from e2e_session_runtime.lifecycle import touch_wall_progress
 
@@ -833,7 +833,7 @@ async def _wait_nudge_consumed(
     poll = 0
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
-        heartbeat_e2e_lease()
+        heartbeat_once()
         user_count = baseline_user_msgs
         user_advanced = False
         user_count = await _chat_user_message_count_fast(normalized)
@@ -1396,7 +1396,7 @@ async def wait_for_interact_or_approval(
             assert_desktop_e2e_wall_clock(
                 wall_started_at, phase="wait_for_interact_or_approval"
             )
-        heartbeat_e2e_lease()
+        heartbeat_once()
         if api_only and poll % 5 == 0:
             await asyncio.to_thread(activate_textedit_foreground)
         tool_activity = await probe_desktop_tool_progress(
@@ -1779,7 +1779,7 @@ async def ensure_interact_gate(
             if _is_hard_nudge_failure(exc):
                 raise
             progress(f"vision nudge round {vision_round} skipped (non-fatal): {exc}")
-        heartbeat_e2e_lease()
+        heartbeat_once()
         if textedit_foreground:
             await asyncio.to_thread(activate_textedit_foreground)
         tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(30.0)
@@ -1812,7 +1812,7 @@ async def ensure_interact_gate(
             if _is_hard_nudge_failure(exc):
                 raise
             progress(f"immediate snapshot nudge skipped (non-fatal): {exc}")
-        heartbeat_e2e_lease()
+        heartbeat_once()
         if textedit_foreground:
             await asyncio.to_thread(activate_textedit_foreground)
         tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(45.0)
@@ -1847,7 +1847,7 @@ async def ensure_interact_gate(
             if _is_hard_nudge_failure(exc):
                 raise
             progress(f"snapshot nudge send skipped (non-fatal): {exc}")
-        heartbeat_e2e_lease()
+        heartbeat_once()
         if textedit_foreground:
             await asyncio.to_thread(activate_textedit_foreground)
         tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(45.0)
@@ -1895,7 +1895,7 @@ async def ensure_interact_gate(
             if _is_hard_nudge_failure(exc):
                 raise
             progress(f"nudge send skipped (non-fatal): {exc}")
-        heartbeat_e2e_lease()
+        heartbeat_once()
         if (
             _is_snapshot_or_vision_loop(last_tool)
             and round_idx >= 1
@@ -1943,7 +1943,7 @@ async def ensure_interact_gate(
         while asyncio.get_event_loop().time() < grace_deadline:
             grace_poll += 1
             assert_desktop_e2e_wall_clock(wall_clock, phase="interact_pending_grace")
-            heartbeat_e2e_lease()
+            heartbeat_once()
             server_pending = await _server_pending_count_fast()
             if normalized_chat_id:
                 probe = await _desktop_tool_progress_api_fast(normalized_chat_id)
@@ -1993,7 +1993,7 @@ async def ensure_interact_gate(
             if _is_hard_nudge_failure(exc):
                 raise
             progress(f"rescue nudge skipped (non-fatal): {exc}")
-        heartbeat_e2e_lease()
+        heartbeat_once()
         server_pending = await _server_pending_count_fast()
         if server_pending <= 0 and not ui_pending:
             seeded_request_id = await _seed_pending_desktop_approval_with_budget(
@@ -2013,7 +2013,7 @@ async def ensure_interact_gate(
                         "pendingSource": "seeded-fallback",
                     }
                 return tool_activity, last_tool, 1, ui_pending
-        heartbeat_e2e_lease()
+        heartbeat_once()
         if textedit_foreground:
             await asyncio.to_thread(activate_textedit_foreground)
         tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(45.0)

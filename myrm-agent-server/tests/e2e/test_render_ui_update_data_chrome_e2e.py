@@ -32,7 +32,7 @@ from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import open_mcp_page  # noqa: E402
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 try:
     from e2e_session_runtime.lifecycle import touch_wall_progress
@@ -44,7 +44,7 @@ except ImportError:  # pragma: no cover - lib on PYTHONPATH in e2e only
 
 def _touch_render_ui_progress(node: str) -> None:
     touch_wall_progress(current_node=node)
-    heartbeat_e2e_lease()
+    heartbeat_once()
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 

@@ -27,7 +27,7 @@ from dev_gate_contract import EvaluateIntent  # noqa: E402
 from llm_receipt import emit_llm_receipt  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 E2E_PROMPT = "只回复 OK"
 TURN_WAIT_SEC = 300.0
@@ -101,11 +101,11 @@ async def test_chrome_ui_same_chat_two_ok_messages(
 
         chat_id = await _resolve_chat_id(chat, after_first)
         assert chat_id, f"Expected chat id after first turn: {after_first}"
-        heartbeat_e2e_lease()
+        heartbeat_once()
         e2e_resource_ledger.register("chat", chat_id)
 
         await chat.wait_input_empty(chat_id_hint=chat_id)
-        heartbeat_e2e_lease()
+        heartbeat_once()
         await chat.send_message(
             E2E_PROMPT, E2E_PROMPT, chat_id_hint=chat_id, base_url=_base_url()
         )

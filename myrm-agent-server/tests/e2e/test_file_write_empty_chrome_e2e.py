@@ -55,7 +55,7 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
@@ -618,7 +618,7 @@ async def test_file_write_empty_live_agent_webui(
         deadline = time.monotonic() + wait_cap
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
+            heartbeat_once()
             touch_wall_progress()
             raw = await chat.evaluate(
                 _AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
@@ -725,7 +725,7 @@ async def test_file_write_empty_live_agent_webui(
         steer_attempts = 0
         ui_nudge_attempts = 0
         while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
+            heartbeat_once()
             touch_wall_progress()
             try:
                 invoked, has_failure = await _poll_empty_write_api(chat_id)
@@ -1039,7 +1039,7 @@ async def test_file_write_empty_live_agent_webui(
         deadline = time.monotonic() + hydrate_cap
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
+            heartbeat_once()
             touch_wall_progress()
             raw = await chat.evaluate(
                 _PROVIDERS_SEND_READY_JS,
@@ -1066,7 +1066,7 @@ async def test_file_write_empty_live_agent_webui(
         deadline = time.monotonic() + _bounded_wait_sec(45.0, reserve_sec=60.0)
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
-            heartbeat_e2e_lease()
+            heartbeat_once()
             touch_wall_progress()
             raw = await chat.evaluate(
                 f"({_AGENT_BOUND_JS})({json.dumps(expected_agent_id)})",
@@ -1114,7 +1114,7 @@ async def test_file_write_empty_live_agent_webui(
             or chat_id
         ).strip()
 
-        heartbeat_e2e_lease()
+        heartbeat_once()
         started = await chat.wait_stream_started(
             live_prompt,
             timeout_sec=_bounded_wait_sec(90.0, reserve_sec=120.0),
@@ -1223,7 +1223,7 @@ async def test_file_write_empty_live_agent_webui(
             return asyncio.run(_inner())
 
     for attempt in range(_live_chat_attempt_cap()):
-        heartbeat_e2e_lease()
+        heartbeat_once()
         try:
             chat_id, result = await asyncio.to_thread(_run_live_in_open_page)
             assert chat_id
