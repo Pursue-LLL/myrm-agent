@@ -251,6 +251,75 @@ class TestResolveAgentModelLabel:
         assert label == "unknown"
 
 
+class TestResolveJudgeConfig:
+    """Judge-config resolution: configured model, absent model, incomplete config."""
+
+    @pytest.mark.asyncio
+    async def test_returns_judge_from_user_model_config(self) -> None:
+        from app.core.channel_bridge.config_loader import UserConfigs
+        from app.core.eval.model_config import _resolve_judge_config
+        from app.core.types import ModelConfig
+
+        configs = UserConfigs(
+            model_cfg=ModelConfig(
+                model="deepseek/deepseek-chat",
+                api_key="sk-test",
+                base_url="https://example.com",
+            ),
+            search_cfg=None,
+            search_is_user_configured=False,
+            retrieval_dict={},
+            personal_settings_dict={},
+            mcp_dict={},
+            providers_dict={},
+        )
+        with patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new=AsyncMock(return_value=configs),
+        ):
+            judge, label = await _resolve_judge_config()
+        assert label == "deepseek/deepseek-chat"
+        assert judge is not None
+        assert judge.model == "deepseek/deepseek-chat"
+        assert judge.api_key == "sk-test"
+        assert judge.api_base == "https://example.com"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_without_model(self) -> None:
+        from app.core.eval.model_config import _resolve_judge_config
+
+        with patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new=AsyncMock(
+                return_value=SimpleNamespace(model_cfg=SimpleNamespace(model=None))
+            ),
+        ):
+            judge, label = await _resolve_judge_config()
+        assert judge is None
+        assert label == "none"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_incomplete_config(self) -> None:
+        from myrm_agent_harness.api.config import ConfigIncompleteError
+
+        from app.core.eval.model_config import _resolve_judge_config
+
+        with patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new=AsyncMock(
+                side_effect=ConfigIncompleteError(
+                    user_friendly_message={"en": "x"},
+                    technical_details="t",
+                    resolution_steps=[],
+                    error_code="provider_not_configured",
+                )
+            ),
+        ):
+            judge, label = await _resolve_judge_config()
+        assert judge is None
+        assert label == "none"
+
+
 class TestRunEvalSuite:
     @pytest.mark.asyncio
     async def test_suite_with_external_cases(self, tmp_path: Path) -> None:

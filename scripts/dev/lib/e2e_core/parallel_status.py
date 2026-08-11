@@ -241,8 +241,20 @@ def compute_queue_state(
 
     status = dev_gate_status()
     reasons: list[str] = []
-    if int(status["private_waiting"]) > 0:
-        reasons.append("private_credit_queue")
+    private_waiting = int(status["private_waiting"])
+    private_available = int(status.get("private_available_credits", 0) or 0)
+    private_idle_reason = str(status.get("private_credit_idle_reason", "unknown"))
+    if private_waiting > 0:
+        if private_available > 0 and private_idle_reason not in {
+            "head_blocked_large_reservation",
+            "capacity_full",
+        }:
+            # A waiter with usable credits is an admission defect, not an
+            # allowed PRIVATE queue. Surface it explicitly instead of teaching
+            # agents to accept an avoidable stall as normal backpressure.
+            reasons.append("private_queue_headroom")
+        else:
+            reasons.append("private_credit_queue")
     try:
         from e2e_mux_transport_queue import transport_queue_snapshot
 
@@ -261,12 +273,15 @@ def compute_queue_layer(
     mux_saturated: bool,
 ) -> str:
     """Distinguish session-level PRIVATE queue from operation-level mux backpressure."""
+    private_reasons = {"private_credit_queue", "private_queue_headroom"}
     operation_reasons = [
-        reason for reason in queue_reasons if reason != "private_credit_queue"
+        reason for reason in queue_reasons if reason not in private_reasons
     ]
     if operation_reasons or mux_saturated:
         return "operation"
-    if private_waiting > 0 or "private_credit_queue" in queue_reasons:
+    if private_waiting > 0 or any(
+        reason in private_reasons for reason in queue_reasons
+    ):
         return "session"
     if queue_expected:
         return "operation"
@@ -427,7 +442,12 @@ def format_queue_human(
     queue_layer = headroom.get("queueLayer")
     reason_items = reasons if isinstance(reasons, list) else []
     contracts: list[str] = []
-    if (
+    if "private_queue_headroom" in reason_items:
+        contracts.append(
+            "PRIVATE_QUEUE_HEADROOM_BUG: usable PRIVATE credits exist while a "
+            "waiter remains queued; diagnose coordinator capacity sweep immediately."
+        )
+    elif (
         int(headroom.get("privateWaiting", 0) or 0) > 0
         or "private_credit_queue" in reason_items
     ):

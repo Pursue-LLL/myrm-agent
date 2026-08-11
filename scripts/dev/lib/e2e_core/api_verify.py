@@ -1031,12 +1031,12 @@ def _compute_next_action(
         reason_list = (
             [str(item) for item in reasons] if isinstance(reasons, list) else []
         )
-        if "private_queue_headroom" in reason_list:
-            return "PRIVATE_QUEUE_HEADROOM_BUG"
         # A PRIVATE credit queue is session-layer state owned by the admitted
         # PRIVATE session. It must not alter cluster launch readiness.
         operation_queue = [
-            item for item in reason_list if item != "private_credit_queue"
+            item
+            for item in reason_list
+            if item not in {"private_credit_queue", "private_queue_headroom"}
         ]
         if operation_queue or mux_fields.get("muxColdAttachSaturated") is True:
             return "OPERATION_BACKPRESSURE"
@@ -1311,7 +1311,8 @@ def _context_to_dict(
         operation_reasons = [
             reason
             for reason in reason_str.split(",")
-            if reason and reason != "private_credit_queue"
+            if reason
+            and reason not in {"private_credit_queue", "private_queue_headroom"}
         ]
         if operation_reasons or headroom.get("queueLayer") == "operation":
             rules.append(

@@ -44,8 +44,8 @@ _OPEN_VERIFY_TAB_JS = """(() => {
 })()"""
 
 _DOCTOR_PANEL_READY_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasTitle = /Memory Doctor|记忆医生/.test(text);
+  const text = document.body?.textContent || '';
+  const hasTitle = /Run memory diagnostics|运行记忆诊断/.test(text);
   const runBtn = Array.from(document.querySelectorAll('button')).find(
     (el) => /Run all diagnostics|运行全部诊断/.test(el.textContent || ''),
   );
@@ -62,7 +62,7 @@ _CLICK_RUN_DIAGNOSTICS_JS = """(() => {
 })()"""
 
 _DIAGNOSTIC_RESULT_READY_JS = """(() => {
-  const text = document.body?.innerText || '';
+  const text = document.body?.textContent || '';
   const hasLastRun = /Latest diagnostic result|最近诊断结果/.test(text);
   const hasRecall = /Recall@5|召回率@5/.test(text);
   const runBtnDisabled = !!Array.from(document.querySelectorAll('button')).find(
@@ -78,7 +78,7 @@ _DIAGNOSTIC_RESULT_READY_JS = """(() => {
 })()"""
 
 _TREND_SECTION_READY_JS = """(() => {
-  const text = document.body?.innerText || '';
+  const text = document.body?.textContent || '';
   const hasTrend = /Benchmark trend|基准趋势/.test(text);
   const hasP50 = /Latency P50|延迟 P50/.test(text);
   const hasP95 = /Latency P95|延迟 P95/.test(text);

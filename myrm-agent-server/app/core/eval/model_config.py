@@ -4,7 +4,7 @@
 - myrm_agent_harness.eval::JudgeConfig
 - myrm_agent_harness.api.config::ConfigIncompleteError
 - app.core.channel_bridge.config_loader::load_user_configs
-- app.services.agent.profile.profile_resolver::get_agent_profile_resolver
+- app.services.agent.profile.profile_resolver::get_agent_profile_resolver (POS: 统一智能体配置解析服务，带 TTL 缓存)
 
 [OUTPUT]
 - _resolve_agent_model_label: label of the evaluated agent's model.

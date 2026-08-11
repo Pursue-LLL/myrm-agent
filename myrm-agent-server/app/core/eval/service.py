@@ -43,10 +43,7 @@ from app.core.eval.adaptive import AdaptiveEvalManager
 from app.core.eval.datasets import get_dataset_path
 from app.core.eval.executor import LocalEvalExecutor
 from app.core.eval.manifest import _build_eval_manifest
-from app.core.eval.model_config import (
-    _resolve_agent_model_label,
-    _resolve_judge_config,
-)
+from app.core.eval.model_config import _resolve_judge_config
 from app.core.eval.reports import DEFAULT_REPORTS_DIR
 
 if TYPE_CHECKING:

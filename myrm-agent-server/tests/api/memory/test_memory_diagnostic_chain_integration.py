@@ -15,6 +15,7 @@ The critical path (real benchmark measurement) is deliberately NOT mocked.
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from pathlib import Path
 from unittest.mock import patch
@@ -69,9 +70,9 @@ async def test_diagnostic_run_history_roundtrip_with_real_embedding(
     from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
 
     embedding_cfg = EmbeddingConfig(
-        model="BAAI/bge-m3",
-        api_key="sk-nznibczsofctvcsavtubpsgtyhqxijdsspzcvwypkouawunz",
-        api_base="https://api.siliconflow.cn/v1",
+        model=os.environ["EMBEDDING_MODEL"],
+        api_key=os.environ["EMBEDDING_API_KEY"],
+        api_base=os.environ["EMBEDDING_BASE_URL"],
     )
 
     async def _session_override() -> AsyncIterator[AsyncSession]:
