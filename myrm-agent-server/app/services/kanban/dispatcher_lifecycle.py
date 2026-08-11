@@ -21,6 +21,7 @@ from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
+from app.services.batch_directory import BatchDirectoryService
 from app.services.kanban.event_publisher import (
     emit_btw_done,
     emit_review_requested,
@@ -88,6 +89,9 @@ async def start_dispatcher(
             if event_type == "task_rejected"
             else None
         )
+    )
+    dispatcher.on_event(
+        BatchDirectoryService.get_instance().dispatcher_event_hook
     )
     await dispatcher.start()
     dispatchers[board_id] = dispatcher

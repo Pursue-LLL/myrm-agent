@@ -13,6 +13,7 @@ from .artifact_publication import ArtifactPublication
 from .assessment_import import AssessmentImportLedger
 from .assessment_import_metric import AssessmentImportMetricEvent
 from .base import Base
+from .batch_directory import BatchDirectoryProjectModel
 from .channel import ChannelPairingModel
 from .chat import (
     Chat,
@@ -86,6 +87,8 @@ __all__ = [
     # Assessment Import
     "AssessmentImportLedger",
     "AssessmentImportMetricEvent",
+    # Batch Directory
+    "BatchDirectoryProjectModel",
     # API Key
     "APIKey",
     # Chat

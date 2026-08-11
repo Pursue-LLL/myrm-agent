@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from typing import Literal
 from urllib.parse import urlparse
 
+from myrm_agent_harness.api.config import ConfigIncompleteError
 from myrm_agent_harness.toolkits.retriever.embedding.factory import get_embedding_service
 
 from app.services.agent.platform_config import require_platform_embedding_config
@@ -96,10 +97,26 @@ def _classify_probe_failure(exc: Exception) -> _ProbeFailure:
 
 async def check_shared_context_memory_health(*, probe: bool) -> SharedContextMemoryHealthResult:
     """Check whether Shared Context memory materialization can use embeddings safely."""
-    config = await require_platform_embedding_config()
+    checked_at = datetime.now(UTC)
+    try:
+        config = await require_platform_embedding_config()
+    except ConfigIncompleteError:
+        # Embedding is an optional memory dependency. Its absence must be
+        # represented as a stable degraded health result, not an API 500 that
+        # turns every frontend health poll into an infrastructure failure.
+        return SharedContextMemoryHealthResult(
+            ready=False,
+            status="not_configured",
+            model="",
+            api_base_configured=False,
+            api_key_configured=False,
+            probed=False,
+            reason="embedding_not_configured",
+            retryable=False,
+            checked_at=checked_at,
+        )
     api_key_configured = not _is_placeholder_api_key(config.api_key)
     local_api_base = _is_local_api_base(config.api_base)
-    checked_at = datetime.now(UTC)
 
     if not api_key_configured and not local_api_base:
         return SharedContextMemoryHealthResult(

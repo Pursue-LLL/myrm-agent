@@ -124,8 +124,8 @@ def _heartbeat_dev_gate_session(*, current_node: str | None = None) -> None:
         from dev_gate_cli import (
             default_socket_path,
             normalized_socket_path,
-        )  # noqa: PLC0415
-        from dev_gate_coordinator import request  # noqa: PLC0415
+        )
+        from dev_gate_coordinator import request
 
         socket_path = normalized_socket_path(default_socket_path())
         payload = {
@@ -192,7 +192,3 @@ def heartbeat_once(*, current_node: str | None = None) -> None:
     _touch_dedupe_holder_progress(current_node=current_node)
     _heartbeat_private_runtime_once()
     _heartbeat_dev_gate_session(current_node=current_node)
-
-
-# Backwards-compatible alias while callers migrate to heartbeat_once (see _ARCH.md).
-heartbeat_e2e_lease = heartbeat_once

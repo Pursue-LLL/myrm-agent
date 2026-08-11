@@ -22,6 +22,20 @@ _EXTENSION_CAPABILITIES = [
     "detach_debugger",
 ]
 
+_E2E_STUB_TABS: list[dict[str, object]] = [
+    {
+        "id": 1001,
+        "url": "https://example.com/e2e-stub",
+        "title": "Example E2E Stub Tab",
+        "domain": "example.com",
+        "active": True,
+    }
+]
+
+
+def _stub_tab_payload() -> list[dict[str, object]]:
+    return [dict(tab) for tab in _E2E_STUB_TABS]
+
 
 def _api_url_to_ws_url(api_url: str, token: str) -> str:
     parsed = urlparse(api_url)
@@ -45,6 +59,14 @@ async def _extension_stub_loop(ws_url: str, stop: threading.Event) -> None:
                 }
             )
         )
+        await ws.send(
+            json.dumps(
+                {
+                    "type": "tabs_update",
+                    "tabs": _stub_tab_payload(),
+                }
+            )
+        )
         while not stop.is_set():
             try:
                 raw = await asyncio.wait_for(ws.recv(), timeout=0.5)
@@ -54,8 +76,36 @@ async def _extension_stub_loop(ws_url: str, stop: threading.Event) -> None:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
                 continue
-            if msg.get("type") == "ping":
+            msg_type = msg.get("type")
+            if msg_type == "ping":
                 await ws.send(json.dumps({"type": "pong"}))
+                continue
+            if msg_type != "request":
+                continue
+            req_id = msg.get("id")
+            action = msg.get("action")
+            if not isinstance(req_id, str) or not isinstance(action, str):
+                continue
+            if action == "list_tabs":
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "response",
+                            "id": req_id,
+                            "data": _stub_tab_payload(),
+                        }
+                    )
+                )
+            elif action in {"attach_debugger", "detach_debugger", "navigate_url"}:
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "response",
+                            "id": req_id,
+                            "data": {"tabId": 1001, "ok": True},
+                        }
+                    )
+                )
 
 
 def wait_extension_handshake_ready(

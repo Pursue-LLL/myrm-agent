@@ -23,6 +23,7 @@ from app.api.approvals import router as approvals_router
 from app.api.audit.auth_router import router as auth_audit_router
 from app.api.audit.bash_router import router as audit_router
 from app.api.background_tasks.router import router as background_tasks_router
+from app.api.batch_directory import router as batch_directory_router
 from app.api.batch_optimization import router as batch_optimization_router
 from app.api.browser_domain_skills import router as browser_domain_skills_router
 from app.api.browser_recording import router as browser_recording_router
@@ -188,6 +189,7 @@ api_router.include_router(migration_upload_router, tags=["migration"])
 api_router.include_router(migrations_router, tags=["migrations"])
 api_router.include_router(skill_optimization_router, tags=["skill-optimization"])
 api_router.include_router(batch_optimization_router, tags=["batch-optimization"])
+api_router.include_router(batch_directory_router, tags=["batch-directories"])
 api_router.include_router(
     credentials_router, prefix="/credentials", tags=["credentials"]
 )

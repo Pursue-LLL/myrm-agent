@@ -755,6 +755,18 @@ export default function E2EChatBridge() {
           blockSearchSync: Boolean(window.__MYRM_E2E_BLOCK_SEARCH_SYNC__),
         };
       },
+      debugSecurityState: () => {
+        const syncManager = getConfigSyncManager();
+        const securityConfig = syncManager.get('securityConfig');
+        const { securityPreset, agentConfig } = useChatStore.getState();
+        return {
+          securityPreset,
+          boundAgentId: agentConfig?.agentId ?? null,
+          yoloModeEnabled: securityConfig?.yoloModeEnabled ?? null,
+          configInitialized: syncManager.isInitialized,
+          hasSecurityConfig: securityConfig != null,
+        };
+      },
       debugProviderState: () => {
         const { isInitialized, providers, defaultModelConfig } = useProviderStore.getState();
         const { actionMode, agentConfig, chatId, currentSessionMessageId } = useChatStore.getState();

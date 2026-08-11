@@ -194,7 +194,26 @@ def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None
         )
         assert isinstance(input_el, dict) and input_el.get("ok") is True
 
-        client.type_text(page, f"/{_SLASH_QUERY}")
+        # Fill the React-controlled TextareaAutosize via native value setter +
+        # input event. CDP `type_text` (Input.insertText) does not reliably
+        # update React-controlled inputs, leaving `inputMessage` empty so the
+        # slash palette never opens.
+        typed = client.evaluate(
+            page,
+            f"""(() => {{
+  const el = document.querySelector('[data-chat-input]');
+  if (!el) return {{ ok: false, err: 'input-not-found' }};
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+  if (!setter) return {{ ok: false, err: 'setter-not-found' }};
+  setter.call(el, {json.dumps('/' + _SLASH_QUERY)});
+  el.setSelectionRange(el.value.length, el.value.length);
+  el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+  el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+  return {{ ok: true, value: el.value }};
+}})()""",
+            timeout_sec=10.0,
+        )
+        assert isinstance(typed, dict) and typed.get("ok") is True, typed
         wait_for_state(
             client,
             page,

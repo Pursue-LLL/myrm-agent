@@ -22,6 +22,8 @@ import useConfigStore from '@/store/useConfigStore';
 import { useCommandStore } from '@/store/useCommandStore';
 import { useRetrievalStore } from '@/store/useRetrievalStore';
 import { getConfigSyncManager } from '@/services/config';
+import useChatStore from '@/store/useChatStore';
+import { enforceSecurityPresetYoloMutex } from '@/store/chat/securityPreset';
 import { hydrateChatPreferencesFromStorage } from '@/store/useChatStore';
 import { whenDatabaseReady } from '@/lib/platform-readiness';
 import ConfigConflictDialog, { type ConfigConflictData } from './ConfigConflictDialog';
@@ -89,6 +91,14 @@ export default function SettingsSyncInitializer() {
 
         await manager.initialize();
         await manager.runStartupNormalization();
+
+        // securityConfig 就绪后重放「非 HITL 预设 ⇄ YOLO」互斥：异步加载期间若已绑定
+        // 非 HITL 预设 Agent，disarm 因本地缓存未同步而跳过，此处兜底关闭残留 YOLO。
+        enforceSecurityPresetYoloMutex(useChatStore.getState().securityPreset);
+        // 运行时 securityConfig 变化（如其他 Tab 开启 YOLO）同样触发互斥重放。
+        manager.subscribe('securityConfig', () => {
+          enforceSecurityPresetYoloMutex(useChatStore.getState().securityPreset);
+        });
 
         console.log('[SettingsSync] Initializing critical stores...');
         await initConfig();

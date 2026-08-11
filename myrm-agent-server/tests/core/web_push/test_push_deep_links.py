@@ -57,6 +57,47 @@ class TestResolvePushUrl:
         )
         assert resolve_push_url(event) == "/btw-chat-99"
 
+    def test_background_task_done_pending_review_routes_to_kanban_board(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.BACKGROUND_TASK_DONE,
+            data={
+                "task_id": "t-review",
+                "board_id": "board-kpi-1",
+                "status": "pending_review",
+                "title": "Report draft",
+                "chat_id": "source-chat-1",
+            },
+        )
+        assert (
+            resolve_push_url(event)
+            == "/settings/kanban?board_id=board-kpi-1&status=in_review"
+        )
+
+    def test_background_task_done_pending_review_without_board_falls_back_to_chat(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.BACKGROUND_TASK_DONE,
+            data={
+                "task_id": "t-review",
+                "status": "pending_review",
+                "title": "Report draft",
+                "chat_id": "source-chat-1",
+            },
+        )
+        assert resolve_push_url(event) == "/source-chat-1"
+
+    def test_background_task_done_completed_keeps_chat_context(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.BACKGROUND_TASK_DONE,
+            data={
+                "task_id": "t-done",
+                "board_id": "board-kpi-1",
+                "status": "completed",
+                "title": "Report draft",
+                "chat_id": "source-chat-1",
+            },
+        )
+        assert resolve_push_url(event) == "/source-chat-1"
+
     def test_system_notification_reads_meta_data_chat_id(self) -> None:
         event = AppEvent(
             event_type=AppEventType.SYSTEM_NOTIFICATION,

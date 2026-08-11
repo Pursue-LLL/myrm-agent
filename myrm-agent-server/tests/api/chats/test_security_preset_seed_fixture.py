@@ -23,6 +23,8 @@ class TestSecurityPresetSeedFixture:
         preset_agent.id = "agent-e2e-sec-preset"
         plain_agent = MagicMock()
         plain_agent.id = "agent-e2e-sec-plain"
+        explore_agent = MagicMock()
+        explore_agent.id = "agent-e2e-sec-explore"
 
         with (
             patch(
@@ -32,7 +34,7 @@ class TestSecurityPresetSeedFixture:
             patch(
                 "app.api.chats.test_fixtures_security_preset.AgentService.create_agent",
                 new_callable=AsyncMock,
-                side_effect=[preset_agent, plain_agent],
+                side_effect=[preset_agent, plain_agent, explore_agent],
             ),
             patch(
                 "app.api.chats.test_fixtures_security_preset.ChatService.create_or_update_chat",
@@ -45,13 +47,17 @@ class TestSecurityPresetSeedFixture:
         body = resp.json()
         preset_chat_id = body["preset_chat_id"]
         plain_chat_id = body["plain_chat_id"]
+        explore_chat_id = body["explore_chat_id"]
         assert preset_chat_id.startswith("e2esecpreset")
         assert plain_chat_id.startswith("e2esecpreset")
+        assert explore_chat_id.startswith("e2esecpreset")
         assert body["preset_agent_id"] == "agent-e2e-sec-preset"
         assert body["plain_agent_id"] == "agent-e2e-sec-plain"
+        assert body["explore_agent_id"] == "agent-e2e-sec-explore"
         assert body["preset_ui_path"] == f"/?agentId=agent-e2e-sec-preset"
         assert body["plain_ui_path"] == f"/?agentId=agent-e2e-sec-plain"
-        assert create_chat.await_count == 2
+        assert body["explore_ui_path"] == f"/?agentId=agent-e2e-sec-explore"
+        assert create_chat.await_count == 3
 
     def test_seed_security_preset_fixture_hidden_outside_local_mode(
         self, client: TestClient

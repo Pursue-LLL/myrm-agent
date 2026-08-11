@@ -6,6 +6,25 @@ import { useFlowPadStore, type FlowPadCapture } from '@/store/useFlowPadStore';
 const mockSendMessage = vi.fn().mockResolvedValue(undefined);
 const mockSetFiles = vi.fn();
 
+const mockUseLocale = vi.hoisted(() => vi.fn(() => 'en'));
+const mockAgentStore = vi.hoisted(() => ({
+  agents: [] as Array<{ id: string; name: string; avatar_url?: string | null }>,
+  fetchAgents: vi.fn(),
+  fetchAgent: vi.fn(),
+  loading: false,
+}));
+const stableT = vi.hoisted(() => (key: string) => key);
+
+vi.mock('@/store/useAgentStore', () => ({
+  default: (selector: (s: typeof mockAgentStore) => unknown) => selector(mockAgentStore),
+  __esModule: true,
+}));
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+  useLocale: () => mockUseLocale(),
+}));
+
 vi.mock('@/store/useChatStore', () => {
   const state = {
     agentConfig: { name: 'TestAgent' },
@@ -16,7 +35,7 @@ vi.mock('@/store/useChatStore', () => {
   const hook = vi.fn(() => state);
   Object.assign(hook, {
     getState: () => state,
-    subscribe: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
     setState: vi.fn(),
     destroy: vi.fn(),
   });
@@ -58,6 +77,9 @@ describe('FlowPadModal', () => {
     useFlowPadStore.getState().close();
     mockSendMessage.mockClear();
     mockSetFiles.mockClear();
+    mockUseLocale.mockReturnValue('en');
+    mockAgentStore.agents = [];
+    mockAgentStore.fetchAgent.mockReset();
   });
 
   it('renders nothing when closed', () => {
@@ -253,6 +275,43 @@ describe('FlowPadModal', () => {
     useFlowPadStore.getState().open();
     render(<FlowPadModal />);
     expect(screen.getByText('TestAgent')).toBeInTheDocument();
+  });
+
+  it('localizes builtin agent names in inline route menu for zh locale', async () => {
+    mockUseLocale.mockReturnValue('zh');
+    mockAgentStore.agents = [{ id: 'builtin-general', name: 'General Assistant', avatar_url: null }];
+    useFlowPadStore
+      .getState()
+      .openInline(
+        { screenshot: 'x', windowTitle: 'Window', extractedText: 'text', timestamp: Date.now() },
+        1234,
+      );
+    render(<FlowPadModal />);
+
+    const trigger = await screen.findByTestId('flowpad-inline-route-trigger');
+    fireEvent.click(trigger);
+
+    const zhOption = await screen.findByTestId('flowpad-inline-route-agent-builtin-general');
+    expect(zhOption.textContent).toContain('通用助手');
+    expect(zhOption.textContent).not.toContain('General Assistant');
+  });
+
+  it('keeps raw agent name in inline route menu for non-builtin agents', async () => {
+    mockUseLocale.mockReturnValue('zh');
+    mockAgentStore.agents = [{ id: 'custom-research', name: 'Custom Research', avatar_url: null }];
+    useFlowPadStore
+      .getState()
+      .openInline(
+        { screenshot: 'x', windowTitle: 'Window', extractedText: 'text', timestamp: Date.now() },
+        1234,
+      );
+    render(<FlowPadModal />);
+
+    const trigger = await screen.findByTestId('flowpad-inline-route-trigger');
+    fireEvent.click(trigger);
+
+    const customOption = await screen.findByTestId('flowpad-inline-route-agent-custom-research');
+    expect(customOption.textContent).toContain('Custom Research');
   });
 
   it('does not call sendMessage when both text and captures are empty', async () => {

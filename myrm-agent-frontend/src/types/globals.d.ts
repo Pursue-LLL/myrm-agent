@@ -160,6 +160,13 @@ interface Window {
       enabledCount: number;
       blockSearchSync: boolean;
     };
+    debugSecurityState?: () => {
+      securityPreset: string | null;
+      boundAgentId: string | null;
+      yoloModeEnabled: boolean | null;
+      configInitialized: boolean;
+      hasSecurityConfig: boolean;
+    };
     /** CDP E2E: pin agent chat to defaultModelConfig.baseModel (matches API get_model_selection). */
     pinBasicModelForE2e?: () => Promise<{ providerId: string; model: string }>;
     /** CDP E2E: fork first snapshot bookmark (same services path as CompactedSummaryView). */

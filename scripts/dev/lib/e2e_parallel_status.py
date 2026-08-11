@@ -45,7 +45,7 @@ def load_parallel_runtime_snapshot() -> tuple[dict[str, object], list[str]]:
         sys.path.insert(0, support_text)
         inserted = True
     try:
-        from tests.support.e2e_parallel_snapshot import (  # noqa: PLC0415
+        from tests.support.e2e_parallel_snapshot import (
             format_parallel_snapshot_human,
             parallel_snapshot_to_dict,
             snapshot_live_e2e_processes,
@@ -55,7 +55,7 @@ def load_parallel_runtime_snapshot() -> tuple[dict[str, object], list[str]]:
         return parallel_snapshot_to_dict(snapshot), format_parallel_snapshot_human(
             snapshot
         )
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError) as exc:
         fallback: dict[str, object] = {
             "agent_stream_lock": None,
             "desktop_approval_lock": None,
@@ -76,8 +76,11 @@ def load_parallel_runtime_snapshot() -> tuple[dict[str, object], list[str]]:
 def load_parallel_runtime_snapshot_lite() -> tuple[dict[str, object], list[str]]:
     """Fast parallel snapshot for e2e-context json under load (skip pgrep/session scan)."""
     try:
-        from dev_gate_status import dev_gate_status  # noqa: PLC0415
-        from e2e_lease_liveness import load_wave_snapshot, wave_lease_counts  # noqa: PLC0415
+        from dev_gate_status import dev_gate_status
+        from e2e_lease_liveness import (
+            load_wave_snapshot,
+            wave_lease_counts,
+        )
 
         dev_gate = dev_gate_status()
         wave = load_wave_snapshot()
@@ -133,10 +136,12 @@ def load_parallel_runtime_snapshot_lite() -> tuple[dict[str, object], list[str]]
             "snapshot_lite_source": "dev_gate+wave",
         }
         return payload, [
-            "E2E_PARALLEL_ACTIVE: "
-            f"lite_count={active} (full session scan skipped under parallel load)"
+            (
+                "E2E_PARALLEL_ACTIVE: "
+                f"lite_count={active} (full session scan skipped under parallel load)"
+            )
         ]
-    except Exception as exc:
+    except (ImportError, OSError, OverflowError, RuntimeError, TypeError, ValueError):
         return load_parallel_runtime_snapshot()
 
 
@@ -148,7 +153,7 @@ def should_use_lite_parallel_snapshot() -> bool:
     if raw in {"1", "true", "yes"}:
         return True
     try:
-        from peer_count_ssot import parallel_active_test_count_ssot  # noqa: PLC0415
+        from peer_count_ssot import parallel_active_test_count_ssot
 
         return parallel_active_test_count_ssot() > 0
     except ImportError:
@@ -203,7 +208,7 @@ def resolve_cap_headroom_active_test_count(
 
     pytest_peers = 0
     try:
-        from peer_count_ssot import chrome_e2e_pytest_peer_count  # noqa: PLC0415
+        from peer_count_ssot import chrome_e2e_pytest_peer_count
 
         pytest_peers = chrome_e2e_pytest_peer_count()
     except ImportError:
@@ -232,14 +237,14 @@ def compute_queue_state(
     parallel_snapshot: dict[str, object] | None,
 ) -> tuple[bool, list[str]]:
     del live_agent_shpoib_count, mux_fields, parallel_snapshot
-    from dev_gate_status import dev_gate_status  # noqa: PLC0415
+    from dev_gate_status import dev_gate_status
 
     status = dev_gate_status()
     reasons: list[str] = []
     if int(status["private_waiting"]) > 0:
         reasons.append("private_credit_queue")
     try:
-        from e2e_mux_transport_queue import transport_queue_snapshot  # noqa: PLC0415
+        from e2e_mux_transport_queue import transport_queue_snapshot
 
         if transport_queue_snapshot().blocked:
             reasons.append("mux_transport_queue")
@@ -256,9 +261,14 @@ def compute_queue_layer(
     mux_saturated: bool,
 ) -> str:
     """Distinguish session-level PRIVATE queue from operation-level mux backpressure."""
+    operation_reasons = [
+        reason for reason in queue_reasons if reason != "private_credit_queue"
+    ]
+    if operation_reasons or mux_saturated:
+        return "operation"
     if private_waiting > 0 or "private_credit_queue" in queue_reasons:
         return "session"
-    if queue_expected or mux_saturated:
+    if queue_expected:
         return "operation"
     return "none"
 
@@ -272,9 +282,9 @@ def cap_headroom_fields(
     observability_mismatch: bool = False,
     orchestrator_observability: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    from dev_gate_contract import MUX_COLD_ATTACH_SLOTS  # noqa: PLC0415
-    from dev_gate_status import dev_gate_status  # noqa: PLC0415
-    from e2e_lease_liveness import WaveLeaseCounts  # noqa: PLC0415
+    from dev_gate_contract import MUX_COLD_ATTACH_SLOTS
+    from dev_gate_status import dev_gate_status
+    from e2e_lease_liveness import WaveLeaseCounts
 
     counts = (
         lease_counts
@@ -414,24 +424,39 @@ def format_queue_human(
         if isinstance(reasons, list) and reasons
         else "unknown"
     )
+    queue_layer = headroom.get("queueLayer")
+    reason_items = reasons if isinstance(reasons, list) else []
+    contracts: list[str] = []
+    if (
+        int(headroom.get("privateWaiting", 0) or 0) > 0
+        or "private_credit_queue" in reason_items
+    ):
+        contracts.append(
+            "PRIVATE session ADMIT is bounded to 900s; progress token "
+            "E2E_PRIVATE_ADMIT_WAIT is emitted at least every 30s."
+        )
+    if queue_layer == "operation":
+        contracts.append(
+            "SHARED session launch remains immediate; browser operations use "
+            "internal backpressure with P99 SLO 20s and progress."
+        )
+    queue_contract = " ".join(contracts)
     return (
         "E2E_QUEUE_HUMAN: "
-        f"reason={reason_str} "
+        f"layer={queue_layer} reason={reason_str} "
         f"(private={headroom['privateActiveCredits']}/"
         f"{headroom['privateCapacityCredits']} "
         f"waiting={headroom['privateWaiting']} active_tests={active_test_count}). "
-        "Only PRIVATE runtime creation queues in ADMIT (≤900s); "
-        "SHARED logical sessions are unlimited. "
+        f"{queue_contract} "
         "NEVER stop/kill other pytest. "
-        "Progress on stderr: E2E_PRIVATE_ADMIT_WAIT every 30s. "
         "Do NOT pipe './myrm test' to tail|head — hides progress."
     )
 
 
 def format_soak_headroom_verdict(*, max_active: int, max_wave: int) -> str:
     """Lightweight headroom probe for desktop soak — no full e2e-context json."""
-    from e2e_api_verify import _mux_context_fields  # noqa: PLC0415
-    from e2e_lease_liveness import (  # noqa: PLC0415
+    from e2e_api_verify import _mux_context_fields
+    from e2e_lease_liveness import (
         load_wave_snapshot_observation,
         wave_lease_counts,
     )

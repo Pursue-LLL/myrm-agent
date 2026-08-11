@@ -77,6 +77,10 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const sourceChatFilter = searchParams.get('source_chat')?.trim() || undefined;
+  const statusFilter = searchParams.get('status')?.trim() || undefined;
+  const activeStatusFilter: TaskStatus | undefined = (STATUS_COLUMNS as readonly string[]).includes(statusFilter ?? '')
+    ? (statusFilter as TaskStatus)
+    : undefined;
   const [tasks, setTasks] = useState<KanbanTask[]>([]);
   const [loading, setLoading] = useState(true);
   const agents = useAgentStore((s) => s.agents);
@@ -154,6 +158,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
       const result = await listTasks(board.board_id, {
         limit: 200,
         source_chat_id: sourceChatFilter,
+        status: activeStatusFilter,
       });
       const pending = pendingUserWrites.current;
       if (pending.size === 0) {
@@ -176,11 +181,18 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     } finally {
       setLoading(false);
     }
-  }, [board.board_id, sourceChatFilter, t]);
+  }, [board.board_id, sourceChatFilter, activeStatusFilter, t]);
 
   const clearSourceChatFilter = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete('source_chat');
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }, [pathname, router, searchParams]);
+
+  const clearStatusFilter = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('status');
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname);
   }, [pathname, router, searchParams]);
@@ -453,6 +465,23 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
             className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
           >
             {t('clearSourceChatFilter')}
+          </button>
+        </div>
+      )}
+      {activeStatusFilter && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs"
+          data-testid="kanban-status-filter"
+        >
+          <span className="text-foreground/80">
+            {t('statusFilterActive', { status: t(`status.${activeStatusFilter}`, { fallback: activeStatusFilter }) })}
+          </span>
+          <button
+            type="button"
+            onClick={clearStatusFilter}
+            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
+          >
+            {t('clearStatusFilter')}
           </button>
         </div>
       )}

@@ -2,6 +2,17 @@
 
 Bidirectional conversion between SQLAlchemy ORM models and
 framework domain objects (KanbanBoard, KanbanTask).
+
+[INPUT]
+myrm_agent_harness.toolkits.kanban.types::BoardSettings/KanbanBoard/KanbanTask (POS: Kanban 域类型)
+app.database.models.kanban::KanbanBoardModel/KanbanTaskModel (POS: Kanban domain ORM models)
+
+[OUTPUT]
+board_to_domain / board_to_model / apply_board_to_model / task_to_domain /
+task_to_model / apply_task_to_model / get_attachment_ids / set_attachment_ids
+
+[POS]
+Kanban ORM Model <-> Domain Entity 双向映射适配层。持久化与域模型的字段级转换枢纽。
 """
 
 from __future__ import annotations
@@ -36,6 +47,7 @@ def board_to_domain(m: KanbanBoardModel) -> KanbanBoard:
             specify_max_tokens=m.specify_max_tokens,
             auto_specify_on_create=m.auto_specify_on_create,
             default_workdir=m.default_workdir,
+            block_recurrence_limit=m.block_recurrence_limit,
         ),
         created_at=m.created_at,
         updated_at=m.updated_at,
@@ -55,6 +67,7 @@ def board_to_model(b: KanbanBoard) -> KanbanBoardModel:
         specify_max_tokens=b.settings.specify_max_tokens,
         auto_specify_on_create=b.settings.auto_specify_on_create,
         default_workdir=b.settings.default_workdir,
+        block_recurrence_limit=b.settings.block_recurrence_limit,
     )
 
 
@@ -69,6 +82,7 @@ def apply_board_to_model(b: KanbanBoard, m: KanbanBoardModel) -> None:
     m.specify_max_tokens = b.settings.specify_max_tokens
     m.auto_specify_on_create = b.settings.auto_specify_on_create
     m.default_workdir = b.settings.default_workdir
+    m.block_recurrence_limit = b.settings.block_recurrence_limit
 
 
 # ---------------------------------------------------------------------------

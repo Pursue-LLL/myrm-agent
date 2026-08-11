@@ -1,17 +1,15 @@
 """[INPUT]
-- app.core.channel_bridge.model_resolver::_extract_all_active_keys / _to_litellm_model (POS: 模型解析与 provider 密钥提取辅助)
 - app.core.types::ModelConfig (POS: 业务层模型配置对象)
-- litellm::supports_function_calling (POS: LiteLLM provider 能力探测)
+- myrm_agent_harness.toolkits.llms::llm_manager (POS: LiteLLM/LangChain 实例创建)
 
 [OUTPUT]
-- select_tool_capable_model_cfg(): 在 GeneralAgent 启动时选择支持 function calling 的主模型
 - create_agent_llms(): 创建 main / lite / fallback / safety_fallback LLM 实例（lite LLM 自动注入 reasoning_effort='low'）
 - apply_lite_context_downgrade(): Dynamic Ratio Shield — lite context 不足时降级到 main 配置
 - _inject_low_reasoning_effort(): 为 ModelConfig 注入低推理力度参数，供 Dynamic Ratio Shield 降级复用
 
 [POS]
-LLM 实例工厂。负责把业务层 `ModelConfig` 转换为可执行的 LiteLLM/LangChain 实例，
-并在必要时为 GeneralAgent 选择支持工具调用的主模型，保证文件写入、编辑等动作型任务可执行。
+LLM 实例工厂。负责把业务层 `ModelConfig` 转换为可执行的 LiteLLM/LangChain 实例。
+主模型 failover 由 harness `stream_recovery` 在 API 报错时触发，不在启动阶段静默替换用户选择。
 """
 
 from __future__ import annotations
@@ -22,10 +20,6 @@ from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.llms import llm_manager
 from myrm_agent_harness.toolkits.llms.fallback import ManagedLLM, ScenarioType
 
-from app.core.channel_bridge.model_resolver import (
-    _extract_all_active_keys,
-    _to_litellm_model,
-)
 from app.core.types import ModelConfig
 
 logger = logging.getLogger(__name__)
@@ -43,142 +37,6 @@ def _inject_low_reasoning_effort(cfg: ModelConfig) -> ModelConfig:
         return cfg
     merged = {**existing, "reasoning_effort": _LOW_REASONING_EFFORT}
     return cfg.model_copy(update={"model_kwargs": merged})
-
-
-def _supports_function_calling(model_name: str) -> bool:
-    # Explicitly support known custom models that litellm might not know about
-    if any(m in model_name.lower() for m in ["mimo", "deepseek", "minimax", "qwen"]):
-        return True
-    try:
-        import litellm
-
-        return bool(litellm.supports_function_calling(model=model_name))
-    except Exception as exc:
-        logger.debug("LiteLLM capability probe failed for %s: %s", model_name, exc)
-        return False
-
-
-def _iter_provider_model_names(provider: dict[str, object]) -> list[str]:
-    model_names: list[str] = []
-    for key in ("enabledModels", "models"):
-        raw_value = provider.get(key)
-        if isinstance(raw_value, list):
-            for item in raw_value:
-                if isinstance(item, str) and item and item not in model_names:
-                    model_names.append(item)
-        elif isinstance(raw_value, str) and raw_value and raw_value not in model_names:
-            model_names.append(raw_value)
-
-    for key in ("model", "defaultModel", "selectedModel", "primaryModel"):
-        raw_value = provider.get(key)
-        if isinstance(raw_value, str) and raw_value and raw_value not in model_names:
-            model_names.append(raw_value)
-
-    return model_names
-
-
-def _build_model_config_from_provider(
-    provider: dict[str, object],
-    raw_model: str,
-) -> ModelConfig | None:
-    provider_id = str(provider.get("id", ""))
-    if not provider_id:
-        return None
-
-    api_keys = _extract_all_active_keys(provider)
-    if not api_keys:
-        return None
-
-    provider_type = str(provider.get("providerType", "")) or None
-    litellm_model = _to_litellm_model(provider_id, raw_model, provider_type)
-    if not _supports_function_calling(litellm_model):
-        return None
-
-    api_url = str(provider.get("apiUrl") or provider.get("baseURL") or "") or None
-    pool_strategy = str(provider.get("credentialPoolStrategy", "")) or None
-    return ModelConfig(
-        model=litellm_model,
-        api_key=api_keys[0],
-        base_url=api_url,
-        api_keys=api_keys if len(api_keys) > 1 else None,
-        credential_pool_strategy=pool_strategy if len(api_keys) > 1 else None,
-    )
-
-
-def select_tool_capable_model_cfg(
-    model_cfg: ModelConfig,
-    lite_model_cfg: ModelConfig | None = None,
-    fallback_model_cfg: ModelConfig | None = None,
-    safety_fallback_model_cfg: ModelConfig | None = None,
-    providers_dict: dict[str, object] | None = None,
-) -> tuple[ModelConfig, str]:
-    """Select a main model that can actually call tools.
-
-    Returns:
-        (selected_model_cfg, selection_source)
-        selection_source is one of: "main", "lite", "fallback", "safety_fallback",
-        or "provider_scan".
-    """
-    from app.ai_agents.general_agent.signoff_clarify_contract_core import (
-        signoff_clarify_pool_active,
-    )
-
-    if signoff_clarify_pool_active():
-        return model_cfg, "main"
-
-    if _supports_function_calling(model_cfg.model):
-        return model_cfg, "main"
-
-    for source_name, candidate in (
-        ("fallback", fallback_model_cfg),
-        ("lite", lite_model_cfg),
-        ("safety_fallback", safety_fallback_model_cfg),
-    ):
-        if candidate is None:
-            continue
-        if _supports_function_calling(candidate.model):
-            logger.warning(
-                "GeneralAgent main model %s lacks function calling support; using %s model %s instead.",
-                model_cfg.model,
-                source_name,
-                candidate.model,
-            )
-            return candidate, source_name
-
-    if providers_dict:
-        providers_raw = providers_dict.get("providers")
-        if isinstance(providers_raw, list):
-            for provider in providers_raw:
-                if not isinstance(provider, dict):
-                    continue
-                if not (provider.get("isEnabled") or provider.get("enabled")):
-                    continue
-
-                provider_id = str(provider.get("id", ""))
-                if not provider_id:
-                    continue
-
-                api_keys = _extract_all_active_keys(provider)
-                if not api_keys:
-                    continue
-
-                for raw_model in _iter_provider_model_names(provider):
-                    candidate = _build_model_config_from_provider(provider, raw_model)
-                    if candidate is None:
-                        continue
-                    logger.warning(
-                        "GeneralAgent main model %s lacks function calling support; auto-selected %s from provider %s for tool-capable execution.",
-                        model_cfg.model,
-                        candidate.model,
-                        provider_id,
-                    )
-                    return candidate, "provider_scan"
-
-    logger.warning(
-        "GeneralAgent main model %s lacks function calling support and no tool-capable fallback was found; proceeding with the original model.",
-        model_cfg.model,
-    )
-    return model_cfg, "main"
 
 
 async def create_agent_llms(

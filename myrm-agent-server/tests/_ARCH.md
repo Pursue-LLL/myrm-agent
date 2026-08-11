@@ -106,6 +106,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/files/test_browse_watch_api.py` | 模块 | P1：POST/DELETE `/files/browse/watch` 注册/释放 + 危险路径拒绝 |
 | `services/project/test_legacy_workspace_path_migration.py` | 模块 | 假 `workspace_path` SQL 清理语义（清 `/persistent/workspace/project_%`、保留真实 bind） |
 | `services/kanban/test_kanban_attach_handler.py` | 模块 | attach handler 单测（path/URL/SSRF/limits） |
+| `services/kanban/test_board_settings_roundtrip.py` | 模块 | BoardSettings 9 字段 ORM 往返完整性（三映射函数 + dataclass 字段覆盖守卫 + 旧库 ALTER 迁移默认值） |
 | `services/agent/test_agent_name_resolution.py` | 模块 | Agent 同名解析确定性单测（大小写归一 + 稳定排序 + 空名短路） |
 | `api/agent/test_kanban_agent_stream_e2e.py` | 模块 | Live LLM agent-stream kanban add/list（`@pytest.mark.e2e`） |
 | `api/agent/test_mcp.py` | 模块 | Agent MCP 集成（`@pytest.mark.e2e`）：amap · 12306 Node stdio PTC；TestClient 进程内；须 `-m e2e` |
@@ -131,18 +132,20 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `tasks/test_task_worker_retry.py` | 模块 | TaskWorker 自动重试回归（transient 重入 pending + datetime `next_retry_at`、permanent 失败终止、retries exhausted 终止；`next_retry_at` 未到期不消费、到期后执行，终态清空 `next_retry_at` 语义） |
 | `tasks/test_task_event_bus.py` | 模块 | TaskEventBus 回归（事件正常入队；队列满时淘汰最旧并投递带 `sync_required` 的最新事件，断言 emitted/dropped/replaced 指标与 queue_full warning 节流） |
 | `e2e/test_team_hub_builtin_badge_chrome_e2e.py` | 模块 | Team Assets Hub 内置 Agent 徽标 + 名称本地化 Chrome E2E（PRIVATE+READ×1：API 数据契约 `is_built_in` + `/settings/memory?sub=team-hub` 渲染「内置」徽标与 `getBuiltinAgentName` 本地化名 + follow-ups 筛选下拉本地化 + zh 界面无英文名泄漏） |
-| `e2e/test_pending_approvals_chrome_e2e.py` | 模块 | Fleet pendingApprovals KPI Chrome E2E（PRIVATE+NAMESPACE_WRITE×1：`POST /chats/test/seed-kanban-in-review-fixture` 单写者建 IN_REVIEW 任务 → 真实 UI /agents Fleet「Pending」KPI +1 → 双击卡片开抽屉 approve/reject 双生命周期回落） |
+| `e2e/test_pending_approvals_chrome_e2e.py` | 模块 | Fleet pendingApprovals KPI Chrome E2E（PRIVATE+NAMESPACE_WRITE×1：`POST /chats/test/seed-kanban-in-review-fixture` 单写者建 IN_REVIEW 任务 → 真实 UI /agents Fleet「Pending」KPI +1 → **点击 KPI 卡片验证深链直达 `/settings/kanban?status=in_review`（看板自动选中含待审任务的 board + status 过滤条 + 任务卡片落地）** → 双击卡片开抽屉 approve/reject 双生命周期回落；fixture 绑定内置 agent，抽屉 agent 下拉断言本地化名不泄漏英文） |
 | `api/statistics/test_badges.py` | 模块 | Nav badges API 单测（monkeypatch kanban 合并 + OperationalError 降级；`TestKanbanCountRealStore` 真 SQL store 链验证 `count_tasks_by_agent`/`count_tasks` 聚合） |
 | `api/statistics/test_pending_approvals_integration.py` | 模块 | pendingApprovals 全链路集成（真实 store seed IN_REVIEW → badges/fleet KPI 反映真实行；approve/reject 后回落；goal+kanban 合并） |
 | `api/agent/test_fleet_overview_integration.py` | 模块 | Fleet Overview API 集成（Chat/CronJob/Approval 真实 DB 聚合 + kanban IN_REVIEW 并入 pendingApprovals + kanban store 故障降级） |
 | `api/chats/test_kanban_in_review_seed_integration.py` | 模块 | IN_REVIEW seed fixture 集成（fixture → badges 计数 + approve/reject 转换回落） |
+| `core/web_push/test_push_deep_links.py` | 模块 | Web Push 点击路由（resolve_push_url：APPROVAL_REQUIRED 深链、pending_review+board_id 直达看板 in_review 列、非 review 状态回退聊天页、缺 chat 回首页） |
+| `api/kanban/test_in_review_api.py` | 模块 | IN_REVIEW 审批 API（approve/reject 转换、守卫、pending_review 通知 payload 含 board_id） |
 
 ---
 
 ## [T] 测试密钥约定
 
 1. 开发者复制 `myrm-agent-server/.env.test.example` → `.env.test`（gitignored）
-2. `tests/conftest.py` 调用 `apply_test_secrets_to_environ()` 供 legacy `skipif(os.getenv(...))` 兼容
+2. `tests/conftest.py` 调用 `apply_test_secrets_to_environ(overwrite=False)` — 已有 `os.environ`（shell/monkeypatch）优先于 `.env.test`
 3. 新测试优先使用 `test_secrets` fixture 或 `resolve_test_env()`，禁止在源码中硬编码密钥
 4. 权威变量索引：`.env.example`（[P/O]）、`.env.sandbox.example`（[S]）、`.env.test.example`（[T]）
 

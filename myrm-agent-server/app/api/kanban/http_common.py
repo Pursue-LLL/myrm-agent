@@ -2,7 +2,7 @@
 
 [INPUT]
 app.services.kanban::KanbanService (POS: Kanban 业务编排)
-app.core.kanban.adapters.sqlalchemy_mapping (POS: 附件 ID 持久化字段)
+app.core.kanban.adapters.sqlalchemy_mapping (POS: Kanban ORM Model <-> Domain Entity 双向映射适配层)
 
 [OUTPUT]
 router / get_kanban_service / 附件与 TaskResponse 转换辅助函数
@@ -75,6 +75,7 @@ def _board_to_response(board: KanbanBoard) -> BoardResponse:
             "specify_max_tokens": board.settings.specify_max_tokens,
             "auto_specify_on_create": board.settings.auto_specify_on_create,
             "default_workdir": board.settings.default_workdir,
+            "block_recurrence_limit": board.settings.block_recurrence_limit,
         },
         created_at=board.created_at,
         updated_at=board.updated_at,

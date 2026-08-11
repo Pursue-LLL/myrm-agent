@@ -35,6 +35,7 @@
 | `skill_optimization/` | ✅ 核心 | Skill 优化服务（AB 测试、基线同步、LLM 优化、回滚） | [_ARCH.md](skill_optimization/_ARCH.md) |
 | `event/` | ✅ 核心 | 事件记录（Agent 运行时事件持久化 + Turn 生命周期管理） | [_ARCH.md](event/_ARCH.md) |
 | `kanban/` | ✅ 核心 | Kanban 看板业务编排（mixin facade + orchestrator 模块 + TaskRunner + diagnostics） | [_ARCH.md](kanban/_ARCH.md) |
+| `batch_directory/` | ✅ 核心 | 批量目录并行 Prompt 编排（同一 prompt × N 目录 → Kanban 任务扇出 + 聚合进度 + 终态通知） | [_ARCH.md](batch_directory/_ARCH.md) |
 | `budget/` | ✅ 核心 | 预算治理服务（BudgetPolicy 持久化 + DailyBudgetGuard） | [_ARCH.md](budget/_ARCH.md) |
 | `connect/` | ✅ 核心 | 外部 Agent 连接管理（Profile 注册、Token 生成/验证/吊销、Doctor 健康检查） | [_ARCH.md](connect/_ARCH.md) |
 | `external_agents/` | ✅ 辅助 | 外部 CLI 委托 RuntimePool 按 chat 复用、per-chat turn lock、idle 回收 | [_ARCH.md](external_agents/_ARCH.md) |

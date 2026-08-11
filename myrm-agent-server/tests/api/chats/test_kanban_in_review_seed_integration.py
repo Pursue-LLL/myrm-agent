@@ -46,6 +46,34 @@ def client(init_test_database) -> TestClient:
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def _seed_visible_agent() -> None:
+    """The seed fixture now binds tasks to an agent; provision one in the test DB."""
+    from sqlalchemy import select
+
+    from app.database.models.agent import Agent
+    from app.platform_utils import get_session_factory
+
+    async def _seed() -> None:
+        session_factory = get_session_factory()
+        async with session_factory() as db:
+            existing = await db.scalar(
+                select(Agent.id).where(Agent.id == "builtin-general")
+            )
+            if existing is not None:
+                return
+            db.add(
+                Agent(
+                    id="builtin-general",
+                    name="General Agent",
+                    model_selection={"model": "gpt-4o-mini"},
+                ),
+            )
+            await db.commit()
+
+    asyncio.run(_seed())
+
+
 class TestKanbanInReviewSeedIntegration:
     def test_seed_creates_in_review_task_counted_by_badges(
         self, client: TestClient
@@ -53,6 +81,14 @@ class TestKanbanInReviewSeedIntegration:
         baseline = client.get("/api/v1/statistics/badges").json()["data"][
             "pendingApprovals"
         ]
+        # The badge mixes goal-approval and kanban counts; assert on the kanban
+        # increment directly so parallel suites' residual rows never skew it.
+        async def _read_kanban_review_count() -> int:
+            return await KanbanService.get_instance().count_tasks_by_status(
+                TaskStatus.IN_REVIEW
+            )
+
+        before_kanban = asyncio.run(_read_kanban_review_count())
 
         with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
             seed_resp = client.post(
@@ -76,7 +112,7 @@ class TestKanbanInReviewSeedIntegration:
             assert task.require_approval is True
             assert (
                 await kanban.count_tasks_by_status(TaskStatus.IN_REVIEW)
-                == baseline + 1
+                == before_kanban + 1
             )
 
         asyncio.run(_assert_task_and_badges())

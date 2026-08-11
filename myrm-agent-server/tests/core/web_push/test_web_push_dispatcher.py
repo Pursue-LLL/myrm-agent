@@ -223,6 +223,7 @@ class TestWebPushDispatcher:
                         "title": "Weekly report",
                         "result": "draft ready",
                         "chat_id": "chat-2",
+                        "board_id": "b-1",
                     },
                 )
             )
@@ -233,6 +234,10 @@ class TestWebPushDispatcher:
         mock_service.broadcast.assert_called_once()
         title = mock_service.broadcast.call_args.kwargs["title"]
         assert title == "Task Pending Review"
+        assert (
+            mock_service.broadcast.call_args.kwargs["url"]
+            == "/settings/kanban?board_id=b-1&status=in_review"
+        )
 
     @pytest.mark.asyncio
     async def test_background_task_done_suppress_flag_skips(self) -> None:

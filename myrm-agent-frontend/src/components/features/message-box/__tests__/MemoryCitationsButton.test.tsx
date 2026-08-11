@@ -12,6 +12,7 @@ const translate = vi.hoisted(() => (key: string) => key);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => translate,
+  useLocale: () => 'en',
 }));
 
 vi.mock('@/services/memorySharedContexts', () => ({

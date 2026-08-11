@@ -196,6 +196,16 @@ class CdpChatBootstrap(CdpChatTransport):
             shell_probe_stall_fail_fast_effective_sec,
         )
 
+        # Chat shell is interactive — Loading messages skeleton may linger in DOM during stream.
+        if (
+            probe.get("hasInput")
+            and probe.get("hasBridge")
+            and probe.get("hasLayout")
+            and probe.get("clientHydrated")
+        ):
+            self._shell_skeleton_since = None
+            return
+
         skeleton = bool(probe.get("skeleton"))
         blank_shell = not probe.get("hasInput") and not _shell_probe_ready(probe)
         if not skeleton and not blank_shell:

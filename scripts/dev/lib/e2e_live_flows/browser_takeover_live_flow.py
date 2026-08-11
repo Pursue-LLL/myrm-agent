@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 
 import pytest
 
@@ -22,9 +23,12 @@ from e2e_live_flows.browser_takeover_live_api import (
     resume_via_api,
 )
 from e2e_live_flows.browser_takeover_live_gate import (
+    BROWSER_GATE_API_TIMEOUT_SEC,
+    BROWSER_GATE_WAIT_SEC,
     E2E_NUDGE_PROMPT,
     E2E_PROMPT,
     MAX_SEND_ATTEMPTS,
+    api_browser_gate_progress,
     prepare_browser_turn,
     quiesce_mux_before_retry,
     require_browser_gate_triggered,
@@ -159,10 +163,12 @@ async def run_browser_takeover_live_flow(
             f"disconnected={len(getattr(chat._client, '_disconnected_pages', {}))}"
         )
         _p("wait_for_browser_ask_human_gate")
+        gate_timeout = BROWSER_GATE_WAIT_SEC if attempt == 1 else min(90.0, BROWSER_GATE_WAIT_SEC)
         last_tool, takeover_pending, api_hitl = await wait_for_browser_ask_human_gate(
             chat,
             chat_id=chat_id_hint,
             api_url=api_base,
+            timeout_sec=gate_timeout,
         )
         if api_hitl:
             hitl_api_confirmed = True
@@ -170,6 +176,25 @@ async def run_browser_takeover_live_flow(
             f"gate result: lastTool={last_tool} pending={takeover_pending} "
             f"api_hitl={api_hitl} locked={hitl_api_confirmed}"
         )
+        if (
+            last_tool.endswith("browser_ask_human_tool")
+            and not takeover_pending
+            and not api_hitl
+            and chat_id_hint
+        ):
+            api_progress = await api_browser_gate_progress(
+                chat_id_hint,
+                api_url=api_base,
+                timeout_sec=BROWSER_GATE_API_TIMEOUT_SEC,
+            )
+            if isinstance(api_progress, dict):
+                if api_progress.get("takeoverPending"):
+                    takeover_pending = True
+                    api_hitl = True
+                    hitl_api_confirmed = True
+                    _p(f"gate API reconcile pending approval: {api_progress}")
+                elif str(api_progress.get("lastTool") or ""):
+                    last_tool = str(api_progress["lastTool"])
         if not takeover_pending and not last_tool.endswith("browser_ask_human_tool"):
             if attempt >= MAX_SEND_ATTEMPTS:
                 require_browser_gate_triggered(
@@ -178,22 +203,22 @@ async def run_browser_takeover_live_flow(
                 )
             continue
 
-        if takeover_pending or api_hitl:
+        if last_tool.endswith("browser_ask_human_tool") or takeover_pending or api_hitl:
             _p(
-                "gate HITL confirmed — skip DOM banner wait "
+                "gate confirmed — skip DOM banner wait "
                 f"(pending={takeover_pending} api_hitl={api_hitl} "
                 f"lastTool={last_tool!r}; proceed to Done resume)"
             )
             banner = {
                 "ready": True,
                 "hasExtensionTitle": True,
-                "source": "gate_pending_skip_dom",
+                "source": "gate_tool_or_pending_skip_dom",
             }
             break
 
         _p("wait_takeover_banner")
         try:
-            banner = await wait_takeover_banner(chat, timeout_sec=90.0)
+            banner = await wait_takeover_banner(chat, timeout_sec=45.0)
             _p(f"banner appeared: ready={banner.get('ready')}")
             break
         except AssertionError:
@@ -207,8 +232,12 @@ async def run_browser_takeover_live_flow(
         banner.get("hasExtensionTitle") is True
     ), f"Expected extension banner: {banner}"
 
+    skip_dom_diag_sources = {
+        "gate_pending_skip_dom",
+        "gate_tool_or_pending_skip_dom",
+    }
     pre_done_diag: dict[str, object] | str = {"skipped": "api_only_resume"}
-    if banner.get("source") != "gate_pending_skip_dom":
+    if banner.get("source") not in skip_dom_diag_sources:
         pre_done_diag = await chat.evaluate(
             """(() => {
               const bridge = window.__MYRM_E2E_CHAT__;

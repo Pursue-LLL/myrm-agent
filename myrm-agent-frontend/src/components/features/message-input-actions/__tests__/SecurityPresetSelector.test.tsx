@@ -19,7 +19,7 @@ vi.mock('@/store/useChatStore', () => ({
 const resolveMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/store/chat/securityPreset', () => ({
-  resolvePresetWithYoloMutex: resolveMock,
+  resolvePresetWithYoloMutexEnsured: resolveMock,
 }));
 
 vi.mock('@/components/primitives/tooltip', () => ({
@@ -49,6 +49,13 @@ vi.mock('@/components/primitives/dropdown-menu', () => ({
 import SecurityPresetSelector from '../SecurityPresetSelector';
 import type { ActionMode } from '@/store/chat/types/sessionConfig';
 import type { SecurityPreset } from '@/store/chat/types/chatState';
+import { act } from 'react';
+
+const clickOption = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getAllByRole('button')[1]);
+  });
+};
 
 describe('SecurityPresetSelector', () => {
   beforeEach(() => {
@@ -56,6 +63,7 @@ describe('SecurityPresetSelector', () => {
     storeMock.actionMode = 'agent';
     storeMock.setSecurityPreset.mockReset();
     resolveMock.mockReset();
+    resolveMock.mockResolvedValue(null);
   });
 
   it('renders nothing outside agent mode', () => {
@@ -64,25 +72,25 @@ describe('SecurityPresetSelector', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('skips setPreset when the mutex resolves to null (YOLO-only disarm)', () => {
-    resolveMock.mockReturnValue(null);
+  it('skips setPreset when the mutex resolves to null (YOLO-only disarm)', async () => {
+    resolveMock.mockResolvedValue(null);
     render(<SecurityPresetSelector />);
-    fireEvent.click(screen.getAllByRole('button')[1]);
+    await clickOption();
     expect(storeMock.setSecurityPreset).not.toHaveBeenCalled();
   });
 
-  it('applies the resolved preset when the mutex returns a new value', () => {
-    resolveMock.mockReturnValue('accept_edits' as SecurityPreset);
+  it('applies the resolved preset when the mutex returns a new value', async () => {
+    resolveMock.mockResolvedValue('accept_edits' as SecurityPreset);
     render(<SecurityPresetSelector />);
-    fireEvent.click(screen.getAllByRole('button')[1]);
+    await clickOption();
     expect(storeMock.setSecurityPreset).toHaveBeenCalledWith('accept_edits');
   });
 
-  it('passes the current and selected preset into the mutex', () => {
+  it('passes the current and selected preset into the mutex', async () => {
     storeMock.securityPreset = 'explore';
-    resolveMock.mockReturnValue(null);
+    resolveMock.mockResolvedValue(null);
     render(<SecurityPresetSelector />);
-    fireEvent.click(screen.getAllByRole('button')[1]);
+    await clickOption();
     expect(resolveMock).toHaveBeenCalledWith('explore', 'hitl');
   });
 });

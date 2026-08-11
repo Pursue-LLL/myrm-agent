@@ -1,7 +1,8 @@
 /**
  * [INPUT]
  * @/store/useChatStore::useChatStore (POS: 聊天状态总线)
- * @/services/config::getConfigSyncManager (POS: 配置同步管理器)
+ * @/store/chat/securityPreset::resolvePresetWithYoloMutexEnsured
+ *   (POS: 会话预设 ⇄ YOLO 互斥决策，决策前确保 securityConfig 已同步)
  *
  * [OUTPUT]
  * SecurityPresetSelector: 会话级安全预设三档下拉选择器。
@@ -23,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
 import useChatStore from '@/store/useChatStore';
-import { resolvePresetWithYoloMutex } from '@/store/chat/securityPreset';
+import { resolvePresetWithYoloMutexEnsured } from '@/store/chat/securityPreset';
 import type { SecurityPreset } from '@/store/chat/types/chatState';
 
 const PRESETS = ['hitl', 'accept_edits', 'explore'] as const;
@@ -77,8 +78,10 @@ const SecurityPresetSelector = () => {
   const isDefault = preset === 'hitl';
   const colors = PRESET_COLORS[preset];
 
-  const handleSelect = (next: SecurityPreset) => {
-    const resolved = resolvePresetWithYoloMutex(preset, next);
+  const handleSelect = async (next: SecurityPreset) => {
+    // 决策前确保 securityConfig 已同步：渐进加载下该 key 为后台异步预加载，
+    // 未同步时 YOLO 状态误读为关闭会导致互斥静默跳过（安全假象）。
+    const resolved = await resolvePresetWithYoloMutexEnsured(preset, next);
     if (resolved !== null) setPreset(resolved);
   };
 

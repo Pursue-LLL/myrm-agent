@@ -18,6 +18,7 @@ export default function KanbanSection() {
   const activeProjectId = useProjectStore((s) => (typeof s.activeFilter === 'string' ? s.activeFilter : null));
   const sourceChatParam = searchParams.get('source_chat')?.trim() || undefined;
   const boardIdParam = searchParams.get('board_id')?.trim() || undefined;
+  const statusParam = searchParams.get('status')?.trim() || undefined;
   const [boards, setBoards] = useState<KanbanBoard[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBoard, setSelectedBoard] = useState<KanbanBoard | null>(null);
@@ -39,19 +40,21 @@ export default function KanbanSection() {
 
   const fetchBoards = useCallback(async () => {
     try {
-      const scoped = await listBoards({ projectId: activeProjectId });
-      let items = scoped.items;
-      if (!activeProjectId && boardIdParam && !items.some((board) => board.board_id === boardIdParam)) {
-        const all = await listBoards();
-        items = all.items;
-      }
-      setBoards(items);
+      // A deep link (board_id / status, e.g. from a push notification or the
+      // Fleet "Pending" KPI) targets a specific pending task regardless of the
+      // current project filter — fetch every board so auto-selection can land
+      // on it. Browsing without a deep link keeps the project scoping.
+      const isDeepLink = Boolean(boardIdParam || statusParam);
+      const result = isDeepLink
+        ? await listBoards()
+        : await listBoards({ projectId: activeProjectId });
+      setBoards(result.items);
     } catch {
       toast.error(t('fetchBoardsError'));
     } finally {
       setLoading(false);
     }
-  }, [activeProjectId, boardIdParam, t]);
+  }, [activeProjectId, boardIdParam, statusParam, t]);
 
   useEffect(() => {
     fetchBoards();
@@ -83,12 +86,46 @@ export default function KanbanSection() {
       }
     }
 
+    // A status-only deep link (e.g. Fleet "Pending" KPI) has no board_id;
+    // land on the board that actually holds tasks in that status instead of
+    // the last-used board with an empty filtered column.
+    if (statusParam) {
+      const lastId = readKanbanLastBoardId(activeProjectId);
+      const candidates = lastId
+        ? [
+            boards.find((b) => b.board_id === lastId),
+            ...boards.filter((b) => b.board_id !== lastId),
+          ].filter((b): b is KanbanBoard => Boolean(b))
+        : boards;
+      let cancelled = false;
+      (async () => {
+        for (const board of candidates) {
+          if (cancelled) return;
+          try {
+            const summary = await getBoardSummary(board.board_id);
+            if (cancelled) return;
+            if ((summary.task_counts[statusParam] ?? 0) > 0) {
+              selectBoard(board);
+              return;
+            }
+          } catch {
+            // Board summary is best-effort here; fall through to the next board.
+          }
+        }
+        if (cancelled) return;
+        if (candidates[0]) selectBoard(candidates[0]!);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const lastId = readKanbanLastBoardId(activeProjectId);
     if (!lastId) return;
     const match = boards.find((b) => b.board_id === lastId);
     if (match) selectBoard(match);
     else writeKanbanLastBoardId(null, activeProjectId);
-  }, [loading, boards, selectedBoard, boardIdParam, sourceChatParam, selectBoard, activeProjectId]);
+  }, [loading, boards, selectedBoard, boardIdParam, sourceChatParam, statusParam, selectBoard, activeProjectId]);
 
   useEffect(() => {
     if (!selectedBoard) {

@@ -137,13 +137,16 @@ async def resolve_workspace(store: KanbanStore, task: KanbanTask) -> str | None:
     if not task.branch:
         return base_dir
 
+    worktree_path = worktree_dir(base_dir, task.branch, task.task_id)
+    created = not Path(worktree_path).exists()
     result = await create_worktree(base_dir, task.branch, task.task_id)
     if isinstance(result, str):
-        await store.add_event(
-            task.task_id,
-            TaskEventKind.BRANCH_SWITCHED,
-            payload={"branch": task.branch, "worktree_path": result},
-        )
+        if created:
+            await store.append_event(
+                task.task_id,
+                TaskEventKind.BRANCH_SWITCHED,
+                payload={"branch": task.branch, "worktree_path": result},
+            )
         return result
 
     logger.warning(

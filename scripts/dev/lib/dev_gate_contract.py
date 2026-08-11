@@ -349,7 +349,11 @@ CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
 E2E_ADMISSION_WALL_CLOCK_SEC: Final[int] = 900
 # R122: attach crash-heal try-lock; defer instead of 180s×N dogpile under parallel attach.
 E2E_ATTACH_CRASH_HEAL_FLOCK_WAIT_SEC: Final[float] = 5.0
-SHARED_ATTACH_RECOVERY_WAIT_SEC: Final[int] = 20
+SHARED_ATTACH_RECOVERY_WAIT_SEC: Final[int] = 360
+# R161 contract: attach recovery must cover a full frontend heal cycle
+# (STACK_FRONTEND_ATTACH_HEAL_ENSURE_WAIT_SEC=360). The previous 20s cap made
+# parallel attach fail before ui-heal could restore a cold-compiling frontend
+# (regression vs R161 "≥ heal+120"; R122 dogpile is solved by flock, not by cap).
 # R132: attach UI heal must cover frontend cold compile + post-ensure warm streak (not 72s).
 E2E_ATTACH_UI_HEAL_POST_ENSURE_FLOOR_SEC: Final[int] = 120
 E2E_ATTACH_UI_HEAL_TIMEOUT_FLOOR_SEC: Final[int] = 300
@@ -374,7 +378,9 @@ def attach_ui_heal_timeout_sec(active_leases: int = 0) -> int:
     )
 
 
-def attach_parallel_wait_sec(active_leases: int = 0, *, base: int = 180) -> int:
+def attach_parallel_wait_sec(
+    active_leases: int = 0, *, base: int = SHARED_ATTACH_RECOVERY_WAIT_SEC
+) -> int:
     """Bound attach recovery independently from logical SHARED session count.
 
     PRIVATE capacity waiting happens before bootstrap. Once admitted, both modes use
@@ -542,7 +548,9 @@ def signoff_stack_recovery_admit_budget_sec(
         if active_leases is not None
         else _parallel_signoff_pressure_peers()
     )
-    return attach_parallel_wait_sec(leases, base=180)
+    return attach_parallel_wait_sec(
+        leases, base=SHARED_ATTACH_RECOVERY_WAIT_SEC
+    )
 
 
 def provider_readiness_gate_wait_sec(*, active_leases: int | None = None) -> float:

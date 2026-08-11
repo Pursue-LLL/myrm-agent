@@ -52,7 +52,7 @@ Paths align with in-app SSE handlers (`useGlobalEvents`):
 |---|---|
 | `APPROVAL_REQUIRED` | `/{chat_id}?approval={approval_id}` |
 | `GOAL_TERMINAL` | `/{session_id}` |
-| `BACKGROUND_TASK_DONE` | `/{chat_id}` |
+| `BACKGROUND_TASK_DONE` | `pending_review` + `board_id` → `/settings/kanban?board_id={board_id}&status=in_review`；否则 `/{chat_id}` |
 | `SYSTEM_NOTIFICATION` | `/{meta_data.chat_id}` or `/` |
 | `HEALTH_ALERT`, `BUDGET_ALERT` | `/settings/system` |
 | `CHANNEL_DISCONNECTED` | `/settings/channels` |

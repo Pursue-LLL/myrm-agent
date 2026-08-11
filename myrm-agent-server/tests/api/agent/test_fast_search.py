@@ -7,6 +7,7 @@ E2E 测试走 /agents/agent-stream 端点。
 
 import json
 import os
+import uuid
 from typing import Optional
 
 import pytest
@@ -205,8 +206,8 @@ def perform_fast_search(
 
     search_request: dict[str, object] = {
         "query": query,
-        "message_id": "test-msg-id",
-        "chat_id": "test-chat-id",
+        "message_id": f"test-msg-{uuid.uuid4().hex[:12]}",
+        "chat_id": f"test-chat-{uuid.uuid4().hex[:12]}",
         "action_mode": "fast",
         "search_depth": search_depth,
         "model_selection": model_selection,

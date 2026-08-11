@@ -118,6 +118,36 @@ class TestBoardApi:
         assert resp.status_code == 200
         assert resp.json()["board_id"] == board["board_id"]
 
+    def test_create_board_with_block_recurrence_limit(self, client: TestClient) -> None:
+        """The 9th board setting must be settable at creation and echoed back."""
+        resp = client.post(
+            "/api/v1/kanban/boards",
+            json={"name": "BlockLimit", "block_recurrence_limit": 6},
+        )
+        assert resp.status_code == 201
+        settings = resp.json()["settings"]
+        assert settings["block_recurrence_limit"] == 6
+
+        got = client.get(f"/api/v1/kanban/boards/{resp.json()['board_id']}")
+        assert got.status_code == 200
+        assert got.json()["settings"]["block_recurrence_limit"] == 6
+
+    def test_update_board_block_recurrence_limit(self, client: TestClient) -> None:
+        """PATCH must update block_recurrence_limit without resetting other settings."""
+        board = _create_board(client, "UpdateLimit")
+        assert board["settings"]["block_recurrence_limit"] == 2
+
+        resp = client.patch(
+            f"/api/v1/kanban/boards/{board['board_id']}",
+            json={"block_recurrence_limit": 5},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["settings"]["block_recurrence_limit"] == 5
+        assert resp.json()["settings"]["max_concurrent_tasks"] == board["settings"]["max_concurrent_tasks"]
+
+        got = client.get(f"/api/v1/kanban/boards/{board['board_id']}")
+        assert got.json()["settings"]["block_recurrence_limit"] == 5
+
     def test_list_boards(self, client: TestClient) -> None:
         _create_board(client, "Board1")
         _create_board(client, "Board2")

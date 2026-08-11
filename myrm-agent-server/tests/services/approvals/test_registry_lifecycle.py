@@ -5,30 +5,56 @@ resolution and pending-count guard — the registry capabilities exercised
 by the event-branching refactor (Optimization B).
 """
 
-import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.database.models.approval import ApprovalRecord
 from app.database.models.base import Base
 from app.services.approvals.registry import ApprovalRegistry, send_outbound_draft_payload
 
-_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-_session_factory = async_sessionmaker(_engine, expire_on_commit=False)
+_engine: AsyncEngine | None = None
+_session_factory: async_sessionmaker[AsyncSession] | None = None
+
+
+def _get_engine() -> AsyncEngine:
+    assert _engine is not None, "engine not initialized"
+    return _engine
+
+
+def _get_session_factory() -> async_sessionmaker[AsyncSession]:
+    assert _session_factory is not None, "session factory not initialized"
+    return _session_factory
 
 
 @asynccontextmanager
 async def _test_get_session() -> AsyncIterator[AsyncSession]:
-    async with _session_factory() as session:
+    async with _get_session_factory()() as session:
         try:
             yield session
         finally:
             await session.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _init_db(tmp_path_factory: pytest.TempPathFactory) -> None:
+    global _engine, _session_factory
+    db_path = tmp_path_factory.mktemp("registry_lifecycle") / "registry_test.db"
+    _engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
+    _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
+    yield
+    _engine = None
+    _session_factory = None
 
 
 @pytest.fixture(autouse=True)
@@ -37,21 +63,14 @@ def _patch_session():
         yield
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _create_tables():
-    async def _setup():
-        async with _engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-    asyncio.get_event_loop_policy().new_event_loop().run_until_complete(_setup())
+@pytest_asyncio.fixture(autouse=True)
+async def _create_tables():
+    engine = _get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     yield
-
-    async def _teardown():
-        async with _engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-        await _engine.dispose()
-
-    asyncio.get_event_loop_policy().new_event_loop().run_until_complete(_teardown())
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
 async def _seed(
@@ -63,7 +82,7 @@ async def _seed(
     expires_at: datetime | None = None,
     thread_id: str | None = "thread-1",
 ) -> None:
-    async with _session_factory() as db:
+    async with _get_session_factory()() as db:
         existing = await db.get(ApprovalRecord, record_id)
         if existing:
             await db.delete(existing)
@@ -272,7 +291,7 @@ class TestChannelNativeApprovalBlock:
         """A PENDING approval for a non-web channel chat pushes a Native Approval Block."""
         from app.database.models.chat import Chat
 
-        async with _session_factory() as db:
+        async with _get_session_factory()() as db:
             chat = Chat(
                 id="chat-channel-1",
                 source="telegram",
@@ -307,7 +326,7 @@ class TestChannelNativeApprovalBlock:
         """Web chats do not trigger the native approval block push."""
         from app.database.models.chat import Chat
 
-        async with _session_factory() as db:
+        async with _get_session_factory()() as db:
             chat = Chat(
                 id="chat-web-1",
                 source="web",

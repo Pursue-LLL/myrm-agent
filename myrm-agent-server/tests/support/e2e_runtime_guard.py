@@ -19,8 +19,8 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from e2e_session_runtime.heartbeat import heartbeat_once as _unified_heartbeat_once
 from e2e_resource_ledger import E2EResourceLedger as _E2EResourceLedger
+from e2e_session_runtime.heartbeat import heartbeat_once as _unified_heartbeat_once
 
 _E2E_HEARTBEAT_INTERVAL_SEC = 30.0
 E2EResourceLedger = _E2EResourceLedger

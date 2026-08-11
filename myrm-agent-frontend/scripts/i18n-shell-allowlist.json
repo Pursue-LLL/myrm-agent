@@ -206,6 +206,13 @@
     "settings.hosting.webhookAuthHeaderPlaceholder",
     "cron.triggerPollJsonPath",
     "cron.triggerStreamLabel",
-    "channels.optional"
+    "channels.optional",
+    "batchDirectory.promptTitle",
+    "batchDirectory.configAgent",
+    "batchDirectory.configBoard",
+    "batchDirectory.projectIdLabel",
+    "batchDirectory.statProjects",
+    "batchDirectory.tableName",
+    "batchDirectory.tableStatus"
   ]
 }

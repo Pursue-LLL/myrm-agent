@@ -69,6 +69,12 @@ class KanbanBoardModel(Base):
         nullable=True,
         default=None,
     )
+    block_recurrence_limit: Mapped[int] = mapped_column(
+        Integer,
+        default=2,
+        nullable=False,
+        server_default="2",
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

@@ -27,7 +27,7 @@
 | `migrationDiscovery.ts` | Local/Tauri 外部助手数据自动发现（Hermes / OpenClaw / Claude Code / Codex / Pi）+ server 下发 `source_manifest`（display/import/deep-link）与 `source_manifest_authoritative` 覆盖语义消费 |
 | `onboarding.ts` | Onboarding readiness/complete + Telegram assistant 一键接入编排接口 `/config/onboarding/telegram-assistant/apply` |
 | `google-workspace-oauth.ts` | `/integrations/google-workspace/oauth/*`：config/start/poll/status/disconnect；Tauri 用 shell.open |
-| `kanban.ts` | `/kanban/*`：Board/Task CRUD、move/promote/reclaim、bulk、依赖边、Specify/Decompose、Pipeline 实例化；`listBoards({ projectId })` + `createBoard({ project_id, milestone_id })` 作用域链路 |
+| `kanban.ts` | `/kanban/*`：Board/Task CRUD、move/promote/reclaim、bulk、依赖边、Specify/Decompose、Pipeline 实例化；`listBoards({ projectId })` + `createBoard({ project_id, milestone_id })` 作用域链路；`BoardSettings` 类型契约含全部 9 字段（含 `block_recurrence_limit`，与后端 `BoardCreate`/`BoardUpdate` schema 对齐） |
 | `agent.ts` | `/user-agents/*` CRUD、密钥、快照回滚、导入导出、readiness（get/invalidate + `READINESS_SWR_KEY_PREFIX`）；`getAgent(..., signal)` 支持请求级 abort；fetch 错误与 secret list normalize 见 `agentFetchErrorCore.ts` |
 | `agentFetchErrorCore.ts` | 纯函数：`parseUserAgentFetchErrorMessage`（detail/顶层 message）、`normalizeAgentSecretKeyNames`（`{key_name}[]` → `string[]`） |
 | `runs.ts` | `GET /runs`：Cron / Kanban / Shell 后台任务统一运行历史（只读聚合） |

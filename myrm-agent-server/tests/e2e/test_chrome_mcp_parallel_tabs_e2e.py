@@ -1,7 +1,15 @@
-"""Three real Chrome MCP mux contexts keep exact page ownership in parallel."""
+"""Three real Chrome MCP mux contexts keep exact page ownership in parallel.
+
+Requires the classic mux transport: it exercises `new_page(isolated_context=...)`,
+a per-page BrowserContext isolation capability that the browser-orchestrator
+daemon transport (MYRM_BROWSER_ORCHESTRATOR=1) does not expose — daemon sessions
+own exactly one BrowserContext, so these assertions cannot hold there. When the
+daemon transport is active the tests are skipped explicitly instead of failing.
+"""
 
 from __future__ import annotations
 
+import os
 import sys
 import threading
 import time
@@ -18,6 +26,8 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import get_e2e_ui_url  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
+
+_DAEMON_TRANSPORT = os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1"
 
 STATE_URL = f"{get_e2e_ui_url()}/theme-init.js"
 
@@ -164,6 +174,11 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_three_mux_clients_own_interactive_tabs_concurrently() -> None:
+    if _DAEMON_TRANSPORT:
+        pytest.skip(
+            "isolated_context requires the classic mux transport; "
+            "browser-orchestrator daemon sessions expose one context per session"
+        )
     barrier = threading.Barrier(3)
     with ThreadPoolExecutor(max_workers=3, thread_name_prefix="chrome-mcp-e2e") as pool:
         futures = []
@@ -185,6 +200,11 @@ def test_three_mux_clients_own_interactive_tabs_concurrently() -> None:
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_isolated_browser_contexts_do_not_share_global_state() -> None:
+    if _DAEMON_TRANSPORT:
+        pytest.skip(
+            "isolated_context requires the classic mux transport; "
+            "browser-orchestrator daemon sessions expose one context per session"
+        )
     marker = uuid.uuid4().hex
     context_a = f"pytest-isolated-a-{marker}"
     context_b = f"pytest-isolated-b-{marker}"

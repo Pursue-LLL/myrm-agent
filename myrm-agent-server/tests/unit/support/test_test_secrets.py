@@ -37,3 +37,10 @@ def test_apply_test_secrets_to_environ(monkeypatch) -> None:
     apply_test_secrets_to_environ(TestSecrets(raw={"BASIC_API_KEY": "secret"}))
     assert resolve_test_env("BASIC_API_KEY") == "secret"
     clear_test_secrets_cache()
+
+
+def test_apply_test_secrets_respects_existing_environ_by_default(monkeypatch) -> None:
+    monkeypatch.setenv("BASIC_API_KEY", "from-shell")
+    apply_test_secrets_to_environ(TestSecrets(raw={"BASIC_API_KEY": "from-file"}))
+    assert resolve_test_env("BASIC_API_KEY") == "from-shell"
+    clear_test_secrets_cache()

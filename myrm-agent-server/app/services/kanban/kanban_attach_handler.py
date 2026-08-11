@@ -8,7 +8,7 @@
 - create_kanban_attach_handler: Factory returning harness KanbanTaskAttachFn callback.
 
 [POS]
-Server-side implementation for kanban_attach LLM tool (SSRF-safe URL fetch + path ingest).
+Server-side implementation for kanban_attach LLM tool (SSRF-safe URL fetch + worktree-aware path ingest).
 """
 
 from __future__ import annotations
@@ -23,11 +23,14 @@ from urllib.parse import urlparse
 from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.core.security.guards.ssrf import async_validate_url_for_ssrf
 from myrm_agent_harness.core.security.http.secure_fetch import secure_get
+from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import (
+    WorkspacePathResolver,
+)
 from myrm_agent_harness.toolkits.kanban.kanban_agent_tools import KanbanTaskAttachFn
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
 from app.core.storage.models import File
-from app.services.kanban.task_runner import resolve_base_dir
+from app.services.kanban.task_runner import resolve_workspace
 
 logger = logging.getLogger(__name__)
 
@@ -84,19 +87,27 @@ async def _attach_from_path(
 ) -> File:
     from app.core.storage import files_service
 
-    base_dir = await resolve_base_dir(store, task)
-    if not base_dir:
+    workspace = await resolve_workspace(store, task)
+    if not workspace:
         raise ValueError("Task has no workspace path — cannot attach local files")
 
+    workspace_resolved = Path(workspace).resolve()
+
+    # Normalize container-abstract paths (/workspace/...) to the task workspace,
+    # then resolve relative paths against it. This keeps path resolution
+    # consistent with the worker's cwd (worktree when branch isolation is on).
     candidate = Path(raw_path).expanduser()
+    if WorkspacePathResolver.is_container_path(str(candidate)):
+        converted = WorkspacePathResolver.to_local_path(str(candidate), workspace_resolved)
+        if converted is not None:
+            candidate = converted
     if not candidate.is_absolute():
-        candidate = Path(base_dir) / candidate
+        candidate = workspace_resolved / candidate
     candidate = candidate.resolve()
 
-    base_resolved = Path(base_dir).resolve()
     if (
-        not str(candidate).startswith(str(base_resolved) + os.sep)
-        and candidate != base_resolved
+        not str(candidate).startswith(str(workspace_resolved) + os.sep)
+        and candidate != workspace_resolved
     ):
         raise ValueError("Path must be inside the task workspace")
 

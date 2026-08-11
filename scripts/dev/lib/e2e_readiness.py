@@ -39,7 +39,7 @@ from e2e_api_verify import (
 ReadinessStatus = Literal["READY", "WAIT", "FAIL"]
 
 _LAUNCH_ALLOWED_ACTIONS: Final[frozenset[str]] = frozenset(
-    {"READY", "PARALLEL_OK", "QUEUE", "ATTACH_CRASH_HEAL"}
+    {"READY", "PARALLEL_OK", "OPERATION_BACKPRESSURE", "ATTACH_CRASH_HEAL"}
 )
 
 
@@ -61,13 +61,12 @@ def _status_for_next_action(next_action: str, *, ctx_blocked: bool) -> Readiness
         return "FAIL"
     if next_action == "OBSERVABILITY_UNKNOWN":
         return "WAIT"
-    if next_action in ("READY", "PARALLEL_OK"):
+    if next_action in ("READY", "PARALLEL_OK", "OPERATION_BACKPRESSURE"):
         return "READY"
     if ctx_blocked or next_action in (
         "ATTACH_CRASH_HEAL",
         "SHPOIB_OR_VERIFY_API",
         "PRIVATE_EPOCH_REQUIRED",
-        "QUEUE",
     ):
         return "WAIT"
     return "READY"
@@ -113,9 +112,10 @@ def _reason_for_verdict(*, next_action: str, ctx: E2eApiContext) -> str:
     if ctx.blocked:
         blocked_reason = ctx.blocked_reason.strip() or "verification plane blocked"
         return f"{blocked_reason}; NEXT_ACTION={next_action}"
-    if next_action == "QUEUE":
+    if next_action == "OPERATION_BACKPRESSURE":
         return (
-            "PRIVATE ADMIT queue expected; launch may defer — do not stop other pytest"
+            "browser operation credits are saturated; launch remains allowed and "
+            "the session receives bounded operation-level backpressure"
         )
     if next_action == "ATTACH_CRASH_HEAL":
         return (
@@ -169,9 +169,7 @@ def _ready_chrome_full(
         return False
     if mux_fields.get("muxColdAttachSaturated") is True:
         return False
-    if not mux_fields.get("muxSnapshotAvailable", True):
-        return False
-    return True
+    return bool(mux_fields.get("muxSnapshotAvailable", True))
 
 
 def _launch_force_bypass_enabled() -> bool:
@@ -252,7 +250,7 @@ def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
     from e2e_lease_liveness import (
         load_wave_snapshot,
         wave_lease_counts,
-    )  # noqa: PLC0415
+    )
 
     ctx = resolve_e2e_api_context()
     mux_fields = _mux_context_fields()
@@ -264,7 +262,7 @@ def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
         if isinstance(active_tests_raw, list)
         else []
     )
-    from dev_gate_status import dev_gate_status  # noqa: PLC0415
+    from dev_gate_status import dev_gate_status
 
     active_test_count, observability_mismatch = _resolve_cap_headroom_active_test_count(
         parallel_snapshot,

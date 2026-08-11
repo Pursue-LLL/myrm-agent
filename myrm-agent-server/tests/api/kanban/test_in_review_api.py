@@ -290,6 +290,7 @@ class TestPendingReviewNotification:
         event = published[0]
         assert event.event_type == AppEventType.BACKGROUND_TASK_DONE
         assert event.data["status"] == "pending_review"
+        assert event.data["board_id"] == "b1"
         assert event.data["chat_id"] == "chat-9"
         assert event.data["title"] == "Deploy v2.1"
         assert event.data.get("suppress_web_push") is not True

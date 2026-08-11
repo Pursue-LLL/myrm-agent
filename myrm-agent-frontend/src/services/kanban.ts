@@ -15,6 +15,7 @@ export interface BoardSettings {
   specify_max_tokens: number;
   auto_specify_on_create: boolean;
   default_workdir?: string | null;
+  block_recurrence_limit?: number;
 }
 
 export interface KanbanBoard {
@@ -127,6 +128,7 @@ export async function createBoard(data: {
   milestone_id?: string;
   max_concurrent_tasks?: number;
   default_workdir?: string;
+  block_recurrence_limit?: number;
 }): Promise<KanbanBoard> {
   return apiRequest('/kanban/boards', { method: 'POST', body: JSON.stringify(data) });
 }
@@ -137,7 +139,13 @@ export async function getBoard(boardId: string): Promise<KanbanBoard> {
 
 export async function updateBoard(
   boardId: string,
-  data: { name?: string; description?: string; max_concurrent_tasks?: number; default_workdir?: string | null },
+  data: {
+    name?: string;
+    description?: string;
+    max_concurrent_tasks?: number;
+    default_workdir?: string | null;
+    block_recurrence_limit?: number;
+  },
 ): Promise<KanbanBoard> {
   return apiRequest(`/kanban/boards/${boardId}`, { method: 'PATCH', body: JSON.stringify(data) });
 }

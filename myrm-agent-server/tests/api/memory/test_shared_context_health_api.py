@@ -41,3 +41,33 @@ def test_shared_context_memory_health_route_is_not_captured_by_context_id(
     assert payload["status"] == "ready"
     assert payload["probed"] is True
     assert payload["vector_dimension"] == 1536
+
+
+def test_shared_context_memory_health_route_degrades_when_embedding_is_missing(
+    monkeypatch,
+) -> None:
+    async def missing_config(*, probe: bool) -> SharedContextMemoryHealthResult:
+        del probe
+        return SharedContextMemoryHealthResult(
+            ready=False,
+            status="not_configured",
+            model="",
+            api_base_configured=False,
+            api_key_configured=False,
+            probed=False,
+            reason="embedding_not_configured",
+            retryable=False,
+            checked_at=datetime(2026, 4, 30, tzinfo=UTC),
+        )
+
+    monkeypatch.setattr(health_operation, "check_shared_context_memory_health", missing_config)
+    app = FastAPI()
+    app.include_router(memory_router, prefix="/memory")
+    client = TestClient(app)
+
+    response = client.get("/memory/shared-contexts/health/memory")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "not_configured"
+    assert payload["reason"] == "embedding_not_configured"

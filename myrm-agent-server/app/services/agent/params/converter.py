@@ -1,6 +1,5 @@
 """[INPUT]
 - app.ai_agents::GeneralAgentParams (POS: General Agent runtime parameter DTO)
-- app.ai_agents.general_agent.llm_factory::select_tool_capable_model_cfg (POS: tool-capable main model selector)
 - app.core.channel_bridge.config_loader::load_user_configs (POS: decrypted user config loader)
 - app.core.channel_bridge.model_resolver::_fallback_model_from_providers / resolve_model_config (POS: default model resolution)
 
@@ -23,7 +22,6 @@ from typing import cast
 from fastapi import Request
 
 from app.ai_agents import GeneralAgentParams
-from app.ai_agents.general_agent.llm_factory import select_tool_capable_model_cfg
 from app.core.channel_bridge.config_parsers import verify_search_service_available
 from app.core.types import ChatHistoryReq, MCPServerConfig, ModelConfig
 from app.services.agent.moa_preset_resolver import apply_moa_preset_activation
@@ -228,20 +226,6 @@ async def convert_to_general_agent_params(
         vision_fallback_model_cfg = extract_vision_fallback_model_config(providers_dict)
 
     vision_fallback_model_cfgs: list[ModelConfig] | None = None
-
-    model_cfg, selected_source = select_tool_capable_model_cfg(
-        model_cfg,
-        lite_model_cfg=lite_model_cfg,
-        fallback_model_cfg=fallback_model_cfg,
-        safety_fallback_model_cfg=safety_fallback_model_cfg,
-        providers_dict=providers_dict,
-    )
-    if selected_source == "fallback":
-        fallback_model_cfg = None
-    elif selected_source == "lite":
-        lite_model_cfg = None
-    elif selected_source == "safety_fallback":
-        safety_fallback_model_cfg = None
 
     routing_tier: str | None = None
     if request.light_model_selection or request.reasoning_model_selection:

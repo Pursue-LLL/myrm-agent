@@ -1,5 +1,11 @@
 """Kanban API request/response schemas.
 
+[INPUT]
+pydantic::BaseModel/Field (POS: 数据模型基座)
+
+[OUTPUT]
+BoardCreate/BoardUpdate/BoardResponse/TaskCreate/… 等 API 请求响应模型
+
 [POS] Pydantic models for kanban API endpoints.
 """
 
@@ -37,6 +43,12 @@ class BoardCreate(BaseModel):
         max_length=1024,
         description="Default workspace directory for tasks on this board.",
     )
+    block_recurrence_limit: int = Field(
+        2,
+        ge=1,
+        le=50,
+        description="How many block/unblock cycles escalate a task to TRIAGE.",
+    )
 
 
 class BoardUpdate(BaseModel):
@@ -49,6 +61,12 @@ class BoardUpdate(BaseModel):
         None,
         max_length=1024,
         description="Default workspace directory for tasks on this board.",
+    )
+    block_recurrence_limit: int | None = Field(
+        None,
+        ge=1,
+        le=50,
+        description="How many block/unblock cycles escalate a task to TRIAGE.",
     )
 
 

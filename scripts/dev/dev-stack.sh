@@ -78,6 +78,7 @@ _lock_dir="${STATE_DIR}/ensure.lock.d"
 _acquire_dir_lock() {
   local lockdir="$1"
   local wait_sec="$2"
+  local reclaim_hung="${3:-1}"
   local i
 
   if [[ -d "${lockdir}" ]]; then
@@ -90,7 +91,7 @@ _acquire_dir_lock() {
       lock_mtime="$(stat -f %m "${lockdir}/pid" 2>/dev/null || stat -c %Y "${lockdir}/pid" 2>/dev/null || echo 0)"
       now="$(date +%s)"
       age=$((now - lock_mtime))
-      if [[ "${age}" -gt "${wait_sec}" ]]; then
+      if [[ "${reclaim_hung}" == "1" && "${age}" -gt "${wait_sec}" ]]; then
         echo "STACK_WARN: reclaiming hung lock ${lockdir} owner=${owner} age=${age}s" >&2
         kill -TERM "${owner}" 2>/dev/null || true
         sleep 1
@@ -142,6 +143,44 @@ _join_ensure_in_progress() {
   if _wait_stack_warm "${wait_sec}"; then
     _try_optional_client_hot
     echo "STACK_ENSURE_OK: joined in-progress ensure api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
+    return 0
+  fi
+  return 1
+}
+
+_backend_only_lock_wait_sec() {
+  local raw="${MYRM_BACKEND_ONLY_LOCK_WAIT_SEC:-60}"
+  if [[ "${raw}" =~ ^[0-9]+$ && "${raw}" -ge 15 ]]; then
+    echo "${raw}"
+  else
+    echo 60
+  fi
+}
+
+_wait_backend_health() {
+  local max="${1:-60}"
+  local i
+  for i in $(seq 1 "${max}"); do
+    if _api_healthy 1; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+_join_backend_ensure_in_progress() {
+  local lockdir="$1"
+  local wait_sec="$2"
+  local owner=""
+
+  if ! _ensure_lock_owner_alive "${lockdir}"; then
+    return 1
+  fi
+  owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
+  echo "STACK_JOIN: backend ensure in progress (pid=${owner}) — waiting for API health" >&2
+  if _wait_backend_health "${wait_sec}"; then
+    echo "STACK_BACKEND_ONLY_ENSURE_OK: joined in-progress backend api=:${BACKEND_PORT}" >&2
     return 0
   fi
   return 1
@@ -767,14 +806,17 @@ _repair_orphan_private_backend() {
 }
 
 cmd_backend_only_ensure() {
-  # 与 cmd_ensure 共用 ensure.lock.d，串行化 backend 冷启动。并发 ensure 竞争
-  # 会导致两个 backend 同时启动：一个抢到端口，另一个变孤儿（health wait 超时
-  # 才自清理），造成端口抖动与进程堆积。
-  if _join_ensure_in_progress "${_lock_dir}" "${ATTACH_WAIT_SEC}"; then
+  # 与 cmd_ensure 共用 ensure.lock.d，但 backend-only 恢复不能等待前端
+  # shell_hot：那会把一次 backend heal 放大成 360s 的前端冷编译等待。
+  # 只等待 API 健康，并在锁仍被完整 ensure 持有时 fail-fast；禁止恢复路径
+  # 误杀正在进行的完整 ensure。
+  local backend_lock_wait
+  backend_lock_wait="$(_backend_only_lock_wait_sec)"
+  if _join_backend_ensure_in_progress "${_lock_dir}" "${backend_lock_wait}"; then
     exit 0
   fi
-  if ! _acquire_dir_lock "${_lock_dir}" "${ATTACH_WAIT_SEC}"; then
-    echo "STACK_FAIL: could not acquire stack ensure lock within ${ATTACH_WAIT_SEC}s" >&2
+  if ! _acquire_dir_lock "${_lock_dir}" "${backend_lock_wait}" 0; then
+    echo "STACK_FAIL: backend-only ensure lock busy after ${backend_lock_wait}s; retry via bounded supervisor heal" >&2
     exit 1
   fi
   trap '_release_dir_lock "${_lock_dir}"' EXIT

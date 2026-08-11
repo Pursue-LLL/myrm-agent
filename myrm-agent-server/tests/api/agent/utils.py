@@ -20,23 +20,14 @@ from tests.support.test_secrets import load_test_secrets, resolve_test_env
 
 @contextmanager
 def force_invalid_model_llm_error(invalid_model: str) -> Iterator[None]:
-    """Resolve a fake invalid model and block provider_scan so agent-stream emits ERROR quickly."""
+    """Resolve a fake invalid model so agent-stream emits ERROR quickly."""
 
     def _mock_fallback(providers_dict: object | None = None) -> ModelConfig:
         return ModelConfig(model=invalid_model, api_key="sk-invalid-test-key", base_url=None)
 
-    def _keep_requested_model(model_cfg: ModelConfig, *args: object, **kwargs: object) -> tuple[ModelConfig, str]:
-        return model_cfg, "main"
-
-    with (
-        patch(
-            "app.core.channel_bridge.model_resolver._fallback_model_from_providers",
-            side_effect=_mock_fallback,
-        ),
-        patch(
-            "app.services.agent.params.converter.select_tool_capable_model_cfg",
-            side_effect=_keep_requested_model,
-        ),
+    with patch(
+        "app.core.channel_bridge.model_resolver._fallback_model_from_providers",
+        side_effect=_mock_fallback,
     ):
         yield
 
@@ -54,6 +45,10 @@ _ENV_SKIP_KEYWORDS = (
     "litellm.BadRequestError",
     "ServiceUnavailableError",
     "quota exceeded",
+    "free_request_quota",
+    "insufficient_balance",
+    "额度已耗尽",
+    "余额不足",
     "rate limit",
     "RateLimitError",
     "Iteration limit reached",
@@ -69,6 +64,10 @@ _ENV_SKIP_KEYWORDS = (
 # 且绝不会出现在正常回答正文里，可安全用于全量事件扫描。
 _ENV_SKIP_BLOB_KEYWORDS = (
     "quota exceeded",
+    "free_request_quota",
+    "insufficient_balance",
+    "额度已耗尽",
+    "余额不足",
     "search service quota",
     "searchapierror",
     "iteration limit reached",

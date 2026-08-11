@@ -1,6 +1,6 @@
 """[INPUT]
 - app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 门面与运行时配置容器)
-- app.ai_agents.general_agent.llm_factory::select_tool_capable_model_cfg / create_agent_llms (POS: 选择工具可调用主模型并创建 LLM 实例)
+- app.ai_agents.general_agent.llm_factory::create_agent_llms (POS: 创建 LLM 实例)
 - myrm_agent_harness.api.create_skill_agent (POS: SkillAgent 组装入口)
 
 [OUTPUT]
@@ -79,7 +79,7 @@ async def build_general_agent(
         resolve_skill_env_map,
         wrap_with_privacy_routing,
     )
-    from .llm_factory import create_agent_llms, select_tool_capable_model_cfg
+    from .llm_factory import create_agent_llms
     from .signoff_clarify_contract_core import (
         build_signoff_clarify_deterministic_model,
         signoff_clarify_contract_enabled,
@@ -107,21 +107,6 @@ async def build_general_agent(
             signoff_clarify_pool_active(),
         )
     else:
-        selected_model_cfg, selected_source = select_tool_capable_model_cfg(
-            agent_wrapper.model_cfg,
-            lite_model_cfg=agent_wrapper.lite_model_cfg,
-            fallback_model_cfg=agent_wrapper.fallback_model_cfg,
-            safety_fallback_model_cfg=agent_wrapper.safety_fallback_model_cfg,
-            providers_dict=agent_wrapper.providers_dict,
-        )
-        if selected_source == "fallback":
-            agent_wrapper.fallback_model_cfg = None
-        elif selected_source == "lite":
-            agent_wrapper.lite_model_cfg = None
-        elif selected_source == "safety_fallback":
-            agent_wrapper.safety_fallback_model_cfg = None
-        agent_wrapper.model_cfg = selected_model_cfg
-
         llm, agent_wrapper._lite_llm, fallback_llm, safety_fallback_llm = (
             await create_agent_llms(
                 agent_wrapper.model_cfg,

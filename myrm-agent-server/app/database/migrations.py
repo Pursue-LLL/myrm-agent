@@ -1,4 +1,15 @@
-"""数据库迁移脚本"""
+"""数据库迁移脚本。
+
+[INPUT]
+myrm_agent_harness.utils.db.migration_engine::StatefulMigrationEngine/MigrationStatement (POS: 有状态迁移引擎)
+sqlalchemy.ext.asyncio::AsyncEngine (POS: 异步 SQLAlchemy 引擎)
+
+[OUTPUT]
+MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine)
+
+[POS]
+Server 层 SQLite 有状态迁移脚本，追加式维护 schema 演进。
+"""
 
 import logging
 
@@ -567,6 +578,11 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE kanban_tasks ADD COLUMN require_approval BOOLEAN NOT NULL DEFAULT 0",
     # Per-agent default chat security preset (hitl/accept_edits/explore)
     "ALTER TABLE agents ADD COLUMN default_security_preset VARCHAR(20)",
+    # Persist the 9th board setting (block_recurrence_limit): the dispatcher's
+    # block→unblock→TRIAGE escalation threshold. New DBs get the column from
+    # create_all; this append-only ALTER covers existing databases (the
+    # migration engine skips duplicate-column errors idempotently).
+    "ALTER TABLE kanban_boards ADD COLUMN block_recurrence_limit INTEGER NOT NULL DEFAULT 2",
 ]
 
 # 创建索引的SQL语句列表
@@ -902,6 +918,31 @@ INDEX_STATEMENTS = [
     "ALTER TABLE chats ADD COLUMN compaction_failure_cooldown_until TIMESTAMP",
     "ALTER TABLE chats ADD COLUMN compaction_failure_error VARCHAR(500)",
     "ALTER TABLE chats ADD COLUMN compression_ineffective_streak INTEGER NOT NULL DEFAULT 0",
+    # Batch Directory — same prompt × N directories parallel run orchestration
+    """CREATE TABLE IF NOT EXISTS batch_directory_projects (
+        id VARCHAR(32) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        prompt TEXT NOT NULL DEFAULT '',
+        board_id VARCHAR(32) REFERENCES kanban_boards(id) ON DELETE SET NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'draft',
+        concurrency INTEGER NOT NULL DEFAULT 3,
+        agent_id VARCHAR(255),
+        model_override VARCHAR(255),
+        max_runtime_seconds INTEGER,
+        require_approval BOOLEAN NOT NULL DEFAULT 0,
+        notify_enabled BOOLEAN NOT NULL DEFAULT 1,
+        directories JSON,
+        artifact_patterns JSON,
+        total_tasks INTEGER NOT NULL DEFAULT 0,
+        completed_tasks INTEGER NOT NULL DEFAULT 0,
+        failed_tasks INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        started_at TIMESTAMP,
+        finished_at TIMESTAMP
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_batch_directory_projects_board ON batch_directory_projects(board_id)",
+    "CREATE INDEX IF NOT EXISTS ix_batch_directory_projects_status ON batch_directory_projects(status)",
 ]
 
 

@@ -38,7 +38,7 @@ from tests.support.chrome_mcp_e2e import (
 # fleet-overview fetch (the KPI card only mounts once the API has answered).
 _PENDING_KPI_JS = """(() => {
   const appLayout = !!document.querySelector('[data-testid="app-layout"]');
-  const cards = [...document.querySelectorAll('div.rounded-lg.border.p-3')]
+  const cards = [...document.querySelectorAll('div.rounded-lg.border.p-3, a.rounded-lg.border.p-3')]
     .map(c => ({
       label: c.querySelector('p.text-xs')?.textContent?.trim() ?? null,
       value: c.querySelector('p.text-lg')?.textContent?.trim() ?? null,
@@ -140,6 +140,81 @@ def _read_pending_kpi(
 
 def _reload_agents(client: object, page: object, agents_url: str) -> None:
     """Reload /agents like a real user so SWR refetches fleet-overview."""
+    reload_mcp_page(
+        client,
+        page,
+        target_url=agents_url,
+        timeout_ms=90_000,
+        ignore_cache=True,
+    )
+
+
+def _click_pending_kpi_and_verify_kanban_deep_link(
+    client: object,
+    page: object,
+    *,
+    ui_url: str,
+    board_id: str,
+    board_name: str,
+    task_id: str,
+) -> None:
+    """Click the Fleet 'Pending' KPI card and verify the kanban deep link.
+
+    The KPI card is a real anchor to `/settings/kanban?status=in_review`.
+    Clicking it must land on a board whose in-review column actually holds the
+    pending task (KanbanSection picks the first board with that status), with
+    the status filter chip rendered — closing the number-to-action loop.
+    """
+    clicked = client.evaluate(
+        page,
+        """(() => {
+          const link = document.querySelector(
+            '[data-testid="fleet-pending-approvals-link"]',
+          );
+          if (!link) return { clicked: false, reason: 'link-not-found' };
+          link.click();
+          return { clicked: true, href: link.getAttribute('href') };
+        })()""",
+        timeout_sec=5.0,
+    )
+    assert clicked.get("clicked") is True, f"pending KPI link not clickable: {clicked}"
+    href = str(clicked.get("href") or "")
+    assert href.endswith("/settings/kanban?status=in_review"), (
+        f"pending KPI must deep link to kanban in_review filter: {href}"
+    )
+
+    # Client-side nav: the board view mounts and KanbanSection auto-selects a
+    # board holding the status. The in-review column must show our seeded card.
+    landed = wait_for_state(
+        client,
+        page,
+        f"""(() => {{
+          const view = document.querySelector('[data-testid="kanban-board-view"]');
+          const filter = document.querySelector(
+            '[data-testid="kanban-status-filter"]',
+          );
+          const card = document.getElementById('kanban-task-' + {task_id!r});
+          const text = view?.textContent || '';
+          const inBoard = !!view && text.includes({board_name!r});
+          return {{
+            ready: !!view && !!filter && !!card && inBoard,
+            view: !!view,
+            filter: !!filter,
+            card: !!card,
+            inBoard,
+            url: location.pathname + location.search,
+            text: text.slice(0, 300),
+          }};
+        }})()""",
+        timeout_sec=90.0,
+        page_url="/settings/kanban",
+    )
+    assert landed.get("ready") is True, (
+        f"kanban deep link did not land on the in-review task: {landed}"
+    )
+
+    # Return to /agents for the rest of the lifecycle like a real user.
+    agents_url = f"{ui_url}/agents"
     reload_mcp_page(
         client,
         page,
@@ -263,12 +338,14 @@ def _open_task_drawer_and_click(
     if agent_id:
         # The seeded task is bound to a built-in agent; the drawer's agent
         # select must render a localized name (not a raw English leak in zh).
-        agent_state = client.evaluate(
+        # Poll because the drawer's agents come from an async store fetch.
+        agent_state = wait_for_state(
+            client,
             page,
             f"""(() => {{
               const select = document.querySelector(
                 '[data-testid="kanban-task-agent-select"]',
-              ) || null;
+              );
               const lang = (document.documentElement.lang || '').toLowerCase();
               const isZh = lang.startsWith('zh');
               const options = select
@@ -281,8 +358,9 @@ def _open_task_drawer_and_click(
               const leaksEnglish = isZh
                 ? options.some((o) => knownEnglish.includes(o))
                 : false;
+              const ready = !!select && options.length > 0 && !!selectedText;
               return {{
-                ready: !!select && options.length > 0,
+                ready,
                 hasSelect: !!select,
                 options,
                 selectedText,
@@ -291,7 +369,7 @@ def _open_task_drawer_and_click(
                 lang,
               }};
             }})()""",
-            timeout_sec=10.0,
+            timeout_sec=45.0,
         )
         assert agent_state.get("ready") is True, agent_state
         assert agent_state.get("leaksEnglish") is False, (
@@ -396,6 +474,17 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
         assert seeded_text == str(int(before) + 1), (
             f"KPI should tick +1 after IN_REVIEW seed: before={before} "
             f"seeded={seeded_text}"
+        )
+
+        # Number-to-action: the KPI card deep links to the kanban board with
+        # the in-review column filtered, landing on the seeded pending task.
+        _click_pending_kpi_and_verify_kanban_deep_link(
+            client,
+            page,
+            ui_url=ui_url,
+            board_id=seeded_apr["board_id"],
+            board_name=seeded_apr["board_name"],
+            task_id=seeded_apr["task_id"],
         )
 
         _open_task_drawer_and_click(

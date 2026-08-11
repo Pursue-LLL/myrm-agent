@@ -1,4 +1,17 @@
-"""Kanban API routes — boards."""
+"""Kanban API routes — boards.
+
+[INPUT]
+app.api.kanban.http_common::router/get_kanban_service/_board_to_response (POS: Kanban API 共享路由与 DTO 装配)
+app.api.kanban.schemas::BoardCreate/BoardUpdate/BoardResponse (POS: Kanban API Pydantic 模型)
+app.services.kanban::KanbanService (POS: Kanban 业务编排)
+myrm_agent_harness.toolkits.kanban.types::BoardSettings (POS: Kanban 域类型)
+
+[OUTPUT]
+Board-domain REST endpoints under /api/v1/kanban/boards.
+
+[POS]
+Kanban Board 路由层。负责请求校验、错误映射和 service 调用装配，不承载业务编排。
+"""
 
 from __future__ import annotations
 
@@ -58,6 +71,7 @@ async def create_board(body: BoardCreate) -> BoardResponse:
                 specify_max_tokens=body.specify_max_tokens,
                 auto_specify_on_create=body.auto_specify_on_create,
                 default_workdir=body.default_workdir,
+                block_recurrence_limit=body.block_recurrence_limit,
             ),
             project_id=body.project_id,
             milestone_id=body.milestone_id,
@@ -89,6 +103,7 @@ async def update_board(board_id: str, body: BoardUpdate) -> BoardResponse:
             body.specify_max_tokens,
             body.auto_specify_on_create,
             body.default_workdir,
+            body.block_recurrence_limit,
         )
     )
     if needs_settings:
@@ -110,6 +125,11 @@ async def update_board(board_id: str, body: BoardUpdate) -> BoardResponse:
                 body.auto_specify_on_create if body.auto_specify_on_create is not None else board.settings.auto_specify_on_create
             ),
             default_workdir=(body.default_workdir if body.default_workdir is not None else board.settings.default_workdir),
+            block_recurrence_limit=(
+                body.block_recurrence_limit
+                if body.block_recurrence_limit is not None
+                else board.settings.block_recurrence_limit
+            ),
         )
 
     updated = await svc.update_board(

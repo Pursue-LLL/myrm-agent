@@ -117,7 +117,7 @@
 | `CompanionSection.tsx` | 伴侣模式配置 |
 | `CronSection.tsx` | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich |
 | `DLQSection.tsx` | 死信队列管理 |
-| `KanbanSection.tsx` | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化） |
+| `KanbanSection.tsx` | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务） |
 | `MediaGenerationSection.tsx` | 媒体生成配置 |
 | `TimezoneSelector.tsx` | 时区选择器 |
 

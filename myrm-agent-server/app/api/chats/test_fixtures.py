@@ -13,7 +13,7 @@ seed_skill_chip_transcript_fixture: 创建带 `[use skill]` wire 前缀的用户
 seed_skill_chip_composer_fixture: 创建绑定 systematic-debugging 的空会话（Slash chip composer Chrome E2E）
 seed_embed_fixture: 创建带 YouTube markdown 链接的 assistant 消息（Link Embeds Chrome E2E）
 seed_kanban_closure_fixture: 创建 Kanban 看板/任务 + Chat 内 kanban_tasks_created 卡片数据
-seed_kanban_in_review_fixture: 创建 IN_REVIEW 看板任务（Fleet pendingApprovals KPI Chrome E2E）
+seed_kanban_in_review_fixture: 创建 IN_REVIEW 看板任务（Fleet pendingApprovals KPI Chrome E2E；task 绑定内置 agent 供抽屉本地化断言）
 seed_deliverable_link_fixture: 见 test_fixtures_deliverable.py（workspace 文件 + inline deliverable markdown）
 seed_copilot_fixture: 见 test_fixtures_copilot.py（assistant markdown + active run digest，Lean Co-Pilot Chrome E2E）
 seed_prior_chat_fixture: 见 test_fixtures_prior_chat.py（composer @chat: mention Chrome E2E）

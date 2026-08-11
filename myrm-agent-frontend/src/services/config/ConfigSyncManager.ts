@@ -25,7 +25,14 @@ import {
 import { threeWayMerge } from './mergeUtils';
 import { isThemePersonalSettingsChange } from './themePersonalSettingsSync';
 import { BaseConfigAdapter, TauriConfigAdapter, SandboxConfigAdapter } from './adapters';
-import type { ConfigAdapter, ConfigKey, ConfigRecord, ConfigChange, ConfigValueMap, SyncResult } from './types';
+import type {
+  ConfigAdapter,
+  ConfigKey,
+  ConfigRecord,
+  ConfigChange,
+  ConfigValueMap,
+  SyncResult,
+} from './types';
 import { ALL_CONFIG_KEYS, CORE_CONFIG_KEYS, createInitialVersion, incrementVersion } from './types';
 
 // 防抖延迟（毫秒）
@@ -173,6 +180,9 @@ class ConfigSyncManager {
               for (const [k, v] of rest) {
                 this.cache.set(k, v);
                 this.baseCache.set(k, cloneDeep(v));
+                // 通知订阅者：预加载写入不进 set()，不通知则依赖「配置就绪」的兜底逻辑
+                // （如 securityConfig ⇄ YOLO 互斥重放）永远收不到触发。
+                this.notifyListeners(k, v.value as ConfigValueMap[ConfigKey], v.meta);
               }
             },
             (err) => {
@@ -231,6 +241,29 @@ class ConfigSyncManager {
   get<K extends ConfigKey>(key: K): ConfigValueMap[K] | null {
     const record = this.cache.get(key) as ConfigRecord<K> | undefined;
     return record?.value ?? null;
+  }
+
+  /**
+   * 确保目标 key 已同步到本地缓存后再返回。
+   * 渐进加载模式下 initialize() 只保证核心 key 就绪，其余 key 后台异步预加载；
+   * 对「读取即决策」的安全敏感路径（如 YOLO 互斥）必须显式等待目标 key，
+   * 否则可能读到 null/旧值导致互斥静默跳过（安全假象）。
+   */
+  async ensureKeyLoaded<K extends ConfigKey>(key: K): Promise<void> {
+    await this.initialize();
+    if (this.cache.has(key)) {
+      return;
+    }
+    try {
+      const record = await this.adapter.get(key);
+      if (record) {
+        this.cache.set(key, record as ConfigRecord);
+        this.baseCache.set(key, cloneDeep(record));
+        this.notifyListeners(key, record.value as ConfigValueMap[K], record.meta);
+      }
+    } catch (error) {
+      console.warn(`[ConfigSync] ensureKeyLoaded failed for '${key}':`, error);
+    }
   }
 
   /**
@@ -340,13 +373,16 @@ class ConfigSyncManager {
       timestamp: Date.now(),
     });
 
-    // 4. 主题字段 fast-path：持久化队列 + 立即同步，避免 1s debounce 内关 tab 丢 server 写入
+    // 4. 安全关键路径 fast-path：securityConfig 立即 flush（YOLO 关闭等安全变更
+    //    不应受 1s debounce 影响——否则用户操作后立刻关闭/刷新页面会丢失变更，
+    //    造成「UI 显示已关闭但后端仍开启」的安全假象）。
     if (
-      key === 'personalSettings' &&
-      isThemePersonalSettingsChange(
-        current?.value as ConfigValueMap['personalSettings'] | undefined,
-        value as ConfigValueMap['personalSettings'],
-      )
+      key === 'securityConfig' ||
+      (key === 'personalSettings' &&
+        isThemePersonalSettingsChange(
+          current?.value as ConfigValueMap['personalSettings'] | undefined,
+          value as ConfigValueMap['personalSettings'],
+        ))
     ) {
       this.saveOfflineQueue(this.changeQueue);
       if (this.syncDebounceTimer) {

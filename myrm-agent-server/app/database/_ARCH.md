@@ -13,7 +13,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `models/` | ✅ 核心 | SQLAlchemy ORM 模型包，按业务域拆分为子模块（chat/agent/memory/config/agent_event/cron/channel/media/security/skill/notification/message_filter），`chat.py` 的 `Chat` 含会话级 JSON：`ephemeral_subagents`、`session_loaded_skill_names`（已加载技能名 SSOT，供 harness rehydrate）；`memory.py` 包含 Shared Context 上下文/绑定/写入提案、记忆操作账本、导入 dry-run 审查会话模型、导入批次账本和导入条目账本，`agent.py` 包含 Agent 基础配置（含 `mcp_tool_selections` per-server 工具白名单 JSON 列）与 WebUI rollback 快照 (`AgentProfileSnapshot`)，`agent_history.py` 为乐观锁审计与 Prompt 浏览，`__init__.py` 统一 re-export |
+| `models/` | ✅ 核心 | SQLAlchemy ORM 模型包，按业务域拆分为子模块（chat/agent/memory/config/agent_event/cron/channel/media/security/skill/notification/message_filter/kanban/batch_directory），`chat.py` 的 `Chat` 含会话级 JSON：`ephemeral_subagents`、`session_loaded_skill_names`（已加载技能名 SSOT，供 harness rehydrate）；`memory.py` 包含 Shared Context 上下文/绑定/写入提案、记忆操作账本、导入 dry-run 审查会话模型、导入批次账本和导入条目账本，`agent.py` 包含 Agent 基础配置（含 `mcp_tool_selections` per-server 工具白名单 JSON 列）与 WebUI rollback 快照 (`AgentProfileSnapshot`)，`agent_history.py` 为乐观锁审计与 Prompt 浏览，`batch_directory.py` 为批量目录并行 Prompt 批次元数据模型，`__init__.py` 统一 re-export |
 | `repositories/` | ✅ 核心 | 领域仓储层（Repository Pattern），封装 Agent/Chat 等聚合的读写与 ORM 映射 | ✅ |
 | `operations/` | ✅ 辅助 | 数据库运维工具子包：备份工厂、容灾恢复、SQLite 忙/锁检测、FastAPI 异常处理器、遗留数据清理 |
 | `connection.py` | ✅ 核心 | 数据库连接管理（异步会话工厂）；`get_db` 提供的会话生命周期与单次 HTTP 请求一致；`init_database` 在 `run_migrations` 前通过 `get_sqlite_backup_manager()` 执行 fail-closed pre-migration safety snapshot：备份失败时阻断迁移（raise），由上层 lifespan 3 级恢复体系兜底 |

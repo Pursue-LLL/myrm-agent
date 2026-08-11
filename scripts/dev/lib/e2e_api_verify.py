@@ -285,7 +285,7 @@ def _api_health_probe(
             try:
                 with urllib.request.urlopen(
                     url, timeout=timeout_sec
-                ) as resp:  # noqa: S310
+                ) as resp:
                     if 200 <= resp.status < 300:
                         return True
             except urllib.error.URLError as exc:
@@ -361,7 +361,7 @@ def _curl_loopback_get(url: str, *, timeout_sec: float) -> str | None:
 def _read_health_stack_epoch(api_base: str) -> tuple[int | None, str]:
     url = f"{api_base.rstrip('/')}/api/v1/health"
     try:
-        with urllib.request.urlopen(  # noqa: S310
+        with urllib.request.urlopen(
             url, timeout=HEALTH_PROBE_TIMEOUT_SEC
         ) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
@@ -429,7 +429,7 @@ def _port_from_api_base(api_base: str) -> int:
 
 def _enumerate_registry_candidates() -> list[tuple[str, int, str, str]]:
     _ensure_scripts_dev_importable()
-    from isolated_runtime.registry import ACTIVE_PHASES, read_registry  # noqa: PLC0415
+    from isolated_runtime.registry import ACTIVE_PHASES, read_registry
 
     registry_path = isolated_registry_root() / "registry.json"
     if not registry_path.is_file():
@@ -476,7 +476,7 @@ def _should_skip_port_scan_under_parallel_block(
     from e2e_lease_liveness import (
         load_wave_snapshot,
         wave_lease_counts,
-    )  # noqa: PLC0415
+    )
 
     if wave_lease_counts(load_wave_snapshot()).effective_total <= 0:
         return False
@@ -568,7 +568,7 @@ def _select_verify_candidate(
         epoch_rank = item.epoch if item.epoch is not None else 0
         return (lease_private_bias, -epoch_rank, item.port)
 
-    return sorted(matching, key=sort_key)[0]
+    return min(matching, key=sort_key)
 
 
 def _blocked_reason(
@@ -707,7 +707,7 @@ def _resolve_e2e_api_context_impl(
     *,
     monorepo: Path | None = None,
     state_dir: Path | None = None,
-    retry_after_apply: bool = True,  # noqa: ARG001 — kept for caller compat; drift apply moved to Coordinator
+    retry_after_apply: bool = True,
 ) -> E2eApiContext:
     resolved_state = state_dir or _default_state_dir()
     shared = shared_api_base()
@@ -715,7 +715,7 @@ def _resolve_e2e_api_context_impl(
     from e2e_lease_liveness import (
         load_wave_snapshot,
         wave_lease_counts,
-    )  # noqa: PLC0415
+    )
 
     wave_snapshot = load_wave_snapshot()
     lease_counts = wave_lease_counts(wave_snapshot)
@@ -763,8 +763,8 @@ def _candidate_to_dict(candidate: BackendCandidate) -> dict[str, object]:
 
 
 def _mux_context_fields() -> dict[str, object]:
-    from dev_gate_contract import MUX_COLD_ATTACH_SLOTS  # noqa: PLC0415
-    from mux_upstream_admission import read_mux_cold_attach_status  # noqa: PLC0415
+    from dev_gate_contract import MUX_COLD_ATTACH_SLOTS
+    from mux_upstream_admission import read_mux_cold_attach_status
 
     snapshot_available = True
     try:
@@ -786,19 +786,29 @@ def _mux_context_fields() -> dict[str, object]:
     }
 
 
-from e2e_parallel_status import (  # noqa: E402
-    load_parallel_runtime_snapshot as _load_parallel_runtime_snapshot,  # noqa: F401
-    resolve_parallel_runtime_snapshot as _resolve_parallel_runtime_snapshot,
-    resolve_cap_headroom_active_test_count as _resolve_cap_headroom_active_test_count,
+from e2e_parallel_status import (
     cap_headroom_fields as _cap_headroom_fields,
+)
+from e2e_parallel_status import (
     format_cap_headroom_human as _format_cap_headroom_human,
+)
+from e2e_parallel_status import (
     format_queue_human as _format_queue_human,
+)
+from e2e_parallel_status import (
+    load_parallel_runtime_snapshot as _load_parallel_runtime_snapshot,  # noqa: F401
+)
+from e2e_parallel_status import (
+    resolve_cap_headroom_active_test_count as _resolve_cap_headroom_active_test_count,
+)
+from e2e_parallel_status import (
+    resolve_parallel_runtime_snapshot as _resolve_parallel_runtime_snapshot,
 )
 
 
 def _load_orchestrator_observability() -> tuple[dict[str, object], dict[str, object]]:
     try:
-        from browser_orchestrator import (  # noqa: PLC0415
+        from browser_orchestrator import (
             browser_orchestrator_snapshot,
             orchestrator_queue_observability,
         )
@@ -817,7 +827,7 @@ def _compute_next_action(
     mux_fields: dict[str, object],
     parallel_snapshot: dict[str, object] | None = None,
 ) -> str:
-    from dev_gate_contract import (  # noqa: PLC0415
+    from dev_gate_contract import (
         LIVE_AGENT_BODY_WALL_CLOCK_SEC,
         LIVE_AGENT_PYTEST_WALL_CAP_SEC,
         LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
@@ -833,20 +843,21 @@ def _compute_next_action(
             admit_active += 1
             if isinstance(admit_elapsed, (int, float)):
                 if float(admit_elapsed) >= admit_wall_cap:
-                    from e2e_cluster_launch_policy import (  # noqa: PLC0415
+                    from e2e_cluster_launch_policy import (
                         cluster_fail_fast_suppressed_for_active_test,
                     )
 
                     if not cluster_fail_fast_suppressed_for_active_test(row):
                         return "FAIL_FAST"
-            elif isinstance(row.get("elapsed_sec"), (int, float)):
-                if float(row["elapsed_sec"]) >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
-                    from e2e_cluster_launch_policy import (  # noqa: PLC0415
-                        cluster_fail_fast_suppressed_for_active_test,
-                    )
+            elif isinstance(row.get("elapsed_sec"), (int, float)) and float(
+                row["elapsed_sec"]
+            ) >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
+                from e2e_cluster_launch_policy import (
+                    cluster_fail_fast_suppressed_for_active_test,
+                )
 
-                    if not cluster_fail_fast_suppressed_for_active_test(row):
-                        return "FAIL_FAST"
+                if not cluster_fail_fast_suppressed_for_active_test(row):
+                    return "FAIL_FAST"
         body_elapsed = row.get("body_elapsed_sec")
         if isinstance(body_elapsed, (int, float)):
             try:
@@ -856,7 +867,7 @@ def _compute_next_action(
             except ImportError:
                 body_wall_cap = float(LIVE_AGENT_BODY_WALL_CLOCK_SEC)
             if float(body_elapsed) >= body_wall_cap:
-                from e2e_cluster_launch_policy import (  # noqa: PLC0415
+                from e2e_cluster_launch_policy import (
                     cluster_fail_fast_suppressed_for_active_test,
                 )
 
@@ -865,12 +876,12 @@ def _compute_next_action(
         current_node = row.get("current_node")
         node_elapsed = row.get("node_elapsed_sec")
         if isinstance(current_node, str) and isinstance(node_elapsed, (int, float)):
-            from e2e_stall_guard import (  # noqa: PLC0415
+            from e2e_stall_guard import (
                 parallel_active_test_node_stuck_fail_fast,
             )
 
             if parallel_active_test_node_stuck_fail_fast(row):
-                from e2e_cluster_launch_policy import (  # noqa: PLC0415
+                from e2e_cluster_launch_policy import (
                     cluster_fail_fast_suppressed_for_active_test,
                 )
 
@@ -878,17 +889,17 @@ def _compute_next_action(
                     return "FAIL_FAST"
         process_elapsed = row.get("elapsed_sec")
         wall_phase = str(row.get("wall_phase") or "").strip().lower()
-        if isinstance(process_elapsed, (int, float)) and wall_phase not in (
-            "bootstrap",
-            "admit",
+        if (
+            isinstance(process_elapsed, (int, float))
+            and wall_phase not in ("bootstrap", "admit")
+            and float(process_elapsed) >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC)
         ):
-            if float(process_elapsed) >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC):
-                from e2e_cluster_launch_policy import (  # noqa: PLC0415
-                    cluster_fail_fast_suppressed_for_active_test,
-                )
+            from e2e_cluster_launch_policy import (
+                cluster_fail_fast_suppressed_for_active_test,
+            )
 
-                if not cluster_fail_fast_suppressed_for_active_test(row):
-                    return "FAIL_FAST"
+            if not cluster_fail_fast_suppressed_for_active_test(row):
+                return "FAIL_FAST"
     shared_candidates = [
         candidate for candidate in ctx.candidates if candidate.source == "shared"
     ]
@@ -923,13 +934,13 @@ def _compute_next_action(
         reason_list = (
             [str(item) for item in reasons] if isinstance(reasons, list) else []
         )
-        # R289: private_credit_queue is PRIVATE session-layer only — must not
-        # downgrade cluster next_action to QUEUE for SHARED launches.
+        # A PRIVATE credit queue is session-layer state owned by the admitted
+        # PRIVATE session. It must not alter cluster launch readiness.
         operation_queue = [
             item for item in reason_list if item != "private_credit_queue"
         ]
         if operation_queue or mux_fields.get("muxColdAttachSaturated") is True:
-            return "QUEUE"
+            return "OPERATION_BACKPRESSURE"
     if ctx.blocked and admit_active > 0:
         # Epoch-aligned SHARED launches immediately. A blocked epoch must not
         # create a hidden SHARED session queue; PRIVATE has its own explicit
@@ -945,7 +956,7 @@ def _compute_next_action(
     if not shared_match:
         return "PRIVATE_EPOCH_REQUIRED"
     if mux_fields.get("muxColdAttachSaturated") is True:
-        return "QUEUE"
+        return "OPERATION_BACKPRESSURE"
     snapshot = parallel_snapshot if parallel_snapshot is not None else {}
     snapshot_unavailable = isinstance(snapshot.get("snapshot_error"), str) and bool(
         str(snapshot.get("snapshot_error")).strip()
@@ -983,11 +994,11 @@ def _format_agent_decision_human(
     active_tests: list[dict[str, object]],
     mux_fields: dict[str, object],
 ) -> list[str]:
-    from dev_gate_contract import (  # noqa: PLC0415
+    from dev_gate_contract import (
         E2E_BODY_WALL_EXCEEDED_TOKEN,
         LIVE_AGENT_BODY_WALL_CLOCK_SEC,
     )
-    from e2e_readiness import evaluate_chrome_e2e_readiness  # noqa: PLC0415
+    from e2e_readiness import evaluate_chrome_e2e_readiness
 
     readiness = evaluate_chrome_e2e_readiness(
         ctx,
@@ -1040,7 +1051,7 @@ def _context_to_dict(
     mux_fields: dict[str, object] | None = None,
     wave_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    from e2e_lease_liveness import (  # noqa: PLC0415
+    from e2e_lease_liveness import (
         build_lease_liveness,
         lease_liveness_to_dict,
         load_wave_snapshot,
@@ -1060,7 +1071,7 @@ def _context_to_dict(
         else []
     )
     liveness_rows = build_lease_liveness(resolved_wave, active_tests=active_tests)
-    from dev_gate_status import dev_gate_status as _dev_gate_status  # noqa: PLC0415
+    from dev_gate_status import dev_gate_status as _dev_gate_status
 
     dev_gate_payload = _dev_gate_status()
     active_test_count, observability_mismatch = _resolve_cap_headroom_active_test_count(
@@ -1109,7 +1120,7 @@ def _context_to_dict(
             from dev_gate_coordinator import (
                 default_socket_path,
                 request,
-            )  # noqa: PLC0415
+            )
 
             metrics = request(
                 {"operation": "snapshot", "session_id": "__health__"},
@@ -1123,7 +1134,7 @@ def _context_to_dict(
             pass
     if not observe_json:
         try:
-            from e2e_browser_pool import browser_identity_snapshot  # noqa: PLC0415
+            from e2e_browser_pool import browser_identity_snapshot
 
             payload["browserPool"] = browser_identity_snapshot()
         except ImportError:
@@ -1134,22 +1145,25 @@ def _context_to_dict(
         try:
             from host_resource_governor import (
                 host_resource_governor_snapshot,
-            )  # noqa: PLC0415
+            )
 
             payload["hostGovernor"] = host_resource_governor_snapshot()
         except ImportError:
             payload["hostGovernor"] = {"enabled": False, "effective_browser_slots": 4}
         try:
-            from e2e_orchestrator import orchestrator_snapshot  # noqa: PLC0415
+            from e2e_orchestrator import orchestrator_snapshot
 
             lifecycle = orchestrator_snapshot()
             payload["sessionLifecycle"] = lifecycle
             payload["phase"] = lifecycle.get("phase")
             payload["budgets_remaining"] = lifecycle.get("budgets_remaining")
-        except Exception:
-            pass
+        except (ImportError, OSError, RuntimeError, ValueError):
+            payload["sessionLifecycle"] = {
+                "phase": "UNKNOWN",
+                "next_action": "OBSERVABILITY_UNKNOWN",
+            }
     try:
-        from e2e_auth_provisioner import auth_template_status  # noqa: PLC0415
+        from e2e_auth_provisioner import auth_template_status
 
         payload["authTemplateStatus"] = auth_template_status(
             workspace_fingerprint=ctx.workspace_fingerprint
@@ -1162,8 +1176,8 @@ def _context_to_dict(
     if payload.get("muxColdAttachSaturated") is True:
         payload["agent_rule"] = (
             f"{ctx.agent_rule} "
-            "MUX_COLD_ATTACH_SATURATED: do not hand new_page/navigate; "
-            "use verify-api or ./myrm test -m chrome_e2e (auto queue ≤900s)."
+            "MUX_COLD_ATTACH_SATURATED: launch or retain the session; browser "
+            "operations use bounded internal backpressure (P99 SLO ≤20s)."
         )
     active_count = active_test_count
     if active_count > 0:
@@ -1179,11 +1193,26 @@ def _context_to_dict(
             if isinstance(reasons, list) and reasons
             else "unknown"
         )
+        rules: list[str] = []
+        if "private_credit_queue" in reason_str.split(","):
+            rules.append(
+                f"PRIVATE_SESSION_QUEUE reasons={reason_str}: retain the admitted "
+                "PRIVATE session; bounded ADMIT ≤900s with progress."
+            )
+        operation_reasons = [
+            reason
+            for reason in reason_str.split(",")
+            if reason and reason != "private_credit_queue"
+        ]
+        if operation_reasons or headroom.get("queueLayer") == "operation":
+            rules.append(
+                f"OPERATION_BACKPRESSURE reasons={reason_str}: launch or retain the "
+                "session; internal operation P99 SLO ≤20s with progress."
+            )
+        queue_rule = " ".join(rules)
         payload["agent_rule"] = (
-            f"{payload.get('agent_rule', ctx.agent_rule)} "
-            f"QUEUE_EXPECTED=yes reasons={reason_str}: read E2E_QUEUE_HUMAN; "
-            "auto ADMIT queue ≤900s; do not stop/kill other pytest; "
-            "do not pipe ./myrm test to tail|head."
+            f"{payload.get('agent_rule', ctx.agent_rule)} {queue_rule} "
+            "Do not stop/kill peer pytest; do not pipe ./myrm test to tail|head."
         )
     if headroom.get("queueLayer") == "operation":
         depth = headroom.get("operationQueueDepth", 0)
@@ -1231,7 +1260,7 @@ def _cmd_context_json(_args: argparse.Namespace) -> int:
 
 
 def _cmd_context_human(_args: argparse.Namespace) -> int:
-    from e2e_lease_liveness import (  # noqa: PLC0415
+    from e2e_lease_liveness import (
         build_lease_liveness,
         format_lease_liveness_human,
         load_wave_snapshot,
@@ -1253,7 +1282,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     )
     sys.stdout.write(f"WORKSPACE_FINGERPRINT={ctx.workspace_fingerprint}\n")
     try:
-        from e2e_auth_provisioner import auth_template_status  # noqa: PLC0415
+        from e2e_auth_provisioner import auth_template_status
 
         auth_status = auth_template_status(
             workspace_fingerprint=ctx.workspace_fingerprint
@@ -1267,7 +1296,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     except ImportError:
         pass
     try:
-        from e2e_browser_pool import browser_identity_snapshot  # noqa: PLC0415
+        from e2e_browser_pool import browser_identity_snapshot
 
         browser_identity = browser_identity_snapshot()
         sys.stdout.write(
@@ -1281,7 +1310,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     try:
         from host_resource_governor import (
             host_resource_governor_snapshot,
-        )  # noqa: PLC0415
+        )
 
         gov = host_resource_governor_snapshot()
         sys.stdout.write(
@@ -1305,7 +1334,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
             )
     mux_fields = _mux_context_fields()
     parallel_snapshot, parallel_lines = _resolve_parallel_runtime_snapshot()
-    from dev_gate_status import dev_gate_status as _dev_gate_status  # noqa: PLC0415
+    from dev_gate_status import dev_gate_status as _dev_gate_status
 
     dev_gate_payload = _dev_gate_status()
     active_test_count, observability_mismatch = _resolve_cap_headroom_active_test_count(
@@ -1318,7 +1347,9 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
             **parallel_snapshot,
             "parallel_observability_mismatch": True,
         }
-    browser_orchestrator_payload, orchestrator_obs = _load_orchestrator_observability()
+    _browser_orchestrator_payload, orchestrator_obs = (
+        _load_orchestrator_observability()
+    )
     active_tests_raw = parallel_snapshot.get("active_tests")
     active_tests = (
         [item for item in active_tests_raw if isinstance(item, dict)]
@@ -1334,7 +1365,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     try:
         from e2e_mux_transport_queue import (
             format_transport_queue_human,
-        )  # noqa: PLC0415
+        )
 
         sys.stdout.write(f"{format_transport_queue_human()}\n")
     except ImportError:
@@ -1356,7 +1387,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         f"total={active_test_count}\n"
     )
     try:
-        from stack_heal_coordinator import coordinator_snapshot  # noqa: PLC0415
+        from stack_heal_coordinator import coordinator_snapshot
 
         heal = coordinator_snapshot()
         leader = heal.get("leaderPid")
@@ -1419,7 +1450,7 @@ def _cmd_verify_api(args: argparse.Namespace) -> int:
         retry_after_apply=not bool(getattr(args, "ensure_backend", False))
     )
     if ctx.blocked and bool(getattr(args, "ensure_backend", False)):
-        from verify_backend_seed import ensure_verify_backend_seed  # noqa: PLC0415
+        from verify_backend_seed import ensure_verify_backend_seed
 
         seed = ensure_verify_backend_seed(monorepo=monorepo_root())
         sys.stderr.write(
@@ -1470,7 +1501,7 @@ def _cmd_verify_api(args: argparse.Namespace) -> int:
 
 
 def _cmd_launch_check(_args: argparse.Namespace) -> int:
-    from e2e_readiness import _cmd_check  # noqa: PLC0415
+    from e2e_readiness import _cmd_check
 
     return int(_cmd_check(_args))
 

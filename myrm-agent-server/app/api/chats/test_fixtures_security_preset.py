@@ -7,8 +7,8 @@ app.services.agent.agent_service::AgentService (POS: 智能体创建)
 app.services.chat.chat_service::ChatService (POS: 会话创建)
 
 [OUTPUT]
-seed_security_preset_fixture: 创建「带 default_security_preset 的 Agent + 绑定 Chat」与
-「无 default 的 Agent + 绑定 Chat」，返回 ui_path（?agentId=）供 Chrome E2E 断言
+seed_security_preset_fixture: 创建「带 default_security_preset 的 Agent（accept_edits/explore）+ 绑定 Chat」
+与「无 default 的 Agent + 绑定 Chat」，返回 ui_path（?agentId=）供 Chrome E2E 断言
 会话级安全预设的初始化 / UI 切换 / hitl 回落。
 
 [POS]
@@ -60,8 +60,21 @@ async def seed_security_preset_fixture() -> dict[str, str]:
         )
     )
 
+    explore_agent = await AgentService.create_agent(
+        AgentCreate.model_validate(
+            {
+                "name": f"SecurityPreset E2E explore {uuid4().hex[:8]}",
+                "description": "Chrome E2E: default_security_preset=explore agent",
+                "system_prompt": "You are a test agent.",
+                "mcp_ids": [],
+                "default_security_preset": "explore",
+            }
+        )
+    )
+
     preset_chat_id = f"e2esecpreset{uuid4().hex[:8]}"
     plain_chat_id = f"e2esecpreset{uuid4().hex[:8]}"
+    explore_chat_id = f"e2esecpreset{uuid4().hex[:8]}"
     await ChatService.create_or_update_chat(
         ChatCreate(
             chat_id=preset_chat_id,
@@ -80,6 +93,15 @@ async def seed_security_preset_fixture() -> dict[str, str]:
             messages=[],
         ),
     )
+    await ChatService.create_or_update_chat(
+        ChatCreate(
+            chat_id=explore_chat_id,
+            title="SecurityPreset explore Chrome E2E",
+            agent_id=explore_agent.id,
+            action_mode="agent",
+            messages=[],
+        ),
+    )
 
     return {
         "preset_chat_id": preset_chat_id,
@@ -88,4 +110,7 @@ async def seed_security_preset_fixture() -> dict[str, str]:
         "plain_chat_id": plain_chat_id,
         "plain_agent_id": plain_agent.id,
         "plain_ui_path": f"/?agentId={plain_agent.id}",
+        "explore_chat_id": explore_chat_id,
+        "explore_agent_id": explore_agent.id,
+        "explore_ui_path": f"/?agentId={explore_agent.id}",
     }

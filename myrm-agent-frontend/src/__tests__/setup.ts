@@ -86,6 +86,7 @@ vi.mock('next/font/google', () => ({
 export const stableT: (key: string) => string = (key) => key;
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
+  useLocale: () => 'en',
 }));
 
 // Mock next/navigation

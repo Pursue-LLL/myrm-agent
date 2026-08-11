@@ -56,8 +56,10 @@ def session_path() -> Path:
 
 
 def _attach_base_sec() -> int:
-    raw = os.environ.get("MYRM_CHROME_E2E_ATTACH_WAIT_SEC", "180").strip()
-    return int(raw) if raw.isdigit() else 180
+    # Default 360 matches STACK_FRONTEND_ATTACH_HEAL_ENSURE_WAIT_SEC so the
+    # BOOTSTRAP budget survives one full frontend cold-compile/heal cycle.
+    raw = os.environ.get("MYRM_CHROME_E2E_ATTACH_WAIT_SEC", "360").strip()
+    return int(raw) if raw.isdigit() else 360
 
 
 def load_session() -> BootstrapSession | None:

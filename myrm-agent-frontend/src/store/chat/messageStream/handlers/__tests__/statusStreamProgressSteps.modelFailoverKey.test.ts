@@ -68,6 +68,20 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     expect(step.step_key).toBe('model_failover_response_format_error');
   });
 
+  it('derives model_failover_model_not_found from error_kind', async () => {
+    const state = makeMessagesState();
+    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+      updater(state);
+    });
+
+    const ctx = makeFailoverCtx('model_not_found');
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+    await applyStatusProgressStep(ctx, 'model_failover');
+
+    const step = state.messages[0].progressSteps![0];
+    expect(step.step_key).toBe('model_failover_model_not_found');
+  });
+
   it('falls back to plain model_failover when error_kind is absent', async () => {
     const state = makeMessagesState();
     const setMessages = vi.fn((updater: (s: typeof state) => void) => {

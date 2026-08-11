@@ -102,7 +102,7 @@ _prepend_monorepo_pythonpath()
 
 # 1) Process-level .env  2) [T] test secrets via structured loader (not raw load_dotenv)
 load_dotenv(_SERVER_ROOT / ".env", override=False)
-apply_test_secrets_to_environ()
+apply_test_secrets_to_environ(overwrite=False)
 
 # Setup isolated workspace - runs at import time
 _temp_workspace = tempfile.mkdtemp(prefix=f"myrm_test_{os.getpid()}_")

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import pytest
+from myrm_agent_harness.api.config import ConfigIncompleteError
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
 from app.services.memory import shared_context_health as health_module
@@ -26,6 +27,30 @@ class AuthenticationError(Exception):
 
 async def _make_config(model: str, api_key: str, api_base: str | None) -> EmbeddingConfig:
     return EmbeddingConfig(model=model, api_key=api_key, api_base=api_base)
+
+
+@pytest.mark.asyncio
+async def test_shared_context_health_degrades_when_embedding_is_not_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _cfg() -> EmbeddingConfig:
+        raise ConfigIncompleteError(
+            user_friendly_message={"en": "Embedding is not configured."},
+            technical_details="missing embedding config",
+            resolution_steps=["Configure an embedding provider"],
+            error_code="embedding_not_configured",
+        )
+
+    monkeypatch.setattr(health_module, "require_platform_embedding_config", _cfg)
+
+    result = await health_module.check_shared_context_memory_health(probe=True)
+
+    assert result.ready is False
+    assert result.status == "not_configured"
+    assert result.model == ""
+    assert result.probed is False
+    assert result.reason == "embedding_not_configured"
+    assert result.retryable is False
 
 
 @pytest.mark.asyncio

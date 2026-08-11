@@ -200,7 +200,13 @@ ok() {
 }
 
 _maybe_seed_providers() {
-  if [[ "${MYRM_E2E_MODEL_SEED_DONE:-0}" == "1" ]] && _shared_stack_endpoints_ok; then
+  # R215 fix: the DONE flag is for the SHARED stack only. A private-backend
+  # preflight (SHPOIB bootstrap) targets E2E_API_BASE=:<private port> and must
+  # always seed, otherwise the fresh private backend inherits stale providers
+  # (e.g. stale provider quota) and live E2E fails silently.
+  if [[ "${MYRM_E2E_MODEL_SEED_DONE:-0}" == "1" ]] \
+    && [[ "${MYRM_PRIVATE_BACKEND:-0}" != "1" ]] \
+    && _shared_stack_endpoints_ok; then
     echo "CHROME_E2E_WARN: skip redundant model seed (R215; stack healthy)" >&2
     MYRM_E2E_MODEL_SEED_FAILED=0
     return 0
@@ -467,10 +473,10 @@ raise SystemExit(0 if platform_shell_fresh(route_path='/') else 1)
 }
 
 _attach_parallel_wait_sec() {
-  local base="${MYRM_CHROME_E2E_ATTACH_WAIT_SEC:-180}"
+  local base="${MYRM_CHROME_E2E_ATTACH_WAIT_SEC:-360}"
   local active_leases scaled
   active_leases="$(_parallel_attach_active_leases)"
-  [[ "${base}" =~ ^[0-9]+$ ]] || base=180
+  [[ "${base}" =~ ^[0-9]+$ ]] || base=360
   [[ "${active_leases}" =~ ^[0-9]+$ ]] || active_leases=0
   scaled="$("${PREFLIGHT_PY}" -c "
 import sys

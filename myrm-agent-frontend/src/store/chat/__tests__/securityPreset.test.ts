@@ -3,19 +3,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   disarmYoloForPreset,
   disableYolo,
+  enforceSecurityPresetYoloMutex,
   isYoloEnabled,
   normalizeSecurityPreset,
   resolvePresetWithYoloMutex,
+  resolvePresetWithYoloMutexEnsured,
 } from '@/store/chat/securityPreset';
 
 const mockGet = vi.hoisted(() => vi.fn());
 const mockSet = vi.hoisted(() => vi.fn());
+const mockEnsureKeyLoaded = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/config', () => ({
   getConfigSyncManager: () => ({
     get: mockGet,
     set: mockSet,
     subscribe: vi.fn(),
+    ensureKeyLoaded: mockEnsureKeyLoaded,
   }),
 }));
 
@@ -68,6 +72,41 @@ describe('disarmYoloForPreset', () => {
   it('tolerates missing securityConfig', () => {
     mockGet.mockReturnValue(undefined);
     disarmYoloForPreset('explore');
+    expect(mockSet).not.toHaveBeenCalled();
+  });
+});
+
+describe('enforceSecurityPresetYoloMutex', () => {
+  beforeEach(() => {
+    mockGet.mockReset();
+    mockSet.mockReset();
+  });
+
+  it('does nothing for hitl preset even when YOLO is active', () => {
+    mockGet.mockReturnValue({ yoloModeEnabled: true });
+    enforceSecurityPresetYoloMutex('hitl');
+    expect(mockSet).not.toHaveBeenCalled();
+  });
+
+  it('disarms residual YOLO when securityConfig late-syncs with non-hitl preset', () => {
+    mockGet.mockReturnValue({ yoloModeEnabled: true });
+    enforceSecurityPresetYoloMutex('accept_edits');
+    expect(mockSet).toHaveBeenCalledWith('securityConfig', {
+      yoloModeEnabled: false,
+      yoloModeTimeout: undefined,
+      yoloModeEnabledAt: undefined,
+    });
+  });
+
+  it('is a no-op when YOLO is already off', () => {
+    mockGet.mockReturnValue({ yoloModeEnabled: false });
+    enforceSecurityPresetYoloMutex('explore');
+    expect(mockSet).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op when securityConfig is not yet synced', () => {
+    mockGet.mockReturnValue(undefined);
+    enforceSecurityPresetYoloMutex('accept_edits');
     expect(mockSet).not.toHaveBeenCalled();
   });
 });
@@ -157,5 +196,42 @@ describe('resolvePresetWithYoloMutex', () => {
     mockGet.mockReturnValue({ yoloModeEnabled: true });
     expect(resolvePresetWithYoloMutex('hitl', 'accept_edits')).toBe('accept_edits');
     expect(mockSet).toHaveBeenCalled();
+  });
+});
+
+describe('resolvePresetWithYoloMutexEnsured', () => {
+  beforeEach(() => {
+    mockGet.mockReset();
+    mockSet.mockReset();
+    mockEnsureKeyLoaded.mockReset();
+    mockEnsureKeyLoaded.mockResolvedValue(undefined);
+  });
+
+  it('ensures securityConfig is synced before delegating to the mutex', async () => {
+    mockGet.mockReturnValue({ yoloModeEnabled: true });
+    const result = await resolvePresetWithYoloMutexEnsured('hitl', 'accept_edits');
+    expect(mockEnsureKeyLoaded).toHaveBeenCalledWith('securityConfig');
+    expect(result).toBe('accept_edits');
+    expect(mockSet).toHaveBeenCalledWith('securityConfig', {
+      yoloModeEnabled: false,
+      yoloModeTimeout: undefined,
+      yoloModeEnabledAt: undefined,
+    });
+  });
+
+  it('does not change the preset when selecting the current one with YOLO off', async () => {
+    mockGet.mockReturnValue({ yoloModeEnabled: false });
+    const result = await resolvePresetWithYoloMutexEnsured('hitl', 'hitl');
+    expect(mockEnsureKeyLoaded).toHaveBeenCalledWith('securityConfig');
+    expect(result).toBeNull();
+    expect(mockSet).not.toHaveBeenCalled();
+  });
+
+  it('returns the next preset when securityConfig is missing after sync', async () => {
+    mockGet.mockReturnValue(undefined);
+    const result = await resolvePresetWithYoloMutexEnsured('hitl', 'accept_edits');
+    expect(mockEnsureKeyLoaded).toHaveBeenCalledWith('securityConfig');
+    expect(result).toBe('accept_edits');
+    expect(mockSet).not.toHaveBeenCalled();
   });
 });

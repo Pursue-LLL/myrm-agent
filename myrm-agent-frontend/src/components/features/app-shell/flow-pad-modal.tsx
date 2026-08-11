@@ -22,7 +22,7 @@ import { isTauriRuntime } from '@/lib/deploy-mode';
 import { Dialog, DialogContent, DialogTitle } from '@/components/primitives/dialog';
 import { useFlowPadStore } from '@/store/useFlowPadStore';
 import useChatStore from '@/store/useChatStore';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
 import {
   X,
@@ -33,6 +33,7 @@ import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import useAgentStore from '@/store/useAgentStore';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import type { AgentConfig } from '@/store/chat/types';
 import { getTemplates, type TemplateListItem } from '@/services/agent';
@@ -114,10 +115,22 @@ export function FlowPadModal() {
     removeCapture,
   } = useFlowPadStore();
   const { agentConfig, sendMessage, setFiles, getCurrentSessionMessageId } = useChatStore();
-  const availableAgents = useAgentStore((state) => state.agents);
+  const agents = useAgentStore((state) => state.agents);
   const fetchAgents = useAgentStore((state) => state.fetchAgents);
   const fetchAgent = useAgentStore((state) => state.fetchAgent);
   const agentListLoading = useAgentStore((state) => state.loading);
+
+  const locale = useLocale();
+
+  const availableAgents = useMemo(
+    () =>
+      agents.map((agent) => ({
+        id: agent.id,
+        name: getBuiltinAgentName(agent.id, agent.name, locale),
+        avatar_url: agent.avatar_url,
+      })),
+    [agents, locale],
+  );
 
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
 
@@ -143,7 +156,15 @@ export function FlowPadModal() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const agentRouteMenuRef = useRef<HTMLDivElement>(null);
 
-  const currentAgentLabel = getAgentDisplayName(agentConfig) ?? t('defaultAgent');
+  const currentAgentLabel = useMemo(() => {
+    const displayName = getAgentDisplayName(agentConfig);
+    if (displayName === null) {
+      return t('defaultAgent');
+    }
+    return agentConfig?.agentId
+      ? getBuiltinAgentName(agentConfig.agentId, displayName, locale)
+      : displayName;
+  }, [agentConfig, locale, t]);
   const currentAgentAvatar = agentConfig?.avatarUrl;
   const effectiveInlineRouteLabel = inlineRouteSelection?.name ?? currentAgentLabel;
   const effectiveInlineRouteAvatar = inlineRouteSelection?.avatarUrl ?? currentAgentAvatar;
@@ -359,7 +380,11 @@ export function FlowPadModal() {
         if (inlineRouteSwitchNonceRef.current !== switchNonce) {
           return false;
         }
-        const nextName = listItem?.name ?? fullAgent?.name ?? agentId;
+        const nextName = getBuiltinAgentName(
+          agentId,
+          listItem?.name ?? fullAgent?.name ?? agentId,
+          locale,
+        );
         const nextAvatar = listItem?.avatar_url ?? fullAgent?.avatar_url;
         const nextConfig = fullAgent ? buildAgentConfig(fullAgent) : createFallbackRouteConfig(agentId);
         setInlineRouteSelection({
@@ -379,7 +404,11 @@ export function FlowPadModal() {
           return false;
         }
         console.error('FlowPad inline route switch failed:', err);
-        const failedName = availableAgents.find((agent) => agent.id === agentId)?.name ?? agentId;
+        const failedName = getBuiltinAgentName(
+          agentId,
+          availableAgents.find((agent) => agent.id === agentId)?.name ?? agentId,
+          locale,
+        );
         // Fail-safe to current session route to avoid accidentally sending with stale override.
         setInlineRouteSelection(null);
         setInlineRouteSwitchError(failedName);
@@ -394,7 +423,7 @@ export function FlowPadModal() {
         }
       }
     },
-    [availableAgents, fetchAgent, inlineRouteSelection?.id, t],
+    [availableAgents, fetchAgent, inlineRouteSelection?.id, locale, t],
   );
 
   const handleFallbackToCurrentRoute = useCallback(() => {

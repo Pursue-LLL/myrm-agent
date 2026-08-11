@@ -76,6 +76,15 @@ def resolve_push_url(event: AppEvent) -> str:
         AppEventType.BACKGROUND_TASK_DONE,
         AppEventType.SYSTEM_NOTIFICATION,
     }:
+        # Kanban review requests jump straight to the board filtered to the
+        # in-review column, so the user acts on the pending task without
+        # hunting through boards. Other task outcomes keep the chat context.
+        if event_type == AppEventType.BACKGROUND_TASK_DONE:
+            board_id = data.get("board_id")
+            status = data.get("status")
+            if isinstance(board_id, str) and board_id.strip() and status == "pending_review":
+                board = board_id.strip()
+                return f"/settings/kanban?board_id={quote(board, safe='')}&status=in_review"
         chat_id = _first_chat_id(data)
         if chat_id:
             path = _chat_path(chat_id)

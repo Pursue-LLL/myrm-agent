@@ -7,7 +7,7 @@
 
 通用对话 Agent。提供通用 AI 对话能力，包含专用中间件（引用规则、工具选择）和业务工具集成。通过 `prompt_mode` 支持多模式运行（full/lean/naked/search），其中 search 模式实现快速搜索功能，无需独立的 FastSearchAgent；Fast Turn1 为 web_search + web_fetch + UECD 只读 file_read + answer_tool（+ memory），browser 仅 profile `browser` 开关 opt-in。
 历史会话召回在 GeneralAgent、Custom 与 Ephemeral JIT 子 Agent 均通过 `memory_search_tool(corpus=sessions)` ACL 启用（用户设置 `memoryEnableConversationSearch`，默认关闭；无痕模式禁用 sessions corpus）。Harness 只消费 Protocol，不感知数据库或产品身份语义。
-LLM 装配阶段会优先选择支持 function calling 的主模型，避免工具链在不支持工具调用的模型上静默失效。
+LLM 装配阶段尊重用户在 WebUI 选择的主模型；不支持工具调用或 provider 报错时，由 harness `stream_recovery` 在运行时切换至备用模型（需用户配置 fallback）。
 当前实现会优先消费渠道入口已经解析好的正式身份契约：
 - `memory_channel_id`
 - `memory_conversation_id`
@@ -49,7 +49,7 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 | `goal_learnings.py` | ✅ 核心 | Goal 终态回调工厂：`build_goal_terminal_callback` 在 Goal 终态时提取 learnings 存入 SemanticMemory（`memory_manager` 可选，memory 关闭时跳过提取但 dequeue 仍执行），发布 `GOAL_TERMINAL` ServerEventBus 事件（触发 IM 通知），并 dequeue 下一个排队 Goal。`retrieve_relevant_learnings` 为新 Goal 检索历史经验。 | ✅ |
 | `tool_setup.py` | ✅ 核心 | GeneralAgent 工具装配；`_create_memory_tools` 绑定 `memory_search_tool` sessions/wiki ACL。 | ✅ |
 | `checkpoint_helpers.py` | ✅ 辅助 | Browser checkpoint 生命周期辅助函数 | ✅ |
-| `llm_factory.py` | ✅ 辅助 | LLM 实例工厂（main/lite/fallback/safety_fallback 创建；主模型优先选 function calling 候选；lite 注入 `reasoning_effort='low'`；`apply_lite_context_downgrade` Dynamic Ratio Shield SSOT） | ✅ |
+| `llm_factory.py` | ✅ 辅助 | LLM 实例工厂（main/lite/fallback/safety_fallback 创建；lite 注入 `reasoning_effort='low'`；`apply_lite_context_downgrade` Dynamic Ratio Shield SSOT；主模型 failover 由 harness runtime 处理） | ✅ |
 | `mcp_vault_handler.py` | ✅ 辅助 | Server 层 MCP 大结果 vault spill handler 工厂。`build_mcp_vault_handler(workspace_root)` 返回 `OversizedResultHandler` 闭包，在 `factory.py` 注入到 MCP 配置，使 harness `_timeout_wrapper` 将超量结果持久化至 ArtifactVault 而非截断丢弃。 | ✅ |
 | `agent_middlewares/citation_rules_middleware.py` | ✅ 辅助 | 引用规则中间件；naked/lean 模式跳过注入 |
 | `agent_middlewares/tool_selection_middleware.py` | ✅ 核心 | 工具约束中间件 — tool_choice 状态机 + 收敛保护 |

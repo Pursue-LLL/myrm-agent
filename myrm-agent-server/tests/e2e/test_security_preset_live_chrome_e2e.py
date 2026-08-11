@@ -14,6 +14,13 @@ full real-user flows that need a real model and live state:
    `accept_edits` while YOLO mode is enabled must auto-disable YOLO
    (`disarmYoloForPreset`), keeping the safety invariant that non-HITL
    presets never coexist with YOLO.
+4. Explore default preset — binding an agent whose default is `explore` must
+   hydrate the session preset to `explore` (third-tier preset coverage).
+5. YOLO + HITL coexistence — YOLO stays enabled when binding an agent whose
+   default preset is `hitl`; only non-HITL presets disarm YOLO.
+6. YOLO mutex (selector path) — with YOLO enabled, picking a preset through the
+   real SecurityPresetSelector must disarm YOLO (`resolvePresetWithYoloMutex`)
+   while updating the session preset.
 
 Store-level assertions use `window.__myrmChatStore`; API-level assertions use
 the PRIVATE backend directly so every UI reading is anchored by independent
@@ -51,6 +58,14 @@ def _seed_fixture(api_url: str) -> dict[str, str]:
         f"{api_url}/api/v1/chats/test/seed-security-preset-fixture",
     )
     assert isinstance(seeded, dict)
+    for chat_key, agent_key, path_key in (
+        ("preset_chat_id", "preset_agent_id", "preset_ui_path"),
+        ("plain_chat_id", "plain_agent_id", "plain_ui_path"),
+        ("explore_chat_id", "explore_agent_id", "explore_ui_path"),
+    ):
+        assert str(seeded.get(chat_key) or "").startswith("e2esecpreset")
+        assert str(seeded.get(agent_key) or "")
+        assert str(seeded.get(path_key) or "").startswith("/")
     return {key: str(seeded[key]) for key in seeded}
 
 
@@ -93,24 +108,65 @@ def _fetch_config_resilient(config_key: str, api_url: str) -> dict[str, object]:
 
 
 def _mirror_shared_providers_to_private(api_url: str) -> None:
-    """Mirror shared :8080 providers (openai-like baseModel) to the PRIVATE backend."""
+    """Mirror shared :8080 providers to the PRIVATE backend and pin the base
+    model to the shared minimax provider when the shared openai-like default
+    is unavailable in the test environment)."""
     try:
         shared = fetch_config_value("providers", api_url=shared_hot_e2e_api_base())
     except (OSError, TimeoutError) as exc:  # pragma: no cover - env dependent
         pytest.fail(f"shared :8080 providers unavailable: {exc}")
     if not isinstance(shared, dict) or not shared:
         pytest.fail("shared :8080 providers config is empty")
-    put_config_value("providers", shared, api_url=api_url)
+
+    providers = shared.get("providers")
+    if not isinstance(providers, list) or not providers:
+        pytest.fail("shared providers value has no providers list")
+    minimax = next(
+        (
+            p
+            for p in providers
+            if isinstance(p, dict)
+            and str(p.get("id")) == "minimax"
+            and bool(p.get("isEnabled") or p.get("enabled"))
+        ),
+        None,
+    )
+    if not isinstance(minimax, dict):
+        pytest.fail("shared providers have no enabled minimax provider")
+    if not any(
+        isinstance(k, dict) and k.get("isActive") and k.get("key")
+        for k in (minimax.get("apiKeys") if isinstance(minimax.get("apiKeys"), list) else [])
+    ):
+        pytest.fail("shared minimax provider has no active API key")
+
+    dmc = shared.get("defaultModelConfig")
+    if not isinstance(dmc, dict):
+        dmc = {}
+    selection = {"providerId": "minimax", "model": "MiniMax-M3"}
+    base = {"primary": selection, "fallback": None, "temperature": 0.7}
+    dmc = dict(dmc)
+    dmc["baseModel"] = base
+    dmc["liteModel"] = {"primary": dict(selection), "fallback": None, "temperature": 0.7}
+    dmc["fastModeModel"] = None
+
+    merged = dict(shared)
+    merged["defaultModelConfig"] = dmc
+    put_config_value("providers", merged, api_url=api_url)
+
     deadline = time.monotonic() + 20.0
     while time.monotonic() < deadline:
         value = _fetch_config_resilient("providers", api_url)
-        dmc = value.get("defaultModelConfig")
-        if isinstance(dmc, dict) and isinstance(dmc.get("baseModel"), dict):
-            primary = dmc["baseModel"].get("primary")
-            if isinstance(primary, dict) and primary.get("providerId") and primary.get("model"):
+        saved_dmc = value.get("defaultModelConfig")
+        if isinstance(saved_dmc, dict) and isinstance(saved_dmc.get("baseModel"), dict):
+            primary = saved_dmc["baseModel"].get("primary")
+            if (
+                isinstance(primary, dict)
+                and primary.get("providerId") == "minimax"
+                and primary.get("model") == "MiniMax-M3"
+            ):
                 return
         time.sleep(0.5)
-    pytest.fail("providers not persisted on PRIVATE backend")
+    pytest.fail("minimax base model not persisted on PRIVATE backend")
 
 
 def _set_yolo(api_url: str, enabled: bool) -> None:
@@ -157,6 +213,37 @@ def _attach_js(chat_id: str) -> str:
 }})()"""
 
 
+def _open_preset_selector_js() -> str:
+    return """(() => {
+  const target = document.querySelector('[data-testid="security-preset-trigger"]');
+  if (!target) return { ok: false, err: 'no-trigger' };
+  const opts = { bubbles: true, cancelable: true, composed: true, button: 0 };
+  target.dispatchEvent(new PointerEvent('pointerdown', opts));
+  target.dispatchEvent(new MouseEvent('mousedown', opts));
+  target.dispatchEvent(new PointerEvent('pointerup', opts));
+  target.dispatchEvent(new MouseEvent('mouseup', opts));
+  target.dispatchEvent(new MouseEvent('click', opts));
+  return { ok: true };
+})()"""
+
+
+def _pick_preset_option_js(preset: str) -> str:
+    preset_json = json.dumps(preset)
+    return f"""(() => {{
+  const option = document.querySelector(
+    '[data-testid="security-preset-option-{preset}"]'
+  );
+  if (!option) return {{ ok: false, err: 'no-option', preset: {preset_json} }};
+  const opts = {{ bubbles: true, cancelable: true, composed: true, button: 0 }};
+  option.dispatchEvent(new PointerEvent('pointerdown', opts));
+  option.dispatchEvent(new MouseEvent('mousedown', opts));
+  option.dispatchEvent(new PointerEvent('pointerup', opts));
+  option.dispatchEvent(new MouseEvent('mouseup', opts));
+  option.dispatchEvent(new MouseEvent('click', opts));
+  return {{ ok: true, preset: {preset_json} }};
+}})()"""
+
+
 def _send_turn_js(prompt: str) -> str:
     prompt_json = json.dumps(prompt)
     return f"""(async () => {{
@@ -178,17 +265,27 @@ def _wait_assistant_reply(
     chat_id: str,
     api_url: str,
     *,
-    timeout_sec: float = 120.0,
+    timeout_sec: float = 150.0,
 ) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
+    last_messages: list[dict[str, object]] = []
     while time.monotonic() < deadline:
         try:
             messages = fetch_chat_messages(chat_id, api_url=api_url)
         except OSError:
             messages = []
+        last_messages = [
+            m
+            for m in messages
+            if isinstance(m, dict) and m.get("role") in ("user", "assistant")
+        ]
         assistant = next(
-            (m for m in reversed(messages) if isinstance(m, dict) and m.get("role") == "assistant"),
+            (
+                m
+                for m in reversed(last_messages)
+                if isinstance(m, dict) and m.get("role") == "assistant"
+            ),
             None,
         )
         if isinstance(assistant, dict):
@@ -199,7 +296,8 @@ def _wait_assistant_reply(
         time.sleep(2.0)
     pytest.fail(
         f"assistant reply not received within {timeout_sec}s for chat {chat_id}; "
-        f"last={json.dumps(last, ensure_ascii=False)[:300]}"
+        f"last={json.dumps(last, ensure_ascii=False)[:300]} "
+        f"messages={json.dumps(last_messages, ensure_ascii=False)[:800]}"
     )
 
 
@@ -307,6 +405,93 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
 
     yolo_off = _wait_yolo_state(api_url, False, timeout_sec=45.0)
     assert yolo_off is False, "YOLO must be auto-disabled after binding accept_edits agent"
+
+    # --- Scenario 4: explore default preset hydrates to explore (third tier) ---
+    explore_path = seeded["explore_ui_path"]
+    explore_agent_id = seeded["explore_agent_id"]
+    warm_ui_route(explore_path)
+    with open_mcp_page(f"{ui_url}{explore_path}", timeout_ms=120_000) as (client, page):
+        explore_state = wait_for_state(
+            client,
+            page,
+            _store_preset_probe("explore", explore_agent_id),
+            timeout_sec=90.0,
+        )
+        assert explore_state.get("ready") is True, json.dumps(
+            explore_state, ensure_ascii=False
+        )
+
+    # --- Scenario 5: HITL preset coexists with YOLO (only non-HITL disarms) ---
+    _set_yolo(api_url, True)
+    assert _wait_yolo_state(api_url, True, timeout_sec=20.0) is True
+
+    warm_ui_route(plain_path)
+    with open_mcp_page(f"{ui_url}{plain_path}", timeout_ms=120_000) as (client, page):
+        hitl_state = wait_for_state(
+            client,
+            page,
+            _store_preset_probe("hitl", plain_agent_id),
+            timeout_sec=90.0,
+        )
+        assert hitl_state.get("ready") is True, json.dumps(
+            hitl_state, ensure_ascii=False
+        )
+
+    yolo_still_on = _wait_yolo_state(api_url, True, timeout_sec=20.0)
+    assert yolo_still_on is True, "YOLO must stay enabled with a hitl default agent"
+
+    # --- Scenario 6: selector path also disarms YOLO (resolvePresetWithYoloMutex) ---
+    # YOLO is still enabled after Scenario 5 (hitl agent does not disarm it).
+    warm_ui_route(plain_path)
+    with open_mcp_page(f"{ui_url}{plain_path}", timeout_ms=120_000) as (client, page):
+        hitl_ready = wait_for_state(
+            client,
+            page,
+            _store_preset_probe("hitl", plain_agent_id),
+            timeout_sec=90.0,
+        )
+        assert hitl_ready.get("ready") is True, json.dumps(
+            hitl_ready, ensure_ascii=False
+        )
+
+        yolo_synced = _wait_yolo_state(api_url, True, timeout_sec=30.0)
+        assert yolo_synced is True, "YOLO should still be on before the selector pick"
+
+        opened = client.evaluate(page, _open_preset_selector_js(), timeout_sec=15.0)
+        assert isinstance(opened, dict) and opened.get("ok") is True, opened
+
+        option_ready = wait_for_state(
+            client,
+            page,
+            """(() => {
+  const option = document.querySelector('[data-testid="security-preset-option-accept_edits"]');
+  return { ready: !!option };
+})()""",
+            timeout_sec=15.0,
+        )
+        assert option_ready.get("ready") is True, json.dumps(
+            option_ready, ensure_ascii=False
+        )
+
+        picked = client.evaluate(
+            page,
+            _pick_preset_option_js("accept_edits"),
+            timeout_sec=15.0,
+        )
+        assert isinstance(picked, dict) and picked.get("ok") is True, picked
+
+        after_pick = wait_for_state(
+            client,
+            page,
+            _store_preset_probe("accept_edits", plain_agent_id),
+            timeout_sec=30.0,
+        )
+        assert after_pick.get("ready") is True, json.dumps(
+            after_pick, ensure_ascii=False
+        )
+
+    yolo_disarmed = _wait_yolo_state(api_url, False, timeout_sec=45.0)
+    assert yolo_disarmed is False, "YOLO must be disabled after selector picks accept_edits"
 
     # Sanity: the live turn really persisted both a user and an assistant message.
     users = chat_user_message_count(preset_chat_id, api_url=api_url)

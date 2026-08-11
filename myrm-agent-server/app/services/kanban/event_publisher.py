@@ -71,6 +71,7 @@ def _build_background_done_payload(
     meta = task.metadata or {}
     common: dict[str, object] = {
         "task_id": task.task_id,
+        "board_id": task.board_id,
         "status": status,
         "title": task.title,
         "result": result,

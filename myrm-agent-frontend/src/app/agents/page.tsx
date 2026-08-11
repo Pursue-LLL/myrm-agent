@@ -202,12 +202,28 @@ function FleetKPIBar({ kpi }: { kpi: { onlineAgents: number; monthTokens: number
         label={t('kpi.pending', { fallback: 'Pending' })}
         value={String(kpi.pendingApprovals)}
         highlight={kpi.pendingApprovals > 0}
+        href={kpi.pendingApprovals > 0 ? '/settings/kanban?status=in_review' : undefined}
       />
     </div>
   );
 }
 
-function KPICard({ icon, label, value, highlight }: { icon: React.ReactNode; label: string; value: string; highlight?: boolean }) {
+function KPICard({ icon, label, value, highlight, href }: { icon: React.ReactNode; label: string; value: string; highlight?: boolean; href?: string }) {
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={`rounded-lg border p-3 flex items-center gap-3 bg-card transition-colors ${highlight ? 'border-orange-500/50 hover:border-orange-500/70' : 'hover:bg-accent/50'}`}
+        data-testid="fleet-pending-approvals-link"
+      >
+        <div className="shrink-0">{icon}</div>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground truncate">{label}</p>
+          <p className={`text-lg font-semibold tabular-nums ${highlight ? 'text-orange-500' : ''}`}>{value}</p>
+        </div>
+      </Link>
+    );
+  }
   return (
     <div className={`rounded-lg border p-3 flex items-center gap-3 bg-card ${highlight ? 'border-orange-500/50' : ''}`}>
       <div className="shrink-0">{icon}</div>

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { KanbanTask, TaskStatus, AttachmentInfo } from '@/services/kanban';
+import KanbanTaskDrawer from '../KanbanTaskDrawer';
 
 const stableT = (key: string) => key;
 
@@ -91,7 +92,6 @@ function makeAttachment(overrides: Partial<AttachmentInfo> = {}): AttachmentInfo
 }
 
 async function renderDrawer(task: KanbanTask) {
-  const KanbanTaskDrawer = (await import('../KanbanTaskDrawer')).default;
   const onOpenChange = vi.fn();
   const onRefresh = vi.fn();
   const utils = render(

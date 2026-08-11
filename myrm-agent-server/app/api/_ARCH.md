@@ -20,6 +20,7 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 | 审批 | [approvals/](approvals/_ARCH.md) | 全局 HITL Drawer recovery |
 | 聊天/项目 | [chats/](chats/_ARCH.md) · [projects/](projects/_ARCH.md) | 会话 CRUD、项目归属 |
 | 看板 | [kanban/](kanban/_ARCH.md) | Board/Task、Specify/Decompose、Pipeline |
+| 批量目录 | [batch_directory/](batch_directory/_ARCH.md) | 同一 prompt × N 目录并行批次（创建/聚合/取消） |
 | 技能 | [skills/](skills/_ARCH.md) · [skill_optimization/](skill_optimization/_ARCH.md) | 技能 CRUD、进化、质量、批量优化 |
 | 插件导入 | [plugins/](plugins/_ARCH.md) | Agent Plugins 1.0.0 preview/confirm |
 | 记忆 | [memory/](memory/_ARCH.md) · [memory/operations/](memory/operations/_ARCH.md) | 记忆 CRUD、指挥中心、Shared Context |

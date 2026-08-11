@@ -91,7 +91,7 @@ def clear_test_secrets_cache() -> None:
 def apply_test_secrets_to_environ(
     secrets: TestSecrets | None = None,
     *,
-    overwrite: bool = True,
+    overwrite: bool = False,
 ) -> None:
     """Expose [T] secrets on ``os.environ`` for legacy import-time ``getenv`` checks."""
     resolved = secrets or load_test_secrets()

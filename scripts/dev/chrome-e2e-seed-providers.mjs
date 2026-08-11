@@ -67,9 +67,6 @@ function providerDisplayName(providerId, apiUrl) {
   if (apiUrl.includes('opencode.ai')) {
     return 'OpenCode Go';
   }
-  if (apiUrl.includes('teamorouter.com')) {
-    return 'TeamoRouter';
-  }
   if (providerId === 'minimax') {
     return 'MiniMax';
   }

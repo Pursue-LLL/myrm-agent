@@ -156,10 +156,7 @@ def _cumulative_phase_cap_sec(phase: SessionPhase) -> int:
     if phase == "body":
         return policy.admit_sec + policy.bootstrap_sec + policy.body_sec
     return (
-        policy.admit_sec
-        + policy.bootstrap_sec
-        + policy.body_sec
-        + policy.teardown_sec
+        policy.admit_sec + policy.bootstrap_sec + policy.body_sec + policy.teardown_sec
     )
 
 
@@ -255,7 +252,9 @@ def phase_cap_sec(phase: SessionPhase | None = None) -> int:
 
 
 def remaining_wall_sec() -> float:
-    return max(0.0, float(_cumulative_phase_cap_sec(current_phase())) - elapsed_wall_sec())
+    return max(
+        0.0, float(_cumulative_phase_cap_sec(current_phase())) - elapsed_wall_sec()
+    )
 
 
 def transition_to_phase(phase: SessionPhase, *, label: str = "") -> None:
@@ -348,7 +347,7 @@ def _transition_dev_gate_to_body(*, current_node: str) -> None:
     response = send({"operation": "snapshot", "session_id": session_id})
     session = response.get("session") if isinstance(response, dict) else None
     if not isinstance(session, dict):
-        raise RuntimeError(f"E2E_DEV_GATE_BODY_TRANSITION: session missing {session_id}")
+        raise TypeError(f"E2E_DEV_GATE_BODY_TRANSITION: session missing {session_id}")
     state = str(session.get("state", ""))
     if state == "PREPARING":
         response = send(
@@ -383,7 +382,7 @@ def _transition_dev_gate_to_body(*, current_node: str) -> None:
     if not isinstance(submitted_at, (int, float)) or not isinstance(
         phase_started_at, (int, float)
     ):
-        raise RuntimeError("E2E_DEV_GATE_BODY_TRANSITION: timestamps unavailable")
+        raise TypeError("E2E_DEV_GATE_BODY_TRANSITION: timestamps unavailable")
     admit_to_body = max(0.0, float(phase_started_at) - float(submitted_at))
     print(
         f"E2E_DEV_GATE_BODY_START: admit_to_body_sec={admit_to_body:.3f} "
@@ -451,13 +450,11 @@ def budgets_remaining() -> dict[str, object]:
 
 def provider_readiness_gate_sync() -> None:
     """Fail-closed provider readiness gate for BOOTSTRAP phase."""
-    import sys
-
-    from cdp_chat_support import (  # noqa: PLC0415
+    from cdp_chat_support import (
         fetch_provider_readiness_snapshot,
         wait_e2e_provider_ready,
     )
-    from dev_gate_contract import (  # noqa: PLC0415
+    from dev_gate_contract import (
         PROVIDER_READINESS_GATE_BASE_SEC,
         provider_readiness_gate_effective_budget_sec,
         provider_readiness_gate_wait_sec,

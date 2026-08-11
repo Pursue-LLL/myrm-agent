@@ -14,7 +14,7 @@ Kanban 持久化适配器层 + 完成验证器。实现 Harness `KanbanStore` �
 | `adapters/` | ✅ 核心 | 持久化适配器子包 | — |
 | `adapters/__init__.py` | 入口 | 导出 SqlAlchemyKanbanStore | ✅ |
 | `adapters/sqlalchemy_store.py` | ✅ 核心 | KanbanStore 的 SQLAlchemy 实现（Board/Task/Run/Event/Edge CRUD、claim、heartbeat、zombie、count_stale_running_tasks、DFS cycle detection、batch_task_stats 批量卡片统计、list_board_edges 全量边查询、count_tasks_by_agent 多 agent 分布统计、oldest_ready_age_seconds 停滞检测、reset_stale_running_tasks Boot Recovery） | ✅ |
-| `adapters/sqlalchemy_mapping.py` | ✅ 辅助 | ORM Model ↔ Domain Entity 双向映射函数（含 `specify_max_tokens` / `auto_specify_on_create` / `default_workdir` 看板设置字段，`workspace_path` / `branch` 任务字段，`get_attachment_ids` / `set_attachment_ids` 附件 ID 读写） | ✅ |
+| `adapters/sqlalchemy_mapping.py` | ✅ 辅助 | ORM Model ↔ Domain Entity 双向映射函数（含 `specify_max_tokens` / `auto_specify_on_create` / `default_workdir` / `block_recurrence_limit` 看板设置字段，`workspace_path` / `branch` 任务字段，`get_attachment_ids` / `set_attachment_ids` 附件 ID 读写） | ✅ |
 
 ## 依赖关系
 
