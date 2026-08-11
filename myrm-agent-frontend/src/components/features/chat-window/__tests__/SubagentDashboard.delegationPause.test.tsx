@@ -89,7 +89,7 @@ describe('SubagentDashboard delegation pause flow', () => {
   });
 
   it('toggles delegation pause via dashboard control', async () => {
-    const { default: SubagentDashboard } = await import('../SubagentDashboard');
+    const { default: SubagentDashboard } = await import('../subagent/SubagentDashboard');
     render(<SubagentDashboard chatId="chat-pause-e2e" />);
 
     fireEvent.click(screen.getByTestId('subagent-dashboard-trigger'));

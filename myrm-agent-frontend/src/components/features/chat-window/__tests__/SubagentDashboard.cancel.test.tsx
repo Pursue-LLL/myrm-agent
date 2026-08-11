@@ -81,7 +81,7 @@ describe('SubagentDashboard cancel flow', () => {
   });
 
   it('opens dashboard, confirms cancel, calls API and updates store', async () => {
-    const { default: SubagentDashboard } = await import('../SubagentDashboard');
+    const { default: SubagentDashboard } = await import('../subagent/SubagentDashboard');
     render(<SubagentDashboard chatId="chat-cancel-e2e" />);
 
     fireEvent.click(screen.getByTestId('subagent-dashboard-trigger'));

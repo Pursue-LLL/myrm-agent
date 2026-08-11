@@ -96,7 +96,7 @@ describe('SubagentDashboard budget display', () => {
   });
 
   it('shows used/limit for tokens and cost when a budget is set', async () => {
-    const { default: SubagentDashboard } = await import('../SubagentDashboard');
+    const { default: SubagentDashboard } = await import('../subagent/SubagentDashboard');
     render(<SubagentDashboard chatId="chat-budget-e2e" />);
 
     fireEvent.click(screen.getByTestId('subagent-dashboard-trigger'));
@@ -109,7 +109,7 @@ describe('SubagentDashboard budget display', () => {
   });
 
   it('shows absolute token count and cost when no budget is set', async () => {
-    const { default: SubagentDashboard } = await import('../SubagentDashboard');
+    const { default: SubagentDashboard } = await import('../subagent/SubagentDashboard');
     render(<SubagentDashboard chatId="chat-budget-e2e" />);
 
     fireEvent.click(screen.getByTestId('subagent-dashboard-trigger'));
@@ -128,7 +128,7 @@ describe('SubagentDashboard budget display', () => {
         [withBudgetNode.task_id]: { ...withBudgetNode, progress: undefined as unknown as number },
       },
     };
-    const { default: SubagentDashboard } = await import('../SubagentDashboard');
+    const { default: SubagentDashboard } = await import('../subagent/SubagentDashboard');
     render(<SubagentDashboard chatId="chat-budget-e2e" />);
 
     fireEvent.click(screen.getByTestId('subagent-dashboard-trigger'));

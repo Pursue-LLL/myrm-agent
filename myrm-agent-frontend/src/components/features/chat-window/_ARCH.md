@@ -9,7 +9,6 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `AgentInfoBanner.tsx` | 组件 | 当前 Agent 信息横幅：头像+名称+描述+会话内切换下拉；设置快捷入口跳转 `/settings/wiki?agentId=` | ✅ |
-| `AgentWorkMap.tsx` | 组件 | 长任务拓扑画布（Task Tray「画布」tab）：ReactFlow+dagre 渲染 subagent 树/fission 拓扑（merge 并行）；结构/数据双 effect（节点增删才重排，实时进度更新保留拖拽坐标）；结构变化 fitView 平滑跟随；节点点击回调（画布→树定位桥接）；移动端紧凑节点+窄屏隐藏 MiniMap；墓碑（failed/cancelled 红高亮+error）、焦点（running 脉冲）、进度条、cost/tokens/耗时元数据、空态；数据源 `taskTopologyModel` | ✅ |
 | `BudgetBadge.tsx` | 组件 | 输入区旁会话/日预算用量微型进度指示（eco 模式叶标） | ✅ |
 | `Chat.tsx` | 核心 | 消息列表容器：虚拟滚动阈值、JumpBar、审批 attention bar | ✅ |
 | `ChatWindow.tsx` | 核心 | 主对话窗口入口：EmptyChat 与 Chat/ArtifactPortal 分轨 dynamic import；URL 深链 `restore_arg` / `approval`（Web Push 点击）；chips 行集成 `SessionRevertButton`（会话级文件 Undo）；`RunStatusChip` + `SessionAdvisorPanel`（Co-Pilot） | ✅ |
@@ -49,10 +48,6 @@
 | `ExtensionDisconnectedBanner.tsx` | 组件/模块 | Extension 断开警告横幅（条件性：仅 browserSource=extension 且未连接时显示，可 dismiss，SSE 驱动） | ✅ |
 | `ExtensionTakeoverBanner.tsx` | 组件/模块 | 外部浏览器 HITL 横幅（harness `is_managed=false` → `uiMode=extension`：CDP/auto/extension 均 in-chat 引导本地 Chrome + Done/Skip；支持打开/复制签名远程接管链接；CAPTCHA auto_detect 时隐藏按钮） | ✅ |
 | `SessionTrashPanel.tsx` | 组件 | 软删除会话回收站面板（恢复/永久删除） | ✅ |
-| `SubagentDashboard.tsx` | 核心 | 子代理控制面板入口：三视图 tab（树/Gantt/画布）；排序/过滤条、头部汇总、预算 token/cost（`extractBudgetTokens`/`extractMaxCostUsd`）、取消全部/委托暂停、overtime/stale 汇总态、画布 tab 挂载 `AgentWorkMap`，画布节点点击切树视图定位（`data-subagent-tree-id`）；SSE `subagents_updated`/`teammate_message` 消费 + 轮询拉取 | ✅ |
-| `subagent-tree.tsx` | 组件 | 子代理树视图：`SubagentTreeNode` 递归节点（展开/折叠、状态图标、cost/tokens/model/进度/耗时、steer/cancel/resume/审批跳转、overtime/stale 告警、teammate 消息、stream、取消确认弹窗）+ 聚合徽章 + role/scope 格式化；依赖 `subagent-stream` | ✅ |
-| `subagent-gantt.tsx` | 组件 | 子代理迷你甘特图：基于 startedAt/duration 的并行时间条（状态色条、相对缩放），少于 2 个时间跨度的节点时隐藏 | ✅ |
-| `subagent-stream.tsx` | 组件 | 子代理状态图标（12 态 STATUS_ICON_MAP）与实时流条目展示（NodeStream/StreamLine：tool/progress/thinking/error 字形 + 耗时 + 滚动跟随） | ✅ |
 | `AgentToolDiagnostics.tsx` | 组件 | Agent 工具健康诊断弹窗（tool 成功率/耗时） | ✅ |
 | `SubagentPromptButton.tsx` | 组件 | 子代理 prompt 入口按钮（5s 倒计时自动 sendMessage） | ✅ |
 | `ToolApprovalExpiryWatcher.tsx` | 组件/模块 | 工具审批过期 watcher（queue 过期 toast） | ✅ |
@@ -74,6 +69,16 @@
 | `ActionSpaceAccuracyRadar.tsx` | 辅助 | 动作空间准确度预测条与沉睡技能净化提示 | ✅ |
 | `TemplateMarket.tsx` | 核心 | Agent 模板市场。请求后端的 `/api/v1/agents/templates` 和 `instantiate-template` 接口，实现模板列表展示和带有原子化依赖预检的智能体实例化。 | ✅ |
 | `AgentGallery.tsx` | 辅助 | Agent 画廊展示 | ✅ |
+
+## subagent/
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `SubagentDashboard.tsx` | 核心 | 子代理控制面板入口：三视图 tab（树/Gantt/画布）；排序/过滤条、头部汇总、预算 token/cost（`extractBudgetTokens`/`extractMaxCostUsd`）、取消全部/委托暂停、overtime/stale 汇总态、画布 tab 挂载 `AgentWorkMap`，画布节点点击切树视图定位（`data-subagent-tree-id`）；SSE `subagents_updated`/`teammate_message` 消费 + 轮询拉取 | ✅ |
+| `AgentWorkMap.tsx` | 组件 | 长任务拓扑画布（Task Tray「画布」tab）：ReactFlow+dagre 渲染 subagent 树/fission 拓扑（merge 并行）；结构/数据双 effect（节点增删才重排，实时进度更新保留拖拽坐标）；结构变化 fitView 平滑跟随；节点点击回调（画布→树定位桥接）；移动端紧凑节点+窄屏隐藏 MiniMap；墓碑（failed/cancelled 红高亮+error）、焦点（running 脉冲）、进度条、cost/tokens/耗时元数据、空态；数据源 `taskTopologyModel` | ✅ |
+| `subagent-tree.tsx` | 组件 | 子代理树视图：`SubagentTreeNode` 递归节点（展开/折叠、状态图标、cost/tokens/model/进度/耗时、steer/cancel/resume/审批跳转、overtime/stale 告警、teammate 消息、stream、取消确认弹窗）+ 聚合徽章 + role/scope 格式化；依赖 `subagent-stream` | ✅ |
+| `subagent-gantt.tsx` | 组件 | 子代理迷你甘特图：基于 startedAt/duration 的并行时间条（状态色条、相对缩放），少于 2 个时间跨度的节点时隐藏 | ✅ |
+| `subagent-stream.tsx` | 组件 | 子代理状态图标（12 态 STATUS_ICON_MAP）与实时流条目展示（NodeStream/StreamLine：tool/progress/thinking/error 字形 + 耗时 + 滚动跟随） | ✅ |
 
 ## goals/
 
