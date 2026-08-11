@@ -112,9 +112,8 @@ def test_configured_field_is_recognized(channel: str, configured_field: str) -> 
 def test_configured_field_matches_channel_credential_spec(channel: str, configured_field: str) -> None:
     # configured_field is used to look up credentials from the store, whose keys are
     # the channel's credential db_keys (app.channels.core.credentials resolve loop).
-    # If it drifts from the real credential field (e.g. zalo used "oaId" while the
-    # channel stores "accessToken"), configured channels are silently skipped during
-    # Ingress assessment. This assertion makes such drift fail CI immediately.
+    # Any drift between the two silently skips configured channels during Ingress
+    # assessment, so this assertion must fail CI the moment they diverge.
     cls = get_channel_class(channel)
     db_keys = {field.db_key for _, field in cls.credential_spec.fields}
     assert configured_field in db_keys

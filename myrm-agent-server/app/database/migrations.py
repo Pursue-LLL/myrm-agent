@@ -583,6 +583,9 @@ MIGRATION_STATEMENTS: list[str] = [
     # create_all; this append-only ALTER covers existing databases (the
     # migration engine skips duplicate-column errors idempotently).
     "ALTER TABLE kanban_boards ADD COLUMN block_recurrence_limit INTEGER NOT NULL DEFAULT 2",
+    # Per-agent team roster discovery control: team leaders dynamically scan
+    # agents with allow_discovery=True; column persisted here for existing DBs.
+    "ALTER TABLE agents ADD COLUMN allow_discovery BOOLEAN NOT NULL DEFAULT 1",
 ]
 
 # 创建索引的SQL语句列表

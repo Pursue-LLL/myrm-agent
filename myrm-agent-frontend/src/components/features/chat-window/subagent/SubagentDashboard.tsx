@@ -348,7 +348,13 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
                 {delegationPaused ? t('delegationResumeButton') : t('delegationPauseButton')}
               </Button>
               {runningCount > 0 && (
-              <Button variant="destructive" size="sm" className="gap-2" onClick={() => setStopAllOpen(true)}>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-2"
+                onClick={() => setStopAllOpen(true)}
+                data-testid="subagent-stop-all-btn"
+              >
                 <StopCircle className="w-4 h-4" />
                 {t('stopAll')}
               </Button>

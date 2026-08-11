@@ -153,7 +153,7 @@ IDLE ──start()──→ RUNNING ──error──→ DEGRADED ──recover�
 
 **公网 Ingress 需求（与 `protocols/inbound_profile.py` 联动）**：
 
-- 每个内置渠道在 `inbound_profile.CHANNEL_INBOUND_SPECS` 声明 `outbound` / `inbound` / `conditional` 传输模式（spec 清单与内置渠道全集的一致性由 `tests/channels/test_inbound_profile.py` 清单覆盖测试保障）
+- 每个内置渠道在 `inbound_profile.CHANNEL_INBOUND_SPECS` 声明 `outbound` / `inbound` / `conditional` 传输模式（spec 清单与内置渠道全集的一致性由 `tests/channels/test_inbound_profile.py` 清单覆盖测试保障；spec 的 `configured_field` 与渠道 `credential_spec` 真实凭证字段的一致性由同文件的字段对齐断言保障）
 - `core/infra/ingress_requirement.resolve_ingress_requirement()` 读取 UserConfig 凭证 + Cron Webhook + SaaS 已注册 CP 渠道，输出 `GET /api/v1/system/ingress-requirement`
 - `list_channel_status` 对 inbound 且未配置 Ingress 的渠道补充 CONFIG issue（fix 指向 Settings → System）
 

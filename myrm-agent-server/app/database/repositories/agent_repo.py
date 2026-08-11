@@ -119,6 +119,9 @@ class AgentRepository:
                 "default_security_preset": agent.default_security_preset,
                 "subagent_ids": agent.subagent_ids,
                 "workspace_policy": agent.workspace_policy,
+                "allow_discovery": bool(
+                    getattr(agent, "allow_discovery", True)
+                ),
                 "engine_params": agent.engine_params,
                 "openapi_services": agent.openapi_services or [],
                 "model_selection_full": agent.model_selection,
@@ -252,6 +255,7 @@ class AgentRepository:
             mcp_servers=meta.get("mcp_ids", []),
             mcp_tool_selections=meta.get("mcp_tool_selections"),
             subagent_ids=meta.get("subagent_ids", []),
+            allow_discovery=bool(meta.get("allow_discovery", True)),
             enabled_builtin_tools=persist_enabled_builtin_tools(
                 meta.get("enabled_builtin_tools", profile.tools_allowed)
             ),
