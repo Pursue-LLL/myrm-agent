@@ -39,7 +39,8 @@ from tests.api.agent.utils import (
     _strip_provider_prefix,
     get_lite_model_selection,
 )  # noqa: E402
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger
+from e2e_session_runtime.heartbeat import heartbeat_once  # noqa: E402
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 

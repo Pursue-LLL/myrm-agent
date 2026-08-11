@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
+from e2e_session_runtime.heartbeat import heartbeat_once
 
 ResourceKind = Literal[
     "chat", "project", "agent", "cron", "file", "kanban_board", "kanban_task"
@@ -76,7 +76,7 @@ class E2EResourceLedger:
     ephemeral_runtime: bool = False
 
     def register(self, kind: ResourceKind, ref: str) -> None:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         if self.ephemeral_runtime:
             return
         register_e2e_resource(

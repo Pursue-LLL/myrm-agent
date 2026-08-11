@@ -6,7 +6,7 @@
 - scripts/dev/lib/e2e_bootstrap.sh · scripts/dev/test.sh — shell 30s 心跳循环调用方
 
 [OUTPUT]
-- heartbeat_once / heartbeat_e2e_lease: coordinator + wave lease + runtime 统一心跳
+- heartbeat_once: coordinator + wave lease + runtime 统一心跳
 - _snapshot_current_node: 从 pytest session snapshot 解析真实节点，桥接 shell 心跳转发 coordinator
 
 [POS]
@@ -192,12 +192,3 @@ def heartbeat_once(*, current_node: str | None = None) -> None:
     _touch_dedupe_holder_progress(current_node=current_node)
     _heartbeat_private_runtime_once()
     _heartbeat_dev_gate_session(current_node=current_node)
-
-
-def heartbeat_e2e_lease(*, current_node: str | None = None) -> None:
-    """Compatibility entry delegating to the unified heartbeat SSOT.
-
-    Retained for callers that historically imported :func:`heartbeat_e2e_lease`;
-    the implementation now lives in this module (single heartbeat code path).
-    """
-    heartbeat_once(current_node=current_node)

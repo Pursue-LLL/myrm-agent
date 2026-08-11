@@ -12,7 +12,7 @@ from cdp_chat_support import (
     wait_e2e_backend_ready,
 )
 from mcp_chat_ui import McpChatSession
-from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
+from e2e_session_runtime.heartbeat import heartbeat_once
 from dev_gate_contract import EvaluateIntent, GATE_MUX_STALL_FAIL_FAST_SEC
 
 E2E_PROMPT = (
@@ -221,7 +221,7 @@ async def wait_for_browser_ask_human_gate(
     mux_degraded = False
     mux_stall_started: float | None = None
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         now = time.monotonic()
         api_timeout = BROWSER_GATE_API_TIMEOUT_SEC * (2.0 if mux_degraded else 1.0)
         if chat_id and now - last_api_poll_at >= 2.0:
@@ -309,7 +309,7 @@ async def wait_takeover_banner(
     last_recovery_at = [0.0]
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
-        heartbeat_e2e_lease()
+        heartbeat_once()
         if not wait_e2e_backend_ready(timeout_sec=3.0):
             await chat.ensure_e2e_api_base_binding()
             await asyncio.sleep(2.0)

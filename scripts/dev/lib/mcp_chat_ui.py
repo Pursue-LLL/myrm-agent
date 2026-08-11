@@ -166,9 +166,9 @@ class McpChatSession(CdpChatSession):
                     except ImportError:
                         pass
                     try:
-                        from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
+                        from e2e_session_runtime.heartbeat import heartbeat_once
 
-                        heartbeat_e2e_lease()
+                        heartbeat_once()
                     except ImportError:
                         pass
                     await asyncio.wait({reset_task}, timeout=min(5.0, remaining))

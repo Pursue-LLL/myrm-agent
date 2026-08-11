@@ -468,9 +468,9 @@ def acquire_with_wait(
         except ImportError:
             pass
         try:
-            from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
+            from e2e_session_runtime.heartbeat import heartbeat_once
 
-            heartbeat_e2e_lease()
+            heartbeat_once()
         except ImportError:
             pass
         prune_stale()

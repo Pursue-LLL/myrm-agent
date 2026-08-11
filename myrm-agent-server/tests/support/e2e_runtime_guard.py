@@ -19,7 +19,7 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
+from e2e_session_runtime.heartbeat import heartbeat_once
 from e2e_resource_ledger import E2EResourceLedger as _E2EResourceLedger
 
 _E2E_HEARTBEAT_INTERVAL_SEC = 30.0
@@ -45,7 +45,7 @@ class E2ERuntimeLease:
 
 def reap_chrome_e2e_session_hygiene() -> None:
     """Extend parent lease heartbeat only — no global wave/tab/peer reaper (P0-B)."""
-    heartbeat_e2e_lease()
+    heartbeat_once()
 
 
 @contextmanager
@@ -326,7 +326,7 @@ def _reacquire_e2e_lease_from_wave() -> bool:
         candidate = line.strip()
         if len(candidate) == 36 and candidate.count("-") == 4:
             os.environ["MYRM_E2E_LEASE_ID"] = candidate
-            heartbeat_e2e_lease()
+            heartbeat_once()
             return True
     return False
 

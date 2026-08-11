@@ -40,7 +40,7 @@ from resume_turn_contract import (
     resolve_done_poll_fetch_timeout_sec,
     resolve_stream_converge_poll_timeout_sec,
 )
-from e2e_session_runtime.heartbeat import heartbeat_e2e_lease
+from e2e_session_runtime.heartbeat import heartbeat_once
 from dev_gate_contract import EvaluateIntent
 from e2e_resource_ledger import E2EResourceLedger
 
@@ -70,7 +70,7 @@ async def run_browser_takeover_live_flow(
             timeout_sec=timeout_sec,
             fetch_timeout_sec=resolve_done_poll_fetch_timeout_sec(),
             progress_interval_sec=RESUME_DONE_POLL_PROGRESS_INTERVAL_SEC,
-            on_tick=heartbeat_e2e_lease,
+            on_tick=heartbeat_once,
         )
 
     _p("dismiss_modals")
@@ -124,7 +124,7 @@ async def run_browser_takeover_live_flow(
             await chat.ensure_model_ready(timeout_sec=180.0)
             await prepare_browser_turn(chat)
         last_prompt = E2E_PROMPT if attempt == 1 else E2E_NUDGE_PROMPT
-        heartbeat_e2e_lease()
+        heartbeat_once()
         if not wait_e2e_backend_ready(api_url=api_base, timeout_sec=10.0):
             await chat.ensure_e2e_api_base_binding()
         _p(f"send_message attempt={attempt}")
@@ -200,7 +200,7 @@ async def run_browser_takeover_live_flow(
             if attempt >= MAX_SEND_ATTEMPTS:
                 raise
             _p("banner not ready — will retry")
-            heartbeat_e2e_lease()
+            heartbeat_once()
 
     assert banner is not None
     assert (

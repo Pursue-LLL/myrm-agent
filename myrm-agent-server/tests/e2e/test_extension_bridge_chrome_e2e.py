@@ -28,8 +28,10 @@ _EXTENSION_BRIDGE_STATE = """(() => {
     'URL navigation', 'Tab discovery', 'Debugger attach', 'Debugger detach'];
   const matrixHits = matrixLabels.filter((label) => bodyText.includes(label));
   const unavailableHits = (bodyText.match(/不可用|Unavailable/g) || []).length;
-  const relayLine = (bodyText.match(/私网中继能力[^\\n]*/i) || [])[0] || '';
+  const relayLine = (bodyText.match(/(私网中继能力|私網中繼能力|Private-network relay capability)[^\\n]*/i) || [])[0] || '';
   const wsMatch = bodyText.match(/ws:\\/\\/[^\\s]+\\/api\\/v1\\/ws\\/extension/i);
+  const pairingGuideVisible =
+    /加载已解压|Load unpacked|pairing bundle|配对包|Generate pairing|Quick Setup|快速设置/i.test(bodyText);
   return {
     ready:
       !!root &&
@@ -38,14 +40,14 @@ _EXTENSION_BRIDGE_STATE = """(() => {
       matrixHits.length >= 4 &&
       unavailableHits >= 4 &&
       /未连接|Not connected/i.test(bodyText) &&
-      (/chrome:\\/\\/inspect\\/#remote-debugging/i.test(bodyText) ||
-        /remote-debugging/i.test(bodyText)) &&
+      pairingGuideVisible &&
       !!wsMatch,
     hasActiveSection: !!root,
     fetchErrorVisible,
     matrixHits: matrixHits.length,
     unavailableHits,
     relayLine,
+    pairingGuideVisible,
     wsUrl: wsMatch ? wsMatch[0] : '',
     heading: root?.querySelector('h2')?.textContent || '',
     pathname: location.pathname,
@@ -75,6 +77,8 @@ def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
     assert isinstance(hints, dict)
     assert "auth_token_configured" in hints
     assert "cdp_endpoint_discovered" in hints
+    assert "relay_cdp_ready" in hints
+    assert "access_policy_valid" in hints
 
     warm_ui_route("/settings/extensionBridge")
     bridge_url = f"{ui_url.rstrip('/')}/settings/extensionBridge"
@@ -116,7 +120,7 @@ _CONNECTED_BRIDGE_STATE = """(() => {
     'URL navigation', 'Tab discovery', 'Debugger attach', 'Debugger detach'];
   const matrixHits = matrixLabels.filter((label) => bodyText.includes(label));
   const availableHits = (bodyText.match(/可用|Available/g) || []).length;
-  const relayLine = (bodyText.match(/私网中继能力[^\\n]*/i) || [])[0] || '';
+  const relayLine = (bodyText.match(/(私网中继能力|私網中繼能力|Private-network relay capability)[^\\n]*/i) || [])[0] || '';
   return {
     ready:
       !!root &&
@@ -126,7 +130,7 @@ _CONNECTED_BRIDGE_STATE = """(() => {
       availableHits >= 4 &&
       (/已连接|Connected/i.test(bodyText)) &&
       (/已就绪|Ready \\(all required actions available\\)/i.test(relayLine) ||
-        /全部必需动作可用/i.test(relayLine)),
+        /全部必需动作可用|全部必要動作可用/i.test(relayLine)),
     hasActiveSection: !!root,
     fetchErrorVisible,
     matrixHits: matrixHits.length,

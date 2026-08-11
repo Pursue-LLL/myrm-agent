@@ -67,10 +67,63 @@ function providerDisplayName(providerId, apiUrl) {
   if (apiUrl.includes('opencode.ai')) {
     return 'OpenCode Go';
   }
+  if (apiUrl.includes('teamorouter.com')) {
+    return 'TeamoRouter';
+  }
   if (providerId === 'minimax') {
     return 'MiniMax';
   }
   return providerId;
+}
+
+function normalizeApiUrl(url) {
+  return (url ?? '').trim().replace(/\/$/, '');
+}
+
+function activeApiKey(provider) {
+  const keys = provider?.apiKeys;
+  if (!Array.isArray(keys) || keys.length === 0) {
+    return '';
+  }
+  const active = keys.find((item) => item?.isActive);
+  return (active?.key ?? keys[0]?.key ?? '').trim();
+}
+
+function providerEndpointDrift(existing, { apiUrl, apiKey }) {
+  if (!existing) {
+    return false;
+  }
+  return (
+    normalizeApiUrl(existing.apiUrl) !== normalizeApiUrl(apiUrl) ||
+    activeApiKey(existing) !== (apiKey ?? '').trim()
+  );
+}
+
+function upsertProviderEntry(byId, entry) {
+  const existing = byId.get(entry.id);
+  if (!existing) {
+    byId.set(entry.id, entry);
+    return true;
+  }
+  const mergedModels = [
+    ...new Set([...(existing.enabledModels ?? []), ...entry.enabledModels]),
+  ];
+  const endpointDrift = providerEndpointDrift(existing, entry);
+  const modelsChanged =
+    mergedModels.length !== (existing.enabledModels ?? []).length ||
+    mergedModels.some((model) => !(existing.enabledModels ?? []).includes(model));
+  byId.set(entry.id, {
+    ...existing,
+    name: entry.name,
+    apiUrl: entry.apiUrl,
+    apiKeys: entry.apiKeys,
+    providerType: entry.providerType,
+    routingProfile: entry.routingProfile ?? existing.routingProfile ?? entry.id,
+    isEnabled: true,
+    enabledModels: mergedModels,
+    availableModels: mergedModels,
+  });
+  return endpointDrift || modelsChanged;
 }
 
 function buildProviderEntry({ providerId, modelId, apiUrl, apiKey }) {
@@ -138,12 +191,6 @@ async function ensureLiteModelFromEnv(existingConfig) {
   const litePrimary = config?.defaultModelConfig?.liteModel?.primary;
   const expectedProviderId = inferProviderId(liteModelRaw);
   const expectedModelId = stripProviderPrefix(liteModelRaw);
-  if (
-    litePrimary?.providerId === expectedProviderId &&
-    litePrimary?.model === expectedModelId
-  ) {
-    return { patched: false, reason: 'lite_already_configured', litePrimary };
-  }
 
   const basicKey = process.env.BASIC_API_KEY?.trim();
   const liteKey = process.env.LITE_API_KEY?.trim() || basicKey;
@@ -164,25 +211,36 @@ async function ensureLiteModelFromEnv(existingConfig) {
   const existingProviders = Array.isArray(config.providers) ? config.providers : [];
   const byId = new Map(existingProviders.map((provider) => [provider.id, provider]));
   const existingLite = byId.get(liteProviderId);
-  if (existingLite) {
-    const mergedModels = [...new Set([...(existingLite.enabledModels ?? []), liteModelId])];
-    byId.set(liteProviderId, {
-      ...existingLite,
-      enabledModels: mergedModels,
-      availableModels: mergedModels,
-      apiKeys: existingLite.apiKeys?.length ? existingLite.apiKeys : liteEntry.apiKeys,
-      isEnabled: true,
-    });
-  } else {
-    byId.set(liteProviderId, liteEntry);
+  const providerChanged = upsertProviderEntry(byId, liteEntry);
+  const primaryMatches =
+    litePrimary?.providerId === expectedProviderId &&
+    litePrimary?.model === expectedModelId;
+  const endpointDrift = providerEndpointDrift(existingLite, liteEntry);
+
+  if (primaryMatches && !providerChanged && !endpointDrift) {
+    return { patched: false, reason: 'lite_already_configured', litePrimary };
   }
 
+  const litePrimarySelection = { providerId: liteProviderId, model: liteModelId };
   const defaultModelConfig = {
     ...(config.defaultModelConfig ?? {}),
     liteModel: {
       ...(config.defaultModelConfig?.liteModel ?? {}),
-      primary: { providerId: liteProviderId, model: liteModelId },
+      primary: litePrimarySelection,
       fallback: config.defaultModelConfig?.liteModel?.fallback ?? null,
+    },
+    fastModeModel: {
+      ...(config.defaultModelConfig?.fastModeModel ?? {}),
+      primary: litePrimarySelection,
+      fallback: config.defaultModelConfig?.fastModeModel?.fallback ?? null,
+      temperature:
+        config.defaultModelConfig?.fastModeModel?.temperature ??
+        config.defaultModelConfig?.baseModel?.temperature ??
+        0.7,
+      modelKwargs:
+        config.defaultModelConfig?.fastModeModel?.modelKwargs ??
+        config.defaultModelConfig?.baseModel?.modelKwargs ??
+        {},
     },
   };
 
@@ -196,6 +254,7 @@ async function ensureLiteModelFromEnv(existingConfig) {
     patched: true,
     liteProviderId,
     liteModelId,
+    endpointDrift,
   };
 }
 

@@ -136,10 +136,10 @@ def wait_mux_transport_turn(
             del current_node
 
     try:
-        from e2e_session_runtime.heartbeat import heartbeat_e2e_lease  # noqa: PLC0415
+        from e2e_session_runtime.heartbeat import heartbeat_once  # noqa: PLC0415
     except ImportError:
 
-        def heartbeat_e2e_lease() -> None:
+        def heartbeat_once() -> None:
             return None
 
     touch_wall_progress(current_node=current_node)
@@ -160,7 +160,7 @@ def wait_mux_transport_turn(
                 f"peers={snap.format_peers()}"
             )
         touch_wall_progress(current_node=current_node)
-        heartbeat_e2e_lease()
+        heartbeat_once()
         elapsed = now - (deadline - float(budget_sec))
         if elapsed - last_emit >= _PROGRESS_EMIT_INTERVAL_SEC:
             _emit_stderr(MUX_TRANSPORT_QUEUE_WAIT_TOKEN, peers=snap)
