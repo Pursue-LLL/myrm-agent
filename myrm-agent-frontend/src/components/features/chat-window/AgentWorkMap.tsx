@@ -128,11 +128,7 @@ function CustomNode({ data }: NodeProps<Node<TopologyNodeData & Record<string, u
       <Handle type="target" position={Position.Top} className="w-2 h-2" />
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          {isRoot ? (
-            <Bot className="w-4 h-4 shrink-0 text-primary" />
-          ) : (
-            <Bot className="w-4 h-4 shrink-0 text-muted-foreground" />
-          )}
+          <Bot className={cn('w-4 h-4 shrink-0', isRoot ? 'text-primary' : 'text-muted-foreground')} />
           <span className="font-semibold text-sm truncate">{isRoot ? label : agentType}</span>
         </div>
         <StatusIcon className={cn('w-4 h-4 shrink-0', config.className, config.spin && 'animate-spin')} />

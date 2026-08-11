@@ -210,6 +210,19 @@ describe('buildMergedTopologyModel', () => {
     expect(m.totalDurationSeconds).toBe(0);
   });
 
+  it('namespaces fission children so ids never collide with subagent task ids', () => {
+    const subagent = [
+      mkNode({ task_id: 'n1', status: 'completed' }),
+      mkNode({ task_id: 'root', status: 'completed', parent_task_id: 'n1' }),
+    ];
+    const m = buildMergedTopologyModel(subagent, topology);
+    const ids = m.nodes.map((n) => n.taskId);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(m.edges).toHaveLength(2);
+    expect(m.nodes.filter((n) => n.taskId === 'n1')).toHaveLength(1);
+    expect(m.nodes.filter((n) => n.taskId.startsWith('fission-'))).toHaveLength(2);
+  });
+
   it('counts active nodes from both sources', () => {
     const m = buildMergedTopologyModel([mkNode({ task_id: 'root', status: 'completed' })], topology);
     expect(m.activeCount).toBe(1);

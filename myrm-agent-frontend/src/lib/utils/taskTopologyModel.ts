@@ -1,7 +1,7 @@
 /**
  * [POS] Task topology model. Pure functions that turn live subagent tree /
  *       fission topology data into a renderable ReactFlow graph model.
- * [INPUT] useSubagentStore::SubagentNode / FissionTopology
+ * [INPUT] useSubagentStore::SubagentNode, FissionTopology (POS: Subagent state store)
  * [OUTPUT] buildTopologyModel, buildFissionTopologyModel, buildMergedTopologyModel,
  *       toneForStatus, truncateLabel, TopologyModel, TopologyNodeData, TopologyTone
  */
@@ -50,6 +50,11 @@ export const MAX_LABEL_LENGTH = 60;
 /** Fission root is keyed by fission id so it can coexist with subagent task ids in a merged graph. */
 function fissionRootId(fissionId: string): string {
   return `fission-${fissionId}`;
+}
+
+/** Fission child nodes live under the fission namespace so node ids never collide with subagent task ids. */
+function fissionNodeId(fissionId: string, nodeId: string): string {
+  return `fission-${fissionId}::${nodeId}`;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -166,8 +171,9 @@ export function buildFissionTopologyModel(topology: FissionTopology | null): Top
 
   for (const n of topology.nodes) {
     const tone = toneForStatus(n.status);
+    const childId = fissionNodeId(topology.fission_id, n.node_id);
     const data: TopologyNodeData = {
-      taskId: n.node_id,
+      taskId: childId,
       label: truncateLabel(n.objective || n.agent_type || n.node_id),
       agentType: n.agent_type,
       status: n.status,
@@ -180,7 +186,7 @@ export function buildFissionTopologyModel(topology: FissionTopology | null): Top
       parentTaskId: rootId,
     };
     model.nodes.push(data);
-    model.edges.push({ source: rootId, target: n.node_id });
+    model.edges.push({ source: rootId, target: childId });
 
     if (tone === 'active') model.activeCount++;
     if (tone === 'danger') model.failedCount++;
