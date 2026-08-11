@@ -1419,6 +1419,15 @@ class DevGateStore:
                 released_lease_id=str(cleanup.get("released_lease_id", "")),
                 released_runtime_id=str(cleanup.get("released_runtime_id", "")),
                 ledger_cleaned=cleanup.get("ledger_cleaned") is True,
+                physical_released=(
+                    True
+                    if cleanup.get("physical_released") is True
+                    else (
+                        False
+                        if cleanup.get("physical_released") is False
+                        else None
+                    )
+                ),
                 sealed=cleanup.get("sealed") is True,
                 requested_at=float(cleanup.get("requested_at", 0.0)),
                 observed_at=float(cleanup.get("observed_at", 0.0)),

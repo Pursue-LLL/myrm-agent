@@ -15,7 +15,6 @@ from myrm_agent_harness.utils.chat_utils import (
     ChatHistory,
     ChatHistoryReq,
     ContentItem,
-    _iter_parsed_containers,
     extract_answer_text,
     extract_litellm_answer_text,
     parse_llm_json_list,
@@ -65,10 +64,7 @@ def parse_judge_json(raw: str) -> dict[str, object] | None:
     verdict last. String forms (``"True"``/``"yes"``/``"1"``) and numeric
     forms (``1``/``0``) are normalized to Python bools.
     """
-    last_verdict: dict[str, object] | None = None
-    for parsed in _iter_parsed_containers(raw):
-        if isinstance(parsed, dict) and "done" in parsed:
-            last_verdict = parsed
+    last_verdict = parse_llm_json_object(raw, require_key="done")
     if last_verdict is None:
         return None
     done = last_verdict.get("done")

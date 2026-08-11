@@ -228,6 +228,7 @@ def _to_agent_response(
             else None
         ),
         cron_post_run_verify=bool(metadata.get("cron_post_run_verify", False)),
+        allow_discovery=bool(metadata.get("allow_discovery", True)),
         created_at=agent.created_at or datetime.now(),
         updated_at=agent.updated_at or datetime.now(),
         snapshot_count=snapshot_count,
