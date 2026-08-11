@@ -1,12 +1,15 @@
 """Semantic Comparator (Server Layer)
 
-Server层的语义比对器，组合 Harness 层的 StructuredComparator。
-当本地比对分数低于阈值时，按需调用 LLM 进行语义判定。
+[INPUT]
+- myrm_agent_harness.agent.skills.optimization.result_comparator::StructuredComparator (POS: 结构化比对器)
+- app.core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
 
-分层成本控制：
-- 大多数比对在 Layer1/2（零LLM成本）即可完成
-- 只有结构化分数低但可能语义一致的样本才触发 LLM
-- 实际 LLM 调用率预计 < 10%
+[OUTPUT]
+- compare_semantically: 结构化分数低于阈值时按需调用 LLM 判定语义等价
+
+[POS]
+Server 层的语义比对器，组合 Harness 层 StructuredComparator，仅在本地比对分数
+低于阈值时按需调用 LLM 进行语义判定（实际 LLM 调用率预计 < 10%）。
 """
 
 from __future__ import annotations

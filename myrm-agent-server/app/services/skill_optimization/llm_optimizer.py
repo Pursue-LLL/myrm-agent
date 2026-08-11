@@ -1,4 +1,15 @@
-"""LLM Optimizer with Retry Logic"""
+"""LLM Optimizer with Retry Logic
+
+[INPUT]
+- myrm_agent_harness.agent.skills.optimization::OptimizationConfig (POS: 优化配置)
+- app.core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
+
+[OUTPUT]
+- LLMOptimizer.optimize_skill_with_retry: 带重试的 LLM 技能优化
+
+[POS]
+Server 层技能优化器。封装 LLM 调用与重试逻辑，供技能优化流程使用。
+"""
 
 import asyncio
 import logging
