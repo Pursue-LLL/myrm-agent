@@ -20,6 +20,7 @@ import asyncio
 import logging
 import uuid
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
 from myrm_agent_harness.toolkits.kanban.types import TaskPriority, TaskStatus
 from sqlalchemy import select

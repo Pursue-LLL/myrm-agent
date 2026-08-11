@@ -10,6 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 `BatchDirectoryService` 与 `fetch_project_task_models` | — |
 | `service.py` | 核心 | 批次编排：`create_project`（建板+扇出任务）、`list_projects`/`get_project`（聚合）、`cancel_project`、`delete_project`、`dispatcher_event_hook`（Kanban 事件终态检测 → `maybe_finalize` → SystemNotification） | ✅ |
+| `_helpers.py` | 辅助 | 序列化/查询/路径校验助手：`_project_to_dict`、`_aggregate_statuses`、`_resolve_directory`、`fetch_project_task_models`、`_send_completion_notification`（从 service.py 拆出以维持 400 行预算） | ✅ |
 
 ## 领域职责
 
