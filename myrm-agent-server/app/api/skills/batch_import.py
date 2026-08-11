@@ -28,7 +28,6 @@ from myrm_agent_harness.backends.skills.scanning.archive_security import (
 
 from app.api.skills._deploy_capability import require_local_skills_capability
 from app.api.skills.batch_import_schemas import (
-    ConfirmImportItem,
     ConfirmImportRequest,
     ConfirmImportResponse,
     ImportPreviewResponse,

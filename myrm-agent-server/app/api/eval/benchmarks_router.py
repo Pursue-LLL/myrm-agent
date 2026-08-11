@@ -27,6 +27,7 @@ from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
 from app.core.eval.benchmarks import (
+    benchmark_needs_judge,
     benchmark_required_tools,
     is_known_benchmark,
     list_benchmark_sources,
@@ -42,21 +43,6 @@ from app.core.eval.service import (
 from app.core.eval.wb_bench import WB_BENCH_SUBSETS, list_wb_bench_sources
 
 router = APIRouter(tags=["eval"])
-
-
-def _benchmark_needs_judge(benchmark_id: str) -> bool:
-    """Return whether a benchmark is graded by an LLM judge.
-
-    WorkBuddy Bench subsets are scored by task-native test suites (no judge
-    LLM); registered third-party benchmarks declare their scoring strategy on
-    the spec (BrowseComp uses ``llm_judge``).
-    """
-    if benchmark_id.startswith("wb-bench-"):
-        return False
-    from myrm_agent_harness.eval import get_benchmark
-
-    spec = get_benchmark(benchmark_id)
-    return spec.scoring == "llm_judge" if spec else False
 
 
 @router.get("/benchmarks")
@@ -141,7 +127,7 @@ async def run_benchmark(
     # (API key/base URL), so a missing model config makes every task fail with
     # a misleading all-zero score. Fail fast with explicit guidance, mirroring
     # the web-search pre-flight above.
-    if _benchmark_needs_judge(request.benchmark_id):
+    if benchmark_needs_judge(request.benchmark_id):
         from app.core.eval.service import _resolve_judge_config
 
         judge, _judge_label = await _resolve_judge_config()

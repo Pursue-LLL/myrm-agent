@@ -16,7 +16,8 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 |------|------|------|-------|
 | `__init__.py` | 入口 | 触发子模块路由注册 | — |
 | `boards.py` | 路由 | Board CRUD、summary、board 级 events | ✅ |
-| `tasks.py` | 路由 | Task CRUD、move、promote、reclaim、approve/reject | ✅ |
+| `tasks.py` | 路由 | Task CRUD、move、promote、reclaim、approve/reject（列表查询见 `tasks_list.py`） | ✅ |
+| `tasks_list.py` | 路由 | `GET /boards/{board_id}/tasks`：列表查询 + stats/attachments/diagnostics DTO 富化装配 | ✅ |
 | `skill_ids.py` | 辅助 | `validate_extra_skill_ids`：任务技能 id 存在性校验（非法 400） | ✅ |
 | `bulk.py` | 路由 | `bulk-action`：move/archive/reassign/reclaim/delete | ✅ |
 | `task_meta.py` | 路由 | runs、events、comments、diagnostics、依赖边 | ✅ |
@@ -37,13 +38,19 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET/POST | `/boards/{board_id}/tasks` | GET 支持 `status_filter`、`agent_id`、`source_chat_id` query；POST body 可选 `metadata`（如 `source_chat_id`）、`model_override`（`provider/model`，经 `validate_model_override` 校验，非法 400）、`extra_skill_ids`（经 `_validate_extra_skill_ids` 校验，id 不在可发现技能集内 400；仅用户路径生效，decompose/pipeline 走 service 层不受影响） |
+| POST | `/boards/{board_id}/tasks` | POST body 可选 `metadata`（如 `source_chat_id`）、`model_override`（`provider/model`，经 `validate_model_override` 校验，非法 400）、`extra_skill_ids`（经 `_validate_extra_skill_ids` 校验，id 不在可发现技能集内 400；仅用户路径生效，decompose/pipeline 走 service 层不受影响） |
 | GET/PATCH/DELETE | `/tasks/{task_id}` | PATCH 支持 `result`/`metadata`/`require_approval` 等字段；`extra_skill_ids` 同样经 `_validate_extra_skill_ids` 校验；`require_approval` 仅活动状态（TRIAGE/BACKLOG/READY/RUNNING/BLOCKED）可改，IN_REVIEW 与终态返回 400（守卫在 `task_ops.update_task`） |
 | POST | `/tasks/{task_id}/move` | - |
 | POST | `/tasks/{task_id}/promote` | - |
 | POST | `/tasks/{task_id}/reclaim` | - |
 | POST | `/tasks/{task_id}/approve` | IN_REVIEW → COMPLETED（promote dependents；非 IN_REVIEW 幂等 200 返回当前状态） |
 | POST | `/tasks/{task_id}/reject` | IN_REVIEW → READY（reason 必填，回写 error，retry_count 重置；非 IN_REVIEW 幂等 200） |
+
+### `tasks_list.py`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/boards/{board_id}/tasks` | 支持 `status_filter`、`agent_id`、`source_chat_id`、`limit`、`offset` query；并发加载 task stats 与附件 ID，DTO 装配含附件元数据与诊断摘要 |
 
 ### `bulk.py`
 

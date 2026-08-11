@@ -100,7 +100,7 @@ async def run_memory_ab_evaluation(
     # search, a missing or unreachable search backend silently produces a
     # near-zero score on both arms — mirror the benchmark-run pre-flight so
     # the user gets explicit guidance instead of a misleading comparison.
-    from app.core.eval.benchmarks import benchmark_required_tools
+    from app.core.eval.benchmarks import benchmark_needs_judge, benchmark_required_tools
 
     if "web_search" in benchmark_required_tools(request.benchmark_id):
         from app.core.channel_bridge.config_loader import load_user_configs
@@ -137,8 +137,7 @@ async def run_memory_ab_evaluation(
     # A benchmark graded by an LLM judge needs a resolvable judge model (the
     # judge reuses the user's active model config). Without one every task in
     # both arms fails with a misleading all-zero comparison.
-    is_wb_bench_run = request.benchmark_id.startswith("wb-bench-")
-    if not is_wb_bench_run:
+    if benchmark_needs_judge(request.benchmark_id):
         from app.core.eval.service import _resolve_judge_config
 
         judge, _judge_label = await _resolve_judge_config()

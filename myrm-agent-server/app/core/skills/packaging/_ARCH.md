@@ -7,7 +7,7 @@
 
 Server 层技能打包 Facade：调用 PyPI `myrm-agent-harness` 的 `SkillPacker` / `SkillUnpacker` 与校验 API，对接业务 Workspace；导出前经 `content_sanitizer` 脱敏，支持两段式 Diff 预览与细粒度密钥剥离。
 
-导出时从 evolution SkillStore 读取 `SkillRecord.eval_cases` 序列化为包内 `evals.json`（自动脱敏），并同步 `SKILL.md` frontmatter `version` 为 lineage 真实版本；导入时剥离 `evals.json` 校验并还原到 evolution SkillStore，保证回归门禁跨实例迁移不丢失。
+导出时从 evolution SkillStore 读取 `SkillRecord.eval_cases` 序列化为包内 `evals.json`（自动脱敏），并同步 `SKILL.md` frontmatter `version` 为 lineage 真实版本；导入时剥离 `evals.json` 校验并还原到 evolution SkillStore，保证回归门禁跨实例迁移不丢失。`evals.json` 为包内保留名：导出侧跳过技能目录中同名手写文件，仅由快照逻辑生成；导入侧剥离所有层级的 `evals.json`，不写入技能存储目录。
 
 ---
 

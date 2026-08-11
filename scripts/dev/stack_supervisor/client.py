@@ -31,7 +31,7 @@ def _read_response(sock: socket.socket, timeout_sec: float = 600.0) -> RpcRespon
     while True:
         try:
             block = sock.recv(65536)
-        except socket.timeout:
+        except TimeoutError:
             break
         if not block:
             break
@@ -124,7 +124,7 @@ def supervisor_running(paths: StackPaths) -> bool:
         return False
     try:
         response = call_rpc(paths, "ping", timeout_sec=2.0)
-    except (OSError, json.JSONDecodeError, socket.timeout):
+    except (OSError, json.JSONDecodeError, TimeoutError):
         return False
     return response.ok
 

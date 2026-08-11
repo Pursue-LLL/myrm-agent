@@ -176,3 +176,16 @@ def benchmark_required_tools(benchmark_id: str) -> tuple[str, ...]:
         return ()
     spec = get_benchmark(benchmark_id)
     return spec.required_tools if spec else ()
+
+
+def benchmark_needs_judge(benchmark_id: str) -> bool:
+    """Return whether a benchmark is graded by an LLM judge.
+
+    WorkBuddy Bench subsets are scored by task-native test suites (no judge
+    LLM); registered third-party benchmarks declare their scoring strategy on
+    the spec (BrowseComp uses ``llm_judge``).
+    """
+    if benchmark_id.startswith(WB_BENCH_PREFIX):
+        return False
+    spec = get_benchmark(benchmark_id)
+    return spec.scoring == "llm_judge" if spec else False

@@ -2,9 +2,11 @@
 
 [INPUT]
 app.api.kanban.http_common::router/get_kanban_service (POS: Kanban API 共享路由与 DTO 装配)
+app.api.kanban.routes.tasks_list::list_tasks (POS: 任务列表查询端点)
+app.api.kanban.routes.skill_ids::validate_extra_skill_ids (POS: 任务技能 id 存在性校验)
 app.services.kanban::KanbanService (POS: Kanban 业务编排)
 app.services.kanban.task_attachment_ids::save_task_attachment_ids (POS: 任务附件 ID 持久化)
-app.api.kanban.routes.skill_ids::validate_extra_skill_ids (POS: 任务技能 id 存在性校验)
+app.core.skills.store.service::skills_service (POS: 技能全集查询，用于 extra_skill_ids 存在性校验)
 
 [OUTPUT]
 Task-domain REST endpoints under /api/v1/kanban/tasks and /boards/{board_id}/tasks.
@@ -15,9 +17,7 @@ Kanban Task 路由层。负责请求校验、错误映射和 service 调用装�
 
 from __future__ import annotations
 
-import asyncio
-
-from fastapi import HTTPException, Query
+from fastapi import HTTPException
 from myrm_agent_harness.toolkits.kanban.types import (
     BlockKind,
     TaskPriority,
@@ -25,36 +25,26 @@ from myrm_agent_harness.toolkits.kanban.types import (
 )
 
 from app.api.kanban.http_common import (
-    _batch_load_attachment_ids,
-    _resolve_attachments,
     _task_response_with_attachments,
-    diag_engine,
     get_kanban_service,
     router,
 )
-from app.api.kanban.routes.skill_ids import validate_extra_skill_ids
 from app.api.kanban.schemas import (
     ApproveTaskRequest,
-    AttachmentInfo,
-    DiagnosticSummaryResponse,
     PromoteRequest,
     PromoteResponse,
     ReclaimRequest,
     ReclaimResponse,
     RejectTaskRequest,
     TaskCreate,
-    TaskListResponse,
     TaskMoveRequest,
     TaskResponse,
     TaskUpdate,
 )
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.model_resolver import validate_model_override
+from app.core.skills.store.service import skills_service
 from app.services.kanban import DependencyUnmetError
-from app.services.kanban.diagnostics import (
-    CARD_FAST_RULES,
-    compute_diagnostics_summary,
-)
 from app.services.kanban.task_attachment_ids import save_task_attachment_ids as _save_task_attachment_ids
 
 # ---------------------------------------------------------------------------
@@ -62,93 +52,25 @@ from app.services.kanban.task_attachment_ids import save_task_attachment_ids as 
 # ---------------------------------------------------------------------------
 
 
-@router.get("/boards/{board_id}/tasks", response_model=TaskListResponse)
-async def list_tasks(
-    board_id: str,
-    status_filter: str | None = Query(None),
-    agent_id: str | None = Query(None),
-    source_chat_id: str | None = Query(None),
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
-) -> TaskListResponse:
-    svc = get_kanban_service()
-    status: TaskStatus | None = None
-    if status_filter:
-        try:
-            status = TaskStatus(status_filter)
-        except ValueError:
-            raise HTTPException(400, f"Invalid status: {status_filter}") from None
+async def _validate_extra_skill_ids(extra_skill_ids: list[str]) -> None:
+    """Reject task skill ids that do not exist in the discoverable skill set.
 
-    tasks = await svc.list_tasks(
-        board_id,
-        status=status,
-        agent_id=agent_id,
-        source_chat_id=source_chat_id,
-        limit=limit,
-        offset=offset,
-    )
-    task_ids = [t.task_id for t in tasks]
-    stats, att_map = await asyncio.gather(
-        svc.store.batch_task_stats(task_ids),
-        _batch_load_attachment_ids(task_ids),
-    )
-
-    all_file_ids = list({fid for ids in att_map.values() for fid in ids})
-    all_resolved = await _resolve_attachments(all_file_ids)
-    resolved_map: dict[str, AttachmentInfo] = {a.file_id: a for a in all_resolved}
-
-    items: list[TaskResponse] = []
-    for t in tasks:
-        att_ids = att_map.get(t.task_id, [])
-        attachments = [resolved_map[fid] for fid in att_ids if fid in resolved_map]
-        criteria = t.metadata.get("completion_criteria")
-        resp = TaskResponse(
-            task_id=t.task_id,
-            board_id=t.board_id,
-            title=t.title,
-            description=t.description,
-            status=t.status.value,
-            priority=t.priority.value,
-            agent_id=t.agent_id,
-            model_override=t.model_override,
-            parent_task_id=t.parent_task_id,
-            retry_count=t.retry_count,
-            max_retries=t.max_retries,
-            consecutive_failures=t.consecutive_failures,
-            blocked_reason=t.blocked_reason,
-            block_kind=t.block_kind.value if t.block_kind else None,
-            scheduled_until=t.scheduled_until,
-            progress_note=t.progress_note,
-            result=t.result,
-            error=t.error,
-            metadata=t.metadata,
-            extra_skill_ids=t.extra_skill_ids,
-            attachment_ids=att_ids,
-            attachments=attachments,
-            max_runtime_seconds=t.max_runtime_seconds,
-            goal_mode=t.goal_mode,
-            goal_max_turns=t.goal_max_turns,
-            require_approval=t.require_approval,
-            completion_criteria=criteria if isinstance(criteria, (str, list)) else None,
-            created_at=t.created_at,
-            updated_at=t.updated_at,
-            completed_at=t.completed_at,
+    User-facing guard on the create/update path only; decompose and pipeline
+    instantiation call the service layer directly and bypass this check.
+    """
+    if not extra_skill_ids:
+        return
+    skills = await skills_service.list_skills(skill_type=None)
+    known_ids = {skill.id for skill in skills}
+    unknown_ids = sorted({sid for sid in extra_skill_ids if sid not in known_ids})
+    if unknown_ids:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unknown skill id(s): {', '.join(unknown_ids)}. "
+                f"Available skills: {', '.join(sorted(known_ids)) or '(none)'}."
+            ),
         )
-        s = stats.get(t.task_id)
-        if s:
-            resp.dep_count = s.dep_count
-            resp.children_total = s.children_total
-            resp.children_done = s.children_done
-            resp.comment_count = s.comment_count
-        diags = diag_engine.evaluate(t, rule_ids=CARD_FAST_RULES)
-        summary = compute_diagnostics_summary(diags)
-        if summary.count > 0:
-            resp.diagnostics_summary = DiagnosticSummaryResponse(
-                count=summary.count,
-                max_severity=summary.max_severity,
-            )
-        items.append(resp)
-    return TaskListResponse(items=items, total=len(items))
 
 
 @router.post("/boards/{board_id}/tasks", response_model=TaskResponse, status_code=201)
@@ -182,7 +104,7 @@ async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
         model_override = body.model_override
 
     if body.extra_skill_ids:
-        await validate_extra_skill_ids(body.extra_skill_ids)
+        await _validate_extra_skill_ids(body.extra_skill_ids)
 
     try:
         task = await svc.add_task(
@@ -259,7 +181,7 @@ async def update_task(task_id: str, body: TaskUpdate) -> TaskResponse:
             kwargs["model_override"] = value or None
         if "extra_skill_ids" in body.model_fields_set:
             if body.extra_skill_ids:
-                await validate_extra_skill_ids(body.extra_skill_ids)
+                await _validate_extra_skill_ids(body.extra_skill_ids)
             kwargs["extra_skill_ids"] = body.extra_skill_ids
         if "max_runtime_seconds" in body.model_fields_set:
             kwargs["max_runtime_seconds"] = body.max_runtime_seconds

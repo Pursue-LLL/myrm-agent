@@ -142,7 +142,8 @@ class SkillPackagingService:
             is_safe = True
 
             for file_path in files:
-                if file_path == SKILL_METADATA_FILE:
+                if file_path == SKILL_METADATA_FILE or file_path == EVALS_FILE:
+                    # evals.json 为包内保留名，由下方快照逻辑生成，不作为普通技能文件打包
                     continue
                 content = await self._skills_svc.get_skill_file(skill_id, file_path)
                 if content:
@@ -258,12 +259,14 @@ class SkillPackagingService:
         files = dict(result.files)
         eval_cases: list[dict[str, object]] | None = None
         for key in list(files.keys()):
-            if is_evals_file(key):
-                raw = files.pop(key)
-                eval_cases = parse_evals_json(raw)
-                if eval_cases is None:
-                    logger.warning("Skill %s: ignoring invalid %s", info.name, key)
-                break
+            if not is_evals_file(key):
+                continue
+            raw = files.pop(key)
+            parsed = parse_evals_json(raw)
+            if parsed is None:
+                logger.warning("Skill %s: ignoring invalid %s", info.name, key)
+            elif eval_cases is None:
+                eval_cases = parsed
 
         if not force:
             existing_skills = await self._skills_svc.list_skills()
@@ -281,7 +284,7 @@ class SkillPackagingService:
             restored_eval_cases = 0
             if eval_cases:
                 restored_eval_cases = await self._restore_eval_cases(skill, files, eval_cases)
-            logger.warning(f"📦 Skill registered: {skill.id} ({info.name})")
+            logger.info("Skill registered: %s (%s)", skill.id, info.name)
             return UnpackResult(
                 success=True,
                 skill_id=skill.id,

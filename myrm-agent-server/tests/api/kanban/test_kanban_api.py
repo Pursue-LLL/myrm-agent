@@ -2179,10 +2179,10 @@ class TestTaskAttachments:
         _create_task(client, bid, "Parallel Task")
         svc = KanbanService.get_instance()
 
-        from app.api.kanban.routes import tasks as tasks_routes
+        from app.api.kanban.routes import tasks_list as tasks_list_routes
 
         original_batch_stats = svc.store.batch_task_stats
-        original_attachment_loader = tasks_routes._batch_load_attachment_ids
+        original_attachment_loader = tasks_list_routes._batch_load_attachment_ids
         timings: dict[str, float] = {}
 
         async def slow_batch_stats(task_ids: list[str]) -> dict[str, object]:
@@ -2202,7 +2202,7 @@ class TestTaskAttachments:
         with (
             patch.object(svc.store, "batch_task_stats", slow_batch_stats),
             patch(
-                "app.api.kanban.routes.tasks._batch_load_attachment_ids",
+                "app.api.kanban.routes.tasks_list._batch_load_attachment_ids",
                 slow_attachment_loader,
             ),
         ):

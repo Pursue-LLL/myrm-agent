@@ -283,6 +283,10 @@ def test_subagent_dashboard_stop_all_confirms_and_cancels(
             timeout_sec=5.0,
         )
         assert confirmed is True
+        diag_list = http_json(
+            "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
+        )
+        print(f"DIAG_LIST={json.dumps(diag_list, default=str)[:800]}")
         cancelled = wait_for_state(
             client,
             page,

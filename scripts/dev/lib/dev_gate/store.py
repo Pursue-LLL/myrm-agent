@@ -45,11 +45,19 @@ def _require_cleanup_sealed_for_success(row: sqlite3.Row) -> None:
 
 
 def _normalize_cleanup_receipt(receipt: CleanupReceipt) -> CleanupReceipt:
-    """Only observed seals are accepted; a sealed receipt without an observation
-    timestamp is synthetic (fake green) and is downgraded to fail-closed."""
+    """Accept a seal only when every cleanup observation is positive.
+
+    A terminal session must carry both ledger and physical-release evidence.
+    ``None`` is observability uncertainty, not success; allowing it to pass
+    would turn an incomplete cleanup receipt into a false green.
+    """
     if not receipt.sealed:
         return receipt
-    if receipt.observed_at <= 0.0:
+    if (
+        receipt.observed_at <= 0.0
+        or receipt.ledger_cleaned is not True
+        or receipt.physical_released is not True
+    ):
         return CleanupReceipt(
             closed_page_ids=receipt.closed_page_ids,
             closed_context_id=receipt.closed_context_id,

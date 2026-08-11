@@ -289,6 +289,7 @@ export default function BenchmarkSources({
                         }
                         disabled={running}
                         placeholder={t('sampleLimitPlaceholder')}
+                        aria-label={t('sampleLimitTitle')}
                         className="w-20 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
                         title={t('sampleLimitTitle')}
                       />

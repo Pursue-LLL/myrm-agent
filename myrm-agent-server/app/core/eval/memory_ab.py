@@ -134,6 +134,7 @@ async def run_memory_ab_background(
 
     try:
         from app.core.eval.benchmarks import (
+            benchmark_needs_judge,
             benchmark_required_tools,
             build_benchmark_cases,
         )
@@ -158,9 +159,8 @@ async def run_memory_ab_background(
         # Only LLM-judge benchmarks need the caller's judge credentials; for
         # native-scored suites (e.g. WorkBuddy Bench) the judge is never
         # invoked, so skip the config resolution entirely.
-
         judge_config = None
-        if not benchmark_id.startswith("wb-bench-"):
+        if benchmark_needs_judge(benchmark_id):
             from app.core.eval.service import _resolve_judge_config
 
             judge_config, _judge_label = await _resolve_judge_config()

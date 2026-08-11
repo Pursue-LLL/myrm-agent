@@ -20,6 +20,7 @@ from myrm_agent_harness.backends.profiles.types import AgentProfile, CommandBind
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.ai_agents.personality_templates import DEFAULT_PERSONALITY_STYLE
 from app.core.memory.adapters.policy import (
@@ -518,7 +519,6 @@ class AgentRepository:
             # Optimistic locking handles the version increment automatically
             # We just need to flush to get the new version number
             from fastapi import HTTPException
-            from sqlalchemy.orm.exc import StaleDataError
 
             try:
                 await db.flush()
