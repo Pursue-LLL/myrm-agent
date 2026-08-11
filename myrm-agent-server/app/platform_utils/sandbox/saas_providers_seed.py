@@ -59,11 +59,20 @@ async def seed_saas_platform_providers_if_needed() -> None:
     if record is not None and isinstance(record.value, dict):
         existing_value = dict(record.value)
 
+    existing_providers = existing_value.get("providers")
+    if isinstance(existing_providers, list) and existing_providers:
+        logger.info(
+            "SaaS platform provider seed skipped: %d provider(s) already configured",
+            len(existing_providers),
+        )
+        return
+
     default_cfg = existing_value.get("defaultModelConfig")
     if isinstance(default_cfg, dict):
         base = default_cfg.get("baseModel")
         if isinstance(base, dict) and isinstance(base.get("primary"), dict):
             if base["primary"].get("model"):
+                logger.info("SaaS platform provider seed skipped: default model already set")
                 return
 
     selection = {"providerId": _PLATFORM_PROVIDER_ID, "model": model_id}
