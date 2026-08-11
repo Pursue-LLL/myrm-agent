@@ -4270,7 +4270,9 @@
         "loginLinkHint": "將連結分享給團隊成員，他們即可使用企業身分提供方登入。",
         "loginLinkCopied": "登入連結已複製到剪貼簿",
         "loginLinkCopyFailed": "複製登入連結失敗",
-        "copyLink": "複製"
+        "copyLink": "複製",
+        "groupsHintDomain": "未設定群組過濾。自動加入僅限 {domain} 郵箱域使用者。",
+        "autoProvisionHintDomain": "首次 SSO 登入後自動新增成員；僅 {domain} 郵箱域的使用者符合條件。"
       }
     },
     "system": {

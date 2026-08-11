@@ -414,6 +414,7 @@ async function submitAndObserveTurn(
   baselineUsers: number,
   profile: SendTurnProfile,
   preserveActionMode = false,
+  ephemeralSubagents?: Record<string, unknown>,
 ): Promise<E2eSubmitResult> {
   const trimmed = message.trim();
   if (!trimmed) {
@@ -524,6 +525,23 @@ async function submitAndObserveTurn(
       prepareAutomationSend();
     }
     useToolApprovalStore.getState().clearAll();
+    if (ephemeralSubagents && Object.keys(ephemeralSubagents).length > 0) {
+      const ephDeadline = Date.now() + 20_000;
+      while (Date.now() < ephDeadline) {
+        const current = useChatStore.getState().agentConfig;
+        if (current) {
+          useChatStore.setState({
+            agentConfig: { ...current, ephemeralSubagents } as AgentConfig,
+          });
+          window.__MYRM_E2E_EPH_APPLIED__ = {
+            keys: Object.keys(ephemeralSubagents),
+            at: Date.now(),
+          };
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
     const { actionMode, agentConfig } = useChatStore.getState();
     if (!getModelSelection(actionMode, agentConfig)) {
       return {
@@ -630,6 +648,10 @@ async function submitAndObserveTurn(
       const liveOk = apiOk && uiProgress;
       const readOk = apiOk && uiProgress;
       if ((profile === 'live' && liveOk) || (profile === 'read' && readOk)) {
+        const sealedAgentConfig = useChatStore.getState().agentConfig;
+        const ephKeys = sealedAgentConfig?.ephemeralSubagents
+          ? Object.keys(sealedAgentConfig.ephemeralSubagents)
+          : [];
         return {
           ok: true,
           chatId,
@@ -644,6 +666,7 @@ async function submitAndObserveTurn(
             streaming,
             baselineUsers,
             chatIdBeforeSend: chatIdBeforeSend !== chatId ? chatIdBeforeSend : undefined,
+            ephKeys,
           },
         };
       }
@@ -957,6 +980,7 @@ export default function E2EChatBridge() {
           waitForStreamCompletion?: boolean;
           preserveActionMode?: boolean;
           profile?: SendTurnProfile;
+          ephemeralSubagents?: Record<string, unknown>;
         },
       ): Promise<E2eSubmitResult> => {
         const baselineUsers =
@@ -964,7 +988,13 @@ export default function E2EChatBridge() {
             ? opts.baselineUserCount
             : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
         const profile = opts?.profile === 'read' ? 'read' : 'live';
-        const result = await submitAndObserveTurn(text, baselineUsers, profile, opts?.preserveActionMode === true);
+        const result = await submitAndObserveTurn(
+          text,
+          baselineUsers,
+          profile,
+          opts?.preserveActionMode === true,
+          opts?.ephemeralSubagents,
+        );
         window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
         return result;
       },
@@ -991,6 +1021,7 @@ export default function E2EChatBridge() {
           baselineUserCount?: number;
           preserveActionMode?: boolean;
           profile?: SendTurnProfile;
+          ephemeralSubagents?: Record<string, unknown>;
         },
       ): Promise<E2eSubmitResult> => {
         const baselineUsers =
@@ -998,7 +1029,13 @@ export default function E2EChatBridge() {
             ? opts.baselineUserCount
             : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
         const profile = opts?.profile === 'read' ? 'read' : 'live';
-        const result = await submitAndObserveTurn(text, baselineUsers, profile, opts?.preserveActionMode === true);
+        const result = await submitAndObserveTurn(
+          text,
+          baselineUsers,
+          profile,
+          opts?.preserveActionMode === true,
+          opts?.ephemeralSubagents,
+        );
         window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
         return result;
       },
@@ -1173,6 +1210,14 @@ export default function E2EChatBridge() {
           acceptanceCount: state.goalAcceptanceCriteria?.length ?? 0,
           constraintsCount: state.goalConstraints?.length ?? 0,
           draftButtonDisabled: !state.inputMessage.trim(),
+        };
+      },
+      ephSubagentsStatus: () => {
+        const ac = useChatStore.getState().agentConfig;
+        return {
+          hasConfig: Boolean(ac),
+          ephKeys: ac?.ephemeralSubagents ? Object.keys(ac.ephemeralSubagents) : [],
+          applied: window.__MYRM_E2E_EPH_APPLIED__ ?? null,
         };
       },
       runGoalDraftFromComposer: async () => {

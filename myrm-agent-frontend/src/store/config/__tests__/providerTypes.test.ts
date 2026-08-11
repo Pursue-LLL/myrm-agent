@@ -47,9 +47,9 @@ describe('SaaS platform provider seed auth contract', () => {
   const seededPlatformProvider = {
     id: 'platform-openrouter',
     name: 'Platform OpenRouter',
-    providerType: 'openrouter',
+    providerType: 'openai-like' as const,
     isEnabled: true,
-    apiKeys: [{ key: 'platform-managed', isActive: true }],
+    apiKeys: [{ id: 'platform-managed', key: 'platform-managed', remark: '', isActive: true }],
     apiUrl: 'https://example.test/llm-relay/v1',
     enabledModels: ['anthropic/claude-sonnet-4'],
   };

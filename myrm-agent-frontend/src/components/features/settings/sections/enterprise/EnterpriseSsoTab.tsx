@@ -50,6 +50,7 @@ const EnterpriseSsoTab = memo(() => {
   );
 
   const [orgId, setOrgId] = useState('');
+  const [orgSsoDomain, setOrgSsoDomain] = useState('');
   const [config, setConfig] = useState<OrgOidcConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -60,6 +61,11 @@ const EnterpriseSsoTab = memo(() => {
   const [autoProvision, setAutoProvision] = useState(true);
   const [enabled, setEnabled] = useState(true);
   const [allowedGroups, setAllowedGroups] = useState('');
+
+  const hasGroupWhitelist = parseGroups(allowedGroups) !== undefined;
+  // Backend admission gates: group whitelist OR sso_domain match. The domain
+  // gate only applies when no whitelist is set, so surface it accordingly.
+  const domainRestricted = orgSsoDomain !== '' && !hasGroupWhitelist;
 
   const cpBaseUrl = resolveCpBaseUrl();
   const loginLink = useMemo(
@@ -75,6 +81,7 @@ const EnterpriseSsoTab = memo(() => {
       setLoading(true);
       const org = await getMyOrg();
       setOrgId(org.id);
+      setOrgSsoDomain(org.sso_domain ?? '');
       const [sso, memberRows] = await Promise.all([
         getOrgSsoConfig(org.id),
         listMembers(org.id),
@@ -232,13 +239,21 @@ const EnterpriseSsoTab = memo(() => {
               onChange={(e) => setAllowedGroups(e.target.value)}
               placeholder="engineering, finance"
             />
-            <p className="text-xs text-muted-foreground">{t('groupsHint')}</p>
+            <p className="text-xs text-muted-foreground">
+              {domainRestricted
+                ? t('groupsHintDomain', { domain: orgSsoDomain })
+                : t('groupsHint')}
+            </p>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-border/40 px-4 py-3">
             <div>
               <p className="text-sm font-medium">{t('autoProvisionLabel')}</p>
-              <p className="text-xs text-muted-foreground">{t('autoProvisionHint')}</p>
+              <p className="text-xs text-muted-foreground">
+                {domainRestricted
+                  ? t('autoProvisionHintDomain', { domain: orgSsoDomain })
+                  : t('autoProvisionHint')}
+              </p>
             </div>
             <Switch checked={autoProvision} onCheckedChange={setAutoProvision} />
           </div>
@@ -265,7 +280,7 @@ const EnterpriseSsoTab = memo(() => {
           )}
         </div>
 
-        {config !== null && loginLink && (
+        {config !== null && config.enabled && loginLink && (
           <div className="space-y-2 rounded-lg bg-muted/50 border border-border/40 p-4">
             <div className="flex items-center gap-2">
               <Link2 className="h-4 w-4 text-muted-foreground" />

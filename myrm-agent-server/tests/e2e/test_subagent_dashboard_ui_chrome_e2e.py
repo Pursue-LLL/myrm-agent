@@ -50,6 +50,15 @@ _DELEGATE_QUERY = (
     "绝对不要在文本中输出 XML 格式的工具调用！"
 )
 
+# 与 scripts/dev/subagent-dashboard-e2e-prepare.mjs 的 E2E_BASH_EPHEMERAL 保持一致：
+# 模拟用户在 WebUI 配置面板中启用了一个 bash 执行 worker 类型的 JIT 子智能体。
+_E2E_BASH_EPHEMERAL = {
+    "bash_worker": {
+        "system_prompt": "You are a bash execution worker.",
+        "tools": ["bash_code_execute_tool"],
+    }
+}
+
 
 @pytest.fixture
 def light_chat(e2e_resource_ledger: E2EResourceLedger) -> Iterator[dict[str, object]]:
@@ -776,6 +785,7 @@ def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel() -> None:
               try {{
                 const result = await bridge.sendChatMessage({json.dumps(_DELEGATE_QUERY)}, {{
                   waitForStreamCompletion: false,
+                  ephemeralSubagents: {json.dumps(_E2E_BASH_EPHEMERAL)},
                 }});
                 return {{
                   ready: result.ok === true,
@@ -793,6 +803,15 @@ def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel() -> None:
         assert sent.get("ready") is True, f"Front-end send failed: {sent}"
         chat_id = str(sent.get("chatId") or "")
         assert chat_id, f"sendChatMessage did not return a chatId: {sent}"
+
+        eph_status = client.evaluate(
+            page,
+            """(() => {
+              const status = window.__MYRM_E2E_CHAT__?.ephSubagentsStatus?.();
+              return status ?? { hasConfig: null, ephKeys: null, applied: null };
+            })()""",
+            timeout_sec=10.0,
+        )
 
         task_id: str | None = None
         deadline = time.monotonic() + 300.0
@@ -813,7 +832,10 @@ def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel() -> None:
                     task_id = str(running[0].get("task_id") or "")
                     break
             time.sleep(2.0)
-        assert task_id, f"No running subagent after front-end send: {last_payload!r}"
+        assert task_id, (
+            f"No running subagent after front-end send: {last_payload!r} "
+            f"sent={sent!r} eph_status={eph_status!r} sent_eph_keys={(sent.get('debug') or {}).get('ephKeys')!r}"
+        )
 
         ui_url = f"{ui_base}/{chat_id}"
         with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):

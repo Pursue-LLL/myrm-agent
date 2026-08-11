@@ -130,9 +130,42 @@ async def _window_for_target(
     return window_id if isinstance(window_id, int) else None
 
 
+def _default_context_page_targets(targets: object) -> list[dict[str, object]]:
+    """Filter CDP ``Target.getTargets`` data to Chrome's default context.
+
+    Browser Orchestrator puts each test session in a dedicated context. AOS is
+    persistent, so adopting one of those pages would steal peer ownership and
+    keep its context alive after the session seals. The HTTP ``/json/list``
+    endpoint omits ``browserContextId``; callers must pass browser-level CDP
+    ``Target.getTargets`` data so this ownership boundary is authoritative.
+    """
+    if not isinstance(targets, list):
+        return []
+    result: list[dict[str, object]] = []
+    for entry in targets:
+        if not isinstance(entry, dict) or entry.get("type") != "page":
+            continue
+        context_id = entry.get("browserContextId")
+        if isinstance(context_id, str) and context_id.strip():
+            continue
+        result.append(entry)
+    return result
+
+
+async def _list_default_context_page_targets(
+    ws: CdpSocket, *, msg_id: int, deadline: float
+) -> list[dict[str, object]]:
+    result = await _cdp_request(
+        ws,
+        msg_id,
+        "Target.getTargets",
+        deadline=deadline,
+    )
+    return _default_context_page_targets(result.get("targetInfos"))
+
+
 async def _adopt_live_anchor(
     ws: CdpSocket,
-    cdp_port: int,
     *,
     deadline: float,
 ) -> tuple[str, int]:
@@ -143,18 +176,16 @@ async def _adopt_live_anchor(
     page window — the same window `_park_all_page_windows_offscreen` parks —
     gives us a stable, addressable anchor that stays valid between ensure runs.
     """
-    targets = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/list", timeout=5.0)
-    if isinstance(targets, list):
-        for entry in targets:
-            if not isinstance(entry, dict) or entry.get("type") != "page":
-                continue
-            target_id = entry.get("id")
-            if not isinstance(target_id, str) or not target_id:
-                continue
-            window_id = await _window_for_target(ws, 5, target_id, deadline=deadline)
-            if isinstance(window_id, int):
-                await _park_window_offscreen(ws, 6, window_id, deadline=deadline)
-                return target_id, window_id
+    for entry in await _list_default_context_page_targets(
+        ws, msg_id=4, deadline=deadline
+    ):
+        target_id = entry.get("targetId")
+        if not isinstance(target_id, str) or not target_id:
+            continue
+        window_id = await _window_for_target(ws, 5, target_id, deadline=deadline)
+        if isinstance(window_id, int):
+            await _park_window_offscreen(ws, 6, window_id, deadline=deadline)
+            return target_id, window_id
     # No live page yet — fall back to creating a dedicated blank window.
     return await _create_agent_window(ws, deadline=deadline)
 
@@ -187,19 +218,15 @@ async def _create_agent_window(ws: CdpSocket, *, deadline: float) -> tuple[str, 
 
 
 async def _park_all_page_windows_offscreen(
-    ws: CdpSocket, cdp_port: int, *, deadline: float
+    ws: CdpSocket, *, deadline: float
 ) -> None:
-    targets = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/list", timeout=5.0)
-    if not isinstance(targets, list):
-        return
+    targets = await _list_default_context_page_targets(
+        ws, msg_id=9, deadline=deadline
+    )
     msg_id = 10
     seen: set[int] = set()
     for entry in targets:
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("type") != "page":
-            continue
-        target_id = entry.get("id")
+        target_id = entry.get("targetId")
         if not isinstance(target_id, str) or not target_id:
             continue
         try:
@@ -249,7 +276,13 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
                 current = await _window_for_target(
                     ws, 1, anchor_target, deadline=deadline
                 )
-                valid = current == window_id
+                default_targets = await _list_default_context_page_targets(
+                    ws, msg_id=2, deadline=deadline
+                )
+                valid = current == window_id and any(
+                    entry.get("targetId") == anchor_target
+                    for entry in default_targets
+                )
             except (TimeoutError, RuntimeError, asyncio.TimeoutError):
                 valid = False
 
@@ -258,7 +291,7 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
             # one: Target.createTarget(newWindow=true) targets are recycled by
             # Chrome and their windowId is not reliably addressable (§26.25).
             anchor_target, window_id = await _adopt_live_anchor(
-                ws, cdp_port, deadline=deadline
+                ws, deadline=deadline
             )
             registry = {
                 "windowId": window_id,
@@ -273,7 +306,7 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
                 # anchor window was closed since the registry was written —
                 # adopt a live window so the offscreen surface stays intact.
                 anchor_target, window_id = await _adopt_live_anchor(
-                    ws, cdp_port, deadline=deadline
+                    ws, deadline=deadline
                 )
                 registry = {
                     "windowId": window_id,
@@ -282,7 +315,7 @@ async def ensure_agent_surface(*, cdp_port: int) -> dict[str, object]:
                 }
                 _save_registry(registry)
 
-        await _park_all_page_windows_offscreen(ws, cdp_port, deadline=deadline)
+        await _park_all_page_windows_offscreen(ws, deadline=deadline)
 
     return registry
 

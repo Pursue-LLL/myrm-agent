@@ -4270,7 +4270,9 @@
         "loginLinkHint": "このリンクをチームメンバーと共有すると、会社の ID プロバイダーでサインインできます。",
         "loginLinkCopied": "サインインリンクをクリップボードにコピーしました",
         "loginLinkCopyFailed": "サインインリンクのコピーに失敗しました",
-        "copyLink": "コピー"
+        "copyLink": "コピー",
+        "groupsHintDomain": "グループフィルターは未設定です。自動参加は {domain} メールドメインのユーザーのみに制限されます。",
+        "autoProvisionHintDomain": "初回の SSO ログイン後にメンバーを自動追加します。{domain} メールドメインのユーザーのみ対象です。"
       }
     },
     "system": {

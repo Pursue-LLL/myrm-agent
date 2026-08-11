@@ -4574,7 +4574,9 @@
         "loginLinkHint": "Share this link with team members so they can sign in with your corporate identity provider.",
         "loginLinkCopied": "Sign-in link copied to clipboard",
         "loginLinkCopyFailed": "Failed to copy sign-in link",
-        "copyLink": "Copy"
+        "copyLink": "Copy",
+        "groupsHintDomain": "No group filter is set. Auto-join is restricted to the {domain} email domain.",
+        "autoProvisionHintDomain": "Automatically add members after their first SSO login. Only users from the {domain} email domain are eligible."
       }
     },
     "system": {

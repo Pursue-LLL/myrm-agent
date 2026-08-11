@@ -4574,7 +4574,9 @@
         "loginLinkHint": "将链接分享给团队成员，他们即可使用企业身份提供方登录。",
         "loginLinkCopied": "登录链接已复制到剪贴板",
         "loginLinkCopyFailed": "复制登录链接失败",
-        "copyLink": "复制"
+        "copyLink": "复制",
+        "groupsHintDomain": "未设置组过滤。自动加入仅限 {domain} 邮箱域用户。",
+        "autoProvisionHintDomain": "首次 SSO 登录后自动添加成员；仅 {domain} 邮箱域的用户符合条件。"
       }
     },
     "system": {

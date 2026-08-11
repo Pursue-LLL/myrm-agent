@@ -5624,7 +5624,9 @@
         "loginLinkHint": "Teilen Sie diesen Link mit Teammitgliedern, damit diese sich mit Ihrem Unternehmens-Identitätsanbieter anmelden können.",
         "loginLinkCopied": "Anmeldelink in die Zwischenablage kopiert",
         "loginLinkCopyFailed": "Kopieren des Anmeldelinks fehlgeschlagen",
-        "copyLink": "Kopieren"
+        "copyLink": "Kopieren",
+        "groupsHintDomain": "Kein Gruppenfilter festgelegt. Die automatische Aufnahme ist auf die E-Mail-Domain {domain} beschränkt.",
+        "autoProvisionHintDomain": "Mitglieder werden nach ihrer ersten SSO-Anmeldung automatisch hinzugefügt. Nur Benutzer der E-Mail-Domain {domain} sind berechtigt."
       }
     },
     "push": {

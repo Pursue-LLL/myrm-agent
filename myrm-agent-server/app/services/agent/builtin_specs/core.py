@@ -141,6 +141,7 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         system_prompt=KNOWLEDGE_WORK_SYSTEM_PROMPT,
         enabled_builtin_tools=_TOOL_COWORK,
         memory_extraction_preset="work_assistant",
+        default_skill_ids=("evidence-discipline",),
         suggestion_prompts=(
             "Summarize this article into a structured markdown brief",
             "Extract action items from my meeting notes and add them to the task board",

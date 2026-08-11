@@ -632,6 +632,7 @@ class TestResolveForcePushAgentId:
 class TestEndpointBranches:
     @pytest.mark.asyncio
     async def test_non_force_import_installs(
+        self,
         app: FastAPI,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -661,6 +662,7 @@ class TestEndpointBranches:
 
     @pytest.mark.asyncio
     async def test_import_failure_returns_500(
+        self,
         app: FastAPI,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -689,6 +691,7 @@ class TestEndpointBranches:
 
     @pytest.mark.asyncio
     async def test_empty_marketplace_entry_id_returns_400(
+        self,
         app: FastAPI,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:

@@ -59,12 +59,17 @@ function mockFetchRoutes(routes: Route[]) {
   });
 }
 
-function orgRoutes(withConfig = true, memberRole = 'owner'): Route[] {
+function orgRoutes(
+  withConfig = true,
+  memberRole = 'owner',
+  ssoDomain: string | null = null,
+  allowedGroups: string[] = ['engineering', 'finance'],
+): Route[] {
   return [
     {
       method: 'GET',
       url: '/api/enterprise/org/me',
-      body: { id: 'org-1', name: 'Acme', owner_user_id: 'owner-1', sso_domain: null, archive_retention_days: 30 },
+      body: { id: 'org-1', name: 'Acme', owner_user_id: 'owner-1', sso_domain: ssoDomain, archive_retention_days: 30 },
     },
     {
       method: 'GET',
@@ -77,7 +82,7 @@ function orgRoutes(withConfig = true, memberRole = 'owner'): Route[] {
             client_id: 'myrm-client',
             client_secret_masked: 'abc12345',
             auto_provision: true,
-            allowed_groups: ['engineering', 'finance'],
+            allowed_groups: allowedGroups,
             enabled: true,
             updated_at: 1,
           }
@@ -107,6 +112,27 @@ describe('EnterpriseSsoTab', () => {
     expect(screen.getByLabelText('issuerLabel')).toHaveValue('https://login.acme.com');
     expect(screen.getByLabelText('clientIdLabel')).toHaveValue('myrm-client');
     expect(screen.getByLabelText('groupsLabel')).toHaveValue('engineering, finance');
+    expect(screen.getByText('groupsHint')).toBeInTheDocument();
+  });
+
+  it('shows domain-restricted hints only when no group whitelist is set', async () => {
+    vi.stubGlobal('fetch', mockFetchRoutes(orgRoutes(true, 'owner', 'acme.com', [])));
+    render(<EnterpriseSsoTab />);
+
+    await waitFor(() => {
+      expect(screen.getByText('groupsHintDomain')).toBeInTheDocument();
+    });
+    expect(screen.getByText('autoProvisionHintDomain')).toBeInTheDocument();
+  });
+
+  it('keeps group-whitelist hints when groups are set even with an sso_domain', async () => {
+    vi.stubGlobal('fetch', mockFetchRoutes(orgRoutes(true, 'owner', 'acme.com', ['engineering'])));
+    render(<EnterpriseSsoTab />);
+
+    await waitFor(() => {
+      expect(screen.getByText('groupsHint')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('groupsHintDomain')).not.toBeInTheDocument();
   });
 
   it('shows the sign-in link when SSO is configured and enabled', async () => {
