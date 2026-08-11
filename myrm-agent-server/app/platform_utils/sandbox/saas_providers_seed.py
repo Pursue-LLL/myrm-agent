@@ -1,16 +1,16 @@
 """Seed SaaS sandbox WebUI providers with platform lite model when unset.
 
 [INPUT]
-- os.environ (POS: Read LITE_MODEL and PLATFORM_OPENROUTER_KEY from environment)
-- Database connection via SQLAlchemy (POS: Read/write provider config)
+- os.environ (POS: 读取 MYRM_SAAS_DEFAULT_LITE_MODEL 与 CP_PUBLIC_INGRESS_URL)
+- app.services.config.service::ConfigService (POS: 用户配置读写服务，管理 providers 等配置的存储与同步)
 
 [OUTPUT]
-- seed_providers_if_needed(): idempotent seeding of platform model provider
+- seed_saas_platform_providers_if_needed(): 沙箱启动时幂等 seed 平台 lite model provider
+- _parse_lite_model_ref(): 解析 ``openrouter/provider/model`` 模型引用
 
 [POS]
-When a new SaaS sandbox starts, the WebUI has no model providers configured.
-This module seeds a platform-managed OpenRouter provider so users can chat
-immediately without manual configuration.
+当新 SaaS 沙箱启动且 WebUI 尚未配置任何 model provider 时，写入一个平台托管的
+OpenRouter provider，使用户无需手动配置即可立即对话。
 """
 
 from __future__ import annotations

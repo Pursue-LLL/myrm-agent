@@ -11,7 +11,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from types import SimpleNamespace
+from typing import Mapping, cast
 
 import pytest
 
@@ -31,7 +33,7 @@ class _FakeConfigService:
 
     def __init__(self, record: object | None) -> None:
         self._record = record
-        self.set_calls: list[tuple[str, object, str, object | None]] = []
+        self.set_calls: list[tuple[str, dict[str, object], str, str | None]] = []
 
     async def get(self, config_key: str) -> object | None:
         return self._record
@@ -47,7 +49,7 @@ class _FakeConfigService:
         return None
 
 
-def _record(value: dict[str, object], version: str = "1_0") -> SimpleNamespace:
+def _record(value: Mapping[str, object], version: str = "1_0") -> SimpleNamespace:
     return SimpleNamespace(value=value, version=version)
 
 
@@ -59,7 +61,7 @@ def _patch_service(monkeypatch: pytest.MonkeyPatch, fake: _FakeConfigService) ->
 
 
 @pytest.fixture
-def sandbox_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def sandbox_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """进入 sandbox 模式并注入 seed 所需环境变量，退出时恢复缓存。"""
     monkeypatch.setenv("DEPLOY_MODE", "sandbox")
     monkeypatch.setenv("MYRM_SAAS_DEFAULT_LITE_MODEL", _LITE_MODEL)
@@ -102,15 +104,29 @@ class TestSeedFreshSandbox:
         key, value, device_id, _expected_version = fake.set_calls[0]
         assert key == "providers"
         assert device_id == "saas-platform-seed"
-        providers = value["providers"]
-        assert isinstance(providers, list)
+        providers = cast(list[dict[str, object]], value["providers"])
         assert providers[0]["id"] == _PLATFORM_PROVIDER_ID
         assert providers[0]["isEnabled"] is True
-        default_cfg = value["defaultModelConfig"]
-        assert default_cfg["baseModel"]["primary"] == {
+        default_cfg = cast(dict[str, object], value["defaultModelConfig"])
+        base_cfg = cast(dict[str, object], default_cfg["baseModel"])
+        primary_cfg = cast(dict[str, object], base_cfg["primary"])
+        assert primary_cfg == {
             "providerId": _PLATFORM_PROVIDER_ID,
             "model": "anthropic/claude-sonnet-4",
         }
+
+    async def test_seeds_when_record_value_is_not_dict(
+        self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """record 存在但 value 非 dict（异常数据）时按全新沙箱处理 seed。"""
+        fake = _FakeConfigService(record=SimpleNamespace(value="corrupted", version="9_0"))
+        _patch_service(monkeypatch, fake)
+
+        await seed_saas_platform_providers_if_needed()
+
+        assert len(fake.set_calls) == 1
+        _key, _value, _device_id, expected_version = fake.set_calls[0]
+        assert expected_version == "9_0"
 
     async def test_seeds_when_providers_is_empty_list(
         self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch
