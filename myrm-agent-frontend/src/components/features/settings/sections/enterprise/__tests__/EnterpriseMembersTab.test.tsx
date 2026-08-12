@@ -21,13 +21,14 @@ vi.mock('@/lib/api', () => ({
   getApiUrl: (path: string) => path,
 }));
 
-vi.mock('@/store/useAuthStore', () => {
-  const mockState = { user: { id: 'owner-1' } };
-  return {
-    default: (selector?: (s: { user: { id: string } | null }) => unknown) =>
-      selector ? selector(mockState) : mockState,
-  };
-});
+const { authUserState } = vi.hoisted(() => ({
+  authUserState: { user: { id: 'owner-1' } as { id: string } | null },
+}));
+
+vi.mock('@/store/useAuthStore', () => ({
+  default: (selector?: (s: { user: { id: string } | null }) => unknown) =>
+    selector ? selector(authUserState) : authUserState,
+}));
 
 vi.mock('../OrgMcpAdminPanel', () => ({
   default: () => <div data-testid="org-mcp-panel" />,
@@ -123,6 +124,7 @@ const ADMIN_MEMBERS: MemberInput[] = [
 
 beforeEach(() => {
   mockToast.mockClear();
+  authUserState.user = { id: 'owner-1' };
   vi.stubGlobal('fetch', vi.fn());
 });
 
@@ -192,7 +194,9 @@ describe('EnterpriseMembersTab', () => {
     await userEvent.click(screen.getByText('offboardUser'));
     const confirmBtn = screen.getByText('confirmOffboard') as HTMLButtonElement;
     expect(confirmBtn.disabled).toBe(true);
-    await userEvent.selectOptions(screen.getByDisplayValue('selectMember'), 'member-2');
+
+    await userEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: 'member-2@acme.com' }));
     expect(confirmBtn.disabled).toBe(false);
     await userEvent.click(confirmBtn);
 
@@ -215,16 +219,24 @@ describe('EnterpriseMembersTab', () => {
     });
 
     await userEvent.click(screen.getByText('transferVolume'));
-    const dropdowns = screen.getAllByDisplayValue('selectMember');
+    let dropdowns = screen.getAllByRole('combobox');
     expect(dropdowns).toHaveLength(2);
     const confirmBtn = screen.getByText('confirmTransfer') as HTMLButtonElement;
     expect(confirmBtn.disabled).toBe(true);
+
     // source 只含可 offboard 成员（非 owner）；target 含全部成员（可转给 owner）
-    await userEvent.selectOptions(dropdowns[0], 'member-2');
+    await userEvent.click(dropdowns[0]);
+    await userEvent.click(await screen.findByRole('option', { name: 'member-2@acme.com' }));
     expect(confirmBtn.disabled).toBe(true); // 目标未选仍禁用
-    await userEvent.selectOptions(dropdowns[1], 'member-2');
+
+    dropdowns = screen.getAllByRole('combobox');
+    await userEvent.click(dropdowns[1]);
+    await userEvent.click(await screen.findByRole('option', { name: 'member-2@acme.com' }));
     expect(confirmBtn.disabled).toBe(true); // 自转（source==target）禁用
-    await userEvent.selectOptions(dropdowns[1], 'owner-1');
+
+    dropdowns = screen.getAllByRole('combobox');
+    await userEvent.click(dropdowns[1]);
+    await userEvent.click(await screen.findByRole('option', { name: 'owner-1@acme.com' }));
     expect(confirmBtn.disabled).toBe(false);
     await userEvent.click(confirmBtn);
 
@@ -238,5 +250,46 @@ describe('EnterpriseMembersTab', () => {
         body: expect.stringContaining('"target_user_id":"owner-1"'),
       }),
     );
+  });
+
+  it('removes a member only after confirmation', async () => {
+    const fetchMock = mockFetchRoutes(membersRoutes(ADMIN_MEMBERS));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<EnterpriseMembersTab />);
+    await waitFor(() => {
+      expect(screen.getAllByTitle('removeMember')).toHaveLength(1);
+    });
+
+    await userEvent.click(screen.getAllByTitle('removeMember')[0]);
+    expect(screen.getByText('removeMemberDesc')).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/enterprise/org/org-1/members/member-2'),
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+
+    await userEvent.click(screen.getByText('confirmRemove'));
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith('success', 'memberRemoved');
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/enterprise/org/org-1/members/member-2'),
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('hides management actions for non-admin members', async () => {
+    vi.stubGlobal('fetch', mockFetchRoutes(membersRoutes(ADMIN_MEMBERS)));
+    authUserState.user = { id: 'member-2' };
+    render(<EnterpriseMembersTab />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/^members/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText('addMember')).not.toBeInTheDocument();
+    expect(screen.queryByText('offboardUser')).not.toBeInTheDocument();
+    expect(screen.queryByText('transferVolume')).not.toBeInTheDocument();
+    expect(screen.queryAllByTitle('removeMember')).toHaveLength(0);
+    expect(screen.queryAllByTitle('unlinkOauth')).toHaveLength(0);
   });
 });
