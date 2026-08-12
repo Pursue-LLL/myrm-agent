@@ -1,8 +1,8 @@
 """Unit tests for Skill Permission Service.
 
-Covers the async permission checker's audit logging: argument order must match
-the framework log_permission_usage signature (user_id first) and the current
-session id must be forwarded when available.
+Covers the async permission checker's audit logging (argument order must match
+the framework log_permission_usage signature: user_id first), the per-session
+permission cache path, and the sync checker's async-context fail-fast guard.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ async def test_async_checker_logs_with_correct_argument_order() -> None:
     try:
         with (
             patch(
-                "app.services.skills.permission_service.load_granted_permissions",
+                "app.services.skills.permission_service.load_granted_permissions_cached",
                 new=AsyncMock(return_value=set()),
             ),
             patch(

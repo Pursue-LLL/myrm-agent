@@ -83,6 +83,49 @@ async def test_forget_unknown_project_is_noop() -> None:
     assert len(orch._locks) == 0
 
 
+async def test_cancelled_waiter_does_not_break_next_contender() -> None:
+    """Cancelled lock waiter must not corrupt the lock for subsequent contenders.
+
+    Real scenario: a user cancels their request while another agent holds the
+    project lock. asyncio.Lock removes the cancelled waiter from _waiters, and
+    the lock must remain usable by the next real contender.
+    """
+    orch = ProjectOrchestrator()
+    await orch.acquire("proj-1")
+
+    cancelled: list[bool] = []
+
+    async def waiter() -> None:
+        try:
+            await orch.acquire("proj-1")
+        except asyncio.CancelledError:
+            cancelled.append(True)
+            raise
+
+    task = asyncio.create_task(waiter())
+    await asyncio.sleep(0.01)
+    assert task.done() is False, "waiter should be blocked on the held lock"
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert cancelled == [True]
+
+    # Holder still owns the lock; the cancelled waiter must not have released it.
+    assert orch.is_locked("proj-1") is True
+
+    # A fresh contender can still acquire the lock normally after release.
+    acquired: list[bool] = []
+
+    async def contender() -> None:
+        await orch.acquire("proj-1")
+        acquired.append(True)
+        orch.release("proj-1")
+
+    await asyncio.wait_for(contender(), timeout=2)
+    assert acquired == [True]
+    assert orch.is_locked("proj-1") is False
+
+
 async def test_parallel_contenders_serialize_on_same_project() -> None:
     orch = ProjectOrchestrator()
     order: list[int] = []

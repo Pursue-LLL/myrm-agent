@@ -130,17 +130,29 @@ _FINAL_STATE_JS = """(() => {
   const input = document.querySelector('[data-chat-input]');
   const value = input?.value || input?.textContent || '';
   const body = document.body.innerText || '';
+  const bridge = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null;
+  const dialog = document.querySelector('[role="dialog"]');
+  const toasts = Array.from(
+    document.querySelectorAll('[data-sonner-toast], [role="status"], [role="alert"]'),
+  )
+    .map((t) => (t.textContent || '').trim())
+    .filter(Boolean);
   const rewoundBtns = Array.from(
     document.querySelectorAll('[aria-label="Rewind to here"], [aria-label="回退到这里"]'),
-  ).length;
+  );
   return {
     ok: value.includes('REWIND_MARKER_B'),
     composerValue: value.slice(0, 300),
     hasToast:
       body.includes('Conversation rewound') || body.includes('对话已回退'),
-    rewoundBtns,
+    storeUserCount: bridge?.userCount ?? null,
+    storeIsStreaming: bridge?.isStreaming ?? null,
+    storeChatId: bridge?.chatId ?? null,
+    dialogOpen: !!dialog,
+    rewoundBtns: rewoundBtns.length,
+    toasts,
     path: location.pathname,
-    sample: body.slice(0, 600),
+    sample: body.slice(0, 3000),
   };
 })()"""
 
@@ -176,21 +188,55 @@ async def test_rewind_conversation_via_webui(
             raise RuntimeError(f"E2E runtime bootstrap failed: {result}")
 
     async def _wait_api_user_messages(
-        chat_id: str, min_count: int, *, timeout_sec: float
+        chat_id: str,
+        expected: int,
+        *,
+        timeout_sec: float,
+        mode: str = "at_least",
     ) -> None:
         deadline = time.monotonic() + timeout_sec
         last = 0
+        seen: list[int] = []
         while time.monotonic() < deadline:
             _touch_rewind_progress("rewind_wait_api_messages")
             try:
                 last = chat_user_message_count(chat_id, api_url=api_base)
-                if last >= min_count:
+                seen.append(last)
+                if mode == "exact" and last == expected:
+                    return
+                if mode == "at_least" and last >= expected:
                     return
             except (OSError, TimeoutError, urllib.error.URLError):
                 wait_e2e_backend_ready(timeout_sec=15.0, api_url=api_base)
             await asyncio.sleep(1.0)
         raise AssertionError(
-            f"Backend user messages did not reach {min_count} within {timeout_sec}s (last={last})"
+            f"Backend user messages did not reach {expected} (mode={mode}) "
+            f"within {timeout_sec}s (last={last}, seen={seen[-12:]})"
+        )
+
+    async def _wait_store_user_count(
+        chat: McpChatSession, expected: int, *, timeout_sec: float
+    ) -> None:
+        """Poll the frontend store (via E2E bridge) for the expected user count.
+
+        Unlike the backend API poll, this reflects what the UI actually renders,
+        which is what a rewind confirm must update.
+        """
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_wait_store_user_count")
+            probe = await chat.evaluate(
+                """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? { err: 'no-bridge' })()""",
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
+            if isinstance(probe, dict):
+                last = probe
+                if probe.get("userCount") == expected:
+                    return
+            await asyncio.sleep(1.0)
+        raise TimeoutError(
+            f"Store user count did not reach {expected} before/after rewind: {last}"
         )
 
     async def _wait_not_streaming(chat: McpChatSession, *, timeout_sec: float) -> None:
@@ -285,7 +331,20 @@ async def test_rewind_conversation_via_webui(
         assert isinstance(confirmed, dict) and confirmed.get("ok") is True, f"Confirm failed: {confirmed}"
 
         _touch_rewind_progress("rewind_post_confirm")
-        await _wait_api_user_messages(chat_id, 1, timeout_sec=60.0)
+        # Snapshot right after confirm: if the rewind did not take effect
+        # (dialog still open, store unchanged, failure toast) fail fast with
+        # the diagnostic instead of waiting out the 60s poll below.
+        await asyncio.sleep(3.0)
+        diag = await chat.evaluate(_FINAL_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL)
+        if not isinstance(diag, dict):
+            raise AssertionError(f"Post-confirm diagnostic failed: {diag}")
+        if diag.get("dialogOpen") is True or diag.get("storeUserCount") != 1:
+            raise AssertionError(f"Rewind did not take effect after confirm: {diag}")
+
+        # Rewind must (a) truncate the backend to a single user message AND
+        # (b) update the frontend store that the UI actually renders.
+        await _wait_api_user_messages(chat_id, 1, timeout_sec=60.0, mode="exact")
+        await _wait_store_user_count(chat, 1, timeout_sec=60.0)
 
         final = await _wait_js(
             chat,

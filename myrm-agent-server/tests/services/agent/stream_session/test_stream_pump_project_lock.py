@@ -216,3 +216,33 @@ async def test_error_path_releases_lock(monkeypatch):
 
     assert orch.is_locked("proj-1") is False
     assert len(orch._locks) == 0
+
+
+@pytest.mark.asyncio
+async def test_cancel_path_releases_lock(monkeypatch):
+    """Task cancellation → finally still releases the project lock.
+
+    Real scenario: the user cancels/stops their request while another agent
+    holds the project lock. pump_to_buffer swallows CancelledError then runs
+    its finally cleanup, so the lock must never leak.
+    """
+    orch = ProjectOrchestrator()
+    session = _make_session(project_id="proj-1")
+    buf = _make_buffer()
+
+    async def factory(_session):
+        yield 'data: {"type": "message", "data": "partial"}\n\n'
+        await asyncio.sleep(30)
+
+    _install_mocks(monkeypatch, orch, factory)
+    pump_task = asyncio.create_task(pump_to_buffer(session, buf))
+    await asyncio.sleep(0.05)
+    assert orch.is_locked("proj-1") is True
+
+    pump_task.cancel()
+    # CancelledError is swallowed by pump_to_buffer, then finally releases lock.
+    await asyncio.wait_for(pump_task, timeout=5)
+
+    assert orch.is_locked("proj-1") is False
+    assert len(orch._locks) == 0
+

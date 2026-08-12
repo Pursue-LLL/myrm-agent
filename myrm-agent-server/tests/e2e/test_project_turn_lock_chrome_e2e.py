@@ -48,6 +48,21 @@ _WAITING_STEP_JS = """(() => {
   return { ready: false, msg_count: msgs.length };
 })()"""
 
+_WAITING_STREAMING_JS = """(() => {
+  const store = window.__myrmChatStore?.getState?.();
+  const msgs = store?.messages || [];
+  const loading = Boolean(store?.loading || store?.streaming || false);
+  for (const msg of msgs) {
+    if (msg.role !== 'assistant' && msg.type !== 'assistant') continue;
+    const steps = (msg.progressSteps?.length ? msg.progressSteps : msg.metadata?.progressSteps) || [];
+    if (steps.some((s) => String(s.step_key || '') === 'waiting_for_turn')) {
+      const content = String(msg.content || msg.text || '').trim();
+      return { ready: true, placeholder: content.length === 0, loading, contentLen: content.length };
+    }
+  }
+  return { ready: false, loading, msg_count: msgs.length };
+})()"""
+
 _ASSISTANT_OK_JS = """(() => {
   const store = window.__myrmChatStore?.getState?.();
   const msgs = store?.messages || [];
@@ -150,6 +165,24 @@ def _wait_waiting_step(
     raise AssertionError(f"waiting_for_turn step never appeared: {last}")
 
 
+def _wait_waiting_streaming(
+    client: object,
+    page: object,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(page, _WAITING_STREAMING_JS, timeout_sec=10.0)
+        state = raw if isinstance(raw, dict) else json.loads(str(raw))
+        last = state
+        if state.get("ready") is True:
+            return state
+        time.sleep(0.5)
+    raise AssertionError(f"waiting assistant placeholder never appeared: {last}")
+
+
 def _wait_waiting_cleared(
     client: object,
     page: object,
@@ -249,6 +282,12 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
 
         waiting_state = _wait_waiting_step(client, page, timeout_sec=45.0)
         assert waiting_state.get("step_key") == "waiting_for_turn", waiting_state
+
+        # While waiting, the assistant placeholder must exist with empty body
+        # (stream still blocked on the project lock, no reply text yet).
+        streaming_state = _wait_waiting_streaming(client, page, timeout_sec=15.0)
+        assert streaming_state.get("ready") is True, streaming_state
+        assert streaming_state.get("placeholder") is True, streaming_state
 
         # waiting_for_turn is a title-only step (items stay empty by design), so
         # also assert the i18n title is really rendered into the DOM after

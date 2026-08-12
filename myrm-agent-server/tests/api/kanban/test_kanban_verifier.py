@@ -54,7 +54,7 @@ class TestParseJudgeJson:
         assert parse_judge_json('{"result": true}') is None
 
     def test_unquoted_keys_repaired(self) -> None:
-        """无引号 key 由 json_repair 兜底修复（框架 SSOT 的 M17 增强）。"""
+        """无引号 key 由 json_repair 兜底修复（框架 utils.json_parsing 容错能力）。"""
         result = parse_judge_json('{done: true, reason: "ok"}')
         assert result is not None
         assert result["done"] is True

@@ -31,7 +31,7 @@
 
 - 单测（Vitest）：`__tests__/BenchmarkSources.test.tsx` 覆盖基准卡片渲染、评分徽标、下载/运行按钮，以及 Memory A/B 按钮 + 确认对话框（取消/确认调用 `onMemoryAb`）与分层评测按钮 + 确认对话框（调用 `onLayerEval`）；`__tests__/MemoryAbHistoryTable.test.tsx` 覆盖历史表渲染（per-arm pass-rate + `memory_tool_calls`）、双模型披露（agent 模型显示/隐藏 + LLM judge 显示、native 隐藏）与选中回看；`__tests__/MatrixHistoryTable.test.tsx` 覆盖矩阵/分层历史表渲染（时间格式化、数据集、分层/抽样/中止徽标、stable_rate、双模型披露、选中回看）；`__tests__/MatrixResultView.memoryCalls.test.tsx` 覆盖记忆调用列、中止横幅与抽样披露。
 - `__tests__/EvalLabDashboard.test.tsx` 覆盖门面渲染（初始加载后基础 tab 渲染 + matrix/memory-ab 条件显示、cases 编辑器渲染、运行中互斥禁用 run 并显示 stop）。
-- `__tests__/useMatrixEval.test.ts` 覆盖矩阵流：`startMatrix` 请求载荷与 running 翻转、SSE 进度驱动、`abort` 端点、历史报告回看；`__tests__/useMemoryAbEval.test.ts` 覆盖记忆流：`start` 请求载荷与 running 翻转、SSE 进度驱动、`abort` 端点。
+- `__tests__/useMatrixEval.test.ts` 覆盖矩阵流：`startMatrix` 请求载荷与 running 翻转、SSE 进度驱动、`abort` 端点、历史报告回看、SSE 错误（EOF 竞态）后自动拉取最新报告与历史；`__tests__/useMemoryAbEval.test.ts` 覆盖记忆流：`start` 请求载荷与 running 翻转、SSE 进度驱动、`abort` 端点。
 - Chrome E2E（`tests/e2e/test_memory_ab_chrome_e2e.py`）：卡片入口 + 确认对话框取消（READ）；预置报告渲染双臂矩阵 + Run History + 点击历史加载（NAMESPACE_WRITE）；真实 run 启动 + Stop abort（NAMESPACE_WRITE）。
 
 ## 依赖

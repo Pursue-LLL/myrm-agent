@@ -116,13 +116,11 @@ def clear_permission_cache(skill_id: str | None = None) -> None:
 
 
 def create_permission_checker() -> Callable[[str, str, str], tuple[bool, str]]:
-    """创建permission checker函数（同步版本，用于middleware）
+    """创建permission checker函数（同步版本）
 
-    返回一个可供Agent使用的permission checker函数。
-    该函数会查询数据库、调用框架层验证、记录日志。
-
-    注意：由于middleware的on_tool_start是同步的，这里提供同步接口。
-    内部使用asyncio.run执行异步操作（Python 3.7+推荐方式）。
+    供真正同步的工具执行路径使用（非事件循环线程）。
+    异步 Agent 路径请使用 :func:`create_async_permission_checker`，避免
+    在运行中事件循环内调用 asyncio.run 导致 RuntimeError。
 
     Returns:
         Permission checker函数: (skill_id, permission_type, operation) -> (allowed, reason)
@@ -133,17 +131,19 @@ def create_permission_checker() -> Callable[[str, str, str], tuple[bool, str]]:
     """
 
     def checker(skill_id: str, permission_type: str, operation: str) -> tuple[bool, str]:
-        """检查权限（同步包装）
-
-        Args:
-            skill_id: Skill ID
-            permission_type: 权限类型（如 "file_write", "shell_exec"）
-            operation: 操作描述（如文件路径、命令）
-
-        Returns:
-            (allowed, reason) - 是否允许 + 拒绝原因（如果拒绝）
-        """
+        """检查权限（同步包装）"""
         import asyncio
+
+        # fail-fast：在运行中的事件循环内直接拒绝，避免 asyncio.run 嵌套
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError(
+                "create_permission_checker() sync checker called from an async "
+                "context; use create_async_permission_checker() instead"
+            )
 
         async def _async_check() -> tuple[bool, str]:
             # 加载授予的权限（使用缓存）
@@ -166,7 +166,6 @@ def create_permission_checker() -> Callable[[str, str, str], tuple[bool, str]]:
 
             return allowed, reason
 
-        # 使用asyncio.run（Python 3.7+推荐方式）
         return asyncio.run(_async_check())
 
     return checker
@@ -175,14 +174,16 @@ def create_permission_checker() -> Callable[[str, str, str], tuple[bool, str]]:
 async def create_async_permission_checker() -> Callable[[str, str, str], Awaitable[tuple[bool, str]]]:
     """创建异步permission checker函数
 
+    供 GuardrailMiddleware 异步工具路径使用（aevaluate）。
+
     Returns:
         Async permission checker: async (skill_id, permission_type, operation) -> (allowed, reason)
     """
 
     async def async_checker(skill_id: str, permission_type: str, operation: str) -> tuple[bool, str]:
         """异步检查权限"""
-        # 加载授予的权限
-        granted_perms = await load_granted_permissions(skill_id)
+        # 加载授予的权限（per-session 缓存，避免每次 tool call 查库）
+        granted_perms = await load_granted_permissions_cached(skill_id)
 
         # 调用框架层验证
         allowed, reason = check_permission_for_tool_call(permission_type, granted_perms)

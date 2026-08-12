@@ -385,10 +385,10 @@ async def build_general_agent(
 
     from app.services.skills.permission_service import (
         clear_permission_cache,
-        create_permission_checker,
+        create_async_permission_checker,
     )
 
-    permission_checker = create_permission_checker()
+    permission_checker = await create_async_permission_checker()
 
     guardrail_providers = [
         SkillBoundaryProvider(permission_checker=permission_checker),
