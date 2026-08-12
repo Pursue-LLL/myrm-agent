@@ -193,16 +193,18 @@ def _real_send_chat_message(
         timeout_sec=5.0,
     )
     assert clicked is True, "Send button click failed"
-    cleared = wait_for_state(
-        client,
-        page,
-        """(() => {
-          const el = document.querySelector('[data-chat-input]');
-          return { ready: !!el && el.value === '' };
-        })()""",
-        timeout_sec=30.0,
-    )
-    if not cleared.get("ready"):
+    cleared = None
+    try:
+        cleared = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const el = document.querySelector('[data-chat-input]');
+              return { ready: !!el && el.value === '' };
+            })()""",
+            timeout_sec=30.0,
+        )
+    except AssertionError:
         diag = client.evaluate(
             page,
             """(() => {
@@ -226,6 +228,7 @@ def _real_send_chat_message(
             timeout_sec=10.0,
         )
         print("DIAG_SEND_CLEAR_FAILED=" + json.dumps(diag, default=str)[:1500])
+        raise
     assert cleared.get("ready") is True, f"Chat input did not clear after send: {cleared}"
     eph_status = client.evaluate(
         page,
