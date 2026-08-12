@@ -1,8 +1,23 @@
+"""批量导入技能会话的持久化暂存区。
+
+[INPUT]
+- myrm_agent_harness.agent.skills.market.installers.batch_installer::HermesImportedSkill (POS: 批量 ZIP 解析出的技能 DTO)
+
+[OUTPUT]
+- SkillStagingManager: /preview 阶段将完整技能列表 pickle 落盘，/confirm 阶段反序列化还原，并负责过期会话清理
+- SkillStagingManager._cleanup_expired_sessions_sync: 后台任务入口（>24h 无主 .pkl 清理，防磁盘耗尽）
+
+[POS]
+会话暂存管理。GUI-First 架构下 /preview 提取大量二进制文件，直接走 JSON 会导致前端 OOM 或带宽爆炸，
+故本模块负责临时落盘；与路由层（HTTP 语义）和落盘执行器（batch_import_execute）解耦。
+"""
+
+from __future__ import annotations
+
 import logging
 import os
 import pickle
 from pathlib import Path
-from typing import List
 
 from myrm_agent_harness.agent.skills.market.installers.batch_installer import (
     HermesImportedSkill,
@@ -39,7 +54,9 @@ class SkillStagingManager:
         except Exception as e:
             logger.warning(f"Failed to cleanup expired staging sessions: {e}")
 
-    def save_session(self, session_id: str, skills: List[HermesImportedSkill]) -> None:
+    def save_session(
+        self, session_id: str, skills: list[HermesImportedSkill]
+    ) -> None:
         """持久化保存会话的所有完整技能数据"""
         file_path = self._get_session_path(session_id)
         try:
@@ -49,7 +66,7 @@ class SkillStagingManager:
             logger.error(f"Failed to save staging session {session_id}: {e}")
             raise RuntimeError("暂存区写入失败，请检查磁盘空间或权限。") from e
 
-    def load_session(self, session_id: str) -> List[HermesImportedSkill]:
+    def load_session(self, session_id: str) -> list[HermesImportedSkill]:
         """加载暂存会话数据"""
         file_path = self._get_session_path(session_id)
         if not file_path.exists():

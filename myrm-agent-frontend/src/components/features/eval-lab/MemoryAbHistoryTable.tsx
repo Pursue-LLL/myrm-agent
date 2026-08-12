@@ -9,6 +9,7 @@ export interface MemoryAbHistoryItem {
   agent_model?: string | null;
   judge_model?: string | null;
   limit?: number | null;
+  aborted?: boolean;
   per_profile?: Record<
     string,
     {
@@ -74,6 +75,11 @@ export default function MemoryAbHistoryTable({ items, selectedTimestamp, onSelec
                         title={t('sampledTitle')}
                       >
                         {t('sampled')} · {item.limit}
+                      </span>
+                    )}
+                    {item.aborted && (
+                      <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded">
+                        {t('abortedBadge')}
                       </span>
                     )}
                   </td>

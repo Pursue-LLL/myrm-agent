@@ -62,14 +62,22 @@ _E2E_BASH_EPHEMERAL = {
 }
 
 
+def _prepare_mjs_env(ledger: E2EResourceLedger) -> dict[str, str]:
+    """Bind prepare scripts to the active chrome_e2e API (SHPOIB private pool SSOT)."""
+    env = os.environ.copy()
+    env["WAVE_LEDGER_LEASE_ID"] = ledger.lease_id
+    env["WAVE_LEDGER_NAMESPACE"] = ledger.namespace
+    env["E2E_API_BASE"] = get_e2e_api_url().rstrip("/")
+    env["E2E_UI_BASE"] = get_e2e_ui_url().rstrip("/")
+    return env
+
+
 @pytest.fixture
 def light_chat(e2e_resource_ledger: E2EResourceLedger) -> Iterator[dict[str, object]]:
     """Creates a fresh chat without spawning a real subagent (fast UI-injection scope)."""
     if shutil.which("bun") is None:
         pytest.skip("bun is required for subagent dashboard light chat")
-    env = os.environ.copy()
-    env["WAVE_LEDGER_LEASE_ID"] = e2e_resource_ledger.lease_id
-    env["WAVE_LEDGER_NAMESPACE"] = e2e_resource_ledger.namespace
+    env = _prepare_mjs_env(e2e_resource_ledger)
     process = subprocess.Popen(
         ["bun", str(_PREPARE_LIGHT)],
         cwd=str(_AGENT_ROOT),
@@ -411,10 +419,8 @@ def test_subagent_dashboard_stop_all_confirms_and_cancels(
             client, page, chat_id, fallback_rows=[placeholder_row]
         )
 
-        spawn_env = os.environ.copy()
+        spawn_env = _prepare_mjs_env(e2e_resource_ledger)
         spawn_env["E2E_HOLD_MS"] = "600000"
-        spawn_env["WAVE_LEDGER_LEASE_ID"] = e2e_resource_ledger.lease_id
-        spawn_env["WAVE_LEDGER_NAMESPACE"] = e2e_resource_ledger.namespace
         spawn = subprocess.Popen(
             ["bun", str(_PREPARE), f"--chat={chat_id}"],
             cwd=str(_AGENT_ROOT),
@@ -950,9 +956,7 @@ def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel(
     # requires HITL approval which no one approves in an automated WebUI flow and it
     # auto-denies on timeout. Seed YOLO (like subagent-dashboard-e2e-prepare.mjs does
     # for the API-level tests) so the real WebUI send can delegate without approval.
-    seed_env = os.environ.copy()
-    seed_env["WAVE_LEDGER_LEASE_ID"] = e2e_resource_ledger.lease_id
-    seed_env["WAVE_LEDGER_NAMESPACE"] = e2e_resource_ledger.namespace
+    seed_env = _prepare_mjs_env(e2e_resource_ledger)
     seed = subprocess.Popen(
         ["bun", str(_PREPARE), "--seed-config-only"],
         cwd=str(_AGENT_ROOT),
@@ -1225,9 +1229,7 @@ def test_subagent_dashboard_frontend_subagent_completes_flow_chrome_e2e(
     chat_id = str(light_chat.get("chatId") or "")
     assert chat_id
     ui_url = str(light_chat.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
-    seed_env = os.environ.copy()
-    seed_env["WAVE_LEDGER_LEASE_ID"] = e2e_resource_ledger.lease_id
-    seed_env["WAVE_LEDGER_NAMESPACE"] = e2e_resource_ledger.namespace
+    seed_env = _prepare_mjs_env(e2e_resource_ledger)
     seed = subprocess.Popen(
         ["bun", str(_PREPARE), "--seed-config-only"],
         cwd=str(_AGENT_ROOT),

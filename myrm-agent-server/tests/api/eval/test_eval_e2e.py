@@ -174,9 +174,9 @@ def test_eval_api_e2e() -> None:
             # suite finishes (the finally-block cleanup runs on success too).
             workspace_root = Path(".myrm/eval_workspaces")
             if workspace_root.exists():
-                assert not list(workspace_root.iterdir()), (
-                    "eval session workspaces were not cleaned up after the run"
-                )
+                assert not list(
+                    workspace_root.iterdir()
+                ), "eval session workspaces were not cleaned up after the run"
 
             prom = client.get("/metrics", follow_redirects=True)
             if prom.status_code == 200:

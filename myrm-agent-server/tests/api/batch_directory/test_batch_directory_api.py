@@ -321,6 +321,7 @@ class TestFinalize:
             assert "Failed directories:" in message
             assert str(dir_a) in message
             assert str(dir_b) in message
+            assert "Duration:" in message
 
         detail = client.get(f"/api/v1/batch-directories/{project_id}").json()
         assert detail["status"] == "failed"
@@ -1745,6 +1746,122 @@ class TestChannelNotification:
             )
 
     @pytest.mark.asyncio
+    async def test_channel_push_sender_build_failure_is_silent(self) -> None:
+        """Sender construction failure degrades to no push without raising."""
+        from app.services.batch_directory import _helpers
+
+        with patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            side_effect=RuntimeError("no credential"),
+        ):
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="completed",
+                total=1,
+                completed=1,
+                failed=0,
+                missing=[],
+                project_id="proj-7",
+            )
+
+    @pytest.mark.asyncio
+    async def test_channel_push_sender_none_is_silent(self) -> None:
+        """Sender build returning None degrades to no push without raising."""
+        from app.services.batch_directory import _helpers
+
+        with patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=None,
+        ):
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="completed",
+                total=1,
+                completed=1,
+                failed=0,
+                missing=[],
+                project_id="proj-8",
+            )
+
+    @pytest.mark.asyncio
+    async def test_channel_push_sends_to_all_targets(self) -> None:
+        """Every configured target receives the same summary body."""
+        from app.services.batch_directory import _helpers
+
+        sender = MagicMock()
+        sender.list_available_targets.return_value = [
+            self._target("feishu", "u-1"),
+            self._target("dingtalk", "u-2"),
+        ]
+        sender.send = AsyncMock(
+            return_value=NotifyResult(success=True, channel="feishu", message_id="m")
+        )
+
+        with patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"}, {"channel": "dingtalk", "recipient_id": "u-2"}))
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ):
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="completed",
+                total=1,
+                completed=1,
+                failed=0,
+                missing=[],
+                project_id="proj-9",
+            )
+
+        assert sender.send.await_count == 2
+        bodies = {call.args[1] for call in sender.send.await_args_list}
+        assert len(bodies) == 1
+
+    @pytest.mark.asyncio
+    async def test_channel_push_failure_includes_duration(self) -> None:
+        """Failed batch body carries the failed list and the duration row."""
+        from app.services.batch_directory import _helpers
+
+        target = self._target()
+        sender = MagicMock()
+        sender.list_available_targets.return_value = [target]
+        sender.send = AsyncMock(
+            return_value=NotifyResult(success=True, channel="feishu", message_id="m")
+        )
+
+        with patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ):
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="failed",
+                total=3,
+                completed=1,
+                failed=2,
+                missing=[],
+                failed_directories=["/tmp/alpha", "/tmp/beta"],
+                duration_seconds=510,
+                project_id="proj-10",
+            )
+
+        body = sender.send.await_args.args[1]
+        assert "2 failed of 3 directories." in body
+        assert "Failed directories:" in body
+        assert "- /tmp/alpha" in body
+        assert "Duration: 8m 30s" in body
+
+    @pytest.mark.asyncio
     async def test_maybe_finalize_invokes_channel_push(self, client, tmp_path) -> None:
         """End-to-end wiring: project.agent_id is read and channel push fires
         alongside the in-app notification on finalize."""
@@ -1959,4 +2076,197 @@ class TestDurationFormatting:
             duration_seconds=510,
         )
         assert "Duration: 8m 30s" in message
+
+
+class TestEdgeCaseCoverage:
+    """真实用户场景补测：危险路径/无效 board/目录去重/手动移动自愈等。
+
+    Covers the remaining user-facing paths that the primary suite did not
+    exercise directly: security rejection of dangerous directories, an
+    invalid board reference, duplicate-directory dedup, the read-path
+    self-heal when a task is moved to a terminal state via REST, and the
+    paused guard on finalize.
+    """
+
+    def test_create_project_rejects_dangerous_directory(self, client, tmp_path) -> None:
+        """System-sensitive directories (e.g. /etc) must be rejected with 400."""
+        resp = client.post(
+            "/api/v1/batch-directories",
+            json={
+                "name": "Evil",
+                "prompt": "p",
+                "directories": ["/etc"],
+            },
+        )
+        assert resp.status_code == 400
+        assert "Access denied" in resp.json()["detail"]
+
+    def test_create_project_rejects_missing_board(self, client, tmp_path) -> None:
+        """A board_id that does not exist must surface a clear 400."""
+        dir_a = tmp_path / "alpha"
+        dir_a.mkdir()
+        resp = client.post(
+            "/api/v1/batch-directories",
+            json={
+                "name": "Bad Board",
+                "prompt": "p",
+                "directories": [str(dir_a)],
+                "board_id": "board-does-not-exist",
+            },
+        )
+        assert resp.status_code == 400
+        assert "not found" in resp.json()["detail"]
+
+    def test_create_project_deduplicates_directories(self, client, tmp_path) -> None:
+        """Duplicate target directories are collapsed into one task."""
+        dir_a = tmp_path / "alpha"
+        dir_a.mkdir()
+        project = _create_project(client, [str(dir_a), str(dir_a), str(dir_a)])
+        assert project["total_tasks"] == 1
+        assert len(project["created_task_ids"]) == 1
+        assert project["directories"] == [str(dir_a)]
+
+    @pytest.mark.asyncio
+    async def test_read_path_self_heals_after_manual_terminal_move(
+        self, client, tmp_path
+    ) -> None:
+        """REST-moved tasks (no dispatcher event) are finalized on the read path:
+        get_project must trigger the terminal detection and fire notifications."""
+        import asyncio
+
+        from app.database.connection import get_session
+        from app.database.models.kanban import KanbanTaskModel
+
+        dir_a = tmp_path / "alpha"
+        dir_b = tmp_path / "beta"
+        dir_a.mkdir()
+        dir_b.mkdir()
+        project = _create_project(client, [str(dir_a), str(dir_b)])
+        project_id = project["project_id"]
+        task_ids = project["created_task_ids"]
+
+        # 模拟用户手动移动任务到终态（不产生 dispatcher 事件）
+        for task_id in task_ids:
+            resp = client.post(
+                f"/api/v1/kanban/tasks/{task_id}/move",
+                json={"status": "completed", "result": "done", "force": True},
+            )
+            assert resp.status_code == 200, resp.text
+
+        service = BatchDirectoryService.get_instance()
+        with patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            new_callable=AsyncMock,
+        ) as mock_notify:
+            detail = await service.get_project(project_id)
+            assert detail is not None
+            # 自愈调度是异步 fire-and-forget：轮询等待 finalize 完成
+            import asyncio
+
+            for _ in range(50):
+                if mock_notify.await_count > 0:
+                    break
+                await asyncio.sleep(0.05)
+
+        assert mock_notify.await_count == 1
+        assert mock_notify.await_args.kwargs["meta_data"]["status"] == "completed"
+
+        fresh = client.get(f"/api/v1/batch-directories/{project_id}").json()
+        assert fresh["status"] == "completed"
+        assert fresh["completed_tasks"] == 2
+
+        # 任务状态确实已在任务表中持久化
+        async with get_session() as session:
+            for task_id in task_ids:
+                task = await session.get(KanbanTaskModel, task_id)
+                assert task is not None
+                assert task.status == TaskStatus.COMPLETED.value
+
+    @pytest.mark.asyncio
+    async def test_maybe_finalize_skips_when_paused(self, client, tmp_path) -> None:
+        """A paused batch stays frozen: finalize is suppressed even if every
+        task reached a terminal state (freeze must be stable until resume)."""
+        from app.database.connection import get_session
+        from app.database.models.kanban import KanbanTaskModel
+
+        dir_a = tmp_path / "alpha"
+        dir_a.mkdir()
+        project = _create_project(client, [str(dir_a)])
+        project_id = project["project_id"]
+        task_id = project["created_task_ids"][0]
+
+        service = BatchDirectoryService.get_instance()
+        result = await service.pause_project(project_id)
+        assert result is not None
+        assert result["status"] == "paused"
+
+        # 冻结后任务全被置终态（模拟极端并发：暂停后任务恰好全部完成）
+        async with get_session() as session:
+            task = await session.get(KanbanTaskModel, task_id)
+            assert task is not None
+            task.status = TaskStatus.COMPLETED.value
+            task.result = "ok"
+            await session.commit()
+
+        with patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            new_callable=AsyncMock,
+        ) as mock_notify:
+            await service.maybe_finalize(project_id)
+            mock_notify.assert_not_awaited()
+
+        detail = client.get(f"/api/v1/batch-directories/{project_id}").json()
+        assert detail["status"] == "paused"
+        assert detail["finished_at"] is None
+
+    @pytest.mark.asyncio
+    async def test_channel_push_send_raise_is_silent(self) -> None:
+        """sender.send() raising (e.g. gateway hiccup) must not break finalize."""
+        from app.services.batch_directory import _helpers
+
+        target = NotifyTarget(channel="feishu", recipient_id="u-1", label="ops")
+        sender = MagicMock()
+        sender.list_available_targets.return_value = [target]
+        sender.send = AsyncMock(side_effect=RuntimeError("gateway down"))
+
+        with patch.object(
+            _helpers,
+            "_load_agent_notify_targets",
+            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ):
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="completed",
+                total=1,
+                completed=1,
+                failed=0,
+                missing=[],
+                project_id="proj-11",
+            )
+
+        sender.send.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_load_agent_notify_targets_resolver_error_degrades(self) -> None:
+        """A resolver failure must degrade to no targets instead of raising."""
+        from app.services.batch_directory import _helpers
+
+        with patch(
+            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
+            side_effect=RuntimeError("resolver down"),
+        ):
+            targets = await _helpers._load_agent_notify_targets("ag-missing")
+
+        assert targets == ()
+
+    def test_verify_artifact_patterns_missing_dir_returns_false(self) -> None:
+        """A workspace that no longer exists reports artifacts as missing
+        instead of raising."""
+        from app.services.batch_directory import _helpers
+
+        assert _helpers._verify_artifact_patterns("/no/such/dir", ["**/*.py"]) is False
 

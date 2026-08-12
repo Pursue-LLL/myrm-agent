@@ -49,6 +49,8 @@ def _resetmatrix_state() -> Generator[None, None, None]:
             "profile_total": 0,
             "case_completed": 0,
             "case_total": 0,
+            "stage": None,
+            "download_progress": None,
             "error": None,
         }
     )
@@ -67,6 +69,12 @@ class TestMatrixStateHelpers:
         # Mutating the snapshot must not affect the module state.
         status["case_completed"] = 99
         assert matrix_state["case_completed"] == 3
+
+    def test_state_reset_includes_progress_keys(self) -> None:
+        """Initial matrix_state must carry the progress keys so a fresh run
+        never inherits a stale ``stage`` from a previous eval variant."""
+        assert matrix_state["stage"] is None
+        assert matrix_state["download_progress"] is None
 
     def test_abort_not_running_returns_false(self) -> None:
         assert abort_matrix_eval() is False

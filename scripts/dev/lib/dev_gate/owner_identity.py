@@ -47,6 +47,33 @@ def capture_owner_process_start(pid: int) -> str:
     return identity["startedAt"]
 
 
+def _start_epoch_sec(token: str) -> float | None:
+    """Normalize a startedAt token to epoch seconds.
+
+    ``startedAt`` appears in two shapes depending on which identity backend
+    captured it: ``ps -o lstart`` (``Wed Aug 12 15:54:32 2026``, local time)
+    or the psutil fallback (``unix:<create_time>``, already epoch). Comparing
+    the raw strings fails whenever submit and reap hit different backends
+    (e.g. ``ps`` briefly denied under host load), misreading a live owner as
+    exited and reaping a healthy session. Normalize both to epoch seconds.
+    """
+    token = token.strip()
+    if not token:
+        return None
+    if token.startswith("unix:"):
+        try:
+            value = float(token[len("unix:") :])
+        except ValueError:
+            return None
+        if value != value:  # nan guard (float("nan") parses without raising)
+            return None
+        return value
+    try:
+        return time.mktime(time.strptime(token, "%a %b %d %H:%M:%S %Y"))
+    except (ValueError, OverflowError):
+        return None
+
+
 def owner_process_matches(*, pid: int, expected_start: str) -> bool:
     """True when pid is alive and still the same OS process instance."""
     if pid <= 0:
@@ -83,4 +110,12 @@ def owner_process_matches(*, pid: int, expected_start: str) -> bool:
         if "Z" in result.stdout:
             return False
         return True
-    return current["startedAt"] == expected_start
+    expected_epoch = _start_epoch_sec(expected_start)
+    current_epoch = _start_epoch_sec(current["startedAt"])
+    if expected_epoch is None or current_epoch is None:
+        # Unparseable tokens (never observed in practice) keep the strict
+        # string equality as a fail-closed fallback.
+        return current["startedAt"] == expected_start
+    # Cross-backend normalization may differ by sub-second rounding; a 2s
+    # window is far tighter than any real PID-reuse gap.
+    return abs(current_epoch - expected_epoch) <= 2.0

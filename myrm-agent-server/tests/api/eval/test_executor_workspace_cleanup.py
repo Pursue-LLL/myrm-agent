@@ -17,7 +17,9 @@ from app.core.eval.executor import LocalEvalExecutor, cleanup_orphan_eval_worksp
 
 
 @pytest.mark.asyncio
-async def test_cleanup_removes_created_session_workspaces(monkeypatch, tmp_path) -> None:
+async def test_cleanup_removes_created_session_workspaces(
+    monkeypatch, tmp_path
+) -> None:
     """cleanup must delete the physical workspace and reset executor state."""
     monkeypatch.chdir(tmp_path)
 
@@ -38,7 +40,9 @@ async def test_cleanup_removes_created_session_workspaces(monkeypatch, tmp_path)
 
 
 @pytest.mark.asyncio
-async def test_cleanup_removes_implicit_execute_workspace(monkeypatch, tmp_path) -> None:
+async def test_cleanup_removes_implicit_execute_workspace(
+    monkeypatch, tmp_path
+) -> None:
     """An execute-only session (no create_session) still gets cleaned up.
 
     The executor registers the workspace it creates for an implicit chat id,
@@ -152,7 +156,9 @@ async def test_cleanup_handles_missing_workspace(monkeypatch, tmp_path) -> None:
     assert executor._sandbox_executors == {}
 
 
-def test_cleanup_orphan_eval_workspaces_removes_leftovers(monkeypatch, tmp_path) -> None:
+def test_cleanup_orphan_eval_workspaces_removes_leftovers(
+    monkeypatch, tmp_path
+) -> None:
     """Startup sweep must remove every stale session directory and count them."""
     root = Path(tmp_path / ".myrm" / "eval_workspaces")
     root.mkdir(parents=True)

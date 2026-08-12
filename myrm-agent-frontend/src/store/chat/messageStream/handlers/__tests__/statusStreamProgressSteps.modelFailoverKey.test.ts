@@ -6,6 +6,25 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('../handlerDeps', () => {
   return {
     findAssistantMessageIndex: vi.fn(() => 0),
+    ensureAssistantStreamMessage: (
+      messages: Array<{ messageId: string; role: string; chatId: string; content: string; progressSteps: unknown[]; createdAt: Date }>,
+      messageId: string | undefined,
+      chatIdFallback: string,
+    ) => {
+      const normalizedId = messageId?.trim();
+      if (!normalizedId) return -1;
+      const existing = messages.findIndex((m) => m.messageId === normalizedId && m.role === 'assistant');
+      if (existing !== -1) return existing;
+      messages.push({
+        content: '',
+        messageId: normalizedId,
+        chatId: chatIdFallback,
+        role: 'assistant',
+        progressSteps: [],
+        createdAt: new Date(),
+      });
+      return messages.length - 1;
+    },
     parseArchiveRestoreBlockPayload: vi.fn(),
     parseArchiveRestoreResultPayload: vi.fn(),
     buildArchiveRestoreActions: vi.fn(() => []),
@@ -94,6 +113,52 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
 
     const step = state.messages[0].progressSteps![0];
     expect(step.step_key).toBe('model_failover');
+  });
+
+  it('creates assistant placeholder when model_failover arrives before MESSAGE', async () => {
+    const { findAssistantMessageIndex } = await import('../handlerDeps');
+    vi.mocked(findAssistantMessageIndex).mockReturnValue(-1);
+
+    const state = {
+      messages: [
+        {
+          content: '只回复 OK',
+          messageId: 'user-1',
+          chatId: 'c1',
+          role: 'user' as const,
+          createdAt: new Date(),
+        },
+      ],
+    };
+    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+      updater(state);
+    });
+
+    const ctx: StreamCtx = {
+      data: {
+        type: 'status',
+        step_key: 'model_failover',
+        messageId: 'msg-new',
+        status: 'in_progress',
+        error_kind: 'overloaded',
+        fallback_model: 'minimax/MiniMax-M3',
+      } as never,
+      input: '',
+      sources: undefined,
+      added: false,
+      recievedMessage: '',
+      state: {} as never,
+      actions: { setLoading: vi.fn(), setMessages: setMessages as never } as never,
+      files: [],
+    };
+
+    await applyStatusProgressStep(ctx, 'model_failover');
+
+    expect(state.messages).toHaveLength(2);
+    expect(state.messages[1].role).toBe('assistant');
+    expect(state.messages[1].messageId).toBe('msg-new');
+    expect(state.messages[1].progressSteps?.[0]?.step_key).toBe('model_failover_overloaded');
+    expect(ctx.added).toBe(true);
   });
 
   it('recognizes unconfigured failover progress steps', () => {

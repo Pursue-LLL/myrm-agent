@@ -8,7 +8,10 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 )
 from sqlalchemy import select
 
-from app.core.skills.store.evolution_store import get_evolution_skill_store
+from app.core.skills.store.evolution_store import (
+    get_evolution_skill_store,
+    reset_evolution_skill_store,
+)
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
@@ -52,7 +55,7 @@ async def test_confidence_approval_flow_reject_creates_constraint():
     try:
         await store.save_skill(dummy)
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
     from app.api.skills.evolution import reject_pending_evolution_record
 
@@ -67,7 +70,7 @@ async def test_confidence_approval_flow_reject_creates_constraint():
     try:
         constraints = store.get_evolution_constraints("skill_reject_test")
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
     assert "I don't want strings, I want integers in production" in constraints
 

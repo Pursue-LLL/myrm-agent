@@ -7,11 +7,13 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     SkillMetrics,
     SkillRecord,
 )
-from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
-from app.api.skills.evolution.helpers import _get_skill_store_db_path
 from app.core.skills.loader import create_skill_backend
+from app.core.skills.store.evolution_store import (
+    get_evolution_skill_store,
+    reset_evolution_skill_store,
+)
 
 
 @pytest.fixture
@@ -62,8 +64,7 @@ async def test_quarantine_aware_integration(temp_workspace):
     )
 
     # 3. 在 SQLite 数据库中记录技能状态
-    db_path = _get_skill_store_db_path()
-    store = SkillStore(db_path=db_path)
+    store = get_evolution_skill_store()
 
     try:
         now = datetime.now(UTC)
@@ -115,7 +116,7 @@ async def test_quarantine_aware_integration(temp_workspace):
         await store.save_skill(normal_record)
 
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
     # 4. 调用业务层加载器
     backend = await create_skill_backend(storage=storage)

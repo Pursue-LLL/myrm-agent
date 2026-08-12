@@ -14082,13 +14082,14 @@
     "restoreSelected": "恢复选中的 {count} 个文件",
     "confirmRestore": "确定将 {count} 个文件恢复到快照状态吗？",
     "confirmYes": "确认恢复",
+    "deleteConfirm": "删除此版本？此操作不可撤销。",
     "confirmNo": "取消",
     "restoring": "恢复中...",
     "externalEffects": "外部操作",
     "effects": {
-        "database": "数据库变更",
-        "container_cloud": "容器或云端操作",
-        "network_mutation": "网络请求"
+      "database": "数据库变更",
+      "container_cloud": "容器或云端操作",
+      "network_mutation": "网络请求"
     },
     "externalEffectsTooltip": "此快照包含外部操作（{effects}），文件回滚无法撤销这些操作",
     "restoreExternalWarning": "此快照涉及外部操作（{effects}），文件恢复无法撤销这些变更",
@@ -14834,7 +14835,8 @@
       "historyCurrent": "当前",
       "historyView": "查看",
       "sampled": "抽样",
-      "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）"
+      "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）",
+      "abortedBadge": "已中止"
     },
     "layers": {
       "button": "分层评测",
@@ -14855,10 +14857,18 @@
       "fingerprint": "每层配置都带有指纹，锁定开关组合，保证跨版本分数可对比。",
       "harnessVersion": "Harness 引擎",
       "abortedNotice": "本报告不完整——评测在中途被中止。",
-      "bare": { "label": "裸基线" },
-      "core": { "label": "核心配置" },
-      "skills": { "label": "+技能" },
-      "memory": { "label": "+记忆（完整配置）" },
+      "bare": {
+        "label": "裸基线"
+      },
+      "core": {
+        "label": "核心配置"
+      },
+      "skills": {
+        "label": "+技能"
+      },
+      "memory": {
+        "label": "+记忆（完整配置）"
+      },
       "confirmTitle": "开始分层评测？",
       "confirmBody": "这将基于当前 Profile 对同一基准连续跑四次——裸基线（基准模式，剥离工具与技能）、核心配置（你的完整智能体配置，技能与记忆关闭）、+技能、+记忆（你的完整配置）。每层重跑同一批任务，相邻层的通过率差值即为该能力的增量。成本约为抽样任务数的 4 倍；记忆层需要已配置 embedding 模型。",
       "confirmStart": "开始评测",

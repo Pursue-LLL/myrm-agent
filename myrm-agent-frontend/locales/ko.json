@@ -14176,7 +14176,8 @@
       "historyCurrent": "현재",
       "historyView": "보기",
       "sampled": "샘플",
-      "sampledTitle": "이 실행은 벤치마크 태스크를 무작위로 추출했습니다 (재현 가능)"
+      "sampledTitle": "이 실행은 벤치마크 태스크를 무작위로 추출했습니다 (재현 가능)",
+      "abortedBadge": "중단됨"
     },
     "layers": {
       "button": "레이어 평가",
@@ -14197,10 +14198,18 @@
       "fingerprint": "레이어 지문이 정확한 스위치 조합을 고정하여 버전 간 점수 비교를 가능하게 합니다.",
       "harnessVersion": "하네스",
       "abortedNotice": "이 보고서는 불완전합니다 — 평가가 완료되기 전에 중단되었습니다.",
-      "bare": { "label": "베어 베이스라인" },
-      "core": { "label": "코어 구성" },
-      "skills": { "label": "+스킬" },
-      "memory": { "label": "+메모리 (전체 구성)" },
+      "bare": {
+        "label": "베어 베이스라인"
+      },
+      "core": {
+        "label": "코어 구성"
+      },
+      "skills": {
+        "label": "+스킬"
+      },
+      "memory": {
+        "label": "+메모리 (전체 구성)"
+      },
       "confirmTitle": "레이어 평가를 시작할까요?",
       "confirmBody": "현재 프로필로 동일한 벤치마크를 4번 실행합니다 — 베어(벤치마크 모드, 도구와 스킬 제거), 코어 구성(전체 에이전트 구성, 스킬과 메모리 OFF), +스킬, +메모리(전체 구성). 각 레이어가 동일한 작업을 다시 실행하므로 인접 레이어 간 통과율 차이가 각 기능의 기여를 분리합니다. 비용은 샘플 작업 수의 약 4배이며, 메모리 레이어에는 임베딩 모델이 구성되어 있어야 합니다.",
       "confirmStart": "평가 시작",
@@ -14698,13 +14707,14 @@
     "restoreSelected": "선택한 {count}개 복원",
     "confirmRestore": "{count}개 파일을 스냅샷 상태로 복원하시겠습니까?",
     "confirmYes": "확인",
+    "deleteConfirm": "이 버전을 삭제하시겠습니까? 되돌릴 수 없습니다.",
     "confirmNo": "취소",
     "restoring": "복원 중...",
     "externalEffects": "외부",
     "effects": {
-        "database": "데이터베이스 변경",
-        "container_cloud": "컨테이너/클라우드 작업",
-        "network_mutation": "네트워크 요청"
+      "database": "데이터베이스 변경",
+      "container_cloud": "컨테이너/클라우드 작업",
+      "network_mutation": "네트워크 요청"
     },
     "externalEffectsTooltip": "이 스냅샷에는 파일 롤백으로 되돌릴 수 없는 외부 작업({effects})이 포함되어 있습니다",
     "restoreExternalWarning": "외부 작업({effects})이 수행되었으며 이 복원으로 되돌릴 수 없습니다",

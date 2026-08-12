@@ -340,7 +340,7 @@ async def delete_file_snapshot(snapshot_id: str) -> dict[str, str]:
         store = await _get_file_snapshot_store()
         deleted = await store.delete_snapshot(snapshot_id)
         if not deleted:
-            raise HTTPException(status_code=404, detail=f"File snapshot not found: {snapshot_id}")
+            raise HTTPException(status_code=404, detail=f"File snapshot not found or not deletable: {snapshot_id}")
         return {"status": "deleted", "snapshot_id": snapshot_id}
     except HTTPException:
         raise

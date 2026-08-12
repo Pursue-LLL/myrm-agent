@@ -18,10 +18,6 @@ from myrm_agent_harness.utils.chat_utils import (
     extract_answer_text,
     extract_litellm_answer_text,
 )
-from myrm_agent_harness.utils.json_parsing import (
-    parse_llm_json_list,
-    parse_llm_json_object,
-)
 from myrm_agent_harness.utils.image_utils import (
     MAX_IMAGE_PAYLOAD_BYTES,
     MAX_IMAGE_READ_BYTES,
@@ -29,6 +25,10 @@ from myrm_agent_harness.utils.image_utils import (
     estimate_base64_byte_size,
     is_base64_data_url,
     strip_images_from_content,
+)
+from myrm_agent_harness.utils.json_parsing import (
+    parse_llm_json_list,
+    parse_llm_json_object,
 )
 from myrm_agent_harness.utils.url_utils import is_image_url, is_valid_image_url
 

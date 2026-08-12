@@ -238,6 +238,9 @@ async def run_memory_ab_background(
         # The evaluated agent's model, paired with the judge model above, so
         # the report stays self-contained regardless of later profile changes.
         report_data["agent_model"] = agent_model
+        # A user abort mid-run leaves partial results: mark the report so it
+        # is never mistaken for a complete run (same flag as matrix/layered).
+        report_data["aborted"] = bool(_memory_ab_state.get("abort_requested"))
         # Disclose the sample size only when a sample was actually drawn
         # (limit < full case count); a limit at/above the full count is a
         # full run and must not be flagged as sampled.
@@ -372,6 +375,7 @@ def get_memory_ab_report_history(
                     "judge_model": data.get("judge_model"),
                     "agent_model": data.get("agent_model"),
                     "limit": data.get("limit"),
+                    "aborted": data.get("aborted", False),
                     "per_profile": data.get("per_profile", {}),
                 }
             )

@@ -37,6 +37,7 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
 }) => {
   const t = useTranslations('fileSnapshot');
   const [showConfirmRestore, setShowConfirmRestore] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const date = new Date(snapshot.createdAt * 1000);
   const timeStr = date.toLocaleString();
   const triggerLabel = t.has(`trigger.${snapshot.trigger}`)
@@ -135,16 +136,43 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
           <Eye className="w-3 h-3" />
           {t('diff')}
         </button>
-        <button
-          onClick={() => onDelete(snapshot.snapshotId)}
-          disabled={isLoading}
-          className={cn(
-            'flex items-center gap-1 px-2.5 py-1 text-xs rounded-full transition-colors',
-            'bg-destructive/10 hover:bg-destructive/20 text-destructive disabled:opacity-50',
-          )}
-        >
-          <Trash className="w-3 h-3" />
-        </button>
+        {showConfirmDelete ? (
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs text-destructive">{t('deleteConfirm')}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  onDelete(snapshot.snapshotId);
+                  setShowConfirmDelete(false);
+                }}
+                disabled={isLoading}
+                className={cn(
+                  'flex items-center gap-1 px-2.5 py-1 text-xs rounded-full transition-colors',
+                  'bg-destructive hover:bg-destructive/90 text-destructive-foreground disabled:opacity-50',
+                )}
+              >
+                {t('confirmYes')}
+              </button>
+              <button
+                onClick={() => setShowConfirmDelete(false)}
+                className="px-2.5 py-1 text-xs rounded-full bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+              >
+                {t('confirmNo')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowConfirmDelete(true)}
+            disabled={isLoading}
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1 text-xs rounded-full transition-colors',
+              'bg-destructive/10 hover:bg-destructive/20 text-destructive disabled:opacity-50',
+            )}
+          >
+            <Trash className="w-3 h-3" />
+          </button>
+        )}
       </div>
     </div>
   );

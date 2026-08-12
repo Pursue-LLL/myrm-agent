@@ -84,15 +84,12 @@ async def apply_to_disk_and_store(
     apply_mode: str = "immediate",
 ) -> None:
     store = get_skill_store()
-    try:
-        if payload.evolution_type == EvolutionType.OPTIMIZE_DESCRIPTION.value:
-            await apply_description_update(payload, store, agent_id)
-        elif apply_mode == "shadow":
-            await apply_content_shadow(payload)
-        else:
-            await apply_content_update(payload, store, agent_id)
-    finally:
-        store.close()
+    if payload.evolution_type == EvolutionType.OPTIMIZE_DESCRIPTION.value:
+        await apply_description_update(payload, store, agent_id)
+    elif apply_mode == "shadow":
+        await apply_content_shadow(payload)
+    else:
+        await apply_content_update(payload, store, agent_id)
 
     if apply_mode != "shadow":
         try:

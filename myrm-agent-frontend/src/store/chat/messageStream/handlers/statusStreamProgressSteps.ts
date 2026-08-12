@@ -60,6 +60,17 @@ export function isStatusProgressStep(stepKey: string | undefined): boolean {
   return stepKey !== undefined && PROGRESS_STEP_KEYS.has(stepKey);
 }
 
+/** Recovery STATUS can arrive before the first MESSAGE chunk; ensure a placeholder exists. */
+function isEarlyRecoveryProgressStep(stepKey: string): boolean {
+  return (
+    stepKey === 'model_failover' ||
+    stepKey === 'model_failover_unconfigured' ||
+    stepKey === 'safety_fallback_active' ||
+    stepKey === 'safety_fallback_unconfigured' ||
+    stepKey === 'transient_retry'
+  );
+}
+
 export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): Promise<void> {
   const data = requireStatusStreamEvent(ctx.data);
   const { actions } = ctx;
@@ -118,24 +129,37 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
                       : '';
   actions.setMessages((state) => {
     let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-    if (messageIndex === -1 && (isMediaAnalysis || isArchiveRestoreStatus)) {
-      state.messages.push({
-        content: '',
-        messageId: data.messageId,
-        chatId: state.messages[0]?.chatId || '',
-        role: 'assistant',
-        progressSteps: [],
-        mediaAnalysisStatus: isMediaAnalysis ? (stepKey as 'analyzing_image' | 'analyzing_video') : null,
-        visionBackend:
-          isMediaAnalysis &&
-          typeof (data.data as Record<string, unknown> | undefined)?.vision_backend === 'string'
-            ? ((data.data as Record<string, unknown>).vision_backend as string)
-            : null,
-        createdAt: new Date(),
-        metadata: data.metadata,
-      });
-      messageIndex = state.messages.length - 1;
-      ctx.added = true;
+    if (
+      messageIndex === -1 &&
+      (isMediaAnalysis || isArchiveRestoreStatus || isEarlyRecoveryProgressStep(stepKey))
+    ) {
+      if (isMediaAnalysis || isArchiveRestoreStatus) {
+        state.messages.push({
+          content: '',
+          messageId: data.messageId,
+          chatId: state.messages[0]?.chatId || '',
+          role: 'assistant',
+          progressSteps: [],
+          mediaAnalysisStatus: isMediaAnalysis ? (stepKey as 'analyzing_image' | 'analyzing_video') : null,
+          visionBackend:
+            isMediaAnalysis &&
+            typeof (data.data as Record<string, unknown> | undefined)?.vision_backend === 'string'
+              ? ((data.data as Record<string, unknown>).vision_backend as string)
+              : null,
+          createdAt: new Date(),
+          metadata: data.metadata,
+        });
+        messageIndex = state.messages.length - 1;
+      } else {
+        messageIndex = H.ensureAssistantStreamMessage(
+          state.messages,
+          data.messageId,
+          state.messages[0]?.chatId || '',
+        );
+      }
+      if (messageIndex !== -1) {
+        ctx.added = true;
+      }
     }
 
     if (messageIndex !== -1) {

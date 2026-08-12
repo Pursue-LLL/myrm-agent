@@ -446,6 +446,39 @@ def _holder_holds_private_admit_credit(pid: int) -> bool:
     return _pid_in_private_credit_holder_tree(pid)
 
 
+def _session_has_fresh_bootstrap_progress(row: LiveE2ESessionRow) -> bool:
+    """True when a bootstrap holder keeps touching snapshot progress.
+
+    Credit-hog reaping exists to release PRIVATE credit from *stalled*
+    holders. An actively progressing bootstrap (e.g. SHPOIB private-backend
+    bring-up under parallel load, which routinely exceeds the process cap)
+    is alive and must fall through to the looser bootstrap wall cap instead
+    of being reaped mid-flight. No readable snapshot means no evidence of
+    progress, so the credit-hog verdict is kept unchanged.
+    """
+    try:
+        from dev_gate_contract import (  # noqa: PLC0415
+            shpoib_parallel_stall_progress_sec,
+        )
+        from e2e_session_runtime.snapshot import (  # noqa: PLC0415
+            progress_stale_sec,
+            resolve_session_snapshot,
+        )
+    except ImportError:
+        return False
+    snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
+    if snapshot is None:
+        return False
+    stale = progress_stale_sec(snapshot)
+    if stale is None:
+        return False
+    stall_cap = shpoib_parallel_stall_progress_sec(
+        lane=str(snapshot.get("lane") or row.lane or ""),
+        workload=str(snapshot.get("workload") or ""),
+    )
+    return float(stale) < float(stall_cap)
+
+
 def _admit_semantic_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     """Node-level ADMIT stall for sidecar-less test.sh holders and batch parents."""
     from dev_gate_contract import (  # noqa: PLC0415
@@ -572,6 +605,7 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
         if (
             _holder_holds_private_admit_credit(row.pid)
             and _private_credit_queue_has_waiters()
+            and not _session_has_fresh_bootstrap_progress(row)
         ):
             # ADMIT queue wait inflates row.elapsed_sec — only bootstrap phase blocks credits.
             process_elapsed = _epoch_drift_elapsed_sec(row)

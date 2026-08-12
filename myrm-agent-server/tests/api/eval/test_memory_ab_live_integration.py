@@ -115,7 +115,9 @@ def test_memory_ab_embedding_probe_live(local_embedding: LocalEmbeddingServer) -
 
     from app.services.agent.platform_config import verify_platform_embedding_ready
 
-    mock_configs = _build_user_configs_from_env(embedding_endpoint=local_embedding.base_url)
+    mock_configs = _build_user_configs_from_env(
+        embedding_endpoint=local_embedding.base_url
+    )
     with patch(
         "app.core.channel_bridge.config_loader.load_user_configs",
         return_value=mock_configs,
@@ -309,9 +311,9 @@ def _run_full_chain(embedding_endpoint: str) -> None:
         # The throwaway memory volume must be evicted and removed.
         memory_root = Path(DEFAULT_MEMORY_AB_MEMORY_DIR)
         if memory_root.exists():
-            assert not list(memory_root.glob("memory_ab_*")), (
-                "throwaway memory volume was not cleaned up"
-            )
+            assert not list(
+                memory_root.glob("memory_ab_*")
+            ), "throwaway memory volume was not cleaned up"
 
         # The embedded Qdrant store that lived under the throwaway volume must
         # be evicted from the harness per-path singleton cache — otherwise the
@@ -333,6 +335,6 @@ def _run_full_chain(embedding_endpoint: str) -> None:
         # finally-block cleanup must leave no trace behind.
         workspace_root = Path(".myrm/eval_workspaces")
         if workspace_root.exists():
-            assert not list(workspace_root.iterdir()), (
-                "eval session workspaces were not cleaned up after the run"
-            )
+            assert not list(
+                workspace_root.iterdir()
+            ), "eval session workspaces were not cleaned up after the run"

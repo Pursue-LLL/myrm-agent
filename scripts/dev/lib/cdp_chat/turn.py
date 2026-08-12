@@ -951,6 +951,7 @@ class CdpChatTurn(CdpChatSubmit):
         *,
         chat_id_hint: str | None = None,
         base_url: str | None = None,
+        skip_model_sync: bool = False,
     ) -> dict[str, object]:
         ui_base = (
             base_url or getattr(self, "_base_url", None) or "http://127.0.0.1:3000"
@@ -990,7 +991,7 @@ class CdpChatTurn(CdpChatSubmit):
                 baseline_user_msgs = 0
         self._baseline_user_msgs = baseline_user_msgs
         try:
-            if baseline_user_msgs == 0:
+            if baseline_user_msgs == 0 and not skip_model_sync:
                 await self._sync_model_selection()
             else:
                 await self.evaluate(

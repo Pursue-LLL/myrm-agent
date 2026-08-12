@@ -232,11 +232,16 @@ def should_defer_supervisor_backend_heal(
 
 def _backend_only_ensure_timeout_sec() -> float:
     """Wall timeout for dev-stack backend-only ensure (cold app.main import can exceed 120s)."""
-    raw = os.environ.get("MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC", "360")
     try:
-        return max(120.0, float(raw))
-    except ValueError:
-        return 360.0
+        from dev_gate_contract import shpoib_backend_only_ensure_parallel_timeout_sec
+
+        return shpoib_backend_only_ensure_parallel_timeout_sec()
+    except ImportError:
+        raw = os.environ.get("MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC", "360")
+        try:
+            return max(120.0, float(raw))
+        except ValueError:
+            return 360.0
 
 
 def _run_backend_only_ensure(

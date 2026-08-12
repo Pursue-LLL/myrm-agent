@@ -26,12 +26,12 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from myrm_agent_harness.utils.markdown_frontmatter import (
-    parse_frontmatter,
-)
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     infer_type_for_import,
     serialize_frontmatter,
+)
+from myrm_agent_harness.utils.markdown_frontmatter import (
+    parse_frontmatter,
 )
 
 logger = logging.getLogger(__name__)

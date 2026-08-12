@@ -36,6 +36,8 @@ matrix_state: dict[str, object] = {
     "profile_total": 0,
     "case_completed": 0,
     "case_total": 0,
+    "stage": None,
+    "download_progress": None,
     "error": None,
 }
 

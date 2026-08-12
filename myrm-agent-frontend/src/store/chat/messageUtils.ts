@@ -10,6 +10,34 @@ export const findAssistantMessageIndex = (messages: Message[], messageId: string
   return messages.findIndex((msg) => msg.messageId === messageId && msg.role === 'assistant');
 };
 
+/**
+ * Ensure an assistant placeholder exists for stream events that may arrive before MESSAGE.
+ * Returns the message index, or -1 when messageId is missing.
+ */
+export const ensureAssistantStreamMessage = (
+  messages: Message[],
+  messageId: string | undefined,
+  chatIdFallback: string,
+): number => {
+  const normalizedId = messageId?.trim();
+  if (!normalizedId) {
+    return -1;
+  }
+  const existing = findAssistantMessageIndex(messages, normalizedId);
+  if (existing !== -1) {
+    return existing;
+  }
+  messages.push({
+    content: '',
+    messageId: normalizedId,
+    chatId: chatIdFallback,
+    role: 'assistant',
+    progressSteps: [],
+    createdAt: new Date(),
+  });
+  return messages.length - 1;
+};
+
 /** Locate a UI artifact by surface_id across assistant messages (newest first). */
 export const findUiArtifactLocation = (
   messages: Message[],

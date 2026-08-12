@@ -68,9 +68,11 @@ async def test_bash_stream(client: TestClient) -> None:
     request_data: dict[str, object] = {
         "messageId": str(uuid.uuid4()),
         "query": (
-            "Use bash_code_execute_tool to run exactly: "
-            "echo stream_marker_$RANDOM_$RANDOM. "
-            "Report the exact output. Do not use any other tools."
+            "Run EXACTLY ONE command via bash_code_execute_tool, and use no "
+            "other tool: date +stream_marker_%s. "
+            "The exact second-level timestamp is only obtainable by executing "
+            "the command — do not simulate or invent a value. "
+            "Report the exact full output line as returned."
         ),
         "chatId": chat_id,
         "modelSelection": get_model_selection(),
@@ -104,13 +106,17 @@ async def test_bash_stream(client: TestClient) -> None:
         return tool_stdout_chunk_received or "bash_code_execute" in stream_blob
 
     if not _bash_invoked(collected):
-        # Real LLMs sometimes answer directly instead of invoking the tool, which
-        # is model behavior, not a bash-stream defect. Retry once with a fresh
-        # chat so a single non-compliant turn does not flap the test.
-        retry_data = dict(request_data)
-        retry_data["chatId"] = f"bash-chat-{uuid.uuid4().hex[:8]}"
-        retry_data["messageId"] = str(uuid.uuid4())
-        collected = _stream_with_auto_approve(client, retry_data)
+        # Real LLMs (especially flash-tier) sometimes answer the prompt directly
+        # without invoking the tool — model behavior, not a bash-stream defect.
+        # This test verifies the bash stdout stream; a non-compliant turn must
+        # not flap it, so retry with fresh chats (each attempt is independent).
+        for _ in range(3):
+            retry_data = dict(request_data)
+            retry_data["chatId"] = f"bash-chat-{uuid.uuid4().hex[:8]}"
+            retry_data["messageId"] = str(uuid.uuid4())
+            collected = _stream_with_auto_approve(client, retry_data)
+            if _bash_invoked(collected):
+                break
 
     assert _bash_invoked(collected), "Expected bash_code_execute_tool invocation or tool_stdout_chunk event"
 

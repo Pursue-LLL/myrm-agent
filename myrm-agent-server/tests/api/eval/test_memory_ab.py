@@ -9,7 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.eval import browse_comp  # noqa: F401  (module-level benchmark registration)
+from app.core.eval import (
+    browse_comp,
+)  # noqa: F401  (module-level benchmark registration)
 from app.core.eval.executor import LocalEvalExecutor
 from tests.support.minimal_app import build_minimal_app
 
@@ -275,7 +277,8 @@ class TestMemoryAbService:
             ),
             patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
             patch(
-                "app.core.memory.adapters.setup.evict_cached_memory_manager", AsyncMock()
+                "app.core.memory.adapters.setup.evict_cached_memory_manager",
+                AsyncMock(),
             ),
         ):
             await memory_ab_mod.run_memory_ab_background(
@@ -285,6 +288,66 @@ class TestMemoryAbService:
         report = json.loads((reports_dir / "latest.json").read_text())
         assert report["judge_model"] == "deepseek/deepseek-chat"
         assert report["agent_model"] == "gpt-4o"
+        assert report["aborted"] is False
+
+    @pytest.mark.asyncio
+    async def test_run_marks_report_aborted_after_user_abort(
+        self, tmp_path: Path
+    ) -> None:
+        """Partial results written after a user abort carry the aborted flag."""
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        class FakeMatrixResult:
+            per_profile_results: dict[str, object] = {}
+
+            def to_dict(self) -> dict[str, object]:
+                return {"profile_ids": ["memory_off", "memory_on"], "total_cases": 1}
+
+        class FakeMatrixRunner:
+            def __init__(self, executors, **kwargs):
+                self.kwargs = kwargs
+
+            def abort(self) -> None:
+                pass
+
+            async def run_multi_turn(self, cases, **kwargs):
+                # The runner aborts mid-flight but still returns partial results.
+                memory_ab_mod._memory_ab_state["abort_requested"] = True
+                return FakeMatrixResult()
+
+        cases = [MagicMock()]
+        cases[0].turns = [MagicMock()]
+
+        reports_dir = tmp_path / "reports"
+        memory_dir = tmp_path / "memory"
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+        memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = memory_dir
+
+        with (
+            patch(
+                "app.core.eval.memory_ab._memory_ab_state",
+                {"is_running": False, "abort_requested": False},
+            ),
+            patch(
+                "app.core.eval.benchmarks.build_benchmark_cases",
+                return_value=(cases, {}, False),
+            ),
+            patch(
+                "app.core.eval.model_config._resolve_agent_model_label",
+                new=AsyncMock(return_value="gpt-4o"),
+            ),
+            patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
+            patch(
+                "app.core.memory.adapters.setup.evict_cached_memory_manager",
+                AsyncMock(),
+            ),
+        ):
+            await memory_ab_mod.run_memory_ab_background(
+                "browsecomp", profile_id="agent_x", limit=None
+            )
+
+        report = json.loads((reports_dir / "latest.json").read_text())
+        assert report["aborted"] is True
 
     @pytest.mark.asyncio
     async def test_run_memory_ab_builds_two_arms(self, tmp_path: Path) -> None:
@@ -445,14 +508,18 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
 
     # already running
     with patch(
-        "app.api.eval.memory_ab_router.get_memory_ab_status", return_value={"is_running": True}
+        "app.api.eval.memory_ab_router.get_memory_ab_status",
+        return_value={"is_running": True},
     ):
-        res = client.post("/api/v1/eval/memory-ab/run", json={"benchmark_id": benchmark_id})
+        res = client.post(
+            "/api/v1/eval/memory-ab/run", json={"benchmark_id": benchmark_id}
+        )
         assert res.json()["status"] == "already_running"
 
     # unknown benchmark
     with patch(
-        "app.api.eval.memory_ab_router.get_memory_ab_status", return_value={"is_running": False}
+        "app.api.eval.memory_ab_router.get_memory_ab_status",
+        return_value={"is_running": False},
     ):
         res = client.post("/api/v1/eval/memory-ab/run", json={"benchmark_id": "nope"})
         assert res.json()["status"] == "error"
@@ -622,7 +689,8 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
             new=AsyncMock(return_value=True),
         ),
         patch(
-            "app.core.eval.model_config._resolve_judge_config", return_value=(None, "none")
+            "app.core.eval.model_config._resolve_judge_config",
+            return_value=(None, "none"),
         ),
         patch("app.api.eval.memory_ab_router.run_memory_ab_background") as mock_bg,
     ):
@@ -648,21 +716,25 @@ def test_memory_ab_router_endpoints(client: TestClient) -> None:
 
     # status passthrough
     with patch(
-        "app.api.eval.memory_ab_router.get_memory_ab_status", return_value={"is_running": False}
+        "app.api.eval.memory_ab_router.get_memory_ab_status",
+        return_value={"is_running": False},
     ):
         res = client.get("/api/v1/eval/memory-ab/status")
         assert res.json()["is_running"] is False
 
     # SSE stream passthrough
     with patch(
-        "app.api.eval.memory_ab_router.get_memory_ab_status", return_value={"is_running": False}
+        "app.api.eval.memory_ab_router.get_memory_ab_status",
+        return_value={"is_running": False},
     ):
         res = client.get("/api/v1/eval/memory-ab/stream")
         assert res.status_code == 200
         assert "text/event-stream" in res.headers["content-type"]
 
     # report not found
-    with patch("app.api.eval.memory_ab_router.get_latest_memory_ab_report", return_value=None):
+    with patch(
+        "app.api.eval.memory_ab_router.get_latest_memory_ab_report", return_value=None
+    ):
         res = client.get("/api/v1/eval/memory-ab/reports/latest")
         assert res.json()["status"] == "not_found"
 
@@ -818,7 +890,8 @@ def test_memory_ab_router_report_history(client: TestClient) -> None:
 
     # specific report found
     with patch(
-        "app.api.eval.memory_ab_router.get_memory_ab_report", return_value={"profile_ids": []}
+        "app.api.eval.memory_ab_router.get_memory_ab_report",
+        return_value={"profile_ids": []},
     ):
         res = client.get("/api/v1/eval/memory-ab/reports/123")
         assert res.status_code == 200
@@ -1045,9 +1118,7 @@ class TestCleanupResilience:
     """The finally-block teardown must never skip eval workspace cleanup."""
 
     @pytest.mark.asyncio
-    async def test_evict_failure_still_cleans_workspaces(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_evict_failure_still_cleans_workspaces(self, tmp_path: Path) -> None:
         """A throwing evict_cached_memory_manager must not skip workspace cleanup.
 
         The finally block guards each teardown step independently so a failure

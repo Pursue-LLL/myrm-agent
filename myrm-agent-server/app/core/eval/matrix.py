@@ -93,6 +93,8 @@ async def run_matrix_eval_background(
             "profile_total": len(profile_ids or []),
             "case_completed": 0,
             "case_total": 0,
+            "stage": "evaluating",
+            "download_progress": None,
             "error": None,
             "abort_requested": False,
         }
@@ -105,6 +107,8 @@ async def run_matrix_eval_background(
         eval_state.matrix_state["error"] = str(exc)
     finally:
         eval_state.matrix_state["is_running"] = False
+        eval_state.matrix_state["stage"] = None
+        eval_state.matrix_state["download_progress"] = None
         eval_state.active_matrix_runner = None
 
 

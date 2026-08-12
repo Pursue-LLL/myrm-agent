@@ -128,3 +128,15 @@ describe('isNodeOvertime', () => {
     expect(isNodeOvertime(node)).toBe(false);
   });
 });
+
+describe('internal nodes', () => {
+  it('setNodes skips internal nodes', () => {
+    useSubagentStore.getState().setNodes([
+      makeNode({ task_id: 'biz', internal: false }),
+      makeNode({ task_id: 'verify-worker-1', internal: true }),
+    ]);
+    const nodes = useSubagentStore.getState().nodes;
+    expect(nodes['biz']).toBeDefined();
+    expect(nodes['verify-worker-1']).toBeUndefined();
+  });
+});

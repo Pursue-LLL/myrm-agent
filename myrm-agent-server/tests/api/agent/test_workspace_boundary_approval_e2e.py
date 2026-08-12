@@ -23,7 +23,7 @@ class TestWorkspaceBoundaryPathPolicy:
     """Deterministic workspace boundary checks (no LLM / sandbox)."""
 
     def test_file_write_outside_workspace_requires_ask(self) -> None:
-        config = SecurityConfig(path_policy=PathPolicy(forbidden_paths=frozenset(), allowed_roots=()))
+        config = SecurityConfig(path_policy=PathPolicy(forbidden_paths=frozenset(), access_roots=()))
         action, reason = evaluate_tool_call(
             "file_write",
             {"path": "/etc/myrm_out_of_bounds_e2e_test.txt"},

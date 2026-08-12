@@ -10,6 +10,7 @@ from myrm_agent_harness.agent.skills.packaging import serialize_eval_cases
 
 from app.api.skills.batch_import import router
 from app.api.skills.evolution.helpers import _get_skill_store
+from app.core.skills.store.evolution_store import reset_evolution_skill_store
 
 
 def _make_client() -> TestClient:
@@ -169,7 +170,7 @@ def test_batch_import_preview_then_confirm_succeeds_on_real_zip_flow() -> None:
     try:
         assert any(record.name == skill_name for record in store.get_active_skills())
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
 
 def test_batch_import_confirm_invalid_virtual_id_returns_structured_detail() -> None:
@@ -281,7 +282,7 @@ def test_batch_import_conflict_rename_cow_creates_copy_skill() -> None:
         assert skill_name in names
         assert f"{skill_name}_copy" in names
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
 
 def test_batch_import_conflict_replace_updates_existing_record() -> None:
@@ -355,7 +356,7 @@ def test_batch_import_conflict_replace_updates_existing_record() -> None:
             record.name == f"{skill_name}_copy" for record in store.get_active_skills()
         )
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
 
 def test_batch_import_replace_preserves_existing_eval_cases_when_package_has_none() -> (
@@ -405,7 +406,7 @@ def test_batch_import_replace_preserves_existing_eval_cases_when_package_has_non
         existing_skill_id = original.skill_id
         assert len(original.eval_cases) == 1
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
     # Step 2: replace 覆盖，但新包不含 evals.json
     replace_preview = _preview_batch_import(
@@ -447,7 +448,7 @@ def test_batch_import_replace_preserves_existing_eval_cases_when_package_has_non
         assert len(replaced.eval_cases) == 1
         assert replaced.eval_cases[0]["message"] == "sum 1 and 2"
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
 
 def test_batch_import_replace_preserves_evolution_metadata() -> None:
@@ -504,7 +505,7 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         original.verification_steps.append({"step": "run", "expected": "ok"})
         store._save_skill_sync(original)  # noqa: SLF001 - harness 同步落盘入口，避免引入 event loop
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
     # Step 3: replace 覆盖，新包不含 evals.json
     replace_preview = _preview_batch_import(
@@ -527,7 +528,7 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         pending.is_active = False
         store._save_skill_sync(pending)  # noqa: SLF001
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
     replace_confirm = _confirm_batch_import(
         client,
@@ -564,7 +565,7 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         assert len(replaced.eval_cases) == 1
         assert replaced.eval_cases[0]["message"] == "sum 1 and 2"
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
 
 def test_batch_import_restores_evals_json_and_excludes_from_disk() -> None:
@@ -617,7 +618,7 @@ def test_batch_import_restores_evals_json_and_excludes_from_disk() -> None:
         skill_dir = os.path.dirname(record.path)
         assert not os.path.exists(os.path.join(skill_dir, "evals.json"))
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
 
 def test_batch_import_ignores_invalid_evals_json() -> None:
@@ -657,7 +658,7 @@ def test_batch_import_ignores_invalid_evals_json() -> None:
         record = next(r for r in store.get_active_skills() if r.name == skill_name)
         assert record.eval_cases == []
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
 
 def test_batch_import_replace_prefers_package_evals_over_inherited() -> None:
@@ -701,7 +702,7 @@ def test_batch_import_replace_prefers_package_evals_over_inherited() -> None:
         existing_skill_id = original.skill_id
         assert len(original.eval_cases) == 1
     finally:
-        store.close()
+        reset_evolution_skill_store()
 
     # Step 2: replace 覆盖，新包自带 2 条 evals（优先于继承的 1 条）
     package_cases = [
@@ -757,4 +758,4 @@ def test_batch_import_replace_prefers_package_evals_over_inherited() -> None:
         skill_dir = os.path.dirname(replaced.path)
         assert not os.path.exists(os.path.join(skill_dir, "evals.json"))
     finally:
-        store.close()
+        reset_evolution_skill_store()

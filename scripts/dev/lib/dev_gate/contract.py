@@ -1204,13 +1204,62 @@ def dev_bootstrap_wall_cap_for_hung_reap(*, lane: str, shpoib: bool) -> float:
     return bootstrap_sec
 
 
-def shpoib_backend_only_ensure_stall_cap_sec() -> float:
-    """Hung-reap cap for SHPOIB backend-only ensure (cold app.main import can exceed mux bootstrap wall)."""
+def _backend_only_ensure_parallel_load() -> int:
+    """Peer pressure for backend-only ensure — wave leases can lag during ADMIT (R124+)."""
+    load = 0
+    try:
+        from pathlib import Path
+
+        from stack_mutation_policy import wave_active_lease_count
+
+        load = wave_active_lease_count(Path(__file__).resolve().parents[5])
+    except (ImportError, OSError, RuntimeError, ValueError):
+        load = 0
+    try:
+        from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
+
+        session_peers = parallel_active_test_count_ssot()
+        load = max(load, max(0, session_peers - 1))
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
+    for key in (
+        "MYRM_E2E_PARALLEL_ACTIVE_COUNT",
+        "MYRM_E2E_PARALLEL_ACTIVE_LEASES",
+        "MYRM_E2E_PHASE_C_BURST_LANES",
+    ):
+        raw = os.environ.get(key, "").strip()
+        if raw.isdigit():
+            load = max(load, max(0, int(raw) - 1))
+    if is_e2e_signoff_runtime():
+        try:
+            load = max(load, _parallel_signoff_pressure_peers())
+        except (ImportError, OSError, RuntimeError, ValueError):
+            pass
+        try:
+            from transport_supervisor import parallel_mux_peer_count
+
+            load = max(load, parallel_mux_peer_count())
+        except (ImportError, OSError, RuntimeError, ValueError):
+            pass
+    return max(0, load)
+
+
+def shpoib_backend_only_ensure_parallel_timeout_sec() -> float:
+    """Wall timeout for SHPOIB backend-only ensure; scales under parallel chrome_e2e."""
     raw = os.environ.get("MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC", "360")
     try:
-        return max(120.0, float(raw))
+        base = max(120.0, float(raw))
     except ValueError:
-        return 360.0
+        base = 360.0
+    load = _backend_only_ensure_parallel_load()
+    if load < 1:
+        return base
+    return min(540.0, base + load * 45.0)
+
+
+def shpoib_backend_only_ensure_stall_cap_sec() -> float:
+    """Hung-reap cap for SHPOIB backend-only ensure — must match subprocess timeout SSOT."""
+    return shpoib_backend_only_ensure_parallel_timeout_sec()
 
 
 def signoff_effective_bootstrap_wall_sec() -> float:

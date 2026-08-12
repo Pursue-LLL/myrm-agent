@@ -457,3 +457,17 @@ class TestExtractVisionFallbackModelConfigs:
         assert engine is not None
         assert len(engine.fallback_configs) == 1
         assert engine.fallback_configs[0].model == "openai/gpt-4o-mini"
+
+
+@pytest.mark.asyncio
+async def test_verify_search_config_live_skips_e2e_probe_key() -> None:
+    from myrm_agent_harness.toolkits.web_search.web_searcher import SearchServiceConfig
+
+    from app.services.integrations.search_verify import verify_search_config_live
+
+    cfg = SearchServiceConfig(
+        search_service="tavily",
+        api_key="test-tavily-key",
+        api_base="",
+    )
+    assert await verify_search_config_live(cfg) is True

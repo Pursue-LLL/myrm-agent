@@ -35,6 +35,15 @@ TURN_WAIT_SEC = 300.0
 # so corrupting the primary model id exercises the real auto-switch path.
 _NONEXISTENT_MODEL_ID = "__e2e_nonexistent_model__"
 
+_PIN_BASIC_PRIMARY_JS = """(async () => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.pinBasicModelForE2e) {
+    return { ok: false, err: 'no pinBasicModelForE2e' };
+  }
+  const sel = await bridge.pinBasicModelForE2e();
+  return { ok: true, selection: sel };
+})()"""
+
 _FAILOVER_STEP_JS = """(() => {
   const store = window.__myrmChatStore?.getState?.();
   const msgs = store?.messages || [];
@@ -214,7 +223,22 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
             ui_base = _base_url()
             await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
             await chat.click_new_chat()
-            send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+            pin_raw = await chat.evaluate(
+                _PIN_BASIC_PRIMARY_JS,
+                intent=EvaluateIntent.AGENT_SUBMIT,
+            )
+            pin_state = (
+                pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
+            )
+            assert pin_state.get("ok") is True, pin_state
+            selection = pin_state.get("selection")
+            assert isinstance(selection, dict), pin_state
+            assert str(selection.get("model") or "") == _NONEXISTENT_MODEL_ID, pin_state
+            send_result = await chat.send_message(
+                E2E_PROMPT,
+                E2E_PROMPT,
+                skip_model_sync=True,
+            )
             chat_id = (
                 str(
                     send_result.get("started", {}).get("chatId")

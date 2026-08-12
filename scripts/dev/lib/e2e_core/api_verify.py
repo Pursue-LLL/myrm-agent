@@ -152,7 +152,9 @@ def _shared_epoch_match(ctx: E2eApiContext) -> bool:
     """Whether the shared UI backend is healthy and runs the workspace epoch."""
     shared = [candidate for candidate in ctx.candidates if candidate.source == "shared"]
     if shared:
-        return any(candidate.health_ok and candidate.epoch_match for candidate in shared)
+        return any(
+            candidate.health_ok and candidate.epoch_match for candidate in shared
+        )
     # Empty candidates are used by focused unit fixtures. A real non-empty set
     # without a shared candidate means only API/private verification is ready.
     return ctx.epoch_match if not ctx.candidates else False
@@ -209,7 +211,11 @@ def _scripts_dev_dir() -> Path:
         root / "scripts" / "dev",
     )
     return next(
-        (candidate for candidate in candidates if (candidate / "wave_orchestrator").is_dir()),
+        (
+            candidate
+            for candidate in candidates
+            if (candidate / "wave_orchestrator").is_dir()
+        ),
         candidates[0],
     )
 
@@ -307,9 +313,7 @@ def _api_health_probe(
         for path in HEALTH_PATHS:
             url = f"{base}{path}"
             try:
-                with urllib.request.urlopen(
-                    url, timeout=timeout_sec
-                ) as resp:
+                with urllib.request.urlopen(url, timeout=timeout_sec) as resp:
                     if 200 <= resp.status < 300:
                         return True
             except urllib.error.URLError as exc:
@@ -421,9 +425,7 @@ def _curl_loopback_get(url: str, *, timeout_sec: float) -> str | None:
 def _read_health_stack_epoch(api_base: str) -> tuple[int | None, str]:
     url = f"{api_base.rstrip('/')}/api/v1/health"
     try:
-        with urllib.request.urlopen(
-            url, timeout=HEALTH_PROBE_TIMEOUT_SEC
-        ) as resp:
+        with urllib.request.urlopen(url, timeout=HEALTH_PROBE_TIMEOUT_SEC) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
     except (
         urllib.error.URLError,
@@ -920,13 +922,19 @@ def _compute_next_action(
     parallel_snapshot: dict[str, object] | None = None,
 ) -> str:
     from dev_gate_contract import (
+        E2E_ADMISSION_WALL_CLOCK_SEC,
         LIVE_AGENT_BODY_WALL_CLOCK_SEC,
         LIVE_AGENT_PYTEST_WALL_CAP_SEC,
         LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
-        admit_wall_clock_sec,
     )
 
-    admit_wall_cap = float(admit_wall_clock_sec())
+    # Cluster-level admit hung verdict uses the PRIVATE admission contract
+    # (900s) — peers queue under credits/leases while waiting for capacity.
+    # The signoff 300s ADMIT wall is a per-lane internal budget enforced by
+    # the signoff stack (test.sh/coordinator) after submission; applying it
+    # here to every peer mislabels a normal PRIVATE credit-queue wait as a
+    # hung peer and aborts unrelated launches (soak pre-burst FAIL_FAST).
+    admit_wall_cap = float(E2E_ADMISSION_WALL_CLOCK_SEC)
     # The operation plane is the authority for browser isolation and credit
     # state. If its snapshot is unavailable, no epoch/lease signal can prove
     # that a new launch is safe; fail closed before drift or queue routing.
@@ -1017,11 +1025,7 @@ def _compute_next_action(
 
             if not cluster_fail_fast_suppressed_for_active_test(row):
                 return "FAIL_FAST"
-    if (
-        not shared_match
-        and shared_healthy
-        and ctx.active_leases > 0
-    ):
+    if not shared_match and shared_healthy and ctx.active_leases > 0:
         # Running SHARED sessions pin the healthy shared backend generation.
         # Workspace drift means new backend code must use PRIVATE; it must not
         # serialize unrelated SHARED sessions behind an idle-only restart.
@@ -1472,9 +1476,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
             **parallel_snapshot,
             "parallel_observability_mismatch": True,
         }
-    _browser_orchestrator_payload, orchestrator_obs = (
-        _load_orchestrator_observability()
-    )
+    _browser_orchestrator_payload, orchestrator_obs = _load_orchestrator_observability()
     mux_fields = _cohere_mux_observability(mux_fields, _browser_orchestrator_payload)
     active_tests_raw = parallel_snapshot.get("active_tests")
     active_tests = (

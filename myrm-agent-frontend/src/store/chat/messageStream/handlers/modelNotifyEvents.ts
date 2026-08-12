@@ -37,7 +37,17 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       });
 
       actions.setMessages((state) => {
-        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        if (messageIndex === -1) {
+          messageIndex = H.ensureAssistantStreamMessage(
+            state.messages,
+            data.messageId,
+            state.messages[0]?.chatId || '',
+          );
+          if (messageIndex !== -1) {
+            ctx.added = true;
+          }
+        }
         if (messageIndex !== -1) {
           const steps = state.messages[messageIndex].progressSteps ?? [];
           steps.push({
@@ -76,7 +86,17 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       });
 
       actions.setMessages((state) => {
-        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        if (messageIndex === -1) {
+          messageIndex = H.ensureAssistantStreamMessage(
+            state.messages,
+            data.messageId,
+            state.messages[0]?.chatId || '',
+          );
+          if (messageIndex !== -1) {
+            ctx.added = true;
+          }
+        }
         if (messageIndex !== -1) {
           const steps = state.messages[messageIndex].progressSteps ?? [];
           const displayKey = resolveModelFailoverProgressStepKey(payload.reason);
@@ -116,7 +136,17 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       });
 
       actions.setMessages((state) => {
-        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        if (messageIndex === -1) {
+          messageIndex = H.ensureAssistantStreamMessage(
+            state.messages,
+            data.messageId,
+            state.messages[0]?.chatId || '',
+          );
+          if (messageIndex !== -1) {
+            ctx.added = true;
+          }
+        }
         if (messageIndex !== -1) {
           const steps = state.messages[messageIndex].progressSteps ?? [];
           steps.push({

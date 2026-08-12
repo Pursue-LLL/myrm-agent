@@ -143,6 +143,8 @@ async def run_layer_eval_background(
         eval_state.matrix_state["error"] = str(exc)
     finally:
         eval_state.matrix_state["is_running"] = False
+        eval_state.matrix_state["stage"] = None
+        eval_state.matrix_state["download_progress"] = None
         eval_state.active_matrix_runner = None
 
 

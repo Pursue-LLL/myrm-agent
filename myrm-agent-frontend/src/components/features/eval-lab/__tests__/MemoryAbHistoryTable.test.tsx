@@ -153,4 +153,39 @@ describe('MemoryAbHistoryTable', () => {
     expect(row!.textContent).toContain('sampled');
     expect(row!.textContent).toContain('20');
   });
+
+  it('marks aborted runs so they are not mistaken for complete', () => {
+    const abortedItems: MemoryAbHistoryItem[] = [
+      {
+        timestamp: 4000,
+        dataset_id: 'browsecomp',
+        aborted: true,
+        per_profile: {
+          memory_off: { pass_rate: 0.5 },
+          memory_on: { pass_rate: 0.7 },
+        },
+      },
+    ];
+    render(<MemoryAbHistoryTable items={abortedItems} onSelect={vi.fn()} />);
+
+    const row = screen.getByText('browsecomp').closest('tr');
+    expect(row!.textContent).toContain('aborted');
+  });
+
+  it('omits the aborted badge for complete runs', () => {
+    const items: MemoryAbHistoryItem[] = [
+      {
+        timestamp: 5000,
+        dataset_id: 'browsecomp',
+        per_profile: {
+          memory_off: { pass_rate: 0.5 },
+          memory_on: { pass_rate: 0.7 },
+        },
+      },
+    ];
+    render(<MemoryAbHistoryTable items={items} onSelect={vi.fn()} />);
+
+    const row = screen.getByText('browsecomp').closest('tr');
+    expect(row!.textContent).not.toContain('aborted');
+  });
 });

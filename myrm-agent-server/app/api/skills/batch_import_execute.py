@@ -23,6 +23,7 @@ import os
 import shutil
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import yaml
 from fastapi import HTTPException
@@ -35,15 +36,27 @@ from myrm_agent_harness.agent.skills.packaging import is_evals_file, parse_evals
 
 from app.api.skills.batch_import_helpers import _build_batch_import_error_detail
 
+if TYPE_CHECKING:
+    from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
+    from myrm_agent_harness.agent.skills.market.installers.batch_installer import (
+        HermesImportedSkill,
+    )
+    from myrm_agent_harness.agent.skills.optimization.security import (
+        SkillSecurityValidator,
+    )
+
+    from app.api.skills._staging import SkillStagingManager
+    from app.api.skills.batch_import_schemas import ConfirmImportRequest
+
 logger = logging.getLogger(__name__)
 
 
 async def execute_batch_import_confirm(
-    request: object,
-    store: object,
-    staging_manager: object,
-    validator: object,
-    imported_skills: list[object],
+    request: ConfirmImportRequest,
+    store: SkillStore,
+    staging_manager: SkillStagingManager,
+    validator: SkillSecurityValidator,
+    imported_skills: list[HermesImportedSkill],
 ) -> tuple[int, int, int]:
     """安全预检 → 蓝绿目录准备 → DB 批量写入 → 目录原子替换。
 

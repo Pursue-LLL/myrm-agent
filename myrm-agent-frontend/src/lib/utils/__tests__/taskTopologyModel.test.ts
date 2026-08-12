@@ -128,6 +128,17 @@ describe('buildTopologyModel', () => {
     const m = buildTopologyModel([mkNode({ task_id: 'a', description: 'y'.repeat(120) })]);
     expect(m.nodes[0].label.length).toBeLessThanOrEqual(60);
   });
+
+  it('excludes internal nodes and their edges', () => {
+    const m = buildTopologyModel([
+      mkNode({ task_id: 'root', status: 'completed' }),
+      mkNode({ task_id: 'biz', parent_task_id: 'root', status: 'completed' }),
+      mkNode({ task_id: 'verify-worker-1', parent_task_id: 'root', status: 'completed', internal: true }),
+    ]);
+    const ids = m.nodes.map((n) => n.taskId);
+    expect(ids).toEqual(['root', 'biz']);
+    expect(m.edges.some((e) => e.target === 'verify-worker-1')).toBe(false);
+  });
 });
 
 // ── buildFissionTopologyModel ────────────────────────────────────────

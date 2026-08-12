@@ -10,6 +10,7 @@ from sqlalchemy import delete, select
 
 import app.platform_utils
 from app.api.skills.evolution.helpers import _get_skill_store
+from app.core.skills.store.evolution_store import reset_evolution_skill_store
 from app.core.types.business import ModelConfig
 from app.database.models import ApprovalRecord
 from app.database.models.chat import Chat, Message
@@ -182,7 +183,7 @@ async def test_auto_skill_evolution_e2e(client: TestClient):
                 or "psutil" in skill.content
             ), "Saved skill should contain the extracted operational logic"
         finally:
-            store.close()
+            reset_evolution_skill_store()
     else:
         assert latest_record.status == "PENDING", "Manual-review growth cases should remain pending"
 

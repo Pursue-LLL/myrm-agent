@@ -14111,6 +14111,7 @@
     "restoreSelected": "Restore {count} selected",
     "confirmRestore": "Restore {count} file(s) to snapshot state?",
     "confirmYes": "Confirm",
+    "deleteConfirm": "Delete this version? This cannot be undone.",
     "confirmNo": "Cancel",
     "restoring": "Restoring...",
     "externalEffects": "External",
@@ -14863,7 +14864,8 @@
       "historyCurrent": "Current",
       "historyView": "View",
       "sampled": "sampled",
-      "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)"
+      "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)",
+      "abortedBadge": "aborted"
     },
     "layers": {
       "button": "Layer Eval",

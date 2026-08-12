@@ -69,4 +69,25 @@ describe('FileSnapshotCard', () => {
     renderCard(baseSnapshot({ externalEffects: [] }));
     expect(screen.queryByText('externalEffects')).not.toBeInTheDocument();
   });
+
+  it('requires confirmation before deleting a snapshot', () => {
+    const onDelete = vi.fn();
+    const { container } = render(
+      <FileSnapshotCard
+        snapshot={baseSnapshot()}
+        onRestore={() => {}}
+        onViewDiff={() => {}}
+        onDelete={onDelete}
+        isLoading={false}
+      />,
+    );
+
+    expect(onDelete).not.toHaveBeenCalled();
+    fireEvent.click(container.querySelector('.lucide-trash') as HTMLElement);
+    expect(screen.getByText('deleteConfirm')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('confirmYes'));
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith('snap-1');
+  });
 });

@@ -14176,7 +14176,8 @@
       "historyCurrent": "Aktuell",
       "historyView": "Anzeigen",
       "sampled": "Stichprobe",
-      "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)"
+      "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)",
+      "abortedBadge": "abgebrochen"
     },
     "layers": {
       "button": "Layer-Eval",
@@ -14197,10 +14198,18 @@
       "fingerprint": "Ebenen-Fingerprints fixieren die exakte Schalterkombination und halten Ergebnisse versionsübergreifend vergleichbar.",
       "harnessVersion": "Harness-Engine",
       "abortedNotice": "Dieser Bericht ist unvollständig — die Auswertung wurde vor dem Abschluss abgebrochen.",
-      "bare": { "label": "Basis" },
-      "core": { "label": "Kernkonfiguration" },
-      "skills": { "label": "Fähigkeiten" },
-      "memory": { "label": "Speicher" },
+      "bare": {
+        "label": "Basis"
+      },
+      "core": {
+        "label": "Kernkonfiguration"
+      },
+      "skills": {
+        "label": "Fähigkeiten"
+      },
+      "memory": {
+        "label": "Speicher"
+      },
       "confirmTitle": "Layered-Evaluation starten?",
       "confirmBody": "Der Benchmark wird viermal mit Ihrem aktuellen Profil ausgeführt — Basis (Benchmark-Modus, Tools und Fähigkeiten entfernt), Kernkonfiguration (Ihre vollständige Agent-Konfiguration, Fähigkeiten und Speicher aus), +Fähigkeiten, dann +Speicher (Ihre vollständige Konfiguration). Jede Ebene wiederholt dieselben Aufgaben, sodass die Differenz benachbarter Ebenen die jeweilige Fähigkeit isoliert. Die Kosten skalieren etwa mit dem 4-fachen der Stichproben; für die Speicher-Ebene muss ein Embedding-Modell konfiguriert sein.",
       "confirmStart": "Evaluation starten",
@@ -14698,13 +14707,14 @@
     "restoreSelected": "{count} ausgewählt wiederherstellen",
     "confirmRestore": "{count}-Datei(en) im Snapshot-Status wiederherstellen?",
     "confirmYes": "Bestätigen",
+    "deleteConfirm": "Diese Version löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.",
     "confirmNo": "Stornieren",
     "restoring": "Wiederherstellung...",
     "externalEffects": "Extern",
     "effects": {
-        "database": "Datenbankänderungen",
-        "container_cloud": "Container- oder Cloud-Vorgänge",
-        "network_mutation": "Netzwerkanfragen"
+      "database": "Datenbankänderungen",
+      "container_cloud": "Container- oder Cloud-Vorgänge",
+      "network_mutation": "Netzwerkanfragen"
     },
     "externalEffectsTooltip": "Dieser Snapshot enthält externe Vorgänge ({effects}), die durch ein Datei-Rollback nicht rückgängig gemacht werden können",
     "restoreExternalWarning": "Externe Vorgänge ({effects}) wurden durchgeführt und können durch diese Wiederherstellung nicht rückgängig gemacht werden",

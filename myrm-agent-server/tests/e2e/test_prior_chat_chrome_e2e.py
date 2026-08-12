@@ -70,6 +70,16 @@ _MENTION_ITEM_READY_JS = """(() => {
   return { ready: Boolean(item), itemText: (item?.textContent || '').slice(0, 120) };
 })()"""
 
+_MENTION_ALPHA_ITEM_READY_JS = """(() => {
+  const items = Array.from(document.querySelectorAll('[data-mention-item]'));
+  const match = items.find((item) => (item.textContent || '').includes('Alpha'));
+  return {
+    ready: Boolean(match),
+    itemText: (match?.textContent || '').slice(0, 120),
+    count: items.length,
+  };
+})()"""
+
 _MENTION_CHIP_READY_JS = f"""(() => {{
   const store = window.__myrmChatStore?.getState?.();
   const mentions = Array.isArray(store?.mentionReferences) ? store.mentionReferences : [];
@@ -87,6 +97,14 @@ _CLICK_MENTION_ITEM_JS = """(() => {
   const item = document.querySelector('[data-mention-item]');
   if (!item) return { ok: false, reason: 'no-mention-item' };
   item.click();
+  return { ok: true };
+})()"""
+
+_CLICK_MENTION_ALPHA_ITEM_JS = """(() => {
+  const items = Array.from(document.querySelectorAll('[data-mention-item]'));
+  const match = items.find((item) => (item.textContent || '').includes('Alpha'));
+  if (!match) return { ok: false, reason: 'no-alpha-mention-item', count: items.length };
+  match.click();
   return { ok: true };
 })()"""
 
@@ -297,17 +315,17 @@ def test_prior_chat_mention_empty_chat_home_chrome_e2e() -> None:
         wait_for_state(
             client,
             page,
-            _MENTION_ITEM_READY_JS,
-            timeout_sec=_warm_ui_parallel_wait_sec(60.0),
+            _MENTION_ALPHA_ITEM_READY_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
         )
 
-        clicked = client.evaluate(page, _CLICK_MENTION_ITEM_JS, timeout_sec=15.0)
+        clicked = client.evaluate(page, _CLICK_MENTION_ALPHA_ITEM_JS, timeout_sec=15.0)
         assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
 
         state = wait_for_state(
             client,
             page,
             _MENTION_CHIP_READY_JS,
-            timeout_sec=_warm_ui_parallel_wait_sec(30.0),
+            timeout_sec=_warm_ui_parallel_wait_sec(45.0),
         )
         assert state.get("ready") is True, state

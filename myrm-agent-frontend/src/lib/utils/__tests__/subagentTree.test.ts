@@ -136,6 +136,31 @@ describe('buildTree', () => {
     expect(roots).toHaveLength(1);
     expect(roots[0].children[0].children[0].task_id).toBe('leaf');
   });
+
+  it('excludes internal nodes from the tree', () => {
+    const roots = buildTree(
+      mkRecord(
+        mkNode({ task_id: 'root' }),
+        mkNode({ task_id: 'biz', parent_task_id: 'root' }),
+        mkNode({ task_id: 'verify-worker-1', parent_task_id: 'root', internal: true }),
+        mkNode({ task_id: 'verify-check-1', parent_task_id: 'root', internal: true }),
+      ),
+    );
+    expect(roots).toHaveLength(1);
+    const ids = roots[0].children.map((c) => c.task_id);
+    expect(ids).toEqual(['biz']);
+  });
+
+  it('internal children are dropped even when their parent exists', () => {
+    const roots = buildTree(
+      mkRecord(
+        mkNode({ task_id: 'root' }),
+        mkNode({ task_id: 'verify-check-1', parent_task_id: 'root', internal: true }),
+      ),
+    );
+    expect(roots).toHaveLength(1);
+    expect(roots[0].children).toHaveLength(0);
+  });
 });
 
 // ── aggregate ─────────────────────────────────────────────────────────

@@ -118,8 +118,7 @@ export interface SubagentStore {
 
   // Actions
   upsertNode: (nodeUpdate: Partial<SubagentNode> & { task_id: string }) => void;
-  /** Drop framework-internal nodes (verification workers/verifiers) from the store. */
-  removeInternalNodes: () => void;  updateProgress: (taskId: string, progress: number, lastTool?: string) => void;
+  updateProgress: (taskId: string, progress: number, lastTool?: string) => void;
   updateEstimate: (taskId: string, etaSeconds: number) => void;
   dismissOvertime: (taskId: string) => void;
   markStale: (taskId: string, staleDurationSeconds: number, wastedTokens: number) => void;
@@ -262,19 +261,6 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
         };
       });
       return { nodes: map };
-    }),
-
-  removeInternalNodes: () =>
-    set((state) => {
-      const nodes = { ...state.nodes };
-      let changed = false;
-      for (const [taskId, node] of Object.entries(nodes)) {
-        if (node.internal) {
-          delete nodes[taskId];
-          changed = true;
-        }
-      }
-      return changed ? { nodes } : state;
     }),
 
   appendTeammateMessage: (entry) =>

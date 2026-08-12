@@ -62,3 +62,20 @@ describe('MatrixResultView memory engagement column', () => {
     expect(screen.queryByText('evalLab.matrix.memoryCalls')).not.toBeInTheDocument();
   });
 });
+
+describe('MatrixResultView aborted report notice', () => {
+  it('shows the aborted notice when the report is flagged incomplete', () => {
+    const report = baseReport();
+    report.aborted = true;
+
+    render(<MatrixResultView report={report} />);
+
+    expect(screen.getByText('evalLab.layers.abortedNotice')).toBeInTheDocument();
+  });
+
+  it('omits the notice for complete reports', () => {
+    render(<MatrixResultView report={baseReport()} />);
+
+    expect(screen.queryByText('evalLab.layers.abortedNotice')).not.toBeInTheDocument();
+  });
+});
