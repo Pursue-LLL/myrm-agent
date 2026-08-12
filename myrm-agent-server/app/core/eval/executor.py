@@ -59,6 +59,7 @@ class LocalEvalExecutor:
         memory_base_path: str | None = None,
         benchmark_tools: tuple[str, ...] = (),
         skill_ids_override: list[str] | None = None,
+        resolve_shared_contexts: bool = True,
     ) -> None:
         self.profile_id = profile_id
         self.benchmark_mode = benchmark_mode
@@ -76,6 +77,12 @@ class LocalEvalExecutor:
         # Applied after profile resolution so intermediate layers (e.g. "core"
         # rules without skills) can be exercised without cloning the profile.
         self._skill_ids_override = skill_ids_override
+        # Shared-context isolation for capability-ablation evals: layered
+        # evaluation must measure each harness capability in isolation, so it
+        # disables user shared-context injection (``False``) to avoid blending
+        # the user's real shared memory into the scored result. Interactive
+        # matrix runs keep it on so they mirror real chat behavior.
+        self._resolve_shared_contexts = resolve_shared_contexts
         self._sandbox_executors: dict[str, CodeExecutor] = {}
         self._session_id: str | None = None
         # Physical session workspaces created by this executor. Both
@@ -269,7 +276,7 @@ class LocalEvalExecutor:
             agent_skill_ids = list(self._skill_ids_override)
 
         memory_shared_context_ids: list[str] = []
-        if not self.benchmark_mode:
+        if not self.benchmark_mode and self._resolve_shared_contexts:
             try:
                 from app.services.memory.shared_context import (
                     resolve_shared_context_ids,

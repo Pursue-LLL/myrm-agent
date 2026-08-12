@@ -28,6 +28,8 @@ export interface TopologyNodeData {
   parentTaskId?: string;
   /** Fission fallback root marker */
   isRoot?: boolean;
+  /** Adversarial verification outcome (present only when the worker was verified) */
+  verification?: { passed: boolean };
 }
 
 export interface TopologyEdgeData {
@@ -111,7 +113,10 @@ export function buildTopologyModel(nodes: SubagentNode[]): TopologyModel {
 
   const map: Record<string, TopologyNodeData> = {};
   for (const n of nodes) {
-    const tone = toneForStatus(n.status);
+    const verificationFailed = n.verification !== undefined && !n.verification.passed;
+    const baseTone = toneForStatus(n.status);
+    const tone: TopologyTone =
+      baseTone === 'success' && verificationFailed ? 'danger' : baseTone;
     const data: TopologyNodeData = {
       taskId: n.task_id,
       label: truncateLabel(n.description || n.agent_type || n.task_id),
@@ -124,6 +129,7 @@ export function buildTopologyModel(nodes: SubagentNode[]): TopologyModel {
       durationSeconds: n.duration_seconds ?? 0,
       error: n.error,
       parentTaskId: n.parent_task_id || undefined,
+      verification: n.verification ? { passed: n.verification.passed } : undefined,
     };
     map[n.task_id] = data;
     model.nodes.push(data);

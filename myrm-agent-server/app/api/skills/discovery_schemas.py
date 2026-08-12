@@ -86,6 +86,7 @@ class SkillUpdateRequest(BaseModel):
 
 class SkillUninstallRequest(BaseModel):
     skill_id: str
+    force: bool = False
 
 
 class SkillPreviewRequest(BaseModel):

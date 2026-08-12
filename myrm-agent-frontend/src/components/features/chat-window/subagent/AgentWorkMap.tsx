@@ -103,7 +103,7 @@ function formatDuration(totalSeconds: number): string {
 
 function CustomNode({ data }: NodeProps<Node<TopologyNodeData & Record<string, unknown>>>) {
   const t = useTranslations('subagentDashboard');
-  const { label, agentType, status, tone, progress, costUsd, tokens, durationSeconds, error, isRoot } = data;
+  const { label, agentType, status, tone, progress, costUsd, tokens, durationSeconds, error, isRoot, verification } = data;
   const config = STATUS_ICON[status] ?? { icon: CircleDashed, className: 'text-muted-foreground' };
   const StatusIcon = config.icon;
   const statusLabel = useMemo<Record<string, string>>(
@@ -151,9 +151,17 @@ function CustomNode({ data }: NodeProps<Node<TopologyNodeData & Record<string, u
         </div>
       )}
       <div className="flex items-center justify-between gap-2 mt-auto">
-        <Badge variant="outline" className="text-[10px]">
-          {statusLabel[status] ?? status}
-        </Badge>
+        <div className="flex items-center gap-1.5 min-w-0">
+          {verification && !verification.passed && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800 shrink-0">
+              <XCircle className="w-3 h-3" />
+              {t('verificationFailed')}
+            </span>
+          )}
+          <Badge variant="outline" className="text-[10px]">
+            {statusLabel[status] ?? status}
+          </Badge>
+        </div>
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground tabular-nums">
           {costUsd > 0 && <span>{fmtCost(costUsd)}</span>}
           {tokens > 0 && <span>{fmtTokens(tokens)} tok</span>}

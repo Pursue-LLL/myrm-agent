@@ -37,10 +37,7 @@ async def fix_skill(
     logger = logging.getLogger(__name__)
 
     store = _get_skill_store()
-    try:
-        skill = store.get_skill(skill_id)
-    finally:
-        store.close()
+    skill = store.get_skill(skill_id)
     if skill is None:
         raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
 

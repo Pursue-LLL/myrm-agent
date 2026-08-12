@@ -8,12 +8,14 @@
 [OUTPUT]
 - inspect_mcp_json(): per-file contract verdict
 - assert_agent_mcp_contract(): aggregate FAIL/WARN across instances
+- fix_cursor_mcp_configs(): idempotent SSOT restore for chrome-devtools entry
+- canonical_chrome_devtools_entry(): ChromeAgent :9410 MCP server dict
 - probe_chrome_agent_reachable(): live ChromeAgent prerequisite
 - probe_chrome_agent_launchagent(): LaunchAgent daemon state
 - probe_chrome_agent_focus(): macOS focus theft mechanical check
 
 [POS]
-Harness lib for ./myrm doctor --mcp-isolation and static SSOT tests.
+Harness lib for ./myrm doctor --mcp-isolation [--fix] and static SSOT tests.
 Agent layer only — never checks E2E :9333 mux.
 """
 
@@ -22,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import urllib.error
@@ -53,6 +56,46 @@ FIX_CHROME_AGENT_HINT = (
     "(see scripts/dev/CHROME_MCP_E2E.md; run ./myrm ready --chrome-agent)"
 )
 FIX_AUTO_CONNECT_HINT = FIX_CHROME_AGENT_HINT
+
+
+def canonical_chrome_devtools_entry() -> dict[str, object]:
+    npx = shutil.which("npx") or "npx"
+    return {
+        "command": npx,
+        "args": [
+            "-y",
+            "chrome-devtools-mcp@latest",
+            "--browserUrl",
+            f"http://127.0.0.1:{AGENT_CDP_PORT}",
+            "--no-usage-statistics",
+        ],
+    }
+
+
+def fix_cursor_mcp_configs(*, paths: list[Path] | None = None) -> list[str]:
+    """Idempotently restore chrome-devtools SSOT entry in known Cursor MCP configs."""
+    target_paths = paths or [path for path in known_cursor_mcp_paths() if path.is_file()]
+    changed: list[str] = []
+    canonical = canonical_chrome_devtools_entry()
+    for path in target_paths:
+        if not path.is_file():
+            continue
+        inspection = inspect_mcp_json(path)
+        if inspection["ok"]:
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise SystemExit(f"Cannot fix invalid MCP config {path}: {exc}") from exc
+        if not isinstance(payload, dict):
+            raise SystemExit(f"Cannot fix invalid MCP config shape: {path}")
+        servers = payload.setdefault("mcpServers", {})
+        if not isinstance(servers, dict):
+            raise SystemExit(f"Cannot fix invalid mcpServers in {path}")
+        servers["chrome-devtools"] = canonical
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        changed.append(str(path))
+    return changed
 
 
 class McpInspection(TypedDict):
@@ -540,7 +583,28 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Emit machine-readable JSON",
     )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help=(
+            "Restore chrome-devtools SSOT entry "
+            f"(ChromeAgent :{AGENT_CDP_PORT}) in known Cursor mcp.json files"
+        ),
+    )
     args = parser.parse_args(argv)
+
+    if args.fix:
+        changed = fix_cursor_mcp_configs()
+        if changed:
+            print("CURSOR_MCP_ISOLATION_FIX: restored chrome-devtools in:")
+            for path in changed:
+                print(f"  - {path}")
+        else:
+            print("CURSOR_MCP_ISOLATION_FIX: already OK (no changes)")
+        print(
+            "Next: Cmd+Q Cursor to reload MCP processes, then "
+            "./myrm doctor --mcp-isolation --strict-live"
+        )
 
     report = build_doctor_report(
         skip_live=args.skip_live,

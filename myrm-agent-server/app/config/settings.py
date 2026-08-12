@@ -523,6 +523,13 @@ class AppSettings(BaseSettings):
     # --- [O] CORS ---
     cors_origins: str = ""  # CORS_ORIGINS (comma-separated)
 
+    # --- [O] Public base URL (absolute channel-notification deep links) ---
+    app_base_url: str = Field(
+        default="",
+        validation_alias="APP_BASE_URL",
+        description="[O] Public web URL (no trailing slash) for clickable links in IM notifications; empty keeps relative paths",
+    )
+
     # --- [P] Deploy paths ---
     project_dir: str = Field(default=".", validation_alias="MYRM_PROJECT_DIR")
     cp_public_ingress_url: str = Field(

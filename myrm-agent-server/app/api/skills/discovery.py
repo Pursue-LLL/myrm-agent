@@ -350,8 +350,28 @@ async def update_skill(
 async def uninstall_skill(
     request: SkillUninstallRequest,
 ) -> SkillInstallResponse:
-    """Uninstall a locally installed skill."""
+    """Uninstall a locally installed skill.
+
+    When the skill is referenced by other in-library skills and force is
+    False, the request is rejected with the impacted dependent list.
+    """
     require_local_skills_capability()
+    if not request.force:
+        from app.core.skills.dependency_guard import get_dependents_for_skill
+
+        dependents = await get_dependents_for_skill(request.skill_id)
+        if dependents:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "DEPENDENTS_EXIST",
+                    "message": (
+                        f"Skill is referenced by {len(dependents)} other skill(s). "
+                        "Review them before uninstalling, or force-uninstall."
+                    ),
+                    "impacted_dependents": dependents,
+                },
+            )
     result = await market_service.uninstall(request.skill_id)
     if result.success:
         _audit_skill_action("uninstall", request.skill_id)

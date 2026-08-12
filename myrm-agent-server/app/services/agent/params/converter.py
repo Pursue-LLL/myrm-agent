@@ -365,6 +365,22 @@ async def convert_to_general_agent_params(
 
     search_cfg = configs.search_cfg if configs else None
     search_available = False
+    if search_cfg is None and configs is not None:
+        # SHPOIB E2E seeds searchServices on the private API immediately before kickoff;
+        # bypass stale config-cache reads so web_search_tool mounts on the same agent turn.
+        from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+        from app.core.channel_bridge.config_loader import (
+            load_user_configs as reload_user_configs,
+        )
+
+        invalidate_user_configs_cache()
+        refreshed_configs = await reload_user_configs()
+        if (
+            refreshed_configs is not None
+            and refreshed_configs.search_cfg is not None
+        ):
+            configs = refreshed_configs
+            search_cfg = refreshed_configs.search_cfg
     if configs and configs.search_is_user_configured and search_cfg is not None:
         search_available = await verify_search_service_available(search_cfg)
 

@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+import { ApiError } from '@/lib/api';
 import type { DiscoverySearchResult, DiscoveryPreviewResponse, DiscoveryInstallResponse } from '@/services/skill';
 import {
   searchDiscoverySkills,
@@ -31,7 +32,7 @@ interface UseSkillDiscoveryReturn {
   search: (query: string) => Promise<void>;
   preview: (skillId: string, source: string) => Promise<DiscoveryPreviewResponse | null>;
   install: (skillId: string, source: string) => Promise<DiscoveryInstallResponse | null>;
-  uninstall: (skillId: string) => Promise<boolean>;
+  uninstall: (skillId: string, force?: boolean) => Promise<boolean>;
   isUninstalling: string | null;
   clearResults: () => void;
   clearPreview: () => void;
@@ -125,12 +126,12 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
 
   const [isUninstalling, setIsUninstalling] = useState<string | null>(null);
 
-  const uninstall = useCallback(async (skillId: string): Promise<boolean> => {
+  const uninstall = useCallback(async (skillId: string, force: boolean = false): Promise<boolean> => {
     setIsUninstalling(skillId);
     setInstallError(null);
 
     try {
-      const response = await uninstallDiscoverySkill(skillId);
+      const response = await uninstallDiscoverySkill(skillId, force);
       if (response.success) {
         setResults((prev) => prev.filter((r) => (r.installed_skill_id ?? '') !== skillId));
         return true;
@@ -138,6 +139,11 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
       setInstallError(response.error || 'Uninstall failed');
       return false;
     } catch (error) {
+      // Dependency guard rejects with 409 DEPENDENTS_EXIST; surface it so the
+      // caller can offer a force-uninstall confirmation.
+      if (error instanceof ApiError && error.code === 409) {
+        throw error;
+      }
       setInstallError(error instanceof Error ? error.message : 'Uninstall failed');
       return false;
     } finally {

@@ -380,10 +380,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     const handleSystemNotification = (e: Event) => {
       const customEvent = e as CustomEvent<{ data: unknown }>;
       const meta = (customEvent.detail.data as { meta_data?: Record<string, unknown> } | undefined)?.meta_data || {};
-      
-      // We don't have session_id in the global event directly,
-      // but we can assume if the user is in this chat window, the snapshot is relevant
-      if (meta?.type === 'snapshot_created') {
+
+      if (meta?.type === 'snapshot_created' && meta?.chat_id === id) {
         toast({
           title: snapshotT('createdTitle'),
           description: (

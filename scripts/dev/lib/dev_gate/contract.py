@@ -360,6 +360,17 @@ E2E_ATTACH_UI_HEAL_TIMEOUT_FLOOR_SEC: Final[int] = 300
 E2E_ATTACH_UI_HEAL_TIMEOUT_CAP_SEC: Final[int] = 600
 STACK_FRONTEND_ENSURE_WAIT_SEC: Final[int] = 180
 STACK_FRONTEND_ATTACH_HEAL_ENSURE_WAIT_SEC: Final[int] = 360
+# Solo ADMIT attach: readiness + dev_servers + chrome_cdp + attach_health exceed 180s under cold UI.
+READY_CHROME_ATTACH_WALL_SOLO_SEC: Final[int] = SHARED_ATTACH_RECOVERY_WAIT_SEC
+# Parallel ADMIT attach: must cover one full frontend heal cycle (R123/R161).
+READY_CHROME_ATTACH_WALL_PARALLEL_SEC: Final[int] = SHARED_ATTACH_RECOVERY_WAIT_SEC
+
+
+def ready_chrome_attach_wall_sec(active_leases: int = 0) -> int:
+    """Outer wall for ready.sh wrapping chrome-e2e-preflight.sh during ADMIT attach."""
+    if max(active_leases, 0) > 0:
+        return READY_CHROME_ATTACH_WALL_PARALLEL_SEC
+    return READY_CHROME_ATTACH_WALL_SOLO_SEC
 
 
 def attach_ui_heal_post_ensure_max_sec(active_leases: int = 0) -> int:
@@ -1284,6 +1295,10 @@ LIVE_AGENT_PYTEST_WALL_CAP_SEC: Final[int] = (
     + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
     + E2E_TEARDOWN_WALL_CLOCK_SEC
 )
+# SHPOIB RESOURCE_WRITE: ADMIT (pre-body) + bootstrap + body — observed mono_elapsed≈754s before SHPOIB.
+SHPOIB_RESOURCE_WRITE_PYTEST_FLOOR_SEC: Final[int] = (
+    E2E_ADMISSION_WALL_CLOCK_SEC + LIVE_AGENT_PYTEST_WALL_CAP_SEC
+)
 # pytest-timeout floor body segment — SSOT with LIVE_AGENT_BODY_WALL_CLOCK_SEC (R73-D / R96-R62).
 LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = LIVE_AGENT_BODY_WALL_CLOCK_SEC
 # SHPOIB clarify skip API poll under parallel load (API-first path).
@@ -1605,7 +1620,9 @@ def parallel_live_pytest_timeout_floor_sec(base: int) -> int:
     """Extend pytest-timeout when parallel mux inflates in-test bootstrap (R124).
 
     Observed: leases=5 bootstrap mono_elapsed≈730s before BODY — 810s floor kills at REAPPLY.
+    R124+: wave_active_lease_count can lag registry peers during ADMIT — include session SSOT.
     """
+    load = 0
     try:
         from pathlib import Path
 
@@ -1614,6 +1631,13 @@ def parallel_live_pytest_timeout_floor_sec(base: int) -> int:
         load = wave_active_lease_count(Path(__file__).resolve().parents[5])
     except (ImportError, OSError, RuntimeError, ValueError):
         load = 0
+    try:
+        from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
+
+        session_peers = parallel_active_test_count_ssot()
+        load = max(load, max(0, session_peers - 1))
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
     if load < 2:
         return base
     scaled = base + int(load) * 180
@@ -1653,7 +1677,10 @@ def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
     if private_mode and normalized_lane in {"LIVE_AGENT", "READ"}:
         floor = max(floor, LIVE_AGENT_PYTEST_WALL_CAP_SEC)
     elif private_mode and shpoib and normalized_lane == "RESOURCE_WRITE":
-        floor = max(floor, LIVE_AGENT_PYTEST_WALL_CAP_SEC)
+        floor = max(
+            floor,
+            min(1830, SHPOIB_RESOURCE_WRITE_PYTEST_FLOOR_SEC),
+        )
     ramp_override = parallel_ramp_pytest_timeout_override_sec()
     if ramp_override is not None:
         floor = max(floor, ramp_override)

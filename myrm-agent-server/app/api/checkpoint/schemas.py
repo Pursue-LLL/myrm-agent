@@ -3,7 +3,8 @@
 [POS] app/api/checkpoint/schemas.py
 [INPUT] None
 [OUTPUT] CheckpointInfo, CheckpointListResponse, CheckpointResumeRequest,
-         CheckpointResumeResponse, FileSnapshotInfoResponse, FileSnapshotListResponse,
+         CheckpointResumeResponse, FileSnapshotCreateRequest, FileSnapshotCreateResponse,
+         FileSnapshotInfoResponse, FileSnapshotListResponse,
          FileSnapshotRestoreRequest, FileSnapshotRestoreResponse,
          FileChangeResponse, FileDiffResponse
 """
@@ -76,6 +77,21 @@ class FileSnapshotListResponse(BaseModel):
 
     snapshots: list[FileSnapshotInfoResponse]
     total: int
+
+
+class FileSnapshotCreateRequest(BaseModel):
+    """Create file snapshot request model."""
+
+    working_dir: str = Field(..., description="Working directory to snapshot")
+    description: str = Field("", description="User-facing label for this snapshot")
+
+
+class FileSnapshotCreateResponse(BaseModel):
+    """Create file snapshot response model."""
+
+    success: bool
+    snapshot_id: str
+    working_dir: str
 
 
 class FileSnapshotRestoreRequest(BaseModel):

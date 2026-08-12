@@ -16,7 +16,8 @@ Bundled-skill packages are rejected in sandbox deployment (local skills disabled
 When `force=True`, snapshots the existing Agent before overwriting so the user can rollback.
 Force-push is a config update path: skill/subagent bindings are established by the
 initial import (which remaps IDs to the local store) and are never overwritten by
-publisher-side IDs.
+publisher-side IDs. Package fields serialized as None are skipped during force-push
+so NOT NULL columns are never written None values.
 """
 
 from __future__ import annotations
@@ -257,7 +258,11 @@ async def _force_update_agent(
         "max_iterations",
         "personality_style",
     ):
-        if key in profile_data:
+        # A package serializes unset optional fields as None; force-push is a
+        # config-update path, so None means "leave the current value untouched".
+        # Writing None into NOT NULL columns would 500 (and str(None) would
+        # corrupt agent_type), so None-valued fields are skipped entirely.
+        if key in profile_data and profile_data[key] is not None:
             updates[key] = profile_data[key]
 
     model_name, model_selection = _extract_model_update(profile_data)
@@ -266,22 +271,34 @@ async def _force_update_agent(
     if model_selection is not None:
         updates["model_selection"] = model_selection
 
-    if "skill_configs" in profile_data:
+    if "skill_configs" in profile_data and profile_data["skill_configs"] is not None:
         updates["skill_configs"] = profile_data["skill_configs"]
-    if "memory_policy" in profile_data:
+    if "memory_policy" in profile_data and profile_data["memory_policy"] is not None:
         raw_memory_policy = profile_data["memory_policy"]
         updates["memory_policy"] = (
             memory_policy_from_dict(raw_memory_policy)
             if isinstance(raw_memory_policy, dict)
             else None
         )
-    if "command_bindings" in profile_data:
+    if (
+        "command_bindings" in profile_data
+        and profile_data["command_bindings"] is not None
+    ):
         updates["command_bindings"] = profile_data["command_bindings"]
-    if "workspace_policy" in profile_data:
+    if (
+        "workspace_policy" in profile_data
+        and profile_data["workspace_policy"] is not None
+    ):
         updates["workspace_policy"] = profile_data["workspace_policy"]
-    if "cron_post_run_verify" in profile_data:
+    if (
+        "cron_post_run_verify" in profile_data
+        and profile_data["cron_post_run_verify"] is not None
+    ):
         updates["cron_post_run_verify"] = bool(profile_data["cron_post_run_verify"])
-    if "enabled_builtin_tools" in profile_data:
+    if (
+        "enabled_builtin_tools" in profile_data
+        and profile_data["enabled_builtin_tools"] is not None
+    ):
         from app.services.agent.builtin_specs.builtin_tool_ids import (
             normalize_enabled_builtin_tools,
         )
@@ -310,7 +327,7 @@ async def _force_update_agent(
     )
     meta_update: dict[str, object] = {}
     for mk in metadata_keys:
-        if mk in profile_data:
+        if mk in profile_data and profile_data[mk] is not None:
             meta_update[mk] = profile_data[mk]
     if marketplace_entry_id is not None:
         meta_update["engine_params"] = _with_marketplace_entry_binding(

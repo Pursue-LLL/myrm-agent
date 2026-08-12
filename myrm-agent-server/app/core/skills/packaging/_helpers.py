@@ -23,11 +23,7 @@ def _load_evolution_record(skill_name: str) -> SkillRecord | None:
     try:
         from app.core.skills.store.evolution_store import get_evolution_skill_store
 
-        store = get_evolution_skill_store()
-        try:
-            return store.get_skill_by_name_version(skill_name)
-        finally:
-            store.close()
+        return get_evolution_skill_store().get_skill_by_name_version(skill_name)
     except Exception as exc:
         logger.debug("Evolution record lookup failed for %s: %s", skill_name, exc)
         return None

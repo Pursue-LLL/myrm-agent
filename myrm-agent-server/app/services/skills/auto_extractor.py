@@ -66,27 +66,24 @@ async def _persist_review_eval_cases(
         from app.core.skills.store.evolution_store import get_evolution_skill_store
 
         store = get_evolution_skill_store()
-        try:
-            record = store.get_skill_by_name_version(skill_name)
-            if record is None:
-                record = SkillRecord(
-                    skill_id=skill_name,
-                    name=skill_name,
-                    description="Auto-extracted skill",
-                    content=content,
-                    path=skill_path,
-                    lineage=SkillLineage(
-                        evolution_type=EvolutionType.CAPTURED,
-                        version=1,
-                        created_by="review_callback",
-                    ),
-                    is_active=True,
-                    environment=EnvironmentFingerprint(),
-                )
-            record.eval_cases = eval_cases
-            await store.save_skill(record)
-        finally:
-            store.close()
+        record = store.get_skill_by_name_version(skill_name)
+        if record is None:
+            record = SkillRecord(
+                skill_id=skill_name,
+                name=skill_name,
+                description="Auto-extracted skill",
+                content=content,
+                path=skill_path,
+                lineage=SkillLineage(
+                    evolution_type=EvolutionType.CAPTURED,
+                    version=1,
+                    created_by="review_callback",
+                ),
+                is_active=True,
+                environment=EnvironmentFingerprint(),
+            )
+        record.eval_cases = eval_cases
+        await store.save_skill(record)
     except Exception as exc:
         logger.warning(
             "Failed to persist eval_cases for skill '%s': %s", skill_name, exc

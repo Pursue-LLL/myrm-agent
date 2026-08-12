@@ -96,7 +96,7 @@ const FileDiffViewer: React.FC<FileDiffViewerProps> = ({ snapshotId, changes, on
     <div className="border border-border rounded-lg bg-card overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted">
         <div className="text-sm font-medium text-foreground">
-          {t('diffTitle', { snapshotId: snapshotId.slice(0, 12) })}
+          {t('diffTitle')}
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {added.length > 0 && <span className="text-green-600 dark:text-green-400">+{added.length}</span>}

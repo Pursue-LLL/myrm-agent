@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.eval::MatrixRunner
-- app.core.eval.matrix::shared matrix state, eval_state.DEFAULT_MATRIX_REPORTS_DIR
+- app.core.eval._state::matrix_state, active_matrix_runner, DEFAULT_MATRIX_REPORTS_DIR
 - app.core.eval.benchmarks::build_benchmark_cases
 - app.core.eval.model_config::model/judge resolution
 
@@ -24,20 +24,19 @@ import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+from myrm_agent_harness import __version__ as harness_version
 from myrm_agent_harness.eval import AgentExecutor
 
 from app.core.eval import _state as eval_state
 from app.core.eval.adaptive import AdaptiveEvalManager
 from app.core.eval.executor import LocalEvalExecutor
 
-if TYPE_CHECKING:
-    pass
-
 logger = logging.getLogger(__name__)
 
-DEFAULT_LAYERS_MEMORY_DIR = eval_state.DEFAULT_MATRIX_REPORTS_DIR.parent / "eval_layers_memory"
+DEFAULT_LAYERS_MEMORY_DIR = (
+    eval_state.DEFAULT_MATRIX_REPORTS_DIR.parent / "eval_layers_memory"
+)
 
 
 @dataclass(frozen=True)
@@ -46,7 +45,7 @@ class LayerSpec:
 
     Layers ascend from the bare benchmark baseline to the full agent
     configuration; the delta between adjacent layers isolates the capability
-    switched on at that step (core rules, then skills, then memory).
+    switched on at that step (harness baseline, then skills, then memory).
     ``fingerprint`` pins the exact switch combination so a report stays
     comparable across harness versions (measurement-decay guard).
     """
@@ -72,13 +71,18 @@ class LayerSpec:
 
 
 # Ascending chain from the bare benchmark baseline to the full configuration.
-# The final "memory" layer runs the profile in its normal (non-benchmark)
-# mode — memory on, profile skills loaded — so it is the "full" comparison
-# point; a separate full layer would be identical and is therefore omitted.
+# ``bare`` runs benchmark_mode (fair stripped baseline); ``core`` runs the
+# normal agent config with skills and memory switched off — i.e. the harness
+# baseline (rules, replan, MCP, tool policy) without the capability layers;
+# ``skills`` adds the profile's skills; ``memory`` (the final, full config)
+# adds memory on top of skills, so a separate full layer would be identical
+# and is therefore omitted.
 DEFAULT_LAYER_SPECS: tuple[LayerSpec, ...] = (
     LayerSpec("bare", benchmark_mode=True, skills_enabled=False, memory_enabled=False),
     LayerSpec("core", benchmark_mode=False, skills_enabled=False, memory_enabled=False),
-    LayerSpec("skills", benchmark_mode=False, skills_enabled=True, memory_enabled=False),
+    LayerSpec(
+        "skills", benchmark_mode=False, skills_enabled=True, memory_enabled=False
+    ),
     LayerSpec("memory", benchmark_mode=False, skills_enabled=True, memory_enabled=True),
 )
 
@@ -125,6 +129,8 @@ async def run_layer_eval_background(
             "profile_total": len(DEFAULT_LAYER_SPECS),
             "case_completed": 0,
             "case_total": 0,
+            "stage": "downloading",
+            "download_progress": None,
             "error": None,
             "abort_requested": False,
         }
@@ -161,8 +167,13 @@ async def _run_layer_eval(
     )
 
     def _report_download_progress(downloaded: int, total: int) -> None:
-        eval_state.matrix_state["case_completed"] = downloaded
-        eval_state.matrix_state["case_total"] = total
+        # Keep the download phase honest in the shared progress stream: report
+        # stage + byte progress instead of mislabeling bytes as completed cases.
+        eval_state.matrix_state["stage"] = "downloading"
+        eval_state.matrix_state["download_progress"] = {
+            "downloaded_bytes": downloaded,
+            "total_bytes": total,
+        }
 
     def _should_abort() -> bool:
         return bool(eval_state.matrix_state.get("abort_requested"))
@@ -178,6 +189,8 @@ async def _run_layer_eval(
         logger.info("Layered evaluation aborted by user before evaluation")
         return {}
 
+    eval_state.matrix_state["stage"] = "evaluating"
+    eval_state.matrix_state["download_progress"] = None
     total_turns = sum(len(mc.turns) for mc in cases)
     eval_state.matrix_state["case_total"] = total_turns * len(DEFAULT_LAYER_SPECS)
     eval_state.matrix_state["case_completed"] = 0
@@ -202,6 +215,7 @@ async def _run_layer_eval(
             memory_base_path=str(memory_dir) if spec.memory_enabled else None,
             skill_ids_override=None if spec.skills_enabled else [],
             workspace_seed_map=seed_map,
+            resolve_shared_contexts=False,
         )
 
     def _on_layer_start(layer_key: str, idx: int, total: int) -> None:
@@ -257,16 +271,42 @@ async def _run_layer_eval(
     report_data["timestamp"] = timestamp
     report_data["dataset_id"] = benchmark_id
     report_data["profile_id"] = profile_id
+    report_data["eval_type"] = "layered"
+    report_data["harness_version"] = harness_version
     # Disclose which model was scored and which model judged it, matching the
     # Memory A/B / benchmark-manifest disclosure so scores stay traceable
     # after the user switches models.
     report_data["judge_model"] = judge_model
     report_data["agent_model"] = agent_model
     report_data["limit"] = limit if sampled else None
+    # A user abort mid-run leaves partial results: mark the report so it is
+    # never mistaken for a complete run in the Eval Lab history.
+    report_data["aborted"] = bool(eval_state.matrix_state.get("abort_requested"))
     # Layer chain with fingerprints — the delta between adjacent per-layer
     # pass rates is what the UI renders, and the fingerprint pins the exact
     # switch combination for cross-version comparability.
     report_data["layers"] = layer_specs_to_meta()
+
+    # Annotate each layer with how many times the agent actually invoked
+    # memory tools. Identical pass rates mean different things when memory was
+    # never called versus actively engaged — without this number the layered
+    # report cannot tell "memory didn't help" from "memory was unused". Same
+    # metric the Memory A/B report discloses per arm.
+    for layer_key, layer_result in matrix_result.per_profile_results.items():
+        memory_calls = sum(
+            1
+            for turn in getattr(layer_result, "turn_results", ()) or ()
+            for tool in getattr(turn.response, "tools_called", ()) or ()
+            if str(tool.get("name") if isinstance(tool, dict) else tool).startswith(
+                "memory_"
+            )
+        )
+        per_profile = report_data.get("per_profile")
+        if not isinstance(per_profile, dict):
+            continue
+        profile_summary = per_profile.get(layer_key)
+        if isinstance(profile_summary, dict):
+            profile_summary["memory_tool_calls"] = memory_calls
 
     with report_path.open("w", encoding="utf-8") as f:
         json.dump(report_data, f, indent=2, ensure_ascii=False)

@@ -19,6 +19,7 @@ import {
 } from '@/components/primitives/dialog';
 import { rewindToMessage, type RewindResult } from '@/services/chat';
 import { ApiError } from '@/lib/api';
+import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import { useToast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
 import { stripUserMessageDisplayText, parseExplicitSkillActivation } from '@/lib/utils/messageUtils';
@@ -86,7 +87,9 @@ export function RewindDialog({
       const results = await Promise.all(
         assistantIds.map(async (mid) => {
           try {
-            const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${mid}`);
+            const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${mid}`, {
+              headers: getAuthHeaders(),
+            });
             if (!res.ok) return [] as FileChangeInfo[];
             const body = (await res.json()) as unknown;
             return Array.isArray(body) ? (body as FileChangeInfo[]) : [];

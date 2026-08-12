@@ -23,7 +23,7 @@
 | `NoProviderBanner.tsx` | 组件 | 未配置 AI Provider 时的引导横幅（amber 警告色），点击跳转 `/settings/models` | ✅ |
 | `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar、UserMessage 与 MessageInput 桌面工具栏） | ✅ |
 | `ForkDialog.tsx` | 组件 | Fork 确认弹窗：标题输入 + 调 POST /fork + 自动导航 + streaming 防护 | ✅ |
-| `RewindDialog.tsx` | 组件 | Rewind 确认弹窗：副作用说明 + POST /rewind + composer 种子回填 | ✅ |
+| `RewindDialog.tsx` | 组件 | Rewind 确认弹窗：scope 选择（conversation/both）+ 文件变更预览（按 path 去重计数）+ POST /rewind + goal 暂停与文件恢复 toast 反馈 + composer 种子回填 | ✅ |
 | `LifeStatusCapsule.tsx` | 组件 | Agent liveness 三态胶囊（busy/idle/degraded） | ✅ |
 | `LinkDetectionDialog.tsx` | 组件 | 粘贴/发送外链前的安全确认对话框 | ✅ |
 | `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、Intl 相对时间 tooltip、click-outside 关闭） | ✅ |
@@ -75,8 +75,8 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `SubagentDashboard.tsx` | 核心 | 子代理控制面板入口：两视图 tab（树/画布）；树视图内排序/过滤条（`subagent-sort-*`/`subagent-filter-*`）、MiniGantt、fission 摘要条（`subagent-fission-summary`）、头部汇总、预算 token/cost（`extractBudgetTokens`/`extractMaxCostUsd`）、取消全部/委托暂停、overtime/stale 汇总态、画布 tab 挂载 `AgentWorkMap`，画布节点点击切树视图定位（`data-subagent-tree-id`）；SSE `subagents_updated`/`teammate_message` 消费 + 轮询拉取；面板/触发器 `data-testid` 供 E2E 选择 | ✅ |
-| `AgentWorkMap.tsx` | 组件 | 长任务拓扑画布（Task Tray「画布」tab）：ReactFlow+dagre 渲染 subagent 树/fission 拓扑（merge 并行）；结构/数据双 effect（节点增删才重排，实时进度更新保留拖拽坐标）；结构变化 fitView 平滑跟随；节点点击回调（画布→树定位桥接）；移动端紧凑节点+窄屏隐藏 MiniMap；墓碑（failed/cancelled 红高亮+error）、焦点（running 脉冲）、进度条、cost/tokens/耗时元数据、空态；数据源 `taskTopologyModel` | ✅ |
-| `subagent-tree.tsx` | 组件 | 子代理树视图：`SubagentTreeNode` 递归节点（展开/折叠、状态图标、cost/tokens/model/进度/耗时、steer/cancel/resume/审批跳转、overtime/stale 告警、teammate 消息、stream、取消确认弹窗）+ 聚合徽章 + role/scope 格式化；依赖 `subagent-stream` | ✅ |
+| `AgentWorkMap.tsx` | 组件 | 长任务拓扑画布（Task Tray「画布」tab）：ReactFlow+dagre 渲染 subagent 树/fission 拓扑（merge 并行）；结构/数据双 effect（节点增删才重排，实时进度更新保留拖拽坐标）；结构变化 fitView 平滑跟随；节点点击回调（画布→树定位桥接）；移动端紧凑节点+窄屏隐藏 MiniMap；墓碑（failed/cancelled 红高亮+error）、焦点（running 脉冲）、进度条、cost/tokens/耗时元数据、空态；验证失败节点 tone 红化 + `verificationFailed` 徽章（执行完成≠事实可信双轨语义）；数据源 `taskTopologyModel` | ✅ |
+| `subagent-tree.tsx` | 组件 | 子代理树视图：`SubagentTreeNode` 递归节点（展开/折叠、状态图标、cost/tokens/model/进度/耗时、验证徽章 `subagent-verification-badge`（PASS/FAIL + findings 展开）、steer/cancel/resume/审批跳转、overtime/stale 告警、teammate 消息、stream、取消确认弹窗）+ 聚合徽章 + role/scope 格式化；依赖 `subagent-stream` | ✅ |
 | `subagent-gantt.tsx` | 组件 | 子代理迷你甘特图：基于 startedAt/duration 的并行时间条（状态色条、相对缩放），少于 2 个时间跨度的节点时隐藏；折叠开关 `subagent-gantt-toggle`、容器 `subagent-gantt` 供 E2E 选择 | ✅ |
 | `subagent-stream.tsx` | 组件 | 子代理状态图标（12 态 STATUS_ICON_MAP）与实时流条目展示（NodeStream/StreamLine：tool/progress/thinking/error 字形 + 耗时 + 滚动跟随） | ✅ |
 

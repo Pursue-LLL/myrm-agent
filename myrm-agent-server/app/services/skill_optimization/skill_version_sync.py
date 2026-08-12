@@ -69,7 +69,6 @@ async def load_skill_content_for_batch(skill_id: str) -> str | None:
     if content is not None:
         return content
 
-    store = None
     try:
         from app.core.skills.store.evolution_store import get_evolution_skill_store
 
@@ -84,9 +83,6 @@ async def load_skill_content_for_batch(skill_id: str) -> str | None:
                 return skill_md.read_text(encoding="utf-8")
     except Exception as exc:
         logger.warning("Failed to load workspace skill content for %s: %s", skill_id, exc)
-    finally:
-        if store is not None:
-            store.close()
     return None
 
 

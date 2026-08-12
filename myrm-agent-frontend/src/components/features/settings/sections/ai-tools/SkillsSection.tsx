@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useEffect, useCallback, useMemo } from 'react';
+import { memo, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconRefresh,
@@ -13,6 +13,7 @@ import {
   IconUpload,
   IconDownload,
   IconPlug,
+  IconArchive,
 } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
@@ -347,6 +348,51 @@ const SkillsSection = memo(() => {
     fetchLocalSkills();
   }, [fetchMarketSkills, fetchUserSkillConfig, fetchLocalSkills]);
 
+  const backupInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBackupRestore = useCallback(
+    async (file: File) => {
+      if (!file.name.toLowerCase().endsWith('.zip')) {
+        toast({ title: t('installed.restoreInvalid'), variant: 'destructive' });
+        return;
+      }
+      setIsSyncing(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/v1/skills/import', { method: 'POST', body: formData });
+        if (!res.ok) {
+          const payload = (await res.json().catch(() => null)) as { detail?: unknown } | null;
+          const detail =
+            typeof payload?.detail === 'string' ? payload.detail : t('installed.importFailed');
+          throw new Error(detail);
+        }
+        const result = (await res.json()) as {
+          imported_count?: number;
+          updated_count?: number;
+          unchanged_count?: number;
+          hash_mismatch_count?: number;
+        };
+        toast({
+          title: t('installed.restoreSuccess'),
+          description: t('installed.restoreSummary', {
+            imported: String(result.imported_count ?? 0),
+            updated: String(result.updated_count ?? 0),
+            skipped: String(result.unchanged_count ?? 0),
+            drifted: String(result.hash_mismatch_count ?? 0),
+          }),
+        });
+        handleRefresh();
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : undefined;
+        toast({ title: t('installed.importFailed'), description: detail, variant: 'destructive' });
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [t, handleRefresh],
+  );
+
   const executeDestructiveAction = useCallback(
     async (skill: Skill, action: 'reset-to-default' | 'accept-upstream') => {
       try {
@@ -545,6 +591,27 @@ const SkillsSection = memo(() => {
                   >
                     <IconDownload className="w-4 h-4" />
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => backupInputRef.current?.click()}
+                    disabled={isSyncing}
+                    className="h-9 w-9"
+                    title={t('installed.restore')}
+                  >
+                    <IconArchive className={cn('w-4 h-4', isSyncing && 'animate-pulse')} />
+                  </Button>
+                  <input
+                    ref={backupInputRef}
+                    type="file"
+                    accept=".zip"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleBackupRestore(file);
+                      e.target.value = '';
+                    }}
+                  />
                   <Button
                     variant="ghost"
                     size="icon"

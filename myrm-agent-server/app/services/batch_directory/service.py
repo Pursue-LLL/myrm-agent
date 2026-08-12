@@ -34,6 +34,7 @@ from app.services.batch_directory._helpers import (
     _PROJECT_TERMINAL_STATUSES,
     _TERMINAL_STATUSES,
     _aggregate_statuses,
+    _failed_directory_paths,
     _latest_tasks_per_directory,
     _now,
     _project_to_dict,
@@ -381,6 +382,7 @@ class BatchDirectoryService:
                 completed,
                 failed,
                 missing_artifacts,
+                failed_directories=_failed_directory_paths(latest),
             )
 
     # ------------------------------------------------------------------

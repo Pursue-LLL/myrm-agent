@@ -1113,20 +1113,27 @@ class CdpChatTurn(CdpChatSubmit):
                 streaming_active = submit_debug.get("streaming") is True
                 expected_path = f"/{chat_id.strip()}"
                 on_chat_path = False
+                on_sealed_chat = False
                 try:
                     path_probe = await self.evaluate(
-                        """(() => ({ path: location.pathname }))()""",
+                        """(() => ({
+                          path: location.pathname,
+                          chatId: window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.chatId ?? null,
+                        }))()""",
                         intent=EvaluateIntent.SYNC_PROBE,
                     )
                     if isinstance(path_probe, dict):
                         on_chat_path = str(path_probe.get("path") or "") == expected_path
+                        probe_chat = str(path_probe.get("chatId") or "").strip()
+                        on_sealed_chat = probe_chat == chat_id.strip()
                 except (RuntimeError, TimeoutError):
                     on_chat_path = False
+                    on_sealed_chat = False
                 await self.ensure_react_e2e_bridge(timeout_sec=60.0)
                 if streaming_active:
                     # Page.navigate during an active stream drops Turn1 SSE (tools_snapshot)
                     # before the UI store hydrates; soft attach preserves direct SSE.
-                    if not on_chat_path:
+                    if not on_chat_path or not on_sealed_chat:
                         await self._attach_chat_session(chat_id)
                 else:
                     await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)

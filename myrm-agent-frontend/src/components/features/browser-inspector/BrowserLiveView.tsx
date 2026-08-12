@@ -9,6 +9,7 @@ import useBrowserInspectorStore, {
 } from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
+import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
 import InspectorToolbar from './InspectorToolbar';
 import ElementOverlay from './ElementOverlay';
 import InspectorInstructionInput from './InspectorInstructionInput';
@@ -41,12 +42,7 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
   const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
   const scopedViewData = selectScopedBrowserViewData(viewData, chatId);
 
-  useEffect(() => {
-    if (!isOpen || !viewData?.sourceChatId || !chatId) return;
-    if (viewData.sourceChatId !== chatId) {
-      closePanel();
-    }
-  }, [chatId, viewData?.sourceChatId, isOpen, closePanel]);
+  useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
 
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
   const [isResizing, setIsResizing] = useState(false);

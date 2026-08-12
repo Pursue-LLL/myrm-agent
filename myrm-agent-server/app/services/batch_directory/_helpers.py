@@ -9,7 +9,8 @@
 - _latest_tasks_per_directory: 每目录取最新任务（重试后聚合口径）
 - _project_to_dict / _aggregate_statuses / _resolve_directory: 序列化与校验助手
 - _reopen_running: 项目回置 running 并刷新聚合（重试/重跑/恢复共用，支持 expected_status 条件更新防并发覆盖）
-- _send_completion_notification: 批次终态系统通知（携带 action_url 深链）
+- _format_batch_summary: 站内/渠道共享的批次结果正文（标题 + 统计行 + 失败目录列表/缺产物提示）
+- _send_completion_notification: 批次终态系统通知（携带 action_url 深链）+ IM 渠道结果摘要投递
 - _PROJECT_TERMINAL_STATUSES / _BATCH_PAUSE_BLOCK_REASON / _BATCH_APPROVER: 批次终态与暂停/审批标记常量
 
 [POS]
@@ -19,6 +20,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -30,6 +32,8 @@ from app.database.connection import get_session
 from app.database.models.batch_directory import BatchDirectoryProjectModel
 from app.database.models.kanban import KanbanTaskModel
 
+logger = logging.getLogger(__name__)
+
 # 任务终态：completed/failed/archived 视为不再由 dispatcher 调度
 _TERMINAL_STATUSES = frozenset(
     {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED}
@@ -39,6 +43,8 @@ _PROJECT_TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled"})
 # 批次暂停冻结标记（写入任务的 blocked_reason，恢复时据此筛选）
 _BATCH_PAUSE_BLOCK_REASON = "batch_pause"
 _BATCH_APPROVER = "batch:approve-all"
+# 渠道/站内消息中最多列出的失败目录数（防超长刷屏）
+_MAX_FAILED_DIRECTORIES_IN_SUMMARY = 10
 
 
 def _failed_directory_paths(tasks: list[KanbanTaskModel]) -> list[str]:
@@ -263,6 +269,59 @@ async def _reopen_running(
         await session.commit()
 
 
+def _format_duration(seconds: int) -> str:
+    """Format a wall-clock duration compactly: 42s / 8m 30s / 1h 5m."""
+    if seconds < 60:
+        return f"{seconds}s"
+    minutes, sec = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m {sec}s" if sec else f"{minutes}m"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h {minutes}m" if minutes else f"{hours}h"
+
+
+def _format_batch_summary(
+    *,
+    status: str,
+    project_name: str,
+    total: int,
+    completed: int,
+    failed: int,
+    missing: list[str],
+    failed_directories: list[str] = (),
+    duration_seconds: int | None = None,
+) -> tuple[str, str]:
+    """Return (title, summary lines) for a finished batch project.
+
+    Both the in-app notification (title + message) and the channel push
+    (multi-line body with a details link) share this wording so the two
+    surfaces stay consistent. ``missing`` lists directories that completed
+    without their declared artifacts; ``failed_directories`` names the
+    directories that did not complete (truncated to keep the message short);
+    ``duration_seconds`` reports the wall-clock runtime (omitted when unknown).
+    """
+    if status == "completed":
+        title = f"Batch complete: {project_name}"
+        lines = [f"{completed}/{total} directories completed."]
+    else:
+        title = f"Batch finished with failures: {project_name}"
+        lines = [f"{completed} completed, {failed} failed of {total} directories."]
+        if failed_directories:
+            lines.append("Failed directories:")
+            lines.extend(
+                f"- {d}" for d in failed_directories[:_MAX_FAILED_DIRECTORIES_IN_SUMMARY]
+            )
+            hidden = len(failed_directories) - _MAX_FAILED_DIRECTORIES_IN_SUMMARY
+            if hidden > 0:
+                lines.append(f"... and {hidden} more")
+    if duration_seconds is not None:
+        lines.append(f"Duration: {_format_duration(duration_seconds)}")
+    if missing:
+        dir_word = "directory" if len(missing) == 1 else "directories"
+        lines.append(f"{len(missing)} {dir_word} missing required artifacts.")
+    return title, "\n".join(lines)
+
+
 async def _send_completion_notification(
     project_id: str,
     status: str,
@@ -270,23 +329,35 @@ async def _send_completion_notification(
     completed: int,
     failed: int,
     missing_artifact_directories: list[str] | None = None,
+    failed_directories: list[str] | None = None,
 ) -> None:
     async with get_session() as session:
         model = await session.get(BatchDirectoryProjectModel, project_id)
         project_name = model.name if model is not None else project_id
+        agent_id = model.agent_id if model is not None else None
+        duration_seconds: int | None = None
+        if (
+            model is not None
+            and model.started_at is not None
+            and model.finished_at is not None
+        ):
+            duration_seconds = max(
+                0, int((model.finished_at - model.started_at).total_seconds())
+            )
 
     from app.services.infra.system_notification import SystemNotificationService
 
     missing = missing_artifact_directories or []
-    if status == "completed":
-        title = f"Batch complete: {project_name}"
-        message = f"{completed}/{total} directories completed."
-    else:
-        title = f"Batch finished with failures: {project_name}"
-        message = f"{completed} completed, {failed} failed of {total} directories."
-    if missing:
-        dir_word = "directory" if len(missing) == 1 else "directories"
-        message += f" {len(missing)} {dir_word} missing required artifacts."
+    title, message = _format_batch_summary(
+        status=status,
+        project_name=project_name,
+        total=total,
+        completed=completed,
+        failed=failed,
+        missing=missing,
+        failed_directories=failed_directories or [],
+        duration_seconds=duration_seconds,
+    )
     await SystemNotificationService.create_notification(
         title=title,
         message=message,
@@ -299,6 +370,108 @@ async def _send_completion_notification(
             "completed": completed,
             "failed": failed,
             "missing_artifact_directories": missing,
+            "failed_directories": failed_directories or [],
             "action_url": f"/batch-directories/{project_id}",
         },
     )
+
+    await _send_channel_notification(
+        agent_id=agent_id,
+        project_name=project_name,
+        status=status,
+        total=total,
+        completed=completed,
+        failed=failed,
+        missing=missing,
+        failed_directories=failed_directories or [],
+        duration_seconds=duration_seconds,
+        project_id=project_id,
+    )
+
+
+async def _load_agent_notify_targets(
+    agent_id: str,
+) -> tuple[dict[str, str], ...]:
+    """Return the agent's configured IM notification targets (empty when none).
+
+    Any resolution failure (missing agent, bad payload) degrades to no
+    targets — the caller treats that as "no channel push".
+    """
+    try:
+        from app.services.agent.profile.profile_resolver import (
+            get_agent_profile_resolver,
+        )
+
+        resolved = await get_agent_profile_resolver().resolve(agent_id)
+        return resolved.notify_targets if resolved is not None else ()
+    except Exception as exc:
+        logger.warning("Failed to load notify targets for agent %s: %s", agent_id, exc)
+        return ()
+
+
+async def _send_channel_notification(
+    agent_id: str | None,
+    project_name: str,
+    status: str,
+    total: int,
+    completed: int,
+    failed: int,
+    missing: list[str],
+    project_id: str,
+    failed_directories: list[str] = (),
+    duration_seconds: int | None = None,
+) -> None:
+    """Push the batch summary to the executing agent's IM notification targets.
+
+    Best-effort delivery: failures are logged and never block the in-app
+    notification path. Without a configured agent or targets this is a no-op.
+    The details link is absolute when ``APP_BASE_URL`` is set (cloud deployments)
+    and falls back to a relative path otherwise.
+    """
+    if not agent_id:
+        return
+    raw_targets = await _load_agent_notify_targets(agent_id)
+    if not raw_targets:
+        return
+
+    from app.config.settings import settings
+    from app.services.agent.outbound_notify.sender import create_notification_sender
+
+    try:
+        sender_result = create_notification_sender(raw_targets)
+    except Exception as exc:
+        logger.warning("Failed to build channel sender for agent %s: %s", agent_id, exc)
+        return
+    if sender_result is None:
+        return
+    sender, _config = sender_result
+
+    title, summary = _format_batch_summary(
+        status=status,
+        project_name=project_name,
+        total=total,
+        completed=completed,
+        failed=failed,
+        missing=missing,
+        failed_directories=failed_directories,
+        duration_seconds=duration_seconds,
+    )
+    base_url = settings.app_base_url.strip().rstrip("/")
+    details_url = (
+        f"{base_url}/batch-directories/{project_id}"
+        if base_url
+        else f"/batch-directories/{project_id}"
+    )
+    body = f"{title}\n{summary}\nDetails: {details_url}"
+
+    for target in sender.list_available_targets():
+        try:
+            result = await sender.send(target, body)
+            if not result.success:
+                logger.warning(
+                    "Channel notification delivery failed: channel=%s error=%s",
+                    target.channel,
+                    result.error,
+                )
+        except Exception as exc:
+            logger.warning("Channel notification error on %s: %s", target.channel, exc)

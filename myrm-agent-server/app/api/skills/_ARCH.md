@@ -15,15 +15,15 @@
 | `batch_import.py` | 模块 | 批量导入 (GUI-First 技能迁移) 接口；`preview/confirm` 错误统一输出 `detail={message,error_code}`，归档安全错误映射为用户安全文案；本地落盘入口受沙箱能力门控；confirm 路由保持业务编排，落盘执行（安全预检/蓝绿原子写入/DB 事务）委托 `batch_import_execute.py`。 | ✅ |
 | `batch_import_execute.py` | 模块 | 批量导入确认落盘执行器 `execute_batch_import_confirm`：Phase1 逐项安全预检（命中恶意代码立即撤销）→ Phase2 蓝绿目录准备（全保真写入 .tmp、剥离 evals.json、replace 继承 DB 回归门禁快照与演化元数据）→ Phase3 DB 单事务批量写入 → Phase4 操作系统级目录原子替换；任一失败清空 tmp 并尽力恢复 old；返回 `restored_eval_cases` 为导入后保留门禁总数（包内还原 + DB 继承），与落盘一致。 | ✅ |
 | `batch_import_schemas.py` | 模块 | 批量导入接口的请求/响应 Pydantic 模型（`ImportPreviewSkillItem`/`ImportPreviewResponse`/`ConfirmImportItem`/`ConfirmImportRequest`/`ConfirmImportResponse`），`ConfirmImportResponse.restored_eval_cases` 为导入后保留的回归门禁用例总数（包内还原 + DB 继承），与路由拆分保持 `batch_import.py` 聚焦业务编排。 | ✅ |
-| `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url | ✅ |
+| `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url；`POST /{skill_id}/disable` 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents） | ✅ |
 | `config_version.py` | 模块 | Re-export from app.core.skills.config_version（单一来源）。 | ✅ |
 | `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |
 | `curator.py` | 模块 | Curator API — skill lifecycle management endpoints. | ✅ |
-| `discovery.py` | 模块 | Skill discovery API — search/install/enable-after-install/uninstall/sources/registry-probe；install/update/uninstall/install-from-url 受沙箱能力门控 | ✅ |
-| `discovery_schemas.py` | 模块 | Discovery request/response Pydantic models（含 install enable + allowlist_appended/allowlist_append_error） | ✅ |
+| `discovery.py` | 模块 | Skill discovery API — search/install/enable-after-install/uninstall/sources/registry-probe；install/update/uninstall/install-from-url 受沙箱能力门控；uninstall 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents） | ✅ |
+| `discovery_schemas.py` | 模块 | Discovery request/response Pydantic models（含 install enable + allowlist_appended/allowlist_append_error；`SkillUninstallRequest.force` 支持强制卸载依赖者技能） | ✅ |
 | `drafts.py` | 模块 | Agent Draft Inbox API：按 status 查询 growth drafts；`POST /drafts/test/seed-mock?agent_id=` 本地 E2E seed；approve skill_draft/skill_patch 受沙箱能力门控（延迟导入避免 router 循环依赖） | ✅ |
 | `experience_ledger.py` | 模块 | 经验账本接口层。对外暴露原始 ledger 事件查询，以及 skill-growth projection 事件/摘要查询。 | ✅ |
-| `growth.py` | 模块 | Unified skill growth API：`GET /cases` summary、`GET /cases/{id}` detail、`GET /stats` 全量 status COUNT 统计 | ✅ |
+| `growth.py` | 模块 | Unified skill growth API：`GET /cases` summary、`GET /cases/{id}` detail、`GET /stats` 全量 status COUNT 统计；summary/detail 均携带 `impacted_dependents`（依赖本技能的库内技能 ID，经 core/skills/dependency_guard 查询） | ✅ |
 | `instances.py` | 模块 | Skill instances API - CRUD operations for multi-instance skill support. | ✅ |
 | `local.py` | 模块 | Local skills management endpoints | ✅ |
 | `migrations.py` | 模块 | Controlled migration review API；approve skill_import 直接写 `~/.myrm/skills`，受沙箱能力门控（延迟导入避免独立加载循环依赖） | ✅ |
@@ -33,5 +33,5 @@
 | `quality.py` | 模块 | Skill Quality Aggregation API | ✅ |
 | `router.py` | 路由 | Skills API router — aggregates all skill-related endpoints. | ✅ |
 | `schemas.py` | 模块 | Skills API request/response schemas. | ✅ |
-| `sync.py` | 模块 | Skill synchronization and backup protocol；import 受沙箱能力门控（export 只读天然安全） | ✅ |
+| `sync.py` | 模块 | Skill synchronization and backup protocol；export 打包 `manifest.json`（format/format_version/skills[].sha256+version），import 按 manifest 做完整性校验并返回 `imported/updated/unchanged/hash_mismatch` 恢复摘要；`_safe_extract` 逐成员校验路径（绝对路径/`..` 穿越/反斜杠分隔符归一化），恶意 ZIP 返回 400；import 受沙箱能力门控（export 只读天然安全） | ✅ |
 | `ws_evolution.py` | 模块 | WebSocket Evolution Proposal Streaming — HTTP transport only. | ✅ |

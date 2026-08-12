@@ -444,10 +444,13 @@ export async function installDiscoverySkill(
   });
 }
 
-export async function uninstallDiscoverySkill(skillId: string): Promise<DiscoveryInstallResponse> {
+export async function uninstallDiscoverySkill(
+  skillId: string,
+  force: boolean = false,
+): Promise<DiscoveryInstallResponse> {
   return apiRequest<DiscoveryInstallResponse>(`${SKILLS_API_PREFIX}/discovery/uninstall`, {
     method: 'POST',
-    body: JSON.stringify({ skill_id: skillId }),
+    body: JSON.stringify({ skill_id: skillId, force }),
   });
 }
 

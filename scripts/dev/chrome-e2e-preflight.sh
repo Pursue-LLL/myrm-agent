@@ -1464,19 +1464,33 @@ _mux_daemon_pid_alive() {
   [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
 }
 
+_mux_parallel_attach_health_ok() {
+  _mux_upstream_ready && _mux_ws_stamp_matches && _mux_daemon_pid_alive
+}
+
 _heal_mux_under_parallel_attach_load() {
   [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] || return 1
   local active_leases attempt
   active_leases="$(_mux_parallel_active_leases)"
   [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]] || return 1
-  for attempt in 1 2 3; do
+  # R123++: under parallel Wave leases, tools/list can queue behind peer tabs.
+  # Trust upstream+ws+pid before expensive probes so attach clears mux_begin quickly.
+  if _mux_parallel_attach_health_ok; then
+    echo "CHROME_E2E_WARN: mux parallel attach fast-path — skip timeout probe (${active_leases} active leases)" >&2
+    return 0
+  fi
+  for attempt in 1 2; do
     if _mux_request_timeout_effective; then
       return 0
     fi
-    echo "CHROME_E2E_WARN: mux probe slow (${active_leases} active leases) attempt ${attempt}/3" >&2
+    echo "CHROME_E2E_WARN: mux probe slow (${active_leases} active leases) attempt ${attempt}/2" >&2
     sleep $((attempt * 2))
+    if _mux_parallel_attach_health_ok; then
+      echo "CHROME_E2E_WARN: mux probe timeout under parallel load — skip restart (${active_leases} active leases)" >&2
+      return 0
+    fi
   done
-  if _mux_upstream_ready && _mux_ws_stamp_matches && _mux_daemon_pid_alive; then
+  if _mux_parallel_attach_health_ok; then
     echo "CHROME_E2E_WARN: mux probe timeout under parallel load — skip restart (${active_leases} active leases)" >&2
     return 0
   fi
@@ -1485,16 +1499,22 @@ _heal_mux_under_parallel_attach_load() {
 
 _heal_mux_request_timeout_drift() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
+  local active_leases
+  active_leases="$(_mux_parallel_active_leases)"
+  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
+    if _mux_parallel_attach_health_ok; then
+      echo "CHROME_E2E_WARN: mux parallel attach fast-path — skip timeout probe (${active_leases} active leases)" >&2
+      return 0
+    fi
+  fi
   if _mux_request_timeout_effective; then
     return 0
   fi
   if _heal_mux_under_parallel_attach_load; then
     return 0
   fi
-  local active_leases
-  active_leases="$(_mux_parallel_active_leases)"
   if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
-    if _mux_upstream_ready && _mux_ws_stamp_matches && _mux_daemon_pid_alive; then
+    if _mux_parallel_attach_health_ok; then
       echo "CHROME_E2E_WARN: mux heal restart suppressed during attach (${active_leases} active leases)" >&2
       return 0
     fi

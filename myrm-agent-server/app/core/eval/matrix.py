@@ -27,8 +27,9 @@ import json
 import logging
 import shutil
 import time
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
+from myrm_agent_harness import __version__ as harness_version
 from myrm_agent_harness.eval import AgentExecutor
 
 from app.core.eval import _state as eval_state
@@ -41,9 +42,6 @@ from app.core.eval.layered import (
     layer_specs_to_meta,
     run_layer_eval_background,
 )
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -147,15 +145,25 @@ async def _run_matrix_eval(
         eval_state.matrix_state["case_completed"] = prev + 1
 
     adaptive_manager = AdaptiveEvalManager(max_concurrency=3, idle_wait_seconds=3.0)
+
+    # Disclose the judge model so scores stay traceable after the user
+    # switches models. Matrix datasets may carry LLM-judge assertions
+    # (semantic grading), so the resolved judge credentials are injected into
+    # the runner for a consistent grading model — matching the memory_ab and
+    # layered report disclosure.
+    from app.core.eval.model_config import _resolve_judge_config
+
+    judge_config, judge_model = await _resolve_judge_config()
+
     runner = MatrixRunner(
         executors,
         max_concurrency_per_profile=3,
         on_profile_start=_on_profile_start,
         on_case_complete=_on_case_complete,
         yielding_strategy=adaptive_manager,
+        judge_config=judge_config,
     )
     eval_state.active_matrix_runner = runner
-
     try:
         matrix_result = await runner.run_multi_turn(multi_cases)
     finally:
@@ -181,7 +189,27 @@ async def _run_matrix_eval(
     report_data = matrix_result.to_dict()
     report_data["timestamp"] = timestamp
     report_data["dataset_id"] = dataset_id or "default"
+    report_data["eval_type"] = "matrix"
+    report_data["harness_version"] = harness_version
     report_data["benchmark_mode"] = benchmark_mode
+    # Disclose the judge model used for any LLM-judge assertions so a later
+    # score change caused by switching the user's model stays traceable
+    # (same disclosure as memory_ab and layered reports).
+    report_data["judge_model"] = judge_model
+    # A user abort mid-run leaves partial results: mark the report so it is
+    # never mistaken for a complete run in the Eval Lab history.
+    report_data["aborted"] = bool(eval_state.matrix_state.get("abort_requested"))
+
+    # Each profile may pin a different model; disclose the per-profile label
+    # so the report stays self-contained regardless of later profile changes.
+    from app.core.eval.model_config import _resolve_agent_model_label
+
+    per_profile = report_data.get("per_profile")
+    if isinstance(per_profile, dict):
+        for pid in profile_ids:
+            profile_summary = per_profile.get(pid)
+            if isinstance(profile_summary, dict):
+                profile_summary["agent_model"] = await _resolve_agent_model_label(pid)
 
     with report_path.open("w", encoding="utf-8") as f:
         json.dump(report_data, f, indent=2, ensure_ascii=False)
@@ -206,4 +234,3 @@ def get_latest_matrix_report() -> dict[str, object] | None:
     except Exception as exc:
         logger.warning("Failed to read matrix report: %s", exc)
         return None
-

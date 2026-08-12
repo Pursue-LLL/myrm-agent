@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { RefreshCw, Trash, Filter } from 'lucide-react';
+import { RefreshCw, Trash, Filter, Plus } from 'lucide-react';
 import FileSnapshotCard from './FileSnapshotCard';
 import FileDiffViewer from './FileDiffViewer';
 import {
   listFileSnapshots,
+  createFileSnapshot,
   restoreFileSnapshot,
   deleteFileSnapshot,
   cleanupFileSnapshots,
@@ -32,6 +33,9 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
   const [error, setError] = useState<string | null>(null);
   const [cleaningUp, setCleaningUp] = useState(false);
   const [showConfirmCleanup, setShowConfirmCleanup] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createDescription, setCreateDescription] = useState('');
   const [diffSnapshotId, setDiffSnapshotId] = useState<string | null>(null);
   const [diffChanges, setDiffChanges] = useState<FileChange[]>([]);
   const [loadingDiff, setLoadingDiff] = useState(false);
@@ -160,11 +164,42 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
     }
   };
 
+  const handleCreate = async () => {
+    setIsCreating(true);
+    try {
+      const response = await createFileSnapshot(workingDir, createDescription.trim());
+      if (response.success) {
+        setCreating(false);
+        setCreateDescription('');
+        await loadSnapshots();
+        toast.success(t('createSuccess'));
+      } else {
+        setError(t('createError'));
+      }
+    } catch (err) {
+      console.error('Failed to create file snapshot:', err);
+      setError(t('createError'));
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
         <h2 className="text-lg font-semibold text-foreground">{t('title')}</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <button
+            onClick={() => {
+              setCreating((prev) => !prev);
+              setCreateDescription('');
+            }}
+            disabled={isCreating}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-full transition-colors bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            {t('createVersion')}
+          </button>
           <button
             onClick={loadSnapshots}
             disabled={loading}
@@ -201,6 +236,40 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
           )}
         </div>
       </div>
+
+      {creating && (
+        <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <input
+            type="text"
+            value={createDescription}
+            onChange={(e) => setCreateDescription(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && createDescription.trim() && !isCreating) void handleCreate();
+            }}
+            placeholder={t('createPlaceholder')}
+            maxLength={80}
+            autoFocus
+            className="flex-1 px-3 py-1.5 text-sm rounded-lg bg-muted border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground placeholder:text-muted-foreground"
+          />
+          <button
+            onClick={() => void handleCreate()}
+            disabled={isCreating || !createDescription.trim()}
+            className="px-3 py-1.5 text-sm rounded-full bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
+          >
+            {isCreating ? t('creating') : t('confirmCreate')}
+          </button>
+          <button
+            onClick={() => {
+              setCreating(false);
+              setCreateDescription('');
+            }}
+            disabled={isCreating}
+            className="px-3 py-1.5 text-sm rounded-full bg-secondary hover:bg-secondary/80 text-secondary-foreground disabled:opacity-50"
+          >
+            {t('confirmNo')}
+          </button>
+        </div>
+      )}
 
       {uniqueAgents.size > 1 && (
         <div className="flex items-center gap-2 mb-3 flex-wrap">

@@ -11,6 +11,7 @@ interface MatrixProfileResult {
   total_cost: number;
   total_ms: number;
   memory_tool_calls?: number;
+  agent_model?: string;
 }
 
 interface MatrixCell {
@@ -47,6 +48,9 @@ export interface MatrixReportData {
   layers?: LayerMeta[];
   agent_model?: string;
   judge_model?: string;
+  harness_version?: string;
+  eval_type?: string;
+  aborted?: boolean;
 }
 
 interface Props {
@@ -79,6 +83,12 @@ export default function MatrixResultView({ report, profileNames }: Props) {
 
   return (
     <div className="space-y-6 max-w-full mx-auto overflow-x-auto">
+      {report.aborted && (
+        <div className="p-3 rounded-lg border border-amber-500/40 bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-400 text-sm flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          {tLayers('abortedNotice')}
+        </div>
+      )}
       {isLayered && (
         <div className="p-4 rounded-lg border bg-gradient-to-br from-card to-muted/30">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -105,7 +115,7 @@ export default function MatrixResultView({ report, profileNames }: Props) {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 border rounded-lg bg-card flex flex-col items-center">
           <span className="text-sm text-muted-foreground">{t('totalCases')}</span>
           <span className="text-3xl font-bold mt-1">{report.total_cases}</span>
@@ -156,7 +166,7 @@ export default function MatrixResultView({ report, profileNames }: Props) {
               if (!pr) return null;
               const rate = Math.round(pr.pass_rate * 100);
               const delta = deltaFor(index);
-              const efficiency = pr.total_cost > 0 ? pr.pass_rate / pr.total_cost : null;
+              const efficiency = pr.total_cost > 0 ? (pr.pass_rate * 100) / pr.total_cost : null;
               return (
                 <tr key={pid} className="bg-card hover:bg-muted/20">
                   <td className="px-4 py-3 font-mono text-xs">{getProfileLabel(pid)}</td>
@@ -168,6 +178,8 @@ export default function MatrixResultView({ report, profileNames }: Props) {
                           layers[index].skills_enabled ? tLayers('skillsOn') : tLayers('skillsOff'),
                         ].join(' · ')}
                       </span>
+                    ) : pr.agent_model && pr.agent_model !== 'unknown' ? (
+                      <span className="text-xs text-muted-foreground font-mono">{pr.agent_model}</span>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
@@ -203,7 +215,7 @@ export default function MatrixResultView({ report, profileNames }: Props) {
                       {efficiency === null ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
-                        <span className="font-medium">{(efficiency * 100).toFixed(1)}%/$</span>
+                        <span className="font-medium">{efficiency.toFixed(1)} pts/US$</span>
                       )}
                     </td>
                   )}
@@ -216,7 +228,23 @@ export default function MatrixResultView({ report, profileNames }: Props) {
         </table>
       </div>
 
-      {isLayered && <div className="text-xs text-muted-foreground px-1">{tLayers('fingerprint')}</div>}
+      {isLayered && (
+        <div className="text-xs text-muted-foreground px-1 space-y-1">
+          <div>{tLayers('fingerprint')}</div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono">
+            {layers.map((layer) => (
+              <span key={layer.key}>
+                {getProfileLabel(layer.key)}: {layer.fingerprint}
+              </span>
+            ))}
+            {report.harness_version && (
+              <span>
+                {tLayers('harnessVersion')}: {report.harness_version}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Matrix grid */}
       <div className="border rounded-lg overflow-hidden">

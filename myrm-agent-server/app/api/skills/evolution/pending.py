@@ -13,8 +13,9 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from app.core.skills.dependency_guard import get_dependents_map
 from app.services.skills.evolution_reviews import (
     EvolutionApplyError,
     EvolutionReviewRecord,
@@ -55,6 +56,7 @@ class PendingEvolutionSummaryResponse(BaseModel):
     has_trajectory: bool = False
     chat_id: str | None = None
     created_at: str
+    impacted_dependents: list[str] = Field(default_factory=list)
 
 
 class PendingEvolutionDetailResponse(PendingEvolutionSummaryResponse):
@@ -67,7 +69,10 @@ class PendingEvolutionResponse(PendingEvolutionDetailResponse):
     """Backward-compatible alias for tests expecting full bodies in list responses."""
 
 
-def _summary_from_record(record: EvolutionReviewRecord) -> PendingEvolutionSummaryResponse:
+def _summary_from_record(
+    record: EvolutionReviewRecord,
+    impacted_dependents: list[str] | None = None,
+) -> PendingEvolutionSummaryResponse:
     return PendingEvolutionSummaryResponse(
         id=record.id,
         skill_id=record.skill_id,
@@ -86,11 +91,15 @@ def _summary_from_record(record: EvolutionReviewRecord) -> PendingEvolutionSumma
         has_trajectory=bool(record.trajectory),
         chat_id=record.chat_id,
         created_at=record.created_at.isoformat(),
+        impacted_dependents=impacted_dependents or [],
     )
 
 
-def _detail_from_record(record: EvolutionReviewRecord) -> PendingEvolutionDetailResponse:
-    summary = _summary_from_record(record)
+def _detail_from_record(
+    record: EvolutionReviewRecord,
+    impacted_dependents: list[str] | None = None,
+) -> PendingEvolutionDetailResponse:
+    summary = _summary_from_record(record, impacted_dependents)
     return PendingEvolutionDetailResponse(
         **summary.model_dump(),
         original_content=record.original_content,
@@ -99,8 +108,11 @@ def _detail_from_record(record: EvolutionReviewRecord) -> PendingEvolutionDetail
     )
 
 
-def _response_from_record(record: EvolutionReviewRecord) -> PendingEvolutionResponse:
-    return PendingEvolutionResponse(**_detail_from_record(record).model_dump())
+def _response_from_record(
+    record: EvolutionReviewRecord,
+    impacted_dependents: list[str] | None = None,
+) -> PendingEvolutionResponse:
+    return PendingEvolutionResponse(**_detail_from_record(record, impacted_dependents).model_dump())
 
 
 class RejectEvolutionRequest(BaseModel):
@@ -151,12 +163,25 @@ async def reject_pending_evolution_record(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+async def _load_impacted_dependents(skill_ids: list[str]) -> dict[str, list[str]]:
+    """Resolve in-library dependents for a batch of skill IDs."""
+    return await get_dependents_map(skill_ids)
+
+
 @router.get("/pending")
 async def get_pending_evolutions(
     limit: int = Query(50, ge=1, le=100),
 ) -> dict[str, list[PendingEvolutionSummaryResponse]]:
     records = await list_pending_evolution_records(limit=limit)
-    return {"items": [_summary_from_record(record) for record in records]}
+    dependents_map = await _load_impacted_dependents(
+        [record.skill_id for record in records]
+    )
+    return {
+        "items": [
+            _summary_from_record(record, dependents_map.get(record.skill_id))
+            for record in records
+        ]
+    }
 
 
 @router.get("/pending/{evolution_id}")
@@ -164,7 +189,8 @@ async def get_pending_evolution(evolution_id: str) -> PendingEvolutionDetailResp
     record = await get_evolution_review_record(evolution_id)
     if record is None:
         raise HTTPException(status_code=404, detail=f"Pending evolution not found: {evolution_id}")
-    return _detail_from_record(record)
+    dependents = await _load_impacted_dependents([record.skill_id])
+    return _detail_from_record(record, dependents.get(record.skill_id))
 
 
 @router.post("/pending/{evolution_id}/approve")

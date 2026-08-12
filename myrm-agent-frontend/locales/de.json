@@ -2483,6 +2483,10 @@
         "localPathsCollapse": "Konfigurieren",
         "export": "Export Backup ⬇️",
         "import": "Import Backup ⬆️",
+        "restore": "Backup wiederherstellen",
+        "restoreInvalid": "Nur ZIP-Backupdateien werden unterstützt",
+        "restoreSuccess": "Backup wiederhergestellt",
+        "restoreSummary": "{imported} importiert, {updated} aktualisiert, {skipped} übersprungen, {drifted} Inhaltsabweichungen erkannt",
         "exportFailed": "Export fehlgeschlagen",
         "importFailed": "Import fehlgeschlagen",
         "importSuccess": "Import erfolgreich"
@@ -2530,6 +2534,9 @@
         "uninstalled": "Deinstalliert",
         "uninstallFailed": "Deinstallation fehlgeschlagen",
         "uninstallConfirm": "Möchten Sie diese Fähigkeit wirklich deinstallieren?",
+        "forceUninstallTitle": "Andere Fähigkeiten hängen von dieser ab",
+        "forceUninstallDesc": "„{name}“ wird von {count} Fähigkeit(en) referenziert. Eine Deinstallation kann diese Fähigkeiten beeinträchtigen.",
+        "forceUninstall": "Trotzdem deinstallieren",
         "source": {
           "prebuilt": "Offiziell",
           "github": "GitHub",
@@ -3066,6 +3073,10 @@
         "confidence": "Konfidenz {value}%",
         "testPassed": "Validierung bestanden",
         "testFailed": "Validierung fehlgeschlagen",
+        "impactedDependents": {
+          "label": "{count} Skill(s) hängen davon ab",
+          "tooltip": "Von {count} Skill(s) referenziert; Änderungen können diese beeinflussen"
+        },
         "actions": {
           "confirmReject": "Ablehnung bestätigen",
           "reject": "Ablehnen",
@@ -13949,6 +13960,11 @@
     "active": "aktiv",
     "failed": "fehlgeschlagen",
     "approvalCardNotFound": "Keine ausstehende Genehmigungskarte gefunden",
+    "verificationPassed": "Verifiziert",
+    "verificationFailed": "Verifizierung fehlgeschlagen",
+    "verificationPassedTitle": "Unabhängig verifiziert (Runde {rounds}/{maxRounds}, Konfidenz {confidence})",
+    "verificationFailedTitle": "Verifizierung nach Runde {rounds}/{maxRounds} fehlgeschlagen (Konfidenz {confidence})",
+    "verificationFindings": "Befunde",
     "costBudgetTitle": "Kosten: {used} / {limit}",
     "tokenBudgetTitle": "Token-Budget: {used} / {limit}",
     "staleTitle": "Subagent stalled — no progress detected",
@@ -14172,12 +14188,14 @@
       "scoredModel": "Bewertetes Modell",
       "judgeModel": "Jury",
       "fingerprint": "Ebenen-Fingerprints fixieren die exakte Schalterkombination und halten Ergebnisse versionsübergreifend vergleichbar.",
+      "harnessVersion": "Harness-Engine",
+      "abortedNotice": "Dieser Bericht ist unvollständig — die Auswertung wurde vor dem Abschluss abgebrochen.",
       "bare": { "label": "Basis" },
-      "core": { "label": "Kern" },
+      "core": { "label": "Kernkonfiguration" },
       "skills": { "label": "Fähigkeiten" },
       "memory": { "label": "Speicher" },
       "confirmTitle": "Layered-Evaluation starten?",
-      "confirmBody": "Der Benchmark wird viermal mit Ihrem aktuellen Profil ausgeführt — Basis (Benchmark-Modus), Kernregeln, +Fähigkeiten, dann +Speicher (Ihre vollständige Konfiguration). Jede Ebene wiederholt dieselben Aufgaben, sodass die Differenz benachbarter Ebenen die jeweilige Fähigkeit isoliert. Die Kosten skalieren etwa mit dem 4-fachen der Stichproben; für die Speicher-Ebene muss ein Embedding-Modell konfiguriert sein.",
+      "confirmBody": "Der Benchmark wird viermal mit Ihrem aktuellen Profil ausgeführt — Basis (Benchmark-Modus, Tools und Fähigkeiten entfernt), Kernkonfiguration (Ihre vollständige Agent-Konfiguration, Fähigkeiten und Speicher aus), +Fähigkeiten, dann +Speicher (Ihre vollständige Konfiguration). Jede Ebene wiederholt dieselben Aufgaben, sodass die Differenz benachbarter Ebenen die jeweilige Fähigkeit isoliert. Die Kosten skalieren etwa mit dem 4-fachen der Stichproben; für die Speicher-Ebene muss ein Embedding-Modell konfiguriert sein.",
       "confirmStart": "Evaluation starten",
       "confirmCancel": "Abbrechen"
     }
@@ -14666,7 +14684,7 @@
     "restoreSuccess": "{count}-Dateien erfolgreich wiederhergestellt",
     "cleanupSuccess": "{deleted}-Datei-Snapshots bereinigt",
     "confirmCleanup": "Sind Sie sicher, dass Sie alte Datei-Snapshots bereinigen möchten?",
-    "diffTitle": "Änderungen seit Snapshot {snapshotId}",
+    "diffTitle": "Änderungen in dieser Version",
     "noChanges": "Keine Änderungen seit diesem Schnappschuss",
     "panelTitle": "Datei-Snapshots",
     "selectAll": "Alles auswählen",
@@ -14676,9 +14694,28 @@
     "confirmNo": "Stornieren",
     "restoring": "Wiederherstellung...",
     "externalEffects": "Extern",
+    "effects": {
+        "database": "Datenbankänderungen",
+        "container_cloud": "Container- oder Cloud-Vorgänge",
+        "network_mutation": "Netzwerkanfragen"
+    },
     "externalEffectsTooltip": "Dieser Snapshot enthält externe Vorgänge ({effects}), die durch ein Datei-Rollback nicht rückgängig gemacht werden können",
     "restoreExternalWarning": "Externe Vorgänge ({effects}) wurden durchgeführt und können durch diese Wiederherstellung nicht rückgängig gemacht werden",
-    "allAgents": "Alle"
+    "allAgents": "Alle",
+    "createVersion": "Version erstellen",
+    "createPlaceholder": "Diese Version beschreiben (optional)",
+    "creating": "Wird erstellt...",
+    "confirmCreate": "Erstellen",
+    "createSuccess": "Snapshot erstellt",
+    "createError": "Fehler beim Erstellen des Snapshots",
+    "trigger": {
+      "write_file": "Datei geschrieben",
+      "delete_file": "Datei gelöscht",
+      "patch_file": "Datei aktualisiert",
+      "execute_terminal": "Terminalbefehl",
+      "manual": "Manuell",
+      "pre_rollback": "Vor Wiederherstellung"
+    }
   },
   "quarantineDialog": {
     "title": "macOS Gatekeeper blockiert",
@@ -16288,6 +16325,7 @@
     "configDisabled": "Deaktiviert",
     "configCreated": "Erstellt",
     "configFinished": "Abgeschlossen",
+    "configDuration": "Dauer",
     "promptTitle": "Aufforderung",
     "artifactsTitle": "Erwartete Artefakte",
     "directoriesTitle": "Zielverzeichnisse",

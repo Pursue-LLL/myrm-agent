@@ -50,6 +50,7 @@ interface SkillGrowthCaseSummaryApiItem {
   has_trigger_condition: boolean;
   has_skill_steps: boolean;
   created_at: string;
+  impacted_dependents: string[];
 }
 
 interface SkillGrowthCaseDetailApiItem extends SkillGrowthCaseSummaryApiItem {
@@ -138,6 +139,7 @@ export interface SkillGrowthCaseSummary {
   hasTriggerCondition: boolean;
   hasSkillSteps: boolean;
   createdAt: string;
+  impactedDependents: string[];
 }
 
 export interface SkillGrowthCaseDetail extends SkillGrowthCaseSummary {
@@ -230,6 +232,7 @@ function mapSummary(item: SkillGrowthCaseSummaryApiItem): SkillGrowthCaseSummary
     hasTriggerCondition: item.has_trigger_condition,
     hasSkillSteps: item.has_skill_steps,
     createdAt: item.created_at,
+    impactedDependents: item.impacted_dependents ?? [],
   };
 }
 

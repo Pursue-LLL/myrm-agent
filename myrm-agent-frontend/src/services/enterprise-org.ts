@@ -42,6 +42,18 @@ function cpUrl(path: string): string {
   return getApiUrl(`${CP_BASE}${path}`);
 }
 
+async function toError(res: Response, fallback: string): Promise<Error> {
+  try {
+    const body = (await res.json()) as { detail?: unknown };
+    if (typeof body?.detail === 'string' && body.detail) {
+      return new Error(body.detail);
+    }
+  } catch {
+    // non-JSON error body — fall through to the generic message
+  }
+  return new Error(fallback);
+}
+
 export async function createOrg(name: string, ssoDomain?: string): Promise<OrgInfo> {
   const res = await fetch(cpUrl(''), {
     method: 'POST',
@@ -104,7 +116,7 @@ export async function unlinkOauth(orgId: string, userId: string): Promise<void> 
 
 export async function offboardUser(orgId: string, sourceUserId: string): Promise<HandoffLog> {
   const res = await fetch(cpUrl(`/${orgId}/offboarding/${sourceUserId}`), { method: 'POST' });
-  if (!res.ok) throw new Error(`Offboard failed: ${res.status}`);
+  if (!res.ok) throw await toError(res, `Offboard failed: ${res.status}`);
   return res.json();
 }
 
@@ -119,7 +131,7 @@ export async function transferVolume(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ target_user_id: targetUserId, backup_path: backupPath || null }),
   });
-  if (!res.ok) throw new Error(`Transfer failed: ${res.status}`);
+  if (!res.ok) throw await toError(res, `Transfer failed: ${res.status}`);
   return res.json();
 }
 

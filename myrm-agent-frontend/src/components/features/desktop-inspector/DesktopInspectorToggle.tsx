@@ -8,6 +8,7 @@ import useChatStore from '@/store/useChatStore';
 import useDesktopInspectorStore, {
   selectScopedDesktopViewData,
 } from '@/store/useDesktopInspectorStore';
+import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 
 const DesktopInspectorToggle: React.FC = () => {
@@ -26,12 +27,7 @@ const DesktopInspectorToggle: React.FC = () => {
     }
   }, [computerUseEnabled, isDesktopActive, isOpen, closePanel]);
 
-  useEffect(() => {
-    if (!isOpen || !viewData?.sourceChatId || !chatId) return;
-    if (viewData.sourceChatId !== chatId) {
-      closePanel();
-    }
-  }, [chatId, viewData?.sourceChatId, isOpen, closePanel]);
+  useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
 
   if (!isVisible) return null;
 

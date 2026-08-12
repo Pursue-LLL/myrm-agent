@@ -156,16 +156,26 @@ def parallel_active_test_count_ssot() -> int:
         if now - cached_at < _PARALLEL_COUNT_CACHE_TTL_SEC:
             return cached
 
+    env_peers = 0
+    for key in ("MYRM_E2E_PARALLEL_ACTIVE_LEASES", "MYRM_E2E_PARALLEL_ACTIVE_COUNT"):
+        raw = os.environ.get(key, "").strip()
+        if raw.isdigit():
+            env_peers = max(env_peers, int(raw))
+    if env_peers >= 2:
+        _parallel_count_cache = (now, env_peers)
+        return env_peers
+
     pytest_peers = chrome_e2e_pytest_peer_count()
     session_peers = 0
-    if pytest_peers < 2:
+    # Never full-session ps scan on the evaluate hot path while a chrome_e2e BODY is active.
+    if pytest_peers < 2 and not os.environ.get("MYRM_E2E_RUN_ID", "").strip():
         try:
             from e2e_session_runtime.registry import list_live_e2e_sessions
 
             session_peers = len(list_live_e2e_sessions())
         except ImportError:
             session_peers = 0
-    combined = max(pytest_peers, session_peers)
+    combined = max(pytest_peers, session_peers, env_peers)
     if combined > 0:
         _parallel_count_cache = (now, combined)
         return combined

@@ -222,7 +222,9 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
     if (streamChatId && activeChatId && streamChatId === activeChatId) {
       const { default: useDesktopInspectorStore } = await import('@/store/useDesktopInspectorStore');
-      useDesktopInspectorStore.getState().openPanel();
+      const desktopStore = useDesktopInspectorStore.getState();
+      desktopStore.setDesktopActive(true);
+      desktopStore.openPanel();
     }
 
     actions.setLoading(false);

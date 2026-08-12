@@ -23,10 +23,9 @@ from cdp_chat_support import (  # noqa: E402
     wait_e2e_provider_ready,
 )
 from cdp_chat_ui import chat_id_from_path  # noqa: E402
-from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate_contract import EvaluateIntent  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
-
+from tests.support.chrome_mcp_e2e import open_mcp_page_async
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 from tests.support.test_secrets import load_test_secrets
 
@@ -301,7 +300,7 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
 
             assert (
                 failover_state is not None
-            ), "Expected model_failover progress step in WebUI after primary auth failure"
+            ), "Expected model_failover progress step in WebUI after primary model failure"
             step_key = str(failover_state.get("step_key") or "")
             assert step_key.startswith("model_failover"), failover_state
 
@@ -316,28 +315,15 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
                 ok_dict.get("ready") is True
             ), f"Expected assistant OK after fallback; state={ok_dict!r} failover={failover_state!r}"
 
-        client = ChromeMcpClient(request_timeout_sec=180.0)
-        await asyncio.to_thread(client.start)
-        page: McpPage | None = None
+        page_session = await open_mcp_page_async(
+            _base_url(),
+            request_timeout_sec=180.0,
+            timeout_ms=120_000,
+        )
         try:
-            try:
-                page = await asyncio.to_thread(
-                    client.new_page,
-                    _base_url(),
-                    timeout_ms=120_000,
-                )
-            except TimeoutError:
-                await asyncio.sleep(2.0)
-                page = await asyncio.to_thread(
-                    client.new_page,
-                    _base_url(),
-                    timeout_ms=120_000,
-                )
-            if page is None:
-                raise RuntimeError("new_page returned no page")
-            await run_flow(McpChatSession(client, page))
+            await run_flow(McpChatSession(page_session.client, page_session.page))
         finally:
-            await asyncio.to_thread(client.close)
+            await page_session.aclose()
     finally:
         if isinstance(backup, dict) and backup:
             put_config_value("providers", backup, api_url=api_url)

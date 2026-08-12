@@ -386,6 +386,39 @@ async def test_force_push_missing_binding_returns_400(
     assert "marketplace_entry_id" in resp.text
 
 
+@pytest.mark.asyncio
+async def test_force_push_unresolved_binding_returns_404(
+    app: FastAPI,
+    fake_repo: FakeAgentRepo,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Force-push with an entry_id that matches no local Agent fails closed with 404."""
+    _patch_force_push_dependencies(
+        monkeypatch,
+        fake_repo,
+        existing=None,
+    )
+    monkeypatch.setattr(
+        "app.api.internal.import_agent_profile._resolve_force_push_agent_id",
+        AsyncMock(return_value=None),
+    )
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/admin/import-agent-profile",
+            json={
+                "package": _build_package(),
+                "force": True,
+                "marketplace_entry_id": "entry-not-installed",
+            },
+        )
+
+    assert resp.status_code == 404
+    assert "marketplace_entry_id" in resp.text
+    assert fake_repo.updated is None
+
+
 def _set_deploy_mode(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
     from app.config.deploy_mode import get_deploy_mode
     from app.platform_utils.deployment_capabilities import (
@@ -596,6 +629,54 @@ class TestResolveForcePushAgentId:
         assert await _resolve_force_push_agent_id("entry-1") is None
 
     @pytest.mark.asyncio
+    async def test_skips_profiles_without_dict_metadata(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Profiles whose metadata is not a dict are skipped, not fatal."""
+        from app.api.internal.import_agent_profile import _resolve_force_push_agent_id
+
+        repo = MagicMock()
+        repo.list_profiles = AsyncMock(
+            return_value=[
+                MagicMock(id="skip", metadata=None),
+                MagicMock(id="p1", metadata={"engine_params": {"marketplace_entry_id": "entry-1"}}),
+            ]
+        )
+        fake_uow = MagicMock()
+        fake_uow.__aenter__ = AsyncMock(return_value=fake_uow)
+        fake_uow.__aexit__ = AsyncMock(return_value=None)
+        fake_uow.agent_repo = repo
+        monkeypatch.setattr(
+            "app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow
+        )
+
+        assert await _resolve_force_push_agent_id("entry-1") == "p1"
+
+    @pytest.mark.asyncio
+    async def test_skips_profiles_without_dict_engine_params(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Profiles whose engine_params is not a dict are skipped, not fatal."""
+        from app.api.internal.import_agent_profile import _resolve_force_push_agent_id
+
+        repo = MagicMock()
+        repo.list_profiles = AsyncMock(
+            return_value=[
+                MagicMock(id="skip", metadata={"engine_params": None}),
+                MagicMock(id="p1", metadata={"engine_params": {"marketplace_entry_id": "entry-1"}}),
+            ]
+        )
+        fake_uow = MagicMock()
+        fake_uow.__aenter__ = AsyncMock(return_value=fake_uow)
+        fake_uow.__aexit__ = AsyncMock(return_value=None)
+        fake_uow.agent_repo = repo
+        monkeypatch.setattr(
+            "app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow
+        )
+
+        assert await _resolve_force_push_agent_id("entry-1") == "p1"
+
+    @pytest.mark.asyncio
     async def test_ambiguous_match_raises_409(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -629,87 +710,79 @@ class TestResolveForcePushAgentId:
         assert exc_info.value.status_code == 409
 
 
-class TestEndpointBranches:
-    @pytest.mark.asyncio
-    async def test_non_force_import_installs(
-        self,
-        app: FastAPI,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """A plain (non-force) import returns the installed agent."""
-        package = _build_package()
-        monkeypatch.setattr(
-            "app.api.internal.import_agent_profile.validate_marketplace_package",
-            MagicMock(
-                return_value=MagicMock(model_dump=MagicMock(return_value=package))
-            ),
+@pytest.mark.asyncio
+async def test_non_force_import_installs(
+    app: FastAPI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A plain (non-force) import returns the installed agent."""
+    package = _build_package()
+    monkeypatch.setattr(
+        "app.api.internal.import_agent_profile.validate_marketplace_package",
+        MagicMock(return_value=MagicMock(model_dump=MagicMock(return_value=package))),
+    )
+    monkeypatch.setattr(
+        "app.api.internal.import_agent_profile.import_agent_package",
+        AsyncMock(return_value="new-agent-1"),
+    )
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/admin/import-agent-profile",
+            json={"package": package, "force": False},
         )
-        monkeypatch.setattr(
-            "app.api.internal.import_agent_profile.import_agent_package",
-            AsyncMock(return_value="new-agent-1"),
+
+    assert resp.status_code == 200
+    assert resp.json()["agent_id"] == "new-agent-1"
+    assert resp.json()["status"] == "installed"
+
+
+@pytest.mark.asyncio
+async def test_import_failure_returns_500(
+    app: FastAPI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unexpected import failures are wrapped as HTTP 500."""
+    package = _build_package()
+    monkeypatch.setattr(
+        "app.api.internal.import_agent_profile.validate_marketplace_package",
+        MagicMock(return_value=MagicMock(model_dump=MagicMock(return_value=package))),
+    )
+    monkeypatch.setattr(
+        "app.api.internal.import_agent_profile.import_agent_package",
+        AsyncMock(side_effect=RuntimeError("boom")),
+    )
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/admin/import-agent-profile",
+            json={"package": package, "force": False},
         )
-        transport = ASGITransport(app=app)
 
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.post(
-                "/api/admin/import-agent-profile",
-                json={"package": package, "force": False},
-            )
+    assert resp.status_code == 500
+    assert "Import failed" in resp.text
 
-        assert resp.status_code == 200
-        assert resp.json()["agent_id"] == "new-agent-1"
-        assert resp.json()["status"] == "installed"
 
-    @pytest.mark.asyncio
-    async def test_import_failure_returns_500(
-        self,
-        app: FastAPI,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """Unexpected import failures are wrapped as HTTP 500."""
-        package = _build_package()
-        monkeypatch.setattr(
-            "app.api.internal.import_agent_profile.validate_marketplace_package",
-            MagicMock(
-                return_value=MagicMock(model_dump=MagicMock(return_value=package))
-            ),
+@pytest.mark.asyncio
+async def test_empty_marketplace_entry_id_returns_400(
+    app: FastAPI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Whitespace-only marketplace_entry_id is rejected."""
+    package = _build_package()
+    monkeypatch.setattr(
+        "app.api.internal.import_agent_profile.validate_marketplace_package",
+        MagicMock(return_value=MagicMock(model_dump=MagicMock(return_value=package))),
+    )
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/admin/import-agent-profile",
+            json={"package": package, "force": True, "marketplace_entry_id": "   "},
         )
-        monkeypatch.setattr(
-            "app.api.internal.import_agent_profile.import_agent_package",
-            AsyncMock(side_effect=RuntimeError("boom")),
-        )
-        transport = ASGITransport(app=app)
 
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.post(
-                "/api/admin/import-agent-profile",
-                json={"package": package, "force": False},
-            )
-
-        assert resp.status_code == 500
-        assert "Import failed" in resp.text
-
-    @pytest.mark.asyncio
-    async def test_empty_marketplace_entry_id_returns_400(
-        self,
-        app: FastAPI,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """Whitespace-only marketplace_entry_id is rejected."""
-        package = _build_package()
-        monkeypatch.setattr(
-            "app.api.internal.import_agent_profile.validate_marketplace_package",
-            MagicMock(
-                return_value=MagicMock(model_dump=MagicMock(return_value=package))
-            ),
-        )
-        transport = ASGITransport(app=app)
-
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.post(
-                "/api/admin/import-agent-profile",
-                json={"package": package, "force": True, "marketplace_entry_id": "   "},
-            )
-
-        assert resp.status_code == 400
-        assert "marketplace_entry_id" in resp.text
+    assert resp.status_code == 400
+    assert "marketplace_entry_id" in resp.text

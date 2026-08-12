@@ -293,35 +293,32 @@ class SkillPackagingService:
             from app.core.skills.store.evolution_store import get_evolution_skill_store
 
             store = get_evolution_skill_store()
-            try:
-                record = store.get_skill_by_name_version(skill.name)
-                if record is None:
-                    skill_md = files.get(SKILL_MD_FILE, b"").decode(
-                        "utf-8", errors="replace"
-                    )
-                    path = get_skill_file_path(
-                        SkillType.PREBUILT, skill.id, SKILL_MD_FILE
-                    )
-                    record = SkillRecord(
-                        skill_id=skill.id,
-                        name=skill.name,
-                        description=skill.description,
-                        content=skill_md,
-                        path=path,
-                        lineage=SkillLineage(
-                            evolution_type=EvolutionType.CAPTURED,
-                            version=1,
-                            created_by="package_import",
-                        ),
-                        is_active=True,
-                        environment=EnvironmentFingerprint(),
-                    )
-                record.eval_cases = eval_cases
-                record.updated_at = datetime.now()
-                await store.save_skill(record)
-                return len(eval_cases)
-            finally:
-                store.close()
+            record = store.get_skill_by_name_version(skill.name)
+            if record is None:
+                skill_md = files.get(SKILL_MD_FILE, b"").decode(
+                    "utf-8", errors="replace"
+                )
+                path = get_skill_file_path(
+                    SkillType.PREBUILT, skill.id, SKILL_MD_FILE
+                )
+                record = SkillRecord(
+                    skill_id=skill.id,
+                    name=skill.name,
+                    description=skill.description,
+                    content=skill_md,
+                    path=path,
+                    lineage=SkillLineage(
+                        evolution_type=EvolutionType.CAPTURED,
+                        version=1,
+                        created_by="package_import",
+                    ),
+                    is_active=True,
+                    environment=EnvironmentFingerprint(),
+                )
+            record.eval_cases = eval_cases
+            record.updated_at = datetime.now()
+            await store.save_skill(record)
+            return len(eval_cases)
         except Exception as exc:
             logger.warning("Failed to restore eval_cases for '%s': %s", skill.name, exc)
             return 0

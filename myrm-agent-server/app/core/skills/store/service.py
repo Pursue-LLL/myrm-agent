@@ -166,19 +166,14 @@ class SkillsService:
 
         if skill:
             # Merge runtime is_active status from SQLite
-            store = None
             try:
                 from app.core.skills.store.evolution_store import get_evolution_skill_store
 
-                store = get_evolution_skill_store()
-                db_record = store.get_skill(skill.id)
+                db_record = get_evolution_skill_store().get_skill(skill.id)
                 if db_record is not None:
                     skill.is_active = db_record.is_active
             except Exception as e:
                 logger.error("Failed to merge is_active status from SQLite for %s: %s", skill.id, e)
-            finally:
-                if store:
-                    store.close()
 
         return skill
 
@@ -215,7 +210,6 @@ class SkillsService:
                         skill.trust = "trusted"
 
         # Merge runtime is_active status from SQLite
-        store = None
         try:
             from app.core.skills.store.evolution_store import get_evolution_skill_store
 
@@ -227,9 +221,6 @@ class SkillsService:
                     skill.is_active = db_record.is_active
         except Exception as e:
             logger.error("Failed to merge is_active status from SQLite: %s", e)
-        finally:
-            if store:
-                store.close()
 
         return reader.sort_skills(skills, sort_by, order)
 

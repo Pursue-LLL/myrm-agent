@@ -23,7 +23,7 @@
 | `moaPresetStorage.ts` | per-chat localStorage + DB PATCH（`persistMoaPresetToServer` fail-visible rollback）+ `resolveHydratedMoaPresetId` |
 | `useChatStore.ts`（根 store） | `refreshCompactionState`：压缩 SSE 后并行 refresh summary/branches/pins（`Promise.allSettled`，detail 失败不阻断 metadata）；`setAgentConfig` 绑定/切换 Agent 时重置 `securityPreset`（无默认回落 hitl，fail-closed） |
 | `messageUtils.ts` | assistant 消息索引、`findUiArtifactLocation`（`data_update` 跨回合 surface 定位） |
-| `useSubagentStore.ts` | 子代理运行时状态 store（`SubagentNode`/`SubagentStatus` 类型、SSE 树更新、teammate 消息、预算 metadata `budget`/`token_usage`、overtime/stale 告警；fission 批次汇总 `fissionBatch`/`setFissionBatch` 与拓扑 `fissionTopology`/`setFissionTopology`；挂 `window.__myrmSubagentStore` 供 chrome E2E 注入种子数据） |
+| `useSubagentStore.ts` | 子代理运行时状态 store（`SubagentNode`/`SubagentStatus` 类型、SSE 树更新、teammate 消息、预算 metadata `budget`/`token_usage`、overtime/stale 告警、独立验证 `verification`（`SubagentVerification`）、fission 批次汇总 `fissionBatch`/`setFissionBatch` 与拓扑 `fissionTopology`/`setFissionTopology`；挂 `window.__myrmSubagentStore` 供 chrome E2E 注入种子数据） |
 | `adaptiveScheduler.ts` | 自适应调度器：按文本长度动态调度任务（打字机流控 timer，支持 flush） |
 | `archiveRestoreActions.ts` | 归档恢复动作 SSOT：block/result payload 解析归一化 + 构建（每请求上限 `MAX_ARCHIVE_RESTORE_ACTIONS_PER_REQUEST`） |
 | `chatHistoryBuilder.ts` | 聊天历史构建（`buildSimpleChatHistory` 等） |

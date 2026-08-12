@@ -48,6 +48,12 @@ export interface FileSnapshotListResponse {
   total: number;
 }
 
+export interface FileSnapshotCreateResponse {
+  success: boolean;
+  snapshotId: string;
+  workingDir: string;
+}
+
 export interface FileSnapshotRestoreResponse {
   success: boolean;
   snapshotId: string;
@@ -131,6 +137,19 @@ export const listFileSnapshots = async (
   if (agentId) params.append('agent_id', agentId);
 
   return (await apiRequest(`/checkpoint/file-snapshot/list?${params.toString()}`)) as FileSnapshotListResponse;
+};
+
+/**
+ * Create a manual snapshot of the workspace
+ */
+export const createFileSnapshot = async (
+  workingDir: string,
+  description: string = '',
+): Promise<FileSnapshotCreateResponse> => {
+  return (await apiRequest('/checkpoint/file-snapshot/create', {
+    method: 'POST',
+    body: JSON.stringify({ workingDir, description }),
+  })) as FileSnapshotCreateResponse;
 };
 
 /**

@@ -7,8 +7,11 @@ Provides endpoints for:
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.agent.file_snapshot import FileSnapshotProtocol
+from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
 from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpointStorage
 
 from ._snapshot_notify import emit_restore_event, notify_agent_of_restore
@@ -19,11 +22,15 @@ from .schemas import (
     CheckpointResumeResponse,
     FileChangeResponse,
     FileDiffResponse,
+    FileSnapshotCreateRequest,
+    FileSnapshotCreateResponse,
     FileSnapshotInfoResponse,
     FileSnapshotListResponse,
     FileSnapshotRestoreRequest,
     FileSnapshotRestoreResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/checkpoint", tags=["checkpoint"])
 
@@ -61,7 +68,9 @@ async def _get_snapshot_external_effects(
             if effects:
                 return tuple(effects)
     except Exception:
-        pass
+        # Some store implementations don't expose snapshot metadata; the
+        # warning is best-effort, so missing effects is not an error.
+        logger.debug("Snapshot metadata unavailable (snapshot=%s)", snapshot_id)
     return None
 
 
@@ -247,6 +256,29 @@ async def list_file_snapshots(
         return FileSnapshotListResponse(snapshots=items, total=len(items))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to list file snapshots") from e
+
+
+@router.post("/file-snapshot/create", response_model=FileSnapshotCreateResponse)
+async def create_file_snapshot(request: FileSnapshotCreateRequest) -> FileSnapshotCreateResponse:
+    """Create a manual snapshot of the current workspace state.
+
+    Lets the user checkpoint a workspace before risky changes, complementing
+    the automatic snapshots taken before destructive agent actions.
+    """
+    try:
+        store = await _get_file_snapshot_store()
+        snapshot_id = await store.take_snapshot(
+            working_dir=request.working_dir,
+            trigger=SnapshotTrigger.MANUAL,
+            description=request.description.strip(),
+        )
+        return FileSnapshotCreateResponse(
+            success=True,
+            snapshot_id=snapshot_id,
+            working_dir=request.working_dir,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to create file snapshot") from e
 
 
 @router.post("/file-snapshot/restore", response_model=FileSnapshotRestoreResponse)

@@ -41,6 +41,17 @@ class TestSerializationHelpers:
     def test_safe_personality_valid(self) -> None:
         assert _safe_personality("friendly") == "friendly"
 
+    def test_safe_personality_hard_fallback(self, monkeypatch) -> None:
+        """Invalid default personality still yields a literal fallback."""
+        import app.api.agents._agent_response as mod
+
+        monkeypatch.setattr(
+            mod,
+            "DEFAULT_PERSONALITY_STYLE",
+            "not-a-real-style",
+        )
+        assert _safe_personality("also-invalid") == "professional"
+
     def test_meta_str_list_converts_to_strings(self) -> None:
         assert _meta_str_list({"mcp_ids": ["a", 1]}, "mcp_ids") == ["a", "1"]
 
@@ -51,6 +62,9 @@ class TestSerializationHelpers:
         assert _meta_str_list_or_none(
             {"suggestion_prompts": ["p"]}, "suggestion_prompts"
         ) == ["p"]
+
+    def test_meta_str_list_or_none_returns_none_for_scalar(self) -> None:
+        assert _meta_str_list_or_none({"suggestion_prompts": "p"}, "suggestion_prompts") is None
 
     def test_meta_dict_or_none_converts(self) -> None:
         assert _meta_dict_or_none(

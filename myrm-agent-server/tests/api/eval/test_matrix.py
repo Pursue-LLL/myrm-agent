@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness import __version__ as harness_version
 
 from app.core.eval._state import (
     active_matrix_runner,
@@ -103,9 +104,7 @@ class TestRunMatrixEvalBackground:
             await run_matrix_eval_background(
                 dataset_id="ds", profile_ids=["a", "b"], benchmark_mode=True
             )
-        mock_run.assert_awaited_once_with(
-            "ds", ["a", "b"], benchmark_mode=True
-        )
+        mock_run.assert_awaited_once_with("ds", ["a", "b"], benchmark_mode=True)
         assert matrix_state["is_running"] is False
         assert active_matrix_runner is None
 
@@ -193,6 +192,14 @@ class TestRunMatrixEvalCore:
                 "app.core.eval.matrix.LocalEvalExecutor",
                 return_value=AsyncMock(),
             ),
+            patch(
+                "app.core.eval.model_config._resolve_judge_config",
+                new=AsyncMock(return_value=(MagicMock(), "openai/gpt-4o-mini")),
+            ),
+            patch(
+                "app.core.eval.model_config._resolve_agent_model_label",
+                new=AsyncMock(side_effect=lambda pid: f"model-{pid}"),
+            ),
         ):
             result = await _run_matrix_eval(
                 dataset_id="ds", profile_ids=["a", "b"], benchmark_mode=True
@@ -202,6 +209,14 @@ class TestRunMatrixEvalCore:
         assert result["timestamp"] > 0
         assert result["dataset_id"] == "ds"
         assert result["benchmark_mode"] is True
+        assert result["eval_type"] == "matrix"
+        assert result["harness_version"] == harness_version
+        # Judge model disclosed so later model switches stay traceable.
+        assert result["judge_model"] == "openai/gpt-4o-mini"
+        assert result["aborted"] is False
+        # Per-profile model labels make the report self-contained.
+        assert result["per_profile"]["a"]["agent_model"] == "model-a"
+        assert result["per_profile"]["b"]["agent_model"] == "model-b"
 
         # Progress callbacks drive the live state for the SSE stream.
         assert matrix_state["current_profile"] == "b"
@@ -366,11 +381,12 @@ class TestMatrixRouterEndpoints:
 
 class TestLayerRouterEndpoints:
     def test_layers_run_unknown_benchmark(self, client: TestClient) -> None:
-        with patch(
-            "app.api.eval.matrix_router.get_matrix_eval_status",
-            return_value={"is_running": False},
-        ), patch(
-            "app.core.eval.benchmarks.is_known_benchmark", return_value=False
+        with (
+            patch(
+                "app.api.eval.matrix_router.get_matrix_eval_status",
+                return_value={"is_running": False},
+            ),
+            patch("app.core.eval.benchmarks.is_known_benchmark", return_value=False),
         ):
             res = client.post(
                 "/api/v1/eval/matrix/layers-run",
@@ -382,20 +398,22 @@ class TestLayerRouterEndpoints:
     def test_layers_run_embedding_preflight_failure(self, client: TestClient) -> None:
         from myrm_agent_harness.api.config import ConfigIncompleteError
 
-        with patch(
-            "app.api.eval.matrix_router.get_matrix_eval_status",
-            return_value={"is_running": False},
-        ), patch(
-            "app.core.eval.benchmarks.is_known_benchmark", return_value=True
-        ), patch(
-            "app.services.agent.platform_config.verify_platform_embedding_ready",
-            new=AsyncMock(
-                side_effect=ConfigIncompleteError(
-                    user_friendly_message={"en": "Embedding not configured"},
-                    technical_details="missing embedding config",
-                    resolution_steps=["Configure an embedding provider"],
-                    error_code="embedding_not_configured",
-                )
+        with (
+            patch(
+                "app.api.eval.matrix_router.get_matrix_eval_status",
+                return_value={"is_running": False},
+            ),
+            patch("app.core.eval.benchmarks.is_known_benchmark", return_value=True),
+            patch(
+                "app.services.agent.platform_config.verify_platform_embedding_ready",
+                new=AsyncMock(
+                    side_effect=ConfigIncompleteError(
+                        user_friendly_message={"en": "Embedding not configured"},
+                        technical_details="missing embedding config",
+                        resolution_steps=["Configure an embedding provider"],
+                        error_code="embedding_not_configured",
+                    )
+                ),
             ),
         ):
             res = client.post(
@@ -411,9 +429,7 @@ class TestLayerRouterEndpoints:
                 "app.api.eval.matrix_router.get_matrix_eval_status",
                 return_value={"is_running": False},
             ),
-            patch(
-                "app.core.eval.benchmarks.is_known_benchmark", return_value=True
-            ),
+            patch("app.core.eval.benchmarks.is_known_benchmark", return_value=True),
             patch(
                 "app.services.agent.platform_config.verify_platform_embedding_ready",
                 new=AsyncMock(),
@@ -456,10 +472,13 @@ class TestLayerSpecs:
             "memory",
         ]
         # Ascending: each layer adds exactly one capability switch.
-        for prev, spec in zip(DEFAULT_LAYER_SPECS, DEFAULT_LAYER_SPECS[1:], strict=False):
-            added = (
-                (spec.benchmark_mode, spec.skills_enabled, spec.memory_enabled)
-                != (prev.benchmark_mode, prev.skills_enabled, prev.memory_enabled)
+        for prev, spec in zip(
+            DEFAULT_LAYER_SPECS, DEFAULT_LAYER_SPECS[1:], strict=False
+        ):
+            added = (spec.benchmark_mode, spec.skills_enabled, spec.memory_enabled) != (
+                prev.benchmark_mode,
+                prev.skills_enabled,
+                prev.memory_enabled,
             )
             assert added
         # The final layer is the full (non-benchmark) profile configuration.
@@ -500,9 +519,7 @@ class TestRunLayerEvalBackground:
             "app.core.eval.layered._run_layer_eval",
             new=AsyncMock(return_value={"layers": []}),
         ) as mock_run:
-            await run_layer_eval_background(
-                "wb-bench-code", profile_id="p1", limit=3
-            )
+            await run_layer_eval_background("wb-bench-code", profile_id="p1", limit=3)
         mock_run.assert_awaited_once_with("wb-bench-code", "p1", limit=3)
         assert matrix_state["is_running"] is False
         assert matrix_state["profile_total"] == len(DEFAULT_LAYER_SPECS)
@@ -555,7 +572,15 @@ class TestRunLayerEvalCore:
                 for idx, key in enumerate(["bare", "core", "skills", "memory"]):
                     self.kwargs["on_profile_start"](key, idx, 4)
                     self.kwargs["on_case_complete"](key, MagicMock())
-                return FakeMatrixResult()
+                result = FakeMatrixResult()
+                result.per_profile_results = {}
+                for key in ["bare", "core", "skills", "memory"]:
+                    turn = MagicMock()
+                    turn.response.tools_called = ["memory_search"]
+                    layer_result = MagicMock()
+                    layer_result.turn_results = [turn]
+                    result.per_profile_results[key] = layer_result
+                return result
 
         import app.core.eval.layered as layered_mod
 
@@ -601,14 +626,15 @@ class TestRunLayerEvalCore:
             ),
             patch("app.core.eval.layered.shutil.rmtree"),
         ):
-            result = await _run_layer_eval(
-                "wb-bench-code", profile_id="p1", limit=2
-            )
+            result = await _run_layer_eval("wb-bench-code", profile_id="p1", limit=2)
 
         assert result["dataset_id"] == "wb-bench-code"
         assert result["profile_id"] == "p1"
         assert result["agent_model"] == "openai/gpt-4o"
         assert result["judge_model"] == "openai/gpt-4o-mini"
+        assert result["eval_type"] == "layered"
+        assert result["harness_version"] == harness_version
+        assert result["aborted"] is False
         assert [m["key"] for m in result["layers"]] == [
             "bare",
             "core",
@@ -616,6 +642,11 @@ class TestRunLayerEvalCore:
             "memory",
         ]
         assert all("fingerprint" in m for m in result["layers"])
+        # Each layer discloses how many times it actually invoked memory tools.
+        assert all(
+            isinstance(result["per_profile"][k]["memory_tool_calls"], int)
+            for k in ["bare", "core", "skills", "memory"]
+        )
 
         # Four executors, one per layer, with the pinned switch combination.
         assert len(executor_factories) == 4
@@ -625,6 +656,9 @@ class TestRunLayerEvalCore:
         assert skill_overrides == [[], [], None, None]
         memory_flags = [f["enable_memory"] for f in executor_factories]
         assert memory_flags == [False, False, False, True]
+        # Layered ablation must not blend the user's real shared context into
+        # any layer — every executor isolates shared-context injection.
+        assert all(f["resolve_shared_contexts"] is False for f in executor_factories)
 
         # Progress callbacks drive the shared matrix state.
         assert matrix_state["current_profile"] == "memory"

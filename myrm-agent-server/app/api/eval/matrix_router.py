@@ -23,11 +23,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.api.eval.streaming import stream_status_events
-from app.core.eval.layered import run_layer_eval_background
 from app.core.eval.matrix import (
     abort_matrix_eval,
     get_latest_matrix_report,
     get_matrix_eval_status,
+    run_layer_eval_background,
     run_matrix_eval_background,
 )
 from app.schemas.streaming import SSE_RESPONSE_HEADERS

@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.core.skills.dependency_guard import get_dependents_map
 from app.core.utils.response_utils import success_response
 from app.services.skills.growth.audit_queries import (
     SkillGrowthAuditEntryRead,
@@ -58,6 +59,7 @@ class SkillGrowthCaseSummaryResponse(BaseModel):
     has_trigger_condition: bool = False
     has_skill_steps: bool = False
     created_at: str
+    impacted_dependents: list[str] = Field(default_factory=list)
 
 
 class SkillGrowthCaseDetailResponse(SkillGrowthCaseSummaryResponse):
@@ -133,7 +135,10 @@ def _form_metadata_response(
     )
 
 
-def _summary_response(item: SkillGrowthCaseSummaryRead) -> SkillGrowthCaseSummaryResponse:
+def _summary_response(
+    item: SkillGrowthCaseSummaryRead,
+    impacted_dependents: list[str] | None = None,
+) -> SkillGrowthCaseSummaryResponse:
     return SkillGrowthCaseSummaryResponse(
         id=item.id,
         source=item.source.value,
@@ -160,11 +165,15 @@ def _summary_response(item: SkillGrowthCaseSummaryRead) -> SkillGrowthCaseSummar
         has_trigger_condition=item.has_trigger_condition,
         has_skill_steps=item.has_skill_steps,
         created_at=item.created_at.isoformat(),
+        impacted_dependents=impacted_dependents or [],
     )
 
 
-def _detail_response(item: SkillGrowthCaseDetailRead) -> SkillGrowthCaseDetailResponse:
-    summary = _summary_response(detail_to_summary(item))
+def _detail_response(
+    item: SkillGrowthCaseDetailRead,
+    impacted_dependents: list[str] | None = None,
+) -> SkillGrowthCaseDetailResponse:
+    summary = _summary_response(detail_to_summary(item), impacted_dependents)
     return SkillGrowthCaseDetailResponse(
         **summary.model_dump(),
         trigger_condition=item.trigger_condition,
@@ -229,8 +238,14 @@ async def get_skill_growth_cases(
     offset: int = Query(0, ge=0),
 ) -> JSONResponse:
     items, total = await list_skill_growth_cases(limit=limit, offset=offset, status=status)
+    dependents_map = await get_dependents_map(
+        [item.skill_id for item in items if item.skill_id]
+    )
     payload = SkillGrowthCaseListResponse(
-        items=[_summary_response(item) for item in items],
+        items=[
+            _summary_response(item, dependents_map.get(item.skill_id))
+            for item in items
+        ],
         total=total,
     )
     return success_response(data=payload.model_dump())
@@ -241,7 +256,12 @@ async def get_skill_growth_case(case_id: str) -> JSONResponse:
     item = await get_skill_growth_case_detail(case_id)
     if item is None:
         raise HTTPException(status_code=404, detail=f"Skill growth case not found: {case_id}")
-    return success_response(data=_detail_response(item).model_dump())
+    dependents = (
+        await get_dependents_map([item.skill_id]) if item.skill_id else {}
+    )
+    return success_response(
+        data=_detail_response(item, dependents.get(item.skill_id)).model_dump()
+    )
 
 
 @router.get("/stats")

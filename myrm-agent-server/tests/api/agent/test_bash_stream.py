@@ -68,8 +68,9 @@ async def test_bash_stream(client: TestClient) -> None:
     request_data: dict[str, object] = {
         "messageId": str(uuid.uuid4()),
         "query": (
-            "Use bash_code_execute_tool to run exactly: echo hello world. "
-            "Do not use any other tools."
+            "Use bash_code_execute_tool to run exactly: "
+            "echo stream_marker_$RANDOM_$RANDOM. "
+            "Report the exact output. Do not use any other tools."
         ),
         "chatId": chat_id,
         "modelSelection": get_model_selection(),
@@ -97,11 +98,21 @@ async def test_bash_stream(client: TestClient) -> None:
             pytest.skip(f"Environment/upstream flaky: {error_msg[:240]}")
         pytest.fail(f"Agent execution error: {error_msg}")
 
-    tool_stdout_chunk_received = any(d.get("type") == "tool_stdout_chunk" for d in collected)
-    stream_blob = json.dumps(collected, default=str).lower()
-    bash_invoked = tool_stdout_chunk_received or "bash_code_execute" in stream_blob
+    def _bash_invoked(events: list[dict[str, object]]) -> bool:
+        tool_stdout_chunk_received = any(d.get("type") == "tool_stdout_chunk" for d in events)
+        stream_blob = json.dumps(events, default=str).lower()
+        return tool_stdout_chunk_received or "bash_code_execute" in stream_blob
 
-    assert bash_invoked, "Expected bash_code_execute_tool invocation or tool_stdout_chunk event"
+    if not _bash_invoked(collected):
+        # Real LLMs sometimes answer directly instead of invoking the tool, which
+        # is model behavior, not a bash-stream defect. Retry once with a fresh
+        # chat so a single non-compliant turn does not flap the test.
+        retry_data = dict(request_data)
+        retry_data["chatId"] = f"bash-chat-{uuid.uuid4().hex[:8]}"
+        retry_data["messageId"] = str(uuid.uuid4())
+        collected = _stream_with_auto_approve(client, retry_data)
+
+    assert _bash_invoked(collected), "Expected bash_code_execute_tool invocation or tool_stdout_chunk event"
 
 
 @pytest.mark.e2e

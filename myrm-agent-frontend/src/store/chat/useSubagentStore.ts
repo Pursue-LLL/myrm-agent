@@ -23,6 +23,20 @@ export type SubagentMetadataValue =
   | SubagentMetadataValue[]
   | { [key: string]: SubagentMetadataValue };
 
+export interface VerificationFinding {
+  severity: string;
+  description: string;
+}
+
+export interface SubagentVerification {
+  passed: boolean;
+  rounds: number;
+  max_rounds: number;
+  confidence: string;
+  summary?: string;
+  findings?: VerificationFinding[];
+}
+
 export interface TeammateMessageEntry {
   message_id?: string;
   from_task_id: string;
@@ -71,6 +85,7 @@ export interface SubagentNode {
   staleDurationSeconds?: number;
   wastedTokens?: number;
   staleDismissed?: boolean;
+  verification?: SubagentVerification;
 }
 
 export interface FissionTopologyNode {

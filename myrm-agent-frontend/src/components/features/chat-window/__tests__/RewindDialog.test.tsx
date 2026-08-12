@@ -94,7 +94,10 @@ describe('RewindDialog', () => {
     await waitFor(() => {
       expect(screen.getByText('fileRevertSummary:1')).toBeInTheDocument();
     });
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/files/revert/changes/c1/a1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/files/revert/changes/c1/a1',
+      expect.objectContaining({ headers: expect.anything() }),
+    );
   });
 
   it('shows empty hint when no snapshots exist', async () => {

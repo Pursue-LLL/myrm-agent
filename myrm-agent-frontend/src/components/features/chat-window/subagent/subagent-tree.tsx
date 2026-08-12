@@ -9,6 +9,8 @@ import {
   GitCompareArrows,
   MessageSquare,
   PlayCircle,
+  ShieldAlert,
+  ShieldCheck,
   StopCircle,
   X,
 } from 'lucide-react';
@@ -27,7 +29,7 @@ import {
   fmtTokens,
   type TreeNode,
 } from '@/lib/utils/subagentTree';
-import { isNodeOvertime, useSubagentStore, type TeammateMessageEntry } from '@/store/chat/useSubagentStore';
+import { isNodeOvertime, useSubagentStore, type SubagentVerification, type TeammateMessageEntry } from '@/store/chat/useSubagentStore';
 import { NodeStream, StatusIcon } from './subagent-stream';
 
 type TeammateRowProps = {
@@ -58,6 +60,58 @@ function formatElapsed(ms: number): string {
 }
 
 type DashboardTranslator = (key: string, values?: Record<string, string>) => string;
+
+const VerificationBadge = ({ verification, t }: { verification: SubagentVerification; t: DashboardTranslator }) => {
+  const [findingsOpen, setFindingsOpen] = useState(false);
+  const findings = verification.findings ?? [];
+  const passed = verification.passed;
+  const Icon = passed ? ShieldCheck : ShieldAlert;
+
+  const badgeClass = passed
+    ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800'
+    : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800';
+
+  const title = t(passed ? 'verificationPassedTitle' : 'verificationFailedTitle', {
+    rounds: String(verification.rounds),
+    maxRounds: String(verification.max_rounds),
+    confidence: verification.confidence,
+  });
+
+  return (
+    <>
+      <button
+        type="button"
+        data-testid="subagent-verification-badge"
+        data-verification-passed={passed}
+        onClick={() => (findings.length > 0 ? setFindingsOpen((open) => !open) : undefined)}
+        className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none ${badgeClass} ${
+          findings.length > 0 ? 'cursor-pointer' : 'cursor-default'
+        }`}
+        title={title}
+      >
+        <Icon className="w-3 h-3 shrink-0" />
+        {t(passed ? 'verificationPassed' : 'verificationFailed')}
+        {verification.max_rounds > 1 && (
+          <span className="tabular-nums opacity-80">
+            {verification.rounds}/{verification.max_rounds}
+          </span>
+        )}
+      </button>
+      {findingsOpen && findings.length > 0 && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+          <div className="mb-0.5 font-medium">{t('verificationFindings')}</div>
+          <ul className="flex flex-col gap-0.5">
+            {findings.map((finding, index) => (
+              <li key={index} className="truncate" title={finding.description}>
+                <span className="font-semibold uppercase">{finding.severity}</span>: {finding.description}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+};
 
 function formatRole(role: string | undefined, t: DashboardTranslator): string {
   if (role === 'orchestrator') return t('roleOrchestrator');
@@ -202,6 +256,9 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
                 <span className="rounded border border-gray-200 px-1.5 py-0.5 text-[10px] leading-none dark:border-gray-700">
                   {formatScope(node.control_scope, t)}
                 </span>
+              )}
+              {node.verification && (
+                <VerificationBadge verification={node.verification} t={t} />
               )}
               {(() => {
                 const costUsd = extractCostUsd(node);

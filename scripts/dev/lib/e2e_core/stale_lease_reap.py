@@ -573,7 +573,8 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
             _holder_holds_private_admit_credit(row.pid)
             and _private_credit_queue_has_waiters()
         ):
-            process_elapsed = float(row.elapsed_sec)
+            # ADMIT queue wait inflates row.elapsed_sec — only bootstrap phase blocks credits.
+            process_elapsed = _epoch_drift_elapsed_sec(row)
             hog_by_process = process_elapsed >= float(
                 BOOTSTRAP_CREDIT_HOG_PROCESS_CAP_SEC
             )
@@ -1183,6 +1184,8 @@ def _epoch_drift_elapsed_sec(row: LiveE2ESessionRow) -> float:
             phase_elapsed = phase_elapsed_from_snapshot(snapshot)
             if phase_elapsed is not None:
                 return float(phase_elapsed)
+        if row.admit_elapsed_sec is not None:
+            return max(0.0, float(row.elapsed_sec) - float(row.admit_elapsed_sec))
     return float(row.elapsed_sec)
 
 

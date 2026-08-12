@@ -14,7 +14,7 @@ Covers:
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -23,6 +23,7 @@ from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 from app.api.batch_directory.router import router as batch_directory_router
 from app.api.kanban.router import router as kanban_router
+from app.services.agent.outbound_notify.types import NotifyResult, NotifyTarget
 from app.services.batch_directory import BatchDirectoryService
 from app.services.kanban import KanbanService
 
@@ -312,6 +313,14 @@ class TestFinalize:
             mock_notify.assert_awaited_once()
             assert mock_notify.await_args.kwargs["meta_data"]["status"] == "failed"
             assert mock_notify.await_args.kwargs["meta_data"]["failed"] == 2
+            assert mock_notify.await_args.kwargs["meta_data"]["failed_directories"] == [
+                str(dir_a),
+                str(dir_b),
+            ]
+            message = mock_notify.await_args.kwargs["message"]
+            assert "Failed directories:" in message
+            assert str(dir_a) in message
+            assert str(dir_b) in message
 
         detail = client.get(f"/api/v1/batch-directories/{project_id}").json()
         assert detail["status"] == "failed"
@@ -1502,3 +1511,452 @@ async def asyncio_sleep_zero() -> None:
     import asyncio
 
     await asyncio.sleep(0)
+
+
+class TestChannelNotification:
+    """Batch completion → executing agent's IM targets (best-effort channel push)."""
+
+    @staticmethod
+    def _target(channel: str = "feishu", recipient: str = "u-1") -> NotifyTarget:
+        return NotifyTarget(channel=channel, recipient_id=recipient, label="ops")
+
+    @pytest.mark.asyncio
+    async def test_channel_push_delivers_summary_with_deep_link(self) -> None:
+        from app.services.batch_directory import _helpers
+
+        target = self._target()
+        sender = MagicMock()
+        sender.list_available_targets.return_value = [target]
+        sender.send = AsyncMock(
+            return_value=NotifyResult(success=True, channel="feishu", message_id="m1")
+        )
+
+        with patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ):
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="completed",
+                total=2,
+                completed=2,
+                failed=0,
+                missing=[],
+                project_id="proj-1",
+            )
+
+        sender.send.assert_awaited_once()
+        body = sender.send.await_args.args[1]
+        assert "Channel Test" in body
+        assert "2/2 directories completed." in body
+        assert "/batch-directories/proj-1" in body
+
+    @pytest.mark.asyncio
+    async def test_channel_push_includes_failure_and_missing_artifacts(self) -> None:
+        from app.services.batch_directory import _helpers
+
+        target = self._target()
+        sender = MagicMock()
+        sender.list_available_targets.return_value = [target]
+        sender.send = AsyncMock(
+            return_value=NotifyResult(success=True, channel="feishu", message_id="m2")
+        )
+
+        with patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ):
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="failed",
+                total=3,
+                completed=1,
+                failed=2,
+                missing=["/tmp/alpha"],
+                failed_directories=["/tmp/alpha", "/tmp/beta"],
+                project_id="proj-2",
+            )
+
+        body = sender.send.await_args.args[1]
+        assert "1 completed, 2 failed of 3 directories." in body
+        assert "Failed directories:" in body
+        assert "- /tmp/alpha" in body
+        assert "- /tmp/beta" in body
+        assert "1 directory missing required artifacts." in body
+
+    @pytest.mark.asyncio
+    async def test_channel_push_truncates_failed_directory_list(self) -> None:
+        """Beyond 10 entries the list is truncated to keep the message short."""
+        from app.services.batch_directory import _helpers
+
+        target = self._target()
+        sender = MagicMock()
+        sender.list_available_targets.return_value = [target]
+        sender.send = AsyncMock(
+            return_value=NotifyResult(success=True, channel="feishu", message_id="m4")
+        )
+        failed_dirs = [f"/tmp/dir-{i:02d}" for i in range(12)]
+
+        with patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ):
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="failed",
+                total=12,
+                completed=0,
+                failed=12,
+                missing=[],
+                failed_directories=failed_dirs,
+                project_id="proj-5",
+            )
+
+        body = sender.send.await_args.args[1]
+        assert body.count("- /tmp/dir-") == 10
+        assert "... and 2 more" in body
+
+    @pytest.mark.asyncio
+    async def test_channel_push_uses_absolute_url_when_base_configured(self) -> None:
+        """APP_BASE_URL turns the relative details path into a clickable URL."""
+        from app.config.settings import settings
+        from app.services.batch_directory import _helpers
+
+        target = self._target()
+        sender = MagicMock()
+        sender.list_available_targets.return_value = [target]
+        sender.send = AsyncMock(
+            return_value=NotifyResult(success=True, channel="feishu", message_id="m5")
+        )
+
+        with patch.object(settings, "app_base_url", "https://myrm.example.com/"), patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ):
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="completed",
+                total=1,
+                completed=1,
+                failed=0,
+                missing=[],
+                project_id="proj-6",
+            )
+
+        body = sender.send.await_args.args[1]
+        assert "Details: https://myrm.example.com/batch-directories/proj-6" in body
+
+    @pytest.mark.asyncio
+    async def test_channel_push_skipped_without_targets_or_agent(self) -> None:
+        from app.services.batch_directory import _helpers
+
+        sender = MagicMock()
+        with patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=())
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ) as mock_factory:
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="completed",
+                total=1,
+                completed=1,
+                failed=0,
+                missing=[],
+                project_id="proj-3",
+            )
+            mock_factory.assert_not_called()
+
+        # 未绑定 agent 时连 targets 解析都跳过
+        with patch.object(_helpers, "_load_agent_notify_targets", new=AsyncMock()) as mock_load:
+            await _helpers._send_channel_notification(
+                agent_id=None,
+                project_name="Channel Test",
+                status="completed",
+                total=1,
+                completed=1,
+                failed=0,
+                missing=[],
+                project_id="proj-3",
+            )
+            mock_load.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_channel_push_failure_is_silent_and_keeps_notification(self) -> None:
+        from app.services.batch_directory import _helpers
+
+        target = self._target()
+        sender = MagicMock()
+        sender.list_available_targets.return_value = [target]
+        sender.send = AsyncMock(
+            return_value=NotifyResult(success=False, channel="feishu", error="http 500")
+        )
+
+        with patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ):
+            # 投递失败不得抛异常
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="failed",
+                total=2,
+                completed=1,
+                failed=1,
+                missing=[],
+                project_id="proj-4",
+            )
+        sender.send.assert_awaited_once()
+
+        # 发送抛异常同样静默
+        sender.send = AsyncMock(side_effect=RuntimeError("boom"))
+        with patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+        ), patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ):
+            await _helpers._send_channel_notification(
+                agent_id="ag-1",
+                project_name="Channel Test",
+                status="failed",
+                total=2,
+                completed=1,
+                failed=1,
+                missing=[],
+                project_id="proj-4",
+            )
+
+    @pytest.mark.asyncio
+    async def test_maybe_finalize_invokes_channel_push(self, client, tmp_path) -> None:
+        """End-to-end wiring: project.agent_id is read and channel push fires
+        alongside the in-app notification on finalize."""
+        from myrm_agent_harness.backends.profiles.types import AgentProfile
+
+        from app.database.connection import get_session
+        from app.database.repositories.agent_repo import AgentRepository
+
+        # add_task 校验 agent 必须存在，且真实写入 notify_targets 走 resolver 读取路径
+        async with get_session() as session:
+            await AgentRepository.create_profile(
+                session,
+                AgentProfile(
+                    id="batch-channel-agent",
+                    display_name="Batch Agent",
+                    metadata={
+                        "notify_targets": [
+                            {"channel": "feishu", "recipient_id": "u-1", "label": "ops"}
+                        ]
+                    },
+                ),
+            )
+            await session.commit()
+
+        dir_a = tmp_path / "alpha"
+        dir_b = tmp_path / "beta"
+        dir_a.mkdir()
+        dir_b.mkdir()
+        resp = client.post(
+            "/api/v1/batch-directories",
+            json={
+                "name": "Channel E2E",
+                "prompt": "Analyze the codebase and report.",
+                "directories": [str(dir_a), str(dir_b)],
+                "concurrency": 2,
+                "agent_id": "batch-channel-agent",
+            },
+        )
+        assert resp.status_code == 201, resp.text
+        project = resp.json()
+        project_id = project["project_id"]
+
+        from app.database.connection import get_session
+        from app.database.models.kanban import KanbanTaskModel
+
+        async with get_session() as session:
+            for task_id in project["created_task_ids"]:
+                task = await session.get(KanbanTaskModel, task_id)
+                assert task is not None
+                task.status = TaskStatus.COMPLETED.value
+                task.result = "ok"
+            await session.commit()
+
+        target = self._target()
+        sender = MagicMock()
+        sender.list_available_targets.return_value = [target]
+        sender.send = AsyncMock(
+            return_value=NotifyResult(success=True, channel="feishu", message_id="m3")
+        )
+
+        service = BatchDirectoryService.get_instance()
+        with patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ), patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            new_callable=AsyncMock,
+        ) as mock_notify:
+            await service.maybe_finalize(project_id)
+
+        sender.send.assert_awaited_once()
+        body = sender.send.await_args.args[1]
+        assert "Channel E2E" in body
+        assert f"/batch-directories/{project_id}" in body
+        assert "Duration:" in body
+        mock_notify.assert_awaited_once()
+
+        detail = client.get(f"/api/v1/batch-directories/{project_id}").json()
+        assert detail["status"] == "completed"
+        assert detail["agent_id"] == "batch-channel-agent"
+
+    @pytest.mark.asyncio
+    async def test_notify_disabled_skips_all_notifications(
+        self, client, tmp_path
+    ) -> None:
+        """notify_enabled=False suppresses both in-app and channel notifications
+        while the project still reaches its terminal state."""
+        from myrm_agent_harness.backends.profiles.types import AgentProfile
+
+        from app.database.connection import get_session
+        from app.database.repositories.agent_repo import AgentRepository
+
+        async with get_session() as session:
+            await AgentRepository.create_profile(
+                session,
+                AgentProfile(
+                    id="batch-silent-agent",
+                    display_name="Silent Agent",
+                    metadata={
+                        "notify_targets": [
+                            {"channel": "feishu", "recipient_id": "u-1", "label": "ops"}
+                        ]
+                    },
+                ),
+            )
+            await session.commit()
+
+        dir_a = tmp_path / "alpha"
+        dir_b = tmp_path / "beta"
+        dir_a.mkdir()
+        dir_b.mkdir()
+        resp = client.post(
+            "/api/v1/batch-directories",
+            json={
+                "name": "Silent E2E",
+                "prompt": "Analyze the codebase and report.",
+                "directories": [str(dir_a), str(dir_b)],
+                "concurrency": 2,
+                "agent_id": "batch-silent-agent",
+                "notify_enabled": False,
+            },
+        )
+        assert resp.status_code == 201, resp.text
+        project = resp.json()
+        project_id = project["project_id"]
+
+        from app.database.models.kanban import KanbanTaskModel
+
+        async with get_session() as session:
+            for task_id in project["created_task_ids"]:
+                task = await session.get(KanbanTaskModel, task_id)
+                assert task is not None
+                task.status = TaskStatus.COMPLETED.value
+                task.result = "ok"
+            await session.commit()
+
+        target = self._target()
+        sender = MagicMock()
+        sender.list_available_targets.return_value = [target]
+        sender.send = AsyncMock(
+            return_value=NotifyResult(success=True, channel="feishu", message_id="m6")
+        )
+
+        service = BatchDirectoryService.get_instance()
+        with patch(
+            "app.services.agent.outbound_notify.sender.create_notification_sender",
+            return_value=(sender, None),
+        ), patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            new_callable=AsyncMock,
+        ) as mock_notify:
+            await service.maybe_finalize(project_id)
+
+        mock_notify.assert_not_awaited()
+        sender.send.assert_not_awaited()
+
+        detail = client.get(f"/api/v1/batch-directories/{project_id}").json()
+        assert detail["status"] == "completed"
+
+
+class TestDurationFormatting:
+    """Duration rendering for completion notifications (shared both surfaces)."""
+
+    def test_seconds_only(self) -> None:
+        from app.services.batch_directory import _helpers
+
+        assert _helpers._format_duration(42) == "42s"
+
+    def test_minutes_with_seconds(self) -> None:
+        from app.services.batch_directory import _helpers
+
+        assert _helpers._format_duration(510) == "8m 30s"
+
+    def test_whole_minutes(self) -> None:
+        from app.services.batch_directory import _helpers
+
+        assert _helpers._format_duration(600) == "10m"
+
+    def test_hours_with_minutes(self) -> None:
+        from app.services.batch_directory import _helpers
+
+        assert _helpers._format_duration(3900) == "1h 5m"
+
+    def test_whole_hours(self) -> None:
+        from app.services.batch_directory import _helpers
+
+        assert _helpers._format_duration(3600) == "1h"
+
+    def test_summary_omits_duration_when_unknown(self) -> None:
+        from app.services.batch_directory import _helpers
+
+        _, message = _helpers._format_batch_summary(
+            status="completed",
+            project_name="P",
+            total=2,
+            completed=2,
+            failed=0,
+            missing=[],
+        )
+        assert "Duration" not in message
+
+    def test_summary_includes_duration_when_known(self) -> None:
+        from app.services.batch_directory import _helpers
+
+        _, message = _helpers._format_batch_summary(
+            status="completed",
+            project_name="P",
+            total=2,
+            completed=2,
+            failed=0,
+            missing=[],
+            duration_seconds=510,
+        )
+        assert "Duration: 8m 30s" in message
+

@@ -190,8 +190,11 @@ describe('EnterpriseMembersTab', () => {
     });
 
     await userEvent.click(screen.getByText('offboardUser'));
+    const confirmBtn = screen.getByText('confirmOffboard') as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(true);
     await userEvent.selectOptions(screen.getByDisplayValue('selectMember'), 'member-2');
-    await userEvent.click(screen.getByText('confirmOffboard'));
+    expect(confirmBtn.disabled).toBe(false);
+    await userEvent.click(confirmBtn);
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith('success', 'offboardSuccess');
@@ -214,10 +217,16 @@ describe('EnterpriseMembersTab', () => {
     await userEvent.click(screen.getByText('transferVolume'));
     const dropdowns = screen.getAllByDisplayValue('selectMember');
     expect(dropdowns).toHaveLength(2);
+    const confirmBtn = screen.getByText('confirmTransfer') as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(true);
     // source 只含可 offboard 成员（非 owner）；target 含全部成员（可转给 owner）
     await userEvent.selectOptions(dropdowns[0], 'member-2');
+    expect(confirmBtn.disabled).toBe(true); // 目标未选仍禁用
+    await userEvent.selectOptions(dropdowns[1], 'member-2');
+    expect(confirmBtn.disabled).toBe(true); // 自转（source==target）禁用
     await userEvent.selectOptions(dropdowns[1], 'owner-1');
-    await userEvent.click(screen.getByText('confirmTransfer'));
+    expect(confirmBtn.disabled).toBe(false);
+    await userEvent.click(confirmBtn);
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith('success', 'transferSuccess');

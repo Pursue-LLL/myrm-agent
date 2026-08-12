@@ -236,6 +236,7 @@ class _ChatTurnMixin(_ChatServiceBase):
 
         file_revert: dict[str, list[str]] = {}
         if revert_files:
+            await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
             file_revert = await _ChatTurnMixin._revert_files_for_messages(chat_id, deleted_ids)
         else:
             await _ChatTurnMixin._cleanup_orphan_snapshots(chat_id, deleted_ids)
@@ -250,6 +251,36 @@ class _ChatTurnMixin(_ChatServiceBase):
             file_warnings=file_revert.get("warnings"),
             skipped_files=file_revert.get("skipped_files"),
         )
+
+    @staticmethod
+    async def _snapshot_pre_rewind(chat_id: str) -> str | None:
+        """Take a pre-rollback workspace snapshot before a file-reverting rewind.
+
+        Mirrors the pre-rollback protection of snapshot restore so the user can
+        undo an accidental rewind from the file snapshot panel. Best-effort: a
+        snapshot failure must never block the rewind itself.
+        """
+        from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
+        from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
+
+        from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+
+        async with UnitOfWork() as uow:
+            chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
+        if not chat:
+            return None
+        workspace = await resolve_effective_chat_workspace(chat, jit_fallback=False)
+        if not workspace:
+            return None
+        try:
+            store = await create_file_snapshot_store()
+            return await store.take_snapshot(
+                working_dir=workspace,
+                trigger=SnapshotTrigger.PRE_ROLLBACK,
+            )
+        except Exception as e:
+            logger.warning("Pre-rewind snapshot failed (chat=%s): %s", chat_id, e)
+            return None
 
     @staticmethod
     async def _revert_files_for_messages(

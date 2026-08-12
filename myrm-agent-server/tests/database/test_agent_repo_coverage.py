@@ -384,3 +384,324 @@ class TestRehydrationCoverage:
 
         assert profile.metadata is not None
         assert profile.metadata["tool_gateway_config"]["auth_token"] == "already-plain"
+
+    def test_crypto_init_failure_keeps_plaintext(self) -> None:
+        """Crypto bootstrap failure must not crash profile rehydration."""
+        agent = Agent(
+            id="a1",
+            name="Agent1",
+            tool_gateway_config={"auth_token": "raw"},
+        )
+
+        with (
+            patch.object(
+                MasterKeyProvider,
+                "get_master_key",
+                side_effect=Exception("no master key"),
+            ),
+        ):
+            profile = AgentRepository._agent_to_profile(agent)
+
+        assert profile.metadata is not None
+        assert profile.metadata["tool_gateway_config"]["auth_token"] == "raw"
+
+
+class TestUpdateProfileMetadataBranches:
+    """Remaining update_profile metadata branches not covered elsewhere."""
+
+    @staticmethod
+    def _make_db(agent: Agent) -> AsyncMock:
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = agent
+        db.execute.return_value = result
+        return db
+
+    @pytest.mark.asyncio
+    async def test_updates_misc_metadata_fields(self) -> None:
+        db = self._make_db(Agent(id="a1", name="Agent1"))
+        agent = db.execute.return_value.scalar_one_or_none.return_value
+
+        with patch.object(
+            AgentRepository, "_agent_to_profile", return_value=MagicMock()
+        ):
+            await AgentRepository.update_profile(
+                db,
+                "a1",
+                {
+                    "metadata": {
+                        "mcp_tool_selections": {"mcp1": ["tool-a"]},
+                        "security_overrides": {"danger": ["rm"]},
+                        "default_security_preset": "strict",
+                        "workspace_policy": "ISOLATED_COPY",
+                        "engine_params": {"marketplace_entry_id": "entry-1"},
+                        "openapi_services": ["svc"],
+                        "session_policy": {"max_turns": 5},
+                        "notify_targets": ["webhook"],
+                    }
+                },
+            )
+
+        assert agent.mcp_tool_selections == {"mcp1": ["tool-a"]}
+        assert agent.security_overrides == {"danger": ["rm"]}
+        assert agent.default_security_preset == "strict"
+        assert agent.workspace_policy == "ISOLATED_COPY"
+        assert agent.engine_params == {"marketplace_entry_id": "entry-1"}
+        assert agent.openapi_services == ["svc"]
+        assert agent.session_policy == {"max_turns": 5}
+        assert agent.notify_targets == ["webhook"]
+
+    @pytest.mark.asyncio
+    async def test_metadata_none_values_are_cleared(self) -> None:
+        db = self._make_db(Agent(id="a1", name="Agent1"))
+        agent = db.execute.return_value.scalar_one_or_none.return_value
+
+        with patch.object(
+            AgentRepository, "_agent_to_profile", return_value=MagicMock()
+        ):
+            await AgentRepository.update_profile(
+                db,
+                "a1",
+                {
+                    "metadata": {
+                        "mcp_tool_selections": None,
+                        "engine_params": None,
+                        "auto_restore_domains": None,
+                        "suggestion_prompts": None,
+                        "openapi_services": None,
+                        "session_policy": None,
+                        "notify_targets": None,
+                        "tool_gateway_config": None,
+                    }
+                },
+            )
+
+        assert agent.mcp_tool_selections is None
+        assert agent.engine_params is None
+        assert agent.auto_restore_domains is None
+        assert agent.suggestion_prompts is None
+        assert agent.openapi_services is None
+        assert agent.session_policy is None
+        assert agent.notify_targets is None
+        assert agent.tool_gateway_config is None
+
+    @pytest.mark.asyncio
+    async def test_updates_avatar_skill_configs_and_cron(self) -> None:
+        db = self._make_db(Agent(id="a1", name="Agent1"))
+        agent = db.execute.return_value.scalar_one_or_none.return_value
+
+        with patch.object(
+            AgentRepository, "_agent_to_profile", return_value=MagicMock()
+        ):
+            await AgentRepository.update_profile(
+                db,
+                "a1",
+                {
+                    "avatar": "https://example.com/a.png",
+                    "skill_configs": {"s1": {"enabled": True}},
+                    "cron_post_run_verify": True,
+                    "command_bindings": None,
+                },
+            )
+
+        assert agent.avatar == "https://example.com/a.png"
+        assert agent.skill_configs == {"s1": {"enabled": True}}
+        assert agent.cron_post_run_verify is True
+        assert agent.command_bindings is None
+
+    @pytest.mark.asyncio
+    async def test_updates_model_selection_from_dict(self) -> None:
+        db = self._make_db(Agent(id="a1", name="Agent1"))
+        agent = db.execute.return_value.scalar_one_or_none.return_value
+
+        with patch.object(
+            AgentRepository, "_agent_to_profile", return_value=MagicMock()
+        ):
+            await AgentRepository.update_profile(
+                db,
+                "a1",
+                {
+                    "model": "gpt-4.1",
+                    "model_selection": {"providerId": "openai", "model": "gpt-4.1"},
+                },
+            )
+
+        assert agent.model_config == {"model": "gpt-4.1"}
+        assert agent.model_selection == {
+            "providerId": "openai",
+            "model": "gpt-4.1",
+        }
+
+    @pytest.mark.asyncio
+    async def test_updates_command_binding_objects(self) -> None:
+        from myrm_agent_harness.backends.profiles.types import CommandBinding
+
+        db = self._make_db(Agent(id="a1", name="Agent1"))
+        agent = db.execute.return_value.scalar_one_or_none.return_value
+
+        with patch.object(
+            AgentRepository, "_agent_to_profile", return_value=MagicMock()
+        ):
+            await AgentRepository.update_profile(
+                db,
+                "a1",
+                {
+                    "command_bindings": [
+                        CommandBinding(
+                            command_name="cmd",
+                            skill_ids=("s1",),
+                            description="desc",
+                            aliases=("c",),
+                            instruction="instr",
+                        )
+                    ],
+                },
+            )
+
+        assert agent.command_bindings == [
+            {
+                "command_name": "cmd",
+                "skill_ids": ["s1"],
+                "description": "desc",
+                "aliases": ["c"],
+                "instruction": "instr",
+            }
+        ]
+
+    @pytest.mark.asyncio
+    async def test_updates_enabled_builtin_tools_via_metadata(self) -> None:
+        db = self._make_db(Agent(id="a1", name="Agent1"))
+        agent = db.execute.return_value.scalar_one_or_none.return_value
+
+        with patch.object(
+            AgentRepository, "_agent_to_profile", return_value=MagicMock()
+        ):
+            await AgentRepository.update_profile(
+                db,
+                "a1",
+                {"metadata": {"enabled_builtin_tools": ["web_search"]}},
+            )
+
+        assert agent.enabled_builtin_tools == ["web_search"]
+
+    @pytest.mark.asyncio
+    async def test_updates_browser_source_dialog_policy_session_recording(self) -> None:
+        db = self._make_db(Agent(id="a1", name="Agent1"))
+        agent = db.execute.return_value.scalar_one_or_none.return_value
+
+        with patch.object(
+            AgentRepository, "_agent_to_profile", return_value=MagicMock()
+        ):
+            await AgentRepository.update_profile(
+                db,
+                "a1",
+                {
+                    "metadata": {
+                        "browser_source": "chromium",
+                        "dialog_policy": "auto",
+                        "session_recording": "enabled",
+                    }
+                },
+            )
+
+        assert agent.browser_source == "chromium"
+        assert agent.dialog_policy == "auto"
+        assert agent.session_recording == "enabled"
+
+    @pytest.mark.asyncio
+    async def test_encrypts_gateway_token_on_update(self) -> None:
+        db = self._make_db(Agent(id="a1", name="Agent1"))
+        agent = db.execute.return_value.scalar_one_or_none.return_value
+
+        with (
+            patch.object(
+                AgentRepository, "_agent_to_profile", return_value=MagicMock()
+            ),
+            patch.object(MasterKeyProvider, "get_master_key", return_value="mk"),
+            patch(
+                "myrm_agent_harness.utils.crypto.config_crypto.ConfigCrypto.derive_key",
+                return_value="derived",
+            ),
+            patch(
+                "myrm_agent_harness.utils.crypto.config_crypto.ConfigCrypto.encrypt_value",
+                return_value={"value": "encrypted"},
+            ),
+        ):
+            await AgentRepository.update_profile(
+                db,
+                "a1",
+                {
+                    "metadata": {
+                        "tool_gateway_config": {"auth_token": "raw-token"},
+                    }
+                },
+            )
+
+        assert agent.tool_gateway_config == {
+            "auth_token": {"value": "encrypted"}
+        }
+
+    @pytest.mark.asyncio
+    async def test_update_encrypt_failure_removes_token(self) -> None:
+        """Encryption failure must never persist a plaintext gateway token."""
+        db = self._make_db(Agent(id="a1", name="Agent1"))
+        agent = db.execute.return_value.scalar_one_or_none.return_value
+
+        with (
+            patch.object(
+                AgentRepository, "_agent_to_profile", return_value=MagicMock()
+            ),
+            patch.object(MasterKeyProvider, "get_master_key", return_value="mk"),
+            patch(
+                "myrm_agent_harness.utils.crypto.config_crypto.ConfigCrypto.derive_key",
+                return_value="derived",
+            ),
+            patch(
+                "myrm_agent_harness.utils.crypto.config_crypto.ConfigCrypto.encrypt_value",
+                side_effect=Exception("encrypt failed"),
+            ),
+        ):
+            await AgentRepository.update_profile(
+                db,
+                "a1",
+                {
+                    "metadata": {
+                        "tool_gateway_config": {"auth_token": "raw-token"},
+                    }
+                },
+            )
+
+        assert agent.tool_gateway_config == {}
+
+    @pytest.mark.asyncio
+    async def test_create_encrypt_failure_removes_token(self) -> None:
+        """create_profile must drop the token (never store plaintext) on failure."""
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = None
+        db.execute.return_value = result
+
+        profile = AgentProfile(
+            id="a1",
+            display_name="Agent1",
+            metadata={"tool_gateway_config": {"auth_token": "raw-token"}},
+        )
+        with (
+            patch.object(MasterKeyProvider, "get_master_key", return_value="mk"),
+            patch(
+                "myrm_agent_harness.utils.crypto.config_crypto.ConfigCrypto.derive_key",
+                return_value="derived",
+            ),
+            patch(
+                "myrm_agent_harness.utils.crypto.config_crypto.ConfigCrypto.encrypt_value",
+                side_effect=Exception("encrypt failed"),
+            ),
+        ):
+            await AgentRepository.create_profile(db, profile)
+
+        for call in db.add.call_args_list:
+            obj = call.args[0]
+            if isinstance(obj, Agent):
+                assert obj.tool_gateway_config == {}
+                return
+        raise AssertionError("Agent was never added to the session")

@@ -14,12 +14,13 @@
 | `CheckpointList.tsx` | 组件 | Agent 任务检查点列表（恢复/删除/清理） | ✅ |
 | `FileDiffViewer.tsx` | 核心 | 文件级 diff 视图，支持 checkbox 选择性恢复、行数统计显示 | ✅ |
 | `FileSnapshotCard.tsx` | 组件 | 单个文件快照卡片（触发类型/文件数/时间戳） | ✅ |
-| `FileSnapshotList.tsx` | 组件 | 文件快照列表（恢复/删除/清理/查看 diff） | ✅ |
+| `FileSnapshotList.tsx` | 组件 | 文件快照列表（创建版本/恢复/删除/清理/查看 diff） | ✅ |
 | `FileSnapshotPanel.tsx` | 入口 | 浮动按钮 + 侧滑面板，集成到 ChatWindow | ✅ |
 
 ## 关键设计
 
 - `FileSnapshotPanel` 从 `useChatStore.workspaceDir` 获取当前会话工作目录
+- `FileSnapshotList` 提供「创建版本」手动快照入口（`POST /file-snapshot/create`，可选描述），成功后复用 SSE 刷新
 - `FileDiffViewer` 支持 checkbox 多选文件，调用 `restoreFileSnapshot(id, files)` 进行部分恢复
 - Diff 视图显示行数统计 `+X/-Y`（来自后端 `git diff --numstat`）
 - 恢复操作有二次确认 dialog 防止误操作

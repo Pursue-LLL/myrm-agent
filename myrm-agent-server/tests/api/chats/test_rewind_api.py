@@ -419,3 +419,169 @@ async def test_cleanup_orphan_snapshots_on_conversation_only_rewind(
 
     assert remove_calls == [("chat-1", "msg-1"), ("chat-1", "msg-2")]
     assert cleanup_calls == [("chat-1", "msg-1"), ("chat-1", "msg-2")]
+
+
+@pytest.mark.asyncio
+async def test_snapshot_pre_rewind_creates_pre_rollback_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A file-reverting rewind first takes a PRE_ROLLBACK workspace snapshot."""
+    from types import SimpleNamespace
+
+    from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
+
+    from app.services.chat.chat_turn import _ChatTurnMixin
+
+    async def _fake_workspace(_chat, *, jit_fallback: bool, persist_jit: bool = False) -> str:
+        return "/ws"
+
+    monkeypatch.setattr(
+        "app.services.chat.effective_workspace.resolve_effective_chat_workspace",
+        _fake_workspace,
+    )
+
+    fake_store = SimpleNamespace()
+    fake_store.take_snapshot = AsyncMock(return_value="snap-pre")
+
+    monkeypatch.setattr(
+        "myrm_agent_harness.agent.file_snapshot.create_file_snapshot_store",
+        AsyncMock(return_value=fake_store),
+    )
+
+    chat_id = f"rewind-pre-{uuid.uuid4().hex[:8]}"
+    await _create_chat(chat_id)
+
+    snapshot_id = await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
+
+    assert snapshot_id == "snap-pre"
+    fake_store.take_snapshot.assert_awaited_once_with(
+        working_dir="/ws",
+        trigger=SnapshotTrigger.PRE_ROLLBACK,
+    )
+
+
+@pytest.mark.asyncio
+async def test_snapshot_pre_rewind_skips_without_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rewinds without a resolvable workspace skip the protection snapshot."""
+    from types import SimpleNamespace
+
+    from app.services.chat.chat_turn import _ChatTurnMixin
+
+    async def _fake_workspace(_chat, *, jit_fallback: bool, persist_jit: bool = False) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "app.services.chat.effective_workspace.resolve_effective_chat_workspace",
+        _fake_workspace,
+    )
+
+    snapshot_calls: list[tuple] = []
+
+    async def _fake_take_snapshot(*args, **kwargs):
+        snapshot_calls.append((args, kwargs))
+        return "snap"
+
+    fake_store = SimpleNamespace()
+    fake_store.take_snapshot = _fake_take_snapshot
+    monkeypatch.setattr(
+        "myrm_agent_harness.agent.file_snapshot.create_file_snapshot_store",
+        AsyncMock(return_value=fake_store),
+    )
+
+    chat_id = f"rewind-nws-{uuid.uuid4().hex[:8]}"
+    await _create_chat(chat_id)
+
+    snapshot_id = await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
+
+    assert snapshot_id is None
+    assert snapshot_calls == []
+
+
+@pytest.mark.asyncio
+async def test_snapshot_pre_rewind_degrades_on_store_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A snapshot failure never blocks the rewind (returns None, no raise)."""
+    from types import SimpleNamespace
+
+    from app.services.chat.chat_turn import _ChatTurnMixin
+
+    async def _fake_workspace(_chat, *, jit_fallback: bool, persist_jit: bool = False) -> str:
+        return "/ws"
+
+    monkeypatch.setattr(
+        "app.services.chat.effective_workspace.resolve_effective_chat_workspace",
+        _fake_workspace,
+    )
+
+    fake_store = SimpleNamespace()
+    fake_store.take_snapshot = AsyncMock(side_effect=RuntimeError("git unavailable"))
+
+    monkeypatch.setattr(
+        "myrm_agent_harness.agent.file_snapshot.create_file_snapshot_store",
+        AsyncMock(return_value=fake_store),
+    )
+
+    chat_id = f"rewind-fail-{uuid.uuid4().hex[:8]}"
+    await _create_chat(chat_id)
+
+    snapshot_id = await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
+
+    assert snapshot_id is None
+
+
+@pytest.mark.asyncio
+async def test_rewind_both_scope_snapshots_before_file_revert(
+    async_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """scope=both invokes the pre-rewind snapshot before the file revert."""
+    chat_id = f"rewind-both-snap-{uuid.uuid4().hex[:8]}"
+    await _create_chat(chat_id)
+    ids = await _insert_messages(chat_id)
+
+    async def _fake_sync(_chat_id: str) -> int:
+        return 2
+
+    monkeypatch.setattr(
+        "app.services.chat.session_continuity_service.sync_chat_checkpoint_from_db",
+        _fake_sync,
+    )
+
+    async def _fake_pause(_chat_id: str) -> bool:
+        return True
+
+    monkeypatch.setattr(
+        "app.services.chat.session_continuity_service.pause_active_goal_for_rewind",
+        _fake_pause,
+    )
+
+    call_order: list[str] = []
+
+    async def _fake_pre_rewind(chat_id_arg: str) -> str | None:
+        call_order.append("snapshot")
+        return "snap-pre"
+
+    monkeypatch.setattr(
+        "app.services.chat.chat_turn._ChatTurnMixin._snapshot_pre_rewind",
+        _fake_pre_rewind,
+    )
+
+    async def _fake_revert_files(chat_id_arg: str, deleted_ids: list[str]) -> dict[str, list[str]]:
+        call_order.append("revert")
+        return {"reverted_files": ["a.py"], "warnings": [], "skipped_files": []}
+
+    monkeypatch.setattr(
+        "app.services.chat.chat_turn._ChatTurnMixin._revert_files_for_messages",
+        _fake_revert_files,
+    )
+
+    response = await async_client.post(
+        f"/api/v1/chats/{chat_id}/rewind",
+        json={"message_id": ids["u2"], "scope": "both"},
+    )
+
+    assert response.status_code == 200
+    assert call_order == ["snapshot", "revert"]

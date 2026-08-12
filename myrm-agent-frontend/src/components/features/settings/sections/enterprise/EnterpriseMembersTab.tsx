@@ -6,20 +6,12 @@ import { toast } from 'sonner';
 import { Building2, UserMinus, UserPlus, ArrowRightLeft, Shield, Clock, Link2Off } from 'lucide-react';
 import SettingsSection from '../SettingsSection';
 import { Button } from '@/components/primitives/button';
-import { Input } from '@/components/primitives/input';
-import { Label } from '@/components/primitives/label';
 import { Badge } from '@/components/primitives/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/primitives/dialog';
 import OrgMcpAdminPanel from './OrgMcpAdminPanel';
 import TunnelAdminPanel from './TunnelAdminPanel';
 import { canManageOrgMcp } from './orgMcpAccess';
+import { OffboardDialog, TransferDialog } from './EnterpriseHandoffDialogs';
+import { AddMemberDialog, RemoveMemberDialog, UnlinkOauthDialog } from './EnterpriseMembersDialogs';
 import {
   type OrgInfo,
   type OrgMember,
@@ -57,15 +49,20 @@ const EnterpriseMembersTab = memo(() => {
   const [showOffboard, setShowOffboard] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
   const [showUnlink, setShowUnlink] = useState(false);
+  const [showRemove, setShowRemove] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberRole, setNewMemberRole] = useState('member');
   const [offboardUserId, setOffboardUserId] = useState('');
   const [transferSourceId, setTransferSourceId] = useState('');
   const [transferTargetId, setTransferTargetId] = useState('');
   const [unlinkUserId, setUnlinkUserId] = useState('');
+  const [removeUserId, setRemoveUserId] = useState('');
 
   const orgId = org?.id ?? '';
   const authUserId = useAuthStore((s) => s.user?.id);
+
+  const roleLabel = (role: string) =>
+    t(`role${role.charAt(0).toUpperCase()}${role.slice(1)}`);
 
   const isOrgAdmin = useMemo(
     () => canManageOrgMcp(members, authUserId),
@@ -118,6 +115,8 @@ const EnterpriseMembersTab = memo(() => {
       try {
         await removeMember(orgId, userId);
         toast.success(t('memberRemoved'));
+        setShowRemove(false);
+        setRemoveUserId('');
         await loadData();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Failed to remove member');
@@ -235,10 +234,12 @@ const EnterpriseMembersTab = memo(() => {
           </span>
         }
         action={
-          <Button size="sm" variant="outline" onClick={() => setShowAddMember(true)}>
-            <UserPlus className="h-4 w-4 mr-1" />
-            {t('addMember')}
-          </Button>
+          isOrgAdmin ? (
+            <Button size="sm" variant="outline" onClick={() => setShowAddMember(true)}>
+              <UserPlus className="h-4 w-4 mr-1" />
+              {t('addMember')}
+            </Button>
+          ) : undefined
         }
       >
         <div className="space-y-2">
@@ -255,7 +256,7 @@ const EnterpriseMembersTab = memo(() => {
                 {m.oauth_bound && (
                   <Badge variant="secondary" className="shrink-0">{t('ssoBound')}</Badge>
                 )}
-                <Badge className={ROLE_COLORS[m.role] ?? ROLE_COLORS.member}>{m.role}</Badge>
+                <Badge className={ROLE_COLORS[m.role] ?? ROLE_COLORS.member}>{roleLabel(m.role)}</Badge>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{formatTimestamp(m.joined_at)}</span>
@@ -274,12 +275,17 @@ const EnterpriseMembersTab = memo(() => {
                     <Link2Off className="h-3.5 w-3.5" />
                   </Button>
                 )}
-                {m.role !== 'owner' && (
+                {isOrgAdmin && m.role !== 'owner' && m.user_id !== authUserId && (
                   <Button
                     size="sm"
                     variant="ghost"
                     className="text-destructive hover:text-destructive"
-                    onClick={() => handleRemoveMember(m.user_id)}
+                    title={t('removeMember')}
+                    aria-label={t('removeMember')}
+                    onClick={() => {
+                      setRemoveUserId(m.user_id);
+                      setShowRemove(true);
+                    }}
                   >
                     <UserMinus className="h-3.5 w-3.5" />
                   </Button>
@@ -291,26 +297,28 @@ const EnterpriseMembersTab = memo(() => {
       </SettingsSection>
 
       {/* Offboarding Actions */}
-      <SettingsSection
-        title={
-          <span className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5" />
-            {t('offboarding')}
-          </span>
-        }
-        description={t('offboardingDesc')}
-      >
-        <div className="flex flex-wrap gap-3">
-          <Button variant="outline" onClick={() => setShowOffboard(true)}>
-            <UserMinus className="h-4 w-4 mr-1" />
-            {t('offboardUser')}
-          </Button>
-          <Button variant="outline" onClick={() => setShowTransfer(true)}>
-            <ArrowRightLeft className="h-4 w-4 mr-1" />
-            {t('transferVolume')}
-          </Button>
-        </div>
-      </SettingsSection>
+      {isOrgAdmin && (
+        <SettingsSection
+          title={
+            <span className="flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5" />
+              {t('offboarding')}
+            </span>
+          }
+          description={t('offboardingDesc')}
+        >
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={() => setShowOffboard(true)}>
+              <UserMinus className="h-4 w-4 mr-1" />
+              {t('offboardUser')}
+            </Button>
+            <Button variant="outline" onClick={() => setShowTransfer(true)}>
+              <ArrowRightLeft className="h-4 w-4 mr-1" />
+              {t('transferVolume')}
+            </Button>
+          </div>
+        </SettingsSection>
+      )}
 
       {/* Handoff Logs */}
       {logs.length > 0 && (
@@ -346,143 +354,57 @@ const EnterpriseMembersTab = memo(() => {
       )}
 
       {/* Add Member Dialog */}
-      <Dialog open={showAddMember} onOpenChange={setShowAddMember}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('addMember')}</DialogTitle>
-            <DialogDescription>{t('addMemberDesc')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>{t('userId')}</Label>
-              <Input value={newMemberEmail} onChange={(e) => setNewMemberEmail(e.target.value)} placeholder="user_id" />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('role')}</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={newMemberRole}
-                onChange={(e) => setNewMemberRole(e.target.value)}
-              >
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddMember(false)}>
-              {t('cancel')}
-            </Button>
-            <Button onClick={handleAddMember}>{t('confirm')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddMemberDialog
+        open={showAddMember}
+        email={newMemberEmail}
+        role={newMemberRole}
+        onOpenChange={setShowAddMember}
+        onEmailChange={setNewMemberEmail}
+        onRoleChange={setNewMemberRole}
+        onConfirm={handleAddMember}
+        t={t}
+      />
 
-      {/* Offboard Dialog */}
-      <Dialog open={showOffboard} onOpenChange={setShowOffboard}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('offboardUser')}</DialogTitle>
-            <DialogDescription>{t('offboardUserDesc')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>{t('memberToOffboard')}</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={offboardUserId}
-                onChange={(e) => setOffboardUserId(e.target.value)}
-              >
-                <option value="">{t('selectMember')}</option>
-                {offboardableMembers.map((m) => (
-                  <option key={m.user_id} value={m.user_id}>
-                    {m.email ?? m.user_id}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowOffboard(false)}>
-              {t('cancel')}
-            </Button>
-            <Button variant="destructive" onClick={handleOffboard}>
-              {t('confirmOffboard')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Transfer Dialog */}
-      <Dialog open={showTransfer} onOpenChange={setShowTransfer}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('transferVolume')}</DialogTitle>
-            <DialogDescription>{t('transferVolumeDesc')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>{t('sourceMember')}</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={transferSourceId}
-                onChange={(e) => setTransferSourceId(e.target.value)}
-              >
-                <option value="">{t('selectMember')}</option>
-                {offboardableMembers.map((m) => (
-                  <option key={m.user_id} value={m.user_id}>
-                    {m.email ?? m.user_id}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t('targetMember')}</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={transferTargetId}
-                onChange={(e) => setTransferTargetId(e.target.value)}
-              >
-                <option value="">{t('selectMember')}</option>
-                {members.map((m) => (
-                  <option key={m.user_id} value={m.user_id}>
-                    {m.email ?? m.user_id}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTransfer(false)}>
-              {t('cancel')}
-            </Button>
-            <Button onClick={handleTransfer}>{t('confirmTransfer')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Offboard & Transfer Dialogs */}
+      <OffboardDialog
+        open={showOffboard}
+        offboardableMembers={offboardableMembers}
+        offboardUserId={offboardUserId}
+        onOpenChange={setShowOffboard}
+        onOffboardUserIdChange={setOffboardUserId}
+        onConfirm={handleOffboard}
+        t={t}
+      />
+      <TransferDialog
+        open={showTransfer}
+        sourceCandidates={offboardableMembers}
+        targetCandidates={members}
+        transferSourceId={transferSourceId}
+        transferTargetId={transferTargetId}
+        onOpenChange={setShowTransfer}
+        onTransferSourceIdChange={setTransferSourceId}
+        onTransferTargetIdChange={setTransferTargetId}
+        onConfirm={handleTransfer}
+        t={t}
+      />
 
       {/* Unlink OAuth Dialog */}
-      <Dialog open={showUnlink} onOpenChange={setShowUnlink}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('unlinkOauth')}</DialogTitle>
-            <DialogDescription>
-              {t('unlinkOauthDesc')}{' '}
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                {members.find((x) => x.user_id === unlinkUserId)?.email ?? unlinkUserId}
-              </code>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUnlink(false)}>
-              {t('cancel')}
-            </Button>
-            <Button variant="destructive" onClick={handleUnlinkOauth}>
-              {t('unlinkOauthConfirm')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UnlinkOauthDialog
+        open={showUnlink}
+        memberLabel={members.find((x) => x.user_id === unlinkUserId)?.email ?? unlinkUserId}
+        onOpenChange={setShowUnlink}
+        onConfirm={handleUnlinkOauth}
+        t={t}
+      />
+
+      {/* Remove Member Dialog */}
+      <RemoveMemberDialog
+        open={showRemove}
+        memberLabel={members.find((x) => x.user_id === removeUserId)?.email ?? removeUserId}
+        onOpenChange={setShowRemove}
+        onConfirm={() => handleRemoveMember(removeUserId)}
+        t={t}
+      />
     </>
   );
 });

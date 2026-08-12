@@ -70,6 +70,7 @@ describe('fileDiffEvents desktop_control_approval_request', () => {
 
     expect(useDesktopControlApprovalStore.getState().pending).toBe(true);
     expect(useDesktopControlApprovalStore.getState().requestId).toBe('req-1');
+    expect(useDesktopInspectorStore.getState().isDesktopActive).toBe(true);
     expect(useDesktopInspectorStore.getState().isOpen).toBe(true);
   });
 

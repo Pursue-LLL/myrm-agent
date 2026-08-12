@@ -23,6 +23,7 @@ import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Badge } from '@/components/primitives/badge';
 import { toast } from '@/hooks/shared/useToast';
+import { ApiError } from '@/lib/api';
 import { useSkillDiscovery } from '@/hooks/agent/useSkillDiscovery';
 import type { DiscoverySearchResult } from '@/services/skill';
 import ScanConfirmDialog from './ScanConfirmDialog';
@@ -229,6 +230,11 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
 
   const [uninstallDialogOpen, setUninstallDialogOpen] = useState(false);
   const [pendingUninstall, setPendingUninstall] = useState<DiscoverySearchResult | null>(null);
+  const [forceUninstallSkill, setForceUninstallSkill] = useState<{
+    skillId: string;
+    name: string;
+    dependents: string[];
+  } | null>(null);
 
   const handleUninstall = useCallback((skill: DiscoverySearchResult) => {
     setPendingUninstall(skill);
@@ -245,15 +251,51 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
       setPendingUninstall(null);
       return;
     }
-    const success = await uninstall(skillId);
-    if (success) {
-      toast({ title: `${t('uninstalled')} ${pendingUninstall.name}` });
-      onInstalled?.();
-    } else {
-      toast({ title: t('uninstallFailed'), variant: 'destructive' });
+    try {
+      const success = await uninstall(skillId);
+      if (success) {
+        toast({ title: `${t('uninstalled')} ${pendingUninstall.name}` });
+        onInstalled?.();
+      } else {
+        toast({ title: t('uninstallFailed'), variant: 'destructive' });
+      }
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 409) {
+        const dependents = Array.isArray(error.data?.impacted_dependents)
+          ? (error.data.impacted_dependents as string[])
+          : [];
+        setForceUninstallSkill({
+          skillId,
+          name: pendingUninstall.name,
+          dependents,
+        });
+      } else {
+        toast({
+          title: t('uninstallFailed'),
+          description: error instanceof Error ? error.message : undefined,
+          variant: 'destructive',
+        });
+      }
     }
     setPendingUninstall(null);
   }, [pendingUninstall, uninstall, t, onInstalled]);
+
+  const handleConfirmForceUninstall = useCallback(async () => {
+    if (!forceUninstallSkill) return;
+    const { skillId, name } = forceUninstallSkill;
+    setForceUninstallSkill(null);
+    try {
+      const success = await uninstall(skillId, true);
+      if (success) {
+        toast({ title: `${t('uninstalled')} ${name}` });
+        onInstalled?.();
+      } else {
+        toast({ title: t('uninstallFailed'), variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: t('uninstallFailed'), variant: 'destructive' });
+    }
+  }, [forceUninstallSkill, uninstall, t, onInstalled]);
 
   const handleConfirmInstall = useCallback(async () => {
     setScanDialogOpen(false);
@@ -389,6 +431,49 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
             >
               <Trash2 className="h-4 w-4 mr-1.5" />
               {t('uninstall')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={forceUninstallSkill !== null}
+        onOpenChange={(v) => {
+          if (!v) setForceUninstallSkill(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              {t('forceUninstallTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('forceUninstallDesc', {
+                name: forceUninstallSkill?.name ?? '',
+                count: String(forceUninstallSkill?.dependents.length ?? 0),
+              })}
+            </AlertDialogDescription>
+            {forceUninstallSkill && forceUninstallSkill.dependents.length > 0 && (
+              <div className="mt-2 max-h-32 overflow-y-auto rounded-lg border bg-muted/40 p-2">
+                <ul className="space-y-1">
+                  {forceUninstallSkill.dependents.map((dep) => (
+                    <li key={dep} className="truncate text-sm text-foreground">
+                      {dep}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('scanCancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmForceUninstall}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" />
+              {t('forceUninstall')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -7,6 +7,8 @@ import json
 import os
 import sys
 import time
+import urllib.error
+import uuid
 from pathlib import Path
 
 import pytest
@@ -22,9 +24,12 @@ from cdp_chat_support import (
     WAIT_WORKSPACE_STREAM_JS,
     chat_user_message_count,
     e2e_runtime_bootstrap_apply_js,
+    fetch_config_value,
     get_e2e_api_url,
     get_e2e_ui_url,
+    put_config_value,
     require_e2e_api_binding_probe,
+    shared_hot_e2e_api_base,
     shpoib_parallel_shell_timeout_sec,
     signoff_parallel_force_chat_timeout_sec,
     wait_e2e_provider_ready,
@@ -54,6 +59,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "MUX_RECLAIM_STALL",
     "MUX_TRANSPORT",
     "MUX_CONTEXT_RESET",
+    "MUX_EVALUATE_ORPHAN",
     "R96_MUX",
     "bridge-ready-timeout",
     "E2E_SHARED_UI_SESSION_BRIDGE",
@@ -62,7 +68,61 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "Execution context was destroyed",
     "transport unavailable",
     "reset_after_orphan",
+    "sync evaluate orphaned",
+    "evaluate orphaned",
 )
+
+
+def _search_configs_from_value(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, dict):
+        return []
+    raw = value.get("searchServiceConfigs")
+    if not isinstance(raw, list):
+        return []
+    return [row for row in raw if isinstance(row, dict) and row.get("enabled") is True]
+
+
+def _minimal_e2e_search_services() -> dict[str, object]:
+    return {
+        "searchServiceConfigs": [
+            {
+                "id": f"e2e-search-{uuid.uuid4().hex[:8]}",
+                "name": "E2E Search",
+                "enabled": True,
+                "priority": 1,
+                "search_service": "tavily",
+                "api_key": "test-tavily-key",
+                "createdAt": int(time.time() * 1000),
+            }
+        ]
+    }
+
+
+def _ensure_private_search_for_tools_panel(api_url: str) -> None:
+    """SHPOIB private API starts without searchServices; web_search_tool needs config for common layer badge."""
+    private = fetch_config_value("searchServices", api_url=api_url)
+    if _search_configs_from_value(private):
+        return
+    shared: dict[str, object] | None = None
+    try:
+        shared_raw = fetch_config_value("searchServices", api_url=shared_hot_e2e_api_base())
+        shared = shared_raw if isinstance(shared_raw, dict) else None
+    except (OSError, urllib.error.URLError, TimeoutError):
+        shared = None
+    if shared and _search_configs_from_value(shared):
+        put_config_value("searchServices", shared, api_url=api_url)
+    else:
+        put_config_value("searchServices", _minimal_e2e_search_services(), api_url=api_url)
+    deadline = time.monotonic() + 30.0
+    last: object = None
+    while time.monotonic() < deadline:
+        last = fetch_config_value("searchServices", api_url=api_url)
+        if _search_configs_from_value(last):
+            return
+        time.sleep(0.5)
+    raise RuntimeError(
+        f"searchServices not persisted on {api_url} for tools_panel E2E; last={json.dumps(last, ensure_ascii=False)}"
+    )
 
 
 def _is_transport_retryable(exc: BaseException) -> bool:
@@ -75,7 +135,7 @@ def _is_transport_retryable(exc: BaseException) -> bool:
 def _is_tools_panel_flow_retryable(exc: BaseException) -> bool:
     text = str(exc)
     # Evaluate orphan reclaim under parallel mux — outer heal+retry is required (run75).
-    if "MUX_RECLAIM_STALL" in text and "evaluate orphaned" in text:
+    if "evaluate orphaned" in text:
         return True
     if _is_transport_retryable(exc):
         return True
@@ -118,7 +178,7 @@ _PREP_AGENT_TURN_JS = """(async () => {
   // Turn1 togglables — web_search supplies common layer badge; no network on "Reply OK."
   const turn1Tools = ['web_search', 'memory', 'structured_clarify', 'render_ui'];
   bridge.setCurrentBuiltinTools?.(turn1Tools);
-  window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
+  delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
   if (bridge.pinLiteModelForE2e) {
     await bridge.pinLiteModelForE2e({ preserveActionMode: true });
   }
@@ -236,9 +296,9 @@ _LAYER_BADGES_READY_JS = """(() => {
   const badges = Array.from(panel.querySelectorAll('span'))
     .map((el) => (el.textContent || '').trim())
     .filter(Boolean);
-  const hasCore = /(?:^|\\s)(核心|Core)(?:\\s|$)/.test(text);
-  const hasCommon = /(?:^|\\s)(通用|Common)(?:\\s|$)/.test(text);
-  const hasExtended = /(?:^|\\s)(扩展|Extended)(?:\\s|$)/.test(text);
+  const hasCore = /(?:^|\\s)(核心|Core)(?:\\s|$)/m.test(text);
+  const hasCommon = /(?:^|\\s)(通用|Common)(?:\\s|$)/m.test(text);
+  const hasExtended = /(?:^|\\s)(扩展|Extended)(?:\\s|$)/m.test(text);
   const hasDigitLayer = badges.some((label) => /^[1-4]$/.test(label));
   return {
     ready: hasCore && hasCommon && hasExtended && !hasDigitLayer,
@@ -397,6 +457,8 @@ async def _run_tools_panel_layer_badges_flow(
     ).strip()
     assert chat_id, f"SendTurnContract missing chatId: {send_result}"
 
+    await chat._attach_chat_session(chat_id)
+
     submit_debug = submit.get("debug") if isinstance(submit.get("debug"), dict) else {}
     baseline_users = int(submit_debug.get("baselineUsers") or 0)
     seal_api_users = int(submit_debug.get("apiUsers") or 0)
@@ -469,10 +531,7 @@ async def _run_tools_panel_layer_badges_flow(
           const turn = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
           const sse = window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [];
           return {
-            ready:
-              sse.includes('tools_snapshot') ||
-              turn.hasDone === true ||
-              (turn.hasCompletionSignal === true && turn.isStreaming !== true),
+            ready: sse.includes('tools_snapshot'),
             turn,
             sseTypes: sse.slice(0, 16),
           };
@@ -546,7 +605,7 @@ async def _run_tools_panel_e2e_once(
     workload="LIVE",
     private_reason="live_shpoib",
 )
-@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_tools_panel_shows_semantic_layer_badges_after_tools_snapshot(
@@ -562,6 +621,7 @@ async def test_tools_panel_shows_semantic_layer_badges_after_tools_snapshot(
         )
 
     prepare_e2e_ui_session(api_url)
+    _ensure_private_search_for_tools_panel(api_url)
 
     last_error: BaseException | None = None
     for attempt in range(1, _MAX_ATTEMPTS + 1):

@@ -474,30 +474,27 @@ async def _persist_approved_draft_eval_cases(
             return
 
         store = get_evolution_skill_store()
-        try:
-            existing = store.get_skill_by_name_version(skill_name)
-            if existing is None:
-                skill_path = str(
-                    skill_creation_service.base_path / skill_name / "SKILL.md"
-                )
-                existing = SkillRecord(
-                    skill_id=skill_name,
-                    name=skill_name,
-                    description=draft.description or "Approved skill draft",
-                    content=content,
-                    path=skill_path,
-                    lineage=SkillLineage(
-                        evolution_type=EvolutionType.CAPTURED,
-                        version=1,
-                        created_by="draft_approval",
-                    ),
-                    is_active=True,
-                    environment=EnvironmentFingerprint(),
-                )
-            existing.eval_cases = eval_cases
-            await store.save_skill(existing)
-        finally:
-            store.close()
+        existing = store.get_skill_by_name_version(skill_name)
+        if existing is None:
+            skill_path = str(
+                skill_creation_service.base_path / skill_name / "SKILL.md"
+            )
+            existing = SkillRecord(
+                skill_id=skill_name,
+                name=skill_name,
+                description=draft.description or "Approved skill draft",
+                content=content,
+                path=skill_path,
+                lineage=SkillLineage(
+                    evolution_type=EvolutionType.CAPTURED,
+                    version=1,
+                    created_by="draft_approval",
+                ),
+                is_active=True,
+                environment=EnvironmentFingerprint(),
+            )
+        existing.eval_cases = eval_cases
+        await store.save_skill(existing)
     except Exception as exc:
         logger.warning(
             "Failed to persist approved draft eval_cases for %s: %s", skill_name, exc

@@ -44,6 +44,7 @@
 | `discovery_mount.py` | 核心 | Discovery 安装/更新后 catalog enable 入口 | ✅ |
 | `market_service.py` | 核心 | 业务层技能市场服务（SSE 进度、自定义源、ClawHub 镜像懒加载） | ✅ |
 | `disabled_skill_roots.py` | 核心 | 收集用户未启用技能的 `storage_path` 根目录，注入 agent runtime context 供 glob/grep/file_read 过滤 | ✅ |
+| `dependency_guard.py` | 核心 | 技能依赖影响面查询（`get_dependents_map` / `get_dependents_for_skill`），基于 harness `SkillStore.skill_dependencies` 持久化图，供 pending 审核详情与 disable/uninstall 校验复用 | ✅ |
 
 ---
 

@@ -24,6 +24,9 @@ const triggerLabels: Record<string, string> = {
   pre_rollback: 'Pre-rollback',
 };
 
+const formatExternalEffects = (effects: string[], t: ReturnType<typeof useTranslations>): string =>
+  effects.map((effect) => (t.has(`effects.${effect}`) ? t(`effects.${effect}`) : effect)).join(', ');
+
 const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
   snapshot,
   agentName,
@@ -36,7 +39,9 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
   const [showConfirmRestore, setShowConfirmRestore] = useState(false);
   const date = new Date(snapshot.createdAt * 1000);
   const timeStr = date.toLocaleString();
-  const triggerLabel = triggerLabels[snapshot.trigger] || snapshot.trigger;
+  const triggerLabel = t.has(`trigger.${snapshot.trigger}`)
+    ? t(`trigger.${snapshot.trigger}`)
+    : (triggerLabels[snapshot.trigger] ?? snapshot.trigger);
 
   return (
     <div className="border border-border rounded-lg p-4 bg-card">
@@ -54,7 +59,9 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
             {snapshot.externalEffects?.length > 0 && (
               <span
                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                title={t('externalEffectsTooltip', { effects: snapshot.externalEffects.join(', ') })}
+                title={t('externalEffectsTooltip', {
+                  effects: formatExternalEffects(snapshot.externalEffects, t),
+                })}
               >
                 <AlertTriangle className="w-3 h-3" />
                 {t('externalEffects')}
@@ -77,7 +84,9 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
           <div className="flex flex-col gap-1.5">
             {snapshot.externalEffects?.length > 0 && (
               <p className="text-xs text-amber-600 dark:text-amber-400">
-                {t('restoreExternalWarning', { effects: snapshot.externalEffects.join(', ') })}
+                {t('restoreExternalWarning', {
+                  effects: formatExternalEffects(snapshot.externalEffects, t),
+                })}
               </p>
             )}
             <div className="flex items-center gap-2">

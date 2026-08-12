@@ -74,10 +74,7 @@ class ConfidenceApprovalFlow:
         )
 
         store = get_evolution_skill_store()
-        try:
-            skill_record = store.get_skill(proposal.skill_id)
-        finally:
-            store.close()
+        skill_record = store.get_skill(proposal.skill_id)
 
         skill_path = skill_record.path if skill_record else ""
         skill_name = skill_record.name if skill_record else proposal.skill_id

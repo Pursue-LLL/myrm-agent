@@ -11,6 +11,7 @@ import useChatStore from '@/store/useChatStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import { ElementOverlay } from '@/components/features/browser-inspector';
 import { apiRequest } from '@/lib/api';
+import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
 import DesktopInspectorToolbar from './DesktopInspectorToolbar';
 import DesktopInstructionInput from './DesktopInstructionInput';
 import {
@@ -131,12 +132,7 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
   const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
   const scopedViewData = selectScopedDesktopViewData(viewData, chatId);
 
-  useEffect(() => {
-    if (!isOpen || !viewData?.sourceChatId || !chatId) return;
-    if (viewData.sourceChatId !== chatId) {
-      closePanel();
-    }
-  }, [chatId, viewData?.sourceChatId, isOpen, closePanel]);
+  useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
 
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
   const [isResizing, setIsResizing] = useState(false);

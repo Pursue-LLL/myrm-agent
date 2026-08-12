@@ -14,14 +14,14 @@
 | `_retry.py` | 辅助 | 重试/重跑：`retry_failed`（失败/缺产物目录重发新任务）、`retry_task`（单目录重试）、`rerun_project`（全量重跑，仅终态项目）；重开 `running` 一律使用 `expected_status` 条件更新（并发取消优先）；`_fan_out`/`_next_attempt`/`_is_retryable_task`/`_retryable_directories` | ✅ |
 | `_lifecycle.py` | 辅助 | 生命周期：`pause_project`（cancel 运行中执行后统一冻结可执行任务为 BLOCKED，冻结前复查最新状态——cancel 等待期间已完成的任务保留结果跳过，多轮收敛消除 dispatcher 重拾/并发新建窗口）、`resume_project`（按 `batch_pause` 标记解冻并以条件更新重开项目，防并发取消被覆盖）、`approve_all_results`（批量审批）；`_ProjectSettings`/`_load_project_snapshot`/`_require_not_paused` 共享快照 | ✅ |
 | `_run.py` | 辅助 | 任务扇出助手：`fan_out_batch_tasks` 为一组目录装配同 prompt 的 Kanban 任务并写入单调 `batch_attempt` 代次（创建/重试/重跑共用），单目录建任务失败不阻断整批 | — |
-| `_helpers.py` | 辅助 | 序列化/查询/路径校验/产物 glob 校验助手：`_project_to_dict`、`_aggregate_statuses`、`_resolve_directory`、`fetch_project_task_models`、`_artifact_status_for_task`、`_failed_directory_paths`、`_validate_artifact_patterns`、`_latest_tasks_per_directory`/`_task_attempt`/`_is_later_task`（每目录取最新任务）、`_reopen_running`（项目回置 running 并刷新聚合，支持 `expected_status` 条件更新防并发覆盖）、`_send_completion_notification` | ✅ |
+| `_helpers.py` | 辅助 | 序列化/查询/路径校验/产物 glob 校验助手：`_project_to_dict`、`_aggregate_statuses`、`_resolve_directory`、`fetch_project_task_models`、`_artifact_status_for_task`、`_failed_directory_paths`、`_validate_artifact_patterns`、`_latest_tasks_per_directory`/`_task_attempt`/`_is_later_task`（每目录取最新任务）、`_reopen_running`（项目回置 running 并刷新聚合，支持 `expected_status` 条件更新防并发覆盖）、`_format_batch_summary`（站内/渠道共享的批次结果正文：失败时列出失败目录，超 10 条截断）、`_send_completion_notification`（站内通知 + 经 `_load_agent_notify_targets`（AgentProfileResolver 统一解析）`/`_send_channel_notification` 向项目绑定 agent 的 IM 渠道尽力投递结果摘要；渠道深链在 `APP_BASE_URL` 配置时拼绝对 URL，空值降级相对路径） | ✅ |
 
 ## 领域职责
 
 - **单一事实来源**：任务真值在 `kanban_tasks`，本表只存批次元数据 + 运行聚合；`list_projects`/`get_project` 实时从任务表聚合刷新计数。
 - **批板语义**：未指定 `board_id` 时自动创建专用 board（并发上限 = 批次 `concurrency`，`require_approval` 透传）。
 - **执行上下文**：每个任务 `workspace_path` 指向目标目录；`artifact_patterns` 与产物要求经任务 metadata `context_annotations` 由 KanbanTaskRunner 注入 agent 上下文（`_augment_context`），使 agent 明确工作目录与交付标准。
-- **终态检测**：通过 `dispatcher_event_hook` 监听 Kanban 任务终态事件（task_completed/task_failed/task_blocked/task_archived），全部终态时置 `status` 并发送 SystemNotification（完成/失败 + 缺产物目录）。REST 手动移动任务到终态不产生 dispatcher 事件，由 `get_project`/`list_projects` 读取路径自愈（`_schedule_finalize_if_due` 触发幂等 `maybe_finalize`）。`paused` 状态不在终态集合，暂停期间 dispatcher 事件与读取自愈均跳过终态判定，保证冻结稳定。`_schedule_finalize_if_due` 与 `maybe_finalize` 均显式排除 `paused`，恢复后由 `get_project` 重新判定。
+- **终态检测**：通过 `dispatcher_event_hook` 监听 Kanban 任务终态事件（task_completed/task_failed/task_blocked/task_archived），全部终态时置 `status` 并发送 SystemNotification（完成/失败 + 缺产物目录 + 失败目录列表），同时向项目绑定 agent 的 IM 渠道投递结果摘要（`agent_id` → `ResolvedAgentProfile.notify_targets`（AgentProfileResolver 统一解析）→ `ChannelNotificationSender`，尽力投递：失败仅告警日志，不阻断站内通知与终态判定）。渠道消息详情深链默认相对路径 `/batch-directories/{id}`；配置 `APP_BASE_URL`（[O]）后拼绝对 URL，使 IM 中可直接点击跳转。REST 手动移动任务到终态不产生 dispatcher 事件，由 `get_project`/`list_projects` 读取路径自愈（`_schedule_finalize_if_due` 触发幂等 `maybe_finalize`）。`paused` 状态不在终态集合，暂停期间 dispatcher 事件与读取自愈均跳过终态判定，保证冻结稳定。`_schedule_finalize_if_due` 与 `maybe_finalize` 均显式排除 `paused`，恢复后由 `get_project` 重新判定。
 - **并发安全**：`maybe_finalize` 使用条件 UPDATE（`status NOT IN 终态`）原子迁移项目状态，唯一赢家发送通知，重复事件/自愈并发调用不产生重复通知；`cancel_project` 先原子置 `cancelled` 再归档任务，归档触发的 `task_archived` 事件在终态下跳过 `maybe_finalize`，避免误报失败。
 - **聚合口径（latest-per-directory）**：重试/重跑后同一目录存在多条任务记录，所有聚合与终态判定仅取每目录最新任务（按 `batch_attempt` 单调代次排序，`created_at` 秒级精度不足以区分同秒重试），保证 `total_tasks` 恒等于目录数、重试成功后项目可达 `completed`。
 - **artifact glob 校验**：任务完成后对 `workspace_path` 执行 `artifact_patterns` glob 匹配（`asyncio.to_thread` 不阻塞事件循环）；每任务结果写入 `artifact_status`（verified/missing/not_specified），项目级缺失目录聚合到 `missing_artifact_directories` 并随通知上报。创建时经 `_validate_artifact_patterns` 拒绝绝对路径、空 pattern 与 `..` 穿越。
@@ -35,6 +35,7 @@
 
 - `app.database.models.batch_directory.BatchDirectoryProjectModel` — 批次元数据 ORM
 - `app.services.kanban.KanbanService` — `add_task`/`move_task`/`cancel_task_execution`/`create_board`
-- `app.services.infra.system_notification.SystemNotificationService` — 完成/失败通知
+- `app.services.infra.system_notification.SystemNotificationService` — 完成/失败站内通知
+- `app.services.agent.outbound_notify.sender.ChannelNotificationSender` — 批次结果摘要 → 绑定 agent 的 IM 渠道推送（尽力投递）
 - `myrm_agent_harness.agent.security.path_security.is_dangerous_path` — 目录安全校验
 - `app.database.connection.get_session` — async session

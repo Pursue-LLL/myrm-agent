@@ -203,6 +203,15 @@ export default function SkillGrowthCaseCard({
             <Badge variant="outline" className="text-[11px]">
               {item.growthType}
             </Badge>
+            {item.impactedDependents.length > 0 && (
+              <Badge
+                variant="outline"
+                className="text-[11px] border-amber-400/70 text-amber-700 dark:border-amber-700 dark:text-amber-300"
+                title={t('impactedDependents.tooltip', { count: item.impactedDependents.length })}
+              >
+                {t('impactedDependents.label', { count: item.impactedDependents.length })}
+              </Badge>
+            )}
           </div>
           <p className={cn('text-muted-foreground', isSimple ? 'text-base font-medium text-foreground' : 'text-sm')}>
             {item.summary}

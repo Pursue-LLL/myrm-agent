@@ -104,6 +104,26 @@ describe('buildTopologyModel', () => {
     expect(m.nodes.find((n) => n.taskId === 'f')?.error).toBe('boom');
   });
 
+  it('downgrades completed nodes with failed verification to danger', () => {
+    const m = buildTopologyModel([
+      mkNode({
+        task_id: 'v',
+        status: 'completed',
+        verification: { passed: false, rounds: 2, max_rounds: 2, confidence: 'LOW' },
+      }),
+      mkNode({
+        task_id: 'p',
+        status: 'completed',
+        verification: { passed: true, rounds: 1, max_rounds: 2, confidence: 'HIGH' },
+      }),
+    ]);
+    expect(m.failedCount).toBe(1);
+    expect(m.nodes.find((n) => n.taskId === 'v')?.tone).toBe('danger');
+    expect(m.nodes.find((n) => n.taskId === 'v')?.verification?.passed).toBe(false);
+    expect(m.nodes.find((n) => n.taskId === 'p')?.tone).toBe('success');
+    expect(m.nodes.find((n) => n.taskId === 'p')?.verification?.passed).toBe(true);
+  });
+
   it('truncates long description labels', () => {
     const m = buildTopologyModel([mkNode({ task_id: 'a', description: 'y'.repeat(120) })]);
     expect(m.nodes[0].label.length).toBeLessThanOrEqual(60);

@@ -213,8 +213,28 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
 
 
 @router.post("/{skill_id}/disable", response_model=EnableSkillResponse)
-async def disable_skill(skill_id: str) -> EnableSkillResponse:
-    """Disable a skill (no scan required)."""
+async def disable_skill(skill_id: str, force: bool = False) -> EnableSkillResponse:
+    """Disable a skill (no scan required).
+
+    When the skill is referenced by other in-library skills and force is
+    False, the request is rejected with the impacted dependent list.
+    """
+    from app.core.skills.dependency_guard import get_dependents_for_skill
+
+    dependents = await get_dependents_for_skill(skill_id)
+    if dependents and not force:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "DEPENDENTS_EXIST",
+                "message": (
+                    f"Skill is referenced by {len(dependents)} other skill(s). "
+                    "Review them before disabling, or force-disable."
+                ),
+                "impacted_dependents": dependents,
+            },
+        )
+
     config = await skills_service.user_config.get_config()
 
     if skill_id.startswith("local::"):

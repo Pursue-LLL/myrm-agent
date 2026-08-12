@@ -231,6 +231,41 @@ interface Window {
       stepCount: number;
       lastTool: string;
     };
+    getBrowserInspectorSnapshot?: () => {
+      isOpen: boolean;
+      isBrowserActive: boolean;
+      hasScreenshot: boolean;
+      scopedHasScreenshot: boolean;
+      sourceChatId: string;
+      activeChatId: string;
+      pageUrl: string;
+      pageTitle: string;
+      refCount: number;
+      updatedAt: number | null;
+    };
+    simulateBrowserViewUpdate?: (
+      chatId: string,
+    ) => Promise<{ ok: true; chatId: string } | { ok: false; reason: string }>;
+    simulateBrowserToolStart?: (
+      chatId: string,
+      toolName?: string,
+    ) => Promise<
+      { ok: true; chatId: string; toolName: string } | { ok: false; reason: string }
+    >;
+    getDesktopInspectorSnapshot?: () => {
+      isOpen: boolean;
+      isDesktopActive: boolean;
+      hasScreenshot: boolean;
+      scopedHasScreenshot: boolean;
+      sourceChatId: string;
+      activeChatId: string;
+      appName: string;
+      refCount: number;
+      updatedAt: number | null;
+    };
+    simulateDesktopViewUpdate?: (
+      chatId: string,
+    ) => Promise<{ ok: true; chatId: string } | { ok: false; reason: string }>;
     getDesktopToolProgress?: () => {
       active: boolean;
       isStreaming?: boolean;

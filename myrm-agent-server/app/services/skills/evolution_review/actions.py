@@ -146,10 +146,7 @@ async def reject_evolution_review_record(
 
     if reason and reason.strip():
         store = get_skill_store()
-        try:
-            await store.add_evolution_constraint(payload.skill_id, reason.strip())
-        finally:
-            store.close()
+        await store.add_evolution_constraint(payload.skill_id, reason.strip())
 
     review_record = approval_to_evolution_review_record(approval_record)
     if review_record is None:
@@ -254,13 +251,10 @@ async def rollback_evolution_review_record(evolution_id: str) -> dict[str, objec
         raise EvolutionApplyError("Only applied evolutions can be rolled back.")
 
     store = get_skill_store()
-    try:
-        if payload.evolution_type == EvolutionType.OPTIMIZE_DESCRIPTION.value:
-            await rollback_description_update(payload, store)
-        else:
-            await rollback_content_update(payload, store)
-    finally:
-        store.close()
+    if payload.evolution_type == EvolutionType.OPTIMIZE_DESCRIPTION.value:
+        await rollback_description_update(payload, store)
+    else:
+        await rollback_content_update(payload, store)
 
     payload.apply_status = EvolutionApplyStatus.ROLLED_BACK
     payload.apply_error = None

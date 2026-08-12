@@ -123,10 +123,12 @@ export default function EvalLabDashboard() {
   const [matrixRunning, setMatrixRunning] = useState(false);
   const [matrixProgress, setMatrixProgress] = useState({
     current_profile: '',
+    stage: '',
     profile_progress: 0,
     profile_total: 0,
     case_completed: 0,
     case_total: 0,
+    download_progress: null as { downloaded_bytes: number; total_bytes: number } | null,
   });
   const [memoryAbReport, setMemoryAbReport] = useState<MatrixReportData | null>(null);
   const [memoryAbRunning, setMemoryAbRunning] = useState(false);
@@ -393,10 +395,12 @@ export default function EvalLabDashboard() {
           setMatrixRunning(!!data.is_running);
           setMatrixProgress({
             current_profile: data.current_profile || '',
+            stage: data.stage || '',
             profile_progress: data.profile_progress || 0,
             profile_total: data.profile_total || 0,
             case_completed: data.case_completed || 0,
             case_total: data.case_total || 0,
+            download_progress: data.download_progress || null,
           });
           if (!data.is_running) {
             if (data.error) {
@@ -1078,7 +1082,13 @@ export default function EvalLabDashboard() {
               <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
                 <RefreshCw className="w-8 h-8 animate-spin text-primary" />
                 <p>
-                  {t('matrix.running')} — {matrixProgress.current_profile || '...'}
+                  {matrixProgress.stage === 'downloading'
+                    ? `${t('wbBench.downloading')}: ${formatMib(matrixProgress.download_progress?.downloaded_bytes ?? 0)} / ${
+                        matrixProgress.download_progress && matrixProgress.download_progress.total_bytes > 0
+                          ? formatMib(matrixProgress.download_progress.total_bytes)
+                          : '?'
+                      }`
+                    : `${t('matrix.running')} — ${matrixProgress.current_profile || '...'}`}
                 </p>
                 <p className="text-sm">
                   {t('matrix.profileProgress')}: {matrixProgress.profile_progress}/{matrixProgress.profile_total} |{' '}
