@@ -15,6 +15,28 @@ from app.services.agent.streaming_support.sse_helpers import error_sse
 logger = logging.getLogger(__name__)
 
 
+async def _acquire_guarded(
+    orch: object,
+    project_id: str,
+    cancel_token: object,
+) -> None:
+    """Acquire the project turn lock while reacting to user cancel/disconnect.
+
+    ``asyncio.Lock.acquire()`` does not observe the request cancellation token,
+    so a turn queued behind another agent could stay blocked for minutes after
+    the user cancels. Poll in short slices and abort as soon as the token fires
+    (1s worst-case cancellation latency, lock ownership is safe on Python 3.12+).
+    """
+    while True:
+        if getattr(cancel_token, "is_cancelled", False):
+            raise asyncio.CancelledError
+        try:
+            await asyncio.wait_for(orch.acquire(project_id), timeout=1.0)
+            return
+        except asyncio.TimeoutError:
+            continue
+
+
 async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
     from app.schemas.streaming import SSEEnvelope
     from app.services.agent.stream_session.pre_reply_compact_sse import (
@@ -45,21 +67,25 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
         ).to_sse_chunk()
         await buffer.append(waiting_msg)
 
-    if project_id:
-        await project_orchestrator.acquire(project_id)
-
-        cleared_msg = SSEEnvelope.from_any(
-            {
-                "type": "status",
-                "messageId": session.params.message_id,
-                "step_key": "waiting_for_turn_clear",
-                "status": "success",
-            }
-        ).to_sse_chunk()
-        await buffer.append(cleared_msg)
-
     stream_had_error = False
     try:
+        if project_id:
+            await _acquire_guarded(
+                project_orchestrator,
+                project_id,
+                session.cancel_token,
+            )
+
+            cleared_msg = SSEEnvelope.from_any(
+                {
+                    "type": "status",
+                    "messageId": session.params.message_id,
+                    "step_key": "waiting_for_turn_clear",
+                    "status": "success",
+                }
+            ).to_sse_chunk()
+            await buffer.append(cleared_msg)
+
         async for chunk in generate_cancellable_stream(session):
             if chunk.strip():
                 if not stream_had_error and '"type": "error"' in chunk:

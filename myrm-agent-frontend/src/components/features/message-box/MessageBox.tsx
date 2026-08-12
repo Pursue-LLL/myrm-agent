@@ -334,6 +334,16 @@ const MessageBox = ({
       const abortController = useChatStore.getState().abortController;
       await cancelAgentRequest(message.messageId);
       abortController?.abort(); // 关闭 SSE 连接
+      // 锁等待期间取消：pump 可能还没走到 waiting_for_turn_clear 就退出了，
+      // 前端残留的等待进度步骤在此同步清除，避免 UI 残留卡死。
+      useChatStore.getState().setMessages((state) => {
+        const msg = state.messages.find((m) => m.messageId === message.messageId);
+        if (msg?.progressSteps?.length) {
+          msg.progressSteps = msg.progressSteps.filter(
+            (step) => step.step_key !== 'waiting_for_turn',
+          );
+        }
+      });
     } catch (error) {
       console.error('Cancel failed:', error);
     }
