@@ -17,6 +17,7 @@ explicit user decision.
 
 from __future__ import annotations
 
+import asyncio
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -156,7 +157,7 @@ async def _browser_orphan_action() -> RepairAction | None:
     except ImportError:
         return None
 
-    orphans = find_orphan_chromium_processes()
+    orphans = await asyncio.to_thread(find_orphan_chromium_processes)
     if not orphans:
         return None
 
@@ -284,7 +285,7 @@ async def execute_repair_action(action_id: RepairActionId, request: RepairAction
 
     from myrm_agent_harness.toolkits.browser import cleanup_orphan_processes, find_orphan_chromium_processes
 
-    orphans = find_orphan_chromium_processes()
+    orphans = await asyncio.to_thread(find_orphan_chromium_processes)
     orphan_pids: list[int] = [int(orphan["pid"]) for orphan in orphans if "pid" in orphan]
     if not orphan_pids:
         return RepairActionExecuteResult(

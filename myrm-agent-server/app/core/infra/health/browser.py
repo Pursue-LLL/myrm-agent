@@ -12,8 +12,8 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
-import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -62,7 +62,7 @@ class BrowserHealthChecker(HealthChecker):
                 message="psutil not available, cannot check browser processes",
             )
 
-        orphan_pids = self._find_orphan_browser_processes()
+        orphan_pids = await asyncio.to_thread(self._find_orphan_browser_processes)
 
         if orphan_pids:
             return HealthCheckResult(
@@ -85,7 +85,7 @@ class BrowserHealthChecker(HealthChecker):
                 actions_taken=["No actions taken (psutil not available)"],
             )
 
-        orphan_pids = self._find_orphan_browser_processes()
+        orphan_pids = await asyncio.to_thread(self._find_orphan_browser_processes)
 
         if not orphan_pids:
             return RecoveryResult(
@@ -98,11 +98,11 @@ class BrowserHealthChecker(HealthChecker):
         killed_count = self._terminate_processes(orphan_pids)
 
         if killed_count > 0:
-            # Wait for processes to terminate
-            time.sleep(1)
+            # Wait for processes to terminate without blocking the event loop
+            await asyncio.sleep(1)
 
             # Verify recovery
-            remaining_orphans = self._find_orphan_browser_processes()
+            remaining_orphans = await asyncio.to_thread(self._find_orphan_browser_processes)
             if remaining_orphans:
                 return RecoveryResult(
                     status=RecoveryStatus.PARTIAL,
