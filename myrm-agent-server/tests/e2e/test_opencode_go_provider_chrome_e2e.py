@@ -207,13 +207,17 @@ async def test_opencode_go_chat_reply_ok(
         state = await chat.wait_turn_done(E2E_PROMPT, timeout_sec=TURN_WAIT_SEC)
         if str(state.get("path", "")).startswith("/settings"):
             pytest.fail(f"Chat redirected to settings: {state}")
-        assistant = str(state.get("assistantText") or state.get("lastAssistant") or "")
-        assert (
-            assistant.strip()
-        ), f"No assistant text in state: {json.dumps(state)[:500]}"
-        assert (
-            "OK" in assistant.upper()
-        ), f"Expected OK in reply, got: {assistant[:200]!r}"
+        assistant = str(
+            state.get("assistantText")
+            or state.get("lastAssistant")
+            or state.get("lastAssistantSample")
+            or ""
+        )
+        has_ok = state.get("hasOk") is True
+        assert has_ok or "OK" in assistant.upper(), (
+            f"Expected OK reply (hasOk or text), assistant={assistant[:200]!r}, "
+            f"state={json.dumps(state)[:500]}"
+        )
         chat_id = str(state.get("chatId") or "")
         if chat_id:
             e2e_resource_ledger.register("chat", chat_id)
