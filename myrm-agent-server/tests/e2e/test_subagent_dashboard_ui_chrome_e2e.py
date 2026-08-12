@@ -908,6 +908,44 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
         )
         print("DIAG_SUBAGENTS_AFTER_SEND=" + json.dumps(api_snapshot, default=str)[:800])
 
+        # 单页面流：dashboard trigger 由前端 2s 轮询自动出现，点击展开 panel 后
+        # cancel 按钮才可见（Sheet 内容默认未挂载）。不重复 attachToChat（避免
+        # 干扰 send 后在途的 SSE 流），仅等待 trigger + 点击展开。
+        trigger_seen = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const button = document.querySelector('[data-testid="subagent-dashboard-trigger"]');
+              const store = window.__myrmSubagentStore?.getState?.();
+              return {
+                ready: !!button,
+                nodeCount: store ? Object.keys(store.nodes ?? {}).length : null,
+              };
+            })()""",
+            timeout_sec=90.0,
+        )
+        assert trigger_seen.get("ready") is True, f"Dashboard trigger missing: {trigger_seen}"
+        opened = client.evaluate(
+            page,
+            """(() => {
+              const button = document.querySelector('[data-testid="subagent-dashboard-trigger"]');
+              if (!button) return false;
+              button.click();
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert opened is True, "Dashboard trigger click failed"
+        panel_seen = wait_for_state(
+            client,
+            page,
+            """(() => ({
+              ready: !!document.querySelector('[data-testid="subagent-dashboard-panel"]'),
+            }))()""",
+            timeout_sec=30.0,
+        )
+        assert panel_seen.get("ready") is True, "Dashboard panel did not open"
+
         row = wait_for_state(
             client,
             page,
