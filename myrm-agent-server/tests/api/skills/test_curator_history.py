@@ -19,7 +19,7 @@ from myrm_agent_harness.agent.skills.curator import CuratorRunResult, CuratorTra
 @pytest.fixture(autouse=True)
 def _patch_data_dir(tmp_path: Path):
     """Redirect curator history to temp directory."""
-    with patch("app.core.skills.curator_service._get_data_dir", return_value=tmp_path):
+    with patch("app.core.skills.curator.service._get_data_dir", return_value=tmp_path):
         yield tmp_path
 
 
@@ -59,14 +59,14 @@ class TestSaveHistory:
     """Tests for _save_history function."""
 
     def test_creates_file(self, sample_result: CuratorRunResult, _patch_data_dir: Path):
-        from app.core.skills.curator_service import _save_history
+        from app.core.skills.curator.service import _save_history
 
         _save_history(sample_result, trigger="manual", duration_ms=42)
         history_path = _patch_data_dir / "curator_history.jsonl"
         assert history_path.exists()
 
     def test_entry_structure(self, sample_result: CuratorRunResult, _patch_data_dir: Path):
-        from app.core.skills.curator_service import _save_history
+        from app.core.skills.curator.service import _save_history
 
         _save_history(sample_result, trigger="manual", duration_ms=123)
         history_path = _patch_data_dir / "curator_history.jsonl"
@@ -88,7 +88,7 @@ class TestSaveHistory:
         assert "timestamp" in entry
 
     def test_background_trigger(self, empty_result: CuratorRunResult, _patch_data_dir: Path):
-        from app.core.skills.curator_service import _save_history
+        from app.core.skills.curator.service import _save_history
 
         _save_history(empty_result, trigger="background", duration_ms=5)
         history_path = _patch_data_dir / "curator_history.jsonl"
@@ -96,7 +96,7 @@ class TestSaveHistory:
         assert entry["trigger"] == "background"
 
     def test_appends_multiple(self, empty_result: CuratorRunResult, _patch_data_dir: Path):
-        from app.core.skills.curator_service import _save_history
+        from app.core.skills.curator.service import _save_history
 
         for i in range(5):
             empty_result.skills_scanned = i
@@ -107,7 +107,7 @@ class TestSaveHistory:
         assert len(lines) == 5
 
     def test_truncates_at_max(self, empty_result: CuratorRunResult, _patch_data_dir: Path):
-        from app.core.skills.curator_service import _save_history
+        from app.core.skills.curator.service import _save_history
 
         for i in range(40):
             empty_result.skills_scanned = i
@@ -121,7 +121,7 @@ class TestSaveHistory:
         assert last_entry["skills_scanned"] == 39
 
     def test_handles_corrupted_file(self, sample_result: CuratorRunResult, _patch_data_dir: Path):
-        from app.core.skills.curator_service import _save_history
+        from app.core.skills.curator.service import _save_history
 
         history_path = _patch_data_dir / "curator_history.jsonl"
         history_path.write_text("corrupted{json\n")
@@ -135,13 +135,13 @@ class TestGetCuratorHistory:
     """Tests for get_curator_history function."""
 
     def test_empty_when_no_file(self, _patch_data_dir: Path):
-        from app.core.skills.curator_service import get_curator_history
+        from app.core.skills.curator.service import get_curator_history
 
         result = get_curator_history()
         assert result == []
 
     def test_returns_newest_first(self, empty_result: CuratorRunResult, _patch_data_dir: Path):
-        from app.core.skills.curator_service import _save_history, get_curator_history
+        from app.core.skills.curator.service import _save_history, get_curator_history
 
         for i in range(5):
             empty_result.skills_scanned = i
@@ -154,7 +154,7 @@ class TestGetCuratorHistory:
         assert entries[2]["skills_scanned"] == 2
 
     def test_respects_limit(self, empty_result: CuratorRunResult, _patch_data_dir: Path):
-        from app.core.skills.curator_service import _save_history, get_curator_history
+        from app.core.skills.curator.service import _save_history, get_curator_history
 
         for i in range(10):
             _save_history(empty_result, trigger="background", duration_ms=i)
@@ -163,7 +163,7 @@ class TestGetCuratorHistory:
         assert len(entries) == 3
 
     def test_skips_corrupted_lines(self, sample_result: CuratorRunResult, _patch_data_dir: Path):
-        from app.core.skills.curator_service import _save_history, get_curator_history
+        from app.core.skills.curator.service import _save_history, get_curator_history
 
         _save_history(sample_result, trigger="manual", duration_ms=1)
 
@@ -176,14 +176,14 @@ class TestGetCuratorHistory:
         assert entries[0]["trigger"] == "manual"
 
     def test_limit_zero_returns_empty(self, empty_result: CuratorRunResult, _patch_data_dir: Path):
-        from app.core.skills.curator_service import _save_history, get_curator_history
+        from app.core.skills.curator.service import _save_history, get_curator_history
 
         _save_history(empty_result, trigger="background", duration_ms=1)
         entries = get_curator_history(limit=0)
         assert entries == []
 
     def test_limit_negative_returns_empty(self, _patch_data_dir: Path):
-        from app.core.skills.curator_service import get_curator_history
+        from app.core.skills.curator.service import get_curator_history
 
         entries = get_curator_history(limit=-1)
         assert entries == []
@@ -198,7 +198,7 @@ class TestCuratorHistoryEndpoint:
         assert response.json() == []
 
     def test_history_with_limit(self, client, empty_result: CuratorRunResult, _patch_data_dir: Path):
-        from app.core.skills.curator_service import _save_history
+        from app.core.skills.curator.service import _save_history
 
         for i in range(5):
             empty_result.skills_scanned = i
@@ -214,8 +214,8 @@ class TestCuratorHistoryEndpoint:
     def test_history_after_manual_run(self, client, _patch_data_dir: Path):
         """Running /curator/run should create a history entry."""
         with (
-            patch("app.core.skills.curator_service.get_stats_collector"),
-            patch("app.core.skills.curator_service.DEFAULT_LOCAL_SKILL_PATHS", [str(_patch_data_dir)]),
+            patch("app.core.skills.curator.service.get_stats_collector"),
+            patch("app.core.skills.curator.service.DEFAULT_LOCAL_SKILL_PATHS", [str(_patch_data_dir)]),
         ):
             response = client.post("/api/v1/skills/curator/run")
             assert response.status_code == 200

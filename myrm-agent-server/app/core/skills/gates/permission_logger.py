@@ -141,10 +141,8 @@ def start_permission_logger() -> None:
     # 注册到框架层
     from myrm_agent_harness.backends.skills import set_permission_usage_callback
 
-    def callback_wrapper(skill_id: str, permission: str, operation: str, allowed: bool, deny_reason: str) -> None:
-        # 框架层不知道user_id，业务层从上下文获取
-        # 这里使用"unknown"作为默认值，实际应该从请求上下文获取
-        permission_usage_callback("unknown", skill_id, permission, operation, allowed, deny_reason)
+    def callback_wrapper(user_id: str, skill_id: str, permission: str, operation: str, allowed: bool, deny_reason: str) -> None:
+        permission_usage_callback(user_id, skill_id, permission, operation, allowed, deny_reason)
 
     set_permission_usage_callback(callback_wrapper)
     logger.info("Permission logger started")

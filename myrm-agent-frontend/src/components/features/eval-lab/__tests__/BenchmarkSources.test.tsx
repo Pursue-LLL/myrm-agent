@@ -100,6 +100,66 @@ describe('BenchmarkSources Memory A/B entry', () => {
     await waitFor(() => expect(onMemoryAb).toHaveBeenCalledWith('wb-bench-office', undefined));
   });
 
+  it('shows the selected profile in the layered eval confirmation dialog', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(
+      <BenchmarkSources
+        running={false}
+        history={[]}
+        onRun={vi.fn()}
+        onDownload={vi.fn()}
+        onMemoryAb={vi.fn()}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+        selectedProfileName="Hermes Assistant"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'button' }));
+    expect(await screen.findByText('confirmTitle')).toBeInTheDocument();
+    expect(screen.getByText('confirmBody')).toBeInTheDocument();
+    expect(screen.getByText('confirmProfileHint: Hermes Assistant')).toBeInTheDocument();
+  });
+
+  it('omits the profile hint when no profile is selected', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(
+      <BenchmarkSources
+        running={false}
+        history={[]}
+        onRun={vi.fn()}
+        onDownload={vi.fn()}
+        onMemoryAb={vi.fn()}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'button' }));
+    await screen.findByText('confirmTitle');
+    expect(screen.queryByText(/confirmProfileHint/)).not.toBeInTheDocument();
+  });
+
   it('cancels the confirmation dialog without starting', async () => {
     const onMemoryAb = vi.fn();
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(

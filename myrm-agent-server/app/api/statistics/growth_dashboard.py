@@ -314,7 +314,7 @@ async def _fetch_skill_trends() -> list[SkillTrendSeries]:
     try:
         from collections import defaultdict
 
-        from app.core.skills.curator_service import get_stats_collector
+        from app.core.skills.curator.service import get_stats_collector
         from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
         collector = get_stats_collector()

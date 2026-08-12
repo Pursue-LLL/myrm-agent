@@ -21,11 +21,129 @@ WAIT_CHAT_IDLE_JS = """(async () => {
 })()"""
 
 
+def apply_agent_from_e2e_api_js(expected_agent_id: str) -> str:
+    """Fetch agent from SHPOIB-bound API and apply to chat store (URL ?agentId= is flaky under private runtime)."""
+    agent_id_json = json.dumps(expected_agent_id)
+    return f"""(async () => {{
+  const expectedAgentId = {agent_id_json};
+  const bridge = window.__MYRM_E2E_CHAT__;
+  const chat = window.__myrmChatStore?.getState?.();
+  if (!bridge || !chat) return {{ ok: false, err: 'no-bridge-or-store' }};
+  const apiBase = String(
+    window.__MYRM_E2E_API_BASE__ || window.__MYRM_E2E_RUNTIME__?.apiBase || '',
+  ).replace(/\\/+$/, '');
+  if (!apiBase) return {{ ok: false, err: 'no-api-base' }};
+  try {{
+    const agentResp = await fetch(
+      `${{apiBase}}/api/v1/user-agents/${{encodeURIComponent(expectedAgentId)}}`,
+      {{ cache: 'no-store' }},
+    );
+    if (!agentResp.ok) {{
+      return {{ ok: false, err: 'agent-fetch-failed', status: agentResp.status, apiBase }};
+    }}
+    const agentPayload = await agentResp.json();
+    const agent = agentPayload?.data ?? agentPayload;
+    if (!agent?.id) return {{ ok: false, err: 'agent-payload-invalid', apiBase }};
+    chat.setActionMode('agent');
+    chat.setAgentConfig({{
+      selectedSkillIds: agent.skill_ids || [],
+      skillConfigs: agent.skill_configs || {{}},
+      selectedMcpNames: agent.mcp_ids || [],
+      systemPrompt: agent.system_prompt || '',
+      useGlobalInstruction: true,
+      autoRestoreDomains: agent.auto_restore_domains || [],
+      agentId: agent.id,
+      agentName: agent.name,
+      agentDescription: agent.description || '',
+      avatarUrl: agent.avatar_url,
+      suggestionPrompts: agent.suggestion_prompts || undefined,
+      memoryDecayProfile: agent.memory_decay_profile || 'normal',
+      memoryExtractionPreset: agent.memory_extraction_preset || 'auto',
+      browserSource: agent.browser_source || undefined,
+      promptMode: agent.prompt_mode || undefined,
+      defaultSecurityPreset: agent.default_security_preset ?? undefined,
+    }});
+    if (typeof bridge.ensureChatSession === 'function') {{
+      await bridge.ensureChatSession({{ preserveActionMode: true }});
+    }}
+    if (typeof bridge.pinBasicModelForE2e === 'function') {{
+      await bridge.pinBasicModelForE2e();
+    }} else if (typeof bridge.pinLiteModelForE2e === 'function') {{
+      await bridge.pinLiteModelForE2e({{ preserveActionMode: true }});
+    }}
+    const state = window.__myrmChatStore?.getState?.();
+    return {{
+      ok: state?.actionMode === 'agent' && state?.agentConfig?.agentId === expectedAgentId,
+      agentId: state?.agentConfig?.agentId ?? null,
+      actionMode: state?.actionMode ?? null,
+      apiBase,
+      sendReady: !!bridge.isSendReady?.(),
+    }};
+  }} catch (error) {{
+    return {{ ok: false, err: 'agent-apply-exception', message: String(error), apiBase }};
+  }}
+}})()"""
+
+
 def wait_agent_applied_js(expected_agent_id: str) -> str:
     agent_id_json = json.dumps(expected_agent_id)
     return f"""(async () => {{
   const expectedAgentId = {agent_id_json};
   const deadline = Date.now() + 90000;
+  let lastApply = {{ ok: false, err: 'not-tried' }};
+  const tryApply = async () => {{
+    const bridge = window.__MYRM_E2E_CHAT__;
+    const chat = window.__myrmChatStore?.getState?.();
+    if (!bridge || !chat) return {{ ok: false, err: 'no-bridge-or-store' }};
+    const apiBase = String(
+      window.__MYRM_E2E_API_BASE__ || window.__MYRM_E2E_RUNTIME__?.apiBase || '',
+    ).replace(/\\/+$/, '');
+    if (!apiBase) return {{ ok: false, err: 'no-api-base' }};
+    const agentResp = await fetch(
+      `${{apiBase}}/api/v1/user-agents/${{encodeURIComponent(expectedAgentId)}}`,
+      {{ cache: 'no-store' }},
+    );
+    if (!agentResp.ok) {{
+      return {{ ok: false, err: 'agent-fetch-failed', status: agentResp.status, apiBase }};
+    }}
+    const agentPayload = await agentResp.json();
+    const agent = agentPayload?.data ?? agentPayload;
+    if (!agent?.id) return {{ ok: false, err: 'agent-payload-invalid', apiBase }};
+    chat.setActionMode('agent');
+    chat.setAgentConfig({{
+      selectedSkillIds: agent.skill_ids || [],
+      skillConfigs: agent.skill_configs || {{}},
+      selectedMcpNames: agent.mcp_ids || [],
+      systemPrompt: agent.system_prompt || '',
+      useGlobalInstruction: true,
+      autoRestoreDomains: agent.auto_restore_domains || [],
+      agentId: agent.id,
+      agentName: agent.name,
+      agentDescription: agent.description || '',
+      avatarUrl: agent.avatar_url,
+      suggestionPrompts: agent.suggestion_prompts || undefined,
+      memoryDecayProfile: agent.memory_decay_profile || 'normal',
+      memoryExtractionPreset: agent.memory_extraction_preset || 'auto',
+      browserSource: agent.browser_source || undefined,
+      promptMode: agent.prompt_mode || undefined,
+      defaultSecurityPreset: agent.default_security_preset ?? undefined,
+    }});
+    if (typeof bridge.ensureChatSession === 'function') {{
+      await bridge.ensureChatSession({{ preserveActionMode: true }});
+    }}
+    if (typeof bridge.pinBasicModelForE2e === 'function') {{
+      await bridge.pinBasicModelForE2e();
+    }} else if (typeof bridge.pinLiteModelForE2e === 'function') {{
+      await bridge.pinLiteModelForE2e({{ preserveActionMode: true }});
+    }}
+    const state = window.__myrmChatStore?.getState?.();
+    return {{
+      ok: state?.actionMode === 'agent' && state?.agentConfig?.agentId === expectedAgentId,
+      agentId: state?.agentConfig?.agentId ?? null,
+      actionMode: state?.actionMode ?? null,
+      apiBase,
+    }};
+  }};
   while (Date.now() < deadline) {{
     const state = window.__myrmChatStore?.getState?.();
     const agentId = state?.agentConfig?.agentId ?? null;
@@ -34,6 +152,12 @@ def wait_agent_applied_js(expected_agent_id: str) -> str:
       return {{ ok: true, agentId, actionMode }};
     }}
     window.__MYRM_E2E_CHAT__?.setActionMode?.('agent');
+    if (!agentId) {{
+      lastApply = await tryApply();
+      if (lastApply?.ok === true) {{
+        return lastApply;
+      }}
+    }}
     await new Promise((resolve) => setTimeout(resolve, 500));
   }}
   const state = window.__myrmChatStore?.getState?.();
@@ -42,6 +166,7 @@ def wait_agent_applied_js(expected_agent_id: str) -> str:
     err: 'agent-not-applied',
     agentId: state?.agentConfig?.agentId ?? null,
     actionMode: state?.actionMode ?? null,
+    lastApply,
   }};
 }})()"""
 

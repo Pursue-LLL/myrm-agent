@@ -481,7 +481,7 @@ async def run_async_warmup() -> None:
             logger.error(f"Warmup task {i} failed: {result}", exc_info=result)
 
     try:
-        from app.core.skills.curator_service import (
+        from app.core.skills.curator.service import (
             get_stats_collector,
             start_curator_background_task,
         )

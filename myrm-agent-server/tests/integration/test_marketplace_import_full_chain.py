@@ -276,7 +276,7 @@ async def test_import_agent_package_rolls_back_atomically(
 
     # The second import fails during subagent creation and must roll back the
     # main agent + the skill it already wrote.
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         await import_agent_package(skill_store, invalid_package)
 
     profiles = await AgentService.get_agent_list(page=1, page_size=50)

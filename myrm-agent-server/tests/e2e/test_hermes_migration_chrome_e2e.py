@@ -27,11 +27,9 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url  # noqa: E402
+from cdp_chat_support import get_e2e_api_url  # noqa: E402
 
-from tests.support.chrome_mcp_e2e import open_mcp_page  # noqa: E402
-
-_MIGRATION_SCAN_URL = f"{get_e2e_ui_url()}/settings/memory?sub=migration"
+from tests.support.chrome_mcp_e2e import open_settings_subroute, wait_for_state  # noqa: E402
 
 _FETCH_HOOK_JS = """(() => {
   window.__MYRM_DRY_RUN_CAPTURE__ = [];
@@ -75,12 +73,18 @@ _CLICK_HERMES_PREVIEW_JS = """(() => {
   for (const card of cards) {
     const text = card.innerText || '';
     if (!/Hermes/i.test(text)) continue;
-    const button = card.querySelector('button');
-    if (!button || button.disabled) continue;
+    const buttons = Array.from(card.querySelectorAll('button'));
+    const button = buttons.find((node) => {
+      const label = node.innerText || '';
+      return /预览导入|Preview import/i.test(label) && !node.disabled;
+    }) ?? buttons.find((node) => !node.disabled);
+    if (!button || button.disabled) {
+      return { ready: false, clicked: false, reason: 'button-disabled', cardText: text.slice(0, 120) };
+    }
     button.click();
-    return { clicked: true, label: text.split('\\n')[0] || 'Hermes' };
+    return { ready: true, clicked: true, label: text.split('\\n')[0] || 'Hermes' };
   }
-  return { clicked: false };
+  return { ready: false, clicked: false, reason: 'card-not-found', cardCount: cards.length };
 })()"""
 
 _FINAL_ASSERT_JS = """(() => {
@@ -126,24 +130,30 @@ def test_hermes_migration_wizard_dry_run_uses_builtin_economy() -> None:
     if not _discover_has_hermes():
         pytest.skip("No Hermes migration source discovered on this machine")
 
-    with open_mcp_page(_MIGRATION_SCAN_URL, timeout_ms=90_000) as (client, page):
-
-        scan_deadline = time.monotonic() + 90.0
-        while time.monotonic() < scan_deadline:
-            raw = client.evaluate(page, _SCAN_READY_JS, timeout_sec=20.0)
-            state = raw if isinstance(raw, dict) else {"value": raw}
-            if state.get("ready"):
-                break
-            time.sleep(0.5)
-        else:
-            raise AssertionError(f"Hermes scan step did not become ready: {state!r}")
+    with open_settings_subroute(
+        "/settings/memory?sub=migration",
+        timeout_ms=90_000,
+    ) as (client, page):
+        scan_ready = wait_for_state(
+            client,
+            page,
+            _SCAN_READY_JS,
+            timeout_sec=90.0,
+        )
+        assert scan_ready.get("ready") is True, (
+            f"Hermes scan step did not become ready: {scan_ready!r}"
+        )
 
         client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
-        clicked_raw = client.evaluate(page, _CLICK_HERMES_PREVIEW_JS, timeout_sec=10.0)
-        clicked = clicked_raw if isinstance(clicked_raw, dict) else {}
-        assert (
-            clicked.get("clicked") is True
-        ), f"Hermes preview button not clicked: {clicked!r}"
+        clicked = wait_for_state(
+            client,
+            page,
+            _CLICK_HERMES_PREVIEW_JS,
+            timeout_sec=60.0,
+        )
+        assert clicked.get("clicked") is True, (
+            f"Hermes preview button not clicked: {clicked!r}"
+        )
 
         deadline = time.monotonic() + 120.0
         final: dict[str, object] = {}

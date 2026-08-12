@@ -63,6 +63,17 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
       }, 250);
     }
 
+    if (stepKey === 'waiting_for_turn_clear') {
+      actions.setMessages((state) => {
+        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        if (messageIndex !== -1 && state.messages[messageIndex].progressSteps) {
+          state.messages[messageIndex].progressSteps = state.messages[messageIndex].progressSteps!.filter(
+            (step) => step.step_key !== 'waiting_for_turn',
+          );
+        }
+      });
+    }
+
     const statusData = data.data;
     if (typeof statusData === 'object' && statusData !== null) {
       applyStatusPhaseData(ctx, statusData as Record<string, unknown>);

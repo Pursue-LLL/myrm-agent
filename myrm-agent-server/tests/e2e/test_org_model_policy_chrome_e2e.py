@@ -1,13 +1,18 @@
 """Chrome MCP E2E: Org model policy UI enforcement in model picker.
 
-Verifies that when an org model policy is active, restricted models
-appear as disabled/grayed-out in the model picker popover.
+Verifies the model picker reflects the org model policy: with an unrestricted
+policy every model stays selectable, and with a whitelist pattern that matches
+nothing every model is greyed out. Two phases keep the assertions meaningful
+under the current single-provider ``.env.test`` (BASIC_MODEL/LITE_MODEL share
+the same openai-like provider) without assuming a minimax provider exists.
 
 Uses PRIVATE execution + NAMESPACE_WRITE to seed policy via API then
 inspect the model picker UI state.
 """
 
 from __future__ import annotations
+
+import time
 
 import pytest
 
@@ -20,8 +25,8 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 
-# Chrome E2E seed (.env.test) typically exposes minimax/* + openai-like/* providers.
-_POLICY_SEED_PATTERNS = ["minimax/*"]
+# Matches no provider/model; every seeded model must be greyed out.
+_NON_MATCHING_PATTERN = "__e2e_nonexistent__/*"
 
 
 def _sync_org_model_policy(api_base: str, *, patterns: list[str]) -> None:
@@ -79,33 +84,43 @@ _MODEL_PICKER_POLICY_STATE_JS = """(() => {
 )
 @pytest.mark.timeout(300)
 def test_model_picker_shows_policy_restricted_models_as_disabled() -> None:
-    """With org model policy active, non-matching models appear disabled."""
+    """Policy whitelist greys out non-matching models in the picker."""
     ui_base = get_e2e_ui_url()
     warm_ui_route("/")
     api_base = get_e2e_api_url()
-    _sync_org_model_policy(api_base, patterns=_POLICY_SEED_PATTERNS)
+
     try:
+        # Phase 1: unrestricted baseline — every model stays selectable.
+        _sync_org_model_policy(api_base, patterns=[])
         with open_mcp_page(f"{ui_base}/", timeout_ms=90_000) as (client, page):
             state = wait_for_state(
                 client, page, _MODEL_PICKER_POLICY_STATE_JS, timeout_sec=120.0
             )
             assert state.get("ready") is True, f"Model picker not ready: {state}"
             assert state.get("totalModels", 0) > 0, "No models found in picker"
+            assert len(state.get("enabledModels", [])) > 0, (
+                "Unrestricted policy must keep models selectable"
+            )
+            assert len(state.get("disabledModels", [])) == 0, (
+                "Unrestricted baseline must not grey out any model"
+            )
 
-            disabled = state.get("disabledModels", [])
-            enabled = state.get("enabledModels", [])
-
-            assert len(enabled) > 0, "Expected minimax/* models to remain selectable"
-            assert len(disabled) > 0, "Expected non-minimax models to be greyed out"
-            for model_name in enabled:
-                model_lower = (model_name or "").lower()
-                assert "minimax" in model_lower, (
-                    f"Enabled model '{model_name}' should match minimax/*"
-                )
-            for model_name in disabled:
-                model_lower = (model_name or "").lower()
-                assert "minimax" not in model_lower, (
-                    f"Disabled model '{model_name}' should not match minimax/*"
-                )
+            # Phase 2: a non-matching whitelist greys out every model. Reload the
+            # page so the picker reopens and refetches the updated policy, then
+            # give the async policy fetch a moment to land before asserting.
+            _sync_org_model_policy(api_base, patterns=[_NON_MATCHING_PATTERN])
+            client.reload(page, timeout_ms=60_000)
+            time.sleep(2)
+            state = wait_for_state(
+                client, page, _MODEL_PICKER_POLICY_STATE_JS, timeout_sec=120.0
+            )
+            assert state.get("ready") is True, f"Model picker not ready: {state}"
+            assert len(state.get("disabledModels", [])) > 0, (
+                "Restricted policy must grey out non-matching models"
+            )
+            assert len(state.get("enabledModels", [])) == 0, (
+                "Non-matching policy must block every model"
+            )
     finally:
+        # Leave the shared stack unrestricted.
         _sync_org_model_policy(api_base, patterns=[])

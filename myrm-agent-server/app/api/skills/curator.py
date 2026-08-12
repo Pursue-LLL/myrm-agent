@@ -81,14 +81,14 @@ class CuratorRunResponse(BaseModel):
 
 def _get_stats_collector() -> SkillStatsCollector:
     """Get the shared SkillStatsCollector instance."""
-    from app.core.skills.curator_service import get_stats_collector
+    from app.core.skills.curator.service import get_stats_collector
 
     return get_stats_collector()
 
 
 def _resolve_skill_path(skill_name: str) -> Path:
     """Resolve a skill name to its filesystem path."""
-    from app.core.skills.curator_service import resolve_skill_path
+    from app.core.skills.curator.service import resolve_skill_path
 
     path = resolve_skill_path(skill_name)
     if path is None:
@@ -136,7 +136,7 @@ async def update_skill_lifecycle(
 @router.get("/config", response_model=CuratorConfigResponse)
 async def get_curator_config() -> CuratorConfigResponse:
     """Get current curator configuration."""
-    from app.core.skills.curator_service import get_curator_config
+    from app.core.skills.curator.service import get_curator_config
 
     config = get_curator_config()
     return CuratorConfigResponse(
@@ -157,7 +157,7 @@ async def get_curator_config() -> CuratorConfigResponse:
 @router.patch("/config", response_model=CuratorConfigResponse)
 async def update_curator_config(request: CuratorConfigUpdateRequest) -> CuratorConfigResponse:
     """Update curator configuration (partial update)."""
-    from app.core.skills.curator_service import update_curator_config
+    from app.core.skills.curator.service import update_curator_config
 
     config = update_curator_config(request.model_dump(exclude_none=True))
     return CuratorConfigResponse(
@@ -178,7 +178,7 @@ async def update_curator_config(request: CuratorConfigUpdateRequest) -> CuratorC
 @router.post("/run", response_model=CuratorRunResponse)
 async def run_curator() -> CuratorRunResponse:
     """Manually trigger a curator sweep."""
-    from app.core.skills.curator_service import run_curator_sweep
+    from app.core.skills.curator.service import run_curator_sweep
 
     result = await run_curator_sweep(force=True, trigger="manual")
     return CuratorRunResponse(
@@ -217,7 +217,7 @@ class CuratorHistoryEntry(BaseModel):
 @router.get("/history", response_model=list[CuratorHistoryEntry])
 async def get_curator_history(limit: int = 10) -> list[CuratorHistoryEntry]:
     """Get recent curator sweep history records (newest first)."""
-    from app.core.skills.curator_service import get_curator_history
+    from app.core.skills.curator.service import get_curator_history
 
     entries = get_curator_history(limit=limit)
     return [CuratorHistoryEntry(**e) for e in entries]
@@ -259,7 +259,7 @@ class ConsolidationExecuteResponse(BaseModel):
 @router.post("/consolidation/preview", response_model=ConsolidationPreviewResponse)
 async def consolidation_preview() -> ConsolidationPreviewResponse:
     """Generate a consolidation plan (dry-run) without executing changes."""
-    from app.core.skills.curator_service import run_consolidation_preview
+    from app.core.skills.curator.consolidation import run_consolidation_preview
 
     plan = await run_consolidation_preview()
     return ConsolidationPreviewResponse(
@@ -281,7 +281,7 @@ async def consolidation_preview() -> ConsolidationPreviewResponse:
 @router.post("/consolidation/execute", response_model=ConsolidationExecuteResponse)
 async def consolidation_execute() -> ConsolidationExecuteResponse:
     """Execute consolidation — merge fragmented skills into umbrellas."""
-    from app.core.skills.curator_service import run_consolidation_execute
+    from app.core.skills.curator.consolidation import run_consolidation_execute
 
     result = await run_consolidation_execute()
     return result

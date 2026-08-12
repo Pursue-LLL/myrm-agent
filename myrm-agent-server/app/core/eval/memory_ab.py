@@ -30,6 +30,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness import __version__ as harness_version
 from myrm_agent_harness.eval import AgentExecutor
 
 from app.core.eval.adaptive import AdaptiveEvalManager
@@ -231,6 +232,9 @@ async def run_memory_ab_background(
         report_data["dataset_id"] = benchmark_id
         report_data["profile_id"] = profile_id
         report_data["benchmark_mode"] = True
+        # Disclose the harness version so scores stay comparable across
+        # framework upgrades (same measurement-decay guard as matrix/layered).
+        report_data["harness_version"] = harness_version
         # Disclose the judge model used for LLM-graded benchmarks so a later
         # score change caused by switching the user's model stays traceable;
         # native-scored suites never invoke a judge and stay "none".

@@ -1,4 +1,4 @@
-"""Tests for curator_service consolidation integration.
+"""Tests for curator consolidation integration.
 
 Tests the consolidation preview, execute, agent ref rewrite, and
 lock-based mutual exclusion with sweeps.
@@ -24,7 +24,7 @@ class TestRewriteAgentSkillRefs:
     @pytest.mark.asyncio
     async def test_no_renames_returns_zero(self) -> None:
         """When report has no successful merges, no refs should be rewritten."""
-        from app.core.skills.curator_service import _rewrite_agent_skill_refs
+        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
 
         report = ConsolidationReport()
         result = await _rewrite_agent_skill_refs(report)
@@ -33,7 +33,7 @@ class TestRewriteAgentSkillRefs:
     @pytest.mark.asyncio
     async def test_failed_results_are_skipped(self) -> None:
         """Failed consolidation results should not create rename mappings."""
-        from app.core.skills.curator_service import _rewrite_agent_skill_refs
+        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
 
         action = ConsolidationAction(
             action_type=ConsolidationActionType.MERGE,
@@ -52,7 +52,7 @@ class TestRewriteAgentSkillRefs:
     @pytest.mark.asyncio
     async def test_successful_merge_rewrites_refs(self) -> None:
         """Successful merge should rewrite agent skill_ids."""
-        from app.core.skills.curator_service import _rewrite_agent_skill_refs
+        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
 
         action = ConsolidationAction(
             action_type=ConsolidationActionType.MERGE,
@@ -109,7 +109,7 @@ class TestRewriteAgentSkillRefs:
     @pytest.mark.asyncio
     async def test_create_umbrella_also_rewrites(self) -> None:
         """CREATE_UMBRELLA action should also trigger ref rewrite."""
-        from app.core.skills.curator_service import _rewrite_agent_skill_refs
+        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
 
         action = ConsolidationAction(
             action_type=ConsolidationActionType.CREATE_UMBRELLA,
@@ -165,7 +165,7 @@ class TestRewriteAgentSkillRefs:
     @pytest.mark.asyncio
     async def test_rewrite_handles_db_exception(self) -> None:
         """Database error should be caught, returning 0."""
-        from app.core.skills.curator_service import _rewrite_agent_skill_refs
+        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
 
         action = ConsolidationAction(
             action_type=ConsolidationActionType.CREATE_UMBRELLA,
@@ -193,7 +193,7 @@ class TestRewriteAgentSkillRefs:
     @pytest.mark.asyncio
     async def test_no_change_needed_zero_updates(self) -> None:
         """When agent has no matching skills, 0 should be returned."""
-        from app.core.skills.curator_service import _rewrite_agent_skill_refs
+        from app.core.skills.curator.consolidation import _rewrite_agent_skill_refs
 
         action = ConsolidationAction(
             action_type=ConsolidationActionType.MERGE,
@@ -250,15 +250,15 @@ class TestConsolidationPreview:
 
         with (
             patch(
-                "app.core.skills.curator_service._get_consolidation_deps",
+                "app.core.skills.curator.consolidation._get_consolidation_deps",
                 AsyncMock(return_value=(mock_embed, mock_llm, mock_write)),
             ),
             patch(
-                "app.core.skills.curator_service._load_all_skills",
+                "app.core.skills.curator.consolidation._load_all_skills",
                 AsyncMock(return_value=[]),
             ),
         ):
-            from app.core.skills.curator_service import run_consolidation_preview
+            from app.core.skills.curator.consolidation import run_consolidation_preview
 
             plan = await run_consolidation_preview()
 
@@ -290,11 +290,11 @@ class TestConsolidationPreview:
 
         with (
             patch(
-                "app.core.skills.curator_service._get_consolidation_deps",
+                "app.core.skills.curator.consolidation._get_consolidation_deps",
                 AsyncMock(return_value=(mock_embed, mock_llm, mock_write)),
             ),
             patch(
-                "app.core.skills.curator_service._load_all_skills",
+                "app.core.skills.curator.consolidation._load_all_skills",
                 AsyncMock(return_value=[MagicMock() for _ in range(5)]),
             ),
             patch(
@@ -302,7 +302,7 @@ class TestConsolidationPreview:
                 return_value=mock_curator_instance,
             ),
         ):
-            from app.core.skills.curator_service import run_consolidation_preview
+            from app.core.skills.curator.consolidation import run_consolidation_preview
 
             plan = await run_consolidation_preview()
 

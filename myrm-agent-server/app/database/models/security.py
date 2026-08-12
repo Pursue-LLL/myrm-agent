@@ -98,6 +98,7 @@ class SkillPermissionUsageLog(Base):
     __tablename__ = "skill_permission_usage_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, default="unknown", index=True)
     skill_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     permission: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     operation: Mapped[str] = mapped_column(String(500), nullable=False)

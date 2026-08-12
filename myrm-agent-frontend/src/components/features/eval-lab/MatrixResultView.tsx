@@ -50,7 +50,9 @@ export interface MatrixReportData {
   judge_model?: string;
   harness_version?: string;
   eval_type?: string;
+  profile_id?: string;
   aborted?: boolean;
+  limit?: number | null;
 }
 
 interface Props {
@@ -89,6 +91,31 @@ export default function MatrixResultView({ report, profileNames }: Props) {
           {tLayers('abortedNotice')}
         </div>
       )}
+      {report.limit != null && (
+        <div className="flex items-center gap-1.5 text-xs">
+          <span
+            className="px-2 py-1 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400 font-medium"
+            title={t('sampledTitle')}
+          >
+            {t('sampled')} · {report.limit}
+          </span>
+          <span className="text-muted-foreground">{t('sampledHint')}</span>
+        </div>
+      )}
+      {(report.profile_id && report.eval_type !== 'matrix') || report.harness_version ? (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground px-1">
+          {report.profile_id && report.eval_type !== 'matrix' && (
+            <span>
+              {tLayers('basedOnProfile')}: {profileNames?.[report.profile_id] || report.profile_id}
+            </span>
+          )}
+          {report.harness_version && (
+            <span className="font-mono">
+              {tLayers('harnessVersion')}: {report.harness_version}
+            </span>
+          )}
+        </div>
+      ) : null}
       {isLayered && (
         <div className="p-4 rounded-lg border bg-gradient-to-br from-card to-muted/30">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -237,11 +264,6 @@ export default function MatrixResultView({ report, profileNames }: Props) {
                 {getProfileLabel(layer.key)}: {layer.fingerprint}
               </span>
             ))}
-            {report.harness_version && (
-              <span>
-                {tLayers('harnessVersion')}: {report.harness_version}
-              </span>
-            )}
           </div>
         </div>
       )}

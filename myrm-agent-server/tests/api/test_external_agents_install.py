@@ -16,6 +16,8 @@ from app.core.security.auth.identity import LOCAL_USER_ID
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="external_agents")
+
+
 @dataclass(frozen=True, slots=True)
 class _FakeIdentity:
     user_id: str = LOCAL_USER_ID
@@ -66,7 +68,9 @@ def test_external_agent_auth_status(client: TestClient) -> None:
     assert {"claude", "codex", "gemini"}.issubset(names)
 
 
-def test_external_agent_install_unknown_backend_streams_error(client: TestClient) -> None:
+def test_external_agent_install_unknown_backend_streams_error(
+    client: TestClient,
+) -> None:
     """Unknown backend yields progress error via SSE (no network install)."""
     with client.stream("POST", "/api/v1/external-agents/install/not-a-backend") as resp:
         assert resp.status_code == 200
@@ -77,7 +81,9 @@ def test_external_agent_install_unknown_backend_streams_error(client: TestClient
     assert any(e.get("type") == "success" for e in events)
 
 
-def test_external_agent_install_claude_mocked_no_network(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_external_agent_install_claude_mocked_no_network(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Install endpoint streams mocked toolchain progress (no real npm download)."""
 
     class FakeManager:

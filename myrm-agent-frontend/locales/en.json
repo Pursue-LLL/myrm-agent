@@ -4403,6 +4403,8 @@
       "memberRemoved": "Member removed successfully",
       "removeMember": "Remove Member",
       "removeMemberDesc": "Remove this member from the organization. Their sandbox and data are preserved.",
+      "removeMemberRevokeNote": "This also revokes the member's access to organization tools and policies, including the approval policy and model whitelist.",
+      "removeMemberIdpNote": "Note: if SSO auto-provisioning is enabled, this member may be re-added on their next sign-in. To permanently revoke access, remove them from the identity provider (IdP).",
       "confirmRemove": "Remove Member",
       "userId": "User ID",
       "userIdPlaceholder": "user_id",
@@ -4417,6 +4419,7 @@
       "selectMember": "Select a member",
       "memberToOffboard": "Member to offboard",
       "sourceMember": "Source member",
+      "noTransferableSources": "No archived members to transfer. Offboard a member first to make their archive transferable.",
       "targetMember": "Target member",
       "offboardSuccess": "User offboarded successfully",
       "transferVolume": "Transfer Volume",
@@ -8811,6 +8814,7 @@
     "model_failover_context_overflow": "Context too long, switched to backup model",
     "model_failover_response_format_error": "Response format error, switched to backup model",
     "model_failover_model_not_found": "Primary model unavailable, switched to backup model",
+    "model_failover_auth": "Authentication failed, switched to backup model",
     "model_failover_unconfigured": "Primary model failed — configure a backup model in Settings",
     "model_escalated": "Model auto-upgraded: {from} → {to}",
     "model_escalated_reason": "Reason: {reason}",
@@ -8883,6 +8887,7 @@
     "workflow_planning": "Generating orchestration plan",
     "workflow_execution": "Executing workflow tasks",
     "workflow_stage": "Workflow stage update",
+    "waiting_for_turn": "Waiting for other agents in the project to finish...",
     "iteration_limit_reached": "Iteration limit reached",
     "subagent_running": "Subagent running",
     "swarm_fission": "Parallel swarm fission ({count} tasks)",
@@ -14116,9 +14121,9 @@
     "restoring": "Restoring...",
     "externalEffects": "External",
     "effects": {
-        "database": "database changes",
-        "container_cloud": "container or cloud operations",
-        "network_mutation": "network requests"
+      "database": "database changes",
+      "container_cloud": "container or cloud operations",
+      "network_mutation": "network requests"
     },
     "externalEffectsTooltip": "This snapshot contains external operations ({effects}) that cannot be undone by file rollback",
     "restoreExternalWarning": "External operations ({effects}) were performed and cannot be undone by this restore",
@@ -14811,7 +14816,19 @@
         "stable": "Stable",
         "regression": "Regression",
         "allFailed": "All Failed"
-      }
+      },
+      "sampled": "sampled",
+      "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)",
+      "sampledHint": "Results cover a sampled subset, not the full benchmark",
+      "historyTitle": "History",
+      "historyTime": "Run Time",
+      "historyDataset": "Dataset",
+      "historyAgentModel": "Agent Model",
+      "historyJudge": "Judge",
+      "historyLayeredBadge": "Layered",
+      "historyAbortedBadge": "Aborted",
+      "historyCurrent": "Viewing",
+      "historyView": "View"
     },
     "wbBench": {
       "title": "Benchmark Datasets",
@@ -14885,15 +14902,25 @@
       "judgeModel": "Judge",
       "fingerprint": "Layer fingerprints pin the exact switch combination, keeping scores comparable across harness versions.",
       "harnessVersion": "Harness version",
+      "basedOnProfile": "Profile",
       "abortedNotice": "This report is incomplete — the run was aborted before finishing.",
-      "bare": { "label": "Bare" },
-      "core": { "label": "Core" },
-      "skills": { "label": "Skills" },
-      "memory": { "label": "Memory" },
+      "bare": {
+        "label": "Bare"
+      },
+      "core": {
+        "label": "Core"
+      },
+      "skills": {
+        "label": "Skills"
+      },
+      "memory": {
+        "label": "Memory"
+      },
       "confirmTitle": "Run layered evaluation?",
       "confirmBody": "This runs the same benchmark four times on your current profile — bare (benchmark mode, your tools and skills removed), core (your full agent config with skills and memory off), +skills, then +memory (your full config). Each layer re-runs the same tasks so the pass-rate delta between adjacent layers isolates each capability. Cost scales by roughly 4× the sampled tasks; an embedding model must be configured for the memory layer.",
       "confirmStart": "Start Evaluation",
-      "confirmCancel": "Cancel"
+      "confirmCancel": "Cancel",
+      "confirmProfileHint": "Will evaluate with this profile"
     }
   },
   "vault": {

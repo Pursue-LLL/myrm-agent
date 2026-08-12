@@ -98,20 +98,20 @@ export async function addMember(orgId: string, userId: string, role = 'member'):
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user_id: userId, role }),
   });
-  if (!res.ok) throw new Error(`Add member failed: ${res.status}`);
+  if (!res.ok) throw await toError(res, `Add member failed: ${res.status}`);
   return res.json();
 }
 
 export async function removeMember(orgId: string, userId: string): Promise<void> {
   const res = await fetch(cpUrl(`/${orgId}/members/${userId}`), { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Remove member failed: ${res.status}`);
+  if (!res.ok) throw await toError(res, `Remove member failed: ${res.status}`);
 }
 
 export async function unlinkOauth(orgId: string, userId: string): Promise<void> {
   const res = await fetch(cpUrl(`/${orgId}/members/${userId}/unlink-oauth`), {
     method: 'POST',
   });
-  if (!res.ok) throw new Error(`Unlink OAuth failed: ${res.status}`);
+  if (!res.ok) throw await toError(res, `Unlink OAuth failed: ${res.status}`);
 }
 
 export async function offboardUser(orgId: string, sourceUserId: string): Promise<HandoffLog> {

@@ -151,7 +151,11 @@ class ProjectService:
             await db.execute(update(Chat).where(Chat.project_id == project_id).values(project_id=None))
             await db.execute(delete(Project).where(Project.id == project_id))
             await db.commit()
-            return True
+
+        from app.services.project.orchestrator import project_orchestrator
+
+        project_orchestrator.forget(project_id)
+        return True
 
     @staticmethod
     async def move_chat_to_project(chat_id: str, project_id: str | None) -> bool:

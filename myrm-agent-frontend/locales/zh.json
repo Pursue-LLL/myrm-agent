@@ -4403,6 +4403,8 @@
       "memberRemoved": "成员移除成功",
       "removeMember": "移除成员",
       "removeMemberDesc": "将该成员从组织中移除。其沙箱与数据将保留，不会被删除。",
+      "removeMemberRevokeNote": "移除后将同时撤销该成员对组织工具与策略（如审批策略、模型白名单）的访问。",
+      "removeMemberIdpNote": "注意：若已启用 SSO 自动准入，该成员下次登录时可能被自动重新添加。如需永久拒绝访问，请在身份提供方（IdP）中移除该成员。",
       "confirmRemove": "确认移除",
       "userId": "用户 ID",
       "userIdPlaceholder": "用户 ID",
@@ -4417,6 +4419,7 @@
       "selectMember": "选择成员",
       "memberToOffboard": "待离职成员",
       "sourceMember": "来源成员",
+      "noTransferableSources": "暂无可转移的已归档成员。请先执行离职归档，归档完成后即可转移。",
       "targetMember": "目标成员",
       "offboardSuccess": "员工离职处理完成",
       "transferVolume": "资产转移",
@@ -8811,6 +8814,7 @@
     "model_failover_context_overflow": "上下文过长，已切换到备用模型",
     "model_failover_response_format_error": "响应格式错误，已切换到备用模型",
     "model_failover_model_not_found": "主模型不可用，已切换到备用模型",
+    "model_failover_auth": "鉴权失败，已切换到备用模型",
     "model_failover_unconfigured": "主模型调用失败，请在设置中配置备用模型",
     "model_escalated": "模型已自动升级：{from} → {to}",
     "model_escalated_reason": "原因：{reason}",
@@ -8883,6 +8887,7 @@
     "workflow_planning": "正在生成编排方案",
     "workflow_execution": "正在执行工作流任务",
     "workflow_stage": "工作流阶段更新",
+    "waiting_for_turn": "正在等待项目中其他智能体完成...",
     "iteration_limit_reached": "已达到迭代次数上限",
     "subagent_running": "子智能体正在运行中",
     "swarm_fission": "并行裂变 ({count} 路任务)",
@@ -14782,7 +14787,19 @@
         "stable": "稳定",
         "regression": "回归风险",
         "allFailed": "全部失败"
-      }
+      },
+      "sampled": "抽样",
+      "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）",
+      "sampledHint": "结果基于抽样子集，并非全量基准",
+      "historyTitle": "历史记录",
+      "historyTime": "运行时间",
+      "historyDataset": "数据集",
+      "historyAgentModel": "智能体模型",
+      "historyJudge": "判分模型",
+      "historyLayeredBadge": "分层",
+      "historyAbortedBadge": "已中止",
+      "historyCurrent": "查看中",
+      "historyView": "查看"
     },
     "wbBench": {
       "title": "基准测试数据集",
@@ -14856,6 +14873,7 @@
       "judgeModel": "判分模型",
       "fingerprint": "每层配置都带有指纹，锁定开关组合，保证跨版本分数可对比。",
       "harnessVersion": "Harness 引擎",
+      "basedOnProfile": "智能体",
       "abortedNotice": "本报告不完整——评测在中途被中止。",
       "bare": {
         "label": "裸基线"
@@ -14872,7 +14890,8 @@
       "confirmTitle": "开始分层评测？",
       "confirmBody": "这将基于当前 Profile 对同一基准连续跑四次——裸基线（基准模式，剥离工具与技能）、核心配置（你的完整智能体配置，技能与记忆关闭）、+技能、+记忆（你的完整配置）。每层重跑同一批任务，相邻层的通过率差值即为该能力的增量。成本约为抽样任务数的 4 倍；记忆层需要已配置 embedding 模型。",
       "confirmStart": "开始评测",
-      "confirmCancel": "取消"
+      "confirmCancel": "取消",
+      "confirmProfileHint": "将使用该智能体配置评测"
     }
   },
   "vault": {

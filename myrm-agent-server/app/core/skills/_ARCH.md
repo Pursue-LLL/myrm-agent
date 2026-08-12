@@ -22,18 +22,25 @@
 | `loader.py` | 核心 | 技能后端工厂，组装 SkillBackend。支持 `allowed_prebuilt_ids` 白名单过滤 prebuilt 技能（Action Space Opt-In）。 | ✅ |
 | `prebuilt_sync.py` | 核心 | 预置技能种子同步（SKILL.md 三方哈希保护用户修改、upstream 更新检测；`scripts/` 等 bundle 文件始终跟随上游）与幽灵清理 | ✅ |
 | `assets/prebuilt_skills/` | 内容 | 官方 SKILL.md 种子库（见仓库根 `assets/prebuilt_skills/`）。边界见 [SKILLS_SYSTEM.md §3.5](SKILLS_SYSTEM.md) | ✅ |
-| `state_reader.py` | 核心 | SkillStateReader 实现（SQLite 隔离状态查询） | ✅ |
+| `state_reader.py` | 核心 | SkillStateReader 实现（SQLite 隔离状态查询，默认复用进化存储单例） | ✅ |
 | `storage_adapters.py` | 核心 | SnapshotStore/ABTestStore 协议适配器 | ✅ |
 | `utils.py` | 核心 | 技能名称标准化（normalize_skill_name） | — |
+| `store/__init__.py` | 子域 | 存储层聚合出口：CRUD 服务 + 用户配置 + 转发 harness sanitizer（`myrm_agent_harness.agent.skills.market.sanitizer`） | — |
 | `store/service.py` | 核心 | 技能 CRUD 服务 | — |
 | `store/reader.py` | 核心 | 技能读取 | — |
-| `store/sanitizer.py` | 核心 | 技能内容清洗 | — |
+| `store/evolution_store.py` | 核心 | 进化技能存储进程级单例（get/reset，热读路径复用） | ✅ |
 | `store/user_config.py` | 核心 | 用户技能配置（enabled/disabled prebuilt、本地路径） | ✅ |
-| `packaging/__init__.py` | 核心 | 技能打包业务 Facade 适配 | — |
+| `packaging/__init__.py` | 核心 | 技能打包业务 Facade 适配（转发 harness packer/validator） | — |
+| `packaging/_helpers.py` | 内部 | 打包内部辅助（`_load_evolution_record`/`_sync_skill_md_version`） | — |
+| `packaging/_models.py` | 内部 | 打包内部模型（Redaction 脱敏条目转发） | — |
 | `providers/local.py` | 核心 | 本地文件系统技能提供者 | — |
+| `creation/__init__.py` | 子域 | 技能创作域聚合出口 | — |
+| `creation/service.py` | 核心 | SkillCreationService（SkillWriteBackend 本地文件系统实现 + 单例） | ✅ |
 | `config_version.py` | 核心 | 技能配置版本号管理（bump/get，Agent 热重载检测） | ✅ |
 | `state_manager_instance.py` | 核心 | 全局 SkillStateManager 单例（init/get） | ✅ |
-| `curator_service.py` | 核心 | Skill Curator 业务服务 — 配置持久化、sweep 执行、background task 编排、审计历史、consolidation 集成；`get_stats_collector()` 注入 harness `usage_recorder` | ✅ |
+| `curator/__init__.py` | 子域 | 技能生命周期治理域聚合出口 | — |
+| `curator/service.py` | 核心 | Curator 业务服务 — sweep/配置/历史/后台任务编排；`get_stats_collector()` 注入 harness `usage_recorder` | ✅ |
+| `curator/consolidation.py` | 核心 | 技能合并（umbrella merge）集成 — preview/execute/agent refs 重写，共享 sweep 锁 | ✅ |
 | `effective_skill_ids.py` | 核心 | Agent 空 allowlist 时解析运行时 skill_ids（enabled prebuilt + local） | ✅ |
 | `discovery/` | 子域 | 技能发现聚合出口：`adopt`（显式 allowlist 时 install 自动 append）、`mount`（安装/更新后 catalog enable）、`autoupdate`（上游版本检测） | ✅ |
 | `marketplace/` | 子域 | 市场聚合出口：`market_service`（SSE 进度、自定义源、ClawHub 镜像懒加载）、`clawhub_registry`（镜像 URL 持久化/apply，CLAWHUB_URL SSOT）、`clawhub_probe`（连通性探测）、`custom_source_config`（自定义源持久化） | ✅ |

@@ -71,7 +71,11 @@ interface MemberInput {
   email?: string | null;
 }
 
-function membersRoutes(members: MemberInput[], withUnlinkRoute = false): Route[] {
+function membersRoutes(
+  members: MemberInput[],
+  withUnlinkRoute = false,
+  handoffLogs: unknown[] = [],
+): Route[] {
   const routes: Route[] = [
     {
       method: 'GET',
@@ -94,7 +98,7 @@ function membersRoutes(members: MemberInput[], withUnlinkRoute = false): Route[]
     {
       method: 'GET',
       url: '/api/enterprise/org/org-1/handoff-logs',
-      body: [],
+      body: handoffLogs,
     },
   ];
   if (withUnlinkRoute) {
@@ -125,6 +129,20 @@ function membersRoutes(members: MemberInput[], withUnlinkRoute = false): Route[]
 const ADMIN_MEMBERS: MemberInput[] = [
   { user_id: 'owner-1', role: 'owner', oauth_bound: true, email: 'owner-1@acme.com' },
   { user_id: 'member-2', role: 'member', oauth_bound: true, email: 'member-2@acme.com' },
+];
+
+const OFFBOARD_LOGS = [
+  {
+    id: 'log-1',
+    org_id: 'org-1',
+    source_user_id: 'member-2',
+    admin_user_id: 'owner-1',
+    action: 'offboard',
+    backup_path: '/backups/member-2/backup.tar.gz',
+    status: 'completed',
+    created_at: 1,
+    completed_at: 1,
+  },
 ];
 
 beforeEach(() => {
@@ -215,7 +233,7 @@ describe('EnterpriseMembersTab', () => {
   });
 
   it('transfers a volume between members picked from dropdowns', async () => {
-    const fetchMock = mockFetchRoutes(membersRoutes(ADMIN_MEMBERS));
+    const fetchMock = mockFetchRoutes(membersRoutes(ADMIN_MEMBERS, false, OFFBOARD_LOGS));
     vi.stubGlobal('fetch', fetchMock);
 
     render(<EnterpriseMembersTab />);
@@ -229,7 +247,7 @@ describe('EnterpriseMembersTab', () => {
     const confirmBtn = screen.getByText('confirmTransfer') as HTMLButtonElement;
     expect(confirmBtn.disabled).toBe(true);
 
-    // source 只含可 offboard 成员（非 owner）；target 含全部成员（可转给 owner）
+    // source 只含已归档（offboard completed）成员；target 含全部成员（可转给 owner）
     await userEvent.click(dropdowns[0]);
     await userEvent.click(await screen.findByRole('option', { name: 'member-2@acme.com' }));
     expect(confirmBtn.disabled).toBe(true); // 目标未选仍禁用
@@ -296,5 +314,17 @@ describe('EnterpriseMembersTab', () => {
     expect(screen.queryByText('transferVolume')).not.toBeInTheDocument();
     expect(screen.queryAllByTitle('removeMember')).toHaveLength(0);
     expect(screen.queryAllByTitle('unlinkOauth')).toHaveLength(0);
+  });
+
+  it('shows an empty-state hint when no archived transfer sources exist', async () => {
+    vi.stubGlobal('fetch', mockFetchRoutes(membersRoutes(ADMIN_MEMBERS)));
+    render(<EnterpriseMembersTab />);
+    await waitFor(() => {
+      expect(screen.getAllByTitle('unlinkOauth')).toHaveLength(1);
+    });
+
+    await userEvent.click(screen.getByText('transferVolume'));
+    await userEvent.click(screen.getAllByRole('combobox')[0]);
+    expect(await screen.findByText('noTransferableSources')).toBeInTheDocument();
   });
 });

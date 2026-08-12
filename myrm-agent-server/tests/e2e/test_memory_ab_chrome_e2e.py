@@ -23,6 +23,7 @@ import time
 from pathlib import Path
 
 import pytest
+from cdp_chat_support import fetch_config_value, put_config_value  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
@@ -41,8 +42,6 @@ from tests.support.wb_bench_e2e_helpers import (
     click_subset_memory_ab_js,
     restore_eval_lab_route,
 )
-
-from cdp_chat_support import fetch_config_value, put_config_value  # noqa: E402
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 

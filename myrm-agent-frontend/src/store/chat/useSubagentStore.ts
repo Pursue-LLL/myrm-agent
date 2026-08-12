@@ -57,6 +57,16 @@ export interface StreamEntry {
 
 const MAX_STREAM = 30;
 
+/** Terminal subagent statuses that must not be downgraded by late SSE/API `running` snapshots. */
+export const TERMINAL_SUBAGENT_STATUSES: ReadonlySet<SubagentStatus> = new Set<SubagentStatus>([
+  'completed',
+  'failed',
+  'timed_out',
+  'cancelled',
+  'cancelled_by_budget',
+  'interrupted',
+]);
+
 export interface SubagentNode {
   task_id: string;
   parent_task_id: string;
@@ -254,9 +264,15 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
         if (n.internal) return;
         const existing = map[n.task_id];
         const apiTeammate = (n.teammate_messages ?? []).map((row) => normalizeTeammateEntry(row));
+        // 防回退：本地已是终态（cancelled/completed/failed 等）的节点，
+        // 不允许被 SSE/API 迟到的 running 快照覆盖回退——取消后 task 清理
+        // 存在窗口，后端可能仍短暂广播 running。
+        const merged =
+          existing && TERMINAL_SUBAGENT_STATUSES.has(existing.status) && n.status === 'running'
+            ? { ...existing, ...n, status: existing.status }
+            : { ...existing, ...n };
         map[n.task_id] = {
-          ...existing,
-          ...n,
+          ...merged,
           teammateMessages: mergeTeammateEntries(existing?.teammateMessages, apiTeammate),
         };
       });

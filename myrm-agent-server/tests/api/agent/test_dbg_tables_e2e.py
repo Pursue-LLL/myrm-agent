@@ -4,8 +4,6 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.api.agent.utils import get_model_selection
-
 
 @pytest.mark.e2e
 @pytest.mark.skipif(
@@ -13,10 +11,11 @@ from tests.api.agent.utils import get_model_selection
     reason="requires key",
 )
 def test_dbg_tables(client: TestClient) -> None:
+    import asyncio
+
     from sqlalchemy import inspect
 
-    from app.platform_utils import get_database_engine, get_session_factory
-    import asyncio
+    from app.platform_utils import get_database_engine
 
     async def _list_tables():
         engine = get_database_engine()

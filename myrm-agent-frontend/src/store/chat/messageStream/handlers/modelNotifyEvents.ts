@@ -100,11 +100,21 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
         if (messageIndex !== -1) {
           const steps = state.messages[messageIndex].progressSteps ?? [];
           const displayKey = resolveModelFailoverProgressStepKey(payload.reason);
-          steps.push({
+          const existingStep = steps.find(
+            (step) =>
+              step.step_key?.startsWith('model_failover') ||
+              step.step_key === 'safety_fallback_active',
+          );
+          const failoverStep = {
             step_key: displayKey,
             items: [{ text: `${from} → ${to}` }],
-            status: 'success',
-          });
+            status: 'success' as const,
+          };
+          if (existingStep) {
+            Object.assign(existingStep, failoverStep);
+          } else {
+            steps.push(failoverStep);
+          }
           state.messages[messageIndex].progressSteps = steps;
         }
       });

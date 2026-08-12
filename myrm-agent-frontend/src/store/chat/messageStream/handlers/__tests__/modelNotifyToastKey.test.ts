@@ -27,6 +27,27 @@ describe('modelNotifyToastKey', () => {
     );
   });
 
+  it('maps auth_permanent / session_expired to model_failover_auth', () => {
+    expect(resolveModelFailoverToastKey('auth_permanent')).toBe(
+      'progressSteps.model_failover_auth',
+    );
+    expect(resolveModelFailoverToastKey('session_expired')).toBe(
+      'progressSteps.model_failover_auth',
+    );
+    expect(resolveModelFailoverProgressStepKey('auth_permanent')).toBe(
+      'model_failover_auth',
+    );
+  });
+
+  it('maps safety_block to safety_fallback_active for both toast and step key', () => {
+    expect(resolveModelFailoverToastKey('safety_block')).toBe(
+      'progressSteps.safety_fallback_active',
+    );
+    expect(resolveModelFailoverProgressStepKey('safety_block')).toBe(
+      'safety_fallback_active',
+    );
+  });
+
   it('falls back to generic model_failover', () => {
     expect(resolveModelFailoverToastKey(undefined)).toBe('progressSteps.model_failover');
     expect(resolveModelFailoverToastKey('unknown_reason')).toBe('progressSteps.model_failover');

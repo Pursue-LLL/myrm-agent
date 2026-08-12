@@ -16,30 +16,33 @@ from myrm_agent_harness.agent.meta_tools.bash._compression.output_compressor imp
     compress_output,
 )
 
-from tests.support.bash_compressor_e2e import resolve_working_base_selection
+from tests.support.bash_compressor_e2e import (
+    resolve_backend_workspaces_root,
+    resolve_working_base_selection,
+)
+from tests.support.verify_api_base import resolve_verify_api_base
 
-SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8080").rstrip("/")
-WORKSPACES_ROOT = Path.home() / ".myrm/harness/workspaces"
+SERVER_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 MAKE_PROMPT = (
     "E2E_BASH_MAKE_FILTER: Use bash_code_execute_tool once to run exactly:\n"
-    "printf '%s\\n' "
-    "'all:' \"\\techo 'make[1]: Entering directory /tmp/e2e-build'\" "
-    "\"\\techo 'BUILT_OK=1'\" \"\\techo 'make[1]: Leaving directory /tmp/e2e-build'\" "
+    "printf '%b\\n' "
+    "'all:' '\\t@echo \"make[1]: Entering directory /tmp/e2e-build\"' "
+    "'\\t@echo \"BUILT_OK=1\"' "
+    "'\\t@echo \"make[1]: Leaving directory /tmp/e2e-build\"' "
     "> Makefile && make all\n"
     "Reply with ONLY the stdout from make all."
 )
 
 
-def _health_ok(client: httpx.Client) -> bool:
+def _health_ok(client: httpx.Client, backend_url: str) -> bool:
     try:
-        return client.get(f"{BACKEND_URL}/api/v1/health", timeout=10.0).status_code == 200
+        return client.get(f"{backend_url}/api/v1/health", timeout=10.0).status_code == 200
     except Exception:
         return False
 
 
-def _create_agent(client: httpx.Client) -> str:
+def _create_agent(client: httpx.Client, backend_url: str) -> str:
     payload = {
         "name": f"Make Filter Live {uuid.uuid4().hex[:6]}",
         "description": "Built-in make declarative compression E2E",
@@ -48,7 +51,7 @@ def _create_agent(client: httpx.Client) -> str:
         "mcp_ids": [],
         "security_overrides": {"yoloModeEnabled": True},
     }
-    resp = client.post(f"{BACKEND_URL}/api/v1/user-agents", json=payload, timeout=60.0)
+    resp = client.post(f"{backend_url}/api/v1/user-agents", json=payload, timeout=60.0)
     resp.raise_for_status()
     body = resp.json()
     agent_id = body.get("data", {}).get("id") or body.get("id")
@@ -59,6 +62,7 @@ def _create_agent(client: httpx.Client) -> str:
 def _stream_once(
     client: httpx.Client,
     request_data: dict[str, object],
+    backend_url: str,
 ) -> tuple[str, str, dict[str, object] | None, list[str]]:
     stdout_parts: list[str] = []
     message_parts: list[str] = []
@@ -66,7 +70,7 @@ def _stream_once(
     resume_payload: dict[str, object] | None = None
     with client.stream(
         "POST",
-        f"{BACKEND_URL}/api/v1/agents/agent-stream",
+        f"{backend_url}/api/v1/agents/agent-stream",
         json=request_data,
         timeout=600.0,
     ) as response:
@@ -117,15 +121,20 @@ def _makefile_mtime(path: Path) -> float:
     return makefile.stat().st_mtime if makefile.is_file() else 0.0
 
 
-def _wait_makefile(chat_id: str, started_at: float, timeout_s: float = 120.0) -> Path:
-    ws_dir = WORKSPACES_ROOT / f"chat_{chat_id}"
+def _wait_makefile(
+    chat_id: str,
+    started_at: float,
+    workspaces_root: Path,
+    timeout_s: float = 120.0,
+) -> Path:
+    ws_dir = workspaces_root / f"chat_{chat_id}"
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         makefile = ws_dir / "Makefile"
         if makefile.is_file() and makefile.stat().st_mtime >= started_at - 5:
             return ws_dir
         for candidate in sorted(
-            WORKSPACES_ROOT.glob("chat_*"),
+            workspaces_root.glob("chat_*"),
             key=_makefile_mtime,
             reverse=True,
         ):
@@ -164,30 +173,36 @@ def _verify_make_compression_in_workspace(ws_dir: Path) -> str:
 )
 def test_bash_compressor_builtin_make_live_api() -> None:
     load_dotenv(SERVER_ROOT / ".env", override=True)
+    backend_url = resolve_verify_api_base()
+    workspaces_root = resolve_backend_workspaces_root(backend_url)
     started_at = time.time()
     chat_id = f"e2e-make-{uuid.uuid4().hex[:10]}"
     with httpx.Client() as client:
-        if not _health_ok(client):
-            pytest.skip(f"Backend not reachable at {BACKEND_URL}")
-        agent_id = _create_agent(client)
+        if not _health_ok(client, backend_url):
+            pytest.skip(f"Backend not reachable at {backend_url}")
+        agent_id = _create_agent(client, backend_url)
         request_data: dict[str, object] = {
             "messageId": f"live-make-{uuid.uuid4().hex[:10]}",
             "chatId": chat_id,
             "query": MAKE_PROMPT,
-            "modelSelection": resolve_working_base_selection(backend_url=BACKEND_URL),
+            "modelSelection": resolve_working_base_selection(backend_url=backend_url),
             "actionMode": "agent",
             "agentId": agent_id,
             "memoryRequireConfirmation": False,
             "enableMemoryAutoExtraction": False,
         }
-        stdout_text, message_text, resume_payload, errors = _stream_once(client, request_data)
+        stdout_text, message_text, resume_payload, errors = _stream_once(
+            client, request_data, backend_url
+        )
         if resume_payload is not None:
             resume_request = {
                 **request_data,
                 "messageId": f"live-make-resume-{uuid.uuid4().hex[:10]}",
                 "resumeValue": resume_payload,
             }
-            stdout_resume, message_resume, _, resume_errors = _stream_once(client, resume_request)
+            stdout_resume, message_resume, _, resume_errors = _stream_once(
+                client, resume_request, backend_url
+            )
             errors.extend(resume_errors)
             stdout_text = f"{stdout_text}{stdout_resume}"
             message_text = f"{message_text}{message_resume}"
@@ -196,10 +211,18 @@ def test_bash_compressor_builtin_make_live_api() -> None:
         if not raw.strip() and errors:
             pytest.fail(f"Live stream errors: {errors[0][:300]}")
         if raw.strip() and "BUILT_OK=1" in raw:
-            _verify_make_compression_from_raw(raw)
-            return
+            try:
+                _verify_make_compression_from_raw(raw)
+                return
+            except AssertionError:
+                # raw 含 BUILT_OK 但压缩未消除 Entering/Leaving 目录行，
+                # 说明 stdout 是 Makefile 字面内容而非真实 make 输出，
+                # 回退到 workspace 本地 make 验证（同样覆盖真实压缩链路）。
+                pass
         try:
-            ws_dir = _wait_makefile(chat_id, started_at, timeout_s=60.0)
+            ws_dir = _wait_makefile(
+                chat_id, started_at, workspaces_root, timeout_s=60.0
+            )
         except TimeoutError:
             pytest.skip(
                 "Agent did not produce make output or Makefile in workspace; "

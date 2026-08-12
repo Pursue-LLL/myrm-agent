@@ -47,6 +47,11 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     wait_for_state,
     warm_ui_route,
 )
+from tests.support.e2e_provider_seed import (  # noqa: E402
+    infer_provider_id,
+    strip_provider_prefix,
+    upsert_provider,
+)
 from tests.support.local_embedding_server import LocalEmbeddingServer  # noqa: E402
 from tests.support.test_secrets import load_test_secrets  # noqa: E402
 
@@ -249,52 +254,6 @@ _HISTORY_TABLE_JS = """(() => {
 # writes; kept here so the test does not depend on a pre-seeded database)
 # ---------------------------------------------------------------------------
 
-def _strip_provider_prefix(model: str) -> str:
-    if "/" not in model:
-        return model
-    return model.split("/", 1)[1]
-
-
-def _infer_provider_id(model: str) -> str:
-    if "/" in model:
-        return model.split("/", 1)[0]
-    return "minimax"
-
-
-def _upsert_provider(
-    providers: list[dict[str, object]],
-    *,
-    provider_id: str,
-    model_id: str,
-    api_url: str,
-    api_key: str,
-) -> list[dict[str, object]]:
-    entry = {
-        "id": provider_id,
-        "name": provider_id,
-        "apiUrl": api_url.rstrip("/"),
-        "apiKeys": [{"key": api_key, "isActive": True}],
-        "enabledModels": [model_id],
-        "availableModels": [model_id],
-        "providerType": "minimax" if provider_id == "minimax" else "openai",
-        "isEnabled": True,
-        "enabled": True,
-    }
-    merged: list[dict[str, object]] = []
-    replaced = False
-    for item in providers:
-        if not isinstance(item, dict):
-            continue
-        if str(item.get("id")) == provider_id:
-            merged.append(entry)
-            replaced = True
-        else:
-            merged.append(item)
-    if not replaced:
-        merged.append(entry)
-    return merged
-
-
 def _configure_eval_stack(
     api_url: str,
     *,
@@ -307,30 +266,32 @@ def _configure_eval_stack(
     lite_model = secrets.lite_model or basic_model
     lite_key = secrets.lite_api_key or secrets.basic_api_key
 
-    basic_provider_id = _infer_provider_id(basic_model)
-    basic_model_id = _strip_provider_prefix(basic_model)
-    lite_provider_id = _infer_provider_id(lite_model)
-    lite_model_id = _strip_provider_prefix(lite_model)
+    basic_provider_id = infer_provider_id(basic_model)
+    basic_model_id = strip_provider_prefix(basic_model)
+    lite_provider_id = infer_provider_id(lite_model)
+    lite_model_id = strip_provider_prefix(lite_model)
 
     current = fetch_config_value("providers", api_url=api_url)
     providers = current.get("providers")
     provider_list = providers if isinstance(providers, list) else []
 
-    provider_list = _upsert_provider(
+    provider_list = upsert_provider(
         [p for p in provider_list if isinstance(p, dict)],
         provider_id=basic_provider_id,
         model_id=basic_model_id,
         api_url=secrets.basic_base_url,
         api_key=secrets.basic_api_key,
     )
-    if lite_provider_id != basic_provider_id:
-        provider_list = _upsert_provider(
-            provider_list,
-            provider_id=lite_provider_id,
-            model_id=lite_model_id,
-            api_url=secrets.lite_base_url,
-            api_key=lite_key,
-        )
+    provider_list = upsert_provider(
+        provider_list,
+        provider_id=lite_provider_id,
+        model_id=lite_model_id,
+        api_url=secrets.lite_base_url,
+        api_key=lite_key,
+        # BASIC_MODEL and LITE_MODEL may share one provider (current .env.test SSOT);
+        # merge keeps both models in enabledModels instead of replacing.
+        merge_models=True,
+    )
 
     base_primary = {"providerId": basic_provider_id, "model": basic_model_id}
     lite_primary = {"providerId": lite_provider_id, "model": lite_model_id}

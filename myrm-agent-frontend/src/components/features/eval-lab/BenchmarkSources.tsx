@@ -59,6 +59,7 @@ interface Props {
   refreshToken: number;
   downloadingBenchmarkId: string | null;
   downloadProgress: { downloaded_bytes: number; total_bytes: number } | null;
+  selectedProfileName?: string;
 }
 
 function formatBytes(bytes: number): string {
@@ -104,6 +105,7 @@ export default function BenchmarkSources({
   refreshToken,
   downloadingBenchmarkId,
   downloadProgress,
+  selectedProfileName,
 }: Props) {
   const t = useTranslations('evalLab.wbBench');
   const tMemoryAb = useTranslations('evalLab.memoryAb');
@@ -429,7 +431,14 @@ export default function BenchmarkSources({
               <Layers className="w-4 h-4 text-primary" />
               {tLayers('confirmTitle')}
             </DialogTitle>
-            <DialogDescription className="text-sm leading-relaxed">{tLayers('confirmBody')}</DialogDescription>
+            <DialogDescription className="text-sm leading-relaxed">
+              {tLayers('confirmBody')}
+              {selectedProfileName && (
+                <span className="block mt-2 font-medium text-foreground">
+                  {tLayers('confirmProfileHint')}: {selectedProfileName}
+                </span>
+              )}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPendingLayerBenchmark(null)}>

@@ -5453,6 +5453,8 @@
       "memberRemoved": "Mitglied erfolgreich entfernt",
       "removeMember": "Mitglied entfernen",
       "removeMemberDesc": "Entfernen Sie dieses Mitglied aus der Organisation. Sandbox und Daten bleiben erhalten.",
+      "removeMemberRevokeNote": "Dadurch wird auch der Zugriff dieses Mitglieds auf Organisationstools und -richtlinien (z. B. Genehmigungsrichtlinie, Modell-Whitelist) widerrufen.",
+      "removeMemberIdpNote": "Hinweis: Wenn SSO Auto-Provisioning aktiviert ist, kann dieses Mitglied bei der nächsten Anmeldung automatisch wieder hinzugefügt werden. Um den Zugriff dauerhaft zu entziehen, entfernen Sie das Mitglied im Identity Provider (IdP).",
       "confirmRemove": "Entfernen bestätigen",
       "userId": "User ID",
       "userIdPlaceholder": "User ID",
@@ -5467,6 +5469,7 @@
       "selectMember": "Mitglied auswählen",
       "memberToOffboard": "Ausgliederndes Mitglied",
       "sourceMember": "Quellmitglied",
+      "noTransferableSources": "Keine archivierten Mitglieder zum Übertragen. Führen Sie zuerst ein Offboarding-Archiv durch.",
       "targetMember": "Zielmitglied",
       "offboardSuccess": "Das Offboarden des Benutzers war erfolgreich",
       "transferVolume": "Übertragungsvolumen",
@@ -8502,6 +8505,7 @@
     "model_failover_context_overflow": "Kontext zu lang, zu Backup-Modell gewechselt",
     "model_failover_response_format_error": "Formatfehler in Antwort, zu Backup-Modell gewechselt",
     "model_failover_model_not_found": "Primärmodell nicht verfügbar, zu Backup-Modell gewechselt",
+    "model_failover_auth": "Authentifizierung fehlgeschlagen, zu Backup-Modell gewechselt",
     "model_failover_unconfigured": "Primärmodell fehlgeschlagen — Backup-Modell in den Einstellungen konfigurieren",
     "model_escalated": "Modell automatisch hochgestuft: {from} → {to}",
     "model_escalated_reason": "Grund: {reason}",
@@ -8622,6 +8626,7 @@
     "workflow_planning": "Orchestrierungsplan erstellen",
     "workflow_execution": "Workflow-Aufgaben ausführen",
     "workflow_stage": "Workflow-Phasenaktualisierung",
+    "waiting_for_turn": "Warten auf Abschluss anderer Agenten im Projekt...",
     "errorCategories": {
       "oom": "Nicht genügend Speicher",
       "oom_killed": "OOM getötet",
@@ -14121,7 +14126,19 @@
         "stable": "Stabil",
         "regression": "Rückschritt",
         "allFailed": "Alles fehlgeschlagen"
-      }
+      },
+      "sampled": "Stichprobe",
+      "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)",
+      "sampledHint": "Ergebnisse decken eine Stichprobe ab, nicht den vollständigen Benchmark",
+      "historyTitle": "Verlauf",
+      "historyTime": "Laufzeit",
+      "historyDataset": "Datensatz",
+      "historyAgentModel": "Agent-Modell",
+      "historyJudge": "Richter",
+      "historyLayeredBadge": "Mehrschichtig",
+      "historyAbortedBadge": "Abgebrochen",
+      "historyCurrent": "Ansehen",
+      "historyView": "Ansehen"
     },
     "benchmarksRunStarted": "Benchmark-Bewertung gestartet",
     "alreadyRunning": "Eine Auswertung läuft bereits",
@@ -14197,6 +14214,7 @@
       "judgeModel": "Jury",
       "fingerprint": "Ebenen-Fingerprints fixieren die exakte Schalterkombination und halten Ergebnisse versionsübergreifend vergleichbar.",
       "harnessVersion": "Harness-Engine",
+      "basedOnProfile": "Basierend auf Profil",
       "abortedNotice": "Dieser Bericht ist unvollständig — die Auswertung wurde vor dem Abschluss abgebrochen.",
       "bare": {
         "label": "Basis"
@@ -14213,7 +14231,9 @@
       "confirmTitle": "Layered-Evaluation starten?",
       "confirmBody": "Der Benchmark wird viermal mit Ihrem aktuellen Profil ausgeführt — Basis (Benchmark-Modus, Tools und Fähigkeiten entfernt), Kernkonfiguration (Ihre vollständige Agent-Konfiguration, Fähigkeiten und Speicher aus), +Fähigkeiten, dann +Speicher (Ihre vollständige Konfiguration). Jede Ebene wiederholt dieselben Aufgaben, sodass die Differenz benachbarter Ebenen die jeweilige Fähigkeit isoliert. Die Kosten skalieren etwa mit dem 4-fachen der Stichproben; für die Speicher-Ebene muss ein Embedding-Modell konfiguriert sein.",
       "confirmStart": "Evaluation starten",
-      "confirmCancel": "Abbrechen"
+      "confirmCancel": "Abbrechen",
+      "confirmProfileHint": "Die Bewertung verwendet dieses Profil",
+      "basedOnProfile": "Profil"
     }
   },
   "vault": {

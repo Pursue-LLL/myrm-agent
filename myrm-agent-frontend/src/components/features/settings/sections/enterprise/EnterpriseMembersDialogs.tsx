@@ -148,6 +148,8 @@ export function RemoveMemberDialog({
             <code className="text-xs bg-muted px-1 py-0.5 rounded">{memberLabel}</code>
           </DialogDescription>
         </DialogHeader>
+        <p className="text-xs text-muted-foreground">{t('removeMemberRevokeNote')}</p>
+        <p className="text-xs text-muted-foreground">{t('removeMemberIdpNote')}</p>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t('cancel')}

@@ -152,11 +152,13 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
   const handleCancel = useCallback(async () => {
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/${node.task_id}/cancel`, { method: 'POST' });
-      if (!res.ok) {
+      if (!res.ok && res.status !== 404) {
         const body = await res.json().catch(() => ({}));
         toast.error(body.message || t('cancelFailed'));
         return;
       }
+      // 404 表示该 subagent 已不在后端活跃列表中（已被清理或并发取消），
+      // 从用户视角等同于取消成功，应同步前端状态。
       useSubagentStore.getState().completeNode(node.task_id, 'cancelled');
       toast.success(t('cancelSuccess'));
     } catch {

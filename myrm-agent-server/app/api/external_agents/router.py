@@ -33,8 +33,12 @@ router = APIRouter()
 
 
 class ExternalAgentLoginRequest(BaseModel):
-    command: str = Field(..., min_length=1, description="Executable command or path of the CLI")
-    backend: str | None = Field(default=None, description="Backend key; inferred from command if omitted")
+    command: str = Field(
+        ..., min_length=1, description="Executable command or path of the CLI"
+    )
+    backend: str | None = Field(
+        default=None, description="Backend key; inferred from command if omitted"
+    )
     session_id: str = Field(..., alias="sessionId", min_length=1, max_length=128)
     timeout_seconds: int = Field(default=300, alias="timeoutSeconds", ge=30, le=1800)
 
@@ -43,7 +47,9 @@ class ExternalAgentLoginRequest(BaseModel):
 
 
 class ExternalAgentFeedRequest(BaseModel):
-    text: str = Field(..., description="Line fed to the login process stdin (e.g. a pasted auth code)")
+    text: str = Field(
+        ..., description="Line fed to the login process stdin (e.g. a pasted auth code)"
+    )
 
 
 class ExternalAgentImportRequest(BaseModel):
@@ -78,11 +84,17 @@ _login_registry = _LoginRegistry()
 @router.get("/auth/status")
 async def external_agent_auth_status() -> dict[str, object]:
     """Report install + login state for every known backend via fresh detection."""
-    from myrm_agent_harness.toolkits.acp.auth import CredentialStore, known_backends, profile_for
+    from myrm_agent_harness.toolkits.acp.auth import (
+        CredentialStore,
+        known_backends,
+        profile_for,
+    )
     from myrm_agent_harness.toolkits.acp.core.backend_detector import BackendDetector
 
     detector = BackendDetector()
-    detected = {b.name: b for b in await detector.detect(include_version=True, refresh=True)}
+    detected = {
+        b.name: b for b in await detector.detect(include_version=True, refresh=True)
+    }
     store = CredentialStore()
 
     backends: list[dict[str, object]] = []
@@ -124,7 +136,9 @@ async def external_agent_install(backend: str) -> StreamingResponse:
                 yield f"data: {json.dumps(payload)}\n\n"
 
             # After installation, force detector cache invalidation
-            from myrm_agent_harness.toolkits.acp.core.backend_detector import BackendDetector
+            from myrm_agent_harness.toolkits.acp.core.backend_detector import (
+                BackendDetector,
+            )
 
             detector = BackendDetector()
             detector.invalidate_cache()
@@ -142,28 +156,44 @@ async def external_agent_install(backend: str) -> StreamingResponse:
 
 
 @router.post("/auth/login")
-async def external_agent_auth_login(body: ExternalAgentLoginRequest) -> StreamingResponse:
+async def external_agent_auth_login(
+    body: ExternalAgentLoginRequest,
+) -> StreamingResponse:
     """Drive an interactive CLI login, streaming progress events as SSE."""
     from myrm_agent_harness.toolkits.acp.auth import CliLoginSession, profile_for
 
     profile = profile_for(body.backend or body.command)
     if profile is None:
-        raise HTTPException(status_code=400, detail=f"Unknown external agent backend: {body.backend or body.command}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown external agent backend: {body.backend or body.command}",
+        )
 
-    session = CliLoginSession(body.command, profile, timeout_seconds=body.timeout_seconds)
+    session = CliLoginSession(
+        body.command, profile, timeout_seconds=body.timeout_seconds
+    )
     _login_registry.add(body.session_id, session)
 
     async def event_stream() -> AsyncIterator[str]:
         try:
             async for event in session.run():
-                payload: dict[str, object] = {"type": event.type.value, "message": event.message}
+                payload: dict[str, object] = {
+                    "type": event.type.value,
+                    "message": event.message,
+                }
                 if event.url:
                     payload["url"] = event.url
                 if event.code:
                     payload["code"] = event.code
                 yield f"data: {json.dumps(payload)}\n\n"
-        except Exception as exc:  # pragma: no cover - defensive: never leak a raw 500 into the stream
-            logger.warning("external_agent_login_stream_error backend=%s error=%s", profile.backend, exc)
+        except (
+            Exception
+        ) as exc:  # pragma: no cover - defensive: never leak a raw 500 into the stream
+            logger.warning(
+                "external_agent_login_stream_error backend=%s error=%s",
+                profile.backend,
+                exc,
+            )
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
         finally:
             await session.cancel()
@@ -177,7 +207,9 @@ async def external_agent_auth_login(body: ExternalAgentLoginRequest) -> Streamin
 
 
 @router.post("/auth/login/{session_id}/feed")
-async def external_agent_auth_feed(session_id: str, body: ExternalAgentFeedRequest) -> dict[str, bool]:
+async def external_agent_auth_feed(
+    session_id: str, body: ExternalAgentFeedRequest
+) -> dict[str, bool]:
     """Forward a user-supplied line (e.g. a pasted auth code) to a live login session."""
     from myrm_agent_harness.toolkits.acp.auth import CliLoginSession
 
@@ -189,20 +221,30 @@ async def external_agent_auth_feed(session_id: str, body: ExternalAgentFeedReque
 
 
 @router.post("/auth/import")
-async def external_agent_auth_import(body: ExternalAgentImportRequest) -> dict[str, object]:
+async def external_agent_auth_import(
+    body: ExternalAgentImportRequest,
+) -> dict[str, object]:
     """Persist a credential blob captured on another machine (universal fallback)."""
     from myrm_agent_harness.toolkits.acp.auth import CredentialStore
 
     store = CredentialStore()
     try:
-        state = store.import_credential(body.backend, body.content, filename=body.filename)
+        state = store.import_credential(
+            body.backend, body.content, filename=body.filename
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"backend": state.backend, "authenticated": state.authenticated, "authStatus": state.status.value}
+    return {
+        "backend": state.backend,
+        "authenticated": state.authenticated,
+        "authStatus": state.status.value,
+    }
 
 
 @router.post("/auth/logout")
-async def external_agent_auth_logout(body: ExternalAgentLogoutRequest) -> dict[str, object]:
+async def external_agent_auth_logout(
+    body: ExternalAgentLogoutRequest,
+) -> dict[str, object]:
     """Remove a backend's stored subscription credentials."""
     from myrm_agent_harness.toolkits.acp.auth import CredentialStore
 
@@ -211,4 +253,8 @@ async def external_agent_auth_logout(body: ExternalAgentLogoutRequest) -> dict[s
         state = store.clear(body.backend)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"backend": state.backend, "authenticated": state.authenticated, "authStatus": state.status.value}
+    return {
+        "backend": state.backend,
+        "authenticated": state.authenticated,
+        "authStatus": state.status.value,
+    }

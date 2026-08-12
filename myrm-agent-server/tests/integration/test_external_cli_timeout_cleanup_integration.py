@@ -11,13 +11,13 @@ from __future__ import annotations
 import sys
 
 import pytest
+from myrm_agent_harness.toolkits.acp.types import RuntimeEventType
 
 from app.ai_agents.general_agent.external_agents import ExternalAgentsMixin
 from app.services.external_agents.runtime_pool_registry import (
     ChatScopedRuntimePoolFacade,
     get_chat_runtime_pool_registry,
 )
-from myrm_agent_harness.toolkits.acp.types import RuntimeEventType
 
 pytestmark = [
     pytest.mark.integration,

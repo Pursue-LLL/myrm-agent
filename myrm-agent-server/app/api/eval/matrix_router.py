@@ -27,6 +27,8 @@ from app.core.eval.matrix import (
     abort_matrix_eval,
     get_latest_matrix_report,
     get_matrix_eval_status,
+    get_matrix_report,
+    get_matrix_report_history,
     run_layer_eval_background,
     run_matrix_eval_background,
 )
@@ -103,6 +105,22 @@ async def stream_matrix_evaluation_status() -> StreamingResponse:
 async def get_latest_matrix_evaluation_report() -> dict[str, object]:
     """Get the latest matrix or layered evaluation report."""
     report = get_latest_matrix_report()
+    if not report:
+        return {"status": "not_found", "report": None}
+    return {"status": "success", "report": report}
+
+
+@router.get("/matrix/reports/history")
+async def get_matrix_evaluation_report_history() -> dict[str, object]:
+    """Get the history of matrix/layered reports, newest first."""
+    history = get_matrix_report_history()
+    return {"status": "success", "reports": history}
+
+
+@router.get("/matrix/reports/{timestamp}")
+async def get_matrix_evaluation_report(timestamp: int) -> dict[str, object]:
+    """Get a specific matrix/layered report by its run timestamp."""
+    report = get_matrix_report(timestamp)
     if not report:
         return {"status": "not_found", "report": None}
     return {"status": "success", "report": report}

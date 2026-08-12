@@ -1,4 +1,4 @@
-"""WorkBuddy Bench dataset adapter for the Eval Lab.
+"""WorkBuddy Bench dataset adapter data-source layer.
 
 [INPUT]
 - httpx: HTTP client for HuggingFace dataset downloads
@@ -7,7 +7,7 @@
 [OUTPUT]
 - list_wb_bench_sources(): catalog of the four WorkBuddy Bench subsets
 - ensure_wb_bench_source(): download (retry + progress/abort callbacks) + checksum verify + atomic extract
-- build_wb_bench_cases(): re-exported from wb_bench_workspace (task -> case mapping)
+- WbBenchSubset / WB_BENCH_SUBSETS / WB_BENCH_ROOT + derived archive/source/workspace roots
 
 [POS]
 Business-layer adapter that turns the WorkBuddy Bench public benchmark
@@ -369,12 +369,3 @@ def _scoring_mode_for(subset: WbBenchSubset) -> str:
     if subset.id in _COMPOSITE_SCORING_SUBSETS:
         return "composite"
     return "unknown"
-
-
-# Re-exported so existing ``wb_bench.build_wb_bench_cases`` call sites and test
-# patches keep working; the implementation lives in wb_bench_workspace. The
-# import stays at the bottom to avoid a module-level cycle (wb_bench_workspace
-# imports this module at top level).
-from .wb_bench_workspace import (  # noqa: E402
-    build_wb_bench_cases as build_wb_bench_cases,  # noqa: F401
-)

@@ -6,7 +6,6 @@
 
 import asyncio
 import logging
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +18,15 @@ class ProjectOrchestrator:
     """
 
     def __init__(self) -> None:
-        self._locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+        self._locks: dict[str, asyncio.Lock] = {}
 
     def get_lock(self, project_id: str) -> asyncio.Lock:
-        """获取指定项目的并发锁"""
-        return self._locks[project_id]
+        """获取指定项目的并发锁（首次访问创建并缓存）"""
+        lock = self._locks.get(project_id)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._locks[project_id] = lock
+        return lock
 
     async def acquire(self, project_id: str) -> None:
         """申请项目锁"""
@@ -32,15 +35,24 @@ class ProjectOrchestrator:
         logger.debug(f"Lock acquired for project {project_id}")
 
     def release(self, project_id: str) -> None:
-        """释放项目锁"""
-        lock = self.get_lock(project_id)
-        if lock.locked():
+        """释放项目锁；锁无持有者且无等待者时从缓存移除"""
+        lock = self._locks.get(project_id)
+        if lock is not None and lock.locked():
             lock.release()
             logger.debug(f"Lock released for project {project_id}")
+            if not lock.locked() and not lock._waiters:
+                self._locks.pop(project_id, None)
 
     def is_locked(self, project_id: str) -> bool:
-        """检查项目是否被锁定"""
-        return self.get_lock(project_id).locked()
+        """检查项目是否被锁定（纯查询，不创建锁）"""
+        lock = self._locks.get(project_id)
+        return lock.locked() if lock is not None else False
+
+    def forget(self, project_id: str) -> None:
+        """项目删除时清理锁缓存；锁被持有或等待时不强制移除"""
+        lock = self._locks.get(project_id)
+        if lock is not None and not lock.locked() and not lock._waiters:
+            self._locks.pop(project_id, None)
 
 
 # 全局单例

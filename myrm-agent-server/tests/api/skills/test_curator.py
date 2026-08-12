@@ -7,7 +7,7 @@ from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus, Skill
 
 def test_curator_config_consolidation_default_false(client: TestClient, tmp_path: Path) -> None:
     """Fresh curator config must have consolidation_enabled=false."""
-    import app.core.skills.curator_service as curator_service
+    import app.core.skills.curator.service as curator_service
 
     curator_service._curator_config = None
     with patch.object(curator_service, "_get_data_dir", return_value=tmp_path):
@@ -200,7 +200,7 @@ def test_consolidation_preview_empty(client: TestClient):
     async def mock_preview():
         return ConsolidationPlan()
 
-    with patch("app.core.skills.curator_service.run_consolidation_preview", side_effect=mock_preview):
+    with patch("app.core.skills.curator.consolidation.run_consolidation_preview", side_effect=mock_preview):
         response = client.post("/api/v1/skills/curator/consolidation/preview")
     assert response.status_code == 200
     data = response.json()
@@ -234,7 +234,7 @@ def test_consolidation_preview_with_actions(client: TestClient):
     async def mock_preview():
         return plan
 
-    with patch("app.core.skills.curator_service.run_consolidation_preview", side_effect=mock_preview):
+    with patch("app.core.skills.curator.consolidation.run_consolidation_preview", side_effect=mock_preview):
         response = client.post("/api/v1/skills/curator/consolidation/preview")
     assert response.status_code == 200
     data = response.json()
@@ -259,7 +259,7 @@ def test_consolidation_execute_empty(client: TestClient):
             "agent_refs_updated": 0,
         }
 
-    with patch("app.core.skills.curator_service.run_consolidation_execute", side_effect=mock_execute):
+    with patch("app.core.skills.curator.consolidation.run_consolidation_execute", side_effect=mock_execute):
         response = client.post("/api/v1/skills/curator/consolidation/execute")
     assert response.status_code == 200
     data = response.json()
@@ -281,7 +281,7 @@ def test_consolidation_execute_with_results(client: TestClient):
             "agent_refs_updated": 1,
         }
 
-    with patch("app.core.skills.curator_service.run_consolidation_execute", side_effect=mock_execute):
+    with patch("app.core.skills.curator.consolidation.run_consolidation_execute", side_effect=mock_execute):
         response = client.post("/api/v1/skills/curator/consolidation/execute")
     assert response.status_code == 200
     data = response.json()

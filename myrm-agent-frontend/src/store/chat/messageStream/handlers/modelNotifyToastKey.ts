@@ -26,6 +26,9 @@ const FAILOVER_REASON_TO_PROGRESS_KEY: Record<string, string> = {
   response_format: 'progressSteps.model_failover_response_format_error',
   format: 'progressSteps.model_failover_response_format_error',
   model_not_found: 'progressSteps.model_failover_model_not_found',
+  auth_permanent: 'progressSteps.model_failover_auth',
+  session_expired: 'progressSteps.model_failover_auth',
+  safety_block: 'progressSteps.safety_fallback_active',
 };
 
 export function resolveModelFailoverToastKey(reason?: string): string {

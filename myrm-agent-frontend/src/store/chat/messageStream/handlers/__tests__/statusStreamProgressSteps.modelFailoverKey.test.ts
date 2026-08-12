@@ -115,8 +115,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     expect(step.step_key).toBe('model_failover');
   });
 
-  it('creates assistant placeholder when model_failover arrives before MESSAGE', async () => {
-    const { findAssistantMessageIndex } = await import('../handlerDeps');
+  it('creates assistant placeholder when model_failover arrives before MESSAGE', async () => {    const { findAssistantMessageIndex } = await import('../handlerDeps');
     vi.mocked(findAssistantMessageIndex).mockReturnValue(-1);
 
     const state = {
@@ -128,7 +127,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
           role: 'user' as const,
           createdAt: new Date(),
         },
-      ],
+      ] as Array<{ content: string; messageId: string; chatId: string; role: string; createdAt: Date; progressSteps?: Array<{ step_key?: string }> }>,
     };
     const setMessages = vi.fn((updater: (s: typeof state) => void) => {
       updater(state);
@@ -164,6 +163,48 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
   it('recognizes unconfigured failover progress steps', () => {
     expect(isStatusProgressStep('model_failover_unconfigured')).toBe(true);
     expect(isStatusProgressStep('safety_fallback_unconfigured')).toBe(true);
+  });
+
+  it('dedupes STATUS safety_fallback_active when SSE already created the step', async () => {
+    const state = makeMessagesState();
+    state.messages[0].progressSteps!.push({
+      step_key: 'safety_fallback_active',
+      items: [{ text: 'agnes → safety-mini' }],
+      status: 'success',
+    });
+    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+      updater(state);
+    });
+
+    const ctx = makeFailoverCtx('safety_block');
+    (ctx.data as unknown as Record<string, unknown>).step_key = 'safety_fallback_active';
+    (ctx.data as unknown as Record<string, unknown>).fallback_model = 'safety-mini';
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+    await applyStatusProgressStep(ctx, 'safety_fallback_active');
+
+    expect(state.messages[0].progressSteps).toHaveLength(1);
+    expect(state.messages[0].progressSteps![0].step_key).toBe('safety_fallback_active');
+  });
+
+  it('keeps from → to label when STATUS arrives after the SSE failover step', async () => {
+    const state = makeMessagesState();
+    state.messages[0].progressSteps!.push({
+      step_key: 'model_failover_overloaded',
+      items: [{ text: 'agnes → minimax/MiniMax-M3' }],
+      status: 'success',
+    });
+    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+      updater(state);
+    });
+
+    const ctx = makeFailoverCtx('overloaded');
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+    await applyStatusProgressStep(ctx, 'model_failover');
+
+    expect(state.messages[0].progressSteps).toHaveLength(1);
+    expect(state.messages[0].progressSteps![0].items?.[0]).toMatchObject({
+      text: 'agnes → minimax/MiniMax-M3',
+    });
   });
 
   it('routes unconfigured failover toast CTA to default model settings', async () => {
@@ -246,5 +287,20 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     vi.unstubAllGlobals();
     vi.doUnmock('@/services/i18nToastService');
     vi.resetModules();
+  });
+
+  it('deduplicates repeated model_failover STATUS into a single progress step', async () => {
+    const state = makeMessagesState();
+    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+      updater(state);
+    });
+
+    const ctx = makeFailoverCtx('model_not_found');
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+    await applyStatusProgressStep(ctx, 'model_failover');
+    await applyStatusProgressStep(ctx, 'model_failover');
+
+    expect(state.messages[0].progressSteps).toHaveLength(1);
+    expect(state.messages[0].progressSteps![0].step_key).toBe('model_failover_model_not_found');
   });
 });

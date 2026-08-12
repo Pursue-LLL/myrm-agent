@@ -10,9 +10,9 @@ from app.api.agents._agent_response import (
     _meta_list_or_none,
     _meta_str_list,
     _meta_str_list_or_none,
+    _resolve_enabled_builtin_tools,
     _response_memory_policy,
     _response_session_policy,
-    _resolve_enabled_builtin_tools,
     _safe_personality,
     _to_agent_response,
 )

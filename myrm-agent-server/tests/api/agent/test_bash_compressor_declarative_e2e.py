@@ -161,4 +161,7 @@ def test_bash_compressor_agent_stream_declarative_filter(client: TestClient) -> 
     stdout_text, message_text = _collect_stream(client, E2E_PROMPT, agent_id)
     combined = f"{stdout_text}\n{message_text}"
     assert combined.strip(), "Expected non-empty agent stream output"
-    _assert_compressed_output(combined)
+    # 压缩只作用于 bash 工具 stdout（tool_stdout_chunk），LLM 回复文本不受
+    # declarative 过滤器影响，因此压缩断言只针对 stdout_text。
+    assert stdout_text.strip(), "Expected tool stdout from bash_code_execute_tool"
+    _assert_compressed_output(stdout_text)

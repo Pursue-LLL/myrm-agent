@@ -15,8 +15,6 @@ from app.core.utils.chat_utils import (
     extract_answer_text,
     extract_litellm_answer_text,
     parse_judge_json,
-    parse_llm_json_list,
-    parse_llm_json_object,
 )
 
 # 从 errors.py 导出（业务层异常）
@@ -58,8 +56,6 @@ __all__ = [
     "extract_answer_text",
     "extract_litellm_answer_text",
     "parse_judge_json",
-    "parse_llm_json_list",
-    "parse_llm_json_object",
     # 文件工具
     "extract_file_id_from_url",
     "read_image_as_base64",

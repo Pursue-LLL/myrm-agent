@@ -29,6 +29,7 @@ import { useSkillStore } from '@/store/skill';
 import useConfigStore from '@/store/useConfigStore';
 import { guardSearchServiceConfigured } from '@/store/config/searchService';
 import type { SearchServiceConfigItem } from '@/store/config/types';
+import type { DefaultModelConfig, ProviderConfig } from '@/store/config/providerTypes';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import useDesktopInspectorStore, {
   selectScopedDesktopViewData,
@@ -95,19 +96,6 @@ async function waitE2eProviderSendReady(deadlineMs: number, preserveActionMode =
   throw new Error('e2e-send-not-ready-after-provider-init');
 }
 
-type E2eProviderConfigBody = {
-  value?: {
-    defaultModelConfig?: {
-      baseModel?: { primary?: { providerId?: string; model?: string } | null };
-      liteModel?: { primary?: { providerId?: string; model?: string } | null };
-    };
-  };
-  defaultModelConfig?: {
-    baseModel?: { primary?: { providerId?: string; model?: string } | null };
-    liteModel?: { primary?: { providerId?: string; model?: string } | null };
-  };
-};
-
 function extractSearchServiceConfigs(body: unknown): SearchServiceConfigItem[] {
   if (!body || typeof body !== 'object') {
     return [];
@@ -159,47 +147,6 @@ async function hydrateSearchServicesFromE2eApi(): Promise<{ ok: boolean; err?: s
   }
 }
 
-async function fetchE2eProviderConfigBody(): Promise<E2eProviderConfigBody> {
-  const apiBase = (resolveE2eApiBase() || getApiBaseUrl()).replace(/\/+$/, '');
-  const res = await fetch(`${apiBase}/api/v1/config/providers`, { cache: 'no-store' });
-  if (!res.ok) {
-    throw new Error(`e2e-provider-config-fetch-${res.status}`);
-  }
-  return (await res.json()) as E2eProviderConfigBody;
-}
-
-async function hydrateLiteModelFromConfigApi(): Promise<void> {
-  const config = await fetchE2eProviderConfigBody();
-  const litePrimary = (config.value ?? config)?.defaultModelConfig?.liteModel?.primary;
-  if (!litePrimary?.providerId || !litePrimary?.model) {
-    throw new Error('e2e-lite-model-unconfigured');
-  }
-  const providerId = litePrimary.providerId;
-  const model = litePrimary.model;
-  flushSync(() => {
-    useProviderStore.getState().setLiteModel({
-      providerId,
-      model,
-    });
-  });
-}
-
-async function hydrateBaseModelFromConfigApi(): Promise<void> {
-  const config = await fetchE2eProviderConfigBody();
-  const basePrimary = (config.value ?? config)?.defaultModelConfig?.baseModel?.primary;
-  if (!basePrimary?.providerId || !basePrimary?.model) {
-    throw new Error('e2e-base-model-unconfigured');
-  }
-  const providerId = basePrimary.providerId;
-  const model = basePrimary.model;
-  flushSync(() => {
-    useProviderStore.getState().setBaseModel({
-      providerId,
-      model,
-    });
-  });
-}
-
 async function probePrivateBackendReady(e2eApiBase: string): Promise<boolean> {
   try {
     const health = await fetch(`${e2eApiBase}/api/v1/health`, { cache: 'no-store' });
@@ -215,6 +162,40 @@ async function probePrivateBackendReady(e2eApiBase: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+type E2eProviderConfigBody = {
+  value?: {
+    providers?: ProviderConfig[];
+    defaultModelConfig?: DefaultModelConfig;
+  };
+  providers?: ProviderConfig[];
+  defaultModelConfig?: DefaultModelConfig;
+};
+
+/**
+ * E2E 权威配置读取：直接请求后端 /api/v1/config/providers，
+ * 绕开 ConfigSyncManager 会话级缓存，避免测试 seed（PRIVATE runtime
+ * 并行复用时 upsert 的 corrupt primary）不被前端感知。
+ */
+async function fetchE2eProviderConfigBody(): Promise<E2eProviderConfigBody> {
+  const apiBase = (resolveE2eApiBase() || getApiBaseUrl()).replace(/\/+$/, '');
+  const res = await fetch(`${apiBase}/api/v1/config/providers`, { cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error(`e2e-provider-config-fetch-${res.status}`);
+  }
+  const body = (await res.json()) as E2eProviderConfigBody;
+  const value = (body.value ?? body) as E2eProviderConfigBody;
+  if (typeof window !== 'undefined' && window.__MYRM_E2E_RUNTIME__) {
+    console.log(
+      '[E2EChatBridge] authoritative providers base=%s primary=%s/%s count=%d',
+      apiBase,
+      value.defaultModelConfig?.baseModel?.primary?.providerId ?? '?',
+      value.defaultModelConfig?.baseModel?.primary?.model ?? '?',
+      value.providers?.length ?? 0,
+    );
+  }
+  return value;
 }
 
 type E2eChatSessionOpts = { preserveActionMode?: boolean };
@@ -1340,18 +1321,24 @@ export default function E2EChatBridge() {
         if (shouldRunPrepareAutomationSend(preserveActionMode)) {
           prepareAutomationSend();
         }
-        let { defaultModelConfig, providers } = useProviderStore.getState();
-        let litePrimary = defaultModelConfig?.liteModel?.primary;
-        if (!litePrimary?.providerId || !litePrimary?.model) {
-          await hydrateLiteModelFromConfigApi();
-          ({ defaultModelConfig, providers } = useProviderStore.getState());
-          litePrimary = defaultModelConfig?.liteModel?.primary;
-        }
+        // 与 pinBasicModelForE2e 一致：用后端权威配置校验，绕开 store 缓存。
+        const authoritative = await fetchE2eProviderConfigBody();
+        const serverProviders = authoritative.providers ?? [];
+        const serverLitePrimary = authoritative.defaultModelConfig?.liteModel?.primary;
+        const storeLitePrimary = useProviderStore.getState().defaultModelConfig?.liteModel?.primary;
+        const litePrimary = serverLitePrimary ?? storeLitePrimary;
         if (!litePrimary?.providerId || !litePrimary?.model) {
           throw new Error('e2e-lite-model-unconfigured');
         }
-        if (!isModelAvailable(litePrimary, providers)) {
+        if (!isModelAvailable(litePrimary, serverProviders)) {
           throw new Error(`e2e-lite-model-unavailable:${litePrimary.providerId}/${litePrimary.model}`);
+        }
+        const authoritativeConfig = authoritative.defaultModelConfig;
+        if (serverProviders.length > 0 || authoritativeConfig) {
+          useProviderStore.setState({
+            providers: serverProviders.length > 0 ? serverProviders : useProviderStore.getState().providers,
+            defaultModelConfig: authoritativeConfig ?? useProviderStore.getState().defaultModelConfig,
+          });
         }
         const selection = {
           providerId: litePrimary.providerId,
@@ -1383,22 +1370,36 @@ export default function E2EChatBridge() {
         // when search configs are intentionally empty under e2e_search_policy("empty").
         prepareAutomationSend();
         await initProvidersForE2e();
-        let { defaultModelConfig, providers } = useProviderStore.getState();
-        let basePrimary = defaultModelConfig?.baseModel?.primary;
-        if (!basePrimary?.providerId || !basePrimary?.model) {
-          await hydrateBaseModelFromConfigApi();
-          ({ defaultModelConfig, providers } = useProviderStore.getState());
-          basePrimary = defaultModelConfig?.baseModel?.primary;
-        }
-        if (!basePrimary?.providerId || !basePrimary?.model) {
+        // E2E 权威配置：直接读后端 /api/v1/config/providers，绕开 store 缓存，
+        // 保证并行/共享 attach 复用页面时能看到测试 seed 的 corrupt primary。
+        const authoritative = await fetchE2eProviderConfigBody();
+        const serverProviders = authoritative.providers ?? [];
+        const serverBasePrimary = authoritative.defaultModelConfig?.baseModel?.primary;
+        const storeBasePrimary = useProviderStore.getState().defaultModelConfig?.baseModel?.primary;
+        const primary = serverBasePrimary ?? storeBasePrimary;
+        if (!primary?.providerId || !primary?.model) {
           throw new Error('e2e-base-model-unconfigured');
         }
-        if (!isModelAvailable(basePrimary, providers)) {
-          throw new Error(`e2e-base-model-unavailable:${basePrimary.providerId}/${basePrimary.model}`);
+        if (!isModelAvailable(primary, serverProviders)) {
+          const base = (resolveE2eApiBase() || getApiBaseUrl()).replace(/\/+$/, '');
+          const provider = serverProviders.find((p) => p.id === primary.providerId);
+          throw new Error(
+            `e2e-base-model-unavailable:${primary.providerId}/${primary.model}` +
+              ` base=${base} providerId=${provider?.id ?? '?'} models=${JSON.stringify(provider?.enabledModels ?? [])}`,
+          );
+        }
+        // 用后端权威数据刷新 store（providers + defaultModelConfig），
+        // 保证后续发送走测试 seed 的 corrupt primary。
+        const authoritativeConfig = authoritative.defaultModelConfig;
+        if (serverProviders.length > 0 || authoritativeConfig) {
+          useProviderStore.setState({
+            providers: serverProviders.length > 0 ? serverProviders : useProviderStore.getState().providers,
+            defaultModelConfig: authoritativeConfig ?? useProviderStore.getState().defaultModelConfig,
+          });
         }
         const selection = {
-          providerId: basePrimary.providerId,
-          model: basePrimary.model,
+          providerId: primary.providerId,
+          model: primary.model,
         };
         flushSync(() => {
           useProviderStore.getState().setFastModeModel(selection);

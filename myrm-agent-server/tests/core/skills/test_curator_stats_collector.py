@@ -1,4 +1,4 @@
-"""Unit tests for curator_service get_stats_collector injection."""
+"""Unit tests for curator service get_stats_collector injection."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from myrm_agent_harness.backends.skills.usage_recorder import (
 
 @pytest.fixture(autouse=True)
 def _reset_curator_singletons() -> None:
-    import app.core.skills.curator_service as curator_service
+    import app.core.skills.curator.service as curator_service
 
     curator_service._stats_collector = None
     set_stats_collector(None)
@@ -25,7 +25,7 @@ def _reset_curator_singletons() -> None:
 
 
 def test_get_stats_collector_injects_into_harness(tmp_path: Path) -> None:
-    from app.core.skills import curator_service
+    from app.core.skills.curator import service as curator_service
 
     skills_root = tmp_path / "skills"
     skills_root.mkdir()

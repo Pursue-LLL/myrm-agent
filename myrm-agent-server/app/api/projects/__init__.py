@@ -8,3 +8,7 @@ from .router import router as project_router
 router = APIRouter()
 router.include_router(project_router)
 router.include_router(milestone_router)
+
+from .test_fixtures import router as test_fixtures_router
+
+router.include_router(test_fixtures_router)

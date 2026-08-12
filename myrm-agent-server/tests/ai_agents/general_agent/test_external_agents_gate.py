@@ -227,9 +227,20 @@ async def test_do_setup_returns_early_without_configs() -> None:
 
 
 def test_should_mount_delegate_tool_matrix() -> None:
-    assert should_mount_delegate_tool(agent_id="general", force_delegate_agent=None) is True
-    assert should_mount_delegate_tool(agent_id=BUILTIN_CLI_VISUAL_AGENT_ID, force_delegate_agent=None) is False
-    assert should_mount_delegate_tool(agent_id="general", force_delegate_agent="claude") is False
+    assert (
+        should_mount_delegate_tool(agent_id="general", force_delegate_agent=None)
+        is True
+    )
+    assert (
+        should_mount_delegate_tool(
+            agent_id=BUILTIN_CLI_VISUAL_AGENT_ID, force_delegate_agent=None
+        )
+        is False
+    )
+    assert (
+        should_mount_delegate_tool(agent_id="general", force_delegate_agent="claude")
+        is False
+    )
 
 
 def test_needs_runtime_pool_matrix() -> None:
@@ -375,7 +386,9 @@ async def test_direct_delegate_stream_maps_runtime_events() -> None:
     mock_pool.get_config.return_value = SimpleNamespace(auth_mode="api_key")
 
     async def _fake_run_turn(*_args: object, **_kwargs: object):
-        yield SimpleNamespace(type=RuntimeEventType.TEXT_DELTA, data={"content": "hello"})
+        yield SimpleNamespace(
+            type=RuntimeEventType.TEXT_DELTA, data={"content": "hello"}
+        )
         yield SimpleNamespace(
             type=RuntimeEventType.TOOL_START,
             data={"tool_name": "bash"},
@@ -394,7 +407,9 @@ async def test_direct_delegate_stream_maps_runtime_events() -> None:
     mixin._runtime_pool = mock_pool
 
     events: list[dict[str, object]] = []
-    async for event in mixin._direct_delegate_stream("claude", "run task", chat_id="chat-1"):
+    async for event in mixin._direct_delegate_stream(
+        "claude", "run task", chat_id="chat-1"
+    ):
         events.append(event)
 
     event_types = {str(event.get("type")) for event in events}
@@ -416,7 +431,9 @@ async def test_direct_delegate_stream_cancels_when_token_set() -> None:
 
     async def _fake_run_turn(*_args: object, **_kwargs: object):
         cancel_token.cancel()
-        yield SimpleNamespace(type=RuntimeEventType.TEXT_DELTA, data={"content": "partial"})
+        yield SimpleNamespace(
+            type=RuntimeEventType.TEXT_DELTA, data={"content": "partial"}
+        )
 
     mock_pool.run_turn = _fake_run_turn
     mock_pool.cancel = AsyncMock()

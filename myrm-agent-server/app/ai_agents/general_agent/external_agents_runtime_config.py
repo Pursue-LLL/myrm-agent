@@ -179,7 +179,9 @@ async def _resolve_external_agent_cfgs(
         return None
 
     try:
-        from myrm_agent_harness.toolkits.acp.core.backend_detector import BackendDetector
+        from myrm_agent_harness.toolkits.acp.core.backend_detector import (
+            BackendDetector,
+        )
 
         detector = BackendDetector()
         detected = await detector.detect(include_version=False)
@@ -202,7 +204,9 @@ async def _resolve_external_agent_cfgs(
         return None
 
 
-def _register_backends_on_pool(pool: RuntimePool, agent_cfgs: list[dict[str, object]]) -> None:
+def _register_backends_on_pool(
+    pool: RuntimePool, agent_cfgs: list[dict[str, object]]
+) -> None:
     from myrm_agent_harness.toolkits.acp.types import RuntimeConfig
 
     for cfg in agent_cfgs:
@@ -211,7 +215,9 @@ def _register_backends_on_pool(pool: RuntimePool, agent_cfgs: list[dict[str, obj
 
         normalized_cfg = _normalize_runtime_cfg(cfg)
         if normalized_cfg is None:
-            logger.warning("Skipping external agent with missing name or command: %s", cfg)
+            logger.warning(
+                "Skipping external agent with missing name or command: %s", cfg
+            )
             continue
 
         backend_type = normalized_cfg.backend_type
@@ -237,4 +243,6 @@ def _register_backends_on_pool(pool: RuntimePool, agent_cfgs: list[dict[str, obj
             description=normalized_cfg.description,
         )
         pool.register(normalized_cfg.name, runtime_cfg)
-        logger.info("Registered external agent: %s (%s)", normalized_cfg.name, backend_type)
+        logger.info(
+            "Registered external agent: %s (%s)", normalized_cfg.name, backend_type
+        )

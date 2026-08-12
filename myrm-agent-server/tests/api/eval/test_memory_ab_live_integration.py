@@ -205,7 +205,7 @@ def _run_full_chain(embedding_endpoint: str) -> None:
         }
         return limited, limited_seed_map, False
 
-    from app.core.eval import wb_bench_workspace as _wb_ws
+    from app.core.eval.wb_bench import workspace as _wb_ws
 
     real_iter_task_dirs = _wb_ws._iter_task_dirs
 

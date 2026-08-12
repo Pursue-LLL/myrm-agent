@@ -140,3 +140,45 @@ describe('internal nodes', () => {
     expect(nodes['verify-worker-1']).toBeUndefined();
   });
 });
+
+describe('setNodes terminal-state protection', () => {
+  beforeEach(() => {
+    useSubagentStore.getState().clear();
+  });
+
+  it('does not downgrade a cancelled node to running via late SSE snapshot', () => {
+    useSubagentStore.getState().setNodes([
+      makeNode({ task_id: 't1', status: 'cancelled' }),
+    ]);
+    useSubagentStore.getState().setNodes([
+      makeNode({ task_id: 't1', status: 'running', progress: 40 }),
+    ]);
+    const node = useSubagentStore.getState().nodes['t1'];
+    expect(node.status).toBe('cancelled');
+  });
+
+  it('keeps terminal status for completed/failed/timed_out when running arrives', () => {
+    for (const status of ['completed', 'failed', 'timed_out'] as const) {
+      useSubagentStore.getState().clear();
+      useSubagentStore.getState().setNodes([makeNode({ task_id: 't1', status })]);
+      useSubagentStore.getState().setNodes([makeNode({ task_id: 't1', status: 'running' })]);
+      expect(useSubagentStore.getState().nodes['t1'].status).toBe(status);
+    }
+  });
+
+  it('allows running -> completed forward transition', () => {
+    useSubagentStore.getState().setNodes([makeNode({ task_id: 't1', status: 'running' })]);
+    useSubagentStore.getState().setNodes([makeNode({ task_id: 't1', status: 'completed', progress: 100 })]);
+    expect(useSubagentStore.getState().nodes['t1'].status).toBe('completed');
+  });
+
+  it('still merges non-status fields from late snapshots', () => {
+    useSubagentStore.getState().setNodes([makeNode({ task_id: 't1', status: 'cancelled' })]);
+    useSubagentStore.getState().setNodes([
+      makeNode({ task_id: 't1', status: 'running', last_tool: 'bash' }),
+    ]);
+    const node = useSubagentStore.getState().nodes['t1'];
+    expect(node.status).toBe('cancelled');
+    expect(node.last_tool).toBe('bash');
+  });
+});

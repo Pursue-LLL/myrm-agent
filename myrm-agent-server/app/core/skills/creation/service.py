@@ -2,8 +2,8 @@
 
 [INPUT]
 - creation_protocols::SkillWriteBackend, SkillSaveResult, SkillDeleteResult, SkillResourceWriteResult
-- packaging.validator::parse_skill_md
-- store.sanitizer::SKILL_MD_FILE, SKILL_NAME_PATTERN
+- myrm_agent_harness.agent.skills.packaging.validator::parse_skill_md
+- myrm_agent_harness.agent.skills.market.sanitizer::SKILL_MD_FILE, SKILL_NAME_PATTERN
 
 [OUTPUT]
 - SkillCreationService: local filesystem implementation of SkillWriteBackend

@@ -90,4 +90,23 @@ describe('FileSnapshotCard', () => {
     expect(onDelete).toHaveBeenCalledTimes(1);
     expect(onDelete).toHaveBeenCalledWith('snap-1');
   });
+
+  it('opens only one confirmation panel at a time', () => {
+    const { container } = render(
+      <FileSnapshotCard
+        snapshot={baseSnapshot()}
+        onRestore={() => {}}
+        onViewDiff={() => {}}
+        onDelete={() => {}}
+        isLoading={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('restore'));
+    expect(screen.queryByText('restore')).not.toBeInTheDocument();
+
+    fireEvent.click(container.querySelector('.lucide-trash') as HTMLElement);
+    expect(screen.getByText('deleteConfirm')).toBeInTheDocument();
+    expect(screen.getByText('restore')).toBeInTheDocument();
+  });
 });

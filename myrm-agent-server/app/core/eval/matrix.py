@@ -10,7 +10,8 @@
 [OUTPUT]
 - get_matrix_eval_status / abort_matrix_eval: progress query and abort.
 - run_matrix_eval_background: background cross-profile matrix run.
-- get_latest_matrix_report: latest report reader.
+- get_latest_matrix_report / get_matrix_report / get_matrix_report_history:
+  latest reader, per-timestamp reader and history list (newest first).
 - Layered eval (LayerSpec / DEFAULT_LAYER_SPECS / layer_specs_to_meta /
   run_layer_eval_background): re-exported from app.core.eval.layered.
 
@@ -27,6 +28,7 @@ import json
 import logging
 import shutil
 import time
+from pathlib import Path
 from typing import cast
 
 from myrm_agent_harness import __version__ as harness_version
@@ -51,6 +53,8 @@ __all__ = [
     "abort_matrix_eval",
     "get_latest_matrix_report",
     "get_matrix_eval_status",
+    "get_matrix_report",
+    "get_matrix_report_history",
     "layer_specs_to_meta",
     "run_layer_eval_background",
     "run_matrix_eval_background",
@@ -238,3 +242,65 @@ def get_latest_matrix_report() -> dict[str, object] | None:
     except Exception as exc:
         logger.warning("Failed to read matrix report: %s", exc)
         return None
+
+
+def get_matrix_report(timestamp: int) -> dict[str, object] | None:
+    """Get a specific matrix/layered report by its run timestamp."""
+    report_path = eval_state.DEFAULT_MATRIX_REPORTS_DIR / f"matrix_report_{timestamp}.json"
+    if not report_path.exists():
+        return None
+    try:
+        with report_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            logger.warning("Matrix report %s is not an object", report_path)
+            return None
+        return data
+    except Exception as exc:
+        logger.warning("Failed to read matrix report %s: %s", report_path, exc)
+        return None
+
+
+def _matrix_report_sort_key(item: dict[str, object]) -> int:
+    """Sort key for report summaries: run timestamp, missing treated as 0."""
+    ts = item.get("timestamp")
+    return ts if isinstance(ts, int) else 0
+
+
+def get_matrix_report_history(
+    reports_dir: Path | None = None,
+) -> list[dict[str, object]]:
+    """Get all matrix/layered reports, newest first.
+
+    Returns a lightweight summary per run (timestamp, dataset, type, models)
+    so the UI can show a history list without shipping the full per-case matrix.
+    """
+    reports_dir = reports_dir or eval_state.DEFAULT_MATRIX_REPORTS_DIR
+    if not reports_dir.exists():
+        return []
+
+    summaries: list[dict[str, object]] = []
+    for report_path in reports_dir.glob("matrix_report_*.json"):
+        try:
+            with report_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                continue
+            summaries.append(
+                {
+                    "timestamp": data.get("timestamp"),
+                    "dataset_id": data.get("dataset_id"),
+                    "profile_id": data.get("profile_id"),
+                    "eval_type": data.get("eval_type"),
+                    "judge_model": data.get("judge_model"),
+                    "agent_model": data.get("agent_model"),
+                    "stable_rate": data.get("stable_rate"),
+                    "limit": data.get("limit"),
+                    "aborted": data.get("aborted", False),
+                }
+            )
+        except Exception as exc:
+            logger.warning("Failed to read matrix report %s: %s", report_path, exc)
+
+    summaries.sort(key=_matrix_report_sort_key, reverse=True)
+    return summaries

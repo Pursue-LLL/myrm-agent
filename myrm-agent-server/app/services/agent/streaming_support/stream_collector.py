@@ -14,8 +14,9 @@ retrieval traces, end-to-end stream TTFT (`streamTtftMs`), kanban_tasks_created,
 HITL clarification (`clarification`), deep-research plan confirmation (`planConfirmation`),
 file mutation failures (`fileMutationFailures`), workspace merge failures (`workspaceMergeFailures`, `workspaceMergeFailedCount`, `workspaceMergeTruncated`), council phase progress (`councilPhases`),
 reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`),
-and per-stream evicted output references (`evicted_file_ref` for stdout, `evicted_stderr_file_ref` for stderr,
-with stored_chars/total_lines/storage_truncated metrics for each).
+per-stream evicted output references (`evicted_file_ref` for stdout, `evicted_stderr_file_ref` for stderr,
+with stored_chars/total_lines/storage_truncated metrics for each),
+and deduplicated model-failover progress steps (`model_failover*`) from STATUS + SSE channels.
 
 [POS]
 Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata.
@@ -62,6 +63,7 @@ _FAILOVER_REASON_TO_STEP_KEY: dict[str, str] = {
     "model_not_found": "model_failover_model_not_found",
     "auth_permanent": "model_failover_auth",
     "session_expired": "model_failover_auth",
+    "safety_block": "safety_fallback_active",
 }
 logger = logging.getLogger(__name__)
 _STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
@@ -813,13 +815,7 @@ class StreamContentCollector:
                 )
                 fallback_model = event.get("fallback_model")
                 item_text = str(fallback_model) if fallback_model else ""
-                self._progress_steps.append(
-                    {
-                        "step_key": display_key,
-                        "items": [{"text": item_text}] if item_text else [],
-                        "status": "success",
-                    }
-                )
+                self._append_failover_step(display_key, item_text)
             if isinstance(step_key, str) and step_key in _PERSISTED_STATUS_STEP_KEYS:
                 step = {
                     "step_key": step_key,
@@ -847,13 +843,7 @@ class StreamContentCollector:
             reason_key = str(reason) if reason is not None else ""
             display_key = _FAILOVER_REASON_TO_STEP_KEY.get(reason_key, "model_failover")
             label_parts = [str(v) for v in (from_model, to_model) if v]
-            self._progress_steps.append(
-                {
-                    "step_key": display_key,
-                    "items": [{"text": " → ".join(label_parts)}] if label_parts else [],
-                    "status": "success",
-                }
-            )
+            self._append_failover_step(display_key, " → ".join(label_parts))
 
     @property
     def content(self) -> str:
@@ -879,6 +869,49 @@ class StreamContentCollector:
     @property
     def cross_turn_data_updates(self) -> list[tuple[str, dict[str, object]]]:
         return list(self._cross_turn_data_updates)
+
+    def _append_failover_step(self, step_key: str, item_text: str) -> None:
+        """Append a failover progress step, deduplicating STATUS + SSE notify channels.
+
+        The harness emits both a STATUS ``model_failover`` / ``safety_fallback_active``
+        event and a ``model_failover`` SSE event for the same transition; persist
+        only one step, keeping the more complete (from → to) label when present.
+        Prefix matching (not exact step_key) keeps the two channels in sync even
+        when the SSE ``reason`` has no direct STATUS ``error_kind`` mapping
+        (e.g. PROVIDER_POLICY_BLOCKED → ``model_failover`` vs
+        ``model_failover_model_not_found``), and folds the safety-fallback
+        channel (``safety_fallback_active``) into the same dedupe.
+        """
+        for existing in self._progress_steps:
+            key = str(existing.get("step_key", ""))
+            if not (
+                key.startswith("model_failover")
+                or key == "safety_fallback_active"
+            ):
+                continue
+            if item_text:
+                existing_items = existing.get("items")
+                existing_label = (
+                    str(existing_items[0].get("text", ""))
+                    if isinstance(existing_items, list)
+                    and existing_items
+                    and isinstance(existing_items[0], dict)
+                    else ""
+                )
+                # Keep the more complete "from → to" label when already present:
+                # the SSE notify channel is fed synchronously in _handle_failover,
+                # so it usually arrives before the STATUS event carrying only the
+                # fallback model name.
+                if "→" not in existing_label:
+                    existing["items"] = [{"text": item_text}]
+            return
+        self._progress_steps.append(
+            {
+                "step_key": step_key,
+                "items": [{"text": item_text}] if item_text else [],
+                "status": "success",
+            }
+        )
 
     def _flush_pending_evicted_ref(self) -> None:
         if not self._pending_evicted:

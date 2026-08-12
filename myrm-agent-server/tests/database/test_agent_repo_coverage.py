@@ -9,9 +9,8 @@ repository module stays fully covered.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy.orm.exc import StaleDataError
-
 from myrm_agent_harness.backends.profiles.types import AgentProfile
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.core.security.master_key import MasterKeyProvider
 from app.database.models import Agent

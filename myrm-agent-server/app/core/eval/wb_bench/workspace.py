@@ -1,8 +1,8 @@
 """WorkBuddy Bench workspace provisioning and case building.
 
 [INPUT]
-- wb_bench::WbBenchSubset, _SUBSET_BY_ID, _safe_extract, WORKSPACES_DIR, _scoring_mode_for
-- wb_bench_verifier::_test_suite_assertion_for
+- wb_bench.download::WbBenchSubset, _SUBSET_BY_ID, _safe_extract, WORKSPACES_DIR, _scoring_mode_for
+- wb_bench.verifier::_test_suite_assertion_for
 - myrm_agent_harness.eval::MultiTurnEvalCase, EvalCase, SandboxAssertion
 
 [OUTPUT]
@@ -11,10 +11,10 @@
 
 [POS]
 Splits task-level concerns (workspace seeding, case mapping) out of the
-download/verify data-source management in ``wb_bench``; grading-command wiring
-lives in ``wb_bench_verifier``. Seeded workspaces contain only the task skeleton
-— grading assets are mounted read-only from the source cache at grading time, so
-``gold.patch`` never reaches the agent.
+download/verify data-source management in ``wb_bench.download``; grading-command
+wiring lives in ``wb_bench.verifier``. Seeded workspaces contain only the task
+skeleton — grading assets are mounted read-only from the source cache at grading
+time, so ``gold.patch`` never reaches the agent.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from pathlib import Path
 
 from myrm_agent_harness.eval import EvalCase, MultiTurnEvalCase, SandboxAssertion
 
-from .wb_bench import (
+from .download import (
     _SUBSET_BY_ID,
     WORKSPACES_DIR,
     DownloadAbortedError,
@@ -35,7 +35,7 @@ from .wb_bench import (
     _safe_extract,
     _scoring_mode_for,
 )
-from .wb_bench_verifier import _test_suite_assertion_for
+from .verifier import _test_suite_assertion_for
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ def _prepare_workspace(task_dir: Path, subset: WbBenchSubset) -> Path | None:
 
     Grading assets (``tests/``) intentionally stay out of the seeded workspace:
     they are mounted read-only from the source cache by the injected
-    ``test_suite`` assertion (see ``wb_bench_verifier``), keeping ``gold.patch``
+    ``test_suite`` assertion (see ``wb_bench.verifier``), keeping ``gold.patch``
     unreachable during agent execution.
     """
     workspace_archive = task_dir / "environment" / "workspace.tar.gz"
@@ -175,7 +175,7 @@ def build_wb_bench_cases(
     is honored both during the download stream and between task workspace
     preparations so a cancel surfaces promptly even on the first run.
     """
-    from .wb_bench import ensure_wb_bench_source
+    from .download import ensure_wb_bench_source
 
     subset = _SUBSET_BY_ID.get(subset_id)
     if not subset:

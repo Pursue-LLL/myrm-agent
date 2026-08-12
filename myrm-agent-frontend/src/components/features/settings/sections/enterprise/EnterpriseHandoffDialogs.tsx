@@ -124,6 +124,11 @@ export function TransferDialog({
                 <SelectValue placeholder={t('selectMember')} />
               </SelectTrigger>
               <SelectContent>
+                {sourceCandidates.length === 0 && (
+                  <p className="px-2 py-1.5 text-sm text-muted-foreground">
+                    {t('noTransferableSources')}
+                  </p>
+                )}
                 {sourceCandidates.map((m) => (
                   <SelectItem key={m.user_id} value={m.user_id}>
                     {memberLabel(m)}

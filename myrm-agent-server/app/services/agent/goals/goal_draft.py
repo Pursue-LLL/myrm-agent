@@ -3,7 +3,7 @@
 [INPUT]
 - langchain_core.language_models::BaseChatModel (POS: Lite model for structured draft)
 - core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
-- core.utils.chat_utils::parse_llm_json_object (POS: 容错 JSON 对象解析 SSOT)
+- utils.json_parsing::parse_llm_json_object (POS: 容错 JSON 对象解析 SSOT)
 
 [OUTPUT]
 - draft_goal_spec: Generate constraints, acceptance_criteria, ui_summary from objective text
@@ -19,7 +19,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from app.core.utils.chat_utils import extract_answer_text, parse_llm_json_object
+from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
+
+from app.core.utils.chat_utils import extract_answer_text
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel

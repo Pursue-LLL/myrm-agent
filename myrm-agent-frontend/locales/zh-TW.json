@@ -4099,6 +4099,8 @@
       "memberRemoved": "成員移除成功",
       "removeMember": "移除成員",
       "removeMemberDesc": "將該成員從組織中移除。其沙箱與資料將保留，不會被刪除。",
+      "removeMemberRevokeNote": "移除後將同時撤銷該成員對組織工具與策略（如審批策略、模型白名單）的存取。",
+      "removeMemberIdpNote": "注意：若已啟用 SSO 自動准入，該成員下次登入時可能被自動重新添加。如需永久拒絕存取，請在身分提供者（IdP）中移除該成員。",
       "confirmRemove": "確認移除",
       "userId": "使用者 ID",
       "userIdPlaceholder": "使用者 ID",
@@ -4113,6 +4115,7 @@
       "selectMember": "選擇成員",
       "memberToOffboard": "待離職成員",
       "sourceMember": "來源成員",
+      "noTransferableSources": "暫無可轉移的已歸檔成員。請先執行離職歸檔，歸檔完成後即可轉移。",
       "targetMember": "目標成員",
       "offboardSuccess": "員工離職處理完成",
       "transferVolume": "資產轉移",
@@ -8733,6 +8736,7 @@
     "model_failover_context_overflow": "上下文過長，已切換到備用模型",
     "model_failover_response_format_error": "回應格式錯誤，已切換到備用模型",
     "model_failover_model_not_found": "主模型不可用，已切換到備用模型",
+    "model_failover_auth": "鑑權失敗，已切換到備用模型",
     "model_failover_unconfigured": "主模型呼叫失敗，請在設定中配置備用模型",
     "model_escalated": "模型已自動升級：{from} → {to}",
     "model_escalated_reason": "原因：{reason}",
@@ -8785,6 +8789,7 @@
     "workflow_planning": "正在生成編排方案",
     "workflow_execution": "正在執行工作流任務",
     "workflow_stage": "工作流階段更新",
+    "waiting_for_turn": "正在等待專案中其他智慧體完成...",
     "iteration_limit_reached": "已達到迭代次數上限",
     "subagent_running": "子智慧體正在執行中",
     "swarm_fission": "並行裂變 ({count} 路任務)",
@@ -14702,7 +14707,19 @@
         "stable": "穩定",
         "regression": "回歸風險",
         "allFailed": "全部失敗"
-      }
+      },
+      "sampled": "抽樣",
+      "sampledTitle": "本次執行隨機抽取了基準任務的一部分（結果可重現）",
+      "sampledHint": "結果基於抽樣子集，並非全量基準",
+      "historyTitle": "歷史記錄",
+      "historyTime": "執行時間",
+      "historyDataset": "資料集",
+      "historyAgentModel": "智能體模型",
+      "historyJudge": "判分模型",
+      "historyLayeredBadge": "分層",
+      "historyAbortedBadge": "已中止",
+      "historyCurrent": "檢視中",
+      "historyView": "檢視"
     },
     "benchmarksRunStarted": "基準評測已啟動",
     "alreadyRunning": "已有評測正在執行中",
@@ -14778,6 +14795,7 @@
       "judgeModel": "判分模型",
       "fingerprint": "每層配置都帶有指紋，鎖定開關組合，保證跨版本分數可對比。",
       "harnessVersion": "Harness 引擎",
+      "basedOnProfile": "智能體",
       "abortedNotice": "本報告不完整——評測在中途被中止。",
       "bare": {
         "label": "裸基線"
@@ -14794,7 +14812,8 @@
       "confirmTitle": "開始分層評測？",
       "confirmBody": "這將基於目前 Profile 對同一基準連續跑四次——裸基線（基準模式，剝離工具與技能）、核心配置（你的完整智能體配置，技能與記憶關閉）、+技能、+記憶（你的完整配置）。每層重跑同一批任務，相鄰層的通過率差值即為該能力的增量。成本約為抽樣任務數的 4 倍；記憶層需要已配置 embedding 模型。",
       "confirmStart": "開始評測",
-      "confirmCancel": "取消"
+      "confirmCancel": "取消",
+      "confirmProfileHint": "將使用該智能體配置評測"
     }
   },
   "vault": {

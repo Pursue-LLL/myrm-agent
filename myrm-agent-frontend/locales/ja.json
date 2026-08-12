@@ -4099,6 +4099,8 @@
       "memberRemoved": "メンバーを削除しました",
       "removeMember": "メンバーを削除",
       "removeMemberDesc": "このメンバーを組織から削除します。サンドボックスとデータは保持されます。",
+      "removeMemberRevokeNote": "削除すると、このメンバーの組織ツールとポリシー（承認ポリシー、モデルホワイトリストなど）へのアクセスも失効します。",
+      "removeMemberIdpNote": "注意：SSO 自動プロビジョニングが有効な場合、このメンバーは次回サインイン時に自動的に再追加される可能性があります。永続的にアクセスを無効化するには、ID プロバイダー（IdP）側で削除してください。",
       "confirmRemove": "削除を確認",
       "userId": "ユーザー ID",
       "userIdPlaceholder": "ユーザー ID",
@@ -4113,6 +4115,7 @@
       "selectMember": "メンバーを選択",
       "memberToOffboard": "オフボーディング対象",
       "sourceMember": "元メンバー",
+      "noTransferableSources": "転送可能なアーカイブ済みメンバーがいません。先に退職アーカイブを実行してください。",
       "targetMember": "受け取りメンバー",
       "offboardSuccess": "ユーザーのオフボーディングが完了しました",
       "transferVolume": "データ移行",
@@ -8733,6 +8736,7 @@
     "model_failover_context_overflow": "コンテキストが長すぎるため、バックアップモデルに切り替えました",
     "model_failover_response_format_error": "レスポンス形式エラー、バックアップモデルに切り替えました",
     "model_failover_model_not_found": "プライマリモデルが利用できないため、バックアップモデルに切り替えました",
+    "model_failover_auth": "認証に失敗したため、バックアップモデルに切り替えました",
     "model_failover_unconfigured": "プライマリモデルが失敗しました。設定でバックアップモデルを構成してください",
     "model_escalated": "モデルを自動アップグレードしました：{from} → {to}",
     "model_escalated_reason": "理由：{reason}",
@@ -8785,6 +8789,7 @@
     "workflow_planning": "オーケストレーションプランを生成中",
     "workflow_execution": "ワークフロータスクを実行中",
     "workflow_stage": "ワークフローステージを更新中",
+    "waiting_for_turn": "プロジェクト内の他のエージェントの完了を待機中...",
     "iteration_limit_reached": "イテレーション制限に達しました",
     "subagent_running": "サブエージェント実行中",
     "swarm_fission": "並列フィッション ({count} タスク)",
@@ -14731,7 +14736,19 @@
         "stable": "安定",
         "regression": "回帰",
         "allFailed": "すべて失敗"
-      }
+      },
+      "sampled": "サンプリング",
+      "sampledTitle": "この実行ではベンチマークタスクをランダムに抽出しました（再現可能）",
+      "sampledHint": "結果は全ベンチマークではなく抽出したサブセットを対象としています",
+      "historyTitle": "履歴",
+      "historyTime": "実行時刻",
+      "historyDataset": "データセット",
+      "historyAgentModel": "エージェントモデル",
+      "historyJudge": "判定モデル",
+      "historyLayeredBadge": "レイヤー",
+      "historyAbortedBadge": "中止",
+      "historyCurrent": "表示中",
+      "historyView": "表示"
     },
     "benchmarksRunStarted": "ベンチマーク評価を開始しました",
     "alreadyRunning": "評価がすでに実行中です",
@@ -14807,6 +14824,7 @@
       "judgeModel": "判定モデル",
       "fingerprint": "各層のフィンガープリントがスイッチ組み合わせを固定し、バージョンをまたいでスコアを比較可能に保ちます。",
       "harnessVersion": "ハーネス",
+      "basedOnProfile": "プロファイルに基づく",
       "abortedNotice": "このレポートは不完全です——評価は完了前に中止されました。",
       "bare": {
         "label": "素のベースライン"
@@ -14823,7 +14841,9 @@
       "confirmTitle": "レイヤー評価を開始しますか？",
       "confirmBody": "現在のプロファイルで同じベンチマークを4回実行します — 素（ベンチマークモード、ツールとスキルを除去）、コア設定（あなたの完全なエージェント設定、スキルとメモリはOFF）、+スキル、+メモリ（完全構成）。各層は同じタスクを再実行するため、隣接層の合格率差が各機能の貢献を示します。コストはサンプル数の約4倍になります。メモリ層には埋め込みモデルの設定が必要です。",
       "confirmStart": "評価を開始",
-      "confirmCancel": "キャンセル"
+      "confirmCancel": "キャンセル",
+      "confirmProfileHint": "このプロファイルで評価します",
+      "basedOnProfile": "プロファイル"
     }
   },
   "vault": {

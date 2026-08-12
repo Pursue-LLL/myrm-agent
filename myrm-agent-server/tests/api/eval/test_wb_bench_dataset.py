@@ -15,8 +15,8 @@ from unittest.mock import patch
 
 import pytest
 
-from app.core.eval import wb_bench as wb
-from app.core.eval import wb_bench_workspace as wbw
+from app.core.eval.wb_bench import download as wb
+from app.core.eval.wb_bench import workspace as wbw
 
 
 def _run(coro):
@@ -222,8 +222,8 @@ def test_download_extracts_atomically(tmp_path: Path) -> None:
             return _FakeResp()
 
     with (
-        patch("app.core.eval.wb_bench.httpx.Client") as mock_client,
-        patch("app.core.eval.wb_bench.httpx.AsyncClient", _FakeAsyncClient),
+        patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
+        patch("app.core.eval.wb_bench.download.httpx.AsyncClient", _FakeAsyncClient),
     ):
         mock_client.return_value.__enter__.return_value.get.return_value.text = (
             f"{expected_sha}  {subset.archive}\n"
@@ -282,9 +282,9 @@ def test_download_checksum_mismatch_rejected(tmp_path: Path) -> None:
 
     with (
         patch(
-            "app.core.eval.wb_bench.httpx.Client",
+            "app.core.eval.wb_bench.download.httpx.Client",
         ) as mock_client,
-        patch("app.core.eval.wb_bench.httpx.AsyncClient", _FakeAsyncClient),
+        patch("app.core.eval.wb_bench.download.httpx.AsyncClient", _FakeAsyncClient),
     ):
         # Wrong checksum in the manifest → every attempt fails verification.
         mock_client.return_value.__enter__.return_value.get.return_value.text = (
@@ -350,8 +350,8 @@ def test_download_retries_transient_checksum_mismatch(tmp_path: Path) -> None:
             return _FakeResp()
 
     with (
-        patch("app.core.eval.wb_bench.httpx.Client") as mock_client,
-        patch("app.core.eval.wb_bench.httpx.AsyncClient", _FakeAsyncClient),
+        patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
+        patch("app.core.eval.wb_bench.download.httpx.AsyncClient", _FakeAsyncClient),
     ):
         mock_client.return_value.__enter__.return_value.get.return_value.text = (
             f"{expected_sha}  {subset.archive}\n"
@@ -366,7 +366,7 @@ def test_offline_reuse_installed_source(tmp_path: Path) -> None:
     """When a subset is already installed, no network is touched."""
     _write_fake_subset(wb.SOURCES_DIR, "office", ["t1", "t2"])
 
-    with patch("app.core.eval.wb_bench.httpx") as mock_httpx:
+    with patch("app.core.eval.wb_bench.download.httpx") as mock_httpx:
         root = _run(wb.ensure_wb_bench_source("office"))
     assert (root / "tasks").is_dir()
     mock_httpx.assert_not_called()
@@ -376,7 +376,7 @@ def test_fetch_expected_sha256_tolerates_single_space(tmp_path: Path) -> None:
     """A single-space separated SHA256SUMS row still resolves the hash."""
     subset = wb._SUBSET_BY_ID["web"]
     expected_sha = "a" * 64
-    with patch("app.core.eval.wb_bench.httpx.Client") as mock_client:
+    with patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client:
         mock_client.return_value.__enter__.return_value.get.return_value.text = (
             f"{expected_sha} {subset.archive}\n"
         )
@@ -419,14 +419,14 @@ def test_build_aborts_during_workspace_preparation(tmp_path: Path) -> None:
         return prep_calls["n"] >= 1
 
     with (
-        patch("app.core.eval.wb_bench.httpx.Client") as mock_client,
+        patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
         patch.object(wbw, "_prepare_workspace", side_effect=_counting_prep),
     ):
         mock_client.return_value.__enter__.return_value.get.side_effect = OSError(
             "offline"
         )
         with pytest.raises(wb.DownloadAbortedError, match="aborted"):
-            wb.build_wb_bench_cases("office", should_abort=_flaky_abort)
+            wbw.build_wb_bench_cases("office", should_abort=_flaky_abort)
 
     assert prep_calls["n"] == 1
 
@@ -1126,7 +1126,7 @@ def test_build_cases_no_tasks_raises(
     async def _fake_ensure(*args: object, **kwargs: object) -> Path:
         return tmp_path
 
-    monkeypatch.setattr("app.core.eval.wb_bench.ensure_wb_bench_source", _fake_ensure)
+    monkeypatch.setattr("app.core.eval.wb_bench.download.ensure_wb_bench_source", _fake_ensure)
     monkeypatch.setattr(wbw, "_iter_task_dirs", lambda source_root: [])
     with pytest.raises(ValueError, match="No runnable tasks"):
         wbw.build_wb_bench_cases("code")
@@ -1143,7 +1143,7 @@ def test_build_cases_full_success_path_seeds_and_logs(
     async def _fake_ensure(*args: object, **kwargs: object) -> Path:
         return source_root
 
-    monkeypatch.setattr("app.core.eval.wb_bench.ensure_wb_bench_source", _fake_ensure)
+    monkeypatch.setattr("app.core.eval.wb_bench.download.ensure_wb_bench_source", _fake_ensure)
     cases, seed_map = wbw.build_wb_bench_cases("code")
     assert len(cases) == 1
     assert len(seed_map) == 1
@@ -1156,15 +1156,15 @@ def test_build_cases_full_success_path_seeds_and_logs(
 def test_full_build_requires_real_subset(tmp_path: Path) -> None:
     """build_wb_bench_cases without a local download raises (network is mocked off)."""
     with (
-        patch("app.core.eval.wb_bench.httpx.Client") as mock_client,
-        patch("app.core.eval.wb_bench.httpx.AsyncClient") as mock_async,
+        patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
+        patch("app.core.eval.wb_bench.download.httpx.AsyncClient") as mock_async,
     ):
         mock_client.return_value.__enter__.return_value.get.side_effect = OSError(
             "offline"
         )
         mock_async.side_effect = OSError("offline")
         with pytest.raises((OSError, ValueError)):
-            wb.build_wb_bench_cases("code")
+            wbw.build_wb_bench_cases("code")
 
 
 # ---------------------------------------------------------------------------

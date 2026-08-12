@@ -9,7 +9,6 @@ guard: the raw ``{"result": "pong"}`` payload is echoed verbatim, not fabricated
 from __future__ import annotations
 
 import dataclasses
-import json
 import os
 import sys
 import time

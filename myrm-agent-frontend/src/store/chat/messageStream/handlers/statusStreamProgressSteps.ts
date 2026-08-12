@@ -54,6 +54,7 @@ const PROGRESS_STEP_KEYS = new Set([
   'workflow_stage',
   'loop_guard_warn',
   'loop_guard_break',
+  'waiting_for_turn',
 ]);
 
 export function isStatusProgressStep(stepKey: string | undefined): boolean {
@@ -67,7 +68,8 @@ function isEarlyRecoveryProgressStep(stepKey: string): boolean {
     stepKey === 'model_failover_unconfigured' ||
     stepKey === 'safety_fallback_active' ||
     stepKey === 'safety_fallback_unconfigured' ||
-    stepKey === 'transient_retry'
+    stepKey === 'transient_retry' ||
+    stepKey === 'waiting_for_turn'
   );
 }
 
@@ -171,11 +173,14 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         step_key: displayKey,
         items: data.items ?? (itemText ? [{ text: itemText }] : []),
         tool_name: stepKey === 'archive_checkpoint' ? undefined : (data.tool_name ?? undefined),
-        status: compactionPhase === 'timeout' || compactionPhase === 'circuit_open'
-          ? 'warning'
-          : compactionPhase === 'completed'
-            ? 'complete'
-            : data.status,
+        status:
+          stepKey === 'waiting_for_turn'
+            ? undefined
+            : compactionPhase === 'timeout' || compactionPhase === 'circuit_open'
+              ? 'warning'
+              : compactionPhase === 'completed'
+                ? 'complete'
+                : data.status,
       };
       if (stepKey === 'workflow_stage') {
         const sd = data.data as Record<string, unknown> | undefined;
@@ -232,16 +237,34 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         stepKey === 'context_compaction' ||
         stepKey === 'loop_guard_warn' ||
         stepKey === 'loop_guard_break' ||
-        stepKey === 'workflow_stage'
+        stepKey === 'workflow_stage' ||
+        stepKey === 'model_failover' ||
+        stepKey === 'safety_fallback_active'
       ) {
         const existingStep = state.messages[messageIndex].progressSteps!.find(
           (step) =>
-            stepKey === 'context_compaction'
-              ? step.step_key?.startsWith('context_compaction')
-              : step.step_key === displayKey,
+            stepKey === 'model_failover'
+              ? step.step_key?.startsWith('model_failover')
+              : stepKey === 'context_compaction'
+                ? step.step_key?.startsWith('context_compaction')
+                : step.step_key === displayKey,
         );
         if (existingStep) {
-          Object.assign(existingStep, progressStep);
+          const isFailoverStep =
+            stepKey === 'model_failover' || stepKey === 'safety_fallback_active';
+          const firstItem = existingStep.items?.[0];
+          const existingHasFullLabel =
+            isFailoverStep &&
+            typeof firstItem === 'object' &&
+            firstItem !== null &&
+            'text' in firstItem &&
+            typeof firstItem.text === 'string' &&
+            firstItem.text.includes('→');
+          if (existingHasFullLabel) {
+            Object.assign(existingStep, { ...progressStep, items: existingStep.items });
+          } else {
+            Object.assign(existingStep, progressStep);
+          }
         } else {
           state.messages[messageIndex].progressSteps!.push(progressStep);
         }

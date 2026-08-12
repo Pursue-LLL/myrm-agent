@@ -163,7 +163,7 @@ def resolve_runtime_skill_instance_bindings(
 
 async def build_skill_id_to_name_map() -> dict[str, str]:
     """Map skill storage IDs and names to runtime skill names (factory-aligned)."""
-    from app.core.skills.store import skills_service
+    from app.core.skills.store.service import skills_service
 
     skill_id_to_name: dict[str, str] = {}
     for skill in await skills_service.list_skills():

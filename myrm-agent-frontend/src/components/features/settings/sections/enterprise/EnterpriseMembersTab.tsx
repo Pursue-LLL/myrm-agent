@@ -74,6 +74,17 @@ const EnterpriseMembersTab = memo(() => {
     [members],
   );
 
+  // Transfer sources must have a completed offboard archive; otherwise the
+  // backend rejects the transfer with a 409. Only archived members are offered.
+  const transferableSources = useMemo(() => {
+    const archivedUserIds = new Set(
+      logs
+        .filter((l) => l.action === 'offboard' && l.status === 'completed')
+        .map((l) => l.source_user_id),
+    );
+    return offboardableMembers.filter((m) => archivedUserIds.has(m.user_id));
+  }, [offboardableMembers, logs]);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -377,7 +388,7 @@ const EnterpriseMembersTab = memo(() => {
       />
       <TransferDialog
         open={showTransfer}
-        sourceCandidates={offboardableMembers}
+        sourceCandidates={transferableSources}
         targetCandidates={members}
         transferSourceId={transferSourceId}
         transferTargetId={transferTargetId}

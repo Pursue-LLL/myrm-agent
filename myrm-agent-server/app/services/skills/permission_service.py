@@ -152,8 +152,17 @@ def create_permission_checker() -> Callable[[str, str, str], tuple[bool, str]]:
             # 调用框架层验证
             allowed, reason = check_permission_for_tool_call(permission_type, granted_perms)
 
-            # 记录日志
-            log_permission_usage(skill_id, permission_type, operation, allowed, reason)
+            # 记录日志（user_id 取当前会话上下文，缺失时用占位符）
+            from myrm_agent_harness.backends.skills import session_id_var
+
+            log_permission_usage(
+                session_id_var.get() or "unknown",
+                skill_id,
+                permission_type,
+                operation,
+                allowed,
+                reason,
+            )
 
             return allowed, reason
 
@@ -178,8 +187,17 @@ async def create_async_permission_checker() -> Callable[[str, str, str], Awaitab
         # 调用框架层验证
         allowed, reason = check_permission_for_tool_call(permission_type, granted_perms)
 
-        # 记录日志
-        log_permission_usage(skill_id, permission_type, operation, allowed, reason)
+        # 记录日志（user_id 取当前会话上下文，缺失时用占位符）
+        from myrm_agent_harness.backends.skills import session_id_var
+
+        log_permission_usage(
+            session_id_var.get() or "unknown",
+            skill_id,
+            permission_type,
+            operation,
+            allowed,
+            reason,
+        )
 
         return allowed, reason
 

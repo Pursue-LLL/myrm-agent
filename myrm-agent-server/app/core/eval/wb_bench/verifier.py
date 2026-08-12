@@ -10,7 +10,7 @@
 [POS]
 Builds the ``test_suite`` sandbox assertion that runs a task's official
 grading protocol after agent execution. Splitting this out of
-``wb_bench_workspace`` keeps workspace provisioning and grading wiring in
+``wb_bench.workspace`` keeps workspace provisioning and grading wiring in
 separate single-responsibility modules.
 
 Grading follows the official WBBench ``tests/verifier.toml`` protocol instead of

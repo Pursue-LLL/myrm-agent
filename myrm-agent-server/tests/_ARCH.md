@@ -115,6 +115,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/kanban/test_board_settings_roundtrip.py` | 模块 | BoardSettings 9 字段 ORM 往返完整性（三映射函数 + dataclass 字段覆盖守卫 + 旧库 ALTER 迁移默认值） |
 | `services/agent/test_agent_name_resolution.py` | 模块 | Agent 同名解析确定性单测（大小写归一 + 稳定排序 + 空名短路） |
 | `api/agent/test_kanban_agent_stream_e2e.py` | 模块 | Live LLM agent-stream kanban add/list（`@pytest.mark.e2e`） |
+| `api/agent/test_bash_compressor_declarative_e2e.py` | 模块 | Declarative bash 压缩真实 LLM agent-stream e2e（`@pytest.mark.e2e`；TestClient 进程内；`.myrm/filters.yaml` replace+strip 生效断言；压缩断言仅针对 tool stdout，LLM 回复文本不受过滤器影响） |
+| `api/agent/test_bash_compressor_live_api_e2e.py` | 模块 | Declarative bash 压缩 live API e2e（`@pytest.mark.e2e`；`resolve_verify_api_base()` 私池 + provider seed + 后端 workspace 根解析；SSE 收集 + workspace 压缩回放） |
+| `api/agent/test_bash_compressor_make_live_api_e2e.py` | 模块 | 内置 make 过滤器 live API e2e（`@pytest.mark.e2e`；`printf %b` 生成 tab recipe Makefile 触发真实 make 输出；raw 含 BUILT_OK 但压缩未消除目录行时回退 workspace 本地 make 验证） |
 | `api/agent/test_mcp.py` | 模块 | Agent MCP 集成（`@pytest.mark.e2e`）：amap · 12306 Node stdio PTC；TestClient 进程内；须 `-m e2e` |
 | `api/agent/mcp_e2e_helpers.py` | 辅助 | MCP E2E 启动/preflight：12306 stdio 解析、LLM preflight、shared venv prewarm |
 | `api/agent/mcp_e2e_goodhart.py` | 辅助 | MCP E2E Goodhart 锚点：skill/PTC/get_tickets deliver 断言 |

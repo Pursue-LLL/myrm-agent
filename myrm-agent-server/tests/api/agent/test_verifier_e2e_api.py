@@ -26,8 +26,14 @@ def perform_verifier_task(
     query: str,
     *,
     engine_params: dict[str, object] | None = None,
-) -> tuple[str, list[dict[str, object]], int]:
-    """Execute a task that requires verification and collect stream."""
+) -> tuple[str, list[dict[str, object]], int, int]:
+    """Execute a task that requires verification and collect stream.
+
+    Returns (answer, events, business_events, verifier_events):
+    - business_events: subagent_start events for the visible business worker node
+    - verifier_events: subagent_start events mentioning the internal verifier
+      (must stay 0 — internal verification nodes are hidden from the UI)
+    """
 
     model_selection = get_model_selection()
 
@@ -50,7 +56,8 @@ def perform_verifier_task(
     collected_data: list[dict] = []
     message_chunks: list[str] = []
     tool_call_count = 0
-    verification_events = 0
+    business_events = 0
+    verifier_events = 0
 
     with client.stream("POST", "/api/v1/agents/agent-stream", json=request_payload) as response:
         if response.status_code != 200:
@@ -75,7 +82,8 @@ def perform_verifier_task(
                     if content:
                         message_chunks.append(content)
                 elif event_type == "subagent_start":
-                    # Check if it's the verifier
+                    # The visible business worker node must appear on the tree,
+                    # while the internal adversarial verifier must stay hidden.
                     agent_data = data.get("data", {})
                     description = agent_data.get("description", "")
                     print(f"  🤖 Subagent Start: {description}")
@@ -84,7 +92,9 @@ def perform_verifier_task(
                         or "Adversarial Verifier" in description
                         or "Adversarial Sandbox Verifier" in description
                     ):
-                        verification_events += 1
+                        verifier_events += 1
+                    elif "Write a python script" in description:
+                        business_events += 1
                 elif event_type == "tasks_steps":
                     tool_name = data.get("tool_name")
                     if tool_name:
@@ -99,10 +109,11 @@ def perform_verifier_task(
     full_answer = "".join(message_chunks)
 
     print(
-        f"\n📊 Stats: Events={len(collected_data)}, Messages={len(message_chunks)}, Tools={tool_call_count}, Verifications={verification_events}"
+        f"\n📊 Stats: Events={len(collected_data)}, Messages={len(message_chunks)}, "
+        f"Tools={tool_call_count}, Business={business_events}, Verifier={verifier_events}"
     )
 
-    return full_answer, collected_data, verification_events
+    return full_answer, collected_data, business_events, verifier_events
 
 
 def _build_verifier_mock_patches():
@@ -249,14 +260,25 @@ def _assert_no_fatal_errors(collected_data: list[dict[str, object]]) -> None:
 )
 class TestAdversarialVerifier:
     def test_verifier_execution(self, client: TestClient):
-        """Test that the verifier correctly spawns and executes."""
+        """Test that the business worker node appears on the tree and the
+        internal adversarial verifier stays hidden from UI events."""
         query = "请生成一个 Python 脚本来打印 Hello World，保存并运行它。"
 
         with _verifier_mock_patches():
-            full_answer, collected_data, verification_events = perform_verifier_task(client, query)
+            (
+                full_answer,
+                collected_data,
+                business_events,
+                verifier_events,
+            ) = perform_verifier_task(client, query)
 
         assert len(collected_data) > 0, "Should have received events"
         _assert_no_fatal_errors(collected_data)
-        assert verification_events > 0, "Expected Verifier to spawn and emit UI events"
+        assert business_events > 0, (
+            "Expected the delegated business worker to appear as a visible subagent node"
+        )
+        assert verifier_events == 0, (
+            "Internal verifier nodes must be hidden from user-facing UI events"
+        )
         assert "PASS" in full_answer or "FAIL" in full_answer or len(full_answer) > 0
         print("\n✅ Test Passed: Adversarial Verifier E2E Execution")

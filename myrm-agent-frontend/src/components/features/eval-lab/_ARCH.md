@@ -4,19 +4,34 @@
 
 评测实验室：批量用例、结果对比（开发/实验向）。支持单配置评测、跨配置矩阵对比评测、Memory A/B 评测（记忆开/关对比）与分层评测（同底座 harness 配置逐层增量对比）。
 
+职责分层：`EvalLabDashboard.tsx` 为门面（全局状态 + tab 路由 + 跨流协调），`hooks/` 持有四条评测流的状态机（数据获取 + SSE 进度 + 启动/中止动作），`tabs/` 为纯展示子组件，`BenchmarkSources/MatrixResultView/MatrixHistoryTable/MemoryAbHistoryTable/CaseFormatReference` 为复用的展示组件。
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `EvalLabDashboard.tsx` | 核心 | 评测用例批量运行、结果对比与历史记录仪表盘。支持多 Profile 选择：选 1 个走单配置评测，选 2+ 自动切换为矩阵对比模式。含 Memory A/B Tab：订阅 `/eval/memory-ab/stream` SSE 展示开/关记忆对比评测进度，复用 `MatrixResultView` 渲染对比报告，并联动全局运行/中止按钮状态（`memoryAbRunning` 期间禁用矩阵与 WBBench 操作）。报告明细表逐用例展示 verdict（通过/失败）、token 消耗、耗时、Rule 判分明细（pass_rate 徽标 + 通过/总数）与断言失败详情。报告头展示 manifest 的 `judge_model` 与抽样徽标（实际样本数/全量）。`handleLayerEvalRun` 接线 `POST /api/v1/eval/matrix/layers-run`（分层评测），启动后切到 matrix Tab 复用矩阵状态机展示进度与报告。 | ✅ |
+| `EvalLabDashboard.tsx` | 门面 | 评测实验室内饰面：加载全局数据（datasets/profiles），装配 `useCasesEval`/`useMatrixEval`/`useMemoryAbEval` 三条评测流，组合互斥锁（任一评测流运行中即 `anyBusy`，联动禁用运行/中止/数据集/Profile/benchmark 操作），跨流协调运行（`isMatrixMode` 时矩阵流、否则单评测流）、中止（Memory A/B > 矩阵 > 单评测优先级）、历史回看与 diff 视图；渲染工具栏（数据集选择、多 Profile 选择、benchmark 开关、运行/中止/保存）与 tab 路由。矩阵/记忆 tab 在对应报告或运行存在时条件显示。 | ✅ |
+| `hooks/useCasesEval.ts` | 逻辑 | 单评测流状态机：cases 编辑（草稿/保存）、`/api/v1/eval/status` 初始轮询、`/eval/stream` SSE 进度（含下载阶段）、报告与历史（latest/history/按文件名回看）、WBBench 运行/下载（复用同一后端评测状态机）、diff 视图状态。对外暴露 `startRun/startBenchmark/startDownload/abort/saveDraft/loadHistoryReport/openDiff` 与全部状态。 | ✅ |
+| `hooks/useMatrixEval.ts` | 逻辑 | 矩阵 + 分层评测流状态机：初始拉取最新报告与历史，`/eval/matrix/stream` SSE 进度，`startMatrix`（`POST /eval/matrix/run`）、`startLayer`（`POST /eval/matrix/layers-run` 分层评测）、`abort`（`POST /eval/matrix/abort`）、按时间戳回看历史报告。 | ✅ |
+| `hooks/useMemoryAbEval.ts` | 逻辑 | Memory A/B 评测流状态机：初始拉取最新报告与历史，`/eval/memory-ab/stream` SSE 进度，`start`（`POST /eval/memory-ab/run`）、`abort`、按时间戳回看历史报告。 | ✅ |
+| `tabs/CasesTab.tsx` | 展示 | 用例编辑 tab：`CaseFormatReference` 说明 + Monaco JSON 编辑器（草稿绑定）。 | ✅ |
+| `tabs/ReportTab.tsx` | 展示 | 单评测报告 tab：运行中进度/下载条、通过率统计卡、环境披露网格（模型/thinking/harness 版本/工具策略/数据集/prompt fingerprint/profile/judge 模型）、逐用例明细表（verdict、pass_rate 徽标、token、耗时、断言详情与 diff 触发）。 | ✅ |
+| `tabs/MatrixTab.tsx` | 展示 | 矩阵/分层报告 tab：复用 `EvalRunProgress` 展示运行进度，`MatrixResultView` 渲染报告 + `MatrixHistoryTable` 历史回看。 | ✅ |
+| `tabs/MemoryAbTab.tsx` | 展示 | Memory A/B 报告 tab：`EvalRunProgress` 进度 + `MatrixResultView`（记忆开/关双臂）+ `MemoryAbHistoryTable` 历史回看。 | ✅ |
+| `tabs/HistoryTab.tsx` | 展示 | 单评测历史 tab：通过率趋势折线 + 历史记录表（时间/Profile/模型/通过率/耗时/token），点击行回看报告。 | ✅ |
+| `tabs/EvalRunProgress.tsx` | 展示 | 矩阵与 Memory A/B 共享的运行中进度视图（下载阶段 + profile/case 进度条）。 | ✅ |
 | `BenchmarkSources.tsx` | 展示 | 外部基准数据集源面板（统一 catalog：WorkBuddy Bench 四赛道 + BrowseComp 等注册第三方基准）：卡片展示评分模式徽标（native/composite/llm_judge）、下载状态、任务数、归档大小、本地大小与最近一次报告（诚实区分“已评分通过率”与“评分待定”，避免将未评分误显为 0%）。声明 `required_tools` 的基准（如 BrowseComp 的 `web_search`）额外展示“需要联网搜索”徽标，提示用户运行前配置搜索服务。数据源 `GET /eval/benchmarks`，下载按钮走 `POST /eval/benchmarks/download`，运行走 `POST /eval/benchmarks/run` 后台评测（复用 Eval Lab 的评测进度 SSE 与报告 tab），卡片内实时显示下载进度条；`supports_memory_ab` 为 true 时提供“Memory A/B”按钮（`POST /eval/memory-ab/run`），点击先弹确认对话框提示「需要 embedding 模型」与「基准多为单轮任务、记忆收益在长会话更明显」，避免用户误解读结果。同时提供“分层评测”按钮（`POST /eval/matrix/layers-run`）：点击先弹确认对话框说明四层链路（bare→core→skills→memory）、每层重跑同一批任务以隔离各能力增量、成本约为抽样任务数的 4 倍且 memory 层需要 embedding 模型。每个运行按钮旁提供“样本数”输入（`limit`，可选）：填 0/空=全量，正数=以固定 seed 抽样运行（如 BrowseComp 1266 题可先跑 20 题验证）；**task_count 超过 100 的大基准卡片自动预填建议样本数 20**（防误点 Run 触发全量跑，用户可修改或清空=主动全量），报告卡片在真实抽样运行时标注 “sampled” 徽标并显示实际样本数（以 manifest `limit` 为准），同时展示 manifest 的 `judge_model`（LLM 判分所用模型，透明化判分凭据）。 | ✅ |
-| `MatrixResultView.tsx` | 展示 | 矩阵评测结果视图：per-profile 汇总 + Case×Profile 网格热力图，色彩编码稳定/回归/全失败。`aborted` 报告（用户中途中止）顶部显示警示横幅，避免被误读为完整运行。Memory A/B 报告额外展示每臂 `memory_tool_calls`（记忆工具实际调用次数，任一臂有该字段时动态显示该列，用于判断记忆是否真正被参与）。分层评测报告（报告含 `layers` 元数据）额外渲染：层配置列（记忆/技能开关）、**Δ 通过率列**（相邻层通过率差 + 涨跌箭头）、**成本效率列**（pass rate / $）、底部 fingerprint 披露（锁定每层开关组合，跨版本分数可比）+ 头部 `agent_model`/`judge_model` 双模型披露；矩阵评测（非分层）per-profile 行展示各 profile 声明模型。 | ✅ |
+| `MatrixHistoryTable.tsx` | 展示 | 矩阵/分层评测历史报告列表：按时间倒序展示历史运行（时间、数据集、分层徽标、抽样徽标、agent/judge 双模型披露、stable_rate），`aborted` 报告显示「已中止」徽标，支持选中回看（高亮当前项 + 禁用查看按钮）。空历史时不渲染。与 Memory A/B 历史表对称，支撑 HLR 持续度量闭环。 | ✅ |
+| `MatrixResultView.tsx` | 展示 | 矩阵评测结果视图：per-profile 汇总 + Case×Profile 网格热力图，色彩编码稳定/回归/全失败。`aborted` 报告（用户中途中止）顶部显示警示横幅，避免被误读为完整运行。抽样评测报告（报告含 `limit` 字段）头部显示「抽样 · N」徽标，明确结果基于抽样子集而非全量，避免通过率被误读。Memory A/B 报告额外展示每臂 `memory_tool_calls`（记忆工具实际调用次数，任一臂有该字段时动态显示该列，用于判断记忆是否真正被参与）。分层评测报告（报告含 `layers` 元数据）额外渲染：层配置列（记忆/技能开关）、**Δ 通过率列**（相邻层通过率差 + 涨跌箭头）、**成本效率列**（pass rate / $）、底部 fingerprint 披露（锁定每层开关组合，跨版本分数可比）+ 头部 `agent_model`/`judge_model` 双模型披露；矩阵评测（非分层）per-profile 行展示各 profile 声明模型。报告头通用披露区统一展示 `harness_version`（各评测类型一致，防版本衰减）与分层评测的 `profile_id`（`basedOnProfile`，明确评测基准身份）。 | ✅ |
 | `MemoryAbHistoryTable.tsx` | 展示 | Memory A/B 历史报告列表：按时间倒序展示历史运行的通过率与记忆工具调用次数，并展示双模型披露——被评测 agent 模型（`agent_model`，不可解析时隐藏）与判分模型（`judge_model`，LLM judge 基准显示所用模型，native 基准隐藏），换主模型后两次分数漂移可追溯，支持选中某次历史报告回看（高亮当前项），点击查看触发 `GET /eval/memory-ab/reports/{timestamp}` 加载报告。`aborted` 历史报告在数据集列显示「已中止」徽标，避免被误读为完整运行。空历史时不渲染。 | ✅ |
 | `CaseFormatReference.tsx` | 辅助 | 用例格式参考面板：展开/收起的断言类型说明表格。 | ✅ |
+| `format.ts` | 工具 | 共享 `formatMib` 字节大小格式化（MB 保留一位小数）。 | ✅ |
 
 ## 测试覆盖
 
-- 单测（Vitest）：`__tests__/BenchmarkSources.test.tsx` 覆盖基准卡片渲染、评分徽标、下载/运行按钮，以及 Memory A/B 按钮 + 确认对话框（取消/确认调用 `onMemoryAb`）与分层评测按钮 + 确认对话框（调用 `onLayerEval`）；`__tests__/MemoryAbHistoryTable.test.tsx` 覆盖历史表渲染（per-arm pass-rate + `memory_tool_calls`）、双模型披露（agent 模型显示/隐藏 + LLM judge 显示、native 隐藏）与选中回看。
+- 单测（Vitest）：`__tests__/BenchmarkSources.test.tsx` 覆盖基准卡片渲染、评分徽标、下载/运行按钮，以及 Memory A/B 按钮 + 确认对话框（取消/确认调用 `onMemoryAb`）与分层评测按钮 + 确认对话框（调用 `onLayerEval`）；`__tests__/MemoryAbHistoryTable.test.tsx` 覆盖历史表渲染（per-arm pass-rate + `memory_tool_calls`）、双模型披露（agent 模型显示/隐藏 + LLM judge 显示、native 隐藏）与选中回看；`__tests__/MatrixHistoryTable.test.tsx` 覆盖矩阵/分层历史表渲染（时间格式化、数据集、分层/抽样/中止徽标、stable_rate、双模型披露、选中回看）；`__tests__/MatrixResultView.memoryCalls.test.tsx` 覆盖记忆调用列、中止横幅与抽样披露。
+- `__tests__/EvalLabDashboard.test.tsx` 覆盖门面渲染（初始加载后基础 tab 渲染 + matrix/memory-ab 条件显示、cases 编辑器渲染、运行中互斥禁用 run 并显示 stop）。
+- `__tests__/useMatrixEval.test.ts` 覆盖矩阵流：`startMatrix` 请求载荷与 running 翻转、SSE 进度驱动、`abort` 端点、历史报告回看；`__tests__/useMemoryAbEval.test.ts` 覆盖记忆流：`start` 请求载荷与 running 翻转、SSE 进度驱动、`abort` 端点。
 - Chrome E2E（`tests/e2e/test_memory_ab_chrome_e2e.py`）：卡片入口 + 确认对话框取消（READ）；预置报告渲染双臂矩阵 + Run History + 点击历史加载（NAMESPACE_WRITE）；真实 run 启动 + Stop abort（NAMESPACE_WRITE）。
 
 ## 依赖

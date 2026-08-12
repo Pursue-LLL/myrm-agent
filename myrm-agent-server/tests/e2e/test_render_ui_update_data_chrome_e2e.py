@@ -303,6 +303,21 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
                     await chat._attach_chat_session(chat_id)
                 except RuntimeError:
                     await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=45.0)
+                await asyncio.sleep(0.5)
+                continue
+            if (
+                last.get("hasAssistant") is True
+                and last.get("hasStructuredCard") is not True
+                and not last.get("sending")
+                and heal_attempts < max_heal_attempts
+            ):
+                heal_attempts += 1
+                await _focus_chat(chat, chat_id)
+                await chat.evaluate(
+                    _ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE
+                )
+                await asyncio.sleep(1.0)
+                continue
             await asyncio.sleep(1.0)
         raise AssertionError(f"{error_label}: {last}")
 
@@ -394,6 +409,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         await chat.evaluate(
             _ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE
         )
+        await _focus_chat(chat, chat_id)
         # Stay on the post-send page (inline_card SSOT); attachToChat binds stream without hard reload.
         await _wait_js(
             chat,

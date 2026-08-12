@@ -672,7 +672,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
         logger.error("[Shutdown] Branch watcher stop failed: %s", e)
 
     try:
-        from app.core.skills.curator_service import stop_curator_background_task
+        from app.core.skills.curator.service import stop_curator_background_task
 
         stop_curator_background_task()
     except Exception as e:

@@ -13,7 +13,7 @@
 | orchestrator.py       | 并发控制 | 项目级并发调度器，确保同一项目下的多 Agent 回合制执行 | ✅    |
 | __init__.py           | 模块入口 | 导出 ProjectService, MilestoneService        | ✅    |
 
-测试：`tests/services/project/test_workspace_path_resolve.py` · `tests/services/project/test_legacy_workspace_path_migration.py` · `tests/integration/test_project_workspace_bind_file_write_integration.py` · `tests/api/chats/test_effective_workspace_ssot.py`
+测试：`tests/services/project/test_workspace_path_resolve.py` · `tests/services/project/test_legacy_workspace_path_migration.py` · `tests/services/project/test_project_orchestrator.py`（并发锁：acquire/release 配对、is_locked 纯查询、release 无等待者清理、forget 项目删除清理、同项目串行/异项目并行）· `tests/integration/test_project_workspace_bind_file_write_integration.py` · `tests/api/chats/test_effective_workspace_ssot.py`
 
 启动迁移：`app/database/migrations.py::CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL` 清空历史假路径 `/persistent/workspace/project_%`，用户需通过 Mount Wizard 重新绑定。
 

@@ -1,9 +1,9 @@
 """聊天工具函数模块（业务层扩展）
 
 扩展框架层的聊天工具，添加图片处理、视频处理和 Agent 历史还原等业务功能。
-LLM 响应文本提取与容错 JSON 解析（parse_llm_json_object / parse_llm_json_list）
-re-export 自框架层 utils.chat_utils，本层补充 judge 判定语义的
-parse_judge_json（done 键规范化）。
+LLM 响应文本提取（extract_answer_text / extract_litellm_answer_text）与容错
+JSON 解析（parse_llm_json_object / parse_llm_json_list）的 SSOT 在框架层
+utils.json_parsing，本层补充 judge 判定语义的 parse_judge_json（done 键规范化）。
 """
 
 import json
@@ -26,10 +26,7 @@ from myrm_agent_harness.utils.image_utils import (
     is_base64_data_url,
     strip_images_from_content,
 )
-from myrm_agent_harness.utils.json_parsing import (
-    parse_llm_json_list,
-    parse_llm_json_object,
-)
+from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
 from myrm_agent_harness.utils.url_utils import is_image_url, is_valid_image_url
 
 from app.core.utils.files_utils import read_image_as_base64
@@ -45,8 +42,6 @@ __all__ = [
     "convert_chat_history",
     "extract_answer_text",
     "extract_litellm_answer_text",
-    "parse_llm_json_list",
-    "parse_llm_json_object",
     "parse_judge_json",
 ]
 

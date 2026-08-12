@@ -154,9 +154,9 @@ async def test_stream_collector_full_coverage():
         if isinstance(step, dict)
         and str(step.get("step_key", "")).startswith("model_failover")
     ]
-    assert len(failover_steps) == 2
+    assert len(failover_steps) == 1
     assert failover_steps[0]["step_key"] == "model_failover_auth"
-    assert failover_steps[1]["step_key"] == "model_failover_auth"
+    assert failover_steps[0]["items"][0]["text"] == "agnes → MiniMax-M3"
     assert extra["citedMemoryIds"] == ["m1", "m2"]
     assert extra["citedMemoryRefs"][0]["id"] == "m1"
     assert extra["memoryRetrievalTraces"][0]["id"] == "t1"
@@ -371,3 +371,121 @@ def test_stream_collector_reasoning_is_scrubbed_before_persist() -> None:
     assert isinstance(reasoning, str)
     assert "sk-test-12345" not in reasoning
     assert "/Users/alice" not in reasoning
+
+
+def test_model_failover_dedupes_when_reason_key_unmapped() -> None:
+    """STATUS error_kind and an SSE reason without a direct key still collapse."""
+    collector = StreamContentCollector(chat_id="chat-failover-unmapped")
+    collector.feed_event(
+        {
+            "type": "status",
+            "step_key": "model_failover",
+            "error_kind": "model_not_found",
+            "fallback_model": "MiniMax-M3",
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "model_failover",
+            "data": {
+                "fromModel": "agnes",
+                "toModel": "MiniMax-M3",
+                "reason": "provider_policy_blocked",
+            },
+        }
+    )
+
+    extra = collector.extra_data
+    assert extra is not None
+    failover_steps = [
+        step
+        for step in extra["progressSteps"]
+        if isinstance(step, dict)
+        and str(step.get("step_key", "")).startswith("model_failover")
+    ]
+    assert len(failover_steps) == 1
+    assert failover_steps[0]["step_key"] == "model_failover_model_not_found"
+    assert failover_steps[0]["items"][0]["text"] == "agnes → MiniMax-M3"
+    collector.cleanup()
+
+
+def test_safety_block_failover_persists_single_safety_step() -> None:
+    """SAFETY_BLOCK SSE reason collapses with the STATUS safety_fallback_active step."""
+    collector = StreamContentCollector(chat_id="chat-failover-safety")
+    collector.feed_event(
+        {
+            "type": "status",
+            "step_key": "safety_fallback_active",
+            "error_kind": "safety_block",
+            "fallback_model": "safety-mini",
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "model_failover",
+            "data": {
+                "fromModel": "agnes",
+                "toModel": "safety-mini",
+                "reason": "safety_block",
+            },
+        }
+    )
+
+    extra = collector.extra_data
+    assert extra is not None
+    failover_steps = [
+        step
+        for step in extra["progressSteps"]
+        if isinstance(step, dict)
+        and (
+            str(step.get("step_key", "")).startswith("model_failover")
+            or step.get("step_key") == "safety_fallback_active"
+        )
+    ]
+    assert len(failover_steps) == 1
+    assert failover_steps[0]["step_key"] == "safety_fallback_active"
+    assert failover_steps[0]["items"][0]["text"] == "agnes → safety-mini"
+    collector.cleanup()
+
+
+def test_model_failover_keeps_full_label_when_status_arrives_last() -> None:
+    """Real runtime order: SSE notify (fed synchronously) precedes the STATUS event.
+
+    The STATUS event carries only the fallback model name; it must NOT overwrite
+    the fuller ``from → to`` label persisted from the SSE channel.
+    """
+    collector = StreamContentCollector(chat_id="chat-failover-status-last")
+    collector.feed_event(
+        {
+            "type": "model_failover",
+            "data": {
+                "fromModel": "openai/__e2e_nonexistent_model__",
+                "toModel": "openai/deepseek-v4-flash",
+                "reason": "auth_permanent",
+            },
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "status",
+            "step_key": "model_failover",
+            "error_kind": "auth",
+            "fallback_model": "deepseek-v4-flash",
+        }
+    )
+
+    extra = collector.extra_data
+    assert extra is not None
+    failover_steps = [
+        step
+        for step in extra["progressSteps"]
+        if isinstance(step, dict)
+        and str(step.get("step_key", "")).startswith("model_failover")
+    ]
+    assert len(failover_steps) == 1
+    assert failover_steps[0]["step_key"] == "model_failover_auth"
+    assert (
+        failover_steps[0]["items"][0]["text"]
+        == "openai/__e2e_nonexistent_model__ → openai/deepseek-v4-flash"
+    )
+    collector.cleanup()

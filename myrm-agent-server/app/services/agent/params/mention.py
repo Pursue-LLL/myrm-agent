@@ -2,7 +2,7 @@
 [INPUT]
 myrm_agent_harness.agent.security.path_security (POS: 路径安全校验)
 myrm_agent_harness.toolkits.file_parsers (POS: Office 文档解析器)
-myrm_agent_harness.toolkits.web_fetch.engine::CrawlEngine (POS: 分层爬虫引擎)
+myrm_agent_harness.toolkits.web_fetch.engine::FetchEngine (POS: 分层爬虫引擎)
 
 [OUTPUT]
 _build_mention_reference_context: 读取结构化 @ 引用并构建注入上下文
@@ -226,14 +226,14 @@ def _get_folder_tree(abs_path: str, workspace_dir: str) -> str:
 
 
 async def _fetch_url_content(url: str) -> str:
-    """Fetch URL content using CrawlEngine.
+    """Fetch URL content using FetchEngine.
 
     Returns empty string on error or if URL is blocked by SSRF protection.
     """
     try:
-        from myrm_agent_harness.toolkits.web_fetch.engine import CrawlEngine
+        from myrm_agent_harness.toolkits.web_fetch.engine import FetchEngine
 
-        engine = CrawlEngine()
+        engine = FetchEngine()
         doc = await engine.crawl(url)
         if doc and doc.page_content:
             return doc.page_content.strip()

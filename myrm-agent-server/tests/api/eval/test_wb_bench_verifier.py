@@ -1,4 +1,4 @@
-"""Unit tests for the WBBench verifier assertion builder (wb_bench_verifier).
+"""Unit tests for the WBBench verifier assertion builder (wb_bench.verifier).
 
 Covers the missing-asset / malformed-declaration boundary paths of the native
 grading protocol wiring: absent or invalid ``verifier.toml``, malformed
@@ -8,7 +8,7 @@ script. Happy-path wiring is covered by ``test_wb_bench_dataset.py``.
 
 from pathlib import Path
 
-from app.core.eval.wb_bench_verifier import (
+from app.core.eval.wb_bench.verifier import (
     _iter_verifier_env,
     _office_run_assertion,
     _read_verifier_toml,

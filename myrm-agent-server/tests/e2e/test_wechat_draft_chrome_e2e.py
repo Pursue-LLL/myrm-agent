@@ -106,7 +106,10 @@ _SETTINGS_WECHAT_OFFICIAL_PROBE_JS = """(() => {
     body.includes('40164') ||
     body.includes('Server public IP') ||
     body.includes('服务器公网 IP');
-  const loading = !!document.querySelector('.animate-pulse');
+  const loading = !!(
+    configCard?.querySelector('.animate-pulse') ||
+    egressPanel?.querySelector('.animate-pulse')
+  );
   const egressIpNode = document.querySelector('[data-testid="wechat-official-egress-ip"]');
   return {
     ready: (!!appId || !!configCard) && !!egressPanel && hasHint && !loading,

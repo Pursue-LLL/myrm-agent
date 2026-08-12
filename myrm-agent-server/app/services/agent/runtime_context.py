@@ -1,7 +1,7 @@
 """Shared agent runtime context for process_stream / finalize_agent_session.
 
 [INPUT]
-- app.core.skills.disabled_skill_roots::collect_disabled_skill_roots (POS: disabled skill roots)
+- app.core.skills.gates.disabled_skill_roots::collect_disabled_skill_roots (POS: disabled skill roots)
 - app.services.agent.execution_cache.types::ExecutionMode (POS: pooled vs ephemeral)
 
 [OUTPUT]

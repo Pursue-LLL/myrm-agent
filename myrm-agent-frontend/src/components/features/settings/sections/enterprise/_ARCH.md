@@ -11,9 +11,9 @@ SaaS / sandbox 部署下的 Enterprise Org 管理 Section（`SettingsMenu` 中 `
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `EnterpriseOrgSection.tsx` | 核心入口 | Tab 容器，lazy 加载六个子 Tab；nav 支持 `overflow-x-auto` 移动端横滑 | ✅ |
-| `EnterpriseMembersTab.tsx` | 子 Tab | 组织信息、成员列表、离职交接、Volume 转移；全部管理操作（Add/Remove/Offboard/Transfer/Unlink）按 `isOrgAdmin` 门控，非 admin 仅只读；角色徽标本地化 | ✅ |
-| `EnterpriseMembersDialogs.tsx` | 子模块 | AddMember（shadcn Select 角色选择）/ UnlinkOauth / RemoveMember 确认对话框 | ✅ |
-| `EnterpriseHandoffDialogs.tsx` | 子模块 | Offboard / Transfer 对话框（shadcn Select 成员下拉，避免手输 user_id；source 非 owner、target 全员、自转禁用） | ✅ |
+| `EnterpriseMembersTab.tsx` | 子 Tab | 组织信息、成员列表、离职交接、Volume 转移；全部管理操作（Add/Remove/Offboard/Transfer/Unlink）按 `isOrgAdmin` 门控，非 admin 仅只读；角色徽标本地化；Transfer source 仅列**已归档（offboard completed）成员**，防止 409 报错 | ✅ |
+| `EnterpriseMembersDialogs.tsx` | 子模块 | AddMember（shadcn Select 角色选择）/ UnlinkOauth / RemoveMember 确认对话框；RemoveMember 明示将撤销组织工具与治理策略（MCP/审批策略/模型白名单）访问 + IdP 权威语义提示（SSO 自动准入可能重新加回，永久撤销需在 IdP 侧移除） | ✅ |
+| `EnterpriseHandoffDialogs.tsx` | 子模块 | Offboard / Transfer 对话框（shadcn Select 成员下拉，避免手输 user_id；source 非 owner 且需已归档、target 全员、自转禁用） | ✅ |
 | `EnterpriseSsoTab.tsx` | 子 Tab | Org OIDC SSO 配置 CRUD（issuer/client_id/secret 留空保留、auto-provision、group 白名单、enabled）；组织登录链接展示与复制；按 org `sso_domain` 与组白名单状态动态展示 auto-provision 准入范围提示；owner/admin 可见 | ✅ |
 | `EnterpriseModelPolicyTab.tsx` | 子 Tab | Org 模型白名单 CRUD（fnmatch pattern 列表）；add/remove 后 fanout 部分失败 warning toast | ✅ |
 | `EnterpriseApprovalPolicyTab.tsx` | 子 Tab | Org Managed Approval Policy CRUD（ignore allowlist / force auto-review patterns + YOLO / allow-always 开关） | ✅ |

@@ -20,6 +20,7 @@ from cdp_chat_support import (  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     dismiss_blocking_modals,
+    get_e2e_api_url,
     get_e2e_ui_url,
     open_mcp_page,
     wait_for_state,
@@ -89,7 +90,9 @@ _KICKOFF_DW_JS = f"""(async () => {{
 }})()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_dynamic_workflow_plan_confirm_and_run_chrome_e2e(
@@ -103,8 +106,9 @@ def test_dynamic_workflow_plan_confirm_and_run_chrome_e2e(
             "myrm-agent/myrm-agent-server/tests/e2e/test_dynamic_workflow_chrome_e2e.py",
         )
 
-    ensure_e2e_yolo_mode()
+    ensure_e2e_yolo_mode(api_url=get_e2e_api_url())
     ui_url = get_e2e_ui_url()
+    api_url = get_e2e_api_url()
 
     with open_mcp_page(ui_url, timeout_ms=120_000) as (client, page):
         dismiss_blocking_modals(client, page)
@@ -124,10 +128,29 @@ def test_dynamic_workflow_plan_confirm_and_run_chrome_e2e(
         assert isinstance(kickoff, dict), kickoff
         assert kickoff.get("ok") is True, f"Kickoff failed: {kickoff}"
 
-        wait_for_workflow_plan_card(client, page, page_url=ui_url)
+        chat_id = str(kickoff.get("chatId") or "").strip()
+        if not chat_id:
+            chat_probe = client.evaluate(
+                page,
+                """(() => ({
+                  chatId: window.__myrmChatStore?.getState?.()?.chatId ?? null,
+                }))()""",
+                timeout_sec=10.0,
+            )
+            if isinstance(chat_probe, dict):
+                chat_id = str(chat_probe.get("chatId") or "").strip()
 
-        clicked = client.evaluate(page, _CLICK_RUN_WORKFLOW_JS, timeout_sec=15.0)
-        assert isinstance(clicked, dict)
-        assert clicked.get("ok") is True, f"Run click failed: {clicked}"
+        plan_ready = wait_for_workflow_plan_card(
+            client,
+            page,
+            page_url=ui_url,
+            chat_id=chat_id or None,
+            api_base=api_url,
+        )
+
+        if plan_ready.get("confirmedVia") != "yolo_skip":
+            clicked = client.evaluate(page, _CLICK_RUN_WORKFLOW_JS, timeout_sec=15.0)
+            assert isinstance(clicked, dict)
+            assert clicked.get("ok") is True, f"Run click failed: {clicked}"
 
         wait_for_state(client, page, _STREAM_DONE_JS, timeout_sec=300.0)

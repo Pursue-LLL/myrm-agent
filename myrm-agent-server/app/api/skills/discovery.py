@@ -3,10 +3,10 @@
 [INPUT]
 app.api.skills.discovery_schemas (POS: Request/response Pydantic models)
 app.api.skills.audit::_audit_skill_action (POS: Skill action audit logging)
-app.core.skills.market_service::SkillMarketService (POS: Skill search/install orchestrator)
-app.core.skills.discovery_mount::maybe_mount_after_install (POS: Post-install user catalog enable)
-app.core.skills.discovery_adopt::complete_discovery_adoption (POS: Explicit allowlist append after install)
-app.core.skills.discovery_autoupdate::get_update_checker (POS: Update availability checker)
+app.core.skills.marketplace.market_service::SkillMarketService (POS: Skill search/install orchestrator)
+app.core.skills.discovery.mount::maybe_mount_after_install (POS: Post-install user catalog enable)
+app.core.skills.discovery.adopt::complete_discovery_adoption (POS: Explicit allowlist append after install)
+app.core.skills.discovery.autoupdate::get_update_checker (POS: Update availability checker)
 
 [OUTPUT]
 router: FastAPI router with skill search, install, preview, update, uninstall,

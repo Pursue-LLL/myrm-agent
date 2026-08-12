@@ -114,7 +114,10 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
           </div>
         ) : (
           <button
-            onClick={() => setShowConfirmRestore(true)}
+            onClick={() => {
+              setShowConfirmRestore(true);
+              setShowConfirmDelete(false);
+            }}
             disabled={isLoading}
             className={cn(
               'flex items-center gap-1 px-2.5 py-1 text-xs rounded-full transition-colors',
@@ -163,7 +166,10 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
           </div>
         ) : (
           <button
-            onClick={() => setShowConfirmDelete(true)}
+            onClick={() => {
+              setShowConfirmDelete(true);
+              setShowConfirmRestore(false);
+            }}
             disabled={isLoading}
             className={cn(
               'flex items-center gap-1 px-2.5 py-1 text-xs rounded-full transition-colors',

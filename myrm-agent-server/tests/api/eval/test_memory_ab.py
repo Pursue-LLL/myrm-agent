@@ -9,9 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.eval import (
-    browse_comp,
-)  # noqa: F401  (module-level benchmark registration)
 from app.core.eval.executor import LocalEvalExecutor
 from tests.support.minimal_app import build_minimal_app
 
@@ -289,6 +286,7 @@ class TestMemoryAbService:
         assert report["judge_model"] == "deepseek/deepseek-chat"
         assert report["agent_model"] == "gpt-4o"
         assert report["aborted"] is False
+        assert isinstance(report["harness_version"], str) and report["harness_version"]
 
     @pytest.mark.asyncio
     async def test_run_marks_report_aborted_after_user_abort(

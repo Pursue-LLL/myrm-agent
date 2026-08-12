@@ -21,9 +21,14 @@ app/api/skills/    API 路由
     ↓
 app/core/skills/   业务适配层（本模块）
     ├── loader.py       SkillBackend 工厂
-    ├── store/          CRUD / 池索引 / 用户配置
+    ├── store/          CRUD / 进化存储单例 / 用户配置
+    ├── creation/       技能创作（SkillWriteBackend 本地实现）
     ├── packaging/      打包 / 解包 / 校验
-    └── providers/      本地提供者
+    ├── providers/      本地提供者
+    ├── discovery/      发现 / 采纳 / 挂载 / 上游更新
+    ├── marketplace/    市场 / ClawHub 镜像 / 自定义源
+    ├── gates/          集成凭证 / 权限 / 隔离 / 依赖 gate
+    └── curator/        Curator 治理 / 技能合并（consolidation）
     ↓
 myrm_agent_harness.backends.skills/   框架层实现
     ├── LocalSkillBackend

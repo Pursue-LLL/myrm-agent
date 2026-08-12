@@ -24,7 +24,7 @@ from myrm_agent_harness.backends.skills.usage_recorder import (
 @pytest.fixture
 def curator_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Isolated skills root + curator data dir; resets service singletons."""
-    import app.core.skills.curator_service as curator_service
+    import app.core.skills.curator.service as curator_service
     import app.core.skills.models as models_mod
 
     skills_root = tmp_path / "skills"
@@ -78,7 +78,7 @@ async def test_curator_sweep_marks_inactive_skill_stale(curator_workspace: Path)
         },
     )
 
-    from app.core.skills.curator_service import get_stats_collector, run_curator_sweep, update_curator_config
+    from app.core.skills.curator.service import get_stats_collector, run_curator_sweep, update_curator_config
 
     update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
     collector = get_stats_collector()
@@ -110,7 +110,7 @@ async def test_never_used_young_skill_not_stale(curator_workspace: Path) -> None
         },
     )
 
-    from app.core.skills.curator_service import run_curator_sweep, update_curator_config
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
 
     update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
     result = await run_curator_sweep(force=True, trigger="manual")
@@ -148,12 +148,12 @@ async def test_prebuilt_skill_exempt_from_sweep(curator_workspace: Path) -> None
     )
 
     paths = [str(curator_workspace), str(prebuilt_root.parent.parent)]
-    import app.core.skills.curator_service as curator_service
+    import app.core.skills.curator.service as curator_service
 
     curator_service.DEFAULT_LOCAL_SKILL_PATHS = paths
     models_mod.DEFAULT_LOCAL_SKILL_PATHS = paths
 
-    from app.core.skills.curator_service import run_curator_sweep, update_curator_config
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
 
     update_curator_config(
         {"stale_after_days": 7, "grace_period_days": 0, "protect_system_skills": True, "enabled": True}
@@ -179,7 +179,7 @@ async def test_usage_recorder_to_curator_via_api_client(curator_workspace: Path)
 
     from myrm_agent_harness.backends.skills.types import SkillMetadata
 
-    from app.core.skills.curator_service import get_stats_collector, update_curator_config
+    from app.core.skills.curator.service import get_stats_collector, update_curator_config
 
     update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
     collector = get_stats_collector()

@@ -297,6 +297,75 @@ class TestGetLatestMatrixReport:
         assert get_latest_matrix_report() is None
 
 
+class TestMatrixReportHistory:
+    def test_history_empty_when_dir_missing(self, tmp_path: Path) -> None:
+        import app.core.eval._state as state_mod
+
+        state_mod.DEFAULT_MATRIX_REPORTS_DIR = tmp_path / "absent"
+
+        from app.core.eval.matrix import get_matrix_report_history
+
+        assert get_matrix_report_history() == []
+
+    def test_history_lists_reports_newest_first(self, tmp_path: Path) -> None:
+        import app.core.eval._state as state_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "matrix_report_10.json").write_text(
+            '{"timestamp": 10, "eval_type": "layered", "dataset_id": "ds-a", '
+            '"stable_rate": 0.5, "aborted": false}'
+        )
+        (reports_dir / "matrix_report_20.json").write_text(
+            '{"timestamp": 20, "eval_type": "matrix", "dataset_id": "ds-b", '
+            '"stable_rate": 0.8}'
+        )
+        state_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
+
+        from app.core.eval.matrix import get_matrix_report_history
+
+        history = get_matrix_report_history()
+        assert [h["timestamp"] for h in history] == [20, 10]
+        assert history[0]["eval_type"] == "matrix"
+        assert history[0]["stable_rate"] == 0.8
+        assert history[1]["eval_type"] == "layered"
+        assert history[1]["aborted"] is False
+        # The summary must stay lightweight — no per-case payload.
+        assert "per_profile" not in history[0]
+        assert "matrix" not in history[0]
+
+    def test_history_skips_corrupt_and_non_matching_files(
+        self, tmp_path: Path
+    ) -> None:
+        import app.core.eval._state as state_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "matrix_report_1.json").write_text("{not json")
+        (reports_dir / "matrix_report_2.json").write_text("[]")
+        (reports_dir / "other.json").write_text('{"timestamp": 3}')
+        state_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
+
+        from app.core.eval.matrix import get_matrix_report_history
+
+        assert get_matrix_report_history() == []
+
+    def test_get_report_by_timestamp(self, tmp_path: Path) -> None:
+        import app.core.eval._state as state_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "matrix_report_7.json").write_text(
+            '{"timestamp": 7, "profile_ids": ["a"]}'
+        )
+        state_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
+
+        from app.core.eval.matrix import get_matrix_report
+
+        assert get_matrix_report(7) == {"timestamp": 7, "profile_ids": ["a"]}
+        assert get_matrix_report(8) is None
+
+
 @pytest.fixture(scope="module")
 def client() -> Generator[TestClient, None, None]:
     with patch("app.core.security.auth.identity.is_loopback_ip", return_value=True):
@@ -385,6 +454,31 @@ class TestMatrixRouterEndpoints:
         assert res.status_code == 200
         assert res.json()["status"] == "success"
         assert res.json()["report"]["profile_ids"] == ["a", "b"]
+
+    def test_history_returns_reports(self, client: TestClient) -> None:
+        with patch(
+            "app.api.eval.matrix_router.get_matrix_report_history",
+            return_value=[{"timestamp": 2}, {"timestamp": 1}],
+        ):
+            res = client.get("/api/v1/eval/matrix/reports/history")
+        assert res.status_code == 200
+        assert res.json()["status"] == "success"
+        assert res.json()["reports"] == [{"timestamp": 2}, {"timestamp": 1}]
+
+    def test_report_by_timestamp_not_found(self, client: TestClient) -> None:
+        with patch("app.api.eval.matrix_router.get_matrix_report", return_value=None):
+            res = client.get("/api/v1/eval/matrix/reports/123")
+        assert res.json()["status"] == "not_found"
+
+    def test_report_by_timestamp_found(self, client: TestClient) -> None:
+        with patch(
+            "app.api.eval.matrix_router.get_matrix_report",
+            return_value={"timestamp": 123, "profile_ids": ["a"]},
+        ):
+            res = client.get("/api/v1/eval/matrix/reports/123")
+        assert res.status_code == 200
+        assert res.json()["status"] == "success"
+        assert res.json()["report"]["timestamp"] == 123
 
 
 class TestLayerRouterEndpoints:
