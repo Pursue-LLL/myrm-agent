@@ -14,16 +14,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.eval.matrix import (
+from app.core.eval._state import (
+    active_matrix_runner,
+    matrix_state,
+)
+from app.core.eval.layered import (
     DEFAULT_LAYER_SPECS,
-    _active_matrix_runner,
-    _matrix_state,
+    _run_layer_eval,
+    layer_specs_to_meta,
+    run_layer_eval_background,
+)
+from app.core.eval.matrix import (
     _run_matrix_eval,
     abort_matrix_eval,
     get_latest_matrix_report,
     get_matrix_eval_status,
-    layer_specs_to_meta,
-    run_layer_eval_background,
     run_matrix_eval_background,
 )
 from tests.support.minimal_app import build_minimal_app
@@ -32,10 +37,10 @@ app = build_minimal_app(preset="eval")
 
 
 @pytest.fixture(autouse=True)
-def _reset_matrix_state() -> Generator[None, None, None]:
+def _resetmatrix_state() -> Generator[None, None, None]:
     """Reset the module-level matrix state between tests."""
-    _matrix_state.clear()
-    _matrix_state.update(
+    matrix_state.clear()
+    matrix_state.update(
         {
             "is_running": False,
             "current_profile": None,
@@ -46,43 +51,43 @@ def _reset_matrix_state() -> Generator[None, None, None]:
             "error": None,
         }
     )
-    global _active_matrix_runner
-    _active_matrix_runner = None
+    global active_matrix_runner
+    active_matrix_runner = None
     yield
-    _matrix_state["is_running"] = False
-    _active_matrix_runner = None
+    matrix_state["is_running"] = False
+    active_matrix_runner = None
 
 
 class TestMatrixStateHelpers:
     def test_status_returns_snapshot(self) -> None:
-        _matrix_state["case_completed"] = 3
+        matrix_state["case_completed"] = 3
         status = get_matrix_eval_status()
-        assert status == _matrix_state
+        assert status == matrix_state
         # Mutating the snapshot must not affect the module state.
         status["case_completed"] = 99
-        assert _matrix_state["case_completed"] == 3
+        assert matrix_state["case_completed"] == 3
 
     def test_abort_not_running_returns_false(self) -> None:
         assert abort_matrix_eval() is False
 
     def test_abort_running_aborts_active_runner(self) -> None:
-        import app.core.eval.matrix as matrix_mod
+        import app.core.eval._state as state_mod
 
-        _matrix_state["is_running"] = True
+        matrix_state["is_running"] = True
         runner = MagicMock()
-        matrix_mod._active_matrix_runner = runner
+        state_mod.active_matrix_runner = runner
         assert abort_matrix_eval() is True
         runner.abort.assert_called_once()
 
     def test_abort_running_without_runner_still_succeeds(self) -> None:
-        _matrix_state["is_running"] = True
+        matrix_state["is_running"] = True
         assert abort_matrix_eval() is True
 
 
 class TestRunMatrixEvalBackground:
     @pytest.mark.asyncio
     async def test_skips_when_already_running(self) -> None:
-        _matrix_state["is_running"] = True
+        matrix_state["is_running"] = True
         with patch(
             "app.core.eval.matrix._run_matrix_eval", new=AsyncMock()
         ) as mock_run:
@@ -101,8 +106,8 @@ class TestRunMatrixEvalBackground:
         mock_run.assert_awaited_once_with(
             "ds", ["a", "b"], benchmark_mode=True
         )
-        assert _matrix_state["is_running"] is False
-        assert _active_matrix_runner is None
+        assert matrix_state["is_running"] is False
+        assert active_matrix_runner is None
 
     @pytest.mark.asyncio
     async def test_records_error_on_failure(self) -> None:
@@ -111,8 +116,8 @@ class TestRunMatrixEvalBackground:
             new=AsyncMock(side_effect=RuntimeError("boom")),
         ):
             await run_matrix_eval_background(dataset_id="ds", profile_ids=["a", "b"])
-        assert _matrix_state["is_running"] is False
-        assert _matrix_state["error"] == "boom"
+        assert matrix_state["is_running"] is False
+        assert matrix_state["error"] == "boom"
 
 
 class TestRunMatrixEvalCore:
@@ -137,7 +142,7 @@ class TestRunMatrixEvalCore:
     @pytest.mark.asyncio
     async def test_full_flow_writes_report_and_latest(self, tmp_path: Path) -> None:
         """Happy path: runs MatrixRunner, writes timestamped + latest reports."""
-        import app.core.eval.matrix as matrix_mod
+        import app.core.eval._state as state_mod
 
         class FakeTurn:
             turns = ["t1"]
@@ -173,7 +178,7 @@ class TestRunMatrixEvalCore:
         reports_dir = tmp_path / "reports"
         reports_dir.mkdir()
         (reports_dir / "latest.json").write_text('{"stale": true}')
-        matrix_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
+        state_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
         ds_path = tmp_path / "ds.jsonl"
         ds_path.write_text('{"message": "hi"}\n')
 
@@ -199,8 +204,8 @@ class TestRunMatrixEvalCore:
         assert result["benchmark_mode"] is True
 
         # Progress callbacks drive the live state for the SSE stream.
-        assert _matrix_state["current_profile"] == "b"
-        assert _matrix_state["case_completed"] == 2
+        assert matrix_state["current_profile"] == "b"
+        assert matrix_state["case_completed"] == 2
 
         report_files = sorted(reports_dir.glob("matrix_report_*.json"))
         assert len(report_files) == 1
@@ -211,7 +216,7 @@ class TestRunMatrixEvalCore:
     @pytest.mark.asyncio
     async def test_abort_finishes_with_partial_state(self, tmp_path: Path) -> None:
         """Runner raising is propagated and state is not reset by core itself."""
-        import app.core.eval.matrix as matrix_mod
+        import app.core.eval._state as state_mod
 
         class FakeMatrixRunner:
             def __init__(self, executors, **kwargs):
@@ -223,7 +228,7 @@ class TestRunMatrixEvalCore:
             async def run_multi_turn(self, multi_cases, **kwargs):
                 raise RuntimeError("aborted mid-run")
 
-        matrix_mod.DEFAULT_MATRIX_REPORTS_DIR = tmp_path / "reports"
+        state_mod.DEFAULT_MATRIX_REPORTS_DIR = tmp_path / "reports"
         ds_path = tmp_path / "ds.jsonl"
         ds_path.write_text('{"message": "hi"}\n')
 
@@ -242,29 +247,29 @@ class TestRunMatrixEvalCore:
 
 class TestGetLatestMatrixReport:
     def test_returns_none_when_missing(self, tmp_path: Path) -> None:
-        import app.core.eval.matrix as matrix_mod
+        import app.core.eval._state as state_mod
 
-        matrix_mod.DEFAULT_MATRIX_REPORTS_DIR = tmp_path / "none"
+        state_mod.DEFAULT_MATRIX_REPORTS_DIR = tmp_path / "none"
         assert get_latest_matrix_report() is None
 
     def test_returns_report_when_present(self, tmp_path: Path) -> None:
-        import app.core.eval.matrix as matrix_mod
+        import app.core.eval._state as state_mod
 
         reports_dir = tmp_path / "reports"
         reports_dir.mkdir()
         (reports_dir / "latest.json").write_text('{"profile_ids": ["a"]}')
-        matrix_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
+        state_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
 
         report = get_latest_matrix_report()
         assert report == {"profile_ids": ["a"]}
 
     def test_returns_none_on_corrupt_file(self, tmp_path: Path) -> None:
-        import app.core.eval.matrix as matrix_mod
+        import app.core.eval._state as state_mod
 
         reports_dir = tmp_path / "reports"
         reports_dir.mkdir()
         (reports_dir / "latest.json").write_text("{not json")
-        matrix_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
+        state_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
 
         assert get_latest_matrix_report() is None
 
@@ -451,7 +456,7 @@ class TestLayerSpecs:
             "memory",
         ]
         # Ascending: each layer adds exactly one capability switch.
-        for prev, spec in zip(DEFAULT_LAYER_SPECS, DEFAULT_LAYER_SPECS[1:]):
+        for prev, spec in zip(DEFAULT_LAYER_SPECS, DEFAULT_LAYER_SPECS[1:], strict=False):
             added = (
                 (spec.benchmark_mode, spec.skills_enabled, spec.memory_enabled)
                 != (prev.benchmark_mode, prev.skills_enabled, prev.memory_enabled)
@@ -482,9 +487,9 @@ class TestLayerSpecs:
 class TestRunLayerEvalBackground:
     @pytest.mark.asyncio
     async def test_skips_when_already_running(self) -> None:
-        _matrix_state["is_running"] = True
+        matrix_state["is_running"] = True
         with patch(
-            "app.core.eval.matrix._run_layer_eval", new=AsyncMock()
+            "app.core.eval.layered._run_layer_eval", new=AsyncMock()
         ) as mock_run:
             await run_layer_eval_background("wb-bench-code")
         mock_run.assert_not_awaited()
@@ -492,33 +497,33 @@ class TestRunLayerEvalBackground:
     @pytest.mark.asyncio
     async def test_runs_and_clears_state(self) -> None:
         with patch(
-            "app.core.eval.matrix._run_layer_eval",
+            "app.core.eval.layered._run_layer_eval",
             new=AsyncMock(return_value={"layers": []}),
         ) as mock_run:
             await run_layer_eval_background(
                 "wb-bench-code", profile_id="p1", limit=3
             )
         mock_run.assert_awaited_once_with("wb-bench-code", "p1", limit=3)
-        assert _matrix_state["is_running"] is False
-        assert _matrix_state["profile_total"] == len(DEFAULT_LAYER_SPECS)
-        assert _active_matrix_runner is None
+        assert matrix_state["is_running"] is False
+        assert matrix_state["profile_total"] == len(DEFAULT_LAYER_SPECS)
+        assert active_matrix_runner is None
 
     @pytest.mark.asyncio
     async def test_records_error_on_failure(self) -> None:
         with patch(
-            "app.core.eval.matrix._run_layer_eval",
+            "app.core.eval.layered._run_layer_eval",
             new=AsyncMock(side_effect=RuntimeError("boom")),
         ):
             await run_layer_eval_background("wb-bench-code")
-        assert _matrix_state["is_running"] is False
-        assert _matrix_state["error"] == "boom"
+        assert matrix_state["is_running"] is False
+        assert matrix_state["error"] == "boom"
 
 
 class TestRunLayerEvalCore:
     @pytest.mark.asyncio
     async def test_full_flow_writes_layered_report(self, tmp_path: Path) -> None:
         """Happy path: four executors, progress callbacks, layered report."""
-        import app.core.eval.matrix as matrix_mod
+        import app.core.eval._state as state_mod
 
         class FakeTurn:
             turns = ["t1"]
@@ -552,9 +557,11 @@ class TestRunLayerEvalCore:
                     self.kwargs["on_case_complete"](key, MagicMock())
                 return FakeMatrixResult()
 
+        import app.core.eval.layered as layered_mod
+
         reports_dir = tmp_path / "reports"
-        matrix_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
-        matrix_mod.DEFAULT_LAYERS_MEMORY_DIR = tmp_path / "layers_memory"
+        state_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
+        layered_mod.DEFAULT_LAYERS_MEMORY_DIR = tmp_path / "layers_memory"
 
         executor_factories: list[dict[str, object]] = []
 
@@ -564,32 +571,35 @@ class TestRunLayerEvalCore:
 
         with (
             patch(
-                "app.core.eval.matrix.build_benchmark_cases",
+                "app.core.eval.benchmarks.build_benchmark_cases",
                 return_value=(cases, {}, False),
             ),
             patch(
-                "app.core.eval.matrix.benchmark_required_tools",
+                "app.core.eval.benchmarks.benchmark_required_tools",
                 return_value=("web_search",),
             ),
-            patch("app.core.eval.matrix.benchmark_needs_judge", return_value=True),
             patch(
-                "app.core.eval.matrix._resolve_agent_model_label",
+                "app.core.eval.benchmarks.benchmark_needs_judge",
+                return_value=True,
+            ),
+            patch(
+                "app.core.eval.model_config._resolve_agent_model_label",
                 new=AsyncMock(return_value="openai/gpt-4o"),
             ),
             patch(
-                "app.core.eval.matrix._resolve_judge_config",
+                "app.core.eval.model_config._resolve_judge_config",
                 new=AsyncMock(return_value=(MagicMock(), "openai/gpt-4o-mini")),
             ),
             patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
             patch(
-                "app.core.eval.matrix.LocalEvalExecutor",
+                "app.core.eval.layered.LocalEvalExecutor",
                 side_effect=fake_executor_factory,
             ),
             patch(
-                "app.core.eval.matrix.evict_cached_memory_manager",
+                "app.core.memory.adapters.setup.evict_cached_memory_manager",
                 new=AsyncMock(),
             ),
-            patch("app.core.eval.matrix.shutil.rmtree"),
+            patch("app.core.eval.layered.shutil.rmtree"),
         ):
             result = await _run_layer_eval(
                 "wb-bench-code", profile_id="p1", limit=2
@@ -617,8 +627,8 @@ class TestRunLayerEvalCore:
         assert memory_flags == [False, False, False, True]
 
         # Progress callbacks drive the shared matrix state.
-        assert _matrix_state["current_profile"] == "memory"
-        assert _matrix_state["case_completed"] == 4
+        assert matrix_state["current_profile"] == "memory"
+        assert matrix_state["case_completed"] == 4
 
         latest = reports_dir / "latest.json"
         assert latest.exists()
@@ -627,15 +637,15 @@ class TestRunLayerEvalCore:
     @pytest.mark.asyncio
     async def test_abort_before_eval_returns_empty(self, tmp_path: Path) -> None:
         """Abort during download short-circuits before any executor runs."""
-        import app.core.eval.matrix as matrix_mod
+        import app.core.eval._state as state_mod
 
-        matrix_mod.DEFAULT_MATRIX_REPORTS_DIR = tmp_path / "reports"
-        _matrix_state["abort_requested"] = True
+        state_mod.DEFAULT_MATRIX_REPORTS_DIR = tmp_path / "reports"
+        matrix_state["abort_requested"] = True
 
         with patch(
-            "app.core.eval.matrix.build_benchmark_cases",
+            "app.core.eval.benchmarks.build_benchmark_cases",
             return_value=([MagicMock(turns=["t1"])], {}, True),
         ):
             result = await _run_layer_eval("wb-bench-code", None)
         assert result == {}
-        assert _matrix_state["case_total"] == 0
+        assert matrix_state["case_total"] == 0
