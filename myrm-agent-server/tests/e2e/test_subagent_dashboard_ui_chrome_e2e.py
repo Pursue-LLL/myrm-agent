@@ -182,6 +182,44 @@ def _real_send_chat_message(
         timeout_sec=30.0,
     )
     assert send_ready.get("ready") is True, f"Send button not ready: {send_ready}"
+    net_hooked = client.evaluate(
+        page,
+        """(() => {
+          if (window.__MYRM_E2E_NET_RECORDS__) return { ok: true, already: true };
+          const records = [];
+          window.__MYRM_E2E_NET_RECORDS__ = records;
+          const origFetch = window.fetch.bind(window);
+          window.fetch = async (...args) => {
+            const url = String(args[0] ?? '');
+            const rec = { url: url.slice(0, 220), at: Date.now() };
+            records.push(rec);
+            if (url.includes('/agents/agent-stream')) {
+              const opts = (args[1] ?? {}) as RequestInit;
+              rec.body = (opts.body ?? '').toString().slice(0, 120);
+              rec.credentials = opts.credentials ?? null;
+              const onErr = (err: unknown) => {
+                rec.err = err instanceof Error ? err.message : String(err);
+              };
+              try {
+                const res = await origFetch(...args);
+                rec.status = res.status;
+                rec.statusText = res.statusText;
+                rec.contentType = res.headers.get('content-type') ?? null;
+                return res;
+              } catch (err) {
+                onErr(err);
+                throw err;
+              }
+            }
+            return origFetch(...args);
+          };
+          return { ok: true };
+        })()""",
+        timeout_sec=10.0,
+    )
+    assert isinstance(net_hooked, dict) and net_hooked.get("ok") is True, (
+        f"Failed to hook fetch: {net_hooked}"
+    )
     clicked = client.evaluate(
         page,
         """(() => {
@@ -225,6 +263,7 @@ def _real_send_chat_message(
                 chatStoreInput: (store?.inputMessage ?? '').slice(0, 120),
                 streamRequestMessageId: provider?.streamRequestMessageId ?? null,
                 sseEvents: window.__MYRM_E2E_CHAT__?.sseSnapshot?.()?.slice(-8) ?? [],
+                netRecords: window.__MYRM_E2E_NET_RECORDS__?.slice(-6) ?? [],
                 turn,
                 provider,
                 toasts,
