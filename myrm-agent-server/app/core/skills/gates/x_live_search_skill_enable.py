@@ -3,7 +3,7 @@
 [INPUT]
 - app.services.agent.platform_config::resolve_xai_search_config (POS: xAI credential probe)
 - app.core.skills.store.service::skills_service (POS: user prebuilt skill config)
-- app.core.skills.oauth_availability::X_LIVE_SEARCH_SKILL_ID
+- app.core.skills.gates.oauth_availability::X_LIVE_SEARCH_SKILL_ID
 
 [OUTPUT]
 - maybe_enable_x_live_search_skill: enable skill unless user disabled it
