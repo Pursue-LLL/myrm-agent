@@ -58,6 +58,7 @@ class LocalEvalExecutor:
         enable_memory: bool | None = None,
         memory_base_path: str | None = None,
         benchmark_tools: tuple[str, ...] = (),
+        skill_ids_override: list[str] | None = None,
     ) -> None:
         self.profile_id = profile_id
         self.benchmark_mode = benchmark_mode
@@ -70,6 +71,11 @@ class LocalEvalExecutor:
         # Generic capability for external datasets (e.g. WorkBuddy Bench) that
         # ship a read-only task workspace archive.
         self._workspace_seed_map = workspace_seed_map or {}
+        # Layered-eval skill ablation: ``None`` keeps the profile's declared
+        # skills, ``[]`` disables them entirely, a list pins an explicit set.
+        # Applied after profile resolution so intermediate layers (e.g. "core"
+        # rules without skills) can be exercised without cloning the profile.
+        self._skill_ids_override = skill_ids_override
         self._sandbox_executors: dict[str, CodeExecutor] = {}
         self._session_id: str | None = None
         # Physical session workspaces created by this executor. Both
@@ -255,6 +261,12 @@ class LocalEvalExecutor:
                 "enable_replan": False,
                 "enable_context_compression": False,
             }
+
+        # Layered-eval ablation applies after profile resolution so it is the
+        # final word on skill participation (benchmark_mode already emptied the
+        # list, so an override here is a no-op for the bare layer).
+        if self._skill_ids_override is not None:
+            agent_skill_ids = list(self._skill_ids_override)
 
         memory_shared_context_ids: list[str] = []
         if not self.benchmark_mode:

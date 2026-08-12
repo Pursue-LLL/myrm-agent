@@ -284,14 +284,25 @@ async def run_memory_ab_background(
         _memory_ab_state["stage_subset_id"] = None
         _active_memory_ab_runner = None
         # Release the throwaway memory volume (SQLite + embedded Qdrant) from
-        # the manager cache so the directory can be removed cleanly.
+        # the manager cache so the directory can be removed cleanly.  Each
+        # teardown step is independently guarded so a failure in one cannot
+        # skip the workspace cleanup that must always run.
         from app.core.memory.adapters.setup import evict_cached_memory_manager
 
-        await evict_cached_memory_manager(memory_dir)
-        shutil.rmtree(memory_dir, ignore_errors=True)
+        try:
+            await evict_cached_memory_manager(memory_dir)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to evict cached memory manager: %s", exc)
+        try:
+            shutil.rmtree(memory_dir, ignore_errors=True)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to remove memory volume: %s", exc)
         # Also remove the per-case session workspaces both arms created.
         for eval_executor in executors.values():
-            await eval_executor.cleanup()
+            try:
+                await eval_executor.cleanup()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to clean eval workspaces: %s", exc)
 
 
 def get_latest_memory_ab_report() -> dict[str, object] | None:

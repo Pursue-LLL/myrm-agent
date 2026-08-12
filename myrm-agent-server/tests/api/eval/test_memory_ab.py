@@ -1039,3 +1039,128 @@ class TestMemoryAbEdgeBranches:
         (reports_dir / "memory_ab_report_1.json").write_text("[1]")
         history = memory_ab_mod.get_memory_ab_report_history(reports_dir)
         assert history == []
+
+
+class TestCleanupResilience:
+    """The finally-block teardown must never skip eval workspace cleanup."""
+
+    @pytest.mark.asyncio
+    async def test_evict_failure_still_cleans_workspaces(
+        self, tmp_path: Path
+    ) -> None:
+        """A throwing evict_cached_memory_manager must not skip workspace cleanup.
+
+        The finally block guards each teardown step independently so a failure
+        in the memory-volume eviction cannot leave eval session workspaces
+        behind (the exact leak this feature exists to prevent).
+        """
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        class FakeMatrixRunner:
+            def __init__(self, executors, **kwargs):
+                self.kwargs = kwargs
+
+            def abort(self) -> None:
+                pass
+
+            async def run_multi_turn(self, cases, **kwargs):
+                return MagicMock()
+
+        from app.core.eval.executor import LocalEvalExecutor
+
+        captured_executors: dict[str, LocalEvalExecutor] = {}
+
+        def capturing_factory(*args: object, **kwargs: object) -> LocalEvalExecutor:
+            executor = LocalEvalExecutor(*args, **kwargs)
+            arm = kwargs.get("enable_memory")
+            captured_executors["memory_on" if arm else "memory_off"] = executor
+            return executor
+
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = tmp_path / "reports"
+        memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = tmp_path / "memory"
+        memory_ab_mod._memory_ab_state["is_running"] = False
+        memory_ab_mod._memory_ab_state["abort_requested"] = False
+
+        async def failing_evict(*args: object, **kwargs: object) -> None:
+            raise RuntimeError("evict exploded")
+
+        with (
+            patch(
+                "app.core.eval.benchmarks.build_benchmark_cases",
+                return_value=([MagicMock()], {}, False),
+            ),
+            patch(
+                "app.core.eval.model_config._resolve_agent_model_label",
+                new=AsyncMock(return_value="unknown"),
+            ),
+            patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
+            patch(
+                "app.core.eval.memory_ab.LocalEvalExecutor",
+                side_effect=capturing_factory,
+            ),
+            patch(
+                "app.core.memory.adapters.setup.evict_cached_memory_manager",
+                side_effect=failing_evict,
+            ),
+        ):
+            await memory_ab_mod.run_memory_ab_background("wb-bench-code")
+
+        # Both arms' executors ran cleanup even though eviction failed.
+        for executor in captured_executors.values():
+            assert executor._created_workspaces == set()
+            assert executor._session_id is None
+
+    @pytest.mark.asyncio
+    async def test_executor_cleanup_failure_does_not_block_other_arm(
+        self, tmp_path: Path
+    ) -> None:
+        """One arm's cleanup throwing must not skip the other arm's cleanup."""
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        from app.core.eval.executor import LocalEvalExecutor
+
+        class FakeMatrixRunner:
+            def __init__(self, executors, **kwargs):
+                self.kwargs = kwargs
+
+            def abort(self) -> None:
+                pass
+
+            async def run_multi_turn(self, cases, **kwargs):
+                return MagicMock()
+
+        cleaned: list[str] = []
+        original_cleanup = LocalEvalExecutor.cleanup
+
+        async def flaky_cleanup(self: LocalEvalExecutor) -> None:
+            if not cleaned:
+                # First arm's cleanup explodes; the second must still run.
+                cleaned.append("boom")
+                raise RuntimeError("cleanup exploded")
+            cleaned.append("ok")
+            await original_cleanup(self)
+
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = tmp_path / "reports"
+        memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = tmp_path / "memory"
+        memory_ab_mod._memory_ab_state["is_running"] = False
+        memory_ab_mod._memory_ab_state["abort_requested"] = False
+
+        with (
+            patch(
+                "app.core.eval.benchmarks.build_benchmark_cases",
+                return_value=([MagicMock()], {}, False),
+            ),
+            patch(
+                "app.core.eval.model_config._resolve_agent_model_label",
+                new=AsyncMock(return_value="unknown"),
+            ),
+            patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
+            patch.object(LocalEvalExecutor, "cleanup", flaky_cleanup),
+            patch(
+                "app.core.memory.adapters.setup.evict_cached_memory_manager",
+                new=AsyncMock(),
+            ),
+        ):
+            await memory_ab_mod.run_memory_ab_background("wb-bench-code")
+
+        assert cleaned == ["boom", "ok"]

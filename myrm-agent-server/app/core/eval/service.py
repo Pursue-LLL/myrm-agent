@@ -416,8 +416,12 @@ async def run_eval_suite(
     finally:
         _active_runner = None
         # Remove per-case session workspaces so eval never leaves throwaway
-        # directories behind (success, error, or abort all land here).
-        await executor.cleanup()
+        # directories behind (success, error, or abort all land here).  A
+        # cleanup failure must not mask the run's own outcome.
+        try:
+            await executor.cleanup()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to clean eval workspaces: %s", exc)
 
     # Save the report
     reports_dir.mkdir(parents=True, exist_ok=True)

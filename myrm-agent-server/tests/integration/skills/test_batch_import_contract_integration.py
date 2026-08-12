@@ -363,8 +363,8 @@ def test_batch_import_replace_preserves_existing_eval_cases_when_package_has_non
 ):
     """replace 覆盖场景：新包不含 evals.json 时，必须保留 DB 中已有回归门禁快照。
 
-    此前存在数据丢失 bug：构造全新 SkillRecord（eval_cases 默认 []）后经
-    INSERT OR REPLACE 整行覆盖，清空了该技能积累的 eval_cases。
+    语义：与单包导入 force 覆盖一致——包内无回归门禁时继承 DB 快照，
+    不被 INSERT OR REPLACE 整行覆盖清空。
     """
     client = _make_client()
     skill_name = f"preserve-{uuid.uuid4().hex[:8]}"
@@ -453,10 +453,8 @@ def test_batch_import_replace_preserves_existing_eval_cases_when_package_has_non
 def test_batch_import_replace_preserves_evolution_metadata() -> None:
     """replace 覆盖场景：必须继承原技能的演化元数据。
 
-    此前存在数据丢失 bug：replace 构造全新 SkillRecord（lineage.version=1、
-    is_active=True、metrics 全 0、evolution_locked=False），经 INSERT OR REPLACE
-    整行覆盖后，原技能回退到 v1、被禁用的技能被意外启用、演化统计清零、
-    锁定状态被解除。与单包导入 force 覆盖语义对齐后，这些元数据必须保留。
+    语义：与单包导入 force 覆盖一致——replace 仅更新内容/描述/回归门禁，
+    版本号、禁用/锁定状态、演化统计、陷阱与验证步骤均保留，不被整行覆盖重置。
     """
     client = _make_client()
     skill_name = f"preserve-meta-{uuid.uuid4().hex[:8]}"

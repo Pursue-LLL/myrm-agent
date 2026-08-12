@@ -338,7 +338,10 @@ async def _assert_private_api_binding(chat: McpChatSession, *, api_url: str) -> 
         intent=EvaluateIntent.SYNC_PROBE,
     )
     binding = stream_binding if isinstance(stream_binding, dict) else {}
-    if binding.get("usesRelativeProxy") is True or binding.get("hasPrivateBinding") is not True:
+    if (
+        binding.get("usesRelativeProxy") is True
+        or binding.get("hasPrivateBinding") is not True
+    ):
         raise AssertionError(
             "SHPOIB stream binding missing — agent-stream may hit shared :8080; "
             f"binding={binding!r}; expected={api_url!r}"
@@ -541,8 +544,11 @@ async def _run_tools_panel_e2e_once(
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-, private_reason="live_shpoib")
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
