@@ -22,7 +22,7 @@
 | `chatSessionConfig.ts` | Session 字段 SSOT（`activeMoaPresetId` 等）；LRU / pane / background SmartUpdater 三处复用 |
 | `moaPresetStorage.ts` | per-chat localStorage + DB PATCH（`persistMoaPresetToServer` fail-visible rollback）+ `resolveHydratedMoaPresetId` |
 | `useChatStore.ts`（根 store） | `refreshCompactionState`：压缩 SSE 后并行 refresh summary/branches/pins（`Promise.allSettled`，detail 失败不阻断 metadata）；`setAgentConfig` 绑定/切换 Agent 时重置 `securityPreset`（无默认回落 hitl，fail-closed） |
-| `messageUtils.ts` | assistant 消息索引、`findUiArtifactLocation`（`data_update` 跨回合 surface 定位） |
+| `messageUtils.ts` | assistant 消息索引、`findUiArtifactLocation`（`data_update` 跨回合 surface 定位）、`removeWaitingForTurnStep`（取消时同步清除 `waiting_for_turn` 进度步骤，防 UI 残留卡死） |
 | `useSubagentStore.ts` | 子代理运行时状态 store（`SubagentNode`/`SubagentStatus` 类型、SSE 树更新、teammate 消息、预算 metadata `budget`/`token_usage`、overtime/stale 告警、独立验证 `verification`（`SubagentVerification`）、fission 批次汇总 `fissionBatch`/`setFissionBatch` 与拓扑 `fissionTopology`/`setFissionTopology`；`setNodes` 对已终态（`TERMINAL_SUBAGENT_STATUSES`：cancelled/completed/failed/timed_out/cancelled_by_budget/interrupted）节点提供防回退保护，避免迟到 SSE/API 的 running 快照覆盖回退；挂 `window.__myrmSubagentStore` 供 chrome E2E 注入种子数据） |
 | `adaptiveScheduler.ts` | 自适应调度器：按文本长度动态调度任务（打字机流控 timer，支持 flush） |
 | `archiveRestoreActions.ts` | 归档恢复动作 SSOT：block/result payload 解析归一化 + 构建（每请求上限 `MAX_ARCHIVE_RESTORE_ACTIONS_PER_REQUEST`） |

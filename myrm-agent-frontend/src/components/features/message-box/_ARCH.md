@@ -39,7 +39,7 @@
 | `PlanConfirmationCard.tsx` | 组件 | Plan-phase HITL 卡片：展示 AI 计划，提供批准/编辑/跳过三种操作。支持 Deep Research（PhaseWaiter REST）和 General Agent（LangGraph interrupt SSE resume）双路径 | ✅ |
 | `WorkflowSuggestionCard.tsx` | 组件 | 非阻塞式 Workflow 建议内联卡片：检测到复杂可拆分任务时显示，提供 Enable（激活工作流模式）和 Dismiss（忽略）操作。不阻塞标准 Agent 流 | ✅ |
 | `MessageActionBar.tsx` | 组件 | 消息操作栏：复制/朗读/Fork/记忆保存/技能提炼/Wiki保存/统一依据按钮 | ✅ |
-| `MessageBox.tsx` | 核心 | 单条消息气泡根组件：路由 user/assistant/tool 分支；`ReasoningBlock` 遵循全局 `reasoningDisplayMode`（off/collapsed/inline）控制显示形态；当用户对含 KB 证据的回答执行 Regenerate 或 Undo 时上报 `quality_outcome_negative` 质量锚点事件。 | ✅ |
+| `MessageBox.tsx` | 核心 | 单条消息气泡根组件：路由 user/assistant/tool 分支；`ReasoningBlock` 遵循全局 `reasoningDisplayMode`（off/collapsed/inline）控制显示形态；当用户对含 KB 证据的回答执行 Regenerate 或 Undo 时上报 `quality_outcome_negative` 质量锚点事件；`handleCancel` 取消时同步调用 `removeWaitingForTurnStep` 清除 `waiting_for_turn` 残留步骤（锁等待期间取消场景）。 | ✅ |
 | `MessageBoxLoading.tsx` | 辅助 | 流式生成中 assistant 气泡 loading 态 | ✅ |
 | `SourceChunkDrawer.tsx` | 组件 | KB 引用原文片段 Drawer：点击 KB citation 后以右侧 Sheet 展示原文 snippet，支持 section + 分层来源标签（L0/L1/L2）+ compile snapshot 三态（verified/stale/missing）+ claim `claim_status` badge（仅 contested/unsupported）+ structured claim 与 evidence excerpt 分区 + wiki asset 缩略图与分段渲染；按 `surface(chat/settings)` + `contextKey` 记录证据展开与核验停留时长埋点。 | ✅ |
 | `MessageToc.tsx` | 组件 | 长 assistant 消息目录导航（heading anchor） | ✅ |
