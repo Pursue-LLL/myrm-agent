@@ -5738,6 +5738,7 @@
       "confirmCleanupTitle": "고아 프로세스를 정리하시겠습니까?",
       "confirmCleanupDescription": "남아 있는 {count}개의 브라우저 자동화 프로세스를 종료합니다. 일반 브라우저 창은 닫지 않습니다.",
       "cleaned": "고아 프로세스 {count}개를 정리했습니다",
+      "cleanupPartial": "{failed}개 프로세스를 종료하지 못했습니다",
       "cleanupFailed": "고아 프로세스 정리에 실패했습니다"
     },
     "cloudBrowser": {
@@ -6016,7 +6017,9 @@
     "unsaved": "저장되지 않음",
     "discardConfirm": "저장하지 않은 변경 사항이 있습니다. 취소하시겠습니까?",
     "organizeFolder": "AI 폴더 정리",
-    "organizePrompt": "workspace-auto-organizer 스킬을 사용하여 \"{path}\" 아래 파일을 정리하세요. 검토를 위해 organize-plan.json을 작성해 주세요."
+    "organizePrompt": "workspace-auto-organizer 스킬을 사용하여 \"{path}\" 아래 파일을 정리하세요. 검토를 위해 organize-plan.json을 작성해 주세요.",
+    "previewLoadError": "미리보기 로드 실패",
+    "unsupportedPreview": "이 파일 형식은 미리보기를 지원하지 않습니다. 다운로드하여 확인하세요."
   },
   "agent": {
     "title": "에이전트",

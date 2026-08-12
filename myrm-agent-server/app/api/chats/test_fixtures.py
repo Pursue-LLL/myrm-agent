@@ -62,6 +62,9 @@ from .test_fixtures_guardrail_bash import router as guardrail_bash_fixture_route
 from .test_fixtures_memory_lifecycle import router as memory_lifecycle_fixture_router
 from .test_fixtures_prior_chat import router as prior_chat_fixture_router
 from .test_fixtures_revert import router as revert_fixture_router
+from .test_fixtures_rich_media_preview import (
+    router as rich_media_preview_fixture_router,
+)
 from .test_fixtures_security_preset import router as security_preset_fixture_router
 from .test_fixtures_stream_retry_busy import (
     router as stream_retry_busy_fixture_router,
@@ -452,6 +455,7 @@ router.include_router(guardrail_bash_fixture_router)
 router.include_router(wiki_dedup_fixture_router)
 router.include_router(wiki_provenance_fixture_router)
 router.include_router(context_retention_fixture_router)
+router.include_router(rich_media_preview_fixture_router)
 router.include_router(security_preset_fixture_router)
 router.include_router(memory_lifecycle_fixture_router)
 router.include_router(prior_chat_fixture_router)

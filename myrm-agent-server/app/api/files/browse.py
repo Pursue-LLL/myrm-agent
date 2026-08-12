@@ -31,7 +31,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Query
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from app.core.utils.errors import validation_error
@@ -399,8 +399,10 @@ async def browse_content(
 ) -> Response:
     """Read file content for preview or download.
 
-    Restricted to text files within the workspace boundary. Binary files
-    and files exceeding the size limit are rejected.
+    Text files are returned inline with a 1MB truncation guard. Binary
+    files (images/PDF/audio/video/office docs) are streamed in full via
+    ``FileResponse`` — no size limit, with HTTP Range support so rich
+    media previews and seeking work for large files.
 
     Either ``workspace`` or ``chat_id`` must be provided so the server can
     establish the allowed root (matches Active Working Memory previews when the
@@ -449,14 +451,29 @@ async def browse_content(
         raise validation_error(f"Not a file: {path}")
 
     file_size = os.path.getsize(resolved)
-    is_truncated = False
-    if file_size > _MAX_CONTENT_SIZE:
-        is_truncated = True
 
     filename = os.path.basename(resolved)
     content_type, _ = mimetypes.guess_type(filename)
+    is_text = _is_text_file(filename)
     if content_type is None:
-        content_type = "text/plain" if _is_text_file(filename) else "application/octet-stream"
+        content_type = "text/plain" if is_text else "application/octet-stream"
+
+    disposition = "attachment" if download else "inline"
+    headers = {
+        "Content-Disposition": f'{disposition}; filename="{filename}"',
+    }
+
+    # Binary files are streamed in full (no truncation) so rich media
+    # previews — images, PDFs, audio/video, office docs — render correctly.
+    # FileResponse handles HTTP Range requests, enabling seeking for media.
+    if not is_text:
+        return FileResponse(
+            resolved,
+            media_type=content_type,
+            headers=headers,
+        )
+
+    is_truncated = file_size > _MAX_CONTENT_SIZE
 
     try:
         with open(resolved, "rb") as f:
@@ -469,11 +486,7 @@ async def browse_content(
     except OSError as e:
         raise validation_error(f"Cannot read file: {e}") from e
 
-    disposition = "attachment" if download else "inline"
-    headers = {
-        "Content-Disposition": f'{disposition}; filename="{filename}"',
-        "Content-Length": str(len(content)),
-    }
+    headers["Content-Length"] = str(len(content))
     if is_truncated:
         headers["X-Content-Truncated"] = "true"
 

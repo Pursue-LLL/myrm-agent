@@ -4907,6 +4907,7 @@
       "confirmCleanupTitle": "Confirm cleanup of orphan processes?",
       "confirmCleanupDescription": "This terminates {count} leftover browser automation process(es). It will not close normal browser windows.",
       "cleaned": "Cleaned {count} orphan process(es)",
+      "cleanupPartial": "{failed} process(es) could not be terminated",
       "cleanupFailed": "Failed to clean up orphan processes"
     },
     "cloudBrowser": {
@@ -6236,7 +6237,9 @@
     "saveSuccess": "File saved",
     "saveFailed": "Failed to save file",
     "unsaved": "Unsaved",
-    "discardConfirm": "You have unsaved changes. Discard them?"
+    "discardConfirm": "You have unsaved changes. Discard them?",
+    "previewLoadError": "Failed to load preview",
+    "unsupportedPreview": "This file type can't be previewed. Download to view it."
   },
   "loadout": {
     "title": "Agent loadout",

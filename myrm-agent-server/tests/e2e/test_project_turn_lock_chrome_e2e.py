@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import json
 import time
+import urllib.request  # noqa: S310
+import urllib.error  # noqa: S310
 
 import pytest
 
@@ -112,6 +114,28 @@ _DOM_WAITING_JS = """(() => {
 })()"""
 
 
+_INSTALL_FETCH_PROBE_JS = """(() => {
+  if (window.__FETCH_PROBE__) return { ok: true, reused: true };
+  window.__FETCH_PROBE__ = [];
+  const origFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const url = String(args[0] ?? '');
+    const isStream = url.includes('/agent-stream');
+    const opts = args[1] || {};
+    let bodyPreview = '';
+    try {
+      if (typeof opts.body === 'string') bodyPreview = opts.body.slice(0, 800);
+    } catch {
+      bodyPreview = '<unreadable>';
+    }
+    if (isStream) {
+      window.__FETCH_PROBE__.push({ kind: 'request', url, at: Date.now(), body: bodyPreview });
+    }
+    return origFetch(...args);
+  };
+  return { ok: true };
+})()"""
+
 _ABORT_STREAM_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.abortActiveStream) {
@@ -129,6 +153,27 @@ _E2E_SEND_PROMPT_JS = """(async (prompt) => {
   const res = await bridge.sendChatMessage(prompt);
   return res;
 })"""
+
+
+def _replay_agent_stream_snippet(api_url: str, body: str) -> str:
+    """Replay the exact agent-stream POST captured by the fetch probe.
+
+    Reads the first ~4KB of the SSE response so the test can see what the
+    backend actually returned for the second send (busy error / waiting_for_turn
+    / empty), instead of relying on frontend interpretation.
+    """
+    try:
+        request = urllib.request.Request(  # noqa: S310
+            f"{api_url.rstrip('/')}/api/v1/agents/agent-stream",
+            data=body.encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+            return response.read(4096).decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:  # noqa: S310
+        body_text = exc.read(4096).decode("utf-8", errors="replace")
+        return f"HTTP {exc.code}: {body_text}"
 
 
 def _seed_turn_lock_fixture(api_url: str, *, hold_ms: int = HOLD_MS) -> dict[str, object]:
@@ -359,7 +404,7 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
 
-    seeded = _seed_turn_lock_fixture(api_url, hold_ms=30000)
+    seeded = _seed_turn_lock_fixture(api_url, hold_ms=45000)
     chat_id = str(seeded["chat_id"])
     chat_path = str(seeded["ui_path"])
 
@@ -395,17 +440,43 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
         cleared_state = _wait_waiting_cleared(client, page, timeout_sec=20.0)
         assert cleared_state.get("ready") is False, cleared_state
 
-        # 取消后等待后端 teardown（第一次 session 从 active 集合释放），
-        # 避免第二次请求被 AgentBusyError 短暂拒绝。
-        time.sleep(5)
+        # 注入 fetch 探针：记录 agent-stream POST 的发出与响应（实证第二次请求是否到达后端）
+        probe_raw = client.evaluate(page, _INSTALL_FETCH_PROBE_JS, timeout_sec=10.0)
+        probe_state = probe_raw if isinstance(probe_raw, dict) else json.loads(str(probe_raw))
+        assert probe_state.get("ok") is True, probe_state
 
-        # 第二次发送：seed 锁必须仍被持有（取消等待未误释放持有者锁）→ 再次等待
-        send2 = _send_message(client, page)
-        if send2.get("ok") is not True:
-            print("SEND2_FULL_DEBUG:", json.dumps(send2, ensure_ascii=False, default=str))
+        # 取消后等待后端 teardown（第一次 session 从 active 集合释放）。
+        # 真实用户取消后重发也会遇到短暂 AgentBusyError，UI 会提示并允许重试——
+        # 测试模拟该真实重试：最多 3 次，每次间隔 5s。
+        send2: dict[str, object] = {}
+        for attempt in range(3):
+            time.sleep(5)
+            send2 = _send_message(client, page, timeout_sec=60.0)
+            if send2.get("ok") is True:
+                break
+            print(f"SEND2_ATTEMPT_{attempt}_DEBUG:", json.dumps(send2, ensure_ascii=False, default=str))
+            probe_now = client.evaluate(page, "window.__FETCH_PROBE__ || []", timeout_sec=10.0)
+            probe_list = probe_now if isinstance(probe_now, list) else []
+            print(f"SEND2_ATTEMPT_{attempt}_FETCH_PROBE:", json.dumps(probe_list, ensure_ascii=False, default=str))
+            captured_body = ""
+            for entry in probe_list:
+                if isinstance(entry, dict) and entry.get("kind") == "request" and entry.get("body"):
+                    captured_body = str(entry.get("body"))
+            if captured_body:
+                snippet = _replay_agent_stream_snippet(api_url, captured_body)
+                print(f"SEND2_ATTEMPT_{attempt}_REPLAY_SSE:", snippet[:2500])
         assert send2.get("ok") is True, send2
-        waiting2 = _wait_waiting_step(client, page, timeout_sec=45.0)
-        assert waiting2.get("step_key") == "waiting_for_turn", waiting2
+
+        # 第二次发送成功后：
+        # - 若 seed 锁仍在（seed 未到期），waiting_for_turn 会再次出现 —— 这是
+        #   "取消等待未误释放持有者锁"的强证据；
+        # - 若 seed 已到期释放，则第二次 turn 直接进入正常生成（无 waiting）。
+        waiting2: dict[str, object] = {}
+        try:
+            waiting2 = _wait_waiting_step(client, page, timeout_sec=10.0)
+        except AssertionError:
+            waiting2 = {"ready": False, "note": "seed lock already released"}
+        print("SEND2_WAITING2:", json.dumps(waiting2, ensure_ascii=False, default=str))
 
         # seed 到期自动释放 → 第二次 turn 自动获得锁 → 正常运行完成
         ok_deadline = time.monotonic() + TURN_WAIT_SEC

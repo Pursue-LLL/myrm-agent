@@ -4603,6 +4603,7 @@
       "confirmCleanupTitle": "孤立プロセスをクリーンアップしてもよろしいですか？",
       "confirmCleanupDescription": "残っている {count} 個のブラウザ自動化プロセスを終了します。通常のブラウザウィンドウは閉じません。",
       "cleaned": "{count} 個の孤立プロセスをクリーンアップしました",
+      "cleanupPartial": "{failed} 個のプロセスを終了できませんでした",
       "cleanupFailed": "孤立プロセスのクリーンアップに失敗しました"
     },
     "cloudBrowser": {
@@ -6216,7 +6217,9 @@
     "unsaved": "未保存",
     "discardConfirm": "未保存の変更があります。破棄しますか？",
     "organizeFolder": "AIでフォルダを整理",
-    "organizePrompt": "workspace-auto-organizerスキルを使用して「{path}」配下のファイルを整理してください。レビュー用にorganize-plan.jsonを作成してください。"
+    "organizePrompt": "workspace-auto-organizerスキルを使用して「{path}」配下のファイルを整理してください。レビュー用にorganize-plan.jsonを作成してください。",
+    "previewLoadError": "プレビューの読み込みに失敗しました",
+    "unsupportedPreview": "このファイル形式はプレビューできません。ダウンロードしてご覧ください。"
   },
   "agent": {
     "title": "エージェント",

@@ -6,15 +6,18 @@
  * [INPUT]
  * - file: FileEntry to preview/edit
  * - workspace: Workspace root path for API calls
+ * - RichMediaFilePreview::getPreviewKind (POS: workspace rich-media dispatch)
  *
  * [OUTPUT]
  * - WorkspaceFilePreview: Full-height panel showing file content with
- *   line numbers, edit mode toggle, and Ctrl+S save.
+ *   line numbers, edit mode toggle, and Ctrl+S save. Binary files
+ *   (images/audio/video/PDF/office docs) are rendered by RichMediaFilePreview.
  *
  * [POS]
- * File content preview/editor for the workspace browser. Fetches file
+ * File content preview/editor for the workspace browser. Fetches text file
  * content via /browse/content API and renders with line numbers. Supports
- * inline editing with Ctrl+S / Cmd+S keyboard save shortcut.
+ * inline editing with Ctrl+S / Cmd+S keyboard save shortcut. Routes binary
+ * files to the rich media renderer dispatcher.
  */
 
 import React, { memo, useEffect, useState, useCallback, useRef } from 'react';
@@ -29,6 +32,7 @@ import {
   saveWorkspaceFileContent,
   type FileEntry,
 } from '@/services/chat';
+import { getPreviewKind, RichMediaFilePreview } from './RichMediaFilePreview';
 
 interface WorkspaceFilePreviewProps {
   file: FileEntry;
@@ -169,7 +173,16 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     const [editing, setEditing] = useState(false);
     const [dirty, setDirty] = useState(false);
 
+    const previewKind = getPreviewKind(file.name);
+    const isRichMedia = previewKind !== null;
+    // Only text files support inline editing; SVG needs its text fetched to render.
+    const needsText = previewKind === null || previewKind === 'svg';
+
     const loadContent = useCallback(async () => {
+      if (!needsText) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
@@ -182,7 +195,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
       } finally {
         setLoading(false);
       }
-    }, [file.path, workspace]);
+    }, [file.path, workspace, needsText]);
 
     useEffect(() => {
       loadContent();
@@ -243,7 +256,10 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     const language = getLanguage(file.name);
 
     return (
-      <div className={cn('flex flex-col h-full bg-background', className)}>
+      <div
+        data-testid="workspace-file-preview"
+        className={cn('flex flex-col h-full bg-background', className)}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
           <div className="flex items-center gap-2 min-w-0">
@@ -257,7 +273,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            {content !== null && !loading && (
+            {!isRichMedia && content !== null && !loading && (
               <button
                 onClick={toggleEdit}
                 className={cn('p-1 rounded hover:bg-muted transition-colors', editing && 'bg-muted')}
@@ -304,6 +320,16 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
               <AlertTriangle className="h-6 w-6 mb-2 text-destructive" />
               <span className="text-sm text-center">{error}</span>
             </div>
+          ) : isRichMedia ? (
+            previewKind !== 'svg' || content !== null ? (
+              <RichMediaFilePreview
+                filePath={file.path}
+                filename={file.name}
+                workspace={workspace}
+                content={content ?? undefined}
+                onDownload={handleDownload}
+              />
+            ) : null
           ) : content !== null ? (
             editing ? (
               <LineNumberedEditor content={editContent} onChange={handleEditChange} />

@@ -109,7 +109,10 @@ async def test_workspace_physical_isolation_e2e(app_client) -> None:
         patch("app.core.eval.executor.load_user_configs", return_value=mock_configs),
         patch("app.core.channel_bridge.config_loader.load_user_configs", return_value=mock_configs),
     ):
-        result = await runner.run_multi_turn(cases)
+        try:
+            result = await runner.run_multi_turn(cases)
+        finally:
+            await executor.cleanup()
 
     if result.fail_count > 0 or result.error_count > 0:
         for t in result.turn_results:

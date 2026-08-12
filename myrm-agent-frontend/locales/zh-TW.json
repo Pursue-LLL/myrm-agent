@@ -4603,6 +4603,7 @@
       "confirmCleanupTitle": "確認清理孤兒進程？",
       "confirmCleanupDescription": "將終止 {count} 個殘留的瀏覽器自動化進程。此操作不會關閉正常使用的瀏覽器視窗。",
       "cleaned": "已清理 {count} 個孤兒進程",
+      "cleanupPartial": "有 {failed} 個進程未能終止",
       "cleanupFailed": "清理孤兒進程失敗"
     },
     "cloudBrowser": {
@@ -6216,7 +6217,9 @@
     "unsaved": "未儲存",
     "discardConfirm": "你有未儲存的修改，確定要放棄嗎？",
     "organizeFolder": "AI 整理此目錄",
-    "organizePrompt": "使用 workspace-auto-organizer 技能整理「{path}」下的檔案，生成 organize-plan.json 供我審閱後執行。"
+    "organizePrompt": "使用 workspace-auto-organizer 技能整理「{path}」下的檔案，生成 organize-plan.json 供我審閱後執行。",
+    "previewLoadError": "預覽載入失敗",
+    "unsupportedPreview": "暫不支援預覽此檔案類型，請下載查看。"
   },
   "agent": {
     "title": "智慧體",

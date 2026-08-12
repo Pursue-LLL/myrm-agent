@@ -5728,7 +5728,7 @@
         "camoufox": "Camoufox-Engine",
         "memory": "Arbeitsspeicher",
         "disk": "Speicherplatz",
-        "proxy": "Proxy",
+        "proxy": "Proxy-Einstellungen",
         "orphan_processes": "Verwaiste Prozesse",
         "browser_launch": "Starttest",
         "extension_relay": "Browser-Erweiterung"
@@ -5738,6 +5738,7 @@
       "confirmCleanupTitle": "Verwaiste Prozesse bereinigen?",
       "confirmCleanupDescription": "Dadurch werden {count} verbleibende Prozesse der Browserautomatisierung beendet. Normale Browserfenster werden nicht geschlossen.",
       "cleaned": "{count} verwaiste Prozesse bereinigt",
+      "cleanupPartial": "{failed} Prozess(e) konnten nicht beendet werden",
       "cleanupFailed": "Bereinigung der verwaisten Prozesse fehlgeschlagen"
     },
     "cloudBrowser": {
@@ -6016,7 +6017,9 @@
     "unsaved": "Nicht gespeichert",
     "discardConfirm": "Es gibt ungespeicherte Änderungen. Verwerfen?",
     "organizeFolder": "KI-Ordner organisieren",
-    "organizePrompt": "Organisieren Sie Dateien unter „{path}“ mit der Fähigkeit „Workspace-Auto-Organizer“. Schreiben Sie eine „organize-plan.json“ für meine Rezension."
+    "organizePrompt": "Organisieren Sie Dateien unter „{path}“ mit der Fähigkeit „Workspace-Auto-Organizer“. Schreiben Sie eine „organize-plan.json“ für meine Rezension.",
+    "previewLoadError": "Vorschau konnte nicht geladen werden",
+    "unsupportedPreview": "Dieser Dateityp kann nicht in der Vorschau angezeigt werden. Bitte herunterladen."
   },
   "agent": {
     "title": "Agenten",

@@ -41,7 +41,7 @@
 | 文件 | 职责 |
 |------|------|
 | `BrowserPoolCard.tsx` | 本地浏览器池管理 |
-| `BrowserDoctorCard.tsx` | 浏览器栈诊断（`/health/browser/doctor`；可选 launch test） |
+| `BrowserDoctorCard.tsx` | 浏览器栈诊断（`/health/browser/doctor`；可选 launch test）+ 孤儿进程清理（`DELETE /health/browser/orphans?confirm=true`，含失败明细与重跑清状态）；错误响应 JSON `detail` 解析（FastAPI `{"detail": ...}` → 可读文案，非 JSON 原样显示，空值兜底本地化） |
 | `CloudBrowserCard.tsx` | 云端浏览器配置 |
 | `BrowserProxyCard.tsx` | 浏览器代理配置 |
 | `DomainSkillsCard.tsx` | 域技能管理（列表/删除/内置标识） |

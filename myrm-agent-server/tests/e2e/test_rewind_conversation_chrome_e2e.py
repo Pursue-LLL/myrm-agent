@@ -278,54 +278,71 @@ async def test_rewind_conversation_via_webui(
             await asyncio.sleep(1.0)
         raise AssertionError(f"{error_label}: {last}")
 
-        async def _clear_composer(chat: McpChatSession, *, timeout_sec: float) -> None:
-            """Empty the composer before opening the Rewind dialog.
+    async def _clear_composer(chat: McpChatSession, *, timeout_sec: float) -> None:
+        """Empty the composer before opening the Rewind dialog.
 
-            Under E2E send races the composer can retain the last sent text; clearing
-            it first means the post-rewind prefill check reflects the rewind seed
-            (the deleted message's text) rather than a leftover value.
-            """
-            deadline = time.monotonic() + timeout_sec
-            last: dict[str, object] = {}
-            while time.monotonic() < deadline:
-                _touch_rewind_progress("rewind_clear_composer")
-                result = await chat.evaluate(
-                    """(() => {
-                      const hasBridge = !!window.__MYRM_E2E_CHAT__;
-                      const storeBefore = window.__MYRM_E2E_CHAT__?.getInputMessage?.() ?? null;
-                      window.__MYRM_E2E_CHAT__?.setInputMessage?.('');
+        Under E2E send races the composer can retain the last sent text; clearing
+        it first means the post-rewind prefill check reflects the rewind seed
+        (the deleted message's text) rather than a leftover value.
+        """
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_clear_composer")
+            result = await chat.evaluate(
+                """(() => {
+                  const b = window.__MYRM_E2E_CHAT__;
+                      const hasBridge = !!b;
+                      const fnType = b && typeof b.setInputMessage;
+                      const before = b?.getInputMessage?.() ?? null;
+                      let setResult = 'not-called';
+                      try {
+                        b?.setInputMessage?.('');
+                        setResult = 'called';
+                      } catch (err) {
+                        setResult = 'threw:' + String(err);
+                      }
+                      const after = b?.getInputMessage?.() ?? null;
+                      let testResult = null;
+                      try {
+                        if (typeof b?.setInputMessage === 'function') {
+                          b.setInputMessage('__E2E_DIAG__');
+                          testResult = b.getInputMessage?.() ?? null;
+                          b.setInputMessage('');
+                        }
+                      } catch (err) {
+                        testResult = 'threw:' + String(err);
+                      }
                       const inputs = Array.from(document.querySelectorAll('[data-chat-input]'));
                       for (const input of inputs) {
                         input.focus();
-                        if (typeof input.setSelectionRange === 'function') {
-                          input.setSelectionRange(input.value.length, input.value.length);
-                        }
-                        if (input.value) {
-                          const proto = Object.getPrototypeOf(input);
-                          const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-                          if (setter) setter.call(input, '');
-                          input.dispatchEvent(new Event('input', { bubbles: true }));
-                          input.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
+                        if (typeof input.select === 'function') input.select();
+                        const delOk = document.execCommand ? document.execCommand('delete') : null;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
                       }
                       const len = document.querySelector('[data-chat-input]')?.value?.length ?? 0;
-                      const storeAfter = window.__MYRM_E2E_CHAT__?.getInputMessage?.() ?? null;
+                      const finalStore = b?.getInputMessage?.() ?? null;
                       return {
                         ok: len === 0,
                         inputLen: len,
                         hasBridge,
-                        storeBefore,
-                        storeAfter,
+                        fnType,
+                        before,
+                        after,
+                        setResult,
+                        testResult,
+                        finalStore,
                         inputCount: inputs.length,
                       };
                     })()""",
                     intent=EvaluateIntent.BRIDGE_POLL,
                 )
-                last = result if isinstance(result, dict) else {"value": result}
-                if last.get("ok") is True:
-                    return
-                await asyncio.sleep(1.0)
-            raise AssertionError(f"Composer did not clear before rewind: {last}")
+            last = result if isinstance(result, dict) else {"value": result}
+            if last.get("ok") is True:
+                return
+            await asyncio.sleep(1.0)
+        raise AssertionError(f"Composer did not clear before rewind: {last}")
 
     async def _run_flow(chat: McpChatSession) -> str:
         await chat.dismiss_modals()

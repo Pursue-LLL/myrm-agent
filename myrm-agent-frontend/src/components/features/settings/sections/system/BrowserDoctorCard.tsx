@@ -31,10 +31,16 @@ interface BrowserDoctorReport {
   recommendations: string[];
 }
 
+interface OrphanCleanupFailed {
+  pid: number;
+  reason: string;
+}
+
 interface OrphanCleanupResult {
   killed?: number;
   dry_run?: boolean;
   message?: string;
+  failed?: OrphanCleanupFailed[];
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -62,6 +68,27 @@ const KNOWN_CHECK_NAMES = [
   'extension_relay',
 ] as const;
 
+/**
+ * Extract a user-readable message from a non-OK API response.
+ * FastAPI errors use `{"detail": "..."}`; fall back to the raw body when it
+ * is not JSON or carries no string detail, and to `fallback` when both are empty.
+ */
+async function readApiErrorDetail(resp: Response, fallback: string): Promise<string> {
+  const raw = await resp.text();
+  if (!raw) {
+    return fallback;
+  }
+  try {
+    const body = JSON.parse(raw) as { detail?: unknown };
+    if (typeof body.detail === 'string' && body.detail.trim()) {
+      return body.detail;
+    }
+  } catch {
+    // Non-JSON body, fall through to raw text below.
+  }
+  return raw.trim() || fallback;
+}
+
 const BrowserDoctorCard = memo(() => {
   const t = useTranslations('settings.browserDoctor');
   const [report, setReport] = useState<BrowserDoctorReport | null>(null);
@@ -72,6 +99,7 @@ const BrowserDoctorCard = memo(() => {
   const [cleaning, setCleaning] = useState(false);
   const [cleanupError, setCleanupError] = useState<string | null>(null);
   const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
+  const [cleanupHasFailures, setCleanupHasFailures] = useState(false);
 
   const fetchDoctor = useCallback(async (includeLaunchTest: boolean) => {
     setLoading(true);
@@ -80,7 +108,7 @@ const BrowserDoctorCard = memo(() => {
       const qs = includeLaunchTest ? '?launch_test=true' : '?launch_test=false';
       const resp = await fetch(`/api/v1/health/browser/doctor${qs}`);
       if (!resp.ok) {
-        throw new Error(await resp.text());
+        throw new Error(await readApiErrorDetail(resp, t('loadFailed')));
       }
       setReport(await resp.json());
     } catch (err) {
@@ -90,6 +118,13 @@ const BrowserDoctorCard = memo(() => {
       setLoading(false);
     }
   }, [t]);
+
+  const runDiagnosis = useCallback(() => {
+    setCleanupMessage(null);
+    setCleanupError(null);
+    setCleanupHasFailures(false);
+    void fetchDoctor(launchTest);
+  }, [fetchDoctor, launchTest]);
 
   useEffect(() => {
     void fetchDoctor(true);
@@ -103,10 +138,17 @@ const BrowserDoctorCard = memo(() => {
         method: 'DELETE',
       });
       if (!resp.ok) {
-        throw new Error(await resp.text());
+        throw new Error(await readApiErrorDetail(resp, t('cleanupFailed')));
       }
       const data = (await resp.json()) as OrphanCleanupResult;
-      setCleanupMessage(t('cleaned', { count: data.killed ?? 0 }));
+      const failed = data.failed ?? [];
+      if (failed.length > 0) {
+        setCleanupHasFailures(true);
+        setCleanupMessage(t('cleanupPartial', { failed: failed.length }));
+      } else {
+        setCleanupHasFailures(false);
+        setCleanupMessage(t('cleaned', { count: data.killed ?? 0 }));
+      }
       setCleanupOpen(false);
       await fetchDoctor(launchTest);
     } catch (err) {
@@ -135,7 +177,7 @@ const BrowserDoctorCard = memo(() => {
             variant="outline"
             size="sm"
             disabled={loading}
-            onClick={() => void fetchDoctor(launchTest)}
+            onClick={runDiagnosis}
             className="gap-2"
           >
             <IconRefresh className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
@@ -222,7 +264,14 @@ const BrowserDoctorCard = memo(() => {
                       </div>
                     )}
                     {name === 'orphan_processes' && cleanupMessage && (
-                      <p className="mt-1 text-emerald-400/90">{cleanupMessage}</p>
+                      <p
+                        className={cn(
+                          'mt-1',
+                          cleanupHasFailures ? 'text-amber-400/90' : 'text-emerald-400/90',
+                        )}
+                      >
+                        {cleanupMessage}
+                      </p>
                     )}
                     {name === 'orphan_processes' && cleanupError && (
                       <p className="mt-1 text-red-400">{cleanupError}</p>

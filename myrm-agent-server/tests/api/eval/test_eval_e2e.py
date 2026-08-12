@@ -117,6 +117,10 @@ def test_eval_api_e2e() -> None:
             assert response.json()["status"] == "success"
             assert response.json()["content"] == cases_content
 
+            workspace_root = Path(".myrm/eval_workspaces")
+            before_workspaces = (
+                set(workspace_root.iterdir()) if workspace_root.exists() else set()
+            )
             with (
                 patch(
                     "app.core.eval.executor.load_user_configs",
@@ -160,9 +164,10 @@ def test_eval_api_e2e() -> None:
             # falls back to model_cfg (LiteLLM-normalized) and the judge reuses
             # the same credentials.
             manifest = summary.get("manifest") or {}
+            expected_provider, _, expected_model_id = mock_configs.model_cfg.model.partition("/")
             assert manifest.get("judge_model") == mock_configs.model_cfg.model
-            assert manifest.get("model_provider") == "openai"
-            assert manifest.get("model_id") == "agnes-2.5-flash"
+            assert manifest.get("model_provider") == expected_provider
+            assert manifest.get("model_id") == expected_model_id
 
             response = client.get(f"{p}/internal/metrics/eval")
             assert response.status_code == 200
@@ -172,11 +177,12 @@ def test_eval_api_e2e() -> None:
 
             # The eval run's per-case session workspaces must be removed once the
             # suite finishes (the finally-block cleanup runs on success too).
-            workspace_root = Path(".myrm/eval_workspaces")
-            if workspace_root.exists():
-                assert not list(
-                    workspace_root.iterdir()
-                ), "eval session workspaces were not cleaned up after the run"
+            # The before_workspaces snapshot is taken before POST /run, so a run
+            # that leaves no new workspaces behind passes even when a sibling
+            # test's stale workspaces are present in the same shared directory.
+            assert not (set(workspace_root.iterdir()) - before_workspaces), (
+                "eval session workspaces were not cleaned up after the run"
+            )
 
             prom = client.get("/metrics", follow_redirects=True)
             if prom.status_code == 200:

@@ -355,7 +355,7 @@ async def test_browse_content_dangerous_path_rejected(client: AsyncClient, works
 
 @pytest.mark.anyio
 async def test_browse_content_file_too_large(client: AsyncClient, workspace_dir: str, tmp_path):
-    """Files exceeding 1MB should be truncated."""
+    """Text files exceeding 1MB should be truncated."""
     large_file = os.path.join(workspace_dir, "large.txt")
     with open(large_file, "wb") as f:
         f.write(b"x" * (1024 * 1024 + 1))
@@ -366,6 +366,70 @@ async def test_browse_content_file_too_large(client: AsyncClient, workspace_dir:
     assert resp.status_code == 200
     assert resp.headers.get("X-Content-Truncated") == "true"
     assert len(resp.content) == 1024 * 1024
+
+
+@pytest.mark.anyio
+async def test_browse_content_binary_full_stream(client: AsyncClient, workspace_dir: str):
+    """Binary files beyond 1MB stream in full without truncation."""
+    large_file = os.path.join(workspace_dir, "large.png")
+    payload = b"\x89PNG\r\n\x1a\n" + b"x" * (1024 * 1024 + 1)
+    with open(large_file, "wb") as f:
+        f.write(payload)
+    resp = await client.get(
+        "/api/v1/files/browse/content",
+        params={"path": large_file, "workspace": workspace_dir},
+    )
+    assert resp.status_code == 200
+    assert resp.headers.get("X-Content-Truncated") is None
+    assert resp.content == payload
+    assert "inline" in resp.headers.get("content-disposition", "")
+
+
+@pytest.mark.anyio
+async def test_browse_content_binary_correct_content_type(client: AsyncClient, workspace_dir: str):
+    """Binary files return their MIME type so rich media renders inline."""
+    png_path = os.path.join(workspace_dir, "photo.png")
+    with open(png_path, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n" + b"data")
+    resp = await client.get(
+        "/api/v1/files/browse/content",
+        params={"path": png_path, "workspace": workspace_dir},
+    )
+    assert resp.status_code == 200
+    assert resp.headers.get("content-type", "").startswith("image/png")
+
+
+@pytest.mark.anyio
+async def test_browse_content_binary_download(client: AsyncClient, workspace_dir: str):
+    """Binary download sets attachment disposition and streams full body."""
+    zip_path = os.path.join(workspace_dir, "archive.zip")
+    payload = b"PK\x03\x04" + b"data"
+    with open(zip_path, "wb") as f:
+        f.write(payload)
+    resp = await client.get(
+        "/api/v1/files/browse/content",
+        params={"path": zip_path, "workspace": workspace_dir, "download": "true"},
+    )
+    assert resp.status_code == 200
+    assert "attachment" in resp.headers.get("content-disposition", "")
+    assert resp.content == payload
+
+
+@pytest.mark.anyio
+async def test_browse_content_unknown_binary_streams(client: AsyncClient, workspace_dir: str):
+    """Unknown binary extension serves as octet-stream without truncation."""
+    blob_path = os.path.join(workspace_dir, "artifact.dat")
+    payload = b"\x00\x01\x02\x03" * 300000  # ~1.2MB
+    with open(blob_path, "wb") as f:
+        f.write(payload)
+    resp = await client.get(
+        "/api/v1/files/browse/content",
+        params={"path": blob_path, "workspace": workspace_dir},
+    )
+    assert resp.status_code == 200
+    assert resp.headers.get("content-type", "").startswith("application/octet-stream")
+    assert resp.headers.get("X-Content-Truncated") is None
+    assert resp.content == payload
 
 
 # -----------------------------------------------------------------------
