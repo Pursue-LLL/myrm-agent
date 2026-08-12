@@ -22,6 +22,7 @@ from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_allowlist_live_e2e import _AGENT_READY_JS
 from tests.support.chrome_mcp_e2e import (
+    e2e_runtime_bootstrap_apply_js,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -83,7 +84,9 @@ def _heavy_openapi_spec_yaml() -> str:
     return "\n".join(lines)
 
 
-def _create_agent(api_url: str, *, openapi_services: list[dict[str, object]], label: str) -> str:
+def _create_agent(
+    api_url: str, *, openapi_services: list[dict[str, object]], label: str
+) -> str:
     suffix = uuid.uuid4().hex[:8]
     payload = {
         "name": f"OpenAPI Fail Loud E2E {label} {suffix}",
@@ -112,9 +115,9 @@ def _assert_agent_openapi_services(
     assert isinstance(fetched, dict)
     data = fetched.get("data") if isinstance(fetched.get("data"), dict) else fetched
     services = data.get("openapi_services")
-    assert isinstance(services, list) and len(services) >= min_count, (
-        f"agent {agent_id} missing openapi_services: {data!r}"
-    )
+    assert (
+        isinstance(services, list) and len(services) >= min_count
+    ), f"agent {agent_id} missing openapi_services: {data!r}"
 
 
 def _delete_agent(api_url: str, agent_id: str) -> None:
@@ -144,10 +147,14 @@ async def _wait_agent_applied(
         if last.get("ok") is True:
             return
         await asyncio.sleep(1.0)
-    raise AssertionError(f"E2E agent not applied: expected={expected_agent_id!r} last={last!r}")
+    raise AssertionError(
+        f"E2E agent not applied: expected={expected_agent_id!r} last={last!r}"
+    )
 
 
-async def _wait_bridge_ready(chat: McpChatSession, *, timeout_sec: float = 90.0) -> None:
+async def _wait_bridge_ready(
+    chat: McpChatSession, *, timeout_sec: float = 90.0
+) -> None:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
@@ -160,20 +167,37 @@ async def _wait_bridge_ready(chat: McpChatSession, *, timeout_sec: float = 90.0)
     raise AssertionError(f"E2E chat bridge not ready: {last!r}")
 
 
-async def _open_agent_page(client: ChromeMcpClient, agent_url: str, api_url: str) -> object:
+async def _open_agent_page(
+    client: ChromeMcpClient, agent_url: str, api_url: str
+) -> object:
     last_exc: RuntimeError | None = None
     for attempt in range(4):
         if attempt > 0:
             wait_e2e_provider_ready(api_url=api_url, timeout_sec=30.0)
             await asyncio.sleep(2.0 * attempt)
         try:
-            return await asyncio.to_thread(client.new_page, agent_url, timeout_ms=120_000)
+            return await asyncio.to_thread(
+                client.new_page, agent_url, timeout_ms=120_000
+            )
         except RuntimeError as exc:
             if "E2E_RUNTIME_BINDING_FAILED" not in str(exc):
                 raise
             last_exc = exc
     assert last_exc is not None
     raise last_exc
+
+
+async def _apply_e2e_runtime_bootstrap(chat: McpChatSession) -> None:
+    bootstrap_js = e2e_runtime_bootstrap_apply_js()
+    if not bootstrap_js:
+        await chat.ensure_e2e_api_base_binding()
+        return
+    result = await chat.evaluate(
+        bootstrap_js,
+        intent=EvaluateIntent.AGENT_SUBMIT,
+    )
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        raise RuntimeError(f"E2E runtime bootstrap failed: {result}")
 
 
 async def _run_openapi_fail_loud_ui(
@@ -198,6 +222,7 @@ async def _run_openapi_fail_loud_ui(
         await chat.bootstrap(agent_url, timeout_sec=120.0)
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
         await _wait_bridge_ready(chat)
+        await _apply_e2e_runtime_bootstrap(chat)
         await _wait_agent_applied(chat, expected_agent_id=agent_id)
         prep = await chat.evaluate(
             PREPARE_AGENT_CHAT_JS,
@@ -337,6 +362,8 @@ async def test_openapi_budget_exceeded_shows_chat_error_in_real_ui(
                 r"exceeds Turn1 direct budget|超出.*直接绑定预算"
             ),
         )
-        _assert_openapi_outcome(outcome, expected_error_type="openapi_direct_budget_exceeded")
+        _assert_openapi_outcome(
+            outcome, expected_error_type="openapi_direct_budget_exceeded"
+        )
     finally:
         _delete_agent(api_url, agent_id)
