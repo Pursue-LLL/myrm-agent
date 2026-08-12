@@ -214,12 +214,17 @@ def _real_send_chat_message(
               const toasts = Array.from(
                 document.querySelectorAll('[data-sonner-toast], .ant-message-notice, [role="alert"]'),
               )
-                .map((node) => node.textContent?.trim()?.slice(0, 200))
+                .map((node) => node.textContent?.trim()?.slice(0, 300))
                 .filter(Boolean)
-                .slice(0, 6);
+                .slice(0, 8);
+              const store = window.__myrmChatStore?.getState?.();
               return {
                 inputValue: el?.value?.slice(0, 120) ?? null,
                 directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
+                chatStoreLoading: store?.loading ?? null,
+                chatStoreInput: (store?.inputMessage ?? '').slice(0, 120),
+                streamRequestMessageId: provider?.streamRequestMessageId ?? null,
+                sseEvents: window.__MYRM_E2E_CHAT__?.sseSnapshot?.()?.slice(-8) ?? [],
                 turn,
                 provider,
                 toasts,
@@ -227,7 +232,7 @@ def _real_send_chat_message(
             })()""",
             timeout_sec=10.0,
         )
-        print("DIAG_SEND_CLEAR_FAILED=" + json.dumps(diag, default=str)[:1500])
+        print("DIAG_SEND_CLEAR_FAILED=" + json.dumps(diag, default=str))
         raise
     assert cleared.get("ready") is True, f"Chat input did not clear after send: {cleared}"
     eph_status = client.evaluate(
