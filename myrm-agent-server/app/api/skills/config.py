@@ -18,16 +18,16 @@ from app.api.skills.schemas import (
     UserSkillConfigResponse,
     skill_to_response,
 )
-from app.core.skills.clawhub_registry import (
-    apply_clawhub_registry_url,
-    get_registry_presets,
-)
 from app.core.skills.config_version import (
     bump_skill_config_version,
     get_skill_config_version,
 )
+from app.core.skills.gates.oauth_availability import apply_integration_oauth_availability
+from app.core.skills.marketplace.clawhub_registry import (
+    apply_clawhub_registry_url,
+    get_registry_presets,
+)
 from app.core.skills.models import UserSkillConfig
-from app.core.skills.oauth_availability import apply_integration_oauth_availability
 from app.core.skills.store.service import skills_service
 from app.database.connection import get_db
 
@@ -70,7 +70,7 @@ async def update_user_skill_config(
     if request.evolution_strategy is not None:
         kwargs["evolution_strategy"] = request.evolution_strategy
     if request.clawhub_registry_url is not None:
-        from app.core.skills.clawhub_registry import normalize_clawhub_registry_url
+        from app.core.skills.marketplace.clawhub_registry import normalize_clawhub_registry_url
 
         kwargs["clawhub_registry_url"] = normalize_clawhub_registry_url(
             request.clawhub_registry_url
@@ -219,7 +219,7 @@ async def disable_skill(skill_id: str, force: bool = False) -> EnableSkillRespon
     When the skill is referenced by other in-library skills and force is
     False, the request is rejected with the impacted dependent list.
     """
-    from app.core.skills.dependency_guard import get_dependents_for_skill
+    from app.core.skills.gates.dependency_guard import get_dependents_for_skill
 
     dependents = await get_dependents_for_skill(skill_id)
     if dependents and not force:

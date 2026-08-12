@@ -50,7 +50,7 @@ async def build_agent_runtime_context(
     ctx["execution_mode"] = execution_mode
 
     try:
-        from app.core.skills.disabled_skill_roots import collect_disabled_skill_roots
+        from app.core.skills.gates.disabled_skill_roots import collect_disabled_skill_roots
 
         ctx["disabled_skill_roots"] = await collect_disabled_skill_roots()
     except Exception as exc:

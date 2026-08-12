@@ -211,7 +211,7 @@ async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -
             return_value=(None, []),
         ),
         patch(
-            "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+            "app.core.skills.gates.disabled_skill_roots.collect_disabled_skill_roots",
             new_callable=AsyncMock,
             return_value=[],
         ),
@@ -329,7 +329,7 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
             return_value=(None, []),
         ),
         patch(
-            "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+            "app.core.skills.gates.disabled_skill_roots.collect_disabled_skill_roots",
             new_callable=AsyncMock,
             return_value=["skills/prebuilt/off"],
         ),

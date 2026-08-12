@@ -98,11 +98,12 @@ class SkillMarketService:
             migrate_legacy_registry_url,
         )
 
-        from app.core.skills.clawhub_registry import (
+        from app.core.skills.store.service import skills_service
+
+        from .clawhub_registry import (
             apply_clawhub_registry_url,
             normalize_clawhub_registry_url,
         )
-        from app.core.skills.store.service import skills_service
 
         config = await skills_service.user_config.get_config()
         stored = (config.clawhub_registry_url or "").strip().rstrip("/")
@@ -120,7 +121,7 @@ class SkillMarketService:
             WellKnownSkillSource,
         )
 
-        from app.core.skills.custom_source_config import load_custom_sources
+        from .custom_source_config import load_custom_sources
 
         config = load_custom_sources()
         for entry in config.sources:

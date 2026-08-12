@@ -26,7 +26,7 @@ import pytest
 def _disable_skill_roots_collection() -> None:
     """Keep runtime-context collection deterministic: no real storage I/O."""
     with patch(
-        "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+        "app.core.skills.gates.disabled_skill_roots.collect_disabled_skill_roots",
         new_callable=AsyncMock,
         return_value=[],
     ):
@@ -427,7 +427,7 @@ async def test_dispatch_injects_runtime_context():
             AsyncMock(),
         ),
         patch(
-            "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+            "app.core.skills.gates.disabled_skill_roots.collect_disabled_skill_roots",
             new_callable=AsyncMock,
             return_value=["skills/prebuilt/off"],
         ),

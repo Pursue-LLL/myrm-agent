@@ -569,7 +569,7 @@ async def build_general_agent(
 
     # 9. Call framework API
     from app.core.skills.creation.service import skill_creation_service
-    from app.core.skills.market_service import market_service
+    from app.core.skills.marketplace.market_service import market_service
     from app.core.skills.state_manager_instance import get_state_manager
 
     trusted_ids: list[str] | None = None

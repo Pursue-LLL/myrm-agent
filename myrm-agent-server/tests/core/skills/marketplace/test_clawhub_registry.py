@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.core.skills.clawhub_registry import (
+from app.core.skills.marketplace.clawhub_registry import (
     get_registry_presets,
     normalize_clawhub_registry_url,
 )

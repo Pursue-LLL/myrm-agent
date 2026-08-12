@@ -47,14 +47,17 @@ from app.api.skills.discovery_schemas import (
     SkillUrlInfo,
     UpdateCheckResponse,
 )
-from app.core.skills.discovery_adopt import complete_discovery_adoption
-from app.core.skills.discovery_autoupdate import get_update_checker
-from app.core.skills.discovery_mount import (
+from app.core.skills.discovery.adopt import complete_discovery_adoption
+from app.core.skills.discovery.autoupdate import get_update_checker
+from app.core.skills.discovery.mount import (
     SkillMountResult,
     maybe_mount_after_install,
     resolve_mount_skill_id,
 )
-from app.core.skills.market_service import SkillMarketService, market_service
+from app.core.skills.marketplace.market_service import (
+    SkillMarketService,
+    market_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +140,7 @@ async def probe_registry_mirror(
     url: str = Query("", description="Explicit registry base URL to probe"),
 ) -> dict[str, bool | str]:
     """Probe ClawHub-compatible registry reachability before switching mirrors."""
-    from app.core.skills.clawhub_probe import (
+    from app.core.skills.marketplace.clawhub_probe import (
         probe_clawhub_registry,
         probe_configured_cn_mirror,
     )
@@ -357,7 +360,7 @@ async def uninstall_skill(
     """
     require_local_skills_capability()
     if not request.force:
-        from app.core.skills.dependency_guard import get_dependents_for_skill
+        from app.core.skills.gates.dependency_guard import get_dependents_for_skill
 
         dependents = await get_dependents_for_skill(request.skill_id)
         if dependents:
@@ -435,7 +438,7 @@ async def install_skill_from_url(
 @router.get("/sources", response_model=CustomSourceListResponse)
 async def list_custom_sources() -> CustomSourceListResponse:
     """List all user-configured custom skill sources."""
-    from app.core.skills.custom_source_config import load_custom_sources
+    from app.core.skills.marketplace.custom_source_config import load_custom_sources
 
     config = load_custom_sources()
     return CustomSourceListResponse(
@@ -460,7 +463,7 @@ async def add_custom_source(
         WellKnownSkillSource,
     )
 
-    from app.core.skills.custom_source_config import add_custom_source as _add_source
+    from app.core.skills.marketplace.custom_source_config import add_custom_source as _add_source
 
     if request.source_type != "well-known":
         raise HTTPException(
@@ -494,7 +497,7 @@ async def remove_custom_source_endpoint(
     """Remove a custom skill source."""
     from urllib.parse import urlparse
 
-    from app.core.skills.custom_source_config import remove_custom_source
+    from app.core.skills.marketplace.custom_source_config import remove_custom_source
 
     removed = remove_custom_source(url)
     if not removed:

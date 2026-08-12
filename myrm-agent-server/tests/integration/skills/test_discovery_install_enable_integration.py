@@ -18,7 +18,7 @@ from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 from app.api.skills import discovery
 from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
-from app.core.skills.market_service import market_service
+from app.core.skills.marketplace.market_service import market_service
 from app.core.skills.store.service import SkillsService
 
 

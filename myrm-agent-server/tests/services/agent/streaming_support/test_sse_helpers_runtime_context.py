@@ -47,7 +47,7 @@ async def test_clarification_timeout_resume_injects_runtime_context() -> None:
             return_value=ExecutionMode.POOLED,
         ),
         patch(
-            "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+            "app.core.skills.gates.disabled_skill_roots.collect_disabled_skill_roots",
             new_callable=AsyncMock,
             return_value=["skills/prebuilt/off"],
         ),
@@ -81,7 +81,7 @@ async def test_directory_timeout_resume_injects_runtime_context() -> None:
             return_value=ExecutionMode.POOLED,
         ),
         patch(
-            "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+            "app.core.skills.gates.disabled_skill_roots.collect_disabled_skill_roots",
             new_callable=AsyncMock,
             return_value=["skills/prebuilt/off"],
         ),
@@ -115,7 +115,7 @@ async def test_approval_timeout_resume_injects_runtime_context() -> None:
             return_value=ExecutionMode.POOLED,
         ),
         patch(
-            "app.core.skills.disabled_skill_roots.collect_disabled_skill_roots",
+            "app.core.skills.gates.disabled_skill_roots.collect_disabled_skill_roots",
             new_callable=AsyncMock,
             return_value=["skills/prebuilt/off"],
         ),

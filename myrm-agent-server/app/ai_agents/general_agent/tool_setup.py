@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.artifacts.constants import ArtifactType
 
-from app.core.skills.oauth_availability import X_LIVE_SEARCH_SKILL_ID
+from app.core.skills.gates.oauth_availability import X_LIVE_SEARCH_SKILL_ID
 
 from .external_agents import ExternalAgentsMixin
 

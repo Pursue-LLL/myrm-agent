@@ -151,7 +151,7 @@ async def create_skill_backend(
     state_reader = SQLiteSkillStateReader()
     quarantine_backend = QuarantineAwareSkillBackend(base_backend=final_backend, state_reader=state_reader)
 
-    from app.core.skills.oauth_availability import wrap_integration_oauth_backend
+    from app.core.skills.gates.oauth_availability import wrap_integration_oauth_backend
 
     runtime_backend: SkillBackend = quarantine_backend
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.core.skills.custom_source_config import (
+from app.core.skills.marketplace.custom_source_config import (
     CustomSourceConfig,
     CustomSourceEntry,
     add_custom_source,
@@ -21,7 +21,7 @@ def mock_config_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Redirect config path to a temp directory."""
     config_file = tmp_path / "skill_sources.json"
     monkeypatch.setattr(
-        "app.core.skills.custom_source_config._get_config_path",
+        "app.core.skills.marketplace.custom_source_config._get_config_path",
         lambda: config_file,
     )
     return config_file

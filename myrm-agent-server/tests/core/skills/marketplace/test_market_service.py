@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.core.skills.market_service import SkillMarketService
+from app.core.skills.marketplace.market_service import SkillMarketService
 
 
 def _make_response(status_code: int, text: str = "") -> MagicMock:
@@ -16,7 +16,7 @@ def _make_response(status_code: int, text: str = "") -> MagicMock:
 @pytest.fixture
 def mock_analyze_github_url():
     with patch(
-        "app.core.skills.market_service.analyze_github_url",
+        "app.core.skills.marketplace.market_service.analyze_github_url",
         new_callable=AsyncMock,
     ) as mock:
         yield mock

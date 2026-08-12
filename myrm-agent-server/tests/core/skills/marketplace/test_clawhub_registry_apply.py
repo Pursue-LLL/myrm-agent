@@ -13,7 +13,7 @@ from myrm_agent_harness.agent.skills.market.sources.clawhub_registry import (
     resolve_registry_base_url,
 )
 
-from app.core.skills.clawhub_registry import apply_clawhub_registry_url
+from app.core.skills.marketplace.clawhub_registry import apply_clawhub_registry_url
 
 
 @pytest.fixture(autouse=True)
@@ -23,7 +23,7 @@ def _clear_registry_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("OPENCLAW_CLAWHUB_URL", raising=False)
 
 
-@patch("app.core.skills.market_service.market_service.refresh_clawhub_source")
+@patch("app.core.skills.marketplace.market_service.market_service.refresh_clawhub_source")
 def test_apply_intl_clears_shadow_registry_env(
     _refresh: object,
     monkeypatch: pytest.MonkeyPatch,
@@ -37,7 +37,7 @@ def test_apply_intl_clears_shadow_registry_env(
     assert resolve_registry_base_url() == CLAWHUB_DEFAULT_URL
 
 
-@patch("app.core.skills.market_service.market_service.refresh_clawhub_source")
+@patch("app.core.skills.marketplace.market_service.market_service.refresh_clawhub_source")
 def test_apply_cn_sets_clawhub_url_and_clears_shadow_env(
     _refresh: object,
     monkeypatch: pytest.MonkeyPatch,

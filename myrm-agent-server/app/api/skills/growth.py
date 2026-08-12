@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from app.core.skills.dependency_guard import get_dependents_map
+from app.core.skills.gates.dependency_guard import get_dependents_map
 from app.core.utils.response_utils import success_response
 from app.services.skills.growth.audit_queries import (
     SkillGrowthAuditEntryRead,

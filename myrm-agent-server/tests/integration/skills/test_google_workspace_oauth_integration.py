@@ -14,8 +14,11 @@ from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.skills import prebuilt_sync
+from app.core.skills.gates.oauth_availability import (
+    GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE,
+    GOOGLE_WORKSPACE_SKILL_ID,
+)
 from app.core.skills.loader import create_skill_backend
-from app.core.skills.oauth_availability import GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE, GOOGLE_WORKSPACE_SKILL_ID
 from app.core.skills.store.service import SkillsService
 from app.database.models import Base
 from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER
@@ -71,7 +74,7 @@ async def skills_client(
 
     _patch_integration_db(monkeypatch, integration_db, skills_storage)
     monkeypatch.setattr(
-        "app.core.skills.oauth_availability._is_xai_provider_configured",
+        "app.core.skills.gates.oauth_availability._is_xai_provider_configured",
         lambda: _always_false(),
     )
     app = build_minimal_app(preset="skills_api")

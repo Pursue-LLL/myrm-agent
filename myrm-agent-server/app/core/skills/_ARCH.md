@@ -9,7 +9,7 @@
 
 详细设计请参考 [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)
 
-**Catalog vs Runtime（OAuth 集成技能）**：`oauth_availability.py` 在 Skills HTTP API 与 `loader.create_skill_backend()` 外包 `IntegrationOAuthSkillBackend`，使 `google-workspace` 等在 OAuth 未连接时 Catalog 与 Agent preload WARNING 一致。`enabled_prebuilt_ids` 白名单过滤由 `loader.create_skill_backend()` 统一承载，GeneralAgent 与 CustomAgent 均按用户启用清单注入该白名单，保持 Catalog 与 Runtime 的 prebuilt 可见性契约一致。
+**Catalog vs Runtime（OAuth 集成技能）**：`gates/oauth_availability.py` 在 Skills HTTP API 与 `loader.create_skill_backend()` 外包 `IntegrationOAuthSkillBackend`，使 `google-workspace` 等在 OAuth 未连接时 Catalog 与 Agent preload WARNING 一致。`enabled_prebuilt_ids` 白名单过滤由 `loader.create_skill_backend()` 统一承载，GeneralAgent 与 CustomAgent 均按用户启用清单注入该白名单，保持 Catalog 与 Runtime 的 prebuilt 可见性契约一致。
 
 ---
 
@@ -21,8 +21,6 @@
 | `models.py` | 核心 | Skill、UserSkillConfig、SkillType 等数据模型 | — |
 | `loader.py` | 核心 | 技能后端工厂，组装 SkillBackend。支持 `allowed_prebuilt_ids` 白名单过滤 prebuilt 技能（Action Space Opt-In）。 | ✅ |
 | `prebuilt_sync.py` | 核心 | 预置技能种子同步（SKILL.md 三方哈希保护用户修改、upstream 更新检测；`scripts/` 等 bundle 文件始终跟随上游）与幽灵清理 | ✅ |
-| `oauth_availability.py` | 核心 | Integration 凭证 gate：OAuth / xAI provider / skill env / CLI bins → `available` / `unavailable_reason`（Catalog + loader wrapper）。x-live-search 仅 gate xAI，不要求 Agent Web Search | ✅ |
-| `x_live_search_skill_enable.py` | 核心 | xAI provider 保存后 auto-enable `x-live-search` prebuilt skill（respect disabled_prebuilt_ids） | ✅ |
 | `assets/prebuilt_skills/` | 内容 | 官方 SKILL.md 种子库（见仓库根 `assets/prebuilt_skills/`）。边界见 [SKILLS_SYSTEM.md §3.5](SKILLS_SYSTEM.md) | ✅ |
 | `state_reader.py` | 核心 | SkillStateReader 实现（SQLite 隔离状态查询） | ✅ |
 | `storage_adapters.py` | 核心 | SnapshotStore/ABTestStore 协议适配器 | ✅ |
@@ -36,15 +34,10 @@
 | `config_version.py` | 核心 | 技能配置版本号管理（bump/get，Agent 热重载检测） | ✅ |
 | `state_manager_instance.py` | 核心 | 全局 SkillStateManager 单例（init/get） | ✅ |
 | `curator_service.py` | 核心 | Skill Curator 业务服务 — 配置持久化、sweep 执行、background task 编排、审计历史、consolidation 集成；`get_stats_collector()` 注入 harness `usage_recorder` | ✅ |
-| `custom_source_config.py` | 核心 | 自定义技能源持久化管理（.well-known/skills 端点）— CRUD 配置存储至 MYRM_DATA_DIR | ✅ |
-| `clawhub_registry.py` | 核心 | ClawHub 镜像 URL 持久化/apply（CLAWHUB_URL SSOT + 清除 shadow env）；CN 预设 skill.xfyun.cn | ✅ |
-| `clawhub_probe.py` | 核心 | 薄封装：委托 harness strict registry probe | ✅ |
 | `effective_skill_ids.py` | 核心 | Agent 空 allowlist 时解析运行时 skill_ids（enabled prebuilt + local） | ✅ |
-| `discovery_adopt.py` | 核心 | Discover 采纳：显式 allowlist 时 install 自动 append skill_id | ✅ |
-| `discovery_mount.py` | 核心 | Discovery 安装/更新后 catalog enable 入口 | ✅ |
-| `market_service.py` | 核心 | 业务层技能市场服务（SSE 进度、自定义源、ClawHub 镜像懒加载） | ✅ |
-| `disabled_skill_roots.py` | 核心 | 收集用户未启用技能的 `storage_path` 根目录，注入 agent runtime context 供 glob/grep/file_read 过滤 | ✅ |
-| `dependency_guard.py` | 核心 | 技能依赖影响面查询（`get_dependents_map` / `get_dependents_for_skill`），基于 harness `SkillStore.skill_dependencies` 持久化图，供 pending 审核详情与 disable/uninstall 校验复用 | ✅ |
+| `discovery/` | 子域 | 技能发现聚合出口：`adopt`（显式 allowlist 时 install 自动 append）、`mount`（安装/更新后 catalog enable）、`autoupdate`（上游版本检测） | ✅ |
+| `marketplace/` | 子域 | 市场聚合出口：`market_service`（SSE 进度、自定义源、ClawHub 镜像懒加载）、`clawhub_registry`（镜像 URL 持久化/apply，CLAWHUB_URL SSOT）、`clawhub_probe`（连通性探测）、`custom_source_config`（自定义源持久化） | ✅ |
+| `gates/` | 子域 | 集成 gate 聚合出口：`oauth_availability`（OAuth/xAI/env/CLI bins 凭证 gate）、`x_live_search_skill_enable`（xAI provider 保存后 auto-enable）、`disabled_skill_roots`（未启用技能 storage 根注入 runtime）、`dependency_guard`（依赖影响面查询）、`permission_logger`（权限使用日志） | ✅ |
 
 ---
 

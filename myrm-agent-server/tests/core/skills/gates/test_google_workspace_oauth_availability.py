@@ -8,8 +8,7 @@ import pytest
 from myrm_agent_harness.backends.skills.types import SkillMetadata, SkillTrust
 from myrm_agent_harness.toolkits.storage.types import SkillType
 
-from app.core.skills.models import Skill
-from app.core.skills.oauth_availability import (
+from app.core.skills.gates.oauth_availability import (
     GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE,
     GOOGLE_WORKSPACE_SKILL_ID,
     IntegrationOAuthSkillBackend,
@@ -18,6 +17,7 @@ from app.core.skills.oauth_availability import (
     enrich_skill_metadata_integration_oauth,
     wrap_integration_oauth_backend,
 )
+from app.core.skills.models import Skill
 
 
 def _google_workspace_skill() -> Skill:
@@ -46,7 +46,7 @@ async def test_apply_oauth_availability_marks_google_workspace_unavailable() -> 
     db = AsyncMock()
 
     with patch(
-        "app.core.skills.oauth_availability.is_oauth_issuer_connected",
+        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
         AsyncMock(return_value=False),
     ):
         await apply_integration_oauth_availability([skill], db)
@@ -61,7 +61,7 @@ async def test_apply_oauth_availability_leaves_connected_skill_available() -> No
     db = AsyncMock()
 
     with patch(
-        "app.core.skills.oauth_availability.is_oauth_issuer_connected",
+        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
         AsyncMock(return_value=True),
     ):
         await apply_integration_oauth_availability([skill], db)
@@ -82,7 +82,7 @@ async def test_apply_oauth_availability_skips_unrelated_skills() -> None:
     db = AsyncMock()
 
     with patch(
-        "app.core.skills.oauth_availability.is_oauth_issuer_connected",
+        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
         AsyncMock(return_value=False),
     ) as connected_mock:
         await apply_integration_oauth_availability([other], db)
@@ -97,7 +97,7 @@ async def test_apply_oauth_to_metadata_marks_google_workspace_unavailable() -> N
     db = AsyncMock()
 
     with patch(
-        "app.core.skills.oauth_availability.is_oauth_issuer_connected",
+        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
         AsyncMock(return_value=False),
     ):
         await apply_integration_oauth_to_metadata([meta], db)
@@ -112,7 +112,7 @@ async def test_apply_oauth_to_metadata_leaves_connected_skill_available() -> Non
     db = AsyncMock()
 
     with patch(
-        "app.core.skills.oauth_availability.is_oauth_issuer_connected",
+        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
         AsyncMock(return_value=True),
     ):
         await apply_integration_oauth_to_metadata([meta], db)
@@ -136,7 +136,7 @@ async def test_enrich_skill_metadata_integration_oauth_uses_db_session() -> None
     with (
         patch("app.database.connection.get_session", return_value=_SessionCtx()),
         patch(
-            "app.core.skills.oauth_availability.apply_integration_oauth_to_metadata",
+            "app.core.skills.gates.oauth_availability.apply_integration_oauth_to_metadata",
             AsyncMock(),
         ) as apply_mock,
     ):
@@ -168,7 +168,7 @@ async def test_integration_oauth_backend_enriches_load_skills() -> None:
     backend = IntegrationOAuthSkillBackend(base)
 
     with patch(
-        "app.core.skills.oauth_availability.enrich_skill_metadata_integration_oauth",
+        "app.core.skills.gates.oauth_availability.enrich_skill_metadata_integration_oauth",
         AsyncMock(),
     ) as enrich_mock:
         result = await backend.load_skills(["google-workspace"])
@@ -234,7 +234,7 @@ async def test_integration_oauth_backend_enriches_list_skills() -> None:
     backend = IntegrationOAuthSkillBackend(base)
 
     with patch(
-        "app.core.skills.oauth_availability.enrich_skill_metadata_integration_oauth",
+        "app.core.skills.gates.oauth_availability.enrich_skill_metadata_integration_oauth",
         AsyncMock(),
     ) as enrich_mock:
         result = await backend.list_skills()

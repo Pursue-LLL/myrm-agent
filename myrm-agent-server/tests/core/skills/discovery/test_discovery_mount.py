@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
 
-from app.core.skills.discovery_mount import (
+from app.core.skills.discovery.mount import (
     DEFAULT_MOUNT_AGENT_ID,
     SkillMountResult,
     maybe_mount_after_install,
@@ -53,11 +53,11 @@ async def test_maybe_mount_after_install_enables_prebuilt() -> None:
 
     with (
         patch(
-            "app.core.skills.discovery_mount._is_skill_enabled",
+            "app.core.skills.discovery.mount._is_skill_enabled",
             new=AsyncMock(return_value=False),
         ),
         patch(
-            "app.core.skills.discovery_mount._ensure_skill_enabled",
+            "app.core.skills.discovery.mount._ensure_skill_enabled",
             new=AsyncMock(),
         ) as ensure_enabled,
         patch(
@@ -99,11 +99,11 @@ async def test_maybe_mount_after_install_does_not_mutate_agent_profile(
 
     with (
         patch(
-            "app.core.skills.discovery_mount._is_skill_enabled",
+            "app.core.skills.discovery.mount._is_skill_enabled",
             new=AsyncMock(return_value=False),
         ),
         patch(
-            "app.core.skills.discovery_mount._ensure_skill_enabled",
+            "app.core.skills.discovery.mount._ensure_skill_enabled",
             new=AsyncMock(),
         ),
         patch(
@@ -139,11 +139,11 @@ async def test_maybe_mount_after_install_idempotent_when_already_enabled() -> No
 
     with (
         patch(
-            "app.core.skills.discovery_mount._is_skill_enabled",
+            "app.core.skills.discovery.mount._is_skill_enabled",
             new=AsyncMock(return_value=True),
         ),
         patch(
-            "app.core.skills.discovery_mount._ensure_skill_enabled",
+            "app.core.skills.discovery.mount._ensure_skill_enabled",
             new=AsyncMock(),
         ) as ensure_enabled,
     ):
@@ -172,7 +172,7 @@ async def test_maybe_mount_after_install_skipped_when_mount_disabled() -> None:
     )
 
     with patch(
-        "app.core.skills.discovery_mount._ensure_skill_enabled",
+        "app.core.skills.discovery.mount._ensure_skill_enabled",
         new=AsyncMock(),
     ) as ensure_enabled:
         result = await maybe_mount_after_install(
@@ -187,7 +187,7 @@ async def test_maybe_mount_after_install_skipped_when_mount_disabled() -> None:
 
 @pytest.mark.asyncio
 async def test_market_service_install_does_not_auto_enable_catalog() -> None:
-    from app.core.skills.market_service import market_service
+    from app.core.skills.marketplace.market_service import market_service
 
     install_result = SkillInstallResult(
         success=True,
@@ -203,7 +203,7 @@ async def test_market_service_install_does_not_auto_enable_catalog() -> None:
             new=AsyncMock(return_value=install_result),
         ),
         patch(
-            "app.core.skills.discovery_mount._ensure_skill_enabled",
+            "app.core.skills.discovery.mount._ensure_skill_enabled",
             new=AsyncMock(),
         ) as ensure_enabled,
     ):

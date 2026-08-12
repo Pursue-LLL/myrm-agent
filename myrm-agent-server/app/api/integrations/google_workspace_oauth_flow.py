@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 
 from app.config.settings import settings
 from app.core.infra.ingress import get_public_ingress_base_url
-from app.core.skills.oauth_availability import GOOGLE_WORKSPACE_SKILL_ID
+from app.core.skills.gates.oauth_availability import GOOGLE_WORKSPACE_SKILL_ID
 from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER
 
 logger = logging.getLogger(__name__)

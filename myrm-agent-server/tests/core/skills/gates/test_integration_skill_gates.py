@@ -7,8 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from myrm_agent_harness.toolkits.storage.types import SkillType
 
-from app.core.skills.models import Skill
-from app.core.skills.oauth_availability import (
+from app.core.skills.gates.oauth_availability import (
     LINEAR_PROJECT_SKILL_ID,
     NOTION_WORKSPACE_SKILL_ID,
     X_LIVE_SEARCH_SKILL_ID,
@@ -17,6 +16,7 @@ from app.core.skills.oauth_availability import (
     XURL_SKILL_ID,
     apply_integration_oauth_availability,
 )
+from app.core.skills.models import Skill
 
 
 @pytest.mark.asyncio
@@ -32,7 +32,7 @@ async def test_x_live_search_marked_unavailable_without_xai_provider() -> None:
     db = AsyncMock()
 
     with patch(
-        "app.core.skills.oauth_availability._is_xai_provider_configured",
+        "app.core.skills.gates.oauth_availability._is_xai_provider_configured",
         new_callable=AsyncMock,
         return_value=False,
     ):
@@ -55,7 +55,7 @@ async def test_notion_marked_unavailable_without_env() -> None:
     db = AsyncMock()
 
     with patch(
-        "app.core.skills.oauth_availability._is_skill_env_configured",
+        "app.core.skills.gates.oauth_availability._is_skill_env_configured",
         new_callable=AsyncMock,
         return_value=False,
     ):
@@ -78,7 +78,7 @@ async def test_linear_available_when_env_configured() -> None:
     db = AsyncMock()
 
     with patch(
-        "app.core.skills.oauth_availability._is_skill_env_configured",
+        "app.core.skills.gates.oauth_availability._is_skill_env_configured",
         new_callable=AsyncMock,
         return_value=True,
     ):
@@ -100,7 +100,7 @@ async def test_xurl_marked_unavailable_without_cli() -> None:
     db = AsyncMock()
 
     with patch(
-        "app.core.skills.oauth_availability._are_skill_bins_available",
+        "app.core.skills.gates.oauth_availability._are_skill_bins_available",
         return_value=False,
     ):
         await apply_integration_oauth_availability([skill], db)
@@ -122,7 +122,7 @@ async def test_xurl_available_when_cli_on_path() -> None:
     db = AsyncMock()
 
     with patch(
-        "app.core.skills.oauth_availability._are_skill_bins_available",
+        "app.core.skills.gates.oauth_availability._are_skill_bins_available",
         return_value=True,
     ):
         await apply_integration_oauth_availability([skill], db)

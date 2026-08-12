@@ -25,7 +25,7 @@ def client(app: FastAPI) -> TestClient:
 
 def test_registry_probe_cn_reachable(client: TestClient) -> None:
     with patch(
-        "app.core.skills.clawhub_probe.probe_configured_cn_mirror",
+        "app.core.skills.marketplace.clawhub_probe.probe_configured_cn_mirror",
         new=AsyncMock(return_value=(True, "reachable")),
     ):
         response = client.get("/api/v1/skills/discovery/registry-probe?mirror=cn")
@@ -38,7 +38,7 @@ def test_registry_probe_cn_reachable(client: TestClient) -> None:
 
 def test_registry_probe_cn_unreachable(client: TestClient) -> None:
     with patch(
-        "app.core.skills.clawhub_probe.probe_configured_cn_mirror",
+        "app.core.skills.marketplace.clawhub_probe.probe_configured_cn_mirror",
         new=AsyncMock(return_value=(False, "not_clawhub_json")),
     ):
         response = client.get("/api/v1/skills/discovery/registry-probe?mirror=cn")
@@ -51,7 +51,7 @@ def test_registry_probe_cn_unreachable(client: TestClient) -> None:
 
 def test_registry_probe_explicit_url(client: TestClient) -> None:
     with patch(
-        "app.core.skills.clawhub_probe.probe_clawhub_registry",
+        "app.core.skills.marketplace.clawhub_probe.probe_clawhub_registry",
         new=AsyncMock(return_value=(True, "reachable")),
     ) as probe:
         response = client.get(

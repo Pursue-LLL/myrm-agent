@@ -15,7 +15,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.core.skills.dependency_guard import get_dependents_map
+from app.core.skills.gates.dependency_guard import get_dependents_map
 from app.services.skills.evolution_reviews import (
     EvolutionApplyError,
     EvolutionReviewRecord,

@@ -61,7 +61,7 @@ def apply_clawhub_registry_url(url: str | None) -> str:
     clear_shadow_registry_env()
 
     try:
-        from app.core.skills.market_service import market_service
+        from .market_service import market_service
 
         market_service.refresh_clawhub_source()
     except Exception as exc:

@@ -17,7 +17,7 @@ from myrm_agent_harness.agent.meta_tools.interaction.a2ui_spec import (
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
 from myrm_agent_harness.agent.tool_management.types import ToolSource
 
-from app.core.skills.oauth_availability import X_LIVE_SEARCH_SKILL_ID
+from app.core.skills.gates.oauth_availability import X_LIVE_SEARCH_SKILL_ID
 
 
 def _register_eager_tools(tools: list[object]) -> ToolRegistry:

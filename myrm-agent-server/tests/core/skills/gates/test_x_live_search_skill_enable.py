@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.core.skills.oauth_availability import X_LIVE_SEARCH_SKILL_ID
-from app.core.skills.x_live_search_skill_enable import maybe_enable_x_live_search_skill
+from app.core.skills.gates.oauth_availability import X_LIVE_SEARCH_SKILL_ID
+from app.core.skills.gates.x_live_search_skill_enable import maybe_enable_x_live_search_skill
 
 
 @pytest.mark.asyncio

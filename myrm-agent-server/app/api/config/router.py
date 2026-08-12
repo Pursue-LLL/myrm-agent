@@ -1128,9 +1128,7 @@ async def set_config(
         invalidate_ingress_requirement_cache()
         if config_key == "providers":
             try:
-                from app.core.skills.x_live_search_skill_enable import (
-                    maybe_enable_x_live_search_skill,
-                )
+                from app.core.skills.gates.x_live_search_skill_enable import maybe_enable_x_live_search_skill
 
                 providers_value = (
                     request.value if isinstance(request.value, dict) else None
@@ -1238,9 +1236,7 @@ async def rollback_config(
         invalidate_ingress_requirement_cache()
         if config_key == "providers":
             try:
-                from app.core.skills.x_live_search_skill_enable import (
-                    maybe_enable_x_live_search_skill,
-                )
+                from app.core.skills.gates.x_live_search_skill_enable import maybe_enable_x_live_search_skill
 
                 providers_value = new_value if isinstance(new_value, dict) else None
                 await maybe_enable_x_live_search_skill(providers_value)

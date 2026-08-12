@@ -459,7 +459,7 @@ async def _phase_1b_parallel() -> None:
         logger.info("[Startup] Managed approval policy initialized from env")
 
     async def _init_permission_logger_task() -> None:
-        from app.core.skills.permission_logger import start_permission_logger
+        from app.core.skills.gates.permission_logger import start_permission_logger
 
         start_permission_logger()
         logger.info("[Startup] Skill permission logger started")

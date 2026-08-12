@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import logging
 
-from app.core.skills.oauth_availability import X_LIVE_SEARCH_SKILL_ID
 from app.services.agent.platform_config import resolve_xai_search_config
+
+from .oauth_availability import X_LIVE_SEARCH_SKILL_ID
 
 logger = logging.getLogger(__name__)
 

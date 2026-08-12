@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from app.core.skills.oauth_availability import X_LIVE_SEARCH_SKILL_ID
+from app.core.skills.gates.oauth_availability import X_LIVE_SEARCH_SKILL_ID
 
 
 def _make_search_mixin(*, skill_ids: list[str] | None) -> object:

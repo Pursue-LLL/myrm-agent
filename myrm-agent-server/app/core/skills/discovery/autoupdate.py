@@ -76,7 +76,7 @@ class SkillAutoUpdateChecker:
             if elapsed < CHECK_COOLDOWN_SECONDS:
                 return self._last_check
 
-        from app.core.skills.market_service import market_service
+        from app.core.skills.marketplace.market_service import market_service
         from app.core.skills.store.service import skills_service
 
         installed = await skills_service.list_skills()
@@ -142,7 +142,7 @@ class SkillAutoUpdateChecker:
 
         Downloads the new version → quarantine → security scan → replace.
         """
-        from app.core.skills.market_service import market_service
+        from app.core.skills.marketplace.market_service import market_service
 
         logger.debug("update_skill user=%s skill_id=%s", user_id, update_info.skill_id)
         return await market_service.install(
