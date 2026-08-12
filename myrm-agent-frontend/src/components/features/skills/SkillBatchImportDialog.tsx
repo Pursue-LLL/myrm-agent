@@ -60,6 +60,7 @@ function resolveErrorMessage(error: unknown, fallbackMessage: string): string {
 
 const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: SkillBatchImportDialogProps) => {
   const t = useTranslations('settings.skills');
+  const tdlg = useTranslations('settings.skills.batchImportDialog');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resolveUserFacingApiError = useCallback(
@@ -103,7 +104,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
         return;
       }
       if (selected.size > 10 * 1024 * 1024) {
-        setParseError('文件大小不能超过 10MB，保护服务器内存。 / File size cannot exceed 10MB.');
+        setParseError(tdlg('sizeLimit'));
         return;
       }
       setParseError(null);
@@ -230,10 +231,10 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
         <DialogHeader className="p-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <DownloadCloud className="w-5 h-5" />
-            批量导入技能 / Batch Import Skills
+            {tdlg('title')}
           </DialogTitle>
           <DialogDescription>
-            支持从 Hermes 协议或 ZIP 包无缝迁移。自动防爆、查杀恶意代码。 / Seamless migration from ZIP with anti-zip-bomb and AST scanner.
+            {tdlg('description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -269,16 +270,16 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                 )}
                 
                 <p className="text-base font-medium">
-                  {isParsing ? '正在安全解压并分析... / Parsing & Scanning...' : '拖拽 ZIP 包到此处，或点击上传 / Drop ZIP here or click to upload'}
+                  {isParsing ? tdlg('parsing') : tdlg('dropHint')}
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  一次性导入数十个技能，告别繁琐。 / Import dozens of skills at once.
+                  {tdlg('subHint')}
                 </p>
                 
                 {parseError && (
                   <Alert variant="destructive" className="mt-6 text-left inline-block">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>解析失败 / Parse Error</AlertTitle>
+                    <AlertTitle>{tdlg('parseErrorTitle')}</AlertTitle>
                     <AlertDescription>{parseError}</AlertDescription>
                   </Alert>
                 )}
@@ -296,7 +297,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                     </div>
                   </div>
                   <Button variant="ghost" size="sm" onClick={resetForm} disabled={isImporting}>
-                    重新上传 / Reselect
+                    {tdlg('reselect')}
                   </Button>
                 </div>
                 
@@ -305,23 +306,23 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                     <div className="flex items-center gap-3">
                       <h3 className="font-medium text-base flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-green-500" />
-                        发现 {totalFound} 个技能 / Found {totalFound} Skills
+                        {tdlg('foundSkills', { count: String(totalFound) })}
                       </h3>
                       {totalConflicts > 0 && (
                         <Badge variant="outline" className="text-orange-500 border-orange-500/30 bg-orange-500/10">
-                          {totalConflicts} 个重名冲突 / {totalConflicts} Conflicts
+                          {tdlg('conflicts', { count: String(totalConflicts) })}
                         </Badge>
                       )}
                     </div>
                     {totalConflicts > 0 && (
                       <Select onValueChange={handleBulkResolutionChange} disabled={isImporting}>
                         <SelectTrigger className="w-[180px] h-8 text-xs bg-muted/50 border-dashed">
-                          <SelectValue placeholder="一键处理所有冲突..." />
+                          <SelectValue placeholder={tdlg('handleAllConflicts')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="rename_cow">全部重命名 (Rename All)</SelectItem>
-                          <SelectItem value="replace">全部覆盖 (Replace All)</SelectItem>
-                          <SelectItem value="skip">全部跳过 (Skip All)</SelectItem>
+                          <SelectItem value="rename_cow">{tdlg('renameAll')}</SelectItem>
+                          <SelectItem value="replace">{tdlg('replaceAll')}</SelectItem>
+                          <SelectItem value="skip">{tdlg('skipAll')}</SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -334,13 +335,13 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-medium truncate">{item.name}</span>
                             {item.conflict_type === 'conflict' ? (
-                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">冲突 / Conflict</Badge>
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{tdlg('conflictBadge')}</Badge>
                             ) : (
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 dark:text-green-400">新增 / New</Badge>
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 dark:text-green-400">{tdlg('newBadge')}</Badge>
                             )}
                             {item.security_issues && (
                               <Badge variant="destructive" className="text-[10px] px-1.5 py-0 bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 flex items-center gap-1" title={item.security_issues}>
-                                <AlertCircle className="w-3 h-3" /> 安全警告 / Security Risk
+                                <AlertCircle className="w-3 h-3" /> {tdlg('securityRisk')}
                               </Badge>
                             )}
                           </div>
@@ -365,9 +366,9 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="rename_cow">独立重命名 (CoW) / Rename</SelectItem>
-                                <SelectItem value="replace">强制覆盖 / Replace</SelectItem>
-                                <SelectItem value="skip">跳过 / Skip</SelectItem>
+                                <SelectItem value="rename_cow">{tdlg('renameCow')}</SelectItem>
+                                <SelectItem value="replace">{tdlg('replace')}</SelectItem>
+                                <SelectItem value="skip">{tdlg('skip')}</SelectItem>
                               </SelectContent>
                             </Select>
                           ) : (
@@ -382,8 +383,8 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="new">正常导入 / Import</SelectItem>
-                                <SelectItem value="skip">跳过 / Skip</SelectItem>
+                                <SelectItem value="new">{tdlg('import')}</SelectItem>
+                                <SelectItem value="skip">{tdlg('skip')}</SelectItem>
                               </SelectContent>
                             </Select>
                           )}
@@ -401,20 +402,20 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
           <div className="text-sm text-muted-foreground">
             {previewItems.length > 0 && (
               <span>
-                选定导入: {previewItems.filter(i => i.resolution !== 'skip').length} 个
+                {tdlg('selectedCount', { count: String(previewItems.filter(i => i.resolution !== 'skip').length) })}
               </span>
             )}
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isImporting}>
-              取消 / Cancel
+              {tdlg('cancel')}
             </Button>
             <Button 
               onClick={handleConfirmImport} 
               disabled={!file || previewItems.length === 0 || isImporting || previewItems.every(i => i.resolution === 'skip')}
             >
               {isImporting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {isImporting ? '正在导入并查杀... / Importing...' : '确认导入 / Confirm Import'}
+              {isImporting ? tdlg('importing') : tdlg('confirmImport')}
             </Button>
           </div>
         </div>

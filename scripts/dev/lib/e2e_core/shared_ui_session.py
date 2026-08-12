@@ -107,6 +107,8 @@ SET_EMPTY_SEARCH_BLOCK_JS = """(() => {
 BRIDGE_READY_PROBE_JS = """(() => ({
   hasBridge: Boolean(window.__MYRM_E2E_CHAT__),
   hasSendChatMessage: typeof window.__MYRM_E2E_CHAT__?.sendChatMessage === 'function',
+  hasSubmitAndObserveTurn:
+    typeof window.__MYRM_E2E_CHAT__?.submitAndObserveTurn === 'function',
   hasAttach: typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function',
   hasProgressSnap:
     typeof window.__MYRM_E2E_CHAT__?.getFastSearchProgressSnapshot === 'function',
@@ -265,6 +267,8 @@ async def _evaluate_bridge_probe(chat: SharedUiSessionChat) -> dict[str, object]
 
 def _bridge_probe_ready(probe: dict[str, object], *, policy: SearchPolicy) -> bool:
     if probe.get("hasSendChatMessage") is not True:
+        return False
+    if probe.get("hasSubmitAndObserveTurn") is not True:
         return False
     if policy == "empty" and probe.get("blockSearchSync") is not True:
         return False

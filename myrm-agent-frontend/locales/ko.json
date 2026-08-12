@@ -2870,6 +2870,33 @@
           }
         }
       },
+      "batchImportDialog": {
+        "title": "스킬 일괄 가져오기",
+        "description": "ZIP에서 원활하게 마이그레이션. ZIP 폭탄 방지 및 AST 스캐너 내장.",
+        "parsing": "안전하게 압축 해제 및 분석 중...",
+        "dropHint": "ZIP을 여기에 끌어다 놓거나 클릭하여 업로드",
+        "subHint": "수십 개의 스킬을 한 번에 가져오세요.",
+        "parseErrorTitle": "구문 분석 실패",
+        "sizeLimit": "서버 메모리 보호를 위해 파일 크기는 10MB를 초과할 수 없습니다.",
+        "reselect": "다시 선택",
+        "foundSkills": "{count}개 스킬 발견",
+        "conflicts": "{count}개 이름 충돌",
+        "handleAllConflicts": "모든 충돌 한 번에 처리...",
+        "renameAll": "모두 이름 변경",
+        "replaceAll": "모두 덮어쓰기",
+        "skipAll": "모두 건너뛰기",
+        "conflictBadge": "충돌",
+        "newBadge": "새로 추가",
+        "securityRisk": "보안 경고",
+        "renameCow": "독립 이름 변경 (CoW)",
+        "replace": "강제 덮어쓰기",
+        "skip": "건너뛰기",
+        "import": "일반 가져오기",
+        "cancel": "취소",
+        "importing": "가져오는 중...",
+        "confirmImport": "가져오기 확인",
+        "selectedCount": "선택됨: {count}개"
+      },
       "filters": {
         "search": "스킬 검색...",
         "category": "카테고리",

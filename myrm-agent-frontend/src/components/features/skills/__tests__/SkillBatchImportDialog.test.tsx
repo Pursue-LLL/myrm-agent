@@ -17,6 +17,7 @@ const TRANSLATIONS: Record<string, string> = {
   'batchImport.importFailed': 'Import Failed',
   'batchImport.errors.archiveSecurity.executableBinaryDetected': 'Blocked: executable binary',
   'batchImport.errors.archiveSecurity.totalSizeExceeded': 'Blocked: total size exceeded',
+  'batchImportDialog.confirmImport': 'Confirm Import',
 };
 
 const stableT = (key: string, values?: Record<string, string>): string => {
@@ -114,7 +115,7 @@ describe('SkillBatchImportDialog', () => {
       expect(screen.getByText('skill-one')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /确认导入/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Confirm Import/ }));
 
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
@@ -172,7 +173,7 @@ describe('SkillBatchImportDialog', () => {
       expect(screen.getByText('skill-one')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /确认导入/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Confirm Import/ }));
 
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(

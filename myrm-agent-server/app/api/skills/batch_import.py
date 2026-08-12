@@ -11,20 +11,15 @@ import uuid
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
-from myrm_agent_harness.agent.skills.evolution.core.types import (
-    EvolutionType,
-    SkillLineage,
-    SkillRecord,
-)
 from myrm_agent_harness.agent.skills.market.installers.batch_installer import (
     HermesBatchParser,
 )
-from myrm_agent_harness.agent.skills.packaging import is_evals_file, parse_evals_json
 from myrm_agent_harness.backends.skills.scanning.archive_security import (
     classify_archive_security_issue,
 )
 
 from app.api.skills._deploy_capability import require_local_skills_capability
+from app.api.skills.batch_import_execute import execute_batch_import_confirm
 from app.api.skills.batch_import_helpers import (
     _build_batch_import_error_detail,
     _resolve_batch_import_error_message,
@@ -205,199 +200,16 @@ async def confirm_batch_import(
 
         validator = SkillSecurityValidator(config=SecurityConfig())
 
-    imported_count = 0
-    skipped_count = 0
-    restored_eval_cases = 0
-
-    # Phase 1: 安全预检 (Defense-in-depth, 拦截恶意请求)
-    for item in request.items:
-        if item.resolution == "skip":
-            continue
-
-        try:
-            skill_idx = int(item.virtual_id.split("_")[1])
-            skill = imported_skills[skill_idx]
-        except (IndexError, ValueError, KeyError) as e:
-            raise HTTPException(
-                status_code=400,
-                detail=_build_batch_import_error_detail("非法的 virtual_id"),
-            ) from e
-
-        val_result = validator.validate_skill(
-            f"---\nname: {item.name}\ndescription: {item.description}\n---\n{skill.content}"
-        )
-        if not val_result.passed:
-            logger.warning(
-                f"Skill {item.name} failed security scan during confirm: {val_result.issues}"
-            )
-            # 立即清理暂存区并阻断
-            staging_manager.cleanup_session(request.session_id)
-            raise HTTPException(
-                status_code=400,
-                detail=_build_batch_import_error_detail(
-                    f"安全拦截: {item.name} 包含恶意代码 -> {val_result.issues}。本次导入已撤销。"
-                ),
-            )
-
-    # Phase 2: 蓝绿目录准备与收集 (全保真原子写入)
-    blue_green_tasks = []
-    records_to_save = []
     try:
-        import os
-        import shutil
-
-        import yaml
-
-        for item in request.items:
-            if item.resolution == "skip":
-                skipped_count += 1
-                continue
-
-            skill_idx = int(item.virtual_id.split("_")[1])
-            skill = imported_skills[skill_idx]
-
-            skill_id = str(uuid.uuid4())
-            name = item.name
-            evolution_type = EvolutionType.FIX  # default
-            parent_id = None
-
-            if item.resolution == "replace" and item.existing_skill_id:
-                # 覆盖：更新原技能
-                skill_id = item.existing_skill_id
-                evolution_type = EvolutionType.DERIVED
-                parent_id = skill_id
-            elif item.resolution == "rename_cow":
-                name = f"{item.name}_copy"
-                evolution_type = EvolutionType.DERIVED
-                parent_id = item.existing_skill_id
-
-            # 构建目标目录与临时目录
-            skills_root = store.db_path.parent / "skills"
-            skill_dir = skills_root / skill_id
-            tmp_dir = skills_root / f".{skill_id}.{uuid.uuid4().hex}.tmp"
-            tmp_dir.mkdir(parents=True, exist_ok=True)
-
-            path = str(skill_dir / "SKILL.md")
-
-            # replace 覆盖场景：包内无有效 evals.json 时继承 DB 中原回归门禁快照，
-            # 避免 INSERT OR REPLACE 整行覆盖将已有 eval_cases 清空（与单包导入 force 覆盖语义一致）
-            inherited_eval_cases: list[dict[str, object]] = []
-            if item.resolution == "replace" and item.existing_skill_id:
-                existing_record = store.get_skill(item.existing_skill_id)
-                if existing_record is not None:
-                    inherited_eval_cases = existing_record.eval_cases
-
-            record = SkillRecord(
-                skill_id=skill_id,
-                name=name,
-                description=item.description,
-                content=skill.content,
-                path=path,
-                lineage=SkillLineage(
-                    evolution_type=evolution_type,
-                    version=1,
-                    parent_id=parent_id,
-                    change_summary="Migrated via Hermes Batch Import",
-                    created_by="human",
-                ),
+        imported_count, skipped_count, restored_eval_cases = (
+            await execute_batch_import_confirm(
+                request,
+                store=store,
+                staging_manager=staging_manager,
+                validator=validator,
+                imported_skills=imported_skills,
             )
-
-            # 剥离包内保留文件 evals.json 并还原回归门禁快照
-            # 与单包导入 unpack_and_register 语义一致：仅第一个有效者胜出
-            restored = False
-            for rel_path, file_content in list(skill.files.items()):
-                if not is_evals_file(rel_path):
-                    continue
-                parsed = parse_evals_json(file_content)
-                if parsed is None:
-                    logger.warning("Skill %s: ignoring invalid %s", name, rel_path)
-                elif not restored:
-                    record.eval_cases = parsed
-                    restored = True
-                    restored_eval_cases += len(parsed)
-                skill.files.pop(rel_path)
-
-            if not restored:
-                record.eval_cases = inherited_eval_cases
-
-            records_to_save.append(record)
-
-            # 多文件全保真原子写入：为所有 file 生成到 .tmp 目录
-            for rel_path, file_content in skill.files.items():
-                target_path = tmp_dir / rel_path
-                target_path.parent.mkdir(parents=True, exist_ok=True)
-
-                if rel_path == "SKILL.md":
-                    # YAML 深度合并，保留其他 Hermes 元数据 (如 dependencies, version 等)
-                    new_metadata = dict(skill.metadata)
-                    new_metadata["name"] = name
-                    new_metadata["description"] = item.description
-                    # 生成合法 frontmatter
-                    fm_yaml = yaml.safe_dump(
-                        new_metadata, allow_unicode=True, sort_keys=False
-                    ).strip()
-                    file_content = f"---\n{fm_yaml}\n---\n{skill.content}".encode(
-                        "utf-8"
-                    )
-
-                with open(target_path, "wb") as f:
-                    f.write(file_content)
-
-            # 记录蓝绿切换任务
-            blue_green_tasks.append(
-                {
-                    "skill_dir": skill_dir,
-                    "tmp_dir": tmp_dir,
-                    "old_dir": skills_root / f".{skill_id}.{uuid.uuid4().hex}.old",
-                }
-            )
-
-            imported_count += 1
-
-        # Phase 3: DB 批量写入，保证绝对的跨技能事务原子性
-        if records_to_save:
-            # Requires `save_skills_batch` on SkillStore which handles executemany in a single transaction
-            if hasattr(store, "save_skills_batch"):
-                await store.save_skills_batch(records_to_save)
-            else:
-                # Fallback for extreme cases, though we added save_skills_batch
-                for r in records_to_save:
-                    await store.save_skill(r)
-
-        # Phase 4: 全部 DB 提交成功后，在操作系统底层执行蓝绿目录原子替换
-        for task in blue_green_tasks:
-            s_dir = task["skill_dir"]
-            t_dir = task["tmp_dir"]
-            o_dir = task["old_dir"]
-
-            # 1. 瞬间将老技能移走 (如果存在)
-            if s_dir.exists():
-                os.rename(s_dir, o_dir)
-            # 2. 瞬间让新技能顶替
-            os.rename(t_dir, s_dir)
-            # 3. 异步/安全删除老废弃技能 (防孤儿残留)
-            if o_dir.exists():
-                try:
-                    shutil.rmtree(o_dir, ignore_errors=True)
-                except Exception:
-                    pass
-
-    except Exception as e:
-        # 回滚：此时 DB 未受污染（如果 save_skills_batch 报错了，整个事务已被 rollback）
-        # 全量清空本次产生的所有 tmp 目录，并尝试恢复 old（极端防卫）
-        import shutil
-
-        for task in blue_green_tasks:
-            try:
-                if task["tmp_dir"].exists():
-                    shutil.rmtree(task["tmp_dir"], ignore_errors=True)
-                # 极端情况下若 rename(tmp, s) 失败，尝试把 old 恢复回去
-                if not task["skill_dir"].exists() and task["old_dir"].exists():
-                    os.rename(task["old_dir"], task["skill_dir"])
-            except Exception:
-                pass
-        staging_manager.cleanup_session(request.session_id)
-        raise e
+        )
     finally:
         # 无论成功失败，都清理暂存区，保证磁盘 0 冗余
         staging_manager.cleanup_session(request.session_id)

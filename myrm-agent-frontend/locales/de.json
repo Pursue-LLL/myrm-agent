@@ -2870,6 +2870,33 @@
           }
         }
       },
+      "batchImportDialog": {
+        "title": "Fähigkeiten per Batch importieren",
+        "description": "Nahtlose Migration aus ZIP mit Anti-Zip-Bomben- und AST-Scanner.",
+        "parsing": "Sicheres Entpacken und Analysieren...",
+        "dropHint": "ZIP hierher ziehen oder klicken zum Hochladen",
+        "subHint": "Importieren Sie dutzende Fähigkeiten auf einmal.",
+        "parseErrorTitle": "Parsing-Fehler",
+        "sizeLimit": "Die Dateigröße darf 10MB nicht überschreiten, um den Serverspeicher zu schützen.",
+        "reselect": "Erneut auswählen",
+        "foundSkills": "{count} Fähigkeiten gefunden",
+        "conflicts": "{count} Namenskonflikte",
+        "handleAllConflicts": "Alle Konflikte auf einmal behandeln...",
+        "renameAll": "Alle umbenennen",
+        "replaceAll": "Alle ersetzen",
+        "skipAll": "Alle überspringen",
+        "conflictBadge": "Konflikt",
+        "newBadge": "Neu",
+        "securityRisk": "Sicherheitswarnung",
+        "renameCow": "Unabhängig umbenennen (CoW)",
+        "replace": "Erzwingen und ersetzen",
+        "skip": "Überspringen",
+        "import": "Normal importieren",
+        "cancel": "Abbrechen",
+        "importing": "Importieren...",
+        "confirmImport": "Import bestätigen",
+        "selectedCount": "{count} ausgewählt"
+      },
       "filters": {
         "search": "Suchfähigkeiten...",
         "category": "Kategorie",

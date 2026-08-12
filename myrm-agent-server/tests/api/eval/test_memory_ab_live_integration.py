@@ -327,3 +327,12 @@ def _run_full_chain(embedding_endpoint: str) -> None:
             if "eval_memory_ab" in str(store.config.local_path)
         ]
         assert not leaked, f"embedded Qdrant store leaked: {leaked}"
+
+        # Both arms' per-case session workspaces must be removed too — the
+        # real dual-arm run creates them under .myrm/eval_workspaces and the
+        # finally-block cleanup must leave no trace behind.
+        workspace_root = Path(".myrm/eval_workspaces")
+        if workspace_root.exists():
+            assert not list(workspace_root.iterdir()), (
+                "eval session workspaces were not cleaned up after the run"
+            )

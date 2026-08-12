@@ -358,6 +358,98 @@ def test_batch_import_conflict_replace_updates_existing_record() -> None:
         store.close()
 
 
+def test_batch_import_replace_preserves_existing_eval_cases_when_package_has_none() -> (
+    None
+):
+    """replace 覆盖场景：新包不含 evals.json 时，必须保留 DB 中已有回归门禁快照。
+
+    此前存在数据丢失 bug：构造全新 SkillRecord（eval_cases 默认 []）后经
+    INSERT OR REPLACE 整行覆盖，清空了该技能积累的 eval_cases。
+    """
+    client = _make_client()
+    skill_name = f"preserve-{uuid.uuid4().hex[:8]}"
+
+    # Step 1: 首次导入带 evals.json 的技能，落盘 1 条回归门禁
+    first_preview = _preview_batch_import(
+        client,
+        _build_zip_with_evals(
+            "preserve-skill",
+            name=skill_name,
+            description="v1 with evals",
+            content="print('v1')",
+        ),
+    )
+    first_confirm = _confirm_batch_import(
+        client,
+        first_preview["session_id"],
+        [
+            {
+                "virtual_id": first_preview["items"][0]["virtual_id"],
+                "name": skill_name,
+                "description": "v1 with evals",
+                "resolution": "new",
+                "existing_skill_id": None,
+            }
+        ],
+    )
+    assert first_confirm == {
+        "imported_count": 1,
+        "skipped_count": 0,
+        "restored_eval_cases": 1,
+    }
+
+    store = _get_skill_store()
+    try:
+        original = store.get_skill_by_name_version(skill_name)
+        assert original is not None
+        existing_skill_id = original.skill_id
+        assert len(original.eval_cases) == 1
+    finally:
+        store.close()
+
+    # Step 2: replace 覆盖，但新包不含 evals.json
+    replace_preview = _preview_batch_import(
+        client,
+        _build_zip_with_skill(
+            "preserve-skill-v2",
+            name=skill_name,
+            description="v2 no evals",
+            content="print('v2')",
+        ),
+    )
+    assert replace_preview["total_conflicts"] == 1
+    replace_item = replace_preview["items"][0]
+    replace_confirm = _confirm_batch_import(
+        client,
+        replace_preview["session_id"],
+        [
+            {
+                "virtual_id": replace_item["virtual_id"],
+                "name": skill_name,
+                "description": "v2 no evals",
+                "resolution": "replace",
+                "existing_skill_id": existing_skill_id,
+            }
+        ],
+    )
+    assert replace_confirm == {
+        "imported_count": 1,
+        "skipped_count": 0,
+        "restored_eval_cases": 0,
+    }
+
+    # Step 3: 原 eval_cases 必须保留，不能被清空
+    store = _get_skill_store()
+    try:
+        replaced = store.get_skill(existing_skill_id)
+        assert replaced is not None
+        assert replaced.content == "print('v2')"
+        assert len(replaced.eval_cases) == 1
+        assert replaced.eval_cases[0]["message"] == "sum 1 and 2"
+    finally:
+        store.close()
+
+
 def test_batch_import_restores_evals_json_and_excludes_from_disk() -> None:
     client = _make_client()
     skill_name = f"evals-import-{uuid.uuid4().hex[:8]}"

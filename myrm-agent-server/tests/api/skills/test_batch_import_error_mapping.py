@@ -29,6 +29,14 @@ class _FakeSkillStore:
     def list_skills(self) -> list[SimpleNamespace]:
         return self._existing_skills
 
+    def get_skill(self, skill_id: str) -> SimpleNamespace | None:
+        for skill in self._existing_skills:
+            if getattr(skill, "skill_id", None) == skill_id:
+                return SimpleNamespace(
+                    **vars(skill), eval_cases=getattr(skill, "eval_cases", [])
+                )
+        return None
+
     async def save_skills_batch(self, records: list[object]) -> None:
         self.saved_batches.append(records)
 
@@ -41,6 +49,14 @@ class _FakeSkillStoreNoBatch:
 
     def list_skills(self) -> list[SimpleNamespace]:
         return self._existing_skills
+
+    def get_skill(self, skill_id: str) -> SimpleNamespace | None:
+        for skill in self._existing_skills:
+            if getattr(skill, "skill_id", None) == skill_id:
+                return SimpleNamespace(
+                    **vars(skill), eval_cases=getattr(skill, "eval_cases", [])
+                )
+        return None
 
     async def save_skill(self, record: object) -> None:
         self.saved_records.append(record)
