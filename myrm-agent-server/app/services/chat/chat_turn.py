@@ -280,6 +280,10 @@ class _ChatTurnMixin(_ChatServiceBase):
             warnings.extend(result.warnings)
             skipped_files.extend(result.skipped_files)
 
+        # A file touched by multiple messages is reported by each revert; keep
+        # first occurrence order so the UI count reflects distinct files.
+        reverted_files = list(dict.fromkeys(reverted_files))
+
         if reverted_files:
             notify_agent_of_turn_revert(
                 session_id=chat_id,

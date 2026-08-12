@@ -38,6 +38,22 @@ _TRIGGER_MAP: dict[str, SnapshotTrigger] = {
 }
 
 
+_interceptor_singleton: "SnapshotInterceptor | None" = None
+
+
+def get_snapshot_interceptor() -> "SnapshotInterceptor":
+    """Return the process-wide snapshot interceptor instance.
+
+    A single instance keeps the per-turn dedup cache (`_snapshotted_turns`)
+    alive across agent creations; re-instantiating on every agent setup would
+    reset the cache and duplicate snapshots for the same turn.
+    """
+    global _interceptor_singleton
+    if _interceptor_singleton is None:
+        _interceptor_singleton = SnapshotInterceptor()
+    return _interceptor_singleton
+
+
 class SnapshotInterceptor(ExecutionInterceptor):
     """Intercepts destructive actions to create workspace snapshots.
 

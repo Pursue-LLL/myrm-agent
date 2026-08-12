@@ -5432,6 +5432,7 @@
       "notAvailable": "Enterprise-Funktionen sind nur in der cloudgehosteten Enterprise-Edition verfügbar",
       "orgId": "Organisations-ID",
       "ssoDomain": "SSO-Domäne",
+      "ssoBound": "SSO",
       "retentionDays": "Archivaufbewahrung",
       "days": "Tage",
       "members": "Mitglieder",
@@ -7781,7 +7782,6 @@
     "rewind": {
       "title": "Hierher zurückspulen",
       "description": "Das Gespräch auf vor diese Nachricht zurücksetzen und den Text in den Editor legen.",
-      "sideEffectNotice": "Der Chat-Kontext wird zurückgespult. Dateien, Speicher und Tool-Nebeneffekte werden nicht rückgängig gemacht.",
       "cancel": "Abbrechen",
       "confirm": "Zurückspulen",
       "rewinding": "Zurückspulen...",

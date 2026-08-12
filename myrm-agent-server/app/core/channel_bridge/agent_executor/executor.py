@@ -41,7 +41,7 @@ from app.core.channel_bridge.executor_helpers import StreamAccumulator, schedule
 from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
 from app.services.agent.fission_config import max_parallel_from_engine_params
 from app.services.agent.swarm_fission_resume import stream_with_swarm_fission_resume
-from app.services.checkpoint.snapshot_service import SnapshotInterceptor
+from app.services.checkpoint.snapshot_service import get_snapshot_interceptor
 
 from .execute_errors import (
     build_config_incomplete_reply,
@@ -54,7 +54,7 @@ from .stream_events import ChannelStreamEventState, iter_channel_stream_progress
 
 logger = logging.getLogger(__name__)
 
-set_execution_interceptor(SnapshotInterceptor())
+set_execution_interceptor(get_snapshot_interceptor())
 
 
 class ChannelAgentExecutor:

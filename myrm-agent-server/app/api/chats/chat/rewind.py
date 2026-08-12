@@ -2,7 +2,6 @@
 
 [INPUT]
 - app.services.chat.session_continuity_service (POS: rewind execution)
-- app.database.session::get_db (POS: async DB session)
 
 [OUTPUT]
 - router: POST /chats/{chat_id}/rewind endpoint
@@ -15,14 +14,12 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.utils.errors import internal_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
-from app.database.connection import get_db
 from app.schemas.responses import StandardSuccessResponse
 from app.services.chat.chat_service import ChatService
 from app.services.chat.session_continuity_service import ContinuitySyncError, SessionBusyError
@@ -42,7 +39,6 @@ class RewindMessageBody(BaseModel):
 async def rewind_to_message(
     chat_id: str,
     body: RewindMessageBody,
-    db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Rewind conversation to before a user message and return composer seed text.
 
@@ -51,7 +47,6 @@ async def rewind_to_message(
     - ``both``: also revert file changes made by the deleted messages so the
       workspace matches the state before the target message.
     """
-    del db
     try:
         chat = await ChatService.get_chat_metadata(chat_id)
         if not chat:

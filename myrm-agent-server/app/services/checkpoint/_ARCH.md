@@ -8,4 +8,4 @@
 
 | 文件 | 职责 | I/O/P |
 |------|------|-------|
-| `snapshot_service.py` | `SnapshotInterceptor` — 业务编排层，委托 harness 工厂进行实际存储 | ✅ |
+| `snapshot_service.py` | `SnapshotInterceptor` — 业务编排层，委托 harness 工厂进行实际存储；`get_snapshot_interceptor()` 提供进程级单例，保证 per-turn 去重缓存跨 agent 创建存活 | ✅ |

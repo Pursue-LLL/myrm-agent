@@ -4382,6 +4382,7 @@
       "notAvailable": "Enterprise features are only available in cloud-hosted enterprise edition",
       "orgId": "Organization ID",
       "ssoDomain": "SSO Domain",
+      "ssoBound": "SSO",
       "retentionDays": "Archive Retention",
       "days": "days",
       "members": "Members",
@@ -7418,7 +7419,6 @@
     "rewind": {
       "title": "Rewind to here",
       "description": "Move the conversation back to before this message and put its text in the composer.",
-      "sideEffectNotice": "Chat context will rewind. Files, memory, and tool side effects are not reverted.",
       "cancel": "Cancel",
       "confirm": "Rewind",
       "rewinding": "Rewinding...",

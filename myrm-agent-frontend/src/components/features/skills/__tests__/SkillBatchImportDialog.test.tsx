@@ -18,6 +18,7 @@ const TRANSLATIONS: Record<string, string> = {
   'batchImport.errors.archiveSecurity.executableBinaryDetected': 'Blocked: executable binary',
   'batchImport.errors.archiveSecurity.totalSizeExceeded': 'Blocked: total size exceeded',
   'batchImportDialog.confirmImport': 'Confirm Import',
+  'confirmImport': 'Confirm Import',
 };
 
 const stableT = (key: string, values?: Record<string, string>): string => {

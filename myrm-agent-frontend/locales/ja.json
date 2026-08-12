@@ -4078,6 +4078,7 @@
       "notAvailable": "エンタープライズ機能はクラウドホスト型エンタープライズ版でのみ利用できます",
       "orgId": "組織 ID",
       "ssoDomain": "SSO ドメイン",
+      "ssoBound": "SSO",
       "retentionDays": "アーカイブ保持期間",
       "days": "日",
       "members": "メンバー",
@@ -8115,7 +8116,6 @@
     "rewind": {
       "title": "ここに巻き戻す",
       "description": "このメッセージの前まで会話を戻し、そのテキストをコンポーザーに配置します。",
-      "sideEffectNotice": "チャットコンテキストは巻き戻されます。ファイル、メモリ、ツールの副作用は元に戻りません。",
       "cancel": "キャンセル",
       "confirm": "巻き戻す",
       "rewinding": "巻き戻し中…",

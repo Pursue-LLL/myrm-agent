@@ -13,7 +13,7 @@
 | `_staging.py` | 模块 | 管理批量导入技能时的持久化暂存区 (Persistent Staging Area)。 | ✅ |
 | `audit.py` | 模块 | Structured audit log for skill lifecycle operations. | ✅ |
 | `batch_import.py` | 模块 | 批量导入 (GUI-First 技能迁移) 接口；`preview/confirm` 错误统一输出 `detail={message,error_code}`，归档安全错误映射为用户安全文案；本地落盘入口受沙箱能力门控；confirm 路由保持业务编排，落盘执行（安全预检/蓝绿原子写入/DB 事务）委托 `batch_import_execute.py`。 | ✅ |
-| `batch_import_execute.py` | 模块 | 批量导入确认落盘执行器 `execute_batch_import_confirm`：Phase1 逐项安全预检（命中恶意代码立即撤销）→ Phase2 蓝绿目录准备（全保真写入 .tmp、剥离 evals.json、replace 继承 DB 回归门禁快照）→ Phase3 DB 单事务批量写入 → Phase4 操作系统级目录原子替换；任一失败清空 tmp 并尽力恢复 old。 | ✅ |
+| `batch_import_execute.py` | 模块 | 批量导入确认落盘执行器 `execute_batch_import_confirm`：Phase1 逐项安全预检（命中恶意代码立即撤销）→ Phase2 蓝绿目录准备（全保真写入 .tmp、剥离 evals.json、replace 继承 DB 回归门禁快照与演化元数据）→ Phase3 DB 单事务批量写入 → Phase4 操作系统级目录原子替换；任一失败清空 tmp 并尽力恢复 old。 | ✅ |
 | `batch_import_schemas.py` | 模块 | 批量导入接口的请求/响应 Pydantic 模型（`ImportPreviewSkillItem`/`ImportPreviewResponse`/`ConfirmImportItem`/`ConfirmImportRequest`/`ConfirmImportResponse`），`ConfirmImportResponse` 含 `restored_eval_cases` 字段，与路由拆分保持 `batch_import.py` 聚焦业务编排。 | ✅ |
 | `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url | ✅ |
 | `config_version.py` | 模块 | Re-export from app.core.skills.config_version（单一来源）。 | ✅ |

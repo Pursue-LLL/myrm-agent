@@ -67,6 +67,7 @@ interface MemberInput {
   user_id: string;
   role: string;
   oauth_bound?: boolean | null;
+  email?: string | null;
 }
 
 function membersRoutes(members: MemberInput[], withUnlinkRoute = false): Route[] {
@@ -85,6 +86,8 @@ function membersRoutes(members: MemberInput[], withUnlinkRoute = false): Route[]
         idp_groups: null,
         joined_at: 1,
         oauth_bound: m.oauth_bound ?? null,
+        email: m.email ?? null,
+        display_name: null,
       })),
     },
     {
@@ -104,8 +107,8 @@ function membersRoutes(members: MemberInput[], withUnlinkRoute = false): Route[]
 }
 
 const ADMIN_MEMBERS: MemberInput[] = [
-  { user_id: 'owner-1', role: 'owner', oauth_bound: true },
-  { user_id: 'member-2', role: 'member', oauth_bound: true },
+  { user_id: 'owner-1', role: 'owner', oauth_bound: true, email: 'owner-1@acme.com' },
+  { user_id: 'member-2', role: 'member', oauth_bound: true, email: 'member-2@acme.com' },
 ];
 
 beforeEach(() => {
@@ -122,6 +125,9 @@ describe('EnterpriseMembersTab', () => {
       expect(screen.getByText(/^members/)).toBeInTheDocument();
     });
     expect(screen.getAllByTitle('unlinkOauth')).toHaveLength(1);
+    // Members are identifiable by email and the SSO binding is visible.
+    expect(screen.getByText('member-2@acme.com')).toBeInTheDocument();
+    expect(screen.getAllByText('ssoBound')).toHaveLength(2);
   });
 
   it('hides the unlink button for unbound or self members', async () => {

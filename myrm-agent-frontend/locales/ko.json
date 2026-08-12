@@ -5432,6 +5432,7 @@
       "notAvailable": "엔터프라이즈 기능은 클라우드 호스팅 엔터프라이즈 버전에서만 사용할 수 있습니다",
       "orgId": "조직 ID",
       "ssoDomain": "SSO 도메인",
+      "ssoBound": "SSO",
       "retentionDays": "보관 보존",
       "days": "일",
       "members": "구성원",
@@ -7781,7 +7782,6 @@
     "rewind": {
       "title": "여기로 되감기",
       "description": "이 메시지 이전으로 대화를 되돌리고 그 텍스트를 입력 상자에 넣습니다.",
-      "sideEffectNotice": "채팅 컨텍스트가 되감깁니다. 파일, 메모리, 도구 부작용은 되돌려지지 않습니다.",
       "cancel": "취소",
       "confirm": "되감기",
       "rewinding": "되감는 중...",

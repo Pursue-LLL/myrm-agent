@@ -22,6 +22,7 @@ import logging
 import os
 import shutil
 import uuid
+from datetime import datetime
 
 import yaml
 from fastapi import HTTPException
@@ -121,28 +122,55 @@ async def execute_batch_import_confirm(
 
             path = str(skill_dir / "SKILL.md")
 
-            # replace 覆盖场景：包内无有效 evals.json 时继承 DB 中原回归门禁快照，
-            # 避免 INSERT OR REPLACE 整行覆盖将已有 eval_cases 清空（与单包导入 force 覆盖语义一致）
+            # replace 覆盖场景：继承 DB 中原回归门禁快照与全部演化元数据，
+            # 避免 INSERT OR REPLACE 整行覆盖清空 eval_cases、回退版本号、重置统计/禁用/锁定状态
+            # （与单包导入 force 覆盖语义一致：仅内容/描述/门禁更新，演化元数据保留）
+            inherited: SkillRecord | None = None
             inherited_eval_cases: list[dict[str, object]] = []
             if item.resolution == "replace" and item.existing_skill_id:
-                existing_record = store.get_skill(item.existing_skill_id)
-                if existing_record is not None:
-                    inherited_eval_cases = existing_record.eval_cases
+                inherited = store.get_skill(item.existing_skill_id)
+                if inherited is not None:
+                    inherited_eval_cases = inherited.eval_cases
 
-            record = SkillRecord(
-                skill_id=skill_id,
-                name=name,
-                description=item.description,
-                content=skill.content,
-                path=path,
-                lineage=SkillLineage(
-                    evolution_type=evolution_type,
-                    version=1,
-                    parent_id=parent_id,
-                    change_summary="Migrated via Hermes Batch Import",
-                    created_by="human",
-                ),
-            )
+            if inherited is not None:
+                record = SkillRecord(
+                    skill_id=skill_id,
+                    name=name,
+                    description=item.description,
+                    content=skill.content,
+                    path=path,
+                    lineage=SkillLineage(
+                        evolution_type=evolution_type,
+                        version=inherited.lineage.version,
+                        parent_id=parent_id,
+                        change_summary="Migrated via Hermes Batch Import",
+                        created_by=inherited.lineage.created_by,
+                        created_at=inherited.lineage.created_at,
+                    ),
+                    metrics=inherited.metrics,
+                    environment=inherited.environment,
+                    created_at=inherited.created_at,
+                    updated_at=datetime.now(),
+                    is_active=inherited.is_active,
+                    evolution_locked=inherited.evolution_locked,
+                    traps=inherited.traps,
+                    verification_steps=inherited.verification_steps,
+                )
+            else:
+                record = SkillRecord(
+                    skill_id=skill_id,
+                    name=name,
+                    description=item.description,
+                    content=skill.content,
+                    path=path,
+                    lineage=SkillLineage(
+                        evolution_type=evolution_type,
+                        version=1,
+                        parent_id=parent_id,
+                        change_summary="Migrated via Hermes Batch Import",
+                        created_by="human",
+                    ),
+                )
 
             # 剥离包内保留文件 evals.json 并还原回归门禁快照
             # 与单包导入 unpack_and_register 语义一致：仅第一个有效者胜出

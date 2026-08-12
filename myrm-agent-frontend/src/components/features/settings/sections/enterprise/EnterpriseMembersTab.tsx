@@ -242,8 +242,14 @@ const EnterpriseMembersTab = memo(() => {
               key={m.user_id}
               className="flex items-center justify-between py-2 px-3 rounded-lg bg-background/50 border border-border/30"
             >
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-sm">{m.user_id}</span>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex flex-col min-w-0">
+                  <span className="font-mono text-sm truncate">{m.user_id}</span>
+                  {m.email && <span className="text-xs text-muted-foreground truncate">{m.email}</span>}
+                </div>
+                {m.oauth_bound && (
+                  <Badge variant="secondary" className="shrink-0">{t('ssoBound')}</Badge>
+                )}
                 <Badge className={ROLE_COLORS[m.role] ?? ROLE_COLORS.member}>{m.role}</Badge>
               </div>
               <div className="flex items-center gap-2">
@@ -435,7 +441,10 @@ const EnterpriseMembersTab = memo(() => {
           <DialogHeader>
             <DialogTitle>{t('unlinkOauth')}</DialogTitle>
             <DialogDescription>
-              {t('unlinkOauthDesc')} <code className="text-xs bg-muted px-1 py-0.5 rounded">{unlinkUserId}</code>
+              {t('unlinkOauthDesc')}{' '}
+              <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                {members.find((x) => x.user_id === unlinkUserId)?.email ?? unlinkUserId}
+              </code>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

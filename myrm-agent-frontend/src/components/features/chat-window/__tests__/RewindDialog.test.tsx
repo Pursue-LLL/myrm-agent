@@ -38,7 +38,7 @@ const makeMessage = (id: string, role: Message['role']): Message => ({
   role,
 });
 
-const renderDialog = () => {
+const renderDialog = (messageIndex = 2) => {
   const onOpenChange = vi.fn();
   render(
     <RewindDialog
@@ -46,7 +46,7 @@ const renderDialog = () => {
       onOpenChange={onOpenChange}
       chatId="c1"
       messageId="u2"
-      messageIndex={2}
+      messageIndex={messageIndex}
     />,
   );
   return { onOpenChange };
@@ -90,7 +90,7 @@ describe('RewindDialog', () => {
       ],
     });
     vi.stubGlobal('fetch', fetchMock);
-    renderDialog();
+    renderDialog(1);
     await waitFor(() => {
       expect(screen.getByText('fileRevertSummary:1')).toBeInTheDocument();
     });
@@ -102,7 +102,7 @@ describe('RewindDialog', () => {
       messages: [makeMessage('u1', 'user'), makeMessage('a1', 'assistant'), makeMessage('u2', 'user')],
       loading: false,
     });
-    renderDialog();
+    renderDialog(1);
     await waitFor(() => {
       expect(screen.getByText('noFileSnapshots')).toBeInTheDocument();
     });

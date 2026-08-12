@@ -4382,6 +4382,7 @@
       "notAvailable": "企业管理功能仅在云托管企业版中可用",
       "orgId": "组织 ID",
       "ssoDomain": "SSO 域名",
+      "ssoBound": "SSO",
       "retentionDays": "归档保留期",
       "days": "天",
       "members": "成员",
@@ -7418,7 +7419,6 @@
     "rewind": {
       "title": "回退到这里",
       "description": "将对话回退到此消息之前，并把原文放入输入框。",
-      "sideEffectNotice": "对话上下文会回退。文件、记忆和工具副作用不会被撤销。",
       "cancel": "取消",
       "confirm": "回退",
       "rewinding": "回退中...",

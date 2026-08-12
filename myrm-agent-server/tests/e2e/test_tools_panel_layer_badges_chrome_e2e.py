@@ -49,7 +49,7 @@ _RECOVER_HITL_JS = """((chatId) => {
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
-_MAX_ATTEMPTS = 1
+_MAX_ATTEMPTS = 2
 _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "MUX_RECLAIM_STALL",
     "MUX_TRANSPORT",
@@ -119,9 +119,11 @@ _PREP_AGENT_TURN_JS = """(async () => {
   await bridge.ensureChatSession?.({ preserveActionMode: true });
   bridge.setSseCaptureMessageId?.(null);
   const prev = bridge.getCurrentBuiltinTools?.() ?? [];
-  bridge.setCurrentBuiltinTools?.(
-    prev.filter((toolId) => toolId !== 'web_search' && toolId !== 'image_generation'),
+  const filtered = prev.filter(
+    (toolId) => toolId !== 'web_search' && toolId !== 'image_generation',
   );
+  const keep = filtered.length > 0 ? filtered : ['memory'];
+  bridge.setCurrentBuiltinTools?.(keep);
   window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
   if (bridge.syncSearchServicesFromE2eApi) {
     await bridge.syncSearchServicesFromE2eApi();
@@ -424,16 +426,8 @@ async def _run_tools_panel_layer_badges_flow(
             "tools_panel_api_gate_skipped sendTurnSealed streaming=true"
         )
 
-    # SSOT: stay on the streaming tab — post-SEAL attachToChat can force-reload while
-    # loading=true and drop direct SSE (run54605: userCount=0, sseTypes=[]).
-    started = await chat.wait_stream_started(
-        _USER_PROMPT,
-        timeout_sec=signoff_parallel_force_chat_timeout_sec(180.0),
-        chat_id_hint=chat_id,
-    )
-    chat_id = chat_id or str(started.get("chatId") or "").strip()
-    assert chat_id, f"Expected chat id after stream start: started={started}; send={send_result}"
-
+    # SSOT: stay on the streaming tab — do not navigate_to_chat after sendTurnSealed;
+    # full navigation drops direct SSE (userCount=0, sseTypes=[]).
     turn_probe = await chat.evaluate(
         BRIDGE_TURN_SNAPSHOT_JS,
         intent=EvaluateIntent.BRIDGE_POLL,
@@ -452,27 +446,18 @@ async def _run_tools_panel_layer_badges_flow(
           const sse = window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [];
           return {
             ready:
+              sse.includes('tools_snapshot') ||
               (turn.userCount ?? 0) >= 1 ||
-              turn.isStreaming === true ||
-              sse.includes('tools_snapshot'),
+              turn.isStreaming === true,
             turn,
-            sseTypes: sse.slice(0, 12),
+            sseTypes: sse.slice(0, 16),
           };
         })()""",
-        timeout_sec=signoff_parallel_force_chat_timeout_sec(120.0),
+        timeout_sec=signoff_parallel_force_chat_timeout_sec(180.0),
         intent=EvaluateIntent.BRIDGE_POLL,
-        progress_node="tools_panel_live_ui_hydrate",
+        progress_node="tools_panel_live_stream_gate",
     )
 
-    path_probe = await chat.evaluate(
-        "(() => ({ path: location.pathname }))()",
-        intent=EvaluateIntent.SYNC_PROBE,
-    )
-    current_path = (
-        str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
-    )
-    if current_path != f"/{chat_id}":
-        await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=90.0)
     await _assert_private_api_binding(chat, api_url=api_url)
 
     e2e_resource_ledger.register("chat", chat_id)

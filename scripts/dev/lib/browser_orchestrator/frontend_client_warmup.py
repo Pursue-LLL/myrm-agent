@@ -629,15 +629,15 @@ async def _run_warmup(
                     if closed:
                         unregister_infra_target(target_id)
 
-            if ready and closed:
+            if ready:
                 try:
                     from warm_shell_registry import seal_platform_shell
 
                     seal_platform_shell(ui_url=page_url, route_path="/")
                 except ImportError:
                     pass
-                return
-            if ready:
+                if closed:
+                    return
                 last_error = f"hydrated target {target_id} could not be closed"
                 hydrated = True
                 break

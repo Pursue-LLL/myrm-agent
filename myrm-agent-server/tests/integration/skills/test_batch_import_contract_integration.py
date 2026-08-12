@@ -450,6 +450,125 @@ def test_batch_import_replace_preserves_existing_eval_cases_when_package_has_non
         store.close()
 
 
+def test_batch_import_replace_preserves_evolution_metadata() -> None:
+    """replace 覆盖场景：必须继承原技能的演化元数据。
+
+    此前存在数据丢失 bug：replace 构造全新 SkillRecord（lineage.version=1、
+    is_active=True、metrics 全 0、evolution_locked=False），经 INSERT OR REPLACE
+    整行覆盖后，原技能回退到 v1、被禁用的技能被意外启用、演化统计清零、
+    锁定状态被解除。与单包导入 force 覆盖语义对齐后，这些元数据必须保留。
+    """
+    client = _make_client()
+    skill_name = f"preserve-meta-{uuid.uuid4().hex[:8]}"
+
+    # Step 1: 首次导入带 evals.json 的技能，落盘回归门禁
+    first_preview = _preview_batch_import(
+        client,
+        _build_zip_with_evals(
+            "preserve-meta-skill",
+            name=skill_name,
+            description="v1 with evals",
+            content="print('v1')",
+        ),
+    )
+    first_confirm = _confirm_batch_import(
+        client,
+        first_preview["session_id"],
+        [
+            {
+                "virtual_id": first_preview["items"][0]["virtual_id"],
+                "name": skill_name,
+                "description": "v1 with evals",
+                "resolution": "new",
+                "existing_skill_id": None,
+            }
+        ],
+    )
+    assert first_confirm == {
+        "imported_count": 1,
+        "skipped_count": 0,
+        "restored_eval_cases": 1,
+    }
+
+    # Step 2: 模拟技能在演化系统中已积累元数据（v3、锁定、统计、陷阱）
+    # 注意：此处保持 is_active=True，禁用状态在 preview 通过后再设置（见 Step 3），
+    # 因为批量导入冲突检测基于 get_active_skills（[batch_import.py:106]），
+    # 禁用技能不会产生冲突，无法走 replace 路径。
+    store = _get_skill_store()
+    try:
+        original = store.get_skill_by_name_version(skill_name)
+        assert original is not None
+        existing_skill_id = original.skill_id
+        original.lineage.version = 3
+        original.evolution_locked = True
+        original.metrics.record_applied(success=True)
+        original.traps.append({"description": "past failure", "occurrence_count": 1})
+        original.verification_steps.append({"step": "run", "expected": "ok"})
+        store._save_skill_sync(original)  # noqa: SLF001 - harness 同步落盘入口，避免引入 event loop
+    finally:
+        store.close()
+
+    # Step 3: replace 覆盖，新包不含 evals.json
+    replace_preview = _preview_batch_import(
+        client,
+        _build_zip_with_skill(
+            "preserve-meta-v2",
+            name=skill_name,
+            description="v2 no evals",
+            content="print('v2')",
+        ),
+    )
+    assert replace_preview["total_conflicts"] == 1
+    replace_item = replace_preview["items"][0]
+
+    # Step 4: preview 与 confirm 之间技能被禁用（防御性场景：replace 不得解除禁用状态）
+    store = _get_skill_store()
+    try:
+        pending = store.get_skill(existing_skill_id)
+        assert pending is not None
+        pending.is_active = False
+        store._save_skill_sync(pending)  # noqa: SLF001
+    finally:
+        store.close()
+
+    replace_confirm = _confirm_batch_import(
+        client,
+        replace_preview["session_id"],
+        [
+            {
+                "virtual_id": replace_item["virtual_id"],
+                "name": skill_name,
+                "description": "v2 no evals",
+                "resolution": "replace",
+                "existing_skill_id": existing_skill_id,
+            }
+        ],
+    )
+    assert replace_confirm == {
+        "imported_count": 1,
+        "skipped_count": 0,
+        "restored_eval_cases": 0,
+    }
+
+    # Step 5: 演化元数据必须全部保留，内容与回归门禁正确
+    store = _get_skill_store()
+    try:
+        replaced = store.get_skill(existing_skill_id)
+        assert replaced is not None
+        assert replaced.content == "print('v2')"
+        assert replaced.lineage.version == 3
+        assert replaced.is_active is False
+        assert replaced.evolution_locked is True
+        assert replaced.metrics.applied_count == 1
+        assert replaced.metrics.success_count == 1
+        assert replaced.traps == [{"description": "past failure", "occurrence_count": 1}]
+        assert replaced.verification_steps == [{"step": "run", "expected": "ok"}]
+        assert len(replaced.eval_cases) == 1
+        assert replaced.eval_cases[0]["message"] == "sum 1 and 2"
+    finally:
+        store.close()
+
+
 def test_batch_import_restores_evals_json_and_excludes_from_disk() -> None:
     client = _make_client()
     skill_name = f"evals-import-{uuid.uuid4().hex[:8]}"

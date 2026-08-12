@@ -21,6 +21,8 @@ export interface OrgMember {
   idp_groups: string[] | null;
   joined_at: number;
   oauth_bound?: boolean | null;
+  email?: string | null;
+  display_name?: string | null;
 }
 
 export interface HandoffLog {

@@ -289,12 +289,15 @@ async def build_general_agent(
     # this idempotent call covers the main-conversation path so FileSnapshotPanel
     # shows turn-level snapshots for WebUI users too.
     try:
-        from app.services.checkpoint.snapshot_service import SnapshotInterceptor
         from myrm_agent_harness.toolkits.code_execution.interceptor import (
             set_execution_interceptor,
         )
 
-        set_execution_interceptor(SnapshotInterceptor())
+        from app.services.checkpoint.snapshot_service import (
+            get_snapshot_interceptor,
+        )
+
+        set_execution_interceptor(get_snapshot_interceptor())
     except Exception as e:
         logger.warning("Failed to register snapshot interceptor: %s", e)
 
