@@ -4582,7 +4582,28 @@
       "checks": "檢查項",
       "fix": "修復",
       "launchTest": "包含啟動測試",
-      "loadFailed": "無法載入瀏覽器診斷"
+      "loadFailed": "無法載入瀏覽器診斷",
+      "cancel": "取消",
+      "statusOk": "正常",
+      "statusWarning": "警告",
+      "statusError": "錯誤",
+      "statusMissing": "缺失",
+      "checkNames": {
+        "patchright": "Patchright 引擎",
+        "camoufox": "Camoufox 引擎",
+        "memory": "系統記憶體",
+        "disk": "磁碟空間",
+        "proxy": "代理設定",
+        "orphan_processes": "孤兒進程",
+        "browser_launch": "啟動測試",
+        "extension_relay": "瀏覽器擴充"
+      },
+      "cleanupOrphans": "清理孤兒進程",
+      "cleaning": "清理中…",
+      "confirmCleanupTitle": "確認清理孤兒進程？",
+      "confirmCleanupDescription": "將終止 {count} 個殘留的瀏覽器自動化進程。此操作不會關閉正常使用的瀏覽器視窗。",
+      "cleaned": "已清理 {count} 個孤兒進程",
+      "cleanupFailed": "清理孤兒進程失敗"
     },
     "cloudBrowser": {
       "title": "雲瀏覽器",

@@ -153,11 +153,11 @@ def _action_for_report(report: HealthReport, layer: str) -> RepairAction | None:
 
 async def _browser_orphan_action() -> RepairAction | None:
     try:
-        from myrm_agent_harness.toolkits.browser import find_orphan_chromium_processes
+        from myrm_agent_harness.toolkits.browser import find_orphan_automation_processes
     except ImportError:
         return None
 
-    orphans = await asyncio.to_thread(find_orphan_chromium_processes)
+    orphans = await asyncio.to_thread(find_orphan_automation_processes)
     if not orphans:
         return None
 
@@ -283,9 +283,9 @@ async def execute_repair_action(action_id: RepairActionId, request: RepairAction
             message="This repair action is advisory only and cannot be executed automatically.",
         )
 
-    from myrm_agent_harness.toolkits.browser import cleanup_orphan_processes, find_orphan_chromium_processes
+    from myrm_agent_harness.toolkits.browser import cleanup_orphan_processes, find_orphan_automation_processes
 
-    orphans = await asyncio.to_thread(find_orphan_chromium_processes)
+    orphans = await asyncio.to_thread(find_orphan_automation_processes)
     orphan_pids: list[int] = [int(orphan["pid"]) for orphan in orphans if "pid" in orphan]
     if not orphan_pids:
         return RepairActionExecuteResult(

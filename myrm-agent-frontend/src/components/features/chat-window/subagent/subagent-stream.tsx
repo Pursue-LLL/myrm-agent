@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import type { StreamEntry, SubagentStatus } from '@/store/chat/useSubagentStore';
 
-const STATUS_ICON_MAP: Record<SubagentStatus, { icon: typeof Loader2; className: string; spin?: boolean }> = {
+export const STATUS_ICON_MAP: Record<SubagentStatus, { icon: typeof Loader2; className: string; spin?: boolean }> = {
   pending: { icon: Clock, className: 'text-slate-400' },
   pending_approval: { icon: Hourglass, className: 'text-amber-500' },
   running: { icon: Loader2, className: 'text-blue-500', spin: true },

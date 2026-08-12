@@ -4886,7 +4886,28 @@
       "checks": "检查项",
       "fix": "修复",
       "launchTest": "包含启动测试",
-      "loadFailed": "无法加载浏览器诊断"
+      "loadFailed": "无法加载浏览器诊断",
+      "cancel": "取消",
+      "statusOk": "正常",
+      "statusWarning": "警告",
+      "statusError": "错误",
+      "statusMissing": "缺失",
+      "checkNames": {
+        "patchright": "Patchright 引擎",
+        "camoufox": "Camoufox 引擎",
+        "memory": "系统内存",
+        "disk": "磁盘空间",
+        "proxy": "代理配置",
+        "orphan_processes": "孤儿进程",
+        "browser_launch": "启动测试",
+        "extension_relay": "浏览器扩展"
+      },
+      "cleanupOrphans": "清理孤儿进程",
+      "cleaning": "清理中…",
+      "confirmCleanupTitle": "确认清理孤儿进程？",
+      "confirmCleanupDescription": "将终止 {count} 个残留的浏览器自动化进程。此操作不会关闭正常使用的浏览器窗口。",
+      "cleaned": "已清理 {count} 个孤儿进程",
+      "cleanupFailed": "清理孤儿进程失败"
     },
     "cloudBrowser": {
       "title": "云浏览器",

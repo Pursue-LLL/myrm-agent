@@ -237,7 +237,7 @@ async def test_browser_orphan_import_failure() -> None:
 async def test_execute_cleanup_browser_no_orphans() -> None:
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=[]):
+    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[]):
         result = await execute_repair_action(
             RepairActionId.CLEANUP_BROWSER_ORPHANS,
             RepairActionExecuteRequest(dry_run=False, confirm=True),
@@ -250,7 +250,7 @@ async def test_execute_cleanup_browser_no_orphans() -> None:
 async def test_execute_cleanup_browser_dry_run() -> None:
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=[{"pid": 111}]):
+    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"pid": 111}]):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
             return_value={"killed": 0, "message": "dry run", "dry_run": True, "failed": []},
@@ -268,7 +268,7 @@ async def test_execute_cleanup_browser_dry_run() -> None:
 async def test_execute_cleanup_browser_needs_confirm() -> None:
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=[{"pid": 222}]):
+    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"pid": 222}]):
         result = await execute_repair_action(
             RepairActionId.CLEANUP_BROWSER_ORPHANS,
             RepairActionExecuteRequest(dry_run=False, confirm=False),
@@ -282,7 +282,7 @@ async def test_execute_cleanup_browser_needs_confirm() -> None:
 async def test_execute_cleanup_browser_confirmed() -> None:
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=[{"pid": 333}]):
+    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"pid": 333}]):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
             return_value={"killed": 1, "message": "killed 1", "failed": []},
@@ -326,7 +326,7 @@ async def test_execute_cleanup_browser_orphan_missing_pid_key() -> None:
     """Orphans without a 'pid' key are filtered out by the list comprehension."""
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=[{"name": "chrome"}]):
+    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"name": "chrome"}]):
         result = await execute_repair_action(
             RepairActionId.CLEANUP_BROWSER_ORPHANS,
             RepairActionExecuteRequest(dry_run=False, confirm=True),
@@ -340,7 +340,7 @@ async def test_execute_cleanup_browser_confirmed_killed_zero() -> None:
     """When cleanup runs but kills 0 processes, changed should be False."""
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=[{"pid": 444}]):
+    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"pid": 444}]):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
             return_value={"killed": 0, "message": "process already dead", "failed": [444]},
@@ -393,7 +393,7 @@ async def test_build_includes_browser_orphan_action_when_orphans_exist() -> None
     from unittest.mock import patch
 
     with patch(
-        "myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes",
+        "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
         return_value=[{"pid": 9999, "name": "chrome"}],
     ):
         actions = await build_repair_actions([], [])
@@ -415,7 +415,7 @@ async def test_execute_cleanup_browser_multiple_pids() -> None:
     from unittest.mock import patch
 
     orphans = [{"pid": 100}, {"pid": 200}, {"pid": 300}]
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=orphans):
+    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=orphans):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
             return_value={"killed": 3, "message": "killed 3", "failed": []},
@@ -452,7 +452,7 @@ async def test_execute_cleanup_browser_result_missing_message() -> None:
     """When cleanup result has no 'message' key, fallback message is used."""
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=[{"pid": 555}]):
+    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"pid": 555}]):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
             return_value={"killed": 1, "failed": []},
@@ -494,7 +494,7 @@ async def test_execute_cleanup_browser_mixed_pid_presence() -> None:
     from unittest.mock import patch
 
     orphans = [{"pid": 111}, {"name": "chrome_no_pid"}, {"pid": 222}]
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=orphans):
+    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=orphans):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
             return_value={"killed": 2, "message": "killed 2", "failed": []},

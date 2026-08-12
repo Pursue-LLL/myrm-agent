@@ -59,15 +59,15 @@ async def _handler(req: ToolCallRequest) -> ToolMessage:
 
 @pytest.mark.asyncio
 async def test_gate_allows_granted_sensitive_tool() -> None:
-    """A skill granted SHELL_EXEC must let execute_python through."""
+    """A skill granted CODE_INTERPRETER must let bash_code_execute_tool through."""
     set_loaded_skills([SkillMetadata(name="demo", description="d", version="1.0.0")])
-    async with _granted_loader({SkillPermission.SHELL_EXEC}):
+    async with _granted_loader({SkillPermission.CODE_INTERPRETER}):
         checker = await create_async_permission_checker()
         mw = GuardrailMiddleware(
             providers=[SkillBoundaryProvider(permission_checker=checker)]
         )
         result = await mw.awrap_tool_call(
-            _request("execute_python", {"code": "print(1)"}), _handler
+            _request("bash_code_execute_tool", {"command": "echo hi"}), _handler
         )
 
     assert result.content == "ok"
@@ -84,7 +84,7 @@ async def test_gate_denies_ungranted_sensitive_tool() -> None:
             providers=[SkillBoundaryProvider(permission_checker=checker)]
         )
         result = await mw.awrap_tool_call(
-            _request("execute_python", {"code": "print(1)"}), _handler
+            _request("bash_code_execute_tool", {"command": "echo hi"}), _handler
         )
 
     assert result.status == "error"
@@ -100,7 +100,7 @@ async def test_gate_allows_when_no_skill_loaded() -> None:
             providers=[SkillBoundaryProvider(permission_checker=checker)]
         )
         result = await mw.awrap_tool_call(
-            _request("execute_python", {"code": "print(1)"}), _handler
+            _request("bash_code_execute_tool", {"command": "echo hi"}), _handler
         )
 
     assert result.content == "ok"
@@ -116,7 +116,7 @@ async def test_gate_denies_network_tool_without_grant() -> None:
             providers=[SkillBoundaryProvider(permission_checker=checker)]
         )
         result = await mw.awrap_tool_call(
-            _request("browser_navigate", {"url": "http://example.com"}), _handler
+            _request("browser_navigate_tool", {"url": "http://example.com"}), _handler
         )
 
     assert result.status == "error"
@@ -133,15 +133,18 @@ async def test_gate_allows_network_tool_with_grant() -> None:
             providers=[SkillBoundaryProvider(permission_checker=checker)]
         )
         result = await mw.awrap_tool_call(
-            _request("browser_navigate", {"url": "http://example.com"}), _handler
+            _request("browser_navigate_tool", {"url": "http://example.com"}), _handler
         )
 
     assert result.content == "ok"
 
 
 @pytest.mark.asyncio
-async def test_gate_denies_env_tool_without_grant() -> None:
-    """A skill without ENV_VAR_ACCESS must not read environment variables."""
+async def test_gate_denies_mcp_tool_by_mcp_auth() -> None:
+    """MCP tools resolve to mcp_invoke: not a skill domain, gate stays open.
+
+    MCP authorization is enforced by the MCP server layer, not the skill gate.
+    """
     set_loaded_skills([SkillMetadata(name="demo", description="d", version="1.0.0")])
     async with _granted_loader(set()):
         checker = await create_async_permission_checker()
@@ -149,8 +152,7 @@ async def test_gate_denies_env_tool_without_grant() -> None:
             providers=[SkillBoundaryProvider(permission_checker=checker)]
         )
         result = await mw.awrap_tool_call(
-            _request("get_env_var", {"name": "API_KEY"}), _handler
+            _request("mcp__github__get_repo", {"repo": "x"}), _handler
         )
 
-    assert result.status == "error"
-    assert "skill_boundary" in str(result.content)
+    assert result.content == "ok"

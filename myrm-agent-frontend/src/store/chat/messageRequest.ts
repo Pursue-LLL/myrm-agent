@@ -18,7 +18,6 @@
  */
 
 import { resolveVisibleBuiltinAgentId } from '@/lib/product-surface';
-import crypto from 'crypto';
 import {
   Message,
   File,
@@ -925,8 +924,6 @@ export const sendMessage = async (
   // 标记为正在处理，防止并发
   useToolApprovalStore.getState().markProcessing(requestMessageId);
 
-  let userMessageId: string | undefined;
-
   try {
     // ============================================================================
     // CLI Agent 模式检测和处理 (Claude Code)
@@ -1004,22 +1001,13 @@ export const sendMessage = async (
 
     const isRegenerate = !!state.regenerateSiblingGroupId;
 
-    // 生成用户消息 ID
-    userMessageId = (() => {
-      const timestamp = Date.now().toString(36);
-      const microTime = (performance.now() * 1000).toString(36).replace('.', '');
-      const randomBytes = crypto.randomBytes(6).toString('hex');
-      const counter = ((Math.random() * 0xffff) | 0).toString(36);
-      return `u-${timestamp}-${microTime}-${randomBytes}-${counter}`;
-    })();
-
     const persistFiles = state.files.length > 0 ? state.files.map(({ contentHash: _, ...rest }) => rest) : undefined;
 
     if (!isRegenerate && !resumeValue) {
       smartActions.setMessages((innerState) => {
         innerState.messages.push({
           content: input,
-          messageId: userMessageId || requestMessageId,
+          messageId: requestMessageId,
           chatId: innerState.chatId!,
           role: 'user',
           createdAt: new Date(),
@@ -1051,14 +1039,12 @@ export const sendMessage = async (
       throw error;
     }
     if (isArchiveRestoreActionInvalidError(error)) {
-      if (userMessageId) {
-        smartSetMessages((innerState) => {
-          const lastMessageIndex = innerState.messages.length - 1;
-          if (lastMessageIndex >= 0 && innerState.messages[lastMessageIndex].messageId === userMessageId) {
-            innerState.messages.pop();
-          }
-        });
-      }
+      smartSetMessages((innerState) => {
+        const lastMessageIndex = innerState.messages.length - 1;
+        if (lastMessageIndex >= 0 && innerState.messages[lastMessageIndex].messageId === requestMessageId) {
+          innerState.messages.pop();
+        }
+      });
       showI18nToast('chat.archiveRestore.invalidTitle', undefined, {
         descriptionKey: 'chat.archiveRestore.invalidDescription',
         descriptionValues: { error: error.detail || error.message },
@@ -1070,15 +1056,15 @@ export const sendMessage = async (
     if (error instanceof Error && error.name !== 'AbortError') {
       const isNetworkError = isTransientNetworkError(error);
 
-      if (isNetworkError && userMessageId) {
+      if (isNetworkError) {
         smartSetMessages((innerState) => {
-          const msg = innerState.messages.find((m) => m.messageId === userMessageId);
+          const msg = innerState.messages.find((m) => m.messageId === requestMessageId);
           if (msg) msg.sendFailed = true;
         });
-      } else if (userMessageId) {
+      } else {
         smartSetMessages((innerState) => {
           const lastMessageIndex = innerState.messages.length - 1;
-          if (lastMessageIndex >= 0 && innerState.messages[lastMessageIndex].messageId === userMessageId) {
+          if (lastMessageIndex >= 0 && innerState.messages[lastMessageIndex].messageId === requestMessageId) {
             innerState.messages.pop();
           }
         });

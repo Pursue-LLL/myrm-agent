@@ -112,6 +112,25 @@ _DOM_WAITING_JS = """(() => {
 })()"""
 
 
+_ABORT_STREAM_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.abortActiveStream) {
+    return { ok: false, err: 'no-abortActiveStream' };
+  }
+  bridge.abortActiveStream();
+  return { ok: true };
+})()"""
+
+_E2E_SEND_PROMPT_JS = """(async (prompt) => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.sendChatMessage) {
+    return { ok: false, err: 'no-sendChatMessage' };
+  }
+  const res = await bridge.sendChatMessage(prompt);
+  return res;
+})"""
+
+
 def _seed_turn_lock_fixture(api_url: str, *, hold_ms: int = HOLD_MS) -> dict[str, object]:
     seeded = http_json(
         "POST",
@@ -315,4 +334,85 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
         assert ok_state.get("ready") is True, (
             f"Expected assistant OK after lock released; state={ok_state!r} "
             f"chat_id={chat_id_resolved}"
+        )
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
+    """Real user cancels while waiting for the project lock.
+
+    Real flow: seed holds the project lock → UI send shows waiting_for_turn →
+    user hits stop (abortActiveStream → stopMessage → cancel + SSE abort) →
+    waiting step must be removed synchronously → a second send must show the
+    waiting step again (proving the cancelled waiter did NOT steal/release the
+    holder's lock) → seed releases → the second turn completes normally.
+    """
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    prepare_e2e_ui_session(api_url)
+
+    seeded = _seed_turn_lock_fixture(api_url, hold_ms=60000)
+    chat_id = str(seeded["chat_id"])
+    chat_path = str(seeded["ui_path"])
+
+    warm_ui_route(chat_path)
+    chat_url = f"{ui_url}{chat_path}"
+    with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
+        wait_for_state(
+            client,
+            page,
+            """(() => ({
+              ready: !!window.__MYRM_E2E_CHAT__?.sendChatMessage
+                && !!window.__MYRM_E2E_CHAT__?.attachToChat
+                && !!window.__MYRM_E2E_CHAT__?.abortActiveStream,
+            }))()""",
+            timeout_sec=30.0,
+        )
+        attach_js = _ATTACH_JS.replace("__MYRM_CHAT_ID__", json.dumps(chat_id))
+        attach_raw = client.evaluate(page, attach_js, timeout_sec=30.0)
+        attach_state = attach_raw if isinstance(attach_raw, dict) else json.loads(str(attach_raw))
+        assert attach_state.get("ok") is True, attach_state
+
+        # 第一次发送：锁被 seed 持有 → 进入等待
+        send_result = _send_message(client, page)
+        assert send_result.get("ok") is True, send_result
+        waiting_state = _wait_waiting_step(client, page, timeout_sec=45.0)
+        assert waiting_state.get("step_key") == "waiting_for_turn", waiting_state
+
+        # 真实用户点击停止：stopMessage 路径取消 + 同步清除 waiting 步骤
+        abort_raw = client.evaluate(page, _ABORT_STREAM_JS, timeout_sec=10.0)
+        abort_state = abort_raw if isinstance(abort_raw, dict) else json.loads(str(abort_raw))
+        assert abort_state.get("ok") is True, abort_state
+
+        cleared_state = _wait_waiting_cleared(client, page, timeout_sec=20.0)
+        assert cleared_state.get("ready") is False, cleared_state
+
+        # 第二次发送：seed 锁必须仍被持有（取消等待未误释放持有者锁）→ 再次等待
+        send2 = _send_message(client, page)
+        if send2.get("ok") is not True:
+            print("SEND2_FULL_DEBUG:", json.dumps(send2, ensure_ascii=False, default=str))
+        assert send2.get("ok") is True, send2
+        waiting2 = _wait_waiting_step(client, page, timeout_sec=45.0)
+        assert waiting2.get("step_key") == "waiting_for_turn", waiting2
+
+        # seed 到期自动释放 → 第二次 turn 自动获得锁 → 正常运行完成
+        ok_deadline = time.monotonic() + TURN_WAIT_SEC
+        ok_state: dict[str, object] = {}
+        while time.monotonic() < ok_deadline:
+            raw = client.evaluate(page, _ASSISTANT_OK_JS, timeout_sec=10.0)
+            ok_state = raw if isinstance(raw, dict) else json.loads(str(raw))
+            if ok_state.get("ready") is True:
+                break
+            time.sleep(0.5)
+        assert ok_state.get("ready") is True, (
+            f"Expected second turn assistant OK after seed lock release; "
+            f"state={ok_state!r} chat_id={chat_id}"
         )

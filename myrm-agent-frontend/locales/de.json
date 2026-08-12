@@ -5717,7 +5717,28 @@
       "checks": "Schecks",
       "fix": "Beheben",
       "launchTest": "Einführungstest einschließen",
-      "loadFailed": "Die Browserdiagnose konnte nicht geladen werden"
+      "loadFailed": "Die Browserdiagnose konnte nicht geladen werden",
+      "cancel": "Abbrechen",
+      "statusOk": "OK",
+      "statusWarning": "Warnung",
+      "statusError": "Fehler",
+      "statusMissing": "Fehlt",
+      "checkNames": {
+        "patchright": "Patchright-Engine",
+        "camoufox": "Camoufox-Engine",
+        "memory": "Arbeitsspeicher",
+        "disk": "Speicherplatz",
+        "proxy": "Proxy",
+        "orphan_processes": "Verwaiste Prozesse",
+        "browser_launch": "Starttest",
+        "extension_relay": "Browser-Erweiterung"
+      },
+      "cleanupOrphans": "Verwaiste Prozesse bereinigen",
+      "cleaning": "Bereinigung…",
+      "confirmCleanupTitle": "Verwaiste Prozesse bereinigen?",
+      "confirmCleanupDescription": "Dadurch werden {count} verbleibende Prozesse der Browserautomatisierung beendet. Normale Browserfenster werden nicht geschlossen.",
+      "cleaned": "{count} verwaiste Prozesse bereinigt",
+      "cleanupFailed": "Bereinigung der verwaisten Prozesse fehlgeschlagen"
     },
     "cloudBrowser": {
       "title": "Cloud-Browser",
@@ -14214,7 +14235,7 @@
       "judgeModel": "Jury",
       "fingerprint": "Ebenen-Fingerprints fixieren die exakte Schalterkombination und halten Ergebnisse versionsübergreifend vergleichbar.",
       "harnessVersion": "Harness-Engine",
-      "basedOnProfile": "Basierend auf Profil",
+      "basedOnProfile": "Profil",
       "abortedNotice": "Dieser Bericht ist unvollständig — die Auswertung wurde vor dem Abschluss abgebrochen.",
       "bare": {
         "label": "Basis"
@@ -14232,8 +14253,7 @@
       "confirmBody": "Der Benchmark wird viermal mit Ihrem aktuellen Profil ausgeführt — Basis (Benchmark-Modus, Tools und Fähigkeiten entfernt), Kernkonfiguration (Ihre vollständige Agent-Konfiguration, Fähigkeiten und Speicher aus), +Fähigkeiten, dann +Speicher (Ihre vollständige Konfiguration). Jede Ebene wiederholt dieselben Aufgaben, sodass die Differenz benachbarter Ebenen die jeweilige Fähigkeit isoliert. Die Kosten skalieren etwa mit dem 4-fachen der Stichproben; für die Speicher-Ebene muss ein Embedding-Modell konfiguriert sein.",
       "confirmStart": "Evaluation starten",
       "confirmCancel": "Abbrechen",
-      "confirmProfileHint": "Die Bewertung verwendet dieses Profil",
-      "basedOnProfile": "Profil"
+      "confirmProfileHint": "Die Bewertung verwendet dieses Profil"
     }
   },
   "vault": {

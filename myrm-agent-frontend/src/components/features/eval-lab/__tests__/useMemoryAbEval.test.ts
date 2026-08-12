@@ -72,7 +72,7 @@ describe('useMemoryAbEval', () => {
 
     const runCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
     expect(runCall).toBeDefined();
-    const body = JSON.parse(String((runCall[1] as RequestInit).body));
+    const body = JSON.parse(String((runCall![1] as RequestInit).body));
     expect(body).toEqual({
       benchmark_id: 'wb-bench-office',
       profile_id: 'agent-1',

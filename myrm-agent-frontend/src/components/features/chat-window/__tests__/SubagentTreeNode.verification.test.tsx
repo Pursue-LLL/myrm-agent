@@ -41,6 +41,7 @@ vi.mock('@/components/features/app-shell/confirm-dialog', () => ({
 vi.mock('../subagent/subagent-stream', () => ({
   StatusIcon: () => null,
   NodeStream: () => null,
+  STATUS_ICON_MAP: {},
 }));
 
 import { SubagentTreeNode } from '../subagent/subagent-tree';

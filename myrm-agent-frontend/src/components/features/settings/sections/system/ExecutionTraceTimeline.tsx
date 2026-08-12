@@ -75,7 +75,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
 
   const activeSessionAnalyticsMessageId = useChatStore((state) => state.activeSessionAnalyticsMessageId);
   const messages = useChatStore((state) => state.messages);
-  const activeMessage = messages.find((m) => m.messageId === activeSessionAnalyticsMessageId);
+  const activeMessage = messages.find((m) => m.messageId === activeSessionAnalyticsMessageId && m.role === 'assistant');
 
   const highlightedTools = activeMessage?.tokenEconomics?.tool_breakdown
     ? Object.keys(activeMessage.tokenEconomics.tool_breakdown)

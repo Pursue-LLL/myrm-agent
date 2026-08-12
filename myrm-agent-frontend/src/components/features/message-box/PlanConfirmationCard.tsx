@@ -104,7 +104,7 @@ const PlanConfirmationCard = ({
   const markResolved = useCallback(
     (resolvedStatus: 'confirmed' | 'edited' | 'skipped') => {
       useChatStore.setState((state) => {
-        const idx = state.messages.findIndex((m) => m.messageId === messageId);
+        const idx = state.messages.findIndex((m) => m.messageId === messageId && m.role === 'assistant');
         if (idx !== -1 && state.messages[idx].planConfirmation) {
           state.messages[idx].planConfirmation!.status = resolvedStatus;
         }

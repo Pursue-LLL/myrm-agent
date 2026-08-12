@@ -23,7 +23,7 @@ import { normalizeArchiveRestoreActions } from './chat/archiveRestoreActions';
 import { sendMessage } from './chat/messageRequest';
 import { generateStreamRequestMessageId } from './chat/streamRequestMessageId';
 import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat, persistActiveChatNavigationSnapshot, resolveInstantChatSnapshot } from './chat/messageManagement';
-import { processSuggestions, findAssistantMessageIndex } from './chat/messageUtils';
+import { processSuggestions, findAssistantMessageIndex, removeWaitingForTurnStep } from './chat/messageUtils';
 import { disarmYoloForPreset, normalizeSecurityPreset } from './chat/securityPreset';
 import useQuoteStore from './useQuoteStore';
 import useWorkspaceStore from './useWorkspaceStore';
@@ -509,7 +509,11 @@ const useChatStore = create<ChatState>()(
         }),
       clearEnvironmentAlerts: () => set({ environmentAlerts: new Set<string>() }),
       stopMessage: () => {
-        const { chatId, abortController: chatAbortController } = get();
+        const {
+          chatId,
+          abortController: chatAbortController,
+          currentSessionMessageId: chatSessionMessageId,
+        } = get();
         if (!chatId) return;
 
         const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
@@ -542,6 +546,9 @@ const useChatStore = create<ChatState>()(
               state.loading = false;
               state.abortController = null;
               state.messageAppeared = true;
+              if (currentSessionMessageId) {
+                state.messages = removeWaitingForTurnStep(state.messages, currentSessionMessageId);
+              }
             });
           }
           return;
@@ -562,6 +569,9 @@ const useChatStore = create<ChatState>()(
           state.loading = false;
           state.abortController = null;
           state.messageAppeared = true;
+          if (chatSessionMessageId) {
+            state.messages = removeWaitingForTurnStep(state.messages, chatSessionMessageId);
+          }
         });
       },
       steerMessage: async (message: string) => {

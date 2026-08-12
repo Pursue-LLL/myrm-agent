@@ -47,7 +47,9 @@ _PREPARE = _AGENT_ROOT / "scripts/dev/subagent-dashboard-e2e-prepare.mjs"
 _DELEGATE_QUERY = (
     "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'bash_worker'，wait 设为 false。"
     "子智能体的任务：调用 bash_code_execute_tool 执行命令 `sleep 300`，关键要求：run_in_background 必须为 false（前台运行），"
-    "timeout 参数必须显式设为 600，绝对禁止使用后台方式或 & 符号，必须等待命令完成后才能汇报结果并结束。"
+    "timeout 参数必须显式设为 600——bash_code_execute_tool 的默认超时只有 60 秒，若不显式传 timeout，"
+    "sleep 300 会在 60 秒后被强制中断并直接失败；绝对禁止使用后台方式或 & 符号，"
+    "必须等待命令完全执行完成后才能汇报结果并结束。"
     "注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，"
     "绝对不要在文本中输出 XML 格式的工具调用！"
 )

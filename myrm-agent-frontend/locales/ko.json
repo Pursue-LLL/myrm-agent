@@ -5717,7 +5717,28 @@
       "checks": "검사 항목",
       "fix": "수정",
       "launchTest": "시작 테스트 포함",
-      "loadFailed": "브라우저 진단을 불러오지 못했습니다"
+      "loadFailed": "브라우저 진단을 불러오지 못했습니다",
+      "cancel": "취소",
+      "statusOk": "정상",
+      "statusWarning": "경고",
+      "statusError": "오류",
+      "statusMissing": "없음",
+      "checkNames": {
+        "patchright": "Patchright 엔진",
+        "camoufox": "Camoufox 엔진",
+        "memory": "시스템 메모리",
+        "disk": "디스크 공간",
+        "proxy": "프록시",
+        "orphan_processes": "고아 프로세스",
+        "browser_launch": "시작 테스트",
+        "extension_relay": "브라우저 확장"
+      },
+      "cleanupOrphans": "고아 프로세스 정리",
+      "cleaning": "정리 중…",
+      "confirmCleanupTitle": "고아 프로세스를 정리하시겠습니까?",
+      "confirmCleanupDescription": "남아 있는 {count}개의 브라우저 자동화 프로세스를 종료합니다. 일반 브라우저 창은 닫지 않습니다.",
+      "cleaned": "고아 프로세스 {count}개를 정리했습니다",
+      "cleanupFailed": "고아 프로세스 정리에 실패했습니다"
     },
     "cloudBrowser": {
       "title": "클라우드 브라우저",
@@ -14214,7 +14235,7 @@
       "judgeModel": "심사 모델",
       "fingerprint": "레이어 지문이 정확한 스위치 조합을 고정하여 버전 간 점수 비교를 가능하게 합니다.",
       "harnessVersion": "하네스",
-      "basedOnProfile": "프로필 기반",
+      "basedOnProfile": "프로필",
       "abortedNotice": "이 보고서는 불완전합니다 — 평가가 완료되기 전에 중단되었습니다.",
       "bare": {
         "label": "베어 베이스라인"
@@ -14232,8 +14253,7 @@
       "confirmBody": "현재 프로필로 동일한 벤치마크를 4번 실행합니다 — 베어(벤치마크 모드, 도구와 스킬 제거), 코어 구성(전체 에이전트 구성, 스킬과 메모리 OFF), +스킬, +메모리(전체 구성). 각 레이어가 동일한 작업을 다시 실행하므로 인접 레이어 간 통과율 차이가 각 기능의 기여를 분리합니다. 비용은 샘플 작업 수의 약 4배이며, 메모리 레이어에는 임베딩 모델이 구성되어 있어야 합니다.",
       "confirmStart": "평가 시작",
       "confirmCancel": "취소",
-      "confirmProfileHint": "이 프로필로 평가합니다",
-      "basedOnProfile": "프로필"
+      "confirmProfileHint": "이 프로필로 평가합니다"
     }
   },
   "vault": {

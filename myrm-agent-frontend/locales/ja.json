@@ -4582,7 +4582,28 @@
       "checks": "検査項目",
       "fix": "修正",
       "launchTest": "含む起動テスト",
-      "loadFailed": "ブラウザ診断を読み込めませんでした"
+      "loadFailed": "ブラウザ診断を読み込めませんでした",
+      "cancel": "キャンセル",
+      "statusOk": "正常",
+      "statusWarning": "警告",
+      "statusError": "エラー",
+      "statusMissing": "不明",
+      "checkNames": {
+        "patchright": "Patchright エンジン",
+        "camoufox": "Camoufox エンジン",
+        "memory": "システムメモリ",
+        "disk": "ディスク容量",
+        "proxy": "プロキシ",
+        "orphan_processes": "孤立プロセス",
+        "browser_launch": "起動テスト",
+        "extension_relay": "ブラウザ拡張機能"
+      },
+      "cleanupOrphans": "孤立プロセスをクリーンアップ",
+      "cleaning": "クリーンアップ中…",
+      "confirmCleanupTitle": "孤立プロセスをクリーンアップしてもよろしいですか？",
+      "confirmCleanupDescription": "残っている {count} 個のブラウザ自動化プロセスを終了します。通常のブラウザウィンドウは閉じません。",
+      "cleaned": "{count} 個の孤立プロセスをクリーンアップしました",
+      "cleanupFailed": "孤立プロセスのクリーンアップに失敗しました"
     },
     "cloudBrowser": {
       "title": "クラウドブラウザ",
@@ -14824,7 +14845,7 @@
       "judgeModel": "判定モデル",
       "fingerprint": "各層のフィンガープリントがスイッチ組み合わせを固定し、バージョンをまたいでスコアを比較可能に保ちます。",
       "harnessVersion": "ハーネス",
-      "basedOnProfile": "プロファイルに基づく",
+      "basedOnProfile": "プロファイル",
       "abortedNotice": "このレポートは不完全です——評価は完了前に中止されました。",
       "bare": {
         "label": "素のベースライン"
@@ -14842,8 +14863,7 @@
       "confirmBody": "現在のプロファイルで同じベンチマークを4回実行します — 素（ベンチマークモード、ツールとスキルを除去）、コア設定（あなたの完全なエージェント設定、スキルとメモリはOFF）、+スキル、+メモリ（完全構成）。各層は同じタスクを再実行するため、隣接層の合格率差が各機能の貢献を示します。コストはサンプル数の約4倍になります。メモリ層には埋め込みモデルの設定が必要です。",
       "confirmStart": "評価を開始",
       "confirmCancel": "キャンセル",
-      "confirmProfileHint": "このプロファイルで評価します",
-      "basedOnProfile": "プロファイル"
+      "confirmProfileHint": "このプロファイルで評価します"
     }
   },
   "vault": {

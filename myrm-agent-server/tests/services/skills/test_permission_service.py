@@ -10,8 +10,21 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.backends.skills import SkillPermission
 
-from app.services.skills.permission_service import create_async_permission_checker
+from app.services.skills import permission_service
+from app.services.skills.permission_service import (
+    create_async_permission_checker,
+    load_granted_permissions,
+    load_granted_permissions_cached,
+)
+
+
+@pytest.fixture(autouse=True)
+def _reset_permission_cache() -> None:
+    permission_service._permission_cache.clear()
+    yield
+    permission_service._permission_cache.clear()
 
 
 @pytest.mark.asyncio
@@ -155,3 +168,66 @@ def test_sync_checker_works_outside_event_loop() -> None:
     args = mock_log.call_args[0]
     assert args[1] == "demo-skill"
     assert args[2] == "shell_exec"
+
+
+@patch("app.services.skills.permission_service.get_session")
+async def test_load_granted_permissions_reads_db_and_filters_invalid(mock_session: AsyncMock) -> None:
+    """DB values map to enums; unknown values are skipped with a warning."""
+    valid_grant = MagicMock(permission="file_write")
+    invalid_grant = MagicMock(permission="not-a-permission")
+
+    db_mock = AsyncMock()
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = [
+        valid_grant,
+        invalid_grant,
+    ]
+    db_mock.execute.return_value = result_mock
+    mock_session.return_value.__aenter__.return_value = db_mock
+
+    permissions = await load_granted_permissions("skill-1")
+    assert permissions == {SkillPermission.FILE_WRITE}
+
+
+@patch("app.services.skills.permission_service.load_granted_permissions")
+async def test_cached_loader_hits_cache_without_db(mock_load: AsyncMock) -> None:
+    """A warm cache must not touch the database loader."""
+    permission_service._permission_cache["skill-1"] = {SkillPermission.FILE_READ}
+
+    permissions = await load_granted_permissions_cached("skill-1")
+    assert permissions == {SkillPermission.FILE_READ}
+    mock_load.assert_not_awaited()
+
+
+@patch("app.services.skills.permission_service.load_granted_permissions")
+async def test_cached_loader_populates_on_miss(mock_load: AsyncMock) -> None:
+    """A cache miss loads from DB and stores the result."""
+    mock_load.return_value = {SkillPermission.SHELL_EXEC}
+
+    first = await load_granted_permissions_cached("skill-1")
+    second = await load_granted_permissions_cached("skill-1")
+
+    assert first == second == {SkillPermission.SHELL_EXEC}
+    mock_load.assert_awaited_once_with("skill-1")
+    assert permission_service._permission_cache["skill-1"] == {SkillPermission.SHELL_EXEC}
+
+
+def test_clear_permission_cache_all() -> None:
+    permission_service._permission_cache.update(
+        {"a": set(), "b": {SkillPermission.FILE_READ}}
+    )
+    permission_service.clear_permission_cache()
+    assert permission_service._permission_cache == {}
+
+
+def test_clear_permission_cache_specific_skill() -> None:
+    permission_service._permission_cache.update(
+        {"a": set(), "b": {SkillPermission.FILE_READ}}
+    )
+    permission_service.clear_permission_cache("a")
+    assert list(permission_service._permission_cache) == ["b"]
+
+
+def test_clear_permission_cache_missing_skill_is_noop() -> None:
+    permission_service.clear_permission_cache("unknown")
+    assert permission_service._permission_cache == {}

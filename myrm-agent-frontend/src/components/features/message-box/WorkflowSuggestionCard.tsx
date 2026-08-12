@@ -51,7 +51,7 @@ const WorkflowSuggestionCard = ({ messageId, status }: WorkflowSuggestionCardPro
 
   const handleActivate = useCallback(() => {
     useChatStore.setState((state) => {
-      const idx = state.messages.findIndex((m) => m.messageId === messageId);
+      const idx = state.messages.findIndex((m) => m.messageId === messageId && m.role === 'assistant');
       if (idx !== -1 && state.messages[idx].workflowSuggestion) {
         state.messages[idx].workflowSuggestion!.status = 'accepted';
       }
@@ -62,7 +62,7 @@ const WorkflowSuggestionCard = ({ messageId, status }: WorkflowSuggestionCardPro
   const handleDismiss = useCallback(() => {
     setDismissed(true);
     useChatStore.setState((state) => {
-      const idx = state.messages.findIndex((m) => m.messageId === messageId);
+      const idx = state.messages.findIndex((m) => m.messageId === messageId && m.role === 'assistant');
       if (idx !== -1 && state.messages[idx].workflowSuggestion) {
         state.messages[idx].workflowSuggestion!.status = 'dismissed';
       }

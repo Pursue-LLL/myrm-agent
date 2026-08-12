@@ -310,6 +310,7 @@ async def browser_doctor(
     """
     from myrm_agent_harness.toolkits.browser import run_doctor
 
+    from app.config.settings import settings
     from app.lifecycle.browser import resolve_browser_proxy_pool
 
     proxy_pool = await resolve_browser_proxy_pool()
@@ -318,6 +319,7 @@ async def browser_doctor(
     report = await run_doctor(
         include_launch_test=launch_test,
         browser_proxy=browser_proxy,
+        extension_relay_base_url=f"http://127.0.0.1:{settings.port}",
     )
 
     return {
@@ -343,9 +345,9 @@ async def list_browser_orphans() -> dict[str, object]:
     Returns:
         List of orphan processes with PIDs, names, and user-data-dir paths
     """
-    from myrm_agent_harness.toolkits.browser import find_orphan_chromium_processes
+    from myrm_agent_harness.toolkits.browser import find_orphan_automation_processes
 
-    orphans = await asyncio.to_thread(find_orphan_chromium_processes)
+    orphans = await asyncio.to_thread(find_orphan_automation_processes)
 
     return {
         "count": len(orphans),
@@ -375,11 +377,11 @@ async def cleanup_browser_orphans(
     """
     from myrm_agent_harness.toolkits.browser import (
         cleanup_orphan_processes,
-        find_orphan_chromium_processes,
+        find_orphan_automation_processes,
     )
 
     try:
-        orphans = await asyncio.to_thread(find_orphan_chromium_processes)
+        orphans = await asyncio.to_thread(find_orphan_automation_processes)
 
         if not orphans:
             return {

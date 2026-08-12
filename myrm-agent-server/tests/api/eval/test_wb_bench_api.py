@@ -114,10 +114,13 @@ async def test_wb_bench_download_abort_flow(tmp_path) -> None:
         raise wb.DownloadAbortedError(f"Download of {subset.archive} aborted")
 
     with (
-        patch.object(wb, "ARCHIVES_DIR", tmp_path / "archives"),
-        patch.object(wb, "SOURCES_DIR", tmp_path / "sources"),
-        patch("app.core.eval.wb_bench._fetch_expected_sha256", return_value=None),
-        patch("app.core.eval.wb_bench._download_archive", side_effect=_spinning_download),
+        patch.object(wb.download, "ARCHIVES_DIR", tmp_path / "archives"),
+        patch.object(wb.download, "SOURCES_DIR", tmp_path / "sources"),
+        patch("app.core.eval.wb_bench.download._fetch_expected_sha256", return_value=None),
+        patch(
+            "app.core.eval.wb_bench.download._download_archive",
+            side_effect=_spinning_download,
+        ),
     ):
         service._eval_state.clear()
         task = asyncio.create_task(service.run_wb_bench_download_background("web"))
@@ -164,8 +167,8 @@ async def test_wb_bench_run_abort_after_build_skips_eval(tmp_path) -> None:
 def test_wb_bench_run_requires_local_dataset(client: TestClient) -> None:
     """Without a local download, the background run surfaces an error."""
     with (
-        patch("app.core.eval.wb_bench.httpx.Client") as mock_client,
-        patch("app.core.eval.wb_bench.httpx.AsyncClient") as mock_async,
+        patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
+        patch("app.core.eval.wb_bench.download.httpx.AsyncClient") as mock_async,
     ):
         mock_client.return_value.__enter__.return_value.get.side_effect = OSError("offline")
         mock_async.side_effect = OSError("offline")
@@ -191,7 +194,7 @@ def test_wb_bench_run_with_mocked_download(client: TestClient) -> None:
     """A successfully downloaded subset schedules a real eval run."""
     from app.core.eval import wb_bench as wb
 
-    subset = wb._SUBSET_BY_ID["office"]
+    subset = wb.download._SUBSET_BY_ID["office"]
 
     # Build a valid tar.gz matching the office archive layout.
     buf = io.BytesIO()
@@ -251,11 +254,14 @@ def test_wb_bench_run_with_mocked_download(client: TestClient) -> None:
     # Point storage at an isolated temp dir.
     tmp = Path(tempfile.mkdtemp())
     with (
-        patch.object(wb, "ARCHIVES_DIR", tmp / "archives"),
-        patch.object(wb, "SOURCES_DIR", tmp / "sources"),
-        patch.object(wb, "WORKSPACES_DIR", tmp / "workspaces"),
-        patch("app.core.eval.wb_bench.httpx.Client") as mock_client,
-        patch("app.core.eval.wb_bench.httpx.AsyncClient", _FakeAsyncClient),
+        patch.object(wb.download, "ARCHIVES_DIR", tmp / "archives"),
+        patch.object(wb.download, "SOURCES_DIR", tmp / "sources"),
+        patch.object(wb.download, "WORKSPACES_DIR", tmp / "workspaces"),
+        patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
+        patch(
+            "app.core.eval.wb_bench.download.httpx.AsyncClient",
+            _FakeAsyncClient,
+        ),
         patch("app.core.eval.service.run_eval_suite") as mock_run,
     ):
         mock_client.return_value.__enter__.return_value.get.return_value.text = (

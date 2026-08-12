@@ -2,7 +2,17 @@
 
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconGlobe, IconRefresh } from '@/components/features/icons/PremiumIcons';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/primitives/alert-dialog';
+import { IconGlobe, IconRefresh, IconTrash } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Switch } from '@/components/primitives/switch';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -21,6 +31,12 @@ interface BrowserDoctorReport {
   recommendations: string[];
 }
 
+interface OrphanCleanupResult {
+  killed?: number;
+  dry_run?: boolean;
+  message?: string;
+}
+
 const STATUS_COLOR: Record<string, string> = {
   ok: 'text-emerald-500',
   warning: 'text-amber-500',
@@ -28,12 +44,34 @@ const STATUS_COLOR: Record<string, string> = {
   missing: 'text-red-500',
 };
 
+const STATUS_KEYS: Record<string, string> = {
+  ok: 'statusOk',
+  warning: 'statusWarning',
+  error: 'statusError',
+  missing: 'statusMissing',
+};
+
+const KNOWN_CHECK_NAMES = [
+  'patchright',
+  'camoufox',
+  'memory',
+  'disk',
+  'proxy',
+  'orphan_processes',
+  'browser_launch',
+  'extension_relay',
+] as const;
+
 const BrowserDoctorCard = memo(() => {
   const t = useTranslations('settings.browserDoctor');
   const [report, setReport] = useState<BrowserDoctorReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [launchTest, setLaunchTest] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanupError, setCleanupError] = useState<string | null>(null);
+  const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
 
   const fetchDoctor = useCallback(async (includeLaunchTest: boolean) => {
     setLoading(true);
@@ -57,7 +95,32 @@ const BrowserDoctorCard = memo(() => {
     void fetchDoctor(true);
   }, [fetchDoctor]);
 
+  const cleanupOrphans = useCallback(async () => {
+    setCleaning(true);
+    setCleanupError(null);
+    try {
+      const resp = await fetch('/api/v1/health/browser/orphans?confirm=true', {
+        method: 'DELETE',
+      });
+      if (!resp.ok) {
+        throw new Error(await resp.text());
+      }
+      const data = (await resp.json()) as OrphanCleanupResult;
+      setCleanupMessage(t('cleaned', { count: data.killed ?? 0 }));
+      setCleanupOpen(false);
+      await fetchDoctor(launchTest);
+    } catch (err) {
+      setCleanupError(err instanceof Error ? err.message : t('cleanupFailed'));
+    } finally {
+      setCleaning(false);
+    }
+  }, [fetchDoctor, launchTest, t]);
+
   const healthy = report?.overall_healthy ?? false;
+  const orphanCheck = report?.checks?.orphan_processes;
+  const hasOrphans = orphanCheck !== undefined && orphanCheck.status !== 'ok';
+  const orphanCount =
+    typeof orphanCheck?.details?.count === 'number' ? orphanCheck.details.count : 0;
 
   return (
     <section className="space-y-4">
@@ -128,16 +191,41 @@ const BrowserDoctorCard = memo(() => {
                 {Object.entries(report.checks).map(([name, check]) => (
                   <div key={name} className="rounded-lg border border-white/5 bg-background/40 p-3 text-xs">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="break-all font-mono font-medium">{name}</span>
+                      <span className="break-all font-medium">
+                        {(KNOWN_CHECK_NAMES as readonly string[]).includes(name)
+                          ? t(`checkNames.${name}`)
+                          : name}
+                      </span>
                       <span className={cn('font-bold uppercase', STATUS_COLOR[check.status] ?? 'text-muted-foreground')}>
-                        {check.status}
+                        {t(STATUS_KEYS[check.status] ?? check.status)}
                       </span>
                     </div>
                     <p className="mt-1 text-muted-foreground">{check.message}</p>
-                    {check.fix && (
+                    {check.fix && !(name === 'orphan_processes' && hasOrphans) && (
                       <p className="mt-1 text-indigo-400/90">
                         {t('fix')}: {check.fix}
                       </p>
+                    )}
+                    {name === 'orphan_processes' && hasOrphans && (
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={cleaning}
+                          onClick={() => setCleanupOpen(true)}
+                          className="gap-1.5"
+                        >
+                          <IconTrash className="h-3.5 w-3.5" />
+                          {cleaning ? t('cleaning') : t('cleanupOrphans')}
+                        </Button>
+                      </div>
+                    )}
+                    {name === 'orphan_processes' && cleanupMessage && (
+                      <p className="mt-1 text-emerald-400/90">{cleanupMessage}</p>
+                    )}
+                    {name === 'orphan_processes' && cleanupError && (
+                      <p className="mt-1 text-red-400">{cleanupError}</p>
                     )}
                   </div>
                 ))}
@@ -146,6 +234,27 @@ const BrowserDoctorCard = memo(() => {
           </>
         )}
       </div>
+
+      <AlertDialog open={cleanupOpen} onOpenChange={setCleanupOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmCleanupTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('confirmCleanupDescription', { count: orphanCount })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cleaning}>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cleaning}
+              onClick={() => void cleanupOrphans()}
+              className="bg-red-500 hover:bg-red-600 focus-visible:ring-red-500/40"
+            >
+              {cleaning ? t('cleaning') : t('cleanupOrphans')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 });

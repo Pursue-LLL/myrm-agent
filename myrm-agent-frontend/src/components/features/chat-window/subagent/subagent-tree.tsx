@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { fetchWithTimeout } from '@/lib/api';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { Button } from '@/components/primitives/button';
@@ -30,7 +31,7 @@ import {
   type TreeNode,
 } from '@/lib/utils/subagentTree';
 import { isNodeOvertime, useSubagentStore, type SubagentVerification, type TeammateMessageEntry } from '@/store/chat/useSubagentStore';
-import { NodeStream, StatusIcon } from './subagent-stream';
+import { NodeStream, STATUS_ICON_MAP, StatusIcon } from './subagent-stream';
 
 type TeammateRowProps = {
   entry: TeammateMessageEntry;
@@ -243,6 +244,14 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
             )}
           </button>
           <StatusIcon status={node.status} />
+          <span
+            className={cn(
+              'shrink-0 text-[11px] font-medium',
+              STATUS_ICON_MAP[node.status]?.className ?? 'text-muted-foreground',
+            )}
+          >
+            {t(`statusLabel.${node.status}`)}
+          </span>
           <div className="flex flex-col flex-1 min-w-0">
             <span className="font-medium truncate" title={node.description || node.agent_type}>
               {node.description || node.agent_type}

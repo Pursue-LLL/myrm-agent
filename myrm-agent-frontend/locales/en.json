@@ -4886,7 +4886,28 @@
       "checks": "Checks",
       "fix": "Fix",
       "launchTest": "Include launch test",
-      "loadFailed": "Failed to load browser diagnostics"
+      "loadFailed": "Failed to load browser diagnostics",
+      "cancel": "Cancel",
+      "statusOk": "OK",
+      "statusWarning": "Warning",
+      "statusError": "Error",
+      "statusMissing": "Missing",
+      "checkNames": {
+        "patchright": "Patchright Engine",
+        "camoufox": "Camoufox Engine",
+        "memory": "System Memory",
+        "disk": "Disk Space",
+        "proxy": "Proxy",
+        "orphan_processes": "Orphan Processes",
+        "browser_launch": "Launch Test",
+        "extension_relay": "Browser Extension"
+      },
+      "cleanupOrphans": "Clean up orphan processes",
+      "cleaning": "Cleaning…",
+      "confirmCleanupTitle": "Confirm cleanup of orphan processes?",
+      "confirmCleanupDescription": "This terminates {count} leftover browser automation process(es). It will not close normal browser windows.",
+      "cleaned": "Cleaned {count} orphan process(es)",
+      "cleanupFailed": "Failed to clean up orphan processes"
     },
     "cloudBrowser": {
       "title": "Cloud Browser",

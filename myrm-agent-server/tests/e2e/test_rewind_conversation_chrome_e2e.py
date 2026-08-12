@@ -65,6 +65,14 @@ _OPEN_REWIND_JS = """(() => {
       '[aria-label="Rewind to here"], [aria-label="回退到这里"]',
     ),
   );
+  const msgIds = Array.from(
+    document.querySelectorAll('[data-message-id]'),
+  ).map((el) => ({
+    id: el.getAttribute('data-message-id'),
+    hasRewindBtn: !!el.querySelector(
+      '[aria-label="Rewind to here"], [aria-label="回退到这里"]',
+    ),
+  }));
   // Rewind the SECOND user message: rewinding "to here" removes that message
   // and everything after it, keeping the first turn. Real-user scenario.
   const btn = btns[1] || btns[0];
@@ -76,13 +84,14 @@ _OPEN_REWIND_JS = """(() => {
       ok: false,
       err: 'no-rewind-button',
       count: btns.length,
+      msgIds,
       labels: labels.slice(0, 25),
       sample: (document.body.innerText || '').slice(0, 400),
     };
   }
-  if (btn.disabled) return { ok: false, err: 'rewind-disabled', count: btns.length };
+  if (btn.disabled) return { ok: false, err: 'rewind-disabled', count: btns.length, msgIds };
   btn.click();
-  return { ok: true, count: btns.length };
+  return { ok: true, count: btns.length, msgIds };
 })()"""
 
 _DIALOG_READY_JS = """(() => {
@@ -353,6 +362,20 @@ async def test_rewind_conversation_via_webui(
         _touch_rewind_progress("rewind_open_dialog")
         opened = await chat.evaluate(_OPEN_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT)
         assert isinstance(opened, dict) and opened.get("ok") is True, f"Open rewind failed: {opened}"
+
+        # Diagnostic: compare frontend message ids (from DOM) with backend DB ids.
+        if isinstance(opened, dict) and opened.get("msgIds"):
+            dom_ids = [str(m.get("id") or "")[:14] for m in opened["msgIds"]]
+            try:
+                from cdp_chat_support import fetch_chat_messages
+
+                back_msgs = fetch_chat_messages(chat_id, api_url=api_base)
+                back_ids = [
+                    str(m.get("messageId") or m.get("id") or "")[:14] for m in back_msgs
+                ]
+                print(f"REWIND_DIAG dom={dom_ids} backend={back_ids}")
+            except Exception as exc:  # pragma: no cover - diagnostic only
+                print(f"REWIND_DIAG backend fetch failed: {exc}")
 
         dialog = await _wait_js(
             chat, _DIALOG_READY_JS, timeout_sec=30.0, error_label="rewind dialog did not open"
