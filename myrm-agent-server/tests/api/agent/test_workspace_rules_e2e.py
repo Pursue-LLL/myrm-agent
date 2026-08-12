@@ -9,7 +9,11 @@ from myrm_agent_harness.toolkits.code_execution import create_workspace_service
 
 from app.config.settings import get_settings
 from app.platform_utils.workspace_session import to_workspace_session_id
-from tests.api.agent.utils import build_approval_resume_value, get_model_selection
+from tests.api.agent.utils import (
+    build_approval_resume_value,
+    get_lite_model_selection,
+    get_model_selection,
+)
 
 
 def _stream_once(
@@ -38,12 +42,13 @@ def perform_agent_stream(
     client: TestClient,
     query: str,
     chat_id: str,
+    model_selection: dict[str, object] | None = None,
 ) -> tuple[str, list[dict], int]:
     request_data: dict[str, object] = {
         "messageId": f"gast-msg-{uuid.uuid4().hex[:12]}",
         "chatId": chat_id,
         "query": query,
-        "modelSelection": get_model_selection(),
+        "modelSelection": model_selection or get_model_selection(),
         "actionMode": "agent",
         "memoryRequireConfirmation": False,
         "enableMemoryAutoExtraction": False,
@@ -127,7 +132,15 @@ class TestWorkspaceRulesE2E:
 
         query = "Write a simple python script that prints hello world."
 
-        full_answer, collected_data, _tool_call_count = perform_agent_stream(client, query, chat_id)
+        # Workspace-rule adherence depends on the model's instruction-following
+        # ability; the default BASIC_MODEL (agnes flash) is too weak to reliably
+        # honor injected rules, so this E2E uses the stronger LITE_MODEL.
+        full_answer, collected_data, _tool_call_count = perform_agent_stream(
+            client,
+            query,
+            chat_id,
+            model_selection=get_lite_model_selection(),
+        )
 
         # The agent should follow the high priority rule (AGENTS.md) and ignore the low priority one (.cursorrules)
         assert "WUBBALUBBADUBDUB" in full_answer.upper()

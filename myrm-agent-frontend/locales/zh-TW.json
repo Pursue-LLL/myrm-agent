@@ -4092,12 +4092,14 @@
       "offboardingDesc": "凍結離職員工沙箱並將其數字資產轉移給接替者",
       "offboardUser": "員工離職",
       "offboardUserDesc": "凍結該使用者的沙箱並建立資料備份",
+      "selectMember": "選擇成員",
+      "memberToOffboard": "待離職成員",
+      "sourceMember": "來源成員",
+      "targetMember": "目標成員",
       "offboardSuccess": "員工離職處理完成",
       "transferVolume": "資產轉移",
       "transferVolumeDesc": "將已備份的使用者資料歸檔轉移給其他團隊成員",
       "transferSuccess": "資產轉移成功",
-      "sourceUserId": "源使用者 ID",
-      "targetUserId": "目標使用者 ID",
       "auditLogs": "審計日誌",
       "unlinkOauth": "解除 SSO",
       "unlinkOauthDesc": "解除該成員的 SSO 身份綁定，以便其使用新的身份重新登入。帳號與沙箱資料不受影響。",
@@ -8137,6 +8139,17 @@
     "workflowTemplateArmed": {
       "label": "已固定模板",
       "disarm": "取消固定"
+    },
+    "snapshot": {
+      "createdTitle": "已建立系統快照",
+      "createdMessage": {
+        "bash": "執行命令前已建立快照，保護您的程式碼",
+        "file_write": "寫入檔案前已建立快照，保護您的程式碼",
+        "file_append": "附加檔案前已建立快照，保護您的程式碼",
+        "file_delete": "刪除檔案前已建立快照，保護您的程式碼",
+        "patch_file": "修改檔案前已建立快照，保護您的程式碼",
+        "unknown": "已建立工作區快照，保護您的程式碼"
+      }
     },
     "rewind": {
       "title": "回退到這裡",
@@ -14702,6 +14715,32 @@
       "historyView": "檢視",
       "sampled": "抽樣",
       "sampledTitle": "本次執行隨機抽取了基準任務的一部分（結果可重現）"
+    },
+    "layers": {
+      "button": "Layer Eval",
+      "started": "Layered evaluation started",
+      "running": "Layered evaluation in progress",
+      "title": "Layered evaluation",
+      "desc": "Same tasks, four harness layers — the delta shows exactly what each capability adds.",
+      "layer": "Layer",
+      "config": "Config",
+      "delta": "Δ Pass Rate",
+      "costEfficiency": "Efficiency",
+      "memoryOn": "Memory on",
+      "memoryOff": "Memory off",
+      "skillsOn": "Skills on",
+      "skillsOff": "Skills off",
+      "scoredModel": "Scored model",
+      "judgeModel": "Judge",
+      "fingerprint": "Layer fingerprints pin the exact switch combination, keeping scores comparable across harness versions.",
+      "bare": { "label": "Bare" },
+      "core": { "label": "Core" },
+      "skills": { "label": "Skills" },
+      "memory": { "label": "Memory" },
+      "confirmTitle": "Run layered evaluation?",
+      "confirmBody": "This runs the same benchmark four times on your current profile — bare (benchmark mode), core rules, +skills, then +memory (your full config). Each layer re-runs the same tasks so the pass-rate delta between adjacent layers isolates each capability. Cost scales by roughly 4× the sampled tasks; an embedding model must be configured for the memory layer.",
+      "confirmStart": "Start Evaluation",
+      "confirmCancel": "Cancel"
     }
   },
   "vault": {

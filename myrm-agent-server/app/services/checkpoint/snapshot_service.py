@@ -17,7 +17,7 @@ FileSnapshotProtocol implementations (ShadowGit or LocalFile) via factory.
 
 import asyncio
 import logging
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 
 from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
 from myrm_agent_harness.agent.file_snapshot.external_effect_detector import detect_external_effects
@@ -28,6 +28,8 @@ from myrm_agent_harness.toolkits.code_execution.interceptor import ExecutionInte
 logger = logging.getLogger(__name__)
 
 _workspace_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+
+_MAX_CACHED_TURNS = 512
 
 _TRIGGER_MAP: dict[str, SnapshotTrigger] = {
     "bash": SnapshotTrigger.EXECUTE_TERMINAL,
@@ -62,8 +64,20 @@ class SnapshotInterceptor(ExecutionInterceptor):
     """
 
     def __init__(self) -> None:
-        self._snapshotted_turns: dict[tuple[str, str], bool] = {}
+        self._snapshotted_turns: OrderedDict[tuple[str, str], bool] = OrderedDict()
         self._store: FileSnapshotProtocol | None = None
+
+    def _mark_turn_snapshotted(self, cache_key: tuple[str, str]) -> None:
+        """Record a snapshotted turn under a bounded LRU cache.
+
+        The cache only guards against duplicate snapshots within the same turn,
+        so evicting the least recently used entries keeps the process bounded
+        on long-running servers without affecting correctness.
+        """
+        self._snapshotted_turns[cache_key] = True
+        self._snapshotted_turns.move_to_end(cache_key)
+        while len(self._snapshotted_turns) > _MAX_CACHED_TURNS:
+            self._snapshotted_turns.popitem(last=False)
 
     async def _get_store(self) -> FileSnapshotProtocol:
         if self._store is None:
@@ -147,7 +161,7 @@ class SnapshotInterceptor(ExecutionInterceptor):
                     metadata=metadata,
                 )
 
-                self._snapshotted_turns[cache_key] = True
+                self._mark_turn_snapshotted(cache_key)
             except Exception as e:
                 logger.error("Failed to create snapshot for %s: %s", workspace_path, e)
 
@@ -160,8 +174,6 @@ class SnapshotInterceptor(ExecutionInterceptor):
                 AppEvent(
                     event_type=AppEventType.SYSTEM_NOTIFICATION,
                     data={
-                        "title": "系统保护",
-                        "message": "正在创建系统快照，保护您的代码",
                         "meta_data": {
                             "type": "snapshot_created",
                             "action": action_type,

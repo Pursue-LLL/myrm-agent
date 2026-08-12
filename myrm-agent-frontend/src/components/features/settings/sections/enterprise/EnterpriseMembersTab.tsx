@@ -72,6 +72,11 @@ const EnterpriseMembersTab = memo(() => {
     [authUserId, members],
   );
 
+  const offboardableMembers = useMemo(
+    () => members.filter((m) => m.role !== 'owner'),
+    [members],
+  );
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -382,12 +387,19 @@ const EnterpriseMembersTab = memo(() => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>{t('userId')}</Label>
-              <Input
+              <Label>{t('memberToOffboard')}</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
                 value={offboardUserId}
                 onChange={(e) => setOffboardUserId(e.target.value)}
-                placeholder="user_id"
-              />
+              >
+                <option value="">{t('selectMember')}</option>
+                {offboardableMembers.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.email ?? m.user_id}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <DialogFooter>
@@ -410,20 +422,34 @@ const EnterpriseMembersTab = memo(() => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>{t('sourceUserId')}</Label>
-              <Input
+              <Label>{t('sourceMember')}</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
                 value={transferSourceId}
                 onChange={(e) => setTransferSourceId(e.target.value)}
-                placeholder="source_user_id"
-              />
+              >
+                <option value="">{t('selectMember')}</option>
+                {offboardableMembers.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.email ?? m.user_id}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
-              <Label>{t('targetUserId')}</Label>
-              <Input
+              <Label>{t('targetMember')}</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
                 value={transferTargetId}
                 onChange={(e) => setTransferTargetId(e.target.value)}
-                placeholder="target_user_id"
-              />
+              >
+                <option value="">{t('selectMember')}</option>
+                {offboardableMembers.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.email ?? m.user_id}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <DialogFooter>

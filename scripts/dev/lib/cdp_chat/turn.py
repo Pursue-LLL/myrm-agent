@@ -1109,9 +1109,28 @@ class CdpChatTurn(CdpChatSubmit):
                 started["userMsgs"] = debug.get("userCount")
                 started["sending"] = debug.get("streaming")
             if is_live_send_turn_profile():
-                await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+                submit_debug = debug if isinstance(debug, dict) else {}
+                streaming_active = submit_debug.get("streaming") is True
+                expected_path = f"/{chat_id.strip()}"
+                on_chat_path = False
+                try:
+                    path_probe = await self.evaluate(
+                        """(() => ({ path: location.pathname }))()""",
+                        intent=EvaluateIntent.SYNC_PROBE,
+                    )
+                    if isinstance(path_probe, dict):
+                        on_chat_path = str(path_probe.get("path") or "") == expected_path
+                except (RuntimeError, TimeoutError):
+                    on_chat_path = False
                 await self.ensure_react_e2e_bridge(timeout_sec=60.0)
-                await self._attach_chat_session(chat_id)
+                if streaming_active:
+                    # Page.navigate during an active stream drops Turn1 SSE (tools_snapshot)
+                    # before the UI store hydrates; soft attach preserves direct SSE.
+                    if not on_chat_path:
+                        await self._attach_chat_session(chat_id)
+                else:
+                    await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+                    await self._attach_chat_session(chat_id)
             _touch_live_turn_progress("send_turn_sealed")
             return {"fill": fill, "submit": submit, "started": started}
         finally:

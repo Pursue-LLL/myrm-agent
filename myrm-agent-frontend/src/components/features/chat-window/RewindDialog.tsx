@@ -97,18 +97,17 @@ export function RewindDialog({
       );
       if (cancelled) return;
 
-      const fileCount = results.reduce(
-        (acc, list) => acc + list.filter((c) => c.revertible).length,
-        0,
-      );
-      const skippedCount = results.reduce(
-        (acc, list) => acc + list.filter((c) => !c.revertible).length,
-        0,
-      );
+      const revertiblePaths = new Set<string>();
+      const skippedPaths = new Set<string>();
+      for (const list of results) {
+        for (const change of list) {
+          (change.revertible ? revertiblePaths : skippedPaths).add(change.path);
+        }
+      }
       setPreview({
-        status: fileCount > 0 ? 'ready' : 'empty',
-        fileCount,
-        skippedCount,
+        status: revertiblePaths.size > 0 ? 'ready' : 'empty',
+        fileCount: revertiblePaths.size,
+        skippedCount: skippedPaths.size,
       });
     })();
 
@@ -144,22 +143,17 @@ export function RewindDialog({
       }));
 
       const revertedCount = payload.reverted_files?.length ?? 0;
-      if (payload.goal_paused) {
-        toast({
-          title: t('success'),
-          description: t('goalPausedNotice'),
-        });
-      } else if (scope === 'both' && revertedCount > 0) {
-        toast({
-          title: t('success'),
-          description: t('filesRevertedToast', { count: revertedCount }),
-        });
-      } else {
-        toast({
-          title: t('success'),
-          description: t('successDescription'),
-        });
+      const notices: string[] = [];
+      if (scope === 'both' && revertedCount > 0) {
+        notices.push(t('filesRevertedToast', { count: revertedCount }));
       }
+      if (payload.goal_paused) {
+        notices.push(t('goalPausedNotice'));
+      }
+      toast({
+        title: t('success'),
+        description: notices.length > 0 ? notices.join(' ') : t('successDescription'),
+      });
       onOpenChange(false);
     } catch (error) {
       if (error instanceof ApiError && error.code === 409) {

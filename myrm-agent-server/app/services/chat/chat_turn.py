@@ -237,6 +237,8 @@ class _ChatTurnMixin(_ChatServiceBase):
         file_revert: dict[str, list[str]] = {}
         if revert_files:
             file_revert = await _ChatTurnMixin._revert_files_for_messages(chat_id, deleted_ids)
+        else:
+            await _ChatTurnMixin._cleanup_orphan_snapshots(chat_id, deleted_ids)
 
         return RewindResult(
             success=True,
@@ -296,6 +298,25 @@ class _ChatTurnMixin(_ChatServiceBase):
             "warnings": warnings,
             "skipped_files": skipped_files,
         }
+
+    @staticmethod
+    async def _cleanup_orphan_snapshots(chat_id: str, deleted_message_ids: list[str]) -> None:
+        """Drop snapshot state for messages removed by a conversation-only rewind.
+
+        File snapshots (System A) are persisted per message; when the rewind
+        scope excludes files, removed messages' snapshots would otherwise stay
+        on disk and be hydrated again on the next file-changes query.
+        """
+        from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
+            SnapshotStore,
+        )
+
+        from app.services.files.revert_hydrate import cleanup_persisted_snapshots
+
+        store = SnapshotStore.get()
+        for message_id in deleted_message_ids:
+            store.remove_message(chat_id, message_id)
+            await cleanup_persisted_snapshots(chat_id, message_id)
 
     @staticmethod
     async def generate_chat_title(

@@ -5446,12 +5446,14 @@
       "offboardingDesc": "Frieren Sie die Sandboxen ausscheidender Mitarbeiter ein und übertragen Sie deren digitale Vermögenswerte auf Nachfolger",
       "offboardUser": "Offboard-Benutzer",
       "offboardUserDesc": "Frieren Sie die Sandbox des Benutzers ein und erstellen Sie ein Backup seiner Daten",
+      "selectMember": "Mitglied auswählen",
+      "memberToOffboard": "Ausgliederndes Mitglied",
+      "sourceMember": "Quellmitglied",
+      "targetMember": "Zielmitglied",
       "offboardSuccess": "Das Offboarden des Benutzers war erfolgreich",
       "transferVolume": "Übertragungsvolumen",
       "transferVolumeDesc": "Übertragen Sie das Datenarchiv eines gesicherten Benutzers an ein anderes Teammitglied",
       "transferSuccess": "Volume erfolgreich übertragen",
-      "sourceUserId": "Quellbenutzer-ID",
-      "targetUserId": "Zielbenutzer-ID",
       "auditLogs": "Audit-Protokolle",
       "unlinkOauth": "SSO trennen",
       "unlinkOauthDesc": "Lösen Sie die SSO-Identität dieses Mitglieds, damit sich eine neue Identität erneut verbinden kann. Konto und Sandbox-Daten bleiben unberührt.",
@@ -7778,6 +7780,17 @@
       "parentLinkWithIndex": "Aus übergeordneter Konversation gespalten (aus Nachricht #{index})",
       "unknownError": "Unbekannter Fehler aufgetreten",
       "streamingBlocked": "Abzweigen während der Agentenantwort nicht möglich"
+    },
+    "snapshot": {
+      "createdTitle": "System-Snapshot erstellt",
+      "createdMessage": {
+        "bash": "Snapshot vor der Ausführung eines Befehls erstellt",
+        "file_write": "Snapshot vor dem Schreiben von Dateien erstellt",
+        "file_append": "Snapshot vor dem Anhängen an Dateien erstellt",
+        "file_delete": "Snapshot vor dem Löschen von Dateien erstellt",
+        "patch_file": "Snapshot vor dem Ändern von Dateien erstellt",
+        "unknown": "Arbeitsbereich-Snapshot zum Schutz Ihres Codes erstellt"
+      }
     },
     "rewind": {
       "title": "Hierher zurückspulen",
@@ -14141,6 +14154,32 @@
       "historyView": "Anzeigen",
       "sampled": "Stichprobe",
       "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)"
+    },
+    "layers": {
+      "button": "Layer Eval",
+      "started": "Layered evaluation started",
+      "running": "Layered evaluation in progress",
+      "title": "Layered evaluation",
+      "desc": "Same tasks, four harness layers — the delta shows exactly what each capability adds.",
+      "layer": "Layer",
+      "config": "Config",
+      "delta": "Δ Pass Rate",
+      "costEfficiency": "Efficiency",
+      "memoryOn": "Memory on",
+      "memoryOff": "Memory off",
+      "skillsOn": "Skills on",
+      "skillsOff": "Skills off",
+      "scoredModel": "Scored model",
+      "judgeModel": "Judge",
+      "fingerprint": "Layer fingerprints pin the exact switch combination, keeping scores comparable across harness versions.",
+      "bare": { "label": "Bare" },
+      "core": { "label": "Core" },
+      "skills": { "label": "Skills" },
+      "memory": { "label": "Memory" },
+      "confirmTitle": "Run layered evaluation?",
+      "confirmBody": "This runs the same benchmark four times on your current profile — bare (benchmark mode), core rules, +skills, then +memory (your full config). Each layer re-runs the same tasks so the pass-rate delta between adjacent layers isolates each capability. Cost scales by roughly 4× the sampled tasks; an embedding model must be configured for the memory layer.",
+      "confirmStart": "Start Evaluation",
+      "confirmCancel": "Cancel"
     }
   },
   "vault": {

@@ -622,6 +622,33 @@ export default function EvalLabDashboard() {
     }
   };
 
+  const handleLayerEvalRun = async (benchmarkId: string, limit?: number) => {
+    if (running || matrixRunning || memoryAbRunning) return;
+    try {
+      const res = await fetch('/api/v1/eval/matrix/layers-run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          benchmark_id: benchmarkId,
+          profile_id: selectedProfileIds[0] || null,
+          ...(limit !== undefined ? { limit } : {}),
+        }),
+      });
+      const data = await res.json();
+      if (data.status === 'started') {
+        setMatrixRunning(true);
+        toast.success(t('layers.started'));
+        setActiveTab('matrix');
+      } else if (data.status === 'already_running') {
+        toast.info(t('alreadyRunning'));
+      } else {
+        toast.error(data.error || t('evalStartFailed'));
+      }
+    } catch {
+      toast.error(t('evalStartFailed'));
+    }
+  };
+
   const handleAbort = async () => {
     try {
       const endpoint = memoryAbRunning
@@ -829,6 +856,7 @@ export default function EvalLabDashboard() {
               onRun={handleBenchmarkRun}
               onDownload={handleBenchmarkDownload}
               onMemoryAb={handleMemoryAbRun}
+              onLayerEval={handleLayerEvalRun}
               refreshToken={sourcesRefreshToken}
               downloadingBenchmarkId={evalStage === 'downloading' ? evalStageSubsetId : null}
               downloadProgress={downloadProgress}

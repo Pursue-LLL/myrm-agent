@@ -323,3 +323,21 @@ async def test_concurrent_snapshots_different_workspaces(interceptor: SnapshotIn
     assert len(call_order) == 4
     assert "start-/ws/a" in call_order
     assert "start-/ws/b" in call_order
+
+
+async def test_snapshotted_turns_cache_is_bounded(interceptor: SnapshotInterceptor):
+    """LRU cache evicts the least-recently used entries beyond the bound."""
+    from app.services.checkpoint.snapshot_service import _MAX_CACHED_TURNS
+
+    keys = [(f"/ws-{i}", f"turn-{i}") for i in range(_MAX_CACHED_TURNS + 20)]
+    for key in keys:
+        interceptor._mark_turn_snapshotted(key)
+
+    assert len(interceptor._snapshotted_turns) == _MAX_CACHED_TURNS
+    assert keys[0] not in interceptor._snapshotted_turns
+    assert keys[-1] in interceptor._snapshotted_turns
+
+    # Re-marking a recently used key keeps it, evicting the next oldest.
+    interceptor._mark_turn_snapshotted(keys[1])
+    assert keys[1] in interceptor._snapshotted_turns
+    assert keys[2] not in interceptor._snapshotted_turns

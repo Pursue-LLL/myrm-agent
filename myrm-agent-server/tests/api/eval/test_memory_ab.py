@@ -1116,7 +1116,6 @@ class TestCleanupResilience:
     ) -> None:
         """One arm's cleanup throwing must not skip the other arm's cleanup."""
         import app.core.eval.memory_ab as memory_ab_mod
-
         from app.core.eval.executor import LocalEvalExecutor
 
         class FakeMatrixRunner:

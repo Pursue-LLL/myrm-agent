@@ -43,6 +43,7 @@ function renderSources(history: ReportItem[]) {
     onRun: vi.fn(),
     onDownload: vi.fn(),
     onMemoryAb: vi.fn(),
+    onLayerEval: vi.fn(),
     refreshToken: 0,
     downloadingBenchmarkId: null,
     downloadProgress: null,
@@ -81,6 +82,7 @@ describe('BenchmarkSources Memory A/B entry', () => {
       onRun={vi.fn()}
       onDownload={vi.fn()}
       onMemoryAb={onMemoryAb}
+      onLayerEval={vi.fn()}
       refreshToken={0}
       downloadingBenchmarkId={null}
       downloadProgress={null}
@@ -111,6 +113,7 @@ describe('BenchmarkSources Memory A/B entry', () => {
       onRun={vi.fn()}
       onDownload={vi.fn()}
       onMemoryAb={onMemoryAb}
+      onLayerEval={vi.fn()}
       refreshToken={0}
       downloadingBenchmarkId={null}
       downloadProgress={null}
@@ -140,6 +143,7 @@ describe('BenchmarkSources Memory A/B entry', () => {
       onRun={vi.fn()}
       onDownload={vi.fn()}
       onMemoryAb={vi.fn()}
+      onLayerEval={vi.fn()}
       refreshToken={0}
       downloadingBenchmarkId={null}
       downloadProgress={null}
@@ -329,6 +333,7 @@ describe('BenchmarkSources', () => {
       onRun={onRun}
       onDownload={vi.fn()}
       onMemoryAb={vi.fn()}
+      onLayerEval={vi.fn()}
       refreshToken={0}
       downloadingBenchmarkId={null}
       downloadProgress={null}

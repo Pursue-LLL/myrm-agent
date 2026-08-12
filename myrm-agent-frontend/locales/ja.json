@@ -4092,12 +4092,14 @@
       "offboardingDesc": "退職する従業員のサンドボックスを凍結し、デジタル資産を後任者に引き継ぎます",
       "offboardUser": "ユーザーのオフボーディング",
       "offboardUserDesc": "ユーザーのサンドボックスを凍結し、データのバックアップを作成します",
+      "selectMember": "メンバーを選択",
+      "memberToOffboard": "オフボーディング対象",
+      "sourceMember": "元メンバー",
+      "targetMember": "受け取りメンバー",
       "offboardSuccess": "ユーザーのオフボーディングが完了しました",
       "transferVolume": "データ移行",
       "transferVolumeDesc": "バックアップされたユーザーのデータアーカイブを別のチームメンバーに転送します",
       "transferSuccess": "データを正常に移行しました",
-      "sourceUserId": "源ユーザー ID",
-      "targetUserId": "ゴールユーザー ID",
       "auditLogs": "監査ログ",
       "unlinkOauth": "SSO を解除",
       "unlinkOauthDesc": "このメンバーの SSO 連携を解除し、新しい ID で再連携できるようにします。アカウントとサンドボックスデータはそのままです。",
@@ -8112,6 +8114,17 @@
     "workflowTemplateArmed": {
       "label": "ピン留めしたテンプレート",
       "disarm": "ピン留めを解除"
+    },
+    "snapshot": {
+      "createdTitle": "システムスナップショットを作成しました",
+      "createdMessage": {
+        "bash": "コマンド実行前にスナップショットを作成しました",
+        "file_write": "ファイル書き込み前にスナップショットを作成しました",
+        "file_append": "ファイル追記前にスナップショットを作成しました",
+        "file_delete": "ファイル削除前にスナップショットを作成しました",
+        "patch_file": "ファイル修正前にスナップショットを作成しました",
+        "unknown": "コード保護のためワークスペーススナップショットを作成しました"
+      }
     },
     "rewind": {
       "title": "ここに巻き戻す",
@@ -14731,6 +14744,32 @@
       "historyView": "表示",
       "sampled": "サンプル",
       "sampledTitle": "この実行ではベンチマークタスクをランダムに抽出しました（再現可能）"
+    },
+    "layers": {
+      "button": "Layer Eval",
+      "started": "Layered evaluation started",
+      "running": "Layered evaluation in progress",
+      "title": "Layered evaluation",
+      "desc": "Same tasks, four harness layers — the delta shows exactly what each capability adds.",
+      "layer": "Layer",
+      "config": "Config",
+      "delta": "Δ Pass Rate",
+      "costEfficiency": "Efficiency",
+      "memoryOn": "Memory on",
+      "memoryOff": "Memory off",
+      "skillsOn": "Skills on",
+      "skillsOff": "Skills off",
+      "scoredModel": "Scored model",
+      "judgeModel": "Judge",
+      "fingerprint": "Layer fingerprints pin the exact switch combination, keeping scores comparable across harness versions.",
+      "bare": { "label": "Bare" },
+      "core": { "label": "Core" },
+      "skills": { "label": "Skills" },
+      "memory": { "label": "Memory" },
+      "confirmTitle": "Run layered evaluation?",
+      "confirmBody": "This runs the same benchmark four times on your current profile — bare (benchmark mode), core rules, +skills, then +memory (your full config). Each layer re-runs the same tasks so the pass-rate delta between adjacent layers isolates each capability. Cost scales by roughly 4× the sampled tasks; an embedding model must be configured for the memory layer.",
+      "confirmStart": "Start Evaluation",
+      "confirmCancel": "Cancel"
     }
   },
   "vault": {

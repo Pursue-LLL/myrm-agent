@@ -112,19 +112,16 @@ _PREP_AGENT_TURN_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge) return { ready: false, err: 'no-bridge' };
   await bridge.ensureProviders?.();
-  if (bridge.pinLiteModelForE2e) {
-    await bridge.pinLiteModelForE2e({ preserveActionMode: true });
-  }
   bridge.setActionMode?.('agent');
   await bridge.ensureChatSession?.({ preserveActionMode: true });
   bridge.setSseCaptureMessageId?.(null);
-  const prev = bridge.getCurrentBuiltinTools?.() ?? [];
-  const filtered = prev.filter(
-    (toolId) => toolId !== 'web_search' && toolId !== 'image_generation',
-  );
-  const keep = filtered.length > 0 ? filtered : ['memory'];
-  bridge.setCurrentBuiltinTools?.(keep);
+  // Turn1 togglables — web_search supplies common layer badge; no network on "Reply OK."
+  const turn1Tools = ['web_search', 'memory', 'structured_clarify', 'render_ui'];
+  bridge.setCurrentBuiltinTools?.(turn1Tools);
   window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
+  if (bridge.pinLiteModelForE2e) {
+    await bridge.pinLiteModelForE2e({ preserveActionMode: true });
+  }
   if (bridge.syncSearchServicesFromE2eApi) {
     await bridge.syncSearchServicesFromE2eApi();
   }

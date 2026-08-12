@@ -4396,12 +4396,14 @@
       "offboardingDesc": "Freeze departing employee sandboxes and transfer their digital assets to successors",
       "offboardUser": "Offboard User",
       "offboardUserDesc": "Freeze the user's sandbox and create a backup of their data",
+      "selectMember": "Select a member",
+      "memberToOffboard": "Member to offboard",
+      "sourceMember": "Source member",
+      "targetMember": "Target member",
       "offboardSuccess": "User offboarded successfully",
       "transferVolume": "Transfer Volume",
       "transferVolumeDesc": "Transfer a backed-up user's data archive to another team member",
       "transferSuccess": "Volume transferred successfully",
-      "sourceUserId": "Source User ID",
-      "targetUserId": "Target User ID",
       "auditLogs": "Audit Logs",
       "unlinkOauth": "Unlink SSO",
       "unlinkOauthDesc": "Detach this member's SSO identity so a new identity can re-link. Their account and sandbox data stay untouched.",
@@ -7415,6 +7417,17 @@
       "parentLinkWithIndex": "Forked from parent conversation (from message #{index})",
       "unknownError": "Unknown error occurred",
       "streamingBlocked": "Cannot fork while the agent is responding"
+    },
+    "snapshot": {
+      "createdTitle": "System snapshot created",
+      "createdMessage": {
+        "bash": "Snapshot taken before running a command",
+        "file_write": "Snapshot taken before writing files",
+        "file_append": "Snapshot taken before appending to files",
+        "file_delete": "Snapshot taken before deleting files",
+        "patch_file": "Snapshot taken before patching files",
+        "unknown": "Workspace snapshot created to protect your code"
+      }
     },
     "rewind": {
       "title": "Rewind to here",
@@ -14809,6 +14822,32 @@
       "historyView": "View",
       "sampled": "sampled",
       "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)"
+    },
+    "layers": {
+      "button": "Layer Eval",
+      "started": "Layered evaluation started",
+      "running": "Layered evaluation in progress",
+      "title": "Layered evaluation",
+      "desc": "Same tasks, four harness layers — the delta shows exactly what each capability adds.",
+      "layer": "Layer",
+      "config": "Config",
+      "delta": "Δ Pass Rate",
+      "costEfficiency": "Efficiency",
+      "memoryOn": "Memory on",
+      "memoryOff": "Memory off",
+      "skillsOn": "Skills on",
+      "skillsOff": "Skills off",
+      "scoredModel": "Scored model",
+      "judgeModel": "Judge",
+      "fingerprint": "Layer fingerprints pin the exact switch combination, keeping scores comparable across harness versions.",
+      "bare": { "label": "Bare" },
+      "core": { "label": "Core" },
+      "skills": { "label": "Skills" },
+      "memory": { "label": "Memory" },
+      "confirmTitle": "Run layered evaluation?",
+      "confirmBody": "This runs the same benchmark four times on your current profile — bare (benchmark mode), core rules, +skills, then +memory (your full config). Each layer re-runs the same tasks so the pass-rate delta between adjacent layers isolates each capability. Cost scales by roughly 4× the sampled tasks; an embedding model must be configured for the memory layer.",
+      "confirmStart": "Start Evaluation",
+      "confirmCancel": "Cancel"
     }
   },
   "vault": {

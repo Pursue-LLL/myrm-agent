@@ -113,6 +113,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const t = useTranslations('agent');
   const commonT = useTranslations('common');
   const sessionAnalyticsT = useTranslations('settings.sessionAnalytics');
+  const snapshotT = useTranslations('chat.snapshot');
   const agentIdFromUrl = searchParams.get('agent_id') ?? searchParams.get('agentId');
   const restoreArgFromUrl = searchParams.get('restore_arg');
   const approvalIdFromUrl = searchParams.get('approval');
@@ -377,19 +378,18 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     });
 
     const handleSystemNotification = (e: Event) => {
-      const customEvent = e as CustomEvent<{ data: any }>;
-      const notification = customEvent.detail.data;
-      const meta = notification?.meta_data || {};
+      const customEvent = e as CustomEvent<{ data: unknown }>;
+      const meta = (customEvent.detail.data as { meta_data?: Record<string, unknown> } | undefined)?.meta_data || {};
       
-      // We don't have session_id in the global event directly, 
+      // We don't have session_id in the global event directly,
       // but we can assume if the user is in this chat window, the snapshot is relevant
       if (meta?.type === 'snapshot_created') {
         toast({
-          title: '系统保护',
+          title: snapshotT('createdTitle'),
           description: (
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-green-500" />
-              <span>{notification.message || '正在创建系统快照，保护您的代码'}</span>
+              <span>{snapshotT(`createdMessage.${meta.action ?? 'unknown'}`)}</span>
             </div>
           ),
           variant: 'default',

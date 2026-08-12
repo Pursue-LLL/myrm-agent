@@ -435,7 +435,7 @@ def test_batch_import_replace_preserves_existing_eval_cases_when_package_has_non
     assert replace_confirm == {
         "imported_count": 1,
         "skipped_count": 0,
-        "restored_eval_cases": 0,
+        "restored_eval_cases": 1,
     }
 
     # Step 3: 原 eval_cases 必须保留，不能被清空
@@ -545,7 +545,7 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
     assert replace_confirm == {
         "imported_count": 1,
         "skipped_count": 0,
-        "restored_eval_cases": 0,
+        "restored_eval_cases": 1,
     }
 
     # Step 5: 演化元数据必须全部保留，内容与回归门禁正确
@@ -656,5 +656,105 @@ def test_batch_import_ignores_invalid_evals_json() -> None:
     try:
         record = next(r for r in store.get_active_skills() if r.name == skill_name)
         assert record.eval_cases == []
+    finally:
+        store.close()
+
+
+def test_batch_import_replace_prefers_package_evals_over_inherited() -> None:
+    """replace 覆盖且新包自带 evals.json 时，包内门禁优先于 DB 继承。
+
+    语义：包内 evals 是用户显式提供的新门禁（与单包导入 force 覆盖一致），
+    restored_eval_cases 只计包内条数，不叠加继承；演化元数据仍继承。
+    """
+    client = _make_client()
+    skill_name = f"prefer-package-{uuid.uuid4().hex[:8]}"
+
+    # Step 1: 首次导入带 1 条 evals 的技能，DB 落 1 条门禁
+    first_preview = _preview_batch_import(
+        client,
+        _build_zip_with_evals(
+            "prefer-package-skill",
+            name=skill_name,
+            description="v1 with evals",
+            content="print('v1')",
+        ),
+    )
+    first_confirm = _confirm_batch_import(
+        client,
+        first_preview["session_id"],
+        [
+            {
+                "virtual_id": first_preview["items"][0]["virtual_id"],
+                "name": skill_name,
+                "description": "v1 with evals",
+                "resolution": "new",
+                "existing_skill_id": None,
+            }
+        ],
+    )
+    assert first_confirm["restored_eval_cases"] == 1
+
+    store = _get_skill_store()
+    try:
+        original = store.get_skill_by_name_version(skill_name)
+        assert original is not None
+        existing_skill_id = original.skill_id
+        assert len(original.eval_cases) == 1
+    finally:
+        store.close()
+
+    # Step 2: replace 覆盖，新包自带 2 条 evals（优先于继承的 1 条）
+    package_cases = [
+        {"message": "v2 case one", "expected_tools": ["code_interpreter"]},
+        {"message": "v2 case two", "expected_tools": ["code_interpreter"]},
+    ]
+    buffer = io.BytesIO()
+    skill_md = (
+        f"---\nname: {skill_name}\ndescription: v2 with evals\n---\nprint('v2')\n"
+    )
+    with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("prefer-package-v2/SKILL.md", skill_md)
+        archive.writestr(
+            "prefer-package-v2/evals.json",
+            serialize_eval_cases(skill_name, package_cases),
+        )
+
+    replace_preview = _preview_batch_import(client, buffer.getvalue())
+    assert replace_preview["total_conflicts"] == 1
+    replace_item = replace_preview["items"][0]
+    replace_confirm = _confirm_batch_import(
+        client,
+        replace_preview["session_id"],
+        [
+            {
+                "virtual_id": replace_item["virtual_id"],
+                "name": skill_name,
+                "description": "v2 with evals",
+                "resolution": "replace",
+                "existing_skill_id": existing_skill_id,
+            }
+        ],
+    )
+    assert replace_confirm == {
+        "imported_count": 1,
+        "skipped_count": 0,
+        "restored_eval_cases": 2,
+    }
+
+    # Step 3: 门禁取包内 2 条（不叠加继承），演化元数据仍继承
+    store = _get_skill_store()
+    try:
+        replaced = store.get_skill(existing_skill_id)
+        assert replaced is not None
+        assert replaced.content == "print('v2')"
+        assert replaced.lineage.version == 1
+        assert replaced.eval_cases == [
+            {"message": "v2 case one", "expected_tools": ["code_interpreter"]},
+            {"message": "v2 case two", "expected_tools": ["code_interpreter"]},
+        ]
+        import os
+
+        skill_dir = os.path.dirname(replaced.path)
+        assert not os.path.exists(os.path.join(skill_dir, "evals.json"))
     finally:
         store.close()

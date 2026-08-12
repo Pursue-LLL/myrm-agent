@@ -4396,12 +4396,14 @@
       "offboardingDesc": "冻结离职员工沙箱并将其数字资产转移给接替者",
       "offboardUser": "员工离职",
       "offboardUserDesc": "冻结该用户的沙箱并创建数据备份",
+      "selectMember": "选择成员",
+      "memberToOffboard": "待离职成员",
+      "sourceMember": "来源成员",
+      "targetMember": "目标成员",
       "offboardSuccess": "员工离职处理完成",
       "transferVolume": "资产转移",
       "transferVolumeDesc": "将已备份的用户数据归档转移给其他团队成员",
       "transferSuccess": "资产转移成功",
-      "sourceUserId": "源用户 ID",
-      "targetUserId": "目标用户 ID",
       "auditLogs": "审计日志",
       "unlinkOauth": "解绑 SSO",
       "unlinkOauthDesc": "解除该成员的 SSO 身份绑定，以便其使用新的身份重新登录。账号与沙箱数据不受影响。",
@@ -7415,6 +7417,17 @@
       "parentLinkWithIndex": "来自父对话的分支（从消息 #{index}）",
       "unknownError": "发生未知错误",
       "streamingBlocked": "Agent 回复中，无法创建分支"
+    },
+    "snapshot": {
+      "createdTitle": "已创建系统快照",
+      "createdMessage": {
+        "bash": "执行命令前已创建快照，保护您的代码",
+        "file_write": "写入文件前已创建快照，保护您的代码",
+        "file_append": "追加文件前已创建快照，保护您的代码",
+        "file_delete": "删除文件前已创建快照，保护您的代码",
+        "patch_file": "修改文件前已创建快照，保护您的代码",
+        "unknown": "已创建工作区快照，保护您的代码"
+      }
     },
     "rewind": {
       "title": "回退到这里",
@@ -14780,6 +14793,32 @@
       "historyView": "查看",
       "sampled": "抽样",
       "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）"
+    },
+    "layers": {
+      "button": "分层评测",
+      "started": "分层评测已开始",
+      "running": "分层评测进行中",
+      "title": "分层评测",
+      "desc": "同一批任务跑四层 harness 配置——相邻层的差距就是每个能力带来的真实增量。",
+      "layer": "层",
+      "config": "配置",
+      "delta": "Δ 通过率",
+      "costEfficiency": "成本效率",
+      "memoryOn": "记忆开",
+      "memoryOff": "记忆关",
+      "skillsOn": "技能开",
+      "skillsOff": "技能关",
+      "scoredModel": "被评测模型",
+      "judgeModel": "判分模型",
+      "fingerprint": "每层配置都带有指纹，锁定开关组合，保证跨版本分数可对比。",
+      "bare": { "label": "裸基线" },
+      "core": { "label": "核心规则" },
+      "skills": { "label": "+技能" },
+      "memory": { "label": "+记忆（完整配置）" },
+      "confirmTitle": "开始分层评测？",
+      "confirmBody": "这将基于当前 Profile 对同一基准连续跑四次——裸基线（基准模式）、核心规则、+技能、+记忆（你的完整配置）。每层重跑同一批任务，相邻层的通过率差值即为该能力的增量。成本约为抽样任务数的 4 倍；记忆层需要已配置 embedding 模型。",
+      "confirmStart": "开始评测",
+      "confirmCancel": "取消"
     }
   },
   "vault": {

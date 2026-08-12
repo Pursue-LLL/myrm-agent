@@ -67,10 +67,7 @@ const DesktopLiveView = dynamic(
 );
 
 const FileSnapshotPanel = dynamic(
-  () =>
-    import('@/components/features/checkpoint').then((module) => ({
-      default: module.FileSnapshotPanel,
-    })),
+  () => import('@/components/features/checkpoint/FileSnapshotPanel'),
   { ssr: false },
 );
 

@@ -103,6 +103,16 @@ function membersRoutes(members: MemberInput[], withUnlinkRoute = false): Route[]
       body: {},
     });
   }
+  routes.push({
+    method: 'POST',
+    url: '/api/enterprise/org/org-1/offboarding/member-2',
+    body: { id: 'log-1' },
+  });
+  routes.push({
+    method: 'POST',
+    url: '/api/enterprise/org/org-1/transfer/member-2',
+    body: { id: 'log-2' },
+  });
   return routes;
 }
 
@@ -167,6 +177,56 @@ describe('EnterpriseMembersTab', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/api/enterprise/org/org-1/members/member-2/unlink-oauth'),
       expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('offboards a member picked from the member dropdown', async () => {
+    const fetchMock = mockFetchRoutes(membersRoutes(ADMIN_MEMBERS));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<EnterpriseMembersTab />);
+    await waitFor(() => {
+      expect(screen.getAllByTitle('unlinkOauth')).toHaveLength(1);
+    });
+
+    await userEvent.click(screen.getByText('offboardUser'));
+    await userEvent.selectOptions(screen.getByDisplayValue('selectMember'), 'member-2');
+    await userEvent.click(screen.getByText('confirmOffboard'));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith('success', 'offboardSuccess');
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/enterprise/org/org-1/offboarding/member-2'),
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('transfers a volume between members picked from dropdowns', async () => {
+    const fetchMock = mockFetchRoutes(membersRoutes(ADMIN_MEMBERS));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<EnterpriseMembersTab />);
+    await waitFor(() => {
+      expect(screen.getAllByTitle('unlinkOauth')).toHaveLength(1);
+    });
+
+    await userEvent.click(screen.getByText('transferVolume'));
+    const dropdowns = screen.getAllByDisplayValue('selectMember');
+    expect(dropdowns).toHaveLength(2);
+    await userEvent.selectOptions(dropdowns[0], 'member-2');
+    await userEvent.selectOptions(dropdowns[1], 'member-2');
+    await userEvent.click(screen.getByText('confirmTransfer'));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith('success', 'transferSuccess');
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/enterprise/org/org-1/transfer/member-2'),
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('"target_user_id":"member-2"'),
+      }),
     );
   });
 });

@@ -385,3 +385,37 @@ async def test_revert_files_for_messages_skips_messages_without_snapshots(
     assert result["reverted_files"] == []
     assert result["warnings"] == ["No snapshots", "No snapshots"]
     assert notify_calls == []
+
+
+@pytest.mark.asyncio
+async def test_cleanup_orphan_snapshots_on_conversation_only_rewind(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Conversation-only rewind drops snapshot state for deleted messages."""
+    from types import SimpleNamespace
+
+    from app.services.chat.chat_turn import _ChatTurnMixin
+
+    cleanup_calls: list[tuple[str, str]] = []
+
+    async def _fake_cleanup(chat_id: str, message_id: str) -> None:
+        cleanup_calls.append((chat_id, message_id))
+
+    monkeypatch.setattr(
+        "app.services.files.revert_hydrate.cleanup_persisted_snapshots",
+        _fake_cleanup,
+    )
+
+    remove_calls: list[tuple[str, str]] = []
+    fake_store = SimpleNamespace(
+        remove_message=lambda session_id, message_id: remove_calls.append((session_id, message_id)),
+    )
+    monkeypatch.setattr(
+        "myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer.SnapshotStore",
+        SimpleNamespace(get=lambda: fake_store),
+    )
+
+    await _ChatTurnMixin._cleanup_orphan_snapshots("chat-1", ["msg-1", "msg-2"])
+
+    assert remove_calls == [("chat-1", "msg-1"), ("chat-1", "msg-2")]
+    assert cleanup_calls == [("chat-1", "msg-1"), ("chat-1", "msg-2")]

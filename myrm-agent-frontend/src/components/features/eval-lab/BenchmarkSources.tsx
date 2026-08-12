@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Database, DownloadCloud, HardDrive, Play, RefreshCw, Boxes, BrainCircuit, AlertTriangle } from 'lucide-react';
+import { Database, DownloadCloud, HardDrive, Play, RefreshCw, Boxes, BrainCircuit, AlertTriangle, Layers } from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
@@ -45,6 +45,7 @@ interface Props {
   onRun: (benchmarkId: string, limit?: number) => void;
   onDownload: (benchmarkId: string) => void;
   onMemoryAb: (benchmarkId: string, limit?: number) => void;
+  onLayerEval: (benchmarkId: string, limit?: number) => void;
   refreshToken: number;
   downloadingBenchmarkId: string | null;
   downloadProgress: { downloaded_bytes: number; total_bytes: number } | null;
@@ -89,17 +90,21 @@ export default function BenchmarkSources({
   onRun,
   onDownload,
   onMemoryAb,
+  onLayerEval,
   refreshToken,
   downloadingBenchmarkId,
   downloadProgress,
 }: Props) {
   const t = useTranslations('evalLab.wbBench');
   const tMemoryAb = useTranslations('evalLab.memoryAb');
+  const tLayers = useTranslations('evalLab.layers');
   const [sources, setSources] = useState<BenchmarkSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pendingMemoryAbBenchmark, setPendingMemoryAbBenchmark] = useState<string | null>(null);
   const [pendingMemoryAbLimit, setPendingMemoryAbLimit] = useState<number | undefined>(undefined);
+  const [pendingLayerBenchmark, setPendingLayerBenchmark] = useState<string | null>(null);
+  const [pendingLayerLimit, setPendingLayerLimit] = useState<number | undefined>(undefined);
   const [sampleLimits, setSampleLimits] = useState<Record<string, string>>({});
 
   const fetchSources = useCallback(async () => {
@@ -351,6 +356,19 @@ export default function BenchmarkSources({
                         {t('memoryAb')}
                       </Button>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setPendingLayerBenchmark(source.benchmark_id);
+                        setPendingLayerLimit(parseLimit(sampleLimits[source.benchmark_id] ?? ''));
+                      }}
+                      disabled={running}
+                      className="flex-1 min-w-[96px]"
+                    >
+                      <Layers className="w-4 h-4" />
+                      {tLayers('button')}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -385,6 +403,36 @@ export default function BenchmarkSources({
               }}
             >
               {tMemoryAb('confirmStart')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={pendingLayerBenchmark != null}
+        onOpenChange={(open) => !open && setPendingLayerBenchmark(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-primary" />
+              {tLayers('confirmTitle')}
+            </DialogTitle>
+            <DialogDescription className="text-sm leading-relaxed">{tLayers('confirmBody')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingLayerBenchmark(null)}>
+              {tLayers('confirmCancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                const benchmarkId = pendingLayerBenchmark;
+                const limit = pendingLayerLimit;
+                setPendingLayerBenchmark(null);
+                setPendingLayerLimit(undefined);
+                if (benchmarkId) onLayerEval(benchmarkId, limit);
+              }}
+            >
+              {tLayers('confirmStart')}
             </Button>
           </DialogFooter>
         </DialogContent>

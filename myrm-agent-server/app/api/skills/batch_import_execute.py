@@ -53,6 +53,9 @@ async def execute_batch_import_confirm(
     - Phase 3: DB 单事务批量写入。
     - Phase 4: 全部 DB 提交成功后执行操作系统级蓝绿目录原子替换。
     - 任一阶段失败：清空本次 .tmp 目录、尽力恢复 old 目录并重新抛出。
+    - 返回 (imported_count, skipped_count, restored_eval_cases)：restored_eval_cases 为
+      本次导入最终保留的回归门禁用例总数（包内 evals.json 还原 + replace 场景从 DB 继承），
+      与落盘门禁条数一致。
     """
     imported_count = 0
     skipped_count = 0
@@ -174,7 +177,9 @@ async def execute_batch_import_confirm(
                 )
 
             # 剥离包内保留文件 evals.json 并还原回归门禁快照
-            # 与单包导入 unpack_and_register 语义一致：仅第一个有效者胜出
+            # 与单包导入 unpack_and_register 语义一致：仅第一个有效者胜出；
+            # 包内无 evals.json 时 replace 继承 DB 门禁，同样计入反馈计数，
+            # 保证 restored_eval_cases 与最终落盘门禁条数一致
             restored = False
             for rel_path, file_content in list(skill.files.items()):
                 if not is_evals_file(rel_path):
@@ -190,6 +195,7 @@ async def execute_batch_import_confirm(
 
             if not restored:
                 record.eval_cases = inherited_eval_cases
+                restored_eval_cases += len(inherited_eval_cases)
 
             records_to_save.append(record)
 
