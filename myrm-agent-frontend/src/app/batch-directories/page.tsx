@@ -532,14 +532,14 @@ export default function BatchDirectoriesPage() {
                 const progress = progressOf(p);
                 const running = p.status === 'running';
                 return (
-                  <TableRow key={p.project_id}>
+                  <TableRow key={p.project_id} data-testid="bd-project-row">
                     <TableCell className="font-medium">
-                      <Link href={`/batch-directories/${p.project_id}`} className="hover:underline">
+                      <Link href={`/batch-directories/${p.project_id}`} className="hover:underline" data-testid="bd-project-row-name">
                         {p.name}
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Badge className={meta.className}>{meta.icon}{meta.label}</Badge>
+                      <Badge className={meta.className} data-testid="bd-project-row-status">{meta.icon}{meta.label}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 min-w-36">

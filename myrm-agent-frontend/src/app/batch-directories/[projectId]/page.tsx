@@ -356,11 +356,13 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
           <Button variant="ghost" size="icon" onClick={() => router.push('/batch-directories')} aria-label={t('backToList')}>
             <ChevronLeft className="size-5 shrink-0" />
           </Button>
-          <div className="min-w-0">
-            <h1 className="text-xl md:text-2xl font-semibold tracking-tight truncate">{project.name}</h1>
+          <div className="min-w-0" data-testid="bd-project-header">
+            <h1 className="text-xl md:text-2xl font-semibold tracking-tight truncate" data-testid="bd-project-name">
+              {project.name}
+            </h1>
             <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
-              {statusLabel(project.status)}
-              <span className="text-xs">{t('projectIdLabel', { id: project.project_id })}</span>
+              <span data-testid="bd-project-status">{statusLabel(project.status)}</span>
+              <span className="text-xs" data-testid="bd-project-id">{t('projectIdLabel', { id: project.project_id })}</span>
             </p>
           </div>
         </div>
@@ -562,9 +564,11 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
               <span className="text-muted-foreground shrink-0">{t('configFinished')}</span>
               <span className="text-xs">{formatDateTime(project.finished_at)}</span>
             </div>
-            <div className="flex justify-between gap-4">
+            <div className="flex justify-between gap-4" data-testid="bd-config-duration">
               <span className="text-muted-foreground shrink-0">{t('configDuration')}</span>
-              <span className="text-xs">{formatDuration(project.started_at, project.finished_at)}</span>
+              <span className="text-xs" data-testid="bd-config-duration-value">
+                {formatDuration(project.started_at, project.finished_at)}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -598,7 +602,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
         </Card>
       )}
 
-      <Card>
+      <Card data-testid="bd-directories-card">
         <CardHeader>
           <CardTitle className="text-base">{t('directoriesTitle')}</CardTitle>
           <CardDescription>
@@ -650,7 +654,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
         </Card>
       )}
 
-      <Card className="mt-6">
+      <Card className="mt-6" data-testid="bd-tasks-card">
         <CardHeader>
           <CardTitle className="text-base">{t('tasksTitle')}</CardTitle>
         </CardHeader>

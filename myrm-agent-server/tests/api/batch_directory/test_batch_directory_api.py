@@ -14,6 +14,7 @@ Covers:
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
@@ -104,6 +105,78 @@ class TestCreateProject:
             client, [str(dir_a)], name="Into Board", board_id=board_id
         )
         assert project["board_id"] == board_id
+
+    def test_create_project_forwards_advanced_settings_to_tasks(
+        self, client, tmp_path
+    ) -> None:
+        """agent_id / model_override / max_runtime_seconds / require_approval are
+        persisted on the project and forwarded to every created Kanban task.
+
+        A silent drop of any of these would disable timeout protection, review
+        gating or agent pinning for the whole batch, so the round trip is
+        asserted end-to-end through the Kanban task detail API.
+        """
+        dir_a = tmp_path / "alpha"
+        dir_a.mkdir()
+        from myrm_agent_harness.backends.profiles.types import AgentProfile
+
+        from app.database.connection import get_session
+        from app.database.repositories.agent_repo import AgentRepository
+
+        async def _register_agent() -> None:
+            async with get_session() as session:
+                await AgentRepository.create_profile(
+                    session,
+                    AgentProfile(
+                        id="ag-42",
+                        display_name="Advanced Batch Agent",
+                        metadata={},
+                    ),
+                )
+                await session.commit()
+
+        asyncio.run(_register_agent())
+
+        resp = client.post(
+            "/api/v1/batch-directories",
+            json={
+                "name": "Advanced Batch",
+                "prompt": "Analyze the codebase.",
+                "directories": [str(dir_a)],
+                "concurrency": 1,
+                "agent_id": "ag-42",
+                "model_override": "openai/gpt-test",
+                "max_runtime_seconds": 3600,
+                "require_approval": True,
+            },
+        )
+        assert resp.status_code == 201, resp.text
+        project = resp.json()
+        assert project["agent_id"] == "ag-42"
+        assert project["model_override"] == "openai/gpt-test"
+        assert project["max_runtime_seconds"] == 3600
+        assert project["require_approval"] is True
+
+        detail_resp = client.get(
+            f"/api/v1/batch-directories/{project['project_id']}"
+        )
+        assert detail_resp.status_code == 200
+        detail = detail_resp.json()
+        assert len(detail["tasks"]) == 1
+        task_id = detail["tasks"][0]["task_id"]
+
+        task_resp = client.get(f"/api/v1/kanban/tasks/{task_id}")
+        assert task_resp.status_code == 200
+        task = task_resp.json()
+        assert task["agent_id"] == "ag-42"
+        assert task["model_override"] == "openai/gpt-test"
+        assert task["max_runtime_seconds"] == 3600
+        assert task["require_approval"] is True
+
+        board_resp = client.get(f"/api/v1/kanban/boards/{project['board_id']}")
+        assert board_resp.status_code == 200
+        settings = board_resp.json()["settings"]
+        assert settings["max_concurrent_tasks"] == 1
 
     @pytest.mark.asyncio
     async def test_create_project_rolls_back_when_any_task_creation_fails(
