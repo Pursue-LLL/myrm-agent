@@ -1204,6 +1204,15 @@ def dev_bootstrap_wall_cap_for_hung_reap(*, lane: str, shpoib: bool) -> float:
     return bootstrap_sec
 
 
+def shpoib_backend_only_ensure_stall_cap_sec() -> float:
+    """Hung-reap cap for SHPOIB backend-only ensure (cold app.main import can exceed mux bootstrap wall)."""
+    raw = os.environ.get("MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC", "360")
+    try:
+        return max(120.0, float(raw))
+    except ValueError:
+        return 360.0
+
+
 def signoff_effective_bootstrap_wall_sec() -> float:
     """Signoff bootstrap cap; explicit batch override only, never peer-scaled."""
     bootstrap_sec = float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF)

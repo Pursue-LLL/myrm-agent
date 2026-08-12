@@ -33,7 +33,7 @@ export interface TreeTotals extends SubtreeAggregate {
 // ── Build Tree ───────────────────────────────────────────────────────
 
 export function buildTree(nodes: Record<string, SubagentNode>): TreeNode[] {
-  const entries = Object.values(nodes);
+  const entries = Object.values(nodes).filter((n) => !n.internal);
   if (entries.length === 0) return [];
 
   const map: Record<string, TreeNode> = {};

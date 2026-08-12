@@ -105,6 +105,11 @@ function membersRoutes(members: MemberInput[], withUnlinkRoute = false): Route[]
     });
   }
   routes.push({
+    method: 'DELETE',
+    url: '/api/enterprise/org/org-1/members/member-2',
+    body: {},
+  });
+  routes.push({
     method: 'POST',
     url: '/api/enterprise/org/org-1/offboarding/member-2',
     body: { id: 'log-1' },

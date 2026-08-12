@@ -152,12 +152,10 @@ class SnapshotInterceptor(ExecutionInterceptor):
 
                 store = await self._get_store()
                 trigger = _TRIGGER_MAP.get(action_type, SnapshotTrigger.MANUAL)
-                description = f"Before {action_type} (chat:{chat_id[:8]} agent:{agent_id[:8]} turn:{turn_id[:8]})"
 
                 await store.take_snapshot(
                     working_dir=workspace_path,
                     trigger=trigger,
-                    description=description,
                     metadata=metadata,
                 )
 

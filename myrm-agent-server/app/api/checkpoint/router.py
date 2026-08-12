@@ -14,7 +14,7 @@ from myrm_agent_harness.agent.file_snapshot import FileSnapshotProtocol
 from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
 from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpointStorage
 
-from ._snapshot_notify import emit_restore_event, notify_agent_of_restore
+from ._snapshot_notify import notify_agent_of_restore
 from .schemas import (
     CheckpointInfo,
     CheckpointListResponse,
@@ -295,7 +295,6 @@ async def restore_file_snapshot(request: FileSnapshotRestoreRequest) -> FileSnap
         if result.success:
             external_effects = await _get_snapshot_external_effects(store, request.snapshot_id)
             notify_agent_of_restore(result.snapshot_id, result.files_restored, request.files, external_effects)
-            emit_restore_event(result.snapshot_id, result.files_restored)
 
         return FileSnapshotRestoreResponse(
             success=result.success,

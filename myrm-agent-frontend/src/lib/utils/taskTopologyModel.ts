@@ -111,8 +111,9 @@ export function buildTopologyModel(nodes: SubagentNode[]): TopologyModel {
   const model = emptyTopologyModel();
   if (nodes.length === 0) return model;
 
+  const visible = nodes.filter((n) => !n.internal);
   const map: Record<string, TopologyNodeData> = {};
-  for (const n of nodes) {
+  for (const n of visible) {
     const verificationFailed = n.verification !== undefined && !n.verification.passed;
     const baseTone = toneForStatus(n.status);
     const tone: TopologyTone =
@@ -141,7 +142,7 @@ export function buildTopologyModel(nodes: SubagentNode[]): TopologyModel {
     model.totalDurationSeconds += data.durationSeconds;
   }
 
-  for (const n of nodes) {
+  for (const n of visible) {
     const parentId = n.parent_task_id;
     if (parentId && map[parentId]) {
       model.edges.push({ source: parentId, target: n.task_id });

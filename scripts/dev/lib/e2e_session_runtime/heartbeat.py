@@ -40,6 +40,32 @@ def shell_heartbeat_loop_active() -> bool:
     return True
 
 
+def _pytest_uses_isolated_wave_state() -> bool:
+    """True when pytest owns a private wave-orchestrator.json (SHPOIB / isolated runtime).
+
+    The shell-owned heartbeat extends leases in the holder's shared wave file. After
+    ``_chrome_e2e_item_runtime`` monkeypatches ``MYRM_WAVE_STATE_DIR`` to the
+    private runtime state dir, orchestrator lease attestation and reap observe the
+    isolated file — pytest must heartbeat that lease itself or contexts are reaped
+    mid-body (``No context for session orch-*``).
+    """
+    if os.environ.get("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1":
+        return True
+    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1":
+        return True
+    wave_raw = os.environ.get("MYRM_WAVE_STATE_DIR", "").strip()
+    if not wave_raw:
+        return False
+    try:
+        wave_dir = Path(wave_raw).resolve()
+    except OSError:
+        return False
+    from real_user_home import real_user_home
+
+    shared = (real_user_home() / ".local/state/myrm-dev").resolve()
+    return wave_dir != shared
+
+
 def pytest_should_spawn_heartbeat_loop() -> bool:
     """Pytest must not duplicate the shell-owned 30s heartbeat loop."""
     if os.environ.get("MYRM_E2E_PYTEST_HEARTBEAT_LOOP", "1").strip().lower() in {
@@ -49,6 +75,8 @@ def pytest_should_spawn_heartbeat_loop() -> bool:
         "off",
     }:
         return False
+    if _pytest_uses_isolated_wave_state():
+        return True
     return not shell_heartbeat_loop_active()
 
 

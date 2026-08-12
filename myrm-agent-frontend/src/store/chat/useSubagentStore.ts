@@ -86,6 +86,8 @@ export interface SubagentNode {
   wastedTokens?: number;
   staleDismissed?: boolean;
   verification?: SubagentVerification;
+  /** Framework-internal subagent (verification worker/verifier) — hidden from user-facing trees. */
+  internal?: boolean;
 }
 
 export interface FissionTopologyNode {
@@ -116,7 +118,8 @@ export interface SubagentStore {
 
   // Actions
   upsertNode: (nodeUpdate: Partial<SubagentNode> & { task_id: string }) => void;
-  updateProgress: (taskId: string, progress: number, lastTool?: string) => void;
+  /** Drop framework-internal nodes (verification workers/verifiers) from the store. */
+  removeInternalNodes: () => void;  updateProgress: (taskId: string, progress: number, lastTool?: string) => void;
   updateEstimate: (taskId: string, etaSeconds: number) => void;
   dismissOvertime: (taskId: string) => void;
   markStale: (taskId: string, staleDurationSeconds: number, wastedTokens: number) => void;
@@ -249,6 +252,7 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
     set((state) => {
       const map = { ...state.nodes };
       nodes.forEach((n) => {
+        if (n.internal) return;
         const existing = map[n.task_id];
         const apiTeammate = (n.teammate_messages ?? []).map((row) => normalizeTeammateEntry(row));
         map[n.task_id] = {
@@ -258,6 +262,19 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
         };
       });
       return { nodes: map };
+    }),
+
+  removeInternalNodes: () =>
+    set((state) => {
+      const nodes = { ...state.nodes };
+      let changed = false;
+      for (const [taskId, node] of Object.entries(nodes)) {
+        if (node.internal) {
+          delete nodes[taskId];
+          changed = true;
+        }
+      }
+      return changed ? { nodes } : state;
     }),
 
   appendTeammateMessage: (entry) =>

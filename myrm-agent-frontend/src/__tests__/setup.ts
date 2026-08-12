@@ -57,6 +57,23 @@ if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
   });
 }
 
+// jsdom 未实现 Pointer Capture API，Radix Select 依赖它做指针事件处理。
+// 提供空实现以让基于 Radix 的 Select 交互（测试中点击 trigger/option）正常工作。
+if (typeof Element !== 'undefined' && typeof Element.prototype.hasPointerCapture !== 'function') {
+  Object.defineProperty(Element.prototype, 'hasPointerCapture', {
+    configurable: true,
+    value: () => false,
+  });
+  Object.defineProperty(Element.prototype, 'setPointerCapture', {
+    configurable: true,
+    value: () => {},
+  });
+  Object.defineProperty(Element.prototype, 'releasePointerCapture', {
+    configurable: true,
+    value: () => {},
+  });
+}
+
 // 每个测试后自动清理
 afterEach(() => {
   cleanup();

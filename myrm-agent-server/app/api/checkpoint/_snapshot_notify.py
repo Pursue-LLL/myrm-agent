@@ -1,11 +1,10 @@
-"""Snapshot restore notification helpers.
+"""Snapshot restore notification helper.
 
-Notifies both the Agent (via restore_inbox) and the Frontend (via SSE)
-when a file snapshot is successfully restored.
+Notifies the Agent (via restore_inbox) when a file snapshot is restored.
 
 [POS] app/api/checkpoint/_snapshot_notify.py
 [INPUT] snapshot_id: str, files_restored: int, files: list[str] | None
-[OUTPUT] Side-effects: push_restore_notification → Agent inbox; AppEvent → SSE bus
+[OUTPUT] Side-effect: push_restore_notification → Agent inbox
 """
 
 from __future__ import annotations
@@ -26,26 +25,3 @@ def notify_agent_of_restore(
         restored_files=files,
         external_effects=external_effects,
     )
-
-
-def emit_restore_event(snapshot_id: str, files_restored: int) -> None:
-    """Emit an SSE event so the frontend can show a toast to the user."""
-    try:
-        from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-
-        get_event_bus().publish(
-            AppEvent(
-                event_type=AppEventType.SYSTEM_NOTIFICATION,
-                data={
-                    "title": "快照恢复",
-                    "message": f"已恢复 {files_restored} 个文件到快照 {snapshot_id[:8]}",
-                    "meta_data": {
-                        "type": "snapshot_restored",
-                        "snapshot_id": snapshot_id,
-                        "files_restored": files_restored,
-                    },
-                },
-            )
-        )
-    except Exception:
-        pass

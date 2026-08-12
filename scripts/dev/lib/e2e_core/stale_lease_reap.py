@@ -606,6 +606,18 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
                 lane=lane,
                 shpoib=bool(row.shpoib),
             )
+        if current_node and "backend_only_ensure" in current_node:
+            from dev_gate_contract import (  # noqa: PLC0415
+                shpoib_backend_only_ensure_stall_cap_sec,
+            )
+
+            backend_only_cap = float(shpoib_backend_only_ensure_stall_cap_sec())
+            if elapsed_f < backend_only_cap:
+                return None
+            return (
+                f"E2E_NODE_STUCK: parallel node={current_node!r} "
+                f"node_elapsed={int(elapsed_f)}s>={int(backend_only_cap)}s"
+            )
         if current_node and is_transport_stall_node(current_node):
             stall_cap = float(
                 resolve_transport_stall_cap_sec(current_node=current_node)
@@ -618,6 +630,12 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
             return None
         if elapsed_f < bootstrap_cap:
             return None
+        node_label = current_node or "?"
+        return (
+            f"E2E_NODE_STUCK: parallel node={node_label!r} "
+            f"node_elapsed={int(elapsed_f)}s>={int(bootstrap_cap)}s "
+            f"bootstrap_wall"
+        )
     if current_node and is_transport_stall_node(current_node):
         stall_cap = float(resolve_transport_stall_cap_sec(current_node=current_node))
         if elapsed_f >= stall_cap:
