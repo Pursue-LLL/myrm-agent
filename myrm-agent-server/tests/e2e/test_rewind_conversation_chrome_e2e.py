@@ -1,9 +1,9 @@
 """Chrome LIVE_AGENT E2E: RewindDialog rewinds a real conversation in the Web UI.
 
-Real-user flow: send two turns, open the Rewind dialog on the first user
+Real-user flow: send two turns, open the Rewind dialog on the SECOND user
 message, choose "Conversation only", confirm, and verify the conversation is
-truncated with the first message pre-filled in the composer and the success
-toast shown.
+truncated back to the first turn with the second message pre-filled in the
+composer and the success toast shown.
 
 The prompts only ask the model to reply with a fixed marker text — no tool
 calls — so the test is stable across providers (unlike tool-call-based E2Es).
@@ -60,9 +60,14 @@ TURN_A = "Reply with the exact text: REWIND_MARKER_A"
 TURN_B = "Reply with the exact text: REWIND_MARKER_B"
 
 _OPEN_REWIND_JS = """(() => {
-  const btn = document.querySelector(
-    '[aria-label="Rewind to here"], [aria-label="回退到这里"]',
+  const btns = Array.from(
+    document.querySelectorAll(
+      '[aria-label="Rewind to here"], [aria-label="回退到这里"]',
+    ),
   );
+  // Rewind the SECOND user message: rewinding "to here" removes that message
+  // and everything after it, keeping the first turn. Real-user scenario.
+  const btn = btns[1] || btns[0];
   if (!btn) {
     const labels = Array.from(document.querySelectorAll('[aria-label]')).map(
       (b) => b.getAttribute('aria-label'),
@@ -70,13 +75,14 @@ _OPEN_REWIND_JS = """(() => {
     return {
       ok: false,
       err: 'no-rewind-button',
+      count: btns.length,
       labels: labels.slice(0, 25),
       sample: (document.body.innerText || '').slice(0, 400),
     };
   }
-  if (btn.disabled) return { ok: false, err: 'rewind-disabled' };
+  if (btn.disabled) return { ok: false, err: 'rewind-disabled', count: btns.length };
   btn.click();
-  return { ok: true };
+  return { ok: true, count: btns.length };
 })()"""
 
 _DIALOG_READY_JS = """(() => {
@@ -128,7 +134,7 @@ _FINAL_STATE_JS = """(() => {
     document.querySelectorAll('[aria-label="Rewind to here"], [aria-label="回退到这里"]'),
   ).length;
   return {
-    ok: value.includes('REWIND_MARKER_A'),
+    ok: value.includes('REWIND_MARKER_B'),
     composerValue: value.slice(0, 300),
     hasToast:
       body.includes('Conversation rewound') || body.includes('对话已回退'),
