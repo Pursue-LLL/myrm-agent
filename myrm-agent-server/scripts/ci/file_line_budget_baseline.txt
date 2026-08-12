@@ -27,6 +27,7 @@ app/api/integrations/provider_oauth.py
 app/api/kanban/schemas.py
 app/api/skills/discovery.py
 app/api/skills/drafts.py
+app/api/skills/sync.py
 app/api/skills/migrations.py
 app/api/skills/permissions.py
 app/api/statistics/context_health.py
@@ -134,6 +135,7 @@ app/services/agent/stream_session/stream_loop.py
 app/services/agent/streaming.py
 app/services/agent/streaming_support/stream_collector.py
 app/services/approvals/registry.py
+app/services/batch_directory/_helpers.py
 app/services/batch_directory/service.py
 app/services/chat/chat_crud.py
 app/services/chat/chat_message.py
