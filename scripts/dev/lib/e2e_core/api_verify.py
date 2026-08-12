@@ -997,9 +997,18 @@ def _compute_next_action(
                     return "FAIL_FAST"
         process_elapsed = row.get("elapsed_sec")
         wall_phase = str(row.get("wall_phase") or "").strip().lower()
+        # R030-B: LIVE_AGENT_PYTEST_WALL_CAP_SEC is the pytest-subprocess wall cap
+        # (bootstrap+body+teardown), while elapsed_sec spans the whole session
+        # including ADMIT queue time. A healthy BODY peer (body_elapsed under the
+        # body cap with fresh node progress) must not be misjudged as hung purely
+        # from session wall time — mirror the R141 hung-reap rule.
+        body_elapsed_healthy = isinstance(body_elapsed, (int, float)) and (
+            wall_phase == "body" and float(body_elapsed) < float(body_wall_cap)
+        )
         if (
             isinstance(process_elapsed, (int, float))
             and wall_phase not in ("bootstrap", "admit")
+            and not body_elapsed_healthy
             and float(process_elapsed) >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC)
         ):
             from e2e_cluster_launch_policy import (
