@@ -1,7 +1,7 @@
 """External-agent runtime config normalization and fingerprint helpers.
 
 [INPUT]
-- myrm_agent_harness.toolkits.acp.backend_detector::BackendDetector (POS: CLI backend detection)
+- myrm_agent_harness.toolkits.acp.core.backend_detector::BackendDetector (POS: CLI backend detection)
 - myrm_agent_harness.toolkits.acp.types::RuntimeConfig (POS: ACP runtime config contract)
 - app.config.deploy_mode::is_local_mode (POS: deploy mode guard)
 
@@ -179,7 +179,7 @@ async def _resolve_external_agent_cfgs(
         return None
 
     try:
-        from myrm_agent_harness.toolkits.acp.backend_detector import BackendDetector
+        from myrm_agent_harness.toolkits.acp.core.backend_detector import BackendDetector
 
         detector = BackendDetector()
         detected = await detector.detect(include_version=False)

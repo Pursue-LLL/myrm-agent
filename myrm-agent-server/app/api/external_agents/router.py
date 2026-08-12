@@ -8,7 +8,7 @@ subscription auth is an agent-config concern, not channel management.
 
 [INPUT]
 - myrm_agent_harness.toolkits.acp.auth (POS: ACP subscription auth subsystem)
-- myrm_agent_harness.toolkits.acp.backend_detector::BackendDetector (POS: CLI backend detection)
+- myrm_agent_harness.toolkits.acp.core.backend_detector::BackendDetector (POS: CLI backend detection)
 
 [OUTPUT]
 - router: external agent auth endpoints under /external-agents
@@ -79,7 +79,7 @@ _login_registry = _LoginRegistry()
 async def external_agent_auth_status() -> dict[str, object]:
     """Report install + login state for every known backend via fresh detection."""
     from myrm_agent_harness.toolkits.acp.auth import CredentialStore, known_backends, profile_for
-    from myrm_agent_harness.toolkits.acp.backend_detector import BackendDetector
+    from myrm_agent_harness.toolkits.acp.core.backend_detector import BackendDetector
 
     detector = BackendDetector()
     detected = {b.name: b for b in await detector.detect(include_version=True, refresh=True)}
@@ -124,7 +124,7 @@ async def external_agent_install(backend: str) -> StreamingResponse:
                 yield f"data: {json.dumps(payload)}\n\n"
 
             # After installation, force detector cache invalidation
-            from myrm_agent_harness.toolkits.acp.backend_detector import BackendDetector
+            from myrm_agent_harness.toolkits.acp.core.backend_detector import BackendDetector
 
             detector = BackendDetector()
             detector.invalidate_cache()

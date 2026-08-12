@@ -121,7 +121,7 @@ async def test_resolve_external_agent_cfgs_auto_detect_local() -> None:
     with (
         patch("app.config.deploy_mode.is_local_mode", return_value=True),
         patch(
-            "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+            "myrm_agent_harness.toolkits.acp.core.backend_detector.BackendDetector",
             _FakeDetector,
         ),
     ):
@@ -159,7 +159,7 @@ async def test_resolve_external_agent_cfgs_auto_detect_failure_returns_none() ->
     with (
         patch("app.config.deploy_mode.is_local_mode", return_value=True),
         patch(
-            "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+            "myrm_agent_harness.toolkits.acp.core.backend_detector.BackendDetector",
             side_effect=RuntimeError("detect failed"),
         ),
     ):
@@ -206,7 +206,7 @@ async def test_resolve_external_agent_cfgs_auto_detect_empty_returns_none() -> N
     with (
         patch("app.config.deploy_mode.is_local_mode", return_value=True),
         patch(
-            "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+            "myrm_agent_harness.toolkits.acp.core.backend_detector.BackendDetector",
             _EmptyDetector,
         ),
     ):

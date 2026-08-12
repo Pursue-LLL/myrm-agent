@@ -95,7 +95,7 @@ def test_external_agent_install_claude_mocked_no_network(client: TestClient, mon
             pass
 
     monkeypatch.setattr(
-        "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+        "myrm_agent_harness.toolkits.acp.core.backend_detector.BackendDetector",
         FakeDetector,
     )
 

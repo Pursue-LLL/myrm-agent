@@ -58,7 +58,7 @@ class TestAuthStatus:
         detector = MagicMock()
         detector.detect = AsyncMock(return_value=[])
         with patch(
-            "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+            "myrm_agent_harness.toolkits.acp.core.backend_detector.BackendDetector",
             return_value=detector,
         ):
             resp = client.get("/api/v1/external-agents/auth/status")
@@ -84,7 +84,7 @@ class TestAuthStatus:
         detector = MagicMock()
         detector.detect = AsyncMock(return_value=[found])
         with patch(
-            "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+            "myrm_agent_harness.toolkits.acp.core.backend_detector.BackendDetector",
             return_value=detector,
         ):
             resp = client.get("/api/v1/external-agents/auth/status")
@@ -102,7 +102,7 @@ class TestAuthStatus:
         detector = MagicMock()
         detector.detect = AsyncMock(return_value=[found])
         with patch(
-            "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+            "myrm_agent_harness.toolkits.acp.core.backend_detector.BackendDetector",
             return_value=detector,
         ):
             resp = client.get("/api/v1/external-agents/auth/status")
@@ -115,7 +115,7 @@ class TestAuthStatus:
         detector = MagicMock()
         detector.detect = AsyncMock(return_value=[])
         with patch(
-            "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+            "myrm_agent_harness.toolkits.acp.core.backend_detector.BackendDetector",
             return_value=detector,
         ):
             resp = client.get("/api/v1/external-agents/auth/status")
@@ -127,7 +127,7 @@ class TestAuthStatus:
         detector = MagicMock()
         detector.detect = AsyncMock(return_value=[])
         with patch(
-            "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+            "myrm_agent_harness.toolkits.acp.core.backend_detector.BackendDetector",
             return_value=detector,
         ):
             resp = client.get("/api/v1/external-agents/auth/status")
