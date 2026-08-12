@@ -484,6 +484,7 @@ myrm_agent_harness.utils.errors
 myrm_agent_harness.utils.event_utils
 myrm_agent_harness.utils.fuzzy_match
 myrm_agent_harness.utils.image_utils
+myrm_agent_harness.utils.json_parsing
 myrm_agent_harness.utils.locale
 myrm_agent_harness.utils.log_rotation
 myrm_agent_harness.utils.logger_utils
