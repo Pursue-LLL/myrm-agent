@@ -5,17 +5,43 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.code_execution import create_workspace_service
 
-from tests.api.agent.utils import get_model_selection
+from app.config.settings import get_settings
+from app.platform_utils.workspace_session import to_workspace_session_id
+from tests.api.agent.utils import build_approval_resume_value, get_model_selection
+
+
+def _stream_once(
+    client: TestClient,
+    request_data: dict[str, object],
+) -> list[dict]:
+    """Stream one agent turn and collect SSE events."""
+    collected: list[dict] = []
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data, timeout=120.0) as response:
+        assert response.status_code == 200
+        for line in response.iter_lines():
+            if line.startswith("data: "):
+                raw = line[6:]
+                if raw == "[DONE]":
+                    break
+                try:
+                    data = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(data, dict):
+                    collected.append(data)
+    return collected
 
 
 def perform_agent_stream(
     client: TestClient,
     query: str,
+    chat_id: str,
 ) -> tuple[str, list[dict], int]:
-    request_data = {
+    request_data: dict[str, object] = {
         "messageId": f"gast-msg-{uuid.uuid4().hex[:12]}",
-        "chatId": f"gast-chat-{uuid.uuid4().hex[:10]}",
+        "chatId": chat_id,
         "query": query,
         "modelSelection": get_model_selection(),
         "actionMode": "agent",
@@ -23,37 +49,34 @@ def perform_agent_stream(
         "enableMemoryAutoExtraction": False,
     }
 
-    collected_data = []
-    message_chunks = []
+    collected: list[dict] = []
+    collected.extend(_stream_once(client, request_data))
+
+    for _ in range(10):
+        approval_required = any(
+            d.get("type") in ("approval_required", "tool_approval_request")
+            for d in reversed(collected)
+        )
+        if not approval_required:
+            break
+        resume_request = dict(request_data)
+        resume_request["resumeValue"] = build_approval_resume_value()
+        collected.extend(_stream_once(client, resume_request))
+
+    message_chunks: list[str] = []
     tool_call_count = 0
-
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data, timeout=120.0) as response:
-        assert response.status_code == 200
-
-        for line in response.iter_lines():
-            if not line or not line.startswith("data: "):
-                continue
-
-            try:
-                data = json.loads(line[6:])
-                if data is None:
-                    continue
-                collected_data.append(data)
-                event_type = data.get("type", "unknown")
-
-                if event_type in ("message", "reasoning"):
-                    content = data.get("data", "")
-                    if content:
-                        message_chunks.append(content)
-                elif event_type == "tasks_steps":
-                    tool_name = data.get("tool_name")
-                    if tool_name is not None:
-                        tool_call_count += 1
-            except json.JSONDecodeError:
-                continue
+    for data in collected:
+        event_type = data.get("type", "unknown")
+        if event_type in ("message", "reasoning"):
+            content = data.get("data", "")
+            if content:
+                message_chunks.append(content)
+        elif event_type == "tasks_steps":
+            if data.get("tool_name") is not None:
+                tool_call_count += 1
 
     full_answer = "".join(message_chunks)
-    return full_answer, collected_data, tool_call_count
+    return full_answer, collected, tool_call_count
 
 
 class TestWorkspaceRulesE2E:
@@ -63,40 +86,49 @@ class TestWorkspaceRulesE2E:
     marker and an API-key skip to keep the default CI suite hermetic.
     """
 
-    @pytest.fixture
-    def temp_workspace(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-        """Create a temporary workspace and mock chat workspace dir."""
-        async def mock_resolve(*args, **kwargs):
-            return str(tmp_path)
-            
-        monkeypatch.setattr(
-            "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir", 
-            mock_resolve
+    async def _harness_workspace(self, chat_id: str) -> Path:
+        """Resolve the harness workspace dir bound to ``chat_{chat_id}``.
+
+        Workspace rules are scanned from the harness workspace (set via
+        ``run_lifecycle.set_workspace_root``), so rule files must be seeded
+        there rather than in a mocked server-side chat workspace dir.
+        """
+        harness_root = Path(get_settings().database.harness_dir)
+        workspace_svc = create_workspace_service(root_dir=harness_root)
+        workspace = await workspace_svc.get_or_create(
+            session_id=to_workspace_session_id(chat_id)
         )
-        yield tmp_path
+        return Path(workspace_svc.get_workspace_absolute_path(workspace))
 
     @pytest.mark.e2e
     @pytest.mark.skipif(
         not os.environ.get("BASIC_API_KEY"),
         reason="E2E test requires BASIC_API_KEY environment variable",
     )
-    def test_first_match_wins_e2e(self, client: TestClient, temp_workspace: Path):
+    @pytest.mark.asyncio
+    async def test_first_match_wins_e2e(self, client: TestClient) -> None:
         """Test that AGENTS.md overrides .cursorrules due to First-Match-Wins."""
-        
+        chat_id = f"wrules-{uuid.uuid4().hex[:10]}"
+        create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
+        assert create_response.status_code == 200
+
+        workspace_path = await self._harness_workspace(chat_id)
+        workspace_path.mkdir(parents=True, exist_ok=True)
+
         # Create a low priority rule file
-        (temp_workspace / ".cursorrules").write_text(
+        (workspace_path / ".cursorrules").write_text(
             "Project Convention: When writing any code, you MUST include the comment '# BAZINGA' at the top."
         )
-        
+
         # Create a high priority rule file
-        (temp_workspace / "AGENTS.md").write_text(
+        (workspace_path / "AGENTS.md").write_text(
             "Project Convention: When writing any code, you MUST include the comment '# WUBBALUBBADUBDUB' at the top."
         )
 
         query = "Write a simple python script that prints hello world."
-        
-        full_answer, collected_data, tool_call_count = perform_agent_stream(client, query)
-        
+
+        full_answer, collected_data, _tool_call_count = perform_agent_stream(client, query, chat_id)
+
         # The agent should follow the high priority rule (AGENTS.md) and ignore the low priority one (.cursorrules)
         assert "WUBBALUBBADUBDUB" in full_answer.upper()
         assert "BAZINGA" not in full_answer.upper()

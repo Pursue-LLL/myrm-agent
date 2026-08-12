@@ -80,10 +80,15 @@ class TestDefaultValues:
         assert s.agent.max_per_user == 3
         assert s.agent.queue_timeout == 10.0
 
-    def test_database_defaults(self) -> None:
-        s = _make_settings()
-        assert s.database.sqlite_pool_size == 5
-        assert s.database.sqlite_busy_timeout_ms == 3000
+    def test_database_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # conftest injects SQLITE_BUSY_TIMEOUT_MS=15000 (dev-aligned) so concurrent
+        # SQLite writes don't flake. AppSettings.database is a class-time default
+        # instance, so assert the class defaults on a freshly-built DatabaseSettings
+        # with the env var removed.
+        monkeypatch.delenv("SQLITE_BUSY_TIMEOUT_MS", raising=False)
+        s = DatabaseSettings()
+        assert s.sqlite_pool_size == 5
+        assert s.sqlite_busy_timeout_ms == 3000
 
     def test_database_path_defaults_derive_from_state_dir(self) -> None:
         db = DatabaseSettings()

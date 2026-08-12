@@ -3404,6 +3404,33 @@
           }
         }
       },
+      "batchImportDialog": {
+        "title": "一括インポート",
+        "description": "ZIP パッケージからのシームレスな移行。ZIP 爆弾対策と AST スキャナーを搭載。",
+        "parsing": "安全に解凍して分析中...",
+        "dropHint": "ZIP ファイルをここにドロップするか、クリックしてアップロード",
+        "subHint": "数十のスキルを一度にインポートできます。",
+        "parseErrorTitle": "解析エラー",
+        "sizeLimit": "ファイルサイズは 10MB を超えることはできません（サーバーメモリ保護のため）。",
+        "reselect": "再選択",
+        "foundSkills": "{count} 個のスキルを検出",
+        "conflicts": "{count} 件の名前競合",
+        "handleAllConflicts": "すべての競合を一括処理...",
+        "renameAll": "すべてリネーム",
+        "replaceAll": "すべて置換",
+        "skipAll": "すべてスキップ",
+        "conflictBadge": "競合",
+        "newBadge": "新規",
+        "securityRisk": "セキュリティ警告",
+        "renameCow": "独立リネーム (CoW)",
+        "replace": "強制置換",
+        "skip": "スキップ",
+        "import": "通常インポート",
+        "cancel": "キャンセル",
+        "importing": "インポート中...",
+        "confirmImport": "インポートを確認",
+        "selectedCount": "選択済み: {count} 件"
+      },
       "filters": {
         "search": "スキルを検索...",
         "category": "カテゴリ",

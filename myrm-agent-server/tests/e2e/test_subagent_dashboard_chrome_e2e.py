@@ -336,12 +336,21 @@ def _open_subagent_dashboard(
     trigger_expr = """(() => {
           const button = document.querySelector('[data-testid="subagent-dashboard-trigger"]');
           if (button) return { ready: true };
-          return { ready: false };
+          const store = window.__myrmSubagentStore?.getState?.();
+          const nodes = store?.nodes ?? {};
+          return {
+            ready: false,
+            nodeCount: Object.keys(nodes).length,
+            statuses: Object.values(nodes).map((n) => n?.status),
+            hasBridge: !!window.__MYRM_E2E_SUBAGENT__?.hydrate,
+            apiBase: typeof window.__MYRM_E2E_API_BASE__ === 'string' ? window.__MYRM_E2E_API_BASE__ : null,
+          };
         })()"""
     deadline = time.monotonic() + 90.0
     trigger: dict[str, object] = {"ready": False}
+    last_hydrate: dict[str, object] = {}
     while time.monotonic() < deadline:
-        _hydrate_subagent_tree(
+        last_hydrate = _hydrate_subagent_tree(
             client,
             page,
             chat_id,
@@ -354,7 +363,7 @@ def _open_subagent_dashboard(
         time.sleep(1.0)
     assert (
         trigger.get("ready") is True
-    ), f"Subagent dashboard trigger missing: {trigger}"
+    ), f"Subagent dashboard trigger missing: {trigger}; lastHydrate={last_hydrate}"
     clicked = client.evaluate(
         page,
         """(() => {

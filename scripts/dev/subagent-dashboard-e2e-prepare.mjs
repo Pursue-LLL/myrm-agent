@@ -26,6 +26,27 @@ const uiBase = process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000';
 const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'tauri-local';
 const streamHoldMs = Number(process.env.E2E_HOLD_MS ?? 120_000);
 
+// --seed-config-only: seed providers + YOLO securityConfig, then hold the process
+// until SIGTERM (which restores the snapshots). Used by frontend_full_flow E2E to
+// make the WebUI send flow delegate without HITL approval on a PRIVATE backend.
+const seedConfigOnly = process.argv.includes('--seed-config-only');
+const SEED_CONFIG_HOLD_MAX_MS = 900_000;
+
+let _restoreSnapshot = null;
+process.on('SIGTERM', () => void handleShutdownSignal());
+process.on('SIGINT', () => void handleShutdownSignal());
+
+async function handleShutdownSignal() {
+  try {
+    if (_restoreSnapshot) {
+      await _restoreSnapshot();
+    }
+  } catch (error) {
+    diag(`restore_on_signal_failed:${error instanceof Error ? error.message : String(error)}`);
+  }
+  process.exit(0);
+}
+
 const E2E_BASH_EPHEMERAL = {
   bash_worker: {
     system_prompt: 'You are a bash execution worker.',
@@ -398,6 +419,22 @@ async function main() {
     providers: await readConfig('providers'),
     securityConfig: await readConfig('securityConfig'),
   };
+  const restoreAll = async () => {
+    await restoreConfig('providers', snapshots.providers);
+    await restoreConfig('securityConfig', snapshots.securityConfig);
+  };
+  if (seedConfigOnly) {
+    await seedProviders();
+    await seedYoloSecurity();
+    _restoreSnapshot = restoreAll;
+    console.log(`E2E_PREPARE_JSON=${JSON.stringify({ seeded: true, uiBase, apiBase })}`);
+    const deadline = Date.now() + SEED_CONFIG_HOLD_MAX_MS;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    await restoreAll();
+    return;
+  }
   let restored = false;
   try {
     await seedProviders();
@@ -426,13 +463,11 @@ async function main() {
       // Parent stream may finish before streamHoldMs; keep prepare alive so UI/MCP can reach list/cancel.
       await new Promise((resolve) => setTimeout(resolve, streamHoldMs));
     }
-    await restoreConfig('providers', snapshots.providers);
-    await restoreConfig('securityConfig', snapshots.securityConfig);
+    await restoreAll();
     restored = true;
   } finally {
     if (!restored) {
-      await restoreConfig('providers', snapshots.providers);
-      await restoreConfig('securityConfig', snapshots.securityConfig);
+      await restoreAll();
     }
   }
 }

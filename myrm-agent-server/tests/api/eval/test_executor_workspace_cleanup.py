@@ -104,3 +104,37 @@ def test_cleanup_orphan_eval_workspaces_noop_when_absent(monkeypatch, tmp_path) 
     """Startup sweep must return 0 when no eval workspaces exist."""
     monkeypatch.chdir(tmp_path)
     assert cleanup_orphan_eval_workspaces() == 0
+
+
+def test_cleanup_orphan_skips_non_directory_entries(monkeypatch, tmp_path) -> None:
+    """A stray file under the sweep root must be skipped, not treated as a session."""
+    monkeypatch.chdir(tmp_path)
+    root = Path(".myrm/eval_workspaces")
+    root.mkdir(parents=True)
+    (root / "eval_orphan").mkdir()
+    (root / "stray.log").write_text("not a workspace")
+
+    count = cleanup_orphan_eval_workspaces()
+
+    assert count == 1
+    assert not (root / "eval_orphan").exists()
+    assert (root / "stray.log").exists()
+
+
+def test_cleanup_orphan_swallow_rmdir_failure(monkeypatch, tmp_path) -> None:
+    """A sweep root that refuses deletion must not raise (best-effort sweep)."""
+    monkeypatch.chdir(tmp_path)
+    root = Path(".myrm/eval_workspaces")
+    root.mkdir(parents=True)
+    (root / "eval_orphan").mkdir()
+
+    import app.core.eval.executor as executor_mod
+
+    def failing_rmdir(self: Path) -> None:
+        raise OSError("directory not empty")
+
+    monkeypatch.setattr(Path, "rmdir", failing_rmdir)
+    count = executor_mod.cleanup_orphan_eval_workspaces()
+
+    assert count == 1
+    assert root.exists()

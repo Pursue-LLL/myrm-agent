@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -16,6 +17,23 @@ from httpx import ASGITransport
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="chats")
+
+
+@pytest.fixture(autouse=True)
+def _mock_checkpoint_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+    """truncate_after_message syncs the LangGraph checkpoint after deletion.
+
+    minimal_app does not inject a checkpointer, so the sync is replaced by a no-op
+    mock — mirroring how the rewind API tests handle the same continuity service.
+    """
+
+    async def _noop_sync(_chat_id: str) -> int:
+        return 0
+
+    monkeypatch.setattr(
+        "app.services.chat.session_continuity_service.sync_chat_checkpoint_from_db",
+        _noop_sync,
+    )
 
 
 @pytest.fixture

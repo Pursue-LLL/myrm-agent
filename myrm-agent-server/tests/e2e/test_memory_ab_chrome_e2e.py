@@ -33,6 +33,7 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
+from tests.support.local_embedding_server import LocalEmbeddingServer
 from tests.support.wb_bench_e2e_helpers import (
     EVAL_LAB_PATH,
     SOURCES_READY_JS,
@@ -40,6 +41,8 @@ from tests.support.wb_bench_e2e_helpers import (
     click_subset_memory_ab_js,
     restore_eval_lab_route,
 )
+
+from cdp_chat_support import fetch_config_value, put_config_value  # noqa: E402
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 
@@ -460,39 +463,62 @@ def test_memory_ab_report_and_history_render_chrome_e2e() -> None:
 def test_memory_ab_real_run_starts_and_can_abort_chrome_e2e() -> None:
     """Confirming Start on a card launches a real Memory A/B run and Stop aborts it."""
     ui_url = get_e2e_ui_url()
-    prepare_e2e_ui_session(get_e2e_api_url())
+    api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
     warm_ui_route(EVAL_LAB_PATH)
 
-    with open_mcp_page(f"{ui_url}{EVAL_LAB_PATH}", timeout_ms=120_000) as (
-        client,
-        page,
-    ):
-        restore_eval_lab_route(client, page, f"{ui_url}{EVAL_LAB_PATH}")
-        dismiss_blocking_modals(client, page)
-
-        sources_ready = wait_for_state(
-            client, page, SOURCES_READY_JS, timeout_sec=120.0
+    # Point the shared stack at a local OpenAI-compatible embedding endpoint so
+    # the run's embedding pre-flight passes without depending on an external
+    # embedding account; restore the pre-test config afterwards.
+    prev_retrieval = fetch_config_value("retrieval", api_url=api_url)
+    embedding_server = LocalEmbeddingServer(port=0).start()
+    try:
+        put_config_value(
+            "retrieval",
+            {
+                "embeddingApplied": True,
+                "embeddingConfig": {
+                    "provider": "openai",
+                    "model": "test-embed-v1",
+                    "apiKey": "test-key",
+                    "apiBase": embedding_server.base_url,
+                },
+            },
+            api_url=api_url,
         )
-        assert sources_ready.get("ready") is True, sources_ready
+        with open_mcp_page(f"{ui_url}{EVAL_LAB_PATH}", timeout_ms=120_000) as (
+            client,
+            page,
+        ):
+            restore_eval_lab_route(client, page, f"{ui_url}{EVAL_LAB_PATH}")
+            dismiss_blocking_modals(client, page)
 
-        clicked = client.evaluate(page, click_subset_memory_ab_js("WBBench Office"))
-        assert clicked.get("ok") is True, clicked
+            sources_ready = wait_for_state(
+                client, page, SOURCES_READY_JS, timeout_sec=120.0
+            )
+            assert sources_ready.get("ready") is True, sources_ready
 
-        dialog = wait_for_state(
-            client, page, _CONFIRM_DIALOG_VISIBLE_JS, timeout_sec=15.0
-        )
-        assert dialog.get("ready") is True, dialog
+            clicked = client.evaluate(page, click_subset_memory_ab_js("WBBench Office"))
+            assert clicked.get("ok") is True, clicked
 
-        started = client.evaluate(page, _CLICK_CONFIRM_START_JS)
-        assert started.get("ok") is True, started
+            dialog = wait_for_state(
+                client, page, _CONFIRM_DIALOG_VISIBLE_JS, timeout_sec=15.0
+            )
+            assert dialog.get("ready") is True, dialog
 
-        inflight = wait_for_state(
-            client, page, _MEMORY_AB_RUNNING_JS, timeout_sec=120.0
-        )
-        assert inflight.get("ready") is True, inflight
+            started = client.evaluate(page, _CLICK_CONFIRM_START_JS)
+            assert started.get("ok") is True, started
 
-        stopped = client.evaluate(page, _CLICK_STOP_JS)
-        assert stopped.get("ok") is True, stopped
+            inflight = wait_for_state(
+                client, page, _MEMORY_AB_RUNNING_JS, timeout_sec=120.0
+            )
+            assert inflight.get("ready") is True, inflight
 
-        cleared = wait_for_state(client, page, _MEMORY_AB_CLEARED_JS, timeout_sec=90.0)
-        assert cleared.get("ready") is True, cleared
+            stopped = client.evaluate(page, _CLICK_STOP_JS)
+            assert stopped.get("ok") is True, stopped
+
+            cleared = wait_for_state(client, page, _MEMORY_AB_CLEARED_JS, timeout_sec=90.0)
+            assert cleared.get("ready") is True, cleared
+    finally:
+        put_config_value("retrieval", prev_retrieval, api_url=api_url)
+        embedding_server.stop()

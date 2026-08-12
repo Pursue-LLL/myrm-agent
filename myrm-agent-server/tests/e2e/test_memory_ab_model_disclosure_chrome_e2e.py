@@ -417,6 +417,7 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
     # A local OpenAI-compatible embedding endpoint stands in for a self-hosted
     # embedding provider (a supported product usage) so the run does not depend
     # on the availability/quota of any external embedding account.
+    prev_retrieval = fetch_config_value("retrieval", api_url=api_base)
     embedding_server = LocalEmbeddingServer(port=8399).start()
     try:
         _configure_eval_stack(
@@ -500,4 +501,7 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
             # WBBench is task-native, so the judge label is 'none' -> '-' in the table.
             assert " | " in row_text
     finally:
+        # Restore the pre-test retrieval config so the shared stack is never
+        # left pointing at the (stopped) local embedding endpoint.
+        put_config_value("retrieval", prev_retrieval, api_url=api_base)
         embedding_server.stop()

@@ -107,7 +107,12 @@ class _EmbeddingHandler(BaseHTTPRequestHandler):
 
 
 class LocalEmbeddingServer:
-    """Thread-backed OpenAI-compatible embedding endpoint."""
+    """Thread-backed OpenAI-compatible embedding endpoint.
+
+    ``port=0`` binds an ephemeral port (useful for tests that must not clash
+    with a fixed port used elsewhere); read ``.port`` / ``.base_url`` after
+    ``start()`` in that case.
+    """
 
     def __init__(self, port: int = 8399, model: str = DEFAULT_MODEL) -> None:
         self.port = port
@@ -119,6 +124,9 @@ class LocalEmbeddingServer:
     def start(self) -> "LocalEmbeddingServer":
         _EmbeddingHandler._model = self.model
         self._server = HTTPServer(("127.0.0.1", self.port), _EmbeddingHandler)
+        if self.port == 0:
+            self.port = self._server.server_address[1]
+            self.base_url = f"http://127.0.0.1:{self.port}/v1"
         self._thread = threading.Thread(
             target=self._server.serve_forever, daemon=True, name="local-embedding-server"
         )

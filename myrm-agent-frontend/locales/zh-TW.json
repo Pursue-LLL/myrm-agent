@@ -3404,6 +3404,33 @@
           }
         }
       },
+      "batchImportDialog": {
+        "title": "批次匯入技能",
+        "description": "支援從 ZIP 套件無縫遷移，自動防爆、查殺惡意程式碼。",
+        "parsing": "正在安全解壓並分析...",
+        "dropHint": "拖曳 ZIP 套件到此處，或點擊上傳",
+        "subHint": "一次匯入數十個技能，告別繁瑣。",
+        "parseErrorTitle": "解析失敗",
+        "sizeLimit": "檔案大小不能超過 10MB，保護伺服器記憶體。",
+        "reselect": "重新上傳",
+        "foundSkills": "發現 {count} 個技能",
+        "conflicts": "{count} 個重名衝突",
+        "handleAllConflicts": "一鍵處理所有衝突...",
+        "renameAll": "全部重新命名",
+        "replaceAll": "全部覆蓋",
+        "skipAll": "全部跳過",
+        "conflictBadge": "衝突",
+        "newBadge": "新增",
+        "securityRisk": "安全警告",
+        "renameCow": "獨立重新命名 (CoW)",
+        "replace": "強制覆蓋",
+        "skip": "跳過",
+        "import": "正常匯入",
+        "cancel": "取消",
+        "importing": "正在匯入並查殺...",
+        "confirmImport": "確認匯入",
+        "selectedCount": "選定匯入: {count} 個"
+      },
       "filters": {
         "search": "搜尋技能...",
         "category": "分類",

@@ -3424,6 +3424,33 @@
           }
         }
       },
+      "batchImportDialog": {
+        "title": "Batch Import Skills",
+        "description": "Seamless migration from ZIP with anti-zip-bomb and AST scanner.",
+        "parsing": "Parsing & Scanning...",
+        "dropHint": "Drop ZIP here or click to upload",
+        "subHint": "Import dozens of skills at once.",
+        "parseErrorTitle": "Parse Error",
+        "sizeLimit": "File size cannot exceed 10MB to protect server memory.",
+        "reselect": "Reselect",
+        "foundSkills": "Found {count} Skills",
+        "conflicts": "{count} Conflicts",
+        "handleAllConflicts": "Handle all conflicts...",
+        "renameAll": "Rename All",
+        "replaceAll": "Replace All",
+        "skipAll": "Skip All",
+        "conflictBadge": "Conflict",
+        "newBadge": "New",
+        "securityRisk": "Security Risk",
+        "renameCow": "Rename",
+        "replace": "Replace",
+        "skip": "Skip",
+        "import": "Import",
+        "cancel": "Cancel",
+        "importing": "Importing...",
+        "confirmImport": "Confirm Import",
+        "selectedCount": "{count} selected"
+      },
       "filters": {
         "search": "Search skills...",
         "category": "Category",

@@ -108,6 +108,12 @@ apply_test_secrets_to_environ(overwrite=False)
 _temp_workspace = tempfile.mkdtemp(prefix=f"myrm_test_{os.getpid()}_")
 os.environ["MYRM_DATA_DIR"] = _temp_workspace
 
+# Align SQLite write-lock wait with the dev stack (scripts/dev/dev-stack.sh
+# injects SQLITE_BUSY_TIMEOUT_MS=15000). The 3000ms default is too short for
+# tests that genuinely contend on the shared SQLite file (e.g. concurrent
+# permanent-delete tests), producing "database is locked" flakes.
+os.environ.setdefault("SQLITE_BUSY_TIMEOUT_MS", "15000")
+
 
 def _cleanup_temp_workspace() -> None:
     try:

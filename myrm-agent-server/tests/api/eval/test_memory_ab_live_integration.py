@@ -32,14 +32,29 @@ from unittest.mock import patch
 import pytest
 
 from app.core.eval.memory_ab import DEFAULT_MEMORY_AB_MEMORY_DIR
+from tests.support.local_embedding_server import LocalEmbeddingServer
 
 
-def _build_user_configs_from_env():
+@pytest.fixture(scope="module")
+def local_embedding() -> LocalEmbeddingServer:
+    """Local OpenAI-compatible embedding endpoint (ephemeral port).
+
+    The product accepts arbitrary self-hosted OpenAI-compatible embedding
+    endpoints, so the integration tests stay independent of external
+    embedding account quota while exercising the real probe + dual-arm path.
+    """
+    server = LocalEmbeddingServer(port=0).start()
+    yield server
+    server.stop()
+
+
+def _build_user_configs_from_env(embedding_endpoint: str | None = None):
     """Build ``UserConfigs`` from ``.env.test`` (real LLM + embedding keys).
 
     LiteLLM requires ``openai/`` (not ``openai-like/``) with ``base_url`` for
     custom OpenAI-compatible endpoints; siliconflow embedding is routed via
-    the same OpenAI-compatible path.
+    the same OpenAI-compatible path. ``embedding_endpoint`` (when given) points
+    the embedding config at the local endpoint instead of the env keys.
     """
     from app.core.channel_bridge.config_loader import UserConfigs
     from app.core.types import ModelConfig
@@ -52,18 +67,29 @@ def _build_user_configs_from_env():
     else:
         model = raw_model
 
-    embedding_key = os.environ.get("EMBEDDING_API_KEY", "")
     retrieval_dict: dict[str, object] = {}
-    if embedding_key:
+    if embedding_endpoint:
         retrieval_dict = {
             "embeddingApplied": True,
             "embeddingConfig": {
-                "provider": "siliconflow",
-                "model": os.environ.get("EMBEDDING_MODEL", "BAAI/bge-m3"),
-                "apiKey": embedding_key,
-                "apiBase": os.environ.get("EMBEDDING_BASE_URL", ""),
+                "provider": "openai",
+                "model": "test-embed-v1",
+                "apiKey": "test-key",
+                "apiBase": embedding_endpoint,
             },
         }
+    else:
+        embedding_key = os.environ.get("EMBEDDING_API_KEY", "")
+        if embedding_key:
+            retrieval_dict = {
+                "embeddingApplied": True,
+                "embeddingConfig": {
+                    "provider": "siliconflow",
+                    "model": os.environ.get("EMBEDDING_MODEL", "BAAI/bge-m3"),
+                    "apiKey": embedding_key,
+                    "apiBase": os.environ.get("EMBEDDING_BASE_URL", ""),
+                },
+            }
 
     return UserConfigs(
         model_cfg=ModelConfig(model=model, api_key=api_key, base_url=base_url),
@@ -77,21 +103,19 @@ def _build_user_configs_from_env():
 
 
 def _requires_live_credentials(need_llm: bool = False) -> None:
-    """Skip unless real LLM + embedding credentials are available."""
-    if not os.environ.get("EMBEDDING_API_KEY"):
-        pytest.skip("Memory A/B requires EMBEDDING_API_KEY")
+    """Skip unless real LLM credentials are available (embedding is local)."""
     if need_llm and not os.environ.get("BASIC_API_KEY"):
         pytest.skip("Memory A/B full chain requires BASIC_API_KEY")
 
 
 @pytest.mark.e2e
-def test_memory_ab_embedding_probe_live() -> None:
-    """The embedding readiness probe passes against the real embedding API."""
+def test_memory_ab_embedding_probe_live(local_embedding: LocalEmbeddingServer) -> None:
+    """The embedding readiness probe passes against the embedding endpoint."""
     _requires_live_credentials()
 
     from app.services.agent.platform_config import verify_platform_embedding_ready
 
-    mock_configs = _build_user_configs_from_env()
+    mock_configs = _build_user_configs_from_env(embedding_endpoint=local_embedding.base_url)
     with patch(
         "app.core.channel_bridge.config_loader.load_user_configs",
         return_value=mock_configs,
@@ -125,19 +149,19 @@ def _inject_test_checkpointer() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.timeout(600)
-def test_memory_ab_full_chain_live() -> None:
+def test_memory_ab_full_chain_live(local_embedding: LocalEmbeddingServer) -> None:
     """Full Memory A/B chain: probe -> download -> dual-arm -> report -> cleanup."""
     _requires_live_credentials(need_llm=True)
     _inject_test_checkpointer()
     try:
-        _run_full_chain()
+        _run_full_chain(local_embedding.base_url)
     finally:
         from app.platform_utils import _reset_checkpointer_for_testing
 
         _reset_checkpointer_for_testing()
 
 
-def _run_full_chain() -> None:
+def _run_full_chain(embedding_endpoint: str) -> None:
     """The full Memory A/B chain: probe -> download -> dual-arm -> report -> cleanup."""
     from fastapi.testclient import TestClient
 
@@ -145,7 +169,7 @@ def _run_full_chain() -> None:
     from tests.support.minimal_app import build_minimal_app
 
     fastapi_app = build_minimal_app(preset="eval")
-    mock_configs = _build_user_configs_from_env()
+    mock_configs = _build_user_configs_from_env(embedding_endpoint=embedding_endpoint)
 
     from app.core.eval import benchmarks
 

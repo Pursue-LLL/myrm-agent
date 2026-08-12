@@ -315,16 +315,29 @@ class _ChatCrudMixin(_ChatServiceBase):
         return {"deleted": deleted, "failed": failed}
 
     @staticmethod
+    async def _read_sandbox_base_dir(chat_id: str) -> str | None:
+        """Read the chat sandbox path in a short read-only transaction.
+
+        Kept separate so the delete transaction stays write-only: with a
+        deferred BEGIN, a prior SELECT marks the connection read-seen and
+        ``factory._escalate_write_transaction`` skips the BEGIN IMMEDIATE
+        upgrade, so concurrent deletes abort with SQLITE_BUSY_SNAPSHOT — a
+        lock the busy_timeout PRAGMA cannot resolve.
+        """
+        async with UnitOfWork() as uow:
+            chat = await _ChatServiceBase._cr(uow).get_chat_by_id(
+                chat_id, load_messages=False
+            )
+            return chat.sandbox_base_dir if chat else None
+
+    @staticmethod
     async def permanently_delete_chat(chat_id: str) -> bool:
         """Permanently delete a trashed chat and its workspace, including derived memories."""
-        sandbox_base_dir: str | None = None
+        sandbox_base_dir: str | None = await _ChatCrudMixin._read_sandbox_base_dir(chat_id)
         async with UnitOfWork() as uow:
             repo = _ChatServiceBase._cr(uow)
             sess = uow.session
             assert sess is not None
-            chat = await repo.get_chat_by_id(chat_id, load_messages=False)
-            if chat:
-                sandbox_base_dir = chat.sandbox_base_dir
             await ConversationRecallIndexService.delete_chat(sess, chat_id)
             await _delete_widget_kv_for_chat(sess, chat_id)
             ok = await repo.permanently_delete_chat(chat_id)
@@ -387,12 +400,17 @@ class _ChatCrudMixin(_ChatServiceBase):
     async def empty_trash() -> int:
         """Permanently delete all trashed chats and clean workspaces, including derived memories."""
         async with UnitOfWork() as uow:
-            repo = _ChatServiceBase._cr(uow)
-            trashed, _ = await repo.get_trashed_chats_paginated(0, 10000)
+            trashed, _ = await _ChatServiceBase._cr(uow).get_trashed_chats_paginated(
+                0, 10000
+            )
             chat_ids = [c.id for c in trashed]
             sandbox_map = {
                 c.id: c.sandbox_base_dir for c in trashed if c.sandbox_base_dir
             }
+        if not chat_ids:
+            return 0
+        async with UnitOfWork() as uow:
+            repo = _ChatServiceBase._cr(uow)
             sess = uow.session
             assert sess is not None
             for cid in chat_ids:

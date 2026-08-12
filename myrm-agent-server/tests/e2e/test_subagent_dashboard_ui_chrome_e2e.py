@@ -44,8 +44,9 @@ _PREPARE_LIGHT = _AGENT_ROOT / "scripts/dev/subagent-dashboard-e2e-chat.mjs"
 _PREPARE = _AGENT_ROOT / "scripts/dev/subagent-dashboard-e2e-prepare.mjs"
 
 _DELEGATE_QUERY = (
-    "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'bash_worker'，"
-    "wait 设为 false，让它执行 bash 命令 sleep 300。"
+    "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'bash_worker'，wait 设为 false。"
+    "子智能体的任务：调用 bash_code_execute_tool 执行命令 `sleep 300`，关键要求：run_in_background 必须为 false（前台运行），"
+    "timeout 参数必须显式设为 600，绝对禁止使用后台方式或 & 符号，必须等待命令完成后才能汇报结果并结束。"
     "注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，"
     "绝对不要在文本中输出 XML 格式的工具调用！"
 )
@@ -759,15 +760,57 @@ def test_subagent_dashboard_completed_failed_states_and_header_summary(
 )
 @pytest.mark.integration
 @pytest.mark.timeout(540)
-def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel() -> None:
-    """Real user flow: WebUI send → LLM delegation → running subagent → dashboard → cancel."""
+def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel(
+    light_chat: dict[str, object],
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    """Real user flow: WebUI chat page send → LLM delegation → running subagent → dashboard → cancel.
+
+    Single-page flow: the chat is created first, the chat route is opened and attached,
+    then the delegate message is sent inside that page. The SSE stream stays held by the
+    page (no navigation that would disconnect it), and the subagent dashboard renders its
+    trigger automatically via its own 2s fetchSubagents poll once a running row appears.
+    """
     if (
         not os.environ.get("BASIC_API_KEY", "").strip()
         or not os.environ.get("BASIC_MODEL", "").strip()
     ):
         pytest.skip("BASIC_API_KEY and BASIC_MODEL are required")
-    ui_base = get_e2e_ui_url()
-    with open_mcp_page(ui_base, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
+    chat_id = str(light_chat.get("chatId") or "")
+    assert chat_id
+    ui_url = str(light_chat.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+    # PRIVATE backends start with an empty securityConfig; delegate_task_tool then
+    # requires HITL approval which no one approves in an automated WebUI flow and it
+    # auto-denies on timeout. Seed YOLO (like subagent-dashboard-e2e-prepare.mjs does
+    # for the API-level tests) so the real WebUI send can delegate without approval.
+    seed_env = os.environ.copy()
+    seed_env["WAVE_LEDGER_LEASE_ID"] = e2e_resource_ledger.lease_id
+    seed_env["WAVE_LEDGER_NAMESPACE"] = e2e_resource_ledger.namespace
+    seed = subprocess.Popen(
+        ["bun", str(_PREPARE), "--seed-config-only"],
+        cwd=str(_AGENT_ROOT),
+        env=seed_env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    try:
+        seed_result = _read_prepare_result(seed, timeout_sec=90.0)
+        assert seed_result.get("seeded") is True, f"Config seed failed: {seed_result}"
+        _run_full_flow_body(chat_id, ui_url)
+    finally:
+        if seed.poll() is None:
+            seed.terminate()
+            try:
+                seed.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                seed.kill()
+                seed.wait(timeout=5)
+
+
+def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
+    with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
         wait_for_state(
             client,
             page,
@@ -776,6 +819,20 @@ def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel() -> None:
             }))()""",
             timeout_sec=30.0,
         )
+        attach_result = wait_for_state(
+            client,
+            page,
+            f"""(async () => {{
+              try {{
+                await window.__MYRM_E2E_CHAT__?.attachToChat?.({json.dumps(chat_id)});
+                return {{ ready: true }};
+              }} catch (error) {{
+                return {{ ready: false, err: String(error) }};
+              }}
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
         sent = wait_for_state(
             client,
             page,
@@ -801,8 +858,9 @@ def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel() -> None:
             timeout_sec=150.0,
         )
         assert sent.get("ready") is True, f"Front-end send failed: {sent}"
-        chat_id = str(sent.get("chatId") or "")
-        assert chat_id, f"sendChatMessage did not return a chatId: {sent}"
+        assert str(sent.get("chatId") or "") == chat_id, (
+            f"sendChatMessage chatId mismatch: {sent}"
+        )
 
         eph_status = client.evaluate(
             page,
@@ -845,82 +903,85 @@ def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel() -> None:
             f"sent={sent!r} eph_status={eph_status!r} "
             f"sent_eph_keys={(sent.get('debug') or {}).get('ephKeys')!r}"
         )
+        api_snapshot = http_json(
+            "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
+        )
+        print("DIAG_SUBAGENTS_AFTER_SEND=" + json.dumps(api_snapshot, default=str)[:800])
 
-        ui_url = f"{ui_base}/{chat_id}"
-        with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
-            _open_subagent_dashboard(client, page, chat_id)
-            row = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const cancel = document.querySelector('[data-testid="subagent-cancel-btn"][data-task-id="{task_id}"]')
-                    || document.querySelector('[data-testid="subagent-cancel-btn"]');
-                  const panelText = document.querySelector('[data-testid="subagent-dashboard-panel"]')?.textContent || '';
-                  return {{
-                    ready: !!cancel,
-                    hasCancel: !!cancel,
-                    hasSleep: /sleep/i.test(panelText) || /bash/i.test(panelText),
-                  }};
-                }})()""",
-                timeout_sec=120.0,
-            )
-            assert row.get("hasCancel") is True, f"Cancel button missing: {row}"
-            opened = client.evaluate(
-                page,
-                f"""(() => {{
-                  const button = document.querySelector('[data-testid="subagent-cancel-btn"][data-task-id="{task_id}"]')
-                    || document.querySelector('[data-testid="subagent-cancel-btn"]');
-                  if (!button) return false;
-                  button.click();
-                  return true;
-                }})()""",
-                timeout_sec=5.0,
-            )
-            assert opened is True, "Cancel button click failed"
-            dialog = wait_for_state(
-                client,
-                page,
-                """(() => {
-                  const dlg = document.querySelector('[role="alertdialog"]');
-                  return { ready: !!dlg };
-                })()""",
-                timeout_sec=15.0,
-            )
-            assert dialog.get("ready") is True, "Cancel confirm dialog missing"
-            confirmed = client.evaluate(
-                page,
-                """(() => {
-                  const buttons = Array.from(document.querySelectorAll('[role="alertdialog"] button'));
-                  const confirmBtn = buttons[buttons.length - 1];
-                  if (!confirmBtn) return false;
-                  confirmBtn.click();
-                  return true;
-                })()""",
-                timeout_sec=5.0,
-            )
-            assert confirmed is True
-            verified = wait_for_state(
-                client,
-                page,
-                f"""(async () => {{
-                  const apiBase = window.__MYRM_E2E_API_BASE__ || '';
-                  const url = `${{apiBase}}/api/v1/chats/{chat_id}/subagents/{task_id}/cancel`;
-                  const response = await fetch(url, {{ method: 'POST', credentials: 'include' }});
-                  return {{ ready: response.status === 404, status: response.status }};
-                }})()""",
-                timeout_sec=60.0,
-            )
-            assert verified.get("status") == 404
-            store_status = wait_for_state(
-                client,
-                page,
-                f"""(() => {{
-                  const store = window.__myrmSubagentStore?.getState?.();
-                  const node = store?.nodes?.[{json.dumps(task_id)}];
-                  return {{ ready: !!node && node.status === 'cancelled', status: node?.status ?? null }};
-                }})()""",
-                timeout_sec=30.0,
-            )
-            assert (
-                store_status.get("ready") is True
-            ), f"Store did not mark cancelled: {store_status}"
+        row = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const cancel = document.querySelector('[data-testid="subagent-cancel-btn"][data-task-id="{task_id}"]')
+                || document.querySelector('[data-testid="subagent-cancel-btn"]');
+              const panelText = document.querySelector('[data-testid="subagent-dashboard-panel"]')?.textContent || '';
+              const store = window.__myrmSubagentStore?.getState?.();
+              return {{
+                ready: !!cancel,
+                hasCancel: !!cancel,
+                hasSleep: /sleep/i.test(panelText) || /bash/i.test(panelText),
+                nodeCount: store ? Object.keys(store.nodes ?? {{}}).length : null,
+              }};
+            }})()""",
+            timeout_sec=120.0,
+        )
+        assert row.get("hasCancel") is True, f"Cancel button missing: {row}"
+        opened = client.evaluate(
+            page,
+            f"""(() => {{
+              const button = document.querySelector('[data-testid="subagent-cancel-btn"][data-task-id="{task_id}"]')
+                || document.querySelector('[data-testid="subagent-cancel-btn"]');
+              if (!button) return false;
+              button.click();
+              return true;
+            }})()""",
+            timeout_sec=5.0,
+        )
+        assert opened is True, "Cancel button click failed"
+        dialog = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const dlg = document.querySelector('[role="alertdialog"]');
+              return { ready: !!dlg };
+            })()""",
+            timeout_sec=15.0,
+        )
+        assert dialog.get("ready") is True, "Cancel confirm dialog missing"
+        confirmed = client.evaluate(
+            page,
+            """(() => {
+              const buttons = Array.from(document.querySelectorAll('[role="alertdialog"] button'));
+              const confirmBtn = buttons[buttons.length - 1];
+              if (!confirmBtn) return false;
+              confirmBtn.click();
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert confirmed is True
+        verified = wait_for_state(
+            client,
+            page,
+            f"""(async () => {{
+              const apiBase = window.__MYRM_E2E_API_BASE__ || '';
+              const url = `${{apiBase}}/api/v1/chats/{chat_id}/subagents/{task_id}/cancel`;
+              const response = await fetch(url, {{ method: 'POST', credentials: 'include' }});
+              return {{ ready: response.status === 404, status: response.status }};
+            }})()""",
+            timeout_sec=60.0,
+        )
+        assert verified.get("status") == 404
+        store_status = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const store = window.__myrmSubagentStore?.getState?.();
+              const node = store?.nodes?.[{json.dumps(task_id)}];
+              return {{ ready: !!node && node.status === 'cancelled', status: node?.status ?? null }};
+            }})()""",
+            timeout_sec=30.0,
+        )
+        assert (
+            store_status.get("ready") is True
+        ), f"Store did not mark cancelled: {store_status}"

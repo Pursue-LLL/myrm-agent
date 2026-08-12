@@ -279,6 +279,14 @@ async def confirm_batch_import(
 
             path = str(skill_dir / "SKILL.md")
 
+            # replace 覆盖场景：包内无有效 evals.json 时继承 DB 中原回归门禁快照，
+            # 避免 INSERT OR REPLACE 整行覆盖将已有 eval_cases 清空（与单包导入 force 覆盖语义一致）
+            inherited_eval_cases: list[dict[str, object]] = []
+            if item.resolution == "replace" and item.existing_skill_id:
+                existing_record = store.get_skill(item.existing_skill_id)
+                if existing_record is not None:
+                    inherited_eval_cases = existing_record.eval_cases
+
             record = SkillRecord(
                 skill_id=skill_id,
                 name=name,
@@ -308,6 +316,9 @@ async def confirm_batch_import(
                     restored = True
                     restored_eval_cases += len(parsed)
                 skill.files.pop(rel_path)
+
+            if not restored:
+                record.eval_cases = inherited_eval_cases
 
             records_to_save.append(record)
 

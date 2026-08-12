@@ -161,9 +161,15 @@ class TestRunMatrixEvalCore:
                 pass
 
             async def run_multi_turn(self, multi_cases, **kwargs):
+                self.kwargs["on_profile_start"]("a", 0, 2)
+                self.kwargs["on_profile_start"]("b", 1, 2)
+                self.kwargs["on_case_complete"]("a", MagicMock())
+                self.kwargs["on_case_complete"]("b", MagicMock())
                 return FakeMatrixResult()
 
         reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "latest.json").write_text('{"stale": true}')
         matrix_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
         ds_path = tmp_path / "ds.jsonl"
         ds_path.write_text('{"message": "hi"}\n')
@@ -189,9 +195,15 @@ class TestRunMatrixEvalCore:
         assert result["dataset_id"] == "ds"
         assert result["benchmark_mode"] is True
 
+        # Progress callbacks drive the live state for the SSE stream.
+        assert _matrix_state["current_profile"] == "b"
+        assert _matrix_state["case_completed"] == 2
+
         report_files = sorted(reports_dir.glob("matrix_report_*.json"))
         assert len(report_files) == 1
-        assert (reports_dir / "latest.json").exists()
+        latest = reports_dir / "latest.json"
+        assert latest.exists()
+        assert "stale" not in latest.read_text()
 
     @pytest.mark.asyncio
     async def test_abort_finishes_with_partial_state(self, tmp_path: Path) -> None:

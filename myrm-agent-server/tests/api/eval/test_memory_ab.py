@@ -108,10 +108,39 @@ class TestMemoryAbService:
         import app.core.eval.memory_ab as memory_ab_mod
 
         class FakeMatrixResult:
-            per_profile_results: dict[str, object] = {}
+            per_profile_results: dict[str, object] = {
+                "memory_off": MagicMock(
+                    turn_results=[
+                        MagicMock(
+                            response=MagicMock(
+                                tools_called=["web_search_tool", "open_url_tool"]
+                            )
+                        )
+                    ]
+                ),
+                "memory_on": MagicMock(
+                    turn_results=[
+                        MagicMock(
+                            response=MagicMock(
+                                tools_called=[
+                                    "memory_search_tool",
+                                    {"name": "memory_save_tool"},
+                                ]
+                            )
+                        )
+                    ]
+                ),
+            }
 
             def to_dict(self) -> dict[str, object]:
-                return {"profile_ids": ["memory_off", "memory_on"], "total_cases": 1}
+                return {
+                    "profile_ids": ["memory_off", "memory_on"],
+                    "total_cases": 1,
+                    "per_profile": {
+                        "memory_off": {"pass_count": 1, "pass_rate": 1.0},
+                        "memory_on": {"pass_count": 1, "pass_rate": 1.0},
+                    },
+                }
 
         class FakeMatrixRunner:
             def __init__(self, executors, **kwargs):
@@ -122,6 +151,10 @@ class TestMemoryAbService:
                 pass
 
             async def run_multi_turn(self, cases, **kwargs):
+                self.kwargs["on_profile_start"]("memory_off", 0, 2)
+                self.kwargs["on_profile_start"]("memory_on", 1, 2)
+                self.kwargs["on_case_complete"]("memory_off", MagicMock())
+                self.kwargs["on_case_complete"]("memory_on", MagicMock())
                 return FakeMatrixResult()
 
         cases = [MagicMock()]
@@ -129,10 +162,25 @@ class TestMemoryAbService:
 
         evict_mock = AsyncMock()
         reports_dir = tmp_path / "memory_ab_reports"
+        reports_dir.mkdir()
+        (reports_dir / "latest.json").write_text('{"stale": true}')
         memory_dir = tmp_path / "eval_memory_ab"
 
         memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
         memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = memory_dir
+
+        def fake_build(
+            benchmark_id: str,
+            *,
+            limit: int | None = None,
+            progress_callback: object = None,
+            should_abort: object = None,
+        ) -> tuple[list[object], dict[str, str], bool]:
+            assert progress_callback is not None
+            assert should_abort is not None
+            progress_callback(10, 20)
+            assert should_abort() is False
+            return (cases, {}, True)
 
         with (
             patch(
@@ -141,7 +189,7 @@ class TestMemoryAbService:
             ),
             patch(
                 "app.core.eval.benchmarks.build_benchmark_cases",
-                return_value=(cases, {}, True),
+                side_effect=fake_build,
             ),
             patch(
                 "app.core.eval.model_config._resolve_agent_model_label",
@@ -155,6 +203,13 @@ class TestMemoryAbService:
             await memory_ab_mod.run_memory_ab_background(
                 "wb-bench-code", profile_id="agent_x", limit=1
             )
+            # Progress callbacks drive the live SSE state.
+            assert memory_ab_mod._memory_ab_state["current_arm"] == "memory_on"
+            assert memory_ab_mod._memory_ab_state["case_completed"] == 2
+            assert memory_ab_mod._memory_ab_state["download_progress"] == {
+                "downloaded_bytes": 10,
+                "total_bytes": 20,
+            }
 
         latest = reports_dir / "latest.json"
         assert latest.exists()
@@ -164,6 +219,8 @@ class TestMemoryAbService:
         assert '"limit": 1' in report
         assert '"judge_model": "none"' in report
         assert '"agent_model": "deepseek/deepseek-chat"' in report
+        assert '"memory_tool_calls"' in report
+        assert '"stale"' not in report
         evict_mock.assert_awaited_once()
         assert not memory_dir.exists()
 
@@ -863,6 +920,58 @@ class TestMemoryAbEdgeBranches:
         assert memory_ab_mod._memory_ab_state["error"] == "download exploded"
         assert memory_ab_mod._memory_ab_state["is_running"] is False
 
+    @pytest.mark.asyncio
+    async def test_runner_failure_after_abort_logs_info(self, tmp_path: Path) -> None:
+        """A runner exception following a user abort logs info, not an error."""
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        class FakeMatrixRunner:
+            def __init__(self, executors, **kwargs):
+                self.kwargs = kwargs
+
+            def abort(self) -> None:
+                pass
+
+            async def run_multi_turn(self, cases, **kwargs):
+                # The user aborts while the runner is in flight; the subsequent
+                # exception is treated as part of the abort, not a real failure.
+                memory_ab_mod._memory_ab_state["abort_requested"] = True
+                raise RuntimeError("aborted mid-run")
+
+        cases = [MagicMock()]
+        cases[0].turns = [MagicMock()]
+
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = tmp_path / "reports"
+        memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = tmp_path / "memory"
+
+        with (
+            patch(
+                "app.core.eval.memory_ab._memory_ab_state",
+                {"is_running": True, "abort_requested": False},
+            ),
+            patch(
+                "app.core.eval.benchmarks.build_benchmark_cases",
+                return_value=(cases, {}, False),
+            ),
+            patch(
+                "app.core.eval.model_config._resolve_agent_model_label",
+                new=AsyncMock(return_value="unknown"),
+            ),
+            patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
+            patch("app.core.eval.memory_ab.logger.info") as mock_info,
+            patch("app.core.eval.memory_ab.logger.exception") as mock_exc,
+            patch(
+                "app.core.memory.adapters.setup.evict_cached_memory_manager",
+                AsyncMock(),
+            ),
+        ):
+            await memory_ab_mod.run_memory_ab_background("wb-bench-code")
+            assert memory_ab_mod._memory_ab_state.get("error") is None
+            assert memory_ab_mod._memory_ab_state["is_running"] is False
+
+        mock_info.assert_called()
+        mock_exc.assert_not_called()
+
     def test_latest_report_missing_dir(self, tmp_path: Path) -> None:
         import app.core.eval.memory_ab as memory_ab_mod
 
@@ -877,6 +986,18 @@ class TestMemoryAbEdgeBranches:
         (reports_dir / "latest.json").write_text('["not", "an", "object"]')
         memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
         assert memory_ab_mod.get_latest_memory_ab_report() is None
+
+    def test_latest_report_returns_object(self, tmp_path: Path) -> None:
+        """A valid object report is returned verbatim."""
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        reports_dir = tmp_path / "reports"
+        reports_dir.mkdir()
+        (reports_dir / "latest.json").write_text('{"profile_ids": ["memory_off"]}')
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+        assert memory_ab_mod.get_latest_memory_ab_report() == {
+            "profile_ids": ["memory_off"]
+        }
 
     def test_latest_report_corrupt(self, tmp_path: Path) -> None:
         import app.core.eval.memory_ab as memory_ab_mod

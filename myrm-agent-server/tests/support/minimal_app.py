@@ -392,11 +392,15 @@ def build_minimal_app(
 
     if register_handlers:
         from app.core.utils.errors import register_exception_handlers
+        from app.database.operations.db_operational_handlers import (
+            register_database_operational_handlers,
+        )
         from app.server.exceptions import general_exception_handler, not_found_handler
 
         app.add_exception_handler(404, not_found_handler)
         app.add_exception_handler(Exception, general_exception_handler)
         register_exception_handlers(app)
+        register_database_operational_handlers(app)
 
     return app
 

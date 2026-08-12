@@ -254,6 +254,7 @@ const EnterpriseMembersTab = memo(() => {
                     variant="ghost"
                     className="text-muted-foreground hover:text-foreground"
                     title={t('unlinkOauth')}
+                    aria-label={t('unlinkOauth')}
                     onClick={() => {
                       setUnlinkUserId(m.user_id);
                       setShowUnlink(true);

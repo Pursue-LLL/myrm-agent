@@ -50,7 +50,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_theme_marketplace_gallery_chrome_e2e.py` | 模块 | Theme Studio Gallery 免费安装 Chrome MCP smoke（READ×1：CP seed→acquire→download→install-from-marketplace） |
 | `e2e/test_subagent_dashboard_chrome_e2e.py` | 模块 | Subagent Dashboard Chrome MCP E2E（LIVE×6：cancel running、delegation pause toggle、SSE token/model 展示、budget used/limit、canvas 拓扑渲染 + 点击定位回树、fission 拓扑合并渲染） |
 | `api/eval/test_memory_ab_live_integration.py` | 模块 | Memory A/B Live 集成（`@pytest.mark.e2e`）：真实 embedding probe + WBBench office 真实下载构建 + 双臂真实 LLM 执行 + `memory_tool_calls` 报告 + 临时记忆卷清理（关键路径禁 mock；执行 case 数受限） |
-| `e2e/test_memory_ab_chrome_e2e.py` | 模块 | Memory A/B Chrome E2E（READ×1 + NAMESPACE_WRITE×2）：WBBench 卡片 Memory A/B 入口 + 确认对话框取消（READ）；预置双报告渲染双臂矩阵 + Run History 表（per-arm pass-rate + `memory_tool_calls`）+ 点击历史 View 加载（NAMESPACE_WRITE）；真实 run 启动（SSE running + header Stop）+ Stop abort 清理（NAMESPACE_WRITE） |
+| `e2e/test_memory_ab_chrome_e2e.py` | 模块 | Memory A/B Chrome E2E（READ×1 + NAMESPACE_WRITE×2）：WBBench 卡片 Memory A/B 入口 + 确认对话框取消（READ）；预置双报告渲染双臂矩阵 + Run History 表（per-arm pass-rate + `memory_tool_calls`）+ 点击历史 View 加载（NAMESPACE_WRITE）；真实 run 启动（SSE running + header Stop）+ Stop abort 清理（NAMESPACE_WRITE，run 前置配本地 embedding 端点并还原 retrieval 配置，不依赖外部 embedding 账户配额） |
 | `e2e/test_memory_ab_model_disclosure_chrome_e2e.py` | 模块 | Memory A/B 模型披露 Chrome E2E（PRIVATE+LIVE）：config API 配置 providers + 本地 embedding 端点 → Eval Lab Sources 卡片 limit=1 真实 Memory A/B 双臂 run → 历史表断言 Agent Model / Judge Model 列披露（本地 embedding 端点为产品支持的自托管用法，避免外部账户配额依赖） |
 | `services/agent/test_subagent_rebind_event.py` | 模块 | `SUBAGENT_REBIND_REQUIRED` 事件：`subagent_ids` 变更时 publish、同值/非绑定字段不 emit |
 | `services/agent/readiness/test_readiness_mcp_secrets.py` | 模块 | readiness mcp 维度密钥预检（`_check_mcp` 六分支：requiredSecrets 全齐不报 / 缺失报 / headers `{{secret:KEY}}` 引用报 / disabled 跳过 / 无声明不查 / vault 异常跳过）+ org MCP 合并单测 |
@@ -107,6 +107,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/workspace/test_file_watch_service.py` | 模块 | P1：watchdog emit / release / refcount → `WORKSPACE_FILE_CHANGED` |
 | `api/files/test_browse_watch_api.py` | 模块 | P1：POST/DELETE `/files/browse/watch` 注册/释放 + 危险路径拒绝 |
 | `services/project/test_legacy_workspace_path_migration.py` | 模块 | 假 `workspace_path` SQL 清理语义（清 `/persistent/workspace/project_%`、保留真实 bind） |
+| `api/agent/test_workspace_rules_e2e.py` | 模块 | Workspace rules First-Match-Wins 真实 LLM E2E（`@pytest.mark.e2e`：AGENTS.md > .cursorrules；规则注入 harness workspace 真实路径 + auto-approve resume；默认套件 deselect） |
+| `api/projects/test_project_workspace_e2e.py` | 模块 | Project workspace 多 Agent 协作真实 LLM E2E（`@pytest.mark.e2e`：project bind → chat 归属 → agent-stream 提及内置 agent → message_end；load_user_configs patch + checkpointer 注入） |
 | `services/kanban/test_kanban_attach_handler.py` | 模块 | attach handler 单测（path/URL/SSRF/limits） |
 | `services/kanban/test_board_settings_roundtrip.py` | 模块 | BoardSettings 9 字段 ORM 往返完整性（三映射函数 + dataclass 字段覆盖守卫 + 旧库 ALTER 迁移默认值） |
 | `services/agent/test_agent_name_resolution.py` | 模块 | Agent 同名解析确定性单测（大小写归一 + 稳定排序 + 空名短路） |
