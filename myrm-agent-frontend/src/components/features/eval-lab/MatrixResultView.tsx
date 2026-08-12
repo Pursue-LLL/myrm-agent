@@ -113,16 +113,16 @@ export default function MatrixResultView({ report, profileNames }: Props) {
         <div className="p-4 border rounded-lg bg-card flex flex-col items-center">
           <span className="text-sm text-muted-foreground">{t('stableRate')}</span>
           <span
-            className={`text-3xl font-bold mt-1 ${
-              report.stable_rate >= 0.8 ? 'text-green-500' : 'text-amber-500'
-            }`}
+            className={`text-3xl font-bold mt-1 ${report.stable_rate >= 0.8 ? 'text-green-500' : 'text-amber-500'}`}
           >
             {Math.round(report.stable_rate * 100)}%
           </span>
         </div>
         <div className="p-4 border rounded-lg bg-card flex flex-col items-center">
           <span className="text-sm text-muted-foreground">{t('regressionCount')}</span>
-          <span className={`text-3xl font-bold mt-1 ${report.regression_count > 0 ? 'text-amber-500' : 'text-green-500'}`}>
+          <span
+            className={`text-3xl font-bold mt-1 ${report.regression_count > 0 ? 'text-amber-500' : 'text-green-500'}`}
+          >
             {report.regression_count}
           </span>
         </div>
@@ -180,9 +180,16 @@ export default function MatrixResultView({ report, profileNames }: Props) {
                       {delta === null ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
-                        <span className={`inline-flex items-center gap-0.5 font-medium ${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                          {delta > 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : delta < 0 ? <ArrowDownRight className="w-3.5 h-3.5" /> : null}
-                          {delta >= 0 ? '+' : ''}{delta.toFixed(1)}%
+                        <span
+                          className={`inline-flex items-center gap-0.5 font-medium ${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-muted-foreground'}`}
+                        >
+                          {delta > 0 ? (
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                          ) : delta < 0 ? (
+                            <ArrowDownRight className="w-3.5 h-3.5" />
+                          ) : null}
+                          {delta >= 0 ? '+' : ''}
+                          {delta.toFixed(1)}%
                         </span>
                       )}
                     </td>
@@ -201,9 +208,7 @@ export default function MatrixResultView({ report, profileNames }: Props) {
                     </td>
                   )}
                   <td className="px-4 py-3">{(pr.total_ms / 1000).toFixed(1)}s</td>
-                  {showMemoryCalls && (
-                    <td className="px-4 py-3">{pr.memory_tool_calls ?? 0}</td>
-                  )}
+                  {showMemoryCalls && <td className="px-4 py-3">{pr.memory_tool_calls ?? 0}</td>}
                 </tr>
               );
             })}
@@ -211,11 +216,7 @@ export default function MatrixResultView({ report, profileNames }: Props) {
         </table>
       </div>
 
-      {isLayered && (
-        <div className="text-xs text-muted-foreground px-1">
-          {tLayers('fingerprint')}
-        </div>
-      )}
+      {isLayered && <div className="text-xs text-muted-foreground px-1">{tLayers('fingerprint')}</div>}
 
       {/* Matrix grid */}
       <div className="border rounded-lg overflow-hidden">

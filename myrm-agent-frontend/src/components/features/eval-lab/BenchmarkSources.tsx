@@ -1,6 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Database, DownloadCloud, HardDrive, Play, RefreshCw, Boxes, BrainCircuit, AlertTriangle, Layers } from 'lucide-react';
+import {
+  Database,
+  DownloadCloud,
+  HardDrive,
+  Play,
+  RefreshCw,
+  Boxes,
+  BrainCircuit,
+  AlertTriangle,
+  Layers,
+} from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
@@ -185,9 +195,7 @@ export default function BenchmarkSources({
                 ? Math.min(100, (downloadProgress.downloaded_bytes / downloadProgress.total_bytes) * 100)
                 : 0;
             const isScored =
-              report != null &&
-              report.total_cases != null &&
-              (report.skip_count ?? 0) < report.total_cases;
+              report != null && report.total_cases != null && (report.skip_count ?? 0) < report.total_cases;
             const passRate =
               report && report.total_cases && report.pass_count != null && isScored
                 ? Math.round((report.pass_count / report.total_cases) * 100)
@@ -208,7 +216,11 @@ export default function BenchmarkSources({
                         {scoring.label}
                       </Badge>
                       {source.required_tools?.includes('web_search') && (
-                        <Badge variant="secondary" className="bg-sky-500/10 text-sky-600 dark:text-sky-400" title={t('requiresWebSearchTitle')}>
+                        <Badge
+                          variant="secondary"
+                          className="bg-sky-500/10 text-sky-600 dark:text-sky-400"
+                          title={t('requiresWebSearchTitle')}
+                        >
                           {t('requiresWebSearch')}
                         </Badge>
                       )}
@@ -290,7 +302,10 @@ export default function BenchmarkSources({
                   {downloadingThis && downloadProgress && (
                     <div className="space-y-1.5">
                       <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                        <div className="h-full bg-primary transition-all duration-300" style={{ width: `${downloadPct}%` }} />
+                        <div
+                          className="h-full bg-primary transition-all duration-300"
+                          style={{ width: `${downloadPct}%` }}
+                        />
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -407,10 +422,7 @@ export default function BenchmarkSources({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={pendingLayerBenchmark != null}
-        onOpenChange={(open) => !open && setPendingLayerBenchmark(null)}
-      >
+      <Dialog open={pendingLayerBenchmark != null} onOpenChange={(open) => !open && setPendingLayerBenchmark(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

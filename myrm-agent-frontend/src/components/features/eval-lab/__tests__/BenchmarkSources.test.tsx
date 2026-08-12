@@ -76,17 +76,19 @@ describe('BenchmarkSources Memory A/B entry', () => {
       }),
     );
 
-    render(<BenchmarkSources
-      running={false}
-      history={[]}
-      onRun={vi.fn()}
-      onDownload={vi.fn()}
-      onMemoryAb={onMemoryAb}
-      onLayerEval={vi.fn()}
-      refreshToken={0}
-      downloadingBenchmarkId={null}
-      downloadProgress={null}
-    />);
+    render(
+      <BenchmarkSources
+        running={false}
+        history={[]}
+        onRun={vi.fn()}
+        onDownload={vi.fn()}
+        onMemoryAb={onMemoryAb}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+      />,
+    );
 
     await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
 
@@ -107,17 +109,19 @@ describe('BenchmarkSources Memory A/B entry', () => {
       }),
     );
 
-    render(<BenchmarkSources
-      running={false}
-      history={[]}
-      onRun={vi.fn()}
-      onDownload={vi.fn()}
-      onMemoryAb={onMemoryAb}
-      onLayerEval={vi.fn()}
-      refreshToken={0}
-      downloadingBenchmarkId={null}
-      downloadProgress={null}
-    />);
+    render(
+      <BenchmarkSources
+        running={false}
+        history={[]}
+        onRun={vi.fn()}
+        onDownload={vi.fn()}
+        onMemoryAb={onMemoryAb}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+      />,
+    );
 
     await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
 
@@ -137,17 +141,19 @@ describe('BenchmarkSources Memory A/B entry', () => {
       }),
     );
 
-    render(<BenchmarkSources
-      running={true}
-      history={[]}
-      onRun={vi.fn()}
-      onDownload={vi.fn()}
-      onMemoryAb={vi.fn()}
-      onLayerEval={vi.fn()}
-      refreshToken={0}
-      downloadingBenchmarkId={null}
-      downloadProgress={null}
-    />);
+    render(
+      <BenchmarkSources
+        running={true}
+        history={[]}
+        onRun={vi.fn()}
+        onDownload={vi.fn()}
+        onMemoryAb={vi.fn()}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+      />,
+    );
 
     await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /memoryab/i })).toBeDisabled();
@@ -327,17 +333,19 @@ describe('BenchmarkSources', () => {
       }),
     );
 
-    render(<BenchmarkSources
-      running={false}
-      history={[]}
-      onRun={onRun}
-      onDownload={vi.fn()}
-      onMemoryAb={vi.fn()}
-      onLayerEval={vi.fn()}
-      refreshToken={0}
-      downloadingBenchmarkId={null}
-      downloadProgress={null}
-    />);
+    render(
+      <BenchmarkSources
+        running={false}
+        history={[]}
+        onRun={onRun}
+        onDownload={vi.fn()}
+        onMemoryAb={vi.fn()}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+      />,
+    );
 
     await waitFor(() => expect(screen.getByText('BrowseComp')).toBeInTheDocument());
     const limitInput = screen.getByRole('spinbutton');
