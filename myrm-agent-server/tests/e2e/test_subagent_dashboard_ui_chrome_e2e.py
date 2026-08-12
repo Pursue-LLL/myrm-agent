@@ -194,20 +194,18 @@ def _real_send_chat_message(
             const rec = { url: url.slice(0, 220), at: Date.now() };
             records.push(rec);
             if (url.includes('/agents/agent-stream')) {
-              const opts = (args[1] ?? {}) as RequestInit;
-              rec.body = (opts.body ?? '').toString().slice(0, 120);
-              rec.credentials = opts.credentials ?? null;
-              const onErr = (err: unknown) => {
-                rec.err = err instanceof Error ? err.message : String(err);
-              };
+              const opts = args[1] || {};
+              const rawBody = opts.body || '';
+              rec.body = typeof rawBody === 'string' ? rawBody.slice(0, 120) : String(rawBody).slice(0, 120);
+              rec.credentials = opts.credentials || null;
               try {
                 const res = await origFetch(...args);
                 rec.status = res.status;
                 rec.statusText = res.statusText;
-                rec.contentType = res.headers.get('content-type') ?? null;
+                rec.contentType = res.headers.get('content-type') || null;
                 return res;
               } catch (err) {
-                onErr(err);
+                rec.err = err instanceof Error ? err.message : String(err);
                 throw err;
               }
             }
