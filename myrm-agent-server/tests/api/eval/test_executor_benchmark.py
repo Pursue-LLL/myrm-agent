@@ -147,3 +147,65 @@ async def test_benchmark_mode_init():
     combined_exec = LocalEvalExecutor(profile_id="p1", benchmark_mode=True)
     assert combined_exec.profile_id == "p1"
     assert combined_exec.benchmark_mode is True
+
+
+@pytest.mark.asyncio
+async def test_resolve_shared_contexts_false_skips_injection():
+    """resolve_shared_contexts=False (layered ablation) must not inject
+    the user's real shared-context ids into any non-benchmark layer."""
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+    from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
+    from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
+
+    import app.ai_agents.agents as agent_types_mod
+    from app.ai_agents.agents import GeneralAgentParams
+    from app.core.types import ModelConfig
+
+    agent_types_mod.EmbeddingConfig = EmbeddingConfig
+    agent_types_mod.RerankerConfig = RerankerConfig
+    GeneralAgentParams.model_rebuild()
+
+    executor = LocalEvalExecutor(
+        profile_id="p1", benchmark_mode=False, resolve_shared_contexts=False
+    )
+
+    with patch(
+        "app.core.eval.executor.AgentFactory.create_general_agent"
+    ) as mock_factory:
+        mock_agent = MagicMock()
+        mock_agent.close = AsyncMock()
+
+        async def mock_stream(*args, **kwargs):
+            yield {"type": "message", "data": "ablation response"}
+
+        mock_agent.process_stream = mock_stream
+        mock_factory.return_value = mock_agent
+
+        with (
+            patch("app.core.eval.executor.load_user_configs") as mock_configs,
+            patch(
+                "app.services.memory.shared_context.resolve_shared_context_ids",
+                new=AsyncMock(return_value=["shared-1", "shared-2"]),
+            ) as mock_resolve,
+        ):
+            mock_cfg = MagicMock()
+            mock_cfg.retrieval_dict = {}
+            mock_cfg.mcp_dict = {}
+            mock_cfg.providers_dict = {}
+            mock_cfg.personal_settings_dict = {}
+            mock_cfg.model_cfg = ModelConfig(
+                provider="test", model="test-model", apiKey="key"
+            )
+            mock_cfg.search_cfg = SearchServiceConfig(
+                provider="tavily", searchService="tavily"
+            )
+            mock_cfg.search_is_user_configured = False
+            mock_configs.return_value = mock_cfg
+
+            await executor.execute("Test task")
+
+            # Even though a profile is set (which would otherwise resolve
+            # shared contexts), the ablation switch must skip the resolver.
+            mock_resolve.assert_not_awaited()
+            params = mock_factory.call_args[0][0]
+            assert params.memory_shared_context_ids == []
