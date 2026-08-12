@@ -444,7 +444,7 @@ const EnterpriseMembersTab = memo(() => {
                 onChange={(e) => setTransferTargetId(e.target.value)}
               >
                 <option value="">{t('selectMember')}</option>
-                {offboardableMembers.map((m) => (
+                {members.map((m) => (
                   <option key={m.user_id} value={m.user_id}>
                     {m.email ?? m.user_id}
                   </option>

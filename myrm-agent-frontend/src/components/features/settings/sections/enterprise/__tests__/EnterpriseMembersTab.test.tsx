@@ -214,8 +214,9 @@ describe('EnterpriseMembersTab', () => {
     await userEvent.click(screen.getByText('transferVolume'));
     const dropdowns = screen.getAllByDisplayValue('selectMember');
     expect(dropdowns).toHaveLength(2);
+    // source 只含可 offboard 成员（非 owner）；target 含全部成员（可转给 owner）
     await userEvent.selectOptions(dropdowns[0], 'member-2');
-    await userEvent.selectOptions(dropdowns[1], 'member-2');
+    await userEvent.selectOptions(dropdowns[1], 'owner-1');
     await userEvent.click(screen.getByText('confirmTransfer'));
 
     await waitFor(() => {
@@ -225,7 +226,7 @@ describe('EnterpriseMembersTab', () => {
       expect.stringContaining('/api/enterprise/org/org-1/transfer/member-2'),
       expect.objectContaining({
         method: 'POST',
-        body: expect.stringContaining('"target_user_id":"member-2"'),
+        body: expect.stringContaining('"target_user_id":"owner-1"'),
       }),
     );
   });
