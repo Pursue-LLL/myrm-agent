@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
-import { type MatrixReportData } from '../MatrixResultView';
-import { type MatrixHistoryItem } from '../MatrixHistoryTable';
+import { type MatrixReportData } from '../components/MatrixResultView';
+import { type MatrixHistoryItem } from '../components/MatrixHistoryTable';
 
 export interface MatrixProgress {
   current_profile: string;

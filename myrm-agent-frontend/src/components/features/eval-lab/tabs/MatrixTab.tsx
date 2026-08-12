@@ -1,8 +1,8 @@
 import { useTranslations } from 'next-intl';
 import { Grid3X3 } from 'lucide-react';
 
-import MatrixResultView, { type MatrixReportData } from '../MatrixResultView';
-import MatrixHistoryTable, { type MatrixHistoryItem } from '../MatrixHistoryTable';
+import MatrixResultView, { type MatrixReportData } from '../components/MatrixResultView';
+import MatrixHistoryTable, { type MatrixHistoryItem } from '../components/MatrixHistoryTable';
 import EvalRunProgress from './EvalRunProgress';
 import { type MatrixProgress } from '../hooks/useMatrixEval';
 

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import MemoryAbHistoryTable, { type MemoryAbHistoryItem } from '../MemoryAbHistoryTable';
+import MemoryAbHistoryTable, { type MemoryAbHistoryItem } from '../components/MemoryAbHistoryTable';
 
 function items(): MemoryAbHistoryItem[] {
   return [

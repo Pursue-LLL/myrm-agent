@@ -1,7 +1,7 @@
 import { useTranslations } from 'next-intl';
 import { RefreshCw } from 'lucide-react';
 
-import { formatMib } from '../format';
+import { formatMib } from '../components/format';
 
 interface EvalRunProgressProps {
   stage: string;

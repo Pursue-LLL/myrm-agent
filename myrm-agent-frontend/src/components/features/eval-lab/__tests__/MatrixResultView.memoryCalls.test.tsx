@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-import MatrixResultView, { type MatrixReportData } from '../MatrixResultView';
+import MatrixResultView, { type MatrixReportData } from '../components/MatrixResultView';
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) => `${namespace}.${key}`,

@@ -1,7 +1,7 @@
 import { useTranslations } from 'next-intl';
 import { AlertCircle, CheckCircle2, Clock, Eye, RefreshCw, XCircle } from 'lucide-react';
 
-import { formatMib } from '../format';
+import { formatMib } from '../components/format';
 import { type DownloadProgress, type EvalProgress, type ReportItem } from '../hooks/useCasesEval';
 
 interface ReportTabProps {

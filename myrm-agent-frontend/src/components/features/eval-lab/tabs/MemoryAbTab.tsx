@@ -1,8 +1,8 @@
 import { useTranslations } from 'next-intl';
 import { BrainCircuit } from 'lucide-react';
 
-import MatrixResultView, { type MatrixReportData } from '../MatrixResultView';
-import MemoryAbHistoryTable, { type MemoryAbHistoryItem } from '../MemoryAbHistoryTable';
+import MatrixResultView, { type MatrixReportData } from '../components/MatrixResultView';
+import MemoryAbHistoryTable, { type MemoryAbHistoryItem } from '../components/MemoryAbHistoryTable';
 import EvalRunProgress from './EvalRunProgress';
 import { type MemoryAbProgress } from '../hooks/useMemoryAbEval';
 

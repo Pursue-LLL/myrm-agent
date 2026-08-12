@@ -19,6 +19,7 @@
 - POST /api/v1/health/browser/test-proxy-connection - 测试浏览器代理连接
 """
 
+import asyncio
 import logging
 import os
 
@@ -309,7 +310,15 @@ async def browser_doctor(
     """
     from myrm_agent_harness.toolkits.browser import run_doctor
 
-    report = await run_doctor(include_launch_test=launch_test)
+    from app.lifecycle.browser import resolve_browser_proxy_pool
+
+    proxy_pool = await resolve_browser_proxy_pool()
+    browser_proxy = ",".join(proxy_pool.urls) if proxy_pool else ""
+
+    report = await run_doctor(
+        include_launch_test=launch_test,
+        browser_proxy=browser_proxy,
+    )
 
     return {
         "summary": report.summary,
@@ -336,7 +345,7 @@ async def list_browser_orphans() -> dict[str, object]:
     """
     from myrm_agent_harness.toolkits.browser import find_orphan_chromium_processes
 
-    orphans = find_orphan_chromium_processes()
+    orphans = await asyncio.to_thread(find_orphan_chromium_processes)
 
     return {
         "count": len(orphans),
@@ -370,7 +379,7 @@ async def cleanup_browser_orphans(
     )
 
     try:
-        orphans = find_orphan_chromium_processes()
+        orphans = await asyncio.to_thread(find_orphan_chromium_processes)
 
         if not orphans:
             return {

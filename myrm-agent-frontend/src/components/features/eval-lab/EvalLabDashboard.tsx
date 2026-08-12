@@ -7,13 +7,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitive
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
-import BenchmarkSources from './BenchmarkSources';
+import BenchmarkSources from './components/BenchmarkSources';
 import CasesTab from './tabs/CasesTab';
 import ReportTab from './tabs/ReportTab';
 import MatrixTab from './tabs/MatrixTab';
 import MemoryAbTab from './tabs/MemoryAbTab';
 import HistoryTab from './tabs/HistoryTab';
-import { formatMib } from './format';
+import { formatMib } from './components/format';
 import { useCasesEval, type EvalDataset, type EvalProfile } from './hooks/useCasesEval';
 import { useMatrixEval } from './hooks/useMatrixEval';
 import { useMemoryAbEval } from './hooks/useMemoryAbEval';

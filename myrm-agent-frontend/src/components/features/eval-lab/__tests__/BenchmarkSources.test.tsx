@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import BenchmarkSources from '../BenchmarkSources';
+import BenchmarkSources from '../components/BenchmarkSources';
 
 interface ReportItem {
   timestamp?: number;

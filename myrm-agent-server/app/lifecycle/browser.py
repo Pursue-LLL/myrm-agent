@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def _resolve_browser_proxy_pool() -> RoundRobinProxyPool | None:
+async def resolve_browser_proxy_pool() -> RoundRobinProxyPool | None:
     """Resolve browser proxy pool from DB config or MYRM_PROXIES env var.
 
     Priority: DB config (GUI) > MYRM_PROXIES environment variable.
@@ -64,7 +64,7 @@ async def warmup_global_browser_pool() -> None:
     cloud_endpoint = await resolve_cloud_browser_endpoint()
     config = get_browser_pool_config(remote_ws_endpoint=cloud_endpoint)
     launch_options = get_browser_launch_options()
-    proxy_pool = await _resolve_browser_proxy_pool()
+    proxy_pool = await resolve_browser_proxy_pool()
     pool = get_global_browser_pool(
         max_browsers=settings.browser_pool.max_browsers,
         config=config,

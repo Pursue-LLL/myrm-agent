@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
-import { type MatrixReportData } from '../MatrixResultView';
-import { type MemoryAbHistoryItem } from '../MemoryAbHistoryTable';
+import { type MatrixReportData } from '../components/MatrixResultView';
+import { type MemoryAbHistoryItem } from '../components/MemoryAbHistoryTable';
 
 export interface MemoryAbProgress {
   current_arm: string;

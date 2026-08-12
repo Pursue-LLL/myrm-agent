@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from app.services.project.orchestrator import ProjectOrchestrator
 
 
@@ -113,7 +115,9 @@ async def test_cancelled_waiter_does_not_break_next_contender() -> None:
     # Holder still owns the lock; the cancelled waiter must not have released it.
     assert orch.is_locked("proj-1") is True
 
-    # A fresh contender can still acquire the lock normally after release.
+    # Holder finishes its turn and releases; a fresh contender then acquires
+    # normally — proving the cancelled waiter left no corruption behind.
+    orch.release("proj-1")
     acquired: list[bool] = []
 
     async def contender() -> None:

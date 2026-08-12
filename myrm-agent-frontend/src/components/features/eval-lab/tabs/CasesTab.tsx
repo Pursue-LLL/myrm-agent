@@ -1,6 +1,6 @@
 import { useTranslations } from 'next-intl';
 
-import CaseFormatReference from '../CaseFormatReference';
+import CaseFormatReference from '../components/CaseFormatReference';
 import { LazyMonacoEditor as Editor } from '@/components/features/app-shell/lazy-monaco-editor';
 
 interface CasesTabProps {
