@@ -588,8 +588,9 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE agents ADD COLUMN allow_discovery BOOLEAN NOT NULL DEFAULT 1",
     # Permission usage log needs user_id for audit: new DBs get the column from
     # create_all; this append-only ALTER covers existing databases (the
-    # migration engine skips duplicate-column errors idempotently).
-    "ALTER TABLE skill_permission_usage_logs ADD COLUMN user_id VARCHAR(255) NOT NULL DEFAULT 'unknown'",
+    # migration engine skips duplicate-column errors idempotently). The default
+    # matches the harness session_id_var fallback ("default_session").
+    "ALTER TABLE skill_permission_usage_logs ADD COLUMN user_id VARCHAR(255) NOT NULL DEFAULT 'default_session'",
 ]
 
 # 创建索引的SQL语句列表

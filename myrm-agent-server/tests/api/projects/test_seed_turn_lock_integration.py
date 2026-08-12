@@ -14,7 +14,10 @@ import asyncio
 import pytest
 
 from app.api.projects.test_fixtures import seed_turn_lock
-from app.services.project.orchestrator import project_orchestrator
+from app.services.project.orchestrator import (
+    ProjectOrchestrator,
+    project_orchestrator,
+)
 
 
 @pytest.mark.asyncio

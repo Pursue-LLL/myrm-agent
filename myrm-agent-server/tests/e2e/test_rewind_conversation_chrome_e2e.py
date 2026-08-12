@@ -60,8 +60,20 @@ TURN_A = "Reply with the exact text: REWIND_MARKER_A"
 TURN_B = "Reply with the exact text: REWIND_MARKER_B"
 
 _OPEN_REWIND_JS = """(() => {
-  const btn = document.querySelector('[aria-label="Rewind to here"]');
-  if (!btn) return { ok: false, err: 'no-rewind-button' };
+  const btn = document.querySelector(
+    '[aria-label="Rewind to here"], [aria-label="回退到这里"]',
+  );
+  if (!btn) {
+    const labels = Array.from(document.querySelectorAll('[aria-label]')).map(
+      (b) => b.getAttribute('aria-label'),
+    );
+    return {
+      ok: false,
+      err: 'no-rewind-button',
+      labels: labels.slice(0, 25),
+      sample: (document.body.innerText || '').slice(0, 400),
+    };
+  }
   if (btn.disabled) return { ok: false, err: 'rewind-disabled' };
   btn.click();
   return { ok: true };
@@ -75,7 +87,9 @@ _DIALOG_READY_JS = """(() => {
   return {
     ready: !!dlg,
     scopeBtns,
-    hasScopeBoth: scopeBtns.some((t) => t.includes('Conversation and files')),
+    hasScopeBoth: scopeBtns.some(
+      (t) => t.includes('Conversation and files') || t.includes('对话和文件'),
+    ),
   };
 })()"""
 
@@ -83,7 +97,11 @@ _SELECT_SCOPE_JS = """(() => {
   const dlg = document.querySelector('[role="dialog"]');
   if (!dlg) return { ok: false, err: 'no-dialog' };
   const btns = Array.from(dlg.querySelectorAll('button'));
-  const target = btns.find((b) => (b.textContent || '').includes('Conversation only'));
+  const target = btns.find(
+    (b) =>
+      (b.textContent || '').includes('Conversation only') ||
+      (b.textContent || '').includes('仅对话'),
+  );
   if (!target) return { ok: false, err: 'no-scope-btn', btns: btns.map((b) => (b.textContent || '').trim()) };
   target.click();
   return { ok: true };
@@ -93,7 +111,10 @@ _CONFIRM_REWIND_JS = """(() => {
   const dlg = document.querySelector('[role="dialog"]');
   if (!dlg) return { ok: false, err: 'no-dialog' };
   const btns = Array.from(dlg.querySelectorAll('button'));
-  const target = btns.find((b) => (b.textContent || '').trim() === 'Rewind');
+  const target = btns.find((b) => {
+    const t = (b.textContent || '').trim();
+    return t === 'Rewind' || t === '回退';
+  });
   if (!target) return { ok: false, err: 'no-confirm-btn', btns: btns.map((b) => (b.textContent || '').trim()) };
   target.click();
   return { ok: true };
@@ -103,11 +124,14 @@ _FINAL_STATE_JS = """(() => {
   const input = document.querySelector('[data-chat-input]');
   const value = input?.value || input?.textContent || '';
   const body = document.body.innerText || '';
-  const rewoundBtns = Array.from(document.querySelectorAll('[aria-label="Rewind to here"]')).length;
+  const rewoundBtns = Array.from(
+    document.querySelectorAll('[aria-label="Rewind to here"], [aria-label="回退到这里"]'),
+  ).length;
   return {
     ok: value.includes('REWIND_MARKER_A'),
     composerValue: value.slice(0, 300),
-    hasToast: body.includes('Conversation rewound'),
+    hasToast:
+      body.includes('Conversation rewound') || body.includes('对话已回退'),
     rewoundBtns,
     path: location.pathname,
     sample: body.slice(0, 600),
