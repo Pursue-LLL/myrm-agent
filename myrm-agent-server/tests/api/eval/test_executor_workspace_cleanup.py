@@ -38,6 +38,72 @@ async def test_cleanup_removes_created_session_workspaces(monkeypatch, tmp_path)
 
 
 @pytest.mark.asyncio
+async def test_cleanup_removes_implicit_execute_workspace(monkeypatch, tmp_path) -> None:
+    """An execute-only session (no create_session) still gets cleaned up.
+
+    The executor registers the workspace it creates for an implicit chat id,
+    so cleanup() must remove it even when the session was never materialized
+    through create_session.
+    """
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+    from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
+    from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
+
+    import app.ai_agents.agents as agent_types_mod
+    from app.ai_agents.agents import GeneralAgentParams
+    from app.core.types import ModelConfig
+
+    agent_types_mod.EmbeddingConfig = EmbeddingConfig
+    agent_types_mod.RerankerConfig = RerankerConfig
+    GeneralAgentParams.model_rebuild()
+
+    monkeypatch.chdir(tmp_path)
+
+    executor = LocalEvalExecutor()
+    chat_id = "eval_implicit_1234"
+
+    with (
+        patch("app.core.eval.executor.load_user_configs") as mock_load,
+        patch(
+            "app.core.eval.executor.AgentFactory.create_general_agent"
+        ) as mock_factory,
+    ):
+        mock_cfg = MagicMock()
+        mock_cfg.retrieval_dict = {}
+        mock_cfg.mcp_dict = {}
+        mock_cfg.providers_dict = {}
+        mock_cfg.personal_settings_dict = {}
+        mock_cfg.model_cfg = ModelConfig(model="test-model", api_key="key")
+        mock_cfg.search_cfg = SearchServiceConfig(
+            provider="tavily", searchService="tavily"
+        )
+        mock_cfg.search_is_user_configured = False
+        mock_load.return_value = mock_cfg
+
+        mock_agent = MagicMock()
+        mock_agent.close = AsyncMock()
+
+        async def mock_stream(*args, **kwargs):
+            yield {"type": "message", "data": "ok"}
+
+        mock_agent.process_stream = mock_stream
+        mock_factory.return_value = mock_agent
+
+        await executor.execute("hello", session_id=chat_id)
+
+    workspace_dir = (Path(".myrm/eval_workspaces") / chat_id).resolve()
+    assert workspace_dir.is_dir()
+    assert workspace_dir in executor._created_workspaces
+
+    await executor.cleanup()
+
+    assert not workspace_dir.exists()
+    assert executor._created_workspaces == set()
+
+
+@pytest.mark.asyncio
 async def test_cleanup_is_idempotent(monkeypatch, tmp_path) -> None:
     """Repeated cleanup (and cleanup with no sessions) must be a no-op."""
     monkeypatch.chdir(tmp_path)
