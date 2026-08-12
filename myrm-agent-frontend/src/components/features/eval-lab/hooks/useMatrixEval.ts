@@ -91,6 +91,9 @@ export function useMatrixEval(): MatrixEval {
       eventSource = new EventSource('/api/v1/eval/matrix/stream');
 
       let finalized = false;
+      // Fast tasks can finish before the EventSource connects, making the
+      // stream EOF immediately and firing onerror instead of onmessage.
+      // Both paths converge here so the UI always re-pulls fresh results.
       const finalize = () => {
         if (finalized) return;
         finalized = true;
@@ -126,8 +129,7 @@ export function useMatrixEval(): MatrixEval {
       };
       eventSource.addEventListener('close', finalize);
       eventSource.onerror = () => {
-        eventSource?.close();
-        setMatrixRunning(false);
+        finalize();
       };
     }
     return () => {

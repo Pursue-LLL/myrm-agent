@@ -182,6 +182,10 @@ export function useCasesEval(selectedDatasetId: string): CasesEval {
       eventSource = new EventSource('/api/v1/eval/stream');
 
       let finalized = false;
+      // Fast tasks (e.g. a cached-archive download) can finish before the
+      // EventSource connects, making the stream EOF immediately and firing
+      // onerror instead of onmessage. Both paths converge here so the UI
+      // always re-pulls the report and sources after a completed run.
       const finalize = () => {
         if (finalized) return;
         finalized = true;
@@ -216,15 +220,7 @@ export function useCasesEval(selectedDatasetId: string): CasesEval {
       eventSource.addEventListener('close', finalize);
       eventSource.onerror = () => {
         console.error('SSE Error');
-        eventSource?.close();
-        // A fast task (e.g. a cached-archive download) can finish before the
-        // EventSource connects, making the stream EOF immediately and firing
-        // onerror instead of onmessage. Always re-pull sources so the UI is not
-        // left showing stale downloadable buttons after a completed run.
-        setRunning(false);
-        setSourcesRefreshToken((prev) => prev + 1);
-        fetchReport();
-        fetchHistory();
+        finalize();
       };
     }
     return () => {

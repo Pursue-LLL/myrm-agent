@@ -157,9 +157,7 @@ class TestCreateProject:
         assert project["max_runtime_seconds"] == 3600
         assert project["require_approval"] is True
 
-        detail_resp = client.get(
-            f"/api/v1/batch-directories/{project['project_id']}"
-        )
+        detail_resp = client.get(f"/api/v1/batch-directories/{project['project_id']}")
         assert detail_resp.status_code == 200
         detail = detail_resp.json()
         assert len(detail["tasks"]) == 1
@@ -1606,7 +1604,9 @@ class TestChannelNotification:
         )
 
         with patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+            _helpers,
+            "_load_agent_notify_targets",
+            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
         ), patch(
             "app.services.agent.outbound_notify.sender.create_notification_sender",
             return_value=(sender, None),
@@ -1640,7 +1640,9 @@ class TestChannelNotification:
         )
 
         with patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+            _helpers,
+            "_load_agent_notify_targets",
+            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
         ), patch(
             "app.services.agent.outbound_notify.sender.create_notification_sender",
             return_value=(sender, None),
@@ -1678,7 +1680,9 @@ class TestChannelNotification:
         failed_dirs = [f"/tmp/dir-{i:02d}" for i in range(12)]
 
         with patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+            _helpers,
+            "_load_agent_notify_targets",
+            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
         ), patch(
             "app.services.agent.outbound_notify.sender.create_notification_sender",
             return_value=(sender, None),
@@ -1712,8 +1716,12 @@ class TestChannelNotification:
             return_value=NotifyResult(success=True, channel="feishu", message_id="m5")
         )
 
-        with patch.object(settings, "app_base_url", "https://myrm.example.com/"), patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+        with patch.object(
+            settings, "app_base_url", "https://myrm.example.com/"
+        ), patch.object(
+            _helpers,
+            "_load_agent_notify_targets",
+            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
         ), patch(
             "app.services.agent.outbound_notify.sender.create_notification_sender",
             return_value=(sender, None),
@@ -1756,7 +1764,9 @@ class TestChannelNotification:
             mock_factory.assert_not_called()
 
         # 未绑定 agent 时连 targets 解析都跳过
-        with patch.object(_helpers, "_load_agent_notify_targets", new=AsyncMock()) as mock_load:
+        with patch.object(
+            _helpers, "_load_agent_notify_targets", new=AsyncMock()
+        ) as mock_load:
             await _helpers._send_channel_notification(
                 agent_id=None,
                 project_name="Channel Test",
@@ -1781,7 +1791,9 @@ class TestChannelNotification:
         )
 
         with patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+            _helpers,
+            "_load_agent_notify_targets",
+            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
         ), patch(
             "app.services.agent.outbound_notify.sender.create_notification_sender",
             return_value=(sender, None),
@@ -1802,7 +1814,9 @@ class TestChannelNotification:
         # 发送抛异常同样静默
         sender.send = AsyncMock(side_effect=RuntimeError("boom"))
         with patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+            _helpers,
+            "_load_agent_notify_targets",
+            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
         ), patch(
             "app.services.agent.outbound_notify.sender.create_notification_sender",
             return_value=(sender, None),
@@ -1824,7 +1838,9 @@ class TestChannelNotification:
         from app.services.batch_directory import _helpers
 
         with patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+            _helpers,
+            "_load_agent_notify_targets",
+            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
         ), patch(
             "app.services.agent.outbound_notify.sender.create_notification_sender",
             side_effect=RuntimeError("no credential"),
@@ -1846,7 +1862,9 @@ class TestChannelNotification:
         from app.services.batch_directory import _helpers
 
         with patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+            _helpers,
+            "_load_agent_notify_targets",
+            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
         ), patch(
             "app.services.agent.outbound_notify.sender.create_notification_sender",
             return_value=None,
@@ -1877,7 +1895,14 @@ class TestChannelNotification:
         )
 
         with patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"}, {"channel": "dingtalk", "recipient_id": "u-2"}))
+            _helpers,
+            "_load_agent_notify_targets",
+            new=AsyncMock(
+                return_value=(
+                    {"channel": "feishu", "recipient_id": "u-1"},
+                    {"channel": "dingtalk", "recipient_id": "u-2"},
+                )
+            ),
         ), patch(
             "app.services.agent.outbound_notify.sender.create_notification_sender",
             return_value=(sender, None),
@@ -1910,7 +1935,9 @@ class TestChannelNotification:
         )
 
         with patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},))
+            _helpers,
+            "_load_agent_notify_targets",
+            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
         ), patch(
             "app.services.agent.outbound_notify.sender.create_notification_sender",
             return_value=(sender, None),
@@ -2342,4 +2369,3 @@ class TestEdgeCaseCoverage:
         from app.services.batch_directory import _helpers
 
         assert _helpers._verify_artifact_patterns("/no/such/dir", ["**/*.py"]) is False
-

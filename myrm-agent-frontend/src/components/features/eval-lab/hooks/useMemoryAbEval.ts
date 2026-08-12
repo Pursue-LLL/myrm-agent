@@ -87,6 +87,9 @@ export function useMemoryAbEval(): MemoryAbEval {
       eventSource = new EventSource('/api/v1/eval/memory-ab/stream');
 
       let finalized = false;
+      // A fast run can finish before the EventSource connects, making the
+      // stream EOF immediately and firing onerror instead of onmessage.
+      // Both paths converge here so the UI never shows stale state.
       const finalize = () => {
         if (finalized) return;
         finalized = true;
@@ -121,13 +124,7 @@ export function useMemoryAbEval(): MemoryAbEval {
       };
       eventSource.addEventListener('close', finalize);
       eventSource.onerror = () => {
-        eventSource?.close();
-        setMemoryAbRunning(false);
-        // A fast run can finish before the EventSource connects, making the
-        // stream EOF immediately and firing onerror instead of onmessage.
-        // Re-pull the report and history so the UI never shows stale state.
-        fetchMemoryAbReport();
-        fetchMemoryAbHistory();
+        finalize();
       };
     }
     return () => {
