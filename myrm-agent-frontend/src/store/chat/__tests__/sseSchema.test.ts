@@ -27,6 +27,18 @@ describe('sse schema', () => {
     expect(HARNESS_SSE_EVENT_ALIASES.cancelled).toBe(AgentEventType.AGENT_CANCELLED);
   });
 
+  it('parseSseEnvelope accepts backend busy error envelope', () => {
+    const event = parseSseEnvelope({
+      type: 'error',
+      error_type: 'AgentBusyError',
+      status_code: 409,
+      messageId: 'm-busy',
+      data: 'Agent is busy processing another request for this session.',
+    });
+    expect(event).not.toBeNull();
+    expect(event?.type).toBe('error');
+  });
+
   it('parseSseEnvelope rejects unknown type', () => {
     expect(
       parseSseEnvelope({ type: 'totally_unknown_event', messageId: 'm1' }),
