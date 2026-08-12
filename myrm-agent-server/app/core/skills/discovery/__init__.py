@@ -1,5 +1,6 @@
 """Discovery - 技能发现、采纳、挂载与上游更新子域。
 
+[POS]
 聚合出口：
 - adopt: 显式 allowlist 场景安装后自动采纳（append skill_id）
 - mount: 安装/更新后 catalog enable 入口

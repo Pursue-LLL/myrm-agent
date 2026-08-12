@@ -5,7 +5,7 @@ rely on: JSON extraction, text truncation, CJK detection, and LiteLLM
 response usage parsing.
 
 [INPUT]
-- core.utils.chat_utils::parse_llm_json_object (POS: 容错 JSON 对象解析 SSOT)
+- utils.json_parsing::parse_llm_json_object (POS: 容错 JSON 对象解析 SSOT)
 
 [OUTPUT]
 - extract_json_blob: Lenient JSON extraction tolerating fences and prose.
@@ -19,7 +19,7 @@ Shared LLM helpers for kanban specifier / decomposer.
 
 from __future__ import annotations
 
-from app.core.utils.chat_utils import parse_llm_json_object
+from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
 
 
 def truncate(text: str, limit: int) -> str:
@@ -41,7 +41,7 @@ def has_cjk(text: str) -> bool:
 def extract_json_blob(raw: str) -> dict[str, object] | None:
     """Lenient JSON extraction tolerating markdown fences and prose framing.
 
-    Delegates to :func:`app.core.utils.chat_utils.parse_llm_json_object`,
+    Delegates to :func:`myrm_agent_harness.utils.json_parsing.parse_llm_json_object`,
     the shared robust parser that additionally survives unescaped newlines
     inside string literals and multiple objects where the last one is the
     real result (format examples preceding the actual verdict).

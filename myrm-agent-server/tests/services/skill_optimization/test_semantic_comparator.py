@@ -9,8 +9,8 @@ Covers:
 """
 
 import pytest
+from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
 
-from app.core.utils.chat_utils import parse_llm_json_object
 from app.services.skill_optimization.semantic_comparator import SemanticComparator
 
 

@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.agent.skills.optimization.result_comparator::StructuredComparator (POS: 结构化比对器)
 - app.core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
-- app.core.utils.chat_utils::parse_llm_json_object (POS: LLM judge JSON 容错解析)
+- utils.json_parsing::parse_llm_json_object (POS: LLM judge JSON 容错解析)
 
 [OUTPUT]
 - compare_semantically: 结构化分数低于阈值时按需调用 LLM 判定语义等价
@@ -22,11 +22,9 @@ from myrm_agent_harness.agent.skills.optimization.result_comparator import (
     ComparisonDetail,
     StructuredComparator,
 )
+from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
 
-from app.core.utils.chat_utils import (
-    extract_litellm_answer_text,
-    parse_llm_json_object,
-)
+from app.core.utils.chat_utils import extract_litellm_answer_text
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,6 @@
 """Curator - 技能生命周期治理子域。
 
+[POS]
 聚合出口：
 - service: sweep/配置/历史/后台任务编排（业务层）
 - consolidation: 技能合并（umbrella merge）集成

@@ -1,9 +1,18 @@
 """Business-layer Skill Market Service.
 
+[POS]
 Wraps the framework-layer BaseSkillMarketService to add:
 - Integration with app.config.settings (e.g., GitHub token)
 - SSE ServerEventBus progress emission
 - Integration with installed versions
+
+[INPUT]
+- myrm_agent_harness.agent.skills.market.service::BaseSkillMarketService
+- app.config.settings (GitHub token), app.core.skills.store.service (installed store)
+
+[OUTPUT]
+- Enriched search / install / install_from_url / analyze_url / uninstall consumed
+  by the skills API market endpoints.
 
 Post-install catalog enable is handled by discovery_mount (discovery API / autoupdate).
 """

@@ -53,8 +53,15 @@ class TestParseJudgeJson:
     def test_json_without_done_key_returns_none(self) -> None:
         assert parse_judge_json('{"result": true}') is None
 
-    def test_invalid_json_returns_none(self) -> None:
-        assert parse_judge_json('{done: true, reason: "ok"}') is None
+    def test_unquoted_keys_repaired(self) -> None:
+        """无引号 key 由 json_repair 兜底修复（框架 SSOT 的 M17 增强）。"""
+        result = parse_judge_json('{done: true, reason: "ok"}')
+        assert result is not None
+        assert result["done"] is True
+        assert result["reason"] == "ok"
+
+    def test_hopeless_garbage_returns_none(self) -> None:
+        assert parse_judge_json("{done: ") is None
 
     def test_unescaped_newline_in_reasoning(self) -> None:
         raw = '{"done": true, "reason": "verified\\nby inspection"}'

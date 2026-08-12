@@ -1,19 +1,20 @@
-"""Tests for shared LLM judge JSON parsing helpers in chat_utils.
+"""Tests for shared LLM judge JSON parsing helpers.
 
 Covers the tolerant object/array extraction (markdown fences, prose framing,
-unescaped newlines inside string literals) and the done-key judge contract
-used by the kanban verifier and the goal semantic judge.
+unescaped newlines inside string literals) from the framework SSOT
+``myrm_agent_harness.utils.json_parsing`` and the done-key judge contract
+(``parse_judge_json``) used by the kanban verifier and the goal semantic judge.
 """
 
 from __future__ import annotations
 
 import pytest
-
-from app.core.utils.chat_utils import (
-    parse_judge_json,
+from myrm_agent_harness.utils.json_parsing import (
     parse_llm_json_list,
     parse_llm_json_object,
 )
+
+from app.core.utils.chat_utils import parse_judge_json
 
 # ── parse_llm_json_object ──
 

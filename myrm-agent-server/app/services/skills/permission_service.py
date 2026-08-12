@@ -6,7 +6,7 @@
 包含per-session权限缓存，避免每次tool call都查数据库。
 
 [INPUT]
-- myrm_agent_harness.backends.skills::SkillPermission, check_permission_for_tool_call, log_permission_usage (POS: 框架层技能权限映射与校验)
+- myrm_agent_harness.backends.skills::SkillPermission, check_permission_for_tool_call, log_permission_usage, session_id_var (POS: 框架层技能权限映射与校验)
 - app.database.connection::get_session (POS: 数据库连接管理)
 - app.database.models::SkillPermissionGrant (POS: 安全域模型)
 
@@ -152,11 +152,11 @@ def create_permission_checker() -> Callable[[str, str, str], tuple[bool, str]]:
             # 调用框架层验证
             allowed, reason = check_permission_for_tool_call(permission_type, granted_perms)
 
-            # 记录日志（user_id 取当前会话上下文，缺失时用占位符）
+            # 记录日志（user_id 取当前会话上下文，缺失时 harness 提供 default_session）
             from myrm_agent_harness.backends.skills import session_id_var
 
             log_permission_usage(
-                session_id_var.get() or "unknown",
+                session_id_var.get(),
                 skill_id,
                 permission_type,
                 operation,
@@ -187,11 +187,11 @@ async def create_async_permission_checker() -> Callable[[str, str, str], Awaitab
         # 调用框架层验证
         allowed, reason = check_permission_for_tool_call(permission_type, granted_perms)
 
-        # 记录日志（user_id 取当前会话上下文，缺失时用占位符）
+        # 记录日志（user_id 取当前会话上下文，缺失时 harness 提供 default_session）
         from myrm_agent_harness.backends.skills import session_id_var
 
         log_permission_usage(
-            session_id_var.get() or "unknown",
+            session_id_var.get(),
             skill_id,
             permission_type,
             operation,

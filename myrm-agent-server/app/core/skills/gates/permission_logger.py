@@ -1,7 +1,14 @@
 """Skill Permission Usage Logger
 
+[POS]
 业务层的权限使用日志记录服务。
 注册到框架层作为callback，将log写入数据库。
+
+[INPUT]
+- myrm_agent_harness.backends.skills.set_permission_usage_callback (POS: framework permission hook)
+
+[OUTPUT]
+- SkillPermissionUsageLog 数据库行（经队列 + 后台线程批量写入）
 """
 
 import asyncio

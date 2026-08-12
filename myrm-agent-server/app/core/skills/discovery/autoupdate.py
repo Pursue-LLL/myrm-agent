@@ -1,8 +1,17 @@
 """Skill auto-update checker.
 
+[POS]
 Lazily checks for updates on installed skills by querying remote sources.
 Does NOT perform in-place updates — returns update recommendations,
 and the actual update goes through the quarantine install flow.
+
+[INPUT]
+- app.core.skills.marketplace.market_service::market_service (POS: market source registry)
+- app.core.skills.store.service::skills_service (POS: installed skill store)
+
+[OUTPUT]
+- UpdateCheckResult / SkillUpdateInfo update recommendations consumed by
+  the skills API autoupdate endpoint.
 
 Strategy:
 - check_updates() scans installed skills → queries matching sources → compares versions

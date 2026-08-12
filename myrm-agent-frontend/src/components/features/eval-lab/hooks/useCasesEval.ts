@@ -107,25 +107,6 @@ export function useCasesEval(selectedDatasetId: string): CasesEval {
   const [diffView, setDiffView] = useState<{ expected: string; actual: string } | null>(null);
   const [ready, setReady] = useState(false);
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res = await fetch('/api/v1/eval/status');
-      const data = await res.json();
-      setRunning(data.is_running);
-      setProgress({ total: data.total ?? 0, completed: data.completed ?? 0 });
-      setEvalStage(data.stage ?? null);
-      setEvalStageSubsetId(data.stage_subset_id ?? null);
-      if (data.download_progress) {
-        setDownloadProgress(data.download_progress);
-      }
-      if (!data.is_running && running) {
-        fetchReport();
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, [running]);
-
   const fetchReport = useCallback(async () => {
     try {
       const res = await fetch('/api/v1/eval/reports/latest');
@@ -149,6 +130,25 @@ export function useCasesEval(selectedDatasetId: string): CasesEval {
       console.error('Failed to fetch reports history:', e);
     }
   }, []);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/eval/status');
+      const data = await res.json();
+      setRunning(data.is_running);
+      setProgress({ total: data.total ?? 0, completed: data.completed ?? 0 });
+      setEvalStage(data.stage ?? null);
+      setEvalStageSubsetId(data.stage_subset_id ?? null);
+      if (data.download_progress) {
+        setDownloadProgress(data.download_progress);
+      }
+      if (!data.is_running && running) {
+        fetchReport();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [running, fetchReport]);
 
   const fetchCases = useCallback(
     async (datasetId: string) => {

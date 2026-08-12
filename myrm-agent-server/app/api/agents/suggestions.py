@@ -20,10 +20,9 @@ import logging
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.utils.json_parsing import parse_llm_json_list
 from pydantic import BaseModel
 from pydantic.alias_generators import to_camel
-
-from myrm_agent_harness.utils.json_parsing import parse_llm_json_list
 
 from app.config.settings import settings
 from app.core.infra.limiter import limiter

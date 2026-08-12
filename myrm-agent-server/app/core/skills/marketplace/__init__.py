@@ -1,5 +1,6 @@
 """Marketplace - 技能市场、镜像注册表与自定义源子域。
 
+[POS]
 聚合出口：
 - market_service: 业务层技能市场服务（GitHub 源分析、SSE 进度、镜像懒加载）
 - clawhub_registry: ClawHub 镜像 URL 持久化/apply（CLAWHUB_URL SSOT）

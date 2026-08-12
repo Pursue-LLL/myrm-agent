@@ -1,5 +1,6 @@
 """Gates - 集成技能可用性、权限、隔离与依赖 gate 子域。
 
+[POS]
 聚合出口：
 - oauth_availability: Integration 凭证 gate（OAuth / xAI provider / skill env / CLI bins）
 - x_live_search_skill_enable: xAI provider 保存后 auto-enable prebuilt skill
