@@ -72,6 +72,30 @@ _ATTACH_JS = """(async () => {
   return { ok: true };
 })()"""
 
+_EXPAND_PROGRESS_JS = """(() => {
+  const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
+  const panel = document.querySelector('[data-testid="progress-steps-panel"]');
+  if (panel?.getAttribute('data-expanded') !== 'true' && toggle) {
+    toggle.click();
+  }
+  return { ok: true };
+})()"""
+
+_DOM_WAITING_JS = """(() => {
+  const body = document.body.innerText || '';
+  const needles = [
+    'Waiting for other agents',
+    '正在等待项目中其他',
+    '正在等待專案中其他',
+  ];
+  for (const needle of needles) {
+    if (body.includes(needle)) {
+      return { ready: true, needle };
+    }
+  }
+  return { ready: false, sample: body.slice(0, 300) };
+})()"""
+
 
 def _seed_turn_lock_fixture(api_url: str, *, hold_ms: int = HOLD_MS) -> dict[str, object]:
     seeded = http_json(
@@ -144,6 +168,42 @@ def _wait_waiting_cleared(
     raise AssertionError(f"waiting_for_turn step never cleared: {last}")
 
 
+def _wait_dom_waiting(
+    client: object,
+    page: object,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(page, _DOM_WAITING_JS, timeout_sec=10.0)
+        state = raw if isinstance(raw, dict) else json.loads(str(raw))
+        last = state
+        if state.get("ready") is True:
+            return state
+        time.sleep(0.5)
+    raise AssertionError(f"waiting_for_turn text never rendered in DOM: {last}")
+
+
+def _wait_dom_waiting_cleared(
+    client: object,
+    page: object,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(page, _DOM_WAITING_JS, timeout_sec=10.0)
+        state = raw if isinstance(raw, dict) else json.loads(str(raw))
+        last = state
+        if state.get("ready") is False:
+            return state
+        time.sleep(0.5)
+    raise AssertionError(f"waiting_for_turn text never cleared from DOM: {last}")
+
+
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -189,11 +249,21 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
 
         waiting_state = _wait_waiting_step(client, page, timeout_sec=45.0)
         assert waiting_state.get("step_key") == "waiting_for_turn", waiting_state
-        items = waiting_state.get("items") or []
-        assert isinstance(items, list) and len(items) >= 1, waiting_state
+
+        # waiting_for_turn is a title-only step (items stay empty by design), so
+        # also assert the i18n title is really rendered into the DOM after
+        # expanding the progress-steps panel (true end-user visibility check).
+        expand_raw = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=10.0)
+        expand_state = expand_raw if isinstance(expand_raw, dict) else json.loads(str(expand_raw))
+        assert expand_state.get("ok") is True, expand_state
+        dom_state = _wait_dom_waiting(client, page, timeout_sec=15.0)
+        assert dom_state.get("ready") is True, dom_state
 
         cleared_state = _wait_waiting_cleared(client, page, timeout_sec=TURN_WAIT_SEC)
         assert cleared_state.get("ready") is False, cleared_state
+
+        dom_cleared_state = _wait_dom_waiting_cleared(client, page, timeout_sec=15.0)
+        assert dom_cleared_state.get("ready") is False, dom_cleared_state
 
         ok_deadline = time.monotonic() + TURN_WAIT_SEC
         ok_state: dict[str, object] = {}

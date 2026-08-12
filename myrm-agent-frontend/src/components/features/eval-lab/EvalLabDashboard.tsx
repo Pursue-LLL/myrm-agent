@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import { toast } from 'sonner';
@@ -31,7 +31,6 @@ export default function EvalLabDashboard() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newDatasetName, setNewDatasetName] = useState('new_dataset');
   const [globalReady, setGlobalReady] = useState(false);
-  const createInputRef = useRef<HTMLInputElement>(null);
 
   const casesEval = useCasesEval(selectedDatasetId);
   const matrixEval = useMatrixEval();
@@ -392,7 +391,6 @@ export default function EvalLabDashboard() {
             <DialogTitle>{t('createDataset')}</DialogTitle>
           </DialogHeader>
           <Input
-            ref={createInputRef}
             value={newDatasetName}
             onChange={(e) => setNewDatasetName(e.target.value)}
             placeholder={t('createDatasetPrompt')}

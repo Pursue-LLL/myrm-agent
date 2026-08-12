@@ -152,4 +152,38 @@ describe('useMatrixEval', () => {
     expect(result.current.selectedMatrixTs).toBe(1750000000);
     expect(result.current.matrixReport?.total_cases).toBe(2);
   });
+
+  it('re-pulls the report and history when the SSE stream errors out (EOF race)', async () => {
+    const report = {
+      profile_ids: ['agent-1'],
+      total_cases: 1,
+      stable_count: 1,
+      regression_count: 0,
+      stable_rate: 1,
+      per_profile: {},
+      matrix: [],
+      total_ms: 5,
+    };
+    const fetchMock = installFetchMock({
+      '/api/v1/eval/matrix/reports/latest': { status: 'success', report },
+      '/api/v1/eval/matrix/reports/history': { status: 'success', reports: [] },
+      '/api/v1/eval/matrix/run': { status: 'started' },
+    });
+
+    const { result } = renderHook(() => useMatrixEval());
+    await act(async () => {
+      await result.current.startMatrix(['agent-1'], 'default', false);
+    });
+    expect(result.current.matrixRunning).toBe(true);
+
+    await act(async () => {
+      MockEventSource.instances[0]?.onerror?.();
+    });
+
+    expect(result.current.matrixRunning).toBe(false);
+    expect(result.current.matrixReport?.total_cases).toBe(1);
+    const calls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(calls).toContain('/api/v1/eval/matrix/reports/latest');
+    expect(calls).toContain('/api/v1/eval/matrix/reports/history');
+  });
 });
