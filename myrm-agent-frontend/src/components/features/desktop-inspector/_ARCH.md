@@ -25,9 +25,9 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 ## Events
 
 - SSE: `desktop_view_update` via `messageStreamHandler.ts` — writes `sourceChatId` from stream chat; does **not** auto-open panel
-- SSE: `desktop_control_approval_request` — `openPanel` only when stream chat matches foreground chat; approval banner always shown via `DesktopControlApprovalOverlay`
+- SSE: `desktop_control_approval_request` — when stream chat matches foreground: `setDesktopActive(true)` + `openPanel`; approval banner always shown via `DesktopControlApprovalOverlay`
 - REST refresh: `GET /webui/desktop/snapshot` on `desktop_*` TOOL_END (tags `sourceChatId` with foreground chat)
-- `DesktopLiveView.tsx` / `DesktopInspectorToggle.tsx`: Render scoped view only when `viewData.sourceChatId === active chatId`; auto-close panel when user switches chat
+- `DesktopLiveView.tsx` / `DesktopInspectorToggle.tsx`: Scoped view via `selectScopedDesktopViewData`; close panel on **chat switch only** (`useClosePanelOnChatSwitch`)
 - REST: `GET /webui/desktop/permissions` — proactive TCC permission probe (Accessibility + Screen Recording)
 
 ## E2E (Chrome MCP)
