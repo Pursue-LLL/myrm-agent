@@ -94,8 +94,8 @@ class BrowserHealthChecker(HealthChecker):
                 actions_taken=["No recovery actions needed"],
             )
 
-        # Terminate orphan processes
-        killed_count = self._terminate_processes(orphan_pids)
+        # Terminate orphan processes (off-thread: proc.wait may block up to 5s each)
+        killed_count = await asyncio.to_thread(self._terminate_processes, orphan_pids)
 
         if killed_count > 0:
             # Wait for processes to terminate without blocking the event loop

@@ -27,6 +27,7 @@ import useConfigStore from '@/store/useConfigStore';
 import type { McpAppView, Source, ToolCallInfo, ToolImageOutput, UIArtifact } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { stripDatetimeTag, parseExplicitSkillActivation, buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
+import { removeWaitingForTurnStep } from '@/store/chat/messageUtils';
 import { regenerateLastTurn, undoLastTurn, cancelAgentRequest, truncateAfterMessage } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
 import ConsensusThinkingPanel from './ConsensusThinkingPanel';
@@ -337,12 +338,7 @@ const MessageBox = ({
       // 锁等待期间取消：pump 可能还没走到 waiting_for_turn_clear 就退出了，
       // 前端残留的等待进度步骤在此同步清除，避免 UI 残留卡死。
       useChatStore.getState().setMessages((state) => {
-        const msg = state.messages.find((m) => m.messageId === message.messageId);
-        if (msg?.progressSteps?.length) {
-          msg.progressSteps = msg.progressSteps.filter(
-            (step) => step.step_key !== 'waiting_for_turn',
-          );
-        }
+        state.messages = removeWaitingForTurnStep(state.messages, message.messageId);
       });
     } catch (error) {
       console.error('Cancel failed:', error);

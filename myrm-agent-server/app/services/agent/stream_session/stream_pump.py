@@ -68,6 +68,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
         await buffer.append(waiting_msg)
 
     stream_had_error = False
+    lock_acquired = False
     try:
         if project_id:
             await _acquire_guarded(
@@ -75,6 +76,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                 project_id,
                 session.cancel_token,
             )
+            lock_acquired = True
 
             cleared_msg = SSEEnvelope.from_any(
                 {
@@ -107,7 +109,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
         logger.error("Error pumping stream to buffer: %s", e, exc_info=True)
         await buffer.append(error_sse("Stream interrupted", session.params.message_id))
     finally:
-        if project_id:
+        if project_id and lock_acquired:
             project_orchestrator.release(project_id)
         await buffer.end_stream()
 

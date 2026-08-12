@@ -415,7 +415,6 @@ async def test_cloud_browser_connection() -> dict[str, object]:
     Returns:
         Connection test result with status, latency, and provider info
     """
-    import asyncio
     import time as _time
 
     from app.schemas.config import BrowserCloudProviderConfigValue

@@ -104,3 +104,53 @@ async def test_gate_allows_when_no_skill_loaded() -> None:
         )
 
     assert result.content == "ok"
+
+
+@pytest.mark.asyncio
+async def test_gate_denies_network_tool_without_grant() -> None:
+    """A skill without NETWORK_ACCESS must not reach the browser."""
+    set_loaded_skills([SkillMetadata(name="demo", description="d", version="1.0.0")])
+    async with _granted_loader(set()):
+        checker = await create_async_permission_checker()
+        mw = GuardrailMiddleware(
+            providers=[SkillBoundaryProvider(permission_checker=checker)]
+        )
+        result = await mw.awrap_tool_call(
+            _request("browser_navigate", {"url": "http://example.com"}), _handler
+        )
+
+    assert result.status == "error"
+    assert "skill_boundary" in str(result.content)
+
+
+@pytest.mark.asyncio
+async def test_gate_allows_network_tool_with_grant() -> None:
+    """A NETWORK_ACCESS grant must let the browser tool through."""
+    set_loaded_skills([SkillMetadata(name="demo", description="d", version="1.0.0")])
+    async with _granted_loader({SkillPermission.NETWORK_ACCESS}):
+        checker = await create_async_permission_checker()
+        mw = GuardrailMiddleware(
+            providers=[SkillBoundaryProvider(permission_checker=checker)]
+        )
+        result = await mw.awrap_tool_call(
+            _request("browser_navigate", {"url": "http://example.com"}), _handler
+        )
+
+    assert result.content == "ok"
+
+
+@pytest.mark.asyncio
+async def test_gate_denies_env_tool_without_grant() -> None:
+    """A skill without ENV_VAR_ACCESS must not read environment variables."""
+    set_loaded_skills([SkillMetadata(name="demo", description="d", version="1.0.0")])
+    async with _granted_loader(set()):
+        checker = await create_async_permission_checker()
+        mw = GuardrailMiddleware(
+            providers=[SkillBoundaryProvider(permission_checker=checker)]
+        )
+        result = await mw.awrap_tool_call(
+            _request("get_env_var", {"name": "API_KEY"}), _handler
+        )
+
+    assert result.status == "error"
+    assert "skill_boundary" in str(result.content)

@@ -219,6 +219,55 @@ async def test_error_path_releases_lock(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_cancel_while_waiting_aborts_acquire_without_releasing_holder(monkeypatch):
+    """Cancel while queued on a held lock aborts promptly and must not release the holder.
+
+    Regression guard: pump's finally used to call release(project_id) unconditionally,
+    which would steal the project lock from the agent that actually owns it and let
+    a third agent run concurrently on the same workspace.
+    """
+    orch = ProjectOrchestrator()
+    await orch.acquire("proj-1")  # 另一 agent 持有锁
+
+    class _FakeToken:
+        is_cancelled = False
+
+    token = _FakeToken()
+    session = _make_session(project_id="proj-1")
+    session.cancel_token = token
+    buf = _make_buffer()
+    _install_mocks(monkeypatch, orch, _const_stream(_CHUNK))
+
+    pump_task = asyncio.create_task(pump_to_buffer(session, buf))
+
+    # 等待 pump 排队在锁上（waiting SSE 已发出）
+    for _ in range(100):
+        lock = orch._locks.get("proj-1")
+        if lock is not None and lock._waiters:
+            break
+        await asyncio.sleep(0.01)
+    assert orch._locks["proj-1"]._waiters, "pump 应排队等待锁"
+
+    chunks = "".join(_appended_chunks(buf))
+    assert '"step_key":"waiting_for_turn"' in chunks
+    assert '"step_key":"waiting_for_turn_clear"' not in chunks
+
+    # 用户取消 → pump 应在 ~1s 内退出（acquire 分片轮询检测 token）
+    token.is_cancelled = True
+    await asyncio.wait_for(pump_task, timeout=3)
+
+    # 持有者（另一 agent）的锁必须仍然持有，未被误释放
+    assert orch.is_locked("proj-1") is True
+    # buffer 清理已执行（finally 走到了）
+    buf.end_stream.assert_awaited()
+
+    # 持有者正常释放后，锁彻底空闲
+    orch.release("proj-1")
+    assert orch.is_locked("proj-1") is False
+    assert len(orch._locks) == 0
+
+
+@pytest.mark.asyncio
 async def test_cancel_path_releases_lock(monkeypatch):
     """Task cancellation → finally still releases the project lock.
 

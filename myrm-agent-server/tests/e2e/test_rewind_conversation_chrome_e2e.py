@@ -269,6 +269,38 @@ async def test_rewind_conversation_via_webui(
             await asyncio.sleep(1.0)
         raise AssertionError(f"{error_label}: {last}")
 
+    async def _clear_composer(chat: McpChatSession, *, timeout_sec: float) -> None:
+        """Empty the composer before opening the Rewind dialog.
+
+        Under E2E send races the composer can retain the last sent text; clearing
+        it first means the post-rewind prefill check reflects the rewind seed
+        (the deleted message's text) rather than a leftover value.
+        """
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_clear_composer")
+            result = await chat.evaluate(
+                """(() => {
+                  window.__MYRM_E2E_CHAT__?.setInputMessage?.('');
+                  const input = document.querySelector('[data-chat-input]');
+                  if (input && input.value) {
+                    const proto = Object.getPrototypeOf(input);
+                    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+                    if (setter) setter.call(input, '');
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                  }
+                  const len = document.querySelector('[data-chat-input]')?.value?.length ?? 0;
+                  return { ok: len === 0, inputLen: len };
+                })()""",
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
+            last = result if isinstance(result, dict) else {"value": result}
+            if last.get("ok") is True:
+                return
+            await asyncio.sleep(1.0)
+        raise AssertionError(f"Composer did not clear before rewind: {last}")
+
     async def _run_flow(chat: McpChatSession) -> str:
         await chat.dismiss_modals()
         await chat.click_new_chat()
@@ -303,7 +335,6 @@ async def test_rewind_conversation_via_webui(
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
         await chat._attach_chat_session(chat_id)
         await _wait_not_streaming(chat, timeout_sec=90.0)
-        await chat.wait_input_empty(chat_id_hint=chat_id)
         await _wait_api_user_messages(chat_id, 1, timeout_sec=90.0)
 
         await chat.send_message(TURN_B, TURN_B, chat_id_hint=chat_id, base_url=BASE_URL)
@@ -312,8 +343,12 @@ async def test_rewind_conversation_via_webui(
             TURN_B, timeout_sec=120.0, chat_id_hint=chat_id
         )
         await _wait_not_streaming(chat, timeout_sec=90.0)
-        await chat.wait_input_empty(chat_id_hint=chat_id)
         await _wait_api_user_messages(chat_id, 2, timeout_sec=90.0)
+
+        # Rewind must prefill the composer with the rewinded message's text;
+        # make sure the composer is empty first (E2E send races can leave the
+        # last sent text behind, which would make the prefill check vacuous).
+        await _clear_composer(chat, timeout_sec=30.0)
 
         _touch_rewind_progress("rewind_open_dialog")
         opened = await chat.evaluate(_OPEN_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT)

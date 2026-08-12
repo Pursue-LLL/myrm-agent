@@ -11,6 +11,30 @@ export const findAssistantMessageIndex = (messages: Message[], messageId: string
 };
 
 /**
+ * 移除某条消息上的 waiting_for_turn 进度步骤。
+ *
+ * 用户在前端取消请求时，后端 pump 可能在取得项目锁之前就退出了，
+ * 不会再发出 waiting_for_turn_clear SSE；本地残留的等待步骤在此清除。
+ * 返回新数组（immutable），无匹配时原样返回。
+ */
+export const removeWaitingForTurnStep = (
+  messages: Message[],
+  messageId: string,
+): Message[] => {
+  const next = messages.map((msg) => {
+    if (msg.messageId !== messageId || !msg.progressSteps?.length) return msg;
+    const hasWaitingStep = msg.progressSteps.some((step) => step.step_key === 'waiting_for_turn');
+    if (!hasWaitingStep) return msg;
+    return {
+      ...msg,
+      progressSteps: msg.progressSteps.filter((step) => step.step_key !== 'waiting_for_turn'),
+    };
+  });
+  const changed = next.some((msg, index) => msg !== messages[index]);
+  return changed ? next : messages;
+};
+
+/**
  * Ensure an assistant placeholder exists for stream events that may arrive before MESSAGE.
  * Returns the message index, or -1 when messageId is missing.
  */
