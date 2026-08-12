@@ -246,13 +246,11 @@ def _wait_subagent_status(
 ) -> dict[str, object] | None:
     """Poll the subagents API until the given task_id reaches the target status."""
     deadline = time.monotonic() + timeout_sec
-    last: dict[str, object] | None = None
     while time.monotonic() < deadline:
         payload = http_json(
             "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
         )
-        last = payload if isinstance(payload, dict) else None
-        data = last.get("data") if last else None
+        data = payload.get("data") if isinstance(payload, dict) else None
         if isinstance(data, list):
             for row in data:
                 if (
@@ -262,7 +260,156 @@ def _wait_subagent_status(
                 ):
                     return row
         time.sleep(2.0)
-    return last
+    return None
+
+
+def _wait_subagent_store_status(
+    client,
+    page,
+    task_id: str,
+    status: str,
+    *,
+    timeout_sec: float = 240.0,
+) -> dict[str, object]:
+    """Wait until the front-end subagent store reflects the target node status (SSE / fetchSubagents)."""
+    synced = wait_for_state(
+        client,
+        page,
+        f"""(async () => {{
+          const taskId = {json.dumps(task_id)};
+          const want = {json.dumps(status)};
+          const deadline = Date.now() + {int(timeout_sec * 1000)};
+          while (Date.now() < deadline) {{
+            const node = window.__myrmSubagentStore?.getState?.()?.nodes?.[taskId];
+            if (node?.status === want) {{
+              return {{ ready: true, status: node.status, hasNode: true }};
+            }}
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }}
+          const node = window.__myrmSubagentStore?.getState?.()?.nodes?.[taskId];
+          return {{
+            ready: false,
+            status: node?.status ?? null,
+            hasNode: !!node,
+          }};
+        }})()""",
+        timeout_sec=timeout_sec + 10.0,
+    )
+    assert synced.get("ready") is True, (
+        f"Subagent store did not reach status={status!r}: {synced}"
+    )
+    return synced
+
+
+def _bridge_send_delegate_query(
+    client: object,
+    page: object,
+    query: str,
+    *,
+    timeout_sec: float = 360.0,
+) -> dict[str, object]:
+    """Send via E2E chat bridge with explicit ephemeralSubagents (same submit path as WebUI)."""
+    _pin_direct_sse(client, page)
+    sent = wait_for_state(
+        client,
+        page,
+        f"""(async () => {{
+          try {{
+            const result = await window.__MYRM_E2E_CHAT__?.sendChatMessage?.(
+              {json.dumps(query)},
+              {{
+                ephemeralSubagents: {json.dumps(_E2E_BASH_EPHEMERAL)},
+                profile: 'live',
+              }},
+            );
+            return {{ ready: true, result }};
+          }} catch (error) {{
+            return {{ ready: false, err: String(error) }};
+          }}
+        }})()""",
+        timeout_sec=timeout_sec + 15.0,
+    )
+    assert sent.get("ready") is True, f"Bridge sendChatMessage failed: {sent}"
+    eph_status = client.evaluate(
+        page,
+        """(() => window.__MYRM_E2E_CHAT__?.ephSubagentsStatus?.() ?? null)()""",
+        timeout_sec=10.0,
+    )
+    return {"ok": True, "result": sent.get("result"), "eph_status": eph_status}
+
+
+def _trigger_fetch_subagents(client: object, page: object, chat_id: str) -> None:
+    """Nudge the front-end store to sync from the subagents API."""
+    client.evaluate(
+        page,
+        f"""(async () => {{
+          const store = window.__myrmSubagentStore?.getState?.();
+          if (typeof store?.fetchSubagents === 'function') {{
+            await store.fetchSubagents({json.dumps(chat_id)});
+          }}
+          return true;
+        }})()""",
+        timeout_sec=30.0,
+    )
+
+
+def _resolve_running_subagent_task_id(
+    client: object,
+    page: object,
+    chat_id: str,
+) -> str | None:
+    """Return a running subagent task_id from API list or front-end store."""
+    payload = http_json(
+        "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
+    )
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if isinstance(data, list):
+        for row in data:
+            if isinstance(row, dict) and row.get("status") == "running":
+                task_id = str(row.get("task_id") or "")
+                if task_id:
+                    return task_id
+    store_row = client.evaluate(
+        page,
+        """(() => {
+          const nodes = window.__myrmSubagentStore?.getState?.()?.nodes ?? {};
+          for (const node of Object.values(nodes)) {
+            if (node?.status === 'running' && node?.task_id) {
+              return { task_id: String(node.task_id) };
+            }
+          }
+          return { task_id: null };
+        })()""",
+        timeout_sec=10.0,
+    )
+    if isinstance(store_row, dict):
+        task_id = str(store_row.get("task_id") or "")
+        if task_id:
+            return task_id
+    return None
+
+
+def _wait_running_subagent_task_id(
+    client: object,
+    page: object,
+    chat_id: str,
+    *,
+    timeout_sec: float = 300.0,
+) -> str:
+    deadline = time.monotonic() + timeout_sec
+    last_payload: object = None
+    while time.monotonic() < deadline:
+        payload = http_json(
+            "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
+        )
+        last_payload = payload
+        task_id = _resolve_running_subagent_task_id(client, page, chat_id)
+        if task_id:
+            return task_id
+        time.sleep(2.0)
+    raise AssertionError(
+        f"No running subagent after real send: api={last_payload!r}"
+    )
 
 
 def _open_dashboard_seeded(client, page, chat_id: str, rows: list[dict[str, object]]) -> None:
@@ -1197,9 +1344,9 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
 # 自然完成场景：委派一个 sleep 3 的短任务，子agent 自己跑完后进入 completed，
 # dashboard 无需任何 store 注入即可渲染 completed 节点。
 _COMPLETE_QUERY = (
-    "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'bash_worker'。"
-    "子智能体的任务：调用 bash_code_execute_tool 工具执行命令 `sleep 3`。关键要求：run_in_background 必须为 false（前台运行），"
-    "timeout 参数必须显式设为 120。命令执行完成后立即汇报结果并结束任务。"
+    "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'bash_worker'，wait 设为 false。"
+    "子智能体的任务：调用 bash_code_execute_tool 执行命令 `echo e2e-subagent-done`，关键要求：run_in_background 必须为 false（前台运行），"
+    "timeout 参数必须显式设为 120，绝对禁止使用后台方式或 & 符号，必须等待命令完成后才能汇报结果并结束。"
     "注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，"
     "绝对不要在文本中输出 XML 格式的工具调用！"
 )
@@ -1278,35 +1425,26 @@ def _run_completed_flow_body(chat_id: str, ui_url: str) -> None:
             timeout_sec=90.0,
         )
         assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
-        sent = _real_send_chat_message(client, page, _COMPLETE_QUERY)
-        assert sent.get("ok") is True, f"Real chat send failed: {sent}"
+        sent = _bridge_send_delegate_query(client, page, _COMPLETE_QUERY, timeout_sec=360.0)
+        assert sent.get("ok") is True, f"Bridge delegate send failed: {sent}"
+        print("DIAG_EPH_STATUS_COMPLETE_SEND=" + json.dumps(sent.get("eph_status"), default=str))
 
-        task_id: str | None = None
-        deadline = time.monotonic() + 300.0
-        last_payload: object = None
-        while time.monotonic() < deadline:
-            payload = http_json(
-                "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
-            )
-            last_payload = payload
-            data = payload.get("data") if isinstance(payload, dict) else None
-            if isinstance(data, list):
-                running = [
-                    row
-                    for row in data
-                    if isinstance(row, dict) and row.get("status") == "running"
-                ]
-                if running:
-                    task_id = str(running[0].get("task_id") or "")
-                    break
-            time.sleep(2.0)
-        assert task_id, f"No running subagent after real send: {last_payload!r}"
+        task_id = _wait_running_subagent_task_id(client, page, chat_id, timeout_sec=300.0)
 
-        completed_row = _wait_subagent_status(chat_id, task_id, "completed", timeout_sec=180.0)
-        assert completed_row is not None, (
-            f"Subagent {task_id} did not reach completed: {completed_row!r}"
-        )
+        completed_row = _wait_subagent_status(chat_id, task_id, "completed", timeout_sec=240.0)
         print("DIAG_COMPLETED_ROW=" + json.dumps(completed_row, default=str)[:600])
+        assert completed_row is not None, (
+            f"Subagent {task_id!r} never reached completed via API: "
+            f"{http_json('GET', f'{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents')!r}"
+        )
+        _trigger_fetch_subagents(client, page, chat_id)
+        _wait_subagent_store_status(
+            client,
+            page,
+            task_id,
+            "completed",
+            timeout_sec=240.0,
+        )
 
         trigger_seen = wait_for_state(
             client,
