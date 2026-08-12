@@ -1126,7 +1126,9 @@ def test_build_cases_no_tasks_raises(
     async def _fake_ensure(*args: object, **kwargs: object) -> Path:
         return tmp_path
 
-    monkeypatch.setattr("app.core.eval.wb_bench.download.ensure_wb_bench_source", _fake_ensure)
+    monkeypatch.setattr(
+        "app.core.eval.wb_bench.download.ensure_wb_bench_source", _fake_ensure
+    )
     monkeypatch.setattr(wbw, "_iter_task_dirs", lambda source_root: [])
     with pytest.raises(ValueError, match="No runnable tasks"):
         wbw.build_wb_bench_cases("code")
@@ -1143,7 +1145,9 @@ def test_build_cases_full_success_path_seeds_and_logs(
     async def _fake_ensure(*args: object, **kwargs: object) -> Path:
         return source_root
 
-    monkeypatch.setattr("app.core.eval.wb_bench.download.ensure_wb_bench_source", _fake_ensure)
+    monkeypatch.setattr(
+        "app.core.eval.wb_bench.download.ensure_wb_bench_source", _fake_ensure
+    )
     cases, seed_map = wbw.build_wb_bench_cases("code")
     assert len(cases) == 1
     assert len(seed_map) == 1

@@ -57,6 +57,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/readiness/test_readiness_mcp_secrets.py` | 模块 | readiness mcp 维度密钥预检（`_check_mcp` 六分支：requiredSecrets 全齐不报 / 缺失报 / headers `{{secret:KEY}}` 引用报 / disabled 跳过 / 无声明不查 / vault 异常跳过）+ org MCP 合并单测 |
 | `api/internal/test_org_mcp_sync_integration.py` | 模块 | org MCP 真实 DB 全链路集成：CP `POST /api/admin/org-mcp-sync` → ConfigService 加密落库 → `load_user_config_entry` 解密加载 → `merge_org_mcp_configs` 合并（scope=org）→ readiness `_check_mcp` 识别绑定 org server（关键路径无 mock） |
 | `services/agent/backends/test_secret_backend_list_keys.py` | 模块 | `DatabaseSecretBackend.list_secret_keys` 真实 DB（保存后键名列表、未知 agent 空列表；FK 预置 agent + 测后清理） |
+| `services/skills/test_permission_service.py` | 模块 | 技能权限 service 单测：async/sync checker、per-session 缓存命中/未命中、缓存清理、DB 脏值跳过（覆盖率 100%） |
+| `services/skills/test_permission_gate_integration.py` | 模块 | 技能权限 gate 装配链路集成（真实 checker + SkillBoundaryProvider + GuardrailMiddleware；授权/拒绝/无技能/MCP 绕过/网络工具） |
+| `services/skills/test_permission_gate_real_db_integration.py` | 模块 | 技能权限 gate 真实 DB 全链路集成（无 mock）：grant 行写入 SQLite → 缓存读取 → gate 决策；revoke 清缓存实时失效；脏值跳过 |
 | `api/chats/test_citation_seed_fixture.py` | 模块 | citation fixture seed HTTP 单测（local-only，`/chats/test/seed-citation-fixture`） |
 | `api/chats/test_deliverable_seed_fixture.py` | 模块 | deliverable link fixture seed HTTP 单测（`/chats/test/seed-deliverable-link-fixture`） |
 | `core/artifacts/test_processor_short_file_id.py` | 模块 | LocalArtifactProcessor 透传 `short_file_id` → artifacts SSE JSON |

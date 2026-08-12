@@ -246,7 +246,9 @@ def get_latest_matrix_report() -> dict[str, object] | None:
 
 def get_matrix_report(timestamp: int) -> dict[str, object] | None:
     """Get a specific matrix/layered report by its run timestamp."""
-    report_path = eval_state.DEFAULT_MATRIX_REPORTS_DIR / f"matrix_report_{timestamp}.json"
+    report_path = (
+        eval_state.DEFAULT_MATRIX_REPORTS_DIR / f"matrix_report_{timestamp}.json"
+    )
     if not report_path.exists():
         return None
     try:

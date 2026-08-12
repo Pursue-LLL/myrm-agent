@@ -359,7 +359,7 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
 
-    seeded = _seed_turn_lock_fixture(api_url, hold_ms=60000)
+    seeded = _seed_turn_lock_fixture(api_url, hold_ms=30000)
     chat_id = str(seeded["chat_id"])
     chat_path = str(seeded["ui_path"])
 
@@ -394,6 +394,10 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
 
         cleared_state = _wait_waiting_cleared(client, page, timeout_sec=20.0)
         assert cleared_state.get("ready") is False, cleared_state
+
+        # 取消后等待后端 teardown（第一次 session 从 active 集合释放），
+        # 避免第二次请求被 AgentBusyError 短暂拒绝。
+        time.sleep(5)
 
         # 第二次发送：seed 锁必须仍被持有（取消等待未误释放持有者锁）→ 再次等待
         send2 = _send_message(client, page)

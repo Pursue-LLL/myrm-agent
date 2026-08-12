@@ -69,9 +69,7 @@ def _flatten_shell_command(command: str) -> str:
     return re.sub(r"\\\s*\n\s*", " ", command).rstrip().removesuffix("\\").strip()
 
 
-def _verifier_run_command(
-    verifier: dict[str, object], tests_dir: Path
-) -> str | None:
+def _verifier_run_command(verifier: dict[str, object], tests_dir: Path) -> str | None:
     """Return the declared ``[run] command`` with Harbor paths rewritten.
 
     The whole command is preserved (pytest, custom test runners, redirections)

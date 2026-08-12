@@ -334,9 +334,7 @@ class TestMatrixReportHistory:
         assert "per_profile" not in history[0]
         assert "matrix" not in history[0]
 
-    def test_history_skips_corrupt_and_non_matching_files(
-        self, tmp_path: Path
-    ) -> None:
+    def test_history_skips_corrupt_and_non_matching_files(self, tmp_path: Path) -> None:
         import app.core.eval._state as state_mod
 
         reports_dir = tmp_path / "reports"

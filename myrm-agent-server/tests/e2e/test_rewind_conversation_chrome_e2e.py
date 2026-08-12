@@ -278,37 +278,54 @@ async def test_rewind_conversation_via_webui(
             await asyncio.sleep(1.0)
         raise AssertionError(f"{error_label}: {last}")
 
-    async def _clear_composer(chat: McpChatSession, *, timeout_sec: float) -> None:
-        """Empty the composer before opening the Rewind dialog.
+        async def _clear_composer(chat: McpChatSession, *, timeout_sec: float) -> None:
+            """Empty the composer before opening the Rewind dialog.
 
-        Under E2E send races the composer can retain the last sent text; clearing
-        it first means the post-rewind prefill check reflects the rewind seed
-        (the deleted message's text) rather than a leftover value.
-        """
-        deadline = time.monotonic() + timeout_sec
-        last: dict[str, object] = {}
-        while time.monotonic() < deadline:
-            _touch_rewind_progress("rewind_clear_composer")
-            result = await chat.evaluate(
-                """(() => {
-                  window.__MYRM_E2E_CHAT__?.setInputMessage?.('');
-                  const input = document.querySelector('[data-chat-input]');
-                  if (input && input.value) {
-                    const proto = Object.getPrototypeOf(input);
-                    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-                    if (setter) setter.call(input, '');
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                  }
-                  const len = document.querySelector('[data-chat-input]')?.value?.length ?? 0;
-                  return { ok: len === 0, inputLen: len };
-                })()""",
-                intent=EvaluateIntent.BRIDGE_POLL,
-            )
-            last = result if isinstance(result, dict) else {"value": result}
-            if last.get("ok") is True:
-                return
-            await asyncio.sleep(1.0)
-        raise AssertionError(f"Composer did not clear before rewind: {last}")
+            Under E2E send races the composer can retain the last sent text; clearing
+            it first means the post-rewind prefill check reflects the rewind seed
+            (the deleted message's text) rather than a leftover value.
+            """
+            deadline = time.monotonic() + timeout_sec
+            last: dict[str, object] = {}
+            while time.monotonic() < deadline:
+                _touch_rewind_progress("rewind_clear_composer")
+                result = await chat.evaluate(
+                    """(() => {
+                      const hasBridge = !!window.__MYRM_E2E_CHAT__;
+                      const storeBefore = window.__MYRM_E2E_CHAT__?.getInputMessage?.() ?? null;
+                      window.__MYRM_E2E_CHAT__?.setInputMessage?.('');
+                      const inputs = Array.from(document.querySelectorAll('[data-chat-input]'));
+                      for (const input of inputs) {
+                        input.focus();
+                        if (typeof input.setSelectionRange === 'function') {
+                          input.setSelectionRange(input.value.length, input.value.length);
+                        }
+                        if (input.value) {
+                          const proto = Object.getPrototypeOf(input);
+                          const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+                          if (setter) setter.call(input, '');
+                          input.dispatchEvent(new Event('input', { bubbles: true }));
+                          input.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                      }
+                      const len = document.querySelector('[data-chat-input]')?.value?.length ?? 0;
+                      const storeAfter = window.__MYRM_E2E_CHAT__?.getInputMessage?.() ?? null;
+                      return {
+                        ok: len === 0,
+                        inputLen: len,
+                        hasBridge,
+                        storeBefore,
+                        storeAfter,
+                        inputCount: inputs.length,
+                      };
+                    })()""",
+                    intent=EvaluateIntent.BRIDGE_POLL,
+                )
+                last = result if isinstance(result, dict) else {"value": result}
+                if last.get("ok") is True:
+                    return
+                await asyncio.sleep(1.0)
+            raise AssertionError(f"Composer did not clear before rewind: {last}")
 
     async def _run_flow(chat: McpChatSession) -> str:
         await chat.dismiss_modals()
