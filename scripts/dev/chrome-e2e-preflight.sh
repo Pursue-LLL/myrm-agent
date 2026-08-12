@@ -604,17 +604,25 @@ from e2e_api_verify import workspace_backend_fingerprint
 origin = '${UI_BASE:-http://127.0.0.1:3000}'
 ws = workspace_backend_fingerprint()
 status = reseal_auth_template_for_current_runtime(origin=origin, workspace_fingerprint=ws)
-print(
+line = (
     f'CHROME_E2E_AUTH_RESEAL: status={status[\"status\"]} '
-    f'next={status[\"next_action\"]} runtime_fp={status.get(\"runtimeFingerprint\", \"\")}',
-    flush=True,
+    f'next={status[\"next_action\"]} runtime_fp={status.get(\"runtimeFingerprint\", \"\")}'
 )
+try:
+    print(line, file=sys.stderr, flush=True)
+except BrokenPipeError:
+    pass
 " 2>/dev/null || true
 }
 
 _prepare_auth_template_before_attach() {
-  PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
-    "${PREFLIGHT_PY}" -c "
+  local attempt=1
+  local max_attempts="${MYRM_AUTH_PREPARE_ATTEMPTS:-3}"
+  local backoff_sec="${MYRM_AUTH_PREPARE_BACKOFF_SEC:-3}"
+  local lock_wait_sec="${MYRM_AUTH_PREPARE_LOCK_WAIT_SEC:-15}"
+  while :; do
+    if PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+      "${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from e2e_auth_provisioner import prepare_auth_template_for_attach
@@ -623,15 +631,28 @@ origin = '${UI_BASE:-http://127.0.0.1:3000}'
 status = prepare_auth_template_for_attach(
     origin=origin,
     workspace_fingerprint=workspace_backend_fingerprint(),
+    lock_wait_sec=float('${lock_wait_sec}'),
 )
-print(
+line = (
     f'CHROME_E2E_AUTH_PREPARE: status={status[\"status\"]} '
-    f'next={status[\"next_action\"]} runtime_fp={status.get(\"runtimeFingerprint\", \"\")}',
-    flush=True,
+    f'next={status[\"next_action\"]} runtime_fp={status.get(\"runtimeFingerprint\", \"\")}'
 )
+try:
+    print(line, file=sys.stderr, flush=True)
+except BrokenPipeError:
+    pass
 if status['next_action'] not in {'READY', 'AUTH_SETUP_REQUIRED'}:
     raise SystemExit('AUTH_TEMPLATE_PREPARE_UNAVAILABLE')
-" 2>/dev/null || fail "auth template preparation failed before attach"
+"; then
+      return 0
+    fi
+    if [[ "${attempt}" -ge "${max_attempts}" ]]; then
+      fail "auth template preparation failed before attach"
+    fi
+    echo "CHROME_E2E_AUTH_PREPARE_RETRY: attempt=${attempt}/${max_attempts} backoff=${backoff_sec}s" >&2
+    attempt=$((attempt + 1))
+    sleep "${backoff_sec}"
+  done
 }
 
 _attach_fast_path() {
