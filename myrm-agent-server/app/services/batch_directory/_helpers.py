@@ -9,7 +9,7 @@
 - _latest_tasks_per_directory: 每目录取最新任务（重试后聚合口径）
 - _project_to_dict / _aggregate_statuses / _resolve_directory: 序列化与校验助手
 - _reopen_running: 项目回置 running 并刷新聚合（重试/重跑/恢复共用，支持 expected_status 条件更新防并发覆盖）
-- _format_batch_summary: 站内/渠道共享的批次结果正文（标题 + 统计行 + 失败目录列表/缺产物提示）
+- _format_duration / _format_batch_summary: 耗时格式化与站内/渠道共享的批次结果正文（标题 + 统计行 + 耗时 + 失败目录列表/缺产物提示）
 - _send_completion_notification: 批次终态系统通知（携带 action_url 深链）+ IM 渠道结果摘要投递
 - _PROJECT_TERMINAL_STATUSES / _BATCH_PAUSE_BLOCK_REASON / _BATCH_APPROVER: 批次终态与暂停/审批标记常量
 
