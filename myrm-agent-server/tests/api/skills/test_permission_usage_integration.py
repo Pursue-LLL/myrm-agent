@@ -220,3 +220,131 @@ async def test_usage_real_db_empty_logs_return_zero(
     assert payload is not None
     assert payload["total_operations"] == 0
     assert payload["stats"] == []
+
+
+async def test_usage_real_db_same_timestamp_sorted_by_id_desc(
+    usage_app: FastAPI, real_local_skill: str
+) -> None:
+    """同 used_at 时按 id DESC 二级排序：后写入的（更大 id）在前。"""
+    skill_id = real_local_skill
+    same_ts = datetime.now(UTC).replace(tzinfo=None)
+    await _insert_logs(
+        skill_id,
+        [
+            _log(skill_id, "shell_exec", "first", True, used_at=same_ts),
+            _log(skill_id, "shell_exec", "second", True, used_at=same_ts),
+            _log(skill_id, "shell_exec", "third", True, used_at=same_ts),
+        ],
+    )
+
+    _, payload = await _fetch_usage(usage_app, skill_id)
+
+    assert payload is not None
+    recent = payload["stats"][0]["recent_operations"]
+    assert [op["operation"] for op in recent] == ["third", "second", "first"]
+
+
+async def test_usage_real_db_recent_capped_per_permission(
+    usage_app: FastAPI, real_local_skill: str
+) -> None:
+    """每个权限独立保留最近 10 条，互不干扰。"""
+    skill_id = real_local_skill
+    logs: list[SkillPermissionUsageLog] = []
+    for perm in ("file_read", "network_access"):
+        for i in range(12):
+            logs.append(
+                _log(
+                    skill_id,
+                    perm,
+                    f"{perm} op {i}",
+                    True,
+                    age=timedelta(hours=12 - i),
+                )
+            )
+    await _insert_logs(skill_id, logs)
+
+    _, payload = await _fetch_usage(usage_app, skill_id)
+
+    assert payload is not None
+    assert payload["total_operations"] == 24
+    stats = {s["permission"]: s for s in payload["stats"]}
+    for perm in ("file_read", "network_access"):
+        assert stats[perm]["total_count"] == 12
+        assert len(stats[perm]["recent_operations"]) == 10
+
+
+async def test_usage_real_db_valid_days_boundaries(
+    usage_app: FastAPI, real_local_skill: str
+) -> None:
+    """days 有效边界 1 / 365 正常返回（Query ge=1, le=365）。"""
+    skill_id = real_local_skill
+    await _insert_logs(
+        skill_id,
+        [
+            _log(skill_id, "file_read", "recent", True, age=timedelta(hours=1)),
+            _log(skill_id, "file_read", "old", True, age=timedelta(days=364)),
+        ],
+    )
+
+    _, payload_1d = await _fetch_usage(usage_app, skill_id, days=1)
+    assert payload_1d is not None
+    assert payload_1d["total_operations"] == 1
+
+    _, payload_365d = await _fetch_usage(usage_app, skill_id, days=365)
+    assert payload_365d is not None
+    assert payload_365d["total_operations"] == 2
+
+
+async def test_usage_real_db_logger_flush_to_read(
+    usage_app: FastAPI, real_local_skill: str
+) -> None:
+    """端到端真实链路：permission_logger 批量落库（无 mock）→ 端点聚合读取。"""
+    from contextlib import asynccontextmanager
+    from unittest.mock import patch
+
+    from app.core.skills.gates import permission_logger as pl
+    from app.platform_utils import get_session_factory
+
+    skill_id = real_local_skill
+
+    @asynccontextmanager
+    async def _test_session():
+        async with get_session_factory()() as session:
+            try:
+                yield session
+            finally:
+                await session.close()
+
+    batch: list[pl._PermissionLogItem] = [
+        {
+            "user_id": "integration-user",
+            "skill_id": skill_id,
+            "permission": "code_execute",
+            "operation": "run ok",
+            "allowed": True,
+            "deny_reason": "",
+        },
+        {
+            "user_id": "integration-user",
+            "skill_id": skill_id,
+            "permission": "code_execute",
+            "operation": "run blocked",
+            "allowed": False,
+            "deny_reason": "policy",
+        },
+    ]
+    with patch("app.core.skills.gates.permission_logger.get_session", _test_session):
+        await pl._async_flush_batch(batch)
+
+    status, payload = await _fetch_usage(usage_app, skill_id)
+
+    assert status == 200
+    assert payload is not None
+    assert payload["total_operations"] == 2
+    stats = {s["permission"]: s for s in payload["stats"]}
+    assert stats["code_execute"]["total_count"] == 2
+    assert stats["code_execute"]["allowed_count"] == 1
+    assert stats["code_execute"]["denied_count"] == 1
+    recent = stats["code_execute"]["recent_operations"]
+    assert recent[0]["operation"] == "run blocked"
+    assert recent[0]["deny_reason"] == "policy"
