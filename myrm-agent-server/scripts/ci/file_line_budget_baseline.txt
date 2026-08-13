@@ -27,9 +27,9 @@ app/api/integrations/provider_oauth.py
 app/api/kanban/schemas.py
 app/api/skills/discovery.py
 app/api/skills/drafts.py
-app/api/skills/sync.py
 app/api/skills/migrations.py
 app/api/skills/permissions.py
+app/api/skills/sync.py
 app/api/statistics/context_health.py
 app/api/statistics/growth_dashboard.py
 app/api/statistics/router.py
@@ -94,13 +94,13 @@ app/core/cron/adapters/sqlalchemy_store.py
 app/core/cron/blueprint_i18n_supplement.py
 app/core/cron/blueprints.py
 app/core/eval/executor.py
+app/core/eval/memory_ab.py
 app/core/eval/service.py
 app/core/infra/frontend_launcher.py
 app/core/kanban/adapters/sqlalchemy_store.py
 app/core/media/batch/orchestrator.py
 app/core/memory/adapters/setup.py
 app/core/skills/creation/service.py
-app/core/skills/curator_service.py
 app/core/skills/models.py
 app/core/storage/service.py
 app/core/utils/chat_utils.py
