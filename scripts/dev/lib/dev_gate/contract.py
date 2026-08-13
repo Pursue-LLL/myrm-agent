@@ -1338,7 +1338,7 @@ def formal_chrome_e2e_runtime_heal_agent(agent_id: str) -> bool:
     )
 
 
-# --- Adaptive mux load defaults (env may override in mux_load) ---
+# --- Adaptive mux load defaults (env may override in mux.load) ---
 
 BASE_PAGE_TIMEOUT_MS: Final[int] = 30_000
 PAGE_TIMEOUT_SLOT_MS: Final[int] = 15_000

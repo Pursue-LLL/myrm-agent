@@ -87,3 +87,64 @@ describe('toolLifecycleEvents desktop inspector TOOL_END fetch', () => {
     expect(fetchSnapshot).not.toHaveBeenCalled();
   });
 });
+
+describe('toolLifecycleEvents desktop inspector TOOL_START engagement', () => {
+  beforeEach(() => {
+    useDesktopInspectorStore.getState().reset();
+    useChatStore.setState({ chatId: undefined });
+    vi.restoreAllMocks();
+  });
+
+  function buildToolStartCtx(toolName: string): StreamCtx {
+    const state: StreamHandlerState = {
+      messages: [
+        {
+          messageId: 'msg-1',
+          chatId: 'chat-fg',
+          createdAt: new Date(),
+          role: 'assistant',
+          content: '',
+          progressSteps: [],
+        },
+      ],
+      messageAppeared: false,
+      loading: false,
+      scheduler: {} as StreamHandlerState['scheduler'],
+    };
+    const actions: StreamHandlerActions = {
+      setMessages: vi.fn(),
+      setMessageAppeared: vi.fn(),
+      setLoading: vi.fn(),
+      _processSuggestions: vi.fn(async () => undefined),
+      scheduleAutoSave: vi.fn(),
+    };
+
+    return {
+      data: {
+        type: AgentEventType.TOOL_START,
+        messageId: 'msg-1',
+        tool_name: toolName,
+      },
+      input: '',
+      sources: undefined,
+      added: false,
+      state,
+      actions,
+      recievedMessage: '',
+      files: [],
+    };
+  }
+
+  it('marks turn engaged on desktop_ TOOL_START', async () => {
+    await toolLifecycleEvents(buildToolStartCtx('desktop_click_tool'));
+
+    expect(useDesktopInspectorStore.getState().engagedInTurn).toBe(true);
+    expect(useDesktopInspectorStore.getState().isDesktopActive).toBe(true);
+  });
+
+  it('does not mark turn engaged on non-desktop TOOL_START', async () => {
+    await toolLifecycleEvents(buildToolStartCtx('web_search_tool'));
+
+    expect(useDesktopInspectorStore.getState().engagedInTurn).toBe(false);
+  });
+});

@@ -1,7 +1,7 @@
 """Gate epoch preflight SSOT — stack/mux/epoch readiness for maintainer gates and Phase C ramp.
 
 [INPUT]
-- peer_count_ssot, e2e_api_verify, mux_load, stack_mutation_policy, e2e_stale_lease_reap
+- peer_count_ssot, api_verify, mux.load, stack_mutation_policy, stale_lease_reap
 
 [OUTPUT]
 - run_full_preflight() → PreflightResult (OK | DEFER | FAIL)

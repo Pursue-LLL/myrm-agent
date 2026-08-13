@@ -2,7 +2,7 @@
 
 [INPUT]
 - isolated_runtime.allocator.runtime_environment (POS: per-runtime env SSOT)
-- dev_gate_contract.LIVE_SHPOIB_MAX_CONCURRENT (POS: private backend cap)
+- dev_gate.contract.LIVE_SHPOIB_MAX_CONCURRENT (POS: private backend cap)
 - runtime_identity._backend_source_fingerprint (POS: workspace epoch SSOT)
 
 [OUTPUT]

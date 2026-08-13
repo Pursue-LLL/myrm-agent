@@ -151,7 +151,7 @@ export default function ReportTab({ running, evalStage, progress, downloadProgre
                   <span
                     className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
                       report.decontam_active
-                        ? 'bg-green-500/10 text-green-600'
+                        ? 'bg-green-500/10 text-green-600 dark:text-green-400'
                         : 'bg-muted text-muted-foreground'
                     }`}
                   >
@@ -200,8 +200,10 @@ export default function ReportTab({ running, evalStage, progress, downloadProgre
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 max-w-xs truncate" title={c.case?.message}>
-                    {c.case?.message || t('report.multiTurn')}
+                  <td className="px-4 py-3 max-w-xs">
+                    <span className="block truncate" title={c.case?.message}>
+                      {c.case?.message || t('report.multiTurn')}
+                    </span>
                     {c.scores?.pass_rate != null && (
                       <span
                         className={`ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
@@ -213,6 +215,31 @@ export default function ReportTab({ running, evalStage, progress, downloadProgre
                         {c.scores.pass_rate >= 1 ? '100%' : `${Math.min(99, Math.floor(c.scores.pass_rate * 100))}%`}
                         {c.scores.tests_total != null &&
                           ` · ${c.scores.tests_passed ?? 0}/${c.scores.tests_total}`}
+                      </span>
+                    )}
+                    {(c.limit_reached || (c.blocked_count ?? 0) > 0 || (c.tool_call_details?.length ?? 0) > 0) && (
+                      <span className="flex items-center gap-1 mt-1 flex-wrap">
+                        {c.limit_reached && (
+                          <span
+                            className="px-1 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-semibold"
+                            title={t('report.limitHitTitle')}
+                          >
+                            {t('report.limitHit')}
+                          </span>
+                        )}
+                        {(c.blocked_count ?? 0) > 0 && (
+                          <span
+                            className="px-1 rounded bg-violet-500/15 text-violet-600 dark:text-violet-400 text-[10px] font-semibold"
+                            title={t('report.blockedTitle')}
+                          >
+                            {t('report.blocked')} {c.blocked_count}
+                          </span>
+                        )}
+                        {(c.tool_call_details?.length ?? 0) > 0 && (
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {c.tool_call_details?.length}×
+                          </span>
+                        )}
                       </span>
                     )}
                   </td>

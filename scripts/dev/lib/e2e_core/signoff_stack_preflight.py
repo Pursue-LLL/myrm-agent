@@ -1,7 +1,7 @@
 """Stack preflight SSOT — hot attach vs bounded heal for epoch preflight (Phase C / maintainer gates).
 
 [INPUT]
-- gate_epoch_preflight.SoloSnapshot, e2e_api_verify, runtime_identity hot state
+- gate_epoch_preflight.SoloSnapshot, api_verify, runtime_identity hot state
 
 [OUTPUT]
 - run_signoff_ready_under_flock() → exit rc for subprocess myrm ready

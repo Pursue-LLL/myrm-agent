@@ -1,7 +1,7 @@
 """ResumeTurnContract SSOT for chrome_e2e browser takeover resume (R93).
 
 [INPUT]
-dev_gate_contract resume-related constants
+dev_gate.contract resume-related constants
 
 [OUTPUT]
 ResumeTurnPhase / ResumeTurnError / timeout constants

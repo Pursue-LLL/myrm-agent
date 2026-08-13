@@ -1,7 +1,7 @@
 """SendTurnContract SSOT for chrome_e2e chat submit (R72).
 
 [INPUT]
-dev_gate_contract::SEND_TURN_* constants
+dev_gate.contract::SEND_TURN_* constants
 
 [OUTPUT]
 SendTurnPhase / SendTurnError / resolve_send_turn_profile

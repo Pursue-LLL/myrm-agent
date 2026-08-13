@@ -21,19 +21,15 @@ diagnostic  ──→  mux/diagnostic_recovery.py (MYRM_CHROME_MCP_DIAGNOSTIC=1 
 | `gates/orphan_budget.py` | TAB-5 stray blank budget invariant | ✅ |
 | `gates/diagnostic_policy.py` | 统一 diagnostic-only mux 操作门禁 | ✅ |
 | `mux/diagnostic_recovery.py` | diagnostic recovery/reopen/rebuild 实现 | ✅ |
-| `../browser_orchestrator_client.py` | orchestrator daemon JSON-RPC 客户端（待迁入 orchestrator/） | ✅ |
-| `../browser_orchestrator_e2e.py` | formal open_orchestrator_mcp_page | ✅ |
-| `../browser_orchestrator.py` | operation credits + daemon readiness | ✅ |
-| `../chrome_mcp_client.py` | mux MCP 客户端门面（orchestrator 条件分发） | ✅ |
-
-## 遗留 flat re-export shim（lib/ 根）
-
-**已删除（Batch-2）** — 全库 import 指向 `chrome_e2e.gates.*` / `chrome_e2e.mux.*`。
+| `../browser_orchestrator/client.py` | orchestrator daemon JSON-RPC 客户端 | ✅ |
+| `../browser_orchestrator/e2e.py` | formal open_orchestrator_mcp_page | ✅ |
+| `../browser_orchestrator/core.py` | operation credits + daemon readiness | ✅ |
+| `../chrome_mcp/client.py` | mux MCP 客户端门面（orchestrator 条件分发） | ✅ |
 
 ## 依赖
 
 - [../_ARCH.md](../_ARCH.md)
-- [dev_gate_contract.py](../dev_gate_contract.py)
+- [dev_gate/contract.py](../dev_gate/contract.py)
 - [scripts/dev/cdmcp-mux-autoconnect/](../../../../../scripts/dev/cdmcp-mux-autoconnect/)
 
 ## 约束

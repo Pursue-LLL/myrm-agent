@@ -63,7 +63,7 @@ PRIVATE session 的 root wave lease（以及其 page/context 子 lease）带有 
 - `dev-stack.sh` `cmd_reset` / `_kill_frontend_supervisor` / `_repair_orphan_frontend` 调用 `check-stack-write`（`MYRM_WAVE_GATE_BYPASS=1` 仅测试）
 - `stack_supervisor/daemon.py` — watchdog 每 30s 直接 Python 调用 `wave_orchestrator.core.reap()` + `check_stack_write_gate()`（无 bash 子进程，避免 venv 路径/超时引起的静默失败）
 - `ifm/profile.yaml` browser-mcp — Agent 正式流程
-- [runtime_probe.py](../lib/runtime_probe.py) — `runtimeId` 探针；`core.probe_runtime_id()` 与 `e2e_bootstrap` / `e2e_runtime_guard` 同源；正式 `./myrm test` chrome E2E 会话期间 `reap_runtime_drift` 仅 heal 或 no-op，**永不** drift-invalidate 共享 immutable wave
+- [../lib/e2e_core/runtime_probe.py](../lib/e2e_core/runtime_probe.py) — `runtimeId` 探针；`core.probe_runtime_id()` 与 `e2e_bootstrap` / `e2e_runtime_guard` 同源；正式 `./myrm test` chrome E2E 会话期间 `reap_runtime_drift` 仅 heal 或 no-op，**永不** drift-invalidate 共享 immutable wave
 
 ## Lease TTL 策略
 
@@ -71,7 +71,7 @@ PRIVATE session 的 root wave lease（以及其 page/context 子 lease）带有 
 
 ## 依赖
 
-- [../lib/runtime_probe.py](../lib/runtime_probe.py)
-- [../lib/wave_state_paths.py](../lib/wave_state_paths.py)
+- [../lib/e2e_core/runtime_probe.py](../lib/e2e_core/runtime_probe.py)
+- [../lib/e2e_core/wave_state_paths.py](../lib/e2e_core/wave_state_paths.py)
 - [../dev-stack.sh](../dev-stack.sh)
 - [../_ARCH.md](../_ARCH.md)

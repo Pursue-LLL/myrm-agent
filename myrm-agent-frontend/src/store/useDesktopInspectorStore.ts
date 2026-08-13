@@ -59,6 +59,8 @@ interface DesktopInspectorState {
   isDesktopActive: boolean;
   instructionText: string;
   isSnapshotLoading: boolean;
+  /** True while the current agent turn emits desktop events (tools/view updates/approvals). */
+  engagedInTurn: boolean;
 
   openPanel: () => void;
   closePanel: () => void;
@@ -68,6 +70,8 @@ interface DesktopInspectorState {
   selectElement: (refId: string, info: BrowserRefInfo) => void;
   clearSelection: () => void;
   setDesktopActive: (active: boolean) => void;
+  markTurnEngaged: () => void;
+  releaseTurnEngagement: () => void;
   setInstructionText: (text: string) => void;
   fetchSnapshot: () => Promise<boolean>;
   reset: () => void;
@@ -96,6 +100,7 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
   isDesktopActive: false,
   instructionText: '',
   isSnapshotLoading: false,
+  engagedInTurn: false,
 
   openPanel: () => set({ isOpen: true }),
   closePanel: () => set({ isOpen: false, selectedElement: null, instructionText: '' }),
@@ -113,6 +118,18 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
       isDesktopActive: active,
       ...(active ? {} : { isOpen: false, viewData: null, selectedElement: null }),
     })),
+  markTurnEngaged: () => set({ engagedInTurn: true }),
+  releaseTurnEngagement: () =>
+    set((s) => {
+      if (!s.engagedInTurn) return {};
+      return {
+        engagedInTurn: false,
+        isDesktopActive: false,
+        isOpen: false,
+        viewData: null,
+        selectedElement: null,
+      };
+    }),
   setInstructionText: (text) => set({ instructionText: text }),
   fetchSnapshot: async () => {
     if (get().isSnapshotLoading) return false;
@@ -159,6 +176,7 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
       isDesktopActive: false,
       instructionText: '',
       isSnapshotLoading: false,
+      engagedInTurn: false,
     }),
 }));
 

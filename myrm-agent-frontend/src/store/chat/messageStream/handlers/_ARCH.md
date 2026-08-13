@@ -29,7 +29,7 @@
 | `sessionRecordingEvents.ts` | 核心 | SESSION_RECORDING 视频回放元数据 | ✅ |
 | `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、MODEL_FAILOVER、MODEL_RECOVERY（toast 经 `modelNotifyToastKey` 6-locale i18n SSOT；MODEL_FAILOVER progress step 与 STATUS 通道去重；**restart 协议**：MODEL_FAILOVER 到达时经 `discardStreamedDraft`（ctx 级）+ `clearAssistantDraft`（message 级）清空已流式废稿并丢弃旧渲染闭包——fallback 从头重跑，避免旧废稿拼接完整回答；MODEL_ESCALATED payload `restart:true` 时同样清空废稿——升级模型重跑本轮） | ✅ |
 | `modelNotifyToastKey.ts` | 辅助 | MODEL_ESCALATED/FAILOVER/RECOVERY → `progressSteps.*` i18n key 映射（含 `auth_permanent`/`session_expired` → `model_failover_auth`、`safety_block` → `safety_fallback_active`，与 STATUS 通道派生一致） | ✅ |
-| `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存；FILE_MUTATION_FAILED / WORKSPACE_MERGE_FAILED 持久化到 message；持久化 `execution_lane` / wiki lane metrics；回填 `memory_brief_snapshot_id` + `memory_brief_status`；`flushPendingGapRetry` 于 loading 落盘后自动重发 | ✅ |
+| `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存；FILE_MUTATION_FAILED / WORKSPACE_MERGE_FAILED 持久化到 message；持久化 `execution_lane` / wiki lane metrics；回填 `memory_brief_snapshot_id` + `memory_brief_status`；`flushPendingGapRetry` 于 loading 落盘后自动重发；MESSAGE_END 时 `releaseTurnEngagement()` 归还桌面 inspector 控制状态 | ✅ |
 | `gapEvents.ts` | 核心 | CAPABILITY_GAP / SKILL_GAP SSE → toast 开启并重发；`surface_unavailable` → info-only toast；`web_search` + `not_configured|unreachable` → `webSearchConfigGap` SSOT toast；`migration_readiness_critical|warning` → issue-aware settings CTA toast | ✅ |
 | `renderUiSurfaceUnavailableMessage.ts` | 辅助 | `capability_gap` surface_unavailable fallback 文案（与 `agent.configPanel.renderUiWebOnlyHint` 同步） | ✅ |
 | `__tests__/gapEvents.test.ts` | 测试 | gap handler 回归（含 web_search config gap CTA、loading 延迟重发） | ✅ |
@@ -41,7 +41,8 @@
 | `__tests__/fileDiffEvents.desktopViewUpdate.test.ts` | 测试 | DESKTOP_VIEW_UPDATE：sourceChatId 写入 | ✅ |
 | `__tests__/fileDiffEvents.desktopControlApproval.test.ts` | 测试 | DESKTOP_CONTROL_APPROVAL：前台 chat 匹配时 setDesktopActive + openPanel | ✅ |
 | `__tests__/toolLifecycleEvents.browserInspector.test.ts` | 测试 | browser_* TOOL_START 前台 chat 匹配时才 openPanel | ✅ |
-| `__tests__/toolLifecycleEvents.desktopInspector.test.ts` | 测试 | desktop_* TOOL_END REST re-fetch 仅前台 chat 匹配时执行 | ✅ |
+| `__tests__/toolLifecycleEvents.desktopInspector.test.ts` | 测试 | desktop_* TOOL_END REST re-fetch 仅前台 chat 匹配时执行；desktop_* TOOL_START markTurnEngaged | ✅ |
+| `__tests__/completionEvents.desktopTeardown.test.ts` | 测试 | MESSAGE_END → releaseTurnEngagement；非 MESSAGE_END 不释放 | ✅ |
 | `__tests__/statusStreamProgressSteps.allowedToolsRecovery.test.ts` | 测试 | stream recovery + `allowed_tools_rejected_recovery` progress step 白名单 | ✅ |
 | `__tests__/statusStreamProgressSteps.modelFailoverKey.test.ts` | 测试 | `model_failover` displayKey 按 `error_kind` 派生；`model_failover_unconfigured` step 白名单；restart 协议（`data.restart===true` 清空草稿 + `scheduler.cancel()`），含 `empty_response_recovery`/`tool_call_retry`/`vision_fallback_recovery`/`media_rejected_recovery` 白名单、清稿与 early 占位 | ✅ |
 | `__tests__/statusStreamEvents.waitingForTurn.test.ts` | 测试 | `waiting_for_turn` 白名单/占位/step 追加 + `waiting_for_turn_clear` step 移除 | ✅ |

@@ -86,6 +86,12 @@ function readStoredBuiltinTools(): BuiltinToolId[] {
   }
 }
 
+/** Release the desktop inspector "controlling" state after a manual stop. */
+async function releaseDesktopInspectorControl(): Promise<void> {
+  const { default: useDesktopInspectorStore } = await import('@/store/useDesktopInspectorStore');
+  useDesktopInspectorStore.getState().releaseTurnEngagement();
+}
+
 /** Restore chat UI preferences from localStorage after hydration (SSR-safe). */
 export function hydrateChatPreferencesFromStorage(): void {
   if (typeof window === 'undefined') {
@@ -542,6 +548,7 @@ const useChatStore = create<ChatState>()(
             })();
             abortController.abort();
             useWorkspaceStore.getState().setPaneAbortController(paneId, null);
+            void releaseDesktopInspectorControl();
             set((state) => {
               state.loading = false;
               state.abortController = null;
@@ -565,6 +572,7 @@ const useChatStore = create<ChatState>()(
           }
         })();
         chatAbortController.abort();
+        void releaseDesktopInspectorControl();
         set((state) => {
           state.loading = false;
           state.abortController = null;

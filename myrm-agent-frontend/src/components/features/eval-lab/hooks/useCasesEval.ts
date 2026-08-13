@@ -44,6 +44,9 @@ export interface ReportItem {
     usage?: { total_tokens?: number };
     actual_tools?: unknown[];
     actual_output?: string;
+    limit_reached?: string | null;
+    blocked_count?: number;
+    tool_call_details?: Array<{ tool_name?: string; step_key?: string }>;
     case?: {
       message?: string;
       expected_tools?: unknown[];

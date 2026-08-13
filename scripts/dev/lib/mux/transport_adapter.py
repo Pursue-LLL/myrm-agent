@@ -1,8 +1,8 @@
 """MCP shim transport adapter — stdio JSON-RPC framing and process lifecycle.
 
 [INPUT]
-dev_gate_contract (POS: Dev Gate v2 合约常量 SSOT)
-transport_supervisor (POS: recovery budget / lock wait)
+dev_gate.contract (POS: Dev Gate v2 合约常量 SSOT)
+mux.transport_supervisor (POS: recovery budget / lock wait)
 
 [OUTPUT]
 TransportDeadError: transport 层统一异常

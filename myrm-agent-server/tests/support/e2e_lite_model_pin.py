@@ -1,4 +1,4 @@
-"""Pin LITE_MODEL from .env.test for LIVE Chrome E2E (SSOT: dev_gate_contract + seed)."""
+"""Pin LITE_MODEL from .env.test for LIVE Chrome E2E (SSOT: dev_gate.contract + seed)."""
 
 from __future__ import annotations
 

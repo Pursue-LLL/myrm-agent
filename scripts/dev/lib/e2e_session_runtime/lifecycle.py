@@ -1,7 +1,7 @@
 """E2E Session Lifecycle SSOT (R62 four-phase model).
 
 [INPUT]
-- dev_gate_contract.py (phase budget constants, is_e2e_signoff_runtime)
+- dev_gate/contract.py (phase budget constants, is_e2e_signoff_runtime)
 
 [OUTPUT]
 - BudgetPolicy, SessionPhase, transition_to_phase(), begin_body_wall_budget()

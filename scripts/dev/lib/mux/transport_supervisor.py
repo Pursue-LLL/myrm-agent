@@ -1,8 +1,8 @@
 """TransportSupervisor — mux runtime invariants for parallel Chrome E2E (R65-A).
 
 [INPUT]
-- runtime_probe.mux_owned_daemon_count
-- dev_gate_contract.MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC
+- e2e_core.runtime_probe.mux_owned_daemon_count
+- dev_gate.contract.MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC
 
 [OUTPUT]
 - assert_mux_daemons_single(), mux_recovery_scope(), recovery_budget_remaining()

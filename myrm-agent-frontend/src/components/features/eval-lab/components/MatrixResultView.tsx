@@ -121,7 +121,9 @@ export default function MatrixResultView({ report, profileNames }: Props) {
           <span className="text-muted-foreground">{t('budgetHint')}</span>
         </div>
       )}
-      {(report.profile_id && report.eval_type !== 'matrix') || report.harness_version ? (
+      {(report.profile_id && report.eval_type !== 'matrix') ||
+      report.harness_version ||
+      typeof report.decontam_active === 'boolean' ? (
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground px-1">
           {report.profile_id && report.eval_type !== 'matrix' && (
             <span>

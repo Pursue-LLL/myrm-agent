@@ -27,15 +27,13 @@ import { restoreMemory as apiRestoreMemory } from '@/services/memory';
 import MemoryClearAllDialog from '@/components/features/memory/dialogs/MemoryClearAllDialog';
 import MemorySettingsToggles from '@/components/features/memory/settings/MemorySettingsToggles';
 import MemoryTabSwitcher, { type MemoryTab } from '@/components/features/memory/settings/MemoryTabSwitcher';
-import {
-  PendingMemoryList,
-  MemoryCard,
-  MemoryTypeIcon,
-  MemoryEditDialog,
-  MemoryCreateDialog,
-  MemoryDetailSheet,
-  MemoryStats,
-} from '@/components/features/memory';
+import PendingMemoryList from '@/components/features/memory/pending/PendingMemoryList';
+import MemoryCard from '@/components/features/memory/cards/MemoryCard';
+import MemoryTypeIcon from '@/components/features/memory/cards/MemoryTypeIcon';
+import MemoryEditDialog from '@/components/features/memory/dialogs/MemoryEditDialog';
+import MemoryCreateDialog from '@/components/features/memory/dialogs/MemoryCreateDialog';
+import MemoryDetailSheet from '@/components/features/memory/cards/MemoryDetailSheet';
+import MemoryStats from '@/components/features/memory/cards/MemoryStats';
 import MemoryGuide from '@/components/features/memory/guides/MemoryGuide';
 import MemoryCommandCenter from '@/components/features/memory/command-center/MemoryCommandCenter';
 import TasteSummaryCard from '@/components/features/memory/cards/TasteSummaryCard';

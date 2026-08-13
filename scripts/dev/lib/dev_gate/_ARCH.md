@@ -25,7 +25,7 @@ Dev Gate 协调层：session 注册、lease/credit、launch-check、cleanup.seal
 
 ## 兼容层
 
-`dev/lib/dev_gate_*.py` 等根级 shim 为 module alias，禁止添加逻辑。canonical 实现仅在本目录。
+`dev/lib/dev_gate/*` 为 canonical 实现，所有调用方经 `from dev_gate.* import ...` 导入。
 
 ## 依赖
 

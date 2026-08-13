@@ -1,8 +1,8 @@
 """Chrome MCP orchestration for desktop control approval E2E.
 
 [INPUT]
-- cdp_chat_support::wait_e2e_provider_ready (POS: live E2E API readiness probe)
-- mcp_chat_ui::McpChatSession (POS: chat UI automation over MCP)
+- cdp_chat.support::wait_e2e_provider_ready (POS: live E2E API readiness probe)
+- cdp_chat.mcp_ui::McpChatSession (POS: chat UI automation over MCP)
 - tests.e2e.desktop_approval.* (POS: desktop approval E2E helper modules)
 
 [OUTPUT]

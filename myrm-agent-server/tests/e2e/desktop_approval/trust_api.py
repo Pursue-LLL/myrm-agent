@@ -1,7 +1,7 @@
 """Server API helpers for desktop approval Chrome E2E.
 
 [INPUT]
-- cdp_chat_support::get_e2e_api_url (POS: live E2E API base resolver)
+- cdp_chat.support::get_e2e_api_url (POS: live E2E API base resolver)
 - tests.e2e.desktop_approval.constants::progress (POS: stderr progress lines)
 
 [OUTPUT]

@@ -2,7 +2,7 @@
 
 [INPUT]
 - wave_orchestrator.store::run_locked (POS: flock-protected JSON state I/O)
-- runtime_probe.read_current_runtime_id / _read_shared_hot_stack_runtime_id (POS: live stack identity probe)
+- e2e_core.runtime_probe.read_current_runtime_id / _read_shared_hot_stack_runtime_id (POS: live stack identity probe)
 
 [OUTPUT]
 - open_wave() / close_wave() / acquire_lease() / release_lease() / heartbeat_lease()

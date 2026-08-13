@@ -1,7 +1,7 @@
 """Epoch Delivery Plane — pin epoch-matched API for SHARED LIVE tests without private ADMIT.
 
 [INPUT]
-- e2e_api_verify.resolve_e2e_api_context (POS: epoch / verify candidate SSOT)
+- api_verify.resolve_e2e_api_context (POS: epoch / verify candidate SSOT)
 - verify_backend_seed.ensure_verify_backend_seed (POS: backend-only isolated runtime)
 
 [OUTPUT]

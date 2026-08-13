@@ -9,6 +9,10 @@ vi.mock('@/services/notification', () => ({
   notificationService: { notify: vi.fn() },
 }));
 
+vi.mock('@/store/chat/pendingGapRetry', () => ({
+  scheduleFlushPendingGapRetry: vi.fn(),
+}));
+
 vi.mock('@/lib/utils/completionSound', () => ({
   playCompletionSound: vi.fn(() => false),
   dispatchPetSurfaceAwayCompletion: vi.fn(),

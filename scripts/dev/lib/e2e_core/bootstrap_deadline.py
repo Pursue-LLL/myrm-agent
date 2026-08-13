@@ -1,7 +1,7 @@
 """Monotonic BOOTSTRAP attach deadline — shared across endpoint recovery and stack-core gate.
 
 [INPUT]
-- dev_gate_contract.attach_parallel_wait_sec (POS: parallel ADMIT budget)
+- dev_gate.contract.attach_parallel_wait_sec (POS: parallel ADMIT budget)
 - MYRM_E2E_DEDUPE_HOLDER_PID / process pid (session key)
 - MYRM_DEV_STATE_DIR (session persistence)
 

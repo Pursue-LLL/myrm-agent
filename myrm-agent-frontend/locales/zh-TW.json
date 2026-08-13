@@ -14690,9 +14690,13 @@
       "envBudget": "執行預算",
       "budgetToolCalls": "次呼叫",
       "budgetIterations": "輪疊代",
-      "envDecontam": "評測去污染",
+      "envDecontam": "評測去汙染",
       "decontamOn": "已啟用",
-      "decontamOff": "未啟用"
+      "decontamOff": "未啟用",
+      "limitHit": "上限",
+      "limitHitTitle": "該用例因達到設定的執行預算（如最大工具呼叫次數）而停止——其回答不完整",
+      "blocked": "已攔截",
+      "blockedTitle": "本次執行中，搜尋查詢或 URL 被評測去汙染防護攔截"
     },
     "history": {
       "passRateTrend": "透過率歷史趨勢 (Pass Rate %)",
@@ -14832,8 +14836,8 @@
       "fingerprint": "每層配置都帶有指紋，鎖定開關組合，保證跨版本分數可對比。",
       "harnessVersion": "Harness 引擎",
       "basedOnProfile": "智能體",
-      "decontamOn": "評測去污染已啟用",
-      "decontamOff": "評測去污染未啟用",
+      "decontamOn": "評測去汙染已啟用",
+      "decontamOff": "評測去汙染未啟用",
       "abortedNotice": "本報告不完整——評測在中途被中止。",
       "bare": {
         "label": "裸基線"

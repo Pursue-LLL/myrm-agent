@@ -1,12 +1,12 @@
 """MCP page lifecycle helpers — retry policies, timeout scaling, stagger.
 
 [INPUT]
-dev_gate_contract (POS: Dev Gate v2 合约常量)
-mux_load (POS: mux context / wave lease 负载探针)
-chrome_mcp_errors (POS: MCP 错误分类谓词)
-mcp_protocol (POS: JSON-RPC 解析)
-cdp_chat_support (POS: CDP readiness probe)
-transport_supervisor (POS: transport exhausted token)
+dev_gate.contract (POS: Dev Gate v2 合约常量)
+mux.load (POS: mux context / wave lease 负载探针)
+chrome_mcp.errors (POS: MCP 错误分类谓词)
+chrome_mcp.protocol (POS: JSON-RPC 解析)
+cdp_chat.support (POS: CDP readiness probe)
+mux.transport_supervisor (POS: transport exhausted token)
 
 [OUTPUT]
 new_page retry/backoff/scaling helpers

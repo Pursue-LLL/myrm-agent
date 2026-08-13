@@ -4,7 +4,7 @@
 
 记忆中心：浏览、编辑、归档与召回相关 UI。
 
-组件按功能域收进子目录，根目录仅保留 `index.ts` 聚合门面、本架构文档与 `__tests__/`：
+组件按功能域收进子目录，根目录仅保留本架构文档与 `__tests__/`：
 
 | 子目录 | 职责 |
 |--------|------|
@@ -132,5 +132,5 @@
 
 ## 引用规范
 
-- 域内跨子目录引用一律用相对路径（如 `../cards/MemoryTypeIcon`），禁止经 `index.ts` 门面自引用，避免循环依赖。
-- `index.ts` 门面仅供外部模块消费（如 ChatWindow、MemorySection）；新增外部消费组件时按需加入门面导出。
+- 域内跨子目录引用一律用相对路径（如 `../cards/MemoryTypeIcon`），禁止经目录级 `index.ts` 桶文件聚合，避免循环依赖与 tree-shaking 损伤。
+- 外部模块消费 memory 组件一律直连子目录路径（如 `@/components/features/memory/cards/MemoryCard`）；禁止在子目录中新增 `index.ts` 桶文件。

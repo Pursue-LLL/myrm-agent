@@ -142,7 +142,7 @@ def test_refresh_signoff_open_nav_tool_wall_restores_bootstrap_remaining(
     monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 4)
     monkeypatch.setitem(
         sys.modules,
-        "dev_gate_contract",
+        "dev_gate.contract",
         type(
             "DevGateContractStub",
             (),
@@ -189,7 +189,7 @@ def test_refresh_signoff_open_nav_tool_wall_grants_nav_slice_when_mux_queue_exha
     monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 5)
     monkeypatch.setitem(
         sys.modules,
-        "dev_gate_contract",
+        "dev_gate.contract",
         type(
             "DevGateContractStub",
             (),
@@ -266,7 +266,7 @@ def test_open_page_cdp_probe_budget_scales_with_mux_load(
 
     monkeypatch.setitem(
         sys.modules,
-        "mux_load",
+        "mux.load",
         type(
             "MuxLoadStub",
             (),
@@ -339,7 +339,7 @@ def test_open_page_body_fraction_cap_scales_with_live_body_wall(
     monkeypatch.delenv("MYRM_E2E_SIGNOFF", raising=False)
     monkeypatch.setitem(
         sys.modules,
-        "transport_supervisor",
+        "mux.transport_supervisor",
         type(
             "TransportSupervisorStub",
             (),
@@ -516,7 +516,7 @@ def test_open_page_body_fraction_cap_scales_with_parallel_peers(
     monkeypatch.delenv("MYRM_E2E_SIGNOFF", raising=False)
     monkeypatch.setitem(
         sys.modules,
-        "transport_supervisor",
+        "mux.transport_supervisor",
         type(
             "TransportSupervisorStub",
             (),
@@ -587,7 +587,7 @@ def test_warm_ui_parallel_wait_sec_scales_with_active_leases(
 
     monkeypatch.setitem(
         sys.modules,
-        "stack_mutation_policy",
+        "e2e_core.stack_mutation_policy",
         _FakePolicy(),  # type: ignore[arg-type]
     )
 
@@ -602,7 +602,7 @@ def test_warm_ui_parallel_wait_sec_scales_with_active_leases(
 
     monkeypatch.setitem(
         sys.modules,
-        "e2e_shared_ui_hydrate",
+        "e2e_core.shared_ui_hydrate",
         type(
             "_FakeHydrate",
             (),
@@ -611,12 +611,12 @@ def test_warm_ui_parallel_wait_sec_scales_with_active_leases(
     )
     monkeypatch.setitem(
         sys.modules,
-        "dev_gate_contract",
+        "dev_gate.contract",
         _FakeContract(),  # type: ignore[arg-type]
     )
     monkeypatch.setitem(
         sys.modules,
-        "transport_supervisor",
+        "mux.transport_supervisor",
         type(
             "_FakeTransportSupervisor",
             (),
@@ -650,18 +650,18 @@ def test_warm_ui_parallel_wait_sec_uses_parallel_active_test_count(
         def shared_ui_hydrate_wait_sec() -> int:
             return 900
 
-    monkeypatch.setitem(sys.modules, "stack_mutation_policy", _FakePolicy())  # type: ignore[arg-type]
-    monkeypatch.setitem(sys.modules, "transport_supervisor", _FakeTransport())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "e2e_core.stack_mutation_policy", _FakePolicy())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "mux.transport_supervisor", _FakeTransport())  # type: ignore[arg-type]
     monkeypatch.setitem(
         sys.modules,
-        "e2e_shared_ui_hydrate",
+        "e2e_core.shared_ui_hydrate",
         type(
             "_FakeHydrate",
             (),
             {"parallel_shared_ui_hydrate_queue_enabled": staticmethod(lambda: False)},
         )(),
     )
-    monkeypatch.setitem(sys.modules, "dev_gate_contract", _FakeContract())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "dev_gate.contract", _FakeContract())  # type: ignore[arg-type]
     from tests.support import chrome_mcp_e2e
 
     assert chrome_mcp_e2e._warm_ui_parallel_wait_sec(120.0) == 480.0
@@ -679,7 +679,7 @@ def test_warm_ui_parallel_wait_sec_skips_peer_scale_when_hydrate_queue_enabled(
 
     monkeypatch.setitem(
         sys.modules,
-        "e2e_shared_ui_hydrate",
+        "e2e_core.shared_ui_hydrate",
         _FakeHydrate(),  # type: ignore[arg-type]
     )
     from tests.support import chrome_mcp_e2e
@@ -716,10 +716,10 @@ def test_warm_ui_parallel_wait_sec_burst_uses_lane_width_not_foreign_peers(
         def shared_ui_hydrate_wait_sec() -> int:
             return 900
 
-    monkeypatch.setitem(sys.modules, "e2e_shared_ui_hydrate", _FakeHydrate())  # type: ignore[arg-type]
-    monkeypatch.setitem(sys.modules, "stack_mutation_policy", _FakePolicy())  # type: ignore[arg-type]
-    monkeypatch.setitem(sys.modules, "transport_supervisor", _FakeTransport())  # type: ignore[arg-type]
-    monkeypatch.setitem(sys.modules, "dev_gate_contract", _FakeContract())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "e2e_core.shared_ui_hydrate", _FakeHydrate())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "e2e_core.stack_mutation_policy", _FakePolicy())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "mux.transport_supervisor", _FakeTransport())  # type: ignore[arg-type]
+    monkeypatch.setitem(sys.modules, "dev_gate.contract", _FakeContract())  # type: ignore[arg-type]
     from tests.support import chrome_mcp_e2e
 
     # 30 + 4*45 = 210 (burst lanes), not 30 + 8*45 = 390 (foreign peers)

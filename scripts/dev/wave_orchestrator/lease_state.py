@@ -1,7 +1,7 @@
 """Pure lease-state transitions shared by Wave orchestration modules.
 
 [INPUT]
-dev_gate_contract::formal_chrome_e2e_runtime_heal_agent (POS: Dev Gate v2 合约常量 SSOT)
+dev_gate.contract::formal_chrome_e2e_runtime_heal_agent (POS: Dev Gate v2 合约常量 SSOT)
 wave_orchestrator.browser_lifecycle::cleanup_expired_browser (POS: browser lease 清理)
 wave_orchestrator.resource_ledger::cleanup_expired_lease_resources (POS: 资源账本清理)
 wave_orchestrator.types::LeaseRecord, OrchestratorState (POS: 类型定义)

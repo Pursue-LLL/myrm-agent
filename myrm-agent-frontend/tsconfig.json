@@ -53,7 +53,9 @@
     ".next-isolated-chrome-test_render_ui_update_data_refreshes_inl-09e3cacd-8553-2159bff6/types/**/*.ts",
     ".next-isolated-chrome-test_render_ui_update_data_refreshes_inl-09e3cacd-8553-2159bff6/dev/types/**/*.ts",
     ".next-isolated-chrome-test_subagent_dashboard_lists_and_cancel-5b428cc9-11910-7ed49e1f/types/**/*.ts",
-    ".next-isolated-chrome-test_subagent_dashboard_lists_and_cancel-5b428cc9-11910-7ed49e1f/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_subagent_dashboard_lists_and_cancel-5b428cc9-11910-7ed49e1f/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_rewind_conversation_via_webui-4349255d-32676-1929907c/types/**/*.ts",
+    ".next-isolated-chrome-test_rewind_conversation_via_webui-4349255d-32676-1929907c/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

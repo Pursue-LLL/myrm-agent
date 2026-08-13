@@ -1,7 +1,7 @@
 """Chrome E2E readiness SSOT — unified predicate for ready/launch-check/context/preflight.
 
 [INPUT]
-- e2e_api_verify.resolve_e2e_api_context + cluster snapshots (POS: Agent SSOT)
+- api_verify.resolve_e2e_api_context + cluster snapshots (POS: Agent SSOT)
 
 [OUTPUT]
 - evaluate_chrome_e2e_readiness() -> ChromeE2eReadinessVerdict

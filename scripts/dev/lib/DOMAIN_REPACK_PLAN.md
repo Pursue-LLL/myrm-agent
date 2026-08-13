@@ -1,6 +1,6 @@
 # dev/lib Domain Repack Plan
 
-> Status: **P1–P5 DONE · shims retained · P6 optional shim removal pending** (2026-08-11)
+> Status: **P1–P6 DONE · shims removed · imports consolidated to sub-package paths** (2026-08-13)
 > **Test SSOT**: monorepo `open-perplexity/scripts/dev/tests/` only（`myrm-agent/scripts/dev/tests/` 已合并删除 · `conftest.py` 注入 `DEV_LIB`）.
 > Goal: zero behavior change; improve navigability; prevent import/drift regressions.
 
@@ -27,7 +27,7 @@ dev/lib/
 ├── chrome_e2e/                 # (existing) gates + mux diagnostic
 ├── e2e_session_runtime/        # (existing) snapshot, heartbeat, lifecycle
 ├── e2e_live_flows/             # (existing) live flow runners
-└── *.py shims at lib root      # Phase 1–3: re-export only; removed Phase 4
+└── (lib root)                  # no flat .py shims remain after P6
 ```
 
 ## Shim Template
@@ -164,7 +164,7 @@ Remaining flat `e2e_*.py` → `e2e_core/<suffix>.py` (strip `e2e_` prefix).
 | **P3** | `mux/` + `chrome_mcp/` | 14 | `test_mux_*.py`, chrome_mcp static |
 | **P4** | `browser_orchestrator/` | 6 | orchestrator + warm shell integration tests |
 | **P5** | `e2e_core/` | 55 | `test_e2e_*.py` subset (~40 files) |
-| **P6** | Remove shims | 0 | full `scripts/dev/tests/` + one chrome_e2e smoke |
+| **P6** | Remove shims | 0 | **DONE** — full `scripts/dev/tests/` + one chrome_e2e smoke |
 
 Each phase checklist:
 
@@ -204,10 +204,10 @@ Each phase is one revert commit (mv + shims). Do not partial-revert shims withou
 
 ## Post-P6 Cleanup
 
-1. Delete root shims
-2. Bulk-update `from dev_gate_contract` → `from dev_gate.contract` (optional codemod)
-3. Consolidate monorepo `scripts/dev/lib/` (12 files) — document whether symlink or duplicate of OSS paths
-4. Add CI check: fail if new `.py` lands flat in `dev/lib/` root (lint rule)
+1. ✅ Delete root shims — 105 flat shims removed
+2. ✅ Bulk-update `from dev_gate_contract` → `from dev_gate.contract` (codemod 1170 imports + 8 `.sh` paths)
+3. ✅ Consolidate monorepo `scripts/dev/lib/` — 该目录为 monorepo 专用资产（phase-c ramp / dgep / resource-soak 等），与 OSS 子包路径无重复；SSOT 收敛至 `myrm-agent/scripts/dev/lib/e2e_core/guardrail_ssot.py`
+4. ⚠️ Add CI check: fail if new `.py` lands flat in `dev/lib/` root (lint rule) — `test_repack_deleted_module_paths_static.py` 静态守卫覆盖测试侧引用，根目录 flat 落地由 code review 把关
 
 ## Risk Controls
 

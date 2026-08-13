@@ -63,10 +63,8 @@ vi.mock('@/components/features/app-shell/VisualDesktopToggle', () => ({ VisualDe
 vi.mock('@/components/features/message-actions/SessionRevertButton', () => ({ default: () => null }));
 vi.mock('@/components/features/copilot/RunStatusChip', () => ({ default: () => null }));
 vi.mock('@/components/features/copilot/SessionAdvisorPanel', () => ({ default: () => null }));
-vi.mock('@/components/features/memory', () => ({
-  PendingMemoryBadge: () => null,
-  PendingMemoryDialog: () => null,
-}));
+vi.mock('@/components/features/memory/pending/PendingMemoryBadge', () => ({ default: () => null }));
+vi.mock('@/components/features/memory/pending/PendingMemoryDialog', () => ({ default: () => null }));
 
 const originalSendMessage = useChatStore.getState().sendMessage;
 

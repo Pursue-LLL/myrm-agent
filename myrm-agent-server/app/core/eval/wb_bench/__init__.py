@@ -32,6 +32,9 @@ from .download import (
 from .workspace import build_wb_bench_cases
 
 __all__ = [
+    "download",
+    "verifier",
+    "workspace",
     "ARCHIVES_DIR",
     "SOURCES_DIR",
     "WB_BENCH_ROOT",

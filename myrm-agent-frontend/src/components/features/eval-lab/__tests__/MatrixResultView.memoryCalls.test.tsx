@@ -236,6 +236,15 @@ describe('MatrixResultView decontamination disclosure', () => {
     expect(screen.getByText('evalLab.layers.decontamOff')).toBeInTheDocument();
   });
 
+  it('shows the badge even without profile/harness_version metadata', () => {
+    const report = baseReport();
+    report.decontam_active = true;
+
+    render(<MatrixResultView report={report} />);
+
+    expect(screen.getByText('evalLab.layers.decontamOn')).toBeInTheDocument();
+  });
+
   it('omits the badge when the report has no decontamination field', () => {
     render(<MatrixResultView report={baseReport()} />);
 

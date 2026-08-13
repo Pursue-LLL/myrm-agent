@@ -72,9 +72,13 @@ _ASSISTANT_OK_JS = """(() => {
     if (text.includes('OK')) {
       return { ready: true, snippet: text.slice(0, 120) };
     }
-    return { ready: false, msg_count: msgs.length, last_assistant: text.slice(0, 120) };
   }
-  return { ready: false, msg_count: msgs.length };
+  const lastAssistant = msgs
+    .slice()
+    .reverse()
+    .find((m) => m.role === 'assistant' || m.type === 'assistant');
+  const lastText = lastAssistant ? String(lastAssistant.content || lastAssistant.text || '').trim() : '';
+  return { ready: false, msg_count: msgs.length, last_assistant: lastText.slice(0, 120) };
 })()"""
 
 _ATTACH_JS = """(async () => {
@@ -428,6 +432,16 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
         cleared_state = _wait_waiting_cleared(client, page, timeout_sec=20.0)
         assert cleared_state.get("ready") is False, cleared_state
 
+        # DOM 层验证取消后的同步清除。先展开进度面板，确保 waiting 文案
+        # 若残留会真实渲染进 DOM；折叠态下断言会无意义地通过。
+        pre_expand_raw = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=10.0)
+        pre_expand_state = (
+            pre_expand_raw if isinstance(pre_expand_raw, dict) else json.loads(str(pre_expand_raw))
+        )
+        assert pre_expand_state.get("ok") is True, pre_expand_state
+        dom_cleared_state = _wait_dom_waiting_cleared(client, page, timeout_sec=15.0)
+        assert dom_cleared_state.get("ready") is False, dom_cleared_state
+
         # 第二次发送：锁仍被 seed 持有 → waiting_for_turn 必须再次出现。
         # 这是"取消未误释放持有者锁"且 gateway 预占已清理（不会 busy）的强证据。
         # 取消 API 是 fire-and-forget，后端 teardown 有极小窗口 → 重试最多 3 次。
@@ -445,6 +459,20 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
 
         waiting2 = _wait_waiting_step(client, page, timeout_sec=45.0)
         assert waiting2.get("step_key") == "waiting_for_turn", waiting2
+
+        # 第二次等待期间：assistant 占位符必须重新出现且为空（锁仍持有）。
+        streaming2 = _wait_waiting_streaming(client, page, timeout_sec=15.0)
+        assert streaming2.get("ready") is True, streaming2
+        assert streaming2.get("placeholder") is True, streaming2
+
+        # DOM 层验证：展开面板后 i18n 等待文案真实渲染（与第一个测试一致）。
+        expand2_raw = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=10.0)
+        expand2_state = (
+            expand2_raw if isinstance(expand2_raw, dict) else json.loads(str(expand2_raw))
+        )
+        assert expand2_state.get("ok") is True, expand2_state
+        dom2_state = _wait_dom_waiting(client, page, timeout_sec=15.0)
+        assert dom2_state.get("ready") is True, dom2_state
 
         # 模拟持有者完成：显式释放锁 → waiting_for_turn_clear → 第二次 turn 完成
         release_state = _release_turn_lock(api_url, project_id)

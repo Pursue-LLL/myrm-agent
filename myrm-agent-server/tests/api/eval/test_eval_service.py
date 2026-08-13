@@ -471,6 +471,7 @@ class TestRunEvalSuite:
         assert summary["pass_rate"] == 1.0
         assert summary["all_passed"] is True
         assert "avg_pass_rate" not in summary
+        assert summary["decontam_active"] is False
         assert (reports_dir / "latest.jsonl").exists()
 
     @pytest.mark.asyncio
@@ -525,6 +526,57 @@ class TestRunEvalSuite:
         # Cases sorted by profile then grouped (stable): a, a, b
         grouped = mock_runner.run_multi_turn.await_args[0][0]
         assert [c.metadata["profile_id"] for c in grouped] == ["a", "a", "b"]
+
+    @pytest.mark.asyncio
+    async def test_suite_discloses_decontam_active_when_blocked(
+        self, tmp_path: Path,
+    ) -> None:
+        """run_eval_suite reports decontam_active from injected blocklists.
+
+        The single-run summary must disclose whether HF decontamination was
+        active so a plain benchmark run cannot be mistaken for a guarded one
+        (same disclosure contract as layered and memory A/B reports).
+        """
+        class FakeCase:
+            def __init__(self) -> None:
+                self.metadata: dict[str, object] = {}
+                self.turns = [object()]
+
+        class FakeResult:
+            total_cases = 1
+            pass_count = 1
+            fail_count = 0
+            error_count = 0
+            skip_count = 0
+            pass_rate = 1.0
+            all_passed = True
+            total_ms = 10
+            avg_pass_rate: float | None = None
+
+        with (
+            patch(
+                "app.core.eval.service._build_eval_manifest",
+                new=AsyncMock(return_value=MagicMock(to_dict=lambda: {"x": 1})),
+            ),
+            patch(
+                "app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()
+            ),
+            patch("app.core.eval.service.EvalRunner") as mock_runner_cls,
+            patch("app.core.eval.service.JsonlReporter", FakeJsonlReporter),
+        ):
+            mock_runner = MagicMock()
+            mock_runner.run_multi_turn = AsyncMock(return_value=FakeResult())
+            mock_runner_cls.return_value = mock_runner
+
+            summary = await run_eval_suite(
+                dataset_id="ds",
+                reports_dir=tmp_path / "reports",
+                external_cases=[FakeCase()],
+                blocked_hostnames=("huggingface.co",),
+                blocked_terms=("huggingface",),
+            )
+
+        assert summary["decontam_active"] is True
 
     @pytest.mark.asyncio
     async def test_suite_creates_dummy_cases_when_missing(self, tmp_path: Path) -> None:

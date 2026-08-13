@@ -2,7 +2,7 @@
 
 [INPUT]
 - e2e_session_runtime.snapshot sidecars
-- dev_gate_cli (POS: Unix socket 协调器自动启动客户端) — coordinator 活跃性检测
+- dev_gate/cli.py (POS: Unix socket 协调器自动启动客户端) — coordinator 活跃性检测
 - ps(1) etime for live holder/pytest pids (degraded mode fallback only)
 
 [OUTPUT]
@@ -131,7 +131,7 @@ def _row_from_snapshot(pid: int, payload: dict[str, object]) -> LiveE2ESessionRo
 def _coordinator_has_sessions() -> bool:
     """Check if the Dev Gate coordinator is active and tracking sessions.
 
-    Uses a short direct socket RPC (``snapshot``) instead of ``dev_gate_cli.send`` so
+    Uses a short direct socket RPC (``snapshot``) instead of ``dev_gate.cli.send`` so
     a congested coordinator cannot trigger send()'s extended timeout-recovery loop
     (~300s+) during orphan-budget / parallel snapshot reads.
     """

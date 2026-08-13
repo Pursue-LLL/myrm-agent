@@ -26,6 +26,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     if (toolName.startsWith('desktop_')) {
       const { default: desktopStore } = await import('@/store/useDesktopInspectorStore');
       desktopStore.getState().setDesktopActive(true);
+      desktopStore.getState().markTurnEngaged();
     }
 
     return done(ctx);

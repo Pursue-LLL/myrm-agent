@@ -3,7 +3,7 @@
 [INPUT]
 - tests.support.e2e_parallel_snapshot (POS: live process/flock snapshot)
 - dev_gate_status (POS: Dev Gate registry status)
-- dev_gate_contract (POS: Dev Gate constants — MUX_COLD_ATTACH_SLOTS)
+- dev_gate.contract (POS: Dev Gate constants — MUX_COLD_ATTACH_SLOTS)
 - e2e_lease_liveness (POS: WaveLeaseCounts type)
 
 [OUTPUT]
@@ -17,7 +17,7 @@
 
 [POS]
 Parallel runtime status plane — observe capacity + queue state without
-touching API resolution or context probe logic.  Used by e2e_api_verify
+touching API resolution or context probe logic.  Used by api_verify
 for Agent-facing e2e-context output.
 """
 

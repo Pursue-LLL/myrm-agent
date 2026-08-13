@@ -1,7 +1,7 @@
 """Chrome E2E launch preflight gate (R166 UPAP).
 
 [INPUT]
-- e2e_api_verify.resolve_e2e_api_context / _compute_next_action (POS: Agent SSOT)
+- api_verify.resolve_e2e_api_context / _compute_next_action (POS: Agent SSOT)
 - e2e_lease_liveness.wave_lease_counts (POS: effective cap headroom)
 
 [OUTPUT]

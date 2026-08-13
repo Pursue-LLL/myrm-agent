@@ -1,8 +1,8 @@
 """Shared :3000 UI session contract for parallel chrome_e2e (Dev Gate SSOT).
 
 [INPUT]
-cdp_chat_support::ensure_e2e_search_cleared_in_browser (POS: E2E API/chat 消息 SSOT)
-cdp_chat_support::get_e2e_api_url (POS: E2E API/chat 消息 SSOT)
+cdp_chat.support::ensure_e2e_search_cleared_in_browser (POS: E2E API/chat 消息 SSOT)
+cdp_chat.support::get_e2e_api_url (POS: E2E API/chat 消息 SSOT)
 
 [OUTPUT]
 apply_shared_ui_session_contract: 四阶段 UI 会话隔离（RESET → BIND → BRIDGE → SEARCH）+ 最终 probe 失败时 CDP re-hydrate（最多 3 次）

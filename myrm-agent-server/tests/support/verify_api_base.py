@@ -1,8 +1,8 @@
 """Shared verify-api base resolver for live integration tests.
 
 [INPUT]
-- e2e_api_verify::resolve_e2e_api_context (POS: epoch-matched verify-api routing SSOT)
-- verify_backend_seed::ensure_verify_backend_seed (POS: on-demand backend-only isolated spawn)
+- api_verify::resolve_e2e_api_context (POS: epoch-matched verify-api routing SSOT)
+- e2e_core.verify_backend_seed::ensure_verify_backend_seed (POS: on-demand backend-only isolated spawn)
 
 [OUTPUT]
 - resolve_verify_api_base(): loopback API base for live server-route pytest (parallel-safe)

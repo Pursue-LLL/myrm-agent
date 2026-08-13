@@ -154,6 +154,14 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       // Do not abort it here: the reader still owns the stream teardown.
       actions.clearActiveStream?.();
 
+      // Release the desktop inspector "controlling" state when this turn
+      // engaged desktop events (desktop_ tool start, view update, approval).
+      // `releaseTurnEngagement` is a no-op unless engagedInTurn is set, so a
+      // panel the user opened manually is never force-closed by unrelated turns.
+      void import('@/store/useDesktopInspectorStore').then(({ default: desktopStore }) => {
+        desktopStore.getState().releaseTurnEngagement();
+      });
+
       const lastMsg = state.messages[state.messages.length - 1];
       if (lastMsg) {
         actions._processSuggestions(lastMsg);

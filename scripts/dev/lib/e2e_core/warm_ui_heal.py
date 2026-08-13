@@ -433,7 +433,7 @@ def run_ui_heal_cli(
 def main() -> int:
     if len(sys.argv) >= 2 and sys.argv[1] == "attach":
         if len(sys.argv) != 3:
-            print("usage: e2e_warm_ui_heal.py attach <monorepo_root>", file=sys.stderr)
+            print("usage: warm_ui_heal.py attach <monorepo_root>", file=sys.stderr)
             return 2
         root = Path(sys.argv[2]).resolve()
         outcome = heal_shared_frontend_attach(root)
@@ -451,7 +451,7 @@ def main() -> int:
             idx += 1
         return run_ui_heal_cli(root, route=route)
     if len(sys.argv) != 2:
-        print("usage: e2e_warm_ui_heal.py <monorepo_root>", file=sys.stderr)
+        print("usage: warm_ui_heal.py <monorepo_root>", file=sys.stderr)
         return 2
     root = Path(sys.argv[1]).resolve()
     ok = heal_shared_frontend_debounced(root)

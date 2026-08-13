@@ -1,15 +1,15 @@
 """Synchronous Chrome DevTools MCP mux client for formal UI E2E runners.
 
 [INPUT]
-chrome_mcp_errors (POS: MCP 错误分类谓词)
-mcp_protocol (POS: JSON-RPC 解析与 tool 响应提取)
-mcp_page_lease_heartbeat (POS: page lease 心跳管理)
-cdp_chat_support (POS: E2E API/chat 消息 SSOT)
-dev_gate_contract (POS: Dev Gate v2 合约常量 SSOT)
-dev_gate_cli (POS: Unix socket 协调器自动启动客户端)
-mux_load (POS: mux context / wave lease 负载探针)
-mux_upstream_admission (POS: mux cold attach 准入)
-browser_orchestrator_client (POS: Browser Orchestrator daemon Unix socket JSON-RPC 客户端)
+chrome_mcp.errors (POS: MCP 错误分类谓词)
+chrome_mcp.protocol (POS: JSON-RPC 解析与 tool 响应提取)
+chrome_mcp.page_lease_heartbeat (POS: page lease 心跳管理)
+cdp_chat.support (POS: E2E API/chat 消息 SSOT)
+dev_gate.contract (POS: Dev Gate v2 合约常量 SSOT)
+dev_gate.cli (POS: Unix socket 协调器自动启动客户端)
+mux.load (POS: mux context / wave lease 负载探针)
+mux.upstream_admission (POS: mux cold attach 准入)
+browser_orchestrator.client (POS: Browser Orchestrator daemon Unix socket JSON-RPC 客户端)
 
 [OUTPUT]
 ChromeMcpClient: 同步 MCP JSON-RPC 客户端（shim 进程管理、transport recovery、generation check、page lease；MYRM_BROWSER_ORCHESTRATOR=1 时通过 daemon 分发）

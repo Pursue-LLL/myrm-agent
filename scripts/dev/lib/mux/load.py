@@ -1,7 +1,7 @@
 """Adaptive mux load probes for Chrome MCP client timeouts.
 
 [INPUT]
-- dev_gate_contract::BASE_PAGE_TIMEOUT_MS (POS: Dev Gate 超时与物理池 SSOT)
+- dev_gate.contract::BASE_PAGE_TIMEOUT_MS (POS: Dev Gate 超时与物理池 SSOT)
 - cdmcp-mux-autoconnect.mjs status/reap-empty (POS: mux daemon CLI)
 
 [OUTPUT]

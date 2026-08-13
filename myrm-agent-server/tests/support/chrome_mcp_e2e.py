@@ -114,7 +114,7 @@ def dismiss_blocking_modals(
     *,
     recover_url: str | None = None,
 ) -> None:
-    """Dismiss onboarding/migration overlays that block E2E clicks (SSOT: cdp_chat_support)."""
+    """Dismiss onboarding/migration overlays that block E2E clicks (SSOT: cdp_chat.support)."""
     page_url = getattr(page, "url", None)
     target_url = recover_url or (
         page_url if isinstance(page_url, str) and page_url.strip() else None

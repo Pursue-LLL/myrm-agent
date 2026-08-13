@@ -1,7 +1,7 @@
 """WarmShellRegistry — epoch-scoped platform shell SSOT for SHARED+READ hot bootstrap (§19.11 TAB-6).
 
 [INPUT]
-- e2e_api_verify workspace fingerprint + epoch_match
+- api_verify workspace fingerprint + epoch_match
 - MYRM_E2E_EXECUTION_MODE / MYRM_E2E_ACCESS_SCOPE env
 - verify-api / warm_ui_route HTTP probes
 

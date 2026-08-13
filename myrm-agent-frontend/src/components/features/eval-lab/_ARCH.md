@@ -15,7 +15,7 @@
 | `hooks/useMatrixEval.ts` | 逻辑 | 矩阵 + 分层评测流状态机：初始拉取最新报告与历史，`/eval/matrix/stream` SSE 进度，`startMatrix`（`POST /eval/matrix/run`）、`startLayer`（`POST /eval/matrix/layers-run` 分层评测）、`abort`（`POST /eval/matrix/abort`）、按时间戳回看历史报告。 | ✅ |
 | `hooks/useMemoryAbEval.ts` | 逻辑 | Memory A/B 评测流状态机：初始拉取最新报告与历史，`/eval/memory-ab/stream` SSE 进度，`start`（`POST /eval/memory-ab/run`）、`abort`、按时间戳回看历史报告。 | ✅ |
 | `tabs/CasesTab.tsx` | 展示 | 用例编辑 tab：`CaseFormatReference` 说明 + Monaco JSON 编辑器（草稿绑定）。 | ✅ |
-| `tabs/ReportTab.tsx` | 展示 | 单评测报告 tab：运行中进度/下载条、通过率统计卡、环境披露网格（模型/thinking/harness 版本/工具策略/数据集/prompt fingerprint/profile/judge 模型）、逐用例明细表（verdict、pass_rate 徽标、token、耗时、断言详情与 diff 触发）。 | ✅ |
+| `tabs/ReportTab.tsx` | 展示 | 单评测报告 tab：运行中进度/下载条、通过率统计卡、环境披露网格（模型/thinking/harness 版本/工具策略/数据集/prompt fingerprint/profile/judge 模型/**运行预算**（基准声明的 `max_tool_calls`/`max_iterations`，测量衰减防护）/**去污染状态**（`decontam_active` 徽标，诚实披露 HF blocklist 是否生效）、逐用例明细表（verdict、pass_rate 徽标、token、耗时、断言详情与 diff 触发，**轨迹披露徽标**：引擎预算截断 `limitHit`、去污染守卫拦截 `blocked` 计数与工具调用次数，让「不完整答案」与「污染拦截」在单跑报告中可视化）。 | ✅ |
 | `tabs/MatrixTab.tsx` | 展示 | 矩阵/分层报告 tab：复用 `EvalRunProgress` 展示运行进度，`MatrixResultView` 渲染报告 + `MatrixHistoryTable` 历史回看。 | ✅ |
 | `tabs/MemoryAbTab.tsx` | 展示 | Memory A/B 报告 tab：`EvalRunProgress` 进度 + `MatrixResultView`（记忆开/关双臂）+ `MemoryAbHistoryTable` 历史回看。 | ✅ |
 | `tabs/HistoryTab.tsx` | 展示 | 单评测历史 tab：通过率趋势折线 + 历史记录表（时间/Profile/模型/通过率/耗时/token），点击行回看报告。 | ✅ |
@@ -29,7 +29,7 @@
 
 ## 测试覆盖
 
-- 单测（Vitest）：`__tests__/BenchmarkSources.test.tsx` 覆盖基准卡片渲染、评分徽标、下载/运行按钮，以及 Memory A/B 按钮 + 确认对话框（取消/确认调用 `onMemoryAb`）与分层评测按钮 + 确认对话框（调用 `onLayerEval`）；`__tests__/MemoryAbHistoryTable.test.tsx` 覆盖历史表渲染（per-arm pass-rate + `memory_tool_calls`）、双模型披露（agent 模型显示/隐藏 + LLM judge 显示、native 隐藏）与选中回看；`__tests__/MatrixHistoryTable.test.tsx` 覆盖矩阵/分层历史表渲染（时间格式化、数据集、分层/抽样/中止徽标、stable_rate、双模型披露、选中回看）；`__tests__/MatrixResultView.memoryCalls.test.tsx` 覆盖记忆调用列、中止横幅与抽样披露、**轨迹披露列（`tool_calls`/`limit_hits`/`blocked_count` 表头动态显隐、网格 cell 的 limit/blocked 徽标）**。
+- 单测（Vitest）：`__tests__/BenchmarkSources.test.tsx` 覆盖基准卡片渲染、评分徽标、下载/运行按钮，以及 Memory A/B 按钮 + 确认对话框（取消/确认调用 `onMemoryAb`）与分层评测按钮 + 确认对话框（调用 `onLayerEval`）；`__tests__/MemoryAbHistoryTable.test.tsx` 覆盖历史表渲染（per-arm pass-rate + `memory_tool_calls`）、双模型披露（agent 模型显示/隐藏 + LLM judge 显示、native 隐藏）与选中回看；`__tests__/MatrixHistoryTable.test.tsx` 覆盖矩阵/分层历史表渲染（时间格式化、数据集、分层/抽样/中止徽标、stable_rate、双模型披露、选中回看）；`__tests__/MatrixResultView.memoryCalls.test.tsx` 覆盖记忆调用列、中止横幅与抽样披露、**轨迹披露列（`tool_calls`/`limit_hits`/`blocked_count` 表头动态显隐、网格 cell 的 limit/blocked 徽标）**；`__tests__/ReportTab.trajectory.test.tsx` 覆盖单跑报告逐用例的轨迹披露徽标（`limitHit`/`blocked` 计数/工具调用次数显隐与组合）。
 - `__tests__/EvalLabDashboard.test.tsx` 覆盖门面渲染（初始加载后基础 tab 渲染 + matrix/memory-ab 条件显示、cases 编辑器渲染、运行中互斥禁用 run 并显示 stop）。
 - `__tests__/useMatrixEval.test.ts` 覆盖矩阵流：`startMatrix` 请求载荷与 running 翻转、SSE 进度驱动、`abort` 端点、历史报告回看、SSE 错误（EOF 竞态）后自动拉取最新报告与历史；`__tests__/useMemoryAbEval.test.ts` 覆盖记忆流：`start` 请求载荷与 running 翻转、SSE 进度驱动、`abort` 端点。
 - Chrome E2E（`tests/e2e/test_memory_ab_chrome_e2e.py`）：卡片入口 + 确认对话框取消（READ）；预置报告渲染双臂矩阵 + Run History + 点击历史加载（NAMESPACE_WRITE）；真实 run 启动 + Stop abort（NAMESPACE_WRITE）。

@@ -1,7 +1,9 @@
 """PDF content extraction API endpoint
 
 Extracts text and/or images from a PDF file.
-Strategy: text-first via pdfplumber; image-fallback via pypdfium2 when text is sparse.
+Strategy: text-first via pdfplumber; image-fallback via pypdfium2 when text is sparse;
+scanned PDFs get best-effort OCR text via PaddleOCR when the optional `pdf-ocr` extra
+is installed (graceful degradation otherwise).
 
 Supports two resolution modes:
 - Sandbox: fileId → resolves via FilesService (StorageProvider)
@@ -51,7 +53,7 @@ class PDFTableItem(BaseModel):
 
 
 class PDFExtractResponse(BaseModel):
-    text: str = Field(default="", description="Extracted text (may be empty for scanned PDFs)")
+    text: str = Field(default="", description="Extracted text; scanned PDFs include OCR text when the optional pdf-ocr extra is installed")
     images: list[PDFImageItem] = Field(default=[], description="Rendered page images (only when text is sparse)")
     page_count: int = Field(default=0, description="Total pages in PDF")
     parsed_pages: int = Field(default=0, description="Number of pages actually parsed (may be less than page_count)")

@@ -1,7 +1,7 @@
 """E2E Runtime Cell — parallel chrome_e2e slot isolation (R73-F).
 
 [INPUT]
-- dev_gate_contract (stall caps)
+- dev_gate.contract (stall caps)
 - MYRM_DEV_STATE_DIR
 
 [OUTPUT]

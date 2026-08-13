@@ -2,7 +2,7 @@
 
 [INPUT]
 - e2e_session_runtime.snapshot nodeStartedMonotonic / currentNode
-- dev_gate_contract NODE_STUCK_FAIL_FAST_SEC + TRANSPORT_STALL_NODE_PREFIXES
+- dev_gate.contract NODE_STUCK_FAIL_FAST_SEC + TRANSPORT_STALL_NODE_PREFIXES
 
 [OUTPUT]
 - node_stuck_reason_from_snapshot for hung reap + e2e-context FAIL_FAST

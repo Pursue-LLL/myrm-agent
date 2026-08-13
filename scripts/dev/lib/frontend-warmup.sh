@@ -290,10 +290,10 @@ _release_client_warmup_lock() {
 _warmup_frontend_client() {
   local lib_dir warmup_py cdp_port
   lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  warmup_py="${lib_dir}/frontend-client-warmup.py"
+  warmup_py="${lib_dir}/browser_orchestrator/frontend_client_warmup.py"
   cdp_port="${MYRM_CHROME_E2E_PORT:-9333}"
   [[ -f "${warmup_py}" ]] || {
-    echo "STACK_FAIL: missing frontend-client-warmup.py at ${warmup_py}" >&2
+    echo "STACK_FAIL: missing frontend_client_warmup.py at ${warmup_py}" >&2
     return 1
   }
 

@@ -2,7 +2,7 @@
 
 [INPUT]
 - e2e_session_runtime.snapshot per-pid sidecars (POS: parallel-safe progress for ./myrm e2e-context and hung pytest reap)
-- dev_gate_cli / dev_gate_coordinator (POS: Unix socket 协调器与自动启动客户端；受限环境回退同一 SQLite 事务路径)
+- dev_gate/cli.py / dev_gate/coordinator.py (POS: Unix socket 协调器与自动启动客户端；受限环境回退同一 SQLite 事务路径)
 - scripts/dev/lib/e2e_bootstrap.sh · scripts/dev/test.sh — shell 30s 心跳循环调用方
 
 [OUTPUT]

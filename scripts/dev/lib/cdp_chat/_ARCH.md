@@ -11,4 +11,4 @@ WebUI chat 自动化：transport / bootstrap / input / submit / turn / support �
 | `ui.py` | 稳定导出层 |
 | `send_turn_contract.py` / `resume_turn_contract.py` | 回合契约 SSOT |
 
-根级 `cdp_chat_*.py` 为 compatibility shim。
+根级 `cdp_chat_*.py` 不存在；canonical 实现在本目录，调用方经 `from cdp_chat.* import ...` 导入。

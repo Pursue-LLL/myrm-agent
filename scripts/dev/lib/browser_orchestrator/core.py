@@ -1,9 +1,9 @@
 """First-party Browser Orchestrator interface (P0-B SSOT).
 
 [INPUT]
-mux_upstream_admission (POS: mux cold-attach active operations probe — bridge until full daemon migration)
-transport_supervisor (POS: recovery budget)
-dev_gate_contract (POS: MUX_COLD_ATTACH_SLOTS constant)
+mux.upstream_admission (POS: mux cold-attach active operations probe — bridge until full daemon migration)
+mux.transport_supervisor (POS: recovery budget)
+dev_gate.contract (POS: MUX_COLD_ATTACH_SLOTS constant)
 
 [OUTPUT]
 browser_orchestrator_snapshot(): health/credits/in-flight status for e2e-context
@@ -13,7 +13,7 @@ prune_self_owned_blanks(): cleanup helper delegating to tab hygiene
 
 [POS]
 唯一浏览器数据面的 Python 客户端接口。
-当前为过渡实现：通过 mux probe + mux_upstream_admission 提供 snapshot；
+当前为过渡实现：通过 mux probe + mux.upstream_admission 提供 snapshot；
 完整 Browser Orchestrator daemon 启用后，切换为直接读取 daemon socket 状态。
 """
 
@@ -147,7 +147,7 @@ def assert_browser_orchestrator_daemon_ready(*, wait_sec: float = 0.0) -> None:
         )  # noqa: PLC0415
     except ImportError as exc:
         raise RuntimeError(
-            "BROWSER_ORCHESTRATOR_REQUIRED: browser_orchestrator_client unavailable"
+            "BROWSER_ORCHESTRATOR_REQUIRED: browser_orchestrator.client unavailable"
         ) from exc
     client = BrowserOrchestratorClient()
     deadline = time.time() + max(0.0, wait_sec)
