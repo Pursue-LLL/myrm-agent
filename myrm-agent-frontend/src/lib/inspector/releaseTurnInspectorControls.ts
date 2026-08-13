@@ -7,7 +7,7 @@
  * - releaseTurnInspectorControls: turn 结束/手动停止时归还 desktop + browser Inspector 控制权
  *
  * [POS]
- * Inspector 控制权释放的纯函数 SSOT。MESSAGE_END 与 stopMessage 两条 turn 结束路径共用同一释放编排。
+ * Inspector 控制权释放的纯函数 SSOT。所有 turn 终止路径（MESSAGE_END / stopMessage / ERROR / AGENT_CANCELLED / CONTEXT_OVERFLOW_RESET / GOAL_STATUS budget_limited / stream 中断 attach false）共用同一释放编排。
  *
  * 每个 store 的 releaseTurnEngagement 在未 engagedInTurn 时是 no-op，
  * 因此用户手动打开的面板不会被无关 turn 强制关闭。

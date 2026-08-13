@@ -20,7 +20,7 @@
 | `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态与进度 | ✅ |
 | `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、BROWSER/DESKTOP_VIEW_UPDATE（browser/desktop SSE 写 `sourceChatId`、不 openPanel、`markTurnEngaged`）、DESKTOP_CONTROL_APPROVAL（前台 chat 匹配时 `setDesktopActive(true)` + openPanel）、BROWSER_TAKEOVER_*（`setLoading(false)`；pet waiting 由 PetOverlay store SSOT；`is_managed=false` 自动签发 `browser_takeover` pair token 并写入 `liveAssistUrl`；managed POST 失败 toast） | ✅ |
 | `takeoverVncMessages.ts` | 辅助 | managed VNC takeover POST 失败 toast 文案（与 locales billing.vnc.takeoverVncOpenFailed 同步） | ✅ |
-| `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果；`browser_*` TOOL_START 在前台 chat 匹配时 openPanel（任意 chat 均 `setBrowserActive` + `markTurnEngaged`）；`desktop_*` TOOL_END REST re-fetch 仅前台 chat 匹配时执行；`kanban_add_task`/`cron_manage` 成功写入 message metadata；`kanban_add_task` 软错误 JSON 标记 progress error | ✅ |
+| `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果；`browser_*` TOOL_START 在前台 chat 匹配时 openPanel（任意 chat 均 `setBrowserActive` + `markTurnEngaged`）；`desktop_*` TOOL_END REST re-fetch 仅前台 chat 匹配时执行；`kanban_add_task`/`cron_manage` 成功写入 message metadata；`kanban_add_task` 软错误 JSON 标记 progress error；memory recall 工具事件解析 `memory_retrieval_trace.degraded` 标记消息降级 | ✅ |
 | `memoryBriefEvents.ts` | 核心 | `memory_brief` 发送前记忆简报事件：创建/更新 assistant 占位消息并挂载简报快照 | ✅ |
 | `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | ✅ |
 | `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA 文本流合并；当 `personalSettings.reasoningDisplayMode=off` 时直接丢弃 reasoning chunk 以减少前端内存占用；clarify metadata 合并时保留既有 `isResumeMode`/form | ✅ |

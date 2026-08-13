@@ -322,6 +322,25 @@ class TestRevertSeedIntegration:
         assert changes[0]["revertible"] is False
         assert changes[0]["skip_reason"] == "file_too_large"
 
+    def test_seed_persists_request_message_id_in_metadata(self, client: TestClient) -> None:
+        """seed fixture 必须模拟真实 agent 路径：assistant 消息 DB 主键为独立 UUID，
+        快照 key 为 r- 前缀请求 ID，extra_data 携带 request_message_id 供前端刷新
+        hydrate 后定位回退目标（RevertFiles 用 requestMessageId || messageId）。"""
+        agent_id = f"agent_{uuid.uuid4().hex[:8]}"
+        asyncio.run(_seed_visible_agent(agent_id, display_name="Revert Seed Metadata Agent"))
+
+        seed_body = _seed(client, variant="modify")
+        chat_id = str(seed_body["chat_id"])
+        request_message_id = str(seed_body["request_message_id"])
+        assert request_message_id.startswith("r-")
+
+        resp = client.get(f"/api/v1/chats/{chat_id}/messages")
+        assert resp.status_code == 200
+        items = resp.json()["data"]["messages"]
+        assistant = next(m for m in items if m["role"] == "assistant")
+        assert str(assistant["messageId"]).startswith("r-") is False
+        assert assistant["metadata"]["request_message_id"] == request_message_id
+
     def test_channel_revert_cleans_disk_snapshot(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
