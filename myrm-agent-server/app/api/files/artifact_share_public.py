@@ -275,7 +275,7 @@ async def get_public_artifact_share_index(
     pwd: str | None = Query(default=None, alias="p"),
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
-):
+) -> Response:
     """Serve bundle entry under a trailing slash so relative static assets resolve."""
     await _ensure_not_revoked(db, token)
     result = _auth_or_gate(request, token, pwd)
@@ -297,7 +297,7 @@ async def get_public_artifact_share_asset(
     pwd: str | None = Query(default=None, alias="p"),
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
-):
+) -> Response:
     """Serve a static asset from a multi-file share bundle."""
     await _ensure_not_revoked(db, token)
     result = _auth_or_gate(request, token, pwd)

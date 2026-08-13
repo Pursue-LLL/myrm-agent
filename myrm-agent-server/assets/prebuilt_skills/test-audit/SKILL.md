@@ -51,7 +51,7 @@ When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 character
 Your deliverable is a report, not changes.
 
 1. Complete all three phases and deliver the full report.
-2. Only after the user reads the report and approves specific fixes do you modify tests — and then follow `test-driven-development` discipline for any new tests.
+2. Writing or modifying tests is a separate step, handled by the main agent using `test-driven-development` discipline after the report is approved. This skill audits; it does not write.
 
 ## Phase 1: Discover
 
@@ -64,6 +64,7 @@ Your deliverable is a report, not changes.
    - Read the test config (`pyproject.toml`, `pytest.ini`, `vitest.config.*`, `jest.config.*`)
    - Note configured coverage tools and thresholds
 4. Note which areas of the codebase appear untested — this becomes the audit checklist.
+5. If no test files exist at all, stop: report a P0 finding (a project with zero tests has the largest possible coverage gap) and ask whether the user wants to start with `test-driven-development`.
 
 **Action:** Use `glob_tool` to find tests. Use `file_read_tool` to read config files.
 
