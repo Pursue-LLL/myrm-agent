@@ -17,6 +17,7 @@ def test_no_user_id_in_orm_models():
         "failed_messages",  # 遗留表
         "artifact_audit_logs",  # Audit actor id (single-tenant sandbox), not CP multi-tenant
         "commitments",  # Channel-scoped end-user id in single-tenant instance, not CP DB tenant
+        "skill_permission_usage_logs",  # Session-scoped actor id (default_session) in single-tenant sandbox, not CP DB tenant
     }
 
     for model_class in Base.registry.mappers:

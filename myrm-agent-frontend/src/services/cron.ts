@@ -94,6 +94,21 @@ export async function triggerCronJob(id: string): Promise<void> {
   return apiRequest(`/cron/${id}/trigger`, { method: 'POST' });
 }
 
+export async function testCronDelivery(
+  id: string,
+  data?: {
+    delivery?: { channel: string; target?: string };
+    failure_delivery?: { channel: string; target?: string };
+  },
+): Promise<{ delivered: boolean }> {
+  return apiRequest(`/cron/${id}/test-delivery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data ?? {}),
+    timeout: 60000,
+  });
+}
+
 export async function duplicateCronJob(id: string): Promise<CronJob> {
   return apiRequest(`/cron/${id}/duplicate`, { method: 'POST' });
 }

@@ -9,10 +9,14 @@
 [POS]
 Business-layer cron delivery resolver. Non-empty webhook URLs use the generic
 ``webhook`` channel; Feishu/Lark bot hook formatting is handled at delivery
-time in ``feishu_bot_webhook.py`` (not via FeishuChannel OAuth).
+time in ``feishu_bot_webhook.py`` (not via FeishuChannel OAuth). Webhook
+deliveries get a fresh HMAC secret so Agent-created tasks are
+signature-verifiable from the first delivery.
 """
 
 from __future__ import annotations
+
+import secrets
 
 from myrm_agent_harness.toolkits.cron.types import DeliveryConfig
 
@@ -21,4 +25,8 @@ def resolve_cron_delivery(webhook_url: str) -> DeliveryConfig:
     """Map a webhook URL to a DeliveryConfig for scheduled task notifications."""
     if not webhook_url.strip():
         return DeliveryConfig(channel="chat")
-    return DeliveryConfig(channel="webhook", target=webhook_url)
+    return DeliveryConfig(
+        channel="webhook",
+        target=webhook_url,
+        secret=secrets.token_hex(32),
+    )

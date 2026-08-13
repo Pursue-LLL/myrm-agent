@@ -24,13 +24,18 @@ Cron job CRUD REST endpoints. All business logic delegated to CronManager.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException, Query
+from myrm_agent_harness.toolkits.cron.types import DeliveryConfig, FailureAlertConfig
 
 from app.api.cron.schemas import (
     CronJobCreate,
     CronJobResponse,
     CronJobsListResponse,
     CronJobUpdate,
+    DeliveryTestRequest,
+    DeliveryTestResponse,
 )
 from app.core.cron.adapters.tools_policy import normalize_cron_tools_allowed
 from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
@@ -177,6 +182,40 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
                 tools_allowed = normalize_cron_tools_allowed(body.tools_allowed)
             else:
                 clear_tools_allowed = True
+        delivery_patch: DeliveryConfig | None = None
+        failure_delivery_patch: DeliveryConfig | None = None
+        failure_alert_patch: FailureAlertConfig | Literal[False] | None = None
+        if body.delivery or body.failure_delivery or body.failure_alert is not None:
+            existing = await mgr.get_job(job_id, USER_ID)
+            delivery_secret = existing.delivery.secret if existing else None
+            failure_delivery_secret = (
+                existing.failure_delivery.secret if existing and existing.failure_delivery else None
+            )
+            failure_alert_secret: str | None = None
+            if existing and existing.failure_alert and not isinstance(existing.failure_alert, bool):
+                fa_delivery = existing.failure_alert.delivery
+                failure_alert_secret = fa_delivery.secret if fa_delivery else None
+            delivery_patch = (
+                _h._delivery_from_request(body.delivery, existing_secret=delivery_secret)
+                if body.delivery
+                else None
+            )
+            failure_delivery_patch = (
+                _h._delivery_from_request(
+                    body.failure_delivery,
+                    existing_secret=failure_delivery_secret,
+                )
+                if body.failure_delivery
+                else None
+            )
+            failure_alert_patch = (
+                _h._failure_alert_from_request(
+                    body.failure_alert,
+                    existing_delivery_secret=failure_alert_secret,
+                )
+                if body.failure_alert is not None
+                else None
+            )
         patch = CronJobPatch(
             name=body.name,
             status=body.status,
@@ -185,10 +224,10 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
             model=body.model,
             agent_id=body.agent_id,
             command=body.command,
-            delivery=_h._delivery_from_request(body.delivery) if body.delivery else None,
-            failure_delivery=_h._delivery_from_request(body.failure_delivery) if body.failure_delivery else None,
+            delivery=delivery_patch,
+            failure_delivery=failure_delivery_patch,
             clear_failure_delivery=body.failure_delivery is None and "failure_delivery" in body.model_fields_set,
-            failure_alert=_h._failure_alert_from_request(body.failure_alert) if body.failure_alert is not None else None,
+            failure_alert=failure_alert_patch,
             clear_failure_alert=body.failure_alert is None and "failure_alert" in body.model_fields_set,
             active_hours=_h._active_hours_from_request(body.active_hours) if body.active_hours else None,
             clear_active_hours=body.active_hours is None and "active_hours" in body.model_fields_set,
@@ -292,6 +331,66 @@ async def trigger_job(job_id: str) -> dict[str, bool]:
     if not triggered:
         raise HTTPException(status_code=404, detail="Job not found or not active")
     return {"triggered": True}
+
+
+@router.post("/{job_id}/test-delivery", response_model=DeliveryTestResponse)
+async def test_delivery(
+    job_id: str,
+    body: DeliveryTestRequest | None = None,
+) -> DeliveryTestResponse:
+    """Send a one-off test payload through the job's delivery channel.
+
+    Omit the body to test the job's saved delivery; otherwise the provided
+    (not-yet-saved) configuration is tested. Webhook tests reuse the real
+    delivery pipeline (signing, SSRF guard, Feishu/WeCom bot formatting) so a
+    passing test guarantees real runs will deliver.
+    """
+    from myrm_agent_harness.toolkits.cron.delivery import WebhookDelivery
+    from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
+
+    mgr = _h._get_manager()
+    job = await mgr.get_job(job_id, USER_ID)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if body is not None and (body.delivery or body.failure_delivery):
+        if body.delivery is not None:
+            config = _h._delivery_from_request(body.delivery, existing_secret=job.delivery.secret)
+        else:
+            existing_secret = job.failure_delivery.secret if job.failure_delivery else None
+            config = _h._delivery_from_request(body.failure_delivery, existing_secret=existing_secret)
+    else:
+        config = job.delivery
+
+    if config.channel in ("chat", "silent", "none"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Channel '{config.channel}' does not support test delivery",
+        )
+
+    test_job = CronJob(
+        id=job.id,
+        user_id=job.user_id,
+        name=job.name,
+        job_type=job.job_type,
+        schedule=job.schedule,
+        delivery=config,
+    )
+    result = JobResult(
+        success=True,
+        output=f"Test delivery from Myrm scheduled task '{job.name}'",
+        metadata={"model": None, "usage": None, "duration_ms": 0},
+    )
+    from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
+
+    test_delivery = ChannelResultDelivery(
+        webhook_delivery=WebhookDelivery(max_retries=0, connect_timeout=5, read_timeout=15)
+    )
+    try:
+        await test_delivery.deliver(test_job, result)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Test delivery failed: {exc}") from exc
+    return DeliveryTestResponse(delivered=True)
 
 
 @router.post("/{job_id}/reset-baseline")

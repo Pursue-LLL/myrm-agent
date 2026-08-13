@@ -50,6 +50,27 @@ class DeliveryCreate(BaseModel):
         return self
 
 
+class DeliveryTestRequest(BaseModel):
+    """Optional delivery override for a one-off test delivery.
+
+    Send one of ``delivery`` / ``failure_delivery`` to test a not-yet-saved
+    configuration; omit both to test the job's saved delivery.
+    """
+
+    delivery: DeliveryCreate | None = None
+    failure_delivery: DeliveryCreate | None = None
+
+    @model_validator(mode="after")
+    def ensure_single_target(self) -> "DeliveryTestRequest":
+        if self.delivery and self.failure_delivery:
+            raise ValueError("Provide either delivery or failure_delivery, not both")
+        return self
+
+
+class DeliveryTestResponse(BaseModel):
+    delivered: bool = True
+
+
 class MonitorConfigCreate(BaseModel):
     monitor_type: MonitorType = "set"
     ttl_days: int = Field(default=30, ge=1, le=365)

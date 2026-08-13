@@ -10,7 +10,7 @@ import { Input } from '@/components/primitives/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/primitives/toggle-group';
 import { toast } from 'sonner';
 import type { CronJob } from '@/services/cron';
-import { updateCronJob } from '@/services/cron';
+import { testCronDelivery, updateCronJob } from '@/services/cron';
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 
@@ -114,6 +114,7 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
   const [webhookUrl, setWebhookUrl] = useState(rawTarget);
   const [imTarget, setImTarget] = useState(serverChannel === 'whatsapp' ? fromWaTarget(rawTarget) : rawTarget);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   const isImChannel = useMemo(() => !(['chat', 'webhook', 'none'] as string[]).includes(localChannel), [localChannel]);
 
@@ -158,6 +159,24 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
     }
   };
 
+  const handleWebhookTest = async () => {
+    const url = webhookUrl.trim();
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      toast.error(t('webhookUrlInvalid'));
+      return;
+    }
+    setTesting(true);
+    try {
+      await testCronDelivery(job.id, { delivery: { channel: 'webhook', target: url } });
+      toast.success(t('testDeliverySuccess'));
+    } catch (err) {
+      const detail = err instanceof Error && err.message ? err.message : '';
+      toast.error(detail ? `${t('testDeliveryFail')}: ${detail}` : t('testDeliveryFail'));
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const imTargetRequired = isImChannel;
   const imTargetEmpty = !imTarget.trim();
 
@@ -198,7 +217,16 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
               onChange={(e) => setWebhookUrl(e.target.value)}
               className="h-7 text-xs flex-1"
             />
-            <Button size="sm" className="h-7 text-xs" onClick={handleWebhookSave} disabled={saving}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs shrink-0"
+              onClick={handleWebhookTest}
+              disabled={saving || testing || !webhookUrl.trim()}
+            >
+              {testing ? t('testDeliverySending') : t('testDelivery')}
+            </Button>
+            <Button size="sm" className="h-7 text-xs" onClick={handleWebhookSave} disabled={saving || testing}>
               {t('save')}
             </Button>
           </div>
@@ -246,6 +274,7 @@ export function FailureDeliveryEditor({ job, onUpdated }: EditorProps) {
   const [webhookUrl, setWebhookUrl] = useState(initTarget);
   const [imTarget, setImTarget] = useState(initCh === 'whatsapp' ? fromWaTarget(initTarget) : initTarget);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   const isImChannel = useMemo(() => !(['chat', 'webhook'] as string[]).includes(channel), [channel]);
 
@@ -311,6 +340,35 @@ export function FailureDeliveryEditor({ job, onUpdated }: EditorProps) {
     }
   };
 
+  const handleTest = async () => {
+    if (channel === 'webhook') {
+      const url = webhookUrl.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        toast.error(t('webhookUrlInvalid'));
+        return;
+      }
+    }
+    setTesting(true);
+    try {
+      let payload: { channel: string; target?: string };
+      if (channel === 'webhook') {
+        payload = { channel: 'webhook', target: webhookUrl.trim() };
+      } else if (channel === 'chat') {
+        payload = { channel: 'chat' };
+      } else {
+        const t2 = channel === 'whatsapp' ? toWaTarget(imTarget) : imTarget.trim();
+        payload = { channel: toApiChannel(channel), target: t2 };
+      }
+      await testCronDelivery(job.id, { failure_delivery: payload });
+      toast.success(t('testDeliverySuccess'));
+    } catch (err) {
+      const detail = err instanceof Error && err.message ? err.message : '';
+      toast.error(detail ? `${t('testDeliveryFail')}: ${detail}` : t('testDeliveryFail'));
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
     <div className="rounded-lg border bg-card px-3 py-2.5 space-y-2">
       <div className="flex items-center justify-between">
@@ -318,7 +376,7 @@ export function FailureDeliveryEditor({ job, onUpdated }: EditorProps) {
           <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground">{t('failureDeliveryLabel')}</span>
         </div>
-        <EditorToggle enabled={enabled} onToggle={handleToggle} disabled={saving} />
+        <EditorToggle enabled={enabled} onToggle={handleToggle} disabled={saving || testing} />
       </div>
       {enabled && (
         <>
@@ -326,7 +384,7 @@ export function FailureDeliveryEditor({ job, onUpdated }: EditorProps) {
           <ChannelToggleGroup
             value={channel}
             onValueChange={setChannel}
-            disabled={saving}
+            disabled={saving || testing}
             builtinChannels={['chat', 'webhook']}
             connectedChannels={connectedChannels}
             t={t}
@@ -340,6 +398,15 @@ export function FailureDeliveryEditor({ job, onUpdated }: EditorProps) {
                   onChange={(e) => setWebhookUrl(e.target.value)}
                   className="h-7 text-xs flex-1"
                 />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs shrink-0"
+                  onClick={handleTest}
+                  disabled={saving || testing || !webhookUrl.trim()}
+                >
+                  {testing ? t('testDeliverySending') : t('testDelivery')}
+                </Button>
               </div>
               {existing?.secret && <WebhookGuide secret={existing.secret} />}
             </>
@@ -366,7 +433,7 @@ export function FailureDeliveryEditor({ job, onUpdated }: EditorProps) {
             size="sm"
             className="h-7 text-xs"
             onClick={handleSave}
-            disabled={saving || (failImRequired && failImEmpty)}
+            disabled={saving || testing || (failImRequired && failImEmpty)}
           >
             {t('save')}
           </Button>

@@ -194,17 +194,30 @@ def _delivery_to_response(dc: DeliveryConfig) -> DeliveryResponse:
     return DeliveryResponse(channel=dc.channel, target=dc.target, secret=dc.secret)
 
 
-def _delivery_from_request(d: DeliveryCreate | None) -> DeliveryConfig:
+def _delivery_from_request(
+    d: DeliveryCreate | None,
+    *,
+    existing_secret: str | None = None,
+) -> DeliveryConfig:
+    """Build a DeliveryConfig from an API request.
+
+    For webhook channels a fresh secret is generated on create; on update the
+    existing secret is preserved so external HMAC verifiers stay valid across
+    edits (e.g. changing only the target URL).
+    """
     if not d:
         return DeliveryConfig()
     if d.channel not in ("chat", "silent", "none") and not d.target:
         raise ValueError(f'Delivery target is required for channel "{d.channel}"')
-    secret = None
     if d.channel == "webhook":
-        import secrets as _secrets
+        return DeliveryConfig(channel=d.channel, target=d.target, secret=existing_secret or _generate_webhook_secret())
+    return DeliveryConfig(channel=d.channel, target=d.target)
 
-        secret = _secrets.token_hex(32)
-    return DeliveryConfig(channel=d.channel, target=d.target, secret=secret)
+
+def _generate_webhook_secret() -> str:
+    import secrets as _secrets
+
+    return _secrets.token_hex(32)
 
 
 def _failure_alert_to_response(
@@ -224,6 +237,8 @@ def _failure_alert_to_response(
 
 def _failure_alert_from_request(
     fa: FailureAlertCreate | bool | None,
+    *,
+    existing_delivery_secret: str | None = None,
 ) -> FailureAlertConfig | Literal[False] | None:
     if fa is None:
         return None
@@ -233,7 +248,11 @@ def _failure_alert_from_request(
         enabled=fa.enabled,
         after=fa.after,
         cooldown_seconds=fa.cooldown_seconds,
-        delivery=_delivery_from_request(fa.delivery) if fa.delivery else None,
+        delivery=(
+            _delivery_from_request(fa.delivery, existing_secret=existing_delivery_secret)
+            if fa.delivery
+            else None
+        ),
     )
 
 

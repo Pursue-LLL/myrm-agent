@@ -14,4 +14,4 @@ Desktop / Browser Inspector（agent 控制镜像）的纯函数层。无 React �
 ## 依赖
 
 - `@/store/useDesktopInspectorStore` / `@/store/useBrowserInspectorStore` — 动态 import（避免与 store 层静态循环）
-- 消费者：`store/chat/messageStream/handlers/completionEvents.ts`（MESSAGE_END + GOAL_STATUS budget_limited）、`store/chat/messageStream/handlers/agentControlEvents.ts`（ERROR / AGENT_CANCELLED / CONTEXT_OVERFLOW_RESET）、`store/useChatStore.ts`（stopMessage 双路径）、`store/chat/streamConsumer.ts`（stream 中断 attach false）
+- 消费者：`store/chat/messageStream/handlers/completionEvents.ts`（MESSAGE_END + GOAL_STATUS budget_limited）与 `store/chat/messageStream/handlers/agentControlEvents.ts`（ERROR / AGENT_CANCELLED / CONTEXT_OVERFLOW_RESET）经 `handlerDeps.releaseInspectorControls` 共享 fire-and-forget 包装调用；`store/useChatStore.ts`（stopMessage 双路径）；`store/chat/streamConsumer.ts`（stream 中断 attach false）

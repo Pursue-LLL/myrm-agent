@@ -40,6 +40,9 @@ class ChannelResultDelivery:
     ``delivery_status = FAILED`` in the CronRun record.
     """
 
+    def __init__(self, webhook_delivery: WebhookDelivery | None = None) -> None:
+        self._webhook_delivery = webhook_delivery or _webhook_delivery
+
     async def deliver(self, job: CronJob, result: JobResult) -> None:
         if job.delivery.channel in ("silent", "chat"):
             return
@@ -52,7 +55,7 @@ class ChannelResultDelivery:
             elif is_wecom_bot_hook_url(target):
                 await deliver_wecom_bot_webhook(job, result)
             else:
-                await _webhook_delivery.deliver(job, result)
+                await self._webhook_delivery.deliver(job, result)
             return
 
         if job.delivery.channel == "feishu" and is_feishu_bot_hook_url(target):
