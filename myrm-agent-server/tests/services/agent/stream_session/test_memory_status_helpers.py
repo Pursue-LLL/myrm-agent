@@ -108,6 +108,17 @@ def test_memory_brief_status_contract_includes_source_enum() -> None:
     )
 
 
+def test_memory_runtime_injection_contract_includes_known_reasons() -> None:
+    from myrm_agent_harness.api.hooks import get_memory_runtime_injection_contract
+
+    contract = get_memory_runtime_injection_contract()
+    reasons = set(contract["reasons"])
+
+    assert "load_timeout" in reasons
+    assert {"load_error", "static_error", "invalid_static_payload", "empty_context"} <= reasons
+    assert {"missing_context", "not_injected", "recall_mode_tools", "already_present"} <= reasons
+
+
 class _DummyCounter:
     def __init__(self) -> None:
         self.calls: list[dict[str, str]] = []

@@ -65,8 +65,8 @@ interface BrowserInspectorState {
   isBrowserActive: boolean;
   instructionText: string;
   isSnapshotLoading: boolean;
-  /** True while the current agent turn emits browser events (tool start / view update). */
-  engagedInTurn: boolean;
+  /** Chat id of the turn currently emitting browser events; null when no turn is engaged. */
+  engagedChatId: string | null;
 
   openPanel: () => void;
   closePanel: () => void;
@@ -76,8 +76,8 @@ interface BrowserInspectorState {
   selectElement: (refId: string, info: BrowserRefInfo) => void;
   clearSelection: () => void;
   setBrowserActive: (active: boolean) => void;
-  markTurnEngaged: () => void;
-  releaseTurnEngagement: () => void;
+  markTurnEngaged: (chatId: string) => void;
+  releaseTurnEngagement: (chatId: string) => void;
   setInstructionText: (text: string) => void;
   fetchSnapshot: () => Promise<boolean>;
   reset: () => void;
@@ -91,7 +91,7 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
   isBrowserActive: false,
   instructionText: '',
   isSnapshotLoading: false,
-  engagedInTurn: false,
+  engagedChatId: null,
 
   openPanel: () => set({ isOpen: true }),
   closePanel: () => set({ isOpen: false, selectedElement: null, instructionText: '' }),
@@ -109,12 +109,15 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
       isBrowserActive: active,
       ...(active ? {} : { isOpen: false, viewData: null, selectedElement: null }),
     })),
-  markTurnEngaged: () => set({ engagedInTurn: true }),
-  releaseTurnEngagement: () =>
+  markTurnEngaged: (chatId) => {
+    if (!chatId) {return;}
+    set({ engagedChatId: chatId });
+  },
+  releaseTurnEngagement: (chatId) =>
     set((s) => {
-      if (!s.engagedInTurn) {return {};}
+      if (!s.engagedChatId || s.engagedChatId !== chatId) {return {};}
       return {
-        engagedInTurn: false,
+        engagedChatId: null,
         isBrowserActive: false,
         isOpen: false,
         viewData: null,
@@ -166,7 +169,7 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
       isBrowserActive: false,
       instructionText: '',
       isSnapshotLoading: false,
-      engagedInTurn: false,
+      engagedChatId: null,
     }),
 }));
 

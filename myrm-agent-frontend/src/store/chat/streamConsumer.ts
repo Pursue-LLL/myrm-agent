@@ -391,7 +391,7 @@ export async function executeStreamWithRetry(
                 // Attach false is the deterministic "task finished" signal; release any
                 // desktop/browser inspector control this turn engaged, even when the
                 // final state fetch below fails, so the UI never stays "controlling".
-                void releaseTurnInspectorControls();
+                void releaseTurnInspectorControls(state.chatId);
                 await useChatStore.getState().loadMessages(state.chatId);
                 attachSuccess = true;
                 break;

@@ -543,7 +543,7 @@ const useChatStore = create<ChatState>()(
             })();
             abortController.abort();
             useWorkspaceStore.getState().setPaneAbortController(paneId, null);
-            void releaseTurnInspectorControls();
+            void releaseTurnInspectorControls(chatId);
             set((state) => {
               state.loading = false;
               state.abortController = null;
@@ -567,7 +567,7 @@ const useChatStore = create<ChatState>()(
           }
         })();
         chatAbortController.abort();
-        void releaseTurnInspectorControls();
+        void releaseTurnInspectorControls(chatId);
         set((state) => {
           state.loading = false;
           state.abortController = null;

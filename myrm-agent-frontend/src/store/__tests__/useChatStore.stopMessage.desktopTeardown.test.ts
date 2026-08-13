@@ -68,7 +68,9 @@ describe('stopMessage inspector teardown', () => {
 
     await vi.waitFor(() => {
       expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledWith('chat-1');
       expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledWith('chat-1');
     });
   });
 
@@ -84,7 +86,9 @@ describe('stopMessage inspector teardown', () => {
 
     await vi.waitFor(() => {
       expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledWith('chat-1');
       expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledWith('chat-1');
     });
   });
 });

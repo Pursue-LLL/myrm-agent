@@ -13,12 +13,12 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     ctx.recievedMessage = '';
 
     const toolName = data.tool_name ?? '';
+    const streamChatId = state.messages[0]?.chatId?.trim() ?? '';
     if (toolName.startsWith('browser_')) {
       const { default: inspectorStore } = await import('@/store/useBrowserInspectorStore');
       const { default: useChatStore } = await import('@/store/useChatStore');
       inspectorStore.getState().setBrowserActive(true);
-      inspectorStore.getState().markTurnEngaged();
-      const streamChatId = state.messages[0]?.chatId?.trim() ?? '';
+      inspectorStore.getState().markTurnEngaged(streamChatId);
       const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
       if (streamChatId && activeChatId && streamChatId === activeChatId) {
         inspectorStore.getState().openPanel();
@@ -27,7 +27,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     if (toolName.startsWith('desktop_')) {
       const { default: desktopStore } = await import('@/store/useDesktopInspectorStore');
       desktopStore.getState().setDesktopActive(true);
-      desktopStore.getState().markTurnEngaged();
+      desktopStore.getState().markTurnEngaged(streamChatId);
     }
 
     return done(ctx);

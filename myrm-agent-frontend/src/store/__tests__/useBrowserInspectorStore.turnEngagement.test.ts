@@ -1,5 +1,5 @@
 /**
- * Tests for browser inspector turn engagement lifecycle.
+ * Tests for browser inspector turn engagement lifecycle (per-chat ownership).
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -10,9 +10,14 @@ describe('useBrowserInspectorStore turn engagement', () => {
     useBrowserInspectorStore.getState().reset();
   });
 
-  it('markTurnEngaged sets engagedInTurn', () => {
-    useBrowserInspectorStore.getState().markTurnEngaged();
-    expect(useBrowserInspectorStore.getState().engagedInTurn).toBe(true);
+  it('markTurnEngaged records the owning chat id', () => {
+    useBrowserInspectorStore.getState().markTurnEngaged('c1');
+    expect(useBrowserInspectorStore.getState().engagedChatId).toBe('c1');
+  });
+
+  it('markTurnEngaged ignores an empty chat id', () => {
+    useBrowserInspectorStore.getState().markTurnEngaged('');
+    expect(useBrowserInspectorStore.getState().engagedChatId).toBeNull();
   });
 
   it('releaseTurnEngagement is a no-op when the turn never engaged browser events', () => {
@@ -30,16 +35,30 @@ describe('useBrowserInspectorStore turn engagement', () => {
       updatedAt: Date.now(),
     });
 
-    useBrowserInspectorStore.getState().releaseTurnEngagement();
+    useBrowserInspectorStore.getState().releaseTurnEngagement('c1');
 
     // A panel the user opened manually must survive unrelated turns.
-    expect(useBrowserInspectorStore.getState().engagedInTurn).toBe(false);
+    expect(useBrowserInspectorStore.getState().engagedChatId).toBeNull();
     expect(useBrowserInspectorStore.getState().isOpen).toBe(true);
     expect(useBrowserInspectorStore.getState().viewData).not.toBeNull();
   });
 
-  it('releaseTurnEngagement fully clears state after an engaged browser turn', () => {
-    useBrowserInspectorStore.getState().markTurnEngaged();
+  it('releaseTurnEngagement is a no-op for a different chat (parallel panes)', () => {
+    useBrowserInspectorStore.getState().markTurnEngaged('c1');
+    useBrowserInspectorStore.getState().setBrowserActive(true);
+    useBrowserInspectorStore.getState().openPanel();
+
+    // Pane c2's turn ends: it must not tear down pane c1's engaged panel.
+    useBrowserInspectorStore.getState().releaseTurnEngagement('c2');
+
+    const state = useBrowserInspectorStore.getState();
+    expect(state.engagedChatId).toBe('c1');
+    expect(state.isBrowserActive).toBe(true);
+    expect(state.isOpen).toBe(true);
+  });
+
+  it('releaseTurnEngagement fully clears state after the owning chat ends', () => {
+    useBrowserInspectorStore.getState().markTurnEngaged('c1');
     useBrowserInspectorStore.getState().setBrowserActive(true);
     useBrowserInspectorStore.getState().openPanel();
     useBrowserInspectorStore.getState().setInstructionText('click go');
@@ -55,10 +74,10 @@ describe('useBrowserInspectorStore turn engagement', () => {
       updatedAt: Date.now(),
     });
 
-    useBrowserInspectorStore.getState().releaseTurnEngagement();
+    useBrowserInspectorStore.getState().releaseTurnEngagement('c1');
 
     const state = useBrowserInspectorStore.getState();
-    expect(state.engagedInTurn).toBe(false);
+    expect(state.engagedChatId).toBeNull();
     expect(state.isBrowserActive).toBe(false);
     expect(state.isOpen).toBe(false);
     expect(state.viewData).toBeNull();
@@ -66,9 +85,9 @@ describe('useBrowserInspectorStore turn engagement', () => {
     expect(state.instructionText).toBe('');
   });
 
-  it('reset clears engagedInTurn', () => {
-    useBrowserInspectorStore.getState().markTurnEngaged();
+  it('reset clears engagedChatId', () => {
+    useBrowserInspectorStore.getState().markTurnEngaged('c1');
     useBrowserInspectorStore.getState().reset();
-    expect(useBrowserInspectorStore.getState().engagedInTurn).toBe(false);
+    expect(useBrowserInspectorStore.getState().engagedChatId).toBeNull();
   });
 });

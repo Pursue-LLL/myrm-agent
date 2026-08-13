@@ -1,5 +1,5 @@
 /**
- * Tests for desktop inspector turn engagement lifecycle.
+ * Tests for desktop inspector turn engagement lifecycle (per-chat ownership).
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -10,9 +10,14 @@ describe('useDesktopInspectorStore turn engagement', () => {
     useDesktopInspectorStore.getState().reset();
   });
 
-  it('markTurnEngaged sets engagedInTurn', () => {
-    useDesktopInspectorStore.getState().markTurnEngaged();
-    expect(useDesktopInspectorStore.getState().engagedInTurn).toBe(true);
+  it('markTurnEngaged records the owning chat id', () => {
+    useDesktopInspectorStore.getState().markTurnEngaged('c1');
+    expect(useDesktopInspectorStore.getState().engagedChatId).toBe('c1');
+  });
+
+  it('markTurnEngaged ignores an empty chat id', () => {
+    useDesktopInspectorStore.getState().markTurnEngaged('');
+    expect(useDesktopInspectorStore.getState().engagedChatId).toBeNull();
   });
 
   it('releaseTurnEngagement is a no-op when the turn never engaged desktop events', () => {
@@ -32,16 +37,30 @@ describe('useDesktopInspectorStore turn engagement', () => {
       updatedAt: Date.now(),
     });
 
-    useDesktopInspectorStore.getState().releaseTurnEngagement();
+    useDesktopInspectorStore.getState().releaseTurnEngagement('c1');
 
     // A panel the user opened manually must survive unrelated turns.
-    expect(useDesktopInspectorStore.getState().engagedInTurn).toBe(false);
+    expect(useDesktopInspectorStore.getState().engagedChatId).toBeNull();
     expect(useDesktopInspectorStore.getState().isOpen).toBe(true);
     expect(useDesktopInspectorStore.getState().viewData).not.toBeNull();
   });
 
-  it('releaseTurnEngagement fully clears state after an engaged desktop turn', () => {
-    useDesktopInspectorStore.getState().markTurnEngaged();
+  it('releaseTurnEngagement is a no-op for a different chat (parallel panes)', () => {
+    useDesktopInspectorStore.getState().markTurnEngaged('c1');
+    useDesktopInspectorStore.getState().setDesktopActive(true);
+    useDesktopInspectorStore.getState().openPanel();
+
+    // Pane c2's turn ends: it must not tear down pane c1's engaged panel.
+    useDesktopInspectorStore.getState().releaseTurnEngagement('c2');
+
+    const state = useDesktopInspectorStore.getState();
+    expect(state.engagedChatId).toBe('c1');
+    expect(state.isDesktopActive).toBe(true);
+    expect(state.isOpen).toBe(true);
+  });
+
+  it('releaseTurnEngagement fully clears state after the owning chat ends', () => {
+    useDesktopInspectorStore.getState().markTurnEngaged('c1');
     useDesktopInspectorStore.getState().setDesktopActive(true);
     useDesktopInspectorStore.getState().openPanel();
     useDesktopInspectorStore.getState().setInstructionText('click ok');
@@ -59,10 +78,10 @@ describe('useDesktopInspectorStore turn engagement', () => {
       updatedAt: Date.now(),
     });
 
-    useDesktopInspectorStore.getState().releaseTurnEngagement();
+    useDesktopInspectorStore.getState().releaseTurnEngagement('c1');
 
     const state = useDesktopInspectorStore.getState();
-    expect(state.engagedInTurn).toBe(false);
+    expect(state.engagedChatId).toBeNull();
     expect(state.isDesktopActive).toBe(false);
     expect(state.isOpen).toBe(false);
     expect(state.viewData).toBeNull();
@@ -70,9 +89,9 @@ describe('useDesktopInspectorStore turn engagement', () => {
     expect(state.instructionText).toBe('');
   });
 
-  it('reset clears engagedInTurn', () => {
-    useDesktopInspectorStore.getState().markTurnEngaged();
+  it('reset clears engagedChatId', () => {
+    useDesktopInspectorStore.getState().markTurnEngaged('c1');
     useDesktopInspectorStore.getState().reset();
-    expect(useDesktopInspectorStore.getState().engagedInTurn).toBe(false);
+    expect(useDesktopInspectorStore.getState().engagedChatId).toBeNull();
   });
 });

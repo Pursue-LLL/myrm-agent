@@ -106,7 +106,9 @@ describe('completionEvents inspector teardown', () => {
 
     await vi.waitFor(() => {
       expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledWith('c1');
       expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledWith('c1');
     });
   });
 
@@ -127,7 +129,9 @@ describe('completionEvents inspector teardown', () => {
 
     await vi.waitFor(() => {
       expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledWith('c1');
       expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledWith('c1');
     });
   });
 });

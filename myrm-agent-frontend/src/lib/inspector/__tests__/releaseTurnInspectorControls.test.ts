@@ -28,10 +28,12 @@ describe('releaseTurnInspectorControls', () => {
   });
 
   it('releases turn engagement on both desktop and browser inspectors', async () => {
-    await releaseTurnInspectorControls();
+    await releaseTurnInspectorControls('c1');
 
     expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+    expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledWith('c1');
     expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+    expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledWith('c1');
   });
 
   it('swallows store access failures without rejecting', async () => {

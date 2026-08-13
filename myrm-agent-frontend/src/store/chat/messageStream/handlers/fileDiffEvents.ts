@@ -147,7 +147,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       return done(ctx);
     }
     store.setBrowserActive(true);
-    store.markTurnEngaged();
+    store.markTurnEngaged(sourceChatId);
     store.updateViewData({
       screenshotBase64: data.data.screenshot_base64,
       mimeType: data.data.mime_type,
@@ -177,7 +177,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       return done(ctx);
     }
     store.setDesktopActive(true);
-    store.markTurnEngaged();
+    store.markTurnEngaged(sourceChatId);
     store.updateViewData({
       screenshotBase64: data.data.screenshot_base64,
       mimeType: data.data.mime_type,
@@ -226,7 +226,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       const { default: useDesktopInspectorStore } = await import('@/store/useDesktopInspectorStore');
       const desktopStore = useDesktopInspectorStore.getState();
       desktopStore.setDesktopActive(true);
-      desktopStore.markTurnEngaged();
+      desktopStore.markTurnEngaged(streamChatId);
       desktopStore.openPanel();
     }
 

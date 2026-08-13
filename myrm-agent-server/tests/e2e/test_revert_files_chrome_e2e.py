@@ -34,7 +34,9 @@ _SCOPED_REVERT_BTN_HELPER = """
     const btn = scope
       ? Array.from(scope.querySelectorAll('button[title]')).find((candidate) => {
           const title = candidate.getAttribute('title') || '';
-          return /Undo file changes|撤销文件变更/i.test(title);
+          // RevertFiles title 会在快照 fetch 后变为带 count 的版本
+          // （"Undo 1 file change(s)" / "撤销 1 个文件变更"），两种都要匹配。
+          return /Undo file changes|Undo \d+ file change|撤销文件变更|撤销 \d+ 个文件变更/i.test(title);
         })
       : null;
     return { msg, btn };
