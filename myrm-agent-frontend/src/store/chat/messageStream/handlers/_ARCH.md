@@ -43,7 +43,7 @@
 | `__tests__/fileDiffEvents.desktopControlApproval.test.ts` | 测试 | DESKTOP_CONTROL_APPROVAL：前台 chat 匹配时 setDesktopActive + openPanel | ✅ |
 | `__tests__/toolLifecycleEvents.browserInspector.test.ts` | 测试 | browser_* TOOL_START 前台 chat 匹配时才 openPanel；任意 browser_* TOOL_START markTurnEngaged(chatId) | ✅ |
 | `__tests__/toolLifecycleEvents.desktopInspector.test.ts` | 测试 | desktop_* TOOL_END REST re-fetch 仅前台 chat 匹配时执行；desktop_* TOOL_START markTurnEngaged(chatId) | ✅ |
-| `__tests__/completionEvents.desktopTeardown.test.ts` | 测试 | MESSAGE_END → 经共享 helper 释放 desktop + browser releaseTurnEngagement；GOAL_STATUS `budget_limited` 熔断同样释放；非 MESSAGE_END/非熔断不释放 | ✅ |
+| `__tests__/completionEvents.desktopTeardown.test.ts` | 测试 | MESSAGE_END → 经共享 helper 按 chatId 释放 desktop + browser releaseTurnEngagement；GOAL_STATUS `budget_limited` 熔断同样释放；非 MESSAGE_END/非熔断不释放 | ✅ |
 | `__tests__/statusStreamProgressSteps.allowedToolsRecovery.test.ts` | 测试 | stream recovery + `allowed_tools_rejected_recovery` progress step 白名单 | ✅ |
 | `__tests__/statusStreamProgressSteps.modelFailoverKey.test.ts` | 测试 | `model_failover` displayKey 按 `error_kind` 派生；`model_failover_unconfigured` step 白名单；restart 协议（`data.restart===true` 清空草稿 + `scheduler.cancel()`），含 `empty_response_recovery`/`tool_call_retry`/`vision_fallback_recovery`/`media_rejected_recovery` 白名单、清稿与 early 占位 | ✅ |
 | `__tests__/statusStreamEvents.waitingForTurn.test.ts` | 测试 | `waiting_for_turn` 白名单/占位/step 追加 + `waiting_for_turn_clear` step 移除 | ✅ |

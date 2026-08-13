@@ -9,7 +9,8 @@
  * [POS]
  * State management for the Browser Live View + Interactive Inspector feature.
  * Tracks panel visibility, active mode, latest browser view data, selected element, and
- * per-turn engagement (which agent turns drive browser events and must be torn down).
+ * per-chat turn engagement (which chat's turn drives browser events and must be torn down;
+ * release only targets the owning chat so parallel panes are never force-closed).
  */
 
 import { create } from 'zustand';
