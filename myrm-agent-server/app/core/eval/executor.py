@@ -25,6 +25,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from myrm_agent_harness.agent.errors import ToolErrorCategory
 from myrm_agent_harness.eval.protocols import AgentResponse
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
@@ -437,9 +438,9 @@ class LocalEvalExecutor:
                     # Record a per-step summary (tool name + step data) so the
                     # eval report can disclose the action trajectory — the same
                     # TASKS_STEPS payload the frontend renders live. Error steps
-                    # carry a structured ``error_category`` (e.g. the
-                    # benchmark_blocked decontamination guard) which lets the
-                    # run count pollution-guard engagement.
+                    # carry a structured ``error_category`` (e.g. the benchmark
+                    # decontamination guard) which lets the run count
+                    # pollution-guard engagement.
                     step_detail: dict[str, object] = {
                         "tool_name": tool_name,
                         "step_key": str(event.get("step_key", "") or ""),
@@ -452,7 +453,10 @@ class LocalEvalExecutor:
                             event.get("error", "") or ""
                         )[:300]
                     tool_call_details.append(step_detail)
-                    if event.get("error_category") == "benchmark_blocked":
+                    if (
+                        event.get("error_category")
+                        == ToolErrorCategory.BENCHMARK_BLOCKED.value
+                    ):
                         blocked_count += 1
                 elif event_type == "engine_limit_reached":
                     data = event.get("data")

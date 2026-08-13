@@ -34,6 +34,7 @@ myrm_agent_harness.agent.dynamic_workflow
 myrm_agent_harness.agent.dynamic_workflow.paths
 myrm_agent_harness.agent.dynamic_workflow.template_store
 myrm_agent_harness.agent.dynamic_workflow.template_validation
+myrm_agent_harness.agent.errors
 myrm_agent_harness.agent.event_log
 myrm_agent_harness.agent.event_log.analytics_queries
 myrm_agent_harness.agent.event_log.backends.file_backend

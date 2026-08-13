@@ -26,7 +26,8 @@ const CodePreview: React.FC<CodePreviewProps> = memo(({ content, language, artif
 
   const markAsDirty = useArtifactPortalStore((state) => state.markAsDirty);
   const clearDirtyState = useArtifactPortalStore((state) => state.clearDirtyState);
-  const isDirty = artifactId ? !!useArtifactPortalStore((state) => state.dirtyArtifacts[artifactId]) : false;
+  const dirtyArtifactId = useArtifactPortalStore((state) => (artifactId ? state.dirtyArtifacts[artifactId] : undefined));
+  const isDirty = !!dirtyArtifactId;
 
   const isGenerating = useIsGenerating();
   const isInitialMount = useRef(true);

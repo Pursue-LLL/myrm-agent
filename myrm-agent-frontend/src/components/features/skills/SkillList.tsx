@@ -58,22 +58,6 @@ const SkillList = memo(
     onLifecycleAction,
     onManageInstances,
   }: SkillListProps) => {
-    // 加载状态
-    if (isLoading) {
-      return (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SkillCardSkeleton key={i} />
-          ))}
-        </div>
-      );
-    }
-
-    // 空状态
-    if (skills.length === 0) {
-      return <SkillEmptyState type={emptyStateType} onUpload={onUpload} />;
-    }
-
     // 技能列表虚拟滚动
     const parentRef = useRef<HTMLDivElement>(null);
     const isXl = useMediaQuery('(min-width: 1280px)');
@@ -93,6 +77,22 @@ const SkillList = memo(
       estimateSize: () => 200, // estimated height of a skill card + gap
       overscan: 3,
     });
+
+    // 加载状态
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkillCardSkeleton key={i} />
+          ))}
+        </div>
+      );
+    }
+
+    // 空状态
+    if (skills.length === 0) {
+      return <SkillEmptyState type={emptyStateType} onUpload={onUpload} />;
+    }
 
     return (
       <div ref={parentRef} style={{ width: '100%' }}>

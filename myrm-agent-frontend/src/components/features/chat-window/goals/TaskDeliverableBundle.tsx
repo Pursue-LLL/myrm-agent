@@ -62,10 +62,9 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
   const openArtifact = useArtifactPortalStore((s) => s.openArtifact);
 
   const deliverables = goal.deliverables;
-  if (!deliverables || deliverables.length < 2) {return null;}
-  if (goal.status !== 'complete') {return null;}
 
   const handleDownloadAll = useCallback(async () => {
+    if (!deliverables) {return;}
     setDownloading(true);
     try {
       const ids = deliverables.map((d) => d.id);
@@ -108,6 +107,13 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
     },
     [openArtifact],
   );
+
+  if (!deliverables || deliverables.length < 2) {
+    return null;
+  }
+  if (goal.status !== 'complete') {
+    return null;
+  }
 
   return (
     <div className="mt-3 rounded-lg border bg-card p-3 shadow-sm">

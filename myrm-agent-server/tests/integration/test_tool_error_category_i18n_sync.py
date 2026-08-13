@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.agent.errors.tool_error_category import ToolErrorCategory
+from myrm_agent_harness.agent.errors import ToolErrorCategory
 
 FRONTEND_LOCALES_DIR = (
     Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"

@@ -149,9 +149,8 @@ export const CompactedSummaryView = () => {
     }
   }, [chatId, setContextBranches, setContextBranchesLoadError]);
 
-  if (!compactedSummary) {return null;}
-
   const handleEdit = () => {
+    if (!compactedSummary) {return;}
     setEditValue(compactedSummary);
     setIsEditing(true);
   };
@@ -298,6 +297,10 @@ export const CompactedSummaryView = () => {
     root.addEventListener('click', onNativeClick);
     return () => root.removeEventListener('click', onNativeClick);
   }, [bookmarks, handleForkFromBookmark]);
+
+  if (!compactedSummary) {
+    return null;
+  }
 
   return (
     <div className="w-full flex flex-col items-center my-6 max-w-5xl mx-auto px-4 md:px-0">

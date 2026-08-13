@@ -501,6 +501,10 @@ const MessageBox = ({
     });
   }, [message.content, message.role, accumulatedSources]);
 
+  if (!message) {
+    return null;
+  }
+
   // System message (only shown in developer mode)
   if (message.role === 'system') {
     if (!showSystemMessages) {

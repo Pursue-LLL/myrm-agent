@@ -4,7 +4,7 @@ Verifies that the eval run discloses the agent's action trajectory back to
 the report layer:
 - ``limit_reached`` is captured from ``engine_limit_reached`` events
 - ``blocked_count`` tallies steps rejected by the decontamination guard
-  (``error_category == "benchmark_blocked"``)
+  (``error_category`` = ``ToolErrorCategory.BENCHMARK_BLOCKED``)
 - ``tool_call_details`` records per-step tool names, keys, and error text
 """
 
@@ -13,6 +13,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.agent.errors import ToolErrorCategory
 
 from app.core.eval.executor import LocalEvalExecutor
 
@@ -142,7 +143,7 @@ async def test_blocked_steps_tallied():
                 "tool_name": "web_search_tool",
                 "step_key": "web_search_tool",
                 "status": "error",
-                "error_category": "benchmark_blocked",
+                "error_category": ToolErrorCategory.BENCHMARK_BLOCKED.value,
                 "error": "rejected by decontamination guard",
                 "data": [{"k": "v"}],
             },
@@ -151,7 +152,7 @@ async def test_blocked_steps_tallied():
                 "tool_name": "web_search_tool",
                 "step_key": "web_search_tool",
                 "status": "error",
-                "error_category": "benchmark_blocked",
+                "error_category": ToolErrorCategory.BENCHMARK_BLOCKED.value,
                 "error": "rejected again",
                 "data": [{"k": "v"}],
             },
@@ -215,7 +216,7 @@ async def test_tool_call_details_record_trajectory():
                 "tool_name": "web_fetch_tool",
                 "step_key": "web_fetch_tool",
                 "status": "error",
-                "error_category": "benchmark_blocked",
+                "error_category": ToolErrorCategory.BENCHMARK_BLOCKED.value,
                 "error": "rejected by decontamination guard",
                 "data": [{"url": "https://huggingface.co/x"}],
             },
