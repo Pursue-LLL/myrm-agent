@@ -36,6 +36,7 @@ vi.mock('../handlerDeps', () => ({
     messages.findIndex((msg) => msg.role === 'assistant' && msg.messageId === messageId),
   ),
   normalizeGoalState: vi.fn(),
+  releaseInspectorControls: vi.fn(),
   useChatStore: {
     getState: vi.fn(() => ({ chatId: 'c1', setWorkspaceDir: vi.fn() })),
   },
