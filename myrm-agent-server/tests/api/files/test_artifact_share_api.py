@@ -1538,10 +1538,10 @@ async def test_serve_bundle_materialize_error_mapping(
         artifact_id="a", version_id="v", exp=int(time.time()) + 3600
     )
     with patch(
-        "app.api.files.artifact_share_api.resolve_share_bundle_file",
+        "app.api.files.artifact_share_public.resolve_share_bundle_file",
         return_value=None,
     ), patch(
-        "app.api.files.artifact_share_api.materialize_share_bundle",
+        "app.api.files.artifact_share_public.materialize_share_bundle",
         new_callable=AsyncMock,
         side_effect=exc,
     ):
@@ -1557,10 +1557,10 @@ async def test_serve_bundle_missing_after_materialize(share_client) -> None:
         artifact_id="a", version_id="v", exp=int(time.time()) + 3600
     )
     with patch(
-        "app.api.files.artifact_share_api.resolve_share_bundle_file",
+        "app.api.files.artifact_share_public.resolve_share_bundle_file",
         return_value=None,
     ), patch(
-        "app.api.files.artifact_share_api.materialize_share_bundle",
+        "app.api.files.artifact_share_public.materialize_share_bundle",
         new_callable=AsyncMock,
     ):
         with pytest.raises(HTTPException) as exc_info:

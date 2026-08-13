@@ -168,7 +168,7 @@ async def test_register_share_reraises_when_conflict_has_no_existing() -> None:
     fake_session = AsyncMock(spec=AsyncSession)
 
     class _EmptyScalars:
-        async def first(self) -> None:
+        def first(self) -> None:
             return None
 
     class _EmptyResult:
