@@ -541,6 +541,14 @@ def _claims_to_response_items(
     return items
 
 
+def _str_or_none(value: object) -> str | None:
+    """Return a trimmed string, or None when empty/missing."""
+    if value is None:
+        return None
+    stripped = str(value).strip()
+    return stripped or None
+
+
 def _editor_sections_to_response(content: str) -> WikiEditorSectionsResponse:
     from myrm_agent_harness.toolkits.wiki.core.section_contract import (
         parse_editor_sections,

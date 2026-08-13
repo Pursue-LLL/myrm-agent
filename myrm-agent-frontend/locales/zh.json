@@ -2703,6 +2703,7 @@
         "timelineDuplicateSkipped": "该 Timeline 条目已存在，未重复追加。",
         "pageConflict": "该页面已在别处被更新，请重新加载后再试。",
         "claimsTitle": "结构化主张",
+        "sourceChat": "来源对话",
         "claimsEmpty": "此页面暂无结构化主张",
         "staleSourceModified": "关联源文件在上次编译后有更新",
         "claimStatusSupported": "已支持",

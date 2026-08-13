@@ -2483,6 +2483,7 @@
         "namePlaceholder": "輸入名稱...",
         "confirm": "確認",
         "claimsTitle": "結構化主張",
+        "sourceChat": "來源對話",
         "claimsEmpty": "此頁面尚無結構化主張",
         "staleSourceModified": "關聯來源在上次編譯後有更新",
         "claimStatusSupported": "已支援",

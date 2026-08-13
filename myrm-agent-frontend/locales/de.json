@@ -1848,6 +1848,7 @@
         "parentFolderLabel": "Übergeordneter Ordner (optional)",
         "parentFolderRoot": "Wurzel",
         "claimsTitle": "Strukturierte Ansprüche",
+        "sourceChat": "Quellkonversation",
         "claimsEmpty": "Keine strukturierten Ansprüche auf dieser Seite",
         "staleSourceModified": "Verknüpfte Quellen seit der letzten Kompilierung geändert",
         "claimStatusSupported": "Unterstützt",

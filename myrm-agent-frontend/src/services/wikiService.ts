@@ -26,6 +26,8 @@ export interface Concept {
   content: string;
   content_hash?: string;
   provenance?: string | null;
+  source_chat?: string | null;
+  source_message?: string | null;
   claims?: WikiClaim[];
   editor_sections?: WikiEditorSections;
 }

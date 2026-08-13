@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -88,6 +89,14 @@ export function WikiConceptDetailPanel({
                 <Badge variant="outline" className="text-blue-600 dark:text-blue-400 border-blue-500/30 shrink-0">
                   {t(`provenance.${selectedConcept.provenance}`, { defaultValue: selectedConcept.provenance })}
                 </Badge>
+              )}
+              {selectedConcept.source_chat && (
+                <Link
+                  href={`/${selectedConcept.source_chat}`}
+                  className="text-xs text-primary hover:underline shrink-0"
+                >
+                  {t('sourceChat')}
+                </Link>
               )}
             </div>
             <div className="flex gap-2 shrink-0">

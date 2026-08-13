@@ -2483,6 +2483,7 @@
         "namePlaceholder": "名前を入力...",
         "confirm": "確認",
         "claimsTitle": "構造化クレーム",
+        "sourceChat": "元の会話",
         "claimsEmpty": "このページに構造化クレームはありません",
         "staleSourceModified": "前回コンパイル以降に関連ソースが変更されました",
         "claimStatusSupported": "対応済み",

@@ -1848,6 +1848,7 @@
         "parentFolderLabel": "상위 폴더 (선택)",
         "parentFolderRoot": "루트",
         "claimsTitle": "구조화된 주장",
+        "sourceChat": "원본 대화",
         "claimsEmpty": "이 페이지에 구조화된 주장이 없습니다",
         "staleSourceModified": "연결된 소스가 마지막 컴파일 이후 변경됨",
         "claimStatusSupported": "지원됨",
