@@ -602,8 +602,19 @@
       "revokeLabel": "{name} の共有リンクを失効",
       "revokeSuccess": "共有リンクを失効しました",
       "revokeError": "共有リンクの失効に失敗しました",
+      "copy": "コピー",
+      "copied": "コピーしました",
+      "copyLabel": "{name} の共有リンクをコピー",
+      "copyError": "共有リンクのコピーに失敗しました",
+      "linkProtected": "パスワード保護",
       "yes": "はい",
       "no": "いいえ",
+      "type": {
+        "html": "ウェブページ",
+        "pdf": "PDF",
+        "document": "ドキュメント",
+        "unknown": "その他"
+      },
       "confirm": {
         "title": "共有リンクを失効しますか？",
         "description": "このリンクは即座に無効になり、復元できません。このリンクを持っている人は {name} を閲覧できなくなります。",
@@ -614,6 +625,7 @@
       "table": {
         "artifact": "成果物",
         "type": "種別",
+        "link": "リンク",
         "protected": "パスワード",
         "expiresAt": "有効期限",
         "action": "操作"
@@ -8785,6 +8797,7 @@
     "context_truncation": "ウィンドウに合わせて古いコンテキストを削除中",
     "media_stripped": "メディアを削除しました — モデルが画像入力をサポートしていません",
     "media_rejected_recovery": "モデルがメディア入力を拒否しました — 削除して再試行中",
+    "vision_fallback_recovery": "モデルが画像に対応していません — テキストに変換して再試行中",
     "thinking_signature_recovery": "思考ブロックを修復して再試行",
     "tool_history_recovery": "会話履歴を修復して再試行",
     "image_shrink_recovery": "画像を制限内に圧縮して再試行",
@@ -14929,7 +14942,7 @@
         "webAutomation": "ウェブ自動化",
         "developerTools": "開発ツール",
         "systemAdmin": "システム管理者（危険）",
-        "hint": "テンプレートが対応する権限を自動選択"
+        "hint": "承認時にテンプレートの権限が自動的に付与されます"
       },
       "dangerousPermissions": "危険な権限",
       "dangerous": "危険",
@@ -14938,11 +14951,9 @@
       "allowedDomains": "許可されたドメイン",
       "networkAccessHint": "このスキルは上記ドメインにのみリクエスト可能性です。",
       "dangerousWarning": "このスキルは危険な権限を要求しています。信頼できるソースか確認してください。",
-      "alwaysAllow": "このスキルの権限を常に許可",
       "deny": "拒否",
       "approveAnyway": "それでも承認",
       "approve": "承認",
-      "allowAll": "すべて許可",
       "permissionGranted": "権限を付与",
       "permissionRevoked": "権限を取り消しました",
       "permissionRevokedDesc": "権限が取り消されました。実行中のタスクに影響する場合があります。",

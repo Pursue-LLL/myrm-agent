@@ -4380,8 +4380,19 @@
       "revokeLabel": "Freigabelink für {name} widerrufen",
       "revokeSuccess": "Freigabelink widerrufen",
       "revokeError": "Freigabelink konnte nicht widerrufen werden",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "copyLabel": "Freigabelink für {name} kopieren",
+      "copyError": "Freigabelink konnte nicht kopiert werden",
+      "linkProtected": "Passwortgeschützt",
       "yes": "Ja",
       "no": "Nein",
+      "type": {
+        "html": "Webseite",
+        "pdf": "PDF",
+        "document": "Dokument",
+        "unknown": "Sonstiges"
+      },
       "confirm": {
         "title": "Freigabelink widerrufen?",
         "description": "Dieser Link funktioniert sofort nicht mehr und kann nicht wiederhergestellt werden. Personen mit diesem Link können {name} nicht mehr ansehen.",
@@ -4392,6 +4403,7 @@
       "table": {
         "artifact": "Artefakt",
         "type": "Typ",
+        "link": "Link",
         "protected": "Passwort",
         "expiresAt": "Läuft ab",
         "action": "Aktion"
@@ -8623,6 +8635,7 @@
     "analyzing_video": "Video wird analysiert...",
     "media_stripped": "Removed media — model does not support images",
     "media_rejected_recovery": "Model rejected media — removed and retrying",
+    "vision_fallback_recovery": "Model kann keine Bilder verarbeiten — in Text umgewandelt, erneuter Versuch",
     "thinking_signature_recovery": "Denkblock repariert — erneuter Versuch",
     "tool_history_recovery": "Konversationsverlauf repariert — erneuter Versuch",
     "image_shrink_recovery": "Bilder an Limits angepasst — erneuter Versuch",
@@ -14302,7 +14315,7 @@
         "webAutomation": "Web-Automatisierung",
         "developerTools": "Entwicklertools",
         "systemAdmin": "Systemadministrator (Gefährlich)",
-        "hint": "Vorlage wählt automatisch Berechtigungen aus"
+        "hint": "Die Berechtigungen der Vorlage werden bei Genehmigung automatisch erteilt"
       },
       "dangerousPermissions": "Gefährliche Berechtigungen",
       "dangerous": "Gefährlich",
@@ -14311,11 +14324,9 @@
       "allowedDomains": "Erlaubte Domains",
       "networkAccessHint": "Dieser Skill darf nur Anfragen an obige Domains senden.",
       "dangerousWarning": "Dieser Skill fordert gefährliche Berechtigungen an. Bitte bestätigen Sie die Vertrauenswürdigkeit.",
-      "alwaysAllow": "Berechtigungen dieses Skills immer erlauben",
       "deny": "Ablehnen",
       "approveAnyway": "Trotzdem genehmigen",
       "approve": "Genehmigen",
-      "allowAll": "Alle erlauben",
       "permissionGranted": "Berechtigung erteilt",
       "permissionRevoked": "Berechtigung widerrufen",
       "permissionRevokedDesc": "Berechtigung widerrufen. Laufende Aufgaben können betroffen sein.",

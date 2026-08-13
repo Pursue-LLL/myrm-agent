@@ -622,8 +622,19 @@
       "revokeLabel": "Revoke share link for {name}",
       "revokeSuccess": "Share link revoked",
       "revokeError": "Failed to revoke share link",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyLabel": "Copy share link for {name}",
+      "copyError": "Failed to copy share link",
+      "linkProtected": "Password protected",
       "yes": "Yes",
       "no": "No",
+      "type": {
+        "html": "Web page",
+        "pdf": "PDF",
+        "document": "Document",
+        "unknown": "Other"
+      },
       "confirm": {
         "title": "Revoke share link?",
         "description": "This link will stop working immediately and cannot be restored. Anyone with this link will no longer be able to view {name}.",
@@ -634,6 +645,7 @@
       "table": {
         "artifact": "Artifact",
         "type": "Type",
+        "link": "Link",
         "protected": "Password",
         "expiresAt": "Expires",
         "action": "Action"
@@ -8875,6 +8887,7 @@
     "context_truncation": "Trimming old context to fit window",
     "media_stripped": "Removed media — model does not support images",
     "media_rejected_recovery": "Model rejected media — removed and retrying",
+    "vision_fallback_recovery": "Model can't see images — converted to text, retrying",
     "thinking_signature_recovery": "Thinking block repaired — retrying",
     "tool_history_recovery": "Conversation history repaired — retrying",
     "image_shrink_recovery": "Images resized to fit limits — retrying",
@@ -15007,7 +15020,7 @@
         "webAutomation": "Web Automation",
         "developerTools": "Developer Tools",
         "systemAdmin": "System Admin (Dangerous)",
-        "hint": "Template will auto-check corresponding permissions"
+        "hint": "The template permissions will be granted automatically on approval"
       },
       "dangerousPermissions": "Dangerous Permissions",
       "dangerous": "Dangerous",
@@ -15016,11 +15029,9 @@
       "allowedDomains": "Allowed Domains",
       "networkAccessHint": "This skill can only make network requests to the domains above to prevent data leakage.",
       "dangerousWarning": "This skill requests dangerous permissions. Please confirm the skill source is trusted before approving.",
-      "alwaysAllow": "Always allow permission requests from this skill",
       "deny": "Deny",
       "approveAnyway": "Approve Anyway",
       "approve": "Approve",
-      "allowAll": "Allow All",
       "permissionGranted": "Permission Granted",
       "permissionRevoked": "Permission Revoked",
       "permissionRevokedDesc": "Permission revoked. Running tasks may be affected.",

@@ -4380,8 +4380,19 @@
       "revokeLabel": "{name} 공유 링크 해지",
       "revokeSuccess": "공유 링크가 해지되었습니다",
       "revokeError": "공유 링크 해지에 실패했습니다",
+      "copy": "복사",
+      "copied": "복사됨",
+      "copyLabel": "{name} 공유 링크 복사",
+      "copyError": "공유 링크 복사에 실패했습니다",
+      "linkProtected": "비밀번호 보호",
       "yes": "예",
       "no": "아니요",
+      "type": {
+        "html": "웹페이지",
+        "pdf": "PDF",
+        "document": "문서",
+        "unknown": "기타"
+      },
       "confirm": {
         "title": "공유 링크를 해지할까요?",
         "description": "이 링크는 즉시 만료되며 복원할 수 없습니다. 이 링크를 가진 사람은 더 이상 {name}을(를) 볼 수 없습니다.",
@@ -4392,6 +4403,7 @@
       "table": {
         "artifact": "산출물",
         "type": "유형",
+        "link": "링크",
         "protected": "비밀번호",
         "expiresAt": "만료 시간",
         "action": "작업"
@@ -8623,6 +8635,7 @@
     "analyzing_video": "비디오 분석 중...",
     "media_stripped": "미디어가 제거됨 — 모델이 이미지를 지원하지 않음",
     "media_rejected_recovery": "모델이 미디어를 거부함 — 제거 후 재시도 중",
+    "vision_fallback_recovery": "모델이 이미지를 지원하지 않음 — 텍스트로 변환 후 재시도 중",
     "thinking_signature_recovery": "씽킹 블록 복구됨 — 재시도 중",
     "tool_history_recovery": "대화 기록 복구됨 — 재시도 중",
     "image_shrink_recovery": "이미지가 제한에 맞게 축소됨 — 재시도 중",
@@ -14302,7 +14315,7 @@
         "webAutomation": "웹 자동화",
         "developerTools": "개발 도구",
         "systemAdmin": "시스템 관리자 (위험)",
-        "hint": "템플릿이 관련 권한을 자동 선택"
+        "hint": "승인 시 템플릿 권한이 자동으로 부여됩니다"
       },
       "dangerousPermissions": "위험한 권한",
       "dangerous": "위험",
@@ -14311,11 +14324,9 @@
       "allowedDomains": "허용된 도메인",
       "networkAccessHint": "이 스킬은 위 도메인에만 요청할 수 있습니다.",
       "dangerousWarning": "이 스킬은 위험한 권한을 요청합니다. 신뢰할 수 있는 소스인지 확인하세요.",
-      "alwaysAllow": "이 스킬의 권한을 항상 허용",
       "deny": "거부",
       "approveAnyway": "그래도 승인",
       "approve": "승인",
-      "allowAll": "모두 허용",
       "permissionGranted": "권한 부여됨",
       "permissionRevoked": "권한 취소됨",
       "permissionRevokedDesc": "권한이 취소되었습니다. 실행 중인 작업에 영향을 줄 수 있습니다.",

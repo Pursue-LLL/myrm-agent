@@ -1,0 +1,50 @@
+/** @vitest-environment jsdom */
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+
+const stableT = (key: string) => key;
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+  useLocale: () => 'en',
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
+vi.mock('../MemoryTypeIcon', () => ({
+  default: () => null,
+}));
+
+import MemoryCard from '../MemoryCard';
+import type { Memory } from '@/store/memory';
+
+const baseProcedural: Memory = {
+  id: 'rule-1',
+  memory_type: 'procedural',
+  content: "Tool 'web_fetch_tool' failed 2 times in this session",
+  trigger: 'web_fetch_tool repeated failure',
+  action: 'Consider alternative approach when using web_fetch_tool.',
+  expected_valid_days: 1,
+  status: 'active',
+  created_at: '2026-08-13T00:00:00Z',
+  updated_at: '2026-08-13T00:00:00Z',
+};
+
+describe('MemoryCard - procedural TTL display', () => {
+  it('shows the TTL line for an unlocked failure rule', () => {
+    render(<MemoryCard memory={baseProcedural} variant="confirmed" />);
+    expect(screen.getByText('fields.ttlDays')).toBeInTheDocument();
+  });
+
+  it('hides the TTL line for a user-locked rule (permanent retention)', () => {
+    render(
+      <MemoryCard
+        memory={{ ...baseProcedural, is_user_locked: true }}
+        variant="confirmed"
+      />,
+    );
+    expect(screen.queryByText('fields.ttlDays')).not.toBeInTheDocument();
+  });
+});

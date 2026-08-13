@@ -602,8 +602,19 @@
       "revokeLabel": "撤銷 {name} 的分享連結",
       "revokeSuccess": "分享連結已撤銷",
       "revokeError": "撤銷分享連結失敗",
+      "copy": "複製",
+      "copied": "已複製",
+      "copyLabel": "複製 {name} 的分享連結",
+      "copyError": "複製分享連結失敗",
+      "linkProtected": "密碼保護中",
       "yes": "是",
       "no": "否",
+      "type": {
+        "html": "網頁",
+        "pdf": "PDF",
+        "document": "文件",
+        "unknown": "其他"
+      },
       "confirm": {
         "title": "撤銷分享連結？",
         "description": "此連結將立即失效且無法恢復，持有此連結的人將無法再查看 {name}。",
@@ -614,6 +625,7 @@
       "table": {
         "artifact": "工件",
         "type": "類型",
+        "link": "連結",
         "protected": "密碼保護",
         "expiresAt": "過期時間",
         "action": "操作"
@@ -8785,6 +8797,7 @@
     "context_truncation": "正在裁剪舊上下文以適應視窗",
     "media_stripped": "已移除媒體內容 — 當前模型不支援影象輸入",
     "media_rejected_recovery": "模型拒絕媒體輸入 — 已移除並重試",
+    "vision_fallback_recovery": "模型不支援圖片 — 已轉為文字描述並重試",
     "thinking_signature_recovery": "思考區塊已修復並重試",
     "tool_history_recovery": "對話歷史已自動修復並重試",
     "image_shrink_recovery": "圖片已壓縮至限制內並重試",
@@ -14900,7 +14913,7 @@
         "webAutomation": "網路自動化",
         "developerTools": "開發工具",
         "systemAdmin": "系統管理員（危險）",
-        "hint": "模板將自動勾選對應許可權"
+        "hint": "批准時將自動授予模板對應的許可權"
       },
       "dangerousPermissions": "危險許可權",
       "dangerous": "危險",
@@ -14909,11 +14922,9 @@
       "allowedDomains": "允許訪問的域名",
       "networkAccessHint": "此 Skill 僅被允許向以上域名發起網路請求，防止資料外洩。",
       "dangerousWarning": "此Skill請求了危險許可權，請確認Skill來源可信後再批准。",
-      "alwaysAllow": "始終允許此Skill的許可權請求",
       "deny": "拒絕",
       "approveAnyway": "仍然批准",
       "approve": "批准",
-      "allowAll": "全部允許",
       "permissionGranted": "許可權已授予",
       "permissionRevoked": "許可權已撤銷",
       "permissionRevokedDesc": "許可權已撤銷。正在執行的任務可能會受到影響。",

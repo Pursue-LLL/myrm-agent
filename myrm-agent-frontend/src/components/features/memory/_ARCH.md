@@ -35,7 +35,14 @@
 | `PendingMemoryBadge.tsx` | 组件 | 待审批记忆计数徽章（ChatWindow 顶栏入口，pendingCount=0 时隐藏） | ✅ |
 | `PendingMemoryDialog.tsx` | 组件 | 待审批记忆审批弹窗（支持编辑、批准、拒绝、来源跳转；连续审批：处理完自动显示下一条） | ✅ |
 | `PendingMemoryList.tsx` | 组件 | 待审批记忆列表（含批量操作，用于 MemorySection pending tab） | ✅ |
+| `__tests__/MemoryCommandCenterDoctorPanel.test.tsx` | 测试 | Doctor 诊断面板渲染与健康指标卡测试 | ✅ |
 | `__tests__/MemoryCommandCenterPanels.test.tsx` | 测试 | migration adapter missing 状态动作闭环与渲染守卫测试 | ✅ |
+| `__tests__/MemoryCard.ttl.test.tsx` | 测试 | procedural 卡片 TTL 显示：未锁定显示过期天数、用户锁定（is_user_locked）隐藏 | ✅ |
+| `__tests__/PendingMemoryList.test.tsx` | 测试 | 待审批记忆列表批量操作测试 | ✅ |
+| `__tests__/SharedContextPanel.test.tsx` | 测试 | 共享上下文面板测试 | ✅ |
+| `__tests__/SharedContextTargetBinding.test.tsx` | 测试 | 共享上下文目标绑定测试 | ✅ |
+| `__tests__/memoryLiveStream.test.ts` | 测试 | 记忆实时流测试 | ✅ |
+| `__tests__/replayTimeline.test.ts` | 测试 | 记忆回放时间线测试 | ✅ |
 
 ## 依赖
 
