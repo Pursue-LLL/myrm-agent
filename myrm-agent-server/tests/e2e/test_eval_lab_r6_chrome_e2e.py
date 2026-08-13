@@ -14,11 +14,18 @@ Covers:
 
 from __future__ import annotations
 
+import contextlib
+import json
+import time
+from pathlib import Path
+
 import pytest
 
 from tests.support.chrome_mcp_e2e import get_e2e_ui_url, open_mcp_page, wait_for_state
 
 EVAL_LAB_URL = f"{get_e2e_ui_url()}/eval-lab"
+
+_SERVER_ROOT = Path(__file__).resolve().parents[2]
 
 _DISMISS_MIGRATION_JS = """(() => {
   sessionStorage.setItem('migration_discovery_dismissed', 'true');
@@ -134,6 +141,11 @@ _CLICK_ROW_AND_CHECK_REPORT_JS = """(() => {
     const hasBenchmark = bodyText.includes('Benchmark')
       || bodyText.includes('基准');
     const hasOnOff = bodyText.includes('ON') || bodyText.includes('OFF');
+    const hasBudgetBadge = /88 calls \\/ 99 iterations|88 次调用 \\/ 99 轮迭代/.test(bodyText);
+    const hasDecontamEnabled = /Enabled|已启用/.test(bodyText);
+    const hasLimitBadge = /Limit|上限/.test(bodyText);
+    const hasBlockedBadge = /Blocked 1|已拦截 1/.test(bodyText);
+    const hasToolCalls3 = /3×/.test(bodyText);
 
     resolve({
       ready: true,
@@ -143,9 +155,87 @@ _CLICK_ROW_AND_CHECK_REPORT_JS = """(() => {
       hasProfile,
       hasBenchmark,
       hasOnOff,
+      hasBudgetBadge,
+      hasDecontamEnabled,
+      hasLimitBadge,
+      hasBlockedBadge,
+      hasToolCalls3,
     });
   }, 2000));
 })()"""
+
+
+@contextlib.contextmanager
+def _seeded_budget_report() -> object:
+    """Seed a single-profile eval report carrying the #6 budget/decontam fields.
+
+    The report lives under the server working directory (``.myrm/eval_reports``),
+    same resolution used by ``app.core.eval.reports``. The first JSONL line is the
+    summary (manifest with the engine-enforced caps), the second is the per-case
+    record with the trajectory badges, mirroring what ``LocalEvalExecutor`` writes.
+    """
+    reports_dir = _SERVER_ROOT / ".myrm/eval_reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    now = int(time.time())
+    report_path = reports_dir / f"eval_report_{now}.jsonl"
+    summary: dict[str, object] = {
+        "type": "summary",
+        "total_cases": 1,
+        "total": 1,
+        "passed": 0,
+        "pass_count": 0,
+        "fail_count": 1,
+        "error_count": 0,
+        "avg_pass_rate": 0.0,
+        "avg_time_secs": 3.2,
+        "avg_total_tokens": 1000,
+        "profile_id": None,
+        "benchmark_mode": True,
+        "decontam_active": True,
+        "manifest": {
+            "model_provider": "openai",
+            "model_id": "test-model",
+            "thinking_effort": "high",
+            "harness_version": "0.1.0",
+            "tool_policy": ["web_search", "web_fetch"],
+            "task_set_id": "browsecomp",
+            "prompt_fingerprint": "a1b2c3d4e5f6a1b2",
+            "profile_id": None,
+            "benchmark_mode": True,
+            "judge_model": "openai/test-judge",
+            "max_tool_calls": 88,
+            "max_iterations": 99,
+        },
+    }
+    case: dict[str, object] = {
+        "passed": False,
+        "case": {
+            "message": "Budget badge trajectory case",
+            "expected_tools": [],
+            "state_assertions": [],
+        },
+        "scores": {"pass_rate": 0.0},
+        "usage": {"total_tokens": 1000},
+        "time_secs": 3.2,
+        "details": None,
+        "actual_tools": [],
+        "actual_output": "",
+        "limit_reached": "max_iterations",
+        "blocked_count": 1,
+        "tool_call_details": [
+            {"name": "web_search"},
+            {"name": "web_search"},
+            {"name": "web_fetch"},
+        ],
+    }
+    report_path.write_text(
+        json.dumps(summary, ensure_ascii=False) + "\n" + json.dumps(case, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    try:
+        yield None
+    finally:
+        report_path.unlink(missing_ok=True)
 
 
 @pytest.mark.chrome_e2e(
@@ -157,66 +247,82 @@ _CLICK_ROW_AND_CHECK_REPORT_JS = """(() => {
 @pytest.mark.timeout(600)
 def test_eval_lab_r6_history_and_detail_chrome_e2e() -> None:
     """Eval Lab R6: history table columns, click-to-detail, manifest fields."""
-    with open_mcp_page(EVAL_LAB_URL) as (client, page):
-        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=5.0)
+    with _seeded_budget_report():
+        with open_mcp_page(EVAL_LAB_URL) as (client, page):
+            client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=5.0)
 
-        # T1: Page loads with title and tabs
-        state = wait_for_state(client, page, _PAGE_LOAD_PROBE_JS, timeout_sec=45.0)
+            # T1: Page loads with title and tabs
+            state = wait_for_state(client, page, _PAGE_LOAD_PROBE_JS, timeout_sec=45.0)
 
-        assert state.get("url", "").endswith("/eval-lab") or "eval" in state.get("url", "").lower(), (
-            f"URL should contain eval-lab: {state.get('url')}"
-        )
-        assert isinstance(state.get("tabCount"), int) and state["tabCount"] >= 2, (
-            f"Should have >=2 tabs, got {state.get('tabCount')}: {state.get('tabTexts')}"
-        )
-
-        # T2: History table structure
-        table_state = wait_for_state(client, page, _HISTORY_TABLE_PROBE_JS, timeout_sec=30.0)
-
-        if table_state.get("hasTable"):
-            headers = table_state.get("headers", [])
-            assert table_state.get("headerCount", 0) >= 7, (
-                f"Table should have >=7 columns (with Profile+Model), got {table_state.get('headerCount')}: {headers}"
+            assert state.get("url", "").endswith("/eval-lab") or "eval" in state.get("url", "").lower(), (
+                f"URL should contain eval-lab: {state.get('url')}"
+            )
+            assert isinstance(state.get("tabCount"), int) and state["tabCount"] >= 2, (
+                f"Should have >=2 tabs, got {state.get('tabCount')}: {state.get('tabTexts')}"
             )
 
-            assert table_state.get("profileColIdx", -1) >= 0, (
-                f"Profile column should exist in headers: {headers}"
-            )
-            assert table_state.get("modelColIdx", -1) >= 0, (
-                f"Model column should exist in headers: {headers}"
-            )
+            # T2: History table structure
+            table_state = wait_for_state(client, page, _HISTORY_TABLE_PROBE_JS, timeout_sec=30.0)
 
-            # T6: Responsive - scroll container exists
-            assert table_state.get("hasScrollContainer") is True, (
-                "Table should be wrapped in overflow-x-auto container"
-            )
-
-            # T3: Old reports graceful degradation
-            if table_state.get("rowCount", 0) > 0:
-                assert table_state.get("hasCursorPointer") is True, (
-                    "Table rows should have cursor:pointer for click-to-detail"
+            if table_state.get("hasTable"):
+                headers = table_state.get("headers", [])
+                assert table_state.get("headerCount", 0) >= 7, (
+                    f"Table should have >=7 columns (with Profile+Model), got {table_state.get('headerCount')}: {headers}"
                 )
 
-                profile_text = table_state.get("profileCellText", "")
-                assert profile_text is not None, (
-                    "Profile cell should have content (even '-' for old reports)"
+                assert table_state.get("profileColIdx", -1) >= 0, (
+                    f"Profile column should exist in headers: {headers}"
+                )
+                assert table_state.get("modelColIdx", -1) >= 0, (
+                    f"Model column should exist in headers: {headers}"
                 )
 
-                # T4: Click row to load detail
-                report_state = wait_for_state(
-                    client, page, _CLICK_ROW_AND_CHECK_REPORT_JS, timeout_sec=30.0,
+                # T6: Responsive - scroll container exists
+                assert table_state.get("hasScrollContainer") is True, (
+                    "Table should be wrapped in overflow-x-auto container"
                 )
 
-                if report_state.get("clicked"):
-                    assert report_state.get("isReportActive") is True, (
-                        "After clicking history row, Report tab should be active"
+                # T3: Old reports graceful degradation
+                if table_state.get("rowCount", 0) > 0:
+                    assert table_state.get("hasCursorPointer") is True, (
+                        "Table rows should have cursor:pointer for click-to-detail"
                     )
 
-                    # T5: Environment snapshot fields
-                    if report_state.get("hasEnvironment"):
-                        assert report_state.get("hasProfile") is True, (
-                            "Report environment should show Profile field"
+                    profile_text = table_state.get("profileCellText", "")
+                    assert profile_text is not None, (
+                        "Profile cell should have content (even '-' for old reports)"
+                    )
+
+                    # T4: Click row to load detail
+                    report_state = wait_for_state(
+                        client, page, _CLICK_ROW_AND_CHECK_REPORT_JS, timeout_sec=30.0,
+                    )
+
+                    if report_state.get("clicked"):
+                        assert report_state.get("isReportActive") is True, (
+                            "After clicking history row, Report tab should be active"
                         )
-                        assert report_state.get("hasBenchmark") is True, (
-                            "Report environment should show Benchmark field"
-                        )
+
+                        # T5: Environment snapshot fields
+                        if report_state.get("hasEnvironment"):
+                            assert report_state.get("hasProfile") is True, (
+                                "Report environment should show Profile field"
+                            )
+                            assert report_state.get("hasBenchmark") is True, (
+                                "Report environment should show Benchmark field"
+                            )
+                            assert report_state.get("hasBudgetBadge") is True, (
+                                f"Report should render the budget badge (88 calls / 99 iterations): {report_state}"
+                            )
+                            assert report_state.get("hasDecontamEnabled") is True, (
+                                f"Report should render the decontamination Enabled badge: {report_state}"
+                            )
+                            assert report_state.get("hasLimitBadge") is True, (
+                                f"Report should render the Limit (max_iterations) trajectory badge: {report_state}"
+                            )
+                            assert report_state.get("hasBlockedBadge") is True, (
+                                f"Report should render the Blocked 1 trajectory badge: {report_state}"
+                            )
+                            assert report_state.get("hasToolCalls3") is True, (
+                                f"Report should render the 3x tool-call trajectory badge: {report_state}"
+                            )
