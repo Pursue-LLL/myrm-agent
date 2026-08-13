@@ -12,6 +12,10 @@ vi.mock('@/services/chat', () => ({
   getWorkspaceFileContentUrl: (filePath: string, _workspace: string) => `/api/v1/files/browse/content?path=${encodeURIComponent(filePath)}`,
 }));
 
+vi.mock('@/lib/api', () => ({
+  getStorageUrl: (url: string) => url,
+}));
+
 vi.mock('next/dynamic', () => ({
   __esModule: true,
   default: (loader: () => Promise<unknown>) => {
@@ -37,7 +41,9 @@ vi.mock('next/dynamic', () => ({
 
 vi.mock('@/components/features/artifacts/renderers/MediaPreview', () => ({
   SvgPreview: ({ content }: { content: string }) => <div data-testid="svg">{content}</div>,
-  ImagePreview: () => <div data-testid="image" />,
+  ImagePreview: ({ showEditButton }: { showEditButton?: boolean }) => (
+    <div data-testid="image" data-show-edit={String(showEditButton)} />
+  ),
   VideoPreview: () => <div data-testid="video" />,
   AudioPreview: () => <div data-testid="audio" />,
 }));
@@ -46,15 +52,16 @@ vi.mock('@/components/features/artifacts/renderers/DocxPreview', () => ({ defaul
 vi.mock('@/components/features/artifacts/renderers/PptxPreview', () => ({ default: () => <div data-testid="pptx" /> }));
 vi.mock('@/components/features/artifacts/renderers/SpreadsheetPreview', () => ({ default: () => <div data-testid="xlsx" /> }));
 
-import { getPreviewKind, RichMediaFilePreview } from '../RichMediaFilePreview';
+import { getPreviewKind, RichMediaFilePreview, type PreviewKind } from '../RichMediaFilePreview';
 
-const renderPreview = (filename: string, content?: string) =>
+const renderPreview = (filename: string, content?: string, kind?: PreviewKind) =>
   render(
     <RichMediaFilePreview
       filePath={`/workspace/${filename}`}
       filename={filename}
       workspace="/workspace"
       content={content}
+      kind={kind}
       onDownload={vi.fn()}
     />,
   );
@@ -106,6 +113,18 @@ describe('RichMediaFilePreview dispatch rendering', () => {
   it('renders the image renderer for images', async () => {
     renderPreview('photo.png');
     expect(await screen.findByTestId('image')).toBeTruthy();
+  });
+
+  it('disables the image edit button in the workspace context', async () => {
+    renderPreview('photo.png');
+    const img = await screen.findByTestId('image');
+    expect(img).toHaveAttribute('data-show-edit', 'false');
+  });
+
+  it('renders download fallback when the kind is overridden for unknown binary files', async () => {
+    renderPreview('artifact.dat', undefined, 'unsupported');
+    expect(await screen.findByText('unsupportedPreview')).toBeTruthy();
+    expect(await screen.findByText('download')).toBeTruthy();
   });
 
   it('renders the pdf renderer for pdfs', async () => {

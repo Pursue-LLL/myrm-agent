@@ -185,7 +185,11 @@ async def validate_agent_skill_config_instances(
     from app.core.skills.state_manager_instance import get_state_manager
 
     manager = state_manager or get_state_manager()
-    id_to_name = skill_id_to_name if skill_id_to_name is not None else await build_skill_id_to_name_map()
+    id_to_name = (
+        skill_id_to_name
+        if skill_id_to_name is not None
+        else await build_skill_id_to_name_map()
+    )
 
     for skill_id, cfg in skill_configs.items():
         instance_name = _instance_name_from_skill_config(cfg)

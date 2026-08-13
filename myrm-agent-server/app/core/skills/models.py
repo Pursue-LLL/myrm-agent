@@ -68,6 +68,13 @@ class Skill:
     scope_agent_id: str | None = None
     """Agent ID that owns this skill, for multi-agent scoping."""
 
+    required_permissions: list[str] = field(default_factory=list)
+    """Permissions this skill declares in SKILL.md (values like ``file_write``).
+
+    Mirror of ``SkillMetadata.required_permissions`` as plain strings —
+    the business layer does not depend on the framework's enum type.
+    """
+
     config_schema: dict[str, object] | None = None
     """JSON Schema for skill configuration UI (from SKILL.md frontmatter)."""
 
@@ -111,6 +118,7 @@ class Skill:
             "security": self.security.to_dict() if self.security else None,
             "evolution_locked": self.evolution_locked,
             "scope_agent_id": self.scope_agent_id,
+            "required_permissions": self.required_permissions,
             "config_schema": self.config_schema,
             "usage_stats": self.usage_stats,
             "origin_hash": self.origin_hash,
@@ -158,6 +166,9 @@ class Skill:
             evolution_locked=meta.evolution_locked,
             scope_agent_id=meta.scope_agent_id,
             config_schema=meta.config_schema,
+            required_permissions=[
+                getattr(p, "value", str(p)) for p in getattr(meta, "required_permissions", [])
+            ],
             usage_stats=(
                 meta.usage_stats.to_dict()
                 if hasattr(meta, "usage_stats") and meta.usage_stats
@@ -209,6 +220,7 @@ class Skill:
             security=_parse_security_summary(data.get("security")),
             evolution_locked=bool(data.get("evolution_locked", False)),
             scope_agent_id=_opt_str(data.get("scope_agent_id")),
+            required_permissions=_str_list(data.get("required_permissions")),
             config_schema=(
                 data.get("config_schema")
                 if isinstance(data.get("config_schema"), dict)

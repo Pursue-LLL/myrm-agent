@@ -63,11 +63,7 @@ async def _clean_skill_state() -> None:
 async def _grant(*permissions: SkillPermission) -> None:
     async with get_session() as db:
         for perm in permissions:
-            db.add(
-                SkillPermissionGrant(
-                    skill_id=_LOADED_SKILL, permission=perm.value
-                )
-            )
+            db.add(SkillPermissionGrant(skill_id=_LOADED_SKILL, permission=perm.value))
         await db.commit()
 
 
@@ -95,7 +91,9 @@ async def _handler(req: ToolCallRequest) -> ToolMessage:
 
 
 async def _gate() -> GuardrailMiddleware:
-    set_loaded_skills([SkillMetadata(name=_LOADED_SKILL, description="d", version="1.0.0")])
+    set_loaded_skills(
+        [SkillMetadata(name=_LOADED_SKILL, description="d", version="1.0.0")]
+    )
     checker = await create_async_permission_checker()
     return GuardrailMiddleware(
         providers=[SkillBoundaryProvider(permission_checker=checker)]
@@ -121,7 +119,9 @@ async def test_real_db_ungranted_denies_tool() -> None:
     mw = await _gate()
 
     result = await mw.awrap_tool_call(
-        _request("file_edit_tool", {"path": "/tmp/x.py", "edits": [{"old": "a", "new": "b"}]}),
+        _request(
+            "file_edit_tool", {"path": "/tmp/x.py", "edits": [{"old": "a", "new": "b"}]}
+        ),
         _handler,
     )
     assert result.status == "error"
@@ -135,7 +135,9 @@ async def test_real_db_partial_grant_still_denies() -> None:
     mw = await _gate()
 
     result = await mw.awrap_tool_call(
-        _request("file_edit_tool", {"path": "/tmp/x.py", "edits": [{"old": "a", "new": "b"}]}),
+        _request(
+            "file_edit_tool", {"path": "/tmp/x.py", "edits": [{"old": "a", "new": "b"}]}
+        ),
         _handler,
     )
     assert result.status == "error"
@@ -167,8 +169,14 @@ async def test_real_db_revoke_clears_cache_and_denies_immediately() -> None:
 async def test_real_db_dirty_value_is_skipped() -> None:
     """An unknown permission value must be ignored, not crash the gate."""
     async with get_session() as db:
-        db.add(SkillPermissionGrant(skill_id=_LOADED_SKILL, permission="not-a-permission"))
-        db.add(SkillPermissionGrant(skill_id=_LOADED_SKILL, permission=SkillPermission.FILE_READ.value))
+        db.add(
+            SkillPermissionGrant(skill_id=_LOADED_SKILL, permission="not-a-permission")
+        )
+        db.add(
+            SkillPermissionGrant(
+                skill_id=_LOADED_SKILL, permission=SkillPermission.FILE_READ.value
+            )
+        )
         await db.commit()
 
     mw = await _gate()

@@ -171,6 +171,7 @@ export interface StatusStreamEvent extends BaseAgentEvent {
   error_kind?: ErrorKind;
   fallback_model?: string;
   snapshot_path?: string;
+  restart?: boolean;
 }
 
 export interface CaptchaStreamEvent extends BaseAgentEvent {
@@ -190,6 +191,7 @@ export interface ModelEscalatedStreamEvent extends BaseAgentEvent {
     from_model?: string;
     to_model?: string;
     reason?: string;
+    restart?: boolean;
   };
 }
 

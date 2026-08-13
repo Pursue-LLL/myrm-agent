@@ -115,6 +115,12 @@ def test_dynamic_workflow_plan_confirm_and_run_chrome_e2e(
         client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
         wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=90.0)
 
+        client.evaluate(
+            page,
+            """(() => { window.__MYRM_E2E_DIRECT_SSE__ = true; return true; })()""",
+            timeout_sec=10.0,
+        )
+
         prepared = client.evaluate(page, _PREPARE_DW_TURN_JS, timeout_sec=60.0)
         assert isinstance(prepared, dict), prepared
         assert prepared.get("ok") is True, f"Workflow mode prep failed: {prepared}"

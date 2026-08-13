@@ -32,8 +32,12 @@ def _suppress_sqlite_backup_action():
         yield
 
 
-def _report(name: str, status: str, message: str = "test", detail: str | None = None) -> HealthReport:
-    return HealthReport(component_name=name, status=status, message=message, detail=detail)
+def _report(
+    name: str, status: str, message: str = "test", detail: str | None = None
+) -> HealthReport:
+    return HealthReport(
+        component_name=name, status=status, message=message, detail=detail
+    )
 
 
 @pytest.mark.asyncio
@@ -87,7 +91,9 @@ async def test_build_vectordb_warn() -> None:
 
 @pytest.mark.asyncio
 async def test_build_dlq_fail_from_server_reports() -> None:
-    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "fail", "message": "500 failed msgs"}]
+    server_reports: list[dict[str, object]] = [
+        {"component_name": "DLQ", "status": "fail", "message": "500 failed msgs"}
+    ]
     actions = await build_repair_actions([], server_reports)
     assert len(actions) == 1
     assert actions[0].action_id == RepairActionId.REVIEW_CHANNEL_DLQ
@@ -95,9 +101,13 @@ async def test_build_dlq_fail_from_server_reports() -> None:
 
 @pytest.mark.asyncio
 async def test_build_dlq_pass_ignored() -> None:
-    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "pass", "message": "0 failed"}]
+    server_reports: list[dict[str, object]] = [
+        {"component_name": "DLQ", "status": "pass", "message": "0 failed"}
+    ]
     actions = await build_repair_actions([], server_reports)
-    dlq_actions = [a for a in actions if a.action_id == RepairActionId.REVIEW_CHANNEL_DLQ]
+    dlq_actions = [
+        a for a in actions if a.action_id == RepairActionId.REVIEW_CHANNEL_DLQ
+    ]
     assert len(dlq_actions) == 0
 
 
@@ -108,7 +118,9 @@ async def test_build_deduplication() -> None:
         _report("WorkspaceStorage", "warn", "Also warn"),
     ]
     actions = await build_repair_actions(reports, [])
-    ws_actions = [a for a in actions if a.action_id == RepairActionId.REVIEW_WORKSPACE_STORAGE]
+    ws_actions = [
+        a for a in actions if a.action_id == RepairActionId.REVIEW_WORKSPACE_STORAGE
+    ]
     assert len(ws_actions) == 1
 
 
@@ -173,7 +185,9 @@ async def test_build_agent_engine_fail() -> None:
 
 @pytest.mark.asyncio
 async def test_build_dlq_warn_triggers_action() -> None:
-    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "warn", "message": "DLQ growing"}]
+    server_reports: list[dict[str, object]] = [
+        {"component_name": "DLQ", "status": "warn", "message": "DLQ growing"}
+    ]
     actions = await build_repair_actions([], server_reports)
     assert len(actions) == 1
     assert actions[0].action_id == RepairActionId.REVIEW_CHANNEL_DLQ
@@ -188,7 +202,9 @@ async def test_build_combined_harness_and_server() -> None:
         _report("Network", "fail", "DNS fail"),
         _report("Database", "warn", "WAL large"),
     ]
-    server: list[dict[str, object]] = [{"component_name": "DLQ", "status": "fail", "message": "500 failed"}]
+    server: list[dict[str, object]] = [
+        {"component_name": "DLQ", "status": "fail", "message": "500 failed"}
+    ]
     actions = await build_repair_actions(harness, server)
     action_ids = {a.action_id for a in actions}
     assert RepairActionId.REVIEW_RUNTIME_DEPENDENCY in action_ids
@@ -237,7 +253,10 @@ async def test_browser_orphan_import_failure() -> None:
 async def test_execute_cleanup_browser_no_orphans() -> None:
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[]):
+    with patch(
+        "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
+        return_value=[],
+    ):
         result = await execute_repair_action(
             RepairActionId.CLEANUP_BROWSER_ORPHANS,
             RepairActionExecuteRequest(dry_run=False, confirm=True),
@@ -250,10 +269,18 @@ async def test_execute_cleanup_browser_no_orphans() -> None:
 async def test_execute_cleanup_browser_dry_run() -> None:
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"pid": 111}]):
+    with patch(
+        "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
+        return_value=[{"pid": 111}],
+    ):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
-            return_value={"killed": 0, "message": "dry run", "dry_run": True, "failed": []},
+            return_value={
+                "killed": 0,
+                "message": "dry run",
+                "dry_run": True,
+                "failed": [],
+            },
         ) as mock_cleanup:
             result = await execute_repair_action(
                 RepairActionId.CLEANUP_BROWSER_ORPHANS,
@@ -268,7 +295,10 @@ async def test_execute_cleanup_browser_dry_run() -> None:
 async def test_execute_cleanup_browser_needs_confirm() -> None:
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"pid": 222}]):
+    with patch(
+        "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
+        return_value=[{"pid": 222}],
+    ):
         result = await execute_repair_action(
             RepairActionId.CLEANUP_BROWSER_ORPHANS,
             RepairActionExecuteRequest(dry_run=False, confirm=False),
@@ -282,7 +312,10 @@ async def test_execute_cleanup_browser_needs_confirm() -> None:
 async def test_execute_cleanup_browser_confirmed() -> None:
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"pid": 333}]):
+    with patch(
+        "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
+        return_value=[{"pid": 333}],
+    ):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
             return_value={"killed": 1, "message": "killed 1", "failed": []},
@@ -326,7 +359,10 @@ async def test_execute_cleanup_browser_orphan_missing_pid_key() -> None:
     """Orphans without a 'pid' key are filtered out by the list comprehension."""
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"name": "chrome"}]):
+    with patch(
+        "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
+        return_value=[{"name": "chrome"}],
+    ):
         result = await execute_repair_action(
             RepairActionId.CLEANUP_BROWSER_ORPHANS,
             RepairActionExecuteRequest(dry_run=False, confirm=True),
@@ -340,10 +376,17 @@ async def test_execute_cleanup_browser_confirmed_killed_zero() -> None:
     """When cleanup runs but kills 0 processes, changed should be False."""
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"pid": 444}]):
+    with patch(
+        "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
+        return_value=[{"pid": 444}],
+    ):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
-            return_value={"killed": 0, "message": "process already dead", "failed": [444]},
+            return_value={
+                "killed": 0,
+                "message": "process already dead",
+                "failed": [444],
+            },
         ):
             result = await execute_repair_action(
                 RepairActionId.CLEANUP_BROWSER_ORPHANS,
@@ -377,7 +420,9 @@ async def test_dedup_different_components_same_action_id() -> None:
         _report("VectorDB", "warn", "Qdrant slow"),
     ]
     actions = await build_repair_actions(reports, [])
-    runtime_actions = [a for a in actions if a.action_id == RepairActionId.REVIEW_RUNTIME_DEPENDENCY]
+    runtime_actions = [
+        a for a in actions if a.action_id == RepairActionId.REVIEW_RUNTIME_DEPENDENCY
+    ]
     components = {a.component for a in runtime_actions}
     assert "Network" in components
     assert "VectorDB" in components
@@ -398,7 +443,9 @@ async def test_build_includes_browser_orphan_action_when_orphans_exist() -> None
     ):
         actions = await build_repair_actions([], [])
 
-    browser_actions = [a for a in actions if a.action_id == RepairActionId.CLEANUP_BROWSER_ORPHANS]
+    browser_actions = [
+        a for a in actions if a.action_id == RepairActionId.CLEANUP_BROWSER_ORPHANS
+    ]
     assert len(browser_actions) == 1
     assert browser_actions[0].executable is True
     assert browser_actions[0].component == "BrowserRuntime"
@@ -415,7 +462,10 @@ async def test_execute_cleanup_browser_multiple_pids() -> None:
     from unittest.mock import patch
 
     orphans = [{"pid": 100}, {"pid": 200}, {"pid": 300}]
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=orphans):
+    with patch(
+        "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
+        return_value=orphans,
+    ):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
             return_value={"killed": 3, "message": "killed 3", "failed": []},
@@ -437,7 +487,9 @@ async def test_execute_cleanup_browser_multiple_pids() -> None:
 @pytest.mark.asyncio
 async def test_build_dlq_missing_message_field() -> None:
     """DLQ report without 'message' key should use fallback."""
-    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "fail"}]
+    server_reports: list[dict[str, object]] = [
+        {"component_name": "DLQ", "status": "fail"}
+    ]
     actions = await build_repair_actions([], server_reports)
     assert len(actions) == 1
     assert actions[0].action_id == RepairActionId.REVIEW_CHANNEL_DLQ
@@ -452,7 +504,10 @@ async def test_execute_cleanup_browser_result_missing_message() -> None:
     """When cleanup result has no 'message' key, fallback message is used."""
     from unittest.mock import patch
 
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[{"pid": 555}]):
+    with patch(
+        "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
+        return_value=[{"pid": 555}],
+    ):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
             return_value={"killed": 1, "failed": []},
@@ -473,7 +528,14 @@ async def test_execute_cleanup_browser_result_missing_message() -> None:
 @pytest.mark.asyncio
 async def test_reason_uses_detail_when_present() -> None:
     """When detail is provided, reason should prefer detail over message."""
-    reports = [_report("Network", "fail", message="Internet not available.", detail="DNS resolution timed out after 3s")]
+    reports = [
+        _report(
+            "Network",
+            "fail",
+            message="Internet not available.",
+            detail="DNS resolution timed out after 3s",
+        )
+    ]
     actions = await build_repair_actions(reports, [])
     assert len(actions) == 1
     assert actions[0].reason == "DNS resolution timed out after 3s"
@@ -494,7 +556,10 @@ async def test_execute_cleanup_browser_mixed_pid_presence() -> None:
     from unittest.mock import patch
 
     orphans = [{"pid": 111}, {"name": "chrome_no_pid"}, {"pid": 222}]
-    with patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=orphans):
+    with patch(
+        "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
+        return_value=orphans,
+    ):
         with patch(
             "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
             return_value={"killed": 2, "message": "killed 2", "failed": []},
@@ -534,7 +599,9 @@ async def test_execute_sqlite_backup_real(tmp_path) -> None:
     conn.close()
 
     mgr = SQLiteBackupManager(db, db.parent / "sqlite_backups")
-    with patch("app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr):
+    with patch(
+        "app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr
+    ):
         result = await execute_repair_action(
             RepairActionId.SQLITE_BACKUP_NOW,
             RepairActionExecuteRequest(dry_run=False, confirm=True),
@@ -579,7 +646,9 @@ async def test_execute_sqlite_restore_dry_run(tmp_path) -> None:
     mgr = SQLiteBackupManager(db, db.parent / "sqlite_backups")
     mgr.create_backup()
 
-    with patch("app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr):
+    with patch(
+        "app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr
+    ):
         result = await execute_repair_action(
             RepairActionId.SQLITE_RESTORE_LATEST,
             RepairActionExecuteRequest(dry_run=True, confirm=False),
@@ -603,7 +672,9 @@ async def test_execute_sqlite_restore_requires_confirm(tmp_path) -> None:
     conn.close()
 
     mgr = SQLiteBackupManager(db, db.parent / "sqlite_backups")
-    with patch("app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr):
+    with patch(
+        "app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr
+    ):
         result = await execute_repair_action(
             RepairActionId.SQLITE_RESTORE_LATEST,
             RepairActionExecuteRequest(dry_run=False, confirm=False),
@@ -630,7 +701,9 @@ async def test_execute_sqlite_restore_confirmed(tmp_path) -> None:
     mgr = SQLiteBackupManager(db, db.parent / "sqlite_backups")
     mgr.create_backup()
 
-    with patch("app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr):
+    with patch(
+        "app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr
+    ):
         result = await execute_repair_action(
             RepairActionId.SQLITE_RESTORE_LATEST,
             RepairActionExecuteRequest(dry_run=False, confirm=True),
@@ -658,7 +731,9 @@ async def test_execute_sqlite_restore_failure_no_backups(tmp_path) -> None:
     conn.close()
 
     mgr = SQLiteBackupManager(db, db.parent / "sqlite_backups")
-    with patch("app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr):
+    with patch(
+        "app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr
+    ):
         result = await execute_repair_action(
             RepairActionId.SQLITE_RESTORE_LATEST,
             RepairActionExecuteRequest(dry_run=False, confirm=True),

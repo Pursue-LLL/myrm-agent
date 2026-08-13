@@ -28,6 +28,17 @@ vi.mock('../handlerDeps', () => {
     parseArchiveRestoreBlockPayload: vi.fn(),
     parseArchiveRestoreResultPayload: vi.fn(),
     buildArchiveRestoreActions: vi.fn(() => []),
+    clearAssistantDraft: (message: {
+      content: string;
+      reasoning?: string;
+      reasoningStartedAt?: number;
+      reasoningDurationMs?: number;
+    }) => {
+      message.content = '';
+      message.reasoning = '';
+      message.reasoningStartedAt = undefined;
+      message.reasoningDurationMs = undefined;
+    },
   };
 });
 
@@ -64,13 +75,18 @@ function makeFailoverCtx(errorKind?: string): StreamCtx {
     sources: undefined,
     added: true,
     recievedMessage: '',
-    state: {} as never,
+    state: { scheduler: { cancel: vi.fn() } } as never,
     actions: {
       setLoading: vi.fn(),
       setMessages: vi.fn(),
     } as never,
     files: [],
   };
+}
+
+function schedulerCancelOf(ctx: StreamCtx): ReturnType<typeof vi.fn> {
+  return (ctx.state as unknown as { scheduler: { cancel: ReturnType<typeof vi.fn> } }).scheduler
+    .cancel;
 }
 
 describe('applyStatusProgressStep model_failover displayKey', () => {
@@ -321,5 +337,88 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     expect(state.messages[0].content).toBe('');
     expect(state.messages[0].reasoning).toBe('');
     expect(state.messages[0].progressSteps![0].step_key).toBe('model_failover_overloaded');
+    expect(schedulerCancelOf(ctx)).toHaveBeenCalledTimes(1);
+  });
+
+  describe('restart protocol (data.restart === true)', () => {
+    function makeRestartCtx(stepKey: string, restart: boolean): StreamCtx {
+      return {
+        data: {
+          type: 'status',
+          step_key: stepKey,
+          messageId: 'msg-1',
+          status: 'in_progress',
+          restart,
+          ...(stepKey === 'transient_retry' ? { attempt: 1 } : {}),
+        } as never,
+        input: '',
+        sources: undefined,
+        added: true,
+        recievedMessage: '',
+        state: { scheduler: { cancel: vi.fn() } } as never,
+        actions: {
+          setLoading: vi.fn(),
+          setMessages: vi.fn(),
+        } as never,
+        files: [],
+      };
+    }
+
+    it('clears the draft on any restart STATUS step (e.g. transient_retry)', async () => {
+      const state = makeMessagesState();
+      const msg = state.messages[0] as unknown as {
+        content: string;
+        reasoning: string;
+        reasoningStartedAt?: number;
+        reasoningDurationMs?: number;
+      };
+      msg.content = 'Partial draft ';
+      msg.reasoning = 'partial reasoning';
+      msg.reasoningStartedAt = 1000;
+      msg.reasoningDurationMs = 500;
+      const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+        updater(state);
+      });
+
+      const ctx = makeRestartCtx('transient_retry', true);
+      ctx.recievedMessage = 'Partial draft ';
+      ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+      await applyStatusProgressStep(ctx, 'transient_retry');
+
+      expect(ctx.recievedMessage).toBe('');
+      expect(msg.content).toBe('');
+      expect(msg.reasoning).toBe('');
+      expect(msg.reasoningStartedAt).toBeUndefined();
+      expect(msg.reasoningDurationMs).toBeUndefined();
+      expect(state.messages[0].progressSteps![0].step_key).toBe('transient_retry');
+      expect(schedulerCancelOf(ctx)).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the draft when the STATUS step does not carry restart', async () => {
+      const state = makeMessagesState();
+      const msg = state.messages[0] as unknown as {
+        content: string;
+        reasoning: string;
+        reasoningStartedAt?: number;
+        reasoningDurationMs?: number;
+      };
+      msg.content = 'Kept draft ';
+      msg.reasoning = 'kept reasoning';
+      msg.reasoningStartedAt = 1000;
+      const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+        updater(state);
+      });
+
+      const ctx = makeRestartCtx('memory_archived', false);
+      ctx.recievedMessage = 'Kept draft ';
+      ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+      await applyStatusProgressStep(ctx, 'memory_archived');
+
+      expect(ctx.recievedMessage).toBe('Kept draft ');
+      expect(msg.content).toBe('Kept draft ');
+      expect(msg.reasoning).toBe('kept reasoning');
+      expect(msg.reasoningStartedAt).toBe(1000);
+      expect(schedulerCancelOf(ctx)).not.toHaveBeenCalled();
+    });
   });
 });

@@ -46,7 +46,7 @@ const VALID_TABS = [
   'channels', 'channelRouting', 'voice', 'openaiApi', 'integrationCatalog', 'integrationMemory',
   'extensionBridge', 'connect', 'hosting', 'workspaceRules', 'developer', 'importExport',
   'companion', 'usageStatistics', 'experimentalFeatures', 'memory-backup', 'memory-cloud-backup',
-  'memory-archival', 'memory-migration', 'enterprise', 'system', 'about',
+  'memory-migration', 'enterprise', 'system', 'about',
 ];
 
 // 支持的语言（必须与 src/i18n/config.ts locales 一致）

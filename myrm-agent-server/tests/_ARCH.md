@@ -35,7 +35,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_wiki_health_report_chrome_e2e.py` | 模块 | Wiki health report Chrome E2E（SHARED+READ×1：API structural health + seed provenance gap → 单 tab Overview `[data-testid=wiki-health-section]` + stats badge；shell 探针 `wiki-settings-shell`；transport retry 同 dedup） |
 | `e2e/test_clarify_refresh_chrome_e2e.py` | 模块 | Clarify refresh Chrome MCP E2E（READ×4 SHPOIB：`seed-clarify-refresh-fixture` pending/answered/regenerate_sibling/structured_form → F5 hydrate 断言 composer 态） |
 | `e2e/test_clarify_skip_chrome_e2e.py` | 模块 | Clarify skip LIVE×1 SHPOIB：真实 LLM HITL → Skip → resume（`E2E_SIGNOFF=1` API fallback）；M3 stub 签收腿已删 |
-| `e2e/test_project_turn_lock_chrome_e2e.py` | 模块 | Shared-project 并发锁等待 Chrome E2E（LIVE×1 SHPOIB：`POST /projects/test/seed-turn-lock` 确定性占锁 → 真实 UI turn → `waiting_for_turn` progress step 显示 → 锁释放 `waiting_for_turn_clear` step 移除 → assistant OK 完成；不依赖真实并发时序；另有等待期间真实用户取消场景：`stopMessage` 取消 → step 同步清除 → 二次发送仍等待（锁未被误释放）→ seed 释放后正常完成） |
+| `e2e/test_project_turn_lock_chrome_e2e.py` | 模块 | Shared-project 并发锁等待 Chrome E2E（LIVE×1 SHPOIB：`POST /projects/test/seed-turn-lock`（`hold_ms=0` 持有到显式 `POST /projects/test/release-turn-lock` 释放，免疫 attach 延迟）→ 真实 UI turn → `waiting_for_turn` progress step 显示 → 锁释放 `waiting_for_turn_clear` step 移除 → assistant OK 完成；另有等待期间真实用户取消场景：`stopMessage` 取消 → step 同步清除 → 二次发送仍等待（锁未被误释放、gateway 预占已清理）→ seed 释放后正常完成） |
 | `api/chats/test_clarify_refresh_seed_fixture.py` | 模块 | clarify refresh seed HTTP 单测（local-only gate + 三 variant mock 持久化） |
 | `e2e/test_integration_catalog_loopback_guard_chrome_e2e.py` | 模块 | Integration Catalog loopback guard Chrome MCP E2E（READ×3：live API `deployment_scope` 与 `/integrations/mcp/probe` 语义断言 + 阻断链 `scan/verify` 不扇出 + `recommendedMode` 在 `connection_refused` / `probe_failed_unknown` 重试后自动续接连接） |
 | `e2e/test_memory_citations_chrome_e2e.py` | 模块 | Memory Chrome MCP E2E（READ×2：设置「历史会话搜索」开关；统一「依据/Evidence N」Sheet） |
@@ -89,10 +89,13 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_revert_files_chrome_e2e.py` | 模块 | RevertFiles Chrome MCP E2E（READ×5：modify undo+diff+confirm；empty toast；large_skip non-revertible toast；reload hydrate undo；session SessionRevertButton）；`prepare_e2e_ui_session` + `dismiss_blocking_modals` + async Sonner wait |
 | `e2e/test_channel_routing_general_only_chrome_e2e.py` | 模块 | Channel Settings 渠道路由 Chrome MCP E2E（READ×1 SHPOIB：Settings → Channel Routing；Agent 下拉 **0 Search**；General-only SSOT 签收） |
 | `e2e/test_allowlist_pattern_live_chrome_e2e.py` | 模块 | Allowlist pattern Chrome LIVE×1（`private_backend=True`：bash 审批→pattern allow-always→Settings 验证） |
+| `e2e/test_allowlist_pattern_chrome_e2e.py` | 模块 | Allowlist pattern Settings 设置页 Chrome MCP E2E（STANDARD×1：seed-pattern-fixture → `/settings/security` pattern 条目渲染） |
 | `e2e/test_file_write_empty_chrome_e2e.py` | 模块 | Empty file_write Chrome E2E（READ×2 SHPOIB：`seed-file-mutation-fixture?variant=empty_write` → FileMutationWarning 横幅 + `reload_mcp_page()` metadata 持久；LIVE×1：`test_file_write_empty_live_agent_webui` — 真实 LLM `file_write_tool(content='')` + mutation failure 横幅 + **磁盘无文件**；`@e2e_search_policy("empty")` + `seed-file-edit-batch-workspace` sandbox；**solo 签收** ~618s） |
 | `api/chats/test_file_mutation_seed_fixture.py` | 模块 | HTTP：file-mutation seed `empty_write` → persisted `metadata.fileMutationFailures` |
 | `api/chats/test_workspace_merge_seed_fixture.py` | 模块 | HTTP：workspace-merge seed `batch_merge_fail` → persisted `metadata.workspaceMergeFailures` |
 | `e2e/test_workspace_merge_chrome_e2e.py` | 模块 | Chrome READ×2 SHPOIB：seed workspace merge fixture → WorkspaceMergeWarning + reload hydrate |
+| `api/chats/test_rich_media_preview_seed_fixture.py` | 模块 | 集成：rich-media seed（chat + workspace png/pdf/zip/txt）→ chat.workspace_dir 持久化 + user 消息 + browse 二进制流式全字节/MIME |
+| `e2e/test_workspace_rich_media_preview_chrome_e2e.py` | 模块 | Chrome READ×1 SHPOIB：seed rich-media fixture → workspace Files tab → png 图片加载 / pdf react-pdf canvas / zip unsupported 兜底下载 / txt 文本渲染 |
 | `api/agent/test_stream_collector_file_mutation.py` | 模块 | StreamContentCollector `file_mutation_failed` / `workspace_merge_failed` → `extra_data.fileMutationFailures` / `workspaceMergeFailures` |
 | `api/agent/test_agent_stream_retry_contract_e2e.py` | 模块 | agent-stream 重试契约：执行中同 `chat_id+message_id+content` 重试 → user turn 幂等 + SSE `AgentBusyError`(409)；mock Agent 挂起 active session；**early claim** 后须等 user persist 再 retry |
 | `api/agent/test_agent_stream_concurrency_limit_e2e.py` | 模块 | agent-stream 并发上限契约：gateway 排队超时 `AgentQueueTimeout` → 结构化 SSE `error_kind=concurrency_limit`（`diagnostic_result` 含 reason/占用者/i18n 文案/resolution_steps）；holder 直接挂起 gateway 占槽位，waiter 走真实 HTTP 全链路 |
@@ -116,7 +119,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/test_workspace_boundary_approval_e2e.py` | 模块 | Workspace 边界确定性路径策略（`PathPolicy` 外部写文件 → ASK，无 LLM）+ 越界文件访问审批 LLM E2E（`@pytest.mark.e2e`；LLM 类默认 skip：flaky + PathPolicy 已由确定性用例覆盖） |
 | `core/security/test_workspace_boundary_batch_approval.py` | 模块 | 确定性 workspace 边界批量审批（`evaluate_tool_batch`：越界 `file_write` → pending 不自动执行，无 LLM） |
 | `api/projects/test_project_workspace_e2e.py` | 模块 | Project workspace 多 Agent 协作真实 LLM E2E（`@pytest.mark.e2e`：project bind → chat 归属 → agent-stream 提及内置 agent → message_end；load_user_configs patch + checkpointer 注入） |
-| `api/projects/test_seed_turn_lock_integration.py` | 模块 | 确定性项目锁 seed 端点集成：创建 project + 绑定 chat + 同步占锁（`is_locked()` 为真）+ `hold_ms` 到期自动释放 + 边界校验（400/404 门控） |
+| `api/projects/test_seed_turn_lock_integration.py` | 模块 | 确定性项目锁 seed 端点集成：创建 project + 绑定 chat + `hold_ms` 三态语义（`None` 不占锁 / `0` 持有到 `release-turn-lock` 显式释放 / `>0` 到期自动释放）+ `release-turn-lock` 幂等释放 + 边界校验（400/404 门控） |
 | `services/kanban/test_kanban_attach_handler.py` | 模块 | attach handler 单测（path/URL/SSRF/limits） |
 | `services/kanban/test_board_settings_roundtrip.py` | 模块 | BoardSettings 9 字段 ORM 往返完整性（三映射函数 + dataclass 字段覆盖守卫 + 旧库 ALTER 迁移默认值） |
 | `services/agent/test_agent_name_resolution.py` | 模块 | Agent 同名解析确定性单测（大小写归一 + 稳定排序 + 空名短路） |

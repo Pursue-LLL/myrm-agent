@@ -1471,6 +1471,17 @@ class ChromeMcpClient:
 
     def reload(self, page: McpPage, *, timeout_ms: int = 15_000) -> None:
         resolved = self._resolve_page(page)
+        if self._use_daemon:
+            client = self._ensure_daemon_session()
+            session_id = self._daemon_session_id
+            assert session_id is not None
+            client.evaluate_page(
+                session_id,
+                resolved.target_id,
+                "window.location.reload(); true",
+                timeout_sec=min(timeout_ms / 1000 + 5, self._request_timeout_sec),
+            )
+            return
         self.call_tool(
             "navigate_page",
             {"pageId": resolved.page_id, "type": "reload", "timeout": timeout_ms},
@@ -1479,6 +1490,23 @@ class ChromeMcpClient:
 
     def press_key(self, page: McpPage, key: str) -> None:
         resolved = self._resolve_page(page)
+        if self._use_daemon:
+            client = self._ensure_daemon_session()
+            session_id = self._daemon_session_id
+            assert session_id is not None
+            key_literal = json.dumps(key)
+            client.evaluate_page(
+                session_id,
+                resolved.target_id,
+                f"""(() => {{
+                  const el = document.activeElement ?? document.body;
+                  el.dispatchEvent(new KeyboardEvent('keydown', {{ key: {key_literal}, bubbles: true }}));
+                  el.dispatchEvent(new KeyboardEvent('keyup', {{ key: {key_literal}, bubbles: true }}));
+                  return {{ ok: true }};
+                }})()""",
+                timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
+            )
+            return
         self.call_tool(
             "press_key",
             {"pageId": resolved.page_id, "key": key},
@@ -1487,6 +1515,27 @@ class ChromeMcpClient:
 
     def type_text(self, page: McpPage, text: str) -> None:
         resolved = self._resolve_page(page)
+        if self._use_daemon:
+            client = self._ensure_daemon_session()
+            session_id = self._daemon_session_id
+            assert session_id is not None
+            escaped = json.dumps(text)
+            client.evaluate_page(
+                session_id,
+                resolved.target_id,
+                f"""(() => {{
+                  const el = document.activeElement;
+                  if (!el) throw new Error('no active element for type_text');
+                  if ('value' in el) {{
+                    el.value = {escaped};
+                    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    return {{ ok: true }};
+                  }}
+                  throw new Error('active element is not typeable');
+                }})()""",
+                timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
+            )
+            return
         self.call_tool(
             "type_text",
             {"pageId": resolved.page_id, "text": text},

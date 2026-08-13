@@ -38,6 +38,17 @@ vi.mock('../handlerDeps', () => {
     parseArchiveRestoreBlockPayload: vi.fn(),
     parseArchiveRestoreResultPayload: vi.fn(),
     buildArchiveRestoreActions: vi.fn(() => []),
+    clearAssistantDraft: (message: {
+      content: string;
+      reasoning?: string;
+      reasoningStartedAt?: number;
+      reasoningDurationMs?: number;
+    }) => {
+      message.content = '';
+      message.reasoning = '';
+      message.reasoningStartedAt = undefined;
+      message.reasoningDurationMs = undefined;
+    },
     useConfigStore: {
       getState: vi.fn(() => ({ enableCacheBreakNotification: false })),
     },

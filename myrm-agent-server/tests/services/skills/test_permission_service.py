@@ -158,7 +158,9 @@ def test_sync_checker_works_outside_event_loop() -> None:
             "app.services.skills.permission_service.check_permission_for_tool_call",
             return_value=(False, "denied by policy"),
         ),
-        patch("app.services.skills.permission_service.log_permission_usage") as mock_log,
+        patch(
+            "app.services.skills.permission_service.log_permission_usage"
+        ) as mock_log,
     ):
         checker = create_permission_checker()
         allowed, reason = checker("demo-skill", "shell_exec", "rm -rf /")
@@ -171,7 +173,9 @@ def test_sync_checker_works_outside_event_loop() -> None:
 
 
 @patch("app.services.skills.permission_service.get_session")
-async def test_load_granted_permissions_reads_db_and_filters_invalid(mock_session: AsyncMock) -> None:
+async def test_load_granted_permissions_reads_db_and_filters_invalid(
+    mock_session: AsyncMock,
+) -> None:
     """DB values map to enums; unknown values are skipped with a warning."""
     valid_grant = MagicMock(permission="file_write")
     invalid_grant = MagicMock(permission="not-a-permission")
@@ -209,7 +213,9 @@ async def test_cached_loader_populates_on_miss(mock_load: AsyncMock) -> None:
 
     assert first == second == {SkillPermission.SHELL_EXEC}
     mock_load.assert_awaited_once_with("skill-1")
-    assert permission_service._permission_cache["skill-1"] == {SkillPermission.SHELL_EXEC}
+    assert permission_service._permission_cache["skill-1"] == {
+        SkillPermission.SHELL_EXEC
+    }
 
 
 def test_clear_permission_cache_all() -> None:

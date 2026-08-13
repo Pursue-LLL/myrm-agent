@@ -242,6 +242,29 @@ describe('streamConsumer resilience paths', () => {
     expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
   });
 
+  it('throws AgentBusyError through the REAL parseSseEnvelope on 200 SSE busy (regression)', async () => {
+    const state = createBaseState();
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    const busyEvent = {
+      type: 'error',
+      error_type: 'AgentBusyError',
+      status_code: 409,
+      messageId: 'msg-busy-real',
+      data: 'Agent is busy processing another request for this session.',
+    };
+    const schema = await vi.importActual<typeof import('../schema')>('../schema');
+    mockParseSseEnvelope.mockImplementation(schema.parseSseEnvelope);
+    mockCreateMessageRequest.mockResolvedValue(createSseResponse(`data: ${JSON.stringify(busyEvent)}\n\n`));
+
+    await expect(
+      executeStreamWithRetry('hello', 'msg-busy-real', state, actions, null, abortController, false, ''),
+    ).rejects.toBeInstanceOf(AgentBusyError);
+
+    expect(mockHandleMessageStream).not.toHaveBeenCalled();
+    expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
+  });
+
   it('throws AgentBusyError on multiplex POST when body is direct SSE busy envelope', async () => {
     const state = createBaseState({ chatId: 'chat-multiplex-busy', actionMode: 'agent' });
     const actions = createActions(state);

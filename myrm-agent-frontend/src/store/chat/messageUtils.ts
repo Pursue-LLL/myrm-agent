@@ -81,6 +81,23 @@ export const findUiArtifactLocation = (
 };
 
 /**
+ * Drop a half-streamed assistant draft before a recovery that restarts the turn.
+ *
+ * The harness re-runs the answer from scratch after model failover, transient
+ * retry, context compaction, escalation, etc., and emits the recovery event
+ * before the restreamed chunks arrive. Clearing the accumulated content /
+ * reasoning here (and resetting the reasoning timer) keeps the UI from
+ * splicing the stale partial draft with the complete re-generated answer.
+ * Idempotent: a second recovery event finds an empty buffer.
+ */
+export const clearAssistantDraft = (message: Message): void => {
+  message.content = '';
+  message.reasoning = '';
+  message.reasoningStartedAt = undefined;
+  message.reasoningDurationMs = undefined;
+};
+
+/**
  * 处理建议生成
  *
  * 搜索模式和 Agent 模式均支持。后端从 DB 读取 filter model 配置。

@@ -39,7 +39,10 @@ from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import open_mcp_page  # noqa: E402
 from tests.support.e2e_lite_model_pin import pin_lite_model_for_e2e  # noqa: E402
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once  # noqa: E402
+from tests.support.e2e_runtime_guard import (
+    E2EResourceLedger,
+    heartbeat_once,
+)  # noqa: E402
 
 try:
     from e2e_session_runtime.lifecycle import touch_wall_progress
@@ -60,11 +63,12 @@ TURN_A = "Reply with the exact text: REWIND_MARKER_A"
 TURN_B = "Reply with the exact text: REWIND_MARKER_B"
 
 _OPEN_REWIND_JS = """(() => {
-  const btns = Array.from(
-    document.querySelectorAll(
-      '[aria-label="Rewind to here"], [aria-label="回退到这里"]',
-    ),
-  );
+  const allBtns = () =>
+    Array.from(
+      document.querySelectorAll(
+        '[aria-label="Rewind to here"], [aria-label="回退到这里"]',
+      ),
+    );
   const msgIds = Array.from(
     document.querySelectorAll('[data-message-id]'),
   ).map((el) => ({
@@ -73,9 +77,10 @@ _OPEN_REWIND_JS = """(() => {
       '[aria-label="Rewind to here"], [aria-label="回退到这里"]',
     ),
   }));
+  const connected = allBtns().filter((b) => b.isConnected && !b.disabled);
   // Rewind the SECOND user message: rewinding "to here" removes that message
   // and everything after it, keeping the first turn. Real-user scenario.
-  const btn = btns[1] || btns[0];
+  const btn = connected[1] || connected[0] || null;
   if (!btn) {
     const labels = Array.from(document.querySelectorAll('[aria-label]')).map(
       (b) => b.getAttribute('aria-label'),
@@ -83,15 +88,25 @@ _OPEN_REWIND_JS = """(() => {
     return {
       ok: false,
       err: 'no-rewind-button',
-      count: btns.length,
+      count: connected.length,
+      rawCount: allBtns().length,
+      disconnectedCount: allBtns().filter((b) => !b.isConnected).length,
+      disabledCount: allBtns().filter((b) => b.isConnected && b.disabled).length,
       msgIds,
       labels: labels.slice(0, 25),
       sample: (document.body.innerText || '').slice(0, 400),
     };
   }
-  if (btn.disabled) return { ok: false, err: 'rewind-disabled', count: btns.length, msgIds };
   btn.click();
-  return { ok: true, count: btns.length, msgIds };
+  // Immediate post-click diagnostics: confirm React actually opened the dialog.
+  return {
+    ok: true,
+    count: connected.length,
+    clickedIndex: connected.length >= 2 ? 1 : 0,
+    btnDisabled: btn.disabled,
+    dialogImmediately: !!document.querySelector('[role="dialog"]'),
+    msgIds,
+  };
 })()"""
 
 _DIALOG_READY_JS = """(() => {
@@ -278,6 +293,24 @@ async def test_rewind_conversation_via_webui(
             await asyncio.sleep(1.0)
         raise AssertionError(f"{error_label}: {last}")
 
+    async def _wait_dialog(
+        chat: McpChatSession, js: str, *, timeout_sec: float, error_label: str
+    ) -> dict[str, object]:
+        """Poll for a dialog and keep a trace of every observed state, so a
+        'dialog never opened' failure is distinguishable from a render race."""
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        trace: list[dict[str, object]] = []
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_wait_dialog")
+            raw = await chat.evaluate(js, intent=EvaluateIntent.BRIDGE_POLL)
+            last = raw if isinstance(raw, dict) else {"value": raw}
+            if last.get("ready") is True or last.get("ok") is True:
+                return last
+            trace.append(last)
+            await asyncio.sleep(1.0)
+        raise AssertionError(f"{error_label}: {last} (trace_tail={trace[-6:]})")
+
     async def _clear_composer(chat: McpChatSession, *, timeout_sec: float) -> None:
         """Empty the composer before opening the Rewind dialog.
 
@@ -293,31 +326,20 @@ async def test_rewind_conversation_via_webui(
                 """(() => {
                   const b = window.__MYRM_E2E_CHAT__;
                       const hasBridge = !!b;
-                      const fnType = b && typeof b.setInputMessage;
-                      const before = b?.getInputMessage?.() ?? null;
-                      let setResult = 'not-called';
-                      try {
-                        b?.setInputMessage?.('');
-                        setResult = 'called';
-                      } catch (err) {
-                        setResult = 'threw:' + String(err);
-                      }
-                      const after = b?.getInputMessage?.() ?? null;
-                      let testResult = null;
-                      try {
-                        if (typeof b?.setInputMessage === 'function') {
-                          b.setInputMessage('__E2E_DIAG__');
-                          testResult = b.getInputMessage?.() ?? null;
-                          b.setInputMessage('');
-                        }
-                      } catch (err) {
-                        testResult = 'threw:' + String(err);
-                      }
+                      const snap = b?.turnSnapshot?.() ?? null;
+                      const chatId =
+                        snap && typeof snap.chatId === 'string' ? snap.chatId : '';
+                      const draftKey = chatId ? 'myrm_draft_' + chatId : null;
+                      const draftBefore = draftKey ? localStorage.getItem(draftKey) : null;
+                      if (draftKey) localStorage.removeItem(draftKey);
+                      const draftAfter = draftKey ? localStorage.getItem(draftKey) : null;
+                      b?.setInputMessage?.('');
+                      const storeAfter = b?.getInputMessage?.() ?? null;
                       const inputs = Array.from(document.querySelectorAll('[data-chat-input]'));
                       for (const input of inputs) {
                         input.focus();
                         if (typeof input.select === 'function') input.select();
-                        const delOk = document.execCommand ? document.execCommand('delete') : null;
+                        document.execCommand ? document.execCommand('delete') : null;
                         input.dispatchEvent(new Event('input', { bubbles: true }));
                         input.dispatchEvent(new Event('change', { bubbles: true }));
                       }
@@ -327,17 +349,17 @@ async def test_rewind_conversation_via_webui(
                         ok: len === 0,
                         inputLen: len,
                         hasBridge,
-                        fnType,
-                        before,
-                        after,
-                        setResult,
-                        testResult,
+                        chatId,
+                        draftKey,
+                        draftBefore,
+                        draftAfter,
+                        storeAfter,
                         finalStore,
                         inputCount: inputs.length,
                       };
                     })()""",
-                    intent=EvaluateIntent.BRIDGE_POLL,
-                )
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
             last = result if isinstance(result, dict) else {"value": result}
             if last.get("ok") is True:
                 return
@@ -382,9 +404,7 @@ async def test_rewind_conversation_via_webui(
 
         await chat.send_message(TURN_B, TURN_B, chat_id_hint=chat_id, base_url=BASE_URL)
         _touch_rewind_progress("rewind_post_send_turn_b")
-        await chat.wait_stream_started(
-            TURN_B, timeout_sec=120.0, chat_id_hint=chat_id
-        )
+        await chat.wait_stream_started(TURN_B, timeout_sec=120.0, chat_id_hint=chat_id)
         await _wait_not_streaming(chat, timeout_sec=90.0)
         await _wait_api_user_messages(chat_id, 2, timeout_sec=90.0)
 
@@ -394,8 +414,13 @@ async def test_rewind_conversation_via_webui(
         await _clear_composer(chat, timeout_sec=30.0)
 
         _touch_rewind_progress("rewind_open_dialog")
-        opened = await chat.evaluate(_OPEN_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT)
-        assert isinstance(opened, dict) and opened.get("ok") is True, f"Open rewind failed: {opened}"
+        opened = await chat.evaluate(
+            _OPEN_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT
+        )
+        assert (
+            isinstance(opened, dict) and opened.get("ok") is True
+        ), f"Open rewind failed: {opened}"
+        print(f"REWIND_DIAG open_rewind={opened}")
 
         # Diagnostic: compare frontend message ids (from DOM) with backend DB ids.
         if isinstance(opened, dict) and opened.get("msgIds"):
@@ -411,25 +436,49 @@ async def test_rewind_conversation_via_webui(
             except Exception as exc:  # pragma: no cover - diagnostic only
                 print(f"REWIND_DIAG backend fetch failed: {exc}")
 
-        dialog = await _wait_js(
-            chat, _DIALOG_READY_JS, timeout_sec=30.0, error_label="rewind dialog did not open"
+        dialog = await _wait_dialog(
+            chat,
+            _DIALOG_READY_JS,
+            timeout_sec=30.0,
+            error_label="rewind dialog did not open",
         )
         assert dialog.get("hasScopeBoth") is True, f"Unexpected scope options: {dialog}"
 
-        scoped = await chat.evaluate(_SELECT_SCOPE_JS, intent=EvaluateIntent.AGENT_SUBMIT)
-        assert isinstance(scoped, dict) and scoped.get("ok") is True, f"Scope select failed: {scoped}"
+        scoped = await chat.evaluate(
+            _SELECT_SCOPE_JS, intent=EvaluateIntent.AGENT_SUBMIT
+        )
+        assert (
+            isinstance(scoped, dict) and scoped.get("ok") is True
+        ), f"Scope select failed: {scoped}"
 
-        confirmed = await chat.evaluate(_CONFIRM_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT)
-        assert isinstance(confirmed, dict) and confirmed.get("ok") is True, f"Confirm failed: {confirmed}"
+        confirmed = await chat.evaluate(
+            _CONFIRM_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT
+        )
+        assert (
+            isinstance(confirmed, dict) and confirmed.get("ok") is True
+        ), f"Confirm failed: {confirmed}"
 
         _touch_rewind_progress("rewind_post_confirm")
-        # Snapshot right after confirm: if the rewind did not take effect
-        # (dialog still open, store unchanged, failure toast) fail fast with
-        # the diagnostic instead of waiting out the 60s poll below.
-        await asyncio.sleep(3.0)
-        diag = await chat.evaluate(_FINAL_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL)
-        if not isinstance(diag, dict):
-            raise AssertionError(f"Post-confirm diagnostic failed: {diag}")
+        # Poll fast after confirm to catch the success toast window (sonner
+        # default duration is 4s). A fixed sleep can miss it if the rewind API
+        # resolves near the end of the wait. Record the toast timeline so a
+        # genuinely missing toast is distinguishable from a timing race.
+        confirm_deadline = time.monotonic() + 15.0
+        seen_toasts: list[list[str]] = []
+        diag: dict[str, object] = {}
+        while time.monotonic() < confirm_deadline:
+            diag = await chat.evaluate(
+                _FINAL_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL
+            )
+            if not isinstance(diag, dict):
+                break
+            seen_toasts.append([str(x) for x in (diag.get("toasts") or [])])
+            if diag.get("dialogOpen") is True:
+                break
+            if diag.get("storeUserCount") == 1 and diag.get("hasToast") is True:
+                break
+            await asyncio.sleep(0.5)
+        print(f"REWIND_DIAG toasts_timeline={seen_toasts[-12:]}")
         if diag.get("dialogOpen") is True or diag.get("storeUserCount") != 1:
             raise AssertionError(f"Rewind did not take effect after confirm: {diag}")
 

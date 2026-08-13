@@ -183,9 +183,17 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
         seeded_state: dict[str, object] = {}
         for _attempt in range(3):
             merged = _configure_failover_providers(api_url)
-            merged_providers = merged.get("providers") if isinstance(merged.get("providers"), list) else []
+            merged_providers = (
+                merged.get("providers")
+                if isinstance(merged.get("providers"), list)
+                else []
+            )
             merged_ol = next(
-                (p for p in merged_providers if isinstance(p, dict) and str(p.get("id")) == "openai-like"),
+                (
+                    p
+                    for p in merged_providers
+                    if isinstance(p, dict) and str(p.get("id")) == "openai-like"
+                ),
                 None,
             )
             print(
@@ -197,16 +205,24 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
                 pytest.fail("Provider readiness failed after failover seed")
             seeded_state = fetch_config_value("providers", api_url=api_url)
             seeded_dmc = seeded_state.get("defaultModelConfig") or {}
-            seeded_bm = (seeded_dmc.get("baseModel") or {})
-            seeded_providers = seeded_state.get("providers") if isinstance(seeded_state.get("providers"), list) else []
+            seeded_bm = seeded_dmc.get("baseModel") or {}
+            seeded_providers = (
+                seeded_state.get("providers")
+                if isinstance(seeded_state.get("providers"), list)
+                else []
+            )
             seeded_openai_like = next(
-                (p for p in seeded_providers if isinstance(p, dict) and str(p.get("id")) == "openai-like"),
+                (
+                    p
+                    for p in seeded_providers
+                    if isinstance(p, dict) and str(p.get("id")) == "openai-like"
+                ),
                 None,
             )
-            corrupt_visible = (
-                str((seeded_bm.get("primary") or {}).get("model")) == NONEXISTENT_MODEL_ID
-                and NONEXISTENT_MODEL_ID
-                in ((seeded_openai_like or {}).get("enabledModels") or [])
+            corrupt_visible = str(
+                (seeded_bm.get("primary") or {}).get("model")
+            ) == NONEXISTENT_MODEL_ID and NONEXISTENT_MODEL_ID in (
+                (seeded_openai_like or {}).get("enabledModels") or []
             )
             print(
                 "E2E_FAILOVER_SEED_VERIFY: attempt=%s primary=%s/%s openai_like_enabled=%s visible=%s",
@@ -219,7 +235,9 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
             if corrupt_visible:
                 break
         if not corrupt_visible:
-            pytest.fail("Failover corrupt seed never became visible (parallel seed overwrite)")
+            pytest.fail(
+                "Failover corrupt seed never became visible (parallel seed overwrite)"
+            )
 
         async def run_flow(chat: McpChatSession) -> None:
             ui_base = _base_url()

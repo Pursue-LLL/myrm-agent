@@ -62,7 +62,9 @@ async def load_granted_permissions(skill_id: str) -> set[SkillPermission]:
                 perm = SkillPermission(grant.permission)
                 permissions.add(perm)
             except ValueError:
-                logger.warning(f"Invalid permission in database: {grant.permission}, skipping")
+                logger.warning(
+                    f"Invalid permission in database: {grant.permission}, skipping"
+                )
 
         return permissions
 
@@ -130,7 +132,9 @@ def create_permission_checker() -> Callable[[str, str, str], tuple[bool, str]]:
         allowed, reason = checker(skill_id, "file_write", "/path/to/file")
     """
 
-    def checker(skill_id: str, permission_type: str, operation: str) -> tuple[bool, str]:
+    def checker(
+        skill_id: str, permission_type: str, operation: str
+    ) -> tuple[bool, str]:
         """检查权限（同步包装）"""
         import asyncio
 
@@ -150,7 +154,9 @@ def create_permission_checker() -> Callable[[str, str, str], tuple[bool, str]]:
             granted_perms = await load_granted_permissions_cached(skill_id)
 
             # 调用框架层验证
-            allowed, reason = check_permission_for_tool_call(permission_type, granted_perms)
+            allowed, reason = check_permission_for_tool_call(
+                permission_type, granted_perms
+            )
 
             # 记录日志（user_id 取当前会话上下文，缺失时 harness 提供 default_session）
             from myrm_agent_harness.backends.skills import session_id_var
@@ -171,7 +177,9 @@ def create_permission_checker() -> Callable[[str, str, str], tuple[bool, str]]:
     return checker
 
 
-async def create_async_permission_checker() -> Callable[[str, str, str], Awaitable[tuple[bool, str]]]:
+async def create_async_permission_checker() -> (
+    Callable[[str, str, str], Awaitable[tuple[bool, str]]]
+):
     """创建异步permission checker函数
 
     供 GuardrailMiddleware 异步工具路径使用（aevaluate）。
@@ -180,7 +188,9 @@ async def create_async_permission_checker() -> Callable[[str, str, str], Awaitab
         Async permission checker: async (skill_id, permission_type, operation) -> (allowed, reason)
     """
 
-    async def async_checker(skill_id: str, permission_type: str, operation: str) -> tuple[bool, str]:
+    async def async_checker(
+        skill_id: str, permission_type: str, operation: str
+    ) -> tuple[bool, str]:
         """异步检查权限"""
         # 加载授予的权限（per-session 缓存，避免每次 tool call 查库）
         granted_perms = await load_granted_permissions_cached(skill_id)

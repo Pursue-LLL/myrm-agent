@@ -61,7 +61,9 @@ def resolve_i18n(value: Any, accept_language: str | None) -> str:
     return next(iter(value.values()), "")
 
 
-async def ensure_skills_enabled(prebuilt_skill_ids: list[str], template_id: str) -> None:
+async def ensure_skills_enabled(
+    prebuilt_skill_ids: list[str], template_id: str
+) -> None:
     """Pre-flight check and enable all required skills.
 
     Raises SkillEnablementError if a skill is missing or cannot be enabled.
@@ -72,7 +74,8 @@ async def ensure_skills_enabled(prebuilt_skill_ids: list[str], template_id: str)
         skill = await skills_service.get_skill(skill_id)
         if not skill:
             raise SkillEnablementError(
-                skill_id, template_id,
+                skill_id,
+                template_id,
                 f"Template requires skill '{skill_id}' which does not exist in the system.",
             )
 
@@ -80,8 +83,14 @@ async def ensure_skills_enabled(prebuilt_skill_ids: list[str], template_id: str)
         try:
             await skills_service.user_config.enable_prebuilt_skill(skill_id)
         except Exception as e:
-            logger.error("Failed to auto-enable skill %s for template %s: %s", skill_id, template_id, e)
+            logger.error(
+                "Failed to auto-enable skill %s for template %s: %s",
+                skill_id,
+                template_id,
+                e,
+            )
             raise SkillEnablementError(
-                skill_id, template_id,
+                skill_id,
+                template_id,
                 f"Failed to enable required skill '{skill_id}'. Agent creation aborted.",
             ) from e

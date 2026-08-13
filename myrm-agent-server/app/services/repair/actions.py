@@ -76,8 +76,12 @@ class RepairAction(BaseModel):
 class RepairActionExecuteRequest(BaseModel):
     """Execution request for a white-listed repair action."""
 
-    dry_run: bool = Field(default=True, description="Preview the action without changing runtime state.")
-    confirm: bool = Field(default=False, description="Required for state-changing execution.")
+    dry_run: bool = Field(
+        default=True, description="Preview the action without changing runtime state."
+    )
+    confirm: bool = Field(
+        default=False, description="Required for state-changing execution."
+    )
 
 
 class RepairActionExecuteResult(BaseModel):
@@ -128,10 +132,18 @@ def _action_for_report(report: HealthReport, layer: str) -> RepairAction | None:
             endpoint=None,
             reason=reason,
             expected_effect="Guide the user to fix disk, permission, or volume mount issues before continuing.",
-            does_not_do=["Does not modify database files.", "Does not delete workspace content."],
+            does_not_do=[
+                "Does not modify database files.",
+                "Does not delete workspace content.",
+            ],
         )
 
-    if report.component_name in {"Network", "VectorDB", "SystemResources", "AgentEngine"}:
+    if report.component_name in {
+        "Network",
+        "VectorDB",
+        "SystemResources",
+        "AgentEngine",
+    }:
         return RepairAction(
             action_id=RepairActionId.REVIEW_RUNTIME_DEPENDENCY,
             title=f"Review {report.component_name} runtime issue",
@@ -145,7 +157,10 @@ def _action_for_report(report: HealthReport, layer: str) -> RepairAction | None:
             endpoint=None,
             reason=reason,
             expected_effect="Make the root cause visible in the GUI with the original diagnostic suggestion.",
-            does_not_do=["Does not run shell commands.", "Does not change configuration automatically."],
+            does_not_do=[
+                "Does not run shell commands.",
+                "Does not change configuration automatically.",
+            ],
         )
 
     return None
@@ -174,7 +189,10 @@ async def _browser_orphan_action() -> RepairAction | None:
         endpoint=f"/health/repair-actions/{RepairActionId.CLEANUP_BROWSER_ORPHANS.value}/execute",
         reason="Browser automation processes outlived their agent session.",
         expected_effect="Terminates only detected automation browser orphan processes.",
-        does_not_do=["Does not close normal user browser windows.", "Does not delete browser profiles or workspace files."],
+        does_not_do=[
+            "Does not close normal user browser windows.",
+            "Does not delete browser profiles or workspace files.",
+        ],
     )
 
 
@@ -261,11 +279,16 @@ def _sqlite_backup_action() -> RepairAction | None:
         endpoint=f"/health/repair-actions/{RepairActionId.SQLITE_BACKUP_NOW.value}/execute",
         reason="Periodic backup ensures data can be recovered after corruption.",
         expected_effect="Creates a verified backup snapshot with SHA-256 checksum.",
-        does_not_do=["Does not modify the live database.", "Does not block agent execution."],
+        does_not_do=[
+            "Does not modify the live database.",
+            "Does not block agent execution.",
+        ],
     )
 
 
-async def execute_repair_action(action_id: RepairActionId, request: RepairActionExecuteRequest) -> RepairActionExecuteResult:
+async def execute_repair_action(
+    action_id: RepairActionId, request: RepairActionExecuteRequest
+) -> RepairActionExecuteResult:
     """Execute a white-listed repair action."""
 
     if action_id == RepairActionId.SQLITE_BACKUP_NOW:
@@ -283,10 +306,15 @@ async def execute_repair_action(action_id: RepairActionId, request: RepairAction
             message="This repair action is advisory only and cannot be executed automatically.",
         )
 
-    from myrm_agent_harness.toolkits.browser import cleanup_orphan_processes, find_orphan_automation_processes
+    from myrm_agent_harness.toolkits.browser import (
+        cleanup_orphan_processes,
+        find_orphan_automation_processes,
+    )
 
     orphans = await asyncio.to_thread(find_orphan_automation_processes)
-    orphan_pids: list[int] = [int(orphan["pid"]) for orphan in orphans if "pid" in orphan]
+    orphan_pids: list[int] = [
+        int(orphan["pid"]) for orphan in orphans if "pid" in orphan
+    ]
     if not orphan_pids:
         return RepairActionExecuteResult(
             action_id=action_id,
@@ -314,7 +342,11 @@ async def execute_repair_action(action_id: RepairActionId, request: RepairAction
         status="dry_run" if request.dry_run else "completed",
         changed=not request.dry_run and killed > 0,
         dry_run=request.dry_run,
-        message=str(result.get("message", f"Processed {len(orphan_pids)} orphan browser process(es).")),
+        message=str(
+            result.get(
+                "message", f"Processed {len(orphan_pids)} orphan browser process(es)."
+            )
+        ),
         details={
             "orphan_pids": orphan_pids,
             "killed": killed,
@@ -329,7 +361,9 @@ def _get_sqlite_backup_manager() -> "SQLiteBackupManager | None":
     return get_sqlite_backup_manager()
 
 
-def _execute_sqlite_backup(request: RepairActionExecuteRequest) -> RepairActionExecuteResult:
+def _execute_sqlite_backup(
+    request: RepairActionExecuteRequest,
+) -> RepairActionExecuteResult:
     if request.dry_run:
         return RepairActionExecuteResult(
             action_id=RepairActionId.SQLITE_BACKUP_NOW,
@@ -373,7 +407,9 @@ def _execute_sqlite_backup(request: RepairActionExecuteRequest) -> RepairActionE
         )
 
 
-def _execute_sqlite_restore(request: RepairActionExecuteRequest) -> RepairActionExecuteResult:
+def _execute_sqlite_restore(
+    request: RepairActionExecuteRequest,
+) -> RepairActionExecuteResult:
     if request.dry_run:
         manager = _get_sqlite_backup_manager()
         backups = manager.list_backups() if manager else []

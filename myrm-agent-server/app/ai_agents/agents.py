@@ -143,6 +143,11 @@ class GeneralAgentParams(BaseAgentParams):
     web_search_profile_enabled: bool = False
     search_is_user_configured: bool = False
     enable_web_fetch: bool = True
+    # Benchmark-only content policy: hosts rejected by web_fetch and substrings
+    # rejected in web_search queries. Empty by default so normal product chat
+    # is never filtered; only the eval executor sets them for decontamination.
+    benchmark_blocked_hostnames: tuple[str, ...] = ()
+    benchmark_blocked_terms: tuple[str, ...] = ()
     agent_skill_ids: list[str] = []
     agent_skill_configs: dict[str, dict] | None = None
     security_config_raw: dict[str, object] | None = None
@@ -295,6 +300,8 @@ class AgentFactory:
             client_surface=params.client_surface,
             enable_web_search=params.enable_web_search,
             enable_web_fetch=params.enable_web_fetch,
+            benchmark_blocked_hostnames=params.benchmark_blocked_hostnames,
+            benchmark_blocked_terms=params.benchmark_blocked_terms,
             enable_browser=params.enable_browser,
             browser_source=params.browser_source,
             dialog_policy=params.dialog_policy,

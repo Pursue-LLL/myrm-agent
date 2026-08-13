@@ -114,12 +114,18 @@ def _normalize_draft(data: dict[str, object], objective: str) -> dict[str, objec
                 except (TypeError, ValueError):
                     timeout_int = 60
                 acceptance_criteria.append(
-                    {"type": "shell", "command": command, "timeout_seconds": max(1, timeout_int)}
+                    {
+                        "type": "shell",
+                        "command": command,
+                        "timeout_seconds": max(1, timeout_int),
+                    }
                 )
             elif criterion_type == "semantic":
                 criteria_text = str(item.get("criteria", "")).strip()
                 if criteria_text:
-                    acceptance_criteria.append({"type": "semantic", "criteria": criteria_text})
+                    acceptance_criteria.append(
+                        {"type": "semantic", "criteria": criteria_text}
+                    )
 
     return {
         "ui_summary": ui_summary[:120],

@@ -85,6 +85,7 @@ class SkillResponse(BaseModel):
 
     evolution_locked: bool = False
     scope_agent_id: str | None = None
+    required_permissions: list[str] = []
     config_schema: dict[str, object] | None = None
     has_upstream_update: bool = False
 
@@ -328,6 +329,7 @@ def skill_to_response(skill: Skill) -> SkillResponse:
         user_trusted=skill.user_trusted,
         evolution_locked=evolution_locked,
         scope_agent_id=skill.scope_agent_id,
+        required_permissions=skill.required_permissions,
         config_schema=skill.config_schema,
         has_upstream_update=skill.has_upstream_update,
         traps=traps,

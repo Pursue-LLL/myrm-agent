@@ -87,6 +87,21 @@ class TestRichMediaPreviewSeedIntegration:
         assert txt_path.read_text(encoding="utf-8") == "rich media preview E2E fixture\n"
         assert workspace_dir.is_dir()
 
+        chat_id = str(body["chat_id"])
+        detail_resp = client.get(f"/api/v1/chats/{chat_id}")
+        assert detail_resp.status_code == 200, detail_resp.text
+        detail = detail_resp.json()
+        chat_payload = detail.get("data", detail)
+        chat_obj = chat_payload.get("chat", chat_payload)
+        persisted_dir = str(chat_obj.get("workspace_dir") or "")
+        assert persisted_dir == str(workspace_dir)
+
+        messages_resp = client.get(f"/api/v1/chats/{chat_id}/messages")
+        assert messages_resp.status_code == 200, messages_resp.text
+        messages = messages_resp.json()["data"]["messages"]
+        roles = [m.get("role") for m in messages if isinstance(m, dict)]
+        assert roles.count("user") == 1
+
     def test_browse_serves_png_inline_with_full_bytes(
         self, client: TestClient
     ) -> None:

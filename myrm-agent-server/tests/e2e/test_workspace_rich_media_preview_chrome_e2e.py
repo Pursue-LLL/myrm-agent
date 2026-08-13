@@ -92,13 +92,53 @@ _DISMISS_MIGRATION_JS = """(() => {
 })()"""
 
 
+def _attach_chat_probe_js(chat_id: str) -> str:
+    chat_id_json = json.dumps(chat_id)
+    return f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) {{
+    return {{ ok: false, err: 'no-bridge' }};
+  }}
+  await bridge.attachToChat({chat_id_json});
+  const domDeadline = Date.now() + 30_000;
+  while (Date.now() < domDeadline) {{
+    if (
+      document.querySelector('[data-message-end]')
+      || document.querySelector('[data-chat-input]')
+    ) {{
+      break;
+    }}
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }}
+  const snap = bridge.turnSnapshot?.() ?? {{}};
+  return {{
+    ok: snap.chatId === {chat_id_json} && (snap.userCount ?? 0) >= 1,
+    snap,
+  }};
+}})()"""
+
+
 def _open_workspace_tab_js() -> str:
     return """(() => {
   const tab = Array.from(document.querySelectorAll('button')).find((b) =>
     /Files|文件|檔案/.test(b.textContent || ''),
   );
   if (tab) tab.click();
-  return { ok: Boolean(tab), text: tab?.textContent || '' };
+  const store = window.__myrmChatStore?.getState?.() ?? null;
+  return {
+    ok: Boolean(tab),
+    text: tab?.textContent || '',
+    store: store
+      ? {
+          chatId: store.chatId,
+          actionMode: store.actionMode,
+          workspaceDir: store.workspaceDir,
+          messages: store.messages?.length ?? 0,
+        }
+      : null,
+    bodyLen: (document.body?.innerText || '').length,
+    bodySample: (document.body?.innerText || '').slice(0, 240),
+  };
 })()"""
 
 
@@ -187,17 +227,27 @@ def _seed_rich_media_fixture(api_url: str) -> dict[str, object]:
 
 
 def _open_and_switch_to_workspace_tab(
-    client: object, page: object, _ui_url: str
+    client: object, page: object, chat_id: str, page_url: str
 ) -> None:
     bridge_ready = wait_for_react_e2e_bridge(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
         timeout_sec=_wait_timeout_sec(),
+        page_url=page_url,
     )
     assert bridge_ready.get("ready") is True, json.dumps(
         bridge_ready,
         ensure_ascii=False,
     )
+
+    attached = client.evaluate(  # type: ignore[attr-defined]
+        page,
+        _attach_chat_probe_js(chat_id),
+        timeout_sec=_wait_timeout_sec(),
+    )
+    assert isinstance(attached, dict) and attached.get("ok") is True, attached
+
+    dismiss_blocking_modals(client, page)  # type: ignore[arg-type]
 
     tab_state = wait_for_state(
         client,  # type: ignore[arg-type]
@@ -308,7 +358,7 @@ def _run_preview_assertions(api_url: str, ui_url: str) -> None:
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
-        _open_and_switch_to_workspace_tab(client, page, ui_url)
+        _open_and_switch_to_workspace_tab(client, page, chat_id, target_url)
         _assert_preview_flows(client, page)
 
 

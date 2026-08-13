@@ -55,9 +55,7 @@ def _appended_chunks(buf: MagicMock) -> list[str]:
 
 def _install_mocks(monkeypatch, orch: ProjectOrchestrator, stream_factory) -> None:
     """注入 orchestrator + stream/mux/notification 依赖（全部 monkeypatch，幂等）。"""
-    monkeypatch.setattr(
-        "app.services.project.orchestrator.project_orchestrator", orch
-    )
+    monkeypatch.setattr("app.services.project.orchestrator.project_orchestrator", orch)
 
     async def _fake_stream(_session):
         gen = stream_factory(_session)
@@ -219,7 +217,9 @@ async def test_error_path_releases_lock(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_cancel_while_waiting_aborts_acquire_without_releasing_holder(monkeypatch):
+async def test_cancel_while_waiting_aborts_acquire_without_releasing_holder(
+    monkeypatch,
+):
     """Cancel while queued on a held lock aborts promptly and must not release the holder.
 
     Regression guard: pump's finally used to call release(project_id) unconditionally,
@@ -295,3 +295,56 @@ async def test_cancel_path_releases_lock(monkeypatch):
     assert orch.is_locked("proj-1") is False
     assert len(orch._locks) == 0
 
+
+@pytest.mark.asyncio
+async def test_cancel_while_waiting_releases_reserved_gateway_session(monkeypatch):
+    """Cancel while queued on a held lock must release the pre-reserved gateway session.
+
+    Regression guard for the permanent-busy bug: try_reserve adds the chat to
+    AgentGateway._active_sessions before the turn reaches execute_stream. When the
+    turn is cancelled while queued on the project lock, execute_stream never takes
+    over — without the pump cleanup the reservation leaked and the chat stayed
+    busy forever for all subsequent turns (user sees AgentBusyError 409 even long
+    after the lock was released).
+    """
+    from app.services.agent.gateway import get_agent_gateway
+
+    orch = ProjectOrchestrator()
+    await orch.acquire("proj-1")  # 另一 agent 持有锁
+
+    class _FakeToken:
+        is_cancelled = False
+
+    token = _FakeToken()
+    session = _make_session(project_id="proj-1")
+    session.cancel_token = token
+    buf = _make_buffer()
+    _install_mocks(monkeypatch, orch, _const_stream(_CHUNK))
+
+    gateway = get_agent_gateway()
+    gateway.reserve_session("test-chat-123", active_message_id="test-msg-456")
+    assert gateway.is_session_active("test-chat-123") is True
+
+    try:
+        pump_task = asyncio.create_task(pump_to_buffer(session, buf))
+
+        # 等待 pump 排队在锁上（waiting SSE 已发出）
+        for _ in range(100):
+            lock = orch._locks.get("proj-1")
+            if lock is not None and lock._waiters:
+                break
+            await asyncio.sleep(0.01)
+        assert orch._locks["proj-1"]._waiters, "pump 应排队等待锁"
+
+        # 用户取消 → pump 退出，reserved gateway session 必须被释放
+        token.is_cancelled = True
+        await asyncio.wait_for(pump_task, timeout=3)
+
+        assert (
+            gateway.is_session_active("test-chat-123") is False
+        ), "reserved gateway session leaked — the chat would stay busy forever"
+        # 持有者（另一 agent）的项目锁必须仍然持有
+        assert orch.is_locked("proj-1") is True
+    finally:
+        gateway.release_session("test-chat-123")
+        orch.release("proj-1")

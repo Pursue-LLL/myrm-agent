@@ -169,6 +169,29 @@ def _real_send_chat_message(
         timeout_sec=30.0,
     )
     assert input_seen.get("ready") is True, "Chat input textarea missing"
+    # 清除草稿：并行 chrome_e2e 干扰下 wait_for_state 可能在发送等待窗口触发页面
+    # reload（blank/overlay-heal），reload 后 useDraftPersistence 会把本地草稿
+    # （打字后 500ms 防抖写入 myrm_draft_*）恢复进输入框，导致「输入未清空」误判。
+    # 发送前清除全部草稿 + 重置输入，使断言只依赖当前会话的 stream 行为。
+    draft_cleared = client.evaluate(
+        page,
+        """(() => {
+          let removed = 0;
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('myrm_draft_')) {
+              localStorage.removeItem(key);
+              removed += 1;
+            }
+          }
+          window.__MYRM_E2E_CHAT__?.setInputMessage?.('');
+          return { ok: true, removed };
+        })()""",
+        timeout_sec=10.0,
+    )
+    assert (
+        isinstance(draft_cleared, dict) and draft_cleared.get("ok") is True
+    ), f"Failed to clear drafts: {draft_cleared}"
     typed = _type_chat_input_text(client, page, query)
     assert typed.get("ok") is True, f"Type into chat input failed: {typed}"
     send_ready = wait_for_state(
@@ -244,7 +267,7 @@ def _real_send_chat_message(
               const el = document.querySelector('[data-chat-input]');
               return { ready: !!el && el.value === '' };
             })()""",
-            timeout_sec=30.0,
+            timeout_sec=60.0,
         )
     except AssertionError:
         diag = client.evaluate(
@@ -1310,6 +1333,7 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
             reattached.get("ready") is True
         ), f"Re-attach after reload failed: {reattached}"
         _pin_direct_sse(client, page)
+        _trigger_fetch_subagents(client, page, chat_id)
         restored = wait_for_state(
             client,
             page,
@@ -1431,15 +1455,13 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
             timeout_sec=60.0,
         )
         assert verified.get("status") == 404
-        store_status = wait_for_state(
+        _trigger_fetch_subagents(client, page, chat_id)
+        store_status = _wait_subagent_store_status(
             client,
             page,
-            f"""(() => {{
-              const store = window.__myrmSubagentStore?.getState?.();
-              const node = store?.nodes?.[{json.dumps(task_id)}];
-              return {{ ready: !!node && node.status === 'cancelled', status: node?.status ?? null }};
-            }})()""",
-            timeout_sec=30.0,
+            task_id,
+            "cancelled",
+            timeout_sec=120.0,
         )
         assert (
             store_status.get("ready") is True
@@ -1620,3 +1642,119 @@ def _run_completed_flow_body(chat_id: str, ui_url: str) -> None:
         assert (
             rendered.get("ready") is True
         ), f"Dashboard did not render completed subagent: {rendered}"
+
+
+# 真实用户操作路径：纯 textarea 输入 + 点击发送按钮（非 bridge sendChatMessage）。
+# full_flow 通过 bridge 提交（同一 submit 管线），本测试补齐「打字 → 发送按钮」这一
+# 最真实的输入路径，query 不触发委派，避免 LLM spawn 的并行负载 flaky。
+_TEXTAREA_OK_QUERY = "只回复 OK"
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_subagent_dashboard_chat_textarea_real_user_send(
+    light_chat: dict[str, object],
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    """真实用户输入路径：textarea 打字 + 点击发送按钮，消息进入 stream 并得到回复。
+
+    与 full_flow（bridge sendChatMessage）互补：本测试覆盖纯 textarea 输入 + 发送
+    按钮路径，确保真实用户打字发送时消息能提交进 agent stream 管线。
+    """
+    if (
+        not os.environ.get("BASIC_API_KEY", "").strip()
+        or not os.environ.get("BASIC_MODEL", "").strip()
+    ):
+        pytest.skip("BASIC_API_KEY and BASIC_MODEL are required")
+    chat_id = str(light_chat.get("chatId") or "")
+    assert chat_id
+    ui_url = str(light_chat.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+    seed_env = _prepare_mjs_env(e2e_resource_ledger)
+    seed = subprocess.Popen(
+        ["bun", str(_PREPARE), "--seed-config-only"],
+        cwd=str(_AGENT_ROOT),
+        env=seed_env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    try:
+        seed_result = _read_prepare_result(seed, timeout_sec=90.0)
+        assert seed_result.get("seeded") is True, f"Config seed failed: {seed_result}"
+        _run_textarea_send_body(chat_id, ui_url)
+    finally:
+        if seed.poll() is None:
+            seed.terminate()
+            try:
+                seed.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                seed.kill()
+                seed.wait(timeout=5)
+
+
+def _run_textarea_send_body(chat_id: str, ui_url: str) -> None:
+    with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
+        wait_for_state(
+            client,
+            page,
+            """(() => ({
+              ready: !!window.__MYRM_E2E_CHAT__?.sendChatMessage
+                && !!document.querySelector('[data-chat-input]'),
+            }))()""",
+            timeout_sec=30.0,
+        )
+        _pin_direct_sse(client, page)
+        attach_result = wait_for_state(
+            client,
+            page,
+            f"""(async () => {{
+              try {{
+                await window.__MYRM_E2E_CHAT__?.attachToChat?.({json.dumps(chat_id)});
+                return {{ ready: true }};
+              }} catch (error) {{
+                return {{ ready: false, err: String(error) }};
+              }}
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert (
+            attach_result.get("ready") is True
+        ), f"attachToChat failed: {attach_result}"
+
+        sent = _real_send_chat_message(client, page, _TEXTAREA_OK_QUERY)
+        assert sent.get("ok") is True, f"Textarea send failed: {sent}"
+
+        # 真实用户可见结果：user 消息已在 store，assistant 开始流式回复。
+        replied = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const store = window.__myrmChatStore?.getState?.();
+              const msgs = store?.messages ?? [];
+              const userSeen = msgs.some(
+                (m) => m.role === 'user'
+                  && String(m.content || m.text || '').includes('只回复 OK'),
+              );
+              const assistant = msgs.some(
+                (m) => (m.role === 'assistant' || m.type === 'assistant')
+                  && String(m.content || m.text || '').trim().length > 0,
+              );
+              return {
+                ready: userSeen && assistant,
+                userSeen,
+                assistantSeen: assistant,
+                msgCount: msgs.length,
+              };
+            })()""",
+            timeout_sec=180.0,
+        )
+        assert (
+            replied.get("ready") is True
+        ), f"Chat reply missing after textarea send: {replied}"

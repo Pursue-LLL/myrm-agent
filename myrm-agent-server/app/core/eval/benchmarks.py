@@ -200,3 +200,43 @@ def benchmark_needs_judge(benchmark_id: str) -> bool:
         return False
     spec = get_benchmark(benchmark_id)
     return spec.scoring == "llm_judge" if spec else False
+
+
+def benchmark_run_limits(benchmark_id: str) -> tuple[int | None, int | None]:
+    """Return the benchmark-declared run budgets ``(max_tool_calls, max_iterations)``.
+
+    ``None`` means "inherit the engine default" — the spec left the ceiling
+    at 0 (WorkBuddy Bench subsets declare no budgets). A declared value pins
+    the exact budget so the same benchmark runs reproducibly across harness
+    versions instead of silently inheriting engine defaults.
+    """
+    if benchmark_id.startswith(WB_BENCH_PREFIX):
+        return None, None
+    spec = get_benchmark(benchmark_id)
+    if not spec:
+        return None, None
+    return spec.max_tool_calls or None, spec.max_iterations or None
+
+
+def benchmark_decontam(benchmark_id: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return web decontamination blocklists for a benchmark run.
+
+    Returns ``(blocked_hostnames, blocked_terms)``. Web-research benchmarks
+    (those declaring ``web_search``/``web_fetch`` tools) get the Hugging Face
+    pollution guards so a scored run cannot stumble onto model/dataset pages
+    that may carry reference material. Benchmarks without web tools need no
+    guards — there is nothing to leak, so both blocklists stay empty.
+    """
+    if benchmark_id.startswith(WB_BENCH_PREFIX):
+        return (), ()
+    spec = get_benchmark(benchmark_id)
+    if not spec or not any(
+        tool in spec.required_tools for tool in ("web_search", "web_fetch")
+    ):
+        return (), ()
+    from myrm_agent_harness.eval import (
+        HUGGINGFACE_DOMAINS,
+        HUGGINGFACE_QUERY_MARKERS,
+    )
+
+    return HUGGINGFACE_DOMAINS, HUGGINGFACE_QUERY_MARKERS

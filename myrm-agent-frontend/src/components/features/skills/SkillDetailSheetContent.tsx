@@ -45,6 +45,7 @@ import {
 } from '@/lib/skills/integrationOAuthDisplay';
 import { SkillQualityGuardian } from './SkillQualityGuardian';
 import { SkillVersionsPanel } from './SkillVersionsPanel';
+import { SkillPermissionUsageDashboard } from './SkillPermissionUsageDashboard';
 import {
   EvalCasesSection,
   RequirementRow,
@@ -219,6 +220,9 @@ export function SkillDetailSheetContent({
 
       {/* Security scan */}
       {skill.security && <SecurityScanSection security={skill.security} t={t} />}
+
+      {/* Permission usage audit */}
+      <SkillPermissionUsageDashboard skillId={skill.id} />
 
       {/* Local Storage Path */}
       {skill.type === 'local' && (isLocalMode() || isTauriRuntime()) && skill.storage_path && (

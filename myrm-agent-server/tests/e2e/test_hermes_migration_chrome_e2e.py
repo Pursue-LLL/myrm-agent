@@ -29,7 +29,10 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import get_e2e_api_url  # noqa: E402
 
-from tests.support.chrome_mcp_e2e import open_settings_subroute, wait_for_state  # noqa: E402
+from tests.support.chrome_mcp_e2e import (
+    open_settings_subroute,
+    wait_for_state,
+)  # noqa: E402
 
 _FETCH_HOOK_JS = """(() => {
   window.__MYRM_DRY_RUN_CAPTURE__ = [];
@@ -95,7 +98,10 @@ _FINAL_ASSERT_JS = """(() => {
   const migration = body && typeof body === 'object' ? body.migration : null;
   return {
     captureLen: capture.length,
-    hasHint: /Economy 智能体预设|Economy agent preset/i.test(text),
+    hasHint:
+      /知识工作助手|Knowledge Work agent preset|Hermes imports use the Knowledge Work|Hermes 迁移将使用/i.test(
+        text,
+      ),
     cloneFromAgentId:
       migration && typeof migration === 'object'
         ? migration.clone_from_agent_id
@@ -123,7 +129,9 @@ def _discover_has_hermes() -> bool:
     )
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_hermes_migration_wizard_dry_run_uses_builtin_economy() -> None:
@@ -140,9 +148,9 @@ def test_hermes_migration_wizard_dry_run_uses_builtin_economy() -> None:
             _SCAN_READY_JS,
             timeout_sec=90.0,
         )
-        assert scan_ready.get("ready") is True, (
-            f"Hermes scan step did not become ready: {scan_ready!r}"
-        )
+        assert (
+            scan_ready.get("ready") is True
+        ), f"Hermes scan step did not become ready: {scan_ready!r}"
 
         client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
         clicked = wait_for_state(
@@ -151,9 +159,9 @@ def test_hermes_migration_wizard_dry_run_uses_builtin_economy() -> None:
             _CLICK_HERMES_PREVIEW_JS,
             timeout_sec=60.0,
         )
-        assert clicked.get("clicked") is True, (
-            f"Hermes preview button not clicked: {clicked!r}"
-        )
+        assert (
+            clicked.get("clicked") is True
+        ), f"Hermes preview button not clicked: {clicked!r}"
 
         deadline = time.monotonic() + 120.0
         final: dict[str, object] = {}

@@ -1195,4 +1195,3 @@ def _apply_small_model_tuning(agent_wrapper: "GeneralAgent") -> None:
         )
 
     agent_wrapper.engine_params = engine
-

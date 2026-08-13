@@ -334,13 +334,19 @@ class AgentGateway:
             logger.info("[Drain] Already draining, skipping duplicate drain request")
             return
         self._draining = True
-        effective_timeout = timeout if timeout is not None else self._DRAIN_TIMEOUT_DEFAULT
+        effective_timeout = (
+            timeout if timeout is not None else self._DRAIN_TIMEOUT_DEFAULT
+        )
         active = len(self._active_sessions)
         if active == 0:
             logger.info("[Drain] No active sessions, drain complete immediately")
             return
 
-        logger.info("[Drain] Waiting for %d active session(s) (timeout=%.0fs)", active, effective_timeout)
+        logger.info(
+            "[Drain] Waiting for %d active session(s) (timeout=%.0fs)",
+            active,
+            effective_timeout,
+        )
         loop = asyncio.get_running_loop()
         deadline = loop.time() + effective_timeout
         poll_interval = 0.5
@@ -348,7 +354,11 @@ class AgentGateway:
             remaining = deadline - loop.time()
             if remaining <= 0:
                 still_active = len(self._active_sessions)
-                logger.warning("[Drain] Timeout after %.0fs with %d session(s) still active, interrupting", effective_timeout, still_active)
+                logger.warning(
+                    "[Drain] Timeout after %.0fs with %d session(s) still active, interrupting",
+                    effective_timeout,
+                    still_active,
+                )
                 if self._draining:
                     self.interrupt_all()
                     await asyncio.sleep(1.0)
@@ -358,7 +368,10 @@ class AgentGateway:
         if not self._draining:
             logger.info("[Drain] Drain cancelled externally, exiting poll loop")
         else:
-            logger.info("[Drain] Drain complete (sessions remaining: %d)", len(self._active_sessions))
+            logger.info(
+                "[Drain] Drain complete (sessions remaining: %d)",
+                len(self._active_sessions),
+            )
 
     def cancel_drain(self) -> bool:
         """Revert draining state, re-accept new executions.
@@ -416,7 +429,9 @@ class AgentGateway:
             AgentBusyError: Session is already active.
         """
         if self._draining:
-            raise AgentDrainingError("Gateway is draining, not accepting new executions")
+            raise AgentDrainingError(
+                "Gateway is draining, not accepting new executions"
+            )
         if session_id in self._active_sessions:
             raise AgentBusyError(f"Session {session_id} is already active")
         self._active_sessions.add(session_id)
@@ -430,6 +445,22 @@ class AgentGateway:
 
     def release_session(self, session_id: str) -> None:
         """Release a pre-reserved session that never reached execute_stream."""
+        self._active_sessions.discard(session_id)
+        self._session_info.pop(session_id, None)
+
+    def release_if_reserved_only(self, session_id: str) -> None:
+        """Release a session still in the pre-reserved (not yet executing) state.
+
+        A turn reserves the chat before stream setup and hands ownership to
+        ``execute_stream``. If the turn exits before that hand-over (e.g. the
+        user cancels while queued on the project turn lock), the reservation
+        would otherwise leak and leave the chat permanently busy. Only
+        ``reserved_only`` reservations are released here — sessions already
+        taken over by ``execute_stream`` are owned by its own ``finally``.
+        """
+        info = self._session_info.get(session_id)
+        if info is None or not info.reserved_only:
+            return
         self._active_sessions.discard(session_id)
         self._session_info.pop(session_id, None)
 
@@ -488,7 +519,9 @@ class AgentGateway:
             AgentBusyError: Session is already active.
         """
         if self._draining:
-            raise AgentDrainingError("Gateway is draining, not accepting new executions")
+            raise AgentDrainingError(
+                "Gateway is draining, not accepting new executions"
+            )
 
         if session_id:
             if session_id in self._active_sessions:

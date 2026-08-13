@@ -258,6 +258,7 @@ export interface FileEntry {
   type: 'file' | 'directory';
   size: number | null;
   mtime: string | null;
+  is_text: boolean | null;
   children: FileEntry[] | null;
 }
 

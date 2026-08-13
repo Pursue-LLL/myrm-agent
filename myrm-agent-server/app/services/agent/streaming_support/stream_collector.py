@@ -806,6 +806,10 @@ class StreamContentCollector:
                         }
             if step_key == "cache_break" and isinstance(data, dict):
                 self._cache_break = data
+            if event.get("restart") is True:
+                # Recovery STATUS steps (transient_retry, context_compaction, ...)
+                # precede a from-scratch re-run; drop any streamed draft.
+                self._discard_draft()
             if step_key == "model_failover":
                 error_kind = event.get("error_kind")
                 display_key = (
@@ -845,6 +849,21 @@ class StreamContentCollector:
             label_parts = [str(v) for v in (from_model, to_model) if v]
             self._append_failover_step(display_key, " → ".join(label_parts))
 
+        elif event_type == "model_escalated" and isinstance(data, dict):
+            # Escalation clears the turn and re-plays it with a stronger model;
+            # any text containing the escalation marker is a draft to drop.
+            self._discard_draft()
+            from_model = data.get("from_model")
+            to_model = data.get("to_model")
+            label_parts = [str(v) for v in (from_model, to_model) if v]
+            self._progress_steps.append(
+                {
+                    "step_key": "model_escalated",
+                    "items": [{"text": " → ".join(label_parts)}] if label_parts else [],
+                    "status": "success",
+                }
+            )
+
     @property
     def content(self) -> str:
         return "".join(self._content_parts)
@@ -870,6 +889,22 @@ class StreamContentCollector:
     def cross_turn_data_updates(self) -> list[tuple[str, dict[str, object]]]:
         return list(self._cross_turn_data_updates)
 
+    def _discard_draft(self) -> None:
+        """Drop partial content streamed before a recovery that restarts the turn.
+
+        Every recovery that makes the LLM regenerate the answer from scratch
+        (model failover, transient retry, context compaction, escalation, ...)
+        emits its STATUS/SSE event synchronously *before* the restreamed chunks,
+        so text streamed before the failure is a draft that will be fully
+        regenerated. Dropping it (idempotent: a second event finds an empty
+        buffer) keeps both the persisted history and the live stream free of
+        stale partial content spliced with the complete answer.
+        """
+        self._content_parts.clear()
+        self._reasoning_parts.clear()
+        self._reasoning_char_count = 0
+        self._reasoning_truncated = False
+
     def _append_failover_step(self, step_key: str, item_text: str) -> None:
         """Append a failover progress step, deduplicating STATUS + SSE notify channels.
 
@@ -882,11 +917,11 @@ class StreamContentCollector:
         ``model_failover_model_not_found``), and folds the safety-fallback
         channel (``safety_fallback_active``) into the same dedupe.
         """
+        self._discard_draft()
         for existing in self._progress_steps:
             key = str(existing.get("step_key", ""))
             if not (
-                key.startswith("model_failover")
-                or key == "safety_fallback_active"
+                key.startswith("model_failover") or key == "safety_fallback_active"
             ):
                 continue
             if item_text:

@@ -29,6 +29,7 @@ import mimetypes
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -172,6 +173,10 @@ class FileEntry(BaseModel):
     type: str = Field(..., description="'file' or 'directory'")
     size: int | None = Field(None, description="File size in bytes (null for directories)")
     mtime: str | None = Field(None, description="Last modified time ISO 8601")
+    is_text: bool | None = Field(
+        None,
+        description="True for text files, False for binary files (null for directories)",
+    )
     children: list["FileEntry"] | None = Field(None, description="Child entries (directories only)")
 
 
@@ -221,6 +226,21 @@ def _is_text_file(filename: str) -> bool:
         return True
     _, ext = os.path.splitext(name_lower)
     return ext in _TEXT_EXTENSIONS
+
+
+def _content_disposition(disposition: str, filename: str) -> str:
+    """Build a header-safe Content-Disposition value.
+
+    Strips CR/LF (header injection) and escapes quotes for the ASCII fallback
+    while RFC 5987 ``filename*`` carries the original bytes (non-ASCII names).
+    """
+    cleaned = filename.replace("\r", "").replace("\n", "")
+    ascii_name = cleaned.encode("ascii", "ignore").decode("ascii")
+    if not ascii_name:
+        ascii_name = "file"
+    safe = ascii_name.replace("\\", "\\\\").replace('"', '\\"')
+    encoded = quote(cleaned.encode("utf-8"))
+    return f'{disposition}; filename="{safe}"; filename*=UTF-8\'\'{encoded}'
 
 
 def _scan_tree(
@@ -294,6 +314,7 @@ def _scan_tree(
                             type="file",
                             size=size,
                             mtime=mtime,
+                            is_text=_is_text_file(entry.name),
                         )
                     )
     except PermissionError:
@@ -460,7 +481,7 @@ async def browse_content(
 
     disposition = "attachment" if download else "inline"
     headers = {
-        "Content-Disposition": f'{disposition}; filename="{filename}"',
+        "Content-Disposition": _content_disposition(disposition, filename),
     }
 
     # Binary files are streamed in full (no truncation) so rich media

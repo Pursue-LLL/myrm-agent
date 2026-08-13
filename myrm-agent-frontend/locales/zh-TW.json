@@ -312,7 +312,6 @@
       "memory-backup": "記憶備份",
       "memory-team-hub": "團隊資產",
       "memory-cloud-backup": "雲端同步",
-      "memory-archival": "記憶歸檔",
       "memory-migration": "資料遷移",
       "experimentalFeatures": "實驗功能",
       "system": "系統",
@@ -5088,29 +5087,6 @@
       "enabled": "啟用雲端備份",
       "save": "儲存配置"
     },
-    "memoryArchival": {
-      "title": "記憶歸檔",
-      "description": "自動歸檔舊的、低訪問頻率的記憶，提升搜尋效能。",
-      "criteriaTitle": "歸檔條件",
-      "criteriaAge": "記憶年齡 ≥ 180 天（6個月）",
-      "criteriaAccess": "訪問次數 ≤ 5 次",
-      "criteriaImportance": "重要性 ≤ 0.3（低優先順序）",
-      "criteriaNote": "所有條件必須同時滿足才會歸檔。",
-      "runArchival": "執行歸檔",
-      "archiving": "歸檔中...",
-      "confirmTitle": "執行記憶歸檔",
-      "confirmDescription": "這將把舊的、低訪問頻率的記憶移至歸檔儲存。歸檔的記憶隨時可以搜尋和恢復。",
-      "cancel": "取消",
-      "confirm": "確認",
-      "archiveSuccess": "已歸檔 {count} 條記憶",
-      "noMemoriesToArchive": "沒有符合歸檔條件的記憶",
-      "archiveError": "歸檔執行失敗",
-      "benefitsTitle": "收益",
-      "benefit1": "透過減小活躍語料庫提升搜尋效能",
-      "benefit2": "減小 BM25 索引大小，加快關鍵詞匹配",
-      "benefit3": "歷史資料保留，不刪除",
-      "benefit4": "歸檔記憶可透過專用API搜尋"
-    },
     "sessionAnalytics": {
       "duration": "時長",
       "messages": "訊息",
@@ -5676,26 +5652,6 @@
         }
       }
     },
-    "description": "自動歸檔舊的、低訪問頻率的記憶，提升搜尋效能。",
-    "criteriaTitle": "歸檔條件",
-    "criteriaAge": "記憶年齡 ≥ 180 天（6個月）",
-    "criteriaAccess": "訪問次數 ≤ 5 次",
-    "criteriaImportance": "重要性 ≤ 0.3（低優先順序）",
-    "criteriaNote": "所有條件必須同時滿足才會歸檔。",
-    "runArchival": "執行歸檔",
-    "archiving": "歸檔中...",
-    "confirmTitle": "執行記憶歸檔",
-    "confirmDescription": "這將把舊的、低訪問頻率的記憶移至歸檔儲存。歸檔的記憶隨時可以搜尋和恢復。",
-    "cancel": "取消",
-    "confirm": "確認",
-    "archiveSuccess": "已歸檔 {count} 條記憶",
-    "noMemoriesToArchive": "沒有符合歸檔條件的記憶",
-    "archiveError": "歸檔執行失敗",
-    "benefitsTitle": "收益",
-    "benefit1": "透過減小活躍語料庫提升搜尋效能",
-    "benefit2": "減小 BM25 索引大小，加快關鍵詞匹配",
-    "benefit3": "歷史資料保留，不刪除",
-    "benefit4": "歸檔記憶可透過專用API搜尋",
     "domainSkills": {
       "title": "網域技能",
       "description": "為常用網站提供可執行工具包 — 加速重複瀏覽器操作",
@@ -8506,10 +8462,6 @@
       "memory-backup": {
         "title": "記憶備份",
         "description": "備份和恢復您的記憶資料，保障資料安全"
-      },
-      "memory-archival": {
-        "title": "記憶歸檔",
-        "description": "歸檔舊記憶以提升搜尋效能"
       },
       "theme-studio": {
         "title": "主題工作坊",
@@ -14748,6 +14700,10 @@
       "cost": "成本",
       "time": "耗時",
       "memoryCalls": "記憶呼叫次數",
+      "toolCalls": "工具呼叫",
+      "limitHits": "命中上限",
+      "blocked": "封鎖",
+      "limitHitTitle": "該用例因觸達設定的執行預算（如最大工具呼叫數）而提前結束，答案可能不完整",
       "matrixDetail": "用例 × 配置矩陣",
       "case": "用例",
       "legend": {

@@ -74,9 +74,7 @@ async def agent_db():
         await conn.run_sync(Base.metadata.create_all)
         await ensure_raw_sql_schema(engine)
 
-    session_factory = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     import app.database.repositories.uow as uow_module
 

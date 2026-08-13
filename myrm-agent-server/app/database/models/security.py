@@ -6,7 +6,16 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -25,9 +34,13 @@ class UserToolAllowlist(Base):
     permission: Mapped[str] = mapped_column(String(255), nullable=False)
     tool_name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     tool_args_hash: Mapped[str] = mapped_column(String(32), nullable=False, default="")
-    command_pattern: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    command_pattern: Mapped[str] = mapped_column(
+        String(512), nullable=False, default=""
+    )
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -49,18 +62,30 @@ class RiskRule(Base):
     __tablename__ = "risk_rules"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    rule_id: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    rule_id: Mapped[str] = mapped_column(
+        String(100), unique=True, nullable=False, index=True
+    )
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     pattern: Mapped[str] = mapped_column(Text, nullable=False)
     severity: Mapped[str] = mapped_column(String(20), nullable=False)
     action: Mapped[str] = mapped_column(String(50), nullable=False)
-    category: Mapped[str] = mapped_column(String(50), nullable=False, default="custom", index=True)
-    is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    category: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="custom", index=True
+    )
+    is_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, index=True
+    )
     is_builtin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    sort_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class RiskHit(Base):
@@ -70,13 +95,17 @@ class RiskHit(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     trace_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    session_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    session_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, index=True
+    )
     rule_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     rule_name: Mapped[str] = mapped_column(String(255), nullable=False)
     severity: Mapped[str] = mapped_column(String(20), nullable=False)
     action: Mapped[str] = mapped_column(String(50), nullable=False)
     match_summary: Mapped[str] = mapped_column(String(500), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
 
 
 class SkillPermissionGrant(Base):
@@ -87,9 +116,13 @@ class SkillPermissionGrant(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     skill_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     permission: Mapped[str] = mapped_column(String(50), nullable=False)
-    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    granted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
-    __table_args__ = (UniqueConstraint("skill_id", "permission", name="uq_user_skill_permission"),)
+    __table_args__ = (
+        UniqueConstraint("skill_id", "permission", name="uq_user_skill_permission"),
+    )
 
 
 class SkillPermissionUsageLog(Base):
@@ -98,13 +131,17 @@ class SkillPermissionUsageLog(Base):
     __tablename__ = "skill_permission_usage_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(String(255), nullable=False, default="default_session", index=True)
+    user_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, default="default_session", index=True
+    )
     skill_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     permission: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     operation: Mapped[str] = mapped_column(String(500), nullable=False)
     allowed: Mapped[bool] = mapped_column(Boolean, nullable=False, index=True)
     deny_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
 
 
 class SecurityProfile(Base):
@@ -120,12 +157,18 @@ class SecurityProfile(Base):
     __tablename__ = "security_profiles"
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    profile_key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    profile_key: Mapped[str] = mapped_column(
+        String(100), nullable=False, unique=True, index=True
+    )
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     config_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     is_builtin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

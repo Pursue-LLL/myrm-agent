@@ -168,6 +168,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
     if TYPE_CHECKING:
         enable_web_search: bool
         enable_web_fetch: bool
+        benchmark_blocked_hostnames: tuple[str, ...]
+        benchmark_blocked_terms: tuple[str, ...]
         search_service_cfg: SearchServiceConfig | None = None
         reranker_config: RerankerConfig | None
         enable_advanced_retrieval: bool
@@ -326,6 +328,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     allow_private_networks=_is_local(),
                     sufficiency_config=sufficiency_cfg,
                     sufficiency_llm_config=sufficiency_llm,
+                    blocked_hostnames=getattr(
+                        self, "benchmark_blocked_hostnames", ()
+                    )
+                    or None,
                 )
             )
             logger.info(
@@ -340,6 +346,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     sufficiency_config=sufficiency_cfg,
                     sufficiency_llm_config=sufficiency_llm,
                     description_locale=tool_description_locale,
+                    blocked_terms=getattr(self, "benchmark_blocked_terms", ())
+                    or None,
                 )
             )
 

@@ -9,7 +9,6 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Memory operations submodule | ✅ |
-| `archival.py` | 模块 | Memory archival endpoints. | ✅ |
 | `archive_restore.py` | 模块 | 记忆归档恢复 API 操作层。只编排请求/响应和错误映射，恢复语义由服务层负责。 | ✅ |
 | `backup.py` | 模块 | Memory backup and restore endpoints. | ✅ |
 | `backup_remote.py` | 模块 | Remote backup API endpoints. | ✅ |

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -102,6 +103,28 @@ async def seed_rich_media_preview_fixture(
 
     chat_id = f"e2ermd{uuid4().hex[:8]}"
 
+    await ChatService.create_or_update_chat(
+        ChatCreate(
+            chat_id=chat_id,
+            title="Rich media preview Chrome E2E",
+            agent_id=resolved_agent_id,
+            messages=[],
+        ),
+    )
+
+    # A user message is required so the frontend E2E bridge attachToChat
+    # reports userCount >= 1 (the workspace merge fixture does the same).
+    now = datetime.now(UTC)
+    await ChatService.append_message(
+        chat_id,
+        "user",
+        "Rich media preview E2E fixture question",
+        now,
+        "UTC",
+    )
+
+    # Resolve after the chat exists so the persisted chat.workspace_dir field
+    # is actually updated (update_chat_fields is a silent SQL UPDATE otherwise).
     workspace_dir = await resolve_default_chat_workspace_dir(
         chat_id, persist_workspace=True
     )
@@ -116,15 +139,6 @@ async def seed_rich_media_preview_fixture(
         target = Path(workspace_dir) / name
         target.write_bytes(payload)
         written[name] = str(target)
-
-    await ChatService.create_or_update_chat(
-        ChatCreate(
-            chat_id=chat_id,
-            title="Rich media preview Chrome E2E",
-            agent_id=resolved_agent_id,
-            messages=[],
-        ),
-    )
 
     return {
         "chat_id": chat_id,

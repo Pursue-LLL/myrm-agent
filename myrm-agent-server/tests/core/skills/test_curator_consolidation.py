@@ -175,7 +175,9 @@ class TestRewriteAgentSkillRefs:
         )
         report = ConsolidationReport(
             results=[
-                ConsolidationResult(action=action, success=True, archived_skills=("a",)),
+                ConsolidationResult(
+                    action=action, success=True, archived_skills=("a",)
+                ),
             ]
         )
 
@@ -203,7 +205,9 @@ class TestRewriteAgentSkillRefs:
         )
         report = ConsolidationReport(
             results=[
-                ConsolidationResult(action=action, success=True, archived_skills=("old_skill",)),
+                ConsolidationResult(
+                    action=action, success=True, archived_skills=("old_skill",)
+                ),
             ]
         )
 
@@ -286,7 +290,9 @@ class TestConsolidationPreview:
 
         mock_run_result = MagicMock(skills_scanned=5)
         mock_curator_instance = MagicMock()
-        mock_curator_instance.run_async = AsyncMock(return_value=(mock_run_result, expected_plan))
+        mock_curator_instance.run_async = AsyncMock(
+            return_value=(mock_run_result, expected_plan)
+        )
 
         with (
             patch(

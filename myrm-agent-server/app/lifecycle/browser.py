@@ -29,7 +29,10 @@ async def resolve_browser_proxy_pool() -> RoundRobinProxyPool | None:
             proxy_config = BrowserProxyConfigValue.model_validate(record.value)
             if proxy_config.enabled and proxy_config.proxies:
                 pool = RoundRobinProxyPool.from_urls(proxy_config.proxies)
-                logger.info("Browser proxy pool loaded from config: %d proxies", len(proxy_config.proxies))
+                logger.info(
+                    "Browser proxy pool loaded from config: %d proxies",
+                    len(proxy_config.proxies),
+                )
                 return pool
     except Exception:
         logger.debug("Browser proxy config not available (first run or no config)")
@@ -50,7 +53,11 @@ async def warmup_global_browser_pool() -> None:
     from myrm_agent_harness.toolkits.browser.pool import singleton as pool_singleton
     from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
 
-    from app.config.browser import get_browser_launch_options, get_browser_pool_config, resolve_cloud_browser_endpoint
+    from app.config.browser import (
+        get_browser_launch_options,
+        get_browser_pool_config,
+        resolve_cloud_browser_endpoint,
+    )
     from app.config.settings import settings
     from app.core.security.browser_vault import get_global_session_vault
     from app.services.extension.bridge import get_extension_bridge
@@ -76,7 +83,10 @@ async def warmup_global_browser_pool() -> None:
         browsers=settings.browser_pool.warmup_browsers,
         pages_per_context=settings.browser_pool.warmup_pages,
     )
-    logger.info("GlobalBrowserPool warmup completed (proxy=%s)", "enabled" if proxy_pool else "disabled")
+    logger.info(
+        "GlobalBrowserPool warmup completed (proxy=%s)",
+        "enabled" if proxy_pool else "disabled",
+    )
 
 
 async def shutdown_global_browser_pool() -> None:
@@ -164,15 +174,21 @@ async def warmup_browser_sessions() -> None:
         warmup_candidates = [
             record
             for record in active_threads
-            if record.last_active_at >= stale_threshold and (datetime.now() - record.last_active_at).total_seconds() < 86400
+            if record.last_active_at >= stale_threshold
+            and (datetime.now() - record.last_active_at).total_seconds() < 86400
         ]
 
         if not warmup_candidates:
             return
 
-        logger.info("Found %d threads eligible for session warmup (within 24h)", len(warmup_candidates))
+        logger.info(
+            "Found %d threads eligible for session warmup (within 24h)",
+            len(warmup_candidates),
+        )
 
-        from myrm_agent_harness.toolkits.browser.checkpoint import ParallelRecoveryOrchestrator
+        from myrm_agent_harness.toolkits.browser.checkpoint import (
+            ParallelRecoveryOrchestrator,
+        )
         from myrm_agent_harness.toolkits.browser.pool import get_global_browser_pool
 
         from app.core.security.browser_vault import get_global_session_vault
@@ -211,7 +227,10 @@ async def warmup_browser_sessions() -> None:
 async def cleanup_expired_browser_sessions() -> None:
     """Clean up expired saved browser sessions from all vaults (global + per-agent)."""
     try:
-        from app.core.security.browser_vault import cleanup_all_agent_vaults, get_global_session_vault
+        from app.core.security.browser_vault import (
+            cleanup_all_agent_vaults,
+            get_global_session_vault,
+        )
 
         vault = get_global_session_vault()
         removed = await vault.cleanup_expired()

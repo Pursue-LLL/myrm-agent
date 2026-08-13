@@ -125,9 +125,11 @@ async def test_stream_collector_full_coverage():
     collector.feed_sse("invalid")
     collector.feed_sse("data: invalid_json\n\n")
 
-    # Assert properties
-    assert collector.content == "Hello World"
-    assert collector.reasoning == "Thinking "
+    # Assert properties. The failover events (fed after "Hello "/"Thinking ")
+    # discard the primary-model drafts — the fallback restarts the answer from
+    # scratch, so only the post-failover "World" message is persisted.
+    assert collector.content == "World"
+    assert collector.reasoning is None
     assert collector.has_content is True
     assert collector.sibling_group_id == "sib_1"
 
@@ -488,4 +490,133 @@ def test_model_failover_keeps_full_label_when_status_arrives_last() -> None:
         failover_steps[0]["items"][0]["text"]
         == "openai/__e2e_nonexistent_model__ → openai/deepseek-v4-flash"
     )
+    collector.cleanup()
+
+
+def test_model_failover_drops_partial_draft() -> None:
+    """Real runtime order: primary streams partial text before failing.
+
+    The failover event must discard the partial draft (content + reasoning) so
+    the fallback's complete answer does not get spliced with the stale text in
+    the persisted history.
+    """
+    collector = StreamContentCollector(chat_id="chat-failover-draft-drop")
+    collector.feed_event({"type": "message", "data": "Partial draft "})
+    collector.feed_event({"type": "reasoning", "data": "Thinking "})
+
+    collector.feed_event(
+        {
+            "type": "model_failover",
+            "data": {
+                "fromModel": "openai/primary",
+                "toModel": "openai/fallback",
+                "reason": "api_error",
+            },
+        }
+    )
+
+    assert collector.content == ""
+    assert collector.reasoning is None
+    assert not collector.has_content
+
+    collector.feed_event({"type": "message", "data": "Complete fallback answer"})
+    assert collector.content == "Complete fallback answer"
+
+    extra = collector.extra_data
+    assert extra is not None
+    failover_steps = [
+        step
+        for step in extra["progressSteps"]
+        if isinstance(step, dict)
+        and str(step.get("step_key", "")).startswith("model_failover")
+    ]
+    assert len(failover_steps) == 1
+    assert failover_steps[0]["items"][0]["text"] == "openai/primary → openai/fallback"
+    collector.cleanup()
+
+
+def test_status_restart_true_discards_draft() -> None:
+    """A restart STATUS step (e.g. transient_retry) discards the streamed draft.
+
+    The harness marks every recovery that re-runs the answer from scratch with
+    ``restart: true``; the collector must drop partial content so the persisted
+    history only contains the regenerated answer.
+    """
+    collector = StreamContentCollector(chat_id="chat-status-restart")
+    collector.feed_event({"type": "message", "data": "Partial draft "})
+    collector.feed_event({"type": "reasoning", "data": "Thinking "})
+
+    collector.feed_event(
+        {
+            "type": "status",
+            "step_key": "transient_retry",
+            "error_kind": "overloaded",
+            "attempt": 1,
+            "restart": True,
+        }
+    )
+
+    assert collector.content == ""
+    assert collector.reasoning is None
+    assert not collector.has_content
+
+    collector.feed_event({"type": "message", "data": "Retried answer"})
+    assert collector.content == "Retried answer"
+    collector.cleanup()
+
+
+def test_status_without_restart_keeps_draft() -> None:
+    """STATUS steps that do not restart the turn keep the streamed content."""
+    collector = StreamContentCollector(chat_id="chat-status-no-restart")
+    collector.feed_event({"type": "message", "data": "Keep this "})
+
+    collector.feed_event(
+        {
+            "type": "status",
+            "step_key": "memory_archived",
+            "tokens_saved": 123,
+        }
+    )
+
+    assert collector.content == "Keep this "
+    collector.cleanup()
+
+
+def test_model_escalated_discards_draft() -> None:
+    """Escalation re-plays the turn with a stronger model; drop the draft.
+
+    The draft is discarded and the escalation transition is persisted as a
+    progress step (mirroring model_failover), so history replay shows which
+    model switch happened even though the final answer was regenerated.
+    """
+    collector = StreamContentCollector(chat_id="chat-escalated-draft")
+    collector.feed_event({"type": "message", "data": "Partial escalated text "})
+    collector.feed_event({"type": "reasoning", "data": "escalation reasoning "})
+
+    collector.feed_event(
+        {
+            "type": "model_escalated",
+            "data": {
+                "from_model": "openai/fast",
+                "to_model": "openai/strong",
+                "reason": "escalation",
+                "restart": True,
+            },
+        }
+    )
+
+    assert collector.content == ""
+    assert collector.reasoning is None
+    assert collector.extra_data is not None
+    progress_steps = collector.extra_data.get("progressSteps")
+    assert progress_steps == [
+        {
+            "step_key": "model_escalated",
+            "items": [{"text": "openai/fast → openai/strong"}],
+            "status": "success",
+        }
+    ]
+
+    collector.feed_event({"type": "message", "data": "Replayed with stronger model"})
+    assert collector.content == "Replayed with stronger model"
     collector.cleanup()

@@ -33,9 +33,6 @@ vi.mock('../sections/knowledge/MemorySection', () => ({
 vi.mock('../sections/knowledge/MemoryBackupSection', () => ({
   default: () => <div data-testid="memory-backup-section" />,
 }));
-vi.mock('../sections/knowledge/MemoryArchivalSection', () => ({
-  default: () => <div data-testid="memory-archival-section" />,
-}));
 vi.mock('../sections/knowledge/RemoteBackupSection', () => ({
   default: () => <div data-testid="remote-backup-section" />,
 }));

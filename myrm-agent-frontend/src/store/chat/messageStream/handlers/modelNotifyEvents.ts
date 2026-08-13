@@ -22,6 +22,7 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       from_model?: string;
       to_model?: string;
       reason?: string;
+      restart?: boolean;
     };
     if (payload) {
       const from = payload.from_model ?? 'unknown';
@@ -36,6 +37,14 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
         duration: 5000,
       });
 
+      // Escalation clears the turn and re-plays it with a stronger model, so
+      // any text containing the escalation marker is a draft to drop.
+      if (payload.restart === true) {
+        ctx.recievedMessage = '';
+        // Drop any buffered render task whose stale closure would write the
+        // pre-escalation draft back into the message.
+        ctx.state.scheduler?.cancel?.();
+      }
       actions.setMessages((state) => {
         let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
         if (messageIndex === -1) {
@@ -49,6 +58,9 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
           }
         }
         if (messageIndex !== -1) {
+          if (payload.restart === true) {
+            H.clearAssistantDraft(state.messages[messageIndex]);
+          }
           const steps = state.messages[messageIndex].progressSteps ?? [];
           steps.push({
             step_key: 'model_escalated',
@@ -85,6 +97,13 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
         duration: 6000,
       });
 
+      // The primary model may have streamed partial text (or reasoning)
+      // before failing; the fallback restarts the answer from scratch.
+      // Drop that draft so it is not spliced with the complete answer.
+      ctx.recievedMessage = '';
+      // Drop any buffered render task whose stale closure would write the
+      // pre-failover draft back into the message.
+      ctx.state.scheduler?.cancel?.();
       actions.setMessages((state) => {
         let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
         if (messageIndex === -1) {
@@ -98,6 +117,7 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
           }
         }
         if (messageIndex !== -1) {
+          H.clearAssistantDraft(state.messages[messageIndex]);
           const steps = state.messages[messageIndex].progressSteps ?? [];
           const displayKey = resolveModelFailoverProgressStepKey(payload.reason);
           const existingStep = steps.find(

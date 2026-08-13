@@ -17,8 +17,6 @@ from __future__ import annotations
 
 import json
 import time
-import urllib.request  # noqa: S310
-import urllib.error  # noqa: S310
 
 import pytest
 
@@ -34,7 +32,6 @@ from tests.support.chrome_mcp_e2e import (
 
 E2E_PROMPT = "只回复 OK"
 TURN_WAIT_SEC = 300.0
-HOLD_MS = 25000
 
 _WAITING_STEP_JS = """(() => {
   const store = window.__myrmChatStore?.getState?.();
@@ -114,28 +111,6 @@ _DOM_WAITING_JS = """(() => {
 })()"""
 
 
-_INSTALL_FETCH_PROBE_JS = """(() => {
-  if (window.__FETCH_PROBE__) return { ok: true, reused: true };
-  window.__FETCH_PROBE__ = [];
-  const origFetch = window.fetch.bind(window);
-  window.fetch = async (...args) => {
-    const url = String(args[0] ?? '');
-    const isStream = url.includes('/agent-stream');
-    const opts = args[1] || {};
-    let bodyPreview = '';
-    try {
-      if (typeof opts.body === 'string') bodyPreview = opts.body.slice(0, 800);
-    } catch {
-      bodyPreview = '<unreadable>';
-    }
-    if (isStream) {
-      window.__FETCH_PROBE__.push({ kind: 'request', url, at: Date.now(), body: bodyPreview });
-    }
-    return origFetch(...args);
-  };
-  return { ok: true };
-})()"""
-
 _ABORT_STREAM_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.abortActiveStream) {
@@ -145,41 +120,14 @@ _ABORT_STREAM_JS = """(() => {
   return { ok: true };
 })()"""
 
-_E2E_SEND_PROMPT_JS = """(async (prompt) => {
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.sendChatMessage) {
-    return { ok: false, err: 'no-sendChatMessage' };
-  }
-  const res = await bridge.sendChatMessage(prompt);
-  return res;
-})"""
 
-
-def _replay_agent_stream_snippet(api_url: str, body: str) -> str:
-    """Replay the exact agent-stream POST captured by the fetch probe.
-
-    Reads the first ~4KB of the SSE response so the test can see what the
-    backend actually returned for the second send (busy error / waiting_for_turn
-    / empty), instead of relying on frontend interpretation.
-    """
-    try:
-        request = urllib.request.Request(  # noqa: S310
-            f"{api_url.rstrip('/')}/api/v1/agents/agent-stream",
-            data=body.encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
-            return response.read(4096).decode("utf-8", errors="replace")
-    except urllib.error.HTTPError as exc:  # noqa: S310
-        body_text = exc.read(4096).decode("utf-8", errors="replace")
-        return f"HTTP {exc.code}: {body_text}"
-
-
-def _seed_turn_lock_fixture(api_url: str, *, hold_ms: int = HOLD_MS) -> dict[str, object]:
+def _seed_turn_lock_fixture(
+    api_url: str, *, hold_ms: int | None = None
+) -> dict[str, object]:
+    qs = f"?hold_ms={hold_ms}" if hold_ms is not None else ""
     seeded = http_json(
         "POST",
-        f"{api_url}/api/v1/projects/test/seed-turn-lock?hold_ms={hold_ms}",
+        f"{api_url}/api/v1/projects/test/seed-turn-lock{qs}",
     )
     assert isinstance(seeded, dict)
     chat_id = str(seeded.get("chat_id") or "")
@@ -187,6 +135,16 @@ def _seed_turn_lock_fixture(api_url: str, *, hold_ms: int = HOLD_MS) -> dict[str
     assert chat_id.startswith("e2eturnlock"), seeded
     assert project_id, seeded
     return seeded
+
+
+def _release_turn_lock(api_url: str, project_id: str) -> dict[str, object]:
+    released = http_json(
+        "POST",
+        f"{api_url}/api/v1/projects/test/release-turn-lock",
+        body={"project_id": project_id},
+    )
+    assert isinstance(released, dict), released
+    return released
 
 
 def _send_message(
@@ -311,13 +269,20 @@ def _wait_dom_waiting_cleared(
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
-    """Real UI send under held project lock must show then clear waiting_for_turn."""
+    """Real UI send under held project lock must show then clear waiting_for_turn.
+
+    The lock is acquired by the seed *before* the send and held until the test
+    explicitly releases it (`hold_ms=0`). This is immune to attach/bootstrap
+    latency: under heavy parallel E2E load a wall-clock `hold_ms` seed would
+    expire before the UI attach finished and the send would see no waiting step.
+    """
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
 
-    seeded = _seed_turn_lock_fixture(api_url, hold_ms=HOLD_MS)
+    seeded = _seed_turn_lock_fixture(api_url, hold_ms=0)
     chat_id = str(seeded["chat_id"])
+    project_id = str(seeded["project_id"])
     chat_path = str(seeded["ui_path"])
 
     warm_ui_route(chat_path)
@@ -333,16 +298,23 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
         )
         attach_js = _ATTACH_JS.replace("__MYRM_CHAT_ID__", json.dumps(chat_id))
         attach_raw = client.evaluate(page, attach_js, timeout_sec=30.0)
-        attach_state = attach_raw if isinstance(attach_raw, dict) else json.loads(str(attach_raw))
+        attach_state = (
+            attach_raw if isinstance(attach_raw, dict) else json.loads(str(attach_raw))
+        )
         assert attach_state.get("ok") is True, attach_state
 
+        # Lock still held (hold_ms=0, released explicitly below) → the send is
+        # guaranteed to queue and surface waiting_for_turn.
         send_result = _send_message(client, page)
         assert send_result.get("ok") is True, send_result
-        chat_id_resolved = str(
-            send_result.get("chatId")
-            or (send_result.get("debug") or {}).get("chatId")
-            or ""
-        ).strip() or chat_id
+        chat_id_resolved = (
+            str(
+                send_result.get("chatId")
+                or (send_result.get("debug") or {}).get("chatId")
+                or ""
+            ).strip()
+            or chat_id
+        )
 
         waiting_state = _wait_waiting_step(client, page, timeout_sec=45.0)
         assert waiting_state.get("step_key") == "waiting_for_turn", waiting_state
@@ -357,10 +329,16 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
         # also assert the i18n title is really rendered into the DOM after
         # expanding the progress-steps panel (true end-user visibility check).
         expand_raw = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=10.0)
-        expand_state = expand_raw if isinstance(expand_raw, dict) else json.loads(str(expand_raw))
+        expand_state = (
+            expand_raw if isinstance(expand_raw, dict) else json.loads(str(expand_raw))
+        )
         assert expand_state.get("ok") is True, expand_state
         dom_state = _wait_dom_waiting(client, page, timeout_sec=15.0)
         assert dom_state.get("ready") is True, dom_state
+
+        # Deterministic release: the simulated holder finishes its turn.
+        release_state = _release_turn_lock(api_url, project_id)
+        assert release_state.get("still_locked") is False, release_state
 
         cleared_state = _wait_waiting_cleared(client, page, timeout_sec=TURN_WAIT_SEC)
         assert cleared_state.get("ready") is False, cleared_state
@@ -394,18 +372,24 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
 def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
     """Real user cancels while waiting for the project lock.
 
-    Real flow: seed holds the project lock → UI send shows waiting_for_turn →
-    user hits stop (abortActiveStream → stopMessage → cancel + SSE abort) →
-    waiting step must be removed synchronously → a second send must show the
-    waiting step again (proving the cancelled waiter did NOT steal/release the
-    holder's lock) → seed releases → the second turn completes normally.
+    Real flow (fully deterministic):
+      seed holds the project lock (hold_ms=0, released explicitly below)
+      → UI send #1 shows waiting_for_turn
+      → user hits stop (abortActiveStream → stopMessage → cancel + SSE abort)
+      → waiting step must be removed synchronously
+      → user re-sends (send #2): waiting_for_turn appears AGAIN on the same
+        still-held lock — proving the cancelled waiter neither stole nor broke
+        the holder's lock, and the gateway reservation was cleaned up (no busy)
+      → seed releases the lock → waiting_for_turn_clear → send #2 completes OK
+        (proving cancel left the workspace fully recoverable).
     """
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
 
-    seeded = _seed_turn_lock_fixture(api_url, hold_ms=45000)
+    seeded = _seed_turn_lock_fixture(api_url, hold_ms=0)
     chat_id = str(seeded["chat_id"])
+    project_id = str(seeded["project_id"])
     chat_path = str(seeded["ui_path"])
 
     warm_ui_route(chat_path)
@@ -423,10 +407,12 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
         )
         attach_js = _ATTACH_JS.replace("__MYRM_CHAT_ID__", json.dumps(chat_id))
         attach_raw = client.evaluate(page, attach_js, timeout_sec=30.0)
-        attach_state = attach_raw if isinstance(attach_raw, dict) else json.loads(str(attach_raw))
+        attach_state = (
+            attach_raw if isinstance(attach_raw, dict) else json.loads(str(attach_raw))
+        )
         assert attach_state.get("ok") is True, attach_state
 
-        # 第一次发送：锁被 seed 持有 → 进入等待
+        # 第一次发送：锁被 seed 持有（hold_ms=0，显式释放前一直持有）→ 必然进入等待
         send_result = _send_message(client, page)
         assert send_result.get("ok") is True, send_result
         waiting_state = _wait_waiting_step(client, page, timeout_sec=45.0)
@@ -434,51 +420,36 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
 
         # 真实用户点击停止：stopMessage 路径取消 + 同步清除 waiting 步骤
         abort_raw = client.evaluate(page, _ABORT_STREAM_JS, timeout_sec=10.0)
-        abort_state = abort_raw if isinstance(abort_raw, dict) else json.loads(str(abort_raw))
+        abort_state = (
+            abort_raw if isinstance(abort_raw, dict) else json.loads(str(abort_raw))
+        )
         assert abort_state.get("ok") is True, abort_state
 
         cleared_state = _wait_waiting_cleared(client, page, timeout_sec=20.0)
         assert cleared_state.get("ready") is False, cleared_state
 
-        # 注入 fetch 探针：记录 agent-stream POST 的发出与响应（实证第二次请求是否到达后端）
-        probe_raw = client.evaluate(page, _INSTALL_FETCH_PROBE_JS, timeout_sec=10.0)
-        probe_state = probe_raw if isinstance(probe_raw, dict) else json.loads(str(probe_raw))
-        assert probe_state.get("ok") is True, probe_state
-
-        # 取消后等待后端 teardown（第一次 session 从 active 集合释放）。
-        # 真实用户取消后重发也会遇到短暂 AgentBusyError，UI 会提示并允许重试——
-        # 测试模拟该真实重试：最多 3 次，每次间隔 5s。
+        # 第二次发送：锁仍被 seed 持有 → waiting_for_turn 必须再次出现。
+        # 这是"取消未误释放持有者锁"且 gateway 预占已清理（不会 busy）的强证据。
+        # 取消 API 是 fire-and-forget，后端 teardown 有极小窗口 → 重试最多 3 次。
         send2: dict[str, object] = {}
         for attempt in range(3):
-            time.sleep(5)
-            send2 = _send_message(client, page, timeout_sec=60.0)
+            send2 = _send_message(client, page, timeout_sec=90.0)
             if send2.get("ok") is True:
                 break
-            print(f"SEND2_ATTEMPT_{attempt}_DEBUG:", json.dumps(send2, ensure_ascii=False, default=str))
-            probe_now = client.evaluate(page, "window.__FETCH_PROBE__ || []", timeout_sec=10.0)
-            probe_list = probe_now if isinstance(probe_now, list) else []
-            print(f"SEND2_ATTEMPT_{attempt}_FETCH_PROBE:", json.dumps(probe_list, ensure_ascii=False, default=str))
-            captured_body = ""
-            for entry in probe_list:
-                if isinstance(entry, dict) and entry.get("kind") == "request" and entry.get("body"):
-                    captured_body = str(entry.get("body"))
-            if captured_body:
-                snippet = _replay_agent_stream_snippet(api_url, captured_body)
-                print(f"SEND2_ATTEMPT_{attempt}_REPLAY_SSE:", snippet[:2500])
+            print(
+                f"SEND2_ATTEMPT_{attempt}_DEBUG:",
+                json.dumps(send2, ensure_ascii=False, default=str),
+            )
+            time.sleep(3)
         assert send2.get("ok") is True, send2
 
-        # 第二次发送成功后：
-        # - 若 seed 锁仍在（seed 未到期），waiting_for_turn 会再次出现 —— 这是
-        #   "取消等待未误释放持有者锁"的强证据；
-        # - 若 seed 已到期释放，则第二次 turn 直接进入正常生成（无 waiting）。
-        waiting2: dict[str, object] = {}
-        try:
-            waiting2 = _wait_waiting_step(client, page, timeout_sec=10.0)
-        except AssertionError:
-            waiting2 = {"ready": False, "note": "seed lock already released"}
-        print("SEND2_WAITING2:", json.dumps(waiting2, ensure_ascii=False, default=str))
+        waiting2 = _wait_waiting_step(client, page, timeout_sec=45.0)
+        assert waiting2.get("step_key") == "waiting_for_turn", waiting2
 
-        # seed 到期自动释放 → 第二次 turn 自动获得锁 → 正常运行完成
+        # 模拟持有者完成：显式释放锁 → waiting_for_turn_clear → 第二次 turn 完成
+        release_state = _release_turn_lock(api_url, project_id)
+        assert release_state.get("still_locked") is False, release_state
+
         ok_deadline = time.monotonic() + TURN_WAIT_SEC
         ok_state: dict[str, object] = {}
         while time.monotonic() < ok_deadline:
@@ -488,6 +459,6 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
                 break
             time.sleep(0.5)
         assert ok_state.get("ready") is True, (
-            f"Expected second turn assistant OK after seed lock release; "
+            f"Expected second turn assistant OK after lock release; "
             f"state={ok_state!r} chat_id={chat_id}"
         )

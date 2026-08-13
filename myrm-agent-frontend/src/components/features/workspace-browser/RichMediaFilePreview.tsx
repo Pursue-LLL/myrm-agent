@@ -24,6 +24,7 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { Download, FileQuestion } from 'lucide-react';
 import { getWorkspaceFileContentUrl } from '@/services/chat';
+import { getStorageUrl } from '@/lib/api';
 import { SvgPreview } from '@/components/features/artifacts/renderers/MediaPreview';
 
 export type PreviewKind = 'image' | 'video' | 'audio' | 'pdf' | 'svg' | 'docx' | 'pptx' | 'xlsx' | 'unsupported';
@@ -136,20 +137,29 @@ interface RichMediaFilePreviewProps {
   content?: string;
   /** Trigger download fallback for unsupported types */
   onDownload: () => void;
+  /** Override kind derived from the filename (e.g. backend is_text=false for unknown binary) */
+  kind?: PreviewKind;
 }
 
 /** Preview dispatcher for workspace binary files. Renders null for text kinds. */
 export const RichMediaFilePreview: React.FC<RichMediaFilePreviewProps> = memo(
-  ({ filePath, filename, workspace, content, onDownload }) => {
+  ({ filePath, filename, workspace, content, onDownload, kind: kindOverride }) => {
     const t = useTranslations('workspace');
-    const kind = getPreviewKind(filename);
+    const kind = kindOverride ?? getPreviewKind(filename);
     if (!kind) return null;
 
-    const previewUrl = getWorkspaceFileContentUrl(filePath, workspace);
+    const previewUrl = getStorageUrl(getWorkspaceFileContentUrl(filePath, workspace));
 
     switch (kind) {
       case 'image':
-        return <ImagePreviewDynamic url={previewUrl} filename={filename} errorMessage={t('previewLoadError')} />;
+        return (
+          <ImagePreviewDynamic
+            url={previewUrl}
+            filename={filename}
+            errorMessage={t('previewLoadError')}
+            showEditButton={false}
+          />
+        );
       case 'video':
         return <VideoPreviewDynamic url={previewUrl} filename={filename} errorMessage={t('previewLoadError')} />;
       case 'audio':
@@ -164,12 +174,12 @@ export const RichMediaFilePreview: React.FC<RichMediaFilePreviewProps> = memo(
         return <PptxPreviewDynamic previewUrl={previewUrl} />;
       case 'xlsx':
         return <SpreadsheetPreviewDynamic content="" filename={filename} previewUrl={previewUrl} />;
-            case 'unsupported':
-              return (
-                <div
-                  data-testid="workspace-preview-unsupported"
-                  className="flex flex-col items-center justify-center h-full gap-3 px-4 text-muted-foreground"
-                >
+      case 'unsupported':
+        return (
+          <div
+            data-testid="workspace-preview-unsupported"
+            className="flex flex-col items-center justify-center h-full gap-3 px-4 text-muted-foreground"
+          >
             <FileQuestion className="h-8 w-8 mb-1" />
             <span className="text-sm text-center">{t('unsupportedPreview')}</span>
             <button

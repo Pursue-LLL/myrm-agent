@@ -160,9 +160,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
 
         removed = await asyncio.to_thread(cleanup_orphan_eval_workspaces)
         if removed:
-            logger.info(
-                "[Startup] Removed %d orphan eval workspace(s)", removed
-            )
+            logger.info("[Startup] Removed %d orphan eval workspace(s)", removed)
     except Exception as exc:  # noqa: BLE001
         logger.warning("[Startup] Orphan eval workspace sweep skipped: %s", exc)
 
@@ -528,7 +526,9 @@ async def _phase_1b_parallel() -> None:
             )
 
     async def _init_builtin_agents() -> None:
-        from app.services.agent.builtin_specs.builtin_initializer import initialize_builtin_agents
+        from app.services.agent.builtin_specs.builtin_initializer import (
+            initialize_builtin_agents,
+        )
 
         await initialize_builtin_agents()
 

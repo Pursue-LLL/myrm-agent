@@ -58,7 +58,7 @@ Design notes:
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `gateway.py` | ✅ 核心 | Agent 执行网关 — 并发/内存压力熔断/排队与执行超时/优雅排空/活跃会话元数据；**`reserve_session` / `release_session`**（persist 前预占，`reserved_only`→`execute_stream`）；互斥 busy 经 SSE **`error_type:AgentBusyError`**（HTTP 200，非 HTTP 409）；`interrupt()` / `interrupt_session`；`ActiveSessionInfo` 弱引用 + `current_message_id` |
+| `gateway.py` | ✅ 核心 | Agent 执行网关 — 并发/内存压力熔断/排队与执行超时/优雅排空/活跃会话元数据；**`reserve_session` / `release_session`**（persist 前预占，`reserved_only`→`execute_stream`）；**`release_if_reserved_only`**（turn 在 `execute_stream` 接管前退出时清理残留预占，避免 chat 永久 busy）；互斥 busy 经 SSE **`error_type:AgentBusyError`**（HTTP 200，非 HTTP 409）；`interrupt()` / `interrupt_session`；`ActiveSessionInfo` 弱引用 + `current_message_id` |
 | `confidence_approval_flow.py` | ✅ 核心 | 多信号风控审批流 — 基于置信度 + 2 个客观确定性信号（diff 变化范围、历史成功率）的智能审批。高分且全部风控信号绿灯时静默自动合并，任何红灯或 runtime failure 修复即降级人工 Diff Review。`ApprovalResult.risk_signals` 记录降级原因；risk_signals / runtime evidence 持久化为 `reason_code`、`remediation` 和审核证据供前端展示 |
 | `agent_service.py` | ✅ 核心 | Agent CRUD。WebUI mutable 变更前委托 `ProfileSnapshotService`；`update_agent` 返回 `AgentUpdateOutcome`（含 `snapshot_saved`）。MCP 变更后 POOLED 单元由 `compute_execution_fingerprint` 在下一 turn 重建。创建/更新/删除/回滚后失效 `AgentProfileResolver` 缓存并热重载 CommandRegistry。 |
 | `mcp_runtime_prepare.py` | ✅ 核心 | MCP 配置 secret/OAuth 注入 SSOT；factory build 共用 | ✅ |

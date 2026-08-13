@@ -159,8 +159,10 @@ async def _run_layer_eval(
     from myrm_agent_harness.eval import MatrixRunner
 
     from app.core.eval.benchmarks import (
+        benchmark_decontam,
         benchmark_needs_judge,
         benchmark_required_tools,
+        benchmark_run_limits,
         build_benchmark_cases,
     )
     from app.core.eval.model_config import (
@@ -205,6 +207,8 @@ async def _run_layer_eval(
         judge_config, judge_model = await _resolve_judge_config()
 
     benchmark_tools = benchmark_required_tools(benchmark_id)
+    max_tool_calls, max_iterations = benchmark_run_limits(benchmark_id)
+    blocked_hostnames, blocked_terms = benchmark_decontam(benchmark_id)
     memory_dir = Path(DEFAULT_LAYERS_MEMORY_DIR) / f"layers_{int(time.time())}"
 
     executors: dict[str, AgentExecutor] = {}
@@ -213,6 +217,10 @@ async def _run_layer_eval(
             profile_id=profile_id,
             benchmark_mode=spec.benchmark_mode,
             benchmark_tools=benchmark_tools,
+            max_tool_calls=max_tool_calls,
+            max_iterations=max_iterations,
+            blocked_hostnames=blocked_hostnames,
+            blocked_terms=blocked_terms,
             enable_memory=spec.memory_enabled,
             memory_base_path=str(memory_dir) if spec.memory_enabled else None,
             skill_ids_override=None if spec.skills_enabled else [],
@@ -281,6 +289,13 @@ async def _run_layer_eval(
     report_data["judge_model"] = judge_model
     report_data["agent_model"] = agent_model
     report_data["limit"] = limit if sampled else None
+    # Benchmark-declared run budgets so the report self-describes how many
+    # tool calls / iterations each case was allowed (measurement-decay guard).
+    report_data["max_tool_calls"] = max_tool_calls
+    report_data["max_iterations"] = max_iterations
+    report_data["decontam_active"] = bool(
+        blocked_hostnames or blocked_terms
+    )
     # A user abort mid-run leaves partial results: mark the report so it is
     # never mistaken for a complete run in the Eval Lab history.
     report_data["aborted"] = bool(eval_state.matrix_state.get("abort_requested"))

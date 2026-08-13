@@ -60,9 +60,24 @@ class LocalEvalExecutor:
         benchmark_tools: tuple[str, ...] = (),
         skill_ids_override: list[str] | None = None,
         resolve_shared_contexts: bool = True,
+        max_tool_calls: int | None = None,
+        max_iterations: int | None = None,
+        blocked_hostnames: tuple[str, ...] | None = None,
+        blocked_terms: tuple[str, ...] | None = None,
     ) -> None:
         self.profile_id = profile_id
         self.benchmark_mode = benchmark_mode
+        # Run budgets a benchmark may declare on its spec. ``None`` keeps the
+        # engine defaults; a declared value pins the exact budget so the same
+        # benchmark runs reproducibly across harness versions (measurement
+        # decay guard) instead of silently inheriting engine defaults.
+        self._max_tool_calls = max_tool_calls
+        self._max_iterations = max_iterations
+        # Benchmark decontamination blocklists: hosts rejected by web_fetch and
+        # substrings rejected in web_search queries. Installed only when the
+        # caller resolves them from the benchmark spec — never for normal runs.
+        self._blocked_hostnames = blocked_hostnames
+        self._blocked_terms = blocked_terms
         # Builtin-tool whitelist a benchmark may declare to be runnable in
         # benchmark_mode (e.g. BrowseComp requires web_search). Default empty:
         # a plain benchmark run keeps the CORE file/shell baseline only.
@@ -268,6 +283,13 @@ class LocalEvalExecutor:
                 "enable_replan": False,
                 "enable_context_compression": False,
             }
+            # A benchmark-declared tool-call budget pins the engine cap so the
+            # scored run cannot silently drift with engine defaults; when the
+            # spec leaves it unset the engine default applies.
+            if self._max_tool_calls:
+                agent_engine_params["max_tool_calls"] = self._max_tool_calls
+            if self._max_iterations:
+                agent_max_iterations = self._max_iterations
 
         # Layered-eval ablation applies after profile resolution so it is the
         # final word on skill participation (benchmark_mode already emptied the
@@ -350,6 +372,8 @@ class LocalEvalExecutor:
             and configs.search_is_user_configured
             and await verify_search_service_available(configs.search_cfg),
             enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
+            benchmark_blocked_hostnames=self._blocked_hostnames or (),
+            benchmark_blocked_terms=self._blocked_terms or (),
             **resolve_agent_mount(
                 ExecutionSurface.EVAL,
                 resolve_builtin_tool_flags(enabled_builtin_tools),
@@ -388,6 +412,9 @@ class LocalEvalExecutor:
         start_time = time.perf_counter()
         chunks: list[str] = []
         tools_called: list[str | dict[str, Any]] = []
+        tool_call_details: list[dict[str, object]] = []
+        limit_reached: str | None = None
+        blocked_count = 0
         total_input_tokens = 0
         total_output_tokens = 0
 
@@ -407,6 +434,32 @@ class LocalEvalExecutor:
                     )
                     if tool_name:
                         tools_called.append(tool_name)
+                    # Record a per-step summary (tool name + step data) so the
+                    # eval report can disclose the action trajectory — the same
+                    # TASKS_STEPS payload the frontend renders live. Error steps
+                    # carry a structured ``error_category`` (e.g. the
+                    # benchmark_blocked decontamination guard) which lets the
+                    # run count pollution-guard engagement.
+                    step_detail: dict[str, object] = {
+                        "tool_name": tool_name,
+                        "step_key": str(event.get("step_key", "") or ""),
+                    }
+                    step_data = event.get("data")
+                    if isinstance(step_data, list) and step_data:
+                        step_detail["detail"] = step_data
+                    if event.get("status") == "error":
+                        step_detail["error"] = str(
+                            event.get("error", "") or ""
+                        )[:300]
+                    tool_call_details.append(step_detail)
+                    if event.get("error_category") == "benchmark_blocked":
+                        blocked_count += 1
+                elif event_type == "engine_limit_reached":
+                    data = event.get("data")
+                    if isinstance(data, dict):
+                        limit_type = str(data.get("limit_type", "") or "")
+                        if limit_type:
+                            limit_reached = limit_type
                 elif event_type == "token_usage":
                     # The harness emits token events as {"usage": {"prompt_tokens": ...,
                     # "completion_tokens": ..., ...}}; the usage dict never carries
@@ -433,6 +486,9 @@ class LocalEvalExecutor:
         return AgentResponse(
             answer="".join(chunks),
             tools_called=tools_called,
+            tool_call_details=tool_call_details,
+            limit_reached=limit_reached,
+            blocked_count=blocked_count,
             extra_timings={"execution_ms": elapsed_ms},
             token_usage={
                 "input_tokens": total_input_tokens,

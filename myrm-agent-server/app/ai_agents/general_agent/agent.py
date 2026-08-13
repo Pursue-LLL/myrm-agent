@@ -90,6 +90,8 @@ class GeneralAgent(ToolSetupMixin):
         client_surface: str | None = None,
         enable_web_search: bool = True,
         enable_web_fetch: bool = True,
+        benchmark_blocked_hostnames: tuple[str, ...] = (),
+        benchmark_blocked_terms: tuple[str, ...] = (),
         enable_browser: bool = False,
         browser_source: str | None = None,
         dialog_policy: str | None = None,
@@ -200,6 +202,10 @@ class GeneralAgent(ToolSetupMixin):
         self.client_surface = client_surface
         self.enable_web_search = enable_web_search
         self.enable_web_fetch = enable_web_fetch
+        # Benchmark-only web content policy (hosts/queries) installed by the
+        # eval executor; empty in normal chat so product use is never filtered.
+        self.benchmark_blocked_hostnames = benchmark_blocked_hostnames
+        self.benchmark_blocked_terms = benchmark_blocked_terms
         self.enable_browser = enable_browser
         self.browser_source = browser_source
         self.dialog_policy = dialog_policy

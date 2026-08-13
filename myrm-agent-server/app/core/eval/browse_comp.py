@@ -63,6 +63,19 @@ DOWNLOAD_BACKOFF_BASE_S = 2
 # Official test-set size (1266 research questions).
 BROWSECOMP_TASK_COUNT = 1266
 
+BROWSECOMP_JUDGE_PROMPT = """You are grading whether a model's answer correctly answers a research question, based only on the given question and reference answer.
+
+{criteria}
+
+Model Prediction: {output}
+
+Judge strictly by semantic agreement with the reference answer. The prediction is CORRECT when it fully includes the important information in the reference answer and contains no contradiction. Language, capitalization, punctuation, grammar, order, equivalent translations, and harmless uncertainty do not matter. Alternative descriptions grouped together in one pair of brackets are interchangeable; answers to distinct aspects in separate brackets must all be present.
+
+The prediction is INCORRECT when it omits a required aspect, adds a contradictory fact, merely repeats the question, provides no direct answer, or lists multiple incompatible candidate answers. For numerical answers, ordinary rounding that preserves the value is acceptable. If the reference answer contains more detail than the question asks for, only the requested part is required.
+
+Reply EXACTLY with 'PASS' if the prediction is correct, or 'FAIL: <reason>' if it is incorrect."""
+
+
 BROWSECOMP_SPEC = BenchmarkSpec(
     id="browsecomp",
     display_name="BrowseComp",
@@ -76,22 +89,19 @@ BROWSECOMP_SPEC = BenchmarkSpec(
     scoring="llm_judge",
     required_tools=("web_search",),
     supports_memory_ab=True,
+    # Web research is multi-hop: pin the run budgets explicitly so a scored
+    # run measures the model instead of the engine limit. Values match the
+    # official simple-evals agent defaults (30 tool calls per turn).
+    max_tool_calls=30,
+    max_iterations=50,
+    # Official scoring reference is OpenAI's simple-evals harness; our run
+    # grades with the identical BrowseComp judge rubric above.
+    harness="official",
+    judge_prompt=BROWSECOMP_JUDGE_PROMPT,
 )
 
 # Registers the spec so /eval/benchmarks lists BrowseComp alongside WBBench.
 register_benchmark(BROWSECOMP_SPEC)
-
-BROWSECOMP_JUDGE_PROMPT = """You are grading whether a model's answer correctly answers a research question, based only on the given question and reference answer.
-
-{criteria}
-
-Model Prediction: {output}
-
-Judge strictly by semantic agreement with the reference answer. The prediction is CORRECT when it fully includes the important information in the reference answer and contains no contradiction. Language, capitalization, punctuation, grammar, order, equivalent translations, and harmless uncertainty do not matter. Alternative descriptions grouped together in one pair of brackets are interchangeable; answers to distinct aspects in separate brackets must all be present.
-
-The prediction is INCORRECT when it omits a required aspect, adds a contradictory fact, merely repeats the question, provides no direct answer, or lists multiple incompatible candidate answers. For numerical answers, ordinary rounding that preserves the value is acceptable. If the reference answer contains more detail than the question asks for, only the requested part is required.
-
-Reply EXACTLY with 'PASS' if the prediction is correct, or 'FAIL: <reason>' if it is incorrect."""
 
 
 class DownloadAbortedError(RuntimeError):

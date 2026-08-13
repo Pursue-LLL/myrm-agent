@@ -335,7 +335,6 @@
       "memory-backup": "Memory Backup",
       "memory-team-hub": "Team Assets",
       "memory-cloud-backup": "Cloud Sync",
-      "memory-archival": "Memory Archival",
       "memory-migration": "Migration",
       "experimentalFeatures": "Experimental",
       "system": "System",
@@ -5351,29 +5350,6 @@
       "enabled": "Enable Cloud Backup",
       "save": "Save Configuration"
     },
-    "memoryArchival": {
-      "title": "Memory Archival",
-      "description": "Automatically archive old, rarely-accessed memories to improve search performance.",
-      "criteriaTitle": "Archival Criteria",
-      "criteriaAge": "Memory age ≥ 180 days (6 months)",
-      "criteriaAccess": "Access count ≤ 5 times",
-      "criteriaImportance": "Importance ≤ 0.3 (low priority)",
-      "criteriaNote": "All criteria must be met for a memory to be archived.",
-      "runArchival": "Run Archival",
-      "archiving": "Archiving...",
-      "confirmTitle": "Run Memory Archival",
-      "confirmDescription": "This will move old, rarely-accessed memories to archival storage. Archived memories can be searched and restored anytime.",
-      "cancel": "Cancel",
-      "confirm": "Confirm",
-      "archiveSuccess": "Archived {count} memories",
-      "noMemoriesToArchive": "No memories eligible for archival",
-      "archiveError": "Failed to run archival",
-      "benefitsTitle": "Benefits",
-      "benefit1": "Improved search performance by reducing active corpus size",
-      "benefit2": "Reduced BM25 index size for faster keyword matching",
-      "benefit3": "Historical data preserved without deletion",
-      "benefit4": "Archived memories remain searchable via dedicated API"
-    },
     "sessionAnalytics": {
       "duration": "Duration",
       "messages": "Messages",
@@ -5980,26 +5956,6 @@
         }
       }
     },
-    "description": "Auto-archive old, low-access memories to improve search performance.",
-    "criteriaTitle": "Archive Criteria",
-    "criteriaAge": "Memory age ≥ 180 days (6 months)",
-    "criteriaAccess": "Access count ≤ 5 times",
-    "criteriaImportance": "Importance ≤ 0.3 (low priority)",
-    "criteriaNote": "All criteria must be met simultaneously for archival.",
-    "runArchival": "Run Archival",
-    "archiving": "Archiving...",
-    "confirmTitle": "Run Memory Archival",
-    "confirmDescription": "This will move old, low-access memories to archive storage. Archived memories can be searched and restored at any time.",
-    "cancel": "Cancel",
-    "confirm": "Confirm",
-    "archiveSuccess": "Archived {count} memories",
-    "noMemoriesToArchive": "No memories meet the archive criteria",
-    "archiveError": "Archival execution failed",
-    "benefitsTitle": "Benefits",
-    "benefit1": "Improves search performance by reducing active corpus size",
-    "benefit2": "Reduces BM25 index size for faster keyword matching",
-    "benefit3": "Historical data preserved, not deleted",
-    "benefit4": "Archived memories searchable via dedicated API",
     "domainSkills": {
       "title": "Domain Skills",
       "description": "Executable tool packs for frequently visited sites — accelerate repeated browser tasks",
@@ -8588,10 +8544,6 @@
       "memory-backup": {
         "title": "Memory Backup",
         "description": "Backup and restore your memory data for data safety"
-      },
-      "memory-archival": {
-        "title": "Memory Archival",
-        "description": "Archive old memories to improve search performance"
       },
       "memory-cloud-backup": {
         "title": "Memory Cloud Backup",
@@ -14857,6 +14809,10 @@
       "cost": "Cost",
       "time": "Time",
       "memoryCalls": "Memory Calls",
+      "toolCalls": "Tool Calls",
+      "limitHits": "Limit Hits",
+      "blocked": "Blocked",
+      "limitHitTitle": "This case was stopped because the agent hit the configured run budget (e.g. max tool calls) — its answer is incomplete",
       "matrixDetail": "Case × Profile Matrix",
       "case": "Case",
       "legend": {

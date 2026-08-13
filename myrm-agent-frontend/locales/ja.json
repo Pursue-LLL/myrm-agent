@@ -312,7 +312,6 @@
       "memory-backup": "メモリバックアップ",
       "memory-team-hub": "チーム資産",
       "memory-cloud-backup": "クラウド同期",
-      "memory-archival": "メモリアーカイブ",
       "memory-migration": "データ移行",
       "experimentalFeatures": "実験機能",
       "system": "システム",
@@ -5047,29 +5046,6 @@
       "enabled": "クラウドバックアップを有効にする",
       "save": "設定を保存"
     },
-    "memoryArchival": {
-      "title": "メモリアーカイブ",
-      "description": "アクセス頻度の低い古いメモリを自動的にアーカイブし、検索パフォーマンスを向上させます。",
-      "criteriaTitle": "アーカイブ条件",
-      "criteriaAge": "メモリの経過日数 ≥ 180 日（6か月）",
-      "criteriaAccess": "アクセス回数 ≤ 5 回",
-      "criteriaImportance": "重要性 ≤ 0.3（低優先度）",
-      "criteriaNote": "メモリがアーカイブされるにはすべての条件を同時に満たす必要があります。",
-      "runArchival": "アーカイブを実行",
-      "archiving": "アーカイブ中...",
-      "confirmTitle": "メモリアーカイブを実行",
-      "confirmDescription": "古くてアクセス頻度の低いメモリをアーカイブストレージに移動します。アーカイブされたメモリはいつでも検索・復元できます。",
-      "cancel": "キャンセル",
-      "confirm": "確認",
-      "archiveSuccess": "{count} 件のメモリをアーカイブしました",
-      "noMemoriesToArchive": "ない符合アーカイブ条件のメモリ",
-      "archiveError": "アーカイブの実行に失敗",
-      "benefitsTitle": "利点",
-      "benefit1": "アクティブなコーパスを削減して検索パフォーマンスを向上",
-      "benefit2": "BM25 インデックスサイズが減り、キーワード一致が高速化",
-      "benefit3": "履歴データを保持し、削除しない",
-      "benefit4": "アーカイブ済みメモリは専用 API 検索で利用可能"
-    },
     "sessionAnalytics": {
       "duration": "時間",
       "messages": "メッセージ",
@@ -5676,26 +5652,6 @@
         }
       }
     },
-    "description": "アクセス頻度の低い古いメモリを自動的にアーカイブし、検索パフォーマンスを向上させます。",
-    "criteriaTitle": "アーカイブ条件",
-    "criteriaAge": "メモリの経過日数 ≥ 180 日（6か月）",
-    "criteriaAccess": "アクセス回数 ≤ 5 回",
-    "criteriaImportance": "重要性 ≤ 0.3（低優先度）",
-    "criteriaNote": "アーカイブされるにはすべての条件を同時に満たす必要があります。",
-    "runArchival": "アーカイブを実行",
-    "archiving": "アーカイブ中...",
-    "confirmTitle": "メモリアーカイブを実行",
-    "confirmDescription": "古くてアクセス頻度の低いメモリをアーカイブストレージに移動します。アーカイブされたメモリはいつでも検索・復元できます。",
-    "cancel": "キャンセル",
-    "confirm": "確認",
-    "archiveSuccess": "{count} 件のメモリをアーカイブしました",
-    "noMemoriesToArchive": "ない符合アーカイブ条件のメモリ",
-    "archiveError": "アーカイブの実行に失敗",
-    "benefitsTitle": "利点",
-    "benefit1": "アクティブなコーパスを削減して検索パフォーマンスを向上",
-    "benefit2": "BM25 インデックスサイズを削減し、キーワード一致を高速化",
-    "benefit3": "履歴データを保持し、削除しない",
-    "benefit4": "アーカイブ済みメモリは専用 API 検索で利用可能",
     "domainSkills": {
       "title": "ドメインスキル",
       "description": "よく使うサイト向けの実行可能ツールパック — ブラウザ操作を加速",
@@ -8506,10 +8462,6 @@
       "memory-backup": {
         "title": "メモリバックアップ",
         "description": "データの安全性のためにメモリデータをバックアップ・復元します"
-      },
-      "memory-archival": {
-        "title": "メモリアーカイブ",
-        "description": "古いメモリをアーカイブして検索パフォーマンスを向上"
       },
       "theme-studio": {
         "title": "テーマスタジオ",
@@ -14777,6 +14729,10 @@
       "cost": "コスト",
       "time": "時間",
       "memoryCalls": "メモリ呼び出し回数",
+      "toolCalls": "ツール呼び出し",
+      "limitHits": "上限到達",
+      "blocked": "ブロック",
+      "limitHitTitle": "エージェントが設定された実行予算（例: 最大ツール呼び出し数）に達したため、このケースは停止されました — 回答は不完全です",
       "matrixDetail": "ケース × プロファイル マトリックス",
       "case": "ケース",
       "legend": {

@@ -56,7 +56,10 @@ def _log_worker() -> None:
                     item = _log_queue.get(timeout=1.0)
                     batch.append(item)
 
-                    if len(batch) >= batch_size or (time.time() - last_flush) >= flush_interval:
+                    if (
+                        len(batch) >= batch_size
+                        or (time.time() - last_flush) >= flush_interval
+                    ):
                         _flush_batch(batch)
                         batch.clear()
                         last_flush = time.time()
@@ -148,8 +151,17 @@ def start_permission_logger() -> None:
     # 注册到框架层
     from myrm_agent_harness.backends.skills import set_permission_usage_callback
 
-    def callback_wrapper(user_id: str, skill_id: str, permission: str, operation: str, allowed: bool, deny_reason: str) -> None:
-        permission_usage_callback(user_id, skill_id, permission, operation, allowed, deny_reason)
+    def callback_wrapper(
+        user_id: str,
+        skill_id: str,
+        permission: str,
+        operation: str,
+        allowed: bool,
+        deny_reason: str,
+    ) -> None:
+        permission_usage_callback(
+            user_id, skill_id, permission, operation, allowed, deny_reason
+        )
 
     set_permission_usage_callback(callback_wrapper)
     logger.info("Permission logger started")

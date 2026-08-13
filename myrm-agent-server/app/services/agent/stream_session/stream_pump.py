@@ -111,6 +111,10 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
     finally:
         if project_id and lock_acquired:
             project_orchestrator.release(project_id)
+        if session.request.chat_id:
+            from app.services.agent.gateway import get_agent_gateway
+
+            get_agent_gateway().release_if_reserved_only(session.request.chat_id)
         await buffer.end_stream()
 
         # --- Offline Guardian Notification & Cleanup ---

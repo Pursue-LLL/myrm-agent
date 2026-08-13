@@ -10,6 +10,7 @@ from .api_key import APIKey
 from .approval import ApprovalRecord
 from .artifact import Artifact, ArtifactAuditLog, ArtifactVersion
 from .artifact_publication import ArtifactPublication
+from .artifact_share import ArtifactShareRecord
 from .assessment_import import AssessmentImportLedger
 from .assessment_import_metric import AssessmentImportMetricEvent
 from .base import Base
@@ -179,6 +180,7 @@ __all__ = [
     "ArtifactVersion",
     "ArtifactAuditLog",
     "ArtifactPublication",
+    "ArtifactShareRecord",
     # FAQ
     "FaqCorpus",
     "FaqEntry",

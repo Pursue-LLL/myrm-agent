@@ -335,7 +335,6 @@
       "memory-backup": "记忆备份",
       "memory-team-hub": "团队资产",
       "memory-cloud-backup": "云端同步",
-      "memory-archival": "记忆归档",
       "memory-migration": "数据迁移",
       "experimentalFeatures": "实验功能",
       "system": "系统",
@@ -5392,29 +5391,6 @@
       "enabled": "启用云端备份",
       "save": "保存配置"
     },
-    "memoryArchival": {
-      "title": "记忆归档",
-      "description": "自动归档旧的、低访问频率的记忆，提升搜索性能。",
-      "criteriaTitle": "归档条件",
-      "criteriaAge": "记忆年龄 ≥ 180 天（6个月）",
-      "criteriaAccess": "访问次数 ≤ 5 次",
-      "criteriaImportance": "重要性 ≤ 0.3（低优先级）",
-      "criteriaNote": "所有条件必须同时满足才会归档。",
-      "runArchival": "执行归档",
-      "archiving": "归档中...",
-      "confirmTitle": "执行记忆归档",
-      "confirmDescription": "这将把旧的、低访问频率的记忆移至归档存储。归档的记忆随时可以搜索和恢复。",
-      "cancel": "取消",
-      "confirm": "确认",
-      "archiveSuccess": "已归档 {count} 条记忆",
-      "noMemoriesToArchive": "没有符合归档条件的记忆",
-      "archiveError": "归档执行失败",
-      "benefitsTitle": "收益",
-      "benefit1": "通过减小活跃语料库提升搜索性能",
-      "benefit2": "减小 BM25 索引大小，加快关键词匹配",
-      "benefit3": "历史数据保留，不删除",
-      "benefit4": "归档记忆可通过专用API搜索"
-    },
     "sessionAnalytics": {
       "duration": "时长",
       "messages": "消息",
@@ -5980,26 +5956,6 @@
         }
       }
     },
-    "description": "自动归档旧的、低访问频率的记忆，提升搜索性能。",
-    "criteriaTitle": "归档条件",
-    "criteriaAge": "记忆年龄 ≥ 180 天（6个月）",
-    "criteriaAccess": "访问次数 ≤ 5 次",
-    "criteriaImportance": "重要性 ≤ 0.3（低优先级）",
-    "criteriaNote": "所有条件必须同时满足才会归档。",
-    "runArchival": "执行归档",
-    "archiving": "归档中...",
-    "confirmTitle": "执行记忆归档",
-    "confirmDescription": "这将把旧的、低访问频率的记忆移至归档存储。归档的记忆随时可以搜索和恢复。",
-    "cancel": "取消",
-    "confirm": "确认",
-    "archiveSuccess": "已归档 {count} 条记忆",
-    "noMemoriesToArchive": "没有符合归档条件的记忆",
-    "archiveError": "归档执行失败",
-    "benefitsTitle": "收益",
-    "benefit1": "通过减小活跃语料库提升搜索性能",
-    "benefit2": "减小 BM25 索引大小，加快关键词匹配",
-    "benefit3": "历史数据保留，不删除",
-    "benefit4": "归档记忆可通过专用API搜索",
     "domainSkills": {
       "title": "域技能",
       "description": "为常用网站提供可执行工具包 — 加速重复浏览器操作",
@@ -8588,10 +8544,6 @@
       "memory-backup": {
         "title": "记忆备份",
         "description": "备份和恢复您的记忆数据，保障数据安全"
-      },
-      "memory-archival": {
-        "title": "记忆归档",
-        "description": "归档旧记忆以提升搜索性能"
       },
       "memory-cloud-backup": {
         "title": "记忆云备份",
@@ -14828,6 +14780,10 @@
       "cost": "成本",
       "time": "耗时",
       "memoryCalls": "记忆调用次数",
+      "toolCalls": "工具调用",
+      "limitHits": "命中上限",
+      "blocked": "拦截",
+      "limitHitTitle": "该用例因触达配置的运行预算（如最大工具调用数）而提前结束，答案可能不完整",
       "matrixDetail": "用例 × 配置矩阵",
       "case": "用例",
       "legend": {

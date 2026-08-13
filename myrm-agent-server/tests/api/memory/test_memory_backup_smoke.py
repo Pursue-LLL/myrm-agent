@@ -1,11 +1,10 @@
-"""Smoke tests for memory backup and archival HTTP routes (auth + JSON shape).
+"""Smoke tests for memory backup HTTP routes (auth + JSON shape).
 
 Covers:
 - GET /memory/backup/list — empty list
 - POST /memory/backup/create — success path (manager mocked)
 - POST /memory/backup/restore — success path (manager mocked)
 - DELETE /memory/backup/{id} — success path (manager mocked)
-- POST /memory/archival/auto — zero archived (typical dev DB)
 
 Uses dependency overrides only (no external services).
 """
@@ -18,7 +17,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.memory.archival import ArchivalResult
 from myrm_agent_harness.toolkits.memory.backup import BackupMetadata, BackupResult, RestoreResult
 
 from app.api.memory.router import router as memory_router
@@ -36,9 +34,6 @@ def _build_client(
         return "test-user-smoke"
 
     mock_crud = MagicMock()
-    mock_full.archive_memories_auto = AsyncMock(
-        return_value=ArchivalResult(archived_count=0, candidates=[], duration_ms=1.0),
-    )
 
     async def dep_crud() -> MagicMock:
         return mock_crud
@@ -46,7 +41,6 @@ def _build_client(
     async def dep_full() -> MagicMock:
         return mock_full
 
-    pass
     app.dependency_overrides[get_crud_memory_manager] = dep_crud
     app.dependency_overrides[get_memory_manager] = dep_full
 
@@ -66,15 +60,6 @@ def test_backup_list_returns_empty_array(memory_test_client: TestClient) -> None
     data = response.json()
     assert data["backups"] == []
     assert data["total"] == 0
-
-
-def test_archival_auto_returns_json(memory_test_client: TestClient) -> None:
-    response = memory_test_client.post("/memory/archival/auto")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is True
-    assert data["archived_count"] == 0
-    assert "duration_ms" in data
 
 
 def test_backup_create_restore_delete_json_shape() -> None:

@@ -191,8 +191,13 @@ const LoadingOverlay: React.FC = memo(() => (
 LoadingOverlay.displayName = 'LoadingOverlay';
 
 /** 图片预览组件（支持懒加载 + 标注编辑） */
-export const ImagePreview: React.FC<{ url: string; filename: string; errorMessage: string }> = memo(
-  ({ url, filename, errorMessage }) => {
+export const ImagePreview: React.FC<{
+  url: string;
+  filename: string;
+  errorMessage: string;
+  showEditButton?: boolean;
+}> = memo(
+  ({ url, filename, errorMessage, showEditButton = true }) => {
     const [isLoaded, setIsLoaded] = React.useState(false);
     const [hasError, setHasError] = React.useState(false);
     const [editing, setEditing] = React.useState(false);
@@ -258,7 +263,7 @@ export const ImagePreview: React.FC<{ url: string; filename: string; errorMessag
           onError={() => setHasError(true)}
         />
 
-        {isLoaded && !hasError && (
+        {isLoaded && !hasError && showEditButton && (
           <button
             type="button"
             onClick={() => setEditing(true)}

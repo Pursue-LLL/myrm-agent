@@ -71,6 +71,7 @@ def parse_judge_json(raw: str) -> dict[str, object] | None:
         last_verdict["done"] = done != 0
     return last_verdict
 
+
 # =============================================================================
 # Agent History Expansion
 # =============================================================================
@@ -105,12 +106,28 @@ def _build_tool_result_text(tool_name: str, sources: list[dict[str, object]]) ->
         return "\n\n".join(lines) if lines else "Search completed with results."
 
     if any(kw in tool_name.lower() for kw in ("fetch", "browse", "webpage")):
-        urls = [str(s.get("url", "")) for s in sources if s.get("type") == "web_fetch" and s.get("url")]
-        return f"Fetched content from: {', '.join(urls)}" if urls else "Web page content fetched."
+        urls = [
+            str(s.get("url", ""))
+            for s in sources
+            if s.get("type") == "web_fetch" and s.get("url")
+        ]
+        return (
+            f"Fetched content from: {', '.join(urls)}"
+            if urls
+            else "Web page content fetched."
+        )
 
     if "skill" in tool_name.lower() or "mcp" in tool_name.lower():
-        skills = [str(s.get("skill_name", "")) for s in sources if s.get("type") == "mcp" and s.get("skill_name")]
-        return f"MCP skills executed: {', '.join(skills)}" if skills else "Skill executed successfully."
+        skills = [
+            str(s.get("skill_name", ""))
+            for s in sources
+            if s.get("type") == "mcp" and s.get("skill_name")
+        ]
+        return (
+            f"MCP skills executed: {', '.join(skills)}"
+            if skills
+            else "Skill executed successfully."
+        )
 
     return f"Tool '{tool_name}' completed successfully."
 
@@ -211,10 +228,14 @@ async def convert_chat_history(
 
         if role == "human":
             meta = item[2] if len(item) > 2 and isinstance(item[2], dict) else {}
-            processed_content = await _process_human_content(content, meta, model_cfg, vision_fallback_model_cfg)
+            processed_content = await _process_human_content(
+                content, meta, model_cfg, vision_fallback_model_cfg
+            )
             messages.append(HumanMessage(content=processed_content))
         else:
-            assistant_meta = item[2] if len(item) > 2 and isinstance(item[2], dict) else {}
+            assistant_meta = (
+                item[2] if len(item) > 2 and isinstance(item[2], dict) else {}
+            )
             text_content = str(content) if not isinstance(content, str) else content
             expanded = _expand_agent_history(text_content)
             reasoning_content = assistant_meta.get("reasoning_content")
@@ -296,7 +317,9 @@ def _compress_base64_image(b64_data: str) -> str | None:
             ratio = min(max_dim / w, max_dim / h)
             img = img.resize((int(w * ratio), int(h * ratio)), Image.Resampling.LANCZOS)
 
-        if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        if img.mode in ("RGBA", "LA") or (
+            img.mode == "P" and "transparency" in img.info
+        ):
             img = img.convert("RGBA")
             bg = Image.new("RGB", img.size, (255, 255, 255))
             bg.paste(img, mask=img.split()[3])
@@ -341,7 +364,9 @@ async def preprocess_inbound_multimodal_query(
     if not has_images:
         return query
 
-    supports_vision = getattr(model_cfg, "supports_vision", False) if model_cfg else True
+    supports_vision = (
+        getattr(model_cfg, "supports_vision", False) if model_cfg else True
+    )
     if supports_vision or (
         vision_fallback_model_cfg is None and vision_fallback_model_cfgs is None
     ):
@@ -419,7 +444,9 @@ async def _process_human_content(
         processed_items = await asyncio.gather(*tasks) if tasks else []
 
         # 检查是否执行过图像/视频分析，若执行过，需要发送状态清除指令并统一更新 DB
-        if (meta.get("_analyzed_image") or meta.get("_analyzed_video")) and meta.get("chat_id"):
+        if (meta.get("_analyzed_image") or meta.get("_analyzed_video")) and meta.get(
+            "chat_id"
+        ):
             # 统一执行一次 DB 更新，避免多图时产生 DB 写风暴
             message_id = meta.get("message_id")
             if message_id and isinstance(message_id, str):
@@ -428,10 +455,16 @@ async def _process_human_content(
                 from app.services.chat.chat_service import ChatService
 
                 extra_data = meta.get("extra_data", {})
-                asyncio.create_task(ChatService.update_message_extra_data(message_id, extra_data))
+                asyncio.create_task(
+                    ChatService.update_message_extra_data(message_id, extra_data)
+                )
 
             chat_id = meta.get("chat_id")
-            from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+            from app.services.event.app_event_bus import (
+                AppEvent,
+                AppEventType,
+                get_event_bus,
+            )
 
             bus = get_event_bus()
             bus.publish(
@@ -485,12 +518,18 @@ async def _process_image_item(
         if not (is_image_url(image_url) or is_base64_data_url(image_url)):
             return item
 
-        supports_vision = getattr(model_cfg, "supports_vision", False) if model_cfg else True
+        supports_vision = (
+            getattr(model_cfg, "supports_vision", False) if model_cfg else True
+        )
 
         # 计算图片哈希用于字典缓存隔离
         img_hash = hashlib.md5(image_url.encode("utf-8")).hexdigest()
         cache_key = f"{img_hash}:chat_fallback"
-        extra_data = meta.get("extra_data", {}) if isinstance(meta.get("extra_data"), dict) else {}
+        extra_data = (
+            meta.get("extra_data", {})
+            if isinstance(meta.get("extra_data"), dict)
+            else {}
+        )
 
         if not supports_vision and vision_fallback_model_cfg:
             vision_cache = extra_data.get("vision_cache", {})
@@ -500,7 +539,9 @@ async def _process_image_item(
         if is_base64_data_url(image_url):
             byte_size = estimate_base64_byte_size(image_url)
             if byte_size > MAX_IMAGE_READ_BYTES:
-                logger.warning("Image too large to read (%d bytes), degrading to text", byte_size)
+                logger.warning(
+                    "Image too large to read (%d bytes), degrading to text", byte_size
+                )
                 return {
                     "type": "text",
                     "text": f"[Image too large: {byte_size / 1024 / 1024:.1f}MB, limit {MAX_IMAGE_READ_BYTES // 1024 // 1024}MB]",
@@ -527,7 +568,10 @@ async def _process_image_item(
             data_url = f"data:{mime_type};base64,{base64_data}"
             byte_size = estimate_base64_byte_size(data_url)
             if byte_size > MAX_IMAGE_READ_BYTES:
-                logger.warning("Converted image too large to read (%d bytes), degrading to text", byte_size)
+                logger.warning(
+                    "Converted image too large to read (%d bytes), degrading to text",
+                    byte_size,
+                )
                 return {
                     "type": "text",
                     "text": f"[Image too large: {byte_size / 1024 / 1024:.1f}MB, limit {MAX_IMAGE_READ_BYTES // 1024 // 1024}MB]",
@@ -549,7 +593,8 @@ async def _process_image_item(
             return item
 
         if not supports_vision and (
-            vision_fallback_model_cfg is not None or vision_fallback_model_cfgs is not None
+            vision_fallback_model_cfg is not None
+            or vision_fallback_model_cfgs is not None
         ):
             from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
                 create_vision_fallback_engine,
@@ -654,11 +699,16 @@ async def _process_video_item(
         if not video_url:
             return item
 
-        supports_video = getattr(model_cfg, "supports_video", False) if model_cfg else False
+        supports_video = (
+            getattr(model_cfg, "supports_video", False) if model_cfg else False
+        )
 
         video_hash = hashlib.md5(video_url.encode("utf-8")).hexdigest()
 
-        from app.core.vision.media_router import pick_video_fallback_configs, resolve_video_route
+        from app.core.vision.media_router import (
+            pick_video_fallback_configs,
+            resolve_video_route,
+        )
 
         video_cfgs = (
             list(video_fallback_model_cfgs)
@@ -676,7 +726,11 @@ async def _process_video_item(
             has_vision_fallback=bool(vision_cfgs or vision_fallback_model_cfg),
         )
         cache_key = f"{video_hash}:{route.cache_namespace}"
-        extra_data = meta.get("extra_data", {}) if isinstance(meta.get("extra_data"), dict) else {}
+        extra_data = (
+            meta.get("extra_data", {})
+            if isinstance(meta.get("extra_data"), dict)
+            else {}
+        )
 
         if not supports_video and (
             vision_fallback_model_cfg is not None

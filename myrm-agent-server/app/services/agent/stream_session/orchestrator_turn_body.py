@@ -117,6 +117,14 @@ async def launch_early_buffered_stream(
                 request.message_id,
                 "Stream setup failed",
             )
+        finally:
+            # A reserved chat session that never reached execute_stream (setup
+            # failure or cancel before the stream loop) must not leak — release
+            # it so the chat is not stuck busy for subsequent turns.
+            if request.chat_id:
+                from app.services.agent.gateway import get_agent_gateway
+
+                get_agent_gateway().release_if_reserved_only(request.chat_id)
 
     task = asyncio.create_task(
         _background_turn(),
@@ -179,9 +187,11 @@ async def execute_agent_turn_after_reserve(
     else:
         # Mixed-generation hot reload fallback.  A fresh process always takes
         # the split path above; an old worker remains functional until it exits.
-        chat_history = await chat_history_bootstrap.persist_user_message_and_load_history(
-            request,
-            text_content=text_content,
+        chat_history = (
+            await chat_history_bootstrap.persist_user_message_and_load_history(
+                request,
+                text_content=text_content,
+            )
         )
 
     pre_reply_compact_result: CompactResult | None = None

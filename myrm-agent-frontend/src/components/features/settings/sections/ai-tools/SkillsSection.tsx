@@ -49,6 +49,7 @@ import { EvolutionStrategyConfig } from '@/components/features/skills/EvolutionS
 import CuratorSettingsPanel from '@/components/features/skills/CuratorSettingsPanel';
 import SkillDetailSheet from '@/components/features/skills/SkillDetailSheet';
 import { SkillPermissionApprovalDialog } from '@/components/features/skills/SkillPermissionApprovalDialog';
+import { SkillPermissionsManager } from '@/components/features/skills/SkillPermissionsManager';
 import { SkillInstanceManager } from '@/components/features/skills/SkillInstanceManager';
 import SkillBatchImportDialog from '@/components/features/skills/SkillBatchImportDialog';
 import PluginImportDialog from '@/components/features/plugins/PluginImportDialog';
@@ -56,7 +57,7 @@ import { getSkillStatus } from '@/components/features/skills/SkillCard';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import SettingsSection from '../SettingsSection';
 
-type TabValue = 'discover' | 'installed';
+type TabValue = 'discover' | 'installed' | 'permissions';
 
 const SkillsSection = memo(() => {
   const t = useTranslations('settings.skills');
@@ -363,8 +364,7 @@ const SkillsSection = memo(() => {
         const res = await fetch('/api/v1/skills/import', { method: 'POST', body: formData });
         if (!res.ok) {
           const payload = (await res.json().catch(() => null)) as { detail?: unknown } | null;
-          const detail =
-            typeof payload?.detail === 'string' ? payload.detail : t('installed.importFailed');
+          const detail = typeof payload?.detail === 'string' ? payload.detail : t('installed.importFailed');
           throw new Error(detail);
         }
         const result = (await res.json()) as {
@@ -559,7 +559,7 @@ const SkillsSection = memo(() => {
       <SettingsSection title={t('title')} description={t('description')}>
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <TabsList className={cn('grid w-full sm:w-auto', isSandboxMode ? 'grid-cols-1' : 'grid-cols-2')}>
+            <TabsList className={cn('grid w-full sm:w-auto', isSandboxMode ? 'grid-cols-2' : 'grid-cols-3')}>
               {!isSandboxMode && (
                 <TabsTrigger value="discover" className="gap-2">
                   <IconExplore className="h-4 w-4" />
@@ -576,6 +576,12 @@ const SkillsSection = memo(() => {
                   </Badge>
                 )}
               </TabsTrigger>
+              {isLoggedIn && (
+                <TabsTrigger value="permissions" className="gap-2">
+                  <IconShieldAlert className="h-4 w-4" />
+                  {t('tabs.permissions')}
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <div className="flex items-center gap-2">
@@ -821,6 +827,13 @@ const SkillsSection = memo(() => {
               />
             )}
           </TabsContent>
+
+          {/* Permissions Tab */}
+          {isLoggedIn && (
+            <TabsContent value="permissions" className="mt-0">
+              {user && <SkillPermissionsManager userId={user.id} />}
+            </TabsContent>
+          )}
         </Tabs>
       </SettingsSection>
 

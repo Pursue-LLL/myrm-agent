@@ -17,6 +17,7 @@ seed_kanban_in_review_fixture: 创建 IN_REVIEW 看板任务（Fleet pendingAppr
 seed_deliverable_link_fixture: 见 test_fixtures_deliverable.py（workspace 文件 + inline deliverable markdown）
 seed_copilot_fixture: 见 test_fixtures_copilot.py（assistant markdown + active run digest，Lean Co-Pilot Chrome E2E）
 seed_prior_chat_fixture: 见 test_fixtures_prior_chat.py（composer @chat: mention Chrome E2E）
+seed_rich_media_preview_fixture: 见 test_fixtures_rich_media_preview.py（chat + workspace 富媒体文件 · workspace rich-media preview Chrome E2E）
 
 [POS]
 Chats API 本地测试 fixture。为 Wiki citation / Kanban closure / dedup review Chrome E2E 提供可重复、无 LLM 的种子数据。

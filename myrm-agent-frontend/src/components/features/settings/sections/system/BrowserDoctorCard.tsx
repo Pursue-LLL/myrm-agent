@@ -70,8 +70,9 @@ const KNOWN_CHECK_NAMES = [
 
 /**
  * Extract a user-readable message from a non-OK API response.
- * FastAPI errors use `{"detail": "..."}`; fall back to the raw body when it
- * is not JSON or carries no string detail, and to `fallback` when both are empty.
+ * Server errors come in two shapes: FastAPI uses `{"detail": ...}` (string or
+ * validation array), the global exception handler uses `{success, message}`.
+ * Falls back to the raw body when it is not JSON, and to `fallback` when empty.
  */
 async function readApiErrorDetail(resp: Response, fallback: string): Promise<string> {
   const raw = await resp.text();
@@ -79,9 +80,22 @@ async function readApiErrorDetail(resp: Response, fallback: string): Promise<str
     return fallback;
   }
   try {
-    const body = JSON.parse(raw) as { detail?: unknown };
-    if (typeof body.detail === 'string' && body.detail.trim()) {
-      return body.detail;
+    const body = JSON.parse(raw) as {
+      detail?: unknown;
+      message?: unknown;
+    };
+    const detail = body.detail;
+    if (typeof detail === 'string' && detail.trim()) {
+      return detail;
+    }
+    if (Array.isArray(detail) && detail.length > 0) {
+      const first = detail[0] as { msg?: unknown };
+      if (typeof first?.msg === 'string' && first.msg.trim()) {
+        return first.msg;
+      }
+    }
+    if (typeof body.message === 'string' && body.message.trim()) {
+      return body.message;
     }
   } catch {
     // Non-JSON body, fall through to raw text below.
@@ -133,6 +147,8 @@ const BrowserDoctorCard = memo(() => {
   const cleanupOrphans = useCallback(async () => {
     setCleaning(true);
     setCleanupError(null);
+    setCleanupMessage(null);
+    setCleanupHasFailures(false);
     try {
       const resp = await fetch('/api/v1/health/browser/orphans?confirm=true', {
         method: 'DELETE',
@@ -152,6 +168,7 @@ const BrowserDoctorCard = memo(() => {
       setCleanupOpen(false);
       await fetchDoctor(launchTest);
     } catch (err) {
+      setCleanupOpen(false);
       setCleanupError(err instanceof Error ? err.message : t('cleanupFailed'));
     } finally {
       setCleaning(false);

@@ -189,6 +189,45 @@ describe('BrowserDoctorCard', () => {
     });
   });
 
+  it('drops a previous success message when a later cleanup fails', async () => {
+    let deleteCalls = 0;
+    const deleteMock = vi.fn(() => {
+      deleteCalls += 1;
+      if (deleteCalls === 1) {
+        return Promise.resolve(jsonResponse({ killed: 2, dry_run: false, failed: [] }));
+      }
+      return Promise.resolve(jsonResponse({ detail: 'Failed to process orphans' }, false));
+    });
+    const doctorMock = vi.fn((url: string) => {
+      if (url.includes('/browser/doctor')) {
+        return Promise.resolve(jsonResponse(doctorReport('warning')));
+      }
+      return deleteMock();
+    });
+    fetchMock.mockImplementation(doctorMock);
+
+    render(<BrowserDoctorCard />);
+
+    // First cleanup succeeds and shows the success message.
+    await screen.findByText('cleanupOrphans');
+    await userEvent.click(screen.getByText('cleanupOrphans'));
+    let dialog = await screen.findByRole('alertdialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'cleanupOrphans' }));
+    await vi.waitFor(() => {
+      expect(screen.getByText('cleaned')).toBeInTheDocument();
+    });
+
+    // Second cleanup fails: the stale success message must be gone.
+    await userEvent.click(screen.getByText('cleanupOrphans'));
+    dialog = await screen.findByRole('alertdialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'cleanupOrphans' }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText('Failed to process orphans')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('cleaned')).not.toBeInTheDocument();
+  });
+
   it('shows the server error detail instead of a raw JSON string when the doctor request fails', async () => {
     fetchMock.mockImplementation((_url: string) =>
       Promise.resolve(jsonResponse({ detail: 'Doctor backend exploded' }, false)),
@@ -235,6 +274,36 @@ describe('BrowserDoctorCard', () => {
     render(<BrowserDoctorCard />);
 
     expect(await screen.findByText('Internal Server Error')).toBeInTheDocument();
+  });
+
+  it('shows the server message field instead of the raw JSON envelope', async () => {
+    fetchMock.mockImplementation((_url: string) =>
+      Promise.resolve(
+        jsonResponse(
+          { success: false, code: 500, message: 'Internal server error', error: null },
+          false,
+        ),
+      ),
+    );
+
+    render(<BrowserDoctorCard />);
+
+    expect(await screen.findByText('Internal server error')).toBeInTheDocument();
+  });
+
+  it('extracts the first issue message from a FastAPI validation array', async () => {
+    fetchMock.mockImplementation((_url: string) =>
+      Promise.resolve(
+        jsonResponse(
+          { detail: [{ loc: ['query', 'launch_test'], msg: 'Input should be a valid boolean' }] },
+          false,
+        ),
+      ),
+    );
+
+    render(<BrowserDoctorCard />);
+
+    expect(await screen.findByText('Input should be a valid boolean')).toBeInTheDocument();
   });
 
   it('falls back to the localized message when the error body is empty', async () => {

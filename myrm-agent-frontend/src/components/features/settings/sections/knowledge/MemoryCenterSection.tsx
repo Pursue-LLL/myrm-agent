@@ -5,12 +5,11 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import dynamic from 'next/dynamic';
-import { Brain, Archive, Database, Cloud, ArrowRightLeft, MessageCircle, Users } from 'lucide-react';
+import { Brain, Database, Cloud, ArrowRightLeft, MessageCircle, Users } from 'lucide-react';
 import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
 import { isLocalMode } from '@/lib/deploy-mode';
 import MemorySection from './MemorySection';
 import MemoryBackupSection from './MemoryBackupSection';
-import MemoryArchivalSection from './MemoryArchivalSection';
 import RemoteBackupSection from './RemoteBackupSection';
 import { SettingsSkeleton } from '../../common/SettingsSkeleton';
 import { Button } from '@/components/primitives/button';
@@ -48,8 +47,6 @@ const MemoryCenterSection = memo(() => {
       setActiveTab('backup');
     } else if (sub === 'cloud-backup' || sub === 'memory-cloud-backup') {
       setActiveTab('cloud-backup');
-    } else if (sub === 'archival' || sub === 'memory-archival') {
-      setActiveTab('archival');
     } else if (sub === 'follow-ups' || sub === 'followups') {
       setActiveTab('follow-ups');
     } else if (sub === 'team-hub' || sub === 'teamHub') {
@@ -73,8 +70,6 @@ const MemoryCenterSection = memo(() => {
         return '创建系统记忆的安全备份、随时恢复或进行快照版本控制 / Create or restore memory snapshots and backups';
       case 'cloud-backup':
         return '将备份自动同步至云存储(WebDAV/S3)，确保跨设备数据安全 / Auto-sync backups to cloud storage for cross-device safety';
-      case 'archival':
-        return '配置归档策略、运行自动归档，维持高性能的大脑索引 / Manage criteria and run older memory archival';
       case 'follow-ups':
         return t('memoryCenter.tabDescriptions.followUps');
       case 'team-hub':
@@ -116,7 +111,7 @@ const MemoryCenterSection = memo(() => {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList
-          className={`grid w-full max-w-4xl ${showMigration ? 'grid-cols-2 sm:grid-cols-7' : 'grid-cols-2 sm:grid-cols-6'} h-auto bg-secondary/50 backdrop-blur-sm p-1 rounded-xl border border-border/40 mb-6 gap-1`}
+          className={`grid w-full max-w-4xl ${showMigration ? 'grid-cols-2 sm:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'} h-auto bg-secondary/50 backdrop-blur-sm p-1 rounded-xl border border-border/40 mb-6 gap-1`}
         >
           <TabsTrigger
             value="explorer"
@@ -138,13 +133,6 @@ const MemoryCenterSection = memo(() => {
           >
             <Cloud className="h-4 w-4 shrink-0" />
             <span className="truncate">{t('menu.memory-cloud-backup')}</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="archival"
-            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 min-w-0 text-sm font-medium rounded-lg transition-all"
-          >
-            <Archive className="h-4 w-4 shrink-0" />
-            <span className="truncate">{t('menu.memory-archival')}</span>
           </TabsTrigger>
           <TabsTrigger
             value="follow-ups"
@@ -179,9 +167,6 @@ const MemoryCenterSection = memo(() => {
         </TabsContent>
         <TabsContent value="cloud-backup" className="focus-visible:outline-none focus-visible:ring-0">
           <RemoteBackupSection />
-        </TabsContent>
-        <TabsContent value="archival" className="focus-visible:outline-none focus-visible:ring-0">
-          <MemoryArchivalSection />
         </TabsContent>
         <TabsContent value="follow-ups" className="focus-visible:outline-none focus-visible:ring-0">
           <FollowUpsPanel />

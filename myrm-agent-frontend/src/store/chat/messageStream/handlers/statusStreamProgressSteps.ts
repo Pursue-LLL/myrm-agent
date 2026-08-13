@@ -129,6 +129,20 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
                         typeof data.data?.message === 'string'
                       ? data.data.message
                       : '';
+  const isRestartDrop =
+    stepKey === 'model_failover' ||
+    stepKey === 'safety_fallback_active' ||
+    data.restart === true;
+  if (isRestartDrop) {
+    // The recovery re-runs the answer from scratch, so any partial text or
+    // reasoning streamed before it is a draft to drop. Idempotent across the
+    // STATUS and MODEL_FAILOVER SSE channels: only the first event clears a
+    // non-empty buffer, and it always precedes the restreamed chunks.
+    ctx.recievedMessage = '';
+    // Cancel any pending render task from buffered chunks: its closure captures
+    // the pre-clear buffer and would write the stale draft back to the message.
+    ctx.state.scheduler?.cancel?.();
+  }
   actions.setMessages((state) => {
     let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
     if (
@@ -165,6 +179,9 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
     }
 
     if (messageIndex !== -1) {
+      if (isRestartDrop) {
+        H.clearAssistantDraft(state.messages[messageIndex]);
+      }
       if (!state.messages[messageIndex].progressSteps) {
         state.messages[messageIndex].progressSteps = [];
       }

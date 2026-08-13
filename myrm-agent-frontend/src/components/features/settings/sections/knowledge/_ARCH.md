@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Settings 记忆与知识子系统：全局/归档记忆、Wiki、Checkpoint、外部助手迁移 Wizard、待审队列与备份。
+Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助手迁移 Wizard、待审队列与备份。
 
 ## 文件清单
 
@@ -15,7 +15,6 @@ Settings 记忆与知识子系统：全局/归档记忆、Wiki、Checkpoint、�
 | `MemoryMonitorCard.tsx` | 组件 | 记忆用量/健康监控 | ✅ |
 | `WorkingStateCard.tsx` | 组件 | Working state 展示 | ✅ |
 | `MemoryBackupSection.tsx` | 组件 | 记忆备份导出/导入 UI | ✅ |
-| `MemoryArchivalSection.tsx` | 组件 | 归档记忆管理 | ✅ |
 | `RemoteBackupSection.tsx` | 组件 | 远程备份配置 | ✅ |
 | `CheckpointSection.tsx` | 组件 | Checkpoint 快照管理 | ✅ |
 | `FollowUpsPanel.tsx` | 组件 | Commitment / Follow-up 面板 | ✅ |

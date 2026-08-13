@@ -463,7 +463,9 @@ async def add_custom_source(
         WellKnownSkillSource,
     )
 
-    from app.core.skills.marketplace.custom_source_config import add_custom_source as _add_source
+    from app.core.skills.marketplace.custom_source_config import (
+        add_custom_source as _add_source,
+    )
 
     if request.source_type != "well-known":
         raise HTTPException(

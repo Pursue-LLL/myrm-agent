@@ -32,6 +32,7 @@ def workspace_dir(tmp_path):
     """Create a temporary workspace with known structure."""
     (tmp_path / "readme.md").write_text("# Hello")
     (tmp_path / "main.py").write_text("print('hello')")
+    (tmp_path / "artifact.dat").write_bytes(b"\x00\x01\x02binary")
     sub = tmp_path / "src"
     sub.mkdir()
     (sub / "app.ts").write_text("export default {};")
@@ -146,7 +147,7 @@ async def test_browse_files_filters_ignored_dirs(client: AsyncClient, workspace_
 
 @pytest.mark.anyio
 async def test_browse_files_includes_metadata(client: AsyncClient, workspace_dir: str):
-    """File entries should include size and mtime metadata."""
+    """File entries should include size, mtime, and is_text metadata."""
     resp = await client.get("/api/v1/files/browse/files", params={"path": workspace_dir, "depth": 1})
     assert resp.status_code == 200
     entries = resp.json()["data"]["entries"]
@@ -156,6 +157,19 @@ async def test_browse_files_includes_metadata(client: AsyncClient, workspace_dir
         assert fe["size"] is not None
         assert fe["size"] >= 0
         assert fe["mtime"] is not None
+
+
+@pytest.mark.anyio
+async def test_browse_files_is_text_flag(client: AsyncClient, workspace_dir: str):
+    """is_text marks text files True, binary files False, directories null."""
+    resp = await client.get("/api/v1/files/browse/files", params={"path": workspace_dir, "depth": 1})
+    assert resp.status_code == 200
+    entries = resp.json()["data"]["entries"]
+    by_name = {e["name"]: e for e in entries}
+    assert by_name["readme.md"]["is_text"] is True
+    assert by_name["main.py"]["is_text"] is True
+    assert by_name["artifact.dat"]["is_text"] is False
+    assert by_name["src"]["is_text"] is None
 
 
 @pytest.mark.anyio
@@ -430,6 +444,40 @@ async def test_browse_content_unknown_binary_streams(client: AsyncClient, worksp
     assert resp.headers.get("content-type", "").startswith("application/octet-stream")
     assert resp.headers.get("X-Content-Truncated") is None
     assert resp.content == payload
+
+
+@pytest.mark.anyio
+async def test_browse_content_disposition_sanitizes_header(client: AsyncClient, workspace_dir: str):
+    """Quotes and CR/LF in filenames must not inject extra headers."""
+    tricky_path = os.path.join(workspace_dir, 'we"ird\r\nX-Injected: yes.txt')
+    with open(tricky_path, "w") as f:
+        f.write("data")
+    resp = await client.get(
+        "/api/v1/files/browse/content",
+        params={"path": tricky_path, "workspace": workspace_dir},
+    )
+    assert resp.status_code == 200
+    disposition = resp.headers.get("content-disposition", "")
+    assert "\r" not in disposition
+    assert "\n" not in disposition
+    assert "%0D%0A" not in disposition
+    assert "we\\\"ird" in disposition
+
+
+@pytest.mark.anyio
+async def test_browse_content_disposition_non_ascii_filename(client: AsyncClient, workspace_dir: str):
+    """Non-ASCII filenames are carried via RFC 5987 filename* without crashing."""
+    tricky_path = os.path.join(workspace_dir, "报告.txt")
+    with open(tricky_path, "w") as f:
+        f.write("内容")
+    resp = await client.get(
+        "/api/v1/files/browse/content",
+        params={"path": tricky_path, "workspace": workspace_dir},
+    )
+    assert resp.status_code == 200
+    disposition = resp.headers.get("content-disposition", "")
+    assert "filename*=UTF-8''" in disposition
+    assert "%E6%8A%A5%E5%91%8A" in disposition
 
 
 # -----------------------------------------------------------------------

@@ -175,12 +175,43 @@ class TestGatewayReserveSession:
 
         async def run():
             async for _ in gw.execute_stream(
-                _dummy_stream(), agent_type="test", session_id="chat-b", active_message_id="msg-b"
+                _dummy_stream(),
+                agent_type="test",
+                session_id="chat-b",
+                active_message_id="msg-b",
             ):
                 pass
 
         await run()
         assert "chat-b" not in gw._active_sessions
+
+    def test_release_if_reserved_only_releases_pending_reservation(self) -> None:
+        """A reservation never handed to execute_stream must be releasable."""
+        gw = AgentGateway(_cfg())
+        gw.reserve_session("chat-pending", active_message_id="msg-p")
+        assert gw.is_session_active("chat-pending")
+
+        gw.release_if_reserved_only("chat-pending")
+        assert not gw.is_session_active("chat-pending")
+        assert "chat-pending" not in gw._session_info
+
+    def test_release_if_reserved_only_keeps_executing_session(self) -> None:
+        """A session taken over by execute_stream must NOT be released here."""
+        gw = AgentGateway(_cfg())
+        gw.reserve_session("chat-active", active_message_id="msg-a")
+
+        # Simulate execute_stream hand-over: reserved_only flips to False.
+        info = gw._session_info["chat-active"]
+        info.reserved_only = False
+        gw.release_if_reserved_only("chat-active")
+
+        assert gw.is_session_active("chat-active")
+        assert "chat-active" in gw._session_info
+
+    def test_release_if_reserved_only_unknown_session_is_noop(self) -> None:
+        gw = AgentGateway(_cfg())
+        gw.release_if_reserved_only("ghost-chat")
+        assert not gw.is_session_active("ghost-chat")
 
 
 class TestGatewayQueueTimeout:
@@ -1340,10 +1371,7 @@ class TestGatewayCoverageBranches:
         async def raw_stream():
             yield "plain-text-event"
 
-        events = [
-            e
-            async for e in gw.execute_stream(raw_stream(), agent_type="test")
-        ]
+        events = [e async for e in gw.execute_stream(raw_stream(), agent_type="test")]
         assert events == [{"payload": "plain-text-event"}]
 
     @pytest.mark.asyncio
@@ -1353,10 +1381,7 @@ class TestGatewayCoverageBranches:
         async def raw_stream():
             yield {"items": ["alpha", "beta"]}
 
-        events = [
-            e
-            async for e in gw.execute_stream(raw_stream(), agent_type="test")
-        ]
+        events = [e async for e in gw.execute_stream(raw_stream(), agent_type="test")]
         assert events == [{"items": ["alpha", "beta"]}]
 
     @pytest.mark.asyncio

@@ -3,14 +3,13 @@
 /**
  * Skill Permissions Manager
  *
- * 管理已安装Skill的权限。显示每个Skill的required_permissions和granted_permissions，
- * 支持修改（授予/撤销）权限。
- *
- * 类似Android应用权限管理页面的设计。
+ * 管理已安装 Skill 的权限：展示每个 Skill 的 required/granted 权限，
+ * 支持单权限授予/撤销，以及按权限类型一键批量撤销（安全应急场景）。
+ * 入口：设置 → AI 工具 → 技能 → 「权限管理」Tab。
  */
 
 import { useTranslations } from 'next-intl';
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Shield,
   ShieldCheck,
@@ -38,16 +37,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/primitives/alert-dialog';
 import { toast } from '@/hooks/shared/useToast';
 
 export type SkillPermissionType =
-  | 'file_read'
-  | 'file_write'
-  | 'file_delete'
-  | 'shell_exec'
-  | 'code_interpreter'
-  | 'network_access'
-  | 'env_var_access';
+  'file_read' | 'file_write' | 'file_delete' | 'shell_exec' | 'code_interpreter' | 'network_access' | 'env_var_access';
 
 interface SkillPermissionInfo {
   permission: string;
@@ -67,19 +70,8 @@ interface SkillPermissionsManagerProps {
   onPermissionChange?: () => void;
 }
 
-const PERMISSION_LABELS: Record<SkillPermissionType, string> = {
-  file_read: '读取文件',
-  file_write: '写入文件',
-  file_delete: '删除文件',
-  shell_exec: '执行Shell命令',
-  code_interpreter: '执行代码',
-  network_access: '网络访问',
-  env_var_access: '环境变量访问',
-};
+const toCamelCase = (value: string): string => value.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
 
-const getPermissionLabel = (permission: SkillPermissionType): string => PERMISSION_LABELS[permission];
-
-// 权限图标
 const getPermissionIcon = (permission: string) => {
   switch (permission) {
     case 'file_read':
@@ -101,73 +93,23 @@ const getPermissionIcon = (permission: string) => {
   }
 };
 
-// 判断是否危险
-const isDangerousPermission = (permission: string): boolean => {
-  return ['shell_exec', 'code_interpreter', 'file_delete'].includes(permission);
-};
+const isDangerousPermission = (permission: string): boolean =>
+  ['shell_exec', 'code_interpreter', 'file_delete'].includes(permission);
 
-// 单个Skill的权限卡片
-function SkillPermissionCard({
-  skill,
-  onPermissionChange,
-}: {
+interface SkillPermissionCardProps {
   skill: SkillPermissionData;
-  userId: string;
-  onPermissionChange?: () => void;
-}) {
+  disabled: boolean;
+  onTogglePermission: (skill: SkillPermissionData, permission: SkillPermissionType, grant: boolean) => void;
+}
+
+function SkillPermissionCard({ skill, disabled, onTogglePermission }: SkillPermissionCardProps) {
   const t = useTranslations('skills.permissions');
   const [expanded, setExpanded] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const grantedSet = new Set(skill.grantedPermissions.map((p) => p.permission));
-
-  const handleTogglePermission = async (permission: SkillPermissionType, grant: boolean) => {
-    // Revoke权限时显示确认对话框
-    if (!grant) {
-      const confirmed = window.confirm(
-        t('revokeConfirm', {
-          defaultValue:
-            '撤销权限后，Skill将无法执行相关操作。如果有正在运行的任务使用此权限，可能会被中断。\n\n是否继续？',
-        }),
-      );
-      if (!confirmed) return;
-    }
-
-    setLoading(true);
-    try {
-      const endpoint = grant ? 'grant' : 'revoke';
-      const response = await fetch(`/api/v1/skills/${skill.skillId}/permissions/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ permissions: [permission] }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update permission');
-
-      toast({
-        title: grant
-          ? t('permissionGranted', { defaultValue: '权限已授予' })
-          : t('permissionRevoked', { defaultValue: '权限已撤销' }),
-        description: grant
-          ? `${permission}`
-          : t('revokeSuccess', {
-              defaultValue: '权限已撤销。正在运行的任务可能会受到影响。',
-            }),
-      });
-
-      onPermissionChange?.();
-    } catch {
-      toast({
-        title: t('error', { defaultValue: '错误' }),
-        description: t('updateFailed', { defaultValue: '更新权限失败' }),
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const allPermissionsGranted = skill.requiredPermissions.every((p) => grantedSet.has(p));
+  const permissionLabel = (permission: SkillPermissionType): string =>
+    t(`types.${toCamelCase(permission)}.label` as Parameters<typeof t>[0]);
 
   return (
     <Card className="p-4">
@@ -178,20 +120,25 @@ function SkillPermissionCard({
             {allPermissionsGranted ? (
               <Badge variant="outline" className="border-green-500 text-green-500">
                 <ShieldCheck className="mr-1 h-3 w-3" />
-                {t('allGranted', { defaultValue: '已授权' })}
+                {t('allGranted')}
               </Badge>
             ) : (
               <Badge variant="outline" className="border-yellow-500 text-yellow-500">
                 <AlertTriangle className="mr-1 h-3 w-3" />
-                {t('partialGranted', { defaultValue: '部分授权' })}
+                {t('partialGranted')}
               </Badge>
             )}
           </div>
           <div className="mt-1 text-sm text-muted-foreground">
-            {skill.requiredPermissions.length} {t('permissionsRequired', { defaultValue: '项权限' })}
+            {skill.requiredPermissions.length} {t('permissionsRequired')}
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? t('collapse') : t('expand')}
+        >
           {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>
       </div>
@@ -214,18 +161,14 @@ function SkillPermissionCard({
                 <div className="flex items-center gap-3">
                   <Icon className={cn('h-4 w-4', isDangerous ? 'text-destructive' : 'text-muted-foreground')} />
                   <div>
-                    <div className="text-sm font-medium">{getPermissionLabel(permission)}</div>
-                    {isDangerous && (
-                      <div className="text-xs text-destructive">
-                        {t('dangerousPermission', { defaultValue: '危险权限，请谨慎授予' })}
-                      </div>
-                    )}
+                    <div className="text-sm font-medium">{permissionLabel(permission)}</div>
+                    {isDangerous && <div className="text-xs text-destructive">{t('dangerousPermission')}</div>}
                   </div>
                 </div>
                 <Switch
                   checked={isGranted}
-                  disabled={loading}
-                  onCheckedChange={(checked) => handleTogglePermission(permission, checked)}
+                  disabled={disabled}
+                  onCheckedChange={(checked) => onTogglePermission(skill, permission, checked)}
                 />
               </div>
             );
@@ -236,37 +179,54 @@ function SkillPermissionCard({
   );
 }
 
-// 主组件
 export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPermissionsManagerProps) {
   const t = useTranslations('skills.permissions');
   const [skills, setSkills] = useState<SkillPermissionData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingRevoke, setPendingRevoke] = useState<{
+    skill: SkillPermissionData;
+    permission: SkillPermissionType;
+  } | null>(null);
+  const [pendingBulkRevoke, setPendingBulkRevoke] = useState<SkillPermissionType | null>(null);
 
-  const loadSkillPermissions = async () => {
+  const loadSkillPermissions = useCallback(async () => {
     setLoading(true);
     try {
       const skillsResponse = await fetch(`/api/v1/skills/available`);
       if (!skillsResponse.ok) throw new Error('Failed to load skills');
 
-      const skillsData = await skillsResponse.json();
+      const skillsData = (await skillsResponse.json()) as { skills?: { id: string; name: string }[] };
       const skillPermissions: SkillPermissionData[] = [];
 
       for (const skill of skillsData.skills || []) {
-        if (skill.required_permissions && skill.required_permissions.length > 0) {
-          try {
-            const permsResponse = await fetch(`/api/v1/skills/${skill.id}/permissions`);
-            if (permsResponse.ok) {
-              const permsData = await permsResponse.json();
-              skillPermissions.push({
-                skillId: skill.id,
-                skillName: skill.name,
-                requiredPermissions: permsData.required_permissions || [],
-                grantedPermissions: permsData.granted_permissions || [],
-              });
-            }
-          } catch (error) {
-            console.error(`Failed to load permissions for ${skill.id}:`, error);
+        try {
+          const permsResponse = await fetch(`/api/v1/skills/${skill.id}/permissions`);
+          if (!permsResponse.ok) continue;
+          const permsData = (await permsResponse.json()) as {
+            required_permissions?: string[];
+            granted_permissions?: SkillPermissionInfo[];
+          };
+          const requiredPermissions = (permsData.required_permissions || []).filter((p) =>
+            [
+              'file_read',
+              'file_write',
+              'file_delete',
+              'shell_exec',
+              'code_interpreter',
+              'network_access',
+              'env_var_access',
+            ].includes(p),
+          ) as SkillPermissionType[];
+          if (requiredPermissions.length > 0) {
+            skillPermissions.push({
+              skillId: skill.id,
+              skillName: skill.name,
+              requiredPermissions,
+              grantedPermissions: permsData.granted_permissions || [],
+            });
           }
+        } catch (error) {
+          console.error(`Failed to load permissions for ${skill.id}:`, error);
         }
       }
 
@@ -274,78 +234,106 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
     } catch (error) {
       console.error('Failed to load skill permissions:', error);
       toast({
-        title: t('error', { defaultValue: '错误' }),
-        description: t('loadFailed', { defaultValue: '加载Skill权限失败' }),
+        title: t('error'),
+        description: t('loadFailed'),
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     if (userId) {
-      loadSkillPermissions();
+      void loadSkillPermissions();
     }
-  }, [userId]);
+  }, [userId, loadSkillPermissions]);
 
-  const handlePermissionChange = () => {
-    loadSkillPermissions();
-    onPermissionChange?.();
+  const updatePermission = useCallback(
+    async (skill: SkillPermissionData, permission: SkillPermissionType, grant: boolean) => {
+      const endpoint = grant ? 'grant' : 'revoke';
+      try {
+        const response = await fetch(`/api/v1/skills/${skill.skillId}/permissions/${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ permissions: [permission] }),
+        });
+        if (!response.ok) throw new Error('Failed to update permission');
+
+        toast({
+          title: grant ? t('permissionGranted') : t('permissionRevoked'),
+          description: grant ? permission : t('revokeSuccess'),
+        });
+
+        await loadSkillPermissions();
+        onPermissionChange?.();
+      } catch (error) {
+        console.error('Failed to update permission:', error);
+        toast({
+          title: t('error'),
+          description: t('updateFailed'),
+          variant: 'destructive',
+        });
+      }
+    },
+    [loadSkillPermissions, onPermissionChange, t],
+  );
+
+  const handleTogglePermission = (skill: SkillPermissionData, permission: SkillPermissionType, grant: boolean) => {
+    if (grant) {
+      void updatePermission(skill, permission, true);
+    } else {
+      setPendingRevoke({ skill, permission });
+    }
   };
 
-  const handleBulkRevoke = async (permissionType: SkillPermissionType) => {
-    if (!userId) return;
+  const confirmRevoke = async () => {
+    if (!pendingRevoke) return;
+    const { skill, permission } = pendingRevoke;
+    setPendingRevoke(null);
+    await updatePermission(skill, permission, false);
+  };
 
-    const confirmed = window.confirm(
-      t('bulkRevoke.confirm', {
-        defaultValue: `确定要撤销所有Skill的"${getPermissionLabel(permissionType)}"权限吗？这将影响多个Skill的运行。`,
-      }),
-    );
-
-    if (!confirmed) return;
-
+  const bulkRevoke = async (permissionType: SkillPermissionType) => {
     try {
       const response = await fetch(`/api/v1/skills/permissions/bulk-revoke-by-type`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          permission_type: permissionType,
-        }),
+        body: JSON.stringify({ permission_type: permissionType }),
       });
+      if (!response.ok) throw new Error('Bulk revoke failed');
 
-      if (!response.ok) {
-        throw new Error('Bulk revoke failed');
-      }
-
-      const result = await response.json();
-
+      const result = (await response.json()) as {
+        total_revoked?: number;
+        affected_skills?: string[];
+      };
       toast({
-        title: t('bulkRevoke.success', { defaultValue: '批量撤销成功' }),
+        title: t('bulkRevoke.success'),
         description: t('bulkRevoke.affectedSkills', {
-          defaultValue: `已撤销 ${result.total_revoked} 个权限，影响 ${result.affected_skills.length} 个Skill`,
+          count: String(result.total_revoked ?? 0),
+          skills: String((result.affected_skills || []).length),
         }),
       });
 
-      // Reload permissions
-      loadSkillPermissions();
+      await loadSkillPermissions();
       onPermissionChange?.();
     } catch (error) {
       console.error('Bulk revoke error:', error);
       toast({
-        title: t('bulkRevoke.error', { defaultValue: '批量撤销失败' }),
-        description: t('bulkRevoke.errorDescription', {
-          defaultValue: '无法批量撤销权限，请重试',
-        }),
+        title: t('bulkRevoke.error'),
+        description: t('bulkRevoke.errorDescription'),
         variant: 'destructive',
       });
     }
   };
 
+  const permissionLabel = (permission: SkillPermissionType): string =>
+    t(`types.${toCamelCase(permission)}.label` as Parameters<typeof t>[0]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-muted-foreground">{t('loading', { defaultValue: '加载中...' })}</div>
+        <div className="text-sm text-muted-foreground">{t('loading')}</div>
       </div>
     );
   }
@@ -354,63 +342,50 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
     return (
       <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-12">
         <ShieldX className="h-8 w-8 text-muted-foreground" />
-        <div className="text-sm text-muted-foreground">
-          {t('noSkillsWithPermissions', { defaultValue: '没有需要权限的Skill' })}
-        </div>
+        <div className="text-sm text-muted-foreground">{t('noSkillsWithPermissions')}</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold">{t('title', { defaultValue: 'Skill权限管理' })}</h3>
-          <p className="text-sm text-muted-foreground">
-            {t('description', { defaultValue: '管理已安装Skill的权限，可以随时授予或撤销权限' })}
-          </p>
+          <h3 className="text-lg font-semibold">{t('title')}</h3>
+          <p className="text-sm text-muted-foreground">{t('description')}</p>
         </div>
         <div className="flex gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <AlertTriangle className="mr-2 h-4 w-4" />
-                {t('bulkRevoke.button', { defaultValue: '批量撤销' })}
+                {t('bulkRevoke.button')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleBulkRevoke('shell_exec')}>
-                <Terminal className="mr-2 h-4 w-4" />
-                {t('permissions.shell_exec', { defaultValue: '终端执行' })}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBulkRevoke('file_write')}>
-                <FileEdit className="mr-2 h-4 w-4" />
-                {t('permissions.file_write', { defaultValue: '文件写入' })}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBulkRevoke('file_delete')}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                {t('permissions.file_delete', { defaultValue: '文件删除' })}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBulkRevoke('network_access')}>
-                <Globe className="mr-2 h-4 w-4" />
-                {t('permissions.network_access', { defaultValue: '网络访问' })}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBulkRevoke('code_interpreter')}>
-                <Code className="mr-2 h-4 w-4" />
-                {t('permissions.code_interpreter', { defaultValue: '代码执行' })}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBulkRevoke('env_var_access')}>
-                <Variable className="mr-2 h-4 w-4" />
-                {t('permissions.env_var_access', { defaultValue: '环境变量' })}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBulkRevoke('file_read')}>
-                <FileText className="mr-2 h-4 w-4" />
-                {t('permissions.file_read', { defaultValue: '文件读取' })}
-              </DropdownMenuItem>
+              {(
+                Object.keys({
+                  shell_exec: Terminal,
+                  file_write: FileEdit,
+                  file_delete: Trash2,
+                  network_access: Globe,
+                  code_interpreter: Code,
+                  env_var_access: Variable,
+                  file_read: FileText,
+                }) as SkillPermissionType[]
+              ).map((permission) => {
+                const Icon = getPermissionIcon(permission);
+                return (
+                  <DropdownMenuItem key={permission} onClick={() => setPendingBulkRevoke(permission)}>
+                    <Icon className="mr-2 h-4 w-4" />
+                    {permissionLabel(permission)}
+                  </DropdownMenuItem>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm" onClick={loadSkillPermissions} disabled={loading}>
-            {t('refresh', { defaultValue: '刷新' })}
+          <Button variant="outline" size="sm" onClick={() => void loadSkillPermissions()} disabled={loading}>
+            {t('refresh')}
           </Button>
         </div>
       </div>
@@ -420,11 +395,60 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
           <SkillPermissionCard
             key={skill.skillId}
             skill={skill}
-            userId={userId}
-            onPermissionChange={handlePermissionChange}
+            disabled={loading}
+            onTogglePermission={handleTogglePermission}
           />
         ))}
       </div>
+
+      <AlertDialog open={!!pendingRevoke} onOpenChange={(open) => !open && setPendingRevoke(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('revokeTitle', {
+                permission: pendingRevoke ? permissionLabel(pendingRevoke.permission) : '',
+                skill: pendingRevoke?.skill.skillName ?? '',
+              })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{t('revokeConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void confirmRevoke()}
+            >
+              {t('confirmRevoke')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!pendingBulkRevoke} onOpenChange={(open) => !open && setPendingBulkRevoke(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('bulkRevoke.confirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('bulkRevoke.confirm', {
+                permission: pendingBulkRevoke ? permissionLabel(pendingBulkRevoke) : '',
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingBulkRevoke) {
+                  void bulkRevoke(pendingBulkRevoke);
+                }
+              }}
+            >
+              {t('confirmRevoke')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

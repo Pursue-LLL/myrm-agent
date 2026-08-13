@@ -295,7 +295,9 @@ async def run_async_warmup() -> None:
     from app.services.agent.background_job.background_job_finish_handler import (
         ServerBackgroundJobFinishHandler,
     )
-    from app.services.agent.background_job.background_job_startup import init_background_job_store
+    from app.services.agent.background_job.background_job_startup import (
+        init_background_job_store,
+    )
 
     init_background_job_store()
     set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())

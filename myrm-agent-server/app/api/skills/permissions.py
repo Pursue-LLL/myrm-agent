@@ -3,13 +3,13 @@
 Handles skill permission approval and management.
 
 Endpoints:
-- GET /users/{user_id}/skills/{skill_id}/permissions - 查询Skill权限
-- POST /users/{user_id}/skills/{skill_id}/permissions/grant - 授予权限
-- POST /users/{user_id}/skills/{skill_id}/permissions/revoke - 撤销权限
-- POST /users/{user_id}/skills/{skill_id}/permissions/apply-template - 应用权限模板（批量授予）
-- POST /users/{user_id}/permissions/bulk-revoke-by-type - 批量撤销权限类型（所有Skill）
-- GET /users/{user_id}/skills/{skill_id}/permissions/required - 查询Skill声明的required_permissions
-- GET /users/{user_id}/skills/{skill_id}/permissions/usage - 查询权限使用统计
+- GET /{skill_id}/permissions - 查询Skill权限（required + granted）
+- POST /{skill_id}/permissions/grant - 授予权限
+- POST /{skill_id}/permissions/revoke - 撤销权限
+- POST /{skill_id}/permissions/apply-template - 应用权限模板（批量授予）
+- POST /permissions/bulk-revoke-by-type - 批量撤销权限类型（所有Skill）
+- GET /{skill_id}/permissions/required - 查询Skill声明的required_permissions
+- GET /{skill_id}/permissions/usage - 查询权限使用统计
 """
 
 import logging
@@ -113,7 +113,9 @@ class ApplyTemplateResponse(BaseModel):
 class BulkRevokeByTypeRequest(BaseModel):
     """批量撤销权限类型请求"""
 
-    permission_type: str = Field(..., description="要批量撤销的权限类型（如shell_exec）")
+    permission_type: str = Field(
+        ..., description="要批量撤销的权限类型（如shell_exec）"
+    )
 
 
 class BulkRevokeByTypeResponse(BaseModel):
@@ -187,13 +189,14 @@ async def grant_permissions(
 
         if not existing:
             grant = SkillPermissionGrant(
-                user_id="sandbox",
                 skill_id=skill_id,
                 permission=perm.value,
             )
             db.add(grant)
             granted.append(perm.value)
-            logger.info(f"Granted permission: user=sandbox, skill={skill_id}, permission={perm.value}")
+            logger.info(
+                f"Granted permission: user=sandbox, skill={skill_id}, permission={perm.value}"
+            )
 
     await db.commit()
 
@@ -239,7 +242,9 @@ async def revoke_permissions(
     from myrm_agent_harness.api.hooks import invalidate_permissions
 
     invalidate_permissions("default", skill_id)
-    logger.info(f"Notified framework to invalidate permissions: user=sandbox, skill={skill_id}")
+    logger.info(
+        f"Notified framework to invalidate permissions: user=sandbox, skill={skill_id}"
+    )
 
     return RevokePermissionsResponse(
         skill_id=skill_id,
@@ -248,7 +253,9 @@ async def revoke_permissions(
     )
 
 
-@router.post("/{skill_id}/permissions/apply-template", response_model=ApplyTemplateResponse)
+@router.post(
+    "/{skill_id}/permissions/apply-template", response_model=ApplyTemplateResponse
+)
 async def apply_permission_template(
     skill_id: str,
     request: ApplyTemplateRequest,
@@ -298,7 +305,6 @@ async def apply_permission_template(
 
         if not existing:
             grant = SkillPermissionGrant(
-                user_id="sandbox",
                 skill_id=skill_id,
                 permission=perm.value,
             )
@@ -329,7 +335,9 @@ async def apply_permission_template(
     )
 
 
-@router.post("/permissions/bulk-revoke-by-type", response_model=BulkRevokeByTypeResponse)
+@router.post(
+    "/permissions/bulk-revoke-by-type", response_model=BulkRevokeByTypeResponse
+)
 async def bulk_revoke_by_permission_type(
     request: BulkRevokeByTypeRequest,
     db: AsyncSession = Depends(get_db_session),
@@ -391,7 +399,9 @@ async def bulk_revoke_by_permission_type(
     for skill_id in affected_skill_ids:
         invalidate_permissions("default", skill_id)
 
-    logger.info(f"Notified framework to invalidate {len(affected_skill_ids)} skills' permissions")
+    logger.info(
+        f"Notified framework to invalidate {len(affected_skill_ids)} skills' permissions"
+    )
 
     return BulkRevokeByTypeResponse(
         permission_type=perm.value,
@@ -448,7 +458,9 @@ class SkillPermissionUsageResponse(BaseModel):
     total_operations: int
 
 
-@router.get("/{skill_id}/permissions/usage", response_model=SkillPermissionUsageResponse)
+@router.get(
+    "/{skill_id}/permissions/usage", response_model=SkillPermissionUsageResponse
+)
 async def get_permission_usage_stats(
     skill_id: str,
     days: int = 7,
@@ -520,7 +532,9 @@ async def get_permission_usage_stats(
                 total_count=_as_int(s["total_count"]),
                 allowed_count=_as_int(s["allowed_count"]),
                 denied_count=_as_int(s["denied_count"]),
-                recent_operations=cast(list[PermissionUsageEntry], s["recent_operations"]),
+                recent_operations=cast(
+                    list[PermissionUsageEntry], s["recent_operations"]
+                ),
             )
             for s in stats_by_permission.values()
         ],

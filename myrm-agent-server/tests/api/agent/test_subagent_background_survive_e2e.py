@@ -18,18 +18,22 @@ from fastapi.testclient import TestClient
 
 from tests.api.agent.utils import build_approval_resume_value, get_model_selection
 
+
 # 与 chrome_e2e 的 _DELEGATE_QUERY 保持一致的强提示模板：确保 LLM 走原生
 # Function Calling 调用 delegate_task_tool，并显式传 timeout 覆盖
 # bash_code_execute_tool 默认 60s 上限。
-_DELEGATE_QUERY = (
-    "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，wait 设为 false。"
-    "子智能体的任务：调用 bash_code_execute_tool 执行命令 `sleep 120`，关键要求：run_in_background 必须为 false（前台运行），"
-    "timeout 参数必须显式设为 180——bash_code_execute_tool 的默认超时只有 60 秒，若不显式传 timeout，"
-    "sleep 120 会在 60 秒后被强制中断并直接失败；绝对禁止使用后台方式或 & 符号，"
-    "必须等待命令完全执行完成后才能汇报结果并结束。"
-    "注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，"
-    "绝对不要在文本中输出 XML 格式的工具调用！"
-)
+def _delegate_query(sleep_sec: int, timeout_sec: int = 180) -> str:
+    return (
+        "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，wait 设为 false。"
+        "子智能体的任务：调用 bash_code_execute_tool 执行命令 "
+        f"`sleep {sleep_sec}`，关键要求：run_in_background 必须为 false（前台运行），"
+        f"timeout 参数必须显式设为 {timeout_sec}——bash_code_execute_tool 的默认超时只有 60 秒，若不显式传 timeout，"
+        f"sleep {sleep_sec} 会在 60 秒后被强制中断并直接失败；绝对禁止使用后台方式或 & 符号，"
+        "必须等待命令完全执行完成后才能汇报结果并结束。"
+        "注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，"
+        "绝对不要在文本中输出 XML 格式的工具调用！"
+    )
+
 
 _BASH_WORKER_PRESET = {
     "system_prompt": "You are a bash execution worker.",
@@ -76,6 +80,17 @@ def _stream_with_auto_approve(
         resume_request["resumeValue"] = build_approval_resume_value()
         before = len(collected)
         _stream_collect(client, resume_request, collected)
+        raced_busy = any(
+            d.get("type") == "error" and "busy" in str(d.get("data", "")).lower()
+            for d in collected[before:]
+        )
+        if raced_busy:
+            # Resume raced the previous agent turn's async teardown while the
+            # session lock was still held; retry after it releases instead of
+            # surfacing a spurious AgentBusyError.
+            time.sleep(1.0)
+            del collected[before:]
+            _stream_collect(client, resume_request, collected)
     return collected
 
 
@@ -89,11 +104,13 @@ def test_background_subagent_survives_parent_stream_end(client: TestClient) -> N
     # conftest 的测试 app 未挂载 subagents router，此处补挂载以查询子代理列表。
     from app.api.agents import subagents
 
-    client.app.include_router(subagents.router, prefix="/api/v1/chats", tags=["subagents"])
+    client.app.include_router(
+        subagents.router, prefix="/api/v1/chats", tags=["subagents"]
+    )
 
     chat_id = str(uuid.uuid4())
     request_payload: dict[str, object] = {
-        "query": _DELEGATE_QUERY,
+        "query": _delegate_query(120),
         "chatId": chat_id,
         "messageId": f"bg-survive-{uuid.uuid4().hex[:12]}",
         "modelSelection": get_model_selection(),
@@ -108,7 +125,9 @@ def test_background_subagent_survives_parent_stream_end(client: TestClient) -> N
         for d in collected[-20:]
     )
     if completion_blocked:
-        pytest.fail(f"Agent stream still pending HITL after auto-approve: {collected[-5:]!r}")
+        pytest.fail(
+            f"Agent stream still pending HITL after auto-approve: {collected[-5:]!r}"
+        )
 
     # 父流结束后立即查询子代理列表：bash_worker 必须仍 running。
     deadline = time.monotonic() + 30.0
@@ -121,7 +140,9 @@ def test_background_subagent_survives_parent_stream_end(client: TestClient) -> N
         data = payload.get("data") if isinstance(payload, dict) else None
         if isinstance(data, list):
             running_rows = [
-                row for row in data if isinstance(row, dict) and row.get("status") == "running"
+                row
+                for row in data
+                if isinstance(row, dict) and row.get("status") == "running"
             ]
             if running_rows:
                 break
@@ -137,3 +158,151 @@ def test_background_subagent_survives_parent_stream_end(client: TestClient) -> N
         task_id = row.get("task_id")
         if isinstance(task_id, str) and task_id:
             client.post(f"/api/v1/chats/{chat_id}/subagents/{task_id}/cancel")
+
+
+def _mount_subagents_router(client: TestClient) -> None:
+    from app.api.agents import subagents
+
+    client.app.include_router(
+        subagents.router, prefix="/api/v1/chats", tags=["subagents"]
+    )
+
+
+def _run_background_delegate(
+    client: TestClient, chat_id: str, sleep_sec: int, timeout_sec: int
+) -> list[dict[str, object]]:
+    request_payload: dict[str, object] = {
+        "query": _delegate_query(sleep_sec, timeout_sec),
+        "chatId": chat_id,
+        "messageId": f"bg-{uuid.uuid4().hex[:12]}",
+        "modelSelection": get_model_selection(),
+        "actionMode": "general",
+        "ephemeral_subagents": {"test_bash": _BASH_WORKER_PRESET},
+    }
+    return _stream_with_auto_approve(client, request_payload)
+
+
+def _wait_running_subagents(
+    client: TestClient, chat_id: str, timeout_sec: float = 60.0
+) -> list[dict[str, object]]:
+    deadline = time.monotonic() + timeout_sec
+    running_rows: list[dict[str, object]] = []
+    last_payload: object = None
+    while time.monotonic() < deadline:
+        payload = client.get(f"/api/v1/chats/{chat_id}/subagents").json()
+        last_payload = payload
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if isinstance(data, list):
+            running_rows = [
+                row
+                for row in data
+                if isinstance(row, dict) and row.get("status") == "running"
+            ]
+            if running_rows:
+                return running_rows
+        time.sleep(2.0)
+    return running_rows
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    not os.environ.get("BASIC_API_KEY"),
+    reason="E2E test requires BASIC_API_KEY environment variable",
+)
+def test_background_subagent_cancelled_by_cancel_all_after_parent_stream_end(
+    client: TestClient,
+) -> None:
+    """父流结束后 wait=false 后台子代理仍 running，且 cancel-all 可将其取消。
+
+    验证 include_detached 语义的取消分支：父 run 正常结束保留后台子代理后，
+    用户显式 cancel-all（registry 路径）必须能取消它。
+    """
+    _mount_subagents_router(client)
+    chat_id = str(uuid.uuid4())
+    _run_background_delegate(client, chat_id, sleep_sec=120, timeout_sec=180)
+
+    running_rows = _wait_running_subagents(client, chat_id)
+    assert (
+        running_rows
+    ), "父流结束后台子代理未 running（cleanup_run 误取消或 cancel-all 前置断言失败）。"
+    task_id = str(running_rows[0].get("task_id") or "")
+    assert task_id
+
+    cancel_resp = client.post(f"/api/v1/chats/{chat_id}/subagents/cancel-all")
+    assert cancel_resp.status_code == 200, cancel_resp.text
+    payload = cancel_resp.json()
+    assert payload.get("data", {}).get("cancelled", 0) >= 1, payload
+
+    # GRACEFUL cancel：子代理在下一轮 LLM 检测 cancel flag 后退出，轮询等待终态。
+    deadline = time.monotonic() + 90.0
+    terminal_seen = False
+    last_payload: object = None
+    while time.monotonic() < deadline:
+        resp = client.get(f"/api/v1/chats/{chat_id}/subagents")
+        list_payload = resp.json()
+        last_payload = list_payload
+        data = list_payload.get("data") if isinstance(list_payload, dict) else None
+        if isinstance(data, list):
+            row = next(
+                (
+                    r
+                    for r in data
+                    if isinstance(r, dict) and r.get("task_id") == task_id
+                ),
+                None,
+            )
+            if row is None:
+                terminal_seen = True  # 已从 registry 消失
+                break
+            if row.get("status") in ("cancelled", "completed", "failed"):
+                terminal_seen = True
+                break
+        time.sleep(2.0)
+
+    assert (
+        terminal_seen
+    ), f"cancel-all 后后台子代理 {task_id} 未进入终态/消失: {last_payload!r}"
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    not os.environ.get("BASIC_API_KEY"),
+    reason="E2E test requires BASIC_API_KEY environment variable",
+)
+def test_background_subagent_completed_observable_after_parent_stream_end(
+    client: TestClient,
+) -> None:
+    """父流结束后台子代理完成后，REST 列表仍可观测 completed（COMPLETED_SUBAGENT_RESULTS）。"""
+    _mount_subagents_router(client)
+    chat_id = str(uuid.uuid4())
+    _run_background_delegate(client, chat_id, sleep_sec=60, timeout_sec=90)
+
+    running_rows = _wait_running_subagents(client, chat_id)
+    assert running_rows, "父流结束后台子代理未 running"
+    task_id = str(running_rows[0].get("task_id") or "")
+    assert task_id
+
+    deadline = time.monotonic() + 90.0
+    completed_seen = False
+    last_payload: object = None
+    while time.monotonic() < deadline:
+        payload = client.get(f"/api/v1/chats/{chat_id}/subagents").json()
+        last_payload = payload
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if isinstance(data, list):
+            row = next(
+                (
+                    r
+                    for r in data
+                    if isinstance(r, dict) and r.get("task_id") == task_id
+                ),
+                None,
+            )
+            if row and row.get("status") == "completed":
+                completed_seen = True
+                break
+        time.sleep(2.0)
+
+    assert (
+        completed_seen
+    ), f"后台子代理 {task_id} 完成后未在 REST 列表观测到 completed: {last_payload!r}"

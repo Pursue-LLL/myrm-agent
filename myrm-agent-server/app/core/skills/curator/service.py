@@ -79,7 +79,9 @@ def get_stats_collector() -> SkillStatsCollector:
     global _stats_collector
     if _stats_collector is None:
         _stats_collector = SkillStatsCollector(_get_skills_root())
-        from myrm_agent_harness.backends.skills.usage_recorder import set_stats_collector
+        from myrm_agent_harness.backends.skills.usage_recorder import (
+            set_stats_collector,
+        )
 
         set_stats_collector(_stats_collector)
     return _stats_collector
@@ -129,7 +131,9 @@ def resolve_skill_path(skill_name: str) -> Path | None:
     return None
 
 
-async def run_curator_sweep(*, force: bool = False, trigger: Literal["manual", "background"] = "background") -> CuratorRunResult:
+async def run_curator_sweep(
+    *, force: bool = False, trigger: Literal["manual", "background"] = "background"
+) -> CuratorRunResult:
     """Execute a curator sweep over all configured local skill paths.
 
     Uses an asyncio lock to prevent concurrent sweeps from the background

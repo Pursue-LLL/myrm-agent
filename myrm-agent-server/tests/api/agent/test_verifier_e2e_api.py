@@ -17,7 +17,9 @@ from tests.api.agent.utils import get_model_selection
 
 @pytest.fixture
 async def async_client(app):
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         yield client
 
 
@@ -59,7 +61,9 @@ def perform_verifier_task(
     business_events = 0
     verifier_events = 0
 
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_payload) as response:
+    with client.stream(
+        "POST", "/api/v1/agents/agent-stream", json=request_payload
+    ) as response:
         if response.status_code != 200:
             response.read()
             error_content = response.text
@@ -138,8 +142,13 @@ def _build_verifier_mock_patches():
             return await original_ainvoke(self, *args, **kwargs)
 
         if "Adversarial Sandbox Verifier" in messages_str:
-            if isinstance(last_message, ToolMessage) and last_message.name == "submit_verdict":
-                return AIMessage(content="Verification completed and verdict submitted.")
+            if (
+                isinstance(last_message, ToolMessage)
+                and last_message.name == "submit_verdict"
+            ):
+                return AIMessage(
+                    content="Verification completed and verdict submitted."
+                )
             return AIMessage(
                 content="I have verified the output.",
                 tool_calls=[
@@ -274,11 +283,11 @@ class TestAdversarialVerifier:
 
         assert len(collected_data) > 0, "Should have received events"
         _assert_no_fatal_errors(collected_data)
-        assert business_events > 0, (
-            "Expected the delegated business worker to appear as a visible subagent node"
-        )
-        assert verifier_events == 0, (
-            "Internal verifier nodes must be hidden from user-facing UI events"
-        )
+        assert (
+            business_events > 0
+        ), "Expected the delegated business worker to appear as a visible subagent node"
+        assert (
+            verifier_events == 0
+        ), "Internal verifier nodes must be hidden from user-facing UI events"
         assert "PASS" in full_answer or "FAIL" in full_answer or len(full_answer) > 0
         print("\n✅ Test Passed: Adversarial Verifier E2E Execution")

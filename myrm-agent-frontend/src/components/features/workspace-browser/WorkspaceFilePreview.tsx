@@ -32,7 +32,7 @@ import {
   saveWorkspaceFileContent,
   type FileEntry,
 } from '@/services/chat';
-import { getPreviewKind, RichMediaFilePreview } from './RichMediaFilePreview';
+import { getPreviewKind, RichMediaFilePreview, type PreviewKind } from './RichMediaFilePreview';
 
 interface WorkspaceFilePreviewProps {
   file: FileEntry;
@@ -174,9 +174,13 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     const [dirty, setDirty] = useState(false);
 
     const previewKind = getPreviewKind(file.name);
-    const isRichMedia = previewKind !== null;
+    // Unknown extensions defer to the backend is_text flag: binary files render
+    // the download fallback instead of garbled text.
+    const effectiveKind: PreviewKind | null =
+      previewKind ?? (file.is_text === false ? 'unsupported' : null);
+    const isRichMedia = effectiveKind !== null;
     // Only text files support inline editing; SVG needs its text fetched to render.
-    const needsText = previewKind === null || previewKind === 'svg';
+    const needsText = effectiveKind === null || previewKind === 'svg';
 
     const loadContent = useCallback(async () => {
       if (!needsText) {
@@ -327,6 +331,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
                 filename={file.name}
                 workspace={workspace}
                 content={content ?? undefined}
+                kind={effectiveKind ?? undefined}
                 onDownload={handleDownload}
               />
             ) : null
