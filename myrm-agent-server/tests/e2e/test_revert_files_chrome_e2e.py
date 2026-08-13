@@ -93,15 +93,20 @@ def _probe_revert_changes_js(*, expect_empty: bool) -> str:
     if (!msg) {{
       return {{ ok: false, err: 'fixture-message-missing', chatId, count: store?.messages?.length ?? 0 }};
     }}
-    let last = {{ ok: false, status: 0, chatId, messageId: msg.messageId, body: '' }};
+    // 与真实 RevertFiles 组件一致：刷新 hydrate 后 messageId 为 DB UUID，
+    // 须用 requestMessageId（r- 前缀）定位快照，否则回退到 messageId。
+    const mid = msg.requestMessageId || msg.messageId;
+    let last = {{ ok: false, status: 0, chatId, messageId: msg.messageId, requestMessageId: msg.requestMessageId ?? null, mid, body: '' }};
     for (let attempt = 0; attempt < 12; attempt += 1) {{
-      const res = await fetch(`/api/v1/files/revert/changes/${{chatId}}/${{msg.messageId}}`);
+      const res = await fetch(`/api/v1/files/revert/changes/${{chatId}}/${{mid}}`);
       const body = await res.text();
       last = {{
         ok: {ok_check},
         status: res.status,
         chatId,
         messageId: msg.messageId,
+        requestMessageId: msg.requestMessageId ?? null,
+        mid,
         body: body.slice(0, 300),
       }};
       if (last.ok) return last;

@@ -258,4 +258,37 @@ describe('messageStreamHandler memory citations', () => {
       },
     ]);
   });
+
+  it('marks message degraded when retrieval trace reports degraded recall', async () => {
+    const assistantMessage: Message = {
+      messageId: 'assistant-1',
+      chatId: 'chat-1',
+      createdAt: new Date('2026-04-30T00:00:00Z'),
+      content: '',
+      role: 'assistant',
+      progressSteps: [],
+    };
+    const state: StreamHandlerState = {
+      messages: [assistantMessage],
+      messageAppeared: false,
+      loading: true,
+      scheduler: new AdaptiveScheduler(),
+    };
+    const event = {
+      type: AgentEventType.TOOL_END,
+      messageId: 'assistant-1',
+      tool_name: 'memory_recall_tool',
+      duration_ms: 12,
+      cited_memory_ids: [],
+      cited_memory_refs: [],
+      memory_retrieval_trace: {
+        degraded: true,
+        id: 'trace-1',
+      },
+    } satisfies AgentStreamEvent;
+
+    await handleMessageStream(event, '', undefined, false, '', state, createActions());
+
+    expect(state.messages[0].memoryRetrievalDegraded).toBe(true);
+  });
 });

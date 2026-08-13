@@ -73,7 +73,13 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
     agent = agents[0]
     agent_id = agent.id
     chat_id = f"e2erevert{uuid4().hex[:8]}"
-    message_id = str(uuid4())
+    # 模拟真实 agent 回合的 ID 关系：文件快照以 r- 前缀请求 ID 为 key（真实路径中
+    # SnapshotObserver 用 set_current_message_id(request.message_id) 记录），而 DB 中
+    # assistant 消息主键为独立 UUID，extra_data 携带 request_message_id 供前端刷新后
+    # hydrate 恢复（RevertFiles 用 requestMessageId || messageId 定位回退目标）。
+    request_message_id = f"r-{uuid4().hex}"
+    message_id = request_message_id
+    db_message_id = str(uuid4())
 
     workspace_dir = await resolve_default_chat_workspace_dir(
         chat_id, persist_workspace=True
@@ -137,7 +143,8 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
             store.record(chat_id, message_id, snap_a)
             await store.persist_to_disk(workspace_dir, chat_id, message_id)
 
-            message_id_b = str(uuid4())
+            message_id_b = f"r-{uuid4().hex}"
+            db_message_id_b = str(uuid4())
             message_ids.append(message_id_b)
             store.record(chat_id, message_id_b, snap_b)
             await store.persist_to_disk(workspace_dir, chat_id, message_id_b)
@@ -157,21 +164,32 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
         chat_id, "user", "Revert E2E fixture question", now, timezone,
     )
     await ChatService.append_message(
-        chat_id, "assistant", "Revert E2E fixture answer with file change.",
-        now, timezone, message_id=message_id,
+        chat_id,
+        "assistant",
+        "Revert E2E fixture answer with file change.",
+        now,
+        timezone,
+        message_id=db_message_id,
+        extra_data={"request_message_id": request_message_id},
     )
     if normalized == "session":
         await ChatService.append_message(
             chat_id, "user", "Revert E2E fixture follow-up", now, timezone,
         )
         await ChatService.append_message(
-            chat_id, "assistant", "Revert E2E fixture second answer with file change.",
-            now, timezone, message_id=message_ids[1],
+            chat_id,
+            "assistant",
+            "Revert E2E fixture second answer with file change.",
+            now,
+            timezone,
+            message_id=db_message_id_b,
+            extra_data={"request_message_id": message_id_b},
         )
 
     payload: dict[str, str | list[str]] = {
         "chat_id": chat_id,
         "message_id": message_id,
+        "request_message_id": request_message_id,
         "ui_path": f"/{chat_id}",
         "variant": normalized,
     }

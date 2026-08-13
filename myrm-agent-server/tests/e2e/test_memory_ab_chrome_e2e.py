@@ -127,8 +127,14 @@ _MEMORY_AB_REPORT_RENDER_JS = """(() => {
   const hasRunHistory = /Run History|运行历史/.test(body);
   const hasOffCell = /50%\\s*\\(0\\)/.test(body);
   const hasOnCell = /100%\\s*\\(5\\)/.test(body);
+  const hasBudgetBadge = /Budget · 88 calls \\/ 99 iterations|运行预算 · 88 次调用 \\/ 99 轮迭代/.test(body);
+  const hasDecontamOn = /HF decontamination on|评测去污染已启用/.test(body);
+  const hasLimitHits = /Limit Hits|命中上限/.test(body);
+  const hasBlockedBadge = /Blocked 2|拦截 2/.test(body);
+  const hasToolCalls5 = /5×/.test(body);
   return {
-    ready: hasNoMemory && hasWithMemory && hasMemoryCalls && hasRunHistory && hasOffCell && hasOnCell,
+    ready: hasNoMemory && hasWithMemory && hasMemoryCalls && hasRunHistory && hasOffCell && hasOnCell
+      && hasBudgetBadge && hasDecontamOn && hasLimitHits && hasBlockedBadge && hasToolCalls5,
     hasTab: true,
     hasNoMemory,
     hasWithMemory,
@@ -136,6 +142,11 @@ _MEMORY_AB_REPORT_RENDER_JS = """(() => {
     hasRunHistory,
     hasOffCell,
     hasOnCell,
+    hasBudgetBadge,
+    hasDecontamOn,
+    hasLimitHits,
+    hasBlockedBadge,
+    hasToolCalls5,
     bodyLength: body.length,
   };
 })()"""
@@ -274,6 +285,9 @@ def _make_matrix_report(
                         "token_usage": {"total": 500},
                         "cost": 0.005,
                         "error": None,
+                        "tool_calls": 5,
+                        "limit_reached": "max_tool_calls",
+                        "blocked_count": 2,
                     },
                     "memory_on": {
                         "passed": True,
@@ -310,6 +324,9 @@ def _make_matrix_report(
         "dataset_id": "wb-bench-office",
         "profile_id": None,
         "benchmark_mode": True,
+        "max_tool_calls": 88,
+        "max_iterations": 99,
+        "decontam_active": True,
     }
 
 
