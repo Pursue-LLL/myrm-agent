@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { IconLoader, IconTrash } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { Memory } from '@/store/memory';
-import { MemoryTypeIcon } from '@/components/features/memory';
+import MemoryTypeIcon from '../cards/MemoryTypeIcon';
 
 interface MemoryTrashPanelProps {
   memories: Memory[];

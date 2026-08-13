@@ -129,3 +129,8 @@
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)
+
+## 引用规范
+
+- 域内跨子目录引用一律用相对路径（如 `../cards/MemoryTypeIcon`），禁止经 `index.ts` 门面自引用，避免循环依赖。
+- `index.ts` 门面仅供外部模块消费（如 ChatWindow、MemorySection）；新增外部消费组件时按需加入门面导出。

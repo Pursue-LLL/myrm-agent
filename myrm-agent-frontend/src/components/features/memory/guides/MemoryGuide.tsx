@@ -22,7 +22,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/primitives/dialog';
-import { MemoryTypeIcon } from '@/components/features/memory';
+import MemoryTypeIcon from '../cards/MemoryTypeIcon';
 import type { MemoryType } from '@/store/memory';
 import { cn } from '@/lib/utils/classnameUtils';
 

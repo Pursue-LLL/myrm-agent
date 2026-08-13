@@ -30,7 +30,10 @@ export interface ReportItem {
     tool_policy?: string[];
     prompt_fingerprint?: string;
     judge_model?: string;
+    max_tool_calls?: number;
+    max_iterations?: number;
   };
+  decontam_active?: boolean;
   avg_time_secs?: number;
   avg_total_tokens?: number;
   cases?: Array<{

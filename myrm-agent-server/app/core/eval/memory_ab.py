@@ -265,6 +265,10 @@ async def run_memory_ab_background(
         # change stays traceable (same measurement-decay guard as layered).
         report_data["max_tool_calls"] = max_tool_calls
         report_data["max_iterations"] = max_iterations
+        # Disclose whether HF decontamination was active for this A/B run so
+        # the reader can trust the run measured the model, not a leaked
+        # reference (same resolution as the layered report).
+        report_data["decontam_active"] = bool(blocked_hostnames or blocked_terms)
 
         # Annotate each arm with how many times the agent actually invoked
         # memory tools. Identical pass rates mean different things when memory

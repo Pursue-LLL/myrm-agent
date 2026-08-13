@@ -478,6 +478,7 @@ async def run_eval_suite(
         "all_passed": result.all_passed,
         "total_ms": result.total_ms,
         "report_path": str(report_path),
+        "decontam_active": bool(blocked_hostnames or blocked_terms),
         "manifest": manifest.to_dict(),
         **(
             {"avg_pass_rate": result.avg_pass_rate}

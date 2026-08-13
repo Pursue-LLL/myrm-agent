@@ -59,6 +59,9 @@ export interface MatrixReportData {
   profile_id?: string;
   aborted?: boolean;
   limit?: number | null;
+  max_tool_calls?: number;
+  max_iterations?: number;
+  decontam_active?: boolean;
 }
 
 interface Props {
@@ -109,6 +112,15 @@ export default function MatrixResultView({ report, profileNames }: Props) {
           <span className="text-muted-foreground">{t('sampledHint')}</span>
         </div>
       )}
+      {report.max_tool_calls != null && (
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="px-2 py-1 rounded-md bg-primary/10 text-primary font-medium">
+            {t('budget')} · {report.max_tool_calls} {t('budgetToolCalls')} /{' '}
+            {report.max_iterations != null ? `${report.max_iterations} ${t('budgetIterations')}` : '-'}
+          </span>
+          <span className="text-muted-foreground">{t('budgetHint')}</span>
+        </div>
+      )}
       {(report.profile_id && report.eval_type !== 'matrix') || report.harness_version ? (
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground px-1">
           {report.profile_id && report.eval_type !== 'matrix' && (
@@ -119,6 +131,17 @@ export default function MatrixResultView({ report, profileNames }: Props) {
           {report.harness_version && (
             <span className="font-mono">
               {tLayers('harnessVersion')}: {report.harness_version}
+            </span>
+          )}
+          {typeof report.decontam_active === 'boolean' && (
+            <span
+              className={`px-2 py-0.5 rounded-md font-medium ${
+                report.decontam_active
+                  ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {report.decontam_active ? tLayers('decontamOn') : tLayers('decontamOff')}
             </span>
           )}
         </div>

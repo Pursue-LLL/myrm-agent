@@ -130,6 +130,38 @@ export default function ReportTab({ running, evalStage, progress, downloadProgre
                 <p className="font-mono text-xs mt-0.5">{report.manifest.judge_model}</p>
               </div>
             )}
+            {report.manifest.benchmark_mode && (
+              <div>
+                <span className="text-muted-foreground">{t('report.envBudget')}</span>
+                <p className="font-mono text-xs mt-0.5">
+                  {report.manifest.max_tool_calls != null
+                    ? `${report.manifest.max_tool_calls} ${t('report.budgetToolCalls')}`
+                    : '-'}
+                  {' / '}
+                  {report.manifest.max_iterations != null
+                    ? `${report.manifest.max_iterations} ${t('report.budgetIterations')}`
+                    : '-'}
+                </p>
+              </div>
+            )}
+            {typeof report.decontam_active === 'boolean' && (
+              <div>
+                <span className="text-muted-foreground">{t('report.envDecontam')}</span>
+                <p className="text-xs mt-0.5">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
+                      report.decontam_active
+                        ? 'bg-green-500/10 text-green-600'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {report.decontam_active
+                      ? t('report.decontamOn')
+                      : t('report.decontamOff')}
+                  </span>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
