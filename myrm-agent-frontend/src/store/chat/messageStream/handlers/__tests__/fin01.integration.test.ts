@@ -47,6 +47,7 @@ vi.mock('../handlerDeps', () => ({
   findAssistantMessageIndex: vi.fn(() => 0),
   normalizeGoalState: vi.fn(),
   getUserFriendlyError: vi.fn(async () => ({ message: 'Error', hint: undefined })),
+  releaseInspectorControls: vi.fn(),
   useChatStore: {
     getState: vi.fn(() => ({ chatId: 'c1', setWorkspaceDir: vi.fn(), initializeChat: vi.fn() })),
   },
