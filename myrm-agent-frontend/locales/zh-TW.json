@@ -293,6 +293,7 @@
       "checkpoint": "檢查點",
       "security": "安全策略",
       "riskRules": "風控規則",
+      "shares": "分享連結",
       "channels": "訊息通道",
       "channelRouting": "渠道路由",
       "voice": "語音",
@@ -589,6 +590,27 @@
         "cloudflare_pages": "Cloudflare 全球網路靜態站點。需 Account ID 與 API Token。",
         "netlify": "部署到 Netlify。需 Access Token；已有站點可填 Site ID。",
         "http_webhook": "將打包後的 Artifact POST 到你的 CI 或自定義端點，無需憑證庫。"
+      }
+    },
+    "shares": {
+      "title": "分享連結",
+      "description": "管理唯讀 Artifact 分享連結。撤銷連結可立即阻斷公網訪問。",
+      "refresh": "重新整理",
+      "retry": "重試",
+      "loadError": "載入分享連結失敗",
+      "empty": "暫無活躍分享連結。可在 HTML、PDF 或文件 Artifact 上建立分享連結。",
+      "revoke": "撤銷",
+      "revokeLabel": "撤銷 {name} 的分享連結",
+      "revokeSuccess": "分享連結已撤銷",
+      "revokeError": "撤銷分享連結失敗",
+      "yes": "是",
+      "no": "否",
+      "table": {
+        "artifact": "工件",
+        "type": "類型",
+        "protected": "密碼保護",
+        "expiresAt": "過期時間",
+        "action": "操作"
       }
     },
     "workspaceRules": {
@@ -2888,7 +2910,8 @@
       },
       "tabs": {
         "discover": "發現",
-        "installed": "已安裝"
+        "installed": "已安裝",
+        "permissions": "權限管理"
       },
       "installed": {
         "archivedHidden": "{count} 個技能已歸檔並隱藏",
@@ -14941,7 +14964,7 @@
         "success": "批次撤銷成功",
         "error": "批次撤銷失敗",
         "errorDesc": "無法批次撤銷許可權，請重試",
-        "affectedSkills": "已批次撤銷權限，影響多個技能",
+        "affectedSkills": "已撤銷 {count} 項權限，影響 {skills} 個技能",
         "confirm": "從所有技能中撤銷此權限？",
         "errorDescription": "批次撤銷權限失敗，請重試。"
       },
@@ -14982,11 +15005,18 @@
           "env_var_access": "環境變數訪問"
         },
         "highDenialRate": "高拒絕率",
-        "last90days": "最近90天"
+        "last90days": "最近90天",
+        "total": "總計",
+        "recentOps": "最近操作"
       },
       "allowedDomainsDesc": "此技能只能向以上列出的網域發起網路請求。",
       "revokeConfirm": "撤銷後，此技能將無法再執行相關操作。正在執行且使用此權限的任務可能會被中斷。\n\n是否繼續？",
-      "revokeSuccess": "權限已撤銷。正在執行的任務可能會受影響。"
+      "revokeSuccess": "權限已撤銷。正在執行的任務可能會受影響。",
+      "cancel": "取消",
+      "confirmRevoke": "確認撤銷",
+      "revokeTitle": "撤銷「{permission}」權限（{skill}）",
+      "expand": "展開權限詳情",
+      "collapse": "收起權限詳情"
     }
   },
   "followUps": {

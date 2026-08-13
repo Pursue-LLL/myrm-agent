@@ -41,7 +41,7 @@
 | 文件 | 职责 |
 |------|------|
 | `BrowserPoolCard.tsx` | 本地浏览器池管理 |
-| `BrowserDoctorCard.tsx` | 浏览器栈诊断（`/health/browser/doctor`；可选 launch test）+ 孤儿进程清理（`DELETE /health/browser/orphans?confirm=true`，含失败明细与重跑清状态）；错误响应 JSON `detail` 解析（FastAPI `{"detail": ...}` → 可读文案，非 JSON 原样显示，空值兜底本地化） |
+| `BrowserDoctorCard.tsx` | 浏览器栈诊断（`/health/browser/doctor`；可选 launch test）+ 孤儿进程清理（`DELETE /health/browser/orphans?confirm=true`，含失败明细、清理前后状态清理、弹窗失败即关）；错误响应 JSON 解析（FastAPI `{"detail": ...}` 字符串/校验数组首项、server 全局兜底 `{success, message}` → 可读文案，非 JSON 原样显示，空值兜底本地化） |
 | `CloudBrowserCard.tsx` | 云端浏览器配置 |
 | `BrowserProxyCard.tsx` | 浏览器代理配置 |
 | `DomainSkillsCard.tsx` | 域技能管理（列表/删除/内置标识） |
@@ -70,6 +70,7 @@
 | `RiskRulesHitsPanel.tsx` | 风控规则命中记录 |
 | `RiskRulesTestPanel.tsx` | 风控规则测试 |
 | `risk-rules-types.ts` | 风控规则类型定义 |
+| `ShareLinksSection.tsx` | 分享链接管理（`GET/DELETE /api/v1/files/artifacts/shares[/{id}]`：活跃链接表格 + 一键撤销 + 空/加载/错误态 + 刷新） |
 
 ### 用量与成本
 

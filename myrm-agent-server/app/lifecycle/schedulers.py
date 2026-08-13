@@ -386,6 +386,9 @@ async def _db_maintenance_job() -> None:
     4. Browser thread cleanup — zombie detection + old record deletion
     5. Memory import review cleanup — remove rollback-expired import sessions
     6. Async task queue cleanup — prune terminal tasks older than 30 days (tasks.db)
+    7. Chat trash auto-purge — permanently delete chats trashed > 30 days
+    8. Kanban data GC — clean old events/runs/workspaces for terminal tasks
+    9. Artifact share registry GC — remove expired share records (TTL + retention)
     """
     # SQLite WAL checkpoint
     try:
@@ -534,6 +537,22 @@ async def _db_maintenance_job() -> None:
         await KanbanGCService().run_gc()
     except Exception as e:
         logger.warning("Kanban data GC failed: %s", e)
+
+    # Artifact share registry GC: remove DB rows past TTL + retention grace.
+    # Keeps registry rows in sync with purge_expired_share_bundles (on-disk).
+    try:
+        from app.platform_utils import session_factory
+        from app.services.artifacts.share_registry import purge_expired_shares
+
+        async with session_factory() as session:
+            removed = await purge_expired_shares(session)
+        if removed > 0:
+            logger.info(
+                "Artifact share registry GC: %d expired share records removed",
+                removed,
+            )
+    except Exception as e:
+        logger.warning("Artifact share registry GC failed: %s", e)
 
 
 async def _incognito_cleanup_job() -> None:

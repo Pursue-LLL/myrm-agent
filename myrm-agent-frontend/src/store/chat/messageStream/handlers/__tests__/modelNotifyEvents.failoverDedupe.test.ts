@@ -27,14 +27,16 @@ function makeFailoverCtx(
   toModel: string,
   reason: string | undefined,
   existingSteps: Array<Record<string, unknown>>,
+  initialRecieved = '',
 ) {
   const state = {
     messages: [
       {
-        content: '',
+        content: initialRecieved,
         messageId: 'msg-1',
         chatId: 'c1',
         role: 'assistant' as const,
+        reasoning: '',
         progressSteps: existingSteps,
         createdAt: new Date(),
       },
@@ -52,7 +54,7 @@ function makeFailoverCtx(
     input: '',
     sources: undefined,
     added: false,
-    recievedMessage: '',
+    recievedMessage: initialRecieved,
     state: {} as never,
     actions: { setLoading: vi.fn(), setMessages: setMessages as never } as never,
     files: [],
@@ -108,5 +110,22 @@ describe('modelNotifyEvents MODEL_FAILOVER progress-step dedupe', () => {
       step_key: 'safety_fallback_active',
       items: [{ text: 'agnes → safety-mini' }],
     });
+  });
+
+  it('drops partial text and reasoning streamed before the failure', async () => {
+    const { state, ctx } = makeFailoverCtx(
+      'agnes',
+      'MiniMax-M3',
+      'overloaded',
+      [],
+      'Partial draft ',
+    );
+
+    await modelNotifyEvents(ctx);
+
+    expect(ctx.recievedMessage).toBe('');
+    expect(state.messages[0].content).toBe('');
+    expect(state.messages[0].reasoning).toBe('');
+    expect(state.messages[0].progressSteps).toHaveLength(1);
   });
 });

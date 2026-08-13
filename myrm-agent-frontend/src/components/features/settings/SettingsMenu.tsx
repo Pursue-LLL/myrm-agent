@@ -33,6 +33,7 @@ import {
   Cable,
   Share2,
   Building2,
+  Link2,
 } from 'lucide-react';
 import { AiNetworkIcon } from 'hugeicons-react';
 
@@ -55,6 +56,7 @@ export type SettingsTab =
   | 'agents'
   | 'security'
   | 'riskRules'
+  | 'shares'
   | 'models'
   | 'defaultModel'
   | 'search'
@@ -83,7 +85,6 @@ export type SettingsTab =
   | 'memory'
   | 'memory-backup'
   | 'memory-cloud-backup'
-  | 'memory-archival'
   | 'memory-migration'
   | 'integrationCatalog'
   | 'integrationMemory'
@@ -137,6 +138,7 @@ const menuItems: MenuItem[] = [
 
   // 系统与安全
   { id: 'security', icon: Shield, labelKey: 'security', group: 'system' },
+  { id: 'shares', icon: Link2, labelKey: 'shares', group: 'system' },
   { id: 'cron', icon: Timer, labelKey: 'cron', group: 'system' },
   { id: 'kanban', icon: Columns, labelKey: 'kanban', group: 'system' },
   { id: 'checkpoint', icon: Archive, labelKey: 'checkpoint', group: 'system' },
@@ -165,7 +167,6 @@ const subMenuItems: Partial<Record<SettingsTab, SubMenuItem[]>> = {
     { id: 'team-hub', labelKey: 'memory-team-hub' },
     { id: 'backup', labelKey: 'memory-backup' },
     { id: 'cloud-backup', labelKey: 'memory-cloud-backup' },
-    { id: 'archival', labelKey: 'memory-archival' },
     { id: 'migration', labelKey: 'memory-migration' },
   ],
   channels: [

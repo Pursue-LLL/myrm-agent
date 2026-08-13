@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_workspace_root
-from app.api.files.artifact_share_api import (
+from app.api.files.artifact_share_public import (
     _HTML_MEDIA_TYPES,
     _SHARE_SECURITY_HEADERS,
     _attach_unlock_cookie,

@@ -293,6 +293,7 @@
       "checkpoint": "チェックポイント",
       "security": "セキュリティポリシー",
       "riskRules": "リスクルール",
+      "shares": "共有リンク",
       "channels": "メッセージチャネル",
       "channelRouting": "チャネルルーティング",
       "voice": "音声",
@@ -589,6 +590,27 @@
         "cloudflare_pages": "Cloudflare グローバルネットワークへの静のサイト。Account ID と API トークンが必須です。",
         "netlify": "Netlify へデプロイ。アクセストークン必須。既存サイトは Site ID を任意で指定。",
         "http_webhook": "パッケージ化された Artifact を CI やカスタムエンドポイントへ POST。認証情報は不要です。"
+      }
+    },
+    "shares": {
+      "title": "共有リンク",
+      "description": "読み取り専用 Artifact 共有リンクを管理します。リンクを失効させると、即座に公開アクセスをブロックします。",
+      "refresh": "更新",
+      "retry": "再試行",
+      "loadError": "共有リンクの読み込みに失敗しました",
+      "empty": "アクティブな共有リンクはありません。HTML・PDF・ドキュメント Artifact から作成できます。",
+      "revoke": "失効",
+      "revokeLabel": "{name} の共有リンクを失効",
+      "revokeSuccess": "共有リンクを失効しました",
+      "revokeError": "共有リンクの失効に失敗しました",
+      "yes": "はい",
+      "no": "いいえ",
+      "table": {
+        "artifact": "成果物",
+        "type": "種別",
+        "protected": "パスワード",
+        "expiresAt": "有効期限",
+        "action": "操作"
       }
     },
     "workspaceRules": {
@@ -2888,7 +2910,8 @@
       },
       "tabs": {
         "discover": "発見",
-        "installed": "インストール済み"
+        "installed": "インストール済み",
+        "permissions": "権限管理"
       },
       "installed": {
         "archivedHidden": "{count} 個のスキルをアーカイブして非表示にしました",
@@ -14970,7 +14993,7 @@
         "success": "一括で取り消ししました",
         "error": "一括取り消しに失敗しました",
         "errorDesc": "権限の一括取消に失敗しました",
-        "affectedSkills": "権限を一括取り消ししました。複数のスキルに影響します",
+        "affectedSkills": "{count} 件の権限を一括取り消し、{skills} 個のスキルに影響しました",
         "confirm": "すべてのスキルからこの権限を取り消しますか？",
         "errorDescription": "権限の一括取り消しに失敗しました。もう一度お試しください。"
       },
@@ -15011,11 +15034,18 @@
           "env_var_access": "環境変数アクセス"
         },
         "highDenialRate": "高拒否率",
-        "last90days": "最近90日"
+        "last90days": "最近90日",
+        "total": "合計",
+        "recentOps": "最近の操作"
       },
       "allowedDomainsDesc": "このスキルは上記のドメインにのみネットワークリクエストを送信できます。",
       "revokeConfirm": "取り消すと、このスキルは関連する操作を実行できなくなります。この権限を使用している実行中タスクは中断される可能性があります。\n\n続行しますか？",
-      "revokeSuccess": "権限を取り消しました。実行中のタスクに影響が出る可能性があります。"
+      "revokeSuccess": "権限を取り消しました。実行中のタスクに影響が出る可能性があります。",
+      "cancel": "キャンセル",
+      "confirmRevoke": "取り消しを確定",
+      "revokeTitle": "「{permission}」権限を取り消しますか（{skill}）",
+      "expand": "権限詳細を展開",
+      "collapse": "権限詳細を閉じる"
     }
   },
   "followUps": {

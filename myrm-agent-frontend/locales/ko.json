@@ -96,6 +96,7 @@
       "kanban": "칸반 보드",
       "security": "보안 정책",
       "riskRules": "위험 규칙",
+      "shares": "공유 링크",
       "channels": "채널",
       "voice": "음성",
       "developer": "개발자",
@@ -2445,7 +2446,8 @@
       "description": "AI 어시스턴트 스킬을 관리하고 구성하여 기능을 확장하세요",
       "tabs": {
         "discover": "탐색",
-        "installed": "설치됨"
+        "installed": "설치됨",
+        "permissions": "권한 관리"
       },
       "installed": {
         "archivedHidden": "{count}개 스킬이 보관 처리되어 숨겨짐",
@@ -4366,6 +4368,27 @@
         "cloudflare_pages": "Cloudflare 글로벌 네트워크 정적 사이트. Account ID와 API 토큰 필요.",
         "netlify": "Netlify에 배포. 액세스 토큰 필수. 기존 사이트는 Site ID 선택 입력.",
         "http_webhook": "패키징된 Artifact를 CI 또는 커스텀 엔드포인트로 POST. 자격 증명 저장 불필요."
+      }
+    },
+    "shares": {
+      "title": "공유 링크",
+      "description": "읽기 전용 Artifact 공유 링크를 관리합니다. 링크를 해지하면 즉시 공개 액세스가 차단됩니다.",
+      "refresh": "새로고침",
+      "retry": "다시 시도",
+      "loadError": "공유 링크를 불러오지 못했습니다",
+      "empty": "활성 공유 링크가 없습니다. HTML, PDF 또는 문서 Artifact에서 생성할 수 있습니다.",
+      "revoke": "해지",
+      "revokeLabel": "{name} 공유 링크 해지",
+      "revokeSuccess": "공유 링크가 해지되었습니다",
+      "revokeError": "공유 링크 해지에 실패했습니다",
+      "yes": "예",
+      "no": "아니요",
+      "table": {
+        "artifact": "산출물",
+        "type": "유형",
+        "protected": "비밀번호",
+        "expiresAt": "만료 시간",
+        "action": "작업"
       }
     },
     "workspaceRules": {
@@ -14343,7 +14366,7 @@
         "success": "일괄 취소 성공",
         "error": "일괄 취소 실패",
         "errorDesc": "권한 일괄 취소에 실패했습니다",
-        "affectedSkills": "권한을 일괄 취소했습니다. 여러 스킬에 영향을 줍니다",
+        "affectedSkills": "{count}개 권한을 일괄 취소했고 {skills}개 스킬에 영향을 줍니다",
         "confirm": "모든 스킬에서 이 권한을 취소하시겠습니까?",
         "errorDescription": "권한 일괄 취소에 실패했습니다. 다시 시도해 주세요."
       },
@@ -14384,11 +14407,18 @@
           "env_var_access": "환경 변수"
         },
         "highDenialRate": "높은 거부율",
-        "last90days": "최근 90일"
+        "last90days": "최근 90일",
+        "total": "합계",
+        "recentOps": "최근 작업"
       },
       "allowedDomainsDesc": "이 스킬은 위에 나열된 도메인에만 네트워크 요청을 보낼 수 있습니다.",
       "revokeConfirm": "취소하면 이 스킬은 더 이상 관련 작업을 수행할 수 없습니다. 이 권한을 사용 중인 실행 중인 작업이 중단될 수 있습니다.\n\n계속하시겠습니까?",
-      "revokeSuccess": "권한이 취소되었습니다. 실행 중인 작업이 영향을 받을 수 있습니다."
+      "revokeSuccess": "권한이 취소되었습니다. 실행 중인 작업이 영향을 받을 수 있습니다.",
+      "cancel": "취소",
+      "confirmRevoke": "취소 확인",
+      "revokeTitle": "「{permission}」권한을 취소하시겠습니까（{skill}）",
+      "expand": "권한 상세 펼치기",
+      "collapse": "권한 상세 접기"
     },
     "migration": {
       "title": "Hermes / OpenClaw / Claude Code / Codex에서 가져오기",

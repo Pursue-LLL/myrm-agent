@@ -43,6 +43,7 @@ function makeMessagesState() {
         messageId: 'msg-1',
         chatId: 'c1',
         role: 'assistant' as const,
+        reasoning: '',
         progressSteps: [] as ProgressItem[],
         createdAt: new Date(),
       },
@@ -302,5 +303,23 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
     expect(state.messages[0].progressSteps![0].step_key).toBe('model_failover_model_not_found');
+  });
+
+  it('drops partial text streamed before the failure on the STATUS channel', async () => {
+    const state = makeMessagesState();
+    state.messages[0].content = 'Partial draft ';
+    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+      updater(state);
+    });
+
+    const ctx = makeFailoverCtx('overloaded');
+    ctx.recievedMessage = 'Partial draft ';
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+    await applyStatusProgressStep(ctx, 'model_failover');
+
+    expect(ctx.recievedMessage).toBe('');
+    expect(state.messages[0].content).toBe('');
+    expect(state.messages[0].reasoning).toBe('');
+    expect(state.messages[0].progressSteps![0].step_key).toBe('model_failover_overloaded');
   });
 });

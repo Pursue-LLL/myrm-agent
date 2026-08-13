@@ -34,6 +34,9 @@ const MCPSection = dynamic(() => import('./sections/ai-tools/MCPSection'), { loa
 const SecurityPolicySection = dynamic(() => import('./sections/system/SecurityPolicySection'), {
   loading: () => <SettingsSkeleton />,
 });
+const ShareLinksSection = dynamic(() => import('./sections/system/ShareLinksSection'), {
+  loading: () => <SettingsSkeleton />,
+});
 const RiskRulesSection = dynamic(() => import('./sections/system/RiskRulesSection'), { loading: () => <SettingsSkeleton /> });
 const CronSection = dynamic(() => import('./sections/system/CronSection'), { loading: () => <SettingsSkeleton /> });
 const KanbanSection = dynamic(() => import('./sections/system/KanbanSection'), { loading: () => <SettingsSkeleton /> });
@@ -111,6 +114,7 @@ const BASE_TABS: SettingsTab[] = [
   'agents',
   'security',
   'riskRules',
+  'shares',
   'models',
   'defaultModel',
   'search',
@@ -141,7 +145,6 @@ const BASE_TABS: SettingsTab[] = [
   'experimentalFeatures',
   'memory-backup',
   'memory-cloud-backup',
-  'memory-archival',
   'memory-migration',
   'enterprise',
   'system',
@@ -159,7 +162,6 @@ const DEPRECATED_TAB_MAP: Record<string, { parent: SettingsTab; sub?: string }> 
   toolStability: { parent: 'toolQuality', sub: 'stability' },
   'memory-backup': { parent: 'memory', sub: 'backup' },
   'memory-cloud-backup': { parent: 'memory', sub: 'cloud-backup' },
-  'memory-archival': { parent: 'memory', sub: 'archival' },
   'memory-migration': { parent: 'memory', sub: 'migration' },
   channelRouting: { parent: 'channels', sub: 'routing' },
   voice: { parent: 'channels', sub: 'voice' },
@@ -180,6 +182,7 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   agents: AgentsSection,
   security: SecurityPolicySection,
   riskRules: RiskRulesSection,
+  shares: ShareLinksSection,
   models: ModelSettingsSection,
   defaultModel: ModelSettingsSection,
   search: SearchSection,
@@ -196,7 +199,6 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   memory: MemoryCenterSection,
   'memory-backup': MemoryCenterSection,
   'memory-cloud-backup': MemoryCenterSection,
-  'memory-archival': MemoryCenterSection,
   'memory-migration': MemoryCenterSection,
   openaiApi: OpenAIApiSection,
   hosting: HostingTargetsSection,

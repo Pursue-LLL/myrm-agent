@@ -316,6 +316,7 @@
       "checkpoint": "Checkpoints",
       "security": "Security Policy",
       "riskRules": "Risk Rules",
+      "shares": "Share Links",
       "channels": "Channels",
       "channelRouting": "Channel Routing",
       "voice": "Voice",
@@ -609,6 +610,27 @@
         "cloudflare_pages": "Static sites on Cloudflare's global network. Requires account ID and API token.",
         "netlify": "Deploy to Netlify. Token required; site ID optional for existing sites.",
         "http_webhook": "POST a packaged artifact to your CI or custom endpoint. No vault credentials required."
+      }
+    },
+    "shares": {
+      "title": "Share Links",
+      "description": "Manage read-only artifact share links. Revoke a link to immediately block public access.",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "loadError": "Failed to load share links",
+      "empty": "No active share links. Create one from an HTML, PDF, or document artifact.",
+      "revoke": "Revoke",
+      "revokeLabel": "Revoke share link for {name}",
+      "revokeSuccess": "Share link revoked",
+      "revokeError": "Failed to revoke share link",
+      "yes": "Yes",
+      "no": "No",
+      "table": {
+        "artifact": "Artifact",
+        "type": "Type",
+        "protected": "Password",
+        "expiresAt": "Expires",
+        "action": "Action"
       }
     },
     "workspaceRules": {
@@ -2908,7 +2930,8 @@
       },
       "tabs": {
         "discover": "Discover",
-        "installed": "Installed"
+        "installed": "Installed",
+        "permissions": "Permissions"
       },
       "installed": {
         "archivedHidden": "{count} skills archived and hidden",
@@ -15048,7 +15071,7 @@
         "success": "Bulk Revoke Success",
         "error": "Bulk Revoke Failed",
         "errorDesc": "Failed to bulk revoke permissions, please try again",
-        "affectedSkills": "Permissions revoked across multiple skills",
+        "affectedSkills": "Revoked {count} permissions across {skills} skills",
         "confirm": "Revoke this permission from all skills?",
         "errorDescription": "Failed to bulk revoke permissions, please try again."
       },
@@ -15089,11 +15112,18 @@
           "env_var_access": "Env Var Access"
         },
         "highDenialRate": "High Denial Rate",
-        "last90days": "Last 90 days"
+        "last90days": "Last 90 days",
+        "total": "Total",
+        "recentOps": "Recent Operations"
       },
       "allowedDomainsDesc": "This skill may only send network requests to the domains listed above.",
       "revokeConfirm": "After revoking, this skill will no longer be able to perform the related operation. Running tasks that use this permission may be interrupted.\n\nContinue?",
-      "revokeSuccess": "Permission revoked. Running tasks may be affected."
+      "revokeSuccess": "Permission revoked. Running tasks may be affected.",
+      "cancel": "Cancel",
+      "confirmRevoke": "Confirm Revoke",
+      "revokeTitle": "Revoke \"{permission}\" permission from {skill}?",
+      "expand": "Expand permissions",
+      "collapse": "Collapse permissions"
     }
   },
   "followUps": {

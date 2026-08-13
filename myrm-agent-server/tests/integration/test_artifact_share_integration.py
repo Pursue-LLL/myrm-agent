@@ -22,11 +22,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.api.dependencies import get_workspace_root
-from app.api.files.artifact_share_api import (
-    _unlock_cookie_name,
-    public_router,
-)
 from app.api.files.artifact_share_api import router as share_router
+from app.api.files.artifact_share_public import _unlock_cookie_name, public_router
 from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models import Base

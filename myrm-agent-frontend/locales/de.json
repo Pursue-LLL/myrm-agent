@@ -96,6 +96,7 @@
       "kanban": "Kanban-Board",
       "security": "Sicherheitsrichtlinie",
       "riskRules": "Risikoregeln",
+      "shares": "Freigabelinks",
       "channels": "Kanäle",
       "voice": "Sprache",
       "developer": "Entwickler",
@@ -2445,7 +2446,8 @@
       "description": "KI-Assistenten-Fähigkeiten verwalten und konfigurieren, um ihre Funktionalität zu erweitern",
       "tabs": {
         "discover": "Entdecken",
-        "installed": "Installiert"
+        "installed": "Installiert",
+        "permissions": "Berechtigungen"
       },
       "installed": {
         "archivedHidden": "{count} Fähigkeiten archiviert und ausgeblendet",
@@ -4366,6 +4368,27 @@
         "cloudflare_pages": "Statische Sites im Cloudflare-Netzwerk. Account-ID und API-Token erforderlich.",
         "netlify": "Deploy nach Netlify. Token erforderlich; Site-ID optional für bestehende Sites.",
         "http_webhook": "Packaged Artifact per POST an CI oder Custom-Endpoint. Keine Vault-Anmeldedaten nötig."
+      }
+    },
+    "shares": {
+      "title": "Freigabelinks",
+      "description": "Verwalten Sie schreibgeschützte Artifact-Freigabelinks. Widerrufen Sie einen Link, um den öffentlichen Zugriff sofort zu blockieren.",
+      "refresh": "Aktualisieren",
+      "retry": "Erneut versuchen",
+      "loadError": "Freigabelinks konnten nicht geladen werden",
+      "empty": "Keine aktiven Freigabelinks. Erstellen Sie einen aus einem HTML-, PDF- oder Dokument-Artefakt.",
+      "revoke": "Widerrufen",
+      "revokeLabel": "Freigabelink für {name} widerrufen",
+      "revokeSuccess": "Freigabelink widerrufen",
+      "revokeError": "Freigabelink konnte nicht widerrufen werden",
+      "yes": "Ja",
+      "no": "Nein",
+      "table": {
+        "artifact": "Artefakt",
+        "type": "Typ",
+        "protected": "Passwort",
+        "expiresAt": "Läuft ab",
+        "action": "Aktion"
       }
     },
     "workspaceRules": {
@@ -14343,7 +14366,7 @@
         "success": "Massenrücknahme erfolgreich",
         "error": "Massenrücknahme fehlgeschlagen",
         "errorDesc": "Berechtigungen konnten nicht widerrufen werden",
-        "affectedSkills": "Berechtigungen wurden für mehrere Fähigkeiten widerrufen",
+        "affectedSkills": "{count} Berechtigungen widerrufen, {skills} Fähigkeiten betroffen",
         "confirm": "Diese Berechtigung von allen Fähigkeiten widerrufen?",
         "errorDescription": "Bulk-Widerruf fehlgeschlagen. Bitte versuchen Sie es erneut."
       },
@@ -14384,11 +14407,18 @@
           "env_var_access": "Umgebungsvariable"
         },
         "highDenialRate": "Hohe Ablehnungsrate",
-        "last90days": "Letzte 90 Tage"
+        "last90days": "Letzte 90 Tage",
+        "total": "Gesamt",
+        "recentOps": "Letzte Vorgänge"
       },
       "allowedDomainsDesc": "Diese Fähigkeit darf nur Anfragen an die oben aufgeführten Domains senden.",
       "revokeConfirm": "Nach dem Widerruf kann diese Fähigkeit den zugehörigen Vorgang nicht mehr ausführen. Laufende Aufgaben, die diese Berechtigung verwenden, können unterbrochen werden.\n\nFortfahren?",
-      "revokeSuccess": "Berechtigung widerrufen. Laufende Aufgaben können betroffen sein."
+      "revokeSuccess": "Berechtigung widerrufen. Laufende Aufgaben können betroffen sein.",
+      "cancel": "Abbrechen",
+      "confirmRevoke": "Widerrufen",
+      "revokeTitle": "Berechtigung \"{permission}\" von {skill} widerrufen?",
+      "expand": "Berechtigungen erweitern",
+      "collapse": "Berechtigungen einklappen"
     },
     "migration": {
       "title": "Import aus Hermes / OpenClaw / Claude Code / Codex",

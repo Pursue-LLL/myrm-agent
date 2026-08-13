@@ -14,6 +14,7 @@
 | `chat.py` | 域模块 | Chat, Message, ConversationFork, OfflineDurableTask, InterruptedTurnMarker（crash auto-continue write-ahead marker） | ✅ |
 | `agent.py` | 域模块 | Agent (含 tool_gateway_config, cron_post_run_verify 列), AgentSecret, AgentProfileSnapshot（WebUI rollback SSOT） | ✅ |
 | `agent_history.py` | 域模块 | AgentProfileHistory（乐观锁 version 审计 + Prompt 浏览，非 rollback SSOT） | ✅ |
+| `artifact_share.py` | 域模块 | ArtifactShareRecord（分享链接生命周期登记：fingerprint/过期/撤销时间戳） | ✅ |
 | `memory.py` | 域模块 | ProfileAttribute, ProceduralRule, PendingMemory, SharedContextModel, SharedContextBindingModel, SharedContextWriteProposalModel, MemoryOperationEventModel, MemoryHealthSnapshotModel, MemoryMigrationProvenanceModel, MemoryImportDryRunModel, MemoryImportBatchModel, MemoryImportItemModel, MemoryArchiveRestoreBatchModel, MemoryArchiveRestoreItemModel；导入审查和归档恢复模型持久化 dry-run、确认批次、回滚状态和清理所需时间字段 | ✅ |
 | `config.py` | 域模块 | UserConfig | ✅ |
 | `agent_event.py` | 域模块 | AgentTurn, AgentEvent | ✅ |
