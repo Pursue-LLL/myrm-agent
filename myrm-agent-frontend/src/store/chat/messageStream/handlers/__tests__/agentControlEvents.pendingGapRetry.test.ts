@@ -20,6 +20,7 @@ vi.mock('../handlerDeps', () => ({
     STEERING: 'steering',
   },
   findAssistantMessageIndex: vi.fn(() => 0),
+  releaseInspectorControls: vi.fn(),
   getUserFriendlyError: vi.fn(async () => ({ message: 'failed', hint: undefined })),
   useToolApprovalStore: {
     getState: vi.fn(() => ({ unmarkProcessing: vi.fn() })),
