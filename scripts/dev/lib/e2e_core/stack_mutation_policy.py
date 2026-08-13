@@ -33,6 +33,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Final
 
+# 作为脚本直接执行时（`python .../e2e_core/stack_mutation_policy.py`），sys.path[0]
+# 指向 e2e_core/ 目录而非 dev lib 根，导致本模块内延迟导入 e2e_core.* 失败；
+# 自举 dev lib 根（e2e_core 的父目录），与 dev_gate/cli.py 保持同一模式。
+if __package__ in (None, ""):
+    _lib_root = str(Path(__file__).resolve().parent.parent)
+    if _lib_root not in sys.path:
+        sys.path.insert(0, _lib_root)
+
 PENDING_DRIFT_FILENAME: Final[str] = "pending-stack-drift.json"
 _HARNESS_IMPORT_FAILED_TOKEN: Final[str] = (
     "monorepo harness source present but myrm_agent_harness import failed"

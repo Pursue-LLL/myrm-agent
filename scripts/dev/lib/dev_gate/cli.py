@@ -17,6 +17,15 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
+# This module imports dev_gate.* at module scope and is invoked directly as a
+# script (`python .../dev_gate/cli.py ...`) by test.sh / e2e_bootstrap.sh. When
+# run as a script, Python only puts the file's own directory on sys.path, so the
+# dev lib root (parent of the dev_gate package) must be bootstrapped here instead
+# of relying on the caller's PYTHONPATH.
+_lib_root = str(Path(__file__).resolve().parent.parent)
+if _lib_root not in sys.path:
+    sys.path.insert(0, _lib_root)
+
 from dev_gate.coordinator import (
     CoordinatorService,
     default_socket_path,
@@ -33,19 +42,18 @@ _IN_PROCESS_SERVICE: CoordinatorService | None = None
 _IN_PROCESS_SERVICE_LOCK = threading.Lock()
 
 _COORDINATOR_CODE_FP_FILES: tuple[str, ...] = (
-    "dev_gate_coordinator.py",
     "dev_gate/coordinator.py",
-    "dev_gate_cli.py",
-    "dev_gate_contract.py",
+    "dev_gate/cli.py",
+    "dev_gate/contract.py",
     "dev_gate/cleanup_observed_seal.py",
     "dev_gate/owner_identity.py",
     "dev_gate/session.py",
-    "private_resource_controller.py",
-    "dev_gate_store.py",
-    "e2e_stale_lease_reap.py",
-    "e2e_pytest_dedupe.py",
+    "dev_gate/private_resource_controller.py",
+    "dev_gate/store.py",
+    "e2e_core/stale_lease_reap.py",
+    "e2e_core/pytest_dedupe.py",
     "e2e_session_runtime/registry.py",
-    "stack_mutation_policy.py",
+    "e2e_core/stack_mutation_policy.py",
 )
 
 
@@ -83,7 +91,7 @@ def _coordinator_source_preflight(lib_root: Path) -> str | None:
     env["PYTHONPATH"] = str(lib_root)
     try:
         probe = subprocess.run(
-            [sys.executable, "-c", "import dev_gate_coordinator"],
+            [sys.executable, "-c", "import dev_gate.coordinator"],
             capture_output=True,
             text=True,
             timeout=3.0,
@@ -239,7 +247,7 @@ def _list_coordinator_serve_pids(
     """PIDs for coordinator serve processes bound to this socket/database."""
     try:
         result = subprocess.run(
-            ["pgrep", "-lf", "dev_gate_coordinator.py serve"],
+            ["pgrep", "-lf", "dev_gate/coordinator.py serve"],
             capture_output=True,
             text=True,
             timeout=3.0,
@@ -472,10 +480,9 @@ def ensure_coordinator(
                 f"{preflight_error}"
             )
         with log_path.open("ab", buffering=0) as log_handle:
-            # Spawn via the root-level shim (dev_gate_coordinator.py) at dev lib root,
-            # not inside this package dir; shim imports the dev_gate package, so
+            # Spawn coordinator via its canonical package path at dev lib root;
             # export the dev lib root on PYTHONPATH for the child.
-            coordinator_module = str(lib_root / "dev_gate_coordinator.py")
+            coordinator_module = str(lib_root / "dev_gate/coordinator.py")
             spawn_env = dict(os.environ)
             spawn_env["PYTHONPATH"] = str(lib_root)
             proc = subprocess.Popen(

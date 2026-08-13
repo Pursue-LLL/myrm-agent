@@ -31,7 +31,7 @@ MYRM_CHROME_E2E_ATTACH="${MYRM_CHROME_E2E_ATTACH:-0}"
 export MYRM_CHROME_E2E_ATTACH
 MYRM_MUX_ALLOW_TIMEOUT_RESTART="${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-1}"
 export MYRM_MUX_ALLOW_TIMEOUT_RESTART
-# R286: python -m e2e_bootstrap_deadline must share one holder key across subprocesses.
+# R286: python -m e2e_core.bootstrap_deadline must share one holder key across subprocesses.
 export MYRM_E2E_DEDUPE_HOLDER_PID="${MYRM_E2E_DEDUPE_HOLDER_PID:-$$}"
 # R292: launch-force maintainer override must use fast attach path (solo PASS ~212s);
 # without SKIP_ATTACH_WAIT, preflight burns 650s+ on signoff-stream hot-pool gate.
@@ -355,14 +355,14 @@ _bootstrap_attach_begin() {
   local active_leases="${1:-0}"
   [[ "${active_leases}" =~ ^[0-9]+$ ]] || active_leases=0
   PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
-    "${PREFLIGHT_PY}" -m e2e_bootstrap_deadline begin --active-leases "${active_leases}" >/dev/null
+    "${PREFLIGHT_PY}" -m e2e_core.bootstrap_deadline begin --active-leases "${active_leases}" >/dev/null
 }
 
 _bootstrap_attach_remaining_sec() {
   local remaining
   remaining="$(
     PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
-      "${PREFLIGHT_PY}" -m e2e_bootstrap_deadline remaining 2>/dev/null || echo 0
+      "${PREFLIGHT_PY}" -m e2e_core.bootstrap_deadline remaining 2>/dev/null || echo 0
   )"
   [[ "${remaining}" =~ ^[0-9]+$ ]] || remaining=0
   echo "${remaining}"
@@ -946,7 +946,7 @@ _preflight_readiness_gate() {
   local py_out rc=0
   py_out="$(
     PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
-      "${PREFLIGHT_PY}" -m e2e_readiness emit 2>&1
+      "${PREFLIGHT_PY}" -m e2e_core.readiness emit 2>&1
   )" || rc=$?
   echo "${py_out}" >&2
   if [[ "${rc}" -eq 2 ]]; then

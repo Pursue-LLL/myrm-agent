@@ -41,7 +41,7 @@ def test_namespace_write_standard_uses_resource_write_timeout_floor(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "dev_gate_contract.parallel_live_pytest_timeout_floor_sec",
+        "dev_gate.contract.parallel_live_pytest_timeout_floor_sec",
         lambda base: base,
     )
     item = _NamespaceWriteItem()

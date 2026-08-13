@@ -10,7 +10,7 @@ _smp_policy_py() {
   if [[ -z "${lib_dir}" ]]; then
     lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   fi
-  printf '%s/stack_mutation_policy.py' "${lib_dir}"
+  printf '%s/e2e_core/stack_mutation_policy.py' "${lib_dir}"
 }
 
 _smp_state_dir() {
@@ -135,12 +135,11 @@ _smp_attach_backend_drift_heal() {
 
 _smp_should_defer_harness_install() {
   local monorepo_root="${1:?}"
-  local stack_epoch_lib active_leases policy_py
+  local stack_epoch_lib active_leases
   stack_epoch_lib="${2:-$(dirname "${BASH_SOURCE[0]}")/stack-epoch.sh}"
   # shellcheck source=stack-epoch.sh
   source "${stack_epoch_lib}"
   active_leases="$(_wave_active_lease_count "${monorepo_root}")"
-  policy_py="$(dirname "${BASH_SOURCE[0]}")/stack_mutation_policy.py"
   "$(_smp_python)" -c "
 import sys
 sys.path.insert(0, '$(dirname "${BASH_SOURCE[0]}")')

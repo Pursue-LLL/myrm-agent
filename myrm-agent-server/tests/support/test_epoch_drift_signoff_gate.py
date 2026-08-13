@@ -54,7 +54,7 @@ def test_epoch_drift_entry_skip_bypassed_when_launch_force_attach() -> None:
             return_value=("SHARED", "NAMESPACE_WRITE", "STANDARD"),
         ):
             with patch(
-                "e2e_api_verify.resolve_e2e_api_context",
+                "e2e_core.api_verify.resolve_e2e_api_context",
                 return_value=blocked_ctx,
             ):
                 _epoch_drift_entry_skip_if_shared(request)
@@ -80,7 +80,7 @@ def test_epoch_drift_entry_skip_raises_when_not_signoff() -> None:
             return_value=("SHARED", "NAMESPACE_WRITE", "DESKTOP"),
         ):
             with patch(
-                "e2e_api_verify.resolve_e2e_api_context",
+                "e2e_core.api_verify.resolve_e2e_api_context",
                 return_value=blocked_ctx,
             ):
                 with pytest.raises(pytest.skip.Exception) as exc_info:

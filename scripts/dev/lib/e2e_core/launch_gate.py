@@ -90,7 +90,7 @@ def chrome_e2e_launch_denial_reason() -> str | None:
     wall = _launch_gate_wall_sec()
     try:
         proc = subprocess.run(
-            [sys.executable, "-m", "e2e_readiness", "emit"],
+            [sys.executable, "-m", "e2e_core.readiness", "emit"],
             capture_output=True,
             text=True,
             timeout=wall,

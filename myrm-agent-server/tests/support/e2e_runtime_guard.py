@@ -519,7 +519,8 @@ def assert_chrome_attach_health() -> None:
         / "scripts"
         / "dev"
         / "lib"
-        / "runtime_identity.py"
+        / "e2e_core"
+        / "e2e_core.runtime_identity.py"
     )
     ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
     api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")

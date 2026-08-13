@@ -47,7 +47,7 @@ def test_signoff_desktop_soak_wall_clock_scales(
     from tests.e2e.desktop_approval import constants as mod
 
     with patch(
-        "cdp_chat_support.signoff_parallel_desktop_wall_clock_fail_sec",
+        "cdp_chat.support.signoff_parallel_desktop_wall_clock_fail_sec",
         return_value=525.0,
     ):
         assert mod._resolve_desktop_e2e_wall_clock_fail_sec() == 525.0

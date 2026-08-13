@@ -466,7 +466,7 @@ def e2e_launch_check_wall_sec(*, active_leases: int | None = None) -> float:
     """Readiness emit subprocess budget for launch-check and test.sh gate (R275).
 
     Solo 45s; under parallel chrome_e2e pressure min(180, 45+peers×15)s so
-    ``e2e_readiness emit`` is not falsely denied while peers hold the stack.
+    ``e2e_core.readiness emit`` is not falsely denied while peers hold the stack.
     """
     raw = os.environ.get("E2E_LAUNCH_CHECK_WALL_SEC", "").strip()
     if raw:

@@ -765,12 +765,12 @@ def test_signoff_new_page_join_timeout_uses_mux_timeout_plus_grace(
         ),
     )
     monkeypatch.setattr(
-        "dev_gate_contract._parallel_signoff_pressure_peers",
+        "dev_gate.contract._parallel_signoff_pressure_peers",
         lambda: 0,
     )
-    monkeypatch.setattr("transport_supervisor.parallel_mux_peer_count", lambda: 0)
+    monkeypatch.setattr("mux.transport_supervisor.parallel_mux_peer_count", lambda: 0)
     monkeypatch.setattr(
-        "mux_load.snapshot_mux_load",
+        "mux.load.snapshot_mux_load",
         lambda **kwargs: type("_Snap", (), {"mux_contexts": 0, "wave_leases": 0})(),
     )
     monkeypatch.setattr(
@@ -808,12 +808,12 @@ def test_signoff_new_page_join_timeout_scales_under_parallel(
         ),
     )
     monkeypatch.setattr(
-        "dev_gate_contract._parallel_signoff_pressure_peers",
+        "dev_gate.contract._parallel_signoff_pressure_peers",
         lambda: 3,
     )
-    monkeypatch.setattr("transport_supervisor.parallel_mux_peer_count", lambda: 3)
+    monkeypatch.setattr("mux.transport_supervisor.parallel_mux_peer_count", lambda: 3)
     monkeypatch.setattr(
-        "mux_load.snapshot_mux_load",
+        "mux.load.snapshot_mux_load",
         lambda **kwargs: type("_Snap", (), {"mux_contexts": 3, "wave_leases": 3})(),
     )
     monkeypatch.setattr(

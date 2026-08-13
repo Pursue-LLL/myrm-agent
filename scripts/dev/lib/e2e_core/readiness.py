@@ -426,7 +426,7 @@ def _cmd_check(_args: argparse.Namespace) -> int:
     lib = Path(__file__).resolve().parent
     try:
         proc = subprocess.run(
-            [sys.executable, "-m", "e2e_readiness", "emit"],
+            [sys.executable, "-m", "e2e_core.readiness", "emit"],
             capture_output=True,
             text=True,
             timeout=wall,

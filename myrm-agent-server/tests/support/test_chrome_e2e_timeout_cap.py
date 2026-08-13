@@ -48,7 +48,7 @@ def _pin_deterministic_lane_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("MYRM_E2E_PHASE_C_BURST_LANES", raising=False)
     monkeypatch.delenv("E2E_PARALLEL_RAMP_PYTEST_TIMEOUT_SEC", raising=False)
     monkeypatch.setattr(
-        "stack_mutation_policy.wave_active_lease_count", lambda path: 0
+        "e2e_core.stack_mutation_policy.wave_active_lease_count", lambda path: 0
     )
 
 

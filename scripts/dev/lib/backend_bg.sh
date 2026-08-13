@@ -161,7 +161,7 @@ _start_backend_bg() {
             agent_root="$(cd "${server_dir}/.." && pwd)"
             monorepo_root="$(cd "${agent_root}/.." && pwd)"
             active_leases="$(_wave_active_lease_count "${monorepo_root}")"
-            policy_py="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py"
+            policy_py="$(cd "$(dirname "${BASH_SOURCE[0]}")/e2e_core" && pwd)/stack_mutation_policy.py"
             defer_reason="backend_source_drift"
             if [[ -z "${stored_fp}" ]]; then
               defer_reason="backend_source_fingerprint_missing"
@@ -192,7 +192,7 @@ _start_backend_bg() {
             rebuild_target="${port_owner_pid}"
           else
             if [[ "${runtime_id}" == "shared" ]]; then
-              python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py" \
+              python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/e2e_core" && pwd)/stack_mutation_policy.py" \
                 clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
             fi
             echo "Backend already running (pid ${port_owner_pid})"
@@ -349,7 +349,7 @@ os.execv(sys.argv[1], sys.argv[1:])
           source "${stack_epoch_lib}"
           _bump_stack_epoch "${new_pid}" "${server_dir}" >/dev/null || true
           if [[ "${runtime_id}" == "shared" ]]; then
-            python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py" \
+            python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/e2e_core" && pwd)/stack_mutation_policy.py" \
               clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
           fi
         fi
