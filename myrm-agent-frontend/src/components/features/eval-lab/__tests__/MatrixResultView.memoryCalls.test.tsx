@@ -194,3 +194,51 @@ describe('MatrixResultView shared disclosure area', () => {
     expect(screen.queryByText(/basedOnProfile/)).not.toBeInTheDocument();
   });
 });
+
+describe('MatrixResultView run budget disclosure', () => {
+  it('shows the budget badge when the report discloses run caps', () => {
+    const report = baseReport();
+    report.max_tool_calls = 100;
+    report.max_iterations = 150;
+
+    render(<MatrixResultView report={report} />);
+
+    expect(screen.getByText(/100 evalLab\.matrix\.budgetToolCalls/)).toBeInTheDocument();
+    expect(screen.getByText(/150 evalLab\.matrix\.budgetIterations/)).toBeInTheDocument();
+    expect(screen.getByText('evalLab.matrix.budgetHint')).toBeInTheDocument();
+  });
+
+  it('omits the budget badge for reports without caps', () => {
+    render(<MatrixResultView report={baseReport()} />);
+
+    expect(screen.queryByText(/evalLab\.matrix\.budget/)).not.toBeInTheDocument();
+  });
+});
+
+describe('MatrixResultView decontamination disclosure', () => {
+  it('shows the enabled badge when decontamination was active', () => {
+    const report = baseReport();
+    report.harness_version = '0.18.0';
+    report.decontam_active = true;
+
+    render(<MatrixResultView report={report} />);
+
+    expect(screen.getByText('evalLab.layers.decontamOn')).toBeInTheDocument();
+  });
+
+  it('shows the disabled badge when decontamination was off', () => {
+    const report = baseReport();
+    report.harness_version = '0.18.0';
+    report.decontam_active = false;
+
+    render(<MatrixResultView report={report} />);
+
+    expect(screen.getByText('evalLab.layers.decontamOff')).toBeInTheDocument();
+  });
+
+  it('omits the badge when the report has no decontamination field', () => {
+    render(<MatrixResultView report={baseReport()} />);
+
+    expect(screen.queryByText(/decontam/)).not.toBeInTheDocument();
+  });
+});

@@ -462,6 +462,7 @@ class TestMemoryAbService:
         report = json.loads((tmp_path / "reports" / "latest.json").read_text())
         assert report["max_tool_calls"] == 100
         assert report["max_iterations"] == 150
+        assert report["decontam_active"] is True
 
 
 @pytest.mark.asyncio
