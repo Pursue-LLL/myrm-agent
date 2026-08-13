@@ -27,7 +27,7 @@
 | `ReactPreview.tsx` | 核心 | React 组件纯预览器（Sandpack）；视图切换由 PortalHeader 统一控制 |
 | `components/SandpackErrorBoundary.tsx` | 辅助 | Sandpack 编译/运行时错误边界 |
 | `components/CompileErrorDisplay.tsx` | 辅助 | Sandpack 编译错误展示面板 |
-| `renderers/MediaPreview.tsx` | 辅助 | `HtmlPreview` 沙箱 iframe; `SvgPreview` DOMPurify 安全渲染 |
+| `renderers/MediaPreview.tsx` | 辅助 | `HtmlPreview` 沙箱 iframe; `SvgPreview` DOMPurify 安全渲染; `ImagePreview` 可选 `showEditButton`（workspace 预览禁用编辑上传） |
 | `renderers/MermaidPreview.tsx` | 辅助 | Mermaid 图表渲染（Suspense + dynamic import） |
 | `portal/useSelectionAction.ts` | 辅助 | Artifact 选中交互的通用消息发送 hook（dirtyArtifacts 注入 + Agent 忙碌排队） |
 | `portal/SelectionToolbar.tsx` | 辅助 | Monaco Editor 选中文本悬浮操作栏 |
