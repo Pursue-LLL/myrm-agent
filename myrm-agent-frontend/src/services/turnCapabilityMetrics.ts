@@ -83,7 +83,7 @@ function normalizeContextKey(contextKey?: string): string {
 }
 
 function clampCount(count: number): number {
-  if (!Number.isFinite(count)) return 1;
+  if (!Number.isFinite(count)) {return 1;}
   return Math.max(1, Math.min(MAX_EVENT_COUNT, Math.floor(count)));
 }
 

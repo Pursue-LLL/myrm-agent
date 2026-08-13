@@ -124,7 +124,7 @@ export const SmartPromptEditor: React.FC<SmartPromptEditorProps> = ({
   };
 
   const handleAiSubmit = () => {
-    if (!aiPrompt.trim() || !onAiGenerate) return;
+    if (!aiPrompt.trim() || !onAiGenerate) {return;}
     onAiGenerate(aiPrompt);
     setShowAiInput(false);
     setAiPrompt('');
@@ -192,7 +192,7 @@ export const SmartPromptEditor: React.FC<SmartPromptEditorProps> = ({
             placeholder={t('aiPromptPlaceholder')}
             className="flex-1 min-h-[60px] text-sm p-2 rounded border bg-background resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
             onKeyDown={(e) => {
-              if (e.nativeEvent.isComposing) return;
+              if (e.nativeEvent.isComposing) {return;}
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleAiSubmit();

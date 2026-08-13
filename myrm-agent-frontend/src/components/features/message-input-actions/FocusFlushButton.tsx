@@ -31,7 +31,7 @@ const FocusFlushButton = () => {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const handleFocus = async () => {
-    if (!chatId) return;
+    if (!chatId) {return;}
 
     setIsOpen(false); // Close dialog immediately
     const toastId = toast.loading('Flushing chat history...');
@@ -50,7 +50,7 @@ const FocusFlushButton = () => {
     }
   };
 
-  if (!chatId) return null;
+  if (!chatId) {return null;}
 
   return (
     <AlertDialog open={isOpen} onOpenChange={setIsOpen}>

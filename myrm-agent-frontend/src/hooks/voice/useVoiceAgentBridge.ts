@@ -131,7 +131,7 @@ export function useVoiceAgentBridge(options: UseVoiceAgentBridgeOptions): UseVoi
   }, [stopTtsPlayback]);
 
   const startAudioLevelMonitor = useCallback(() => {
-    if (!analyserRef.current) return;
+    if (!analyserRef.current) {return;}
     const analyser = analyserRef.current;
     const data = new Uint8Array(analyser.fftSize);
 
@@ -148,7 +148,7 @@ export function useVoiceAgentBridge(options: UseVoiceAgentBridgeOptions): UseVoi
   }, []);
 
   const connect = useCallback(() => {
-    if (!enabled) return;
+    if (!enabled) {return;}
     cleanup();
 
     setState('connecting');
@@ -284,7 +284,7 @@ export function useVoiceAgentBridge(options: UseVoiceAgentBridgeOptions): UseVoi
     const chunks = ttsChunksRef.current;
     ttsChunksRef.current = [];
 
-    if (chunks.length === 0) return;
+    if (chunks.length === 0) {return;}
 
     const blob = new Blob(chunks, { type: 'audio/mpeg' });
     ttsPlayQueueRef.current.push(blob);

@@ -42,7 +42,7 @@ export function AttachmentsSection({
         setDragOver(true);
       }}
       onDragLeave={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false);
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {setDragOver(false);}
       }}
       onDrop={handleDrop}
     >
@@ -145,7 +145,7 @@ export function TaskResultSection({
   handleSaveResult,
   t,
 }: TaskResultSectionProps) {
-  if (!task.result && !isTerminal) return null;
+  if (!task.result && !isTerminal) {return null;}
 
   return (
     <div className="rounded-lg border bg-muted/20 px-3 py-2">

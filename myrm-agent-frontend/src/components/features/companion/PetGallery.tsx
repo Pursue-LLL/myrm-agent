@@ -103,27 +103,27 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
     setInstalledLoading(true);
     listInstalledCompanionPets()
       .then((pets) => {
-        if (generation !== installedFetchGenRef.current) return;
+        if (generation !== installedFetchGenRef.current) {return;}
         setInstalledPets(pets);
       })
       .catch(() => {
-        if (generation !== installedFetchGenRef.current) return;
+        if (generation !== installedFetchGenRef.current) {return;}
         setInstalledPets([]);
       })
       .finally(() => {
-        if (generation !== installedFetchGenRef.current) return;
+        if (generation !== installedFetchGenRef.current) {return;}
         setInstalledLoading(false);
       });
   }, []);
 
   useEffect(() => {
-    if (!reloadInstalledWhen) return;
+    if (!reloadInstalledWhen) {return;}
     fetchInstalledPets();
   }, [reloadInstalledWhen, fetchInstalledPets]);
 
   useEffect(() => {
     const slug = spriteConfig?.petSlug;
-    if (!slug) return;
+    if (!slug) {return;}
     setInstalledPets((prev) =>
       mergeInstalledPet(prev, {
         slug,
@@ -140,19 +140,19 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
     setManifestError(null);
     fetchPetdexManifest()
       .then((data) => {
-        if (!cancelled) setManifestPets(data);
+        if (!cancelled) {setManifestPets(data);}
       })
       .catch((err) => {
-        if (!cancelled) setManifestError(String(err));
+        if (!cancelled) {setManifestError(String(err));}
       })
       .finally(() => {
-        if (!cancelled) setManifestLoading(false);
+        if (!cancelled) {setManifestLoading(false);}
       });
     return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
-    if (!doctorExpandPending) return;
+    if (!doctorExpandPending) {return;}
     setDoctorExpanded(true);
     clearDoctorExpandPending();
   }, [doctorExpandPending, clearDoctorExpandPending]);
@@ -163,7 +163,7 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
       installedSlugs,
       activeSlug: currentSlug,
     });
-    if (!search.trim()) return ranked;
+    if (!search.trim()) {return ranked;}
     const q = search.trim().toLowerCase();
     return ranked.filter(
       (p) => p.slug.toLowerCase().includes(q) || p.displayName.toLowerCase().includes(q),
@@ -174,7 +174,7 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel) return;
+    if (!sentinel) {return;}
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filtered.length));
@@ -244,7 +244,7 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
 
   const handleConfirmUninstall = useCallback(async () => {
     setUninstallDialogOpen(false);
-    if (!pendingUninstall) return;
+    if (!pendingUninstall) {return;}
 
     const pet = pendingUninstall;
     setPendingUninstall(null);

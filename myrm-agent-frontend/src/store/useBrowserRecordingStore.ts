@@ -177,7 +177,7 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
 
   generateSkill: async (skillName: string, description?: string) => {
     const { sessionId } = get();
-    if (!sessionId) return;
+    if (!sessionId) {return;}
 
     set({ status: 'generating', error: null });
 

@@ -26,7 +26,7 @@ export function WorkspaceMergeWarning({ failures, failedCount, truncated }: Work
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations('chat');
 
-  if (!failures.length) return null;
+  if (!failures.length) {return null;}
 
   const totalCount = failedCount && failedCount > failures.length ? failedCount : failures.length;
   const hiddenCount = truncated && truncated > 0

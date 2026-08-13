@@ -29,7 +29,7 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {return;}
     setStep('select');
     setSelectedTemplate(null);
     setAnswers({});
@@ -42,9 +42,9 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
   }, [open, t]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {return;}
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !creating) onClose();
+      if (e.key === 'Escape' && !creating) {onClose();}
     };
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
@@ -70,7 +70,7 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
   );
 
   const handleCreate = useCallback(async () => {
-    if (!selectedTemplate) return;
+    if (!selectedTemplate) {return;}
     setCreating(true);
     setStep('creating');
     try {
@@ -94,7 +94,7 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
-  if (!open) return null;
+  if (!open) {return null;}
 
   const groups = selectedTemplate?.discovery_questions ?? [];
   const currentGroup: PipelineQuestionGroup | undefined = groups[currentGroupIdx];
@@ -165,8 +165,8 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
           <div className="flex items-center justify-between px-5 py-3 border-t border-border">
             <button
               onClick={() => {
-                if (currentGroupIdx > 0) setCurrentGroupIdx((i) => i - 1);
-                else setStep('select');
+                if (currentGroupIdx > 0) {setCurrentGroupIdx((i) => i - 1);}
+                else {setStep('select');}
               }}
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >

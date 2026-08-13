@@ -59,7 +59,7 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
   }, [refresh]);
 
   const handleSave = useCallback(async () => {
-    if (!status) return;
+    if (!status) {return;}
     const feeds = rssText
       .split('\n')
       .map((line) => line.trim())

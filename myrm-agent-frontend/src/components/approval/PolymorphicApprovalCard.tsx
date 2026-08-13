@@ -47,9 +47,9 @@ interface PolymorphicApprovalCardProps {
 }
 
 function formatRemaining(remainingMs: number, t: ReturnType<typeof useTranslations>): string {
-  if (remainingMs <= 0) return t('expired');
+  if (remainingMs <= 0) {return t('expired');}
   const totalSeconds = Math.ceil(remainingMs / 1000);
-  if (totalSeconds < 60) return t('expiresIn', { seconds: totalSeconds });
+  if (totalSeconds < 60) {return t('expiresIn', { seconds: totalSeconds });}
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -65,7 +65,7 @@ function ExpiryCountdown({ expiresAt }: { expiresAt: string }) {
   }, []);
 
   const expiresAtMs = new Date(expiresAt).getTime();
-  if (Number.isNaN(expiresAtMs)) return null;
+  if (Number.isNaN(expiresAtMs)) {return null;}
 
   const remaining = expiresAtMs - now;
   const isExpired = remaining <= 0;
@@ -86,7 +86,7 @@ function ExpiryCountdown({ expiresAt }: { expiresAt: string }) {
 }
 
 function getLanguageFromPath(filePath: string): string {
-  if (!filePath) return 'markdown';
+  if (!filePath) {return 'markdown';}
   const ext = filePath.split('.').pop()?.toLowerCase();
   switch (ext) {
     case 'js':
@@ -239,17 +239,17 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   const isSubagentApproval = approval.action_type === 'subagent_approval';
   const hasAnySmartDenied = useMemo(() => {
     const configs = approval.payload?.reviewConfigs;
-    if (!configs || !Array.isArray(configs)) return false;
+    if (!configs || !Array.isArray(configs)) {return false;}
     return configs.some((c) => c?.smartDenied === true);
   }, [approval.payload?.reviewConfigs]);
   const hasAnyHideAllowAlways = useMemo(() => {
     const configs = approval.payload?.reviewConfigs;
-    if (!configs || !Array.isArray(configs)) return false;
+    if (!configs || !Array.isArray(configs)) {return false;}
     return configs.some((c) => c?.hideAllowAlways === true);
   }, [approval.payload?.reviewConfigs]);
   const smartDeniedReason = useMemo(() => {
     const reasons = approval.payload?.reviewerReasons;
-    if (!reasons || !Array.isArray(reasons)) return undefined;
+    if (!reasons || !Array.isArray(reasons)) {return undefined;}
     return reasons.find((r) => typeof r === 'string' && r.length > 0);
   }, [approval.payload?.reviewerReasons]);
   const singleShellToolCall = useMemo(() => {
@@ -392,7 +392,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   ]);
 
   const handleJumpToChat = () => {
-    if (!approval.chat_id) return;
+    if (!approval.chat_id) {return;}
     hideDrawer();
     router.push(`/chat/${approval.chat_id}`);
   };

@@ -14,7 +14,7 @@ const BrowserRecordingToggle: React.FC = () => {
 
   const isActive = status === 'recording' || status === 'paused';
 
-  if (!isBrowserActive && !isActive) return null;
+  if (!isBrowserActive && !isActive) {return null;}
 
   return (
     <button

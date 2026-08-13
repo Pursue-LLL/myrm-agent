@@ -12,7 +12,7 @@ interface TextItemsRendererProps {
 }
 
 const isJsonString = (str: string): { isJson: boolean; formatted: string; language: string } => {
-  if (str.length < 20) return { isJson: false, formatted: str, language: 'text' };
+  if (str.length < 20) {return { isJson: false, formatted: str, language: 'text' };}
 
   // 【性能探针熔断机制】超过 50KB 的字符串直接拒绝 JSON.parse 嗅探，防止主线程卡死
   if (str.length > 50000) {

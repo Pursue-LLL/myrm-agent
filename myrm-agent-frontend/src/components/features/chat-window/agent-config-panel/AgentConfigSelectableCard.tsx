@@ -41,8 +41,8 @@ export function SelectableCard({
             ),
       )}
       onClick={(e) => {
-        if (disabled) return;
-        if ((e.target as HTMLElement).closest('.no-card-click')) return;
+        if (disabled) {return;}
+        if ((e.target as HTMLElement).closest('.no-card-click')) {return;}
         onCheckedChange();
       }}
     >

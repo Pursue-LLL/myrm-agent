@@ -125,12 +125,12 @@ export function GoalQueueSection() {
   const sortableIds = useMemo(() => queuedGoals.map((g) => g.goal_id), [queuedGoals]);
 
   useEffect(() => {
-    if (chatId) fetchQueue(chatId);
+    if (chatId) {fetchQueue(chatId);}
   }, [chatId, fetchQueue, activeGoal?.status]);
 
   const handleCancel = useCallback(
     (goalId: string) => {
-      if (chatId) cancelQueuedGoal(chatId, goalId);
+      if (chatId) {cancelQueuedGoal(chatId, goalId);}
     },
     [chatId, cancelQueuedGoal],
   );
@@ -138,11 +138,11 @@ export function GoalQueueSection() {
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
-      if (!over || active.id === over.id || !chatId) return;
+      if (!over || active.id === over.id || !chatId) {return;}
 
       const oldIndex = queuedGoals.findIndex((g) => g.goal_id === active.id);
       const newIndex = queuedGoals.findIndex((g) => g.goal_id === over.id);
-      if (oldIndex === -1 || newIndex === -1) return;
+      if (oldIndex === -1 || newIndex === -1) {return;}
 
       const reordered = arrayMove(queuedGoals, oldIndex, newIndex);
       useGoalStore.setState({ queuedGoals: reordered });
@@ -151,7 +151,7 @@ export function GoalQueueSection() {
     [chatId, queuedGoals, reorderQueue],
   );
 
-  if (queuedGoals.length === 0) return null;
+  if (queuedGoals.length === 0) {return null;}
 
   return (
     <div className="mt-4 p-3 rounded-lg border bg-muted/30 border-border/60">

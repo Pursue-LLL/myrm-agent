@@ -119,7 +119,7 @@ export function useCLIAgent() {
   }, [store]);
 
   useEffect(() => {
-    if (!isTauriEnvironment()) return;
+    if (!isTauriEnvironment()) {return;}
 
     const unlisteners: Array<() => void> = [];
 

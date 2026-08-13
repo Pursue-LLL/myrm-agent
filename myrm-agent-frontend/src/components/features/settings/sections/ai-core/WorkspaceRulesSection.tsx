@@ -43,10 +43,10 @@ function WorkspaceRulesSection() {
   }, []);
 
   const getSourceBadgeColor = (source: string) => {
-    if (source.includes('cursor')) return 'bg-accent-warm/10 text-accent-warm border-accent-warm/20';
-    if (source.includes('myrm')) return 'bg-primary/10 text-primary border-primary/20';
-    if (source === 'AGENTS.md') return 'bg-primary/10 text-primary border-primary/20';
-    if (source === 'CLAUDE.md') return 'bg-accent-warm/10 text-accent-warm border-accent-warm/20';
+    if (source.includes('cursor')) {return 'bg-accent-warm/10 text-accent-warm border-accent-warm/20';}
+    if (source.includes('myrm')) {return 'bg-primary/10 text-primary border-primary/20';}
+    if (source === 'AGENTS.md') {return 'bg-primary/10 text-primary border-primary/20';}
+    if (source === 'CLAUDE.md') {return 'bg-accent-warm/10 text-accent-warm border-accent-warm/20';}
     return 'bg-muted text-muted-foreground border-border';
   };
 

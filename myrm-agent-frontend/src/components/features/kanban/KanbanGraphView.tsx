@@ -214,7 +214,7 @@ function KanbanGraphViewInner({ tasks, edges: edgeData, onTaskSelect }: KanbanGr
 
   const minimapNodeColor = useCallback((node: Node) => {
     const task = (node.data as TaskNodeData)?.task;
-    if (!task) return '#888';
+    if (!task) {return '#888';}
     return STATUS_DOT_HEX[task.status] || '#888';
   }, []);
 

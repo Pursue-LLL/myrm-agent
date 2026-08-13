@@ -77,7 +77,7 @@ describe('companionGenerator', () => {
       const commonBones: CompanionBones[] = [];
       for (let i = 0; i < 200; i++) {
         const bones = generateCompanion(`gen-hat-common-${i}`);
-        if (bones.rarity === 'Common') commonBones.push(bones);
+        if (bones.rarity === 'Common') {commonBones.push(bones);}
       }
       expect(commonBones.length).toBeGreaterThan(0);
       for (const bones of commonBones) {

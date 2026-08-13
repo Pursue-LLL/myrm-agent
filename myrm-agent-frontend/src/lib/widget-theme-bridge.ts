@@ -49,12 +49,12 @@ export const HOST_THEME_MUTATION_ATTRIBUTES = [
  * Must be called client-side only.
  */
 export function resolveThemeVars(): Record<string, string> {
-  if (typeof window === 'undefined') return {};
+  if (typeof window === 'undefined') {return {};}
   const computed = getComputedStyle(document.documentElement);
   const vars: Record<string, string> = {};
   for (const name of THEME_VAR_NAMES) {
     const val = computed.getPropertyValue(name).trim();
-    if (val) vars[name] = val;
+    if (val) {vars[name] = val;}
   }
   vars['--is-dark'] = document.documentElement.classList.contains('dark') ? '1' : '0';
   return vars;

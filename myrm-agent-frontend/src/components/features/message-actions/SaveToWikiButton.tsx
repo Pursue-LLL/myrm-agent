@@ -86,7 +86,7 @@ export default function SaveToWikiButton({ message, messageIndex: _messageIndex 
   }, [agentId, t]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {return;}
 
     void fetchTree();
     const snippet = message.content

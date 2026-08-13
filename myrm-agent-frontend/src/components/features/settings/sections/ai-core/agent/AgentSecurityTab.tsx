@@ -60,7 +60,7 @@ function normalizeDomainInput(raw: string): string {
 }
 
 function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesData {
-  if (!raw) return EMPTY_DATA;
+  if (!raw) {return EMPTY_DATA;}
 
   const caps = Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : [];
 
@@ -100,17 +100,17 @@ function serializeOverrides(data: SecurityOverridesData): Record<string, unknown
     data.domainHitlEnabled ||
     data.injectionPolicy !== null;
 
-  if (!hasContent) return null;
+  if (!hasContent) {return null;}
 
   const result: Record<string, unknown> = {};
-  if (data.capabilities.length > 0) result.capabilities = data.capabilities;
-  if (data.allowedRoots.length > 0) result.pathPolicy = { allowedRoots: data.allowedRoots };
-  if (data.approvalTimeoutSeconds !== null) result.approvalTimeoutSeconds = data.approvalTimeoutSeconds;
-  if (data.networkAllowlist.length > 0) result.networkAllowlist = data.networkAllowlist;
-  if (data.networkBlocklist.length > 0) result.networkBlocklist = data.networkBlocklist;
-  if (data.commandDenylist.length > 0) result.commandDenylist = data.commandDenylist;
-  if (data.domainHitlEnabled) result.domainHitlEnabled = true;
-  if (data.injectionPolicy !== null) result.injectionPolicy = data.injectionPolicy;
+  if (data.capabilities.length > 0) {result.capabilities = data.capabilities;}
+  if (data.allowedRoots.length > 0) {result.pathPolicy = { allowedRoots: data.allowedRoots };}
+  if (data.approvalTimeoutSeconds !== null) {result.approvalTimeoutSeconds = data.approvalTimeoutSeconds;}
+  if (data.networkAllowlist.length > 0) {result.networkAllowlist = data.networkAllowlist;}
+  if (data.networkBlocklist.length > 0) {result.networkBlocklist = data.networkBlocklist;}
+  if (data.commandDenylist.length > 0) {result.commandDenylist = data.commandDenylist;}
+  if (data.domainHitlEnabled) {result.domainHitlEnabled = true;}
+  if (data.injectionPolicy !== null) {result.injectionPolicy = data.injectionPolicy;}
   return result;
 }
 
@@ -147,18 +147,18 @@ export function AgentSecurityTab({
   const data = useMemo(() => parseOverrides(value), [value]);
 
   useEffect(() => {
-    if (!agentId) return;
+    if (!agentId) {return;}
     let cancelled = false;
     setAuditLoading(true);
     apiRequest<AuditResult>(`/user-agents/${agentId}/audit`, { method: 'POST', silent: true })
       .then((res) => {
-        if (!cancelled) setAuditResult(res);
+        if (!cancelled) {setAuditResult(res);}
       })
       .catch(() => {
-        if (!cancelled) setAuditResult(null);
+        if (!cancelled) {setAuditResult(null);}
       })
       .finally(() => {
-        if (!cancelled) setAuditLoading(false);
+        if (!cancelled) {setAuditLoading(false);}
       });
     return () => { cancelled = true; };
   }, [agentId, saveVersion]);
@@ -182,7 +182,7 @@ export function AgentSecurityTab({
 
   const addRoot = useCallback(() => {
     const trimmed = newPath.trim();
-    if (!trimmed || data.allowedRoots.includes(trimmed)) return;
+    if (!trimmed || data.allowedRoots.includes(trimmed)) {return;}
     update({ allowedRoots: [...data.allowedRoots, trimmed] });
     setNewPath('');
   }, [newPath, data.allowedRoots, update]);
@@ -196,7 +196,7 @@ export function AgentSecurityTab({
 
   const addDomain = useCallback(() => {
     const trimmed = newDomain.trim().toLowerCase();
-    if (!trimmed || data.networkAllowlist.includes(trimmed)) return;
+    if (!trimmed || data.networkAllowlist.includes(trimmed)) {return;}
     update({ networkAllowlist: [...data.networkAllowlist, trimmed] });
     setNewDomain('');
   }, [newDomain, data.networkAllowlist, update]);
@@ -210,7 +210,7 @@ export function AgentSecurityTab({
 
   const addBlockedDomain = useCallback(() => {
     const normalized = normalizeDomainInput(newBlockedDomain);
-    if (!normalized) return;
+    if (!normalized) {return;}
     if (!DOMAIN_PATTERN.test(normalized)) {
       setBlocklistError(t('invalidBlockedDomain'));
       return;
@@ -234,7 +234,7 @@ export function AgentSecurityTab({
 
   const addCommandPattern = useCallback(() => {
     const trimmed = newCommandPattern.trim();
-    if (!trimmed) return;
+    if (!trimmed) {return;}
     if (data.commandDenylist.includes(trimmed)) {
       setCmdDenylistError(t('duplicateCommandPattern', { default: 'Pattern already exists.' }));
       return;
@@ -492,7 +492,7 @@ export function AgentSecurityTab({
             value={newBlockedDomain}
             onChange={(e) => {
               setNewBlockedDomain(e.target.value);
-              if (blocklistError) setBlocklistError(null);
+              if (blocklistError) {setBlocklistError(null);}
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -557,7 +557,7 @@ export function AgentSecurityTab({
             value={newCommandPattern}
             onChange={(e) => {
               setNewCommandPattern(e.target.value);
-              if (cmdDenylistError) setCmdDenylistError(null);
+              if (cmdDenylistError) {setCmdDenylistError(null);}
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {

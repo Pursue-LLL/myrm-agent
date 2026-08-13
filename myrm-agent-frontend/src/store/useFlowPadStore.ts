@@ -76,7 +76,7 @@ export const useFlowPadStore = create<FlowPadState>((set) => ({
 
   addCapture: (capture) =>
     set((state) => {
-      if (state.captures.length >= MAX_CAPTURES) return state;
+      if (state.captures.length >= MAX_CAPTURES) {return state;}
       return { isOpen: true, captures: [...state.captures, capture] };
     }),
 

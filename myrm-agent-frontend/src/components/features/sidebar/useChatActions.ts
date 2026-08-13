@@ -58,7 +58,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deletingChatId) return;
+    if (!deletingChatId) {return;}
 
     const chatIdToDelete = deletingChatId;
     try {
@@ -202,7 +202,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
 
   const handleShareCreate = useCallback(
     async (ttlDays: number = 7, password?: string) => {
-      if (!shareChatId) return;
+      if (!shareChatId) {return;}
       setShareLoading(true);
       try {
         const result = await createChatShare(shareChatId, ttlDays, password);
@@ -222,7 +222,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   );
 
   const handleShareRevoke = useCallback(async () => {
-    if (!shareChatId) return;
+    if (!shareChatId) {return;}
     try {
       await revokeChatShare(shareChatId);
       setShareUrl(null);

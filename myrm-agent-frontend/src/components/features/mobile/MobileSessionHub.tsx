@@ -59,13 +59,13 @@ export default function MobileSessionHub() {
   }, [loadSessions]);
 
   const loadSpawnOptions = useCallback(async () => {
-    if (optionsLoaded) return;
+    if (optionsLoaded) {return;}
     try {
       const opts = await remoteAccessService.getSpawnOptions();
       setAgents(opts.agents);
       setProjects(opts.projects);
-      if (opts.defaultAgentId) setSelectedAgentId(opts.defaultAgentId);
-      else if (opts.agents.length > 0) setSelectedAgentId(opts.agents[0].id);
+      if (opts.defaultAgentId) {setSelectedAgentId(opts.defaultAgentId);}
+      else if (opts.agents.length > 0) {setSelectedAgentId(opts.agents[0].id);}
       setOptionsLoaded(true);
     } catch {
       setError(t('loadOptionsFailed'));
@@ -83,7 +83,7 @@ export default function MobileSessionHub() {
 
   const handleSubmit = useCallback(async () => {
     const text = taskMessage.trim();
-    if (!text || !selectedAgentId) return;
+    if (!text || !selectedAgentId) {return;}
     setSubmitting(true);
     setError(null);
     try {

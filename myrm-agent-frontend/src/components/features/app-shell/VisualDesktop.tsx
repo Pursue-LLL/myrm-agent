@@ -23,7 +23,7 @@ export const VisualDesktop: React.FC<VisualDesktopProps> = ({ wsUrl, className, 
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {return;}
 
     let mounted = true;
 
@@ -31,24 +31,24 @@ export const VisualDesktop: React.FC<VisualDesktopProps> = ({ wsUrl, className, 
       try {
         const { default: RFB } = await import('@novnc/novnc');
 
-        if (!mounted || !containerRef.current) return;
+        if (!mounted || !containerRef.current) {return;}
 
         rfbRef.current = new RFB(containerRef.current, wsUrl, {
           credentials: { password: '' },
         }) as NoVNCClient;
 
         rfbRef.current.addEventListener('connect', () => {
-          if (mounted) setStatus('connected');
+          if (mounted) {setStatus('connected');}
         });
         rfbRef.current.addEventListener('disconnect', () => {
-          if (mounted) setStatus('disconnected');
+          if (mounted) {setStatus('disconnected');}
         });
 
         rfbRef.current.scaleViewport = true;
         rfbRef.current.resizeSession = true;
       } catch (err) {
         console.error('Failed to initialize noVNC:', err);
-        if (mounted) setStatus('disconnected');
+        if (mounted) {setStatus('disconnected');}
       }
     };
 

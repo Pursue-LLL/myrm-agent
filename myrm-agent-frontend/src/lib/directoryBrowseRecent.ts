@@ -3,12 +3,12 @@
 export const MAX_RECENT_DIRS = 5;
 
 export function getRecentDirectoryPaths(storageKey: string): string[] {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined') {return [];}
   try {
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return [];
+    if (!raw) {return [];}
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) {return [];}
     return parsed.filter((item): item is string => typeof item === 'string').slice(0, MAX_RECENT_DIRS);
   } catch {
     return [];

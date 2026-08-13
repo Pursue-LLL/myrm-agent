@@ -65,13 +65,13 @@ function normalizeActionMode(actionMode: string | null | undefined): ActionMode 
  * Runs asynchronously to avoid blocking message rendering.
  */
 function restoreAgentConfigFromChat(chatId: string, agentId: string | null | undefined): void {
-  if (!agentId) return;
+  if (!agentId) {return;}
 
   const currentConfig = useChatStore.getState().agentConfig;
-  if (currentConfig?.agentId === agentId) return;
+  if (currentConfig?.agentId === agentId) {return;}
 
   useAgentStore.getState().fetchAgent(agentId).then(async (agent) => {
-    if (!agent || useChatStore.getState().chatId !== chatId) return;
+    if (!agent || useChatStore.getState().chatId !== chatId) {return;}
     const { fetchMarketSkills, fetchLocalSkills } = useSkillStore.getState();
     await Promise.all([fetchMarketSkills(true), fetchLocalSkills()]);
     useChatStore.getState().setAgentConfig(buildAgentConfig(agent));
@@ -240,7 +240,7 @@ const activeTurnAttachInFlight = new Set<string>();
  * attach 404（任务已结束）时重新拉取最终消息，避免 UI 卡在"已发送未回复"。
  */
 async function maybeAttachToActiveTurn(chatId: string, actions: ChatActionsMethods): Promise<void> {
-  if (activeTurnAttachInFlight.has(chatId)) return;
+  if (activeTurnAttachInFlight.has(chatId)) {return;}
 
   const state = useChatStore.getState();
   console.log('[MYRM-ATTACH] maybeAttachToActiveTurn guard check', {
@@ -251,11 +251,11 @@ async function maybeAttachToActiveTurn(chatId: string, actions: ChatActionsMetho
     msgCount: (state.messages ?? []).length,
     lastRole: (state.messages ?? [])[(state.messages ?? []).length - 1]?.role,
   });
-  if (state.chatId !== chatId || state.loading || state.abortController) return;
+  if (state.chatId !== chatId || state.loading || state.abortController) {return;}
 
   const messages = state.messages ?? [];
   const last = messages[messages.length - 1];
-  if (!last || last.role !== 'user') return;
+  if (!last || last.role !== 'user') {return;}
 
   activeTurnAttachInFlight.add(chatId);
   try {

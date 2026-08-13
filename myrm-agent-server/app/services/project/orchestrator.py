@@ -42,7 +42,36 @@ class ProjectOrchestrator:
             logger.debug(f"Lock released for project {project_id}")
             if not lock.locked() and not lock._waiters:
                 self._locks.pop(project_id, None)
+            elif not lock.locked():
+                # 存在 waiter：它在下一个事件循环 tick 才会真正接管锁。
+                # 若届时已被取消（`_acquire_guarded` 的 wait_for 超时路径），
+                # 锁将永久空闲但无后续 release 触发清理 → 缓存残留。
+                # 延迟到 tick 后复检，堵住取消路径的残留。
+                self._schedule_idle_cleanup(project_id, lock)
 
+    def _schedule_idle_cleanup(self, project_id: str, lock: asyncio.Lock) -> None:
+        """下一个事件循环 tick 检查锁是否彻底空闲并清理缓存。
+
+        直接 pop 的时序不可靠：``release`` 唤醒了等待者，但等待者的
+        ``acquire`` 要到下一个 tick 才会从 ``_waiters`` 移除并接管锁。
+        若等待者已被取消，锁从此空闲但无释放点，缓存会永久残留。
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            if not lock.locked() and not lock._waiters:
+                self._locks.pop(project_id, None)
+            return
+
+        def _cleanup() -> None:
+            if (
+                self._locks.get(project_id) is lock
+                and not lock.locked()
+                and not lock._waiters
+            ):
+                self._locks.pop(project_id, None)
+
+        loop.call_soon(_cleanup)
     def is_locked(self, project_id: str) -> bool:
         """检查项目是否被锁定（纯查询，不创建锁）"""
         lock = self._locks.get(project_id)

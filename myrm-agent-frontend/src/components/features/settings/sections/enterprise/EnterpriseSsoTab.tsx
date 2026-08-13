@@ -112,7 +112,7 @@ const EnterpriseSsoTab = memo(() => {
   }, [loadConfig]);
 
   const handleSave = useCallback(async () => {
-    if (!orgId || !issuerUrl.trim() || !clientId.trim()) return;
+    if (!orgId || !issuerUrl.trim() || !clientId.trim()) {return;}
     setSaving(true);
     try {
       const saved = await upsertOrgSsoConfig(orgId, {
@@ -137,7 +137,7 @@ const EnterpriseSsoTab = memo(() => {
   }, [orgId, issuerUrl, clientId, clientSecret, autoProvision, enabled, allowedGroups, t]);
 
   const handleDelete = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId) {return;}
     try {
       await deleteOrgSsoConfig(orgId);
       setConfig(null);
@@ -154,7 +154,7 @@ const EnterpriseSsoTab = memo(() => {
   }, [orgId, t]);
 
   const handleSaveDomain = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId) {return;}
     setDomainSaving(true);
     try {
       const org = await updateOrgSsoDomain(orgId, ssoDomainInput);

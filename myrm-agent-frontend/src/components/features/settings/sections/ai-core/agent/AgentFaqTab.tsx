@@ -65,7 +65,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
   const [localGap, setLocalGap] = useState<number>(0.15);
 
   const fetchData = useCallback(async () => {
-    if (!agentId) return;
+    if (!agentId) {return;}
     setLoading(true);
     try {
       const [corpusRes, entriesRes] = await Promise.all([
@@ -89,7 +89,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
 
   const handleToggle = useCallback(
     async (enabled: boolean) => {
-      if (!agentId) return;
+      if (!agentId) {return;}
       try {
         const updated = await apiRequest<FaqCorpus>(`/faq/${agentId}/corpus`, {
           method: 'PATCH',
@@ -107,7 +107,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
 
   const handleSettingsUpdate = useCallback(
     async (field: 'threshold' | 'min_score_gap', value: number) => {
-      if (!agentId) return;
+      if (!agentId) {return;}
       try {
         const updated = await apiRequest<FaqCorpus>(`/faq/${agentId}/corpus`, {
           method: 'PATCH',
@@ -125,7 +125,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
   );
 
   const handleSaveEntry = useCallback(async () => {
-    if (!agentId || !editingEntry?.question?.trim() || !editingEntry?.answer?.trim()) return;
+    if (!agentId || !editingEntry?.question?.trim() || !editingEntry?.answer?.trim()) {return;}
     try {
       if (editingEntry.id) {
         await apiRequest(`/faq/entries/${editingEntry.id}`, {
@@ -171,7 +171,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
   );
 
   const handleImport = useCallback(async () => {
-    if (!agentId || !importJson.trim()) return;
+    if (!agentId || !importJson.trim()) {return;}
     try {
       const parsed = JSON.parse(importJson);
       const items = Array.isArray(parsed) ? parsed : [parsed];
@@ -190,7 +190,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
   }, [agentId, importJson, fetchData, t]);
 
   const handleRebuild = useCallback(async () => {
-    if (!agentId) return;
+    if (!agentId) {return;}
     setRebuilding(true);
     try {
       const res = await apiRequest<{ indexed: number }>(`/faq/${agentId}/rebuild-index`, { method: 'POST' });
@@ -203,7 +203,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
   }, [agentId, t]);
 
   const handleLoadStats = useCallback(async () => {
-    if (!agentId) return;
+    if (!agentId) {return;}
     setShowStats(true);
     try {
       const [statsRes, unmatchedRes] = await Promise.all([
@@ -217,7 +217,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
     }
   }, [agentId]);
 
-  if (!agentId) return null;
+  if (!agentId) {return null;}
 
   if (loading) {
     return (

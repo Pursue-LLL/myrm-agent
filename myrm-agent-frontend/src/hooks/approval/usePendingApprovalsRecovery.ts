@@ -136,7 +136,7 @@ export function usePendingApprovalsRecovery(): void {
 
     const startupTimer = setTimeout(() => {
       void (async () => {
-        if (cancelled) return;
+        if (cancelled) {return;}
 
         if (isLocalMode()) {
           const ready = await whenDatabaseReady();
@@ -144,10 +144,10 @@ export function usePendingApprovalsRecovery(): void {
             return;
           }
         }
-        if (cancelled) return;
+        if (cancelled) {return;}
 
         for (let attempt = 0; attempt < STARTUP_RECOVERY_MAX_ATTEMPTS; attempt += 1) {
-          if (cancelled) return;
+          if (cancelled) {return;}
 
           const added = await recoverPendingApprovals();
           if (added > 0) {

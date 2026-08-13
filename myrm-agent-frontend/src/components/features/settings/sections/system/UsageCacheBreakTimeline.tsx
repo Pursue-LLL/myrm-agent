@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 export const CacheBreakTimeline = memo<{ data: DailyUsage[]; t: ReturnType<typeof import('next-intl').useTranslations> }>(
   ({ data, t }) => {
     const hasBreaks = data.some((d) => Object.keys(d.cacheBreakCounts || {}).length > 0);
-    if (!hasBreaks) return null;
+    if (!hasBreaks) {return null;}
 
     const allReasons = new Set<string>();
     data.forEach((d) => {
@@ -52,9 +52,9 @@ export const CacheBreakTimeline = memo<{ data: DailyUsage[]; t: ReturnType<typeo
                   let opacityClass = 'bg-amber-500/5';
                   if (count > 0) {
                     const intensity = count / maxCount;
-                    if (intensity > 0.6) opacityClass = 'bg-amber-500';
-                    else if (intensity > 0.2) opacityClass = 'bg-amber-500/60';
-                    else opacityClass = 'bg-amber-500/30';
+                    if (intensity > 0.6) {opacityClass = 'bg-amber-500';}
+                    else if (intensity > 0.2) {opacityClass = 'bg-amber-500/60';}
+                    else {opacityClass = 'bg-amber-500/30';}
                   }
                   return (
                     <div key={d.date} className={cn('flex-1 rounded-sm transition-colors relative group', opacityClass)}>

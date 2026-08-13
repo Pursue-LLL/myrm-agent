@@ -41,8 +41,8 @@ const PushNotificationCard = memo(() => {
   const t = useTranslations('settings.system');
   const { state, loading, error, subscribe, unsubscribe, sendTest } = usePushSubscription();
 
-  if (isTauriRuntime()) return null;
-  if (state === 'unsupported') return null;
+  if (isTauriRuntime()) {return null;}
+  if (state === 'unsupported') {return null;}
 
   const isEnabled = state === 'subscribed';
   const canToggle = state !== 'denied';

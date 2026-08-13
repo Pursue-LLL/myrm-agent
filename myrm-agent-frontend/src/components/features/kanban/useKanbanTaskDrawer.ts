@@ -110,7 +110,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
   }, [open, task, loadDetails, fetchAgents]);
 
   useEffect(() => {
-    if (!open || !task) return;
+    if (!open || !task) {return;}
     const taskId = task.task_id;
     const onEvent = (e: Event) => {
       const detail = (e as CustomEvent).detail as { task_id?: string } | undefined;
@@ -124,7 +124,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
 
   const handleRemoveDep = useCallback(
     async (parentId: string) => {
-      if (!task) return;
+      if (!task) {return;}
       try {
         await removeDependency(task.task_id, parentId);
         setParents((prev) => prev.filter((p) => p.task_id !== parentId));
@@ -139,7 +139,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
 
   const handleAddDep = useCallback(
     async (parentId: string) => {
-      if (!task) return;
+      if (!task) {return;}
       setAddingDep(true);
       try {
         await addDependency(task.task_id, parentId);
@@ -159,7 +159,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
   );
 
   const handleSubmitComment = useCallback(async () => {
-    if (!task || !commentText.trim()) return;
+    if (!task || !commentText.trim()) {return;}
     setSubmittingComment(true);
     try {
       const ev = await addComment(task.task_id, commentText.trim());
@@ -172,7 +172,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
   }, [task, commentText, t]);
 
   const handleSaveCriteria = useCallback(async () => {
-    if (!task) return;
+    if (!task) {return;}
     setSavingCriteria(true);
     try {
       await updateTask(task.task_id, {
@@ -188,7 +188,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
   }, [task, criteriaText, onRefresh, t]);
 
   const handleSaveSkills = useCallback(async () => {
-    if (!task) return;
+    if (!task) {return;}
     try {
       const parsed = skillsText
         .split(',')
@@ -205,7 +205,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
 
   const handleSaveTimeout = useCallback(
     async (value: number | null) => {
-      if (!task) return;
+      if (!task) {return;}
       try {
         await updateTask(task.task_id, { max_runtime_seconds: value });
         setEditingTimeout(false);
@@ -220,7 +220,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
 
   const handleSaveModel = useCallback(
     async (value: string | null) => {
-      if (!task) return;
+      if (!task) {return;}
       try {
         await updateTask(task.task_id, { model_override: value });
         setEditingModel(false);
@@ -235,7 +235,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
 
   const handleAgentChange = useCallback(
     async (agentId: string | null) => {
-      if (!task) return;
+      if (!task) {return;}
       try {
         await updateTask(task.task_id, { agent_id: agentId });
         onRefresh();
@@ -247,7 +247,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
   );
 
   const handleSaveResult = useCallback(async () => {
-    if (!task) return;
+    if (!task) {return;}
     setSavingResult(true);
     try {
       await updateTask(task.task_id, { result: resultText });
@@ -263,7 +263,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
 
   const handleRequireApprovalChange = useCallback(
     async (value: boolean) => {
-      if (!task) return;
+      if (!task) {return;}
       try {
         await updateTask(task.task_id, { require_approval: value });
         onRefresh();
@@ -279,7 +279,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
 
   const latestSummary = useMemo(() => {
     for (let i = runs.length - 1; i >= 0; i--) {
-      if (runs[i].summary) return runs[i].summary;
+      if (runs[i].summary) {return runs[i].summary;}
     }
     return null;
   }, [runs]);
@@ -302,9 +302,9 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
 
   const assignedAgent = useMemo(
     () => {
-      if (!task?.agent_id) return null;
+      if (!task?.agent_id) {return null;}
       const agent = agents.find((a) => a.id === task.agent_id) ?? null;
-      if (!agent) return null;
+      if (!agent) {return null;}
       return { ...agent, name: getBuiltinAgentName(agent.id, agent.name, locale) };
     },
     [task?.agent_id, agents, locale],

@@ -98,7 +98,7 @@ export const VideoThumbnail = ({ file, onRemove }: { file: FileType; onRemove?: 
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !src) return;
+    if (!video || !src) {return;}
     const handleLoaded = () => setReady(true);
     video.addEventListener('loadeddata', handleLoaded);
     video.currentTime = 0.5;
@@ -202,7 +202,7 @@ const AttachList: React.FC<AttachListProps> = ({
 
   const handleAnnotationComplete = useCallback(
     async (blob: Blob) => {
-      if (!editingFile) return;
+      if (!editingFile) {return;}
       try {
         const dataUrl = await blobToDataUrl(blob);
         const updatedFiles = files.map((f) =>
@@ -221,7 +221,7 @@ const AttachList: React.FC<AttachListProps> = ({
     [editingFile, files, setFiles, tEditor],
   );
 
-  if (files.length === 0) return null;
+  if (files.length === 0) {return null;}
 
   const imageFiles = files.filter((file) => isImageFile(file.fileExtension));
 

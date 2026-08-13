@@ -62,7 +62,7 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
   );
 
   const getSkillNames = (ids: string[]): string => {
-    if (!ids.length) return '';
+    if (!ids.length) {return '';}
     return ids
       .map((id) => skills.find((s) => s.id === id)?.name || id)
       .join(', ');

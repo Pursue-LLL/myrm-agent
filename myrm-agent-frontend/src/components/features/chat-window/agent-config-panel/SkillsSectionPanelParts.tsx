@@ -195,7 +195,7 @@ export function CoreSkillsZone({
   const coreSkills = filteredSkills.filter(
     (s) => isOwnSkill(s) && localSkillIds.includes(s.id) && (localSkillConfigs[s.id]?.is_core ?? true),
   );
-  if (coreSkills.length === 0) return null;
+  if (coreSkills.length === 0) {return null;}
 
   return (
     <div className="space-y-2">
@@ -237,7 +237,7 @@ export function PeripheralSkillsZone({
   const peripheralSkills = filteredSkills.filter(
     (s) => isOwnSkill(s) && localSkillIds.includes(s.id) && !(localSkillConfigs[s.id]?.is_core ?? true),
   );
-  if (peripheralSkills.length === 0) return null;
+  if (peripheralSkills.length === 0) {return null;}
 
   return (
     <div className="space-y-2">
@@ -279,7 +279,7 @@ export function AvailableSkillsZone({
   tPanel: (key: string) => string;
 }) {
   const available = filteredSkills.filter((s) => isOwnSkill(s) && !localSkillIds.includes(s.id));
-  if (available.length === 0) return null;
+  if (available.length === 0) {return null;}
 
   return (
     <div className="space-y-2">

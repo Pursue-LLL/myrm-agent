@@ -17,15 +17,15 @@ function groupBySource(tools: ToolSnapshotItem[]): GroupedTools {
   const groups: GroupedTools = {};
   for (const tool of tools) {
     const key = tool.provider ?? tool.source;
-    if (!groups[key]) groups[key] = [];
+    if (!groups[key]) {groups[key] = [];}
     groups[key].push(tool);
   }
   return groups;
 }
 
 function sourceLabel(key: string): string {
-  if (key.startsWith('skill:')) return key.replace('skill:', '');
-  if (key.startsWith('mcp:')) return key.replace('mcp:', '');
+  if (key.startsWith('skill:')) {return key.replace('skill:', '');}
+  if (key.startsWith('mcp:')) {return key.replace('mcp:', '');}
   const labels: Record<string, string> = {
     builtin: 'Built-in',
     user: 'User',
@@ -35,8 +35,8 @@ function sourceLabel(key: string): string {
 }
 
 function sourceBadgeVariant(source: string): 'default' | 'secondary' | 'outline' {
-  if (source === 'skill' || source.startsWith('skill:')) return 'default';
-  if (source === 'mcp' || source.startsWith('mcp:')) return 'secondary';
+  if (source === 'skill' || source.startsWith('skill:')) {return 'default';}
+  if (source === 'mcp' || source.startsWith('mcp:')) {return 'secondary';}
   return 'outline';
 }
 
@@ -140,7 +140,7 @@ const ToolsPanel = () => {
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return tools;
+    if (!search.trim()) {return tools;}
     const q = search.toLowerCase();
     return tools.filter((item) => {
       const uiLocale = locale.startsWith('zh') ? 'zh' : 'en';
@@ -168,7 +168,7 @@ const ToolsPanel = () => {
     [grouped],
   );
 
-  if (tools.length === 0) return null;
+  if (tools.length === 0) {return null;}
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

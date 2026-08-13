@@ -118,8 +118,8 @@ export interface GlobalActivityPatterns {
 
 export async function getUsageStatistics(start?: string, end?: string): Promise<UsageStats> {
   const params = new URLSearchParams();
-  if (start) params.set('start', start);
-  if (end) params.set('end', end);
+  if (start) {params.set('start', start);}
+  if (end) {params.set('end', end);}
   const query = params.toString();
   return apiRequest<UsageStats>(`/statistics/usage${query ? `?${query}` : ''}`);
 }
@@ -134,7 +134,7 @@ export async function getSessionUsage(limit = 20): Promise<SessionUsageResponse>
 
 export async function getGlobalActivityPatterns(timeRangeDays?: number): Promise<GlobalActivityPatterns> {
   const params = new URLSearchParams();
-  if (timeRangeDays) params.set('time_range_days', timeRangeDays.toString());
+  if (timeRangeDays) {params.set('time_range_days', timeRangeDays.toString());}
   const query = params.toString();
   return apiRequest<GlobalActivityPatterns>(`/statistics/activity${query ? `?${query}` : ''}`);
 }
@@ -164,7 +164,7 @@ export interface ToolStabilityAnalytics {
 
 export async function getToolStability(toolName?: string, timeRangeDays = 30): Promise<ToolStabilityAnalytics> {
   const params = new URLSearchParams();
-  if (toolName) params.set('tool_name', toolName);
+  if (toolName) {params.set('tool_name', toolName);}
   params.set('time_range_days', timeRangeDays.toString());
   return apiRequest<ToolStabilityAnalytics>(`/statistics/tool-stability?${params.toString()}`);
 }
@@ -191,7 +191,7 @@ export async function getTopSessions(
   const params = new URLSearchParams();
   params.set('metric', metric);
   params.set('limit', limit.toString());
-  if (timeRangeDays) params.set('time_range_days', timeRangeDays.toString());
+  if (timeRangeDays) {params.set('time_range_days', timeRangeDays.toString());}
   return apiRequest<TopSession[]>(`/statistics/top-sessions?${params.toString()}`);
 }
 
@@ -578,7 +578,7 @@ export interface DailyJournalData {
 
 export async function getDailyJournal(date: string, agentId?: string): Promise<DailyJournalData> {
   const params = new URLSearchParams({ date });
-  if (agentId) params.set('agent_id', agentId);
+  if (agentId) {params.set('agent_id', agentId);}
   return apiRequest<DailyJournalData>(`/statistics/daily-journal?${params.toString()}`);
 }
 

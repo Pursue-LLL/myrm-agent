@@ -64,7 +64,7 @@ export function normalizeLocaleForBackend(frontendLocale: string | null): string
 
 /** Parse `?locale=` from marketing-site CTAs into a supported App locale. */
 export function parseLocaleQueryParam(value: string | null): Locale | null {
-  if (!value) return null;
+  if (!value) {return null;}
   return (locales as readonly string[]).includes(value) ? (value as Locale) : null;
 }
 
@@ -89,7 +89,7 @@ export function negotiateLocale(
   acceptLanguage: string | null | undefined,
   supported: readonly string[] = locales,
 ): Locale {
-  if (!acceptLanguage) return 'en' as Locale;
+  if (!acceptLanguage) {return 'en' as Locale;}
 
   const entries = acceptLanguage
     .split(',')
@@ -102,17 +102,17 @@ export function negotiateLocale(
     .sort((a, b) => b.q - a.q);
 
   for (const { tag } of entries) {
-    if (tag === '*') continue;
+    if (tag === '*') {continue;}
 
     const exact = supported.find((s) => s.toLowerCase() === tag);
-    if (exact) return exact as Locale;
+    if (exact) {return exact as Locale;}
 
     const prefix = tag.split('-')[0];
     const prefixMatch = supported.find((s) => s.toLowerCase() === prefix);
-    if (prefixMatch) return prefixMatch as Locale;
+    if (prefixMatch) {return prefixMatch as Locale;}
 
     const regionMatch = supported.find((s) => s.toLowerCase().startsWith(prefix + '-'));
-    if (regionMatch) return regionMatch as Locale;
+    if (regionMatch) {return regionMatch as Locale;}
   }
 
   return 'en' as Locale;

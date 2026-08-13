@@ -32,8 +32,8 @@ const FILTERS: RecallFilter[] = ['excluded', 'active', 'all'];
 const PAGE_SIZE = 20;
 
 const filterToExcluded = (filter: RecallFilter): boolean | undefined => {
-  if (filter === 'excluded') return true;
-  if (filter === 'active') return false;
+  if (filter === 'excluded') {return true;}
+  if (filter === 'active') {return false;}
   return undefined;
 };
 
@@ -63,7 +63,7 @@ const ConversationRecallPanel = memo(() => {
 
   const formatDate = useCallback(
     (value: string | null) => {
-      if (!value) return t('unknownDate');
+      if (!value) {return t('unknownDate');}
       const date = new Date(value);
       return Number.isNaN(date.getTime()) ? t('unknownDate') : dateFormatter.format(date);
     },
@@ -72,8 +72,8 @@ const ConversationRecallPanel = memo(() => {
 
   const loadEntries = useCallback(
     async (targetPage: number = 1) => {
-      if (targetPage === 1) setLoading(true);
-      else setLoadingMore(true);
+      if (targetPage === 1) {setLoading(true);}
+      else {setLoadingMore(true);}
       try {
         const response = await listConversationRecallEntries({
           excluded: filterToExcluded(filter),

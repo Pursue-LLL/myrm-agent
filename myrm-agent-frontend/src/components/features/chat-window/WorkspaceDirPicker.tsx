@@ -16,12 +16,12 @@ const RECENT_DIRS_KEY = 'myrm.workspaceDirPicker.recent';
 const MAX_RECENT_DIRS = 5;
 
 function getRecentDirs(): string[] {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined') {return [];}
   try {
     const raw = localStorage.getItem(RECENT_DIRS_KEY);
-    if (!raw) return [];
+    if (!raw) {return [];}
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) {return [];}
     return parsed.filter((item): item is string => typeof item === 'string').slice(0, MAX_RECENT_DIRS);
   } catch {
     return [];
@@ -64,16 +64,16 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
       setFilterQuery('');
       try {
         const result = await browseDirectories(path);
-        if (gen !== loadGenRef.current) return;
+        if (gen !== loadGenRef.current) {return;}
         setEntries(result.entries);
         setCurrentPath(result.current);
         setParentPath(result.parent);
         setPathInput(result.current);
       } catch {
-        if (gen !== loadGenRef.current) return;
+        if (gen !== loadGenRef.current) {return;}
         toast({ title: t('invalidPath'), variant: 'destructive' });
       } finally {
-        if (gen === loadGenRef.current) setLoading(false);
+        if (gen === loadGenRef.current) {setLoading(false);}
       }
     },
     [t],
@@ -87,20 +87,20 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
   }, [open]);
 
   const filteredEntries = useMemo(() => {
-    if (!filterQuery.trim()) return entries;
+    if (!filterQuery.trim()) {return entries;}
     const q = filterQuery.toLowerCase();
     return entries.filter((e) => e.name.toLowerCase().includes(q));
   }, [entries, filterQuery]);
 
-  if (actionMode !== 'agent') return null;
+  if (actionMode !== 'agent') {return null;}
 
   const applyDir = async (dir: string | null) => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     try {
       const result = await updateChatWorkspaceDir(chatId, dir);
       setCurrentDir(result.workspace_dir);
       useChatStore.getState().setWorkspaceDir(result.workspace_dir);
-      if (result.workspace_dir) addRecentDir(result.workspace_dir);
+      if (result.workspace_dir) {addRecentDir(result.workspace_dir);}
       toast({ title: dir ? t('updated') : t('cleared') });
       setOpen(false);
     } catch {

@@ -82,7 +82,7 @@ export function GoalStatusCard() {
     );
   };
 
-  if (!goal || !chatId) return null;
+  if (!goal || !chatId) {return null;}
 
   const canEditObjective = !['complete', 'cancelled'].includes(goal.status);
 
@@ -122,7 +122,7 @@ export function GoalStatusCard() {
   ) => {
     try {
       const payload: { action: string; note?: string } = { action };
-      if (note?.trim()) payload.note = note.trim();
+      if (note?.trim()) {payload.note = note.trim();}
       const res = await fetchWithTimeout(`/goals/${chatId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -157,7 +157,7 @@ export function GoalStatusCard() {
   };
 
   const handleAddSubgoal = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim()) {return;}
     try {
       const res = await fetchWithTimeout(`/goals/${chatId}/subgoals`, {
         method: 'POST',
@@ -401,10 +401,10 @@ function getStatusIcon(goal: { status: GoalStatus; verdict?: string; reason?: st
 function getStatusText(goal: { status: GoalStatus; verdict?: string; reason?: string; loopRestarts?: number }, t: (key: string) => string) {
   switch (goal.status) {
     case 'active':
-      if (goal.verdict === 'loop_restart') return `${t('statusLoopRestart')} (#${goal.loopRestarts ?? 0})`;
+      if (goal.verdict === 'loop_restart') {return `${t('statusLoopRestart')} (#${goal.loopRestarts ?? 0})`;}
       return t('statusActive');
     case 'paused':
-      if (goal.verdict === 'drift_pause') return goal.reason?.startsWith('Sandbox boundary') ? t('statusSandboxPaused') : t('statusDriftPaused');
+      if (goal.verdict === 'drift_pause') {return goal.reason?.startsWith('Sandbox boundary') ? t('statusSandboxPaused') : t('statusDriftPaused');}
       return t('statusPaused');
     case 'wait': return t('statusWait');
     case 'needs_human_review': return t('statusNeedsHumanReview') || 'Needs Human Review';

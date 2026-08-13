@@ -16,10 +16,10 @@ import { useTranslations } from 'next-intl';
 const CARD_COLUMN_THRESHOLD = 4;
 
 function getTextContent(node: React.ReactNode): string {
-  if (typeof node === 'string') return node;
-  if (typeof node === 'number') return String(node);
-  if (!node) return '';
-  if (Array.isArray(node)) return node.map(getTextContent).join('');
+  if (typeof node === 'string') {return node;}
+  if (typeof node === 'number') {return String(node);}
+  if (!node) {return '';}
+  if (Array.isArray(node)) {return node.map(getTextContent).join('');}
   if (React.isValidElement(node)) {
     const props = node.props as { children?: React.ReactNode };
     return getTextContent(props.children);
@@ -30,7 +30,7 @@ function getTextContent(node: React.ReactNode): string {
 function flattenChildren(children: React.ReactNode): React.ReactElement[] {
   const result: React.ReactElement[] = [];
   React.Children.forEach(children, (child) => {
-    if (!React.isValidElement(child)) return;
+    if (!React.isValidElement(child)) {return;}
     if (child.type === React.Fragment) {
       result.push(...flattenChildren((child.props as { children?: React.ReactNode }).children));
     } else {
@@ -46,13 +46,13 @@ function extractHeaders(children: React.ReactNode): string[] {
   const thead = topChildren.find(
     (child) => typeof child.type === 'string' && child.type === 'thead',
   );
-  if (!thead) return headers;
+  if (!thead) {return headers;}
 
   const theadChildren = flattenChildren((thead.props as { children?: React.ReactNode }).children);
   const tr = theadChildren.find(
     (child) => typeof child.type === 'string' && child.type === 'tr',
   );
-  if (!tr) return headers;
+  if (!tr) {return headers;}
 
   const ths = flattenChildren((tr.props as { children?: React.ReactNode }).children);
   for (const th of ths) {
@@ -64,9 +64,9 @@ function extractHeaders(children: React.ReactNode): string[] {
 function hasComplexCells(children: React.ReactNode): boolean {
   let found = false;
   const check = (node: React.ReactNode) => {
-    if (found) return;
+    if (found) {return;}
     React.Children.forEach(node, (child) => {
-      if (found || !React.isValidElement(child)) return;
+      if (found || !React.isValidElement(child)) {return;}
       const props = child.props as Record<string, unknown>;
       if (
         (typeof child.type === 'string' && (child.type === 'td' || child.type === 'th')) &&
@@ -141,7 +141,7 @@ const ResponsiveTable = React.memo(
     const enableCards = headers.length >= CARD_COLUMN_THRESHOLD && !isComplex && !isStreaming;
 
     const tableChildren = useMemo(() => {
-      if (!enableCards || viewMode === 'table') return children;
+      if (!enableCards || viewMode === 'table') {return children;}
       return injectDataLabels(children, headers);
     }, [children, enableCards, viewMode, headers]);
 

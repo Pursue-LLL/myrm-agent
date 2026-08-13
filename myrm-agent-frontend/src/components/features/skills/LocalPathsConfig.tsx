@@ -48,7 +48,7 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
 
   // 添加路径
   const handleAddPath = useCallback(async () => {
-    if (!newPath.trim()) return;
+    if (!newPath.trim()) {return;}
 
     // 验证路径格式
     if (!newPath.startsWith('/') && !newPath.startsWith('~')) {

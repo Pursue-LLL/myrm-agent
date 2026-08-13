@@ -31,6 +31,6 @@ export interface SpeciesAsset {
 
 export function getSpeciesAsset(species: string): SpeciesAsset {
   const label = SPECIES_LABELS[species];
-  if (label) return { emoji: species, label };
+  if (label) {return { emoji: species, label };}
   return { emoji: species, label: 'Custom' };
 }

@@ -30,7 +30,7 @@ function mkNode(overrides: Partial<SubagentNode> & { task_id: string }): Subagen
 
 function mkRecord(...nodes: SubagentNode[]): Record<string, SubagentNode> {
   const r: Record<string, SubagentNode> = {};
-  for (const n of nodes) r[n.task_id] = n;
+  for (const n of nodes) {r[n.task_id] = n;}
   return r;
 }
 

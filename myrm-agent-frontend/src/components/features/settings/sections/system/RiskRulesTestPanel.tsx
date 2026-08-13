@@ -31,7 +31,7 @@ function RiskRulesTestPanel() {
 
   const debouncedTest = useCallback(
     (p: string, txt: string) => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {clearTimeout(debounceRef.current);}
       debounceRef.current = setTimeout(() => runTest(p, txt), 500);
     },
     [runTest],
@@ -39,7 +39,7 @@ function RiskRulesTestPanel() {
 
   useEffect(
     () => () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {clearTimeout(debounceRef.current);}
     },
     [],
   );

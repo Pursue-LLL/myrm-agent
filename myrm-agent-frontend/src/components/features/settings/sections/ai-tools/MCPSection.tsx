@@ -33,7 +33,7 @@ const MCPSection = memo(() => {
     for (const c of mcpConfigs) {
       names.add(c.name);
       const qn = (c.extra_params as Record<string, unknown> | undefined)?.registryQualifiedName;
-      if (typeof qn === 'string') names.add(qn);
+      if (typeof qn === 'string') {names.add(qn);}
     }
     return names;
   }, [mcpConfigs]);
@@ -61,7 +61,7 @@ const MCPSection = memo(() => {
       const existingNames = new Set(mcpConfigs.map((c) => c.name));
       if (existingNames.has(finalConfig.name)) {
         let suffix = 2;
-        while (existingNames.has(`${finalConfig.name}-${suffix}`)) suffix++;
+        while (existingNames.has(`${finalConfig.name}-${suffix}`)) {suffix++;}
         finalConfig = { ...finalConfig, name: `${finalConfig.name}-${suffix}` };
       }
       addMCPConfig(finalConfig);

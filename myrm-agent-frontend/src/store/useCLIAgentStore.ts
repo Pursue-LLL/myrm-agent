@@ -190,7 +190,7 @@ export const useCLIAgentStore = create<CLIAgentState>()(
 
       respondPermission: async (requestId, allowed, alwaysAllow = false) => {
         const { currentSessionId } = get();
-        if (!currentSessionId) return;
+        if (!currentSessionId) {return;}
 
         try {
           await respondAgentPermission(currentSessionId, requestId, allowed, alwaysAllow);

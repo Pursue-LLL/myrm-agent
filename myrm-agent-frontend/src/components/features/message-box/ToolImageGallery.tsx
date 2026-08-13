@@ -19,7 +19,7 @@ const LIGHTBOX_BTN_CLASS = cn(
 );
 
 function getImageSrc(img: ToolImageOutput): string {
-  if (img.url) return img.url;
+  if (img.url) {return img.url;}
   return `data:${img.mimeType};base64,${img.base64}`;
 }
 
@@ -46,7 +46,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
   }, [images.length]);
 
   const handleDownload = useCallback(async () => {
-    if (lightboxIndex === null) return;
+    if (lightboxIndex === null) {return;}
     const img = images[lightboxIndex];
     const ext = img.mimeType.includes('jpeg') || img.mimeType.includes('jpg') ? 'jpg' : 'png';
     const filename = `${img.toolName || 'screenshot'}_${lightboxIndex + 1}.${ext}`;
@@ -74,7 +74,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
   }, [lightboxIndex, images]);
 
   const handleEdit = useCallback(() => {
-    if (lightboxIndex === null) return;
+    if (lightboxIndex === null) {return;}
     setEditingSrc(getImageSrc(images[lightboxIndex]));
   }, [lightboxIndex, images]);
 
@@ -93,12 +93,12 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
   }, []);
 
   useEffect(() => {
-    if (lightboxIndex === null) return;
+    if (lightboxIndex === null) {return;}
     document.body.style.overflow = 'hidden';
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeLightbox();
-      else if (e.key === 'ArrowLeft') goToPrev();
-      else if (e.key === 'ArrowRight') goToNext();
+      if (e.key === 'Escape') {closeLightbox();}
+      else if (e.key === 'ArrowLeft') {goToPrev();}
+      else if (e.key === 'ArrowRight') {goToNext();}
     };
     window.addEventListener('keydown', handler);
     return () => {
@@ -107,7 +107,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
     };
   }, [lightboxIndex, closeLightbox, goToPrev, goToNext]);
 
-  if (images.length === 0) return null;
+  if (images.length === 0) {return null;}
 
   return (
     <>

@@ -109,7 +109,7 @@ const EnterpriseMembersTab = memo(() => {
   }, [loadData]);
 
   const handleAddMember = useCallback(async () => {
-    if (!newMemberEmail.trim()) return;
+    if (!newMemberEmail.trim()) {return;}
     try {
       await addMember(orgId, newMemberEmail.trim(), newMemberRole);
       toast.success(t('memberAdded'));
@@ -137,7 +137,7 @@ const EnterpriseMembersTab = memo(() => {
   );
 
   const handleOffboard = useCallback(async () => {
-    if (!offboardUserId.trim()) return;
+    if (!offboardUserId.trim()) {return;}
     try {
       await offboardUser(orgId, offboardUserId.trim());
       toast.success(t('offboardSuccess'));
@@ -150,7 +150,7 @@ const EnterpriseMembersTab = memo(() => {
   }, [orgId, offboardUserId, t, loadData]);
 
   const handleTransfer = useCallback(async () => {
-    if (!transferSourceId.trim() || !transferTargetId.trim()) return;
+    if (!transferSourceId.trim() || !transferTargetId.trim()) {return;}
     try {
       await transferVolume(orgId, transferSourceId.trim(), transferTargetId.trim());
       toast.success(t('transferSuccess'));
@@ -164,7 +164,7 @@ const EnterpriseMembersTab = memo(() => {
   }, [orgId, transferSourceId, transferTargetId, t, loadData]);
 
   const handleUnlinkOauth = useCallback(async () => {
-    if (!unlinkUserId.trim()) return;
+    if (!unlinkUserId.trim()) {return;}
     try {
       await unlinkOauth(orgId, unlinkUserId.trim());
       toast.success(t('unlinkSuccess'));

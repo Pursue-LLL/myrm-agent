@@ -24,11 +24,11 @@ const MarkdownImage: React.FC<MarkdownImageProps> = ({ src, alt }) => {
   }, []);
 
   const handleOpenInNewTab = useCallback(() => {
-    if (!src) return;
+    if (!src) {return;}
     window.open(src, '_blank', 'noopener,noreferrer');
   }, [src]);
 
-  if (!src) return null;
+  if (!src) {return null;}
 
   if (error) {
     return (

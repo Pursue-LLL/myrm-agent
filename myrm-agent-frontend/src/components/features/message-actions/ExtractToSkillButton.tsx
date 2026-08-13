@@ -28,7 +28,7 @@ export default function ExtractToSkillButton({ message }: { message: Message }) 
   const [state, setState] = useState<ExtractState>('idle');
 
   const handleExtract = useCallback(async () => {
-    if (state !== 'idle') return;
+    if (state !== 'idle') {return;}
     if (useChatStore.getState().loading) {
       toast.warning(t('extractToSkill.busy'));
       return;
@@ -45,7 +45,7 @@ export default function ExtractToSkillButton({ message }: { message: Message }) 
     }
   }, [message.content, state, t]);
 
-  if (!message.content.trim()) return null;
+  if (!message.content.trim()) {return null;}
 
   const btnBase = 'p-2 rounded-xl transition duration-200';
 

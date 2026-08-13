@@ -41,7 +41,7 @@ const highlightCache = new Map<string, React.ReactNode>();
 /** 检查是否为可预览的 React 代码 */
 function isPreviewableReactCode(language: string, code: string): boolean {
   const reactLanguages = ['jsx', 'tsx', 'javascript', 'typescript', 'js', 'ts'];
-  if (!reactLanguages.includes(language.toLowerCase())) return false;
+  if (!reactLanguages.includes(language.toLowerCase())) {return false;}
 
   const hasReactImport = /import\s+.*from\s+['"]react['"]/.test(code);
   const hasJsx = /<[A-Z][a-zA-Z0-9]*|<[a-z]+\s/.test(code);

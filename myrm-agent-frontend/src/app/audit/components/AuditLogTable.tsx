@@ -41,12 +41,12 @@ const AuditLogTable = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (commandTypeFilter !== 'all') params.append('command_type', commandTypeFilter);
-      if (riskLevelFilter !== 'all') params.append('risk_level', riskLevelFilter);
+      if (commandTypeFilter !== 'all') {params.append('command_type', commandTypeFilter);}
+      if (riskLevelFilter !== 'all') {params.append('risk_level', riskLevelFilter);}
       params.append('limit', '100');
 
       const response = await fetch(`/api/v1/audit/bash/logs?${params.toString()}`);
-      if (!response.ok) throw new Error('Failed to fetch audit logs');
+      if (!response.ok) {throw new Error('Failed to fetch audit logs');}
 
       const data = await response.json();
       setLogs(data);
@@ -64,7 +64,7 @@ const AuditLogTable = () => {
   const exportLogs = async (format: 'json' | 'csv') => {
     try {
       const response = await fetch(`/api/v1/audit/bash/export?format=${format}`);
-      if (!response.ok) throw new Error('Failed to export logs');
+      if (!response.ok) {throw new Error('Failed to export logs');}
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -110,7 +110,7 @@ const AuditLogTable = () => {
       params.append('start_sequence', log.sequence.toString());
 
       const response = await fetch(`/api/v1/audit/bash/logs?${params.toString()}`);
-      if (!response.ok) throw new Error('Failed to fetch full log');
+      if (!response.ok) {throw new Error('Failed to fetch full log');}
 
       const data = await response.json();
       if (data.length > 0) {

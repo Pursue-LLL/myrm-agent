@@ -85,11 +85,11 @@ async function loadAllMessages(sessionId: string): Promise<Message[]> {
 
   while (hasMore) {
     const page = await getMessages(sessionId, { limit: 100, before: cursor, silent: true });
-    if (page.messages.length === 0) break;
+    if (page.messages.length === 0) {break;}
     collected.unshift(...page.messages.map(normalizeApiMessage));
     hasMore = page.has_more;
     cursor = page.next_cursor ?? undefined;
-    if (!cursor) break;
+    if (!cursor) {break;}
   }
 
   return collected.sort(
@@ -125,11 +125,11 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
       setMessagesLoading(true);
       try {
         const loaded = await loadAllMessages(sessionId);
-        if (!cancelled) setRemoteMessages(loaded);
+        if (!cancelled) {setRemoteMessages(loaded);}
       } catch {
-        if (!cancelled) setRemoteMessages([]);
+        if (!cancelled) {setRemoteMessages([]);}
       } finally {
-        if (!cancelled) setMessagesLoading(false);
+        if (!cancelled) {setMessagesLoading(false);}
       }
     };
     void load();
@@ -152,7 +152,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
   const errorMarkers = useMemo(() => eventMarkers.filter((m) => m.kind === 'error'), [eventMarkers]);
 
   useEffect(() => {
-    if (initializedTimeRef.current || startTime <= 0 || timeline.length === 0) return;
+    if (initializedTimeRef.current || startTime <= 0 || timeline.length === 0) {return;}
     initializedTimeRef.current = true;
     if (trace.outcome === 'failure') {
       const firstError = timeline.find(isErrorLikeEvent);
@@ -164,13 +164,13 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
 
   useEffect(() => {
     if (!isPlaying) {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      if (animationRef.current) {cancelAnimationFrame(animationRef.current);}
       lastUpdateRef.current = null;
       return;
     }
 
     const animate = (now: number) => {
-      if (!lastUpdateRef.current) lastUpdateRef.current = now;
+      if (!lastUpdateRef.current) {lastUpdateRef.current = now;}
       const deltaMs = now - lastUpdateRef.current;
       lastUpdateRef.current = now;
 
@@ -187,7 +187,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
 
     animationRef.current = requestAnimationFrame(animate);
     return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      if (animationRef.current) {cancelAnimationFrame(animationRef.current);}
     };
   }, [isPlaying, playbackSpeed, endTime]);
 
@@ -203,13 +203,13 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
 
     visibleEvents.forEach((e) => {
       activeEvent = e;
-      if (e.type === 'message') activeMessages.push(e.data);
+      if (e.type === 'message') {activeMessages.push(e.data);}
       else if (e.type === 'tool_start' || e.type === 'tool_end') {
         activeTools.set(`${e.data.sequence}-${e.data.tool_name}`, e.data);
-      } else if (e.type === 'llm_call') activeLlmCalls.push(e.data);
-      else if (e.type === 'human_feedback') activeHumanFeedback.push(e.data);
-      else if (e.type === 'memory') activeMemoryEvents.push(e.data);
-      else if (e.type === 'error') latestError = e.data;
+      } else if (e.type === 'llm_call') {activeLlmCalls.push(e.data);}
+      else if (e.type === 'human_feedback') {activeHumanFeedback.push(e.data);}
+      else if (e.type === 'memory') {activeMemoryEvents.push(e.data);}
+      else if (e.type === 'error') {latestError = e.data;}
     });
 
     return {
@@ -226,7 +226,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
   const progressPercent = Math.max(0, Math.min(100, ((currentTime - startTime) / totalDuration) * 100));
 
   const togglePlay = useCallback(() => {
-    if (currentTime >= endTime) setCurrentTime(startTime);
+    if (currentTime >= endTime) {setCurrentTime(startTime);}
     setIsPlaying((prev) => !prev);
   }, [currentTime, endTime, startTime]);
 
@@ -261,7 +261,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
   );
 
   useEffect(() => {
-    if (!keyboardActive) return;
+    if (!keyboardActive) {return;}
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === ' ' || e.key === 'Spacebar') {
         e.preventDefault();
@@ -573,7 +573,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
             })}
             {visibleState.messages.map((m) => {
               const reasoning = messageReasoning(m);
-              if (!reasoning) return null;
+              if (!reasoning) {return null;}
               return (
                 <div
                   key={`reasoning-${m.messageId}`}

@@ -14110,6 +14110,7 @@
       "limitHitTitle": "이 케이스는 구성된 실행 예산(예: 최대 도구 호출 수)에 도달하여 중단되었습니다 — 답변이 불완전합니다",
       "blocked": "차단됨",
       "blockedTitle": "이 실행에서 검색 쿼리 또는 URL이 디컨타미네이션 가드에 의해 거부되었습니다",
+      "toolCallsTitle": "이 사례의 궤적에 기록된 도구 호출",
       "environment": "환경 스냅샷",
       "envModel": "모델",
       "envThinking": "사고",
@@ -14157,6 +14158,8 @@
       "blocked": "차단",
       "limitHitTitle": "에이전트가 설정된 실행 예산(예: 최대 도구 호출 수)에 도달하여 이 케이스가 중단되었습니다 — 답변이 불완전합니다",
       "matrixDetail": "케이스 × 프로필 매트릭스",
+      "blockedTitle": "이 실행에서 검색 쿼리 또는 URL이 디컨타미네이션 가드에 의해 거부되었습니다",
+      "toolCallsTitle": "이 사례의 궤적에 기록된 도구 호출",
       "case": "케이스",
       "legend": {
         "stable": "안정",

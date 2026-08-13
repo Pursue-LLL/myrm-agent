@@ -68,9 +68,9 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
 
   const addTag = useCallback((raw: string) => {
     const tag = raw.trim().toLowerCase();
-    if (!tag) return;
+    if (!tag) {return;}
     setForm((prev) => {
-      if (prev.tags.includes(tag)) return prev;
+      if (prev.tags.includes(tag)) {return prev;}
       return { ...prev, tags: [...prev.tags, tag] };
     });
   }, []);
@@ -101,7 +101,7 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
   })();
 
   const handleSubmit = useCallback(async () => {
-    if (!isValid) return;
+    if (!isValid) {return;}
     setIsSubmitting(true);
     try {
       const body: CreateMemoryRequest = {
@@ -120,7 +120,7 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
         body.action = form.action.trim();
       } else {
         body.content = form.content.trim();
-        if (form.tags.length > 0) body.tags = form.tags;
+        if (form.tags.length > 0) {body.tags = form.tags;}
       }
 
       await createMemory(body);

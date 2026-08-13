@@ -195,7 +195,7 @@ const BaseModelSelector = () => {
   }, [triggerDisplay.moaPresetId, moaPresetT]);
 
   const isCurrentSelectionValid = useMemo(() => {
-    if (!currentSelection) return false;
+    if (!currentSelection) {return false;}
     return enabledModels.some(
       (m) => m.providerId === currentSelection.providerId && m.model === currentSelection.model,
     );
@@ -254,7 +254,7 @@ const BaseModelSelector = () => {
   }, [actionMode, updateAgentConfig]);
 
   const isProviderDisabled = useMemo(() => {
-    if (!currentSelection) return false;
+    if (!currentSelection) {return false;}
     const provider = providers.find((p) => p.id === currentSelection.providerId);
     return provider ? !provider.isEnabled : true;
   }, [currentSelection, providers]);

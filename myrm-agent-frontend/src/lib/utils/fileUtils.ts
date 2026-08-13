@@ -58,7 +58,7 @@ export const isAudioFile = (fileExtension: string): boolean => {
  * Get the display URL for a file, handling both Web (fileUrl) and Tauri (localPath) environments.
  */
 export const getDisplayUrl = (file: File): string => {
-  if (file.fileUrl) return file.fileUrl;
+  if (file.fileUrl) {return file.fileUrl;}
   if (isTauriRuntime() && file.localPath) {
     try {
       const { convertFileSrc } = require('@tauri-apps/api/core');

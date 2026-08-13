@@ -9,7 +9,7 @@ vi.mock('../provider-brand-icon-loaders', async (importOriginal) => {
     ...actual,
     getCachedProviderBrandIconUrl: vi.fn(() => undefined),
     loadProviderBrandIconUrl: vi.fn(async (providerId: string) => {
-      if (providerId === 'openai') return '/mock/openai.svg';
+      if (providerId === 'openai') {return '/mock/openai.svg';}
       return null;
     }),
   };

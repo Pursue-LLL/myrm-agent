@@ -147,13 +147,13 @@ function formatTokens(tokens: number): string {
 }
 
 function calculateCacheSavings(usage: TokenUsage): number {
-  if (!usage.cached_tokens || usage.prompt_tokens === 0) return 0;
+  if (!usage.cached_tokens || usage.prompt_tokens === 0) {return 0;}
   return Math.round((usage.cached_tokens / usage.prompt_tokens) * 100);
 }
 
 function formatCost(cost: number): string {
-  if (cost < 0.0001) return `<$0.0001`;
-  if (cost < 0.01) return `$${cost.toFixed(4)}`;
+  if (cost < 0.0001) {return `<$0.0001`;}
+  if (cost < 0.01) {return `$${cost.toFixed(4)}`;}
   return `$${cost.toFixed(2)}`;
 }
 
@@ -252,7 +252,7 @@ export default function TokenUsageDisplay({
 
   const renderDelta = useCallback(
     (current: number, average: number, isLowerBetter: boolean, thresholdPct = 10, absThreshold = 50) => {
-      if (!average || average <= 0 || !current || current <= 0) return null;
+      if (!average || average <= 0 || !current || current <= 0) {return null;}
       const diff = current - average;
       const pct = (diff / average) * 100;
 

@@ -14,7 +14,7 @@
 export const PET_SURFACE_AWAY_COMPLETION_EVENT = 'pet-surface-away-completion';
 
 export function dispatchPetSurfaceAwayCompletion(): void {
-  if (typeof document === 'undefined') return;
-  if (!document.hidden && document.hasFocus()) return;
+  if (typeof document === 'undefined') {return;}
+  if (!document.hidden && document.hasFocus()) {return;}
   window.dispatchEvent(new CustomEvent(PET_SURFACE_AWAY_COMPLETION_EVENT));
 }

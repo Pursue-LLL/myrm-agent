@@ -56,10 +56,10 @@ function computeStats(messages: ExportMessage[]): TokenStats {
     assistantCount: 0,
   };
   for (const msg of messages) {
-    if (!VISIBLE_ROLES.has(msg.role)) continue;
+    if (!VISIBLE_ROLES.has(msg.role)) {continue;}
     stats.messageCount++;
-    if (msg.role === 'user') stats.userCount++;
-    else stats.assistantCount++;
+    if (msg.role === 'user') {stats.userCount++;}
+    else {stats.assistantCount++;}
 
     const usage = msg.metadata?.token_usage as
       | { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
@@ -74,8 +74,8 @@ function computeStats(messages: ExportMessage[]): TokenStats {
 }
 
 function formatTokenCount(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 10000) return (n / 1000).toFixed(1) + 'k';
+  if (n < 1000) {return String(n);}
+  if (n < 10000) {return (n / 1000).toFixed(1) + 'k';}
   return Math.round(n / 1000) + 'k';
 }
 
@@ -100,7 +100,7 @@ interface MarkdownProcessor {
 let _processorPromise: Promise<MarkdownProcessor> | null = null;
 
 async function getMarkdownEngine() {
-  if (_processorPromise) return _processorPromise;
+  if (_processorPromise) {return _processorPromise;}
   _processorPromise = (async () => {
     try {
       const { unified } = await import('unified');
@@ -124,7 +124,7 @@ async function getMarkdownEngine() {
           visit(tree, 'element', (node: Element) => {
             if (node.tagName === 'pre' && node.children?.[0]?.type === 'element') {
               const codeNode = node.children[0] as Element;
-              if (codeNode.tagName !== 'code') return;
+              if (codeNode.tagName !== 'code') {return;}
 
               const lang =
                 Array.isArray(codeNode.properties?.className) && typeof codeNode.properties.className[0] === 'string'
@@ -179,7 +179,7 @@ async function renderMarkdown(content: string): Promise<string> {
 }
 
 function renderMessageHtml(msg: ExportMessage, renderedContent: string): string {
-  if (!VISIBLE_ROLES.has(msg.role)) return '';
+  if (!VISIBLE_ROLES.has(msg.role)) {return '';}
   const isUser = msg.role === 'user';
   const roleClass = isUser ? 'user' : 'assistant';
   const roleLabel = isUser ? 'User' : 'Assistant';
@@ -358,7 +358,7 @@ function getLabels(lang: 'en' | 'zh'): HtmlLabels {
 }
 
 function renderUsageStats(usage: UsageSummary | null | undefined, labels: HtmlLabels): string {
-  if (!usage || (usage.totalCalls === 0 && usage.totalTokens === 0)) return '';
+  if (!usage || (usage.totalCalls === 0 && usage.totalTokens === 0)) {return '';}
   const parts: string[] = [];
   if (usage.totalCalls > 0) {
     parts.push(
@@ -374,7 +374,7 @@ function renderUsageStats(usage: UsageSummary | null | undefined, labels: HtmlLa
 }
 
 function renderToolActivityHtml(tools: ToolSummary | null | undefined, labels: HtmlLabels): string {
-  if (!tools || tools.toolsUsed.length === 0) return '';
+  if (!tools || tools.toolsUsed.length === 0) {return '';}
   let rows = '';
   for (const t of tools.toolsUsed) {
     rows += `<tr><td class="tool-name">${esc(t.name)}</td><td>${t.count}</td><td>${formatDuration(t.totalMs)}</td></tr>`;
@@ -391,7 +391,7 @@ function renderToolActivityHtml(tools: ToolSummary | null | undefined, labels: H
 }
 
 function renderAgentCard(agent: AgentInfo | null | undefined, _labels: HtmlLabels): string {
-  if (!agent) return '';
+  if (!agent) {return '';}
   const modelBadge = agent.model ? `<span class="agent-model">${esc(agent.model)}</span>` : '';
   const desc = agent.description ? `<div class="agent-desc">${esc(agent.description)}</div>` : '';
   return `<div class="agent-card">
@@ -404,9 +404,9 @@ function renderToolCallDetailsHtml(
   turnIndex: number,
   labels: HtmlLabels,
 ): string {
-  if (!details || details.length === 0) return '';
+  if (!details || details.length === 0) {return '';}
   const turnCalls = details.filter((d) => d.turnIndex === turnIndex);
-  if (turnCalls.length === 0) return '';
+  if (turnCalls.length === 0) {return '';}
 
   const totalMs = turnCalls.reduce((sum, d) => sum + (d.durationMs ?? 0), 0);
   let items = '';
@@ -436,7 +436,7 @@ export async function buildHtmlDocument(
   const renderedMessages: string[] = [];
   let assistantTurnIndex = 0;
   for (const msg of data.messages) {
-    if (!VISIBLE_ROLES.has(msg.role)) continue;
+    if (!VISIBLE_ROLES.has(msg.role)) {continue;}
     const htmlContent = await renderMarkdown(msg.content);
     let msgHtml = renderMessageHtml(msg, htmlContent);
     if (msg.role === 'assistant') {

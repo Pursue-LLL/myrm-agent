@@ -52,7 +52,7 @@ const Sidebar = memo<SidebarProps>(({ currentChatId }) => {
   }, [isMobile, setIsMobileOpen, setIsPinned, isPinned]);
 
   const getToggleTooltip = () => {
-    if (isMobile) return commonT('close');
+    if (isMobile) {return commonT('close');}
     return isExpanded ? (isPinned ? commonT('unpinSidebar') : commonT('pinSidebar')) : commonT('expandMenu');
   };
 

@@ -5,7 +5,7 @@ import useEmbedConsentStore from '@/store/useEmbedConsentStore';
 import type { EmbedDescriptor } from './providers/types';
 
 function hostOf(descriptor: EmbedDescriptor): string {
-  if (descriptor.provider === 'twitter') return 'x.com';
+  if (descriptor.provider === 'twitter') {return 'x.com';}
   try {
     return new URL(descriptor.sourceUrl).hostname.replace(/^www\./, '');
   } catch {

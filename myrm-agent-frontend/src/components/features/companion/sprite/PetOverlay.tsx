@@ -132,7 +132,7 @@ const PetOverlay = memo(function PetOverlay() {
   useEffect(() => {
     const handleStatusEvent = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (!detail?.step_key) return;
+      if (!detail?.step_key) {return;}
 
       const petEvent = stepKeyToPetEvent(detail.step_key);
       if (petEvent) {
@@ -147,7 +147,7 @@ const PetOverlay = memo(function PetOverlay() {
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0) {return;}
       e.preventDefault();
       e.stopPropagation();
 
@@ -166,7 +166,7 @@ const PetOverlay = memo(function PetOverlay() {
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     const drag = dragRef.current;
-    if (!drag) return;
+    if (!drag) {return;}
 
     const dx = e.clientX - drag.startX;
     const dy = e.clientY - drag.startY;
@@ -183,7 +183,7 @@ const PetOverlay = memo(function PetOverlay() {
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
       const drag = dragRef.current;
-      if (!drag) return;
+      if (!drag) {return;}
 
       try {
         (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
@@ -214,7 +214,7 @@ const PetOverlay = memo(function PetOverlay() {
   }, [isTauri]);
 
   useEffect(() => {
-    if (!contextMenu.visible) return;
+    if (!contextMenu.visible) {return;}
     const close = () => setContextMenu((prev) => ({ ...prev, visible: false }));
     const timer = setTimeout(() => window.addEventListener('click', close, { once: true }), 0);
     return () => {
@@ -265,8 +265,8 @@ const PetOverlay = memo(function PetOverlay() {
     return () => window.removeEventListener('resize', handleResize);
   }, [petSize]);
 
-  if (!spriteEnabled || !sheetUrl) return null;
-  if (poppedOut) return null;
+  if (!spriteEnabled || !sheetUrl) {return null;}
+  if (poppedOut) {return null;}
 
   const resolvedRow = resolvePetSheetRow(petState, sheetRows);
 

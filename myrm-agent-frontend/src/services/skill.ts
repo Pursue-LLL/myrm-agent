@@ -38,7 +38,7 @@ export async function listSkills(params: ListSkillsParams = {}): Promise<SkillLi
   const { type, sortBy = 'name', order = 'asc' } = params;
 
   const queryParams = new URLSearchParams();
-  if (type) queryParams.append('type', type);
+  if (type) {queryParams.append('type', type);}
   queryParams.append('sort_by', sortBy);
   queryParams.append('order', order);
 
@@ -417,7 +417,7 @@ export async function searchDiscoverySkills(
   userId?: string,
 ): Promise<DiscoverySearchResponse> {
   const params = new URLSearchParams({ q: query, limit: String(limit) });
-  if (userId) params.set('user_id', userId);
+  if (userId) {params.set('user_id', userId);}
   return apiRequest<DiscoverySearchResponse>(`${SKILLS_API_PREFIX}/discovery/search?${params}`);
 }
 
@@ -537,7 +537,7 @@ export async function listSkillDrafts(
   offset: number = 0,
 ): Promise<SkillDraftListResponse> {
   const params = new URLSearchParams();
-  if (status) params.append('status', status);
+  if (status) {params.append('status', status);}
   params.append('limit', String(limit));
   params.append('offset', String(offset));
   return apiRequest<SkillDraftListResponse>(`${SKILLS_API_PREFIX}/drafts?${params}`);

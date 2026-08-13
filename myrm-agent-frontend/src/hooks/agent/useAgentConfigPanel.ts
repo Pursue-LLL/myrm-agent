@@ -159,13 +159,13 @@ export const useAgentConfigPanel = () => {
   }, [marketSkills, localSkills, isSkillEnabled]);
 
   const selectedSkillDetails = useMemo(() => {
-    if (!agentConfig?.selectedSkillIds) return [];
+    if (!agentConfig?.selectedSkillIds) {return [];}
     const allSkills = [...marketSkills, ...localSkills].filter((s) => s.user_invocable !== false);
     return allSkills.filter((skill) => agentConfig.selectedSkillIds.includes(skill.id));
   }, [agentConfig, marketSkills, localSkills]);
 
   const selectedMcpDetails = useMemo(() => {
-    if (!agentConfig?.selectedMcpNames) return [];
+    if (!agentConfig?.selectedMcpNames) {return [];}
     return mcpConfigs.filter((mcp) => agentConfig.selectedMcpNames.includes(mcp.name));
   }, [agentConfig, mcpConfigs]);
 
@@ -238,7 +238,7 @@ export const useAgentConfigPanel = () => {
 
   /** 保存为新智能体 */
   const handleSaveAsNewAgent = useCallback(async () => {
-    if (isSavingAgent) return;
+    if (isSavingAgent) {return;}
 
     // 检查是否有配置
     const hasConfig =
@@ -298,7 +298,7 @@ export const useAgentConfigPanel = () => {
 
   /** 更新已保存的智能体 */
   const handleUpdateAgent = useCallback(async () => {
-    if (isSavingAgent || !agentConfig?.agentId) return;
+    if (isSavingAgent || !agentConfig?.agentId) {return;}
 
     try {
       setIsSavingAgent(true);

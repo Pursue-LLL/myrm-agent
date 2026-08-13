@@ -44,7 +44,7 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
 
   const uploadInputFiles = useCallback(
     async (inputFiles: globalThis.File[]) => {
-      if (inputFiles.length === 0) return;
+      if (inputFiles.length === 0) {return;}
 
       const existingHashes = new Set(files.map((f) => f.contentHash).filter(Boolean));
       const hashResults = await Promise.all(
@@ -67,7 +67,7 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
 
       resetUploadController();
       const uploadResults = await uploadFiles(dedupedFiles, getUploadSignal());
-      if (uploadResults.uploaded_count === 0 || !uploadResults.files) return;
+      if (uploadResults.uploaded_count === 0 || !uploadResults.files) {return;}
 
       const newFiles = uploadResults.files.map((file) => ({
         fileName: file.fileName,
@@ -98,12 +98,12 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
 
   const handleDroppedFiles = useCallback(
     async (droppedFiles: globalThis.File[]) => {
-      if (actionMode === 'fast') return;
+      if (actionMode === 'fast') {return;}
 
       const oversized = droppedFiles.find((f) => {
         const ext = getFileExtension(f.name);
-        if (isVideoFile(ext)) return f.size > MAX_VIDEO_BYTES;
-        if (isAudioFile(ext)) return f.size > MAX_AUDIO_BYTES;
+        if (isVideoFile(ext)) {return f.size > MAX_VIDEO_BYTES;}
+        if (isAudioFile(ext)) {return f.size > MAX_AUDIO_BYTES;}
         return f.size > MAX_FILE_BYTES;
       });
       if (oversized) {
@@ -141,7 +141,7 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
       try {
         await uploadInputFiles(droppedFiles);
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
+        if (error instanceof DOMException && error.name === 'AbortError') {return;}
         toast.error(tFiles('uploadError'));
       } finally {
         setIsUploadingPaste(false);
@@ -152,18 +152,18 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
 
   const handlePaste = useCallback(
     async (e: React.ClipboardEvent) => {
-      if (actionMode === 'fast') return;
+      if (actionMode === 'fast') {return;}
 
       const dt = e.clipboardData;
-      if (!dt?.items) return;
+      if (!dt?.items) {return;}
 
       const imageFiles: globalThis.File[] = [];
       const otherFiles: globalThis.File[] = [];
       for (let i = 0; i < dt.items.length; i++) {
         const item = dt.items[i];
-        if (item.kind !== 'file') continue;
+        if (item.kind !== 'file') {continue;}
         const file = item.getAsFile();
-        if (!file) continue;
+        if (!file) {continue;}
         if (file.type.startsWith('image/')) {
           imageFiles.push(file);
         } else {
@@ -172,7 +172,7 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
       }
 
       const allFiles = [...otherFiles, ...imageFiles];
-      if (allFiles.length === 0) return;
+      if (allFiles.length === 0) {return;}
 
       // Office apps (Excel/WPS/Google Sheets) place both text and a rendered
       // bitmap on the clipboard. Prefer text so pasting cells inserts TSV data

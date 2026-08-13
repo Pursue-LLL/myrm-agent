@@ -321,7 +321,7 @@ export async function deleteAgentSecret(agentId: string, keyName: string): Promi
     },
   });
 
-  if (response.status === 404) return;
+  if (response.status === 404) {return;}
   if (!response.ok) {
     await throwUserAgentFetchError(response, 'delete agent secret');
   }
@@ -486,7 +486,7 @@ export async function deleteAgent(agentId: string): Promise<void> {
     },
   });
 
-  if (response.status === 404) return;
+  if (response.status === 404) {return;}
   if (!response.ok) {
     await throwUserAgentFetchError(response, 'delete agent');
   }

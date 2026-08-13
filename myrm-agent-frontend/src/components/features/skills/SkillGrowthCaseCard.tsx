@@ -178,7 +178,7 @@ export default function SkillGrowthCaseCard({
 
   const handleSaveRevision = useCallback(async () => {
     const content = modifiedEditorRef.current?.getValue() ?? editedContent;
-    if (!onRevise || !content.trim()) return;
+    if (!onRevise || !content.trim()) {return;}
     await onRevise(content);
     setIsEditing(false);
     setEditedContent('');

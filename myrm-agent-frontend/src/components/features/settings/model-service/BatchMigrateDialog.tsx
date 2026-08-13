@@ -61,7 +61,7 @@ export const BatchMigrateDialog = memo<BatchMigrateDialogProps>(
     }, [open, fromProviderId]);
 
     const handleMigrate = async () => {
-      if (!toProviderId || !toModel) return;
+      if (!toProviderId || !toModel) {return;}
 
       try {
         setMigrating(true);

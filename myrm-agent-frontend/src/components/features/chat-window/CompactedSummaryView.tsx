@@ -149,7 +149,7 @@ export const CompactedSummaryView = () => {
     }
   }, [chatId, setContextBranches, setContextBranchesLoadError]);
 
-  if (!compactedSummary) return null;
+  if (!compactedSummary) {return null;}
 
   const handleEdit = () => {
     setEditValue(compactedSummary);
@@ -161,7 +161,7 @@ export const CompactedSummaryView = () => {
   };
 
   const handleSave = async () => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     setIsSaving(true);
     try {
       await updateCompactionSummary(chatId, editValue);
@@ -176,7 +176,7 @@ export const CompactedSummaryView = () => {
 
   const handleViewArchive = async () => {
     setIsArchiveOpen(true);
-    if (!chatId || archiveMessages.length > 0) return;
+    if (!chatId || archiveMessages.length > 0) {return;}
 
     setIsLoadingArchive(true);
     try {
@@ -191,7 +191,7 @@ export const CompactedSummaryView = () => {
 
   const handleSaveBookmark = async () => {
     const snapshotPath = lastCompactionMeta?.snapshotPath;
-    if (!chatId || !snapshotPath || isSavingBookmark) return;
+    if (!chatId || !snapshotPath || isSavingBookmark) {return;}
     setIsSavingBookmark(true);
     try {
       await createContextBranch(chatId, { snapshot_path: snapshotPath });
@@ -215,7 +215,7 @@ export const CompactedSummaryView = () => {
   };
 
   const handleForkFromBookmark = useCallback(async (bookmark: ContextBranchRecord) => {
-    if (!chatId || forkingBranchId) return;
+    if (!chatId || forkingBranchId) {return;}
     if (useChatStore.getState().loading) {
       reportContextBranchForkDiag({
         phase: 'blocked-loading',

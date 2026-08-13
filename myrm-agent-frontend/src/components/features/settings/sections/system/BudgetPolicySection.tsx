@@ -62,7 +62,7 @@ const STATUS_COLORS = {
 } as const;
 
 function formatCost(cost: number): string {
-  if (cost < 0.01) return `$${cost.toFixed(4)}`;
+  if (cost < 0.01) {return `$${cost.toFixed(4)}`;}
   return `$${cost.toFixed(2)}`;
 }
 
@@ -320,7 +320,7 @@ const BudgetPolicySection = memo(() => {
                 value={Math.round(policy.warning_threshold * 100)}
                 onChange={(e) => {
                   const v = parseInt(e.target.value, 10);
-                  if (!isNaN(v) && v >= 10 && v <= 100) updateField('warning_threshold', v / 100);
+                  if (!isNaN(v) && v >= 10 && v <= 100) {updateField('warning_threshold', v / 100);}
                 }}
                 className="w-16 text-right text-sm font-mono px-2 py-1.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
               />

@@ -60,7 +60,7 @@ export function useGlobalMediaTaskNotifications() {
 
   useEffect(() => {
     const notifiedTerminalKeys = new Set<string>();
-    let disposed = false;
+    const disposed = false;
 
     const notifyIfTerminal = (task: Task) => {
       if (!isMediaTaskType(task.task_type)) {

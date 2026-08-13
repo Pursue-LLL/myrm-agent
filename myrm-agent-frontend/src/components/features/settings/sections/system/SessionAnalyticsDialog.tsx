@@ -66,7 +66,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
       >
         <div className="bg-background border border-border rounded-lg p-8 max-w-4xl w-full mx-4">
           <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         </div>
       </div>

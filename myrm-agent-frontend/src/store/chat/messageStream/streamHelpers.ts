@@ -93,13 +93,13 @@ export function normalizeGoalState(payload: GoalStatusPayload): GoalState {
 }
 
 function getSourceKey(source: Source): string {
-  if (source.source_key) return source.source_key;
+  if (source.source_key) {return source.source_key;}
   if (source.type === 'conversation_history' && source.conversation_id) {
     return `conversation:${source.conversation_id}:${source.message_id ?? ''}`;
   }
   const clickUrl = resolveSourceClickUrl(source);
-  if (clickUrl) return `url:${clickUrl}`;
-  if (source.skill_name) return `mcp:${source.skill_name}`;
+  if (clickUrl) {return `url:${clickUrl}`;}
+  if (source.skill_name) {return `mcp:${source.skill_name}`;}
   return `index:${source.index}`;
 }
 
@@ -170,7 +170,7 @@ export async function getUserFriendlyError(
 }
 
 export function normalizeClarificationForm(value: unknown): ClarificationForm | undefined {
-  if (!value || typeof value !== 'object') return undefined;
+  if (!value || typeof value !== 'object') {return undefined;}
 
   const rawForm = value as Record<string, unknown>;
   const title = typeof rawForm.title === 'string' && rawForm.title.trim() ? rawForm.title.trim() : undefined;
@@ -183,11 +183,11 @@ export function normalizeClarificationForm(value: unknown): ClarificationForm | 
   const questions: ClarificationQuestion[] = [];
 
   for (const rawQuestionValue of rawQuestions) {
-    if (!rawQuestionValue || typeof rawQuestionValue !== 'object') continue;
+    if (!rawQuestionValue || typeof rawQuestionValue !== 'object') {continue;}
     const rawQuestion = rawQuestionValue as Record<string, unknown>;
     const id = typeof rawQuestion.id === 'string' ? rawQuestion.id.trim() : '';
     const prompt = typeof rawQuestion.prompt === 'string' ? rawQuestion.prompt.trim() : '';
-    if (!id || !prompt) continue;
+    if (!id || !prompt) {continue;}
 
     const question: ClarificationQuestion = { id, prompt };
     if (typeof rawQuestion.allow_multiple === 'boolean') {
@@ -197,11 +197,11 @@ export function normalizeClarificationForm(value: unknown): ClarificationForm | 
     if (Array.isArray(rawQuestion.options)) {
       const options: ClarificationOption[] = [];
       for (const rawOptionValue of rawQuestion.options) {
-        if (!rawOptionValue || typeof rawOptionValue !== 'object') continue;
+        if (!rawOptionValue || typeof rawOptionValue !== 'object') {continue;}
         const rawOption = rawOptionValue as Record<string, unknown>;
         const optionId = typeof rawOption.id === 'string' ? rawOption.id.trim() : '';
         const label = typeof rawOption.label === 'string' ? rawOption.label.trim() : '';
-        if (!optionId || !label) continue;
+        if (!optionId || !label) {continue;}
 
         const option: ClarificationOption = { id: optionId, label };
         if (typeof rawOption.description === 'string' && rawOption.description.trim()) {
@@ -217,7 +217,7 @@ export function normalizeClarificationForm(value: unknown): ClarificationForm | 
     questions.push(question);
   }
 
-  if (questions.length === 0) return undefined;
+  if (questions.length === 0) {return undefined;}
   return {
     ...(title ? { title } : {}),
     ...(requiresConfirmation ? { requiresConfirmation: true } : {}),
@@ -232,7 +232,7 @@ function normalizeRequiresConfirmation(value: unknown): boolean {
 
 /** Unwrap production SSE payload `{ type, form }` into a normalized ClarificationForm. */
 export function resolveClarificationFormFromEventData(data: unknown): ClarificationForm | undefined {
-  if (!data || typeof data !== 'object') return undefined;
+  if (!data || typeof data !== 'object') {return undefined;}
 
   const payload = data as Record<string, unknown>;
   if (payload.type === 'ask_question' && payload.form !== undefined) {

@@ -207,7 +207,7 @@ Each phase is one revert commit (mv + shims). Do not partial-revert shims withou
 1. ✅ Delete root shims — 105 flat shims removed
 2. ✅ Bulk-update `from dev_gate_contract` → `from dev_gate.contract` (codemod 1170 imports + 8 `.sh` paths)
 3. ✅ Consolidate monorepo `scripts/dev/lib/` — 该目录为 monorepo 专用资产（phase-c ramp / dgep / resource-soak 等），与 OSS 子包路径无重复；SSOT 收敛至 `myrm-agent/scripts/dev/lib/e2e_core/guardrail_ssot.py`
-4. ⚠️ Add CI check: fail if new `.py` lands flat in `dev/lib/` root (lint rule) — `test_repack_deleted_module_paths_static.py` 静态守卫覆盖测试侧引用，根目录 flat 落地由 code review 把关
+4. ✅ Add CI check: fail if new `.py` lands flat in `dev/lib/` root — `test_repack_deleted_module_paths_static.py` 同时覆盖测试侧引用与 lib 根 flat 落地（白名单：myrm-agent 根 `dev_paths.py`；根仓根 10 个资产）
 
 ## Risk Controls
 

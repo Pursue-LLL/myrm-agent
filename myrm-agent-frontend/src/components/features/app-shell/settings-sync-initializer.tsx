@@ -54,7 +54,7 @@ export default function SettingsSyncInitializer() {
 
   useEffect(() => {
     const initializeAll = async () => {
-      if (status !== 'idle') return;
+      if (status !== 'idle') {return;}
 
       setStatus('loading');
 

@@ -86,8 +86,8 @@ const UNSUPPORTED_EXT: ReadonlySet<string> = new Set([
 
 export function getPreviewKind(filename: string): PreviewKind | null {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
-  if (RICH_EXT[ext]) return RICH_EXT[ext];
-  if (UNSUPPORTED_EXT.has(ext)) return 'unsupported';
+  if (RICH_EXT[ext]) {return RICH_EXT[ext];}
+  if (UNSUPPORTED_EXT.has(ext)) {return 'unsupported';}
   return null;
 }
 
@@ -146,7 +146,7 @@ export const RichMediaFilePreview: React.FC<RichMediaFilePreviewProps> = memo(
   ({ filePath, filename, workspace, content, onDownload, kind: kindOverride }) => {
     const t = useTranslations('workspace');
     const kind = kindOverride ?? getPreviewKind(filename);
-    if (!kind) return null;
+    if (!kind) {return null;}
 
     const previewUrl = getStorageUrl(getWorkspaceFileContentUrl(filePath, workspace));
 

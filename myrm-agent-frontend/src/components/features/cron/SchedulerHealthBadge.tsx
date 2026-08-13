@@ -29,10 +29,10 @@ const SchedulerHealthBadge = memo(function SchedulerHealthBadge() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const poll = useCallback(async () => {
-    if (document.hidden) return;
+    if (document.hidden) {return;}
     try {
       const res = await apiRequest<SchedulerHealth>('/cron/scheduler/health');
-      if (res) setHealth(res);
+      if (res) {setHealth(res);}
     } catch {
       setHealth({ status: 'red', running: false, last_tick_at: null, tick_errors: 0, last_tick_age_seconds: null, has_timer: false });
     }
@@ -43,17 +43,17 @@ const SchedulerHealthBadge = memo(function SchedulerHealthBadge() {
     intervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
 
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') poll();
+      if (document.visibilityState === 'visible') {poll();}
     };
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {clearInterval(intervalRef.current);}
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [poll]);
 
-  if (!health) return null;
+  if (!health) {return null;}
 
   const cfg = STATUS_CONFIG[health.status];
 

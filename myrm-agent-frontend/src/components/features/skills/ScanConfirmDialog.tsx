@@ -41,7 +41,7 @@ interface ScanConfirmDialogProps {
 const ScanConfirmDialog = memo(({ open, previewResult, onConfirm, onCancel }: ScanConfirmDialogProps) => {
   const t = useTranslations('settings.skills.discover');
 
-  if (!previewResult) return null;
+  if (!previewResult) {return null;}
 
   return (
     <AlertDialog open={open} onOpenChange={(v) => !v && onCancel()}>

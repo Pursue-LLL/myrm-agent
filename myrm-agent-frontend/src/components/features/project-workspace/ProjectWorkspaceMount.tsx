@@ -79,7 +79,7 @@ export default function ProjectWorkspaceMount({
       try {
         const project = await updateProject(projectId, { workspace_path: dir ?? '' });
         const bound = project.workspacePath ?? null;
-        if (bound) addRecentDir(bound);
+        if (bound) {addRecentDir(bound);}
         toast({ title: bound ? t('updated') : t('cleared') });
         onBound(bound);
         onOpenChange(false);
@@ -100,16 +100,16 @@ export default function ProjectWorkspaceMount({
       setFilterQuery('');
       try {
         const result = await browseDirectories(path);
-        if (gen !== loadGenRef.current) return;
+        if (gen !== loadGenRef.current) {return;}
         setEntries(result.entries);
         setCurrentPath(result.current);
         setParentPath(result.parent);
         setPathInput(result.current);
       } catch {
-        if (gen !== loadGenRef.current) return;
+        if (gen !== loadGenRef.current) {return;}
         toast({ title: t('invalidPath'), variant: 'destructive' });
       } finally {
-        if (gen === loadGenRef.current) setLoading(false);
+        if (gen === loadGenRef.current) {setLoading(false);}
       }
     },
     [t],
@@ -122,7 +122,7 @@ export default function ProjectWorkspaceMount({
   }, [browseOpen, currentPath, loadDirectory]);
 
   const filteredEntries = useMemo(() => {
-    if (!filterQuery.trim()) return entries;
+    if (!filterQuery.trim()) {return entries;}
     const q = filterQuery.toLowerCase();
     return entries.filter((e) => e.name.toLowerCase().includes(q));
   }, [entries, filterQuery]);
@@ -136,7 +136,7 @@ export default function ProjectWorkspaceMount({
         title: t('pickFolderTitle', { name: projectName }),
         defaultPath: currentPath || undefined,
       });
-      if (!selected) return;
+      if (!selected) {return;}
       const dir = typeof selected === 'string' ? selected : selected[0];
       await persistWorkspace(dir);
     } catch {
@@ -154,7 +154,7 @@ export default function ProjectWorkspaceMount({
 
   const recentDirs = getRecentDirectoryPaths(PROJECT_WORKSPACE_RECENT_KEY);
 
-  if (!open) return null;
+  if (!open) {return null;}
 
   return (
     <div

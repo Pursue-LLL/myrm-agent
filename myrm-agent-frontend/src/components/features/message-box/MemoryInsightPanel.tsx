@@ -32,12 +32,12 @@ function formatNamespaceLabel(
   namespace: string,
   t: ReturnType<typeof useTranslations>
 ): string {
-  if (namespace === 'global') return t('namespaceGlobal');
-  if (namespace.startsWith('agent:')) return t('namespaceAgent', { value: namespace.slice('agent:'.length) });
-  if (namespace.startsWith('channel:')) return t('namespaceChannel', { value: namespace.slice('channel:'.length) });
-  if (namespace.startsWith('conversation:')) return t('namespaceConversation');
-  if (namespace.startsWith('task:')) return t('namespaceTask');
-  if (namespace.startsWith('shared:')) return t('namespaceShared', { value: namespace.slice('shared:'.length) });
+  if (namespace === 'global') {return t('namespaceGlobal');}
+  if (namespace.startsWith('agent:')) {return t('namespaceAgent', { value: namespace.slice('agent:'.length) });}
+  if (namespace.startsWith('channel:')) {return t('namespaceChannel', { value: namespace.slice('channel:'.length) });}
+  if (namespace.startsWith('conversation:')) {return t('namespaceConversation');}
+  if (namespace.startsWith('task:')) {return t('namespaceTask');}
+  if (namespace.startsWith('shared:')) {return t('namespaceShared', { value: namespace.slice('shared:'.length) });}
   return namespace;
 }
 

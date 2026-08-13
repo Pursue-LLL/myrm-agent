@@ -19,7 +19,7 @@ export function CommandDenylistEditor({ patterns, onAddPattern, onRemovePattern 
 
   const handleAdd = useCallback(() => {
     const trimmed = newPattern.trim();
-    if (!trimmed) return;
+    if (!trimmed) {return;}
     onAddPattern(trimmed);
     setNewPattern('');
   }, [newPattern, onAddPattern]);

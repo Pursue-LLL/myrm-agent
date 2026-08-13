@@ -34,7 +34,7 @@ export const useProgressionStore = create<ProgressionState & ProgressionActions>
     load: async () => {
       try {
         const res = await fetch('/api/v1/progression');
-        if (!res.ok) return;
+        if (!res.ok) {return;}
         const data = await res.json();
         set({
           currentLevel: data.current_level ?? 1,
@@ -51,7 +51,7 @@ export const useProgressionStore = create<ProgressionState & ProgressionActions>
         const res = await fetch(`/api/v1/progression/${milestoneId}`, {
           method: 'PATCH',
         });
-        if (!res.ok) return;
+        if (!res.ok) {return;}
         const data = await res.json();
         const prev = get();
         const updated = prev.milestones.map((m) =>

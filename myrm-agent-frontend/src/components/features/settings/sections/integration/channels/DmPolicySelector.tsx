@@ -166,7 +166,7 @@ function GroupTriggerSelector({
 
   const handleAddPrefix = () => {
     const trimmed = newPrefix.trim();
-    if (!trimmed) return;
+    if (!trimmed) {return;}
     const prefixes = [...(trigger.prefixes ?? [])];
     if (!prefixes.includes(trimmed)) {
       prefixes.push(trimmed);

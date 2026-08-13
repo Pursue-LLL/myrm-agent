@@ -77,13 +77,13 @@ export default function MatrixResultView({ report, profileNames }: Props) {
   const isLayered = layers.length > 0;
 
   const getProfileLabel = (pid: string) => {
-    if (isLayered) return tLayers(`${pid}.label`);
+    if (isLayered) {return tLayers(`${pid}.label`);}
     return profileNames?.[pid] || pid.slice(0, 8);
   };
 
   // Delta pass rate against the previous layer (null for the first layer).
   const deltaFor = (index: number): number | null => {
-    if (!isLayered || index === 0) return null;
+    if (!isLayered || index === 0) {return null;}
     const prev = report.per_profile[layers[index - 1].key]?.pass_rate;
     const cur = report.per_profile[layers[index].key]?.pass_rate;
     return prev != null && cur != null ? (cur - prev) * 100 : null;
@@ -228,7 +228,7 @@ export default function MatrixResultView({ report, profileNames }: Props) {
           <tbody className="divide-y">
             {report.profile_ids.map((pid, index) => {
               const pr = report.per_profile[pid];
-              if (!pr) return null;
+              if (!pr) {return null;}
               const rate = Math.round(pr.pass_rate * 100);
               const delta = deltaFor(index);
               const efficiency = pr.total_cost > 0 ? (pr.pass_rate * 100) / pr.total_cost : null;
@@ -360,9 +360,9 @@ export default function MatrixResultView({ report, profileNames }: Props) {
                 const isRegression = somePass && someFail;
 
                 let rowBg = '';
-                if (allPass) rowBg = 'bg-green-50 dark:bg-green-900/10';
-                else if (isRegression) rowBg = 'bg-amber-50 dark:bg-amber-900/10';
-                else if (someFail) rowBg = 'bg-red-50 dark:bg-red-900/10';
+                if (allPass) {rowBg = 'bg-green-50 dark:bg-green-900/10';}
+                else if (isRegression) {rowBg = 'bg-amber-50 dark:bg-amber-900/10';}
+                else if (someFail) {rowBg = 'bg-red-50 dark:bg-red-900/10';}
 
                 return (
                   <tr key={row.case_index} className={`${rowBg} hover:bg-muted/20 transition-colors`}>
@@ -396,18 +396,24 @@ export default function MatrixResultView({ report, profileNames }: Props) {
                               {cell.limit_reached && (
                                 <span
                                   className="px-1 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[9px] font-semibold"
-                                  title={t('limitHitTitle')}
+                                  title={`${t('limitHitTitle')} · ${cell.limit_reached}`}
                                 >
                                   {t('limitHits')}
                                 </span>
                               )}
                               {cell.tool_calls != null && (
-                                <span className="text-[9px] text-muted-foreground">
+                                <span
+                                  className="text-[9px] text-muted-foreground"
+                                  title={t('toolCallsTitle')}
+                                >
                                   {cell.tool_calls}×
                                 </span>
                               )}
                               {(cell.blocked_count ?? 0) > 0 && (
-                                <span className="px-1 rounded bg-violet-500/15 text-violet-600 dark:text-violet-400 text-[9px] font-semibold">
+                                <span
+                                  className="px-1 rounded bg-violet-500/15 text-violet-600 dark:text-violet-400 text-[9px] font-semibold"
+                                  title={t('blockedTitle')}
+                                >
                                   {t('blocked')} {cell.blocked_count}
                                 </span>
                               )}

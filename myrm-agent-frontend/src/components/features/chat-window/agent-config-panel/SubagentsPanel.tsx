@@ -62,16 +62,16 @@ export const SubagentsPanel = ({
   };
 
   const validateSubagentId = (id: string): string => {
-    if (!id) return t('errorIdRequired');
-    if (id.length < 2) return t('errorIdTooShort');
-    if (id.length > 50) return t('errorIdTooLong');
-    if (!/^[a-z0-9_-]+$/.test(id)) return t('errorIdInvalid');
-    if (localEphemeralSubagents[id]) return t('errorIdDuplicate');
+    if (!id) {return t('errorIdRequired');}
+    if (id.length < 2) {return t('errorIdTooShort');}
+    if (id.length > 50) {return t('errorIdTooLong');}
+    if (!/^[a-z0-9_-]+$/.test(id)) {return t('errorIdInvalid');}
+    if (localEphemeralSubagents[id]) {return t('errorIdDuplicate');}
     return '';
   };
 
   const validateDisplayName = (name: string): string => {
-    if (name.length > 100) return t('errorDisplayNameTooLong');
+    if (name.length > 100) {return t('errorDisplayNameTooLong');}
     return '';
   };
 

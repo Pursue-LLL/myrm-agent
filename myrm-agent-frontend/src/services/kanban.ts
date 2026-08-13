@@ -172,11 +172,11 @@ export async function listTasks(
   opts?: { status?: TaskStatus; agent_id?: string; source_chat_id?: string; limit?: number; offset?: number },
 ): Promise<{ items: KanbanTask[]; total: number }> {
   const params = new URLSearchParams();
-  if (opts?.status) params.set('status_filter', opts.status);
-  if (opts?.agent_id) params.set('agent_id', opts.agent_id);
-  if (opts?.source_chat_id) params.set('source_chat_id', opts.source_chat_id);
-  if (opts?.limit) params.set('limit', String(opts.limit));
-  if (opts?.offset) params.set('offset', String(opts.offset));
+  if (opts?.status) {params.set('status_filter', opts.status);}
+  if (opts?.agent_id) {params.set('agent_id', opts.agent_id);}
+  if (opts?.source_chat_id) {params.set('source_chat_id', opts.source_chat_id);}
+  if (opts?.limit) {params.set('limit', String(opts.limit));}
+  if (opts?.offset) {params.set('offset', String(opts.offset));}
   const qs = params.toString();
   return apiRequest(`/kanban/boards/${boardId}/tasks${qs ? `?${qs}` : ''}`);
 }
@@ -347,7 +347,7 @@ export async function listEvents(
   opts?: { sinceId?: number },
 ): Promise<{ items: TaskEvent[]; total: number }> {
   const params = new URLSearchParams();
-  if (opts?.sinceId != null) params.set('since_id', String(opts.sinceId));
+  if (opts?.sinceId != null) {params.set('since_id', String(opts.sinceId));}
   const qs = params.toString();
   return apiRequest(`/kanban/tasks/${taskId}/events${qs ? `?${qs}` : ''}`);
 }
@@ -376,11 +376,11 @@ export async function listBoardEvents(
   },
 ): Promise<{ items: BoardEvent[]; total: number }> {
   const params = new URLSearchParams();
-  if (opts?.kinds?.length) params.set('kinds', opts.kinds.join(','));
-  if (opts?.assignee) params.set('assignee', opts.assignee);
-  if (opts?.sinceId != null) params.set('since_id', String(opts.sinceId));
-  if (opts?.sinceTime) params.set('since_time', opts.sinceTime);
-  if (opts?.limit != null) params.set('limit', String(opts.limit));
+  if (opts?.kinds?.length) {params.set('kinds', opts.kinds.join(','));}
+  if (opts?.assignee) {params.set('assignee', opts.assignee);}
+  if (opts?.sinceId != null) {params.set('since_id', String(opts.sinceId));}
+  if (opts?.sinceTime) {params.set('since_time', opts.sinceTime);}
+  if (opts?.limit != null) {params.set('limit', String(opts.limit));}
   const qs = params.toString();
   return apiRequest(`/kanban/boards/${boardId}/events${qs ? `?${qs}` : ''}`);
 }

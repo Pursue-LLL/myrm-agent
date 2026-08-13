@@ -46,9 +46,9 @@ export function useImageEditor(): UseImageEditorReturn {
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
     const baseImage = baseImageRef.current;
-    if (!canvas || !baseImage) return;
+    if (!canvas || !baseImage) {return;}
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {return;}
     renderAllOperations(ctx, baseImage, operations);
   }, [operations]);
 
@@ -74,7 +74,7 @@ export function useImageEditor(): UseImageEditorReturn {
         setRotation(0);
 
         const ctx = canvas.getContext('2d');
-        if (ctx) ctx.drawImage(img, 0, 0, width, height);
+        if (ctx) {ctx.drawImage(img, 0, 0, width, height);}
         resolve();
       };
       img.onerror = () => reject(new Error('Failed to load image'));
@@ -92,7 +92,7 @@ export function useImageEditor(): UseImageEditorReturn {
 
   const undo = useCallback(() => {
     setOperations((prev) => {
-      if (prev.length === 0) return prev;
+      if (prev.length === 0) {return prev;}
       const last = prev[prev.length - 1];
       setRedoStack((r) => [...r, last]);
       return prev.slice(0, -1);
@@ -101,7 +101,7 @@ export function useImageEditor(): UseImageEditorReturn {
 
   const redo = useCallback(() => {
     setRedoStack((prev) => {
-      if (prev.length === 0) return prev;
+      if (prev.length === 0) {return prev;}
       const last = prev[prev.length - 1];
       setOperations((ops) => [...ops, last]);
       return prev.slice(0, -1);
@@ -111,20 +111,20 @@ export function useImageEditor(): UseImageEditorReturn {
   const rotate90 = useCallback(() => {
     const canvas = canvasRef.current;
     const baseImage = baseImageRef.current;
-    if (!canvas || !baseImage) return;
+    if (!canvas || !baseImage) {return;}
 
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvas.height;
     tempCanvas.height = canvas.width;
     const tCtx = tempCanvas.getContext('2d');
-    if (!tCtx) return;
+    if (!tCtx) {return;}
 
     tCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
     tCtx.rotate(Math.PI / 2);
     tCtx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
 
     tempCanvas.toBlob((blob) => {
-      if (!blob) return;
+      if (!blob) {return;}
       const blobUrl = URL.createObjectURL(blob);
       const rotatedImg = new Image();
       rotatedImg.onload = () => {
@@ -135,7 +135,7 @@ export function useImageEditor(): UseImageEditorReturn {
         setRedoStack([]);
         setRotation((r) => (r + 90) % 360);
         const ctx = canvas.getContext('2d');
-        if (ctx) ctx.drawImage(rotatedImg, 0, 0);
+        if (ctx) {ctx.drawImage(rotatedImg, 0, 0);}
         URL.revokeObjectURL(blobUrl);
       };
       rotatedImg.src = blobUrl;
@@ -144,7 +144,7 @@ export function useImageEditor(): UseImageEditorReturn {
 
   const getCanvasPoint = useCallback((e: React.PointerEvent): Point | null => {
     const canvas = canvasRef.current;
-    if (!canvas) return null;
+    if (!canvas) {return null;}
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -156,7 +156,7 @@ export function useImageEditor(): UseImageEditorReturn {
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const pt = getCanvasPoint(e);
-    if (!pt) return;
+    if (!pt) {return;}
 
     if (tool === 'text') {
       setPendingTextPosition(pt);
@@ -169,24 +169,24 @@ export function useImageEditor(): UseImageEditorReturn {
   }, [tool, color, lineWidth, getCanvasPoint]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!isDrawing || !currentOpRef.current) return;
+    if (!isDrawing || !currentOpRef.current) {return;}
     const pt = getCanvasPoint(e);
-    if (!pt) return;
+    if (!pt) {return;}
 
     currentOpRef.current.points.push(pt);
 
     const canvas = canvasRef.current;
     const baseImage = baseImageRef.current;
-    if (!canvas || !baseImage) return;
+    if (!canvas || !baseImage) {return;}
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {return;}
 
     renderAllOperations(ctx, baseImage, operations);
     renderOperation(ctx, currentOpRef.current);
   }, [isDrawing, getCanvasPoint, operations]);
 
   const handlePointerUp = useCallback(() => {
-    if (!isDrawing || !currentOpRef.current) return;
+    if (!isDrawing || !currentOpRef.current) {return;}
     setIsDrawing(false);
 
     if (currentOpRef.current.points.length >= 2) {
@@ -214,10 +214,10 @@ export function useImageEditor(): UseImageEditorReturn {
   const exportAsBlob = useCallback(async (): Promise<Blob | null> => {
     const canvas = canvasRef.current;
     const baseImage = baseImageRef.current;
-    if (!canvas || !baseImage) return null;
+    if (!canvas || !baseImage) {return null;}
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+    if (!ctx) {return null;}
     renderAllOperations(ctx, baseImage, operations);
 
     return new Promise((resolve) => {

@@ -15,7 +15,7 @@ vi.mock('@/components/primitives/button', () => ({
 import { HealthScoreCard, type AuditResult } from '../HealthScoreCard';
 
 const mockT = (key: string, values?: Record<string, string | number>) => {
-  if (key === 'checkerIssues' && values?.count !== undefined) return `${values.count} issues`;
+  if (key === 'checkerIssues' && values?.count !== undefined) {return `${values.count} issues`;}
   const translations: Record<string, string> = {
     healthScoreTitle: 'Security Health Score',
     checkerPass: 'Pass',

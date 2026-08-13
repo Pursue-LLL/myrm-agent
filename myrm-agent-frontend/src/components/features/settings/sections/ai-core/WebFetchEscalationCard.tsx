@@ -132,7 +132,7 @@ const WebFetchEscalationCard = memo(() => {
     }
   };
 
-  if (isLoading) return null;
+  if (isLoading) {return null;}
 
   return (
     <section className="rounded-2xl border border-border/60 bg-card/40 overflow-hidden">

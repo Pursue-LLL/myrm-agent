@@ -86,7 +86,7 @@ const DesktopPermissionsCardLocal = memo(() => {
   }, [fetchPermissions, fetchTrustedApps]);
 
   const handleRevokeTrustedApp = useCallback(async (trustKey: string) => {
-    if (revokingKey) return;
+    if (revokingKey) {return;}
     setRevokingKey(trustKey);
     try {
       await apiRequest('/webui/desktop/trust/apps', {
@@ -275,7 +275,7 @@ const DesktopPermissionsCardLocal = memo(() => {
 DesktopPermissionsCardLocal.displayName = 'DesktopPermissionsCardLocal';
 
 const DesktopPermissionsCard = memo(() => {
-  if (!isLocalMode()) return null;
+  if (!isLocalMode()) {return null;}
   return <DesktopPermissionsCardLocal />;
 });
 

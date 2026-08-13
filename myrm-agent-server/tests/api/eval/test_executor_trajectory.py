@@ -108,6 +108,29 @@ async def test_no_limit_event_keeps_none():
 
 
 @pytest.mark.asyncio
+async def test_iteration_limit_captured():
+    """A GraphRecursionError (max_iterations) must surface as max_iterations.
+
+    The harness emits ``iteration_limit_reached`` when the LangGraph recursion
+    budget is hit; without this branch the truncated case would lose its limit
+    marker and look like an ordinary failure (measurement decay guard).
+    """
+    executor = _executor()
+    response = await _run(
+        executor,
+        [
+            {"type": "message", "data": "partial answer"},
+            {
+                "type": "iteration_limit_reached",
+                "data": {"limit": 150, "nodes_completed": 148},
+            },
+        ],
+    )
+
+    assert response.limit_reached == "max_iterations"
+
+
+@pytest.mark.asyncio
 async def test_blocked_steps_tallied():
     """Steps rejected by the decontamination guard must increment blocked_count."""
     executor = _executor()

@@ -41,12 +41,12 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
         setCustomMode(false);
       }
     };
-    if (open) document.addEventListener('mousedown', handleClickOutside);
+    if (open) {document.addEventListener('mousedown', handleClickOutside);}
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
   const handleClick = async (instruction?: string) => {
-    if (loading) return;
+    if (loading) {return;}
     setLoading(true);
     setOpen(false);
     setCustomMode(false);
@@ -125,8 +125,8 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.nativeEvent.isComposing) return;
-                  if (e.key === 'Enter') handleCustomSubmit();
+                  if (e.nativeEvent.isComposing) {return;}
+                  if (e.key === 'Enter') {handleCustomSubmit();}
                 }}
                 placeholder={t('regenerate_custom_placeholder')}
                 className="w-full px-2.5 py-1.5 text-sm bg-background border border-input rounded-full focus:outline-none focus:ring-1 focus:ring-ring"

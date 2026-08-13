@@ -48,10 +48,10 @@ function formatRelativeTime(dateString: string, t: ReturnType<typeof useTranslat
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return t('versions.justNow');
-  if (diffMins < 60) return t('versions.minutesAgo', { count: diffMins });
-  if (diffHours < 24) return t('versions.hoursAgo', { count: diffHours });
-  if (diffDays < 7) return t('versions.daysAgo', { count: diffDays });
+  if (diffMins < 1) {return t('versions.justNow');}
+  if (diffMins < 60) {return t('versions.minutesAgo', { count: diffMins });}
+  if (diffHours < 24) {return t('versions.hoursAgo', { count: diffHours });}
+  if (diffDays < 7) {return t('versions.daysAgo', { count: diffDays });}
 
   return date.toLocaleDateString();
 }

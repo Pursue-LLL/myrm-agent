@@ -41,14 +41,14 @@ export function WeChatConfigCard() {
     listChannelInstances('wechat')
       .then((all) => {
         const primary = all.find((i) => i.channelName === 'wechat');
-        if (primary?.displayName) setPrimaryLabel(primary.displayName);
+        if (primary?.displayName) {setPrimaryLabel(primary.displayName);}
         setInstances(all.filter((i) => i.channelName !== 'wechat'));
       })
       .catch(() => setInstances([]));
   }, []);
 
   const fetchPrimaryStatus = useCallback((showLoading = false) => {
-    if (showLoading) setLoading(true);
+    if (showLoading) {setLoading(true);}
     getWeChatStatus()
       .then(setPrimaryStatus)
       .catch(() => setPrimaryStatus(null))
@@ -62,7 +62,7 @@ export function WeChatConfigCard() {
 
   useEffect(() => {
     const needsPolling = primaryStatus !== null && (!primaryStatus.connected || primaryStatus.qr_code);
-    if (!needsPolling) return;
+    if (!needsPolling) {return;}
     const timer = setInterval(() => fetchPrimaryStatus(), 3_000);
     return () => clearInterval(timer);
   }, [primaryStatus?.connected, primaryStatus?.qr_code, fetchPrimaryStatus]);
@@ -170,7 +170,7 @@ export function WeChatConfigCard() {
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddInstance();
+                if (e.key === 'Enter') {handleAddInstance();}
                 if (e.key === 'Escape') {
                   setShowLabelInput(false);
                   setNewLabel('');
@@ -254,16 +254,16 @@ function WeChatAccountCard({
   const isConnected = cardStatus?.connected ?? false;
 
   useEffect(() => {
-    if (isPrimary) return;
+    if (isPrimary) {return;}
     getWeChatStatus(channelName)
       .then(setLocalStatus)
       .catch(() => setLocalStatus(null));
   }, [channelName, isPrimary]);
 
   useEffect(() => {
-    if (isPrimary) return;
+    if (isPrimary) {return;}
     const needsPolling = localStatus !== null && (!localStatus.connected || localStatus.qr_code);
-    if (!needsPolling) return;
+    if (!needsPolling) {return;}
     const timer = setInterval(() => {
       getWeChatStatus(channelName)
         .then(setLocalStatus)
@@ -273,9 +273,9 @@ function WeChatAccountCard({
   }, [localStatus?.connected, localStatus?.qr_code, channelName, isPrimary]);
 
   useEffect(() => {
-    if (!loginTriggering) return;
+    if (!loginTriggering) {return;}
     const elapsed = Date.now() - loginTriggerTs.current;
-    if (elapsed < 500) return;
+    if (elapsed < 500) {return;}
     if (cardStatus?.qr_code || cardStatus?.connected) {
       setLoginTriggering(false);
     }
@@ -286,7 +286,7 @@ function WeChatAccountCard({
     loginTriggerTs.current = Date.now();
     try {
       await triggerWeChatLogin(channelName);
-      if (!isPrimary) toast.info(t('wechatLoginTriggered'));
+      if (!isPrimary) {toast.info(t('wechatLoginTriggered'));}
       let attempts = 0;
       const poll = setInterval(async () => {
         attempts++;
@@ -359,8 +359,8 @@ function WeChatAccountCard({
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') commitEdit();
-                if (e.key === 'Escape') cancelEdit();
+                if (e.key === 'Enter') {commitEdit();}
+                if (e.key === 'Escape') {cancelEdit();}
               }}
               onBlur={commitEdit}
               className="h-5 w-28 rounded border bg-background px-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring"

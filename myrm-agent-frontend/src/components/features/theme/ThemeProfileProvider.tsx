@@ -64,7 +64,7 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
 
   const configProfile = useMemo(() => {
     const base = resolveActiveProfile(activeThemeProfileId, themeProfiles);
-    if (!themeFontOverride || themeFontOverride === base.fontId) return base;
+    if (!themeFontOverride || themeFontOverride === base.fontId) {return base;}
     return { ...base, fontId: themeFontOverride };
   }, [activeThemeProfileId, themeProfiles, themeFontOverride]);
 
@@ -137,11 +137,11 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
       const resolvedPoster =
         nextPoster ?? (profile.art.mediaKind === 'image' ? nextMedia : null);
 
-      if (cancelled || assetLoadGenerationRef.current !== generation) return;
+      if (cancelled || assetLoadGenerationRef.current !== generation) {return;}
 
       objectUrlRef.current.forEach((url) => URL.revokeObjectURL(url));
       objectUrlRef.current = [];
-      if (nextMedia?.startsWith('blob:')) objectUrlRef.current.push(nextMedia);
+      if (nextMedia?.startsWith('blob:')) {objectUrlRef.current.push(nextMedia);}
       if (resolvedPoster?.startsWith('blob:') && resolvedPoster !== nextMedia) {
         objectUrlRef.current.push(resolvedPoster);
       }

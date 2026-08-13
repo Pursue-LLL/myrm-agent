@@ -50,7 +50,7 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
   }, [fetchDrafts]);
 
   const handleApprove = async (draft: SkillDraft) => {
-    if (processingId) return;
+    if (processingId) {return;}
     try {
       setProcessingId(draft.id);
       await approveSkillDraft(draft.id, draft.name || undefined, draft.agent_id || agentId || undefined);
@@ -65,7 +65,7 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
   };
 
   const handleReject = async (draft: SkillDraft) => {
-    if (processingId) return;
+    if (processingId) {return;}
     try {
       setProcessingId(draft.id);
       await rejectSkillDraft(draft.id);

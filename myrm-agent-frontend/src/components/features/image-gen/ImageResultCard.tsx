@@ -60,7 +60,7 @@ export const ImageResultCard: React.FC<ImageResultCardProps> = memo(
       }
     }, []);
 
-    if (images.length === 0) return null;
+    if (images.length === 0) {return null;}
 
     const gridCols =
       images.length === 1
@@ -199,9 +199,9 @@ const ImageLightbox: React.FC<ImageLightboxProps> = memo(({ images, currentIndex
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft' && index > 0) setIndex(index - 1);
-      if (e.key === 'ArrowRight' && index < images.length - 1) setIndex(index + 1);
+      if (e.key === 'Escape') {onClose();}
+      if (e.key === 'ArrowLeft' && index > 0) {setIndex(index - 1);}
+      if (e.key === 'ArrowRight' && index < images.length - 1) {setIndex(index + 1);}
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
@@ -212,13 +212,13 @@ const ImageLightbox: React.FC<ImageLightboxProps> = memo(({ images, currentIndex
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target === backdropRef.current) onClose();
+      if (e.target === backdropRef.current) {onClose();}
     },
     [onClose],
   );
 
   const img = images[index];
-  if (!img) return null;
+  if (!img) {return null;}
 
   return (
     <div

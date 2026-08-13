@@ -1,10 +1,10 @@
 /** @vitest-environment jsdom */
 /**
- * stopMessage must release desktop inspector turn engagement on cancel.
+ * stopMessage must release desktop + browser inspector turn engagement on cancel.
  *
- * Real scenario: user hits stop while the agent is driving desktop tools. The
- * abort path bypasses MESSAGE_END, so the desktop inspector "controlling" state
- * would otherwise stay stale until the next chat switch.
+ * Real scenario: user hits stop while the agent is driving desktop/browser tools.
+ * The abort path bypasses MESSAGE_END, so the inspector "controlling" state would
+ * otherwise stay stale until the next chat switch.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,11 +12,18 @@ import useChatStore from '@/store/useChatStore';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import type { Message } from '@/store/chat/types';
 
-const mockReleaseTurnEngagement = vi.fn();
+const mockDesktopReleaseTurnEngagement = vi.fn();
+const mockBrowserReleaseTurnEngagement = vi.fn();
 
 vi.mock('@/store/useDesktopInspectorStore', () => ({
   default: {
-    getState: () => ({ releaseTurnEngagement: mockReleaseTurnEngagement }),
+    getState: () => ({ releaseTurnEngagement: mockDesktopReleaseTurnEngagement }),
+  },
+}));
+
+vi.mock('@/store/useBrowserInspectorStore', () => ({
+  default: {
+    getState: () => ({ releaseTurnEngagement: mockBrowserReleaseTurnEngagement }),
   },
 }));
 
@@ -40,7 +47,8 @@ function makeAssistantMessage(messageId: string): Message {
 }
 
 beforeEach(() => {
-  mockReleaseTurnEngagement.mockClear();
+  mockDesktopReleaseTurnEngagement.mockClear();
+  mockBrowserReleaseTurnEngagement.mockClear();
   useChatStore.setState({
     chatId: 'chat-1',
     currentSessionMessageId: 'msg-1',
@@ -52,14 +60,31 @@ beforeEach(() => {
   useWorkspaceStore.setState({ panes: [] });
 });
 
-describe('stopMessage desktop inspector teardown', () => {
-  it('releases desktop turn engagement on chat-level stop', async () => {
+describe('stopMessage inspector teardown', () => {
+  it('releases desktop and browser turn engagement on chat-level stop', async () => {
     const { stopMessage } = useChatStore.getState();
 
     stopMessage();
 
     await vi.waitFor(() => {
-      expect(mockReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('releases desktop and browser turn engagement on pane-level stop', async () => {
+    useWorkspaceStore.setState({
+      panes: [{ chatId: 'chat-1', id: 'pane-1' } as never],
+    });
+    useWorkspaceStore.getState().setPaneAbortController('pane-1', new AbortController());
+    useWorkspaceStore.getState().setPaneCurrentSessionMessageId('pane-1', 'msg-1');
+    const { stopMessage } = useChatStore.getState();
+
+    stopMessage();
+
+    await vi.waitFor(() => {
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
     });
   });
 });

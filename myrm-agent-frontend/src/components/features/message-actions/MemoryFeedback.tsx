@@ -14,7 +14,7 @@ const MemoryFeedback = ({ memoryIds }: { memoryIds: string[] }) => {
 
   const handleFeedback = useCallback(
     async (positive: boolean) => {
-      if (state === 'loading') return;
+      if (state === 'loading') {return;}
       const newState = positive ? 'up' : 'down';
       if (state === newState) {
         setState('idle');
@@ -32,7 +32,7 @@ const MemoryFeedback = ({ memoryIds }: { memoryIds: string[] }) => {
     [memoryIds, state],
   );
 
-  if (!memoryIds.length) return null;
+  if (!memoryIds.length) {return null;}
 
   const btnBase = 'p-2 rounded-xl transition duration-200';
 

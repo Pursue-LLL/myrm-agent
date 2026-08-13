@@ -26,10 +26,10 @@ import {
 function formatRelativeTime(isoTimestamp: string): string {
   const diff = Date.now() - new Date(isoTimestamp).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return '<1m ago';
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) {return '<1m ago';}
+  if (minutes < 60) {return `${minutes}m ago`;}
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) {return `${hours}h ago`;}
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
@@ -58,7 +58,7 @@ const CuratorSettingsPanel = memo(
     }, []);
 
     const handleSave = useCallback(async () => {
-      if (!config) return;
+      if (!config) {return;}
       try {
         const updated = await updateCuratorConfig(config);
         setConfig(updated);
@@ -98,7 +98,7 @@ const CuratorSettingsPanel = memo(
         } else {
           toast({ title: t('noChanges') });
         }
-        if (historyOpen) loadHistory();
+        if (historyOpen) {loadHistory();}
       } catch {
         toast({ title: t('configSaveFailed'), variant: 'destructive' });
       } finally {
@@ -109,7 +109,7 @@ const CuratorSettingsPanel = memo(
     const toggleHistory = useCallback(() => {
       const next = !historyOpen;
       setHistoryOpen(next);
-      if (next && history.length === 0) loadHistory();
+      if (next && history.length === 0) {loadHistory();}
     }, [historyOpen, history.length, loadHistory]);
 
     const updateField = useCallback(
@@ -121,7 +121,7 @@ const CuratorSettingsPanel = memo(
     );
 
     const handlePreview = useCallback(async () => {
-      if (isDirty) await handleSave();
+      if (isDirty) {await handleSave();}
       setIsPreviewing(true);
       setPreview(null);
       try {
@@ -158,7 +158,7 @@ const CuratorSettingsPanel = memo(
       }
     }, [t, onSweepComplete]);
 
-    if (isLoading || !config) return null;
+    if (isLoading || !config) {return null;}
 
     return (
       <div className={className}>

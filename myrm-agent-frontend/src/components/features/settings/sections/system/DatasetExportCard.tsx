@@ -46,7 +46,7 @@ const DatasetExportCard = memo(() => {
     setSelectedFormats((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
-        if (next.size > 1) next.delete(id);
+        if (next.size > 1) {next.delete(id);}
       } else {
         next.add(id);
       }
@@ -86,8 +86,8 @@ const DatasetExportCard = memo(() => {
   }, [selectedFormats, redactPii, maxSamples, incremental, t, refreshFiles]);
 
   const formatBytes = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024) {return `${bytes} B`;}
+    if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(1)} KB`;}
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 

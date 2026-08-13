@@ -97,13 +97,13 @@ export function CompanionPetDoctorPanel({
   }, [spriteEnabled, t]);
 
   useEffect(() => {
-    if (!expanded) return;
+    if (!expanded) {return;}
     void runDoctor(false);
   }, [expanded, runDoctor]);
 
   const handleFix = useCallback(
     (action: string | null) => {
-      if (!action) return;
+      if (!action) {return;}
       if (action === 'open_experimental_companion') {
         router.push('/settings/developer?sub=experimental');
         return;

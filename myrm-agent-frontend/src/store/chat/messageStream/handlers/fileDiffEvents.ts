@@ -100,10 +100,10 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       const mergedRow = (() => {
         for (let i = steps.length - 1; i >= 0; i -= 1) {
           const step = steps[i];
-          if (!step.items || !Array.isArray(step.items)) continue;
+          if (!step.items || !Array.isArray(step.items)) {continue;}
           for (const raw of step.items) {
             const fp = H.parseProgressFilePath(raw);
-            if (!fp || !H.pathsMatchForFileDiff(diffData.path, fp)) continue;
+            if (!fp || !H.pathsMatchForFileDiff(diffData.path, fp)) {continue;}
             if (raw && typeof raw === 'object' && 'file_path' in raw) {
               const row = raw as H.ProgressFileItem;
               if (row.diff) {
@@ -126,7 +126,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
   if (data.type === H.AgentEventType.TOOL_IMAGE_OUTPUT) {
     const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-    if (messageIndex === -1) return done(ctx);
+    if (messageIndex === -1) {return done(ctx);}
 
     const message = state.messages[messageIndex];
     const imgEntry: import('@/store/chat/types').ToolImageOutput = {
@@ -147,6 +147,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       return done(ctx);
     }
     store.setBrowserActive(true);
+    store.markTurnEngaged();
     store.updateViewData({
       screenshotBase64: data.data.screenshot_base64,
       mimeType: data.data.mime_type,

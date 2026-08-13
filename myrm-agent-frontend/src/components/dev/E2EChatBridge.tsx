@@ -52,7 +52,7 @@ import { buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
 import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 
 function isLocalDevHost(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') {return false;}
   const host = window.location.hostname;
   return host === '127.0.0.1' || host === 'localhost';
 }
@@ -706,7 +706,7 @@ async function submitAndObserveTurn(
 
 export default function E2EChatBridge() {
   useLayoutEffect(() => {
-    if (!isLocalDevHost()) return;
+    if (!isLocalDevHost()) {return;}
 
     const sseEvents: Array<{ type: string; messageId: string | null }> = [];
     let sseCaptureMessageId: string | null = null;
@@ -1179,7 +1179,7 @@ export default function E2EChatBridge() {
       getGoalMode: () => useChatStore.getState().isGoalMode,
       getActiveGoalSnapshot: () => {
         const goal = useGoalStore.getState().activeGoal;
-        if (!goal) return null;
+        if (!goal) {return null;}
         return {
           status: goal.status,
           reason: goal.reason ?? null,

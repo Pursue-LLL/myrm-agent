@@ -145,12 +145,12 @@ function consumeRequeryWindow(contextKey: string): boolean {
 }
 
 function clampCount(count: number): number {
-  if (!Number.isFinite(count)) return 1;
+  if (!Number.isFinite(count)) {return 1;}
   return Math.max(1, Math.min(MAX_EVENT_COUNT, Math.floor(count)));
 }
 
 function clampDwellMs(dwellMs: number): number {
-  if (!Number.isFinite(dwellMs)) return 0;
+  if (!Number.isFinite(dwellMs)) {return 0;}
   return Math.max(0, Math.min(MAX_DWELL_MS, Math.floor(dwellMs)));
 }
 

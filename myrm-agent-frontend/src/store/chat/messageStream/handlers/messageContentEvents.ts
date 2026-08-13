@@ -22,7 +22,7 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
       state.scheduler.schedule(() => {
         actions.setMessages((updateState) => {
           const messageIndex = H.findAssistantMessageIndex(updateState.messages, data.messageId);
-          if (messageIndex === -1) return;
+          if (messageIndex === -1) {return;}
 
           if (!updateState.messages[messageIndex].reasoningStartedAt) {
             updateState.messages[messageIndex].reasoningStartedAt = Date.now();
@@ -47,7 +47,7 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
     // Finalize reasoning duration when first content chunk arrives
     actions.setMessages((updateState) => {
       const messageIndex = H.findAssistantMessageIndex(updateState.messages, data.messageId);
-      if (messageIndex === -1) return;
+      if (messageIndex === -1) {return;}
       const msg = updateState.messages[messageIndex];
       if (msg.reasoningStartedAt && !msg.reasoningDurationMs) {
         msg.reasoningDurationMs = Date.now() - msg.reasoningStartedAt;
@@ -88,7 +88,7 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
       state.scheduler.schedule(() => {
         actions.setMessages((updateState) => {
           const messageIndex = H.findAssistantMessageIndex(updateState.messages, data.messageId);
-          if (messageIndex === -1) return;
+          if (messageIndex === -1) {return;}
 
           updateState.messages[messageIndex].content = recievedMessage;
 

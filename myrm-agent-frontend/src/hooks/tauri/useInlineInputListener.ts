@@ -46,7 +46,7 @@ export function useInlineInputListener() {
   );
 
   useEffect(() => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {return;}
 
     let disposed = false;
     let unlisten: (() => void) | undefined;

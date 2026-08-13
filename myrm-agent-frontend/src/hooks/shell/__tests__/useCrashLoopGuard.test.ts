@@ -8,7 +8,7 @@ const mockUnlisten = vi.fn();
 vi.mock('@/lib/tauri', () => ({
   isTauriEnvironment: () => mockIsTauri,
   listenTauriEvent: vi.fn(async (event: string, handler: (e: unknown) => void) => {
-    if (!eventHandlers[event]) eventHandlers[event] = [];
+    if (!eventHandlers[event]) {eventHandlers[event] = [];}
     eventHandlers[event].push(handler);
     return mockUnlisten;
   }),

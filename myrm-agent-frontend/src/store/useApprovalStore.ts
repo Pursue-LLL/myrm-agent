@@ -246,7 +246,7 @@ const useApprovalStore = create<ApprovalState>((set) => ({
     }),
   closeApprovals: (approvalIds) =>
     set((state) => {
-      if (approvalIds.length === 0) return state;
+      if (approvalIds.length === 0) {return state;}
       const removeSet = new Set(approvalIds);
       const newQueue = state.queue.filter((a) => !removeSet.has(a.approval_id));
       return { queue: newQueue, isOpen: newQueue.length > 0 };

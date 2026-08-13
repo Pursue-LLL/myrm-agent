@@ -53,7 +53,7 @@ const WorkingStateCard = memo(() => {
   }, [t]);
 
   const handleSave = useCallback(async () => {
-    if (!editContent.trim()) return;
+    if (!editContent.trim()) {return;}
     setSaving(true);
     try {
       const res = await updateWorkingState(editContent.trim());

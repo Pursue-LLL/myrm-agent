@@ -174,7 +174,7 @@ export class StreamInterruptedError extends Error {
 export { FatalNetworkError }; // Re-export for messageRequest.ts
 
 export function isTransientNetworkError(error: Error): boolean {
-  if (error instanceof FatalNetworkError) return false;
+  if (error instanceof FatalNetworkError) {return false;}
   return (
     error instanceof TypeError ||
     error.message.includes('Failed to fetch') ||
@@ -258,7 +258,7 @@ export async function executeStreamWithRetry(
       console.warn(`Stream request retry ${attempt}/${RETRY_MAX_ATTEMPTS} after ${delay}ms: ${lastError.message}`);
       await new Promise((resolve) => setTimeout(resolve, delay));
 
-      if (abortController.signal.aborted) throw lastError;
+      if (abortController.signal.aborted) {throw lastError;}
     }
 
     try {
@@ -309,7 +309,7 @@ export async function executeStreamWithRetry(
 
       finalizeMigrationBoundProjectHandoff(state.chatId);
 
-      if (!res.body) throw new Error('No response body');
+      if (!res.body) {throw new Error('No response body');}
 
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
@@ -357,10 +357,10 @@ export async function executeStreamWithRetry(
       await tryE2eAttachForPendingApproval(state, actions, abortController);
       return;
     } catch (error) {
-      if (!(error instanceof Error)) throw error;
-      if (error.name === 'AbortError') throw error;
-      if (error instanceof AgentBusyError) throw error; // Don't retry busy errors
-      if (error instanceof FatalNetworkError) throw error; // Fail-fast on 401/403 etc.
+      if (!(error instanceof Error)) {throw error;}
+      if (error.name === 'AbortError') {throw error;}
+      if (error instanceof AgentBusyError) {throw error;} // Don't retry busy errors
+      if (error instanceof FatalNetworkError) {throw error;} // Fail-fast on 401/403 etc.
 
       if (error instanceof StreamInterruptedError) {
         if (state.chatId && (state.actionMode === 'agent' || state.actionMode === 'deep_research')) {
@@ -374,7 +374,7 @@ export async function executeStreamWithRetry(
               const delay = retryDelay(attachAttempt - 1);
               console.warn(`Attach retry ${attachAttempt}/${RETRY_MAX_ATTEMPTS} after ${delay}ms`);
               await new Promise((resolve) => setTimeout(resolve, delay));
-              if (abortController.signal.aborted) throw error;
+              if (abortController.signal.aborted) {throw error;}
             }
             try {
               const attached = await attachToChat(state.chatId, actions, useChatStore.getState, {
@@ -399,7 +399,7 @@ export async function executeStreamWithRetry(
               console.error('Attach failed:', attachError);
             }
           }
-          if (attachSuccess) return;
+          if (attachSuccess) {return;}
         }
         throw error;
       }
@@ -494,7 +494,7 @@ export async function consumeStream(
       }
       const { value, done } = readResult;
 
-      if (done) break;
+      if (done) {break;}
 
       if (!firstDataReceived) {
         firstDataReceived = true;

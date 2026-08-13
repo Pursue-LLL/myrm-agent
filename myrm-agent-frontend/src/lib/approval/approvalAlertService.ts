@@ -49,7 +49,7 @@ function getNotificationStrings(): NotificationStrings {
 
 let originalTitle: string | null = null;
 let titleFlashTimer: ReturnType<typeof setInterval> | null = null;
-let activeNotifications = new Map<string, Notification>();
+const activeNotifications = new Map<string, Notification>();
 
 function isPageHidden(): boolean {
   return typeof document !== 'undefined' && document.hidden;
@@ -93,7 +93,7 @@ async function sendTauriNotification(title: string, body: string, requestId: str
       const permission = await requestPermission();
       granted = permission === 'granted';
     }
-    if (!granted) return;
+    if (!granted) {return;}
 
     sendNotification({ title, body, sound: sound ? 'default' : undefined });
 
@@ -111,12 +111,12 @@ function sendBrowserNotification(
   requestId: string,
   _sound: boolean,
 ): void {
-  if (typeof window === 'undefined' || !('Notification' in window)) return;
+  if (typeof window === 'undefined' || !('Notification' in window)) {return;}
   if (Notification.permission === 'default') {
     Notification.requestPermission();
     return;
   }
-  if (Notification.permission !== 'granted') return;
+  if (Notification.permission !== 'granted') {return;}
 
   const notification = new Notification(title, {
     body,
@@ -136,7 +136,7 @@ function sendBrowserNotification(
 function pruneNotifications(): void {
   while (activeNotifications.size > MAX_ACTIVE_NOTIFICATIONS) {
     const oldest = activeNotifications.keys().next().value;
-    if (!oldest) break;
+    if (!oldest) {break;}
     closeNotification(oldest);
   }
 }
@@ -144,16 +144,16 @@ function pruneNotifications(): void {
 let visibilityListenerAttached = false;
 
 function ensureVisibilityListener(): void {
-  if (visibilityListenerAttached || typeof document === 'undefined') return;
+  if (visibilityListenerAttached || typeof document === 'undefined') {return;}
   visibilityListenerAttached = true;
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) stopTitleFlash();
+    if (!document.hidden) {stopTitleFlash();}
   });
 }
 
 function startTitleFlash(): void {
-  if (titleFlashTimer) return;
-  if (typeof document === 'undefined') return;
+  if (titleFlashTimer) {return;}
+  if (typeof document === 'undefined') {return;}
   ensureVisibilityListener();
   originalTitle = document.title;
   const flashTitle = `⚠️ ${getNotificationStrings().pending}`;
@@ -165,7 +165,7 @@ function startTitleFlash(): void {
 }
 
 function stopTitleFlash(): void {
-  if (!titleFlashTimer) return;
+  if (!titleFlashTimer) {return;}
   clearInterval(titleFlashTimer);
   titleFlashTimer = null;
   if (typeof document !== 'undefined' && originalTitle !== null) {
@@ -179,10 +179,10 @@ function stopTitleFlash(): void {
  * Handles batch grouping: same batchId approvals are merged into one notification.
  */
 export function notifyIdleApproval(requests: ToolApprovalRequest[]): void {
-  if (!isPageHidden()) return;
+  if (!isPageHidden()) {return;}
   const { enabled, sound } = getConfig();
-  if (!enabled) return;
-  if (requests.length === 0) return;
+  if (!enabled) {return;}
+  if (requests.length === 0) {return;}
 
   // Batch grouping: group by batchId, non-batch get individual notifications
   const groups = new Map<string, ToolApprovalRequest[]>();

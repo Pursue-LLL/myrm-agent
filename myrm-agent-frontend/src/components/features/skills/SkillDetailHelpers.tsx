@@ -47,23 +47,23 @@ const severityConfig: Record<string, { color: string; label: string }> = {
 
 function getScoreConfig(score: number) {
   if (score >= 80)
-    return {
+    {return {
       icon: ShieldCheck,
       color: 'text-green-600 dark:text-green-400',
       bg: 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800',
-    };
+    };}
   if (score >= 50)
-    return {
+    {return {
       icon: Shield,
       color: 'text-yellow-600 dark:text-yellow-400',
       bg: 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800',
-    };
+    };}
   if (score >= 25)
-    return {
+    {return {
       icon: ShieldAlert,
       color: 'text-orange-600 dark:text-orange-400',
       bg: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800',
-    };
+    };}
   return {
     icon: ShieldX,
     color: 'text-red-600 dark:text-red-400',
@@ -113,7 +113,7 @@ export function SecurityScanSection({ security, t }: SecurityScanSectionProps) {
           {(['critical', 'high', 'medium', 'low'] as const).map((severity) => {
             const cfg = severityConfig[severity];
             const items = security.findings.filter((f) => f.severity === severity);
-            if (!cfg || items.length === 0) return null;
+            if (!cfg || items.length === 0) {return null;}
             return (
               <div key={severity}>
                 <div className="flex items-center gap-1.5 mb-1">

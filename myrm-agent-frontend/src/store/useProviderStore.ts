@@ -128,7 +128,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
   initError: null,
 
   initProviders: async () => {
-    if (isStoreInitialized) return;
+    if (isStoreInitialized) {return;}
 
     try {
       if (typeof window !== 'undefined' && isLocalMode()) {
@@ -337,7 +337,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
 
   addApiKey: (providerId, key, remark) => {
     const providers = get().providers.map((p) => {
-      if (p.id !== providerId) return p;
+      if (p.id !== providerId) {return p;}
       const newKey: ApiKeyConfig = {
         id: `key_${Date.now()}`,
         key,
@@ -357,7 +357,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
 
   removeApiKey: (providerId, keyId) => {
     const providers = get().providers.map((p) => {
-      if (p.id !== providerId) return p;
+      if (p.id !== providerId) {return p;}
       const apiKeys = p.apiKeys.filter((k) => k.id !== keyId);
       if (apiKeys.length > 0 && !apiKeys.some((k) => k.isActive)) {
         apiKeys[0].isActive = true;
@@ -371,7 +371,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
 
   setActiveApiKey: (providerId, keyId) => {
     const providers = get().providers.map((p) => {
-      if (p.id !== providerId) return p;
+      if (p.id !== providerId) {return p;}
       return { ...p, apiKeys: p.apiKeys.map((k) => ({ ...k, isActive: k.id === keyId })) };
     });
     const { defaultModelConfig, customModelInfo } = get();
@@ -381,7 +381,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
 
   updateApiKeyRemark: (providerId, keyId, remark) => {
     const providers = get().providers.map((p) => {
-      if (p.id !== providerId) return p;
+      if (p.id !== providerId) {return p;}
       return { ...p, apiKeys: p.apiKeys.map((k) => (k.id === keyId ? { ...k, remark } : k)) };
     });
     const { defaultModelConfig, customModelInfo } = get();
@@ -751,8 +751,8 @@ const useProviderStore = create<ProviderState>((set, get) => ({
     const result: Array<{ providerId: string; providerName: string; model: string }> = [];
 
     for (const provider of providers) {
-      if (!provider.isEnabled) continue;
-      if (!hasUsableProviderAuth(provider)) continue;
+      if (!provider.isEnabled) {continue;}
+      if (!hasUsableProviderAuth(provider)) {continue;}
 
       for (const model of provider.enabledModels || []) {
         result.push({

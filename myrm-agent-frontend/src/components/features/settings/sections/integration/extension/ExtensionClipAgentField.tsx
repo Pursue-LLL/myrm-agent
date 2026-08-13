@@ -32,7 +32,7 @@ const ExtensionClipAgentField = memo(() => {
           listAgents(1, 100),
           getExtensionClipAgentConfig(),
         ]);
-        if (cancelled) return;
+        if (cancelled) {return;}
         setAgents(agentResponse.items);
         setClipAgentId(clipConfig.agent_id);
       } catch {

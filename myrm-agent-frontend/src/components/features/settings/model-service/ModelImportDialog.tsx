@@ -51,9 +51,9 @@ interface ModelImportDialogProps {
 
 /** 从 modalities 字段提取输入模态列表（兼容对象和数组两种格式） */
 function getInputModalities(modalities: ModelsDevModel['modalities']): string[] {
-  if (!modalities) return [];
-  if (Array.isArray(modalities)) return modalities;
-  if (Array.isArray(modalities.input)) return modalities.input;
+  if (!modalities) {return [];}
+  if (Array.isArray(modalities)) {return modalities;}
+  if (Array.isArray(modalities.input)) {return modalities.input;}
   return [];
 }
 
@@ -175,7 +175,7 @@ const ModelImportDialog = memo<ModelImportDialogProps>(
     const existingCustomModelInfo = useProviderStore((state) => state.customModelInfo);
 
     useEffect(() => {
-      if (!open) return;
+      if (!open) {return;}
 
       setLoading(true);
       setError(null);

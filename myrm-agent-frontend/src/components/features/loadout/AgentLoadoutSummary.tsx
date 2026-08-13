@@ -90,8 +90,8 @@ export function AgentLoadoutSummary({
   });
 
   useEffect(() => {
-    if (typeof window === 'undefined' || loading || !data) return;
-    if (window.location.hash.replace(/^#/, '') !== 'loadout') return;
+    if (typeof window === 'undefined' || loading || !data) {return;}
+    if (window.location.hash.replace(/^#/, '') !== 'loadout') {return;}
     document.getElementById('loadout')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [loading, data]);
 

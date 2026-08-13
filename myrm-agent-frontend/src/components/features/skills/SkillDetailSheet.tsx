@@ -62,7 +62,7 @@ const SkillDetailSheet = memo(
       t,
     });
 
-    if (!skill) return null;
+    if (!skill) {return null;}
 
     const category = skill.category || 'other';
     const CategoryIcon = getCategoryIcon(category);

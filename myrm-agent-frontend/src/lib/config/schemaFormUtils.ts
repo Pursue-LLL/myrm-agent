@@ -33,7 +33,7 @@ export function getSchemaUiSection(prop: SchemaPropertyLike): string | undefined
 }
 
 export function matchesSchemaSection(prop: SchemaPropertyLike, section?: string): boolean {
-  if (!section) return true;
+  if (!section) {return true;}
   return getSchemaUiSection(prop) === section;
 }
 
@@ -43,7 +43,7 @@ export function getSchemaUiGroup(prop: SchemaPropertyLike): string {
 }
 
 export function matchesSchemaGroup(prop: SchemaPropertyLike, group?: string): boolean {
-  if (!group) return true;
+  if (!group) {return true;}
   return getSchemaUiGroup(prop) === group;
 }
 
@@ -57,7 +57,7 @@ export interface SchemaVisibilityContext {
 }
 
 export function matchesSchemaVisibility(prop: SchemaPropertyLike, context?: SchemaVisibilityContext): boolean {
-  if (!context) return true;
+  if (!context) {return true;}
 
   const visibleIf = prop['x-ui-visible-if'];
   if (visibleIf === 'local' && !context.isLocal) {

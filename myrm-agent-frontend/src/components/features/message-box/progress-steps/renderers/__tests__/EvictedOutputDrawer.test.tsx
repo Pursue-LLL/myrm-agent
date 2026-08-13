@@ -34,10 +34,10 @@ vi.mock('next-intl', () => ({
 }));
 
 const MOCK_CONTENT = Array.from({ length: 20 }, (_, i) => {
-  if (i === 3) return '$ npm install';
-  if (i === 7) return 'Error: something failed here';
-  if (i === 12) return 'warning: deprecated module found';
-  if (i === 15) return 'Error: second error line';
+  if (i === 3) {return '$ npm install';}
+  if (i === 7) {return 'Error: something failed here';}
+  if (i === 12) {return 'warning: deprecated module found';}
+  if (i === 15) {return 'Error: second error line';}
   return `line ${i + 1} output`;
 }).join('\n');
 

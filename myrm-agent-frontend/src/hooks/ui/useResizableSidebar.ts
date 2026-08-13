@@ -58,7 +58,7 @@ export function useResizableSidebar(options?: UseResizableSidebarOptions): UseRe
   );
 
   useEffect(() => {
-    if (!isDragging) return;
+    if (!isDragging) {return;}
 
     const handleMouseMove = (e: MouseEvent) => {
       if (rafRef.current) {

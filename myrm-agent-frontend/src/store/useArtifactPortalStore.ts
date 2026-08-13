@@ -37,14 +37,14 @@ const PORTAL_MODE_STORAGE_KEY = 'myrm-portal-layout-mode';
 const PORTAL_WIDTH_STORAGE_KEY = 'myrm-portal-panel-width';
 
 function readStoredPortalMode(): PortalLayoutMode {
-  if (typeof window === 'undefined') return 'overlay';
+  if (typeof window === 'undefined') {return 'overlay';}
   const stored = localStorage.getItem(PORTAL_MODE_STORAGE_KEY);
-  if (stored === 'overlay' || stored === 'side-by-side') return stored;
+  if (stored === 'overlay' || stored === 'side-by-side') {return stored;}
   return window.innerWidth >= SIDE_BY_SIDE_MIN_SCREEN_WIDTH ? 'side-by-side' : 'overlay';
 }
 
 function readStoredPanelWidth(): number {
-  if (typeof window === 'undefined') return PORTAL_DEFAULT_WIDTH;
+  if (typeof window === 'undefined') {return PORTAL_DEFAULT_WIDTH;}
   const stored = localStorage.getItem(PORTAL_WIDTH_STORAGE_KEY);
   if (stored) {
     const parsed = Number(stored);
@@ -542,7 +542,7 @@ const useArtifactPortalStore = create<ArtifactPortalStore>()(
     getCachedContent: (artifactId: string) => {
       const cache = get().contentCache;
       const entry = cache[artifactId];
-      if (!entry) return null;
+      if (!entry) {return null;}
 
       // 检查是否过期
       if (Date.now() - entry.timestamp > ARTIFACT_CACHE_TTL) {
@@ -651,7 +651,7 @@ const useArtifactPortalStore = create<ArtifactPortalStore>()(
 
     closeTab: (index: number) => {
       set((state) => {
-        if (index < 0 || index >= state.openTabs.length) return;
+        if (index < 0 || index >= state.openTabs.length) {return;}
 
         state.openTabs.splice(index, 1);
 
@@ -672,7 +672,7 @@ const useArtifactPortalStore = create<ArtifactPortalStore>()(
 
     switchTab: (index: number) => {
       set((state) => {
-        if (index < 0 || index >= state.openTabs.length) return;
+        if (index < 0 || index >= state.openTabs.length) {return;}
         state.activeTabIndex = index;
         // 更新访问时间
         state.openTabs[index].lastAccessedAt = Date.now();
@@ -681,7 +681,7 @@ const useArtifactPortalStore = create<ArtifactPortalStore>()(
 
     closeOtherTabs: (index: number) => {
       set((state) => {
-        if (index < 0 || index >= state.openTabs.length) return;
+        if (index < 0 || index >= state.openTabs.length) {return;}
 
         const keepTab = state.openTabs[index];
         state.openTabs = [keepTab];
@@ -733,7 +733,7 @@ const useArtifactPortalStore = create<ArtifactPortalStore>()(
     createVersion: (description?: string) => {
       set((state) => {
         const tab = getActiveTab(state);
-        if (!tab || !tab.content) return;
+        if (!tab || !tab.content) {return;}
 
         // 初始化版本数组
         if (!tab.artifact.versions) {
@@ -770,7 +770,7 @@ const useArtifactPortalStore = create<ArtifactPortalStore>()(
     switchToVersion: (versionIndex: number, content?: string) => {
       set((state) => {
         const tab = getActiveTab(state);
-        if (!tab) return;
+        if (!tab) {return;}
 
         tab.viewingVersionIndex = versionIndex;
 
@@ -793,7 +793,7 @@ const useArtifactPortalStore = create<ArtifactPortalStore>()(
     rollbackToVersion: (versionIndex: number, content?: string) => {
       set((state) => {
         const tab = getActiveTab(state);
-        if (!tab) return;
+        if (!tab) {return;}
 
         let targetContent = content;
 

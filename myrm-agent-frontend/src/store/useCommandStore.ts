@@ -79,7 +79,7 @@ export const useCommandStore = create<CommandState>()(
     isInitialized: false,
 
     initCommands: async () => {
-      if (isStoreInitialized) return;
+      if (isStoreInitialized) {return;}
 
       try {
         // 从 ConfigSyncManager 加载
@@ -179,12 +179,12 @@ export const useCommandStore = create<CommandState>()(
       const lowerQuery = query.toLowerCase();
 
       return items.filter((item) => {
-        if (item.name.toLowerCase().includes(lowerQuery)) return true;
+        if (item.name.toLowerCase().includes(lowerQuery)) {return true;}
         if (item.type === 'action') {
-          if (item.aliases?.some((a) => a.toLowerCase().includes(lowerQuery))) return true;
-          if (item.description.toLowerCase().includes(lowerQuery)) return true;
+          if (item.aliases?.some((a) => a.toLowerCase().includes(lowerQuery))) {return true;}
+          if (item.description.toLowerCase().includes(lowerQuery)) {return true;}
         }
-        if (item.type === 'command' && item.template.toLowerCase().includes(lowerQuery)) return true;
+        if (item.type === 'command' && item.template.toLowerCase().includes(lowerQuery)) {return true;}
         return false;
       });
     },

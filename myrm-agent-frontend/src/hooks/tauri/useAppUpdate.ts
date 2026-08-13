@@ -59,8 +59,8 @@ let updaterModule: UpdaterModule | null = null;
 let tauriInvoke: TauriInvoke | null = null;
 
 async function getUpdaterModule(): Promise<UpdaterModule | null> {
-  if (updaterModule) return updaterModule;
-  if (!isTauriRuntime()) return null;
+  if (updaterModule) {return updaterModule;}
+  if (!isTauriRuntime()) {return null;}
   try {
     updaterModule = await import('@tauri-apps/plugin-updater');
     return updaterModule;
@@ -70,8 +70,8 @@ async function getUpdaterModule(): Promise<UpdaterModule | null> {
 }
 
 async function getTauriInvoke(): Promise<TauriInvoke | null> {
-  if (tauriInvoke) return tauriInvoke;
-  if (!isTauriRuntime()) return null;
+  if (tauriInvoke) {return tauriInvoke;}
+  if (!isTauriRuntime()) {return null;}
   try {
     const coreModule = await import('@tauri-apps/api/core');
     tauriInvoke = coreModule.invoke;
@@ -103,20 +103,20 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
   const pendingUpdateRef = useRef<Awaited<ReturnType<UpdaterModule['check']>> | null>(null);
 
   const check = useCallback(async () => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {return;}
     const busy =
       phaseRef.current === 'downloading' || phaseRef.current === 'ready' || phaseRef.current === 'installing';
-    if (busy) return;
+    if (busy) {return;}
 
     setPhase('checking');
     setError(null);
 
     try {
       const mod = await getUpdaterModule();
-      if (!mod || !mountedRef.current) return;
+      if (!mod || !mountedRef.current) {return;}
 
       const update = await mod.check();
-      if (!mountedRef.current) return;
+      if (!mountedRef.current) {return;}
 
       if (update) {
         pendingUpdateRef.current = update;
@@ -132,7 +132,7 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
         console.debug('[app-update] already up to date');
       }
     } catch (err) {
-      if (!mountedRef.current) return;
+      if (!mountedRef.current) {return;}
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
       setPhase('error');
@@ -142,7 +142,7 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
 
   const doDownload = useCallback(async () => {
     const update = pendingUpdateRef.current;
-    if (!update || downloadInFlightRef.current) return;
+    if (!update || downloadInFlightRef.current) {return;}
 
     downloadInFlightRef.current = true;
     setBytesDownloaded(0);
@@ -152,7 +152,7 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
 
     try {
       await update.download((event) => {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current) {return;}
         if (event.event === 'Started') {
           setTotalBytes(event.data.contentLength ?? null);
         } else if (event.event === 'Progress') {
@@ -160,11 +160,11 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
         }
       });
 
-      if (!mountedRef.current) return;
+      if (!mountedRef.current) {return;}
       setPhase('ready');
       console.debug('[app-update] download complete, ready to install');
     } catch (err) {
-      if (!mountedRef.current) return;
+      if (!mountedRef.current) {return;}
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
       setPhase('error');
@@ -176,7 +176,7 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
 
   const install = useCallback(async () => {
     const update = pendingUpdateRef.current;
-    if (!update) return;
+    if (!update) {return;}
 
     setPhase('installing');
     setError(null);
@@ -184,7 +184,7 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
 
     try {
       await update.install();
-      if (!mountedRef.current) return;
+      if (!mountedRef.current) {return;}
       setPhase('restarting');
 
       const invoke = await getTauriInvoke();
@@ -193,7 +193,7 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
         await invoke('restart_app');
       }
     } catch (err) {
-      if (!mountedRef.current) return;
+      if (!mountedRef.current) {return;}
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
       setPhase('error');
@@ -214,7 +214,7 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
 
   // Auto-check cadence
   useEffect(() => {
-    if (!autoCheck || !isTauriRuntime()) return;
+    if (!autoCheck || !isTauriRuntime()) {return;}
 
     const initialTimer = setTimeout(
       () => {
@@ -232,15 +232,15 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
 
     return () => {
       clearTimeout(initialTimer);
-      if (recheckTimer) clearInterval(recheckTimer);
+      if (recheckTimer) {clearInterval(recheckTimer);}
     };
   }, [autoCheck, initialCheckDelayMs, recheckIntervalMs, check]);
 
   // Auto-download when available
   useEffect(() => {
-    if (!autoDownload || !isTauriRuntime()) return;
-    if (phase !== 'available') return;
-    if (downloadInFlightRef.current) return;
+    if (!autoDownload || !isTauriRuntime()) {return;}
+    if (phase !== 'available') {return;}
+    if (downloadInFlightRef.current) {return;}
 
     const timer = setTimeout(() => {
       void doDownload();

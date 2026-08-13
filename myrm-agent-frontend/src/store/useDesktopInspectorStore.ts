@@ -8,7 +8,8 @@
  *
  * [POS]
  * State management for the Desktop Live View + Interactive Inspector feature.
- * Tracks panel visibility, active mode, latest desktop view data, and selected element.
+ * Tracks panel visibility, active mode, latest desktop view data, selected element, and
+ * per-turn engagement (which agent turns drive desktop events and must be torn down).
  */
 
 import { create } from 'zustand';
@@ -121,7 +122,7 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
   markTurnEngaged: () => set({ engagedInTurn: true }),
   releaseTurnEngagement: () =>
     set((s) => {
-      if (!s.engagedInTurn) return {};
+      if (!s.engagedInTurn) {return {};}
       return {
         engagedInTurn: false,
         isDesktopActive: false,
@@ -132,10 +133,10 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
     }),
   setInstructionText: (text) => set({ instructionText: text }),
   fetchSnapshot: async () => {
-    if (get().isSnapshotLoading) return false;
+    if (get().isSnapshotLoading) {return false;}
     const { default: useChatStore } = await import('@/store/useChatStore');
     const chatId = useChatStore.getState().chatId?.trim();
-    if (!chatId) return false;
+    if (!chatId) {return false;}
     set({ isSnapshotLoading: true });
     try {
       const data = await apiRequest<DesktopSnapshotResponse>('/webui/desktop/snapshot', {

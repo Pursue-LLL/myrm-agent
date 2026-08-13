@@ -36,7 +36,7 @@ const mockUseAgentLoadoutSummary = vi.hoisted(() => vi.fn());
 const stableT = (key: string, params?: Record<string, string | number>) => {
   const fullKey = `loadout.${key}`;
   const template = messages[fullKey] ?? key;
-  if (!params) return template;
+  if (!params) {return template;}
   return Object.entries(params).reduce(
     (acc, [name, value]) => acc.replace(`{${name}}`, String(value)),
     template,

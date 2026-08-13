@@ -36,7 +36,7 @@ const DesktopControlApprovalBanner: React.FC = () => {
 
   const handleDecision = useCallback(
     async (granted: boolean, scope: DesktopControlApprovalScope = 'once') => {
-      if (!requestId || submitting) return;
+      if (!requestId || submitting) {return;}
       setSubmitting(true);
       try {
         await resolveApproval(requestId, granted, scope);
@@ -51,7 +51,7 @@ const DesktopControlApprovalBanner: React.FC = () => {
     [requestId, submitting, clear],
   );
 
-  if (!pending) return null;
+  if (!pending) {return null;}
 
   return (
     <div

@@ -65,9 +65,9 @@ const STATUS_LABEL_KEYS: Record<SubscriptionStatus['status'], string> = {
 };
 
 const formatDate = (value: string | null, locale: string, fallback: string) => {
-  if (!value) return fallback;
+  if (!value) {return fallback;}
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return fallback;
+  if (Number.isNaN(date.getTime())) {return fallback;}
   return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'short',

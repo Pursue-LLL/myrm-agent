@@ -163,7 +163,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
       setQuery(value);
       setActiveTag('all');
 
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {clearTimeout(debounceRef.current);}
       debounceRef.current = setTimeout(() => runSearch(value), 500);
     },
     [runSearch],
@@ -172,7 +172,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter') {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
+        if (debounceRef.current) {clearTimeout(debounceRef.current);}
         runSearch(query);
       }
     },
@@ -243,7 +243,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
 
   const handleConfirmUninstall = useCallback(async () => {
     setUninstallDialogOpen(false);
-    if (!pendingUninstall) return;
+    if (!pendingUninstall) {return;}
 
     const skillId = pendingUninstall.installed_skill_id;
     if (!skillId) {
@@ -281,7 +281,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
   }, [pendingUninstall, uninstall, t, onInstalled]);
 
   const handleConfirmForceUninstall = useCallback(async () => {
-    if (!forceUninstallSkill) return;
+    if (!forceUninstallSkill) {return;}
     const { skillId, name } = forceUninstallSkill;
     setForceUninstallSkill(null);
     try {
@@ -314,7 +314,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
 
   useEffect(() => {
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {clearTimeout(debounceRef.current);}
     };
   }, []);
 
@@ -439,7 +439,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
       <AlertDialog
         open={forceUninstallSkill !== null}
         onOpenChange={(v) => {
-          if (!v) setForceUninstallSkill(null);
+          if (!v) {setForceUninstallSkill(null);}
         }}
       >
         <AlertDialogContent>

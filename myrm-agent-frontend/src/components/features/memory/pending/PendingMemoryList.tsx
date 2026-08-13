@@ -43,7 +43,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleBatchApprove = useCallback(async () => {
-    if (isProcessing) return;
+    if (isProcessing) {return;}
     setIsProcessing(true);
     try {
       await batchApprove();
@@ -63,7 +63,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
   }, [batchApprove, selectedCount, t, isProcessing]);
 
   const handleBatchReject = useCallback(async () => {
-    if (isProcessing) return;
+    if (isProcessing) {return;}
     setIsProcessing(true);
     try {
       await batchReject();

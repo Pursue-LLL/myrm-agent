@@ -176,7 +176,7 @@ const LoginDialog = memo(({ open, onOpenChange, command, status, onChanged }: Lo
 
   const handleSubmitCode = useCallback(async () => {
     const value = code.trim();
-    if (!value) return;
+    if (!value) {return;}
     try {
       await feedExternalAgentLogin(sessionIdRef.current, value);
       setCode('');
@@ -187,7 +187,7 @@ const LoginDialog = memo(({ open, onOpenChange, command, status, onChanged }: Lo
 
   const handleImport = useCallback(async () => {
     const content = importContent.trim();
-    if (!content) return;
+    if (!content) {return;}
     setImporting(true);
     try {
       await importExternalAgentCredential(backend, content);
@@ -204,7 +204,7 @@ const LoginDialog = memo(({ open, onOpenChange, command, status, onChanged }: Lo
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
-      if (!next) abortRef.current?.abort();
+      if (!next) {abortRef.current?.abort();}
       onOpenChange(next);
     },
     [onOpenChange],
@@ -314,7 +314,7 @@ const ExternalAgentAuthControls = memo(({ command, status, onChanged }: AuthCont
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = useCallback(async () => {
-    if (!status) return;
+    if (!status) {return;}
     setLoggingOut(true);
     try {
       await logoutExternalAgent(status.backend);
@@ -327,7 +327,7 @@ const ExternalAgentAuthControls = memo(({ command, status, onChanged }: AuthCont
     }
   }, [status, t, onChanged]);
 
-  if (!status) return null;
+  if (!status) {return null;}
 
   const ready = isExternalAgentDelegationReady(status);
   const badgeKind = resolveExternalAgentBadgeKind(status);

@@ -32,7 +32,7 @@ type WikiE2EHandlers = {
 };
 
 function isLocalDevHost(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') {return false;}
   const host = window.location.hostname;
   return host === '127.0.0.1' || host === 'localhost';
 }
@@ -103,7 +103,7 @@ export default function E2EWikiBridge() {
   const [codexCompletion, setCodexCompletion] = useState<CodexCompletionPayload | null>(null);
 
   useLayoutEffect(() => {
-    if (!isLocalDevHost()) return undefined;
+    if (!isLocalDevHost()) {return undefined;}
 
     let handlers: WikiE2EHandlers | null = null;
     let pending: WikiInjectPayload | null = null;
@@ -120,9 +120,9 @@ export default function E2EWikiBridge() {
     };
 
     const flushPending = () => {
-      if (!handlers || !pending) return;
-      if (pending.stats) handlers.applyStats(pending.stats);
-      if (pending.health) handlers.applyHealth(pending.health);
+      if (!handlers || !pending) {return;}
+      if (pending.stats) {handlers.applyStats(pending.stats);}
+      if (pending.health) {handlers.applyHealth(pending.health);}
       pending = null;
       clearMirrorIfRealPanelMounted();
     };
@@ -135,8 +135,8 @@ export default function E2EWikiBridge() {
             pending = payload;
             return false;
           }
-          if (payload.stats) handlers.applyStats(payload.stats);
-          if (payload.health) handlers.applyHealth(payload.health);
+          if (payload.stats) {handlers.applyStats(payload.stats);}
+          if (payload.health) {handlers.applyHealth(payload.health);}
           return true;
         };
         if (applyNow()) {

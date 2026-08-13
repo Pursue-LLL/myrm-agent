@@ -62,8 +62,8 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
   const openArtifact = useArtifactPortalStore((s) => s.openArtifact);
 
   const deliverables = goal.deliverables;
-  if (!deliverables || deliverables.length < 2) return null;
-  if (goal.status !== 'complete') return null;
+  if (!deliverables || deliverables.length < 2) {return null;}
+  if (goal.status !== 'complete') {return null;}
 
   const handleDownloadAll = useCallback(async () => {
     setDownloading(true);

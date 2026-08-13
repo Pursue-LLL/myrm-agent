@@ -123,7 +123,7 @@ const AboutSection = memo(() => {
   const [updateError, setUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {return;}
     import('@tauri-apps/api/app')
       .then((mod) => mod.getVersion())
       .then((v) => setVersion(v))
@@ -131,7 +131,7 @@ const AboutSection = memo(() => {
   }, []);
 
   const handleCheckUpdate = useCallback(async () => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {return;}
     setUpdateStatus('checking');
     setUpdateError(null);
     try {
@@ -151,7 +151,7 @@ const AboutSection = memo(() => {
   }, []);
 
   const handleInstallUpdate = useCallback(async () => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {return;}
     setUpdateStatus('downloading');
     try {
       const { check } = await import('@tauri-apps/plugin-updater');

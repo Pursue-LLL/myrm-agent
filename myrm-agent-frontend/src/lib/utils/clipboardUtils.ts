@@ -20,7 +20,7 @@ function isClipboardNotAllowedError(error: unknown): boolean {
 
 /** execCommand fallback when async Clipboard API is blocked (e.g. after confirm dialog). */
 function copyTextViaExecCommand(text: string): boolean {
-  if (typeof document === 'undefined') return false;
+  if (typeof document === 'undefined') {return false;}
 
   const textarea = document.createElement('textarea');
   textarea.value = text;
@@ -136,10 +136,10 @@ export const writeRichToClipboard = async (plainText: string, html: string, sile
       if (!copied) {
         throw new DOMException('Clipboard write blocked', 'NotAllowedError');
       }
-      if (!silent) toast.success('已复制到剪贴板');
+      if (!silent) {toast.success('已复制到剪贴板');}
       return true;
     } catch {
-      if (!silent) toast.error('复制失败，请检查剪贴板权限');
+      if (!silent) {toast.error('复制失败，请检查剪贴板权限');}
       return false;
     }
   }
@@ -149,7 +149,7 @@ export const writeRichToClipboard = async (plainText: string, html: string, sile
  * 请求读取剪贴板的权限
  */
 const requestReadPermission = async (): Promise<boolean> => {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') {return false;}
 
   // 检查是否已经授权
   const savedPermission = localStorage.getItem(CLIPBOARD_PERMISSION_KEY);

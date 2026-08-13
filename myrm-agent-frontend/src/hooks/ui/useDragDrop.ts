@@ -30,7 +30,7 @@ export function useDragDrop(options: UseDragDropOptions): UseDragDropReturn {
 
   const isFileTypeAccepted = useCallback(
     (file: File): boolean => {
-      if (!accept || accept.length === 0) return true;
+      if (!accept || accept.length === 0) {return true;}
 
       return accept.some((pattern) => {
         if (pattern.endsWith('/*')) {
@@ -45,7 +45,7 @@ export function useDragDrop(options: UseDragDropOptions): UseDragDropReturn {
 
   const handleDragEnter = useCallback(
     (e: React.DragEvent) => {
-      if (disabled) return;
+      if (disabled) {return;}
 
       e.preventDefault();
       e.stopPropagation();
@@ -66,7 +66,7 @@ export function useDragDrop(options: UseDragDropOptions): UseDragDropReturn {
 
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
-      if (disabled) return;
+      if (disabled) {return;}
 
       e.preventDefault();
       e.stopPropagation();
@@ -84,7 +84,7 @@ export function useDragDrop(options: UseDragDropOptions): UseDragDropReturn {
 
   const handleDragLeave = useCallback(
     (e: React.DragEvent) => {
-      if (disabled) return;
+      if (disabled) {return;}
 
       e.preventDefault();
       e.stopPropagation();
@@ -107,7 +107,7 @@ export function useDragDrop(options: UseDragDropOptions): UseDragDropReturn {
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
-      if (disabled) return;
+      if (disabled) {return;}
 
       e.preventDefault();
       e.stopPropagation();
@@ -117,7 +117,7 @@ export function useDragDrop(options: UseDragDropOptions): UseDragDropReturn {
       setIsDragging(false);
 
       const items = e.dataTransfer.items;
-      if (!items) return;
+      if (!items) {return;}
 
       const fileArray: File[] = [];
 

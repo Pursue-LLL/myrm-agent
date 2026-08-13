@@ -51,7 +51,7 @@ const ElementPickerToolbar: React.FC<ElementPickerToolbarProps> = ({ pickedEleme
 
   const buildElementContext = useCallback(
     (instruction: string): string => {
-      if (!pickedElement) return '';
+      if (!pickedElement) {return '';}
 
       const truncatedHTML =
         pickedElement.outerHTML.length > MAX_OUTER_HTML_CONTEXT
@@ -64,10 +64,10 @@ const ElementPickerToolbar: React.FC<ElementPickerToolbarProps> = ({ pickedEleme
   );
 
   const handleSubmit = useCallback(() => {
-    if (!inputValue.trim() || !pickedElement) return;
+    if (!inputValue.trim() || !pickedElement) {return;}
 
     const message = buildElementContext(inputValue.trim());
-    if (!message) return;
+    if (!message) {return;}
 
     sendAction({ message });
   }, [inputValue, pickedElement, buildElementContext, sendAction]);
@@ -84,7 +84,7 @@ const ElementPickerToolbar: React.FC<ElementPickerToolbarProps> = ({ pickedEleme
     [handleSubmit, onDismiss],
   );
 
-  if (!pickedElement) return null;
+  if (!pickedElement) {return null;}
 
   return (
     <div

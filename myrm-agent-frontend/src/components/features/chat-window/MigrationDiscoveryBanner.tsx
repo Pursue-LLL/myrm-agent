@@ -35,7 +35,7 @@ export default function MigrationDiscoveryBanner() {
   const [sources, setSources] = useState<ExternalSource[]>([]);
 
   useEffect(() => {
-    if (!isLocalMode()) return;
+    if (!isLocalMode()) {return;}
 
     const dismissed =
       sessionStorage.getItem('migration_discovery_dismissed') ??
@@ -50,7 +50,7 @@ export default function MigrationDiscoveryBanner() {
       setState('scanning');
       try {
         const result = await discoverMigrationSources();
-        if (cancelled) return;
+        if (cancelled) {return;}
         if (result.sources.length > 0) {
           setSources(result.sources);
           setState('found');
@@ -88,7 +88,7 @@ export default function MigrationDiscoveryBanner() {
     router.push('/settings/memory?sub=migration');
   }, [router, sources]);
 
-  if (!isLocalMode() || state === 'idle' || state === 'dismissed') return null;
+  if (!isLocalMode() || state === 'idle' || state === 'dismissed') {return null;}
 
   if (state === 'scanning') {
     return (
@@ -102,7 +102,7 @@ export default function MigrationDiscoveryBanner() {
   }
 
   const primarySource = sources[0];
-  if (!primarySource) return null;
+  if (!primarySource) {return null;}
 
   const totalMemories = sources.reduce((sum, s) => sum + s.memory_count_estimate, 0);
   const totalSkills = sources.reduce((sum, s) => sum + s.skill_count, 0);

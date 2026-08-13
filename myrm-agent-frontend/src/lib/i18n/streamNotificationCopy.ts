@@ -80,10 +80,10 @@ void localeLoaders.zh().then((copy) => {
 });
 
 export function resolveStreamLocale(lang: string): StreamLocale {
-  if (lang.startsWith('zh')) return 'zh';
-  if (lang.startsWith('ja')) return 'ja';
-  if (lang.startsWith('ko')) return 'ko';
-  if (lang.startsWith('de')) return 'de';
+  if (lang.startsWith('zh')) {return 'zh';}
+  if (lang.startsWith('ja')) {return 'ja';}
+  if (lang.startsWith('ko')) {return 'ko';}
+  if (lang.startsWith('de')) {return 'de';}
   return 'en';
 }
 

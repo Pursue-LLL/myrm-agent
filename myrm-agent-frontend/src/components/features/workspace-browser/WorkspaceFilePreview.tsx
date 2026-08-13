@@ -85,9 +85,9 @@ function getLanguage(filename: string): string {
 }
 
 function formatBytes(bytes: number | null): string {
-  if (bytes === null) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes === null) {return '';}
+  if (bytes < 1024) {return `${bytes} B`;}
+  if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(1)} KB`;}
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
@@ -207,7 +207,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     }, [loadContent]);
 
     const handleSave = useCallback(async () => {
-      if (!dirty || saving) return;
+      if (!dirty || saving) {return;}
       setSaving(true);
       try {
         await saveWorkspaceFileContent(workspace, file.path, editContent);
@@ -228,7 +228,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
 
     const toggleEdit = useCallback(() => {
       if (editing && dirty) {
-        if (!window.confirm(t('discardConfirm'))) return;
+        if (!window.confirm(t('discardConfirm'))) {return;}
         setEditContent(content || '');
         setDirty(false);
       }
@@ -253,7 +253,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     }, [file.path, workspace]);
 
     const handleClose = useCallback(() => {
-      if (editing && dirty && !window.confirm(t('discardConfirm'))) return;
+      if (editing && dirty && !window.confirm(t('discardConfirm'))) {return;}
       onClose();
     }, [editing, dirty, onClose, t]);
 

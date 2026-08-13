@@ -71,7 +71,7 @@ export const CommandEditor: React.FC<CommandEditorProps> = ({ open, onOpenChange
 
   // 保存
   const handleSave = () => {
-    if (!validate()) return;
+    if (!validate()) {return;}
 
     if (command) {
       // 更新现有命令

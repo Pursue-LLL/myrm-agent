@@ -4,7 +4,7 @@
  */
 export function resolveCpBaseUrl(): string {
   const configured = process.env.NEXT_PUBLIC_CP_BASE_URL?.trim();
-  if (configured) return configured.replace(/\/+$/, '');
+  if (configured) {return configured.replace(/\/+$/, '');}
   if (typeof window !== 'undefined') {
     return `http://${window.location.hostname}:8003`;
   }

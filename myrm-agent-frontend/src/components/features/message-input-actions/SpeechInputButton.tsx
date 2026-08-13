@@ -80,7 +80,7 @@ const SpeechInputButton = memo(
       },
     );
 
-    if (!isSupported) return null;
+    if (!isSupported) {return null;}
 
     const isRecording = state === 'recording';
     const isTranscribing = state === 'transcribing';

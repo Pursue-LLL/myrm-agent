@@ -23,17 +23,17 @@ export default function CronPushPoller() {
   const seenRef = useRef<Set<string>>(new Set());
 
   const poll = useCallback(async () => {
-    if (document.hidden) return;
+    if (document.hidden) {return;}
 
     try {
       const res = await apiRequest<PushResponse>('/cron/push-messages');
-      if (!res?.messages?.length) return;
+      if (!res?.messages?.length) {return;}
 
       const seen = seenRef.current;
-      if (seen.size > MAX_SEEN_IDS) seen.clear();
+      if (seen.size > MAX_SEEN_IDS) {seen.clear();}
 
       for (const msg of res.messages) {
-        if (seen.has(msg.id)) continue;
+        if (seen.has(msg.id)) {continue;}
         seen.add(msg.id);
 
         const toastFn = msg.level === 'error' ? toast.error : msg.level === 'success' ? toast.success : toast.info;
@@ -46,7 +46,7 @@ export default function CronPushPoller() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {return;}
 
     poll();
 
@@ -59,7 +59,7 @@ export default function CronPushPoller() {
     window.addEventListener('app_resync_required', handleSseEvent);
 
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') poll();
+      if (document.visibilityState === 'visible') {poll();}
     };
     document.addEventListener('visibilitychange', onVisibility);
 

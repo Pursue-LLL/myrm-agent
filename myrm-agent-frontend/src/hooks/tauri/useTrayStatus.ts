@@ -117,18 +117,18 @@ export function useTrayStatus() {
 
   // Refresh usage when liveness transitions from busy→idle (task just completed)
   useEffect(() => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {return;}
     void refreshTodayUsage();
   }, [liveness.state, refreshTodayUsage]);
 
   // Budget-alert → native OS notification (Tauri only)
   useEffect(() => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {return;}
 
     const onBudgetAlert = async () => {
       try {
         const status = await getBudgetStatus();
-        if (!status.enabled) return;
+        if (!status.enabled) {return;}
         const pct = Math.round(status.usage_pct * 100);
         await sendTauriNativeNotification({
           title: t('budgetAlertTitle'),

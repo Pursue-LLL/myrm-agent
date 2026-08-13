@@ -44,7 +44,7 @@ export default function LoginPage() {
   }, [router, postAuthPath]);
 
   const checkAuth = useCallback(async () => {
-    if (sandbox) return;
+    if (sandbox) {return;}
     try {
       const response = await fetch(getWebuiUrl('/auth/status'), {
         credentials: 'include',

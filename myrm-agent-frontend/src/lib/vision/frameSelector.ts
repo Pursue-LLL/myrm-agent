@@ -38,7 +38,7 @@ const DEFAULT_OPTIONS: FrameSelectionOptions = {
 function dedupeById(frames: VisualFrame[]): VisualFrame[] {
   const seen = new Set<string>();
   return frames.filter((f) => {
-    if (seen.has(f.id)) return false;
+    if (seen.has(f.id)) {return false;}
     seen.add(f.id);
     return true;
   });
@@ -86,7 +86,7 @@ export function selectFrames(
     for (let i = 0; i < middleSlots; i++) {
       const pos = Math.floor(((i + 1) * middle.length) / (middleSlots + 1));
       const frame = middle[Math.min(pos, Math.max(middle.length - 1, 0))];
-      if (frame) sampled.push(frame);
+      if (frame) {sampled.push(frame);}
     }
   }
 

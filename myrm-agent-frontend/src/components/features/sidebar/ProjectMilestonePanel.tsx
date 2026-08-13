@@ -59,7 +59,7 @@ export default function ProjectMilestonePanel() {
   }, [activeProject, fetchMilestones]);
 
   useEffect(() => {
-    if (showInput) inputRef.current?.focus();
+    if (showInput) {inputRef.current?.focus();}
   }, [showInput]);
 
   useEffect(() => {
@@ -90,7 +90,7 @@ export default function ProjectMilestonePanel() {
 
   const handleComplete = useCallback(
     async (ms: Milestone) => {
-      if (!activeProject) return;
+      if (!activeProject) {return;}
       try {
         await completeMilestone(activeProject.id, ms.id);
       } catch {
@@ -102,7 +102,7 @@ export default function ProjectMilestonePanel() {
 
   const handleDelete = useCallback(
     async (ms: Milestone) => {
-      if (!activeProject) return;
+      if (!activeProject) {return;}
       try {
         await removeMilestone(activeProject.id, ms.id);
       } catch {
@@ -114,7 +114,7 @@ export default function ProjectMilestonePanel() {
 
   const handleRename = useCallback(
     async (ms: Milestone, newTitle: string) => {
-      if (!activeProject || newTitle === ms.title) return;
+      if (!activeProject || newTitle === ms.title) {return;}
       try {
         await updateMilestone(activeProject.id, ms.id, { title: newTitle });
       } catch {
@@ -215,7 +215,7 @@ export default function ProjectMilestonePanel() {
     rawArtifactId: string,
     trigger: AssessmentImportMetricTrigger,
   ) => {
-    if (!activeProject) return;
+    if (!activeProject) {return;}
     const artifactId = rawArtifactId.trim();
     if (!artifactId) {
       toastError(t('milestone.importArtifactRequired'));
@@ -262,7 +262,7 @@ export default function ProjectMilestonePanel() {
     });
   }, [artifactCandidates, importArtifactId]);
 
-  if (!activeProject) return null;
+  if (!activeProject) {return null;}
 
   const activeMilestones = milestones.filter((m) => m.status === 'active');
   const completedMilestones = milestones.filter((m) => m.status === 'completed');
@@ -313,7 +313,7 @@ export default function ProjectMilestonePanel() {
               onChange={(e) => setInputValue(e.target.value)}
               onBlur={handleAddSubmit}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddSubmit();
+                if (e.key === 'Enter') {handleAddSubmit();}
                 if (e.key === 'Escape') {
                   setShowInput(false);
                   setInputValue('');
@@ -450,7 +450,7 @@ function MilestoneRow({
   const hasTasks = progress && progress.totalTasks > 0;
 
   useEffect(() => {
-    if (editing) editRef.current?.focus();
+    if (editing) {editRef.current?.focus();}
   }, [editing]);
 
   const commitRename = () => {
@@ -483,7 +483,7 @@ function MilestoneRow({
               onChange={(e) => setEditValue(e.target.value)}
               onBlur={commitRename}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') commitRename();
+                if (e.key === 'Enter') {commitRename();}
                 if (e.key === 'Escape') {
                   setEditing(false);
                   setEditValue(milestone.title);

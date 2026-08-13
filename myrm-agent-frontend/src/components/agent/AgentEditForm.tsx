@@ -160,7 +160,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {return;}
 
     // Local preview instantly
     const objectUrl = URL.createObjectURL(file);

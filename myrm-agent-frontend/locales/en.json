@@ -14796,6 +14796,7 @@
       "limitHitTitle": "This case was stopped because the agent hit the configured run budget (e.g. max tool calls) — its answer is incomplete",
       "blocked": "Blocked",
       "blockedTitle": "A search query or URL was rejected by the decontamination guard during this run",
+      "toolCallsTitle": "Tool calls recorded in this case's trajectory",
       "status": "Status",
       "messageSnippet": "Message Snippet",
       "tokenUsage": "Token Usage",
@@ -14846,6 +14847,8 @@
       "limitHits": "Limit Hits",
       "blocked": "Blocked",
       "limitHitTitle": "This case was stopped because the agent hit the configured run budget (e.g. max tool calls) — its answer is incomplete",
+      "blockedTitle": "A search query or URL was rejected by the decontamination guard during this run",
+      "toolCallsTitle": "Tool calls recorded in this case's trajectory",
       "matrixDetail": "Case × Profile Matrix",
       "case": "Case",
       "legend": {

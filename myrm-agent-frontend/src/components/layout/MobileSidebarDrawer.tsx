@@ -52,7 +52,7 @@ export function MobileSidebarDrawer({
           activeTab={activeTab}
           onTabChange={(tab) => {
             onTabChange(tab);
-            if (tab !== 'chat') onClose();
+            if (tab !== 'chat') {onClose();}
           }}
           isSidebarCollapsed={false}
           onToggleSidebar={onClose}

@@ -38,7 +38,7 @@ export class SpeechVisualSession {
     preRollMs: number = DEFAULT_PRE_ROLL_MS,
     postRollMs: number = DEFAULT_POST_ROLL_MS,
   ): SpeechVisualWindow | null {
-    if (this.speechStartAt === null) return null;
+    if (this.speechStartAt === null) {return null;}
     this.speechEndAt = timestamp;
 
     return {

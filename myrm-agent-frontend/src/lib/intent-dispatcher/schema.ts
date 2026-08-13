@@ -65,7 +65,7 @@ export function parseIntentUrl(rawUrl: string): UIPIntent {
     // For myrmagent://ask?text=hi, url.hostname is 'ask', url.pathname is ''
     // For https://app.myrmagent.com/intent/chat/123, we need to extract from pathname
 
-    let scheme = url.protocol.replace(':', '');
+    const scheme = url.protocol.replace(':', '');
     let action = '';
     let id = '';
     let path = '';

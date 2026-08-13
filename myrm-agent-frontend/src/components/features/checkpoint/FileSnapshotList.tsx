@@ -85,14 +85,14 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail?.meta_data?.type === 'snapshot_created') {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
+        if (debounceRef.current) {clearTimeout(debounceRef.current);}
         debounceRef.current = setTimeout(() => void loadSnapshots(), SSE_REFRESH_DEBOUNCE_MS);
       }
     };
     window.addEventListener('system-notification', handler);
     return () => {
       window.removeEventListener('system-notification', handler);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {clearTimeout(debounceRef.current);}
     };
   }, [loadSnapshots]);
 
@@ -244,7 +244,7 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
             value={createDescription}
             onChange={(e) => setCreateDescription(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && createDescription.trim() && !isCreating) void handleCreate();
+              if (e.key === 'Enter' && createDescription.trim() && !isCreating) {void handleCreate();}
             }}
             placeholder={t('createPlaceholder')}
             maxLength={80}

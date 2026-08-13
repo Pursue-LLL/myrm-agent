@@ -17,7 +17,7 @@ export function useScrollLock(isLocked: boolean): void {
 
   useEffect(() => {
     // Only run on client side / 仅在客户端运行
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {return;}
 
     const body = document.body;
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;

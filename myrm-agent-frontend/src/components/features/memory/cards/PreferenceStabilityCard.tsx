@@ -104,11 +104,11 @@ const PreferenceStabilityCard = memo<{ className?: string }>(({ className }) => 
     [t, fetchData],
   );
 
-  if (loading || !data || data.total === 0) return null;
+  if (loading || !data || data.total === 0) {return null;}
 
   const activeItems = data.items.filter((f) => f.lifecycle !== 'dropped' && !f.user_forgotten);
   const forgottenItems = data.items.filter((f) => f.user_forgotten);
-  if (activeItems.length === 0 && forgottenItems.length === 0) return null;
+  if (activeItems.length === 0 && forgottenItems.length === 0) {return null;}
 
   return (
     <div className={cn('rounded-xl border border-border/50 bg-card p-4', className)}>

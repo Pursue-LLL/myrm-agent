@@ -65,7 +65,7 @@ const DomainSkillsCard = memo(() => {
 
   const handleDelete = useCallback(
     async (skill: DomainSkillInfo) => {
-      if (!window.confirm(t('confirmDelete', { name: skill.name }))) return;
+      if (!window.confirm(t('confirmDelete', { name: skill.name }))) {return;}
       setDeletingId(skill.id);
       try {
         const resp = await fetch(

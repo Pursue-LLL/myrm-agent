@@ -32,7 +32,7 @@ const getFilename = (path: string) => {
 
 // 剥离工作区前缀，获取相对路径
 const getRelativePath = (path: string, workspaceDir: string | null) => {
-  if (!workspaceDir) return path;
+  if (!workspaceDir) {return path;}
   if (path.startsWith(workspaceDir)) {
     const rel = path.slice(workspaceDir.length);
     return rel.startsWith('/') ? rel.slice(1) : rel;
@@ -45,13 +45,13 @@ function scoreUnifiedDiff(diff: string): number {
   let hasMinus = false;
   let hasPlus = false;
   for (const line of diff.split('\n')) {
-    if (line.startsWith('-') && !line.startsWith('---')) hasMinus = true;
-    if (line.startsWith('+') && !line.startsWith('+++')) hasPlus = true;
+    if (line.startsWith('-') && !line.startsWith('---')) {hasMinus = true;}
+    if (line.startsWith('+') && !line.startsWith('+++')) {hasPlus = true;}
   }
   let score = 0;
-  if (hasMinus && hasPlus) score += 100;
-  else if (hasMinus || hasPlus) score += 10;
-  if (diff.includes('@@')) score += 5;
+  if (hasMinus && hasPlus) {score += 100;}
+  else if (hasMinus || hasPlus) {score += 10;}
+  if (diff.includes('@@')) {score += 5;}
   score += Math.min(diff.length, 500_000) / 50_000;
   return score;
 }
@@ -60,9 +60,9 @@ function diffHasMinusAndPlusLines(diff: string): boolean {
   let hasMinus = false;
   let hasPlus = false;
   for (const line of diff.split('\n')) {
-    if (line.startsWith('-') && !line.startsWith('---')) hasMinus = true;
-    if (line.startsWith('+') && !line.startsWith('+++')) hasPlus = true;
-    if (hasMinus && hasPlus) return true;
+    if (line.startsWith('-') && !line.startsWith('---')) {hasMinus = true;}
+    if (line.startsWith('+') && !line.startsWith('+++')) {hasPlus = true;}
+    if (hasMinus && hasPlus) {return true;}
   }
   return false;
 }
@@ -111,8 +111,8 @@ interface ActiveFile {
 }
 // 格式化文件大小
 const formatBytes = (bytes?: number) => {
-  if (bytes === undefined || bytes === null) return '';
-  if (bytes === 0) return '0 B';
+  if (bytes === undefined || bytes === null) {return '';}
+  if (bytes === 0) {return '0 B';}
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -134,7 +134,7 @@ export default function ActiveWorkingMemoryPanel() {
   const shouldShow = lastMessage?.role === 'assistant';
 
   const activeFiles = useMemo(() => {
-    if (!shouldShow || !lastMessage?.progressSteps) return [];
+    if (!shouldShow || !lastMessage?.progressSteps) {return [];}
 
     const fileMap = new Map<string, ActiveFile>();
 
@@ -181,7 +181,7 @@ export default function ActiveWorkingMemoryPanel() {
               });
             } else {
               // Update line range if reading again
-              if (typedItem.line_range) existing.lineRange = typedItem.line_range;
+              if (typedItem.line_range) {existing.lineRange = typedItem.line_range;}
               if (typedItem.diff) {
                 existing.diff = typedItem.diff;
                 existing.diff_truncated = Boolean(typedItem.diff_truncated);
@@ -255,7 +255,7 @@ export default function ActiveWorkingMemoryPanel() {
       return;
     }
 
-    if (!workspaceDir && !chatId) return;
+    if (!workspaceDir && !chatId) {return;}
 
     const artifactId = `mem-${file.path}`;
     const artifact: Artifact = {
@@ -293,11 +293,11 @@ export default function ActiveWorkingMemoryPanel() {
         {/* 呼吸灯圆点 */}
         <span className="relative flex h-2 w-2">
           {isGenerating && (
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
           )}
           <span
             className={`relative inline-flex rounded-full h-2 w-2 ${isGenerating ? 'bg-indigo-500' : 'bg-slate-400 dark:bg-slate-600'}`}
-          ></span>
+           />
         </span>
         <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
           {t('title', { defaultMessage: 'Active Working Memory' })}

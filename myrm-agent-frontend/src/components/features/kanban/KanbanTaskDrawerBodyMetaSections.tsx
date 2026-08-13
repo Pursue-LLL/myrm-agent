@@ -216,7 +216,7 @@ interface LatestProgressSectionProps {
 }
 
 export function LatestProgressSection({ latestSummary, t }: LatestProgressSectionProps) {
-  if (!latestSummary) return null;
+  if (!latestSummary) {return null;}
 
   return (
     <div className="rounded-lg border bg-muted/20 px-3 py-2">

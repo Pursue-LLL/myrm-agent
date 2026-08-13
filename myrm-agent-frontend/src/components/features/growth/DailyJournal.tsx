@@ -32,7 +32,7 @@ function formatDateISO(d: Date): string {
 }
 
 function formatTime(iso: string | null): string {
-  if (!iso) return '--:--';
+  if (!iso) {return '--:--';}
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
@@ -80,7 +80,7 @@ export default function DailyJournal() {
   const shiftDay = (delta: number) => {
     const d = new Date(date + 'T00:00:00');
     d.setDate(d.getDate() + delta);
-    if (d <= new Date()) setDate(formatDateISO(d));
+    if (d <= new Date()) {setDate(formatDateISO(d));}
   };
 
   const isToday = date === formatDateISO(new Date());

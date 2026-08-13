@@ -246,7 +246,7 @@ export const getStepTitle = (
  * 处理链接点击
  */
 export const handleLinkClick = (url: string, isValidUrl: boolean): void => {
-  if (!isValidUrl) return;
+  if (!isValidUrl) {return;}
 
   let finalUrl = url;
   if (url.startsWith('www.')) {

@@ -47,7 +47,7 @@ export function MobileStatusApprovalsSection({
   const t = useTranslations('agent.mobileCommand');
   const tToolApproval = useTranslations('toolApproval');
 
-  if (pendingCount === 0) return null;
+  if (pendingCount === 0) {return null;}
 
   return (
     <div className="bg-card rounded-2xl border border-amber-500/30 overflow-hidden">

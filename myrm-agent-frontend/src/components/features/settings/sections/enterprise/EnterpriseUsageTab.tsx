@@ -69,7 +69,7 @@ const EnterpriseUsageTab = memo(() => {
   }, [loadData]);
 
   const handleSaveBudget = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId) {return;}
     try {
       const budgetWu = budgetInput ? Number(budgetInput) : null;
       const threshold = Number(thresholdInput) / 100;

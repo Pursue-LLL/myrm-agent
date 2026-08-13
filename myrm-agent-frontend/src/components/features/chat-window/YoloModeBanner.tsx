@@ -67,13 +67,13 @@ export default function YoloModeBanner() {
   const isCountingDown = remaining !== null && remaining > 0;
 
   useEffect(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) {clearInterval(timerRef.current);}
 
     if (isCountingDown) {
       timerRef.current = setInterval(() => {
         setRemaining((prev) => {
           if (prev === null || prev <= 1) {
-            if (timerRef.current) clearInterval(timerRef.current);
+            if (timerRef.current) {clearInterval(timerRef.current);}
             const syncManager = getConfigSyncManager();
             const config = syncManager.get('securityConfig');
             if (config) {
@@ -93,7 +93,7 @@ export default function YoloModeBanner() {
     }
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) {clearInterval(timerRef.current);}
     };
   }, [isCountingDown]);
 
@@ -112,7 +112,7 @@ export default function YoloModeBanner() {
     setRemaining(null);
   }, []);
 
-  if (!yoloEnabled) return null;
+  if (!yoloEnabled) {return null;}
 
   const countdownText = remaining !== null ? ` (${formatCountdown(remaining)})` : '';
   const bannerMessage = orgGloballyDisabled

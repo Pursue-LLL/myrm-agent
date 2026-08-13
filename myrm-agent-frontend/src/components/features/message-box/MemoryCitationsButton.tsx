@@ -64,10 +64,10 @@ const uniqueReferences = (
 ): CitedMemoryReference[] => {
   const byId = new Map<string, CitedMemoryReference>();
   for (const ref of references ?? []) {
-    if (ref.id) byId.set(ref.id, ref);
+    if (ref.id) {byId.set(ref.id, ref);}
   }
   for (const id of memoryIds ?? []) {
-    if (!byId.has(id)) byId.set(id, { id });
+    if (!byId.has(id)) {byId.set(id, { id });}
   }
   return [...byId.values()];
 };
@@ -86,16 +86,16 @@ export default function MemoryCitationsButton({ memoryIds, references, sources }
   );
 
   useEffect(() => {
-    if (!open || sharedContextIds.length === 0) return;
+    if (!open || sharedContextIds.length === 0) {return;}
 
     let cancelled = false;
     listSharedContexts()
       .then((response) => {
-        if (cancelled) return;
+        if (cancelled) {return;}
         setContextsById(new Map(response.items.map((context) => [context.id, context])));
       })
       .catch(() => {
-        if (!cancelled) setContextsById(new Map());
+        if (!cancelled) {setContextsById(new Map());}
       });
 
     return () => {
@@ -103,7 +103,7 @@ export default function MemoryCitationsButton({ memoryIds, references, sources }
     };
   }, [open, sharedContextIds]);
 
-  if (evidenceCount === 0) return null;
+  if (evidenceCount === 0) {return null;}
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

@@ -46,13 +46,13 @@ const SkillOptimizationPage = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (skillIdFilter) params.append('skill_id', skillIdFilter);
+      if (skillIdFilter) {params.append('skill_id', skillIdFilter);}
       params.append('before_range_days', beforeDays.toString());
       params.append('after_range_days', afterDays.toString());
 
       const { getApiUrl } = await import('@/lib/api');
       const response = await fetch(getApiUrl(`/skill-optimization/comparison?${params.toString()}`));
-      if (!response.ok) throw new Error('Failed to fetch comparisons');
+      if (!response.ok) {throw new Error('Failed to fetch comparisons');}
 
       const data = await response.json();
       setComparisons(data.comparisons || []);

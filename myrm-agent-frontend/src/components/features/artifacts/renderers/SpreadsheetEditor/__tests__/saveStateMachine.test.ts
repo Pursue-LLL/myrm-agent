@@ -30,7 +30,7 @@ async function handleSave(
   onSave: (blob: Blob) => Promise<void>,
   onDirty: (dirty: boolean) => void,
 ): Promise<void> {
-  if (sm.state === 'saving') return;
+  if (sm.state === 'saving') {return;}
 
   sm.state = 'saving';
 
@@ -180,9 +180,9 @@ describe('SpreadsheetEditor save state machine', () => {
 
   it('button text contract: saving→saving, saved→saved, error→retry, idle→saveChanges', () => {
     function getButtonText(state: SaveState): string {
-      if (state === 'saving') return 'saving';
-      if (state === 'saved') return 'saved';
-      if (state === 'saveError') return 'retry';
+      if (state === 'saving') {return 'saving';}
+      if (state === 'saved') {return 'saved';}
+      if (state === 'saveError') {return 'retry';}
       return 'spreadsheet.saveChanges';
     }
 

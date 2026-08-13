@@ -70,16 +70,16 @@ export function useGlobalEvents(): void {
 
     const pushToast = {
       info: (...args: Parameters<typeof appToast.info>) => {
-        if (enabled) appToast.info(...args);
+        if (enabled) {appToast.info(...args);}
       },
       success: (...args: Parameters<typeof appToast.success>) => {
-        if (enabled) appToast.success(...args);
+        if (enabled) {appToast.success(...args);}
       },
       warning: (...args: Parameters<typeof appToast.warning>) => {
-        if (enabled) appToast.warning(...args);
+        if (enabled) {appToast.warning(...args);}
       },
       error: (...args: Parameters<typeof appToast.error>) => {
-        if (enabled) appToast.error(...args);
+        if (enabled) {appToast.error(...args);}
       },
       dismiss: appToast.dismiss.bind(appToast),
     };
@@ -245,10 +245,10 @@ export function useGlobalEvents(): void {
         const evolutionId = String(payload.data.evolution_id ?? '');
 
         const doRollback = async () => {
-          if (!evolutionId) return;
+          if (!evolutionId) {return;}
           try {
             const res = await fetch(`/api/v1/evolution/history/${evolutionId}/rollback`, { method: 'POST' });
-            if (!res.ok) throw new Error('Rollback failed');
+            if (!res.ok) {throw new Error('Rollback failed');}
             pushToast.success(t('rollbackSuccess', { name: skillName }));
           } catch {
             pushToast.error(t('rollbackFailed', { name: skillName }));
@@ -313,7 +313,7 @@ export function useGlobalEvents(): void {
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ subsumed_ids: subsumedIds }),
                 });
-                if (!res.ok) throw new Error('Undo failed');
+                if (!res.ok) {throw new Error('Undo failed');}
                 pushToast.success(t('undoConsolidationSuccess') || '已恢复被降维擦除的记忆');
               } catch {
                 pushToast.error(t('undoConsolidationFailed') || '恢复记忆失败，请稍后重试');
@@ -600,7 +600,7 @@ export function useGlobalEvents(): void {
     }
 
     function connectSSE() {
-      if (disposed || !isLeaderRef.current) return;
+      if (disposed || !isLeaderRef.current) {return;}
       sourceRef.current?.close();
 
       const es = new EventSource(getNotificationStreamUrl());
@@ -612,7 +612,7 @@ export function useGlobalEvents(): void {
         window.dispatchEvent(new CustomEvent('app_resync_required'));
         bc.postMessage({ kind: 'resync-pulse' });
 
-        if (reconciling) return;
+        if (reconciling) {return;}
         reconciling = true;
         try {
           const storeModule = await import('@/store/useChatStore');
@@ -643,7 +643,7 @@ export function useGlobalEvents(): void {
       es.onerror = () => {
         es.close();
         sourceRef.current = null;
-        if (disposed || !isLeaderRef.current) return;
+        if (disposed || !isLeaderRef.current) {return;}
         const delay = Math.min(1000 * 2 ** retryRef.current, 30_000);
         retryRef.current += 1;
         setTimeout(connectSSE, delay);
@@ -651,7 +651,7 @@ export function useGlobalEvents(): void {
     }
 
     function becomeLeader() {
-      if (isLeaderRef.current) return;
+      if (isLeaderRef.current) {return;}
       isLeaderRef.current = true;
       localStorage.setItem(LEADER_KEY, tabId.current);
       connectSSE();
@@ -671,9 +671,9 @@ export function useGlobalEvents(): void {
     }
 
     function resetWatchdog() {
-      if (watchdogTimer) clearTimeout(watchdogTimer);
+      if (watchdogTimer) {clearTimeout(watchdogTimer);}
       watchdogTimer = setTimeout(() => {
-        if (!disposed) becomeLeader();
+        if (!disposed) {becomeLeader();}
       }, HEARTBEAT_TIMEOUT);
     }
 
@@ -684,10 +684,10 @@ export function useGlobalEvents(): void {
       } else if (msg.kind === 'resync-pulse' && !isLeaderRef.current) {
         window.dispatchEvent(new CustomEvent('app_resync_required'));
       } else if (msg.kind === 'heartbeat' && msg.tabId !== tabId.current) {
-        if (isLeaderRef.current) stepDown();
+        if (isLeaderRef.current) {stepDown();}
         resetWatchdog();
       } else if (msg.kind === 'leader-claim' && msg.tabId !== tabId.current) {
-        if (isLeaderRef.current) stepDown();
+        if (isLeaderRef.current) {stepDown();}
         resetWatchdog();
       }
     };
@@ -702,7 +702,7 @@ export function useGlobalEvents(): void {
       setTimeout(() => {
         if (!disposed && !isLeaderRef.current) {
           const current = localStorage.getItem(LEADER_KEY);
-          if (!current || current === tabId.current) becomeLeader();
+          if (!current || current === tabId.current) {becomeLeader();}
         }
       }, HEARTBEAT_TIMEOUT);
     }
@@ -710,8 +710,8 @@ export function useGlobalEvents(): void {
     return () => {
       disposed = true;
       stepDown();
-      if (watchdogTimer) clearTimeout(watchdogTimer);
-      if (isLeaderRef.current) localStorage.removeItem(LEADER_KEY);
+      if (watchdogTimer) {clearTimeout(watchdogTimer);}
+      if (isLeaderRef.current) {localStorage.removeItem(LEADER_KEY);}
       bc.close();
       Object.values(debouncedRefetches.current).forEach(clearTimeout);
       debouncedRefetches.current = {};

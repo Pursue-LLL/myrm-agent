@@ -13,10 +13,10 @@ export default function TabBar() {
 
   // Sync URL with active pane
   useEffect(() => {
-    if (pathname === '/work') return; // Dashboard view
+    if (pathname === '/work') {return;} // Dashboard view
     
     const chatId = pathname === '/' ? null : pathname.replace('/', '');
-    let pane = panes.find(p => p.chatId === chatId);
+    const pane = panes.find(p => p.chatId === chatId);
     
     if (!pane) {
       // If we navigated to a URL not in our panes, add it

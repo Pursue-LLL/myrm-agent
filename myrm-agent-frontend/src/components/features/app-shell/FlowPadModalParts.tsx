@@ -8,7 +8,7 @@ const MAX_TEXT_PER_CAPTURE = 4000;
 const MAX_PREVIEW_TEXT = 200;
 
 export function formatAppshotMessage(captures: FlowPadCapture[]): string {
-  if (captures.length === 0) return '';
+  if (captures.length === 0) {return '';}
 
   const parts: string[] = ['[Appshot Context]'];
 

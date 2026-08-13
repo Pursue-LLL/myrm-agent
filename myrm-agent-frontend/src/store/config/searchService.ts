@@ -213,7 +213,7 @@ export const showSearchNotConfiguredToast = (): void => {
 };
 
 export const guardSearchServiceConfigured = (configs: SearchServiceConfigItem[]): boolean => {
-  if (getActiveSearchServiceConfig(configs)) return true;
+  if (getActiveSearchServiceConfig(configs)) {return true;}
   showSearchNotConfiguredToast();
   return false;
 };

@@ -32,7 +32,7 @@ export function AllowedRootsEditor({ job, onUpdated }: EditorProps) {
 
   const addPath = (path: string) => {
     const trimmed = path.trim();
-    if (!trimmed || localRoots.includes(trimmed)) return;
+    if (!trimmed || localRoots.includes(trimmed)) {return;}
     setLocalRoots((prev) => [...prev, trimmed]);
     setNewPath('');
   };

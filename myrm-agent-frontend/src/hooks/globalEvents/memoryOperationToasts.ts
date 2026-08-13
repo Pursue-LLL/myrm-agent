@@ -20,7 +20,7 @@ function _flushExtractToast(deps: MemoryOperationToastDeps): void {
   const count = _pendingExtractCount;
   _pendingExtractCount = 0;
   _throttleTimer = null;
-  if (count <= 0) return;
+  if (count <= 0) {return;}
 
   const { t, router } = deps;
   toast.success(t('autoMemoryExtracted', { count }), {
@@ -119,7 +119,7 @@ export function showMemoryOperationToasts(data: Record<string, unknown>, deps: M
   const description = String(data.description ?? '').trim();
   const status = String(data.status ?? '');
 
-  if (!kind || status === 'skipped' || status === 'error') return;
+  if (!kind || status === 'skipped' || status === 'error') {return;}
 
   if (kind === 'forget' || kind === 'write') {
     toast.info(t('memoryRecallUpdated'), {

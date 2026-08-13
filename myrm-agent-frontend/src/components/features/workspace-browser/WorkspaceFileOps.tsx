@@ -81,7 +81,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   useEffect(() => {
     const el = menuRef.current;
-    if (!el) return;
+    if (!el) {return;}
     const rect = el.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -160,14 +160,14 @@ export const UploadDropZone: React.FC<UploadDropZoneProps> = ({
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current++;
-    if (e.dataTransfer.types.includes('Files')) setDragging(true);
+    if (e.dataTransfer.types.includes('Files')) {setDragging(true);}
   }, []);
 
   const handleDragLeave = useCallback((e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current--;
-    if (dragCounter.current === 0) setDragging(false);
+    if (dragCounter.current === 0) {setDragging(false);}
   }, []);
 
   const handleDragOver = useCallback((e: DragEvent) => {
@@ -183,7 +183,7 @@ export const UploadDropZone: React.FC<UploadDropZoneProps> = ({
       dragCounter.current = 0;
 
       const fileList = Array.from(e.dataTransfer.files);
-      if (fileList.length === 0) return;
+      if (fileList.length === 0) {return;}
 
       setProgress(0);
       try {
@@ -247,7 +247,7 @@ export const UploadButton: React.FC<UploadButtonProps> = ({ workspace, targetDir
 
   const handleFiles = useCallback(
     async (fileList: FileList | null) => {
-      if (!fileList || fileList.length === 0) return;
+      if (!fileList || fileList.length === 0) {return;}
       const files = Array.from(fileList);
 
       setProgress(0);
@@ -259,7 +259,7 @@ export const UploadButton: React.FC<UploadButtonProps> = ({ workspace, targetDir
         toast.error(err instanceof Error ? err.message : t('uploadFailed'));
       } finally {
         setProgress(null);
-        if (inputRef.current) inputRef.current.value = '';
+        if (inputRef.current) {inputRef.current.value = '';}
       }
     },
     [workspace, targetDir, onComplete, t],
@@ -315,7 +315,7 @@ export const NewDirButton: React.FC<NewDirButtonProps> = ({ workspace, currentDi
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Enter') handleSubmit();
+      if (e.key === 'Enter') {handleSubmit();}
       else if (e.key === 'Escape') {
         setEditing(false);
         setName('');
@@ -385,8 +385,8 @@ export const InlineRenameInput: React.FC<InlineRenameInputProps> = ({ workspace,
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Enter') handleSubmit();
-      else if (e.key === 'Escape') onCancel();
+      if (e.key === 'Enter') {handleSubmit();}
+      else if (e.key === 'Escape') {onCancel();}
     },
     [handleSubmit, onCancel],
   );

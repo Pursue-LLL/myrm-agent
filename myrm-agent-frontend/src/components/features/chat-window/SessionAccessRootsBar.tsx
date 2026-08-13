@@ -38,7 +38,7 @@ export default function SessionAccessRootsBar() {
 
   const handleRevoke = useCallback(
     async (root: SessionAccessRoot) => {
-      if (!chatId || revokingPath) return;
+      if (!chatId || revokingPath) {return;}
       setRevokingPath(root.path);
       try {
         const result = await revokeSessionAccessRoot(chatId, root.path);

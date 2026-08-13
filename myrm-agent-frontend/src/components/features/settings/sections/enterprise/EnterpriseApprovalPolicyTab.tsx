@@ -60,7 +60,7 @@ const EnterpriseApprovalPolicyTab = memo(() => {
   }, [fetchPolicy]);
 
   const handleSave = async () => {
-    if (!orgId) return;
+    if (!orgId) {return;}
     setSaving(true);
     try {
       const res = await fetch(getApiUrl(`/api/enterprise/org/${orgId}/approval-policy`), {
@@ -102,10 +102,10 @@ const EnterpriseApprovalPolicyTab = memo(() => {
 
   const addPattern = (field: 'ignoreAllowlistForModels' | 'forceAutoReviewForModels', raw: string) => {
     const pattern = raw.trim();
-    if (!pattern) return;
+    if (!pattern) {return;}
     setPolicy((prev) => {
       const list = prev[field];
-      if (list.includes(pattern)) return prev;
+      if (list.includes(pattern)) {return prev;}
       return { ...prev, [field]: [...list, pattern] };
     });
   };

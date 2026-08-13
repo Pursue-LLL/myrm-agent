@@ -19,13 +19,13 @@ const rtf = typeof Intl !== 'undefined' ? new Intl.RelativeTimeFormat(undefined,
 function formatRelativeTime(timestamp: number): string {
   const diff = Date.now() - timestamp;
   const minutes = Math.floor(diff / 60000);
-  if (!rtf) return new Date(timestamp).toLocaleString();
-  if (minutes < 1) return rtf.format(0, 'minute');
-  if (minutes < 60) return rtf.format(-minutes, 'minute');
+  if (!rtf) {return new Date(timestamp).toLocaleString();}
+  if (minutes < 1) {return rtf.format(0, 'minute');}
+  if (minutes < 60) {return rtf.format(-minutes, 'minute');}
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return rtf.format(-hours, 'hour');
+  if (hours < 24) {return rtf.format(-hours, 'hour');}
   const days = Math.floor(hours / 24);
-  if (days < 7) return rtf.format(-days, 'day');
+  if (days < 7) {return rtf.format(-days, 'day');}
   return new Date(timestamp).toLocaleDateString();
 }
 
@@ -44,9 +44,9 @@ const InputHistoryPopup = memo<InputHistoryPopupProps>(({ popup, onSelect, onHov
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!popup.open) return;
+    if (!popup.open) {return;}
     const handlePointerDown = (event: MouseEvent) => {
-      if (rootRef.current?.contains(event.target as Node)) return;
+      if (rootRef.current?.contains(event.target as Node)) {return;}
       onClose();
     };
     document.addEventListener('mousedown', handlePointerDown);
@@ -54,12 +54,12 @@ const InputHistoryPopup = memo<InputHistoryPopupProps>(({ popup, onSelect, onHov
   }, [popup.open, onClose]);
 
   useEffect(() => {
-    if (!popup.open) return;
+    if (!popup.open) {return;}
     const node = rootRef.current?.querySelector<HTMLElement>(`[data-history-index="${popup.activeIndex}"]`);
     node?.scrollIntoView({ block: 'nearest' });
   }, [popup.activeIndex, popup.open]);
 
-  if (!popup.open || popup.entries.length === 0) return null;
+  if (!popup.open || popup.entries.length === 0) {return null;}
 
   return (
     <div

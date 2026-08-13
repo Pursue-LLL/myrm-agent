@@ -42,7 +42,7 @@ export function useWorkspaceFiles(
   const watchTargetRef = useRef('');
 
   const refresh = useCallback(async () => {
-    if (!workspacePath || !enabled) return;
+    if (!workspacePath || !enabled) {return;}
 
     abortRef.current = false;
     setLoading(true);
@@ -50,14 +50,14 @@ export function useWorkspaceFiles(
 
     try {
       const result = await browseWorkspaceFiles(workspacePath, 2);
-      if (abortRef.current) return;
+      if (abortRef.current) {return;}
       setFiles(result.entries);
       setTruncated(result.truncated);
     } catch (err) {
-      if (abortRef.current) return;
+      if (abortRef.current) {return;}
       setError(err instanceof Error ? err.message : 'Failed to load files');
     } finally {
-      if (!abortRef.current) setLoading(false);
+      if (!abortRef.current) {setLoading(false);}
     }
   }, [workspacePath, enabled]);
 
@@ -74,7 +74,7 @@ export function useWorkspaceFiles(
   }, [workspacePath, enabled, refresh]);
 
   useEffect(() => {
-    if (!workspacePath || !enabled) return;
+    if (!workspacePath || !enabled) {return;}
 
     let cancelled = false;
     watchTargetRef.current = workspacePath;
@@ -88,17 +88,17 @@ export function useWorkspaceFiles(
     const onChanged = (event: Event) => {
       const detail = (event as CustomEvent<{ workspace_path?: string }>).detail;
       const changedPath = detail?.workspace_path;
-      if (!changedPath || changedPath !== watchTargetRef.current) return;
-      if (debounceTimer) clearTimeout(debounceTimer);
+      if (!changedPath || changedPath !== watchTargetRef.current) {return;}
+      if (debounceTimer) {clearTimeout(debounceTimer);}
       debounceTimer = setTimeout(() => {
-        if (!cancelled) void refresh();
+        if (!cancelled) {void refresh();}
       }, 500);
     };
 
     window.addEventListener('workspace-file-changed', onChanged);
     return () => {
       cancelled = true;
-      if (debounceTimer) clearTimeout(debounceTimer);
+      if (debounceTimer) {clearTimeout(debounceTimer);}
       window.removeEventListener('workspace-file-changed', onChanged);
       void unregisterWorkspaceWatch(workspacePath).catch(() => {});
     };

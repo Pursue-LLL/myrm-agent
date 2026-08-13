@@ -190,7 +190,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
     const [activeView, setActiveView] = useState<'chat' | 'workspace'>('chat');
 
     useEffect(() => {
-      if (!showTabs && activeView === 'workspace') setActiveView('chat');
+      if (!showTabs && activeView === 'workspace') {setActiveView('chat');}
     }, [showTabs, activeView]);
 
     // ACP file watcher (Tauri FS)
@@ -234,7 +234,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
 
     const handleCliFileClick = useCallback(
       (file: FileNode) => {
-        if (file.type === 'file') openPreview(file);
+        if (file.type === 'file') {openPreview(file);}
       },
       [openPreview],
     );
@@ -248,7 +248,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
     }, []);
 
     const handleOpenInEditor = useCallback(async () => {
-      if (!contextMenu.file || !isTauriEnvironment()) return;
+      if (!contextMenu.file || !isTauriEnvironment()) {return;}
       try {
         const shell = await import('@tauri-apps/plugin-shell');
         await shell.open(contextMenu.file.path);
@@ -258,7 +258,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
     }, [contextMenu.file]);
 
     const handleShowInFinder = useCallback(async () => {
-      if (!contextMenu.file || !isTauriEnvironment()) return;
+      if (!contextMenu.file || !isTauriEnvironment()) {return;}
       try {
         const shell = await import('@tauri-apps/plugin-shell');
         const dirPath =
@@ -272,7 +272,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
     }, [contextMenu.file]);
 
     const handleCopyPath = useCallback(async () => {
-      if (!contextMenu.file) return;
+      if (!contextMenu.file) {return;}
       try {
         await writeToClipboard(contextMenu.file.path);
       } catch (error) {
@@ -281,7 +281,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
     }, [contextMenu.file]);
 
     const handleWebFileClick = useCallback((file: FileEntry) => {
-      if (file.type === 'file') setWebPreviewFile(file);
+      if (file.type === 'file') {setWebPreviewFile(file);}
     }, []);
 
     return (
@@ -455,7 +455,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
             file={contextMenu.file}
             visible={contextMenu.visible}
             onPreview={() => {
-              if (contextMenu.file) openPreview(contextMenu.file);
+              if (contextMenu.file) {openPreview(contextMenu.file);}
             }}
             onOpenInEditor={handleOpenInEditor}
             onShowInFinder={handleShowInFinder}

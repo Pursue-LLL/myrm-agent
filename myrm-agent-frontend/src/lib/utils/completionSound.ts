@@ -9,7 +9,7 @@
 let audioCtx: AudioContext | null = null;
 
 function getAudioContext(): AudioContext | null {
-  if (audioCtx) return audioCtx;
+  if (audioCtx) {return audioCtx;}
   try {
     audioCtx = new AudioContext();
     return audioCtx;
@@ -23,10 +23,10 @@ function getAudioContext(): AudioContext | null {
  * Returns true if sound was played, false otherwise.
  */
 export function playCompletionSound(): boolean {
-  if (!document.hidden && document.hasFocus()) return false;
+  if (!document.hidden && document.hasFocus()) {return false;}
 
   const ctx = getAudioContext();
-  if (!ctx) return false;
+  if (!ctx) {return false;}
   if (ctx.state === 'suspended') {
     ctx.resume();
   }

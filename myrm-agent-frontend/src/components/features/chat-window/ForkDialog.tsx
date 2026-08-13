@@ -98,7 +98,7 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
               placeholder={t('titlePlaceholder')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !isForking) handleFork(); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !isForking) {handleFork();} }}
               maxLength={255}
             />
           </div>

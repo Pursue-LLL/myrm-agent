@@ -68,7 +68,7 @@ function RunStatsSummary({
   stats: { total: number; successRate: number; avgDuration: number };
   t: (key: string) => string;
 }) {
-  if (stats.total === 0) return null;
+  if (stats.total === 0) {return null;}
 
   return (
     <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-2.5 flex-wrap">

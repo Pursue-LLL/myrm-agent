@@ -607,7 +607,7 @@ export function compareVersions(a: ConfigVersion, b: ConfigVersion): number {
   const [aTs, aCtr] = a.split('_').map(Number);
   const [bTs, bCtr] = b.split('_').map(Number);
 
-  if (aTs !== bTs) return aTs - bTs;
+  if (aTs !== bTs) {return aTs - bTs;}
   return aCtr - bCtr;
 }
 

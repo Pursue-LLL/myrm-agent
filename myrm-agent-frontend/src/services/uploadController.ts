@@ -12,7 +12,7 @@
 let controller: AbortController | null = null;
 
 export function getUploadSignal(): AbortSignal {
-  if (!controller) controller = new AbortController();
+  if (!controller) {controller = new AbortController();}
   return controller.signal;
 }
 

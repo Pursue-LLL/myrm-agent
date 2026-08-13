@@ -30,7 +30,7 @@ export interface PttScreenContext {
 
 export function useVoicePttListener() {
   useEffect(() => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {return;}
 
     let unlistenStart: (() => void) | undefined;
     let unlistenStop: (() => void) | undefined;

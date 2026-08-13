@@ -51,7 +51,7 @@ const SecurityPrivacyPanel = memo(() => {
   );
 
   const handleTestLocalModel = useCallback(async () => {
-    if (!privacyRouting?.localModel) return;
+    if (!privacyRouting?.localModel) {return;}
     setTestingLocalModel(true);
     try {
       const resp = await fetchWithTimeout(

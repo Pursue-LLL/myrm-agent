@@ -20,7 +20,7 @@ export const AgentToolDiagnostics = ({ agentId }: { agentId: string }) => {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!open || !agentId) return;
+    if (!open || !agentId) {return;}
     const fetchHealth = async () => {
       setLoading(true);
       try {

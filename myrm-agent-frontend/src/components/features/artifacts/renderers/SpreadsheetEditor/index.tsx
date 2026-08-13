@@ -69,25 +69,25 @@ function mapSheetJSTypeToUniver(t: string | undefined): number {
 function mapSheetJSStyleToUniver(
   s: Record<string, unknown> | undefined,
 ): Record<string, unknown> | undefined {
-  if (!s) return undefined;
+  if (!s) {return undefined;}
   const style: Record<string, unknown> = {};
 
   const font = s.font as Record<string, unknown> | undefined;
   if (font) {
-    if (font.bold) style.bl = 1;
-    if (font.italic) style.it = 1;
-    if (font.underline) style.ul = { s: 1 };
-    if (font.strike) style.st = { s: 1 };
-    if (font.sz) style.fs = font.sz;
-    if (font.name) style.ff = font.name;
+    if (font.bold) {style.bl = 1;}
+    if (font.italic) {style.it = 1;}
+    if (font.underline) {style.ul = { s: 1 };}
+    if (font.strike) {style.st = { s: 1 };}
+    if (font.sz) {style.fs = font.sz;}
+    if (font.name) {style.ff = font.name;}
     const fontColor = font.color as Record<string, unknown> | undefined;
-    if (fontColor?.rgb) style.cl = { rgb: `#${fontColor.rgb}` };
+    if (fontColor?.rgb) {style.cl = { rgb: `#${fontColor.rgb}` };}
   }
 
   const fill = s.fill as Record<string, unknown> | undefined;
   if (fill) {
     const fgColor = fill.fgColor as Record<string, unknown> | undefined;
-    if (fgColor?.rgb) style.bg = { rgb: `#${fgColor.rgb}` };
+    if (fgColor?.rgb) {style.bg = { rgb: `#${fgColor.rgb}` };}
   }
 
   const alignment = s.alignment as Record<string, unknown> | undefined;
@@ -100,7 +100,7 @@ function mapSheetJSStyleToUniver(
     if (typeof alignment.vertical === 'string' && alignment.vertical in vMap) {
       style.vt = vMap[alignment.vertical];
     }
-    if (alignment.wrapText) style.tb = 3;
+    if (alignment.wrapText) {style.tb = 3;}
   }
 
   return Object.keys(style).length > 0 ? style : undefined;
@@ -127,7 +127,7 @@ export async function xlsxToUniverData(
 
   for (const sheetName of workbook.SheetNames) {
     const ws = workbook.Sheets[sheetName];
-    if (!ws) continue;
+    if (!ws) {continue;}
 
     const range = XLSX.utils.decode_range(ws['!ref'] ?? 'A1');
     const rowCount = Math.max(range.e.r + 1, 100);
@@ -136,27 +136,27 @@ export async function xlsxToUniverData(
     const cellData: Record<number, Record<number, UniverCellData>> = {};
 
     for (const addr of Object.keys(ws)) {
-      if (addr.startsWith('!')) continue;
+      if (addr.startsWith('!')) {continue;}
       const cell = ws[addr] as { v?: unknown; t?: string; f?: string; s?: Record<string, unknown>; z?: string };
       const decoded = XLSX.utils.decode_cell(addr);
       const r = decoded.r;
       const c = decoded.c;
 
       const isEmpty = (cell.v === undefined || cell.v === null || cell.v === '') && !cell.f;
-      if (isEmpty) continue;
+      if (isEmpty) {continue;}
 
-      if (!cellData[r]) cellData[r] = {};
+      if (!cellData[r]) {cellData[r] = {};}
 
       const univerCell: UniverCellData = {
         v: cell.v ?? '',
         t: mapSheetJSTypeToUniver(cell.t),
       };
 
-      if (cell.f) univerCell.f = cell.f;
-      if (cell.z) univerCell.numFmt = cell.z;
+      if (cell.f) {univerCell.f = cell.f;}
+      if (cell.z) {univerCell.numFmt = cell.z;}
 
       const mappedStyle = mapSheetJSStyleToUniver(cell.s);
-      if (mappedStyle) univerCell.s = mappedStyle;
+      if (mappedStyle) {univerCell.s = mappedStyle;}
 
       cellData[r][c] = univerCell;
     }
@@ -173,7 +173,7 @@ export async function xlsxToUniverData(
       }
     }
 
-    if (ws['!images'] || ws['!drawings']) warnings.hasImages = true;
+    if (ws['!images'] || ws['!drawings']) {warnings.hasImages = true;}
 
     const id = sheetName.replace(/\s/g, '_');
     sheetOrder.push(id);
@@ -215,7 +215,7 @@ export async function univerDataToXlsx(snapshot: WorkbookSnapshot): Promise<Blob
 
   for (const sheetId of snapshot.sheetOrder) {
     const sheetData = snapshot.sheets[sheetId];
-    if (!sheetData) continue;
+    if (!sheetData) {continue;}
 
     const cellData = sheetData.cellData;
     if (!cellData) {
@@ -230,14 +230,14 @@ export async function univerDataToXlsx(snapshot: WorkbookSnapshot): Promise<Blob
     const rowIndices = Object.keys(cellData).map(Number).sort((a, b) => a - b);
     for (const ri of rowIndices) {
       const row = cellData[ri];
-      if (!row) continue;
-      if (ri >= maxRow) maxRow = ri + 1;
+      if (!row) {continue;}
+      if (ri >= maxRow) {maxRow = ri + 1;}
 
       const colIndices = Object.keys(row).map(Number).sort((a, b) => a - b);
       for (const ci of colIndices) {
-        if (ci >= maxCol) maxCol = ci + 1;
+        if (ci >= maxCol) {maxCol = ci + 1;}
         const uCell = row[ci];
-        if (!uCell) continue;
+        if (!uCell) {continue;}
 
         const addr = XLSX.utils.encode_cell({ r: ri, c: ci });
         const sjsCell: Record<string, unknown> = {
@@ -366,9 +366,9 @@ const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = memo(({
     clearTimeout(draftTimerRef.current);
     draftTimerRef.current = setTimeout(() => {
       const api = univerRef.current;
-      if (!api || !dirtyRef.current) return;
+      if (!api || !dirtyRef.current) {return;}
       const workbook = api.getActiveWorkbook();
-      if (!workbook) return;
+      if (!workbook) {return;}
       const snapshot = workbook.save();
       saveDraft(draftKeyRef.current, snapshot);
     }, DRAFT_AUTO_SAVE_DELAY_MS);
@@ -387,17 +387,17 @@ const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = memo(({
     let commandDisposable: IDisposable | null = null;
 
     const init = async () => {
-      if (!containerRef.current) return;
+      if (!containerRef.current) {return;}
       setLoading(true);
       setError(null);
 
       try {
         const url = getStorageUrl(previewUrl);
         const res = await fetch(url);
-        if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+        if (!res.ok) {throw new Error(`Failed to fetch: ${res.status}`);}
         const buffer = await res.arrayBuffer();
 
-        if (disposed) return;
+        if (disposed) {return;}
 
         let workbookData = await xlsxToUniverData(buffer);
         const warnings = (workbookData as Record<string, unknown>)._fidelityWarnings as FidelityWarnings | undefined;
@@ -425,7 +425,7 @@ const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = memo(({
           /* locale optional */
         }
 
-        if (disposed || !containerRef.current) return;
+        if (disposed || !containerRef.current) {return;}
 
         const { univerAPI } = createUniver({
           locale: LocaleType.EN_US,
@@ -443,7 +443,7 @@ const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = memo(({
         univerRef.current = univerAPI;
 
         commandDisposable = univerAPI.onCommandExecuted(() => {
-          if (!disposed) markDirty();
+          if (!disposed) {markDirty();}
         });
 
         setLoading(false);
@@ -474,10 +474,10 @@ const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = memo(({
 
   const handleSave = useCallback(async () => {
     const api = univerRef.current;
-    if (!api || saving) return;
+    if (!api || saving) {return;}
 
     const workbook = api.getActiveWorkbook();
-    if (!workbook) return;
+    if (!workbook) {return;}
 
     setSaving(true);
     setSaved(false);
@@ -511,7 +511,7 @@ const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = memo(({
   }, []);
 
   useEffect(() => {
-    if (!dirtyRef.current) return;
+    if (!dirtyRef.current) {return;}
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);

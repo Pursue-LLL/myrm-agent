@@ -28,7 +28,7 @@ type CronWorkflowTemplateJob = Pick<
 >;
 
 function formatTemplateArgs(args: Record<string, string> | null | undefined): string {
-  if (!args) return '';
+  if (!args) {return '';}
   return Object.entries(args)
     .filter(([, value]) => value.trim().length > 0)
     .map(([key, value]) => `${key}=${value}`)
@@ -37,20 +37,20 @@ function formatTemplateArgs(args: Record<string, string> | null | undefined): st
 
 function isCronWorkflowTemplateBindingInvalid(job: CronWorkflowTemplateJob): boolean {
   const templateId = job.workflow_template_id?.trim();
-  if (!templateId) return false;
+  if (!templateId) {return false;}
   return !job.workflow_template_display_name?.trim();
 }
 
 function resolveTemplateLabel(job: CronWorkflowTemplateJob): string {
   const templateId = job.workflow_template_id?.trim();
-  if (!templateId) return '';
+  if (!templateId) {return '';}
   return job.workflow_template_display_name?.trim() || templateId;
 }
 
 export function CronWorkflowTemplateBadge({ job }: { job: CronWorkflowTemplateJob }) {
   const t = useTranslations('cron');
   const templateId = job.workflow_template_id?.trim();
-  if (!templateId) return null;
+  if (!templateId) {return null;}
 
   const bindingInvalid = isCronWorkflowTemplateBindingInvalid(job);
   const label = resolveTemplateLabel(job);
@@ -95,7 +95,7 @@ export function CronWorkflowTemplateBadge({ job }: { job: CronWorkflowTemplateJo
 export function CronWorkflowTemplateDetail({ job }: { job: CronWorkflowTemplateJob }) {
   const t = useTranslations('cron');
   const templateId = job.workflow_template_id?.trim();
-  if (!templateId) return null;
+  if (!templateId) {return null;}
 
   const label = resolveTemplateLabel(job);
   const argsEntries = Object.entries(job.workflow_template_args ?? {}).filter(

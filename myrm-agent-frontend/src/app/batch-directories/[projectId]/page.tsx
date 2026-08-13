@@ -65,9 +65,9 @@ import {
 } from '@/services/batch-directory';
 
 function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) {return '—';}
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) {return '—';}
   return d.toLocaleString();
 }
 
@@ -95,7 +95,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   useEffect(() => {
     let active = true;
     void params.then((p) => {
-      if (active) setProjectId(p.projectId);
+      if (active) {setProjectId(p.projectId);}
     });
     return () => {
       active = false;
@@ -117,12 +117,12 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   );
 
   useEffect(() => {
-    if (projectId) void fetchDetail(projectId);
+    if (projectId) {void fetchDetail(projectId);}
   }, [projectId, fetchDetail]);
 
   // 运行中每 10s 自动刷新进度
   useEffect(() => {
-    if (!projectId || !project || isBatchTerminalStatus(project.status)) return;
+    if (!projectId || !project || isBatchTerminalStatus(project.status)) {return;}
     const timer = window.setInterval(() => {
       void fetchDetail(projectId);
     }, 10_000);
@@ -130,7 +130,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, project, fetchDetail]);
 
   const handleCancel = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {return;}
     setCancelling(true);
     try {
       await cancelBatchProject(projectId);
@@ -145,7 +145,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, project?.name, fetchDetail, t]);
 
   const handleRetry = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {return;}
     setRetrying(true);
     try {
       const updated = await retryBatchProject(projectId);
@@ -159,7 +159,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, fetchDetail, t]);
 
   const handleRerun = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {return;}
     setRerunning(true);
     try {
       const updated = await rerunBatchProject(projectId);
@@ -174,7 +174,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, fetchDetail, t]);
 
   const handlePause = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {return;}
     setPausing(true);
     try {
       const updated = await pauseBatchProject(projectId);
@@ -189,7 +189,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, fetchDetail, t]);
 
   const handleResume = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {return;}
     setResuming(true);
     try {
       const updated = await resumeBatchProject(projectId);
@@ -203,7 +203,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, fetchDetail, t]);
 
   const handleApproveAll = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {return;}
     setApproving(true);
     try {
       const updated = await approveAllBatchResults(projectId);
@@ -219,7 +219,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
 
   const handleRetryTask = useCallback(
     async (taskId: string) => {
-      if (!projectId) return;
+      if (!projectId) {return;}
       setRetryingTaskId(taskId);
       try {
         const updated = await retryBatchTask(projectId, taskId);
@@ -236,7 +236,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   );
 
   const handleDelete = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {return;}
     try {
       await deleteBatchProject(projectId);
       toast.success(t('deleteSuccess', { name: project?.name ?? '' }));

@@ -13,7 +13,7 @@ const SPARKLINE_WIDTH = 80;
 const SPARKLINE_HEIGHT = 24;
 
 const MiniSparkline = memo<{ data: number[]; className?: string }>(({ data, className }) => {
-  if (data.length < 2 || data.every((v) => v === 0)) return null;
+  if (data.length < 2 || data.every((v) => v === 0)) {return null;}
   const max = Math.max(...data, 1);
   const points = data.map((v, i) => {
     const x = (i / (data.length - 1)) * SPARKLINE_WIDTH;
@@ -54,8 +54,8 @@ const AgentUsageCard = memo(() => {
 
   useEffect(() => { void loadData(); }, [loadData]);
 
-  if (loading) return null;
-  if (agents.length <= 1) return null;
+  if (loading) {return null;}
+  if (agents.length <= 1) {return null;}
 
   const maxUsd = Math.max(...agents.map((a) => a.totalUsd), 0.001);
 

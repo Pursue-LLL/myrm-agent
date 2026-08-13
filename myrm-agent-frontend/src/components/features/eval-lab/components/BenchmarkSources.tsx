@@ -63,14 +63,14 @@ interface Props {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes <= 0) return '0 B';
+  if (bytes <= 0) {return '0 B';}
   const units = ['B', 'KB', 'MB', 'GB'];
   const idx = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / 1024 ** idx).toFixed(1)} ${units[idx]}`;
 }
 
 function parseLimit(raw: string): number | undefined {
-  if (raw.trim() === '') return undefined;
+  if (raw.trim() === '') {return undefined;}
   const value = Number(raw);
   return Number.isFinite(value) && value > 0 ? Math.round(value) : undefined;
 }
@@ -416,7 +416,7 @@ export default function BenchmarkSources({
                 const limit = pendingMemoryAbLimit;
                 setPendingMemoryAbBenchmark(null);
                 setPendingMemoryAbLimit(undefined);
-                if (benchmarkId) onMemoryAb(benchmarkId, limit);
+                if (benchmarkId) {onMemoryAb(benchmarkId, limit);}
               }}
             >
               {tMemoryAb('confirmStart')}
@@ -450,7 +450,7 @@ export default function BenchmarkSources({
                 const limit = pendingLayerLimit;
                 setPendingLayerBenchmark(null);
                 setPendingLayerLimit(undefined);
-                if (benchmarkId) onLayerEval(benchmarkId, limit);
+                if (benchmarkId) {onLayerEval(benchmarkId, limit);}
               }}
             >
               {tLayers('confirmStart')}

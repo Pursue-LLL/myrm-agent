@@ -65,17 +65,17 @@ function extractUserItems(messages: Message[]): JumpItem[] {
 
 /** dot 波纹宽度：距离 hover 中心越近越宽 */
 function dotWidth(idx: number, hoverIdx: number): number {
-  if (hoverIdx < 0) return 12;
+  if (hoverIdx < 0) {return 12;}
   const d = Math.abs(idx - hoverIdx);
-  if (d === 0) return 32;
-  if (d === 1) return 20;
-  if (d === 2) return 14;
+  if (d === 0) {return 32;}
+  if (d === 1) {return 20;}
+  if (d === 2) {return 14;}
   return 12;
 }
 
 /** dot 错开延迟：距离 hover 中心越远延迟越大 */
 function dotDelay(idx: number, hoverIdx: number): string {
-  if (hoverIdx < 0) return '0ms';
+  if (hoverIdx < 0) {return '0ms';}
   return `${Math.abs(idx - hoverIdx) * 20}ms`;
 }
 
@@ -91,7 +91,7 @@ const ConversationJumpBar = memo<ConversationJumpBarProps>(({ messages, onJump, 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       const el = barRef.current;
-      if (!el) return;
+      if (!el) {return;}
       const dots = el.querySelectorAll<HTMLElement>('[data-jump-dot]');
       const barRect = el.getBoundingClientRect();
       let closest = -1;
@@ -128,7 +128,7 @@ const ConversationJumpBar = memo<ConversationJumpBarProps>(({ messages, onJump, 
     [items, onJump],
   );
 
-  if (items.length < MIN_USER_MESSAGES) return null;
+  if (items.length < MIN_USER_MESSAGES) {return null;}
 
   const hoverText = hoveredIdx >= 0 ? items[hoveredIdx]?.text : null;
 
@@ -211,7 +211,7 @@ const MobileJumpBarSheet = memo<MobileJumpBarSheetProps>(({ messages, onJump, tr
     [onJump],
   );
 
-  if (items.length < MIN_USER_MESSAGES) return null;
+  if (items.length < MIN_USER_MESSAGES) {return null;}
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

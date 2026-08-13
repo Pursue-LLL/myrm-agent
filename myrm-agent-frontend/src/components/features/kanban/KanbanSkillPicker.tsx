@@ -44,8 +44,8 @@ export function KanbanSkillPicker({ value, onChange, placeholder }: KanbanSkillP
   const fetchLocalSkills = useSkillStore((s) => s.fetchLocalSkills);
 
   useEffect(() => {
-    if (marketSkills.length === 0) void fetchMarketSkills();
-    if (localSkills.length === 0) void fetchLocalSkills();
+    if (marketSkills.length === 0) {void fetchMarketSkills();}
+    if (localSkills.length === 0) {void fetchLocalSkills();}
   }, [marketSkills.length, localSkills.length, fetchMarketSkills, fetchLocalSkills]);
 
   const selectedIds = useMemo(() => splitSkillIds(value), [value]);

@@ -54,7 +54,7 @@ export function useChannelConfig<T extends object>(options: ChannelConfigOptions
       const { getCreds, testConnection } = optionsRef.current;
       try {
         const raw = await getCreds();
-        if (cancelled) return;
+        if (cancelled) {return;}
         const saved = raw ? { ...optionsRef.current.emptyCreds, ...raw } : null;
         if (!saved || !isConfigured(saved)) {
           if (saved) {
@@ -68,11 +68,11 @@ export function useChannelConfig<T extends object>(options: ChannelConfigOptions
         savedCredsRef.current = JSON.stringify(saved);
         setConnStatus('checking');
         const result = await testConnection(saved);
-        if (!cancelled) setConnStatus(result.ok ? 'connected' : 'error');
+        if (!cancelled) {setConnStatus(result.ok ? 'connected' : 'error');}
       } catch {
-        if (!cancelled) setConnStatus('unconfigured');
+        if (!cancelled) {setConnStatus('unconfigured');}
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {setLoading(false);}
       }
     }
     init();
@@ -105,8 +105,8 @@ export function useChannelConfig<T extends object>(options: ChannelConfigOptions
         try {
           const result = await optionsRef.current.testConnection(creds);
           setConnStatus(result.ok ? 'connected' : 'error');
-          if (result.ok) toast.success(t(`${optionsRef.current.i18nPrefix}TestSuccess`));
-          else toast.error(result.message || t(`${optionsRef.current.i18nPrefix}TestFailed`));
+          if (result.ok) {toast.success(t(`${optionsRef.current.i18nPrefix}TestSuccess`));}
+          else {toast.error(result.message || t(`${optionsRef.current.i18nPrefix}TestFailed`));}
         } catch {
           setConnStatus('error');
         } finally {
@@ -130,8 +130,8 @@ export function useChannelConfig<T extends object>(options: ChannelConfigOptions
     try {
       const result = await optionsRef.current.testConnection(creds);
       setConnStatus(result.ok ? 'connected' : 'error');
-      if (result.ok) toast.success(t(`${optionsRef.current.i18nPrefix}TestSuccess`));
-      else toast.error(result.message || t(`${optionsRef.current.i18nPrefix}TestFailed`));
+      if (result.ok) {toast.success(t(`${optionsRef.current.i18nPrefix}TestSuccess`));}
+      else {toast.error(result.message || t(`${optionsRef.current.i18nPrefix}TestFailed`));}
     } catch {
       setConnStatus('error');
       toast.error(t(`${optionsRef.current.i18nPrefix}TestFailed`));

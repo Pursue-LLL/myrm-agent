@@ -274,7 +274,7 @@ export const useMessageInput = () => {
     }
 
     const nextMessage = dequeue();
-    if (!nextMessage) return;
+    if (!nextMessage) {return;}
 
     setTimeout(() => {
       const queuedTurnSelection = nextMessage.turnCapabilitySelection ?? null;
@@ -450,7 +450,7 @@ export const useMessageInput = () => {
    * Steer 模式提交：中断当前任务的后续工具调用，立即转向新指令
    */
   const handleSteerSubmit = useCallback(async () => {
-    if (!(await _validateAndPrepare())) return;
+    if (!(await _validateAndPrepare())) {return;}
     clearDraft();
     recordChatQueryMetric();
     const steerText = composeOutboundUserMessage(inputMessage.trim());
@@ -470,22 +470,21 @@ export const useMessageInput = () => {
       sendMessage(injectedText, undefined, undefined, undefined, undefined, undefined, true).catch(() => {});
     }
   }, [
-    _validateAndPrepare,
-    clearDraft,
-    inputMessage,
-    setInputMessage,
-    steerMessage,
-    sendMessage,
-    _injectDirtyArtifacts,
-    recordChatQueryMetric,
-    queuePendingChatWikiQuerySuccess,
-  ]);
+	_validateAndPrepare,
+	clearDraft,
+	inputMessage,
+	setInputMessage,
+	steerMessage,
+	sendMessage,
+	_injectDirtyArtifacts,
+	recordChatQueryMetric
+]);
 
   /**
    * Redirect 模式提交：立即中断模型生成，保留 partial 输出，注入纠偏指令
    */
   const handleRedirectSubmit = useCallback(async () => {
-    if (!(await _validateAndPrepare())) return;
+    if (!(await _validateAndPrepare())) {return;}
     clearDraft();
     recordChatQueryMetric();
     const redirectText = composeOutboundUserMessage(inputMessage.trim());
@@ -505,23 +504,22 @@ export const useMessageInput = () => {
       await handleSteerSubmit();
     }
   }, [
-    _validateAndPrepare,
-    clearDraft,
-    inputMessage,
-    setInputMessage,
-    redirectMessage,
-    handleSteerSubmit,
-    _injectDirtyArtifacts,
-    recordChatQueryMetric,
-    queuePendingChatWikiQuerySuccess,
-  ]);
+	_validateAndPrepare,
+	clearDraft,
+	inputMessage,
+	setInputMessage,
+	redirectMessage,
+	handleSteerSubmit,
+	_injectDirtyArtifacts,
+	recordChatQueryMetric
+]);
 
   /**
    * Queue 模式提交：不干扰当前任务，等完成后自动发送
    */
   const handleQueueSubmit = useCallback(
     async (queuedTurnSelection?: TurnCapabilitySelection | null, skipValidation: boolean = false) => {
-      if (!skipValidation && !(await _validateAndPrepare())) return;
+      if (!skipValidation && !(await _validateAndPrepare())) {return;}
       clearDraft();
       recordChatQueryMetric();
       const queueText = composeOutboundUserMessage(inputMessage.trim());

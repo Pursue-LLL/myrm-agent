@@ -32,7 +32,7 @@ export function IncrementalMonitorEditor({ job, onUpdated }: EditorProps) {
   }, [job.monitor_config]);
 
   const isRecentReset = useMemo(() => {
-    if (!job.monitor_config?.last_reset_at) return false;
+    if (!job.monitor_config?.last_reset_at) {return false;}
     const resetTime = new Date(job.monitor_config.last_reset_at).getTime();
     const now = Date.now();
     return now - resetTime < 3600000;
@@ -61,7 +61,7 @@ export function IncrementalMonitorEditor({ job, onUpdated }: EditorProps) {
   };
 
   const handleTtlSave = async () => {
-    if (!enabled) return;
+    if (!enabled) {return;}
     setSaving(true);
     try {
       await updateCronJob(job.id, {

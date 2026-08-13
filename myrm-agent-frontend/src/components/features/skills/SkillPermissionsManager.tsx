@@ -202,7 +202,7 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
     setLoading(true);
     try {
       const skillsResponse = await fetch(`/api/v1/skills/available`);
-      if (!skillsResponse.ok) throw new Error('Failed to load skills');
+      if (!skillsResponse.ok) {throw new Error('Failed to load skills');}
 
       const skillsData = (await skillsResponse.json()) as { skills?: { id: string; name: string }[] };
       const allSkills = skillsData.skills || [];
@@ -212,7 +212,7 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
         allSkills.map(async (skill) => {
           try {
             const permsResponse = await fetch(`/api/v1/skills/${skill.id}/permissions`);
-            if (!permsResponse.ok) return null;
+            if (!permsResponse.ok) {return null;}
             const permsData = (await permsResponse.json()) as {
               required_permissions?: string[];
               granted_permissions?: SkillPermissionInfo[];
@@ -220,7 +220,7 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
             const requiredPermissions = (permsData.required_permissions || []).filter((p) =>
               (KNOWN_PERMISSION_TYPES as string[]).includes(p),
             ) as SkillPermissionType[];
-            if (requiredPermissions.length === 0) return null;
+            if (requiredPermissions.length === 0) {return null;}
             return {
               skillId: skill.id,
               skillName: skill.name,
@@ -262,7 +262,7 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ permissions: [permission] }),
         });
-        if (!response.ok) throw new Error('Failed to update permission');
+        if (!response.ok) {throw new Error('Failed to update permission');}
 
         setSkills((prev) =>
           prev.map((s) =>
@@ -304,7 +304,7 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
   };
 
   const confirmRevoke = async () => {
-    if (!pendingRevoke) return;
+    if (!pendingRevoke) {return;}
     const { skill, permission } = pendingRevoke;
     setPendingRevoke(null);
     await updatePermission(skill, permission, false);
@@ -317,7 +317,7 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ permission_type: permissionType }),
       });
-      if (!response.ok) throw new Error('Bulk revoke failed');
+      if (!response.ok) {throw new Error('Bulk revoke failed');}
 
       const result = (await response.json()) as {
         total_revoked?: number;

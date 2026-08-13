@@ -135,7 +135,7 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
         useGlobalInstruction={editor.useGlobalInstruction}
         enabledBuiltinTools={editor.enabledBuiltinTools}
         onCardClick={(type) => {
-          if (editor.isReadonly) return;
+          if (editor.isReadonly) {return;}
           editor.setEditDialogType(type);
           editor.setEditDialogOpen(true);
         }}

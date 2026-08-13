@@ -33,7 +33,7 @@ interface ScrollToBottomButtonProps {
 const ScrollToBottomButton = memo<ScrollToBottomButtonProps>(({ visible, hasNewMessage, onClick }) => {
   const t = useTranslations('chat.scrollCue');
 
-  if (!visible) return null;
+  if (!visible) {return null;}
 
   return (
     <button

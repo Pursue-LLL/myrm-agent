@@ -10,10 +10,10 @@ type ViewMode = 'board' | 'graph' | 'activity';
 const VALID_MODES: ViewMode[] = ['board', 'graph', 'activity'];
 
 function readViewMode(): ViewMode {
-  if (typeof window === 'undefined') return 'board';
+  if (typeof window === 'undefined') {return 'board';}
   try {
     const stored = localStorage.getItem(LS_KEYS.viewMode);
-    if (stored === 'board' || stored === 'graph' || stored === 'activity') return stored;
+    if (stored === 'board' || stored === 'graph' || stored === 'activity') {return stored;}
   } catch { /* private mode / quota */ }
   return 'board';
 }
@@ -23,7 +23,7 @@ function writeViewMode(mode: ViewMode): void {
 }
 
 function readLaneByProfile(): boolean {
-  if (typeof window === 'undefined') return true;
+  if (typeof window === 'undefined') {return true;}
   try { return localStorage.getItem(LS_KEYS.laneByProfile) !== 'false'; } catch { return true; }
 }
 
@@ -35,8 +35,8 @@ interface MinimalBoard { board_id: string }
 
 function writeLastBoardId(board: MinimalBoard | null): void {
   try {
-    if (board) localStorage.setItem(LS_KEYS.lastBoardId, board.board_id);
-    else localStorage.removeItem(LS_KEYS.lastBoardId);
+    if (board) {localStorage.setItem(LS_KEYS.lastBoardId, board.board_id);}
+    else {localStorage.removeItem(LS_KEYS.lastBoardId);}
   } catch { /* ignore */ }
 }
 
@@ -45,12 +45,12 @@ function restoreLastBoard<T extends MinimalBoard>(
   loading: boolean,
   selectedBoard: T | null,
 ): T | null {
-  if (loading || selectedBoard || boards.length === 0) return null;
+  if (loading || selectedBoard || boards.length === 0) {return null;}
   try {
     const lastId = localStorage.getItem(LS_KEYS.lastBoardId);
-    if (!lastId) return null;
+    if (!lastId) {return null;}
     const match = boards.find((b) => b.board_id === lastId);
-    if (match) return match;
+    if (match) {return match;}
     localStorage.removeItem(LS_KEYS.lastBoardId);
   } catch { /* ignore */ }
   return null;

@@ -54,7 +54,7 @@ export function useSkillDetailSheet({
   const [isSavingEnv, setIsSavingEnv] = useState(false);
 
   const hasRequirements = useMemo(() => {
-    if (!skill) return false;
+    if (!skill) {return false;}
     const { bins, env, config } = skill.requires;
     return bins.length > 0 || env.length > 0 || config.length > 0;
   }, [skill]);
@@ -85,7 +85,7 @@ export function useSkillDetailSheet({
   }, [skill, open]);
 
   const handleToggle = useCallback(async () => {
-    if (!skill || !onToggle) return;
+    if (!skill || !onToggle) {return;}
     setIsToggling(true);
     try {
       await onToggle(skill.id);
@@ -103,7 +103,7 @@ export function useSkillDetailSheet({
   }, [skill, onToggle, isEnabled, t]);
 
   const handleDelete = useCallback(async () => {
-    if (!skill || !onDelete) return;
+    if (!skill || !onDelete) {return;}
     setIsDeleting(true);
     try {
       await onDelete(skill);
@@ -126,7 +126,7 @@ export function useSkillDetailSheet({
   }, []);
 
   const handleSaveEnvVars = useCallback(async () => {
-    if (!skill) return;
+    if (!skill) {return;}
     setIsSavingEnv(true);
     try {
       await updateSkillEnvVars(skill.id, envVars);
@@ -143,7 +143,7 @@ export function useSkillDetailSheet({
   const isUserTrusted = !!skill?.user_trusted;
 
   const handleTrust = useCallback(async () => {
-    if (!skill) return;
+    if (!skill) {return;}
     setIsTrusting(true);
     try {
       await trustSkill(skill.id);
@@ -162,7 +162,7 @@ export function useSkillDetailSheet({
   }, [skill, t, onOpenChange, onTrustChange]);
 
   const handleUntrust = useCallback(async () => {
-    if (!skill) return;
+    if (!skill) {return;}
     setIsTrusting(true);
     try {
       await untrustSkill(skill.id);
@@ -180,14 +180,14 @@ export function useSkillDetailSheet({
   }, [skill, t, onOpenChange, onTrustChange]);
 
   const reloadSkillContent = useCallback(() => {
-    if (!skill) return;
+    if (!skill) {return;}
     getSkillFile(skill.id, 'SKILL.md')
       .then(setSkillContent)
       .catch(() => setSkillContent(''));
   }, [skill]);
 
   const handleReveal = useCallback(async () => {
-    if (!skill) return;
+    if (!skill) {return;}
     setIsRevealing(true);
     try {
       await revealSkill(skill.id);
@@ -206,7 +206,7 @@ export function useSkillDetailSheet({
   }, [skill, t]);
 
   const handleToggleEvolutionLock = useCallback(async () => {
-    if (!skill) return;
+    if (!skill) {return;}
     const newLocked = !isEvolutionLocked;
     setIsTogglingLock(true);
     try {
@@ -226,7 +226,7 @@ export function useSkillDetailSheet({
   }, [skill, isEvolutionLocked, t]);
 
   const handleOptimize = useCallback(async () => {
-    if (!skill || !optimizeInstruction.trim()) return;
+    if (!skill || !optimizeInstruction.trim()) {return;}
     setIsOptimizing(true);
     try {
       const response = await fetch(`/api/v1/evolution/derive/${skill.id}`, {

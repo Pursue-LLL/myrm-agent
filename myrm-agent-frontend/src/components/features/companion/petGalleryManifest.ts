@@ -43,15 +43,15 @@ export async function fetchPetdexManifest(): Promise<ManifestPet[]> {
   } catch {}
 
   const resp = await fetch(MANIFEST_URL);
-  if (!resp.ok) throw new Error(`Manifest fetch failed: ${resp.status}`);
+  if (!resp.ok) {throw new Error(`Manifest fetch failed: ${resp.status}`);}
 
   const payload = await resp.json();
   const raw = payload?.pets;
-  if (!Array.isArray(raw)) throw new Error('Invalid manifest format');
+  if (!Array.isArray(raw)) {throw new Error('Invalid manifest format');}
 
   const pets: ManifestPet[] = [];
   for (const entry of raw) {
-    if (!entry?.slug || !entry?.spritesheetUrl) continue;
+    if (!entry?.slug || !entry?.spritesheetUrl) {continue;}
     pets.push({
       slug: String(entry.slug),
       displayName: String(entry.displayName || entry.slug),

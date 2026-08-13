@@ -90,7 +90,7 @@ const EnterpriseAuditTab = memo(() => {
   }, []);
 
   const successRate = useMemo(() => {
-    if (!stats || stats.total_events === 0) return 0;
+    if (!stats || stats.total_events === 0) {return 0;}
     return Math.round((stats.success_vs_failed.success / stats.total_events) * 100);
   }, [stats]);
 

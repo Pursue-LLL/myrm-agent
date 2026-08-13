@@ -128,9 +128,9 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
   }, [projectFilter]);
 
   useEffect(() => {
-    if (!batch.batchMode) return;
+    if (!batch.batchMode) {return;}
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') batch.handleExitBatchMode();
+      if (e.key === 'Escape') {batch.handleExitBatchMode();}
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
@@ -138,7 +138,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel) return;
+    if (!sentinel) {return;}
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -165,14 +165,14 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
 
   useEffect(() => {
     return () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (debounceTimerRef.current) {clearTimeout(debounceTimerRef.current);}
     };
   }, []);
 
   const handleSearchChange = useCallback(
     (value: string) => {
       setLocalKeyword(value);
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (debounceTimerRef.current) {clearTimeout(debounceTimerRef.current);}
       debounceTimerRef.current = setTimeout(() => {
         setChatHistorySearchKeyword(value);
       }, 300);
@@ -225,10 +225,10 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
-      if (!over || active.id === over.id) return;
+      if (!over || active.id === over.id) {return;}
       const oldIdx = pinnedChats.findIndex((c) => c.id === active.id);
       const newIdx = pinnedChats.findIndex((c) => c.id === over.id);
-      if (oldIdx === -1 || newIdx === -1) return;
+      if (oldIdx === -1 || newIdx === -1) {return;}
       const reordered = arrayMove(pinnedChats, oldIdx, newIdx);
       reorderPinnedChats(reordered.map((c) => c.id));
     },
@@ -264,7 +264,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     t,
   });
 
-  if (!isExpanded) return null;
+  if (!isExpanded) {return null;}
 
   return (
     <div className="flex flex-col gap-1 px-2 py-3 lg:py-4">
@@ -328,7 +328,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
               type="text"
               value={localKeyword}
               onChange={(e) => handleSearchChange(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape') handleClearSearch(); }}
+              onKeyDown={(e) => { if (e.key === 'Escape') {handleClearSearch();} }}
               placeholder={t('common.search')}
               className={cn(
                 'w-full pl-7 pr-7 py-1.5 text-xs rounded-md border border-border bg-background',

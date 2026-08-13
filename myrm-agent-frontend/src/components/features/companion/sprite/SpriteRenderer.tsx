@@ -77,7 +77,7 @@ export default function SpriteRenderer({
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {return;}
 
     const engine = new SpriteEngine({
       canvas,
@@ -96,7 +96,7 @@ export default function SpriteRenderer({
   // Load sheet when URL changes
   useEffect(() => {
     const engine = engineRef.current;
-    if (!engine || !sheetUrl) return;
+    if (!engine || !sheetUrl) {return;}
 
     engine.loadSheet(sheetUrl).then(() => {
       engine.play();

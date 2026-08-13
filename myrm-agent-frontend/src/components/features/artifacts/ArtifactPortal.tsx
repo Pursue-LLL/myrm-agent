@@ -214,7 +214,7 @@ const ArtifactPortal: React.FC = () => {
 
   // 复制内容
   const handleCopy = useCallback(async () => {
-    if (!content) return;
+    if (!content) {return;}
     try {
       await writeToClipboard(content);
       setCopied(true);
@@ -226,11 +226,11 @@ const ArtifactPortal: React.FC = () => {
 
   // 下载文件
   const handleDownload = useCallback(async () => {
-    if (!currentArtifact) return;
+    if (!currentArtifact) {return;}
     try {
       const fullUrl = getStorageUrl(currentArtifact.download_url);
       const response = await fetch(fullUrl);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {throw new Error(`HTTP ${response.status}`);}
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -247,7 +247,7 @@ const ArtifactPortal: React.FC = () => {
 
   // 在新标签页打开
   const handleOpenInNewTab = useCallback(() => {
-    if (!currentArtifact) return;
+    if (!currentArtifact) {return;}
     window.open(getStorageUrl(currentArtifact.preview_url), '_blank', 'noopener,noreferrer');
   }, [currentArtifact]);
 
@@ -303,7 +303,7 @@ const ArtifactPortal: React.FC = () => {
 
   // 获取错误提示
   const getErrorHint = useCallback(() => {
-    if (!error) return '';
+    if (!error) {return '';}
     switch (error.type) {
       case ArtifactErrorType.NotFound:
         return t('errors.notFoundHint');
@@ -319,7 +319,7 @@ const ArtifactPortal: React.FC = () => {
   }, [error, t]);
 
   const handleEditSave = useCallback(async (blob: Blob) => {
-    if (!currentArtifact) return;
+    if (!currentArtifact) {return;}
     const file = new File([blob], currentArtifact.filename, {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
@@ -336,7 +336,7 @@ const ArtifactPortal: React.FC = () => {
   }, [currentArtifact]);
 
   const handleEditDirty = useCallback((dirty: boolean) => {
-    if (!currentArtifact) return;
+    if (!currentArtifact) {return;}
     if (dirty) {
       useArtifactPortalStore.getState().markAsDirty(currentArtifact.id, '__spreadsheet_edit__');
     } else {
@@ -344,7 +344,7 @@ const ArtifactPortal: React.FC = () => {
     }
   }, [currentArtifact]);
 
-  if (!isOpen || !currentArtifact) return null;
+  if (!isOpen || !currentArtifact) {return null;}
 
   const canPreviewContent = ['code', 'document', 'svg', 'mermaid', 'html'].includes(currentArtifact.type);
   const isHtml = currentArtifact.type === 'html';
@@ -576,8 +576,8 @@ const ArtifactPortal: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-center gap-2 py-2 bg-background/95 backdrop-blur-sm border-t border-border text-xs text-muted-foreground">
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
                     </span>
                     {t('tabs.generating')}
                   </div>
@@ -603,12 +603,12 @@ const ArtifactPortal: React.FC = () => {
 // 辅助组件：处理行号滚动和高亮
 const LineRangeScroller: React.FC<{ lineRange: string; content: string }> = ({ lineRange, content }) => {
   useEffect(() => {
-    if (!lineRange || !content) return;
+    if (!lineRange || !content) {return;}
 
     // 解析行号，例如 "10-20" 或 "10-"
     const parts = lineRange.split('-');
     const startLine = parseInt(parts[0], 10);
-    if (isNaN(startLine)) return;
+    if (isNaN(startLine)) {return;}
 
     // 延迟执行以确保 DOM 已经渲染完毕 (ArtifactRenderer 内部可能使用了异步高亮)
     const timer = setTimeout(() => {

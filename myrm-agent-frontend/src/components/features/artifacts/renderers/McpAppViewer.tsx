@@ -53,7 +53,7 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
           throw new Error(`HTTP ${resp.status}`);
         }
         const json = await resp.json();
-        if (cancelled) return;
+        if (cancelled) {return;}
         const content = json?.data?.content;
         if (!content) {
           throw new Error('Empty resource content');
@@ -65,7 +65,7 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
           setError(err instanceof Error ? err.message : 'Failed to load MCP App');
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {setIsLoading(false);}
       }
     };
     void fetchResource();
@@ -86,7 +86,7 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
   // Send structuredContent to the embedded app after iframe loads
   const handleIframeLoad = useCallback(() => {
     const iframe = iframeRef.current;
-    if (!iframe?.contentWindow) return;
+    if (!iframe?.contentWindow) {return;}
 
     // Send host context (theme, locale)
     iframe.contentWindow.postMessage(
@@ -106,8 +106,8 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
   // Handle messages from the embedded app
   const handleMessage = useCallback(
     (e: MessageEvent) => {
-      if (e.source !== iframeRef.current?.contentWindow) return;
-      if (!e.data || typeof e.data !== 'object') return;
+      if (e.source !== iframeRef.current?.contentWindow) {return;}
+      if (!e.data || typeof e.data !== 'object') {return;}
 
       const { type } = e.data;
 
@@ -116,9 +116,9 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
         const level = e.data.level ?? 'info';
         const message = typeof e.data.message === 'string' ? e.data.message : '';
         if (message) {
-          if (level === 'error') toast.error(message);
-          else if (level === 'warning') toast.warning(message);
-          else toast.info(message);
+          if (level === 'error') {toast.error(message);}
+          else if (level === 'warning') {toast.warning(message);}
+          else {toast.info(message);}
         }
       }
 

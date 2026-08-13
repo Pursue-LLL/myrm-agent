@@ -69,7 +69,7 @@ const WorkflowSuggestionCard = ({ messageId, status }: WorkflowSuggestionCardPro
     });
   }, [messageId]);
 
-  if (dismissed || status === 'dismissed') return null;
+  if (dismissed || status === 'dismissed') {return null;}
 
   if (status === 'accepted') {
     return (

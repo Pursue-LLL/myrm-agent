@@ -55,16 +55,16 @@ function getFileIcon(name: string): React.ElementType {
 }
 
 function formatSize(bytes: number | null): string {
-  if (bytes === null) return '';
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+  if (bytes === null) {return '';}
+  if (bytes < 1024) {return `${bytes}B`;}
+  if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(0)}KB`;}
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 function highlightMatch(text: string, ranges: Array<[number, number]>): React.ReactNode {
-  if (ranges.length === 0) return text;
+  if (ranges.length === 0) {return text;}
   const [start, end] = ranges[0];
-  if (start < 0 || end <= start || start >= text.length) return text;
+  if (start < 0 || end <= start || start >= text.length) {return text;}
   return (
     <>
       {text.slice(0, start)}
@@ -86,13 +86,13 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
   const listRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    if (!listRef.current || selectedIndex < 0) return;
+    if (!listRef.current || selectedIndex < 0) {return;}
     const items = listRef.current.querySelectorAll('[data-mention-item]');
     const target = items[selectedIndex] as HTMLElement | undefined;
     target?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex]);
 
-  if (!open) return null;
+  if (!open) {return null;}
 
   const isChatMode = query.startsWith('chat:');
 

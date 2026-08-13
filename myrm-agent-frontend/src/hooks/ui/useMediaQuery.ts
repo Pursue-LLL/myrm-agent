@@ -12,7 +12,7 @@ export function useMediaQuery(query: string): boolean {
 
   useEffect(() => {
     // 服务端渲染时，window 不存在
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {return;}
 
     const mediaQueryList = window.matchMedia(query);
 

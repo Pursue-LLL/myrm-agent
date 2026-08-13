@@ -14,10 +14,10 @@ const REDIRECT_PARAM = 'redirect';
 
 /** Allowed internal path after login (must start with `/`, no protocol/host). */
 export function sanitizeAuthRedirectPath(raw: string | null | undefined): string | null {
-  if (!raw || typeof raw !== 'string') return null;
+  if (!raw || typeof raw !== 'string') {return null;}
   const trimmed = raw.trim();
-  if (!trimmed.startsWith('/') || trimmed.startsWith('//')) return null;
-  if (trimmed.includes('://')) return null;
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//')) {return null;}
+  if (trimmed.includes('://')) {return null;}
   return trimmed;
 }
 

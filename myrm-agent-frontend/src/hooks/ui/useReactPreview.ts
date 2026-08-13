@@ -33,7 +33,7 @@ export function useReactPreview({ code, filename, t }: UseReactPreviewParams) {
   const isValid = useMemo(() => isValidReactCode(code), [code]);
 
   const wrappedCode = useMemo(() => {
-    if (!isValid) return code;
+    if (!isValid) {return code;}
     return wrapCodeAsApp(code, filename);
   }, [code, filename, isValid]);
 

@@ -3,6 +3,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { GoalStatusCard } from '../goals/GoalStatusCard';
 import type { GoalState } from '../goals/GoalStatusCard';
 
 const makeGoal = (overrides: Partial<GoalState> = {}): GoalState => ({
@@ -34,7 +35,7 @@ vi.mock('@/store/useChatStore', () => ({
 vi.mock('@/store/chat/goals/useGoalStore', () => ({
   useGoalStore: Object.assign(
     vi.fn((selector?: (state: typeof mockGoalState) => unknown) => {
-      if (selector) return selector(mockGoalState);
+      if (selector) {return selector(mockGoalState);}
       return mockGoalState;
     }),
     { getState: () => mockGoalState },
@@ -84,36 +85,35 @@ describe('GoalStatusCard ETA calculations', () => {
     };
   });
 
-  async function renderCard() {
-    const { GoalStatusCard } = await import('../goals/GoalStatusCard');
+  function renderCard() {
     return render(<GoalStatusCard />);
   }
 
-  it('shows ETA when sufficient data is available', async () => {
+  it('shows ETA when sufficient data is available', () => {
     mockGoalState.activeGoal = makeGoal({
       tokensUsed: 4000,
       timeUsedSeconds: 120,
       budget: { maxTokens: 100000, maxTimeSeconds: 3600 },
     });
 
-    await renderCard();
+    renderCard();
 
     expect(screen.getByText(/~48min/)).toBeInTheDocument();
   });
 
-  it('shows "Estimating..." when data is insufficient (<60s)', async () => {
+  it('shows "Estimating..." when data is insufficient (<60s)', () => {
     mockGoalState.activeGoal = makeGoal({
       tokensUsed: 100,
       timeUsedSeconds: 30,
       budget: { maxTokens: 100000 },
     });
 
-    await renderCard();
+    renderCard();
 
     expect(screen.getByText('Estimating...')).toBeInTheDocument();
   });
 
-  it('does not show ETA for terminal state (complete)', async () => {
+  it('does not show ETA for terminal state (complete)', () => {
     mockGoalState.activeGoal = makeGoal({
       status: 'complete',
       tokensUsed: 50000,
@@ -121,20 +121,20 @@ describe('GoalStatusCard ETA calculations', () => {
       budget: { maxTokens: 100000 },
     });
 
-    await renderCard();
+    renderCard();
 
     expect(screen.queryByText(/ETA/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Speed/)).not.toBeInTheDocument();
   });
 
-  it('shows burn rate in expanded view for active goal', async () => {
+  it('shows burn rate in expanded view for active goal', () => {
     mockGoalState.activeGoal = makeGoal({
       tokensUsed: 10000,
       timeUsedSeconds: 300,
       budget: { maxTokens: 100000 },
     });
 
-    const { container } = await renderCard();
+    const { container } = renderCard();
 
     // Click the header to expand
     const header = container.querySelector('[class*="cursor-pointer"]');
@@ -146,7 +146,7 @@ describe('GoalStatusCard ETA calculations', () => {
     expect(screen.getByText(/~2\.0K\/min/)).toBeInTheDocument();
   });
 
-  it('calculates ETA using min of multiple budget dimensions', async () => {
+  it('calculates ETA using min of multiple budget dimensions', () => {
     mockGoalState.activeGoal = makeGoal({
       tokensUsed: 50000,
       timeUsedSeconds: 600,
@@ -158,7 +158,7 @@ describe('GoalStatusCard ETA calculations', () => {
       },
     });
 
-    await renderCard();
+    renderCard();
 
     // costUsd rate: 0.4/600 = 0.000667/s => remaining: 0.1/0.000667 = ~150s = ~3min
     // Token rate: 50000/600 = 83.3/s => remaining: 150000/83.3 = ~1800s = ~30min
@@ -167,7 +167,7 @@ describe('GoalStatusCard ETA calculations', () => {
     expect(screen.getByText(/~[23]min/)).toBeInTheDocument();
   });
 
-  it('does not show ETA for budget_limited status', async () => {
+  it('does not show ETA for budget_limited status', () => {
     mockGoalState.activeGoal = makeGoal({
       status: 'budget_limited',
       tokensUsed: 100000,
@@ -175,28 +175,28 @@ describe('GoalStatusCard ETA calculations', () => {
       budget: { maxTokens: 100000 },
     });
 
-    await renderCard();
+    renderCard();
 
     expect(screen.queryByText(/~\d+min/)).not.toBeInTheDocument();
   });
 
-  it('formats ETA correctly for hours', async () => {
+  it('formats ETA correctly for hours', () => {
     mockGoalState.activeGoal = makeGoal({
       tokensUsed: 1000,
       timeUsedSeconds: 60,
       budget: { maxTokens: 1000000 },
     });
 
-    await renderCard();
+    renderCard();
 
     // Rate: 1000/60 = 16.67 tok/s => remaining: 999000/16.67 = 59928s => ~16h 39m
     expect(screen.getByText(/~\d+h \d+m/)).toBeInTheDocument();
   });
 
-  it('returns null when no goal is active', async () => {
+  it('returns null when no goal is active', () => {
     mockGoalState.activeGoal = null;
 
-    const { container } = await renderCard();
+    const { container } = renderCard();
 
     expect(container.innerHTML).toBe('');
   });

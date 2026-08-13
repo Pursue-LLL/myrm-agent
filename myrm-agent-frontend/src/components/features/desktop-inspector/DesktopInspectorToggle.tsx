@@ -29,7 +29,7 @@ const DesktopInspectorToggle: React.FC = () => {
 
   useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
 
-  if (!isVisible) return null;
+  if (!isVisible) {return null;}
 
   const tooltipText = isPending ? t('enabledHint') : t('toggleTitle');
 

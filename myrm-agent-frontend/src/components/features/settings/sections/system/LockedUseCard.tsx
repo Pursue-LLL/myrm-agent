@@ -33,7 +33,7 @@ const LockedUseCard = memo<LockedUseCardProps>(({ enabled, onToggle }) => {
   } | null>(null);
 
   const checkPlatformSupport = useCallback(async () => {
-    if (!isTauri || !invoke) return;
+    if (!isTauri || !invoke) {return;}
     try {
       const support = await invoke<{
         detection: boolean;
@@ -55,7 +55,7 @@ const LockedUseCard = memo<LockedUseCardProps>(({ enabled, onToggle }) => {
   }, [checkPlatformSupport]);
 
   const handleSavePassword = useCallback(async () => {
-    if (!invoke || !password.trim()) return;
+    if (!invoke || !password.trim()) {return;}
     setIsSaving(true);
     try {
       await invoke('screen_lock_store_password', { password });
@@ -71,7 +71,7 @@ const LockedUseCard = memo<LockedUseCardProps>(({ enabled, onToggle }) => {
   }, [invoke, password, t]);
 
   const handleDeletePassword = useCallback(async () => {
-    if (!invoke) return;
+    if (!invoke) {return;}
     try {
       await invoke('screen_lock_delete_password');
       setHasPassword(false);
@@ -81,7 +81,7 @@ const LockedUseCard = memo<LockedUseCardProps>(({ enabled, onToggle }) => {
     }
   }, [invoke, t]);
 
-  if (!isTauri) return null;
+  if (!isTauri) {return null;}
 
   const supportsUnlock = platformSupport?.unlock ?? false;
 
@@ -171,7 +171,7 @@ const LockedUseCard = memo<LockedUseCardProps>(({ enabled, onToggle }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') void handleSavePassword();
+                      if (e.key === 'Enter') {void handleSavePassword();}
                     }}
                     placeholder={t('inputPlaceholder')}
                     className="w-full px-3 py-2 text-sm rounded-xl bg-muted/30 border border-border/30 focus:border-indigo-500 focus:outline-none"

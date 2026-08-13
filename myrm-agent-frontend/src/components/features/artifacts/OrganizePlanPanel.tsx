@@ -30,7 +30,7 @@ import {
 } from './organizePlanUtils';
 
 function notifyWorkspaceFilesChanged(workspacePath: string): void {
-  if (!workspacePath) return;
+  if (!workspacePath) {return;}
   window.dispatchEvent(
     new CustomEvent('workspace-file-changed', {
       detail: { workspace_path: workspacePath },
@@ -61,7 +61,7 @@ export const OrganizePlanPanel: React.FC<OrganizePlanPanelProps> = ({
   }, [planContent]);
 
   useEffect(() => {
-    if (!workspace) return;
+    if (!workspace) {return;}
     void fetchLatestOrganizeJob(workspace).then((res) => {
       if (res.job?.jobId) {
         setLastJobId(res.job.jobId);

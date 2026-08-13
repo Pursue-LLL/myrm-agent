@@ -66,7 +66,7 @@ const useMemoryStore = create<MemoryState>()(
 
     fetchPendingMemories: async (force = false) => {
       const { pendingLoading, pendingMemories } = get();
-      if (!force && (pendingLoading || pendingMemories.length > 0)) return;
+      if (!force && (pendingLoading || pendingMemories.length > 0)) {return;}
       set({ pendingLoading: true, pendingError: null });
       try {
         const response = await getPendingMemories();
@@ -121,7 +121,7 @@ const useMemoryStore = create<MemoryState>()(
 
     batchApprove: async () => {
       const { selectedPendingIds } = get();
-      if (selectedPendingIds.size === 0) return;
+      if (selectedPendingIds.size === 0) {return;}
       const ids = Array.from(selectedPendingIds);
       try {
         await batchApproveMemories(ids);
@@ -138,7 +138,7 @@ const useMemoryStore = create<MemoryState>()(
 
     batchReject: async () => {
       const { selectedPendingIds } = get();
-      if (selectedPendingIds.size === 0) return;
+      if (selectedPendingIds.size === 0) {return;}
       const ids = Array.from(selectedPendingIds);
       try {
         await batchRejectMemories(ids);
@@ -230,7 +230,7 @@ const useMemoryStore = create<MemoryState>()(
         memorySortBy,
         memorySortOrder,
       } = get();
-      if (memoriesLoading || !memoryPagination?.has_next) return;
+      if (memoriesLoading || !memoryPagination?.has_next) {return;}
       set({ memoriesLoading: true });
       try {
         const response = await getMemories({
@@ -342,7 +342,7 @@ const useMemoryStore = create<MemoryState>()(
 
     fetchMemoryStats: async () => {
       const { statsLoading } = get();
-      if (statsLoading) return;
+      if (statsLoading) {return;}
       set({ statsLoading: true });
       try {
         const stats = await apiGetMemoryStats();

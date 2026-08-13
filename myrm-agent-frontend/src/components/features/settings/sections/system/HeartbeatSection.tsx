@@ -62,14 +62,14 @@ function dayPresetToCronDow(preset: DayPreset): string {
 }
 
 function cronDowToPreset(dow: string): DayPreset {
-  if (dow === '1-5') return 'weekdays';
-  if (dow === '0,6' || dow === '6,0') return 'weekends';
+  if (dow === '1-5') {return 'weekdays';}
+  if (dow === '0,6' || dow === '6,0') {return 'weekends';}
   return 'everyday';
 }
 
 function parseCronExpr(expr: string): { hour: string; minute: string; dayPreset: DayPreset } {
   const parts = expr.split(/\s+/);
-  if (parts.length < 5) return { hour: '9', minute: '0', dayPreset: 'everyday' };
+  if (parts.length < 5) {return { hour: '9', minute: '0', dayPreset: 'everyday' };}
   return {
     minute: parts[0] ?? '0',
     hour: parts[1] ?? '9',
@@ -128,7 +128,7 @@ const HeartbeatSection = memo(() => {
     let cancelled = false;
     getHeartbeatStatus()
       .then((s) => {
-        if (cancelled) return;
+        if (cancelled) {return;}
         setStatus(s);
         if (s.schedule_kind === 'cron' && s.cron_expr) {
           setScheduleMode('cron');
@@ -136,19 +136,19 @@ const HeartbeatSection = memo(() => {
           setCronHour(parsed.hour);
           setCronMinute(parsed.minute);
           setCronDayPreset(parsed.dayPreset);
-          if (s.timezone) setTimezone(s.timezone);
+          if (s.timezone) {setTimezone(s.timezone);}
         } else {
           setScheduleMode('interval');
-          if (s.interval_ms) setIntervalMs(String(s.interval_ms));
+          if (s.interval_ms) {setIntervalMs(String(s.interval_ms));}
         }
-        if (s.prompt) setCustomPrompt(s.prompt);
+        if (s.prompt) {setCustomPrompt(s.prompt);}
         setAgentId(s.agent_id || '__default__');
       })
       .catch(() => {
-        if (!cancelled) setFetchError(true);
+        if (!cancelled) {setFetchError(true);}
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {setLoading(false);}
       });
     return () => {
       cancelled = true;
@@ -167,7 +167,7 @@ const HeartbeatSection = memo(() => {
 
   const inheritedModel = useMemo(() => {
     const ms = selectedAgent?.model_selection;
-    if (!ms?.model) return null;
+    if (!ms?.model) {return null;}
     return `${ms.providerId}/${ms.model}`;
   }, [selectedAgent]);
 
@@ -190,7 +190,7 @@ const HeartbeatSection = memo(() => {
   }, [scheduleMode, cronHour, cronMinute, cronDayPreset, timezone, intervalMs, customPrompt, agentId]);
 
   const handleToggle = useCallback(async () => {
-    if (!status) return;
+    if (!status) {return;}
     setToggling(true);
     try {
       const result = status.enabled ? await disableHeartbeat() : await enableHeartbeat(buildEnableParams());
@@ -204,7 +204,7 @@ const HeartbeatSection = memo(() => {
   }, [status, buildEnableParams, t]);
 
   const handleSaveConfig = useCallback(async () => {
-    if (!status?.enabled) return;
+    if (!status?.enabled) {return;}
     setSaving(true);
     try {
       const result = await enableHeartbeat(buildEnableParams());

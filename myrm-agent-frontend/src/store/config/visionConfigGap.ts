@@ -56,7 +56,7 @@ const VISION_GAP_FALLBACKS: Record<string, { en: string; zh: string }> = {
 
 function resolveVisionGapText(key: string, isZh: boolean): string {
   const fallbacks = VISION_GAP_FALLBACKS[key];
-  if (!fallbacks) return key;
+  if (!fallbacks) {return key;}
   return translateI18nKey(key, isZh ? fallbacks.zh : fallbacks.en);
 }
 

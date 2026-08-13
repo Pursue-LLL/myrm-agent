@@ -50,7 +50,7 @@ export function useVisibilityThrottling() {
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (unlisten) unlisten();
+      if (unlisten) {unlisten();}
     };
   }, []);
 }

@@ -131,7 +131,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
   isInitialized: false,
 
   initRetrieval: async () => {
-    if (isStoreInitialized) return;
+    if (isStoreInitialized) {return;}
 
     try {
       // 从 ConfigSyncManager 加载
@@ -339,7 +339,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
   checkOrphanCollections: async () => {
     try {
       const response = await fetchWithTimeout('/memory/reindex/estimate');
-      if (!response.ok) return;
+      if (!response.ok) {return;}
       const data = await response.json();
       const models = (data.orphan_collections ?? []).map((c: { old_model_suffix: string }) => c.old_model_suffix);
       const uniqueModels = [...new Set<string>(models)];
@@ -352,7 +352,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
   executeReindex: async () => {
     try {
       const response = await fetchWithTimeout('/memory/reindex', { method: 'POST' });
-      if (!response.ok) throw new Error('Reindex request failed');
+      if (!response.ok) {throw new Error('Reindex request failed');}
       const data = await response.json();
       set({ orphanCount: 0, orphanOldModels: [] });
       return { migrated: data.migrated ?? 0, failed: data.failed ?? 0 };

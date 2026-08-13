@@ -17,6 +17,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       const { default: inspectorStore } = await import('@/store/useBrowserInspectorStore');
       const { default: useChatStore } = await import('@/store/useChatStore');
       inspectorStore.getState().setBrowserActive(true);
+      inspectorStore.getState().markTurnEngaged();
       const streamChatId = state.messages[0]?.chatId?.trim() ?? '';
       const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
       if (streamChatId && activeChatId && streamChatId === activeChatId) {
@@ -34,7 +35,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
   if (data.type === H.AgentEventType.TOOL_END) {
     const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-    if (messageIndex === -1) return done(ctx);
+    if (messageIndex === -1) {return done(ctx);}
 
     const message = state.messages[messageIndex];
     const steps = message.progressSteps;
@@ -159,7 +160,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
   if (data.type === H.AgentEventType.TOOL_FAILURE) {
     const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-    if (messageIndex === -1) return done(ctx);
+    if (messageIndex === -1) {return done(ctx);}
 
     const steps = state.messages[messageIndex].progressSteps;
     if (steps && steps.length > 0) {
@@ -175,7 +176,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
   if (data.type === H.AgentEventType.TOOL_STDOUT_CHUNK) {
     const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-    if (messageIndex === -1) return done(ctx);
+    if (messageIndex === -1) {return done(ctx);}
 
     const steps = state.messages[messageIndex].progressSteps;
     if (steps && steps.length > 0) {
@@ -195,10 +196,10 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
   if (data.type === H.AgentEventType.TOOL_EVICTED_REF) {
     const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-    if (messageIndex === -1) return done(ctx);
+    if (messageIndex === -1) {return done(ctx);}
 
     const steps = state.messages[messageIndex].progressSteps;
-    if (!steps || steps.length === 0) return done(ctx);
+    if (!steps || steps.length === 0) {return done(ctx);}
 
     const rawPayload = data.data as unknown;
     let ref: string | undefined;
@@ -300,7 +301,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
   if (data.type === H.AgentEventType.TOOL_CANCELLED) {
     const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-    if (messageIndex === -1) return done(ctx);
+    if (messageIndex === -1) {return done(ctx);}
 
     const steps = state.messages[messageIndex].progressSteps;
     if (steps && steps.length > 0) {

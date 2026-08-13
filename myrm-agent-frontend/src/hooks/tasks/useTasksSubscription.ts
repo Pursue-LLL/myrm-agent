@@ -28,7 +28,7 @@ export function useTasksSubscription(task_ids: string[]) {
   const stableIds = useMemo(() => task_ids.join(','), [task_ids]);
 
   useEffect(() => {
-    if (!stableIds) return;
+    if (!stableIds) {return;}
 
     const ids = stableIds.split(',');
     const notifiedTerminalTaskIds = new Set<string>();

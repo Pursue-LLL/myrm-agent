@@ -181,7 +181,7 @@ function rollRarity(rand: () => number): Rarity {
   let roll = rand() * totalWeight;
   for (let i = 0; i < RARITIES.length; i++) {
     roll -= RARITY_WEIGHTS[i];
-    if (roll <= 0) return RARITIES[i];
+    if (roll <= 0) {return RARITIES[i];}
   }
   return RARITIES[0];
 }
@@ -207,8 +207,8 @@ function rollStats(
   const dumpIdx = indices[1];
 
   const values: number[] = STAT_NAMES.map((_, i) => {
-    if (i === peakIdx) return Math.min(floor + 50 + Math.floor(rand() * 20), 100);
-    if (i === dumpIdx) return Math.max(floor - 10, 1);
+    if (i === peakIdx) {return Math.min(floor + 50 + Math.floor(rand() * 20), 100);}
+    if (i === dumpIdx) {return Math.max(floor - 10, 1);}
     return floor + Math.floor(rand() * (80 - floor));
   });
 
@@ -228,7 +228,7 @@ function rollStats(
 }
 
 function rollHat(rand: () => number, rarity: Rarity): Hat {
-  if (rarity === 'Common') return null;
+  if (rarity === 'Common') {return null;}
   return HATS[Math.floor(rand() * HATS.length)];
 }
 
@@ -297,7 +297,7 @@ export function evolveStats(
  * Only Uncommon+ companions receive a title.
  */
 export function getTitle(peakStat: StatName, rarity: Rarity, locale: 'en' | 'zh' = 'en'): string | null {
-  if (rarity === 'Common') return null;
+  if (rarity === 'Common') {return null;}
   return locale === 'zh' ? STAT_TITLES_ZH[peakStat] : STAT_TITLES_EN[peakStat];
 }
 
@@ -458,15 +458,15 @@ export interface MoodInput {
 export function computeMood(input: MoodInput): Mood {
   const now = Date.now();
 
-  if (input.isGoalComplete || input.isEvolutionRecent) return 'excited';
+  if (input.isGoalComplete || input.isEvolutionRecent) {return 'excited';}
 
   const recentPet = input.lastPetAt && now - input.lastPetAt < 5 * 60 * 1000;
-  if (recentPet && input.petCount >= MOOD_HAPPY_PET_THRESHOLD) return 'happy';
+  if (recentPet && input.petCount >= MOOD_HAPPY_PET_THRESHOLD) {return 'happy';}
 
-  if (input.conversationCount >= MOOD_CURIOUS_CONVERSATION_THRESHOLD) return 'curious';
+  if (input.conversationCount >= MOOD_CURIOUS_CONVERSATION_THRESHOLD) {return 'curious';}
 
   const idle = !input.lastInteractionAt || now - input.lastInteractionAt > MOOD_IDLE_THRESHOLD_MS;
-  if (idle) return 'sleepy';
+  if (idle) {return 'sleepy';}
 
   return 'neutral';
 }
@@ -479,7 +479,7 @@ let cachedUserId: string | null = null;
 let cachedBones: CompanionBones | null = null;
 
 export function generateCompanion(userId: string): CompanionBones {
-  if (cachedUserId === userId && cachedBones) return cachedBones;
+  if (cachedUserId === userId && cachedBones) {return cachedBones;}
 
   const hash = fnv1a(userId + SALT);
   const rand = mulberry32(hash);

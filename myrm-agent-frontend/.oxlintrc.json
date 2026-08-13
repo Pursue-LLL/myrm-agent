@@ -11,23 +11,24 @@
     "JSX": "readonly"
   },
   "settings": {
-    "react": {
-      "version": "detect"
-    },
     "next": {
       "rootDir": "."
     }
   },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+      "env": {
+        "vitest": true
+      }
+    }
+  ],
   "rules": {
     "react/react-in-jsx-scope": "off",
-    "react/prop-types": "off",
     "react/no-unescaped-entities": "warn",
     "react/jsx-key": "error",
     "react/jsx-no-duplicate-props": "error",
     "react/jsx-no-undef": "error",
-    "react/jsx-uses-react": "off",
-    "react/jsx-uses-vars": "warn",
-    "react/no-deprecated": "warn",
     "react/no-direct-mutation-state": "error",
     "react/no-children-prop": "warn",
     "react/no-danger-with-children": "error",
@@ -63,7 +64,3 @@
     "no-var": "error"
   }
 }
-
-
-
-

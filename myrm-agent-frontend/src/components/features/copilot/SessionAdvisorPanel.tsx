@@ -47,7 +47,7 @@ export default function SessionAdvisorPanel({
   const performAsk = useCallback(
     async (question: string) => {
       const trimmed = question.trim();
-      if (!trimmed || pendingRef.current) return false;
+      if (!trimmed || pendingRef.current) {return false;}
       pendingRef.current = true;
       setPending(true);
       setInput('');
@@ -74,11 +74,11 @@ export default function SessionAdvisorPanel({
   }, [open, loadMessages]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {return;}
     const question = initialQuestion.trim();
-    if (!question) return;
+    if (!question) {return;}
     const dedupeKey = `${chatId}:${question}:${selectionSnippet ?? ''}`;
-    if (autoAskKeyRef.current === dedupeKey) return;
+    if (autoAskKeyRef.current === dedupeKey) {return;}
     autoAskKeyRef.current = dedupeKey;
     void performAsk(question);
   }, [open, initialQuestion, chatId, selectionSnippet, performAsk]);

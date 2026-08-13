@@ -60,9 +60,9 @@ export function getProviderOAuthConfig(provider: ProviderOAuthProvider) {
 export function getProviderOAuthProviderByProviderId(
   providerId: string,
 ): ProviderOAuthProvider | null {
-  if (providerId === 'anthropic') return 'anthropic';
-  if (providerId === 'openai') return 'openai';
-  if (providerId === 'copilot' || providerId === 'github_copilot') return 'copilot';
+  if (providerId === 'anthropic') {return 'anthropic';}
+  if (providerId === 'openai') {return 'openai';}
+  if (providerId === 'copilot' || providerId === 'github_copilot') {return 'copilot';}
   return null;
 }
 

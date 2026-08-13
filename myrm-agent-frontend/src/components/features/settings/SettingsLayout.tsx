@@ -297,13 +297,13 @@ function SettingsLayout() {
 
   const flushDirty = useCallback(async (): Promise<boolean> => {
     const store = useSettingsDirtyStore.getState();
-    if (!store.isDirtyAny()) return true;
-    if (isSavingRef.current) return false;
+    if (!store.isDirtyAny()) {return true;}
+    if (isSavingRef.current) {return false;}
 
     isSavingRef.current = true;
     try {
       const ok = await store.autoSaveAll();
-      if (!ok) toast.error(t('autoSaveFailed'));
+      if (!ok) {toast.error(t('autoSaveFailed'));}
       return ok;
     } finally {
       isSavingRef.current = false;
@@ -313,7 +313,7 @@ function SettingsLayout() {
   const handleTabChange = useCallback(
     (tab: SettingsTab, sub?: string) => {
       void flushDirty().then((ok) => {
-        if (!ok) return;
+        if (!ok) {return;}
         setPendingTab(tab);
         const url = sub ? `/settings/${tab}?sub=${sub}` : `/settings/${tab}`;
         router.push(url, { scroll: false });
@@ -325,8 +325,8 @@ function SettingsLayout() {
 
   const handleBack = useCallback(() => {
     void flushDirty().then((ok) => {
-      if (!ok) return;
-      if (trySettingsSubviewBack()) return;
+      if (!ok) {return;}
+      if (trySettingsSubviewBack()) {return;}
       router.push('/');
     });
   }, [flushDirty, router]);

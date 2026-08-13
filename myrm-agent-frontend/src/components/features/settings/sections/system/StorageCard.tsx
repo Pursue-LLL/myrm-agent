@@ -23,7 +23,7 @@ interface StorageInfo {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
+  if (bytes === 0) {return '0 B';}
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / 1024 ** i).toFixed(1)} ${units[i]}`;
@@ -60,12 +60,12 @@ const StorageCard = memo<{
   }, [fetchStorageInfo]);
 
   const handleChangeDir = useCallback(async () => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {return;}
 
     try {
       const { open } = await import('@tauri-apps/plugin-dialog');
       const selected = await open({ directory: true, title: t('storageSelectDir') });
-      if (!selected) return;
+      if (!selected) {return;}
 
       const selectedDir = typeof selected === 'string' ? selected : String(selected);
 

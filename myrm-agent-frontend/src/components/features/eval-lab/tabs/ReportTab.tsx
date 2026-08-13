@@ -208,8 +208,8 @@ export default function ReportTab({ running, evalStage, progress, downloadProgre
                       <span
                         className={`ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
                           c.scores.pass_rate >= 1
-                            ? 'bg-green-500/10 text-green-600'
-                            : 'bg-amber-500/10 text-amber-600'
+                            ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                         }`}
                       >
                         {c.scores.pass_rate >= 1 ? '100%' : `${Math.min(99, Math.floor(c.scores.pass_rate * 100))}%`}
@@ -222,7 +222,7 @@ export default function ReportTab({ running, evalStage, progress, downloadProgre
                         {c.limit_reached && (
                           <span
                             className="px-1 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-semibold"
-                            title={t('report.limitHitTitle')}
+                            title={`${t('report.limitHitTitle')} · ${c.limit_reached}`}
                           >
                             {t('report.limitHit')}
                           </span>
@@ -236,7 +236,10 @@ export default function ReportTab({ running, evalStage, progress, downloadProgre
                           </span>
                         )}
                         {(c.tool_call_details?.length ?? 0) > 0 && (
-                          <span className="text-[10px] text-muted-foreground font-mono">
+                          <span
+                            className="text-[10px] text-muted-foreground font-mono"
+                            title={t('report.toolCallsTitle')}
+                          >
                             {c.tool_call_details?.length}×
                           </span>
                         )}

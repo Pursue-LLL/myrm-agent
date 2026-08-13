@@ -90,14 +90,14 @@ const SortFilterBar = ({
 
 const HeaderSummary = ({ nodes, t }: { nodes: TreeNode[]; t: (key: string) => string }) => {
   const totals = useMemo(() => treeTotals(nodes), [nodes]);
-  if (totals.totalAgents === 0) return null;
+  if (totals.totalAgents === 0) {return null;}
 
   const parts: string[] = [];
   parts.push(`${totals.totalAgents} ${t('agents')}`);
-  if (totals.activeCount > 0) parts.push(`${totals.activeCount} ${t('active')}`);
-  if (totals.failedCount > 0) parts.push(`${totals.failedCount} ${t('failed')}`);
+  if (totals.activeCount > 0) {parts.push(`${totals.activeCount} ${t('active')}`);}
+  if (totals.failedCount > 0) {parts.push(`${totals.failedCount} ${t('failed')}`);}
   const cost = fmtCost(totals.totalCostUsd);
-  if (cost) parts.push(cost);
+  if (cost) {parts.push(cost);}
   if (totals.modelMix.length > 0) {
     parts.push(totals.modelMix.map((m) => `${m.model}×${m.count}`).join(' '));
   }
@@ -179,7 +179,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   const runningCount = useMemo(() => Object.values(nodes).filter((n) => n.status === 'running').length, [nodes]);
 
   const fetchSubagents = useCallback(async () => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents`);
       const json = await res.json();
@@ -192,7 +192,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   }, [chatId, t]);
 
   const fetchDelegationPauseStatus = useCallback(async () => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/delegation/status`);
       const json = await res.json();
@@ -203,7 +203,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   }, [chatId]);
 
   const handleToggleDelegationPause = useCallback(async () => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     const endpoint = delegationPaused ? 'resume' : 'pause';
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/delegation/${endpoint}`, { method: 'POST' });
@@ -220,7 +220,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   }, [chatId, delegationPaused, t]);
 
   const handleStopAll = useCallback(async () => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/cancel-all`, { method: 'POST' });
       if (!res.ok) {
@@ -252,7 +252,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   }, [chatId]);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     const handleSseEvent = (event: Event) => {
       const customEvent = event as CustomEvent<{ chat_id?: string; tree?: SubagentNode[] }>;
       if (customEvent.detail?.chat_id && customEvent.detail.chat_id !== chatId) {
@@ -269,9 +269,9 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
         chat_id?: string;
         message?: Record<string, string | number>;
       }>;
-      if (customEvent.detail?.chat_id !== chatId) return;
+      if (customEvent.detail?.chat_id !== chatId) {return;}
       const msg = customEvent.detail?.message;
-      if (!msg?.from_task_id || !msg?.to_task_id) return;
+      if (!msg?.from_task_id || !msg?.to_task_id) {return;}
       useSubagentStore.getState().appendTeammateMessage(normalizeTeammateEntry(msg as Record<string, string | number>));
     };
     window.addEventListener('subagents_updated', handleSseEvent);
@@ -283,12 +283,12 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   }, [chatId]);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     void fetchDelegationPauseStatus();
   }, [chatId, open, fetchDelegationPauseStatus]);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     void fetchSubagents();
     const poll = window.setInterval(() => {
       if (Object.keys(useSubagentStore.getState().nodes).length > 0) {
@@ -304,7 +304,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     };
   }, [chatId, open, fetchSubagents]);
 
-  if (treeNodes.length === 0 && !(fissionBatch && fissionBatch.total > 0)) return null;
+  if (treeNodes.length === 0 && !(fissionBatch && fissionBatch.total > 0)) {return null;}
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

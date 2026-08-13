@@ -413,7 +413,7 @@ const EmptyState = ({ label }: { label: string }) => (
 );
 
 const formatWaterfallDescription = (step: MemoryCommandWaterfallStep, t: MemoryTranslation): string => {
-  if (!isWaterfallPhase(step.phase)) return step.description;
+  if (!isWaterfallPhase(step.phase)) {return step.description;}
   if (step.event_count > 0) {
     return t('commandCenter.waterfallDescription.withEvents', { count: step.event_count });
   }

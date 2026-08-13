@@ -108,7 +108,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
   const handleProbeKey = useCallback(
     async (apiKey: string) => {
       const probeModel = (provider.enabledModels ?? provider.availableModels ?? [])[0];
-      if (!probeModel) return { reachable: false, error: 'No model available for probe', latency_ms: null };
+      if (!probeModel) {return { reachable: false, error: 'No model available for probe', latency_ms: null };}
 
       const modelFullName = getLiteLLMModelName(provider.id, probeModel, provider.providerType);
       return checkModelReachability({
@@ -132,10 +132,10 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
 
   const handleCheckReachability = useCallback(async () => {
     const requestApiKey = resolveProviderApiKeyForRequests(provider);
-    if (!requestApiKey || !hasUsableProviderAuth(provider)) return;
+    if (!requestApiKey || !hasUsableProviderAuth(provider)) {return;}
 
     const probeModel = (provider.enabledModels ?? provider.availableModels ?? [])[0];
-    if (!probeModel) return;
+    if (!probeModel) {return;}
 
     setReachabilityState('checking');
     const modelFullName = getLiteLLMModelName(provider.id, probeModel, provider.providerType);
@@ -280,8 +280,8 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
     }))
     .sort((a, b) => {
       // 已启用的模型排在前面
-      if (a.isEnabled && !b.isEnabled) return -1;
-      if (!a.isEnabled && b.isEnabled) return 1;
+      if (a.isEnabled && !b.isEnabled) {return -1;}
+      if (!a.isEnabled && b.isEnabled) {return 1;}
       return 0; // 保持原始顺序
     });
 

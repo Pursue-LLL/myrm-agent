@@ -91,10 +91,10 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   const concurrencyFull = concurrencyLimit > 0 && (summary.running ?? 0) >= concurrencyLimit;
   const [edges, setEdges] = useState<TaskDependency[]>([]);
   const [viewMode, setViewMode] = useState<'board' | 'graph' | 'activity'>(() => {
-    if (typeof window === 'undefined') return 'board';
+    if (typeof window === 'undefined') {return 'board';}
     try {
       const stored = localStorage.getItem('kanban_view_mode');
-      if (stored === 'board' || stored === 'graph' || stored === 'activity') return stored;
+      if (stored === 'board' || stored === 'graph' || stored === 'activity') {return stored;}
     } catch { /* private mode / quota */ }
     return 'board';
   });
@@ -102,7 +102,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   const [pipelineWizardOpen, setPipelineWizardOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [laneByProfile, setLaneByProfile] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
+    if (typeof window === 'undefined') {return true;}
     try { return localStorage.getItem('kanban_lane_by_profile') !== 'false'; } catch { return true; }
   });
   const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
@@ -144,10 +144,10 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   const allAgentIds = useMemo(() => {
     const ids = new Set<string>();
     for (const ag of summaryData?.by_agent ?? []) {
-      if (ag.agent_id) ids.add(ag.agent_id);
+      if (ag.agent_id) {ids.add(ag.agent_id);}
     }
     for (const task of tasks) {
-      if (task.agent_id) ids.add(task.agent_id);
+      if (task.agent_id) {ids.add(task.agent_id);}
     }
     return [...ids];
   }, [summaryData, tasks]);
@@ -166,12 +166,12 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
       } else {
         const now = Date.now();
         for (const [id, entry] of pending) {
-          if (now - entry.ts > 5_000) pending.delete(id);
+          if (now - entry.ts > 5_000) {pending.delete(id);}
         }
         setTasks(
           result.items.map((serverTask) => {
             const guard = pending.get(serverTask.task_id);
-            if (guard) return { ...serverTask, status: guard.targetStatus };
+            if (guard) {return { ...serverTask, status: guard.targetStatus };}
             return serverTask;
           }),
         );
@@ -217,7 +217,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
 
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scheduleReload = useCallback(() => {
-    if (reloadTimerRef.current) return;
+    if (reloadTimerRef.current) {return;}
     reloadTimerRef.current = setTimeout(() => {
       reloadTimerRef.current = null;
       fetchTasks();
@@ -251,7 +251,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     const interval = setInterval(() => {
       fetchTasks();
       fetchSummary();
-      if (viewMode === 'graph') fetchEdges();
+      if (viewMode === 'graph') {fetchEdges();}
     }, 30_000);
 
     const onKanbanEvent = (e: Event) => {
@@ -266,7 +266,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
 
     return () => {
       clearInterval(interval);
-      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+      if (reloadTimerRef.current) {clearTimeout(reloadTimerRef.current);}
       window.removeEventListener('kanban-task-updated', onKanbanEvent);
       window.removeEventListener('app_resync_required', onResync);
     };
@@ -337,7 +337,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     setLaneByProfile((prev) => {
       const next = !prev;
       try { localStorage.setItem('kanban_lane_by_profile', String(next)); } catch { /* ignore */ }
-      if (!next) setCollapsedAgents(new Set());
+      if (!next) {setCollapsedAgents(new Set());}
       return next;
     });
   }, []);
@@ -345,14 +345,14 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   const toggleAgentCollapse = useCallback((agentKey: string) => {
     setCollapsedAgents((prev) => {
       const next = new Set(prev);
-      if (next.has(agentKey)) next.delete(agentKey);
-      else next.add(agentKey);
+      if (next.has(agentKey)) {next.delete(agentKey);}
+      else {next.add(agentKey);}
       return next;
     });
   }, []);
 
   const handleSpecifyAll = useCallback(async () => {
-    if (triageCount === 0 || specifyAllLoading) return;
+    if (triageCount === 0 || specifyAllLoading) {return;}
     setSpecifyAllLoading(true);
     try {
       const result = await specifyAllTriage(board.board_id, { dryRun: false });
@@ -399,7 +399,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   );
 
   const handleForcePromoteConfirm = useCallback(async () => {
-    if (!forcePromoteState) return;
+    if (!forcePromoteState) {return;}
     const { taskId, targetStatus } = forcePromoteState;
     setForcePromoteState(null);
     await handleMoveTask(taskId, targetStatus, true);
@@ -754,7 +754,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
         allTasks={tasks}
         open={drawerTaskId !== null}
         onOpenChange={(open) => {
-          if (!open) setDrawerTaskId(null);
+          if (!open) {setDrawerTaskId(null);}
         }}
         onRefresh={fetchTasks}
         onNavigateTask={setDrawerTaskId}
@@ -786,7 +786,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
       <ConfirmDialog
         open={!!forcePromoteState}
         onOpenChange={(open) => {
-          if (!open) setForcePromoteState(null);
+          if (!open) {setForcePromoteState(null);}
         }}
         title={t('forcePromoteTitle')}
         description={
@@ -803,7 +803,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
       <ConfirmDialog
         open={!!dropConfirmState}
         onOpenChange={(open) => {
-          if (!open) dismissDropConfirm();
+          if (!open) {dismissDropConfirm();}
         }}
         title={t('dropConfirmTitle')}
         description={

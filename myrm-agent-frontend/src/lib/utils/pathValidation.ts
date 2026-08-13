@@ -8,11 +8,11 @@
  * @returns 是否为绝对路径（Unix: /, Windows: C:\）
  */
 export const isAbsolutePath = (path: string): boolean => {
-  if (!path) return false;
+  if (!path) {return false;}
   // Unix 路径
-  if (path.startsWith('/')) return true;
+  if (path.startsWith('/')) {return true;}
   // Windows 路径
-  if (/^[A-Z]:\\/i.test(path)) return true;
+  if (/^[A-Z]:\\/i.test(path)) {return true;}
   return false;
 };
 
@@ -22,10 +22,10 @@ export const isAbsolutePath = (path: string): boolean => {
  * @returns 规范化后的路径（保留根路径 / 和 Windows 根路径 C:\）
  */
 export const normalizePath = (path: string): string => {
-  if (!path) return path;
+  if (!path) {return path;}
   const trimmed = path.trim();
   // 根路径不处理
-  if (trimmed === '/' || /^[A-Z]:\\$/i.test(trimmed)) return trimmed;
+  if (trimmed === '/' || /^[A-Z]:\\$/i.test(trimmed)) {return trimmed;}
   // 去除末尾的斜杠
   return trimmed.replace(/[/\\]+$/, '');
 };

@@ -76,7 +76,7 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
   }, [loadTunnels]);
 
   const handleCreate = useCallback(async () => {
-    if (!name.trim() || !upstreamUrl.trim()) return;
+    if (!name.trim() || !upstreamUrl.trim()) {return;}
     try {
       setSaving(true);
       const upstreamHeaders = upstreamAuth.trim()
@@ -107,7 +107,7 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
   }, [orgId, name, upstreamUrl, upstreamAuth, description, t, loadTunnels]);
 
   const handleBindOrgMcp = useCallback(async () => {
-    if (!deployContext) return;
+    if (!deployContext) {return;}
     try {
       setBindingMcp(true);
       await bindTunnelToOrgMcp(orgId, deployContext.tunnelId);

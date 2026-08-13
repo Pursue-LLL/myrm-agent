@@ -71,7 +71,7 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
 
     // Resolve theme variables on mount and when host Theme Profile / dark mode changes
     useEffect(() => {
-      if (!injectTheme) return;
+      if (!injectTheme) {return;}
 
       return subscribeHostThemeVars((newVars) => {
         themeVarsRef.current = newVars;
@@ -84,7 +84,7 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
 
     // Build srcdoc from content + theme
     const srcdoc = useMemo(() => {
-      if (url || !content) return undefined;
+      if (url || !content) {return undefined;}
       if (!injectTheme) {
         // No theme injection: wrap in minimal safe HTML
         const safeContent = isStreaming ? content.replace(/<script[\s\S]*?<\/script>/gi, '') : content;
@@ -101,8 +101,8 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
     // Listen for postMessage events from our own iframe only
     const handleMessage = useCallback(
       (e: MessageEvent) => {
-        if (e.source !== iframeRef.current?.contentWindow) return;
-        if (!e.data || typeof e.data !== 'object') return;
+        if (e.source !== iframeRef.current?.contentWindow) {return;}
+        if (!e.data || typeof e.data !== 'object') {return;}
 
         if (e.data.type === 'widget-resize' && autoHeight) {
           const h = Math.min(Math.max(e.data.height, MIN_IFRAME_HEIGHT), MAX_IFRAME_HEIGHT);
@@ -206,7 +206,7 @@ export const ImagePreview: React.FC<{
 
     React.useEffect(() => {
       const img = imgRef.current;
-      if (!img) return;
+      if (!img) {return;}
 
       const observer = new IntersectionObserver(
         (entries) => {

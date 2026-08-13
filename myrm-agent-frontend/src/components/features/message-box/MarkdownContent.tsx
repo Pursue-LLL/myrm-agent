@@ -67,11 +67,11 @@ const CITATION_MARKER_RE = /\u3010(\d+)\u3011/g;
 const escapeHtmlAttr = (s: string): string => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const preprocessCitationMarkers = (text: string, sources: Source[]): string => {
-  if (sources.length === 0) return text;
+  if (sources.length === 0) {return text;}
   return text.replace(CITATION_MARKER_RE, (_match, numStr: string) => {
     const num = parseInt(numStr, 10);
     const sourceIndex = sources.findIndex((s) => s.index === num);
-    if (sourceIndex === -1) return `[${numStr}]`;
+    if (sourceIndex === -1) {return `[${numStr}]`;}
     const source = sources[sourceIndex];
     const safeUrl = escapeHtmlAttr(source?.url || '');
     return `<citation data-num="${numStr}" data-source-index="${sourceIndex}" data-url="${safeUrl}"></citation>`;
@@ -232,7 +232,7 @@ const MarkdownContent = React.memo(
     const components = useMemo(
       () => ({
         vault: ({ id }: { id?: string }) => {
-          if (!id) return null;
+          if (!id) {return null;}
           return <VaultArtifactCard id={id} />;
         },
         think: ThinkTagProcessor,

@@ -54,27 +54,27 @@ interface CronJobCardProps {
 
 function parseLiteLLM(model: string): { providerId: string; model: string } {
   const idx = model.indexOf('/');
-  if (idx > 0) return { providerId: model.slice(0, idx), model: model.slice(idx + 1) };
+  if (idx > 0) {return { providerId: model.slice(0, idx), model: model.slice(idx + 1) };}
   return { providerId: 'openai', model };
 }
 
 function ScheduleLabel({ job, t }: { job: CronJob; t: (key: string, values?: Record<string, string>) => string }) {
   const s = job.schedule;
-  if (s.kind === 'cron') return <span className="font-mono">{s.expr}</span>;
+  if (s.kind === 'cron') {return <span className="font-mono">{s.expr}</span>;}
   if (s.kind === 'interval' && s.interval_ms) {
     const sec = Math.round(s.interval_ms / 1000);
     const label =
       sec < 60 ? t('timeSeconds', { value: String(sec) }) : t('timeMinutes', { value: String(Math.round(sec / 60)) });
     return <span>{t('interval', { value: label })}</span>;
   }
-  if (s.kind === 'once') return <span>{t('once')}</span>;
+  if (s.kind === 'once') {return <span>{t('once')}</span>;}
   return null;
 }
 
 function AgentLabel({ agentId }: { agentId?: string | null }) {
   const agents = useAgentStore((s) => s.agents);
   const locale = useLocale();
-  if (!agentId) return null;
+  if (!agentId) {return null;}
   const agent = agents.find((a) => a.id === agentId);
   const name = agent ? getBuiltinAgentName(agent.id, agent.name, locale) : agentId;
   return (
@@ -87,7 +87,7 @@ function AgentLabel({ agentId }: { agentId?: string | null }) {
 
 function ThreadBadge({ chatId, t }: { chatId?: string; t: (key: string) => string }) {
   const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
-  if (!chatId) return null;
+  if (!chatId) {return null;}
   const chat = chatHistoryItems.find((c) => c.id === chatId);
   const label = chat?.title || chatId.slice(0, 8);
   return (
@@ -158,10 +158,10 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
     job.job_type === 'shell' ? Terminal : isScriptJob ? FileCode2 : isReminderJob ? Clock : Timer;
 
   const canResume = useMemo(() => {
-    if (job.status === 'active') return true;
-    if (job.status === 'completed') return false;
-    if (job.expires_at && new Date(job.expires_at).getTime() <= Date.now()) return false;
-    if (job.max_fires != null && job.fire_count >= job.max_fires) return false;
+    if (job.status === 'active') {return true;}
+    if (job.status === 'completed') {return false;}
+    if (job.expires_at && new Date(job.expires_at).getTime() <= Date.now()) {return false;}
+    if (job.max_fires != null && job.fire_count >= job.max_fires) {return false;}
     return true;
   }, [job.status, job.expires_at, job.max_fires, job.fire_count]);
 
@@ -182,7 +182,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
   const [triggering, setTriggering] = useState(false);
 
   const handleTrigger = useCallback(async () => {
-    if (triggering) return;
+    if (triggering) {return;}
     setTriggering(true);
     try {
       await triggerJob(job.id);
@@ -198,7 +198,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
   const [duplicating, setDuplicating] = useState(false);
 
   const handleDuplicate = useCallback(async () => {
-    if (duplicating) return;
+    if (duplicating) {return;}
     setDuplicating(true);
     try {
       await duplicateCronJob(job.id);
@@ -219,7 +219,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
         statusBorderColor(job),
       )}
       onClick={() => {
-        if (!suppressNavRef.current) onSelect(job);
+        if (!suppressNavRef.current) {onSelect(job);}
       }}
     >
       <div className="mt-0.5 shrink-0">

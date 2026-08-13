@@ -60,7 +60,7 @@ export default function DirectoryApprovalInput({
   };
 
   const handleTauriPick = useCallback(async () => {
-    if (submitting) return;
+    if (submitting) {return;}
     try {
       const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
       const selected = await openDialog({
@@ -69,7 +69,7 @@ export default function DirectoryApprovalInput({
         title: t('chooseFolder'),
         defaultPath: path.trim() || undefined,
       });
-      if (!selected) return;
+      if (!selected) {return;}
       const dir = typeof selected === 'string' ? selected : selected[0];
       rememberDirectoryGrantPath(dir);
       setPath(dir);
@@ -80,7 +80,7 @@ export default function DirectoryApprovalInput({
   }, [path, submitting, t]);
 
   const handleBrowseClick = useCallback(() => {
-    if (submitting) return;
+    if (submitting) {return;}
     if (isTauriEnvironment()) {
       void handleTauriPick();
       return;
@@ -89,7 +89,7 @@ export default function DirectoryApprovalInput({
   }, [handleTauriPick, submitting]);
 
   const handleGrant = async () => {
-    if (submitting) return;
+    if (submitting) {return;}
     const trimmed = path.trim();
     if (!trimmed) {
       toast.error(t('pathRequired'));
@@ -120,7 +120,7 @@ export default function DirectoryApprovalInput({
   };
 
   const handleDeny = async () => {
-    if (submitting) return;
+    if (submitting) {return;}
     setSubmitting(true);
     try {
       const resumeValue = { granted: false };

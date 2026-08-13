@@ -94,7 +94,7 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
     const container = imageContainerRef.current;
-    if (!container) return;
+    if (!container) {return;}
 
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
@@ -121,7 +121,7 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
     [onSendInstruction, clearSelection],
   );
 
-  if (!isOpen) return null;
+  if (!isOpen) {return null;}
 
   return (
     <div

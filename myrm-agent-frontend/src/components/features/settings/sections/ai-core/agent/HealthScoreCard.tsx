@@ -72,7 +72,7 @@ const POLICY_FIX_MAP: Record<string, PolicyFixConfig> = {
 function groupFindingsByChecker(findings: AuditFinding[]): Record<string, AuditFinding[]> {
   const groups: Record<string, AuditFinding[]> = {};
   for (const f of findings) {
-    if (!groups[f.checker]) groups[f.checker] = [];
+    if (!groups[f.checker]) {groups[f.checker] = [];}
     groups[f.checker].push(f);
   }
   return groups;
@@ -105,7 +105,7 @@ export function HealthScoreCard({
     );
   }
 
-  if (!result) return null;
+  if (!result) {return null;}
 
   const style = RISK_LEVEL_STYLES[result.risk_level] || RISK_LEVEL_STYLES.medium;
   const grouped = groupFindingsByChecker(result.findings);
@@ -134,7 +134,7 @@ export function HealthScoreCard({
                 type="button"
                 disabled={!hasIssues}
                 onClick={() => {
-                  if (!hasIssues) return;
+                  if (!hasIssues) {return;}
                   setExpandedChecker(isExpanded ? null : checker);
                 }}
                 className={cn(

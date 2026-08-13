@@ -80,7 +80,7 @@ const ProviderModelSelector = memo<ProviderModelSelectorProps>(
     // 翻译应用消息
     const translateApplyMessage = useCallback(
       (message: string | undefined): string | undefined => {
-        if (!message) return undefined;
+        if (!message) {return undefined;}
 
         // 常见错误消息的精确匹配
         if (message === 'Missing required fields') {

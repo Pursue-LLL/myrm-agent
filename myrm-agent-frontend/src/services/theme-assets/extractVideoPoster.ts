@@ -24,7 +24,7 @@ export async function extractVideoPosterBlob(file: File): Promise<Blob> {
     let settled = false;
 
     const finish = (action: () => void) => {
-      if (settled) return;
+      if (settled) {return;}
       settled = true;
       window.clearTimeout(timeoutId);
       URL.revokeObjectURL(objectUrl);

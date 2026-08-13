@@ -54,15 +54,15 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {next.delete(id);}
+      else {next.add(id);}
       return next;
     });
   }, []);
 
   const toggleAll = useCallback(() => {
     setSelectedIds((prev) => {
-      if (prev.size === previews.length) return new Set();
+      if (prev.size === previews.length) {return new Set();}
       return new Set(previews.map((i) => i.id));
     });
   }, [previews]);

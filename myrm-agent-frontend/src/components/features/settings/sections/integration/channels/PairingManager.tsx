@@ -84,11 +84,11 @@ const HINT_CHANNELS = [
 ];
 
 function channelSpecificText(prefix: string, channel: string, t: (key: string) => string): string {
-  if (!channel) return t(prefix);
+  if (!channel) {return t(prefix);}
   if (HINT_CHANNELS.includes(channel)) {
     const key = `${prefix}${channel.charAt(0).toUpperCase()}${channel.slice(1)}`;
     const translated = t(key);
-    if (translated !== key) return translated;
+    if (translated !== key) {return translated;}
   }
   return t(prefix);
 }
@@ -136,12 +136,12 @@ export function PairingManager({
   const effectiveChannel = fixedChannel ?? channel;
 
   const handleAdd = async () => {
-    if (!effectiveChannel || !senderId.trim()) return;
+    if (!effectiveChannel || !senderId.trim()) {return;}
     setSubmitting(true);
     try {
       await onAdd(effectiveChannel, senderId.trim());
       setShowForm(false);
-      if (!fixedChannel) setChannel('');
+      if (!fixedChannel) {setChannel('');}
       setSenderId('');
     } finally {
       setSubmitting(false);
@@ -158,7 +158,7 @@ export function PairingManager({
   };
 
   const handleSaveName = async (id: string) => {
-    if (!onUpdateDisplayName) return;
+    if (!onUpdateDisplayName) {return;}
     setUpdatingId(id);
     try {
       await onUpdateDisplayName(id, editNameValue.trim());
@@ -204,8 +204,8 @@ export function PairingManager({
                         placeholder={t('displayNamePlaceholder')}
                         autoFocus
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveName(p.id);
-                          if (e.key === 'Escape') setEditingNameId(null);
+                          if (e.key === 'Enter') {handleSaveName(p.id);}
+                          if (e.key === 'Escape') {setEditingNameId(null);}
                         }}
                       />
                       <Button
@@ -361,7 +361,7 @@ export function PairingManager({
               size="sm"
               onClick={() => {
                 setShowForm(false);
-                if (!fixedChannel) setChannel('');
+                if (!fixedChannel) {setChannel('');}
                 setSenderId('');
               }}
             >
@@ -384,7 +384,7 @@ export function PairingManager({
       <AlertDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          if (!open) {setDeleteTarget(null);}
         }}
       >
         <AlertDialogContent>
@@ -402,7 +402,7 @@ export function PairingManager({
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => {
-                if (deleteTarget) await onDelete(deleteTarget.id);
+                if (deleteTarget) {await onDelete(deleteTarget.id);}
                 setDeleteTarget(null);
               }}
             >

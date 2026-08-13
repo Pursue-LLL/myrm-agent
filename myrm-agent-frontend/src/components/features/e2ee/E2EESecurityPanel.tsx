@@ -34,7 +34,7 @@ const E2EESecurityPanel = memo<E2EESecurityPanelProps>(
       );
     }
 
-    if (!established) return null;
+    if (!established) {return null;}
 
     return (
       <Popover>

@@ -75,7 +75,7 @@ const BLUEPRINT_SLOT_LABEL_KEYS: Record<string, string> = {
 
 export function resolveBlueprintSlotLabel(slotName: string): string {
   const mapped = BLUEPRINT_SLOT_LABEL_KEYS[slotName];
-  if (mapped) return mapped;
+  if (mapped) {return mapped;}
   const camel = blueprintSnakeToCamel(slotName);
   return `blueprint.slot${camel.charAt(0).toUpperCase()}${camel.slice(1)}`;
 }
@@ -141,7 +141,7 @@ export function buildScheduleFromSlots(def: BlueprintDef, values: Record<string,
  * Throws on network or server errors — no fake offline catalog.
  */
 export async function loadBlueprints(): Promise<CronBlueprint[]> {
-  if (_cachedBlueprints) return _cachedBlueprints;
+  if (_cachedBlueprints) {return _cachedBlueprints;}
 
   if (!_loadingPromise) {
     _loadingPromise = listBlueprints()
@@ -255,14 +255,14 @@ export function humanizeSchedule(schedule: CronSchedule): string {
     const mins = (schedule.interval_ms ?? 0) / 60_000;
     return `Every ${mins} min`;
   }
-  if (!schedule.expr) return '';
+  if (!schedule.expr) {return '';}
   const parts = schedule.expr.trim().split(/\s+/);
-  if (parts.length < 5) return schedule.expr;
+  if (parts.length < 5) {return schedule.expr;}
   const [min, hour, , , dow] = parts;
   const time = `${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
-  if (dow === '*') return `Daily at ${time}`;
-  if (dow === '1-5') return `Weekdays at ${time}`;
-  if (dow === '0,6') return `Weekends at ${time}`;
+  if (dow === '*') {return `Daily at ${time}`;}
+  if (dow === '1-5') {return `Weekdays at ${time}`;}
+  if (dow === '0,6') {return `Weekends at ${time}`;}
   const dayNames = dow
     .split(',')
     .map((d) => WEEKDAY_KEYS[d] ?? d)

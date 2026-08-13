@@ -18,9 +18,9 @@ export const TONE_CLASSES: Record<LineTone, string> = {
 };
 
 export function getLineTone(line: string): LineTone {
-  if (!line.trim()) return 'default';
+  if (!line.trim()) {return 'default';}
   for (const [tone, pattern] of TONE_PATTERNS) {
-    if (pattern.test(line)) return tone;
+    if (pattern.test(line)) {return tone;}
   }
   return 'default';
 }

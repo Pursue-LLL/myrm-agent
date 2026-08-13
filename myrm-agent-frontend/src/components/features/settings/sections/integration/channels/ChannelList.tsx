@@ -57,11 +57,11 @@ function formatRelativeTime(
   epochSec: number | null,
   t: (key: string, values?: Record<string, string | number>) => string,
 ): string {
-  if (!epochSec) return t('lastActiveNever');
+  if (!epochSec) {return t('lastActiveNever');}
   const deltaSec = Math.max(0, Math.floor(Date.now() / 1000 - epochSec));
-  if (deltaSec < 60) return t('justNow');
-  if (deltaSec < 3600) return t('minutesAgo', { count: Math.floor(deltaSec / 60) });
-  if (deltaSec < 86400) return t('hoursAgo', { count: Math.floor(deltaSec / 3600) });
+  if (deltaSec < 60) {return t('justNow');}
+  if (deltaSec < 3600) {return t('minutesAgo', { count: Math.floor(deltaSec / 60) });}
+  if (deltaSec < 86400) {return t('hoursAgo', { count: Math.floor(deltaSec / 3600) });}
   return t('daysAgo', { count: Math.floor(deltaSec / 86400) });
 }
 

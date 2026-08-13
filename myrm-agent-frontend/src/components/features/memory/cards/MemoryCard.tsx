@@ -80,11 +80,11 @@ const MemoryCard = memo<MemoryCardProps>(
     const displayLabel = confirmed?.projected_label ?? t(`types.${memoryType}`);
 
     const displayContent = (() => {
-      if (memoryType !== 'profile') return memory.content;
-      if (confirmed?.value) return confirmed.value;
+      if (memoryType !== 'profile') {return memory.content;}
+      if (confirmed?.value) {return confirmed.value;}
       if ('extra_data' in memory && memory.extra_data) {
         const val = memory.extra_data.value;
-        if (typeof val === 'string') return val;
+        if (typeof val === 'string') {return val;}
       }
       const colonIdx = memory.content.indexOf(': ');
       return colonIdx > 0 ? memory.content.slice(colonIdx + 2) : memory.content;

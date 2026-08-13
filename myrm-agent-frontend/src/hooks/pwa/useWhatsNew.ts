@@ -31,7 +31,7 @@ export interface UseWhatsNewResult {
 }
 
 async function getCurrentVersion(): Promise<string | null> {
-  if (!isTauriRuntime()) return null;
+  if (!isTauriRuntime()) {return null;}
   try {
     const { getVersion } = await import('@tauri-apps/api/app');
     return await getVersion();
@@ -50,7 +50,7 @@ async function fetchRelease(version: string): Promise<ReleaseInfo | null> {
       headers: { Accept: 'application/vnd.github+json' },
       signal: controller.signal,
     });
-    if (!res.ok) return null;
+    if (!res.ok) {return null;}
     const data = await res.json();
     return {
       version,
@@ -72,16 +72,16 @@ export function useWhatsNew(): UseWhatsNewResult {
   const checkedRef = useRef(false);
 
   useEffect(() => {
-    if (checkedRef.current || !isTauriRuntime()) return;
+    if (checkedRef.current || !isTauriRuntime()) {return;}
     checkedRef.current = true;
 
     void (async () => {
       const currentVersion = await getCurrentVersion();
-      if (!currentVersion) return;
+      if (!currentVersion) {return;}
 
       try {
         const lastSeen = localStorage.getItem(LAST_SEEN_VERSION_KEY);
-        if (lastSeen === currentVersion) return;
+        if (lastSeen === currentVersion) {return;}
       } catch {
         return;
       }

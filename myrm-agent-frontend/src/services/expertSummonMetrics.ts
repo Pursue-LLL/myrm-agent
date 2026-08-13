@@ -83,12 +83,12 @@ let pendingDroppedEventsBySurface = loadDroppedBufferFromStorage();
 let postQueue: Promise<void> = Promise.resolve();
 
 function clampCount(count: number): number {
-  if (!Number.isFinite(count)) return 1;
+  if (!Number.isFinite(count)) {return 1;}
   return Math.max(1, Math.min(MAX_EVENT_COUNT, Math.floor(count)));
 }
 
 function clampQueryLength(length: number): number {
-  if (!Number.isFinite(length)) return 0;
+  if (!Number.isFinite(length)) {return 0;}
   return Math.max(0, Math.min(MAX_QUERY_LENGTH, Math.floor(length)));
 }
 

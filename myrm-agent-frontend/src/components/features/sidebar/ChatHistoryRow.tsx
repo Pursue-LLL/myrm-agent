@@ -208,8 +208,8 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                 onChange={(e) => onRenameValueChange(e.target.value)}
                 onBlur={() => onRenameSubmit(chat.id)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') onRenameSubmit(chat.id);
-                  else if (e.key === 'Escape') onRenameCancel();
+                  if (e.key === 'Enter') {onRenameSubmit(chat.id);}
+                  else if (e.key === 'Escape') {onRenameCancel();}
                 }}
                 className={cn(
                   'text-sm font-medium text-black/90 dark:text-white/90 bg-transparent border-b border-primary/50 outline-none w-full',
@@ -495,7 +495,7 @@ function MoveToProjectMenu({
     });
   };
 
-  if (projects.length === 0) return null;
+  if (projects.length === 0) {return null;}
 
   return (
     <DropdownMenuSub>
@@ -530,7 +530,7 @@ function MoveToProjectMenu({
 }
 
 function getProjectColor(projectId: string | null | undefined): string | undefined {
-  if (!projectId) return undefined;
+  if (!projectId) {return undefined;}
   const project = useProjectStore.getState().projects.find((p) => p.id === projectId);
   return project?.color;
 }

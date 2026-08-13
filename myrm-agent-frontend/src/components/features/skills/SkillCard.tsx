@@ -50,23 +50,23 @@ function getSecurityBadgeProps(security: SecurityScanSummary): {
 } {
   const { score } = security;
   if (score >= 80)
-    return {
+    {return {
       icon: ShieldCheck,
       color: 'text-green-600 dark:text-green-400',
       label: `${score}`,
-    };
+    };}
   if (score >= 50)
-    return {
+    {return {
       icon: Shield,
       color: 'text-yellow-600 dark:text-yellow-400',
       label: `${score}`,
-    };
+    };}
   if (score >= 25)
-    return {
+    {return {
       icon: ShieldAlert,
       color: 'text-orange-600 dark:text-orange-400',
       label: `${score}`,
-    };
+    };}
   return {
     icon: ShieldX,
     color: 'text-red-600 dark:text-red-400',
@@ -77,8 +77,8 @@ function getSecurityBadgeProps(security: SecurityScanSummary): {
 type SkillStatus = 'ready' | 'needs-setup' | 'disabled';
 
 function getSkillStatus(skill: Skill, isEnabled: boolean): SkillStatus {
-  if (!isEnabled) return 'disabled';
-  if (!skill.available) return 'needs-setup';
+  if (!isEnabled) {return 'disabled';}
+  if (!skill.available) {return 'needs-setup';}
   return 'ready';
 }
 

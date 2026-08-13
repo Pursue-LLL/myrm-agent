@@ -28,12 +28,12 @@ function getStorageKey(agentId?: string): string {
 }
 
 function readHistory(agentId?: string): InputHistoryEntry[] {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined') {return [];}
   try {
     const raw = localStorage.getItem(getStorageKey(agentId));
-    if (!raw) return [];
+    if (!raw) {return [];}
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) {return [];}
     return parsed
       .filter(
         (e: unknown): e is InputHistoryEntry =>
@@ -50,7 +50,7 @@ function readHistory(agentId?: string): InputHistoryEntry[] {
 }
 
 function writeHistory(entries: InputHistoryEntry[], agentId?: string): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') {return;}
   try {
     localStorage.setItem(getStorageKey(agentId), JSON.stringify(entries));
   } catch {
@@ -60,9 +60,9 @@ function writeHistory(entries: InputHistoryEntry[], agentId?: string): void {
 
 export function addInputHistory(text: string, agentId?: string): void {
   const trimmed = text.trim();
-  if (!trimmed) return;
+  if (!trimmed) {return;}
   // 过滤 / 快捷指令（不存入历史）
-  if (trimmed.startsWith('/')) return;
+  if (trimmed.startsWith('/')) {return;}
 
   const entries = readHistory(agentId);
   const deduped = entries.filter((e) => e.text.trim() !== trimmed);
@@ -101,14 +101,14 @@ export function useInputHistory({ agentId, getInputValue }: UseInputHistoryOptio
   }, []);
 
   const close = useCallback(() => {
-    if (!popupRef.current.open) return;
+    if (!popupRef.current.open) {return;}
     applyPopup(CLOSED);
   }, [applyPopup]);
 
   const confirm = useCallback(
     (index?: number): string | undefined => {
       const { open, entries, activeIndex } = popupRef.current;
-      if (!open) return undefined;
+      if (!open) {return undefined;}
       const entry = entries[index ?? activeIndex];
       applyPopup(CLOSED);
       return entry?.text;
@@ -129,11 +129,11 @@ export function useInputHistory({ agentId, getInputValue }: UseInputHistoryOptio
       const state = popupRef.current;
 
       if (!state.open) {
-        if (e.key !== 'ArrowUp') return false;
-        if (getInputValueRef.current().trim().length > 0) return false;
+        if (e.key !== 'ArrowUp') {return false;}
+        if (getInputValueRef.current().trim().length > 0) {return false;}
 
         const entries = readHistory(agentId);
-        if (entries.length === 0) return false;
+        if (entries.length === 0) {return false;}
 
         e.preventDefault();
         applyPopup({ open: true, entries, activeIndex: 0 });
@@ -186,7 +186,7 @@ export function useInputHistory({ agentId, getInputValue }: UseInputHistoryOptio
     setActiveIndex: useCallback(
       (index: number) => {
         const state = popupRef.current;
-        if (!state.open) return;
+        if (!state.open) {return;}
         applyPopup({ ...state, activeIndex: Math.max(0, Math.min(index, state.entries.length - 1)) });
       },
       [applyPopup],

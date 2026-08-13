@@ -67,7 +67,7 @@ const SpeedTestDialog = memo<SpeedTestDialogProps>(({ open, onOpenChange, modelC
       return next;
     });
 
-    if (!config) return;
+    if (!config) {return;}
     const results = await runSpeedTest([config]);
     const result = results[0] ?? null;
 

@@ -193,7 +193,7 @@ export function useCasesEval(selectedDatasetId: string): CasesEval {
       // onerror instead of onmessage. Both paths converge here so the UI
       // always re-pulls the report and sources after a completed run.
       const finalize = () => {
-        if (finalized) return;
+        if (finalized) {return;}
         finalized = true;
         eventSource?.close();
         setRunning(false);

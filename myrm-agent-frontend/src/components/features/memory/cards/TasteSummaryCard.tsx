@@ -16,18 +16,18 @@ const TasteSummaryCard = memo<{ className?: string }>(({ className }) => {
     let cancelled = false;
     getTasteSummary()
       .then((res) => {
-        if (!cancelled) setData(res);
+        if (!cancelled) {setData(res);}
       })
       .catch(() => {})
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {setLoading(false);}
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (loading || !data) return null;
+  if (loading || !data) {return null;}
 
   const hasContent =
     data.style_keywords.length > 0 ||
@@ -38,7 +38,7 @@ const TasteSummaryCard = memo<{ className?: string }>(({ className }) => {
     !!data.technical_depth ||
     !!data.proactivity;
 
-  if (!hasContent) return null;
+  if (!hasContent) {return null;}
 
   return (
     <div

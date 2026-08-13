@@ -30,7 +30,7 @@ export async function refreshSessionAccessRoots(
   const optimistic = options?.optimistic;
 
   const applyOptimistic = () => {
-    if (!optimistic) return;
+    if (!optimistic) {return;}
     const current = useChatStore.getState().sessionAccessRoots;
     useChatStore.getState().setSessionAccessRoots([
       ...current.filter((root) => root.path !== optimistic.path),

@@ -347,7 +347,7 @@ export function AdvancedEngineParamsSection({ editor, t }: SectionProps) {
 type RoutingMode = 'global' | 'custom' | 'disabled';
 
 function getRoutingMode(ms: AgentCapabilitiesTabProps['editor']['modelSelection']): RoutingMode {
-  if (!ms || ms.routingEnabled === undefined) return 'global';
+  if (!ms || ms.routingEnabled === undefined) {return 'global';}
   return ms.routingEnabled ? 'custom' : 'disabled';
 }
 
@@ -356,7 +356,7 @@ export function RoutingOverrideSection({ editor, t }: SectionProps) {
   const mode = getRoutingMode(ms);
 
   const setMode = (next: RoutingMode) => {
-    if (!ms) return;
+    if (!ms) {return;}
     if (next === 'global') {
       const { routingEnabled: _, lightProviderId: _lp, lightModel: _lm, reasoningProviderId: _rp, reasoningModel: _rm, ...rest } = ms;
       editor.setModelSelection(rest);

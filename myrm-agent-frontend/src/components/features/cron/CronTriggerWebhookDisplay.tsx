@@ -9,7 +9,7 @@ import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { useIngressUrl } from '@/hooks/billing/useIngressUrl';
 
 export function isValidCronTriggerRegex(pattern: string): boolean {
-  if (!pattern) return true;
+  if (!pattern) {return true;}
   try {
     new RegExp(pattern);
     return true;
@@ -36,7 +36,7 @@ export function CronTriggerWebhookDisplay({ path, secret }: { path?: string | nu
     toast.success('Copied');
   }, []);
 
-  if (!path) return null;
+  if (!path) {return null;}
 
   const curlCmd = buildCurlExample(webhookUrl, secret);
 

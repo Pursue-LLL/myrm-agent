@@ -99,7 +99,7 @@ function buildManifestById(
   const byId: Record<string, MigrationSourceManifestItem> = {};
   for (const entry of entries) {
     const id = normalizeSourceId(entry.id);
-    if (!id) continue;
+    if (!id) {continue;}
     byId[id] = {
       id,
       display_name: entry.display_name.trim() || entry.id,
@@ -113,7 +113,7 @@ function buildManifestById(
 
 function resolveManifestEntry(sourceId: string): MigrationSourceManifestItem | null {
   const normalized = normalizeSourceId(sourceId);
-  if (!normalized) return null;
+  if (!normalized) {return null;}
   return sourceManifestById[normalized] ?? null;
 }
 

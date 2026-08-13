@@ -26,7 +26,7 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
   const steps = [t('step.loadingTheme'), t('step.syncingSettings'), t('step.initServices'), t('step.ready')];
 
   const requestExit = useCallback(() => {
-    if (completedRef.current) return;
+    if (completedRef.current) {return;}
     completedRef.current = true;
     markBootScreenShown();
     setFadeOut(true);
@@ -48,7 +48,7 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
     timers.push(setTimeout(requestExit, autoFinishDelay));
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') requestExit();
+      if (e.key === 'Escape') {requestExit();}
     };
     window.addEventListener('keydown', handleKeyDown);
 

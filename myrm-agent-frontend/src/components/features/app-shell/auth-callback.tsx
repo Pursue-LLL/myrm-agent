@@ -54,7 +54,7 @@ function AuthCallbackContent() {
 
   useEffect(() => {
     // 防止重复处理
-    if (processedRef.current) return;
+    if (processedRef.current) {return;}
 
     // Dedicated routes handle their own query params (exchange / provider errors).
     const pathname = window.location.pathname;

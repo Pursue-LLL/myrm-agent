@@ -170,12 +170,12 @@ const AgentConfigPanel = ({ className, hideGallery = false, showInkBackground = 
                 (agentConfig?.systemPrompt?.trim().length || 0) > 0;
 
               // 如果没有任何配置，不显示按钮
-              if (!hasConfig) return null;
+              if (!hasConfig) {return null;}
 
               // 如果是已保存的智能体，只有配置有变化时才显示"保存"按钮
               if (agentConfig?.agentId) {
                 // 如果没有变化，不显示保存按钮
-                if (!hasConfigChanges) return null;
+                if (!hasConfigChanges) {return null;}
 
                 return (
                   <button
@@ -298,7 +298,7 @@ const DirectDelegateSelector = memo(() => {
     [updateAgentConfig],
   );
 
-  if (agents.length === 0) return null;
+  if (agents.length === 0) {return null;}
 
   return (
     <div className="flex items-center gap-2 mt-3">

@@ -349,7 +349,7 @@ export function EvolutionRejectionDashboard() {
                                     body: JSON.stringify({ reason: entry.reason, force_retry: true }),
                                   },
                                 );
-                                if (!res.ok) throw new Error('Failed to force retry');
+                                if (!res.ok) {throw new Error('Failed to force retry');}
                                 toast.success(text('已强制重试 / Force retry started'));
 
                                 // Optimistic UI update: instantly change status to PENDING_REVIEW

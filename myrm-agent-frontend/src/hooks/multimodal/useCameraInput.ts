@@ -94,7 +94,7 @@ export function useCameraInput(options: UseCameraInputOptions = {}): UseCameraIn
 
   const captureFrame = useCallback((): VisualFrame | null => {
     const video = videoRef.current;
-    if (!video || video.readyState < 2) return null;
+    if (!video || video.readyState < 2) {return null;}
 
     if (!canvasRef.current) {
       canvasRef.current = document.createElement('canvas');
@@ -104,7 +104,7 @@ export function useCameraInput(options: UseCameraInputOptions = {}): UseCameraIn
     canvas.height = captureHeight;
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+    if (!ctx) {return null;}
 
     ctx.drawImage(video, 0, 0, captureWidth, captureHeight);
     const base64 = canvas.toDataURL('image/jpeg', jpegQuality);
@@ -140,7 +140,7 @@ export function useCameraInput(options: UseCameraInputOptions = {}): UseCameraIn
   }, []);
 
   const startCamera = useCallback(async () => {
-    if (cameraState === 'active' || cameraState === 'starting') return;
+    if (cameraState === 'active' || cameraState === 'starting') {return;}
 
     setCameraState('starting');
     try {

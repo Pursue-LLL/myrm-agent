@@ -60,7 +60,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, items, sel
     }
   }, [selectedIndex]);
 
-  if (!open) return null;
+  if (!open) {return null;}
 
   // 分组命令
   const systemActions = items.filter(

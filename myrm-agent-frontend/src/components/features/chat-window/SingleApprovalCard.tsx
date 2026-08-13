@@ -134,7 +134,7 @@ export default function SingleApprovalCard({
     ['save_session', 'restore_session', 'list_sessions', 'delete_session'].includes(request.toolInput.action);
 
   const browserSessionInfo = useMemo(() => {
-    if (!isBrowserSession) return null;
+    if (!isBrowserSession) {return null;}
     const action = String(request.toolInput.action);
     const domain = String(request.toolInput.value ?? '');
     const actionLabels: Record<string, { zh: string; en: string; desc: { zh: string; en: string } }> = {

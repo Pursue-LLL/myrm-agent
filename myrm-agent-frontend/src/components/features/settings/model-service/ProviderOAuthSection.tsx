@@ -53,7 +53,7 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(
     }, []);
 
     useEffect(() => {
-      if (!oauthProvider) return;
+      if (!oauthProvider) {return;}
       let cancelled = false;
       fetchProviderOAuthStatus(oauthProvider)
         .then((s) => {
@@ -73,7 +73,7 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(
     }, [cleanup]);
 
     const handleCopyCode = useCallback(async () => {
-      if (!deviceCode) return;
+      if (!deviceCode) {return;}
       await navigator.clipboard.writeText(deviceCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -127,7 +127,7 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(
     );
 
     const handleConnect = useCallback(async () => {
-      if (!oauthProvider) return;
+      if (!oauthProvider) {return;}
       const config = getProviderOAuthConfig(oauthProvider);
       setIsLoading(true);
 
@@ -178,7 +178,7 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(
     }, [oauthProvider, startPoll, cleanup, locale, onOAuthStatusChange]);
 
     const handleDisconnect = useCallback(async () => {
-      if (!oauthProvider) return;
+      if (!oauthProvider) {return;}
       try {
         await disconnectProviderOAuth(oauthProvider);
         setStatus((prev) => (prev ? { ...prev, connected: false } : null));
@@ -193,7 +193,7 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(
       }
     }, [oauthProvider, locale, onOAuthStatusChange]);
 
-    if (!oauthProvider) return null;
+    if (!oauthProvider) {return null;}
 
     const config = getProviderOAuthConfig(oauthProvider);
     const isConnected = status?.connected ?? false;

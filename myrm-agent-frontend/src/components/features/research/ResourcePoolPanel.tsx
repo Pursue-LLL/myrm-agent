@@ -117,7 +117,7 @@ export default function ResourcePoolPanel() {
   }, [t]);
 
   useEffect(() => {
-    if (!showConceptPicker) return;
+    if (!showConceptPicker) {return;}
     const timer = setTimeout(() => searchConcepts(query), 300);
     return () => clearTimeout(timer);
   }, [query, showConceptPicker, searchConcepts]);
@@ -137,7 +137,7 @@ export default function ResourcePoolPanel() {
   const handleFileUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
-      if (!files || files.length === 0) return;
+      if (!files || files.length === 0) {return;}
 
       setIsUploading(true);
       try {
@@ -157,7 +157,7 @@ export default function ResourcePoolPanel() {
         toast.error(t('errors.uploadFailed'));
       } finally {
         setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (fileInputRef.current) {fileInputRef.current.value = '';}
       }
     },
     [addResource, t],

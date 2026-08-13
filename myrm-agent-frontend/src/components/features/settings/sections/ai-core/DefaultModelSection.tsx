@@ -198,13 +198,13 @@ const DefaultModelSection = memo(() => {
   // 检查模型选择是否有效（Provider 存在、启用、有激活的 API Key）
   const isSelectionValid = useCallback(
     (selection: SingleModelSelection | null): boolean => {
-      if (!selection) return true; // null 是有效的（表示未选择）
+      if (!selection) {return true;} // null 是有效的（表示未选择）
 
       const provider = providers.find((p) => p.id === selection.providerId);
-      if (!provider) return false; // Provider 不存在
-      if (!provider.isEnabled) return false; // Provider 未启用
-      if (!provider.apiKeys.some((k) => k.isActive && k.key)) return false; // 没有激活的 API Key
-      if (!provider.enabledModels.includes(selection.model)) return false; // 模型未在 enabledModels 中
+      if (!provider) {return false;} // Provider 不存在
+      if (!provider.isEnabled) {return false;} // Provider 未启用
+      if (!provider.apiKeys.some((k) => k.isActive && k.key)) {return false;} // 没有激活的 API Key
+      if (!provider.enabledModels.includes(selection.model)) {return false;} // 模型未在 enabledModels 中
 
       return true;
     },
@@ -212,7 +212,7 @@ const DefaultModelSection = memo(() => {
   );
 
   useEffect(() => {
-    if (!isInitialized || hasCleanedModelsRef.current) return;
+    if (!isInitialized || hasCleanedModelsRef.current) {return;}
 
     if (!isSelectionValid(defaultModelConfig.baseModel.primary)) {
       setBaseModel(null);
@@ -228,10 +228,10 @@ const DefaultModelSection = memo(() => {
     }
     const rc = defaultModelConfig.routingConfig;
     if (rc) {
-      if (!isSelectionValid(rc.lightModel.primary)) setRoutingLightModel(null);
-      if (!isSelectionValid(rc.lightModel.fallback)) setRoutingLightModelFallback(null);
-      if (!isSelectionValid(rc.reasoningModel.primary)) setRoutingReasoningModel(null);
-      if (!isSelectionValid(rc.reasoningModel.fallback)) setRoutingReasoningModelFallback(null);
+      if (!isSelectionValid(rc.lightModel.primary)) {setRoutingLightModel(null);}
+      if (!isSelectionValid(rc.lightModel.fallback)) {setRoutingLightModelFallback(null);}
+      if (!isSelectionValid(rc.reasoningModel.primary)) {setRoutingReasoningModel(null);}
+      if (!isSelectionValid(rc.reasoningModel.fallback)) {setRoutingReasoningModelFallback(null);}
     }
     if (!isSelectionValid(defaultModelConfig.visionFallbackModel?.primary ?? null)) {
       setVisionFallbackModel(null);
@@ -821,10 +821,10 @@ const DefaultModelSection = memo(() => {
           {(() => {
             const basePrimary = defaultModelConfig.baseModel.primary;
             const litePrimary = defaultModelConfig.liteModel.primary;
-            if (!basePrimary || !litePrimary) return null;
+            if (!basePrimary || !litePrimary) {return null;}
             const baseWindow = customModelInfo[`${basePrimary.providerId}/${basePrimary.model}`]?.max_input_tokens;
             const liteWindow = customModelInfo[`${litePrimary.providerId}/${litePrimary.model}`]?.max_input_tokens;
-            if (!baseWindow || !liteWindow || liteWindow >= baseWindow) return null;
+            if (!baseWindow || !liteWindow || liteWindow >= baseWindow) {return null;}
             return (
               <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-500">
                 <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />

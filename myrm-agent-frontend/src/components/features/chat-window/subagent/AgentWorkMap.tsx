@@ -94,8 +94,8 @@ const TONE_PROGRESS_BAR: Record<TopologyTone, string> = {
 };
 
 function formatDuration(totalSeconds: number): string {
-  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return '';
-  if (totalSeconds < 60) return `${Math.round(totalSeconds)}s`;
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) {return '';}
+  if (totalSeconds < 60) {return `${Math.round(totalSeconds)}s`;}
   const min = Math.floor(totalSeconds / 60);
   const sec = Math.round(totalSeconds % 60);
   return `${min}m${sec}s`;
@@ -183,14 +183,14 @@ const nodeTypes = { custom: CustomNode };
 const TopologySummary = ({ model }: { model: TopologyModel }) => {
   const t = useTranslations('subagentDashboard');
   const parts: string[] = [`${model.nodes.length} ${t('agents')}`];
-  if (model.activeCount > 0) parts.push(`${model.activeCount} ${t('active')}`);
-  if (model.failedCount > 0) parts.push(`${model.failedCount} ${t('failed')}`);
+  if (model.activeCount > 0) {parts.push(`${model.activeCount} ${t('active')}`);}
+  if (model.failedCount > 0) {parts.push(`${model.failedCount} ${t('failed')}`);}
   const cost = fmtCost(model.totalCostUsd);
-  if (cost) parts.push(cost);
-  if (model.totalTokens > 0) parts.push(`${fmtTokens(model.totalTokens)} tok`);
+  if (cost) {parts.push(cost);}
+  if (model.totalTokens > 0) {parts.push(`${fmtTokens(model.totalTokens)} tok`);}
   const duration = formatDuration(model.totalDurationSeconds);
-  if (duration) parts.push(duration);
-  if (parts.length === 0) return null;
+  if (duration) {parts.push(duration);}
+  if (parts.length === 0) {return null;}
   return (
     <div className="px-4 pt-2 pb-1 text-[11px] text-muted-foreground border-b border-border/30">
       {parts.join(' · ')}
@@ -222,7 +222,7 @@ export const AgentWorkMap = ({ chatId: chatIdProp, onNodeClick }: AgentWorkMapPr
 
   // Fetch persisted fission topology once when the canvas mounts (Task Tray tab).
   useEffect(() => {
-    if (!chatIdProp) return;
+    if (!chatIdProp) {return;}
     import('@/services/chat').then(({ getFissionTopology }) => {
       getFissionTopology(chatIdProp).then((topology) => {
         if (topology) {
@@ -289,7 +289,7 @@ export const AgentWorkMap = ({ chatId: chatIdProp, onNodeClick }: AgentWorkMapPr
   // Data pass: progress/status/meta updates refresh node data and edge animation
   // in place, keeping node coordinates stable.
   useEffect(() => {
-    if (model.nodes.length === 0) return;
+    if (model.nodes.length === 0) {return;}
     const dataById = new Map(model.nodes.map((n) => [n.taskId, n]));
     setNodes((prev) =>
       prev.map((n) => {

@@ -18,7 +18,7 @@ const AUTH_TOKEN_KEY = 'auth_token';
  * - auth_token 以 'mock-token-' 开头 → 未登录（开发模式）
  */
 export function isGuest(): boolean {
-  if (typeof window === 'undefined') return true;
+  if (typeof window === 'undefined') {return true;}
 
   const token = localStorage.getItem(AUTH_TOKEN_KEY);
   return !token || token.startsWith('mock-token-');
@@ -35,7 +35,7 @@ export function isAuthenticated(): boolean {
  * 获取认证 Token（仅在已认证时返回）
  */
 export function getAuthToken(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') {return null;}
 
   const token = localStorage.getItem(AUTH_TOKEN_KEY);
   if (token && !token.startsWith('mock-token-')) {
@@ -48,7 +48,7 @@ export function getAuthToken(): string | null {
  * 设置认证 Token
  */
 export function setAuthToken(token: string): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') {return;}
   localStorage.setItem(AUTH_TOKEN_KEY, token);
   if (!token.startsWith('mock-token-')) {
     setAuthSessionCookie();
@@ -59,7 +59,7 @@ export function setAuthToken(token: string): void {
  * 清除认证 Token（登出时调用）
  */
 export function clearAuthToken(): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') {return;}
   localStorage.removeItem(AUTH_TOKEN_KEY);
   clearAuthSessionCookie();
 }

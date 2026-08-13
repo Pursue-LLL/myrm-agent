@@ -44,7 +44,7 @@ export default function MemoryBackupSection() {
       const response = await fetch('/api/v1/memory/backup/list', {
         credentials: 'include',
       });
-      if (!response.ok) throw new Error('Failed to load backups');
+      if (!response.ok) {throw new Error('Failed to load backups');}
       const data = await response.json();
       setBackups(data.backups || []);
     } catch (error) {
@@ -68,7 +68,7 @@ export default function MemoryBackupSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description: description.trim() || undefined }),
       });
-      if (!response.ok) throw new Error('Failed to create backup');
+      if (!response.ok) {throw new Error('Failed to create backup');}
       const data = await response.json();
       if (data.success) {
         toast.success(t('createSuccess') || 'Backup created successfully');
@@ -93,7 +93,7 @@ export default function MemoryBackupSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ backup_id: backupId, overwrite: restoreOverwrite }),
       });
-      if (!response.ok) throw new Error('Failed to restore backup');
+      if (!response.ok) {throw new Error('Failed to restore backup');}
       const data = await response.json();
       if (data.success) {
         toast.success(
@@ -114,7 +114,7 @@ export default function MemoryBackupSection() {
         method: 'DELETE',
         credentials: 'include',
       });
-      if (!response.ok) throw new Error('Failed to delete backup');
+      if (!response.ok) {throw new Error('Failed to delete backup');}
       toast.success(t('deleteSuccess') || 'Backup deleted');
       await loadBackups();
     } catch (error) {
@@ -124,7 +124,7 @@ export default function MemoryBackupSection() {
   };
 
   const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) {return '0 B';}
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));

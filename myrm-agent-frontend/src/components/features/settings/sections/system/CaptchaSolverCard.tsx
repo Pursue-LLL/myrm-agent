@@ -68,7 +68,7 @@ const CaptchaSolverCard = memo(() => {
     [handleSave],
   );
 
-  if (isLoading) return null;
+  if (isLoading) {return null;}
 
   return (
     <section className="space-y-4">

@@ -22,8 +22,8 @@ function countDiffStats(diff: string): { added: number; removed: number } {
   let removed = 0;
   const lines = diff.split('\n');
   for (const line of lines) {
-    if (line.startsWith('+') && !line.startsWith('+++')) added++;
-    else if (line.startsWith('-') && !line.startsWith('---')) removed++;
+    if (line.startsWith('+') && !line.startsWith('+++')) {added++;}
+    else if (line.startsWith('-') && !line.startsWith('---')) {removed++;}
   }
   return { added, removed };
 }

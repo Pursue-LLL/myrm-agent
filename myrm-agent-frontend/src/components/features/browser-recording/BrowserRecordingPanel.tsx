@@ -53,7 +53,7 @@ const BrowserRecordingPanel: React.FC = () => {
 
   const handleGenerateSkill = useCallback(async () => {
     const name = skillName.trim();
-    if (!name) return;
+    if (!name) {return;}
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)) {
       setSkillNameError(t('skillNameInvalid'));
       return;
@@ -62,7 +62,7 @@ const BrowserRecordingPanel: React.FC = () => {
     await generateSkill(name, skillDesc.trim());
   }, [generateSkill, skillName, skillDesc, t]);
 
-  if (!isOpen) return null;
+  if (!isOpen) {return null;}
 
   const isRecording = status === 'recording';
   const isPaused = status === 'paused';

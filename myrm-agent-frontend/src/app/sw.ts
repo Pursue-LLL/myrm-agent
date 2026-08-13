@@ -57,7 +57,7 @@ interface PushPayload {
 }
 
 self.addEventListener('push', (event: PushEvent) => {
-  if (!event.data) return;
+  if (!event.data) {return;}
 
   let payload: PushPayload = {};
   try {

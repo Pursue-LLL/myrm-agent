@@ -32,7 +32,7 @@ interface OrgMcpAdminPanelProps {
 }
 
 function typeLabel(type: string): string {
-  if (type === 'tunnel') return 'Tunnel';
+  if (type === 'tunnel') {return 'Tunnel';}
   return type.replace('_', ' ').toUpperCase();
 }
 
@@ -98,10 +98,10 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
   }, [loadData]);
 
   const handleCreate = useCallback(async () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {return;}
     const isTunnel = type === 'tunnel';
-    if (isTunnel && !tunnelId) return;
-    if (!isTunnel && !url.trim()) return;
+    if (isTunnel && !tunnelId) {return;}
+    if (!isTunnel && !url.trim()) {return;}
 
     try {
       setSaving(true);
@@ -143,10 +143,10 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
   }, []);
 
   const handleEdit = useCallback(async () => {
-    if (!editTarget || !editName.trim()) return;
+    if (!editTarget || !editName.trim()) {return;}
     const isTunnel = editType === 'tunnel';
-    if (isTunnel && !editTunnelId) return;
-    if (!isTunnel && !editUrl.trim()) return;
+    if (isTunnel && !editTunnelId) {return;}
+    if (!isTunnel && !editUrl.trim()) {return;}
 
     try {
       setSaving(true);
@@ -188,7 +188,7 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
   );
 
   const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {return;}
     try {
       const result = await deleteOrgMcpServer(orgId, deleteTarget.id);
       showOrgMcpDeliveryToast(t, result.delivery);

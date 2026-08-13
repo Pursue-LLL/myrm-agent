@@ -92,7 +92,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete, vaultBindHandoffMode
     async (force = false) => {
       setScanning(true);
       try {
-        if (force) invalidateDiscoveryCache();
+        if (force) {invalidateDiscoveryCache();}
         const result = await discoverMigrationSources(force);
         registerMigrationSourceManifest(result.source_manifest, {
           authoritative: result.source_manifest_authoritative,
@@ -225,7 +225,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete, vaultBindHandoffMode
   );
 
   const handleConfirmImport = useCallback(async () => {
-    if (!dryRunResult || !selectedSource) return;
+    if (!dryRunResult || !selectedSource) {return;}
     setImporting(true);
     setSkillSubmitFailed(false);
     setSecretsImportMessage(null);
@@ -272,9 +272,9 @@ const MigrationWizardSection = memo(({ onMigrationComplete, vaultBindHandoffMode
   }, [dryRunResult, importSecrets, onMigrationComplete, persistWorkspaceBindCandidates, selectedSource, submitPendingSkills, t, targetAgentId, workspaceBindCandidates]);
 
   const handleRetrySkillSubmit = useCallback(async () => {
-    if (!dryRunResult || !importResult) return;
+    if (!dryRunResult || !importResult) {return;}
     const pendingSkills = dryRunResult.pending_skills ?? [];
-    if (pendingSkills.length === 0) return;
+    if (pendingSkills.length === 0) {return;}
     setRetryingSkills(true);
     try {
       await submitPendingSkills(pendingSkills, importResult.target_agent_id ?? targetAgentId);
@@ -288,7 +288,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete, vaultBindHandoffMode
   }, [dryRunResult, importResult, submitPendingSkills, targetAgentId, t]);
 
   const handleRollback = useCallback(async () => {
-    if (!importResult) return;
+    if (!importResult) {return;}
     const deleteImportedAgent = importResult.agent_created && window.confirm(t('result.rollbackDeleteAgentConfirm'));
     setRollingBack(true);
     try {

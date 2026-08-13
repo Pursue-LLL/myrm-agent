@@ -88,15 +88,15 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onComplete, onCance
 
   const handleSend = useCallback(async () => {
     const blob = await exportAsBlob();
-    if (blob) onComplete(blob);
+    if (blob) {onComplete(blob);}
   }, [exportAsBlob, onComplete]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onCancel();
+    if (e.key === 'Escape') {onCancel();}
     if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
       e.preventDefault();
-      if (e.shiftKey) redo();
-      else undo();
+      if (e.shiftKey) {redo();}
+      else {undo();}
     }
   }, [onCancel, undo, redo]);
 
@@ -197,8 +197,8 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onComplete, onCance
                     placeholder={t('textPlaceholder')}
                     className="bg-transparent text-sm text-popover-foreground outline-none min-w-[200px] placeholder:text-muted-foreground/60"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleTextSubmit((e.target as HTMLInputElement).value);
-                      if (e.key === 'Escape') handleTextSubmit('');
+                      if (e.key === 'Enter') {handleTextSubmit((e.target as HTMLInputElement).value);}
+                      if (e.key === 'Escape') {handleTextSubmit('');}
                     }}
                   />
                 </div>

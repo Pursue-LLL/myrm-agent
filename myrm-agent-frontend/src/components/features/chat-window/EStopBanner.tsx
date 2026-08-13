@@ -68,7 +68,7 @@ export default function EStopBanner() {
     }
   }, []);
 
-  if (!status) return null;
+  if (!status) {return null;}
 
   const reasonText = status.reason.trim();
 

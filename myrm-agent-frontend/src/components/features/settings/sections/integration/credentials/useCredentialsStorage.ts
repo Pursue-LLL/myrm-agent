@@ -117,7 +117,7 @@ export function useCredentialsStorage() {
   }, [editingVaultCred, loadVaultCredentials, t, vaultDesc, vaultLabel, vaultPassword, vaultTotp]);
 
   const handleDeleteVaultConfirm = useCallback(async () => {
-    if (!deleteVaultTarget) return;
+    if (!deleteVaultTarget) {return;}
     try {
       await deleteVaultCredential(deleteVaultTarget);
       toast({ title: t('vaultDeleted') });
@@ -131,7 +131,7 @@ export function useCredentialsStorage() {
 
   const handleUpload = useCallback(
     async (targetFilename: string) => {
-      if (!fileInputRef.current) return;
+      if (!fileInputRef.current) {return;}
 
       setUploadingFilename(targetFilename);
       fileInputRef.current.accept = '*';
@@ -169,7 +169,7 @@ export function useCredentialsStorage() {
   );
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {return;}
 
     try {
       await deleteCredential(deleteTarget);

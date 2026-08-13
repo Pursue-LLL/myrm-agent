@@ -81,7 +81,7 @@ export default function CrashRecoveryDialog({ visible, errorMessage, onDismiss }
     }
   }, [onDismiss]);
 
-  if (!visible) return null;
+  if (!visible) {return null;}
 
   return (
     <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-background/95 p-6 backdrop-blur-sm">

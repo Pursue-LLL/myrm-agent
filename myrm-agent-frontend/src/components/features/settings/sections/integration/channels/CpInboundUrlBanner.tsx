@@ -19,22 +19,22 @@ export function CpInboundUrlBanner({ channel }: CpInboundUrlBannerProps) {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (!isSandbox()) return;
+    if (!isSandbox()) {return;}
     const handler = () => setRefreshKey((k) => k + 1);
     window.addEventListener('channel-credentials-saved', handler);
     return () => window.removeEventListener('channel-credentials-saved', handler);
   }, []);
 
   useEffect(() => {
-    if (!isSandbox()) return;
+    if (!isSandbox()) {return;}
     let cancelled = false;
     void (async () => {
       try {
         const status = await getCpChannelCredentialStatus();
-        if (cancelled) return;
+        if (cancelled) {return;}
         setUrl(status.webhook_urls[channel] ?? '');
       } catch {
-        if (!cancelled) setUrl('');
+        if (!cancelled) {setUrl('');}
       }
     })();
     return () => {
@@ -43,13 +43,13 @@ export function CpInboundUrlBanner({ channel }: CpInboundUrlBannerProps) {
   }, [channel, refreshKey]);
 
   const handleCopy = useCallback(async () => {
-    if (!url) return;
+    if (!url) {return;}
     await writeToClipboard(url);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2000);
   }, [url]);
 
-  if (!isSandbox() || !url) return null;
+  if (!isSandbox() || !url) {return null;}
 
   const label = channel === 'discord' ? t('cpInteractionsUrlLabel') : t('cpWebhookUrlLabel');
 

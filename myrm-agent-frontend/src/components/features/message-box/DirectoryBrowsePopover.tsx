@@ -71,16 +71,16 @@ export default function DirectoryBrowsePopover({
       setFilterQuery('');
       try {
         const result = await browseDirectories(path);
-        if (gen !== loadGenRef.current) return;
+        if (gen !== loadGenRef.current) {return;}
         setEntries(result.entries);
         setCurrentPath(result.current);
         setParentPath(result.parent);
         setPathInput(result.current);
       } catch {
-        if (gen !== loadGenRef.current) return;
+        if (gen !== loadGenRef.current) {return;}
         toast.error(t('browseFailed'));
       } finally {
-        if (gen === loadGenRef.current) setLoading(false);
+        if (gen === loadGenRef.current) {setLoading(false);}
       }
     },
     [t],
@@ -93,7 +93,7 @@ export default function DirectoryBrowsePopover({
   }, [open, seedPath, loadDirectory]);
 
   const filteredEntries = useMemo(() => {
-    if (!filterQuery.trim()) return entries;
+    if (!filterQuery.trim()) {return entries;}
     const q = filterQuery.toLowerCase();
     return entries.filter((entry) => entry.name.toLowerCase().includes(q));
   }, [entries, filterQuery]);

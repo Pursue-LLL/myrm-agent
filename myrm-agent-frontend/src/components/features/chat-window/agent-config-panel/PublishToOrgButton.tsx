@@ -23,7 +23,7 @@ const PublishToOrgButton = ({ agentId, agentName, className }: PublishToOrgButto
   const [published, setPublished] = useState(false);
 
   const handlePublish = useCallback(async () => {
-    if (publishing || published) return;
+    if (publishing || published) {return;}
     setPublishing(true);
     try {
       const org = await getMyOrg();
@@ -31,7 +31,7 @@ const PublishToOrgButton = ({ agentId, agentName, className }: PublishToOrgButto
       const exportRes = await fetch(`${getBackendUrl()}/api/v1/user-agents/${agentId}/marketplace-export`, {
         headers: getAuthHeaders(),
       });
-      if (!exportRes.ok) throw new Error(`Export failed: ${exportRes.status}`);
+      if (!exportRes.ok) {throw new Error(`Export failed: ${exportRes.status}`);}
       const { data: packageData } = await exportRes.json();
 
       await publishToMarketplace({
@@ -53,7 +53,7 @@ const PublishToOrgButton = ({ agentId, agentName, className }: PublishToOrgButto
     }
   }, [agentId, agentName, publishing, published, t]);
 
-  if (!isSandbox()) return null;
+  if (!isSandbox()) {return null;}
 
   return (
     <button

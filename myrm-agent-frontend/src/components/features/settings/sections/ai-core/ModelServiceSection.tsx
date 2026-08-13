@@ -61,7 +61,7 @@ const ModelServiceSection = memo(() => {
 
   // 从 localStorage 读取上次选择的服务商
   const [selectedProviderId, setSelectedProviderId] = useState<string>(() => {
-    if (typeof window === 'undefined') return '';
+    if (typeof window === 'undefined') {return '';}
     return localStorage.getItem(STORAGE_KEY) || '';
   });
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -145,7 +145,7 @@ const ModelServiceSection = memo(() => {
   const handleConfirmDelete = useCallback(
     async (force: boolean) => {
       const { id } = deleteDialogState;
-      if (!id) return;
+      if (!id) {return;}
 
       if (force) {
         await clearProviderUsage(id);
@@ -157,7 +157,13 @@ const ModelServiceSection = memo(() => {
         handleSelectProvider(remaining[0]?.id || '');
       }
     },
-    [deleteDialogState, clearProviderUsage, removeProvider, selectedProviderId, providers, handleSelectProvider],
+    [
+	deleteDialogState,
+	removeProvider,
+	selectedProviderId,
+	providers,
+	handleSelectProvider
+],
   );
 
   // 验证单个模型 - 实时从 store 获取 provider 数据，避免闭包捕获过时的 apiKey
@@ -204,7 +210,7 @@ const ModelServiceSection = memo(() => {
 
   const handleToggleEnabled = useCallback(
     async (enabled: boolean): Promise<boolean> => {
-      if (!selectedProviderId) return false;
+      if (!selectedProviderId) {return false;}
       setProviderEnabled(selectedProviderId, enabled);
       return true;
     },
@@ -214,9 +220,9 @@ const ModelServiceSection = memo(() => {
   const speedTestModels = useMemo(() => {
     const configs: { config: ModelConfig; displayName: string }[] = [];
     for (const provider of providers) {
-      if (!provider.isEnabled) continue;
+      if (!provider.isEnabled) {continue;}
       const requestApiKey = resolveProviderApiKeyForRequests(provider);
-      if (!requestApiKey || !hasUsableProviderAuth(provider)) continue;
+      if (!requestApiKey || !hasUsableProviderAuth(provider)) {continue;}
       for (const model of provider.enabledModels ?? []) {
         const fullName = getLiteLLMModelName(provider.id, model, provider.providerType);
         configs.push({
@@ -238,7 +244,7 @@ const ModelServiceSection = memo(() => {
     const pureModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
     
     // 查找是否已有 Ollama 提供商
-    let ollamaProvider = providers.find(p => p.id === 'ollama');
+    const ollamaProvider = providers.find(p => p.id === 'ollama');
     
     if (!ollamaProvider) {
       // 如果没有，自动添加一个（Ollama 是内置本地提供商）

@@ -87,7 +87,7 @@ const SkillDraftReviewPanel = memo(({ className }: SkillDraftReviewPanelProps) =
 
   const handleApprove = useCallback(
     async (draft: SkillDraft) => {
-      if (!user?.id || processingId) return;
+      if (!user?.id || processingId) {return;}
       setProcessingId(draft.id);
       try {
         const result = await approveDraft(draft.id, draft.name ?? '');
@@ -140,7 +140,7 @@ const SkillDraftReviewPanel = memo(({ className }: SkillDraftReviewPanelProps) =
 
   const handleReject = useCallback(
     async (draft: SkillDraft) => {
-      if (!user?.id || processingId) return;
+      if (!user?.id || processingId) {return;}
       setProcessingId(draft.id);
       try {
         await rejectDraft(draft.id);
@@ -157,11 +157,11 @@ const SkillDraftReviewPanel = memo(({ className }: SkillDraftReviewPanelProps) =
     [user?.id, processingId, rejectDraft, t],
   );
 
-  if (unreviewedCount === 0 && !invokeGuideSkillName) return null;
+  if (unreviewedCount === 0 && !invokeGuideSkillName) {return null;}
 
   const draftTypeLabel = (type: string): string => {
-    if (type === 'skill_draft') return t('draft.typeSkill');
-    if (type === 'semantic_memory') return t('draft.typeMemory');
+    if (type === 'skill_draft') {return t('draft.typeSkill');}
+    if (type === 'semantic_memory') {return t('draft.typeMemory');}
     return type;
   };
 

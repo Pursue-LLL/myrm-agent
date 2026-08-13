@@ -75,7 +75,7 @@ export function useQuoteSelection(containerRef: React.RefObject<HTMLDivElement |
     }
 
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) {return;}
 
     const anchorNode = selection.anchorNode;
     if (!anchorNode || !container.contains(anchorNode)) {
@@ -111,7 +111,7 @@ export function useQuoteSelection(containerRef: React.RefObject<HTMLDivElement |
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) {return;}
 
     const onMouseUp = () => {
       requestAnimationFrame(handleSelectionEnd);
@@ -121,11 +121,11 @@ export function useQuoteSelection(containerRef: React.RefObject<HTMLDivElement |
     container.addEventListener('touchend', onMouseUp);
 
     const onClickOutside = (e: MouseEvent) => {
-      if (!state.visible) return;
+      if (!state.visible) {return;}
       const target = e.target as Node;
       const toolbar = document.getElementById('quote-toolbar-portal');
-      if (toolbar?.contains(target)) return;
-      if (container.contains(target)) return;
+      if (toolbar?.contains(target)) {return;}
+      if (container.contains(target)) {return;}
       dismiss();
     };
 
@@ -195,7 +195,7 @@ export function QuoteToolbar({ state, onDismiss }: { state: QuoteToolbarState; o
     onDismiss();
   }, [onDismiss, state.text, tCopilot]);
 
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') {return null;}
 
   return createPortal(
     <AnimatePresence>

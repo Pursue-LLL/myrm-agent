@@ -48,7 +48,7 @@ describe('SpreadsheetEditor dirty tracking contract', () => {
 
   it('failed save does NOT reset dirty', async () => {
     const onDirty = vi.fn();
-    let dirtyRef = true;
+    const dirtyRef = true;
 
     async function simulateFailedSave(): Promise<void> {
       try {

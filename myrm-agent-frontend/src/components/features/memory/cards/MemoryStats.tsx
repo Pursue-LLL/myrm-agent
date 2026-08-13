@@ -24,15 +24,15 @@ const MemoryStats = memo<{ className?: string }>(({ className }) => {
   const [topTags, setTopTags] = useState<TagStatsItem[]>([]);
 
   useEffect(() => {
-    if (!memoryStats) fetchMemoryStats();
+    if (!memoryStats) {fetchMemoryStats();}
   }, [memoryStats, fetchMemoryStats]);
 
   useEffect(() => {
     getMemoryTags(5).then((res) => setTopTags(res.tags)).catch(() => {});
   }, [memoryStats]);
 
-  if (statsLoading && !memoryStats) return null;
-  if (!memoryStats) return null;
+  if (statsLoading && !memoryStats) {return null;}
+  if (!memoryStats) {return null;}
 
   return (
     <div className={cn('space-y-2', className)}>

@@ -62,7 +62,7 @@ const EnterpriseModelPolicyTab = memo(() => {
   };
 
   const handleAdd = async () => {
-    if (!newPattern.trim() || !orgId) return;
+    if (!newPattern.trim() || !orgId) {return;}
     setAdding(true);
     try {
       const res = await fetch(getApiUrl(`/api/enterprise/org/${orgId}/model-policy`), {
@@ -91,7 +91,7 @@ const EnterpriseModelPolicyTab = memo(() => {
   };
 
   const handleRemove = async (entryId: string) => {
-    if (!orgId) return;
+    if (!orgId) {return;}
     try {
       const res = await fetch(getApiUrl(`/api/enterprise/org/${orgId}/model-policy/${entryId}`), {
         method: 'DELETE',

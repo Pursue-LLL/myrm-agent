@@ -623,11 +623,9 @@ async def _parse_stored_document(content: bytes, ext: str, filename: str) -> str
             temp.write(content)
             temp_path = temp.name
         if suffix == ".pdf":
-            from myrm_agent_harness.toolkits.file_parsers import PDFPlumberParser
+            from myrm_agent_harness.toolkits.file_parsers import SmartPDFParser
 
-            return await PDFPlumberParser(extract_tables=True, parallel=False).parse(
-                temp_path
-            )
+            return await SmartPDFParser().parse(temp_path)
         return _parse_document(temp_path, suffix)
     except Exception as exc:
         logger.warning("Failed to parse stored document %s: %s", filename, exc)

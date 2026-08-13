@@ -43,10 +43,10 @@ export const getChatHistory = async (
   keyword?: string,
 ): Promise<ChatHistoryResponse> => {
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  if (source) params.set('source', source);
-  if (projectId) params.set('project_id', projectId);
-  if (projectId === null) params.set('unassigned', 'true');
-  if (keyword) params.set('keyword', keyword);
+  if (source) {params.set('source', source);}
+  if (projectId) {params.set('project_id', projectId);}
+  if (projectId === null) {params.set('unassigned', 'true');}
+  if (keyword) {params.set('keyword', keyword);}
   const data = (await apiRequest(`/chats?${params}`)) as {
     items?: unknown[];
     pagination?: PaginationInfo;
@@ -113,8 +113,8 @@ export const searchChatHistory = async (
   until?: string,
 ): Promise<SearchResponse> => {
   const params = new URLSearchParams({ q: query, limit: String(limit), offset: String(offset) });
-  if (since) params.set('since', since);
-  if (until) params.set('until', until);
+  if (since) {params.set('since', since);}
+  if (until) {params.set('until', until);}
   const data = (await apiRequest(`/chats/search?${params}`)) as SearchResponse;
   return { items: data.items || [], total: data.total || 0 };
 };
@@ -127,7 +127,7 @@ export const searchCitableChats = async (
   excludeChatId?: string,
 ): Promise<SearchResponse> => {
   const params = new URLSearchParams({ q: query, limit: String(limit), offset: String(offset) });
-  if (excludeChatId) params.set('exclude_chat_id', excludeChatId);
+  if (excludeChatId) {params.set('exclude_chat_id', excludeChatId);}
   const data = (await apiRequest(`/chats/recall/search?${params}`)) as SearchResponse;
   return { items: data.items || [], total: data.total || 0 };
 };
@@ -296,7 +296,7 @@ export const unregisterWorkspaceWatch = async (workspace: string): Promise<{ wor
  */
 export const getWorkspaceFileContentUrl = (filePath: string, workspace: string, download: boolean = false): string => {
   const params = new URLSearchParams({ path: filePath, workspace });
-  if (download) params.set('download', 'true');
+  if (download) {params.set('download', 'true');}
   return `${API_BASE_URL}/files/browse/content?${params}`;
 };
 
@@ -332,7 +332,7 @@ export const uploadToWorkspace = async (
   files.forEach((f) => formData.append('files', f));
 
   const params = new URLSearchParams({ workspace });
-  if (targetDir) params.set('target_dir', targetDir);
+  if (targetDir) {params.set('target_dir', targetDir);}
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -341,7 +341,7 @@ export const uploadToWorkspace = async (
 
     if (onProgress) {
       xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        if (e.lengthComputable) {onProgress(Math.round((e.loaded / e.total) * 100));}
       };
     }
 
@@ -489,8 +489,8 @@ export const getMessages = async (
   options?: { before?: string; limit?: number; silent?: boolean },
 ): Promise<CursorPage> => {
   const params = new URLSearchParams();
-  if (options?.before) params.set('before', options.before);
-  if (options?.limit) params.set('limit', String(options.limit));
+  if (options?.before) {params.set('before', options.before);}
+  if (options?.limit) {params.set('limit', String(options.limit));}
   const qs = params.toString();
   return apiRequest(`/chats/${chatId}/messages${qs ? `?${qs}` : ''}`, { silent: options?.silent });
 };
@@ -784,7 +784,7 @@ export const listConversationRecallEntries = async (params: {
     page: String(params.page ?? 1),
     page_size: String(params.pageSize ?? 20),
   });
-  if (params.excluded !== undefined) query.set('excluded', String(params.excluded));
+  if (params.excluded !== undefined) {query.set('excluded', String(params.excluded));}
   const data = (await apiRequest(`/chats/recall/entries?${query}`)) as ConversationRecallListResponse;
   return {
     items: data.items || [],
@@ -1042,13 +1042,13 @@ export const resumePlanConfirmStream = async (
 ): Promise<void> => {
   const { default: useChatStore } = await import('@/store/useChatStore');
   const chatState = useChatStore.getState();
-  if (!chatState.chatId) return;
+  if (!chatState.chatId) {return;}
 
   const { getModelSelection, getLiteModelSelection } = await import('@/store/chat/messageRequest');
   const { getBrowserTimezone } = await import('@/lib/utils/messageUtils');
 
   const modelSelection = getModelSelection(chatState.actionMode, chatState.agentConfig);
-  if (!modelSelection) return;
+  if (!modelSelection) {return;}
 
   const liteModelSelection = getLiteModelSelection();
 
@@ -1082,7 +1082,7 @@ export const resumePlanConfirmStream = async (
   const { AdaptiveScheduler } = await import('@/store/chat/adaptiveScheduler');
   const reader = response.body?.getReader();
   const decoder = new TextDecoder();
-  if (!reader) throw new Error('Plan confirm resume stream has no body');
+  if (!reader) {throw new Error('Plan confirm resume stream has no body');}
 
   const sources: import('@/store/chat/types').Source[] = [];
   const scheduler = new AdaptiveScheduler();
@@ -1102,7 +1102,7 @@ export const resumePlanConfirmStream = async (
 
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
+    if (done) {break;}
     const chunk = decoder.decode(value, { stream: true });
     const lines = chunk.split('\n').filter((line) => line.trim().startsWith('data:'));
     for (const line of lines) {

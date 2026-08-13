@@ -94,23 +94,23 @@ export interface AuditLogFilters {
 
 export async function queryAuditLogs(filters: AuditLogFilters = {}): Promise<AuditLogsResponse> {
   const params = new URLSearchParams();
-  if (filters.user_id) params.set('user_id', filters.user_id);
-  if (filters.sandbox_id) params.set('sandbox_id', filters.sandbox_id);
-  if (filters.event_type) params.set('event_type', filters.event_type);
-  if (filters.start_time) params.set('start_time', filters.start_time);
-  if (filters.end_time) params.set('end_time', filters.end_time);
-  if (filters.limit) params.set('limit', String(filters.limit));
+  if (filters.user_id) {params.set('user_id', filters.user_id);}
+  if (filters.sandbox_id) {params.set('sandbox_id', filters.sandbox_id);}
+  if (filters.event_type) {params.set('event_type', filters.event_type);}
+  if (filters.start_time) {params.set('start_time', filters.start_time);}
+  if (filters.end_time) {params.set('end_time', filters.end_time);}
+  if (filters.limit) {params.set('limit', String(filters.limit));}
 
   const qs = params.toString();
   const url = securityUrl(`/audit-logs${qs ? `?${qs}` : ''}`);
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Query audit logs failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Query audit logs failed: ${res.status}`);}
   return res.json();
 }
 
 export async function getAuditStats(hours: number = 24): Promise<AuditStatsResponse> {
   const res = await fetch(securityUrl(`/audit-logs/stats?hours=${hours}`));
-  if (!res.ok) throw new Error(`Get audit stats failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Get audit stats failed: ${res.status}`);}
   return res.json();
 }
 
@@ -119,15 +119,15 @@ export async function exportAuditLogs(
   filters: AuditLogFilters = {},
 ): Promise<Blob> {
   const params = new URLSearchParams({ format });
-  if (filters.user_id) params.set('user_id', filters.user_id);
-  if (filters.sandbox_id) params.set('sandbox_id', filters.sandbox_id);
-  if (filters.event_type) params.set('event_type', filters.event_type);
-  if (filters.start_time) params.set('start_time', filters.start_time);
-  if (filters.end_time) params.set('end_time', filters.end_time);
-  if (filters.limit) params.set('limit', String(filters.limit));
+  if (filters.user_id) {params.set('user_id', filters.user_id);}
+  if (filters.sandbox_id) {params.set('sandbox_id', filters.sandbox_id);}
+  if (filters.event_type) {params.set('event_type', filters.event_type);}
+  if (filters.start_time) {params.set('start_time', filters.start_time);}
+  if (filters.end_time) {params.set('end_time', filters.end_time);}
+  if (filters.limit) {params.set('limit', String(filters.limit));}
 
   const res = await fetch(securityUrl(`/audit-logs/export?${params.toString()}`));
-  if (!res.ok) throw new Error(`Export audit logs failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Export audit logs failed: ${res.status}`);}
   return res.blob();
 }
 
@@ -142,13 +142,13 @@ function orgUrl(orgId: string, path: string): string {
 export async function getOrgUsageSummary(orgId: string, month?: string): Promise<OrgUsageSummary> {
   const params = month ? `?month=${month}` : '';
   const res = await fetch(orgUrl(orgId, `/usage-summary${params}`));
-  if (!res.ok) throw new Error(`Get usage summary failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Get usage summary failed: ${res.status}`);}
   return res.json();
 }
 
 export async function getOrgBudget(orgId: string): Promise<BudgetSettings> {
   const res = await fetch(orgUrl(orgId, '/budget'));
-  if (!res.ok) throw new Error(`Get budget failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Get budget failed: ${res.status}`);}
   return res.json();
 }
 
@@ -162,6 +162,6 @@ export async function setOrgBudget(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ budget_wu_monthly: budgetWuMonthly, alert_threshold: alertThreshold }),
   });
-  if (!res.ok) throw new Error(`Set budget failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Set budget failed: ${res.status}`);}
   return res.json();
 }

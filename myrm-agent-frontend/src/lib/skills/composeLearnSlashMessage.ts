@@ -22,11 +22,11 @@ export function composeLearnSlashMessage(input: LearnFormInput): string | null {
   const dir = input.directory?.trim() ?? '';
   const url = input.url?.trim() ?? '';
   const text = input.text?.trim() ?? '';
-  if (dir) segs.push(`local source: ${dir}`);
-  if (url) segs.push(`URL: ${url}`);
-  if (text) segs.push(text);
+  if (dir) {segs.push(`local source: ${dir}`);}
+  if (url) {segs.push(`URL: ${url}`);}
+  if (text) {segs.push(text);}
   const composed = segs.join('; ').replace(/\s*\n\s*/g, ' ').trim();
-  if (!composed) return null;
+  if (!composed) {return null;}
   return `/learn ${composed}`;
 }
 

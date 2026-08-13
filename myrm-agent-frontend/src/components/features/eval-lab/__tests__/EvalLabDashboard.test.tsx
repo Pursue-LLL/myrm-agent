@@ -71,7 +71,7 @@ function renderDashboard(routes: Record<string, unknown>) {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
     const url = String(input);
     const match = Object.keys(routes).find((key) => url.includes(key));
-    if (!match) return jsonResponse({ status: 'error' });
+    if (!match) {return jsonResponse({ status: 'error' });}
     return jsonResponse(routes[match]);
   });
   return render(<EvalLabDashboard />);

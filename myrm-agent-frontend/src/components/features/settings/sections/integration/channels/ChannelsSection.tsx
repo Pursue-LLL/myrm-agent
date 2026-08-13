@@ -140,8 +140,8 @@ function useIssueTranslator() {
   return useCallback(
     (text: string, patterns: IssuePattern[]) => {
       for (const [pattern, key, prefixOnly] of patterns) {
-        if (!pattern.test(text)) continue;
-        if (prefixOnly) return `${t(key)} ${text.replace(pattern, '').trim()}`;
+        if (!pattern.test(text)) {continue;}
+        if (prefixOnly) {return `${t(key)} ${text.replace(pattern, '').trim()}`;}
         return t(key);
       }
       return text;
@@ -250,7 +250,7 @@ function ChannelIssueBanner({
   onInstalled: () => void;
 }) {
   const translate = useIssueTranslator();
-  if (!issues.length) return null;
+  if (!issues.length) {return null;}
   return (
     <div className="space-y-2">
       {issues.map((issue, i) => {
@@ -281,8 +281,8 @@ const QR_LOGIN_CHANNELS = new Set(['whatsapp', 'wechat']);
 const CONNECTION_CONFIG_CHANNELS = new Set(['onebot', 'irc']);
 
 function getChannelNotConfiguredKey(channel: string): string {
-  if (QR_LOGIN_CHANNELS.has(channel)) return 'channelNotConfiguredQr';
-  if (CONNECTION_CONFIG_CHANNELS.has(channel)) return 'channelNotConfiguredConnection';
+  if (QR_LOGIN_CHANNELS.has(channel)) {return 'channelNotConfiguredQr';}
+  if (CONNECTION_CONFIG_CHANNELS.has(channel)) {return 'channelNotConfiguredConnection';}
   return 'channelNotConfigured';
 }
 
@@ -325,7 +325,7 @@ const DEVELOPER_PORTAL_URLS: Record<string, string> = {
 };
 
 function CredentialGuide({ channel, t }: { channel: string; t: (key: string) => string }) {
-  if (!CHANNELS_WITH_GUIDE.has(channel)) return null;
+  if (!CHANNELS_WITH_GUIDE.has(channel)) {return null;}
   const guideKey = `credentialGuide${channel.charAt(0).toUpperCase()}${channel.slice(1).replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())}`;
   const url = DEVELOPER_PORTAL_URLS[channel];
   return (
@@ -423,7 +423,7 @@ export default function ChannelsSection() {
   const ingressSnapshot = useIngressRequirement();
   const channelEntries = buildChannelEntries(t, isSandbox());
   const [selectedChannel, _setSelectedChannel] = useState(() => {
-    if (typeof window === 'undefined') return DEFAULT_CHANNEL;
+    if (typeof window === 'undefined') {return DEFAULT_CHANNEL;}
     const stored = localStorage.getItem(CHANNEL_STORAGE_KEY);
     return stored && channelEntries.some((e) => e.id === stored) ? stored : DEFAULT_CHANNEL;
   });
@@ -450,8 +450,8 @@ export default function ChannelsSection() {
   const isChannelEffectivelyEnabled = useCallback(
     (ch: string) => {
       const status = state.channelStatuses[ch];
-      if (!status || status === 'disabled' || status === 'unavailable') return false;
-      if (ch === 'whatsapp') return !!state.waStatus?.connected;
+      if (!status || status === 'disabled' || status === 'unavailable') {return false;}
+      if (ch === 'whatsapp') {return !!state.waStatus?.connected;}
       if (QR_LOGIN_CHANNELS.has(ch)) {
         return status === 'running' || status === 'running_idle';
       }

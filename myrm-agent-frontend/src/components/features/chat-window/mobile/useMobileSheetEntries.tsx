@@ -72,7 +72,7 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
   const handleModelSelect = useCallback(
     (key: string) => {
       const [providerId, model] = key.split('::');
-      if (!providerId || !model || !agentConfig) return;
+      if (!providerId || !model || !agentConfig) {return;}
       updateAgentConfig({ modelSelection: { providerId, model } });
     },
     [agentConfig, updateAgentConfig],
@@ -84,7 +84,7 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
   }, [isGoalMode, setIsGoalMode, onClose]);
 
   const handleFork = useCallback(async () => {
-    if (!chatId || messages.length === 0 || loading) return;
+    if (!chatId || messages.length === 0 || loading) {return;}
     onClose();
     try {
       const [{ forkConversation }, { default: workspaceStore }, { showI18nToast }] = await Promise.all([

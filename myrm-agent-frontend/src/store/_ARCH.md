@@ -38,7 +38,7 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 | `useUpgradeNudgeStore.ts` | 升级引导弹窗状态（低余额预警 + Feature Gate） | 24h 防骚扰 localStorage 节流 |
 | `useEmbedConsentStore.ts` | Link Embeds consent（ask/always/off）与 per-provider allowlist | persist `myrm-embed-consent`；Settings Preferences + `embeds/UrlEmbed` |
 | `useOrgModelPolicyStore.ts` | 组织模型白名单策略缓存 | sandbox：`loadPolicy()` fetch 失败 fail-closed；`isModelAllowed` 含 `restricted&&patterns空` 哨兵；local 失败 fail-open；dedupe |
-| `useBrowserInspectorStore.ts` | Browser Live View 面板状态；`selectScopedBrowserViewData` 多 chat SSE 隔离 | SSE `browser_view_update` + REST snapshot |
+| `useBrowserInspectorStore.ts` | Browser Live View 面板状态；`selectScopedBrowserViewData` 多 chat SSE 隔离；`engagedInTurn` 标记本 turn 是否收到浏览器事件（browser_ tool/view update），`releaseTurnEngagement` 在 MESSAGE_END / stopMessage 归还控制 | SSE `browser_view_update` + REST snapshot |
 | `useDesktopInspectorStore.ts` | Desktop Live View 面板状态；`selectScopedDesktopViewData` 多 chat SSE 隔离；`engagedInTurn` 标记本 turn 是否收到桌面事件（desktop_ tool/view/approval），`releaseTurnEngagement` 在 MESSAGE_END / stopMessage 归还控制 | SSE `desktop_view_update` + REST snapshot |
 
 ## 依赖

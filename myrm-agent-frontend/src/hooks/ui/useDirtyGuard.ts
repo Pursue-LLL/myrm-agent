@@ -36,7 +36,7 @@ export function useDirtyGuard(tab: SettingsTab, { isDirty, onSave }: UseDirtyGua
   }, [tab]);
 
   useEffect(() => {
-    if (!isDirty) return;
+    if (!isDirty) {return;}
 
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();

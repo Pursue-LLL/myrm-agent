@@ -40,21 +40,21 @@ const STATUS_DOT_COLORS: Record<HealthStatus, string> = {
 };
 
 function formatTokens(tokens: number): string {
-  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
-  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
+  if (tokens >= 1000000) {return `${(tokens / 1000000).toFixed(1)}M`;}
+  if (tokens >= 1000) {return `${(tokens / 1000).toFixed(1)}K`;}
   return tokens.toString();
 }
 
 function getTextColorByUsage(percentage: number): string {
-  if (percentage >= 90) return 'text-red-500';
-  if (percentage >= 75) return 'text-amber-500';
+  if (percentage >= 90) {return 'text-red-500';}
+  if (percentage >= 75) {return 'text-amber-500';}
   return 'text-primary-dark';
 }
 
 type BudgetHealthStatus = 'healthy' | 'warning' | 'critical';
 
 function budgetStatusToHealth(status: BudgetHealthStatus | undefined): HealthStatus {
-  if (!status) return 'inactive';
+  if (!status) {return 'inactive';}
   return status;
 }
 
@@ -131,8 +131,8 @@ function ContextBreakdown({ budget, className }: ContextBreakdownProps) {
 }
 
 function resolveDisplayStatus(health: ContextHealth | null): HealthStatus {
-  if (!health) return 'inactive';
-  if (health.status !== 'inactive') return health.status;
+  if (!health) {return 'inactive';}
+  if (health.status !== 'inactive') {return health.status;}
   const { compaction, pruning } = health;
   if ((compaction.active && compaction.count > 0) || (pruning.active && pruning.archived > 0)) {
     return 'healthy';
@@ -166,7 +166,7 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, contextBudget
   const [pinsSaving, setPinsSaving] = useState(false);
 
   const loadPins = useCallback(async (): Promise<string[]> => {
-    if (!chatId) return [];
+    if (!chatId) {return [];}
     setPinsLoading(true);
     try {
       const { files } = await getContextPins(chatId);
@@ -191,7 +191,7 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, contextBudget
   const canCompress = !!chatId && usagePercent >= 30 && !compacting;
 
   const handleCompress = useCallback(async () => {
-    if (!chatId || compacting) return;
+    if (!chatId || compacting) {return;}
     setCompacting(true);
     setCompactResult(null);
     setCompactError(null);
@@ -216,7 +216,7 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, contextBudget
 
   const handleAddPin = useCallback(async () => {
     const normalized = pinInput.trim();
-    if (!chatId || !normalized || pinsSaving) return;
+    if (!chatId || !normalized || pinsSaving) {return;}
     setPinsSaving(true);
     try {
       const nextFiles = [...contextPinnedFiles.filter((item) => item !== normalized), normalized];
@@ -232,7 +232,7 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, contextBudget
 
   const handleRemovePin = useCallback(
     async (filePath: string) => {
-      if (!chatId || pinsSaving) return;
+      if (!chatId || pinsSaving) {return;}
       setPinsSaving(true);
       try {
         const { files } = await setContextPins(
@@ -252,7 +252,7 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, contextBudget
   const canFork = !!chatId && usagePercent >= 75 && !forking;
 
   const handleFork = useCallback(async () => {
-    if (!chatId || forking) return;
+    if (!chatId || forking) {return;}
     setForking(true);
     try {
       const [{ forkConversation }, { default: workspaceStore }, { showI18nToast }] = await Promise.all([
@@ -500,7 +500,7 @@ export default function ContextUsageIndicator() {
   }, [messages]);
 
   const fetchHealth = useCallback(() => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     setLoadingHealth(true);
     getSessionAnalytics(chatId)
       .then((analytics) => setContextHealth(analytics.context_health ?? null))
@@ -509,15 +509,15 @@ export default function ContextUsageIndicator() {
   }, [chatId]);
 
   useEffect(() => {
-    if (panelOpen && chatId) fetchHealth();
+    if (panelOpen && chatId) {fetchHealth();}
   }, [panelOpen, chatId, fetchHealth]);
 
   useEffect(() => {
-    if (compactionRefreshNonce > 0 && chatId) fetchHealth();
+    if (compactionRefreshNonce > 0 && chatId) {fetchHealth();}
   }, [compactionRefreshNonce, chatId, fetchHealth]);
 
   const { percentage, displayUsage } = useMemo(() => {
-    if (!contextBudget) return { percentage: 0, displayUsage: '0 / 0' };
+    if (!contextBudget) {return { percentage: 0, displayUsage: '0 / 0' };}
     const pct = Math.min(contextBudget.usage_percent, 100);
     const display = `${formatTokens(contextBudget.current_tokens)} / ${formatTokens(contextBudget.max_context_tokens)}`;
     return { percentage: pct, displayUsage: display };

@@ -56,7 +56,7 @@ function DragHandle({ onDrag }: DragHandleProps) {
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!isDragging.current) return;
+      if (!isDragging.current) {return;}
       const delta = e.clientX - lastX.current;
       lastX.current = e.clientX;
       onDrag(delta);

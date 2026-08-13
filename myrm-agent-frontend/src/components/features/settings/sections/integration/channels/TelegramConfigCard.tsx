@@ -28,8 +28,8 @@ const CMD_PATTERN = /^[a-z0-9_]{1,32}$/;
 
 function validateCommand(cmd: BotCommand): { command?: string; description?: string } {
   const errors: { command?: string; description?: string } = {};
-  if (cmd.command && !CMD_PATTERN.test(cmd.command)) errors.command = 'telegramCommandFormatError';
-  if (cmd.command && !cmd.description.trim()) errors.description = 'telegramCommandDescRequired';
+  if (cmd.command && !CMD_PATTERN.test(cmd.command)) {errors.command = 'telegramCommandFormatError';}
+  if (cmd.command && !cmd.description.trim()) {errors.description = 'telegramCommandDescRequired';}
   return errors;
 }
 

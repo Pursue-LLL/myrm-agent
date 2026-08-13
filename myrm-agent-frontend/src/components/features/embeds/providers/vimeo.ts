@@ -2,7 +2,7 @@ import { bareHost, type EmbedDescriptor, type EmbedMatcher } from './types';
 
 export const vimeo: EmbedMatcher = (url: URL): EmbedDescriptor | null => {
   const host = bareHost(url.hostname);
-  if (host !== 'vimeo.com' && host !== 'player.vimeo.com') return null;
+  if (host !== 'vimeo.com' && host !== 'player.vimeo.com') {return null;}
 
   const id = url.pathname
     .split('/')
@@ -10,7 +10,7 @@ export const vimeo: EmbedMatcher = (url: URL): EmbedDescriptor | null => {
     .reverse()
     .find((segment) => /^\d+$/.test(segment));
 
-  if (!id) return null;
+  if (!id) {return null;}
 
   return {
     id: `vimeo:${id}`,

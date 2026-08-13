@@ -12,7 +12,7 @@ const translations: Record<string, string> = {
 };
 
 const tFn = (key: string, values?: Record<string, string | number>): string => {
-  if (values?.effects !== undefined) return String(values.effects);
+  if (values?.effects !== undefined) {return String(values.effects);}
   return translations[key] ?? key;
 };
 tFn.has = (key: string): boolean => key in translations;

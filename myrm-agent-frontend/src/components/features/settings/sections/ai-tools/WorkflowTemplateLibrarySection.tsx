@@ -152,7 +152,7 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
   );
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {return;}
     const templateId = deleteTarget.template_id;
     try {
       await deleteWorkflowTemplate(templateId);

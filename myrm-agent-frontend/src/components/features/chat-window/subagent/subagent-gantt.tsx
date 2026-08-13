@@ -30,7 +30,7 @@ export const MiniGantt = ({ nodes, t }: { nodes: TreeNode[]; t: (key: string) =>
       .filter((s) => s.end >= s.start);
   }, [nodes]);
 
-  if (spans.length < 2) return null;
+  if (spans.length < 2) {return null;}
 
   const globalStart = Math.min(...spans.map((s) => s.start));
   const globalEnd = Math.max(...spans.map((s) => s.end));

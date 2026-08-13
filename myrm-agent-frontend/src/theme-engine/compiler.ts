@@ -49,7 +49,7 @@ function buildBrandShadows(primary: string, accentWarm: string, dual: boolean): 
 }
 
 function isVideoMimeUrl(url: string | null): boolean {
-  if (!url) return false;
+  if (!url) {return false;}
   const lower = url.toLowerCase();
   return lower.includes('.mp4') || lower.includes('video/mp4');
 }

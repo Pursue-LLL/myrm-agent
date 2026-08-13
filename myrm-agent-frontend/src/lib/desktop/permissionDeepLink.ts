@@ -40,16 +40,16 @@ export function isSystemSettingsDeepLink(url: string): boolean {
 export function pickSettingsDeepLink(
   deeplinks: Record<string, string> | null | undefined,
 ): string | null {
-  if (!deeplinks) return null;
+  if (!deeplinks) {return null;}
   return deeplinks.accessibility || deeplinks.screen_recording || null;
 }
 
 export function pickSettingsDeepLinkFromMeta(
   meta: Record<string, unknown> | null | undefined,
 ): string | null {
-  if (!meta || typeof meta !== 'object') return null;
+  if (!meta || typeof meta !== 'object') {return null;}
   const deeplinks = meta.settings_deeplinks;
-  if (!deeplinks || typeof deeplinks !== 'object') return null;
+  if (!deeplinks || typeof deeplinks !== 'object') {return null;}
   return pickSettingsDeepLink(deeplinks as Record<string, string>);
 }
 

@@ -18,11 +18,11 @@ export default function ExtensionDisconnectedBanner() {
   );
 
   useEffect(() => {
-    if (badges.extensionConnected) setDismissed(false);
+    if (badges.extensionConnected) {setDismissed(false);}
   }, [badges.extensionConnected]);
 
   const needsExtension = browserSource === 'extension';
-  if (!needsExtension || badges.extensionConnected || dismissed) return null;
+  if (!needsExtension || badges.extensionConnected || dismissed) {return null;}
 
   return (
     <div

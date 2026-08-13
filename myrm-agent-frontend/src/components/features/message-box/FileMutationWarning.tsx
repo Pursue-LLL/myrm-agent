@@ -23,7 +23,7 @@ interface FileMutationWarningProps {
 
 function shortenPath(fullPath: string): string {
   const parts = fullPath.split('/');
-  if (parts.length <= 3) return fullPath;
+  if (parts.length <= 3) {return fullPath;}
   return `…/${parts.slice(-2).join('/')}`;
 }
 
@@ -31,7 +31,7 @@ export function FileMutationWarning({ failures }: FileMutationWarningProps) {
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations('chat');
 
-  if (!failures.length) return null;
+  if (!failures.length) {return null;}
 
   return (
     <div className="mt-2 border border-amber-300/60 dark:border-amber-700/50 rounded-lg overflow-hidden bg-amber-50/80 dark:bg-amber-950/20">

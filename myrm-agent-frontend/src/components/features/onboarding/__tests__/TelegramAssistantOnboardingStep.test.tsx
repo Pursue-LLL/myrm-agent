@@ -5,7 +5,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 const mockApplyTelegramAssistantOnboarding = vi.fn();
 
 const stableT = (key: string, values?: Record<string, string>) => {
-  if (!values) return key;
+  if (!values) {return key;}
   return `${key}:${Object.values(values).join(',')}`;
 };
 

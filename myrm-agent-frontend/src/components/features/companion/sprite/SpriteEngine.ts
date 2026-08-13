@@ -67,7 +67,7 @@ export class SpriteEngine {
   }
 
   private setLoadState(state: SpriteLoadState) {
-    if (this.loadState === state) return;
+    if (this.loadState === state) {return;}
     this.loadState = state;
     this.onLoadStateChange?.(state);
   }
@@ -84,7 +84,7 @@ export class SpriteEngine {
       img.crossOrigin = 'anonymous';
 
       img.onload = () => {
-        if (this.destroyed) return;
+        if (this.destroyed) {return;}
         this.image = img;
 
         this.effectiveCols = Math.floor(img.naturalWidth / this.meta.cellWidth);
@@ -108,7 +108,7 @@ export class SpriteEngine {
       };
 
       img.onerror = () => {
-        if (this.destroyed) return;
+        if (this.destroyed) {return;}
         this.setLoadState('error');
         reject(new Error(`Failed to load spritesheet: ${url}`));
       };
@@ -120,7 +120,7 @@ export class SpriteEngine {
   /** Set which animation row to play. Rows are 0-indexed. */
   setRow(row: number) {
     const safeRow = this.clampRow(row);
-    if (safeRow === this.currentRow) return;
+    if (safeRow === this.currentRow) {return;}
     this.currentRow = safeRow;
     this.currentFrame = 0;
     this.renderFrame();
@@ -132,7 +132,7 @@ export class SpriteEngine {
 
   /** Start the animation loop. */
   play() {
-    if (this.animFrameId !== null) return;
+    if (this.animFrameId !== null) {return;}
     this.lastFrameTime = performance.now();
     this.tick(this.lastFrameTime);
   }
@@ -176,19 +176,19 @@ export class SpriteEngine {
   }
 
   private clampRow(row: number): number {
-    if (this.effectiveRows === 0) return 0;
-    if (row < 0) return 0;
-    if (row >= this.effectiveRows) return 0; // fallback to idle (row 0)
+    if (this.effectiveRows === 0) {return 0;}
+    if (row < 0) {return 0;}
+    if (row >= this.effectiveRows) {return 0;} // fallback to idle (row 0)
     return row;
   }
 
   private clampFrame(frame: number): number {
-    if (this.effectiveCols === 0) return 0;
+    if (this.effectiveCols === 0) {return 0;}
     return frame % this.effectiveCols;
   }
 
   private renderFrame() {
-    if (!this.ctx || !this.image || this.loadState !== 'ready') return;
+    if (!this.ctx || !this.image || this.loadState !== 'ready') {return;}
 
     const { cellWidth, cellHeight } = this.meta;
     const col = this.clampFrame(this.currentFrame);
@@ -202,7 +202,7 @@ export class SpriteEngine {
   }
 
   private tick = (now: number) => {
-    if (this.destroyed) return;
+    if (this.destroyed) {return;}
 
     const interval = 1000 / this.meta.fps;
     const delta = now - this.lastFrameTime;

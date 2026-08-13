@@ -11,13 +11,13 @@ import { toast } from '@/lib/utils/toast';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 
 function isIOSSafari(): boolean {
-  if (typeof navigator === 'undefined') return false;
+  if (typeof navigator === 'undefined') {return false;}
   const ua = navigator.userAgent;
   return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && 'ontouchend' in document);
 }
 
 function isStandalone(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') {return false;}
   return window.matchMedia('(display-mode: standalone)').matches;
 }
 
@@ -66,7 +66,7 @@ const WebPushCard = memo(function WebPushCard() {
     }
   }, [sendTest, t]);
 
-  if (isTauri) return null;
+  if (isTauri) {return null;}
 
   if (state === 'unsupported') {
     return (

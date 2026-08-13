@@ -60,19 +60,19 @@ export async function createOrg(name: string, ssoDomain?: string): Promise<OrgIn
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, sso_domain: ssoDomain || null }),
   });
-  if (!res.ok) throw new Error(`Create org failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Create org failed: ${res.status}`);}
   return res.json();
 }
 
 export async function getOrg(orgId: string): Promise<OrgInfo> {
   const res = await fetch(cpUrl(`/${orgId}`));
-  if (!res.ok) throw new Error(`Get org failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Get org failed: ${res.status}`);}
   return res.json();
 }
 
 export async function getMyOrg(): Promise<OrgInfo> {
   const res = await fetch(cpUrl('/me'));
-  if (!res.ok) throw new Error(`Get my org failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Get my org failed: ${res.status}`);}
   return res.json();
 }
 
@@ -82,13 +82,13 @@ export async function updateOrgSsoDomain(orgId: string, ssoDomain: string): Prom
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sso_domain: ssoDomain.trim() || null }),
   });
-  if (!res.ok) throw new Error(`Update org SSO domain failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Update org SSO domain failed: ${res.status}`);}
   return res.json();
 }
 
 export async function listMembers(orgId: string): Promise<OrgMember[]> {
   const res = await fetch(cpUrl(`/${orgId}/members`));
-  if (!res.ok) throw new Error(`List members failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`List members failed: ${res.status}`);}
   return res.json();
 }
 
@@ -98,25 +98,25 @@ export async function addMember(orgId: string, userId: string, role = 'member'):
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user_id: userId, role }),
   });
-  if (!res.ok) throw await toError(res, `Add member failed: ${res.status}`);
+  if (!res.ok) {throw await toError(res, `Add member failed: ${res.status}`);}
   return res.json();
 }
 
 export async function removeMember(orgId: string, userId: string): Promise<void> {
   const res = await fetch(cpUrl(`/${orgId}/members/${userId}`), { method: 'DELETE' });
-  if (!res.ok) throw await toError(res, `Remove member failed: ${res.status}`);
+  if (!res.ok) {throw await toError(res, `Remove member failed: ${res.status}`);}
 }
 
 export async function unlinkOauth(orgId: string, userId: string): Promise<void> {
   const res = await fetch(cpUrl(`/${orgId}/members/${userId}/unlink-oauth`), {
     method: 'POST',
   });
-  if (!res.ok) throw await toError(res, `Unlink OAuth failed: ${res.status}`);
+  if (!res.ok) {throw await toError(res, `Unlink OAuth failed: ${res.status}`);}
 }
 
 export async function offboardUser(orgId: string, sourceUserId: string): Promise<HandoffLog> {
   const res = await fetch(cpUrl(`/${orgId}/offboarding/${sourceUserId}`), { method: 'POST' });
-  if (!res.ok) throw await toError(res, `Offboard failed: ${res.status}`);
+  if (!res.ok) {throw await toError(res, `Offboard failed: ${res.status}`);}
   return res.json();
 }
 
@@ -131,13 +131,13 @@ export async function transferVolume(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ target_user_id: targetUserId, backup_path: backupPath || null }),
   });
-  if (!res.ok) throw await toError(res, `Transfer failed: ${res.status}`);
+  if (!res.ok) {throw await toError(res, `Transfer failed: ${res.status}`);}
   return res.json();
 }
 
 export async function listHandoffLogs(orgId: string): Promise<HandoffLog[]> {
   const res = await fetch(cpUrl(`/${orgId}/handoff-logs`));
-  if (!res.ok) throw new Error(`List handoff logs failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`List handoff logs failed: ${res.status}`);}
   return res.json();
 }
 
@@ -224,7 +224,7 @@ function tunnelUrl(orgId: string, tunnelId?: string): string {
 
 export async function listTunnels(orgId: string): Promise<Tunnel[]> {
   const res = await fetch(tunnelUrl(orgId));
-  if (!res.ok) throw new Error(`List tunnels failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`List tunnels failed: ${res.status}`);}
   return res.json();
 }
 
@@ -237,13 +237,13 @@ export async function createTunnel(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  if (!res.ok) throw new Error(`Create tunnel failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Create tunnel failed: ${res.status}`);}
   return res.json();
 }
 
 export async function deleteTunnel(orgId: string, tunnelId: string): Promise<void> {
   const res = await fetch(tunnelUrl(orgId, tunnelId), { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Delete tunnel failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Delete tunnel failed: ${res.status}`);}
 }
 
 export async function rotateTunnelToken(
@@ -253,7 +253,7 @@ export async function rotateTunnelToken(
   const res = await fetch(`${tunnelUrl(orgId, tunnelId)}/rotate-token`, {
     method: 'POST',
   });
-  if (!res.ok) throw new Error(`Rotate tunnel token failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Rotate tunnel token failed: ${res.status}`);}
   return res.json();
 }
 
@@ -264,7 +264,7 @@ export async function bindTunnelToOrgMcp(
   const res = await fetch(`${tunnelUrl(orgId, tunnelId)}/bind-mcp`, {
     method: 'POST',
   });
-  if (!res.ok) throw new Error(`Bind tunnel to org MCP failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Bind tunnel to org MCP failed: ${res.status}`);}
   return res.json();
 }
 
@@ -275,7 +275,7 @@ function mcpUrl(orgId: string, serverId?: string): string {
 
 export async function listOrgMcpServers(orgId: string): Promise<OrgMCPServer[]> {
   const res = await fetch(mcpUrl(orgId));
-  if (!res.ok) throw new Error(`List org MCP servers failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`List org MCP servers failed: ${res.status}`);}
   return res.json();
 }
 
@@ -288,7 +288,7 @@ export async function createOrgMcpServer(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  if (!res.ok) throw new Error(`Create org MCP server failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Create org MCP server failed: ${res.status}`);}
   return res.json();
 }
 
@@ -302,7 +302,7 @@ export async function updateOrgMcpServer(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  if (!res.ok) throw new Error(`Update org MCP server failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Update org MCP server failed: ${res.status}`);}
   return res.json();
 }
 
@@ -311,7 +311,7 @@ export async function deleteOrgMcpServer(
   serverId: string,
 ): Promise<{ delivery: OrgMCPDelivery }> {
   const res = await fetch(mcpUrl(orgId, serverId), { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Delete org MCP server failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Delete org MCP server failed: ${res.status}`);}
   return res.json();
 }
 
@@ -341,8 +341,8 @@ function ssoUrl(orgId: string): string {
 
 export async function getOrgSsoConfig(orgId: string): Promise<OrgOidcConfig | null> {
   const res = await fetch(ssoUrl(orgId));
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Get org SSO config failed: ${res.status}`);
+  if (res.status === 404) {return null;}
+  if (!res.ok) {throw new Error(`Get org SSO config failed: ${res.status}`);}
   return res.json();
 }
 
@@ -364,5 +364,5 @@ export async function upsertOrgSsoConfig(
 
 export async function deleteOrgSsoConfig(orgId: string): Promise<void> {
   const res = await fetch(ssoUrl(orgId), { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Delete org SSO config failed: ${res.status}`);
+  if (!res.ok) {throw new Error(`Delete org SSO config failed: ${res.status}`);}
 }

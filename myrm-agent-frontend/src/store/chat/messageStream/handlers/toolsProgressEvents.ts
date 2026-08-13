@@ -23,7 +23,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
       actions.setMessages((state) => {
         const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-        if (messageIndex === -1) return;
+        if (messageIndex === -1) {return;}
         const msg = state.messages[messageIndex];
         if (!msg.progressSteps) {
           msg.progressSteps = [];
@@ -199,7 +199,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const auditData = payload?.audit;
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-      if (messageIndex === -1) return;
+      if (messageIndex === -1) {return;}
       if (Array.isArray(citationSources) && citationSources.length > 0) {
         const existingSources = state.messages[messageIndex].sources || [];
         state.messages[messageIndex].sources = H.mergeMessageSources(existingSources, citationSources);
@@ -443,7 +443,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
   if (data.type === H.AgentEventType.APPROVAL_PROCESSED) {
     H.useToolApprovalStore.getState().removeRequestsByMessageId(data.messageId);
     const remaining = H.useToolApprovalStore.getState().queue;
-    if (remaining.length === 0) clearAllNotifications();
+    if (remaining.length === 0) {clearAllNotifications();}
     return done(ctx);
   }
 

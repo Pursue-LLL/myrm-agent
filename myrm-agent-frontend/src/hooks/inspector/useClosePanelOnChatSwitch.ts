@@ -10,7 +10,7 @@ export function useClosePanelOnChatSwitch(
   useEffect(() => {
     const prevChatId = prevChatIdRef.current;
     prevChatIdRef.current = chatId;
-    if (!chatId || prevChatId === chatId) return;
+    if (!chatId || prevChatId === chatId) {return;}
     if (isOpen) {
       closePanel();
     }

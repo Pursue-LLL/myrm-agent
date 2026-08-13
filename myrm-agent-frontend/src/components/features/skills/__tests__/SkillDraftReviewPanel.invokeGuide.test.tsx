@@ -47,7 +47,7 @@ vi.mock('@/store/skill/useSkillDraftStore', () => ({
 }));
 
 const stableT = (key: string, values?: Record<string, string>) => {
-  if (values?.name) return `${key}:${values.name}`;
+  if (values?.name) {return `${key}:${values.name}`;}
   return key;
 };
 

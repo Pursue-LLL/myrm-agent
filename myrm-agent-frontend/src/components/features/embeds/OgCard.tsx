@@ -37,7 +37,7 @@ export function OgCard({ url }: { url: string }) {
           }
         }
       } catch {
-        if (!cancelled) setFailed(true);
+        if (!cancelled) {setFailed(true);}
       }
     };
     fetchOg();
@@ -46,7 +46,7 @@ export function OgCard({ url }: { url: string }) {
     };
   }, [url]);
 
-  if (failed || !og) return null;
+  if (failed || !og) {return null;}
 
   const hostname = (() => {
     try {

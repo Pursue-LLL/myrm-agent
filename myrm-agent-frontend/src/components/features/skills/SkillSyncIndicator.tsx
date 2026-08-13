@@ -28,7 +28,7 @@ const SkillSyncIndicator = memo(() => {
   }, [fetchStatus]);
 
   const handleSync = useCallback(async () => {
-    if (isSyncing) return;
+    if (isSyncing) {return;}
     setIsSyncing(true);
     try {
       const result = await triggerSkillSync();
@@ -50,7 +50,7 @@ const SkillSyncIndicator = memo(() => {
     }
   }, [isSyncing, fetchStatus, t]);
 
-  if (!status?.enabled) return null;
+  if (!status?.enabled) {return null;}
 
   const hasPending = status.pending_push_count > 0 || status.pending_pull_count > 0;
 

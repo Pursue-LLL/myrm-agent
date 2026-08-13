@@ -39,7 +39,7 @@ const SkillSourcesPanel = memo(() => {
   }, [fetchSources]);
 
   const handleAdd = useCallback(async () => {
-    if (!addingUrl.trim()) return;
+    if (!addingUrl.trim()) {return;}
     setIsAdding(true);
     try {
       const res = await addCustomSource(addingUrl.trim(), 'well-known', addingLabel.trim());

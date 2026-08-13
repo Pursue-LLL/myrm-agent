@@ -24,7 +24,7 @@ vi.mock('next/dynamic', () => ({
       useEffect(() => {
         let alive = true;
         loader().then((mod) => {
-          if (!alive) return;
+          if (!alive) {return;}
           const m = mod as { default?: React.ComponentType<Record<string, unknown>> };
           setComp(() => (m.default ?? mod) as React.ComponentType<Record<string, unknown>>);
         });
@@ -32,7 +32,7 @@ vi.mock('next/dynamic', () => ({
           alive = false;
         };
       }, []);
-      if (!Comp) return null;
+      if (!Comp) {return null;}
       return <Comp {...props} />;
     };
     return DynamicComponent;

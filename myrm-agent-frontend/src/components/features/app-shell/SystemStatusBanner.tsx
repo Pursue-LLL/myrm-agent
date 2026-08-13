@@ -39,7 +39,7 @@ export default function SystemStatusBanner() {
     const checkStatus = async () => {
       const data = await fetchBackendHealth();
       const status = data?.system_status;
-      if (!status) return;
+      if (!status) {return;}
 
       if (status.database_recovered) {
         toast.success(t('databaseRecoveredTitle'), {
@@ -83,7 +83,7 @@ export default function SystemStatusBanner() {
     }
   };
 
-  if (!degraded || dismissed) return null;
+  if (!degraded || dismissed) {return null;}
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-destructive text-destructive-foreground px-4 py-3 myrm-safe-top-banner shadow-md flex items-center justify-between animate-in slide-in-from-top">

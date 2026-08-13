@@ -39,7 +39,7 @@ export const TARGET_TYPES: SharedContextTargetType[] = ['agent', 'channel', 'cro
 export const SHARED_CONTEXT_MEMORY_TYPES: SharedContextMemoryType[] = ['semantic', 'episodic'];
 
 export const formatSharedContextDate = (value?: string | null) => {
-  if (!value) return '';
+  if (!value) {return '';}
   return new Date(value).toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -106,7 +106,7 @@ export function useSharedContextPanel() {
       const response = await listSharedContexts();
       setContexts(response.items);
       setSelectedContextId((current) => {
-        if (current && response.items.some((context) => context.id === current)) return current;
+        if (current && response.items.some((context) => context.id === current)) {return current;}
         return response.items[0]?.id ?? '';
       });
     } catch (error) {
@@ -126,14 +126,14 @@ export function useSharedContextPanel() {
       listChannelInstances(),
       listCronJobs({ limit: 100 }),
     ]);
-    if (agentResponse.status === 'fulfilled') setAgents(agentResponse.value.items);
-    if (channelResponse.status === 'fulfilled') setChannels(channelResponse.value);
-    if (cronResponse.status === 'fulfilled') setCronJobs(cronResponse.value.items);
+    if (agentResponse.status === 'fulfilled') {setAgents(agentResponse.value.items);}
+    if (channelResponse.status === 'fulfilled') {setChannels(channelResponse.value);}
+    if (cronResponse.status === 'fulfilled') {setCronJobs(cronResponse.value.items);}
   }, []);
 
   const loadContextDetails = useCallback(
     async (contextId: string) => {
-      if (!contextId) return;
+      if (!contextId) {return;}
       setDetailsLoading(true);
       try {
         const [bindingResponse, proposalResponse] = await Promise.all([
@@ -161,17 +161,17 @@ export function useSharedContextPanel() {
   }, [loadContexts, loadTargetOptions]);
 
   useEffect(() => {
-    if (selectedContextId) void loadContextDetails(selectedContextId);
+    if (selectedContextId) {void loadContextDetails(selectedContextId);}
   }, [selectedContextId, loadContextDetails]);
 
   const refreshSelected = useCallback(async () => {
     await loadContexts();
-    if (selectedContextId) await loadContextDetails(selectedContextId);
+    if (selectedContextId) {await loadContextDetails(selectedContextId);}
   }, [loadContextDetails, loadContexts, selectedContextId]);
 
   const handleCreateContext = useCallback(async () => {
     const name = newName.trim();
-    if (!name) return;
+    if (!name) {return;}
     setActionId('create-context');
     try {
       const context = await createSharedContext({ name, description: newDescription.trim() });
@@ -192,7 +192,7 @@ export function useSharedContextPanel() {
   }, [newDescription, newName, t, tMemory]);
 
   const handleArchiveContext = useCallback(async () => {
-    if (!selectedContext || selectedContext.status !== 'active') return;
+    if (!selectedContext || selectedContext.status !== 'active') {return;}
     setActionId(`archive-${selectedContext.id}`);
     try {
       const archived = await archiveSharedContext(selectedContext.id);
@@ -210,7 +210,7 @@ export function useSharedContextPanel() {
   }, [selectedContext, t, tMemory]);
 
   const handleCreateBinding = useCallback(async () => {
-    if (!selectedContextId || !selectedContextIsActive || !targetId.trim()) return;
+    if (!selectedContextId || !selectedContextIsActive || !targetId.trim()) {return;}
     setActionId('create-binding');
     try {
       const binding = await createSharedContextBinding(selectedContextId, {
@@ -252,7 +252,7 @@ export function useSharedContextPanel() {
   );
 
   const handleCreateProposal = useCallback(async () => {
-    if (!selectedContextId || !selectedContextIsActive || !proposalContent.trim()) return;
+    if (!selectedContextId || !selectedContextIsActive || !proposalContent.trim()) {return;}
     setActionId('create-proposal');
     try {
       const proposal = await createSharedContextWriteProposal(selectedContextId, {
@@ -280,7 +280,7 @@ export function useSharedContextPanel() {
 
   const handleApproveProposal = useCallback(
     async (proposalId: string) => {
-      if (!selectedContextIsActive) return;
+      if (!selectedContextIsActive) {return;}
       setActionId(proposalId);
       try {
         updateProposalInState(await approveSharedContextWriteProposal(proposalId));
@@ -319,7 +319,7 @@ export function useSharedContextPanel() {
 
   const handleSaveProposal = useCallback(
     async (proposalId: string) => {
-      if (!selectedContextIsActive || !editingContent.trim()) return;
+      if (!selectedContextIsActive || !editingContent.trim()) {return;}
       setActionId(proposalId);
       try {
         updateProposalInState(await updateSharedContextWriteProposal(proposalId, { content: editingContent.trim() }));
@@ -340,7 +340,7 @@ export function useSharedContextPanel() {
   );
 
   const handleSearchHistory = useCallback(async () => {
-    if (!selectedContextId || !historyQuery.trim()) return;
+    if (!selectedContextId || !historyQuery.trim()) {return;}
     setActionId('history-search');
     try {
       const response = await searchSharedContextHistory(selectedContextId, {
@@ -361,7 +361,7 @@ export function useSharedContextPanel() {
 
   const handlePromoteHistory = useCallback(
     async (message: SharedContextHistoryMessage) => {
-      if (!selectedContextId || !selectedContextIsActive) return;
+      if (!selectedContextId || !selectedContextIsActive) {return;}
       setActionId(message.message_id);
       try {
         const proposal = await createSharedContextProposalFromHistory(selectedContextId, {
@@ -384,19 +384,19 @@ export function useSharedContextPanel() {
   );
 
   const correctionAutoApprove = useMemo(() => {
-    if (!selectedContext?.policy) return true;
+    if (!selectedContext?.policy) {return true;}
     const value = selectedContext.policy.correction_auto_approve;
     return value !== false;
   }, [selectedContext]);
 
   const goalCompletionAutoApprove = useMemo(() => {
-    if (!selectedContext?.policy) return true;
+    if (!selectedContext?.policy) {return true;}
     const value = selectedContext.policy.goal_completion_auto_approve;
     return value !== false;
   }, [selectedContext]);
 
   const handleToggleCorrectionAutoApprove = useCallback(async () => {
-    if (!selectedContextId || !selectedContextIsActive) return;
+    if (!selectedContextId || !selectedContextIsActive) {return;}
     setActionId('toggle-correction');
     try {
       const newPolicy = { ...selectedContext?.policy, correction_auto_approve: !correctionAutoApprove };
@@ -415,7 +415,7 @@ export function useSharedContextPanel() {
   }, [correctionAutoApprove, selectedContext, selectedContextId, selectedContextIsActive, t, tMemory]);
 
   const handleToggleGoalCompletionAutoApprove = useCallback(async () => {
-    if (!selectedContextId || !selectedContextIsActive) return;
+    if (!selectedContextId || !selectedContextIsActive) {return;}
     setActionId('toggle-goal-completion');
     try {
       const newPolicy = {

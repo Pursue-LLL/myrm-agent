@@ -10,11 +10,11 @@ export const SEARXNG_REGION_PRESETS = {
 export type SearxngRegionPreset = keyof typeof SEARXNG_REGION_PRESETS;
 
 export function detectSearxngPreset(extra: Record<string, unknown> | null | undefined): SearxngRegionPreset {
-  if (!extra) return 'global';
+  if (!extra) {return 'global';}
   for (const key of Object.keys(SEARXNG_REGION_PRESETS) as SearxngRegionPreset[]) {
     const preset = SEARXNG_REGION_PRESETS[key];
     const matches = Object.entries(preset).every(([field, value]) => extra[field] === value);
-    if (matches) return key;
+    if (matches) {return key;}
   }
   return 'global';
 }

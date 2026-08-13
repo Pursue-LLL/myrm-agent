@@ -27,9 +27,9 @@ export const removeWaitingForTurnStep = (
   messageId: string,
 ): Message[] => {
   const next = messages.map((msg) => {
-    if (msg.messageId !== messageId || !msg.progressSteps?.length) return msg;
+    if (msg.messageId !== messageId || !msg.progressSteps?.length) {return msg;}
     const hasWaitingStep = msg.progressSteps.some((step) => step.step_key === 'waiting_for_turn');
-    if (!hasWaitingStep) return msg;
+    if (!hasWaitingStep) {return msg;}
     return {
       ...msg,
       progressSteps: msg.progressSteps.filter((step) => step.step_key !== 'waiting_for_turn'),
@@ -131,7 +131,7 @@ export const processSuggestions = async (
   updateMessage: (messageId: string, suggestions: string[]) => void,
 ): Promise<void> => {
   const configStore = useConfigStore.getState();
-  if (!configStore.generateSearchSuggestions) return;
+  if (!configStore.generateSearchSuggestions) {return;}
 
   if (lastMsg.role === 'assistant' && lastMsg.content.trim().length > 0 && !lastMsg.suggestions) {
     try {

@@ -36,12 +36,12 @@ const XlsxViewer: React.FC<{ url: string; filename: string }> = memo(({ url, fil
       setError(null);
       try {
         const res = await fetch(url);
-        if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+        if (!res.ok) {throw new Error(`Failed to fetch: ${res.status}`);}
         const buffer = await res.arrayBuffer();
         const XLSX = await import('xlsx');
         const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
 
-        if (cancelled) return;
+        if (cancelled) {return;}
 
         const parsed = workbook.SheetNames.map((name) => {
           const sheet = workbook.Sheets[name];
@@ -57,10 +57,10 @@ const XlsxViewer: React.FC<{ url: string; filename: string }> = memo(({ url, fil
         setSheets(parsed);
         setActiveSheet(0);
       } catch (err) {
-        if (cancelled) return;
+        if (cancelled) {return;}
         setError(err instanceof Error ? err.message : String(err));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {setLoading(false);}
       }
     };
 
@@ -88,7 +88,7 @@ const XlsxViewer: React.FC<{ url: string; filename: string }> = memo(({ url, fil
   }
 
   const current = sheets[activeSheet];
-  if (!current) return null;
+  if (!current) {return null;}
 
   return (
     <div className="flex flex-col h-full">

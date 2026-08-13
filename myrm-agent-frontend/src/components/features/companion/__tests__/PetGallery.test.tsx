@@ -19,7 +19,7 @@ vi.mock('@/store/useCompanionStore', () => ({
 }));
 
 const stableT = (key: string, values?: Record<string, unknown>) => {
-  if (key === 'gallery.count') return `${values?.count ?? 0} pets`;
+  if (key === 'gallery.count') {return `${values?.count ?? 0} pets`;}
   const labels: Record<string, string> = {
     'gallery.loading': 'Loading pets...',
     'gallery.error': 'Failed to load pet gallery',

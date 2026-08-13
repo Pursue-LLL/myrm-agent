@@ -53,7 +53,7 @@ export default function IntentPage() {
     }
 
     void dispatcher.dispatch(currentUrl, parsedIntent).then((dispatchSucceeded) => {
-      if (cancelled) return;
+      if (cancelled) {return;}
       if (shouldReturnHome || !dispatchSucceeded) {
         router.replace('/');
       }

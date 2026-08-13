@@ -47,7 +47,7 @@ interface SourceChunkDrawerProps {
 }
 
 function renderSnippetParagraphs(text: string, maxSegments: number = 3): React.ReactNode[] {
-  if (!text) return [];
+  if (!text) {return [];}
 
   const sentences = text.split(/(?<=[。.!?！？\n])\s*/);
   const segments = sentences.slice(0, maxSegments);
@@ -101,9 +101,9 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
     }, [contextKey, surface]);
 
     const levelLabel = useMemo(() => {
-      if (level === 'L0') return t('kb_level_l0');
-      if (level === 'L1') return t('kb_level_l1');
-      if (level === 'L2') return t('kb_level_l2');
+      if (level === 'L0') {return t('kb_level_l0');}
+      if (level === 'L1') {return t('kb_level_l1');}
+      if (level === 'L2') {return t('kb_level_l2');}
       return '';
     }, [level, t]);
 

@@ -89,7 +89,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   );
 
   const handleGenerate = useCallback(async () => {
-    if (!selectedProfile) return;
+    if (!selectedProfile) {return;}
     setLoading(true);
     try {
       const result = await generateConnectConfig(selectedProfile, selectedAgentId);
@@ -103,7 +103,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   }, [selectedProfile, selectedAgentId]);
 
   const handleCopyConfig = useCallback(async () => {
-    if (!configResult) return;
+    if (!configResult) {return;}
     const configJson = configResult.config_json;
     const text = (configJson as Record<string, unknown>)._toml_snippet
       ? String((configJson as Record<string, unknown>)._toml_snippet)
@@ -114,14 +114,14 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   }, [configResult]);
 
   const handleCopyToken = useCallback(async () => {
-    if (!configResult) return;
+    if (!configResult) {return;}
     await navigator.clipboard.writeText(configResult.token);
     setCopiedToken(true);
     setTimeout(() => setCopiedToken(false), 2000);
   }, [configResult]);
 
   const handleDoctor = useCallback(async () => {
-    if (!selectedProfile) return;
+    if (!selectedProfile) {return;}
     setDoctorRunning(true);
     try {
       const result = await runConnectDoctor(selectedProfile);
@@ -138,7 +138,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   const [providerTreeCount, setProviderTreeCount] = useState(0);
 
   const handleRevoke = useCallback(async () => {
-    if (!selectedProfile) return;
+    if (!selectedProfile) {return;}
     if (!revokeConfirming) {
       setRevokeConfirming(true);
       countProviderTrees(selectedProfile)

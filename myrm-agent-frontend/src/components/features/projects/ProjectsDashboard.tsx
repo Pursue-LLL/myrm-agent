@@ -84,7 +84,7 @@ function useProjectStats(): ProjectStats {
         listCronJobs({ limit: 1 }),
       ]);
 
-      if (cancelled) return;
+      if (cancelled) {return;}
 
       setStats({
         kanbanBoards: boardsRes.status === 'fulfilled' ? boardsRes.value.total : null,
@@ -105,9 +105,9 @@ export default function ProjectsDashboard() {
   const stats = useProjectStats();
 
   const renderStat = (entry: ProjectEntry) => {
-    if (!entry.statKey || !entry.statLabelKey) return null;
+    if (!entry.statKey || !entry.statLabelKey) {return null;}
     const count = stats[entry.statKey];
-    if (count === null) return null;
+    if (count === null) {return null;}
     return (
       <div className="flex items-center gap-2 text-sm">
         <span className="text-2xl font-semibold text-foreground">{count}</span>

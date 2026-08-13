@@ -29,10 +29,10 @@ function computeTimeBoundaries(): {
 }
 
 function classifyDate(ts: number, boundaries: ReturnType<typeof computeTimeBoundaries>): DateGroupKey {
-  if (ts >= boundaries.todayStart) return 'today';
-  if (ts >= boundaries.yesterdayStart) return 'yesterday';
-  if (ts >= boundaries.prev7Start) return 'prev7days';
-  if (ts >= boundaries.prev30Start) return 'prev30days';
+  if (ts >= boundaries.todayStart) {return 'today';}
+  if (ts >= boundaries.yesterdayStart) {return 'yesterday';}
+  if (ts >= boundaries.prev7Start) {return 'prev7days';}
+  if (ts >= boundaries.prev30Start) {return 'prev30days';}
   return 'older';
 }
 
@@ -54,7 +54,7 @@ export function groupChatsByDate(chats: ChatItem[]): DateGroup[] {
 }
 
 function readCollapsedState(): Record<string, boolean> {
-  if (typeof window === 'undefined') return {};
+  if (typeof window === 'undefined') {return {};}
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};

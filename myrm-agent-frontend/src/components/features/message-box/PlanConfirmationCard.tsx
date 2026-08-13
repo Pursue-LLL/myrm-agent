@@ -131,7 +131,7 @@ const PlanConfirmationCard = ({
   );
 
   const handleConfirm = async () => {
-    if (submitting) return;
+    if (submitting) {return;}
     setSubmitting(true);
     try {
       await submitAction('confirm');
@@ -145,13 +145,13 @@ const PlanConfirmationCard = ({
   };
 
   const handleEdit = async () => {
-    if (submitting) return;
+    if (submitting) {return;}
     if (!editing) {
       setEditing(true);
       return;
     }
     const trimmed = editedPlan.trim();
-    if (!trimmed) return;
+    if (!trimmed) {return;}
     setSubmitting(true);
     try {
       const isChanged = trimmed !== plan.trim();
@@ -176,7 +176,7 @@ const PlanConfirmationCard = ({
   };
 
   const handleSkip = async () => {
-    if (submitting) return;
+    if (submitting) {return;}
     setSubmitting(true);
     try {
       await submitAction('skip');

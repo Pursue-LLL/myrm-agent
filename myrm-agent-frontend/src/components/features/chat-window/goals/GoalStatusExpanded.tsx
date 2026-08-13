@@ -288,8 +288,8 @@ function ObjectiveEditor({
         onChange={(e) => onEditedObjectiveChange(e.target.value)}
         autoFocus
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) onSaveObjective();
-          if (e.key === 'Escape') onCancelEditObjective();
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {onSaveObjective();}
+          if (e.key === 'Escape') {onCancelEditObjective();}
         }}
       />
       <div className="flex items-center justify-between">
@@ -389,7 +389,7 @@ function SubgoalsSection({
               const input = e.currentTarget.previousElementSibling as HTMLInputElement;
               const val = input?.value || '';
               onAddSubgoal(val);
-              if (input) input.value = '';
+              if (input) {input.value = '';}
             }}
           >
             {t('addSubgoal') || 'Add'}
@@ -478,7 +478,7 @@ function HumanReviewAction({
               const msg = val.trim() ? val : t('resetRetriesMessage');
               useChatStore.getState().sendMessage(msg);
               onAction('reject');
-              if (input) input.value = '';
+              if (input) {input.value = '';}
             }}
           >
             {t('rejectAndRetry')}

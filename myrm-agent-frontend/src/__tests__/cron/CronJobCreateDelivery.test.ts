@@ -50,7 +50,7 @@ describe('CronJobCreateDialog delivery 逻辑', () => {
 
   describe('delivery payload 构建逻辑', () => {
     function buildDeliveryPayload(deliveryChannel: string, deliveryTarget: string) {
-      if (deliveryChannel === 'chat') return undefined;
+      if (deliveryChannel === 'chat') {return undefined;}
       const target = deliveryTarget.trim() || undefined;
       return { channel: toApiChannel(deliveryChannel), ...(target ? { target } : {}) };
     }

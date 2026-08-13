@@ -67,9 +67,9 @@ const GOOGLE_FONTS_URL: Partial<Record<FontId, string>> = {
 const loadedFonts = new Set<FontId>();
 
 export function ensureFontLoaded(id: FontId): void {
-  if (loadedFonts.has(id) || typeof document === 'undefined') return;
+  if (loadedFonts.has(id) || typeof document === 'undefined') {return;}
   const url = GOOGLE_FONTS_URL[id];
-  if (!url) return;
+  if (!url) {return;}
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = url;

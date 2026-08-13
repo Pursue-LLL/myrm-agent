@@ -10,16 +10,16 @@ import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 
 export function formatRelativeDate(dateStr: string, t: (key: string, values?: Record<string, number>) => string): string {
   const parsed = new Date(dateStr);
-  if (isNaN(parsed.getTime())) return dateStr;
+  if (isNaN(parsed.getTime())) {return dateStr;}
   const now = Date.now();
   const diffMs = now - parsed.getTime();
-  if (diffMs < 0) return dateStr;
+  if (diffMs < 0) {return dateStr;}
   const diffDays = Math.floor(diffMs / 86_400_000);
-  if (diffDays === 0) return t('relativeDate.today');
-  if (diffDays === 1) return t('relativeDate.yesterday');
-  if (diffDays < 7) return t('relativeDate.daysAgo', { count: diffDays });
-  if (diffDays < 30) return t('relativeDate.weeksAgo', { count: Math.floor(diffDays / 7) });
-  if (diffDays < 365) return t('relativeDate.monthsAgo', { count: Math.floor(diffDays / 30) });
+  if (diffDays === 0) {return t('relativeDate.today');}
+  if (diffDays === 1) {return t('relativeDate.yesterday');}
+  if (diffDays < 7) {return t('relativeDate.daysAgo', { count: diffDays });}
+  if (diffDays < 30) {return t('relativeDate.weeksAgo', { count: Math.floor(diffDays / 7) });}
+  if (diffDays < 365) {return t('relativeDate.monthsAgo', { count: Math.floor(diffDays / 30) });}
   const y = parsed.getFullYear();
   const m = String(parsed.getMonth() + 1).padStart(2, '0');
   const d = String(parsed.getDate()).padStart(2, '0');
@@ -53,7 +53,7 @@ const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
 
     const getDomain = (url: string) => {
       try {
-        if (url === '#' || !url) return null;
+        if (url === '#' || !url) {return null;}
         return new URL(url).hostname.replace(/^www\./, '');
       } catch {
         return null;
@@ -73,7 +73,7 @@ const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
     const handleAgentBrowse = useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!isValidUrl) return;
+        if (!isValidUrl) {return;}
         useChatStore.getState().sendMessage(t('agentBrowsePrompt', { url }));
         useBrowserInspectorStore.getState().openPanel();
         setIsOpen(false);

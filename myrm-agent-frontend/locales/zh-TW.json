@@ -14696,7 +14696,8 @@
       "limitHit": "上限",
       "limitHitTitle": "該用例因達到設定的執行預算（如最大工具呼叫次數）而停止——其回答不完整",
       "blocked": "已攔截",
-      "blockedTitle": "本次執行中，搜尋查詢或 URL 被評測去汙染防護攔截"
+      "blockedTitle": "本次執行中，搜尋查詢或 URL 被評測去汙染防護攔截",
+      "toolCallsTitle": "本案例軌跡中記錄的工具呼叫次數"
     },
     "history": {
       "passRateTrend": "透過率歷史趨勢 (Pass Rate %)",
@@ -14738,6 +14739,8 @@
       "blocked": "封鎖",
       "limitHitTitle": "該用例因觸達設定的執行預算（如最大工具呼叫數）而提前結束，答案可能不完整",
       "matrixDetail": "用例 × 配置矩陣",
+      "blockedTitle": "本次執行中，搜尋查詢或 URL 被評測去汙染防護攔截",
+      "toolCallsTitle": "本案例軌跡中記錄的工具呼叫次數",
       "case": "用例",
       "legend": {
         "stable": "穩定",

@@ -86,10 +86,14 @@ function readStoredBuiltinTools(): BuiltinToolId[] {
   }
 }
 
-/** Release the desktop inspector "controlling" state after a manual stop. */
-async function releaseDesktopInspectorControl(): Promise<void> {
-  const { default: useDesktopInspectorStore } = await import('@/store/useDesktopInspectorStore');
+/** Release inspector (desktop + browser) "controlling" state after a manual stop. */
+async function releaseTurnInspectorControls(): Promise<void> {
+  const [{ default: useDesktopInspectorStore }, { default: useBrowserInspectorStore }] = await Promise.all([
+    import('@/store/useDesktopInspectorStore'),
+    import('@/store/useBrowserInspectorStore'),
+  ]);
   useDesktopInspectorStore.getState().releaseTurnEngagement();
+  useBrowserInspectorStore.getState().releaseTurnEngagement();
 }
 
 /** Restore chat UI preferences from localStorage after hydration (SSR-safe). */
@@ -520,7 +524,7 @@ const useChatStore = create<ChatState>()(
           abortController: chatAbortController,
           currentSessionMessageId: chatSessionMessageId,
         } = get();
-        if (!chatId) return;
+        if (!chatId) {return;}
 
         const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
 
@@ -548,7 +552,7 @@ const useChatStore = create<ChatState>()(
             })();
             abortController.abort();
             useWorkspaceStore.getState().setPaneAbortController(paneId, null);
-            void releaseDesktopInspectorControl();
+            void releaseTurnInspectorControls();
             set((state) => {
               state.loading = false;
               state.abortController = null;
@@ -561,7 +565,7 @@ const useChatStore = create<ChatState>()(
           return;
         }
 
-        if (!chatAbortController) return;
+        if (!chatAbortController) {return;}
 
         void (async () => {
           try {
@@ -572,7 +576,7 @@ const useChatStore = create<ChatState>()(
           }
         })();
         chatAbortController.abort();
-        void releaseDesktopInspectorControl();
+        void releaseTurnInspectorControls();
         set((state) => {
           state.loading = false;
           state.abortController = null;
@@ -584,7 +588,7 @@ const useChatStore = create<ChatState>()(
       },
       steerMessage: async (message: string) => {
         const { chatId } = get();
-        if (!chatId) return false;
+        if (!chatId) {return false;}
         try {
           const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
           if (isMobileRemoteSurface()) {
@@ -603,7 +607,7 @@ const useChatStore = create<ChatState>()(
       },
       redirectMessage: async (message: string) => {
         const { chatId } = get();
-        if (!chatId) return false;
+        if (!chatId) {return false;}
         try {
           const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
           if (isMobileRemoteSurface()) {
@@ -1041,7 +1045,7 @@ const useChatStore = create<ChatState>()(
         const prev = get().chatHistoryItems;
         const items = prev.map((item) => {
           const idx = orderedIds.indexOf(item.id);
-          if (idx !== -1) return { ...item, pinOrder: idx + 1 };
+          if (idx !== -1) {return { ...item, pinOrder: idx + 1 };}
           return item;
         });
         set({ chatHistoryItems: items });

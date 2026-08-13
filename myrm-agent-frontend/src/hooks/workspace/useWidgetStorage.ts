@@ -62,7 +62,7 @@ export function useWidgetStorage({ namespace, chatId, enabled = true }: WidgetSt
           setStorageData(resp.data ?? {});
         }
       } catch {
-        if (!cancelled) setStorageData({});
+        if (!cancelled) {setStorageData({});}
       }
     }
 
@@ -75,7 +75,7 @@ export function useWidgetStorage({ namespace, chatId, enabled = true }: WidgetSt
   const flush = useCallback((keepalive = false) => {
     const ns = namespaceRef.current;
     const cId = chatIdRef.current;
-    if (!ns || !cId) return;
+    if (!ns || !cId) {return;}
 
     const entries: StorageBatchEntry[] = [];
     pendingWritesRef.current.forEach((value, key) => {
@@ -84,7 +84,7 @@ export function useWidgetStorage({ namespace, chatId, enabled = true }: WidgetSt
     pendingWritesRef.current.clear();
     timerRef.current = null;
 
-    if (!entries.length) return;
+    if (!entries.length) {return;}
 
     if (keepalive) {
       fetch(getApiUrl(`/widget-storage/${ns}/batch`), {
@@ -122,17 +122,17 @@ export function useWidgetStorage({ namespace, chatId, enabled = true }: WidgetSt
   const handleStorageMessage = useCallback(
     (data: Record<string, unknown>) => {
       const ns = namespaceRef.current;
-      if (!ns || !enabled) return;
+      if (!ns || !enabled) {return;}
 
       if (data.type === 'widget-storage-batch') {
         const entries = data.entries as StorageBatchEntry[] | undefined;
-        if (!entries?.length) return;
+        if (!entries?.length) {return;}
 
         for (const { key, value } of entries) {
           pendingWritesRef.current.set(key, value);
         }
 
-        if (timerRef.current) clearTimeout(timerRef.current);
+        if (timerRef.current) {clearTimeout(timerRef.current);}
         timerRef.current = setTimeout(flush, DEBOUNCE_MS);
 
         setStorageData((prev) => {
@@ -146,7 +146,7 @@ export function useWidgetStorage({ namespace, chatId, enabled = true }: WidgetSt
 
       if (data.type === 'widget-storage-remove') {
         const key = data.key as string;
-        if (!key) return;
+        if (!key) {return;}
 
         apiRequest(`/widget-storage/${ns}/${encodeURIComponent(key)}`, {
           method: 'DELETE',
@@ -155,7 +155,7 @@ export function useWidgetStorage({ namespace, chatId, enabled = true }: WidgetSt
         });
 
         setStorageData((prev) => {
-          if (!prev) return prev;
+          if (!prev) {return prev;}
           const next = { ...prev };
           delete next[key];
           return next;

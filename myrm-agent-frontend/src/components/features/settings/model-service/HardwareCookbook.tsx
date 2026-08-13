@@ -69,7 +69,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
   const fetchHardwareProfile = async () => {
     try {
       const res = await fetch('/api/v1/integrations/hardware/recommendations');
-      if (!res.ok) throw new Error('Failed to fetch hardware recommendations');
+      if (!res.ok) {throw new Error('Failed to fetch hardware recommendations');}
       const data = await res.json();
       if (data.code === 0 && data.data) {
         setProfile(data.data);
@@ -109,15 +109,15 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
         signal: abortControllerRef.current.signal,
       });
       
-      if (!res.ok) throw new Error('Failed to start download');
-      if (!res.body) throw new Error('No response body');
+      if (!res.ok) {throw new Error('Failed to start download');}
+      if (!res.body) {throw new Error('No response body');}
       
       const reader = res.body.getReader();
       const decoder = new TextDecoder('utf-8');
       
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {break;}
         
         const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\\n').filter(line => line.trim());
@@ -183,7 +183,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
         body: JSON.stringify({ model_name: ollamaModelName }),
       });
       
-      if (!res.ok) throw new Error('Failed to delete model');
+      if (!res.ok) {throw new Error('Failed to delete model');}
       
       // 重新拉取以同步最新的磁盘空间和安装状态
       await fetchHardwareProfile();

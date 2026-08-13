@@ -15,7 +15,7 @@
 | `hooks/useMatrixEval.ts` | 逻辑 | 矩阵 + 分层评测流状态机：初始拉取最新报告与历史，`/eval/matrix/stream` SSE 进度，`startMatrix`（`POST /eval/matrix/run`）、`startLayer`（`POST /eval/matrix/layers-run` 分层评测）、`abort`（`POST /eval/matrix/abort`）、按时间戳回看历史报告。 | ✅ |
 | `hooks/useMemoryAbEval.ts` | 逻辑 | Memory A/B 评测流状态机：初始拉取最新报告与历史，`/eval/memory-ab/stream` SSE 进度，`start`（`POST /eval/memory-ab/run`）、`abort`、按时间戳回看历史报告。 | ✅ |
 | `tabs/CasesTab.tsx` | 展示 | 用例编辑 tab：`CaseFormatReference` 说明 + Monaco JSON 编辑器（草稿绑定）。 | ✅ |
-| `tabs/ReportTab.tsx` | 展示 | 单评测报告 tab：运行中进度/下载条、通过率统计卡、环境披露网格（模型/thinking/harness 版本/工具策略/数据集/prompt fingerprint/profile/judge 模型/**运行预算**（基准声明的 `max_tool_calls`/`max_iterations`，测量衰减防护）/**去污染状态**（`decontam_active` 徽标，诚实披露 HF blocklist 是否生效）、逐用例明细表（verdict、pass_rate 徽标、token、耗时、断言详情与 diff 触发，**轨迹披露徽标**：引擎预算截断 `limitHit`、去污染守卫拦截 `blocked` 计数与工具调用次数，让「不完整答案」与「污染拦截」在单跑报告中可视化）。 | ✅ |
+| `tabs/ReportTab.tsx` | 展示 | 单评测报告 tab：运行中进度/下载条、通过率统计卡、环境披露网格（模型/thinking/harness 版本/工具策略/数据集/prompt fingerprint/profile/judge 模型/**运行预算**（基准声明的 `max_tool_calls`/`max_iterations`，测量衰减防护）/**去污染状态**（`decontam_active` 徽标，诚实披露 HF blocklist 是否生效）、逐用例明细表（verdict、pass_rate 徽标、token、耗时、断言详情与 diff 触发，**轨迹披露徽标**：引擎预算截断 `limitHit`（tooltip 含具体预算类型）、去污染守卫拦截 `blocked` 计数与工具调用次数（tooltip 说明含义），让「不完整答案」与「污染拦截」在单跑报告中可视化）。 | ✅ |
 | `tabs/MatrixTab.tsx` | 展示 | 矩阵/分层报告 tab：复用 `EvalRunProgress` 展示运行进度，`MatrixResultView` 渲染报告 + `MatrixHistoryTable` 历史回看。 | ✅ |
 | `tabs/MemoryAbTab.tsx` | 展示 | Memory A/B 报告 tab：`EvalRunProgress` 进度 + `MatrixResultView`（记忆开/关双臂）+ `MemoryAbHistoryTable` 历史回看。 | ✅ |
 | `tabs/HistoryTab.tsx` | 展示 | 单评测历史 tab：通过率趋势折线 + 历史记录表（时间/Profile/模型/通过率/耗时/token），点击行回看报告。 | ✅ |

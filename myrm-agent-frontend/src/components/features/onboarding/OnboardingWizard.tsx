@@ -35,8 +35,8 @@ type Step = 'welcome' | 'migration' | 'capabilities' | 'tools_connect' | 'sync_f
 const WELCOME_DURATION_MS = 2500;
 
 function isTelegramConfiguredForOnboarding(creds: TelegramCredentials | null): boolean {
-  if (!creds) return false;
-  if ((creds.botToken ?? '').trim()) return true;
+  if (!creds) {return false;}
+  if ((creds.botToken ?? '').trim()) {return true;}
   return isSandbox();
 }
 
@@ -63,12 +63,12 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const shouldOfferMigrationStep = isLocalDeployment ? Boolean(discovery && discovery.sources.length > 0) : true;
 
   const shouldShowRouting = useCallback(() => {
-    if (routingAlreadyEnabled) return false;
+    if (routingAlreadyEnabled) {return false;}
     return getEnabledModels().length >= 2;
   }, [routingAlreadyEnabled, getEnabledModels]);
 
   const shouldShowSmartGuard = useCallback(() => {
-    if (getEnabledModels().length === 0) return false;
+    if (getEnabledModels().length === 0) {return false;}
     const secConfig = getConfigSyncManager().get('securityConfig') as SecurityConfigValue | null;
     return !(secConfig?.autoReviewEnabled);
   }, [getEnabledModels]);
@@ -86,7 +86,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           getTelegramCredentials().catch(() => null),
         ]);
 
-        if (!mounted) return;
+        if (!mounted) {return;}
 
         setDiscovery(discRes);
         setProbe(probeRes);
@@ -96,10 +96,10 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         const remaining = Math.max(0, WELCOME_DURATION_MS - elapsed);
 
         setTimeout(() => {
-          if (mounted) setInitDone(true);
+          if (mounted) {setInitDone(true);}
         }, remaining);
       } catch {
-        if (mounted) setInitDone(true);
+        if (mounted) {setInitDone(true);}
       }
     };
 

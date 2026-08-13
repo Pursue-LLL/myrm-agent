@@ -62,8 +62,8 @@ export type ExternalAgentBadgeKind = 'subscription' | 'cli_ready' | 'logged_out'
 export function resolveExternalAgentBadgeKind(
   status: Pick<ExternalAgentAuthStatus, 'authenticated' | 'installed' | 'readyForDelegation'>,
 ): ExternalAgentBadgeKind {
-  if (status.authenticated) return 'subscription';
-  if (isExternalAgentDelegationReady(status)) return 'cli_ready';
+  if (status.authenticated) {return 'subscription';}
+  if (isExternalAgentDelegationReady(status)) {return 'cli_ready';}
   return 'logged_out';
 }
 
@@ -85,8 +85,8 @@ export function hasExternalCliBackendAvailable(
   statuses: ReadonlyArray<ExternalAgentAuthStatus>,
   localMode: boolean,
 ): boolean {
-  if (hasExplicitExternalCliBackend(agents)) return true;
-  if (localMode) return hasAutoDetectedExternalCliBackend(statuses);
+  if (hasExplicitExternalCliBackend(agents)) {return true;}
+  if (localMode) {return hasAutoDetectedExternalCliBackend(statuses);}
   return false;
 }
 
@@ -115,7 +115,7 @@ export async function* streamExternalAgentInstall(
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {break;}
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n\n');
@@ -124,7 +124,7 @@ export async function* streamExternalAgentInstall(
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const data = line.slice(6);
-          if (data === '[DONE]') return;
+          if (data === '[DONE]') {return;}
           try {
             const event = JSON.parse(data) as ExternalAgentAuthEvent;
             yield event;
@@ -178,7 +178,7 @@ export async function streamExternalAgentLogin(
 ): Promise<void> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) {headers['Authorization'] = `Bearer ${token}`;}
 
   const response = await fetchWithTimeout(
     '/external-agents/auth/login',
@@ -201,14 +201,14 @@ export async function streamExternalAgentLogin(
   try {
     for (;;) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {break;}
       buffer += decoder.decode(value, { stream: true });
       let sep: number;
       while ((sep = buffer.indexOf('\n\n')) >= 0) {
         const frame = buffer.slice(0, sep);
         buffer = buffer.slice(sep + 2);
         const dataLine = frame.split('\n').find((line) => line.startsWith('data:'));
-        if (!dataLine) continue;
+        if (!dataLine) {continue;}
         try {
           onEvent(JSON.parse(dataLine.slice(5).trim()) as ExternalAgentAuthEvent);
         } catch {

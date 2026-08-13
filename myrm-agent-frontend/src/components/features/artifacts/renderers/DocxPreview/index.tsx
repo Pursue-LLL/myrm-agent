@@ -29,7 +29,7 @@ const DocxPreview: React.FC<DocxPreviewProps> = memo(({ previewUrl, artifactId }
   useEffect(() => {
     let cancelled = false;
     const renderTarget = renderRef.current;
-    if (!renderTarget) return;
+    if (!renderTarget) {return;}
 
     const render = async () => {
       setLoading(true);
@@ -37,10 +37,10 @@ const DocxPreview: React.FC<DocxPreviewProps> = memo(({ previewUrl, artifactId }
 
       try {
         const res = await fetch(getStorageUrl(previewUrl));
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {throw new Error(`HTTP ${res.status}`);}
         const blob = await res.blob();
 
-        if (cancelled) return;
+        if (cancelled) {return;}
 
         const { renderAsync } = await import('docx-preview');
         renderTarget.innerHTML = '';
@@ -57,17 +57,17 @@ const DocxPreview: React.FC<DocxPreviewProps> = memo(({ previewUrl, artifactId }
           useBase64URL: true,
         });
       } catch (err) {
-        if (cancelled) return;
+        if (cancelled) {return;}
         setError(err instanceof Error ? err.message : String(err));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {setLoading(false);}
       }
     };
 
     render();
     return () => {
       cancelled = true;
-      if (renderTarget) renderTarget.innerHTML = '';
+      if (renderTarget) {renderTarget.innerHTML = '';}
     };
   }, [previewUrl]);
 

@@ -187,7 +187,7 @@ export const SkillInstanceManager = memo<SkillInstanceManagerProps>(({ skillName
 
   // Update instance
   const handleUpdate = useCallback(async () => {
-    if (!selectedInstance) return;
+    if (!selectedInstance) {return;}
 
     setLoading(true);
     try {
@@ -227,7 +227,7 @@ export const SkillInstanceManager = memo<SkillInstanceManagerProps>(({ skillName
 
   // Delete instance
   const handleDelete = useCallback(async () => {
-    if (!selectedInstance) return;
+    if (!selectedInstance) {return;}
 
     setLoading(true);
     try {

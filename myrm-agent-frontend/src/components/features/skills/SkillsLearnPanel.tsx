@@ -73,7 +73,7 @@ const SkillsLearnPanel = memo(({ className }: SkillsLearnPanelProps) => {
       url: learnUrl,
       text: learnText,
     });
-    if (!message) return;
+    if (!message) {return;}
 
     setIsSubmitting(true);
     try {

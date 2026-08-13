@@ -33,7 +33,7 @@ export function MobileStatusLivePreview({
 }: MobileStatusLivePreviewProps) {
   const t = useTranslations('agent.mobileCommand');
 
-  if (!browserViewData && !desktopViewData) return null;
+  if (!browserViewData && !desktopViewData) {return null;}
 
   const hasBoth = Boolean(browserViewData) && Boolean(desktopViewData);
   const activeTab = hasBoth ? previewTab : browserViewData ? 'browser' : 'desktop';

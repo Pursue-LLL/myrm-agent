@@ -52,9 +52,9 @@ interface CronStatsBarProps {
 }
 
 function getCount(stats: CronStatsBarProps['stats'], key: StatusFilter): number {
-  if (key === 'all') return stats.total;
-  if (key === 'active') return stats.active;
-  if (key === 'paused') return stats.paused;
+  if (key === 'all') {return stats.total;}
+  if (key === 'active') {return stats.active;}
+  if (key === 'paused') {return stats.paused;}
   return stats.errored;
 }
 

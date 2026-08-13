@@ -8,7 +8,8 @@
  *
  * [POS]
  * State management for the Browser Live View + Interactive Inspector feature.
- * Tracks panel visibility, active mode, latest browser view data, and selected element.
+ * Tracks panel visibility, active mode, latest browser view data, selected element, and
+ * per-turn engagement (which agent turns drive browser events and must be torn down).
  */
 
 import { create } from 'zustand';
@@ -64,6 +65,8 @@ interface BrowserInspectorState {
   isBrowserActive: boolean;
   instructionText: string;
   isSnapshotLoading: boolean;
+  /** True while the current agent turn emits browser events (tool start / view update). */
+  engagedInTurn: boolean;
 
   openPanel: () => void;
   closePanel: () => void;
@@ -73,6 +76,8 @@ interface BrowserInspectorState {
   selectElement: (refId: string, info: BrowserRefInfo) => void;
   clearSelection: () => void;
   setBrowserActive: (active: boolean) => void;
+  markTurnEngaged: () => void;
+  releaseTurnEngagement: () => void;
   setInstructionText: (text: string) => void;
   fetchSnapshot: () => Promise<boolean>;
   reset: () => void;
@@ -86,6 +91,7 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
   isBrowserActive: false,
   instructionText: '',
   isSnapshotLoading: false,
+  engagedInTurn: false,
 
   openPanel: () => set({ isOpen: true }),
   closePanel: () => set({ isOpen: false, selectedElement: null, instructionText: '' }),
@@ -103,12 +109,24 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
       isBrowserActive: active,
       ...(active ? {} : { isOpen: false, viewData: null, selectedElement: null }),
     })),
+  markTurnEngaged: () => set({ engagedInTurn: true }),
+  releaseTurnEngagement: () =>
+    set((s) => {
+      if (!s.engagedInTurn) {return {};}
+      return {
+        engagedInTurn: false,
+        isBrowserActive: false,
+        isOpen: false,
+        viewData: null,
+        selectedElement: null,
+      };
+    }),
   setInstructionText: (text) => set({ instructionText: text }),
   fetchSnapshot: async () => {
-    if (get().isSnapshotLoading) return false;
+    if (get().isSnapshotLoading) {return false;}
     const { default: useChatStore } = await import('@/store/useChatStore');
     const chatId = useChatStore.getState().chatId?.trim();
-    if (!chatId) return false;
+    if (!chatId) {return false;}
     set({ isSnapshotLoading: true });
     try {
       const data = await apiRequest<BrowserSnapshotResponse>(
@@ -147,6 +165,7 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
       isBrowserActive: false,
       instructionText: '',
       isSnapshotLoading: false,
+      engagedInTurn: false,
     }),
 }));
 

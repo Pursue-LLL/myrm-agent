@@ -197,11 +197,11 @@ const extractInlineMentionReferences = (input: string): MentionReference[] => {
       references.push({ type: 'url', label: token, url, source: 'special', size: null });
     } else {
       const lineMatch = LINE_RANGE_REFERENCE_PATTERN.exec(token);
-      if (!lineMatch) continue;
+      if (!lineMatch) {continue;}
       const [, path, startRaw, endRaw] = lineMatch;
       let startLine = Number(startRaw);
       let endLine = endRaw ? Number(endRaw) : startLine;
-      if (!Number.isSafeInteger(startLine) || !Number.isSafeInteger(endLine)) continue;
+      if (!Number.isSafeInteger(startLine) || !Number.isSafeInteger(endLine)) {continue;}
       if (endLine < startLine) {
         [startLine, endLine] = [endLine, startLine];
       }
@@ -224,7 +224,7 @@ const mergeMentionReferences = (selected: MentionReference[], inline: MentionRef
   const merged: MentionReference[] = [];
   for (const reference of [...selected, ...inline]) {
     const key = mentionReferenceKey(reference);
-    if (seen.has(key)) continue;
+    if (seen.has(key)) {continue;}
     seen.add(key);
     merged.push(reference);
   }
@@ -253,13 +253,13 @@ export const getModelSelection = (actionMode: ActionMode, agentConfig: AgentConf
     return null;
   }
 
-  if (!provider.apiKeys || !Array.isArray(provider.apiKeys)) return null;
+  if (!provider.apiKeys || !Array.isArray(provider.apiKeys)) {return null;}
   const hasActiveKey = provider.apiKeys.some((k) => k.isActive && k.key);
-  if (!hasActiveKey) return null;
+  if (!hasActiveKey) {return null;}
 
   const modelInfo = getModelInfo(selection.providerId, selection.model);
   const modelLevelKwargs: Record<string, unknown> = {};
-  if (modelInfo?.temperature !== undefined) modelLevelKwargs.temperature = modelInfo.temperature;
+  if (modelInfo?.temperature !== undefined) {modelLevelKwargs.temperature = modelInfo.temperature;}
   const modelExtraParams = modelInfo?.extraParams || {};
   const mergedKwargs: Record<string, unknown> = {
     temperature: resolved.temperature,
@@ -295,18 +295,18 @@ const resolveSelectionToModelSelection = (
   selection: import('@/store/config/providerTypes').SingleModelSelection | null | undefined,
   extraKwargs?: Record<string, unknown>,
 ): ModelSelection | null => {
-  if (!selection) return null;
+  if (!selection) {return null;}
 
   const { providers, getModelInfo } = useProviderStore.getState();
   const provider = providers.find((p) => p.id === selection.providerId);
-  if (!provider) return null;
+  if (!provider) {return null;}
 
   // if (!provider.apiKeys || !Array.isArray(provider.apiKeys)) return null;
   // if (!provider.apiKeys.some((k) => k.isActive)) return null;
 
   const modelInfo = getModelInfo(selection.providerId, selection.model);
   const modelLevelKwargs: Record<string, unknown> = {};
-  if (modelInfo?.temperature !== undefined) modelLevelKwargs.temperature = modelInfo.temperature;
+  if (modelInfo?.temperature !== undefined) {modelLevelKwargs.temperature = modelInfo.temperature;}
   const modelExtraParams = modelInfo?.extraParams || {};
   const mergedKwargs = { ...extraKwargs, ...modelLevelKwargs, ...modelExtraParams };
 
@@ -362,8 +362,8 @@ const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
   const candidates: Array<{ providerId: string; model: string; cost: number }> = [];
 
   for (const provider of providers) {
-    if (!provider.isEnabled) continue;
-    if (!hasUsableProviderAuth(provider)) continue;
+    if (!provider.isEnabled) {continue;}
+    if (!hasUsableProviderAuth(provider)) {continue;}
     for (const model of provider.enabledModels || []) {
       const info = customModelInfo[`${provider.id}/${model}`];
       if (info?.input_cost_per_million != null) {
@@ -372,7 +372,7 @@ const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
     }
   }
 
-  if (candidates.length < 2) return null;
+  if (candidates.length < 2) {return null;}
 
   candidates.sort((a, b) => (cheapest ? a.cost - b.cost : b.cost - a.cost));
   const pick = candidates[0];
@@ -382,7 +382,7 @@ const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
 export const getLightModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
   const agentRouting = agentConfig?.routingConfig;
   if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) return null;
+    if (agentRouting.enabled === false) {return null;}
     if (agentRouting.lightModel?.primary) {
       const slotKwargs = agentRouting.lightModel.modelKwargs ?? {};
       return resolveSelectionToModelSelection(agentRouting.lightModel.primary, slotKwargs);
@@ -390,7 +390,7 @@ export const getLightModelSelection = (agentConfig?: AgentConfig | null): ModelS
   }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) return null;
+  if (routing?.enabled === false) {return null;}
   if (routing?.lightModel?.primary) {
     const slotKwargs = routing.lightModel.modelKwargs ?? {};
     return resolveSelectionToModelSelection(routing.lightModel.primary, slotKwargs);
@@ -401,14 +401,14 @@ export const getLightModelSelection = (agentConfig?: AgentConfig | null): ModelS
 export const getFallbackLightModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
   const agentRouting = agentConfig?.routingConfig;
   if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) return null;
+    if (agentRouting.enabled === false) {return null;}
     if (agentRouting.lightModel?.fallback) {
       return resolveSelectionToModelSelection(agentRouting.lightModel.fallback);
     }
   }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) return null;
+  if (routing?.enabled === false) {return null;}
   if (routing?.lightModel?.fallback) {
     return resolveSelectionToModelSelection(routing.lightModel.fallback);
   }
@@ -418,7 +418,7 @@ export const getFallbackLightModelSelection = (agentConfig?: AgentConfig | null)
 export const getReasoningModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
   const agentRouting = agentConfig?.routingConfig;
   if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) return null;
+    if (agentRouting.enabled === false) {return null;}
     if (agentRouting.reasoningModel?.primary) {
       const slotKwargs = agentRouting.reasoningModel.modelKwargs ?? {};
       return resolveSelectionToModelSelection(agentRouting.reasoningModel.primary, slotKwargs);
@@ -426,7 +426,7 @@ export const getReasoningModelSelection = (agentConfig?: AgentConfig | null): Mo
   }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) return null;
+  if (routing?.enabled === false) {return null;}
   if (routing?.reasoningModel?.primary) {
     const slotKwargs = routing.reasoningModel.modelKwargs ?? {};
     return resolveSelectionToModelSelection(routing.reasoningModel.primary, slotKwargs);
@@ -437,14 +437,14 @@ export const getReasoningModelSelection = (agentConfig?: AgentConfig | null): Mo
 export const getFallbackReasoningModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
   const agentRouting = agentConfig?.routingConfig;
   if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) return null;
+    if (agentRouting.enabled === false) {return null;}
     if (agentRouting.reasoningModel?.fallback) {
       return resolveSelectionToModelSelection(agentRouting.reasoningModel.fallback);
     }
   }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) return null;
+  if (routing?.enabled === false) {return null;}
   if (routing?.reasoningModel?.fallback) {
     return resolveSelectionToModelSelection(routing.reasoningModel.fallback);
   }
@@ -762,7 +762,7 @@ export const createMessageRequest = async (
     }),
     ...(() => {
       const references = mergeMentionReferences(state.mentionReferences, extractInlineMentionReferences(input));
-      if (references.length === 0) return {};
+      if (references.length === 0) {return {};}
 
       const fileReferences = references.filter((r) => r.type !== 'agent');
       const agentReferences = references.filter((r) => r.type === 'agent');
@@ -996,8 +996,8 @@ export const sendMessage = async (
       innerState.abortController = abortController;
     });
 
-    let added = false;
-    let recievedMessage = '';
+    const added = false;
+    const recievedMessage = '';
 
     const isRegenerate = !!state.regenerateSiblingGroupId;
 
@@ -1059,7 +1059,7 @@ export const sendMessage = async (
       if (isNetworkError) {
         smartSetMessages((innerState) => {
           const msg = innerState.messages.find((m) => m.messageId === requestMessageId);
-          if (msg) msg.sendFailed = true;
+          if (msg) {msg.sendFailed = true;}
         });
       } else {
         smartSetMessages((innerState) => {

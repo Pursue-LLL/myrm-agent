@@ -16,7 +16,7 @@ const FileSnapshotPanel: React.FC = () => {
     window.dispatchEvent(new CustomEvent('app_resync_required'));
   }, []);
 
-  if (!workingDir) return null;
+  if (!workingDir) {return null;}
 
   return (
     <>

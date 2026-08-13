@@ -20,9 +20,9 @@ export function useAgentName(agentId: string | null | undefined): string | null 
     }
   }, [agentId, fetchAgents]);
 
-  if (!agentId) return null;
+  if (!agentId) {return null;}
   const agent = agents.find((a) => a.id === agentId);
-  if (!agent) return agentId;
+  if (!agent) {return agentId;}
   return getBuiltinAgentName(agent.id, agent.name, locale);
 }
 
@@ -47,8 +47,8 @@ export function useAgentNameMap(agentIds: (string | null)[]): Map<string, string
   return useMemo(() => {
     const map = new Map<string, string>();
     for (const id of agentIds) {
-      if (!id) continue;
-      if (map.has(id)) continue;
+      if (!id) {continue;}
+      if (map.has(id)) {continue;}
       const agent = agents.find((a) => a.id === id);
       map.set(id, agent ? getBuiltinAgentName(agent.id, agent.name, locale) : id);
     }

@@ -33,9 +33,9 @@ const WorkflowTemplateSaveCard = memo(({ message, chatId }: WorkflowTemplateSave
   const [saved, setSaved] = useState(false);
 
   const visible = useMemo(() => {
-    if (message.role !== 'assistant') return false;
-    if (saved) return false;
-    if (message.completionStatus === 'error' || message.completionStatus === 'cancelled') return false;
+    if (message.role !== 'assistant') {return false;}
+    if (saved) {return false;}
+    if (message.completionStatus === 'error' || message.completionStatus === 'cancelled') {return false;}
     return isDynamicWorkflowMessage(message);
   }, [message, saved]);
 

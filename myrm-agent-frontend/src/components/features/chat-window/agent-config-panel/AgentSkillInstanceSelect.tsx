@@ -40,7 +40,7 @@ export const AgentSkillInstanceSelect = memo<AgentSkillInstanceSelectProps>(
         try {
           const response = await fetch(`/api/v1/skills/${encodeURIComponent(skillName)}/instances`);
           if (!response.ok) {
-            if (!cancelled) setInstances([]);
+            if (!cancelled) {setInstances([]);}
             return;
           }
           const data = (await response.json()) as { instances?: string[] };
@@ -48,9 +48,9 @@ export const AgentSkillInstanceSelect = memo<AgentSkillInstanceSelectProps>(
             setInstances(Array.isArray(data.instances) ? data.instances : []);
           }
         } catch {
-          if (!cancelled) setInstances([]);
+          if (!cancelled) {setInstances([]);}
         } finally {
-          if (!cancelled) setLoading(false);
+          if (!cancelled) {setLoading(false);}
         }
       };
       void load();

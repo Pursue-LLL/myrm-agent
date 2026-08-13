@@ -7,10 +7,10 @@ import MessageBox from '@/components/features/message-box/MessageBox';
 import type { Message } from '@/store/chat/types';
 
 const stableT = (key: string, params?: { count?: number }) => {
-  if (key === 'message.workspaceMergeFailedTitle') return 'Workspace Merge Failed';
-  if (key === 'message.workspaceMergeFailed') return `${params?.count ?? 0} merge errors`;
-  if (key === 'message.workspaceMergeFailedMore') return `${params?.count ?? 0} more hidden`;
-  if (key === 'message.workflowMergeWarning') return 'Generic workflow merge warning';
+  if (key === 'message.workspaceMergeFailedTitle') {return 'Workspace Merge Failed';}
+  if (key === 'message.workspaceMergeFailed') {return `${params?.count ?? 0} merge errors`;}
+  if (key === 'message.workspaceMergeFailedMore') {return `${params?.count ?? 0} more hidden`;}
+  if (key === 'message.workflowMergeWarning') {return 'Generic workflow merge warning';}
   return key;
 };
 

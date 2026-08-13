@@ -128,7 +128,7 @@ export function GuidedRepairCard({ action, onExecuted }: GuidedRepairCardProps) 
   const [error, setError] = useState<string | null>(null);
 
   const runAction = async (dryRun: boolean) => {
-    if (!action.executable) return;
+    if (!action.executable) {return;}
 
     setRunning(true);
     setError(null);

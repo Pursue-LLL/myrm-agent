@@ -148,7 +148,7 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
                 value={service.spec_url || ''}
                 onChange={(e) => {
                   updateField('spec_url', e.target.value || undefined);
-                  if (e.target.value) updateField('spec_content', undefined);
+                  if (e.target.value) {updateField('spec_content', undefined);}
                 }}
                 disabled={readonly || !!service.spec_content}
                 className="flex-1"
@@ -234,7 +234,7 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
                           const allIds = parsedSpec.endpoints.map((x) => x.operation_id);
 
                           if (e.target.checked) {
-                            if (isCurrentlyAll) return;
+                            if (isCurrentlyAll) {return;}
                             const next = Array.from(new Set([...service.selected_endpoints!, ep.operation_id]));
                             updateField('selected_endpoints', next.length === allIds.length ? undefined : next);
                           } else {

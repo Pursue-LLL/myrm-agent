@@ -54,23 +54,23 @@ export function ChannelLoginDialog({
 
   useEffect(() => {
     const dialog = dialogRef.current;
-    if (!dialog) return;
+    if (!dialog) {return;}
 
     if (open) {
-      if (!dialog.open) dialog.showModal();
+      if (!dialog.open) {dialog.showModal();}
       startRef.current();
     } else {
-      if (dialog.open) dialog.close();
+      if (dialog.open) {dialog.close();}
       resetRef.current();
     }
   }, [open]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
-    if (!dialog) return;
+    if (!dialog) {return;}
 
     const handleClose = () => {
-      if (phase !== 'success') cancel();
+      if (phase !== 'success') {cancel();}
       onClose();
     };
     dialog.addEventListener('close', handleClose);
@@ -110,7 +110,7 @@ export function ChannelLoginDialog({
           <button
             type="button"
             onClick={() => {
-              if (phase !== 'success') cancel();
+              if (phase !== 'success') {cancel();}
               onClose();
             }}
             className="flex-1 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
@@ -214,6 +214,6 @@ function PhaseHint({
     success: t('qrLoginConnected'),
   };
   const hint = hints[phase];
-  if (!hint) return null;
+  if (!hint) {return null;}
   return <p className="text-center text-sm text-muted-foreground">{hint}</p>;
 }

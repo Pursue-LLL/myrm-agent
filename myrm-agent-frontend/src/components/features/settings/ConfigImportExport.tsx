@@ -94,7 +94,7 @@ const ConfigImportExport: React.FC = () => {
   );
 
   const handleConfirmImport = useCallback(async () => {
-    if (!parsedData) return;
+    if (!parsedData) {return;}
     setIsImporting(true);
 
     const filteredConfig: Partial<FullExportConfig> = {};
@@ -229,7 +229,7 @@ const ConfigImportExport: React.FC = () => {
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {return;}
 
     try {
       const text = await file.text();
@@ -349,7 +349,7 @@ const ConfigImportExport: React.FC = () => {
         isImporting={isImporting}
         onToggleCategory={toggleCategory}
         onSelectAll={() => {
-          if (parsedData) setSelectedCategories(new Set(parsedData.availableCategories));
+          if (parsedData) {setSelectedCategories(new Set(parsedData.availableCategories));}
         }}
         onDeselectAll={() => setSelectedCategories(new Set())}
         onConfirm={handleConfirmImport}

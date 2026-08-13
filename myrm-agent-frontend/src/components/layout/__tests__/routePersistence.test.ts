@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 const ROUTE_STORAGE_KEY = 'myrm_last_tab_routes';
 
 function readSavedRoutes(): Record<string, string> {
-  if (typeof window === 'undefined') return {};
+  if (typeof window === 'undefined') {return {};}
   try {
     return JSON.parse(localStorage.getItem(ROUTE_STORAGE_KEY) || '{}');
   } catch {
@@ -12,7 +12,7 @@ function readSavedRoutes(): Record<string, string> {
 }
 
 function persistRoute(tab: string, url: string) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') {return;}
   try {
     const saved = readSavedRoutes();
     saved[tab] = url;

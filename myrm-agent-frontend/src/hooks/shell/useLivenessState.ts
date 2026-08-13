@@ -57,7 +57,7 @@ export function buildTooltip(state: LivenessState, activeCount: number): string 
 // --- Module-level singleton poller ---
 
 let currentData: LivenessData = { state: 'idle', activeCount: 0, tooltip: '' };
-let listeners = new Set<() => void>();
+const listeners = new Set<() => void>();
 let pollerTimer: ReturnType<typeof setInterval> | null = null;
 let subscriberCount = 0;
 
@@ -87,13 +87,13 @@ async function poll(): Promise<void> {
 }
 
 function startPoller(): void {
-  if (pollerTimer !== null) return;
+  if (pollerTimer !== null) {return;}
   void poll();
   pollerTimer = setInterval(() => void poll(), POLL_INTERVAL_MS);
 }
 
 function stopPoller(): void {
-  if (pollerTimer === null) return;
+  if (pollerTimer === null) {return;}
   clearInterval(pollerTimer);
   pollerTimer = null;
 }

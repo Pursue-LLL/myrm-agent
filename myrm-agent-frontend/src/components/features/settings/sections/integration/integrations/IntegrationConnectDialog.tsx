@@ -152,7 +152,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
 
     useEffect(() => {
       return () => {
-        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        if (pollIntervalRef.current) {clearInterval(pollIntervalRef.current);}
       };
     }, []);
 
@@ -167,7 +167,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
     const isSandboxMode = isSandbox();
 
     const runProbe = useCallback(async () => {
-      if (!probeUrl) return true;
+      if (!probeUrl) {return true;}
       setProbeStatus('probing');
       setProbeError(null);
       setProbeRecommendedMode(null);
@@ -244,7 +244,14 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         toast({ title: t('connectSuccess', { name: entry.name }) });
         onConnected();
       },
-      [entry.name, mcpConfig, mcpConfigs, onConnected, setMCPConfigs, t, toast],
+      [
+	entry.name,
+	mcpConfig,
+	mcpConfigs,
+	onConnected,
+	setMCPConfigs,
+	t
+],
     );
 
     const runCatalogSecurityGate = useCallback(
@@ -284,11 +291,15 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         });
         return true;
       },
-      [persistCatalogConfig, t, tSettings, toast],
+      [
+	persistCatalogConfig,
+	t,
+	tSettings
+],
     );
 
     const handleConfirmCatalogAck = useCallback(async () => {
-      if (!pendingCatalogAck) return;
+      if (!pendingCatalogAck) {return;}
       const { config } = pendingCatalogAck;
       setPendingCatalogAck(null);
       await runCatalogSecurityGate(config, true);
@@ -337,7 +348,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
             try {
               const statusRes = await apiRequest<{ status: string }>(`/integrations/mcp/oauth/status/${startRes.state}`, { silent: true });
               if (statusRes.status === 'success') {
-                if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                if (pollIntervalRef.current) {clearInterval(pollIntervalRef.current);}
                 
                 const newConfig: MCPServiceConfig = {
                   name: mcpCfg.name,
@@ -350,12 +361,12 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
                   extra_params: null,
                 };
 
-                if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                if (pollIntervalRef.current) {clearInterval(pollIntervalRef.current);}
                 setOauthPolling(false);
                 await runCatalogSecurityGate(newConfig);
                 return;
               } else if (statusRes.status === 'expired_or_invalid') {
-                if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                if (pollIntervalRef.current) {clearInterval(pollIntervalRef.current);}
                 setOauthPolling(false);
                 toast({ title: t('connectFailed'), description: 'OAuth session expired', variant: 'destructive' });
               }

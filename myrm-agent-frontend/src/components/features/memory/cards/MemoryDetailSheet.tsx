@@ -16,7 +16,7 @@ interface MemoryDetailSheetProps {
 }
 
 const formatDateTime = (dateString?: string) => {
-  if (!dateString) return '-';
+  if (!dateString) {return '-';}
   return new Date(dateString).toLocaleString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -39,7 +39,7 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
   const t = useTranslations('memory');
   const router = useRouter();
 
-  if (!memory) return null;
+  if (!memory) {return null;}
 
   const memoryType = memory.memory_type;
 

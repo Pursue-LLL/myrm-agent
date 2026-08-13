@@ -75,7 +75,7 @@ export default function ConsensusThinkingPanel({
   const t = useTranslations('messageBox');
   const [collapsed, setCollapsed] = useState(false);
 
-  if (refs.length === 0 && !isStreaming) return null;
+  if (refs.length === 0 && !isStreaming) {return null;}
 
   const completedCount = refs.length;
   const total = totalExpected ?? refs.length;

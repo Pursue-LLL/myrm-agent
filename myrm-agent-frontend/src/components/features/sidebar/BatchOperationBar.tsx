@@ -46,7 +46,7 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
     const abortRef = useRef<AbortController | null>(null);
 
     const handleBatchMove = async (projectId: string | null) => {
-      if (moving) return;
+      if (moving) {return;}
       setMoving(true);
       try {
         const ids = [...selectedIds];
@@ -70,7 +70,7 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
 
     const handleExport = useCallback(
       async (format: BatchExportFormat) => {
-        if (exporting || selectedCount === 0) return;
+        if (exporting || selectedCount === 0) {return;}
         setFormatPickerOpen(false);
         setExporting(true);
         setExportProgress(null);
@@ -103,7 +103,7 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
           }
           toast(msg);
         } catch (err) {
-          if (err instanceof DOMException && err.name === 'AbortError') return;
+          if (err instanceof DOMException && err.name === 'AbortError') {return;}
           console.error('[BatchExport]', err);
           toast({ title: t('chat.batch.exportFailed'), variant: 'destructive' });
         } finally {

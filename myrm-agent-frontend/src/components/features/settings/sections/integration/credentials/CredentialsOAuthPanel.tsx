@@ -56,9 +56,9 @@ export function CredentialsOAuthPanel({
             const { badgeColorClass, badgePulseDotClass } = getOauthBadgeStyles(state);
 
             let badgeText = t('disconnected');
-            if (state === 'connected') badgeText = t('connected');
-            else if (state === 'expiring') badgeText = t('expiringSoon', { days: daysLeft });
-            else if (state === 'expired') badgeText = t('expired');
+            if (state === 'connected') {badgeText = t('connected');}
+            else if (state === 'expiring') {badgeText = t('expiringSoon', { days: daysLeft });}
+            else if (state === 'expired') {badgeText = t('expired');}
 
             return (
               <div

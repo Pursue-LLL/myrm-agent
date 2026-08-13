@@ -127,16 +127,16 @@ export default function CronJobCreateDialog({
   useEffect(() => {
     if (open) {
       fetchAgents();
-      if (presetChatId) setSessionTarget('main');
+      if (presetChatId) {setSessionTarget('main');}
       apiRequest<{ deploy_mode: string }>('/health/info')
         .then((info) => {
           const enabled = info.deploy_mode !== 'sandbox';
           setShellEnabled(enabled);
-          if (!enabled && uiMode === 'shell') setUiMode('agent');
+          if (!enabled && uiMode === 'shell') {setUiMode('agent');}
         })
         .catch(() => {
           setShellEnabled(false);
-          if (uiMode === 'shell') setUiMode('agent');
+          if (uiMode === 'shell') {setUiMode('agent');}
         });
     }
   }, [open, fetchAgents, presetChatId]); // eslint-disable-line react-hooks/exhaustive-deps -- uiMode read only for reset guard
@@ -168,19 +168,19 @@ export default function CronJobCreateDialog({
   const schedule = useMemo((): CronSchedule | null => {
     if (scheduleKind === 'cron') {
       const expr = cronExpr.trim();
-      if (!expr) return null;
+      if (!expr) {return null;}
       return { kind: 'cron', expr, tz: userTz };
     }
     if (scheduleKind === 'interval') {
       const mins = parseInt(intervalMinutes, 10);
-      if (!mins || mins < 5) return null;
+      if (!mins || mins < 5) {return null;}
       return { kind: 'interval', interval_ms: mins * 60_000, tz: userTz };
     }
     if (scheduleKind === 'once') {
       const at = onceAt.trim();
-      if (!at) return null;
+      if (!at) {return null;}
       const d = new Date(at);
-      if (isNaN(d.getTime())) return null;
+      if (isNaN(d.getTime())) {return null;}
       return { kind: 'once', run_at: d.toISOString() };
     }
     return null;
@@ -189,12 +189,12 @@ export default function CronJobCreateDialog({
   const monthlyExecutions = useMemo(() => {
     if (scheduleKind === 'cron') {
       const expr = cronExpr.trim();
-      if (!expr) return null;
+      if (!expr) {return null;}
       return estimateCronMonthlyExecutions(expr);
     }
     if (scheduleKind === 'interval') {
       const mins = parseInt(intervalMinutes, 10);
-      if (!mins || mins < 5) return null;
+      if (!mins || mins < 5) {return null;}
       return estimateIntervalMonthlyExecutions(mins * 60_000);
     }
     if (scheduleKind === 'once') {
@@ -205,7 +205,7 @@ export default function CronJobCreateDialog({
 
   const defaultModel = useMemo(() => {
     const primary = defaultModelConfig.baseModel.primary;
-    if (!primary) return null;
+    if (!primary) {return null;}
     return { providerId: primary.providerId, model: primary.model };
   }, [defaultModelConfig]);
 
@@ -224,7 +224,7 @@ export default function CronJobCreateDialog({
 
   const executeCreate = useCallback(
     async (templateArgs: Record<string, string> | null) => {
-      if (!canSubmit || !schedule) return;
+      if (!canSubmit || !schedule) {return;}
       setSaving(true);
       try {
         const taskName =
@@ -245,7 +245,7 @@ export default function CronJobCreateDialog({
 
         if (uiMode === 'agent') {
           payload.prompt = prompt.trim();
-          if (agentId !== '__default__') payload.agent_id = agentId;
+          if (agentId !== '__default__') {payload.agent_id = agentId;}
           if (workflowTemplateId !== '__none__') {
             payload.workflow_template_id = workflowTemplateId;
             if (templateArgs && Object.keys(templateArgs).length > 0) {
@@ -325,7 +325,7 @@ export default function CronJobCreateDialog({
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!v) reset();
+        if (!v) {reset();}
         onOpenChange(v);
       }}
     >
@@ -585,7 +585,7 @@ export default function CronJobCreateDialog({
               onValueChange={(v) => {
                 const kind = v as ScheduleKind;
                 setScheduleKind(kind);
-                if (kind === 'once') setSessionTarget('isolated');
+                if (kind === 'once') {setSessionTarget('isolated');}
               }}
             >
               <SelectTrigger className="h-8 text-sm">

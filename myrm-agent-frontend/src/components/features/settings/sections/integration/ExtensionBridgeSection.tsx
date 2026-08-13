@@ -154,7 +154,7 @@ const ExtensionBridgeSection = memo(() => {
 
   const handleAddDomain = useCallback(async () => {
     const domain = domainInput.trim();
-    if (!domain) return;
+    if (!domain) {return;}
 
     const domains = [...status.authorized_domains, domain];
     setSaving(true);
@@ -479,7 +479,7 @@ const ExtensionBridgeSection = memo(() => {
                 className="shrink-0"
                 onClick={async () => {
                   const ok = await writeToClipboard('~/.myrm/myrm-agent/myrm-agent-extension', true);
-                  if (ok) toast({ title: t('extension.copied'), variant: 'default' });
+                  if (ok) {toast({ title: t('extension.copied'), variant: 'default' });}
                 }}
               >
                 <Copy className="h-4 w-4 mr-1" />

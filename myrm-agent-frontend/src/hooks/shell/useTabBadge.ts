@@ -31,13 +31,13 @@ export function useTabBadge(): void {
   const baseTitleRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined') {return;}
 
     if (baseTitleRef.current === null) {
       baseTitleRef.current = document.title.replace(/^\[[*!↓]\]\s*/, '');
     }
 
-    if (isTitleFlashing()) return;
+    if (isTitleFlashing()) {return;}
 
     const prefix = BADGE_PREFIX[liveness.state];
     const base = baseTitleRef.current;

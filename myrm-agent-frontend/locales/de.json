@@ -14110,6 +14110,7 @@
       "limitHitTitle": "Dieser Fall wurde gestoppt, weil das Agent das konfigurierte Ausführungsbudget (z. B. maximale Tool-Aufrufe) erreicht hat — seine Antwort ist unvollständig",
       "blocked": "Blockiert",
       "blockedTitle": "Eine Suchanfrage oder URL wurde während dieses Laufs vom Dekontaminationsschutz abgelehnt",
+      "toolCallsTitle": "In der Trajektorie dieses Falls aufgezeichnete Tool-Aufrufe",
       "environment": "Umgebungsschnappschuss",
       "envModel": "Modell",
       "envThinking": "Denken",
@@ -14157,6 +14158,8 @@
       "blocked": "Blockiert",
       "limitHitTitle": "Dieser Fall wurde gestoppt, weil der Agent das konfigurierte Ausführungsbudget erreicht hat (z. B. maximale Tool-Aufrufe) — die Antwort ist unvollständig",
       "matrixDetail": "Case × Profile Matrix",
+      "blockedTitle": "Eine Suchanfrage oder URL wurde während dieses Laufs vom Dekontaminationsschutz abgelehnt",
+      "toolCallsTitle": "In der Trajektorie dieses Falls aufgezeichnete Tool-Aufrufe",
       "case": "Fall",
       "legend": {
         "stable": "Stabil",

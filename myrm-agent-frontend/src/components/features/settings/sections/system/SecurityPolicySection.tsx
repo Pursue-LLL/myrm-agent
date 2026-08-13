@@ -37,7 +37,7 @@ const SecurityPolicySection = memo(() => {
 
   const policy = useSecurityPolicy(t);
 
-  if (!policy.loaded) return null;
+  if (!policy.loaded) {return null;}
 
   return (
     <div className="space-y-6 max-w-4xl">

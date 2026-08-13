@@ -100,7 +100,7 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
 
   // Lock body scroll when open
   useEffect(() => {
-    if (!open) return;
+    if (!open) {return;}
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -119,7 +119,7 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
 
   const handleEntryClick = useCallback(
     (entry: MobileActionSheetEntry) => {
-      if (entry.disabled) return;
+      if (entry.disabled) {return;}
       if (entry.submenu) {
         setActiveSubKey(entry.key);
         return;
@@ -134,7 +134,7 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
     (key: string) => {
       const activeEntry = entries.find((e) => e.key === activeSubKey);
       const sub = activeEntry?.submenu;
-      if (!sub) return;
+      if (!sub) {return;}
       sub.onSelect(key);
       if (sub.selectable !== false) {
         setActiveSubKey(null);
@@ -147,7 +147,7 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
 
   const handleBack = useCallback(() => setActiveSubKey(null), []);
 
-  if (!mounted) return null;
+  if (!mounted) {return null;}
 
   const activeEntry = activeSubKey ? entries.find((e) => e.key === activeSubKey) : null;
   const activeSub = activeEntry?.submenu;

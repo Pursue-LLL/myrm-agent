@@ -32,13 +32,13 @@ export function renderOperation(ctx: CanvasRenderingContext2D, op: DrawOperation
 }
 
 function renderRect(ctx: CanvasRenderingContext2D, points: Point[]): void {
-  if (points.length < 2) return;
+  if (points.length < 2) {return;}
   const [start, end] = [points[0], points[points.length - 1]];
   ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
 }
 
 function renderEllipse(ctx: CanvasRenderingContext2D, points: Point[]): void {
-  if (points.length < 2) return;
+  if (points.length < 2) {return;}
   const [start, end] = [points[0], points[points.length - 1]];
   const cx = (start.x + end.x) / 2;
   const cy = (start.y + end.y) / 2;
@@ -50,7 +50,7 @@ function renderEllipse(ctx: CanvasRenderingContext2D, points: Point[]): void {
 }
 
 function renderArrow(ctx: CanvasRenderingContext2D, points: Point[]): void {
-  if (points.length < 2) return;
+  if (points.length < 2) {return;}
   const [start, end] = [points[0], points[points.length - 1]];
   const angle = Math.atan2(end.y - start.y, end.x - start.x);
   const headLength = Math.max(12, ctx.lineWidth * 4);
@@ -75,7 +75,7 @@ function renderArrow(ctx: CanvasRenderingContext2D, points: Point[]): void {
 }
 
 function renderFreehand(ctx: CanvasRenderingContext2D, points: Point[]): void {
-  if (points.length < 2) return;
+  if (points.length < 2) {return;}
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
   for (let i = 1; i < points.length; i++) {
@@ -85,20 +85,20 @@ function renderFreehand(ctx: CanvasRenderingContext2D, points: Point[]): void {
 }
 
 function renderText(ctx: CanvasRenderingContext2D, op: DrawOperation): void {
-  if (!op.text || op.points.length === 0) return;
+  if (!op.text || op.points.length === 0) {return;}
   const size = op.fontSize ?? 16;
   ctx.font = `bold ${size}px sans-serif`;
   ctx.fillText(op.text, op.points[0].x, op.points[0].y);
 }
 
 function renderBlur(ctx: CanvasRenderingContext2D, points: Point[]): void {
-  if (points.length < 2) return;
+  if (points.length < 2) {return;}
   const [start, end] = [points[0], points[points.length - 1]];
   const x = Math.min(start.x, end.x);
   const y = Math.min(start.y, end.y);
   const w = Math.abs(end.x - start.x);
   const h = Math.abs(end.y - start.y);
-  if (w < 2 || h < 2) return;
+  if (w < 2 || h < 2) {return;}
 
   const imageData = ctx.getImageData(x, y, w, h);
   pixelate(imageData, BLUR_BLOCK_SIZE);

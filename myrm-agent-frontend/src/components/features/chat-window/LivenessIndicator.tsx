@@ -28,7 +28,7 @@ const LivenessIndicator = memo(() => {
   const t = useTranslations('chat.liveness');
   const { state } = useLivenessState();
 
-  if (state === 'idle') return null;
+  if (state === 'idle') {return null;}
 
   return (
     <TooltipProvider delayDuration={200}>

@@ -88,7 +88,7 @@ function extractKeyterms(messages: { content: string; role: string }[]): string[
   const recent = messages.slice(-6);
   const text = recent.map((m) => m.content).join(' ');
   const matches = text.match(KEYTERM_PATTERN);
-  if (!matches) return [];
+  if (!matches) {return [];}
 
   const counts = new Map<string, number>();
   for (const m of matches) {
@@ -159,10 +159,10 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
   }, [fetchProjects, projectsLoaded]);
 
   const hideChatWorkspacePicker = React.useMemo(() => {
-    if (!chatId) return false;
+    if (!chatId) {return false;}
     const chatItem = chatHistoryItems.find((item) => item.id === chatId);
     const projectId = chatItem?.projectId;
-    if (!projectId) return false;
+    if (!projectId) {return false;}
     const project = projects.find((item) => item.id === projectId);
     return Boolean(project?.workspacePath?.trim());
   }, [chatHistoryItems, chatId, projects]);
@@ -377,7 +377,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
             if (inputHistory.handleKeyDown(e)) {
               if (inputHistory.popup.open && (e.key === 'Tab' || e.key === 'Enter')) {
                 const text = inputHistory.confirm();
-                if (text) setInputMessage(text);
+                if (text) {setInputMessage(text);}
               }
               return;
             }
@@ -472,7 +472,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               popup={inputHistory.popup}
               onSelect={(index) => {
                 const text = inputHistory.confirm(index);
-                if (text) setInputMessage(text);
+                if (text) {setInputMessage(text);}
               }}
               onHover={inputHistory.setActiveIndex}
               onClose={inputHistory.close}
@@ -541,7 +541,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               onChange={(e) => {
                 handleInputChange(e);
                 updateCursorPosition();
-                if (inputHistory.popup.open) inputHistory.close();
+                if (inputHistory.popup.open) {inputHistory.close();}
               }}
               onPaste={handlePaste}
               onKeyUp={updateCursorPosition}

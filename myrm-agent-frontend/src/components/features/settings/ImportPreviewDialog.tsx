@@ -106,7 +106,7 @@ export function ImportPreviewDialog({
   const t = useTranslations('settings.importPreview');
   const [expandedCategory, setExpandedCategory] = useState<ImportCategory | null>(null);
 
-  if (!parsedData) return null;
+  if (!parsedData) {return null;}
 
   const categoryLabels: Record<ImportCategory, string> = {
     systemInstructions: t('systemInstructions'),

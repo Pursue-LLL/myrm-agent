@@ -34,7 +34,7 @@ const formatDate = (dateString: string) => {
 
 const formatTimeRemaining = (autoResolveAt: string): string => {
   const diff = new Date(autoResolveAt).getTime() - Date.now();
-  if (diff <= 0) return '即将自动解决';
+  if (diff <= 0) {return '即将自动解决';}
   const hours = Math.floor(diff / (1000 * 60 * 60));
   if (hours >= 24) {
     const days = Math.floor(hours / 24);

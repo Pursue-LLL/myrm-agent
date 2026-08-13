@@ -167,7 +167,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
 
   const ensureLocalOpenAICompatProvider = useCallback(() => {
     const existing = useProviderStore.getState().providers.find((p) => p.id === LOCAL_OPENAI_COMPAT_PROVIDER_ID);
-    if (existing) return existing.id;
+    if (existing) {return existing.id;}
     addProvider(LOCAL_OPENAI_COMPAT_PROVIDER_NAME, 'openai-like');
     const created = useProviderStore.getState().providers.find((p) => p.id === LOCAL_OPENAI_COMPAT_PROVIDER_ID);
     if (!created) {
@@ -476,7 +476,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
         loading={startingSearxng}
         onConfirm={async () => {
           const ok = await handleStartSearxngDocker();
-          if (ok) setSearxngConsentOpen(false);
+          if (ok) {setSearxngConsentOpen(false);}
         }}
       />
     </div>

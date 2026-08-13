@@ -224,7 +224,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
 
   return (
     <Dialog open={open} onOpenChange={(val) => {
-      if (!val) resetForm();
+      if (!val) {resetForm();}
       onOpenChange(val);
     }}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
@@ -257,7 +257,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                   accept=".zip"
                   className="hidden"
                   onChange={(e) => {
-                    if (e.target.files?.length) handleFilesSelected(e.target.files);
+                    if (e.target.files?.length) {handleFilesSelected(e.target.files);}
                   }}
                 />
                 {isParsing ? (

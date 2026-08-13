@@ -113,7 +113,7 @@ export function useAppshotListener() {
   );
 
   useEffect(() => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {return;}
 
     let unlistenCapture: (() => void) | undefined;
     let unlistenBlocked: (() => void) | undefined;

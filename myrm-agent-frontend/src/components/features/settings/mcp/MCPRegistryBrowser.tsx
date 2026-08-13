@@ -33,28 +33,28 @@ export const MCPRegistryBrowser = memo(function MCPRegistryBrowser({
       setError(null);
       try {
         const result = await searchMCPRegistry(searchQuery, pageNum, PAGE_SIZE);
-        if (seq !== seqRef.current) return;
+        if (seq !== seqRef.current) {return;}
         const incoming = result.servers ?? [];
         setServers((prev) => (append ? [...prev, ...incoming] : incoming));
         setPage(result.page);
         setTotalPages(result.totalPages);
       } catch (err) {
-        if (seq !== seqRef.current) return;
+        if (seq !== seqRef.current) {return;}
         setError(err instanceof Error ? err.message : t('mcpRegistryLoadFailed'));
       } finally {
-        if (seq === seqRef.current) setLoading(false);
+        if (seq === seqRef.current) {setLoading(false);}
       }
     },
     [t],
   );
 
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (debounceRef.current) {clearTimeout(debounceRef.current);}
     debounceRef.current = setTimeout(() => {
       void fetchPage(query, 1, false);
     }, DEBOUNCE_MS);
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {clearTimeout(debounceRef.current);}
     };
   }, [query, fetchPage]);
 

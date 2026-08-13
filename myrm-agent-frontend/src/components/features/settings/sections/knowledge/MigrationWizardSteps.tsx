@@ -115,7 +115,7 @@ function CloudUploadZone({
         e.preventDefault();
         setDragOver(false);
         const file = e.dataTransfer.files[0];
-        if (file) handleFile(file);
+        if (file) {handleFile(file);}
       }}
     >
       <Upload className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
@@ -128,7 +128,7 @@ function CloudUploadZone({
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) handleFile(file);
+          if (file) {handleFile(file);}
         }}
       />
       <Button
@@ -150,7 +150,7 @@ function CloudUploadZone({
 }
 
 export function CoverageMatrix({ items, t }: { items: MemoryImportCoverageItem[]; t: TranslationFn }) {
-  if (items.length === 0) return null;
+  if (items.length === 0) {return null;}
 
   const statusStyles: Record<string, string> = {
     ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
@@ -376,7 +376,7 @@ function SourceCard({
 }
 
 function MigrationLaneMatrix({ lanes, t }: { lanes: MigrationLanePreviewItem[]; t: TranslationFn }) {
-  if (lanes.length === 0) return null;
+  if (lanes.length === 0) {return null;}
 
   const statusStyles: Record<string, string> = {
     ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',

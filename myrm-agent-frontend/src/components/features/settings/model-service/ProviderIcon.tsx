@@ -69,7 +69,7 @@ LetterAvatar.displayName = 'LetterAvatar';
 const ProviderIcon = memo<ProviderIconProps>(({ providerId, providerName, size = 20, className }) => {
   const builtIn = isBuiltInProviderId(providerId);
   const [iconUrl, setIconUrl] = useState<string | null>(() => {
-    if (!builtIn) return null;
+    if (!builtIn) {return null;}
     return getCachedProviderBrandIconUrl(providerId) ?? null;
   });
 

@@ -51,7 +51,7 @@ export default function ToolApprovalDialog() {
 
   const { batchGroups, singleRequests } = useMemo(() => groupModalRequests(modalQueue), [modalQueue]);
 
-  if (modalQueue.length === 0) return null;
+  if (modalQueue.length === 0) {return null;}
 
   const allHandover = modalQueue.every((r) => r.displayMode === 'handover');
 

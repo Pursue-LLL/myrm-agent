@@ -30,7 +30,7 @@ export function buildTree(steps: ProgressItem[]): TreeNode[] {
   steps.forEach((step) => {
     const uniqueKey = getUniqueKey(step);
     const node = uniqueKey ? nodeMap.get(uniqueKey) : undefined;
-    if (!node) return;
+    if (!node) {return;}
 
     if (step.parent_step_key && nodeMap.has(step.parent_step_key)) {
       const parent = nodeMap.get(step.parent_step_key)!;

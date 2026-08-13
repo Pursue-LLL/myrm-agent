@@ -405,7 +405,7 @@ const ThemeStudioGalleryPanel = () => {
         busy={installingId !== null}
         onClose={() => setPreviewListing(null)}
         onConfirm={() => {
-          if (previewListing) void runInstall(previewListing);
+          if (previewListing) {void runInstall(previewListing);}
         }}
       />
     </>

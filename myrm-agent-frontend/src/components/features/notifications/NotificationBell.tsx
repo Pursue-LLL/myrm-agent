@@ -45,7 +45,7 @@ export default function NotificationBell() {
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
 
   const fetchNotifications = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {return;}
     try {
       const res = await apiRequest<NotificationListResponse>('/notifications?limit=20');
       setNotifications(res.items || []);
@@ -56,7 +56,7 @@ export default function NotificationBell() {
   }, [isAuthenticated]);
 
   const markAllAsRead = async () => {
-    if (unreadCount === 0) return;
+    if (unreadCount === 0) {return;}
     try {
       await apiRequest('/notifications/read-all', { method: 'POST' });
       setUnreadCount(0);
@@ -81,7 +81,7 @@ export default function NotificationBell() {
 
   const handleRetry = async (e: React.MouseEvent, notifId: string) => {
     e.stopPropagation();
-    if (retryingIds.has(notifId)) return;
+    if (retryingIds.has(notifId)) {return;}
 
     try {
       setRetryingIds((prev) => new Set(prev).add(notifId));
@@ -124,7 +124,7 @@ export default function NotificationBell() {
     }
   };
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated) {return null;}
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -163,7 +163,7 @@ export default function NotificationBell() {
                   tabIndex={notif.meta_data?.action_url ? 0 : undefined}
                   onClick={() => handleNotificationClick(notif)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') handleNotificationClick(notif);
+                    if (e.key === 'Enter' || e.key === ' ') {handleNotificationClick(notif);}
                   }}
                   className={cn(
                     'p-4 border-b border-border/50 last:border-0 transition-colors',

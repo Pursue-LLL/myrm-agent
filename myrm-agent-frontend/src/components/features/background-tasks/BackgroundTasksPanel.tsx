@@ -75,7 +75,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const fetchActiveGoals = useCallback(async () => {
     try {
       const res = await fetchWithTimeout('/goals/active');
-      if (!res.ok) return;
+      if (!res.ok) {return;}
       const data = await res.json();
       setActiveGoals(data.goals || []);
     } catch {
@@ -84,7 +84,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {return;}
     idleCountRef.current = 0;
     fetchTasks();
     fetchActiveGoals();
@@ -98,15 +98,15 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   }, [isOpen, fetchTasks, fetchActiveGoals, refetchMediaTasks]);
 
   useEffect(() => {
-    if (isOpen) return;
+    if (isOpen) {return;}
 
     fetchTasks();
     fetchActiveGoals();
     void refetchMediaTasks();
 
     const interval = setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      if (idleCountRef.current >= IDLE_STOP_THRESHOLD) return;
+      if (document.visibilityState !== 'visible') {return;}
+      if (idleCountRef.current >= IDLE_STOP_THRESHOLD) {return;}
       fetchTasks();
       fetchActiveGoals();
       void refetchMediaTasks();
@@ -133,7 +133,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
-      if (!res.ok) throw new Error('Failed');
+      if (!res.ok) {throw new Error('Failed');}
       toast.success(t('goalActionSuccess'));
       fetchActiveGoals();
     } catch {
@@ -174,7 +174,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   };
 
   const handleSteer = async (taskId: string) => {
-    if (!steerInput.trim()) return;
+    if (!steerInput.trim()) {return;}
     try {
       await steerBackgroundTask(taskId, steerInput.trim());
       toast.success(t('steerSuccess'));
@@ -200,7 +200,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   };
 
   const handleShellInputSend = async (taskId: string) => {
-    if (!shellInput.trim()) return;
+    if (!shellInput.trim()) {return;}
     try {
       await sendShellBackgroundStdin(taskId, shellInput, { submit: true });
       toast.success(t('shellInputSuccess'));

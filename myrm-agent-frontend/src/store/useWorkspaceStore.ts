@@ -106,7 +106,7 @@ const useWorkspaceStore = create<WorkspaceState>()(
     updatePaneChatId: (paneId: string, chatId: string) => {
       set((state) => {
         const pane = state.panes.find((p) => p.id === paneId);
-        if (pane) pane.chatId = chatId;
+        if (pane) {pane.chatId = chatId;}
       });
     },
 
@@ -128,14 +128,14 @@ const useWorkspaceStore = create<WorkspaceState>()(
     setPaneAbortController: (paneId: string, controller: AbortController | null) => {
       set((state) => {
         const pane = state.panes.find((p) => p.id === paneId);
-        if (pane) pane.abortController = controller;
+        if (pane) {pane.abortController = controller;}
       });
     },
 
     setPaneCurrentSessionMessageId: (paneId: string, messageId: string | null) => {
       set((state) => {
         const pane = state.panes.find((p) => p.id === paneId);
-        if (pane) pane.currentSessionMessageId = messageId;
+        if (pane) {pane.currentSessionMessageId = messageId;}
       });
     },
 
@@ -168,7 +168,7 @@ const useWorkspaceStore = create<WorkspaceState>()(
         (p) => p.id !== state.activePaneId && p.chatId
       );
 
-      if (backgroundPanes.length === 0) return;
+      if (backgroundPanes.length === 0) {return;}
 
       const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
       const headers: Record<string, string> = {
@@ -202,13 +202,13 @@ const useWorkspaceStore = create<WorkspaceState>()(
     },
 
     startPolling: () => {
-      if (sseListener) return;
+      if (sseListener) {return;}
       set((state) => {
         state.isPolling = true;
       });
       get().refreshActiveSessions();
       sseListener = () => {
-        if (sseTimeoutId) clearTimeout(sseTimeoutId);
+        if (sseTimeoutId) {clearTimeout(sseTimeoutId);}
         sseTimeoutId = setTimeout(() => {
           get().refreshActiveSessions();
         }, 1000);

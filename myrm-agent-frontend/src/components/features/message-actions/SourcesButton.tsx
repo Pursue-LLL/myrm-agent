@@ -194,12 +194,12 @@ export function SourceItem({ source }: { source: Source }) {
   if (isConversation) {
     const chatId = source.conversation_id;
     const jumpToChat = () => {
-      if (!chatId) return;
+      if (!chatId) {return;}
       const highlight = source.message_id ? `?highlight=${encodeURIComponent(source.message_id)}` : '';
       router.push(`/${chatId}${highlight}`);
     };
     const handleExclude = async () => {
-      if (!chatId) return;
+      if (!chatId) {return;}
       setBusy(true);
       try {
         await updateChatRecallExclusion(chatId, true);
@@ -212,7 +212,7 @@ export function SourceItem({ source }: { source: Source }) {
       }
     };
     const handleDelete = async () => {
-      if (!chatId) return;
+      if (!chatId) {return;}
       setBusy(true);
       try {
         await deleteChat(chatId);
@@ -410,7 +410,7 @@ export function SourceItem({ source }: { source: Source }) {
 
 function formatSourceDate(value: string): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) {return value;}
   return date.toLocaleString();
 }
 

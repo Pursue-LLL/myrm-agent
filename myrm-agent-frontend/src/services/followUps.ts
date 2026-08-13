@@ -44,9 +44,9 @@ export async function fetchFollowUps(params?: {
   limit?: number;
 }): Promise<FollowUpListResponse> {
   const query = new URLSearchParams();
-  if (params?.status) query.set('status', params.status);
-  if (params?.agent_id) query.set('agent_id', params.agent_id);
-  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.status) {query.set('status', params.status);}
+  if (params?.agent_id) {query.set('agent_id', params.agent_id);}
+  if (params?.limit) {query.set('limit', String(params.limit));}
 
   const qs = query.toString();
   return apiRequest<FollowUpListResponse>(`/memory/follow-ups${qs ? `?${qs}` : ''}`);

@@ -121,7 +121,7 @@ const ChannelBudgetSection = memo(() => {
   );
 
   const handleAdd = useCallback(async () => {
-    if (!newEntry.channel_key.trim()) return;
+    if (!newEntry.channel_key.trim()) {return;}
     setSaving('new');
     try {
       await updateChannelBudget(newEntry.channel_key, {
@@ -186,7 +186,7 @@ const ChannelBudgetSection = memo(() => {
                 value={newEntry.daily_limit_usd}
                 onChange={(e) => {
                   const v = parseFloat(e.target.value);
-                  if (!isNaN(v)) setNewEntry((prev) => ({ ...prev, daily_limit_usd: v }));
+                  if (!isNaN(v)) {setNewEntry((prev) => ({ ...prev, daily_limit_usd: v }));}
                 }}
                 className="w-20 text-right text-sm font-mono px-2 py-1 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
               />

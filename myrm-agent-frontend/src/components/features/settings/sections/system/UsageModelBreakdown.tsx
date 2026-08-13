@@ -32,7 +32,7 @@ const ModelBreakdownItem = memo<ModelBreakdownItemProps>(
     const cacheRate = data.inputTokens > 0 ? Math.round((data.cachedTokens / data.inputTokens) * 100) : 0;
 
     useEffect(() => {
-      if (!expanded) return;
+      if (!expanded) {return;}
       const fetchSessions = async () => {
         setLoading(true);
         setError(null);
@@ -187,7 +187,7 @@ interface ModelBreakdownProps {
 
 export const ModelBreakdown = memo<ModelBreakdownProps>(({ stats, t, timeRange, onSelectSession }) => {
   const models = Object.entries(stats.modelBreakdown);
-  if (models.length === 0) return null;
+  if (models.length === 0) {return null;}
 
   return (
     <div className="space-y-3">

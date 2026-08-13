@@ -460,6 +460,13 @@ class LocalEvalExecutor:
                         limit_type = str(data.get("limit_type", "") or "")
                         if limit_type:
                             limit_reached = limit_type
+                elif event_type == "iteration_limit_reached":
+                    # The harness emits this when the LangGraph recursion
+                    # budget (the benchmark-declared ``max_iterations``) is
+                    # reached; engine_limit_reached only covers tool-call and
+                    # replan caps, so without this branch iteration-truncated
+                    # cases would silently lose their limit marker.
+                    limit_reached = "max_iterations"
                 elif event_type == "token_usage":
                     # The harness emits token events as {"usage": {"prompt_tokens": ...,
                     # "completion_tokens": ..., ...}}; the usage dict never carries

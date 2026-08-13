@@ -141,7 +141,7 @@ const EXTENSION_ICON_MAP: Record<string, React.ElementType> = {
 /** 根据文件名获取扩展名 */
 function getFileExtension(filename: string): string {
   const lastDot = filename.lastIndexOf('.');
-  if (lastDot === -1 || lastDot === filename.length - 1) return '';
+  if (lastDot === -1 || lastDot === filename.length - 1) {return '';}
   return filename.slice(lastDot + 1).toLowerCase();
 }
 
@@ -168,7 +168,7 @@ export { isPreviewable, needsContentLoad, inferLanguage };
 
 /** 获取语言显示名称 */
 export function getLanguageDisplayName(language: string | undefined): string {
-  if (!language) return 'Plain Text';
+  if (!language) {return 'Plain Text';}
 
   const languageMap: Record<string, string> = {
     js: 'JavaScript',

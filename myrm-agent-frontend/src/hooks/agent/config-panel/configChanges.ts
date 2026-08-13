@@ -24,7 +24,7 @@ export interface OriginalAgentSnapshot {
 }
 
 export function normalizeSkillConfigs(configs: AgentSkillConfigMap | undefined): AgentSkillConfigMap {
-  if (!configs) return {};
+  if (!configs) {return {};}
   const normalized: AgentSkillConfigMap = {};
   for (const [skillId, cfg] of Object.entries(configs)) {
     normalized[skillId] = {
@@ -43,9 +43,9 @@ export function areSkillConfigsEqual(
   const normalizedRight = normalizeSkillConfigs(right);
   const leftKeys = Object.keys(normalizedLeft).sort();
   const rightKeys = Object.keys(normalizedRight).sort();
-  if (leftKeys.length !== rightKeys.length) return false;
+  if (leftKeys.length !== rightKeys.length) {return false;}
   return leftKeys.every((key, index) => {
-    if (key !== rightKeys[index]) return false;
+    if (key !== rightKeys[index]) {return false;}
     const a = normalizedLeft[key];
     const b = normalizedRight[key];
     return a.is_core === b.is_core && (a.instance_name ?? null) === (b.instance_name ?? null);
@@ -76,9 +76,9 @@ export function detectAgentConfigChanges(
   current: CurrentAgentState | null,
   currentBuiltinTools: BuiltinToolId[],
 ): boolean {
-  if (!current?.agentId) return false;
-  if (!original) return false;
-  if (original.agentId !== current.agentId) return false;
+  if (!current?.agentId) {return false;}
+  if (!original) {return false;}
+  if (original.agentId !== current.agentId) {return false;}
 
   const arraysEqual = (a: string[], b: string[]) =>
     a.length === b.length && a.every((v) => b.includes(v));

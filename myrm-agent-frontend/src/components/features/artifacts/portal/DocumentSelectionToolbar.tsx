@@ -56,7 +56,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
 
   const computePosition = useCallback(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) {return;}
 
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.rangeCount) {
@@ -95,10 +95,10 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) {return;}
 
     const handleSelectionChange = () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (debounceTimerRef.current) {clearTimeout(debounceTimerRef.current);}
       debounceTimerRef.current = setTimeout(computePosition, TOOLBAR_DEBOUNCE_MS);
     };
 
@@ -106,7 +106,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
 
     return () => {
       document.removeEventListener('selectionchange', handleSelectionChange);
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (debounceTimerRef.current) {clearTimeout(debounceTimerRef.current);}
     };
   }, [containerRef, computePosition]);
 
@@ -118,7 +118,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
 
   const buildContext = useCallback(
     (actionLabel: string, customInstruction?: string): string => {
-      if (!selectedText || !artifactId) return '';
+      if (!selectedText || !artifactId) {return '';}
 
       let instruction = `[${actionLabel}]`;
       if (customInstruction) {
@@ -132,7 +132,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
 
   const executeAction = useCallback(
     (action: ActionType, customInstruction?: string) => {
-      if (!selectedText) return;
+      if (!selectedText) {return;}
 
       const actionLabels: Record<ActionType, string> = {
         modify: t('modify'),
@@ -141,7 +141,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
       };
 
       const message = buildContext(actionLabels[action], customInstruction);
-      if (!message) return;
+      if (!message) {return;}
 
       sendAction({ message });
     },
@@ -149,7 +149,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
   );
 
   const handleCopy = useCallback(async () => {
-    if (!selectedText) return;
+    if (!selectedText) {return;}
     await writeToClipboard(selectedText);
     hideToolbar();
   }, [selectedText, hideToolbar]);
@@ -159,7 +159,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
   }, []);
 
   const handleModifySubmit = useCallback(() => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim()) {return;}
     executeAction('modify', inputValue.trim());
   }, [inputValue, executeAction]);
 
@@ -176,8 +176,8 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
     [handleModifySubmit],
   );
 
-  if (!visible || !selectedText) return null;
-  if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT) return null;
+  if (!visible || !selectedText) {return null;}
+  if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT) {return null;}
 
   const actions: { type: ActionType | 'copy'; icon: React.ReactNode; label: string; onClick: () => void }[] = [
     {

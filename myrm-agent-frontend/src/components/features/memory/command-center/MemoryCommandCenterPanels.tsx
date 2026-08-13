@@ -367,7 +367,7 @@ const EventList = ({
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!live || events.length === 0) return;
+    if (!live || events.length === 0) {return;}
     listRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [events, live]);
 
@@ -693,7 +693,7 @@ const translateRecordStatus = (value: string, t: MemoryTranslation): string =>
 const translateRuntimeStatus = (value: string, t: MemoryTranslation): string =>
   isRuntimeStatus(value) ? t(`commandCenter.runtimeStatus.${value}`) : value;
 const translateTimelineTitle = (event: MemoryCommandTimelineEvent, t: MemoryTranslation): string => {
-  if (event.title === 'memory_health') return t('commandCenter.healthCheck');
+  if (event.title === 'memory_health') {return t('commandCenter.healthCheck');}
   return translateMemoryType(event.title, t);
 };
 

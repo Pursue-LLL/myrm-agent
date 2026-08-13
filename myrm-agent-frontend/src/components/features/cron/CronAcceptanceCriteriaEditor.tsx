@@ -32,7 +32,7 @@ interface AcceptanceCriteriaEditorProps {
 }
 
 function parseCriteria(raw: CronJob['acceptance_criteria']): CriterionRow[] {
-  if (!raw?.length) return [];
+  if (!raw?.length) {return [];}
   return raw.map((entry) => ({
     type: typeof entry.type === 'string' ? entry.type : 'semantic',
     description:

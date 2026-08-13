@@ -95,7 +95,7 @@ export function useMatrixEval(): MatrixEval {
       // stream EOF immediately and firing onerror instead of onmessage.
       // Both paths converge here so the UI always re-pulls fresh results.
       const finalize = () => {
-        if (finalized) return;
+        if (finalized) {return;}
         finalized = true;
         eventSource?.close();
         setMatrixRunning(false);

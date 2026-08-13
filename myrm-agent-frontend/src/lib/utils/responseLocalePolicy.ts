@@ -21,12 +21,12 @@ interface ResponseLocalePolicy {
 }
 
 function parsePolicy(engineParams: EngineParams | null): ResponseLocalePolicy | null {
-  if (!engineParams) return null;
+  if (!engineParams) {return null;}
   const raw = engineParams.response_locale_policy;
-  if (!raw || typeof raw !== 'object') return null;
+  if (!raw || typeof raw !== 'object') {return null;}
   const record = raw as Record<string, unknown>;
   const locale = String(record.locale ?? '').trim();
-  if (!locale) return null;
+  if (!locale) {return null;}
   const formalityRaw = String(record.formality ?? 'formal-polite').trim().toLowerCase();
   const formality: ResponseLocalePolicy['formality'] =
     formalityRaw === 'casual' ? 'casual' : 'formal-polite';
@@ -36,7 +36,7 @@ function parsePolicy(engineParams: EngineParams | null): ResponseLocalePolicy | 
 /** True when formal Korean (합니다体) output policy is enabled. */
 export function isFormalKoreanRepliesEnabled(engineParams: EngineParams | null): boolean {
   const policy = parsePolicy(engineParams);
-  if (!policy) return false;
+  if (!policy) {return false;}
   return policy.locale.toLowerCase().startsWith('ko') && policy.formality === 'formal-polite';
 }
 

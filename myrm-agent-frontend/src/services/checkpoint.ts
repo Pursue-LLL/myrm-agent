@@ -82,7 +82,7 @@ export interface FileDiffResponse {
  */
 export const listCheckpoints = async (sessionId?: string, limit: number = 50): Promise<CheckpointListResponse> => {
   const params = new URLSearchParams();
-  if (sessionId) params.append('session_id', sessionId);
+  if (sessionId) {params.append('session_id', sessionId);}
   params.append('limit', limit.toString());
 
   const queryString = params.toString();
@@ -134,7 +134,7 @@ export const listFileSnapshots = async (
   const params = new URLSearchParams();
   params.append('working_dir', workingDir);
   params.append('limit', limit.toString());
-  if (agentId) params.append('agent_id', agentId);
+  if (agentId) {params.append('agent_id', agentId);}
 
   return (await apiRequest(`/checkpoint/file-snapshot/list?${params.toString()}`)) as FileSnapshotListResponse;
 };

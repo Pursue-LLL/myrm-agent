@@ -43,7 +43,7 @@ const NLPolicyGenerator = memo(({ currentConfig, onApply }: NLPolicyGeneratorPro
   const [result, setResult] = useState<GenerateResult | null>(null);
 
   const handleGenerate = useCallback(async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading) {return;}
 
     setLoading(true);
     setResult(null);
@@ -86,7 +86,7 @@ const NLPolicyGenerator = memo(({ currentConfig, onApply }: NLPolicyGeneratorPro
   }, [input, loading, currentConfig, t]);
 
   const handleApply = useCallback(() => {
-    if (!result) return;
+    if (!result) {return;}
     onApply(result.generated_config);
     setResult(null);
     setInput('');
@@ -161,10 +161,10 @@ const NLPolicyGenerator = memo(({ currentConfig, onApply }: NLPolicyGeneratorPro
 
           {(() => {
             const sections: string[] = [];
-            if (result.generated_config.permissions) sections.push(t('sectionPermissions'));
-            if (result.generated_config.pathPolicy) sections.push(t('sectionPathPolicy'));
-            if (result.generated_config.networkAllowlist) sections.push(t('sectionNetwork'));
-            if (result.generated_config.privacyPolicy) sections.push(t('sectionPrivacy'));
+            if (result.generated_config.permissions) {sections.push(t('sectionPermissions'));}
+            if (result.generated_config.pathPolicy) {sections.push(t('sectionPathPolicy'));}
+            if (result.generated_config.networkAllowlist) {sections.push(t('sectionNetwork'));}
+            if (result.generated_config.privacyPolicy) {sections.push(t('sectionPrivacy'));}
             if (sections.length > 0) {
               return (
                 <p className="text-xs text-muted-foreground">{t('willReplace', { sections: sections.join(', ') })}</p>

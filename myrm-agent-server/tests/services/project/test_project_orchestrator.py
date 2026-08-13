@@ -156,3 +156,36 @@ async def test_different_projects_do_not_block_each_other() -> None:
 
     await asyncio.gather(worker("p-a", "a"), worker("p-b", "b"))
     assert set(order) == {"a", "b"}
+
+
+async def test_wait_for_timeout_race_does_not_leak_lock() -> None:
+    """`stream_pump._acquire_guarded` polls `wait_for(acquire, 1s)` slices.
+
+    The racy boundary: the holder releases the lock right around a `wait_for`
+    timeout tick. The acquire must either win (and be owned by the guarded
+    caller) or lose cleanly (lock stays free) — never stuck held with no owner.
+    """
+    for _ in range(50):
+        orch = ProjectOrchestrator()
+        await orch.acquire("proj-1")
+
+        result = {"got": False}
+
+        async def guarded() -> None:
+            try:
+                await asyncio.wait_for(orch.acquire("proj-1"), timeout=0.01)
+                result["got"] = True
+            except asyncio.TimeoutError:
+                pass
+
+        task = asyncio.create_task(guarded())
+        # Release the test's own hold right before the guard's timeout tick.
+        await asyncio.sleep(0.0095)
+        orch.release("proj-1")
+        await asyncio.wait_for(task, timeout=1)
+
+        if result["got"]:
+            # Guarded owns the lock; release it as the caller's finally would.
+            orch.release("proj-1")
+        assert orch.is_locked("proj-1") is False, "lock leaked with no owner"
+        assert len(orch._locks) == 0

@@ -14767,6 +14767,7 @@
       "limitHitTitle": "该用例因达到配置的运行预算（如最大工具调用次数）而停止——其回答不完整",
       "blocked": "已拦截",
       "blockedTitle": "本次运行中，搜索查询或 URL 被评测去污染守卫拦截",
+      "toolCallsTitle": "该用例轨迹中记录的工具调用次数",
       "status": "状态",
       "messageSnippet": "消息片段",
       "tokenUsage": "Token消耗",
@@ -14818,6 +14819,8 @@
       "blocked": "拦截",
       "limitHitTitle": "该用例因触达配置的运行预算（如最大工具调用数）而提前结束，答案可能不完整",
       "matrixDetail": "用例 × 配置矩阵",
+      "blockedTitle": "本次运行中，搜索查询或 URL 被评测去污染守卫拦截",
+      "toolCallsTitle": "该用例轨迹中记录的工具调用次数",
       "case": "用例",
       "legend": {
         "stable": "稳定",

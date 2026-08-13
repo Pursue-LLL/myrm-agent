@@ -78,7 +78,7 @@ export function CLIAgentBadge({ actionMode }: { actionMode: ActionMode }) {
   const sidecarStatus = useCLIAgentStore((s) => s.sidecarStatus);
   const sidecarError = useCLIAgentStore((s) => s.sidecarError);
 
-  if (actionMode !== 'claude_code') return null;
+  if (actionMode !== 'claude_code') {return null;}
 
   const sidecarFailed = isTauriEnvironment() && sidecarStatus === 'failed';
 

@@ -70,7 +70,7 @@ interface SkillQualityGuardianProps {
 }
 
 function SimilarityBar({ score }: { score: number | null }) {
-  if (score === null) return null;
+  if (score === null) {return null;}
   const pct = Math.round(score * 100);
   const color = pct >= 90 ? 'bg-green-500' : pct >= 70 ? 'bg-amber-500' : 'bg-red-500';
   return (
@@ -196,7 +196,7 @@ export function SkillQualityGuardian({ skillId, onPromoted, onStopped }: SkillQu
   }, [fetchStatus, testStatus?.status]);
 
   const handleStartShadow = async () => {
-    if (baselineVersion === null || pendingCandidateVersion === null) return;
+    if (baselineVersion === null || pendingCandidateVersion === null) {return;}
     setIsStarting(true);
     try {
       const detail = await getSkillVersionDetail(skillId, pendingCandidateVersion);
@@ -275,7 +275,7 @@ export function SkillQualityGuardian({ skillId, onPromoted, onStopped }: SkillQu
     );
   }
 
-  if (!testStatus) return null;
+  if (!testStatus) {return null;}
 
   const score = testStatus.candidate_score || { success_rate: 0, avg_latency: 0 };
   const matchRate = (score.success_rate * 100).toFixed(0);

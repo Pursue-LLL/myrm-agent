@@ -63,7 +63,7 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
         const response = await searchDiscoverySkills(query, 30, options?.userId);
         setResults(response.results);
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
+        if (error instanceof DOMException && error.name === 'AbortError') {return;}
         setSearchError(error instanceof Error ? error.message : 'Search failed');
         setResults([]);
       } finally {

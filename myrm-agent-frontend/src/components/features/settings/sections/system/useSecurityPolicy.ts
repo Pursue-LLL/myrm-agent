@@ -142,7 +142,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
 
   const handleAddRoot = useCallback(
     (path: string) => {
-      if (allowedRoots.includes(path)) return;
+      if (allowedRoots.includes(path)) {return;}
       const next = [...allowedRoots, path];
       setAllowedRoots(next);
       savePathPolicy(next);
@@ -210,7 +210,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         .toLowerCase()
         .replace(/^https?:\/\//, '')
         .replace(/\/.*$/, '');
-      if (!raw) return;
+      if (!raw) {return;}
       if (!DOMAIN_PATTERN.test(raw)) {
         toast.error(t('domainAllowlist.invalidDomain'));
         return;
@@ -244,7 +244,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         .toLowerCase()
         .replace(/^https?:\/\//, '')
         .replace(/\/.*$/, '');
-      if (!raw) return;
+      if (!raw) {return;}
       if (!DOMAIN_PATTERN.test(raw)) {
         toast.error(t('domainBlocklist.invalidDomain'));
         return;
@@ -274,7 +274,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
   const handleAddCommandPattern = useCallback(
     (pattern: string) => {
       const trimmed = pattern.trim();
-      if (!trimmed) return;
+      if (!trimmed) {return;}
       if (!trimmed.includes('*') && !trimmed.includes('?') && !trimmed.includes('[') && trimmed.length < 2) {
         toast.error(t('invalidCommandPattern'));
         return;
@@ -387,34 +387,34 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       setAllowedRoots(roots);
 
       const cfgTimeout = cfg.approvalTimeoutSeconds as number | undefined;
-      if (cfgTimeout !== undefined) setTimeout(cfgTimeout);
+      if (cfgTimeout !== undefined) {setTimeout(cfgTimeout);}
 
       const b = cfg.approvalTimeoutBehavior as 'deny' | 'allow' | undefined;
-      if (b) setTimeoutBehavior(b);
+      if (b) {setTimeoutBehavior(b);}
 
       const na = cfg.networkAllowlist as string[] | undefined;
-      if (na) setNetworkAllowlist(na);
+      if (na) {setNetworkAllowlist(na);}
 
       const nb = cfg.networkBlocklist as string[] | undefined;
-      if (nb) setNetworkBlocklist(nb);
+      if (nb) {setNetworkBlocklist(nb);}
 
       const cd = cfg.commandDenylist as string[] | undefined;
-      if (cd) setCommandDenylist(cd);
+      if (cd) {setCommandDenylist(cd);}
 
       const dh = cfg.domainHitlEnabled as boolean | undefined;
-      if (dh !== undefined) setDomainHitlEnabled(dh);
+      if (dh !== undefined) {setDomainHitlEnabled(dh);}
 
       const ip = cfg.injectionPolicy as 'log_only' | 'fail_closed' | undefined;
-      if (ip !== undefined) setInjectionPolicy(ip);
+      if (ip !== undefined) {setInjectionPolicy(ip);}
 
       const pc = cfg.planConfirmEnabled as boolean | undefined;
-      if (pc !== undefined) setPlanConfirmEnabled(pc);
+      if (pc !== undefined) {setPlanConfirmEnabled(pc);}
 
       const ym = cfg.yoloModeEnabled as boolean | undefined;
-      if (ym !== undefined) setYoloModeEnabled(ym);
+      if (ym !== undefined) {setYoloModeEnabled(ym);}
 
       const ar = cfg.autoReviewEnabled as boolean | undefined;
-      if (ar !== undefined) setAutoReviewEnabled(ar);
+      if (ar !== undefined) {setAutoReviewEnabled(ar);}
 
       save({
         rules: perms ? flattenPermissions(perms) : undefined,
@@ -452,13 +452,13 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       const hitl = generated.domainHitlEnabled;
       const planConfirm = generated.planConfirmEnabled;
 
-      if (newRules) setRules(newRules);
-      if (newRoots) setAllowedRoots(newRoots);
-      if (na) setNetworkAllowlist(na);
-      if (nb) setNetworkBlocklist(nb);
-      if (cd) setCommandDenylist(cd);
-      if (hitl !== undefined) setDomainHitlEnabled(Boolean(hitl));
-      if (planConfirm !== undefined) setPlanConfirmEnabled(Boolean(planConfirm));
+      if (newRules) {setRules(newRules);}
+      if (newRoots) {setAllowedRoots(newRoots);}
+      if (na) {setNetworkAllowlist(na);}
+      if (nb) {setNetworkBlocklist(nb);}
+      if (cd) {setCommandDenylist(cd);}
+      if (hitl !== undefined) {setDomainHitlEnabled(Boolean(hitl));}
+      if (planConfirm !== undefined) {setPlanConfirmEnabled(Boolean(planConfirm));}
 
       save({
         rules: newRules,

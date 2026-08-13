@@ -52,7 +52,7 @@ const useResearchStore = create<ResearchState & ResearchActions>()(
 
     addResource: (resource) =>
       set((state) => {
-        if (state.resources.some((r) => r.id === resource.id)) return;
+        if (state.resources.some((r) => r.id === resource.id)) {return;}
         state.resources.push({ ...resource, selected: true });
       }),
 
@@ -64,17 +64,17 @@ const useResearchStore = create<ResearchState & ResearchActions>()(
     toggleResource: (id) =>
       set((state) => {
         const resource = state.resources.find((r) => r.id === id);
-        if (resource) resource.selected = !resource.selected;
+        if (resource) {resource.selected = !resource.selected;}
       }),
 
     selectAll: () =>
       set((state) => {
-        for (const r of state.resources) r.selected = true;
+        for (const r of state.resources) {r.selected = true;}
       }),
 
     deselectAll: () =>
       set((state) => {
-        for (const r of state.resources) r.selected = false;
+        for (const r of state.resources) {r.selected = false;}
       }),
 
     setActiveTab: (tab) => set({ activeTab: tab }),

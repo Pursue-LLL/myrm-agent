@@ -27,7 +27,7 @@ export const KeyValueEditor = memo<KeyValueEditorProps>(
 
     const handleAdd = useCallback(() => {
       const trimmedKey = newKey.trim();
-      if (!trimmedKey) return;
+      if (!trimmedKey) {return;}
       onChange({ ...value, [trimmedKey]: newValue });
       setNewKey('');
       setNewValue('');

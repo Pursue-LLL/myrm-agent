@@ -18,9 +18,9 @@ const STORAGE_KEY = 'upgrade_nudge_dismissed_at';
 const DISMISS_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 function isDismissedRecently(): boolean {
-  if (typeof window === 'undefined') return true;
+  if (typeof window === 'undefined') {return true;}
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return false;
+  if (!raw) {return false;}
   const ts = parseInt(raw, 10);
   return Date.now() - ts < DISMISS_COOLDOWN_MS;
 }
@@ -35,12 +35,12 @@ export const useUpgradeNudgeStore = create<UpgradeNudgeState>((set) => ({
   blockedFeature: null,
 
   showLowBalance: (_balanceWu, _monthlyWu) => {
-    if (isDismissedRecently() || isBudgetExceededOpen()) return;
+    if (isDismissedRecently() || isBudgetExceededOpen()) {return;}
     set({ open: true, trigger: 'low_balance', blockedFeature: null });
   },
 
   showFeatureGate: (feature) => {
-    if (isBudgetExceededOpen()) return;
+    if (isBudgetExceededOpen()) {return;}
     set({ open: true, trigger: 'feature_gate', blockedFeature: feature });
   },
 

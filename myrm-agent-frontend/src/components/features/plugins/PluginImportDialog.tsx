@@ -261,7 +261,7 @@ const PluginImportDialog = memo(
     }, []);
 
     const handleConfirmImport = useCallback(async () => {
-      if (!preview) return;
+      if (!preview) {return;}
       try {
         setIsImporting(true);
         const payload = {
@@ -339,7 +339,7 @@ const PluginImportDialog = memo(
       <Dialog
         open={open}
         onOpenChange={(val) => {
-          if (!val) resetForm();
+          if (!val) {resetForm();}
           onOpenChange(val);
         }}
       >
@@ -371,7 +371,7 @@ const PluginImportDialog = memo(
                     accept=".zip"
                     className="hidden"
                     onChange={(e) => {
-                      if (e.target.files?.length) handleFilesSelected(e.target.files);
+                      if (e.target.files?.length) {handleFilesSelected(e.target.files);}
                     }}
                   />
                   {isParsing ? (

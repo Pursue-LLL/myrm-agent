@@ -325,7 +325,7 @@ describe('builtin action execute functions', () => {
   describe('all actions return ActionResult shape', () => {
     it('all execute functions return objects with success field', async () => {
       for (const action of actions) {
-        if (action.name === 'goal') continue;
+        if (action.name === 'goal') {continue;}
         const result = await action.execute('');
         expect(result).toHaveProperty('success');
         expect(typeof result.success).toBe('boolean');

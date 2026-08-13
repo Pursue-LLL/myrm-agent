@@ -79,7 +79,7 @@ const AgentIndicator = () => {
 
   // 格式化智能体名称（最多5个字）
   const formatAgentName = (name?: string) => {
-    if (!name) return t('default');
+    if (!name) {return t('default');}
     return name.length > 5 ? `${name.slice(0, 5)}...` : name;
   };
 

@@ -24,7 +24,7 @@ export function WhatsNewModal() {
   const t = useTranslations('whatsNew');
   const { visible, release, loading, dismiss } = useWhatsNew();
 
-  if (loading || !visible || !release) return null;
+  if (loading || !visible || !release) {return null;}
 
   return (
     <Dialog open={visible} onOpenChange={(open) => !open && dismiss()}>
@@ -129,7 +129,7 @@ function MarkdownBody({ body }: { body: string }) {
   let listKey = 0;
 
   const flushList = () => {
-    if (listItems.length === 0) return;
+    if (listItems.length === 0) {return;}
     elements.push(
       <ul key={`list-${listKey++}`} className="list-disc pl-5 space-y-1 text-sm text-foreground/90">
         {listItems.map((item, i) => (

@@ -76,7 +76,7 @@ export function MCPConfigEditor({
 }: MCPConfigEditorProps) {
   const t = useTranslations('settings');
 
-  if (!show) return null;
+  if (!show) {return null;}
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -409,7 +409,7 @@ function HeadersSection({
       newKey = `Header-${suffix++}`;
     }
     updateHeaders({ ...headers, [newKey]: '' });
-    if (!expanded) setExpanded(true);
+    if (!expanded) {setExpanded(true);}
   };
 
   const removeHeader = (key: string) => {
@@ -520,8 +520,8 @@ function TLSSection({
   const [expanded, setExpanded] = useState(hasTlsValues);
 
   const sslVerifyDisplay = (() => {
-    if (formData.sslVerify === false) return 'false';
-    if (typeof formData.sslVerify === 'string') return formData.sslVerify;
+    if (formData.sslVerify === false) {return 'false';}
+    if (typeof formData.sslVerify === 'string') {return formData.sslVerify;}
     return '';
   })();
 

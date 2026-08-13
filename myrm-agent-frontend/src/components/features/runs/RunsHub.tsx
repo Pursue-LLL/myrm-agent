@@ -56,12 +56,12 @@ const SOURCE_COLORS: Record<RunSource, string> = {
 };
 
 function formatDuration(ms: number | null): string {
-  if (ms == null) return '-';
+  if (ms == null) {return '-';}
   const seconds = ms / 1000;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  if (seconds < 60) {return `${seconds.toFixed(1)}s`;}
   const minutes = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
-  if (minutes < 60) return `${minutes}m ${secs}s`;
+  if (minutes < 60) {return `${minutes}m ${secs}s`;}
   const hours = Math.floor(minutes / 60);
   return `${hours}h ${minutes % 60}m`;
 }
@@ -69,21 +69,21 @@ function formatDuration(ms: number | null): string {
 function formatRelativeTime(isoDate: string, t: ReturnType<typeof useTranslations>): string {
   const diff = Date.now() - new Date(isoDate).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return t('timeJustNow');
-  if (minutes < 60) return t('timeMinutesAgo', { count: minutes });
+  if (minutes < 1) {return t('timeJustNow');}
+  if (minutes < 60) {return t('timeMinutesAgo', { count: minutes });}
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t('timeHoursAgo', { count: hours });
+  if (hours < 24) {return t('timeHoursAgo', { count: hours });}
   const days = Math.floor(hours / 24);
   return t('timeDaysAgo', { count: days });
 }
 
 function stopReasonLabelKey(code: string | undefined): string {
-  if (!code) return 'stopReasonUnknown';
-  if (code === 'iteration_limit_reached') return 'stopReasonIterationLimit';
-  if (code === 'engine_limit_reached') return 'stopReasonEngineLimit';
-  if (code === 'timed_out') return 'stopReasonTimedOut';
-  if (code === 'agent_cancelled' || code === 'user_cancelled') return 'stopReasonCancelled';
-  if (code === 'error') return 'stopReasonError';
+  if (!code) {return 'stopReasonUnknown';}
+  if (code === 'iteration_limit_reached') {return 'stopReasonIterationLimit';}
+  if (code === 'engine_limit_reached') {return 'stopReasonEngineLimit';}
+  if (code === 'timed_out') {return 'stopReasonTimedOut';}
+  if (code === 'agent_cancelled' || code === 'user_cancelled') {return 'stopReasonCancelled';}
+  if (code === 'error') {return 'stopReasonError';}
   return 'stopReasonUnknown';
 }
 
@@ -190,7 +190,7 @@ export function RunsHub() {
   // Live-refresh list while any run is in progress so status/progress stay current.
   const hasRunning = runs.some((r) => r.status === 'running');
   useEffect(() => {
-    if (!hasRunning) return;
+    if (!hasRunning) {return;}
     const interval = setInterval(() => {
       // silent keeps the current scroll/loadMore position and avoids a loading flicker.
       void fetchRuns(offsetRef.current, false, true);

@@ -13,7 +13,7 @@ const ALLOWED_THEME_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp', 'v
 export type ThemeBackgroundValidationError = 'invalidType' | 'tooLarge' | 'empty';
 
 export function validateThemeBackgroundFile(file: File): ThemeBackgroundValidationError | null {
-  if (file.size === 0) return 'empty';
+  if (file.size === 0) {return 'empty';}
   const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
   const allowedExt = ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'webp' || ext === 'mp4';
   if (!ALLOWED_THEME_MIMES.has(file.type) && !allowedExt) {

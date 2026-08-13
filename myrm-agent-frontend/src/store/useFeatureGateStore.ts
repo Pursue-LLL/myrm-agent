@@ -23,7 +23,7 @@ export const useFeatureGateStore = create<FeatureGateState>((set, get) => ({
         const enabled = new Set<string>();
         if (data && Array.isArray(data.features)) {
           data.features.forEach((f: FeatureStatusItem) => {
-            if (f.enabled) enabled.add(f.id);
+            if (f.enabled) {enabled.add(f.id);}
           });
         }
         set({ enabledFeatures: enabled, initialized: true });

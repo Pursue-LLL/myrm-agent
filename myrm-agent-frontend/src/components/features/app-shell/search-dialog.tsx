@@ -13,7 +13,7 @@ import useChatStore from '@/store/useChatStore';
 type TimePreset = 'today' | 'week' | 'month' | 'quarter' | null;
 
 function computePresetRange(preset: TimePreset): { since?: string; until?: string } {
-  if (!preset) return {};
+  if (!preset) {return {};}
   const now = new Date();
   const until = now.toISOString();
   const start = new Date(now);
@@ -60,7 +60,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
   useEffect(() => {
     setMounted(true);
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {clearTimeout(debounceRef.current);}
     };
   }, []);
 
@@ -117,7 +117,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
 
   useEffect(() => {
     if (query.trim()) {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {clearTimeout(debounceRef.current);}
       debounceRef.current = setTimeout(() => doSearch(query, timeRange.since, timeRange.until), 300);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,7 +127,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       setQuery(value);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {clearTimeout(debounceRef.current);}
       debounceRef.current = setTimeout(() => doSearch(value, timeRange.since, timeRange.until), 300);
     },
     [doSearch, timeRange],
@@ -135,7 +135,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Escape') onOpenChange(false);
+      if (e.key === 'Escape') {onOpenChange(false);}
     },
     [onOpenChange],
   );
@@ -150,7 +150,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
 
   const focusComposerInput = useCallback(() => {
     window.setTimeout(() => {
-      if (typeof document === 'undefined') return;
+      if (typeof document === 'undefined') {return;}
       const inputElement = document.querySelector('[data-chat-input]');
       if (inputElement instanceof HTMLTextAreaElement) {
         inputElement.focus();
@@ -185,7 +185,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) onOpenChange(false);
+      if (e.target === e.currentTarget) {onOpenChange(false);}
     },
     [onOpenChange],
   );

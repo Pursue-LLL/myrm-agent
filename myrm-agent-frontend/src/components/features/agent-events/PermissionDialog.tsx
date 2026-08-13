@@ -122,7 +122,7 @@ export function PermissionDialog({
 }: PermissionDialogProps) {
   const t = useTranslations('agentEvents.permission');
 
-  if (!permission) return null;
+  if (!permission) {return null;}
 
   const actionLabels: Record<string, string> = {
     tool_call: t('actions.toolCall'),

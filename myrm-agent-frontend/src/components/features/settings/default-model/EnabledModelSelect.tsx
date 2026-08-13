@@ -97,11 +97,11 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
 
       for (const em of enabledModels) {
         const modelLower = em.model.toLowerCase();
-        if (search && !modelLower.includes(search.toLowerCase())) continue;
+        if (search && !modelLower.includes(search.toLowerCase())) {continue;}
 
         if (!grouped[em.providerId]) {
           const provider = providers.find((p) => p.id === em.providerId);
-          if (!provider) continue;
+          if (!provider) {continue;}
           grouped[em.providerId] = { provider, models: [] };
         }
         grouped[em.providerId].models.push(em.model);

@@ -12,7 +12,7 @@ export function useTrayEvents() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {return;}
 
     const unlisteners: (() => void)[] = [];
 

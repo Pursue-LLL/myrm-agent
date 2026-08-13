@@ -94,7 +94,7 @@ RemarkPopover.displayName = 'RemarkPopover';
 const HealthBadge = memo<{ health: KeyHealthState; onRetry?: () => void }>(({ health, onRetry }) => {
   const t = useTranslations('settings.modelService');
 
-  if (health.status === 'unchecked') return null;
+  if (health.status === 'unchecked') {return null;}
 
   if (health.status === 'checking') {
     return <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground flex-shrink-0" />;
@@ -155,7 +155,7 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(({ apiKeys, onChange, onProbeKey,
 
   const probeKeyHealth = useCallback(
     async (keyId: string, keyValue: string) => {
-      if (!onProbeKey) return;
+      if (!onProbeKey) {return;}
       setHealthMap((prev) => ({ ...prev, [keyId]: { status: 'checking' } }));
       try {
         const result = await onProbeKey(keyValue);
@@ -177,7 +177,7 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(({ apiKeys, onChange, onProbeKey,
 
   // Automatically probe active API keys when component mounts or when keys list changes
   useEffect(() => {
-    if (!onProbeKey || !apiKeys || apiKeys.length === 0) return;
+    if (!onProbeKey || !apiKeys || apiKeys.length === 0) {return;}
 
     apiKeys.forEach((apiKey) => {
       if (apiKey.isActive && !autoProbedKeysRef.current.has(apiKey.id)) {
@@ -197,7 +197,7 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(({ apiKeys, onChange, onProbeKey,
 
   const handleAddKey = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!newKey.trim()) return;
+    if (!newKey.trim()) {return;}
 
     const newApiKey: ApiKeyConfig = {
       id: `key_${Date.now()}`,
@@ -230,11 +230,11 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(({ apiKeys, onChange, onProbeKey,
 
   const handleToggleActive = (id: string) => {
     const target = (apiKeys ?? []).find((k) => k.id === id);
-    if (!target) return;
+    if (!target) {return;}
 
     if (target.isActive) {
       const activeCount = (apiKeys ?? []).filter((k) => k.isActive).length;
-      if (activeCount <= 1) return;
+      if (activeCount <= 1) {return;}
     }
 
     onChange((apiKeys ?? []).map((k) => (k.id === id ? { ...k, isActive: !k.isActive } : k)));
@@ -246,7 +246,7 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(({ apiKeys, onChange, onProbeKey,
   };
 
   const maskKey = (key: string) => {
-    if (key.length <= 8) return '••••••••';
+    if (key.length <= 8) {return '••••••••';}
     return '•'.repeat(key.length);
   };
 

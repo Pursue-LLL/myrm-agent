@@ -14,11 +14,11 @@ const WEEKS = 12;
 const DAYS_PER_WEEK = 7;
 
 function getIntensityClass(count: number, maxCount: number): string {
-  if (count === 0) return 'bg-muted/40';
+  if (count === 0) {return 'bg-muted/40';}
   const ratio = count / Math.max(maxCount, 1);
-  if (ratio >= 0.75) return 'bg-emerald-500';
-  if (ratio >= 0.5) return 'bg-emerald-400';
-  if (ratio >= 0.25) return 'bg-emerald-300 dark:bg-emerald-400/60';
+  if (ratio >= 0.75) {return 'bg-emerald-500';}
+  if (ratio >= 0.5) {return 'bg-emerald-400';}
+  if (ratio >= 0.25) {return 'bg-emerald-300 dark:bg-emerald-400/60';}
   return 'bg-emerald-200 dark:bg-emerald-500/30';
 }
 
@@ -30,7 +30,7 @@ export default function ActivityHeatmap({ data }: ActivityHeatmapProps) {
     let max = 0;
     for (const d of data) {
       countMap.set(d.date, d.count);
-      if (d.count > max) max = d.count;
+      if (d.count > max) {max = d.count;}
     }
 
     const today = new Date();

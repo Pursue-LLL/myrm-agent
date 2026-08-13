@@ -77,7 +77,7 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
   const handleModeChange = (mode: ActionMode) => {
     if (SEARCH_REQUIRED_MODES.has(mode) && mode !== actionMode) {
       const { searchServiceConfigs } = useConfigStore.getState();
-      if (!guardSearchServiceConfigured(searchServiceConfigs)) return;
+      if (!guardSearchServiceConfigured(searchServiceConfigs)) {return;}
     }
     setActionMode(mode);
   };

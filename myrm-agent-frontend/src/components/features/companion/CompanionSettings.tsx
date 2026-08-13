@@ -119,11 +119,11 @@ export default function CompanionSettings({ open, onOpenChange }: CompanionSetti
   }, [setSpriteConfig, setSpriteEnabled, saveConfigToServer]);
 
   const bones = useMemo(() => {
-    if (!user?.id) return null;
+    if (!user?.id) {return null;}
     return generateCompanion(user.id);
   }, [user?.id]);
 
-  if (!bones) return null;
+  if (!bones) {return null;}
 
   const currentName = nameOverride ?? bones.defaultName;
   const currentSpecies = speciesOverride ?? bones.species;

@@ -42,7 +42,7 @@ export function ShareConversationDialog({
   const isLocal = isLocalMode();
 
   const handleCopy = useCallback(async () => {
-    if (!shareUrl) return;
+    if (!shareUrl) {return;}
     await navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

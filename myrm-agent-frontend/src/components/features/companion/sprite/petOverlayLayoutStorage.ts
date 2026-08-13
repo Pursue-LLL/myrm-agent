@@ -43,7 +43,7 @@ export function getStoredSize(): PetSize {
     const raw = localStorage.getItem('myrm-pet-size');
     if (raw) {
       const n = Number(raw);
-      if (PET_SIZES.includes(n as PetSize)) return n as PetSize;
+      if (PET_SIZES.includes(n as PetSize)) {return n as PetSize;}
     }
   } catch {}
   return 64;

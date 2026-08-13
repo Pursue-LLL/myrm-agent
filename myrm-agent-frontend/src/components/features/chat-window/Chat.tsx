@@ -168,7 +168,7 @@ const Chat = ({
       }
       // 传统渲染模式：通过 data-message-id 定位 DOM
       const msg = messages[messageIndex];
-      if (!msg) return;
+      if (!msg) {return;}
       const el = containerRef.current?.querySelector(`[data-message-id="${CSS.escape(String(msg.messageId))}"]`);
       if (el) {
         userScrolledRef.current = true;
@@ -181,7 +181,7 @@ const Chat = ({
   // VirtualMessageList 滚动状态变化回调
   const handleVirtualScrollStateChange = useCallback((scrolledUp: boolean) => {
     setIsUserScrolledUp(scrolledUp);
-    if (!scrolledUp) setHasNewMessage(false);
+    if (!scrolledUp) {setHasNewMessage(false);}
   }, []);
 
   // ScrollToBottomButton 点击回调
@@ -205,7 +205,7 @@ const Chat = ({
 
   // 立即滚动函数，完全无延迟
   const scrollToBottom = useCallback(() => {
-    if (!messageEnd.current || userScrolledRef.current) return;
+    if (!messageEnd.current || userScrolledRef.current) {return;}
 
     messageEnd.current.scrollIntoView({
       behavior: 'smooth',
@@ -265,7 +265,7 @@ const Chat = ({
   }, [messages, loading, messagesContentHash, highlightMessageId]);
 
   useEffect(() => {
-    if (!highlightMessageId || messages.length === 0) return;
+    if (!highlightMessageId || messages.length === 0) {return;}
     const el = containerRef.current?.querySelector(`[data-message-id="${CSS.escape(highlightMessageId)}"]`);
     if (el) {
       requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
@@ -370,7 +370,7 @@ const Chat = ({
   // 监听容器大小变化，用于处理内容突然增加的情况
   // 仅在 loading 状态下才自动滚动，避免用户手动展开/折叠时触发
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {return;}
 
     resizeObserverRef.current = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -422,7 +422,7 @@ const Chat = ({
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 
     const updateContainerWidth = () => {
-      if (resizeTimer) clearTimeout(resizeTimer);
+      if (resizeTimer) {clearTimeout(resizeTimer);}
       resizeTimer = setTimeout(() => {
         if (containerRef.current) {
           document.documentElement.style.setProperty(
@@ -436,7 +436,7 @@ const Chat = ({
     updateContainerWidth();
     window.addEventListener('resize', updateContainerWidth);
     return () => {
-      if (resizeTimer) clearTimeout(resizeTimer);
+      if (resizeTimer) {clearTimeout(resizeTimer);}
       window.removeEventListener('resize', updateContainerWidth);
     };
   }, [containerRef]);

@@ -47,7 +47,7 @@ const PendingMemoryDialog = memo(() => {
   }, [currentPendingMemory]);
 
   const handleApprove = useCallback(async () => {
-    if (!currentPendingMemory) return;
+    if (!currentPendingMemory) {return;}
 
     setIsLoading(true);
     try {
@@ -71,7 +71,7 @@ const PendingMemoryDialog = memo(() => {
   }, [currentPendingMemory, isEditing, editedContent, approveMemory, t]);
 
   const handleReject = useCallback(async () => {
-    if (!currentPendingMemory) return;
+    if (!currentPendingMemory) {return;}
 
     setIsLoading(true);
     try {
@@ -91,7 +91,7 @@ const PendingMemoryDialog = memo(() => {
     }
   }, [currentPendingMemory, rejectMemory, t]);
 
-  if (!currentPendingMemory) return null;
+  if (!currentPendingMemory) {return null;}
 
   const memoryType = currentPendingMemory.memory_type;
 

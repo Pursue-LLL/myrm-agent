@@ -181,14 +181,14 @@ const AgentConfigEditDialog = ({
     if (open && type === 'instruction' && agentId) {
       fetch(getApiUrl(`/user-agents/${agentId}/history`))
         .then((res) => res.json())
-        .then((data) => { if (data.data) setHistory(data.data); })
+        .then((data) => { if (data.data) {setHistory(data.data);} })
         .catch((err) => console.error('Failed to fetch history:', err));
     }
   }, [open, type, agentId]);
 
   /* ─── AI prompt generation (streaming) ─── */
   const handleAiGenerate = useCallback(async (intent: string) => {
-    if (!intent.trim()) return;
+    if (!intent.trim()) {return;}
     setIsGeneratingAi(true);
     const currentPrompt = localPrompt;
     try {
@@ -205,14 +205,14 @@ const AgentConfigEditDialog = ({
         }
         throw new Error('Failed to generate prompt');
       }
-      if (!response.body) throw new Error('No response body');
+      if (!response.body) {throw new Error('No response body');}
       let isFirstChunk = true;
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {break;}
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n\n');
         buffer = lines.pop() || '';
@@ -284,14 +284,14 @@ const AgentConfigEditDialog = ({
   const staleCoreSkills = useMemo(() => {
     return localSkillIds.filter((id) => {
       const isCore = localSkillConfigs?.[id]?.is_core ?? false;
-      if (!isCore) return false;
+      if (!isCore) {return false;}
       const skill = enabledSkills?.find((s) => s.id === id);
       return skill?.usage_stats?.lifecycle_status === 'stale';
     });
   }, [localSkillIds, localSkillConfigs, enabledSkills]);
 
   const handleSmartPrune = useCallback(async () => {
-    if (isSmartPruning) return;
+    if (isSmartPruning) {return;}
     setIsSmartPruning(true);
     try {
       toast({ title: tPanel('actionSpaceRadar.smartPruneRunning') });
@@ -316,7 +316,7 @@ const AgentConfigEditDialog = ({
   /* ─── save handler ─── */
   const handleSave = useCallback(() => {
     if (type === 'subagents') {
-      if (Object.values(displayNameErrors).some((e) => e !== '')) return;
+      if (Object.values(displayNameErrors).some((e) => e !== '')) {return;}
     }
     if (externalCliSaveBlocked) {
       toast({ title: tPanel('externalCliSaveBlocked'), variant: 'destructive' });

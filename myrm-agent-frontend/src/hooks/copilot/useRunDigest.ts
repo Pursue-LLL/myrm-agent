@@ -22,7 +22,7 @@ export function useRunDigest(chatId: string | null) {
   useEffect(() => {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ chat_id?: string; digest?: RunDigest }>).detail;
-      if (!chatId || detail?.chat_id !== chatId) return;
+      if (!chatId || detail?.chat_id !== chatId) {return;}
       if (detail.digest) {
         setDigest(detail.digest);
       } else {
@@ -35,7 +35,7 @@ export function useRunDigest(chatId: string | null) {
 
   useEffect(() => {
     const handler = () => {
-      if (!chatId) return;
+      if (!chatId) {return;}
       void refresh();
     };
     window.addEventListener('app_resync_required', handler);

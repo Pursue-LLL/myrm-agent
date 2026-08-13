@@ -18,7 +18,7 @@ export function useCrashLoopGuard() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isTauriEnvironment()) return;
+    if (!isTauriEnvironment()) {return;}
 
     let unlisten: (() => void) | null = null;
 

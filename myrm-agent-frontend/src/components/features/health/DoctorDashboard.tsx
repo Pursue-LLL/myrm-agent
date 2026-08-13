@@ -58,7 +58,7 @@ export function DoctorDashboard() {
   }, [t]);
 
   const handleCopyMarkdown = useCallback(async () => {
-    if (!data) return;
+    if (!data) {return;}
     const ok = await copyDiagnosticMarkdown(data);
     if (ok) {
       setCopySuccess(true);
@@ -69,7 +69,7 @@ export function DoctorDashboard() {
   }, [data, t]);
 
   const handleDownloadJson = useCallback(() => {
-    if (!data) return;
+    if (!data) {return;}
     downloadDiagnosticJson(data);
   }, [data]);
 
@@ -117,15 +117,15 @@ export function DoctorDashboard() {
   const healthScore = totalComponents > 0 ? Math.round((passCount / totalComponents) * 100) : 100;
 
   const getHealthStatus = (score: number) => {
-    if (score >= 90) return { label: t('statusHealthy'), color: 'text-green-500', bg: 'bg-green-500/10' };
-    if (score >= 50) return { label: t('statusDegraded'), color: 'text-yellow-500', bg: 'bg-yellow-500/10' };
+    if (score >= 90) {return { label: t('statusHealthy'), color: 'text-green-500', bg: 'bg-green-500/10' };}
+    if (score >= 50) {return { label: t('statusDegraded'), color: 'text-yellow-500', bg: 'bg-yellow-500/10' };}
     return { label: t('statusCritical'), color: 'text-red-500', bg: 'bg-red-500/10' };
   };
 
   const healthStatus = getHealthStatus(healthScore);
 
   const renderReportGroup = (reports: HealthReport[], title: string, icon: React.ReactNode) => {
-    if (reports.length === 0) return null;
+    if (reports.length === 0) {return null;}
 
     const groupPassCount = reports.filter((r) => r.status === 'pass').length;
     const groupTotal = reports.length;

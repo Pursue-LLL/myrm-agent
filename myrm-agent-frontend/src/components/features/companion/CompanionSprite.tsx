@@ -80,28 +80,28 @@ export default function CompanionSprite({
     if (isEmojiAvatar) {
       species = avatar;
       if (hatOverride === undefined) {
-        if (activeAgentId === 'builtin-developer') hat = '🔥';
-        else if (activeAgentId === 'builtin-researcher') hat = '🎓';
-        else if (activeAgentId === 'builtin-writer') hat = '🌸';
-        else if (activeAgentId === 'builtin-meeting-scribe') hat = '🎀';
-        else if (activeAgentId === 'builtin-product-manager') hat = '👑';
+        if (activeAgentId === 'builtin-developer') {hat = '🔥';}
+        else if (activeAgentId === 'builtin-researcher') {hat = '🎓';}
+        else if (activeAgentId === 'builtin-writer') {hat = '🌸';}
+        else if (activeAgentId === 'builtin-meeting-scribe') {hat = '🎀';}
+        else if (activeAgentId === 'builtin-product-manager') {hat = '👑';}
       }
     } else {
       if (activeAgentId === 'builtin-developer') {
         species = '🤖';
-        if (hatOverride === undefined) hat = '🔥';
+        if (hatOverride === undefined) {hat = '🔥';}
       } else if (activeAgentId === 'builtin-researcher') {
         species = '🦉';
-        if (hatOverride === undefined) hat = '🎓';
+        if (hatOverride === undefined) {hat = '🎓';}
       } else if (activeAgentId === 'builtin-writer') {
         species = '🦊';
-        if (hatOverride === undefined) hat = '🌸';
+        if (hatOverride === undefined) {hat = '🌸';}
       } else if (activeAgentId === 'builtin-meeting-scribe') {
         species = '🐼';
-        if (hatOverride === undefined) hat = '🎀';
+        if (hatOverride === undefined) {hat = '🎀';}
       } else if (activeAgentId === 'builtin-product-manager') {
         species = '🐙';
-        if (hatOverride === undefined) hat = '👑';
+        if (hatOverride === undefined) {hat = '👑';}
       }
     }
   }

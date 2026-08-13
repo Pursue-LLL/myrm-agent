@@ -48,7 +48,7 @@ const SandboxModeToggle = () => {
   const [loading, setLoading] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
 
-  if (actionMode !== 'agent') return null;
+  if (actionMode !== 'agent') {return null;}
 
   const handleEnable = async () => {
     if (!chatId) {
@@ -68,7 +68,7 @@ const SandboxModeToggle = () => {
   };
 
   const handleMerge = async () => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     setLoading(true);
     setShowExitDialog(false);
     try {
@@ -111,7 +111,7 @@ const SandboxModeToggle = () => {
   };
 
   const toggle = () => {
-    if (loading) return;
+    if (loading) {return;}
     if (sandboxMode) {
       setShowExitDialog(true);
     } else {

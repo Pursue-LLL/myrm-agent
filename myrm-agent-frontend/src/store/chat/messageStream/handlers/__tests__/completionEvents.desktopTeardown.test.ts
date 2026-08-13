@@ -1,13 +1,20 @@
 /**
- * Tests that completionEvents releases desktop inspector turn engagement on MESSAGE_END.
+ * Tests that completionEvents releases desktop + browser inspector turn engagement on MESSAGE_END.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockReleaseTurnEngagement = vi.fn();
+const mockDesktopReleaseTurnEngagement = vi.fn();
+const mockBrowserReleaseTurnEngagement = vi.fn();
 
 vi.mock('@/store/useDesktopInspectorStore', () => ({
   default: {
-    getState: () => ({ releaseTurnEngagement: mockReleaseTurnEngagement }),
+    getState: () => ({ releaseTurnEngagement: mockDesktopReleaseTurnEngagement }),
+  },
+}));
+
+vi.mock('@/store/useBrowserInspectorStore', () => ({
+  default: {
+    getState: () => ({ releaseTurnEngagement: mockBrowserReleaseTurnEngagement }),
   },
 }));
 
@@ -87,26 +94,29 @@ function makeCtx(): StreamCtx {
   };
 }
 
-describe('completionEvents desktop inspector teardown', () => {
+describe('completionEvents inspector teardown', () => {
   beforeEach(() => {
-    mockReleaseTurnEngagement.mockClear();
+    mockDesktopReleaseTurnEngagement.mockClear();
+    mockBrowserReleaseTurnEngagement.mockClear();
   });
 
-  it('releases desktop turn engagement on MESSAGE_END', async () => {
+  it('releases desktop and browser turn engagement on MESSAGE_END', async () => {
     const ctx = makeCtx();
     await completionEvents(ctx);
 
     await vi.waitFor(() => {
-      expect(mockReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
     });
   });
 
-  it('does not release desktop turn engagement for non-MESSAGE_END events', async () => {
+  it('does not release inspector turn engagement for non-MESSAGE_END events', async () => {
     const ctx = makeCtx();
     ctx.data = { type: 'goal_status', data: {} } as never;
     await completionEvents(ctx);
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    expect(mockReleaseTurnEngagement).not.toHaveBeenCalled();
+    expect(mockDesktopReleaseTurnEngagement).not.toHaveBeenCalled();
+    expect(mockBrowserReleaseTurnEngagement).not.toHaveBeenCalled();
   });
 });

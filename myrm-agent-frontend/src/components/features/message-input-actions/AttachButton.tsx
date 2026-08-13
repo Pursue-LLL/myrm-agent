@@ -33,7 +33,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
   const checkModelCapability = (fileNames: string[]): 'image' | 'video' | null => {
     const { defaultModelConfig, getModelInfo } = useProviderStore.getState();
     const selection = defaultModelConfig?.baseModel?.primary;
-    if (!selection) return null;
+    if (!selection) {return null;}
 
     const modelInfo = getModelInfo(selection.providerId, selection.model);
     const hasImages = fileNames.some((n) => isImageFile(getFileExtension(n)));
@@ -103,7 +103,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
   // Sandbox 模式：文件上传处理
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
-    if (selectedFiles.length === 0) return;
+    if (selectedFiles.length === 0) {return;}
 
     // Reset input value so the same file can be re-selected after switching models
     e.target.value = '';
@@ -196,7 +196,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
         });
       }
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
+      if (error instanceof DOMException && error.name === 'AbortError') {return;}
       console.error('File upload failed:', error);
       toast({
         title: t('uploadFailed'),

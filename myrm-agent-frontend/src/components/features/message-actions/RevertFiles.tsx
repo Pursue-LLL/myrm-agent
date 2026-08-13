@@ -62,7 +62,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
       const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${messageId}`, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) return 'error';
+      if (!res.ok) {return 'error';}
       const data: FileChange[] = await res.json();
       return data.length > 0 ? data : [];
     } catch {
@@ -93,7 +93,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
       const res = await fetch(`/api/v1/files/revert/diff/${chatId}/${messageId}`, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) return null;
+      if (!res.ok) {return null;}
       const data: FileDiffItem[] = await res.json();
       return data.length > 0 ? data : null;
     } catch {
@@ -104,8 +104,8 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   const toggleExpanded = useCallback((path: string) => {
     setExpandedPaths((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
+      if (next.has(path)) {next.delete(path);}
+      else {next.add(path);}
       return next;
     });
   }, []);
@@ -145,7 +145,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   );
 
   const handleTriggerClick = useCallback(async () => {
-    if (triggerLoading) return;
+    if (triggerLoading) {return;}
     setTriggerLoading(true);
     try {
       let fileChanges: FileChange[] | 'error';

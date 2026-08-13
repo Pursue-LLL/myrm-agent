@@ -98,8 +98,8 @@ export function AgentBasicInfoTab({
 
   const handleAddPrompt = useCallback(() => {
     const trimmed = promptInput.trim();
-    if (!trimmed || suggestionPrompts.length >= MAX_SUGGESTION_PROMPTS) return;
-    if (suggestionPrompts.includes(trimmed)) return;
+    if (!trimmed || suggestionPrompts.length >= MAX_SUGGESTION_PROMPTS) {return;}
+    if (suggestionPrompts.includes(trimmed)) {return;}
     onSuggestionPromptsChange([...suggestionPrompts, trimmed]);
     setPromptInput('');
   }, [promptInput, suggestionPrompts, onSuggestionPromptsChange]);

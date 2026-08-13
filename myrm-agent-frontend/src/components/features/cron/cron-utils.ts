@@ -24,18 +24,18 @@ export function formatNextRun(
   nextRunAt: string | undefined,
   t: (key: string, values?: Record<string, string>) => string,
 ): string {
-  if (!nextRunAt) return '—';
+  if (!nextRunAt) {return '—';}
   const diffMs = new Date(nextRunAt).getTime() - Date.now();
-  if (diffMs < 0) return t('overdue');
-  if (diffMs < 60_000) return t('timeSeconds', { value: String(Math.round(diffMs / 1000)) });
-  if (diffMs < 3_600_000) return t('timeMinutes', { value: String(Math.round(diffMs / 60_000)) });
-  if (diffMs < 86_400_000) return t('timeHours', { value: String(Math.round(diffMs / 3_600_000)) });
+  if (diffMs < 0) {return t('overdue');}
+  if (diffMs < 60_000) {return t('timeSeconds', { value: String(Math.round(diffMs / 1000)) });}
+  if (diffMs < 3_600_000) {return t('timeMinutes', { value: String(Math.round(diffMs / 60_000)) });}
+  if (diffMs < 86_400_000) {return t('timeHours', { value: String(Math.round(diffMs / 3_600_000)) });}
   return t('timeDays', { value: String(Math.round(diffMs / 86_400_000)) });
 }
 
 export function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 1000) {return `${ms}ms`;}
+  if (ms < 60_000) {return `${(ms / 1000).toFixed(1)}s`;}
   return `${(ms / 60_000).toFixed(1)}m`;
 }
 
@@ -44,8 +44,8 @@ export function formatTime(iso: string): string {
 }
 
 export function statusBorderColor(job: CronJob): string {
-  if (job.consecutive_failures > 0 || job.last_status === 'error') return 'border-l-destructive';
-  if (job.status === 'active') return 'border-l-green-500';
+  if (job.consecutive_failures > 0 || job.last_status === 'error') {return 'border-l-destructive';}
+  if (job.status === 'active') {return 'border-l-green-500';}
   return 'border-l-muted-foreground/40';
 }
 
@@ -55,18 +55,18 @@ export function computeStats(jobs: CronJob[]) {
   let paused = 0;
   let errored = 0;
   for (const j of userJobs) {
-    if (j.status === 'active') active++;
-    else if (j.status === 'paused') paused++;
-    if (j.last_status === 'error' || j.consecutive_failures > 0) errored++;
+    if (j.status === 'active') {active++;}
+    else if (j.status === 'paused') {paused++;}
+    if (j.last_status === 'error' || j.consecutive_failures > 0) {errored++;}
   }
   return { total: userJobs.length, active, paused, errored };
 }
 
 export function filterJobs(jobs: CronJob[], filter: StatusFilter, query: string): CronJob[] {
   let result = jobs.filter((j) => !isSystemJob(j));
-  if (filter === 'active') result = result.filter((j) => j.status === 'active');
-  else if (filter === 'paused') result = result.filter((j) => j.status === 'paused');
-  else if (filter === 'error') result = result.filter((j) => j.last_status === 'error' || j.consecutive_failures > 0);
+  if (filter === 'active') {result = result.filter((j) => j.status === 'active');}
+  else if (filter === 'paused') {result = result.filter((j) => j.status === 'paused');}
+  else if (filter === 'error') {result = result.filter((j) => j.last_status === 'error' || j.consecutive_failures > 0);}
   if (query) {
     const q = query.toLowerCase();
     result = result.filter((j) => j.name.toLowerCase().includes(q) || j.prompt?.toLowerCase().includes(q));
@@ -75,7 +75,7 @@ export function filterJobs(jobs: CronJob[], filter: StatusFilter, query: string)
 }
 
 export function computeRunStats(runs: CronRun[]) {
-  if (runs.length === 0) return { total: 0, successRate: 0, avgDuration: 0 };
+  if (runs.length === 0) {return { total: 0, successRate: 0, avgDuration: 0 };}
   const ok = runs.filter((r) => r.status === 'ok').length;
   const avgMs = runs.reduce((sum, r) => sum + r.duration_ms, 0) / runs.length;
   return {

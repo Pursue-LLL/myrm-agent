@@ -55,7 +55,7 @@ const defaultProps = {
   onDelete: vi.fn(),
   onExit: vi.fn(),
   t: ((key: string, params?: Record<string, unknown>) => {
-    if (params?.count !== undefined) return `${key}:${params.count}`;
+    if (params?.count !== undefined) {return `${key}:${params.count}`;}
     return key;
   }) as ReturnType<typeof import('next-intl').useTranslations>,
 };

@@ -26,11 +26,11 @@ export function useGlobalShortcuts() {
 
     const handler = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
+      if (!mod) {return;}
 
       const needsShift = !isTauriEnv;
-      if (needsShift && !e.shiftKey) return;
-      if (!needsShift && e.shiftKey) return;
+      if (needsShift && !e.shiftKey) {return;}
+      if (!needsShift && e.shiftKey) {return;}
 
       if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
@@ -45,20 +45,20 @@ export function useGlobalShortcuts() {
         e.stopPropagation();
         const inspector = useBrowserInspectorStore.getState();
         inspector.togglePanel();
-        if (!inspector.isOpen) void inspector.fetchSnapshot();
+        if (!inspector.isOpen) {void inspector.fetchSnapshot();}
         return;
       }
 
       // Use e.code (locale-independent) instead of e.key which changes with Shift on Mac (e.g. Shift+1 = '!')
       const match = e.code.match(/^Digit([1-9])$/);
-      if (!match) return;
+      if (!match) {return;}
       const digit = parseInt(match[1], 10);
 
       const items = useChatStore.getState().chatHistoryItems;
       const pinned = items.filter((c) => c.isPinned).sort((a, b) => (a.pinOrder ?? 0) - (b.pinOrder ?? 0));
 
       const target = pinned[digit - 1];
-      if (!target) return;
+      if (!target) {return;}
 
       e.preventDefault();
       e.stopPropagation();

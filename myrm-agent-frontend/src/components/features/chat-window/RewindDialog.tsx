@@ -67,7 +67,7 @@ export function RewindDialog({
   });
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {return;}
 
     let cancelled = false;
     setPreview({ status: 'checking', fileCount: 0, skippedCount: 0 });
@@ -90,7 +90,7 @@ export function RewindDialog({
             const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${mid}`, {
               headers: getAuthHeaders(),
             });
-            if (!res.ok) return [] as FileChangeInfo[];
+            if (!res.ok) {return [] as FileChangeInfo[];}
             const body = (await res.json()) as unknown;
             return Array.isArray(body) ? (body as FileChangeInfo[]) : [];
           } catch {
@@ -98,7 +98,7 @@ export function RewindDialog({
           }
         }),
       );
-      if (cancelled) return;
+      if (cancelled) {return;}
 
       const revertiblePaths = new Set<string>();
       const skippedPaths = new Set<string>();

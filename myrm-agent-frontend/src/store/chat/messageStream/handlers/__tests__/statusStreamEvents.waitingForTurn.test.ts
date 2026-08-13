@@ -22,9 +22,9 @@ vi.mock('../handlerDeps', () => {
       chatIdFallback: string,
     ) => {
       const normalizedId = messageId?.trim();
-      if (!normalizedId) return -1;
+      if (!normalizedId) {return -1;}
       const existing = messages.findIndex((m) => m.messageId === normalizedId && m.role === 'assistant');
-      if (existing !== -1) return existing;
+      if (existing !== -1) {return existing;}
       messages.push({
         content: '',
         messageId: normalizedId,

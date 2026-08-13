@@ -85,14 +85,14 @@ function formatTimestamp(iso: string): string {
 }
 
 export function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 1000) {return `${ms}ms`;}
+  if (ms < 60_000) {return `${(ms / 1000).toFixed(1)}s`;}
   return `${(ms / 60_000).toFixed(1)}m`;
 }
 
 function formatTokenCount(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 10_000) return (n / 1000).toFixed(1) + 'k';
+  if (n < 1000) {return String(n);}
+  if (n < 10_000) {return (n / 1000).toFixed(1) + 'k';}
   return Math.round(n / 1000) + 'k';
 }
 
@@ -106,9 +106,9 @@ function buildSummarySection(data: ExportData): string[] {
   const usage = data.usageSummary;
   if (usage && (usage.totalCalls > 0 || usage.totalTokens > 0)) {
     lines.push('## Session Summary', '');
-    if (usage.totalCalls > 0) lines.push(`- **API Calls**: ${usage.totalCalls}`);
-    if (usage.totalTokens > 0) lines.push(`- **Tokens**: ${formatTokenCount(usage.totalTokens)}`);
-    if (usage.totalUsd > 0) lines.push(`- **Cost**: ${formatUsd(usage.totalUsd)}`);
+    if (usage.totalCalls > 0) {lines.push(`- **API Calls**: ${usage.totalCalls}`);}
+    if (usage.totalTokens > 0) {lines.push(`- **Tokens**: ${formatTokenCount(usage.totalTokens)}`);}
+    if (usage.totalUsd > 0) {lines.push(`- **Cost**: ${formatUsd(usage.totalUsd)}`);}
     lines.push('');
   }
 
@@ -138,9 +138,9 @@ export function formatChatAsMarkdown(data: ExportData): string {
   if (data.agentInfo) {
     const a = data.agentInfo;
     const parts = [`> **Agent**: ${a.name}`];
-    if (a.model) parts.push(`· Model: ${a.model}`);
+    if (a.model) {parts.push(`· Model: ${a.model}`);}
     lines.push(parts.join(' '));
-    if (a.description) lines.push(`> ${a.description}`);
+    if (a.description) {lines.push(`> ${a.description}`);}
     lines.push('');
   }
 
@@ -149,7 +149,7 @@ export function formatChatAsMarkdown(data: ExportData): string {
 
   let mdTurnIndex = 0;
   for (const msg of data.messages) {
-    if (!VISIBLE_ROLES.has(msg.role)) continue;
+    if (!VISIBLE_ROLES.has(msg.role)) {continue;}
     const role = msg.role === 'user' ? 'User' : 'Assistant';
     lines.push(`**${role}** · ${formatTimestamp(msg.createdAt)}`);
     lines.push('');
@@ -289,7 +289,7 @@ export async function printChat(
 // ---------------------------------------------------------------------------
 
 function formatSourcesFootnotes(sources?: Source[]): string {
-  if (!sources || sources.length === 0) return '';
+  if (!sources || sources.length === 0) {return '';}
   const lines = sources.map((s, i) => `[${i + 1}] ${s.url || s.title || 'Unknown source'}`);
   return `\n\nCitations:\n${lines.join('\n')}`;
 }

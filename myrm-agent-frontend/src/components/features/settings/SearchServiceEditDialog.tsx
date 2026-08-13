@@ -99,16 +99,16 @@ const SearchServiceEditDialog = memo(
       setProvidersLoading(true);
       void fetchSearchProviders(isLocal)
         .then((data) => {
-          if (cancelled) return;
+          if (cancelled) {return;}
           setProviders(data.providers);
           setMaxChainSize(data.maxChainSize);
         })
         .catch(() => {
-          if (cancelled) return;
+          if (cancelled) {return;}
           setProviders([]);
         })
         .finally(() => {
-          if (!cancelled) setProvidersLoading(false);
+          if (!cancelled) {setProvidersLoading(false);}
         });
       return () => {
         cancelled = true;
@@ -201,7 +201,7 @@ const SearchServiceEditDialog = memo(
     };
 
     const handleValidate = async () => {
-      if (!validateForm()) return;
+      if (!validateForm()) {return;}
 
       setIsValidating(true);
       setValidationError('');
@@ -236,7 +236,7 @@ const SearchServiceEditDialog = memo(
     };
 
     const handleSave = async () => {
-      if (!validateForm()) return;
+      if (!validateForm()) {return;}
 
       if (config?.enabled) {
         const existingConfigs = searchServiceConfigs.filter((c) => c.id !== config?.id);
@@ -353,7 +353,7 @@ const SearchServiceEditDialog = memo(
       (!showApiBaseField || !!apiBase.trim()) &&
       (!activeProvider || activeProvider.backendReady);
 
-    if (!isOpen) return null;
+    if (!isOpen) {return null;}
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center">

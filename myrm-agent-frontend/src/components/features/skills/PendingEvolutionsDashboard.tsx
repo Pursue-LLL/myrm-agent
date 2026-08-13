@@ -54,7 +54,7 @@ export function PendingEvolutionsDashboard() {
   const searchParams = useSearchParams();
   const growthTypeFilter = searchParams.get('growthType')?.trim() || null;
   const [viewMode, setViewMode] = useState<SkillGrowthViewMode>(() => {
-    if (typeof window === 'undefined') return 'simple';
+    if (typeof window === 'undefined') {return 'simple';}
     return (localStorage.getItem(VIEW_MODE_KEY) as SkillGrowthViewMode) || 'simple';
   });
 
@@ -167,7 +167,7 @@ export function PendingEvolutionsDashboard() {
 
   const handleApprove = useCallback(
     async (item: SkillGrowthCaseSummary, applyMode: 'immediate' | 'shadow' = 'immediate') => {
-      if (!user?.id || processingCaseId) return;
+      if (!user?.id || processingCaseId) {return;}
       setProcessingCaseId(item.id);
       try {
         const result = await approveSkillGrowthCase(item, applyMode);
@@ -200,7 +200,7 @@ export function PendingEvolutionsDashboard() {
 
   const handleReject = useCallback(
     async (item: SkillGrowthCaseSummary, reason?: string) => {
-      if (!user?.id || processingCaseId) return;
+      if (!user?.id || processingCaseId) {return;}
       setProcessingCaseId(item.id);
       try {
         await rejectSkillGrowthCase(item, reason);
@@ -222,7 +222,7 @@ export function PendingEvolutionsDashboard() {
 
   const handleRevise = useCallback(
     async (item: SkillGrowthCaseSummary, evolvedContent: string) => {
-      if (!user?.id || processingCaseId) return;
+      if (!user?.id || processingCaseId) {return;}
       setProcessingCaseId(item.id);
       try {
         const result = await reviseSkillGrowthCase(item, evolvedContent);
@@ -243,7 +243,7 @@ export function PendingEvolutionsDashboard() {
 
   const handleCreateCron = useCallback(
     async (item: SkillGrowthCaseSummary, scheduleHint: string) => {
-      if (!user?.id || processingCaseId) return;
+      if (!user?.id || processingCaseId) {return;}
       setProcessingCaseId(item.id);
       try {
         await createCronJob({

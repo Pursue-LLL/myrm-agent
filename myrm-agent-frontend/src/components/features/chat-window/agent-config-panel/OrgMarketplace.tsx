@@ -27,7 +27,7 @@ interface OrgMarketplaceProps {
 const renderAvatar = (avatar: string | null | undefined) => {
   if (avatar?.startsWith('lucide:')) {
     const IconComponent = resolveLucideIcon(avatar.slice(7));
-    if (IconComponent) return <IconComponent size={16} />;
+    if (IconComponent) {return <IconComponent size={16} />;}
   }
   return <Bot size={16} />;
 };
@@ -54,13 +54,13 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
     const load = async () => {
       try {
         const org = await getMyOrg();
-        if (cancelled) return;
+        if (cancelled) {return;}
         setOrgId(org.id);
         const [data, members] = await Promise.all([
           listMarketplaceEntries(org.id),
           listMembers(org.id).catch(() => [] as Awaited<ReturnType<typeof listMembers>>),
         ]);
-        if (cancelled) return;
+        if (cancelled) {return;}
         setEntries(data);
         if (currentUserId) {
           const me = members.find((m) => m.user_id === currentUserId);
@@ -69,7 +69,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
       } catch {
         // Marketplace is optional; silently hide when CP unavailable
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {setLoading(false);}
       }
     };
     void load();
@@ -80,9 +80,9 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
 
   const handleSearch = useCallback((query: string) => {
     setSearch(query);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (debounceRef.current) {clearTimeout(debounceRef.current);}
     debounceRef.current = setTimeout(async () => {
-      if (!orgId) return;
+      if (!orgId) {return;}
       setLoading(true);
       try {
         const data = await listMarketplaceEntries(orgId, { search: query || undefined });
@@ -96,7 +96,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
   }, [orgId]);
 
   const handleInstall = useCallback(async (entry: MarketplaceEntry) => {
-    if (installingId) return;
+    if (installingId) {return;}
     setInstallingId(entry.id);
     try {
       const result = await installFromMarketplace(entry.id);
@@ -124,12 +124,12 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
   }, [installingId, onInstalled, router, t]);
 
   const handleForcePush = useCallback(async (entry: MarketplaceEntry) => {
-    if (pushingId) return;
+    if (pushingId) {return;}
 
     const confirmed = window.confirm(
       t('forcePushConfirm', { name: entry.name, version: entry.latest_version }),
     );
-    if (!confirmed) return;
+    if (!confirmed) {return;}
 
     setPushingId(entry.id);
     try {
@@ -149,7 +149,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
     }
   }, [pushingId, t]);
 
-  if (!isSandbox()) return null;
+  if (!isSandbox()) {return null;}
   if (loading && entries.length === 0) {
     return (
       <div className={cn('flex justify-center p-4', className)}>
@@ -157,7 +157,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
       </div>
     );
   }
-  if (entries.length === 0 && !search) return null;
+  if (entries.length === 0 && !search) {return null;}
 
   return (
     <div className={cn('space-y-3 pt-2', className)}>

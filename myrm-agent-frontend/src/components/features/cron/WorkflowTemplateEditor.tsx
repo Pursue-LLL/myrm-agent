@@ -48,7 +48,7 @@ function argsEqual(
   const b = right ?? {};
   const aKeys = Object.keys(a).sort();
   const bKeys = Object.keys(b).sort();
-  if (aKeys.length !== bKeys.length) return false;
+  if (aKeys.length !== bKeys.length) {return false;}
   return aKeys.every((key) => (a[key] ?? '').trim() === (b[key] ?? '').trim());
 }
 
@@ -86,7 +86,7 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
         }
       })
       .finally(() => {
-        if (!cancelled) setLoadingTemplates(false);
+        if (!cancelled) {setLoadingTemplates(false);}
       });
     return () => {
       cancelled = true;

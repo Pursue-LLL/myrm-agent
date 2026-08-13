@@ -34,7 +34,7 @@ export function PathPolicyEditor({ allowedRoots, onAdd, onRemove }: PathPolicyEd
 
   const handleAdd = useCallback(() => {
     const trimmed = newPath.trim();
-    if (!trimmed || allowedRoots.includes(trimmed)) return;
+    if (!trimmed || allowedRoots.includes(trimmed)) {return;}
     onAdd(trimmed);
     setNewPath('');
   }, [newPath, allowedRoots, onAdd]);

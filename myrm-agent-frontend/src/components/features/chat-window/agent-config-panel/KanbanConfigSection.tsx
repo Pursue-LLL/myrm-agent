@@ -30,7 +30,7 @@ export function KanbanConfigSection({ tPanel }: KanbanConfigSectionProps) {
       setLoading(true);
       try {
         const result = await listBoards({ projectId: activeProjectId });
-        if (cancelled) return;
+        if (cancelled) {return;}
         const items = result.items;
         setBoards(items);
         const resolved = resolveKanbanChatBoardId(items, activeProjectId);

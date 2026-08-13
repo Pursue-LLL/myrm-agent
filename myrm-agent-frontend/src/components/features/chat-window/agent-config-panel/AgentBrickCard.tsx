@@ -77,7 +77,7 @@ const AgentBrickCard = ({
 
   // 获取配置详情名称列表
   const configDetails = useMemo(() => {
-    if (!details) return null;
+    if (!details) {return null;}
 
     // 获取技能名称列表
     const skillNames = (details.skill_ids || [])

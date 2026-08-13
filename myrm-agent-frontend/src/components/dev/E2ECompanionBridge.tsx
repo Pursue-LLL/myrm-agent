@@ -17,7 +17,7 @@ import useCompanionStore from '@/store/useCompanionStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 
 function isLocalDevHost(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') {return false;}
   const host = window.location.hostname;
   return host === '127.0.0.1' || host === 'localhost';
 }
@@ -31,7 +31,7 @@ function enableCompanionModeForE2e(): void {
 
 export default function E2ECompanionBridge() {
   useLayoutEffect(() => {
-    if (!isLocalDevHost()) return;
+    if (!isLocalDevHost()) {return;}
 
     window.__MYRM_E2E_COMPANION__ = {
       enableCompanionModeForE2e,

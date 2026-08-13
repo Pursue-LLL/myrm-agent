@@ -76,7 +76,7 @@ export default function ShareLinksSection() {
 
   const handleCopy = useCallback(
     async (record: ArtifactShareRecord) => {
-      if (!record.share_path) return;
+      if (!record.share_path) {return;}
       try {
         await navigator.clipboard.writeText(window.location.origin + record.share_path);
         setCopiedId(record.id);

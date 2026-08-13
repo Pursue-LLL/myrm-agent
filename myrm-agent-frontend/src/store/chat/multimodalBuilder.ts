@@ -169,9 +169,9 @@ const processTextFiles = async (textFiles: File[]): Promise<VisionContentPart[]>
         text = atob(base64);
       } else {
         const url = file.fileUrl || '';
-        if (!url) throw new Error(`No URL for text file: ${file.fileName}`);
+        if (!url) {throw new Error(`No URL for text file: ${file.fileName}`);}
         const res = await fetch(url);
-        if (!res.ok) throw new Error(`Failed to fetch ${file.fileName}: ${res.status}`);
+        if (!res.ok) {throw new Error(`Failed to fetch ${file.fileName}: ${res.status}`);}
         text = await res.text();
       }
       return { file, text };
@@ -228,7 +228,7 @@ export const buildMultimodalQuery = async (
     textFiles.length > 0 ||
     otherFiles.length > 0;
 
-  if (!hasAttachments && !hasCameraFrames) return textInput;
+  if (!hasAttachments && !hasCameraFrames) {return textInput;}
 
   const contentParts: VisionContentPart[] = [{ type: 'text', text: textInput }];
 

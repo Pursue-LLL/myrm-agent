@@ -44,7 +44,7 @@ export default function KanbanTaskDrawer({
 
   const drawer = useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefresh, t });
 
-  if (!task) return null;
+  if (!task) {return null;}
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

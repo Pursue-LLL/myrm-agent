@@ -8,9 +8,9 @@ import { describe, it, expect } from 'vitest';
 
 /** 复刻 SettingsMenu 中的 highlightMatch 函数 */
 function highlightMatch(text: string, query: string): string {
-  if (!query.trim()) return text;
+  if (!query.trim()) {return text;}
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx === -1) return text;
+  if (idx === -1) {return text;}
   return text.slice(0, idx) + `[HL]${text.slice(idx, idx + query.length)}[/HL]` + text.slice(idx + query.length);
 }
 
@@ -37,7 +37,7 @@ const groupConfig: Record<SettingsGroup, { order: number }> = {
 function groupItems(items: MenuItem[]): Map<SettingsGroup, MenuItem[]> {
   const groups = new Map<SettingsGroup, MenuItem[]>();
   items.forEach((item) => {
-    if (!groups.has(item.group)) groups.set(item.group, []);
+    if (!groups.has(item.group)) {groups.set(item.group, []);}
     groups.get(item.group)!.push(item);
   });
   return new Map(
@@ -49,8 +49,8 @@ function groupItems(items: MenuItem[]): Map<SettingsGroup, MenuItem[]> {
 
 function filterVisible(items: MenuItem[], tauriMode: boolean, isAdmin: boolean): MenuItem[] {
   return items.filter((item) => {
-    if (item.tauriOnly && !tauriMode) return false;
-    if (item.adminOnly && !isAdmin) return false;
+    if (item.tauriOnly && !tauriMode) {return false;}
+    if (item.adminOnly && !isAdmin) {return false;}
     return true;
   });
 }
@@ -164,7 +164,7 @@ describe('SettingsMenu - search filtering', () => {
   };
 
   function searchItems(items: MenuItem[], query: string): MenuItem[] {
-    if (!query.trim()) return items;
+    if (!query.trim()) {return items;}
     const q = query.toLowerCase();
     return items.filter((item) => labels[item.labelKey]?.toLowerCase().includes(q));
   }

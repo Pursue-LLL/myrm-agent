@@ -16,13 +16,13 @@ vi.mock('next-intl', () => ({
         'versions.rollbackConfirm.cancel': 'Cancel',
         'versions.rollbackConfirm.confirm': 'Confirm',
       };
-      if (key === 'versions.minutesAgo') return `${params?.count}m ago`;
-      if (key === 'versions.hoursAgo') return `${params?.count}h ago`;
-      if (key === 'versions.daysAgo') return `${params?.count}d ago`;
-      if (key === 'versions.totalVersions') return `${params?.count} versions`;
-      if (key === 'versions.viewingHistoryBanner') return `Viewing v${params?.version}`;
+      if (key === 'versions.minutesAgo') {return `${params?.count}m ago`;}
+      if (key === 'versions.hoursAgo') {return `${params?.count}h ago`;}
+      if (key === 'versions.daysAgo') {return `${params?.count}d ago`;}
+      if (key === 'versions.totalVersions') {return `${params?.count} versions`;}
+      if (key === 'versions.viewingHistoryBanner') {return `Viewing v${params?.version}`;}
       if (key === 'versions.rollbackConfirm.description')
-        return `Rollback to v${params?.version}?`;
+        {return `Rollback to v${params?.version}?`;}
       return map[key] ?? key;
     };
     return t;

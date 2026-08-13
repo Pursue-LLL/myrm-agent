@@ -197,7 +197,7 @@ const UserMessage = React.memo(
           return;
         }
         if (e.key === 'Enter' && !e.shiftKey) {
-          if (e.nativeEvent.isComposing || isLoading) return;
+          if (e.nativeEvent.isComposing || isLoading) {return;}
           e.preventDefault();
           const trimmed = editText.trim();
           if (trimmed && onEditSubmit) {
@@ -370,7 +370,7 @@ const UserMessage = React.memo(
                   messageId={messageId}
                   onPreview={() => {
                     const idx = imageFiles.findIndex((f) => f.fileName === file.fileName);
-                    if (idx !== -1) setLightboxIndex(idx);
+                    if (idx !== -1) {setLightboxIndex(idx);}
                   }}
                 />
               ) : (

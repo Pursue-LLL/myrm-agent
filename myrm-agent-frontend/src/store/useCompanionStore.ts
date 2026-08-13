@@ -218,7 +218,7 @@ const useCompanionStore = create<CompanionStore>()(
         const s = get();
         const today = getLocalDateKey();
         const remaining = getEffectiveSnacks(s.snacksRemaining, s.lastSnackReset);
-        if (remaining <= 0) return false;
+        if (remaining <= 0) {return false;}
         set({
           snacksRemaining: remaining - 1,
           lastSnackReset: today,
@@ -231,10 +231,10 @@ const useCompanionStore = create<CompanionStore>()(
 
       canTriggerObserver: (effectiveRarity: Rarity) => {
         const s = get();
-        if (!s.enabled || s.muted) return false;
+        if (!s.enabled || s.muted) {return false;}
         const { maxPerSession } = getObserverLimits(effectiveRarity);
-        if (s.observerCount >= maxPerSession) return false;
-        if (Date.now() - s.lastObserverTrigger < OBSERVER_DEBOUNCE_MS) return false;
+        if (s.observerCount >= maxPerSession) {return false;}
+        if (Date.now() - s.lastObserverTrigger < OBSERVER_DEBOUNCE_MS) {return false;}
         return true;
       },
 
@@ -353,7 +353,7 @@ const useCompanionStore = create<CompanionStore>()(
         spriteConfig: state.spriteConfig,
       }),
       onRehydrateStorage: () => (state) => {
-        if (!state) return;
+        if (!state) {return;}
         const sanitized = sanitizePersistedSpriteState(state.spriteConfig, state.spriteEnabled);
         state.spriteConfig = sanitized.spriteConfig;
         state.spriteEnabled = sanitized.spriteEnabled;

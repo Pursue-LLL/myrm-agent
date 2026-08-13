@@ -494,7 +494,7 @@ export const wikiService = {
     agentId?: string | null,
   ): Promise<ConceptListResponse> => {
     const params = new URLSearchParams();
-    if (query) params.append('query', query);
+    if (query) {params.append('query', query);}
     params.append('limit', limit.toString());
     params.append('offset', offset.toString());
     return apiRequest<ConceptListResponse>(buildWikiApiPath(`/wiki/concepts?${params.toString()}`, agentId));

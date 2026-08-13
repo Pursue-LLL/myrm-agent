@@ -72,7 +72,7 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
 
   const handleSendMessage = useCallback(
     (text: string, visionFrames?: VisualFrame[]) => {
-      if (!text.trim()) return;
+      if (!text.trim()) {return;}
 
       if (visionFrames?.length) {
         const dataUrls = visionFrames.map((f) =>
@@ -107,12 +107,12 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
   // voice_bg_done_ messages are announced via the voice-bg-done event below
   // (concise title + safe queue), so they are skipped here.
   useEffect(() => {
-    if (voiceMode !== 'audio_only') return;
-    if (!voice.isActive || loading) return;
+    if (voiceMode !== 'audio_only') {return;}
+    if (!voice.isActive || loading) {return;}
 
     const lastMsg = messages[messages.length - 1];
-    if (!lastMsg || lastMsg.role !== 'assistant') return;
-    if (lastMsg.messageId?.startsWith('voice_bg_done_')) return;
+    if (!lastMsg || lastMsg.role !== 'assistant') {return;}
+    if (lastMsg.messageId?.startsWith('voice_bg_done_')) {return;}
 
     const content = lastMsg.content;
     if (content && content !== lastAssistantRef.current && content.length > 10) {
@@ -125,13 +125,13 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
   // When the agent is mid-utterance (agent_bridge), defer until it stops speaking.
   const pendingAnnounceRef = useRef<string[]>([]);
   useEffect(() => {
-    if (!voice.isActive) return;
+    if (!voice.isActive) {return;}
 
     const handleVoiceBgDone = (e: Event) => {
       const detail = (e as CustomEvent<{ title?: string; message?: string; chat_id?: string }>).detail;
-      if (!detail?.chat_id || !chatId || detail.chat_id !== chatId) return;
+      if (!detail?.chat_id || !chatId || detail.chat_id !== chatId) {return;}
       const text = detail.title || detail.message;
-      if (!text) return;
+      if (!text) {return;}
       if (voice.sessionState === 'speaking') {
         pendingAnnounceRef.current.push(text);
         return;
@@ -145,7 +145,7 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
 
   // Flush deferred announcements once the agent stops speaking.
   useEffect(() => {
-    if (pendingAnnounceRef.current.length === 0 || voice.sessionState === 'speaking') return;
+    if (pendingAnnounceRef.current.length === 0 || voice.sessionState === 'speaking') {return;}
     const pending = pendingAnnounceRef.current;
     pendingAnnounceRef.current = [];
     for (const text of pending) {
@@ -161,7 +161,7 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
     }
   }, [voice]);
 
-  if (!voiceEnabled) return null;
+  if (!voiceEnabled) {return null;}
 
   return (
     <>

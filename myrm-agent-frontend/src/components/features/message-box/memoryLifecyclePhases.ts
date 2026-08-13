@@ -49,7 +49,7 @@ export function memoryOperationMatchesChat(
   payload: MemoryOperationStreamPayload,
   chatId: string | null | undefined,
 ): boolean {
-  if (!chatId) return false;
+  if (!chatId) {return false;}
   const resolved = eventChatId(payload);
   return resolved === chatId;
 }
@@ -84,12 +84,12 @@ export function resolveMessageCreatedAtMs(
 export function memoryEventTimestampMs(payload: MemoryOperationStreamPayload): number | null {
   if (typeof payload.occurred_at === 'string') {
     const ms = Date.parse(payload.occurred_at);
-    if (Number.isFinite(ms)) return ms;
+    if (Number.isFinite(ms)) {return ms;}
   }
   const metaOccurred = payload.metadata?.occurred_at;
   if (typeof metaOccurred === 'string') {
     const ms = Date.parse(metaOccurred);
-    if (Number.isFinite(ms)) return ms;
+    if (Number.isFinite(ms)) {return ms;}
   }
   return null;
 }
@@ -106,9 +106,9 @@ export function isMemoryEventForMessage(
   chatId: string,
   messageCreatedAtMs: number,
 ): boolean {
-  if (!memoryOperationMatchesChat(payload, chatId)) return false;
+  if (!memoryOperationMatchesChat(payload, chatId)) {return false;}
   const eventMs = memoryEventTimestampMs(payload);
-  if (eventMs == null) return false;
+  if (eventMs == null) {return false;}
   return eventMs >= messageCreatedAtMs - MESSAGE_EVENT_SKEW_MS;
 }
 
@@ -117,7 +117,7 @@ export function isTraceMemoryEventForMessage(
   messageCreatedAtMs: number,
 ): boolean {
   const eventMs = traceMemoryEventTimestampMs(event);
-  if (eventMs == null) return false;
+  if (eventMs == null) {return false;}
   return eventMs >= messageCreatedAtMs - MESSAGE_EVENT_SKEW_MS;
 }
 
@@ -233,9 +233,9 @@ function ledgerKindFromTraceEvent(event: TraceMemoryEventLike): string {
   if (event.kind && event.kind.trim()) {
     return event.kind.trim();
   }
-  if (event.phase === 'write') return 'write';
-  if (event.phase === 'observe') return 'extract';
-  if (event.phase === 'recall' || event.phase === 'inject') return 'recall';
+  if (event.phase === 'write') {return 'write';}
+  if (event.phase === 'observe') {return 'extract';}
+  if (event.phase === 'recall' || event.phase === 'inject') {return 'recall';}
   return '';
 }
 

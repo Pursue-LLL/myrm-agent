@@ -53,7 +53,7 @@ export function usePetSurfaceHost({
   const { unread, clearUnread } = usePetSurfaceUnread(poppedOut);
 
   const buildSurfacePayload = useCallback((): PetSurfaceStatePayload | null => {
-    if (!payloadBase.sheetUrl) return null;
+    if (!payloadBase.sheetUrl) {return null;}
     return {
       ...payloadBase,
       unread,
@@ -89,7 +89,7 @@ export function usePetSurfaceHost({
   }, [surfaceMode, handlePopIn, handlePopOut]);
 
   useEffect(() => {
-    if (!isTauri || !enabled || !payloadBase.sheetUrl) return;
+    if (!isTauri || !enabled || !payloadBase.sheetUrl) {return;}
 
     if (surfaceMode !== 'popped-out') {
       void hidePetSurface();
@@ -105,12 +105,12 @@ export function usePetSurfaceHost({
   }, [isTauri, enabled, payloadBase.sheetUrl, surfaceMode, petSize]);
 
   useEffect(() => {
-    if (!poppedOut || !enabled || !payloadBase.sheetUrl) return;
+    if (!poppedOut || !enabled || !payloadBase.sheetUrl) {return;}
     pushSurfaceState();
   }, [poppedOut, enabled, payloadBase.sheetUrl, pushSurfaceState]);
 
   useEffect(() => {
-    if (!isTauri) return;
+    if (!isTauri) {return;}
 
     let unlisten: (() => void) | undefined;
     void listenPetSurfaceControl((control) => {

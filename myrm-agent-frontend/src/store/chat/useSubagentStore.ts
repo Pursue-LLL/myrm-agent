@@ -176,7 +176,7 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
 
   updateProgress: (taskId, progress, lastTool) =>
     set((state) => {
-      if (!state.nodes[taskId]) return state;
+      if (!state.nodes[taskId]) {return state;}
       return {
         nodes: {
           ...state.nodes,
@@ -192,7 +192,7 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
   updateEstimate: (taskId, etaSeconds) =>
     set((state) => {
       const node = state.nodes[taskId];
-      if (!node || !node.startedAt) return state;
+      if (!node || !node.startedAt) {return state;}
       const elapsedMs = Date.now() - node.startedAt;
       const estimatedTotalDuration = elapsedMs + etaSeconds * 1000;
       return {
@@ -205,7 +205,7 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
 
   dismissOvertime: (taskId) =>
     set((state) => {
-      if (!state.nodes[taskId]) return state;
+      if (!state.nodes[taskId]) {return state;}
       return {
         nodes: {
           ...state.nodes,
@@ -216,7 +216,7 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
 
   markStale: (taskId, staleDurationSeconds, wastedTokens) =>
     set((state) => {
-      if (!state.nodes[taskId]) return state;
+      if (!state.nodes[taskId]) {return state;}
       return {
         nodes: {
           ...state.nodes,
@@ -232,7 +232,7 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
 
   dismissStale: (taskId) =>
     set((state) => {
-      if (!state.nodes[taskId]) return state;
+      if (!state.nodes[taskId]) {return state;}
       return {
         nodes: {
           ...state.nodes,
@@ -243,7 +243,7 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
 
   completeNode: (taskId, status, error) =>
     set((state) => {
-      if (!state.nodes[taskId]) return state;
+      if (!state.nodes[taskId]) {return state;}
       return {
         nodes: {
           ...state.nodes,
@@ -261,7 +261,7 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
     set((state) => {
       const map = { ...state.nodes };
       nodes.forEach((n) => {
-        if (n.internal) return;
+        if (n.internal) {return;}
         const existing = map[n.task_id];
         const apiTeammate = (n.teammate_messages ?? []).map((row) => normalizeTeammateEntry(row));
         // 防回退：本地已是终态（cancelled/completed/failed 等）的节点，
@@ -286,7 +286,7 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
       let changed = false;
       for (const taskId of targets) {
         const node = nodes[taskId];
-        if (!node) continue;
+        if (!node) {continue;}
         const prev = node.teammateMessages ?? [];
         if (entry.message_id && prev.some((m) => m.message_id === entry.message_id)) {
           continue;
@@ -297,17 +297,17 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
         };
         changed = true;
       }
-      if (!changed) return state;
+      if (!changed) {return state;}
       return { nodes };
     }),
 
   appendStream: (taskId, entry) =>
     set((state) => {
       const node = state.nodes[taskId];
-      if (!node) return state;
+      if (!node) {return state;}
       const prev = node.stream ?? [];
       const last = prev[prev.length - 1];
-      if (last?.kind === entry.kind && last.text === entry.text) return state;
+      if (last?.kind === entry.kind && last.text === entry.text) {return state;}
       const next = prev.length >= MAX_STREAM ? [...prev.slice(1), entry] : [...prev, entry];
       return {
         nodes: { ...state.nodes, [taskId]: { ...node, stream: next } },
@@ -331,9 +331,9 @@ const OVERTIME_NO_ETA_THRESHOLD_MS = 90_000;
 const OVERTIME_NO_ETA_PROGRESS_THRESHOLD = 30;
 
 export function isNodeOvertime(node: SubagentNode): boolean {
-  if (node.status !== 'running' || !node.startedAt || node.overtimeDismissed) return false;
+  if (node.status !== 'running' || !node.startedAt || node.overtimeDismissed) {return false;}
   const elapsed = Date.now() - node.startedAt;
-  if (elapsed < OVERTIME_ABSOLUTE_THRESHOLD_MS) return false;
+  if (elapsed < OVERTIME_ABSOLUTE_THRESHOLD_MS) {return false;}
   if (node.estimatedTotalDuration) {
     return elapsed > node.estimatedTotalDuration * OVERTIME_RATIO;
   }

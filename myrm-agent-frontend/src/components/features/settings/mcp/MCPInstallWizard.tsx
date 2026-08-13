@@ -35,7 +35,7 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
     setError(null);
     getMCPRegistryDetail(qualifiedName)
       .then((d) => {
-        if (cancelled) return;
+        if (cancelled) {return;}
         setDetail(d);
         const initial: Record<string, string> = {};
         d.envVars.forEach((ev) => {
@@ -44,11 +44,11 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
         setEnvValues(initial);
       })
       .catch((e) => {
-        if (cancelled) return;
+        if (cancelled) {return;}
         setError(e instanceof Error ? e.message : t('mcpRegistryLoadFailed'));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {setLoading(false);}
       });
     return () => {
       cancelled = true;
@@ -56,7 +56,7 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
   }, [qualifiedName, t]);
 
   const handleInstall = useCallback(async () => {
-    if (!detail) return;
+    if (!detail) {return;}
 
     const missingRequired = detail.envVars.filter((ev) => ev.required && !envValues[ev.name]?.trim());
     if (missingRequired.length > 0) {
@@ -99,7 +99,7 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
     );
   }
 
-  if (!detail) return null;
+  if (!detail) {return null;}
 
   return (
     <div className="space-y-5">
@@ -210,7 +210,7 @@ function buildConfigFromDetail(
   const envEntries = Object.entries(envValues).filter(([, v]) => v.trim());
   const extra: Record<string, unknown> = { registryQualifiedName: detail.qualifiedName };
   if (type === 'stdio') {
-    for (const [k, v] of envEntries) extra[k] = v;
+    for (const [k, v] of envEntries) {extra[k] = v;}
   }
   config.extra_params = extra;
 

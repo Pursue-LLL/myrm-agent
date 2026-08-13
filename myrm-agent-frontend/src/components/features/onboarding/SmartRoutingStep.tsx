@@ -24,9 +24,9 @@ interface SmartRoutingStepProps {
 
 function classifyModel(modelName: string): 'lite' | 'reasoning' | 'standard' {
   const lower = modelName.toLowerCase();
-  if (REASONING_MODEL_KEYWORDS.some((p) => lower.includes(p))) return 'reasoning';
-  if (LITE_MODEL_KEYWORDS.some((p) => lower.includes(p))) return 'lite';
-  if (LITE_SIZE_RE.test(lower)) return 'lite';
+  if (REASONING_MODEL_KEYWORDS.some((p) => lower.includes(p))) {return 'reasoning';}
+  if (LITE_MODEL_KEYWORDS.some((p) => lower.includes(p))) {return 'lite';}
+  if (LITE_SIZE_RE.test(lower)) {return 'lite';}
   return 'standard';
 }
 
@@ -42,7 +42,7 @@ export default function SmartRoutingStep({ onComplete, onSkip }: SmartRoutingSte
   const setRoutingReasoningModel = useProviderStore((s) => s.setRoutingReasoningModel);
 
   const recommendation = useMemo(() => {
-    if (enabledModels.length < 2) return null;
+    if (enabledModels.length < 2) {return null;}
 
     const classified = enabledModels.map((m) => ({
       ...m,
@@ -57,7 +57,7 @@ export default function SmartRoutingStep({ onComplete, onSkip }: SmartRoutingSte
       (m) => m.tier === 'reasoning' && !(m.providerId === baseModel?.providerId && m.model === baseModel?.model),
     );
 
-    if (!liteCandidate && !reasoningCandidate) return null;
+    if (!liteCandidate && !reasoningCandidate) {return null;}
 
     return { lite: liteCandidate, reasoning: reasoningCandidate };
   }, [enabledModels, defaultModelConfig.baseModel.primary]);

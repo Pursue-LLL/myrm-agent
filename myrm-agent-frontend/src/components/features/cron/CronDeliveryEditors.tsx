@@ -124,9 +124,9 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
   }, [serverChannel, rawTarget]);
 
   const handleChannelChange = async (ch: string) => {
-    if (ch === localChannel) return;
+    if (ch === localChannel) {return;}
     setLocalChannel(ch);
-    if (ch === 'webhook' || ch in IM_CHANNELS) return;
+    if (ch === 'webhook' || ch in IM_CHANNELS) {return;}
     setSaving(true);
     try {
       await updateCronJob(job.id, { delivery: { channel: toApiChannel(ch) } });
@@ -162,7 +162,7 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
   const imTargetEmpty = !imTarget.trim();
 
   const handleImSave = async () => {
-    if (imTargetRequired && imTargetEmpty) return;
+    if (imTargetRequired && imTargetEmpty) {return;}
     setSaving(true);
     try {
       const finalTarget = localChannel === 'whatsapp' ? toWaTarget(imTarget) : imTarget.trim();
@@ -289,7 +289,7 @@ export function FailureDeliveryEditor({ job, onUpdated }: EditorProps) {
         return;
       }
     }
-    if (failImRequired && failImEmpty) return;
+    if (failImRequired && failImEmpty) {return;}
     setSaving(true);
     try {
       let payload: { channel: string; target?: string };

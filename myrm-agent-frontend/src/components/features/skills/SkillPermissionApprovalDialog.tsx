@@ -113,7 +113,7 @@ export function SkillPermissionApprovalDialog({
   const t = useTranslations('skills.permissions');
   const [selectedTemplate, setSelectedTemplate] = useState<PermissionTemplateType | ''>('');
 
-  if (!request) return null;
+  if (!request) {return null;}
 
   const hasDangerousPermissions = request.requiredPermissions.some(isDangerousPermission);
   const dangerousPermissions = request.requiredPermissions.filter(isDangerousPermission);

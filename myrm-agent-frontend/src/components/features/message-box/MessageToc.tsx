@@ -87,7 +87,7 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, messageId, isSt
 
   // 2. 滚动同步 (Scroll Sync)
   useEffect(() => {
-    if (!containerRef.current || toc.length === 0) return;
+    if (!containerRef.current || toc.length === 0) {return;}
 
     // 清理旧的 observer
     if (observerRef.current) {

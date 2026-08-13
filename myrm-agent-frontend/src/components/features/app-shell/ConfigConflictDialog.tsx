@@ -61,7 +61,7 @@ export const ConfigConflictDialog = ({
   onUseServer,
   t = (key, params?) => {
     const raw = defaultTranslations[key as keyof typeof defaultTranslations] || key;
-    if (!params) return raw;
+    if (!params) {return raw;}
     return Object.entries(params).reduce((s, [k, v]) => s.replace(`{${k}}`, v), raw);
   },
 }: ConfigConflictDialogProps) => {

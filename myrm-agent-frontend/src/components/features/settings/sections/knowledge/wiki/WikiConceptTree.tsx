@@ -78,7 +78,7 @@ export function WikiConceptTree({
               isSelected && 'bg-muted border-l-2 border-l-primary',
             )}
             onClick={(e) => {
-              if ((e.target as HTMLElement).closest('[data-wiki-node-action]')) return;
+              if ((e.target as HTMLElement).closest('[data-wiki-node-action]')) {return;}
               if (node.data.is_dir) {
                 node.toggle();
               } else {

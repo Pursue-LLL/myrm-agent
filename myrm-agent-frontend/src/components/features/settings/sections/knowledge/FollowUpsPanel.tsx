@@ -41,8 +41,8 @@ function formatDueWindowEn(earliestMs: number): string {
     const overdue = Math.abs(diffHours);
     return overdue < 24 ? `${overdue}h overdue` : `${Math.round(overdue / 24)}d overdue`;
   }
-  if (diffHours < 1) return '<1h';
-  if (diffHours < 24) return `${diffHours}h`;
+  if (diffHours < 1) {return '<1h';}
+  if (diffHours < 24) {return `${diffHours}h`;}
   return `${Math.round(diffHours / 24)}d`;
 }
 
@@ -55,8 +55,8 @@ function formatDueWindowZh(earliestMs: number): string {
     const overdue = Math.abs(diffHours);
     return overdue < 24 ? `逾期${overdue}小时` : `逾期${Math.round(overdue / 24)}天`;
   }
-  if (diffHours < 1) return '不到1小时';
-  if (diffHours < 24) return `${diffHours}小时后`;
+  if (diffHours < 1) {return '不到1小时';}
+  if (diffHours < 24) {return `${diffHours}小时后`;}
   return `${Math.round(diffHours / 24)}天后`;
 }
 

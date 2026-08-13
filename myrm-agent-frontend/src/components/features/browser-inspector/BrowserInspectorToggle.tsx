@@ -15,7 +15,7 @@ const BrowserInspectorToggle: React.FC = () => {
   const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
   const hasScopedView = Boolean(selectScopedBrowserViewData(viewData, chatId));
 
-  if (!isBrowserActive || !hasScopedView) return null;
+  if (!isBrowserActive || !hasScopedView) {return null;}
 
   return (
     <button

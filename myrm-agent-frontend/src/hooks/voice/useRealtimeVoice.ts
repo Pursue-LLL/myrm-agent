@@ -96,7 +96,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   }, []);
 
   const persistTranscript = useCallback(async () => {
-    if (!chatId || transcriptBufferRef.current.length === 0) return;
+    if (!chatId || transcriptBufferRef.current.length === 0) {return;}
     try {
       await apiRequest('/voice/realtime-transcript', {
         method: 'POST',
@@ -145,13 +145,13 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
   }, []);
 
   const flushPendingResponse = useCallback(() => {
-    if (!responsePendingRef.current) return;
+    if (!responsePendingRef.current) {return;}
     responsePendingRef.current = false;
     requestResponseCreate();
   }, [requestResponseCreate]);
 
   const connect = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled) {return;}
     closedRef.current = false;
     setState('connecting');
     setInterimText('');
@@ -195,11 +195,11 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions): UseRealtimeV
       channelRef.current = channel;
 
       channel.addEventListener('open', () => {
-        if (!closedRef.current) setState('listening');
+        if (!closedRef.current) {setState('listening');}
       });
 
       channel.addEventListener('message', (event) => {
-        if (closedRef.current) return;
+        if (closedRef.current) {return;}
         handleEventRef.current(event.data);
       });
 

@@ -11,9 +11,9 @@ const MAX_REPOS = 3;
 
 export function normalizeRepoInput(raw: string): string | null {
   const slug = raw.trim();
-  if (!slug.includes('/')) return null;
+  if (!slug.includes('/')) {return null;}
   const [owner, name] = slug.split('/', 2);
-  if (!owner?.trim() || !name?.trim()) return null;
+  if (!owner?.trim() || !name?.trim()) {return null;}
   return `${owner.trim()}/${name.trim()}`;
 }
 
@@ -135,7 +135,7 @@ export function SecuritySetupPanel({
 
     for (const input of repoInputs) {
       const trimmed = input.trim();
-      if (!trimmed) continue;
+      if (!trimmed) {continue;}
       const slug = normalizeRepoInput(input);
       if (!slug) {
         invalid.push(trimmed);
@@ -145,7 +145,7 @@ export function SecuritySetupPanel({
         seen.add(slug);
         cleaned.push(slug);
       }
-      if (cleaned.length >= MAX_REPOS) break;
+      if (cleaned.length >= MAX_REPOS) {break;}
     }
 
     if (invalid.length > 0) {

@@ -125,11 +125,11 @@ const SkillsSection = memo(() => {
   const [isBatchImportOpen, setIsBatchImportOpen] = useState(false);
   const [isPluginImportOpen, setIsPluginImportOpen] = useState(false);
   const handleExport = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {return;}
     try {
       setIsSyncing(true);
       const res = await fetch(`/api/v1/skills/export`);
-      if (!res.ok) throw new Error('Export failed');
+      if (!res.ok) {throw new Error('Export failed');}
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -155,7 +155,7 @@ const SkillsSection = memo(() => {
   }, [fetchMarketSkills, fetchUserSkillConfig, fetchLocalSkillPaths, fetchLocalSkills, fetchUnreviewedCount]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) {return;}
 
     const refreshGrowthState = () => {
       void Promise.all([fetchUnreviewedCount(), fetchUserSkillConfig(true), fetchLocalSkills()]);
@@ -209,7 +209,7 @@ const SkillsSection = memo(() => {
       skills = skills.filter((s) => s.usage_stats?.lifecycle_status === statusFilter);
     } else {
       skills = skills.filter((s) => {
-        if (s.usage_stats?.lifecycle_status === 'archived') return false;
+        if (s.usage_stats?.lifecycle_status === 'archived') {return false;}
         const status = getSkillStatus(s, isSkillEnabled(s.id));
         return status === statusFilter;
       });
@@ -229,11 +229,11 @@ const SkillsSection = memo(() => {
     skills.sort((a, b) => {
       const aTime = a.usage_stats?.last_used_at ? new Date(a.usage_stats.last_used_at).getTime() : 0;
       const bTime = b.usage_stats?.last_used_at ? new Date(b.usage_stats.last_used_at).getTime() : 0;
-      if (aTime !== bTime) return bTime - aTime;
+      if (aTime !== bTime) {return bTime - aTime;}
 
       const aCount = a.usage_stats?.call_count || 0;
       const bCount = b.usage_stats?.call_count || 0;
-      if (aCount !== bCount) return bCount - aCount;
+      if (aCount !== bCount) {return bCount - aCount;}
 
       const aUpdate = new Date(a.updated_at).getTime();
       const bUpdate = new Date(b.updated_at).getTime();
@@ -326,7 +326,7 @@ const SkillsSection = memo(() => {
 
   const handleBatchToggle = useCallback(
     async (enable: boolean) => {
-      if (!user?.id) return;
+      if (!user?.id) {return;}
       const ids = filteredInstalledSkills.map((s) => s.id);
       try {
         await batchToggleSkills(ids, enable);
@@ -435,7 +435,7 @@ const SkillsSection = memo(() => {
 
   const handleApprovePermissions = useCallback(
     async (template?: string) => {
-      if (!user?.id || !pendingApproval) return;
+      if (!user?.id || !pendingApproval) {return;}
 
       try {
         let response: Response;
@@ -496,7 +496,7 @@ const SkillsSection = memo(() => {
   }, [t]);
 
   const handleForceEnable = useCallback(async () => {
-    if (!user?.id || !blockedSkill) return;
+    if (!user?.id || !blockedSkill) {return;}
 
     try {
       const { enableSkill } = useSkillStore.getState();
@@ -611,7 +611,7 @@ const SkillsSection = memo(() => {
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) void handleBackupRestore(file);
+                      if (file) {void handleBackupRestore(file);}
                       e.target.value = '';
                     }}
                   />

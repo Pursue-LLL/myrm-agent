@@ -142,7 +142,7 @@ export default function MobileTakeoverBoard({ chatId }: { chatId: string }) {
   }, [chatId, takeoverMessageId, takeoverReason, takeoverPageUrl, t]);
 
   useEffect(() => {
-    if (!lightboxSrc) return;
+    if (!lightboxSrc) {return;}
     document.body.style.overflow = 'hidden';
     const handler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {

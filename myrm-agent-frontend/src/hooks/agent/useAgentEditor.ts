@@ -286,7 +286,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
 
   // 新建时预填默认模型
   useEffect(() => {
-    if (!isNew) return;
+    if (!isNew) {return;}
     const { defaultModelConfig } = useProviderStore.getState();
     const sel = defaultModelConfig?.baseModel?.primary;
     if (sel) {
@@ -397,7 +397,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   }, [agent]);
 
   const handleShowSystemPrompt = useCallback(async () => {
-    if (!agentId || !agent) return;
+    if (!agentId || !agent) {return;}
 
     setLoadingSystemPrompt(true);
     try {
@@ -428,7 +428,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   }, [agentId, agent, t]);
 
   const handleSave = useCallback(async () => {
-    if (isReadonly) return;
+    if (isReadonly) {return;}
     if (!name.trim()) {
       toast({ title: t('agent.nameRequired'), variant: 'destructive' });
       return;
@@ -653,17 +653,17 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       dialogPolicy?: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent';
       sessionRecording?: 'off' | 'on_failure' | 'always';
     }) => {
-      if (data.selectedSkillIds !== undefined) setSelectedSkillIds(data.selectedSkillIds);
-      if (data.skillConfigs !== undefined) setSkillConfigs(data.skillConfigs);
-      if (data.selectedMcpNames !== undefined) setSelectedMcpNames(data.selectedMcpNames);
-      if (data.mcpToolSelections !== undefined) setMcpToolSelections(data.mcpToolSelections);
-      if (data.systemPrompt !== undefined) setSystemPrompt(data.systemPrompt);
-      if (data.useGlobalInstruction !== undefined) setUseGlobalInstruction(data.useGlobalInstruction);
-      if (data.enabledBuiltinTools !== undefined) setEnabledBuiltinTools(data.enabledBuiltinTools);
-      if (data.autoRestoreDomains !== undefined) setAutoRestoreDomains(data.autoRestoreDomains);
-      if (data.browserSource !== undefined) setBrowserSource(data.browserSource || undefined);
-      if (data.dialogPolicy !== undefined) setDialogPolicy(data.dialogPolicy);
-      if (data.sessionRecording !== undefined) setSessionRecording(data.sessionRecording);
+      if (data.selectedSkillIds !== undefined) {setSelectedSkillIds(data.selectedSkillIds);}
+      if (data.skillConfigs !== undefined) {setSkillConfigs(data.skillConfigs);}
+      if (data.selectedMcpNames !== undefined) {setSelectedMcpNames(data.selectedMcpNames);}
+      if (data.mcpToolSelections !== undefined) {setMcpToolSelections(data.mcpToolSelections);}
+      if (data.systemPrompt !== undefined) {setSystemPrompt(data.systemPrompt);}
+      if (data.useGlobalInstruction !== undefined) {setUseGlobalInstruction(data.useGlobalInstruction);}
+      if (data.enabledBuiltinTools !== undefined) {setEnabledBuiltinTools(data.enabledBuiltinTools);}
+      if (data.autoRestoreDomains !== undefined) {setAutoRestoreDomains(data.autoRestoreDomains);}
+      if (data.browserSource !== undefined) {setBrowserSource(data.browserSource || undefined);}
+      if (data.dialogPolicy !== undefined) {setDialogPolicy(data.dialogPolicy);}
+      if (data.sessionRecording !== undefined) {setSessionRecording(data.sessionRecording);}
     },
     [],
   );

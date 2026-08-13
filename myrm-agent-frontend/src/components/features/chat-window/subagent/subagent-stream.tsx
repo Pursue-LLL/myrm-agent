@@ -67,7 +67,7 @@ export const NodeStream = ({ stream, isRunning }: { stream: StreamEntry[]; isRun
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const visibleEntries = useMemo(() => {
-    if (expanded) return stream;
+    if (expanded) {return stream;}
     return isRunning ? stream.slice(-5) : stream.slice(-2);
   }, [stream, isRunning, expanded]);
 
@@ -77,7 +77,7 @@ export const NodeStream = ({ stream, isRunning }: { stream: StreamEntry[]; isRun
     }
   }, [visibleEntries.length, isRunning]);
 
-  if (stream.length === 0) return null;
+  if (stream.length === 0) {return null;}
 
   const hasMore = stream.length > (isRunning ? 5 : 2);
 

@@ -78,7 +78,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   ]);
 
   useEffect(() => {
-    if (!selectedChannel) return;
+    if (!selectedChannel) {return;}
 
     const fetchTopics = async () => {
       setLoadingTopics(true);
@@ -98,7 +98,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   }, [selectedChannel, messages.topicsLoadError]);
 
   const handleBindTopic = async (topicId: string, agentId: string) => {
-    if (!selectedChannel) return;
+    if (!selectedChannel) {return;}
     setSaving(topicId);
     try {
       const newAgentId = agentId === 'none' ? null : agentId;
@@ -116,7 +116,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   };
 
   const handleSetThreadSharingMode = async (topicId: string, mode: ThreadSharingMode) => {
-    if (!selectedChannel) return;
+    if (!selectedChannel) {return;}
     setSaving(topicId);
     try {
       const topic = topics.find((item) => item.topicId === topicId);
@@ -134,7 +134,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   };
 
   const handleSetReplyMode = async (topicId: string, mode: ReplyMode) => {
-    if (!selectedChannel) return;
+    if (!selectedChannel) {return;}
     setSaving(topicId);
     try {
       const topic = topics.find((item) => item.topicId === topicId);
@@ -164,7 +164,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     minutes: number,
     action: DraftTimeoutAction,
   ) => {
-    if (!selectedChannel) return;
+    if (!selectedChannel) {return;}
     setSaving(topicId);
     try {
       const topic = topics.find((item) => item.topicId === topicId);
@@ -192,7 +192,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   };
 
   const handleSetGlobalAgent = async (agentId: string) => {
-    if (!selectedChannel) return;
+    if (!selectedChannel) {return;}
     setSaving('global');
     try {
       const newAgentId = agentId === 'none' ? null : agentId;
@@ -208,7 +208,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   };
 
   const handleBindTopicWorkspace = async (topicId: string, projectId: string | null) => {
-    if (!selectedChannel) return;
+    if (!selectedChannel) {return;}
     setSaving(topicId);
     try {
       const topic = topics.find((item) => item.topicId === topicId);

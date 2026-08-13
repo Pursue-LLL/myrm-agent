@@ -17,7 +17,7 @@ const CHEAP_MODEL_KEYWORDS = ['mini', 'flash', 'haiku', 'nano', 'lite', 'small']
 function pickCheapestModel(
   enabledModels: { providerId: string; model: string }[],
 ): SingleModelSelection | null {
-  if (enabledModels.length === 0) return null;
+  if (enabledModels.length === 0) {return null;}
   const cheap = enabledModels.find((m) =>
     CHEAP_MODEL_KEYWORDS.some((k) => m.model.toLowerCase().includes(k)),
   );
@@ -43,7 +43,7 @@ export default function SmartGuardStep({ onComplete, onSkip }: SmartGuardStepPro
   const [selectedModel, setSelectedModel] = useState<SingleModelSelection | null>(preselected);
 
   const handleEnable = useCallback(() => {
-    if (!selectedModel) return;
+    if (!selectedModel) {return;}
     const syncManager = getConfigSyncManager();
     const current = syncManager.get('securityConfig') as SecurityConfigValue | null;
     syncManager.set('securityConfig', {

@@ -49,7 +49,7 @@ export function InstalledPetRow({
 }: InstalledPetRowProps) {
   const t = useTranslations('companion');
 
-  if (pets.length === 0) return null;
+  if (pets.length === 0) {return null;}
 
   return (
     <div className="space-y-2" data-testid="pet-gallery-installed">

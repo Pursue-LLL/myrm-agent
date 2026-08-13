@@ -220,7 +220,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   );
 
   const handleSharePreview = useCallback(async () => {
-    if (shareLoading) return;
+    if (shareLoading) {return;}
     setShareLoading(true);
     try {
       const pwd = sharePassword.trim() || undefined;
@@ -254,7 +254,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
 
   const fetchInlineContent = useCallback(async (): Promise<string | null> => {
     const cached = getCachedContent(artifact.id);
-    if (cached) return cached;
+    if (cached) {return cached;}
 
     try {
       const fullUrl = getStorageUrl(artifact.preview_url);
@@ -294,7 +294,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   );
 
   useEffect(() => {
-    if (!canInlinePreview || !inlineExpanded || inlineContent || inlineLoading || inlineFetchAttempted.current || isLargeFile) return;
+    if (!canInlinePreview || !inlineExpanded || inlineContent || inlineLoading || inlineFetchAttempted.current || isLargeFile) {return;}
     inlineFetchAttempted.current = true;
     let cancelled = false;
     setInlineLoading(true);
@@ -311,8 +311,8 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     if (!['code', 'document', 'svg', 'mermaid', 'html'].includes(artifact.type)) {
       return;
     }
-    if (isLargeFile) return;
-    if (getCachedContent(artifact.id)) return;
+    if (isLargeFile) {return;}
+    if (getCachedContent(artifact.id)) {return;}
 
     try {
       const fullUrl = getStorageUrl(artifact.preview_url);
@@ -367,7 +367,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   }, [artifact]);
 
   const handleRevealInFileManager = useCallback(async () => {
-    if (!artifact.file_path) return;
+    if (!artifact.file_path) {return;}
     try {
       if (isTauriRuntime()) {
         const { open } = await import('@tauri-apps/plugin-shell');
@@ -383,7 +383,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   }, [artifact, t]);
 
   const handleOpenWithDefaultApp = useCallback(async () => {
-    if (!artifact.file_path) return;
+    if (!artifact.file_path) {return;}
     try {
       if (isTauriRuntime()) {
         const { open } = await import('@tauri-apps/plugin-shell');
@@ -397,14 +397,14 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   }, [artifact, t]);
 
   const handleCopyPath = useCallback(async () => {
-    if (!artifact.file_path) return;
+    if (!artifact.file_path) {return;}
     await writeToClipboard(artifact.file_path);
     setPathCopied(true);
     setTimeout(() => setPathCopied(false), 2000);
   }, [artifact.file_path]);
 
   const handleIngestToWiki = useCallback(async () => {
-    if (ingestLoading) return;
+    if (ingestLoading) {return;}
     setIngestLoading(true);
     try {
       const agentId = useChatStore.getState().agentConfig?.agentId;

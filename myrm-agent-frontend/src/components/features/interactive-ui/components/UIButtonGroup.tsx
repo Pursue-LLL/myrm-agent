@@ -32,7 +32,7 @@ export const UIButtonGroup: React.FC<UIComponentProps> = ({ props, bindings, dat
   const normalizedOptions = options.map((opt) => (typeof opt === 'string' ? { value: opt, label: opt } : opt));
 
   const handleSelect = (optionValue: string) => {
-    if (disabled || !valuePath) return;
+    if (disabled || !valuePath) {return;}
 
     if (multiple) {
       const newValues = selectedValues.includes(optionValue)

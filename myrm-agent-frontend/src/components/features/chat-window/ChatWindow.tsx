@@ -310,8 +310,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
   useEffect(() => {
     const processInbox = async () => {
-      if (pendingInboxRef.current.length === 0) return;
-      if (useChatStore.getState().loading) return; // 再次检查确保安全
+      if (pendingInboxRef.current.length === 0) {return;}
+      if (useChatStore.getState().loading) {return;} // 再次检查确保安全
 
       const chunk = pendingInboxRef.current.shift();
       if (!chunk) {
@@ -354,7 +354,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       const { session_id, chunk } = customEvent.detail;
 
       // 只处理当前会话的流数据
-      if (session_id !== id) return;
+      if (session_id !== id) {return;}
 
       const store = useChatStore.getState();
 
@@ -424,9 +424,9 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
   // 处理 agent_id URL 参数 - 自动切换到智能代理模式并应用智能体配置
   useEffect(() => {
-    if (!agentIdFromUrl) return;
+    if (!agentIdFromUrl) {return;}
     // 避免重复应用同一个智能体
-    if (hasAppliedAgentRef.current === agentIdFromUrl) return;
+    if (hasAppliedAgentRef.current === agentIdFromUrl) {return;}
 
     const applyAgentConfig = async () => {
       try {

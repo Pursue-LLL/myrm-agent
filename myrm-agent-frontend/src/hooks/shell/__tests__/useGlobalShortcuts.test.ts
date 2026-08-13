@@ -52,7 +52,7 @@ describe('useGlobalShortcuts', () => {
       (type: string, fn: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) => {
         const capture = typeof options === 'boolean' ? options : !!(options as AddEventListenerOptions)?.capture;
         listeners.push({ type, fn, capture });
-        if (type === 'keydown') handler = fn as (e: KeyboardEvent) => void;
+        if (type === 'keydown') {handler = fn as (e: KeyboardEvent) => void;}
       },
     );
 

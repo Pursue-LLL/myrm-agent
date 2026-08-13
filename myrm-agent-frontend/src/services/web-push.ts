@@ -23,7 +23,7 @@ interface WebPushSubscriptionResponse {
 
 export async function fetchVapidPublicKey(): Promise<string> {
   const res = await fetch(getApiUrl('/web-push/vapid-key'));
-  if (!res.ok) throw new Error(`Failed to fetch VAPID key: ${res.status}`);
+  if (!res.ok) {throw new Error(`Failed to fetch VAPID key: ${res.status}`);}
   const data = (await res.json()) as WebPushVapidKeyResponse;
   return data.public_key;
 }
@@ -43,7 +43,7 @@ export async function registerSubscription(
       user_agent: userAgent,
     }),
   });
-  if (!res.ok) throw new Error(`Failed to register subscription: ${res.status}`);
+  if (!res.ok) {throw new Error(`Failed to register subscription: ${res.status}`);}
   const data = (await res.json()) as WebPushSubscriptionResponse;
   return data.endpoint_hash;
 }
@@ -54,7 +54,7 @@ export async function removeSubscription(endpoint: string): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ endpoint }),
   });
-  if (!res.ok) throw new Error(`Failed to unsubscribe: ${res.status}`);
+  if (!res.ok) {throw new Error(`Failed to unsubscribe: ${res.status}`);}
 }
 
 export async function sendTestPush(): Promise<number> {
@@ -63,7 +63,7 @@ export async function sendTestPush(): Promise<number> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({}),
   });
-  if (!res.ok) throw new Error(`Failed to send test push: ${res.status}`);
+  if (!res.ok) {throw new Error(`Failed to send test push: ${res.status}`);}
   const data = (await res.json()) as { delivered: number };
   return data.delivered;
 }

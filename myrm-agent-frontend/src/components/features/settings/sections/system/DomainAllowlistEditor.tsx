@@ -28,7 +28,7 @@ export function DomainAllowlistEditor({
 
   const handleAdd = useCallback(() => {
     const trimmed = newDomain.trim();
-    if (!trimmed) return;
+    if (!trimmed) {return;}
     onAddDomain(trimmed);
     setNewDomain('');
   }, [newDomain, onAddDomain]);

@@ -25,7 +25,7 @@ type CredentialsFilePanelProps = Pick<
 >;
 
 function CredentialExpiryBadge({ cred, t }: { cred: CredentialFile; t: ReturnType<typeof useTranslations> }) {
-  if (!cred.expiry_status || cred.expiry_status === 'error') return null;
+  if (!cred.expiry_status || cred.expiry_status === 'error') {return null;}
 
   if (cred.expiry_status === 'valid') {
     return (

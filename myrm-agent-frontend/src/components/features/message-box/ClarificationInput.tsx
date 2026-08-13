@@ -222,10 +222,10 @@ const ClarificationInput = ({
     buildStructuredClarificationAnswer(form, formSelections, formTexts);
 
   const handleSubmit = async () => {
-    if (submitting) return;
+    if (submitting) {return;}
 
     const finalAnswer = hasStructuredForm ? buildStructuredAnswer() : buildSingleAnswer();
-    if (!finalAnswer) return;
+    if (!finalAnswer) {return;}
 
     setSubmitting(true);
     try {
@@ -244,7 +244,7 @@ const ClarificationInput = ({
   };
 
   const handleSkip = async () => {
-    if (submitting) return;
+    if (submitting) {return;}
     setSubmitting(true);
     try {
       if (isResumeMode) {
@@ -262,7 +262,7 @@ const ClarificationInput = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.nativeEvent.isComposing) return;
+    if (e.nativeEvent.isComposing) {return;}
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();

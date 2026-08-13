@@ -92,7 +92,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
   }, [messageId, steps]);
 
   const handleLinkClick = (text: string) => {
-    if (!isUrl(text)) return;
+    if (!isUrl(text)) {return;}
     let url = text;
     if (text.startsWith('www.')) {
       url = `https://${text}`;
@@ -119,7 +119,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
 
   const toggleExpanded = () => setIsExpanded(!isExpanded);
 
-  if (steps.length === 0) return null;
+  if (steps.length === 0) {return null;}
 
   const latestStep = steps[steps.length - 1];
   const collapsedStep = (() => {

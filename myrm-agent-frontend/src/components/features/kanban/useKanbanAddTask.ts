@@ -66,7 +66,7 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
   }, []);
 
   const handleAddTask = useCallback(async () => {
-    if (!newTaskTitle.trim()) return;
+    if (!newTaskTitle.trim()) {return;}
     const isTriageColumn = addingColumn === 'triage';
     try {
       const parsedSkills = newTaskSkills

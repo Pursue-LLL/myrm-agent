@@ -113,8 +113,8 @@ export const MoveDialog: React.FC<MoveDialogProps> = ({ node, workspace, onCompl
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Enter') handleSubmit();
-      else if (e.key === 'Escape') onCancel();
+      if (e.key === 'Enter') {handleSubmit();}
+      else if (e.key === 'Escape') {onCancel();}
     },
     [handleSubmit, onCancel],
   );

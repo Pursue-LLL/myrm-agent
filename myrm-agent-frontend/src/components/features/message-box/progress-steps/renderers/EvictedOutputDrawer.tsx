@@ -185,7 +185,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
   const lines = useMemo(() => pageContent.split('\n'), [pageContent]);
 
   const allMatchIndices = useMemo(() => {
-    if (!searchTerm) return [] as number[];
+    if (!searchTerm) {return [] as number[];}
     const lowerSearch = searchTerm.toLowerCase();
     const indices: number[] = [];
     for (let i = 0; i < lines.length; i++) {
@@ -199,7 +199,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
   const matchCount = allMatchIndices.length;
 
   const highlightMatches = useMemo(() => {
-    if (!searchTerm) return new Set<number>();
+    if (!searchTerm) {return new Set<number>();}
     const matches = new Set<number>();
     for (const idx of allMatchIndices) {
       if (idx >= pageOffset && idx < pageOffset + lines.length) {
@@ -211,14 +211,14 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
 
   const renderInlineHighlight = useCallback(
     (line: string, isCurrent: boolean): React.ReactNode => {
-      if (!searchTerm) return line || ' ';
+      if (!searchTerm) {return line || ' ';}
       const parts: React.ReactNode[] = [];
       const lowerLine = line.toLowerCase();
       const lowerSearch = searchTerm.toLowerCase();
       let lastIdx = 0;
       let pos = lowerLine.indexOf(lowerSearch);
       while (pos !== -1) {
-        if (pos > lastIdx) parts.push(line.slice(lastIdx, pos));
+        if (pos > lastIdx) {parts.push(line.slice(lastIdx, pos));}
         parts.push(
           <mark
             key={pos}
@@ -234,7 +234,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
         lastIdx = pos + searchTerm.length;
         pos = lowerLine.indexOf(lowerSearch, lastIdx);
       }
-      if (lastIdx < line.length) parts.push(line.slice(lastIdx));
+      if (lastIdx < line.length) {parts.push(line.slice(lastIdx));}
       return parts.length > 0 ? <>{parts}</> : line || ' ';
     },
     [searchTerm],
@@ -242,7 +242,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
 
   const jumpToMatch = useCallback(
     (matchIdx: number) => {
-      if (allMatchIndices.length === 0) return;
+      if (allMatchIndices.length === 0) {return;}
       const wrappedIdx =
         ((matchIdx % allMatchIndices.length) + allMatchIndices.length) %
         allMatchIndices.length;
@@ -303,7 +303,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
                 <button
                   onClick={() => {
                     setSearchVisible(!searchVisible);
-                    if (!searchVisible) setTimeout(() => searchInputRef.current?.focus(), 50);
+                    if (!searchVisible) {setTimeout(() => searchInputRef.current?.focus(), 50);}
                   }}
                   className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
                   title={t('searchTitle')}

@@ -28,7 +28,7 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
     const load = async () => {
       try {
         const data = await apiRequest<CatalogResponse>('/integrations/catalog', { silent: true });
-        if (!mounted) return;
+        if (!mounted) {return;}
         const featured = FEATURED_SERVICE_IDS
           .map((id) => data.entries.find((e) => e.id === id))
           .filter((e): e is CatalogEntry => e != null);
@@ -39,9 +39,9 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
         }
         setEntries(resolved);
       } catch {
-        if (mounted) onSkip();
+        if (mounted) {onSkip();}
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {setLoading(false);}
       }
     };
     void load();
@@ -69,7 +69,7 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
     );
   }
 
-  if (entries.length === 0) return null;
+  if (entries.length === 0) {return null;}
 
   return (
     <div className="space-y-6">

@@ -138,7 +138,7 @@ export const BuiltinToolsPanel = ({
                 description={description}
                 checked={checked}
                 onCheckedChange={() => {
-                  if (disabled && !checked) return;
+                  if (disabled && !checked) {return;}
                   toggleBuiltinTool(id);
                 }}
                 icon={BUILTIN_TOOL_ICONS[id]}

@@ -64,7 +64,7 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
   const { sendAction } = useSelectionAction({ onSent: resetUI });
 
   useEffect(() => {
-    if (!editorInstance) return;
+    if (!editorInstance) {return;}
 
     const hideToolbar = () => {
       setVisible(false);
@@ -80,7 +80,7 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
       }
 
       const model = editorInstance.getModel();
-      if (!model) return;
+      if (!model) {return;}
 
       const selectedText = model.getValueInRange(sel);
       if (!selectedText.trim()) {
@@ -129,18 +129,18 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
     };
 
     const selectionDisposable = editorInstance.onDidChangeCursorSelection(() => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (debounceTimerRef.current) {clearTimeout(debounceTimerRef.current);}
       debounceTimerRef.current = setTimeout(computePosition, TOOLBAR_DEBOUNCE_MS);
     });
 
     const scrollDisposable = editorInstance.onDidScrollChange(() => {
-      if (visible) setVisible(false);
+      if (visible) {setVisible(false);}
     });
 
     return () => {
       selectionDisposable.dispose();
       scrollDisposable.dispose();
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (debounceTimerRef.current) {clearTimeout(debounceTimerRef.current);}
     };
   }, [editorInstance, visible]);
 
@@ -152,7 +152,7 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
 
   const buildSelectionContext = useCallback(
     (actionLabel: string, customInstruction?: string): string => {
-      if (!selection || !artifactId) return '';
+      if (!selection || !artifactId) {return '';}
 
       const lineRange =
         selection.startLine === selection.endLine
@@ -171,7 +171,7 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
 
   const executeAction = useCallback(
     (action: ActionType, customInstruction?: string) => {
-      if (!selection) return;
+      if (!selection) {return;}
 
       const actionLabels: Record<ActionType, string> = {
         modify: t('modify'),
@@ -181,7 +181,7 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
       };
 
       const message = buildSelectionContext(actionLabels[action], customInstruction);
-      if (!message) return;
+      if (!message) {return;}
 
       sendAction({ message });
     },
@@ -189,7 +189,7 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
   );
 
   const handleCopy = useCallback(async () => {
-    if (!selection) return;
+    if (!selection) {return;}
     await writeToClipboard(selection.text);
     setVisible(false);
   }, [selection]);
@@ -199,7 +199,7 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
   }, []);
 
   const handleModifySubmit = useCallback(() => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim()) {return;}
     executeAction('modify', inputValue.trim());
   }, [inputValue, executeAction]);
 
@@ -216,8 +216,8 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
     [handleModifySubmit],
   );
 
-  if (!visible || !selection) return null;
-  if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT) return null;
+  if (!visible || !selection) {return null;}
+  if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT) {return null;}
 
   const actions: { type: ActionType | 'copy'; icon: React.ReactNode; label: string; onClick: () => void }[] = [
     {

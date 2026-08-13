@@ -45,7 +45,7 @@ const SearchServiceCard = memo(
 
     // 处理启用按钮点击
     const handleEnableClick = async () => {
-      if (config.enabled) return;
+      if (config.enabled) {return;}
 
       if (conflictingService) {
         setConfirmEnableOpen(true);

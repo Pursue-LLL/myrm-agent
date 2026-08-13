@@ -23,7 +23,7 @@ import legacyRemapJson from '@shared/config/provider_legacy_remap.json';
 const LEGACY_PROVIDER_ID_REMAP: Readonly<Record<string, string>> = legacyRemapJson as Record<string, string>;
 
 export function remapLegacyProviderId(providerId: string): string {
-  if (!providerId) return providerId;
+  if (!providerId) {return providerId;}
   const trimmed = providerId.trim();
   const slug = trimmed.replace(/-/g, '_').toLowerCase();
   return LEGACY_PROVIDER_ID_REMAP[slug] ?? trimmed;
@@ -41,7 +41,7 @@ export function deriveRoutingProfile(provider: ProviderConfig): string {
 }
 
 function migrateSelection(sel: SingleModelSelection | null): SingleModelSelection | null {
-  if (!sel) return null;
+  if (!sel) {return null;}
   const nextId = remapLegacyProviderId(sel.providerId);
   return nextId === sel.providerId ? sel : { ...sel, providerId: nextId };
 }
@@ -55,7 +55,7 @@ function migrateModelSlot(slot: ModelSlot): ModelSlot {
 }
 
 function migrateRouting(cfg: RoutingConfig | null): RoutingConfig | null {
-  if (!cfg) return null;
+  if (!cfg) {return null;}
   return {
     enabled: cfg.enabled,
     lightModel: migrateModelSlot(cfg.lightModel),
@@ -66,7 +66,7 @@ function migrateRouting(cfg: RoutingConfig | null): RoutingConfig | null {
 function migrateVisionFallbackModel(
   value: SingleModelSelection | ModelSlot | null | undefined,
 ): ModelSlot | null {
-  if (!value) return null;
+  if (!value) {return null;}
   if (typeof value === 'object' && ('primary' in value || 'fallback' in value)) {
     return migrateModelSlot(value as ModelSlot);
   }
@@ -112,7 +112,7 @@ function migrateCustomModelInfo(info: Record<string, CustomModelInfo>): Record<s
 }
 
 function migrateVideoGeneration(cfg: VideoGenerationConfig | undefined): VideoGenerationConfig | undefined {
-  if (!cfg) return cfg;
+  if (!cfg) {return cfg;}
   const mapPid = (s: string) => remapLegacyProviderId(s);
   const provider = mapPid(cfg.provider) as VideoGenerationConfig['provider'];
   const fallbackProviders = (cfg.fallbackProviders ?? []).map((fb) => ({

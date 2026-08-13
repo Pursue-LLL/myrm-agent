@@ -10,7 +10,7 @@ const BOUNDS_KEY = 'myrm-pet-surface-bounds.v1';
 export function loadPetSurfaceMode(): PetSurfaceMode {
   try {
     const raw = localStorage.getItem(MODE_KEY);
-    if (raw === 'popped-out') return 'popped-out';
+    if (raw === 'popped-out') {return 'popped-out';}
   } catch {
     /* ignore */
   }

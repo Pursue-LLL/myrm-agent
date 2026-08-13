@@ -20,15 +20,15 @@ export function formatDuration(
   startIso: string | null | undefined,
   endIso: string | null | undefined,
 ): string {
-  if (!startIso || !endIso) return '—';
+  if (!startIso || !endIso) {return '—';}
   const start = new Date(startIso).getTime();
   const end = new Date(endIso).getTime();
-  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return '—';
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) {return '—';}
   const totalSeconds = Math.max(0, Math.floor((end - start) / 1000));
-  if (totalSeconds < 60) return `${totalSeconds}s`;
+  if (totalSeconds < 60) {return `${totalSeconds}s`;}
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  if (minutes < 60) return seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`;
+  if (minutes < 60) {return seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`;}
   const hours = Math.floor(minutes / 60);
   const remMinutes = minutes % 60;
   return remMinutes === 0 ? `${hours}h` : `${hours}h ${remMinutes}m`;

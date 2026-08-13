@@ -38,7 +38,7 @@ export function useNavBadges(): NavBadges {
   const fetchingRef = useRef(false);
 
   const fetchBadges = useCallback(async () => {
-    if (fetchingRef.current) return;
+    if (fetchingRef.current) {return;}
     fetchingRef.current = true;
     try {
       const res = await apiRequest<{ data: NavBadges }>('/statistics/badges', { silent: true });

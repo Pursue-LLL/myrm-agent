@@ -22,9 +22,9 @@ import { type BillingCatalogPlan, type BillingPlanKey } from '@/lib/cp-billing';
 const PLAN_ORDER: readonly BillingPlanKey[] = ['free', 'companion', 'plus', 'pro', 'max'];
 
 function getNextPlan(currentPlan: BillingPlanKey | 'team'): BillingPlanKey | null {
-  if (currentPlan === 'team') return null;
+  if (currentPlan === 'team') {return null;}
   const idx = PLAN_ORDER.indexOf(currentPlan);
-  if (idx < 0 || idx >= PLAN_ORDER.length - 1) return null;
+  if (idx < 0 || idx >= PLAN_ORDER.length - 1) {return null;}
   return PLAN_ORDER[idx + 1];
 }
 
@@ -42,7 +42,7 @@ export default function UpgradeNudgeDialog() {
   const { catalog } = useBillingCatalog();
   const { entitlements } = useEntitlements();
 
-  if (!isSandbox()) return null;
+  if (!isSandbox()) {return null;}
 
   const currentPlan = subscription.plan_type as BillingPlanKey | 'team';
   const nextPlanKey = getNextPlan(currentPlan);

@@ -52,7 +52,7 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
 
   const addTag = useCallback((raw: string) => {
     const tag = raw.trim().toLowerCase();
-    if (!tag) return;
+    if (!tag) {return;}
     setTags((prev) => prev.includes(tag) ? prev : [...prev, tag]);
   }, []);
 
@@ -84,7 +84,7 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
     );
 
   const handleSave = useCallback(async () => {
-    if (!memory || !canEdit || !isChanged) return;
+    if (!memory || !canEdit || !isChanged) {return;}
     setIsSubmitting(true);
     try {
       await updateMemory(memory.memory_type, memory.id, {
@@ -107,7 +107,7 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
     }
   }, [memory, canEdit, isChanged, content, reasoning, application, importance, tags, tagsChanged, updateMemory, onOpenChange, t]);
 
-  if (!memory) return null;
+  if (!memory) {return null;}
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

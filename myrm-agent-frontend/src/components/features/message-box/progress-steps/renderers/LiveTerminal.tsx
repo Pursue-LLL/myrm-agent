@@ -61,7 +61,7 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
     }
   }, [stdout]);
 
-  if (!stdout && !evictedFileRef && !evictedStderrFileRef) return null;
+  if (!stdout && !evictedFileRef && !evictedStderrFileRef) {return null;}
 
   const evictedFooter = evictedFileRef ? (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-1.5 px-3 py-1.5 border-t border-zinc-800/80 bg-zinc-900/30">
@@ -209,7 +209,7 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
     );
   }
 
-  if (!stdout) return null;
+  if (!stdout) {return null;}
 
   const escapeSequence = '\\u001b';
   const imageSequenceRegex = new RegExp(

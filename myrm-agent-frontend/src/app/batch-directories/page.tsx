@@ -88,9 +88,9 @@ const EMPTY_FORM: CreateFormState = {
 };
 
 function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) {return '—';}
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) {return '—';}
   return d.toLocaleString();
 }
 
@@ -152,12 +152,12 @@ export default function BatchDirectoriesPage() {
   }, [t]);
 
   useEffect(() => {
-    if (showCreate) void browseDir('~');
+    if (showCreate) {void browseDir('~');}
   }, [showCreate, browseDir]);
 
   const progressOf = useCallback((p: BatchProject) => {
     const total = p.total_tasks || 0;
-    if (total === 0) return 0;
+    if (total === 0) {return 0;}
     return Math.round(((p.completed_tasks + p.failed_tasks) / total) * 100);
   }, []);
 

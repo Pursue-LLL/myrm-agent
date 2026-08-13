@@ -95,7 +95,7 @@ export default function ExtensionTakeoverBanner() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
+                    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {return;}
                     void navigator.clipboard.writeText(liveAssistUrl);
                   }}
                   className="inline-flex items-center gap-1 rounded-md border border-border bg-background/70 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-background"

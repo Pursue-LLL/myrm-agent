@@ -63,16 +63,16 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
     (async () => {
       const permission = Notification.permission;
       if (permission === 'denied') {
-        if (mountedRef.current) setState('denied');
+        if (mountedRef.current) {setState('denied');}
         return;
       }
       try {
         const registration = await navigator.serviceWorker.ready;
         const existing = await registration.pushManager.getSubscription();
-        if (!mountedRef.current) return;
+        if (!mountedRef.current) {return;}
         setState(existing ? 'subscribed' : permission === 'default' ? 'prompt' : 'unsubscribed');
       } catch {
-        if (mountedRef.current) setState('unsubscribed');
+        if (mountedRef.current) {setState('unsubscribed');}
       }
     })();
 
@@ -80,14 +80,14 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
   }, []);
 
   const subscribe = useCallback(async () => {
-    if (!isPushSupported()) return;
+    if (!isPushSupported()) {return;}
     setLoading(true);
     setError(null);
 
     try {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        if (mountedRef.current) setState('denied');
+        if (mountedRef.current) {setState('denied');}
         throw new Error('permission_denied');
       }
 
@@ -105,17 +105,17 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
         await subscription.unsubscribe().catch(() => {});
         throw backendErr;
       }
-      if (mountedRef.current) setState('subscribed');
+      if (mountedRef.current) {setState('subscribed');}
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg !== 'permission_denied' && mountedRef.current) setError(msg);
+      if (msg !== 'permission_denied' && mountedRef.current) {setError(msg);}
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (mountedRef.current) {setLoading(false);}
     }
   }, []);
 
   const unsubscribe = useCallback(async () => {
-    if (!isPushSupported()) return;
+    if (!isPushSupported()) {return;}
     setLoading(true);
     setError(null);
 
@@ -126,12 +126,12 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
         await removeSubscription(subscription.endpoint);
         await subscription.unsubscribe();
       }
-      if (mountedRef.current) setState('unsubscribed');
+      if (mountedRef.current) {setState('unsubscribed');}
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (mountedRef.current) setError(msg);
+      if (mountedRef.current) {setError(msg);}
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (mountedRef.current) {setLoading(false);}
     }
   }, []);
 
@@ -141,7 +141,7 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
       return await sendTestPush();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (mountedRef.current) setError(msg);
+      if (mountedRef.current) {setError(msg);}
       throw err;
     }
   }, []);

@@ -72,7 +72,7 @@ export default function BoardActivityFeed({ boardId, onTaskClick }: BoardActivit
       const detail = (e as CustomEvent).detail as
         | { board_id?: string; task_id?: string; action?: string; title?: string }
         | undefined;
-      if (!detail?.board_id || detail.board_id !== boardId) return;
+      if (!detail?.board_id || detail.board_id !== boardId) {return;}
 
       const newEntry: BoardEvent = {
         event_id: Date.now(),
@@ -98,17 +98,17 @@ export default function BoardActivityFeed({ boardId, onTaskClick }: BoardActivit
   const toggleKind = useCallback((kind: string) => {
     setActiveKinds((prev) => {
       const next = new Set(prev);
-      if (next.has(kind)) next.delete(kind);
-      else next.add(kind);
+      if (next.has(kind)) {next.delete(kind);}
+      else {next.add(kind);}
       return next;
     });
   }, []);
 
   const handleScroll = useCallback(() => {
-    if (!listRef.current) return;
+    if (!listRef.current) {return;}
     const { scrollTop } = listRef.current;
     scrolledRef.current = scrollTop > 60;
-    if (!scrolledRef.current) setNewCount(0);
+    if (!scrolledRef.current) {setNewCount(0);}
   }, []);
 
   const scrollToTop = useCallback(() => {

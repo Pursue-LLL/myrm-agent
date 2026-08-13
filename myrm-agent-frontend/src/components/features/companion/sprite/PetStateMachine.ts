@@ -130,7 +130,7 @@ export class PetStateMachine {
 
   /** Process an incoming event. */
   ingest(event: PetEvent) {
-    if (this.destroyed) return;
+    if (this.destroyed) {return;}
 
     switch (event.mode) {
       case 'transient': {
@@ -155,7 +155,7 @@ export class PetStateMachine {
    * Sourced from existing frontend stores — not SSE step_key dispatches.
    */
   setBlockedOnUser(blocked: boolean) {
-    if (this.blockedOnUser === blocked) return;
+    if (this.blockedOnUser === blocked) {return;}
     this.blockedOnUser = blocked;
     this.tick();
   }
@@ -200,7 +200,7 @@ export class PetStateMachine {
   }
 
   private tick() {
-    if (this.destroyed) return;
+    if (this.destroyed) {return;}
 
     if (this.blockedOnUser) {
       this.setState(PetState.WAITING);
@@ -208,7 +208,7 @@ export class PetStateMachine {
     }
 
     if (this.transientUntil !== null) {
-      if (Date.now() < this.transientUntil) return;
+      if (Date.now() < this.transientUntil) {return;}
       this.transientUntil = null;
     }
 
@@ -222,7 +222,7 @@ export class PetStateMachine {
   }
 
   private setState(state: PetState) {
-    if (state === this.currentState) return;
+    if (state === this.currentState) {return;}
     this.currentState = state;
     this.onChange(state);
   }

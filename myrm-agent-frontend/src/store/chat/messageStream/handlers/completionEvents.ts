@@ -154,12 +154,16 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       // Do not abort it here: the reader still owns the stream teardown.
       actions.clearActiveStream?.();
 
-      // Release the desktop inspector "controlling" state when this turn
-      // engaged desktop events (desktop_ tool start, view update, approval).
-      // `releaseTurnEngagement` is a no-op unless engagedInTurn is set, so a
-      // panel the user opened manually is never force-closed by unrelated turns.
-      void import('@/store/useDesktopInspectorStore').then(({ default: desktopStore }) => {
+      // Release inspector "controlling" state (desktop + browser) when this turn
+      // engaged inspector events (desktop_*/browser_* tool start, view update, approval).
+      // Each releaseTurnEngagement is a no-op unless its engagedInTurn is set, so
+      // panels the user opened manually are never force-closed by unrelated turns.
+      void Promise.all([
+        import('@/store/useDesktopInspectorStore'),
+        import('@/store/useBrowserInspectorStore'),
+      ]).then(([{ default: desktopStore }, { default: browserStore }]) => {
         desktopStore.getState().releaseTurnEngagement();
+        browserStore.getState().releaseTurnEngagement();
       });
 
       const lastMsg = state.messages[state.messages.length - 1];
@@ -177,7 +181,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       // previews when FILE_DIFF is absent but the session workspace exists (silent=true).
       void import('@/services/chat').then(({ getChatDetail }) => {
         const chatId = H.useChatStore.getState().chatId;
-        if (!chatId) return;
+        if (!chatId) {return;}
         void getChatDetail(chatId, true)
           .then((detail) => {
             const dir = detail.chat.workspace_dir;

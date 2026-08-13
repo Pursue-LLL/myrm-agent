@@ -39,7 +39,7 @@ export function useSelectionAction({ onSent }: UseSelectionActionOptions = {}) {
 
   const sendAction = useCallback(
     async ({ message }: SendActionParams) => {
-      if (!message) return;
+      if (!message) {return;}
 
       const dirtyArtifacts = useArtifactPortalStore.getState().getDirtyArtifacts();
       let finalMessage = message;

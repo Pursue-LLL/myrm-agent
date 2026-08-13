@@ -664,7 +664,7 @@ class ConfigSyncManager {
               record.meta.version = version;
               // 更新 baseCache 的版本号
               const baseRec = this.baseCache.get(key);
-              if (baseRec) baseRec.meta.version = version;
+              if (baseRec) {baseRec.meta.version = version;}
             }
           }
         } else {
@@ -718,14 +718,14 @@ class ConfigSyncManager {
   }
 
   private enqueueOfflineChanges(changes: ConfigChange[]): void {
-    if (changes.length === 0) return;
+    if (changes.length === 0) {return;}
     this.changeQueue.push(...changes);
     this.saveOfflineQueue(changes);
     this.scheduleSyncDebounced();
   }
 
   private registerOnlineHandler(): void {
-    if (typeof window === 'undefined' || this.onlineHandlerRegistered) return;
+    if (typeof window === 'undefined' || this.onlineHandlerRegistered) {return;}
     this.onlineHandlerRegistered = true;
     window.addEventListener('online', () => {
       void this.retryOfflineQueue();
@@ -751,11 +751,11 @@ class ConfigSyncManager {
    * 加载离线队列
    */
   private loadOfflineQueue(): ConfigChange[] {
-    if (typeof window === 'undefined') return [];
+    if (typeof window === 'undefined') {return [];}
 
     try {
       const stored = localStorage.getItem(OFFLINE_QUEUE_KEY);
-      if (!stored) return [];
+      if (!stored) {return [];}
       return JSON.parse(stored) as ConfigChange[];
     } catch {
       return [];
@@ -766,7 +766,7 @@ class ConfigSyncManager {
    * 保存离线队列
    */
   private saveOfflineQueue(changes: ConfigChange[]): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {return;}
 
     try {
       // 合并现有队列和新变更
@@ -782,7 +782,7 @@ class ConfigSyncManager {
    * 清空离线队列
    */
   private clearOfflineQueue(): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {return;}
     localStorage.removeItem(OFFLINE_QUEUE_KEY);
   }
 }

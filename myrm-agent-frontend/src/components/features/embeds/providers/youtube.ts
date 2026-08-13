@@ -3,10 +3,10 @@ import { bareHost, type EmbedDescriptor, type EmbedMatcher } from './types';
 const YOUTUBE_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
 function startSeconds(value: string | null): number | undefined {
-  if (!value) return undefined;
-  if (/^\d+$/.test(value)) return Number(value);
+  if (!value) {return undefined;}
+  if (/^\d+$/.test(value)) {return Number(value);}
   const match = value.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
-  if (!match || !match[0]) return undefined;
+  if (!match || !match[0]) {return undefined;}
   const seconds = Number(match[1] || 0) * 3600 + Number(match[2] || 0) * 60 + Number(match[3] || 0);
   return seconds > 0 ? seconds : undefined;
 }
@@ -28,11 +28,11 @@ export const youtube: EmbedMatcher = (url: URL): EmbedDescriptor | null => {
     return null;
   }
 
-  if (!YOUTUBE_ID_RE.test(id)) return null;
+  if (!YOUTUBE_ID_RE.test(id)) {return null;}
 
   const params = new URLSearchParams({ rel: '0' });
   const start = startSeconds(url.searchParams.get('t') || url.searchParams.get('start'));
-  if (start) params.set('start', String(start));
+  if (start) {params.set('start', String(start));}
 
   return {
     id: `youtube:${id}`,

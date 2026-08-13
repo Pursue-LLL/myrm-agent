@@ -159,7 +159,7 @@ export function WikiRawSourceTree({
   const [isForgetting, setIsForgetting] = useState(false);
 
   useEffect(() => {
-    if (!highlightPath) return;
+    if (!highlightPath) {return;}
     const normalized = highlightPath.replace(/^\//, '');
     const target = document.querySelector(`[data-raw-path="${normalized}"]`);
     target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -178,7 +178,7 @@ export function WikiRawSourceTree({
   }
 
   const handleForget = async () => {
-    if (!forgetPath || !forgetReason.trim()) return;
+    if (!forgetPath || !forgetReason.trim()) {return;}
     setIsForgetting(true);
     try {
       await wikiService.deleteRawSource(forgetPath, forgetReason.trim(), agentScopeId);

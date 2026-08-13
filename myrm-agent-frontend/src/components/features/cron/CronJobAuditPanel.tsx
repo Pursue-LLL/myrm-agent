@@ -100,7 +100,7 @@ export const CronJobAuditPanel = memo<CronJobAuditPanelProps>(
     const fields = useMemo(() => (job ? buildCronAuditFields(job) : []), [job]);
 
     const handleConfirm = useCallback(async () => {
-      if (!job) return;
+      if (!job) {return;}
       setActionPending(true);
       try {
         if (enforceSettingsGate && job.status === 'paused') {
@@ -118,7 +118,7 @@ export const CronJobAuditPanel = memo<CronJobAuditPanelProps>(
     }, [enforceSettingsGate, job, jobId, t, onJobChange]);
 
     const handlePause = useCallback(async () => {
-      if (!job || job.status !== 'active') return;
+      if (!job || job.status !== 'active') {return;}
       setActionPending(true);
       try {
         await pauseCronJob(job.id);

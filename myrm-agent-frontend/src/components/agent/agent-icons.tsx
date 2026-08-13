@@ -335,7 +335,7 @@ const SIZE_MAP = {
 
 export function AgentIcon({ iconId, size = 'md', className }: AgentIconProps) {
   const def = AGENT_ICON_REGISTRY[iconId];
-  if (!def) return null;
+  if (!def) {return null;}
 
   const [from, to] = def.gradient;
 

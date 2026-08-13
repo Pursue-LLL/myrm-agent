@@ -78,7 +78,7 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
     setValues((prev) => ({ ...prev, [slotName]: val }));
 
   const handleSubmit = useCallback(async () => {
-    if (!blueprint) return;
+    if (!blueprint) {return;}
     setSaving(true);
     try {
       const merged = Object.fromEntries(
@@ -110,7 +110,7 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
     }
   }, [blueprint, values, userTz, locale, deliveryChannel, deliveryTarget, createJob, t, onOpenChange]);
 
-  if (!blueprint) return null;
+  if (!blueprint) {return null;}
 
   const displayTitle = blueprint.title?.[locale] || t(blueprint.titleKey);
   const displayDesc = blueprint.description?.[locale] || t(blueprint.descKey);
@@ -123,7 +123,7 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!v) resetForm();
+        if (!v) {resetForm();}
         onOpenChange(v);
       }}
     >

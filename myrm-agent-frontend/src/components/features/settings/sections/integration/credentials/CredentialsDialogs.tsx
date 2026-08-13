@@ -111,7 +111,7 @@ export function CredentialsDialogs({
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          if (!open) {setDeleteTarget(null);}
         }}
         title={t('deleteConfirmTitle', { defaultValue: 'Delete Credential' })}
         description={t('deleteConfirmDesc', {
@@ -126,7 +126,7 @@ export function CredentialsDialogs({
       <ConfirmDialog
         open={!!deleteVaultTarget}
         onOpenChange={(open) => {
-          if (!open) setDeleteVaultTarget(null);
+          if (!open) {setDeleteVaultTarget(null);}
         }}
         title={t('vaultDeleteTitle')}
         description={t('vaultDeleteDesc', { label: deleteVaultTarget ?? '' })}
@@ -140,7 +140,7 @@ export function CredentialsDialogs({
         <Dialog
           open={vaultModalOpen}
           onOpenChange={(open) => {
-            if (!open) setVaultModalOpen(false);
+            if (!open) {setVaultModalOpen(false);}
           }}
         >
           <DialogContent className="sm:max-w-md bg-card border border-border">
@@ -273,7 +273,7 @@ export function CredentialsDialogs({
       )}
 
       {connectModalTarget && (
-        <Dialog open={!!connectModalTarget} onOpenChange={(open) => { if (!open) closeConnectModal(); }}>
+        <Dialog open={!!connectModalTarget} onOpenChange={(open) => { if (!open) {closeConnectModal();} }}>
           <DialogContent className="sm:max-w-md bg-card border border-border">
             <DialogHeader>
               <DialogTitle className="text-foreground">

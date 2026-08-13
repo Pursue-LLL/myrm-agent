@@ -104,7 +104,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
   }, [searchQuery]);
 
   const handleInstantiate = async (template: TemplateListItem, starterPrompt?: string) => {
-    if (instantiatingId) return;
+    if (instantiatingId) {return;}
     const normalizedStarterPrompt = starterPrompt?.trim() ?? '';
     const fromSearch = normalizeTemplateSearchText(searchQuery).length > 0;
     const usedUseCase = normalizedStarterPrompt.length > 0;
@@ -260,11 +260,11 @@ function TeamTemplateCard({
         isDisabled && "opacity-60 cursor-not-allowed"
       )}
       onClick={() => {
-        if (isDisabled) return;
+        if (isDisabled) {return;}
         void onInstantiate(template);
       }}
       onKeyDown={(event) => {
-        if (isDisabled) return;
+        if (isDisabled) {return;}
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           void onInstantiate(template);

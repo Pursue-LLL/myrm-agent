@@ -28,7 +28,7 @@ const AUTH_PATHS = [
 ];
 
 function isAuthPage(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') {return false;}
   return AUTH_PATHS.some((p) => window.location.pathname.startsWith(p));
 }
 
@@ -71,15 +71,15 @@ function installFetchInterceptor(): () => void {
  * If no admin exists, retrieve the setup token from Tauri and redirect.
  */
 async function handleTauriRemoteSetup(): Promise<void> {
-  if (!isTauriRuntime() || isAuthPage()) return;
+  if (!isTauriRuntime() || isAuthPage()) {return;}
 
   try {
     const { getWebuiUrl } = await import('@/lib/api');
     const res = await fetch(getWebuiUrl('/auth/status'), { credentials: 'include' });
-    if (!res.ok) return;
+    if (!res.ok) {return;}
 
     const status = await res.json();
-    if (status.is_setup_done || status.is_authenticated) return;
+    if (status.is_setup_done || status.is_authenticated) {return;}
 
     const { invoke } = await import('@tauri-apps/api/core');
     const token: string | null = await invoke('get_setup_token');
@@ -92,7 +92,7 @@ async function handleTauriRemoteSetup(): Promise<void> {
 }
 
 function isDedicatedAuthRoute(pathname: string | null): boolean {
-  if (!pathname) return false;
+  if (!pathname) {return false;}
   return pathname.startsWith('/auth/oauth/callback');
 }
 
@@ -103,7 +103,7 @@ export default function AuthInitializer() {
   const interceptorInstalledRef = useRef(false);
 
   useEffect(() => {
-    if (isInitialized) return;
+    if (isInitialized) {return;}
 
     if (localMode && !isRemoteGatewayActive()) {
       initTauriLocalUser();
@@ -114,7 +114,7 @@ export default function AuthInitializer() {
   }, [localMode, isInitialized]);
 
   useEffect(() => {
-    if (interceptorInstalledRef.current) return;
+    if (interceptorInstalledRef.current) {return;}
     interceptorInstalledRef.current = true;
 
     const cleanup = installFetchInterceptor();

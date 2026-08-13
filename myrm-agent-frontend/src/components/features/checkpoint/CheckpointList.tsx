@@ -88,7 +88,7 @@ const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onResumeSucc
   };
 
   const handleCleanup = async () => {
-    if (!confirm(t('confirmCleanup'))) return;
+    if (!confirm(t('confirmCleanup'))) {return;}
 
     setCleaningUp(true);
     try {

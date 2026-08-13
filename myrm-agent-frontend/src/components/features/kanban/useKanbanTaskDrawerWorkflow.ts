@@ -28,7 +28,7 @@ export function useKanbanTaskDrawerWorkflow({
   const [rejecting, setRejecting] = useState(false);
 
   const handleApprove = useCallback(async () => {
-    if (!task) return;
+    if (!task) {return;}
     setApproving(true);
     try {
       await approveTask(task.task_id);
@@ -42,7 +42,7 @@ export function useKanbanTaskDrawerWorkflow({
   }, [task, onRefresh, onOpenChange, t]);
 
   const handleReject = useCallback(async () => {
-    if (!task) return;
+    if (!task) {return;}
     if (!rejectReason.trim()) {
       toast.error(t('rejectReasonRequired'));
       return;
@@ -63,7 +63,7 @@ export function useKanbanTaskDrawerWorkflow({
 
   const handleMove = useCallback(
     async (targetStatus: TaskStatus) => {
-      if (!task) return;
+      if (!task) {return;}
       if (task.status === 'backlog' && targetStatus === 'ready') {
         setPromoting(true);
         try {
@@ -93,7 +93,7 @@ export function useKanbanTaskDrawerWorkflow({
   );
 
   const handleForcePromote = useCallback(async () => {
-    if (!task) return;
+    if (!task) {return;}
     setPromoting(true);
     try {
       const result = await promoteTask(task.task_id, true);
@@ -110,7 +110,7 @@ export function useKanbanTaskDrawerWorkflow({
   }, [task, onRefresh, onOpenChange, t]);
 
   const handleReclaim = useCallback(async () => {
-    if (!task) return;
+    if (!task) {return;}
     setReclaiming(true);
     try {
       const result = await reclaimTask(task.task_id, reclaimReason || undefined, reclaimAgentId || undefined);

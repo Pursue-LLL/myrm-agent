@@ -214,12 +214,12 @@ export function FlowPadModal() {
   }, [text, autoResizeTextarea]);
 
   useEffect(() => {
-    if (!isOpen || mode !== 'inline') return;
+    if (!isOpen || mode !== 'inline') {return;}
     void fetchAgents(1, 100, true);
   }, [isOpen, mode, fetchAgents]);
 
   useEffect(() => {
-    if (!inlineRouteSelection) return;
+    if (!inlineRouteSelection) {return;}
     const stillExists = availableAgents.some((agent) => agent.id === inlineRouteSelection.id);
     if (!stillExists) {
       setInlineRouteSelection(null);
@@ -229,7 +229,7 @@ export function FlowPadModal() {
   }, [availableAgents, inlineRouteSelection]);
 
   useEffect(() => {
-    if (!agentRouteMenuOpen) return;
+    if (!agentRouteMenuOpen) {return;}
     const onMouseDown = (event: MouseEvent) => {
       const target = event.target;
       if (target instanceof Node && !agentRouteMenuRef.current?.contains(target)) {
@@ -292,10 +292,10 @@ export function FlowPadModal() {
 
   // Inline Mode: bridge streaming messages to inlineResult
   useEffect(() => {
-    if (mode !== 'inline' || !isOpen) return;
+    if (mode !== 'inline' || !isOpen) {return;}
 
     const unsub = useChatStore.subscribe((state, prev) => {
-      if (!state.loading && !prev.loading) return;
+      if (!state.loading && !prev.loading) {return;}
 
       const inlineRequestId = inlineActiveRequestIdRef.current;
       if (!inlineRequestId) {
@@ -556,8 +556,8 @@ export function FlowPadModal() {
     const hasCaptures = captures.length > 0;
     const hasText = text.trim().length > 0;
 
-    if (!hasCaptures && !hasText) return;
-    if (isSubmitting) return;
+    if (!hasCaptures && !hasText) {return;}
+    if (isSubmitting) {return;}
     if (inlineRouteSwitching) {
       toast.warning(t('inlineRouteSwitchingBlocked'), { duration: 2000 });
       return;
@@ -618,7 +618,7 @@ export function FlowPadModal() {
 
   const handleQuickAction = useCallback(
     async (promptKey: 'replyPrompt' | 'summarizePrompt' | 'translatePrompt' | 'explainPrompt') => {
-      if (isSubmitting || captures.length === 0) return;
+      if (isSubmitting || captures.length === 0) {return;}
       if (inlineRouteSwitching) {
         toast.warning(t('inlineRouteSwitchingBlocked'), { duration: 2000 });
         return;
@@ -661,7 +661,7 @@ export function FlowPadModal() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.nativeEvent.isComposing) return;
+      if (e.nativeEvent.isComposing) {return;}
 
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -672,7 +672,7 @@ export function FlowPadModal() {
   );
 
   const handlePasteBack = useCallback(async () => {
-    if (!inlineResult.trim()) return;
+    if (!inlineResult.trim()) {return;}
 
     try {
       const { invoke } = await import('@tauri-apps/api/core');
@@ -690,7 +690,7 @@ export function FlowPadModal() {
   }, [inlineResult, close, t]);
 
   const handleCopyResult = useCallback(async () => {
-    if (!inlineResult.trim()) return;
+    if (!inlineResult.trim()) {return;}
 
     try {
       await navigator.clipboard.writeText(inlineResult);

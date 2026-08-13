@@ -4,10 +4,10 @@ const LATLNG_RE = /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)(?:,(\d+(?:\.\d+)?)z)?/;
 
 function googleMapsEmbed(url: URL): FrameEmbed | null {
   const host = bareHost(url.hostname);
-  if (host !== 'google.com' && host !== 'maps.google.com' && !host.startsWith('google.')) return null;
+  if (host !== 'google.com' && host !== 'maps.google.com' && !host.startsWith('google.')) {return null;}
 
   const isMapsPath = host.startsWith('maps.') || url.pathname.startsWith('/maps');
-  if (!isMapsPath) return null;
+  if (!isMapsPath) {return null;}
 
   const coords = url.pathname.match(LATLNG_RE);
   const placeName = url.pathname.match(/\/place\/([^/@]+)/);
@@ -24,10 +24,10 @@ function googleMapsEmbed(url: URL): FrameEmbed | null {
     q = decodeURIComponent(placeName[1].replace(/\+/g, ' '));
   }
 
-  if (!q) return null;
+  if (!q) {return null;}
 
   const params = new URLSearchParams({ output: 'embed', q });
-  if (zoom) params.set('z', zoom);
+  if (zoom) {params.set('z', zoom);}
 
   return {
     id: `googlemaps:${q}${zoom ? `@${zoom}` : ''}`,
@@ -42,10 +42,10 @@ function googleMapsEmbed(url: URL): FrameEmbed | null {
 }
 
 function openStreetMapEmbed(url: URL): FrameEmbed | null {
-  if (bareHost(url.hostname) !== 'openstreetmap.org') return null;
+  if (bareHost(url.hostname) !== 'openstreetmap.org') {return null;}
 
   const match = url.hash.match(/map=(\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)/);
-  if (!match) return null;
+  if (!match) {return null;}
 
   const zoom = Number(match[1]);
   const lat = Number(match[2]);

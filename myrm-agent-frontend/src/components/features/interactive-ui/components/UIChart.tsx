@@ -43,7 +43,7 @@ export const UIChart: React.FC<UIComponentProps> = ({ props, bindings, data }) =
   const dataPath = bindings.data || bindings.value;
   const chartData = useMemo(() => {
     const rawData = dataPath ? getValueByPath(data, dataPath) : props.data;
-    if (!rawData || !Array.isArray(rawData)) return [];
+    if (!rawData || !Array.isArray(rawData)) {return [];}
     return (rawData as ChartDataItem[]).map((item, index) => ({
       ...item,
       color: item.color || defaultColors[index % defaultColors.length],

@@ -72,7 +72,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
   }, [fetchHistory]);
 
   const confirmRollback = async () => {
-    if (!pendingRollback) return;
+    if (!pendingRollback) {return;}
     const { id, name } = pendingRollback;
     setPendingRollback(null);
     setIsRollingBack(id);

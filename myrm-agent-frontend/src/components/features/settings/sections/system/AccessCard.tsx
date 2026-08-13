@@ -205,7 +205,7 @@ export const AccessCard = memo<{
         e2eeKey?.publicKeyB64,
       );
       setMobileHubUrl(hubUrl);
-      if (e2eeKey?.publicKeyB64) setE2eePublicKeyB64(e2eeKey.publicKeyB64);
+      if (e2eeKey?.publicKeyB64) {setE2eePublicKeyB64(e2eeKey.publicKeyB64);}
       writeToClipboard(hubUrl);
       toast.success(t('access.tunnel.shareCopied'));
     } catch {
@@ -236,7 +236,7 @@ export const AccessCard = memo<{
           serverKey = undefined;
         }
       }
-      if (serverKey) setE2eePublicKeyB64(serverKey);
+      if (serverKey) {setE2eePublicKeyB64(serverKey);}
       setMobileHubUrl(
         buildMobileHubUrl(mobilePath, tunnelStatus.publicUrl ?? '', publicIngressBaseUrl ?? '', serverKey),
       );

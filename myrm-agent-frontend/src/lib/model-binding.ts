@@ -140,8 +140,8 @@ export function resolveModelPickerTriggerDisplay(
  */
 export function isModelAvailable(selection: SingleModelSelection, providers: ProviderConfig[]): boolean {
   const provider = providers.find((p) => p.id === selection.providerId);
-  if (!provider?.isEnabled) return false;
-  if (!hasUsableProviderAuth(provider)) return false;
-  if (!provider.enabledModels.includes(selection.model)) return false;
+  if (!provider?.isEnabled) {return false;}
+  if (!hasUsableProviderAuth(provider)) {return false;}
+  if (!provider.enabledModels.includes(selection.model)) {return false;}
   return true;
 }

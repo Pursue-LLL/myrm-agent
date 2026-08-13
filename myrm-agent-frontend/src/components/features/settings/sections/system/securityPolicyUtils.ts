@@ -23,7 +23,7 @@ export const KNOWN_PERMISSIONS = [
 export function flattenPermissions(
   perms: Record<string, PermissionAction | Record<string, PermissionAction>> | null | undefined,
 ): PermissionRuleConfig[] {
-  if (!perms) return [];
+  if (!perms) {return [];}
   const rules: PermissionRuleConfig[] = [];
   for (const [key, value] of Object.entries(perms)) {
     if (typeof value === 'string') {
@@ -42,7 +42,7 @@ export function buildPermissions(
 ): Record<string, PermissionAction | Record<string, PermissionAction>> {
   const result: Record<string, PermissionAction | Record<string, PermissionAction>> = {};
   for (const rule of rules) {
-    if (!rule.permission.trim()) continue;
+    if (!rule.permission.trim()) {continue;}
     if (rule.pattern === '*') {
       result[rule.permission] = rule.action;
     } else {

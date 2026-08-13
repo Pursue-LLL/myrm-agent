@@ -82,7 +82,7 @@ function resolveHintLocale(): string {
     return 'en';
   }
   const lang = navigator.language.toLowerCase();
-  if (lang.startsWith('zh')) return 'zh';
+  if (lang.startsWith('zh')) {return 'zh';}
   return 'en';
 }
 

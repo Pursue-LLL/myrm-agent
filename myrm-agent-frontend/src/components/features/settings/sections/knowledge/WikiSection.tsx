@@ -436,7 +436,7 @@ export function WikiSection() {
       try {
         const { open } = await import('@tauri-apps/plugin-dialog');
         const selected = await open({ directory: true, multiple: false, title: t('import.selectFolder') });
-        if (!selected) return;
+        if (!selected) {return;}
 
         setIsImporting(true);
         const folderPath = selected as string;
@@ -455,7 +455,7 @@ export function WikiSection() {
 
   const handleWebFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {return;}
 
     setIsImporting(true);
     try {
@@ -467,7 +467,7 @@ export function WikiSection() {
 
       for (const file of Array.from(files)) {
         const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-        if (!validExtensions.has(ext)) continue;
+        if (!validExtensions.has(ext)) {continue;}
 
         const content = await file.arrayBuffer();
         const relativePath = file.webkitRelativePath || file.name;
@@ -490,13 +490,13 @@ export function WikiSection() {
       toast.error(t('errors.importFailed'));
     } finally {
       setIsImporting(false);
-      if (webFolderInputRef.current) webFolderInputRef.current.value = '';
+      if (webFolderInputRef.current) {webFolderInputRef.current.value = '';}
     }
   };
 
   const handleImportZip = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {return;}
 
     setIsImporting(true);
     try {
@@ -507,16 +507,16 @@ export function WikiSection() {
       toast.error(t('errors.importFailed'));
     } finally {
       setIsImporting(false);
-      if (zipInputRef.current) zipInputRef.current.value = '';
+      if (zipInputRef.current) {zipInputRef.current.value = '';}
     }
   };
 
   const handleImportObsidianFolder = async () => {
-    if (!isTauriEnv) return;
+    if (!isTauriEnv) {return;}
     try {
       const { open } = await import('@tauri-apps/plugin-dialog');
       const selected = await open({ directory: true, multiple: false, title: t('import.selectObsidianVault') });
-      if (!selected) return;
+      if (!selected) {return;}
 
       setIsImportingObsidian(true);
       const vaultPath = selected as string;
@@ -532,7 +532,7 @@ export function WikiSection() {
 
   const handleImportObsidianZip = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {return;}
 
     setIsImportingObsidian(true);
     try {
@@ -543,7 +543,7 @@ export function WikiSection() {
       toast.error(t('errors.importFailed'));
     } finally {
       setIsImportingObsidian(false);
-      if (obsidianZipRef.current) obsidianZipRef.current.value = '';
+      if (obsidianZipRef.current) {obsidianZipRef.current.value = '';}
     }
   };
 

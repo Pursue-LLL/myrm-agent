@@ -44,7 +44,7 @@ export const useGoalStore = create<GoalStore>((set) => ({
   fetchQueue: async (chatId) => {
     try {
       const res = await fetchWithTimeout(`/goals/${chatId}/queue`);
-      if (!res.ok) return;
+      if (!res.ok) {return;}
       const data = await res.json();
       set({ queuedGoals: data.queue || [] });
     } catch {
@@ -56,7 +56,7 @@ export const useGoalStore = create<GoalStore>((set) => ({
       const res = await fetchWithTimeout(`/goals/${chatId}/queue/${goalId}`, {
         method: 'DELETE',
       });
-      if (!res.ok) return;
+      if (!res.ok) {return;}
       set((state) => ({
         queuedGoals: state.queuedGoals.filter((g) => g.goal_id !== goalId),
       }));
@@ -86,16 +86,16 @@ export const useGoalStore = create<GoalStore>((set) => ({
       throw new Error(`Failed to update objective: ${text}`);
     }
     set((state) => {
-      if (!state.activeGoal) return state;
+      if (!state.activeGoal) {return state;}
       return { activeGoal: { ...state.activeGoal, objective: newObjective } };
     });
   },
   refreshActiveGoal: async (chatId) => {
     try {
       const res = await fetchWithTimeout(`/goals/${chatId}/status`);
-      if (!res.ok) return;
+      if (!res.ok) {return;}
       const data = (await res.json()) as { goal?: import('@/store/chat/types').GoalStatusPayload };
-      if (!data.goal) return;
+      if (!data.goal) {return;}
       const { normalizeGoalState } = await import('@/store/chat/messageStream/streamHelpers');
       set({ activeGoal: normalizeGoalState(data.goal) });
     } catch {
@@ -115,7 +115,7 @@ export const useGoalStore = create<GoalStore>((set) => ({
       }
       const data = await res.json();
       set((state) => {
-        if (!state.activeGoal) return state;
+        if (!state.activeGoal) {return state;}
         return {
           activeGoal: {
             ...state.activeGoal,

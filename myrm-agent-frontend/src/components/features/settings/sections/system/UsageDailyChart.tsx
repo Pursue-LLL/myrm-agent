@@ -10,10 +10,10 @@ import { CacheBreakTimeline } from './UsageCacheBreakTimeline';
 const GRID_LINES = [0.25, 0.5, 0.75] as const;
 
 function getLabelIndices(len: number): Set<number> {
-  if (len <= 7) return new Set(Array.from({ length: len }, (_, i) => i));
+  if (len <= 7) {return new Set(Array.from({ length: len }, (_, i) => i));}
   const step = Math.ceil(len / 5);
   const indices = new Set<number>();
-  for (let i = 0; i < len; i += step) indices.add(i);
+  for (let i = 0; i < len; i += step) {indices.add(i);}
   indices.add(len - 1);
   return indices;
 }

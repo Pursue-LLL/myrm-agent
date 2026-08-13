@@ -59,17 +59,17 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   const [activeLegends, setActiveLegends] = useState<Set<string>>(new Set());
 
   const handleCopySource = useCallback(async () => {
-    if (!chart) return;
+    if (!chart) {return;}
     const ok = await writeToClipboard(chart, true);
     if (ok) {
       setCopied(true);
-      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      if (copiedTimerRef.current) {clearTimeout(copiedTimerRef.current);}
       copiedTimerRef.current = setTimeout(() => setCopied(false), 1500);
     }
   }, [chart]);
 
   const handleDownloadSvg = useCallback(() => {
-    if (!lastValidSvg) return;
+    if (!lastValidSvg) {return;}
     const blob = new Blob([lastValidSvg], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -83,7 +83,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   const handleZoomOut = () =>
     setScale((prev) => {
       const next = Math.max(prev - 0.2, 0.3);
-      if (prev > 1 && next <= 1) setTranslate({ x: 0, y: 0 });
+      if (prev > 1 && next <= 1) {setTranslate({ x: 0, y: 0 });}
       return next;
     });
   const handleReset = () => {
@@ -92,11 +92,11 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   };
   const toggleFullscreen = () => {
     setIsFullscreen((prev) => !prev);
-    if (!isFullscreen) handleReset();
+    if (!isFullscreen) {handleReset();}
   };
 
   useEffect(() => {
-    if (!isFullscreen) return;
+    if (!isFullscreen) {return;}
     const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && setIsFullscreen(false);
     document.addEventListener('keydown', onEsc);
     return () => document.removeEventListener('keydown', onEsc);
@@ -129,7 +129,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
       const clamped = Math.min(3, Math.max(0.3, newScale));
       const snapped = Math.abs(clamped - 1) < 0.02 ? 1 : clamped;
       setIsGesturing(true);
-      if (gestureTimerRef.current) clearTimeout(gestureTimerRef.current);
+      if (gestureTimerRef.current) {clearTimeout(gestureTimerRef.current);}
       gestureTimerRef.current = setTimeout(() => setIsGesturing(false), 200);
       if (snapped === 1) {
         setScale(1);
@@ -151,7 +151,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       const shouldZoom = e.ctrlKey || e.metaKey || scale !== 1;
-      if (!shouldZoom) return;
+      if (!shouldZoom) {return;}
       e.preventDefault();
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const anchorX = e.clientX - rect.left;
@@ -165,8 +165,8 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   // 双击缩放
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (scale === 1) setScale(2);
-    else handleReset();
+    if (scale === 1) {setScale(2);}
+    else {handleReset();}
   };
 
   // 错误处理辅助函数
@@ -185,7 +185,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
 
   // 解析图例
   useEffect(() => {
-    if (!chart) return;
+    if (!chart) {return;}
     const classDefRegex = /classDef\s+(\w+)\s+(.+?)(?:;|\n|$)/g;
     let match;
     const extractedLegends: LegendItem[] = [];
@@ -229,7 +229,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   // 防抖渲染函数
   const debouncedRender = useCallback(
     async (chartContent: string) => {
-      if (!isInitialized || !chartContent?.trim()) return;
+      if (!isInitialized || !chartContent?.trim()) {return;}
 
       setIsRendering(true);
       setShowError(false);
@@ -239,7 +239,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
 
       try {
         const trimmedChart = chartContent.trim();
-        if (!mermaidLib) return;
+        if (!mermaidLib) {return;}
 
         const isValid = await mermaidLib.parse(trimmedChart);
 
@@ -269,7 +269,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
 
     if (viewBox) {
       const [, , w] = viewBox.split(' ').map(Number);
-      if (isFinite(w) && w > 0) width = w;
+      if (isFinite(w) && w > 0) {width = w;}
     }
 
     const maxWidth = Math.min(width, 600);
@@ -296,9 +296,9 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
 
   // 应用节点过滤
   useEffect(() => {
-    if (!elementRef.current) return;
+    if (!elementRef.current) {return;}
     const svg = elementRef.current.querySelector('svg');
-    if (!svg) return;
+    if (!svg) {return;}
 
     const isFiltering = activeLegends.size > 0;
 
@@ -333,7 +333,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   // Initialize mermaid and re-initialize on theme change; handle chart rendering with debounce
   const prevIsDarkRef = useRef(isDark);
   useEffect(() => {
-    if (!mermaidLib) return;
+    if (!mermaidLib) {return;}
 
     const themeChanged = prevIsDarkRef.current !== isDark;
     prevIsDarkRef.current = isDark;
@@ -344,7 +344,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
       setIsInitialized(true);
     }
 
-    if (!chart) return;
+    if (!chart) {return;}
 
     const isStreamingInput = chart !== lastChartRef.current && chart.length > lastChartRef.current.length;
     if (isStreamingInput) {
@@ -354,7 +354,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
     }
     lastChartRef.current = chart;
 
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    if (debounceTimerRef.current) {clearTimeout(debounceTimerRef.current);}
     debounceTimerRef.current = setTimeout(
       () => {
         debouncedRender(chart);
@@ -363,9 +363,9 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
     );
 
     return () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
-      if (gestureTimerRef.current) clearTimeout(gestureTimerRef.current);
+      if (debounceTimerRef.current) {clearTimeout(debounceTimerRef.current);}
+      if (copiedTimerRef.current) {clearTimeout(copiedTimerRef.current);}
+      if (gestureTimerRef.current) {clearTimeout(gestureTimerRef.current);}
     };
   }, [chart, isDark, mermaidLib, isInitialized, debouncedRender, clearErrorTimeout]);
 
@@ -374,7 +374,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
     if (lastValidSvg && elementRef.current) {
       elementRef.current.innerHTML = lastValidSvg;
       const svgElement = elementRef.current.querySelector('svg');
-      if (svgElement) optimizeSvgStyles(svgElement);
+      if (svgElement) {optimizeSvgStyles(svgElement);}
     }
   }, [lastValidSvg, optimizeSvgStyles]);
 
@@ -456,7 +456,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
       }
     },
     onTouchEnd: (e: React.TouchEvent) => {
-      if (e.touches.length < 2) pinchRef.current = null;
+      if (e.touches.length < 2) {pinchRef.current = null;}
       handlePointerEnd();
     },
     onDoubleClick: handleDoubleClick,

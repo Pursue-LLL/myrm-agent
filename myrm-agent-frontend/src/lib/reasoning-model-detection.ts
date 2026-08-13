@@ -90,7 +90,7 @@ const REASONING_MODEL_PATTERNS: RegExp[] = [
  * @returns true 如果模型支持 reasoning
  */
 export function isReasoningModelByName(modelId: string): boolean {
-  if (!modelId) return false;
+  if (!modelId) {return false;}
 
   const lowerId = modelId.toLowerCase();
 

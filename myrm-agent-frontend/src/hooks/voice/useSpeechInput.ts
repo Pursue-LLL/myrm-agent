@@ -38,13 +38,13 @@ const DEFAULT_MIN_DURATION_MS = 500;
 
 function getSupportedMimeType(): string {
   for (const mime of PREFERRED_MIME_TYPES) {
-    if (MediaRecorder.isTypeSupported(mime)) return mime;
+    if (MediaRecorder.isTypeSupported(mime)) {return mime;}
   }
   return '';
 }
 
 function getBrowserSpeechRecognition(): typeof SpeechRecognition | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') {return null;}
   return (window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null) as typeof SpeechRecognition | null;
 }
 
@@ -173,7 +173,7 @@ export function useSpeechInput({
         adaptiveThresholdRef.current = silenceThreshold;
 
         const tick = () => {
-          if (!analyserRef.current) return;
+          if (!analyserRef.current) {return;}
           analyser.getByteFrequencyData(dataArray);
 
           let sum = 0;
@@ -264,7 +264,7 @@ export function useSpeechInput({
         ws.send(JSON.stringify({ keyterms: keyterms ?? [] }));
 
         const mimeType = getSupportedMimeType();
-        if (!mimeType) return;
+        if (!mimeType) {return;}
 
         const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 64000 });
         recorderRef.current = recorder;
@@ -387,7 +387,7 @@ export function useSpeechInput({
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+        if (e.data.size > 0) {chunksRef.current.push(e.data);}
       };
 
       recorder.onstop = () => {
@@ -460,7 +460,7 @@ export function useSpeechInput({
       return;
     }
 
-    if (enableSounds) playTone(880, 440, 150);
+    if (enableSounds) {playTone(880, 440, 150);}
 
     if (recorderRef.current?.state === 'recording') {
       recorderRef.current.stop();
@@ -471,14 +471,14 @@ export function useSpeechInput({
   }, [minDuration, enableSounds, cleanup, onError]);
 
   const startRecording = useCallback(async () => {
-    if (stateRef.current !== 'idle') return;
+    if (stateRef.current !== 'idle') {return;}
 
     try {
       setState('recording');
       startTimeRef.current = Date.now();
       silenceStartRef.current = 0;
 
-      if (enableSounds) playTone(440, 880, 150);
+      if (enableSounds) {playTone(440, 880, 150);}
 
       if (sttBackendRef.current === 'browser') {
         startBrowserRecording();
@@ -561,7 +561,7 @@ export function useSpeechInput({
   }, [startRecording, stopRecording]);
 
   const isSupported = useMemo(() => {
-    if (typeof window === 'undefined') return false;
+    if (typeof window === 'undefined') {return false;}
     const hasMediaRecorder = !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
     const hasSpeechRecognition = !!getBrowserSpeechRecognition();
     return hasMediaRecorder || hasSpeechRecognition;

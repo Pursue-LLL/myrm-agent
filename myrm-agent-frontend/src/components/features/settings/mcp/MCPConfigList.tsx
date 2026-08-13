@@ -78,13 +78,13 @@ export function MCPConfigList({
 
   useEffect(() => {
     return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      if (pollTimerRef.current) {clearInterval(pollTimerRef.current);}
     };
   }, []);
 
   useEffect(() => {
     const hasOAuthConfigs = configs.some((c) => c.oauth?.clientId);
-    if (!hasOAuthConfigs) return;
+    if (!hasOAuthConfigs) {return;}
     getMCPOAuthStatus()
       .then(setOauthStatus)
       .catch(() => {});
@@ -92,7 +92,7 @@ export function MCPConfigList({
 
   const handleOAuthAuthorize = useCallback(
     async (config: MCPServiceConfig) => {
-      if (!config.oauth?.clientId) return;
+      if (!config.oauth?.clientId) {return;}
       setOauthLoading(config.name);
       try {
         const callbackBase = BACKEND_BASE_URL || window.location.origin;
@@ -118,7 +118,7 @@ export function MCPConfigList({
         const POLL_TIMEOUT_MS = 5 * 60 * 1000;
         const startTime = Date.now();
 
-        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        if (pollTimerRef.current) {clearInterval(pollTimerRef.current);}
         pollTimerRef.current = setInterval(async () => {
           if (Date.now() - startTime > POLL_TIMEOUT_MS) {
             clearInterval(pollTimerRef.current!);

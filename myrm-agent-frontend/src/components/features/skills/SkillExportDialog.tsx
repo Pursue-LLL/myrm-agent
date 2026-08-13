@@ -60,7 +60,7 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
 
   const handleExport = useCallback(
     async (applyRedactions: boolean) => {
-      if (!skill) return;
+      if (!skill) {return;}
       setIsExporting(true);
       try {
         const { blob, filename } = await downloadSkill(skill.id, applyRedactions, ignoredRedactions);
@@ -105,7 +105,7 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
     });
   }, []);
 
-  if (!skill) return null;
+  if (!skill) {return null;}
 
   const hasRedactions = preview?.redactions && Object.keys(preview.redactions).length > 0;
 

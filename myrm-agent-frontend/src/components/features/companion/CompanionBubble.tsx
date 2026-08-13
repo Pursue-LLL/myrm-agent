@@ -34,8 +34,8 @@ export default function CompanionBubble({ mode, observerText, effectiveRarity = 
   const fadeDurationMs = Math.round(displayDurationMs * FADE_RATIO);
 
   const clearTimers = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    if (timerRef.current) {clearTimeout(timerRef.current);}
+    if (fadeTimerRef.current) {clearTimeout(fadeTimerRef.current);}
   }, []);
 
   const pickThinkingPhrase = useCallback(() => {
@@ -82,7 +82,7 @@ export default function CompanionBubble({ mode, observerText, effectiveRarity = 
     return () => clearTimers();
   }, [mode, observerText, clearTimers, pickThinkingPhrase, pickCompletionPhrase, t, displayDurationMs, fadeDurationMs]);
 
-  if (!text) return null;
+  if (!text) {return null;}
 
   const isThinking = mode === 'thinking';
 

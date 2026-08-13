@@ -32,7 +32,7 @@ const WorkingStateBadge = memo(() => {
     prevLoadingRef.current = loading;
   }, [loading, fetchState]);
 
-  if (!content) return null;
+  if (!content) {return null;}
 
   return (
     <div className="flex items-center gap-1.5 px-3 py-1 border-b border-primary/10 bg-primary/5 dark:bg-primary/10 text-xs text-primary/80 truncate">

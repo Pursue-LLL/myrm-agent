@@ -27,17 +27,17 @@ const changeTypeLabels: Record<string, string> = {
 };
 
 function formatSize(bytes: number | null): string {
-  if (bytes === null || bytes === undefined) return '-';
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  if (bytes === null || bytes === undefined) {return '-';}
+  if (bytes < 1024) {return `${bytes}B`;}
+  if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(1)}KB`;}
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 function formatLineStat(change: FileChange): string | null {
-  if (change.linesAdded === null && change.linesDeleted === null) return null;
+  if (change.linesAdded === null && change.linesDeleted === null) {return null;}
   const parts: string[] = [];
-  if (change.linesAdded !== null && change.linesAdded > 0) parts.push(`+${change.linesAdded}`);
-  if (change.linesDeleted !== null && change.linesDeleted > 0) parts.push(`-${change.linesDeleted}`);
+  if (change.linesAdded !== null && change.linesAdded > 0) {parts.push(`+${change.linesAdded}`);}
+  if (change.linesDeleted !== null && change.linesDeleted > 0) {parts.push(`-${change.linesDeleted}`);}
   return parts.length > 0 ? parts.join('/') : null;
 }
 
@@ -72,7 +72,7 @@ const FileDiffViewer: React.FC<FileDiffViewerProps> = ({ snapshotId, changes, on
   }, [selectedFiles.size, changes]);
 
   const handleRestoreSelected = useCallback(async () => {
-    if (selectedFiles.size === 0) return;
+    if (selectedFiles.size === 0) {return;}
     setRestoring(true);
     setShowConfirm(false);
     try {

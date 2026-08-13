@@ -244,7 +244,7 @@ const MessageBox = ({
       ? (message.metadata.cron_job_result as import('./CronJobSystemCard').CronJobResult)
       : null;
   const kanbanTasksCreated = (() => {
-    if (!message.metadata || typeof message.metadata !== 'object') return [];
+    if (!message.metadata || typeof message.metadata !== 'object') {return [];}
     const raw = message.metadata.kanban_tasks_created;
     if (Array.isArray(raw)) {
       return raw.filter(
@@ -304,7 +304,7 @@ const MessageBox = ({
   };
 
   const handleRegenerate = async (instruction?: string) => {
-    if (!chatId) return;
+    if (!chatId) {return;}
 
     try {
       const result = await regenerateLastTurn(chatId, instruction);
@@ -347,7 +347,7 @@ const MessageBox = ({
 
   // 撤销：先调用后端 API 持久化删除整轮对话，再同步前端 UI 状态
   const handleUndo = async () => {
-    if (!chatId) return;
+    if (!chatId) {return;}
 
     try {
       const result = await undoLastTurn(chatId);
@@ -375,8 +375,6 @@ const MessageBox = ({
       console.error('Undo failed:', error);
     }
   };
-
-  if (!message) return null;
 
   // 检测是否为异步任务响应（如图片生成）
   const taskResponse = useMemo(() => {
@@ -530,7 +528,7 @@ const MessageBox = ({
     const handleEdit = () => setEditingMessageId(message.messageId);
 
     const handleEditSubmit = async (newContent: string) => {
-      if (loading || !chatId) return;
+      if (loading || !chatId) {return;}
       setEditingMessageId(null);
 
       const activation = parseExplicitSkillActivation(message.content);

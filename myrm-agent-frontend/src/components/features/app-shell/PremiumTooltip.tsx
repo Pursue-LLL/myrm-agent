@@ -9,7 +9,7 @@ interface PremiumTooltipProps {
 }
 
 export function PremiumTooltip({ children, tooltipContent, side = 'top', align = 'center' }: PremiumTooltipProps) {
-  if (!tooltipContent) return <>{children}</>;
+  if (!tooltipContent) {return <>{children}</>;}
 
   return (
     <TooltipProvider delayDuration={100}>
