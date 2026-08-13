@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 import time
 import uuid
 from calendar import timegm
@@ -11,19 +10,18 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.api.dependencies import get_workspace_root
-from app.api.files.artifact_share_api import router as share_router
 from app.api.files.artifact_share_api import public_router
+from app.api.files.artifact_share_api import router as share_router
 from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models import Base
 from app.database.models.artifact import Artifact, ArtifactVersion
-from app.database.models.artifact_share import ArtifactShareRecord
 from app.services.artifacts.share_bundle import bundle_dir_for_claims
 from app.services.artifacts.share_registry import (
     is_token_revoked,
@@ -339,7 +337,6 @@ async def test_revoke_share_endpoint_and_public_denied(
             json={"ttl_days": 7, "artifact_type": "html"},
         )
     assert create_resp.status_code == 200
-    token = create_resp.json()["token"]
 
     list_resp = share_client.get("/shares")
     record_id = list_resp.json()[0]["id"]
