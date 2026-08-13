@@ -4,10 +4,13 @@ Covers ``/api/v1/health/browser/doctor`` and ``/api/v1/health/browser/orphans``:
 - doctor endpoint injects the real server port into ``run_doctor`` (D2 regression)
 - orphan list/cleanup endpoints use the unified automation scan and keep the
   ``confirm`` safety semantics (D1/D3 regression)
+Also covers the remaining health/browser endpoints: ``/browser`` pool health,
+``/browser/test-cloud-connection`` and ``/browser/test-proxy-connection``.
 """
 
+import sys
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient

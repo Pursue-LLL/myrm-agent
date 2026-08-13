@@ -27,7 +27,6 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_workspace_root
-from app.config.settings import settings
 from app.core.infra.limiter import limiter
 from app.core.security.share_hmac import (
     create_share_token,
