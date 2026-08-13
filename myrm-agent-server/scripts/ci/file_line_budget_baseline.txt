@@ -101,6 +101,7 @@ app/core/media/batch/orchestrator.py
 app/core/memory/adapters/setup.py
 app/core/skills/creation/service.py
 app/core/skills/curator_service.py
+app/core/skills/models.py
 app/core/storage/service.py
 app/core/utils/chat_utils.py
 app/core/utils/errors.py
