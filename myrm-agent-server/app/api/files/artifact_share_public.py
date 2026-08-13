@@ -225,8 +225,9 @@ def _auth_or_gate(
 async def _ensure_not_revoked(db: AsyncSession, token: str) -> None:
     """Reject requests whose token has been manually revoked.
 
-    Called after token authentication on every public entry so a revoked
-    share is denied before bundle lookup or materialization.
+    Called before token authentication on every public entry so a revoked
+    share (password-protected or not) is denied immediately without
+    presenting the password gate or touching the on-disk bundle.
     """
     try:
         revoked = await is_token_revoked(db, token)
@@ -245,7 +246,7 @@ async def get_public_artifact_share(
     pwd: str | None = Query(default=None, alias="p"),
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
-):
+) -> Response:
     """Serve the bundle entry file for a valid share token (no API key).
 
     Revocation is checked before authentication so a revoked link (password

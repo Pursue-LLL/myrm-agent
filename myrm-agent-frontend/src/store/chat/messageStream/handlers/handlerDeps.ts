@@ -61,3 +61,17 @@ export {
   pickMergedFileDiffPayload,
 } from '../fileDiffMerge';
 export { sanitizeStreamText } from '../textSanitize';
+
+/**
+ * Fire-and-forget release of desktop + browser inspector "controlling" state for the
+ * turn owned by chatId. Terminal paths (ERROR / AGENT_CANCELLED / CONTEXT_OVERFLOW_RESET /
+ * GOAL_STATUS budget_limited / MESSAGE_END) share this lazy wrapper instead of inlining
+ * the dynamic import; releaseTurnEngagement is a no-op for other chats / manually opened
+ * panels, so parallel panes are never force-closed. Chunk load failure is swallowed so the
+ * stop/turn path never surfaces an unhandled rejection.
+ */
+export function releaseInspectorControls(chatId: string): void {
+  void import('@/lib/inspector/releaseTurnInspectorControls')
+    .then(({ releaseTurnInspectorControls }) => releaseTurnInspectorControls(chatId))
+    .catch(() => undefined);
+}

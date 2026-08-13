@@ -1,7 +1,7 @@
 /**
  * [INPUT]
- * - @/store/useDesktopInspectorStore (POS: Desktop Inspector 面板状态)
- * - @/store/useBrowserInspectorStore (POS: Browser Inspector 面板状态)
+ * - @/store/useDesktopInspectorStore (POS: Desktop Inspector 面板状态管理，含 per-chat turn engagement 释放)
+ * - @/store/useBrowserInspectorStore (POS: Browser Inspector 面板状态管理，含 per-chat turn engagement 释放)
  *
  * [OUTPUT]
  * - releaseTurnInspectorControls: turn 结束/手动停止时归还 desktop + browser Inspector 控制权

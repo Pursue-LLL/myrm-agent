@@ -51,6 +51,11 @@ vi.mock('../handlerDeps', () => ({
   },
   findAssistantMessageIndex: vi.fn(() => 0),
   normalizeGoalState: vi.fn((payload: { status?: string }) => ({ status: payload?.status ?? 'active' })),
+  releaseInspectorControls: (chatId: string) => {
+    void import('@/lib/inspector/releaseTurnInspectorControls').then(({ releaseTurnInspectorControls }) =>
+      releaseTurnInspectorControls(chatId),
+    );
+  },
   useChatStore: {
     getState: vi.fn(() => ({ chatId: 'c1', setWorkspaceDir: vi.fn() })),
   },

@@ -7,18 +7,6 @@ import type { StreamCtx, StreamTurn } from "../streamContext";
 import { done } from "../streamContext";
 import * as H from "./handlerDeps";
 
-/**
- * Release desktop + browser inspector "controlling" state on terminal paths
- * that end the turn without a MESSAGE_END. The release only targets the turn
- * owned by chatId (releaseTurnEngagement is a no-op for other chats / manually
- * opened panels), so parallel panes are never force-closed.
- */
-function releaseInspectorControls(chatId: string): void {
-  void import('@/lib/inspector/releaseTurnInspectorControls').then(({ releaseTurnInspectorControls }) =>
-    releaseTurnInspectorControls(chatId),
-  );
-}
-
 export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, recievedMessage, state, actions } = ctx;
   if (data.type === H.AgentEventType.GOAL_STATUS) {
@@ -28,7 +16,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
     // A budget-limited goal ends the stream with no MESSAGE_END / ERROR /
     // AGENT_CANCELLED terminal event, so release any engaged inspector here.
     if (goalState.status === 'budget_limited') {
-      releaseInspectorControls(state.messages[0]?.chatId?.trim() ?? '');
+      H.releaseInspectorControls(state.messages[0]?.chatId?.trim() ?? '');
     }
     return done(ctx);
   }
@@ -174,7 +162,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       // Release inspector "controlling" state (desktop + browser) engaged by
       // this turn; releaseTurnEngagement is a no-op unless the chat owns the
       // engagement, so other panes' panels and manually opened panels stay put.
-      releaseInspectorControls(state.messages[0]?.chatId?.trim() ?? '');
+      H.releaseInspectorControls(state.messages[0]?.chatId?.trim() ?? '');
 
       const lastMsg = state.messages[state.messages.length - 1];
       if (lastMsg) {

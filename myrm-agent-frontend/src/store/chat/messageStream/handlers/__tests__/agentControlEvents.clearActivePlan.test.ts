@@ -37,6 +37,7 @@ vi.mock('../handlerDeps', () => ({
   },
   findAssistantMessageIndex: vi.fn(() => 0),
   getUserFriendlyError: vi.fn(async () => ({ message: 'Error', hint: undefined })),
+  releaseInspectorControls: (chatId: string) => mockReleaseTurnInspectorControls(chatId),
   useChatStore: {
     getState: vi.fn(() => ({ chatId: 'c1', initializeChat: vi.fn() })),
   },
@@ -87,6 +88,7 @@ describe('agentControlEvents clearActivePlan', () => {
 
     expect(mockClearActivePlan).toHaveBeenCalledTimes(1);
     expect(mockReleaseTurnInspectorControls).toHaveBeenCalledTimes(1);
+    expect(mockReleaseTurnInspectorControls).toHaveBeenCalledWith('c1');
   });
 
   it('calls clearActivePlan and releases inspector controls on AGENT_CANCELLED event', async () => {
@@ -97,6 +99,7 @@ describe('agentControlEvents clearActivePlan', () => {
     expect(mockClearActivePlan).toHaveBeenCalledTimes(1);
     expect(mockUnmarkProcessing).toHaveBeenCalledWith('msg-1');
     expect(mockReleaseTurnInspectorControls).toHaveBeenCalledTimes(1);
+    expect(mockReleaseTurnInspectorControls).toHaveBeenCalledWith('c1');
   });
 
   it('releases inspector controls on CONTEXT_OVERFLOW_RESET event', async () => {
@@ -105,6 +108,7 @@ describe('agentControlEvents clearActivePlan', () => {
     await vi.dynamicImportSettled();
 
     expect(mockReleaseTurnInspectorControls).toHaveBeenCalledTimes(1);
+    expect(mockReleaseTurnInspectorControls).toHaveBeenCalledWith('c1');
   });
 
   it('does not call clearActivePlan or release inspector controls for STEERING event', async () => {

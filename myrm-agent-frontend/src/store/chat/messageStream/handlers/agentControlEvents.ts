@@ -7,18 +7,6 @@ import type { StreamCtx, StreamTurn } from "../streamContext";
 import { done } from "../streamContext";
 import * as H from "./handlerDeps";
 
-/**
- * Release desktop + browser inspector "controlling" state on terminal paths
- * that end the turn without a MESSAGE_END. The release only targets the turn
- * owned by chatId (releaseTurnEngagement is a no-op for other chats / manually
- * opened panels), so parallel panes are never force-closed.
- */
-function releaseInspectorControls(chatId: string): void {
-  void import('@/lib/inspector/releaseTurnInspectorControls').then(({ releaseTurnInspectorControls }) =>
-    releaseTurnInspectorControls(chatId),
-  );
-}
-
 export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, actions } = ctx;
   if (data.type === H.AgentEventType.ERROR) {
@@ -90,7 +78,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
       usePlanStore.getState().clearActivePlan();
     });
-    releaseInspectorControls(ctx.state.messages[0]?.chatId?.trim() ?? '');
+    H.releaseInspectorControls(ctx.state.messages[0]?.chatId?.trim() ?? '');
     return done(ctx);
   }
 
@@ -125,7 +113,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
       usePlanStore.getState().clearActivePlan();
     });
-    releaseInspectorControls(ctx.state.messages[0]?.chatId?.trim() ?? '');
+    H.releaseInspectorControls(ctx.state.messages[0]?.chatId?.trim() ?? '');
     return done(ctx);
   }
 
@@ -196,7 +184,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     toast.warning(H.getContextOverflowMessage(), { duration: 8000 });
     H.useChatStore.getState().initializeChat(undefined);
     actions.setLoading(false);
-    releaseInspectorControls(ctx.state.messages[0]?.chatId?.trim() ?? '');
+    H.releaseInspectorControls(ctx.state.messages[0]?.chatId?.trim() ?? '');
     return done(ctx);
   }
 
