@@ -3,7 +3,7 @@ name: test-audit
 description: >-
   Audit the quality of an existing test suite. Actually runs the tests, captures
   coverage evidence, then adversarially analyzes gaps, weak assertions, and
-  anti-patterns. Produces a prioritized report only — never edits tests without approval.
+  anti-patterns. Produces a prioritized report only — it never writes tests.
 version: 1.0.0
 category: development
 tags:

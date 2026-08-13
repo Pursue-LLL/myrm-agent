@@ -47,7 +47,6 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_ui_url,
     http_json,
 )
-from tests.support.e2e_lite_model_pin import pin_lite_model_for_e2e  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once  # noqa: E402
 
 try:
