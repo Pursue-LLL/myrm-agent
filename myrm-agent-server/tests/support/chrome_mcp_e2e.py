@@ -2644,7 +2644,7 @@ def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
         return
     _ATTACH_CLIENT_WARMUP_URLS.add(ui)
     monorepo_root = Path(__file__).resolve().parents[4]
-    warmup_py = monorepo_root / "myrm-agent/scripts/dev/lib/frontend-client-warmup.py"
+    warmup_py = monorepo_root / "myrm-agent/scripts/dev/lib/browser_orchestrator/frontend_client_warmup.py"
     if not warmup_py.is_file():
         return
     server_root = Path(__file__).resolve().parents[1]

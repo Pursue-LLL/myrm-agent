@@ -16,7 +16,7 @@ if [[ ! -x "${PREFLIGHT_PY}" ]]; then
   PREFLIGHT_PY="python3"
 fi
 
-ORCHESTRATOR_PY="${SCRIPT_DIR}/lib/idle_tab_hygiene.py"
+ORCHESTRATOR_PY="${SCRIPT_DIR}/lib/e2e_core/idle_tab_hygiene.py"
 export PYTHONPATH="${SCRIPT_DIR}/lib${PYTHONPATH:+:${PYTHONPATH}}"
 orch_out="$("${PREFLIGHT_PY}" "${ORCHESTRATOR_PY}" 2>&1)" || {
   echo "CHROME_E2E_WARN: orchestrator prune failed — ${orch_out}" >&2

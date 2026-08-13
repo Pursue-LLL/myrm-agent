@@ -755,7 +755,7 @@ cmd_status() {
 
 _stop_private_backend() {
   local py="${SERVER_DIR}/.venv/bin/python"
-  local identity_helper="${SCRIPT_DIR}/lib/process_identity.py"
+  local identity_helper="${SCRIPT_DIR}/lib/e2e_core/process_identity.py"
   local runtime_id="${MYRM_RUNTIME_NAMESPACE:-shared}"
   if [[ ! -x "${py}" ]]; then
     py="python3"
@@ -794,7 +794,7 @@ _private_backend_identity_valid() {
   if [[ ! -x "${py}" ]]; then
     py="python3"
   fi
-  "${py}" "${SCRIPT_DIR}/lib/process_identity.py" verify \
+  "${py}" "${SCRIPT_DIR}/lib/e2e_core/process_identity.py" verify \
     --identity-file "${BACKEND_IDENTITY}" \
     --expected-pid "${dev_pid}" \
     --expected-runtime-id "${MYRM_RUNTIME_NAMESPACE:-shared}" >/dev/null
@@ -826,7 +826,7 @@ _sync_private_backend_identity_from_port() {
   if [[ ! -x "${py}" ]]; then
     py="python3"
   fi
-  if ! "${py}" "${SCRIPT_DIR}/lib/process_identity.py" record \
+  if ! "${py}" "${SCRIPT_DIR}/lib/e2e_core/process_identity.py" record \
     --pid "${port_owner_pid}" \
     --identity-file "${BACKEND_IDENTITY}" \
     --runtime-id "${MYRM_RUNTIME_NAMESPACE:-shared}" \
@@ -1090,7 +1090,7 @@ main() {
           if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_E2E_SHPOIB:-}" == "1" ]]; then
             local monorepo_root heal_py heal_rc
             monorepo_root="$(cd "${REPO_ROOT}/.." && pwd)"
-            heal_py="${SCRIPT_DIR}/lib/e2e_warm_ui_heal.py"
+            heal_py="${SCRIPT_DIR}/lib/e2e_core/warm_ui_heal.py"
             if [[ -f "${heal_py}" ]]; then
               heal_rc=0
               "${PREFLIGHT_PY:-python3}" "${heal_py}" attach "${monorepo_root}" || heal_rc=$?

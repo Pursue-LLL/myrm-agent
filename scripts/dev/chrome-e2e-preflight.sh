@@ -104,14 +104,14 @@ fi
 _admit_poll_touch() {
   local node="$1"
   PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
-    "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_admit_poll.py" touch --node "${node}" \
+    "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_core/admit_poll.py" touch --node "${node}" \
     2>/dev/null || true
 }
 
 _admit_poll_budget_or_fail() {
   local node="$1"
   PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
-    "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_admit_poll.py" assert-budget --node "${node}"
+    "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_core/admit_poll.py" assert-budget --node "${node}"
 }
 
 _epoch_drift_shared_attach_cap_sec() {
@@ -545,7 +545,7 @@ _attach_epoch_pin_fast_path() {
     export E2E_API_BASE="${API_BASE}"
     return 1
   fi
-  local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
+  local runtime_py="${SCRIPT_DIR}/lib/e2e_core/runtime_identity.py"
   local pin_api="${E2E_API_BASE:-${API_BASE}}"
   local health="" waited=0 poll_sec wait_sec
   poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
@@ -663,7 +663,7 @@ _attach_fast_path() {
   if _attach_epoch_pin_fast_path; then
     return 0
   fi
-  local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
+  local runtime_py="${SCRIPT_DIR}/lib/e2e_core/runtime_identity.py"
   local health="" waited=0 ui_heal_during_wait=0 mux_heal_during_wait=0
   local wait_sec poll_sec active_leases errors require_ready
   # R291: launch-force + skip attach wait — match solo PASS (46138): dev servers + CDP verified
@@ -1475,7 +1475,7 @@ _mux_request_timeout_effective() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
   local probe_timeout
   probe_timeout="$(_mux_probe_timeout_sec)"
-  "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux_responsive_probe.py" \
+  "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux/responsive_probe.py" \
     --expected-ms "${MUX_REQUEST_TIMEOUT_MS}" \
     --state-dir "${MUX_STATE_DIR}" \
     --socket "${MUX_SOCKET}" \
@@ -1738,7 +1738,7 @@ else
 fi
 
 _print_e2e_health_json() {
-  local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
+  local runtime_py="${SCRIPT_DIR}/lib/e2e_core/runtime_identity.py"
   local require_ready="${1:-0}"
   local shell_hot="false" client_hot="false"
   [[ -f "${runtime_py}" ]] || fail "Missing runtime_identity.py at ${runtime_py}"

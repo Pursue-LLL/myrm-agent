@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SERVER_DIR="${AGENT_ROOT}/myrm-agent-server"
-RUNTIME_PY="${SCRIPT_DIR}/lib/runtime_identity.py"
+RUNTIME_PY="${SCRIPT_DIR}/lib/e2e_core/runtime_identity.py"
 PY="${SERVER_DIR}/.venv/bin/python"
 if [[ ! -x "${PY}" ]]; then
   PY="python3"

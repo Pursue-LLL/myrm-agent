@@ -68,8 +68,8 @@ fi
 
 MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$(real_user_home)/.local/state/cdmcp-mux}"
 MUX_SOCKET="${CDMCP_MUX_SOCKET:-${MUX_STATE_DIR}/cdmcp-mux.sock}"
-if [[ -f "${SCRIPT_DIR}/lib/mux_responsive_probe.py" ]]; then
-  if "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux_responsive_probe.py" \
+if [[ -f "${SCRIPT_DIR}/lib/mux/responsive_probe.py" ]]; then
+  if "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux/responsive_probe.py" \
     --expected-ms 180000 \
     --state-dir "${MUX_STATE_DIR}" \
     --socket "${MUX_SOCKET}" 2>/dev/null; then
@@ -101,7 +101,7 @@ else
   fail "missing chrome-e2e-preflight.sh"
 fi
 
-hygiene="${SCRIPT_DIR}/lib/browser_tab_hygiene.py"
+hygiene="${SCRIPT_DIR}/lib/e2e_core/browser_tab_hygiene.py"
 if [[ -f "${hygiene}" ]] && chrome_e2e_cdp_healthy; then
   if hygiene_out="$("${PREFLIGHT_PY}" "${hygiene}" --report --cdp-port "${MYRM_CHROME_E2E_PORT}" 2>&1)"; then
     echo "${hygiene_out}"
