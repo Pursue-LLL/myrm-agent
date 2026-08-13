@@ -14,7 +14,7 @@ import {
 } from '@/components/primitives/dialog';
 import type { Memory, MemoryType } from '@/store/memory';
 import { useMemoryStore } from '@/store/memory';
-import MemoryTypeIcon from './MemoryTypeIcon';
+import MemoryTypeIcon from '../cards/MemoryTypeIcon';
 import { toast } from '@/hooks/shared/useToast';
 
 interface MemoryEditDialogProps {

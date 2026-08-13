@@ -4,7 +4,7 @@
  * [INPUT]
  * @/store/useCronStore (POS: Cron frontend state store)
  * @/services/cron (POS: Frontend Cron API client and CronJob type definitions)
- * @/components/features/memory/SharedContextTargetBinding (POS: Shared Context runtime binding component)
+ * @/components/features/memory/shared-context/SharedContextTargetBinding (POS: Shared Context runtime binding component)
  *
  * [OUTPUT]
  * CronRunHistory: Single cron job detail, editor, Shared Context binding, and run history view.
@@ -44,7 +44,7 @@ import { ActiveHoursEditor } from './ActiveHoursEditor';
 import { CapabilityEditor } from './CapabilityEditor';
 import { AllowedRootsEditor } from './AllowedRootsEditor';
 import { TriggerEditor } from './CronTriggerEditor';
-import { SharedContextTargetBinding } from '@/components/features/memory/SharedContextTargetBinding';
+import { SharedContextTargetBinding } from '@/components/features/memory/shared-context/SharedContextTargetBinding';
 import { CronWorkflowTemplateDetail } from './CronWorkflowTemplateBinding';
 import { WorkflowTemplateEditor } from './WorkflowTemplateEditor';
 

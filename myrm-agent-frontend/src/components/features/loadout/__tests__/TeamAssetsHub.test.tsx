@@ -52,7 +52,7 @@ vi.mock('@/components/features/loadout/useAgentLoadoutSummary', () => ({
   readinessLevelTone: () => 'text-emerald-600',
 }));
 
-vi.mock('@/components/features/memory/SharedContextPanel', () => ({
+vi.mock('@/components/features/memory/shared-context/SharedContextPanel', () => ({
   default: () => <div data-testid="shared-context-panel" />,
 }));
 

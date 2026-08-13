@@ -4,7 +4,7 @@ import {
   isMemoryTimelineEvent,
   mergeLiveStreamEvents,
   resolveReplaySessionId,
-} from '@/components/features/memory/memoryLiveStream';
+} from '@/components/features/memory/replay/memoryLiveStream';
 
 const baseEvent: MemoryCommandTimelineEvent = {
   id: 'evt-1',

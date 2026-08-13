@@ -20,7 +20,7 @@
 ## 依赖
 
 - `@/services/statistics` — GrowthDashboardData、SkillTrendSeries DTO
-- `@/components/features/memory/MemoryKnowledgeGraph` — 知识图谱（lazy loaded）
+- `@/components/features/memory/insights/MemoryKnowledgeGraph` — 知识图谱（lazy loaded）
 - `@/lib/api` — apiRequest、showApiError（PatternDigestPanel 直接调用 guardian API）
 - `@/components/primitives/*` — Card、Tabs、Button
 - `@/lib/utils/classnameUtils` — cn()

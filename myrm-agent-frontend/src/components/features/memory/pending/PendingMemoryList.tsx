@@ -6,8 +6,8 @@ import { Check, X, CheckCheck, Loader2, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useMemoryStore } from '@/store/memory';
 import type { ConflictResolution } from '@/store/memory';
-import MemoryCard from './MemoryCard';
-import ConflictCard from './ConflictCard';
+import MemoryCard from '../cards/MemoryCard';
+import ConflictCard from '../cards/ConflictCard';
 import { toast } from '@/hooks/shared/useToast';
 
 interface PendingMemoryListProps {

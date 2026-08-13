@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/components/features/memory/SharedContextPanel::SharedContextPanel (POS: Shared Context management UI)
+ * @/components/features/memory/shared-context/SharedContextPanel::SharedContextPanel (POS: Shared Context management UI)
  * @/components/features/loadout/loadoutDeepLinks (POS: Settings deep-link SSOT)
  * @/components/features/loadout/useTeamAssetsHubSummary::useTeamAssetsHubSummary (POS: Team assets data orchestration hook)
  * @/components/features/loadout/useAgentLoadoutSummary::readinessLevelTone (POS: Readiness badge tone helper)
@@ -22,7 +22,7 @@ import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowRight, BookOpen, Brain, Loader2, ShieldAlert, Wand2 } from 'lucide-react';
 
-import SharedContextPanel from '@/components/features/memory/SharedContextPanel';
+import SharedContextPanel from '@/components/features/memory/shared-context/SharedContextPanel';
 import {
   agentSettingsHref,
   memoryExplorerHref,

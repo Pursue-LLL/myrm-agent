@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - @/components/primitives/dialog (POS: 通用弹窗组件)
- * - components/features/memory/MemoryTypeIcon (POS: 记忆类型图标组件)
+ * - components/features/memory/cards/MemoryTypeIcon (POS: 记忆类型图标组件)
  * - @/store/memory::MemoryType (POS: 记忆类型定义)
  * - next-intl::useTranslations (POS: 多语言国际化钩子)
  *

@@ -17,8 +17,8 @@ import type {
   MemoryCommandCenterResponse,
   MemoryCommandDiagnosticHistoryItem,
 } from '@/services/memoryCommandCenter';
-import { MemoryDoctorPanel } from '../MemoryCommandCenterDoctorPanel';
-import type { DoctorExecutableAction } from '../MemoryCommandCenterDoctorPanel';
+import { MemoryDoctorPanel } from '../command-center/MemoryCommandCenterDoctorPanel';
+import type { DoctorExecutableAction } from '../command-center/MemoryCommandCenterDoctorPanel';
 
 type MemoryTranslation = ReturnType<typeof import('next-intl').useTranslations<'memory'>>;
 

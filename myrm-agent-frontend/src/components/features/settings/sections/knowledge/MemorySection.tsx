@@ -24,9 +24,9 @@ import useConfigStore from '@/store/useConfigStore';
 import useAuthStore from '@/store/useAuthStore';
 import { useMemoryStore, type MemoryType, type Memory } from '@/store/memory';
 import { restoreMemory as apiRestoreMemory } from '@/services/memory';
-import MemoryClearAllDialog from '@/components/features/memory/MemoryClearAllDialog';
-import MemorySettingsToggles from '@/components/features/memory/MemorySettingsToggles';
-import MemoryTabSwitcher, { type MemoryTab } from '@/components/features/memory/MemoryTabSwitcher';
+import MemoryClearAllDialog from '@/components/features/memory/dialogs/MemoryClearAllDialog';
+import MemorySettingsToggles from '@/components/features/memory/settings/MemorySettingsToggles';
+import MemoryTabSwitcher, { type MemoryTab } from '@/components/features/memory/settings/MemoryTabSwitcher';
 import {
   PendingMemoryList,
   MemoryCard,
@@ -36,15 +36,15 @@ import {
   MemoryDetailSheet,
   MemoryStats,
 } from '@/components/features/memory';
-import MemoryGuide from '@/components/features/memory/MemoryGuide';
-import MemoryCommandCenter from '@/components/features/memory/MemoryCommandCenter';
-import TasteSummaryCard from '@/components/features/memory/TasteSummaryCard';
-import PreferenceStabilityCard from '@/components/features/memory/PreferenceStabilityCard';
-import SharedContextPanel from '@/components/features/memory/SharedContextPanel';
-import MemoryContextPanel from '@/components/features/memory/MemoryContextPanel';
-import ConversationRecallPanel from '@/components/features/memory/ConversationRecallPanel';
-import MemoryTrashPanel from '@/components/features/memory/MemoryTrashPanel';
-import { MemoryImportReviewDialog } from '@/components/features/memory/MemoryImportReviewDialog';
+import MemoryGuide from '@/components/features/memory/guides/MemoryGuide';
+import MemoryCommandCenter from '@/components/features/memory/command-center/MemoryCommandCenter';
+import TasteSummaryCard from '@/components/features/memory/cards/TasteSummaryCard';
+import PreferenceStabilityCard from '@/components/features/memory/cards/PreferenceStabilityCard';
+import SharedContextPanel from '@/components/features/memory/shared-context/SharedContextPanel';
+import MemoryContextPanel from '@/components/features/memory/insights/MemoryContextPanel';
+import ConversationRecallPanel from '@/components/features/memory/replay/ConversationRecallPanel';
+import MemoryTrashPanel from '@/components/features/memory/settings/MemoryTrashPanel';
+import { MemoryImportReviewDialog } from '@/components/features/memory/dialogs/MemoryImportReviewDialog';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { toast } from '@/hooks/shared/useToast';
 import { toast as actionToast } from '@/lib/utils/toast';
@@ -56,7 +56,7 @@ import {
   getReadinessIssueAction,
 } from '@/components/features/settings/sections/knowledge/MigrationWizardReadiness';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
-import ShareRulesDialog from '@/components/features/memory/ShareRulesDialog';
+import ShareRulesDialog from '@/components/features/memory/dialogs/ShareRulesDialog';
 import WorkingStateCard from './WorkingStateCard';
 
 const MEMORY_TYPES: (MemoryType | null)[] = [

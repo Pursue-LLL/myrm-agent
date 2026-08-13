@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/components/features/memory/SharedContextTargetBinding (POS: Shared Context runtime binding component)
+ * @/components/features/memory/shared-context/SharedContextTargetBinding (POS: Shared Context runtime binding component)
  *
  * [OUTPUT]
  * AgentSharedContextBinding: Agent-scoped Shared Context binding entry with optional onBindingsChanged passthrough.
@@ -13,7 +13,7 @@
 
 import { useTranslations } from 'next-intl';
 
-import { SharedContextTargetBinding } from '@/components/features/memory/SharedContextTargetBinding';
+import { SharedContextTargetBinding } from '@/components/features/memory/shared-context/SharedContextTargetBinding';
 
 interface AgentSharedContextBindingProps {
   agentId: string | null;

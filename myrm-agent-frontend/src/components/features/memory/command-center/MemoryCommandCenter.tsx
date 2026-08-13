@@ -21,13 +21,13 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/hooks/shared/useToast';
 import { getProjects, type Project } from '@/services/projects';
 import SessionAnalyticsDialog from '@/components/features/settings/sections/system/SessionAnalyticsDialog';
-import { ConnectWizardDialog } from './ConnectWizardDialog';
+import { ConnectWizardDialog } from '../dialogs/ConnectWizardDialog';
 import {
   isMemoryTimelineEvent,
   LIVE_STREAM_LIMIT,
   mergeLiveStreamEvents,
   resolveReplaySessionId,
-} from '@/components/features/memory/memoryLiveStream';
+} from '@/components/features/memory/replay/memoryLiveStream';
 import {
   dryRunRollbackMemoryImport,
   exportMemoryArchive,
@@ -51,12 +51,12 @@ import {
   type MemoryCommandGovernanceItem,
   type MemoryCommandTimelineEvent,
 } from '@/services/memoryCommandCenter';
-import { MemoryArchiveRestoreDialog } from './MemoryArchiveRestoreDialog';
+import { MemoryArchiveRestoreDialog } from '../dialogs/MemoryArchiveRestoreDialog';
 import { CommandCenterSkeleton, MetricTile, RollbackPreviewDialog, StatusPill } from './MemoryCommandCenterChrome';
-import { useMemoryArchiveRestoreActions } from './useMemoryArchiveRestoreActions';
-import { useMemoryDemoSeed } from './useMemoryDemoSeed';
+import { useMemoryArchiveRestoreActions } from '../hooks/useMemoryArchiveRestoreActions';
+import { useMemoryDemoSeed } from '../hooks/useMemoryDemoSeed';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
-import MemoryHealthDashboard from './MemoryHealthDashboard';
+import MemoryHealthDashboard from '../insights/MemoryHealthDashboard';
 import { canDeepLinkMigrationSource, registerMigrationSourceManifest } from '@/services/migrationDiscovery';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 

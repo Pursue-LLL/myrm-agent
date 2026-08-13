@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import SharedContextPanel from '../SharedContextPanel';
+import SharedContextPanel from '../shared-context/SharedContextPanel';
 import type {
   SharedContext,
   SharedContextBinding,

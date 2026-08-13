@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 
 import SaveEvalCase from '@/components/features/message-actions/SaveEvalCase';
 import useChatStore from '@/store/useChatStore';
-import SessionReplayPlayer from '@/components/features/memory/SessionReplayPlayer';
+import SessionReplayPlayer from '@/components/features/memory/replay/SessionReplayPlayer';
 
 interface ExecutionTraceTimelineProps {
   sessionId: string;

@@ -14,7 +14,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { MemoryCommandCenterResponse } from '@/services/memoryCommandCenter';
-import { ActSection } from '../MemoryCommandCenterPanels';
+import { ActSection } from '../command-center/MemoryCommandCenterPanels';
 type ActSectionProps = Parameters<typeof ActSection>[0];
 
 const makeSnapshot = (

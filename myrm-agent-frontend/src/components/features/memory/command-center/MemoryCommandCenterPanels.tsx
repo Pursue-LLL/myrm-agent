@@ -30,10 +30,10 @@ import type {
 } from '@/services/memoryCommandCenter';
 import type { MemoryType } from '@/services/memory';
 import { MemoryAdvancedVerifyPanels } from './MemoryCommandCenterAdvancedPanels';
-import { MemoryLayerGuide } from './MemoryLayerGuide';
-import { resolveReplaySessionId } from './memoryLiveStream';
+import { MemoryLayerGuide } from '../guides/MemoryLayerGuide';
+import { resolveReplaySessionId } from '../replay/memoryLiveStream';
 
-const MemoryHealthDashboard = lazy(() => import('./MemoryHealthDashboard'));
+const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
 
 const MEMORY_TYPES: MemoryType[] = [
   'profile',

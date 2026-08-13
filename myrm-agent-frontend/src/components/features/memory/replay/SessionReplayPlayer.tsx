@@ -40,7 +40,7 @@ import type {
 import { getMessages } from '@/services/chat';
 import type { Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
-import ReplayMessageBubble from '@/components/features/memory/ReplayMessageBubble';
+import ReplayMessageBubble from '@/components/features/memory/replay/ReplayMessageBubble';
 import {
   buildTimeline,
   buildEventMarkers,
@@ -53,7 +53,7 @@ import {
   snapToNearestEventTime,
   type ReplayEvent,
   type ReplayEventMarker,
-} from '@/components/features/memory/replayTimeline';
+} from '@/components/features/memory/replay/replayTimeline';
 
 interface SessionReplayPlayerProps {
   sessionId: string;

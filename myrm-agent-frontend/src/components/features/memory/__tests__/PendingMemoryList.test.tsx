@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import PendingMemoryList from '../PendingMemoryList';
+import PendingMemoryList from '../pending/PendingMemoryList';
 
 const toastMock = vi.hoisted(() => Object.assign(vi.fn(), {
   success: vi.fn(),
@@ -51,7 +51,7 @@ vi.mock('@/store/memory', () => ({
   }),
 }));
 
-vi.mock('../MemoryCard', () => ({
+vi.mock('../cards/MemoryCard', () => ({
   default: ({ memory, onApprove, onReject }: { memory: { id: string; content: string }; onApprove: () => void; onReject: () => void }) => (
     <div data-testid={`memory-card-${memory.id}`}>
       <span>{memory.content}</span>
@@ -61,7 +61,7 @@ vi.mock('../MemoryCard', () => ({
   ),
 }));
 
-vi.mock('../ConflictCard', () => ({
+vi.mock('../cards/ConflictCard', () => ({
   default: () => <div data-testid="conflict-card" />,
 }));
 

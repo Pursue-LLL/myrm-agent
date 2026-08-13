@@ -11,7 +11,7 @@ import {
   mergeMessages,
   normalizeApiMessage,
   snapToNearestEventTime,
-} from '@/components/features/memory/replayTimeline';
+} from '@/components/features/memory/replay/replayTimeline';
 
 const baseTrace: ExecutionTrace = {
   session_id: 'sess-1',

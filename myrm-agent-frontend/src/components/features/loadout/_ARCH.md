@@ -20,7 +20,7 @@ Agent Loadout 与 Team Assets 导航编排层：组合现有 memory/wiki/skills/
 
 ## 依赖
 
-- `@/components/features/memory/SharedContextPanel`
+- `@/components/features/memory/shared-context/SharedContextPanel`
 - `@/services/agent` · `@/services/memorySharedContexts`
 - `@/services/skill` · `@/services/memory`
 - `@/store/useConfigStore`

@@ -14,7 +14,7 @@ import {
 } from '@/components/primitives/dialog';
 import { useMemoryStore, type MemoryType } from '@/store/memory';
 import type { CreateMemoryRequest } from '@/services/memory';
-import MemoryTypeIcon from './MemoryTypeIcon';
+import MemoryTypeIcon from '../cards/MemoryTypeIcon';
 import { toast } from '@/hooks/shared/useToast';
 
 interface MemoryCreateDialogProps {

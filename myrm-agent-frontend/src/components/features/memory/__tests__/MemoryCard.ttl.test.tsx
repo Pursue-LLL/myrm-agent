@@ -13,11 +13,11 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-vi.mock('../MemoryTypeIcon', () => ({
+vi.mock('../cards/MemoryTypeIcon', () => ({
   default: () => null,
 }));
 
-import MemoryCard from '../MemoryCard';
+import MemoryCard from '../cards/MemoryCard';
 import type { Memory } from '@/store/memory';
 
 const baseProcedural: Memory = {

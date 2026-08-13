@@ -29,7 +29,7 @@ import PatternDigestPanel from './PatternDigestPanel';
 import SkillEventList from './SkillEventList';
 import SkillTrendChart from './SkillTrendChart';
 
-const MemoryKnowledgeGraph = lazy(() => import('@/components/features/memory/MemoryKnowledgeGraph'));
+const MemoryKnowledgeGraph = lazy(() => import('@/components/features/memory/insights/MemoryKnowledgeGraph'));
 
 const TIME_RANGE_OPTIONS = [7, 30, 90] as const;
 type TimeRange = (typeof TIME_RANGE_OPTIONS)[number];

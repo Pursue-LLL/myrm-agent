@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SharedContextTargetBinding } from '../SharedContextTargetBinding';
+import { SharedContextTargetBinding } from '../shared-context/SharedContextTargetBinding';
 import type { SharedContext, SharedContextBinding, SharedContextListResponse } from '@/services/memorySharedContexts';
 
 const memoryApi = vi.hoisted(() => ({

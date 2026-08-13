@@ -4,7 +4,7 @@
  * [INPUT]
  * @/components/features/settings/sections/integration/channels/useChannelRouting (POS: Channel routing state hook)
  * @/components/features/settings/sections/integration/channels/ChannelRoutingTopicRow (POS: Topic binding row UI)
- * @/components/features/memory/SharedContextTargetBinding (POS: Shared Context runtime binding component)
+ * @/components/features/memory/shared-context/SharedContextTargetBinding (POS: Shared Context runtime binding component)
  *
  * [OUTPUT]
  * ChannelRoutingSection: Channel-level Agent routing, thread sharing, and Shared Context binding UI.
@@ -17,7 +17,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { IconPlug, IconAlertCircle, IconLoader } from '@/components/features/icons/PremiumIcons';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import SettingsSection from '../../SettingsSection';
-import { SharedContextTargetBinding } from '@/components/features/memory/SharedContextTargetBinding';
+import { SharedContextTargetBinding } from '@/components/features/memory/shared-context/SharedContextTargetBinding';
 import { ChannelRoutingTopicRow } from './ChannelRoutingTopicRow';
 import { useChannelRouting } from './useChannelRouting';
 
