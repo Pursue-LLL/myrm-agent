@@ -138,13 +138,13 @@ describe('toolLifecycleEvents desktop inspector TOOL_START engagement', () => {
   it('marks turn engaged on desktop_ TOOL_START', async () => {
     await toolLifecycleEvents(buildToolStartCtx('desktop_click_tool'));
 
-    expect(useDesktopInspectorStore.getState().engagedInTurn).toBe(true);
+    expect(useDesktopInspectorStore.getState().engagedChatId).toBe('chat-fg');
     expect(useDesktopInspectorStore.getState().isDesktopActive).toBe(true);
   });
 
   it('does not mark turn engaged on non-desktop TOOL_START', async () => {
     await toolLifecycleEvents(buildToolStartCtx('web_search_tool'));
 
-    expect(useDesktopInspectorStore.getState().engagedInTurn).toBe(false);
+    expect(useDesktopInspectorStore.getState().engagedChatId).toBeNull();
   });
 });

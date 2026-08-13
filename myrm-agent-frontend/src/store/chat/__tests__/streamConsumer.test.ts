@@ -475,6 +475,7 @@ describe('streamConsumer resilience paths', () => {
     // Task finished during disconnect: inspector control must be released
     // alongside the final state fetch so the UI cannot stay "controlling".
     expect(mockReleaseTurnInspectorControls).toHaveBeenCalledTimes(1);
+    expect(mockReleaseTurnInspectorControls).toHaveBeenCalledWith('chat-load-fallback');
   });
 
   it('releases inspector control even when the final state fetch fails after attach false', async () => {
@@ -502,6 +503,7 @@ describe('streamConsumer resilience paths', () => {
       // Attach false already proved the task ended: the inspector release must
       // not depend on the subsequent final-state fetch succeeding.
       expect(mockReleaseTurnInspectorControls).toHaveBeenCalled();
+      expect(mockReleaseTurnInspectorControls).toHaveBeenCalledWith('chat-load-fail');
     } finally {
       setTimeoutSpy.mockRestore();
     }

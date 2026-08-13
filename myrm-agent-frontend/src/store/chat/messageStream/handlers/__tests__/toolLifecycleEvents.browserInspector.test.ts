@@ -58,8 +58,8 @@ describe('toolLifecycleEvents browser inspector', () => {
 
     const store = useBrowserInspectorStore.getState();
     expect(store.isBrowserActive).toBe(true);
+    expect(store.engagedChatId).toBe('chat-fg');
     expect(store.isOpen).toBe(true);
-    expect(store.engagedInTurn).toBe(true);
   });
 
   it('does not open panel when background stream chat differs from foreground chat', async () => {
@@ -69,13 +69,13 @@ describe('toolLifecycleEvents browser inspector', () => {
     const store = useBrowserInspectorStore.getState();
     expect(store.isBrowserActive).toBe(true);
     expect(store.isOpen).toBe(false);
-    expect(store.engagedInTurn).toBe(true);
+    expect(store.engagedChatId).toBe('chat-bg');
   });
 
   it('does not mark turn engaged for non-browser tool start', async () => {
     useChatStore.setState({ chatId: 'chat-fg' });
     await toolLifecycleEvents(buildCtx('code_write'));
 
-    expect(useBrowserInspectorStore.getState().engagedInTurn).toBe(false);
+    expect(useBrowserInspectorStore.getState().engagedChatId).toBeNull();
   });
 });

@@ -89,7 +89,7 @@ describe('fileDiffEvents browser_view_update', () => {
 
     const store = useBrowserInspectorStore.getState();
     expect(store.isBrowserActive).toBe(true);
-    expect(store.engagedInTurn).toBe(true);
+    expect(store.engagedChatId).toBe('chat-bg');
     expect(store.isOpen).toBe(false);
     expect(store.viewData?.sourceChatId).toBe('chat-bg');
     expect(store.viewData?.pageUrl).toBe('https://example.com');
@@ -103,6 +103,6 @@ describe('fileDiffEvents browser_view_update', () => {
 
     const store = useBrowserInspectorStore.getState();
     expect(store.viewData).toBeNull();
-    expect(store.engagedInTurn).toBe(false);
+    expect(store.engagedChatId).toBeNull();
   });
 });

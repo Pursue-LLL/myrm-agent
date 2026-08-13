@@ -42,6 +42,6 @@ describe('releaseTurnInspectorControls', () => {
       throw new Error('store access failed');
     });
 
-    await expect(releaseTurnInspectorControls()).resolves.toBeUndefined();
+    await expect(releaseTurnInspectorControls('c1')).resolves.toBeUndefined();
   });
 });
