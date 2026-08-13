@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_workspace_root
+from app.api.files.artifact_share_api import router as share_router
 from app.api.files.artifact_share_public import (
     _HTML_MEDIA_TYPES,
     _SHARE_SECURITY_HEADERS,
@@ -24,7 +25,6 @@ from app.api.files.artifact_share_public import (
     _unlock_cookie_name,
     public_router,
 )
-from app.api.files.artifact_share_api import router as share_router
 from app.core.infra.limiter import limiter
 from app.core.security.share_hmac import create_share_token
 from app.database.connection import get_db

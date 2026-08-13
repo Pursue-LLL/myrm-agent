@@ -173,3 +173,301 @@ def test_cleanup_browser_orphans_when_none_found(
     data = response.json()
     assert data["killed"] == 0
     assert data["orphans"] == []
+
+
+def _config_record(value: dict[str, object]) -> SimpleNamespace:
+    """Build a minimal ConfigRecord-shaped object for config_service.get."""
+    return SimpleNamespace(key="test", value=value, version="1")
+
+
+@patch("app.config.browser.get_configured_browser_pool")
+def test_browser_health_returns_pool_status(
+    mock_pool_get: object,
+    client: TestClient,
+) -> None:
+    """GET /browser must surface the pool health dict verbatim."""
+    mock_pool = MagicMock()
+    mock_pool.health.return_value = {
+        "status": "healthy",
+        "active": 2,
+        "total": 4,
+    }
+    mock_pool_get.return_value = mock_pool  # type: ignore[attr-defined]
+
+    response = client.get("/api/v1/health/browser")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "healthy", "active": 2, "total": 4}
+
+
+@patch("app.config.browser.get_configured_browser_pool")
+def test_browser_health_returns_string_status(
+    mock_pool_get: object,
+    client: TestClient,
+) -> None:
+    """GET /browser must wrap a string health result into a status key."""
+    mock_pool = MagicMock()
+    mock_pool.health.return_value = "degraded"
+    mock_pool_get.return_value = mock_pool  # type: ignore[attr-defined]
+
+    response = client.get("/api/v1/health/browser")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "degraded"}
+
+
+@patch("app.config.browser.get_configured_browser_pool")
+def test_browser_health_degrades_on_exception(
+    mock_pool_get: object,
+    client: TestClient,
+) -> None:
+    """GET /browser must degrade to unhealthy when pool.health raises."""
+    mock_pool = MagicMock()
+    mock_pool.health.side_effect = RuntimeError("pool exploded")
+    mock_pool_get.return_value = mock_pool  # type: ignore[attr-defined]
+
+    response = client.get("/api/v1/health/browser")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "unhealthy"
+    assert "pool exploded" in data["error"]
+    assert "Failed to get browser pool health" in data["message"]
+
+
+@patch("app.services.config.service.config_service.get", return_value=None)
+def test_cloud_connection_not_configured(
+    _mock_get: object,
+    client: TestClient,
+) -> None:
+    """POST /browser/test-cloud-connection without config must say so."""
+    response = client.post("/api/v1/health/browser/test-cloud-connection")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "not_configured"
+
+
+@patch("app.services.config.service.config_service.get")
+def test_cloud_connection_disabled(
+    mock_get: object,
+    client: TestClient,
+) -> None:
+    """POST /browser/test-cloud-connection with a disabled provider."""
+    mock_get.return_value = _config_record(  # type: ignore[attr-defined]
+        {"enabled": False, "provider": "browserbase", "credential": "sk-test"}
+    )
+
+    response = client.post("/api/v1/health/browser/test-cloud-connection")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "disabled",
+        "message": "Cloud browser provider is disabled",
+    }
+
+
+@patch("app.services.config.service.config_service.get")
+def test_cloud_connection_invalid_endpoint(
+    mock_get: object,
+    client: TestClient,
+) -> None:
+    """POST /browser/test-cloud-connection without a credential cannot resolve a WS URL."""
+    mock_get.return_value = _config_record(  # type: ignore[attr-defined]
+        {"enabled": True, "provider": "browserbase", "credential": ""}
+    )
+
+    response = client.post("/api/v1/health/browser/test-cloud-connection")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "invalid"
+
+
+@patch("app.services.config.service.config_service.get")
+def test_cloud_connection_success_via_websockets(
+    mock_get: object,
+    client: TestClient,
+) -> None:
+    """POST /browser/test-cloud-connection reports connected after a WS handshake."""
+    mock_get.return_value = _config_record(  # type: ignore[attr-defined]
+        {"enabled": True, "provider": "browserbase", "credential": "sk-live"}
+    )
+    mock_ws_ctx = AsyncMock()
+    mock_ws_ctx.__aenter__.return_value = mock_ws_ctx
+    mock_websockets = MagicMock()
+    mock_websockets.connect.return_value = mock_ws_ctx
+
+    with patch.dict(sys.modules, {"websockets": mock_websockets}):
+        response = client.post("/api/v1/health/browser/test-cloud-connection")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "connected"
+    assert data["provider"] == "browserbase"
+    assert "ms" in data["message"]
+
+
+@patch("app.services.config.service.config_service.get")
+def test_cloud_connection_failure_reports_error(
+    mock_get: object,
+    client: TestClient,
+) -> None:
+    """POST /browser/test-cloud-connection surfaces handshake failures."""
+    mock_get.return_value = _config_record(  # type: ignore[attr-defined]
+        {"enabled": True, "provider": "browserbase", "credential": "sk-live"}
+    )
+    mock_ws_ctx = AsyncMock()
+    mock_ws_ctx.__aenter__.side_effect = ConnectionError("handshake refused")
+    mock_websockets = MagicMock()
+    mock_websockets.connect.return_value = mock_ws_ctx
+
+    with patch.dict(sys.modules, {"websockets": mock_websockets}):
+        response = client.post("/api/v1/health/browser/test-cloud-connection")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "failed"
+    assert "handshake refused" in data["error"]
+
+
+def test_cloud_connection_no_ws_library(
+    client: TestClient,
+) -> None:
+    """POST /browser/test-cloud-connection reports error when no WS lib is installed."""
+    with (
+        patch("app.services.config.service.config_service.get"),
+        patch.dict(
+            sys.modules,
+            {
+                "websockets": None,
+                "aiohttp": None,
+            },
+        ),
+    ):
+        response = client.post("/api/v1/health/browser/test-cloud-connection")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "error"
+    assert "No WebSocket library" in response.json()["message"]
+
+
+@patch("app.services.config.service.config_service.get", return_value=None)
+def test_proxy_connection_not_configured(
+    _mock_get: object,
+    client: TestClient,
+) -> None:
+    """POST /browser/test-proxy-connection without config must say so."""
+    response = client.post("/api/v1/health/browser/test-proxy-connection")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "not_configured"
+
+
+@patch("app.services.config.service.config_service.get")
+def test_proxy_connection_disabled(
+    mock_get: object,
+    client: TestClient,
+) -> None:
+    """POST /browser/test-proxy-connection with a disabled proxy."""
+    mock_get.return_value = _config_record(  # type: ignore[attr-defined]
+        {"enabled": False, "proxies": ["http://127.0.0.1:8888"]}
+    )
+
+    response = client.post("/api/v1/health/browser/test-proxy-connection")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "disabled",
+        "message": "Browser proxy is disabled",
+    }
+
+
+@patch("app.services.config.service.config_service.get")
+def test_proxy_connection_invalid_no_proxies(
+    mock_get: object,
+    client: TestClient,
+) -> None:
+    """POST /browser/test-proxy-connection with an empty proxy list."""
+    mock_get.return_value = _config_record(  # type: ignore[attr-defined]
+        {"enabled": True, "proxies": []}
+    )
+
+    response = client.post("/api/v1/health/browser/test-proxy-connection")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "invalid"
+
+
+@patch("app.services.config.service.config_service.get")
+def test_proxy_connection_success(
+    mock_get: object,
+    client: TestClient,
+) -> None:
+    """POST /browser/test-proxy-connection reports connected with egress IP."""
+    mock_get.return_value = _config_record(  # type: ignore[attr-defined]
+        {
+            "enabled": True,
+            "proxies": ["http://user:pass@127.0.0.1:8888", "http://127.0.0.1:9999"],
+        }
+    )
+    mock_response = AsyncMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"origin": "203.0.113.9"}
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.get.return_value = mock_response
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        response = client.post("/api/v1/health/browser/test-proxy-connection")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "connected"
+    assert data["proxy_count"] == 2
+    assert data["egress_ip"] == "203.0.113.9"
+    mock_client.get.assert_awaited_once_with("https://httpbin.org/ip")
+
+
+@patch("app.services.config.service.config_service.get")
+def test_proxy_connection_http_error(
+    mock_get: object,
+    client: TestClient,
+) -> None:
+    """POST /browser/test-proxy-connection reports non-200 responses as failed."""
+    mock_get.return_value = _config_record(  # type: ignore[attr-defined]
+        {"enabled": True, "proxies": ["http://127.0.0.1:8888"]}
+    )
+    mock_response = AsyncMock()
+    mock_response.status_code = 407
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.get.return_value = mock_response
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        response = client.post("/api/v1/health/browser/test-proxy-connection")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "failed"
+    assert data["error"] == "HTTP 407"
+
+
+@patch("app.services.config.service.config_service.get")
+def test_proxy_connection_exception(
+    mock_get: object,
+    client: TestClient,
+) -> None:
+    """POST /browser/test-proxy-connection surfaces transport exceptions."""
+    mock_get.return_value = _config_record(  # type: ignore[attr-defined]
+        {"enabled": True, "proxies": ["http://127.0.0.1:8888"]}
+    )
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.get.side_effect = ConnectionError("proxy unreachable")
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        response = client.post("/api/v1/health/browser/test-proxy-connection")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "failed"
+    assert "proxy unreachable" in data["error"]
