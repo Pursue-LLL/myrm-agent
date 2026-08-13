@@ -126,3 +126,49 @@ async def test_analyze_url_no_subdirectory(mock_analyze_github_url):
     assert results[0]["name"] == "repo"
     assert "description" in results[0]
     assert results[0]["is_installed"] is False
+
+
+@pytest.mark.asyncio
+async def test_uninstall_success_purges_permission_data() -> None:
+    """卸载成功时必须同步清理该技能的授权/审计数据与缓存。"""
+    service = SkillMarketService()
+    result = MagicMock(success=True)
+    with (
+        patch.object(service, "_base") as mock_base,
+        patch.object(
+            service, "_auto_disable_local_skill", new_callable=AsyncMock
+        ) as mock_disable,
+        patch(
+            "app.core.skills.marketplace.market_service.purge_skill_permissions",
+            new_callable=AsyncMock,
+        ) as mock_purge,
+    ):
+        mock_base.uninstall = AsyncMock(return_value=result)
+        res = await service.uninstall("skill-1")
+
+    assert res is result
+    mock_disable.assert_awaited_once_with("skill-1")
+    mock_purge.assert_awaited_once_with("skill-1")
+
+
+@pytest.mark.asyncio
+async def test_uninstall_failure_skips_purge() -> None:
+    """卸载失败时不得清理权限数据（避免误删仍在使用的授权）。"""
+    service = SkillMarketService()
+    result = MagicMock(success=False)
+    with (
+        patch.object(service, "_base") as mock_base,
+        patch.object(
+            service, "_auto_disable_local_skill", new_callable=AsyncMock
+        ) as mock_disable,
+        patch(
+            "app.core.skills.marketplace.market_service.purge_skill_permissions",
+            new_callable=AsyncMock,
+        ) as mock_purge,
+    ):
+        mock_base.uninstall = AsyncMock(return_value=result)
+        res = await service.uninstall("skill-1")
+
+    assert res is result
+    mock_disable.assert_not_awaited()
+    mock_purge.assert_not_awaited()

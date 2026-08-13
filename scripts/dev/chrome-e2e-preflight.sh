@@ -1475,7 +1475,8 @@ _mux_request_timeout_effective() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
   local probe_timeout
   probe_timeout="$(_mux_probe_timeout_sec)"
-  "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux/responsive_probe.py" \
+  PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux/responsive_probe.py" \
     --expected-ms "${MUX_REQUEST_TIMEOUT_MS}" \
     --state-dir "${MUX_STATE_DIR}" \
     --socket "${MUX_SOCKET}" \

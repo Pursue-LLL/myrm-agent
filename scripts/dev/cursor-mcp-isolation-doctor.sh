@@ -10,4 +10,5 @@ if [[ ! -x "${PREFLIGHT_PY}" ]]; then
   PREFLIGHT_PY="python3"
 fi
 
-exec "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_core/cursor_mcp_isolation.py" "$@"
+exec env PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+  "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/e2e_core/cursor_mcp_isolation.py" "$@"

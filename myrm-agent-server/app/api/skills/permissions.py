@@ -13,8 +13,8 @@ Endpoints:
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import cast
+from collections import defaultdict
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -28,16 +28,6 @@ from app.database.models import SkillPermissionGrant, SkillPermissionUsageLog
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-def _as_int(val: object, default: int = 0) -> int:
-    if isinstance(val, int):
-        return val
-    if isinstance(val, float):
-        return int(val)
-    if isinstance(val, str) and val.isdigit():
-        return int(val)
-    return default
 
 
 def _required_permission_values(skill: object) -> list[str]:
@@ -477,7 +467,7 @@ async def get_permission_usage_stats(
     if not skill:
         raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
 
-    since = datetime.utcnow() - timedelta(days=days)
+    since = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
 
     # 查询所有日志
     stmt = (
@@ -492,28 +482,17 @@ async def get_permission_usage_stats(
     logs = result.scalars().all()
 
     # 按权限分组统计
-    stats_by_permission: dict[str, dict[str, object]] = {}
+    counts: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0])  # [total, allowed, denied]
+    recent_operations: dict[str, list[PermissionUsageEntry]] = {}
     for log in logs:
-        if log.permission not in stats_by_permission:
-            empty_recent: list[PermissionUsageEntry] = []
-            stats_by_permission[log.permission] = {
-                "permission": log.permission,
-                "total_count": 0,
-                "allowed_count": 0,
-                "denied_count": 0,
-                "recent_operations": empty_recent,
-            }
-        stats = stats_by_permission[log.permission]
-        stats["total_count"] = _as_int(stats["total_count"]) + 1
-        if log.allowed:
-            stats["allowed_count"] = _as_int(stats["allowed_count"]) + 1
-        else:
-            stats["denied_count"] = _as_int(stats["denied_count"]) + 1
+        stat = counts[log.permission]
+        stat[0] += 1
+        stat[1 if log.allowed else 2] += 1
 
         # 每个权限保留最近10条
-        recent_ops = cast(list[PermissionUsageEntry], stats["recent_operations"])
-        if len(recent_ops) < 10:
-            recent_ops.append(
+        recent = recent_operations.setdefault(log.permission, [])
+        if len(recent) < 10:
+            recent.append(
                 PermissionUsageEntry(
                     permission=log.permission,
                     operation=log.operation,
@@ -528,15 +507,13 @@ async def get_permission_usage_stats(
         skill_name=skill.name,
         stats=[
             PermissionUsageStats(
-                permission=str(s["permission"]),
-                total_count=_as_int(s["total_count"]),
-                allowed_count=_as_int(s["allowed_count"]),
-                denied_count=_as_int(s["denied_count"]),
-                recent_operations=cast(
-                    list[PermissionUsageEntry], s["recent_operations"]
-                ),
+                permission=permission,
+                total_count=stats[0],
+                allowed_count=stats[1],
+                denied_count=stats[2],
+                recent_operations=recent_operations.get(permission, []),
             )
-            for s in stats_by_permission.values()
+            for permission, stats in counts.items()
         ],
         total_operations=len(logs),
     )

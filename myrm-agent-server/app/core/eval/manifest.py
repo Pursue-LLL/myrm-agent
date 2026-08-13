@@ -38,6 +38,8 @@ async def _build_eval_manifest(
     external_cases: list["MultiTurnEvalCase"] | None = None,
     judge_model: str = "none",
     limit: int | None = None,
+    max_tool_calls: int | None = None,
+    max_iterations: int | None = None,
 ) -> EvalManifest:
     """Build an EvalManifest capturing the current evaluation environment."""
     model_provider = "unknown"
@@ -116,4 +118,6 @@ async def _build_eval_manifest(
         benchmark_mode=benchmark_mode,
         judge_model=judge_model,
         limit=limit,
+        max_tool_calls=max_tool_calls,
+        max_iterations=max_iterations,
     )

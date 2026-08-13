@@ -11,6 +11,9 @@ interface MatrixProfileResult {
   total_cost: number;
   total_ms: number;
   memory_tool_calls?: number;
+  total_tool_calls?: number;
+  limit_hits?: number;
+  blocked_count?: number;
   agent_model?: string;
 }
 
@@ -20,6 +23,9 @@ interface MatrixCell {
   token_usage: Record<string, number>;
   cost: number;
   error: string | null;
+  tool_calls?: number;
+  limit_reached?: string | null;
+  blocked_count?: number;
 }
 
 interface MatrixRow {
@@ -82,6 +88,7 @@ export default function MatrixResultView({ report, profileNames }: Props) {
 
   const failedAllCount = report.total_cases - report.stable_count - report.regression_count;
   const showMemoryCalls = report.profile_ids.some((pid) => report.per_profile[pid]?.memory_tool_calls != null);
+  const showToolCalls = report.profile_ids.some((pid) => report.per_profile[pid]?.total_tool_calls != null);
 
   return (
     <div className="space-y-6 max-w-full mx-auto overflow-x-auto">
@@ -185,6 +192,12 @@ export default function MatrixResultView({ report, profileNames }: Props) {
               {isLayered && <th className="px-4 py-3 font-medium">{tLayers('costEfficiency')}</th>}
               <th className="px-4 py-3 font-medium">{t('time')}</th>
               {showMemoryCalls && <th className="px-4 py-3 font-medium">{t('memoryCalls')}</th>}
+              {showToolCalls && (
+                <>
+                  <th className="px-4 py-3 font-medium">{t('toolCalls')}</th>
+                  <th className="px-4 py-3 font-medium">{t('limitHits')}</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -248,6 +261,20 @@ export default function MatrixResultView({ report, profileNames }: Props) {
                   )}
                   <td className="px-4 py-3">{(pr.total_ms / 1000).toFixed(1)}s</td>
                   {showMemoryCalls && <td className="px-4 py-3">{pr.memory_tool_calls ?? 0}</td>}
+                  {showToolCalls && (
+                    <>
+                      <td className="px-4 py-3">{pr.total_tool_calls ?? 0}</td>
+                      <td className="px-4 py-3">
+                        {(pr.limit_hits ?? 0) > 0 ? (
+                          <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-medium">
+                            {pr.limit_hits}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </td>
+                    </>
+                  )}
                 </tr>
               );
             })}
@@ -339,6 +366,28 @@ export default function MatrixResultView({ report, profileNames }: Props) {
                           <span className="text-[10px] text-muted-foreground block mt-0.5">
                             {(cell.total_ms / 1000).toFixed(1)}s
                           </span>
+                          {(cell.tool_calls != null || cell.limit_reached || cell.blocked_count) && (
+                            <span className="flex items-center justify-center gap-1 mt-1">
+                              {cell.limit_reached && (
+                                <span
+                                  className="px-1 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[9px] font-semibold"
+                                  title={t('limitHitTitle')}
+                                >
+                                  {t('limitHits')}
+                                </span>
+                              )}
+                              {cell.tool_calls != null && (
+                                <span className="text-[9px] text-muted-foreground">
+                                  {cell.tool_calls}×
+                                </span>
+                              )}
+                              {(cell.blocked_count ?? 0) > 0 && (
+                                <span className="px-1 rounded bg-violet-500/15 text-violet-600 dark:text-violet-400 text-[9px] font-semibold">
+                                  {t('blocked')} {cell.blocked_count}
+                                </span>
+                              )}
+                            </span>
+                          )}
                         </td>
                       );
                     })}

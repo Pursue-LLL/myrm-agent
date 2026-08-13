@@ -1318,8 +1318,8 @@
       }
     },
     "mediaGeneration": {
-      "imageTitle": "影象生成",
-      "imageDescription": "配置影象生成模型，在聊天中透過開關啟用",
+      "imageTitle": "影像生成",
+      "imageDescription": "配置影像生成模型，在聊天中透過開關啟用",
       "videoTitle": "影片生成",
       "videoDescription": "配置影片生成服務商和模型，在聊天中透過開關啟用",
       "provider": "服務商",
@@ -1628,7 +1628,7 @@
       "liteModelDescription": "用於上下文摘要等輕量任務的模型，降低成本",
       "liteModelContextWindowWarning": "輕量模型的上下文視窗小於主模型，長對話時摘要可能因上下文超限而質量下降。建議選擇上下文視窗不低於主模型的輕量模型。",
       "visionFallbackModel": "視覺降級模型",
-      "visionFallbackModelDescription": "當主模型不支援視覺能力時，將自動呼叫此模型進行影象轉文字分析。建議配置如 gpt-4o-mini 等廉價多模態模型",
+      "visionFallbackModelDescription": "當主模型不支援視覺能力時，將自動呼叫此模型進行影像轉文字分析。建議配置如 gpt-4o-mini 等廉價多模態模型",
       "primaryModel": "主模型",
       "fallbackSlot": "備用",
       "fallbackModel": "備用模型",
@@ -7631,8 +7631,8 @@
     "disableBrowser": "關閉瀏覽器自動化",
     "enableComputerUse": "開啟系統桌面控制（右下角可開啟檢查器）",
     "disableComputerUse": "關閉系統桌面控制",
-    "enableImageGeneration": "開啟影象生成",
-    "disableImageGeneration": "關閉影象生成",
+    "enableImageGeneration": "開啟影像生成",
+    "disableImageGeneration": "關閉影像生成",
     "enableVideoGeneration": "開啟影片生成",
     "disableVideoGeneration": "關閉影片生成",
     "workingMemory": {
@@ -8387,7 +8387,7 @@
       },
       "mediaGeneration": {
         "title": "媒體生成",
-        "description": "配置影象和影片生成服務"
+        "description": "配置影像和影片生成服務"
       },
       "cron": {
         "title": "定時任務",
@@ -8795,7 +8795,7 @@
     "text_continuation": "回覆被截斷，自動續寫中...",
     "text_continuation_exhausted": "達到最大續寫次數後回覆仍不完整",
     "context_truncation": "正在裁剪舊上下文以適應視窗",
-    "media_stripped": "已移除媒體內容 — 當前模型不支援影象輸入",
+    "media_stripped": "已移除媒體內容 — 當前模型不支援影像輸入",
     "media_rejected_recovery": "模型拒絕媒體輸入 — 已移除並重試",
     "vision_fallback_recovery": "模型不支援圖片 — 已轉為文字描述並重試",
     "thinking_signature_recovery": "思考區塊已修復並重試",

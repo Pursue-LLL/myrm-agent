@@ -242,6 +242,7 @@ export const SYSTEM_STEP_CATEGORY_MAP: Record<string, ToolCategory> = {
   swarm_fission: 'thinking',
   subagent_notification: 'thinking',
   safety_fallback_active: 'safety',
+  safety_fallback_unconfigured: 'safety',
   context_pruned: 'thinking',
   archive_checkpoint: 'thinking',
   memory_archived: 'thinking',
@@ -251,6 +252,12 @@ export const SYSTEM_STEP_CATEGORY_MAP: Record<string, ToolCategory> = {
   image_shrink_recovery: 'safety',
   long_context_tier_recovery: 'safety',
   media_rejected_recovery: 'safety',
+  vision_fallback_recovery: 'safety',
+  model_failover: 'safety',
+  model_failover_unconfigured: 'safety',
+  transient_retry: 'safety',
+  empty_response_recovery: 'safety',
+  tool_call_retry: 'safety',
 };
 
 // 默认类别

@@ -213,6 +213,7 @@
     "batchDirectory.projectIdLabel",
     "batchDirectory.statProjects",
     "batchDirectory.tableName",
-    "batchDirectory.tableStatus"
+    "batchDirectory.tableStatus",
+    "settings.shares.table.link"
   ]
 }

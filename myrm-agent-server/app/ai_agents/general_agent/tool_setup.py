@@ -348,6 +348,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     description_locale=tool_description_locale,
                     blocked_terms=getattr(self, "benchmark_blocked_terms", ())
                     or None,
+                    blocked_hostnames=getattr(self, "benchmark_blocked_hostnames", ())
+                    or None,
                 )
             )
 

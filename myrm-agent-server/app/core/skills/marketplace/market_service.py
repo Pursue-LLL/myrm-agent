@@ -13,6 +13,7 @@ Wraps the framework-layer BaseSkillMarketService to add:
 [OUTPUT]
 - Enriched search / install / install_from_url / analyze_url / uninstall consumed
   by the skills API market endpoints.
+- uninstall 成功后清理技能授权/审计数据与权限缓存（委托 permission_service.purge_skill_permissions）。
 
 Post-install catalog enable is handled by discovery_mount (discovery API / autoupdate).
 """
@@ -34,6 +35,8 @@ from myrm_agent_harness.backends.skills.market_protocols import (
     InstalledSkillInfo,
     SkillInstallResult,
 )
+
+from app.services.skills.permission_service import purge_skill_permissions
 
 logger = logging.getLogger(__name__)
 
@@ -267,6 +270,12 @@ class SkillMarketService:
         result = await self._base.uninstall(skill_id)
         if result.success:
             await self._auto_disable_local_skill(skill_id)
+            try:
+                await purge_skill_permissions(skill_id)
+            except Exception as e:
+                logger.warning(
+                    "Failed to purge permission data for %s: %s", skill_id, e
+                )
             logger.info("Uninstalled skill: %s", skill_id)
         return result
 

@@ -4,7 +4,7 @@
  * Skill Permission Approval Dialog
  *
  * 当用户安装/启用Skill时，显示Skill声明的required_permissions，
- * 用户批准后才能继续。支持"Always Allow"功能。
+ * 用户批准后才能继续。
  *
  * 借鉴Manus Skills Marketplace的权限审批设计。
  */
@@ -28,7 +28,6 @@ import {
 
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
-import { Checkbox } from '@/components/primitives/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -71,7 +70,7 @@ interface SkillPermissionApprovalDialogProps {
   open: boolean;
   request: SkillPermissionRequest | null;
   onOpenChange: (open: boolean) => void;
-  onApprove: (alwaysAllow: boolean, template?: PermissionTemplateType) => void;
+  onApprove: (template?: PermissionTemplateType) => void;
   onDeny: () => void;
   isLoading?: boolean;
 }
@@ -112,7 +111,6 @@ export function SkillPermissionApprovalDialog({
   isLoading,
 }: SkillPermissionApprovalDialogProps) {
   const t = useTranslations('skills.permissions');
-  const [alwaysAllow, setAlwaysAllow] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<PermissionTemplateType | ''>('');
 
   if (!request) return null;
@@ -129,14 +127,8 @@ export function SkillPermissionApprovalDialog({
   };
 
   const handleApprove = () => {
-    onApprove(alwaysAllow, selectedTemplate || undefined);
-    setAlwaysAllow(false);
+    onApprove(selectedTemplate || undefined);
     setSelectedTemplate('');
-  };
-
-  const handleDeny = () => {
-    onDeny();
-    setAlwaysAllow(false);
   };
 
   // 权限标签映射
@@ -238,7 +230,7 @@ export function SkillPermissionApprovalDialog({
             {selectedTemplate && (
               <p className="mt-2 text-xs text-muted-foreground">
                 {t('template.hint', {
-                  defaultValue: '模板将自动勾选对应权限',
+                  defaultValue: '批准时将自动授予模板对应的权限',
                 })}
               </p>
             )}
@@ -356,23 +348,10 @@ export function SkillPermissionApprovalDialog({
             </Alert>
           )}
 
-          {/* Always Allow 选项 */}
-          {!hasDangerousPermissions && (
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="always-allow-skill"
-                checked={alwaysAllow}
-                onCheckedChange={(checked) => setAlwaysAllow(checked === true)}
-              />
-              <label htmlFor="always-allow-skill" className="cursor-pointer text-sm text-muted-foreground">
-                {t('alwaysAllow', { defaultValue: '始终允许此Skill的权限请求' })}
-              </label>
-            </div>
-          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={handleDeny} disabled={isLoading}>
+          <Button variant="outline" onClick={onDeny} disabled={isLoading}>
             <XCircle className="mr-2 h-4 w-4" />
             {t('deny', { defaultValue: '拒绝' })}
           </Button>
@@ -386,20 +365,6 @@ export function SkillPermissionApprovalDialog({
               ? t('approveAnyway', { defaultValue: '仍然批准' })
               : t('approve', { defaultValue: '批准' })}
           </Button>
-          {!hasDangerousPermissions && (
-            <Button
-              variant="default"
-              onClick={() => {
-                setAlwaysAllow(true);
-                handleApprove();
-              }}
-              disabled={isLoading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle className="mr-2 h-4 w-4" />
-              {t('allowAll', { defaultValue: '全部允许' })}
-            </Button>
-          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

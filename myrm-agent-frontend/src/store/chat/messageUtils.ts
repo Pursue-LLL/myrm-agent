@@ -1,3 +1,8 @@
+/**
+ * [POS]
+ * chat store 消息工具函数集：assistant 消息查找/占位创建、restart 协议草稿清空
+ * （`clearAssistantDraft` / `discardStreamedDraft`）、UI artifact 定位与建议生成。
+ */
 import { Message } from '@/store/chat/types';
 import useConfigStore from '../useConfigStore';
 import { getSuggestions as getSuggestionsService } from '@/services/chat';
@@ -95,6 +100,24 @@ export const clearAssistantDraft = (message: Message): void => {
   message.reasoning = '';
   message.reasoningStartedAt = undefined;
   message.reasoningDurationMs = undefined;
+};
+
+/** Stream-level draft buffers reset by a recovery that re-runs the turn. */
+export interface StreamDraftBuffers {
+  recievedMessage: string;
+  state: { scheduler?: { cancel?: () => void } };
+}
+
+/**
+ * Drop the stream-level draft before a recovery restarts the turn.
+ *
+ * Complements `clearAssistantDraft` (message-level): resets the accumulated
+ * chunk buffer and cancels any pending render task whose closure captured the
+ * pre-clear buffer and would write the stale draft back to the message.
+ */
+export const discardStreamedDraft = (ctx: StreamDraftBuffers): void => {
+  ctx.recievedMessage = '';
+  ctx.state.scheduler?.cancel?.();
 };
 
 /**

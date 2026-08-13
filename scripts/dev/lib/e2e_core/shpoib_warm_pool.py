@@ -21,6 +21,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Final, TypedDict
 
+# 作为脚本直接执行时（`python .../e2e_core/shpoib_warm_pool.py`），sys.path[0] 指向模块自身所在
+# 目录而非 dev lib 根，导致模块级导入 e2e_core.* / dev_gate.* 失败；
+# 自举 dev lib 根（当前目录的父目录或向上两级），与 dev_gate/cli.py 保持同模式。
+if __package__ in (None, ""):
+    _lib_root = str(Path(__file__).resolve().parent.parent)
+    if _lib_root not in sys.path:
+        sys.path.insert(0, _lib_root)
+
 from e2e_core.real_user_home import real_user_home
 
 DEFAULT_POOL_SIZE: Final[int] = 2

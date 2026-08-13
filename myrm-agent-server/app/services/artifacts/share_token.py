@@ -22,7 +22,11 @@ from myrm_agent_harness.agent.artifacts.constants import (
     infer_artifact_type_from_extension,
 )
 
-from app.core.security.share_hmac import create_share_token, parse_share_token
+from app.core.security.share_hmac import (
+    create_share_token,
+    parse_share_token,
+    sign_share_token,
+)
 
 _SALT = "artifact-share"
 _DEFAULT_TTL_SECONDS = 7 * 24 * 3600
@@ -60,6 +64,25 @@ def create_artifact_share_token(
         max_ttl_seconds=_MAX_TTL_SECONDS,
         password=password,
     )
+
+
+def rebuild_artifact_share_token(
+    artifact_id: str,
+    version_id: str,
+    *,
+    expires_at_unix: int,
+    artifact_type: str | None,
+) -> str:
+    """Reconstruct an unprotected share token from persisted registry fields.
+
+    Tokens are deterministic (same payload + expiry → same token), so the link
+    can be rebuilt without storing the raw token. Password-protected shares
+    cannot be rebuilt here: the password is never persisted.
+    """
+    payload: dict[str, object] = {"aid": artifact_id, "vid": version_id}
+    if artifact_type and artifact_type.strip():
+        payload["typ"] = artifact_type.strip().lower()
+    return sign_share_token(payload, salt=_SALT, exp=expires_at_unix)
 
 
 def parse_artifact_share_token(

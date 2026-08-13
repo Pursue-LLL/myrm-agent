@@ -131,8 +131,29 @@ def test_cold_registry_registers_browsecomp() -> None:
     assert benchmark_needs_judge("browsecomp") is True
 
 
+def test_browsecomp_declares_generous_run_budgets() -> None:
+    """BrowseComp budgets must exceed engine defaults so scored web-research
+    runs are not truncated by the 30-call/50-iteration engine cap.
+
+    Engine defaults: max_tool_calls=30 (EngineParams), max_iterations=50
+    (AgentSpec). BrowseComp is multi-hop and exploratory (BrowseComp-Plus
+    reports ~20 search calls on failed runs and >20 on strong models), so a
+    declared budget equal to the defaults would silently measure the engine
+    limit instead of the model.
+    """
+    from app.core.eval.benchmarks import benchmark_run_limits
+
+    max_tool_calls, max_iterations = benchmark_run_limits("browsecomp")
+    assert max_tool_calls is not None
+    assert max_iterations is not None
+    assert max_tool_calls >= 60
+    assert max_iterations >= 100
+
+
 @pytest.mark.asyncio
-async def test_run_benchmark_background_sample_size_follows_sampled(monkeypatch) -> None:
+async def test_run_benchmark_background_sample_size_follows_sampled(
+    monkeypatch,
+) -> None:
     """run_benchmark_background discloses the limit only when sampling happened.
 
     The manifest sample size follows the builder's explicit ``sampled`` flag;
@@ -171,7 +192,9 @@ async def test_run_benchmark_background_sample_size_follows_sampled(monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_build_eval_manifest_records_limit_and_judge(tmp_path, monkeypatch) -> None:
+async def test_build_eval_manifest_records_limit_and_judge(
+    tmp_path, monkeypatch
+) -> None:
     """The eval manifest discloses the applied sample size and judge model."""
     from types import SimpleNamespace
 
@@ -201,3 +224,103 @@ async def test_build_eval_manifest_records_limit_and_judge(tmp_path, monkeypatch
     assert manifest.limit == 10
     assert manifest.judge_model == "deepseek/deepseek-chat"
     assert manifest.benchmark_mode is True
+
+
+@pytest.mark.asyncio
+async def test_build_eval_manifest_records_run_budgets(tmp_path, monkeypatch) -> None:
+    """The eval manifest discloses the benchmark-declared run budgets."""
+    from types import SimpleNamespace
+
+    from app.core.eval.manifest import _build_eval_manifest
+
+    async def fake_load() -> SimpleNamespace:
+        return SimpleNamespace(
+            model_cfg=SimpleNamespace(
+                model="deepseek/deepseek-chat",
+                api_key="sk-test",
+                base_url="https://example.com",
+            )
+        )
+
+    monkeypatch.setattr(
+        "app.core.channel_bridge.config_loader.load_user_configs", fake_load
+    )
+
+    manifest = await _build_eval_manifest(
+        None,
+        "browsecomp",
+        tmp_path / "no_cases.jsonl",
+        benchmark_mode=True,
+        judge_model="none",
+        max_tool_calls=30,
+        max_iterations=50,
+    )
+    assert manifest.max_tool_calls == 30
+    assert manifest.max_iterations == 50
+    assert manifest.to_dict()["max_tool_calls"] == 30
+    assert manifest.to_dict()["max_iterations"] == 50
+
+
+@pytest.mark.asyncio
+async def test_run_benchmark_background_forwards_budgets_and_blocklists(
+    monkeypatch,
+) -> None:
+    """run_benchmark_background forwards spec budgets and HF blocklists.
+
+    The normal single-run path must apply the same decontamination and run
+    ceilings as the layered path — otherwise a plain BrowseComp run could
+    silently browse Hugging Face or inherit unbounded engine defaults.
+    """
+    from unittest.mock import AsyncMock
+
+    import app.core.eval.service as service_mod
+
+    service_mod._reset_benchmark_state()
+
+    turn = EvalCase(
+        message="task-1",
+        semantic_assertions=[SemanticAssertion(type="llm_judge", expected="rubric")],
+    )
+    cases = [MultiTurnEvalCase(turns=[turn])]
+
+    run_suite = AsyncMock()
+    monkeypatch.setattr(service_mod, "run_eval_suite", run_suite)
+    monkeypatch.setattr(
+        "app.core.eval.benchmarks.build_benchmark_cases",
+        lambda *args, **kwargs: (cases, {}, False),
+    )
+    await service_mod.run_benchmark_background("browsecomp", limit=50)
+    assert run_suite.call_args.kwargs["max_tool_calls"] == 100
+    assert run_suite.call_args.kwargs["max_iterations"] == 150
+    assert "huggingface.co" in run_suite.call_args.kwargs["blocked_hostnames"]
+    assert any("huggingface" in t for t in run_suite.call_args.kwargs["blocked_terms"])
+    service_mod._reset_benchmark_state()
+
+
+@pytest.mark.asyncio
+async def test_run_benchmark_background_wb_bench_has_no_guards(monkeypatch) -> None:
+    """WBBench declares no budgets and no web tools → no guards injected."""
+    from unittest.mock import AsyncMock
+
+    import app.core.eval.service as service_mod
+
+    service_mod._reset_benchmark_state()
+
+    turn = EvalCase(
+        message="task-1",
+        semantic_assertions=[SemanticAssertion(type="llm_judge", expected="rubric")],
+    )
+    cases = [MultiTurnEvalCase(turns=[turn])]
+
+    run_suite = AsyncMock()
+    monkeypatch.setattr(service_mod, "run_eval_suite", run_suite)
+    monkeypatch.setattr(
+        "app.core.eval.benchmarks.build_benchmark_cases",
+        lambda *args, **kwargs: (cases, {}, False),
+    )
+    await service_mod.run_benchmark_background("wb-bench-code", limit=5)
+    assert run_suite.call_args.kwargs["max_tool_calls"] is None
+    assert run_suite.call_args.kwargs["max_iterations"] is None
+    assert run_suite.call_args.kwargs["blocked_hostnames"] == ()
+    assert run_suite.call_args.kwargs["blocked_terms"] == ()
+    service_mod._reset_benchmark_state()

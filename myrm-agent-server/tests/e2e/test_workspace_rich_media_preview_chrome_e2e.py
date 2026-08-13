@@ -125,8 +125,10 @@ def _open_workspace_tab_js() -> str:
   );
   if (tab) tab.click();
   const store = window.__myrmChatStore?.getState?.() ?? null;
+  const ready = Boolean(tab);
   return {
-    ok: Boolean(tab),
+    ok: ready,
+    ready,
     text: tab?.textContent || '',
     store: store
       ? {
@@ -149,7 +151,8 @@ def _click_file_js(filename: str) -> str:
     (b.textContent || '').includes(name),
   );
   if (btn) btn.click();
-  return {{ ok: Boolean(btn) }};
+  const ready = Boolean(btn);
+  return {{ ok: ready, ready }};
 }})()"""
 
 

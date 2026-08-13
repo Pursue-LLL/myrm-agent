@@ -1,7 +1,7 @@
 """MCP server endpoint for external agent memory access.
 
 [INPUT]
-- myrm_agent_harness.toolkits.memory.mcp_server::MemoryMCPServer (POS: MCP adapter)
+- myrm_agent_harness.toolkits.memory.mcp_server::MemoryMCPServer (POS: MCP server adapter that lets external AI agents access the memory system via standard MCP protocol)
 - app.services.connect::get_connect_service (POS: Token verification)
 - app.core.memory.adapters.setup::create_memory_manager, resolve_context_binding (POS: MemoryManager factory)
 

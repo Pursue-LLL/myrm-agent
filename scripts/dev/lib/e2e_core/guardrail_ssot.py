@@ -58,9 +58,9 @@ _FORBIDDEN_LITERAL_MODES: Final[frozenset[str]] = frozenset(
 def validate_e2e_test_file(path: Path) -> None:
     """Fail closed when pytest marker drifts from mechanical SSOT."""
     text = path.read_text(encoding="utf-8")
-    if "guardrail_e2e_ssot" not in text:
+    if "guardrail_ssot" not in text or "e2e_core.guardrail_ssot" not in text:
         raise RuntimeError(
-            "E2E_GUARDRAIL_MARKER_INVALID: test file must import guardrail_e2e_ssot"
+            "E2E_GUARDRAIL_MARKER_INVALID: test file must import e2e_core.guardrail_ssot"
         )
     if "CHROME_E2E_MARKER_KWARGS" not in text:
         raise RuntimeError(

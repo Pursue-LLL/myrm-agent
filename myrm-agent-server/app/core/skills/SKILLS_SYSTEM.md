@@ -135,6 +135,7 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | API | `app/api/skills/permissions.py`：`GET /{skill_id}/permissions`、`POST .../grant`、`POST .../revoke`、`POST .../apply-template`、`POST /permissions/bulk-revoke-by-type`、`GET /{skill_id}/permissions/usage` |
 | UI | 设置 → AI 工具 → 「权限管理」Tab（授予/撤销/批量撤销）；技能详情 → 「权限使用统计」区（允许/拒绝率 + 最近操作） |
 | 运行时 | `SkillBoundaryProvider` guardrail 依据 `SkillPermissionGrant` 判断放行/拦截；操作写入 `skill_permission_usage_logs` |
+| 卸载清理 | `SkillMarketService.uninstall` 成功后调用 `permission_service.purge_skill_permissions`：删除该 skill 的 `SkillPermissionGrant` + `skill_permission_usage_logs`，并清空内存权限缓存，防止重装同 ID 技能继承旧授权 |
 
 ---
 

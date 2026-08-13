@@ -56,12 +56,26 @@ const shareRecord = {
   password_protected: false,
   created_at: 1786500000,
   expires_at: 1787200000,
+  share_path: '/api/v1/public/artifact-share/abc.def',
+};
+
+const protectedRecord = {
+  ...shareRecord,
+  id: 'rec-2',
+  artifact_name: 'secret.pdf',
+  artifact_type: 'pdf',
+  password_protected: true,
+  share_path: null,
 };
 
 describe('ShareLinksSection', () => {
   beforeEach(() => {
     mockToast.mockClear();
     vi.restoreAllMocks();
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
   });
 
   it('renders empty state when there are no active share links', async () => {
@@ -83,7 +97,48 @@ describe('ShareLinksSection', () => {
 
     await waitFor(() => expect(screen.getByTestId('shares-table')).toBeInTheDocument());
     expect(screen.getByText('report.html')).toBeInTheDocument();
-    expect(screen.getByText('html')).toBeInTheDocument();
+    expect(screen.getByText('type.html')).toBeInTheDocument();
+    expect(screen.getByText('copy')).toBeInTheDocument();
+  });
+
+  it('copies the share link for unprotected records', async () => {
+    const clipboardSpy = vi
+      .spyOn(navigator.clipboard, 'writeText')
+      .mockImplementation(async () => undefined);
+    vi.stubGlobal('location', { origin: 'http://localhost:3000' });
+    const fetchMock = mockFetchRoutes([
+      { method: 'GET', url: '/api/v1/files/artifacts/shares', body: [shareRecord] },
+    ]);
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<ShareLinksSection />);
+    await waitFor(() => expect(screen.getByTestId('shares-table')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: /copyLabel/ }));
+
+    await waitFor(() =>
+      expect(clipboardSpy).toHaveBeenCalledWith(
+        'http://localhost:3000/api/v1/public/artifact-share/abc.def',
+      ),
+    );
+    expect(screen.getByText('copied')).toBeInTheDocument();
+  });
+
+  it('shows a protected hint instead of a copy button for password-protected records', async () => {
+    const fetchMock = mockFetchRoutes([
+      {
+        method: 'GET',
+        url: '/api/v1/files/artifacts/shares',
+        body: [shareRecord, protectedRecord],
+      },
+    ]);
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<ShareLinksSection />);
+
+    await waitFor(() => expect(screen.getByTestId('shares-table')).toBeInTheDocument());
+    expect(screen.getByText('linkProtected')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /copyLabel.*secret/ })).not.toBeInTheDocument();
   });
 
   it('opens the impact preview dialog and revokes a share link on confirm', async () => {

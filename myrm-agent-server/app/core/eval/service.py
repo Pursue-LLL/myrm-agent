@@ -194,7 +194,9 @@ async def run_benchmark_background(
 
     try:
         from app.core.eval.benchmarks import (
+            benchmark_decontam,
             benchmark_required_tools,
+            benchmark_run_limits,
             build_benchmark_cases,
         )
 
@@ -215,6 +217,8 @@ async def run_benchmark_background(
         # drawn (limit < full case count); a limit at/above the full count is
         # a full run and must not be flagged as sampled.
         sample_size = limit if sampled else None
+        max_tool_calls, max_iterations = benchmark_run_limits(benchmark_id)
+        blocked_hostnames, blocked_terms = benchmark_decontam(benchmark_id)
         await run_eval_suite(
             dataset_id=benchmark_id,
             reports_dir=reports_dir,
@@ -224,6 +228,10 @@ async def run_benchmark_background(
             external_cases=cases,
             workspace_seed_map=seed_map,
             limit=sample_size,
+            max_tool_calls=max_tool_calls,
+            max_iterations=max_iterations,
+            blocked_hostnames=blocked_hostnames,
+            blocked_terms=blocked_terms,
         )
     except Exception as exc:
         if _eval_state.get("abort_requested"):
@@ -315,6 +323,10 @@ async def run_eval_suite(
     external_cases: list["MultiTurnEvalCase"] | None = None,
     workspace_seed_map: dict[str, str] | None = None,
     limit: int | None = None,
+    max_tool_calls: int | None = None,
+    max_iterations: int | None = None,
+    blocked_hostnames: tuple[str, ...] = (),
+    blocked_terms: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """Run the standard evaluation suite for a user.
 
@@ -334,6 +346,14 @@ async def run_eval_suite(
             agent runs (used by external dataset adapters).
         limit: Effective sample size already applied to ``external_cases``
             (recorded in the manifest so reports disclose sampled runs).
+        max_tool_calls: Benchmark-declared tool-call budget to enforce during
+            the run (None = engine default). Also recorded in the manifest.
+        max_iterations: Benchmark-declared recursion budget to enforce during
+            the run (None = engine default). Also recorded in the manifest.
+        blocked_hostnames: Hostname blocklist for benchmark decontamination,
+            injected into web_fetch (empty = no filtering).
+        blocked_terms: Search-query blocklist for benchmark decontamination,
+            injected into web_search (empty = no filtering).
 
     Returns:
         A summary dictionary of the evaluation results.
@@ -384,6 +404,10 @@ async def run_eval_suite(
         benchmark_mode=benchmark_mode,
         benchmark_tools=benchmark_tools,
         workspace_seed_map=workspace_seed_map,
+        max_tool_calls=max_tool_calls,
+        max_iterations=max_iterations,
+        blocked_hostnames=blocked_hostnames,
+        blocked_terms=blocked_terms,
     )
     judge_config, judge_model_label = await _resolve_judge_config()
     adaptive_manager = AdaptiveEvalManager(max_concurrency=3, idle_wait_seconds=3.0)
@@ -403,6 +427,8 @@ async def run_eval_suite(
         external_cases=external_cases,
         judge_model=judge_model_label,
         limit=limit,
+        max_tool_calls=max_tool_calls,
+        max_iterations=max_iterations,
     )
 
     logger.info(

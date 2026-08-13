@@ -28,6 +28,13 @@ vi.mock('../handlerDeps', () => {
     parseArchiveRestoreBlockPayload: vi.fn(),
     parseArchiveRestoreResultPayload: vi.fn(),
     buildArchiveRestoreActions: vi.fn(() => []),
+    discardStreamedDraft: (ctx: {
+      recievedMessage: string;
+      state?: { scheduler?: { cancel?: () => void } };
+    }) => {
+      ctx.recievedMessage = '';
+      ctx.state?.scheduler?.cancel?.();
+    },
     clearAssistantDraft: (message: {
       content: string;
       reasoning?: string;
@@ -432,7 +439,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
       expect(schedulerCancelOf(ctx)).not.toHaveBeenCalled();
     });
 
-    it.each(['empty_response_recovery', 'tool_call_retry'])(
+    it.each(['empty_response_recovery', 'tool_call_retry', 'vision_fallback_recovery', 'media_rejected_recovery'])(
       'is a whitelisted progress step and clears the draft on %s',
       async (stepKey) => {
         expect(isStatusProgressStep(stepKey)).toBe(true);
@@ -466,5 +473,137 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
         expect(schedulerCancelOf(ctx)).toHaveBeenCalledTimes(1);
       },
     );
+
+    it('creates an assistant placeholder for empty_response_recovery arriving before MESSAGE', async () => {
+      const { findAssistantMessageIndex } = await import('../handlerDeps');
+      vi.mocked(findAssistantMessageIndex).mockReturnValueOnce(-1);
+
+      const state = {
+        messages: [
+          {
+            content: 'hi',
+            messageId: 'user-1',
+            chatId: 'c1',
+            role: 'user',
+            createdAt: new Date(),
+            progressSteps: [] as Array<{ step_key?: string }>,
+          },
+        ],
+      };
+      const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+        updater(state);
+      });
+
+      const ctx = makeRestartCtx('empty_response_recovery', true);
+      (ctx.data as unknown as Record<string, unknown>).messageId = 'msg-new';
+      ctx.added = false;
+      ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+      await applyStatusProgressStep(ctx, 'empty_response_recovery');
+
+      expect(state.messages).toHaveLength(2);
+      expect(state.messages[1].role).toBe('assistant');
+      expect(state.messages[1].messageId).toBe('msg-new');
+      expect(state.messages[1].progressSteps![0].step_key).toBe('empty_response_recovery');
+      expect(ctx.added).toBe(true);
+    });
+
+    it.each(['vision_fallback_recovery', 'media_rejected_recovery'])(
+      'creates an assistant placeholder for %s arriving before MESSAGE',
+      async (stepKey) => {
+        const { findAssistantMessageIndex } = await import('../handlerDeps');
+        vi.mocked(findAssistantMessageIndex).mockReturnValueOnce(-1);
+
+        const state = {
+          messages: [
+            {
+              content: 'hi',
+              messageId: 'user-1',
+              chatId: 'c1',
+              role: 'user',
+              createdAt: new Date(),
+              progressSteps: [] as Array<{ step_key?: string }>,
+            },
+          ],
+        };
+        const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+          updater(state);
+        });
+
+        const ctx = makeRestartCtx(stepKey, true);
+        (ctx.data as unknown as Record<string, unknown>).messageId = 'msg-new';
+        ctx.added = false;
+        ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+        await applyStatusProgressStep(ctx, stepKey);
+
+        expect(state.messages).toHaveLength(2);
+        expect(state.messages[1].role).toBe('assistant');
+        expect(state.messages[1].messageId).toBe('msg-new');
+        expect(state.messages[1].progressSteps![0].step_key).toBe(stepKey);
+        expect(ctx.added).toBe(true);
+      },
+    );
+
+    it('creates a placeholder for any restart STATUS step not in the early list', async () => {
+      const { findAssistantMessageIndex } = await import('../handlerDeps');
+      vi.mocked(findAssistantMessageIndex).mockReturnValueOnce(-1);
+
+      const state = {
+        messages: [
+          {
+            content: 'hi',
+            messageId: 'user-1',
+            chatId: 'c1',
+            role: 'user',
+            createdAt: new Date(),
+            progressSteps: [] as Array<{ step_key?: string }>,
+          },
+        ],
+      };
+      const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+        updater(state);
+      });
+
+      const ctx = makeRestartCtx('thinking_signature_recovery', true);
+      (ctx.data as unknown as Record<string, unknown>).messageId = 'msg-new';
+      ctx.added = false;
+      ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+      await applyStatusProgressStep(ctx, 'thinking_signature_recovery');
+
+      expect(state.messages).toHaveLength(2);
+      expect(state.messages[1].role).toBe('assistant');
+      expect(state.messages[1].messageId).toBe('msg-new');
+      expect(state.messages[1].progressSteps![0].step_key).toBe('thinking_signature_recovery');
+      expect(ctx.added).toBe(true);
+    });
+
+    it('deduplicates repeated empty_response_recovery STATUS into a single step', async () => {
+      const state = makeMessagesState();
+      const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+        updater(state);
+      });
+
+      const ctx = makeRestartCtx('empty_response_recovery', true);
+      ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+      await applyStatusProgressStep(ctx, 'empty_response_recovery');
+      await applyStatusProgressStep(ctx, 'empty_response_recovery');
+
+      expect(state.messages[0].progressSteps).toHaveLength(1);
+      expect(state.messages[0].progressSteps![0].step_key).toBe('empty_response_recovery');
+    });
+
+    it('deduplicates repeated context_truncation STATUS into a single step', async () => {
+      const state = makeMessagesState();
+      const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+        updater(state);
+      });
+
+      const ctx = makeRestartCtx('context_truncation', true);
+      ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+      await applyStatusProgressStep(ctx, 'context_truncation');
+      await applyStatusProgressStep(ctx, 'context_truncation');
+
+      expect(state.messages[0].progressSteps).toHaveLength(1);
+      expect(state.messages[0].progressSteps![0].step_key).toBe('context_truncation');
+    });
   });
 });

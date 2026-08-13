@@ -20,6 +20,7 @@ gate refuses both existing files and any re-materialization attempt.
 from __future__ import annotations
 
 import hashlib
+import logging
 import shutil
 import uuid
 from calendar import timegm
@@ -33,6 +34,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Artifact, ArtifactShareRecord
 from app.services.artifacts.share_bundle import bundle_dir_for_claims
 from app.services.artifacts.share_token import ArtifactShareClaims
+
+logger = logging.getLogger(__name__)
 
 MAX_RECORD_AGE_SECONDS = 60 * 24 * 3600  # 60-day audit window before hard delete
 
@@ -56,12 +59,30 @@ def token_fingerprint(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+async def _find_by_fingerprint(
+    db: AsyncSession, fingerprint: str
+) -> ArtifactShareRecord | None:
+    """Look up a registry row by its token fingerprint."""
+    return (
+        (
+            await db.execute(
+                select(ArtifactShareRecord).where(
+                    ArtifactShareRecord.token_fingerprint == fingerprint
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
 @dataclass(frozen=True)
 class ActiveShareRow:
     """Active share-link row for the management GUI."""
 
     id: str
     artifact_id: str
+    version_id: str
     artifact_name: str
     artifact_type: str | None
     password_protected: bool
@@ -97,20 +118,7 @@ async def register_share(
     """
     fingerprint = token_fingerprint(token)
 
-    async def _existing() -> ArtifactShareRecord | None:
-        return (
-            (
-                await db.execute(
-                    select(ArtifactShareRecord).where(
-                        ArtifactShareRecord.token_fingerprint == fingerprint
-                    )
-                )
-            )
-            .scalars()
-            .first()
-        )
-
-    existing = await _existing()
+    existing = await _find_by_fingerprint(db, fingerprint)
     if existing is not None:
         return existing
 
@@ -128,7 +136,7 @@ async def register_share(
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        existing = await _existing()
+        existing = await _find_by_fingerprint(db, fingerprint)
         if existing is not None:
             return existing
         raise
@@ -154,6 +162,7 @@ async def list_active_shares(db: AsyncSession) -> list[ActiveShareRow]:
         ActiveShareRow(
             id=record.id,
             artifact_id=record.artifact_id,
+            version_id=record.version_id,
             artifact_name=name,
             artifact_type=record.artifact_type,
             password_protected=record.password_protected,
@@ -188,6 +197,12 @@ async def revoke_share(db: AsyncSession, record_id: str) -> bool:
         record.revoked_at = _utcnow_naive()
         await db.commit()
         shutil.rmtree(bundle_dir_for_claims(claims), ignore_errors=True)
+        logger.info(
+            "Revoked artifact share link: record=%s artifact=%s version=%s",
+            record.id,
+            record.artifact_id,
+            record.version_id,
+        )
     return True
 
 
@@ -197,17 +212,7 @@ async def is_token_revoked(db: AsyncSession, token: str) -> bool:
     Unknown tokens (created before the registry shipped, or never persisted)
     return ``False`` so legacy share links keep working.
     """
-    record = (
-        (
-            await db.execute(
-                select(ArtifactShareRecord).where(
-                    ArtifactShareRecord.token_fingerprint == token_fingerprint(token)
-                )
-            )
-        )
-        .scalars()
-        .first()
-    )
+    record = await _find_by_fingerprint(db, token_fingerprint(token))
     return record is not None and record.revoked_at is not None
 
 

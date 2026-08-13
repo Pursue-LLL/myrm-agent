@@ -183,9 +183,13 @@ async def delete_memory(
     if mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
         await manager.update_memory(memory_id, status=MemoryStatus.ARCHIVED)
     elif mem_type == MemoryType.PROFILE:
-        await manager.delete_profile(memory_id)
+        if not await manager.delete_profile(memory_id):
+            raise HTTPException(status_code=404, detail="Memory not found")
     elif mem_type == MemoryType.PROCEDURAL:
-        await manager.delete_rule(memory_id)
+        if not await manager.delete_rule(memory_id):
+            raise HTTPException(status_code=404, detail="Memory not found")
+    else:
+        raise HTTPException(status_code=400, detail="Memory type is not deletable via mem0 API")
 
     return Mem0DeleteResponse(message="Memory deleted successfully!")
 
@@ -197,7 +201,7 @@ async def delete_all_memories(
     """Delete all memories."""
     for mem_type in ALL_MEMORY_TYPES:
         try:
-            await manager.delete_all(mem_type)
+            await manager.delete_by_type(mem_type)
         except Exception as e:
             logger.warning("Error deleting %s memories for mem0-compat: %s", mem_type, e)
 

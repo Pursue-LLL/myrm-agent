@@ -33,6 +33,7 @@ const PROGRESS_STEP_KEYS = new Set([
   'analyzing_video',
   'media_stripped',
   'media_rejected_recovery',
+  'vision_fallback_recovery',
   'thinking_signature_recovery',
   'tool_history_recovery',
   'image_shrink_recovery',
@@ -71,6 +72,10 @@ function isEarlyRecoveryProgressStep(stepKey: string): boolean {
     stepKey === 'safety_fallback_active' ||
     stepKey === 'safety_fallback_unconfigured' ||
     stepKey === 'transient_retry' ||
+    stepKey === 'empty_response_recovery' ||
+    stepKey === 'tool_call_retry' ||
+    stepKey === 'vision_fallback_recovery' ||
+    stepKey === 'media_rejected_recovery' ||
     stepKey === 'waiting_for_turn'
   );
 }
@@ -140,16 +145,16 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
     // reasoning streamed before it is a draft to drop. Idempotent across the
     // STATUS and MODEL_FAILOVER SSE channels: only the first event clears a
     // non-empty buffer, and it always precedes the restreamed chunks.
-    ctx.recievedMessage = '';
-    // Cancel any pending render task from buffered chunks: its closure captures
-    // the pre-clear buffer and would write the stale draft back to the message.
-    ctx.state.scheduler?.cancel?.();
+    H.discardStreamedDraft(ctx);
   }
   actions.setMessages((state) => {
     let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
     if (
       messageIndex === -1 &&
-      (isMediaAnalysis || isArchiveRestoreStatus || isEarlyRecoveryProgressStep(stepKey))
+      (isMediaAnalysis ||
+        isArchiveRestoreStatus ||
+        isEarlyRecoveryProgressStep(stepKey) ||
+        data.restart === true)
     ) {
       if (isMediaAnalysis || isArchiveRestoreStatus) {
         state.messages.push({
@@ -258,7 +263,9 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         stepKey === 'loop_guard_break' ||
         stepKey === 'workflow_stage' ||
         stepKey === 'model_failover' ||
-        stepKey === 'safety_fallback_active'
+        stepKey === 'safety_fallback_active' ||
+        stepKey === 'empty_response_recovery' ||
+        stepKey === 'context_truncation'
       ) {
         const existingStep = state.messages[messageIndex].progressSteps!.find(
           (step) =>

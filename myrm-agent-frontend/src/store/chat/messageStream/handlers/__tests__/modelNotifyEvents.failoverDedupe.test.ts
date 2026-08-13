@@ -10,6 +10,13 @@ const { showI18nToast } = vi.hoisted(() => ({ showI18nToast: vi.fn() }));
 vi.mock('../handlerDeps', () => ({
   findAssistantMessageIndex: vi.fn(() => 0),
   ensureAssistantStreamMessage: vi.fn(),
+  discardStreamedDraft: (ctx: {
+    recievedMessage: string;
+    state?: { scheduler?: { cancel?: () => void } };
+  }) => {
+    ctx.recievedMessage = '';
+    ctx.state?.scheduler?.cancel?.();
+  },
   clearAssistantDraft: (message: {
     content: string;
     reasoning?: string;

@@ -40,6 +40,7 @@ const stableT = (key: string, values?: Record<string, string | number>): string 
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
+  useLocale: () => 'en',
 }));
 
 vi.mock('@/hooks/shared/useToast', () => ({

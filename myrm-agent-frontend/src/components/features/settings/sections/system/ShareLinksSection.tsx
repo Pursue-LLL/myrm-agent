@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Link2Off, Loader2, RefreshCw } from 'lucide-react';
+import { Check, Link2Off, LinkIcon, Loader2, RefreshCw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +18,7 @@ import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import {
   fetchArtifactShares,
-  formatShareExpiry,
+  formatShareTimestamp,
   revokeArtifactShare,
   type ArtifactShareRecord,
 } from '@/services/artifactShares';
@@ -26,12 +26,19 @@ import { cn } from '@/lib/utils/classnameUtils';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
+const ARTIFACT_TYPE_LABELS: Record<string, string> = {
+  html: 'type.html',
+  pdf: 'type.pdf',
+  document: 'type.document',
+};
+
 export default function ShareLinksSection() {
   const t = useTranslations('settings.shares');
   const locale = useLocale();
   const [records, setRecords] = useState<ArtifactShareRecord[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [pendingRevoke, setPendingRevoke] = useState<ArtifactShareRecord | null>(null);
 
   const load = useCallback(async () => {
@@ -66,6 +73,23 @@ export default function ShareLinksSection() {
     },
     [t],
   );
+
+  const handleCopy = useCallback(
+    async (record: ArtifactShareRecord) => {
+      if (!record.share_path) return;
+      try {
+        await navigator.clipboard.writeText(window.location.origin + record.share_path);
+        setCopiedId(record.id);
+        window.setTimeout(() => setCopiedId(null), 2000);
+      } catch {
+        toast.error(t('copyError'));
+      }
+    },
+    [t],
+  );
+
+  const typeLabel = (artifactType: string | null) =>
+    artifactType ? t(ARTIFACT_TYPE_LABELS[artifactType] ?? 'type.unknown') : '—';
 
   const isRevoking = (id: string) => revokingId === id;
 
@@ -116,6 +140,7 @@ export default function ShareLinksSection() {
                 <tr>
                   <th className="px-4 py-3 font-medium">{t('table.artifact')}</th>
                   <th className="px-4 py-3 font-medium">{t('table.type')}</th>
+                  <th className="px-4 py-3 font-medium">{t('table.link')}</th>
                   <th className="px-4 py-3 font-medium">{t('table.protected')}</th>
                   <th className="px-4 py-3 font-medium">{t('table.expiresAt')}</th>
                   <th className="px-4 py-3 text-right font-medium">{t('table.action')}</th>
@@ -127,11 +152,28 @@ export default function ShareLinksSection() {
                     <td className="max-w-[220px] truncate px-4 py-3 font-medium text-foreground">
                       {record.artifact_name}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {record.artifact_type ? record.artifact_type : '—'}
+                    <td className="px-4 py-3 text-muted-foreground">{typeLabel(record.artifact_type)}</td>
+                    <td className="px-4 py-3">
+                      {record.share_path ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void handleCopy(record)}
+                          aria-label={t('copyLabel', { name: record.artifact_name })}
+                        >
+                          {copiedId === record.id ? (
+                            <Check className="h-4 w-4 text-emerald-500" />
+                          ) : (
+                            <LinkIcon className="h-4 w-4" />
+                          )}
+                          <span className="ml-1.5">{copiedId === record.id ? t('copied') : t('copy')}</span>
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{t('linkProtected')}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{record.password_protected ? t('yes') : t('no')}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatShareExpiry(record.expires_at, locale)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{formatShareTimestamp(record.expires_at, locale)}</td>
                     <td className="px-4 py-3 text-right">
                       <Button
                         variant="ghost"
@@ -174,15 +216,15 @@ export default function ShareLinksSection() {
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">{t('table.type')}</span>
-                <span className="text-foreground">{pendingRevoke.artifact_type ?? '—'}</span>
+                <span className="text-foreground">{typeLabel(pendingRevoke.artifact_type)}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">{t('confirm.createdAt')}</span>
-                <span className="text-foreground">{formatShareExpiry(pendingRevoke.created_at, locale)}</span>
+                <span className="text-foreground">{formatShareTimestamp(pendingRevoke.created_at, locale)}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">{t('table.expiresAt')}</span>
-                <span className="text-foreground">{formatShareExpiry(pendingRevoke.expires_at, locale)}</span>
+                <span className="text-foreground">{formatShareTimestamp(pendingRevoke.expires_at, locale)}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">{t('table.protected')}</span>

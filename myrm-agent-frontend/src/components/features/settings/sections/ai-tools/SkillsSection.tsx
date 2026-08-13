@@ -48,7 +48,11 @@ import SkillsLearnPanel from '@/components/features/skills/SkillsLearnPanel';
 import { EvolutionStrategyConfig } from '@/components/features/skills/EvolutionStrategyConfig';
 import CuratorSettingsPanel from '@/components/features/skills/CuratorSettingsPanel';
 import SkillDetailSheet from '@/components/features/skills/SkillDetailSheet';
-import { SkillPermissionApprovalDialog } from '@/components/features/skills/SkillPermissionApprovalDialog';
+import {
+  SkillPermissionApprovalDialog,
+  type SkillPermissionRequest,
+  type SkillPermissionType,
+} from '@/components/features/skills/SkillPermissionApprovalDialog';
 import { SkillPermissionsManager } from '@/components/features/skills/SkillPermissionsManager';
 import { SkillInstanceManager } from '@/components/features/skills/SkillInstanceManager';
 import SkillBatchImportDialog from '@/components/features/skills/SkillBatchImportDialog';
@@ -98,13 +102,7 @@ const SkillsSection = memo(() => {
   const [instanceManagerSkill, setInstanceManagerSkill] = useState<string | null>(null);
 
   // Permission approval dialog state
-  const [pendingApproval, setPendingApproval] = useState<{
-    skillId: string;
-    skillName: string;
-    requiredPermissions: string[];
-    description: string;
-    allowedDomains?: string[] | null;
-  } | null>(null);
+  const [pendingApproval, setPendingApproval] = useState<SkillPermissionRequest | null>(null);
 
   // Security scan blocked dialog state
   const [blockedSkill, setBlockedSkill] = useState<{
@@ -298,7 +296,7 @@ const SkillsSection = memo(() => {
           setPendingApproval({
             skillId: err.skillId,
             skillName: err.skillName,
-            requiredPermissions: err.requiredPermissions,
+            requiredPermissions: err.requiredPermissions as SkillPermissionType[],
             description: err.description,
             allowedDomains: skill?.allowed_domains,
           });
@@ -436,7 +434,7 @@ const SkillsSection = memo(() => {
   );
 
   const handleApprovePermissions = useCallback(
-    async (alwaysAllow: boolean, template?: string) => {
+    async (template?: string) => {
       if (!user?.id || !pendingApproval) return;
 
       try {
@@ -458,7 +456,6 @@ const SkillsSection = memo(() => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               permissions: pendingApproval.requiredPermissions,
-              always_allow: alwaysAllow,
             }),
           });
         }
@@ -849,7 +846,7 @@ const SkillsSection = memo(() => {
 
       <SkillPermissionApprovalDialog
         open={!!pendingApproval}
-        request={pendingApproval as any}
+        request={pendingApproval}
         onApprove={handleApprovePermissions}
         onDeny={handleDenyPermissions}
         onOpenChange={(open) => !open && setPendingApproval(null)}

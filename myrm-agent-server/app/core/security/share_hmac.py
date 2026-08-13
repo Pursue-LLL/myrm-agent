@@ -64,6 +64,28 @@ def _derive_key(salt: str, password: str | None) -> bytes:
     return key
 
 
+def sign_share_token(
+    payload: dict[str, Any],
+    *,
+    salt: str,
+    exp: int,
+    password: str | None = None,
+) -> str:
+    """Sign a token with an explicit expiry (used to rebuild persisted links).
+
+    Mirrors ``create_share_token`` but pins ``exp`` instead of deriving it from
+    ``time.time()``, so a link can be reconstructed from registry fields.
+    """
+    token_payload: dict[str, Any] = {"v": _TOKEN_VERSION, **payload, "exp": exp}
+    if password and password.strip():
+        token_payload["p"] = 1
+
+    body = b64url_encode(json.dumps(token_payload, separators=(",", ":")).encode("utf-8"))
+    key = _derive_key(salt, password)
+    sig = hmac.new(key, body.encode("ascii"), hashlib.sha256).hexdigest()
+    return f"{body}.{sig}"
+
+
 def create_share_token(
     payload: dict[str, Any],
     *,
@@ -75,15 +97,7 @@ def create_share_token(
     """Create an HMAC-signed share token. Returns ``(token, expires_at_unix)``."""
     ttl_seconds = max(60, min(ttl_seconds, max_ttl_seconds))
     exp = int(time.time()) + ttl_seconds
-
-    token_payload: dict[str, Any] = {"v": _TOKEN_VERSION, **payload, "exp": exp}
-    if password and password.strip():
-        token_payload["p"] = 1
-
-    body = b64url_encode(json.dumps(token_payload, separators=(",", ":")).encode("utf-8"))
-    key = _derive_key(salt, password)
-    sig = hmac.new(key, body.encode("ascii"), hashlib.sha256).hexdigest()
-    return f"{body}.{sig}", exp
+    return sign_share_token(payload, salt=salt, exp=exp, password=password), exp
 
 
 def parse_share_token(

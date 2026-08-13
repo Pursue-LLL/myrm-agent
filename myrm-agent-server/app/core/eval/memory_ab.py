@@ -137,8 +137,10 @@ async def run_memory_ab_background(
 
     try:
         from app.core.eval.benchmarks import (
+            benchmark_decontam,
             benchmark_needs_judge,
             benchmark_required_tools,
+            benchmark_run_limits,
             build_benchmark_cases,
         )
 
@@ -177,6 +179,8 @@ async def run_memory_ab_background(
             judge_config, judge_model = await _resolve_judge_config()
 
         benchmark_tools = benchmark_required_tools(benchmark_id)
+        max_tool_calls, max_iterations = benchmark_run_limits(benchmark_id)
+        blocked_hostnames, blocked_terms = benchmark_decontam(benchmark_id)
         executors = {
             "memory_off": LocalEvalExecutor(
                 profile_id=profile_id,
@@ -184,6 +188,10 @@ async def run_memory_ab_background(
                 benchmark_tools=benchmark_tools,
                 enable_memory=False,
                 workspace_seed_map=seed_map,
+                max_tool_calls=max_tool_calls,
+                max_iterations=max_iterations,
+                blocked_hostnames=blocked_hostnames,
+                blocked_terms=blocked_terms,
             ),
             "memory_on": LocalEvalExecutor(
                 profile_id=profile_id,
@@ -192,6 +200,10 @@ async def run_memory_ab_background(
                 enable_memory=True,
                 memory_base_path=str(memory_dir),
                 workspace_seed_map=seed_map,
+                max_tool_calls=max_tool_calls,
+                max_iterations=max_iterations,
+                blocked_hostnames=blocked_hostnames,
+                blocked_terms=blocked_terms,
             ),
         }
 
@@ -249,6 +261,10 @@ async def run_memory_ab_background(
         # (limit < full case count); a limit at/above the full count is a
         # full run and must not be flagged as sampled.
         report_data["limit"] = limit if sampled else None
+        # Disclose the benchmark-declared run budgets so a later engine-default
+        # change stays traceable (same measurement-decay guard as layered).
+        report_data["max_tool_calls"] = max_tool_calls
+        report_data["max_iterations"] = max_iterations
 
         # Annotate each arm with how many times the agent actually invoked
         # memory tools. Identical pass rates mean different things when memory

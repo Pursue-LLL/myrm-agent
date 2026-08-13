@@ -38,6 +38,13 @@ vi.mock('../handlerDeps', () => {
     parseArchiveRestoreBlockPayload: vi.fn(),
     parseArchiveRestoreResultPayload: vi.fn(),
     buildArchiveRestoreActions: vi.fn(() => []),
+    discardStreamedDraft: (ctx: {
+      recievedMessage: string;
+      state?: { scheduler?: { cancel?: () => void } };
+    }) => {
+      ctx.recievedMessage = '';
+      ctx.state?.scheduler?.cancel?.();
+    },
     clearAssistantDraft: (message: {
       content: string;
       reasoning?: string;

@@ -404,6 +404,65 @@ class TestMemoryAbService:
         assert on_executor._memory_base_path is not None
         assert Path(str(on_executor._memory_base_path)).is_relative_to(tmp_path)
 
+    @pytest.mark.asyncio
+    async def test_run_memory_ab_injects_budgets_and_blocklists(
+        self, tmp_path: Path
+    ) -> None:
+        """BrowseComp arms enforce spec budgets and HF decontamination."""
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        captured_executors: dict[str, LocalEvalExecutor] = {}
+
+        class FakeMatrixRunner:
+            def __init__(self, executors, **kwargs):
+                captured_executors.update(executors)
+                self.kwargs = kwargs
+
+            def abort(self) -> None:
+                pass
+
+            async def run_multi_turn(self, cases, **kwargs):
+                from myrm_agent_harness.eval import MatrixResult
+
+                return MatrixResult(profile_ids=["memory_off", "memory_on"], cases=[])
+
+        cases = [MagicMock()]
+        cases[0].turns = [MagicMock()]
+
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = tmp_path / "reports"
+        memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = tmp_path / "memory"
+
+        with (
+            patch(
+                "app.core.eval.memory_ab._memory_ab_state",
+                {"is_running": False, "abort_requested": False},
+            ),
+            patch(
+                "app.core.eval.benchmarks.build_benchmark_cases",
+                return_value=(cases, {}, False),
+            ),
+            patch(
+                "app.core.eval.model_config._resolve_agent_model_label",
+                new=AsyncMock(return_value="unknown"),
+            ),
+            patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
+            patch(
+                "app.core.memory.adapters.setup.evict_cached_memory_manager",
+                AsyncMock(),
+            ),
+        ):
+            await memory_ab_mod.run_memory_ab_background("browsecomp")
+
+        for executor in captured_executors.values():
+            assert executor._max_tool_calls == 100
+            assert executor._max_iterations == 150
+            assert "huggingface.co" in executor._blocked_hostnames
+            assert any("huggingface" in t for t in executor._blocked_terms)
+
+        report = json.loads((tmp_path / "reports" / "latest.json").read_text())
+        assert report["max_tool_calls"] == 100
+        assert report["max_iterations"] == 150
+
 
 @pytest.mark.asyncio
 async def test_memory_ab_report_records_memory_tool_calls(tmp_path: Path) -> None:

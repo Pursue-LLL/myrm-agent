@@ -89,11 +89,14 @@ BROWSECOMP_SPEC = BenchmarkSpec(
     scoring="llm_judge",
     required_tools=("web_search",),
     supports_memory_ab=True,
-    # Web research is multi-hop: pin the run budgets explicitly so a scored
-    # run measures the model instead of the engine limit. Values match the
-    # official simple-evals agent defaults (30 tool calls per turn).
-    max_tool_calls=30,
-    max_iterations=50,
+    # Web research is multi-hop and exploratory: BrowseComp-Plus reports an
+    # average of ~20 search calls on failed runs and >20 on strong models
+    # (GPT-5/o3), with search+verify pipelines reaching ~75 tool calls on hard
+    # questions. Pinning generous budgets (100 tool calls / 150 iterations)
+    # keeps a scored run measuring the model instead of the engine limit, and
+    # stays comparable to the official reference agent's unconstrained loop.
+    max_tool_calls=100,
+    max_iterations=150,
     # Official scoring reference is OpenAI's simple-evals harness; our run
     # grades with the identical BrowseComp judge rubric above.
     harness="official",

@@ -69,7 +69,8 @@ fi
 MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$(real_user_home)/.local/state/cdmcp-mux}"
 MUX_SOCKET="${CDMCP_MUX_SOCKET:-${MUX_STATE_DIR}/cdmcp-mux.sock}"
 if [[ -f "${SCRIPT_DIR}/lib/mux/responsive_probe.py" ]]; then
-  if "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux/responsive_probe.py" \
+  if PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux/responsive_probe.py" \
     --expected-ms 180000 \
     --state-dir "${MUX_STATE_DIR}" \
     --socket "${MUX_SOCKET}" 2>/dev/null; then

@@ -8,12 +8,13 @@
 [INPUT]
 - myrm_agent_harness.backends.skills::SkillPermission, check_permission_for_tool_call, log_permission_usage, session_id_var (POS: 框架层技能权限映射与校验)
 - app.database.connection::get_session (POS: 数据库连接管理)
-- app.database.models::SkillPermissionGrant (POS: 安全域模型)
+- app.database.models::SkillPermissionGrant / SkillPermissionUsageLog (POS: 安全域模型)
 
 [OUTPUT]
 - create_permission_checker / create_async_permission_checker: 同步/异步权限检查器工厂
 - load_granted_permissions / load_granted_permissions_cached: 权限加载（含 per-session 缓存）
 - clear_permission_cache: 缓存清理
+- purge_skill_permissions: 卸载技能时清除其授权/审计数据与缓存
 
 [POS]
 技能权限服务：桥接数据库授权与框架层权限验证，提供 per-session 缓存避免每次 tool call 查库。
@@ -27,10 +28,10 @@ from myrm_agent_harness.backends.skills import (
     check_permission_for_tool_call,
     log_permission_usage,
 )
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.database.connection import get_session
-from app.database.models import SkillPermissionGrant
+from app.database.models import SkillPermissionGrant, SkillPermissionUsageLog
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,38 @@ def clear_permission_cache(skill_id: str | None = None) -> None:
             logger.info(f"Cleared permission cache: skill={skill_id}")
         else:
             logger.debug(f"Permission cache not found: skill={skill_id}")
+
+
+async def purge_skill_permissions(skill_id: str) -> int:
+    """卸载技能时清除其授权与使用日志数据
+
+    防止卸载后重新安装同 ID 技能时继承旧的权限授予记录；
+    同时清理权限缓存，避免残留的内存状态。
+
+    Args:
+        skill_id: Skill ID
+
+    Returns:
+        删除的授权记录数
+    """
+    async with get_session() as db:
+        grant_stmt = delete(SkillPermissionGrant).where(
+            SkillPermissionGrant.skill_id == skill_id,
+        )
+        grant_result = await db.execute(grant_stmt)
+        usage_stmt = delete(SkillPermissionUsageLog).where(
+            SkillPermissionUsageLog.skill_id == skill_id,
+        )
+        await db.execute(usage_stmt)
+        await db.commit()
+
+    clear_permission_cache(skill_id)
+    logger.info(
+        "Purged permission data for skill=%s (grants=%d)",
+        skill_id,
+        grant_result.rowcount,
+    )
+    return max(grant_result.rowcount or 0, 0)
 
 
 def create_permission_checker() -> Callable[[str, str, str], tuple[bool, str]]:
@@ -217,6 +250,9 @@ async def create_async_permission_checker() -> (
 
 __all__ = [
     "load_granted_permissions",
+    "load_granted_permissions_cached",
+    "clear_permission_cache",
+    "purge_skill_permissions",
     "create_permission_checker",
     "create_async_permission_checker",
 ]

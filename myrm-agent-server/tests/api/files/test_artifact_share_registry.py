@@ -35,6 +35,7 @@ from app.services.artifacts.share_registry import (
 from app.services.artifacts.share_token import (
     create_artifact_share_token,
     parse_artifact_share_token,
+    rebuild_artifact_share_token,
 )
 from app.services.hosting.packager import PublishFile
 
@@ -133,6 +134,30 @@ async def test_register_share_persists_fingerprint(db_session) -> None:
     assert record.password_protected is True
     assert record.revoked_at is None
     assert timegm(record.expires_at.timetuple()) == pytest.approx(exp)
+
+
+@pytest.mark.asyncio
+async def test_rebuild_unprotected_token_matches_original(db_session) -> None:
+    """An unprotected token is deterministically rebuilt from registry fields."""
+    token, exp = create_artifact_share_token(
+        "art-1", "ver-1", ttl_seconds=3600, artifact_type="html"
+    )
+    record = await register_share(
+        db_session,
+        token=token,
+        artifact_id="art-1",
+        version_id="ver-1",
+        artifact_type="html",
+        password_protected=False,
+        expires_at_unix=exp,
+    )
+    rebuilt = rebuild_artifact_share_token(
+        record.artifact_id,
+        record.version_id,
+        expires_at_unix=timegm(record.expires_at.timetuple()),
+        artifact_type=record.artifact_type,
+    )
+    assert rebuilt == token
 
 
 @pytest.mark.asyncio
@@ -346,6 +371,7 @@ async def test_list_shares_endpoint(share_client, html_artifact) -> None:
             json={"ttl_days": 7, "artifact_type": "html"},
         )
     assert create_resp.status_code == 200
+    original_token = create_resp.json()["token"]
 
     list_resp = share_client.get("/shares")
     assert list_resp.status_code == 200
@@ -356,6 +382,31 @@ async def test_list_shares_endpoint(share_client, html_artifact) -> None:
     assert row["artifact_type"] == "html"
     assert row["password_protected"] is False
     assert row["expires_at"] > int(time.time())
+    # Unprotected shares expose a rebuilt share_path that points at the token.
+    assert row["share_path"] == f"/api/v1/public/artifact-share/{original_token}"
+
+
+@pytest.mark.asyncio
+async def test_list_shares_password_protected_has_no_share_path(
+    share_client, html_artifact
+) -> None:
+    """Password-protected shares cannot rebuild the token (password not stored)."""
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, _single_file_files()),
+    ):
+        create_resp = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html", "password": "s3cret"},
+        )
+    assert create_resp.status_code == 200
+
+    list_resp = share_client.get("/shares")
+    assert list_resp.status_code == 200
+    row = list_resp.json()[0]
+    assert row["password_protected"] is True
+    assert row["share_path"] is None
 
 
 @pytest.mark.asyncio

@@ -7,7 +7,7 @@
  * 入口：技能详情侧边栏 → 「权限使用审计」区块。
  */
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import {
   BarChart3,
@@ -81,6 +81,7 @@ const getPermissionIcon = (permission: string) => {
 
 function PermissionStatsCard({ stat }: { stat: PermissionUsageStats }) {
   const t = useTranslations('skills.permissions.usage');
+  const locale = useLocale();
   const Icon = getPermissionIcon(stat.permission);
   const successRate = stat.total_count > 0 ? (stat.allowed_count / stat.total_count) * 100 : 0;
   const isHighRisk = stat.denied_count > stat.allowed_count && stat.denied_count > 5;
@@ -159,7 +160,7 @@ function PermissionStatsCard({ stat }: { stat: PermissionUsageStats }) {
                 {op.deny_reason && <div className="mt-0.5 text-xs text-red-600">{op.deny_reason}</div>}
                 <div className="mt-1 text-xs text-muted-foreground">
                   <Clock className="mr-1 inline h-3 w-3" />
-                  {new Date(op.used_at).toLocaleString()}
+                  {new Date(op.used_at).toLocaleString(locale)}
                 </div>
               </div>
             </div>

@@ -80,7 +80,7 @@ _start_backend_bg() {
   local log_file="${MYRM_BACKEND_LOG_FILE:-${state_dir}/backend.log}"
   local identity_file="${MYRM_BACKEND_IDENTITY_FILE:-${state_dir}/backend-process.json}"
   local identity_helper
-  identity_helper="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/process_identity.py"
+  identity_helper="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/e2e_core/process_identity.py"
   local runtime_id="${MYRM_RUNTIME_NAMESPACE:-shared}"
   local health_url
   if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" ]]; then

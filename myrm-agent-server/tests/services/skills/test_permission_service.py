@@ -17,6 +17,7 @@ from app.services.skills.permission_service import (
     create_async_permission_checker,
     load_granted_permissions,
     load_granted_permissions_cached,
+    purge_skill_permissions,
 )
 
 
@@ -237,3 +238,38 @@ def test_clear_permission_cache_specific_skill() -> None:
 def test_clear_permission_cache_missing_skill_is_noop() -> None:
     permission_service.clear_permission_cache("unknown")
     assert permission_service._permission_cache == {}
+
+
+@patch("app.services.skills.permission_service.get_session")
+async def test_purge_skill_permissions_deletes_data_and_clears_cache(
+    mock_session: AsyncMock,
+) -> None:
+    """卸载后授权记录与使用日志均被删除，且缓存被清空。"""
+    permission_service._permission_cache["skill-x"] = {SkillPermission.FILE_READ}
+
+    grant_result = MagicMock(rowcount=2)
+    db_mock = AsyncMock()
+    db_mock.execute.side_effect = [grant_result, MagicMock()]
+    mock_session.return_value.__aenter__.return_value = db_mock
+
+    deleted = await purge_skill_permissions("skill-x")
+
+    assert deleted == 2
+    assert db_mock.execute.await_count == 2
+    db_mock.commit.assert_awaited_once_with()
+    assert "skill-x" not in permission_service._permission_cache
+
+
+@patch("app.services.skills.permission_service.get_session")
+async def test_purge_skill_permissions_returns_zero_without_grants(
+    mock_session: AsyncMock,
+) -> None:
+    """无授权记录时返回 0 且不报错（rowcount 为 None 的情况）。"""
+    db_mock = AsyncMock()
+    db_mock.execute.side_effect = [MagicMock(rowcount=None), MagicMock()]
+    mock_session.return_value.__aenter__.return_value = db_mock
+
+    deleted = await purge_skill_permissions("skill-empty")
+
+    assert deleted == 0
+    db_mock.commit.assert_awaited_once_with()

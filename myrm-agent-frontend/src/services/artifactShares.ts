@@ -8,6 +8,7 @@ export interface ArtifactShareRecord {
   password_protected: boolean;
   created_at: number;
   expires_at: number;
+  share_path: string | null;
 }
 
 export async function fetchArtifactShares(): Promise<ArtifactShareRecord[]> {
@@ -29,9 +30,9 @@ export async function revokeArtifactShare(recordId: string): Promise<void> {
   }
 }
 
-export function formatShareExpiry(expiresAt: number, locale: string): string {
+export function formatShareTimestamp(timestamp: number, locale: string): string {
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(new Date(expiresAt * 1000));
+  }).format(new Date(timestamp * 1000));
 }

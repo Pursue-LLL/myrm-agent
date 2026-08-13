@@ -80,6 +80,67 @@ describe('MatrixResultView aborted report notice', () => {
   });
 });
 
+describe('MatrixResultView trajectory disclosure columns', () => {
+  it('shows tool calls and limit hits columns when any profile reports total_tool_calls', () => {
+    const report = baseReport();
+    report.per_profile.memory_on.total_tool_calls = 8;
+    report.per_profile.memory_on.limit_hits = 2;
+    report.per_profile.memory_on.blocked_count = 1;
+
+    render(
+      <MatrixResultView
+        report={report}
+        profileNames={{ memory_off: 'No Memory', memory_on: 'With Memory' }}
+      />,
+    );
+
+    expect(screen.getByText('evalLab.matrix.toolCalls')).toBeInTheDocument();
+    expect(screen.getByText('evalLab.matrix.limitHits')).toBeInTheDocument();
+    const memoryOnRow = screen.getAllByText('With Memory')[0].closest('tr');
+    expect(memoryOnRow).not.toBeNull();
+    expect(memoryOnRow!.textContent).toContain('8');
+    expect(memoryOnRow!.textContent).toContain('2');
+  });
+
+  it('shows blocked badge in the matrix grid when a cell reports blocks', () => {
+    const report = baseReport();
+    report.per_profile.memory_on.total_tool_calls = 5;
+    report.matrix = [
+      {
+        case_index: 0,
+        message: 'fetch a remote artifact',
+        profiles: {
+          memory_off: { passed: true, total_ms: 500, token_usage: {}, cost: 0, error: null },
+          memory_on: {
+            passed: false,
+            total_ms: 900,
+            token_usage: {},
+            cost: 0,
+            error: 'blocked',
+            tool_calls: 5,
+            limit_reached: 'max_tool_calls',
+            blocked_count: 2,
+          },
+        },
+      },
+    ];
+
+    render(<MatrixResultView report={report} />);
+
+    // The header column and the cell badge both say `limitHits`.
+    expect(screen.getAllByText('evalLab.matrix.limitHits').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/evalLab\.matrix\.blocked 2/)).toBeInTheDocument();
+    expect(screen.getByText('5×')).toBeInTheDocument();
+  });
+
+  it('hides the columns for plain reports without trajectory fields', () => {
+    render(<MatrixResultView report={baseReport()} />);
+
+    expect(screen.queryByText('evalLab.matrix.toolCalls')).not.toBeInTheDocument();
+    expect(screen.queryByText('evalLab.matrix.limitHits')).not.toBeInTheDocument();
+  });
+});
+
 describe('MatrixResultView sampled disclosure', () => {
   it('shows the sampled badge when the report ran on a sample', () => {
     const report = baseReport();

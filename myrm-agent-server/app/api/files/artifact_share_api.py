@@ -35,6 +35,7 @@ from app.database.connection import get_db
 from app.database.models.artifact import Artifact
 from app.services.artifacts.share_bundle import materialize_share_bundle
 from app.services.artifacts.share_registry import (
+    ActiveShareRow,
     list_active_shares,
     purge_expired_shares,
     register_share,
@@ -44,6 +45,7 @@ from app.services.artifacts.share_token import (
     ArtifactShareClaims,
     create_artifact_share_token,
     is_shareable_artifact,
+    rebuild_artifact_share_token,
 )
 
 from .artifact_share_public import public_router  # noqa: F401  (re-export)
@@ -82,10 +84,28 @@ class ArtifactShareRecordResponse(BaseModel):
     password_protected: bool = False
     created_at: int
     expires_at: int
+    share_path: str | None = None
 
 
 def _share_path(token: str) -> str:
     return f"/api/v1/public/artifact-share/{token}"
+
+
+def _record_share_path(row: ActiveShareRow) -> str | None:
+    """Rebuild the public URL for unprotected shares.
+
+    Password-protected tokens cannot be reconstructed because the password is
+    never persisted, so those rows carry ``None``.
+    """
+    if row.password_protected:
+        return None
+    token = rebuild_artifact_share_token(
+        row.artifact_id,
+        row.version_id,
+        expires_at_unix=timegm(row.expires_at.timetuple()),
+        artifact_type=row.artifact_type,
+    )
+    return _share_path(token)
 
 
 @router.post("/{artifact_id}/share-preview", response_model=CreateArtifactShareResponse)
@@ -182,6 +202,7 @@ async def get_artifact_share_records(
             password_protected=row.password_protected,
             created_at=timegm(row.created_at.timetuple()),
             expires_at=timegm(row.expires_at.timetuple()),
+            share_path=_record_share_path(row),
         )
         for row in rows
     ]

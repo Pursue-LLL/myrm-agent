@@ -368,15 +368,23 @@ def _transition_dev_gate_to_body(*, current_node: str) -> None:
         session = response.get("session") if isinstance(response, dict) else None
         state = str(session.get("state", "")) if isinstance(session, dict) else ""
         if state == "PAGE_OPEN":
-            response = send(
-                {
-                    "operation": "transition",
-                    "session_id": session_id,
-                    "owner_token": owner_token,
-                    "target": "BODY",
-                    "current_node": current_node,
-                }
-            )
+            try:
+                response = send(
+                    {
+                        "operation": "transition",
+                        "session_id": session_id,
+                        "owner_token": owner_token,
+                        "target": "BODY",
+                        "current_node": current_node,
+                    }
+                )
+            except RuntimeError as exc:
+                # TOCTOU: a concurrent complete_bootstrap_phase (pytest fixture +
+                # post_cdp_bootstrap) may seal BODY between re-snapshot and this
+                # transition. Treat an already-sealed BODY as success.
+                if "BODY->BODY" not in str(exc):
+                    raise
+                response = send({"operation": "snapshot", "session_id": session_id})
             session = response.get("session") if isinstance(response, dict) else None
             state = str(session.get("state", "")) if isinstance(session, dict) else ""
     if state != "BODY" or not isinstance(session, dict):

@@ -40,10 +40,7 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       // Escalation clears the turn and re-plays it with a stronger model, so
       // any text containing the escalation marker is a draft to drop.
       if (payload.restart === true) {
-        ctx.recievedMessage = '';
-        // Drop any buffered render task whose stale closure would write the
-        // pre-escalation draft back into the message.
-        ctx.state.scheduler?.cancel?.();
+        H.discardStreamedDraft(ctx);
       }
       actions.setMessages((state) => {
         let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
@@ -100,10 +97,7 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       // The primary model may have streamed partial text (or reasoning)
       // before failing; the fallback restarts the answer from scratch.
       // Drop that draft so it is not spliced with the complete answer.
-      ctx.recievedMessage = '';
-      // Drop any buffered render task whose stale closure would write the
-      // pre-failover draft back into the message.
-      ctx.state.scheduler?.cancel?.();
+      H.discardStreamedDraft(ctx);
       actions.setMessages((state) => {
         let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
         if (messageIndex === -1) {

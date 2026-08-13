@@ -27,7 +27,13 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 
-from myrm_agent_harness.eval import MultiTurnEvalCase, get_benchmark, list_benchmarks
+from myrm_agent_harness.eval import (
+    HUGGINGFACE_DOMAINS,
+    HUGGINGFACE_QUERY_MARKERS,
+    MultiTurnEvalCase,
+    get_benchmark,
+    list_benchmarks,
+)
 
 # Importing browse_comp registers its BenchmarkSpec in the framework registry
 # (module-level side effect); the catalog/run guards below rely on that
@@ -234,9 +240,4 @@ def benchmark_decontam(benchmark_id: str) -> tuple[tuple[str, ...], tuple[str, .
         tool in spec.required_tools for tool in ("web_search", "web_fetch")
     ):
         return (), ()
-    from myrm_agent_harness.eval import (
-        HUGGINGFACE_DOMAINS,
-        HUGGINGFACE_QUERY_MARKERS,
-    )
-
     return HUGGINGFACE_DOMAINS, HUGGINGFACE_QUERY_MARKERS
