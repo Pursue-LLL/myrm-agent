@@ -52,6 +52,7 @@ export interface MemoryBriefInjectionStatus {
     | 'not_injected'
     | 'recall_mode_tools'
     | 'load_error'
+    | 'load_timeout'
     | 'static_error'
     | 'invalid_static_payload'
     | 'empty_context'

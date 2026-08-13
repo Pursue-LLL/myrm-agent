@@ -33,6 +33,12 @@ export interface LastCompactionMeta {
 
 export type Message = {
   messageId: string;
+  /**
+   * 该消息所属回合的 request message id（`r-` 前缀，WebUI SSE 流请求 ID）。
+   * 实时流中等于 messageId；刷新后 hydrate 时 messageId 变为 DB 主键（assistant
+   * 为 UUID），此字段从 extra_data 恢复，供文件回退等按回合定位的 API 使用。
+   */
+  requestMessageId?: string;
   chatId: string;
   createdAt: Date;
   content: string;
@@ -133,6 +139,7 @@ export type Message = {
   metadata?: Record<string, unknown>; // 消息元数据（如错误信息、配置提示等）
   citedMemoryIds?: string[]; // 本条消息引用的记忆 ID（用于反馈评分）
   citedMemoryRefs?: CitedMemoryReference[]; // 本条消息引用的记忆详情（用于可解释 citation UI）
+  memoryRetrievalDegraded?: boolean; // 本条回复期间记忆检索发生过降级（超时/后端错误）
   fileMutationFailures?: FileMutationFailure[]; // 本轮失败的文件修改操作
   workspaceMergeFailures?: WorkspaceMergeFailure[]; // 本轮 workspace merge 失败
   workspaceMergeFailedCount?: number; // merge 失败总数（可大于 failures 列表长度）

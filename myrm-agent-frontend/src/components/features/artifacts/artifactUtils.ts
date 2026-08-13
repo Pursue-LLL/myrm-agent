@@ -16,7 +16,7 @@ import {
   Presentation01Icon,
   Doc02Icon,
 } from 'hugeicons-react';
-import { BACKEND_BASE_URL, getApiUrl } from '@/lib/api';
+import { getApiUrl } from '@/lib/api';
 import { Artifact, ArtifactPublication, ArtifactType } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 import { formatFileSize as formatFileSizeUtil, isPreviewable, needsContentLoad, inferLanguage } from '@/types/artifact';
@@ -324,11 +324,6 @@ export interface ArtifactSharePreviewResult {
   share_path: string;
   expires_at: number;
   password_protected: boolean;
-}
-
-export function buildPublicArtifactShareUrl(sharePath: string): string {
-  const backendBase = BACKEND_BASE_URL.toString() || window.location.origin;
-  return `${backendBase}${sharePath}`;
 }
 
 export async function createArtifactSharePreview(

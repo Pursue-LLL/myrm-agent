@@ -629,7 +629,8 @@
         "protected": "パスワード",
         "expiresAt": "有効期限",
         "action": "操作"
-      }
+      },
+      "openLabel": "{name} の共有リンクを開く"
     },
     "workspaceRules": {
       "title": "プロジェクトルール",
@@ -10407,6 +10408,8 @@
     "score": "{score}% 一致",
     "unavailableContent": "この古いメッセージでは記憶の詳細を利用できません。監査使用に記憶 ID を表示しています。",
     "viewSourceChat": "元の会話で確認",
+    "degradedNotice": "記憶検索が一時的に利用できません",
+    "degradedNoticeTitle": "記憶検索が一時的に利用できないため、この返信は記憶を参照していません。",
     "types": {
       "semantic": "知識",
       "episodic": "イベント",

@@ -11,6 +11,7 @@ const mockAttachForHitlRecovery = vi.hoisted(() => vi.fn());
 const mockRecoverPendingApprovals = vi.hoisted(() => vi.fn());
 const mockWaitUntilReady = vi.hoisted(() => vi.fn());
 const mockLoadMessages = vi.hoisted(() => vi.fn());
+const mockReleaseTurnInspectorControls = vi.hoisted(() => vi.fn());
 const mockResolveE2eApiBase = vi.hoisted(() => vi.fn<(...args: unknown[]) => string | null>(() => null));
 const mockResolveChatWikiEvidenceContext = vi.hoisted(() => vi.fn());
 const mockRecordWikiQuerySubmitted = vi.hoisted(() => vi.fn());
@@ -47,6 +48,10 @@ vi.mock('../../useChatStore', () => ({
       loadMessages: mockLoadMessages,
     }),
   },
+}));
+
+vi.mock('@/lib/inspector/releaseTurnInspectorControls', () => ({
+  releaseTurnInspectorControls: (...args: unknown[]) => mockReleaseTurnInspectorControls(...args),
 }));
 
 vi.mock('@/hooks/approval/usePendingApprovalsRecovery', () => ({
@@ -166,6 +171,7 @@ describe('streamConsumer resilience paths', () => {
     mockRecoverPendingApprovals.mockReset();
     mockWaitUntilReady.mockReset();
     mockLoadMessages.mockReset();
+    mockReleaseTurnInspectorControls.mockReset();
     mockResolveE2eApiBase.mockReset();
     mockResolveChatWikiEvidenceContext.mockReset();
     mockRecordWikiQuerySubmitted.mockReset();
@@ -444,6 +450,8 @@ describe('streamConsumer resilience paths', () => {
       expect.any(Function),
       expect.objectContaining({ allowWhileLoading: true }),
     );
+    // Task still running after attach: inspector control must be preserved.
+    expect(mockReleaseTurnInspectorControls).not.toHaveBeenCalled();
   });
 
   it('falls back to loading messages when attach returns false after interruption', async () => {
@@ -464,6 +472,39 @@ describe('streamConsumer resilience paths', () => {
 
     expect(mockAttachToChat).toHaveBeenCalledTimes(1);
     expect(mockLoadMessages).toHaveBeenCalledWith('chat-load-fallback');
+    // Task finished during disconnect: inspector control must be released
+    // alongside the final state fetch so the UI cannot stay "controlling".
+    expect(mockReleaseTurnInspectorControls).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases inspector control even when the final state fetch fails after attach false', async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((handler: TimerHandler) => {
+      if (typeof handler === 'function') {
+        handler();
+      }
+      return 0 as unknown as ReturnType<typeof setTimeout>;
+    }) as unknown as typeof setTimeout);
+    const state = createBaseState({ chatId: 'chat-load-fail', actionMode: 'agent' });
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    mockCreateMessageRequest.mockResolvedValue(
+      createInterruptedResponse('data: {"type":"message","messageId":"m-fail","data":"hi"}\n\n'),
+    );
+    mockParseSseEnvelope.mockReturnValue({ type: 'message', messageId: 'm-fail', data: 'hi' });
+    mockHandleMessageStream.mockResolvedValue({ added: true, recievedMessage: 'hi' });
+    mockAttachToChat.mockResolvedValue(false);
+    mockLoadMessages.mockRejectedValue(new Error('network down'));
+
+    try {
+      await expect(
+        executeStreamWithRetry('hello', 'msg-fail', state, actions, null, abortController, false, ''),
+      ).rejects.toThrow();
+      // Attach false already proved the task ended: the inspector release must
+      // not depend on the subsequent final-state fetch succeeding.
+      expect(mockReleaseTurnInspectorControls).toHaveBeenCalled();
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
   });
 
   it('decrypts e2ee_frame chunks before parsing SSE payload', async () => {

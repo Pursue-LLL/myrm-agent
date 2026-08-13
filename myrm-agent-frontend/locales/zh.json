@@ -649,7 +649,8 @@
         "protected": "密码保护",
         "expiresAt": "过期时间",
         "action": "操作"
-      }
+      },
+      "openLabel": "打开 {name} 的分享链接"
     },
     "workspaceRules": {
       "title": "项目规则",
@@ -10485,6 +10486,8 @@
     "score": "{score}% 匹配",
     "unavailableContent": "这条旧消息暂无记忆详情，仍显示记忆 ID 便于审计。",
     "viewSourceChat": "查看原始会话",
+    "degradedNotice": "记忆检索暂时不可用",
+    "degradedNoticeTitle": "本次回复未引用你的记忆，因为记忆检索暂时不可用。",
     "types": {
       "semantic": "知识",
       "episodic": "事件",

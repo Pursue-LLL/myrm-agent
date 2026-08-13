@@ -337,6 +337,11 @@ export interface ToolEndStreamEvent extends BaseAgentEvent {
   result?: unknown;
   cited_memory_ids?: string[];
   cited_memory_refs?: unknown[];
+  /** 记忆检索 trace（内存召回工具事件携带，服务端 stream_collector 透传）。 */
+  memory_retrieval_trace?: {
+    degraded?: boolean;
+    id?: string;
+  };
 }
 
 export interface ToolFailureStreamEvent extends BaseAgentEvent {

@@ -28,6 +28,7 @@ interface MemoryCitationsButtonProps {
   memoryIds?: string[];
   references?: CitedMemoryReference[];
   sources?: Source[];
+  degraded?: boolean;
 }
 
 const shortId = (id: string): string => (id.length > 8 ? `${id.slice(0, 8)}...` : id);
@@ -72,7 +73,7 @@ const uniqueReferences = (
   return [...byId.values()];
 };
 
-export default function MemoryCitationsButton({ memoryIds, references, sources }: MemoryCitationsButtonProps) {
+export default function MemoryCitationsButton({ memoryIds, references, sources, degraded }: MemoryCitationsButtonProps) {
   const t = useTranslations('memoryCitations');
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -103,7 +104,21 @@ export default function MemoryCitationsButton({ memoryIds, references, sources }
     };
   }, [open, sharedContextIds]);
 
-  if (evidenceCount === 0) {return null;}
+  if (evidenceCount === 0) {
+    if (!degraded) {return null;}
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/30 text-xs',
+          'bg-muted/50 text-muted-foreground',
+        )}
+        title={t('degradedNoticeTitle')}
+      >
+        <IconBrain className="h-3.5 w-3.5" />
+        {t('degradedNotice')}
+      </span>
+    );
+  }
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

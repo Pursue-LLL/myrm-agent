@@ -246,11 +246,15 @@ async def get_public_artifact_share(
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
 ):
-    """Serve the bundle entry file for a valid share token (no API key)."""
+    """Serve the bundle entry file for a valid share token (no API key).
+
+    Revocation is checked before authentication so a revoked link (password
+    protected or not) is denied immediately without presenting the password gate.
+    """
+    await _ensure_not_revoked(db, token)
     result = _auth_or_gate(request, token, pwd)
     if isinstance(result, HTMLResponse):
         return result
-    await _ensure_not_revoked(db, token)
     secure = request.url.scheme == "https"
     if bundle_asset_count(result) > 1 and not str(request.url.path).endswith("/"):
         redirect_url = str(request.url.replace(path=str(request.url.path) + "/"))
@@ -272,10 +276,10 @@ async def get_public_artifact_share_index(
     workspace_root: str = Depends(get_workspace_root),
 ):
     """Serve bundle entry under a trailing slash so relative static assets resolve."""
+    await _ensure_not_revoked(db, token)
     result = _auth_or_gate(request, token, pwd)
     if isinstance(result, HTMLResponse):
         return result
-    await _ensure_not_revoked(db, token)
     response = await _serve_share_bundle(result, db, workspace_root, None)
     _attach_unlock_cookie(
         response, result, token, pwd, secure=request.url.scheme == "https"
@@ -294,8 +298,8 @@ async def get_public_artifact_share_asset(
     workspace_root: str = Depends(get_workspace_root),
 ):
     """Serve a static asset from a multi-file share bundle."""
+    await _ensure_not_revoked(db, token)
     result = _auth_or_gate(request, token, pwd)
     if isinstance(result, HTMLResponse):
         return result
-    await _ensure_not_revoked(db, token)
     return await _serve_share_bundle(result, db, workspace_root, asset_path)

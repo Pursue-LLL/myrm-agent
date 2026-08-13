@@ -253,6 +253,7 @@ class ServerWakeupHandler:
                                 collector.content,
                                 extra_data=collector.extra_data,
                                 timezone=params.timezone,
+                                request_message_id=params.message_id,
                             )
                         await finalize_agent_session(
                             agent,

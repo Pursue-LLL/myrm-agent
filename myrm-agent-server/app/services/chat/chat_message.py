@@ -290,12 +290,18 @@ class _ChatMessageMixin(_ChatServiceBase):
         extra_data: dict[str, object] | None = None,
         timezone: str | None = None,
         sibling_group_id: str | None = None,
+        request_message_id: str | None = None,
     ) -> None:
         if not content.strip() and not extra_data:
             return
         try:
             from datetime import timezone as tz
 
+            if request_message_id:
+                extra_data = {
+                    **({} if extra_data is None else extra_data),
+                    "request_message_id": request_message_id,
+                }
             sent_at = datetime.now(tz=tz.utc)
             sent_timezone = timezone or "UTC"
             msg = await _ChatMessageMixin.append_message(

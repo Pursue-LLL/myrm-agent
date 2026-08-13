@@ -29,7 +29,6 @@ import {
   formatBytes,
   getArtifactIcon,
   getDownloadFilename,
-  buildPublicArtifactShareUrl,
   createArtifactSharePreview,
   fetchArtifactDeployPreflight,
   isDeployCandidateArtifactType,
@@ -39,6 +38,7 @@ import {
   publicationsChanged,
   type ArtifactDeployPreflight,
 } from './artifactUtils';
+import { buildPublicArtifactShareUrl } from '@/services/artifactShares';
 
 interface ArtifactCardProps {
   artifact: Artifact;

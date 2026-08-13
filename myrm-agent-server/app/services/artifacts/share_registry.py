@@ -178,9 +178,9 @@ async def list_active_shares(db: AsyncSession) -> list[ActiveShareRow]:
 async def revoke_share(db: AsyncSession, record_id: str) -> bool:
     """Revoke a share by record id. Idempotent: returns False when unknown.
 
-    Commits ``revoked_at`` first, then deletes the on-disk bundle, so the
-    public URL can neither serve existing files nor re-materialize content even
-    if the filesystem cleanup fails.
+    Commits ``revoked_at`` first (with an INFO audit log), then deletes the
+    on-disk bundle, so the public URL can neither serve existing files nor
+    re-materialize content even if the filesystem cleanup fails.
     """
     record = (
         (
@@ -198,13 +198,13 @@ async def revoke_share(db: AsyncSession, record_id: str) -> bool:
         claims = _claims_from_record(record)
         record.revoked_at = _utcnow_naive()
         await db.commit()
-        shutil.rmtree(bundle_dir_for_claims(claims), ignore_errors=True)
         logger.info(
             "Revoked artifact share link: record=%s artifact=%s version=%s",
             record.id,
             record.artifact_id,
             record.version_id,
         )
+        shutil.rmtree(bundle_dir_for_claims(claims), ignore_errors=True)
     return True
 
 

@@ -12,6 +12,7 @@
  * Chat agent-stream 前端消费 SSOT。busy 检测：HTTP 409 或 SSE error_type=AgentBusyError；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；multiplex 下 early-terminal SSE 直读 POST。
  */
 import { consumeMigrationBoundProjectId, syncChatSidebarProjectId } from '@/lib/migrationChatHandoff';
+import { releaseTurnInspectorControls } from '@/lib/inspector/releaseTurnInspectorControls';
 import { parseSseEnvelope } from './schema';
 import { handleMessageStream, StreamHandlerState, StreamHandlerActions } from './messageStreamHandler';
 import { ChatActionsState, ChatActionsMethods, createMessageRequest } from './messageRequest';
@@ -387,6 +388,10 @@ export async function executeStreamWithRetry(
                 // If attach returns false (e.g. 404), it means the task is no longer running.
                 // We must fetch the final state from the server to avoid UI getting stuck.
                 console.log('Task finished during disconnect, fetching final messages...');
+                // Attach false is the deterministic "task finished" signal; release any
+                // desktop/browser inspector control this turn engaged, even when the
+                // final state fetch below fails, so the UI never stays "controlling".
+                void releaseTurnInspectorControls();
                 await useChatStore.getState().loadMessages(state.chatId);
                 attachSuccess = true;
                 break;

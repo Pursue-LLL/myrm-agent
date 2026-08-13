@@ -323,4 +323,62 @@ async def test_run_benchmark_background_wb_bench_has_no_guards(monkeypatch) -> N
     assert run_suite.call_args.kwargs["max_iterations"] is None
     assert run_suite.call_args.kwargs["blocked_hostnames"] == ()
     assert run_suite.call_args.kwargs["blocked_terms"] == ()
-    service_mod._reset_benchmark_state()
+
+
+def test_benchmark_run_limits_unknown_benchmark_returns_none() -> None:
+    from app.core.eval.benchmarks import benchmark_run_limits
+
+    assert benchmark_run_limits("no-such-benchmark") == (None, None)
+
+
+def test_benchmark_decontam_returns_empty_for_non_web_benchmarks() -> None:
+    from app.core.eval.benchmarks import benchmark_decontam
+
+    assert benchmark_decontam("no-such-benchmark") == ((), ())
+    assert benchmark_decontam("wb-bench-code") == ((), ())
+
+
+def test_ensure_benchmark_source_dispatches_browsecomp(monkeypatch) -> None:
+    from app.core.eval.benchmarks import ensure_benchmark_source
+
+    async def fake_ensure(*, progress_callback=None, should_abort=None):
+        return "csv-root"
+
+    monkeypatch.setattr(
+        "app.core.eval.browse_comp.ensure_browse_comp_source", fake_ensure
+    )
+    assert ensure_benchmark_source("browsecomp") == "csv-root"
+
+
+def test_ensure_benchmark_source_unknown_raises() -> None:
+    from app.core.eval.benchmarks import ensure_benchmark_source
+
+    with pytest.raises(ValueError, match="Unknown benchmark"):
+        ensure_benchmark_source("no-such-benchmark")
+
+
+def test_build_benchmark_cases_unknown_raises() -> None:
+    from app.core.eval.benchmarks import build_benchmark_cases
+
+    with pytest.raises(ValueError, match="Unknown benchmark"):
+        build_benchmark_cases("no-such-benchmark")
+
+
+def test_list_benchmark_sources_merges_wb_and_external(monkeypatch) -> None:
+    from app.core.eval.benchmarks import list_benchmark_sources
+
+    monkeypatch.setattr(
+        "app.core.eval.wb_bench.list_wb_bench_sources",
+        lambda: [{"id": "code", "name": "Code"}],
+    )
+    monkeypatch.setattr(
+        "app.core.eval.browse_comp.list_browse_comp_source",
+        lambda: {"is_downloaded": False, "local_size_bytes": 0},
+    )
+    sources = list_benchmark_sources()
+    ids = [s["benchmark_id"] for s in sources]
+    assert "wb-bench-code" in ids
+    assert "browsecomp" in ids
+    browse = next(s for s in sources if s["benchmark_id"] == "browsecomp")
+    assert browse["provider"] == "external"
+    assert browse["is_downloaded"] is False

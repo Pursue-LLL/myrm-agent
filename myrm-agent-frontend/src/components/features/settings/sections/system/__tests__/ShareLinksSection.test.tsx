@@ -125,6 +125,27 @@ describe('ShareLinksSection', () => {
     expect(screen.getByText('copied')).toBeInTheDocument();
   });
 
+  it('opens the share link in a new tab for unprotected records', async () => {
+    const openSpy = vi.fn();
+    vi.stubGlobal('location', { origin: 'http://localhost:3000' });
+    vi.stubGlobal('open', openSpy);
+    const fetchMock = mockFetchRoutes([
+      { method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] },
+    ]);
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<ShareLinksSection />);
+    await waitFor(() => expect(screen.getByTestId('shares-table')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: /openLabel/ }));
+
+    expect(openSpy).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/public/artifact-share/abc.def',
+      '_blank',
+      'noopener,noreferrer',
+    );
+  });
+
   it('shows a protected hint instead of a copy button for password-protected records', async () => {
     const fetchMock = mockFetchRoutes([
       {

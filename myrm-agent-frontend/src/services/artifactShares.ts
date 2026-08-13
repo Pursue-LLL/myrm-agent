@@ -1,4 +1,4 @@
-import { getApiUrl } from '@/lib/api';
+import { BACKEND_BASE_URL, getApiUrl } from '@/lib/api';
 
 export interface ArtifactShareRecord {
   id: string;
@@ -9,6 +9,12 @@ export interface ArtifactShareRecord {
   created_at: number;
   expires_at: number;
   share_path: string | null;
+}
+
+/** Public URL for a share path, honoring sandbox/remote backend base. */
+export function buildPublicArtifactShareUrl(sharePath: string): string {
+  const backendBase = BACKEND_BASE_URL.toString() || window.location.origin;
+  return `${backendBase}${sharePath}`;
 }
 
 export async function fetchArtifactShares(): Promise<ArtifactShareRecord[]> {

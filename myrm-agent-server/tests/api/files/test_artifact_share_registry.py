@@ -520,3 +520,30 @@ async def test_public_access_denied_after_revoke(
     )
     assert serve_after.status_code == 404
     assert "revoked" in serve_after.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_revoked_password_share_skips_password_gate(
+    share_client, html_artifact
+) -> None:
+    """A revoked password-protected token 404s immediately, without a gate page."""
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, _single_file_files()),
+    ):
+        create_resp = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html", "password": "s3cret"},
+        )
+    assert create_resp.status_code == 200
+    token = create_resp.json()["token"]
+
+    record_id = share_client.get("/shares").json()[0]["id"]
+    assert share_client.delete(f"/shares/{record_id}").status_code == 204
+
+    denied = share_client.get(
+        f"/public/artifact-share/{token}", follow_redirects=False
+    )
+    assert denied.status_code == 404
+    assert "revoked" in denied.json()["detail"]

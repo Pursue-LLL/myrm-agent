@@ -97,4 +97,30 @@ describe('MemoryCitationsButton', () => {
     });
     expect(await screen.findByText('Customer A')).toBeInTheDocument();
   });
+
+  it('renders degraded notice when recall degraded and no evidence', () => {
+    render(<MemoryCitationsButton degraded />);
+
+    expect(screen.getByText('degradedNotice')).toBeInTheDocument();
+  });
+
+  it('renders nothing when recall degraded but evidence exists', () => {
+    const { container } = render(
+      <MemoryCitationsButton
+        degraded
+        references={[
+          {
+            id: 'mem-1',
+            content: 'Customer A prefers concise weekly summaries.',
+            memoryType: 'semantic',
+            score: 0.92,
+            primaryNamespace: 'user',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('button')).toBeInTheDocument();
+    expect(container.querySelector('[title="degradedNoticeTitle"]')).toBeNull();
+  });
 });

@@ -341,6 +341,7 @@ async def _dispatch_auto_continue(
                 marker.chat_id,
                 "".join(collected_parts),
                 timezone=params.timezone,
+                request_message_id=params.message_id,
             )
 
         logger.info("[Auto-continue] Completed for chat: %s", marker.chat_id)

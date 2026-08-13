@@ -192,7 +192,10 @@ def schedule_clarification_timeout(
 
         if resume_collector.has_content:
             await ChatService.persist_assistant_message_safe(
-                chat_id, resume_collector.content, extra_data=resume_collector.extra_data
+                chat_id,
+                resume_collector.content,
+                extra_data=resume_collector.extra_data,
+                request_message_id=resume_params.message_id,
             )
 
         if next_approval_timeout:
@@ -247,7 +250,10 @@ def schedule_directory_timeout(
 
         if resume_collector.has_content:
             await ChatService.persist_assistant_message_safe(
-                chat_id, resume_collector.content, extra_data=resume_collector.extra_data
+                chat_id,
+                resume_collector.content,
+                extra_data=resume_collector.extra_data,
+                request_message_id=resume_params.message_id,
             )
 
         if next_approval_timeout:
@@ -303,7 +309,10 @@ def schedule_approval_timeout(
 
         if resume_collector.has_content:
             await ChatService.persist_assistant_message_safe(
-                chat_id, resume_collector.content, extra_data=resume_collector.extra_data
+                chat_id,
+                resume_collector.content,
+                extra_data=resume_collector.extra_data,
+                request_message_id=resume_params.message_id,
             )
 
         if next_approval_timeout:

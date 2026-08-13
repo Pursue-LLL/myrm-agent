@@ -109,9 +109,12 @@ export default function MessageActionBar({
             memoryIds={message.citedMemoryIds}
             references={message.citedMemoryRefs}
             sources={message.sources}
+            degraded={message.memoryRetrievalDegraded}
           />
         )}
-        {!isStreaming && chatId && <RevertFiles chatId={chatId} messageId={message.messageId} />}
+        {!isStreaming && chatId && (
+          <RevertFiles chatId={chatId} messageId={message.requestMessageId || message.messageId} />
+        )}
         {!isStreaming && message.citedMemoryIds && message.citedMemoryIds.length > 0 && (
           <MemoryFeedback memoryIds={message.citedMemoryIds} />
         )}

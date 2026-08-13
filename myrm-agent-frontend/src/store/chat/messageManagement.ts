@@ -338,6 +338,11 @@ function parseMessages(raw: Message[]): Message[] {
       ...(citedMemoryRefs ? { citedMemoryRefs } : {}),
     } as Message;
 
+    const persistedRequestMessageId = metadata.request_message_id;
+    if (typeof persistedRequestMessageId === 'string' && persistedRequestMessageId.length > 0) {
+      parsed.requestMessageId = persistedRequestMessageId;
+    }
+
     if (parsed.clarification) {
       parsed.clarification = normalizeHydratedClarification(parsed.clarification);
     }

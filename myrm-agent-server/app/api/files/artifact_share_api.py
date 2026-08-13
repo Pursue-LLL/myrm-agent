@@ -40,7 +40,6 @@ from app.services.artifacts.share_bundle import materialize_share_bundle
 from app.services.artifacts.share_registry import (
     ActiveShareRow,
     list_active_shares,
-    purge_expired_shares,
     register_share,
     revoke_share,
 )
@@ -216,8 +215,12 @@ async def delete_artifact_share_record(
     record_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """Revoke a share link by registry id. Idempotent (204 on repeat)."""
-    await purge_expired_shares(db)
+    """Revoke a share link by registry id. Idempotent (204 on repeat).
+
+    Purge of expired registry rows is owned by the periodic scheduler
+    (``app.lifecycle.schedulers``), keeping this endpoint free of side effects
+    beyond revocation itself.
+    """
     if not await revoke_share(db, record_id):
         raise HTTPException(status_code=404, detail="Share link not found")
     return Response(status_code=204)

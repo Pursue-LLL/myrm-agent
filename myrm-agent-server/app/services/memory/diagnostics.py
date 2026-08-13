@@ -256,13 +256,17 @@ class MemoryDiagnosticsService:
                 repair_actions=["review_storage_config", "configure_embedding"],
             )
         trace_steps = len(trace.steps) if trace is not None else 0
-        status: DiagnosticStatus = "ready" if trace_steps else "warning"
+        degraded = bool(trace.degraded) if trace is not None else False
+        status: DiagnosticStatus = "ready" if trace_steps and not degraded else "warning"
+        evidence = f"Search completed with {len(results)} result(s); retrieval trace steps={trace_steps}."
+        if degraded:
+            evidence += " Retrieval was degraded (wall-clock timeout or backing-store error)."
         return MemoryCommandDiagnosticProbeResult(
             id="retrieval_pipeline",
             category="index",
             label="Retrieval pipeline",
             status=status,
-            evidence=f"Search completed with {len(results)} result(s); retrieval trace steps={trace_steps}.",
+            evidence=evidence,
             impact="The recall path can execute without exposing retrieved memory content in diagnostic evidence.",
             next_action="No action required." if status == "ready" else "Inspect retrieval trace capture and rerun diagnostics.",
             safe_to_retry=True,

@@ -4407,7 +4407,8 @@
         "protected": "비밀번호",
         "expiresAt": "만료 시간",
         "action": "작업"
-      }
+      },
+      "openLabel": "{name} 공유 링크 열기"
     },
     "workspaceRules": {
       "title": "작업 공간 규칙",
@@ -10183,6 +10184,8 @@
     "score": "{score}% 일치",
     "unavailableContent": "이전 메시지라 메모리 상세 정보를 사용할 수 없습니다. 감사용으로 메모리 ID를 표시합니다.",
     "viewSourceChat": "원본 대화에서 보기",
+    "degradedNotice": "메모리 검색을 일시적으로 사용할 수 없습니다",
+    "degradedNoticeTitle": "메모리 검색을 일시적으로 사용할 수 없어 이 답변은 메모리를 참조하지 않았습니다.",
     "types": {
       "semantic": "지식",
       "episodic": "이벤트",

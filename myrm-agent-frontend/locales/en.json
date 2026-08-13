@@ -649,7 +649,8 @@
         "protected": "Password",
         "expiresAt": "Expires",
         "action": "Action"
-      }
+      },
+      "openLabel": "Open share link for {name}"
     },
     "workspaceRules": {
       "title": "Workspace Rules",
@@ -10485,6 +10486,8 @@
     "score": "{score}% match",
     "unavailableContent": "Memory details are unavailable for this older message. The memory ID is still shown for audit.",
     "viewSourceChat": "View in original chat",
+    "degradedNotice": "Memory recall temporarily unavailable",
+    "degradedNoticeTitle": "This reply did not reference your memory because memory recall was temporarily unavailable.",
     "types": {
       "semantic": "Knowledge",
       "episodic": "Event",

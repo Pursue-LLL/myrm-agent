@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Check, Link2Off, LinkIcon, Loader2, RefreshCw } from 'lucide-react';
+import { Check, ExternalLink, Link2Off, LinkIcon, Loader2, RefreshCw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,9 +16,9 @@ import {
 } from '@/components/primitives/alert-dialog';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
-import { BACKEND_BASE_URL } from '@/lib/api';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
+  buildPublicArtifactShareUrl,
   fetchArtifactShares,
   formatShareTimestamp,
   revokeArtifactShare,
@@ -75,12 +75,16 @@ export default function ShareLinksSection() {
     [t],
   );
 
+  const handleOpen = useCallback((record: ArtifactShareRecord) => {
+    if (!record.share_path) {return;}
+    window.open(buildPublicArtifactShareUrl(record.share_path), '_blank', 'noopener,noreferrer');
+  }, []);
+
   const handleCopy = useCallback(
     async (record: ArtifactShareRecord) => {
       if (!record.share_path) {return;}
       try {
-        const baseUrl = BACKEND_BASE_URL.toString() || window.location.origin;
-        await navigator.clipboard.writeText(`${baseUrl}${record.share_path}`);
+        await navigator.clipboard.writeText(buildPublicArtifactShareUrl(record.share_path));
         setCopiedId(record.id);
         window.setTimeout(() => {
           setCopiedId((current) => (current === record.id ? null : current));
@@ -159,19 +163,29 @@ export default function ShareLinksSection() {
                     <td className="px-4 py-3 text-muted-foreground">{typeLabel(record.artifact_type)}</td>
                     <td className="px-4 py-3">
                       {record.share_path ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => void handleCopy(record)}
-                          aria-label={t('copyLabel', { name: record.artifact_name })}
-                        >
-                          {copiedId === record.id ? (
-                            <Check className="h-4 w-4 text-emerald-500" />
-                          ) : (
-                            <LinkIcon className="h-4 w-4" />
-                          )}
-                          <span className="ml-1.5">{copiedId === record.id ? t('copied') : t('copy')}</span>
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => void handleCopy(record)}
+                            aria-label={t('copyLabel', { name: record.artifact_name })}
+                          >
+                            {copiedId === record.id ? (
+                              <Check className="h-4 w-4 text-emerald-500" />
+                            ) : (
+                              <LinkIcon className="h-4 w-4" />
+                            )}
+                            <span className="ml-1.5">{copiedId === record.id ? t('copied') : t('copy')}</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => void handleOpen(record)}
+                            aria-label={t('openLabel', { name: record.artifact_name })}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">{t('linkProtected')}</span>
                       )}

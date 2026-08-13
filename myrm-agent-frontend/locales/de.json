@@ -4407,7 +4407,8 @@
         "protected": "Passwort",
         "expiresAt": "Läuft ab",
         "action": "Aktion"
-      }
+      },
+      "openLabel": "Freigabelink für {name} öffnen"
     },
     "workspaceRules": {
       "title": "Arbeitsbereichsregeln",
@@ -10183,6 +10184,8 @@
     "score": "{score}% Treffer",
     "unavailableContent": "Für diese ältere Nachricht sind keine Speicherdetails verfügbar. Die Speicher-ID bleibt zur Prüfung sichtbar.",
     "viewSourceChat": "Im Originalchat anzeigen",
+    "degradedNotice": "Speicherabruf vorübergehend nicht verfügbar",
+    "degradedNoticeTitle": "Diese Antwort hat Ihren Speicher nicht referenziert, da der Speicherabruf vorübergehend nicht verfügbar war.",
     "types": {
       "semantic": "Wissen",
       "episodic": "Ereignis",

@@ -55,3 +55,54 @@ async def test_persist_assistant_message_safe_skips_unsafe_chat_id():
         )
 
     assert summary_called is False
+
+
+@pytest.mark.asyncio
+async def test_persist_assistant_message_safe_stores_request_message_id():
+    """request_message_id must be written into extra_data for hydrate-side recovery."""
+
+    captured_extra: list[dict[str, object] | None] = []
+
+    async def _fake_append_message(chat_id, role, content, **kwargs):
+        from app.database.dto import MessageDTO
+
+        captured_extra.append(kwargs.get("extra_data"))
+        return MessageDTO(id="msg-rid", chat_id=chat_id)
+
+    with (
+        patch(
+            "app.services.chat.chat_message._ChatMessageMixin.append_message",
+            new=AsyncMock(side_effect=_fake_append_message),
+        ),
+        patch(
+            "app.services.chat.chat_message._record_memory_influence_event",
+            new=AsyncMock(),
+        ),
+        patch(
+            "app.config.settings.settings.database.event_log_dir",
+            "/tmp/rid-should-not-be-touched",
+        ),
+    ):
+        from app.services.chat.chat_message import _ChatMessageMixin
+
+        await _ChatMessageMixin.persist_assistant_message_safe(
+            "chat-rid-1",
+            "hello",
+            extra_data=None,
+            request_message_id="r-abc123",
+        )
+        await _ChatMessageMixin.persist_assistant_message_safe(
+            "chat-rid-2",
+            "hello",
+            extra_data={"existing": True},
+            request_message_id="r-def456",
+        )
+        await _ChatMessageMixin.persist_assistant_message_safe(
+            "chat-rid-3",
+            "hello",
+            extra_data={"existing": True},
+        )
+
+    assert captured_extra[0] == {"request_message_id": "r-abc123"}
+    assert captured_extra[1] == {"existing": True, "request_message_id": "r-def456"}
+    assert captured_extra[2] == {"existing": True}

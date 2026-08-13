@@ -629,7 +629,8 @@
         "protected": "密碼保護",
         "expiresAt": "過期時間",
         "action": "操作"
-      }
+      },
+      "openLabel": "開啟 {name} 的分享連結"
     },
     "workspaceRules": {
       "title": "專案規則",
@@ -10407,6 +10408,8 @@
     "score": "{score}% 匹配",
     "unavailableContent": "這條舊訊息暫無記憶詳情，仍顯示記憶 ID 便於審計。",
     "viewSourceChat": "檢視原始會話",
+    "degradedNotice": "記憶檢索暫時不可用",
+    "degradedNoticeTitle": "本次回覆未引用你的記憶，因為記憶檢索暫時不可用。",
     "types": {
       "semantic": "知識",
       "episodic": "事件",

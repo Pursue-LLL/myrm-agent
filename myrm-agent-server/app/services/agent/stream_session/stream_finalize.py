@@ -518,6 +518,7 @@ async def finalize_agent_stream_session(
             extra_data=extra_data,
             timezone=session.request.timezone,
             sibling_group_id=session.collector.sibling_group_id,
+            request_message_id=session.request.message_id,
         )
 
     # Clear crash auto-continue marker on normal completion (best-effort)

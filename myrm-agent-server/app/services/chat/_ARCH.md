@@ -75,7 +75,7 @@ ChatService
 |------|------|
 | `ensure_chat_and_append_user_message()` | 确保 chat 存在并存储 user message（Agent 入口调用）；同 `chat_id + message_id + content` 的重试请求走幂等复用，不重复写入 user turn |
 | `load_web_chat_history()` | 从 DB 加载历史，返回框架层格式（带 `{ts}` 元数据） |
-| `persist_assistant_message_safe()` | 流结束后存储 assistant message，把 `citedMemoryRefs` 与 `memoryRetrievalTraces` 旁路写入记忆操作账本，并旁路同步 `EventLogger` 的使用数据到 `Chat` 记录 |
+| `persist_assistant_message_safe()` | 流结束后存储 assistant message，把 `citedMemoryRefs` 与 `memoryRetrievalTraces` 旁路写入记忆操作账本，并旁路同步 `EventLogger` 的使用数据到 `Chat` 记录；当传入 `request_message_id`（WebUI 回合的 `r-` 前缀请求 ID）时写入 `extra_data["request_message_id"]`，供前端刷新后 hydrate 恢复该回合标识（assistant 消息 DB 主键为 UUID，与文件快照的 `r-` key 对齐依赖此字段） |
 | `search_messages()` | FTS5 全文搜索历史消息（snippet 高亮 + 分页 + trigram 中文分词 + since/until 时间范围过滤） |
 | `ConversationSearchService.search()` | Agent 工具用历史会话召回；空查询返回最近会话，非空查询走消息段索引并返回精准 snippet + compacted_summary + source refs；semantic-only 命中必须回查 Server 索引补齐证据 |
 
