@@ -16,7 +16,7 @@ import logging
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -453,7 +453,7 @@ class SkillPermissionUsageResponse(BaseModel):
 )
 async def get_permission_usage_stats(
     skill_id: str,
-    days: int = 7,
+    days: int = Query(7, ge=1, le=365),
     db: AsyncSession = Depends(get_db_session),
 ) -> SkillPermissionUsageResponse:
     """查询Skill权限使用统计
@@ -476,7 +476,10 @@ async def get_permission_usage_stats(
             SkillPermissionUsageLog.skill_id == skill_id,
             SkillPermissionUsageLog.used_at >= since,
         )
-        .order_by(SkillPermissionUsageLog.used_at.desc())
+        .order_by(
+            SkillPermissionUsageLog.used_at.desc(),
+            SkillPermissionUsageLog.id.desc(),
+        )
     )
     result = await db.execute(stmt)
     logs = result.scalars().all()
@@ -511,7 +514,7 @@ async def get_permission_usage_stats(
                 total_count=stats[0],
                 allowed_count=stats[1],
                 denied_count=stats[2],
-                recent_operations=recent_operations.get(permission, []),
+                recent_operations=recent_operations[permission],
             )
             for permission, stats in counts.items()
         ],

@@ -173,3 +173,15 @@ async def test_usage_returns_404_for_unknown_skill(usage_app: FastAPI) -> None:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/api/v1/skills/missing/permissions/usage")
     assert response.status_code == 404
+
+
+async def test_usage_rejects_invalid_days(usage_app: FastAPI) -> None:
+    """days 越界（0 / 366）返回 422。"""
+    transport = ASGITransport(app=usage_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/api/v1/skills/skill-test/permissions/usage?days=0")
+    assert response.status_code == 422
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/api/v1/skills/skill-test/permissions/usage?days=366")
+    assert response.status_code == 422
