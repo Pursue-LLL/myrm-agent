@@ -322,6 +322,7 @@ export function isSharePreviewableArtifact(artifact: Artifact): boolean {
 export interface ArtifactSharePreviewResult {
   token: string;
   share_path: string;
+  share_url?: string | null;
   expires_at: number;
   password_protected: boolean;
 }

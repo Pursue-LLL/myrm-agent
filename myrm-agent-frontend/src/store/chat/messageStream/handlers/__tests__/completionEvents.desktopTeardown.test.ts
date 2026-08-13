@@ -139,4 +139,26 @@ describe('completionEvents inspector teardown', () => {
       expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledWith('c1');
     });
   });
+
+  it('releases inspector engagement on MESSAGE_END before the loading-settle timer fires', async () => {
+    // Locks the timing invariant that fixes a fast-next-turn race: the release must
+    // run before the 50ms setTimeout below, so a new turn starting in that window
+    // can never have its panel closed by a delayed release from the previous turn.
+    vi.useFakeTimers();
+    try {
+      const ctx = makeCtx();
+      await completionEvents(ctx);
+      await vi.dynamicImportSettled();
+
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledWith('c1');
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledWith('c1');
+
+      // The 50ms loading-settle timer must not have fired yet.
+      expect(ctx.actions.setMessages).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

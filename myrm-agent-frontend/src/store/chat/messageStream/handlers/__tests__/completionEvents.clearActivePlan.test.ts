@@ -45,6 +45,7 @@ vi.mock('../handlerDeps', () => ({
   },
   playCompletionSound: vi.fn(() => false),
   dispatchPetSurfaceAwayCompletion: vi.fn(),
+  releaseInspectorControls: vi.fn(),
 }));
 
 import { completionEvents } from '../completionEvents';

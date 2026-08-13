@@ -76,15 +76,17 @@ export default function ShareLinksSection() {
   );
 
   const handleOpen = useCallback((record: ArtifactShareRecord) => {
-    if (!record.share_path) {return;}
-    window.open(buildPublicArtifactShareUrl(record.share_path), '_blank', 'noopener,noreferrer');
+    const url = record.share_url ?? record.share_path;
+    if (!url) {return;}
+    window.open(buildPublicArtifactShareUrl(url), '_blank', 'noopener,noreferrer');
   }, []);
 
   const handleCopy = useCallback(
     async (record: ArtifactShareRecord) => {
-      if (!record.share_path) {return;}
+      const url = record.share_url ?? record.share_path;
+      if (!url) {return;}
       try {
-        await navigator.clipboard.writeText(buildPublicArtifactShareUrl(record.share_path));
+        await navigator.clipboard.writeText(buildPublicArtifactShareUrl(url));
         setCopiedId(record.id);
         window.setTimeout(() => {
           setCopiedId((current) => (current === record.id ? null : current));

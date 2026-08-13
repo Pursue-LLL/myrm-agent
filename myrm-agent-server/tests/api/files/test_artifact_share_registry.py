@@ -408,6 +408,38 @@ async def test_list_shares_endpoint(share_client, html_artifact) -> None:
     assert row["expires_at"] > int(time.time())
     # Unprotected shares expose a rebuilt share_path that points at the token.
     assert row["share_path"] == f"/api/v1/public/artifact-share/{original_token}"
+    # No public ingress configured in tests, so no absolute share_url.
+    assert row["share_url"] is None
+
+
+@pytest.mark.asyncio
+async def test_list_shares_endpoint_exposes_absolute_share_url(
+    share_client, html_artifact
+) -> None:
+    """List exposes an absolute share_url once public ingress is configured."""
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, _single_file_files()),
+    ):
+        create_resp = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html"},
+        )
+    assert create_resp.status_code == 200
+    token = create_resp.json()["token"]
+
+    with patch(
+        "app.api.files.artifact_share_api.get_public_ingress_base_url",
+        new_callable=AsyncMock,
+        return_value="https://myrm-x.example.com",
+    ):
+        list_resp = share_client.get("/shares")
+    assert list_resp.status_code == 200
+    row = list_resp.json()[0]
+    assert row["share_url"] == (
+        f"https://myrm-x.example.com/api/v1/public/artifact-share/{token}"
+    )
 
 
 @pytest.mark.asyncio

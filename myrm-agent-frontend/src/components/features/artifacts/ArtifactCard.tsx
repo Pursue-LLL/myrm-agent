@@ -229,7 +229,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         artifactState.type,
         { ttlDays: shareTtlDays, password: pwd },
       );
-      const url = buildPublicArtifactShareUrl(result.share_path);
+      const url = result.share_url ?? buildPublicArtifactShareUrl(result.share_path);
       await writeToClipboard(url);
       const descKey = result.password_protected
         ? 'sharePreview.successDescriptionProtected'

@@ -102,6 +102,10 @@ async def test_create_share_preview_materializes_bundle(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
+    ), patch(
+        "app.api.files.artifact_share_api.get_public_ingress_base_url",
+        new_callable=AsyncMock,
+        return_value="",
     ):
         response = share_client.post(
             f"/{html_artifact.id}/share-preview",
@@ -113,6 +117,8 @@ async def test_create_share_preview_materializes_bundle(
     claims = parse_artifact_share_token(token)
     assert claims is not None
     assert bundle_asset_count(claims) == 2
+    assert payload["share_path"] == f"/api/v1/public/artifact-share/{token}"
+    assert payload["share_url"] is None
 
     entry = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert entry.status_code == 307
@@ -122,6 +128,64 @@ async def test_create_share_preview_materializes_bundle(
     css = share_client.get(f"/public/artifact-share/{token}/styles.css")
     assert css.status_code == 200
     assert "body" in css.text
+
+
+@pytest.mark.asyncio
+async def test_create_share_preview_exposes_absolute_share_url(
+    share_client, html_artifact
+) -> None:
+    """Create response carries an absolute share_url when public ingress is set."""
+    files = {
+        "index.html": PublishFile(
+            path="index.html", content="<html></html>", encoding="utf-8"
+        ),
+    }
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, files),
+    ), patch(
+        "app.api.files.artifact_share_api.get_public_ingress_base_url",
+        new_callable=AsyncMock,
+        return_value="https://myrm-x.example.com",
+    ):
+        response = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html"},
+        )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["share_url"] == (
+        f"https://myrm-x.example.com{payload['share_path']}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_share_preview_share_url_falls_back_when_ingress_fails(
+    share_client, html_artifact
+) -> None:
+    """Ingress resolution failure must not fail share creation (degrade to None)."""
+    files = {
+        "index.html": PublishFile(
+            path="index.html", content="<html></html>", encoding="utf-8"
+        ),
+    }
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, files),
+    ), patch(
+        "app.api.files.artifact_share_api.get_public_ingress_base_url",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("ingress unavailable"),
+    ):
+        response = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html"},
+        )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["share_url"] is None
 
 
 @pytest.mark.asyncio

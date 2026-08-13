@@ -17,7 +17,10 @@ Vercel deploy, list active links, and revoke them immediately. Registration is
 committed before the token is returned so every issued token is revocable. The
 list endpoint rebuilds each unprotected share path on the fly (deterministic
 HMAC tokens) so links are displayable/copyable without persisting raw tokens;
-password-protected rows expose no path.
+password-protected rows expose no path. Create and list responses also carry an
+absolute ``share_url`` derived from the public-ingress SSOT so links stay
+reachable outside the local host in hosted/tunneled deployments (falls back to
+``None`` so the frontend assembles from origin when no ingress is configured).
 """
 
 from __future__ import annotations
@@ -33,6 +36,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import get_workspace_root
 from app.config.settings import settings
+from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
@@ -72,6 +76,7 @@ class CreateArtifactShareRequest(BaseModel):
 class CreateArtifactShareResponse(BaseModel):
     token: str
     share_path: str
+    share_url: str | None = None
     expires_at: int
     artifact_id: str
     version_id: str
@@ -87,10 +92,33 @@ class ArtifactShareRecordResponse(BaseModel):
     created_at: int
     expires_at: int
     share_path: str | None = None
+    share_url: str | None = None
 
 
 def _share_path(token: str) -> str:
     return f"/api/v1/public/artifact-share/{token}"
+
+
+async def _resolve_share_url_base() -> str:
+    """Public base for share links, or ``""`` when no public ingress is set.
+
+    Uses the system-wide ingress SSOT (``CP_PUBLIC_INGRESS_URL`` or a user
+    tunnel) so links stay reachable outside the local host in hosted/tunneled
+    deployments. Resolution failure degrades to ``""`` so the frontend falls
+    back to origin-based assembly instead of surfacing a 500.
+    """
+    try:
+        return (await get_public_ingress_base_url()).strip().rstrip("/")
+    except Exception as exc:
+        logger.warning("Failed to resolve public ingress base for share link: %s", exc)
+        return ""
+
+
+def _absolute_share_url(base: str, share_path: str | None) -> str | None:
+    """Prepend the public base to a relative share path when both exist."""
+    if not base or not share_path:
+        return None
+    return f"{base}{share_path}"
 
 
 def _record_share_path(row: ActiveShareRow) -> str | None:
@@ -179,13 +207,31 @@ async def create_artifact_share_preview(
             status_code=500, detail="Failed to register share link"
         ) from exc
 
+    share_path = _share_path(token)
+    base = await _resolve_share_url_base()
     return CreateArtifactShareResponse(
         token=token,
-        share_path=_share_path(token),
+        share_path=share_path,
+        share_url=_absolute_share_url(base, share_path),
         expires_at=expires_at,
         artifact_id=artifact.id,
         version_id=latest.id,
         password_protected=body.password is not None,
+    )
+
+
+def _record_response(row: ActiveShareRow, base: str) -> ArtifactShareRecordResponse:
+    share_path = _record_share_path(row)
+    return ArtifactShareRecordResponse(
+        id=row.id,
+        artifact_id=row.artifact_id,
+        artifact_name=row.artifact_name,
+        artifact_type=row.artifact_type,
+        password_protected=row.password_protected,
+        created_at=timegm(row.created_at.timetuple()),
+        expires_at=timegm(row.expires_at.timetuple()),
+        share_path=share_path,
+        share_url=_absolute_share_url(base, share_path),
     )
 
 
@@ -195,19 +241,8 @@ async def get_artifact_share_records(
 ) -> list[ArtifactShareRecordResponse]:
     """List unrevoked, unexpired share links for the management GUI (read-only)."""
     rows = await list_active_shares(db)
-    return [
-        ArtifactShareRecordResponse(
-            id=row.id,
-            artifact_id=row.artifact_id,
-            artifact_name=row.artifact_name,
-            artifact_type=row.artifact_type,
-            password_protected=row.password_protected,
-            created_at=timegm(row.created_at.timetuple()),
-            expires_at=timegm(row.expires_at.timetuple()),
-            share_path=_record_share_path(row),
-        )
-        for row in rows
-    ]
+    base = await _resolve_share_url_base()
+    return [_record_response(row, base) for row in rows]
 
 
 @router.delete("/shares/{record_id}", status_code=204)

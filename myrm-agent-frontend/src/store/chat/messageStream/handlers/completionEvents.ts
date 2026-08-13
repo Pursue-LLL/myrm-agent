@@ -54,6 +54,14 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');
       useGoalStore.getState().setActiveGoal(H.normalizeGoalState(data.goal_status));
     }
+
+    // Release inspector "controlling" state (desktop + browser) engaged by this
+    // turn immediately on the terminal event, before the loading-settle delay
+    // below, so a fast next turn can never race this release. releaseTurnEngagement
+    // is a no-op unless the chat owns the engagement, so other panes' panels and
+    // manually opened panels stay put.
+    H.releaseInspectorControls(state.messages[0]?.chatId?.trim() ?? '');
+
     setTimeout(() => {
       actions.setMessages((state) => {
         let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
@@ -158,11 +166,6 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       // transport may still take a tick to close (notably through multiplex).
       // Do not abort it here: the reader still owns the stream teardown.
       actions.clearActiveStream?.();
-
-      // Release inspector "controlling" state (desktop + browser) engaged by
-      // this turn; releaseTurnEngagement is a no-op unless the chat owns the
-      // engagement, so other panes' panels and manually opened panels stay put.
-      H.releaseInspectorControls(state.messages[0]?.chatId?.trim() ?? '');
 
       const lastMsg = state.messages[state.messages.length - 1];
       if (lastMsg) {

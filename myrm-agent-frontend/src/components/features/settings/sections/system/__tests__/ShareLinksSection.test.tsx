@@ -58,6 +58,7 @@ const shareRecord = {
   created_at: 1786500000,
   expires_at: 1787200000,
   share_path: '/api/v1/public/artifact-share/abc.def',
+  share_url: null,
 };
 
 const protectedRecord = {
@@ -67,6 +68,13 @@ const protectedRecord = {
   artifact_type: 'pdf',
   password_protected: true,
   share_path: null,
+};
+
+const absoluteShareRecord = {
+  ...shareRecord,
+  id: 'rec-3',
+  artifact_name: 'hosted.html',
+  share_url: 'https://myrm-x.example.com/api/v1/public/artifact-share/xyz.uvw',
 };
 
 describe('ShareLinksSection', () => {
@@ -141,6 +149,49 @@ describe('ShareLinksSection', () => {
 
     expect(openSpy).toHaveBeenCalledWith(
       'http://localhost:3000/api/v1/public/artifact-share/abc.def',
+      '_blank',
+      'noopener,noreferrer',
+    );
+  });
+
+  it('prefers the server-provided absolute share_url when copying', async () => {
+    const clipboardSpy = vi
+      .spyOn(navigator.clipboard, 'writeText')
+      .mockImplementation(async () => undefined);
+    vi.stubGlobal('location', { origin: 'http://localhost:3000' });
+    const fetchMock = mockFetchRoutes([
+      { method: 'GET', url: '/files/artifacts/shares', body: [absoluteShareRecord] },
+    ]);
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<ShareLinksSection />);
+    await waitFor(() => expect(screen.getByTestId('shares-table')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: /copyLabel/ }));
+
+    await waitFor(() =>
+      expect(clipboardSpy).toHaveBeenCalledWith(
+        'https://myrm-x.example.com/api/v1/public/artifact-share/xyz.uvw',
+      ),
+    );
+  });
+
+  it('prefers the server-provided absolute share_url when opening', async () => {
+    const openSpy = vi.fn();
+    vi.stubGlobal('location', { origin: 'http://localhost:3000' });
+    vi.stubGlobal('open', openSpy);
+    const fetchMock = mockFetchRoutes([
+      { method: 'GET', url: '/files/artifacts/shares', body: [absoluteShareRecord] },
+    ]);
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<ShareLinksSection />);
+    await waitFor(() => expect(screen.getByTestId('shares-table')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: /openLabel/ }));
+
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://myrm-x.example.com/api/v1/public/artifact-share/xyz.uvw',
       '_blank',
       'noopener,noreferrer',
     );

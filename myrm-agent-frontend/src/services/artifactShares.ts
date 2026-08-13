@@ -9,10 +9,18 @@ export interface ArtifactShareRecord {
   created_at: number;
   expires_at: number;
   share_path: string | null;
+  share_url: string | null;
 }
 
-/** Public URL for a share path, honoring sandbox/remote backend base. */
+/**
+ * Build the publicly reachable share URL. Server-provided absolute URLs (public
+ * ingress / tunnel) pass through untouched; relative paths fall back to the
+ * backend base or the current origin.
+ */
 export function buildPublicArtifactShareUrl(sharePath: string): string {
+  if (sharePath.startsWith('http://') || sharePath.startsWith('https://')) {
+    return sharePath;
+  }
   const backendBase = BACKEND_BASE_URL.toString() || window.location.origin;
   return `${backendBase}${sharePath}`;
 }
