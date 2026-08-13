@@ -417,11 +417,11 @@ class TestChannelDeliveryRouting:
         job = _make_job(channel="webhook", target="https://example.com/hook")
         result = JobResult(success=True, output="data")
 
-        delivery = ChannelResultDelivery()
         with patch(
             "app.core.cron.adapters.channel_delivery._webhook_delivery",
         ) as mock_wd:
             mock_wd.deliver = AsyncMock()
+            delivery = ChannelResultDelivery()
             await delivery.deliver(job, result)
             mock_wd.deliver.assert_awaited_once_with(job, result)
 

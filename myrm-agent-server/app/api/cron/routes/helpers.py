@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
 
+from fastapi import HTTPException
 from myrm_agent_harness.infra.incremental.types import MonitorConfig, MonitorState
 from myrm_agent_harness.toolkits.cron import (
     DeliveryConfig,
@@ -24,6 +25,8 @@ from app.api.cron.schemas import (
     CronRunResponse,
     DeliveryCreate,
     DeliveryResponse,
+    DeliveryTestRequest,
+    DeliveryTestResponse,
     EventTriggerResponse,
     FailureAlertCreate,
     FailureAlertResponse,
@@ -319,3 +322,62 @@ def _get_scheduler() -> "CronScheduler":
     from app.core.cron.adapters.setup import get_cron_scheduler
 
     return get_cron_scheduler()
+
+
+async def _run_test_delivery(
+    mgr: "CronManager",
+    job_id: str,
+    body: DeliveryTestRequest | None,
+) -> DeliveryTestResponse:
+    """Send a one-off test payload through the job's delivery channel.
+
+    Omit the body to test the job's saved delivery; otherwise the provided
+    (not-yet-saved) configuration is tested. Webhook tests reuse the real
+    delivery pipeline (signing, SSRF guard, Feishu/WeCom bot formatting), so a
+    passing test guarantees real runs will deliver.
+    """
+    from myrm_agent_harness.toolkits.cron.delivery import WebhookDelivery
+    from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
+
+    job = await mgr.get_job(job_id, "default")
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if body is not None and (body.delivery or body.failure_delivery):
+        if body.delivery is not None:
+            config = _delivery_from_request(body.delivery, existing_secret=job.delivery.secret)
+        else:
+            existing_secret = job.failure_delivery.secret if job.failure_delivery else None
+            config = _delivery_from_request(body.failure_delivery, existing_secret=existing_secret)
+    else:
+        config = job.delivery
+
+    if config.channel in ("chat", "silent", "none"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Channel '{config.channel}' does not support test delivery",
+        )
+
+    test_job = CronJob(
+        id=job.id,
+        user_id=job.user_id,
+        name=job.name,
+        job_type=job.job_type,
+        schedule=job.schedule,
+        delivery=config,
+    )
+    result = JobResult(
+        success=True,
+        output=f"Test delivery from Myrm scheduled task '{job.name}'",
+        metadata={"model": None, "usage": None, "duration_ms": 0},
+    )
+    from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
+
+    test_delivery = ChannelResultDelivery(
+        webhook_delivery=WebhookDelivery(max_retries=0, connect_timeout=5, read_timeout=15)
+    )
+    try:
+        await test_delivery.deliver(test_job, result)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Test delivery failed: {exc}") from exc
+    return DeliveryTestResponse(delivered=True)
