@@ -68,6 +68,7 @@ export function resolveBriefUnavailableDescriptionKey(
   }
   if (
     injection.reason === 'load_error' ||
+    injection.reason === 'load_timeout' ||
     injection.reason === 'static_error' ||
     injection.reason === 'invalid_static_payload' ||
     injection.reason === 'empty_context'

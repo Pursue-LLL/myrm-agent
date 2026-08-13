@@ -57,6 +57,26 @@ describe('resolveBriefUnavailableDescriptionKey', () => {
         skippedStatus({ state: 'not_applied', reason: 'load_error' })
       )
     ).toBe('briefUnavailableDescriptionSystemIssue');
+    expect(
+      resolveBriefUnavailableDescriptionKey(
+        skippedStatus({ state: 'not_applied', reason: 'load_timeout' })
+      )
+    ).toBe('briefUnavailableDescriptionSystemIssue');
+    expect(
+      resolveBriefUnavailableDescriptionKey(
+        skippedStatus({ state: 'not_applied', reason: 'static_error' })
+      )
+    ).toBe('briefUnavailableDescriptionSystemIssue');
+    expect(
+      resolveBriefUnavailableDescriptionKey(
+        skippedStatus({ state: 'not_applied', reason: 'invalid_static_payload' })
+      )
+    ).toBe('briefUnavailableDescriptionSystemIssue');
+    expect(
+      resolveBriefUnavailableDescriptionKey(
+        skippedStatus({ state: 'not_applied', reason: 'empty_context' })
+      )
+    ).toBe('briefUnavailableDescriptionSystemIssue');
   });
 
   it('falls back to generic description for missing status', () => {

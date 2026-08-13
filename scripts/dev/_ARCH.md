@@ -33,7 +33,7 @@
 | `chrome-agent/` | Unix | **ChromeAgent 域**：`pipe-cdp-proxy.mjs`（多客户端 WebSocket → 单 pipe 连接 Chrome 复用）、`chrome-arm64-launcher.sh`（Apple Silicon arm64 强制）、`package.json`（ws 依赖）；由 ensure/install 脚本引用 |
 | `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
 | `wave-e2e-lease.sh` | Unix | `./myrm test -m chrome_e2e` LIVE_AGENT/READ 租约；最后一个 lease 释放时原子关闭 Wave |
-| `wave.sh` | Unix | Wave orchestrator CLI 入口（open/close/status、lease acquire/release、STACK_WRITE gate）；委托 `python -m wave_orchestrator.cli`；被 `ready.sh`、`isolated_runtime/reaper.py`、`browser-orchestrator lease-gate` 调用 |
+| `wave.sh` | Unix | Wave orchestrator CLI 入口（open/close/status、lease acquire/release、STACK_WRITE gate）；委托 `python -m wave_orchestrator.cli`；被 monorepo `scripts/dev/ready.sh` 与 `scripts/dev/isolated_runtime/reaper.py`（reaper.py:102 直调）、本仓 `lib/e2e_core/stack_mutation_policy.py` / `lib/chrome_e2e/gates/lease_gate.py` 调用 |
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
 | `chrome-e2e-preflight.sh` | Unix | 首 Agent 完整 reconcile/client_hot；attach 聚合快照；private backend 路径 `_wait_shared_ui_reachable`（默认 180s）；`MYRM_PRIVATE_BACKEND=1` 时 attach 阶段**仅**等待 `api=` 错误（shared UI 只等一次）；**mux timeout SSOT** `CDMCP_MUX_REQUEST_TIMEOUT_MS` 默认 **180000**；attach `_heal_mux_request_timeout_drift`：active Wave leases>0 时 **禁止 mux restart**、探活 timeout=`min(8+leases×3,45)s` + 3 轮退避、daemon 存活则 WARN 继续；否则 stamp 漂移时重启 daemon；`mux_responsive_probe.py --probe-timeout-sec`；输出 `CHROME_E2E_HEALTH_JSON` |
 | `chrome-e2e-model-seed.mjs` | Bun | 新对话 UI E2E 前置：无 defaultModel 时从 `.env.test` 写入 providers |
@@ -42,7 +42,7 @@
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed、创建 chat、`registerWaveLedger`、SSE delegate → JSON |
 | `moa-overlay-e2e-prepare.mjs` | 双平台 | MoA overlay prepare：临时 Agent（`moa_overlay`）、PATCH `active-moa-preset`、`agent-stream` 带 `active_moa_preset_id`、断言 SSE `moa_overlay_active` + `moa_ref_done` → JSON；Env：`E2E_API_BASE` / `E2E_UI_BASE` / `E2E_MOA_PRESET_ID` |
-| `subagent-dashboard-e2e-chat.mjs` | Bun | P2c Subagent Dashboard E2E light chat scope（不 spawn subagent）：纯 UI 注入类 dashboard 测试（sort/stop-all/teammate/stream/overtime/stale/expand/header）直接 seed store bridge → stdout JSON `{ chatId, uiUrl, apiBase }`；被 `tests/e2e/test_subagent_dashboard_ui_chrome_e2e.py` 调用 |
+| `subagent-dashboard-e2e-chat.mjs` | Bun | P2c Subagent Dashboard E2E light chat scope（不 spawn subagent）：纯 UI 注入类 dashboard 测试（sort/stop-all/teammate/stream/overtime/stale/expand/header）直接 seed store bridge → stdout JSON `{ chatId, uiUrl, apiBase }`；被 `myrm-agent-server/tests/e2e/test_subagent_dashboard_ui_chrome_e2e.py` 调用 |
 | `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
 | `lib/dev_state_paths.sh` | Unix | pid/log 路径 SSOT + 子目录回退读取；见 [lib/_ARCH.md](lib/_ARCH.md) |
 | `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |

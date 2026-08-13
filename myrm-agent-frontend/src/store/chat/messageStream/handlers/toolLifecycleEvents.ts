@@ -154,7 +154,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
         message.citedMemoryRefs = H.mergeCitedMemoryReferences(message.citedMemoryRefs, refs);
       }
 
-      const trace = data.memory_retrieval_trace as { degraded?: unknown } | undefined;
+      const trace = data.memory_retrieval_trace;
       if (trace && typeof trace.degraded === 'boolean' && trace.degraded) {
         message.memoryRetrievalDegraded = true;
       }

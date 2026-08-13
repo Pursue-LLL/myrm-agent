@@ -291,4 +291,44 @@ describe('messageStreamHandler memory citations', () => {
 
     expect(state.messages[0].memoryRetrievalDegraded).toBe(true);
   });
+
+  it('does not mark degraded when retrieval trace is healthy or absent', async () => {
+    const assistantMessage: Message = {
+      messageId: 'assistant-2',
+      chatId: 'chat-1',
+      createdAt: new Date('2026-04-30T00:00:00Z'),
+      content: '',
+      role: 'assistant',
+      progressSteps: [],
+    };
+    const state: StreamHandlerState = {
+      messages: [assistantMessage],
+      messageAppeared: false,
+      loading: true,
+      scheduler: new AdaptiveScheduler(),
+    };
+    const healthyEvent = {
+      type: AgentEventType.TOOL_END,
+      messageId: 'assistant-2',
+      tool_name: 'memory_recall_tool',
+      duration_ms: 12,
+      memory_retrieval_trace: {
+        degraded: false,
+        id: 'trace-2',
+      },
+    } satisfies AgentStreamEvent;
+
+    await handleMessageStream(healthyEvent, '', undefined, false, '', state, createActions());
+    expect(state.messages[0].memoryRetrievalDegraded).toBeUndefined();
+
+    const noTraceEvent = {
+      type: AgentEventType.TOOL_END,
+      messageId: 'assistant-2',
+      tool_name: 'memory_recall_tool',
+      duration_ms: 12,
+    } satisfies AgentStreamEvent;
+
+    await handleMessageStream(noTraceEvent, '', undefined, false, '', state, createActions());
+    expect(state.messages[0].memoryRetrievalDegraded).toBeUndefined();
+  });
 });

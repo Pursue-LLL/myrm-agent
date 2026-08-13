@@ -86,6 +86,86 @@ def test_stream_collector_persists_memory_search_citations() -> None:
     assert extra_data["citedMemoryIds"] == ["mem-wiki-1"]
 
 
+def test_stream_collector_persists_memory_retrieval_trace_with_dedup() -> None:
+    collector = StreamContentCollector()
+
+    collector.feed_event(
+        {
+            "type": "tool_end",
+            "tool_name": "memory_search_tool",
+            "memory_retrieval_trace": {
+                "id": "trace-1",
+                "degraded": True,
+                "source": "retrieval",
+            },
+        }
+    )
+    # Duplicate id must be ignored.
+    collector.feed_event(
+        {
+            "type": "tool_end",
+            "tool_name": "memory_search_tool",
+            "memory_retrieval_trace": {
+                "id": "trace-1",
+                "degraded": False,
+            },
+        }
+    )
+    # Second distinct id is appended.
+    collector.feed_event(
+        {
+            "type": "tool_end",
+            "tool_name": "memory_search_tool",
+            "memory_retrieval_trace": {
+                "id": "trace-2",
+                "degraded": False,
+            },
+        }
+    )
+
+    extra_data = collector.extra_data
+
+    assert extra_data is not None
+    assert extra_data["memoryRetrievalTraces"] == [
+        {"id": "trace-1", "degraded": True, "source": "retrieval"},
+        {"id": "trace-2", "degraded": False},
+    ]
+
+
+def test_stream_collector_ignores_invalid_memory_retrieval_trace() -> None:
+    collector = StreamContentCollector()
+
+    # Missing id is dropped.
+    collector.feed_event(
+        {
+            "type": "tool_end",
+            "tool_name": "memory_search_tool",
+            "memory_retrieval_trace": {"degraded": True},
+        }
+    )
+    # Non-memory tool does not collect trace.
+    collector.feed_event(
+        {
+            "type": "tool_end",
+            "tool_name": "web_search_tool",
+            "memory_retrieval_trace": {"id": "trace-x", "degraded": True},
+        }
+    )
+    # Non-dict trace is ignored.
+    collector.feed_event(
+        {
+            "type": "tool_end",
+            "tool_name": "memory_search_tool",
+            "memory_retrieval_trace": "not-a-dict",
+        }
+    )
+
+    extra_data = collector.extra_data
+
+    assert extra_data is None or "memoryRetrievalTraces" not in extra_data
+
+
+
 def test_stream_collector_persists_memory_citations_from_message_end() -> None:
     collector = StreamContentCollector()
 
