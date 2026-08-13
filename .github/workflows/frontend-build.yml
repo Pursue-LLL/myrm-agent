@@ -25,6 +25,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Lockfile policy (bun SSOT, no package-lock.json)
         run: test ! -f package-lock.json
+      - name: Oxlint (errors fail; warnings non-blocking)
+        run: bun run lint
       - name: Frontend line budget (no new >400-line modules)
         run: python3 scripts/check_file_line_budget.py
       - name: TypeScript strict (no error count regression)

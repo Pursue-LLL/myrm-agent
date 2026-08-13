@@ -289,6 +289,109 @@ class TestMemoryAbService:
         assert isinstance(report["harness_version"], str) and report["harness_version"]
 
     @pytest.mark.asyncio
+    async def test_run_forwards_budgets_and_hf_blocklists_to_both_arms(
+        self, tmp_path: Path
+    ) -> None:
+        """Both A/B arms receive benchmark budgets and the HF decontamination blocklists."""
+        import app.core.eval.memory_ab as memory_ab_mod
+
+        captured: list[dict[str, object]] = []
+
+        class RecordingExecutor:
+            def __init__(self, **kwargs: object) -> None:
+                captured.append(kwargs)
+
+        class FakeMatrixResult:
+            per_profile_results: dict[str, object] = {}
+
+            def to_dict(self) -> dict[str, object]:
+                return {
+                    "profile_ids": ["memory_off", "memory_on"],
+                    "total_cases": 1,
+                    "per_profile": {
+                        "memory_off": {"pass_count": 1, "pass_rate": 1.0},
+                        "memory_on": {"pass_count": 1, "pass_rate": 1.0},
+                    },
+                }
+
+        class FakeMatrixRunner:
+            def __init__(self, executors, **kwargs):
+                self.executors = executors
+                self.kwargs = kwargs
+
+            def abort(self) -> None:
+                pass
+
+            async def run_multi_turn(self, cases, **kwargs):
+                return FakeMatrixResult()
+
+        reports_dir = tmp_path / "memory_ab_reports"
+        reports_dir.mkdir()
+        memory_dir = tmp_path / "eval_memory_ab"
+        memory_ab_mod.DEFAULT_MEMORY_AB_REPORTS_DIR = reports_dir
+        memory_ab_mod.DEFAULT_MEMORY_AB_MEMORY_DIR = memory_dir
+
+        cases = [MagicMock()]
+        cases[0].turns = [MagicMock()]
+
+        with (
+            patch(
+                "app.core.eval.memory_ab._memory_ab_state",
+                {"is_running": False, "abort_requested": False},
+            ),
+            patch(
+                "app.core.eval.benchmarks.build_benchmark_cases",
+                return_value=(cases, {}, True),
+            ),
+            patch(
+                "app.core.eval.benchmarks.benchmark_needs_judge",
+                return_value=False,
+            ),
+            patch(
+                "app.core.eval.benchmarks.benchmark_required_tools",
+                return_value=("web_search", "web_fetch"),
+            ),
+            patch(
+                "app.core.eval.benchmarks.benchmark_run_limits",
+                return_value=(88, 99),
+            ),
+            patch(
+                "app.core.eval.benchmarks.benchmark_decontam",
+                return_value=(("huggingface.co", "*.huggingface.co"), ("dataset",)),
+            ),
+            patch(
+                "app.core.eval.model_config._resolve_agent_model_label",
+                new=AsyncMock(return_value="deepseek/deepseek-chat"),
+            ),
+            patch("myrm_agent_harness.eval.MatrixRunner", FakeMatrixRunner),
+            patch(
+                "app.core.memory.adapters.setup.evict_cached_memory_manager",
+                AsyncMock(),
+            ),
+            patch(
+                "app.core.eval.memory_ab.LocalEvalExecutor",
+                RecordingExecutor,
+            ),
+        ):
+            await memory_ab_mod.run_memory_ab_background(
+                "browsecomp", profile_id="agent_x", limit=1
+            )
+
+        assert len(captured) == 2
+        for kwargs in captured:
+            assert kwargs["benchmark_tools"] == ("web_search", "web_fetch")
+            assert kwargs["max_tool_calls"] == 88
+            assert kwargs["max_iterations"] == 99
+            assert kwargs["blocked_hostnames"] == (
+                "huggingface.co",
+                "*.huggingface.co",
+            )
+            assert kwargs["blocked_terms"] == ("dataset",)
+
+        report = json.loads((reports_dir / "latest.json").read_text())
+        assert report["decontam_active"] is True
+
+    @pytest.mark.asyncio
     async def test_run_marks_report_aborted_after_user_abort(
         self, tmp_path: Path
     ) -> None:

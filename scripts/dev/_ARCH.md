@@ -4,7 +4,7 @@
 
 本地开发启动脚本。由根 `scripts/myrm` / `myrm.ps1` 分发调用，不直接暴露给终端用户（用户使用 `myrm dev` / `myrm start`）。
 
-**职责边界**：本目录只放 **栈启动/守门** 与 **MCP Chrome UI E2E 胶水**（`_ARCH.md` 文件表内条目）。可重复的 API/契约验证一律在 `myrm-agent-server/tests/`（`./myrm test` / `./myrm test -m chrome_e2e`），禁止在此新增「半 pytest」一次性联调脚本。**Dev Gate 基建 pytest 唯一根**在 monorepo `open-perplexity/scripts/dev/tests/`（原 `myrm-agent/scripts/dev/tests/` 已合并删除）。
+**职责边界**：本目录只放 **栈启动/守门**、**MCP Chrome UI E2E 胶水** 与 **ChromeAgent 工具族**（`_ARCH.md` 文件表内条目）。可重复的 API/契约验证一律在 `myrm-agent-server/tests/`（`./myrm test` / `./myrm test -m chrome_e2e`），禁止在此新增「半 pytest」一次性联调脚本。**Dev Gate 基建 pytest 唯一根**在 monorepo `open-perplexity/scripts/dev/tests/`。
 
 ## 文件清单
 
@@ -16,7 +16,6 @@
 | `start.ps1` | Windows | 后端 :8080 + 前端 `bun run dev` :3000（无 LISTEN 编译等待 / MCP WARN；见 `start.sh` Unix 行为） |
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
-| `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API E2E + GLOBAL_WRITE mock-draft seed；UI 用 MCP chrome-devtools |
 | `dev-stack.sh` | Unix | 本地 dev 栈 SSOT：`ensure` / `attach` / `reset` / `status`；`_wait_frontend_http_200` 监护 backend（down 时 re-ensure）；isolate 默认 **turbopack**（`MYRM_FRONTEND_DEV_WEBPACK=0`）；`attach` 只读等待 **`MYRM_STACK_ATTACH_WAIT_SEC` 总预算**（warm + 剩余 health）；`cmd_ensure` 三分支：已热栈 idempotent OK；冷栈 + wave pin + 端口在听 → attach-wait；冷栈 + wave pin + 栈 down → `STACK_FAIL`；**必须**委托 **stack_supervisor** 单写者；state `~/.local/state/myrm-dev/`；`_frontend_turbopack_panic_residue` 检测到 panic 残留 → 跳过非 clean、强制 `--clean` 冷启动（purge `.next`） |
 | `stack-supervisor.sh` | Unix | Dev 栈守护进程启动器 + RPC 客户端入口；wave pin 期间 shared API 宕机时 watchdog **backend-only ensure**（30s 冷却，与 full ensure 300s 独立）；见 [stack_supervisor/_ARCH.md](stack_supervisor/_ARCH.md) |
 | `ensure-next-native-swc.sh` | Unix | 缺平台 `@next/swc-*` 时 `bun install --no-save`（防 WASM 慢编译）；setup 与 dev-stack 双路径 |
@@ -25,18 +24,25 @@
 | `myrm-chrome-e2e-lib.sh` | Unix | E2E Chrome 薄 re-export → `chrome-e2e/{runtime,focus,lifecycle}.sh` |
 | `chrome-e2e/` | Unix | **AOS SSOT**：`surface.py`（Agent Window）、`focus.sh`（macOS FALLBACK）、`cli.sh`、`hil.py` |
 | `chrome-e2e-doctor.sh` | Unix | `./myrm doctor --chrome` 一站式诊断 |
+| `cursor-mcp-isolation-doctor.sh` | Unix | Cursor Agent MCP isolation doctor（`./myrm doctor --mcp-isolation`）：ChromeAutoConnect 每日契约校验；委托 `lib/e2e_core/cursor_mcp_isolation.py`；被 `test_browser_mcp_ssot_static` / `test_chrome_e2e_module_static` 静态守卫引用 |
+| `ensure-myrm-chrome-agent.sh` | Unix | 拉起/验证 Myrm Agent Chrome（pipe-proxy `:9410`，不抢 macOS 焦点）；`./myrm ready --chrome-agent`；幂等健康检查 + stale listener 回收 + 自动 npm install + nohup 启动 pipe-cdp-proxy |
+| `install-chrome-agent-launchagent.sh` | Unix | 安装 macOS LaunchAgent `com.myrm.chrome-agent`（KeepAlive + RunAtLoad，常驻 pipe-proxy 离屏）；`./myrm ready --chrome-agent --daemon` |
+| `login-chrome-agent.sh` | Unix | ChromeAgent profile 一次性 X/OAuth 登录（无 CDP 自动化 flags，避免 Google/X 拦截 sign-in）；`./myrm ready --chrome-agent --login` |
+| `verify-chrome-agent-focus.sh` | Unix | 机械 macOS focus 校验：ChromeAgent CDP 探针不得抢 frontmost app（CHROME_AGENT_FOCUS_OK/FAIL）；`CHROME_MCP_E2E.md` 验收标准 |
+| `benchmark-chrome-agent.sh` | Unix | ChromeAgent pipe-proxy 延迟 + macOS focus 基准（before/after tuning）；`CHROME_MCP_E2E.md` 验收标准 |
+| `chrome-agent/` | Unix | **ChromeAgent 域**：`pipe-cdp-proxy.mjs`（多客户端 WebSocket → 单 pipe 连接 Chrome 复用）、`chrome-arm64-launcher.sh`（Apple Silicon arm64 强制）、`package.json`（ws 依赖）；由 ensure/install 脚本引用 |
 | `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
 | `wave-e2e-lease.sh` | Unix | `./myrm test -m chrome_e2e` LIVE_AGENT/READ 租约；最后一个 lease 释放时原子关闭 Wave |
+| `wave.sh` | Unix | Wave orchestrator CLI 入口（open/close/status、lease acquire/release、STACK_WRITE gate）；委托 `python -m wave_orchestrator.cli`；被 `ready.sh`、`isolated_runtime/reaper.py`、`browser-orchestrator lease-gate` 调用 |
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
 | `chrome-e2e-preflight.sh` | Unix | 首 Agent 完整 reconcile/client_hot；attach 聚合快照；private backend 路径 `_wait_shared_ui_reachable`（默认 180s）；`MYRM_PRIVATE_BACKEND=1` 时 attach 阶段**仅**等待 `api=` 错误（shared UI 只等一次）；**mux timeout SSOT** `CDMCP_MUX_REQUEST_TIMEOUT_MS` 默认 **180000**；attach `_heal_mux_request_timeout_drift`：active Wave leases>0 时 **禁止 mux restart**、探活 timeout=`min(8+leases×3,45)s` + 3 轮退避、daemon 存活则 WARN 继续；否则 stamp 漂移时重启 daemon；`mux_responsive_probe.py --probe-timeout-sec`；输出 `CHROME_E2E_HEALTH_JSON` |
 | `chrome-e2e-model-seed.mjs` | Bun | 新对话 UI E2E 前置：无 defaultModel 时从 `.env.test` 写入 providers |
 | `chrome-e2e-seed-providers.mjs` | Bun | seed 逻辑模块（local 模式免 WebUI 登录；已有 default 时幂等 reconcile `BASIC_MODEL` + `LITE_MODEL` provider catalog、`liteModel.primary` 与 **`apiUrl`/`apiKey`/`name`**，避免复用私池数据库后缺少 openai-like provider 或仍指向旧 gateway） |
 | `wave-resource-lease.sh` | Unix | `./myrm` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |
-| `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — GLOBAL_WRITE lease + config snapshot restore + ledger register chat；API prepare + UI MCP |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed、创建 chat、`registerWaveLedger`、SSE delegate → JSON |
 | `moa-overlay-e2e-prepare.mjs` | 双平台 | MoA overlay prepare：临时 Agent（`moa_overlay`）、PATCH `active-moa-preset`、`agent-stream` 带 `active_moa_preset_id`、断言 SSE `moa_overlay_active` + `moa_ref_done` → JSON；Env：`E2E_API_BASE` / `E2E_UI_BASE` / `E2E_MOA_PRESET_ID` |
-| `subagent-dashboard-e2e-verify.mjs` | 双平台 | P2c verify：authenticated REST cancel 探测 subagent 已停止 |
+| `subagent-dashboard-e2e-chat.mjs` | Bun | P2c Subagent Dashboard E2E light chat scope（不 spawn subagent）：纯 UI 注入类 dashboard 测试（sort/stop-all/teammate/stream/overtime/stale/expand/header）直接 seed store bridge → stdout JSON `{ chatId, uiUrl, apiBase }`；被 `tests/e2e/test_subagent_dashboard_ui_chrome_e2e.py` 调用 |
 | `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
 | `lib/dev_state_paths.sh` | Unix | pid/log 路径 SSOT + 子目录回退读取；见 [lib/_ARCH.md](lib/_ARCH.md) |
 | `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |
@@ -49,9 +55,6 @@
 |------|------|
 | `ensure-myrm-chrome-e2e.sh` | 专用 Chrome `--remote-debugging-port=9333`；macOS `open -gj` 后台冷启；`MYRM_CHROME_E2E_FOREGROUND=1` 恢复前台；首次人工登录一次后持久化 |
 | `subagent-dashboard-e2e-prepare.mjs` | 登录 API、seed provider/YOLO、创建 chat、agent-stream delegate → JSON |
-| `subagent-dashboard-e2e-verify.mjs` | UI cancel 后 REST 验证 subagent 已停止 |
-| `test-subagent-dashboard-e2e.sh` | 确保 backend :8080 + 运行 prepare |
-| `test-instinct-inbox-e2e.sh` | Instinct Inbox API pytest + seed-mock；UI 走 chrome-devtools |
 | `chrome-e2e-preflight.sh` | 服务健康 + E2E Chrome + mux daemon + CDP WS → `CHROME_E2E_READY` |
 
 **Chrome E2E 稳定性清单**
@@ -66,8 +69,6 @@
 8. **client_hot + infra browser registry**：`ready --chrome` 用短生命周期 exact target 预热 client chunk，hydrate 后立即关闭并注销到 `infra-browser-targets.json`；`./myrm doctor --chrome` 输出 Tab Hygiene；mux 按 client 隔离 page ownership；改码后 UI 测 **`./myrm restart --chrome`** 开新 wave
 9. **CDP 单写者**：项目内 pytest/bun raw `/json/new` 永久拒绝（`CDP_WRITE_DENIED`）；仅 supervisor client warmup 使用 `MYRM_CDP_WARMUP=1`，正式 UI E2E 只能经 mux MCP；外部 Playwright/raw CDP 属明确禁止项
 10. **API 端口 SSOT（禁止硬编码 :8080）**：attach / private backend 时 API 端口可能非 8080。集成断言与 curl **必须**先用 `./myrm ready --attach --chrome` 输出中的 `CHROME_E2E_HEALTH_JSON.api`（或 MCP `list_network_requests` 里 UI 实际请求的 host:port）。禁止裸 `curl :8080` 推断后端版本或 bind 行为；跟 UI 网络请求走即与联调栈一致
-
-**勿引用（已移除）**：`browser-delegate-chrome-e2e.mjs`、`clarify-chrome-e2e.mjs`、`start-chrome-mcp-debug.sh`（第二 Chrome / Allow 冲突）；`browser-delegate-e2e-once.mjs`、`render-ui-gap-e2e-prepare.mjs`、`notify-channel-e2e-prepare.mjs`、`cron-gap-e2e-prepare.mjs`、`test-cron-gap-e2e.sh`（API 重复 → `myrm-agent-server/tests/api/agent/`）；`ui_pong_chrome_verify.py`、`render_ui_chrome_verify.py`、`wfel-settings-ui-check.py`（主 Chrome CDP → 用 `:9333` + `tests/` 或 MCP）；`subagent-dashboard-e2e-poll.mjs`（debug 轮询，正式链用 prepare + verify）；`test-instinct-inbox-seed.py`（已改名 `instinct-inbox-seed.py`）。品牌图标生成见 `myrm-agent-desktop/scripts/inset-app-icon.py`。
 
 **MCP 配置（Cursor）**：本仓无 mux 安装脚本；维护者 monorepo 见上层 `scripts/dev/CHROME_MCP_E2E.md` 与 `mcp-chrome-devtools.server.json`。OSS 贡献者仅需 `chrome-e2e-preflight.sh` + `ensure-myrm-chrome-e2e.sh`。
 

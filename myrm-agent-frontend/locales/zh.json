@@ -9007,7 +9007,8 @@
       "context_validation": "输入无效",
       "post_hook_blocked": "执行后拦截",
       "tool_cancelled": "已取消",
-      "guardrail_blocked": "安全拦截"
+      "guardrail_blocked": "安全拦截",
+      "benchmark_blocked": "评测内容拦截"
     },
     "categoryStageLabels": {
       "thinking": "思考中",

@@ -171,7 +171,9 @@ async def test_wait_for_timeout_race_does_not_leak_lock() -> None:
 
         result = {"got": False}
 
-        async def guarded() -> None:
+        async def guarded(
+            orch: ProjectOrchestrator = orch, result: dict[str, bool] = result
+        ) -> None:
             try:
                 await asyncio.wait_for(orch.acquire("proj-1"), timeout=0.01)
                 result["got"] = True

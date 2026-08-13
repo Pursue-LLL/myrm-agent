@@ -16,7 +16,7 @@ import {
   Presentation01Icon,
   Doc02Icon,
 } from 'hugeicons-react';
-import { getApiUrl } from '@/lib/api';
+import { BACKEND_BASE_URL, getApiUrl } from '@/lib/api';
 import { Artifact, ArtifactPublication, ArtifactType } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 import { formatFileSize as formatFileSizeUtil, isPreviewable, needsContentLoad, inferLanguage } from '@/types/artifact';
@@ -302,7 +302,7 @@ export interface ArtifactDeployPreflight {
 export async function fetchArtifactDeployPreflight(
   artifactId: string,
 ): Promise<ArtifactDeployPreflight | null> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifactId}/publish/preflight`));
+  const response = await fetch(getApiUrl(`/files/artifacts/${artifactId}/publish/preflight`));
   if (!response.ok) {
     return null;
   }
@@ -327,9 +327,8 @@ export interface ArtifactSharePreviewResult {
 }
 
 export function buildPublicArtifactShareUrl(sharePath: string): string {
-  const apiBase = getApiUrl('');
-  const backendOrigin = apiBase.replace(/\/api\/v1\/?$/, '');
-  return `${backendOrigin}${sharePath}`;
+  const backendBase = BACKEND_BASE_URL.toString() || window.location.origin;
+  return `${backendBase}${sharePath}`;
 }
 
 export async function createArtifactSharePreview(
@@ -337,7 +336,7 @@ export async function createArtifactSharePreview(
   artifactType?: string,
   options?: { ttlDays?: number; password?: string },
 ): Promise<ArtifactSharePreviewResult> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifactId}/share-preview`), {
+  const response = await fetch(getApiUrl(`/files/artifacts/${artifactId}/share-preview`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

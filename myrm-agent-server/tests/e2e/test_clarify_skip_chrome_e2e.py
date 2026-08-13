@@ -14,6 +14,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
     chat_has_pending_clarification,
     chat_messages_have_clarify_skip_done,
@@ -34,7 +35,6 @@ from dev_gate.contract import (  # noqa: E402
 )
 from e2e_core.orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
 from e2e_session_runtime.heartbeat import heartbeat_once  # noqa: E402
-from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 
 from tests.api.agent.utils import (
     _strip_provider_prefix,

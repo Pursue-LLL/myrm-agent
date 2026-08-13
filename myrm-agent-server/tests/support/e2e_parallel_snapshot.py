@@ -13,6 +13,7 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
+from e2e_core.stall_guard import node_elapsed_from_snapshot  # noqa: E402
 from e2e_session_runtime.registry import (  # noqa: E402
     LiveE2ESessionRow,
     admit_active_count,
@@ -23,7 +24,6 @@ from e2e_session_runtime.snapshot import (  # noqa: E402
     body_elapsed_from_snapshot,
     resolve_session_snapshot,
 )
-from e2e_core.stall_guard import node_elapsed_from_snapshot  # noqa: E402
 
 
 @dataclass(frozen=True, slots=True)

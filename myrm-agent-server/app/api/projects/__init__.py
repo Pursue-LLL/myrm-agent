@@ -4,11 +4,9 @@ from fastapi import APIRouter
 
 from .milestone_router import router as milestone_router
 from .router import router as project_router
+from .test_fixtures import router as test_fixtures_router
 
 router = APIRouter()
 router.include_router(project_router)
 router.include_router(milestone_router)
-
-from .test_fixtures import router as test_fixtures_router
-
 router.include_router(test_fixtures_router)

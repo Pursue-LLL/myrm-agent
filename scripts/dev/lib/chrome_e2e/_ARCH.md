@@ -35,4 +35,4 @@ diagnostic  ──→  mux/diagnostic_recovery.py (MYRM_CHROME_MCP_DIAGNOSTIC=1 
 ## 约束
 
 - formal chrome_e2e **禁止** import `mux/diagnostic_recovery`（static guard）
-- Cursor MCP shim 见 `resilient-shim.mjs` — orchestrator env **不得** skip focus suppress
+- Cursor MCP shim 见 [`cdmcp-mux-autoconnect/lib/resilient-shim.mjs`](../../../../../scripts/dev/cdmcp-mux-autoconnect/lib/resilient-shim.mjs) — orchestrator env **不得** skip focus suppress

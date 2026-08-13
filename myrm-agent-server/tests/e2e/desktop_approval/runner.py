@@ -20,6 +20,7 @@ import os
 from typing import Awaitable
 
 import pytest
+from cdp_chat.mcp_ui import McpChatSession
 from cdp_chat.support import (
     ensure_e2e_hitl_mode,
     ensure_e2e_hitl_mode_in_browser,
@@ -28,7 +29,6 @@ from cdp_chat.support import (
     signoff_parallel_desktop_mux_step_timeout_sec,
     wait_e2e_provider_ready,
 )
-from cdp_chat.mcp_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import BASE_URL, max_send_attempts, progress
 from tests.e2e.desktop_approval.infra_retry import (

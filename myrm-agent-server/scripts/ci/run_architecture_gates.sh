@@ -38,6 +38,14 @@ _run_fractal_docs() {
   _fractal "${SERVER_ROOT}/scripts/check_file_line_budget.py"
 }
 
+_run_ruff() {
+  if [[ -x "${SERVER_ROOT}/.venv/bin/ruff" ]]; then
+    "${SERVER_ROOT}/.venv/bin/ruff" check .
+  else
+    uv run ruff check .
+  fi
+}
+
 _run_prometheus_rules_semantic_check() {
   if ! command -v promtool >/dev/null 2>&1; then
     echo "ERROR: promtool is required for architecture gates (Prometheus rules semantic checks)." >&2
@@ -48,6 +56,7 @@ _run_prometheus_rules_semantic_check() {
 
 myrm_ci_install_server_deps --reuse-venv
 _run_fractal_docs
+_run_ruff
 _run_prometheus_rules_semantic_check
 _run_pytest
 echo "OK: server architecture gates"

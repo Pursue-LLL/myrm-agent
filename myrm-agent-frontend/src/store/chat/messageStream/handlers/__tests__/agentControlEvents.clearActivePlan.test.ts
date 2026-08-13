@@ -1,10 +1,12 @@
 /**
- * Tests that agentControlEvents calls clearActivePlan on ERROR and AGENT_CANCELLED.
+ * Tests that agentControlEvents calls clearActivePlan on ERROR and AGENT_CANCELLED,
+ * and releases inspector turn engagement on all three terminal paths.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockClearActivePlan = vi.fn();
 const mockUnmarkProcessing = vi.fn();
+const mockReleaseTurnInspectorControls = vi.fn();
 
 vi.mock('@/store/chat/goals/usePlanStore', () => ({
   usePlanStore: { getState: () => ({ clearActivePlan: mockClearActivePlan }) },
@@ -16,6 +18,10 @@ vi.mock('@/lib/utils/toast', () => ({
 
 vi.mock('@/store/chat/pendingGapRetry', () => ({
   scheduleFlushPendingGapRetry: vi.fn(),
+}));
+
+vi.mock('@/lib/inspector/releaseTurnInspectorControls', () => ({
+  releaseTurnInspectorControls: mockReleaseTurnInspectorControls,
 }));
 
 vi.mock('../handlerDeps', () => ({
@@ -71,30 +77,42 @@ describe('agentControlEvents clearActivePlan', () => {
   beforeEach(() => {
     mockClearActivePlan.mockClear();
     mockUnmarkProcessing.mockClear();
+    mockReleaseTurnInspectorControls.mockClear();
   });
 
-  it('calls clearActivePlan on ERROR event', async () => {
+  it('calls clearActivePlan and releases inspector controls on ERROR event', async () => {
     const ctx = makeCtx('error', { error: 'Something failed' });
     await agentControlEvents(ctx);
     await vi.dynamicImportSettled();
 
     expect(mockClearActivePlan).toHaveBeenCalledTimes(1);
+    expect(mockReleaseTurnInspectorControls).toHaveBeenCalledTimes(1);
   });
 
-  it('calls clearActivePlan on AGENT_CANCELLED event', async () => {
+  it('calls clearActivePlan and releases inspector controls on AGENT_CANCELLED event', async () => {
     const ctx = makeCtx('agent_cancelled', { data: { reason: 'user_cancelled' } });
     await agentControlEvents(ctx);
     await vi.dynamicImportSettled();
 
     expect(mockClearActivePlan).toHaveBeenCalledTimes(1);
     expect(mockUnmarkProcessing).toHaveBeenCalledWith('msg-1');
+    expect(mockReleaseTurnInspectorControls).toHaveBeenCalledTimes(1);
   });
 
-  it('does not call clearActivePlan for STEERING event', async () => {
+  it('releases inspector controls on CONTEXT_OVERFLOW_RESET event', async () => {
+    const ctx = makeCtx('context_overflow_reset', { data: { chat_id: 'c1' } });
+    await agentControlEvents(ctx);
+    await vi.dynamicImportSettled();
+
+    expect(mockReleaseTurnInspectorControls).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call clearActivePlan or release inspector controls for STEERING event', async () => {
     const ctx = makeCtx('steering', { data: { messages: ['steer msg'] } });
     await agentControlEvents(ctx);
     await vi.dynamicImportSettled();
 
     expect(mockClearActivePlan).not.toHaveBeenCalled();
+    expect(mockReleaseTurnInspectorControls).not.toHaveBeenCalled();
   });
 });

@@ -20,6 +20,7 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/lib/api', () => ({
   getApiUrl: (path: string) => path,
+  BACKEND_BASE_URL: { toString: () => '' },
 }));
 
 import ShareLinksSection from '../ShareLinksSection';
@@ -79,7 +80,7 @@ describe('ShareLinksSection', () => {
   });
 
   it('renders empty state when there are no active share links', async () => {
-    const fetchMock = mockFetchRoutes([{ method: 'GET', url: '/api/v1/files/artifacts/shares', body: [] }]);
+    const fetchMock = mockFetchRoutes([{ method: 'GET', url: '/files/artifacts/shares', body: [] }]);
     vi.stubGlobal('fetch', fetchMock);
 
     render(<ShareLinksSection />);
@@ -89,7 +90,7 @@ describe('ShareLinksSection', () => {
 
   it('renders share records in a table', async () => {
     const fetchMock = mockFetchRoutes([
-      { method: 'GET', url: '/api/v1/files/artifacts/shares', body: [shareRecord] },
+      { method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] },
     ]);
     vi.stubGlobal('fetch', fetchMock);
 
@@ -107,7 +108,7 @@ describe('ShareLinksSection', () => {
       .mockImplementation(async () => undefined);
     vi.stubGlobal('location', { origin: 'http://localhost:3000' });
     const fetchMock = mockFetchRoutes([
-      { method: 'GET', url: '/api/v1/files/artifacts/shares', body: [shareRecord] },
+      { method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] },
     ]);
     vi.stubGlobal('fetch', fetchMock);
 
@@ -128,7 +129,7 @@ describe('ShareLinksSection', () => {
     const fetchMock = mockFetchRoutes([
       {
         method: 'GET',
-        url: '/api/v1/files/artifacts/shares',
+        url: '/files/artifacts/shares',
         body: [shareRecord, protectedRecord],
       },
     ]);
@@ -143,8 +144,8 @@ describe('ShareLinksSection', () => {
 
   it('opens the impact preview dialog and revokes a share link on confirm', async () => {
     const fetchMock = mockFetchRoutes([
-      { method: 'GET', url: '/api/v1/files/artifacts/shares', body: [shareRecord] },
-      { method: 'DELETE', url: '/api/v1/files/artifacts/shares/rec-1', status: 204 },
+      { method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] },
+      { method: 'DELETE', url: '/files/artifacts/shares/rec-1', status: 204 },
     ]);
     vi.stubGlobal('fetch', fetchMock);
 
@@ -169,7 +170,7 @@ describe('ShareLinksSection', () => {
 
   it('does not revoke when the dialog is dismissed', async () => {
     const fetchMock = mockFetchRoutes([
-      { method: 'GET', url: '/api/v1/files/artifacts/shares', body: [shareRecord] },
+      { method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] },
     ]);
     vi.stubGlobal('fetch', fetchMock);
 

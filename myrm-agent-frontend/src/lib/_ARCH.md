@@ -63,6 +63,7 @@
 | `progression/` | 被动里程碑触发 + level-up toast | [_ARCH.md](progression/_ARCH.md) |
 | `wiki/` | Wiki claim 状态展示纯函数（Chat drawer + Settings 概念详情共享） | [_ARCH.md](wiki/_ARCH.md) |
 | `desktop/` | 桌面权限引导深链 SSOT（Tauri / Web fallback） | [_ARCH.md](desktop/_ARCH.md) |
+| `inspector/` | Inspector 控制权释放纯函数（动态加载 desktop/browser store 并归还 turn 控制） | [_ARCH.md](inspector/_ARCH.md) |
 | `__tests__/` | lib 层单元测试 | 内联 |
 
 ## 依赖

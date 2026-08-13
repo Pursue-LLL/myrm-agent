@@ -19,6 +19,15 @@ _LIB = os.path.join(
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
+from cdp_chat.live_turn_wait import (  # noqa: E402
+    live_empty_write_parallel_scaled_cap_sec,
+    live_empty_write_steer_attempts_cap,
+    live_empty_write_steer_retry_idle_sec,
+    live_empty_write_ui_nudge_allowed_after_steer,
+    parallel_live_agent_peer_count,
+    steer_empty_write_prompt,
+)
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
     empty_write_failure_in_messages,
     ensure_e2e_yolo_mode,
@@ -29,15 +38,6 @@ from cdp_chat.support import (  # noqa: E402
 )
 from dev_gate.contract import STALL_PROGRESS_SEC, EvaluateIntent  # noqa: E402
 from e2e_core.orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
-from cdp_chat.live_turn_wait import (  # noqa: E402
-    live_empty_write_parallel_scaled_cap_sec,
-    live_empty_write_steer_attempts_cap,
-    live_empty_write_steer_retry_idle_sec,
-    live_empty_write_ui_nudge_allowed_after_steer,
-    parallel_live_agent_peer_count,
-    steer_empty_write_prompt,
-)
-from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 
 from tests.api.agent.utils import (  # noqa: E402
     _strip_provider_prefix,

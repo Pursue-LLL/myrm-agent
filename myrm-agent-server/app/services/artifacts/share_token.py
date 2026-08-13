@@ -5,6 +5,9 @@
 
 [OUTPUT]
 - create_artifact_share_token / parse_artifact_share_token
+- rebuild_artifact_share_token: reconstruct unprotected tokens from persisted
+  registry fields (deterministic HMAC → same payload + expiry yields the same
+  token), so GUI list endpoints can expose the share path without storing it
 - is_shareable_artifact: unified share eligibility (name, type, extension inference)
 
 [POS]

@@ -13,6 +13,7 @@ import uuid
 from typing import Awaitable, TypeVar
 
 import pytest
+from cdp_chat.mcp_ui import McpChatSession
 from cdp_chat.support import (
     _signoff_desktop_soak_parallel_load,
     chat_id_from_path,
@@ -28,7 +29,6 @@ from cdp_chat.support import (
     wait_e2e_provider_ready,
 )
 from dev_gate.contract import EvaluateIntent  # noqa: E402
-from cdp_chat.mcp_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import (
     APPROVAL_CLICK_DEADLINE_SEC,

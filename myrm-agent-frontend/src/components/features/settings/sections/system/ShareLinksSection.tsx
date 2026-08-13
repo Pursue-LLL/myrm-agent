@@ -16,13 +16,14 @@ import {
 } from '@/components/primitives/alert-dialog';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
+import { BACKEND_BASE_URL } from '@/lib/api';
+import { cn } from '@/lib/utils/classnameUtils';
 import {
   fetchArtifactShares,
   formatShareTimestamp,
   revokeArtifactShare,
   type ArtifactShareRecord,
 } from '@/services/artifactShares';
-import { cn } from '@/lib/utils/classnameUtils';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -78,9 +79,12 @@ export default function ShareLinksSection() {
     async (record: ArtifactShareRecord) => {
       if (!record.share_path) {return;}
       try {
-        await navigator.clipboard.writeText(window.location.origin + record.share_path);
+        const baseUrl = BACKEND_BASE_URL.toString() || window.location.origin;
+        await navigator.clipboard.writeText(`${baseUrl}${record.share_path}`);
         setCopiedId(record.id);
-        window.setTimeout(() => setCopiedId(null), 2000);
+        window.setTimeout(() => {
+          setCopiedId((current) => (current === record.id ? null : current));
+        }, 2000);
       } catch {
         toast.error(t('copyError'));
       }

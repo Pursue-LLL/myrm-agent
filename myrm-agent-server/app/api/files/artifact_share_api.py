@@ -14,7 +14,10 @@
 [POS]
 Server business layer. Lets GUI users share html/pdf/document artifacts without
 Vercel deploy, list active links, and revoke them immediately. Registration is
-committed before the token is returned so every issued token is revocable.
+committed before the token is returned so every issued token is revocable. The
+list endpoint rebuilds each unprotected share path on the fly (deterministic
+HMAC tokens) so links are displayable/copyable without persisting raw tokens;
+password-protected rows expose no path.
 """
 
 from __future__ import annotations

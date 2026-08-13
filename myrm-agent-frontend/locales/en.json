@@ -9007,7 +9007,8 @@
       "context_validation": "Input Invalid",
       "post_hook_blocked": "Blocked After Run",
       "tool_cancelled": "Cancelled",
-      "guardrail_blocked": "Safety Blocked"
+      "guardrail_blocked": "Safety Blocked",
+      "benchmark_blocked": "Benchmark Blocked"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",

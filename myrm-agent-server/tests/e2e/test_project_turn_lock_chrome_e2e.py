@@ -125,6 +125,39 @@ _ABORT_STREAM_JS = """(() => {
 })()"""
 
 
+_E2E_DIAG_JS = """(() => {
+  const store = window.__myrmChatStore?.getState?.();
+  const msgs = (store?.messages || []).map((m) => ({
+    role: m.role || m.type,
+    messageId: String(m.messageId || '').slice(0, 24),
+    contentLen: String(m.content || m.text || '').length,
+    steps: (m.progressSteps || m.metadata?.progressSteps || []).map((s) => String(s.step_key || '')),
+  }));
+  return {
+    apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
+    runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
+    directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
+    workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
+    multiplex: window.__MYRM_MULTIPLEX_STATS__?.() ?? null,
+    loading: Boolean(store?.loading || store?.streaming || false),
+    chatId: store?.chatId ?? null,
+    msg_count: msgs.length,
+    msgs,
+  };
+})()"""
+
+
+def _dump_e2e_diag(client: object, page: object, *, label: str) -> dict[str, object]:
+    try:
+        raw = client.evaluate(page, _E2E_DIAG_JS, timeout_sec=10.0)
+        diag = raw if isinstance(raw, dict) else json.loads(str(raw))
+        print(f"E2E_DIAG[{label}]:", json.dumps(diag, ensure_ascii=False, default=str))
+        return diag
+    except BaseException as exc:  # pragma: no cover - diagnostics must not mask root cause
+        print(f"E2E_DIAG[{label}] failed: {exc}")
+        return {}
+
+
 def _seed_turn_lock_fixture(
     api_url: str, *, hold_ms: int | None = None
 ) -> dict[str, object]:
@@ -163,6 +196,12 @@ def _send_message(
           const bridge = window.__MYRM_E2E_CHAT__;
           if (!bridge?.sendChatMessage) {{
             return {{ ok: false, err: 'no-sendChatMessage' }};
+          }}
+          // Fast/deep_research action modes require search to be configured and
+          // will be rejected by sendTurnSearchGuard under e2e_search_policy=empty.
+          // Turn-lock waiting is mode-independent, so pin agent mode explicitly.
+          if (bridge?.setActionMode) {{
+            bridge.setActionMode('agent');
           }}
           const res = await bridge.sendChatMessage({json.dumps(E2E_PROMPT)});
           return res;
@@ -289,6 +328,17 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
     project_id = str(seeded["project_id"])
     chat_path = str(seeded["ui_path"])
 
+    # Determinism guard: the lock must be held before the UI sends, otherwise
+    # waiting_for_turn can never appear and this would only test a happy path.
+    lock_probe = http_json(
+        "GET",
+        f"{api_url}/api/v1/projects/test/turn-lock-status?project_id={project_id}",
+    )
+    assert isinstance(lock_probe, dict), lock_probe
+    assert lock_probe.get("locked") is True, (
+        f"seed must hold the project lock before send; probe={lock_probe}"
+    )
+
     warm_ui_route(chat_path)
     chat_url = f"{ui_url}{chat_path}"
     with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
@@ -309,7 +359,26 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
 
         # Lock still held (hold_ms=0, released explicitly below) → the send is
         # guaranteed to queue and surface waiting_for_turn.
+        _dump_e2e_diag(client, page, label="pre-send")
         send_result = _send_message(client, page)
+        print(
+            "SEND_RESULT_ALWAYS:",
+            json.dumps(
+                {k: v for k, v in send_result.items() if k != "debug"},
+                ensure_ascii=False,
+                default=str,
+            ),
+        )
+        if isinstance(send_result.get("debug"), dict):
+            print(
+                "SEND_DEBUG_ALWAYS:",
+                json.dumps(send_result.get("debug"), ensure_ascii=False, default=str),
+            )
+        if send_result.get("ok") is not True:
+            print(
+                "SEND_RESULT_FULL_DEBUG:",
+                json.dumps(send_result, ensure_ascii=False, default=str),
+            )
         assert send_result.get("ok") is True, send_result
         chat_id_resolved = (
             str(
@@ -320,7 +389,10 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
             or chat_id
         )
 
+        _dump_e2e_diag(client, page, label="post-send")
         waiting_state = _wait_waiting_step(client, page, timeout_sec=45.0)
+        if waiting_state.get("ready") is not True:
+            _dump_e2e_diag(client, page, label="waiting-timeout")
         assert waiting_state.get("step_key") == "waiting_for_turn", waiting_state
 
         # While waiting, the assistant placeholder must exist with empty body
@@ -395,6 +467,16 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
     chat_id = str(seeded["chat_id"])
     project_id = str(seeded["project_id"])
     chat_path = str(seeded["ui_path"])
+
+    # Determinism guard (mirrors the waiting test): lock must be held pre-send.
+    lock_probe = http_json(
+        "GET",
+        f"{api_url}/api/v1/projects/test/turn-lock-status?project_id={project_id}",
+    )
+    assert isinstance(lock_probe, dict), lock_probe
+    assert lock_probe.get("locked") is True, (
+        f"seed must hold the project lock before send; probe={lock_probe}"
+    )
 
     warm_ui_route(chat_path)
     chat_url = f"{ui_url}{chat_path}"

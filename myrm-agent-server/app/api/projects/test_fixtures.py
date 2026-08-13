@@ -133,3 +133,22 @@ async def release_turn_lock(payload: dict[str, object]) -> dict[str, object]:
         "project_id": project_id,
         "still_locked": project_orchestrator.is_locked(project_id),
     }
+
+
+@router.get("/test/turn-lock-status", include_in_schema=False)
+async def turn_lock_status(project_id: str) -> dict[str, object]:
+    """Local dev/test only: report whether a project turn lock is currently held.
+
+    Lets a Chrome E2E test assert determinism (the seed lock must still be held
+    right before the real UI send) instead of failing with an opaque "waiting
+    step never appeared" when the lock was somehow lost.
+    """
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+    if not project_id:
+        raise HTTPException(status_code=400, detail="project_id is required")
+    return {
+        "ok": True,
+        "project_id": project_id,
+        "locked": project_orchestrator.is_locked(project_id),
+    }

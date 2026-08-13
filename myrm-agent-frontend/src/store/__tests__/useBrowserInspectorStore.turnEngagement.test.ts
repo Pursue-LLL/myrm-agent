@@ -42,6 +42,7 @@ describe('useBrowserInspectorStore turn engagement', () => {
     useBrowserInspectorStore.getState().markTurnEngaged();
     useBrowserInspectorStore.getState().setBrowserActive(true);
     useBrowserInspectorStore.getState().openPanel();
+    useBrowserInspectorStore.getState().setInstructionText('click go');
     useBrowserInspectorStore.getState().updateViewData({
       screenshotBase64: 'x',
       mimeType: 'image/jpeg',
@@ -62,6 +63,7 @@ describe('useBrowserInspectorStore turn engagement', () => {
     expect(state.isOpen).toBe(false);
     expect(state.viewData).toBeNull();
     expect(state.selectedElement).toBeNull();
+    expect(state.instructionText).toBe('');
   });
 
   it('reset clears engagedInTurn', () => {

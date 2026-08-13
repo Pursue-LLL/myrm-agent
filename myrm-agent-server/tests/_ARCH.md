@@ -35,7 +35,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_wiki_health_report_chrome_e2e.py` | 模块 | Wiki health report Chrome E2E（SHARED+READ×1：API structural health + seed provenance gap → 单 tab Overview `[data-testid=wiki-health-section]` + stats badge；shell 探针 `wiki-settings-shell`；transport retry 同 dedup） |
 | `e2e/test_clarify_refresh_chrome_e2e.py` | 模块 | Clarify refresh Chrome MCP E2E（READ×4 SHPOIB：`seed-clarify-refresh-fixture` pending/answered/regenerate_sibling/structured_form → F5 hydrate 断言 composer 态） |
 | `e2e/test_clarify_skip_chrome_e2e.py` | 模块 | Clarify skip LIVE×1 SHPOIB：真实 LLM HITL → Skip → resume（`E2E_SIGNOFF=1` API fallback）；M3 stub 签收腿已删 |
-| `e2e/test_project_turn_lock_chrome_e2e.py` | 模块 | Shared-project 并发锁等待 Chrome E2E（LIVE×1 SHPOIB：`POST /projects/test/seed-turn-lock`（`hold_ms=0` 持有到显式 `POST /projects/test/release-turn-lock` 释放，免疫 attach 延迟）→ 真实 UI turn → `waiting_for_turn` progress step 显示 → 锁释放 `waiting_for_turn_clear` step 移除 → assistant OK 完成；另有等待期间真实用户取消场景：`stopMessage` 取消 → step 同步清除 → 二次发送仍等待（锁未被误释放、gateway 预占已清理）→ seed 释放后正常完成） |
+| `e2e/test_project_turn_lock_chrome_e2e.py` | 模块 | Shared-project 并发锁等待 Chrome E2E（LIVE×1 SHPOIB：`POST /projects/test/seed-turn-lock`（`hold_ms=0` 持有到显式 `POST /projects/test/release-turn-lock` 释放，免疫 attach 延迟）→ `GET /projects/test/turn-lock-status` 确定性守卫（send 前断言锁确实持有，杜绝 happy-path 假阳性）→ 真实 UI turn → `waiting_for_turn` progress step 显示 → 锁释放 `waiting_for_turn_clear` step 移除 → assistant OK 完成；另有等待期间真实用户取消场景：`stopMessage` 取消 → step 同步清除 → 二次发送仍等待（锁未被误释放、gateway 预占已清理）→ seed 释放后正常完成） |
 | `api/chats/test_clarify_refresh_seed_fixture.py` | 模块 | clarify refresh seed HTTP 单测（local-only gate + 三 variant mock 持久化） |
 | `e2e/test_integration_catalog_loopback_guard_chrome_e2e.py` | 模块 | Integration Catalog loopback guard Chrome MCP E2E（READ×3：live API `deployment_scope` 与 `/integrations/mcp/probe` 语义断言 + 阻断链 `scan/verify` 不扇出 + `recommendedMode` 在 `connection_refused` / `probe_failed_unknown` 重试后自动续接连接） |
 | `e2e/test_memory_citations_chrome_e2e.py` | 模块 | Memory Chrome MCP E2E（READ×2：设置「历史会话搜索」开关；统一「依据/Evidence N」Sheet） |
@@ -122,7 +122,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/test_workspace_boundary_approval_e2e.py` | 模块 | Workspace 边界确定性路径策略（`PathPolicy` 外部写文件 → ASK，无 LLM）+ 越界文件访问审批 LLM E2E（`@pytest.mark.e2e`；LLM 类默认 skip：flaky + PathPolicy 已由确定性用例覆盖） |
 | `core/security/test_workspace_boundary_batch_approval.py` | 模块 | 确定性 workspace 边界批量审批（`evaluate_tool_batch`：越界 `file_write` → pending 不自动执行，无 LLM） |
 | `api/projects/test_project_workspace_e2e.py` | 模块 | Project workspace 多 Agent 协作真实 LLM E2E（`@pytest.mark.e2e`：project bind → chat 归属 → agent-stream 提及内置 agent → message_end；load_user_configs patch + checkpointer 注入） |
-| `api/projects/test_seed_turn_lock_integration.py` | 模块 | 确定性项目锁 seed 端点集成：创建 project + 绑定 chat + `hold_ms` 三态语义（`None` 不占锁 / `0` 持有到 `release-turn-lock` 显式释放 / `>0` 到期自动释放）+ `release-turn-lock` 幂等释放 + 边界校验（400/404 门控） |
+| `api/projects/test_seed_turn_lock_integration.py` | 模块 | 确定性项目锁 seed 端点集成：创建 project + 绑定 chat + `hold_ms` 三态语义（`None` 不占锁 / `0` 持有到 `release-turn-lock` 显式释放 / `>0` 到期自动释放）+ `release-turn-lock` 幂等释放 + `turn-lock-status` 只读查询（锁定/解锁/释放后 + 400/404 门控）+ 边界校验（400/404 门控） |
 | `services/kanban/test_kanban_attach_handler.py` | 模块 | attach handler 单测（path/URL/SSRF/limits） |
 | `services/kanban/test_board_settings_roundtrip.py` | 模块 | BoardSettings 9 字段 ORM 往返完整性（三映射函数 + dataclass 字段覆盖守卫 + 旧库 ALTER 迁移默认值） |
 | `services/agent/test_agent_name_resolution.py` | 模块 | Agent 同名解析确定性单测（大小写归一 + 稳定排序 + 空名短路） |

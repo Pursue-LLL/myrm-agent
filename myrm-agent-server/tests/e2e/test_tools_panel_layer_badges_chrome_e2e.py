@@ -17,6 +17,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
+from cdp_chat.mcp_ui import McpChatSession, is_mux_parallel_fail_fast  # noqa: E402
 from cdp_chat.support import (
     BRIDGE_TURN_SNAPSHOT_JS,
     E2E_API_BINDING_PROBE_JS,
@@ -35,7 +36,6 @@ from cdp_chat.support import (
     wait_e2e_provider_ready,
 )  # noqa: E402
 from dev_gate.contract import EvaluateIntent  # noqa: E402
-from cdp_chat.mcp_ui import McpChatSession, is_mux_parallel_fail_fast  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
     OpenMcpPageSession,

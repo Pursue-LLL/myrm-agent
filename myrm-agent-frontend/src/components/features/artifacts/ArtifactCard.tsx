@@ -169,7 +169,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
 
     const hydratePublications = async () => {
       try {
-        const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifact.id}`));
+        const response = await fetch(getApiUrl(`/files/artifacts/${artifact.id}`));
         if (!response.ok || cancelled) {
           return;
         }

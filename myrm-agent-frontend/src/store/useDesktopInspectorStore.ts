@@ -129,6 +129,7 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
         isOpen: false,
         viewData: null,
         selectedElement: null,
+        instructionText: '',
       };
     }),
   setInstructionText: (text) => set({ instructionText: text }),

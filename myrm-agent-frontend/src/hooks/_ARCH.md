@@ -22,6 +22,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | `multimodal/` | 摄像头输入、视觉意图（voice/输入 toolbar 共用） | [_ARCH.md](multimodal/_ARCH.md) |
 | `pwa/` | PWA 安装、Web Push、What's New | [_ARCH.md](pwa/_ARCH.md) |
 | `workspace/` | 工作区流、widget 存储、artifact 版本、batch WS | [_ARCH.md](workspace/_ARCH.md) |
+| `inspector/` | Inspector 面板 React hooks（`useClosePanelOnChatSwitch`）；纯编排逻辑在 [lib/inspector/_ARCH.md](../lib/inspector/_ARCH.md) | [_ARCH.md](inspector/_ARCH.md) |
 | `ui/` | 通用 UI 行为（scroll、sidebar、drag-drop、media query） | [_ARCH.md](ui/_ARCH.md) |
 | `shared/` | 跨域小 hook（toast、draft、diff parser、deploy mode） | [_ARCH.md](shared/_ARCH.md) |
 | `tasks/` | 后台任务 WebSocket 订阅 | [_ARCH.md](tasks/_ARCH.md) |

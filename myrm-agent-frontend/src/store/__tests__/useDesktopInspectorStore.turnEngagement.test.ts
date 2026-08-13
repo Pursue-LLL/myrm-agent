@@ -44,6 +44,7 @@ describe('useDesktopInspectorStore turn engagement', () => {
     useDesktopInspectorStore.getState().markTurnEngaged();
     useDesktopInspectorStore.getState().setDesktopActive(true);
     useDesktopInspectorStore.getState().openPanel();
+    useDesktopInspectorStore.getState().setInstructionText('click ok');
     useDesktopInspectorStore.getState().updateViewData({
       screenshotBase64: 'x',
       mimeType: 'image/png',
@@ -66,6 +67,7 @@ describe('useDesktopInspectorStore turn engagement', () => {
     expect(state.isOpen).toBe(false);
     expect(state.viewData).toBeNull();
     expect(state.selectedElement).toBeNull();
+    expect(state.instructionText).toBe('');
   });
 
   it('reset clears engagedInTurn', () => {

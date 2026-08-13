@@ -7,6 +7,18 @@ import type { StreamCtx, StreamTurn } from "../streamContext";
 import { done } from "../streamContext";
 import * as H from "./handlerDeps";
 
+/**
+ * Release desktop + browser inspector "controlling" state on terminal paths
+ * that end the turn without a MESSAGE_END. Each release is a no-op unless the
+ * turn engaged inspector events (desktop/browser tool start, view update,
+ * approval), so manually opened panels are never force-closed.
+ */
+function releaseInspectorControls(): void {
+  void import('@/lib/inspector/releaseTurnInspectorControls').then(({ releaseTurnInspectorControls }) =>
+    releaseTurnInspectorControls(),
+  );
+}
+
 export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, actions } = ctx;
   if (data.type === H.AgentEventType.ERROR) {
@@ -78,6 +90,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
       usePlanStore.getState().clearActivePlan();
     });
+    releaseInspectorControls();
     return done(ctx);
   }
 
@@ -112,6 +125,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
       usePlanStore.getState().clearActivePlan();
     });
+    releaseInspectorControls();
     return done(ctx);
   }
 
@@ -182,6 +196,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     toast.warning(H.getContextOverflowMessage(), { duration: 8000 });
     H.useChatStore.getState().initializeChat(undefined);
     actions.setLoading(false);
+    releaseInspectorControls();
     return done(ctx);
   }
 

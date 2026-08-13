@@ -15,6 +15,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
     fetch_config_value,
     get_e2e_api_url,
@@ -24,7 +25,7 @@ from cdp_chat.support import (  # noqa: E402
 )
 from cdp_chat.ui import chat_id_from_path  # noqa: E402
 from dev_gate.contract import EvaluateIntent  # noqa: E402
-from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
+
 from tests.support.chrome_mcp_e2e import open_mcp_page_async
 from tests.support.e2e_provider_seed import (
     NONEXISTENT_MODEL_ID,
@@ -92,7 +93,6 @@ def _configure_failover_providers(api_url: str) -> dict[str, object]:
     assert lite_model and secrets.lite_api_key, "LITE_* missing in .env.test"
 
     basic_provider_id = infer_provider_id(basic_model)
-    basic_model_id = strip_provider_prefix(basic_model)
     lite_provider_id = infer_provider_id(lite_model)
     lite_model_id = strip_provider_prefix(lite_model)
 

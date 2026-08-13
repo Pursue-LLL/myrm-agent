@@ -578,3 +578,61 @@ class TestWikiRawFilePart:
 
         assert 'error="read failed"' in result
         assert consumed == 0
+
+
+def _build_minimal_pdf_bytes(text: str) -> bytes:
+    """Build a minimal valid PDF 1.4 with a single text page."""
+    stream_content = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET"
+    stream_bytes = stream_content.encode("latin-1")
+    stream_len = len(stream_bytes)
+
+    objects = [
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+        f"4 0 obj\n<< /Length {stream_len} >>\nstream\n".encode("latin-1")
+        + stream_bytes
+        + b"\nendstream\nendobj\n",
+        b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    ]
+
+    body = b""
+    offsets: list[int] = []
+    header = b"%PDF-1.4\n"
+    pos = len(header)
+
+    for obj in objects:
+        offsets.append(pos)
+        body += obj
+        pos += len(obj)
+
+    xref_pos = pos
+    xref = f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n"
+    for offset in offsets:
+        xref += f"{offset:010d} 00000 n \n"
+
+    trailer = f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n"
+    return header + body + xref.encode("latin-1") + trailer.encode("latin-1")
+
+
+class TestParseStoredDocument:
+    """Tests for _parse_stored_document (stored-file PDF path via SmartPDFParser)."""
+
+    @pytest.mark.asyncio
+    async def test_parses_real_pdf_text(self) -> None:
+        from app.services.agent.params.mention import _parse_stored_document
+
+        pdf_bytes = _build_minimal_pdf_bytes("Stored contract terms")
+        result = await _parse_stored_document(pdf_bytes, ".pdf", "contract.pdf")
+
+        assert result is not None
+        assert "Stored contract terms" in result
+
+    @pytest.mark.asyncio
+    async def test_invalid_pdf_returns_none(self) -> None:
+        from app.services.agent.params.mention import _parse_stored_document
+
+        result = await _parse_stored_document(b"%PDF-1.4 fake content", ".pdf", "bad.pdf")
+
+        assert result is None

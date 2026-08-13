@@ -187,10 +187,8 @@ def _wait_running_subagents(
 ) -> list[dict[str, object]]:
     deadline = time.monotonic() + timeout_sec
     running_rows: list[dict[str, object]] = []
-    last_payload: object = None
     while time.monotonic() < deadline:
         payload = client.get(f"/api/v1/chats/{chat_id}/subagents").json()
-        last_payload = payload
         data = payload.get("data") if isinstance(payload, dict) else None
         if isinstance(data, list):
             running_rows = [

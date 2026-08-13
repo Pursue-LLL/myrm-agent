@@ -35,6 +35,7 @@ import {
 } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
 import { fetchWithTimeout } from '@/lib/api';
+import { releaseTurnInspectorControls } from '@/lib/inspector/releaseTurnInspectorControls';
 import { useProjectStore } from '@/store/useProjectStore';
 import {
   clearStoredMoaPresetId,
@@ -84,16 +85,6 @@ function readStoredBuiltinTools(): BuiltinToolId[] {
   } catch {
     return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
   }
-}
-
-/** Release inspector (desktop + browser) "controlling" state after a manual stop. */
-async function releaseTurnInspectorControls(): Promise<void> {
-  const [{ default: useDesktopInspectorStore }, { default: useBrowserInspectorStore }] = await Promise.all([
-    import('@/store/useDesktopInspectorStore'),
-    import('@/store/useBrowserInspectorStore'),
-  ]);
-  useDesktopInspectorStore.getState().releaseTurnEngagement();
-  useBrowserInspectorStore.getState().releaseTurnEngagement();
 }
 
 /** Restore chat UI preferences from localStorage after hydration (SSR-safe). */

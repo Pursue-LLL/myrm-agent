@@ -8677,7 +8677,8 @@
       "context_validation": "잘못된 입력",
       "post_hook_blocked": "실행 후 차단됨",
       "tool_cancelled": "취소됨",
-      "guardrail_blocked": "안전 차단됨"
+      "guardrail_blocked": "안전 차단됨",
+      "benchmark_blocked": "평가 콘텐츠 차단"
     },
     "categoryStageLabels": {
       "thinking": "사고 중",

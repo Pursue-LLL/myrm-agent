@@ -13,8 +13,10 @@
 [POS]
 Server business layer. Gives share links a manual lifecycle on top of the
 stateless HMAC token: register on create, list active links, revoke on demand.
-Revocation deletes the on-disk bundle AND records revoked_at so the public
-gate refuses both existing files and any re-materialization attempt.
+Revocation commits ``revoked_at`` (logged for audit) then deletes the on-disk
+bundle, so the public gate refuses both existing files and any re-materialization
+attempt. ``list_active_shares`` also exposes ``version_id`` so the API layer can
+rebuild unprotected share paths.
 """
 
 from __future__ import annotations

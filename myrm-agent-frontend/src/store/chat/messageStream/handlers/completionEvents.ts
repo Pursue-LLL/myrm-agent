@@ -7,12 +7,29 @@ import type { StreamCtx, StreamTurn } from "../streamContext";
 import { done } from "../streamContext";
 import * as H from "./handlerDeps";
 
+/**
+ * Release desktop + browser inspector "controlling" state on terminal paths
+ * that end the turn without a MESSAGE_END. Each release is a no-op unless the
+ * turn engaged inspector events (desktop/browser tool start, view update,
+ * approval), so manually opened panels are never force-closed.
+ */
+function releaseInspectorControls(): void {
+  void import('@/lib/inspector/releaseTurnInspectorControls').then(({ releaseTurnInspectorControls }) =>
+    releaseTurnInspectorControls(),
+  );
+}
+
 export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, recievedMessage, state, actions } = ctx;
   if (data.type === H.AgentEventType.GOAL_STATUS) {
     const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');
     const goalState = H.normalizeGoalState(data.data);
     useGoalStore.getState().setActiveGoal(goalState);
+    // A budget-limited goal ends the stream with no MESSAGE_END / ERROR /
+    // AGENT_CANCELLED terminal event, so release any engaged inspector here.
+    if (goalState.status === 'budget_limited') {
+      releaseInspectorControls();
+    }
     return done(ctx);
   }
 
@@ -154,17 +171,10 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       // Do not abort it here: the reader still owns the stream teardown.
       actions.clearActiveStream?.();
 
-      // Release inspector "controlling" state (desktop + browser) when this turn
-      // engaged inspector events (desktop_*/browser_* tool start, view update, approval).
-      // Each releaseTurnEngagement is a no-op unless its engagedInTurn is set, so
-      // panels the user opened manually are never force-closed by unrelated turns.
-      void Promise.all([
-        import('@/store/useDesktopInspectorStore'),
-        import('@/store/useBrowserInspectorStore'),
-      ]).then(([{ default: desktopStore }, { default: browserStore }]) => {
-        desktopStore.getState().releaseTurnEngagement();
-        browserStore.getState().releaseTurnEngagement();
-      });
+      // Release inspector "controlling" state (desktop + browser) engaged by
+      // this turn; each releaseTurnEngagement is a no-op unless its
+      // engagedInTurn is set, so manually opened panels stay open.
+      releaseInspectorControls();
 
       const lastMsg = state.messages[state.messages.length - 1];
       if (lastMsg) {

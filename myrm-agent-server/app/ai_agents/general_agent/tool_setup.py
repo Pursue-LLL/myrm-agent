@@ -332,6 +332,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                         self, "benchmark_blocked_hostnames", ()
                     )
                     or None,
+                    description_locale=tool_description_locale,
                 )
             )
             logger.info(

@@ -1,11 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
+import { resumeDrawerApprovalStream } from '@/lib/approval/resumeDrawerApprovalStream';
 import type { ApprovalPayload } from '@/store/useApprovalStore';
 
-const resumeApprovalStreamMock = vi.fn().mockResolvedValue(undefined);
+const resumeApprovalStreamMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('@/lib/approval/resumeApprovalStream', () => ({
   resumeApprovalStream: resumeApprovalStreamMock,
+}));
+
+vi.mock('@/store/useChatStore', () => ({
+  default: {
+    getState: () => ({ chatId: 'chat-1', actionMode: 'agent' }),
+  },
 }));
 
 describe('resumeDrawerApprovalStream', () => {
@@ -14,8 +21,6 @@ describe('resumeDrawerApprovalStream', () => {
   });
 
   it('forwards allow_always into resume decisions', async () => {
-    const { resumeDrawerApprovalStream } = await import('@/lib/approval/resumeDrawerApprovalStream');
-
     const approval: ApprovalPayload = {
       approval_id: 'approval-1',
       user_id: 'user-1',
@@ -43,8 +48,6 @@ describe('resumeDrawerApprovalStream', () => {
   });
 
   it('forwards high_risk_dom semantic decision payload', async () => {
-    const { resumeDrawerApprovalStream } = await import('@/lib/approval/resumeDrawerApprovalStream');
-
     const approval: ApprovalPayload = {
       approval_id: 'dom-1',
       user_id: 'user-1',
@@ -64,8 +67,6 @@ describe('resumeDrawerApprovalStream', () => {
   });
 
   it('skips resume when chat_id is missing', async () => {
-    const { resumeDrawerApprovalStream } = await import('@/lib/approval/resumeDrawerApprovalStream');
-
     await resumeDrawerApprovalStream(
       {
         approval_id: 'approval-2',

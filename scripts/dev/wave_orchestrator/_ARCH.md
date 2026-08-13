@@ -16,6 +16,7 @@ Chrome MCP UI E2E 的 **Immutable Test Wave** 状态机。冻结 `runtimeId`、�
 | `lanes.py` | Typed lane 冲突矩阵 | ✅ |
 | `lease_state.py` | 无 I/O 的租约 TTL、owner、runtime drift 与活跃状态规则；`reap_abandoned_leases` 在 owner 已死时 expire ghost lease；所有 `waveId` 访问均使用 `.get("waveId")` 防御性访问（防 zombie lease 缺失字段 KeyError） | ✅ |
 | `lease_cleanup.py` | browser lease 绑定/解绑；锁外 exact page/context 与资源清理 | ✅ |
+| `browser_lifecycle.py` | Chrome page lifecycle（lease page bind/unbind 元数据 + release/reap 时 best-effort exact-target close）；被 `lease_state.py` / `lease_cleanup.py` 引用 | ✅ |
 | `resource_ledger.py` | 资源登记 / lease 释放清理 | ✅ |
 | `resource_cleanup.py` | chat 等资源 HTTP 清理驱动；503/500 指数退避重试 | ✅ |
 | `stack_pin.py` | `wave open` 写入 `stack-pin.json`；`probe_stack_pids` 读 `{state}/backend.pid` + `{state}/frontend.pid`；gate 阻断无 STACK_WRITE 的栈变更 | ✅ |

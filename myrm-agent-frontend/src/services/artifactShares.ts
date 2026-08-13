@@ -12,7 +12,7 @@ export interface ArtifactShareRecord {
 }
 
 export async function fetchArtifactShares(): Promise<ArtifactShareRecord[]> {
-  const response = await fetch(getApiUrl('/api/v1/files/artifacts/shares'));
+  const response = await fetch(getApiUrl('/files/artifacts/shares'));
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { detail?: string };
     throw new Error(body.detail ?? 'Failed to load share links');
@@ -21,7 +21,7 @@ export async function fetchArtifactShares(): Promise<ArtifactShareRecord[]> {
 }
 
 export async function revokeArtifactShare(recordId: string): Promise<void> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/shares/${recordId}`), {
+  const response = await fetch(getApiUrl(`/files/artifacts/shares/${recordId}`), {
     method: 'DELETE',
   });
   if (!response.ok && response.status !== 404) {

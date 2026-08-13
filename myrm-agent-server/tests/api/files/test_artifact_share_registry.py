@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from calendar import timegm
@@ -316,6 +317,29 @@ async def test_revoke_share_deletes_bundle(db_session, tmp_path, monkeypatch) ->
 
     assert await revoke_share(db_session, record.id) is True
     assert not bundle_dir.exists()
+
+
+@pytest.mark.asyncio
+async def test_revoke_share_writes_audit_log(db_session, caplog) -> None:
+    """O7: successful revocations emit an INFO audit log for compliance tracing."""
+    token, exp = create_artifact_share_token("art-1", "ver-1", ttl_seconds=3600)
+    record = await register_share(
+        db_session,
+        token=token,
+        artifact_id="art-1",
+        version_id="ver-1",
+        artifact_type=None,
+        password_protected=False,
+        expires_at_unix=exp,
+    )
+
+    with caplog.at_level(logging.INFO, logger="app.services.artifacts.share_registry"):
+        assert await revoke_share(db_session, record.id) is True
+
+    assert any(
+        "Revoked artifact share link" in message and "record=" in message
+        for message in caplog.messages
+    )
 
 
 @pytest.mark.asyncio

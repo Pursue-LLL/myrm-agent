@@ -8677,7 +8677,8 @@
       "context_validation": "Eingabe ungültig",
       "post_hook_blocked": "Nach Ausführung blockiert",
       "tool_cancelled": "Abgesagt",
-      "guardrail_blocked": "Sicherheit blockiert"
+      "guardrail_blocked": "Sicherheit blockiert",
+      "benchmark_blocked": "Benchmark gesperrt"
     },
     "categoryStageLabels": {
       "thinking": "Denken",

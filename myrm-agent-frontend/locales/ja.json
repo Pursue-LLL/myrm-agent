@@ -8909,7 +8909,8 @@
       "context_validation": "入力無効",
       "post_hook_blocked": "実行後に制限",
       "tool_cancelled": "キャンセル",
-      "guardrail_blocked": "安全制限"
+      "guardrail_blocked": "安全制限",
+      "benchmark_blocked": "ベンチマーク遮断"
     },
     "categoryStageLabels": {
       "thinking": "思考中",

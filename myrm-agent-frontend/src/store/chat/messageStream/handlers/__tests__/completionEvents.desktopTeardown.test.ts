@@ -50,7 +50,7 @@ vi.mock('../handlerDeps', () => ({
     MESSAGE_END: 'message_end',
   },
   findAssistantMessageIndex: vi.fn(() => 0),
-  normalizeGoalState: vi.fn(),
+  normalizeGoalState: vi.fn((payload: { status?: string }) => ({ status: payload?.status ?? 'active' })),
   useChatStore: {
     getState: vi.fn(() => ({ chatId: 'c1', setWorkspaceDir: vi.fn() })),
   },
@@ -118,5 +118,16 @@ describe('completionEvents inspector teardown', () => {
 
     expect(mockDesktopReleaseTurnEngagement).not.toHaveBeenCalled();
     expect(mockBrowserReleaseTurnEngagement).not.toHaveBeenCalled();
+  });
+
+  it('releases desktop and browser turn engagement when a goal becomes budget_limited', async () => {
+    const ctx = makeCtx();
+    ctx.data = { type: 'goal_status', data: { status: 'budget_limited' } } as never;
+    await completionEvents(ctx);
+
+    await vi.waitFor(() => {
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+    });
   });
 });

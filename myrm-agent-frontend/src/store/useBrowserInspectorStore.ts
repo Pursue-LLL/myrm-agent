@@ -119,6 +119,7 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
         isOpen: false,
         viewData: null,
         selectedElement: null,
+        instructionText: '',
       };
     }),
   setInstructionText: (text) => set({ instructionText: text }),

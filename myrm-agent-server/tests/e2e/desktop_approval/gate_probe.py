@@ -7,13 +7,13 @@ import os
 import time
 from dataclasses import dataclass
 
+from cdp_chat.mcp_ui import McpChatSession
 from cdp_chat.support import (
     chat_user_message_count,
     fetch_provider_readiness_snapshot,
     get_e2e_api_url,
 )
 from dev_gate.contract import EvaluateIntent
-from cdp_chat.mcp_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import (
     APPROVAL_WAIT_SEC,

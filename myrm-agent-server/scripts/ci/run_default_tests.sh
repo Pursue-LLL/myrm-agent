@@ -19,6 +19,15 @@ _run_pytest() {
   fi
 }
 
+_run_ruff() {
+  if [[ -x "${SERVER_ROOT}/.venv/bin/ruff" ]]; then
+    "${SERVER_ROOT}/.venv/bin/ruff" check .
+  else
+    uv run ruff check .
+  fi
+}
+
 myrm_ci_install_server_deps --reuse-venv
+_run_ruff
 _run_pytest
 echo "OK: server default pytest suite"

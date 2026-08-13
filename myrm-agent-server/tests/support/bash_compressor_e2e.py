@@ -15,7 +15,6 @@ from myrm_agent_harness.agent.meta_tools.bash._compression.output_compressor imp
 )
 
 from tests.api.agent.utils import get_lite_model_selection, get_model_selection
-from tests.support.verify_api_base import resolve_verify_api_base
 
 E2E_FILTERS_YAML = """filters:
   - name: e2e-filter-run

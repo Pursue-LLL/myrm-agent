@@ -4,7 +4,9 @@
 - app.config.settings::settings (POS: signing key material)
 
 [OUTPUT]
-- create_share_token / parse_share_token / is_password_protected
+- create_share_token / sign_share_token / parse_share_token / is_password_protected
+- sign_share_token: sign with an explicit ``exp`` (used to rebuild persisted
+  links from registry fields); create_share_token derives exp from ttl
 
 [POS]
 Common HMAC-SHA256 signing layer used by both artifact and chat share token

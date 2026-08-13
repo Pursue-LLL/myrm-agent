@@ -42,7 +42,7 @@ export interface PublishResult {
 }
 
 export async function fetchHostingTargets(): Promise<HostingTarget[]> {
-  const response = await fetch(getApiUrl('/api/v1/files/artifacts/hosting/targets'));
+  const response = await fetch(getApiUrl('/files/artifacts/hosting/targets'));
   if (!response.ok) {
     return [];
   }
@@ -53,8 +53,8 @@ export async function fetchHostingTargets(): Promise<HostingTarget[]> {
 export async function saveHostingTarget(target: Omit<HostingTarget, 'id'> & { id?: string }): Promise<HostingTarget | null> {
   const method = target.id ? 'PUT' : 'POST';
   const url = target.id
-    ? getApiUrl(`/api/v1/files/artifacts/hosting/targets/${target.id}`)
-    : getApiUrl('/api/v1/files/artifacts/hosting/targets');
+    ? getApiUrl(`/files/artifacts/hosting/targets/${target.id}`)
+    : getApiUrl('/files/artifacts/hosting/targets');
   const response = await fetch(url, {
     method,
     headers: { 'Content-Type': 'application/json' },
@@ -67,14 +67,14 @@ export async function saveHostingTarget(target: Omit<HostingTarget, 'id'> & { id
 }
 
 export async function deleteHostingTarget(targetId: string): Promise<boolean> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/hosting/targets/${targetId}`), {
+  const response = await fetch(getApiUrl(`/files/artifacts/hosting/targets/${targetId}`), {
     method: 'DELETE',
   });
   return response.ok;
 }
 
 export async function saveTargetCredentials(targetId: string, credentials: Record<string, string>): Promise<boolean> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/hosting/targets/${targetId}/credentials`), {
+  const response = await fetch(getApiUrl(`/files/artifacts/hosting/targets/${targetId}/credentials`), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ credentials }),
@@ -85,7 +85,7 @@ export async function saveTargetCredentials(targetId: string, credentials: Recor
 export async function fetchTargetCredentialStatus(
   targetId: string,
 ): Promise<{ configured: boolean; platform_available: boolean }> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/hosting/targets/${targetId}/credentials`));
+  const response = await fetch(getApiUrl(`/files/artifacts/hosting/targets/${targetId}/credentials`));
   if (!response.ok) {
     return { configured: false, platform_available: false };
   }
@@ -97,7 +97,7 @@ export async function fetchTargetCredentialStatus(
 }
 
 export async function testHostingTarget(targetId: string): Promise<{ ok: boolean; message: string }> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/hosting/targets/${targetId}/test`), {
+  const response = await fetch(getApiUrl(`/files/artifacts/hosting/targets/${targetId}/test`), {
     method: 'POST',
   });
   if (!response.ok) {
@@ -107,7 +107,7 @@ export async function testHostingTarget(targetId: string): Promise<{ ok: boolean
 }
 
 export async function makeDefaultHostingTarget(targetId: string): Promise<HostingTarget | null> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/hosting/targets/${targetId}/make-default`), {
+  const response = await fetch(getApiUrl(`/files/artifacts/hosting/targets/${targetId}/make-default`), {
     method: 'POST',
   });
   if (!response.ok) {
@@ -117,7 +117,7 @@ export async function makeDefaultHostingTarget(targetId: string): Promise<Hostin
 }
 
 export async function fetchArtifactPublications(artifactId: string): Promise<ArtifactPublication[]> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifactId}/publications`));
+  const response = await fetch(getApiUrl(`/files/artifacts/${artifactId}/publications`));
   if (!response.ok) {
     return [];
   }
@@ -127,7 +127,7 @@ export async function fetchArtifactPublications(artifactId: string): Promise<Art
 
 export async function fetchPublishPreflight(artifactId: string, targetId?: string): Promise<PublishPreflight | null> {
   const query = targetId ? `?target_id=${encodeURIComponent(targetId)}` : '';
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifactId}/publish/preflight${query}`));
+  const response = await fetch(getApiUrl(`/files/artifacts/${artifactId}/publish/preflight${query}`));
   if (!response.ok) {
     return null;
   }
@@ -139,7 +139,7 @@ export async function publishArtifact(
   targetId: string,
   token = '',
 ): Promise<PublishResult> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifactId}/publish`), {
+  const response = await fetch(getApiUrl(`/files/artifacts/${artifactId}/publish`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ target_id: targetId, token }),
@@ -156,9 +156,8 @@ export function buildPublishStatusWsUrl(
   providerPublicationRef: string,
   targetId: string,
 ): string {
-  const wsProtocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsHost = getApiUrl('').replace(/^https?:\/\//, '');
-  return `${wsProtocol}//${wsHost}/api/v1/files/artifacts/${artifactId}/publish/status/${providerPublicationRef}?target_id=${encodeURIComponent(targetId)}`;
+  const wsBase = getApiUrl('/files/artifacts').replace(/^http/, 'ws');
+  return `${wsBase}/${artifactId}/publish/status/${providerPublicationRef}?target_id=${encodeURIComponent(targetId)}`;
 }
 
 export const PROVIDER_LABELS: Record<HostingProviderType, string> = {

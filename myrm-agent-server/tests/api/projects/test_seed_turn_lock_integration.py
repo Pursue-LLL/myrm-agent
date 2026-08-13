@@ -244,3 +244,62 @@ def test_seed_turn_lock_honors_local_mode_gate(monkeypatch: pytest.MonkeyPatch) 
         assert exc_info.value.status_code == 404
 
     asyncio.run(_run())
+
+
+def test_turn_lock_status_reports_locked_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    """turn-lock-status must reflect the live orchestrator lock state.
+
+    Chrome E2E uses this as a determinism guard right before the UI send: it
+    must fail loudly if the seed lock was somehow lost, instead of degrading
+    into a flaky happy-path assertion further down the test.
+    """
+    from app.api.projects.test_fixtures import turn_lock_status
+
+    orch = ProjectOrchestrator()
+    monkeypatch.setattr("app.api.projects.test_fixtures.project_orchestrator", orch)
+
+    async def _run() -> None:
+        # Unlocked project → locked: False
+        free = await turn_lock_status(project_id="e2eproject-free")
+        assert free["ok"] is True
+        assert free["locked"] is False
+
+        # Held lock → locked: True
+        await orch.acquire("e2eproject-held")
+        held = await turn_lock_status(project_id="e2eproject-held")
+        assert held["locked"] is True
+
+        # After release → locked: False again
+        orch.release("e2eproject-held")
+        released = await turn_lock_status(project_id="e2eproject-held")
+        assert released["locked"] is False
+
+    asyncio.run(_run())
+
+
+def test_turn_lock_status_requires_project_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi import HTTPException
+
+    from app.api.projects.test_fixtures import turn_lock_status
+
+    async def _run() -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await turn_lock_status(project_id="")
+        assert exc_info.value.status_code == 400
+
+    asyncio.run(_run())
+
+
+def test_turn_lock_status_honors_local_mode_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi import HTTPException
+
+    from app.api.projects.test_fixtures import turn_lock_status
+
+    monkeypatch.setattr("app.api.projects.test_fixtures.is_local_mode", lambda: False)
+
+    async def _run() -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await turn_lock_status(project_id="e2eproject-x")
+        assert exc_info.value.status_code == 404
+
+    asyncio.run(_run())

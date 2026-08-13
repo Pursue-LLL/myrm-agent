@@ -8909,7 +8909,8 @@
       "context_validation": "輸入無效",
       "post_hook_blocked": "執行後攔截",
       "tool_cancelled": "已取消",
-      "guardrail_blocked": "安全攔截"
+      "guardrail_blocked": "安全攔截",
+      "benchmark_blocked": "評測內容攔截"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
