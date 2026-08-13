@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TypedDict
 
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 
 class InfraBrowserTarget(TypedDict):
@@ -104,7 +104,7 @@ def register_infra_target(
     if not target:
         raise ValueError("target_id is required")
     pid = owner_pid if owner_pid is not None else os.getpid()
-    from owner_identity import capture_owner_process_start
+    from dev_gate.owner_identity import capture_owner_process_start
 
     process_start = capture_owner_process_start(pid)
     with _locked_ledger() as ledger:
@@ -127,7 +127,7 @@ def unregister_infra_target(target_id: str) -> None:
 
 
 def _owner_stale(item: InfraBrowserTarget) -> bool:
-    from owner_identity import owner_process_matches
+    from dev_gate.owner_identity import owner_process_matches
 
     return not owner_process_matches(
         pid=int(item["ownerPid"]),

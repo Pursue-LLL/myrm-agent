@@ -5,9 +5,9 @@ from __future__ import annotations
 
 def cluster_fail_fast_suppressed_for_active_test(row: dict[str, object]) -> bool:
     """Peers hung-reap intentionally skips must not cluster-block unrelated launches."""
-    from dev_gate_contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
+    from dev_gate.contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
     from e2e_session_runtime.registry import LiveE2ESessionRow  # noqa: PLC0415
-    from e2e_stale_lease_reap import (  # noqa: PLC0415
+    from e2e_core.stale_lease_reap import (  # noqa: PLC0415
         _body_wall_cap_for_pid,
         _desktop_soak_reap_immunity,
         _hung_reason_for_session,

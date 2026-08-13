@@ -122,13 +122,13 @@ def _ui_origin(url: str) -> str:
 def current_workspace_fingerprint() -> str:
     """Workspace FP without verify-api port scan (TAB-6b open_mcp_page hot path)."""
     try:
-        from e2e_api_verify import workspace_backend_fingerprint
+        from e2e_core.api_verify import workspace_backend_fingerprint
 
         return workspace_backend_fingerprint().strip()
     except ImportError:
         pass
     try:
-        from runtime_identity import _backend_source_fingerprint
+        from e2e_core.runtime_identity import _backend_source_fingerprint
 
         return _backend_source_fingerprint().strip()
     except ImportError:
@@ -138,7 +138,7 @@ def current_workspace_fingerprint() -> str:
 def epoch_aligned() -> bool:
     """Epoch alignment from stack-epoch.json — no backend candidate enumeration."""
     try:
-        from runtime_identity import read_backend_epoch
+        from e2e_core.runtime_identity import read_backend_epoch
 
         epoch = read_backend_epoch()
         if epoch is not None:

@@ -144,7 +144,7 @@ _smp_should_defer_harness_install() {
   "$(_smp_python)" -c "
 import sys
 sys.path.insert(0, '$(dirname "${BASH_SOURCE[0]}")')
-from stack_mutation_policy import should_defer_harness_install
+from e2e_core.stack_mutation_policy import should_defer_harness_install
 raise SystemExit(0 if should_defer_harness_install(${active_leases}) else 1)
 " 2>/dev/null && return 0
   [[ "${active_leases}" != "0" ]]

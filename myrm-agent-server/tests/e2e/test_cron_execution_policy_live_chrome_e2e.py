@@ -23,7 +23,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
+from cdp_chat.support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
 
 _FORBIDDEN_TOOL_NAMES = frozenset(
     {
@@ -59,7 +59,7 @@ def _cron_api(
     dev_lib = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
-    from e2e_effect_guard import guarded_httpx_request
+    from e2e_core.effect_guard import guarded_httpx_request
 
     url = f"{api_base}/api/v1/cron{path}"
     response = guarded_httpx_request(client, method, url, **kwargs)
@@ -165,7 +165,7 @@ def _delete_job_best_effort(client: httpx.Client, api_base: str, job_id: str) ->
     dev_lib = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
-    from e2e_effect_guard import guarded_httpx_request
+    from e2e_core.effect_guard import guarded_httpx_request
 
     try:
         guarded_httpx_request(

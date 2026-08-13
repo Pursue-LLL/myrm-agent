@@ -22,7 +22,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import TypedDict
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 
 class TabHygieneReport(TypedDict):
@@ -82,7 +82,7 @@ def build_tab_hygiene_report(*, cdp_port: int | None = None) -> TabHygieneReport
     lib_dir = Path(__file__).resolve().parent
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
-    import infra_browser_registry as registry
+    import e2e_core.infra_browser_registry as registry
 
     cdp_count = _count_cdp_targets(port)
     wave_bound = _count_wave_bound_leases()
@@ -146,7 +146,7 @@ def _protected_target_ids() -> set[str] | None:
     lib_dir = Path(__file__).resolve().parent
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
-    import infra_browser_registry as registry
+    import e2e_core.infra_browser_registry as registry
 
     try:
         for item in registry.list_infra_targets():
@@ -176,9 +176,9 @@ def prune_orphan_cdp_pages(
     lib_dir = Path(__file__).resolve().parent
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
-    import infra_browser_registry as registry
+    import e2e_core.infra_browser_registry as registry
 
-    from owner_identity import capture_owner_process_start
+    from dev_gate.owner_identity import capture_owner_process_start
 
     self_pid = os.getpid()
     self_start = capture_owner_process_start(self_pid)

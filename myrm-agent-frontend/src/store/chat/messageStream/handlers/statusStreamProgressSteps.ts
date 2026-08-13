@@ -27,6 +27,8 @@ const PROGRESS_STEP_KEYS = new Set([
   'text_continuation',
   'text_continuation_exhausted',
   'transient_retry',
+  'empty_response_recovery',
+  'tool_call_retry',
   'analyzing_image',
   'analyzing_video',
   'media_stripped',

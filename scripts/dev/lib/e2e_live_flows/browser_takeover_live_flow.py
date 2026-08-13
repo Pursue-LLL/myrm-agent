@@ -8,14 +8,14 @@ import time
 
 import pytest
 
-from cdp_chat_resume import execute_resume_turn_stream_converge
-from cdp_chat_support import (
+from cdp_chat.resume import execute_resume_turn_stream_converge
+from cdp_chat.support import (
     fetch_browser_takeover_resume_ids,
     get_e2e_api_url,
     wait_chat_messages_done,
     wait_e2e_backend_ready,
 )
-from cdp_chat_ui import chat_user_message_count
+from cdp_chat.ui import chat_user_message_count
 from e2e_live_flows._flow_base import FlowLogger
 from e2e_live_flows.browser_takeover_live_api import (
     cancel_chat_via_api,
@@ -36,8 +36,8 @@ from e2e_live_flows.browser_takeover_live_gate import (
     wait_takeover_banner,
     wait_ui_stream_idle,
 )
-from mcp_chat_ui import McpChatSession
-from resume_turn_contract import (
+from cdp_chat.mcp_ui import McpChatSession
+from cdp_chat.resume_turn_contract import (
     RESUME_BUSY_BACKOFF_SEC,
     RESUME_DONE_POLL_PROGRESS_INTERVAL_SEC,
     parallel_active_test_count,
@@ -45,8 +45,8 @@ from resume_turn_contract import (
     resolve_stream_converge_poll_timeout_sec,
 )
 from e2e_session_runtime.heartbeat import heartbeat_once
-from dev_gate_contract import EvaluateIntent
-from e2e_resource_ledger import E2EResourceLedger
+from dev_gate.contract import EvaluateIntent
+from e2e_core.resource_ledger import E2EResourceLedger
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 

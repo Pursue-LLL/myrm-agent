@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 _KEYCHAIN_ACCOUNT = "myrm-e2e-auth"
 _SERVICE_PREFIX = "myrm-e2e-auth-cookies"

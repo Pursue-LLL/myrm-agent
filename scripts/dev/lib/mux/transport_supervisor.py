@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-from dev_gate_contract import (
+from dev_gate.contract import (
     MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
     MUX_RECLAIM_STALL_TOKEN,
     MUX_UPSTREAM_WAIT_SEC,
@@ -63,7 +63,7 @@ def cold_shim_restart_defer_peer_threshold() -> int:
 
 def _chrome_e2e_pytest_peer_count() -> int:
     """Live ``python -m pytest … chrome_e2e`` workers (SSOT: gate solo-wait)."""
-    from peer_count_ssot import chrome_e2e_pytest_peer_count
+    from e2e_core.peer_count_ssot import chrome_e2e_pytest_peer_count
 
     return chrome_e2e_pytest_peer_count()
 
@@ -77,7 +77,7 @@ def _cold_shim_defer_peer_load() -> int:
     wave_leases = 0
     active_mux_contexts = 0
     try:
-        from mux_load import (
+        from mux.load import (
             active_mux_context_count,
             read_mux_status,
             snapshot_mux_load,
@@ -92,7 +92,7 @@ def _cold_shim_defer_peer_load() -> int:
     try:
         from pathlib import Path
 
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         policy_wave_leases = max(
             0, wave_active_lease_count(Path(__file__).resolve().parents[5])
@@ -144,14 +144,14 @@ def session_key() -> str:
 def _mux_peer_count(*, pessimistic: bool = False) -> int:
     """Session-plane peer load for pure budget math; never live-probe mux here."""
     try:
-        from dev_gate_contract import _parallel_signoff_pressure_peers
+        from dev_gate.contract import _parallel_signoff_pressure_peers
 
         peers = _parallel_signoff_pressure_peers()
     except ImportError:
         peers = parallel_mux_peer_count()
     if not pessimistic:
         return peers
-    from dev_gate_contract import (  # noqa: PLC0415
+    from dev_gate.contract import (  # noqa: PLC0415
         DEFAULT_BOOTSTRAP_SLOTS,
         SHARED_BROWSER_WORKERS,
     )
@@ -185,7 +185,7 @@ def _effective_peer_count_for_caps(
 ) -> int:
     effective = max(0, int(peers))
     if pessimistic:
-        from dev_gate_contract import (  # noqa: PLC0415
+        from dev_gate.contract import (  # noqa: PLC0415
             DEFAULT_BOOTSTRAP_SLOTS,
             SHARED_BROWSER_WORKERS,
         )
@@ -240,7 +240,7 @@ def live_agent_body_wall_cap_sec(*, pessimistic: bool = False) -> int:
 
 def live_agent_pytest_wall_cap_sec(*, pessimistic_peers: bool = False) -> int:
     """pytest-timeout outer cap: bootstrap + body + teardown + mux queue + recovery (R103/R105/R108)."""
-    from dev_gate_contract import E2E_TEARDOWN_WALL_CLOCK_SEC  # noqa: PLC0415
+    from dev_gate.contract import E2E_TEARDOWN_WALL_CLOCK_SEC  # noqa: PLC0415
 
     return (
         bootstrap_wall_cap_sec(pessimistic=pessimistic_peers)
@@ -267,7 +267,7 @@ def recovery_budget_remaining() -> float:
 
 def parallel_active_test_count() -> int:
     """Best-effort parallel chrome_e2e count for recovery mutex scaling (R73-F TPC M3)."""
-    from peer_count_ssot import parallel_active_test_count_ssot
+    from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 
     return parallel_active_test_count_ssot()
 
@@ -277,7 +277,7 @@ def parallel_mux_peer_count() -> int:
     wave_leases = 0
     active_mux_contexts = 0
     try:
-        from mux_load import (
+        from mux.load import (
             active_mux_context_count,
             read_mux_status,
             snapshot_mux_load,
@@ -290,7 +290,7 @@ def parallel_mux_peer_count() -> int:
         pass
     daemon_count = 1
     try:
-        from runtime_probe import mux_owned_daemon_count
+        from e2e_core.runtime_probe import mux_owned_daemon_count
 
         daemon_count = max(1, int(mux_owned_daemon_count()))
     except (ImportError, OSError, TypeError, ValueError):
@@ -299,7 +299,7 @@ def parallel_mux_peer_count() -> int:
     try:
         from pathlib import Path
 
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         policy_wave_leases = max(
             0, wave_active_lease_count(Path(__file__).resolve().parents[5])
@@ -320,7 +320,7 @@ def recovery_lock_wait_sec() -> float:
     scaled = MUX_RECOVERY_LOCK_BASE_SEC + active * MUX_RECOVERY_LOCK_PER_ACTIVE_SEC
     cap = MUX_RECOVERY_LOCK_WAIT_SEC
     try:
-        from dev_gate_contract import (  # noqa: PLC0415
+        from dev_gate.contract import (  # noqa: PLC0415
             _parallel_signoff_pressure_peers,
             is_e2e_signoff_runtime,
         )
@@ -335,7 +335,7 @@ def recovery_lock_wait_sec() -> float:
 
 
 def assert_mux_daemons_single(*, phase: str) -> None:
-    from runtime_probe import mux_owned_daemon_count  # noqa: PLC0415
+    from e2e_core.runtime_probe import mux_owned_daemon_count  # noqa: PLC0415
 
     count = mux_owned_daemon_count()
     if count == 0 and phase in (
@@ -365,7 +365,7 @@ def _reserve_recovery_budget(*, phase: str) -> float:
         )
     reclaim_cap = float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC)
     if _signoff_recovery_budget_pessimistic():
-        from dev_gate_contract import mux_page_reclaim_hard_timeout_sec  # noqa: PLC0415
+        from dev_gate.contract import mux_page_reclaim_hard_timeout_sec  # noqa: PLC0415
 
         reclaim_cap = float(mux_page_reclaim_hard_timeout_sec())
     return min(remaining, reclaim_cap)

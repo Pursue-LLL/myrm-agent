@@ -27,7 +27,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 _CELL_ENV = "MYRM_E2E_CELL_ID"
 _CELL_META_FILE = "cell-meta.json"

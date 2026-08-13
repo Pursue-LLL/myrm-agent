@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from dev_gate_coordinator import CoordinatorService
+    from dev_gate.coordinator import CoordinatorService
 
 DEFAULT_MAX_QUEUE = 1000
 # Admission ops stay on the handler thread: they are short SQLite transactions and
@@ -111,7 +111,7 @@ class DevGateAsyncWriter:
                     return
                 result = self._service.handle(item.request)
                 item.future.set_result(result)
-                from dev_gate_event_hub import notify_write_result  # noqa: PLC0415
+                from dev_gate.event_hub import notify_write_result  # noqa: PLC0415
 
                 notify_write_result(item.request, result)
             except Exception as exc:  # noqa: BLE001 — propagate to waiter

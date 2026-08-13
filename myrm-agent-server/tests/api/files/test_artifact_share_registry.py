@@ -12,6 +12,7 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -156,6 +157,40 @@ async def test_register_share_idempotent_on_same_token(db_session) -> None:
         expires_at_unix=exp,
     )
     assert first.id == second.id
+
+
+@pytest.mark.asyncio
+async def test_register_share_reraises_when_conflict_has_no_existing() -> None:
+    """A unique-constraint conflict with no resolvable existing row must
+    surface as IntegrityError instead of being silently swallowed."""
+    token, exp = create_artifact_share_token("art-1", "ver-1", ttl_seconds=3600)
+
+    fake_session = AsyncMock(spec=AsyncSession)
+
+    class _EmptyScalars:
+        async def first(self) -> None:
+            return None
+
+    class _EmptyResult:
+        def scalars(self) -> _EmptyScalars:
+            return _EmptyScalars()
+
+    fake_session.execute.return_value = _EmptyResult()
+    fake_session.commit.side_effect = IntegrityError(
+        "INSERT INTO artifact_share_records ...", {}, RuntimeError("unique violation")
+    )
+
+    with pytest.raises(IntegrityError):
+        await register_share(
+            fake_session,
+            token=token,
+            artifact_id="art-1",
+            version_id="ver-1",
+            artifact_type=None,
+            password_protected=False,
+            expires_at_unix=exp,
+        )
+    fake_session.rollback.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------

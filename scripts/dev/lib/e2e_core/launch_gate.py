@@ -21,10 +21,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 
-from dev_gate_contract import e2e_launch_check_wall_sec
+from dev_gate.contract import e2e_launch_check_wall_sec
 
 if TYPE_CHECKING:
-    from e2e_api_verify import BackendCandidate
+    from e2e_core.api_verify import BackendCandidate
 
 
 def shared_profile_can_use_deployed_epoch(
@@ -41,7 +41,7 @@ def shared_profile_can_use_deployed_epoch(
         return False
     resolved_candidates = candidates
     if resolved_candidates is None:
-        from e2e_api_verify import resolve_e2e_api_context  # noqa: PLC0415
+        from e2e_core.api_verify import resolve_e2e_api_context  # noqa: PLC0415
 
         context = resolve_e2e_api_context(retry_after_apply=False)
         resolved_candidates = context.candidates
@@ -75,7 +75,7 @@ def chrome_e2e_launch_denial_reason() -> str | None:
     if os.environ.get("MYRM_E2E_P0A_GATE", "").strip() == "1":
         return None
     if os.environ.get("MYRM_E2E_LAUNCH_CHECK_SUBPROCESS", "0") == "1":
-        from e2e_readiness import (  # noqa: PLC0415
+        from e2e_core.readiness import (  # noqa: PLC0415
             launch_denial_line,
             resolve_chrome_e2e_readiness,
         )
@@ -84,7 +84,7 @@ def chrome_e2e_launch_denial_reason() -> str | None:
         if shared_profile_can_use_deployed_epoch(next_action=verdict.next_action):
             return None
         return launch_denial_line(verdict)
-    from e2e_readiness import _parse_emit_fields  # noqa: PLC0415
+    from e2e_core.readiness import _parse_emit_fields  # noqa: PLC0415
 
     lib = Path(__file__).resolve().parent
     wall = _launch_gate_wall_sec()

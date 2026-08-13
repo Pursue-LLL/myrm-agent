@@ -22,7 +22,7 @@ import sys
 import time
 from pathlib import Path
 
-from wave_state_paths import resolve_wave_state_file
+from e2e_core.wave_state_paths import resolve_wave_state_file
 
 
 def _dev_scripts_dir() -> Path:
@@ -43,7 +43,7 @@ def _shared_hot_runtime_id() -> str:
         raise RuntimeError("MYRM_DEV_LIB required")
     if dev_lib not in sys.path:
         sys.path.insert(0, dev_lib)
-    from runtime_probe import _read_shared_hot_stack_runtime_id
+    from e2e_core.runtime_probe import _read_shared_hot_stack_runtime_id
 
     return _read_shared_hot_stack_runtime_id()
 

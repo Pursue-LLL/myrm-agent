@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 
-from dev_gate_contract import E2E_CHROME_MCP_ENTRY_DENIED_TOKEN
+from dev_gate.contract import E2E_CHROME_MCP_ENTRY_DENIED_TOKEN
 
 
 def is_e2e_chrome_mcp_diagnostic_mode() -> bool:

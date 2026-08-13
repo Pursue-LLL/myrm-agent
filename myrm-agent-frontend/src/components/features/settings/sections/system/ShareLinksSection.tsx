@@ -4,6 +4,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Link2Off, Loader2, RefreshCw } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/primitives/alert-dialog';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import {
@@ -22,6 +32,7 @@ export default function ShareLinksSection() {
   const [records, setRecords] = useState<ArtifactShareRecord[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [pendingRevoke, setPendingRevoke] = useState<ArtifactShareRecord | null>(null);
 
   const load = useCallback(async () => {
     setLoadState('loading');
@@ -50,6 +61,7 @@ export default function ShareLinksSection() {
         toast.error(err instanceof Error ? err.message : t('revokeError'));
       } finally {
         setRevokingId(null);
+        setPendingRevoke(null);
       }
     },
     [t],
@@ -98,7 +110,7 @@ export default function ShareLinksSection() {
         )}
 
         {loadState === 'ready' && records.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-border/50">
+          <div className="overflow-x-auto rounded-xl border border-border/50">
             <table className="w-full text-left text-sm" data-testid="shares-table">
               <thead className="bg-secondary/50 text-xs text-muted-foreground">
                 <tr>
@@ -125,7 +137,7 @@ export default function ShareLinksSection() {
                         variant="ghost"
                         size="sm"
                         disabled={isRevoking(record.id)}
-                        onClick={() => void handleRevoke(record)}
+                        onClick={() => setPendingRevoke(record)}
                         aria-label={t('revokeLabel', { name: record.artifact_name })}
                       >
                         {isRevoking(record.id) ? (
@@ -143,6 +155,60 @@ export default function ShareLinksSection() {
           </div>
         )}
       </CardContent>
+
+      <AlertDialog open={pendingRevoke !== null} onOpenChange={(open) => !open && setPendingRevoke(null)}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirm.title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('confirm.description', { name: pendingRevoke?.artifact_name ?? '' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {pendingRevoke && (
+            <div className="space-y-2 rounded-lg border border-border/50 bg-muted/30 p-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">{t('table.artifact')}</span>
+                <span className="max-w-[60%] truncate font-medium text-foreground">
+                  {pendingRevoke.artifact_name}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">{t('table.type')}</span>
+                <span className="text-foreground">{pendingRevoke.artifact_type ?? '—'}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">{t('confirm.createdAt')}</span>
+                <span className="text-foreground">{formatShareExpiry(pendingRevoke.created_at, locale)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">{t('table.expiresAt')}</span>
+                <span className="text-foreground">{formatShareExpiry(pendingRevoke.expires_at, locale)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">{t('table.protected')}</span>
+                <span className="text-foreground">
+                  {pendingRevoke.password_protected ? t('yes') : t('no')}
+                </span>
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('confirm.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className={cn('bg-destructive text-destructive-foreground hover:bg-destructive/90')}
+              disabled={pendingRevoke === null || isRevoking(pendingRevoke.id)}
+              onClick={() => pendingRevoke && void handleRevoke(pendingRevoke)}
+            >
+              {pendingRevoke && isRevoking(pendingRevoke.id) ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Link2Off className="h-4 w-4" />
+              )}
+              <span className="ml-1.5">{t('confirm.revoke')}</span>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

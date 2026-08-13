@@ -30,8 +30,8 @@ def close_exact_unpublished_targets(
     except ValueError:
         port = 9333
 
-    from browser_tab_hygiene import _protected_target_ids  # noqa: PLC0415
-    from infra_browser_registry import close_exact_target  # noqa: PLC0415
+    from e2e_core.browser_tab_hygiene import _protected_target_ids  # noqa: PLC0415
+    from e2e_core.infra_browser_registry import close_exact_target  # noqa: PLC0415
 
     protected = _protected_target_ids()
     if protected is None:

@@ -263,6 +263,13 @@ const MemoryCard = memo<MemoryCardProps>(
                   {t('fields.action')}: {confirmed.action}
                 </span>
               </div>
+              {confirmed.expected_valid_days !== undefined && confirmed.expected_valid_days !== null && (
+                <div className="flex items-center gap-1.5 pl-[18px] text-muted-foreground/80 mt-0.5">
+                  <span className="italic">
+                    <span className="font-medium mr-1">{t('fields.ttlDays', { days: confirmed.expected_valid_days })}</span>
+                  </span>
+                </div>
+              )}
               {confirmed.reasoning && (
                 <div className="flex items-center gap-1.5 pl-[18px] text-muted-foreground/80 mt-0.5">
                   <span className="italic">

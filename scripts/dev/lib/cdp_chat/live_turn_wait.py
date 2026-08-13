@@ -11,7 +11,7 @@ from pathlib import Path
 def parallel_live_agent_peer_count() -> int:
     """Wave/mux peers for LIVE post-send stall scaling."""
     try:
-        from mux_load import snapshot_mux_load
+        from mux.load import snapshot_mux_load
 
         load = snapshot_mux_load()
         return max(int(load.wave_leases), int(load.mux_contexts))
@@ -19,7 +19,7 @@ def parallel_live_agent_peer_count() -> int:
         pass
     root = Path(__file__).resolve().parents[5]
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         return wave_active_lease_count(root)
     except (ImportError, OSError, RuntimeError, ValueError):

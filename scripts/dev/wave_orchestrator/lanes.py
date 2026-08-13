@@ -22,7 +22,7 @@ _dev_lib_str = str(_dev_lib)
 if _dev_lib_str not in sys.path:
     sys.path.insert(0, _dev_lib_str)
 
-from dev_gate_contract import (
+from dev_gate.contract import (
     LIVE_SHARED_HOT_MAX_CONCURRENT,
     LIVE_SHPOIB_MAX_CONCURRENT,
 )

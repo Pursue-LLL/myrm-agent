@@ -24,8 +24,8 @@ from pathlib import Path
 from typing import TypedDict
 
 from chrome_e2e.gates.entry_guard import is_e2e_chrome_mcp_diagnostic_mode
-from dev_gate_contract import E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN
-from wave_state_paths import resolve_wave_state_file
+from dev_gate.contract import E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN
+from e2e_core.wave_state_paths import resolve_wave_state_file
 
 
 class _LeaseRow(TypedDict, total=False):

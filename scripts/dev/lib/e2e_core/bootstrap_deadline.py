@@ -25,7 +25,7 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,7 +128,7 @@ def begin_session(*, active_leases: int) -> BootstrapSession:
             return existing
         # Exhausted monotonic budget — allow a fresh ADMIT attempt (same holder).
         clear_session()
-    from dev_gate_contract import attach_parallel_wait_sec  # noqa: PLC0415
+    from dev_gate.contract import attach_parallel_wait_sec  # noqa: PLC0415
 
     budget = attach_parallel_wait_sec(active_leases, base=_attach_base_sec())
     session = BootstrapSession(

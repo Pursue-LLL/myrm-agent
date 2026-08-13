@@ -184,7 +184,7 @@ def _file_scope_record_is_stale(record: _DedupeRecord, *, now: float) -> bool:
     if _holder_process_tree_has_pytest(holder_pid):
         return False
     try:
-        from e2e_stale_lease_reap import _holder_waiting_private_admit_credit
+        from e2e_core.stale_lease_reap import _holder_waiting_private_admit_credit
 
         if _holder_waiting_private_admit_credit(holder_pid):
             return False
@@ -294,7 +294,7 @@ def _infer_lane_from_record(record: _DedupeRecord) -> str:
 
 def _max_holder_wall_sec(record: _DedupeRecord | None = None) -> float:
     """Lane-aware chrome_e2e wall — READ sessions must not inherit LIVE 1110s dedupe lock."""
-    from dev_gate_contract import (
+    from dev_gate.contract import (
         LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC,
         READ_CHROME_E2E_PYTEST_TIMEOUT_SEC,
     )

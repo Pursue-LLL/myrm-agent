@@ -24,8 +24,8 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import get_e2e_ui_url  # noqa: E402
-from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
+from cdp_chat.support import get_e2e_ui_url  # noqa: E402
+from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
 
 _DAEMON_TRANSPORT = os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1"
 
@@ -123,7 +123,7 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
             raise RuntimeError(f"new_page failed after retries: {last_error}")
         layout_wait_sec = 120.0
         try:
-            from dev_gate_contract import SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC
+            from dev_gate.contract import SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC
 
             layout_wait_sec = float(SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC)
         except ImportError:

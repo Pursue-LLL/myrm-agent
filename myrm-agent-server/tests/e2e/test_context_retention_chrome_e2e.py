@@ -271,7 +271,7 @@ def _await_attach_chat(
 
 def _attach_eval_timeout_sec() -> float:
     try:
-        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+        from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
             return 150.0
@@ -316,7 +316,7 @@ def _attach_chat_probe(chat_id: str) -> str:
 
 def _bridge_ready_timeout_sec() -> float:
     try:
-        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+        from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
             return 180.0
@@ -327,7 +327,7 @@ def _bridge_ready_timeout_sec() -> float:
 
 def _force_mux_heal_before_retry() -> None:
     _require_e2e_cdp_ready(budget_sec=45.0)
-    from mux_attach_force_restart import force_mux_attach_restart_scoped
+    from mux.attach_force_restart import force_mux_attach_restart_scoped
 
     force_mux_attach_restart_scoped(reason="context retention chrome outer retry")
     time.sleep(3.0)

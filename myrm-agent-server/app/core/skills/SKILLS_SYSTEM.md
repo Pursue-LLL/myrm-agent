@@ -125,6 +125,17 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | Bin gate scope | `INTEGRATION_SKILL_BINS` 使用 server 进程 `PATH`（与 harness `check_requirements` 一致）；sandbox 内 CLI 可用性以运行时 bash 错误为准 |
 | Env gate scope | `INTEGRATION_SKILL_ENV_VARS` 读取进程 env + `UserSkillConfig.skill_env_vars`（优于 harness 仅读 os.environ） |
 
+### 3.8 Skill 权限管理链路
+
+| 层 | 内容 |
+|------|------|
+| 声明 | SKILL.md frontmatter `required_permissions: [file_write, shell_exec, ...]`；未知权限名 fail-lenient（跳过 + WARNING） |
+| 解析 | harness `parse_skill_frontmatter` → `SkillFrontmatter.required_permissions: list[SkillPermission]` → `build_skill_metadata` → `SkillMetadata.required_permissions` |
+| 落库 | server `Skill.from_metadata` 映射枚举值到字符串；`Skill.required_permissions` 随 `to_dict`/`from_dict` 持久化 |
+| API | `app/api/skills/permissions.py`：`GET /{skill_id}/permissions`、`POST .../grant`、`POST .../revoke`、`POST .../apply-template`、`POST /permissions/bulk-revoke-by-type`、`GET /{skill_id}/permissions/usage` |
+| UI | 设置 → AI 工具 → 「权限管理」Tab（授予/撤销/批量撤销）；技能详情 → 「权限使用统计」区（允许/拒绝率 + 最近操作） |
+| 运行时 | `SkillBoundaryProvider` guardrail 依据 `SkillPermissionGrant` 判断放行/拦截；操作写入 `skill_permission_usage_logs` |
+
 ---
 
 ## 四、依赖关系

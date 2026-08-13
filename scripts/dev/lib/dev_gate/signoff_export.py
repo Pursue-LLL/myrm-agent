@@ -8,19 +8,19 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from dev_gate_store import DevGateStore
+    from dev_gate.store import DevGateStore
 
 
 def _optional_health_snapshot() -> dict[str, object]:
     health: dict[str, object] = {}
     try:
-        from dev_gate_status import dev_gate_status  # noqa: PLC0415
+        from dev_gate.status import dev_gate_status  # noqa: PLC0415
 
         health["devGate"] = dev_gate_status()
     except ImportError:
         pass
     try:
-        from host_resource_governor import (  # noqa: PLC0415
+        from e2e_core.host_resource_governor import (  # noqa: PLC0415
             host_resource_governor_snapshot,
             recent_transition_log,
         )

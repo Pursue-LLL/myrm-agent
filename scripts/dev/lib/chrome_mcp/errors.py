@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dev_gate_contract import (
+from dev_gate.contract import (
     BENIGN_CLEANUP_TOKENS,
     PAGE_OWNERSHIP_ERROR_TOKENS,
     TRANSIENT_MUX_ERROR_TOKENS,

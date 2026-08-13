@@ -86,7 +86,7 @@ _backend_source_fingerprint() {
 import sys
 from pathlib import Path
 sys.path.insert(0, '${lib_dir}')
-from runtime_identity import _backend_source_fingerprint
+from e2e_core.runtime_identity import _backend_source_fingerprint
 print(_backend_source_fingerprint())
 " 2>/dev/null || echo ""
 }

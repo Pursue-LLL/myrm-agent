@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import TypedDict
 from urllib.parse import urlparse
 
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 
 class BackendEpoch(TypedDict):
@@ -344,7 +344,7 @@ def attach_wait_errors(ui_base: str, api_base: str) -> list[str]:
 
 def attach_endpoint_errors(ui_base: str, api_base: str) -> list[str]:
     """Probe UI and API concurrently for the attach-only fast path."""
-    from dev_gate_contract import attach_ui_probe_timeout_sec
+    from dev_gate.contract import attach_ui_probe_timeout_sec
 
     ui_timeout = attach_ui_probe_timeout_sec()
     api_timeout = 10.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
@@ -956,7 +956,7 @@ def runtime_ids_equal(left: str, right: str) -> bool:
 def main() -> None:
     import argparse
 
-    from runtime_probe import probe_runtime_context, run_drift_check
+    from e2e_core.runtime_probe import probe_runtime_context, run_drift_check
 
     parser = argparse.ArgumentParser(
         description="Runtime identity SSOT for Chrome MCP E2E"

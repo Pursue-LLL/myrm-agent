@@ -624,6 +624,13 @@
       "revokeError": "Failed to revoke share link",
       "yes": "Yes",
       "no": "No",
+      "confirm": {
+        "title": "Revoke share link?",
+        "description": "This link will stop working immediately and cannot be restored. Anyone with this link will no longer be able to view {name}.",
+        "createdAt": "Created",
+        "cancel": "Cancel",
+        "revoke": "Revoke link"
+      },
       "table": {
         "artifact": "Artifact",
         "type": "Type",
@@ -8852,6 +8859,8 @@
     "archiveRestoreResultArchive": "Archive: {path}",
     "thinking_budget_exhausted": "Model used all tokens for reasoning, no response produced",
     "tool_call_truncated": "Tool arguments may be incomplete due to output length limit",
+    "tool_call_retry": "Tool call was cut off — retrying",
+    "empty_response_recovery": "Empty response detected — retrying",
     "analyzing_image": "Analyzing image...",
     "analyzing_video": "Analyzing video...",
     "visionBackend": {
@@ -9793,6 +9802,7 @@
       "content": "Content",
       "tags": "Tags",
       "relatedEntities": "Related Entities",
+      "ttlDays": "Auto-expires after {days} day(s)",
       "id": "ID"
     },
     "typeDesc": {

@@ -33,7 +33,7 @@ import json
 import time
 
 import pytest
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     chat_user_message_count,
     fetch_chat_messages,
     fetch_config_value,

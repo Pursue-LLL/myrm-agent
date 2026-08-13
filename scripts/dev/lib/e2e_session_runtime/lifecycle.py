@@ -20,7 +20,7 @@ import time
 from dataclasses import dataclass
 from typing import Final, Literal
 
-from dev_gate_contract import (
+from dev_gate.contract import (
     E2E_ADMISSION_WALL_CLOCK_SEC,
     E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV,
     E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC,
@@ -73,7 +73,7 @@ def resolve_lifecycle_profile() -> LifecycleProfile:
 
 def _private_shpoib_bootstrap_lane(lane: str) -> bool:
     """R220: NAMESPACE_WRITE → RESOURCE_WRITE lease still runs SHPOIB private backend."""
-    from dev_gate_contract import private_shpoib_runtime_active
+    from dev_gate.contract import private_shpoib_runtime_active
 
     if not private_shpoib_runtime_active():
         return False
@@ -83,7 +83,7 @@ def _private_shpoib_bootstrap_lane(lane: str) -> bool:
 def resolve_budget_policy() -> BudgetPolicy:
     profile = resolve_lifecycle_profile()
     if profile == "signoff":
-        from dev_gate_contract import signoff_effective_bootstrap_wall_sec
+        from dev_gate.contract import signoff_effective_bootstrap_wall_sec
 
         return BudgetPolicy(
             profile=profile,
@@ -184,7 +184,7 @@ def assert_body_progress_not_stale(phase_label: str) -> None:
     """Fail-fast when BODY phase has no progress token refresh within STALL_PROGRESS_SEC."""
     if current_phase() != "body":
         return
-    from dev_gate_contract import shpoib_parallel_stall_progress_sec
+    from dev_gate.contract import shpoib_parallel_stall_progress_sec
 
     stall_cap = shpoib_parallel_stall_progress_sec()
     progress_at = _read_progress_at_monotonic()
@@ -211,7 +211,7 @@ def assert_phase_budget(phase_label: str) -> None:
     wall_cap = phase_cap_sec()
     if phase_label == "E2E_SHARED_STACK_RECOVERY_WAIT":
         try:
-            from dev_gate_contract import (
+            from dev_gate.contract import (
                 is_e2e_signoff_runtime,
                 signoff_stack_recovery_admit_budget_sec,
             )
@@ -342,7 +342,7 @@ def _transition_dev_gate_to_body(*, current_node: str) -> None:
     owner_token = os.environ.get("MYRM_E2E_RUNTIME_OWNER_TOKEN", "").strip()
     if not session_id or not owner_token:
         return
-    from dev_gate_cli import send
+    from dev_gate.cli import send
 
     response = send({"operation": "snapshot", "session_id": session_id})
     session = response.get("session") if isinstance(response, dict) else None
@@ -362,17 +362,23 @@ def _transition_dev_gate_to_body(*, current_node: str) -> None:
         session = response.get("session") if isinstance(response, dict) else None
         state = str(session.get("state", "")) if isinstance(session, dict) else ""
     if state == "PAGE_OPEN":
-        response = send(
-            {
-                "operation": "transition",
-                "session_id": session_id,
-                "owner_token": owner_token,
-                "target": "BODY",
-                "current_node": current_node,
-            }
-        )
+        # Re-snapshot before BODY: parallel open_mcp_page / post_cdp_bootstrap may
+        # have sealed BODY while local wall phase is still bootstrap.
+        response = send({"operation": "snapshot", "session_id": session_id})
         session = response.get("session") if isinstance(response, dict) else None
         state = str(session.get("state", "")) if isinstance(session, dict) else ""
+        if state == "PAGE_OPEN":
+            response = send(
+                {
+                    "operation": "transition",
+                    "session_id": session_id,
+                    "owner_token": owner_token,
+                    "target": "BODY",
+                    "current_node": current_node,
+                }
+            )
+            session = response.get("session") if isinstance(response, dict) else None
+            state = str(session.get("state", "")) if isinstance(session, dict) else ""
     if state != "BODY" or not isinstance(session, dict):
         raise RuntimeError(
             f"E2E_DEV_GATE_BODY_TRANSITION: expected BODY, got {state or 'UNKNOWN'}"
@@ -450,11 +456,11 @@ def budgets_remaining() -> dict[str, object]:
 
 def provider_readiness_gate_sync() -> None:
     """Fail-closed provider readiness gate for BOOTSTRAP phase."""
-    from cdp_chat_support import (
+    from cdp_chat.support import (
         fetch_provider_readiness_snapshot,
         wait_e2e_provider_ready,
     )
-    from dev_gate_contract import (
+    from dev_gate.contract import (
         PROVIDER_READINESS_GATE_BASE_SEC,
         provider_readiness_gate_effective_budget_sec,
         provider_readiness_gate_wait_sec,

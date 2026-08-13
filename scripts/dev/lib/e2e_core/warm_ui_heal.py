@@ -8,7 +8,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 _DEFAULT_DEBOUNCE_SEC = 60.0
 _DEFAULT_FLOCK_WAIT_SEC = 5.0
@@ -155,7 +155,7 @@ def heal_shared_frontend_debounced(
         try:
             parallel = False
             try:
-                from transport_supervisor import parallel_active_test_count
+                from mux.transport_supervisor import parallel_active_test_count
 
                 parallel = parallel_active_test_count() > 1
             except ImportError:
@@ -193,7 +193,7 @@ def heal_shared_frontend_debounced(
 def _shared_ui_probe_ok(*, timeout_sec: float = 12.0) -> bool:
     ui_base = os.environ.get("MYRM_E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
     try:
-        from runtime_identity import frontend_tcp_html_probe_ok
+        from e2e_core.runtime_identity import frontend_tcp_html_probe_ok
 
         return frontend_tcp_html_probe_ok(ui_base, timeout_sec=timeout_sec)
     except (ImportError, OSError, ValueError):
@@ -203,7 +203,7 @@ def _shared_ui_probe_ok(*, timeout_sec: float = 12.0) -> bool:
 def _shared_client_hot_ok() -> bool:
     """HTTP 200 alone is insufficient — Turbopack can stall with app-shell-skeleton."""
     try:
-        from runtime_identity import read_frontend_epoch, read_frontend_hot_state
+        from e2e_core.runtime_identity import read_frontend_epoch, read_frontend_hot_state
 
         frontend = read_frontend_epoch()
         _, client_hot = read_frontend_hot_state(frontend)

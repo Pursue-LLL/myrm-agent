@@ -19,7 +19,7 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from e2e_resource_ledger import E2EResourceLedger as _E2EResourceLedger
+from e2e_core.resource_ledger import E2EResourceLedger as _E2EResourceLedger
 from e2e_session_runtime.heartbeat import heartbeat_once as _unified_heartbeat_once
 
 _E2E_HEARTBEAT_INTERVAL_SEC = 30.0
@@ -86,7 +86,7 @@ def _wave_state_path() -> Path:
     dev_lib_str = str(dev_lib)
     if dev_lib_str not in sys.path:
         sys.path.insert(0, dev_lib_str)
-    from wave_state_paths import resolve_wave_state_file
+    from e2e_core.wave_state_paths import resolve_wave_state_file
 
     return resolve_wave_state_file()
 
@@ -99,7 +99,7 @@ def _stack_scoped_runtime_id() -> str:
     dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
-    from runtime_identity import read_stack_scoped_runtime_id
+    from e2e_core.runtime_identity import read_stack_scoped_runtime_id
 
     return read_stack_scoped_runtime_id()
 
@@ -120,7 +120,7 @@ def _formal_chrome_e2e_runtime_heal_allowed() -> bool:
     dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
-    from dev_gate_contract import formal_chrome_e2e_runtime_heal_agent
+    from dev_gate.contract import formal_chrome_e2e_runtime_heal_agent
 
     return formal_chrome_e2e_runtime_heal_agent(os.environ.get("MYRM_E2E_AGENT_ID", ""))
 
@@ -140,7 +140,7 @@ def _sync_signoff_runtime_drift(*, lease_id: str) -> str | None:
     """In-place lease/wave runtimeId sync when backend restarted mid-attempt."""
     if not lease_id.strip():
         return None
-    from e2e_lease_runtime_sync import sync_lease_runtime_with_shared_hot
+    from e2e_core.lease_runtime_sync import sync_lease_runtime_with_shared_hot
 
     ok, detail = sync_lease_runtime_with_shared_hot(lease_id=lease_id)
     if not ok:
@@ -159,7 +159,7 @@ def _shared_hot_stack_runtime_id() -> str:
     dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
-    from runtime_probe import _read_shared_hot_stack_runtime_id
+    from e2e_core.runtime_probe import _read_shared_hot_stack_runtime_id
 
     return _read_shared_hot_stack_runtime_id()
 
@@ -276,7 +276,7 @@ def _runtime_id_reader() -> str:
     dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
-    from runtime_probe import read_current_runtime_id
+    from e2e_core.runtime_probe import read_current_runtime_id
 
     return read_current_runtime_id()
 
@@ -356,7 +356,7 @@ def _heal_stale_e2e_lease() -> None:
             time.sleep(0.25)
         return
 
-    from e2e_lease_runtime_sync import (
+    from e2e_core.lease_runtime_sync import (
         lease_runtime_matches_shared_hot,
         sync_lease_runtime_with_shared_hot,
     )

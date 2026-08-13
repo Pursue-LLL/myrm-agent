@@ -11,7 +11,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     deny_stale_browser_takeover_approvals,
     ensure_e2e_memory_disabled,
     ensure_e2e_yolo_mode,

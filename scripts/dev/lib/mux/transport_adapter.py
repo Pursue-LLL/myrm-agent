@@ -86,7 +86,7 @@ class TrackedRLock:
 
 def parallel_request_lock_cap_sec() -> float:
     try:
-        from dev_gate_contract import is_e2e_signoff_runtime
+        from dev_gate.contract import is_e2e_signoff_runtime
 
         if is_e2e_signoff_runtime():
             return _REQUEST_LOCK_ACQUIRE_SIGNOFF_PARALLEL_CAP_SEC
@@ -103,7 +103,7 @@ def resolve_request_lock_acquire_sec(peer_count_fn: "callable[[], int]") -> floa
     """
     scaled = _REQUEST_LOCK_ACQUIRE_SEC
     try:
-        from transport_supervisor import recovery_lock_wait_sec
+        from mux.transport_supervisor import recovery_lock_wait_sec
 
         scaled = max(scaled, recovery_lock_wait_sec())
     except ImportError:

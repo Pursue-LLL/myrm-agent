@@ -94,7 +94,7 @@ def run_signoff_attach_crash_heal(
     """Shared :8080 crash heal via StackHealCoordinator (single-writer)."""
     repo = root or _monorepo_root()
     sys.path.insert(0, str(repo / "myrm-agent/scripts/dev/lib"))
-    from stack_heal_coordinator import request_attach_crash_heal  # noqa: PLC0415
+    from e2e_core.stack_heal_coordinator import request_attach_crash_heal  # noqa: PLC0415
 
     if signoff_parallel_stack_busy(root=repo):
         print(

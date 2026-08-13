@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from dev_gate_store import DevGateStore
+from dev_gate.store import DevGateStore
 
 
 class SessionEventTimeoutError(TimeoutError):

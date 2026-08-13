@@ -4382,6 +4382,13 @@
       "revokeError": "공유 링크 해지에 실패했습니다",
       "yes": "예",
       "no": "아니요",
+      "confirm": {
+        "title": "공유 링크를 해지할까요?",
+        "description": "이 링크는 즉시 만료되며 복원할 수 없습니다. 이 링크를 가진 사람은 더 이상 {name}을(를) 볼 수 없습니다.",
+        "createdAt": "생성 시간",
+        "cancel": "취소",
+        "revoke": "링크 해지"
+      },
       "table": {
         "artifact": "산출물",
         "type": "유형",
@@ -8537,6 +8544,8 @@
     "archiveRestoreResultArchive": "아카이브: {path}",
     "thinking_budget_exhausted": "모델이 모든 토큰을 추론에 사용하여 응답을 생성하지 못했습니다",
     "tool_call_truncated": "출력 길이 제한으로 인해 도구 매개변수가 불완전할 수 있습니다",
+    "tool_call_retry": "도구 호출이 중단되어 재시도 중",
+    "empty_response_recovery": "빈 응답이 감지되어 재시도 중",
     "text_continuation": "응답이 잘렸습니다, 자동으로 계속 진행 중...",
     "text_continuation_exhausted": "최대 재시도 후에도 응답이 불완전합니다",
     "context_truncation": "윈도우에 맞게 이전 컨텍스트 정리 중",
@@ -8808,6 +8817,7 @@
       "content": "내용",
       "tags": "태그",
       "relatedEntities": "관련 엔티티",
+      "ttlDays": "{days}일 후 자동 만료",
       "id": "ID"
     },
     "typeDesc": {

@@ -262,7 +262,7 @@ def shpoib_parallel_stall_progress_sec(
     try:
         from pathlib import Path
 
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
@@ -290,7 +290,7 @@ def shell_probe_stall_fail_fast_effective_sec() -> float:
     ):
         return base
     try:
-        from cdp_chat_support import signoff_parallel_force_chat_timeout_sec
+        from cdp_chat.support import signoff_parallel_force_chat_timeout_sec
 
         return signoff_parallel_force_chat_timeout_sec(base)
     except ImportError:
@@ -308,7 +308,7 @@ def mux_reset_after_orphan_timeout_sec() -> float:
     try:
         from pathlib import Path
 
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
@@ -442,7 +442,7 @@ def _wave_active_lease_count_for_mux() -> int:
     try:
         from pathlib import Path
 
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         return max(0, wave_active_lease_count(monorepo_root))
@@ -725,7 +725,7 @@ def dev_gate_post_admit_hard_timeout_sec() -> int:
     """
     bootstrap_sec = int(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
     try:
-        from transport_supervisor import (
+        from mux.transport_supervisor import (
             MUX_BOOTSTRAP_WALL_MAX_SEC,
             MUX_UPSTREAM_WAIT_MAX_SEC,
         )
@@ -774,7 +774,7 @@ def parallel_mux_cold_attach_drain_sec(*, parallel_peers: int | None = None) -> 
 
     Signoff uses the same floor as dev (fixes historical 20s<45s inversion).
     """
-    from transport_supervisor import mux_upstream_wait_cap
+    from mux.transport_supervisor import mux_upstream_wait_cap
 
     peers = parallel_peers
     if peers is None:
@@ -889,7 +889,7 @@ def signoff_bootstrap_open_mcp_budgets(
     if peers is None:
         peers = _parallel_signoff_pressure_peers()
     pessimistic = peers >= 2
-    from transport_supervisor import bootstrap_wall_cap_sec, mux_upstream_wait_cap
+    from mux.transport_supervisor import bootstrap_wall_cap_sec, mux_upstream_wait_cap
 
     boot = float(bootstrap_wall_cap_sec(pessimistic=pessimistic))
     mux = float(mux_upstream_wait_cap(pessimistic=pessimistic))
@@ -940,13 +940,13 @@ def signoff_new_page_join_timeout_sec(
         peers = _parallel_signoff_pressure_peers()
     load = peers
     try:
-        from transport_supervisor import parallel_mux_peer_count
+        from mux.transport_supervisor import parallel_mux_peer_count
 
         load = max(load, parallel_mux_peer_count())
     except ImportError:
         pass
     try:
-        from mux_load import snapshot_mux_load
+        from mux.load import snapshot_mux_load
 
         snap = snapshot_mux_load()
         load = max(load, int(snap.mux_contexts), int(snap.wave_leases))
@@ -1046,7 +1046,7 @@ def live_open_page_transport_stall_cap_sec(*, active_peers: int | None = None) -
     if peers is None:
         peers = 0
         try:
-            from mux_load import (
+            from mux.load import (
                 active_mux_context_count,
                 read_mux_status,
                 snapshot_mux_load,
@@ -1058,7 +1058,7 @@ def live_open_page_transport_stall_cap_sec(*, active_peers: int | None = None) -
         except (ImportError, OSError, RuntimeError, TypeError, ValueError):
             peers = 0
     try:
-        from transport_supervisor import live_agent_body_wall_cap_sec
+        from mux.transport_supervisor import live_agent_body_wall_cap_sec
 
         body_cap = float(live_agent_body_wall_cap_sec())
     except ImportError:
@@ -1123,7 +1123,7 @@ def admit_semantic_node_stall_cap_sec(
 def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
     """R170 SSOT: hung-reap / open_mcp NODE_STUCK cap (import fresh after reload)."""
     try:
-        from e2e_stall_guard import is_transport_stall_node, transport_stall_cap_sec
+        from e2e_core.stall_guard import is_transport_stall_node, transport_stall_cap_sec
     except ImportError:
         return float(NODE_STUCK_FAIL_FAST_SEC)
     transport = transport_stall_cap_sec()
@@ -1135,7 +1135,7 @@ def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
     if is_e2e_signoff_runtime():
         if open_page_family:
             try:
-                from mux_load import parallel_open_page_peer_count
+                from mux.load import parallel_open_page_peer_count
 
                 peers = parallel_open_page_peer_count(signoff=True)
             except ImportError:
@@ -1149,7 +1149,7 @@ def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
     if open_page_family:
         live = live_open_page_transport_stall_cap_sec()
         try:
-            from transport_supervisor import live_agent_body_wall_cap_sec
+            from mux.transport_supervisor import live_agent_body_wall_cap_sec
 
             body_cap = float(live_agent_body_wall_cap_sec())
         except ImportError:
@@ -1189,7 +1189,7 @@ def dev_bootstrap_wall_cap_for_hung_reap(*, lane: str, shpoib: bool) -> float:
     bootstrap_sec = float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
     normalized_lane = lane.strip().upper()
     try:
-        from transport_supervisor import bootstrap_wall_cap_sec, mux_upstream_wait_cap
+        from mux.transport_supervisor import bootstrap_wall_cap_sec, mux_upstream_wait_cap
 
         if boot_mux_body_transport_gate_required():
             bootstrap_sec = float(bootstrap_wall_cap_sec(pessimistic=True))
@@ -1210,7 +1210,7 @@ def _backend_only_ensure_parallel_load() -> int:
     try:
         from pathlib import Path
 
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         load = wave_active_lease_count(Path(__file__).resolve().parents[5])
     except (ImportError, OSError, RuntimeError, ValueError):
@@ -1236,7 +1236,7 @@ def _backend_only_ensure_parallel_load() -> int:
         except (ImportError, OSError, RuntimeError, ValueError):
             pass
         try:
-            from transport_supervisor import parallel_mux_peer_count
+            from mux.transport_supervisor import parallel_mux_peer_count
 
             load = max(load, parallel_mux_peer_count())
         except (ImportError, OSError, RuntimeError, ValueError):
@@ -1277,7 +1277,7 @@ def signoff_mux_transport_wait_budget_sec(
     *, bootstrap_phase: bool | None = None
 ) -> float:
     """R219/R221: pessimistic mux queue wait under signoff bootstrap parallel."""
-    from transport_supervisor import mux_upstream_wait_cap
+    from mux.transport_supervisor import mux_upstream_wait_cap
 
     pessimistic = False
     if is_e2e_signoff_runtime():
@@ -1539,7 +1539,7 @@ def phase_c_burst_read_bootstrap_wall_sec() -> int | None:
     burst_lanes = phase_c_burst_lane_count()
     if burst_lanes < 2:
         return None
-    from transport_supervisor import caps_for_explicit_peer_count
+    from mux.transport_supervisor import caps_for_explicit_peer_count
 
     pessimistic = burst_lanes >= 4
     bootstrap, mux_wait = caps_for_explicit_peer_count(
@@ -1556,7 +1556,7 @@ def phase_c_burst_read_queue_buffer_sec() -> int:
     burst_lanes = phase_c_burst_lane_count()
     if burst_lanes < 4:
         return 0
-    from transport_supervisor import caps_for_explicit_peer_count
+    from mux.transport_supervisor import caps_for_explicit_peer_count
 
     _, mux_wait = caps_for_explicit_peer_count(burst_lanes, pessimistic=True)
     return mux_wait
@@ -1684,7 +1684,7 @@ def parallel_live_pytest_timeout_floor_sec(base: int) -> int:
     try:
         from pathlib import Path
 
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         load = wave_active_lease_count(Path(__file__).resolve().parents[5])
     except (ImportError, OSError, RuntimeError, ValueError):

@@ -23,16 +23,16 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     ensure_e2e_yolo_mode,
     fetch_chat_messages,
     get_e2e_api_url,
     get_e2e_ui_url,
 )
-from cdp_chat_ui import chat_id_from_path, wait_e2e_provider_ready  # noqa: E402
-from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from dev_gate_contract import EvaluateIntent  # noqa: E402
-from mcp_chat_ui import McpChatSession  # noqa: E402
+from cdp_chat.ui import chat_id_from_path, wait_e2e_provider_ready  # noqa: E402
+from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
+from dev_gate.contract import EvaluateIntent  # noqa: E402
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import http_json  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once  # noqa: E402

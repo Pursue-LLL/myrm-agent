@@ -90,7 +90,7 @@ _DISMISS_MIGRATION_JS = """(() => {
 
 def _attach_eval_timeout_sec() -> float:
     try:
-        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+        from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
             return 150.0
@@ -390,7 +390,7 @@ _MEMORY_LIFECYCLE_PROBE_JS = """(async () => {
 
 def _bridge_ready_timeout_sec() -> float:
     try:
-        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+        from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
             return 180.0
@@ -401,7 +401,7 @@ def _bridge_ready_timeout_sec() -> float:
 
 def _chat_ui_wait_timeout_sec(base: float = 60.0) -> float:
     try:
-        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+        from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
             return max(base, 120.0)
@@ -457,7 +457,7 @@ def _force_mux_heal_before_retry() -> None:
     _wait_orchestrator_lease_ready(timeout_sec=120.0)
     _require_e2e_cdp_ready(budget_sec=45.0)
     try:
-        from mux_attach_force_restart import force_mux_attach_restart_scoped
+        from mux.attach_force_restart import force_mux_attach_restart_scoped
 
         force_mux_attach_restart_scoped(reason="memory lifecycle chrome outer retry")
     except RuntimeError as exc:

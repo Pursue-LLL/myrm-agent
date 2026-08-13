@@ -20,7 +20,7 @@ import subprocess
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
-from dev_gate_contract import STALL_PROGRESS_SEC
+from dev_gate.contract import STALL_PROGRESS_SEC
 
 LIVE_E2E_SHARED_HOT_NAMESPACE = "e2e:shared_hot"
 PRIVATE_BACKEND_NAMESPACE_PREFIX = "e2e:private:"

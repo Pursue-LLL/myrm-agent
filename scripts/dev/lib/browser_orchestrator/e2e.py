@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
 
-from browser_orchestrator_client import BrowserOrchestratorClient
-from cdp_chat_support import (
+from browser_orchestrator.client import BrowserOrchestratorClient
+from cdp_chat.support import (
     e2e_api_base_inject_js,
     e2e_private_api_ready_timeout_sec,
     e2e_page_binding_source,
@@ -162,7 +162,7 @@ class OrchestratorChromeClient:
         last_exc: BaseException | None = None
         hot_eligible = False
         try:
-            from warm_shell_registry import shared_read_hot_path_decision
+            from e2e_core.warm_shell_registry import shared_read_hot_path_decision
 
             hot_eligible = shared_read_hot_path_decision(url=url).eligible
         except ImportError:
@@ -330,7 +330,7 @@ class OrchestratorChromeClient:
         await_promise: bool = True,
         intent: str | None = None,
     ) -> object:
-        from dev_gate_contract import EvaluateIntent, resolve_evaluate_budget
+        from dev_gate.contract import EvaluateIntent, resolve_evaluate_budget
 
         effective = min(max(5.0, timeout_sec), self._request_timeout_sec)
         last_exc: BaseException | None = None
@@ -413,7 +413,7 @@ class OrchestratorChromeClient:
                     continue
                 if self._is_terminal_tab_error(message) and attempt < 3:
                     try:
-                        from warm_shell_registry import shared_read_hot_path_decision
+                        from e2e_core.warm_shell_registry import shared_read_hot_path_decision
 
                         if shared_read_hot_path_decision(url=url).eligible:
                             self._ensure_session_context()
@@ -457,7 +457,7 @@ class OrchestratorChromeClient:
 
 
 def _resolve_session_id() -> str:
-    from dev_gate_contract import E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN
+    from dev_gate.contract import E2E_ORCHESTRATOR_LEASE_DENIED_TOKEN
     from chrome_e2e.gates.entry_guard import is_e2e_chrome_mcp_diagnostic_mode
 
     # Per-lease orch session isolates parallel chrome_e2e (shared MYRM_E2E_RUN_ID is parent-only).
@@ -534,7 +534,7 @@ def _spawn_ensure_orchestrator() -> None:
     node_dir = "/opt/homebrew/bin"
     path = env.get("PATH", "")
     if node_dir not in path:
-        from real_user_home import real_user_home  # noqa: PLC0415
+        from e2e_core.real_user_home import real_user_home  # noqa: PLC0415
 
         bun_bin = str(real_user_home() / ".bun/bin")
         env["PATH"] = f"{node_dir}:{bun_bin}:{path}"
@@ -607,7 +607,7 @@ def _effective_parallel_load() -> int:
         if count >= 2:
             return count
     try:
-        from peer_count_ssot import parallel_active_test_count_ssot
+        from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 
         return max(0, parallel_active_test_count_ssot())
     except ImportError:
@@ -617,7 +617,7 @@ def _effective_parallel_load() -> int:
 def _parallel_open_page_max_attempts() -> int:
     """R299: cap retries — orchestrator fail-fast wall makes multi-minute storms pointless."""
     try:
-        from peer_count_ssot import parallel_active_test_count_ssot
+        from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 
         peers = parallel_active_test_count_ssot()
         if peers <= 1:
@@ -628,7 +628,7 @@ def _parallel_open_page_max_attempts() -> int:
 
 
 def _parallel_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
-    from browser_orchestrator_client import (
+    from browser_orchestrator.client import (
         orchestrator_open_tx_wall_sec,
         orchestrator_socket_timeout_cap_sec,
     )
@@ -681,7 +681,7 @@ def _open_page_fast_create_with_retry(
         try:
             if attempt > 1:
                 _recreate_orchestrator_session(daemon, session_id)
-            from e2e_orchestrator import touch_wall_progress  # noqa: PLC0415
+            from e2e_core.orchestrator import touch_wall_progress  # noqa: PLC0415
 
             touch_wall_progress(current_node="open_page_fast_create")
             target_url = url.strip() or "about:blank"
@@ -735,7 +735,7 @@ def _open_page_transaction_with_retry(
         try:
             if attempt > 1:
                 _recreate_orchestrator_session(daemon, session_id)
-            from e2e_orchestrator import touch_wall_progress  # noqa: PLC0415
+            from e2e_core.orchestrator import touch_wall_progress  # noqa: PLC0415
 
             touch_wall_progress(current_node="open_page_transaction")
             with daemon.elevated_request_timeout(open_timeout_sec):
@@ -862,7 +862,7 @@ def _settings_open_plan(url: str) -> SettingsOpenPlan:
         origin = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
     else:
         try:
-            from cdp_chat_support import get_e2e_ui_url
+            from cdp_chat.support import get_e2e_ui_url
 
             origin = get_e2e_ui_url().rstrip("/")
         except ImportError:
@@ -895,7 +895,7 @@ def _open_parallel_nested_settings_page(
     burst_preassigned: bool,
 ) -> dict[str, object]:
     """Parallel nested /settings/* — prefer fast_create; transaction fallback (11455 SSOT)."""
-    from warm_shell_registry import set_bootstrap_hot_path  # noqa: PLC0415
+    from e2e_core.warm_shell_registry import set_bootstrap_hot_path  # noqa: PLC0415
 
     max_attempts = 4 if burst_preassigned else None
     set_bootstrap_hot_path("fast_create")
@@ -965,7 +965,7 @@ def _resolve_pending_binding(
         return binding_source.strip()
     if not needs_binding and not force_binding:
         return None
-    from cdp_chat_support import (  # noqa: PLC0415
+    from cdp_chat.support import (  # noqa: PLC0415
         e2e_page_binding_source,
         e2e_runtime_bootstrap_apply_js,
     )
@@ -985,7 +985,7 @@ def open_orchestrator_mcp_page(
     *,
     request_timeout_sec: float = 180.0,
 ) -> Iterator[tuple[OrchestratorChromeClient, OrchestratorMcpPage]]:
-    from browser_orchestrator_client import orchestrator_socket_timeout_cap_sec
+    from browser_orchestrator.client import orchestrator_socket_timeout_cap_sec
 
     effective_timeout = request_timeout_sec
     parallel_load = _effective_parallel_load()
@@ -1009,7 +1009,7 @@ def open_orchestrator_mcp_page(
         request_timeout_sec=effective_timeout,
     )
     try:
-        from warm_shell_registry import (  # noqa: PLC0415
+        from e2e_core.warm_shell_registry import (  # noqa: PLC0415
             set_bootstrap_hot_path,
             shared_read_hot_path_decision,
         )
@@ -1195,15 +1195,15 @@ def open_app_route_page(
     Must be used for every /settings/* open — new deep-link tests must call this
     (or the tests/support thin wrapper), never client.navigate.
     """
-    from e2e_route_manifest import (  # noqa: PLC0415
+    from e2e_core.route_manifest import (  # noqa: PLC0415
         assert_gate_allowed,
         hydration_probe_js,
         resolve_route_manifest,
     )
-    from browser_orchestrator_client import (  # noqa: PLC0415
+    from browser_orchestrator.client import (  # noqa: PLC0415
         orchestrator_socket_timeout_cap_sec,
     )
-    from cdp_chat_support import get_e2e_ui_url  # noqa: PLC0415
+    from cdp_chat.support import get_e2e_ui_url  # noqa: PLC0415
 
     manifest = resolve_route_manifest(url)
     # Blank pages (about:blank / empty) are manual-navigation hosts with no app
@@ -1261,15 +1261,15 @@ def open_app_route_page(
         page.url = str(result.get("url", url))
         client.bind_primary_page(page)
         if os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper() == "SHARED":
-            from cdp_chat_support import get_open_page_api_url  # noqa: PLC0415
-            from warm_shell_registry import seal_platform_shell  # noqa: PLC0415
+            from cdp_chat.support import get_open_page_api_url  # noqa: PLC0415
+            from e2e_core.warm_shell_registry import seal_platform_shell  # noqa: PLC0415
 
             if get_open_page_api_url().rstrip("/") == "http://127.0.0.1:8080":
                 seal_platform_shell(
                     ui_url=url,
                     route_path=manifest.shell_path,
                 )
-        from e2e_orchestrator import touch_wall_progress  # noqa: PLC0415
+        from e2e_core.orchestrator import touch_wall_progress  # noqa: PLC0415
 
         touch_wall_progress(current_node="open_app_route")
         yield client, page

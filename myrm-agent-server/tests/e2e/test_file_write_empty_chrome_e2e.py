@@ -19,7 +19,7 @@ _LIB = os.path.join(
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     empty_write_failure_in_messages,
     ensure_e2e_yolo_mode,
     file_write_tool_call_count,
@@ -27,9 +27,9 @@ from cdp_chat_support import (  # noqa: E402
     steer_chat_message,
     wait_e2e_provider_ready,
 )
-from dev_gate_contract import STALL_PROGRESS_SEC, EvaluateIntent  # noqa: E402
-from e2e_orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
-from live_turn_wait import (  # noqa: E402
+from dev_gate.contract import STALL_PROGRESS_SEC, EvaluateIntent  # noqa: E402
+from e2e_core.orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
+from cdp_chat.live_turn_wait import (  # noqa: E402
     live_empty_write_parallel_scaled_cap_sec,
     live_empty_write_steer_attempts_cap,
     live_empty_write_steer_retry_idle_sec,
@@ -37,7 +37,7 @@ from live_turn_wait import (  # noqa: E402
     parallel_live_agent_peer_count,
     steer_empty_write_prompt,
 )
-from mcp_chat_ui import McpChatSession  # noqa: E402
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 
 from tests.api.agent.utils import (  # noqa: E402
     _strip_provider_prefix,
@@ -63,7 +63,7 @@ BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 def _force_mux_heal_before_live_retry() -> None:
     """Heal stale CDP/mux after a failed open_mcp_page before outer retry (R119/R120)."""
     _require_e2e_cdp_ready(budget_sec=45.0)
-    from mux_attach_force_restart import force_mux_attach_restart_scoped
+    from mux.attach_force_restart import force_mux_attach_restart_scoped
 
     force_mux_attach_restart_scoped(reason="file_write live outer retry")
     time.sleep(3.0)

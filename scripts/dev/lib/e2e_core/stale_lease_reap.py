@@ -25,7 +25,7 @@ import sys
 import time
 from pathlib import Path
 
-from e2e_live_chrome_pytest_scan import LiveChromeE2ERow
+from e2e_core.live_chrome_pytest_scan import LiveChromeE2ERow
 from e2e_session_runtime.registry import LiveE2ESessionRow, list_live_e2e_sessions
 
 
@@ -131,11 +131,11 @@ def _body_wall_cap_for_pid(pid: int) -> float:
             return float(pytest_cap)
     if not _process_has_signoff_env(pid):
         try:
-            from transport_supervisor import live_agent_body_wall_cap_sec
+            from mux.transport_supervisor import live_agent_body_wall_cap_sec
 
             return float(live_agent_body_wall_cap_sec())
         except ImportError:
-            from dev_gate_contract import LIVE_AGENT_BODY_WALL_CLOCK_SEC
+            from dev_gate.contract import LIVE_AGENT_BODY_WALL_CLOCK_SEC
 
             return float(LIVE_AGENT_BODY_WALL_CLOCK_SEC)
     with _with_process_signoff_budget_env(pid):
@@ -148,7 +148,7 @@ def _admit_wall_cap_for_pid(pid: int) -> float:
     """ADMIT hung-reap cap aligned with admit_wall_clock_sec SSOT."""
     import os
 
-    from dev_gate_contract import admit_wall_clock_sec  # noqa: PLC0415
+    from dev_gate.contract import admit_wall_clock_sec  # noqa: PLC0415
 
     if _process_has_signoff_env(pid):
         prior = os.environ.get("E2E_SIGNOFF")
@@ -171,7 +171,7 @@ def _hung_reason_for_row(
     signoff = _process_has_signoff_env(row.pid)
     root = _monorepo_root()
     sys.path.insert(0, str(root / "myrm-agent" / "scripts" / "dev" / "lib"))
-    from dev_gate_contract import shpoib_parallel_stall_progress_sec  # noqa: PLC0415
+    from dev_gate.contract import shpoib_parallel_stall_progress_sec  # noqa: PLC0415
     from e2e_session_runtime.snapshot import (  # noqa: PLC0415
         body_elapsed_from_snapshot,
         phase_elapsed_from_snapshot,
@@ -199,7 +199,7 @@ def _hung_reason_for_row(
                     child_phase = str(child_match[1].get("phase") or "").strip().lower()
                     if child_phase in ("bootstrap", "body", "delegated"):
                         return None
-            from e2e_stall_guard import (  # noqa: PLC0415
+            from e2e_core.stall_guard import (  # noqa: PLC0415
                 admit_node_stuck_reason_from_snapshot,
             )
 
@@ -216,7 +216,7 @@ def _hung_reason_for_row(
         if phase == "body":
             body_elapsed_hard = body_elapsed_from_snapshot(snapshot)
             if body_elapsed_hard is not None:
-                from dev_gate_contract import (
+                from dev_gate.contract import (
                     E2E_BODY_WALL_EXCEEDED_TOKEN,
                 )  # noqa: PLC0415
 
@@ -226,13 +226,13 @@ def _hung_reason_for_row(
                         f"{E2E_BODY_WALL_EXCEEDED_TOKEN}: "
                         f"body_elapsed={int(body_elapsed_hard)}s>={int(body_cap)}s"
                     )
-            from e2e_stall_guard import node_stuck_reason_from_snapshot  # noqa: PLC0415
+            from e2e_core.stall_guard import node_stuck_reason_from_snapshot  # noqa: PLC0415
 
             node_stuck = node_stuck_reason_from_snapshot(snapshot)
             if node_stuck is not None:
                 return node_stuck
         if phase == "bootstrap":
-            from dev_gate_contract import (  # noqa: PLC0415
+            from dev_gate.contract import (  # noqa: PLC0415
                 dev_bootstrap_wall_cap_for_hung_reap,
             )
 
@@ -243,7 +243,7 @@ def _hung_reason_for_row(
                 shpoib=shpoib,
             )
             if signoff:
-                from dev_gate_contract import (  # noqa: PLC0415
+                from dev_gate.contract import (  # noqa: PLC0415
                     signoff_effective_bootstrap_wall_sec,
                 )
 
@@ -263,7 +263,7 @@ def _hung_reason_for_row(
                     f"bootstrap_elapsed={int(elapsed_for_cap)}s>={int(bootstrap_cap)}s"
                 )
             if signoff:
-                from e2e_stall_guard import (
+                from e2e_core.stall_guard import (
                     node_stuck_reason_from_snapshot,
                 )  # noqa: PLC0415
 
@@ -271,7 +271,7 @@ def _hung_reason_for_row(
                 if node_stuck is not None:
                     return node_stuck
                 return None
-            from e2e_stall_guard import node_stuck_reason_from_snapshot  # noqa: PLC0415
+            from e2e_core.stall_guard import node_stuck_reason_from_snapshot  # noqa: PLC0415
 
             node_stuck = node_stuck_reason_from_snapshot(snapshot)
             if node_stuck is not None:
@@ -282,7 +282,7 @@ def _hung_reason_for_row(
             return None
         body_elapsed = body_elapsed_from_snapshot(snapshot)
         if body_elapsed is not None:
-            from dev_gate_contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
+            from dev_gate.contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
 
             body_cap = _body_wall_cap_for_pid(row.pid)
             if body_elapsed >= body_cap:
@@ -300,7 +300,7 @@ def _hung_reason_for_row(
                     f"progress_stale={int(stale)}s>={int(stall_cap)}s "
                     f"body_elapsed={int(body_elapsed)}s"
                 )
-        from e2e_stall_guard import node_stuck_reason_from_snapshot  # noqa: PLC0415
+        from e2e_core.stall_guard import node_stuck_reason_from_snapshot  # noqa: PLC0415
 
         node_stuck = node_stuck_reason_from_snapshot(snapshot)
         if node_stuck is not None:
@@ -319,7 +319,7 @@ def _hung_reason_for_row(
             return f"progress_stale={int(stale)}s>={int(stall_cap)}s"
         # R141: healthy body/bootstrap snapshot must not fall through to process_elapsed.
         return None
-    from dev_gate_contract import LIVE_AGENT_PYTEST_WALL_CAP_SEC  # noqa: PLC0415
+    from dev_gate.contract import LIVE_AGENT_PYTEST_WALL_CAP_SEC  # noqa: PLC0415
 
     effective_elapsed = float(row.elapsed_sec)
     if admit_elapsed_sec is not None:
@@ -334,7 +334,7 @@ def _hung_reason_for_row(
 
 def _private_admit_row_for_owner_pid(pid: int) -> sqlite3.Row | None:
     try:
-        from dev_gate_store import DevGateStore, default_store_path  # noqa: PLC0415
+        from dev_gate.store import DevGateStore, default_store_path  # noqa: PLC0415
     except ImportError:
         return None
     try:
@@ -358,7 +358,7 @@ def _private_admit_row_for_owner_pid(pid: int) -> sqlite3.Row | None:
 
 def _private_credit_queue_has_waiters() -> bool:
     try:
-        from dev_gate_store import DevGateStore, default_store_path  # noqa: PLC0415
+        from dev_gate.store import DevGateStore, default_store_path  # noqa: PLC0415
     except ImportError:
         return False
     try:
@@ -384,7 +384,7 @@ def _holder_waiting_private_admit_credit(pid: int) -> bool:
     row = _private_admit_row_for_owner_pid(pid)
     if row is None:
         return False
-    from dev_gate_session import SessionState  # noqa: PLC0415
+    from dev_gate.session import SessionState  # noqa: PLC0415
 
     state = str(row["state"])
     return state == SessionState.PRIVATE_ADMIT.value and row["granted_at"] is None
@@ -393,7 +393,7 @@ def _holder_waiting_private_admit_credit(pid: int) -> bool:
 def _private_credit_granted_owner_pids() -> frozenset[int]:
     """Owner pids for sessions holding granted (unreleased) private admission credit."""
     try:
-        from dev_gate_store import DevGateStore, default_store_path  # noqa: PLC0415
+        from dev_gate.store import DevGateStore, default_store_path  # noqa: PLC0415
     except ImportError:
         return frozenset()
     try:
@@ -427,7 +427,7 @@ def _pid_in_private_credit_holder_tree(pid: int) -> bool:
     if pid in owners:
         return True
     try:
-        from process_identity import _descendant_pids  # noqa: PLC0415
+        from e2e_core.process_identity import _descendant_pids  # noqa: PLC0415
     except ImportError:
         return False
     for owner_pid in owners:
@@ -457,7 +457,7 @@ def _session_has_fresh_bootstrap_progress(row: LiveE2ESessionRow) -> bool:
     progress, so the credit-hog verdict is kept unchanged.
     """
     try:
-        from dev_gate_contract import (  # noqa: PLC0415
+        from dev_gate.contract import (  # noqa: PLC0415
             shpoib_parallel_stall_progress_sec,
         )
         from e2e_session_runtime.snapshot import (  # noqa: PLC0415
@@ -481,14 +481,14 @@ def _session_has_fresh_bootstrap_progress(row: LiveE2ESessionRow) -> bool:
 
 def _admit_semantic_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     """Node-level ADMIT stall for sidecar-less test.sh holders and batch parents."""
-    from dev_gate_contract import (  # noqa: PLC0415
+    from dev_gate.contract import (  # noqa: PLC0415
         E2E_ADMIT_NODE_STUCK_TOKEN,
         admit_semantic_node_stall_cap_sec,
         is_admit_semantic_stall_node,
     )
 
     try:
-        from e2e_pytest_dedupe import _holder_process_tree_has_pytest  # noqa: PLC0415
+        from e2e_core.pytest_dedupe import _holder_process_tree_has_pytest  # noqa: PLC0415
     except ImportError:
         pass
     else:
@@ -541,7 +541,7 @@ def _admit_semantic_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
         not _holder_holds_private_admit_credit(row.pid)
         and _private_credit_queue_has_waiters()
     ):
-        from dev_gate_contract import E2E_ADMISSION_WALL_CLOCK_SEC  # noqa: PLC0415
+        from dev_gate.contract import E2E_ADMISSION_WALL_CLOCK_SEC  # noqa: PLC0415
 
         admit_wall = float(E2E_ADMISSION_WALL_CLOCK_SEC)
         elapsed_for_wall = row.admit_elapsed_sec
@@ -565,13 +565,13 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     node_elapsed = row.node_elapsed_sec
     if node_elapsed is None:
         return None
-    from dev_gate_contract import (  # noqa: PLC0415
+    from dev_gate.contract import (  # noqa: PLC0415
         E2E_ADMIT_NODE_STUCK_TOKEN,
         NODE_STUCK_FAIL_FAST_SEC,
         is_admit_semantic_stall_node,
         resolve_transport_stall_cap_sec,
     )
-    from e2e_stall_guard import is_transport_stall_node  # noqa: PLC0415
+    from e2e_core.stall_guard import is_transport_stall_node  # noqa: PLC0415
 
     current_node = str(row.current_node or "").strip()
     elapsed_f = float(node_elapsed)
@@ -595,7 +595,7 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
         if elapsed_f < _body_wall_cap_for_pid(row.pid):
             return None
     if wall == "bootstrap":
-        from dev_gate_contract import (  # noqa: PLC0415
+        from dev_gate.contract import (  # noqa: PLC0415
             BOOTSTRAP_CREDIT_HOG_NODE_NAMES,
             BOOTSTRAP_CREDIT_HOG_PROCESS_CAP_SEC,
             E2E_BOOTSTRAP_CREDIT_HOG_TOKEN,
@@ -625,13 +625,13 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
                     f"while private_credit_queue waiting"
                 )
         if _process_has_signoff_env(row.pid):
-            from dev_gate_contract import (
+            from dev_gate.contract import (
                 signoff_effective_bootstrap_wall_sec,
             )  # noqa: PLC0415
 
             bootstrap_cap = signoff_effective_bootstrap_wall_sec()
         else:
-            from dev_gate_contract import (
+            from dev_gate.contract import (
                 dev_bootstrap_wall_cap_for_hung_reap,
             )  # noqa: PLC0415
 
@@ -641,7 +641,7 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
                 shpoib=bool(row.shpoib),
             )
         if current_node and "backend_only_ensure" in current_node:
-            from dev_gate_contract import (  # noqa: PLC0415
+            from dev_gate.contract import (  # noqa: PLC0415
                 shpoib_backend_only_ensure_stall_cap_sec,
             )
 
@@ -693,7 +693,7 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
     if row.phase == "delegated":
         return None
     try:
-        from e2e_pytest_dedupe import _holder_process_tree_has_pytest
+        from e2e_core.pytest_dedupe import _holder_process_tree_has_pytest
     except ImportError:
         pass
     else:
@@ -727,7 +727,7 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
 
         snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
         if _process_has_signoff_env(row.pid):
-            from dev_gate_contract import (
+            from dev_gate.contract import (
                 signoff_effective_bootstrap_wall_sec,
             )  # noqa: PLC0415
 
@@ -738,7 +738,7 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
                 else row.node_elapsed_sec
             )
         elif snapshot is not None:
-            from dev_gate_contract import (  # noqa: PLC0415
+            from dev_gate.contract import (  # noqa: PLC0415
                 dev_bootstrap_wall_cap_for_hung_reap,
             )
 
@@ -758,7 +758,7 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
                 bootstrap_cap = max(bootstrap_cap, float(snapshot_cap))
             bootstrap_elapsed = phase_elapsed_from_snapshot(snapshot)
         else:
-            from dev_gate_contract import (
+            from dev_gate.contract import (
                 dev_bootstrap_wall_cap_for_hung_reap,
             )  # noqa: PLC0415
 
@@ -794,13 +794,13 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
 
 def _session_row_is_healthy_body(row: LiveE2ESessionRow) -> bool:
     """True when session has fresh BODY progress (peer defer guard)."""
-    from dev_gate_contract import shpoib_parallel_stall_progress_sec  # noqa: PLC0415
+    from dev_gate.contract import shpoib_parallel_stall_progress_sec  # noqa: PLC0415
     from e2e_session_runtime.snapshot import (  # noqa: PLC0415
         body_elapsed_from_snapshot,
         progress_stale_sec,
         resolve_session_snapshot,
     )
-    from e2e_stall_guard import node_stuck_reason_from_snapshot  # noqa: PLC0415
+    from e2e_core.stall_guard import node_stuck_reason_from_snapshot  # noqa: PLC0415
 
     if row.phase != "body":
         return False
@@ -845,8 +845,8 @@ def maybe_reap_stale_heartbeat_leases() -> bool:
     """Expire heartbeat-stale leases with no linked pytest or dead owner."""
     if not _coordinator_reap_authorized():
         return False
-    from dev_gate_contract import E2E_STALE_HEARTBEAT_REAP_SEC  # noqa: PLC0415
-    from e2e_lease_liveness import (
+    from dev_gate.contract import E2E_STALE_HEARTBEAT_REAP_SEC  # noqa: PLC0415
+    from e2e_core.lease_liveness import (
         build_lease_liveness,
         load_wave_snapshot,
     )  # noqa: PLC0415
@@ -940,8 +940,8 @@ def _reload_stall_guard_ssot() -> None:
     """R170c: long-lived peer pytest must not cross-reap with stale stall caps."""
     import importlib
 
-    import dev_gate_contract
-    import e2e_stall_guard
+    import dev_gate.contract as dev_gate_contract
+    import e2e_core.stall_guard as e2e_stall_guard
 
     importlib.reload(dev_gate_contract)
     importlib.reload(e2e_stall_guard)
@@ -968,7 +968,7 @@ def _elapsed_sec_from_reason(reason: str, *, prefix: str) -> int | None:
 
 def _past_body_wall_cap(row: LiveE2ESessionRow, reason: str) -> bool:
     """True when hung reason exceeds per-process BODY wall SSOT."""
-    from dev_gate_contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
+    from dev_gate.contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
 
     cap = _body_wall_cap_for_pid(row.pid)
     if E2E_BODY_WALL_EXCEEDED_TOKEN in reason:
@@ -988,13 +988,13 @@ def _desktop_soak_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
         return False
     if reason.startswith(("bootstrap_elapsed=", "admit_elapsed=")):
         return False
-    from dev_gate_contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
+    from dev_gate.contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
 
     if E2E_BODY_WALL_EXCEEDED_TOKEN in reason:
         if _process_has_signoff_env(row.pid):
             return not _past_body_wall_cap(row, reason)
         body_elapsed = _elapsed_sec_from_reason(reason, prefix="body_elapsed")
-        from dev_gate_contract import LIVE_AGENT_BODY_WALL_CLOCK_SEC  # noqa: PLC0415
+        from dev_gate.contract import LIVE_AGENT_BODY_WALL_CLOCK_SEC  # noqa: PLC0415
 
         if body_elapsed is not None and body_elapsed >= float(
             LIVE_AGENT_BODY_WALL_CLOCK_SEC
@@ -1007,7 +1007,7 @@ def _desktop_soak_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
         return True
     if reason.startswith("process_elapsed=") and row.phase == "body":
         if not _process_has_signoff_env(row.pid):
-            from dev_gate_contract import (
+            from dev_gate.contract import (
                 LIVE_AGENT_BODY_WALL_CLOCK_SEC,
             )  # noqa: PLC0415
 
@@ -1029,7 +1029,7 @@ def _signoff_peer_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
     # R198: hard-cap ADMIT/BOOTSTRAP breaches must reap even during signoff.
     if reason.startswith(("bootstrap_elapsed=", "admit_elapsed=")):
         return False
-    from dev_gate_contract import E2E_ADMIT_NODE_STUCK_TOKEN  # noqa: PLC0415
+    from dev_gate.contract import E2E_ADMIT_NODE_STUCK_TOKEN  # noqa: PLC0415
 
     if reason.startswith(E2E_ADMIT_NODE_STUCK_TOKEN):
         return False
@@ -1037,7 +1037,7 @@ def _signoff_peer_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
         return False
     if _parallel_node_stuck_reason(row) is not None:
         return False
-    from dev_gate_contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
+    from dev_gate.contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
 
     if E2E_BODY_WALL_EXCEEDED_TOKEN in reason:
         return not _past_body_wall_cap(row, reason)
@@ -1090,7 +1090,7 @@ def maybe_reap_hung_chrome_e2e_pytest(*, skip_pid: int | None = None) -> bool:
             file=sys.stderr,
             flush=True,
         )
-        from dev_gate_contract import (  # noqa: PLC0415
+        from dev_gate.contract import (  # noqa: PLC0415
             E2E_ADMIT_NODE_STUCK_TOKEN,
             E2E_BODY_WALL_EXCEEDED_TOKEN,
         )
@@ -1130,7 +1130,7 @@ def maybe_reap_stale_empty_mux_contexts(*, min_stale: int = 3) -> bool:
     if not _coordinator_reap_authorized():
         return False
     try:
-        from mux_load import (
+        from mux.load import (
             read_mux_status,
             reap_idle_empty_mux_contexts,
             stale_empty_mux_context_count,
@@ -1169,7 +1169,7 @@ def maybe_reap_excess_wave_leases(*, slack: int = 2) -> bool:
         pass
     root = _monorepo_root()
     sys.path.insert(0, str(root / "myrm-agent" / "scripts" / "dev" / "lib"))
-    from e2e_lease_liveness import (
+    from e2e_core.lease_liveness import (
         load_wave_snapshot,
         wave_lease_counts,
     )  # noqa: PLC0415
@@ -1208,7 +1208,7 @@ def _epoch_drift_reaper_budget_sec(row: LiveE2ESessionRow) -> float:
     180s process_elapsed cap while epoch_match=no; SIGTERM during shared UI recover.
     """
     phase = str(row.wall_phase or row.phase or "").strip().lower()
-    from dev_gate_contract import (  # noqa: PLC0415
+    from dev_gate.contract import (  # noqa: PLC0415
         admit_wall_clock_sec,
         dev_bootstrap_wall_cap_for_hung_reap,
     )
@@ -1253,7 +1253,7 @@ def maybe_reap_epoch_drift_stale_sessions() -> bool:
         return False
 
     try:
-        from e2e_api_verify import resolve_e2e_api_context
+        from e2e_core.api_verify import resolve_e2e_api_context
     except ImportError:
         return False
 
@@ -1379,7 +1379,7 @@ def maybe_reap_orphan_shared_backends(
     # Protect pids owned by live wave leases or live pytest sessions.
     protected_pids: set[int] = set()
     try:
-        import e2e_lease_liveness  # noqa: PLC0415
+        import e2e_core.lease_liveness as e2e_lease_liveness  # noqa: PLC0415
         import e2e_session_runtime.registry  # noqa: PLC0415
 
         for row in e2e_lease_liveness.build_lease_liveness(

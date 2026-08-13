@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal
 
-from e2e_api_verify import (
+from e2e_core.api_verify import (
     E2eApiContext,
     _cap_headroom_fields,
     _cohere_mux_observability,
@@ -249,7 +249,7 @@ def evaluate_chrome_e2e_readiness(
 
 
 def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
-    from e2e_lease_liveness import (
+    from e2e_core.lease_liveness import (
         load_wave_snapshot,
         wave_lease_counts,
     )
@@ -271,7 +271,7 @@ def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
         if isinstance(active_tests_raw, list)
         else []
     )
-    from dev_gate_status import dev_gate_status
+    from dev_gate.status import dev_gate_status
 
     active_test_count, observability_mismatch = _resolve_cap_headroom_active_test_count(
         parallel_snapshot,
@@ -374,7 +374,7 @@ def _cmd_emit(_args: argparse.Namespace) -> int:
 
 
 def _launch_check_wall_sec() -> float:
-    from dev_gate_contract import e2e_launch_check_wall_sec
+    from dev_gate.contract import e2e_launch_check_wall_sec
 
     return e2e_launch_check_wall_sec()
 

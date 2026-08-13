@@ -9,20 +9,20 @@ import time
 
 _LOGGER = logging.getLogger(__name__)
 
-from cdp_chat_support import (
+from cdp_chat.support import (
     PAGE_PROBE_JS,
     e2e_api_base_inject_js,
     e2e_runtime_bootstrap_apply_js,
     shpoib_parallel_shell_timeout_sec,
 )
-from cdp_chat_ui import CdpChatSession
-from chrome_mcp_client import (
+from cdp_chat.ui import CdpChatSession
+from chrome_mcp.client import (
     ChromeMcpClient,
     McpPage,
     is_context_reset_error,
     is_page_ownership_error,
 )
-from dev_gate_contract import EvaluateIntent
+from dev_gate.contract import EvaluateIntent
 
 _DETACHED_FRAME_TOKENS = (
     "detached Frame",
@@ -47,11 +47,11 @@ def is_target_closed_error(exc: BaseException) -> bool:
 
 def is_mux_parallel_fail_fast(exc: BaseException) -> bool:
     """Parallel mux lock contention — retry would amplify stalls across sessions."""
-    from dev_gate_contract import (
+    from dev_gate.contract import (
         MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN,
         MUX_RECLAIM_STALL_TOKEN,
     )
-    from transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
+    from mux.transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
 
     message = str(exc)
     return (
@@ -102,12 +102,12 @@ class McpChatSession(CdpChatSession):
         recv_timeout: float | None = None,
         intent: EvaluateIntent | None = None,
     ) -> object:
-        from dev_gate_contract import (
+        from dev_gate.contract import (
             MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
             MUX_RECLAIM_STALL_TOKEN,
             resolve_evaluate_budget,
         )
-        from send_turn_contract import is_live_send_turn_profile
+        from cdp_chat.send_turn_contract import is_live_send_turn_profile
 
         if intent is not None:
             budget = resolve_evaluate_budget(intent, live=is_live_send_turn_profile())
@@ -143,7 +143,7 @@ class McpChatSession(CdpChatSession):
         loop = asyncio.get_running_loop()
 
         async def _reset_mux_after_orphan() -> None:
-            from dev_gate_contract import mux_reset_after_orphan_timeout_sec
+            from dev_gate.contract import mux_reset_after_orphan_timeout_sec
 
             orphan_timeout = mux_reset_after_orphan_timeout_sec()
             reset_future = loop.run_in_executor(
@@ -356,7 +356,7 @@ class McpChatSession(CdpChatSession):
             pass
 
     async def _navigate_to_chat_home(self, *, timeout_ms: int = 120_000) -> None:
-        from e2e_shared_ui_hydrate import async_shared_ui_hydrate_burst
+        from e2e_core.shared_ui_hydrate import async_shared_ui_hydrate_burst
 
         ui_base = self._base_url.rstrip("/")
         async with async_shared_ui_hydrate_burst():

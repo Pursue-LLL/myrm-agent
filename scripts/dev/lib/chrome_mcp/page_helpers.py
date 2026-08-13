@@ -29,21 +29,21 @@ import urllib.error
 import urllib.request
 from typing import TYPE_CHECKING
 
-from chrome_mcp_errors import (
+from chrome_mcp.errors import (
     is_transient_mux_error as _is_transient_mux_error,
 )
-from dev_gate_contract import (
+from dev_gate.contract import (
     MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN,
     MUX_RECLAIM_STALL_TOKEN,
     NEW_PAGE_TOOL_RETRY_ATTEMPTS,
     TOOL_RETRY_ATTEMPTS,
     mux_page_reclaim_hard_timeout_sec,
 )
-from mcp_protocol import is_retryable_incomplete_new_page_error
-from mcp_transport_adapter import chrome_e2e_port
+from chrome_mcp.protocol import is_retryable_incomplete_new_page_error
+from mux.transport_adapter import chrome_e2e_port
 
 if TYPE_CHECKING:
-    from chrome_mcp_client import ChromeMcpClient
+    from chrome_mcp.client import ChromeMcpClient
 
 _LOGGER = logging.getLogger(__name__)
 _STALE_MUX_PAGE_TOKEN = "No McpPage found for the given page"
@@ -102,7 +102,7 @@ def new_page_tool_max_attempts(*, open_page_budget_active: bool) -> int:
 def ensure_cdp_ready_before_parallel_new_page(client: "ChromeMcpClient") -> None:
     """R121: probe CDP before mux new_page when peers>=2."""
     del client
-    from cdp_chat_support import wait_e2e_cdp_ready
+    from cdp_chat.support import wait_e2e_cdp_ready
 
     peers = parallel_mux_peer_count()
     if peers < 2:
@@ -118,7 +118,7 @@ def ensure_cdp_ready_before_parallel_new_page(client: "ChromeMcpClient") -> None
 
 def recover_new_page_chrome_drift(client: "ChromeMcpClient") -> None:
     """Heal CDP 404 on new_page — lightweight shim recover under parallel (R122-B8)."""
-    from cdp_chat_support import wait_e2e_cdp_ready
+    from cdp_chat.support import wait_e2e_cdp_ready
 
     client._recover_mux_transport()
     if wait_e2e_cdp_ready(timeout_sec=12.0):
@@ -131,7 +131,7 @@ def recover_new_page_chrome_drift(client: "ChromeMcpClient") -> None:
             "CDP endpoint not ready after lightweight mux recover under parallel load "
             f"(peers={peers})"
         )
-    from mux_attach_force_restart import force_mux_attach_restart_scoped
+    from mux.attach_force_restart import force_mux_attach_restart_scoped
 
     force_mux_attach_restart_scoped(reason="new_page chrome cdp 404")
     time.sleep(3.0)
@@ -152,14 +152,14 @@ def parallel_scaled_page_timeout_ms(base_ms: int) -> int:
     peers = parallel_mux_peer_count()
     if peers <= 3:
         return base_ms
-    from mux_load import _MAX_PAGE_TIMEOUT_MS
+    from mux.load import _MAX_PAGE_TIMEOUT_MS
 
     scaled = base_ms + (peers - 3) * 20_000
     return min(int(_MAX_PAGE_TIMEOUT_MS * 1.5), scaled)
 
 
 def is_mux_parallel_fail_fast_message(message: str) -> bool:
-    from transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
+    from mux.transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
 
     return (
         MUX_RECLAIM_STALL_TOKEN in message
@@ -170,14 +170,14 @@ def is_mux_parallel_fail_fast_message(message: str) -> bool:
 
 def parallel_mux_peer_count() -> int:
     """Active parallel mux/wave peers for cross-session teardown guard (R69/TRSM)."""
-    from mux_load import snapshot_mux_load
+    from mux.load import snapshot_mux_load
 
     snapshot = snapshot_mux_load(force=True)
     wave_leases = max(0, snapshot.wave_leases)
     mux_contexts = max(0, snapshot.mux_contexts)
     daemon_count = 1
     try:
-        from runtime_probe import mux_owned_daemon_count
+        from e2e_core.runtime_probe import mux_owned_daemon_count
 
         daemon_count = max(1, int(mux_owned_daemon_count()))
     except (ImportError, OSError, TypeError, ValueError):

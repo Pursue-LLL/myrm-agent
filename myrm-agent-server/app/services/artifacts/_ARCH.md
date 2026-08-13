@@ -8,7 +8,7 @@
 
 支持可选密码保护：密码参与 HMAC key 派生（无状态设计，无需 DB 存储密码）。签名原语委托给 `app.core.security.share_hmac`。
 
-分享链接生命周期治理（`share_registry.py`）：创建时按 `sha256(token)` fingerprint 登记 DB（`ArtifactShareRecord`），GUI 可列出活跃链接并手动撤销。撤销为「物理删 bundle + 置 `revoked_at` 逻辑拒绝」双防线：公开入口前置校验，撤销后 404 且拒绝重新 materialize（防复活）。过期记录与 bundle 同步按 60 天保留期清理。
+分享链接生命周期治理（`share_registry.py`）：创建时按 `sha256(token)` fingerprint 登记 DB（`ArtifactShareRecord`），GUI 可列出活跃链接并手动撤销。撤销为「物理删 bundle + 置 `revoked_at` 逻辑拒绝」双防线：公开入口前置校验，撤销后 404 且拒绝重新 materialize（防复活）。清理分层：过期 bundle 磁盘文件按 TTL 清理，DB 记录保留 TTL + 60 天审计窗口后硬删（`ix_artifact_share_records_expiry` 复合索引加速 purge/活跃查询）。`GET /shares` 为纯读操作，无清理副作用（REST 语义）。
 
 ---
 

@@ -316,7 +316,7 @@ def test_open_page_parallel_budgets_scale_with_live_peer_count(
 def test_phase_c_burst_open_mcp_uses_signoff_parallel_budgets(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from dev_gate_contract import signoff_open_mcp_budgets
+    from dev_gate.contract import signoff_open_mcp_budgets
 
     from tests.support import chrome_mcp_e2e
 
@@ -437,7 +437,7 @@ def test_warm_ui_route_uses_shared_ui_hydrate_slot_when_shpoib(
         lambda: True,
     )
     # Isolate from a real sealed shell record so the hydrate slot path runs.
-    import warm_shell_registry
+    import e2e_core.warm_shell_registry as warm_shell_registry
 
     monkeypatch.setattr(
         warm_shell_registry,
@@ -496,7 +496,7 @@ def test_blocking_progress_loop_emits_transport_progress_token(
     monkeypatch.setattr(chrome_mcp_e2e, "_TRANSPORT_PROGRESS_INTERVAL_SEC", 0.01)
     monkeypatch.setattr(chrome_mcp_e2e, "heartbeat_once", lambda: None)
     monkeypatch.setattr(chrome_mcp_e2e, "touch_wall_progress", lambda **_: None)
-    import e2e_stall_guard
+    import e2e_core.stall_guard as e2e_stall_guard
 
     monkeypatch.setattr(
         e2e_stall_guard, "assert_transport_node_not_stuck", lambda **_: None
@@ -545,7 +545,7 @@ def test_blocking_progress_loop_stall_sends_sigint(
     monkeypatch.setattr(chrome_mcp_e2e, "heartbeat_once", lambda: None)
     monkeypatch.setattr(chrome_mcp_e2e, "touch_wall_progress", lambda **_: None)
 
-    import e2e_stall_guard
+    import e2e_core.stall_guard as e2e_stall_guard
 
     def _stall(**_: object) -> None:
         raise RuntimeError("MUX_RECLAIM_STALL: open_mcp_page_blocking blocked")
@@ -784,7 +784,7 @@ def test_signoff_new_page_join_timeout_uses_mux_timeout_plus_grace(
         timeout_ms=90_000,
         attempt_wall_deadline=time.monotonic() + 240.0,
     )
-    from dev_gate_contract import signoff_new_page_join_timeout_sec
+    from dev_gate.contract import signoff_new_page_join_timeout_sec
 
     assert captured == [
         signoff_new_page_join_timeout_sec(page_timeout_ms=90_000, parallel_peers=0)
@@ -827,7 +827,7 @@ def test_signoff_new_page_join_timeout_scales_under_parallel(
         timeout_ms=90_000,
         attempt_wall_deadline=time.monotonic() + 240.0,
     )
-    from dev_gate_contract import signoff_new_page_join_timeout_sec
+    from dev_gate.contract import signoff_new_page_join_timeout_sec
 
     assert captured == [
         signoff_new_page_join_timeout_sec(page_timeout_ms=90_000, parallel_peers=3)

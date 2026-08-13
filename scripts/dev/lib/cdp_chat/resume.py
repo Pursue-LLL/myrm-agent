@@ -15,7 +15,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 
-from resume_turn_contract import (
+from cdp_chat.resume_turn_contract import (
     RESUME_BUSY_BACKOFF_SEC,
     RESUME_DONE_POLL_TIMEOUT_SEC,
     RESUME_REINTERRUPT_MAX_ROUNDS,

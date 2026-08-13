@@ -67,7 +67,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
 
 def _message_wait_timeout_sec() -> float:
     try:
-        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+        from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
             return 180.0
@@ -92,7 +92,7 @@ def _ensure_shpoib_api_binding(
     timeout_sec: float = 90.0,
 ) -> None:
     """Inject and wait for SHPOIB API binding on shared :3000 UI."""
-    from cdp_chat_support import (  # type: ignore[import-not-found]
+    from cdp_chat.support import (  # type: ignore[import-not-found]
         E2E_API_BINDING_PROBE_JS,
         e2e_api_base_inject_js,
         e2e_runtime_binding_source,
@@ -346,7 +346,7 @@ _DISMISS_MIGRATION_JS = """(() => {
 def _force_mux_heal_before_retry() -> None:
     _require_e2e_cdp_ready(budget_sec=45.0)
     try:
-        from mux_attach_force_restart import force_mux_attach_restart_scoped
+        from mux.attach_force_restart import force_mux_attach_restart_scoped
 
         force_mux_attach_restart_scoped(reason="workspace merge chrome outer retry")
     except RuntimeError as exc:

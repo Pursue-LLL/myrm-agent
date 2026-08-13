@@ -110,7 +110,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `integration/test_project_workspace_bind_file_write_integration.py` | 模块 | Project bind → `convert_to_general_agent_params.declared_allowed_roots` → `file_write_tool` 磁盘断言（无 LLM） |
 | `integration/test_durable_outbound_integration.py` | 模块 | Durable outbound 全链路集成（15 cases：含 QueueFull 自动 recover、edit_placeholder、send_tracked、edit fallback、null-send→DLQ） |
 | `api/health/test_liveness_pending_outbound.py` | 模块 | GET `/health/liveness` 返回 `pendingOutboundCount` |
-| `api/health/test_browser_doctor.py` | 模块 | `/health/browser/doctor`（注入真实端口 `extension_relay_base_url` + launch_test 透传）+ `/health/browser/orphans` 列表/清理（automation 扫描、confirm 安全门、failed 透传；mock harness） |
+| `api/health/test_browser_doctor.py` | 模块 | 健康 browser 全端点（21 项）：`/health/browser`（pool health dict/string/异常降级）+ `/health/browser/doctor`（注入真实端口 `extension_relay_base_url` + launch_test 透传）+ `/health/browser/orphans` GET/DELETE（automation 扫描、confirm 安全门、failed 透传、空孤儿）+ `/health/browser/test-cloud-connection`（not_configured/disabled/invalid/connected/failed/无 WS 库）+ `/health/browser/test-proxy-connection`（not_configured/disabled/invalid/connected/http error/异常；mock harness + config_service + websockets/httpx） |
+| `e2e/test_browser_doctor_chrome_e2e.py` | 模块 | Browser Doctor 卡片 Chrome MCP E2E（SHARED+READ×1：Settings/System 渲染卡片 + 运行诊断 → 真实后端报告（Patchright 检查 + healthy/unhealthy 徽标）） |
 | `e2e/test_org_model_policy_chrome_e2e.py` | 模块 | Org model policy Chrome MCP E2E（PRIVATE×1 SHPOIB：`exclusive_backend` · SHPOIB 后 `POST /api/admin/org-model-policy-sync` seed `minimax/*` → 打开 model picker → minimax 可选 / openai-like 灰显） |
 | `api/chats/test_effective_workspace_ssot.py` | 模块 | SSOT：GET chat / suggest / browse(chat_id) / PATCH 409 — project.workspace_path 优先于 stale chat.workspace_dir |
 | `services/workspace/test_file_watch_service.py` | 模块 | P1：watchdog emit / release / refcount → `WORKSPACE_FILE_CHANGED` |

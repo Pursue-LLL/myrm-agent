@@ -13,7 +13,7 @@ import uuid
 from typing import Awaitable, TypeVar
 
 import pytest
-from cdp_chat_support import (
+from cdp_chat.support import (
     _signoff_desktop_soak_parallel_load,
     chat_id_from_path,
     chat_messages_have_done,
@@ -27,8 +27,8 @@ from cdp_chat_support import (
     wait_chat_messages_done,
     wait_e2e_provider_ready,
 )
-from dev_gate_contract import EvaluateIntent  # noqa: E402
-from mcp_chat_ui import McpChatSession
+from dev_gate.contract import EvaluateIntent  # noqa: E402
+from cdp_chat.mcp_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import (
     APPROVAL_CLICK_DEADLINE_SEC,
@@ -88,7 +88,7 @@ def _signoff_mux_attach_restart(reason: str) -> None:
     lib_dir = Path(__file__).resolve().parents[4] / "scripts" / "dev" / "lib"
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
-    from mux_attach_force_restart import force_mux_attach_restart_scoped
+    from mux.attach_force_restart import force_mux_attach_restart_scoped
 
     force_mux_attach_restart_scoped(reason=reason)
 
@@ -125,8 +125,8 @@ def _wait_mux_transport_turn_sync(*, current_node: str) -> None:
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
     from browser_orchestrator import wait_for_operation_credit  # noqa: PLC0415
-    from e2e_mux_transport_queue import _FORCE_CHAT_SHELL_BLOCKING_NODE  # noqa: PLC0415
-    from transport_supervisor import mux_upstream_wait_cap  # noqa: PLC0415
+    from e2e_core.mux_transport_queue import _FORCE_CHAT_SHELL_BLOCKING_NODE  # noqa: PLC0415
+    from mux.transport_supervisor import mux_upstream_wait_cap  # noqa: PLC0415
 
     from tests.support.chrome_mcp_e2e import _parallel_open_page_peer_count
 
@@ -254,7 +254,7 @@ def _kickoff_desktop_turn_via_api_sync(
     timeout_sec: float,
 ) -> dict[str, object]:
     """R232: POST agent-stream to start turn without MUX CDP bridge (seeded resend SSOT)."""
-    from cdp_chat_support import _collect_agent_stream_events
+    from cdp_chat.support import _collect_agent_stream_events
 
     from tests.api.agent.utils import get_model_selection
 

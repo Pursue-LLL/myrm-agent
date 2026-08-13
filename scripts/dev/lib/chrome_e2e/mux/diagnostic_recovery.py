@@ -11,25 +11,25 @@ import time
 from typing import TYPE_CHECKING
 
 from browser_orchestrator import browser_operation_credit_slot
-from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN, mux_page_reclaim_hard_timeout_sec
-from chrome_mcp_errors import is_page_ownership_error_message as _is_page_ownership_error
-from mcp_page_helpers import (
+from dev_gate.contract import MUX_RECLAIM_STALL_TOKEN, mux_page_reclaim_hard_timeout_sec
+from chrome_mcp.errors import is_page_ownership_error_message as _is_page_ownership_error
+from chrome_mcp.page_helpers import (
     check_mux_reclaim_deadline,
     parallel_mux_peer_count,
     reclaim_wall_deadline,
     remaining_reclaim_sec,
 )
-from mcp_protocol import parse_new_page
-from mcp_transport_adapter import _TRANSPORT_RECOVER_ATTEMPTS
+from chrome_mcp.protocol import parse_new_page
+from mux.transport_adapter import _TRANSPORT_RECOVER_ATTEMPTS
 
 if TYPE_CHECKING:
-    from chrome_mcp_client import ChromeMcpClient, McpPage
+    from chrome_mcp.client import ChromeMcpClient, McpPage
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def reopen_owned_page_inner(client: ChromeMcpClient, page: McpPage) -> McpPage:
-    from chrome_mcp_client import McpPage as McpPageCls
+    from chrome_mcp.client import McpPage as McpPageCls
 
     reclaim_deadline = reclaim_wall_deadline()
     reclaim_started = time.monotonic()
@@ -40,7 +40,7 @@ def reopen_owned_page_inner(client: ChromeMcpClient, page: McpPage) -> McpPage:
     reopen_url = (page.url or "http://127.0.0.1:3000").strip()
     runtime_binding = client._runtime_binding_source_for(reopen_url)
     old_target_id = page.target_id.strip()
-    import chrome_mcp_client as _cmc
+    import chrome_mcp.client as _cmc
 
     if old_target_id and not _cmc._http_close_exact_target(old_target_id):
         raise RuntimeError(
@@ -135,7 +135,7 @@ def recover_mux_transport_inner(
         saved_pages = client._collapse_pages_for_recovery(
             {**client._disconnected_pages, **client._pages}
         )
-        from transport_recovery_core import (
+        from mux.transport_recovery_core import (
             TRSM_MODE_TOKEN,
             TransportRecoveryMode,
         )
@@ -205,7 +205,7 @@ def rebuild_disconnected_pages(
     saved_pages: dict[int, McpPage],
     reclaim_deadline: float,
 ) -> None:
-    from chrome_mcp_client import McpPage as McpPageCls
+    from chrome_mcp.client import McpPage as McpPageCls
 
     page_items = list(saved_pages.items())
     for idx, (old_page_id, old_page) in enumerate(page_items):
@@ -223,7 +223,7 @@ def rebuild_disconnected_pages(
                 break
             try:
                 old_target = old_page.target_id.strip()
-                import chrome_mcp_client as _cmc
+                import chrome_mcp.client as _cmc
 
                 if old_target and rebuild_attempt == 0:
                     _cmc._http_close_exact_target(old_target)

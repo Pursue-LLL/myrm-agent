@@ -52,9 +52,18 @@ import { toast } from '@/hooks/shared/useToast';
 export type SkillPermissionType =
   'file_read' | 'file_write' | 'file_delete' | 'shell_exec' | 'code_interpreter' | 'network_access' | 'env_var_access';
 
+const KNOWN_PERMISSION_TYPES: SkillPermissionType[] = [
+  'shell_exec',
+  'file_write',
+  'file_delete',
+  'network_access',
+  'code_interpreter',
+  'env_var_access',
+  'file_read',
+];
+
 interface SkillPermissionInfo {
   permission: string;
-  granted: boolean;
   grantedAt?: string;
 }
 
@@ -196,41 +205,36 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
       if (!skillsResponse.ok) throw new Error('Failed to load skills');
 
       const skillsData = (await skillsResponse.json()) as { skills?: { id: string; name: string }[] };
-      const skillPermissions: SkillPermissionData[] = [];
+      const allSkills = skillsData.skills || [];
 
-      for (const skill of skillsData.skills || []) {
-        try {
-          const permsResponse = await fetch(`/api/v1/skills/${skill.id}/permissions`);
-          if (!permsResponse.ok) continue;
-          const permsData = (await permsResponse.json()) as {
-            required_permissions?: string[];
-            granted_permissions?: SkillPermissionInfo[];
-          };
-          const requiredPermissions = (permsData.required_permissions || []).filter((p) =>
-            [
-              'file_read',
-              'file_write',
-              'file_delete',
-              'shell_exec',
-              'code_interpreter',
-              'network_access',
-              'env_var_access',
-            ].includes(p),
-          ) as SkillPermissionType[];
-          if (requiredPermissions.length > 0) {
-            skillPermissions.push({
+      // 并发拉取每个技能的权限声明，仅保留声明了 required_permissions 的技能
+      const entries = await Promise.all(
+        allSkills.map(async (skill) => {
+          try {
+            const permsResponse = await fetch(`/api/v1/skills/${skill.id}/permissions`);
+            if (!permsResponse.ok) return null;
+            const permsData = (await permsResponse.json()) as {
+              required_permissions?: string[];
+              granted_permissions?: SkillPermissionInfo[];
+            };
+            const requiredPermissions = (permsData.required_permissions || []).filter((p) =>
+              (KNOWN_PERMISSION_TYPES as string[]).includes(p),
+            ) as SkillPermissionType[];
+            if (requiredPermissions.length === 0) return null;
+            return {
               skillId: skill.id,
               skillName: skill.name,
               requiredPermissions,
               grantedPermissions: permsData.granted_permissions || [],
-            });
+            };
+          } catch (error) {
+            console.error(`Failed to load permissions for ${skill.id}:`, error);
+            return null;
           }
-        } catch (error) {
-          console.error(`Failed to load permissions for ${skill.id}:`, error);
-        }
-      }
+        }),
+      );
 
-      setSkills(skillPermissions);
+      setSkills(entries.filter((e): e is SkillPermissionData => e !== null));
     } catch (error) {
       console.error('Failed to load skill permissions:', error);
       toast({
@@ -260,12 +264,24 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
         });
         if (!response.ok) throw new Error('Failed to update permission');
 
+        setSkills((prev) =>
+          prev.map((s) =>
+            s.skillId === skill.skillId
+              ? {
+                  ...s,
+                  grantedPermissions: grant
+                    ? [...s.grantedPermissions, { permission }]
+                    : s.grantedPermissions.filter((g) => g.permission !== permission),
+                }
+              : s,
+          ),
+        );
+
         toast({
           title: grant ? t('permissionGranted') : t('permissionRevoked'),
           description: grant ? permission : t('revokeSuccess'),
         });
 
-        await loadSkillPermissions();
         onPermissionChange?.();
       } catch (error) {
         console.error('Failed to update permission:', error);
@@ -276,7 +292,7 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
         });
       }
     },
-    [loadSkillPermissions, onPermissionChange, t],
+    [onPermissionChange, t],
   );
 
   const handleTogglePermission = (skill: SkillPermissionData, permission: SkillPermissionType, grant: boolean) => {
@@ -315,7 +331,12 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
         }),
       });
 
-      await loadSkillPermissions();
+      setSkills((prev) =>
+        prev.map((s) => ({
+          ...s,
+          grantedPermissions: s.grantedPermissions.filter((g) => g.permission !== permissionType),
+        })),
+      );
       onPermissionChange?.();
     } catch (error) {
       console.error('Bulk revoke error:', error);
@@ -363,17 +384,7 @@ export function SkillPermissionsManager({ userId, onPermissionChange }: SkillPer
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {(
-                Object.keys({
-                  shell_exec: Terminal,
-                  file_write: FileEdit,
-                  file_delete: Trash2,
-                  network_access: Globe,
-                  code_interpreter: Code,
-                  env_var_access: Variable,
-                  file_read: FileText,
-                }) as SkillPermissionType[]
-              ).map((permission) => {
+              {KNOWN_PERMISSION_TYPES.map((permission) => {
                 const Icon = getPermissionIcon(permission);
                 return (
                   <DropdownMenuItem key={permission} onClick={() => setPendingBulkRevoke(permission)}>

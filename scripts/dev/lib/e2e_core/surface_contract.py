@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dev_gate_contract import E2E_SURFACE_TESTIDS
+from dev_gate.contract import E2E_SURFACE_TESTIDS
 
 __all__ = [
     "E2E_SURFACE_TESTIDS",

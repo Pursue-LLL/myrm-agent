@@ -604,6 +604,13 @@
       "revokeError": "撤銷分享連結失敗",
       "yes": "是",
       "no": "否",
+      "confirm": {
+        "title": "撤銷分享連結？",
+        "description": "此連結將立即失效且無法恢復，持有此連結的人將無法再查看 {name}。",
+        "createdAt": "建立時間",
+        "cancel": "取消",
+        "revoke": "撤銷連結"
+      },
       "table": {
         "artifact": "工件",
         "type": "類型",
@@ -8769,6 +8776,8 @@
     "archiveRestoreResultArchive": "歸檔：{path}",
     "thinking_budget_exhausted": "模型將所有 token 用於推理，未產生實際回覆",
     "tool_call_truncated": "工具引數可能因輸出長度限制而不完整",
+    "tool_call_retry": "工具呼叫被截斷，正在重試",
+    "empty_response_recovery": "偵測到空回應，正在重試",
     "analyzing_image": "分析圖片中...",
     "analyzing_video": "分析影片中...",
     "text_continuation": "回覆被截斷，自動續寫中...",
@@ -9719,6 +9728,7 @@
       "content": "內容",
       "tags": "標籤",
       "relatedEntities": "相關實體",
+      "ttlDays": "{days} 天後自動過期",
       "id": "ID"
     },
     "typeDesc": {

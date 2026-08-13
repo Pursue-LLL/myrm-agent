@@ -604,6 +604,13 @@
       "revokeError": "共有リンクの失効に失敗しました",
       "yes": "はい",
       "no": "いいえ",
+      "confirm": {
+        "title": "共有リンクを失効しますか？",
+        "description": "このリンクは即座に無効になり、復元できません。このリンクを持っている人は {name} を閲覧できなくなります。",
+        "createdAt": "作成日時",
+        "cancel": "キャンセル",
+        "revoke": "リンクを失効"
+      },
       "table": {
         "artifact": "成果物",
         "type": "種別",
@@ -8769,6 +8776,8 @@
     "archiveRestoreResultArchive": "アーカイブ: {path}",
     "thinking_budget_exhausted": "モデルがすべてのトークンを推論に使用し、回答を生成できませんでした",
     "tool_call_truncated": "出力長制限により、ツールのパラメータが不完全な可能性があります",
+    "tool_call_retry": "ツール呼び出しが途切れたため、再試行中",
+    "empty_response_recovery": "空の応答を検出、再試行中",
     "analyzing_image": "画像を分析中...",
     "analyzing_video": "動画を分析中...",
     "text_continuation": "応答が途切れました、自動で続行中...",
@@ -9716,6 +9725,7 @@
       "content": "内容",
       "tags": "タグ",
       "relatedEntities": "関連実体",
+      "ttlDays": "{days} 日後に自動的に失効",
       "id": "ID"
     },
     "typeDesc": {

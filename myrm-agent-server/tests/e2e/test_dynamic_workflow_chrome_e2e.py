@@ -12,7 +12,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     DISMISS_MODALS_JS,
     ensure_e2e_yolo_mode,
     wait_e2e_provider_ready,

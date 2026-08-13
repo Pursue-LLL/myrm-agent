@@ -46,7 +46,7 @@ _FIXTURE_ANSWER = "Tool history recovery Chrome E2E fixture answer."
 
 def _force_mux_heal_before_retry() -> None:
     _require_e2e_cdp_ready(budget_sec=45.0)
-    from mux_attach_force_restart import force_mux_attach_restart_scoped
+    from mux.attach_force_restart import force_mux_attach_restart_scoped
 
     force_mux_attach_restart_scoped(reason="tool_history recovery outer retry")
     time.sleep(3.0)

@@ -19,8 +19,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TypedDict
 
-from e2e_browser_pool import resolve_chrome_data_dir, resolve_chrome_port
-from real_user_home import real_user_home
+from e2e_core.browser_pool import resolve_chrome_data_dir, resolve_chrome_port
+from e2e_core.real_user_home import real_user_home
 
 SCHEMA_VERSION = 1
 DEFAULT_TEMPLATE_TTL_SEC = 7 * 86400
@@ -56,7 +56,7 @@ def _resolve_workspace_fingerprint() -> str:
     if env_fp:
         return env_fp
     try:
-        from e2e_api_verify import workspace_backend_fingerprint
+        from e2e_core.api_verify import workspace_backend_fingerprint
 
         return workspace_backend_fingerprint()
     except (ImportError, OSError, RuntimeError, TypeError, ValueError):
@@ -85,7 +85,7 @@ def _resolve_template_cookies(template: dict[str, object]) -> list[dict[str, obj
     cookies_ref = template.get("cookiesRef")
     if isinstance(cookies_ref, str) and cookies_ref.strip():
         try:
-            from e2e_auth_keychain import load_auth_cookie_blob  # noqa: PLC0415
+            from e2e_core.auth_keychain import load_auth_cookie_blob  # noqa: PLC0415
 
             loaded = load_auth_cookie_blob(cookies_ref)
             if loaded is not None:
@@ -122,7 +122,7 @@ def hydrate_auth_template_for_context(
         return False
     probe_path = str(template.get("probePath", "/")).strip() or "/"
     try:
-        from e2e_auth_cdp import (  # noqa: PLC0415
+        from e2e_core.auth_cdp import (  # noqa: PLC0415
             cdp_auth_hydrate_enabled,
             hydrate_and_probe_context,
         )
@@ -307,7 +307,7 @@ def seal_auth_template(
     }
     if cookies:
         try:
-            from e2e_auth_keychain import (  # noqa: PLC0415
+            from e2e_core.auth_keychain import (  # noqa: PLC0415
                 keychain_storage_enabled,
                 store_auth_cookie_blob,
             )

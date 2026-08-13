@@ -22,7 +22,7 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from cdp_chat_support import (
+from cdp_chat.support import (
     DISMISS_MODALS_JS,
     E2E_API_BINDING_PROBE_JS,
     _e2e_api_urlopen,
@@ -36,8 +36,8 @@ from cdp_chat_support import (
     wait_e2e_cdp_ready,
     wait_e2e_provider_ready,
 )  # noqa: E402
-from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from dev_gate_contract import (
+from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
+from dev_gate.contract import (
     MUX_RECLAIM_STALL_TOKEN,
     SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC,
     SIGNOFF_SHPOIB_REBIND_WALL_SEC,
@@ -46,12 +46,12 @@ from dev_gate_contract import (
     resolve_evaluate_budget,
     shpoib_rebind_location_wait_cap_sec,
 )  # noqa: E402
-from e2e_orchestrator import touch_wall_progress  # noqa: E402
-from e2e_shared_ui_hydrate import (  # noqa: E402
+from e2e_core.orchestrator import touch_wall_progress  # noqa: E402
+from e2e_core.shared_ui_hydrate import (  # noqa: E402
     parallel_shared_ui_hydrate_queue_enabled,
     shared_ui_hydrate_slot,
 )
-from e2e_warm_ui_heal import heal_shared_frontend_debounced  # noqa: E402
+from e2e_core.warm_ui_heal import heal_shared_frontend_debounced  # noqa: E402
 
 from tests.support.e2e_runtime_guard import heartbeat_once  # noqa: E402
 
@@ -140,7 +140,7 @@ def dismiss_blocking_modals(
         if "chrome-error://" in href:
             _trigger_attach_frontend_heal_once()
             try:
-                from runtime_identity import classify_ui_endpoint_error
+                from e2e_core.runtime_identity import classify_ui_endpoint_error
 
                 ui_probe_error = classify_ui_endpoint_error(
                     get_e2e_ui_url(),
@@ -169,7 +169,7 @@ def _recover_chrome_error_page(
         return
     _trigger_attach_frontend_heal_once()
     try:
-        from runtime_identity import classify_ui_endpoint_error
+        from e2e_core.runtime_identity import classify_ui_endpoint_error
 
         if classify_ui_endpoint_error(get_e2e_ui_url(), timeout_sec=8.0) is not None:
             warm_ui_route("/settings", timeout_sec=_warm_ui_parallel_wait_sec(25.0))
@@ -190,7 +190,7 @@ def prepare_e2e_ui_session(api_url: str) -> None:
     READ-scoped tests must not mutate global config; they rely on dismiss_blocking_modals
     localStorage boot flags instead (P0-C effect guard).
     """
-    from e2e_effect_guard import current_access_scope
+    from e2e_core.effect_guard import current_access_scope
 
     if current_access_scope() == "READ":
         return
@@ -216,7 +216,7 @@ def guarded_httpx_request(
     client: object, method: str, url: str, **kwargs: object
 ) -> object:
     """Effect-guarded httpx request for formal chrome_e2e live agent paths."""
-    from e2e_effect_guard import guarded_httpx_request as _guard
+    from e2e_core.effect_guard import guarded_httpx_request as _guard
 
     return _guard(client, method, url, **kwargs)
 
@@ -262,7 +262,7 @@ def http_json(
     *,
     expected_statuses: frozenset[int] = frozenset({200, 201, 204}),
 ) -> object:
-    from e2e_effect_guard import assert_http_effect_allowed
+    from e2e_core.effect_guard import assert_http_effect_allowed
 
     assert_http_effect_allowed(method=method, url=url)
     allowed_bases = [get_e2e_ui_url(), get_e2e_api_url()]
@@ -301,7 +301,7 @@ def http_json(
 def _warm_ui_parallel_wait_sec(base_wait_sec: float) -> float:
     """Extend warm budget when wave leases or parallel chrome_e2e peers contend for shared UI."""
     try:
-        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+        from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
             # Flock serializes compile bursts — do not multiply per-lane wall by peer count.
@@ -310,12 +310,12 @@ def _warm_ui_parallel_wait_sec(base_wait_sec: float) -> float:
         pass
     monorepo_root = Path(__file__).resolve().parents[4]
     try:
-        from dev_gate_contract import (
+        from dev_gate.contract import (
             phase_c_burst_lane_count,
             shared_ui_hydrate_wait_sec,
         )
-        from stack_mutation_policy import wave_active_lease_count
-        from transport_supervisor import parallel_active_test_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
+        from mux.transport_supervisor import parallel_active_test_count
 
         burst_lanes = phase_c_burst_lane_count()
         wave_leases = wave_active_lease_count(monorepo_root)
@@ -341,7 +341,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
         raise ValueError(f"warm_ui_route expects an absolute path, got: {path!r}")
     url = f"{get_e2e_ui_url()}{path}"
     try:
-        from warm_shell_registry import platform_shell_fresh
+        from e2e_core.warm_shell_registry import platform_shell_fresh
 
         if platform_shell_fresh(route_path=path):
             heartbeat_once()
@@ -386,7 +386,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
             return
         heal_timeout = 60.0
         try:
-            from transport_supervisor import parallel_active_test_count
+            from mux.transport_supervisor import parallel_active_test_count
 
             if parallel_active_test_count() > 1:
                 heal_timeout = 20.0
@@ -1093,7 +1093,7 @@ def _settings_http_warm_skippable(route_path: str) -> bool:
         else route_path
     )
     try:
-        from warm_shell_registry import platform_shell_fresh
+        from e2e_core.warm_shell_registry import platform_shell_fresh
 
         return platform_shell_fresh(route_path=shell_route)
     except ImportError:
@@ -1123,7 +1123,7 @@ def _orchestrator_atomic_route_available() -> bool:
     if _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE is not None:
         return _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE
     try:
-        from browser_orchestrator_client import (  # noqa: PLC0415
+        from browser_orchestrator.client import (  # noqa: PLC0415
             BrowserOrchestratorClient,
         )
 
@@ -1147,7 +1147,7 @@ def open_settings_subroute(
     """SSOT: open /settings shell, navigate to nested subroute, wait settings-layout."""
     touch_wall_progress(current_node="open_settings_subroute")
     if request_timeout_sec is None:
-        from browser_orchestrator_client import orchestrator_socket_timeout_cap_sec
+        from browser_orchestrator.client import orchestrator_socket_timeout_cap_sec
 
         request_timeout_sec = orchestrator_socket_timeout_cap_sec()
     ui_base = get_e2e_ui_url().rstrip("/")
@@ -1175,7 +1175,7 @@ def open_settings_subroute(
     if warm:
         skip_parallel_http_warm = _parallel_chrome_e2e_active()
         try:
-            from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+            from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
             skip_parallel_http_warm = (
                 skip_parallel_http_warm or parallel_shared_ui_hydrate_queue_enabled()
@@ -1204,7 +1204,7 @@ def open_settings_subroute(
         and _orchestrator_atomic_route_available()
     )
     if atomic_available:
-        from browser_orchestrator_e2e import open_app_route_page
+        from browser_orchestrator.e2e import open_app_route_page
 
         with open_app_route_page(
             target_url,
@@ -1331,7 +1331,7 @@ _TRANSPORT_PROGRESS_INTERVAL_SEC = 30.0
 
 
 def _emit_transport_progress(*, current_node: str, node_started: float) -> None:
-    from dev_gate_contract import E2E_TRANSPORT_PROGRESS_TOKEN
+    from dev_gate.contract import E2E_TRANSPORT_PROGRESS_TOKEN
 
     elapsed = time.monotonic() - node_started
     print(
@@ -1352,8 +1352,8 @@ def _blocking_progress_loop(
     import os
     import signal
 
-    from dev_gate_contract import signoff_open_page_transport_stall_cap_sec
-    from e2e_stall_guard import assert_transport_node_not_stuck, transport_stall_cap_sec
+    from dev_gate.contract import signoff_open_page_transport_stall_cap_sec
+    from e2e_core.stall_guard import assert_transport_node_not_stuck, transport_stall_cap_sec
 
     del transport_session_started
     stop = threading.Event()
@@ -1387,7 +1387,7 @@ def _blocking_progress_loop(
 
         if current_phase() == "bootstrap":
             if is_e2e_signoff_runtime() or _dev_private_shpoib_bootstrap_phase():
-                from dev_gate_contract import signoff_bootstrap_transport_stall_cap_sec
+                from dev_gate.contract import signoff_bootstrap_transport_stall_cap_sec
 
                 # R220/R222: dev PRIVATE SHPOIB bootstrap — align stall with mux queue headroom.
                 stall_cap = max(
@@ -1398,7 +1398,7 @@ def _blocking_progress_loop(
                     ),
                 )
             else:
-                from transport_supervisor import bootstrap_wall_cap_sec
+                from mux.transport_supervisor import bootstrap_wall_cap_sec
 
                 bootstrap_cap = float(bootstrap_wall_cap_sec(pessimistic=True))
                 stall_cap = min(stall_cap, bootstrap_cap)
@@ -1440,11 +1440,11 @@ def _open_page_body_fraction_cap_sec() -> float:
     """R143: open_mcp_page must not consume more than 35% of LIVE BODY wall."""
     try:
         if is_e2e_signoff_runtime():
-            from dev_gate_contract import signoff_effective_body_wall_sec
+            from dev_gate.contract import signoff_effective_body_wall_sec
 
             body_cap = float(signoff_effective_body_wall_sec())
         else:
-            from transport_supervisor import live_agent_body_wall_cap_sec
+            from mux.transport_supervisor import live_agent_body_wall_cap_sec
 
             body_cap = float(live_agent_body_wall_cap_sec())
     except ImportError:
@@ -1469,7 +1469,7 @@ def _open_page_layout_wait_sec() -> float:
     base = _OPEN_PAGE_LAYOUT_WAIT_SEC
     if peers >= 1:
         try:
-            from dev_gate_contract import shared_ui_hydrate_wait_sec
+            from dev_gate.contract import shared_ui_hydrate_wait_sec
 
             cap = float(shared_ui_hydrate_wait_sec())
             return min(base + peers * 30.0, cap)
@@ -1654,11 +1654,11 @@ def _restart_open_page_mux_budget(
 def _mux_transport_wait_budget_sec() -> float:
     """Mux queue wait — pessimistic under signoff bootstrap parallel (R219)."""
     try:
-        from dev_gate_contract import signoff_mux_transport_wait_budget_sec
+        from dev_gate.contract import signoff_mux_transport_wait_budget_sec
 
         return signoff_mux_transport_wait_budget_sec()
     except ImportError:
-        from transport_supervisor import mux_upstream_wait_cap
+        from mux.transport_supervisor import mux_upstream_wait_cap
 
         return float(mux_upstream_wait_cap())
 
@@ -1731,7 +1731,7 @@ def _wait_open_page_mux_turn(
 
 def _dev_private_shpoib_bootstrap_phase() -> bool:
     try:
-        from dev_gate_contract import private_shpoib_runtime_active
+        from dev_gate.contract import private_shpoib_runtime_active
         from e2e_session_runtime.lifecycle import current_phase
 
         return current_phase() == "bootstrap" and private_shpoib_runtime_active()
@@ -1751,7 +1751,7 @@ def _open_page_parallel_budgets(
     signoff = is_e2e_signoff_runtime()
     parallel_peers = _parallel_open_page_peer_count()
     if signoff:
-        from dev_gate_contract import (
+        from dev_gate.contract import (
             signoff_bootstrap_open_mcp_budgets,
             signoff_open_mcp_budgets,
         )
@@ -1785,7 +1785,7 @@ def _open_page_parallel_budgets(
             attempts,
         )
     if _dev_private_shpoib_bootstrap_phase():
-        from dev_gate_contract import signoff_bootstrap_open_mcp_budgets
+        from dev_gate.contract import signoff_bootstrap_open_mcp_budgets
 
         budgets = signoff_bootstrap_open_mcp_budgets(parallel_peers=parallel_peers)
         return (
@@ -1797,7 +1797,7 @@ def _open_page_parallel_budgets(
         )
     burst_raw = os.environ.get("MYRM_E2E_PHASE_C_BURST_LANES", "").strip()
     if burst_raw.isdigit() and int(burst_raw) >= 4:
-        from dev_gate_contract import signoff_open_mcp_budgets
+        from dev_gate.contract import signoff_open_mcp_budgets
 
         budgets = signoff_open_mcp_budgets(parallel_peers=int(burst_raw))
         return (
@@ -1832,7 +1832,7 @@ def _open_page_parallel_budgets(
 
 def _parallel_open_page_peer_count() -> int:
     """Wave/mux peers for open_mcp_page heal policy (R122-B8)."""
-    from mux_load import parallel_open_page_peer_count
+    from mux.load import parallel_open_page_peer_count
 
     return parallel_open_page_peer_count(signoff=is_e2e_signoff_runtime())
 
@@ -1840,7 +1840,7 @@ def _parallel_open_page_peer_count() -> int:
 def _should_skip_attach_preflight_restart() -> bool:
     """P0-B: global mux attach restart must not run under active parallel load."""
     try:
-        from mux_load import snapshot_mux_load
+        from mux.load import snapshot_mux_load
 
         load = snapshot_mux_load(force=True)
         if max(0, load.mux_contexts, load.wave_leases) > 0:
@@ -1869,7 +1869,7 @@ def _force_mux_attach_restart_after_new_page_timeout() -> None:
     lib_dir = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
-    from mux_attach_force_restart import force_mux_attach_restart_scoped
+    from mux.attach_force_restart import force_mux_attach_restart_scoped
 
     force_mux_attach_restart_scoped(reason="open_mcp_page new_page timeout")
 
@@ -1882,7 +1882,7 @@ def _signoff_mux_drain_budget_sec() -> float:
     peers = _parallel_open_page_peer_count()
     if peers >= 1:
         try:
-            from dev_gate_contract import signoff_open_mcp_budgets
+            from dev_gate.contract import signoff_open_mcp_budgets
 
             budget = max(
                 budget,
@@ -1907,7 +1907,7 @@ def _wait_cold_shim_peer_pressure_drain(
 ) -> None:
     """Wait until mux peer load drops below cold-shim defer threshold (R231)."""
     try:
-        from transport_supervisor import (
+        from mux.transport_supervisor import (
             _cold_shim_defer_peer_load,
             cold_shim_restart_defer_peer_threshold,
         )
@@ -1992,7 +1992,7 @@ def _signoff_threaded_new_page(
         daemon=True,
     )
     worker.start()
-    from dev_gate_contract import (
+    from dev_gate.contract import (
         E2E_SIGNOFF_NEW_PAGE_JOIN_EXCEEDED_TOKEN,
         signoff_new_page_join_stall_abandon_sec,
     )
@@ -2049,7 +2049,7 @@ def _open_page_new_page(
     attempt_wall_deadline: float,
 ) -> McpPage:
     if is_e2e_signoff_runtime():
-        from dev_gate_contract import (
+        from dev_gate.contract import (
             signoff_new_page_join_timeout_sec,
             signoff_open_mcp_budgets,
         )
@@ -2079,7 +2079,7 @@ def _open_page_cdp_probe_budget_sec() -> float:
     max_budget = 240.0 if is_e2e_signoff_runtime() else 180.0
     peers = 0
     try:
-        from mux_load import snapshot_mux_load
+        from mux.load import snapshot_mux_load
 
         load = snapshot_mux_load()
         peers = max(int(load.wave_leases), int(load.mux_contexts))
@@ -2088,7 +2088,7 @@ def _open_page_cdp_probe_budget_sec() -> float:
     if peers <= 0:
         monorepo_root = Path(__file__).resolve().parents[4]
         try:
-            from stack_mutation_policy import wave_active_lease_count
+            from e2e_core.stack_mutation_policy import wave_active_lease_count
 
             peers = wave_active_lease_count(monorepo_root)
         except (ImportError, OSError, RuntimeError, ValueError):
@@ -2124,7 +2124,7 @@ def _require_e2e_cdp_ready(*, budget_sec: float | None = None) -> None:
 
 
 def _mux_cold_attach_drain_budget_sec() -> float:
-    from dev_gate_contract import parallel_mux_cold_attach_drain_sec
+    from dev_gate.contract import parallel_mux_cold_attach_drain_sec
 
     return parallel_mux_cold_attach_drain_sec(
         parallel_peers=_parallel_open_page_peer_count(),
@@ -2200,7 +2200,7 @@ def _refresh_signoff_open_nav_tool_wall(
     """R213: refresh tool wall after mux/new_page gate consumed attempt-local remaining."""
     if not is_e2e_signoff_runtime():
         return
-    from dev_gate_contract import signoff_open_mcp_budgets
+    from dev_gate.contract import signoff_open_mcp_budgets
 
     now = time.monotonic()
     peers = _parallel_open_page_peer_count()
@@ -2236,7 +2236,7 @@ def _require_orchestrator_for_formal_e2e() -> None:
         return
     if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1":
         return
-    from dev_gate_contract import BROWSER_ORCHESTRATOR_REQUIRED_TOKEN  # noqa: PLC0415
+    from dev_gate.contract import BROWSER_ORCHESTRATOR_REQUIRED_TOKEN  # noqa: PLC0415
 
     raise RuntimeError(
         f"{BROWSER_ORCHESTRATOR_REQUIRED_TOKEN}: formal chrome_e2e requires "
@@ -2278,7 +2278,7 @@ class _OrchestratorSharedUiChat:
         )
 
     async def ensure_e2e_api_base_binding(self) -> None:
-        from cdp_chat_support import e2e_runtime_bootstrap_apply_js
+        from cdp_chat.support import e2e_runtime_bootstrap_apply_js
 
         inject = e2e_api_base_inject_js()
         bootstrap_js = e2e_runtime_bootstrap_apply_js()
@@ -2295,7 +2295,7 @@ class _OrchestratorSharedUiChat:
             raise RuntimeError(f"E2E API base inject failed: {probe.get('err', probe)}")
 
     async def ensure_react_e2e_bridge(self, *, timeout_sec: float = 90.0) -> None:
-        from e2e_shared_ui_session import _bootstrap_hot_path_reused
+        from e2e_core.shared_ui_session import _bootstrap_hot_path_reused
 
         resolved_timeout = 120.0 if _bootstrap_hot_path_reused() else timeout_sec
         await asyncio.to_thread(
@@ -2345,7 +2345,7 @@ def _ensure_orchestrator_shared_ui_session(
     page: McpPage,
 ) -> None:
     """Orchestrator open_page skips cdp_chat bootstrap — run UI session contract here."""
-    from e2e_shared_ui_session import (
+    from e2e_core.shared_ui_session import (
         current_search_policy,
         maybe_apply_shared_ui_session_contract,
     )
@@ -2394,7 +2394,7 @@ def open_mcp_page(
     if is_e2e_signoff_runtime():
         resolved_timeout_ms = min(resolved_timeout_ms, 90_000)
     if os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1":
-        from browser_orchestrator_e2e import open_app_route_page
+        from browser_orchestrator.e2e import open_app_route_page
         from e2e_session_runtime.lifecycle import complete_bootstrap_phase
 
         with open_app_route_page(
@@ -2416,7 +2416,7 @@ def open_mcp_page(
                 )
             yield client, page  # type: ignore[misc]
         return
-    from dev_gate_contract import BROWSER_ORCHESTRATOR_REQUIRED_TOKEN
+    from dev_gate.contract import BROWSER_ORCHESTRATOR_REQUIRED_TOKEN
 
     raise RuntimeError(
         f"{BROWSER_ORCHESTRATOR_REQUIRED_TOKEN}: Dev Gate chrome_e2e requires "
@@ -2621,7 +2621,7 @@ def _trigger_attach_frontend_heal_once() -> None:
     _ATTACH_FRONTEND_HEAL_TRIGGERED = True
     monorepo_root = Path(__file__).resolve().parents[4]
     try:
-        from e2e_warm_ui_heal import heal_shared_frontend_attach
+        from e2e_core.warm_ui_heal import heal_shared_frontend_attach
 
         touch_wall_progress(current_node="attach_frontend_heal")
         flock_wait = 8.0 if _parallel_chrome_e2e_active() else 45.0
@@ -2676,7 +2676,7 @@ def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
 
 def _react_bridge_wait_timeout_sec(requested: float) -> float:
     try:
-        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+        from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
             return min(max(requested, 90.0), 180.0)

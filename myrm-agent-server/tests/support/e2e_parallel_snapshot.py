@@ -23,7 +23,7 @@ from e2e_session_runtime.snapshot import (  # noqa: E402
     body_elapsed_from_snapshot,
     resolve_session_snapshot,
 )
-from e2e_stall_guard import node_elapsed_from_snapshot  # noqa: E402
+from e2e_core.stall_guard import node_elapsed_from_snapshot  # noqa: E402
 
 
 @dataclass(frozen=True, slots=True)

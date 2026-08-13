@@ -45,11 +45,11 @@ def idle_prune_self_owned_blanks_if_safe(
     threshold: int = 5,
 ) -> IdlePruneResult:
     """Prune blank tabs only when no chrome_e2e peers and no effective wave leases."""
-    from e2e_lease_liveness import (  # noqa: PLC0415
+    from e2e_core.lease_liveness import (  # noqa: PLC0415
         load_wave_snapshot_observation,
         wave_lease_counts,
     )
-    from e2e_parallel_status import (  # noqa: PLC0415
+    from e2e_core.parallel_status import (  # noqa: PLC0415
         load_parallel_runtime_snapshot,
         safe_active_test_count,
     )

@@ -20,14 +20,14 @@ from pathlib import Path
 
 
 def _wave_state_path() -> Path:
-    from wave_state_paths import resolve_wave_state_file
+    from e2e_core.wave_state_paths import resolve_wave_state_file
 
     return resolve_wave_state_file()
 
 
 def collect_cdp_target_ids() -> frozenset[str] | None:
     """Live CDP page target ids; None when /json/list is unreadable (fail-closed)."""
-    from browser_tab_hygiene import _chrome_port, _count_cdp_targets, _list_cdp_pages
+    from e2e_core.browser_tab_hygiene import _chrome_port, _count_cdp_targets, _list_cdp_pages
 
     port = _chrome_port()
     if _count_cdp_targets(port) < 0:

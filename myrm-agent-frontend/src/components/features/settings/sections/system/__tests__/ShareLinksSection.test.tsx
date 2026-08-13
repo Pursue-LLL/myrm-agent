@@ -86,7 +86,7 @@ describe('ShareLinksSection', () => {
     expect(screen.getByText('html')).toBeInTheDocument();
   });
 
-  it('revokes a share link and removes it from the list', async () => {
+  it('opens the impact preview dialog and revokes a share link on confirm', async () => {
     const fetchMock = mockFetchRoutes([
       { method: 'GET', url: '/api/v1/files/artifacts/shares', body: [shareRecord] },
       { method: 'DELETE', url: '/api/v1/files/artifacts/shares/rec-1', status: 204 },
@@ -96,10 +96,39 @@ describe('ShareLinksSection', () => {
     render(<ShareLinksSection />);
     await waitFor(() => expect(screen.getByTestId('shares-table')).toBeInTheDocument());
 
-    await userEvent.click(screen.getByRole('button', { name: /revoke/i }));
+    await userEvent.click(screen.getByRole('button', { name: /revokeLabel/ }));
+
+    // Impact preview dialog shows the link details before any destructive call.
+    expect(screen.getByText('confirm.title')).toBeInTheDocument();
+    expect(screen.getAllByText('report.html').length).toBeGreaterThanOrEqual(2);
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/shares/rec-1'),
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /confirm.revoke/ }));
 
     await waitFor(() => expect(screen.getByTestId('shares-empty')).toBeInTheDocument());
     expect(mockToast).toHaveBeenCalledWith('success', 'revokeSuccess');
+  });
+
+  it('does not revoke when the dialog is dismissed', async () => {
+    const fetchMock = mockFetchRoutes([
+      { method: 'GET', url: '/api/v1/files/artifacts/shares', body: [shareRecord] },
+    ]);
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<ShareLinksSection />);
+    await waitFor(() => expect(screen.getByTestId('shares-table')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: /revokeLabel/ }));
+    await userEvent.click(screen.getByRole('button', { name: /confirm.cancel/ }));
+
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/shares/rec-1'),
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+    expect(screen.getByTestId('shares-table')).toBeInTheDocument();
   });
 
   it('shows an error state when loading fails', async () => {

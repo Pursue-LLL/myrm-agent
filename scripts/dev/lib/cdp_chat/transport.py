@@ -6,7 +6,7 @@ import asyncio
 import json
 from typing import Protocol
 
-from dev_gate_contract import EvaluateIntent
+from dev_gate.contract import EvaluateIntent
 
 class CdpSocket(Protocol):
     async def send(self, message: str) -> None: ...
@@ -22,7 +22,7 @@ class CdpChatTransport:
         self._mid = mid if mid is not None else [0]
 
     async def bridge_chat_id(self) -> str | None:
-        from cdp_chat_support import BRIDGE_CHAT_ID_JS
+        from cdp_chat.support import BRIDGE_CHAT_ID_JS
 
         result = await self.evaluate(
             BRIDGE_CHAT_ID_JS,
@@ -38,7 +38,7 @@ class CdpChatTransport:
         path: str | None = None,
         hint: str | None = None,
     ) -> str | None:
-        from cdp_chat_support import chat_id_from_path
+        from cdp_chat.support import chat_id_from_path
 
         if hint and hint.strip():
             return hint.strip()
@@ -56,8 +56,8 @@ class CdpChatTransport:
         recv_timeout: float | None = None,
         intent: EvaluateIntent | None = None,
     ) -> object:
-        from dev_gate_contract import resolve_evaluate_budget
-        from send_turn_contract import is_live_send_turn_profile
+        from dev_gate.contract import resolve_evaluate_budget
+        from cdp_chat.send_turn_contract import is_live_send_turn_profile
 
         if intent is not None:
             budget = resolve_evaluate_budget(intent, live=is_live_send_turn_profile())

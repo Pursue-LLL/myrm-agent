@@ -92,7 +92,7 @@ def _resolve_peer_node(owner_pid: int) -> str:
 def _transport_blocking_peers(
     *, exclude_pid: int | None = None
 ) -> tuple[TransportQueuePeer, ...]:
-    from mux_upstream_admission import list_active_upstream_operations  # noqa: PLC0415
+    from mux.upstream_admission import list_active_upstream_operations  # noqa: PLC0415
 
     owner = exclude_pid if exclude_pid is not None else os.getpid()
     peers: list[TransportQueuePeer] = []

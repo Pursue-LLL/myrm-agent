@@ -67,7 +67,7 @@ def _bind_private_runtime_and_navigate(client, page, chat_url: str, api_url: str
     dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
-    from cdp_chat_support import e2e_runtime_binding_source  # noqa: PLC0415
+    from cdp_chat.support import e2e_runtime_binding_source  # noqa: PLC0415
 
     source = e2e_runtime_binding_source()
     # SHARED execution relies on Next.js rewrites for API proxying and carries no

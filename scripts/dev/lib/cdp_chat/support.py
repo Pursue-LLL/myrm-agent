@@ -14,8 +14,8 @@ from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from dev_gate_contract import EvaluateIntent
-from real_user_home import real_user_home
+from dev_gate.contract import EvaluateIntent
+from e2e_core.real_user_home import real_user_home
 
 _E2E_RUNTIME_BINDING_PREFIX = "myrm-e2e-v1:"
 _E2E_RUNTIME_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
@@ -47,7 +47,7 @@ def _connection_refused(exc: BaseException) -> bool:
 def _maybe_heal_shared_api_on_refused() -> None:
     """One-shot shared :8080 crash heal when parallel E2E reloads the dev backend."""
     try:
-        from stack_mutation_policy import attach_backend_crash_heal_inner
+        from e2e_core.stack_mutation_policy import attach_backend_crash_heal_inner
 
         monorepo_root = Path(__file__).resolve().parents[5]
         dev_stack = monorepo_root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
@@ -100,7 +100,7 @@ def get_open_page_api_url() -> str:
     Next.js rewrites (including isolated stacks on custom UI/API ports).
     """
     try:
-        from epoch_delivery_plane import epoch_pin_active
+        from e2e_core.epoch_delivery_plane import epoch_pin_active
 
         if epoch_pin_active():
             return get_e2e_api_url()
@@ -159,7 +159,7 @@ def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
     signoff = os.environ.get("E2E_SIGNOFF", "").strip() == "1"
     active_leases = 0
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
@@ -167,11 +167,11 @@ def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
         active_leases = 0
     pessimistic = signoff and active_leases >= 2
     try:
-        from transport_supervisor import bootstrap_wall_cap_sec
+        from mux.transport_supervisor import bootstrap_wall_cap_sec
 
         bootstrap_cap = float(bootstrap_wall_cap_sec(pessimistic=pessimistic))
     except ImportError:
-        from dev_gate_contract import E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
+        from dev_gate.contract import E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
 
         bootstrap_cap = float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
     base_floor = max(timeout_sec, 120.0)
@@ -187,14 +187,14 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
     parallel_tests = 0
     mux_peers = 0
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
-        from transport_supervisor import (
+        from mux.transport_supervisor import (
             parallel_active_test_count,
             parallel_mux_peer_count,
         )
@@ -211,7 +211,7 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
     cap = 420.0
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         try:
-            from dev_gate_contract import SIGNOFF_OPEN_PAGE_PARALLEL_WALL_CAP_SEC
+            from dev_gate.contract import SIGNOFF_OPEN_PAGE_PARALLEL_WALL_CAP_SEC
 
             cap = float(SIGNOFF_OPEN_PAGE_PARALLEL_WALL_CAP_SEC)
         except ImportError:
@@ -229,14 +229,14 @@ def e2e_attach_timeout_ms(base_ms: int = 60_000) -> int:
     parallel_tests = 0
     mux_peers = 0
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
-        from transport_supervisor import (
+        from mux.transport_supervisor import (
             parallel_active_test_count,
             parallel_mux_peer_count,
         )
@@ -258,14 +258,14 @@ def e2e_private_api_ready_timeout_sec(base_sec: float = 60.0) -> float:
     active_leases = 0
     parallel_tests = 0
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
-        from transport_supervisor import parallel_active_test_count
+        from mux.transport_supervisor import parallel_active_test_count
 
         parallel_tests = parallel_active_test_count()
     except (ImportError, OSError, RuntimeError):
@@ -280,14 +280,14 @@ def e2e_parallel_config_api_timeout_sec(base_sec: float) -> float:
     active_leases = 0
     parallel_tests = 0
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
-        from transport_supervisor import parallel_active_test_count
+        from mux.transport_supervisor import parallel_active_test_count
 
         parallel_tests = parallel_active_test_count()
     except (ImportError, OSError, RuntimeError):
@@ -310,14 +310,14 @@ def signoff_parallel_desktop_wall_clock_fail_sec(base_sec: float = 280.0) -> flo
     parallel_tests = 0
     mux_peers = 0
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
-        from transport_supervisor import (
+        from mux.transport_supervisor import (
             parallel_active_test_count,
             parallel_mux_peer_count,
         )
@@ -343,14 +343,14 @@ def signoff_parallel_desktop_progress_api_wall_sec(base_sec: float = 15.0) -> fl
     parallel_tests = 0
     mux_peers = 0
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
-        from transport_supervisor import (
+        from mux.transport_supervisor import (
             parallel_active_test_count,
             parallel_mux_peer_count,
         )
@@ -377,14 +377,14 @@ def _signoff_desktop_soak_parallel_load() -> int:
     parallel_tests = 0
     mux_peers = 0
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         active_leases = wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError):
         active_leases = 0
     try:
-        from transport_supervisor import (
+        from mux.transport_supervisor import (
             parallel_active_test_count,
             parallel_mux_peer_count,
         )
@@ -444,8 +444,8 @@ def ensure_shared_hot_api_ready(*, max_attempts: int | None = None) -> str:
     if resolved_attempts is None:
         resolved_attempts = 8
         try:
-            from stack_mutation_policy import wave_active_lease_count
-            from transport_supervisor import parallel_active_test_count
+            from e2e_core.stack_mutation_policy import wave_active_lease_count
+            from mux.transport_supervisor import parallel_active_test_count
 
             monorepo_root = Path(__file__).resolve().parents[5]
             parallel_load = max(
@@ -1903,7 +1903,7 @@ _BROWSER_HITL_PIN_BACKOFF_SEC = 2.0
 
 def _hitl_pin_retry_policy() -> tuple[int, float]:
     try:
-        from dev_gate_contract import (
+        from dev_gate.contract import (
             signoff_hitl_pin_max_attempts,
             signoff_hitl_pin_request_timeout_sec,
         )

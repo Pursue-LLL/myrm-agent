@@ -26,7 +26,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     STREAM_API_BINDING_JS,
     WAIT_WORKSPACE_STREAM_JS,
     ensure_e2e_hitl_mode,
@@ -39,10 +39,10 @@ from cdp_chat_support import (  # noqa: E402
     shared_hot_e2e_api_base,
     wait_e2e_provider_ready,
 )
-from cdp_chat_ui import chat_id_from_path  # noqa: E402
-from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from dev_gate_contract import EvaluateIntent  # noqa: E402
-from mcp_chat_ui import McpChatSession  # noqa: E402
+from cdp_chat.ui import chat_id_from_path  # noqa: E402
+from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
+from dev_gate.contract import EvaluateIntent  # noqa: E402
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_allowlist_live_e2e import (
     _AGENT_READY_JS,
@@ -121,7 +121,7 @@ _ALLOWLIST_PAGE_DIAG_JS = """(() => {
 
 
 def _hitl_probe(api_url: str, *, chat_id: str | None = None) -> dict[str, object]:
-    from cdp_chat_support import _e2e_api_get_json
+    from cdp_chat.support import _e2e_api_get_json
 
     query = f"chat_id={chat_id}" if chat_id else ""
     suffix = f"?{query}" if query else ""
@@ -322,7 +322,7 @@ async def _wait_for_eval(
 def _fetch_recent_audit_decisions(
     api_url: str, *, limit: int = 20
 ) -> list[dict[str, object]]:
-    from cdp_chat_support import _e2e_api_get_json
+    from cdp_chat.support import _e2e_api_get_json
 
     try:
         payload = _e2e_api_get_json(

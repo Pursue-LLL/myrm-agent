@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 from typing import TypedDict
 
-from e2e_browser_pool import resolve_chrome_port
+from e2e_core.browser_pool import resolve_chrome_port
 
 
 class AuthCookieSeed(TypedDict, total=False):

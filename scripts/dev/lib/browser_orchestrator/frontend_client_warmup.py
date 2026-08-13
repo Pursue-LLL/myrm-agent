@@ -15,10 +15,10 @@ import urllib.request
 from pathlib import Path
 from typing import Protocol
 
-from infra_browser_registry import register_infra_target, unregister_infra_target
+from e2e_core.infra_browser_registry import register_infra_target, unregister_infra_target
 
 try:
-    from cdp_chat_support import (
+    from cdp_chat.support import (
         E2E_BRIDGE_INSTALL_JS,
         PAGE_PROBE_JS,
         e2e_api_base_inject_js,
@@ -642,7 +642,7 @@ async def _run_warmup(
 
             if ready:
                 try:
-                    from warm_shell_registry import seal_platform_shell
+                    from e2e_core.warm_shell_registry import seal_platform_shell
 
                     seal_platform_shell(ui_url=page_url, route_path="/")
                 except ImportError:

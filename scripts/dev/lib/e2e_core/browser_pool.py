@@ -6,8 +6,8 @@ import os
 import platform
 from pathlib import Path
 
-from dev_gate_contract import SHARED_BROWSER_WORKERS
-from real_user_home import real_user_home
+from dev_gate.contract import SHARED_BROWSER_WORKERS
+from e2e_core.real_user_home import real_user_home
 
 DEFAULT_CHROME_PORT = 9333
 

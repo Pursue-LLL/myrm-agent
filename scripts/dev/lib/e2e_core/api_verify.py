@@ -34,8 +34,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Final
 
-from runtime_identity import _backend_source_fingerprint
-from stack_mutation_policy import (
+from e2e_core.runtime_identity import _backend_source_fingerprint
+from e2e_core.stack_mutation_policy import (
     _default_state_dir,
     decide_drift_heal,
     pending_drift_exists,
@@ -537,7 +537,7 @@ def _should_skip_port_scan_under_parallel_block(
     candidates: list[BackendCandidate],
 ) -> bool:
     """Port scan cannot mint workspace epoch under active leases — avoid 41× probe burn."""
-    from e2e_lease_liveness import (
+    from e2e_core.lease_liveness import (
         load_wave_snapshot,
         shared_effective_lease_count,
     )
@@ -790,7 +790,7 @@ def _resolve_e2e_api_context_impl(
     resolved_state = state_dir or _default_state_dir()
     shared = shared_api_base()
     workspace_fp = workspace_backend_fingerprint()
-    from e2e_lease_liveness import (
+    from e2e_core.lease_liveness import (
         load_wave_snapshot,
         shared_effective_lease_count,
     )
@@ -840,8 +840,8 @@ def _candidate_to_dict(candidate: BackendCandidate) -> dict[str, object]:
 
 
 def _mux_context_fields() -> dict[str, object]:
-    from dev_gate_contract import MUX_COLD_ATTACH_SLOTS
-    from mux_upstream_admission import read_mux_cold_attach_status
+    from dev_gate.contract import MUX_COLD_ATTACH_SLOTS
+    from mux.upstream_admission import read_mux_cold_attach_status
 
     snapshot_available = True
     try:
@@ -863,22 +863,22 @@ def _mux_context_fields() -> dict[str, object]:
     }
 
 
-from e2e_parallel_status import (
+from e2e_core.parallel_status import (
     cap_headroom_fields as _cap_headroom_fields,
 )
-from e2e_parallel_status import (
+from e2e_core.parallel_status import (
     format_cap_headroom_human as _format_cap_headroom_human,
 )
-from e2e_parallel_status import (
+from e2e_core.parallel_status import (
     format_queue_human as _format_queue_human,
 )
-from e2e_parallel_status import (
+from e2e_core.parallel_status import (
     load_parallel_runtime_snapshot as _load_parallel_runtime_snapshot,  # noqa: F401
 )
-from e2e_parallel_status import (
+from e2e_core.parallel_status import (
     resolve_cap_headroom_active_test_count as _resolve_cap_headroom_active_test_count,
 )
-from e2e_parallel_status import (
+from e2e_core.parallel_status import (
     resolve_parallel_runtime_snapshot as _resolve_parallel_runtime_snapshot,
 )
 
@@ -923,7 +923,7 @@ def _compute_next_action(
     mux_fields: dict[str, object],
     parallel_snapshot: dict[str, object] | None = None,
 ) -> str:
-    from dev_gate_contract import (
+    from dev_gate.contract import (
         E2E_ADMISSION_WALL_CLOCK_SEC,
         LIVE_AGENT_BODY_WALL_CLOCK_SEC,
         LIVE_AGENT_PYTEST_WALL_CAP_SEC,
@@ -961,7 +961,7 @@ def _compute_next_action(
             admit_active += 1
             if isinstance(admit_elapsed, (int, float)):
                 if float(admit_elapsed) >= admit_wall_cap:
-                    from e2e_cluster_launch_policy import (
+                    from e2e_core.cluster_launch_policy import (
                         cluster_fail_fast_suppressed_for_active_test,
                     )
 
@@ -970,7 +970,7 @@ def _compute_next_action(
             elif isinstance(row.get("elapsed_sec"), (int, float)) and float(
                 row["elapsed_sec"]
             ) >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
-                from e2e_cluster_launch_policy import (
+                from e2e_core.cluster_launch_policy import (
                     cluster_fail_fast_suppressed_for_active_test,
                 )
 
@@ -979,13 +979,13 @@ def _compute_next_action(
         body_elapsed = row.get("body_elapsed_sec")
         if isinstance(body_elapsed, (int, float)):
             try:
-                from transport_supervisor import live_agent_body_wall_cap_sec
+                from mux.transport_supervisor import live_agent_body_wall_cap_sec
 
                 body_wall_cap = float(live_agent_body_wall_cap_sec())
             except ImportError:
                 body_wall_cap = float(LIVE_AGENT_BODY_WALL_CLOCK_SEC)
             if float(body_elapsed) >= body_wall_cap:
-                from e2e_cluster_launch_policy import (
+                from e2e_core.cluster_launch_policy import (
                     cluster_fail_fast_suppressed_for_active_test,
                 )
 
@@ -994,12 +994,12 @@ def _compute_next_action(
         current_node = row.get("current_node")
         node_elapsed = row.get("node_elapsed_sec")
         if isinstance(current_node, str) and isinstance(node_elapsed, (int, float)):
-            from e2e_stall_guard import (
+            from e2e_core.stall_guard import (
                 parallel_active_test_node_stuck_fail_fast,
             )
 
             if parallel_active_test_node_stuck_fail_fast(row):
-                from e2e_cluster_launch_policy import (
+                from e2e_core.cluster_launch_policy import (
                     cluster_fail_fast_suppressed_for_active_test,
                 )
 
@@ -1021,7 +1021,7 @@ def _compute_next_action(
             and not body_elapsed_healthy
             and float(process_elapsed) >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC)
         ):
-            from e2e_cluster_launch_policy import (
+            from e2e_core.cluster_launch_policy import (
                 cluster_fail_fast_suppressed_for_active_test,
             )
 
@@ -1108,11 +1108,11 @@ def _format_agent_decision_human(
     active_tests: list[dict[str, object]],
     mux_fields: dict[str, object],
 ) -> list[str]:
-    from dev_gate_contract import (
+    from dev_gate.contract import (
         E2E_BODY_WALL_EXCEEDED_TOKEN,
         LIVE_AGENT_BODY_WALL_CLOCK_SEC,
     )
-    from e2e_readiness import evaluate_chrome_e2e_readiness
+    from e2e_core.readiness import evaluate_chrome_e2e_readiness
 
     readiness = evaluate_chrome_e2e_readiness(
         ctx,
@@ -1165,7 +1165,7 @@ def _context_to_dict(
     mux_fields: dict[str, object] | None = None,
     wave_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    from e2e_lease_liveness import (
+    from e2e_core.lease_liveness import (
         build_lease_liveness,
         lease_liveness_to_dict,
         load_wave_snapshot,
@@ -1185,7 +1185,7 @@ def _context_to_dict(
         else []
     )
     liveness_rows = build_lease_liveness(resolved_wave, active_tests=active_tests)
-    from dev_gate_status import dev_gate_status as _dev_gate_status
+    from dev_gate.status import dev_gate_status as _dev_gate_status
 
     dev_gate_payload = _dev_gate_status()
     active_test_count, observability_mismatch = _resolve_cap_headroom_active_test_count(
@@ -1235,7 +1235,7 @@ def _context_to_dict(
     observe_json = os.environ.get("MYRM_E2E_CONTEXT_JSON", "").strip() == "1"
     if not observe_json:
         try:
-            from dev_gate_coordinator import (
+            from dev_gate.coordinator import (
                 default_socket_path,
                 request,
             )
@@ -1252,7 +1252,7 @@ def _context_to_dict(
             pass
     if not observe_json:
         try:
-            from e2e_browser_pool import browser_identity_snapshot
+            from e2e_core.browser_pool import browser_identity_snapshot
 
             payload["browserPool"] = browser_identity_snapshot()
         except ImportError:
@@ -1261,7 +1261,7 @@ def _context_to_dict(
                 "next_action": "OBSERVABILITY_UNKNOWN",
             }
         try:
-            from host_resource_governor import (
+            from e2e_core.host_resource_governor import (
                 host_resource_governor_snapshot,
             )
 
@@ -1269,7 +1269,7 @@ def _context_to_dict(
         except ImportError:
             payload["hostGovernor"] = {"enabled": False, "effective_browser_slots": 4}
         try:
-            from e2e_orchestrator import orchestrator_snapshot
+            from e2e_core.orchestrator import orchestrator_snapshot
 
             lifecycle = orchestrator_snapshot()
             payload["sessionLifecycle"] = lifecycle
@@ -1281,7 +1281,7 @@ def _context_to_dict(
                 "next_action": "OBSERVABILITY_UNKNOWN",
             }
     try:
-        from e2e_auth_provisioner import auth_template_status
+        from e2e_core.auth_provisioner import auth_template_status
 
         payload["authTemplateStatus"] = auth_template_status(
             workspace_fingerprint=ctx.workspace_fingerprint
@@ -1391,7 +1391,7 @@ def _cmd_context_json(_args: argparse.Namespace) -> int:
 
 
 def _cmd_context_human(_args: argparse.Namespace) -> int:
-    from e2e_lease_liveness import (
+    from e2e_core.lease_liveness import (
         build_lease_liveness,
         format_lease_liveness_human,
         load_wave_snapshot,
@@ -1413,7 +1413,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     )
     sys.stdout.write(f"WORKSPACE_FINGERPRINT={ctx.workspace_fingerprint}\n")
     try:
-        from e2e_auth_provisioner import auth_template_status
+        from e2e_core.auth_provisioner import auth_template_status
 
         auth_status = auth_template_status(
             workspace_fingerprint=ctx.workspace_fingerprint
@@ -1427,7 +1427,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     except ImportError:
         pass
     try:
-        from e2e_browser_pool import browser_identity_snapshot
+        from e2e_core.browser_pool import browser_identity_snapshot
 
         browser_identity = browser_identity_snapshot()
         sys.stdout.write(
@@ -1439,7 +1439,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     except ImportError:
         pass
     try:
-        from host_resource_governor import (
+        from e2e_core.host_resource_governor import (
             host_resource_governor_snapshot,
         )
 
@@ -1465,7 +1465,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
             )
     mux_fields = _mux_context_fields()
     parallel_snapshot, parallel_lines = _resolve_parallel_runtime_snapshot()
-    from dev_gate_status import dev_gate_status as _dev_gate_status
+    from dev_gate.status import dev_gate_status as _dev_gate_status
 
     dev_gate_payload = _dev_gate_status()
     active_test_count, observability_mismatch = _resolve_cap_headroom_active_test_count(
@@ -1493,7 +1493,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         f"handProbe={'yes' if mux_fields['muxHandProbeAllowed'] else 'no'}\n"
     )
     try:
-        from e2e_mux_transport_queue import (
+        from e2e_core.mux_transport_queue import (
             format_transport_queue_human,
         )
 
@@ -1517,7 +1517,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         f"total={active_test_count}\n"
     )
     try:
-        from stack_heal_coordinator import coordinator_snapshot
+        from e2e_core.stack_heal_coordinator import coordinator_snapshot
 
         heal = coordinator_snapshot()
         leader = heal.get("leaderPid")
@@ -1580,7 +1580,7 @@ def _cmd_verify_api(args: argparse.Namespace) -> int:
         retry_after_apply=not bool(getattr(args, "ensure_backend", False))
     )
     if ctx.blocked and bool(getattr(args, "ensure_backend", False)):
-        from verify_backend_seed import ensure_verify_backend_seed
+        from e2e_core.verify_backend_seed import ensure_verify_backend_seed
 
         seed = ensure_verify_backend_seed(monorepo=monorepo_root())
         sys.stderr.write(
@@ -1631,7 +1631,7 @@ def _cmd_verify_api(args: argparse.Namespace) -> int:
 
 
 def _cmd_launch_check(_args: argparse.Namespace) -> int:
-    from e2e_readiness import _cmd_check
+    from e2e_core.readiness import _cmd_check
 
     return int(_cmd_check(_args))
 

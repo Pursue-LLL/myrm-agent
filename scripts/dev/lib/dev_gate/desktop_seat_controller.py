@@ -8,8 +8,8 @@ import sys
 import time
 from dataclasses import dataclass
 
-from dev_gate_session import SessionState, TERMINAL_STATES, Workload
-from dev_gate_store import DevGateStore, _begin_immediate
+from dev_gate.session import SessionState, TERMINAL_STATES, Workload
+from dev_gate.store import DevGateStore, _begin_immediate
 
 DESKTOP_SEAT_TIMEOUT_SEC = 900.0
 DESKTOP_SEAT_QUEUE_PROGRESS_SEC = 30.0

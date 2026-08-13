@@ -24,7 +24,7 @@ _attach_ui_probe_timeout_sec() {
   resolved="$("${PREFLIGHT_PY:-python3}" -c "
 import sys
 sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
-from dev_gate_contract import attach_ui_probe_timeout_sec
+from dev_gate.contract import attach_ui_probe_timeout_sec
 print(int(attach_ui_probe_timeout_sec()))
 " 2>/dev/null)" || true
   if [[ "${resolved}" =~ ^[0-9]+$ && "${resolved}" -gt 0 ]]; then
@@ -39,7 +39,7 @@ _attach_ui_liveness_probe_timeout_sec() {
   resolved="$("${PREFLIGHT_PY:-python3}" -c "
 import sys
 sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
-from dev_gate_contract import attach_ui_liveness_probe_timeout_sec
+from dev_gate.contract import attach_ui_liveness_probe_timeout_sec
 print(int(attach_ui_liveness_probe_timeout_sec()))
 " 2>/dev/null)" || true
   if [[ "${resolved}" =~ ^[0-9]+$ && "${resolved}" -gt 0 ]]; then
@@ -116,7 +116,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, sys.argv[1])
-from runtime_identity import frontend_source_fingerprint
+from e2e_core.runtime_identity import frontend_source_fingerprint
 
 print(frontend_source_fingerprint(Path(sys.argv[2])))
 PY
@@ -392,7 +392,7 @@ _frontend_html_probe_ok() {
   "${py}" - "${_MYRM_WARMUP_LIB_DIR}" "${APP_URL}" "${probe_timeout}" <<'PY' 2>/dev/null
 import sys
 sys.path.insert(0, sys.argv[1])
-from runtime_identity import frontend_tcp_html_probe_ok
+from e2e_core.runtime_identity import frontend_tcp_html_probe_ok
 sys.exit(0 if frontend_tcp_html_probe_ok(sys.argv[2], timeout_sec=float(sys.argv[3])) else 1)
 PY
 }
@@ -482,7 +482,7 @@ _frontend_post_heal_warm_streak_ok() {
   pressure="$("${PREFLIGHT_PY:-python3}" -c "
 import sys
 sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
-from dev_gate_contract import _parallel_chrome_e2e_pressure
+from dev_gate.contract import _parallel_chrome_e2e_pressure
 print(_parallel_chrome_e2e_pressure())
 " 2>/dev/null || echo 0)"
   if [[ "${pressure}" =~ ^[0-9]+$ && "${pressure}" -ge 1 ]]; then

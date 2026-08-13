@@ -7,14 +7,14 @@ import json
 import sys
 import time
 
-from cdp_chat_input import CdpChatInput
-from cdp_chat_support import PREPARE_AUTOMATION_SEND_JS
-from dev_gate_contract import (
+from cdp_chat.input import CdpChatInput
+from cdp_chat.support import PREPARE_AUTOMATION_SEND_JS
+from dev_gate.contract import (
     EvaluateIntent,
     SEND_TURN_LOG_TOKEN,
     SEND_TURN_PYTHON_WALL_SEC,
 )
-from send_turn_contract import SendTurnError, SendTurnPhase, resolve_send_turn_profile
+from cdp_chat.send_turn_contract import SendTurnError, SendTurnPhase, resolve_send_turn_profile
 
 
 class CdpChatSubmit(CdpChatInput):

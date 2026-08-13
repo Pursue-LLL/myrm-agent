@@ -54,13 +54,13 @@ def _emit(token: str) -> None:
 
 
 def _read_api_context():
-    from e2e_api_verify import resolve_e2e_api_context
+    from e2e_core.api_verify import resolve_e2e_api_context
 
     return resolve_e2e_api_context(retry_after_apply=False)
 
 
 def read_solo_snapshot() -> SoloSnapshot:
-    from peer_count_ssot import (
+    from e2e_core.peer_count_ssot import (
         chrome_e2e_pytest_peer_count,
         solo_gate_active_mux_peer_count,
     )
@@ -87,7 +87,7 @@ SIGNOFF_GATE_CDP_PAGE_CEILING = 8
 
 def attach_parallel_leases() -> int:
     """Match e2e_bootstrap.sh _e2e_parallel_active_leases (wave first, then live sessions)."""
-    from e2e_lease_liveness import load_wave_snapshot, shared_effective_lease_count
+    from e2e_core.lease_liveness import load_wave_snapshot, shared_effective_lease_count
 
     effective = shared_effective_lease_count(load_wave_snapshot())
     if effective > 0:
@@ -107,7 +107,7 @@ def signoff_gate_cluster_clear() -> bool:
 
 
 def count_cdp_page_targets() -> int | None:
-    from browser_tab_hygiene import _chrome_port, _count_cdp_targets
+    from e2e_core.browser_tab_hygiene import _chrome_port, _count_cdp_targets
 
     count = _count_cdp_targets(_chrome_port())
     return count if count >= 0 else None
@@ -116,7 +116,7 @@ def count_cdp_page_targets() -> int | None:
 def _chrome_e2e_listener_pids() -> list[str]:
     import subprocess
 
-    from browser_tab_hygiene import _chrome_port
+    from e2e_core.browser_tab_hygiene import _chrome_port
 
     port = _chrome_port()
     result = subprocess.run(
@@ -216,7 +216,7 @@ def _run_heal_flocked(
     *,
     wait_sec: float,
 ) -> int:
-    from stack_mutation_policy import (
+    from e2e_core.stack_mutation_policy import (
         default_backend_heal_flock_file,
         run_command_with_backend_heal_flock,
     )
@@ -260,7 +260,7 @@ def heal_mux_when_solo(monorepo_root: Path) -> PreflightResult:
     """Mux reap + optional wave restart under solo constraints."""
     _emit("=== GATE_MUX_HEAL start ===")
     run_signoff_solo_chrome_heals(monorepo_root)
-    from mux_load import (
+    from mux.load import (
         active_mux_context_count,
         heal_mux_for_solo_gate,
         read_mux_status,
@@ -283,7 +283,7 @@ def heal_mux_when_solo(monorepo_root: Path) -> PreflightResult:
 
     wave_reaped = False
     try:
-        from e2e_stale_lease_reap import maybe_reap_excess_wave_leases
+        from e2e_core.stale_lease_reap import maybe_reap_excess_wave_leases
 
         wave_reaped = maybe_reap_excess_wave_leases(slack=0)
     except ImportError:
@@ -317,7 +317,7 @@ def heal_mux_when_solo(monorepo_root: Path) -> PreflightResult:
             tokens=("GATE_MUX_HEAL_DEFER",),
         )
     try:
-        from idle_hygiene_scheduler import run_idle_tab_hygiene_if_safe
+        from e2e_core.idle_hygiene_scheduler import run_idle_tab_hygiene_if_safe
 
         hygiene = run_idle_tab_hygiene_if_safe(trigger="signoff_gate_preflight")
         _emit(f"GATE_IDLE_HYGIENE: {json.dumps(hygiene, sort_keys=True)}")
@@ -332,7 +332,7 @@ def heal_mux_when_solo(monorepo_root: Path) -> PreflightResult:
 
 
 def _apply_drift_when_idle(monorepo_root: Path) -> None:
-    from stack_mutation_policy import apply_pending_drift_for_maintenance
+    from e2e_core.stack_mutation_policy import apply_pending_drift_for_maintenance
 
     result = apply_pending_drift_for_maintenance(monorepo_root=monorepo_root)
     _emit(f"GATE_EPOCH_DRIFT action={result.action} detail={result.detail!r}")
@@ -353,8 +353,8 @@ def _build_signoff_stack_core_health_payload():
     import os
     from pathlib import Path
 
-    from runtime_identity import build_health_json
-    from runtime_probe import probe_runtime_context
+    from e2e_core.runtime_identity import build_health_json
+    from e2e_core.runtime_probe import probe_runtime_context
 
     ctx = probe_runtime_context()
     ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000")
@@ -386,7 +386,7 @@ def _build_signoff_stack_core_health_payload():
 
 def _try_signoff_stack_core_fast_path(monorepo_root: Path) -> bool:
     """Skip myrm ready when stack core + API liveness OK and solo clear (P0-SAO-8)."""
-    from runtime_identity import stack_core_health_errors
+    from e2e_core.runtime_identity import stack_core_health_errors
 
     snap = read_solo_snapshot()
     if not solo_cluster_clear(snap):
@@ -412,7 +412,7 @@ def _ready_chrome_under_flock(monorepo_root: Path, *, wall_sec: int) -> None:
     ):
         if _try_signoff_stack_core_fast_path(monorepo_root):
             return
-        from signoff_stack_preflight import run_signoff_ready_under_flock
+        from e2e_core.signoff_stack_preflight import run_signoff_ready_under_flock
 
         rc = run_signoff_ready_under_flock(monorepo_root, wall_sec=wall_sec)
         if rc != 0:
@@ -444,7 +444,7 @@ def _poll_solo_stray_leases_after_ready(
         f"active_leases={snap.active_leases} — poll idle (no peer kill)"
     )
     try:
-        from e2e_stale_lease_reap import maybe_reap_stale_heartbeat_leases
+        from e2e_core.stale_lease_reap import maybe_reap_stale_heartbeat_leases
 
         maybe_reap_stale_heartbeat_leases()
     except ImportError:

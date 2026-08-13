@@ -125,7 +125,7 @@ describe('modelNotifyEvents MODEL_FAILOVER progress-step dedupe', () => {
   });
 
   it('drops partial text and reasoning streamed before the failure', async () => {
-    const { state, ctx, cancel } = makeFailoverCtx(
+    const { state, ctx } = makeFailoverCtx(
       'agnes',
       'MiniMax-M3',
       'overloaded',

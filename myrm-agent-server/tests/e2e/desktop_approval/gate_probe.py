@@ -7,13 +7,13 @@ import os
 import time
 from dataclasses import dataclass
 
-from cdp_chat_support import (
+from cdp_chat.support import (
     chat_user_message_count,
     fetch_provider_readiness_snapshot,
     get_e2e_api_url,
 )
-from dev_gate_contract import EvaluateIntent
-from mcp_chat_ui import McpChatSession
+from dev_gate.contract import EvaluateIntent
+from cdp_chat.mcp_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import (
     APPROVAL_WAIT_SEC,
@@ -110,7 +110,7 @@ def _fast_api_timeout_sec() -> float:
         base = _SIGNOFF_FAST_API_TIMEOUT_SEC
         if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
             try:
-                from cdp_chat_support import e2e_parallel_config_api_timeout_sec
+                from cdp_chat.support import e2e_parallel_config_api_timeout_sec
 
                 return e2e_parallel_config_api_timeout_sec(base)
             except ImportError:
@@ -130,7 +130,7 @@ def _fast_api_wall_timeout_sec() -> float:
         base = _SIGNOFF_FAST_API_WALL_TIMEOUT_SEC
         if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
             try:
-                from cdp_chat_support import (
+                from cdp_chat.support import (
                     signoff_parallel_desktop_progress_api_wall_sec,
                 )
 
@@ -160,7 +160,7 @@ _NUDGE_CHAT_SURFACE_TIMEOUT_SEC = 75.0
 
 def _desktop_soak_mux_step_timeout_sec(base_sec: float) -> float:
     try:
-        from cdp_chat_support import signoff_parallel_desktop_mux_step_timeout_sec
+        from cdp_chat.support import signoff_parallel_desktop_mux_step_timeout_sec
 
         return signoff_parallel_desktop_mux_step_timeout_sec(base_sec)
     except ImportError:

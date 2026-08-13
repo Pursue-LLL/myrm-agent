@@ -42,106 +42,106 @@ from typing import TextIO
 from urllib.parse import urlsplit
 
 from browser_orchestrator import browser_operation_credit_slot
-from cdp_chat_support import (
+from cdp_chat.support import (
     e2e_runtime_binding,
     e2e_runtime_binding_source,
     e2e_runtime_bootstrap_apply_js,
     wait_e2e_provider_ready,
 )
-from chrome_mcp_errors import (
+from chrome_mcp.errors import (
     is_benign_cleanup_error as _is_benign_cleanup_error,
 )
-from chrome_mcp_errors import (
+from chrome_mcp.errors import (
     is_context_reset_error as is_context_reset_error,
 )
-from chrome_mcp_errors import (
+from chrome_mcp.errors import (
     is_page_ownership_error as is_page_ownership_error,
 )
-from chrome_mcp_errors import (
+from chrome_mcp.errors import (
     is_page_ownership_error_message as _is_page_ownership_error,
 )
-from chrome_mcp_errors import (
+from chrome_mcp.errors import (
     is_transient_mux_error as _is_transient_mux_error,
 )
-from dev_gate_contract import (
+from dev_gate.contract import (
     LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
     MUX_RECLAIM_STALL_TOKEN,
     NEW_PAGE_TOOL_RETRY_ATTEMPTS,
     TOOL_RETRY_ATTEMPTS,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     _STALE_MUX_PAGE_TOKEN,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     ensure_cdp_ready_before_parallel_new_page as _ensure_cdp_ready_before_parallel_new_page,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     http_close_exact_target as _http_close_exact_target,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     is_mux_parallel_fail_fast_message as _is_mux_parallel_fail_fast_message,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     is_new_page_cdp_drift_message as _is_new_page_cdp_drift_message,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     is_retryable_new_page_parse_exc as _is_retryable_new_page_parse_exc,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     new_page_retry_attempts as _new_page_retry_attempts,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     new_page_tool_max_attempts as _new_page_tool_max_attempts,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     parallel_mux_peer_count as _parallel_mux_peer_count,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     parallel_scaled_page_timeout_ms as _parallel_scaled_page_timeout_ms,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     reclaim_wall_deadline as _reclaim_wall_deadline,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     recover_new_page_chrome_drift as _recover_new_page_chrome_drift,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     remaining_reclaim_sec as _remaining_reclaim_sec,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     shim_process_alive as _shim_process_alive,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     should_recover_mux_after_tool_error as _should_recover_mux_after_tool_error,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     tool_retry_attempts as _tool_retry_attempts,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     tool_retry_backoff_sec as _tool_retry_backoff_sec,
 )
-from mcp_page_helpers import (
+from chrome_mcp.page_helpers import (
     wave_command_timeout_sec as _wave_command_timeout_sec,
 )
-from mcp_page_lease_heartbeat import PageLeaseHeartbeat
-from mcp_protocol import (
+from chrome_mcp.page_lease_heartbeat import PageLeaseHeartbeat
+from chrome_mcp.protocol import (
     parse_evaluate_result,
     parse_new_page,
     text_content,
 )
-from mcp_transport_adapter import (
+from mux.transport_adapter import (
     _TRANSPORT_RECOVER_ATTEMPTS,
 )
-from mcp_transport_adapter import (
+from mux.transport_adapter import (
     TrackedRLock as _TrackedRLock,
 )
-from mcp_transport_adapter import (
+from mux.transport_adapter import (
     TransportDeadError as _TransportDeadError,
 )
-from mcp_transport_adapter import (
+from mux.transport_adapter import (
     resolve_request_lock_acquire_sec as _resolve_request_lock_acquire_sec_raw,
 )
-from mux_load import (
+from mux.load import (
     MuxLoadSnapshot,
     adaptive_page_timeout_ms,
     adaptive_tool_timeout_sec,
@@ -229,7 +229,7 @@ class ChromeMcpClient:
     def _abort_unpublished_targets(self, *, keep: frozenset[str] = frozenset()) -> None:
         if not self._unpublished_target_ids:
             return
-        from page_create_transaction import (
+        from browser_orchestrator.page_create_transaction import (
             close_exact_unpublished_targets,
         )  # noqa: PLC0415
 
@@ -257,7 +257,7 @@ class ChromeMcpClient:
         if self._daemon_client is not None:
             self._require_daemon_alive(self._daemon_client)
             return self._daemon_client
-        from browser_orchestrator_client import BrowserOrchestratorClient
+        from browser_orchestrator.client import BrowserOrchestratorClient
 
         client = BrowserOrchestratorClient(timeout_sec=self._request_timeout_sec)
         self._require_daemon_alive(client)
@@ -481,7 +481,7 @@ class ChromeMcpClient:
     def _initial_mux_generation() -> int:
         """Bind client generation to runtime cell ledger when SHPOIB slot is active."""
         try:
-            from e2e_runtime_cell import current_cell_id, read_cell_mux_generation
+            from e2e_core.runtime_cell import current_cell_id, read_cell_mux_generation
 
             if current_cell_id():
                 return max(0, read_cell_mux_generation())
@@ -593,13 +593,13 @@ class ChromeMcpClient:
         return snapshot
 
     def _resolve_trsm_mode(self) -> "TransportRecoveryMode":
-        from transport_recovery_core import (
+        from mux.transport_recovery_core import (
             TransportRecoveryMode,
             resolve_transport_recovery_mode,
         )
 
         try:
-            from dev_gate_contract import is_e2e_signoff_runtime
+            from dev_gate.contract import is_e2e_signoff_runtime
 
             if (
                 is_e2e_signoff_runtime()
@@ -688,7 +688,7 @@ class ChromeMcpClient:
 
     def start(self) -> None:
         if self._use_daemon:
-            from browser_orchestrator_client import BrowserOrchestratorClient
+            from browser_orchestrator.client import BrowserOrchestratorClient
 
             client = BrowserOrchestratorClient(timeout_sec=self._request_timeout_sec)
             self._require_daemon_alive(client)
@@ -864,7 +864,7 @@ class ChromeMcpClient:
     ) -> McpPage:
         if self._use_daemon:
             return self._daemon_new_page(url)
-        from transport_supervisor import assert_mux_daemons_single
+        from mux.transport_supervisor import assert_mux_daemons_single
 
         assert_mux_daemons_single(phase="new_page")
         resolved_timeout_ms = (
@@ -886,7 +886,7 @@ class ChromeMcpClient:
         if isolated_context is not None and not context_id:
             raise ValueError("isolated_context must not be empty")
         if isolated_context is not None:
-            from e2e_auth_provisioner import (  # noqa: PLC0415
+            from e2e_core.auth_provisioner import (  # noqa: PLC0415
                 assert_auth_template_ready_for_isolated_context,
                 hydrate_auth_template_for_context,
             )
@@ -946,12 +946,12 @@ class ChromeMcpClient:
                             2, parse_attempts // 2
                         ):
                             try:
-                                from transport_supervisor import (
+                                from mux.transport_supervisor import (
                                     should_defer_cold_shim_restart,
                                 )
 
                                 if not should_defer_cold_shim_restart():
-                                    from mux_attach_force_restart import (
+                                    from mux.attach_force_restart import (
                                         force_mux_attach_restart_scoped,
                                     )
 
@@ -1123,7 +1123,7 @@ class ChromeMcpClient:
         if not session_id or not owner_token:
             return
         try:
-            from dev_gate_cli import send
+            from dev_gate.cli import send
 
             send(
                 {
@@ -1148,7 +1148,7 @@ class ChromeMcpClient:
         if not session_id or not owner_token:
             return True
         try:
-            from dev_gate_cli import send
+            from dev_gate.cli import send
         except ImportError as exc:
             _LOGGER.warning("DEV_GATE_ATOMIC_REGISTER_FAILED: %s", exc)
             return False
@@ -1187,7 +1187,7 @@ class ChromeMcpClient:
                     time.sleep(0.06 * float(attempt + 1))
                     continue
                 try:
-                    from dev_gate_cli import send as _dev_gate_send
+                    from dev_gate.cli import send as _dev_gate_send
 
                     _dev_gate_send(
                         {
@@ -1301,7 +1301,7 @@ class ChromeMcpClient:
 
     def _heal_after_context_reset(self) -> None:
         """R96-MUX: rebuild owned pages via new_page after mux context reset."""
-        from transport_recovery_core import TransportRecoveryMode
+        from mux.transport_recovery_core import TransportRecoveryMode
 
         saved_pages = self._collapse_pages_for_recovery(
             {**self._disconnected_pages, **self._pages}
@@ -1322,7 +1322,7 @@ class ChromeMcpClient:
         if not self._pages:
             self._rebuild_disconnected_pages(saved_pages, reclaim_deadline)
         try:
-            from e2e_runtime_cell import bump_cell_mux_generation, current_cell_id
+            from e2e_core.runtime_cell import bump_cell_mux_generation, current_cell_id
 
             if current_cell_id():
                 bump_cell_mux_generation()
@@ -1553,7 +1553,7 @@ class ChromeMcpClient:
     def _reopen_owned_page(self, page: McpPage) -> McpPage:
         depth = getattr(self, "_reclaim_depth", 0)
         if depth >= 1:
-            from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
+            from dev_gate.contract import MUX_RECLAIM_STALL_TOKEN
 
             wait_deadline = time.monotonic() + min(
                 30.0,
@@ -1581,7 +1581,7 @@ class ChromeMcpClient:
 
     def _reopen_owned_page_inner(self, page: McpPage) -> McpPage:
         if self._use_daemon:
-            from dev_gate_contract import E2E_USER_CLOSED_TAB_TOKEN
+            from dev_gate.contract import E2E_USER_CLOSED_TAB_TOKEN
 
             raise RuntimeError(
                 f"{E2E_USER_CLOSED_TAB_TOKEN}: orchestrator path does not reopen tabs "
@@ -1740,7 +1740,7 @@ class ChromeMcpClient:
         Per-session shim teardown/spawn is local; global mux attach restart runs under
         ``mux_recovery_scope`` so parallel workers never stampede daemon restart.
         """
-        from transport_supervisor import (
+        from mux.transport_supervisor import (
             mux_recovery_scope,
             parallel_mux_peer_count,
             should_defer_cold_shim_restart,
@@ -1794,7 +1794,7 @@ class ChromeMcpClient:
             self._release_request_lock(held_lock)
 
         if needs_global_restart:
-            from mux_attach_force_restart import force_mux_attach_restart_deduped
+            from mux.attach_force_restart import force_mux_attach_restart_deduped
 
             with mux_recovery_scope(phase="restart_cold_shim"):
                 if force_mux_attach_restart_deduped(
@@ -1826,7 +1826,7 @@ class ChromeMcpClient:
         if not self._pages and not self._disconnected_pages:
             self._restart_cold_shim()
             return
-        from transport_supervisor import mux_recovery_scope
+        from mux.transport_supervisor import mux_recovery_scope
 
         with mux_recovery_scope(phase="recover_mux_transport"):
             self._recover_mux_transport_inner(start_generation=start_generation)
@@ -1924,7 +1924,7 @@ class ChromeMcpClient:
         )
         self._request_generation += 1
         try:
-            from e2e_runtime_cell import current_cell_id, persist_cell_mux_generation
+            from e2e_core.runtime_cell import current_cell_id, persist_cell_mux_generation
 
             if current_cell_id():
                 persist_cell_mux_generation(self._request_generation)
@@ -1932,7 +1932,7 @@ class ChromeMcpClient:
             pass
         self._page_lease_heartbeat.stop()
         self._reclaim_in_progress = False
-        from transport_recovery_core import TRSM_MODE_TOKEN, should_skip_global_teardown
+        from mux.transport_recovery_core import TRSM_MODE_TOKEN, should_skip_global_teardown
 
         trsm_mode = self._resolve_trsm_mode()
         if should_skip_global_teardown(trsm_mode) and not cdp_drift:

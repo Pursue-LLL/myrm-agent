@@ -80,7 +80,7 @@ def spawn_ensure_orchestrator() -> None:
     node_dir = "/opt/homebrew/bin"
     path = env.get("PATH", "")
     if node_dir not in path:
-        from real_user_home import real_user_home  # noqa: PLC0415
+        from e2e_core.real_user_home import real_user_home  # noqa: PLC0415
 
         bun_bin = str(real_user_home() / ".bun/bin")
         env["PATH"] = f"{node_dir}:{bun_bin}:{path}"
@@ -149,7 +149,7 @@ def _cached_parallel_load() -> int:
             return cached
     load = 0
     try:
-        from peer_count_ssot import parallel_active_test_count_ssot
+        from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 
         load = parallel_active_test_count_ssot()
     except ImportError:
@@ -168,7 +168,7 @@ def _parallel_scaled_evaluate_timeout_sec(base: float) -> float:
 
 def _wave_lease_count_probe() -> int:
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         root = Path(__file__).resolve().parents[5]
         return wave_active_lease_count(root)
@@ -178,7 +178,7 @@ def _wave_lease_count_probe() -> int:
 
 def orchestrator_open_tx_wall_sec() -> float:
     """Whole-RPC openPageTransaction wall — must match browser-orchestrator daemon default."""
-    from dev_gate_contract import (  # noqa: PLC0415
+    from dev_gate.contract import (  # noqa: PLC0415
         DEV_OPEN_PAGE_TRANSACTION_WALL_SEC,
         SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC,
     )
@@ -232,7 +232,7 @@ def _default_socket_path() -> str:
     into two worlds. Anchor on the real user home, same directory that holds
     ``daemon.pid``.
     """
-    from real_user_home import real_user_home  # noqa: PLC0415
+    from e2e_core.real_user_home import real_user_home  # noqa: PLC0415
 
     return str(
         real_user_home()

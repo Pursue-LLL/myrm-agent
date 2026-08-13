@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 import pytest
-from cdp_chat_support import get_e2e_api_url, resolve_e2e_api_base
+from cdp_chat.support import get_e2e_api_url, resolve_e2e_api_base
 
 from tests.e2e.desktop_approval.trust_api import (
     desktop_trust_revoke_selector_js,

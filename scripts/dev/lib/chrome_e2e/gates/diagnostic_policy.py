@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dev_gate_contract import E2E_MUX_RECOVERY_REMOVED_TOKEN
+from dev_gate.contract import E2E_MUX_RECOVERY_REMOVED_TOKEN
 
 from chrome_e2e.gates.entry_guard import is_e2e_chrome_mcp_diagnostic_mode
 

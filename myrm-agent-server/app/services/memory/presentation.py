@@ -107,6 +107,8 @@ def memory_to_item(memory: AnyMemory | ProfileEntry, memory_type: MemoryType) ->
             base["tool_rule_priority"] = memory.tool_rule_priority.value
         if memory.is_user_locked:
             base["is_user_locked"] = True
+        if memory.expected_valid_days is not None:
+            base["expected_valid_days"] = memory.expected_valid_days
     elif memory_type == MemoryType.EPISODIC and isinstance(memory, EpisodicMemory):
         base["event_type"] = memory.event_type
         base["related_entities"] = memory.related_entities or []

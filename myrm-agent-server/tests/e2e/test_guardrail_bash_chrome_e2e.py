@@ -15,7 +15,7 @@ _LIB = os.path.join(
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
-from guardrail_e2e_ssot import CHROME_E2E_MARKER_KWARGS  # noqa: E402
+from e2e_core.guardrail_ssot import CHROME_E2E_MARKER_KWARGS  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     _require_e2e_cdp_ready,
@@ -71,7 +71,7 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
 
 def _bridge_ready_timeout_sec() -> float:
     try:
-        from e2e_shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+        from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
             return 180.0
@@ -92,7 +92,7 @@ def _progress_dom_timeout_sec() -> float:
 
 def _force_mux_heal_before_retry() -> None:
     _require_e2e_cdp_ready(budget_sec=45.0)
-    from mux_attach_force_restart import force_mux_attach_restart_scoped
+    from mux.attach_force_restart import force_mux_attach_restart_scoped
 
     force_mux_attach_restart_scoped(reason="guardrail bash outer retry")
     time.sleep(3.0)
@@ -128,7 +128,7 @@ def _messages_from_payload(payload: object) -> list[object]:
 
 def _ensure_private_api_ready(api_url: str, *, timeout_sec: float = 90.0) -> None:
     """Wait for E2E API before seed/attach; SHPOIB provider gate only on isolated ports."""
-    from cdp_chat_support import (  # type: ignore[import-not-found]
+    from cdp_chat.support import (  # type: ignore[import-not-found]
         wait_e2e_backend_ready,
         wait_e2e_provider_ready,
     )
@@ -619,7 +619,7 @@ def _ensure_shpoib_api_binding(
     timeout_sec: float = 45.0,
 ) -> None:
     """Inject and wait for SHPOIB API binding on shared :3000 UI."""
-    from cdp_chat_support import (  # type: ignore[import-not-found]
+    from cdp_chat.support import (  # type: ignore[import-not-found]
         E2E_API_BINDING_PROBE_JS,
         e2e_api_base_inject_js,
         e2e_runtime_binding_source,

@@ -24,7 +24,7 @@ import urllib.error
 from typing import Literal, Protocol, runtime_checkable
 
 from cdp_chat.support import ensure_e2e_search_cleared_in_browser, get_e2e_api_url
-from dev_gate_contract import EvaluateIntent
+from dev_gate.contract import EvaluateIntent
 
 E2E_SEARCH_POLICY_ENV = "MYRM_E2E_SEARCH_POLICY"
 SearchPolicy = Literal["empty", "hydrate_private"]
@@ -43,7 +43,7 @@ def _parallel_bridge_ready_cap_sec() -> float:
 
 def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
     """Parallel SHPOIB hydrate queue can defer React mount beyond 60s."""
-    from dev_gate_contract import shared_ui_hydrate_wait_sec
+    from dev_gate.contract import shared_ui_hydrate_wait_sec
     from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
     if parallel_shared_ui_hydrate_queue_enabled():
@@ -230,7 +230,7 @@ def _shared_ui_deadline_extend_cap_sec() -> float:
     """Scale shared UI contract extension under parallel mux pressure (v2.2)."""
     base = 90.0
     try:
-        from dev_gate_contract import _parallel_chrome_e2e_pressure
+        from dev_gate.contract import _parallel_chrome_e2e_pressure
 
         peers = _parallel_chrome_e2e_pressure()
         if peers >= 2:
@@ -340,7 +340,7 @@ async def _ensure_bridge_probe_ready(
         rehydrate_base = 45.0
         if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
             try:
-                from dev_gate_contract import _parallel_signoff_pressure_peers
+                from dev_gate.contract import _parallel_signoff_pressure_peers
 
                 peers = _parallel_signoff_pressure_peers()
                 if peers >= 2:

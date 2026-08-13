@@ -24,7 +24,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from dev_gate_contract import MAX_PAGE_TIMEOUT_MS  # noqa: E402
+from dev_gate.contract import MAX_PAGE_TIMEOUT_MS  # noqa: E402
 
 from tests.e2e.test_subagent_dashboard_chrome_e2e import (
     _open_subagent_dashboard,

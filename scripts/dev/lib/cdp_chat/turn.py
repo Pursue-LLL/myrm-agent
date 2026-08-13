@@ -6,9 +6,9 @@ import asyncio
 import json
 import time
 
-import cdp_chat_support
-from cdp_chat_submit import CdpChatSubmit
-from cdp_chat_support import (
+import cdp_chat.support as cdp_chat_support
+from cdp_chat.submit import CdpChatSubmit
+from cdp_chat.support import (
     BRIDGE_TURN_SNAPSHOT_JS,
     PREPARE_AUTOMATION_SEND_JS,
     SELECT_FIRST_ENABLED_MODEL_JS,
@@ -18,9 +18,9 @@ from cdp_chat_support import (
     chat_messages_have_ok,
     is_persisted_e2e_goal,
 )
-from dev_gate_contract import EvaluateIntent
-from e2e_wave_ledger import maybe_register_e2e_chat
-from send_turn_contract import SendTurnError, SendTurnPhase, is_live_send_turn_profile
+from dev_gate.contract import EvaluateIntent
+from e2e_core.wave_ledger import maybe_register_e2e_chat
+from cdp_chat.send_turn_contract import SendTurnError, SendTurnPhase, is_live_send_turn_profile
 
 
 def _touch_live_turn_progress(node: str) -> None:
@@ -652,7 +652,7 @@ class CdpChatTurn(CdpChatSubmit):
         )
         if baseline_user_msgs_hint is None and chat_id:
             baseline_user_msgs = await self._best_effort_user_message_count(chat_id)
-        from cdp_chat_support import signoff_parallel_desktop_mux_step_timeout_sec
+        from cdp_chat.support import signoff_parallel_desktop_mux_step_timeout_sec
 
         bridge_timeout = signoff_parallel_desktop_mux_step_timeout_sec(60.0)
         await self.ensure_react_e2e_bridge(timeout_sec=bridge_timeout)

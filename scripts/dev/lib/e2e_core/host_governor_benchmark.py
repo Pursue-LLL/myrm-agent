@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import TypedDict
 
-from host_resource_governor import (
+from e2e_core.host_resource_governor import (
     MAX_BROWSER_SLOTS,
     MIN_BROWSER_SLOTS,
     collect_host_pressure_snapshot,
@@ -18,7 +18,7 @@ from host_resource_governor import (
     tick_governor,
 )
 
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 
 class SlotCalibrationRow(TypedDict):

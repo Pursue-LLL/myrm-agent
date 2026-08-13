@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 import time
 
-from mcp_chat_ui import McpChatSession
-from dev_gate_contract import EvaluateIntent
+from cdp_chat.mcp_ui import McpChatSession
+from dev_gate.contract import EvaluateIntent
 
 
 def is_gate_mux_stall(exc: BaseException) -> bool:

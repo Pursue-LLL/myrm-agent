@@ -25,12 +25,12 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     fetch_chat_messages,
     get_e2e_api_url,
     wait_e2e_provider_ready,
 )
-from e2e_orchestrator import touch_wall_progress  # noqa: E402
+from e2e_core.orchestrator import touch_wall_progress  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import guarded_httpx_request  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once

@@ -21,7 +21,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from dev_gate_contract import (
+from dev_gate.contract import (
     BASE_PAGE_TIMEOUT_MS,
     BASE_TOOL_TIMEOUT_SEC,
     MAX_PAGE_TIMEOUT_MS,
@@ -218,14 +218,14 @@ def parallel_open_page_peer_count(*, signoff: bool = False) -> int:
     if peers > 0:
         return peers
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         monorepo_root = Path(__file__).resolve().parents[5]
         return wave_active_lease_count(monorepo_root)
     except (ImportError, OSError, RuntimeError, ValueError):
         pass
     try:
-        from transport_supervisor import _chrome_e2e_pytest_peer_count
+        from mux.transport_supervisor import _chrome_e2e_pytest_peer_count
 
         return _chrome_e2e_pytest_peer_count()
     except ImportError:
@@ -252,14 +252,14 @@ def _reload_mux_daemon_if_needed() -> bool:
 def solo_gate_cluster_clear() -> bool:
     """Step-1 gate solo cluster: pytest peers=0, wave leases=0, active mux contexts <= 1."""
     try:
-        from transport_supervisor import _chrome_e2e_pytest_peer_count
+        from mux.transport_supervisor import _chrome_e2e_pytest_peer_count
 
         if _chrome_e2e_pytest_peer_count() != 0:
             return False
     except ImportError:
         return False
     try:
-        from e2e_api_verify import resolve_e2e_api_context
+        from e2e_core.api_verify import resolve_e2e_api_context
 
         ctx = resolve_e2e_api_context(retry_after_apply=False)
         if ctx.active_leases != 0:
@@ -274,7 +274,7 @@ def heal_mux_for_solo_gate() -> dict[str, object]:
     """Solo Step-1 gate heal: prune dead cells, reap empty mux shells, reload when idle."""
     pruned_cells = 0
     try:
-        from e2e_runtime_cell import prune_dead_runtime_cells
+        from e2e_core.runtime_cell import prune_dead_runtime_cells
 
         pruned_cells = prune_dead_runtime_cells()
     except ImportError:
@@ -296,7 +296,7 @@ def heal_mux_for_solo_gate() -> dict[str, object]:
 
     pytest_peers = 0
     try:
-        from transport_supervisor import _chrome_e2e_pytest_peer_count
+        from mux.transport_supervisor import _chrome_e2e_pytest_peer_count
 
         pytest_peers = _chrome_e2e_pytest_peer_count()
     except ImportError:
@@ -387,7 +387,7 @@ def reap_idle_empty_mux_contexts(*, idle_ms: int | None = None) -> dict[str, obj
     if "Method not found" in reason or result.get("code") == -32601:
         parallel_peers = 0
         try:
-            from transport_supervisor import _chrome_e2e_pytest_peer_count
+            from mux.transport_supervisor import _chrome_e2e_pytest_peer_count
 
             parallel_peers = _chrome_e2e_pytest_peer_count()
         except ImportError:

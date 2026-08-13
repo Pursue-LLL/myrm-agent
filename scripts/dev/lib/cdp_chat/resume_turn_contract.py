@@ -39,7 +39,7 @@ RESUME_DONE_POLL_PROGRESS_INTERVAL_SEC: float = 30.0
 
 def parallel_active_test_count() -> int:
     try:
-        from transport_supervisor import parallel_active_test_count as _count
+        from mux.transport_supervisor import parallel_active_test_count as _count
 
         return _count()
     except ImportError:

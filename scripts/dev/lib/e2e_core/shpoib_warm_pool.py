@@ -21,7 +21,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Final, TypedDict
 
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 DEFAULT_POOL_SIZE: Final[int] = 2
 POOL_PROGRESS_INTERVAL_SEC: Final[float] = 30.0
@@ -159,7 +159,7 @@ def warm_backend_source_fingerprint(api_base: str) -> str:
 def _workspace_source_fingerprint() -> str:
     """Current workspace backend source fingerprint (lazy; cached per process)."""
     try:
-        from runtime_identity import _backend_source_fingerprint
+        from e2e_core.runtime_identity import _backend_source_fingerprint
     except ImportError:
         return ""
     try:
@@ -211,7 +211,7 @@ def _prune_stale(registry: WarmPoolRegistry, *, now: float) -> int:
 
 
 def _spawn_warm_backend(*, monorepo: Path) -> WarmBorrowResult:
-    from verify_backend_seed import _spawn_verify_backend_seed
+    from e2e_core.verify_backend_seed import _spawn_verify_backend_seed
 
     spawned = _spawn_verify_backend_seed(monorepo=monorepo)
     if not spawned.ok:

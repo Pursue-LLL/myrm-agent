@@ -6,10 +6,10 @@ import sqlite3
 import time
 from contextlib import closing
 
-from desktop_seat_controller import desktop_seat_capacity
-from dev_gate_session import ExecutionMode, SessionState
-from dev_gate_store import DevGateStore, default_store_path
-from private_resource_controller import (
+from dev_gate.desktop_seat_controller import desktop_seat_capacity
+from dev_gate.session import ExecutionMode, SessionState
+from dev_gate.store import DevGateStore, default_store_path
+from dev_gate.private_resource_controller import (
     PrivateResourceController,
     private_capacity_credits,
 )

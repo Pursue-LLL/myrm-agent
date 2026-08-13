@@ -60,7 +60,7 @@ def _pytest_uses_isolated_wave_state() -> bool:
         wave_dir = Path(wave_raw).resolve()
     except OSError:
         return False
-    from real_user_home import real_user_home
+    from e2e_core.real_user_home import real_user_home
 
     shared = (real_user_home() / ".local/state/myrm-dev").resolve()
     return wave_dir != shared
@@ -149,11 +149,11 @@ def _heartbeat_dev_gate_session(*, current_node: str | None = None) -> None:
     if not resolved_node:
         resolved_node = _snapshot_current_node()
     try:
-        from dev_gate_cli import (
+        from dev_gate.cli import (
             default_socket_path,
             normalized_socket_path,
         )
-        from dev_gate_coordinator import request
+        from dev_gate.coordinator import request
 
         socket_path = normalized_socket_path(default_socket_path())
         payload = {

@@ -8,7 +8,7 @@ import sqlite3
 import time
 from pathlib import Path
 
-from dev_gate_session import (
+from dev_gate.session import (
     TERMINAL_STATES,
     AccessScope,
     CleanupReceipt,
@@ -23,7 +23,7 @@ from dev_gate_session import (
     assert_transition,
     initial_state,
 )
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 
 def _cleanup_dict_from_row(row: sqlite3.Row) -> dict[str, object]:
@@ -1041,7 +1041,7 @@ class DevGateStore:
             for row in rows:
                 owner_pid = int(row["owner_pid"])
                 owner_start = str(row["owner_process_start"])
-                from owner_identity import owner_process_matches
+                from dev_gate.owner_identity import owner_process_matches
 
                 if owner_process_matches(pid=owner_pid, expected_start=owner_start):
                     continue

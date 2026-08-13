@@ -39,7 +39,7 @@ def capture_owner_process_start(pid: int) -> str:
     """Capture ps lstart token for the owning process."""
     if pid <= 0:
         return ""
-    from process_identity import capture_process
+    from e2e_core.process_identity import capture_process
 
     identity = capture_process(pid, role="e2e-owner", runtime_id="owner")
     if identity is None:
@@ -88,7 +88,7 @@ def owner_process_matches(*, pid: int, expected_start: str) -> bool:
         return False
     if not expected_start.strip():
         return True
-    from process_identity import capture_process
+    from e2e_core.process_identity import capture_process
 
     current = capture_process(pid, role="e2e-owner", runtime_id="owner")
     if current is None:

@@ -25,7 +25,7 @@ def _resolve_approval_wait_sec() -> float:
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
             try:
-                from cdp_chat_support import signoff_parallel_desktop_approval_wait_sec
+                from cdp_chat.support import signoff_parallel_desktop_approval_wait_sec
 
                 return signoff_parallel_desktop_approval_wait_sec(base)
             except ImportError:
@@ -66,7 +66,7 @@ def _resolve_desktop_e2e_wall_clock_fail_sec() -> float:
         base = 280.0
         if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
             try:
-                from cdp_chat_support import (
+                from cdp_chat.support import (
                     signoff_parallel_desktop_wall_clock_fail_sec,
                 )
 

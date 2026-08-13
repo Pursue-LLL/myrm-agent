@@ -12,12 +12,12 @@ from tests.support.chrome_mcp_e2e import get_e2e_ui_url
 from tests.support.e2e_lite_model_pin import strip_provider_prefix
 
 try:
-    from mcp_chat_ui import McpChatSession
+    from cdp_chat.mcp_ui import McpChatSession
 except ImportError:  # pragma: no cover - import path in pytest vs standalone
     McpChatSession = object  # type: ignore[misc,assignment]
 
 try:
-    from dev_gate_contract import EvaluateIntent, resolve_evaluate_budget
+    from dev_gate.contract import EvaluateIntent, resolve_evaluate_budget
 except ImportError:  # pragma: no cover - import path in pytest vs standalone
     EvaluateIntent = None  # type: ignore[misc,assignment]
 

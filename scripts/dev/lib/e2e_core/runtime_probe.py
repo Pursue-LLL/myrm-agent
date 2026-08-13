@@ -21,7 +21,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runtime_identity import (
+from e2e_core.runtime_identity import (
     RuntimeProbeContext,
     _default_chrome_data_dir,
     _mux_state_dir,
@@ -32,7 +32,7 @@ from runtime_identity import (
     runtime_ids_equal,
 )
 
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 
 def _default_frontend_dir() -> Path | None:
@@ -189,7 +189,7 @@ def _mux_status_timeout_sec() -> float:
         except ValueError:
             pass
     try:
-        from peer_count_ssot import parallel_active_test_count_ssot
+        from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 
         if parallel_active_test_count_ssot() > 1:
             return 15.0
@@ -313,7 +313,7 @@ def _read_shared_hot_stack_runtime_id() -> str:
 
 def read_current_runtime_id() -> str:
     if os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1":
-        from runtime_identity import read_stack_scoped_runtime_id
+        from e2e_core.runtime_identity import read_stack_scoped_runtime_id
 
         return read_stack_scoped_runtime_id()
     if (

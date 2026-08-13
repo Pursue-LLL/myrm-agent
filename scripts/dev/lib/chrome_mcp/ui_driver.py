@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from mcp_protocol import text_content
-from mcp_snapshot import McpSnapshot, SnapshotNode
+from chrome_mcp.protocol import text_content
+from chrome_mcp.snapshot import McpSnapshot, SnapshotNode
 
 _MCP_UI_MIN_TIMEOUT_SEC = 15.0
 

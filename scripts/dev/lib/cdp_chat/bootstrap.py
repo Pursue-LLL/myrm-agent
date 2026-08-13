@@ -6,7 +6,7 @@ import asyncio
 import os
 import time
 
-from cdp_chat_support import (
+from cdp_chat.support import (
     DISMISS_MODALS_JS,
     MODEL_PROBE_JS,
     PAGE_PROBE_JS,
@@ -19,8 +19,8 @@ from cdp_chat_support import (
     shpoib_parallel_shell_timeout_sec,
     shpoib_shell_wait_slice_cap,
 )
-from cdp_chat_transport import CdpChatTransport
-from dev_gate_contract import EvaluateIntent
+from cdp_chat.transport import CdpChatTransport
+from dev_gate.contract import EvaluateIntent
 
 _SHELL_PROBE_RECV_TIMEOUT_SEC = 15.0
 
@@ -31,7 +31,7 @@ def _signoff_bridge_hydrate_cap_sec() -> float:
     if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
         return cap
     try:
-        from dev_gate_contract import _parallel_signoff_pressure_peers
+        from dev_gate.contract import _parallel_signoff_pressure_peers
 
         peers = _parallel_signoff_pressure_peers()
         if peers >= 2:
@@ -57,7 +57,7 @@ def split_bootstrap_deadlines(
     Parallel SHPOIB scales the outer bootstrap wall for shell mux contention but
     must not consume the shared UI session contract budget (RESET_GLOBALS…).
     """
-    from dev_gate_contract import (
+    from dev_gate.contract import (
         E2E_BOOTSTRAP_BRIDGE_HYDRATE_RESERVE_SEC,
         E2E_BOOTSTRAP_SHELL_MIN_SEC,
     )
@@ -105,7 +105,7 @@ async def _warm_shell_bootstrap_probe(chat: CdpChatTransport) -> dict[str, objec
 
 
 def _shell_probe_stall_cap_sec() -> float:
-    from dev_gate_contract import SHELL_PROBE_STALL_FAIL_FAST_SEC
+    from dev_gate.contract import SHELL_PROBE_STALL_FAIL_FAST_SEC
 
     cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
     # Shared-hot desktop chrome_e2e can require longer mux reclaim/hydration.
@@ -114,7 +114,7 @@ def _shell_probe_stall_cap_sec() -> float:
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         cap = max(cap, 180.0)
         try:
-            from chrome_mcp_client import _parallel_mux_peer_count
+            from chrome_mcp.client import _parallel_mux_peer_count
 
             cap = min(cap + _parallel_mux_peer_count() * 12.0, 240.0)
         except Exception:
@@ -191,7 +191,7 @@ class CdpChatBootstrap(CdpChatTransport):
 
     def _check_skeleton_stall(self, probe: dict[str, object], *, phase: str) -> None:
         """Fail-fast when UI stays skeleton/blank without progress (R73-A)."""
-        from dev_gate_contract import (
+        from dev_gate.contract import (
             E2E_SHELL_SKELETON_STALL_TOKEN,
             shell_probe_stall_fail_fast_effective_sec,
         )
@@ -227,7 +227,7 @@ class CdpChatBootstrap(CdpChatTransport):
             )
 
     def _check_shell_layout_stall_cap(self) -> None:
-        from dev_gate_contract import (
+        from dev_gate.contract import (
             MUX_RECLAIM_STALL_TOKEN,
         )
 
@@ -245,13 +245,13 @@ class CdpChatBootstrap(CdpChatTransport):
 
     def _check_bootstrap_stall_fail_fast(self, *, phase: str) -> None:
         try:
-            from e2e_orchestrator import assert_wall_budget
+            from e2e_core.orchestrator import assert_wall_budget
 
             assert_wall_budget(phase)
             return
         except ImportError:
             pass
-        from dev_gate_contract import (
+        from dev_gate.contract import (
             LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
         )
 
@@ -303,7 +303,7 @@ class CdpChatBootstrap(CdpChatTransport):
         self._check_bootstrap_stall_fail_fast(phase=phase)
 
     async def _shared_ui_burst(self, operation: str, action):
-        from e2e_shared_ui_hydrate import async_shared_ui_hydrate_burst
+        from e2e_core.shared_ui_hydrate import async_shared_ui_hydrate_burst
 
         async with async_shared_ui_hydrate_burst():
             return await action
@@ -490,7 +490,7 @@ class CdpChatBootstrap(CdpChatTransport):
         *,
         deadline: float | None = None,
     ) -> None:
-        from e2e_shared_ui_session import maybe_apply_shared_ui_session_contract
+        from e2e_core.shared_ui_session import maybe_apply_shared_ui_session_contract
 
         result = await maybe_apply_shared_ui_session_contract(
             self,
@@ -505,7 +505,7 @@ class CdpChatBootstrap(CdpChatTransport):
         *,
         deadline: float | None = None,
     ) -> None:
-        from e2e_shared_ui_session import reapply_shared_ui_session_after_new_chat
+        from e2e_core.shared_ui_session import reapply_shared_ui_session_after_new_chat
 
         await reapply_shared_ui_session_after_new_chat(self, deadline=deadline)
 
@@ -535,7 +535,7 @@ class CdpChatBootstrap(CdpChatTransport):
         require_bridge: bool = True,
     ) -> dict[str, object]:
         """Lightweight shell wait for MCP pages already navigated to the app URL."""
-        from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
+        from dev_gate.contract import MUX_RECLAIM_STALL_TOKEN
 
         timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
         self._reset_shell_layout_wait_clock()
@@ -571,7 +571,7 @@ class CdpChatBootstrap(CdpChatTransport):
                 await asyncio.sleep(1.0)
 
     async def _recover_shell_probe_mux(self, mux_recover_attempts: int) -> int:
-        from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
+        from dev_gate.contract import MUX_RECLAIM_STALL_TOKEN
 
         client = getattr(self, "_client", None)
         if client is not None and mux_recover_attempts < 1:
@@ -593,7 +593,7 @@ class CdpChatBootstrap(CdpChatTransport):
         return mux_recover_attempts
 
     async def _wait_shell_layout_ready(self, *, deadline: float) -> dict[str, object]:
-        from dev_gate_contract import (
+        from dev_gate.contract import (
             MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
             MUX_RECLAIM_STALL_TOKEN,
         )
@@ -930,7 +930,7 @@ class CdpChatBootstrap(CdpChatTransport):
                     import sys
 
                     try:
-                        from transport_supervisor import parallel_active_test_count
+                        from mux.transport_supervisor import parallel_active_test_count
 
                         active = parallel_active_test_count()
                     except ImportError:
@@ -1227,7 +1227,7 @@ class CdpChatBootstrap(CdpChatTransport):
                     intent=EvaluateIntent.SYNC_PROBE,
                 )
             except RuntimeError as exc:
-                from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
+                from dev_gate.contract import MUX_RECLAIM_STALL_TOKEN
 
                 if MUX_RECLAIM_STALL_TOKEN in str(exc):
                     if mux_recover_attempts < 1:

@@ -15,14 +15,14 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     WAIT_WORKSPACE_STREAM_JS,
     get_e2e_api_url,
     wait_e2e_provider_ready,
 )
-from chrome_mcp_client import ChromeMcpClient  # noqa: E402
-from dev_gate_contract import EvaluateIntent  # noqa: E402
-from mcp_chat_ui import McpChatSession  # noqa: E402
+from chrome_mcp.client import ChromeMcpClient  # noqa: E402
+from dev_gate.contract import EvaluateIntent  # noqa: E402
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
@@ -468,7 +468,7 @@ async def _open_migration_chat_page(
     chat_url: str,
 ) -> object:
     """Open chat page with mux-flake retries (parallel SHPOIB)."""
-    from chrome_mcp_errors import is_transient_mux_error
+    from chrome_mcp.errors import is_transient_mux_error
 
     last_error: RuntimeError | None = None
     for attempt in range(3):
@@ -480,7 +480,7 @@ async def _open_migration_chat_page(
             last_error = exc
             message = str(exc)
             lowered = message.lower()
-            from transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
+            from mux.transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
 
             retriable = (
                 "new_page failed" in message
@@ -492,14 +492,14 @@ async def _open_migration_chat_page(
             )
             if not retriable or attempt >= 2:
                 raise
-            from transport_supervisor import reset_session_recovery_budget
+            from mux.transport_supervisor import reset_session_recovery_budget
 
             reset_session_recovery_budget()
             if (
                 "unexpected server response: 404" in lowered
                 or "could not connect to chrome" in lowered
             ):
-                from mux_attach_force_restart import force_mux_attach_restart_scoped
+                from mux.attach_force_restart import force_mux_attach_restart_scoped
 
                 await asyncio.to_thread(
                     force_mux_attach_restart_scoped,
@@ -557,12 +557,12 @@ async def _run_migration_readiness_gap_e2e(
 
     prepare_e2e_ui_session(api_base)
     if skip_warm_ui:
-        from e2e_orchestrator import touch_wall_progress
+        from e2e_core.orchestrator import touch_wall_progress
 
         touch_wall_progress(current_node="warm_ui_route_skipped_batch_reuse")
     else:
         warm_ui_route(seed["chat_ui_path"])
-    from transport_supervisor import reset_session_recovery_budget
+    from mux.transport_supervisor import reset_session_recovery_budget
 
     reset_session_recovery_budget()
 

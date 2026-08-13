@@ -21,7 +21,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from cdp_chat_support import (
+from cdp_chat.support import (
     _e2e_api_get_json,
     _e2e_api_urlopen,
     fetch_chat_messages,

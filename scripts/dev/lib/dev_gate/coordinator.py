@@ -16,16 +16,16 @@ import time
 from pathlib import Path
 from typing import cast
 
-from desktop_seat_controller import (
+from dev_gate.desktop_seat_controller import (
     DesktopSeatController,
     desktop_seat_capacity,
 )
-from dev_gate_async_queue import (
+from dev_gate.async_queue import (
     DevGateAsyncWriter,
     async_queue_enabled,
     max_async_queue_depth,
 )
-from dev_gate_session import (
+from dev_gate.session import (
     AccessScope,
     CleanupReceipt,
     CleanupUnsealedError,
@@ -36,8 +36,8 @@ from dev_gate_session import (
     TerminalConflictError,
     Workload,
 )
-from dev_gate_store import DevGateStore, default_store_path
-from private_resource_controller import (
+from dev_gate.store import DevGateStore, default_store_path
+from dev_gate.private_resource_controller import (
     PrivateResourceController,
     private_capacity_credits,
 )
@@ -118,7 +118,7 @@ class CoordinatorService:
             reaped = list(self.store.reap_abandoned())
             reaped.extend(self.store.reap_expired_deadlines())
             compacted = self.store.compact_journal()
-            from idle_hygiene_scheduler import (
+            from e2e_core.idle_hygiene_scheduler import (
                 run_idle_tab_hygiene_if_safe,
             )  # noqa: PLC0415
 
@@ -159,7 +159,7 @@ class CoordinatorService:
                 failure_token=_optional_text(request, "failure_token"),
                 pytest_evidence_hash=_optional_text(request, "pytest_evidence_hash"),
             )
-            from idle_hygiene_scheduler import (
+            from e2e_core.idle_hygiene_scheduler import (
                 run_idle_tab_hygiene_if_safe,
             )  # noqa: PLC0415
 
@@ -222,11 +222,11 @@ class CoordinatorService:
             budget_sec = (
                 float(budget_raw) if isinstance(budget_raw, (int, float)) else 30.0
             )
-            from dev_gate_event_wait import (
+            from dev_gate.event_wait import (
                 SessionEventTimeoutError,
                 wait_for_session_event,
             )
-            from dev_gate_event_hub import (
+            from dev_gate.event_hub import (
                 coordinator_event_hub,
                 wait_for_session_event_subscribed,
             )
@@ -268,7 +268,7 @@ class CoordinatorService:
             if session_id == "__health__":
                 health: dict[str, object] = {}
                 try:
-                    from host_resource_governor import (  # noqa: PLC0415
+                    from e2e_core.host_resource_governor import (  # noqa: PLC0415
                         host_resource_governor_snapshot,
                         recent_transition_log,
                     )
@@ -278,7 +278,7 @@ class CoordinatorService:
                 except ImportError:
                     pass
                 try:
-                    from dev_gate_status import dev_gate_status  # noqa: PLC0415
+                    from dev_gate.status import dev_gate_status  # noqa: PLC0415
 
                     health["devGate"] = dev_gate_status()
                 except ImportError:
@@ -312,7 +312,7 @@ class CoordinatorService:
                     for item in session_ids_raw
                     if isinstance(item, str) and item.strip()
                 )
-            from dev_gate_signoff_export import export_signoff_artifact  # noqa: PLC0415
+            from dev_gate.signoff_export import export_signoff_artifact  # noqa: PLC0415
 
             return export_signoff_artifact(
                 self.store,
@@ -325,7 +325,7 @@ class CoordinatorService:
             path_raw = request.get("output_path")
             if not isinstance(path_raw, str) or not path_raw.strip():
                 raise ValueError("verify_signoff_artifact.output_path is required")
-            from dev_gate_signoff_export import verify_signoff_artifact  # noqa: PLC0415
+            from dev_gate.signoff_export import verify_signoff_artifact  # noqa: PLC0415
 
             return verify_signoff_artifact(Path(path_raw.strip()))
         raise ValueError(f"unsupported operation: {operation}")
@@ -334,7 +334,7 @@ class CoordinatorService:
         """Re-evaluate host capacity and grant newly eligible PRIVATE waiters."""
         granted = self.private_controller.sweep_stale_credits()
         if granted:
-            from dev_gate_event_hub import coordinator_event_hub  # noqa: PLC0415
+            from dev_gate.event_hub import coordinator_event_hub  # noqa: PLC0415
 
             hub = coordinator_event_hub()
             for session_id in granted:
@@ -485,7 +485,7 @@ class CoordinatorService:
             failure_token=_optional_text(request, "failure_token"),
             pytest_evidence_hash=_optional_text(request, "pytest_evidence_hash"),
         )
-        from idle_hygiene_scheduler import run_idle_tab_hygiene_if_safe  # noqa: PLC0415
+        from e2e_core.idle_hygiene_scheduler import run_idle_tab_hygiene_if_safe  # noqa: PLC0415
 
         hygiene = run_idle_tab_hygiene_if_safe(trigger="coordinator_teardown_finish")
         return {"session": record.to_dict(), "idle_tab_hygiene": hygiene}
@@ -545,7 +545,7 @@ class _CoordinatorHandler(socketserver.BaseRequestHandler):
                 body = server._async_writer.dispatch(payload)
             else:
                 body = server.service.handle(payload)
-                from dev_gate_event_hub import notify_write_result  # noqa: PLC0415
+                from dev_gate.event_hub import notify_write_result  # noqa: PLC0415
 
                 notify_write_result(payload, body)
             if (
@@ -681,7 +681,7 @@ def _terminate_deadline_reaped(
     """
     import signal  # noqa: PLC0415
 
-    from owner_identity import owner_process_matches  # noqa: PLC0415
+    from dev_gate.owner_identity import owner_process_matches  # noqa: PLC0415
 
     for raw_id in reaped_session_ids:
         session_id = str(raw_id)
@@ -746,7 +746,7 @@ class _BackgroundReaper:
                     self._service.store,
                     result.get("reaped_session_ids", []),
                 )
-                from e2e_stale_lease_reap import (  # noqa: PLC0415
+                from e2e_core.stale_lease_reap import (  # noqa: PLC0415
                     maybe_reap_epoch_drift_stale_sessions,
                     maybe_reap_excess_wave_leases,
                     maybe_reap_hung_chrome_e2e_pytest,
@@ -792,7 +792,7 @@ def serve(socket_path: Path, database_path: Path) -> None:
     socket_path = normalized_socket_path(socket_path)
     resolved_db = database_path.resolve()
     lock_fd = _acquire_serve_singleton_lock(resolved_db)
-    from dev_gate_cli import _write_coordinator_code_stamp  # noqa: PLC0415
+    from dev_gate.cli import _write_coordinator_code_stamp  # noqa: PLC0415
 
     _write_coordinator_code_stamp(resolved_db)
     service = CoordinatorService(DevGateStore(resolved_db))

@@ -76,8 +76,8 @@ def load_parallel_runtime_snapshot() -> tuple[dict[str, object], list[str]]:
 def load_parallel_runtime_snapshot_lite() -> tuple[dict[str, object], list[str]]:
     """Fast parallel snapshot for e2e-context json under load (skip pgrep/session scan)."""
     try:
-        from dev_gate_status import dev_gate_status
-        from e2e_lease_liveness import (
+        from dev_gate.status import dev_gate_status
+        from e2e_core.lease_liveness import (
             load_wave_snapshot,
             wave_lease_counts,
         )
@@ -153,7 +153,7 @@ def should_use_lite_parallel_snapshot() -> bool:
     if raw in {"1", "true", "yes"}:
         return True
     try:
-        from peer_count_ssot import parallel_active_test_count_ssot
+        from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 
         return parallel_active_test_count_ssot() > 0
     except ImportError:
@@ -208,7 +208,7 @@ def resolve_cap_headroom_active_test_count(
 
     pytest_peers = 0
     try:
-        from peer_count_ssot import chrome_e2e_pytest_peer_count
+        from e2e_core.peer_count_ssot import chrome_e2e_pytest_peer_count
 
         pytest_peers = chrome_e2e_pytest_peer_count()
     except ImportError:
@@ -237,7 +237,7 @@ def compute_queue_state(
     parallel_snapshot: dict[str, object] | None,
 ) -> tuple[bool, list[str]]:
     del live_agent_shpoib_count, mux_fields, parallel_snapshot
-    from dev_gate_status import dev_gate_status
+    from dev_gate.status import dev_gate_status
 
     status = dev_gate_status()
     reasons: list[str] = []
@@ -256,7 +256,7 @@ def compute_queue_state(
         else:
             reasons.append("private_credit_queue")
     try:
-        from e2e_mux_transport_queue import transport_queue_snapshot
+        from e2e_core.mux_transport_queue import transport_queue_snapshot
 
         if transport_queue_snapshot().blocked:
             reasons.append("mux_transport_queue")
@@ -297,9 +297,9 @@ def cap_headroom_fields(
     observability_mismatch: bool = False,
     orchestrator_observability: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    from dev_gate_contract import MUX_COLD_ATTACH_SLOTS
-    from dev_gate_status import dev_gate_status
-    from e2e_lease_liveness import WaveLeaseCounts
+    from dev_gate.contract import MUX_COLD_ATTACH_SLOTS
+    from dev_gate.status import dev_gate_status
+    from e2e_core.lease_liveness import WaveLeaseCounts
 
     counts = (
         lease_counts
@@ -475,8 +475,8 @@ def format_queue_human(
 
 def format_soak_headroom_verdict(*, max_active: int, max_wave: int) -> str:
     """Lightweight headroom probe for desktop soak — no full e2e-context json."""
-    from e2e_api_verify import _mux_context_fields
-    from e2e_lease_liveness import (
+    from e2e_core.api_verify import _mux_context_fields
+    from e2e_core.lease_liveness import (
         load_wave_snapshot_observation,
         wave_lease_counts,
     )

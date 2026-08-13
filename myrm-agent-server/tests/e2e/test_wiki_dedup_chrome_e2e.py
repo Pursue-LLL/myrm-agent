@@ -131,7 +131,7 @@ def _force_mux_heal_before_retry() -> None:
     _heal_stale_e2e_lease()
     _require_e2e_cdp_ready(budget_sec=20.0)
     try:
-        from mux_attach_force_restart import force_mux_attach_restart_scoped
+        from mux.attach_force_restart import force_mux_attach_restart_scoped
 
         force_mux_attach_restart_scoped(reason="wiki dedup chrome outer retry")
     except RuntimeError as exc:
@@ -145,7 +145,7 @@ def _is_transport_retryable(exc: BaseException) -> bool:
     text = str(exc)
     if "E2E_USER_CLOSED_TAB" in text:
         try:
-            from transport_supervisor import parallel_active_test_count
+            from mux.transport_supervisor import parallel_active_test_count
 
             return parallel_active_test_count() > 0
         except (ImportError, OSError, RuntimeError, ValueError):
@@ -232,7 +232,7 @@ def _run_duplicate_review_assertions(
             timeout_sec=_warm_ui_parallel_wait_sec(_WARM_ROUTE_TIMEOUT_SEC),
         )
         try:
-            from warm_shell_registry import seal_platform_shell
+            from e2e_core.warm_shell_registry import seal_platform_shell
 
             seal_platform_shell(ui_url=wiki_page_url, route_path="/settings/wiki")
         except ImportError:

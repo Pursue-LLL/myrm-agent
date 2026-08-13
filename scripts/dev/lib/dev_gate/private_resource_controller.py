@@ -8,9 +8,9 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from dev_gate_contract import LIVE_SHPOIB_MAX_CONCURRENT
-from dev_gate_session import SessionState
-from dev_gate_store import DevGateStore, _begin_immediate
+from dev_gate.contract import LIVE_SHPOIB_MAX_CONCURRENT
+from dev_gate.session import SessionState
+from dev_gate.store import DevGateStore, _begin_immediate
 
 PRIVATE_ADMIT_TIMEOUT_SEC = 900.0
 PRIVATE_QUEUE_PROGRESS_SEC = 30.0
@@ -56,7 +56,7 @@ def private_capacity_credits() -> int:
             )
         return capacity
     try:
-        from host_resource_governor import effective_private_capacity_credits
+        from e2e_core.host_resource_governor import effective_private_capacity_credits
 
         return min(PRIVATE_CAPACITY_MAX, effective_private_capacity_credits())
     except ImportError:
@@ -310,7 +310,7 @@ class PrivateResourceController:
             """,
             (now,),
         )
-        from owner_identity import owner_process_matches
+        from dev_gate.owner_identity import owner_process_matches
 
         active_rows = connection.execute(
             """
@@ -441,7 +441,7 @@ class PrivateResourceController:
             # Preserve submit wall budget: grant must cover remaining bootstrap+BODY after
             # queue wait (log-8: flat now+600 caused HARD_DEADLINE mid mux recovery).
             existing_deadline = float(session["hard_deadline"])
-            from dev_gate_contract import (
+            from dev_gate.contract import (
                 dev_gate_post_admit_hard_timeout_sec,
             )  # noqa: PLC0415
 

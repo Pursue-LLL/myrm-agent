@@ -22,7 +22,7 @@ def _workflow_template_id() -> str:
     suffix = run_id[:12] if run_id else uuid.uuid4().hex[:12]
     return f"e2e-dw-rerun-{suffix}"
 
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     DISMISS_MODALS_JS,
     E2E_API_BINDING_PROBE_JS,
     _collect_agent_stream_events,

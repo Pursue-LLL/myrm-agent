@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
-from dev_gate_contract import (
+from dev_gate.contract import (
     MUX_COLD_ATTACH_SLOTS,
     MUX_UPSTREAM_POLL_SEC,
     MUX_UPSTREAM_WAIT_SEC,
@@ -186,7 +186,7 @@ def _registry_key(operation_id: str) -> str:
 def effective_max_slots() -> int:
     """P0-B/P1: cold-attach slots follow Host Resource Governor effective cap."""
     try:
-        from host_resource_governor import effective_browser_operation_credits
+        from e2e_core.host_resource_governor import effective_browser_operation_credits
 
         cap = effective_browser_operation_credits()
     except ImportError:
@@ -286,7 +286,7 @@ def read_mux_cold_attach_status() -> MuxColdAttachStatus:
 
 def _parallel_mux_peer_count() -> int:
     try:
-        from mux_load import snapshot_mux_load
+        from mux.load import snapshot_mux_load
 
         load = snapshot_mux_load(force=True)
         return max(0, load.wave_leases, load.mux_contexts)
@@ -305,7 +305,7 @@ def _parallel_cold_attach_headroom(peers: int) -> int:
 def wait_mux_hand_probe_allowed(*, budget_sec: float | None = None) -> None:
     """Wait for mux operation credit via Browser Orchestrator (P0-B SSOT)."""
     from browser_orchestrator import wait_for_operation_credit
-    from transport_supervisor import mux_upstream_wait_cap
+    from mux.transport_supervisor import mux_upstream_wait_cap
 
     wait_budget = float(
         budget_sec if budget_sec is not None else mux_upstream_wait_cap()
@@ -420,7 +420,7 @@ def acquire_with_wait(
 ) -> str:
     if _admission_disabled():
         return ""
-    from transport_supervisor import mux_upstream_wait_cap
+    from mux.transport_supervisor import mux_upstream_wait_cap
 
     env_wait = os.environ.get("MYRM_MUX_UPSTREAM_WAIT_SEC", "").strip()
     wait_sec = int(env_wait) if env_wait else mux_upstream_wait_cap()

@@ -20,7 +20,7 @@ import os
 from typing import Awaitable
 
 import pytest
-from cdp_chat_support import (
+from cdp_chat.support import (
     ensure_e2e_hitl_mode,
     ensure_e2e_hitl_mode_in_browser,
     fetch_provider_readiness_snapshot,
@@ -28,7 +28,7 @@ from cdp_chat_support import (
     signoff_parallel_desktop_mux_step_timeout_sec,
     wait_e2e_provider_ready,
 )
-from mcp_chat_ui import McpChatSession
+from cdp_chat.mcp_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import BASE_URL, max_send_attempts, progress
 from tests.e2e.desktop_approval.infra_retry import (
@@ -203,7 +203,7 @@ async def run_desktop_approval_chrome_e2e(
     async def _open_chat_page() -> OpenMcpPageSession:
         request_timeout_sec = 180.0
         if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-            from dev_gate_contract import signoff_open_mcp_budgets
+            from dev_gate.contract import signoff_open_mcp_budgets
 
             from tests.support.chrome_mcp_e2e import _parallel_open_page_peer_count
 

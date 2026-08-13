@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import live_turn_wait  # noqa: E402
+import cdp_chat.live_turn_wait as live_turn_wait  # noqa: E402
 import pytest
 
 from tests.e2e import test_file_write_empty_chrome_e2e as mod

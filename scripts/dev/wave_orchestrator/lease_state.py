@@ -33,7 +33,7 @@ _dev_lib_str = str(_dev_lib)
 if _dev_lib_str not in sys.path:
     sys.path.insert(0, _dev_lib_str)
 
-from dev_gate_contract import formal_chrome_e2e_runtime_heal_agent
+from dev_gate.contract import formal_chrome_e2e_runtime_heal_agent
 from wave_orchestrator.browser_lifecycle import cleanup_expired_browser
 from wave_orchestrator.resource_ledger import cleanup_expired_lease_resources
 from wave_orchestrator.types import LeaseRecord, OrchestratorState

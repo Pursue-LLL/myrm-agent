@@ -42,6 +42,7 @@ class MemoryItem(BaseModel):
     application: str | None = None
     tool_name: str | None = None
     tool_rule_priority: str | None = None
+    expected_valid_days: int | None = None
     event_type: str | None = None
     related_entities: list[str] = Field(default_factory=list)
     correction_of: str | None = None

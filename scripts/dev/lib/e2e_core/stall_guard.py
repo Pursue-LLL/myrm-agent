@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import time
 
-from dev_gate_contract import (
+from dev_gate.contract import (
     E2E_ADMISSION_WALL_CLOCK_SEC,
     E2E_ADMIT_NODE_STUCK_TOKEN,
     E2E_NODE_STUCK_TOKEN,
@@ -69,7 +69,7 @@ def node_elapsed_from_snapshot(snapshot: dict[str, object]) -> float | None:
 def _resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
     """Resolve stall cap for hung-reap / e2e-context (signoff open_mcp_page uses R169 cap)."""
     try:
-        from dev_gate_contract import resolve_transport_stall_cap_sec
+        from dev_gate.contract import resolve_transport_stall_cap_sec
 
         return resolve_transport_stall_cap_sec(current_node=current_node)
     except ImportError:
@@ -122,7 +122,7 @@ def node_stuck_reason_from_snapshot(snapshot: dict[str, object]) -> str | None:
     if elapsed is None:
         return None
     if phase == "bootstrap":
-        from dev_gate_contract import (
+        from dev_gate.contract import (
             E2E_BOOTSTRAP_OPEN_MCP_EXCEEDED_TOKEN,
             resolve_transport_stall_cap_sec,
         )  # noqa: PLC0415
@@ -138,17 +138,17 @@ def node_stuck_reason_from_snapshot(snapshot: dict[str, object]) -> str | None:
             return None
 
         try:
-            from transport_supervisor import bootstrap_wall_cap_sec
+            from mux.transport_supervisor import bootstrap_wall_cap_sec
         except ImportError:
             bootstrap_wall_cap_sec = lambda **kwargs: 240  # noqa: E731
         cap = float(bootstrap_wall_cap_sec(pessimistic=True))
         try:
-            from dev_gate_contract import (
+            from dev_gate.contract import (
                 is_e2e_signoff_runtime,
             )
 
             if is_e2e_signoff_runtime():
-                from dev_gate_contract import signoff_bootstrap_transport_stall_cap_sec
+                from dev_gate.contract import signoff_bootstrap_transport_stall_cap_sec
 
                 cap = max(cap, signoff_bootstrap_transport_stall_cap_sec())
         except ImportError:
@@ -161,7 +161,7 @@ def node_stuck_reason_from_snapshot(snapshot: dict[str, object]) -> str | None:
         return None
     if phase != "body":
         return None
-    from dev_gate_contract import resolve_transport_stall_cap_sec
+    from dev_gate.contract import resolve_transport_stall_cap_sec
 
     stall_cap = resolve_transport_stall_cap_sec(current_node=node)
     if elapsed >= stall_cap:
@@ -177,7 +177,7 @@ def _transport_stall_cap_sec() -> float:
     cap = float(NODE_STUCK_FAIL_FAST_SEC)
     peers = 0
     try:
-        from dev_gate_contract import phase_c_burst_lane_count
+        from dev_gate.contract import phase_c_burst_lane_count
 
         burst_lanes = phase_c_burst_lane_count()
         if burst_lanes >= 2:
@@ -186,7 +186,7 @@ def _transport_stall_cap_sec() -> float:
         burst_lanes = 0
     if peers < 2:
         try:
-            from mux_load import (
+            from mux.load import (
                 active_mux_context_count,
                 read_mux_status,
                 snapshot_mux_load,
@@ -218,7 +218,7 @@ def parallel_active_test_node_stuck_fail_fast(row: dict[str, object]) -> bool:
     share bootstrap/admit/body wall defer SSOT.
     """
     from e2e_session_runtime.registry import LiveE2ESessionRow
-    from e2e_stale_lease_reap import _parallel_node_stuck_reason
+    from e2e_core.stale_lease_reap import _parallel_node_stuck_reason
 
     pid = row.get("pid")
     node_elapsed = row.get("node_elapsed_sec")
@@ -274,7 +274,7 @@ def assert_transport_node_not_stuck(
             from e2e_session_runtime.lifecycle import current_phase
 
             if current_phase() == "bootstrap":
-                from dev_gate_contract import E2E_BOOTSTRAP_OPEN_MCP_EXCEEDED_TOKEN
+                from dev_gate.contract import E2E_BOOTSTRAP_OPEN_MCP_EXCEEDED_TOKEN
 
                 token = E2E_BOOTSTRAP_OPEN_MCP_EXCEEDED_TOKEN
         except ImportError:

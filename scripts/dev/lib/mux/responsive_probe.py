@@ -21,8 +21,8 @@ import sys
 import time
 from pathlib import Path
 
-from dev_gate_contract import LEGACY_MUX_REQUEST_TIMEOUT_MS
-from real_user_home import real_user_home
+from dev_gate.contract import LEGACY_MUX_REQUEST_TIMEOUT_MS
+from e2e_core.real_user_home import real_user_home
 
 MUX_UPSTREAM_TIMEOUT_EFFECTIVE_STAMP = "upstream-request-timeout-ms-effective"
 

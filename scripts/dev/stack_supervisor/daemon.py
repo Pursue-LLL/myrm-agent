@@ -109,7 +109,7 @@ class SupervisorDaemon:
         return False
 
     def _dev_stack_env(self, overrides: dict[str, str] | None = None) -> dict[str, str]:
-        from stack_mutation_policy import _shared_stack_env  # noqa: PLC0415
+        from e2e_core.stack_mutation_policy import _shared_stack_env  # noqa: PLC0415
 
         env = _shared_stack_env()
         env["MYRM_SUPERVISOR_BYPASS"] = "1"
@@ -309,7 +309,7 @@ class SupervisorDaemon:
         lib_str = str(lib_dir)
         if lib_str not in sys.path:
             sys.path.insert(0, lib_str)
-        import stack_mutation_policy
+        import e2e_core.stack_mutation_policy as stack_mutation_policy
 
         return stack_mutation_policy
 

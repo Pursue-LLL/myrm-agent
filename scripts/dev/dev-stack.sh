@@ -211,7 +211,7 @@ _frontend_http_probe_timeout_sec() {
   resolved="$("${PREFLIGHT_PY:-python3}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from dev_gate_contract import attach_ui_probe_timeout_sec
+from dev_gate.contract import attach_ui_probe_timeout_sec
 print(int(attach_ui_probe_timeout_sec()))
 " 2>/dev/null)" || true
   if [[ "${resolved}" =~ ^[0-9]+$ && "${resolved}" -gt 0 ]]; then

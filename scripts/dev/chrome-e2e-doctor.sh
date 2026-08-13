@@ -114,7 +114,7 @@ fi
 endpoint_errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from runtime_identity import attach_endpoint_errors
+from e2e_core.runtime_identity import attach_endpoint_errors
 print(','.join(attach_endpoint_errors('http://127.0.0.1:3000', 'http://127.0.0.1:8080')))
 " 2>/dev/null || true)"
 if [[ "${endpoint_errors}" == *"ui=half_dead"* ]]; then

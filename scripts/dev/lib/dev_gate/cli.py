@@ -17,13 +17,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-from dev_gate_coordinator import (
+from dev_gate.coordinator import (
     CoordinatorService,
     default_socket_path,
     normalized_socket_path,
     request,
 )
-from dev_gate_store import DevGateStore, default_store_path
+from dev_gate.store import DevGateStore, default_store_path
 
 _START_TIMEOUT_SEC = 8.0
 _PING_WAIT_SEC = 10.0
@@ -601,7 +601,7 @@ def send(payload: dict[str, object]) -> dict[str, object]:
     }:
         timeout_sec = 60.0 if operation == "reap" else 30.0
     if isinstance(operation, str) and operation in {"cleanup", "teardown_finish"}:
-        from dev_gate_contract import dev_gate_teardown_finish_client_timeout_sec
+        from dev_gate.contract import dev_gate_teardown_finish_client_timeout_sec
 
         timeout_sec = float(dev_gate_teardown_finish_client_timeout_sec())
     if operation == "wait_event":
@@ -729,7 +729,7 @@ def _private_admit_event_wait_enabled() -> bool:
 
 
 def _private_admit_wall_sec() -> float:
-    from private_resource_controller import PRIVATE_ADMIT_TIMEOUT_SEC
+    from dev_gate.private_resource_controller import PRIVATE_ADMIT_TIMEOUT_SEC
 
     override = os.environ.get("MYRM_PRIVATE_ADMIT_WALL_SEC", "").strip()
     if override:
@@ -857,7 +857,7 @@ def _desktop_admit(args: argparse.Namespace) -> int:
 
 
 def _load_session_ownership(session_id: str) -> tuple[tuple[str, ...], str]:
-    from dev_gate_store import DevGateStore, default_store_path
+    from dev_gate.store import DevGateStore, default_store_path
 
     record = DevGateStore(default_store_path()).get(session_id.strip())
     if record is None:
@@ -884,7 +884,7 @@ def _request_dev_gate_destroy(session_id: str, owner_token: str) -> None:
 
 
 def _build_observed_cleanup_receipt(args: argparse.Namespace) -> dict[str, object]:
-    from cleanup_observed_seal import (
+    from dev_gate.cleanup_observed_seal import (
         collect_cdp_target_ids,
         lease_released,
         observe_cleanup_seal,
@@ -1042,7 +1042,7 @@ def _simple_operation(args: argparse.Namespace) -> int:
 def _coordinator_reap(_args: argparse.Namespace) -> int:
     """P0-A: sole entry for hung/stale pytest SIGINT and store deadline reap."""
     os.environ["MYRM_DEV_GATE_COORDINATOR_REAP"] = "1"
-    from e2e_stale_lease_reap import (  # noqa: PLC0415
+    from e2e_core.stale_lease_reap import (  # noqa: PLC0415
         maybe_reap_excess_wave_leases,
         maybe_reap_hung_chrome_e2e_pytest,
         maybe_reap_stale_empty_mux_contexts,

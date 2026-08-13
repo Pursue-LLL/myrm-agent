@@ -14,7 +14,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     chat_has_pending_clarification,
     chat_messages_have_clarify_skip_done,
     clarify_skip_resume_should_retry,
@@ -25,16 +25,16 @@ from cdp_chat_support import (  # noqa: E402
     start_clarify_turn_via_api,
     wait_e2e_provider_ready,
 )
-from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
-from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from dev_gate_contract import (  # noqa: E402
+from cdp_chat.ui import chat_id_from_path, chat_user_message_count  # noqa: E402
+from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
+from dev_gate.contract import (  # noqa: E402
     EvaluateIntent,  # noqa: E402
     clarify_skip_api_wait_sec,
     is_e2e_signoff_runtime,
 )
-from e2e_orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
+from e2e_core.orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
 from e2e_session_runtime.heartbeat import heartbeat_once  # noqa: E402
-from mcp_chat_ui import McpChatSession  # noqa: E402
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 
 from tests.api.agent.utils import (
     _strip_provider_prefix,

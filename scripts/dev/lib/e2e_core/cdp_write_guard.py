@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import TypedDict
 
 
-from wave_state_paths import resolve_wave_state_file
+from e2e_core.wave_state_paths import resolve_wave_state_file
 
 
 class CdpWriteDecision(TypedDict):

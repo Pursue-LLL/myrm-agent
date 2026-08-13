@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from dev_gate_contract import (
+from dev_gate.contract import (
     CHROME_E2E_DESKTOP_TIMEOUT_SECONDS,
     LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC,
     signoff_batch_pytest_timeout_ceiling_sec,

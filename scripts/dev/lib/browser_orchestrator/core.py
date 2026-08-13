@@ -89,7 +89,7 @@ def _mux_scheduler_probe() -> tuple[bool, int, int]:
     Returns (available, scheduler_active, scheduler_queued).
     """
     try:
-        from mux_load import read_mux_status  # noqa: PLC0415
+        from mux.load import read_mux_status  # noqa: PLC0415
     except ImportError:
         return False, 0, 0
     status = read_mux_status()
@@ -113,7 +113,7 @@ def _mux_probe() -> tuple[bool, int, int]:
 def _effective_operation_credit_cap() -> int:
     """Current effective max operation credits (Host Resource Governor when available)."""
     try:
-        from host_resource_governor import effective_browser_operation_credits
+        from e2e_core.host_resource_governor import effective_browser_operation_credits
 
         return max(1, min(MAX_OPERATION_CREDITS, effective_browser_operation_credits()))
     except ImportError:
@@ -142,7 +142,7 @@ def assert_browser_orchestrator_daemon_ready(*, wait_sec: float = 0.0) -> None:
     if not _browser_orchestrator_daemon_required():
         return
     try:
-        from browser_orchestrator_client import (
+        from browser_orchestrator.client import (
             BrowserOrchestratorClient,
         )  # noqa: PLC0415
     except ImportError as exc:
@@ -222,7 +222,7 @@ def _snapshot_from_daemon_status(
 
 def _try_daemon_snapshot() -> dict[str, object] | None:
     try:
-        from browser_orchestrator_client import (
+        from browser_orchestrator.client import (
             BrowserOrchestratorClient,
         )  # noqa: PLC0415
     except ImportError:
@@ -232,7 +232,7 @@ def _try_daemon_snapshot() -> dict[str, object] | None:
         return None
     governor_bound = False
     try:
-        from host_resource_governor import host_resource_governor_snapshot
+        from e2e_core.host_resource_governor import host_resource_governor_snapshot
 
         governor = host_resource_governor_snapshot()
         effective = governor.get("effective_browser_slots")
@@ -280,7 +280,7 @@ def browser_orchestrator_snapshot() -> dict[str, object]:
         mux_probe() if callable(mux_probe) else (False, 0, 0)
     )
 
-    from mux_upstream_admission import list_active_upstream_operations  # noqa: PLC0415
+    from mux.upstream_admission import list_active_upstream_operations  # noqa: PLC0415
 
     try:
         ops = list_active_upstream_operations()
@@ -319,7 +319,7 @@ def browser_orchestrator_snapshot() -> dict[str, object]:
             "governor_bound": True,
         }
 
-    from transport_supervisor import recovery_budget_remaining  # noqa: PLC0415
+    from mux.transport_supervisor import recovery_budget_remaining  # noqa: PLC0415
 
     budget = recovery_budget_remaining()
     if in_flight >= effective_cap:
@@ -371,7 +371,7 @@ def browser_operation_credit_slot(
         yield
         return
     del current_node
-    from mux_upstream_admission import upstream_cold_attach_slot  # noqa: PLC0415
+    from mux.upstream_admission import upstream_cold_attach_slot  # noqa: PLC0415
 
     with upstream_cold_attach_slot():
         yield
@@ -384,7 +384,7 @@ def wait_for_operation_credit(
     if _browser_orchestrator_daemon_required():
         _wait_daemon_operation_credit(budget_sec=budget_sec)
         return
-    from e2e_mux_transport_queue import wait_mux_transport_turn  # noqa: PLC0415
+    from e2e_core.mux_transport_queue import wait_mux_transport_turn  # noqa: PLC0415
 
     wait_mux_transport_turn(budget_sec=budget_sec, current_node=current_node)
 
@@ -398,8 +398,8 @@ def prune_self_owned_blanks(
     Delegates to infra_browser_registry and browser_tab_hygiene
     but only for current session's pages.
     """
-    from infra_browser_registry import prune_infra_registry  # noqa: PLC0415
-    from browser_tab_hygiene import prune_orphan_cdp_pages  # noqa: PLC0415
+    from e2e_core.infra_browser_registry import prune_infra_registry  # noqa: PLC0415
+    from e2e_core.browser_tab_hygiene import prune_orphan_cdp_pages  # noqa: PLC0415
 
     infra_closed, infra_failed = prune_infra_registry(cdp_port)
     orphan_closed, orphan_failed = prune_orphan_cdp_pages(

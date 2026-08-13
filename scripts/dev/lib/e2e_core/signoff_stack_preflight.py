@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from gate_epoch_preflight import SoloSnapshot, read_solo_snapshot
+from e2e_core.gate_epoch_preflight import SoloSnapshot, read_solo_snapshot
 
 
 class SignoffReadyMode(StrEnum):
@@ -46,7 +46,7 @@ def _myrm_cmd(monorepo_root: Path, *parts: str) -> list[str]:
 
 def shared_stack_ports_reachable() -> bool:
     """True when shared :8080 health + :3000 UI respond — attach-safe without full heal."""
-    from runtime_identity import api_health_errors, classify_ui_endpoint_error
+    from e2e_core.runtime_identity import api_health_errors, classify_ui_endpoint_error
 
     api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080")
     ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000")
@@ -56,8 +56,8 @@ def shared_stack_ports_reachable() -> bool:
 
 
 def read_stack_hot_snapshot() -> StackHotSnapshot:
-    from e2e_api_verify import resolve_e2e_api_context
-    from runtime_identity import collect_runtime_parts, read_frontend_hot_state
+    from e2e_core.api_verify import resolve_e2e_api_context
+    from e2e_core.runtime_identity import collect_runtime_parts, read_frontend_hot_state
 
     ctx = resolve_e2e_api_context(retry_after_apply=False)
     parts = collect_runtime_parts()
@@ -114,7 +114,7 @@ def _run_heal_flocked(
     wait_sec: float,
     cwd: Path | None = None,
 ) -> int:
-    from stack_mutation_policy import (
+    from e2e_core.stack_mutation_policy import (
         default_backend_heal_flock_file,
         run_command_with_backend_heal_flock,
     )
@@ -125,7 +125,7 @@ def _run_heal_flocked(
             lock_file=default_backend_heal_flock_file(),
             wait_sec=wait_sec,
         )
-    from stack_mutation_policy import backend_heal_file_lock
+    from e2e_core.stack_mutation_policy import backend_heal_file_lock
     import subprocess
 
     try:

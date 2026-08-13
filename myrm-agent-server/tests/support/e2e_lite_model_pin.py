@@ -5,12 +5,12 @@ from __future__ import annotations
 from tests.api.agent.utils import get_lite_model_selection
 
 try:
-    from mcp_chat_ui import McpChatSession
+    from cdp_chat.mcp_ui import McpChatSession
 except ImportError:  # pragma: no cover - import path in pytest vs standalone
     McpChatSession = object  # type: ignore[misc,assignment]
 
 try:
-    from dev_gate_contract import EvaluateIntent
+    from dev_gate.contract import EvaluateIntent
 except ImportError:  # pragma: no cover - import path in pytest vs standalone
     EvaluateIntent = None  # type: ignore[misc,assignment]
 

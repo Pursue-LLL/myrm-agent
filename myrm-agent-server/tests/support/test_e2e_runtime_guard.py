@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from e2e_resource_ledger import register_e2e_resource
+from e2e_core.resource_ledger import register_e2e_resource
 
 from tests.support.e2e_runtime_guard import (
     assert_chrome_attach_health,

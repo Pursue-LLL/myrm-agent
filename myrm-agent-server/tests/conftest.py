@@ -38,7 +38,7 @@ _SERVER_ROOT = Path(__file__).resolve().parent.parent
 _DEV_LIB = _SERVER_ROOT.parent / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
-from dev_gate_contract import (  # noqa: E402
+from dev_gate.contract import (  # noqa: E402
     chrome_e2e_pytest_timeout_floor,
     chrome_e2e_session_lane_from_profile,
 )
@@ -462,7 +462,7 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
     try:
-        from epoch_delivery_plane import epoch_pin_active
+        from e2e_core.epoch_delivery_plane import epoch_pin_active
     except ImportError:
         epoch_pin_active = (  # noqa: E731
             lambda: os.environ.get("MYRM_E2E_EPOCH_PIN", "").strip() == "1"
@@ -485,7 +485,7 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
     try:
-        from e2e_api_verify import resolve_e2e_api_context
+        from e2e_core.api_verify import resolve_e2e_api_context
 
         ctx = resolve_e2e_api_context(retry_after_apply=False)
     except Exception:
@@ -511,7 +511,7 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
             for item in getattr(ctx, "candidates", ())
         )
         try:
-            from epoch_delivery_plane import _health_runtime_id
+            from e2e_core.epoch_delivery_plane import _health_runtime_id
         except ImportError:
             _health_runtime_id = None  # type: ignore[misc, assignment]
         if _health_runtime_id is not None and shared_base:
@@ -545,7 +545,7 @@ def _chrome_e2e_epoch_pin(
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
     try:
-        from epoch_delivery_plane import (
+        from e2e_core.epoch_delivery_plane import (
             apply_epoch_pin_for_shared_live,
             evaluate_epoch_pin_eligibility,
         )
@@ -626,7 +626,7 @@ def _chrome_e2e_item_runtime(
     dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
     if str(dev_infra) not in sys.path:
         sys.path.insert(0, str(dev_infra))
-    from e2e_orchestrator import begin_bootstrap_phase
+    from e2e_core.orchestrator import begin_bootstrap_phase
     from e2e_session_runtime.snapshot import write_session_snapshot
 
     begin_bootstrap_phase(phase_label=request.node.name)
@@ -678,7 +678,7 @@ def _require_live_e2e_lease(
     runtime_cell_id: str | None = None
     _release_runtime_cell = None
     try:
-        from e2e_runtime_cell import allocate_runtime_cell, release_runtime_cell
+        from e2e_core.runtime_cell import allocate_runtime_cell, release_runtime_cell
 
         runtime_cell = allocate_runtime_cell()
         runtime_cell_id = runtime_cell.cell_id
@@ -695,7 +695,7 @@ def _require_live_e2e_lease(
         dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
         if str(dev_infra) not in sys.path:
             sys.path.insert(0, str(dev_infra))
-        from dev_gate_contract import chrome_e2e_skips_attach_health_reprobe
+        from dev_gate.contract import chrome_e2e_skips_attach_health_reprobe
 
         try:
             # Item runtimes already run chrome-e2e-preflight with attach checks on their env.
@@ -713,7 +713,7 @@ def _require_live_e2e_lease(
                 )
         except RuntimeError as exc:
             pytest.fail(str(exc))
-        from e2e_orchestrator import begin_bootstrap_phase
+        from e2e_core.orchestrator import begin_bootstrap_phase
 
         begin_bootstrap_phase(phase_label=request.node.name)
         from e2e_session_runtime.snapshot import write_session_snapshot
@@ -726,7 +726,7 @@ def _require_live_e2e_lease(
         namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
         os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
         with nullcontext():
-            from e2e_shared_ui_session import (
+            from e2e_core.shared_ui_session import (
                 E2E_SEARCH_POLICY_ENV,
                 prime_search_policy_env,
             )

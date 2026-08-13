@@ -111,14 +111,14 @@ def maybe_detect_and_record_source_drift(
         return True
     # Active leases defer apply anyway — skip the git walk until idle to avoid
     # burning CPU under parallel load (detection is re-armed once pending clears).
-    from e2e_lease_liveness import (
+    from e2e_core.lease_liveness import (
         load_wave_snapshot,
         shared_effective_lease_count,
     )
 
     if shared_effective_lease_count(load_wave_snapshot()) > 0:
         return False
-    from runtime_identity import _backend_source_fingerprint
+    from e2e_core.runtime_identity import _backend_source_fingerprint
 
     epoch_file = resolved_state / "stack-epoch.json"
     stored_fp = ""
@@ -233,7 +233,7 @@ def should_defer_supervisor_backend_heal(
 def _backend_only_ensure_timeout_sec() -> float:
     """Wall timeout for dev-stack backend-only ensure (cold app.main import can exceed 120s)."""
     try:
-        from dev_gate_contract import shpoib_backend_only_ensure_parallel_timeout_sec
+        from dev_gate.contract import shpoib_backend_only_ensure_parallel_timeout_sec
 
         return shpoib_backend_only_ensure_parallel_timeout_sec()
     except ImportError:
@@ -598,7 +598,7 @@ def attach_backend_crash_heal(
     wait_sec: float,
     shpoib: bool = False,
 ) -> int:
-    from stack_heal_coordinator import request_attach_crash_heal
+    from e2e_core.stack_heal_coordinator import request_attach_crash_heal
 
     return request_attach_crash_heal(
         monorepo_root=monorepo_root,
@@ -660,7 +660,7 @@ def wave_shared_active_lease_count(monorepo_root: Path) -> int:
         return 0
     if not isinstance(payload, dict):
         return 0
-    from e2e_lease_liveness import shared_effective_lease_count
+    from e2e_core.lease_liveness import shared_effective_lease_count
 
     return shared_effective_lease_count(payload)
 
@@ -748,7 +748,7 @@ def _cmd_pending_exists(args: argparse.Namespace) -> int:
 
 
 def _cmd_session_safe_timeout(args: argparse.Namespace) -> int:
-    from dev_gate_contract import chrome_e2e_pytest_safe_timeout_sec
+    from dev_gate.contract import chrome_e2e_pytest_safe_timeout_sec
 
     timeout_sec = chrome_e2e_pytest_safe_timeout_sec(
         str(args.lane),
@@ -770,7 +770,7 @@ def _cmd_attach_crash_heal(args: argparse.Namespace) -> int:
 
 
 def _cmd_attach_health_preflight(args: argparse.Namespace) -> int:
-    from stack_heal_coordinator import run_attach_health_preflight
+    from e2e_core.stack_heal_coordinator import run_attach_health_preflight
 
     return run_attach_health_preflight(
         monorepo_root=Path(args.monorepo_root),

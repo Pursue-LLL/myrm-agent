@@ -74,7 +74,7 @@ def _process_ancestor_pids(
 def _active_session_owner_pids() -> frozenset[int] | None:
     """Owner PIDs for non-terminal Dev Gate sessions; None when store unavailable."""
     try:
-        from dev_gate_store import DevGateStore, default_store_path
+        from dev_gate.store import DevGateStore, default_store_path
 
         store = DevGateStore(default_store_path())
         owners = {
@@ -142,7 +142,7 @@ def chrome_e2e_pytest_peer_count() -> int:
 
 def solo_gate_active_mux_peer_count() -> int:
     """Active mux contexts with owned pages — Step1 solo gate SSOT."""
-    from mux_load import active_mux_context_count, read_mux_status
+    from mux.load import active_mux_context_count, read_mux_status
 
     return active_mux_context_count(read_mux_status(force=True))
 
@@ -185,7 +185,7 @@ def parallel_active_test_count_ssot() -> int:
         _parallel_count_cache = (now, result)
         return result
     try:
-        from e2e_runtime_cell import prune_dead_runtime_cells
+        from e2e_core.runtime_cell import prune_dead_runtime_cells
 
         prune_dead_runtime_cells()
     except ImportError:

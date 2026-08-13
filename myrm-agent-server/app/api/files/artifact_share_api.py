@@ -171,8 +171,7 @@ async def create_artifact_share_preview(
 async def get_artifact_share_records(
     db: AsyncSession = Depends(get_db),
 ) -> list[ArtifactShareRecordResponse]:
-    """List unrevoked, unexpired share links for the management GUI."""
-    await purge_expired_shares(db)
+    """List unrevoked, unexpired share links for the management GUI (read-only)."""
     rows = await list_active_shares(db)
     return [
         ArtifactShareRecordResponse(

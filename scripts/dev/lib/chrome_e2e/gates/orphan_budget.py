@@ -10,7 +10,7 @@ import os
 import time
 from typing import TypedDict
 
-from dev_gate_contract import (
+from dev_gate.contract import (
     E2E_ORPHAN_BUDGET_EXCEEDED_TOKEN,
     ORPHAN_BUDGET_FAIL_SEC,
     ORPHAN_BUDGET_SLACK,
@@ -41,7 +41,7 @@ def count_blank_cdp_pages(*, cdp_port: int | None = None) -> int:
 
 
 def count_stray_blank_cdp_pages(*, cdp_port: int | None = None) -> int:
-    from browser_tab_hygiene import (  # noqa: PLC0415
+    from e2e_core.browser_tab_hygiene import (  # noqa: PLC0415
         _is_blankish_url,
         _list_cdp_pages,
         _protected_target_ids,
@@ -66,11 +66,11 @@ def count_stray_blank_cdp_pages(*, cdp_port: int | None = None) -> int:
 
 
 def active_page_lease_ceiling() -> int:
-    from e2e_lease_liveness import (  # noqa: PLC0415
+    from e2e_core.lease_liveness import (  # noqa: PLC0415
         load_wave_snapshot_observation,
         wave_lease_counts,
     )
-    from e2e_parallel_status import (  # noqa: PLC0415
+    from e2e_core.parallel_status import (  # noqa: PLC0415
         resolve_parallel_runtime_snapshot,
         safe_active_test_count,
     )

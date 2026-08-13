@@ -6,14 +6,14 @@ import asyncio
 import time
 import urllib.error
 
-from cdp_chat_support import (
+from cdp_chat.support import (
     chat_browser_gate_from_api,
     get_e2e_api_url,
     wait_e2e_backend_ready,
 )
-from mcp_chat_ui import McpChatSession
+from cdp_chat.mcp_ui import McpChatSession
 from e2e_session_runtime.heartbeat import heartbeat_once
-from dev_gate_contract import EvaluateIntent, GATE_MUX_STALL_FAIL_FAST_SEC
+from dev_gate.contract import EvaluateIntent, GATE_MUX_STALL_FAIL_FAST_SEC
 
 E2E_PROMPT = (
     "我在验证浏览器人工接管功能。请调用 browser_ask_human_tool 一次，"

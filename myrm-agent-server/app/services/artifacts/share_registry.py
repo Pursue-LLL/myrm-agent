@@ -24,16 +24,17 @@ import shutil
 import uuid
 from calendar import timegm
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Artifact, ArtifactShareRecord
 from app.services.artifacts.share_bundle import bundle_dir_for_claims
 from app.services.artifacts.share_token import ArtifactShareClaims
 
-MAX_RECORD_AGE_SECONDS = 60 * 24 * 3600  # 60-day cap before hard delete
+MAX_RECORD_AGE_SECONDS = 60 * 24 * 3600  # 60-day audit window before hard delete
 
 
 def _utcnow_naive() -> datetime:
@@ -68,10 +69,8 @@ class ActiveShareRow:
     expires_at: datetime
 
 
-def _claims_from_record(record: ArtifactShareRecord) -> ArtifactShareClaims | None:
+def _claims_from_record(record: ArtifactShareRecord) -> ArtifactShareClaims:
     """Rebuild claims from a persisted record (needed to delete its bundle)."""
-    if record.expires_at is None:
-        return None
     return ArtifactShareClaims(
         artifact_id=record.artifact_id,
         version_id=record.version_id,
@@ -90,19 +89,28 @@ async def register_share(
     password_protected: bool,
     expires_at_unix: int,
 ) -> ArtifactShareRecord:
-    """Persist a share-link registry row. Idempotent on token fingerprint."""
+    """Persist a share-link registry row. Idempotent on token fingerprint.
+
+    Tokens are deterministic (same artifact + TTL in the same second produce an
+    identical token), so a concurrent duplicate insert is resolved by returning
+    the existing row instead of surfacing a unique-constraint error.
+    """
     fingerprint = token_fingerprint(token)
-    existing = (
-        (
-            await db.execute(
-                select(ArtifactShareRecord).where(
-                    ArtifactShareRecord.token_fingerprint == fingerprint
+
+    async def _existing() -> ArtifactShareRecord | None:
+        return (
+            (
+                await db.execute(
+                    select(ArtifactShareRecord).where(
+                        ArtifactShareRecord.token_fingerprint == fingerprint
+                    )
                 )
             )
+            .scalars()
+            .first()
         )
-        .scalars()
-        .first()
-    )
+
+    existing = await _existing()
     if existing is not None:
         return existing
 
@@ -116,7 +124,14 @@ async def register_share(
         expires_at=_from_unix(expires_at_unix),
     )
     db.add(record)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        existing = await _existing()
+        if existing is not None:
+            return existing
+        raise
     await db.refresh(record)
     return record
 
@@ -152,8 +167,9 @@ async def list_active_shares(db: AsyncSession) -> list[ActiveShareRow]:
 async def revoke_share(db: AsyncSession, record_id: str) -> bool:
     """Revoke a share by record id. Idempotent: returns False when unknown.
 
-    Sets ``revoked_at`` and deletes the on-disk bundle so the public URL can
-    neither serve existing files nor re-materialize content.
+    Commits ``revoked_at`` first, then deletes the on-disk bundle, so the
+    public URL can neither serve existing files nor re-materialize content even
+    if the filesystem cleanup fails.
     """
     record = (
         (
@@ -168,11 +184,10 @@ async def revoke_share(db: AsyncSession, record_id: str) -> bool:
         return False
 
     if record.revoked_at is None:
-        record.revoked_at = _utcnow_naive()
         claims = _claims_from_record(record)
-        if claims is not None:
-            shutil.rmtree(bundle_dir_for_claims(claims), ignore_errors=True)
+        record.revoked_at = _utcnow_naive()
         await db.commit()
+        shutil.rmtree(bundle_dir_for_claims(claims), ignore_errors=True)
     return True
 
 
@@ -199,10 +214,11 @@ async def is_token_revoked(db: AsyncSession, token: str) -> bool:
 async def purge_expired_shares(db: AsyncSession) -> int:
     """Delete registry rows past their TTL plus a retention grace period.
 
-    Runs alongside ``purge_expired_share_bundles`` so DB rows and on-disk
-    bundles stay in sync. Returns the number of rows removed.
+    Runs alongside ``purge_expired_share_bundles``: bundles are removed once
+    their TTL lapses, while registry rows are kept for the audit window
+    (expires_at + 60 days) and then deleted here. Returns the number removed.
     """
-    cutoff = _from_unix(_to_unix(_utcnow_naive()) - MAX_RECORD_AGE_SECONDS)
+    cutoff = _utcnow_naive() - timedelta(seconds=MAX_RECORD_AGE_SECONDS)
     stale = (
         (
             await db.execute(

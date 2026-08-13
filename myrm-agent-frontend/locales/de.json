@@ -4382,6 +4382,13 @@
       "revokeError": "Freigabelink konnte nicht widerrufen werden",
       "yes": "Ja",
       "no": "Nein",
+      "confirm": {
+        "title": "Freigabelink widerrufen?",
+        "description": "Dieser Link funktioniert sofort nicht mehr und kann nicht wiederhergestellt werden. Personen mit diesem Link können {name} nicht mehr ansehen.",
+        "createdAt": "Erstellt",
+        "cancel": "Abbrechen",
+        "revoke": "Link widerrufen"
+      },
       "table": {
         "artifact": "Artefakt",
         "type": "Typ",
@@ -8537,6 +8544,8 @@
     "archiveRestoreResultArchive": "Archiv: {path}",
     "thinking_budget_exhausted": "Modell hat alle Token für Schlussfolgerung verwendet, keine Antwort erzeugt",
     "tool_call_truncated": "Werkzeugparameter möglicherweise unvollständig aufgrund der Ausgabelängenbegrenzung",
+    "tool_call_retry": "Werkzeugaufruf unterbrochen — Wiederholung läuft",
+    "empty_response_recovery": "Leere Antwort erkannt — Wiederholung läuft",
     "text_continuation": "Antwort abgeschnitten, automatische Fortsetzung...",
     "text_continuation_exhausted": "Antwort nach maximalen Versuchen immer noch unvollständig",
     "context_truncation": "Alter Kontext wird gekürzt, um ins Fenster zu passen",
@@ -8808,6 +8817,7 @@
       "content": "Inhalt",
       "tags": "Schlagworte",
       "relatedEntities": "Verwandte Entitäten",
+      "ttlDays": "Läuft nach {days} Tag(en) automatisch ab",
       "id": "ID"
     },
     "typeDesc": {

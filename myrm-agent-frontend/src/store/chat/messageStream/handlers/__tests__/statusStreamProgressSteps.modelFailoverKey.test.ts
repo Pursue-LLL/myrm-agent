@@ -1,7 +1,7 @@
 /**
  * model_failover STATUS step — dynamic displayKey derivation from error_kind.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../handlerDeps', () => {
   return {
@@ -133,7 +133,11 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
   });
 
   it('creates assistant placeholder when model_failover arrives before MESSAGE', async () => {    const { findAssistantMessageIndex } = await import('../handlerDeps');
-    vi.mocked(findAssistantMessageIndex).mockReturnValue(-1);
+    // applyStatusProgressStep calls findAssistantMessageIndex exactly once per
+    // invocation; mockReturnValueOnce keeps the -1 scoped to this test instead of
+    // leaking into later tests (a persistent mockReturnValue would make every
+    // later step skip clearAssistantDraft and fail the restart-protocol cases).
+    vi.mocked(findAssistantMessageIndex).mockReturnValueOnce(-1);
 
     const state = {
       messages: [
@@ -341,6 +345,13 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
   });
 
   describe('restart protocol (data.restart === true)', () => {
+    // Restore the shared handlerDeps mock default after any test mutates it,
+    // so a stray mockReturnValue can never leak into later restart cases.
+    beforeEach(async () => {
+      const { findAssistantMessageIndex } = await import('../handlerDeps');
+      vi.mocked(findAssistantMessageIndex).mockReturnValue(0);
+    });
+
     function makeRestartCtx(stepKey: string, restart: boolean): StreamCtx {
       return {
         data: {
@@ -420,5 +431,40 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
       expect(msg.reasoningStartedAt).toBe(1000);
       expect(schedulerCancelOf(ctx)).not.toHaveBeenCalled();
     });
+
+    it.each(['empty_response_recovery', 'tool_call_retry'])(
+      'is a whitelisted progress step and clears the draft on %s',
+      async (stepKey) => {
+        expect(isStatusProgressStep(stepKey)).toBe(true);
+
+        const state = makeMessagesState();
+        const msg = state.messages[0] as unknown as {
+          content: string;
+          reasoning: string;
+          reasoningStartedAt?: number;
+          reasoningDurationMs?: number;
+        };
+        msg.content = 'Partial draft ';
+        msg.reasoning = 'partial reasoning';
+        msg.reasoningStartedAt = 1000;
+        msg.reasoningDurationMs = 500;
+        const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+          updater(state);
+        });
+
+        const ctx = makeRestartCtx(stepKey, true);
+        ctx.recievedMessage = 'Partial draft ';
+        ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
+        await applyStatusProgressStep(ctx, stepKey);
+
+        expect(ctx.recievedMessage).toBe('');
+        expect(msg.content).toBe('');
+        expect(msg.reasoning).toBe('');
+        expect(msg.reasoningStartedAt).toBeUndefined();
+        expect(msg.reasoningDurationMs).toBeUndefined();
+        expect(state.messages[0].progressSteps![0].step_key).toBe(stepKey);
+        expect(schedulerCancelOf(ctx)).toHaveBeenCalledTimes(1);
+      },
+    );
   });
 });

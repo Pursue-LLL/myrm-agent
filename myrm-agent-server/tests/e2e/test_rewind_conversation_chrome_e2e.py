@@ -24,7 +24,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     chat_user_message_count,
     e2e_runtime_bootstrap_apply_js,
     get_e2e_api_url,
@@ -33,9 +33,9 @@ from cdp_chat_support import (  # noqa: E402
     wait_e2e_backend_ready,
     wait_e2e_provider_ready,
 )
-from cdp_chat_ui import chat_id_from_path  # noqa: E402
-from dev_gate_contract import EvaluateIntent  # noqa: E402
-from mcp_chat_ui import McpChatSession  # noqa: E402
+from cdp_chat.ui import chat_id_from_path  # noqa: E402
+from dev_gate.contract import EvaluateIntent  # noqa: E402
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import open_mcp_page  # noqa: E402
 from tests.support.e2e_lite_model_pin import pin_lite_model_for_e2e  # noqa: E402
@@ -426,7 +426,7 @@ async def test_rewind_conversation_via_webui(
         if isinstance(opened, dict) and opened.get("msgIds"):
             dom_ids = [str(m.get("id") or "")[:14] for m in opened["msgIds"]]
             try:
-                from cdp_chat_support import fetch_chat_messages
+                from cdp_chat.support import fetch_chat_messages
 
                 back_msgs = fetch_chat_messages(chat_id, api_url=api_base)
                 back_ids = [

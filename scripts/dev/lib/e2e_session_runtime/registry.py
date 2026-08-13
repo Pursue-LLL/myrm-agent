@@ -17,10 +17,10 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 
-from e2e_live_chrome_pytest_scan import (  # noqa: PLC0415
+from e2e_core.live_chrome_pytest_scan import (  # noqa: PLC0415
     extract_chrome_e2e_test_id,
 )
-from e2e_stall_guard import node_elapsed_from_snapshot
+from e2e_core.stall_guard import node_elapsed_from_snapshot
 
 from e2e_session_runtime.snapshot import (
     admit_elapsed_from_snapshot,
@@ -136,11 +136,11 @@ def _coordinator_has_sessions() -> bool:
     (~300s+) during orphan-budget / parallel snapshot reads.
     """
     try:
-        from dev_gate_cli import (  # noqa: PLC0415
+        from dev_gate.cli import (  # noqa: PLC0415
             default_socket_path,
             normalized_socket_path,
         )
-        from dev_gate_coordinator import request  # noqa: PLC0415
+        from dev_gate.coordinator import request  # noqa: PLC0415
 
         socket_path = normalized_socket_path(default_socket_path())
         if not socket_path.exists():
@@ -162,7 +162,7 @@ def _batch_has_inner_pytest(test_id: str) -> bool:
     file_prefix = test_id.split(" -m ", 1)[0].strip()
     if not file_prefix.endswith(".py"):
         return False
-    from e2e_live_chrome_pytest_scan import (
+    from e2e_core.live_chrome_pytest_scan import (
         list_live_chrome_e2e_pytest_rows,
     )  # noqa: PLC0415
 
@@ -244,7 +244,7 @@ def _list_pytest_scan_fallback(
     Closes active_test_count=0 while chrome_e2e pytest is alive but coordinator
     snapshots are not yet visible to e2e-context.
     """
-    from e2e_live_chrome_pytest_scan import (
+    from e2e_core.live_chrome_pytest_scan import (
         list_live_chrome_e2e_pytest_rows,
     )  # noqa: PLC0415
 

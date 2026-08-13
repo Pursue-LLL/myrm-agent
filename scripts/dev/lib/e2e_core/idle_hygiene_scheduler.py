@@ -44,7 +44,7 @@ def _has_material_hygiene_event(payload: IdleHygieneSchedulerResult) -> bool:
 
 def run_idle_tab_hygiene_if_safe(*, trigger: str) -> IdleHygieneSchedulerResult:
     """Run exact-ownership blank prune when cluster is idle."""
-    from idle_tab_hygiene import idle_prune_self_owned_blanks_if_safe  # noqa: PLC0415
+    from e2e_core.idle_tab_hygiene import idle_prune_self_owned_blanks_if_safe  # noqa: PLC0415
 
     result = idle_prune_self_owned_blanks_if_safe()
     payload: IdleHygieneSchedulerResult = {"trigger": trigger, **result}

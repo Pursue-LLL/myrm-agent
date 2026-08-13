@@ -15,13 +15,13 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from typing import AsyncIterator, Iterator
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 DEFAULT_POLL_SEC = 2
 
 
 def _default_shared_ui_hydrate_wait_sec() -> int:
-    from dev_gate_contract import shared_ui_hydrate_wait_sec
+    from dev_gate.contract import shared_ui_hydrate_wait_sec
 
     return shared_ui_hydrate_wait_sec()
 
@@ -54,7 +54,7 @@ def _bound_runtime_cell_id() -> str:
     if not cell_id:
         return ""
     try:
-        from e2e_runtime_cell import cell_hydrate_lock_path
+        from e2e_core.runtime_cell import cell_hydrate_lock_path
 
         if cell_hydrate_lock_path(cell_id).parent.joinpath("cell-meta.json").is_file():
             return cell_id
@@ -86,7 +86,7 @@ def parallel_shared_ui_hydrate_queue_enabled() -> bool:
     if os.environ.get("MYRM_PRIVATE_BACKEND", "").strip() == "1":
         return False
     try:
-        from dev_gate_contract import phase_c_burst_lane_count
+        from dev_gate.contract import phase_c_burst_lane_count
 
         if phase_c_burst_lane_count() >= 2:
             return True
@@ -94,7 +94,7 @@ def parallel_shared_ui_hydrate_queue_enabled() -> bool:
         pass
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         try:
-            from transport_supervisor import parallel_active_test_count
+            from mux.transport_supervisor import parallel_active_test_count
 
             if parallel_active_test_count() >= 2:
                 return True
@@ -104,7 +104,7 @@ def parallel_shared_ui_hydrate_queue_enabled() -> bool:
     if root is None:
         return False
     try:
-        from stack_mutation_policy import wave_active_lease_count
+        from e2e_core.stack_mutation_policy import wave_active_lease_count
 
         return wave_active_lease_count(root) > 1
     except (ImportError, OSError, RuntimeError, ValueError):
@@ -120,7 +120,7 @@ def shared_ui_hydrate_slot() -> Iterator[None]:
 
     cell_id = _bound_runtime_cell_id()
     if cell_id:
-        from e2e_runtime_cell import cell_ui_hydrate_slot
+        from e2e_core.runtime_cell import cell_ui_hydrate_slot
 
         wait_sec = int(
             os.environ.get(

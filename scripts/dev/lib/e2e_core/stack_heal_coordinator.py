@@ -43,7 +43,7 @@ def request_attach_crash_heal(
     wait_sec: float,
     shpoib: bool = False,
 ) -> int:
-    from stack_mutation_policy import (  # noqa: PLC0415
+    from e2e_core.stack_mutation_policy import (  # noqa: PLC0415
         attach_backend_crash_heal_inner,
         backend_heal_file_lock,
         shared_api_http_ok,
@@ -123,7 +123,7 @@ def run_attach_health_preflight(
     SHPOIB lanes never wait on shared :8080. Shared lanes use StackHealCoordinator
     only; pending drift apply runs exclusively when wave leases == 0.
     """
-    from stack_mutation_policy import (  # noqa: PLC0415
+    from e2e_core.stack_mutation_policy import (  # noqa: PLC0415
         shared_api_http_ok,
         wave_active_lease_count,
     )

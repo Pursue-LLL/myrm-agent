@@ -624,6 +624,13 @@
       "revokeError": "撤销分享链接失败",
       "yes": "是",
       "no": "否",
+      "confirm": {
+        "title": "撤销分享链接？",
+        "description": "此链接将立即失效且无法恢复，持有此链接的人将无法再查看 {name}。",
+        "createdAt": "创建时间",
+        "cancel": "取消",
+        "revoke": "撤销链接"
+      },
       "table": {
         "artifact": "工件",
         "type": "类型",
@@ -8852,6 +8859,8 @@
     "archiveRestoreResultArchive": "归档：{path}",
     "thinking_budget_exhausted": "模型将所有 token 用于推理，未产生实际回复",
     "tool_call_truncated": "工具参数可能因输出长度限制而不完整",
+    "tool_call_retry": "工具调用被截断，正在重试",
+    "empty_response_recovery": "检测到空响应，正在重试",
     "analyzing_image": "分析图片中...",
     "analyzing_video": "分析视频中...",
     "visionBackend": {
@@ -9797,6 +9806,7 @@
       "content": "内容",
       "tags": "标签",
       "relatedEntities": "相关实体",
+      "ttlDays": "{days} 天后自动过期",
       "id": "ID"
     },
     "typeDesc": {

@@ -93,7 +93,7 @@ def _import_runtime_probe():
     lib_str = str(lib_dir)
     if lib_str not in sys.path:
         sys.path.insert(0, lib_str)
-    import runtime_probe
+    import e2e_core.runtime_probe as runtime_probe
 
     return runtime_probe
 
@@ -123,7 +123,7 @@ def _prune_infra_browser_registry(state_dir: Path) -> tuple[int, int]:
     lib_str = str(lib_dir)
     if lib_str not in sys.path:
         sys.path.insert(0, lib_str)
-    import infra_browser_registry
+    import e2e_core.infra_browser_registry as infra_browser_registry
 
     return infra_browser_registry.prune_infra_registry(state_dir=state_dir)
 

@@ -27,8 +27,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from dev_gate_contract import LIVE_SHPOIB_MAX_CONCURRENT
-from runtime_identity import _backend_source_fingerprint
+from dev_gate.contract import LIVE_SHPOIB_MAX_CONCURRENT
+from e2e_core.runtime_identity import _backend_source_fingerprint
 
 SEED_START_TIMEOUT_SEC: Final[int] = 180
 SEED_HEALTH_WAIT_SEC: Final[float] = 120.0
@@ -128,7 +128,7 @@ def _count_active_backend_only() -> int:
 
 def _parallel_pressure_active() -> bool:
     try:
-        from peer_count_ssot import parallel_active_test_count_ssot  # noqa: PLC0415
+        from e2e_core.peer_count_ssot import parallel_active_test_count_ssot  # noqa: PLC0415
 
         return parallel_active_test_count_ssot() > 0
     except ImportError:

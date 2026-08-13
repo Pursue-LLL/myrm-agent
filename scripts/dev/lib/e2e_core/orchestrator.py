@@ -37,7 +37,7 @@ from e2e_session_runtime.lifecycle import (
     transition_to_phase,
     wall_started_monotonic,
 )
-from transport_supervisor import recovery_budget_remaining
+from mux.transport_supervisor import recovery_budget_remaining
 
 AdmissionToken = Literal[
     "shpoib_slot",
@@ -85,7 +85,7 @@ def assert_wall_budget(phase_label: str) -> None:
 
 
 def holder_exceeded_wall_budget(holder_elapsed_sec: int) -> bool:
-    from dev_gate_contract import LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+    from dev_gate.contract import LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 
     return int(holder_elapsed_sec) >= int(LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
 
@@ -93,7 +93,7 @@ def holder_exceeded_wall_budget(holder_elapsed_sec: int) -> bool:
 def holder_progress_stale(holder_progress_at: float | None) -> bool:
     import time
 
-    from dev_gate_contract import STALL_PROGRESS_SEC
+    from dev_gate.contract import STALL_PROGRESS_SEC
 
     if holder_progress_at is None:
         return True
@@ -104,7 +104,7 @@ def orchestrator_snapshot() -> dict[str, object]:
     lifecycle = budgets_remaining()
     lifecycle["mux_recovery_remaining_sec"] = recovery_budget_remaining()
     try:
-        from e2e_runtime_cell import runtime_cell_snapshot
+        from e2e_core.runtime_cell import runtime_cell_snapshot
 
         lifecycle["runtime_cell"] = runtime_cell_snapshot()
     except ImportError:

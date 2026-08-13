@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypedDict
-from real_user_home import real_user_home
+from e2e_core.real_user_home import real_user_home
 
 MAX_BROWSER_SLOTS = 4
 MIN_BROWSER_SLOTS = 1

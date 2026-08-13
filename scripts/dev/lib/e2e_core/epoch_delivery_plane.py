@@ -134,7 +134,7 @@ def apply_epoch_pin_for_shared_live(
     """Resolve or seed an epoch-matched backend; never consumes private ADMIT credit."""
     import os
 
-    from e2e_api_verify import resolve_e2e_api_context  # noqa: PLC0415
+    from e2e_core.api_verify import resolve_e2e_api_context  # noqa: PLC0415
 
     ctx = resolve_e2e_api_context(retry_after_apply=False)
     if not needs_epoch_pin_backend(ctx):
@@ -191,7 +191,7 @@ def apply_epoch_pin_for_shared_live(
         if reused.applied:
             return reused
 
-    from verify_backend_seed import ensure_verify_backend_seed  # noqa: PLC0415
+    from e2e_core.verify_backend_seed import ensure_verify_backend_seed  # noqa: PLC0415
 
     seed = ensure_verify_backend_seed(monorepo=monorepo.resolve())
     if not seed.ok:

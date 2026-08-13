@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cdp_chat_support import (
+from cdp_chat.support import (
     DISMISS_MODALS_JS,
     E2E_BRIDGE_INSTALL_JS,
     MODEL_PROBE_JS,
@@ -23,8 +23,8 @@ from cdp_chat_support import (
     wait_e2e_provider_ready,
     warmup_frontend,
 )
-from cdp_chat_transport import CdpSocket
-from cdp_chat_turn import CdpChatTurn
+from cdp_chat.transport import CdpSocket
+from cdp_chat.turn import CdpChatTurn
 
 
 class CdpChatSession(CdpChatTurn):

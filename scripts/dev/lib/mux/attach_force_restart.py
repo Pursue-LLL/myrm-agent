@@ -24,7 +24,7 @@ def _desktop_soak_signoff_parallel_attach_restart_ok() -> bool:
 def _parallel_load_blocks_attach_restart() -> bool:
     """P0-B: block global mux daemon restart only when multiple wave leases are active."""
     try:
-        from mux_load import snapshot_mux_load
+        from mux.load import snapshot_mux_load
 
         load = snapshot_mux_load(force=True)
         if load.wave_leases <= 1:
@@ -36,7 +36,7 @@ def _parallel_load_blocks_attach_restart() -> bool:
     except (ImportError, OSError, TypeError, ValueError):
         pass
     try:
-        from chrome_mcp_client import _parallel_mux_peer_count
+        from chrome_mcp.client import _parallel_mux_peer_count
 
         return _parallel_mux_peer_count() >= 3
     except (ImportError, OSError, TypeError, ValueError):
@@ -52,7 +52,7 @@ def _preflight_timeout_sec() -> float:
         lib_dir = Path(__file__).resolve().parent
         if str(lib_dir) not in sys.path:
             sys.path.insert(0, str(lib_dir))
-        from chrome_mcp_client import _parallel_mux_peer_count
+        from chrome_mcp.client import _parallel_mux_peer_count
 
         peers = _parallel_mux_peer_count()
     except (ImportError, OSError, TypeError, ValueError):
@@ -174,7 +174,7 @@ def force_mux_attach_restart_scoped(*, reason: str = "attach new_page timeout") 
 
     Prevents parallel cold-shim / new_page heal paths from stampeding daemon restart.
     """
-    from transport_supervisor import mux_recovery_scope
+    from mux.transport_supervisor import mux_recovery_scope
 
     with mux_recovery_scope(phase="force_mux_attach_restart"):
         return force_mux_attach_restart_deduped(reason=reason)

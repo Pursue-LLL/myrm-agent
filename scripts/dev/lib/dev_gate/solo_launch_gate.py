@@ -43,7 +43,7 @@ def solo_launch_denial_reason(*, workload: str) -> str | None:
     if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
         return None
 
-    from runtime_identity import frontend_tcp_html_probe_ok
+    from e2e_core.runtime_identity import frontend_tcp_html_probe_ok
 
     probe_ok = False
     for _attempt in range(3):
@@ -73,7 +73,7 @@ def solo_launch_denial_reason(*, workload: str) -> str | None:
         # 日常并行 LIVE：并发由 lanes.py 控制，此处不做 solo 拦截。
         return None
 
-    from e2e_lease_liveness import (
+    from e2e_core.lease_liveness import (
         load_wave_snapshot,
         wave_lease_counts,
     )

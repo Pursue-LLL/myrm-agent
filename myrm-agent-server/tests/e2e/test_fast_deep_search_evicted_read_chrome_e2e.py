@@ -19,7 +19,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import (  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
     E2E_API_BINDING_PROBE_JS,
     WAIT_WORKSPACE_STREAM_JS,
     chat_user_message_count,
@@ -31,13 +31,13 @@ from cdp_chat_support import (  # noqa: E402
     shared_hot_e2e_api_base,
     wait_e2e_provider_ready,
 )
-from dev_gate_contract import EvaluateIntent  # noqa: E402
-from e2e_orchestrator import (  # noqa: E402
+from dev_gate.contract import EvaluateIntent  # noqa: E402
+from e2e_core.orchestrator import (  # noqa: E402
     assert_phase_budget,
     remaining_wall_sec,
     touch_wall_progress,
 )
-from mcp_chat_ui import McpChatSession  # noqa: E402
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import http_json, open_mcp_page_async  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
@@ -91,7 +91,7 @@ def _is_transport_retryable(exc: BaseException) -> bool:
     if "E2E_MUX_TRANSPORT_EXHAUSTED" in text:
         return True
     try:
-        from mcp_chat_ui import is_mux_parallel_fail_fast
+        from cdp_chat.mcp_ui import is_mux_parallel_fail_fast
     except ImportError:
         return True
     if is_mux_parallel_fail_fast(exc):
@@ -100,7 +100,7 @@ def _is_transport_retryable(exc: BaseException) -> bool:
 
 
 async def _force_mux_heal_before_retry() -> None:
-    from mux_attach_force_restart import force_mux_attach_restart_scoped
+    from mux.attach_force_restart import force_mux_attach_restart_scoped
 
     await asyncio.to_thread(
         force_mux_attach_restart_scoped,
@@ -800,7 +800,7 @@ async def _kickoff_fast_search_with_retries(
     kickoff: dict[str, object] | None = None
     for kickoff_attempt in range(max_attempts):
         try:
-            from cdp_chat_support import signoff_parallel_force_chat_timeout_sec
+            from cdp_chat.support import signoff_parallel_force_chat_timeout_sec
 
             kickoff_timeout = min(signoff_parallel_force_chat_timeout_sec(120.0), 180.0)
             kickoff = await asyncio.wait_for(
@@ -1117,7 +1117,7 @@ async def _wait_mux_before_blocking_cdp(*, current_node: str) -> None:
     if await asyncio.to_thread(_parallel_open_page_peer_count) < 2:
         return
     from browser_orchestrator import wait_for_operation_credit
-    from dev_gate_contract import signoff_mux_transport_wait_budget_sec
+    from dev_gate.contract import signoff_mux_transport_wait_budget_sec
 
     await asyncio.to_thread(
         wait_for_operation_credit,
@@ -1130,7 +1130,7 @@ async def _hydrate_fast_search_chat_after_page_open(chat: McpChatSession) -> Non
     """Single mux-gated bootstrap + post-hydrate verify (R224/R225 — no second mux wait)."""
     import sys
 
-    from cdp_chat_support import (
+    from cdp_chat.support import (
         shpoib_parallel_shell_timeout_sec,
         signoff_parallel_force_chat_timeout_sec,
     )

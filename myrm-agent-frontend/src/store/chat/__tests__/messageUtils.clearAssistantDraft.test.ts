@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { clearAssistantDraft } from '../messageUtils';
-import type { Message } from '../types';
+import type { Message, ProgressItem } from '../types';
 
 function makeDraftMessage(overrides: Partial<Message> = {}): Message {
   return {
@@ -36,7 +36,7 @@ describe('clearAssistantDraft', () => {
   });
 
   it('keeps non-draft fields intact', () => {
-    const steps = [{ step_key: 'model_failover', items: [{ text: 'a → b' }], status: 'success' }];
+    const steps: ProgressItem[] = [{ step_key: 'model_failover', items: [{ text: 'a → b' }], status: 'success' }];
     const message = makeDraftMessage({ progressSteps: steps });
 
     clearAssistantDraft(message);

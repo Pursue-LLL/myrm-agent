@@ -29,7 +29,10 @@ class ArtifactShareRecord(Base):
     """Immutable share-link metadata plus a nullable revocation timestamp."""
 
     __tablename__ = "artifact_share_records"
-    __table_args__ = (Index("ix_artifact_share_records_artifact_id", "artifact_id"),)
+    __table_args__ = (
+        Index("ix_artifact_share_records_artifact_id", "artifact_id"),
+        Index("ix_artifact_share_records_expiry", "expires_at", "revoked_at"),
+    )
 
     id = Column(String(36), primary_key=True)
     token_fingerprint = Column(String(64), unique=True, nullable=False)

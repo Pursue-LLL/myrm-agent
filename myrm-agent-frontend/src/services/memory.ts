@@ -62,6 +62,7 @@ export interface Memory {
   application?: string;
   tool_name?: string;
   tool_rule_priority?: 'critical' | 'high' | 'normal';
+  expected_valid_days?: number;
   is_user_locked?: boolean;
   event_type?: string;
   related_entities?: string[];

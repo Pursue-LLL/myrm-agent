@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from dev_gate_contract import LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC
+from dev_gate.contract import LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC
 
 from tests.conftest import _apply_chrome_e2e_lane_timeout
 

@@ -17,7 +17,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import (
+from cdp_chat.support import (
     BRIDGE_TURN_SNAPSHOT_JS,
     E2E_API_BINDING_PROBE_JS,
     STREAM_API_BINDING_JS,
@@ -34,8 +34,8 @@ from cdp_chat_support import (
     signoff_parallel_force_chat_timeout_sec,
     wait_e2e_provider_ready,
 )  # noqa: E402
-from dev_gate_contract import EvaluateIntent  # noqa: E402
-from mcp_chat_ui import McpChatSession, is_mux_parallel_fail_fast  # noqa: E402
+from dev_gate.contract import EvaluateIntent  # noqa: E402
+from cdp_chat.mcp_ui import McpChatSession, is_mux_parallel_fail_fast  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
     OpenMcpPageSession,
@@ -150,7 +150,7 @@ def _is_tools_panel_flow_retryable(exc: BaseException) -> bool:
 
 
 async def _force_mux_heal_before_retry() -> None:
-    from mux_attach_force_restart import force_mux_attach_restart_scoped
+    from mux.attach_force_restart import force_mux_attach_restart_scoped
 
     await asyncio.to_thread(
         force_mux_attach_restart_scoped,

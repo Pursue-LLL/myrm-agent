@@ -55,7 +55,7 @@ _epoch_pin_reseed_verify_api() {
 import sys
 from pathlib import Path
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from verify_backend_seed import ensure_verify_backend_seed
+from e2e_core.verify_backend_seed import ensure_verify_backend_seed
 seed = ensure_verify_backend_seed(monorepo=Path('${MONOREPO_ROOT}'))
 if not seed.ok:
     raise SystemExit(1)
@@ -122,7 +122,7 @@ _epoch_drift_shared_attach_cap_sec() {
 import os
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_api_verify import epoch_drift_attach_cap_sec, resolve_e2e_api_context
+from e2e_core.api_verify import epoch_drift_attach_cap_sec, resolve_e2e_api_context
 shell_leases = int('${shell_leases}')
 if os.environ.get('MYRM_E2E_SHPOIB', '').strip() == '1':
     print(0)
@@ -221,7 +221,7 @@ _maybe_seed_providers() {
 import sys
 from pathlib import Path
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from env_test_shell_lint import assert_env_test_shell_safe
+from e2e_core.env_test_shell_lint import assert_env_test_shell_safe
 assert_env_test_shell_safe(Path('${SERVER_DIR}/.env.test'))
 "; then
       echo "E2E_ENV_TEST_SHELL_UNSAFE: ${SERVER_DIR}/.env.test is not safe to source (S0)" >&2
@@ -397,13 +397,13 @@ _wait_attach_endpoints_under_parallel_load() {
     ui_heal_timeout_sec="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from dev_gate_contract import attach_ui_heal_timeout_sec
+from dev_gate.contract import attach_ui_heal_timeout_sec
 print(attach_ui_heal_timeout_sec(${active_leases}))
 ")"
     ui_heal_post_ensure_max_sec="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from dev_gate_contract import attach_ui_heal_post_ensure_max_sec
+from dev_gate.contract import attach_ui_heal_post_ensure_max_sec
 print(attach_ui_heal_post_ensure_max_sec(${active_leases}))
 ")"
     [[ "${ui_heal_timeout_sec}" =~ ^[0-9]+$ ]] || ui_heal_timeout_sec=300
@@ -417,7 +417,7 @@ print(attach_ui_heal_post_ensure_max_sec(${active_leases}))
     errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from runtime_identity import attach_wait_errors
+from e2e_core.runtime_identity import attach_wait_errors
 print(', '.join(attach_wait_errors('${UI_BASE}', '${attach_api}')))
 ")"
     [[ -z "${errors}" ]] && return 0
@@ -465,7 +465,7 @@ print(', '.join(attach_wait_errors('${UI_BASE}', '${attach_api}')))
       && "${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from warm_shell_registry import platform_shell_fresh
+from e2e_core.warm_shell_registry import platform_shell_fresh
 raise SystemExit(0 if platform_shell_fresh(route_path='/') else 1)
 " 2>/dev/null; then
       echo "CHROME_E2E_ATTACH: epoch warm shell fresh — skip per-lane ui heal (§19.11 TAB-6b)" >&2
@@ -511,7 +511,7 @@ _attach_parallel_wait_sec() {
   scaled="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from dev_gate_contract import attach_parallel_wait_sec
+from dev_gate.contract import attach_parallel_wait_sec
 print(attach_parallel_wait_sec(${active_leases}, base=${base}))
 ")"
   [[ "${scaled}" =~ ^[0-9]+$ ]] || scaled="${base}"
@@ -527,8 +527,8 @@ _attach_epoch_pin_drop_stale_when_shared_aligned() {
     "${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_api_verify import resolve_e2e_api_context
-from epoch_delivery_plane import needs_epoch_pin_backend
+from e2e_core.api_verify import resolve_e2e_api_context
+from e2e_core.epoch_delivery_plane import needs_epoch_pin_backend
 ctx = resolve_e2e_api_context(retry_after_apply=False)
 raise SystemExit(0 if not needs_epoch_pin_backend(ctx) else 1)
 " 2>/dev/null
@@ -603,8 +603,8 @@ _maybe_reseal_auth_template_after_attach() {
     "${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_auth_provisioner import reseal_auth_template_for_current_runtime
-from e2e_api_verify import workspace_backend_fingerprint
+from e2e_core.auth_provisioner import reseal_auth_template_for_current_runtime
+from e2e_core.api_verify import workspace_backend_fingerprint
 origin = '${UI_BASE:-http://127.0.0.1:3000}'
 ws = workspace_backend_fingerprint()
 status = reseal_auth_template_for_current_runtime(origin=origin, workspace_fingerprint=ws)
@@ -629,8 +629,8 @@ _prepare_auth_template_before_attach() {
       "${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_auth_provisioner import prepare_auth_template_for_attach
-from e2e_api_verify import workspace_backend_fingerprint
+from e2e_core.auth_provisioner import prepare_auth_template_for_attach
+from e2e_core.api_verify import workspace_backend_fingerprint
 origin = '${UI_BASE:-http://127.0.0.1:3000}'
 status = prepare_auth_template_for_attach(
     origin=origin,
@@ -751,7 +751,7 @@ print(int(elapsed_wall_sec()))
     errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from runtime_identity import attach_endpoint_errors
+from e2e_core.runtime_identity import attach_endpoint_errors
 print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
 ")"
     if [[ "${errors}" == *"ui=half_dead"* || "${errors}" == *"ui=unreachable"* ]] \
@@ -991,7 +991,7 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-
   attach_errors="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from runtime_identity import attach_wait_errors
+from e2e_core.runtime_identity import attach_wait_errors
 print(', '.join(attach_wait_errors('${UI_BASE}', '${_attach_api}')))
 ")"
   if [[ -n "${attach_errors}" && "${MYRM_E2E_EPOCH_PIN:-0}" == "1" && "${attach_errors}" == *"api=unreachable"* ]]; then
@@ -1015,7 +1015,7 @@ print(', '.join(attach_wait_errors('${UI_BASE}', '${_attach_api}')))
       attach_msg="$("${PREFLIGHT_PY}" -c "
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from runtime_identity import format_attach_endpoint_failure
+from e2e_core.runtime_identity import format_attach_endpoint_failure
 print(format_attach_endpoint_failure([p.strip() for p in '''${attach_errors}'''.split(',') if p.strip()]))
 ")"
       fail "${attach_msg} — first Agent must run: ./myrm ready --chrome"
@@ -1072,7 +1072,7 @@ _ensure_browser_pool_chrome() {
   data_dir="$("${PREFLIGHT_PY}" -c "
 import os, sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
-from e2e_browser_pool import resolve_chrome_data_dir
+from e2e_core.browser_pool import resolve_chrome_data_dir
 print(resolve_chrome_data_dir())
 ")"
   export MYRM_CHROME_E2E_PORT="${port}"
@@ -1306,7 +1306,7 @@ _mux_parallel_load_blocks_global_restart() {
 _mux_solo_gate_cluster_clear() {
   PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
     "${PREFLIGHT_PY}" -c "
-from mux_load import solo_gate_cluster_clear
+from mux.load import solo_gate_cluster_clear
 import sys
 sys.exit(0 if solo_gate_cluster_clear() else 1)
 " 2>/dev/null

@@ -7,8 +7,8 @@ import json
 import sys
 import time
 
-from cdp_chat_bootstrap import CdpChatBootstrap
-from cdp_chat_support import (
+from cdp_chat.bootstrap import CdpChatBootstrap
+from cdp_chat.support import (
     E2E_BRIDGE_INSTALL_JS,
     MODEL_PROBE_JS,
     PAGE_PROBE_JS,
@@ -21,7 +21,7 @@ from cdp_chat_support import (
     fetch_provider_readiness_snapshot,
     get_e2e_ui_url,
 )
-from dev_gate_contract import EvaluateIntent
+from dev_gate.contract import EvaluateIntent
 
 
 class CdpChatInput(CdpChatBootstrap):

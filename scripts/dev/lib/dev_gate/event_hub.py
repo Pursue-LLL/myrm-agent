@@ -7,7 +7,7 @@ import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from dev_gate_store import DevGateStore
+    from dev_gate.store import DevGateStore
 
 _WRITE_OPERATIONS = frozenset(
     {
@@ -145,7 +145,7 @@ def wait_for_session_event_subscribed(
         if remaining <= 0:
             break
         hub.wait(session_id, timeout_sec=remaining)
-    from dev_gate_event_wait import SessionEventTimeoutError
+    from dev_gate.event_wait import SessionEventTimeoutError
 
     raise SessionEventTimeoutError(
         f"session event wait timed out: session={session_id} "
