@@ -22,6 +22,7 @@ export type SkillCategory =
   | 'workflow'
   | 'data-science'
   | 'data-collection'
+  | 'knowledge'
   | 'other';
 
 export interface SkillRequires {

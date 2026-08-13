@@ -3545,6 +3545,7 @@
         "automation": "Automation",
         "operations": "Operations",
         "workflow": "Workflow",
+        "knowledge": "Knowledge",
         "other": "Other"
       },
       "tagLabels": {

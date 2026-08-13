@@ -106,6 +106,7 @@ vi.mock('../messageStream/handlers/handlerDeps', () => ({
   },
   playCompletionSound: vi.fn(() => false),
   dispatchPetSurfaceAwayCompletion: vi.fn(),
+  releaseInspectorControls: vi.fn(),
 }));
 
 type StreamState = {

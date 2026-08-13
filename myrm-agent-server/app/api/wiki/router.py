@@ -315,6 +315,8 @@ class ConceptResponse(BaseModel):
     content: str
     content_hash: str = ""
     provenance: str | None = None
+    source_chat: str | None = None
+    source_message: str | None = None
     claims: list[WikiClaimItem] = Field(default_factory=list)
     editor_sections: WikiEditorSectionsResponse = Field(
         default_factory=WikiEditorSectionsResponse
@@ -1527,6 +1529,8 @@ async def get_concept(
         content=content,
         content_hash=compute_page_lease_hash(content),
         provenance=str(metadata["provenance"]) if metadata.get("provenance") else None,
+        source_chat=_str_or_none(metadata.get("source_chat")),
+        source_message=_str_or_none(metadata.get("source_message")),
         claims=_claims_to_response_items(content, archiver._structure),
         editor_sections=_editor_sections_to_response(content),
     )

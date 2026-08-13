@@ -2946,6 +2946,7 @@
         "automation": "Automatisierung",
         "operations": "Betrieb",
         "workflow": "Arbeitsablauf",
+        "knowledge": "Wissen",
         "other": "Sonstige"
       },
       "tagLabels": {
@@ -11211,7 +11212,7 @@
     "deliveryWebhook": "Webhook",
     "deliveryNone": "Aus",
     "deliveryUpdated": "Liefereinstellungen aktualisiert",
-    "testDelivery": "Test",
+    "testDelivery": "Testen",
     "testDeliverySending": "Senden...",
     "testDeliverySuccess": "Test-Zustellung gesendet",
     "testDeliveryFail": "Test-Zustellung fehlgeschlagen",

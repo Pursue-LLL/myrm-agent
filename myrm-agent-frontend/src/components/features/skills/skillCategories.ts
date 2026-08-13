@@ -1,5 +1,6 @@
 import type { ElementType } from 'react';
 import {
+  BookMarked,
   BookOpenText,
   BotMessageSquare,
   Code,
@@ -33,6 +34,7 @@ export const SKILL_CATEGORIES: readonly SkillCategory[] = [
   'automation',
   'operations',
   'workflow',
+  'knowledge',
 ];
 
 const CATEGORY_ICONS: Record<string, ElementType> = {
@@ -50,6 +52,7 @@ const CATEGORY_ICONS: Record<string, ElementType> = {
   operations: HardDrive,
   pipeline: Workflow,
   workflow: GitBranch,
+  knowledge: BookMarked,
   other: Zap,
 };
 
@@ -68,6 +71,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   operations: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
   pipeline: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   workflow: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
+  knowledge: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
   other: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
 };
 

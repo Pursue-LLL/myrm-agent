@@ -3545,6 +3545,7 @@
         "automation": "自动化",
         "operations": "运维",
         "workflow": "工作流",
+        "knowledge": "知识",
         "other": "其他"
       },
       "tagLabels": {
