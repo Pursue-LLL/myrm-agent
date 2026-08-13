@@ -534,7 +534,7 @@ _heal_shared_ui_if_stale() {
   }
   local monorepo_root heal_py outcome timing_after=""
   monorepo_root="$(cd "$(dirname "${stack}")/../../.." && pwd)"
-  heal_py="${_MYRM_WARMUP_LIB_DIR}/e2e_warm_ui_heal.py"
+  heal_py="${_MYRM_WARMUP_LIB_DIR}/e2e_core/warm_ui_heal.py"
   for heal_attempt in 1 2; do
     echo "CHROME_E2E_HEAL: shared UI stale (${reason}) — frontend-only ensure ${heal_attempt}/2" >&2
     _frontend_clear_warmth

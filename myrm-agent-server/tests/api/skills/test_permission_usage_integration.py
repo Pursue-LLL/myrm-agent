@@ -81,7 +81,10 @@ def _log(
     allowed: bool,
     deny_reason: str | None = None,
     age: timedelta = timedelta(hours=1),
+    used_at: datetime | None = None,
 ) -> SkillPermissionUsageLog:
+    if used_at is None:
+        used_at = datetime.now(UTC).replace(tzinfo=None) - age
     return SkillPermissionUsageLog(
         user_id="integration-user",
         skill_id=skill_id,
@@ -89,7 +92,7 @@ def _log(
         operation=operation,
         allowed=allowed,
         deny_reason=deny_reason,
-        used_at=datetime.now(UTC).replace(tzinfo=None) - age,
+        used_at=used_at,
     )
 
 

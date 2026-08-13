@@ -14823,6 +14823,10 @@
       "sampled": "抽样",
       "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）",
       "sampledHint": "结果基于抽样子集，并非全量基准",
+      "budget": "运行预算",
+      "budgetToolCalls": "次调用",
+      "budgetIterations": "轮迭代",
+      "budgetHint": "引擎对每次运行强制执行的调用/迭代上限，命中上限以此为参照",
       "historyTitle": "历史记录",
       "historyTime": "运行时间",
       "historyDataset": "数据集",
@@ -14906,6 +14910,8 @@
       "fingerprint": "每层配置都带有指纹，锁定开关组合，保证跨版本分数可对比。",
       "harnessVersion": "Harness 引擎",
       "basedOnProfile": "智能体",
+      "decontamOn": "评测去污染已启用",
+      "decontamOff": "评测去污染未启用",
       "abortedNotice": "本报告不完整——评测在中途被中止。",
       "bare": {
         "label": "裸基线"

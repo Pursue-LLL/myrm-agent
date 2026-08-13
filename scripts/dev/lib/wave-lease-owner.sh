@@ -75,17 +75,20 @@ _wave_acquire_owned_lease() {
 _capacity_lease_msg() {
   local subcommand="$1"
   shift
-  python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_capacity_messages.py" "${subcommand}" "$@"
+  PYTHONPATH="$(dirname "${BASH_SOURCE[0]}")/e2e_core:$(dirname "${BASH_SOURCE[0]}"):${PYTHONPATH:-}" \
+    python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_core/capacity_messages.py" "${subcommand}" "$@"
 }
 
 _admit_poll_progress() {
   local node="$1"
-  python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_admit_poll.py" touch --node "${node}" 2>/dev/null || true
+  PYTHONPATH="$(dirname "${BASH_SOURCE[0]}")/e2e_core:$(dirname "${BASH_SOURCE[0]}"):${PYTHONPATH:-}" \
+    python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_core/admit_poll.py" touch --node "${node}" 2>/dev/null || true
 }
 
 _admit_poll_budget_or_exit() {
   local node="$1"
-  python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_admit_poll.py" assert-budget --node "${node}"
+  PYTHONPATH="$(dirname "${BASH_SOURCE[0]}")/e2e_core:$(dirname "${BASH_SOURCE[0]}"):${PYTHONPATH:-}" \
+    python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_core/admit_poll.py" assert-budget --node "${node}"
 }
 
 _wave_acquire_owned_lease_with_wait() {
