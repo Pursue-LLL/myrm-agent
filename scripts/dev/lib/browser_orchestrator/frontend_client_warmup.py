@@ -53,6 +53,17 @@ def _probe_hydrated(probe_value: object) -> bool:
         return True
     if probe_value.get("hasLayout") and probe_value.get("clientHydrated"):
         return True
+    # Under parallel CPU load React fiber keys can lag while bridge/input/layout
+    # are already live (phase-c preseal 20260813T011031Z: hasBridge+hasInput+hasLayout
+    # but clientHydrated=false for 4×30s). WarmShell logical heat only needs a
+    # usable chat shell, not fiber introspection stability.
+    if (
+        probe_value.get("hasBridge")
+        and probe_value.get("hasInput")
+        and probe_value.get("hasLayout")
+        and not probe_value.get("skeleton")
+    ):
+        return True
     return False
 
 

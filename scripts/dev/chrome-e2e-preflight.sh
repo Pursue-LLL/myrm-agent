@@ -115,12 +115,15 @@ _admit_poll_budget_or_fail() {
 }
 
 _epoch_drift_shared_attach_cap_sec() {
+  local shell_leases="${1:-0}"
+  [[ "${shell_leases}" =~ ^[0-9]+$ ]] || shell_leases=0
   PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
     "${PREFLIGHT_PY}" -c "
 import os
 import sys
 sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from e2e_api_verify import epoch_drift_attach_cap_sec, resolve_e2e_api_context
+shell_leases = int('${shell_leases}')
 if os.environ.get('MYRM_E2E_SHPOIB', '').strip() == '1':
     print(0)
     raise SystemExit(0)
@@ -138,12 +141,13 @@ try:
 except Exception:
     print(0)
     raise SystemExit(0)
+effective_leases = max(int(ctx.active_leases), shell_leases)
 print(
     epoch_drift_attach_cap_sec(
         blocked=ctx.blocked,
         epoch_match=ctx.epoch_match,
         drift_pending=ctx.drift_pending,
-        active_leases=ctx.active_leases,
+        active_leases=effective_leases,
     )
 )
 " 2>/dev/null || echo 0
@@ -691,7 +695,7 @@ _attach_fast_path() {
     fail "BOOTSTRAP attach budget exhausted before stack-core gate — do not stop other pytest; run ./myrm e2e-context"
   fi
   local wait_started=$SECONDS drift_cap=0
-  drift_cap="$(_epoch_drift_shared_attach_cap_sec)"
+  drift_cap="$(_epoch_drift_shared_attach_cap_sec "${active_leases}")"
   [[ "${drift_cap}" =~ ^[0-9]+$ ]] || drift_cap=0
   if [[ "${drift_cap}" -gt 0 ]]; then
     echo "CHROME_E2E_ATTACH: epoch drift SHARED attach cap=${drift_cap}s (parallel lease aware; monotonic BOOTSTRAP may be higher)" >&2

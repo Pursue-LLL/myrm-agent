@@ -97,19 +97,21 @@ def epoch_drift_attach_cap_sec(
     Returns 0 when no drift cap applies (attach waits on the monotonic BOOTSTRAP
     budget). Returns >0 when the shared backend is blocked on a stale epoch.
 
-    When drift is pending while parallel tests hold leases, SMP deliberately
-    defers the shared reload (do-not-interrupt contract). A new attach must wait
-    for the lease-release window plus reload instead of failing on the fixed
-    base cap, so the cap scales with active leases (aligned with the BOOTSTRAP
-    budget `base + leases*45`). This turns a "120s wait-then-FAIL" into a
-    bounded, parallel-aware wait.
+    When parallel tests hold leases, SMP deliberately defers the shared reload
+    (do-not-interrupt contract). A new attach must wait for the lease-release
+    window plus reload instead of failing on the fixed base cap, so the cap
+    scales with active leases (aligned with the BOOTSTRAP budget
+    `base + leases*45`) whenever blocked+epoch_mismatch and leases>0.
     """
     if not (blocked and not epoch_match):
         return 0
     base_raw = os.environ.get("MYRM_E2E_EPOCH_DRIFT_ATTACH_CAP_SEC", "").strip()
     base = int(base_raw) if base_raw.isdigit() else 120
-    if drift_pending and active_leases > 0:
-        leases = max(active_leases, 0)
+    leases = max(active_leases, 0)
+    if leases > 0:
+        # Parallel peers defer shared reload (SMP do-not-interrupt). Scale the attach
+        # window even when drift_pending is false — blocked+epoch_mismatch alone
+        # triggers defer while leases hold (kanban 41079: cap=120 with 4 leases).
         per_lease_raw = os.environ.get(
             "MYRM_E2E_EPOCH_DRIFT_ATTACH_PER_LEASE_SEC", ""
         ).strip()
