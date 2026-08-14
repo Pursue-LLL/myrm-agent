@@ -185,7 +185,13 @@ class TestPublicSharePage:
     def test_password_token_unlocks_via_post_form(
         self, share_client: TestClient
     ) -> None:
-        """The password is posted in the form body, never the URL (CWE-598)."""
+        """The password is posted in the form body (CWE-598) and PRG-redirects.
+
+        A successful POST answers 303 See Other to the clean GET URL and sets
+        an unlock cookie, so the address bar never carries ``?p=...`` and the
+        followed GET authenticates via the cookie without re-entering the
+        password.
+        """
         from app.services.chat.share_token import create_chat_share_token
 
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
@@ -201,9 +207,121 @@ class TestPublicSharePage:
                 return_value="<html><body>Shared</body></html>",
             ),
         ):
-            resp = share_client.post(f"/public/chat-share/{token}", data={"p": "s3cret"})
+            resp = share_client.post(
+                f"/public/chat-share/{token}",
+                data={"p": "s3cret"},
+                follow_redirects=False,
+            )
+        assert resp.status_code == 303
+        assert resp.headers["location"].endswith(f"/public/chat-share/{token}")
+
+        from app.api.chats.chat.share import _unlock_cookie_name
+
+        cookie = share_client.cookies.get(_unlock_cookie_name(token))
+        assert cookie is not None
+
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=_make_chat_dto(),
+            ),
+            patch(
+                "app.api.chats.chat.share.render_share_html",
+                new_callable=AsyncMock,
+                return_value="<html><body>Shared</body></html>",
+            ),
+        ):
+            content = share_client.get(
+                f"/public/chat-share/{token}",
+                headers={"Cookie": f"{_unlock_cookie_name(token)}={cookie}"},
+            )
+        assert content.status_code == 200
+        assert "Shared" in content.text
+
+    def test_password_token_unlock_cookie_skips_gate(
+        self, share_client: TestClient
+    ) -> None:
+        """A valid unlock cookie lets a revisit skip the gate entirely."""
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
+
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=_make_chat_dto(),
+            ),
+            patch(
+                "app.api.chats.chat.share.render_share_html",
+                new_callable=AsyncMock,
+                return_value="<html><body>Shared</body></html>",
+            ),
+        ):
+            unlock = share_client.post(
+                f"/public/chat-share/{token}",
+                data={"p": "s3cret"},
+                follow_redirects=False,
+            )
+        assert unlock.status_code == 303
+
+        from app.api.chats.chat.share import _unlock_cookie_name
+
+        cookie = unlock.headers["set-cookie"].split(";")[0].split("=", 1)[1]
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=_make_chat_dto(),
+            ),
+            patch(
+                "app.api.chats.chat.share.render_share_html",
+                new_callable=AsyncMock,
+                return_value="<html><body>Shared</body></html>",
+            ),
+        ):
+            resp = share_client.get(
+                f"/public/chat-share/{token}",
+                headers={"Cookie": f"{_unlock_cookie_name(token)}={cookie}"},
+            )
         assert resp.status_code == 200
         assert "Shared" in resp.text
+
+    def test_password_token_short_remaining_serves_directly(
+        self, share_client: TestClient
+    ) -> None:
+        """POST unlock with <60s remaining serves content instead of 303-looping."""
+        import time
+
+        from app.core.security.share_hmac import sign_share_token
+
+        token = sign_share_token(
+            {"cid": "chat-1", "p": 1},
+            salt="chat-share",
+            exp=int(time.time()) + 30,
+            password="s3cret",
+        )
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=_make_chat_dto(),
+            ),
+            patch(
+                "app.api.chats.chat.share.render_share_html",
+                new_callable=AsyncMock,
+                return_value="<html><body>Shared</body></html>",
+            ),
+        ):
+            resp = share_client.post(
+                f"/public/chat-share/{token}",
+                data={"p": "s3cret"},
+                follow_redirects=False,
+            )
+        assert resp.status_code == 200
+        assert "Shared" in resp.text
+        assert "set-cookie" not in resp.headers
 
     def test_password_token_query_still_unlocks(self, share_client: TestClient) -> None:
         """A password carried in the URL query still unlocks."""

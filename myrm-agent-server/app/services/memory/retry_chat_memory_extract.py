@@ -32,7 +32,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, Literal
 
-from myrm_agent_harness.agent.security.types import PIIAction
 from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
 
 from app.database.dto import MessageDTO
@@ -41,23 +40,6 @@ from app.services.chat.chat_service import ChatService
 logger = logging.getLogger(__name__)
 
 RetryScheduleStatus = Literal["scheduled", "already_in_flight"]
-
-
-def _safe_pii_action(value: object, default: PIIAction) -> PIIAction:
-    """Coerce a persisted PII action string to a valid enum value.
-
-    Falls back to *default* for missing or invalid values so a stale/foreign
-    configuration cannot crash the extraction task.
-    """
-    if value is None:
-        return default
-    try:
-        return PIIAction(str(value))
-    except ValueError:
-        logger.warning(
-            "Invalid PII action %r, falling back to %s", value, default.value
-        )
-        return default
 
 
 @contextmanager
@@ -84,6 +66,8 @@ def _privacy_deep_scan_context(
         set_pseudonym_store,
     )
 
+    from app.core.security.pii_actions import coerce_pii_action
+
     settings = personal_settings if isinstance(personal_settings, dict) else {}
     enabled = bool(settings.get("privacyEnabled"))
     deep_scan = bool(settings.get("privacyDeepScan"))
@@ -93,8 +77,8 @@ def _privacy_deep_scan_context(
 
     policy = PrivacyPolicy(
         enabled=True,
-        s2_action=_safe_pii_action(settings.get("privacyS2Action"), PIIAction.WARN),
-        s3_action=_safe_pii_action(settings.get("privacyS3Action"), PIIAction.REDACT),
+        s2_action=coerce_pii_action(settings.get("privacyS2Action"), PIIAction.WARN),
+        s3_action=coerce_pii_action(settings.get("privacyS3Action"), PIIAction.REDACT),
         deep_scan=deep_scan,
     )
     previous_policy = get_privacy_policy()
@@ -120,7 +104,7 @@ def _privacy_deep_scan_context(
                 )
         yield deep_scan
     finally:
-        if previous_pseudonymizer is not None:
+        if store_installed:
             restore_memory_pseudonymizer(previous_pseudonymizer)
         set_privacy_policy(previous_policy)
         if store_installed:

@@ -24,9 +24,9 @@ app = build_minimal_app(preset="config")
 def setup_test_database() -> None:
     asyncio.run(init_database())
     yield
-    TEST_DB.unlink(missing_ok=True)
-    for suffix in ("-shm", "-wal", "-journal"):
-        Path(f"{TEST_DB}{suffix}").unlink(missing_ok=True)
+    from tests.api.config.conftest import cleanup_shared_test_db
+
+    cleanup_shared_test_db(TEST_DB)
 
 
 @asynccontextmanager

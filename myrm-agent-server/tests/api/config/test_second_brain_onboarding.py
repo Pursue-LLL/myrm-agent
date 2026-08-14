@@ -31,9 +31,9 @@ async def _noop_lifespan(_app: object):
 
 
 def _cleanup_db_files() -> None:
-    TEST_DB.unlink(missing_ok=True)
-    for suffix in ("-shm", "-wal", "-journal"):
-        Path(f"{TEST_DB}{suffix}").unlink(missing_ok=True)
+    from tests.api.config.conftest import cleanup_shared_test_db
+
+    cleanup_shared_test_db(TEST_DB)
 
 
 @pytest.fixture(autouse=True)

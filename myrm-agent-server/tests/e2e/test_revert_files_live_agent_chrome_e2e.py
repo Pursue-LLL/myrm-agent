@@ -70,7 +70,7 @@ BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
 _FILE_EDIT_TOOL = "file_edit_tool"
 _WORKSPACE_FILENAME = "batch_edit_e2e.txt"
-_MAX_CHAT_ATTEMPTS = 1
+_MAX_CHAT_ATTEMPTS = 2
 
 _TRACE_LOG = Path("/tmp/revert_live_trace.log")
 
@@ -83,9 +83,11 @@ def _trace(stage: str, detail: str = "") -> None:
         pass
 
 _LIVE_USER_PROMPT = (
-    f"The workspace file {_WORKSPACE_FILENAME} contains exactly three lines: line_a, line_b, line_c. "
-    "Use file_edit_tool once with an edits array that replaces the line containing line_a "
-    "with the line LINE_A. Do not change line_b or line_c. Reply REVERT_LIVE_OK when done."
+    f"The workspace file {_WORKSPACE_FILENAME} currently contains exactly these three lines:\n"
+    "line_a\nline_b\nline_c\n"
+    "You MUST actually modify the file by calling file_edit_tool exactly once with an edits "
+    "array containing {{'old_str': 'line_a', 'new_str': 'LINE_A'}}. Do NOT stop after reading "
+    "or inspecting the file. After the edit succeeds, reply REVERT_LIVE_OK."
 )
 
 _PIN_LITE_MODEL_JS = """(() => {
@@ -119,8 +121,9 @@ def _create_revert_live_agent(api_url: str) -> str:
         "description": "Chrome LIVE E2E for revert-files after page reload",
         "system_prompt": (
             "You edit workspace files with file_read_tool and file_edit_tool. "
-            "When the user asks to replace a line, call file_edit_tool once with an "
-            "edits array using old_str/new_str pairs. Reply REVERT_LIVE_OK when done."
+            "When the user explicitly asks to modify a file, you MUST call file_edit_tool "
+            "with old_str/new_str edits and actually change the file — reading it alone is "
+            "not enough. Reply REVERT_LIVE_OK when the edit succeeds."
         ),
         "skill_ids": [],
         "mcp_ids": [],
@@ -500,7 +503,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
 
         await chat.navigate_to_chat(resolved_chat_id, BASE_URL, timeout_sec=90.0)
         result = await _wait_live_turn_done(
-            chat, resolved_chat_id, file_path=file_path, timeout_sec=300.0
+            chat, resolved_chat_id, file_path=file_path, timeout_sec=180.0
         )
         _trace("turn_done", json.dumps(result, ensure_ascii=False, default=str)[:300])
         assert result.get("invoked") is True, result

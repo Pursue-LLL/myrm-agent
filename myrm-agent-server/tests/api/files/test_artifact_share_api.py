@@ -26,7 +26,7 @@ from app.api.files.artifact_share_public import (
     public_router,
 )
 from app.core.infra.limiter import limiter
-from app.core.security.share_hmac import create_share_token
+from app.core.security.share_hmac import create_share_token, sign_share_token
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.services.artifacts.share_bundle import (
@@ -1982,3 +1982,40 @@ async def test_password_share_post_without_password_gate(
     )
     assert gate.status_code == 403
     assert "Password Required" in gate.text
+
+
+@pytest.mark.asyncio
+async def test_password_share_post_short_remaining_serves_directly(
+    share_client, html_artifact
+) -> None:
+    """POST unlock with <60s remaining serves content instead of 303-looping.
+
+    When the share is too close to expiry to issue an unlock cookie, a
+    successful POST must not redirect to a GET that cannot authenticate (no
+    cookie, no password) — that would loop back to the gate forever. The
+    bundle is served directly so the current request always succeeds.
+    """
+    files = {
+        "index.html": PublishFile(
+            path="index.html", content="<html/>", encoding="utf-8"
+        ),
+    }
+    short_token = sign_share_token(
+        {"aid": html_artifact.id, "vid": "short-version", "p": 1},
+        salt="artifact-share",
+        exp=int(time.time()) + 30,
+        password="s3cret",
+    )
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, files),
+    ):
+        unlocked = share_client.post(
+            f"/public/artifact-share/{short_token}",
+            data={"p": "s3cret"},
+            follow_redirects=False,
+        )
+    assert unlocked.status_code == 200
+    assert "text/html" in unlocked.headers["content-type"]
+    assert "set-cookie" not in unlocked.headers

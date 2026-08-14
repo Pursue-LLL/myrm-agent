@@ -225,6 +225,46 @@ class TestPrivacyDeepScanContext:
         assert mock_set_store.call_args_list[-1].args[0] is prev_store
         mock_restore.assert_called_once_with(prev_pseudonymizer)
 
+    def test_restores_pseudonymizer_even_when_none_was_installed_before(self):
+        """Exit must clear the closure even when install returned None.
+
+        Regression: the finally block used to skip restore when the previously
+        installed pseudonymizer was None, leaking the closure into the next
+        background task and mixing stores across chats.
+        """
+        settings = {
+            "privacyDeepScan": False,
+            "privacyEnabled": True,
+            "privacyS2Action": "pseudonymize",
+            "privacyS3Action": "redact",
+        }
+        with (
+            patch("myrm_agent_harness.api.hooks.set_privacy_policy"),
+            patch("myrm_agent_harness.api.hooks.set_pseudonym_store"),
+            patch(
+                "myrm_agent_harness.api.hooks.get_privacy_policy",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_pseudonym_store",
+                return_value=None,
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.build_pseudonym_store",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.install_memory_pseudonymizer",
+                return_value=None,
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.restore_memory_pseudonymizer"
+            ) as mock_restore,
+        ):
+            with _privacy_deep_scan_context(settings, "/tmp/ws") as deep_scan:
+                assert deep_scan is False
+        mock_restore.assert_called_once_with(None)
+
     def test_invalid_action_falls_back_to_default(self):
         """Invalid persisted PII actions must fall back without crashing."""
         settings = {

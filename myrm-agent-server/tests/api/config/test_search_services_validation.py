@@ -1,15 +1,28 @@
 """Omni-Config validation for searchServices priority chain."""
 
+import asyncio
+import os
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect
 
-from app.database.connection import get_session
+from app.database.connection import get_session, init_database
 from app.database.models import ConfigAuditLog, UserConfig
+from tests.api.config.conftest import cleanup_shared_test_db
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="config")
 client = TestClient(app)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_test_database():
+    """Ensure tables exist regardless of module execution order."""
+    asyncio.run(init_database())
+    yield
+    cleanup_shared_test_db(Path(os.environ["MYRM_DATA_DIR"]) / "data.db")
 
 
 async def _clear_config_tables(session) -> None:

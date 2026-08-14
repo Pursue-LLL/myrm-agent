@@ -18,11 +18,12 @@ Every served file carries noindex/nofollow + no-store so shared work products ar
 never search-engine indexed and revoking a link cannot be bypassed by browser or
 CDN caches. The password gate posts its ``p`` field in the request body so the
 password never reaches the URL (CWE-598); a successful unlock answers with a 303
-See Other redirect (PRG) to the clean GET URL. The HMAC unlock credential issued
-after a correct password keeps the share's ``artifact_type`` so extension-less
-entries (e.g. a PDF artifact named without a suffix) still resolve the right
-media type when the browser re-authenticates via the unlock cookie instead of a
-password parameter.
+See Other redirect (PRG) to the clean GET URL, or serves the content directly
+when the share is too close to expiry to issue an unlock cookie (no redirect
+loop). The HMAC unlock credential issued after a correct password keeps the
+share's ``artifact_type`` so extension-less entries (e.g. a PDF artifact named
+without a suffix) still resolve the right media type when the browser
+re-authenticates via the unlock cookie instead of a password parameter.
 """
 
 from __future__ import annotations
@@ -179,12 +180,17 @@ def _attach_unlock_cookie(
     password: str | None,
     *,
     secure: bool,
-) -> None:
+) -> bool:
+    """Set the unlock cookie after a password unlock.
+
+    Returns ``True`` when the cookie was issued (share has enough remaining
+    TTL), ``False`` when it was skipped (no password or share about to expire).
+    """
     if not password:
-        return
+        return False
     credential = _build_unlock_credential(claims)
     if credential is None:
-        return
+        return False
     response.set_cookie(
         key=_unlock_cookie_name(token),
         value=credential,
@@ -194,6 +200,7 @@ def _attach_unlock_cookie(
         samesite="strict",
         secure=secure,
     )
+    return True
 
 
 async def _serve_share_bundle(
@@ -283,18 +290,20 @@ async def get_public_artifact_share(
     token: str,
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
+    password: str | None = Depends(resolve_gate_password),
 ) -> Response:
     """Serve the bundle entry file for a valid share token (no API key).
 
     GET also accepts a ``p`` query parameter so links carrying the password in
     the URL still unlock; POST reads the password from the form body (CWE-598)
     and answers with a 303 See Other redirect (PRG) so the password never
-    appears in the address bar or browser history. Revocation is checked before
-    authentication so a revoked link (password protected or not) is denied
-    immediately without presenting the password gate.
+    appears in the address bar or browser history. When the share is too close
+    to expiry to issue an unlock cookie the content is served directly instead
+    of redirecting, so a successful unlock can never loop back to the gate.
+    Revocation is checked before authentication so a revoked link (password
+    protected or not) is denied immediately without presenting the gate.
     """
     await _ensure_not_revoked(db, token)
-    password = await resolve_gate_password(request)
     result = _auth_or_gate(request, token, password)
     if isinstance(result, HTMLResponse):
         return result
@@ -304,8 +313,9 @@ async def get_public_artifact_share(
         if bundle_asset_count(result) > 1 and not redirect_path.endswith("/"):
             redirect_path += "/"
         response = RedirectResponse(url=redirect_path, status_code=303)
-        _attach_unlock_cookie(response, result, token, password, secure=secure)
-        return response
+        if _attach_unlock_cookie(response, result, token, password, secure=secure):
+            return response
+        return await _serve_share_bundle(result, db, workspace_root, None)
     if bundle_asset_count(result) > 1 and not str(request.url.path).endswith("/"):
         redirect_url = str(request.url.replace(path=str(request.url.path) + "/"))
         response = RedirectResponse(url=redirect_url, status_code=307)
@@ -323,19 +333,20 @@ async def get_public_artifact_share_index(
     token: str,
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
+    password: str | None = Depends(resolve_gate_password),
 ) -> Response:
     """Serve bundle entry under a trailing slash so relative static assets resolve."""
     await _ensure_not_revoked(db, token)
-    password = await resolve_gate_password(request)
     result = _auth_or_gate(request, token, password)
     if isinstance(result, HTMLResponse):
         return result
     if request.method == "POST":
         response = RedirectResponse(url=str(request.url.path), status_code=303)
-        _attach_unlock_cookie(
+        if _attach_unlock_cookie(
             response, result, token, password, secure=request.url.scheme == "https"
-        )
-        return response
+        ):
+            return response
+        return await _serve_share_bundle(result, db, workspace_root, None)
     response = await _serve_share_bundle(result, db, workspace_root, None)
     _attach_unlock_cookie(
         response, result, token, password, secure=request.url.scheme == "https"
@@ -351,17 +362,18 @@ async def get_public_artifact_share_asset(
     asset_path: str,
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
+    password: str | None = Depends(resolve_gate_password),
 ) -> Response:
     """Serve a static asset from a multi-file share bundle."""
     await _ensure_not_revoked(db, token)
-    password = await resolve_gate_password(request)
     result = _auth_or_gate(request, token, password)
     if isinstance(result, HTMLResponse):
         return result
     if request.method == "POST":
         response = RedirectResponse(url=str(request.url.path), status_code=303)
-        _attach_unlock_cookie(
+        if _attach_unlock_cookie(
             response, result, token, password, secure=request.url.scheme == "https"
-        )
-        return response
+        ):
+            return response
+        return await _serve_share_bundle(result, db, workspace_root, asset_path)
     return await _serve_share_bundle(result, db, workspace_root, asset_path)
