@@ -79,11 +79,15 @@ class _ChatTurnMixin(_ChatServiceBase):
             if not last_user:
                 return RetryResult(success=False, query="", deleted_count=0)
             deleted_ids = await _ChatServiceBase._cr(uow).delete_messages_after(
-                chat_id, last_user, include_anchor=False,
+                chat_id,
+                last_user,
+                include_anchor=False,
             )
             result = RetryResult(
-                success=True, query=last_user.content,
-                deleted_count=len(deleted_ids), deleted_message_ids=deleted_ids,
+                success=True,
+                query=last_user.content,
+                deleted_count=len(deleted_ids),
+                deleted_message_ids=deleted_ids,
             )
         if result.success:
             await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
@@ -109,10 +113,13 @@ class _ChatTurnMixin(_ChatServiceBase):
         return RegenerateResult(success=True, query=query, sibling_group_id=group_id)
 
     @staticmethod
-    async def switch_sibling(sibling_group_id: str, target_message_id: str) -> bool:
+    async def switch_sibling(chat_id: str, sibling_group_id: str, target_message_id: str) -> bool:
         """Switch the active sibling in a group. Returns True on success."""
         async with UnitOfWork() as uow:
-            return await _ChatServiceBase._cr(uow).switch_active_sibling(sibling_group_id, target_message_id)
+            ok = await _ChatServiceBase._cr(uow).switch_active_sibling(sibling_group_id, target_message_id)
+        if ok:
+            await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
+        return ok
 
     @staticmethod
     async def get_sibling_info(sibling_group_id: str) -> list[SiblingDetail]:
@@ -130,12 +137,15 @@ class _ChatTurnMixin(_ChatServiceBase):
             if not last_user:
                 return UndoResult(success=True, deleted_count=0)
             deleted_ids = await _ChatServiceBase._cr(uow).delete_messages_after(
-                chat_id, last_user, include_anchor=True,
+                chat_id,
+                last_user,
+                include_anchor=True,
             )
             if deleted_ids:
                 await _ChatTurnMixin._refresh_last_message(uow, chat_id)
             result = UndoResult(
-                success=True, deleted_count=len(deleted_ids),
+                success=True,
+                deleted_count=len(deleted_ids),
                 deleted_message_ids=deleted_ids,
             )
         if result.success and result.deleted_count > 0:
@@ -158,7 +168,9 @@ class _ChatTurnMixin(_ChatServiceBase):
             if not msg:
                 return TruncateResult(success=False, deleted_count=0)
             deleted_ids = await _ChatServiceBase._cr(uow).delete_messages_after(
-                chat_id, msg, include_anchor=True,
+                chat_id,
+                msg,
+                include_anchor=True,
             )
             if deleted_ids:
                 await _ChatTurnMixin._refresh_last_message(uow, chat_id)
@@ -169,9 +181,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         return result
 
     @staticmethod
-    async def rewind_to_message(
-        chat_id: str, message_id: str, revert_files: bool = False
-    ) -> RewindResult:
+    async def rewind_to_message(chat_id: str, message_id: str, revert_files: bool = False) -> RewindResult:
         """Rewind conversation to before a user message and return composer seed text.
 
         When ``revert_files`` is set, file changes made by the deleted messages are
@@ -234,7 +244,9 @@ class _ChatTurnMixin(_ChatServiceBase):
             composer_text = clean_content.strip()
 
             deleted_ids = await _ChatServiceBase._cr(uow).delete_messages_after(
-                chat_id, msg, include_anchor=True,
+                chat_id,
+                msg,
+                include_anchor=True,
             )
             if deleted_ids:
                 await _ChatTurnMixin._refresh_last_message(uow, chat_id)
@@ -302,9 +314,7 @@ class _ChatTurnMixin(_ChatServiceBase):
             return None
 
     @staticmethod
-    async def _revert_files_for_messages(
-        chat_id: str, deleted_message_ids: list[str]
-    ) -> dict[str, list[str]]:
+    async def _revert_files_for_messages(chat_id: str, deleted_message_ids: list[str]) -> dict[str, list[str]]:
         """Revert file changes made by deleted messages, newest message first.
 
         A later message may overwrite a file touched by an earlier one, so reverting

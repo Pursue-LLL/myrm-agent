@@ -45,7 +45,7 @@ async def backfill(force: bool, limit: int) -> None:
             if limit and processed >= limit:
                 break
             processed += 1
-            extras = await ChatRepository.get_assistant_extra_data(db, chat.id)
+            extras, _ = await ChatRepository.get_assistant_extra_data(db, chat.id)
             aggregated = aggregate_chat_usage_rows(extras)
             if force or _is_stale(chat, aggregated):
                 await ChatRepository.update_chat_fields(db, chat.id, aggregated)

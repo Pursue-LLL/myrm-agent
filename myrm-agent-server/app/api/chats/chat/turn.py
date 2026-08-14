@@ -103,7 +103,7 @@ async def switch_sibling(
         if not chat:
             raise not_found_error("Chat session")
 
-        ok = await ChatService.switch_sibling(body.sibling_group_id, body.target_message_id)
+        ok = await ChatService.switch_sibling(chat_id, body.sibling_group_id, body.target_message_id)
         if not ok:
             raise not_found_error("Sibling message")
 
