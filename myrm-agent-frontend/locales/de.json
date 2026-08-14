@@ -4869,7 +4869,9 @@
           "unknown": "Unbekannt"
         },
         "llmCalls": "LLM-Aufrufe",
-        "saveAsEval": "Als Eval-Case speichern"
+        "saveAsEval": "Als Eval-Case speichern",
+        "firstIrrecoverable": "Erster nicht behebbarer Fehlerpunkt",
+        "recoverySteps": "Wiederherstellungsschritte"
       },
       "replay": {
         "title": "Sitzungs-Wiedergabe",
@@ -4901,6 +4903,8 @@
         "preCompactEventTitle": "Abruf vor Kompaktion",
         "toolFailed": "Tool-Ausführung fehlgeschlagen",
         "scrubSnapHint": "Loslassen, um zum nächsten Ereignis einzurasten",
+        "securityLabels": "Sicherheitskennzeichnungen",
+        "securityFlag": "Sicherheit",
         "marker": {
           "tool": "Werkzeug",
           "llm": "LLM",
@@ -6793,7 +6797,8 @@
       },
       "addFromPreset": "Aus Voreinstellung hinzufügen",
       "turn1BudgetWarning": "Das geschätzte Turn1-Schema (~{tokens} Token) übersteigt das Direktbindungsbudget ({budget}). Reduzieren Sie ausgewählte Endpunkte, sonst kann der Agent diese API-Tools nicht verwenden.",
-      "turn1BudgetServiceWarning": "Die ausgewählten Endpunkte dieses Dienstes können das Turn1-Bind-Budget überschreiten. Reduzieren Sie die Auswahl, um Startfehler des Agenten zu vermeiden."
+      "turn1BudgetServiceWarning": "Die ausgewählten Endpunkte dieses Dienstes können das Turn1-Bind-Budget überschreiten. Reduzieren Sie die Auswahl, um Startfehler des Agenten zu vermeiden.",
+      "atLeastOneEndpoint": "Mindestens ein Endpunkt muss ausgewählt bleiben."
     },
     "onlyOwnerCanViewPrompt": "Nur der Agenten-Eigentümer kann den System-Prompt ansehen",
     "failedToLoadPrompt": "Systemprompt konnte nicht geladen werden, bitte erneut versuchen",
@@ -8654,6 +8659,14 @@
     "workflow_execution": "Workflow-Aufgaben ausführen",
     "workflow_stage": "Workflow-Phasenaktualisierung",
     "waiting_for_turn": "Warten auf Abschluss anderer Agenten im Projekt...",
+    "faultSides": {
+      "model": "Problem auf Modellseite",
+      "harness_tool": "Problem auf Werkzeugseite",
+      "harness_pipeline": "Problem in der Agent-Pipeline",
+      "env": "Problem in der Umgebung",
+      "grader": "Problem bei der Bewertung",
+      "owner": "Problem bei Eingabe oder Konfiguration"
+    },
     "errorCategories": {
       "oom": "Nicht genügend Speicher",
       "oom_killed": "OOM getötet",
@@ -15527,7 +15540,14 @@
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Konfiguration gespeichert",
     "mcpSecretRefSaveHintDesc": "Geheimverweise in Headern werden zur Laufzeit aufgelöst.",
-    "clearSyncedMemory": "Auch synchronisierte Speicherdaten entfernen ({count} Quellen)"
+    "clearSyncedMemory": "Auch synchronisierte Speicherdaten entfernen ({count} Quellen)",
+    "agentPlugin": "Agent-Plugins",
+    "agentPluginDesc": "Ein portables Bundle für VS Code, Copilot, Kiro, Cursor und andere Agent-Plugins-Clients. Myrm-Speicher anbinden, ohne Client-Konfigurationsdateien zu bearbeiten.",
+    "agentPluginEmbedToken": "Token in das Bundle einbetten",
+    "agentPluginEmbedTokenHint": "Aus (empfohlen): Das Bundle liest das Token aus der Umgebungsvariable MYRM_MCP_TOKEN und ist damit sicher für die Versionskontrolle. Die meisten Clients verwenden ${VAR}; VS Code und Cursor verwenden ${env:VAR}. An: Token für Clients einbetten, die keine Interpolation unterstützen (jederzeit widerrufbar).",
+    "agentPluginGenerate": "Agent-Plugins-Bundle generieren",
+    "agentPluginReady": "Agent-Plugins-Bundle bereit",
+    "pluginFile": "Plugin-Datei"
   },
   "about": {
     "title": "Über",

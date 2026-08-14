@@ -5606,7 +5606,9 @@
           "unknown": "未知"
         },
         "llmCalls": "LLM 调用",
-        "saveAsEval": "保存为评测用例"
+        "saveAsEval": "保存为评测用例",
+        "firstIrrecoverable": "首个无法恢复的错误点",
+        "recoverySteps": "恢复步骤"
       },
       "replay": {
         "title": "录像回放",
@@ -5638,6 +5640,8 @@
         "preCompactEventTitle": "压缩前记忆召回",
         "toolFailed": "工具执行失败",
         "scrubSnapHint": "松手吸附到最近事件帧",
+        "securityLabels": "安全标签",
+        "securityFlag": "安全",
         "marker": {
           "tool": "工具",
           "llm": "模型",
@@ -6656,7 +6660,8 @@
         "scopes": "Scopes (逗号分隔)"
       },
       "turn1BudgetWarning": "预估 Turn1 schema（约 {tokens} tokens）超出直接绑定预算（{budget}）。请减少已选 endpoint，否则 Agent 无法使用这些 API 工具。",
-      "turn1BudgetServiceWarning": "该服务已选 endpoint 可能超出 Turn1 绑定预算。请减少选择，避免 Agent 启动失败。"
+      "turn1BudgetServiceWarning": "该服务已选 endpoint 可能超出 Turn1 绑定预算。请减少选择，避免 Agent 启动失败。",
+      "atLeastOneEndpoint": "必须至少保留一个端点。"
     },
     "sharedContexts": {
       "targetLabel": "智能体",
@@ -8986,6 +8991,14 @@
     "reviewing_sources": "正在审核 {count} 个来源",
     "expand": "展开",
     "collapse": "收起",
+    "faultSides": {
+      "model": "模型侧问题",
+      "harness_tool": "工具侧问题",
+      "harness_pipeline": "执行管线问题",
+      "env": "环境侧问题",
+      "grader": "评估侧问题",
+      "owner": "输入或配置问题"
+    },
     "errorCategories": {
       "oom": "内存溢出 (OOM)",
       "oom_killed": "OOM 强杀",
@@ -15637,7 +15650,14 @@
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "配置已保存",
     "mcpSecretRefSaveHintDesc": "请求头中的密钥引用将在运行时解析。",
-    "clearSyncedMemory": "同时删除已同步的记忆数据（{count} 个来源）"
+    "clearSyncedMemory": "同时删除已同步的记忆数据（{count} 个来源）",
+    "agentPlugin": "Agent Plugins 插件",
+    "agentPluginDesc": "一份便携插件，适用于 VS Code、Copilot、Kiro、Cursor 等支持 Agent Plugins 标准的客户端。无需手改配置文件即可接入 Myrm 长期记忆。",
+    "agentPluginEmbedToken": "将 token 写入插件文件",
+    "agentPluginEmbedTokenHint": "关闭（推荐）：插件从环境变量 MYRM_MCP_TOKEN 读取 token，可安全提交到版本库（多数客户端支持 ${VAR}，VS Code/Cursor 用 ${env:VAR}）。开启：将 token 写入插件文件，供不支持环境变量的客户端使用（可随时撤销）。",
+    "agentPluginGenerate": "生成 Agent Plugins 插件",
+    "agentPluginReady": "Agent Plugins 插件已就绪",
+    "pluginFile": "插件文件"
   },
   "securityDashboard": {
     "title": "安全仪表盘",

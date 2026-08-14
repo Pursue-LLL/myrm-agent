@@ -4869,7 +4869,9 @@
           "unknown": "알 수 없음"
         },
         "llmCalls": "LLM 호출",
-        "saveAsEval": "평가 케이스로 저장"
+        "saveAsEval": "평가 케이스로 저장",
+        "firstIrrecoverable": "복구할 수 없는 첫 번째 오류 지점",
+        "recoverySteps": "복구 단계"
       },
       "replay": {
         "title": "세션 리플레이",
@@ -4901,6 +4903,8 @@
         "preCompactEventTitle": "압축 전 메모리 회상",
         "toolFailed": "도구 실행 실패",
         "scrubSnapHint": "놓으면 가장 가까운 이벤트 프레임에 스냅됩니다",
+        "securityLabels": "보안 라벨",
+        "securityFlag": "보안",
         "marker": {
           "tool": "도구",
           "llm": "모델",
@@ -6793,7 +6797,8 @@
       },
       "addFromPreset": "프리셋에서 추가",
       "turn1BudgetWarning": "예상 Turn1 스키마(~{tokens} 토큰)가 직접 바인딩 예산({budget})을 초과합니다. 선택한 엔드포인트를 줄이지 않으면 에이전트가 이 API 도구를 사용할 수 없습니다.",
-      "turn1BudgetServiceWarning": "이 서비스의 선택된 엔드포인트가 Turn1 바인딩 예산을 초과할 수 있습니다. 에이전트 시작 오류를 방지하려면 선택을 줄이세요."
+      "turn1BudgetServiceWarning": "이 서비스의 선택된 엔드포인트가 Turn1 바인딩 예산을 초과할 수 있습니다. 에이전트 시작 오류를 방지하려면 선택을 줄이세요.",
+      "atLeastOneEndpoint": "하나 이상의 엔드포인트를 선택해야 합니다."
     },
     "onlyOwnerCanViewPrompt": "에이전트 소유자만 시스템 프롬프트를 볼 수 있습니다",
     "failedToLoadPrompt": "시스템 프롬프트를 불러오지 못했습니다. 다시 시도하세요",
@@ -8654,6 +8659,14 @@
     "workflow_execution": "워크플로 작업 실행 중",
     "workflow_stage": "워크플로 단계 업데이트",
     "waiting_for_turn": "프로젝트의 다른 에이전트가 완료되기를 기다리는 중...",
+    "faultSides": {
+      "model": "모델 측 문제",
+      "harness_tool": "도구 측 문제",
+      "harness_pipeline": "에이전트 파이프라인 문제",
+      "env": "환경 측 문제",
+      "grader": "평가 측 문제",
+      "owner": "입력 또는 설정 문제"
+    },
     "errorCategories": {
       "oom": "메모리 부족",
       "oom_killed": "OOM 종료됨",
@@ -15527,7 +15540,14 @@
     "mcpHeaderAdd": "헤더 추가",
     "mcpSecretRefSaveHint": "구성이 저장되었습니다",
     "mcpSecretRefSaveHintDesc": "헤더의 시크릿 참조는 런타임에 해석됩니다.",
-    "clearSyncedMemory": "동기화된 메모리 데이터도 삭제({count}개 소스)"
+    "clearSyncedMemory": "동기화된 메모리 데이터도 삭제({count}개 소스)",
+    "agentPlugin": "Agent Plugins 플러그인",
+    "agentPluginDesc": "VS Code, Copilot, Kiro, Cursor 등 Agent Plugins 표준을 지원하는 클라이언트용 휴대형 플러그인입니다. 설정 파일을 직접 편집하지 않고 Myrm 장기 기억을 연결할 수 있습니다.",
+    "agentPluginEmbedToken": "번들에 토큰 포함",
+    "agentPluginEmbedTokenHint": "끄기(권장): 번들이 환경 변수 MYRM_MCP_TOKEN에서 토큰을 읽어 버전 관리에 커밋해도 안전합니다(대부분의 클라이언트는 ${VAR}, VS Code·Cursor는 ${env:VAR} 사용). 켜기: 환경 변수를 지원하지 않는 클라이언트를 위해 토큰을 인라인합니다(언제든 취소 가능).",
+    "agentPluginGenerate": "Agent Plugins 번들 생성",
+    "agentPluginReady": "Agent Plugins 번들이 준비되었습니다",
+    "pluginFile": "플러그인 파일"
   },
   "about": {
     "title": "정보",

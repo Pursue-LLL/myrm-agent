@@ -241,7 +241,7 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
                             const currentList = isCurrentlyAll ? allIds : service.selected_endpoints!;
                             const next = currentList.filter((id) => id !== ep.operation_id);
                             if (next.length === 0) {
-                              toast({ title: 'Error', description: '必须至少保留一个端点', variant: 'destructive' });
+                              toast({ title: 'Error', description: t('atLeastOneEndpoint'), variant: 'destructive' });
                               return;
                             }
                             updateField('selected_endpoints', next);
@@ -505,7 +505,7 @@ export function AgentOpenAPIServicesTab({ services, onChange, readonly }: AgentO
         {!readonly && (
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowPresets(!showPresets)} className="h-7 text-xs">
-              {t('addFromPreset') || '技能超市'}
+              {t('addFromPreset')}
             </Button>
             <Button variant="outline" size="sm" onClick={handleAdd} className="h-7 text-xs">
               + {t('add')}

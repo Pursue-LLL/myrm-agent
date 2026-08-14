@@ -5261,7 +5261,9 @@
           "unknown": "不明"
         },
         "llmCalls": "LLM 呼び出し",
-        "saveAsEval": "評価ケースとして保存"
+        "saveAsEval": "評価ケースとして保存",
+        "firstIrrecoverable": "回復不能になった最初のエラーポイント",
+        "recoverySteps": "回復手順"
       },
       "replay": {
         "title": "セッションリプレイ",
@@ -5293,6 +5295,8 @@
         "preCompactEventTitle": "圧縮前のメモリ想起",
         "toolFailed": "ツール実行に失敗しました",
         "scrubSnapHint": "離して最近のイベントにスナップ",
+        "securityLabels": "セキュリティラベル",
+        "securityFlag": "セキュリティ",
         "marker": {
           "tool": "ツール",
           "llm": "LLM",
@@ -6529,7 +6533,8 @@
         "scopes": "Scopes（カンマ区切り）"
       },
       "turn1BudgetWarning": "推定Turn1スキーマ（約{tokens}トークン）が直接バインド予算（{budget}）を超えています。選択エンドポイントを減らさないとエージェントはこれらのAPIツールを使用できません。",
-      "turn1BudgetServiceWarning": "このサービスの選択エンドポイントがTurn1バインド予算を超える可能性があります。エージェント起動エラーを避けるため選択を減らしてください。"
+      "turn1BudgetServiceWarning": "このサービスの選択エンドポイントがTurn1バインド予算を超える可能性があります。エージェント起動エラーを避けるため選択を減らしてください。",
+      "atLeastOneEndpoint": "エンドポイントを少なくとも1つ選択してください。"
     },
     "sharedContexts": {
       "targetLabel": "エージェント",
@@ -8886,6 +8891,14 @@
     "reviewing_sources": "{count} 個のソースをレビュー中",
     "expand": "展開",
     "collapse": "閉じる",
+    "faultSides": {
+      "model": "モデル側の問題",
+      "harness_tool": "ツール側の問題",
+      "harness_pipeline": "実行パイプラインの問題",
+      "env": "環境側の問題",
+      "grader": "評価側の問題",
+      "owner": "入力または設定の問題"
+    },
     "errorCategories": {
       "oom": "メモリ不足 (OOM)",
       "oom_killed": "OOM 強制終了",
@@ -15573,7 +15586,14 @@
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "設定を保存しました",
     "mcpSecretRefSaveHintDesc": "ヘッダー内のシークレット参照は実行時に解決されます。",
-    "clearSyncedMemory": "同期済みのメモリデータも削除（{count} 件のソース）"
+    "clearSyncedMemory": "同期済みのメモリデータも削除（{count} 件のソース）",
+    "agentPlugin": "Agent Plugins プラグイン",
+    "agentPluginDesc": "VS Code、Copilot、Kiro、Cursor など Agent Plugins 標準に対応したクライアント向けの可搬型プラグイン。設定ファイルを手で編集せずに Myrm の長期記憶を接続できます。",
+    "agentPluginEmbedToken": "トークンをプラグインに埋め込む",
+    "agentPluginEmbedTokenHint": "オフ（推奨）: プラグインは環境変数 MYRM_MCP_TOKEN からトークンを読み取るため、バージョン管理へのコミットも安全です（多くのクライアントは ${VAR}、VS Code と Cursor は ${env:VAR}）。オン: 環境変数に対応しないクライアント向けにトークンを埋め込みます（いつでも無効化可能）。",
+    "agentPluginGenerate": "Agent Plugins プラグインを生成",
+    "agentPluginReady": "Agent Plugins プラグインが準備できました",
+    "pluginFile": "プラグインファイル"
   },
   "about": {
     "title": "について",

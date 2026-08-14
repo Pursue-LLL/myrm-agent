@@ -5302,7 +5302,9 @@
           "unknown": "未知"
         },
         "llmCalls": "LLM 調用",
-        "saveAsEval": "儲存為評測案例"
+        "saveAsEval": "儲存為評測案例",
+        "firstIrrecoverable": "首個無法恢復的錯誤點",
+        "recoverySteps": "恢復步驟"
       },
       "replay": {
         "title": "錄影回放",
@@ -5334,6 +5336,8 @@
         "preCompactEventTitle": "壓縮前記憶召回",
         "toolFailed": "工具執行失敗",
         "scrubSnapHint": "鬆手吸附到最近事件幀",
+        "securityLabels": "安全標籤",
+        "securityFlag": "安全",
         "marker": {
           "tool": "工具",
           "llm": "模型",
@@ -6533,7 +6537,8 @@
         "scopes": "Scopes (逗號分隔)"
       },
       "turn1BudgetWarning": "預估 Turn1 schema（約 {tokens} tokens）超出直接綁定預算（{budget}）。請減少已選 endpoint，否則 Agent 無法使用這些 API 工具。",
-      "turn1BudgetServiceWarning": "該服務已選 endpoint 可能超出 Turn1 綁定預算。請減少選擇，避免 Agent 啟動失敗。"
+      "turn1BudgetServiceWarning": "該服務已選 endpoint 可能超出 Turn1 綁定預算。請減少選擇，避免 Agent 啟動失敗。",
+      "atLeastOneEndpoint": "必須至少保留一個端點。"
     },
     "sharedContexts": {
       "targetLabel": "智能體",
@@ -8886,6 +8891,14 @@
     "reviewing_sources": "正在稽核 {count} 個來源",
     "expand": "展開",
     "collapse": "收起",
+    "faultSides": {
+      "model": "模型側問題",
+      "harness_tool": "工具側問題",
+      "harness_pipeline": "執行管線問題",
+      "env": "環境側問題",
+      "grader": "評估側問題",
+      "owner": "輸入或配置問題"
+    },
     "errorCategories": {
       "oom": "記憶體溢位 (OOM)",
       "oom_killed": "OOM 強殺",
@@ -15544,7 +15557,14 @@
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "配置已儲存",
     "mcpSecretRefSaveHintDesc": "請求頭中的密鑰引用將在運行時解析。",
-    "clearSyncedMemory": "同時刪除已同步的記憶資料（{count} 個來源）"
+    "clearSyncedMemory": "同時刪除已同步的記憶資料（{count} 個來源）",
+    "agentPlugin": "Agent Plugins 外掛",
+    "agentPluginDesc": "一份可攜式外掛，適用於 VS Code、Copilot、Kiro、Cursor 等支援 Agent Plugins 標準的用戶端。無需手動修改設定檔即可接入 Myrm 長期記憶。",
+    "agentPluginEmbedToken": "將 token 寫入外掛檔案",
+    "agentPluginEmbedTokenHint": "關閉（推薦）：外掛從環境變數 MYRM_MCP_TOKEN 讀取 token，可安全提交到版本庫（多數用戶端支援 ${VAR}，VS Code/Cursor 用 ${env:VAR}）。開啟：將 token 寫入外掛檔案，供不支援環境變數的用戶端使用（可隨時撤銷）。",
+    "agentPluginGenerate": "產生 Agent Plugins 外掛",
+    "agentPluginReady": "Agent Plugins 外掛已就緒",
+    "pluginFile": "外掛檔案"
   },
   "securityDashboard": {
     "title": "安全儀表盤",

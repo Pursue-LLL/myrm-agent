@@ -5565,7 +5565,9 @@
           "unknown": "Unknown"
         },
         "llmCalls": "LLM Invocations",
-        "saveAsEval": "Save as Eval Case"
+        "saveAsEval": "Save as Eval Case",
+        "firstIrrecoverable": "First point of no recovery",
+        "recoverySteps": "Recovery steps"
       },
       "replay": {
         "title": "Session Replay",
@@ -5597,6 +5599,8 @@
         "preCompactEventTitle": "Pre-Compaction Recall",
         "toolFailed": "Tool execution failed",
         "scrubSnapHint": "Release to snap to nearest event",
+        "securityLabels": "Security Labels",
+        "securityFlag": "Security",
         "marker": {
           "tool": "Tool",
           "llm": "LLM",
@@ -6652,7 +6656,8 @@
         "scopes": "Scopes (comma-separated)"
       },
       "turn1BudgetWarning": "Estimated Turn1 schema (~{tokens} tokens) exceeds the direct bind budget ({budget}). Reduce selected endpoints or the agent cannot use these API tools.",
-      "turn1BudgetServiceWarning": "This service's selected endpoints may exceed the Turn1 bind budget. Reduce the selection to avoid agent startup errors."
+      "turn1BudgetServiceWarning": "This service's selected endpoints may exceed the Turn1 bind budget. Reduce the selection to avoid agent startup errors.",
+      "atLeastOneEndpoint": "At least one endpoint must remain selected."
     },
     "sharedContexts": {
       "targetLabel": "agent",
@@ -8986,6 +8991,14 @@
     "reviewing_sources": "Reviewing {count} sources",
     "expand": "Expand",
     "collapse": "Collapse",
+    "faultSides": {
+      "model": "Model-side issue",
+      "harness_tool": "Tool-side issue",
+      "harness_pipeline": "Agent pipeline issue",
+      "env": "Environment issue",
+      "grader": "Evaluation issue",
+      "owner": "Input or configuration issue"
+    },
     "errorCategories": {
       "oom": "Out of Memory",
       "oom_killed": "OOM Killed",
@@ -15666,7 +15679,14 @@
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Configuration saved",
     "mcpSecretRefSaveHintDesc": "Secret references in headers will be resolved at runtime.",
-    "clearSyncedMemory": "Also remove synced memory data ({count} sources)"
+    "clearSyncedMemory": "Also remove synced memory data ({count} sources)",
+    "agentPlugin": "Agent Plugins",
+    "agentPluginDesc": "One portable bundle for VS Code, Copilot, Kiro, Cursor, and other Agent Plugins clients. Attach Myrm memory without editing client config files.",
+    "agentPluginEmbedToken": "Embed the token in the bundle",
+    "agentPluginEmbedTokenHint": "Off (recommended): the bundle reads MYRM_MCP_TOKEN from the environment — safe to commit to version control. Most clients read ${VAR}; VS Code and Cursor use ${env:VAR}. On: inline the token for clients that cannot interpolate (revocable anytime).",
+    "agentPluginGenerate": "Generate Agent Plugins bundle",
+    "agentPluginReady": "Agent Plugins bundle ready",
+    "pluginFile": "Plugin file"
   },
   "about": {
     "title": "About",
