@@ -7497,7 +7497,10 @@
       "passwordLabel": "パスワード（任意）",
       "passwordPlaceholder": "アクセスパスワードを設定",
       "ttlLabel": "有効期限",
-      "successProtected": "パスワード保護付きリンクを作成しました。{days} 日間有効です。"
+      "successProtected": "パスワード保護付きリンクを作成しました。{days} 日間有効です。",
+      "loading": "共有ステータスを確認中...",
+      "revokedStatus": "この共有リンクは失効しています。新しいリンクを作成して再度共有してください。",
+      "passwordProtectedStatus": "パスワード保護付き共有リンクが有効です。リンクとパスワードを持っている人は閲覧できます。"
     },
     "exportMessage": {
       "markdown": "Markdownとしてエクスポート",

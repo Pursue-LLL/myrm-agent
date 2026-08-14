@@ -140,6 +140,8 @@ Chat 表新增多个字段用于支撑高级功能：
 | `share_revoked_at` | DateTime(nullable) | 对话分享撤回时间戳。非NULL时所有 HMAC token 即使未过期也拒绝访问 |
 | `share_token_fingerprint` | String(64) | 当前活跃分享 token 的 SHA-256 指纹（create 时写入；revoke 后清空）。仅指纹落库，原始 token 零存储 |
 | `share_revoked_fingerprints` | JSON(list[str]) | 已撤销 token 指纹集合（单调追加、永不移除）。撤销把活跃指纹移入集合，因此**撤销过的链接永不复活**（重新分享只清 chat 级标记，集合保留，旧 token 永久 404；未撤销的既有链接继续有效至各自 TTL，与撤销前行为一致） |
+| `share_token_expires_at` | Integer | 活跃分享 token 的过期时间（unix 秒，create 时写入；revoke 不清）。GUI 状态查询用它确定性重建无密码链接（同 payload+exp 同 token），无需落库原始 token |
+| `share_token_protected` | Boolean | 活跃分享是否密码保护（create 时写入）。密码 token 无法重建（密码不落库），状态查询仅返回状态不返回链接 |
 
 ### 触发方式
 
