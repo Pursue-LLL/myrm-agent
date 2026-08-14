@@ -25,8 +25,9 @@ _SEARCH_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         system_prompt="",
         enabled_builtin_tools=("web_search",),
         prompt_mode="search",
-        engine_params={"max_tool_calls": 8, "recursion_limit": 30},
+        engine_params={"max_tool_calls": 8},
         memory_policy={"write_policy": "conversation"},
+        max_iterations=30,
         suggestion_prompts=(
             "What happened in the world today?",
             "What's the current weather in Tokyo?",
@@ -45,8 +46,9 @@ _SEARCH_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         system_prompt="",
         enabled_builtin_tools=("web_search", "answer_tool"),
         prompt_mode="search",
-        engine_params={"max_tool_calls": 20, "recursion_limit": 50},
+        engine_params={"max_tool_calls": 20},
         memory_policy={"write_policy": "conversation"},
+        max_iterations=50,
         suggestion_prompts=(
             "Deep dive into the current state of quantum computing research",
             "Find and compare all major AI coding assistants available in 2026",

@@ -10,3 +10,4 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Task executors. | ✅ |
 | `image_executor.py` | 模块 | Image task executor; resolves config per task via `image_config_resolver`. | ✅ |
+| `video_executor.py` | 模块 | Video task executor implementation. | ✅ |

@@ -259,13 +259,14 @@ async def _load_instance_credentials(channel_name: str) -> dict[str, str] | None
     Returns the credential dict if found, or None to fall back to default credentials.
     """
     from app.channels.core.credentials import channel_credentials_config_key
+    from app.core.channel_bridge.channel_factory import flatten_credential_strings
     from app.core.channel_bridge.credential_spec import load_from_db
 
     config_key = channel_credentials_config_key(channel_name)
     raw = await load_from_db(config_key)
     if not raw:
         return None
-    return {str(k): str(v) for k, v in raw.items()}
+    return flatten_credential_strings(raw)
 
 
 async def refresh_reaction_policy() -> None:

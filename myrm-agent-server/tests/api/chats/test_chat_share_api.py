@@ -99,6 +99,65 @@ class TestCreateChatShare:
             resp = share_client.post("/chats/chat-1/share", json={"ttl_days": 31})
             assert resp.status_code == 422
 
+    def test_create_share_uses_public_ingress_base(self, share_client: TestClient) -> None:
+        """share_url is built from the public-ingress SSOT when configured."""
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=_make_chat_dto(),
+            ),
+            patch(
+                "app.api.chats.chat.share.get_public_ingress_base_url",
+                new_callable=AsyncMock,
+                return_value="https://myrm-x.example.com",
+            ),
+        ):
+            resp = share_client.post("/chats/chat-1/share", json={"ttl_days": 7})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["share_url"].startswith("https://myrm-x.example.com/api/v1/public/chat-share/")
+
+    def test_create_share_falls_back_to_request_base(self, share_client: TestClient) -> None:
+        """Empty ingress degrades to the request origin so local links still work."""
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=_make_chat_dto(),
+            ),
+            patch(
+                "app.api.chats.chat.share.get_public_ingress_base_url",
+                new_callable=AsyncMock,
+                return_value="",
+            ),
+        ):
+            resp = share_client.post("/chats/chat-1/share", json={"ttl_days": 7})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["share_url"].startswith("http://testserver/api/v1/public/chat-share/")
+
+    def test_create_share_falls_back_when_ingress_fails(
+        self, share_client: TestClient
+    ) -> None:
+        """Ingress resolution failure must not fail share creation."""
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=_make_chat_dto(),
+            ),
+            patch(
+                "app.api.chats.chat.share.get_public_ingress_base_url",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("ingress unavailable"),
+            ),
+        ):
+            resp = share_client.post("/chats/chat-1/share", json={"ttl_days": 7})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["share_url"].startswith("http://testserver/api/v1/public/chat-share/")
+
 
 class TestRevokeChatShare:
     def test_revoke_share(self, share_client: TestClient) -> None:
@@ -143,6 +202,8 @@ class TestPublicSharePage:
             assert "text/html" in resp.headers["content-type"]
             assert "X-Frame-Options" in resp.headers
             assert resp.headers["X-Frame-Options"] == "DENY"
+            assert resp.headers["X-Robots-Tag"] == "noindex, nofollow"
+            assert resp.headers["Cache-Control"] == "no-store"
 
     def test_expired_token_returns_404(self, share_client: TestClient) -> None:
         import time

@@ -109,6 +109,8 @@ async def initialize_builtin_agents() -> None:
                     agent_kwargs["memory_policy"] = spec.memory_policy
                 if spec.memory_extraction_preset is not None:
                     agent_kwargs["memory_extraction_preset"] = spec.memory_extraction_preset
+                if spec.max_iterations is not None:
+                    agent_kwargs["max_iterations"] = spec.max_iterations
                 if spec.suggestion_prompts:
                     agent_kwargs["suggestion_prompts"] = list(spec.suggestion_prompts)
 
@@ -177,6 +179,9 @@ def _sync_existing_agent(
         changed = True
     if spec.memory_extraction_preset is not None and agent.memory_extraction_preset != spec.memory_extraction_preset:
         agent.memory_extraction_preset = spec.memory_extraction_preset
+        changed = True
+    if spec.max_iterations is not None and agent.max_iterations != spec.max_iterations:
+        agent.max_iterations = spec.max_iterations
         changed = True
     if spec.suggestion_prompts and not agent.suggestion_prompts:
         agent.suggestion_prompts = list(spec.suggestion_prompts)

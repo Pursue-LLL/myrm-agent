@@ -145,7 +145,12 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
           // 如果行为返回了新的输入值，更新输入框
           if (result.skillActivation) {
             setPendingExplicitSkillActivation(result.skillActivation);
-            setInputMessage('');
+            // 只移除 /命令 部分，保留前后文本作为指令，避免清空用户已输入的指令前缀
+            const textBeforeCursor = inputValue.slice(0, cursorPosition);
+            const textAfterCursor = inputValue.slice(cursorPosition);
+            const match = textBeforeCursor.match(/^(.*)\/\w*$/);
+            const beforeCommand = match ? match[1] : '';
+            setInputMessage(beforeCommand + textAfterCursor);
           } else if (result.newInputValue !== undefined) {
             setInputMessage(result.newInputValue);
           }

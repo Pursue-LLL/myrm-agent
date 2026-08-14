@@ -11,10 +11,18 @@
 |------|------|------|-------|
 | `__init__.py` | 核心 | 包入口，统一 re-export 所有模型 | ✅ |
 | `base.py` | 核心 | DeclarativeBase 基类 | ✅ |
+| `api_key.py` | 域模块 | APIKey（OpenAI 兼容 API Key 模型） | ✅ |
+| `batch_directory.py` | 域模块 | BatchDirectoryProjectModel（Batch 目录并行 prompt 项目） | ✅ |
 | `chat.py` | 域模块 | Chat, Message, ConversationFork, OfflineDurableTask, InterruptedTurnMarker（crash auto-continue write-ahead marker） | ✅ |
+| `commitment.py` | 域模块 | CommitmentModel（隐式承诺/跟进追踪） | ✅ |
 | `agent.py` | 域模块 | Agent (含 tool_gateway_config, cron_post_run_verify 列), AgentSecret, AgentProfileSnapshot（WebUI rollback SSOT） | ✅ |
 | `agent_history.py` | 域模块 | AgentProfileHistory（乐观锁 version 审计 + Prompt 浏览，非 rollback SSOT） | ✅ |
+| `artifact.py` | 域模块 | Artifact 模型（企业协作 Vault） | ✅ |
+| `artifact_publication.py` | 域模块 | ArtifactPublication（按 hosting target 的逐目标发布状态 ORM） | ✅ |
 | `artifact_share.py` | 域模块 | ArtifactShareRecord（分享链接生命周期登记：fingerprint/过期/撤销时间戳） | ✅ |
+| `fission.py` | 域模块 | Fission 任务拓扑图状态模型（高并发子代理执行图持久化，防刷新丢失） | ✅ |
+| `vault_credential.py` | 域模块 | VaultCredential | ✅ |
+| `web_push_subscription.py` | 域模块 | WebPushSubscription（Web Push VAPID 订阅） | ✅ |
 | `memory.py` | 域模块 | ProfileAttribute, ProceduralRule, PendingMemory, SharedContextModel, SharedContextBindingModel, SharedContextWriteProposalModel, MemoryOperationEventModel, MemoryHealthSnapshotModel, MemoryMigrationProvenanceModel, MemoryImportDryRunModel, MemoryImportBatchModel, MemoryImportItemModel, MemoryArchiveRestoreBatchModel, MemoryArchiveRestoreItemModel；导入审查和归档恢复模型持久化 dry-run、确认批次、回滚状态和清理所需时间字段 | ✅ |
 | `config.py` | 域模块 | UserConfig | ✅ |
 | `agent_event.py` | 域模块 | AgentTurn, AgentEvent | ✅ |

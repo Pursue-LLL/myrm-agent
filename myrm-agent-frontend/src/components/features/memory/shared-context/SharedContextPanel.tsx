@@ -57,6 +57,7 @@ function PolicyToggleRow({ title, hint, enabled, disabled, onToggle }: PolicyTog
         type="button"
         onClick={onToggle}
         disabled={disabled}
+        aria-label={title}
         aria-checked={enabled}
         role="switch"
         className={cn(

@@ -559,6 +559,20 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         _trace("turn_done", json.dumps(result, ensure_ascii=False, default=str)[:300])
         assert result.get("invoked") is True, result
 
+        # 诊断：turn 结束后立即检查快照落盘（区分「快照未写入」vs「API 未加载」）
+        snap_dir = file_path.parent / ".myrm" / "snapshots"
+        early: dict[str, object] = {
+            "workspace_root": str(file_path.parent),
+            "snap_dir": str(snap_dir),
+            "exists": snap_dir.is_dir(),
+        }
+        if snap_dir.is_dir():
+            early["sessions"] = {
+                p.name: sorted(x.name for x in p.iterdir())
+                for p in sorted(snap_dir.iterdir())
+            }
+        _trace("snapshot_early", json.dumps(early, ensure_ascii=False)[:800])
+
         # --- 核心链路：刷新页面 → hydrate → requestMessageId 恢复 ---
         _touch_progress("revert_live_reload")
         await chat.navigate_to_chat(resolved_chat_id, BASE_URL, timeout_sec=120.0)
@@ -577,6 +591,24 @@ async def test_revert_files_live_agent_after_reload_restores_file(
             _PROBE_REVERT_CHANGES_JS, intent=EvaluateIntent.AGENT_SUBMIT
         )
         _trace("probed", json.dumps(probe, ensure_ascii=False, default=str)[:300])
+        if not (isinstance(probe, dict) and probe.get("ok") is True):
+            snap_dir = file_path.parent / ".myrm" / "snapshots"
+            diag: dict[str, object] = {
+                "workspace_root": str(file_path.parent),
+                "snap_dir": str(snap_dir),
+                "snap_dir_exists": snap_dir.is_dir(),
+            }
+            if snap_dir.is_dir():
+                diag["session_dirs"] = sorted(p.name for p in snap_dir.iterdir())
+                for sd in sorted(snap_dir.iterdir()):
+                    if sd.is_dir():
+                        diag[f"session:{sd.name}"] = sorted(
+                            p.name for p in sd.iterdir()
+                        )
+            _trace("probe_diag", json.dumps(diag, ensure_ascii=False)[:1200])
+            raise AssertionError(
+                f"probe returned no revertable changes; diag={json.dumps(diag, ensure_ascii=False)}"
+            )
         assert isinstance(probe, dict) and probe.get("ok") is True, json.dumps(
             probe, ensure_ascii=False
         )

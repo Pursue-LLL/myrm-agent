@@ -62,7 +62,11 @@ def probe_vector_index(runtime: MemoryCommandRuntimeStatus) -> MemoryCommandDoct
         status = "ready"
     else:
         status = "missing"
-    evidence = f"Vector recall backend is {runtime.vector_status}."
+    evidence = (
+        "Vector recall backend is available but degraded to an in-memory instance."
+        if memory_fallback
+        else f"Vector recall backend is {runtime.vector_status}."
+    )
     impact = (
         "Semantic and episodic memories need vector search for high-recall cross-session retrieval."
         if not memory_fallback

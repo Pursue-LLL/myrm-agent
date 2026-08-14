@@ -308,3 +308,114 @@ class TestSessionCleanup:
     def test_cleanup_empty_sessions(self) -> None:
         _cleanup_expired_sessions()
         assert len(_active_sessions) == 0
+
+
+class TestProvisionRollback:
+    @pytest.mark.asyncio
+    async def test_provision_rolls_back_credentials_on_add_channel_failure(self) -> None:
+        """A failed provisioning must delete the persisted credentials key."""
+        from app.api.channels.feishu_register import _provision_feishu_instance
+
+        value = {"appId": "cli_rollback", "appSecret": "sec_rollback", "useLark": False}
+
+        with patch("app.services.config.service.ConfigService") as mock_config_cls, patch(
+            "app.core.channel_bridge.channel_gateway"
+        ) as mock_gateway:
+            mock_config_cls.return_value.set = AsyncMock()
+            mock_config_cls.return_value.delete = AsyncMock()
+
+            mock_channel = AsyncMock()
+            mock_gateway.add_channel = AsyncMock(side_effect=ValueError("Instance limit reached"))
+
+            with patch(
+                "app.core.channel_bridge.channel_factory.create_channel_instance",
+                new_callable=AsyncMock,
+                return_value=mock_channel,
+            ):
+                with pytest.raises(ValueError, match="Instance limit reached"):
+                    await _provision_feishu_instance(value, "Rollback App")
+
+        # Credentials must have been rolled back, and only after set() was called.
+        mock_config_cls.return_value.delete.assert_awaited_once()
+        set_call = mock_config_cls.return_value.set.await_args
+        assert set_call is not None
+        assert mock_config_cls.return_value.delete.await_args.args[0] == set_call.args[0]
+        # add_channel failed before registration, so no remove_channel should be attempted.
+        mock_gateway.remove_channel.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_provision_rolls_back_channel_when_persistence_fails(self) -> None:
+        """A failure after hot-registration must also remove the channel from the gateway."""
+        from app.api.channels.feishu_register import _provision_feishu_instance
+
+        value = {"appId": "cli_persist", "appSecret": "sec_persist", "useLark": False}
+
+        with patch("app.services.config.service.ConfigService") as mock_config_cls, patch(
+            "app.core.channel_bridge.channel_gateway"
+        ) as mock_gateway:
+            mock_config_cls.return_value.set = AsyncMock()
+            mock_config_cls.return_value.delete = AsyncMock()
+
+            mock_channel = AsyncMock()
+            mock_channel.name = "feishu_persist"
+            mock_channel.instance_id = "inst_persist"
+            mock_gateway.add_channel = AsyncMock(return_value="feishu_persist")
+            mock_gateway.remove_channel = AsyncMock(return_value=True)
+
+            with patch(
+                "app.core.channel_bridge.channel_factory.create_channel_instance",
+                new_callable=AsyncMock,
+                return_value=mock_channel,
+            ), patch(
+                "app.core.channel_bridge.channel_factory.load_persisted_instances",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("db unavailable"),
+            ), patch(
+                "app.core.channel_bridge.channel_factory.save_persisted_instances",
+                new_callable=AsyncMock,
+            ):
+                with pytest.raises(RuntimeError, match="db unavailable"):
+                    await _provision_feishu_instance(value, "Persist App")
+
+        # Credentials deleted AND the already-registered channel removed.
+        mock_config_cls.return_value.delete.assert_awaited_once()
+        mock_gateway.remove_channel.assert_awaited_once_with("feishu_persist")
+
+    @pytest.mark.asyncio
+    async def test_provision_flattens_bool_credentials_to_lowercase(self) -> None:
+        """Boolean credentials must be rendered as lowercase strings (useLark=false)."""
+        from app.api.channels.feishu_register import _provision_feishu_instance
+
+        value = {"appId": "cli_bool", "appSecret": "sec_bool", "useLark": False}
+
+        with patch("app.services.config.service.ConfigService") as mock_config_cls, patch(
+            "app.core.channel_bridge.channel_gateway"
+        ) as mock_gateway:
+            mock_config_cls.return_value.set = AsyncMock()
+
+            mock_channel = AsyncMock()
+            mock_channel.name = "feishu_booltest"
+            mock_channel.instance_id = "inst_bool_1"
+            mock_gateway.add_channel = AsyncMock(return_value="feishu_booltest")
+
+            with patch(
+                "app.core.channel_bridge.channel_factory.create_channel_instance",
+                new_callable=AsyncMock,
+                return_value=mock_channel,
+            ) as mock_factory, patch(
+                "app.core.channel_bridge.channel_factory.load_persisted_instances",
+                new_callable=AsyncMock,
+                return_value=[],
+            ), patch(
+                "app.core.channel_bridge.channel_factory.save_persisted_instances",
+                new_callable=AsyncMock,
+            ), patch(
+                "app.core.channel_bridge.channel_factory.generate_instance_id",
+                return_value="inst_bool_1",
+            ):
+                result = await _provision_feishu_instance(value, "Bool App")
+
+        assert result == {"instanceId": "inst_bool_1", "channelName": "feishu_booltest"}
+        _, factory_kwargs = mock_factory.call_args
+        assert factory_kwargs["credentials"]["useLark"] == "false"
+        assert factory_kwargs["credentials"]["appId"] == "cli_bool"

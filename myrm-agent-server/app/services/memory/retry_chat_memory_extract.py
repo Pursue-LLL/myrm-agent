@@ -49,12 +49,13 @@ def _privacy_deep_scan_context(
 ) -> Iterator[bool]:
     """Bridge user privacy settings into the harness privacy context.
 
-    When privacy is enabled it installs the PrivacyPolicy and, when S2/S3 use
-    PSEUDONYMIZE or deep PII scan is on, the shared PseudonymStore plus the regex
-    PII pseudonymizer so retried memory writes are protected exactly like the
-    agent-run path. Yields True when LLM-based deep PII scan should also run; on
-    exit the previous context is restored so background tasks never leak privacy
-    state across chats.
+    When privacy is enabled it installs the PrivacyPolicy and, when the policy
+    requires a shared store (``needs_pseudonym_store``: S2/S3 PSEUDONYMIZE or
+    deep PII scan), the PseudonymStore plus the regex PII pseudonymizer so
+    retried memory writes are protected exactly like the agent-run path. Yields
+    True when LLM-based deep PII scan should also run; on exit the previous
+    context is restored so background tasks never leak privacy state across
+    chats.
     """
     from myrm_agent_harness.agent.security.types import PIIAction, PrivacyPolicy
     from myrm_agent_harness.api.hooks import (
@@ -88,12 +89,7 @@ def _privacy_deep_scan_context(
     previous_pseudonymizer = None
     store_installed = False
     try:
-        needs_store = (
-            policy.s2_action == PIIAction.PSEUDONYMIZE
-            or policy.s3_action == PIIAction.PSEUDONYMIZE
-            or deep_scan
-        )
-        if needs_store:
+        if policy.needs_pseudonym_store:
             if workspace_path:
                 db_path = str(Path(workspace_path).parent / "pseudonym_store.db")
                 store = build_pseudonym_store(db_path)
@@ -102,7 +98,7 @@ def _privacy_deep_scan_context(
                 previous_pseudonymizer = install_memory_pseudonymizer(policy, store)
             else:
                 logger.warning(
-                    "Deep PII scan skipped for retry: no workspace path for pseudonym store"
+                    "PseudonymStore not installed for retry: no workspace path available"
                 )
         yield deep_scan
     finally:

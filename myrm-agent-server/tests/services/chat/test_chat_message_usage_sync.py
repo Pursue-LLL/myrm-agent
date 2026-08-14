@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Chat
 from app.services.chat.chat_service import ChatService
-from app.services.chat.chat_usage_sync import _chat_usage_cache
+from app.services.chat.chat_usage_sync import _chat_usage_cache, sync_chat_usage
 
 
 @pytest.fixture(autouse=True)
@@ -118,16 +118,6 @@ async def test_usage_sync_skips_aggregate_when_cache_fresh_and_rebuilds_on_new_m
         }
 
 
-@pytest.fixture(autouse=True)
-def _mock_checkpoint_sync():
-    """Checkpoint sync is not under test here — mock it to avoid RuntimeError."""
-    with patch(
-        "app.services.chat.chat_turn._ChatTurnMixin._sync_checkpoint_after_mutation",
-        new_callable=AsyncMock,
-    ):
-        yield
-
-
 @pytest.mark.asyncio
 async def test_undo_last_turn_rebuilds_chat_usage(db_session: AsyncSession) -> None:
     """Undoing a turn drops the removed message usage from the Chat cache."""
@@ -162,3 +152,29 @@ async def test_undo_last_turn_rebuilds_chat_usage(db_session: AsyncSession) -> N
     assert chat.total_calls == 5
     assert chat.total_tokens == 6000
     assert abs(chat.total_usd - 0.2) < 1e-6
+
+
+@pytest.mark.asyncio
+async def test_sync_chat_usage_rejects_unsafe_chat_id_before_db_access() -> None:
+    """An unsafe chat_id must short-circuit before any repository call."""
+    with patch("app.database.repositories.chat_repo.ChatRepository.get_assistant_extra_data") as mock_ge:
+        await sync_chat_usage("chat/../../etc/passwd")
+    mock_ge.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_sync_chat_usage_swallows_repository_errors() -> None:
+    """A failed aggregation must be logged and never propagate to the caller."""
+    mock_repo = AsyncMock()
+    mock_repo.get_assistant_extra_data.side_effect = RuntimeError("db boom")
+    mock_uow = AsyncMock()
+    mock_uow.__aenter__.return_value = mock_uow
+    with (
+        patch("app.services.chat.chat_usage_sync.UnitOfWork", return_value=mock_uow),
+        patch(
+            "app.services.chat.chat_usage_sync._ChatServiceBase._cr",
+            return_value=mock_repo,
+        ) as mock_cr,
+    ):
+        await sync_chat_usage("safe-chat-id")
+    mock_cr.assert_called()

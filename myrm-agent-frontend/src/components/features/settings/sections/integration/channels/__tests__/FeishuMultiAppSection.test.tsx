@@ -138,4 +138,52 @@ describe('FeishuMultiAppSection', () => {
       expect(mockUpdateChannelDisplayName).toHaveBeenCalledWith('feishu_inst1', '新名称');
     });
   });
+
+  it('disables the add-app button when total instances (default + extra) reach the limit', async () => {
+    // Backend counts ALL instances of a type (including the default) against
+    // _MAX_INSTANCES_PER_TYPE, so a default + 4 extra = 5 is already at the limit.
+    const makeInst = (name: string, displayName: string, extra = false) => ({
+      instanceId: extra ? `inst-${name}` : 'inst-default',
+      channelType: 'feishu',
+      channelName: name,
+      displayName,
+    });
+    mockListChannelInstances.mockResolvedValue([
+      makeInst('feishu', 'Default App'),
+      ...Array.from({ length: 4 }, (_, i) => makeInst(`feishu_inst${i + 1}`, `App ${i + 1}`, true)),
+    ]);
+
+    render(<FeishuMultiAppSection />);
+
+    await waitFor(() => {
+      expect(screen.getByText('feishuMultiAppLimitReached')).toBeInTheDocument();
+    });
+
+    const addButton = screen.getByRole('button', { name: 'feishuAddApp' });
+    expect(addButton).toBeDisabled();
+    expect(screen.getByText('App 4')).toBeInTheDocument();
+    // The default instance occupies one slot but is not rendered as a card.
+    expect(screen.queryByText('Default App')).not.toBeInTheDocument();
+  });
+
+  it('keeps the add-app button enabled below the limit', async () => {
+    const makeInst = (n: number) => ({
+      instanceId: `inst${n}`,
+      channelType: 'feishu',
+      channelName: `feishu_inst${n}`,
+      displayName: `App ${n}`,
+    });
+    // Default + 2 extra = 3 instances, below the 5 limit.
+    mockListChannelInstances.mockResolvedValue([
+      { instanceId: 'inst-default', channelType: 'feishu', channelName: 'feishu', displayName: 'Default App' },
+      ...Array.from({ length: 2 }, (_, i) => makeInst(i + 1)),
+    ]);
+
+    render(<FeishuMultiAppSection />);
+
+    await waitFor(() => {
+      expect(screen.queryByText('feishuMultiAppLimitReached')).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'feishuAddApp' })).toBeEnabled();
+  });
 });

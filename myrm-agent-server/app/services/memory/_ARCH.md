@@ -19,7 +19,7 @@
 | `archive_restore_executor.py` | 核心 | 归档恢复执行层。写入 memory/Shared Context/conversation/replay/audit 分区并记录可回滚账本 | ✅ |
 | `archive_restore_planner.py` | 辅助 | 归档恢复预检层。生成 section 级 safe-merge dry-run plan，只读当前库和归档 manifest/data，不写入业务状态 | — |
 | `archive_restore_rollback.py` | 辅助 | 归档恢复回滚执行层。按恢复账本精准撤销 memory、Shared Context、conversation、replay 和 audit 写入 | ✅ |
-| `command_center.py` | 核心 | 个人大脑指挥中心聚合服务。基于 MemoryManager、Shared Context ORM、待审批记忆、记忆操作账本、导入回滚账本健康、归档恢复账本健康、Memory Diagnostics 和部署设置生成单用户/单沙箱可观测快照，把账本中的检索步骤聚合为运行级 trace run，支持强制刷新健康快照，并支持可选 `project_id` 参数将快照聚焦到单个项目绑定的 SharedContext 记忆空间 | ✅ |
+| `command_center.py` | 核心 | 个人大脑指挥中心聚合服务。基于 MemoryManager、Shared Context ORM、待审批记忆、记忆操作账本、导入回滚账本健康、归档恢复账本健康、Memory Diagnostics 和部署设置生成单用户/单沙箱可观测快照，把账本中的检索步骤聚合为运行级 trace run，支持强制刷新健康快照，并支持可选 `project_id` 参数将快照聚焦到单个项目绑定的 SharedContext 记忆空间；runtime 状态含 `vector_persistence`（persistent/memory_fallback/unavailable）揭示向量层真实持久性 | ✅ |
 | `command_center_insights.py` | 核心 | 个人大脑指挥中心洞察服务。生成影响证据、注入成本/缓存、声明替代、会话回放覆盖层、replay event trail、瀑布流、eval checks、连接器状态、隐私信号、含导入回滚与归档恢复健康的部署边界摘要、迁移来源聚合（含 source_manifest authoritative 完整性降级守卫）、最近导入批次、导入后验证建议、自动诊断状态和导入审查清理指标 | ✅ |
 | `diagnostic_probe_results.py` | 辅助 | Memory Diagnostics probe 结果归一化。集中处理 rollup、action 状态映射、impact/next action/auto-fix/retry 字段、repair plan 传递和静态检查到可执行探针的转换 | ✅ |
 | `diagnostic_quality_governance.py` | 辅助 | Memory Doctor 质量治理探针。读取框架层 health score，返回内容不可见的新鲜度、覆盖率、保留健康和一致性证据 | ✅ |
@@ -27,7 +27,7 @@
 | `diagnostic_repair_executor.py` | 核心 | Memory Doctor 修复执行器。通过白名单执行 `run_diagnostics`、`run_health_refresh`，对配置类修复返回 blocked/manual 结果，避免自动改本地配置或读取业务记忆内容 | ✅ |
 | `diagnostic_repair_plans.py` | 辅助 | Memory Doctor 修复计划目录。把 compact action id 映射为风险等级、dry-run、预期效果和可执行性，不修改配置、不读取业务记忆内容 | ✅ |
 | `diagnostic_slo.py` | 辅助 | Memory Doctor 诊断 SLO 汇总。读取最近诊断审计事件的 metadata，计算窗口通过率、失败次数和平均耗时 | ✅ |
-| `diagnostic_static_checks.py` | 辅助 | Memory Doctor 静态检查构建器。生成 relational store、memory path、vector index、knowledge graph、embedding provider、event ledger、health snapshot、deployment boundary 快照检查 | ✅ |
+| `diagnostic_static_checks.py` | 辅助 | Memory Doctor 静态检查构建器。生成 relational store、memory path、vector index、knowledge graph、embedding provider、event ledger、health snapshot、deployment boundary 快照检查；`probe_vector_index` 按向量持久性（persistent/memory_fallback/unavailable）输出状态、影响与修复指引 | ✅ |
 | `diagnostics.py` | 核心 | Memory Diagnostics 服务。生成 Memory Doctor 静态检查并执行 relational store、memory path、vector index、knowledge graph、embedding provider、embedding live、retrieval pipeline、sparse CJK recall、golden recall benchmark、memory quality governance、event ledger、migration integrity、health snapshot、deployment boundary 探针，写入不含业务内容的诊断审计事件并返回审计写入状态与诊断 SLO；诊断审计事件将 benchmark 标量指标、类别通过率与 embedding 模型平铺进 ledger metadata 供历史趋势回归分析（含类别级退化定位与模型漂移提示）；retrieval pipeline 探针消费 `last_retrieval_trace.degraded`，降级时探针置 warning 并注明原因 | ✅ |
 | `import_adapter_registry.py` | 核心 | 记忆导入 adapter 目录。为导入 dry-run 和个人大脑指挥中心提供一致的来源支持状态，标记 native-json/myrm-archive/agentmemory/claude-code/hermes/openclaw/cursor/codex/chatgpt/gbrain ready 与其他来源计划或缺失状态 | ✅ |
 | `import_adapters.py` | 核心 | 记忆导入 dry-run dispatcher。Wizard 五源 `_MIGRATION_SOURCE_TO_ADAPTER`（含 chatgpt upload-only）；Memory Center 手动导入仍支持 cursor_rules/mem0 等；`_source` 标签优先于 Markdown 启发式 | ✅ |

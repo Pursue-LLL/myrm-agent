@@ -9494,7 +9494,7 @@
         },
         "vector_index": {
           "label": "向量索引",
-          "evidence": "检查语义召回后端是否可用，确保跨会话记忆能按语义检索。"
+          "evidence": "检查语义召回后端是否可用，以及已存记忆在重启后是否仍然保留。"
         },
         "knowledge_graph": {
           "label": "知识图谱",
@@ -12564,6 +12564,7 @@
     "feishuMultiAppTitle": "多应用管理",
     "feishuMultiAppDesc": "支持接入多个飞书应用，每个应用独立凭证、独立运行。",
     "feishuAddApp": "添加应用",
+    "feishuMultiAppLimitReached": "已达到应用上限（{count}/{max}），请先移除应用后再添加",
     "feishuScanToAdd": "扫码添加新应用",
     "feishuAppLabelPlaceholder": "应用标签（如：客服、运营）",
     "feishuInstanceAdded": "应用已添加",

@@ -703,7 +703,7 @@ const RuntimeRow = ({
     <span className="text-xs text-muted-foreground">{label}</span>
     <span
       className={`truncate text-right text-xs font-medium ${
-        alert ? 'text-amber-500' : 'text-foreground'
+        alert ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'
       }`}
     >
       {value}

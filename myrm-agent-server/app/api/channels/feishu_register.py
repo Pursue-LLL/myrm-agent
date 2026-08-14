@@ -265,6 +265,7 @@ async def _provision_feishu_instance(
         create_channel_instance as factory_create,
     )
     from app.core.channel_bridge.channel_factory import (
+        flatten_credential_strings,
         generate_instance_id,
         load_persisted_instances,
         save_persisted_instances,
@@ -273,26 +274,41 @@ async def _provision_feishu_instance(
 
     instance_id = generate_instance_id()
     config_key = channel_credentials_key(f"feishu_{instance_id}")
+    registered_name: str | None = None
 
-    await ConfigService().set(config_key, value, device_id="feishu-qr-register")
+    try:
+        await ConfigService().set(config_key, value, device_id="feishu-qr-register")
 
-    channel = await factory_create(
-        channel_type="feishu",
-        instance_id=instance_id,
-        credentials={str(k): str(v) for k, v in value.items()},
-    )
-    channel.display_name = display_name
-    channel_name = await channel_gateway.add_channel(channel)
+        channel = await factory_create(
+            channel_type="feishu",
+            instance_id=instance_id,
+            credentials=flatten_credential_strings(value),
+        )
+        channel.display_name = display_name
+        registered_name = await channel_gateway.add_channel(channel)
 
-    current = await load_persisted_instances()
-    current.append(
-        {
-            "channelType": "feishu",
-            "instanceId": instance_id,
-            "displayName": display_name,
-        }
-    )
-    await save_persisted_instances(current)
+        current = await load_persisted_instances()
+        current.append(
+            {
+                "channelType": "feishu",
+                "instanceId": instance_id,
+                "displayName": display_name,
+            }
+        )
+        await save_persisted_instances(current)
+    except Exception:
+        # Roll back every side effect of a failed provisioning: delete the
+        # persisted credentials (avoid orphaned config keys) and, if the
+        # channel was already hot-registered, remove it from the gateway.
+        await ConfigService().delete(config_key)
+        if registered_name is not None:
+            try:
+                await channel_gateway.remove_channel(registered_name)
+            except Exception:
+                logger.warning(
+                    "Failed to roll back channel %s after provisioning failure", registered_name, exc_info=True
+                )
+        raise
 
-    logger.info("Feishu QR registration provisioned instance %s", channel_name)
-    return {"instanceId": instance_id, "channelName": channel_name}
+    logger.info("Feishu QR registration provisioned instance %s", registered_name)
+    return {"instanceId": instance_id, "channelName": registered_name}

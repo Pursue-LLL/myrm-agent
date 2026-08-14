@@ -195,6 +195,15 @@ const extractInlineMentionReferences = (input: string): MentionReference[] => {
     } else if (token.startsWith('@url:') && token.length > '@url:'.length) {
       const url = token.slice('@url:'.length);
       references.push({ type: 'url', label: token, url, source: 'special', size: null });
+    } else if (token.startsWith('@wiki:') && token.length > '@wiki:'.length) {
+      const conceptName = token.slice('@wiki:'.length);
+      references.push({
+        type: 'wiki_concept',
+        label: token,
+        conceptName,
+        source: 'wiki',
+        size: null,
+      });
     } else {
       const lineMatch = LINE_RANGE_REFERENCE_PATTERN.exec(token);
       if (!lineMatch) {continue;}
@@ -217,6 +226,42 @@ const extractInlineMentionReferences = (input: string): MentionReference[] => {
     }
   }
   return references;
+};
+
+/**
+ * 判断菜单选中的引用是否仍以文本形式存在于输入中。
+ *
+ * `selectReference` 写入输入框的 @token 与 store 引用字段一一对应；
+ * 用户若直接删除引用文本（而非点击引用 chip 的 ×），store 引用会残留，
+ * 提交前据此过滤，保证「文本有 @xxx → 生效；没有 → 不生效」语义一致，
+ * 避免 @agent 意外委派、@wiki/@chat 意外注入。
+ */
+const isReferenceTokenAlive = (reference: MentionReference, input: string): boolean => {
+  switch (reference.type) {
+    case 'agent':
+      return input.includes(`@${reference.label}`);
+    case 'wiki_concept':
+      return reference.conceptName
+        ? input.includes(`@wiki:${reference.conceptName}`)
+        : input.includes('@wiki:');
+    case 'prior_chat':
+      return input.includes(reference.label);
+    case 'workspace_folder':
+      return Boolean(reference.path) && input.includes(`@folder:${reference.path}`);
+    case 'workspace_file':
+      return Boolean(reference.path) && input.includes(`@${reference.path}`);
+    case 'url':
+      return Boolean(reference.url) && input.includes(`@url:${reference.url}`);
+    case 'git_staged':
+      return input.includes('@staged');
+    case 'git_diff':
+      return input.includes('@diff');
+    case 'codebase':
+      return input.includes('@codebase');
+    default:
+      // uploaded_file / generated_file / wiki_raw_file 等非文本 token 引用，不参与文本过滤
+      return true;
+  }
 };
 
 const mergeMentionReferences = (selected: MentionReference[], inline: MentionReference[]): MentionReference[] => {
@@ -761,7 +806,10 @@ export const createMessageRequest = async (
       },
     }),
     ...(() => {
-      const references = mergeMentionReferences(state.mentionReferences, extractInlineMentionReferences(input));
+      const references = mergeMentionReferences(
+        state.mentionReferences.filter((r) => isReferenceTokenAlive(r, input)),
+        extractInlineMentionReferences(input),
+      );
       if (references.length === 0) {return {};}
 
       const fileReferences = references.filter((r) => r.type !== 'agent');

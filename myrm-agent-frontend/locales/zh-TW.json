@@ -9414,7 +9414,7 @@
         },
         "vector_index": {
           "label": "向量索引",
-          "evidence": "檢查語義召回後端是否可用，確保跨會話記憶能按語義檢索。"
+          "evidence": "檢查語義召回後端是否可用，以及已存記憶在重啟後是否仍然保留。"
         },
         "knowledge_graph": {
           "label": "知識圖譜",
@@ -12462,6 +12462,7 @@
     "feishuMultiAppTitle": "多應用管理",
     "feishuMultiAppDesc": "支援接入多個飛書應用，每個應用獨立憑證、獨立執行。",
     "feishuAddApp": "新增應用",
+    "feishuMultiAppLimitReached": "已達應用上限（{count}/{max}），請先移除應用後再新增",
     "feishuScanToAdd": "掃碼新增新應用",
     "feishuAppLabelPlaceholder": "應用標籤（如：客服、營運）",
     "feishuInstanceAdded": "應用已新增",

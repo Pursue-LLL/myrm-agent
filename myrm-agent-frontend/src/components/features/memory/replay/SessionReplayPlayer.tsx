@@ -407,9 +407,11 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
 
   const activeIdx = findActiveEventIndex(timeline, currentTime);
 
+  /* oxlint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- keyboard-capture container with application role */
   return (
     <div
       ref={containerRef}
+      role="application"
       tabIndex={0}
       onFocus={() => setKeyboardActive(true)}
       onBlur={() => setKeyboardActive(false)}
@@ -610,6 +612,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
       </div>
     </div>
   );
+  /* oxlint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
 });
 
 SessionReplayPlayer.displayName = 'SessionReplayPlayer';

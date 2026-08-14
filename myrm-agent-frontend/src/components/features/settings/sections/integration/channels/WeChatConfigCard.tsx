@@ -15,37 +15,25 @@ import {
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
-import {
-  getWeChatStatus,
-  triggerWeChatLogin,
-  listChannelInstances,
-  createChannelInstance,
-  deleteChannelInstance,
-  logoutWeChatChannel,
-  updateChannelDisplayName,
-} from '@/services/channels';
-import type { WeChatStatus, ChannelInstance } from '@/services/channels';
+import { getWeChatStatus, triggerWeChatLogin, logoutWeChatChannel } from '@/services/channels';
+import type { WeChatStatus } from '@/services/channels';
+import { useChannelInstances } from '@/hooks/channels/useChannelInstances';
 
 export function WeChatConfigCard() {
   const t = useTranslations('channels');
   const [primaryStatus, setPrimaryStatus] = useState<WeChatStatus | null>(null);
-  const [primaryLabel, setPrimaryLabel] = useState('');
   const [loading, setLoading] = useState(true);
-  const [instances, setInstances] = useState<ChannelInstance[]>([]);
-  const [addingInstance, setAddingInstance] = useState(false);
   const [showLabelInput, setShowLabelInput] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const labelInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchInstances = useCallback(() => {
-    listChannelInstances('wechat')
-      .then((all) => {
-        const primary = all.find((i) => i.channelName === 'wechat');
-        if (primary?.displayName) {setPrimaryLabel(primary.displayName);}
-        setInstances(all.filter((i) => i.channelName !== 'wechat'));
-      })
-      .catch(() => setInstances([]));
-  }, []);
+  const { instances, extraInstances, adding, addInstance, removeInstance, renameInstance } = useChannelInstances({
+    channelType: 'wechat',
+    primaryName: 'wechat',
+    i18nPrefix: 'wechat',
+  });
+
+  const primaryLabel = instances.find((i) => i.channelName === 'wechat')?.displayName ?? '';
 
   const fetchPrimaryStatus = useCallback((showLoading = false) => {
     if (showLoading) {setLoading(true);}
@@ -57,48 +45,30 @@ export function WeChatConfigCard() {
 
   useEffect(() => {
     fetchPrimaryStatus(true);
-    fetchInstances();
-  }, [fetchPrimaryStatus, fetchInstances]);
+  }, [fetchPrimaryStatus]);
 
   useEffect(() => {
     const needsPolling = primaryStatus !== null && (!primaryStatus.connected || primaryStatus.qr_code);
     if (!needsPolling) {return;}
     const timer = setInterval(() => fetchPrimaryStatus(), 3_000);
     return () => clearInterval(timer);
-  }, [primaryStatus?.connected, primaryStatus?.qr_code, fetchPrimaryStatus]);
+  }, [primaryStatus, fetchPrimaryStatus]);
 
-  const handleDisplayNameChange = useCallback(
-    (channelName: string, newName: string) => {
-      updateChannelDisplayName(channelName, newName)
-        .then((updated) => {
-          if (channelName === 'wechat') {
-            setPrimaryLabel(updated.displayName ?? '');
-          } else {
-            setInstances((prev) =>
-              prev.map((i) => (i.channelName === channelName ? { ...i, displayName: updated.displayName } : i)),
-            );
-          }
-        })
-        .catch(() => toast.error(t('wechatLabelSaveError')));
+  const handlePrimaryRename = useCallback(
+    (newName: string) => {
+      void renameInstance('wechat', newName);
     },
-    [t],
+    [renameInstance],
   );
 
-  const handleAddInstance = useCallback(async () => {
-    setAddingInstance(true);
-    try {
-      const inst = await createChannelInstance('wechat', newLabel.trim() || undefined);
-      setInstances((prev) => [...prev, inst]);
-      toast.success(t('wechatInstanceAdded'));
-      setShowLabelInput(false);
-      setNewLabel('');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t('wechatInstanceAddError');
-      toast.error(message);
-    } finally {
-      setAddingInstance(false);
-    }
-  }, [t, newLabel]);
+  const handleAddInstance = useCallback(() => {
+    void addInstance(newLabel.trim() || undefined).then((ok) => {
+      if (ok) {
+        setShowLabelInput(false);
+        setNewLabel('');
+      }
+    });
+  }, [addInstance, newLabel]);
 
   const handlePrimaryLogout = useCallback(async () => {
     try {
@@ -111,19 +81,6 @@ export function WeChatConfigCard() {
       toast.error(t('wechatInstanceRemoveError'));
     }
   }, [t]);
-
-  const handleDeleteInstance = useCallback(
-    async (instanceId: string) => {
-      try {
-        await deleteChannelInstance(instanceId);
-        setInstances((prev) => prev.filter((i) => i.instanceId !== instanceId));
-        toast.success(t('wechatInstanceRemoved'));
-      } catch {
-        toast.error(t('wechatInstanceRemoveError'));
-      }
-    },
-    [t],
-  );
 
   if (loading) {
     return (
@@ -146,17 +103,17 @@ export function WeChatConfigCard() {
         status={primaryStatus}
         onStatusChange={setPrimaryStatus}
         onDelete={handlePrimaryLogout}
-        onLabelChange={(v) => handleDisplayNameChange('wechat', v)}
+        onLabelChange={handlePrimaryRename}
         t={t}
       />
 
-      {instances.map((inst) => (
+      {extraInstances.map((inst) => (
         <WeChatAccountCard
           key={inst.instanceId}
           label={inst.displayName || inst.channelName}
           channelName={inst.channelName}
-          onDelete={() => handleDeleteInstance(inst.instanceId)}
-          onLabelChange={(v) => handleDisplayNameChange(inst.channelName, v)}
+          onDelete={() => void removeInstance(inst.instanceId)}
+          onLabelChange={(v) => void renameInstance(inst.channelName, v)}
           t={t}
         />
       ))}
@@ -179,16 +136,15 @@ export function WeChatConfigCard() {
               placeholder={t('wechatInstanceLabelPlaceholder')}
               className="flex-1 h-8 rounded-full border bg-background px-3 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
               maxLength={50}
-              autoFocus
             />
             <Button
               variant="default"
               size="icon"
               className="h-8 w-8 shrink-0"
               onClick={handleAddInstance}
-              disabled={addingInstance}
+              disabled={adding}
             >
-              {addingInstance ? (
+              {adding ? (
                 <IconLoader className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <IconCheck className="h-3.5 w-3.5" />
@@ -270,7 +226,7 @@ function WeChatAccountCard({
         .catch(() => {});
     }, 3_000);
     return () => clearInterval(timer);
-  }, [localStatus?.connected, localStatus?.qr_code, channelName, isPrimary]);
+  }, [localStatus, channelName, isPrimary]);
 
   useEffect(() => {
     if (!loginTriggering) {return;}

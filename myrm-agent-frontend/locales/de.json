@@ -9394,7 +9394,7 @@
         },
         "vector_index": {
           "label": "Vektorindex",
-          "evidence": "Überprüft, ob das Semantic-Recall-Backend verfügbar ist, damit sitzungsübergreifende Erinnerungen nach Bedeutung abgerufen werden können."
+          "evidence": "Prüft, ob das Semantic-Recall-Backend verfügbar ist und ob gespeicherte Erinnerungen einen Neustart überstehen."
         },
         "knowledge_graph": {
           "label": "Wissensgraph",
@@ -12238,6 +12238,7 @@
     "feishuMultiAppTitle": "Multi-App-Verwaltung",
     "feishuMultiAppDesc": "Mehrere Feishu-Apps verbinden. Jede App hat eigene Anmeldedaten und läuft unabhängig.",
     "feishuAddApp": "App hinzufügen",
+    "feishuMultiAppLimitReached": "App-Limit erreicht ({count}/{max}). Entfernen Sie eine App, um weitere hinzuzufügen",
     "feishuScanToAdd": "Neue App per QR hinzufügen",
     "feishuAppLabelPlaceholder": "App-Label (z. B. Support, Betrieb)",
     "feishuInstanceAdded": "App hinzugefügt",

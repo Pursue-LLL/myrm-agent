@@ -186,8 +186,9 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
             {memory.memory_type === 'procedural' && (
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Why (Context/Rationale)</label>
+                  <label htmlFor="memory-reasoning-input" className="text-xs font-medium text-muted-foreground">Why (Context/Rationale)</label>
                   <input
+                    id="memory-reasoning-input"
                     type="text"
                     value={reasoning}
                     onChange={(e) => setReasoning(e.target.value)}
@@ -203,8 +204,9 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">How (Nuances/Boundaries)</label>
+                  <label htmlFor="memory-application-input" className="text-xs font-medium text-muted-foreground">How (Nuances/Boundaries)</label>
                   <input
+                    id="memory-application-input"
                     type="text"
                     value={application}
                     onChange={(e) => setApplication(e.target.value)}

@@ -214,15 +214,20 @@ const MemoryCard = memo<MemoryCardProps>(
             <p className="text-[11px] text-muted-foreground/60 mb-2 italic">{confirmed.influence_explanation}</p>
           )}
 
-          <p
-            className={cn(
-              'text-sm text-foreground leading-relaxed line-clamp-3',
-              onClick && 'cursor-pointer hover:text-primary/80 transition-colors',
-            )}
-            onClick={onClick}
-          >
-            {displayContent}
-          </p>
+          {onClick ? (
+            <button
+              type="button"
+              className={cn(
+                'text-sm text-foreground leading-relaxed line-clamp-3 text-left',
+                'cursor-pointer hover:text-primary/80 transition-colors',
+              )}
+              onClick={onClick}
+            >
+              {displayContent}
+            </button>
+          ) : (
+            <p className="text-sm text-foreground leading-relaxed line-clamp-3">{displayContent}</p>
+          )}
 
           {confirmed?.source_error && (
             <div className="mt-2 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-lg px-2.5 py-1.5">

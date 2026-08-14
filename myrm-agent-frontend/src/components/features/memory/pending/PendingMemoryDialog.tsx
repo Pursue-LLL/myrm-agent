@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Check, X, Pencil, MessageSquare } from 'lucide-react';
@@ -27,6 +27,13 @@ const PendingMemoryDialog = memo(() => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (isEditing) {
+      editInputRef.current?.focus();
+    }
+  }, [isEditing]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -151,6 +158,7 @@ const PendingMemoryDialog = memo(() => {
             <div className="p-4">
               {isEditing ? (
                 <textarea
+                  ref={editInputRef}
                   value={editedContent}
                   onChange={(e) => setEditedContent(e.target.value)}
                   className={cn(
@@ -161,7 +169,6 @@ const PendingMemoryDialog = memo(() => {
                     'transition-all duration-200',
                   )}
                   placeholder={t('editPlaceholder')}
-                  autoFocus
                 />
               ) : (
                 <p className="text-sm text-foreground leading-relaxed">{currentPendingMemory.content}</p>

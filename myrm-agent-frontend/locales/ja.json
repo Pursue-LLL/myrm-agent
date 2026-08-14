@@ -9411,7 +9411,7 @@
         },
         "vector_index": {
           "label": "ベクトルインデックス",
-          "evidence": "セマンティックリコールバックエンドが利用可能か検査し、セッションをまたいだメモリが意味で検索できることを確認します。"
+          "evidence": "セマンティックリコールバックエンドが利用可能か、保存されたメモリが再起動後も保持されるかを確認します。"
         },
         "knowledge_graph": {
           "label": "ナレッジグラフ",
@@ -12462,6 +12462,7 @@
     "feishuMultiAppTitle": "マルチアプリ管理",
     "feishuMultiAppDesc": "複数の飛書アプリを接続できます。各アプリは独立した認証情報で独立して動作します。",
     "feishuAddApp": "アプリを追加",
+    "feishuMultiAppLimitReached": "アプリの上限に達しました（{count}/{max}）。追加するにはアプリを削除してください",
     "feishuScanToAdd": "新しいアプリをQRで追加",
     "feishuAppLabelPlaceholder": "アプリラベル（例：サポート、運用）",
     "feishuInstanceAdded": "アプリを追加しました",

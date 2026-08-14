@@ -9490,7 +9490,7 @@
         },
         "vector_index": {
           "label": "Vector index",
-          "evidence": "Checks whether the semantic recall backend is available so cross-session memories can be retrieved by meaning."
+          "evidence": "Checks whether the semantic recall backend is available and whether stored memories survive restarts."
         },
         "knowledge_graph": {
           "label": "Knowledge graph",
@@ -12564,6 +12564,7 @@
     "feishuMultiAppTitle": "Multi-App Management",
     "feishuMultiAppDesc": "Connect multiple Feishu apps. Each app has its own credentials and runs independently.",
     "feishuAddApp": "Add App",
+    "feishuMultiAppLimitReached": "App limit reached ({count}/{max}). Remove an app to add more.",
     "feishuScanToAdd": "Scan to Add a New App",
     "feishuAppLabelPlaceholder": "App label (e.g. Support, Ops)",
     "feishuInstanceAdded": "App added",

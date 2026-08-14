@@ -95,7 +95,19 @@ async def launch_early_buffered_stream(
     """Start turn execution in background and return stream or multiplexed accepted JSON."""
 
     async def _background_turn() -> None:
+        chat_id_token = None
         try:
+            # 绑定 harness 侧会话上下文：SnapshotObserver 以
+            # get_current_chat_id() 作为快照落盘的 session key（.myrm/snapshots/<session>/<msg>.json），
+            # 若不设置会 fallback 为 "default"，导致 revert API 按真实 chat_id 查询时永远为空。
+            # ContextVar 在 turn task 内生效，覆盖工具调用等整条执行链。
+            if request.chat_id:
+                from myrm_agent_harness.agent.context_management.infra.session_lock import (
+                    reset_current_chat_id,
+                    set_current_chat_id,
+                )
+
+                chat_id_token = set_current_chat_id(request.chat_id)
             await execute_agent_turn_after_reserve(
                 request=request,
                 http_request=http_request,
@@ -118,6 +130,11 @@ async def launch_early_buffered_stream(
                 "Stream setup failed",
             )
         finally:
+            if chat_id_token is not None:
+                try:
+                    reset_current_chat_id(chat_id_token)
+                except Exception:  # pragma: no cover - context teardown edge
+                    pass
             # A reserved chat session that never reached execute_stream (setup
             # failure or cancel before the stream loop) must not leak — release
             # it so the chat is not stuck busy for subsequent turns.

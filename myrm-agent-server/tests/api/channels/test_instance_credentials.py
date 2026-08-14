@@ -71,7 +71,7 @@ async def test_load_instance_credentials_by_config_key() -> None:
             UserConfig(
                 id=str(uuid.uuid4()),
                 config_key="feishu_a1b2c3Credentials",
-                config_value={"appId": "cli_x", "appSecret": "sec_y", "botOpenId": "ou_z"},
+                config_value={"appId": "cli_x", "appSecret": "sec_y", "botOpenId": "ou_z", "useLark": False},
                 version="v1",
                 last_device_id="test",
                 is_encrypted=False,
@@ -84,6 +84,9 @@ async def test_load_instance_credentials_by_config_key() -> None:
     assert creds["appId"] == "cli_x"
     assert creds["appSecret"] == "sec_y"
     assert creds["botOpenId"] == "ou_z"
+    # Boolean credentials are flattened to lowercase strings on load, keeping
+    # them consistent with the values submitted by the frontend.
+    assert creds["useLark"] == "false"
 
     async with get_session() as session:
         await session.execute(UserConfig.__table__.delete())

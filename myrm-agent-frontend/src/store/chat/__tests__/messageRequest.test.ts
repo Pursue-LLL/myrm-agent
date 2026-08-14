@@ -932,3 +932,122 @@ describe('messageRequest - active moa preset', () => {
     });
   });
 });
+
+describe('messageRequest - mention reference lifetime contract', () => {
+  const baseState = {
+    chatId: 'chat-ref',
+    actionMode: 'agent',
+    searchDepth: 'normal',
+    agentConfig: null,
+    abortController: new AbortController(),
+    loading: false,
+    loadingOlder: false,
+    messages: [],
+    compactedSummary: null,
+    compactedBeforeId: null,
+    workspaceDir: null,
+    files: [],
+    cameraFrames: [],
+    hideAttachList: false,
+    hasUsedImagesInCurrentChat: false,
+    mentionReferences: [],
+    clearMentionReferences: vi.fn(),
+    removeMentionReferencesByTypes: vi.fn(),
+    isGoalMode: false,
+    goalBudgetTokens: null,
+    goalBudgetUsd: null,
+    goalMaxTimeSeconds: null,
+    goalMaxTurns: null,
+    goalProtectedPaths: null,
+    goalLoopOnPause: false,
+    goalConvergenceWindow: null,
+    goalAcceptanceCriteria: null,
+    goalConstraints: null,
+    currentSessionMessageId: null,
+    messageAppeared: false,
+    isMessagesLoaded: true,
+    hasMoreMessages: false,
+    nextCursor: null,
+    notFound: false,
+    loadError: false,
+    newChatCreated: false,
+    currentBuiltinTools: [],
+  } as unknown as ChatActionsState;
+
+  it('drops a zombie agent mention once its @token is removed from the input', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const state = {
+      ...baseState,
+      mentionReferences: [
+        { type: 'agent', label: '研究专家', fileId: 'agent-1', source: 'special', size: null },
+      ],
+    };
+    await createMessageRequest('帮我分析竞品文档', 'msg-zombie-agent', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).not.toHaveProperty('mentioned_agent_ids');
+  });
+
+  it('keeps an agent mention while its @token still exists in the input', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const state = {
+      ...baseState,
+      mentionReferences: [
+        { type: 'agent', label: '研究专家', fileId: 'agent-1', source: 'special', size: null },
+      ],
+    };
+    await createMessageRequest('@研究专家 帮我分析竞品文档', 'msg-live-agent', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).toMatchObject({ mentioned_agent_ids: ['agent-1'] });
+  });
+
+  it('drops a zombie wiki mention once its @wiki token is removed from the input', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const state = {
+      ...baseState,
+      mentionReferences: [
+        {
+          type: 'wiki_concept',
+          label: '@wiki:机器学习',
+          conceptName: '机器学习',
+          source: 'wiki',
+          size: null,
+        },
+      ],
+    };
+    await createMessageRequest('总结一下这篇文档', 'msg-zombie-wiki', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).not.toHaveProperty('mention_references');
+  });
+
+  it('parses a pasted @wiki: token inline into a wiki_concept reference', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const state = { ...baseState, mentionReferences: [] };
+    await createMessageRequest('用知识库总结 @wiki:机器学习', 'msg-paste-wiki', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).toMatchObject({
+      mention_references: [
+        {
+          type: 'wiki_concept',
+          label: '@wiki:机器学习',
+          concept_name: '机器学习',
+        },
+      ],
+    });
+  });
+});

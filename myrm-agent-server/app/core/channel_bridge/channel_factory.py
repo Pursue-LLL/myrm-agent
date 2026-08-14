@@ -35,6 +35,19 @@ from app.core.channel_bridge.credential_spec import is_channel_enabled, load_fro
 logger = logging.getLogger(__name__)
 
 
+def flatten_credential_strings(value: dict[str, object]) -> dict[str, str]:
+    """Flatten credential values to strings, normalizing booleans to lowercase.
+
+    Channel constructors consume string credentials; booleans are rendered as
+    ``"true"``/``"false"`` so they stay consistent with values submitted by the
+    frontend (e.g. ``useLark``).
+    """
+    return {
+        str(k): str(v).lower() if isinstance(v, bool) else str(v)
+        for k, v in value.items()
+    }
+
+
 async def create_all_channels() -> AsyncGenerator[BaseChannel, None]:
     """Instantiate all channels, resolving credentials from DB/env.
 

@@ -3,7 +3,7 @@ name: test-driven-development
 description: >-
   Enforce the RED-GREEN-REFACTOR cycle for all code changes. Tests come first,
   code follows. Prevents untested code from entering the codebase.
-version: 1.0.0
+version: 1.1.0
 category: development
 tags:
   - testing
@@ -16,12 +16,19 @@ contract:
     - "RED — Write a minimal failing test that defines the expected behavior"
     - "GREEN — Write the minimum code to make the test pass"
     - "REFACTOR — Clean up the code while keeping tests green"
+    - "PRIORITIZE — Layer tests by the test pyramid: unit-first, mock only at necessary boundaries"
   potential_traps:
     - description: "Writing production code before the test, then retroactively testing"
       mitigation: "Delete any production code written before a test. Start fresh from tests."
       severity: high
     - description: "Writing tests that are too broad or test implementation details"
       mitigation: "Each test should verify ONE behavior. Test the public API, not internals."
+      severity: medium
+    - description: "Mocking everything so tests pass while production breaks"
+      mitigation: "Prefer real code over mocks; mock only at slow or non-deterministic boundaries"
+      severity: high
+    - description: "Writing mostly slow end-to-end tests instead of a balanced pyramid"
+      mitigation: "Unit tests for pure logic, integration for boundaries, few E2E for critical flows"
       severity: medium
   verification_steps:
     - step_id: test_fails_first
@@ -31,6 +38,10 @@ contract:
     - step_id: minimal_green
       description: "Only the minimum code needed to pass the test is written"
       validation_method: "No extra features, no premature optimization"
+      is_required: true
+    - step_id: tests_assert_behavior
+      description: "Tests assert behavior state, not internal mock interactions"
+      validation_method: "Check each test verifies the real outcome, not which methods were called"
       is_required: true
   success_criteria: "All tests pass, code is clean, each test verifies exactly one behavior"
   estimated_duration_seconds: 900
@@ -105,6 +116,39 @@ If you catch yourself:
 - "I'll write tests after" → Tests written after code don't test the right things.
 - "This is too simple for tests" → Simple code gets complex. Start testing now.
 - "I'll test the whole flow instead" → Integration tests don't replace unit tests.
+
+## Writing Good Tests
+
+### Prefer Real Over Mocks
+
+Use the simplest test double that gets the job done:
+
+1. **Real implementation** — highest confidence, catches real bugs
+2. **Fake** — in-memory substitute for a dependency (e.g., in-memory DB)
+3. **Stub** — returns canned data, no behavior
+4. **Mock** — verifies interactions; use only at slow or non-deterministic boundaries (external APIs, email)
+
+Mock everything and tests pass while production breaks. If you must mock everything, the code is too coupled — simplify the design.
+
+### Test State, Not Interactions
+
+Assert the **outcome** of an operation, not which internal methods were called. Interaction-based tests break on refactor even when behavior is unchanged.
+
+```python
+# Good: asserts the behavior
+assert result.status == "completed"
+
+# Bad: asserts an internal call — breaks on refactor
+assert db.query.called_with("ORDER BY created_at DESC")
+```
+
+### Test Pyramid
+
+Invest effort by layer — most tests small and fast:
+
+- **Unit tests (~80%)** — pure logic, isolated, milliseconds each
+- **Integration tests (~15%)** — component interactions, API boundaries, database
+- **E2E tests (~5%)** — critical user flows only; slow and brittle, so keep them few
 
 ## Bug Fix TDD
 

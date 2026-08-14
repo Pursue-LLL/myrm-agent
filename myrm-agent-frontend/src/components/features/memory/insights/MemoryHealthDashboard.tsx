@@ -146,7 +146,7 @@ const GuardianStatus = memo(({ health, t }: { health: MemoryCommandHealth; t: T 
   const countdown = health.seconds_until_next;
 
   const countdownLabel = useMemo(() => {
-    if (countdown == null || countdown <= 0) {return null;}
+    if (countdown === undefined || countdown === null || countdown <= 0) {return null;}
     if (countdown >= 3600) {return `${Math.floor(countdown / 3600)}h ${Math.floor((countdown % 3600) / 60)}m`;}
     if (countdown >= 60) {return `${Math.floor(countdown / 60)}m ${countdown % 60}s`;}
     return `${countdown}s`;
@@ -219,7 +219,7 @@ const MemoryHealthDashboard = memo(({ health, t }: MemoryHealthDashboardProps) =
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {HEALTH_DIMENSIONS.filter((dim) => {
             if (dim === 'coherence' && !health.has_graph) {return false;}
-            return health.dimensions[DIMENSION_KEYS[dim]] != null;
+            return health.dimensions[DIMENSION_KEYS[dim]] !== null;
           }).map((dim) => (
             <DimensionCard key={dim} dimension={dim} value={health.dimensions[DIMENSION_KEYS[dim]] ?? 0} t={t} />
           ))}

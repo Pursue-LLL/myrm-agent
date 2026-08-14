@@ -16,7 +16,7 @@ Channel 系统的业务适配层。基于 `app.channels` 的渠道框架协议�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | ✅ 入口 | 导出 `channel_gateway` 全局单例，并定义 `handle_dead_letter` 回调处理死信通知 | ❌ |
-| `channel_factory.py` | ✅ 核心 | Channel 工厂，`create_all_channels()` 委托框架层 `create_channels` 实例化所有 Channel，`create_channel_instance()` 支持多实例并设置 `channel_type`/`display_name` 正式属性 | ✅ |
+| `channel_factory.py` | ✅ 核心 | Channel 工厂，`create_all_channels()` 委托框架层 `create_channels` 实例化所有 Channel，`create_channel_instance()` 支持多实例并设置 `channel_type`/`display_name` 正式属性；提供多实例持久化工具：`generate_instance_id`、`load_persisted_instances`、`save_persisted_instances`、`flatten_credential_strings`（布尔等非字符串凭据统一转小写字符串） | ✅ |
 | `credential_spec.py` | ✅ 核心 | DB 凭证源：`load_from_db`（`CredentialSource` 回调）+ `is_channel_enabled`；凭证类型与 SPEC 常量由各 Provider 在 harness 层定义 | ✅ |
 | `setup.py` | ✅ 核心 | Gateway 生命周期管理：`start_channel_gateway` / `stop_channel_gateway`。注入 `handle_dead_letter` 回调，将底层死信事件转化为业务层的持久化通知和 SSE 推送；始终装配 core AgentRouter，本地模式再额外启用 WhatsApp/LID/默认用户策略等 local-only 扩展。`_restore_channel_instances()` 恢复持久化实例时使用 `channel.display_name` 正式属性。`_build_agent_route_commands()` 构建业务层 AGENT_ROUTE 命令。`_load_skill_command_bindings()` 从 DB 加载所有 AgentProfile.command_bindings 转为 SKILL 类型 CommandDef。`reload_skill_command_bindings()` 运行时热重载技能命令绑定（Agent CRUD 时由 agent_service 调用）。注入 `ChannelSkillCommandHandler` 处理技能绑定斜杠命令 | ✅ |
 | `skill_command_handler.py` | ✅ 核心 | `ChannelSkillCommandHandler`：SkillCommandHandler 协议的业务层实现，将技能绑定的斜杠命令转换为 `[use s1,s2,...] [instruction: ...] user_args` 格式注入消息内容，支持单技能和多技能 bundle | ✅ |

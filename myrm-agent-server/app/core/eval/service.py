@@ -348,7 +348,7 @@ async def run_eval_suite(
             (recorded in the manifest so reports disclose sampled runs).
         max_tool_calls: Benchmark-declared tool-call budget to enforce during
             the run (None = engine default). Also recorded in the manifest.
-        max_iterations: Benchmark-declared recursion budget to enforce during
+        max_iterations: Benchmark-declared turn budget to enforce during
             the run (None = engine default). Also recorded in the manifest.
         blocked_hostnames: Hostname blocklist for benchmark decontamination,
             injected into web_fetch (empty = no filtering).

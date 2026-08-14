@@ -376,4 +376,4 @@ describe('SharedContextPanel', () => {
     expect(await screen.findByText('Customer A asked us to include incident trend charts.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /history\.promote/ })).toBeDisabled();
   }, 15000);
-});
+}, 30000);

@@ -30,6 +30,7 @@ security/
 ├── share_hmac.py        # 公共分享链接 HMAC 签名原语（含密码门支持）
 ├── share_unlock.py      # 分享链接解锁 cookie 公共机制（HttpOnly/SameSite/60s 阈值单点）
 ├── pii_actions.py       # PII action 字符串安全解析（非法/缺失值回退默认，防崩溃）
+├── integration_write_patterns.py # 业务层 shell 命令分析集成写模式（委托框架层注册）
 └── share_password_page.py # 密码门 HTML 页面渲染
 ```
 
@@ -54,6 +55,7 @@ security/
 | `share_hmac.py` | 公共分享链接通用 HMAC-SHA256 签名层，支持可选密码门（密码参与 key 派生，无状态设计）|
 | `share_unlock.py` | 分享链接解锁 cookie 公共机制：per-share cookie 名派生、60s 最小剩余 TTL 阈值、HttpOnly/SameSite=strict/Secure 属性、HMAC 凭证签发与解析；artifact 与 chat 分享双端共用，安全参数单点维护 |
 | `share_password_page.py` | 密码门自包含 HTML 页面模板（支持暗色模式、错误提示）+ 提交密码解析（表单 POST body 读取，GET 兼容旧 `?p=` query；密码不进 URL，CWE-598 防护） |
+| `integration_write_patterns.py` | 业务层 shell 命令分析的集成写模式：委托框架层 `register_integration_write_patterns` 注册 |
 
 ---
 

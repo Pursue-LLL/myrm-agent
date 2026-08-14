@@ -1,5 +1,11 @@
 import { apiRequest } from '@/lib/api';
 
+/**
+ * Max concurrent instances per channel type.
+ * Mirrors `ChannelGateway._MAX_INSTANCES_PER_TYPE` on the backend.
+ */
+export const MAX_CHANNEL_INSTANCES_PER_TYPE = 5;
+
 // ==================== Types ====================
 
 export interface ChannelPairing {

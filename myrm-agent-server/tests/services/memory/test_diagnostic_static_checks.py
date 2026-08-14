@@ -47,6 +47,7 @@ def test_probe_vector_index_warns_on_memory_fallback() -> None:
     """fallback 到内存模式的 store 必须 warning，且明确告知重启丢失。"""
     check = probe_vector_index(_runtime(vector_persistence="memory_fallback"))
     assert check.status == "warning"
+    assert "degraded to an in-memory instance" in check.evidence
     assert "lost on restart" in check.impact
     assert check.repair_actions == ["review_storage_config", "run_diagnostics"]
 

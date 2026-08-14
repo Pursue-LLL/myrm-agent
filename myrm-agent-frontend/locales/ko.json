@@ -9393,7 +9393,7 @@
         },
         "vector_index": {
           "label": "벡터 인덱스",
-          "evidence": "시맨틱 검색 백엔드를 사용할 수 있는지 확인하여 세션 간 메모리를 의미로 검색할 수 있는지 검사합니다."
+          "evidence": "시맨틱 리콜 백엔드가 사용 가능한지, 저장된 메모리가 재시작 후에도 유지되는지 확인합니다."
         },
         "knowledge_graph": {
           "label": "지식 그래프",
@@ -12238,6 +12238,7 @@
     "feishuMultiAppTitle": "멀티 앱 관리",
     "feishuMultiAppDesc": "여러 페이수/라크 앱을 연결할 수 있습니다. 각 앱은 독립적인 자격 증명으로 독립 실행됩니다.",
     "feishuAddApp": "앱 추가",
+    "feishuMultiAppLimitReached": "앱 상한에 도달했습니다({count}/{max}). 추가하려면 앱을 삭제하세요",
     "feishuScanToAdd": "새 앱을 QR로 추가",
     "feishuAppLabelPlaceholder": "앱 라벨 (예: 고객지원, 운영)",
     "feishuInstanceAdded": "앱이 추가되었습니다",

@@ -148,6 +148,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/memory/test_import_readiness_recheck_api.py` | 模块 | `POST /memory/import/readiness-recheck` HTTP 集成测（200/404） |
 | `services/agent/stream_session/test_migration_readiness_anchor.py` | 模块 | migration readiness 首轮结果归类单测（success/failed/no_output） |
 | `services/agent/stream_session/test_migration_bound_project.py` | 模块 | migration vault bind 同窗 handoff：`persist` 后 `move_chat_to_project`；已有 project / resume 跳过 |
+| `services/agent/stream_session/test_orchestrator_turn_body_e1.py` | 模块 | E1 early buffered stream 形状（SSE/JSON）+ `_background_turn` 绑定 harness `session_lock` chat_id（快照以真实 chat_id 落盘的关键前置） |
 | `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测 |
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |
 | `api/runs/test_router.py` | 模块 | Unified Runs Hub 聚合 API 单测（20 项：源合并、degraded、分页、timed_out） |

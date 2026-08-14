@@ -7,6 +7,7 @@
 - app.core.security.share_hmac (POS: password-protection detection)
 - app.core.security.share_password_page (POS: password gate HTML + submission parsing)
 - app.core.security.share_unlock (POS: shared unlock-cookie credential mechanics)
+- app.core.infra.ingress (POS: public-ingress SSOT for externally reachable links)
 
 [OUTPUT]
 - router: authenticated create/revoke endpoints
@@ -18,12 +19,17 @@ Supports optional password-protected share links; the password gate posts its
 ``p`` field in the request body so the password never reaches the URL (CWE-598),
 a successful unlock answers with a 303 See Other redirect (PRG) and issues a
 short-lived HMAC unlock cookie so the page can be refreshed or revisited without
-re-entering the password. Cloud: public URL; Local/Desktop: falls back to
-client-side HTML export.
+re-entering the password. Every served chat content page carries
+noindex/nofollow + no-store so shared conversations are never search-engine
+indexed and revoking a link cannot be bypassed by browser or CDN caches. Share
+URLs are built from the public-ingress SSOT (falling back to the request origin)
+so links stay reachable in hosted/tunneled deployments. Cloud: public URL;
+Local/Desktop: falls back to client-side HTML export.
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -33,6 +39,7 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
+from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.infra.limiter import limiter
 from app.core.security.share_hmac import is_password_protected
 from app.core.security.share_password_page import (
@@ -57,6 +64,8 @@ from app.services.chat.share_token import (
 router = APIRouter()
 public_router = APIRouter()
 
+logger = logging.getLogger(__name__)
+
 _DEFAULT_TTL_DAYS = 7
 _MAX_TTL_DAYS = 30
 
@@ -71,6 +80,20 @@ _SHARE_SECURITY_HEADERS: dict[str, str] = {
     ),
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
+}
+
+# Applied to every served chat share page. Shared conversations are private,
+# time-limited content: never index them for search engines and never let
+# browsers/CDNs cache them, so revoking a link takes effect immediately even
+# for clients that already loaded the page.
+_SHARE_PRIVACY_HEADERS: dict[str, str] = {
+    "X-Robots-Tag": "noindex, nofollow",
+    "Cache-Control": "no-store",
+}
+
+_SHARE_RESPONSE_HEADERS: dict[str, str] = {
+    **_SHARE_SECURITY_HEADERS,
+    **_SHARE_PRIVACY_HEADERS,
 }
 
 _UNLOCK_COOKIE_NAME = "chat_share_unlock"
@@ -129,6 +152,23 @@ class CreateChatShareResponse(BaseModel):
     password_protected: bool = False
 
 
+async def _resolve_share_url_base(request: Request) -> str:
+    """Public base for chat share links, or the request origin when none is set.
+
+    Uses the system-wide ingress SSOT (``CP_PUBLIC_INGRESS_URL`` or a user
+    tunnel) so links stay reachable outside the local host in hosted/tunneled
+    deployments. Resolution failure or an empty ingress degrades to the request
+    base URL so local/desktop links keep working instead of surfacing a 500.
+    """
+    try:
+        ingress = (await get_public_ingress_base_url()).strip().rstrip("/")
+        if ingress:
+            return ingress
+    except Exception as exc:
+        logger.warning("Failed to resolve public ingress base for chat share: %s", exc)
+    return str(request.base_url).rstrip("/")
+
+
 @router.post("/{chat_id}/share", response_model=CreateChatShareResponse)
 @limiter.limit(settings.rate_limit.chat)
 async def create_chat_share(
@@ -152,7 +192,7 @@ async def create_chat_share(
         chat_id, ttl_seconds=ttl_seconds, password=body.password,
     )
 
-    base_url = str(request.base_url).rstrip("/")
+    base_url = await _resolve_share_url_base(request)
     share_url = f"{base_url}/api/v1/public/chat-share/{token}"
 
     return CreateChatShareResponse(
@@ -241,6 +281,6 @@ async def get_public_chat_share(
         if _attach_unlock_cookie(response, claims, token, password, secure=secure):
             return response
 
-    response = HTMLResponse(content=html_content, headers=_SHARE_SECURITY_HEADERS)
+    response = HTMLResponse(content=html_content, headers=_SHARE_RESPONSE_HEADERS)
     _attach_unlock_cookie(response, claims, token, password, secure=secure)
     return response

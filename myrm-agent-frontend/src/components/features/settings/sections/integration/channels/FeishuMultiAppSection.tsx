@@ -12,7 +12,7 @@ import {
 } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
-import { listChannelStatuses, type ChannelStatus } from '@/services/channels';
+import { listChannelStatuses, MAX_CHANNEL_INSTANCES_PER_TYPE, type ChannelStatus } from '@/services/channels';
 import { useChannelInstances } from '@/hooks/channels/useChannelInstances';
 import { FeishuQrRegisterDialog } from './FeishuQrRegisterDialog';
 
@@ -21,7 +21,7 @@ export function FeishuMultiAppSection() {
   const [statuses, setStatuses] = useState<ChannelStatus[]>([]);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-  const { extraInstances, loading, refresh, removeInstance, renameInstance } = useChannelInstances({
+  const { instances, extraInstances, loading, refresh, removeInstance, renameInstance } = useChannelInstances({
     channelType: 'feishu',
     primaryName: 'feishu',
     i18nPrefix: 'feishu',
@@ -52,6 +52,8 @@ export function FeishuMultiAppSection() {
     setAddDialogOpen(true);
   }, []);
 
+  const atInstanceLimit = instances.length >= MAX_CHANNEL_INSTANCES_PER_TYPE;
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
@@ -68,11 +70,24 @@ export function FeishuMultiAppSection() {
           <p className="text-sm font-medium">{t('feishuMultiAppTitle')}</p>
           <p className="text-xs text-muted-foreground">{t('feishuMultiAppDesc')}</p>
         </div>
-        <Button variant="outline" size="sm" className="shrink-0 text-xs gap-1.5" onClick={handleAddClick}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0 text-xs gap-1.5"
+          onClick={handleAddClick}
+          disabled={atInstanceLimit}
+          title={atInstanceLimit ? t('feishuMultiAppLimitReached', { count: instances.length, max: MAX_CHANNEL_INSTANCES_PER_TYPE }) : undefined}
+        >
           <IconPlus className="h-3.5 w-3.5" />
           {t('feishuAddApp')}
         </Button>
       </div>
+
+      {atInstanceLimit && (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+          {t('feishuMultiAppLimitReached', { count: instances.length, max: MAX_CHANNEL_INSTANCES_PER_TYPE })}
+        </p>
+      )}
 
       {extraInstances.length === 0 && (
         <p className="rounded-lg border border-dashed px-3 py-3 text-center text-xs text-muted-foreground">

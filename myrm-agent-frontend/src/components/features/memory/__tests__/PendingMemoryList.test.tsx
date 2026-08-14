@@ -147,7 +147,7 @@ describe('PendingMemoryList - batch operations', () => {
   });
 
   it('disables buttons during batch approve processing', async () => {
-    let resolveApprove: () => void;
+    let resolveApprove: (() => void) | undefined;
     mockBatchApprove.mockReturnValueOnce(
       new Promise<void>((resolve) => {
         resolveApprove = resolve;
@@ -157,8 +157,11 @@ describe('PendingMemoryList - batch operations', () => {
     const user = userEvent.setup();
     render(<PendingMemoryList />);
 
-    const approveButton = screen.getByText('batchAccept').closest('button')!;
-    const rejectButton = screen.getByText('batchReject').closest('button')!;
+    const approveButton = screen.getByText('batchAccept').closest('button');
+    const rejectButton = screen.getByText('batchReject').closest('button');
+    expect(approveButton).not.toBeNull();
+    expect(rejectButton).not.toBeNull();
+    if (!approveButton || !rejectButton) {throw new Error('batch action buttons missing');}
 
     await user.click(approveButton);
 
@@ -167,7 +170,7 @@ describe('PendingMemoryList - batch operations', () => {
       expect(rejectButton).toBeDisabled();
     });
 
-    resolveApprove!();
+    resolveApprove?.();
 
     await waitFor(() => {
       expect(approveButton).not.toBeDisabled();
@@ -176,7 +179,7 @@ describe('PendingMemoryList - batch operations', () => {
   });
 
   it('prevents concurrent batch operations (approve blocks reject)', async () => {
-    let resolveApprove: () => void;
+    let resolveApprove: (() => void) | undefined;
     mockBatchApprove.mockReturnValueOnce(
       new Promise<void>((resolve) => {
         resolveApprove = resolve;
@@ -194,7 +197,7 @@ describe('PendingMemoryList - batch operations', () => {
 
     expect(mockBatchReject).not.toHaveBeenCalled();
 
-    resolveApprove!();
+    resolveApprove?.();
 
     await waitFor(() => {
       expect(mockBatchApprove).toHaveBeenCalledTimes(1);
