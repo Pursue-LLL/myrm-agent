@@ -86,8 +86,8 @@ async def resolve_gate_password(request: Request) -> str | None:
     """Resolve the password from a password-gate submission.
 
     POST reads the ``p`` form field so the password never reaches the URL
-    (CWE-598). GET keeps accepting the legacy ``p`` query parameter so links
-    shared before the switch still unlock. Returns ``None`` when absent.
+    (CWE-598). GET also accepts a ``p`` query parameter for links that carry
+    the password in the URL. Returns ``None`` when absent.
     """
     if request.method == "POST":
         form = await request.form()

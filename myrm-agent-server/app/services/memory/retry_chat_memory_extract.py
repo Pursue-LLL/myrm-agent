@@ -101,6 +101,7 @@ def _privacy_deep_scan_context(
     previous_store = get_pseudonym_store()
     set_privacy_policy(policy)
     previous_pseudonymizer = None
+    store_installed = False
     try:
         needs_store = (
             policy.s2_action == PIIAction.PSEUDONYMIZE
@@ -111,6 +112,7 @@ def _privacy_deep_scan_context(
                 db_path = str(Path(workspace_path).parent / "pseudonym_store.db")
                 store = build_pseudonym_store(db_path)
                 set_pseudonym_store(store)
+                store_installed = True
                 previous_pseudonymizer = install_memory_pseudonymizer(policy, store)
             else:
                 logger.warning(
@@ -121,7 +123,8 @@ def _privacy_deep_scan_context(
         if previous_pseudonymizer is not None:
             restore_memory_pseudonymizer(previous_pseudonymizer)
         set_privacy_policy(previous_policy)
-        set_pseudonym_store(previous_store)
+        if store_installed:
+            set_pseudonym_store(previous_store)
 
 
 def _time_decay_half_life_days(memory_decay_profile: str | None) -> float:

@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.core.security.share_hmac (POS: HMAC signing + password-protection detection)
-- app.core.security.share_password_page (POS: password gate HTML rendering)
+- app.core.security.share_password_page (POS: password gate HTML + submission parsing)
 - app.services.artifacts.share_bundle (POS: multi-file static bundle materialization)
 - app.services.artifacts.share_registry (POS: revocation gate check)
 - app.services.artifacts.share_token::ArtifactShareClaims (POS: HMAC claims)
@@ -286,10 +286,10 @@ async def get_public_artifact_share(
 ) -> Response:
     """Serve the bundle entry file for a valid share token (no API key).
 
-    GET keeps accepting the legacy ``p`` query so previously shared links
-    unlock unchanged; POST reads the password from the form body (CWE-598) and
-    answers with a 303 See Other redirect (PRG) so the password never appears
-    in the address bar or browser history. Revocation is checked before
+    GET also accepts a ``p`` query parameter so links carrying the password in
+    the URL still unlock; POST reads the password from the form body (CWE-598)
+    and answers with a 303 See Other redirect (PRG) so the password never
+    appears in the address bar or browser history. Revocation is checked before
     authentication so a revoked link (password protected or not) is denied
     immediately without presenting the password gate.
     """

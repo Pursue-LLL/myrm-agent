@@ -5,6 +5,7 @@
 - app.services.chat.share_renderer (POS: HTML generation)
 - app.services.chat.chat_service::ChatService (POS: chat metadata)
 - app.core.security.share_hmac (POS: password-protection detection)
+- app.core.security.share_password_page (POS: password gate HTML + submission parsing)
 
 [OUTPUT]
 - router: authenticated create/revoke endpoints
@@ -142,9 +143,9 @@ async def get_public_chat_share(
 ) -> HTMLResponse:
     """Serve the read-only HTML page for a valid chat share token (no auth).
 
-    GET keeps accepting the legacy ``p`` query so previously shared links
-    unlock unchanged; POST reads the password from the form body (CWE-598) so
-    it never appears in the URL or browser history.
+    GET also accepts a ``p`` query parameter so links carrying the password in
+    the URL still unlock; POST reads the password from the form body (CWE-598)
+    so it never appears in the URL or browser history.
     """
     protected = is_password_protected(token)
     password = await resolve_gate_password(request)

@@ -20,5 +20,6 @@
 | `sandbox.py` | 模块 | Chat sandbox session management (enable/disable/merge/status/diff). Git worktree isolation for agent experimentation. | ✅ |
 | `title.py` | 模块 | if not chat_id.strip(): | ✅ |
 | `trash.py` | 模块 | Chat trash (recycle bin) API endpoints. | ✅ |
+| `share.py` | 模块 | Conversation share API：创建/撤销时间受限只读公开链接（支持可选密码）；公开页（`/public/chat-share/{token}`，GET+POST）密码门表单 **POST body 提交（CWE-598：密码不进 URL）**，GET 兼容旧 `?p=` query；cloud 用 public URL，local/desktop 前端回退客户端 HTML export | ✅ |
 | `turn.py` | 模块 | Turn lifecycle: retry, regenerate, sibling switch, truncate-after (edit-resend), undo, rewind. | ✅ |
 | `memory_extract.py` | 模块 | `POST /{chat_id}/memory/retry-extract` — 对最近一轮 user/assistant 重新调度 memory extract；incognito / 无效 turn → 400；chat 不存在 → 404；返回 `scheduled` / `already_in_flight` | ✅ |

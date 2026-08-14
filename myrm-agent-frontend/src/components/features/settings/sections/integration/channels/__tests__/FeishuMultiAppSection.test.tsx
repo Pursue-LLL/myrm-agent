@@ -53,11 +53,11 @@ describe('FeishuMultiAppSection', () => {
     render(<FeishuMultiAppSection />);
 
     await waitFor(() => {
-      expect(mockListChannelInstances).toHaveBeenCalledWith('feishu');
+      expect(screen.getByText('feishuMultiAppTitle')).toBeInTheDocument();
+      expect(screen.getByText('feishuAddApp')).toBeInTheDocument();
+      expect(screen.getByText('feishuScanToAdd')).toBeInTheDocument();
     });
-    expect(screen.getByText('feishuMultiAppTitle')).toBeInTheDocument();
-    expect(screen.getByText('feishuAddApp')).toBeInTheDocument();
-    expect(screen.getByText('feishuScanToAdd')).toBeInTheDocument();
+    expect(mockListChannelInstances).toHaveBeenCalledWith('feishu');
   });
 
   it('lists extra feishu instances with status and delete button', async () => {

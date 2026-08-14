@@ -1846,6 +1846,42 @@ async def test_password_share_post_unlock_multi_file_redirects_to_index(
 
 
 @pytest.mark.asyncio
+async def test_password_share_post_index_redirects_to_clean_index(
+    share_client, html_artifact
+) -> None:
+    """POST unlock on the trailing-slash index 303s to the same clean index."""
+    files = {
+        "index.html": PublishFile(
+            path="index.html",
+            content='<html><link href="styles.css"/></html>',
+            encoding="utf-8",
+        ),
+        "styles.css": PublishFile(
+            path="styles.css", content="body{}", encoding="utf-8"
+        ),
+    }
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, files),
+    ):
+        response = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html", "password": "s3cret"},
+        )
+    token = response.json()["token"]
+
+    unlocked = share_client.post(
+        f"/public/artifact-share/{token}/",
+        data={"p": "s3cret"},
+        follow_redirects=False,
+    )
+    assert unlocked.status_code == 303
+    assert unlocked.headers["location"].endswith(f"/{token}/")
+    assert share_client.cookies.get(_unlock_cookie_name(token)) is not None
+
+
+@pytest.mark.asyncio
 async def test_password_share_post_asset_unlock_redirects(
     share_client, html_artifact
 ) -> None:

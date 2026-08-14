@@ -71,7 +71,11 @@ export function extractSourceMessageIdFromFrontmatter(proposedContent: string): 
 }
 
 function _extractFrontmatterScalar(content: string, key: string): string | null {
-  const match = content.match(new RegExp(`^${key}:\\s*(?:"([^"]+)"|'([^']+)'|(\\S+))`, 'm'));
+  const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  const block = fmMatch?.[1] ?? '';
+  const match = block.match(
+    new RegExp(`^${key}:\\s*(?:"([^"]+)"|'([^']+)'|(\\S+))`, 'm'),
+  );
   const value = match?.[1] ?? match?.[2] ?? match?.[3];
   return value?.trim() || null;
 }

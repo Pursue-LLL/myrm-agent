@@ -49,7 +49,7 @@ security/
 | `browser_vault.py` | SessionVault 实例管理：全局单例（非 agent 场景）+ 按 agent_id 物理隔离的 agent vault |
 | `llm_reviewer.py` | 动态 Transcript Classifier 适配器，运行时获取用户 LLM 实例 |
 | `share_hmac.py` | 公共分享链接通用 HMAC-SHA256 签名层，支持可选密码门（密码参与 key 派生，无状态设计）|
-| `share_password_page.py` | 密码门自包含 HTML 页面模板（支持暗色模式、错误提示） |
+| `share_password_page.py` | 密码门自包含 HTML 页面模板（支持暗色模式、错误提示）+ 提交密码解析（表单 POST body 读取，GET 兼容旧 `?p=` query；密码不进 URL，CWE-598 防护） |
 
 ---
 

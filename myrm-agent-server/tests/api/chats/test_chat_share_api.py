@@ -206,7 +206,7 @@ class TestPublicSharePage:
         assert "Shared" in resp.text
 
     def test_password_token_query_still_unlocks(self, share_client: TestClient) -> None:
-        """Legacy ``?p=`` links shared before the switch keep unlocking."""
+        """A password carried in the URL query still unlocks."""
         from app.services.chat.share_token import create_chat_share_token
 
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
