@@ -1461,14 +1461,9 @@ async def _try_hot_register_channel(config_key: str) -> None:
         return
 
     try:
-        from app.core.channel_bridge import channel_gateway
-
-        if channel_gateway.bus.get_channel(channel_name):
-            # Remove the existing channel first to allow hot-reload
-            await channel_gateway.remove_channel(channel_name)
-
         from app.channels.core.credentials import resolve_credentials
         from app.channels.providers.registry import get_channel_class_safe
+        from app.core.channel_bridge import channel_gateway
         from app.core.channel_bridge.credential_spec import (
             is_channel_enabled,
             load_from_db,
@@ -1483,6 +1478,13 @@ async def _try_hot_register_channel(config_key: str) -> None:
             return
 
         instance = cls.from_credentials(creds)
+
+        # Preserve the display name across a hot-reload and only remove the
+        # old channel after the replacement was built successfully.
+        existing = channel_gateway.bus.get_channel(channel_name)
+        if existing:
+            instance.display_name = existing.display_name
+            await channel_gateway.remove_channel(channel_name)
 
         enabled = await is_channel_enabled(cls.credential_spec.config_key)
         if not enabled:

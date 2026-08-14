@@ -356,7 +356,7 @@ async def _auto_commit_dirty_worktree(worktree_path: str) -> None:
         )
         commit = await asyncio.to_thread(
             subprocess.run,
-            ["git", "commit", "-m", f"Kanban task auto-commit before merge"],
+            ["git", "commit", "-m", "Kanban task auto-commit before merge"],
             cwd=worktree_path,
             capture_output=True,
             text=True,
