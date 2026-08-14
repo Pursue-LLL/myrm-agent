@@ -5,9 +5,10 @@
 - app.services.agent.params.models::AgentRequest (POS: request DTO)
 
 [OUTPUT]
-- resolve_prewarm_agent_params() (POS: prewarm param factory)
+- resolve_prewarm_agent_params(): 无用户消息时解析 prewarm 用的 GeneralAgentParams
 
-[POSITION] app.services.agent.execution_cache.prewarm — param resolver for speculative warm-up.
+[POS]
+execution_cache prewarm 参数解析。为预取预热解析不依赖用户消息的 Agent 参数。
 """
 
 from __future__ import annotations

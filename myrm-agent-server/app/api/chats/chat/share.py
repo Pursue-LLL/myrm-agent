@@ -21,7 +21,11 @@ Supports optional password-protected share links; the password gate posts its
 ``p`` field in the request body so the password never reaches the URL (CWE-598),
 a successful unlock answers with a 303 See Other redirect (PRG) and issues a
 short-lived HMAC unlock cookie so the page can be refreshed or revisited without
-re-entering the password. Every served chat content page carries
+re-entering the password. Revocation is per-token: the active token fingerprint
+is persisted on create and moved into an append-only revoked-fingerprint set on
+revoke, so recreating a share for the same chat can never resurrect a previously
+revoked link (single-active-link semantics: a fresh share also retires the
+previous active token). Every served chat content page carries
 noindex/nofollow + no-store + Referrer-Policy: no-referrer (shared privacy
 headers) so shared conversations are never search-engine indexed, revoking a
 link cannot be bypassed by browser or CDN caches, and the token-bearing share
@@ -48,7 +52,7 @@ from app.config.settings import settings
 from app.core.infra.ingress import resolve_share_url_base
 from app.core.infra.limiter import limiter
 from app.core.security.share_headers import SHARE_PRIVACY_HEADERS
-from app.core.security.share_hmac import is_password_protected
+from app.core.security.share_hmac import is_password_protected, token_fingerprint
 from app.core.security.share_password_page import (
     render_password_gate_html,
     resolve_gate_password,
@@ -163,15 +167,28 @@ async def create_chat_share(
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
 
-    if chat.share_revoked_at is not None:
-        stmt = update(Chat).where(Chat.id == chat_id).values(share_revoked_at=None)
-        await db.execute(stmt)
-        await db.commit()
-
     ttl_seconds = body.ttl_days * 24 * 3600
     token, expires_at = create_chat_share_token(
         chat_id, ttl_seconds=ttl_seconds, password=body.password,
     )
+
+    # Single-active-link model: the previous active token (if any) is moved into
+    # the revoked-fingerprint set so recreating a share can never resurrect an
+    # old link, and the revoked flag is lifted for a fresh share.
+    revoked = list(chat.share_revoked_fingerprints or [])
+    previous = chat.share_token_fingerprint
+    if previous and previous not in revoked:
+        revoked.append(previous)
+    values: dict[str, object] = {
+        "share_token_fingerprint": token_fingerprint(token),
+    }
+    if revoked:
+        values["share_revoked_fingerprints"] = revoked
+    if chat.share_revoked_at is not None:
+        values["share_revoked_at"] = None
+    stmt = update(Chat).where(Chat.id == chat_id).values(**values)
+    await db.execute(stmt)
+    await db.commit()
 
     base_url = await resolve_share_url_base(fallback=str(request.base_url).rstrip("/"))
     share_url = f"{base_url}/api/v1/public/chat-share/{token}"
@@ -197,11 +214,17 @@ async def revoke_chat_share(
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
 
-    stmt = (
-        update(Chat)
-        .where(Chat.id == chat_id)
-        .values(share_revoked_at=datetime.now(timezone.utc))
-    )
+    revoked = list(chat.share_revoked_fingerprints or [])
+    active = chat.share_token_fingerprint
+    if active and active not in revoked:
+        revoked.append(active)
+    values: dict[str, object] = {
+        "share_revoked_at": datetime.now(timezone.utc),
+        "share_token_fingerprint": None,
+    }
+    if revoked:
+        values["share_revoked_fingerprints"] = revoked
+    stmt = update(Chat).where(Chat.id == chat_id).values(**values)
     await db.execute(stmt)
     await db.commit()
     return Response(status_code=204)
@@ -261,7 +284,11 @@ async def get_public_chat_share(
             headers=_SHARE_RESPONSE_HEADERS,
         )
 
-    if chat.share_revoked_at is not None:
+    revoked_fingerprints = set(chat.share_revoked_fingerprints or [])
+    if chat.share_revoked_at is not None or (
+        chat.share_token_fingerprint is not None
+        and token_fingerprint(token) in revoked_fingerprints
+    ):
         return share_not_found(
             request,
             detail="This share link has been revoked",

@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - create_share_token / sign_share_token / parse_share_token / is_password_protected
+- token_fingerprint: deterministic non-reversible lookup key for persisted shares
 - sign_share_token: sign with an explicit ``exp`` (used to rebuild persisted
   links from registry fields); create_share_token derives exp from ttl
 
@@ -147,3 +148,14 @@ def is_password_protected(token: str) -> bool:
         return raw.get("p") == 1
     except (json.JSONDecodeError, ValueError):
         return False
+
+
+def token_fingerprint(token: str) -> str:
+    """Return a deterministic non-reversible fingerprint for a share token.
+
+    The fingerprint (SHA-256 of the raw token) is the only token material
+    persisted by share management (registry rows, chat share state), so a raw
+    token can never be recovered from storage while still being an exact,
+    cheap equality key for lookups and revocation checks.
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()

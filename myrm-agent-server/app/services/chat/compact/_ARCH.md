@@ -15,7 +15,7 @@ Server 业务层无损上下文压缩实现。`compact_service.py` 为对外 fac
 | `persist.py` | 核心 | DB 持久化 + failure cooldown | ✅ |
 | `compression_streak.py` | 核心 | Chat DB anti-thrash streak + harness store registration | ✅ |
 | `idle_estimate.py` | 核心 | idle gate token 估算与 floor | ✅ |
-| `message_io.py` | 辅助 | 消息加载/备份/LC 转换 | ✅ |
+| `message_io.py` | 辅助 | 消息加载/备份/LC 转换；`parse_existing_summary` 委托 harness `parse_structured_summary_json`（14 字段全量反序列化，失败 None） | ✅ |
 | `summarize_guard.py` | 辅助 | `/compact` 路径 progress 超时 | ✅ |
 | `llm_config.py` | 辅助 | 用户模型 LLM 解析 | ✅ |
 | `archive.py` | 辅助 | workspace 备份读取 | ✅ |

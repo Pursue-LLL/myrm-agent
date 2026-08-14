@@ -1,13 +1,13 @@
 """In-memory memory-brief cache keyed by chat scope + execution fingerprint.
 
 [INPUT]
-- Memory brief preview/snapshot dicts from stream_session.memory_brief
+- stream_session.memory_brief::build_memory_brief_snapshot (POS: 流式会话的记忆预检构建器)
 
 [OUTPUT]
 - BriefCache get/put/invalidate for turn prewarm join
 
 [POS]
-Server business layer. TTL aligned with execution_cache idle eviction (~600s).
+execution_cache prewarm brief 缓存。TTL 与 execution_cache 空闲淘汰对齐（~600s）。
 """
 
 from __future__ import annotations

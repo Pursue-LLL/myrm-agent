@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.database.models::Chat, Message (POS: ORM load + incremental anchor)
+- myrm_agent_harness...summary_parser::parse_structured_summary_json (POS: full-field summary deserialization across DB boundary)
 
 [OUTPUT]
 - load_chat / load_compactable_messages: incremental compactable slice
@@ -62,23 +63,20 @@ def db_messages_to_langchain(messages: list[Message]) -> list[BaseMessage]:
     return lc_messages
 
 
-def parse_existing_summary(summary_json: str) -> object | None:
-    """Parse JSON summary into StructuredSummary object."""
-    from myrm_agent_harness.agent.context_management.infra.schemas import (
-        StructuredSummary,
+def parse_existing_summary(summary_json: str) -> StructuredSummary | None:
+    """Parse JSON summary into StructuredSummary object.
+
+    Delegates to the harness shared parser (``parse_structured_summary_json``)
+    so all 14 ``StructuredSummary`` fields survive the DB persistence boundary —
+    a hand-written partial mapping here would silently drop 9 fields on every
+    incremental compaction. Returns None on unparseable input so callers fall
+    back to full-mode summarisation.
+    """
+    from myrm_agent_harness.agent.context_management.strategies.summary.summary_parser import (
+        parse_structured_summary_json,
     )
 
-    try:
-        summary_dict = json.loads(summary_json)
-        return StructuredSummary(
-            user_goal=summary_dict.get("user_goal", ""),
-            completed_actions=summary_dict.get("completed_actions", []),
-            key_findings=summary_dict.get("key_findings", []),
-            files_modified=summary_dict.get("files_modified", []),
-            last_action=summary_dict.get("last_action", ""),
-        )
-    except Exception:
-        return None
+    return parse_structured_summary_json(summary_json)
 
 
 async def backup_context(chat: Chat, messages: list[Message]) -> str | None:

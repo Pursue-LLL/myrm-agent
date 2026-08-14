@@ -1,15 +1,15 @@
 """Chat turn prewarm — coalesced agent cache warm + memory brief snapshot.
 
 [INPUT]
-- GeneralAgentParams, GeneralAgent wrapper (POS: stream / prewarm API)
-- execution_cache registry (POS: BuiltExecutionUnit pool)
-- stream_session.memory_brief.build_memory_brief_snapshot
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现)
+- execution_cache.registry::ChatAgentExecutionCache (POS: 缓存注册表)
+- stream_session.memory_brief::build_memory_brief_snapshot (POS: 流式会话的记忆预检构建器)
 
 [OUTPUT]
 - TurnPrewarmCoordinator: ensure_warming, join_for_turn, coalesced_acquire
 
 [POS]
-Server business layer. EmptyChat focus + send-path share one in-flight warm task.
+execution_cache prewarm 协调器。空 chat 聚焦与发送路径共享同一个 in-flight 预热任务。
 """
 
 from __future__ import annotations

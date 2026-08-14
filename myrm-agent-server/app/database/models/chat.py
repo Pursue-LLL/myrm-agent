@@ -116,6 +116,16 @@ class Chat(Base):
         DateTime(timezone=True), nullable=True
     )
 
+    # Fingerprint of the currently active share token (written on create).
+    share_token_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # Fingerprints of share tokens that were revoked and must never become valid
+    # again. Monotonic append-only JSON list: recreating a share for the same
+    # chat issues a fresh token but cannot resurrect a previously revoked link.
+    share_revoked_fingerprints: Mapped[list[str] | None] = mapped_column(
+        JSON, nullable=True
+    )
+
     # Soft-delete: NULL = active, non-NULL = trashed at this timestamp
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True

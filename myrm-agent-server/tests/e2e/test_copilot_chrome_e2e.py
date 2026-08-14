@@ -105,6 +105,8 @@ _SET_CHAT_LOADING_JS = """(() => {
 })()"""
 
 _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
+  window.__E2E_RFA_TICKS = 0;
+  requestAnimationFrame(() => { window.__E2E_RFA_TICKS = (window.__E2E_RFA_TICKS ?? 0) + 1; });
   const needle = 'connection refused';
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   let node = walker.nextNode();
@@ -116,9 +118,15 @@ _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
       const selection = window.getSelection();
       selection?.removeAllRanges();
       selection?.addRange(range);
-      const target = node.parentElement ?? document.body;
-      target.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-      return { ok: true, selected: selection?.toString?.() || '' };
+      const container = node.parentElement?.closest('[data-message-id]') ?? node.parentElement ?? document.body;
+      container.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      return {
+        ok: true,
+        selected: selection?.toString?.() || '',
+        target: container.tagName,
+        anchorInMsg: !!node.parentElement?.closest?.('[data-message-id]'),
+        msgId: container.getAttribute?.('data-message-id') || '',
+      };
     }
     node = walker.nextNode();
   }
@@ -126,6 +134,7 @@ _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
 })()"""
 
 _QUOTE_ADVISOR_READY_JS = """(() => {
+  window.__MYRM_E2E_CHAT__?.setLoading?.(true);
   const btn = document.querySelector('[data-testid="quote-toolbar-advisor-ask"]');
   const portal = document.getElementById('quote-toolbar-portal');
   const sel = window.getSelection();
@@ -136,6 +145,7 @@ _QUOTE_ADVISOR_READY_JS = """(() => {
     loading: window.__MYRM_E2E_CHAT__?.getChatShellState?.().loading,
     selText: sel?.toString?.().slice(0, 40) ?? '',
     selCollapsed: sel?.isCollapsed,
+    rfaTicks: window.__E2E_RFA_TICKS ?? -1,
   };
 })()"""
 

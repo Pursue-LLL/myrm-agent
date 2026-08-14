@@ -3,9 +3,10 @@
 [INPUT] (none — leaf type definitions)
 
 [OUTPUT]
-- TurnPrewarmJoinResult (POS: prewarm join result DTO)
+- TurnPrewarmJoinResult: prewarm join 结果 DTO
 
-[POSITION] app.services.agent.execution_cache.prewarm — shared DTOs for turn prewarm.
+[POS]
+execution_cache prewarm 类型层。定义 turn prewarm 共享 DTO。
 """
 
 from __future__ import annotations

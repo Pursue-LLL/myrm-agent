@@ -596,6 +596,13 @@ MIGRATION_STATEMENTS: list[str] = [
     # column NULL and rebuild the path on demand. New DBs get the column from
     # create_all; this append-only ALTER covers existing databases.
     "ALTER TABLE artifact_share_records ADD COLUMN share_path VARCHAR(512)",
+    # Chat share revocation is per-token: the current active token fingerprint is
+    # persisted on create and moved into the revoked-fingerprint set on revoke, so
+    # recreating a share for the same chat can never resurrect an old revoked link.
+    # New DBs get the columns from create_all; these append-only ALTERs cover
+    # existing databases (the migration engine skips duplicate-column errors).
+    "ALTER TABLE chats ADD COLUMN share_token_fingerprint VARCHAR(64)",
+    "ALTER TABLE chats ADD COLUMN share_revoked_fingerprints JSON",
 ]
 
 # 创建索引的SQL语句列表
