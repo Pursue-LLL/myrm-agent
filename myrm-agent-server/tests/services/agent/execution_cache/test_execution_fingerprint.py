@@ -331,7 +331,8 @@ def test_execution_fingerprint_changes_when_reasoning_model_changes() -> None:
 
 def test_execution_fingerprint_changes_when_privacy_routing_changes() -> None:
     """Privacy routing wraps the lite LLM at build time (factory:91,137-139),
-    so routing rule changes must bust the POOLED cache."""
+    so routing rule changes must bust the POOLED cache while localApiKey rotation
+    (build_privacy_routing_config local LLM credential) must not."""
     wrapper = GeneralAgent(
         model_cfg=ModelConfig(
             model="test-model", api_key="test-key", base_url="http://test"
@@ -340,11 +341,29 @@ def test_execution_fingerprint_changes_when_privacy_routing_changes() -> None:
     )
     none_fp = compute_execution_fingerprint(wrapper)
     wrapper.privacy_routing_raw = {
-        "local_model": "llama3",
-        "s2_strategy": "cloud_after_redact",
+        "localModel": "llama3",
+        "localBaseUrl": "http://localhost:11434",
+        "localApiKey": "ollama-key-1",
+        "s2Strategy": "cloud_after_redact",
     }
     routed_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != routed_fp
+    wrapper.privacy_routing_raw = {
+        "localModel": "llama3",
+        "localBaseUrl": "http://localhost:11434",
+        "localApiKey": "ollama-key-rotated",
+        "s2Strategy": "cloud_after_redact",
+    }
+    rotated_fp = compute_execution_fingerprint(wrapper)
+    assert routed_fp == rotated_fp
+    wrapper.privacy_routing_raw = {
+        "localModel": "qwen3-local",
+        "localBaseUrl": "http://localhost:11434",
+        "localApiKey": "ollama-key-1",
+        "s2Strategy": "cloud_after_redact",
+    }
+    changed_fp = compute_execution_fingerprint(wrapper)
+    assert routed_fp != changed_fp
 
 
 def test_execution_fingerprint_changes_when_safety_fallback_model_changes() -> None:

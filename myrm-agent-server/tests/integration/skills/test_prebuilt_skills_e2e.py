@@ -448,6 +448,8 @@ async def test_tdd_skill_v120_contract_guard(
         "### Deeper Reference",
     ):
         assert heading in body, f"missing v1.2.0 body section: {heading}"
+    assert '"The source text changed"' in body, "missing Gate Function 4th branch"
+    assert "run the artifact and assert its effects" in body
 
     ref_path = get_skill_file_path(
         SkillType.PREBUILT,
@@ -463,6 +465,7 @@ async def test_tdd_skill_v120_contract_guard(
         "## Warning Signs",
     ):
         assert section in ref_content, f"missing v1.2.0 reference section: {section}"
+    assert 'Mocking "just to be safe"' in ref_content, "missing Warning Signs 11th item"
 
 
 @pytest.mark.asyncio

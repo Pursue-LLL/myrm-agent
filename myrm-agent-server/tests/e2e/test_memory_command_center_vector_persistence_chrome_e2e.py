@@ -48,6 +48,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     warm_ui_route,
 )
 from tests.support.local_embedding_server import LocalEmbeddingServer  # noqa: E402
+from tests.support.test_secrets import load_test_secrets  # noqa: E402
 
 _COMMAND_CENTER_READY_JS = """(() => {
   const text = document.body?.textContent || '';
@@ -93,23 +94,42 @@ _VECTOR_PERSISTENCE_READY_JS = r"""(() => {
 
 
 def _configure_embedding() -> None:
-    """Configure retrieval embedding via the WebUI settings API (real path)."""
+    """Configure retrieval embedding via the WebUI settings API (real path).
+
+    Uses the real SiliconFlow embedding account from ``.env.test`` first (the
+    same provider the WebUI settings page writes into the database for a real
+    user). ``BAAI/bge-m3`` is a known-dimension model so the MemoryManager is
+    built without any live embedding call. Falls back to a local
+    OpenAI-compatible endpoint only when no test embedding account is present.
+    """
     api_url = get_e2e_api_url().rstrip("/")
     existing = fetch_config_value("retrieval", api_url=api_url)
     if existing.get("embeddingConfig"):
         return
 
-    server = LocalEmbeddingServer(port=8398)
-    server.start()
+    secrets = load_test_secrets()
+    embedding_key = secrets.get("EMBEDDING_API_KEY")
+    server: LocalEmbeddingServer | None = None
     try:
-        retrieval = {
-            "embeddingApplied": True,
-            "embeddingConfig": {
+        if embedding_key:
+            embedding_config = {
+                "provider": secrets.get("EMBEDDING_PROVIDER", "siliconflow"),
+                "model": secrets.get("EMBEDDING_MODEL", "BAAI/bge-m3"),
+                "apiKey": embedding_key,
+                "apiBase": secrets.get("EMBEDDING_BASE_URL", ""),
+            }
+        else:
+            server = LocalEmbeddingServer(port=8398)
+            server.start()
+            embedding_config = {
                 "provider": "openai_compatible",
                 "model": "BAAI/bge-m3",
                 "apiKey": "test-key",
                 "apiBase": server.base_url,
-            },
+            }
+        retrieval = {
+            "embeddingApplied": True,
+            "embeddingConfig": embedding_config,
         }
         put_config_value("retrieval", retrieval, api_url=api_url)
         snapshot = http_json(
@@ -124,7 +144,8 @@ def _configure_embedding() -> None:
             "unavailable",
         }, snapshot
     finally:
-        server.stop()
+        if server is not None:
+            server.stop()
 
 
 @contextmanager

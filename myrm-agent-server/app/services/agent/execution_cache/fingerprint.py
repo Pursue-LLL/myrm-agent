@@ -10,10 +10,10 @@
 execution_cache 指纹层。将影响 build_general_agent 输出的模型/技能/MCP/安全/记忆/工具/
 检索/媒体/隐私路由配置稳定哈希为 scope key；模型类字段统一经 _model_sig 提取 build
 固化签名（排除 api_key 等凭据池字段与 temperature 等调用级参数），结构化配置
-（媒体生成/搜索服务/嵌入重排/provider 池）经 _credential_free_json 剔除
-api_key/api_keys/apiKeys/_oauthToken 等凭据后进哈希。
-排除每 run 状态（kanban_current_task_id、quote、force_skill_manage）与全局静态配置
-（event_log_backend、tail_budget_ratio）——前者会使缓存永不命中，后者不构成差异源。
+（媒体生成/搜索服务/嵌入重排/provider 池/OpenAPI 服务/隐私路由）经
+_credential_free_json 剔除 api_key/api_keys/apiKeys/_oauthToken/localApiKey 等凭据后
+进哈希。排除每 run 状态（kanban_current_task_id、quote、force_skill_manage）与全局静态
+配置（event_log_backend、tail_budget_ratio）——前者会使缓存永不命中，后者不构成差异源。
 """
 
 from __future__ import annotations
@@ -45,6 +45,9 @@ _CREDENTIAL_KEYS = frozenset(
         "password",
         "client_secret",
         "clientSecret",
+        # Privacy routing local LLM credential (build_privacy_routing_config).
+        "local_api_key",
+        "localApiKey",
     }
 )
 
@@ -80,6 +83,35 @@ def _credential_free_json(value: object) -> object:
     POOLED cache nor leak into the hash.
     """
     return _stable_json(value, skip_keys=_CREDENTIAL_KEYS)
+
+
+def _openapi_services_sig(value: object) -> object:
+    """OpenAPI services fingerprint: strip the whole ``auth`` subtree.
+
+    ``OpenAPIServiceConfig.auth`` (harness openapi_bridge/config.py) is runtime
+    authentication only — it never shapes ``build_general_agent`` output (tool
+    names/descriptions come from spec + selected_endpoints). Credential rotation
+    or auth-type changes must therefore not bust the POOLED cache, while spec
+    URL/content, base URL, endpoints and timeout changes must. Stripping the
+    ``auth`` key wholesale covers every AuthConfig field (type, api_key,
+    bearer_token, password, client_secret, headers, scopes) without leaking
+    credential values or auth-method diffs into the hash.
+    """
+    services = value
+    if not isinstance(services, list):
+        return _credential_free_json(value)
+    cleaned: list[object] = []
+    for service in services:
+        if not isinstance(service, dict):
+            cleaned.append(_credential_free_json(service))
+            continue
+        cleaned.append(
+            _stable_json(
+                {k: v for k, v in service.items() if k != "auth"},
+                skip_keys=_CREDENTIAL_KEYS,
+            )
+        )
+    return cleaned
 
 
 def _model_sig(model_cfg: ModelConfig | None) -> dict[str, object] | None:
@@ -219,7 +251,9 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "code_execution_allow_network": agent_wrapper.code_execution_allow_network,
         "notify_targets": _stable_json(agent_wrapper.notify_targets),
         "providers_dict": _credential_free_json(agent_wrapper.providers_dict),
-        "privacy_routing_raw": _stable_json(agent_wrapper.privacy_routing_raw),
+        "privacy_routing_raw": _credential_free_json(
+            agent_wrapper.privacy_routing_raw
+        ),
         "jit_subagents": _stable_json(agent_wrapper.jit_subagents),
         "force_delegate_agent": agent_wrapper.force_delegate_agent,
         # Org model policy revision busts POOLED cache after CP sandbox sync.

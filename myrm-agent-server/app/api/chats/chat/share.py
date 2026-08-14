@@ -30,7 +30,8 @@ revoked / active / password-protected) so the GUI can reopen the share dialog
 with the live link and a working revoke entry; unprotected links are rebuilt
 deterministically from the persisted expiry, password-protected shares return a
 status only (their token cannot be rebuilt because the password is never
-stored). Every served chat content page carries
+stored). Expired links — password-protected or not — report as unshared so a
+past-due share never surfaces as active. Every served chat content page carries
 noindex/nofollow + no-store + Referrer-Policy: no-referrer (shared privacy
 headers) so shared conversations are never search-engine indexed, revoking a
 link cannot be bypassed by browser or CDN caches, and the token-bearing share

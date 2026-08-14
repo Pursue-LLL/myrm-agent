@@ -163,7 +163,7 @@ async def _delete_instance_credentials(channel_name: str) -> None:
             await session.execute(delete(UserConfig).where(UserConfig.config_key == config_key))
             await session.commit()
     except Exception:
-        logging.getLogger(__name__).warning("Failed to delete credentials for %s", channel_name)
+        logger.warning("Failed to delete credentials for %s", channel_name)
 
 
 @router.patch("/{channel_name}/display-name", response_model=ChannelInstanceResponse)
@@ -222,8 +222,12 @@ async def update_channel_display_name(
 @router.get("/{channel_name}/credentials")
 async def get_channel_credentials(
     channel_name: str,
-) -> dict[str, str | bool]:
-    """Get channel credentials (with sensitive fields redacted)."""
+) -> dict[str, str]:
+    """Get channel credentials (with sensitive fields redacted).
+
+    Boolean values are normalized to lowercase strings (``"true"/"false"``)
+    so the frontend ``useLark === 'true'`` comparison stays stable.
+    """
     from app.services.config.service import ConfigService
 
     config_key = channel_credentials_key(channel_name)
