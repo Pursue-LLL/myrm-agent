@@ -118,30 +118,19 @@ _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
       const msgId = el?.closest?.('[data-message-id]')?.getAttribute?.('data-message-id') || '';
       const path = [];
       let cur = el;
-      while (cur && path.length < 4) {
-        path.push(`${cur.tagName}${cur.className ? '.' + String(cur.className).slice(0, 24) : ''}`);
+      while (cur && path.length < 5) {
+        path.push(`${cur.tagName}${cur.id ? '#' + cur.id : ''}${cur.getAttribute?.('data-testid') ? '[data-testid=' + cur.getAttribute('data-testid') + ']' : ''}.${String(cur.className || '').slice(0, 30)}`);
         cur = cur.parentElement;
       }
-      hits.push({ msgId, path, parent: el?.tagName || '' });
-      const range = document.createRange();
-      range.selectNodeContents(node);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      const msgContainer = el?.closest?.('[data-message-id]');
-      if (msgContainer) {
-        msgContainer.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-      }
-      return {
-        ok: !!msgContainer,
-        selected: selection?.toString?.() || '',
-        hits,
-        selectedMsgId: msgContainer?.getAttribute?.('data-message-id') || '',
-      };
+      hits.push({ msgId, path });
     }
     node = walker.nextNode();
   }
-  return { ok: false, err: 'snippet-not-found', hits };
+  const msgIds = [...document.querySelectorAll('[data-message-id]')].map((el) => ({
+    id: el.getAttribute('data-message-id'),
+    text: (el.textContent || '').slice(0, 60),
+  }));
+  return { ok: false, err: 'diagnostic-only', hits, msgIds };
 })()"""
 
 _QUOTE_ADVISOR_READY_JS = """(() => {

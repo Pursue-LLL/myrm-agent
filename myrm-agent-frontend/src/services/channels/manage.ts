@@ -105,6 +105,23 @@ export async function updateChannelDisplayName(channelName: string, displayName:
   });
 }
 
+export type ChannelCredentialValues = Record<string, string>;
+
+export async function getChannelCredentials(channelName: string): Promise<ChannelCredentialValues> {
+  return apiRequest(`/channels/manage/${channelName}/credentials`);
+}
+
+export async function saveChannelCredentials(
+  channelName: string,
+  credentials: ChannelCredentialValues,
+): Promise<{ status: string; message: string }> {
+  return apiRequest(`/channels/manage/${channelName}/credentials`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials),
+  });
+}
+
 // ==================== API ====================
 
 export async function listPairings(): Promise<ChannelPairing[]> {

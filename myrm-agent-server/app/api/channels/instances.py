@@ -249,22 +249,56 @@ async def save_channel_credentials(
     channel_name: str,
     credentials: dict[str, str],
 ) -> dict[str, str]:
-    """Save channel credentials to database (encrypted for sensitive keys)."""
+    """Save channel credentials to the database (encrypted) and hot-reload.
+
+    Only the submitted fields are overwritten; credentials omitted from the
+    request (e.g. ``botOpenId`` when only rotating ``appSecret``) are kept.
+    When the channel is currently registered in the gateway, it is rebuilt
+    from the merged credentials with the same instance id so that agent
+    bindings and the channel name are preserved. When it is not registered
+    (or hot-reload fails), the update takes effect on the next startup.
+    """
     from app.services.config.service import ConfigService
 
     config_key = channel_credentials_key(channel_name)
-    await ConfigService().set(config_key, credentials, device_id="web")
+    record = await ConfigService().get(config_key)
+    merged = dict(record.value) if record else {}
+    merged.update(credentials)
+    await ConfigService().set(config_key, merged, device_id="web")
 
     from app.core.channel_bridge import channel_gateway
 
     try:
         ch = channel_gateway.bus.get_channel(channel_name)
-        if ch and ch.is_connected:
-            await channel_gateway.disable_channel(channel_name)
-            await asyncio.sleep(0.5)
-            await channel_gateway.enable_channel(channel_name)
-    except Exception as e:
-        logger.warning(f"Failed to restart channel {channel_name}: {e}")
+        if ch is None:
+            return {"status": "saved", "message": "Credentials saved successfully"}
+
+        base_type = channel_gateway._resolve_channel_type(ch)
+        if channel_name == base_type:
+            from app.api.config.router import _try_hot_register_channel
+
+            await _try_hot_register_channel(config_key)
+            return {"status": "saved", "message": "Credentials saved successfully"}
+
+        from app.core.channel_bridge.channel_factory import (
+            create_channel_instance as factory_create,
+        )
+
+        await channel_gateway.remove_channel(channel_name)
+        new_channel = await factory_create(
+            channel_type=base_type,
+            instance_id=ch.instance_id or channel_name,
+            credentials=merged,
+        )
+        new_channel.display_name = ch.display_name
+        await channel_gateway.add_channel(new_channel)
+        logger.info("Channel '%s' re-registered with updated credentials", channel_name)
+    except Exception as exc:
+        logger.warning(
+            "Failed to hot-reload channel '%s' after credential update: %s",
+            channel_name,
+            exc,
+        )
 
     return {"status": "saved", "message": "Credentials saved successfully"}
 

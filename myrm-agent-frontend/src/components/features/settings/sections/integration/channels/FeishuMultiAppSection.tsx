@@ -9,17 +9,20 @@ import {
   IconLoader,
   IconWifi,
   IconWifiOff,
+  IconKey,
 } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 import { listChannelStatuses, MAX_CHANNEL_INSTANCES_PER_TYPE, type ChannelStatus } from '@/services/channels';
 import { useChannelInstances } from '@/hooks/channels/useChannelInstances';
 import { FeishuQrRegisterDialog } from './FeishuQrRegisterDialog';
+import { FeishuCredentialsEditDialog } from './FeishuCredentialsEditDialog';
 
 export function FeishuMultiAppSection() {
   const t = useTranslations('channels');
   const [statuses, setStatuses] = useState<ChannelStatus[]>([]);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editChannelName, setEditChannelName] = useState<string | null>(null);
 
   const { instances, extraInstances, loading, refresh, removeInstance, renameInstance } = useChannelInstances({
     channelType: 'feishu',
@@ -44,6 +47,11 @@ export function FeishuMultiAppSection() {
   );
 
   const handleQrSuccess = useCallback(() => {
+    void refresh();
+    refreshStatuses();
+  }, [refresh, refreshStatuses]);
+
+  const handleCredentialsSaved = useCallback(() => {
     void refresh();
     refreshStatuses();
   }, [refresh, refreshStatuses]);
@@ -103,6 +111,7 @@ export function FeishuMultiAppSection() {
           status={statusFor(inst.channelName)}
           onDelete={() => void removeInstance(inst.instanceId)}
           onRename={(label) => void renameInstance(inst.channelName, label)}
+          onEditCredentials={() => setEditChannelName(inst.channelName)}
           t={t}
         />
       ))}
@@ -112,6 +121,13 @@ export function FeishuMultiAppSection() {
         onOpenChange={setAddDialogOpen}
         allowLabel
         onSuccess={handleQrSuccess}
+      />
+
+      <FeishuCredentialsEditDialog
+        open={editChannelName !== null}
+        onOpenChange={(open) => !open && setEditChannelName(null)}
+        channelName={editChannelName ?? ''}
+        onSaved={handleCredentialsSaved}
       />
     </div>
   );
@@ -123,6 +139,7 @@ function FeishuAppCard({
   status,
   onDelete,
   onRename,
+  onEditCredentials,
   t,
 }: {
   channelName: string;
@@ -130,6 +147,7 @@ function FeishuAppCard({
   status?: ChannelStatus;
   onDelete: () => void;
   onRename: (label: string) => void;
+  onEditCredentials: () => void;
   t: ReturnType<typeof useTranslations<'channels'>>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -206,15 +224,27 @@ function FeishuAppCard({
             {isConnected ? t('feishuConnected') : t('feishuStatusUnconfigured')}
           </span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 text-destructive/60 hover:text-destructive shrink-0"
-          aria-label={`delete-${channelName}`}
-          onClick={onDelete}
-        >
-          <IconTrash className="h-3 w-3" />
-        </Button>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground shrink-0"
+            aria-label={`edit-credentials-${channelName}`}
+            onClick={onEditCredentials}
+            title={t('feishuEditCredentials')}
+          >
+            <IconKey className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-destructive/60 hover:text-destructive shrink-0"
+            aria-label={`delete-${channelName}`}
+            onClick={onDelete}
+          >
+            <IconTrash className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
       <p className="text-[10px] text-muted-foreground break-all">{channelName}</p>
     </div>

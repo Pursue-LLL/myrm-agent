@@ -26,7 +26,7 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
 )
 
-_OPEN_VERIFY_TAB_JS = """(() => {
+_OPEN_VERIFY_TAB_JS = r"""(() => {
   const btn = Array.from(document.querySelectorAll('button')).find(
     (el) => {
       const label = (el.textContent || '').trim();
@@ -38,7 +38,7 @@ _OPEN_VERIFY_TAB_JS = """(() => {
   return { ready: true, clicked: true };
 })()"""
 
-_VECTOR_PERSISTENCE_READY_JS = """(() => {
+_VECTOR_PERSISTENCE_READY_JS = r"""(() => {
   const text = document.body?.textContent || '';
   const hasLabel = /Vector persistence|向量持久化|向量持久性/.test(text);
   const hasState =
@@ -49,7 +49,6 @@ _VECTOR_PERSISTENCE_READY_JS = """(() => {
 
 @contextmanager
 def _command_center_verify_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
-    open_settings_subroute("/settings/memory", timeout_ms=120_000)
     with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
         yield client, page
 

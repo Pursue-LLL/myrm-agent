@@ -49,9 +49,7 @@
     "*.ts",
     "*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    ".next-isolated-lim-e2e/types/**/*.ts",
-    ".next-isolated-lim-e2e/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
