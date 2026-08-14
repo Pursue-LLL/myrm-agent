@@ -1209,12 +1209,11 @@ export interface HandoffResponse {
 }
 
 export const handoffChat = async (chatId: string, targetChannel: string): Promise<HandoffResponse> => {
-  const res = await apiRequest<{ data: HandoffResponse }>(`/chats/${chatId}/handoff`, {
+  return apiRequest<HandoffResponse>(`/chats/${chatId}/handoff`, {
     method: 'POST',
     body: JSON.stringify({ target_channel: targetChannel }),
     headers: { 'Content-Type': 'application/json' },
   });
-  return res.data;
 };
 
 // ── Fission Topology ─────────────────────────────────────────────
@@ -1227,8 +1226,14 @@ export interface FissionTopologyResponse {
 
 export const getFissionTopology = async (chatId: string): Promise<FissionTopologyResponse | null> => {
   try {
-    const res = await apiRequest<{ data: FissionTopologyResponse | null }>(`/chats/${chatId}/fission`);
-    return res?.data || null;
+    const payload = await apiRequest<FissionTopologyResponse | { data?: FissionTopologyResponse | null }>(
+      `/chats/${chatId}/fission`,
+    );
+    if (!payload) {return null;}
+    if ('success' in payload && payload.success === true) {
+      return payload.data ?? null;
+    }
+    return payload as FissionTopologyResponse;
   } catch (error) {
     console.error('Failed to fetch fission topology:', error);
     return null;
@@ -1254,8 +1259,7 @@ export interface ChatShareStatusResponse {
 }
 
 export const getChatShareStatus = async (chatId: string): Promise<ChatShareStatusResponse> => {
-  const res = await apiRequest<{ data: ChatShareStatusResponse }>(`/chats/${chatId}/share`);
-  return res.data;
+  return apiRequest<ChatShareStatusResponse>(`/chats/${chatId}/share`);
 };
 
 export const createChatShare = async (
@@ -1263,7 +1267,7 @@ export const createChatShare = async (
   ttlDays: number = 7,
   password?: string,
 ): Promise<ChatShareResponse> => {
-  const res = await apiRequest<{ data: ChatShareResponse }>(`/chats/${chatId}/share`, {
+  return apiRequest<ChatShareResponse>(`/chats/${chatId}/share`, {
     method: 'POST',
     body: JSON.stringify({
       ttl_days: ttlDays,
@@ -1271,7 +1275,6 @@ export const createChatShare = async (
     }),
     headers: { 'Content-Type': 'application/json' },
   });
-  return res.data;
 };
 
 export const revokeChatShare = async (chatId: string): Promise<void> => {
