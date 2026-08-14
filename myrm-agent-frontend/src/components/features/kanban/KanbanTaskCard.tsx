@@ -636,6 +636,13 @@ export default function KanbanTaskCard({
                             {ev.payload.migrated ? ' (Migrated)' : ' (Stashed)'}
                           </p>
                         )}
+                        {ev.kind === 'merge_conflict' && ev.payload && (
+                          <p className="ml-[52px] text-[10px] text-destructive/80 mt-0.5">
+                            {t('mergeConflictDetail', {
+                              branch: String(ev.payload.branch || 'unknown'),
+                            })}
+                          </p>
+                        )}
                         {ev.kind === 'verification_failed' && typeof ev.payload?.reason === 'string' && (
                           <div className="ml-[52px] mt-0.5">
                             <span className="text-[10px] font-medium text-chart-5">{t('verificationReason')}:</span>

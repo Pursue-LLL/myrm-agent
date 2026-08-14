@@ -224,7 +224,12 @@ def _fetch_max_iterations(api_url: str, agent_id: str) -> int | None:
 
 
 def _wait_max_iterations(
-    api_url: str, agent_id: str, expected: int, *, timeout_sec: float = 30.0, diag: str = ""
+    api_url: str,
+    agent_id: str,
+    expected: int,
+    *,
+    timeout_sec: float = 30.0,
+    diag: str = "",
 ) -> None:
     deadline = time.monotonic() + timeout_sec
     last: int | None = None
@@ -278,9 +283,9 @@ def test_create_agent_with_max_iterations_via_ui() -> None:
             name_res = client.evaluate(page, _set_agent_name_js(name), timeout_sec=15.0)
             assert isinstance(name_res, dict) and name_res.get("ok") is True, name_res
             assert str(name_res.get("value")) == name, name_res
-            assert name_res.get("saveDisabled") is False, (
-                f"agent name must unlock Save (saveDisabled={name_res.get('saveDisabled')})"
-            )
+            assert (
+                name_res.get("saveDisabled") is False
+            ), f"agent name must unlock Save (saveDisabled={name_res.get('saveDisabled')})"
 
             # T2: capabilities tab + bounds on the Max Iterations input.
             probe = wait_for_state(
@@ -342,7 +347,10 @@ def test_create_agent_with_max_iterations_via_ui() -> None:
 
         # T4b: the created agent is queryable and the value persisted.
         _wait_max_iterations(
-            api_url, agent_id, expected=50, timeout_sec=30.0,
+            api_url,
+            agent_id,
+            expected=50,
+            timeout_sec=30.0,
             diag=json.dumps(diag, ensure_ascii=False),
         )
     finally:

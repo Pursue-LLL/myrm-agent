@@ -166,8 +166,8 @@ describe('FeishuCredentialsEditDialog', () => {
   });
 
   it('ignores a stale load when the dialog is re-opened for another instance', async () => {
-    let resolveFirst: (value: unknown) => void;
-    const pendingFirst = new Promise((resolve) => {
+    let resolveFirst: (value: { appId: string; useLark: string }) => void = () => undefined;
+    const pendingFirst = new Promise<{ appId: string; useLark: string }>((resolve) => {
       resolveFirst = resolve;
     });
     mockGetChannelCredentials.mockReturnValueOnce(pendingFirst);
@@ -186,7 +186,7 @@ describe('FeishuCredentialsEditDialog', () => {
     });
 
     // Resolve the stale first request late; it must not overwrite the form.
-    resolveFirst!({ appId: 'cli_stale', useLark: 'false' });
+    resolveFirst({ appId: 'cli_stale', useLark: 'false' });
     await new Promise((r) => setTimeout(r, 0));
 
     expect(screen.getByDisplayValue('cli_second')).toBeInTheDocument();
