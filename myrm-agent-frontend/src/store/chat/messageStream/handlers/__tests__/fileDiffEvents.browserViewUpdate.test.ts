@@ -105,4 +105,19 @@ describe('fileDiffEvents browser_view_update', () => {
     expect(store.viewData).toBeNull();
     expect(store.engagedChatId).toBeNull();
   });
+
+  it('engages from state.chatId when the message list is empty (brand-new chat first turn)', async () => {
+    useBrowserInspectorStore.setState({ isOpen: false });
+    const { ctx } = buildCtx(browserViewUpdateData);
+    ctx.state.messages = [];
+    ctx.state.chatId = 'chat-bg';
+
+    await fileDiffEvents(ctx);
+
+    const store = useBrowserInspectorStore.getState();
+    expect(store.isBrowserActive).toBe(true);
+    expect(store.engagedChatId).toBe('chat-bg');
+    expect(store.isOpen).toBe(false);
+    expect(store.viewData?.sourceChatId).toBe('chat-bg');
+  });
 });

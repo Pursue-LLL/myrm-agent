@@ -121,4 +121,19 @@ describe('agentControlEvents clearActivePlan', () => {
     expect(mockClearActivePlan).not.toHaveBeenCalled();
     expect(mockReleaseTurnInspectorControls).not.toHaveBeenCalled();
   });
+
+  it('releases inspector controls from state.chatId when the message list is empty (brand-new chat first turn)', async () => {
+    const ctx = makeCtx('error', { error: 'Something failed' });
+    ctx.state = {
+      messages: [],
+      messageAppeared: false,
+      loading: true,
+      chatId: 'c1',
+    } as never;
+    await agentControlEvents(ctx);
+    await vi.dynamicImportSettled();
+
+    expect(mockReleaseTurnInspectorControls).toHaveBeenCalledTimes(1);
+    expect(mockReleaseTurnInspectorControls).toHaveBeenCalledWith('c1');
+  });
 });

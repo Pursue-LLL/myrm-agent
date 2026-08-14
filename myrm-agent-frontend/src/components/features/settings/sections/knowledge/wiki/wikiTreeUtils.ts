@@ -62,7 +62,16 @@ export function getWikiOperationErrorMessage(error: unknown, fallback: string): 
 
 /** Parse `source_chat` from YAML frontmatter in pending edit markdown. */
 export function extractSourceChatIdFromFrontmatter(proposedContent: string): string | null {
-  const match = proposedContent.match(/^source_chat:\s*(?:"([^"]+)"|'([^']+)'|(\S+))/m);
-  const chatId = match?.[1] ?? match?.[2] ?? match?.[3];
-  return chatId?.trim() || null;
+  return _extractFrontmatterScalar(proposedContent, 'source_chat');
+}
+
+/** Parse `source_message` from YAML frontmatter in pending edit markdown. */
+export function extractSourceMessageIdFromFrontmatter(proposedContent: string): string | null {
+  return _extractFrontmatterScalar(proposedContent, 'source_message');
+}
+
+function _extractFrontmatterScalar(content: string, key: string): string | null {
+  const match = content.match(new RegExp(`^${key}:\\s*(?:"([^"]+)"|'([^']+)'|(\\S+))`, 'm'));
+  const value = match?.[1] ?? match?.[2] ?? match?.[3];
+  return value?.trim() || null;
 }

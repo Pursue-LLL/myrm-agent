@@ -11,7 +11,10 @@ import { IconCheckCircle, IconCheck, IconX, IconClock, IconEdit } from '@/compon
 import { wikiService, PendingEdit } from '@/services/wikiService';
 import { ApiError } from '@/lib/api';
 import { WikiScopeChip } from './WikiScopeChip';
-import { extractSourceChatIdFromFrontmatter } from './wiki/wikiTreeUtils';
+import {
+  extractSourceChatIdFromFrontmatter,
+  extractSourceMessageIdFromFrontmatter,
+} from './wiki/wikiTreeUtils';
 
 interface WikiPendingEditsProps {
   agentScopeId?: string | null;
@@ -188,6 +191,10 @@ export function WikiPendingEdits({
                 edit.provenance === 'chat-compound'
                   ? extractSourceChatIdFromFrontmatter(edit.proposed_content)
                   : null;
+              const sourceMessageId =
+                edit.provenance === 'chat-compound'
+                  ? extractSourceMessageIdFromFrontmatter(edit.proposed_content)
+                  : null;
               return (
               <div key={edit.id} className="border rounded-lg overflow-hidden bg-card">
                 <div className="flex items-center justify-between p-4 bg-muted/30 border-b gap-3 flex-wrap">
@@ -205,7 +212,11 @@ export function WikiPendingEdits({
                     )}
                     {sourceChatId && (
                       <Link
-                        href={`/${sourceChatId}`}
+                        href={
+                          sourceMessageId
+                            ? `/${sourceChatId}?highlight=${encodeURIComponent(sourceMessageId)}`
+                            : `/${sourceChatId}`
+                        }
                         className="text-xs text-primary hover:underline"
                       >
                         {t('pendingEdits.openSourceChat')}

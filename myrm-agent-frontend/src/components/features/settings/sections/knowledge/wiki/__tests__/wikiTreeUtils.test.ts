@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { countDescendantItems, extractSourceChatIdFromFrontmatter, filterFolderNodes, resolveCreateParentFolder } from '../wikiTreeUtils';
+import {
+  countDescendantItems,
+  extractSourceChatIdFromFrontmatter,
+  extractSourceMessageIdFromFrontmatter,
+  filterFolderNodes,
+  resolveCreateParentFolder,
+} from '../wikiTreeUtils';
 import type { TreeNode } from '@/services/wikiService';
 
 const sampleTree: TreeNode[] = [
@@ -47,5 +53,15 @@ describe('wikiTreeUtils', () => {
     expect(extractSourceChatIdFromFrontmatter(doubleQuoted)).toBe('chat:colon-id');
     expect(extractSourceChatIdFromFrontmatter(singleQuoted)).toBe('chat-single');
     expect(extractSourceChatIdFromFrontmatter('no frontmatter')).toBeNull();
+  });
+
+  it('extracts source_message from frontmatter with quoted and unquoted values', () => {
+    const unquoted = '---\nsource_chat: chat-abc\nsource_message: msg-xyz\n---\n# body';
+    const doubleQuoted = '---\nsource_message: "msg:colon-id"\n---\n# body';
+    const singleQuoted = "---\nsource_message: 'msg-single'\n---\n# body";
+    expect(extractSourceMessageIdFromFrontmatter(unquoted)).toBe('msg-xyz');
+    expect(extractSourceMessageIdFromFrontmatter(doubleQuoted)).toBe('msg:colon-id');
+    expect(extractSourceMessageIdFromFrontmatter(singleQuoted)).toBe('msg-single');
+    expect(extractSourceMessageIdFromFrontmatter('no frontmatter')).toBeNull();
   });
 });

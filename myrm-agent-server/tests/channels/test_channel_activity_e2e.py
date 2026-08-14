@@ -30,6 +30,7 @@ class EchoChannel(BaseChannel):
 
     async def send(self, msg: OutboundMessage) -> str | None:
         self.sent.append(msg)
+        return "msg_ok"
 
 
 class StubPairingStore:

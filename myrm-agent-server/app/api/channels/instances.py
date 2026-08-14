@@ -97,6 +97,12 @@ async def create_channel_instance(
     except (ValueError, RuntimeError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
+    if body.credentials:
+        from app.services.config.service import ConfigService
+
+        config_key = channel_credentials_key(channel_name)
+        await ConfigService().set(config_key, body.credentials, device_id="web")
+
     current = await load_persisted_instances()
     current.append(
         {

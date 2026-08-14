@@ -97,4 +97,32 @@ describe('fileDiffEvents desktop_view_update', () => {
 
     expect(useDesktopInspectorStore.getState().viewData).toBeNull();
   });
+
+  it('engages from state.chatId when the message list is empty (brand-new chat first turn)', async () => {
+    useDesktopInspectorStore.setState({ isOpen: false });
+    const { ctx } = buildCtx({
+      type: AgentEventType.DESKTOP_VIEW_UPDATE,
+      messageId: 'msg-1',
+      data: {
+        screenshot_base64: 'abc',
+        mime_type: 'image/jpeg',
+        refs: {},
+        app_name: 'TextEdit',
+        window_title: 'Untitled',
+        scope: 'app',
+        needs_permission: false,
+        viewport_width: 1280,
+        viewport_height: 720,
+      },
+    });
+    ctx.state.messages = [];
+    ctx.state.chatId = 'chat-desk';
+
+    await fileDiffEvents(ctx);
+
+    const store = useDesktopInspectorStore.getState();
+    expect(store.isDesktopActive).toBe(true);
+    expect(store.isOpen).toBe(false);
+    expect(store.viewData?.sourceChatId).toBe('chat-desk');
+  });
 });

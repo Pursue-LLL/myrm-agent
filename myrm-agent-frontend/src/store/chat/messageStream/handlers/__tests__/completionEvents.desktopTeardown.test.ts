@@ -163,4 +163,22 @@ describe('completionEvents inspector teardown', () => {
       vi.useRealTimers();
     }
   });
+
+  it('releases turn engagement from state.chatId when the message list is empty (brand-new chat first turn)', async () => {
+    vi.useFakeTimers();
+    try {
+      const ctx = makeCtx();
+      ctx.state.messages = [];
+      ctx.state.chatId = 'c1';
+      await completionEvents(ctx);
+      await vi.dynamicImportSettled();
+
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledWith('c1');
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
+      expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledWith('c1');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
