@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
@@ -25,11 +25,10 @@ interface FeishuCredentialsEditDialogProps {
 interface CredentialForm {
   appId: string;
   appSecret: string;
-  botOpenId: string;
   useLark: boolean;
 }
 
-const EMPTY_FORM: CredentialForm = { appId: '', appSecret: '', botOpenId: '', useLark: false };
+const EMPTY_FORM: CredentialForm = { appId: '', appSecret: '', useLark: false };
 
 export function FeishuCredentialsEditDialog({
   open,
@@ -38,6 +37,7 @@ export function FeishuCredentialsEditDialog({
   onSaved,
 }: FeishuCredentialsEditDialogProps) {
   const t = useTranslations('channels');
+  const loadSeqRef = useRef(0);
   const [form, setForm] = useState<CredentialForm>(EMPTY_FORM);
   const [showSecret, setShowSecret] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -48,6 +48,7 @@ export function FeishuCredentialsEditDialog({
     if (!open) {
       return;
     }
+    const requestSeq = ++loadSeqRef.current;
     setForm(EMPTY_FORM);
     setShowSecret(false);
     setSaving(false);
@@ -55,23 +56,33 @@ export function FeishuCredentialsEditDialog({
     setLoading(true);
     getChannelCredentials(channelName)
       .then((creds) => {
+        // Ignore stale responses when the dialog is re-opened for another
+        // instance while a previous request is still in flight.
+        if (requestSeq !== loadSeqRef.current) {
+          return;
+        }
         setForm({
           appId: creds.appId ?? '',
           appSecret: '',
-          botOpenId: creds.botOpenId ?? '',
           useLark: creds.useLark === 'true',
         });
       })
       .catch(() => {
+        if (requestSeq !== loadSeqRef.current) {
+          return;
+        }
         setForm(EMPTY_FORM);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (requestSeq === loadSeqRef.current) {
+          setLoading(false);
+        }
+      });
   }, [open, channelName]);
 
   const handleSave = useCallback(async () => {
     const payload: Record<string, string> = {
       appId: form.appId.trim(),
-      botOpenId: form.botOpenId.trim(),
       useLark: String(form.useLark),
     };
     if (form.appSecret.trim()) {
@@ -160,16 +171,6 @@ export function FeishuCredentialsEditDialog({
                   {showSecret ? <IconEyeOff className="h-4 w-4" /> : <IconEye className="h-4 w-4" />}
                 </button>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="feishu-edit-bot-id">{t('feishuBotOpenId')}</Label>
-              <Input
-                id="feishu-edit-bot-id"
-                placeholder="ou_xxxxx"
-                value={form.botOpenId}
-                onChange={(e) => setForm((prev) => ({ ...prev, botOpenId: e.target.value }))}
-              />
-              <p className="text-xs text-muted-foreground">{t('feishuBotOpenIdHint')}</p>
             </div>
             <div className="flex items-center gap-2 pt-1">
               <Switch

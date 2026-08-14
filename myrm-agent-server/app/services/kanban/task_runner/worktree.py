@@ -6,7 +6,8 @@
 - app.services.chat.sandbox_worktree (POS: Shared git worktree lifecycle management for chat sandbox sessions.)
 
 [OUTPUT]
-- resolve_base_dir, resolve_workspace, cleanup_worktree, merge_task_worktree
+- resolve_base_dir, resolve_workspace, create_worktree, cleanup_worktree, merge_task_worktree
+- _sanitize_git_branch, _worktree_branch_name (分支名消毒/唯一化，测试直接引用)
 
 [POS]
 Git worktree isolation: resolve workspace path, create/cleanup per-task worktrees,

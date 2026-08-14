@@ -13,7 +13,7 @@ import {
 } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
-import { listChannelStatuses, MAX_CHANNEL_INSTANCES_PER_TYPE, type ChannelStatus } from '@/services/channels';
+import { getChannelInstanceMeta, listChannelStatuses, type ChannelStatus } from '@/services/channels';
 import { useChannelInstances } from '@/hooks/channels/useChannelInstances';
 import { FeishuQrRegisterDialog } from './FeishuQrRegisterDialog';
 import { FeishuCredentialsEditDialog } from './FeishuCredentialsEditDialog';
@@ -21,6 +21,7 @@ import { FeishuCredentialsEditDialog } from './FeishuCredentialsEditDialog';
 export function FeishuMultiAppSection() {
   const t = useTranslations('channels');
   const [statuses, setStatuses] = useState<ChannelStatus[]>([]);
+  const [maxInstances, setMaxInstances] = useState(0);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editChannelName, setEditChannelName] = useState<string | null>(null);
 
@@ -36,10 +37,17 @@ export function FeishuMultiAppSection() {
       .catch(() => setStatuses([]));
   }, []);
 
+  const refreshCapacity = useCallback(() => {
+    getChannelInstanceMeta()
+      .then((meta) => setMaxInstances(meta.maxInstancesPerType))
+      .catch(() => setMaxInstances(0));
+  }, []);
+
   useEffect(() => {
     void refresh();
     refreshStatuses();
-  }, [refresh, refreshStatuses]);
+    refreshCapacity();
+  }, [refresh, refreshStatuses, refreshCapacity]);
 
   const statusFor = useCallback(
     (channelName: string): ChannelStatus | undefined => statuses.find((s) => s.name === channelName),
@@ -49,18 +57,20 @@ export function FeishuMultiAppSection() {
   const handleQrSuccess = useCallback(() => {
     void refresh();
     refreshStatuses();
-  }, [refresh, refreshStatuses]);
+    refreshCapacity();
+  }, [refresh, refreshStatuses, refreshCapacity]);
 
   const handleCredentialsSaved = useCallback(() => {
     void refresh();
     refreshStatuses();
-  }, [refresh, refreshStatuses]);
+    refreshCapacity();
+  }, [refresh, refreshStatuses, refreshCapacity]);
 
   const handleAddClick = useCallback(() => {
     setAddDialogOpen(true);
   }, []);
 
-  const atInstanceLimit = instances.length >= MAX_CHANNEL_INSTANCES_PER_TYPE;
+  const atInstanceLimit = maxInstances > 0 && instances.length >= maxInstances;
 
   if (loading) {
     return (
@@ -84,7 +94,7 @@ export function FeishuMultiAppSection() {
           className="shrink-0 text-xs gap-1.5"
           onClick={handleAddClick}
           disabled={atInstanceLimit}
-          title={atInstanceLimit ? t('feishuMultiAppLimitReached', { count: instances.length, max: MAX_CHANNEL_INSTANCES_PER_TYPE }) : undefined}
+          title={atInstanceLimit ? t('feishuMultiAppLimitReached', { count: instances.length, max: maxInstances }) : undefined}
         >
           <IconPlus className="h-3.5 w-3.5" />
           {t('feishuAddApp')}
@@ -93,7 +103,7 @@ export function FeishuMultiAppSection() {
 
       {atInstanceLimit && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
-          {t('feishuMultiAppLimitReached', { count: instances.length, max: MAX_CHANNEL_INSTANCES_PER_TYPE })}
+          {t('feishuMultiAppLimitReached', { count: instances.length, max: maxInstances })}
         </p>
       )}
 

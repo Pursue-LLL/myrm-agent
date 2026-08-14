@@ -38,6 +38,16 @@ logger = logging.getLogger(__name__)
 # ── Instance CRUD ──────────────────────────────────────────
 
 
+@router.get("/instances/meta")
+async def get_channel_instances_meta() -> dict[str, int]:
+    """Return channel instance capacity metadata (e.g. per-type limit)."""
+    from app.core.channel_bridge import channel_gateway
+
+    return {
+        "maxInstancesPerType": channel_gateway.max_instances_per_type,
+    }
+
+
 @router.get("/instances", response_model=list[ChannelInstanceResponse])
 async def list_channel_instances(
     channel_type: str | None = None,
@@ -259,7 +269,8 @@ async def save_channel_credentials(
     """Save channel credentials to the database (encrypted) and hot-reload.
 
     Only the submitted fields are overwritten; credentials omitted from the
-    request (e.g. ``botOpenId`` when only rotating ``appSecret``) are kept.
+    request (e.g. ``verificationToken`` when only rotating ``appSecret``) are
+    kept.
     When the channel is currently registered in the gateway, it is rebuilt
     from the merged credentials with the same instance id so that agent
     bindings and the channel name are preserved. When it is not registered,

@@ -12408,8 +12408,6 @@
     "feishuDesc": "配置飛書應用憑證以啟用飛書機器人訊息通道。",
     "feishuAppId": "App ID",
     "feishuAppSecret": "App Secret",
-    "feishuBotOpenId": "Bot Open ID",
-    "feishuBotOpenIdHint": "用於 @mention 檢測，可在飛書開放平臺獲取",
     "feishuVerificationToken": "Verification Token",
     "feishuVerificationTokenHint": "用於 Webhook 安全驗證",
     "feishuOptional": "可選",

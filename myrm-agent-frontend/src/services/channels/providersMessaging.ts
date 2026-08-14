@@ -62,7 +62,6 @@ export async function logoutWeChatChannel(channelName: string = 'wechat'): Promi
 export interface FeishuCredentials {
   appId: string;
   appSecret: string;
-  botOpenId: string;
   verificationToken: string;
   encryptKey: string;
   useLark: boolean;

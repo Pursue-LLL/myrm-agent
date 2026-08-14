@@ -12,7 +12,7 @@ tools, memory, security).
 - myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: Goal lifecycle protocol.)
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: Session-level goal management.)
 - task_runner.stream::build_multimodal_query (POS: Multimodal query assembly.)
-- task_runner.worktree::resolve_workspace, cleanup_worktree (POS: Git worktree isolation.)
+- task_runner.worktree::resolve_workspace, cleanup_worktree, merge_task_worktree (POS: Git worktree isolation.)
 - task_runner.profile::resolve_agent_profile (POS: Agent profile resolution.)
 
 [OUTPUT]

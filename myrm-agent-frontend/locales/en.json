@@ -12510,8 +12510,6 @@
     "feishuDesc": "Configure Feishu app credentials to enable Feishu bot messaging channel.",
     "feishuAppId": "App ID",
     "feishuAppSecret": "App Secret",
-    "feishuBotOpenId": "Bot Open ID",
-    "feishuBotOpenIdHint": "Used for @mention detection, can be obtained from Feishu Open Platform",
     "feishuVerificationToken": "Verification Token",
     "feishuVerificationTokenHint": "Used for webhook security verification",
     "feishuOptional": "Optional",

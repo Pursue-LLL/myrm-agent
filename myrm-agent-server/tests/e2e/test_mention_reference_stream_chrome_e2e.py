@@ -227,6 +227,7 @@ def test_kept_prior_chat_mention_reaches_real_stream_payload() -> None:
             f"""(async () => {{
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return {{ ok: false, err: 'no-bridge' }};
+  bridge.setActionMode?.('agent');
   const result = await bridge.sendChatMessage({json.dumps(message)}, {{ profile: 'live' }});
   return result;
 }})()""",
@@ -310,6 +311,7 @@ def test_zombie_prior_chat_mention_dropped_from_real_stream_payload() -> None:
             """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return { ok: false, err: 'no-bridge' };
+  bridge.setActionMode?.('agent');
   const result = await bridge.sendChatMessage('hello from e2e', { profile: 'live' });
   return result;
 })()""",
@@ -363,6 +365,7 @@ def test_inline_wiki_mention_parsed_into_real_stream_payload() -> None:
             """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return { ok: false, err: 'no-bridge' };
+  bridge.setActionMode?.('agent');
   const result = await bridge.sendChatMessage('@wiki:AlphaProject 请总结该概念', { profile: 'live' });
   return result;
 })()""",

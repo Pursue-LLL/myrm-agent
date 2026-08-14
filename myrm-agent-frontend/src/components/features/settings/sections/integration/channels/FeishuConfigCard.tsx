@@ -22,7 +22,6 @@ type RenderMode = FeishuCredentials['renderMode'];
 const EMPTY_CREDS: FeishuCredentials = {
   appId: '',
   appSecret: '',
-  botOpenId: '',
   verificationToken: '',
   encryptKey: '',
   useLark: false,
@@ -121,17 +120,6 @@ export function FeishuConfigCard() {
               {showSecret ? <IconEyeOff className="h-4 w-4" /> : <IconEye className="h-4 w-4" />}
             </button>
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="feishu-bot-id">{t('feishuBotOpenId')}</Label>
-          <Input
-            id="feishu-bot-id"
-            placeholder="ou_xxxxx"
-            value={creds.botOpenId}
-            onChange={(e) => handleChange('botOpenId', e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">{t('feishuBotOpenIdHint')}</p>
         </div>
 
         <div className="space-y-2">

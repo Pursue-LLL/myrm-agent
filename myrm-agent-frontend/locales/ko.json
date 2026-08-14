@@ -12184,8 +12184,6 @@
     "feishuDesc": "Feishu 봇 메시징 채널을 활성화하려면 Feishu 앱 자격 증명을 구성하세요.",
     "feishuAppId": "앱 ID",
     "feishuAppSecret": "앱 시크릿",
-    "feishuBotOpenId": "봇 Open ID",
-    "feishuBotOpenIdHint": "@멘션 감지에 사용되며 Feishu Open Platform에서 얻을 수 있습니다",
     "feishuVerificationToken": "검증 토큰",
     "feishuVerificationTokenHint": "웹훅 보안 검증에 사용됩니다",
     "feishuOptional": "선택 사항",

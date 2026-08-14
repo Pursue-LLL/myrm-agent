@@ -97,12 +97,14 @@ The test's strongest enemy is the excuse to skip it. Meet each one head-on:
 |--------|---------|
 | "Too simple to test" | Simple code breaks. Test takes 30 seconds. |
 | "I'll test after" | Tests passing immediately prove nothing — you never watched them fail. |
+| "Tests after achieve same goals" | Tests-after answer "what does this do?", not "what should this do?". You verify what you remembered, not what you'd have discovered. |
 | "Already manually tested" | Ad-hoc ≠ systematic. No record, can't re-run. |
 | "Deleting X hours is wasteful" | Sunk cost. Keeping unverified code is technical debt. |
 | "Keep as reference, write tests first" | You'll adapt it. That's testing after. Delete means delete. |
 | "Need to explore first" | Fine. Throw away exploration, start with TDD. |
 | "Test hard = design unclear" | Listen to the test. Hard to test = hard to use. |
 | "TDD will slow me down" | TDD beats debugging. Pragmatic = test-first. |
+| "Manual test faster" | Manual doesn't prove edge cases. You'll re-test every change. |
 | "Existing code has no tests" | You're improving it. Add tests for the code you touch. |
 | "This is different because..." | Rationalization. Start with TDD. |
 

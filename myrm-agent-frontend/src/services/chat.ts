@@ -1226,14 +1226,13 @@ export interface FissionTopologyResponse {
 
 export const getFissionTopology = async (chatId: string): Promise<FissionTopologyResponse | null> => {
   try {
-    const payload = await apiRequest<FissionTopologyResponse | { data?: FissionTopologyResponse | null }>(
-      `/chats/${chatId}/fission`,
-    );
-    if (!payload) {return null;}
-    if ('success' in payload && payload.success === true) {
-      return payload.data ?? null;
+    const raw = await apiRequest<unknown>(`/chats/${chatId}/fission`);
+    if (!raw) {return null;}
+    if (typeof raw === 'object' && 'data' in raw) {
+      const wrapped = raw as { data?: FissionTopologyResponse | null };
+      return wrapped.data ?? null;
     }
-    return payload as FissionTopologyResponse;
+    return raw as FissionTopologyResponse;
   } catch (error) {
     console.error('Failed to fetch fission topology:', error);
     return null;

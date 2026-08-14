@@ -22,7 +22,6 @@ interface QRPollResponse {
     appId: string;
     appSecret: string;
     useLark: string;
-    botOpenId: string;
   };
   instance_id?: string | null;
   channel_name?: string | null;

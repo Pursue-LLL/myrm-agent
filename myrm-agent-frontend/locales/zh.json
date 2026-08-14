@@ -12510,8 +12510,6 @@
     "feishuDesc": "配置飞书应用凭证以启用飞书机器人消息通道。",
     "feishuAppId": "App ID",
     "feishuAppSecret": "App Secret",
-    "feishuBotOpenId": "Bot Open ID",
-    "feishuBotOpenIdHint": "用于 @mention 检测，可在飞书开放平台获取",
     "feishuVerificationToken": "Verification Token",
     "feishuVerificationTokenHint": "用于 Webhook 安全验证",
     "feishuOptional": "可选",
