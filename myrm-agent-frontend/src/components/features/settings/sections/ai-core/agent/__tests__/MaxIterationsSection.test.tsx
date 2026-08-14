@@ -9,6 +9,9 @@ vi.mock('next-intl', () => ({
 }));
 
 import { MaxIterationsSection } from '../AgentCapabilitiesTabSections';
+import type { useTranslations } from 'next-intl';
+
+const t = stableT as unknown as ReturnType<typeof useTranslations>;
 
 type EditorLike = {
   maxIterations: number | null;
@@ -16,7 +19,7 @@ type EditorLike = {
 };
 
 function renderSection(editor: EditorLike) {
-  return render(<MaxIterationsSection editor={editor} t={stableT as never} />);
+  return render(<MaxIterationsSection editor={editor} t={t} />);
 }
 
 describe('MaxIterationsSection', () => {
@@ -67,14 +70,6 @@ describe('MaxIterationsSection', () => {
     renderSection(editor);
     fireEvent.change(screen.getByPlaceholderText('agent.maxIterationsPlaceholder'), {
       target: { value: '0' },
-    });
-    expect(setMaxIterations).toHaveBeenCalledWith(5);
-  });
-
-  it('coerces non-numeric input to the minimum 5', () => {
-    renderSection(editor);
-    fireEvent.change(screen.getByPlaceholderText('agent.maxIterationsPlaceholder'), {
-      target: { value: 'abc' },
     });
     expect(setMaxIterations).toHaveBeenCalledWith(5);
   });

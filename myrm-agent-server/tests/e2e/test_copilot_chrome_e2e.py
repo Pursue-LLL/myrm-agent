@@ -104,16 +104,46 @@ _SET_CHAT_LOADING_JS = """(() => {
   return { ok: true, loading: bridge.getChatShellState?.().loading === true };
 })()"""
 
+_SELECTION_SNIPPET_READY_JS = """(() => {
+  const needle = 'connection refused';
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    const value = node.textContent || '';
+    if (value.includes(needle) && node.parentElement?.closest?.('[data-message-id]')) {
+      return { ready: true };
+    }
+    node = walker.nextNode();
+  }
+  return { ready: false };
+})()"""
+
 _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
-  const state = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {};
-  const messages = Array.isArray(state.messages) ? state.messages : [];
-  const contents = messages.map((m) => ({
-    role: m.role,
-    content: (m.content || '').slice(0, 120),
-    len: (m.content || '').length,
-    id: m.messageId,
-  }));
-  return { ok: false, err: 'diag', contents };
+  window.__E2E_RFA_TICKS = 0;
+  requestAnimationFrame(() => { window.__E2E_RFA_TICKS = (window.__E2E_RFA_TICKS ?? 0) + 1; });
+  const needle = 'connection refused';
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    const value = node.textContent || '';
+    const msgContainer = node.parentElement?.closest?.('[data-message-id]');
+    if (value.includes(needle) && msgContainer) {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      msgContainer.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      return {
+        ok: true,
+        selected: selection?.toString?.() || '',
+        target: msgContainer.tagName,
+        msgId: msgContainer.getAttribute?.('data-message-id') || '',
+      };
+    }
+    node = walker.nextNode();
+  }
+  return { ok: false, err: 'snippet-not-found-in-message' };
 })()"""
 
 _QUOTE_ADVISOR_READY_JS = """(() => {
@@ -229,8 +259,9 @@ def test_copilot_desktop_and_mobile_full_flows() -> None:
 
         set_loading = client.evaluate(page, _SET_CHAT_LOADING_JS, timeout_sec=10.0)
         assert isinstance(set_loading, dict) and set_loading.get("ok") is True, set_loading
+        snippet_ready = wait_for_state(client, page, _SELECTION_SNIPPET_READY_JS, timeout_sec=30.0)
+        assert snippet_ready.get("ready") is True, snippet_ready
         selected = client.evaluate(page, _SELECT_ASSISTANT_SNIPPET_JS, timeout_sec=15.0)
-        print("MYRM_DIAG_SELECTED=" + json.dumps(selected, ensure_ascii=False)[:2000])
         assert isinstance(selected, dict) and selected.get("ok") is True, selected
         quote_ready = wait_for_state(client, page, _QUOTE_ADVISOR_READY_JS, timeout_sec=30.0)
         assert quote_ready.get("ready") is True, quote_ready
