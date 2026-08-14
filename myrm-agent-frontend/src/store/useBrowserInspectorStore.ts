@@ -12,7 +12,7 @@
  * per-chat turn engagement (which chat's turn drives browser events and must be torn down;
  * release reclaims the view owned by the ending turn even if its engagement slot was
  * overwritten by another pane, and keeps viewData owned by another chat / a manually
- * opened panel untouched, so parallel panes are never force-closed).
+ * opened panel (isTurnView=false) untouched, so parallel panes are never force-closed).
  */
 
 import { create } from 'zustand';
@@ -30,6 +30,8 @@ export interface BrowserViewData {
   viewportWidth: number;
   viewportHeight: number;
   sourceChatId: string;
+  /** True when produced by an agent turn event (BROWSER_VIEW_UPDATE); false for manual snapshots (fetchSnapshot). */
+  isTurnView?: boolean;
   updatedAt: number;
 }
 
@@ -82,7 +84,7 @@ interface BrowserInspectorState {
   markTurnEngaged: (chatId: string) => void;
   releaseTurnEngagement: (chatId: string) => void;
   setInstructionText: (text: string) => void;
-  fetchSnapshot: () => Promise<boolean>;
+  fetchSnapshot: (isTurnView?: boolean) => Promise<boolean>;
   reset: () => void;
 }
 
@@ -119,15 +121,17 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
   releaseTurnEngagement: (chatId) =>
     set((s) => {
       const ownsEngagement = s.engagedChatId === chatId;
-      const viewBelongsToTurn = s.viewData !== null && s.viewData.sourceChatId === chatId;
+      const viewBelongsToTurn =
+        s.viewData !== null && s.viewData.isTurnView === true && s.viewData.sourceChatId === chatId;
       if (!ownsEngagement && !viewBelongsToTurn) {
         // Unrelated turn / manually opened panel / already released: return the same
         // reference so zustand skips the subscription notify on a no-op.
         return s;
       }
-      if (s.viewData !== null && s.viewData.sourceChatId !== chatId) {
-        // viewData belongs to another turn that is still controlling: only return our
-        // ownership, keep that turn's view, active flag and panel untouched.
+      if (s.viewData !== null && (s.viewData.isTurnView !== true || s.viewData.sourceChatId !== chatId)) {
+        // A manual snapshot (isTurnView=false) belongs to the user, or the view belongs
+        // to another turn that is still controlling: only return our ownership, keep the
+        // view, active flag and panel untouched.
         return { engagedChatId: null };
       }
       // This turn owns the view (or engaged with no view at all): full teardown.
@@ -141,7 +145,7 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
       };
     }),
   setInstructionText: (text) => set({ instructionText: text }),
-  fetchSnapshot: async () => {
+  fetchSnapshot: async (isTurnView = false) => {
     if (get().isSnapshotLoading) {return false;}
     const { default: useChatStore } = await import('@/store/useChatStore');
     const chatId = useChatStore.getState().chatId?.trim();
@@ -165,6 +169,7 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
           viewportWidth: data.viewport_width,
           viewportHeight: data.viewport_height,
           sourceChatId: chatId,
+          isTurnView,
           updatedAt: Date.now(),
         },
       });

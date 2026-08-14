@@ -69,7 +69,9 @@ def _touch_progress(node: str) -> None:
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
 _FILE_EDIT_TOOL = "file_edit_tool"
+_FILE_WRITE_TOOL = "file_write_tool"
 _WORKSPACE_FILENAME = "batch_edit_e2e.txt"
+_CREATED_FILENAME = "created_e2e.txt"
 _MAX_CHAT_ATTEMPTS = 2
 
 _TRACE_LOG = Path("/tmp/revert_live_trace.log")
@@ -83,11 +85,12 @@ def _trace(stage: str, detail: str = "") -> None:
         pass
 
 _LIVE_USER_PROMPT = (
-    f"The workspace file {_WORKSPACE_FILENAME} currently contains exactly these three lines:\n"
-    "line_a\nline_b\nline_c\n"
-    "You MUST actually modify the file by calling file_edit_tool exactly once with an edits "
-    "array containing {{'old_str': 'line_a', 'new_str': 'LINE_A'}}. Do NOT stop after reading "
-    "or inspecting the file. After the edit succeeds, reply REVERT_LIVE_OK."
+    f"Use file_write_tool to create a new workspace file named {_CREATED_FILENAME} "
+    "whose content is exactly:\n"
+    "CREATED_E2E_CONTENT_LINE_ONE\n"
+    "CREATED_E2E_CONTENT_LINE_TWO\n"
+    "The file does not exist yet. Do NOT read or inspect files first — just create "
+    f"{_CREATED_FILENAME} with that content, then reply REVERT_LIVE_OK."
 )
 
 _PIN_LITE_MODEL_JS = """(() => {
@@ -120,10 +123,9 @@ def _create_revert_live_agent(api_url: str) -> str:
         "name": f"RevertFiles LIVE {suffix}",
         "description": "Chrome LIVE E2E for revert-files after page reload",
         "system_prompt": (
-            "You edit workspace files with file_read_tool and file_edit_tool. "
-            "When the user explicitly asks to modify a file, you MUST call file_edit_tool "
-            "with old_str/new_str edits and actually change the file — reading it alone is "
-            "not enough. Reply REVERT_LIVE_OK when the edit succeeds."
+            "You create workspace files with file_write_tool. When the user asks you "
+            "to create a file, call file_write_tool with the exact path and content — "
+            "reading files is not required. Reply REVERT_LIVE_OK after the file is created."
         ),
         "skill_ids": [],
         "mcp_ids": [],
@@ -155,34 +157,50 @@ def _seed_workspace_file(api_url: str, chat_id: str) -> dict[str, object]:
 
 
 def _file_edit_invoked_in_messages(chat_id: str, *, api_url: str) -> tuple[bool, str]:
+    """Detect a REAL file_write_tool/file_edit_tool call from persisted progressSteps.
+
+    Blob substring search is unreliable: the LLM often mentions the tool name in
+    its reply text without invoking it, which would false-positive the invocation
+    flag. We only trust tool-call records in ``progressSteps`` (step_key/tool_name).
+    """
     last_assistant = ""
     invoked = False
     for msg in fetch_chat_messages(chat_id, api_url=api_url):
         if not isinstance(msg, dict):
             continue
-        blob = json.dumps(msg, ensure_ascii=False, default=str)
-        if _FILE_EDIT_TOOL in blob:
-            invoked = True
+        metadata = msg.get("metadata")
+        raw_steps = msg.get("progressSteps") or (
+            metadata.get("progressSteps") if isinstance(metadata, dict) else None
+        )
+        for step in raw_steps or []:
+            if not isinstance(step, dict):
+                continue
+            key = str(step.get("step_key") or step.get("tool_name") or "")
+            if key.startswith(_FILE_WRITE_TOOL) or key.startswith(_FILE_EDIT_TOOL):
+                invoked = True
+                break
+        if invoked:
+            break
         if msg.get("role") == "assistant":
             last_assistant = str(msg.get("content") or "")
     return invoked, last_assistant
 
 
-_SEED_CONTENT = "line_a\nline_b\nline_c\n"
+_CREATED_CONTENT = "CREATED_E2E_CONTENT_LINE_ONE\nCREATED_E2E_CONTENT_LINE_TWO\n"
 
 
-def _assert_edited(file_path: Path) -> None:
+def _assert_created(file_path: Path) -> None:
     content = file_path.read_text(encoding="utf-8")
-    assert content != _SEED_CONTENT, f"file unchanged by agent turn: {content!r}"
-
-
-def _assert_restored(file_path: Path) -> None:
-    content = file_path.read_text(encoding="utf-8")
-    lines = content.splitlines()
-    assert "line_a" in lines and "line_b" in lines and "line_c" in lines, (
-        f"seed lines missing after restore: {content!r}"
+    assert content == _CREATED_CONTENT, (
+        f"file created by agent turn differs from expected: {content!r}"
     )
-    assert "LINE_A" not in content, f"agent edit not reverted: {content!r}"
+
+
+def _assert_deleted(file_path: Path) -> None:
+    assert not file_path.exists(), (
+        f"created file not removed by revert: {file_path} "
+        f"content={file_path.read_text(encoding='utf-8')!r}"
+    )
 
 
 _HYDRATE_WITH_REQUEST_ID_JS = """(() => {
@@ -214,7 +232,7 @@ _PROBE_REVERT_CHANGES_JS = """(() => {
       const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${mid}`);
       const body = await res.text();
       last = {
-        ok: res.ok && body.startsWith('[') && body.includes('batch_edit_e2e.txt'),
+        ok: res.ok && body.startsWith('[') && body.includes('created_e2e.txt'),
         status: res.status,
         chatId,
         messageId: msg.messageId,
@@ -268,7 +286,7 @@ _CLICK_REVERT_AND_WAIT_POPOVER_JS = """(() => {
       const popover = document.querySelector('[data-radix-popper-content-wrapper]');
       const text = popover?.textContent || '';
       const hasConfirm = /Undo these changes\\?|撤销这些变更？/i.test(text);
-      const hasFile = /batch_edit_e2e\\.txt/i.test(text);
+      const hasFile = /created_e2e\\.txt/i.test(text);
       const hasAction = /Confirm revert|确认撤销/i.test(text);
       if (popover && hasConfirm && hasFile && hasAction) {
         return { ready: true, sample: text.slice(0, 400) };
@@ -369,15 +387,17 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         deadline = time.monotonic() + timeout_sec
         last_api = ("", False)
         seen_turn_end: bool = False
+        _last_ui_trace: float | None = None
         _trace("wait_turn_start", f"timeout={timeout_sec}s")
 
         def _finalize(source: str, assistant_text: str) -> dict[str, object]:
             try:
-                _assert_edited(file_path)
+                _assert_created(file_path)
             except AssertionError:
                 raise AssertionError(
-                    f"agent turn ended but file unchanged: {file_path} "
-                    f"content={file_path.read_text(encoding='utf-8')!r} "
+                    f"agent turn ended but file not created: {file_path} "
+                    f"exists={file_path.exists()!r} "
+                    f"content={file_path.read_text(encoding='utf-8') if file_path.exists() else '<missing>'!r} "
                     f"assistant={assistant_text[:400]!r}"
                 ) from None
             _trace("turn_ok", f"source={source}")
@@ -407,6 +427,17 @@ async def test_revert_files_live_agent_after_reload_restores_file(
                 intent=EvaluateIntent.BRIDGE_POLL,
             )
             ui = raw if isinstance(raw, dict) else {"value": raw}
+            if _last_ui_trace is None or time.monotonic() - _last_ui_trace >= 10.0:
+                _last_ui_trace = time.monotonic()
+                _trace(
+                    "turn_poll",
+                    "stream=%s users=%s invoked=%s created=%s sample=%r",
+                    ui.get("isStreaming"),
+                    ui.get("userCount"),
+                    invoked,
+                    file_path.exists(),
+                    str(ui.get("sample") or "")[:120],
+                )
             if (
                 ui.get("hasDone") is True
                 and ui.get("isStreaming") is False
@@ -414,18 +445,20 @@ async def test_revert_files_live_agent_after_reload_restores_file(
             ):
                 return _finalize("ui", str(ui.get("sample") or ""))
 
-            # 回合结束判定：streaming 停止 + 用户消息已发。LLM 完成工具调用后
-            # 可能不输出 REVERT_LIVE_OK 文本（collector.content 为空仍 finalize），
-            # 此时以「文件真实修改 + 回合结束」为准，不再死等 marker。
+            # 回合结束判定：streaming 停止 + 用户消息已发。以「文件真实创建」为
+            # 成功硬证据（此时 SnapshotObserver 快照必已记录）；invoked 仅用于诊断。
             if (
                 ui.get("isStreaming") is False
                 and int(ui.get("userCount") or 0) >= 1
-                and invoked
             ):
-                if not seen_turn_end:
-                    seen_turn_end = True
-                    _trace("turn_end_seen", f"invoked={invoked}")
-                return _finalize("ui", str(ui.get("sample") or ""))
+                if file_path.exists():
+                    if not seen_turn_end:
+                        seen_turn_end = True
+                        _trace("turn_end_seen", f"created={file_path.exists()}")
+                    return _finalize("ui", str(ui.get("sample") or ""))
+                if invoked:
+                    # 真实工具调用已持久化但文件缺失：快速失败诊断，不再空等。
+                    return _finalize("ui", str(ui.get("sample") or ""))
             await asyncio.sleep(1.5)
         raise AssertionError(
             f"Live revert turn did not complete; api_assistant={last_api[0][:400]!r}; "
@@ -470,8 +503,10 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         assert chat_id, "Expected client chat id after new chat before seeding workspace"
 
         workspace_seed = _seed_workspace_file(api_base, chat_id)
-        file_path = Path(str(workspace_seed["file_path"]))
-        assert file_path.is_file(), workspace_seed
+        seed_path = Path(str(workspace_seed["file_path"]))
+        assert seed_path.is_file(), workspace_seed
+        file_path = seed_path.parent / _CREATED_FILENAME
+        assert not file_path.exists(), f"created file must not exist pre-turn: {file_path}"
 
         send_result = await chat.send_message(_LIVE_USER_PROMPT, _LIVE_USER_PROMPT)
         _trace("send_done", str(send_result.get("submit", {}).get("chatId") or ""))
@@ -570,7 +605,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
             success, ensure_ascii=False
         )
 
-        _assert_restored(file_path)
+        _assert_deleted(file_path)
         _trace("restore_ok")
 
         e2e_resource_ledger.register("chat", resolved_chat_id)
@@ -595,7 +630,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
                 await chat.bootstrap(agent_url, timeout_sec=180.0)
                 await _apply_bootstrap(chat)
                 chat_id, file_path = await _run_flow(chat)
-            _assert_restored(file_path)
+            _assert_deleted(file_path)
             assert chat_id
             break
         except (AssertionError, RuntimeError, TimeoutError) as exc:

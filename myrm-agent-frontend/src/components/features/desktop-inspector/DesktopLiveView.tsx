@@ -243,7 +243,7 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
           mode={mode}
           onModeChange={setMode}
           onClose={closePanel}
-          onRefresh={fetchSnapshot}
+          onRefresh={() => void fetchSnapshot(false)}
           isLoading={isSnapshotLoading}
           title={headerTitle}
           subtitle={scopedViewData?.appName}

@@ -38,6 +38,18 @@ _run_fractal_docs() {
   _fractal "${SERVER_ROOT}/scripts/check_file_line_budget.py"
 }
 
+_run_md_refs() {
+  local harness_root py
+  if ! harness_root="$(myrm_ci_resolve_harness_root)"; then
+    echo "CI md-refs: harness source unavailable (PyPI mode); skipping markdown ref check"
+    return 0
+  fi
+  py="${SERVER_ROOT}/.venv/bin/python"
+  [[ -x "${py}" ]] || py="python3"
+  "${py}" "${harness_root}/scripts/validate_arch_inventory.py" \
+    --root "${SERVER_ROOT}" --md-refs
+}
+
 _run_ruff() {
   if [[ -x "${SERVER_ROOT}/.venv/bin/ruff" ]]; then
     "${SERVER_ROOT}/.venv/bin/ruff" check .
@@ -56,6 +68,7 @@ _run_prometheus_rules_semantic_check() {
 
 myrm_ci_install_server_deps --reuse-venv
 _run_fractal_docs
+_run_md_refs
 _run_ruff
 _run_prometheus_rules_semantic_check
 _run_pytest

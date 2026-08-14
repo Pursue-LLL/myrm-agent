@@ -48,7 +48,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
         state.messages.push({
           content: '',
           messageId: data.messageId,
-          chatId: state.messages[0]?.chatId || '',
+          chatId: H.resolveStreamChatId(ctx.state),
           role: 'assistant',
           progressSteps: [errorStep],
           createdAt: new Date(),

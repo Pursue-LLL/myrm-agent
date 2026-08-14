@@ -222,25 +222,17 @@ async def update_channel_display_name(
 @router.get("/{channel_name}/credentials")
 async def get_channel_credentials(
     channel_name: str,
-    db: AsyncSession = Depends(get_db),
 ) -> dict[str, str | bool]:
     """Get channel credentials (with sensitive fields redacted)."""
-    from app.database.models import UserConfig
+    from app.services.config.service import ConfigService
 
     config_key = channel_credentials_key(channel_name)
+    record = await ConfigService().get(config_key)
 
-    row = (
-        await db.execute(
-            select(UserConfig).where(
-                UserConfig.config_key == config_key,
-            )
-        )
-    ).scalar_one_or_none()
-
-    if not row or not isinstance(row.config_value, dict):
+    if record is None:
         return {}
 
-    credentials = dict(row.config_value)
+    credentials = dict(record.value)
 
     for key, value in credentials.items():
         if isinstance(value, str) and any(sensitive in key.lower() for sensitive in ["token", "password", "secret", "key"]):
@@ -256,39 +248,12 @@ async def get_channel_credentials(
 async def save_channel_credentials(
     channel_name: str,
     credentials: dict[str, str],
-    db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    """Save channel credentials to database."""
-    from app.database.models import UserConfig
+    """Save channel credentials to database (encrypted for sensitive keys)."""
+    from app.services.config.service import ConfigService
 
     config_key = channel_credentials_key(channel_name)
-
-    row = (
-        await db.execute(
-            select(UserConfig).where(
-                UserConfig.config_key == config_key,
-            )
-        )
-    ).scalar_one_or_none()
-
-    version = f"{int(asyncio.get_running_loop().time() * 1000)}_0"
-
-    if row:
-        row.config_value = credentials
-        row.version = version
-        row.last_device_id = "web"
-    else:
-        row = UserConfig(
-            id=nanoid(size=16),
-            config_key=config_key,
-            config_value=credentials,
-            version=version,
-            last_device_id="web",
-            is_encrypted=False,
-        )
-        db.add(row)
-
-    await db.commit()
+    await ConfigService().set(config_key, credentials, device_id="web")
 
     from app.core.channel_bridge import channel_gateway
 

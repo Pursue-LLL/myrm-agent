@@ -4,6 +4,7 @@ Tests wiki functionality with actual LLM calls (no mocks).
 """
 
 import os
+import uuid
 from pathlib import Path
 
 import pytest
@@ -170,3 +171,53 @@ async def test_incremental_compilation_with_real_llm(
 
     # Should only process new file
     assert result3.concepts_count > 0, "Should extract concepts from new file"
+
+
+@pytest.mark.asyncio
+async def test_first_compile_preserves_raw_provenance_with_real_llm(
+    llm: ChatOpenAI,
+    wiki_structure: WikiStructure,
+) -> None:
+    """First compile of a concept from a provenance-carrying raw file must retain source_chat.
+
+    Auto-archived turns write ``source_chat``/``source_message`` into raw frontmatter;
+    the very first compile of the concept (no existing article) must lift that
+    provenance into the generated article so the concept detail panel can deep-link.
+    """
+    from myrm_agent_harness.toolkits.wiki import WikiCompiler
+    from myrm_agent_harness.toolkits.wiki.core.types import ConceptInfo
+
+    config = WikiConfig(parallel_compilation=False, auto_archive_enabled=False)
+    compile_config = WikiCompileConfig(
+        min_concept_mentions=1, require_approval=False
+    )
+    compiler = WikiCompiler(llm, wiki_structure, config, compile_config)
+
+    raw_name = f"turn_chat-e2e-provenance_{uuid.uuid4().hex[:6]}.md"
+    wiki_structure.get_raw_file_path(raw_name).write_text(
+        "---\nsource_chat: chat-e2e-provenance\nsource_message: msg-e2e-provenance\n---\n\n"
+        "# Continuous Integration\n\n"
+        "Continuous integration automates testing on every change.\n",
+        encoding="utf-8",
+    )
+
+    concept = ConceptInfo(
+        name="ContinuousIntegrationE2E",
+        definition="Continuous integration practice.",
+        mentions=1,
+        source_files=[f"raw/{raw_name}"],
+    )
+    result = await compiler._generate_article(concept)
+    assert result == "published"
+
+    from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
+        load_frontmatter_metadata,
+    )
+
+    concept_path = wiki_structure.get_concept_file_path("ContinuousIntegrationE2E")
+    assert concept_path.exists(), "concept article must be published to disk"
+    metadata, _ = load_frontmatter_metadata(
+        concept_path.read_text(encoding="utf-8")
+    )
+    assert metadata.get("source_chat") == "chat-e2e-provenance"
+    assert metadata.get("source_message") == "msg-e2e-provenance"

@@ -353,8 +353,15 @@ async def test_api_create_instance_persists_credentials() -> None:
     async with get_session() as session:
         row = (await session.execute(select(UserConfig).where(UserConfig.config_key == config_key))).scalar_one_or_none()
     assert row is not None
-    assert row.config_value["appId"] == "cli_persist"
-    assert row.config_value["appSecret"] == "sec_persist"
+    assert row.is_encrypted is True
+    assert "_cipher" in row.config_value
+
+    from app.services.config.service import ConfigService
+
+    record = await ConfigService().get(config_key)
+    assert record is not None
+    assert record.value["appId"] == "cli_persist"
+    assert record.value["appSecret"] == "sec_persist"
 
     async with get_session() as session:
         await session.execute(UserConfig.__table__.delete())

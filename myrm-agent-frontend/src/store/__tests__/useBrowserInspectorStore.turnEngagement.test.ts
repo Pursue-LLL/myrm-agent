@@ -32,6 +32,7 @@ describe('useBrowserInspectorStore turn engagement', () => {
       viewportWidth: 1280,
       viewportHeight: 720,
       sourceChatId: 'c1',
+      isTurnView: false,
       updatedAt: Date.now(),
     });
 
@@ -71,6 +72,7 @@ describe('useBrowserInspectorStore turn engagement', () => {
       viewportWidth: 1280,
       viewportHeight: 720,
       sourceChatId: 'c1',
+      isTurnView: true,
       updatedAt: Date.now(),
     });
 
@@ -101,6 +103,7 @@ describe('useBrowserInspectorStore turn engagement', () => {
       viewportWidth: 1280,
       viewportHeight: 720,
       sourceChatId: 'b',
+      isTurnView: false,
       updatedAt: Date.now(),
     });
     store.setInstructionText('draft');
@@ -148,6 +151,7 @@ describe('useBrowserInspectorStore turn engagement', () => {
       viewportWidth: 1280,
       viewportHeight: 720,
       sourceChatId: 'a',
+      isTurnView: true,
       updatedAt: Date.now(),
     });
 
@@ -165,6 +169,66 @@ describe('useBrowserInspectorStore turn engagement', () => {
     expect(state.viewData).toBeNull();
     expect(state.isBrowserActive).toBe(false);
     expect(state.isOpen).toBe(false);
+  });
+
+  it('releaseTurnEngagement does not close a manually opened panel when the SAME chat turn ends', () => {
+    const store = useBrowserInspectorStore.getState();
+    // User opened the panel manually (Cmd+B -> fetchSnapshot): the view is marked
+    // isTurnView=false and no turn is engaged.
+    store.openPanel();
+    store.setBrowserActive(true);
+    store.updateViewData({
+      screenshotBase64: 'x',
+      mimeType: 'image/jpeg',
+      refs: {},
+      pageUrl: 'https://example.com',
+      pageTitle: 'Example',
+      viewportWidth: 1280,
+      viewportHeight: 720,
+      sourceChatId: 'c1',
+      isTurnView: false,
+      updatedAt: Date.now(),
+    });
+
+    // The same chat later ends one of its turns: the manually opened panel stays open.
+    useBrowserInspectorStore.getState().releaseTurnEngagement('c1');
+
+    const state = useBrowserInspectorStore.getState();
+    expect(state.engagedChatId).toBeNull();
+    expect(state.isBrowserActive).toBe(true);
+    expect(state.isOpen).toBe(true);
+    expect(state.viewData).not.toBeNull();
+  });
+
+  it('releaseTurnEngagement keeps a manual snapshot even when the same chat is still engaged', () => {
+    const store = useBrowserInspectorStore.getState();
+    // The turn is engaged (TOOL_START) and the user manually refreshes via Cmd+B:
+    // the manual snapshot (isTurnView=false) must survive the turn's own teardown.
+    store.markTurnEngaged('c1');
+    store.setBrowserActive(true);
+    store.openPanel();
+    store.updateViewData({
+      screenshotBase64: 'x',
+      mimeType: 'image/jpeg',
+      refs: {},
+      pageUrl: 'https://example.com',
+      pageTitle: 'Example',
+      viewportWidth: 1280,
+      viewportHeight: 720,
+      sourceChatId: 'c1',
+      isTurnView: false,
+      updatedAt: Date.now(),
+    });
+    store.setInstructionText('draft');
+
+    useBrowserInspectorStore.getState().releaseTurnEngagement('c1');
+
+    const state = useBrowserInspectorStore.getState();
+    expect(state.engagedChatId).toBeNull();
+    expect(state.isBrowserActive).toBe(true);
+    expect(state.isOpen).toBe(true);
+    expect(state.viewData).not.toBeNull();
+    expect(state.instructionText).toBe('draft');
   });
 
   it('reset clears engagedChatId', () => {

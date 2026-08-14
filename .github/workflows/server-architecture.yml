@@ -6,6 +6,7 @@ on:
       - 'myrm-agent-server/app/**'
       - 'myrm-agent-server/assets/**'
       - 'myrm-agent-server/tests/architecture/**'
+      - 'myrm-agent-server/**/*.md'
       - 'myrm-agent-server/pyproject.toml'
       - 'myrm-agent-server/uv.lock'
       - 'myrm-agent-server/Dockerfile'

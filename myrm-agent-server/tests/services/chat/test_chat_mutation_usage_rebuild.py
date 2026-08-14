@@ -117,3 +117,78 @@ async def test_switch_sibling_rebuilds_usage_for_active_sibling(db_session: Asyn
     calls, tokens, usd = await _chat_usage(db_session, chat_id)
     assert (calls, tokens) == (8, 7200)
     assert abs(usd - 0.35) < 1e-6
+
+
+@pytest.mark.asyncio
+async def test_retry_last_turn_rebuilds_usage(db_session: AsyncSession) -> None:
+    """Retrying deletes the trailing response so its usage leaves the cache."""
+    chat_id = "chat-usage-retry"
+    _chat_usage_cache.invalidate(chat_id)
+    await _seed(chat_id)
+
+    await db_session.rollback()
+    assert await _chat_usage(db_session, chat_id) == (8, 7200, 0.35)
+
+    result = await ChatService.retry_last_turn(chat_id)
+    assert result.success is True
+    assert result.deleted_count == 1
+
+    await db_session.rollback()
+    calls, tokens, usd = await _chat_usage(db_session, chat_id)
+    assert (calls, tokens) == (5, 6000)
+    assert abs(usd - 0.2) < 1e-6
+
+
+@pytest.mark.asyncio
+async def test_truncate_after_message_rebuilds_usage(db_session: AsyncSession) -> None:
+    """Truncating from a message drops the usage of every removed message."""
+    chat_id = "chat-usage-truncate"
+    _chat_usage_cache.invalidate(chat_id)
+    await _seed(chat_id)
+
+    await db_session.rollback()
+    assert await _chat_usage(db_session, chat_id) == (8, 7200, 0.35)
+
+    result = await ChatService.truncate_after_message(chat_id, "msg-u2")
+    assert result.success is True
+    assert result.deleted_count == 2
+
+    await db_session.rollback()
+    calls, tokens, usd = await _chat_usage(db_session, chat_id)
+    assert (calls, tokens) == (5, 6000)
+    assert abs(usd - 0.2) < 1e-6
+
+
+@pytest.mark.asyncio
+async def test_rewind_to_message_rebuilds_usage(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rewinding deletes the target user message and later turns, rebuilding usage."""
+    async def _noop(*_args: object, **_kwargs: object) -> bool:
+        return False
+
+    monkeypatch.setattr(
+        "app.services.chat.session_continuity_service.pause_active_goal_for_rewind",
+        _noop,
+    )
+    monkeypatch.setattr(
+        "app.services.chat.chat_turn._ChatTurnMixin._cleanup_orphan_snapshots",
+        AsyncMock(),
+    )
+
+    chat_id = "chat-usage-rewind"
+    _chat_usage_cache.invalidate(chat_id)
+    await _seed(chat_id)
+
+    await db_session.rollback()
+    assert await _chat_usage(db_session, chat_id) == (8, 7200, 0.35)
+
+    result = await ChatService.rewind_to_message(chat_id, "msg-u2")
+    assert result.success is True
+    assert result.deleted_count == 2
+
+    await db_session.rollback()
+    calls, tokens, usd = await _chat_usage(db_session, chat_id)
+    assert (calls, tokens) == (5, 6000)
+    assert abs(usd - 0.2) < 1e-6

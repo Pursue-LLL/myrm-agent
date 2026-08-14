@@ -215,9 +215,9 @@ class TestPublicSharePage:
         assert resp.status_code == 303
         assert resp.headers["location"].endswith(f"/public/chat-share/{token}")
 
-        from app.api.chats.chat.share import _unlock_cookie_name
+        from app.core.security.share_unlock import unlock_cookie_name
 
-        cookie = share_client.cookies.get(_unlock_cookie_name(token))
+        cookie = share_client.cookies.get(unlock_cookie_name("chat_share_unlock", token))
         assert cookie is not None
 
         with (
@@ -234,7 +234,7 @@ class TestPublicSharePage:
         ):
             content = share_client.get(
                 f"/public/chat-share/{token}",
-                headers={"Cookie": f"{_unlock_cookie_name(token)}={cookie}"},
+                headers={"Cookie": f"{unlock_cookie_name('chat_share_unlock', token)}={cookie}"},
             )
         assert content.status_code == 200
         assert "Shared" in content.text
@@ -266,7 +266,7 @@ class TestPublicSharePage:
             )
         assert unlock.status_code == 303
 
-        from app.api.chats.chat.share import _unlock_cookie_name
+        from app.core.security.share_unlock import unlock_cookie_name
 
         cookie = unlock.headers["set-cookie"].split(";")[0].split("=", 1)[1]
         with (
@@ -283,7 +283,7 @@ class TestPublicSharePage:
         ):
             resp = share_client.get(
                 f"/public/chat-share/{token}",
-                headers={"Cookie": f"{_unlock_cookie_name(token)}={cookie}"},
+                headers={"Cookie": f"{unlock_cookie_name('chat_share_unlock', token)}={cookie}"},
             )
         assert resp.status_code == 200
         assert "Shared" in resp.text

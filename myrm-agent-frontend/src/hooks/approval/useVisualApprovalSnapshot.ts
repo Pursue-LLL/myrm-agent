@@ -117,10 +117,10 @@ export function useVisualApprovalSnapshot(requests: ToolApprovalRequest[]): {
 
       const tasks: Promise<boolean>[] = [];
       if (needsDesktopSnapshot(requests)) {
-        tasks.push(useDesktopInspectorStore.getState().fetchSnapshot());
+        tasks.push(useDesktopInspectorStore.getState().fetchSnapshot(true));
       }
       if (needsBrowserSnapshot(requests)) {
-        tasks.push(useBrowserInspectorStore.getState().fetchSnapshot());
+        tasks.push(useBrowserInspectorStore.getState().fetchSnapshot(true));
       }
 
       if (tasks.length === 0) {

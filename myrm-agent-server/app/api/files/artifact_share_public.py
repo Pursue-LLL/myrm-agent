@@ -3,6 +3,7 @@
 [INPUT]
 - app.core.security.share_hmac (POS: HMAC signing + password-protection detection)
 - app.core.security.share_password_page (POS: password gate HTML + submission parsing)
+- app.core.security.share_unlock (POS: shared unlock-cookie credential mechanics)
 - app.services.artifacts.share_bundle (POS: multi-file static bundle materialization)
 - app.services.artifacts.share_registry (POS: revocation gate check)
 - app.services.artifacts.share_token::ArtifactShareClaims (POS: HMAC claims)
@@ -28,9 +29,7 @@ re-authenticates via the unlock cookie instead of a password parameter.
 
 from __future__ import annotations
 
-import hashlib
 import logging
-import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
@@ -38,14 +37,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_workspace_root
 from app.core.infra.limiter import limiter
-from app.core.security.share_hmac import (
-    create_share_token,
-    is_password_protected,
-    parse_share_token,
-)
+from app.core.security.share_hmac import is_password_protected
 from app.core.security.share_password_page import (
     render_password_gate_html,
     resolve_gate_password,
+)
+from app.core.security.share_unlock import (
+    attach_unlock_cookie,
+    parse_unlock_credential,
+    unlock_cookie_name,
 )
 from app.database.connection import get_db
 from app.services.artifacts.share_bundle import (
@@ -111,47 +111,9 @@ def _file_response(path: str, media_type: str, filename: str) -> FileResponse:
     )
 
 
-def _unlock_cookie_name(token: str) -> str:
-    """Per-share cookie name so concurrent password shares never collide.
-
-    A single fixed cookie name would be overwritten when a user opens several
-    password-protected shares, causing later asset requests to authorize against
-    the wrong share's credentials.
-    """
-    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
-    return f"{_UNLOCK_COOKIE_NAME}_{digest}"
-
-
-def _build_unlock_credential(claims: ArtifactShareClaims) -> str | None:
-    """Issue a short-lived credential after a correct password unlock.
-
-    Stateless HMAC token that carries the same artifact identity, type, and
-    expiry as the share token, so static-asset requests (which cannot carry
-    the password) are authorized without re-entering it and keep resolving
-    the correct media type for extension-less entries.
-    """
-    remaining = claims.exp - int(time.time())
-    if remaining < 60:
-        return None
-    payload: dict[str, object] = {
-        "aid": claims.artifact_id,
-        "vid": claims.version_id,
-        "exp": claims.exp,
-    }
-    if claims.artifact_type and claims.artifact_type.strip():
-        payload["typ"] = claims.artifact_type.strip().lower()
-    credential, _ = create_share_token(
-        payload,
-        salt=_UNLOCK_SALT,
-        ttl_seconds=remaining,
-        max_ttl_seconds=30 * 24 * 3600,
-    )
-    return credential
-
-
 def _unlock_claims_from_cookie(value: str) -> ArtifactShareClaims | None:
-    """Recover share claims from a signed unlock credential, or ``None``."""
-    parsed = parse_share_token(value, salt=_UNLOCK_SALT)
+    """Recover artifact share claims from a signed unlock credential."""
+    parsed = parse_unlock_credential(value, salt=_UNLOCK_SALT)
     if parsed is None:
         return None
     artifact_id = parsed.get("aid")
@@ -186,21 +148,20 @@ def _attach_unlock_cookie(
     Returns ``True`` when the cookie was issued (share has enough remaining
     TTL), ``False`` when it was skipped (no password or share about to expire).
     """
-    if not password:
-        return False
-    credential = _build_unlock_credential(claims)
-    if credential is None:
-        return False
-    response.set_cookie(
-        key=_unlock_cookie_name(token),
-        value=credential,
-        max_age=max(0, claims.exp - int(time.time())),
+    payload: dict[str, object] = {"aid": claims.artifact_id, "vid": claims.version_id}
+    if claims.artifact_type and claims.artifact_type.strip():
+        payload["typ"] = claims.artifact_type.strip().lower()
+    return attach_unlock_cookie(
+        response,
+        cookie_prefix=_UNLOCK_COOKIE_NAME,
+        salt=_UNLOCK_SALT,
         path=_UNLOCK_COOKIE_PATH,
-        httponly=True,
-        samesite="strict",
+        payload=payload,
+        exp=claims.exp,
+        token=token,
+        password=password,
         secure=secure,
     )
-    return True
 
 
 async def _serve_share_bundle(
@@ -249,7 +210,7 @@ def _auth_or_gate(
     """
     protected = is_password_protected(token)
     if protected and not password:
-        unlock = request.cookies.get(_unlock_cookie_name(token))
+        unlock = request.cookies.get(unlock_cookie_name(_UNLOCK_COOKIE_NAME, token))
         if unlock:
             unlocked_claims = _unlock_claims_from_cookie(unlock)
             if unlocked_claims is not None:

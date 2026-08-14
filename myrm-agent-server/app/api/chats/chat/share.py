@@ -6,6 +6,7 @@
 - app.services.chat.chat_service::ChatService (POS: chat metadata)
 - app.core.security.share_hmac (POS: password-protection detection)
 - app.core.security.share_password_page (POS: password gate HTML + submission parsing)
+- app.core.security.share_unlock (POS: shared unlock-cookie credential mechanics)
 
 [OUTPUT]
 - router: authenticated create/revoke endpoints
@@ -23,8 +24,6 @@ client-side HTML export.
 
 from __future__ import annotations
 
-import hashlib
-import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -35,14 +34,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
-from app.core.security.share_hmac import (
-    create_share_token,
-    is_password_protected,
-    parse_share_token,
-)
+from app.core.security.share_hmac import is_password_protected
 from app.core.security.share_password_page import (
     render_password_gate_html,
     resolve_gate_password,
+)
+from app.core.security.share_unlock import (
+    attach_unlock_cookie,
+    parse_unlock_credential,
+    unlock_cookie_name,
 )
 from app.database.connection import get_db
 from app.database.models.chat import Chat
@@ -78,34 +78,9 @@ _UNLOCK_SALT = "chat-share-unlock"
 _UNLOCK_COOKIE_PATH = "/api/v1/public/chat-share"
 
 
-def _unlock_cookie_name(token: str) -> str:
-    """Per-share cookie name so concurrent password shares never collide."""
-    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
-    return f"{_UNLOCK_COOKIE_NAME}_{digest}"
-
-
-def _build_unlock_credential(claims: ChatShareClaims) -> str | None:
-    """Issue a short-lived credential after a correct password unlock.
-
-    Stateless HMAC token carrying the same conversation identity and expiry as
-    the share token, so revisiting the link is authorized without re-entering
-    the password. Returns ``None`` when the share is about to expire.
-    """
-    remaining = claims.exp - int(time.time())
-    if remaining < 60:
-        return None
-    credential, _ = create_share_token(
-        {"cid": claims.chat_id},
-        salt=_UNLOCK_SALT,
-        ttl_seconds=remaining,
-        max_ttl_seconds=30 * 24 * 3600,
-    )
-    return credential
-
-
 def _unlock_claims_from_cookie(value: str) -> ChatShareClaims | None:
-    """Recover share claims from a signed unlock credential, or ``None``."""
-    parsed = parse_share_token(value, salt=_UNLOCK_SALT)
+    """Recover conversation share claims from a signed unlock credential."""
+    parsed = parse_unlock_credential(value, salt=_UNLOCK_SALT)
     if parsed is None:
         return None
     chat_id = parsed.get("cid")
@@ -128,21 +103,17 @@ def _attach_unlock_cookie(
     Returns ``True`` when the cookie was issued, ``False`` when skipped (no
     password or share about to expire).
     """
-    if not password:
-        return False
-    credential = _build_unlock_credential(claims)
-    if credential is None:
-        return False
-    response.set_cookie(
-        key=_unlock_cookie_name(token),
-        value=credential,
-        max_age=max(0, claims.exp - int(time.time())),
+    return attach_unlock_cookie(
+        response,
+        cookie_prefix=_UNLOCK_COOKIE_NAME,
+        salt=_UNLOCK_SALT,
         path=_UNLOCK_COOKIE_PATH,
-        httponly=True,
-        samesite="strict",
+        payload={"cid": claims.chat_id},
+        exp=claims.exp,
+        token=token,
+        password=password,
         secure=secure,
     )
-    return True
 
 
 class CreateChatShareRequest(BaseModel):
@@ -237,7 +208,7 @@ async def get_public_chat_share(
     protected = is_password_protected(token)
     claims: ChatShareClaims | None
     if protected and not password:
-        unlock = request.cookies.get(_unlock_cookie_name(token))
+        unlock = request.cookies.get(unlock_cookie_name(_UNLOCK_COOKIE_NAME, token))
         if unlock:
             claims = _unlock_claims_from_cookie(unlock)
         else:

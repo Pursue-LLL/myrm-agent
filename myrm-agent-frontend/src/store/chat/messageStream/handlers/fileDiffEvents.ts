@@ -157,6 +157,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       viewportWidth: data.data.viewport_width,
       viewportHeight: data.data.viewport_height,
       sourceChatId,
+      isTurnView: true,
       updatedAt: Date.now(),
     });
     if (typeof window !== 'undefined' && data.data.refs) {
@@ -192,6 +193,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       screenHeight: data.data.screen_height,
       dpiScale: data.data.dpi_scale,
       sourceChatId,
+      isTurnView: true,
       updatedAt: Date.now(),
     });
     if (typeof window !== 'undefined' && data.data.refs) {

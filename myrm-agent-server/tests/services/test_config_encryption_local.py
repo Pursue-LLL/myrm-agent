@@ -40,6 +40,8 @@ def test_local_mode_encryption_service():
     assert is_sensitive_config("orgMcpServers") is True
     assert is_sensitive_config("mcpOAuthTokens") is True
     assert is_sensitive_config("oauthCredentials") is True
+    assert is_sensitive_config("feishu_a1b2c3Credentials") is True
+    assert is_sensitive_config("wechat_x9y8z7Credentials") is True
     assert is_sensitive_config("chatSettings") is False
 
 

@@ -152,7 +152,7 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
           mode={mode}
           onModeChange={setMode}
           onClose={closePanel}
-          onRefresh={fetchSnapshot}
+          onRefresh={() => void fetchSnapshot(false)}
           pageUrl={scopedViewData?.pageUrl}
           pageTitle={scopedViewData?.pageTitle}
           isLoading={isSnapshotLoading}

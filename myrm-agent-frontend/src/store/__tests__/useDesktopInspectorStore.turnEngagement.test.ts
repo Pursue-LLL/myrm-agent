@@ -34,6 +34,7 @@ describe('useDesktopInspectorStore turn engagement', () => {
       viewportWidth: 100,
       viewportHeight: 100,
       sourceChatId: 'c1',
+      isTurnView: false,
       updatedAt: Date.now(),
     });
 
@@ -75,6 +76,7 @@ describe('useDesktopInspectorStore turn engagement', () => {
       viewportWidth: 100,
       viewportHeight: 100,
       sourceChatId: 'c1',
+      isTurnView: true,
       updatedAt: Date.now(),
     });
 
@@ -107,6 +109,7 @@ describe('useDesktopInspectorStore turn engagement', () => {
       viewportWidth: 100,
       viewportHeight: 100,
       sourceChatId: 'b',
+      isTurnView: false,
       updatedAt: Date.now(),
     });
     store.setInstructionText('draft');
@@ -156,6 +159,7 @@ describe('useDesktopInspectorStore turn engagement', () => {
       viewportWidth: 100,
       viewportHeight: 100,
       sourceChatId: 'a',
+      isTurnView: true,
       updatedAt: Date.now(),
     });
 
@@ -173,6 +177,70 @@ describe('useDesktopInspectorStore turn engagement', () => {
     expect(state.viewData).toBeNull();
     expect(state.isDesktopActive).toBe(false);
     expect(state.isOpen).toBe(false);
+  });
+
+  it('releaseTurnEngagement does not close a manually opened panel when the SAME chat turn ends', () => {
+    const store = useDesktopInspectorStore.getState();
+    // User opened the panel manually (fetchSnapshot): the view is marked
+    // isTurnView=false and no turn is engaged.
+    store.openPanel();
+    store.setDesktopActive(true);
+    store.updateViewData({
+      screenshotBase64: 'x',
+      mimeType: 'image/png',
+      refs: {},
+      appName: 'Calculator',
+      windowTitle: '',
+      scope: 'app',
+      needsPermission: false,
+      viewportWidth: 100,
+      viewportHeight: 100,
+      sourceChatId: 'c1',
+      isTurnView: false,
+      updatedAt: Date.now(),
+    });
+
+    // The same chat later ends one of its turns: the manually opened panel stays open.
+    useDesktopInspectorStore.getState().releaseTurnEngagement('c1');
+
+    const state = useDesktopInspectorStore.getState();
+    expect(state.engagedChatId).toBeNull();
+    expect(state.isDesktopActive).toBe(true);
+    expect(state.isOpen).toBe(true);
+    expect(state.viewData).not.toBeNull();
+  });
+
+  it('releaseTurnEngagement keeps a manual snapshot even when the same chat is still engaged', () => {
+    const store = useDesktopInspectorStore.getState();
+    // The turn is engaged (TOOL_START) and the user manually refreshes via Cmd+B:
+    // the manual snapshot (isTurnView=false) must survive the turn's own teardown.
+    store.markTurnEngaged('c1');
+    store.setDesktopActive(true);
+    store.openPanel();
+    store.updateViewData({
+      screenshotBase64: 'x',
+      mimeType: 'image/png',
+      refs: {},
+      appName: 'Calculator',
+      windowTitle: '',
+      scope: 'app',
+      needsPermission: false,
+      viewportWidth: 100,
+      viewportHeight: 100,
+      sourceChatId: 'c1',
+      isTurnView: false,
+      updatedAt: Date.now(),
+    });
+    store.setInstructionText('draft');
+
+    useDesktopInspectorStore.getState().releaseTurnEngagement('c1');
+
+    const state = useDesktopInspectorStore.getState();
+    expect(state.engagedChatId).toBeNull();
+    expect(state.isDesktopActive).toBe(true);
+    expect(state.isOpen).toBe(true);
+    expect(state.viewData).not.toBeNull();
+    expect(state.instructionText).toBe('draft');
   });
 
   it('reset clears engagedChatId', () => {

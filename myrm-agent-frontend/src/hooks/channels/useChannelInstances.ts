@@ -28,7 +28,6 @@ interface UseChannelInstancesResult {
   extraInstances: ChannelInstance[];
   loading: boolean;
   adding: boolean;
-  defaultLabel: string;
   refresh: () => Promise<void>;
   addInstance: (displayName?: string, credentials?: Record<string, string>) => Promise<ChannelInstance | null>;
   removeInstance: (instanceId: string) => Promise<boolean>;
@@ -43,16 +42,11 @@ export function useChannelInstances(options: UseChannelInstancesOptions): UseCha
   const [instances, setInstances] = useState<ChannelInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [defaultLabel, setDefaultLabel] = useState('');
 
   const refresh = useCallback(async () => {
     try {
       const all = await listChannelInstances(optionsRef.current.channelType);
-      const primary = all.find((i) => i.channelName === optionsRef.current.primaryName);
-      if (primary?.displayName) {
-        setDefaultLabel(primary.displayName);
-      }
-      setInstances(all.filter((i) => i.channelName !== optionsRef.current.primaryName));
+      setInstances(all);
     } catch {
       setInstances([]);
     } finally {
@@ -118,12 +112,12 @@ export function useChannelInstances(options: UseChannelInstancesOptions): UseCha
     [t],
   );
 
+  const primaryName = optionsRef.current.primaryName;
   return {
     instances,
-    extraInstances: instances,
+    extraInstances: instances.filter((i) => i.channelName !== primaryName),
     loading,
     adding,
-    defaultLabel,
     refresh,
     addInstance,
     removeInstance,

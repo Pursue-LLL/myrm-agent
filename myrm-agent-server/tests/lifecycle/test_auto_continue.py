@@ -126,6 +126,99 @@ async def test_auto_continue_success_persists_message():
 
 
 @pytest.mark.asyncio
+async def test_auto_continue_forwards_token_economics_to_persist():
+    """message_end token_economics is collected and persisted as extra_data.
+
+    Guards the message-level cost ledger contract: the auto-continue resume
+    path must keep Chat.total_* rebuildable from the same tokenEconomics
+    snapshot that the canonical stream_finalize path stores.
+    """
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    token_economics = {
+        "call_count": 3,
+        "total_cost_usd": 0.12,
+        "usage": {"total_tokens": 1500},
+    }
+
+    async def _fake_stream(*_a, **_kw):
+        yield {"type": "message", "data": "recovered "}
+        yield {"type": "message", "data": "reply"}
+        yield {"type": "message_end", "usage": {}, "token_economics": token_economics}
+
+    mock_persist = AsyncMock()
+    mock_notif = AsyncMock()
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            mock_notif,
+        ),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+
+        from app.lifecycle.system import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
+
+    mock_persist.assert_awaited_once()
+    persist_args = mock_persist.call_args
+    assert persist_args[0][0] == "chat-auto-001"
+    assert persist_args[0][1] == "recovered reply"
+    assert persist_args[1]["extra_data"] == {"tokenEconomics": token_economics}
+
+
+@pytest.mark.asyncio
+async def test_auto_continue_without_token_economics_persists_without_extra_data():
+    """A message_end without token_economics persists with extra_data=None."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    async def _fake_stream(*_a, **_kw):
+        yield {"type": "message", "data": "recovered reply"}
+        yield {"type": "message_end", "usage": {}}
+
+    mock_persist = AsyncMock()
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            AsyncMock(),
+        ),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+
+        from app.lifecycle.system import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
+
+    mock_persist.assert_awaited_once()
+    persist_args = mock_persist.call_args
+    assert persist_args[1]["extra_data"] is None
+
+
+@pytest.mark.asyncio
 async def test_auto_continue_disabled_by_preference():
     """When user disables autoContinueInterruptedTurns, scanning is skipped."""
     factory, db = _mock_session_factory()

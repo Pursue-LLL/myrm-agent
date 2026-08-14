@@ -174,7 +174,7 @@ wechat_d4e5f6   ← 额外实例 2
 - 类型识别使用 `BaseChannel.channel_type` 正式属性（由工厂设置），回退到 `__class__.name`
 - `BaseChannel.display_name` 提供用户友好的实例名称，`BaseChannel.instance_id` property 从 name 和 channel_type 自动派生
 - **配置持久化**：实例元数据（channelType / instanceId / displayName）存储在 `UserConfig` 表中（key=`channel-instances`），服务重启后自动恢复
-- **实例级登录**：每个实例通过 `/{channel_name}/wechat-status` 和 `/{channel_name}/wechat-login` 独立完成 QR 扫码登录，实例登录凭据存储在 `UserConfig.config_key` 列（key 形如 `{channel_name}Credentials`，如 `wechat_a1b2c3Credentials`），读取/删除统一经 `channel_credentials_key()` 解析（默认实例走 `_CHANNEL_CONFIG_KEYS` 映射，额外实例回退 `{channel_name}Credentials`）
+- **实例级登录**：每个实例通过 `/{channel_name}/wechat-status` 和 `/{channel_name}/wechat-login` 独立完成 QR 扫码登录，实例登录凭据存储在 `UserConfig.config_key` 列（key 形如 `{channel_name}Credentials`，如 `wechat_a1b2c3Credentials`），读取/删除统一经 `channel_credentials_key()` 解析（默认实例走 `_CHANNEL_CONFIG_KEYS` 映射，额外实例回退 `{channel_name}Credentials`）。凭据经 `ConfigService` 加密落库：凡以 `Credentials` 结尾的 key 均按敏感配置加密存储（`is_sensitive_config` 后缀匹配），读取时透明解密
 
 ### 3.3 MessageBus
 

@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from app.services.config.encryption import SENSITIVE_CONFIG_KEYS, get_encryption_service
+from app.services.config.encryption import get_encryption_service, is_sensitive_config
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,7 +52,7 @@ async def migrate_configs_to_encrypted(db: "AsyncSession") -> dict[str, int]:
     stats = {"migrated": 0, "skipped": 0, "errors": 0}
 
     for config in configs:
-        if config.config_key not in SENSITIVE_CONFIG_KEYS:
+        if not is_sensitive_config(config.config_key):
             stats["skipped"] += 1
             continue
 
@@ -119,7 +119,7 @@ async def migrate_configs_with_recovery_key(db: "AsyncSession", recovery_key: by
     stats = {"migrated": 0, "skipped": 0, "failed": 0}
 
     for config in configs:
-        if config.config_key not in SENSITIVE_CONFIG_KEYS:
+        if not is_sensitive_config(config.config_key):
             stats["skipped"] += 1
             continue
 
@@ -188,7 +188,7 @@ async def validate_recovery_key(db: "AsyncSession", recovery_key: bytes) -> dict
     stats = {"recoverable": 0, "skipped": 0, "failed": 0}
 
     for config in configs:
-        if config.config_key not in SENSITIVE_CONFIG_KEYS:
+        if not is_sensitive_config(config.config_key):
             stats["skipped"] += 1
             continue
 

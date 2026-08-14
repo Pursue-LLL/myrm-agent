@@ -66,8 +66,16 @@ SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
 
 
 def is_sensitive_config(key: str) -> bool:
-    """Check whether a config key contains sensitive data (API keys etc.)."""
-    return key in SENSITIVE_CONFIG_KEYS
+    """Check whether a config key contains sensitive data (API keys etc.).
+
+    Matches the exact whitelist in ``SENSITIVE_CONFIG_KEYS`` plus any
+    channel-instance credential key (``<channel>_<id>Credentials``) so that
+    multi-instance credentials get the same encryption treatment as their
+    default-instance counterparts.
+    """
+    if key in SENSITIVE_CONFIG_KEYS:
+        return True
+    return key.endswith("Credentials")
 
 
 class ConfigEncryptionService:

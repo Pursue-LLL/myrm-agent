@@ -304,6 +304,9 @@ async def _dispatch_auto_continue(
         from app.services.agent.execution_cache.types import ExecutionMode
         from app.services.agent.runtime_context import build_agent_runtime_context
         from app.services.agent.streaming import ai_agent_service_stream
+        from app.services.agent.streaming_support.stream_collector_helpers import (
+            string_keyed_dict,
+        )
         from app.services.chat.chat_service import ChatService
 
         params = GeneralAgentParams.model_validate(marker.serialized_params)
@@ -325,23 +328,33 @@ async def _dispatch_auto_continue(
         )
 
         collected_parts: list[str] = []
+        token_economics: dict[str, object] | None = None
         stream = ai_agent_service_stream(
             params=params,
             cancel_token=token,
             extra_context=runtime_context,
         )
         async for chunk in stream:
-            if isinstance(chunk, dict) and chunk.get("type") == "message":
-                data = chunk.get("data")
-                if isinstance(data, str):
-                    collected_parts.append(data)
+            if not isinstance(chunk, dict):
+                continue
+            event_type = chunk.get("type")
+            if event_type == "message" and isinstance(chunk.get("data"), str):
+                collected_parts.append(chunk["data"])
+            elif event_type == "message_end":
+                # Keep the persisted snapshot aligned with the canonical path:
+                # stream_finalize extracts token_economics from this same event.
+                token_economics = string_keyed_dict(chunk.get("token_economics"))
 
         if collected_parts and marker.chat_id:
+            extra_data: dict[str, object] | None = None
+            if token_economics:
+                extra_data = {"tokenEconomics": token_economics}
             await ChatService.persist_assistant_message_safe(
                 marker.chat_id,
                 "".join(collected_parts),
                 timezone=params.timezone,
                 request_message_id=params.message_id,
+                extra_data=extra_data,
             )
 
         logger.info("[Auto-continue] Completed for chat: %s", marker.chat_id)

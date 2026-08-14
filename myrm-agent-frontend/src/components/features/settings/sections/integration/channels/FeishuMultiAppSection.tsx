@@ -20,14 +20,10 @@ export function FeishuMultiAppSection() {
   const t = useTranslations('channels');
   const [statuses, setStatuses] = useState<ChannelStatus[]>([]);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [showLabelInput, setShowLabelInput] = useState(false);
-  const [newLabel, setNewLabel] = useState('');
-  const labelInputRef = useRef<HTMLInputElement>(null);
 
   const {
     extraInstances,
     loading,
-    adding,
     refresh,
     removeInstance,
     renameInstance,
@@ -63,8 +59,6 @@ export function FeishuMultiAppSection() {
 
   const handleAddClick = useCallback(() => {
     setAddDialogOpen(true);
-    setShowLabelInput(false);
-    setNewLabel('');
   }, []);
 
   if (loading) {
@@ -110,7 +104,6 @@ export function FeishuMultiAppSection() {
       <FeishuQrRegisterDialog
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
-        displayName={newLabel.trim() || undefined}
         allowLabel
         onSuccess={handleQrSuccess}
       />

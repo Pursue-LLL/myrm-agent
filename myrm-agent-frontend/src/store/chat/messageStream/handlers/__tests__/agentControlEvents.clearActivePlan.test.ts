@@ -4,9 +4,17 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockClearActivePlan = vi.fn();
-const mockUnmarkProcessing = vi.fn();
-const mockReleaseTurnInspectorControls = vi.fn();
+const {
+  mockClearActivePlan,
+  mockUnmarkProcessing,
+  mockReleaseTurnInspectorControls,
+  mockFindAssistantMessageIndex,
+} = vi.hoisted(() => ({
+  mockClearActivePlan: vi.fn(),
+  mockUnmarkProcessing: vi.fn(),
+  mockReleaseTurnInspectorControls: vi.fn(),
+  mockFindAssistantMessageIndex: vi.fn(() => 0),
+}));
 
 vi.mock('@/store/chat/goals/usePlanStore', () => ({
   usePlanStore: { getState: () => ({ clearActivePlan: mockClearActivePlan }) },
@@ -35,7 +43,7 @@ vi.mock('../handlerDeps', () => ({
     CONTEXT_REFERENCE_WARNING: 'context_reference_warning',
     PTC_NOTIFY: 'ptc_notify',
   },
-  findAssistantMessageIndex: vi.fn(() => 0),
+  findAssistantMessageIndex: mockFindAssistantMessageIndex,
   getUserFriendlyError: vi.fn(async () => ({ message: 'Error', hint: undefined })),
   releaseInspectorControls: (chatId: string) => mockReleaseTurnInspectorControls(chatId),
   resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
@@ -135,5 +143,25 @@ describe('agentControlEvents clearActivePlan', () => {
 
     expect(mockReleaseTurnInspectorControls).toHaveBeenCalledTimes(1);
     expect(mockReleaseTurnInspectorControls).toHaveBeenCalledWith('c1');
+  });
+
+  it('creates the error message with the resolved chatId for a brand-new chat', async () => {
+    mockFindAssistantMessageIndex.mockReturnValue(-1);
+    const messages: Array<Record<string, unknown>> = [];
+    const ctx = makeCtx('error', { error: 'Something failed' });
+    ctx.state = {
+      messages,
+      messageAppeared: false,
+      loading: true,
+      chatId: 'c1',
+    } as never;
+    ctx.actions.setMessages = ((updater: (s: Record<string, unknown>) => void) => {
+      updater({ messages, messageAppeared: false, loading: true });
+    }) as never;
+
+    await agentControlEvents(ctx);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ chatId: 'c1', role: 'assistant' });
   });
 });

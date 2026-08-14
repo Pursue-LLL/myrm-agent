@@ -138,6 +138,36 @@ def _run_compound_api_assertions(api_url: str) -> None:
     assert duplicate_status == 409
 
 
+def _run_compound_approve_concept_provenance(api_url: str) -> None:
+    """Full loop: compound → approve → publish → get_concept returns provenance."""
+    chat_id, _user_id, assistant_id = _seed_compound_chat(api_url)
+    concept_name = f"ChatCompounds/2026-08/closure-{uuid.uuid4().hex[:8]}"
+
+    compound = _compound_post(
+        api_url,
+        chat_id=chat_id,
+        message_id=assistant_id,
+        concept_name=concept_name,
+    )
+    assert compound.get("success") is True
+    pending_edit_id = compound.get("pending_edit_id")
+    assert isinstance(pending_edit_id, int) and pending_edit_id > 0
+
+    approved = http_json(
+        "POST",
+        f"{api_url.rstrip('/')}/api/v1/wiki/pending/{pending_edit_id}/approve",
+        {},
+    )
+    assert approved.get("success") is True
+
+    concept = http_json(
+        "GET",
+        f"{api_url.rstrip('/')}/api/v1/wiki/concepts/{concept_name}",
+    )
+    assert concept.get("source_chat") == chat_id, concept
+    assert concept.get("source_message") == assistant_id, concept
+
+
 @pytest.mark.chrome_e2e(
     execution_mode="SHARED", access_scope="READ", workload="STANDARD"
 )
@@ -191,3 +221,12 @@ def test_wiki_compound_live_api_rejects_user_message_role() -> None:
         expected_statuses=frozenset({422}),
     )
     assert detail.get("detail", {}).get("code") == "invalid_role"
+
+
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_wiki_compound_approve_publishes_provenance() -> None:
+    """Full loop on live stack: compound → approve → publish → get_concept provenance."""
+    api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
+    _run_compound_approve_concept_provenance(api_url)

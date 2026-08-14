@@ -18,15 +18,14 @@ from app.api.files.artifact_share_public import (
     _HTML_MEDIA_TYPES,
     _SHARE_SECURITY_HEADERS,
     _attach_unlock_cookie,
-    _build_unlock_credential,
     _file_response,
     _serve_share_bundle,
     _unlock_claims_from_cookie,
-    _unlock_cookie_name,
     public_router,
 )
 from app.core.infra.limiter import limiter
 from app.core.security.share_hmac import create_share_token, sign_share_token
+from app.core.security.share_unlock import build_unlock_credential, unlock_cookie_name
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.services.artifacts.share_bundle import (
@@ -1166,7 +1165,7 @@ async def test_password_share_unlock_cookie_keeps_extensionless_media_type(
     )
     assert first.status_code == 200
     assert first.headers["content-type"].startswith("application/pdf")
-    cookie_name = _unlock_cookie_name(token)
+    cookie_name = unlock_cookie_name("artifact_share_unlock", token)
     unlock = share_client.cookies.get(cookie_name)
     assert unlock is not None
 
@@ -1391,7 +1390,7 @@ async def test_password_share_redirect_preserves_query(
     )
     assert redirect.status_code == 307
     assert redirect.headers["location"].endswith(f"/{token}/?p=s3cret")
-    assert share_client.cookies.get(_unlock_cookie_name(token)) is not None
+    assert share_client.cookies.get(unlock_cookie_name("artifact_share_unlock", token)) is not None
 
 
 @pytest.mark.asyncio
@@ -1451,7 +1450,7 @@ async def test_password_share_asset_served_after_unlock(
         f"/public/artifact-share/{token}/?p=s3cret", follow_redirects=False
     )
     assert entry.status_code == 200
-    cookie_name = _unlock_cookie_name(token)
+    cookie_name = unlock_cookie_name("artifact_share_unlock", token)
     unlock = share_client.cookies.get(cookie_name)
     assert unlock is not None
 
@@ -1488,7 +1487,7 @@ async def test_password_single_file_share_serves_without_redirect(
     )
     assert entry.status_code == 200
     assert "set-cookie" in entry.headers
-    assert share_client.cookies.get(_unlock_cookie_name(token)) is not None
+    assert share_client.cookies.get(unlock_cookie_name("artifact_share_unlock", token)) is not None
 
 
 @pytest.mark.asyncio
@@ -1573,13 +1572,13 @@ async def test_password_shares_use_independent_cookies(
         )
     first_token = first.json()["token"]
     second_token = second.json()["token"]
-    assert _unlock_cookie_name(first_token) != _unlock_cookie_name(second_token)
+    assert unlock_cookie_name("artifact_share_unlock", first_token) != unlock_cookie_name("artifact_share_unlock", second_token)
 
     first_entry = share_client.get(
         f"/public/artifact-share/{first_token}/?p=s3cret", follow_redirects=False
     )
     assert first_entry.status_code == 200
-    first_unlock = share_client.cookies.get(_unlock_cookie_name(first_token))
+    first_unlock = share_client.cookies.get(unlock_cookie_name("artifact_share_unlock", first_token))
     assert first_unlock is not None
 
     second_entry = share_client.get(
@@ -1589,7 +1588,7 @@ async def test_password_shares_use_independent_cookies(
 
     first_asset = share_client.get(
         f"/public/artifact-share/{first_token}/styles.css",
-        headers={"Cookie": f"{_unlock_cookie_name(first_token)}={first_unlock}"},
+        headers={"Cookie": f"{unlock_cookie_name("artifact_share_unlock", first_token)}={first_unlock}"},
     )
     assert first_asset.status_code == 200
     assert "body" in first_asset.text
@@ -1600,7 +1599,12 @@ def test_unlock_credential_rejects_short_remaining() -> None:
     claims = ArtifactShareClaims(
         artifact_id="a", version_id="v", exp=int(time.time()) + 30
     )
-    assert _build_unlock_credential(claims) is None
+    assert (
+        build_unlock_credential(
+            {"aid": "a", "vid": "v"}, salt="artifact-share-unlock", exp=claims.exp
+        )
+        is None
+    )
 
 
 def test_unlock_credential_roundtrip() -> None:
@@ -1608,7 +1612,9 @@ def test_unlock_credential_roundtrip() -> None:
     claims = ArtifactShareClaims(
         artifact_id="a", version_id="v", exp=int(time.time()) + 3600
     )
-    credential = _build_unlock_credential(claims)
+    credential = build_unlock_credential(
+        {"aid": "a", "vid": "v"}, salt="artifact-share-unlock", exp=claims.exp
+    )
     assert credential is not None
     recovered = _unlock_claims_from_cookie(credential)
     assert recovered is not None
@@ -1624,7 +1630,11 @@ def test_unlock_credential_roundtrip_keeps_artifact_type() -> None:
         exp=int(time.time()) + 3600,
         artifact_type="document",
     )
-    credential = _build_unlock_credential(claims)
+    credential = build_unlock_credential(
+        {"aid": "a", "vid": "v", "typ": "document"},
+        salt="artifact-share-unlock",
+        exp=claims.exp,
+    )
     assert credential is not None
     recovered = _unlock_claims_from_cookie(credential)
     assert recovered is not None
@@ -1794,7 +1804,7 @@ async def test_password_share_post_unlock_single_file(
     )
     assert unlocked.status_code == 303
     assert unlocked.headers["location"].endswith(f"/public/artifact-share/{token}")
-    cookie_name = _unlock_cookie_name(token)
+    cookie_name = unlock_cookie_name("artifact_share_unlock", token)
     unlock = share_client.cookies.get(cookie_name)
     assert unlock is not None
 
@@ -1842,7 +1852,7 @@ async def test_password_share_post_unlock_multi_file_redirects_to_index(
     )
     assert unlocked.status_code == 303
     assert unlocked.headers["location"].endswith(f"/{token}/")
-    assert share_client.cookies.get(_unlock_cookie_name(token)) is not None
+    assert share_client.cookies.get(unlock_cookie_name("artifact_share_unlock", token)) is not None
 
 
 @pytest.mark.asyncio
@@ -1878,7 +1888,7 @@ async def test_password_share_post_index_redirects_to_clean_index(
     )
     assert unlocked.status_code == 303
     assert unlocked.headers["location"].endswith(f"/{token}/")
-    assert share_client.cookies.get(_unlock_cookie_name(token)) is not None
+    assert share_client.cookies.get(unlock_cookie_name("artifact_share_unlock", token)) is not None
 
 
 @pytest.mark.asyncio
@@ -1914,7 +1924,7 @@ async def test_password_share_post_asset_unlock_redirects(
     )
     assert unlocked.status_code == 303
     assert unlocked.headers["location"].endswith(f"/{token}/styles.css")
-    cookie_name = _unlock_cookie_name(token)
+    cookie_name = unlock_cookie_name("artifact_share_unlock", token)
     unlock = share_client.cookies.get(cookie_name)
     assert unlock is not None
 

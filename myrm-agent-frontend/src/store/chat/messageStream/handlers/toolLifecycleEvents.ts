@@ -13,7 +13,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     ctx.recievedMessage = '';
 
     const toolName = data.tool_name ?? '';
-    const streamChatId = state.messages[0]?.chatId?.trim() ?? '';
+    const streamChatId = H.resolveStreamChatId(state);
     if (toolName.startsWith('browser_')) {
       const { default: inspectorStore } = await import('@/store/useBrowserInspectorStore');
       const { default: useChatStore } = await import('@/store/useChatStore');
@@ -80,10 +80,10 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       // re-fetch here would re-capture the wrong foreground window (e.g. Chrome).
       const { default: desktopStore } = await import('@/store/useDesktopInspectorStore');
       const { default: useChatStore } = await import('@/store/useChatStore');
-      const streamChatId = state.messages[0]?.chatId?.trim() ?? '';
+      const streamChatId = H.resolveStreamChatId(state);
       const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
       if (streamChatId && activeChatId && streamChatId === activeChatId) {
-        void desktopStore.getState().fetchSnapshot();
+        void desktopStore.getState().fetchSnapshot(true);
       }
     }
 
