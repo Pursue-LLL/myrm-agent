@@ -339,6 +339,7 @@ export interface MemoryCommandRuntimeStatus {
   memory_base_path: string;
   relational_status: 'available' | 'unavailable';
   vector_status: 'available' | 'unavailable';
+  vector_persistence: 'persistent' | 'memory_fallback' | 'unavailable';
   graph_status: 'available' | 'unavailable';
   embedding_status: 'custom' | 'unavailable';
   control_plane_status: 'not_used' | 'proxied_by_sandbox';

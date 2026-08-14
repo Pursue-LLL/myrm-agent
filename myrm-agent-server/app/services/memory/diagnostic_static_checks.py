@@ -54,17 +54,45 @@ def probe_memory_base_path(runtime: MemoryCommandRuntimeStatus) -> MemoryCommand
 
 
 def probe_vector_index(runtime: MemoryCommandRuntimeStatus) -> MemoryCommandDoctorCheck:
+    memory_fallback = runtime.vector_persistence == "memory_fallback"
+    status: DiagnosticStatus
+    if memory_fallback:
+        status = "warning"
+    elif runtime.vector_status == "available":
+        status = "ready"
+    else:
+        status = "missing"
+    evidence = f"Vector recall backend is {runtime.vector_status}."
+    impact = (
+        "Semantic and episodic memories need vector search for high-recall cross-session retrieval."
+        if not memory_fallback
+        else "The embedded vector store degraded to an in-memory instance: new memories will be lost on restart."
+    )
+    next_action = (
+        "No action required."
+        if status == "ready"
+        else (
+            "Restore a writable memory storage path and restart the service so memories persist again."
+            if memory_fallback
+            else "Enable vector storage and configure embeddings."
+        )
+    )
+    repair_actions: list[str]
+    if status == "ready":
+        repair_actions = []
+    elif memory_fallback:
+        repair_actions = ["review_storage_config", "run_diagnostics"]
+    else:
+        repair_actions = ["enable_vector_store", "configure_embedding"]
     return MemoryCommandDoctorCheck(
         id="vector_index",
         category="index",
         label="Vector index",
-        status="ready" if runtime.vector_status == "available" else "missing",
-        evidence=f"Vector recall backend is {runtime.vector_status}.",
-        impact="Semantic and episodic memories need vector search for high-recall cross-session retrieval.",
-        next_action="No action required."
-        if runtime.vector_status == "available"
-        else "Enable vector storage and configure embeddings.",
-        repair_actions=[] if runtime.vector_status == "available" else ["enable_vector_store", "configure_embedding"],
+        status=status,
+        evidence=evidence,
+        impact=impact,
+        next_action=next_action,
+        repair_actions=repair_actions,
     )
 
 

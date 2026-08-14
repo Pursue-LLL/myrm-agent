@@ -35,9 +35,9 @@ and pushes human-readable notifications to user-configured IM channels
 | `BUDGET_ALERT` | ✅ | `budget/enforcer` |
 | `NEW_SKILL_DRAFT` | ✅ | `skills/draft_notification` |
 | `MESSAGE_DEAD_LETTERED` | ✅ | `channels/__init__` |
-| `CHANNEL_DISCONNECTED` | ✅ | `channels/setup` |
+| `CHANNEL_DISCONNECTED` | ✅ | `core/channel_bridge/setup` |
 | `WECHAT_SESSION_EXPIRED` | ✅ | (reserved) |
-| `CONFIG_HEALTH_WARNING` | ✅ | `config/health_monitor` |
+| `CONFIG_HEALTH_WARNING` | ✅ | `services/config/health_monitor` |
 | `SYSTEM_NOTIFICATION` | ✅ | `lifecycle/system` |
 | `KANBAN_TASK_UPDATED` | ✅ (terminal only) | `services/kanban/service` — completed/blocked/failed actions trigger IM push; lifecycle events silently skipped |
 | `GOAL_TERMINAL` | ✅ | `ai_agents/general_agent/goal_learnings` — pushed when a Goal reaches terminal state (complete/cancelled/budget_limited/needs_human_review); IM message includes files_modified, turns_used, execution_duration_s, total_tokens, total_cost_usd and verifications. Additionally, `GoalTerminalNotifier` (in `channel_bridge/goal_terminal_notifier.py`) delivers results back to the originating IM thread when the Goal carries source channel metadata |

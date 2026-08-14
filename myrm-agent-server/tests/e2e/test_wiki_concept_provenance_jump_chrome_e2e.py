@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 import sys
+import time
+import urllib.parse
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -122,19 +124,22 @@ _DISMISS_MIGRATION_JS = """(() => {
   return { ok: true };
 })()"""
 
-_CONCEPTS_TAB_READY_JS = """(() => ({
-  ready: !!document.querySelector('[data-slot="tabs-list"]') &&
-         [...document.querySelectorAll('button')].some(
-           (b) => /Concepts|词条/.test((b.textContent || '').trim()),
-         ),
-  pathname: location.pathname,
-  buttons: [...document.querySelectorAll('button')]
-    .slice(0, 20)
-    .map((b) => (b.textContent || '').trim())
-    .filter(Boolean),
-}))()"""
+_CONCEPTS_TAB_READY_JS = """(() => {
+  const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
+  if (!shell) {
+    return { ready: false, reason: 'no-shell', pathname: location.pathname };
+  }
+  const tabs = [...shell.querySelectorAll('[role="tab"]')].map(
+    (el) => (el.textContent || '').trim(),
+  );
+  return {
+    ready: tabs.some((t) => /词条管理|Concepts|概念管理/.test(t)),
+    pathname: location.pathname,
+    tabs,
+  };
+})()"""
 
-_PROVENANCE_LINK_JS = """() => {
+_PROVENANCE_LINK_JS = """(() => {
   const panel = [...document.querySelectorAll('a')].find(
     (a) => (a.textContent || '').trim() === 'Source conversation',
   );
@@ -142,7 +147,7 @@ _PROVENANCE_LINK_JS = """() => {
     return { ok: false, reason: 'no-source-chat-link' };
   }
   return { ok: true, href: panel.getAttribute('href') };
-}"""
+})()"""
 
 
 @pytest.mark.chrome_e2e(
@@ -161,7 +166,10 @@ def test_wiki_concept_detail_source_jump() -> None:
     short_name = concept_name.rsplit("/", 1)[-1]
 
     warm_ui_route("/settings/wiki")
-    wiki_page_url = f"{ui_url.rstrip('/')}/settings/wiki"
+    wiki_page_url = (
+        f"{ui_url.rstrip('/')}/settings/wiki"
+        f"?conceptPath={urllib.parse.quote(concept_name, safe='')}"
+    )
 
     with open_wiki_settings_mcp_page(
         wiki_page_url,
@@ -180,49 +188,46 @@ def test_wiki_concept_detail_source_jump() -> None:
         assert isinstance(tabs_state, dict)
         assert tabs_state.get("ready") is True, tabs_state
 
-        concepts_btn = next(
-            (
-                label
-                for label in tabs_state.get("buttons", [])
-                if "Concepts" in label or "词条" in label
-            ),
-            None,
-        )
-        assert concepts_btn is not None, tabs_state
-
         clicked = client.evaluate(
             page,
-            """() => {
-              const btn = [...document.querySelectorAll('button')].find(
-                (b) => /Concepts|词条/.test((b.textContent || '').trim()),
+            """(() => {
+              const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
+              if (!shell) return { ok: false, reason: 'no-shell' };
+              const tab = [...shell.querySelectorAll('[role="tab"]')].find(
+                (el) => /词条管理|Concepts|概念管理/.test((el.textContent || '').trim()),
               );
-              if (!btn) return { ok: false };
-              btn.click();
+              if (!tab) return { ok: false, reason: 'no-tab' };
+              tab.click();
               return { ok: true };
-            }""",
+            })()""",
             timeout_sec=15.0,
         )
-        assert isinstance(clicked, dict) and clicked.get("ok") is True
+        assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
 
-        select = client.evaluate(
-            page,
-            f"""() => {{
-              const target = {short_name!r};
-              const labels = [...document.querySelectorAll('span, div')].filter(
-                (el) => el.textContent === target && el.children.length === 0,
-              );
-              for (const el of labels) {{
-                const clickable = el.closest('[role="treeitem"]') || el;
-                clickable.click();
-                return {{ ok: true, clicked: true }};
-              }}
-              return {{ ok: false, clicked: false, target }};
-            }}""",
-            timeout_sec=15.0,
-        )
+        select = None
+        select_deadline = time.monotonic() + 30.0
+        while time.monotonic() < select_deadline:
+            select = client.evaluate(
+                page,
+                f"""(() => {{
+                  const target = {short_name!r};
+                  const labels = [...document.querySelectorAll('span, div')].filter(
+                    (el) => el.textContent === target && el.children.length === 0,
+                  );
+                  for (const el of labels) {{
+                    const clickable = el.closest('[role="treeitem"]') || el;
+                    clickable.click();
+                    return {{ ok: true, clicked: true }};
+                  }}
+                  return {{ ok: false, clicked: false, target }};
+                }})()""",
+                timeout_sec=15.0,
+            )
+            if isinstance(select, dict) and select.get("ok") is True:
+                break
+            time.sleep(1.0)
         assert isinstance(select, dict), select
         assert select.get("ok") is True, select
-
         link_state = wait_for_state(
             client,
             page,

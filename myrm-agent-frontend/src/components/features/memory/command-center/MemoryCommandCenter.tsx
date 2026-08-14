@@ -399,7 +399,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
             >
               <StatusPill
                 label={
-                  snapshot.health.total != null
+                  snapshot.health.total !== null
                     ? `${t(`commandCenter.healthStatus.${healthStatus}`)} ${snapshot.health.total}`
                     : t(`commandCenter.healthStatus.${healthStatus}`)
                 }

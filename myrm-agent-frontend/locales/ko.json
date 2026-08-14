@@ -9228,6 +9228,7 @@
       "deployMode": "배포 모드",
       "storageMode": "저장소",
       "vectorStatus": "벡터 인덱스",
+      "vectorPersistence": "벡터 저장 영속성",
       "embeddingStatus": "임베딩",
       "controlPlaneStatus": "컨트롤 플레인",
       "eventLedgerStatus": "이벤트 원장",
@@ -9633,7 +9634,9 @@
         "unavailable": "사용 불가",
         "custom": "사용자 정의 공급자",
         "not_used": "사용 안 함",
-        "proxied_by_sandbox": "샌드박스 프록시"
+        "proxied_by_sandbox": "샌드박스 프록시",
+        "persistent": "영속적",
+        "memory_fallback": "메모리 모드 (재시작 시 손실)"
       },
       "coverageStatus": {
         "not_tracked": "외부 메모리 가져오기가 추적되지 않음",

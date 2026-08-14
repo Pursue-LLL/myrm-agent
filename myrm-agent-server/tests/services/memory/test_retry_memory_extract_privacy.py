@@ -154,16 +154,23 @@ class TestPrivacyDeepScanContext:
         mock_set_store.assert_not_called()
         mock_logger.warning.assert_called_once()
 
-    def test_enabled_without_store_when_no_pseudonymize(self):
-        """Deep scan on without PSEUDONYMIZE must not build a store."""
+    def test_deep_scan_only_builds_store_without_pseudonymize(self):
+        """Deep scan alone (REDACT/BLOCK actions) must still build the store.
+
+        Regression: needs_store only considered PSEUDONYMIZE actions, so
+        privacyDeepScan + default REDACT actions silently skipped the LLM deep
+        scan (detected PII is pseudonymized through the store).
+        """
         settings = {
             "privacyDeepScan": True,
             "privacyEnabled": True,
             "privacyS2Action": "redact",
             "privacyS3Action": "block",
         }
+        mock_store = MagicMock()
         with (
             patch("myrm_agent_harness.api.hooks.set_privacy_policy") as mock_set_policy,
+            patch("myrm_agent_harness.api.hooks.set_pseudonym_store") as mock_set_store,
             patch(
                 "myrm_agent_harness.api.hooks.get_pseudonym_store",
                 return_value=None,
@@ -174,13 +181,22 @@ class TestPrivacyDeepScanContext:
             ),
             patch(
                 "myrm_agent_harness.api.hooks.build_pseudonym_store",
+                return_value=mock_store,
             ) as mock_build_store,
+            patch(
+                "myrm_agent_harness.api.hooks.install_memory_pseudonymizer",
+                return_value=None,
+            ) as mock_install,
+            patch("myrm_agent_harness.api.hooks.restore_memory_pseudonymizer"),
         ):
             with _privacy_deep_scan_context(settings, "/tmp/ws") as deep_scan:
                 assert deep_scan is True
-        mock_build_store.assert_not_called()
+        mock_build_store.assert_called_once_with("/tmp/pseudonym_store.db")
+        assert mock_set_store.call_args_list[0].args[0] is mock_store
+        mock_install.assert_called_once()
         installed_policy = mock_set_policy.call_args_list[0].args[0]
         assert installed_policy.deep_scan is True
+        assert installed_policy.s2_action.value == "redact"
 
     def test_restores_previous_context_on_exit(self):
         """Exit must restore the previous policy, store, and pseudonymizer."""

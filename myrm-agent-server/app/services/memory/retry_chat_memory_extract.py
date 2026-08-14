@@ -50,10 +50,11 @@ def _privacy_deep_scan_context(
     """Bridge user privacy settings into the harness privacy context.
 
     When privacy is enabled it installs the PrivacyPolicy and, when S2/S3 use
-    PSEUDONYMIZE, the shared PseudonymStore plus the regex PII pseudonymizer so
-    retried memory writes are protected exactly like the agent-run path. Yields
-    True when LLM-based deep PII scan should also run; on exit the previous
-    context is restored so background tasks never leak privacy state across chats.
+    PSEUDONYMIZE or deep PII scan is on, the shared PseudonymStore plus the regex
+    PII pseudonymizer so retried memory writes are protected exactly like the
+    agent-run path. Yields True when LLM-based deep PII scan should also run; on
+    exit the previous context is restored so background tasks never leak privacy
+    state across chats.
     """
     from myrm_agent_harness.agent.security.types import PIIAction, PrivacyPolicy
     from myrm_agent_harness.api.hooks import (
@@ -90,6 +91,7 @@ def _privacy_deep_scan_context(
         needs_store = (
             policy.s2_action == PIIAction.PSEUDONYMIZE
             or policy.s3_action == PIIAction.PSEUDONYMIZE
+            or deep_scan
         )
         if needs_store:
             if workspace_path:

@@ -9325,6 +9325,7 @@
       "deployMode": "Deploy mode",
       "storageMode": "Storage",
       "vectorStatus": "Vector index",
+      "vectorPersistence": "Vector persistence",
       "embeddingStatus": "Embedding",
       "controlPlaneStatus": "Control plane",
       "eventLedgerStatus": "Event ledger",
@@ -9745,7 +9746,9 @@
         "unavailable": "Unavailable",
         "custom": "Custom provider",
         "not_used": "Not used",
-        "proxied_by_sandbox": "Sandbox proxy"
+        "proxied_by_sandbox": "Sandbox proxy",
+        "persistent": "Persistent",
+        "memory_fallback": "Memory mode (lost on restart)"
       },
       "coverageStatus": {
         "not_tracked": "No external memory imports tracked",

@@ -284,7 +284,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 - **纯粹的业务层分离**：Webhook 的公网路由补全纯属业务逻辑表现，绝不污染底层 Harness 的执行引擎。
 - **前端闭环与联通测试**：Settings > System 始终展示 Public Ingress 输入与文档链接；支持 `/api/v1/health` 探活。穿透工具（cpolar、NATAPP、frp 等）由用户自选，见文档站 `/guides/tunnel`。
 - **出站优先渠道默认**：飞书默认 `transport=websocket`（`FeishuChannel` credential_spec）；钉钉 Stream、企微 AI Bot、Telegram 无 `webhookUrl` 时为出站长连接，无需公网 Ingress。
-- **Ingress 需求 SSOT API**：`GET /api/v1/system/ingress-requirement` 基于 `channels/inbound_profile.py` 与 config store 汇总；前端 `useIngressRequirement` 单请求驱动渠道徽章与 System 引导文案。
+- **Ingress 需求 SSOT API**：`GET /api/v1/system/ingress-requirement` 基于 `channels/protocols/inbound_profile.py` 与 config store 汇总；前端 `useIngressRequirement` 单请求驱动渠道徽章与 System 引导文案。
 
 ### 0.8 统一工具网关 (Unified Tool Gateway)
 

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import Literal
 
 from myrm_agent_harness.toolkits.memory import (
     MemoryManager,
@@ -522,6 +523,23 @@ class MemoryCommandCenterService:
         events.sort(key=lambda item: item.occurred_at, reverse=True)
         return events[:10]
 
+    def _build_vector_persistence(
+        self,
+    ) -> Literal["persistent", "memory_fallback", "unavailable"]:
+        """Vector store persistence state for the runtime panel.
+
+        Reflects whether vector memories survive restarts: an embedded store
+        that degraded to ``:memory:`` reports ``"memory_fallback"`` so the UI
+        can warn instead of implying durable storage.
+        """
+        if not self._memory_manager.has_vector:
+            return "unavailable"
+        return (
+            "persistent"
+            if self._memory_manager.vector_is_persistent
+            else "memory_fallback"
+        )
+
     def _build_runtime(self, deploy_mode: str) -> MemoryCommandRuntimeStatus:
         return MemoryCommandRuntimeStatus(
             deploy_mode=deploy_mode,
@@ -529,6 +547,7 @@ class MemoryCommandCenterService:
             memory_base_path=settings.database.memory_base_path,
             relational_status="available" if self._memory_manager.has_relational else "unavailable",
             vector_status="available" if self._memory_manager.has_vector else "unavailable",
+            vector_persistence=self._build_vector_persistence(),
             graph_status="available" if self._memory_manager.has_graph else "unavailable",
             embedding_status=get_embedding_mode().value if self._memory_manager.has_vector else "unavailable",
             control_plane_status="proxied_by_sandbox" if get_deployment_capabilities().is_sandbox_instance else "not_used",

@@ -9246,6 +9246,7 @@
       "deployMode": "デプロイモード",
       "storageMode": "ストレージ",
       "vectorStatus": "ベクトルインデックス",
+      "vectorPersistence": "ベクトルストレージの永続化",
       "embeddingStatus": "エンベディングモデル",
       "controlPlaneStatus": "制御平面",
       "eventLedgerStatus": "イベント台帳",
@@ -9651,7 +9652,9 @@
         "unavailable": "利用不可",
         "custom": "カスタムプロバイダー",
         "not_used": "未使用",
-        "proxied_by_sandbox": "サンドボックスプロキシ"
+        "proxied_by_sandbox": "サンドボックスプロキシ",
+        "persistent": "永続化",
+        "memory_fallback": "メモリモード（再起動で消失）"
       },
       "coverageStatus": {
         "not_tracked": "外部メモリインポートの記録はありません",

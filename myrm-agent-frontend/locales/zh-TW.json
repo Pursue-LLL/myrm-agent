@@ -9249,6 +9249,7 @@
       "deployMode": "部署模式",
       "storageMode": "儲存",
       "vectorStatus": "向量索引",
+      "vectorPersistence": "向量儲存持久化",
       "embeddingStatus": "嵌入模型",
       "controlPlaneStatus": "控制平面",
       "eventLedgerStatus": "事件賬本",
@@ -9654,7 +9655,9 @@
         "unavailable": "不可用",
         "custom": "自定義提供商",
         "not_used": "未使用",
-        "proxied_by_sandbox": "沙箱代理"
+        "proxied_by_sandbox": "沙箱代理",
+        "persistent": "持久化",
+        "memory_fallback": "記憶體模式（重啟後遺失）"
       },
       "coverageStatus": {
         "not_tracked": "暫無外部記憶匯入記錄",

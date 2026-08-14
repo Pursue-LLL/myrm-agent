@@ -9229,6 +9229,7 @@
       "deployMode": "Bereitstellungsmodus",
       "storageMode": "Lagerung",
       "vectorStatus": "Vektorindex",
+      "vectorPersistence": "Vektorpersistenz",
       "embeddingStatus": "Einbetten",
       "controlPlaneStatus": "Kontrollebene",
       "eventLedgerStatus": "Ereignisbuch",
@@ -9634,7 +9635,9 @@
         "unavailable": "Nicht verfügbar",
         "custom": "Benutzerdefinierter Anbieter",
         "not_used": "Nicht verwendet",
-        "proxied_by_sandbox": "Sandbox-Proxy"
+        "proxied_by_sandbox": "Sandbox-Proxy",
+        "persistent": "Permanent",
+        "memory_fallback": "Speichermodus (geht bei Neustart verloren)"
       },
       "coverageStatus": {
         "not_tracked": "Es wurden keine externen Speicherimporte verfolgt",

@@ -32,7 +32,7 @@
 
 - `@/store/useDesktopInspectorStore`：截图与 ref（含 `screenWidth/screenHeight/dpiScale`；`selectScopedDesktopViewData` 多 chat 隔离）
 - `@/hooks/approval/useToolApprovalResolve`：React hook，编排单条与 bulk 决策
-- `@/hooks/approval/useVisualApprovalSnapshot`：pending visual 审批时自动 `fetchSnapshot`（browser/desktop 就绪判定经 scoped selector 按 request.chatId 隔离）
+- `@/hooks/approval/useVisualApprovalSnapshot`：pending visual 审批时自动 `fetchSnapshot(true)`（标记 turn 视图，turn 结束随 ownership 回收；browser/desktop 就绪判定经 scoped selector 按 request.chatId 隔离）
 - `@/hooks/approval/useVisualApprovalOsOverlay`：Tauri 原生 OS 红框 overlay 生命周期
 
 ## UI 入口

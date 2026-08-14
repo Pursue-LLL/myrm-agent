@@ -58,6 +58,7 @@ def _build_empty_snapshot() -> MemoryCommandCenterResponse:
                 "memory_base_path": "/tmp/memory",
                 "relational_status": "available",
                 "vector_status": "available",
+                "vector_persistence": "persistent",
                 "graph_status": "unavailable",
                 "embedding_status": "custom",
                 "control_plane_status": "not_used",

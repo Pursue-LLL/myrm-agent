@@ -77,7 +77,9 @@ _MAX_CHAT_ATTEMPTS = 2
 _TRACE_LOG = Path("/tmp/revert_live_trace.log")
 
 
-def _trace(stage: str, detail: str = "") -> None:
+def _trace(stage: str, detail: str = "", *fmt_args: object) -> None:
+    if fmt_args:
+        detail = detail % fmt_args
     try:
         with _TRACE_LOG.open("a", encoding="utf-8") as fh:
             fh.write(f"{time.strftime('%H:%M:%S')} [{stage}] {detail}\n")
@@ -191,7 +193,8 @@ _CREATED_CONTENT = "CREATED_E2E_CONTENT_LINE_ONE\nCREATED_E2E_CONTENT_LINE_TWO\n
 
 def _assert_created(file_path: Path) -> None:
     content = file_path.read_text(encoding="utf-8")
-    assert content == _CREATED_CONTENT, (
+    # 忽略首尾空白差异：真实 LLM 创建文件时末尾换行非确定性，核心内容必须一致
+    assert content.strip() == _CREATED_CONTENT.strip(), (
         f"file created by agent turn differs from expected: {content!r}"
     )
 
@@ -397,7 +400,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
                 _assert_created(file_path)
             except AssertionError:
                 raise AssertionError(
-                    f"agent turn ended but file not created: {file_path} "
+                    f"agent turn ended but created file content mismatch: {file_path} "
                     f"exists={file_path.exists()!r} "
                     f"content={file_path.read_text(encoding='utf-8') if file_path.exists() else '<missing>'!r} "
                     f"assistant={assistant_text[:400]!r}"

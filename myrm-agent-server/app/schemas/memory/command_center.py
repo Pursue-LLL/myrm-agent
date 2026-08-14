@@ -420,6 +420,7 @@ class MemoryCommandRuntimeStatus(BaseModel):
     memory_base_path: str
     relational_status: Literal["available", "unavailable"]
     vector_status: Literal["available", "unavailable"]
+    vector_persistence: Literal["persistent", "memory_fallback", "unavailable"]
     graph_status: Literal["available", "unavailable"]
     embedding_status: Literal["custom", "unavailable"]
     control_plane_status: Literal["not_used", "proxied_by_sandbox"]

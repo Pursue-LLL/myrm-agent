@@ -46,7 +46,15 @@ const MEMORY_TYPES: MemoryType[] = [
 ];
 const SPACE_KINDS = ['global', 'agent', 'channel', 'conversation', 'task', 'shared', 'unknown'] as const;
 const RECORD_STATUSES = ['pending', 'approved', 'rejected', 'active', 'archived', 'success'] as const;
-const RUNTIME_STATUSES = ['available', 'unavailable', 'custom', 'not_used', 'proxied_by_sandbox'] as const;
+const RUNTIME_STATUSES = [
+  'available',
+  'unavailable',
+  'custom',
+  'not_used',
+  'proxied_by_sandbox',
+  'persistent',
+  'memory_fallback',
+] as const;
 const COVERAGE_STATUSES = ['not_tracked', 'partial', 'complete'] as const;
 const MIGRATION_ADAPTER_STATUSES = ['ready', 'planned', 'missing'] as const;
 
@@ -425,6 +433,11 @@ const RuntimePanel = ({ snapshot, t }: { snapshot: MemoryCommandCenterResponse; 
       value={translateRuntimeStatus(snapshot.runtime.vector_status, t)}
     />
     <RuntimeRow
+      label={t('commandCenter.vectorPersistence')}
+      value={translateRuntimeStatus(snapshot.runtime.vector_persistence, t)}
+      alert={snapshot.runtime.vector_persistence === 'memory_fallback'}
+    />
+    <RuntimeRow
       label={t('commandCenter.embeddingStatus')}
       value={translateRuntimeStatus(snapshot.runtime.embedding_status, t)}
     />
@@ -673,10 +686,28 @@ const MetricTile = ({ label, value, dense = false }: { label: string; value: num
   </div>
 );
 
-const RuntimeRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-accent/20 px-3 py-2">
+const RuntimeRow = ({
+  label,
+  value,
+  alert,
+}: {
+  label: string;
+  value: string;
+  alert?: boolean;
+}) => (
+  <div
+    className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${
+      alert ? 'border-amber-500/50 bg-amber-500/10' : 'border-border/50 bg-accent/20'
+    }`}
+  >
     <span className="text-xs text-muted-foreground">{label}</span>
-    <span className="truncate text-right text-xs font-medium text-foreground">{value}</span>
+    <span
+      className={`truncate text-right text-xs font-medium ${
+        alert ? 'text-amber-500' : 'text-foreground'
+      }`}
+    >
+      {value}
+    </span>
   </div>
 );
 
