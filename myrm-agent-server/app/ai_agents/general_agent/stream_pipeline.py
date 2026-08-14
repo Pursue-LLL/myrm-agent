@@ -291,6 +291,7 @@ async def execute_stream_pipeline(
             context["on_goal_terminal"] = build_goal_terminal_callback(
                 memory_manager=memory_manager,
                 llm=agent_wrapper.agent._extraction_llm or agent_wrapper.agent.llm,
+                deep_scan=agent_wrapper.privacy_deep_scan,
             )
             context["on_loop_restart"] = build_loop_restart_callback()
 

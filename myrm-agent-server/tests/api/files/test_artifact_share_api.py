@@ -213,6 +213,8 @@ async def test_html_share_includes_csp_headers(share_client, html_artifact) -> N
     assert "connect-src 'none'" in csp
     assert index.headers.get("x-content-type-options") == "nosniff"
     assert index.headers.get("x-frame-options") == "DENY"
+    assert index.headers.get("x-robots-tag") == "noindex, nofollow"
+    assert index.headers.get("cache-control") == "no-store"
 
 
 @pytest.mark.asyncio
@@ -235,6 +237,8 @@ async def test_pdf_share_omits_csp_headers(share_client, html_artifact) -> None:
     entry = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert entry.status_code == 200
     assert "content-security-policy" not in entry.headers
+    assert entry.headers.get("x-robots-tag") == "noindex, nofollow"
+    assert entry.headers.get("cache-control") == "no-store"
 
 
 @pytest.mark.asyncio
@@ -269,6 +273,8 @@ async def test_multi_file_bundle_csp_allows_self(share_client, html_artifact) ->
     css = share_client.get(f"/public/artifact-share/{token}/styles.css")
     assert css.status_code == 200
     assert "content-security-policy" not in css.headers
+    assert css.headers.get("x-robots-tag") == "noindex, nofollow"
+    assert css.headers.get("cache-control") == "no-store"
 
 
 @pytest.mark.asyncio
@@ -1164,6 +1170,36 @@ class TestFileResponseCSP:
         assert resp.headers.get("content-security-policy") is None
 
 
+class TestFileResponsePrivacyHeaders:
+    """Privacy headers (noindex + no-store) apply to every served file type."""
+
+    def _make_tmp_file(self, tmp_path: Path) -> str:
+        p = tmp_path / "test_file"
+        p.write_text("content")
+        return str(p)
+
+    @pytest.mark.parametrize(
+        "media_type",
+        [
+            "text/html",
+            "text/html; charset=utf-8",
+            "application/xhtml+xml",
+            "text/css",
+            "application/javascript",
+            "application/pdf",
+            "text/plain",
+            "application/octet-stream",
+        ],
+    )
+    def test_privacy_headers_present_for_all_media_types(
+        self, tmp_path: Path, media_type: str
+    ) -> None:
+        path = self._make_tmp_file(tmp_path)
+        resp = _file_response(path, media_type, "file")
+        assert resp.headers.get("x-robots-tag") == "noindex, nofollow"
+        assert resp.headers.get("cache-control") == "no-store"
+
+
 class TestShareSecurityHeadersCompleteness:
     """Verify _SHARE_SECURITY_HEADERS constant has exact expected directives."""
 
@@ -1222,6 +1258,9 @@ async def test_multi_file_redirect_has_no_csp(share_client, html_artifact) -> No
     )
     assert redirect.status_code == 307
     assert "content-security-policy" not in redirect.headers
+    # Redirect is transient; the followed target carries privacy headers itself.
+    assert "x-robots-tag" not in redirect.headers
+    assert "cache-control" not in redirect.headers
 
 
 @pytest.mark.asyncio
@@ -1251,6 +1290,8 @@ async def test_nested_css_asset_no_csp(share_client, html_artifact) -> None:
     assert css.status_code == 200
     assert "content-security-policy" not in css.headers
     assert css.headers.get("x-content-type-options") is None
+    assert css.headers.get("x-robots-tag") == "noindex, nofollow"
+    assert css.headers.get("cache-control") == "no-store"
 
 
 @pytest.mark.asyncio

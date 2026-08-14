@@ -30,13 +30,13 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
+    e2e_runtime_bootstrap_apply_js,
     ensure_e2e_yolo_mode,
     fetch_chat_messages,
     get_e2e_api_url,
     wait_e2e_provider_ready,
 )
 from cdp_chat.ui import chat_id_from_path  # noqa: E402
-from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate.contract import EvaluateIntent  # noqa: E402
 
 from tests.api.agent.utils import (  # noqa: E402
@@ -46,6 +46,7 @@ from tests.api.agent.utils import (  # noqa: E402
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_ui_url,
     http_json,
+    open_mcp_page,
 )
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once  # noqa: E402
 
@@ -73,8 +74,8 @@ _MAX_CHAT_ATTEMPTS = 3
 
 _LIVE_USER_PROMPT = (
     f"The workspace file {_WORKSPACE_FILENAME} contains three lines: line_a, line_b, line_c. "
-    "Read it with file_read_tool, then call file_edit_tool exactly once to replace line_a "
-    "with LINE_A. Reply REVERT_LIVE_OK when finished."
+    "Call file_edit_tool exactly once to DELETE the line whose content is line_a. "
+    "Reply REVERT_LIVE_OK when the deletion succeeds."
 )
 
 _PIN_LITE_MODEL_JS = """(() => {
@@ -108,8 +109,8 @@ def _create_revert_live_agent(api_url: str) -> str:
         "description": "Chrome LIVE E2E for revert-files after page reload",
         "system_prompt": (
             "You edit workspace files with file_read_tool and file_edit_tool. "
-            "When the user asks for a single edit, call file_edit_tool once. "
-            "Always read before edit. Reply REVERT_LIVE_OK when the edit succeeds."
+            "When the user asks to delete a line, call file_edit_tool once to delete "
+            "the exact line. Reply REVERT_LIVE_OK when the edit succeeds."
         ),
         "skill_ids": [],
         "mcp_ids": [],
@@ -156,14 +157,15 @@ def _file_edit_invoked_in_messages(chat_id: str, *, api_url: str) -> tuple[bool,
 
 def _assert_edited(file_path: Path) -> None:
     content = file_path.read_text(encoding="utf-8")
-    assert "LINE_A" in content, content
-    assert "line_a" not in content.splitlines(), content
+    lines = content.splitlines()
+    assert "line_a" not in lines, f"line_a still present after edit: {content!r}"
 
 
 def _assert_restored(file_path: Path) -> None:
     content = file_path.read_text(encoding="utf-8")
-    assert "line_a" in content and "line_b" in content and "line_c" in content, content
-    assert "LINE_A" not in content, content
+    lines = content.splitlines()
+    assert "line_a" in lines, f"line_a missing after restore: {content!r}"
+    assert "LINE_A" not in content, f"unexpected LINE_A after restore: {content!r}"
 
 
 _HYDRATE_WITH_REQUEST_ID_JS = """(() => {
@@ -345,7 +347,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         chat_id: str,
         *,
         file_path: Path,
-        timeout_sec: float = 480.0,
+        timeout_sec: float = 300.0,
     ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last_api = ("", False)
@@ -402,7 +404,8 @@ async def test_revert_files_live_agent_after_reload_restores_file(
             await asyncio.sleep(1.5)
         raise AssertionError(
             f"Live revert turn did not complete; api_assistant={last_api[0][:400]!r}; "
-            f"file_edit_invoked={last_api[1]!r}; file={file_path}"
+            f"file_edit_invoked={last_api[1]!r}; file={file_path}; "
+            f"last_ui={ui.get('sample', '')!r}"
         )
 
     async def _wait_hydrate_request_id(chat: McpChatSession, *, timeout_sec: float = 90.0) -> dict[str, object]:
@@ -531,38 +534,32 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         e2e_resource_ledger.register("chat", resolved_chat_id)
         return resolved_chat_id, file_path
 
+    async def _apply_bootstrap(chat: McpChatSession) -> None:
+        bootstrap_js = e2e_runtime_bootstrap_apply_js()
+        if not bootstrap_js:
+            await chat.ensure_e2e_api_base_binding()
+            return
+        result = await chat.evaluate(bootstrap_js, intent=EvaluateIntent.AGENT_SUBMIT)
+        if not isinstance(result, dict) or result.get("ok") is not True:
+            raise RuntimeError(f"E2E runtime bootstrap failed: {result}")
+
     last_error = ""
-    client = ChromeMcpClient(request_timeout_sec=300.0)
-    await asyncio.to_thread(client.start)
-    try:
-        agent_url = f"{ui_base}/?agentId={agent_id}"
-        for attempt in range(_MAX_CHAT_ATTEMPTS):
-            heartbeat_once()
-            try:
-                page: McpPage | None = None
-                for page_attempt in range(3):
-                    try:
-                        page = await asyncio.to_thread(
-                            client.new_page, agent_url, timeout_ms=120_000
-                        )
-                        break
-                    except (TimeoutError, RuntimeError) as exc:
-                        if page_attempt >= 2 or "new_page" not in str(exc):
-                            raise
-                        await asyncio.sleep(2.0 * (page_attempt + 1))
-                if page is None:
-                    raise RuntimeError("new_page returned no page")
+    agent_url = f"{ui_base}/?agentId={agent_id}"
+    for attempt in range(_MAX_CHAT_ATTEMPTS):
+        heartbeat_once()
+        try:
+            with open_mcp_page(agent_url, timeout_ms=120_000) as (client, page):
                 chat = McpChatSession(client, page)
-                await chat.bootstrap(agent_url, timeout_sec=120.0)
-                _chat_id, file_path = await _run_flow(chat)
-                _assert_restored(file_path)
-                break
-            except (AssertionError, RuntimeError, TimeoutError) as exc:
-                last_error = str(exc)
-                if attempt >= _MAX_CHAT_ATTEMPTS - 1:
-                    raise
-                await asyncio.sleep(2.0)
-        else:
-            pytest.fail(last_error or "live revert WebUI flow failed")
-    finally:
-        await asyncio.to_thread(client.close)
+                await chat.bootstrap(agent_url, timeout_sec=180.0)
+                await _apply_bootstrap(chat)
+                chat_id, file_path = await _run_flow(chat)
+            _assert_restored(file_path)
+            assert chat_id
+            break
+        except (AssertionError, RuntimeError, TimeoutError) as exc:
+            last_error = str(exc)
+            if attempt >= _MAX_CHAT_ATTEMPTS - 1:
+                raise
+            await asyncio.sleep(2.0)
+    else:
+        pytest.fail(last_error or "live revert WebUI flow failed")

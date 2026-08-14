@@ -10,6 +10,7 @@
 [OUTPUT]
 - MonitorConfigCreate, MonitorConfigResponse: 增量监控配置模型
 - ScheduleCreate, CronJobCreate, CronJobUpdate: 请求模型
+- DeliveryTestRequest, DeliveryTestResponse: 一键测试投递模型
 - EventTriggerDispatchRequest, SystemEventTriggerDispatchRequest: Trigger dispatch 请求模型
 - ScheduleResponse, CronJobResponse, CronRunResponse: 响应模型
 - CronJobsListResponse, CronRunsListResponse: 分页列表响应模型

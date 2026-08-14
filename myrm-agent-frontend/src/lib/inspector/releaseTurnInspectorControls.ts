@@ -9,7 +9,7 @@
  * [POS]
  * Inspector 控制权释放的纯函数 SSOT。所有 turn 终止路径（MESSAGE_END / stopMessage / ERROR / AGENT_CANCELLED / CONTEXT_OVERFLOW_RESET / GOAL_STATUS budget_limited / stream 中断 attach false）共用同一释放编排。
  * 释放按归属 chatId 生效（releaseTurnEngagement 仅匹配本 chat 的 turn），多 pane 并行时不会误关其它 pane 的面板；
- * 手动打开的面板（无 engagedChatId）同样不会被无关 turn 强制关闭。
+ * 手动打开的面板（无 engagedChatId）同样不会被无关 turn 强制关闭；viewData 归其它 chat 的手动面板在异常时序下同样保留。
  */
 
 /**

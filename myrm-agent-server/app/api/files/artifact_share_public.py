@@ -14,6 +14,9 @@
 Server business layer. Serves materialized share bundles to the public web with
 hardened CSP headers, optional password gate, and a manual-revocation gate that
 blocks both existing files and any re-materialization attempt after revoke.
+Every served file carries noindex/nofollow + no-store so shared work products are
+never search-engine indexed and revoking a link cannot be bypassed by browser or
+CDN caches.
 """
 
 from __future__ import annotations
@@ -71,13 +74,24 @@ _SHARE_SECURITY_HEADERS: dict[str, str] = {
     "X-Frame-Options": "DENY",
 }
 
+# Applied to every served bundle file (HTML, PDF, document, static asset).
+# Shares are private, time-limited content: never index them for search engines
+# and never let browsers/CDNs cache them, so revoking a link takes effect
+# immediately even for clients that already loaded the bundle.
+_SHARE_PRIVACY_HEADERS: dict[str, str] = {
+    "X-Robots-Tag": "noindex, nofollow",
+    "Cache-Control": "no-store",
+}
+
 _UNLOCK_COOKIE_NAME = "artifact_share_unlock"
 _UNLOCK_SALT = "artifact-share-unlock"
 _UNLOCK_COOKIE_PATH = "/api/v1/public/artifact-share"
 
 
 def _file_response(path: str, media_type: str, filename: str) -> FileResponse:
-    headers = _SHARE_SECURITY_HEADERS if media_type in _HTML_MEDIA_TYPES else None
+    headers = dict(_SHARE_PRIVACY_HEADERS)
+    if media_type in _HTML_MEDIA_TYPES:
+        headers.update(_SHARE_SECURITY_HEADERS)
     return FileResponse(
         path=path,
         headers=headers,

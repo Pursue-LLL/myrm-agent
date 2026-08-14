@@ -359,6 +359,53 @@ def test_wiki_concept_get_not_found(client: TestClient) -> None:
     assert response.status_code == 404
 
 
+def test_wiki_concept_get_returns_source_chat(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """GET /api/v1/wiki/concepts/{name} surfaces source_chat/source_message provenance."""
+    from unittest.mock import MagicMock
+
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    from app.api.wiki.router import _get_wiki_archiver
+    from tests.support.minimal_app import build_minimal_app
+
+    structure = WikiStructure(tmp_path / "wiki")
+    structure.ensure_structure()
+    concept_path = structure.get_concept_file_path("TracedConcept")
+    concept_path.write_text(
+        """---
+type: concept
+source_chat: chat-trace-1
+source_message: msg-trace-1
+---
+# Traced Concept
+Body
+""",
+        encoding="utf-8",
+    )
+
+    mock_archiver = MagicMock()
+    mock_archiver._structure = structure
+
+    app = build_minimal_app(preset="wiki")
+
+    async def _override_archiver() -> MagicMock:
+        return mock_archiver
+
+    app.dependency_overrides[_get_wiki_archiver] = _override_archiver
+    test_client = TestClient(app)
+    try:
+        response = test_client.get("/api/v1/wiki/concepts/TracedConcept")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["source_chat"] == "chat-trace-1"
+    assert data["source_message"] == "msg-trace-1"
+
+
 def test_wiki_concept_delete_not_found(client: TestClient) -> None:
     """Test DELETE /api/v1/wiki/concepts/{name} returns 404 for non-existent concept."""
     response = client.delete("/api/v1/wiki/concepts/nonexistent_concept_xyz")

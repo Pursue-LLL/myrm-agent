@@ -2,11 +2,11 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.memory.strategies.extractor::extract_goal_learnings (POS: LLM-based goal learnings extraction)
-- myrm_agent_harness.api.hooks::create_extraction_llm_func, persist_extracted_memories (POS: LLM wrapper and persistence utilities)
+- myrm_agent_harness.api.hooks::create_extraction_llm_func, persist_extracted_memories (POS: LLM wrapper and persistence utilities; deep_scan_llm_func wiring for PII pseudonymization)
 - myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: memory lifecycle manager)
 
 [OUTPUT]
-- build_goal_terminal_callback: Factory for on_goal_terminal callback
+- build_goal_terminal_callback: Factory for on_goal_terminal callback (deep_scan flag enables PII pseudonymization on stored learnings)
 - build_loop_restart_callback: Factory for on_loop_restart callback
 - retrieve_relevant_learnings: Retrieve historical learnings for a new goal
 
@@ -15,7 +15,9 @@ Server-layer integration for goal lifecycle callbacks. Provides the concrete
 callback implementations injected into StreamContext.on_goal_terminal and
 StreamContext.on_loop_restart, plus retrieval logic for enriching new goals
 with relevant historical learnings. Learnings extraction only runs when a
-memory manager is available; the goal queue advancement always runs.
+memory manager is available; the goal queue advancement always runs. When
+deep PII scan is enabled, extracted learnings are pseudonymized before
+persistence to match the privacy promise of session memory paths.
 """
 
 from __future__ import annotations
@@ -36,11 +38,15 @@ logger = logging.getLogger(__name__)
 def build_goal_terminal_callback(
     memory_manager: "MemoryManager | None",
     llm: "BaseChatModel",
+    *,
+    deep_scan: bool = False,
 ) -> Callable[["Goal", list["BaseMessage"], "GoalExecutionSummary"], Awaitable[None]]:
     """Build the on_goal_terminal callback for goal learnings extraction and summary storage.
 
     The callback always advances the goal queue; learnings extraction (which needs a
-    memory manager) is skipped when memory is disabled.
+    memory manager) is skipped when memory is disabled. When *deep_scan* is enabled,
+    extracted learnings are passed through LLM-based deep PII pseudonymization before
+    persistence, matching the privacy promise of other memory paths.
     """
 
     async def _on_goal_terminal(goal: "Goal", messages: list["BaseMessage"], summary: "GoalExecutionSummary") -> None:
@@ -107,6 +113,7 @@ def build_goal_terminal_callback(
                     logger.info("Goal %s: too few messages for learnings extraction", goal.goal_id)
                 else:
                     llm_func = create_extraction_llm_func(llm)
+                    deep_scan_llm = llm_func if deep_scan else None
                     learnings = await extract_goal_learnings(
                         messages=dict_messages,
                         goal_objective=goal.objective,
@@ -118,6 +125,7 @@ def build_goal_terminal_callback(
                             learnings,
                             memory_manager,
                             source_chat_id=goal.session_id,
+                            deep_scan_llm_func=deep_scan_llm,
                         )
                         logger.info(
                             "Goal %s: extracted %d learnings, stored %d",

@@ -10,7 +10,9 @@
  * State management for the Browser Live View + Interactive Inspector feature.
  * Tracks panel visibility, active mode, latest browser view data, selected element, and
  * per-chat turn engagement (which chat's turn drives browser events and must be torn down;
- * release only targets the owning chat so parallel panes are never force-closed).
+ * release reclaims the view owned by the ending turn even if its engagement slot was
+ * overwritten by another pane, and keeps viewData owned by another chat / a manually
+ * opened panel untouched, so parallel panes are never force-closed).
  */
 
 import { create } from 'zustand';
@@ -116,7 +118,19 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
   },
   releaseTurnEngagement: (chatId) =>
     set((s) => {
-      if (!s.engagedChatId || s.engagedChatId !== chatId) {return {};}
+      const ownsEngagement = s.engagedChatId === chatId;
+      const viewBelongsToTurn = s.viewData !== null && s.viewData.sourceChatId === chatId;
+      if (!ownsEngagement && !viewBelongsToTurn) {
+        // Unrelated turn / manually opened panel / already released: return the same
+        // reference so zustand skips the subscription notify on a no-op.
+        return s;
+      }
+      if (s.viewData !== null && s.viewData.sourceChatId !== chatId) {
+        // viewData belongs to another turn that is still controlling: only return our
+        // ownership, keep that turn's view, active flag and panel untouched.
+        return { engagedChatId: null };
+      }
+      // This turn owns the view (or engaged with no view at all): full teardown.
       return {
         engagedChatId: null,
         isBrowserActive: false,

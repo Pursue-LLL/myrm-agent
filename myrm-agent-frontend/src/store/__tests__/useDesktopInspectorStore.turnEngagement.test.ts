@@ -89,6 +89,56 @@ describe('useDesktopInspectorStore turn engagement', () => {
     expect(state.instructionText).toBe('');
   });
 
+  it('releaseTurnEngagement keeps another pane\'s manually opened panel when the ending turn produced no view', () => {
+    const store = useDesktopInspectorStore.getState();
+    // Pane A's turn engaged desktop events but its launch failed before any view
+    // update; viewData still belongs to pane B's manually opened panel.
+    store.markTurnEngaged('a');
+    store.setDesktopActive(true);
+    store.openPanel();
+    store.updateViewData({
+      screenshotBase64: 'x',
+      mimeType: 'image/png',
+      refs: {},
+      appName: 'Calculator',
+      windowTitle: '',
+      scope: 'app',
+      needsPermission: false,
+      viewportWidth: 100,
+      viewportHeight: 100,
+      sourceChatId: 'b',
+      updatedAt: Date.now(),
+    });
+    store.setInstructionText('draft');
+
+    store.releaseTurnEngagement('a');
+
+    const state = useDesktopInspectorStore.getState();
+    expect(state.engagedChatId).toBeNull();
+    expect(state.isOpen).toBe(true);
+    expect(state.viewData).not.toBeNull();
+    expect(state.isDesktopActive).toBe(true);
+    // The panel stays open, so the user's instruction draft must not be dropped.
+    expect(state.instructionText).toBe('draft');
+  });
+
+  it('releaseTurnEngagement clears state when the owning turn engaged but produced no view', () => {
+    const store = useDesktopInspectorStore.getState();
+    store.markTurnEngaged('c1');
+    store.setDesktopActive(true);
+    store.openPanel();
+    store.setInstructionText('typing');
+
+    store.releaseTurnEngagement('c1');
+
+    const state = useDesktopInspectorStore.getState();
+    expect(state.engagedChatId).toBeNull();
+    expect(state.isDesktopActive).toBe(false);
+    expect(state.isOpen).toBe(false);
+    expect(state.viewData).toBeNull();
+    expect(state.instructionText).toBe('');
+  });
+
   it('reset clears engagedChatId', () => {
     useDesktopInspectorStore.getState().markTurnEngaged('c1');
     useDesktopInspectorStore.getState().reset();

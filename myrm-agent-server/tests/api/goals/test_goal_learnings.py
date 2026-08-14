@@ -164,6 +164,92 @@ class TestBuildGoalTerminalCallback:
             await callback(goal, messages, _make_summary())
 
 
+    @pytest.mark.asyncio
+    async def test_callback_deep_scan_passes_llm_func_to_persist(self):
+        """deep_scan=True must pass the shared LLM func to persist for PII pseudonymization."""
+        memory_manager = AsyncMock()
+        llm = MagicMock()
+
+        with (
+            patch("myrm_agent_harness.api.hooks.create_extraction_llm_func") as mock_create_llm,
+            patch(
+                "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_goal_learnings",
+                new_callable=AsyncMock,
+            ) as mock_extract,
+            patch(
+                "myrm_agent_harness.api.hooks.persist_extracted_memories",
+                new_callable=AsyncMock,
+            ) as mock_persist,
+        ):
+            mock_llm_func = AsyncMock()
+            mock_create_llm.return_value = mock_llm_func
+            mock_extract.return_value = [
+                MagicMock(memory_type="semantic", content="Customer Zhang has a medical condition"),
+            ]
+            mock_persist.return_value = 1
+
+            callback = build_goal_terminal_callback(memory_manager, llm, deep_scan=True)
+
+            goal = MagicMock()
+            goal.goal_id = "goal-deep-1"
+            goal.objective = "Process customer records"
+            goal.session_id = "session-deep"
+
+            messages = [
+                HumanMessage(content="Process customer records"),
+                AIMessage(content="I'll review each record..."),
+                HumanMessage(content="Keep notes concise"),
+                AIMessage(content="Done."),
+            ]
+
+            await callback(goal, messages, _make_summary())
+
+            mock_persist.assert_called_once()
+            assert mock_persist.call_args.kwargs.get("deep_scan_llm_func") is mock_llm_func
+
+    @pytest.mark.asyncio
+    async def test_callback_without_deep_scan_passes_none(self):
+        """deep_scan=False (default) must not enable PII pseudonymization."""
+        memory_manager = AsyncMock()
+        llm = MagicMock()
+
+        with (
+            patch("myrm_agent_harness.api.hooks.create_extraction_llm_func") as mock_create_llm,
+            patch(
+                "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_goal_learnings",
+                new_callable=AsyncMock,
+            ) as mock_extract,
+            patch(
+                "myrm_agent_harness.api.hooks.persist_extracted_memories",
+                new_callable=AsyncMock,
+            ) as mock_persist,
+        ):
+            mock_create_llm.return_value = AsyncMock()
+            mock_extract.return_value = [
+                MagicMock(memory_type="semantic", content="Always verify edge cases"),
+            ]
+            mock_persist.return_value = 1
+
+            callback = build_goal_terminal_callback(memory_manager, llm)
+
+            goal = MagicMock()
+            goal.goal_id = "goal-plain-1"
+            goal.objective = "Simple task"
+            goal.session_id = "session-plain"
+
+            messages = [
+                HumanMessage(content="Do A"),
+                AIMessage(content="Doing A..."),
+                HumanMessage(content="Now B"),
+                AIMessage(content="Done B."),
+            ]
+
+            await callback(goal, messages, _make_summary())
+
+            mock_persist.assert_called_once()
+            assert mock_persist.call_args.kwargs.get("deep_scan_llm_func") is None
+
+
 class TestGoalTerminalEventPublishing:
     """Test GOAL_TERMINAL event publishing in on_goal_terminal callback."""
 
