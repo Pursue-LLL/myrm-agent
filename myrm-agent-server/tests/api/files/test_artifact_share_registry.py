@@ -367,7 +367,7 @@ async def test_revoke_share_deletes_bundle(db_session, tmp_path, monkeypatch) ->
 
 @pytest.mark.asyncio
 async def test_revoke_share_writes_audit_log(db_session, caplog) -> None:
-    """O7: successful revocations emit an INFO audit log for compliance tracing."""
+    """Successful revocations emit an INFO audit log for compliance tracing."""
     token, exp = create_artifact_share_token("art-1", "ver-1", ttl_seconds=3600)
     record = await register_share(
         db_session,

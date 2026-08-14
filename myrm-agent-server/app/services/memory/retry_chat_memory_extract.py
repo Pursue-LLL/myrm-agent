@@ -55,13 +55,11 @@ def _privacy_deep_scan_context(
     """
     from myrm_agent_harness.agent.security.types import PIIAction, PrivacyPolicy
     from myrm_agent_harness.api.hooks import (
+        build_pseudonym_store,
         get_privacy_policy,
         get_pseudonym_store,
         set_privacy_policy,
         set_pseudonym_store,
-    )
-    from myrm_agent_harness.core.security.detection.pseudonym_store import (
-        get_pseudonym_store as build_pseudonym_store,
     )
 
     deep_scan = bool(

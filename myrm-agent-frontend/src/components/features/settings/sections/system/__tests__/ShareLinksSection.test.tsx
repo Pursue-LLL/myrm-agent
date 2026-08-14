@@ -74,8 +74,8 @@ const legacyProtectedRecord = {
   ...protectedRecord,
   id: 'rec-4',
   artifact_name: 'legacy.pdf',
-  // Pre-R2 rows for password shares have no persisted path (token cannot be
-  // rebuilt) and fall back to the protected hint.
+  // Password shares whose share_path is NULL (no persisted path) cannot rebuild
+  // the token and fall back to the protected hint.
   share_path: null,
 };
 
@@ -226,8 +226,8 @@ describe('ShareLinksSection', () => {
   });
 
   it('shows a protected hint instead of copy buttons for password records without a path', async () => {
-    // Legacy rows created before R2 have no persisted share_path for password
-    // shares; the GUI degrades to a hint instead of a dead link.
+    // Password shares without a persisted share_path cannot rebuild the token
+    // and the GUI degrades to a hint instead of a dead link.
     const fetchMock = mockFetchRoutes([
       {
         method: 'GET',

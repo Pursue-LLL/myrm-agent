@@ -70,7 +70,7 @@
 | `RiskRulesHitsPanel.tsx` | 风控规则命中记录 |
 | `RiskRulesTestPanel.tsx` | 风控规则测试 |
 | `risk-rules-types.ts` | 风控规则类型定义 |
-| `ShareLinksSection.tsx` | 分享链接管理（`GET/DELETE /api/v1/files/artifacts/shares[/{id}]`：活跃链接表格 + 一键撤销 + 空/加载/错误态 + 刷新；复制/打开优先服务端 `share_url`，无 ingress 时按后端基址/当前 origin 组装） |
+| `ShareLinksSection.tsx` | 分享链接管理（`GET/DELETE /api/v1/files/artifacts/shares[/{id}]`：活跃链接表格 + 一键撤销 + 空/加载/错误态 + 刷新；复制/打开优先服务端 `share_url`，无 ingress 时按后端基址/当前 origin 组装；密码分享（share_path 有值）同样渲染复制/打开，无 share_path 的历史密码分享降级为「密码保护中」提示） |
 
 ### 用量与成本
 

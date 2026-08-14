@@ -62,7 +62,7 @@ class TestPrivacyDeepScanContext:
                 return_value=MagicMock(),
             ),
             patch(
-                "myrm_agent_harness.core.security.detection.pseudonym_store.get_pseudonym_store",
+                "myrm_agent_harness.api.hooks.build_pseudonym_store",
                 return_value=mock_store,
             ) as mock_build_store,
         ):
@@ -93,7 +93,7 @@ class TestPrivacyDeepScanContext:
                 return_value=MagicMock(),
             ),
             patch(
-                "myrm_agent_harness.core.security.detection.pseudonym_store.get_pseudonym_store",
+                "myrm_agent_harness.api.hooks.build_pseudonym_store",
             ) as mock_build_store,
         ):
             with _privacy_deep_scan_context(settings, "/tmp/ws") as deep_scan:
@@ -124,7 +124,7 @@ class TestPrivacyDeepScanContext:
                 return_value=prev_store,
             ),
             patch(
-                "myrm_agent_harness.core.security.detection.pseudonym_store.get_pseudonym_store",
+                "myrm_agent_harness.api.hooks.build_pseudonym_store",
                 return_value=MagicMock(),
             ),
         ):
@@ -202,7 +202,7 @@ class TestRunRetryExtractDeepScan:
                 return_value=PrivacyPolicy(),
             ),
             patch(
-                "myrm_agent_harness.core.security.detection.pseudonym_store.get_pseudonym_store",
+                "myrm_agent_harness.api.hooks.build_pseudonym_store",
                 return_value=MagicMock(),
             ),
             patch("myrm_agent_harness.api.hooks.set_privacy_policy"),

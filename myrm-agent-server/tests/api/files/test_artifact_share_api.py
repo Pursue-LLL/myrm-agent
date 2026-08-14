@@ -1120,7 +1120,7 @@ async def test_csp_integration_pdf_real_vault(
 async def test_password_share_unlock_cookie_keeps_extensionless_media_type(
     share_client, db_session, tmp_path
 ) -> None:
-    """R1: unlock-cookie auth keeps artifact_type for extension-less PDF entries.
+    """Unlock-cookie auth keeps artifact_type for extension-less PDF entries.
 
     A password share of a PDF whose artifact name has no suffix (entry file has
     no extension) must still be served as ``application/pdf`` when the browser

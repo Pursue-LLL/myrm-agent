@@ -10,7 +10,13 @@ import time
 import pytest
 
 _LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
+    os.path.dirname(os.path.abspath(__file__)),
+    "..",
+    "..",
+    "..",
+    "scripts",
+    "dev",
+    "lib",
 )
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
