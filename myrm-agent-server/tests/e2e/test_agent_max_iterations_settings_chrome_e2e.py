@@ -123,22 +123,50 @@ def _set_max_iterations_js(expected_value: int) -> str:
 # Clicks the Save button on the agent preview card (text matches any locale).
 _CLICK_SAVE_JS = """(() => {
   const buttons = Array.from(document.querySelectorAll('button'));
-  const save = buttons.find((btn) => {
-    const text = (btn.textContent || '').trim();
-    if (!/^(Save|保存|儲存)$/i.test(text)) return false;
-    const disabled = btn.disabled;
-    return !disabled;
-  });
+  const matches = buttons.filter((btn) =>
+    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()),
+  );
+  const save = matches.find((btn) => !btn.disabled);
+  const list = matches.map((b) => ({
+    text: (b.textContent || '').trim(),
+    disabled: b.disabled,
+  }));
   if (!save) {
-    const all = Array.from(document.querySelectorAll('button'))
-      .map((b) => b.textContent || '')
-      .filter((t) => t.trim().length > 0)
-      .slice(0, 20);
-    return { ok: false, reason: 'no-enabled-save-button', buttons: all };
+    return { ok: false, reason: 'no-enabled-save-button', list };
   }
   save.click();
+  return { ok: true, clicked: (save.textContent || '').trim(), list };
+})()"""
+
+# Wraps window.fetch to record PUT bodies for the agent endpoint (diagnostic).
+_INSTALL_FETCH_TAP_JS = """(() => {
+  if (window.__diag_fetch_tap__) return { ok: true };
+  window.__diag_put_bodies__ = [];
+  const orig = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const [url, opts] = args;
+    try {
+      if (/\/api\/v1\/user-agents\/[^/]+$/.test(String(url)) && (opts?.method === 'PUT')) {
+        window.__diag_put_bodies__.push({
+          url: String(url),
+          body: opts.body ? String(opts.body) : null,
+        });
+      }
+    } catch (err) { /* never break fetch */ }
+    return orig(...args);
+  };
+  window.__diag_fetch_tap__ = true;
   return { ok: true };
 })()"""
+
+# Dumps diagnostics collected during the save flow.
+_DIAG_DUMP_JS = """(() => ({
+  apiBase: window.__MYRM_E2E_API_BASE__ ?? window.__MYRM_E2E_RUNTIME__?.apiBase ?? null,
+  putBodies: window.__diag_put_bodies__ ?? [],
+  allSaveButtons: Array.from(document.querySelectorAll('button'))
+    .filter((b) => /^(Save|保存|儲存)$/i.test((b.textContent || '').trim()))
+    .map((b) => ({ text: (b.textContent || '').trim(), disabled: b.disabled })),
+}))()"""
 
 # Save completion probe: after a successful save the editor sets hasChanges=false and
 # saving=false, so the Save button is re-disabled and its loading spinner is gone.
@@ -171,7 +199,7 @@ def _fetch_max_iterations(api_url: str, agent_id: str) -> int | None:
 
 
 def _wait_max_iterations(
-    api_url: str, agent_id: str, expected: int, *, timeout_sec: float = 30.0
+    api_url: str, agent_id: str, expected: int, *, timeout_sec: float = 30.0, diag: str = ""
 ) -> None:
     deadline = time.monotonic() + timeout_sec
     last: int | None = None
@@ -181,7 +209,8 @@ def _wait_max_iterations(
             return
         time.sleep(1.0)
     raise AssertionError(
-        f"max_iterations did not persist: expected={expected} last={last}"
+        f"max_iterations did not persist: expected={expected} last={last}\n"
+        f"diag: {diag}"
     )
 
 
@@ -234,6 +263,7 @@ def test_agent_max_iterations_edit_persists_via_ui() -> None:
             assert isinstance(set_res, dict) and set_res.get("ok") is True, set_res
             assert str(set_res.get("value")) == "50", set_res
 
+            client.evaluate(page, _INSTALL_FETCH_TAP_JS, timeout_sec=15.0)
             clicked = client.evaluate(page, _CLICK_SAVE_JS, timeout_sec=15.0)
             assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
 
@@ -246,8 +276,12 @@ def test_agent_max_iterations_edit_persists_via_ui() -> None:
             assert saved.get("ready") is True, json.dumps(
                 saved, indent=2, ensure_ascii=False
             )
+            diag = client.evaluate(page, _DIAG_DUMP_JS, timeout_sec=15.0)
 
         # Persistence truth: the value must reach the backend.
-        _wait_max_iterations(api_url, agent_id, expected=50, timeout_sec=30.0)
+        _wait_max_iterations(
+            api_url, agent_id, expected=50, timeout_sec=30.0,
+            diag=json.dumps(diag, ensure_ascii=False),
+        )
     finally:
         http_json("DELETE", f"{api_url}/api/v1/user-agents/{agent_id}")

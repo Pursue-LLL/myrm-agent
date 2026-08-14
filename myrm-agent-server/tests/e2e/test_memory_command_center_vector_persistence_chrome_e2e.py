@@ -41,7 +41,6 @@ from cdp_chat.support import (  # noqa: E402
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     ChromeMcpClient,
     McpPage,
-    get_e2e_api_url,
     http_json,
     open_settings_subroute,
     wait_for_state,
