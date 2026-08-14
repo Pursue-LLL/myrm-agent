@@ -1,5 +1,8 @@
 """Remote backup strategies for cloud storage (WebDAV / S3).
 
+[INPUT]
+httpx::Client (POS: 外部 HTTP 客户端，WebDAV/S3 上传下载)
+
 Implements backup upload/download/list/delete operations for:
 - WebDAV (坚果云 / Nextcloud / 自建等)
 - S3-compatible storage (AWS S3 / MinIO / 阿里云 OSS 等)

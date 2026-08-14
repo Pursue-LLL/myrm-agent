@@ -1,5 +1,10 @@
 """Remote backup auto-sync scheduler.
 
+[INPUT]
+app.services.memory.backup.backup_remote::RemoteBackupStrategy (POS: 本服务远程备份策略)
+app.services.memory.backup.backup::VolumeBackupStrategy (POS: 本服务本地备份策略)
+app.services.memory.backup.backup_remote_utils::create_backup_for_remote/restore_remote_backup (POS: 本服务远程桥接)
+
 Manages periodic automatic backup to configured remote storage (WebDAV/S3).
 Integrates with the existing APScheduler lifecycle and VolumeBackupStrategy.
 """

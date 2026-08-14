@@ -109,7 +109,7 @@ def _insert_chat(db_engine, *, chat_id: str = "chat-1") -> None:
             )
             session.add(
                 Message(
-                    id="m-1",
+                    id=f"m-{chat_id}",
                     chat_id=chat_id,
                     role="user",
                     content="Hello world",
@@ -265,9 +265,7 @@ class TestShareLifecycle:
         assert status["shared"] is False
         assert status["password_protected"] is False
 
-    def test_legacy_share_without_expiry_reports_shared_status_only(
-        self, client: TestClient, db_engine
-    ) -> None:
+    def test_legacy_share_without_expiry_reports_shared_status_only(self, client: TestClient, db_engine) -> None:
         """Pre-expiry records: a fingerprint with no stored expiry yields a status only.
 
         The unprotected legacy case reports shared without a rebuildable URL (the

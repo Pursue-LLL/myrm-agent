@@ -1,5 +1,9 @@
 """Volume-based memory backup strategy for sandbox environments.
 
+[INPUT]
+myrm_agent_harness.toolkits.memory.backup::BackupMetadata/BackupResult/RestoreResult (POS: Framework memory backup kit)
+myrm_agent_harness.toolkits.memory.protocols::RelationalStoreProtocol/VectorStoreProtocol/VectorDocument (POS: Framework memory protocols)
+
 Implements MemoryBackupStrategy for Agent-in-Sandbox architecture.
 Backups are stored in sandbox persistent volume at ~/.myrm/backups/.
 """

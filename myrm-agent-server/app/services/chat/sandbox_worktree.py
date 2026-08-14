@@ -8,6 +8,10 @@
 - is_git_repository: Check if a directory is within a git repository.
 - merge_sandbox_to_parent: Merge sandbox branch changes back to the source branch.
 - _get_merge_lock: Shared per-base_dir merge lock reused by kanban task merges.
+- _git_identity: Per-repo `-c user.name/-c user.email` overrides for missing identity.
+- _auto_commit_dirty_worktree: Commit uncommitted worktree edits before a merge (shared with kanban).
+- _collect_conflict_files: List files with unresolved merge conflicts (shared with kanban).
+- _abort_merge: Roll back an in-progress merge so the repo stays usable (shared with kanban).
 - WorktreeCreateError: Structured error type for worktree creation failures.
 
 [POS]
@@ -456,10 +460,12 @@ async def _merge_sandbox_to_parent_locked(
         # a mid-merge state that blocks every later merge on the same repo.
         conflicts = await _collect_conflict_files(base_dir)
         await _abort_merge(base_dir)
-        message = "Merge conflict"
         if conflicts:
-            message += f" in {len(conflicts)} file(s): {', '.join(conflicts[:5])}"
-        return False, message
+            return False, f"Merge conflict in {len(conflicts)} file(s)"
+        # Non-conflict merge failure (e.g. rejected by a merge hook); surface
+        # the actual reason so the user is not told it was a conflict.
+        stderr = result.stderr.strip()
+        return False, f"Merge failed: {stderr[:200]}" if stderr else "Merge failed"
     except Exception:
         await _abort_merge(base_dir)
         return False, "Merge failed"

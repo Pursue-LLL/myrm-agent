@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.api::KanbanStore (POS: Public protocol re-exports; KanbanStore defined in toolkits.kanban.protocols.)
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
-- app.services.chat.sandbox_worktree (POS: Shared git worktree lifecycle management for chat sandbox sessions.)
+- app.services.chat.sandbox_worktree (POS: 共享 git worktree 生命周期与 merge 基础设施——per-base_dir merge 锁、merge abort/冲突文件收集、auto-commit 与 merge 的 git identity 兜底)
 
 [OUTPUT]
 - resolve_base_dir, resolve_workspace, create_worktree, cleanup_worktree, merge_task_worktree

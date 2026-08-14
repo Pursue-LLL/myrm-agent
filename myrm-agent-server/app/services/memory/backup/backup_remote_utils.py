@@ -1,5 +1,8 @@
 """Remote backup utilities.
 
+[INPUT]
+myrm_agent_harness.toolkits.memory.protocols.vector::VectorDocument/VectorStoreProtocol (POS: Framework memory protocols)
+
 Provides helper functions for creating exportable backup files
 and restoring from them. Bridges VolumeBackupStrategy with
 remote upload/download.
