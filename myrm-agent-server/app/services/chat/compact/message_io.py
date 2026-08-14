@@ -27,6 +27,9 @@ from app.database.models import Chat, Message
 
 if TYPE_CHECKING:
     from langchain_core.messages import BaseMessage
+    from myrm_agent_harness.agent.context_management.infra.schemas import (
+        StructuredSummary,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +70,8 @@ def parse_existing_summary(summary_json: str) -> StructuredSummary | None:
     """Parse JSON summary into StructuredSummary object.
 
     Delegates to the harness shared parser (``parse_structured_summary_json``)
-    so all 14 ``StructuredSummary`` fields survive the DB persistence boundary —
-    a hand-written partial mapping here would silently drop 9 fields on every
+    so every field ``to_json`` emits survives the DB persistence boundary — a
+    hand-written partial mapping here would silently drop 8 fields on each
     incremental compaction. Returns None on unparseable input so callers fall
     back to full-mode summarisation.
     """
