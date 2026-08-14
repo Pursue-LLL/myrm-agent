@@ -193,7 +193,10 @@ async def poll_feishu_qr_register(body: QRPollRequest) -> QRPollResponse:
 
             bot_info = await reg.probe_bot(creds["app_id"], creds["app_secret"])
             if not bot_info.get("bot_open_id"):
-                raise RuntimeError("Failed to verify Feishu bot credentials")
+                raise HTTPException(
+                    status_code=502,
+                    detail="Failed to verify Feishu bot credentials",
+                )
 
             instance = await _save_credentials_to_db(
                 creds,
@@ -213,7 +216,6 @@ async def poll_feishu_qr_register(body: QRPollRequest) -> QRPollResponse:
                 "appId": creds["app_id"],
                 "appSecret": creds["app_secret"],
                 "useLark": str(creds["domain"] == "lark").lower(),
-                "botOpenId": creds.get("bot_open_id") or "",
             },
             instance_id=instance.get("instanceId") if instance else None,
             channel_name=instance.get("channelName") if instance else None,
@@ -243,7 +245,6 @@ async def _save_credentials_to_db(
         value: dict[str, object] = {
             "appId": creds["app_id"],
             "appSecret": creds["app_secret"],
-            "botOpenId": creds.get("bot_open_id") or "",
             "verificationToken": "",
             "encryptKey": "",
             "useLark": creds["domain"] == "lark",

@@ -1479,20 +1479,28 @@ async def _try_hot_register_channel(config_key: str) -> None:
 
         instance = cls.from_credentials(creds)
 
-        # Preserve the display name across a hot-reload and only remove the
-        # old channel after the replacement was built successfully.
-        existing = channel_gateway.bus.get_channel(channel_name)
-        if existing:
-            instance.display_name = existing.display_name
-            await channel_gateway.remove_channel(channel_name)
-
         enabled = await is_channel_enabled(cls.credential_spec.config_key)
         if not enabled:
             from app.channels.types import ChannelStatus
 
             instance._status = ChannelStatus.DISABLED
 
-        await channel_gateway.add_channel(instance)
+        # Atomically swap the channel: resolve credentials and build the
+        # replacement before touching the old instance, then keep the old
+        # instance alive until the new one is successfully added.
+        existing = channel_gateway.bus.get_channel(channel_name)
+        if existing:
+            instance.display_name = existing.display_name
+            await channel_gateway.remove_channel(channel_name)
+
+        try:
+            await channel_gateway.add_channel(instance)
+        except Exception:
+            # Restore the previous instance so a failed swap never leaves
+            # the channel silently offline.
+            if existing is not None:
+                await channel_gateway.add_channel(existing)
+            raise
         logger.info("Channel '%s' hot-registered after credential save", channel_name)
     except Exception:
         logger.debug(

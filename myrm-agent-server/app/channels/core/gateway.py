@@ -428,6 +428,11 @@ class ChannelGateway:
 
     _MAX_INSTANCES_PER_TYPE = 5
 
+    @property
+    def max_instances_per_type(self) -> int:
+        """Maximum number of channel instances allowed per channel type."""
+        return self._MAX_INSTANCES_PER_TYPE
+
     @staticmethod
     def _resolve_channel_type(channel: BaseChannel) -> str:
         """Extract the base channel type from the formal ``channel_type`` attribute."""
