@@ -19,9 +19,10 @@ Business-layer recovery for failed memory extraction. Enqueues durable tasks con
 by the background worker, reusing harness extract with factory-aligned memory binding
 and extraction LLM. Retries run compressed-track only (enable_verbatim=False) to avoid
 duplicating verbatim chunks that the original auto-extract already stored.
-When the user has enabled deep PII scan (privacyDeepScan), the extraction task
-re-establishes the harness privacy context (policy + PseudonymStore) so LLM-based
-deep scan applies to retried memories exactly like the agent-run path.
+When privacy is enabled, the extraction task re-establishes the harness privacy
+context (policy + PseudonymStore + regex PII pseudonymizer) so retried memories
+are protected exactly like the agent-run path. When the user has additionally
+enabled deep PII scan (privacyDeepScan), LLM-based deep scan also applies.
 """
 
 from __future__ import annotations
@@ -41,6 +42,25 @@ logger = logging.getLogger(__name__)
 RetryScheduleStatus = Literal["scheduled", "already_in_flight"]
 
 
+def _safe_pii_action(value: object, default: PIIAction) -> PIIAction:
+    """Coerce a persisted PII action string to a valid enum value.
+
+    Falls back to *default* for missing or invalid values so a stale/foreign
+    configuration cannot crash the extraction task.
+    """
+    from myrm_agent_harness.agent.security.types import PIIAction
+
+    if value is None:
+        return default
+    try:
+        return PIIAction(str(value))
+    except ValueError:
+        logger.warning(
+            "Invalid PII action %r, falling back to %s", value, default.value
+        )
+        return default
+
+
 @contextmanager
 def _privacy_deep_scan_context(
     personal_settings: dict[str, object] | None,
@@ -48,66 +68,59 @@ def _privacy_deep_scan_context(
 ) -> Iterator[bool]:
     """Bridge user privacy settings into the harness privacy context.
 
-    Yields True when deep PII scan should be enabled for the wrapped extraction,
-    False otherwise. On entry it installs the PrivacyPolicy and (when S2/S3 use
-    PSEUDONYMIZE) the shared PseudonymStore; on exit it restores the previous
-    context so background tasks do not leak privacy state across chats.
+    When privacy is enabled it installs the PrivacyPolicy and, when S2/S3 use
+    PSEUDONYMIZE, the shared PseudonymStore plus the regex PII pseudonymizer so
+    retried memory writes are protected exactly like the agent-run path. Yields
+    True when LLM-based deep PII scan should also run; on exit the previous
+    context is restored so background tasks never leak privacy state across chats.
     """
     from myrm_agent_harness.agent.security.types import PIIAction, PrivacyPolicy
     from myrm_agent_harness.api.hooks import (
         build_pseudonym_store,
         get_privacy_policy,
         get_pseudonym_store,
+        install_memory_pseudonymizer,
+        restore_memory_pseudonymizer,
         set_privacy_policy,
         set_pseudonym_store,
     )
 
-    deep_scan = bool(
-        personal_settings.get("privacyDeepScan")
-        if isinstance(personal_settings, dict)
-        else False
-    )
-    if not deep_scan:
+    settings = personal_settings if isinstance(personal_settings, dict) else {}
+    enabled = bool(settings.get("privacyEnabled"))
+    deep_scan = bool(settings.get("privacyDeepScan"))
+    if not enabled:
         yield False
         return
 
     policy = PrivacyPolicy(
-        enabled=bool(
-            personal_settings.get("privacyEnabled")
-            if isinstance(personal_settings, dict)
-            else False
-        ),
-        s2_action=PIIAction(
-            str(
-                personal_settings.get("privacyS2Action")
-                if isinstance(personal_settings, dict)
-                and personal_settings.get("privacyS2Action")
-                else "warn"
-            )
-        ),
-        s3_action=PIIAction(
-            str(
-                personal_settings.get("privacyS3Action")
-                if isinstance(personal_settings, dict)
-                and personal_settings.get("privacyS3Action")
-                else "redact"
-            )
-        ),
-        deep_scan=True,
+        enabled=True,
+        s2_action=_safe_pii_action(settings.get("privacyS2Action"), PIIAction.WARN),
+        s3_action=_safe_pii_action(settings.get("privacyS3Action"), PIIAction.REDACT),
+        deep_scan=deep_scan,
     )
     previous_policy = get_privacy_policy()
     previous_store = get_pseudonym_store()
     set_privacy_policy(policy)
+    previous_pseudonymizer = None
     try:
         needs_store = (
             policy.s2_action == PIIAction.PSEUDONYMIZE
             or policy.s3_action == PIIAction.PSEUDONYMIZE
         )
-        if needs_store and workspace_path:
-            db_path = str(Path(workspace_path).parent / "pseudonym_store.db")
-            set_pseudonym_store(build_pseudonym_store(db_path))
-        yield True
+        if needs_store:
+            if workspace_path:
+                db_path = str(Path(workspace_path).parent / "pseudonym_store.db")
+                store = build_pseudonym_store(db_path)
+                set_pseudonym_store(store)
+                previous_pseudonymizer = install_memory_pseudonymizer(policy, store)
+            else:
+                logger.warning(
+                    "Deep PII scan skipped for retry: no workspace path for pseudonym store"
+                )
+        yield deep_scan
     finally:
+        if previous_pseudonymizer is not None:
+            restore_memory_pseudonymizer(previous_pseudonymizer)
         set_privacy_policy(previous_policy)
         set_pseudonym_store(previous_store)
 

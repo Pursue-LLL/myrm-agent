@@ -1,10 +1,17 @@
 """In-process TTL cache for per-chat usage aggregation.
 
-The Chat.total_* columns are an O(1) usage cache rebuilt from assistant
-message extra_data snapshots. Within one long-running session consecutive
-turns trigger one sync each; without caching every sync would re-aggregate
-the whole chat. This module debounces those rebuilds within a short window
-while still guaranteeing fresh values on TTL expiry.
+[INPUT]
+- Chat.total_* columns (POS: O(1) 用量聚合缓存列，由 assistant 消息 extra_data 快照重建)
+
+[OUTPUT]
+- ChatUsageCache (POS: 进程内短窗口去抖缓存，TTL 过期后重新聚合)
+
+[POS]
+用量聚合去抖层。The Chat.total_* columns are an O(1) usage cache rebuilt from
+assistant message extra_data snapshots. Within one long-running session
+consecutive turns trigger one sync each; without caching every sync would
+re-aggregate the whole chat. This module debounces those rebuilds within a
+short window while still guaranteeing fresh values on TTL expiry.
 """
 
 from __future__ import annotations
