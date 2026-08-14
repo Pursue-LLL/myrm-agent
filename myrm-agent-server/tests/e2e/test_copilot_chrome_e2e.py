@@ -112,25 +112,24 @@ _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
   let node = walker.nextNode();
   while (node) {
     const value = node.textContent || '';
-    if (value.includes(needle)) {
+    const msgContainer = node.parentElement?.closest?.('[data-message-id]');
+    if (value.includes(needle) && msgContainer) {
       const range = document.createRange();
       range.selectNodeContents(node);
       const selection = window.getSelection();
       selection?.removeAllRanges();
       selection?.addRange(range);
-      const container = node.parentElement?.closest('[data-message-id]') ?? node.parentElement ?? document.body;
-      container.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      msgContainer.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
       return {
         ok: true,
         selected: selection?.toString?.() || '',
-        target: container.tagName,
-        anchorInMsg: !!node.parentElement?.closest?.('[data-message-id]'),
-        msgId: container.getAttribute?.('data-message-id') || '',
+        target: msgContainer.tagName,
+        msgId: msgContainer.getAttribute?.('data-message-id') || '',
       };
     }
     node = walker.nextNode();
   }
-  return { ok: false, err: 'snippet-not-found' };
+  return { ok: false, err: 'snippet-not-found-in-message' };
 })()"""
 
 _QUOTE_ADVISOR_READY_JS = """(() => {
@@ -138,6 +137,7 @@ _QUOTE_ADVISOR_READY_JS = """(() => {
   const btn = document.querySelector('[data-testid="quote-toolbar-advisor-ask"]');
   const portal = document.getElementById('quote-toolbar-portal');
   const sel = window.getSelection();
+  const anchor = sel?.anchorNode;
   return {
     ready: !!btn,
     btn: !!btn,
@@ -146,6 +146,10 @@ _QUOTE_ADVISOR_READY_JS = """(() => {
     selText: sel?.toString?.().slice(0, 40) ?? '',
     selCollapsed: sel?.isCollapsed,
     rfaTicks: window.__E2E_RFA_TICKS ?? -1,
+    anchorNode: anchor?.nodeType,
+    anchorParent: anchor?.parentElement?.tagName ?? '',
+    anchorMsgId: anchor?.parentElement?.closest?.('[data-message-id]')?.getAttribute?.('data-message-id') ?? '',
+    msgIdCount: document.querySelectorAll('[data-message-id]').length,
   };
 })()"""
 

@@ -16,7 +16,12 @@ from app.database.connection import get_db
 from app.database.dto import ChatDTO, MessageDTO
 
 
-def _make_chat_dto(chat_id: str = "chat-1", share_revoked_at: datetime | None = None) -> ChatDTO:
+def _make_chat_dto(
+    chat_id: str = "chat-1",
+    share_revoked_at: datetime | None = None,
+    share_token_fingerprint: str | None = None,
+    share_revoked_fingerprints: list[str] | None = None,
+) -> ChatDTO:
     now = datetime.now(timezone.utc)
     return ChatDTO(
         id=chat_id,
@@ -26,6 +31,8 @@ def _make_chat_dto(chat_id: str = "chat-1", share_revoked_at: datetime | None = 
         created_at=now,
         updated_at=now,
         share_revoked_at=share_revoked_at,
+        share_token_fingerprint=share_token_fingerprint,
+        share_revoked_fingerprints=share_revoked_fingerprints,
     )
 
 
@@ -59,7 +66,45 @@ def share_client() -> TestClient:
 
     test_app.dependency_overrides[get_db] = override_get_db
     with TestClient(test_app) as client:
+        client._mock_db = mock_db
         yield client
+
+
+def _update_values_from_executes(mock_db: MagicMock) -> list[dict[str, object]]:
+    """Return the ``values`` dict of every ``update()`` executed on the mock DB."""
+    from sqlalchemy import Update
+    from sqlalchemy.sql.elements import BindParameter
+
+    captured: list[dict[str, object]] = []
+    for call in mock_db.execute.call_args_list:
+        stmt = call.args[0]
+        if isinstance(stmt, Update):
+            captured.append(
+                {
+                    getattr(k, "key", str(k)): (
+                        v.value if isinstance(v, BindParameter) else v
+                    )
+                    for k, v in stmt._values.items()
+                }
+            )
+    return captured
+
+
+def _token_for_exp(exp: int, *, password: str | None = None) -> str:
+    """Create a chat share token pinned to an explicit expiry.
+
+    ``create_chat_share_token`` derives ``exp`` from the wall clock, so two
+    tokens minted in the same second are identical; pinning ``exp`` guarantees
+    distinct tokens that exercise per-token revocation semantics.
+    """
+    from app.core.security.share_hmac import sign_share_token
+
+    payload: dict[str, object] = {"cid": "chat-1"}
+    if password is not None:
+        payload["p"] = 1
+    return sign_share_token(
+        payload, salt="chat-share", exp=exp, password=password,
+    )
 
 
 class TestCreateChatShare:
@@ -177,6 +222,83 @@ class TestRevokeChatShare:
         ):
             resp = share_client.delete("/chats/chat-999/share")
             assert resp.status_code == 404
+
+    def test_revoke_records_active_token_fingerprint(
+        self, share_client: TestClient
+    ) -> None:
+        """Revoke moves the active token fingerprint into the revoked set."""
+        from app.core.security.share_hmac import token_fingerprint
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600)
+        active = _make_chat_dto(share_token_fingerprint=token_fingerprint(token))
+
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=active,
+        ):
+            resp = share_client.delete("/chats/chat-1/share")
+        assert resp.status_code == 204
+
+        values = _update_values_from_executes(share_client._mock_db)
+        assert len(values) == 1
+        assert values[0]["share_revoked_fingerprints"] == [token_fingerprint(token)]
+        assert values[0]["share_token_fingerprint"] is None
+        assert "share_revoked_at" in values[0]
+
+    def test_create_retires_previous_active_token(
+        self, share_client: TestClient
+    ) -> None:
+        """A fresh share retires the previous active token fingerprint."""
+        from app.core.security.share_hmac import token_fingerprint
+        from app.services.chat.share_token import create_chat_share_token
+
+        old_token, _ = create_chat_share_token("chat-1", ttl_seconds=3600)
+        old_fp = token_fingerprint(old_token)
+        active = _make_chat_dto(share_token_fingerprint=old_fp)
+
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=active,
+        ):
+            resp = share_client.post("/chats/chat-1/share", json={"ttl_days": 7})
+        assert resp.status_code == 200
+
+        values = _update_values_from_executes(share_client._mock_db)
+        assert len(values) == 1
+        new_fp = values[0]["share_token_fingerprint"]
+        assert isinstance(new_fp, str) and new_fp != old_fp
+        assert values[0]["share_revoked_fingerprints"] == [old_fp]
+        assert "share_revoked_at" not in values[0]
+
+    def test_create_after_revoke_keeps_old_fingerprint_revoked(
+        self, share_client: TestClient
+    ) -> None:
+        """Recreating a share after revoke clears the flag but keeps the set."""
+        from app.core.security.share_hmac import token_fingerprint
+        from app.services.chat.share_token import create_chat_share_token
+
+        old_token, _ = create_chat_share_token("chat-1", ttl_seconds=3600)
+        old_fp = token_fingerprint(old_token)
+        revoked = _make_chat_dto(
+            share_revoked_at=datetime.now(timezone.utc),
+            share_revoked_fingerprints=[old_fp],
+        )
+
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=revoked,
+        ):
+            resp = share_client.post("/chats/chat-1/share", json={"ttl_days": 7})
+        assert resp.status_code == 200
+
+        values = _update_values_from_executes(share_client._mock_db)
+        assert len(values) == 1
+        assert values[0]["share_revoked_at"] is None
+        assert values[0]["share_revoked_fingerprints"] == [old_fp]
 
 
 class TestPublicSharePage:
@@ -477,3 +599,132 @@ class TestPublicSharePage:
         resp = share_client.post(f"/public/chat-share/{token}", data={"p": "wrong"})
         assert resp.status_code == 403
         assert "Incorrect password" in resp.text
+
+    def test_revoked_then_reshared_old_token_stays_404(
+        self, share_client: TestClient
+    ) -> None:
+        """A revoked link stays dead after a fresh share for the same chat.
+
+        Regression: recreating a share used to clear ``share_revoked_at``,
+        which resurrected every previously revoked token for that chat.
+        """
+        import time
+
+        from app.core.security.share_hmac import token_fingerprint
+
+        old_token = _token_for_exp(int(time.time()) + 3600)
+        new_token = _token_for_exp(int(time.time()) + 7200)
+        reshared = _make_chat_dto(
+            share_token_fingerprint=token_fingerprint(new_token),
+            share_revoked_fingerprints=[token_fingerprint(old_token)],
+        )
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=reshared,
+            ),
+            patch(
+                "app.api.chats.chat.share.render_share_html",
+                new_callable=AsyncMock,
+                return_value="<html><body>Shared</body></html>",
+            ),
+        ):
+            assert (
+                share_client.get(f"/public/chat-share/{old_token}").status_code == 404
+            )
+            assert (
+                share_client.get(f"/public/chat-share/{new_token}").status_code == 200
+            )
+
+    def test_revoked_then_reshared_old_token_browser_gets_revoked_page(
+        self, share_client: TestClient
+    ) -> None:
+        """Browser visitors see the revoked status page, not conversation content."""
+        import time
+
+        from app.core.security.share_hmac import token_fingerprint
+
+        old_token = _token_for_exp(int(time.time()) + 3600)
+        new_token = _token_for_exp(int(time.time()) + 7200)
+        reshared = _make_chat_dto(
+            share_token_fingerprint=token_fingerprint(new_token),
+            share_revoked_fingerprints=[token_fingerprint(old_token)],
+        )
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=reshared,
+        ):
+            resp = share_client.get(
+                f"/public/chat-share/{old_token}", headers={"Accept": "text/html"},
+            )
+        assert resp.status_code == 404
+        assert "Link Revoked" in resp.text
+
+    def test_multi_cycle_revoked_tokens_never_resurrect(
+        self, share_client: TestClient
+    ) -> None:
+        """Tokens revoked across multiple revoke/recreate cycles stay dead."""
+        import time
+
+        from app.core.security.share_hmac import token_fingerprint
+
+        t1 = _token_for_exp(int(time.time()) + 3600)
+        t2 = _token_for_exp(int(time.time()) + 7200)
+        t3 = _token_for_exp(int(time.time()) + 10800)
+        f1, f2, f3 = (token_fingerprint(t) for t in (t1, t2, t3))
+        state = _make_chat_dto(
+            share_token_fingerprint=f3,
+            share_revoked_fingerprints=[f1, f2],
+        )
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=state,
+            ),
+            patch(
+                "app.api.chats.chat.share.render_share_html",
+                new_callable=AsyncMock,
+                return_value="<html><body>Shared</body></html>",
+            ),
+        ):
+            assert share_client.get(f"/public/chat-share/{t1}").status_code == 404
+            assert share_client.get(f"/public/chat-share/{t2}").status_code == 404
+            assert share_client.get(f"/public/chat-share/{t3}").status_code == 200
+
+    def test_revoked_password_token_stays_404_after_reshare(
+        self, share_client: TestClient
+    ) -> None:
+        """A revoked password-protected token still dies after a fresh share."""
+        import time
+
+        from app.core.security.share_hmac import token_fingerprint
+
+        old_token = _token_for_exp(int(time.time()) + 3600, password="s3cret")
+        new_token = _token_for_exp(int(time.time()) + 7200, password="s3cret")
+        reshared = _make_chat_dto(
+            share_token_fingerprint=token_fingerprint(new_token),
+            share_revoked_fingerprints=[token_fingerprint(old_token)],
+        )
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=reshared,
+            ),
+            patch(
+                "app.api.chats.chat.share.render_share_html",
+                new_callable=AsyncMock,
+                return_value="<html><body>Shared</body></html>",
+            ),
+        ):
+            # Password must be supplied to reach the revoked check; even the
+            # correct password cannot resurrect a revoked token.
+            resp = share_client.get(f"/public/chat-share/{old_token}?p=s3cret")
+            assert resp.status_code == 404
+            assert (
+                share_client.get(f"/public/chat-share/{new_token}?p=s3cret").status_code
+                == 200
+            )

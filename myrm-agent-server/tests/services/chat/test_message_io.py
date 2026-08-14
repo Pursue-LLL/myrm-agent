@@ -56,6 +56,7 @@ def test_parse_existing_summary_missing_fields_default_empty() -> None:
 
 def test_parse_existing_summary_invalid_returns_none() -> None:
     assert parse_existing_summary("{not valid json") is None
+    assert parse_existing_summary(None) is None  # type: ignore[arg-type]
 
 
 def test_parse_existing_summary_roundtrip_keeps_blocked_and_next() -> None:

@@ -73,6 +73,9 @@ describe('fileDiffEvents desktop_view_update', () => {
     expect(store.isOpen).toBe(false);
     expect(store.viewData?.sourceChatId).toBe('chat-desk');
     expect(store.viewData?.appName).toBe('TextEdit');
+    // A turn-driven view must be flagged isTurnView=true so releaseTurnEngagement
+    // can reclaim it on MESSAGE_END without force-closing a manually opened panel.
+    expect(store.viewData?.isTurnView).toBe(true);
   });
 
   it('skips update when stream chatId is missing', async () => {

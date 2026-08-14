@@ -7,11 +7,14 @@
 - compute_execution_fingerprint, build_execution_scope_key
 
 [POS]
-execution_cache 指纹层。将 MCP/skill/harness/记忆配置输入稳定哈希为 scope key。
+execution_cache 指纹层。将影响 build_general_agent 输出的模型/技能/MCP/安全/记忆/工具配置
+稳定哈希为 scope key；排除每 run 状态（kanban_current_task_id、quote）与全局静态配置
+（event_log_backend、tail_budget_ratio）——前者会使缓存永不命中，后者不构成差异源。
 """
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from typing import TYPE_CHECKING
@@ -35,6 +38,8 @@ def _stable_json(value: object) -> object:
     if isinstance(value, BaseModel):
         dumped = value.model_dump(mode="json")
         return _stable_json(dumped)
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return _stable_json(dataclasses.asdict(value))
     return str(value)
 
 
@@ -97,9 +102,12 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "enable_memory": agent_wrapper.enable_memory,
         "enable_memory_auto_extraction": agent_wrapper.enable_memory_auto_extraction,
         "memory_extraction_preset": agent_wrapper.memory_extraction_preset,
+        "memory_decay_profile": agent_wrapper.memory_decay_profile,
+        "embedding_config": _stable_json(agent_wrapper.embedding_config),
         "incognito_mode": agent_wrapper.incognito_mode,
         "enable_wiki": agent_wrapper.enable_wiki,
         "enable_kanban": agent_wrapper.enable_kanban,
+        "kanban_tool_mode": agent_wrapper.kanban_tool_mode,
         "enable_cron_eager": agent_wrapper.enable_cron_eager,
         "enable_answer_tool": agent_wrapper.enable_answer_tool,
         "enable_planning": agent_wrapper.enable_planning,
@@ -112,6 +120,11 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         # Security policy must bust POOLED cache when YOLO/HITL or permissions change.
         "security_config_raw": _stable_json(agent_wrapper.security_config_raw),
         "agent_security_raw": _stable_json(agent_wrapper.agent_security_raw),
+        "code_execution_allow_network": agent_wrapper.code_execution_allow_network,
+        "notify_targets": _stable_json(agent_wrapper.notify_targets),
+        "providers_dict": _stable_json(agent_wrapper.providers_dict),
+        "jit_subagents": _stable_json(agent_wrapper.jit_subagents),
+        "force_delegate_agent": agent_wrapper.force_delegate_agent,
         # Org model policy revision busts POOLED cache after CP sandbox sync.
         "org_model_policy_revision": get_org_model_policy_revision(),
     }

@@ -148,3 +148,126 @@ def test_execution_fingerprint_changes_when_extraction_preset_changes() -> None:
     wrapper.memory_extraction_preset = "work_assistant"
     reconfigured_fp = compute_execution_fingerprint(wrapper)
     assert default_fp != reconfigured_fp
+
+
+def test_execution_fingerprint_changes_when_code_execution_network_toggles() -> None:
+    """Sandbox network policy is solidified into the executor at build time,
+    so the user's privacy setting must bust the POOLED cache."""
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+    off_fp = compute_execution_fingerprint(wrapper)
+    wrapper.code_execution_allow_network = True
+    on_fp = compute_execution_fingerprint(wrapper)
+    assert off_fp != on_fp
+
+
+def test_execution_fingerprint_changes_when_decay_profile_changes() -> None:
+    """Memory decay half-life is solidified into the context pipeline middleware,
+    so a profile change must rebuild the pooled unit."""
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+    default_fp = compute_execution_fingerprint(wrapper)
+    wrapper.memory_decay_profile = "permanent"
+    permanent_fp = compute_execution_fingerprint(wrapper)
+    assert default_fp != permanent_fp
+
+
+def test_execution_fingerprint_changes_when_embedding_config_changes() -> None:
+    """Embedding backend is solidified into similarity checks and memory retrieval,
+    so swapping the embedding model must rebuild the pooled unit."""
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+
+    wrapper.embedding_config = EmbeddingConfig(model="embed-a", api_key="k")
+    first_fp = compute_execution_fingerprint(wrapper)
+    wrapper.embedding_config = EmbeddingConfig(model="embed-b", api_key="k")
+    second_fp = compute_execution_fingerprint(wrapper)
+    assert first_fp != second_fp
+
+
+def test_execution_fingerprint_changes_when_notify_targets_change() -> None:
+    """Channel notification tools are loaded from notify_targets at build time,
+    so target changes must rebuild the pooled unit."""
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+    empty_fp = compute_execution_fingerprint(wrapper)
+    wrapper.notify_targets = ({"channel": "feishu", "target": "g-123"},)
+    configured_fp = compute_execution_fingerprint(wrapper)
+    assert empty_fp != configured_fp
+
+
+def test_execution_fingerprint_changes_when_kanban_tool_mode_changes() -> None:
+    """Kanban tool assembly follows kanban_tool_mode at build time,
+    so the tool mode must bust the POOLED cache."""
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+    orchestrator_fp = compute_execution_fingerprint(wrapper)
+    wrapper.kanban_tool_mode = "minimal"
+    minimal_fp = compute_execution_fingerprint(wrapper)
+    assert orchestrator_fp != minimal_fp
+
+
+def test_execution_fingerprint_changes_when_providers_dict_changes() -> None:
+    """Provider routing dict is solidified into the SkillAgent assembly,
+    so provider configuration changes must rebuild the pooled unit."""
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+    empty_fp = compute_execution_fingerprint(wrapper)
+    wrapper.providers_dict = {"openai": {"api_key": "sk-1"}}
+    configured_fp = compute_execution_fingerprint(wrapper)
+    assert empty_fp != configured_fp
+
+
+def test_execution_fingerprint_changes_when_jit_subagents_change() -> None:
+    """JIT subagent wiring is solidified into delegate tool assembly,
+    so ephemeral subagent changes must bust the POOLED cache."""
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+    none_fp = compute_execution_fingerprint(wrapper)
+    wrapper.jit_subagents = {"research": {"agent_id": "researcher"}}
+    configured_fp = compute_execution_fingerprint(wrapper)
+    assert none_fp != configured_fp
+
+
+def test_execution_fingerprint_changes_when_force_delegate_changes() -> None:
+    """Forced delegation target is solidified into sub-agent wiring,
+    so a delegate override must bust the POOLED cache."""
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+    none_fp = compute_execution_fingerprint(wrapper)
+    wrapper.force_delegate_agent = "researcher"
+    delegated_fp = compute_execution_fingerprint(wrapper)
+    assert none_fp != delegated_fp

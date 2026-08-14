@@ -78,6 +78,7 @@ _CAPABILITIES_INPUT_JS = """(() => {
 })()"""
 
 # Sets the number input through the native setter so React's onChange fires.
+# The expected value is embedded at call time (evaluate only accepts expression + timeout).
 _SET_MAX_ITERATIONS_JS = """(expectedValue) => {
   const headings = Array.from(document.querySelectorAll('label, h3'));
   const heading = headings.find((el) => /Max Iterations|最大迭代次数|最大疊代次數/.test(el.textContent || ''));
@@ -98,6 +99,26 @@ _SET_MAX_ITERATIONS_JS = """(expectedValue) => {
     resolve({ ok: true, value: input.value });
   }, 200));
 }"""
+
+
+def _set_max_iterations_js(expected_value: int) -> str:
+    """Returns an evaluate expression that sets the Max Iterations input to a value."""
+    return f"""(() => {{
+      const headings = Array.from(document.querySelectorAll('label, h3'));
+      const heading = headings.find((el) => /Max Iterations|最大迭代次数|最大疊代次數/.test(el.textContent || ''));
+      if (!heading) return {{ ok: false, reason: 'no-heading' }};
+      const card = heading.closest('div.rounded-xl') || heading.parentElement;
+      const input = card ? card.querySelector('input[type="number"]') : null;
+      if (!input) return {{ ok: false, reason: 'no-input' }};
+      const setter = Object.getOwnPropertyDescriptor(
+        Object.getPrototypeOf(input), 'value',
+      );
+      setter.set.call(input, String({json.dumps(expected_value)}));
+      input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+      return new Promise(resolve => setTimeout(() => {{
+        resolve({{ ok: true, value: input.value }});
+      }}, 200));
+    }})()"""
 
 # Clicks the Save button on the agent preview card (text matches any locale).
 _CLICK_SAVE_JS = """(() => {
@@ -205,7 +226,7 @@ def test_agent_max_iterations_edit_persists_via_ui() -> None:
 
             # T3: edit value via native setter, then save.
             set_res = client.evaluate(
-                page, _SET_MAX_ITERATIONS_JS, 50, timeout_sec=15.0
+                page, _set_max_iterations_js(50), timeout_sec=15.0
             )
             assert isinstance(set_res, dict) and set_res.get("ok") is True, set_res
             assert str(set_res.get("value")) == "50", set_res

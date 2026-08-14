@@ -22,5 +22,5 @@ Server 业务层无损上下文压缩实现。`compact_service.py` 为对外 fac
 
 ## 依赖
 
-- harness：`summarize_circuit_guard`、`compression_anti_thrash_guard`、`generate_structured_summary`
+- harness：`summarize_circuit_guard`、`compression_anti_thrash_guard`、`generate_structured_summary`、`summary_parser.parse_structured_summary_json`（compacted_summary 全字段反序列化）
 - server：`Chat`/`Message` ORM、`ConversationRecallIndexService`

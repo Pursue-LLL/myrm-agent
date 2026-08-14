@@ -85,6 +85,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/config/test_omni_config.py` | 模块 | Omni-Config schema/sync/history/rollback；batch sync duplicate search priority 422 |
 | `e2e/test_search_priority_chain_chrome_e2e.py` | 模块 | Search priority chain signoff（API integration persist + Chrome READ `lane=READ private_backend=False` Settings priority badges；payload Tavily p1 + Perplexity p2；`@pytest.mark.timeout(180)`） |
 | `integration/test_fallback_integration.py` | 模块 | Harness provider_chain 集成：invalid primary hop、legacy role 迁移；SearXNG 不可用时 skip（`AllQueriesFailedError`） |
+| `integration/test_command_center_vector_persistence_integration.py` | 模块 | Command Center `vector_persistence` 真实装配集成（禁 mock 关键路径）：真实 harness `create_local_memory_manager` + 真实 embedded Qdrant 可写路径 → `persistent`；不可写路径 fallback `:memory:` → `memory_fallback`；无 vector → `unavailable` |
 | `api/files/test_revert_seed_integration.py` | 模块 | Revert seed 四 variant + production persist root hydrate + channel cleanup（6 项；无 RevertService mock） |
 | `services/files/test_revert_hydrate.py` | 单元 | `revert_hydrate.py` 100% 覆盖：root 解析顺序、hydrate、cleanup |
 | `services/files/test_reveal_utils_obsidian.py` | 模块 | Obsidian launch 探测：Local/Tauri gate + macOS/Windows/Linux 安装路径 |

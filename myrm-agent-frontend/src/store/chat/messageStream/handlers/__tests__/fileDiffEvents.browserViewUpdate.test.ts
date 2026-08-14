@@ -93,6 +93,9 @@ describe('fileDiffEvents browser_view_update', () => {
     expect(store.isOpen).toBe(false);
     expect(store.viewData?.sourceChatId).toBe('chat-bg');
     expect(store.viewData?.pageUrl).toBe('https://example.com');
+    // A turn-driven view must be flagged isTurnView=true so releaseTurnEngagement
+    // can reclaim it on MESSAGE_END without force-closing a manually opened panel.
+    expect(store.viewData?.isTurnView).toBe(true);
   });
 
   it('skips update when stream chatId is missing', async () => {
