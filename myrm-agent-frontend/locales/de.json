@@ -8708,6 +8708,8 @@
     "context_compaction_circuit_open": "Komprimierung nicht verfügbar, Fallback wird verwendet",
     "context_compaction_fallback": "Komprimierung beeinträchtigt, schneller Fallback wird verwendet",
     "context_compaction_completed": "Kontext erfolgreich komprimiert",
+    "dropped_manifest_title": "Die folgenden Anweisungen wurden während der Komprimierung aus dem Kontext entfernt. Falls sie weiterhin wichtig sind, bitte erneut angeben:",
+    "dropped_manifest_more": "+{count} weitere entfernte Anweisung(en)",
     "visionBackend": {
       "vlm": "Vision-Modell",
       "ocr": "OCR-Fallback",

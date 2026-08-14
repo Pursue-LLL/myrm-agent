@@ -389,8 +389,10 @@ async def test_concurrent_merges_serialize_without_failure(git_repo: Path) -> No
         merge_task_worktree(store, task_b),
     )
     assert results == [True, True]
-    # Both commits landed on main and both worktrees were cleaned up.
-    log = _run_git(git_repo, "log", "--oneline", "-4", "main").stdout
+    # Both commits landed on main (full history: initial + 2 task commits +
+    # 2 merge commits; a fixed -N would flake on concurrent merge ordering)
+    # and both worktrees were cleaned up.
+    log = _run_git(git_repo, "log", "--oneline", "main").stdout
     assert "task-k commit" in log
     assert "task-l commit" in log
     assert not Path(wt_a).exists()
