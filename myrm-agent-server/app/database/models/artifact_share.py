@@ -8,8 +8,12 @@
 
 [POS]
 Server business layer. Records every share-preview link so the GUI can list
-active shares and revoke compromised or unwanted links immediately. The token
-is never stored in plaintext; only its SHA-256 fingerprint is kept.
+active shares and revoke compromised or unwanted links immediately. Unprotected
+tokens are never stored in plaintext (only their SHA-256 fingerprint is kept)
+because they can be rebuilt deterministically from the row fields. Password-
+protected tokens cannot be rebuilt (the password is never persisted), so their
+share path — which embeds the token — is stored in ``share_path``; such a token
+is unusable without the password.
 """
 
 from __future__ import annotations
