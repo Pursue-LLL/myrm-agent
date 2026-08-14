@@ -10,8 +10,8 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
 | `service.py` | 核心 | `ConnectService`：连接档案、token 签发（携带 agent_id 作用域）、ingress URL 解析、resolve_token 返回 VerifiedConnectToken(profile_id, agent_id)、健康检查与 Agent Plugins bundle 生成 | ✅ |
-| `snippet_builder.py` | 纯函数 | 各工具 MCP 配置片段（JSON/TOML）与向导文案构建 | — |
-| `agent_plugin.py` | 纯函数 | Agent Plugins 1.0.0 便携 bundle（plugin.json/mcp.json/SKILL.md）模板渲染 | — |
+| `snippet_builder.py` | 纯函数 | 各工具 MCP 配置片段（JSON/TOML）与向导文案构建 | ✅ |
+| `agent_plugin.py` | 纯函数 | Agent Plugins 1.0.0 便携 bundle（plugin.json/mcp.json/SKILL.md）模板渲染 | ✅ |
 
 ## 依赖
 

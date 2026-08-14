@@ -6,7 +6,7 @@ import pytest
 from myrm_agent_harness.api.config import ConfigIncompleteError
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
-from app.services.memory.shared_context.shared_context import shared_context_health as health_module
+from app.services.memory.shared_context import shared_context_health as health_module
 
 
 class _FakeEmbeddingService:
