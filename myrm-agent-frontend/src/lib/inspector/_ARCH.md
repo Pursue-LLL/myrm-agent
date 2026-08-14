@@ -8,7 +8,7 @@ Desktop / Browser Inspector（agent 控制镜像）的纯函数层。无 React �
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `releaseTurnInspectorControls.ts` | 核心 | 动态加载 desktop + browser inspector store，按归属 chatId 调用各自 `releaseTurnEngagement(chatId)`（仅释放该 chat 的 turn，多 pane 并行互不误关）；动态 import 失败静默（不产生 unhandled rejection） | ✅ |
+| `releaseTurnInspectorControls.ts` | 核心 | 动态加载 desktop + browser inspector store，按归属 chatId 调用各自 `releaseTurnEngagement(chatId)`（结束 turn 回收其 viewData 并归还 ownership，即使 engage 槽位被其它 pane 覆盖；多 pane 并行互不误关）；动态 import 失败静默（不产生 unhandled rejection） | ✅ |
 | `__tests__/releaseTurnInspectorControls.test.ts` | 测试 | 两 store 均按 chatId 释放；import 失败不抛出；幂等（chatId 不匹配/未 engaged 时无副作用） | — |
 
 ## 依赖

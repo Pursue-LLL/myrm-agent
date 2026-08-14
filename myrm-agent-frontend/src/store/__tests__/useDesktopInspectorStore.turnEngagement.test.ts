@@ -20,7 +20,7 @@ describe('useDesktopInspectorStore turn engagement', () => {
     expect(useDesktopInspectorStore.getState().engagedChatId).toBeNull();
   });
 
-  it('releaseTurnEngagement is a no-op when the turn never engaged desktop events', () => {
+  it('releaseTurnEngagement is a no-op for a manually opened panel when an unrelated turn ends', () => {
     const state = useDesktopInspectorStore.getState();
     state.openPanel();
     state.updateViewData({
@@ -37,9 +37,9 @@ describe('useDesktopInspectorStore turn engagement', () => {
       updatedAt: Date.now(),
     });
 
-    useDesktopInspectorStore.getState().releaseTurnEngagement('c1');
-
     // A panel the user opened manually must survive unrelated turns.
+    useDesktopInspectorStore.getState().releaseTurnEngagement('other-chat');
+
     expect(useDesktopInspectorStore.getState().engagedChatId).toBeNull();
     expect(useDesktopInspectorStore.getState().isOpen).toBe(true);
     expect(useDesktopInspectorStore.getState().viewData).not.toBeNull();
@@ -137,6 +137,42 @@ describe('useDesktopInspectorStore turn engagement', () => {
     expect(state.isOpen).toBe(false);
     expect(state.viewData).toBeNull();
     expect(state.instructionText).toBe('');
+  });
+
+  it('releaseTurnEngagement reclaims viewData when an overwritten turn ends last (ghost control fix)', () => {
+    const store = useDesktopInspectorStore.getState();
+    // Pane A's turn drives the desktop and emits a view.
+    store.markTurnEngaged('a');
+    store.setDesktopActive(true);
+    store.openPanel();
+    store.updateViewData({
+      screenshotBase64: 'x',
+      mimeType: 'image/png',
+      refs: {},
+      appName: 'Calculator',
+      windowTitle: '',
+      scope: 'app',
+      needsPermission: false,
+      viewportWidth: 100,
+      viewportHeight: 100,
+      sourceChatId: 'a',
+      updatedAt: Date.now(),
+    });
+
+    // Pane B's turn starts and overwrites the single engagement slot.
+    store.markTurnEngaged('b');
+
+    // B ends first: ownership is returned, A's view stays visible.
+    store.releaseTurnEngagement('b');
+    expect(useDesktopInspectorStore.getState().engagedChatId).toBeNull();
+    expect(useDesktopInspectorStore.getState().viewData).not.toBeNull();
+
+    // A ends last: even though the engagement slot is gone, A's view must be reclaimed.
+    store.releaseTurnEngagement('a');
+    const state = useDesktopInspectorStore.getState();
+    expect(state.viewData).toBeNull();
+    expect(state.isDesktopActive).toBe(false);
+    expect(state.isOpen).toBe(false);
   });
 
   it('reset clears engagedChatId', () => {

@@ -66,9 +66,10 @@ export { sanitizeStreamText } from '../textSanitize';
  * Fire-and-forget release of desktop + browser inspector "controlling" state for the
  * turn owned by chatId. Terminal paths (ERROR / AGENT_CANCELLED / CONTEXT_OVERFLOW_RESET /
  * GOAL_STATUS budget_limited / MESSAGE_END) share this lazy wrapper instead of inlining
- * the dynamic import; releaseTurnEngagement is a no-op for other chats, and viewData owned
- * by another chat / a manually opened panel is preserved (only turn ownership is returned),
- * so parallel panes are never force-closed. Chunk load failure is swallowed so the
+ * the dynamic import; releaseTurnEngagement returns ownership for the ending turn and
+ * reclaims its viewData even if another pane overwrote the engagement slot, while viewData
+ * owned by another chat / a manually opened panel is preserved, so parallel panes are
+ * never force-closed and no ghost control lingers. Chunk load failure is swallowed so the
  * stop/turn path never surfaces an unhandled rejection.
  */
 export function releaseInspectorControls(chatId: string): void {
