@@ -22,7 +22,7 @@ import re
 import subprocess
 
 from app.services.chat.sandbox_worktree import (
-    _auto_commit_dirty_worktree,
+    _GIT_ENV,
 )
 
 logger = logging.getLogger(__name__)
