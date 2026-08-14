@@ -108,28 +108,40 @@ _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
   window.__E2E_RFA_TICKS = 0;
   requestAnimationFrame(() => { window.__E2E_RFA_TICKS = (window.__E2E_RFA_TICKS ?? 0) + 1; });
   const needle = 'connection refused';
+  const hits = [];
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   let node = walker.nextNode();
   while (node) {
     const value = node.textContent || '';
-    const msgContainer = node.parentElement?.closest?.('[data-message-id]');
-    if (value.includes(needle) && msgContainer) {
+    if (value.includes(needle)) {
+      const el = node.parentElement;
+      const msgId = el?.closest?.('[data-message-id]')?.getAttribute?.('data-message-id') || '';
+      const path = [];
+      let cur = el;
+      while (cur && path.length < 4) {
+        path.push(`${cur.tagName}${cur.className ? '.' + String(cur.className).slice(0, 24) : ''}`);
+        cur = cur.parentElement;
+      }
+      hits.push({ msgId, path, parent: el?.tagName || '' });
       const range = document.createRange();
       range.selectNodeContents(node);
       const selection = window.getSelection();
       selection?.removeAllRanges();
       selection?.addRange(range);
-      msgContainer.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      const msgContainer = el?.closest?.('[data-message-id]');
+      if (msgContainer) {
+        msgContainer.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      }
       return {
-        ok: true,
+        ok: !!msgContainer,
         selected: selection?.toString?.() || '',
-        target: msgContainer.tagName,
-        msgId: msgContainer.getAttribute?.('data-message-id') || '',
+        hits,
+        selectedMsgId: msgContainer?.getAttribute?.('data-message-id') || '',
       };
     }
     node = walker.nextNode();
   }
-  return { ok: false, err: 'snippet-not-found-in-message' };
+  return { ok: false, err: 'snippet-not-found', hits };
 })()"""
 
 _QUOTE_ADVISOR_READY_JS = """(() => {

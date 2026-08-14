@@ -81,12 +81,7 @@ _MAX_TTL_DAYS = 30
 
 _SHARE_SECURITY_HEADERS: dict[str, str] = {
     "Content-Security-Policy": (
-        "default-src 'none'; "
-        "style-src 'unsafe-inline'; "
-        "img-src data:; "
-        "font-src data:; "
-        "frame-src 'none'; "
-        "object-src 'none'"
+        "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; frame-src 'none'; object-src 'none'"
     ),
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -169,7 +164,9 @@ async def create_chat_share(
 
     ttl_seconds = body.ttl_days * 24 * 3600
     token, expires_at = create_chat_share_token(
-        chat_id, ttl_seconds=ttl_seconds, password=body.password,
+        chat_id,
+        ttl_seconds=ttl_seconds,
+        password=body.password,
     )
 
     # Single-active-link model: the previous active token (if any) is moved into
@@ -264,7 +261,8 @@ async def get_public_chat_share(
         if claims is None:
             if protected and password:
                 return HTMLResponse(
-                    render_password_gate_html(wrong_password=True), status_code=403,
+                    render_password_gate_html(wrong_password=True),
+                    status_code=403,
                 )
             return share_not_found(
                 request,
@@ -286,8 +284,7 @@ async def get_public_chat_share(
 
     revoked_fingerprints = set(chat.share_revoked_fingerprints or [])
     if chat.share_revoked_at is not None or (
-        chat.share_token_fingerprint is not None
-        and token_fingerprint(token) in revoked_fingerprints
+        chat.share_token_fingerprint is not None and token_fingerprint(token) in revoked_fingerprints
     ):
         return share_not_found(
             request,

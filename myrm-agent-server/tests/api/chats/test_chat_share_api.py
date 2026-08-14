@@ -40,12 +40,22 @@ def _make_messages(chat_id: str = "chat-1") -> list[MessageDTO]:
     now = datetime.now(timezone.utc)
     return [
         MessageDTO(
-            id="msg-1", chat_id=chat_id, role="user", content="Hello",
-            sent_at=now, sent_timezone="UTC", created_at=now,
+            id="msg-1",
+            chat_id=chat_id,
+            role="user",
+            content="Hello",
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
         ),
         MessageDTO(
-            id="msg-2", chat_id=chat_id, role="assistant", content="Hi! How can I help?",
-            sent_at=now, sent_timezone="UTC", created_at=now,
+            id="msg-2",
+            chat_id=chat_id,
+            role="assistant",
+            content="Hi! How can I help?",
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
         ),
     ]
 
@@ -80,12 +90,7 @@ def _update_values_from_executes(mock_db: MagicMock) -> list[dict[str, object]]:
         stmt = call.args[0]
         if isinstance(stmt, Update):
             captured.append(
-                {
-                    getattr(k, "key", str(k)): (
-                        v.value if isinstance(v, BindParameter) else v
-                    )
-                    for k, v in stmt._values.items()
-                }
+                {getattr(k, "key", str(k)): (v.value if isinstance(v, BindParameter) else v) for k, v in stmt._values.items()}
             )
     return captured
 
@@ -103,7 +108,10 @@ def _token_for_exp(exp: int, *, password: str | None = None) -> str:
     if password is not None:
         payload["p"] = 1
     return sign_share_token(
-        payload, salt="chat-share", exp=exp, password=password,
+        payload,
+        salt="chat-share",
+        exp=exp,
+        password=password,
     )
 
 
@@ -182,9 +190,7 @@ class TestCreateChatShare:
         data = resp.json()
         assert data["share_url"].startswith("http://testserver/api/v1/public/chat-share/")
 
-    def test_create_share_falls_back_when_ingress_fails(
-        self, share_client: TestClient
-    ) -> None:
+    def test_create_share_falls_back_when_ingress_fails(self, share_client: TestClient) -> None:
         """Ingress resolution failure must not fail share creation."""
         with (
             patch(
@@ -223,9 +229,7 @@ class TestRevokeChatShare:
             resp = share_client.delete("/chats/chat-999/share")
             assert resp.status_code == 404
 
-    def test_revoke_records_active_token_fingerprint(
-        self, share_client: TestClient
-    ) -> None:
+    def test_revoke_records_active_token_fingerprint(self, share_client: TestClient) -> None:
         """Revoke moves the active token fingerprint into the revoked set."""
         from app.core.security.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
@@ -247,9 +251,7 @@ class TestRevokeChatShare:
         assert values[0]["share_token_fingerprint"] is None
         assert "share_revoked_at" in values[0]
 
-    def test_create_retires_previous_active_token(
-        self, share_client: TestClient
-    ) -> None:
+    def test_create_retires_previous_active_token(self, share_client: TestClient) -> None:
         """A fresh share retires the previous active token fingerprint."""
         from app.core.security.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
@@ -273,9 +275,7 @@ class TestRevokeChatShare:
         assert values[0]["share_revoked_fingerprints"] == [old_fp]
         assert "share_revoked_at" not in values[0]
 
-    def test_create_after_revoke_keeps_old_fingerprint_revoked(
-        self, share_client: TestClient
-    ) -> None:
+    def test_create_after_revoke_keeps_old_fingerprint_revoked(self, share_client: TestClient) -> None:
         """Recreating a share after revoke clears the flag but keeps the set."""
         from app.core.security.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
@@ -357,9 +357,7 @@ class TestPublicSharePage:
         resp = share_client.get("/public/chat-share/invalid-token-here")
         assert resp.status_code == 404
 
-    def test_expired_token_browser_gets_status_page(
-        self, share_client: TestClient
-    ) -> None:
+    def test_expired_token_browser_gets_status_page(self, share_client: TestClient) -> None:
         """Browser visitors get a friendly HTML status page instead of JSON 404."""
         import time
 
@@ -369,7 +367,8 @@ class TestPublicSharePage:
         future = int(time.time()) + 120
         with patch("app.core.security.share_hmac.time.time", return_value=future):
             resp = share_client.get(
-                f"/public/chat-share/{token}", headers={"Accept": "text/html"},
+                f"/public/chat-share/{token}",
+                headers={"Accept": "text/html"},
             )
         assert resp.status_code == 404
         assert "text/html" in resp.headers["content-type"]
@@ -377,9 +376,7 @@ class TestPublicSharePage:
         assert resp.headers["Cache-Control"] == "no-store"
         assert "Link Expired" in resp.text
 
-    def test_revoked_share_browser_gets_status_page(
-        self, share_client: TestClient
-    ) -> None:
+    def test_revoked_share_browser_gets_status_page(self, share_client: TestClient) -> None:
         """A revoked share answers browsers with a dedicated status page."""
         from app.services.chat.share_token import create_chat_share_token
 
@@ -392,19 +389,19 @@ class TestPublicSharePage:
             return_value=revoked_chat,
         ):
             resp = share_client.get(
-                f"/public/chat-share/{token}", headers={"Accept": "text/html"},
+                f"/public/chat-share/{token}",
+                headers={"Accept": "text/html"},
             )
         assert resp.status_code == 404
         assert "text/html" in resp.headers["content-type"]
         assert resp.headers["X-Robots-Tag"] == "noindex, nofollow"
         assert "Link Revoked" in resp.text
 
-    def test_invalid_token_browser_gets_status_page(
-        self, share_client: TestClient
-    ) -> None:
+    def test_invalid_token_browser_gets_status_page(self, share_client: TestClient) -> None:
         """Invalid tokens answer browsers with a status page and API clients with JSON."""
         resp = share_client.get(
-            "/public/chat-share/invalid-token-here", headers={"Accept": "text/html"},
+            "/public/chat-share/invalid-token-here",
+            headers={"Accept": "text/html"},
         )
         assert resp.status_code == 404
         assert "text/html" in resp.headers["content-type"]
@@ -427,9 +424,7 @@ class TestPublicSharePage:
         assert resp.status_code == 403
         assert "Password Required" in resp.text
 
-    def test_password_token_unlocks_via_post_form(
-        self, share_client: TestClient
-    ) -> None:
+    def test_password_token_unlocks_via_post_form(self, share_client: TestClient) -> None:
         """The password is posted in the form body (CWE-598) and PRG-redirects.
 
         A successful POST answers 303 See Other to the clean GET URL and sets
@@ -484,9 +479,7 @@ class TestPublicSharePage:
         assert content.status_code == 200
         assert "Shared" in content.text
 
-    def test_password_token_unlock_cookie_skips_gate(
-        self, share_client: TestClient
-    ) -> None:
+    def test_password_token_unlock_cookie_skips_gate(self, share_client: TestClient) -> None:
         """A valid unlock cookie lets a revisit skip the gate entirely."""
         from app.services.chat.share_token import create_chat_share_token
 
@@ -533,9 +526,7 @@ class TestPublicSharePage:
         assert resp.status_code == 200
         assert "Shared" in resp.text
 
-    def test_password_token_short_remaining_serves_directly(
-        self, share_client: TestClient
-    ) -> None:
+    def test_password_token_short_remaining_serves_directly(self, share_client: TestClient) -> None:
         """POST unlock with <60s remaining serves content instead of 303-looping."""
         import time
 
@@ -589,9 +580,7 @@ class TestPublicSharePage:
         assert resp.status_code == 200
         assert "Shared" in resp.text
 
-    def test_password_token_wrong_password_via_post(
-        self, share_client: TestClient
-    ) -> None:
+    def test_password_token_wrong_password_via_post(self, share_client: TestClient) -> None:
         """A wrong password posted via the form renders the gate again."""
         from app.services.chat.share_token import create_chat_share_token
 
@@ -600,9 +589,7 @@ class TestPublicSharePage:
         assert resp.status_code == 403
         assert "Incorrect password" in resp.text
 
-    def test_revoked_then_reshared_old_token_stays_404(
-        self, share_client: TestClient
-    ) -> None:
+    def test_revoked_then_reshared_old_token_stays_404(self, share_client: TestClient) -> None:
         """A revoked link stays dead after a fresh share for the same chat.
 
         Regression: recreating a share used to clear ``share_revoked_at``,
@@ -630,16 +617,10 @@ class TestPublicSharePage:
                 return_value="<html><body>Shared</body></html>",
             ),
         ):
-            assert (
-                share_client.get(f"/public/chat-share/{old_token}").status_code == 404
-            )
-            assert (
-                share_client.get(f"/public/chat-share/{new_token}").status_code == 200
-            )
+            assert share_client.get(f"/public/chat-share/{old_token}").status_code == 404
+            assert share_client.get(f"/public/chat-share/{new_token}").status_code == 200
 
-    def test_revoked_then_reshared_old_token_browser_gets_revoked_page(
-        self, share_client: TestClient
-    ) -> None:
+    def test_revoked_then_reshared_old_token_browser_gets_revoked_page(self, share_client: TestClient) -> None:
         """Browser visitors see the revoked status page, not conversation content."""
         import time
 
@@ -657,14 +638,13 @@ class TestPublicSharePage:
             return_value=reshared,
         ):
             resp = share_client.get(
-                f"/public/chat-share/{old_token}", headers={"Accept": "text/html"},
+                f"/public/chat-share/{old_token}",
+                headers={"Accept": "text/html"},
             )
         assert resp.status_code == 404
         assert "Link Revoked" in resp.text
 
-    def test_multi_cycle_revoked_tokens_never_resurrect(
-        self, share_client: TestClient
-    ) -> None:
+    def test_multi_cycle_revoked_tokens_never_resurrect(self, share_client: TestClient) -> None:
         """Tokens revoked across multiple revoke/recreate cycles stay dead."""
         import time
 
@@ -694,9 +674,7 @@ class TestPublicSharePage:
             assert share_client.get(f"/public/chat-share/{t2}").status_code == 404
             assert share_client.get(f"/public/chat-share/{t3}").status_code == 200
 
-    def test_revoked_password_token_stays_404_after_reshare(
-        self, share_client: TestClient
-    ) -> None:
+    def test_revoked_password_token_stays_404_after_reshare(self, share_client: TestClient) -> None:
         """A revoked password-protected token still dies after a fresh share."""
         import time
 
@@ -724,7 +702,4 @@ class TestPublicSharePage:
             # correct password cannot resurrect a revoked token.
             resp = share_client.get(f"/public/chat-share/{old_token}?p=s3cret")
             assert resp.status_code == 404
-            assert (
-                share_client.get(f"/public/chat-share/{new_token}?p=s3cret").status_code
-                == 200
-            )
+            assert share_client.get(f"/public/chat-share/{new_token}?p=s3cret").status_code == 200

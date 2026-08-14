@@ -54,7 +54,7 @@ security/
 | `browser_vault.py` | SessionVault 实例管理：全局单例（非 agent 场景）+ 按 agent_id 物理隔离的 agent vault |
 | `llm_reviewer.py` | 动态 Transcript Classifier 适配器，运行时获取用户 LLM 实例 |
 | `pii_actions.py` | 持久化 PII action 字符串安全解析：缺失/非法值回退默认枚举，杜绝非法配置导致 agent 初始化或记忆提取崩溃（retry 与 security extension 共用） |
-| `share_hmac.py` | 公共分享链接通用 HMAC-SHA256 签名层，支持可选密码门（密码参与 key 派生，无状态设计）|
+| `share_hmac.py` | 公共分享链接通用 HMAC-SHA256 签名层，支持可选密码门（密码参与 key 派生，无状态设计）；另含 `token_fingerprint`（SHA-256 指纹 = 分享 token 的唯一落库标识，artifact registry 与 chat 分享状态共用）|
 | `share_headers.py` | 分享响应公共隐私头常量（`X-Robots-Tag: noindex, nofollow` + `Cache-Control: no-store` + `Referrer-Policy: no-referrer`），chat 与 artifact 分享双端共用，防搜索引擎收录、防浏览器/CDN 缓存绕过撤销、防 token 型 URL 经 Referer 泄露 |
 | `share_status_page.py` | 分享链接失效页统一渲染：按 Accept 头分流（浏览器 `text/html` 返回自包含 HTML 状态页，API 客户端返回 JSON 404），覆盖过期/已撤销/内容不可用场景，页面自带 noindex 隐私 meta，不泄露 token 格式或存储内部信息 |
 | `share_unlock.py` | 分享链接解锁 cookie 公共机制：per-share cookie 名派生、60s 最小剩余 TTL 阈值、HttpOnly/SameSite=strict/Secure 属性、HMAC 凭证签发与解析；artifact 与 chat 分享双端共用，安全参数单点维护 |
