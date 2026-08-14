@@ -113,7 +113,6 @@ app/database/repositories/chat_repo.py
 app/database/repositories/conversation_recall/repo.py
 app/lifecycle/memory_guardian.py
 app/lifecycle/schedulers.py
-app/lifecycle/system.py
 app/platform_utils/sandbox/storage.py
 app/schemas/config.py
 app/schemas/control_plane.py
@@ -139,13 +138,14 @@ app/services/approvals/registry.py
 app/services/batch_directory/_helpers.py
 app/services/batch_directory/service.py
 app/services/chat/chat_crud.py
-app/services/chat/chat_message.py
 app/services/chat/chat_turn.py
 app/services/chat/conversation_fork_manager.py
 app/services/chat/conversation_search_service.py
+app/services/chat/sandbox_worktree.py
 app/services/extension/bridge.py
 app/services/extension/cdp_relay/bridge.py
 app/services/kanban/task_runner/runner.py
+app/services/kanban/task_runner/worktree.py
 app/services/memory/archive_restore.py
 app/services/memory/archive_restore_executor.py
 app/services/memory/backup_remote.py
@@ -160,4 +160,3 @@ app/services/migration/hermes_moa_migrator.py
 app/services/onboarding/second_brain_preset.py
 app/services/project/assessment_import_service.py
 app/services/repair/actions.py
-app/services/kanban/task_runner/worktree.py
