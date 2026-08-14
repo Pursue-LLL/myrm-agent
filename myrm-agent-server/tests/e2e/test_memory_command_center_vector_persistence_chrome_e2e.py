@@ -81,11 +81,14 @@ _OPEN_VERIFY_TAB_JS = r"""(() => {
 })()"""
 
 _VECTOR_PERSISTENCE_READY_JS = r"""(() => {
-  const text = document.body?.textContent || '';
-  const hasLabel = /Vector persistence|向量持久化|向量持久性/.test(text);
-  const hasState =
-    /Persistent|Permanent|Memory mode \(lost on restart|Unavailable|持久|重启丢失|不可用/.test(text);
-  return { ready: hasLabel && hasState, hasLabel, hasState, text: text.slice(0, 1200) };
+  const rows = Array.from(document.querySelectorAll('span.text-xs.text-muted-foreground'));
+  const target = rows.find((el) => /Vector persistence|向量存储持久化/.test(el.textContent || ''));
+  if (!target) return { ready: false, matchedLabel: false, labelRows: rows.length };
+  const valueEl = target.nextElementSibling;
+  const value = valueEl ? valueEl.textContent.trim() : '';
+  const ok =
+    /Persistent|Memory mode \(lost on restart|Unavailable|持久化|内存模式|不可用/.test(value);
+  return { ready: ok, matchedLabel: true, value, labelRows: rows.length };
 })()"""
 
 

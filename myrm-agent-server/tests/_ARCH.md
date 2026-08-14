@@ -128,6 +128,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/projects/test_project_workspace_e2e.py` | 模块 | Project workspace 多 Agent 协作真实 LLM E2E（`@pytest.mark.e2e`：project bind → chat 归属 → agent-stream 提及内置 agent → message_end；load_user_configs patch + checkpointer 注入） |
 | `api/projects/test_seed_turn_lock_integration.py` | 模块 | 确定性项目锁 seed 端点集成：创建 project + 绑定 chat + `hold_ms` 三态语义（`None` 不占锁 / `0` 持有到 `release-turn-lock` 显式释放 / `>0` 到期自动释放）+ `release-turn-lock` 幂等释放 + `turn-lock-status` 只读查询（锁定/解锁/释放后 + 400/404 门控）+ 边界校验（400/404 门控） |
 | `services/kanban/test_kanban_attach_handler.py` | 模块 | attach handler 单测（path/URL/SSRF/limits） |
+| `services/kanban/test_worktree_integration.py` | 模块 | worktree 真实 git 集成（8 项）：分支唯一化防并行冲突 / 串行不丢提交 / COMPLETED merge 回目标分支 / merge 冲突保留 worktree / cleanup 保留分支、merge 后删分支 / 分支名消毒 / merge 幂等 |
 | `services/kanban/test_board_settings_roundtrip.py` | 模块 | BoardSettings 9 字段 ORM 往返完整性（三映射函数 + dataclass 字段覆盖守卫 + 旧库 ALTER 迁移默认值） |
 | `services/agent/test_agent_name_resolution.py` | 模块 | Agent 同名解析确定性单测（大小写归一 + 稳定排序 + 空名短路） |
 | `api/agent/test_kanban_agent_stream_e2e.py` | 模块 | Live LLM agent-stream kanban add/list（`@pytest.mark.e2e`） |

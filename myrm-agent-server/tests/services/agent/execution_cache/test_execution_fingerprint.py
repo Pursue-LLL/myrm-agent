@@ -229,18 +229,57 @@ def test_execution_fingerprint_changes_when_kanban_tool_mode_changes() -> None:
 
 
 def test_execution_fingerprint_changes_when_providers_dict_changes() -> None:
-    """Provider routing dict is solidified into the SkillAgent assembly,
-    so provider configuration changes must rebuild the pooled unit."""
-    wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
-        mcp_config=None,
-    )
+    """Provider routing dict is solidified into the SkillAgent assembly, so provider
+    model definitions must bust the POOLED cache while credential rotation must not."""
+    wrapper = _base_wrapper()
     empty_fp = compute_execution_fingerprint(wrapper)
-    wrapper.providers_dict = {"openai": {"api_key": "sk-1"}}
+    wrapper.providers_dict = {
+        "providers": [
+            {
+                "id": "openai",
+                "models": [{"id": "gpt-4o", "isActive": True}],
+            }
+        ],
+        "defaultModelConfig": {
+            "model": "gpt-4o",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "sk-1",
+        },
+    }
     configured_fp = compute_execution_fingerprint(wrapper)
     assert empty_fp != configured_fp
+    wrapper.providers_dict = {
+        "providers": [
+            {
+                "id": "openai",
+                "models": [{"id": "gpt-4o", "isActive": True}],
+                "apiKeys": [{"key": "sk-rotated", "isActive": True}],
+                "_oauthToken": "tok-2",
+            }
+        ],
+        "defaultModelConfig": {
+            "model": "gpt-4o",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "sk-rotated",
+        },
+    }
+    rotated_fp = compute_execution_fingerprint(wrapper)
+    assert configured_fp == rotated_fp
+    wrapper.providers_dict = {
+        "providers": [
+            {
+                "id": "openai",
+                "models": [{"id": "gpt-4o-mini", "isActive": True}],
+            }
+        ],
+        "defaultModelConfig": {
+            "model": "gpt-4o-mini",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "sk-1",
+        },
+    }
+    changed_fp = compute_execution_fingerprint(wrapper)
+    assert configured_fp != changed_fp
 
 
 def test_execution_fingerprint_changes_when_jit_subagents_change() -> None:

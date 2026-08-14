@@ -19,11 +19,12 @@
 | `ProjectMilestonePanel.tsx` | 核心 | 当前项目里程碑面板：增删改完成 + 双击内联重命名 + 实时进度条（batch-progress API 驱动）+ 评估工件导入（按 `project_id` 过滤并优先展示可导入语义候选的一键导入 + 手动 artifact id 兜底）、导入回执提示与后端语义化错误提示；优先基于 `import_reason` 结构化错误字段映射（并保留文案兜底），并上报导入漏斗埋点（attempt/success/fail_reason）；面板内展示近 30 天导入后任务完成价值锚点。 | ✅ |
 | `assessmentImportError.ts` | 辅助 | 评估导入错误解析核心：解析后端 `import_reason`（及兜底文案）映射到 i18n key，并输出机器可读 `failure_reason` 供漏斗埋点复用 | ✅ |
 | `Sidebar.tsx` | 核心 | 侧栏根容器：宽度响应式、折叠态与键盘导航 | ✅ |
+| `ShareConversationDialog.tsx` | 组件 | 对话分享对话框：四态展示（loading / 活跃链接 / 密码保护 / 已撤回）+ 创建（TTL+可选密码）/复制/撤销 | ✅ |
 | `UserMenu.tsx` | 组件 | 用户菜单（Settings、批量优化 `userMenu.batchOptimization`→`/batch-optimization`、Brain Console 等） | ✅ |
 | `constants.ts` | 辅助 | 侧栏布局与 DnD 常量 | ✅ |
 | `dateGroupUtils.ts` | 辅助 | 会话按 Today/Yesterday/Earlier 分组纯函数 | ✅ |
 | `useBatchMode.ts` | Hook | 批量选择模式开关与选中 ID 集合 | ✅ |
-| `useChatActions.ts` | Hook | 会话 Pin/Rename/Delete/Export/Print 等 imperative 动作 | ✅ |
+| `useChatActions.ts` | Hook | 会话 Pin/Rename/Delete/Export/Print 等 imperative 动作；分享：打开对话框先查询分享状态（活跃链接/密码保护/已撤回），创建与撤销 | ✅ |
 | `useSidebarState.ts` | Hook | 侧栏展开/折叠、搜索词、滚动位置持久化 | ✅ |
 
 ## 依赖

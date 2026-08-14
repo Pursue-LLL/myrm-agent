@@ -48,8 +48,9 @@ _DISMISS_MIGRATION_JS = """(() => {
 # Switches to the Capabilities tab and locates the "Max Iterations" number input.
 _CAPABILITIES_INPUT_JS = """(() => {
   const tab = document.querySelector('[data-testid="agent-tab-capabilities"]');
+  const bodyLength = (document.body?.innerText || '').length;
   if (!tab) {
-    return { ready: false, reason: 'no-capabilities-tab' };
+    return { ready: false, reason: 'no-capabilities-tab', bodyLength };
   }
   tab.click();
   return new Promise(resolve => setTimeout(() => {
@@ -59,13 +60,14 @@ _CAPABILITIES_INPUT_JS = """(() => {
       return resolve({
         ready: false,
         reason: 'no-max-iterations-heading',
+        bodyLength,
         snippet: (document.body.innerText || '').slice(0, 300),
       });
     }
     const card = heading.closest('div.rounded-xl') || heading.parentElement;
     const input = card ? card.querySelector('input[type="number"]') : null;
     if (!input) {
-      return resolve({ ready: false, reason: 'no-number-input' });
+      return resolve({ ready: false, reason: 'no-number-input', bodyLength });
     }
     resolve({
       ready: true,
@@ -73,6 +75,7 @@ _CAPABILITIES_INPUT_JS = """(() => {
       min: input.min,
       max: input.max,
       placeholder: input.placeholder,
+      bodyLength,
     });
   }, 300));
 })()"""

@@ -291,13 +291,16 @@ async def save_channel_credentials(
             create_channel_instance as factory_create,
         )
 
-        await channel_gateway.remove_channel(channel_name)
+        # Build the replacement first so a construction failure (e.g. invalid
+        # credentials) leaves the current channel untouched instead of removing
+        # it and then failing to re-add it.
         new_channel = await factory_create(
             channel_type=base_type,
             instance_id=ch.instance_id or channel_name,
             credentials=merged,
         )
         new_channel.display_name = ch.display_name
+        await channel_gateway.remove_channel(channel_name)
         await channel_gateway.add_channel(new_channel)
         logger.info("Channel '%s' re-registered with updated credentials", channel_name)
     except Exception as exc:

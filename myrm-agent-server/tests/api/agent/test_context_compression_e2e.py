@@ -82,7 +82,6 @@ def shrink_model_context_window(mock_load_user_configs) -> None:
         update={"max_context_tokens": _TEST_MAX_CONTEXT_TOKENS}
     )
 
-
 def _build_payload(
     query: str, chat_id: str, *, action_mode: str = "agent"
 ) -> dict[str, object]:

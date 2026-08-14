@@ -231,6 +231,7 @@ async def setup_test_database(tmp_path: Path):
     from app.database.models import Base
 
     db_file = tmp_path / "test_agent.db"
+    os.environ["TEST_AGENT_DB_PATH"] = str(db_file)
     engine = create_async_engine(
         f"sqlite+aiosqlite:///{db_file}", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )

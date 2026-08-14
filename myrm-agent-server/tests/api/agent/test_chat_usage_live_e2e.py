@@ -146,9 +146,7 @@ async def test_real_llm_two_turns_accumulate_exact_usage(
         message_end_events = [d for d in collected if d.get("type") == "message_end"]
         assert message_end_events, f"turn {turn}: agent-stream must emit message_end"
         token_economics = message_end_events[-1].get("token_economics")
-        assert isinstance(token_economics, dict) and token_economics, (
-            f"turn {turn}: message_end must carry token_economics"
-        )
+        assert isinstance(token_economics, dict) and token_economics, f"turn {turn}: message_end must carry token_economics"
         snapshots.append(dict(token_economics))
 
     extras = await _assistant_extra_data(db_session, chat_id)

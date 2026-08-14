@@ -8,10 +8,10 @@
 - service_mixins.types (POS: Kanban service shared types.)
 
 [OUTPUT]
-- move_task, reclaim_task, cancel_task_execution (approve/reject live in review_ops)
+- move_task, reclaim_task, cancel_task_execution, cleanup_task_worktree, merge_task_worktree (approve/reject live in review_ops)
 
 [POS]
-Task state transition orchestration: move, reclaim, cancel with dependency and event handling. Manual moves into or out of IN_REVIEW are rejected — the approval gate only resolves via approve/reject (review_ops).
+Task state transition orchestration: move, reclaim, cancel with dependency and event handling. COMPLETED triggers worktree merge back to the task branch; ARCHIVED triggers worktree cleanup. Manual moves into or out of IN_REVIEW are rejected — the approval gate only resolves via approve/reject (review_ops).
 """
 
 from __future__ import annotations

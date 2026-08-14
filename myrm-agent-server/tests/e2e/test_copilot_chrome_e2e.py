@@ -107,13 +107,27 @@ _SET_CHAT_LOADING_JS = """(() => {
 _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
   window.__E2E_RFA_TICKS = 0;
   requestAnimationFrame(() => { window.__E2E_RFA_TICKS = (window.__E2E_RFA_TICKS ?? 0) + 1; });
-  const msgEls = [...document.querySelectorAll('[data-message-id]')];
-  window.__MYRM_MSGS = msgEls.map((el) => ({
-    id: el.getAttribute('data-message-id'),
-    text: (el.textContent || '').slice(0, 160),
-    inner: (el.innerHTML || '').slice(0, 200),
-  }));
-  return { ok: true, count: msgEls.length };
+  const needle = 'connection refused';
+  const hits = [];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    const value = node.textContent || '';
+    if (value.includes(needle)) {
+      const el = node.parentElement;
+      const msgContainer = el?.closest?.('[data-message-id]');
+      hits.push({
+        nodeValue: value.slice(0, 80),
+        inMsg: !!msgContainer,
+        msgId: msgContainer?.getAttribute?.('data-message-id') || '',
+        tag: el?.tagName || '',
+        testid: el?.getAttribute?.('data-testid') || '',
+        msgText: msgContainer ? (msgContainer.textContent || '').slice(0, 120) : '',
+      });
+    }
+    node = walker.nextNode();
+  }
+  return { ok: false, err: 'diag', hits, msgCount: document.querySelectorAll('[data-message-id]').length };
 })()"""
 
 _QUOTE_ADVISOR_READY_JS = """(() => {
@@ -121,11 +135,6 @@ _QUOTE_ADVISOR_READY_JS = """(() => {
   const btn = document.querySelector('[data-testid="quote-toolbar-advisor-ask"]');
   const portal = document.getElementById('quote-toolbar-portal');
   const sel = window.getSelection();
-  const msgIds = [...document.querySelectorAll('[data-message-id]')];
-  window.__MYRM_DIAG_MSGS = msgIds.map((el) => ({
-    id: el.getAttribute('data-message-id'),
-    text: (el.textContent || '').slice(0, 80),
-  }));
   return {
     ready: !!btn,
     btn: !!btn,
@@ -133,7 +142,6 @@ _QUOTE_ADVISOR_READY_JS = """(() => {
     loading: window.__MYRM_E2E_CHAT__?.getChatShellState?.().loading,
     selText: sel?.toString?.().slice(0, 40) ?? '',
     selCollapsed: sel?.isCollapsed,
-    msgCount: msgIds.length,
   };
 })()"""
 
@@ -236,15 +244,7 @@ def test_copilot_desktop_and_mobile_full_flows() -> None:
         set_loading = client.evaluate(page, _SET_CHAT_LOADING_JS, timeout_sec=10.0)
         assert isinstance(set_loading, dict) and set_loading.get("ok") is True, set_loading
         selected = client.evaluate(page, _SELECT_ASSISTANT_SNIPPET_JS, timeout_sec=15.0)
-        print("MYRM_DIAG_SELECTED=" + json.dumps(selected, ensure_ascii=False)[:500])
-        msgs_dump = client.evaluate(page, "window.__MYRM_MSGS || []", timeout_sec=10.0)
-        print("MYRM_DIAG_MSGS=" + json.dumps(msgs_dump, ensure_ascii=False)[:3000])
-        advisor_dump = client.evaluate(
-            page,
-            "(() => { const b = document.querySelector('[data-testid=\"copilot-advisor-messages\"]'); return { text: b?.textContent?.slice(0, 300) || '', html: b?.innerHTML?.slice(0, 300) || '' }; })()",
-            timeout_sec=10.0,
-        )
-        print("MYRM_DIAG_ADVISOR=" + json.dumps(advisor_dump, ensure_ascii=False)[:1000])
+        print("MYRM_DIAG_SELECTED=" + json.dumps(selected, ensure_ascii=False)[:2000])
         assert isinstance(selected, dict) and selected.get("ok") is True, selected
         quote_ready = wait_for_state(client, page, _QUOTE_ADVISOR_READY_JS, timeout_sec=30.0)
         assert quote_ready.get("ready") is True, quote_ready

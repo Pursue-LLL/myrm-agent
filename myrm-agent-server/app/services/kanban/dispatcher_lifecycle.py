@@ -5,12 +5,13 @@
 - myrm_agent_harness.toolkits.kanban.protocols (POS: Kanban protocol interfaces.)
 - core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
 - event_publisher (POS: Kanban SSE event publishing helpers.)
+- move_orchestrator.merge_task_worktree (POS: Completed-task worktree merge back to target branch.)
 
 [OUTPUT]
-- recover_stale_tasks, start_dispatcher, stop_dispatcher, shutdown_dispatchers
+- recover_stale_tasks, start_dispatcher, stop_dispatcher, shutdown_dispatchers, _make_task_completed_merge_hook
 
 [POS]
-Dispatcher lifecycle: boot recovery, start/stop per-board dispatchers, graceful shutdown.
+Dispatcher lifecycle: boot recovery, start/stop per-board dispatchers, graceful shutdown. Registers a task_completed hook that schedules async worktree merge (sync dispatcher emit → background task) so auto-completed tasks land their commits on the target branch.
 """
 
 from __future__ import annotations

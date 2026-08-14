@@ -563,6 +563,116 @@ async def test_save_channel_credentials_unregistered_channel_hot_registers() -> 
 
 
 @pytest.mark.asyncio
+async def test_save_channel_credentials_rebuild_failure_preserves_old_channel() -> None:
+    """A construction failure must NOT remove the running channel: the rebuild
+    happens before remove_channel, so a bad credential payload leaves the
+    existing instance untouched instead of orphaning it."""
+    from app.api.channels.instances import save_channel_credentials
+    from app.api.channels.router import channel_credentials_key
+    from app.services.config.service import ConfigService
+
+    instance_id = uuid.uuid4().hex[:8]
+    channel_name = f"feishu_{instance_id}"
+
+    old_channel = MagicMock()
+    old_channel.name = channel_name
+    old_channel.channel_type = "feishu"
+    old_channel.instance_id = instance_id
+    old_channel.display_name = "客服机器人"
+
+    gateway = MagicMock()
+    gateway._resolve_channel_type = MagicMock(return_value="feishu")
+    gateway.bus.get_channel = MagicMock(return_value=old_channel)
+
+    factory = MagicMock()
+    factory.create_channel_instance = AsyncMock(side_effect=ValueError("app_id cannot be empty"))
+
+    with (
+        patch("app.core.channel_bridge.channel_gateway", gateway),
+        patch(
+            "app.core.channel_bridge.channel_factory.create_channel_instance",
+            factory.create_channel_instance,
+        ),
+    ):
+        result = await save_channel_credentials(channel_name, {"appSecret": "rotated"})
+
+    assert result["status"] == "saved"
+    gateway.remove_channel.assert_not_called()
+    gateway.add_channel.assert_not_called()
+
+    config_key = channel_credentials_key(channel_name)
+    record = await ConfigService().get(config_key)
+    assert record is not None
+    assert record.value["appSecret"] == "rotated"
+
+
+@pytest.mark.asyncio
+async def test_hot_register_preserves_display_name() -> None:
+    """Hot-reloading a default channel must keep the user-set display name."""
+    from app.api.config.router import _try_hot_register_channel
+    from app.services.config.service import ConfigService
+
+    await ConfigService().set(
+        "feishuCredentials",
+        {"appId": "cli_hot", "appSecret": "sec_hot", "useLark": "false"},
+        device_id="test",
+    )
+
+    try:
+        existing = MagicMock()
+        existing.display_name = "我的飞书"
+
+        replacement = MagicMock()
+
+        gateway = MagicMock()
+        gateway.bus.get_channel = MagicMock(return_value=existing)
+        gateway.remove_channel = AsyncMock(return_value=True)
+        gateway.add_channel = AsyncMock()
+
+        cls = MagicMock()
+        cls.credential_spec = MagicMock()
+        cls.from_credentials = MagicMock(return_value=replacement)
+
+        with (
+            patch("app.core.channel_bridge.channel_gateway", gateway),
+            patch("app.channels.providers.registry.get_channel_class_safe", return_value=cls),
+            patch("app.channels.core.credentials.resolve_credentials", new=AsyncMock(return_value={"app_id": "cli_hot"})),
+            patch("app.core.channel_bridge.credential_spec.is_channel_enabled", new=AsyncMock(return_value=True)),
+        ):
+            await _try_hot_register_channel("feishuCredentials")
+
+        assert replacement.display_name == "我的飞书"
+        gateway.remove_channel.assert_awaited_once_with("feishu")
+        gateway.add_channel.assert_awaited_once_with(replacement)
+    finally:
+        await ConfigService().delete("feishuCredentials")
+
+
+@pytest.mark.asyncio
+async def test_hot_register_empty_credentials_keeps_channel() -> None:
+    """When no credentials resolve, the registered channel must stay as-is
+    instead of being removed and never re-added."""
+    from app.api.config.router import _try_hot_register_channel
+
+    gateway = MagicMock()
+    existing = MagicMock()
+    gateway.bus.get_channel = MagicMock(return_value=existing)
+
+    with (
+        patch("app.core.channel_bridge.channel_gateway", gateway),
+        patch(
+            "app.channels.providers.registry.get_channel_class_safe",
+            return_value=MagicMock(credential_spec=MagicMock()),
+        ),
+        patch("app.channels.core.credentials.resolve_credentials", new=AsyncMock(return_value={"app_id": ""})),
+    ):
+        await _try_hot_register_channel("feishuCredentials")
+
+    gateway.remove_channel.assert_not_called()
+    gateway.add_channel.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_get_channel_credentials_redacts_secret_fields() -> None:
     """Reading credentials returns decrypted values with secret fields redacted."""
     from app.api.channels.instances import get_channel_credentials
