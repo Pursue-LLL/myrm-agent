@@ -139,7 +139,7 @@ Chat 表新增多个字段用于支撑高级功能：
 | `deleted_at` | DateTime(nullable) | 软删除时间戳。NULL=活跃，非NULL=已移入回收站。30天后由 `_db_maintenance_job` 自动永久删除 |
 | `share_revoked_at` | DateTime(nullable) | 对话分享撤回时间戳。非NULL时所有 HMAC token 即使未过期也拒绝访问 |
 | `share_token_fingerprint` | String(64) | 当前活跃分享 token 的 SHA-256 指纹（create 时写入；revoke 后清空）。仅指纹落库，原始 token 零存储 |
-| `share_revoked_fingerprints` | JSON(list[str]) | 已撤销 token 指纹集合（单调追加、永不移除）。撤销把活跃指纹移入集合，重新分享作废旧活跃指纹，因此**撤销过的链接永不复活**（单活跃链接语义，对齐 artifact 端 registry 的每 token 独立失效） |
+| `share_revoked_fingerprints` | JSON(list[str]) | 已撤销 token 指纹集合（单调追加、永不移除）。撤销把活跃指纹移入集合，因此**撤销过的链接永不复活**（重新分享只清 chat 级标记，集合保留，旧 token 永久 404；未撤销的既有链接继续有效至各自 TTL，与撤销前行为一致） |
 
 ### 触发方式
 

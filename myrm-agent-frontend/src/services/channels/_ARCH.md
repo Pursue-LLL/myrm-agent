@@ -11,7 +11,7 @@
 | 文件 | 职责 |
 |------|------|
 | `core.ts` | CP 请求、`createChannelCredentialService` 工厂、`ChannelTestResult` |
-| `manage.ts` | 类型、状态/实例、配对、策略、群组、路由绑定 |
+| `manage.ts` | 类型、状态/实例、配对、策略、群组、路由绑定；`getChannelCredentials` / `saveChannelCredentials`（实例凭据读取与 merge 更新，后端重建 channel 生效） |
 | `channelAgentBinding.ts` | Channel 路由 Agent 下拉过滤（General-only；builtin Search ID 黑名单 + `prompt_mode=search`） |
 | `__tests__/channelAgentBinding.test.ts` | 上述过滤单元测试 |
 | `providersMessaging.ts` | WhatsApp / IM 类 Provider 凭证与测试；`getWeChatOfficialEgressIp` 出口 IP 探测；`pushWeChatOfficialDraft` HITL 草稿 API（含 `complianceWarnings` 成功提示） |

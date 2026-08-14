@@ -36,7 +36,7 @@ Server 产品层 Shared Context 由 `app/services/memory/shared_context.py` 管�
 |------|------|
 | 核心能力 | `myrm_agent_harness.toolkits.memory` |
 | Agent 工具 | `myrm_agent_harness.agent.tools.memory` |
-| 记忆中间件 | `myrm_agent_harness.agent.middlewares.memory_context_middleware` |
+| 记忆中间件 | `myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware` |
 
 ---
 

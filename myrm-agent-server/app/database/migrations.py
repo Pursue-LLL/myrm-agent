@@ -603,6 +603,11 @@ MIGRATION_STATEMENTS: list[str] = [
     # existing databases (the migration engine skips duplicate-column errors).
     "ALTER TABLE chats ADD COLUMN share_token_fingerprint VARCHAR(64)",
     "ALTER TABLE chats ADD COLUMN share_revoked_fingerprints JSON",
+    # Chat share status query: the active share's expiry (unix seconds) and
+    # password-protection flag are persisted on create so the GUI can display
+    # the current share state and rebuild unprotected links deterministically.
+    "ALTER TABLE chats ADD COLUMN share_token_expires_at INTEGER",
+    "ALTER TABLE chats ADD COLUMN share_token_protected BOOLEAN",
 ]
 
 # 创建索引的SQL语句列表

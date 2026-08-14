@@ -12,7 +12,7 @@
 - app.core.infra.ingress (POS: public-ingress SSOT + share base resolver)
 
 [OUTPUT]
-- router: authenticated create/revoke endpoints
+- router: authenticated create/revoke/status endpoints
 - public_router: unauthenticated HTML share page
 
 [POS]
@@ -24,8 +24,13 @@ short-lived HMAC unlock cookie so the page can be refreshed or revisited without
 re-entering the password. Revocation is per-token: the active token fingerprint
 is persisted on create and moved into an append-only revoked-fingerprint set on
 revoke, so recreating a share for the same chat can never resurrect a previously
-revoked link (single-active-link semantics: a fresh share also retires the
-previous active token). Every served chat content page carries
+revoked link; previously issued (non-revoked) links keep working until their own
+TTL expires. The status endpoint reports the current share state (unshared /
+revoked / active / password-protected) so the GUI can reopen the share dialog
+with the live link and a working revoke entry; unprotected links are rebuilt
+deterministically from the persisted expiry, password-protected shares return a
+status only (their token cannot be rebuilt because the password is never
+stored). Every served chat content page carries
 noindex/nofollow + no-store + Referrer-Policy: no-referrer (shared privacy
 headers) so shared conversations are never search-engine indexed, revoking a
 link cannot be bypassed by browser or CDN caches, and the token-bearing share
@@ -71,6 +76,7 @@ from app.services.chat.share_token import (
     ChatShareClaims,
     create_chat_share_token,
     parse_chat_share_token,
+    rebuild_chat_share_token,
 )
 
 router = APIRouter()
@@ -169,18 +175,18 @@ async def create_chat_share(
         password=body.password,
     )
 
-    # Single-active-link model: the previous active token (if any) is moved into
-    # the revoked-fingerprint set so recreating a share can never resurrect an
-    # old link, and the revoked flag is lifted for a fresh share.
-    revoked = list(chat.share_revoked_fingerprints or [])
-    previous = chat.share_token_fingerprint
-    if previous and previous not in revoked:
-        revoked.append(previous)
+    # Persist the active token fingerprint and its display metadata so revoke
+    # can permanently retire it and the GUI can surface the current share state
+    # (rebuilding unprotected links deterministically). A fresh share does not
+    # touch previously issued links (they stay valid until their own TTL expires
+    # or the chat is revoked, matching pre-existing behaviour). Recreating after
+    # a revoke only clears the chat-level flag; the revoked-fingerprint set is
+    # left untouched so old tokens stay dead.
     values: dict[str, object] = {
         "share_token_fingerprint": token_fingerprint(token),
+        "share_token_expires_at": expires_at,
+        "share_token_protected": body.password is not None,
     }
-    if revoked:
-        values["share_revoked_fingerprints"] = revoked
     if chat.share_revoked_at is not None:
         values["share_revoked_at"] = None
     stmt = update(Chat).where(Chat.id == chat_id).values(**values)
@@ -225,6 +231,55 @@ async def revoke_chat_share(
     await db.execute(stmt)
     await db.commit()
     return Response(status_code=204)
+
+
+class ChatShareStatusResponse(BaseModel):
+    """Current share state for a conversation (management GUI)."""
+
+    shared: bool = False
+    revoked: bool = False
+    password_protected: bool = False
+    share_url: str | None = None
+    expires_at: int | None = None
+
+
+@router.get("/{chat_id}/share", response_model=ChatShareStatusResponse)
+@limiter.limit(settings.rate_limit.chat)
+async def get_chat_share_status(
+    request: Request,
+    chat_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> ChatShareStatusResponse:
+    """Return the current share state so the GUI can surface it on reopen.
+
+    Four states: unshared (never shared), revoked (all links withdrawn),
+    active (unprotected: the link is rebuilt deterministically from the
+    persisted expiry so it stays copyable), and password-protected (the link
+    cannot be rebuilt because the password is never stored — only a status is
+    returned). The revoked flag is reported first: a revoked chat must never
+    look active even if stale display metadata remains.
+    """
+    chat = await ChatService.get_chat_metadata(chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    if chat.share_revoked_at is not None:
+        return ChatShareStatusResponse(shared=True, revoked=True)
+
+    if chat.share_token_fingerprint is None:
+        return ChatShareStatusResponse()
+
+    protected = chat.share_token_protected is True
+    if protected or chat.share_token_expires_at is None:
+        return ChatShareStatusResponse(shared=True, password_protected=protected)
+
+    token = rebuild_chat_share_token(chat_id, expires_at_unix=chat.share_token_expires_at)
+    base_url = await resolve_share_url_base(fallback=str(request.base_url).rstrip("/"))
+    return ChatShareStatusResponse(
+        shared=True,
+        share_url=f"{base_url}/api/v1/public/chat-share/{token}",
+        expires_at=chat.share_token_expires_at,
+    )
 
 
 @public_router.api_route("/{token}", methods=["GET", "POST"])

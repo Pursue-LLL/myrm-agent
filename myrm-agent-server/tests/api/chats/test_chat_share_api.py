@@ -21,6 +21,8 @@ def _make_chat_dto(
     share_revoked_at: datetime | None = None,
     share_token_fingerprint: str | None = None,
     share_revoked_fingerprints: list[str] | None = None,
+    share_token_expires_at: int | None = None,
+    share_token_protected: bool | None = None,
 ) -> ChatDTO:
     now = datetime.now(timezone.utc)
     return ChatDTO(
@@ -33,6 +35,8 @@ def _make_chat_dto(
         share_revoked_at=share_revoked_at,
         share_token_fingerprint=share_token_fingerprint,
         share_revoked_fingerprints=share_revoked_fingerprints,
+        share_token_expires_at=share_token_expires_at,
+        share_token_protected=share_token_protected,
     )
 
 
@@ -190,6 +194,152 @@ class TestCreateChatShare:
         data = resp.json()
         assert data["share_url"].startswith("http://testserver/api/v1/public/chat-share/")
 
+    def test_create_persists_expiry_and_protected_flag(self, share_client: TestClient) -> None:
+        """Create persists the display metadata the status endpoint needs."""
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=_make_chat_dto(),
+        ):
+            resp = share_client.post(
+                "/chats/chat-1/share",
+                json={"ttl_days": 7, "password": "s3cret"},
+            )
+        assert resp.status_code == 200
+        values = _update_values_from_executes(share_client._mock_db)
+        assert len(values) == 1
+        assert isinstance(values[0]["share_token_expires_at"], int)
+        assert values[0]["share_token_protected"] is True
+
+    def test_create_persists_unprotected_flag(self, share_client: TestClient) -> None:
+        """An unprotected share persists a False protected flag (not NULL)."""
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=_make_chat_dto(),
+        ):
+            resp = share_client.post("/chats/chat-1/share", json={"ttl_days": 7})
+        assert resp.status_code == 200
+        values = _update_values_from_executes(share_client._mock_db)
+        assert len(values) == 1
+        assert values[0]["share_token_protected"] is False
+
+
+class TestRebuildChatShareToken:
+    def test_rebuild_matches_created_token(self) -> None:
+        """Same payload + expiry yields the exact same token (deterministic HMAC)."""
+        from app.services.chat.share_token import create_chat_share_token, rebuild_chat_share_token
+
+        token, expires_at = create_chat_share_token("chat-1", ttl_seconds=3600)
+        rebuilt = rebuild_chat_share_token("chat-1", expires_at_unix=expires_at)
+        assert rebuilt == token
+
+    def test_rebuild_differs_across_expiries(self) -> None:
+        from app.services.chat.share_token import rebuild_chat_share_token
+
+        a = rebuild_chat_share_token("chat-1", expires_at_unix=1_000_000)
+        b = rebuild_chat_share_token("chat-1", expires_at_unix=1_000_100)
+        assert a != b
+
+    def test_rebuilt_token_parses_and_is_not_protected(self) -> None:
+        from app.services.chat.share_token import parse_chat_share_token, rebuild_chat_share_token
+
+        rebuilt = rebuild_chat_share_token("chat-1", expires_at_unix=2_000_000_000)
+        claims = parse_chat_share_token(rebuilt)
+        assert claims is not None
+        assert claims.chat_id == "chat-1"
+        assert claims.exp == 2_000_000_000
+        assert claims.password_protected is False
+
+
+class TestGetChatShareStatus:
+    def _get_status(self, share_client: TestClient, chat: ChatDTO) -> dict[str, object]:
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=chat,
+        ):
+            resp = share_client.get("/chats/chat-1/share")
+        assert resp.status_code == 200
+        return resp.json()
+
+    def test_unshared(self, share_client: TestClient) -> None:
+        data = self._get_status(share_client, _make_chat_dto())
+        assert data == {
+            "shared": False,
+            "revoked": False,
+            "password_protected": False,
+            "share_url": None,
+            "expires_at": None,
+        }
+
+    def test_revoked_takes_precedence(self, share_client: TestClient) -> None:
+        """A revoked chat reports revoked even if stale display metadata remains."""
+        from app.core.security.share_hmac import token_fingerprint
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, expires_at = create_chat_share_token("chat-1", ttl_seconds=3600)
+        chat = _make_chat_dto(
+            share_revoked_at=datetime.now(timezone.utc),
+            share_token_fingerprint=token_fingerprint(token),
+            share_token_expires_at=expires_at,
+            share_token_protected=False,
+        )
+        data = self._get_status(share_client, chat)
+        assert data["shared"] is True
+        assert data["revoked"] is True
+        assert data["share_url"] is None
+
+    def test_active_unprotected_rebuilds_url(self, share_client: TestClient) -> None:
+        from app.core.security.share_hmac import token_fingerprint
+        from app.services.chat.share_token import create_chat_share_token, rebuild_chat_share_token
+
+        token, expires_at = create_chat_share_token("chat-1", ttl_seconds=3600)
+        chat = _make_chat_dto(
+            share_token_fingerprint=token_fingerprint(token),
+            share_token_expires_at=expires_at,
+            share_token_protected=False,
+        )
+        data = self._get_status(share_client, chat)
+        assert data["shared"] is True
+        assert data["revoked"] is False
+        assert data["password_protected"] is False
+        assert data["expires_at"] == expires_at
+        rebuilt_token = str(data["share_url"]).rsplit("/", 1)[-1]
+        assert rebuilt_token == rebuild_chat_share_token("chat-1", expires_at_unix=expires_at)
+
+    def test_password_protected_returns_status_only(self, share_client: TestClient) -> None:
+        """Password-protected shares never rebuild a credential-less link."""
+        from app.core.security.share_hmac import token_fingerprint
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, expires_at = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
+        chat = _make_chat_dto(
+            share_token_fingerprint=token_fingerprint(token),
+            share_token_expires_at=expires_at,
+            share_token_protected=True,
+        )
+        data = self._get_status(share_client, chat)
+        assert data["shared"] is True
+        assert data["password_protected"] is True
+        assert data["share_url"] is None
+
+    def test_stale_fingerprint_without_expiry(self, share_client: TestClient) -> None:
+        """Legacy rows with a fingerprint but no expiry report shared without a URL."""
+        chat = _make_chat_dto(share_token_fingerprint="legacy-fp")
+        data = self._get_status(share_client, chat)
+        assert data["shared"] is True
+        assert data["share_url"] is None
+
+    def test_chat_not_found(self, share_client: TestClient) -> None:
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            resp = share_client.get("/chats/chat-999/share")
+        assert resp.status_code == 404
+
     def test_create_share_falls_back_when_ingress_fails(self, share_client: TestClient) -> None:
         """Ingress resolution failure must not fail share creation."""
         with (
@@ -251,8 +401,8 @@ class TestRevokeChatShare:
         assert values[0]["share_token_fingerprint"] is None
         assert "share_revoked_at" in values[0]
 
-    def test_create_retires_previous_active_token(self, share_client: TestClient) -> None:
-        """A fresh share retires the previous active token fingerprint."""
+    def test_create_keeps_previous_token_valid(self, share_client: TestClient) -> None:
+        """A fresh share persists the new fingerprint without retiring old links."""
         from app.core.security.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
 
@@ -272,7 +422,8 @@ class TestRevokeChatShare:
         assert len(values) == 1
         new_fp = values[0]["share_token_fingerprint"]
         assert isinstance(new_fp, str) and new_fp != old_fp
-        assert values[0]["share_revoked_fingerprints"] == [old_fp]
+        # Previously issued links are not retired: the revoked set is untouched.
+        assert "share_revoked_fingerprints" not in values[0]
         assert "share_revoked_at" not in values[0]
 
     def test_create_after_revoke_keeps_old_fingerprint_revoked(self, share_client: TestClient) -> None:
@@ -284,6 +435,7 @@ class TestRevokeChatShare:
         old_fp = token_fingerprint(old_token)
         revoked = _make_chat_dto(
             share_revoked_at=datetime.now(timezone.utc),
+            share_token_fingerprint=None,
             share_revoked_fingerprints=[old_fp],
         )
 
@@ -298,7 +450,8 @@ class TestRevokeChatShare:
         values = _update_values_from_executes(share_client._mock_db)
         assert len(values) == 1
         assert values[0]["share_revoked_at"] is None
-        assert values[0]["share_revoked_fingerprints"] == [old_fp]
+        # The revoked-fingerprint set persists untouched (old tokens stay dead).
+        assert "share_revoked_fingerprints" not in values[0]
 
 
 class TestPublicSharePage:

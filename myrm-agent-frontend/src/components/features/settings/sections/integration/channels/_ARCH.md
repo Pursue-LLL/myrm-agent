@@ -21,6 +21,9 @@
 | `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks |
 | `@/hooks/billing/useIngressRequirement.ts` | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge` |
 | `*ConfigCard.tsx` / `WhatsAppCard.tsx` | 各平台配置 UI（含 `WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引） |
+| `FeishuQrRegisterDialog.tsx` | 飞书 QR 扫码注册弹窗（新增多应用实例 / 刷新默认实例；含失败快速响应 + `resolvedRef` 终态守卫） |
+| `FeishuCredentialsEditDialog.tsx` | 多应用实例「编辑凭据」弹窗（App ID / Secret / Bot Open ID / Lark；Secret 留空保留旧值，merge 落库后重建实例生效） |
+| `FeishuMultiAppSection.tsx` | 飞书多应用管理区（实例列表/添加/删除/重命名/编辑凭据，上限 UX） |
 | `DmPolicySelector.tsx` / `GroupManager.tsx` | DM 策略与群组管理 |
 | `NotificationChannelEditor.tsx` | 通知渠道编辑（Preferences 复用） |
 

@@ -89,16 +89,6 @@ async def test_real_llm_turn_persists_token_economics_and_aggregates_chat_usage(
 
     collected = _stream_once(client, request_data)
 
-    # Debug: dump every message_end to understand the payload shape.
-    for d in collected:
-        if d.get("type") == "message_end":
-            print(f"DEBUG message_end keys={sorted(d.keys())}")
-            print(f"DEBUG usage={json.dumps(d.get('usage'))[:500]}")
-            print(f"DEBUG token_economics={json.dumps(d.get('token_economics'))[:500]}")
-            print(f"DEBUG cost_usd={d.get('cost_usd')}")
-            print(f"DEBUG cost_status={d.get('cost_status')}")
-            print(f"DEBUG model={d.get('model')}")
-
     # The stream must have produced at least one message_end with token_economics.
     message_end_events = [d for d in collected if d.get("type") == "message_end"]
     assert message_end_events, "agent-stream must emit message_end for a completed turn"

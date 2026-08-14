@@ -8,8 +8,20 @@ incremental compaction bases its merge on a complete prior summary, not a
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.services.chat.compact.message_io import parse_existing_summary
+import pytest
+from langchain_core.messages import AIMessage, HumanMessage
+
+from app.database.models import Chat, Message
+from app.services.chat.compact.message_io import (
+    backup_context,
+    db_messages_to_langchain,
+    load_chat,
+    load_compactable_messages,
+    parse_existing_summary,
+)
 
 
 def test_parse_existing_summary_full_fields() -> None:
@@ -79,3 +91,146 @@ def test_parse_existing_summary_roundtrip_keeps_blocked_and_next() -> None:
     assert parsed.next_steps == ["next"]
     assert parsed.constraints_and_preferences == ["c"]
     assert parsed.pending_user_asks == ["p"]
+
+
+def _make_message(
+    chat_id: str,
+    index: int,
+    *,
+    role: str = "user",
+    created_at: datetime | None = None,
+) -> Message:
+    now = created_at or datetime.now(UTC)
+    return Message(
+        id=f"msg-{chat_id}-{index}",
+        chat_id=chat_id,
+        role=role,
+        content=f"message {index}",
+        sent_at=now,
+        sent_timezone="UTC",
+        created_at=now,
+    )
+
+
+@pytest.mark.asyncio
+async def test_load_chat_returns_chat() -> None:
+    db = AsyncMock()
+    expected = Chat(id="chat-load", compacted_summary=None)
+    db.execute.return_value.scalar_one_or_none.return_value = expected
+
+    result = await load_chat(db, "chat-load")
+
+    assert result is expected
+    db.execute.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_load_chat_returns_none_when_missing() -> None:
+    db = AsyncMock()
+    db.execute.return_value.scalar_one_or_none.return_value = None
+
+    result = await load_chat(db, "chat-missing")
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_load_compactable_messages_without_anchor() -> None:
+    db = AsyncMock()
+    chat = Chat(id="chat-plain", compacted_before_id=None)
+    messages = [_make_message("chat-plain", 0), _make_message("chat-plain", 1)]
+    db.execute.return_value.scalars.return_value.all.return_value = messages
+
+    result = await load_compactable_messages(db, chat)
+
+    assert result == messages
+    assert db.execute.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_load_compactable_messages_with_anchor_filters_after() -> None:
+    db = AsyncMock()
+    anchor_ts = datetime(2026, 8, 1, tzinfo=UTC)
+    chat = Chat(id="chat-anchor", compacted_before_id="msg-anchor")
+    messages = [_make_message("chat-anchor", 9, created_at=anchor_ts)]
+    db.execute.side_effect = [
+        MagicMock(scalar_one_or_none=MagicMock(return_value=anchor_ts)),
+        MagicMock(scalars=MagicMock(all=MagicMock(return_value=messages))),
+    ]
+
+    result = await load_compactable_messages(db, chat)
+
+    assert result == messages
+    assert db.execute.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_load_compactable_messages_with_anchor_missing_ts() -> None:
+    db = AsyncMock()
+    chat = Chat(id="chat-anchor-missing", compacted_before_id="msg-gone")
+    db.execute.side_effect = [
+        MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+        MagicMock(scalars=MagicMock(all=MagicMock(return_value=[]))),
+    ]
+
+    result = await load_compactable_messages(db, chat)
+
+    assert result == []
+    assert db.execute.await_count == 2
+
+
+def test_db_messages_to_langchain_maps_user_and_assistant() -> None:
+    chat_id = "chat-lc"
+    messages = [
+        _make_message(chat_id, 0, role="user"),
+        _make_message(chat_id, 1, role="assistant"),
+        _make_message(chat_id, 2, role="tool"),
+    ]
+
+    converted = db_messages_to_langchain(messages)
+
+    assert len(converted) == 2
+    assert isinstance(converted[0], HumanMessage)
+    assert isinstance(converted[1], AIMessage)
+    assert converted[0].content == "message 0"
+    assert converted[1].content == "message 1"
+
+
+@pytest.mark.asyncio
+async def test_backup_context_writes_jsonl() -> None:
+    chat = Chat(
+        id="chat-backup",
+        compacted_summary='{"user_goal": "prior"}',
+        compacted_before_id=None,
+    )
+    messages = [_make_message("chat-backup", 0, role="user")]
+    storage = AsyncMock()
+
+    with patch(
+        "app.services.chat.compact.message_io.get_storage_provider",
+        return_value=storage,
+    ):
+        result = await backup_context(chat, messages)
+
+    assert result is not None
+    assert result.startswith(".myrm/chat_backups/chat-backup/")
+    assert result.endswith(".jsonl")
+    storage.write.assert_awaited_once()
+    written = storage.write.await_args.args[1].decode()
+    assert '"type": "previous_summary"' in written
+    assert '"role": "user"' in written
+
+
+@pytest.mark.asyncio
+async def test_backup_context_returns_none_on_failure() -> None:
+    chat = Chat(id="chat-backup-fail", compacted_summary=None)
+    storage = AsyncMock()
+    storage.write.side_effect = RuntimeError("disk full")
+
+    with patch(
+        "app.services.chat.compact.message_io.get_storage_provider",
+        return_value=storage,
+    ):
+        result = await backup_context(chat, [])
+
+    assert result is None

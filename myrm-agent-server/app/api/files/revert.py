@@ -66,6 +66,23 @@ async def _hydrate_session(session_id: str) -> None:
     await ensure_session_snapshots_hydrated(session_id)
 
 
+def _snapshot_local_path(snap_path: str) -> Path:
+    """Resolve a container-abstract snapshot path (``/workspace/...``) to the
+    real local file inside the chat workspace, falling back to the path as-is."""
+    from myrm_agent_harness.api import get_workspace_root
+    from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import (
+        WorkspacePathResolver,
+    )
+
+    if not WorkspacePathResolver.is_container_path(snap_path):
+        return Path(snap_path)
+    workspace_root = get_workspace_root()
+    local = WorkspacePathResolver.to_local_path(snap_path, workspace_root or None)
+    if local is None:
+        return Path(snap_path)
+    return local
+
+
 @router.get("/changes/{session_id}")
 async def get_session_changes(session_id: str) -> dict[str, list[FileChangeInfo]]:
     """Get all file changes for a session, grouped by message_id."""
@@ -101,7 +118,7 @@ async def get_message_diff(session_id: str, message_id: str) -> list[FileDiffIte
         current_content: str | None = None
         is_binary = False
 
-        file_path = Path(snap.path)
+        file_path = _snapshot_local_path(snap.path)
         if file_path.exists():
             try:
                 current_content = file_path.read_text(encoding="utf-8")
@@ -137,7 +154,7 @@ async def get_session_diff(session_id: str) -> dict[str, list[FileDiffItem]]:
             current_content: str | None = None
             is_binary = False
 
-            file_path = Path(snap.path)
+            file_path = _snapshot_local_path(snap.path)
             if file_path.exists():
                 try:
                     current_content = file_path.read_text(encoding="utf-8")

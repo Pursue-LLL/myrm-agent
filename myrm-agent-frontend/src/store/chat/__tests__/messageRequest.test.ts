@@ -4,6 +4,7 @@ import * as api from '@/lib/api';
 import { createAISearchStream } from '@/services/chat';
 import { normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
 import type { AgentConfig } from '@/store/chat/types';
+import type { MentionReference } from '@/store/chat/types';
 import {
   createMessageRequest,
   resolveEffectiveAgentId,
@@ -983,7 +984,7 @@ describe('messageRequest - mention reference lifetime contract', () => {
       ...baseState,
       mentionReferences: [
         { type: 'agent', label: '@研究专家', fileId: 'agent-1', source: 'special', size: null, viaText: true },
-      ],
+      ] satisfies MentionReference[],
     };
     await createMessageRequest('帮我分析竞品文档', 'msg-zombie-agent', state, null);
 
@@ -1000,7 +1001,7 @@ describe('messageRequest - mention reference lifetime contract', () => {
       ...baseState,
       mentionReferences: [
         { type: 'agent', label: '@研究专家', fileId: 'agent-1', source: 'special', size: null, viaText: true },
-      ],
+      ] satisfies MentionReference[],
     };
     await createMessageRequest('@研究专家 帮我分析竞品文档', 'msg-live-agent', state, null);
 
@@ -1024,7 +1025,7 @@ describe('messageRequest - mention reference lifetime contract', () => {
           size: null,
           viaText: true,
         },
-      ],
+      ] satisfies MentionReference[],
     };
     await createMessageRequest('总结一下这篇文档', 'msg-zombie-wiki', state, null);
 
@@ -1049,7 +1050,7 @@ describe('messageRequest - mention reference lifetime contract', () => {
           size: null,
           viaText: true,
         },
-      ],
+      ] satisfies MentionReference[],
     };
     await createMessageRequest('回顾一下上次结论', 'msg-zombie-chat', state, null);
 
@@ -1079,7 +1080,7 @@ describe('messageRequest - mention reference lifetime contract', () => {
           source: 'workspace',
           size: null,
         },
-      ],
+      ] satisfies MentionReference[],
     };
     await createMessageRequest('继续分析', 'msg-non-text-refs', state, null);
 

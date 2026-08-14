@@ -12,8 +12,8 @@ const chatStoreRef = vi.hoisted(() => ({
 }));
 
 const commandStoreRef = vi.hoisted(() => ({
-  getAllItems: vi.fn(() => []),
-  searchItems: vi.fn(() => []),
+  getAllItems: vi.fn((): SlashCommand[] => []),
+  searchItems: vi.fn((): SlashCommand[] => []),
   recordUsage: vi.fn(),
 }));
 
@@ -123,6 +123,7 @@ describe('useSlashCommand', () => {
       type: 'command',
       template: '[use template]',
       createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
     };
     commandStoreRef.searchItems.mockReturnValue([command]);
 
@@ -158,6 +159,7 @@ describe('useSlashCommand', () => {
       type: 'command',
       template: 'organize notes',
       createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
     };
     commandStoreRef.searchItems.mockReturnValue([command]);
 

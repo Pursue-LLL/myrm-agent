@@ -100,6 +100,16 @@ class Chat(Base):
     # chat issues a fresh token but cannot resurrect a previously revoked link.
     share_revoked_fingerprints: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
+    # Unix seconds at which the active share token expires. Persisted on create
+    # so the GUI can rebuild and display the link deterministically (same payload
+    # + expiry yields the same token) without ever storing the raw token.
+    share_token_expires_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # True when the active share is password-protected. Password tokens cannot
+    # be rebuilt (the password is never persisted), so the GUI shows a status
+    # instead of a link rather than attempting a credential-less rebuild.
+    share_token_protected: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
     # Soft-delete: NULL = active, non-NULL = trashed at this timestamp
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 

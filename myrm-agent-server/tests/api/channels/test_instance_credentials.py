@@ -408,6 +408,124 @@ async def test_save_channel_credentials_encrypts_instance_key() -> None:
 
 
 @pytest.mark.asyncio
+async def test_save_channel_credentials_merge_preserves_omitted_fields() -> None:
+    """Only submitted fields are overwritten; omitted keys survive the update."""
+    from app.api.channels.instances import save_channel_credentials
+    from app.api.channels.router import channel_credentials_key
+    from app.services.config.service import ConfigService
+
+    channel_name = f"feishu_{uuid.uuid4().hex[:8]}"
+    config_key = channel_credentials_key(channel_name)
+    await ConfigService().set(
+        config_key,
+        {"appId": "cli_keep", "appSecret": "old_secret", "botOpenId": "ou_keep", "useLark": "false"},
+        device_id="test",
+    )
+
+    try:
+        with patch("app.core.channel_bridge.channel_gateway.bus") as mock_bus:
+            mock_bus.get_channel.return_value = None
+            await save_channel_credentials(channel_name, {"appSecret": "new_secret"})
+
+        record = await ConfigService().get(config_key)
+        assert record is not None
+        assert record.value["appId"] == "cli_keep"
+        assert record.value["appSecret"] == "new_secret"
+        assert record.value["botOpenId"] == "ou_keep"
+        assert record.value["useLark"] == "false"
+    finally:
+        await ConfigService().delete(config_key)
+
+
+@pytest.mark.asyncio
+async def test_save_channel_credentials_rebuilds_multi_instance() -> None:
+    """A registered multi-app instance must be recreated from merged credentials
+    with the same instance id (so the channel name and agent bindings survive)."""
+    from app.api.channels.instances import save_channel_credentials
+    from app.api.channels.router import channel_credentials_key
+    from app.services.config.service import ConfigService
+
+    instance_id = uuid.uuid4().hex[:8]
+    channel_name = f"feishu_{instance_id}"
+
+    old_channel = MagicMock()
+    old_channel.name = channel_name
+    old_channel.channel_type = "feishu"
+    old_channel.instance_id = instance_id
+    old_channel.display_name = "客服机器人"
+
+    new_channel = MagicMock()
+    new_channel.name = channel_name
+
+    gateway = MagicMock()
+    gateway._resolve_channel_type = MagicMock(return_value="feishu")
+    gateway.bus.get_channel = MagicMock(return_value=old_channel)
+    gateway.remove_channel = AsyncMock(return_value=True)
+    gateway.add_channel = AsyncMock(return_value=channel_name)
+
+    factory = MagicMock()
+    factory.create_channel_instance = AsyncMock(return_value=new_channel)
+
+    with (
+        patch("app.core.channel_bridge.channel_gateway", gateway),
+        patch(
+            "app.core.channel_bridge.channel_factory.create_channel_instance",
+            factory.create_channel_instance,
+        ),
+    ):
+        await save_channel_credentials(channel_name, {"appSecret": "rotated"})
+
+    gateway.remove_channel.assert_awaited_once_with(channel_name)
+    factory.create_channel_instance.assert_awaited_once()
+    create_kwargs = factory.create_channel_instance.await_args.kwargs
+    assert create_kwargs["channel_type"] == "feishu"
+    assert create_kwargs["instance_id"] == instance_id
+    assert new_channel.display_name == "客服机器人"
+    gateway.add_channel.assert_awaited_once_with(new_channel)
+
+    config_key = channel_credentials_key(channel_name)
+    record = await ConfigService().get(config_key)
+    assert record is not None
+    assert record.value["appSecret"] == "rotated"
+
+
+@pytest.mark.asyncio
+async def test_save_channel_credentials_default_instance_hot_reloads() -> None:
+    """A default (non-instance) channel reloads via _try_hot_register_channel."""
+    from app.api.channels.instances import save_channel_credentials
+    from app.services.config.service import ConfigService
+
+    await ConfigService().set(
+        "feishuCredentials",
+        {"appId": "cli_default", "appSecret": "old", "useLark": "false"},
+        device_id="test",
+    )
+
+    try:
+        gateway = MagicMock()
+        gateway._resolve_channel_type = MagicMock(return_value="feishu")
+        default_channel = MagicMock()
+        default_channel.name = "feishu"
+        default_channel.channel_type = "feishu"
+        gateway.bus.get_channel = MagicMock(return_value=default_channel)
+
+        with (
+            patch("app.core.channel_bridge.channel_gateway", gateway),
+            patch("app.api.config.router._try_hot_register_channel", new_callable=AsyncMock) as mock_hot,
+        ):
+            await save_channel_credentials("feishu", {"appSecret": "rotated_default"})
+
+        mock_hot.assert_awaited_once_with("feishuCredentials")
+        gateway.remove_channel.assert_not_called()
+
+        record = await ConfigService().get("feishuCredentials")
+        assert record is not None
+        assert record.value["appSecret"] == "rotated_default"
+    finally:
+        await ConfigService().delete("feishuCredentials")
+
+
+@pytest.mark.asyncio
 async def test_get_channel_credentials_redacts_secret_fields() -> None:
     """Reading credentials returns decrypted values with secret fields redacted."""
     from app.api.channels.instances import get_channel_credentials

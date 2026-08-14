@@ -1245,6 +1245,19 @@ export interface ChatShareResponse {
   password_protected: boolean;
 }
 
+export interface ChatShareStatusResponse {
+  shared: boolean;
+  revoked: boolean;
+  password_protected: boolean;
+  share_url?: string | null;
+  expires_at?: number | null;
+}
+
+export const getChatShareStatus = async (chatId: string): Promise<ChatShareStatusResponse> => {
+  const res = await apiRequest<{ data: ChatShareStatusResponse }>(`/chats/${chatId}/share`);
+  return res.data;
+};
+
 export const createChatShare = async (
   chatId: string,
   ttlDays: number = 7,

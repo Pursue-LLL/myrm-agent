@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ChatItem, updateChatTitle, deleteChat, exportChat, createChatShare, revokeChatShare } from '@/services/chat';
+import { ChatItem, updateChatTitle, deleteChat, exportChat, createChatShare, revokeChatShare, getChatShareStatus } from '@/services/chat';
 import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chatExport';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
@@ -22,6 +22,8 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   const [shareChatId, setShareChatId] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareExpiresAt, setShareExpiresAt] = useState<number | null>(null);
+  const [shareRevoked, setShareRevoked] = useState(false);
+  const [sharePasswordProtected, setSharePasswordProtected] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
 
   const { pinChat, unpinChat } = useChatStore();
@@ -193,11 +195,26 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     setHandoffDialogOpen(true);
   }, []);
 
-  const handleShare = useCallback((chatId: string) => {
+  const handleShare = useCallback(async (chatId: string) => {
     setShareChatId(chatId);
     setShareUrl(null);
     setShareExpiresAt(null);
+    setShareRevoked(false);
+    setSharePasswordProtected(false);
     setShareDialogOpen(true);
+    setShareLoading(true);
+    try {
+      const status = await getChatShareStatus(chatId);
+      if (!status.shared) {return;}
+      setShareRevoked(status.revoked);
+      setSharePasswordProtected(status.password_protected);
+      if (status.share_url) {setShareUrl(status.share_url);}
+      if (status.expires_at) {setShareExpiresAt(status.expires_at);}
+    } catch {
+      // Query failure falls back to the create form; the dialog stays usable.
+    } finally {
+      setShareLoading(false);
+    }
   }, []);
 
   const handleShareCreate = useCallback(
@@ -208,6 +225,8 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
         const result = await createChatShare(shareChatId, ttlDays, password);
         setShareUrl(result.share_url);
         setShareExpiresAt(result.expires_at);
+        setShareRevoked(false);
+        setSharePasswordProtected(result.password_protected);
       } catch (error) {
         toast({
           title: t('chat.share.error'),
@@ -227,8 +246,9 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
       await revokeChatShare(shareChatId);
       setShareUrl(null);
       setShareExpiresAt(null);
+      setSharePasswordProtected(false);
+      setShareRevoked(true);
       toast({ title: t('chat.share.revoked'), variant: 'default' });
-      setShareDialogOpen(false);
     } catch (error) {
       toast({
         title: t('chat.share.error'),
@@ -272,6 +292,8 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     shareChatId,
     shareUrl,
     shareExpiresAt,
+    shareRevoked,
+    sharePasswordProtected,
     shareLoading,
   };
 }

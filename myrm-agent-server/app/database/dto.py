@@ -113,6 +113,8 @@ class ChatDTO(BaseModel):
     share_revoked_at: datetime | None = None
     share_token_fingerprint: str | None = None
     share_revoked_fingerprints: list[str] | None = None
+    share_token_expires_at: int | None = None
+    share_token_protected: bool | None = None
 
     messages: list[MessageDTO] = Field(default_factory=list)
 

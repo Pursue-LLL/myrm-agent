@@ -13,6 +13,7 @@ const mockListChannelInstances = vi.fn();
 const mockCreateChannelInstance = vi.fn();
 const mockDeleteChannelInstance = vi.fn();
 const mockUpdateChannelDisplayName = vi.fn();
+const mockGetChannelCredentials = vi.fn();
 
 vi.mock('@/services/channels', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
@@ -23,6 +24,7 @@ vi.mock('@/services/channels', async (importOriginal) => {
     createChannelInstance: (...args: unknown[]) => mockCreateChannelInstance(...args),
     deleteChannelInstance: (...args: unknown[]) => mockDeleteChannelInstance(...args),
     updateChannelDisplayName: (...args: unknown[]) => mockUpdateChannelDisplayName(...args),
+    getChannelCredentials: (...args: unknown[]) => mockGetChannelCredentials(...args),
   };
 });
 
@@ -47,6 +49,12 @@ describe('FeishuMultiAppSection', () => {
     mockListChannelStatuses.mockResolvedValue([]);
     mockDeleteChannelInstance.mockResolvedValue(undefined);
     mockUpdateChannelDisplayName.mockResolvedValue({ displayName: 'renamed' });
+    mockGetChannelCredentials.mockResolvedValue({
+      appId: 'cli_existing',
+      appSecret: '••••rest',
+      botOpenId: 'ou_existing',
+      useLark: 'false',
+    });
   });
 
   it('renders the multi-app section with empty state', async () => {
@@ -90,6 +98,30 @@ describe('FeishuMultiAppSection', () => {
     });
     expect(screen.getByText('feishu_inst1')).toBeInTheDocument();
     expect(screen.getByText('feishuConnected')).toBeInTheDocument();
+  });
+
+  it('opens the credentials edit dialog from an instance card', async () => {
+    mockListChannelInstances.mockResolvedValue([
+      {
+        instanceId: 'inst1',
+        channelType: 'feishu',
+        channelName: 'feishu_inst1',
+        displayName: '客服机器人',
+      },
+    ]);
+
+    render(<FeishuMultiAppSection />);
+    await waitFor(() => {
+      expect(screen.getByText('客服机器人')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('edit-credentials-feishu_inst1'));
+
+    await waitFor(() => {
+      expect(screen.getByText('feishuCredentialsDialogTitle')).toBeInTheDocument();
+      expect(mockGetChannelCredentials).toHaveBeenCalledWith('feishu_inst1');
+    });
+    expect(screen.getByDisplayValue('cli_existing')).toBeInTheDocument();
   });
 
   it('deletes an instance after confirming', async () => {

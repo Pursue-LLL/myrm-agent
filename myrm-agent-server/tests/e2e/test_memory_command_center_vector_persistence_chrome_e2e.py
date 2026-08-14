@@ -2,9 +2,10 @@
 
 Covers the real-user flow on the settings memory page:
 
-1. Open /settings/memory and switch to the Verify tab.
-2. Assert the Runtime panel renders the "Vector persistence" row with one of
-   the three states (Persistent / Memory mode (lost on restart) / Unavailable).
+1. Open /settings/memory and confirm the Command Center has loaded (tabs render).
+2. Switch to the Verify tab and assert the Runtime panel renders the "Vector
+   persistence" row with one of the three states (Persistent / Memory mode
+   (lost on restart) / Unavailable).
 
 This test drives the real dev stack and the real command-center API (no mock on
 the critical path). It runs PRIVATE because the workspace backend carries the
@@ -24,7 +25,27 @@ from tests.support.chrome_mcp_e2e import (
     McpPage,
     open_settings_subroute,
     wait_for_state,
+    warm_ui_route,
 )
+
+_COMMAND_CENTER_READY_JS = """(() => {
+  const text = document.body?.textContent || '';
+  const buttons = Array.from(document.querySelectorAll('button')).map((el) =>
+    (el.textContent || '').trim(),
+  );
+  const hasVerifyTab = buttons.some((label) => /^(验证|Verify)$/.test(label));
+  const hasSkeleton = !!document.querySelector('[data-slot="skeleton"]');
+  const hasLoadFailed = /加载失败|load failed|Load failed|loadFailed/i.test(text);
+  return {
+    ready: hasVerifyTab,
+    hasVerifyTab,
+    hasSkeleton,
+    hasLoadFailed,
+    bodyLength: text.length,
+    buttons: buttons.slice(0, 40),
+    text: text.slice(0, 900),
+  };
+})()"""
 
 _OPEN_VERIFY_TAB_JS = r"""(() => {
   const btn = Array.from(document.querySelectorAll('button')).find(
@@ -49,6 +70,7 @@ _VECTOR_PERSISTENCE_READY_JS = r"""(() => {
 
 @contextmanager
 def _command_center_verify_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
+    warm_ui_route("/settings/memory")
     with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
         yield client, page
 
@@ -64,7 +86,10 @@ def _command_center_verify_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
 def test_memory_command_center_vector_persistence_row_chrome_e2e() -> None:
     """Real user flow: open Command Center, switch to Verify, assert persistence row."""
     with _command_center_verify_panel() as (client, page):
-        opened = wait_for_state(client, page, _OPEN_VERIFY_TAB_JS, timeout_sec=60.0)
+        ready = wait_for_state(client, page, _COMMAND_CENTER_READY_JS, timeout_sec=90.0)
+        assert ready.get("hasVerifyTab") is True, ready
+
+        opened = wait_for_state(client, page, _OPEN_VERIFY_TAB_JS, timeout_sec=30.0)
         assert opened.get("clicked") is True, opened
 
         panel = wait_for_state(client, page, _VECTOR_PERSISTENCE_READY_JS, timeout_sec=90.0)

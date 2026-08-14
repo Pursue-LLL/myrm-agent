@@ -140,16 +140,19 @@ _CLICK_SAVE_JS = """(() => {
   return { ok: true };
 })()"""
 
-# Save completion probe: the Save button is disabled while saving and re-enabled after.
+# Save completion probe: after a successful save the editor sets hasChanges=false and
+# saving=false, so the Save button is re-disabled and its loading spinner is gone.
 _SAVE_COMPLETE_JS = """(() => {
   const buttons = Array.from(document.querySelectorAll('button'));
   const save = buttons.find((btn) =>
     /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()),
   );
   if (!save) return { ready: false, reason: 'no-save-button' };
+  const hasSpinner = !!save.querySelector('.animate-spin');
   return {
-    ready: !save.disabled && !save.querySelector('.animate-spin'),
+    ready: save.disabled && !hasSpinner,
     disabled: save.disabled,
+    hasSpinner,
   };
 })()"""
 

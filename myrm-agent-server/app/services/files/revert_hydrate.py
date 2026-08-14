@@ -86,14 +86,30 @@ async def _resolve_snapshot_search_roots(session_id: str) -> list[Path]:
 
 
 async def ensure_session_snapshots_hydrated(session_id: str) -> None:
-    """Load disk snapshots into the current context when memory is empty."""
+    """Load disk snapshots into the current context when memory is empty.
+
+    On success the resolved workspace root is bound to the harness ContextVars
+    so revert/diff path resolution maps container paths (``/workspace/...``) to
+    the real chat workspace directory.
+    """
     store = SnapshotStore.get()
     if store.get_session_snapshots(session_id):
         return
 
     for root in await _resolve_snapshot_search_roots(session_id):
         if await store.merge_session_from_disk(str(root), session_id):
+            _bind_workspace_root(str(root))
             return
+
+
+def _bind_workspace_root(workspace_root: str) -> None:
+    """Bind the chat workspace root so container snapshot paths resolve locally."""
+    try:
+        from myrm_agent_harness.api import set_workspace_root
+
+        set_workspace_root(workspace_root)
+    except Exception:
+        logger.debug("Could not bind workspace root for snapshot hydration", exc_info=True)
 
 
 async def cleanup_persisted_snapshots(

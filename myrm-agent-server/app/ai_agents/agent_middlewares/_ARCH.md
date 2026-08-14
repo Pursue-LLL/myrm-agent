@@ -25,7 +25,7 @@ AI Agents 共享中间件。为 GeneralAgent 提供可复用的 LangGraph Agent 
 | 中间件 | 路径 | 说明 |
 |------|------|------|
 | `workspace_rules_middleware` | `myrm_agent_harness.agent.workspace_rules` | Workspace 规则注入（扫描 `.myrm/rules/*.md`，KV Cache 位置优化） |
-| `memory_context_middleware` | `myrm_agent_harness.agent.middlewares.memory_context_middleware` | Stable：`<user_memory_context>` SystemMessage；Learned：`<<<UNTRUSTED_DATA>>>` HumanMessage（wrap_untrusted，对齐 SecurityBoundary）；Stable+Learned 共享统一预算 |
+| `memory_context_middleware` | `myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware` | Stable：`<user_memory_context>` SystemMessage；Learned：`<<<UNTRUSTED_DATA>>>` HumanMessage（wrap_untrusted，对齐 SecurityBoundary）；Stable+Learned 共享统一预算 |
 
 `__init__.py` 从框架层导入 `memory_context_middleware` 并统一导出。`workspace_rules_middleware` 由 `GeneralAgent` 直接从框架层导入。
 
@@ -46,6 +46,6 @@ Stable `<user_memory_context>` (System, 同用户稳定) ← KV Cache ✅；可�
 
 - `langchain.agents.middleware`：中间件基类
 - `myrm_agent_harness.agent.workspace_rules`：Workspace 规则中间件（框架层）
-- `myrm_agent_harness.agent.middlewares.memory_context_middleware`：记忆中间件（框架层）
+- `myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware`：记忆中间件（框架层）
 - `myrm_agent_harness.toolkits.memory.manager`：MemoryManager（memory_context_middleware 依赖）
 - 被 `general_agent/` 使用

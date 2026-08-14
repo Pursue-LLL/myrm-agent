@@ -5,6 +5,9 @@
 
 [OUTPUT]
 - create_chat_share_token / parse_chat_share_token
+- rebuild_chat_share_token: reconstruct an unprotected token from a persisted
+  expiry (deterministic HMAC → same payload + expiry yields the same token),
+  so the GUI can display the current share link without storing the raw token
 - ChatShareClaims dataclass
 
 [POS]
@@ -16,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.core.security.share_hmac import create_share_token, parse_share_token
+from app.core.security.share_hmac import create_share_token, parse_share_token, sign_share_token
 
 _SALT = "chat-share"
 _DEFAULT_TTL_SECONDS = 7 * 24 * 3600
@@ -64,3 +67,13 @@ def parse_chat_share_token(
         exp=exp,
         password_protected=raw.get("p") == 1,
     )
+
+
+def rebuild_chat_share_token(chat_id: str, *, expires_at_unix: int) -> str:
+    """Reconstruct an unprotected share token from a persisted expiry.
+
+    Tokens are deterministic (same payload + expiry yields the same token), so
+    the link can be rebuilt without storing the raw token. Password-protected
+    shares cannot be rebuilt here: the password is never persisted.
+    """
+    return sign_share_token({"cid": chat_id}, salt=_SALT, exp=expires_at_unix)
