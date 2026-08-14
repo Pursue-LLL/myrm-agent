@@ -42,6 +42,22 @@ logger = logging.getLogger(__name__)
 
 WORKTREE_DIR_NAME = ".worktrees"
 
+# Per-base_dir merge locks.  A task's COMPLETED transition can trigger merge
+# through two paths (manual move in move_orchestrator + the dispatcher's
+# background task_completed hook); git writes the shared index in base_dir,
+# so concurrent merges on the same repo race (observed "Unable to write
+# index").  Serialize per base_dir instead of globally so unrelated repos
+# merge in parallel.
+_MERGE_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+def _get_merge_lock(base_dir: str) -> asyncio.Lock:
+    lock = _MERGE_LOCKS.get(base_dir)
+    if lock is None:
+        lock = asyncio.Lock()
+        _MERGE_LOCKS[base_dir] = lock
+    return lock
+
 
 def _sanitize_git_branch(name: str) -> str:
     """Normalize an arbitrary string into a valid git branch name.
@@ -226,7 +242,9 @@ async def _worktree_is_dirty(path: str) -> bool:
         return False
 
 
-async def cleanup_worktree(store: KanbanStore, task: KanbanTask) -> bool:
+async def cleanup_worktree(
+    store: KanbanStore, task: KanbanTask, *, force: bool = False
+) -> bool:
     """Remove a task's worktree, preserving any uncommitted agent edits.
 
     ``force=True`` (used after a successful merge) deletes unconditionally —
@@ -317,7 +335,8 @@ async def merge_task_worktree(store: KanbanStore, task: KanbanTask) -> bool:
 
     Returns True on success (or when there is nothing to merge).  On merge
     conflict the worktree and its unique branch are preserved so the operator
-    can resolve manually — commits are never silently dropped.
+    can resolve manually — commits are never silently dropped.  Merges on the
+    same base_dir are serialized to avoid racing on git's shared index.
     """
     if not task.branch:
         return True
@@ -326,6 +345,15 @@ async def merge_task_worktree(store: KanbanStore, task: KanbanTask) -> bool:
     if not base_dir:
         return True
 
+    async with _get_merge_lock(base_dir):
+        return await _merge_task_worktree_locked(store, task, base_dir)
+
+
+async def _merge_task_worktree_locked(
+    store: KanbanStore,
+    task: KanbanTask,
+    base_dir: str,
+) -> bool:
     path = worktree_dir(base_dir, task.branch, task.task_id)
     if not Path(path).exists():
         return True

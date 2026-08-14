@@ -562,8 +562,7 @@ export interface ParsedEndpoint {
   summary: string;
   description: string;
   tags: string[];
-  parameters: Record<string, unknown>[];
-  request_body_schema: Record<string, unknown> | null;
+  deprecated: boolean;
 }
 
 export interface ParseSpecResponse {

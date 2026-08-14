@@ -302,7 +302,17 @@ async def merge_sandbox_to_parent(base_dir: str, chat_id: str) -> tuple[bool, st
 
     worktree_path = get_sandbox_worktree_path(base_dir, chat_id)
     if Path(worktree_path).exists():
-        await _auto_commit_dirty_worktree(worktree_path)
+        if not await _auto_commit_dirty_worktree(worktree_path):
+            # Auto-commit was rejected (e.g. pre-commit hook); merging would
+            # drop the uncommitted edits when cleanup runs, so preserve the
+            # worktree and let the user handle it instead.
+            logger.warning(
+                "Cannot commit dirty sandbox worktree %s for chat %s; "
+                "merge skipped, worktree preserved",
+                worktree_path,
+                chat_id[:8],
+            )
+            return False, "Sandbox has uncommitted changes that could not be committed"
 
     try:
         result = await asyncio.to_thread(

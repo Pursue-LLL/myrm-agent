@@ -72,17 +72,23 @@ async def synthesize_run(
 async def cleanup_task_worktree(
     runner: TaskRunner | None,
     task: KanbanTask,
-) -> None:
-    """Delegate worktree cleanup to the runner if it supports it."""
+) -> bool:
+    """Delegate worktree cleanup to the runner if it supports it.
+
+    Returns True when the worktree was removed or absent.  Returns False when
+    the runner preserved a dirty worktree (uncommitted agent edits) — the
+    caller should surface this instead of pretending cleanup succeeded.
+    """
     if runner is not None and hasattr(runner, "cleanup_worktree"):
         try:
-            await runner.cleanup_worktree(task)  # type: ignore[attr-defined]
+            return await runner.cleanup_worktree(task)  # type: ignore[attr-defined]
         except Exception as exc:
             logger.warning(
                 "Worktree cleanup failed for task %s: %s",
                 task.task_id[:8],
                 exc,
             )
+    return True
 
 
 async def merge_task_worktree(

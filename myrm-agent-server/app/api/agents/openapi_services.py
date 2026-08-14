@@ -41,6 +41,23 @@ class ParseSpecRequest(BaseModel):
     spec_content: str | None = Field(default=None, description="Inline spec content (JSON/YAML)")
 
 
+class EndpointPreview(BaseModel):
+    """Lightweight endpoint metadata for the preview listing.
+
+    Deliberately excludes ``param_schema``: large specs (e.g. GitHub, 300+
+    endpoints) would otherwise ship full JSON Schemas to the frontend, which
+    only needs identifiers and display metadata.
+    """
+
+    operation_id: str
+    method: str
+    path: str
+    summary: str
+    description: str
+    tags: list[str]
+    deprecated: bool
+
+
 class ParseSpecResponse(BaseModel):
     """Parsed spec preview response for frontend."""
 
@@ -49,7 +66,7 @@ class ParseSpecResponse(BaseModel):
     description: str
     base_url: str
     spec_version: str
-    endpoints: list[ParsedEndpoint]
+    endpoints: list[EndpointPreview]
     tags: dict[str, str]
     endpoint_count: int
 
@@ -144,7 +161,18 @@ async def parse_spec(request: ParseSpecRequest) -> ParseSpecResponse:
         description=spec.description,
         base_url=spec.base_url,
         spec_version=spec.spec_version,
-        endpoints=spec.endpoints,
+        endpoints=[
+            EndpointPreview(
+                operation_id=ep.operation_id,
+                method=ep.method,
+                path=ep.path,
+                summary=ep.summary,
+                description=ep.description,
+                tags=ep.tags,
+                deprecated=ep.deprecated,
+            )
+            for ep in spec.endpoints
+        ],
         tags=spec.tags,
         endpoint_count=len(spec.endpoints),
     )
