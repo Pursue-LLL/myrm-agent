@@ -192,8 +192,8 @@ async def poll_feishu_qr_register(body: QRPollRequest) -> QRPollResponse:
             creds = poll_result["credentials"]
 
             bot_info = await reg.probe_bot(creds["app_id"], creds["app_secret"])
-            creds["bot_name"] = bot_info.get("bot_name")
-            creds["bot_open_id"] = bot_info.get("bot_open_id")
+            if not bot_info.get("bot_open_id"):
+                raise RuntimeError("Failed to verify Feishu bot credentials")
 
             instance = await _save_credentials_to_db(
                 creds,

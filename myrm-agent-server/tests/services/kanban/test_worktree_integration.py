@@ -311,3 +311,24 @@ async def test_merge_auto_commit_failure_preserves_worktree(git_repo: Path) -> N
         )
     finally:
         hook.unlink(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_merge_rejects_unusable_target_branch(git_repo: Path) -> None:
+    """A branch name that would be parsed as a git option (leading ``-``)
+    must never reach ``git checkout``; the merge is skipped and the worktree
+    is preserved instead.
+    """
+    store = InMemoryKanbanStore()
+    task = await _seed_task(store, task_id="ti", base=str(git_repo), branch="-bad")
+
+    wt = await create_worktree(str(git_repo), "-bad", task.task_id)
+    assert isinstance(wt, str)
+    (Path(wt) / "u.txt").write_text("data\n", encoding="utf-8")
+    _commit_in(Path(wt), "task-i commit")
+
+    merged = await merge_task_worktree(store, task)
+    assert merged is False
+    # Worktree preserved; base_dir still on main.
+    assert Path(wt).exists()
+    assert _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
