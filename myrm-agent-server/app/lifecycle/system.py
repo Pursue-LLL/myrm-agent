@@ -1,4 +1,27 @@
-"""Application lifecycle management."""
+"""Application lifecycle management.
+
+[INPUT]
+- app.core.channel_bridge.setup::start_channel_gateway (POS: 渠道网关启动器)
+- app.services.risk.rule_service::RiskRuleService (POS: 风险规则业务服务)
+- app.database.allowlist_store::DBAllowlistStore (POS: HITL 白名单持久化存储)
+- app.database.models.chat::OfflineDurableTask (POS: 离线持久任务表模型)
+- app.services.agent.streaming::ai_agent_service_stream (POS: Agent 流式服务层)
+- app.services.agent.runtime_context::build_agent_runtime_context (POS: 运行时上下文注入 helper)
+- myrm_agent_harness.agent.goals.storage::GoalStorage (POS: 目标存储)
+- app.services.event.app_event_bus::AppEventBus (POS: 业务层 SSE 应用级事件总线)
+
+[OUTPUT]
+- start_channel_gateway: 启动渠道网关（多聊天平台集成）
+- init_risk_rules: 播种内置风险规则并初始化检测引擎
+- init_allowlist_store: 初始化 HITL 白名单持久化存储
+- resume_durable_offline_tasks: 恢复中断的后台任务（LangGraph 断点续跑）
+- pause_orphaned_active_goals: 重启后暂停孤儿活跃目标
+- start_idle_task_listeners: 转发 IdleTask 进度事件到 ServerEventBus
+
+[POS]
+启动编排层。聚合渠道网关、风险规则、HITL 白名单、离线任务恢复、孤儿 Goal 暂停、
+空闲任务监听等系统组件在启动时的初始化与编排。
+"""
 
 from __future__ import annotations
 
