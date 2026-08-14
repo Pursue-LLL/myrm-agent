@@ -15,7 +15,6 @@ reproducible with real git; mocked subprocess tests cannot catch them.
 
 from __future__ import annotations
 
-import asyncio
 import subprocess
 from pathlib import Path
 
@@ -29,7 +28,6 @@ from app.services.kanban.task_runner.worktree import (
     cleanup_worktree,
     create_worktree,
     merge_task_worktree,
-    worktree_dir,
 )
 
 
@@ -145,16 +143,9 @@ async def test_serial_tasks_do_not_lose_commits(git_repo: Path) -> None:
     wt_b = await create_worktree(str(git_repo), "main", task_b.task_id)
     assert isinstance(wt_b, str)
 
-    # Task A's commit must still exist on its unique branch.
-    contains = _run_git(
-        git_repo,
-        "branch",
-        "--contains",
-        commit_a,
-        "--list",
-        "main-ta",
-    ).stdout.strip()
-    assert "main-ta" in contains
+    # Task A's commit must still exist on its unique branch (branch preserved).
+    tip = _run_git(git_repo, "rev-parse", "--verify", "--quiet", "main-ta").stdout.strip()
+    assert tip == commit_a
 
 
 @pytest.mark.asyncio
