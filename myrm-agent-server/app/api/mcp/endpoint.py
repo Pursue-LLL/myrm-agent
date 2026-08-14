@@ -75,7 +75,7 @@ async def _memory_manager_for_agent(agent_id: str) -> MemoryManager:
         create_memory_manager,
         resolve_context_binding,
     )
-    from app.services.memory.shared_context import resolve_shared_context_ids
+    from app.services.memory.shared_context.shared_context import resolve_shared_context_ids
 
     shared_context_ids = await resolve_shared_context_ids(agent_id=agent_id)
     binding = resolve_context_binding(

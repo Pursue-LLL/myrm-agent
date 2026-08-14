@@ -16,7 +16,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Query
 
 from app.api.memory.shared_context_schemas import SharedContextMemoryHealthResponse
-from app.services.memory.shared_context_health import check_shared_context_memory_health
+from app.services.memory.shared_context.shared_context_health import check_shared_context_memory_health
 
 router = APIRouter(prefix="/shared-contexts/health")
 

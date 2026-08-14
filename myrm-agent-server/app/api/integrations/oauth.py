@@ -95,7 +95,7 @@ async def delete_oauth_credential_endpoint(
 
     trees_removed = 0
     if clear_synced_memory:
-        from app.services.memory.integration_memory import get_integration_memory_service
+        from app.services.memory.imports.integration_memory import get_integration_memory_service
 
         svc = await get_integration_memory_service()
         if svc:

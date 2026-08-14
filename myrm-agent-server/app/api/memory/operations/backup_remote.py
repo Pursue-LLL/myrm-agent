@@ -14,13 +14,13 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.services.memory.backup_remote import (
+from app.services.memory.backup.backup_remote import (
     S3BackupConfig,
     S3BackupStrategy,
     WebDAVBackupConfig,
     WebDAVBackupStrategy,
 )
-from app.services.memory.backup_remote_scheduler import (
+from app.services.memory.backup.backup_remote_scheduler import (
     restore_from_remote,
     run_remote_backup,
 )

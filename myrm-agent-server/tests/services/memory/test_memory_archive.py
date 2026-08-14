@@ -19,16 +19,16 @@ from app.database.models.memory import (
     SharedContextBindingModel,
     SharedContextModel,
 )
-from app.services.memory.archive import MemoryArchiveService
-from app.services.memory.archive_restore import MemoryArchiveRestoreService
-from app.services.memory.archive_restore_common import (
+from app.services.memory.archive.archive import MemoryArchiveService
+from app.services.memory.archive.archive_restore import MemoryArchiveRestoreService
+from app.services.memory.archive.archive_restore_common import (
     RESTORE_BATCH_STATUS_CONFIRMED,
     RESTORE_BATCH_STATUS_IN_PROGRESS,
     RESTORE_BATCH_STATUS_ROLLED_BACK,
     RESTORE_ITEM_STATUS_ROLLED_BACK,
     MemoryArchiveRestoreError,
 )
-from app.services.memory.import_adapters import build_memory_import_dry_run
+from app.services.memory.imports.import_adapters import build_memory_import_dry_run
 
 
 class _ArchiveMemoryManager:

@@ -29,10 +29,10 @@ from app.schemas.memory.archive import (
     MemoryArchiveRestoreRollbackRequest,
     MemoryArchiveRestoreRollbackResponse,
 )
-from app.services.memory.archive_restore import MemoryArchiveRestoreService
-from app.services.memory.archive_restore_common import MemoryArchiveRestoreError
-from app.services.memory.command_center import MemoryCommandCenterService
-from app.services.memory.diagnostics import MemoryDiagnosticsService
+from app.services.memory.archive.archive_restore import MemoryArchiveRestoreService
+from app.services.memory.archive.archive_restore_common import MemoryArchiveRestoreError
+from app.services.memory.command_center.command_center import MemoryCommandCenterService
+from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
 
 router = APIRouter(prefix="/archive/restore")
 logger = logging.getLogger(__name__)

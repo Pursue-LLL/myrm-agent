@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.memory.integration_memory import IntegrationMemoryService
+from app.services.memory.imports.integration_memory import IntegrationMemoryService
 
 
 @pytest.fixture

@@ -41,7 +41,7 @@ from app.api.mem0_compat.types import (
     datetime_to_mem0_str,
 )
 from app.schemas.memory.crud import MemoryItem
-from app.services.memory.command_center import ALL_MEMORY_TYPES
+from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.presentation import memory_to_item
 

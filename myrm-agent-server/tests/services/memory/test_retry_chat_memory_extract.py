@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.database.dto import MessageDTO
-from app.services.memory import retry_chat_memory_extract as retry_module
-from app.services.memory.retry_chat_memory_extract import (
+from app.services.memory.extract_retry import retry_chat_memory_extract as retry_module
+from app.services.memory.extract_retry.retry_chat_memory_extract import (
     _find_last_turn,
     run_retry_extract_for_chat,
     schedule_retry_chat_memory_extract,

@@ -40,11 +40,11 @@ from app.api.memory.shared_context_schemas import (
     UpdateSharedContextWriteProposalRequest,
 )
 from app.core.utils.errors import handle_llm_exception
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
-from app.services.memory.shared_context import (
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.shared_context.shared_context import (
     SharedContextService,
 )
-from app.services.memory.shared_context_materializer import SharedContextProposalMaterializer
+from app.services.memory.shared_context.shared_context_materializer import SharedContextProposalMaterializer
 
 router = APIRouter(prefix="/shared-contexts")
 

@@ -458,7 +458,7 @@ async def _db_maintenance_job() -> None:
     # Memory import review cleanup
     try:
         from app.platform_utils import session_factory
-        from app.services.memory.import_sessions import MemoryImportSessionService
+        from app.services.memory.imports.import_sessions import MemoryImportSessionService
 
         async with session_factory() as session:
             deleted = await MemoryImportSessionService(session).cleanup_sessions()
@@ -846,13 +846,13 @@ async def _remote_backup_auto_sync_job() -> None:
         if not provider:
             return
 
-        from app.services.memory.backup_remote import (
+        from app.services.memory.backup.backup_remote import (
             S3BackupConfig,
             S3BackupStrategy,
             WebDAVBackupConfig,
             WebDAVBackupStrategy,
         )
-        from app.services.memory.backup_remote_scheduler import run_remote_backup
+        from app.services.memory.backup.backup_remote_scheduler import run_remote_backup
 
         device_name = value.get("deviceName", "") or platform.node()
         max_backups = value.get("maxBackups", 10)

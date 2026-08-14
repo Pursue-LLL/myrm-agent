@@ -18,7 +18,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.services.memory.integration_memory import (
+from app.services.memory.imports.integration_memory import (
     IntegrationMemoryService,
     IntegrationStatusSnapshot,
     IntegrationTreeNodeDTO,

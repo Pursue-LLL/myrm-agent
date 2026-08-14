@@ -338,8 +338,8 @@ async def _route_proposals_to_shared_contexts(
 
     from app.database.connection import get_session
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-    from app.services.memory.shared_context import SharedContextService, resolve_shared_context_ids
-    from app.services.memory.shared_context_materializer import SharedContextProposalMaterializer
+    from app.services.memory.shared_context.shared_context import SharedContextService, resolve_shared_context_ids
+    from app.services.memory.shared_context.shared_context_materializer import SharedContextProposalMaterializer
 
     context_ids = await resolve_shared_context_ids(agent_id=agent_id)
     if not context_ids:

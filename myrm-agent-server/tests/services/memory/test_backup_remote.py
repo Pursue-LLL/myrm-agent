@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="memory")
-from app.services.memory.backup_remote import (
+from app.services.memory.backup.backup_remote import (
     RemoteBackupFile,
     RemoteBackupStrategy,
     S3BackupConfig,
@@ -204,7 +204,7 @@ class TestWebDAVXMLParser:
 class TestUploadRetry:
     @pytest.mark.asyncio
     async def test_upload_success_first_attempt(self):
-        from app.services.memory.backup_remote_scheduler import _upload_with_retry
+        from app.services.memory.backup.backup_remote_scheduler import _upload_with_retry
 
         strategy = InMemoryBackupStrategy()
         with tempfile.NamedTemporaryFile(suffix=".gz", delete=False) as f:
@@ -219,7 +219,7 @@ class TestUploadRetry:
 
     @pytest.mark.asyncio
     async def test_upload_retries_on_failure(self):
-        from app.services.memory.backup_remote_scheduler import _upload_with_retry
+        from app.services.memory.backup.backup_remote_scheduler import _upload_with_retry
 
         strategy = InMemoryBackupStrategy(fail_count=2)
         with tempfile.NamedTemporaryFile(suffix=".gz", delete=False) as f:
@@ -234,7 +234,7 @@ class TestUploadRetry:
 
     @pytest.mark.asyncio
     async def test_upload_fails_after_max_retries(self):
-        from app.services.memory.backup_remote_scheduler import _upload_with_retry
+        from app.services.memory.backup.backup_remote_scheduler import _upload_with_retry
 
         strategy = InMemoryBackupStrategy(fail_upload=True)
         with tempfile.NamedTemporaryFile(suffix=".gz", delete=False) as f:
@@ -257,7 +257,7 @@ class TestRunRemoteBackup:
     @pytest.mark.asyncio
     async def test_backup_mutex_prevents_concurrent(self):
         """Verify mutex lock prevents concurrent backup execution."""
-        import app.services.memory.backup_remote_scheduler as sched
+        import app.services.memory.backup.backup_remote_scheduler as sched
 
         original = sched._auto_backup_running
         sched._auto_backup_running = True
@@ -278,7 +278,7 @@ class TestRunRemoteBackup:
 class TestBackupRotation:
     @pytest.mark.asyncio
     async def test_rotation_deletes_old_backups(self):
-        from app.services.memory.backup_remote_scheduler import _rotate_backups
+        from app.services.memory.backup.backup_remote_scheduler import _rotate_backups
 
         strategy = InMemoryBackupStrategy()
         for i in range(5):
@@ -293,7 +293,7 @@ class TestBackupRotation:
 
     @pytest.mark.asyncio
     async def test_rotation_skips_when_under_limit(self):
-        from app.services.memory.backup_remote_scheduler import _rotate_backups
+        from app.services.memory.backup.backup_remote_scheduler import _rotate_backups
 
         strategy = InMemoryBackupStrategy()
         strategy._storage["myrm.20250101.host.linux.json.gz"] = b"data"
@@ -313,7 +313,7 @@ class TestBackupRotation:
 class TestRestoreFromRemote:
     @pytest.mark.asyncio
     async def test_restore_fails_on_download_error(self):
-        from app.services.memory.backup_remote_scheduler import restore_from_remote
+        from app.services.memory.backup.backup_remote_scheduler import restore_from_remote
 
         strategy = InMemoryBackupStrategy()
         result = await restore_from_remote(
@@ -325,7 +325,7 @@ class TestRestoreFromRemote:
 
     @pytest.mark.asyncio
     async def test_restore_fails_on_invalid_version(self):
-        from app.services.memory.backup_remote_scheduler import restore_from_remote
+        from app.services.memory.backup.backup_remote_scheduler import restore_from_remote
 
         strategy = InMemoryBackupStrategy()
         backup_data = {"version": 1, "collections": {}}

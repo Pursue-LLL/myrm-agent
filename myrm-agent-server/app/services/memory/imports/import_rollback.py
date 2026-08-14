@@ -20,7 +20,7 @@ from datetime import datetime
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 
 from app.database.models.memory import MemoryImportItemModel
-from app.services.memory.import_ledger import (
+from app.services.memory.imports.import_ledger import (
     IMPORT_ITEM_STATUS_IMPORTED,
     ROLLBACK_WARNING_MEMORY_ROWS_MISSING,
     ROLLBACK_WARNING_NO_REVERSIBLE_ITEMS,

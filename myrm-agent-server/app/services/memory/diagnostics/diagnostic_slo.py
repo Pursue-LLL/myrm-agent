@@ -13,7 +13,7 @@ build_diagnostic_slo: content-free diagnostic reliability rollup for Memory Doct
 from __future__ import annotations
 
 from app.schemas.memory.command_center import MemoryCommandDiagnosticSlo
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 
 async def build_diagnostic_slo(ledger: MemoryOperationLedgerService) -> MemoryCommandDiagnosticSlo:

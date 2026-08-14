@@ -25,7 +25,7 @@ from myrm_agent_harness.toolkits.vector.qdrant.factory import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.services.memory.command_center import MemoryCommandCenterService
+from app.services.memory.command_center.command_center import MemoryCommandCenterService
 
 pytestmark = pytest.mark.integration
 

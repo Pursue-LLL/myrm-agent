@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.memory.import_adapter_utils import (
+from app.services.memory.imports.import_adapter_utils import (
     SUPPORTED_NATIVE_BUCKETS,
     WARNING_AGENTMEMORY_TOO_MANY_MEMORIES,
     WARNING_AGENTMEMORY_VERSION_UNSUPPORTED,
@@ -19,7 +19,7 @@ from app.services.memory.import_adapter_utils import (
     WARNING_NO_NATIVE_BUCKETS,
     WARNING_UNSUPPORTED_SOURCE,
 )
-from app.services.memory.import_adapters import build_memory_import_dry_run
+from app.services.memory.imports.import_adapters import build_memory_import_dry_run
 
 
 class TestSourceDetection:
@@ -337,7 +337,7 @@ class TestAdapterRegistryConsistency:
     """Verify adapter registry matches actual adapter capabilities."""
 
     def test_registry_sources_include_all_ready_adapters(self) -> None:
-        from app.services.memory.import_adapter_registry import (
+        from app.services.memory.imports.import_adapter_registry import (
             memory_import_adapter_status,
             memory_import_supported_sources,
         )
@@ -357,7 +357,7 @@ class TestAdapterRegistryConsistency:
         a declared-but-unimplemented source (e.g. windsurf/trae) must not be
         marked 'ready'.
         """
-        from app.services.memory.import_adapter_registry import (
+        from app.services.memory.imports.import_adapter_registry import (
             memory_import_adapter_status,
         )
 
@@ -378,7 +378,7 @@ class TestAdapterRegistryConsistency:
         }, "Registry 'ready' set drifted from actual adapters"
 
     def test_source_adapters_are_ready(self) -> None:
-        from app.services.memory.import_adapter_registry import (
+        from app.services.memory.imports.import_adapter_registry import (
             memory_import_adapter_status,
         )
 

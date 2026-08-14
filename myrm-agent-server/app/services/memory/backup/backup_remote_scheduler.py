@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.services.memory.backup_remote import (
+    from app.services.memory.backup.backup_remote import (
         RemoteBackupStrategy,
     )
 
@@ -89,7 +89,7 @@ async def run_remote_backup(
     start = datetime.now(UTC)
 
     try:
-        from app.services.memory.backup import VolumeBackupStrategy as LocalStrategy
+        from app.services.memory.backup.backup import VolumeBackupStrategy as LocalStrategy
 
         local_strategy = LocalStrategy(backup_root=backup_root)
 
@@ -98,7 +98,7 @@ async def run_remote_backup(
         timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         backup_filename = f"myrm.{timestamp}.{hostname}.{device_type}.json.gz"
 
-        from app.services.memory.backup_remote_utils import (
+        from app.services.memory.backup.backup_remote_utils import (
             create_exportable_backup,
         )
 
@@ -173,7 +173,7 @@ async def restore_from_remote(
                 "duration_ms": _elapsed_ms(start),
             }
 
-        from app.services.memory.backup_remote_utils import (
+        from app.services.memory.backup.backup_remote_utils import (
             restore_from_exportable_backup,
         )
 

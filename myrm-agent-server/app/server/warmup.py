@@ -67,11 +67,11 @@ async def _init_integration_memory() -> None:
 
         from app.core.retriever.vector.defaults import create_default_vector_store
         from app.services.agent.platform_config import require_platform_embedding_config
-        from app.services.memory.integration_memory import (
+        from app.services.memory.imports.integration_memory import (
             IntegrationMemoryService,
             set_integration_memory_service,
         )
-        from app.services.memory.integration_sync_daemon import (
+        from app.services.memory.imports.integration_sync_daemon import (
             start_integration_sync_daemon,
         )
 
@@ -173,7 +173,7 @@ async def _recover_incomplete_memory_import_rollbacks() -> None:
     )
     from app.platform_utils import get_session_factory
     from app.services.agent.platform_config import require_platform_embedding_config
-    from app.services.memory.import_sessions import MemoryImportSessionService
+    from app.services.memory.imports.import_sessions import MemoryImportSessionService
 
     try:
         embedding_cfg = await require_platform_embedding_config()

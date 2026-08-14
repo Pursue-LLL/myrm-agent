@@ -24,7 +24,7 @@ from app.services.agent.params.models import MigrationReadinessAnchorRequest
 from app.services.agent.stream_session.entitlement_gap_preflight import (
     get_capability_gap_emission_tracker,
 )
-from app.services.memory.import_sessions import MemoryImportSessionService
+from app.services.memory.imports.import_sessions import MemoryImportSessionService
 from app.services.memory.operations.crud.import_readiness import (
     ImportReadinessStatus,
     pick_primary_readiness_issue,

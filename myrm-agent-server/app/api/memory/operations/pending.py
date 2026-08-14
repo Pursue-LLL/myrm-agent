@@ -29,7 +29,7 @@ from app.schemas.memory.crud import (
     ResolveConflictRequest,
 )
 from app.schemas.responses import StandardSuccessResponse, create_success_response
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 from app.services.skills.experience_ledger import (
     ExperienceEntityType,
     ExperienceEventType,

@@ -6,10 +6,10 @@ metadata provenance, and skill detection for all four competitor adapters.
 
 from __future__ import annotations
 
-from app.services.memory.import_codex import dry_run_codex
-from app.services.memory.import_cursor import dry_run_cursor
-from app.services.memory.import_hermes import dry_run_hermes
-from app.services.memory.import_openclaw import dry_run_openclaw
+from app.services.memory.imports.import_codex import dry_run_codex
+from app.services.memory.imports.import_cursor import dry_run_cursor
+from app.services.memory.imports.import_hermes import dry_run_hermes
+from app.services.memory.imports.import_openclaw import dry_run_openclaw
 
 # ---------------------------------------------------------------------------
 # Hermes adapter

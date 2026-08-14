@@ -20,7 +20,7 @@ from app.api.memory.operations.shared_contexts import (
 )
 from app.database.models import Base
 from app.database.models.memory import MemoryOperationEventModel
-from app.services.memory.shared_context import SharedContextService
+from app.services.memory.shared_context.shared_context import SharedContextService
 
 pytestmark = pytest.mark.asyncio
 

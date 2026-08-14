@@ -42,7 +42,7 @@ from app.services.memory.guardian_policy import (
     load_memory_guardian_policy,
     save_memory_guardian_policy,
 )
-from app.services.memory.operation_ledger import (
+from app.services.memory.ledger.operation_ledger import (
     MemoryOperationLedgerService,
     guardian_guard_alert_thresholds,
 )

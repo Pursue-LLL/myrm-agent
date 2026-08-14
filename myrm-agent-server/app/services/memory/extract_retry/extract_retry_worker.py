@@ -80,8 +80,8 @@ class ExtractRetryWorker:
                 pass
 
     async def _sweep(self) -> None:
-        from app.services.memory import extract_retry_queue as queue
-        from app.services.memory.retry_chat_memory_extract import (
+        from app.services.memory.extract_retry import extract_retry_queue as queue
+        from app.services.memory.extract_retry.retry_chat_memory_extract import (
             run_retry_extract_for_chat,
         )
 
@@ -129,7 +129,7 @@ async def _record_terminal_failure(
         )
 
         from app.database.connection import get_session
-        from app.services.memory.operation_ledger import (
+        from app.services.memory.ledger.operation_ledger import (
             MemoryOperationLedgerService,
         )
 

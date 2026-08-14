@@ -27,7 +27,7 @@ from app.database.connection import get_session
 from app.database.dto import ChatCreate
 from app.services.agent.agent_service import AgentService
 from app.services.chat.chat_service import ChatService
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 router = APIRouter()
 

@@ -32,7 +32,7 @@ from app.database.models.memory import (
     SharedContextModel,
     SharedContextWriteProposalModel,
 )
-from app.services.memory.archive_restore_common import (
+from app.services.memory.archive.archive_restore_common import (
     RESTORE_ITEM_STATUS_CONFLICT,
     RESTORE_ITEM_STATUS_FAILED,
     RESTORE_ITEM_STATUS_MISSING,

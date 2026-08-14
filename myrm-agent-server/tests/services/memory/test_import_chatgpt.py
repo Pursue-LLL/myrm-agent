@@ -6,8 +6,8 @@ source detection, and edge-case handling.
 
 from __future__ import annotations
 
-from app.services.memory.import_adapters import build_memory_import_dry_run
-from app.services.memory.import_chatgpt import (
+from app.services.memory.imports.import_adapters import build_memory_import_dry_run
+from app.services.memory.imports.import_chatgpt import (
     _extract_messages_from_mapping,
     dry_run_chatgpt,
     is_chatgpt_payload,

@@ -69,7 +69,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/artifacts/test_processor_oversized_shareable.py` | 模块 | Local 超大可分享 reference-only persist + processor→deliverable 集成（sandboxes 路径、一次 resolve） |
 | `core/artifacts/test_processor_upsert_emit.py` | 模块 | upsert 失败不 emit / 部分 upsert 失败只 emit 成功项 |
 | `e2e/test_deliverable_link_chrome_e2e.py` | 模块 | Deliverable inline link Chrome READ E2E（seed → 自然路由 hydrate → `[data-testid=deliverable-reference-link]` → Portal 预览；**禁止 attachToChat**，store/DOM 不同步） |
-| `e2e/test_chat_share_chrome_e2e.py` | 模块 | Chat Share 生命周期 Chrome E2E（PRIVATE exclusive_backend：seed chat → WebUI 侧栏 More→Share → 创建分享 → 对话框显示 live URL → 公开页 200；关闭重开 → status 重建同一链接；Revoke → revoked 态 + 公开页 404；重建链接 ≠ 复活已撤销链接） |
+| `e2e/test_chat_share_chrome_e2e.py` | 模块 | Chat Share Chrome E2E（PRIVATE exclusive_backend，公开页真实浏览器渲染）— `test_chat_share_lifecycle_via_ui`：seed chat → WebUI 侧栏 More→Share → 创建分享 → 对话框 live URL + 有效期 → 浏览器渲染公开页 200 → 关闭重开 status 重建同一链接 → Revoke → revoked 态 + 浏览器/HTTP 双路径 404 → 重建链接 ≠ 复活已撤销链接；`test_chat_share_password_protected_via_ui`：对话框填密码创建 → 浏览器打开密码门 → 错误密码提示 → 正确密码放行内容 → 重开显示 passwordProtectedStatus（无 URL）→ Revoke → 公开页 404 |
 | `api/wiki/test_wiki_structural_cache_invalidation.py` | 模块 | Wiki vault mutation SSOT：`_after_wiki_vault_mutation` 在 apply/move/repair-publication/delete/repair-types/pending approve 等端点触发或 skip（9 项） |
 | `api/wiki/test_maintain_endpoint.py` | 模块 | POST /maintain：默认 structural mode · `?mode=full` · compile-busy 409 |
 | `api/chats/test_kanban_closure_seed_fixture.py` | 模块 | Kanban closure fixture seed HTTP 单测（`/chats/test/seed-kanban-closure-fixture`） |

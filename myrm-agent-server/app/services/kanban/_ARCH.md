@@ -22,7 +22,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 | `task_runner/` | ✅ 子包 | TaskRunner 执行域（聚合出口见其 `__init__.py`） | - |
 | ├─ `runner.py` | ✅ 核心 | KanbanTaskRunner 编排入口；worker 工具绑定 + goal-mode GoalProvider 注入；team protocol 与 **`profile_output_suffixes`**（人格 + `response_locale_policy`）注入 `user_instructions` 尾；注入 `event_log_dir` 使 kanban 任务写 event_log（供 RunsHub/看板 drawer trace 回放）；per-task `model_override` 优先于 agent profile 默认模型解析（override 无效时回退默认模型并记录 WARNING）；**`enable_memory` 遵循用户全局 `enableMemory` 开关（`resolve_memory_enabled`，与 channel/voice/cron 一致），看板无人值守任务不写用户已关闭的记忆**；`_augment_context` 把 `workspace_root`（工作目录）与 metadata `context_annotations`（业务注入的执行指令，如批量目录产物要求）追加进 worker 上下文 | ✅ |
 | ├─ `stream.py` | ✅ 核心 | Stream 累积、附件、multimodal query；PDF/Office 提取经 `files_service.get_content` SSOT | ❌ |
-| ├─ `worktree.py` | ✅ 核心 | Git worktree 隔离（路径解析、创建、清理、合并编排；merge 前置 git 步骤在 `_worktree_merge.py`） | ❌ |
+| ├─ `worktree.py` | ✅ 核心 | Git worktree 隔离（路径解析、创建、清理、合并编排；merge 前置 git 步骤在 `_worktree_merge.py`；per-base_dir merge 锁与 auto-commit/merge 身份兜底复用共享 git 层 sandbox_worktree） | ❌ |
 | ├─ `_worktree_merge.py` | ✅ 核心 | merge 前置 git 辅助（`_auto_commit_dirty_worktree` / `_branch_has_commits` / `_ensure_target_branch_checked_out`） | ✅ |
 | └─ `profile.py` | ✅ 核心 | Agent profile 解析 | ❌ |
 | `diagnostics/` | ✅ 子包 | 诊断域（聚合出口即 `__init__.py`，保留原 `diagnostics.py` 公共 API） | - |
@@ -34,7 +34,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 | └─ `spec_io.py` | ✅ 核心 | Pipeline frontmatter 解析；`TaskSeed.repeat_for_item_skills` 按 repeat 项注入技能 | ✅ |
 | `board_ops.py` | ✅ 核心 | Board CRUD + `project_id/milestone_id` 作用域校验与绑定；`update_board` 在 settings 变更时热刷新运行中 dispatcher（`refresh_board`） | ❌ |
 | `task_ops.py` | ✅ 核心 | Task add/update/delete；update 对 `require_approval` 有状态守卫（IN_REVIEW/COMPLETED/FAILED/ARCHIVED 禁改，仅活动状态 TRIAGE/BACKLOG/READY/RUNNING/BLOCKED 可改，避免审批流程开始后语义矛盾） | ❌ |
-| `move_orchestrator.py` | ✅ 核心 | move/reclaim/cancel 编排；IN_REVIEW 源/目标守卫（手动 move 绕过审批禁止）；COMPLETED 触发 worktree merge（失败追加 `MERGE_CONFLICT` 事件）、ARCHIVED 触发 safe cleanup（dirty worktree 保留） | ❌ |
+| `move_orchestrator.py` | ✅ 核心 | move/reclaim/cancel 编排；IN_REVIEW 源/目标守卫（手动 move 绕过审批禁止）；COMPLETED 触发 worktree merge（失败追加 `MERGE_CONFLICT` 事件，payload 含 `conflicts` 文件列表）、ARCHIVED 触发 safe cleanup（dirty worktree 保留） | ❌ |
 | `review_ops.py` | ✅ 核心 | IN_REVIEW 审批编排：approve→COMPLETED（promote dependents、error 清空）、reject→READY（reason 回写 error、retry_count 重置），优先委托 dispatcher，fallback 走 store 原子 CAS 流转 + 统一 action（task_completed/task_rejected）+ 完成/驳回通知补发（emit_task_rejected）；非 IN_REVIEW 幂等 no-op | ✅ |
 | `dependency_ops.py` | ✅ 核心 | 依赖边 CRUD、promote | ❌ |
 | `board_summary.py` | ✅ 核心 | `build_board_summary`（含 `stale_running_count`） | ❌ |

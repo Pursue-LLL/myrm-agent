@@ -874,7 +874,7 @@ async def convert_to_general_agent_params(
 
     memory_shared_context_ids: list[str] = []
     try:
-        from app.services.memory.shared_context import resolve_shared_context_ids
+        from app.services.memory.shared_context.shared_context import resolve_shared_context_ids
 
         memory_shared_context_ids = await resolve_shared_context_ids(
             agent_id=request.agent_id,

@@ -18,7 +18,7 @@ from app.schemas.memory.crud import (
     RestoreBackupRequest,
     RestoreBackupResponse,
 )
-from app.services.memory.backup import VolumeBackupStrategy
+from app.services.memory.backup.backup import VolumeBackupStrategy
 
 logger = logging.getLogger(__name__)
 

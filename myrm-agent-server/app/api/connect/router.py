@@ -165,7 +165,7 @@ async def revoke_connector(body: RevokeRequest) -> RevokeResponse:
 
     trees_removed = 0
     if body.clear_synced_memory and revoked:
-        from app.services.memory.integration_memory import get_integration_memory_service
+        from app.services.memory.imports.integration_memory import get_integration_memory_service
 
         svc = await get_integration_memory_service()
         if svc:

@@ -34,15 +34,15 @@ from app.database.models.memory import (
     MemoryOperationEventModel,
 )
 from app.services.memory.guardian_policy import MemoryGuardianPolicy
-from app.services.memory.operation_ledger_guardian import (
+from app.services.memory.ledger.operation_ledger_guardian import (
     _resolve_guardian_digest_window,
     as_aware,
     guardian_guard_alert_thresholds,
 )
-from app.services.memory.operation_ledger_guardian import (
+from app.services.memory.ledger.operation_ledger_guardian import (
     guardian_guard_alert_snapshot as build_guardian_guard_alert_snapshot,
 )
-from app.services.memory.operation_ledger_guardian import (
+from app.services.memory.ledger.operation_ledger_guardian import (
     latest_guardian_morning_digest as build_latest_guardian_morning_digest,
 )
 

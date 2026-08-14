@@ -17,14 +17,14 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryImportMappingItem,
 )
 
-from app.services.memory.import_adapter_utils import (
+from app.services.memory.imports.import_adapter_utils import (
     WARNING_MYRM_ARCHIVE_MEMORY_SECTION_MISSING,
     WARNING_MYRM_ARCHIVE_REVIEW_ONLY_SECTIONS,
     archive_item_count,
     build_result,
     object_dict,
 )
-from app.services.memory.import_native_json import dry_run_native_json
+from app.services.memory.imports.import_native_json import dry_run_native_json
 
 ARCHIVE_REVIEW_ONLY_SECTIONS = ("shared_context", "conversation", "replay", "audit")
 

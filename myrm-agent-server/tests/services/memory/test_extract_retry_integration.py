@@ -19,8 +19,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.models import MemoryExtractRetryModel, MemoryOperationEventModel
-from app.services.memory import extract_retry_queue as queue
-from app.services.memory.extract_retry_worker import ExtractRetryWorker
+from app.services.memory.extract_retry import extract_retry_queue as queue
+from app.services.memory.extract_retry.extract_retry_worker import ExtractRetryWorker
 
 SessionFactory = async_sessionmaker[AsyncSession]
 

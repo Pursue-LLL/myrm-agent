@@ -17,7 +17,7 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryImportMappingItem,
 )
 
-from app.services.memory.import_adapter_utils import (
+from app.services.memory.imports.import_adapter_utils import (
     SUPPORTED_NATIVE_BUCKETS,
     WARNING_NO_NATIVE_BUCKETS,
     build_result,

@@ -164,7 +164,7 @@ async def test_diagnostic_history_orders_and_limits_with_nested_metadata(
     from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperationStatus
 
     from app.api.dependencies import get_db_session, get_deploy_identity
-    from app.services.memory.operation_ledger import MemoryOperationLedgerService
+    from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
     ledger = MemoryOperationLedgerService(db_session)
     await ledger.record_event(

@@ -18,7 +18,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.models import Base
 from app.database.models.memory import MemoryOperationEventModel
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 pytestmark = pytest.mark.asyncio
 

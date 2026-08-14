@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.memory.types import MemoryStatus, MemoryType
 
 from app.schemas.memory.crud import MemoryItem
-from app.services.memory.command_center import ALL_MEMORY_TYPES
+from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
 from tests.support.minimal_app import build_minimal_app
 

@@ -28,8 +28,8 @@ from app.api.memory.shared_context_schemas import (
     SharedContextHistorySearchResponse,
     SharedContextWriteProposalItem,
 )
-from app.services.memory.shared_context import SharedContextService
-from app.services.memory.shared_context_history import (
+from app.services.memory.shared_context.shared_context import SharedContextService
+from app.services.memory.shared_context.shared_context_history import (
     SharedContextHistoryHit,
     SharedContextHistoryService,
     build_history_proposal_metadata,

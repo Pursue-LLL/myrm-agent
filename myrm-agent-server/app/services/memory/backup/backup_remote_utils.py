@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.services.memory.backup import VolumeBackupStrategy
+    from app.services.memory.backup.backup import VolumeBackupStrategy
 
 logger = logging.getLogger(__name__)
 

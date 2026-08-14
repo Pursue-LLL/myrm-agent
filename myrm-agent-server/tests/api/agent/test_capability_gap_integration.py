@@ -703,7 +703,7 @@ async def test_migration_readiness_live_resolve_emits_gap_after_db_seed() -> Non
     from app.services.agent.stream_session.migration_readiness_preflight import (
         resolve_and_build_migration_readiness_gap_sse_event,
     )
-    from app.services.memory.import_sessions import (
+    from app.services.memory.imports.import_sessions import (
         ImportReadinessRecheckFacts,
         MemoryImportSessionService,
     )
@@ -783,7 +783,7 @@ async def test_migration_readiness_live_resolve_emits_gap_after_db_seed() -> Non
 
 async def _seed_migration_readiness_batch_for_stream() -> str:
     from app.platform_utils import get_session_factory
-    from app.services.memory.import_sessions import (
+    from app.services.memory.imports.import_sessions import (
         ImportReadinessRecheckFacts,
         MemoryImportSessionService,
     )

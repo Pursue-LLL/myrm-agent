@@ -264,11 +264,11 @@ async def schedule_retry_chat_memory_extract(chat_id: str) -> RetryScheduleStatu
     # Fail fast on malformed turns; the worker re-resolves the latest turn at run time.
     _find_last_turn(messages)
 
-    from app.services.memory.extract_retry_queue import enqueue
+    from app.services.memory.extract_retry.extract_retry_queue import enqueue
 
     result = await enqueue(resolved_chat_id, reset_failed=True)
     if result == "queued":
-        from app.services.memory.extract_retry_worker import extract_retry_worker
+        from app.services.memory.extract_retry.extract_retry_worker import extract_retry_worker
 
         extract_retry_worker.wake()
     logger.info("Memory extract retry enqueued for chat %s: %s", resolved_chat_id, result)

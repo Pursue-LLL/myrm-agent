@@ -23,19 +23,19 @@ def test_seed_migration_readiness_fixture_mcp_warning(client: TestClient) -> Non
 
     with (
         patch(
-            "app.api.memory.test_fixtures_migration_readiness.is_local_mode",
+            "app.api.memory.migration_readiness_seed.is_local_mode",
             return_value=True,
         ),
         patch(
-            "app.api.memory.test_fixtures_migration_readiness.AgentService.get_agent_list",
+            "app.api.memory.migration_readiness_seed.AgentService.get_agent_list",
             new_callable=AsyncMock,
             return_value=([fake_agent], 1),
         ),
         patch(
-            "app.api.memory.test_fixtures_migration_readiness.get_session_factory",
+            "app.api.memory.migration_readiness_seed.get_session_factory",
         ) as mock_session_factory,
         patch(
-            "app.api.memory.test_fixtures_migration_readiness.MemoryImportSessionService"
+            "app.api.memory.migration_readiness_seed.MemoryImportSessionService"
         ) as mock_service_cls,
     ):
         mock_service = mock_service_cls.return_value
@@ -69,7 +69,7 @@ def test_seed_migration_readiness_fixture_hidden_outside_local_mode(
     client: TestClient,
 ) -> None:
     with patch(
-        "app.api.memory.test_fixtures_migration_readiness.is_local_mode",
+        "app.api.memory.migration_readiness_seed.is_local_mode",
         return_value=False,
     ):
         resp = client.post("/api/v1/memory/test/seed-migration-readiness-fixture")

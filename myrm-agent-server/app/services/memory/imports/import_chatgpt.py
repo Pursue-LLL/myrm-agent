@@ -31,7 +31,7 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryImportMappingItem,
 )
 
-from app.services.memory.import_adapter_utils import (
+from app.services.memory.imports.import_adapter_utils import (
     build_metadata,
     build_result,
     iso_or_now,

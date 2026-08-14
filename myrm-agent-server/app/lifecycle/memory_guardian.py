@@ -267,7 +267,7 @@ async def _record_maintenance_event(report: MaintenanceReport, *, forced: bool) 
     the operation ledger during routine Guardian sweeps.
     """
     from app.database.connection import get_session
-    from app.services.memory.operation_ledger import MemoryOperationLedgerService
+    from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
     parts: list[str] = []
     if report.forgotten_count:
@@ -326,7 +326,7 @@ async def _record_guard_unavailable_event(
     from app.services.agent.memory_guardian_guard_telemetry import (
         enqueue_memory_guardian_guard_telemetry,
     )
-    from app.services.memory.operation_ledger import MemoryOperationLedgerService
+    from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
     enqueue_memory_guardian_guard_telemetry(
         reason=reason,
@@ -362,7 +362,7 @@ async def _persist_health_snapshot(
 ) -> None:
     """Persist Guardian-computed health score so the Command Center shows fresh data."""
     from app.database.connection import get_session
-    from app.services.memory.operation_ledger import MemoryOperationLedgerService
+    from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
     if not report.health:
         return
@@ -392,7 +392,7 @@ async def _persist_health_snapshot(
 async def _record_purge_audit(purge_count: int) -> None:
     """Record an audit event for expired archive purging."""
     from app.database.connection import get_session
-    from app.services.memory.operation_ledger import MemoryOperationLedgerService
+    from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
     try:
         async with get_session() as db:

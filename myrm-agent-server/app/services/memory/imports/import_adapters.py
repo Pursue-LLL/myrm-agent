@@ -23,24 +23,24 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryImportSource,
 )
 
-from app.services.memory.import_adapter_utils import (
+from app.services.memory.imports.import_adapter_utils import (
     SUPPORTED_NATIVE_BUCKETS,
     WARNING_UNSUPPORTED_SOURCE,
     build_result,
     to_memory_import_source,
     unsupported_result,
 )
-from app.services.memory.import_agentmemory import dry_run_agentmemory
-from app.services.memory.import_chatgpt import dry_run_chatgpt, is_chatgpt_payload
-from app.services.memory.import_claude_code import dry_run_claude_code_jsonl, is_claude_code_jsonl
-from app.services.memory.import_codex import dry_run_codex
-from app.services.memory.import_cursor import dry_run_cursor
-from app.services.memory.import_gbrain import dry_run_gbrain
-from app.services.memory.import_hermes import dry_run_hermes
-from app.services.memory.import_mem0 import dry_run_mem0, is_mem0_payload
-from app.services.memory.import_myrm_archive import dry_run_myrm_archive, is_myrm_archive
-from app.services.memory.import_native_json import dry_run_native_json
-from app.services.memory.import_openclaw import dry_run_openclaw
+from app.services.memory.imports.import_agentmemory import dry_run_agentmemory
+from app.services.memory.imports.import_chatgpt import dry_run_chatgpt, is_chatgpt_payload
+from app.services.memory.imports.import_claude_code import dry_run_claude_code_jsonl, is_claude_code_jsonl
+from app.services.memory.imports.import_codex import dry_run_codex
+from app.services.memory.imports.import_cursor import dry_run_cursor
+from app.services.memory.imports.import_gbrain import dry_run_gbrain
+from app.services.memory.imports.import_hermes import dry_run_hermes
+from app.services.memory.imports.import_mem0 import dry_run_mem0, is_mem0_payload
+from app.services.memory.imports.import_myrm_archive import dry_run_myrm_archive, is_myrm_archive
+from app.services.memory.imports.import_native_json import dry_run_native_json
+from app.services.memory.imports.import_openclaw import dry_run_openclaw
 from app.services.migration.source_manifest import migration_source_import_map
 from app.services.migration.source_payload_loader import (
     is_source_discovery_payload,

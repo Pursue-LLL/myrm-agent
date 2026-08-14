@@ -38,7 +38,7 @@ from app.schemas.memory.crud import (
     UpdateMemoryStatusRequest,
 )
 from app.schemas.responses import create_success_response
-from app.services.memory.command_center import ALL_MEMORY_TYPES
+from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _SORT_KEYS, _record_memory_event
 from app.services.memory.presentation import memory_to_item, parse_memory_type

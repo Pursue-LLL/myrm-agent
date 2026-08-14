@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.memory.retry_chat_memory_extract import (
+from app.services.memory.extract_retry.retry_chat_memory_extract import (
     _privacy_deep_scan_context,
     _run_retry_extract,
 )

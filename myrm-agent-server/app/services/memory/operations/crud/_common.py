@@ -7,7 +7,7 @@ import logging
 from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperationStatus
 
 from app.database.connection import get_session
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 logger = logging.getLogger(__name__)
 

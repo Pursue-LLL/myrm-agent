@@ -524,3 +524,34 @@ async def test_merge_auto_commit_without_git_identity(tmp_path: Path) -> None:
     finally:
         sw._GIT_ENV.clear()
         sw._GIT_ENV.update(original)
+
+
+@pytest.mark.asyncio
+async def test_git_identity_injects_only_missing_keys(tmp_path: Path) -> None:
+    """A repo with ``user.name`` configured keeps it; only the missing
+    ``user.email`` is injected, so a real author is never overwritten."""
+    import os
+
+    from app.services.chat import sandbox_worktree as sw
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _run_git(repo, "init", "-q", "-b", "main")
+    _run_git(repo, "config", "user.name", "Repo Owner")
+    _run_git(repo, "config", "commit.gpgsign", "false")
+
+    isolated = dict(os.environ)
+    isolated.update(
+        {
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+        }
+    )
+    original = dict(sw._GIT_ENV)
+    sw._GIT_ENV.update(isolated)
+    try:
+        overrides = await sw._git_identity(str(repo))
+        assert overrides == ["-c", "user.email=agent@myrm.local"]
+    finally:
+        sw._GIT_ENV.clear()
+        sw._GIT_ENV.update(original)

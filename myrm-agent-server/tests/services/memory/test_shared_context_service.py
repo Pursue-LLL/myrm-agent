@@ -20,15 +20,15 @@ from app.api.memory.shared_context_schemas import (
     CreateSharedContextProposalFromHistoryRequest,
 )
 from app.database.models import Base, Chat, Message
-from app.services.memory.shared_context import (
+from app.services.memory.shared_context.shared_context import (
     LEGACY_TEAM_CONTEXT_ID,
     SharedContextService,
     shared_context_namespaces,
 )
-from app.services.memory.shared_context_history import (
+from app.services.memory.shared_context.shared_context_history import (
     SharedContextHistoryService,
 )
-from app.services.memory.shared_context_materializer import (
+from app.services.memory.shared_context.shared_context_materializer import (
     SharedContextProposalMaterializer,
 )
 

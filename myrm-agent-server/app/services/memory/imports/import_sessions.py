@@ -36,9 +36,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.memory import MemoryImportBatchModel, MemoryImportDryRunModel
 from app.schemas.memory.archive import MemoryImportReadiness
-from app.services.memory.import_adapter_registry import import_source_label
-from app.services.memory.import_adapters import RequestedImportSource, build_memory_import_dry_run
-from app.services.memory.import_ledger import (
+from app.services.memory.imports.import_adapter_registry import import_source_label
+from app.services.memory.imports.import_adapters import RequestedImportSource, build_memory_import_dry_run
+from app.services.memory.imports.import_ledger import (
     IMPORT_BATCH_STATUS_CONFIRMED,
     IMPORT_BATCH_STATUS_ROLLBACK_IN_PROGRESS,
     IMPORT_ITEM_STATUS_CONFLICT,
@@ -47,7 +47,7 @@ from app.services.memory.import_ledger import (
     IMPORT_ITEM_STATUS_SKIPPED,
     MemoryImportLedgerService,
 )
-from app.services.memory.import_rollback import (
+from app.services.memory.imports.import_rollback import (
     count_profile_conflicts,
     is_imported_memory_item,
     is_imported_profile_item,
@@ -56,7 +56,7 @@ from app.services.memory.import_rollback import (
     rollback_preview_warnings,
     rollback_profile_items,
 )
-from app.services.memory.import_session_data import (
+from app.services.memory.imports.import_session_data import (
     attach_import_metadata,
     build_import_plan,
     build_transaction_items,
@@ -67,12 +67,12 @@ from app.services.memory.import_session_data import (
     normalized_to_json,
     summary_unmapped_count,
 )
-from app.services.memory.import_session_models import (
+from app.services.memory.imports.import_session_models import (
     MemoryImportConfirmResult,
     MemoryImportRollbackPreviewResult,
     MemoryImportRollbackResult,
 )
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 DRY_RUN_TTL_SECONDS = 30 * 60
 DRY_RUN_RETENTION_DAYS = 7

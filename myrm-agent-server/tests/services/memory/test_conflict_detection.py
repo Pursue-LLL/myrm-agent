@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from myrm_agent_harness.toolkits.memory import MemoryType
 
-from app.services.memory.command_center_insights import MemoryCommandCenterInsights
+from app.services.memory.command_center.command_center_insights import MemoryCommandCenterInsights
 
 
 @dataclass

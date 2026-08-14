@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.memory.extract_retry_worker import (
+from app.services.memory.extract_retry.extract_retry_worker import (
     ExtractRetryWorker,
     _record_terminal_failure,
 )
@@ -238,7 +238,7 @@ async def test_loop_survives_wait_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A wait timeout merely schedules the next sweep; the loop never dies."""
-    import app.services.memory.extract_retry_worker as extract_retry_worker
+    import app.services.memory.extract_retry.extract_retry_worker as extract_retry_worker
 
     monkeypatch.setattr(extract_retry_worker, "SWEEP_INTERVAL_SECONDS", 0.05)
     worker = ExtractRetryWorker()

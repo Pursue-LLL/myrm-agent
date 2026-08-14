@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.memory.import_adapters import build_memory_import_dry_run
+from app.services.memory.imports.import_adapters import build_memory_import_dry_run
 from app.services.migration.source_payload_loader import (
     extract_pending_skills,
     load_source_payload,

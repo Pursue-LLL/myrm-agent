@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.api.dependencies import get_deploy_identity
 from app.database.models import Base
-from app.services.memory.import_sessions import ImportReadinessRecheckFacts, MemoryImportSessionService
+from app.services.memory.imports.import_sessions import ImportReadinessRecheckFacts, MemoryImportSessionService
 from tests.services.memory.test_import_sessions import _FakeMemoryManager
 from tests.support.minimal_app import build_minimal_app
 

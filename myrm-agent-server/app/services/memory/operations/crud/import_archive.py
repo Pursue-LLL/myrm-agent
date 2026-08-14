@@ -61,10 +61,10 @@ from app.schemas.memory.crud import (
     MEMORY_EXPORT_VERSION,
     MemoryExportResponse,
 )
-from app.services.memory.archive import MemoryArchiveService
-from app.services.memory.command_center import MemoryCommandCenterService
-from app.services.memory.diagnostics import MemoryDiagnosticsService
-from app.services.memory.import_sessions import (
+from app.services.memory.archive.archive import MemoryArchiveService
+from app.services.memory.command_center.command_center import MemoryCommandCenterService
+from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
+from app.services.memory.imports.import_sessions import (
     ImportReadinessRecheckFacts,
     MemoryImportSessionError,
     MemoryImportSessionService,
@@ -260,7 +260,7 @@ async def dry_run_import_memories(
 ) -> MemoryImportDryRunResponse:
     """Preview memory import mapping and bind the review result server-side."""
 
-    from app.services.memory.import_adapters import resolve_migration_source
+    from app.services.memory.imports.import_adapters import resolve_migration_source
     from app.services.migration.source_migration_types import (
         MigrationLanePreview,
         MigrationWizardOptions,
@@ -533,7 +533,7 @@ async def confirm_import_memories(
 ) -> MemoryImportConfirmResponse:
     """Confirm a memory import from a server-bound dry-run session."""
 
-    from app.services.memory.import_ledger import MemoryImportLedgerService
+    from app.services.memory.imports.import_ledger import MemoryImportLedgerService
     from app.services.migration.instruction_writer import (
         apply_instruction_plan,
         instruction_rollback_record_from_apply,
@@ -930,7 +930,7 @@ async def rollback_import_memories(
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> MemoryImportRollbackResponse:
     """Rollback a confirmed memory import batch from its server-bound session."""
-    from app.services.memory.import_ledger import MemoryImportLedgerService
+    from app.services.memory.imports.import_ledger import MemoryImportLedgerService
     from app.services.migration.instruction_rollback import (
         rollback_instruction_for_batch_metadata,
     )

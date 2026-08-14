@@ -13,4 +13,4 @@ KanbanTaskRunner 执行域。`runner.py` 为编排入口；`stream.py` 附件与
 - **防丢数据**：`_worktree_merge._auto_commit_dirty_worktree` 返回 worktree 是否干净；自动提交被拒（如 pre-commit hook）时 `merge_task_worktree` 返回 False 并**保留 worktree**，agent 未提交编辑绝不静默删除。
 - **非法分支防御**：`_worktree_merge._is_valid_git_branch` 拒绝 `-` 开头/含 git 非法字符的 target 分支名（防 `git checkout` 选项注入），merge 跳过且保留 worktree 供人工处理。
 - **cleanup 保数据**：`worktree_cleanup.cleanup_worktree` 默认 safe 模式——ARCHIVED/FAILED 清理前检测未提交改动，dirty 则保留 worktree 供人工恢复（merge 成功后的清理显式传 `force=True`）。唯一分支删除仅在 merge 成功之后。
-- **merge 失败可观测**：merge 失败（冲突/不可提交/不可用分支）时 `move_orchestrator.merge_task_worktree` 追加 `MERGE_CONFLICT` 事件，前端看板活动流可见。
+- **merge 失败可观测**：merge 失败（冲突/不可提交/不可用分支）时 `move_orchestrator.merge_task_worktree` 追加 `MERGE_CONFLICT` 事件（payload 含 `conflicts` 文件列表），前端看板活动流可见。

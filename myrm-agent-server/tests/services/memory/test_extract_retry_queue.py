@@ -9,7 +9,7 @@ from typing import Awaitable, Callable
 import pytest
 
 from app.database.models import MemoryExtractRetryModel
-from app.services.memory import extract_retry_queue as queue
+from app.services.memory.extract_retry import extract_retry_queue as queue
 
 
 @pytest.mark.asyncio

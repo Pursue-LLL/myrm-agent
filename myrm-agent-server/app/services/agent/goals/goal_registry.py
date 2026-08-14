@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 async def _resolve_shared_context_ids_for_goal(session_id: str) -> list[str]:
     """Resolve SharedContext bindings for a goal session (align with agent request converter)."""
-    from app.services.memory.shared_context import resolve_shared_context_ids
+    from app.services.memory.shared_context.shared_context import resolve_shared_context_ids
 
     agent_id: str | None = None
     try:

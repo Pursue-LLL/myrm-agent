@@ -20,9 +20,9 @@ from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryRepairExecut
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.memory.command_center import MemoryCommandDiagnosticRun
-from app.services.memory.command_center import MemoryCommandCenterService
-from app.services.memory.diagnostics import MemoryDiagnosticsService
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.command_center.command_center import MemoryCommandCenterService
+from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 RepairPlanId = Literal[
     "run_diagnostics",

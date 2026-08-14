@@ -13,7 +13,7 @@ MemoryImportRollbackPreviewResult: service-layer import session DTOs.
 
 from __future__ import annotations
 
-from app.services.memory.import_ledger import ImportRollbackWarning
+from app.services.memory.imports.import_ledger import ImportRollbackWarning
 
 NormalizedMemoryData = dict[str, list[dict[str, object]]]
 

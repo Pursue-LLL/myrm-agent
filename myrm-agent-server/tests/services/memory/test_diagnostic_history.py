@@ -17,7 +17,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandDiagnosticProbeResult,
     MemoryCommandDiagnosticRun,
 )
-from app.services.memory.diagnostics import MemoryDiagnosticsService
+from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
 
 
 def _make_diagnostic_run(*, benchmark: bool) -> MemoryCommandDiagnosticRun:
@@ -285,7 +285,7 @@ class TestDiagnosticHistoryItemProjection:
 
 class TestListDiagnosticEvents:
     async def test_filters_diagnostic_run_audit_events(self) -> None:
-        from app.services.memory.operation_ledger import MemoryOperationLedgerService
+        from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
         db = AsyncMock()
         result = MagicMock()

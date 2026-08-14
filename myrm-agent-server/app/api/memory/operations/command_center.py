@@ -40,13 +40,13 @@ from app.schemas.memory.command_center import (
     MemoryCommandRepairActionResponse,
     MemoryCommandTimelineEvent,
 )
-from app.services.memory.command_center import MemoryCommandCenterService
-from app.services.memory.diagnostic_repair_executor import MemoryDiagnosticRepairExecutor
-from app.services.memory.diagnostics import MemoryDiagnosticsService
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
-from app.services.memory.operation_ledger_guardian import as_aware
-from app.services.memory.shared_context import SharedContextService
-from app.services.memory.shared_context_materializer import SharedContextProposalMaterializer
+from app.services.memory.command_center.command_center import MemoryCommandCenterService
+from app.services.memory.diagnostics.diagnostic_repair_executor import MemoryDiagnosticRepairExecutor
+from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.ledger.operation_ledger_guardian import as_aware
+from app.services.memory.shared_context.shared_context import SharedContextService
+from app.services.memory.shared_context.shared_context_materializer import SharedContextProposalMaterializer
 
 router = APIRouter(prefix="/command-center")
 

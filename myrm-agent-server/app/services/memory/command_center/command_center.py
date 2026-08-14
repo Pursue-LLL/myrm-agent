@@ -50,11 +50,11 @@ from app.schemas.memory.command_center import (
     MemoryCommandTraceRun,
     MemoryCommandTraceStep,
 )
-from app.services.memory.archive_restore import MemoryArchiveRestoreService
-from app.services.memory.command_center_insights import MemoryCommandCenterInsights
-from app.services.memory.diagnostics import MemoryDiagnosticsService
-from app.services.memory.import_ledger import MemoryImportLedgerService
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.archive.archive_restore import MemoryArchiveRestoreService
+from app.services.memory.command_center.command_center_insights import MemoryCommandCenterInsights
+from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
+from app.services.memory.imports.import_ledger import MemoryImportLedgerService
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 logger = logging.getLogger(__name__)
 HEALTH_TTL_SECONDS = 300
@@ -99,7 +99,7 @@ class MemoryCommandCenterService:
             return None
         if self._project_context_ids is not None:
             return self._project_context_ids
-        from app.services.memory.shared_context import SharedContextService
+        from app.services.memory.shared_context.shared_context import SharedContextService
 
         svc = SharedContextService(self._db)
         bindings = await svc.list_bindings_for_target(target_type="project", target_id=self._project_id)

@@ -17,7 +17,7 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryImportMappingItem,
 )
 
-from app.services.memory.import_adapter_utils import (
+from app.services.memory.imports.import_adapter_utils import (
     WARNING_CLAUDE_CODE_NO_LINES,
     build_result,
     unsupported_result,

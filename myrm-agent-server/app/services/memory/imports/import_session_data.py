@@ -26,7 +26,7 @@ from myrm_agent_harness.toolkits.memory import (
     ProfileAttributeSnapshot,
 )
 
-from app.services.memory.import_session_models import NormalizedMemoryData
+from app.services.memory.imports.import_session_models import NormalizedMemoryData
 
 
 def canonical_hash(value: dict[str, object]) -> str:

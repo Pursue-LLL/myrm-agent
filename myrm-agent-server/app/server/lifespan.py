@@ -72,7 +72,7 @@ from app.server.warmup import run_async_warmup
 from app.services.agent.evolution.monitor_service import (
     shutdown_evolution_monitor_service,
 )
-from app.services.memory.integration_sync_daemon import (
+from app.services.memory.imports.integration_sync_daemon import (
     stop_integration_sync_daemon,
 )
 
@@ -214,7 +214,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     asyncio.create_task(run_async_warmup())
 
     try:
-        from app.services.memory.extract_retry_worker import extract_retry_worker
+        from app.services.memory.extract_retry.extract_retry_worker import extract_retry_worker
 
         await extract_retry_worker.start()
     except Exception as e:
@@ -695,7 +695,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
         await shutdown_mcp_endpoint()
 
     async def _stop_extract_retry_worker() -> None:
-        from app.services.memory.extract_retry_worker import extract_retry_worker
+        from app.services.memory.extract_retry.extract_retry_worker import extract_retry_worker
 
         await extract_retry_worker.stop()
 

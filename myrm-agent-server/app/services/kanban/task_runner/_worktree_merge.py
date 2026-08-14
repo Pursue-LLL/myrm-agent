@@ -2,7 +2,7 @@
 
 [INPUT]
 - worktree (POS: worktree_dir / branch-name resolution + merge orchestration)
-- sandbox_worktree (POS: shared git helpers, incl. _auto_commit_dirty_worktree)
+- sandbox_worktree (POS: shared git environment `_GIT_ENV`)
 
 [OUTPUT]
 - _branch_has_commits, _ensure_target_branch_checked_out, _is_valid_git_branch

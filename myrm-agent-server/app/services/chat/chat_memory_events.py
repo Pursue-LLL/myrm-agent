@@ -43,7 +43,7 @@ async def record_memory_influence_event(
         )
 
         from app.database.connection import get_session
-        from app.services.memory.operation_ledger import MemoryOperationLedgerService
+        from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
         async with get_session() as db:
             ledger = MemoryOperationLedgerService(db)

@@ -301,7 +301,7 @@ class LocalEvalExecutor:
         memory_shared_context_ids: list[str] = []
         if not self.benchmark_mode and self._resolve_shared_contexts:
             try:
-                from app.services.memory.shared_context import (
+                from app.services.memory.shared_context.shared_context import (
                     resolve_shared_context_ids,
                 )
 

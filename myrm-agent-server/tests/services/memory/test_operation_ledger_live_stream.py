@@ -10,7 +10,7 @@ from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperat
 
 from app.database.models.memory import MemoryOperationEventModel
 from app.services.event.app_event_bus import AppEventType, ServerEventBus
-from app.services.memory.operation_ledger import (
+from app.services.memory.ledger.operation_ledger import (
     MemoryOperationLedgerService,
     _publish_memory_operation_event,
 )

@@ -306,7 +306,7 @@ class TestDefaultPolicy:
     """Test that _DEFAULT_POLICY includes correction_auto_approve."""
 
     def test_correction_auto_approve_in_default_policy(self) -> None:
-        from app.services.memory.shared_context import _DEFAULT_POLICY
+        from app.services.memory.shared_context.shared_context import _DEFAULT_POLICY
 
         assert "correction_auto_approve" in _DEFAULT_POLICY
         assert _DEFAULT_POLICY["correction_auto_approve"] is True

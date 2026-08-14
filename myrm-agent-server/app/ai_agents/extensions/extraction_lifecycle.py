@@ -65,7 +65,7 @@ def make_extraction_lifecycle_observer(
 
         try:
             from app.database.connection import get_session
-            from app.services.memory.operation_ledger import (
+            from app.services.memory.ledger.operation_ledger import (
                 MemoryOperationLedgerService,
             )
 
@@ -123,10 +123,10 @@ def make_extraction_lifecycle_observer(
             and not is_retry
         ):
             try:
-                from app.services.memory.extract_retry_queue import enqueue
+                from app.services.memory.extract_retry.extract_retry_queue import enqueue
 
                 if await enqueue(resolved_chat_id, reset_failed=False) == "queued":
-                    from app.services.memory.extract_retry_worker import (
+                    from app.services.memory.extract_retry.extract_retry_worker import (
                         extract_retry_worker,
                     )
 

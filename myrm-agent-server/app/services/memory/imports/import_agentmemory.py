@@ -17,7 +17,7 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryImportMappingItem,
 )
 
-from app.services.memory.import_adapter_utils import (
+from app.services.memory.imports.import_adapter_utils import (
     WARNING_ACCESS_LOGS_SKIPPED,
     WARNING_AGENTMEMORY_TOO_MANY_MEMORIES,
     WARNING_AGENTMEMORY_TOO_MANY_OBSERVATIONS,

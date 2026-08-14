@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
 from app.database.models import SharedContextWriteProposalModel
 from app.services.agent.platform_config import require_platform_embedding_config
-from app.services.memory.shared_context import SharedContextService
+from app.services.memory.shared_context.shared_context import SharedContextService
 
 ScalarMetadataValue: TypeAlias = str | int | float | bool
 

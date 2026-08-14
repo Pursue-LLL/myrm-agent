@@ -15,7 +15,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandMigrationProvenance,
     MemoryCommandTimelineEvent,
 )
-from app.services.memory.command_center_insights import MemoryCommandCenterInsights
+from app.services.memory.command_center.command_center_insights import MemoryCommandCenterInsights
 
 
 @pytest.fixture

@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from myrm_agent_harness.toolkits.memory._internal.memory_scanner import ScanVerdict, get_scan_metrics
 
 from app.schemas.memory.command_center import MemoryCommandTimelineEvent
-from app.services.memory.command_center_insights import MemoryCommandCenterInsights
+from app.services.memory.command_center.command_center_insights import MemoryCommandCenterInsights
 
 
 def _make_event(*, status: str = "ok", kind: str = "store") -> MemoryCommandTimelineEvent:

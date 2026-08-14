@@ -87,7 +87,7 @@ class ProjectService:
             )
             db.add(project)
 
-            from app.services.memory.shared_context import SharedContextService
+            from app.services.memory.shared_context.shared_context import SharedContextService
 
             shared_context_svc = SharedContextService(db)
             context = await shared_context_svc.create_context(

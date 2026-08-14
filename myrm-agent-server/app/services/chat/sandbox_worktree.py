@@ -148,9 +148,7 @@ def _ensure_worktrees_excluded(base_dir: str) -> None:
 
 
 async def create_sandbox_worktree(
-    base_dir: str,
-    chat_id: str,
-    branch_name: str | None = None,
+    base_dir: str, chat_id: str
 ) -> str | WorktreeCreateError:
     """Create an isolated git worktree for a chat sandbox session.
 
@@ -169,7 +167,7 @@ async def create_sandbox_worktree(
         logger.info("Sandbox worktree already exists at %s", worktree_dir)
         return worktree_dir
 
-    effective_branch = branch_name or f"sandbox/chat-{chat_id[:12]}"
+    effective_branch = f"sandbox/chat-{chat_id[:12]}"
 
     try:
         os.makedirs(os.path.dirname(worktree_dir), exist_ok=True)
@@ -308,33 +306,35 @@ async def cleanup_sandbox_worktree(
 
 
 async def _git_identity(repo_dir: str) -> list[str]:
-    """Return ``-c user.name/-c user.email`` overrides for a bare repo.
+    """Return ``-c key=value`` overrides for identity keys missing on the repo.
 
     Fresh ``git init``/``git clone`` repos often have no user identity
     configured, which makes ``git commit`` fail with "Please tell me who you
-    are".  Only inject overrides when the repo (local + global config) has no
-    email, so configured environments keep their real author.
+    are".  Each key (``user.name``/``user.email``) is checked against the
+    repo's own config (local + global) and only the missing ones are injected,
+    so a configured author is never overwritten.
     """
-    try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "config", "--get", "user.email"],
-            cwd=repo_dir,
-            capture_output=True,
-            text=True,
-            timeout=5,
-            env=_GIT_ENV,
-        )
-        if result.returncode == 0 and result.stdout.strip():
+    overrides: list[str] = []
+    for key, fallback in (
+        ("user.name", "Myrm Agent"),
+        ("user.email", "agent@myrm.local"),
+    ):
+        try:
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["git", "config", "--get", key],
+                cwd=repo_dir,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                env=_GIT_ENV,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                continue
+        except Exception:
             return []
-    except Exception:
-        return []
-    return [
-        "-c",
-        "user.name=Myrm Agent",
-        "-c",
-        "user.email=agent@myrm.local",
-    ]
+        overrides.extend(("-c", f"{key}={fallback}"))
+    return overrides
 
 
 async def _auto_commit_dirty_worktree(

@@ -38,8 +38,8 @@ from app.core.utils.response_utils import success_response
 from app.core.utils.session_id import is_safe_session_id
 from app.database.connection import get_db
 from app.database.models import Chat, Message
-from app.services.memory.command_center_projection_utils import event_phase
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.command_center.command_center_projection_utils import event_phase
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

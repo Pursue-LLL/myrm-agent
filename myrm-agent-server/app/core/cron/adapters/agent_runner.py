@@ -683,7 +683,7 @@ class AgentJobRunner:
 
             memory_shared_context_ids: list[str] = []
             try:
-                from app.services.memory.shared_context import (
+                from app.services.memory.shared_context.shared_context import (
                     resolve_shared_context_ids,
                 )
 

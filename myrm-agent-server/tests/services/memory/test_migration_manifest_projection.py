@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.memory.command_center_insights import MemoryCommandCenterInsights
-from app.services.memory.import_sessions import (
+from app.services.memory.command_center.command_center_insights import MemoryCommandCenterInsights
+from app.services.memory.imports.import_sessions import (
     DRY_RUN_STATUS_CONFIRMED,
     DRY_RUN_STATUS_EXPIRED,
     DRY_RUN_STATUS_PENDING,

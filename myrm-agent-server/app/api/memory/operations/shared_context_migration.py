@@ -26,7 +26,7 @@ from app.api.memory.operations.shared_context_serializers import context_to_item
 from app.api.memory.shared_context_schemas import LegacyTeamMemoryMigrationResponse
 from app.api.memory.utils import get_crud_memory_manager
 from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
-from app.services.memory.shared_context import SharedContextService
+from app.services.memory.shared_context.shared_context import SharedContextService
 
 router = APIRouter(prefix="/shared-contexts")
 

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from app.services.memory.import_adapters import build_memory_import_dry_run
-from app.services.memory.import_gbrain import dry_run_gbrain
+from app.services.memory.imports.import_adapters import build_memory_import_dry_run
+from app.services.memory.imports.import_gbrain import dry_run_gbrain
 
 
 class TestGbrainDetection:

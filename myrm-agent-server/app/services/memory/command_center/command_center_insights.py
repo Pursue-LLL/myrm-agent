@@ -41,8 +41,8 @@ from app.schemas.memory.command_center import (
     MemoryCommandTimelineEvent,
     MemoryCommandWaterfallStep,
 )
-from app.services.memory.archive_restore import ArchiveRestoreHealth
-from app.services.memory.command_center_projection_utils import (
+from app.services.memory.archive.archive_restore import ArchiveRestoreHealth
+from app.services.memory.command_center.command_center_projection_utils import (
     WATERFALL_PHASES,
     WaterfallPhase,
     dict_int,
@@ -55,9 +55,9 @@ from app.services.memory.command_center_projection_utils import (
     waterfall_phase,
     waterfall_status,
 )
-from app.services.memory.import_adapter_registry import memory_import_adapter_status, memory_import_supported_sources
-from app.services.memory.import_ledger import ImportRollbackHealth
-from app.services.memory.import_sessions import (
+from app.services.memory.imports.import_adapter_registry import memory_import_adapter_status, memory_import_supported_sources
+from app.services.memory.imports.import_ledger import ImportRollbackHealth
+from app.services.memory.imports.import_sessions import (
     DRY_RUN_RETENTION_DAYS,
     DRY_RUN_STATUS_CONFIRMED,
     DRY_RUN_STATUS_EXPIRED,
@@ -65,7 +65,7 @@ from app.services.memory.import_sessions import (
     DRY_RUN_STATUS_ROLLED_BACK,
     MemoryImportSessionService,
 )
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 from app.services.migration.source_manifest import (
     migration_source_manifest_authoritative,
     migration_source_manifest_authoritative_for_ids,

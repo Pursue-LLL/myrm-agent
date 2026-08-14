@@ -7,8 +7,8 @@ and full dry-run adapter pipeline.
 
 from __future__ import annotations
 
-from app.services.memory.import_adapters import build_memory_import_dry_run
-from app.services.memory.import_claude_code_parser import (
+from app.services.memory.imports.import_adapters import build_memory_import_dry_run
+from app.services.memory.imports.import_claude_code_parser import (
     MAX_CLAUDE_CODE_ENTRIES,
     MAX_CLAUDE_CODE_LINES,
     MAX_ERRORS_FOR_PROCEDURAL,

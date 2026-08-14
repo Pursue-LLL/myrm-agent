@@ -90,7 +90,7 @@ class ContextAssemblyService:
     async def resolve_binding_for_chat(chat_id: str) -> ChatMemoryBindingContext:
         """Resolve memory binding for a chat (same contract as resolve_for_agent)."""
         from app.services.chat.chat_service import ChatService
-        from app.services.memory.shared_context import resolve_shared_context_ids
+        from app.services.memory.shared_context.shared_context import resolve_shared_context_ids
 
         resolved_chat_id = chat_id.strip()
         if not resolved_chat_id:

@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException
 from app.config.deploy_mode import is_local_mode
 from app.platform_utils import get_session_factory
 from app.services.agent.agent_service import AgentService
-from app.services.memory.import_sessions import (
+from app.services.memory.imports.import_sessions import (
     ImportReadinessRecheckFacts,
     MemoryImportSessionService,
 )

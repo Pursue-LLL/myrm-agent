@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.api.memory.operations import shared_context_health as health_operation
 from app.api.memory.router import router as memory_router
-from app.services.memory.shared_context_health import SharedContextMemoryHealthResult
+from app.services.memory.shared_context.shared_context_health import SharedContextMemoryHealthResult
 
 
 def test_shared_context_memory_health_route_is_not_captured_by_context_id(

@@ -18,7 +18,7 @@ import logging
 from typing import Literal
 
 from app.services.agent.params import AgentRequest
-from app.services.memory.import_sessions import MemoryImportSessionService
+from app.services.memory.imports.import_sessions import MemoryImportSessionService
 
 logger = logging.getLogger(__name__)
 

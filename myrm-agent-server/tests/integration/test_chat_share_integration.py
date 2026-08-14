@@ -133,6 +133,35 @@ def _delete_chat(db_engine, chat_id: str) -> None:
     asyncio.run(_delete())
 
 
+def _expire_share(db_engine, chat_id: str) -> None:
+    """Force the persisted share expiry into the past (past-due link)."""
+
+    async def _update() -> None:
+        async with AsyncSession(db_engine) as session:
+            chat = await session.get(Chat, chat_id)
+            assert chat is not None
+            chat.share_token_expires_at = int(time.time()) - 10
+            await session.commit()
+
+    asyncio.run(_update())
+
+
+def _set_legacy_share(db_engine, chat_id: str, *, protected: bool) -> None:
+    """Plant a legacy share record: fingerprint persisted, no expiry stored."""
+
+    async def _update() -> None:
+        async with AsyncSession(db_engine) as session:
+            chat = await session.get(Chat, chat_id)
+            assert chat is not None
+            chat.share_token_fingerprint = "legacy-fingerprint"
+            chat.share_token_protected = protected
+            chat.share_token_expires_at = None
+            chat.share_revoked_at = None
+            await session.commit()
+
+    asyncio.run(_update())
+
+
 class TestShareLifecycle:
     def test_full_lifecycle_unprotected(self, client: TestClient, db_engine) -> None:
         """Create -> status -> serve -> revoke -> status -> old link stays dead."""
@@ -211,6 +240,53 @@ class TestShareLifecycle:
 
         assert client.delete("/chats/chat-pw/share").status_code == 204
         assert client.get(f"{_PUBLIC_PREFIX}/{token}", cookies={cookie_name: cookie_value}).status_code == 404
+
+    def test_password_in_url_query_param_unlocks(self, client: TestClient, db_engine) -> None:
+        """GET ?p=... (legacy links carrying the password) serves the content directly."""
+        _insert_chat(db_engine, chat_id="chat-pwq")
+
+        created = client.post("/chats/chat-pwq/share", json={"ttl_days": 7, "password": "s3cret"})
+        token = created.json()["token"]
+
+        assert client.get(f"{_PUBLIC_PREFIX}/{token}").status_code == 403
+        page = client.get(f"{_PUBLIC_PREFIX}/{token}", params={"p": "s3cret"})
+        assert page.status_code == 200
+        assert "Shared Conversation" in page.text
+        assert client.get(f"{_PUBLIC_PREFIX}/{token}", params={"p": "nope"}).status_code == 403
+
+    def test_expired_protected_link_reports_unshared(self, client: TestClient, db_engine) -> None:
+        """A past-due password-protected share never surfaces as active."""
+        _insert_chat(db_engine, chat_id="chat-pwexp")
+
+        client.post("/chats/chat-pwexp/share", json={"ttl_days": 7, "password": "s3cret"})
+        _expire_share(db_engine, "chat-pwexp")
+
+        status = client.get("/chats/chat-pwexp/share").json()
+        assert status["shared"] is False
+        assert status["password_protected"] is False
+
+    def test_legacy_share_without_expiry_reports_shared_status_only(
+        self, client: TestClient, db_engine
+    ) -> None:
+        """Pre-expiry records: a fingerprint with no stored expiry yields a status only.
+
+        The unprotected legacy case reports shared without a rebuildable URL (the
+        expiry is unknown); the protected legacy case reports the protected status.
+        """
+        _insert_chat(db_engine, chat_id="legacy-open")
+        _set_legacy_share(db_engine, "legacy-open", protected=False)
+        open_status = client.get("/chats/legacy-open/share").json()
+        assert open_status["shared"] is True
+        assert open_status["password_protected"] is False
+        assert open_status["share_url"] is None
+        assert open_status["expires_at"] is None
+
+        _insert_chat(db_engine, chat_id="legacy-pw")
+        _set_legacy_share(db_engine, "legacy-pw", protected=True)
+        pw_status = client.get("/chats/legacy-pw/share").json()
+        assert pw_status["shared"] is True
+        assert pw_status["password_protected"] is True
+        assert pw_status["share_url"] is None
 
     def test_unshared_chat(self, client: TestClient, db_engine) -> None:
         """A chat that was never shared reports unshared."""

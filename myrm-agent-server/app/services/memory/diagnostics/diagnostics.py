@@ -29,7 +29,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandDoctorCheck,
     MemoryCommandRuntimeStatus,
 )
-from app.services.memory.diagnostic_probe_results import (
+from app.services.memory.diagnostics.diagnostic_probe_results import (
     critical_probe,
     doctor_check_to_probe,
     missing_probe,
@@ -37,11 +37,11 @@ from app.services.memory.diagnostic_probe_results import (
     rollup_status,
     run_summary,
 )
-from app.services.memory.diagnostic_quality_governance import run_memory_quality_probe
-from app.services.memory.diagnostic_recall_benchmark import run_golden_recall_benchmark
-from app.services.memory.diagnostic_repair_plans import with_check_repair_plans, with_probe_repair_plans
-from app.services.memory.diagnostic_slo import build_diagnostic_slo
-from app.services.memory.diagnostic_static_checks import (
+from app.services.memory.diagnostics.diagnostic_quality_governance import run_memory_quality_probe
+from app.services.memory.diagnostics.diagnostic_recall_benchmark import run_golden_recall_benchmark
+from app.services.memory.diagnostics.diagnostic_repair_plans import with_check_repair_plans, with_probe_repair_plans
+from app.services.memory.diagnostics.diagnostic_slo import build_diagnostic_slo
+from app.services.memory.diagnostics.diagnostic_static_checks import (
     probe_context_bundle_manifest,
     probe_deployment_boundary,
     probe_embedding_provider,
@@ -52,8 +52,8 @@ from app.services.memory.diagnostic_static_checks import (
     probe_relational_store,
     probe_vector_index,
 )
-from app.services.memory.operation_ledger import MemoryOperationLedgerService
-from app.services.memory.shared_context_health import check_shared_context_memory_health
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+from app.services.memory.shared_context.shared_context_health import check_shared_context_memory_health
 
 DiagnosticStatus = str
 

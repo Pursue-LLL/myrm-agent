@@ -24,7 +24,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.services.memory.integration_memory import IntegrationMemoryService
+    from app.services.memory.imports.integration_memory import IntegrationMemoryService
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ async def _sync_job() -> None:
     the IntegrationMemoryService before triggering sync_all().
     """
     try:
-        from app.services.memory.integration_memory import get_integration_memory_service
+        from app.services.memory.imports.integration_memory import get_integration_memory_service
 
         svc = await get_integration_memory_service()
         if svc is None:

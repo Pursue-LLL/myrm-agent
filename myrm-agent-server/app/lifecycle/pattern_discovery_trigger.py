@@ -69,7 +69,7 @@ async def run_pattern_discovery_cycle() -> None:
 async def record_pattern_discovery_event(report: PatternReport) -> None:
     """Record pattern discovery results into operation_ledger for Command Center visibility."""
     from app.database.connection import get_session
-    from app.services.memory.operation_ledger import MemoryOperationLedgerService
+    from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
     pattern_count = len(report.patterns)
     summary = f"Pattern discovery: found {pattern_count} behavioral pattern(s) ({report.duration_ms:.0f}ms)"

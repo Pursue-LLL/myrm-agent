@@ -9,7 +9,7 @@ import pytest
 
 from app.database.models.memory import MemoryHealthSnapshotModel, MemoryOperationEventModel
 from app.services.memory.guardian_policy import MemoryGuardianPolicy
-from app.services.memory.operation_ledger import (
+from app.services.memory.ledger.operation_ledger import (
     MemoryOperationLedgerService,
     _resolve_guardian_digest_window,
     guardian_guard_alert_thresholds,

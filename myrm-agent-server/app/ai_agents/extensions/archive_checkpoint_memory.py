@@ -94,7 +94,7 @@ async def _record_archive_checkpoint_event(*, chat_id: str, record: ArchiveCheck
         from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperationStatus
 
         from app.database.connection import get_session
-        from app.services.memory.operation_ledger import MemoryOperationLedgerService
+        from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
         async with get_session() as db:
             await MemoryOperationLedgerService(db).record_event(

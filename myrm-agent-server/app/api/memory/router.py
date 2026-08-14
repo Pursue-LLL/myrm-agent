@@ -22,7 +22,7 @@ from app.api.memory.operations import (
     shared_contexts,
     working_state,
 )
-from app.api.memory.test_fixtures_migration_readiness import (
+from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
 )
 

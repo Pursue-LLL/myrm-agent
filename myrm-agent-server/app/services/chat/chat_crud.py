@@ -637,7 +637,7 @@ async def _delete_widget_kv_for_chat(session: AsyncSession, chat_id: str) -> Non
 async def _clear_extract_retry_queue(chat_id: str) -> None:
     """Drop pending memory-extract retry work for a deleted chat (fail-open)."""
     try:
-        from app.services.memory.extract_retry_queue import clear_for_chat
+        from app.services.memory.extract_retry.extract_retry_queue import clear_for_chat
 
         await clear_for_chat(chat_id)
     except Exception as exc:
