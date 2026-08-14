@@ -137,3 +137,51 @@ class TestConnectStatusAPI:
             assert "label" in item
             assert "status" in item
             assert "doctor_ok" in item
+
+
+class TestAgentPluginAPI:
+    """Test POST /connect/agent-plugin endpoint."""
+
+    def test_generate_bundle_returns_200(self, client: TestClient):
+        response = client.post(f"{API_PREFIX}/connect/agent-plugin", json={"agent_id": "default"})
+        assert response.status_code == 200
+
+    def test_generate_bundle_file_set(self, client: TestClient):
+        response = client.post(f"{API_PREFIX}/connect/agent-plugin", json={"agent_id": "default"})
+        data = response.json()
+        assert set(data["files"]) == {
+            "plugin.json",
+            "mcp.json",
+            "skills/myrm-memory/SKILL.md",
+        }
+
+    def test_generate_bundle_fields(self, client: TestClient):
+        response = client.post(
+            f"{API_PREFIX}/connect/agent-plugin",
+            json={"agent_id": "research-agent", "embed_token": False},
+        )
+        data = response.json()
+        assert data["agent_id"] == "research-agent"
+        assert data["embed_token"] is False
+        assert data["token"].startswith("myrm_mcp_")
+        assert data["mcp_url"].endswith("/mcp")
+        assert "MYRM_MCP_TOKEN" in data["instructions"]
+
+    def test_generate_embedded_token_default(self, client: TestClient):
+        response = client.post(f"{API_PREFIX}/connect/agent-plugin", json={})
+        data = response.json()
+        # Default is env mode (spec-compliant, no credential in bundle files).
+        assert data["embed_token"] is False
+
+    def test_revoke_agent_plugin_through_api(self, client: TestClient):
+        client.post(f"{API_PREFIX}/connect/agent-plugin", json={"agent_id": "default"})
+        revoke = client.post(
+            f"{API_PREFIX}/connect/revoke", json={"profile_id": "agent_plugin"}
+        )
+        assert revoke.status_code == 200
+        assert revoke.json()["revoked"] is True
+        # The revoked token must no longer authenticate (doctor reports unhealthy).
+        doctor = client.post(
+            f"{API_PREFIX}/connect/doctor", json={"profile_id": "agent_plugin"}
+        )
+        assert doctor.json()["healthy"] is False

@@ -2,14 +2,16 @@
 
 [INPUT]
 - worktree (POS: worktree_dir / branch-name resolution + merge orchestration)
+- sandbox_worktree (POS: shared git helpers, incl. _auto_commit_dirty_worktree)
 
 [OUTPUT]
-- _auto_commit_dirty_worktree (bool: worktree 是否已干净/提交成功)
 - _branch_has_commits, _ensure_target_branch_checked_out, _is_valid_git_branch
+- re-exports _auto_commit_dirty_worktree from sandbox_worktree
 
 [POS]
-合并前的 git 前置步骤：自动提交 worktree 内未提交改动、判断是否有可合并提交、
-确保 merge 落在目标分支。与 worktree.py 解耦，避免主文件超行数预算。
+合并前的 git 前置步骤：判断是否有可合并提交、确保 merge 落在目标分支、校验分支名。
+自动提交未提交改动的共享实现由 sandbox_worktree 提供（kanban 与 sandbox 共用一份，
+避免语义漂移）。与 worktree.py 解耦，避免主文件超行数预算。
 """
 
 from __future__ import annotations
@@ -19,7 +21,9 @@ import logging
 import re
 import subprocess
 
-from app.services.chat.sandbox_worktree import _GIT_ENV
+from app.services.chat.sandbox_worktree import (
+    _auto_commit_dirty_worktree,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,58 +46,6 @@ def _is_valid_git_branch(name: str) -> bool:
     return True
 
 
-async def _auto_commit_dirty_worktree(worktree_path: str) -> bool:
-    """Commit uncommitted changes in a worktree before merging it back.
-
-    Returns True when the worktree is clean (nothing to commit, or the
-    auto-commit succeeded).  Returns False when there are uncommitted changes
-    that could not be committed — the caller must preserve the worktree
-    instead of cleaning it up, or the agent's edits would be silently lost.
-    """
-    try:
-        status = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "status", "--porcelain"],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=_GIT_ENV,
-        )
-        if status.returncode != 0 or not status.stdout.strip():
-            return status.returncode == 0
-        await asyncio.to_thread(
-            subprocess.run,
-            ["git", "add", "-A"],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=_GIT_ENV,
-        )
-        commit = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "commit", "-m", "Kanban task auto-commit before merge"],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            timeout=15,
-            env=_GIT_ENV,
-        )
-        if commit.returncode == 0:
-            logger.info("Auto-committed dirty worktree at %s", worktree_path)
-            return True
-        logger.warning(
-            "Auto-commit failed in worktree %s: %s",
-            worktree_path,
-            commit.stderr.strip()[:200],
-        )
-        return False
-    except Exception as exc:
-        logger.warning("Auto-commit failed for %s: %s", worktree_path, exc)
-        return False
-
-
 async def _branch_has_commits(base_dir: str, branch: str, target_branch: str) -> bool:
     """Check whether a worktree branch has commits ahead of its merge target.
 
@@ -105,7 +57,13 @@ async def _branch_has_commits(base_dir: str, branch: str, target_branch: str) ->
     try:
         result = await asyncio.to_thread(
             subprocess.run,
-            ["git", "rev-list", "--count", f"{target_branch}..{branch}"],
+            [
+                "git",
+                "rev-list",
+                "--count",
+                "--end-of-options",
+                f"{target_branch}..{branch}",
+            ],
             cwd=base_dir,
             capture_output=True,
             text=True,
