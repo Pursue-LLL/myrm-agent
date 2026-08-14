@@ -14,7 +14,10 @@ Dev Gate observability — coordinator 为主 truth source；coordinator 不可�
 
 from __future__ import annotations
 
+import sqlite3
 import subprocess
+import time
+from contextlib import closing
 from dataclasses import dataclass
 
 from e2e_core.live_chrome_pytest_scan import (  # noqa: PLC0415
@@ -272,6 +275,152 @@ def _list_pytest_scan_fallback(
     return tuple(rows)
 
 
+def _coordinator_state_phase(state: str) -> str:
+    """Map a coordinator session state to the unified phase vocabulary."""
+    if state in {"SUBMITTED", "PRIVATE_ADMIT"}:
+        return "admit"
+    if state in {"PREPARING", "PAGE_OPEN"}:
+        return "bootstrap"
+    if state in {"BODY", "TEARDOWN"}:
+        return "body"
+    return "bootstrap"
+
+
+def _coordinator_row(raw: sqlite3.Row, *, now: float) -> LiveE2ESessionRow | None:
+    test_id = str(raw["test_node_id"] or "").strip()
+    if not test_id:
+        return None
+    pid = int(raw["owner_pid"] or 0)
+    if pid <= 0:
+        return None
+    state = str(raw["state"] or "").strip().upper()
+    wall_phase = _coordinator_state_phase(state)
+    submitted_at = float(raw["submitted_at"] or 0.0)
+    phase_started_at = float(raw["phase_started_at"] or 0.0)
+    node_started_at = float(raw["node_started_at"] or 0.0)
+    return LiveE2ESessionRow(
+        pid=pid,
+        test_id=test_id,
+        elapsed_sec=max(0.0, now - submitted_at),
+        state=state,
+        phase=wall_phase,
+        wall_phase=wall_phase,
+        current_node=str(raw["current_node"] or "").strip() or None,
+        admit_elapsed_sec=(
+            max(0.0, now - submitted_at)
+            if wall_phase in {"admit", "bootstrap"}
+            else None
+        ),
+        body_elapsed_sec=(
+            max(0.0, now - phase_started_at) if wall_phase == "body" else None
+        ),
+        node_elapsed_sec=max(0.0, now - node_started_at),
+        batch_mode=_is_batch_file_invocation(test_id),
+    )
+
+
+def _coordinator_live_rows() -> tuple[LiveE2ESessionRow, ...]:
+    """Coordinator DB live sessions (authoritative epoch clock).
+
+    Closes the body-snapshot coverage gap: tests that never write a body sidecar
+    (guardrail/revert flows) still surface BODY elapsed to hung-reap and FAIL_FAST.
+    Read-only single-shot — never block the reap loop on a busy coordinator DB.
+    """
+    try:
+        from dev_gate.store import default_store_path  # noqa: PLC0415
+    except ImportError:
+        return ()
+    database = default_store_path()
+    if not database.is_file():
+        return ()
+    try:
+        connection = sqlite3.connect(
+            f"{database.as_uri()}?mode=ro",
+            uri=True,
+            timeout=1.0,
+        )
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA query_only=ON")
+        connection.execute("PRAGMA busy_timeout=1000")
+    except (OSError, PermissionError, sqlite3.OperationalError):
+        return ()
+    now = time.time()
+    rows: list[LiveE2ESessionRow] = []
+    with closing(connection), connection:
+        try:
+            cursor = connection.execute(
+                """
+                SELECT owner_pid, state, test_node_id, submitted_at,
+                       phase_started_at, node_started_at, current_node
+                FROM sessions
+                WHERE state NOT IN ('SUCCEEDED', 'FAILED', 'CANCELLED')
+                ORDER BY submitted_at
+                """
+            )
+        except sqlite3.OperationalError:
+            return ()
+        for raw in cursor.fetchall():
+            row = _coordinator_row(raw, now=now)
+            if row is not None:
+                rows.append(row)
+    return tuple(rows)
+
+
+def _blend_rows(
+    snapshot_row: LiveE2ESessionRow,
+    coord_row: LiveE2ESessionRow,
+) -> LiveE2ESessionRow:
+    """Keep the snapshot's monotonic BODY clock authoritative; backfill gaps.
+
+    R030-J contract: the per-pytest sidecar monotonic clock is the authoritative
+    body elapsed. Coordinator epoch fields only fill in what the snapshot does
+    not carry, so hung-reap and FAIL_FAST always judge the same row.
+    """
+    return LiveE2ESessionRow(
+        pid=snapshot_row.pid,
+        test_id=snapshot_row.test_id,
+        elapsed_sec=max(snapshot_row.elapsed_sec, coord_row.elapsed_sec),
+        state=(
+            coord_row.state
+            if snapshot_row.state in {"?", ""}
+            else snapshot_row.state
+        ),
+        phase=snapshot_row.phase,
+        current_node=snapshot_row.current_node or coord_row.current_node,
+        wall_phase=snapshot_row.wall_phase or coord_row.wall_phase,
+        admit_elapsed_sec=(
+            snapshot_row.admit_elapsed_sec
+            if snapshot_row.admit_elapsed_sec is not None
+            else coord_row.admit_elapsed_sec
+        ),
+        body_elapsed_sec=(
+            snapshot_row.body_elapsed_sec
+            if snapshot_row.body_elapsed_sec is not None
+            else coord_row.body_elapsed_sec
+        ),
+        node_elapsed_sec=(
+            snapshot_row.node_elapsed_sec
+            if snapshot_row.node_elapsed_sec is not None
+            else coord_row.node_elapsed_sec
+        ),
+        batch_mode=snapshot_row.batch_mode or coord_row.batch_mode,
+        shpoib=snapshot_row.shpoib or coord_row.shpoib,
+        lane=snapshot_row.lane or coord_row.lane,
+    )
+
+
+def _merge_coordinator_live_rows(grouped: dict[str, LiveE2ESessionRow]) -> None:
+    """Blend coordinator DB rows into the registry snapshot grouping."""
+    for coord in _coordinator_live_rows():
+        existing = grouped.get(coord.test_id)
+        if existing is None:
+            grouped[coord.test_id] = coord
+            continue
+        if _phase_rank(coord.phase) < _phase_rank(existing.phase):
+            continue
+        grouped[coord.test_id] = _blend_rows(existing, coord)
+
+
 def list_live_e2e_sessions() -> tuple[LiveE2ESessionRow, ...]:
     """Live chrome_e2e sessions from sidecar registry (ADMIT + BODY)."""
     from e2e_session_runtime.snapshot import _load_all_session_snapshots  # noqa: PLC0415
@@ -298,6 +447,7 @@ def list_live_e2e_sessions() -> tuple[LiveE2ESessionRow, ...]:
         covered.add(row.test_id)
     for row in _list_pytest_scan_fallback(covered):
         grouped.setdefault(row.test_id, row)
+    _merge_coordinator_live_rows(grouped)
     return tuple(sorted(grouped.values(), key=lambda item: (item.test_id, item.pid)))
 
 

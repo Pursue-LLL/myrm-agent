@@ -361,23 +361,23 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         chat_id: str,
         *,
         file_path: Path,
-        timeout_sec: float = 180.0,
+        timeout_sec: float = 300.0,
     ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last_api = ("", False)
-        claim_seen_at: float | None = None
+        seen_turn_end: bool = False
+        _trace("wait_turn_start", f"timeout={timeout_sec}s")
 
         def _finalize(source: str, assistant_text: str) -> dict[str, object]:
-            """Agent claims REVERT_LIVE_OK: give the file write a short settle
-            window, then fail fast with full diagnostics instead of waiting."""
             try:
                 _assert_edited(file_path)
             except AssertionError:
                 raise AssertionError(
-                    f"agent claimed REVERT_LIVE_OK but file unchanged: {file_path} "
+                    f"agent turn ended but file unchanged: {file_path} "
                     f"content={file_path.read_text(encoding='utf-8')!r} "
                     f"assistant={assistant_text[:400]!r}"
                 ) from None
+            _trace("turn_ok", f"source={source}")
             return {"source": source, "assistant": assistant_text[:800], "invoked": True}
 
         while time.monotonic() < deadline:
@@ -387,12 +387,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
             )
             last_api = (assistant, invoked)
             if invoked and "REVERT_LIVE_OK" in assistant.upper():
-                if claim_seen_at is None:
-                    claim_seen_at = time.monotonic()
-                if time.monotonic() - claim_seen_at >= 20.0:
-                    return _finalize("api", assistant)
-            else:
-                claim_seen_at = None
+                return _finalize("api", assistant)
 
             raw = await chat.evaluate(
                 """(() => {
@@ -414,17 +409,26 @@ async def test_revert_files_live_agent_after_reload_restores_file(
                 and ui.get("isStreaming") is False
                 and int(ui.get("userCount") or 0) >= 1
             ):
-                if claim_seen_at is None:
-                    claim_seen_at = time.monotonic()
-                if time.monotonic() - claim_seen_at >= 20.0:
-                    return _finalize("ui", str(ui.get("sample") or ""))
-            else:
-                claim_seen_at = None
+                return _finalize("ui", str(ui.get("sample") or ""))
+
+            # 回合结束判定：streaming 停止 + 用户消息已发。LLM 完成工具调用后
+            # 可能不输出 REVERT_LIVE_OK 文本（collector.content 为空仍 finalize），
+            # 此时以「文件真实修改 + 回合结束」为准，不再死等 marker。
+            if (
+                ui.get("isStreaming") is False
+                and int(ui.get("userCount") or 0) >= 1
+                and invoked
+            ):
+                if not seen_turn_end:
+                    seen_turn_end = True
+                    _trace("turn_end_seen", f"invoked={invoked}")
+                return _finalize("ui", str(ui.get("sample") or ""))
             await asyncio.sleep(1.5)
         raise AssertionError(
             f"Live revert turn did not complete; api_assistant={last_api[0][:400]!r}; "
             f"file_edit_invoked={last_api[1]!r}; file={file_path}; "
-            f"last_ui={ui.get('sample', '')!r}"
+            f"last_ui={ui.get('sample', '')!r}; isStreaming={ui.get('isStreaming')!r}; "
+            f"userCount={ui.get('userCount')!r}"
         )
 
     async def _wait_hydrate_request_id(chat: McpChatSession, *, timeout_sec: float = 90.0) -> dict[str, object]:

@@ -170,7 +170,7 @@ class BoundChatRepository:
 
     async def get_assistant_extra_data(
         self, chat_id: str
-    ) -> list[dict[str, object] | None]:
+    ) -> tuple[list[dict[str, object] | None], str | None]:
         return await ChatRepository.get_assistant_extra_data(self.session, chat_id)
 
     async def search_messages_fts(

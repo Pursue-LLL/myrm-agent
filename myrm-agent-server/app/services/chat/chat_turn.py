@@ -56,6 +56,20 @@ class _ChatTurnMixin(_ChatServiceBase):
         await sync_chat_checkpoint_from_db(chat_id)
 
     @staticmethod
+    async def _sync_usage_after_mutation(chat_id: str) -> None:
+        """Rebuild the Chat.total_* usage cache after message mutations.
+
+        Deleting messages (retry/undo/truncate/rewind), deactivating siblings
+        (regenerate) or switching the active sibling changes the set of active
+        assistant messages; without a rebuild the Chat usage cache would keep
+        counting removed messages. ``sync_chat_usage`` is best-effort, so this
+        never blocks or fails the mutation itself.
+        """
+        from .chat_message import sync_chat_usage
+
+        await sync_chat_usage(chat_id)
+
+    @staticmethod
     async def retry_last_turn(chat_id: str, user_id: str | None = None) -> RetryResult:
         async with UnitOfWork() as uow:
             chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
@@ -73,6 +87,7 @@ class _ChatTurnMixin(_ChatServiceBase):
             )
         if result.success:
             await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+            await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
         return result
 
     @staticmethod
@@ -90,7 +105,8 @@ class _ChatTurnMixin(_ChatServiceBase):
             if not last_user:
                 return RegenerateResult(success=False, query="", sibling_group_id="")
             query, group_id = await _ChatServiceBase._cr(uow).deactivate_last_assistant_siblings(chat_id, last_user)
-            return RegenerateResult(success=True, query=query, sibling_group_id=group_id)
+        await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
+        return RegenerateResult(success=True, query=query, sibling_group_id=group_id)
 
     @staticmethod
     async def switch_sibling(sibling_group_id: str, target_message_id: str) -> bool:
@@ -124,6 +140,7 @@ class _ChatTurnMixin(_ChatServiceBase):
             )
         if result.success and result.deleted_count > 0:
             await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+            await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
         return result
 
     @staticmethod
@@ -148,6 +165,7 @@ class _ChatTurnMixin(_ChatServiceBase):
             result = TruncateResult(success=True, deleted_count=len(deleted_ids))
         if result.success and result.deleted_count > 0:
             await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+            await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
         return result
 
     @staticmethod
@@ -232,6 +250,7 @@ class _ChatTurnMixin(_ChatServiceBase):
             )
 
         await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+        await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
         goal_paused = await pause_active_goal_for_rewind(chat_id)
 
         file_revert: dict[str, list[str]] = {}

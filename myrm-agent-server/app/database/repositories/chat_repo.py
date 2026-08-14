@@ -233,14 +233,16 @@ class ChatRepository:
     @staticmethod
     async def get_assistant_extra_data(
         db: AsyncSession, chat_id: str
-    ) -> list[dict[str, object] | None]:
-        """Load assistant message extra_data only, for usage aggregation.
+    ) -> tuple[list[dict[str, object] | None], str | None]:
+        """Load active assistant message extra_data and the last message id.
 
-        Skips the message content column so rebuilding the Chat.total_* cache
-        stays cheap even for long sessions.
+        Used for rebuilding the Chat.total_* usage cache. Skips the message
+        content column so the aggregation stays cheap even for long sessions.
+        The returned last_message_id identifies the newest active assistant
+        message so the TTL cache can detect new messages / sibling switches.
         """
         result = await db.execute(
-            select(Message.extra_data)
+            select(Message.extra_data, Message.id)
             .where(
                 Message.chat_id == chat_id,
                 Message.role == "assistant",
@@ -249,7 +251,10 @@ class ChatRepository:
             )
             .order_by(Message.created_at.asc(), Message.id.asc())
         )
-        return list(result.scalars().all())
+        rows = result.all()
+        extras = [row[0] for row in rows]
+        last_message_id = rows[-1][1] if rows else None
+        return extras, last_message_id
 
     @staticmethod
     async def search_messages_fts(

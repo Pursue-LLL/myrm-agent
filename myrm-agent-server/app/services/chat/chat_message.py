@@ -324,38 +324,44 @@ class _ChatMessageMixin(_ChatServiceBase):
             )
 
             # Sync usage ledger to DB (O(1) dashboard querying)
-            try:
-                from app.core.utils.session_id import is_safe_session_id
-                from app.services.statistics.usage_aggregation import (
-                    aggregate_chat_usage_rows,
-                )
-
-                if not is_safe_session_id(chat_id):
-                    return
-
-                cached = _chat_usage_cache.get(chat_id)
-                if cached is not None:
-                    usage_updates = cached
-                else:
-                    async with UnitOfWork() as uow:
-                        extras = await _ChatServiceBase._cr(
-                            uow
-                        ).get_assistant_extra_data(chat_id)
-                    usage_updates = aggregate_chat_usage_rows(extras)
-                    _chat_usage_cache.set(chat_id, usage_updates)
-                async with UnitOfWork() as uow:
-                    await _ChatServiceBase._cr(uow).update_chat_fields(
-                        chat_id, usage_updates
-                    )
-            except Exception as err:
-                logger.error(
-                    f"Failed to sync usage ledger to DB for chat {chat_id}: {err}"
-                )
+            await sync_chat_usage(chat_id)
 
         except Exception as e:
             logger.error(
                 "Failed to persist assistant message for chat %s: %s", chat_id, e
             )
+
+
+async def sync_chat_usage(chat_id: str) -> None:
+    """Rebuild Chat.total_calls/total_tokens/total_usd from assistant messages.
+
+    Aggregates the ``tokenEconomics`` snapshots persisted on assistant message
+    rows and overwrites the chat usage cache columns. The aggregation result is
+    cached with the last aggregated message id so consecutive turns within the
+    TTL window reuse the aggregate while a new or sibling-switched message
+    forces a rebuild. Best-effort: failures are logged and never break the
+    caller (the cache is rebuilt lazily on the next sync).
+    """
+    from app.core.utils.session_id import is_safe_session_id
+    from app.services.statistics.usage_aggregation import aggregate_chat_usage_rows
+
+    if not is_safe_session_id(chat_id):
+        return
+    try:
+        async with UnitOfWork() as uow:
+            extras, last_message_id = await _ChatServiceBase._cr(
+                uow
+            ).get_assistant_extra_data(chat_id)
+        cached = _chat_usage_cache.get(chat_id, last_message_id)
+        if cached is not None:
+            usage_updates = cached
+        else:
+            usage_updates = aggregate_chat_usage_rows(extras)
+            _chat_usage_cache.set(chat_id, last_message_id, usage_updates)
+        async with UnitOfWork() as uow:
+            await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, usage_updates)
+    except Exception as err:
+        logger.error(f"Failed to sync usage ledger to DB for chat {chat_id}: {err}")
 
 
 async def _record_memory_influence_event(
