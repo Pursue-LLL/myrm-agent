@@ -137,7 +137,6 @@ _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
       return {
         ok: true,
         selected: selection?.toString?.() || '',
-        target: msgContainer.tagName,
         msgId: msgContainer.getAttribute?.('data-message-id') || '',
       };
     }
@@ -149,23 +148,27 @@ _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
 _QUOTE_ADVISOR_READY_JS = """(() => {
   window.__MYRM_E2E_CHAT__?.setLoading?.(true);
   const btn = document.querySelector('[data-testid="quote-toolbar-advisor-ask"]');
-  const portal = document.getElementById('quote-toolbar-portal');
+  if (btn) {
+    btn.click();
+    return { ready: true, ok: true, clicked: true };
+  }
   const sel = window.getSelection();
+  const anchor = sel?.anchorNode;
+  const anchorEl = anchor?.nodeType === 3 ? anchor.parentElement : anchor;
+  const container = anchorEl?.closest?.('[data-message-id]');
+  const portal = document.getElementById('quote-toolbar-portal');
+  const quoteBtn = document.querySelector('[data-testid="quote-toolbar-advisor-ask"]');
   return {
-    ready: !!btn,
-    btn: !!btn,
-    portal: !!portal,
-    loading: window.__MYRM_E2E_CHAT__?.getChatShellState?.().loading,
+    ready: false,
     selText: sel?.toString?.().slice(0, 40) ?? '',
     selCollapsed: sel?.isCollapsed,
+    anchorNodeType: anchor?.nodeType ?? -1,
+    anchorTag: anchorEl?.tagName ?? '',
+    anchorInMsg: !!container,
+    portal: !!portal,
+    quoteBtn: !!quoteBtn,
+    rfaTicks: window.__E2E_RFA_TICKS ?? -1,
   };
-})()"""
-
-_CLICK_QUOTE_ADVISOR_JS = """(() => {
-  const btn = document.querySelector('[data-testid="quote-toolbar-advisor-ask"]');
-  if (!btn) return { ok: false, err: 'missing-quote-advisor' };
-  btn.click();
-  return { ok: true };
 })()"""
 
 _SELECTION_ADVISOR_USER_MSG_JS = """(() => {
@@ -264,9 +267,7 @@ def test_copilot_desktop_and_mobile_full_flows() -> None:
         selected = client.evaluate(page, _SELECT_ASSISTANT_SNIPPET_JS, timeout_sec=15.0)
         assert isinstance(selected, dict) and selected.get("ok") is True, selected
         quote_ready = wait_for_state(client, page, _QUOTE_ADVISOR_READY_JS, timeout_sec=30.0)
-        assert quote_ready.get("ready") is True, quote_ready
-        quote_click = client.evaluate(page, _CLICK_QUOTE_ADVISOR_JS, timeout_sec=10.0)
-        assert isinstance(quote_click, dict) and quote_click.get("ok") is True, quote_click
+        assert isinstance(quote_ready, dict) and quote_ready.get("ok") is True, quote_ready
         selection_msg = wait_for_state(
             client,
             page,

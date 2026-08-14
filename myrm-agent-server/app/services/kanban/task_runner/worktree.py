@@ -286,6 +286,17 @@ async def merge_task_worktree(store: KanbanStore, task: KanbanTask) -> bool:
         await _delete_worktree_branch(base_dir, task.branch, task.task_id)
         return True
 
+    # Ensure the merge lands on the task's target branch, not whatever is
+    # currently checked out.  Default tasks share the current branch so this
+    # is usually a no-op, but an explicit target branch must be honored.
+    if not await _ensure_target_branch_checked_out(base_dir, task.branch):
+        logger.warning(
+            "Cannot switch to target branch %s for task %s; merge skipped",
+            task.branch,
+            task.task_id[:8],
+        )
+        return False
+
     try:
         result = await asyncio.to_thread(
             subprocess.run,
@@ -392,3 +403,60 @@ async def _branch_has_commits(base_dir: str, branch: str, target_branch: str) ->
         return result.stdout.strip() != "0"
     except Exception:
         return True
+
+
+async def _ensure_target_branch_checked_out(base_dir: str, target_branch: str) -> bool:
+    """Ensure the merge target branch is checked out in base_dir.
+
+    A task's target branch is normally the repo's current branch, but an
+    explicit target branch may differ.  Check it out (creating it from HEAD
+    on first use) so the merge lands on the branch the user asked for.
+    Returns True when base_dir is on the target branch.
+    """
+    try:
+        current = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=_GIT_ENV,
+        )
+        if current.returncode == 0 and current.stdout.strip() == target_branch:
+            return True
+
+        branch_exists = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{target_branch}"],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=_GIT_ENV,
+        )
+        checkout = (
+            ["git", "checkout", target_branch]
+            if branch_exists.returncode == 0
+            else ["git", "checkout", "-b", target_branch]
+        )
+        result = await asyncio.to_thread(
+            subprocess.run,
+            checkout,
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=_GIT_ENV,
+        )
+        if result.returncode != 0:
+            logger.warning(
+                "Failed to switch base_dir to target branch %s: %s",
+                target_branch,
+                result.stderr.strip()[:200],
+            )
+            return False
+        return True
+    except Exception as exc:
+        logger.warning("Failed to ensure target branch %s: %s", target_branch, exc)
+        return False

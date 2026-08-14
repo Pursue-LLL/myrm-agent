@@ -227,6 +227,7 @@ fail. Then confirm the expected value is derived without the code under test.
 
 ```
 Cannot name a failing change        → redesign around an observable behavior
+"The source text changed"           → run the artifact and assert its effects
 Only intentional decisions fail it  → it is a change detector; test the behavior
 Expected value uses the code under test → replace with a literal or hand-checked fixture
 ```

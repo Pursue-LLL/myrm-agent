@@ -87,3 +87,4 @@ depends on it.
 - An assertion checks a `*-mock` test ID, or fails if you remove the mock
 - A method is called only from test files
 - Mock setup is more than half the test, or you cannot explain why the mock is needed
+- Mocking "just to be safe"
