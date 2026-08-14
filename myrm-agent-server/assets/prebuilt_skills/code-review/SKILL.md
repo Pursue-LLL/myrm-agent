@@ -1,9 +1,11 @@
 ---
 name: code-review
 description: >-
-  Structured code review workflow following security → correctness → performance →
-  maintainability priority order. Produces actionable feedback with severity levels.
-version: 1.0.0
+  Structured code review following security → correctness → performance →
+  maintainability priority order. Attributes each finding (introduced vs
+  pre-existing), tracks non-blocking follow-ups, and maps findings against
+  the original requirements.
+version: 1.1.0
 category: development
 tags:
   - code-review
@@ -13,17 +15,21 @@ tags:
 allowed-tools: file_read_tool grep_tool glob_tool bash_code_execute_tool
 contract:
   steps:
-    - "Phase 1: Context — understand the change scope, purpose, and affected systems"
+    - "Phase 1: Context — understand the change scope, purpose, and requirements"
     - "Phase 2: Security Review — check for vulnerabilities, injection, auth issues"
     - "Phase 3: Correctness Review — verify logic, edge cases, error handling"
     - "Phase 4: Performance Review — identify bottlenecks, unnecessary operations"
     - "Phase 5: Maintainability Review — naming, structure, documentation, test coverage"
+    - "Output: attributed findings, follow-up list, requirements traceability"
   potential_traps:
     - description: "Reviewing style issues while missing security vulnerabilities"
       mitigation: "Follow strict priority order: security → correctness → performance → maintainability"
       severity: high
     - description: "Reviewing files in isolation without understanding the change context"
       mitigation: "Always read the full diff and understand the purpose before reviewing individual files"
+      severity: medium
+    - description: "Mis-attributing issues between the change and pre-existing code"
+      mitigation: "Base attribution on the diff or git blame evidence; mark Unknown when unverifiable, never default to Pre-existing"
       severity: medium
   verification_steps:
     - step_id: context_understood
@@ -34,8 +40,12 @@ contract:
       description: "No security vulnerabilities introduced"
       validation_method: "All input validation, auth checks, and data handling reviewed"
       is_required: true
-  success_criteria: "All critical and high-severity issues identified with clear remediation guidance"
-  estimated_duration_seconds: 1200
+    - step_id: findings_attributed
+      description: "Every finding attributed to the change or pre-existing code"
+      validation_method: "Each finding has an Attribution field backed by diff or git blame evidence"
+      is_required: true
+  success_criteria: "All critical and high-severity findings identified with clear remediation guidance, correctly attributed, with requirements mapped to Satisfied/Partially/Not-met"
+  estimated_duration_seconds: 1500
 ---
 
 # Code Review
@@ -60,8 +70,9 @@ Before reviewing any code:
 1. **Understand the purpose** — What problem does this change solve? What's the expected behavior?
 2. **Identify the scope** — Which files changed? What systems are affected?
 3. **Check for tests** — Are there new/updated tests? Do they cover the change?
+4. **Extract requirements** — What is this change required to deliver? Use the original task, issue, or PR description when available. If no requirements are stated, infer the intended behavior from the change and review against that.
 
-**Action:** Use `file_read_tool` to read changed files. Use `grep_tool` to find related code.
+**Action:** Use `file_read_tool` to read changed files. Use `grep_tool` to find related code. When a diff or git history is available, use `git diff` or `git blame` via `bash_code_execute_tool` to confirm what the change introduced.
 
 ## Phase 2: Security Review
 
@@ -108,6 +119,8 @@ Check for:
 
 ## Output Format
 
+### Attributed Findings
+
 For each finding:
 
 ```
@@ -115,6 +128,7 @@ For each finding:
 
 **File:** path/to/file.py:42
 **Category:** Security / Correctness / Performance / Maintainability
+**Attribution:** Introduced-in-change | Pre-existing | Unknown
 
 **Issue:** Clear description of the problem.
 
@@ -122,6 +136,33 @@ For each finding:
 
 **Suggestion:** Specific, actionable fix recommendation.
 ```
+
+**Attribution rules** (evidence-based, never guessed):
+
+- **Introduced-in-change** — the issue is in lines added or modified by this change, and the change causes it.
+- **Pre-existing** — the issue exists in unmodified code that this change only touches or exposes.
+- **Unknown** — attribution cannot be determined from the diff or `git blame`. Never default to Pre-existing to minimize work.
+
+Severity × Attribution:
+
+- CRITICAL/HIGH + **Introduced-in-change** → must fix before merge.
+- CRITICAL/HIGH + **Pre-existing** → report in Findings with a note that it predates the change; do not block the change on unrelated legacy code.
+- MEDIUM/LOW + **Pre-existing** → move to the Follow-up section below.
+- **Unknown** attribution → treat conservatively as Introduced-in-change: report in Findings and recommend verification before merge.
+
+### Follow-up (Pre-existing, non-blocking)
+
+List MEDIUM/LOW pre-existing findings that are real but outside this change's scope. One line each: `file:line`, short issue, one-sentence reason it is deferred. These do not block the change.
+
+### Requirements Traceability
+
+Map each requirement from Phase 1 to its verification result:
+
+| Requirement | Status |
+|-------------|--------|
+| e.g. "OAuth login via Google and GitHub" | Satisfied / Partially / Not-met |
+
+If no explicit requirements existed, state the inferred purpose and confirm whether the code achieves it.
 
 Severity levels:
 - **CRITICAL** — Security vulnerability or data loss risk. Must fix before merge.

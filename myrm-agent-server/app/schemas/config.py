@@ -252,6 +252,11 @@ class PersonalSettingsConfigValue(BaseModel):
     privacyS3Action: str | None = _personal_settings_field(
         "security", default=None, description="隐私 S3 动作"
     )
+    privacyDeepScan: bool | None = _personal_settings_field(
+        "security",
+        default=None,
+        description="启用 LLM 深度 PII 扫描（非结构化 PII 检测与假名化）",
+    )
     codeExecutionAllowNetwork: bool = _personal_settings_field(
         "preferences",
         default=True,

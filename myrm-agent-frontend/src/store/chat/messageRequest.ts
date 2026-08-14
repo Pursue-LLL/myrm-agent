@@ -1168,6 +1168,7 @@ async function replayPendingHitlFromProbe(
     const { AdaptiveScheduler } = await import('./adaptiveScheduler');
     const scheduler = new AdaptiveScheduler();
     const streamState = {
+      chatId: state.chatId || chatId,
       messages: state.messages,
       messageAppeared: state.messageAppeared,
       loading: state.loading,

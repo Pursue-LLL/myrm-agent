@@ -560,6 +560,43 @@ def _admit_semantic_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     return None
 
 
+def _body_wall_exceeded_reason(row: LiveE2ESessionRow) -> str | None:
+    """BODY 总时长硬上限 —— 唯一权威时钟（R030-J）。
+
+    body 阶段且 body_elapsed_sec >= body cap -> E2E_BODY_WALL_EXCEEDED。
+    node 级进展永不豁免 BODY 总时长：hung-reap 与 FAIL_FAST 必须对同一
+    body_elapsed 事实做同一判定，禁止用 node_elapsed 冒充 session 级时钟
+    （现场 BODY=1394s>600s 时 FAIL_FAST 拒 launch 而 hung-reap 判健康锁死集群）。
+    registry 时钟缺失时回退到 sidecar snapshot；仍缺失返回 None（不伪装
+    健康，交由 node 卡死检查兜底）。
+    """
+    wall = str(row.wall_phase or row.phase or "").strip().lower()
+    if wall != "body":
+        return None
+    body_elapsed = row.body_elapsed_sec
+    if body_elapsed is None:
+        from e2e_session_runtime.snapshot import (  # noqa: PLC0415
+            body_elapsed_from_snapshot,
+            resolve_session_snapshot,
+        )
+
+        snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
+        body_elapsed = (
+            body_elapsed_from_snapshot(snapshot) if snapshot is not None else None
+        )
+    if body_elapsed is None:
+        return None
+    from dev_gate.contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
+
+    body_cap = _body_wall_cap_for_pid(row.pid)
+    if float(body_elapsed) >= body_cap:
+        return (
+            f"{E2E_BODY_WALL_EXCEEDED_TOKEN}: "
+            f"body_elapsed={int(float(body_elapsed))}s>={int(body_cap)}s"
+        )
+    return None
+
+
 def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
     """Align hung-reap with e2e-context FAIL_FAST when sidecar snapshot lags."""
     node_elapsed = row.node_elapsed_sec
@@ -592,6 +629,9 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
                 f"node_elapsed={int(elapsed_f)}s>={wall_sec}s"
             )
     if wall == "body":
+        body_wall = _body_wall_exceeded_reason(row)
+        if body_wall is not None:
+            return body_wall
         if elapsed_f < _body_wall_cap_for_pid(row.pid):
             return None
     if wall == "bootstrap":
@@ -698,6 +738,9 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
         pass
     else:
         if _holder_process_tree_has_pytest(row.pid):
+            body_wall = _body_wall_exceeded_reason(row)
+            if body_wall is not None:
+                return body_wall
             parallel_stuck = _parallel_node_stuck_reason(row)
             if parallel_stuck is not None:
                 return parallel_stuck

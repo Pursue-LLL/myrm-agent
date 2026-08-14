@@ -16,7 +16,9 @@ Wiki 外部来源确定性同步：Gmail 标签 / Google Drive 文件夹 / RSS /
 | `state_store.py` | 持久化 | UserConfig `wikiSourceSyncState` 上次同步状态（按 agent） | ✅ |
 | `content_convert.py` | 辅助 | 云盘文件 bytes → Markdown（sniff+docx embed→wiki/assets） | ✅ |
 | `publish_helpers.py` | 辅助 | 统一 `publish_raw(caller=settings)` + frontmatter | ✅ |
-| `feishu/` | 连接器 | Feishu 域 — 门面 + 渲染纯函数；见 [`feishu/_ARCH.md`](feishu/_ARCH.md) | ✅ |
+| `feishu.py` | 连接器 | Feishu channel creds + Drive folder + Docx blocks → raw/feishu/（分页全量 + 图片落 wiki/assets）+ re-export `feishu_docx_blocks_to_markdown` | ✅ |
+| `feishu_render.py` | 辅助 | Feishu Docx blocks → GFM Markdown（纯函数：标题/列表/嵌套列表缩进+独立计数/代码块围栏自适应+语言/引用/待办/文件块文件名/图片占位/行内样式/行内链接+URL解码/通用元素提取覆盖新块类型/@用户/@文档/日期提醒/行内公式KaTeX/`$`转义防KaTeX误解析） | ✅ |
+| `feishu_render_inline.py` | 辅助 | 行内元素渲染（链接/样式/公式/URL 解码等 Docx 行内块 → Markdown 内联） | ✅ |
 | `gmail/` | 连接器 | Gmail 域 — 门面 + HTML 渲染；见 [`gmail/_ARCH.md`](gmail/_ARCH.md) | ✅ |
 | `gdrive.py` | 连接器 | Google OAuth + Drive API → raw/gdrive/ | ✅ |
 | `rss.py` | 连接器 | RSS/Atom HTTP → raw/rss/ | ✅ |

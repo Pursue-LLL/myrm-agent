@@ -46,8 +46,8 @@ _ADAPTER_STATUS: dict[str, MemoryImportAdapterStatus] = {
     "openclaw": "ready",
     "cursor": "ready",
     "codex": "ready",
-    "windsurf": "ready",
-    "trae": "ready",
+    "windsurf": "missing",
+    "trae": "missing",
     "mem0": "ready",
     "chatgpt": "ready",
 }

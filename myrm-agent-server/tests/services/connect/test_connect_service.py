@@ -41,7 +41,7 @@ class TestProfiles:
             assert profile.label
             assert profile.description
             assert profile.config_file_path
-            assert profile.config_format in ("json_mcp", "toml_mcp", "claude_hooks")
+            assert profile.config_format in ("json_mcp", "toml_mcp")
 
 
 class TestTokenGeneration:

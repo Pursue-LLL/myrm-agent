@@ -16,7 +16,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
     // A budget-limited goal ends the stream with no MESSAGE_END / ERROR /
     // AGENT_CANCELLED terminal event, so release any engaged inspector here.
     if (goalState.status === 'budget_limited') {
-      H.releaseInspectorControls(state.messages[0]?.chatId?.trim() ?? '');
+      H.releaseInspectorControls(H.resolveStreamChatId(state));
     }
     return done(ctx);
   }
@@ -60,7 +60,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
     // below, so a fast next turn can never race this release. releaseTurnEngagement
     // is a no-op unless the chat owns the engagement, so other panes' panels and
     // manually opened panels stay put.
-    H.releaseInspectorControls(state.messages[0]?.chatId?.trim() ?? '');
+    H.releaseInspectorControls(H.resolveStreamChatId(state));
 
     setTimeout(() => {
       actions.setMessages((state) => {
@@ -72,7 +72,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
           state.messages.push({
             content: '',
             messageId: data.messageId,
-            chatId: state.messages[0]?.chatId || '',
+            chatId: H.resolveStreamChatId(ctx.state),
             role: 'assistant',
             createdAt: new Date(),
             completionStatus: data.completion_status === 'budget_blocked' ? 'budget_blocked' : undefined,

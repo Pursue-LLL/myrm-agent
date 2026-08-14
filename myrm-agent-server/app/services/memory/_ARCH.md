@@ -15,6 +15,10 @@
 | `backup_remote_utils.py` | 辅助 | 远程备份工具函数。桥接 VolumeBackupStrategy 与远程存储，提供可导出备份创建和恢复 | ✅ |
 | `archive.py` | 核心 | 单用户 Memory Archive 服务。基于 Harness archive DTO 聚合普通记忆、Shared Context、会话、回放事件和记忆审计账本，执行内容脱敏并提供导入前结构校验，不包含多租户或控制平面语义 | ✅ |
 | `archive_restore.py` | 核心 | 单用户 Memory Archive 恢复服务。提供归档分区 dry-run、payload/plan hash 强校验、恢复前安全预检、journaled safe-merge 恢复、关系型恢复账本、恢复后诊断 metadata 挂载、中断恢复回滚、profile 并发保护、Shared Context/会话/回放/审计恢复和精准回滚，不包含多租户或控制平面语义 | ✅ |
+| `archive_restore_common.py` | 辅助 | 归档恢复共享原语。集中恢复状态常量、校验辅助、mutation-ref 构建和 JSON 强制转换，无业务副作用 | — |
+| `archive_restore_executor.py` | 核心 | 归档恢复执行层。写入 memory/Shared Context/conversation/replay/audit 分区并记录可回滚账本 | ✅ |
+| `archive_restore_planner.py` | 辅助 | 归档恢复预检层。生成 section 级 safe-merge dry-run plan，只读当前库和归档 manifest/data，不写入业务状态 | — |
+| `archive_restore_rollback.py` | 辅助 | 归档恢复回滚执行层。按恢复账本精准撤销 memory、Shared Context、conversation、replay 和 audit 写入 | ✅ |
 | `command_center.py` | 核心 | 个人大脑指挥中心聚合服务。基于 MemoryManager、Shared Context ORM、待审批记忆、记忆操作账本、导入回滚账本健康、归档恢复账本健康、Memory Diagnostics 和部署设置生成单用户/单沙箱可观测快照，把账本中的检索步骤聚合为运行级 trace run，支持强制刷新健康快照，并支持可选 `project_id` 参数将快照聚焦到单个项目绑定的 SharedContext 记忆空间 | ✅ |
 | `command_center_insights.py` | 核心 | 个人大脑指挥中心洞察服务。生成影响证据、注入成本/缓存、声明替代、会话回放覆盖层、replay event trail、瀑布流、eval checks、连接器状态、隐私信号、含导入回滚与归档恢复健康的部署边界摘要、迁移来源聚合（含 source_manifest authoritative 完整性降级守卫）、最近导入批次、导入后验证建议、自动诊断状态和导入审查清理指标 | ✅ |
 | `diagnostic_probe_results.py` | 辅助 | Memory Diagnostics probe 结果归一化。集中处理 rollup、action 状态映射、impact/next action/auto-fix/retry 字段、repair plan 传递和静态检查到可执行探针的转换 | ✅ |
@@ -39,6 +43,7 @@
 | `import_codex.py` | 辅助 | Codex 竞品导入解析器。解析 Codex instructions 和 settings 到原生记忆类型 | ✅ |
 | `import_chatgpt.py` | 辅助 | ChatGPT 竞品导入解析器。解析 ChatGPT conversations.json 的 tree-based mapping 结构到 episodic 记忆类型 | ✅ |
 | `import_gbrain.py` | 辅助 | gbrain 竞品导入解析器。解析 gbrain export 的 Markdown+YAML frontmatter 页面，按 page type 映射到 profile/episodic/semantic 三桶 | ✅ |
+| `import_mem0.py` | 辅助 | Mem0 竞品导入解析器。将 Mem0 扁平 memory 列表映射为原生 semantic 桶 | ✅ |
 | `import_sessions.py` | 核心 | 记忆导入审查会话编排服务。持久化 dry-run 结果、payload hash、过期时间、normalized data 和 plan hash，确认时只接受 dry_run_id 并校验计划一致性，协调导入批次审计、迁移来源、关系型 item-level transaction ledger、崩溃安全回滚 journal、账本权威回滚预演、profile revision 冲突保护、回滚后完整性探针、导入后诊断结果回写、运行就绪合同（readiness status/issues + **`recheck_facts` SSOT**）回写、**`resolve_live_import_readiness` live 重算**、首轮执行结果锚点（first-turn outcome）回写和保留窗口清理指标 | ✅ |
 | `import_session_data.py` | 辅助 | 记忆导入会话数据转换。负责 payload 指纹、纯导入计划、normalized data JSON 转换、导入 metadata 注入、transaction item 构建和 profile 导入前后 revision snapshot 采集 | ✅ |
 | `import_session_models.py` | 辅助 | 记忆导入会话 DTO。定义 confirm、rollback preview 和含 exact ref drilldown / integrity status 的 rollback result 服务层返回对象 | ✅ |

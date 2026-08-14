@@ -89,6 +89,7 @@ export async function resumeApprovalStream(
   const sources: import('@/store/chat/types').Source[] = [];
   const scheduler = new AdaptiveScheduler();
   const streamState: StreamHandlerState = {
+    chatId: chatState.chatId,
     messages: chatState.messages,
     messageAppeared: chatState.messageAppeared,
     loading: chatState.loading,

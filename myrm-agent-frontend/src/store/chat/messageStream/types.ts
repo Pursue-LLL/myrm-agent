@@ -21,6 +21,13 @@ export interface StreamMutableState {
 
 export interface StreamHandlerState extends StreamMutableState {
   scheduler: AdaptiveScheduler;
+  /**
+   * chatId of the chat owning this stream, captured at send time. For a brand-new
+   * chat the message list may still be empty when the first turn streams, so
+   * handlers must resolve the stream chatId from this field instead of
+   * messages[0].chatId (which would be empty and silently no-op releases).
+   */
+  chatId?: string;
 }
 
 export interface StreamHandlerActions {

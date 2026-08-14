@@ -336,13 +336,30 @@ class TestAdapterRegistryConsistency:
         for adapter in ready:
             assert adapter in sources, f"Ready adapter '{adapter}' missing from supported sources"
 
-    def test_dry_run_handles_all_ready_sources(self) -> None:
-        """Every 'ready' source should produce a valid result (not crash)."""
+    def test_ready_registry_matches_expected_sources(self) -> None:
+        """Registry 'ready' set must exactly match the adapters implemented today.
+
+        A new adapter must be implemented and added here simultaneously;
+        a declared-but-unimplemented source (e.g. windsurf/trae) must not be
+        marked 'ready'.
+        """
         from app.services.memory.import_adapter_registry import memory_import_adapter_status
 
         statuses = memory_import_adapter_status()
-        ready_sources = [s for s, st in statuses.items() if st == "ready"]
-        assert len(ready_sources) >= 4, "Should have at least 4 ready adapters"
+        ready_sources = {s for s, st in statuses.items() if st == "ready"}
+        assert ready_sources == {
+            "native-json",
+            "myrm-archive",
+            "agentmemory",
+            "gbrain",
+            "claude-code",
+            "hermes",
+            "openclaw",
+            "cursor",
+            "codex",
+            "mem0",
+            "chatgpt",
+        }, "Registry 'ready' set drifted from actual adapters"
 
     def test_source_adapters_are_ready(self) -> None:
         from app.services.memory.import_adapter_registry import memory_import_adapter_status

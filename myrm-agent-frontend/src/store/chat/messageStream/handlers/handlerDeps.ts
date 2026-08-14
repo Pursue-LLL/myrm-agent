@@ -45,6 +45,7 @@ export { default as useChatStore } from '@/store/useChatStore';
 export { default as useConfigStore } from '@/store/useConfigStore';
 export { playCompletionSound } from '@/lib/utils/completionSound';
 export { dispatchPetSurfaceAwayCompletion } from '@/components/features/companion/sprite/petSurfaceAwayCompletion';
+import type { StreamHandlerState } from '../types';
 export type { ProgressFileItem } from '../types';
 export {
   getContextOverflowMessage,
@@ -76,4 +77,14 @@ export function releaseInspectorControls(chatId: string): void {
   void import('@/lib/inspector/releaseTurnInspectorControls')
     .then(({ releaseTurnInspectorControls }) => releaseTurnInspectorControls(chatId))
     .catch(() => undefined);
+}
+
+/**
+ * Resolve the chatId that owns the current stream. Prefers the chatId captured at
+ * send time; falls back to messages[0].chatId for streams built without a chatId
+ * (tests, legacy callers). Without this, a brand-new chat's first turn would
+ * resolve an empty chatId and silently no-op inspector engagement/release.
+ */
+export function resolveStreamChatId(state: StreamHandlerState): string {
+  return state.chatId?.trim() || state.messages[0]?.chatId?.trim() || '';
 }

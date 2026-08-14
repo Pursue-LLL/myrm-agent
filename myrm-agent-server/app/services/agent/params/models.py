@@ -267,7 +267,7 @@ class AgentRequest(BaseModel):
     privacy_custom_patterns_s3: list[str] | None = None
     privacy_sensitive_tools_s2: list[str] | None = None
     privacy_sensitive_tools_s3: list[str] | None = None
-    privacy_deep_scan: bool = False
+    privacy_deep_scan: bool | None = None
     code_execution_allow_network: bool | None = None
     security_preset: Literal["hitl", "accept_edits", "explore"] | None = None
     sandbox_mode: bool = Field(

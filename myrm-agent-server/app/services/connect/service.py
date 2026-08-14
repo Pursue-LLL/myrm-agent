@@ -46,7 +46,7 @@ class ConnectionProfile:
     id: str
     label: str
     description: str
-    config_format: Literal["json_mcp", "toml_mcp", "claude_hooks"]
+    config_format: Literal["json_mcp", "toml_mcp"]
     config_file_path: str
     instructions_key: str
 

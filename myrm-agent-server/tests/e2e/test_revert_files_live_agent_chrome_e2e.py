@@ -70,12 +70,12 @@ BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
 _FILE_EDIT_TOOL = "file_edit_tool"
 _WORKSPACE_FILENAME = "batch_edit_e2e.txt"
-_MAX_CHAT_ATTEMPTS = 3
+_MAX_CHAT_ATTEMPTS = 2
 
 _LIVE_USER_PROMPT = (
-    f"The workspace file {_WORKSPACE_FILENAME} contains three lines: line_a, line_b, line_c. "
-    "Call file_edit_tool exactly once to DELETE the line whose content is line_a. "
-    "Reply REVERT_LIVE_OK when the deletion succeeds."
+    f"The workspace file {_WORKSPACE_FILENAME} contains exactly three lines: line_a, line_b, line_c. "
+    "Use file_edit_tool once with an edits array that replaces the line containing line_a "
+    "with the line LINE_A. Do not change line_b or line_c. Reply REVERT_LIVE_OK when done."
 )
 
 _PIN_LITE_MODEL_JS = """(() => {
@@ -109,8 +109,8 @@ def _create_revert_live_agent(api_url: str) -> str:
         "description": "Chrome LIVE E2E for revert-files after page reload",
         "system_prompt": (
             "You edit workspace files with file_read_tool and file_edit_tool. "
-            "When the user asks to delete a line, call file_edit_tool once to delete "
-            "the exact line. Reply REVERT_LIVE_OK when the edit succeeds."
+            "When the user asks to replace a line, call file_edit_tool once with an "
+            "edits array using old_str/new_str pairs. Reply REVERT_LIVE_OK when done."
         ),
         "skill_ids": [],
         "mcp_ids": [],
@@ -155,17 +155,21 @@ def _file_edit_invoked_in_messages(chat_id: str, *, api_url: str) -> tuple[bool,
     return invoked, last_assistant
 
 
+_SEED_CONTENT = "line_a\nline_b\nline_c\n"
+
+
 def _assert_edited(file_path: Path) -> None:
     content = file_path.read_text(encoding="utf-8")
-    lines = content.splitlines()
-    assert "line_a" not in lines, f"line_a still present after edit: {content!r}"
+    assert content != _SEED_CONTENT, f"file unchanged by agent turn: {content!r}"
 
 
 def _assert_restored(file_path: Path) -> None:
     content = file_path.read_text(encoding="utf-8")
     lines = content.splitlines()
-    assert "line_a" in lines, f"line_a missing after restore: {content!r}"
-    assert "LINE_A" not in content, f"unexpected LINE_A after restore: {content!r}"
+    assert "line_a" in lines and "line_b" in lines and "line_c" in lines, (
+        f"seed lines missing after restore: {content!r}"
+    )
+    assert "LINE_A" not in content, f"agent edit not reverted: {content!r}"
 
 
 _HYDRATE_WITH_REQUEST_ID_JS = """(() => {
@@ -347,10 +351,25 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         chat_id: str,
         *,
         file_path: Path,
-        timeout_sec: float = 300.0,
+        timeout_sec: float = 180.0,
     ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last_api = ("", False)
+        claim_seen_at: float | None = None
+
+        def _finalize(source: str, assistant_text: str) -> dict[str, object]:
+            """Agent claims REVERT_LIVE_OK: give the file write a short settle
+            window, then fail fast with full diagnostics instead of waiting."""
+            try:
+                _assert_edited(file_path)
+            except AssertionError:
+                raise AssertionError(
+                    f"agent claimed REVERT_LIVE_OK but file unchanged: {file_path} "
+                    f"content={file_path.read_text(encoding='utf-8')!r} "
+                    f"assistant={assistant_text[:400]!r}"
+                ) from None
+            return {"source": source, "assistant": assistant_text[:800], "invoked": True}
+
         while time.monotonic() < deadline:
             heartbeat_once()
             invoked, assistant = _file_edit_invoked_in_messages(
@@ -358,18 +377,12 @@ async def test_revert_files_live_agent_after_reload_restores_file(
             )
             last_api = (assistant, invoked)
             if invoked and "REVERT_LIVE_OK" in assistant.upper():
-                try:
-                    _assert_edited(file_path)
-                except AssertionError:
-                    if time.monotonic() + 15.0 < deadline:
-                        await asyncio.sleep(1.5)
-                        continue
-                    raise
-                return {
-                    "source": "api",
-                    "assistant": assistant[:800],
-                    "invoked": True,
-                }
+                if claim_seen_at is None:
+                    claim_seen_at = time.monotonic()
+                if time.monotonic() - claim_seen_at >= 20.0:
+                    return _finalize("api", assistant)
+            else:
+                claim_seen_at = None
 
             raw = await chat.evaluate(
                 """(() => {
@@ -391,16 +404,12 @@ async def test_revert_files_live_agent_after_reload_restores_file(
                 and ui.get("isStreaming") is False
                 and int(ui.get("userCount") or 0) >= 1
             ):
-                try:
-                    _assert_edited(file_path)
-                except AssertionError:
-                    await asyncio.sleep(1.5)
-                    continue
-                return {
-                    "source": "ui",
-                    "assistant": str(ui.get("sample") or ""),
-                    "invoked": last_api[1],
-                }
+                if claim_seen_at is None:
+                    claim_seen_at = time.monotonic()
+                if time.monotonic() - claim_seen_at >= 20.0:
+                    return _finalize("ui", str(ui.get("sample") or ""))
+            else:
+                claim_seen_at = None
             await asyncio.sleep(1.5)
         raise AssertionError(
             f"Live revert turn did not complete; api_assistant={last_api[0][:400]!r}; "
@@ -470,7 +479,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
 
         await chat.navigate_to_chat(resolved_chat_id, BASE_URL, timeout_sec=90.0)
         result = await _wait_live_turn_done(
-            chat, resolved_chat_id, file_path=file_path, timeout_sec=480.0
+            chat, resolved_chat_id, file_path=file_path, timeout_sec=180.0
         )
         assert result.get("invoked") is True, result
 

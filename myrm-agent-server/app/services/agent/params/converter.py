@@ -894,6 +894,14 @@ async def convert_to_general_agent_params(
     if request.privacy_routing is not None:
         privacy_routing_obj = {str(k): v for k, v in request.privacy_routing.items()}
 
+    privacy_deep_scan = request.privacy_deep_scan
+    if privacy_deep_scan is None and isinstance(ps_dict, dict):
+        raw = ps_dict.get("privacyDeepScan")
+        if isinstance(raw, bool):
+            privacy_deep_scan = raw
+    if privacy_deep_scan is None:
+        privacy_deep_scan = False
+
     final_query = request.query
     mention_warnings: list[str] = []
     archive_restore_results: list[dict[str, object]] = []
@@ -1143,7 +1151,7 @@ async def convert_to_general_agent_params(
         privacy_custom_patterns_s3=request.privacy_custom_patterns_s3 or [],
         privacy_sensitive_tools_s2=request.privacy_sensitive_tools_s2 or [],
         privacy_sensitive_tools_s3=request.privacy_sensitive_tools_s3 or [],
-        privacy_deep_scan=request.privacy_deep_scan,
+        privacy_deep_scan=privacy_deep_scan,
         code_execution_allow_network=code_exec_allow_network,
         event_log_dir=get_settings().database.event_log_dir,
         event_log_max_jsonl_line_bytes=get_settings().event_log_max_jsonl_line_bytes,

@@ -460,6 +460,7 @@ export async function consumeStream(
   const scheduler = new AdaptiveScheduler();
 
   const streamState: StreamHandlerState = {
+    chatId: state.chatId,
     messages: state.messages,
     messageAppeared: state.messageAppeared,
     loading: state.loading,
