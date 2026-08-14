@@ -1,4 +1,20 @@
-"""Crash auto-continue: resume interrupted normal turns after a restart."""
+"""Crash auto-continue: resume interrupted normal turns after a restart.
+
+[INPUT]
+- app.database.models.chat::InterruptedTurnMarker (POS: 崩溃自动续跑的 write-ahead marker，流开始前写入、正常完成后清理)
+- app.services.agent.runtime_context::build_agent_runtime_context (POS: Business-layer helper，为每个 agent 入口注入统一的运行时上下文)
+- app.services.agent.streaming::ai_agent_service_stream (POS: Agent 流式服务层，创建 Agent 并经 Gateway 执行，输出 message/message_end 事件)
+- app.services.chat.chat_service::ChatService (POS: 聊天业务门面层，为 API、Agent 入口提供统一聊天业务接口)
+
+[OUTPUT]
+- auto_continue_interrupted_turns (POS: 启动时扫描 eligible markers 并后台分发重跑)
+- _dispatch_auto_continue (POS: 单 marker 重跑 worker，收集 token_economics 持久化消息并清理标记)
+
+[POS]
+崩溃自动续跑层。重启后扫描 InterruptedTurnMarker，对 freshness 窗口内且未超 crash-loop 上限的标记
+后台重跑被中断的普通回合，将流内 message_end.token_economics 快照作为消息 extra_data 持久化，
+与主路径共享消息级成本记账口径；成功/失败均创建 SystemNotification。
+"""
 
 from __future__ import annotations
 
