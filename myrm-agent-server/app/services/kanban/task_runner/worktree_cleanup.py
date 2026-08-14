@@ -59,6 +59,11 @@ async def cleanup_worktree(
     drops file-tool edits the agent never committed.  Returns True when the
     worktree was removed (or absent); False when preserved due to dirtiness.
     """
+    from app.services.kanban.task_runner.worktree import (
+        resolve_base_dir,
+        worktree_dir,
+    )
+
     if not task.branch:
         return True
 
@@ -115,6 +120,8 @@ async def _delete_worktree_branch(base_dir: str, branch: str, task_id: str) -> N
     Only called once the task's commits have been merged into the target
     branch — deleting the branch earlier would drop commits.
     """
+    from app.services.kanban.task_runner.worktree import _worktree_branch_name
+
     unique_branch = _worktree_branch_name(branch, task_id)
     try:
         del_result = await asyncio.to_thread(

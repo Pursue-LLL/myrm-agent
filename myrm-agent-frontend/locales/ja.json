@@ -12075,6 +12075,7 @@
       "user_comment": "コメント",
       "verification_failed": "検証失敗",
       "branch_switched": "ブランチ切り替え",
+      "merge_conflict": "マージ競合",
       "specified": "仕様化済み",
       "decomposed": "分解済み",
       "timed_out": "タイムアウト済み",

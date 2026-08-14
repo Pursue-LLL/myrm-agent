@@ -37,6 +37,10 @@ from app.services.kanban.task_runner._worktree_merge import (
     _branch_has_commits,
     _ensure_target_branch_checked_out,
 )
+from app.services.kanban.task_runner.worktree_cleanup import (
+    _delete_worktree_branch,
+    cleanup_worktree,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -223,23 +227,6 @@ async def resolve_workspace(store: KanbanStore, task: KanbanTask) -> str | None:
         result.reason.value,
     )
     return base_dir
-
-
-async def _worktree_is_dirty(path: str) -> bool:
-    """True when a worktree has uncommitted changes (untracked, modified, staged)."""
-    try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "status", "--porcelain"],
-            cwd=path,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=_GIT_ENV,
-        )
-        return result.returncode == 0 and bool(result.stdout.strip())
-    except Exception:
-        return False
 
 
 async def merge_task_worktree(store: KanbanStore, task: KanbanTask) -> bool:

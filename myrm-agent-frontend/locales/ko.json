@@ -11849,6 +11849,7 @@
       "user_comment": "댓글",
       "verification_failed": "검증 실패",
       "branch_switched": "브랜치 전환됨",
+      "merge_conflict": "병합 충돌",
       "specified": "명세됨",
       "decomposed": "분해됨",
       "timed_out": "시간 초과",

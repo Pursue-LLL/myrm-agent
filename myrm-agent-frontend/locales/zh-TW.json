@@ -12075,6 +12075,7 @@
       "user_comment": "評論",
       "verification_failed": "驗證失敗",
       "branch_switched": "分支切換",
+      "merge_conflict": "合併衝突",
       "specified": "已規範化",
       "decomposed": "已分解",
       "timed_out": "已超時",
