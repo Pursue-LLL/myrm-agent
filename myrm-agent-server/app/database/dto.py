@@ -680,7 +680,12 @@ class AgentUpdate(BaseModel):
     )
     subagent_ids: list[str] | None = Field(None, description="可委托的子智能体 ID 列表")
     max_iterations: int | None = Field(
-        None, description="最大迭代次数（None=不修改）", ge=5, le=500
+        None,
+        description=(
+            "最大迭代次数（不传/省略=不修改；显式传 null=恢复系统默认）"
+        ),
+        ge=5,
+        le=500,
     )
     workspace_policy: WorkspacePolicyLiteral | None = Field(
         None,

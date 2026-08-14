@@ -707,3 +707,103 @@ def test_execution_fingerprint_stable_when_embedding_api_key_rotates() -> None:
     wrapper.embedding_config = EmbeddingConfig(model="embed-b", api_key="k")
     changed_fp = compute_execution_fingerprint(wrapper)
     assert first_fp != changed_fp
+
+
+def test_execution_fingerprint_stable_when_openapi_credentials_rotate() -> None:
+    """OpenAPI bridge AuthConfig carries api_key/bearer_token/password/client_secret
+    (harness config.py:58-69), which must be stripped before hashing — credential
+    rotation must not bust the POOLED cache while spec/endpoint changes must."""
+    wrapper = _base_wrapper()
+    wrapper.openapi_services = [
+        {
+            "name": "stripe",
+            "spec_url": "https://api.stripe.com/openapi.json",
+            "base_url": "https://api.stripe.com",
+            "auth": {
+                "type": "api_key",
+                "api_key": "sk-live-1",
+                "api_key_header": "Authorization",
+            },
+            "selected_endpoints": ["list_charges"],
+        }
+    ]
+    first_fp = compute_execution_fingerprint(wrapper)
+    wrapper.openapi_services = [
+        {
+            "name": "stripe",
+            "spec_url": "https://api.stripe.com/openapi.json",
+            "base_url": "https://api.stripe.com",
+            "auth": {
+                "type": "api_key",
+                "api_key": "sk-live-rotated",
+                "api_key_header": "Authorization",
+            },
+            "selected_endpoints": ["list_charges"],
+        }
+    ]
+    rotated_fp = compute_execution_fingerprint(wrapper)
+    assert first_fp == rotated_fp
+    wrapper.openapi_services = [
+        {
+            "name": "stripe",
+            "spec_url": "https://api.stripe.com/openapi.json",
+            "base_url": "https://api.stripe.com",
+            "auth": {
+                "type": "bearer",
+                "bearer_token": "tok-rotated",
+                "password": "pw",
+                "client_secret": "sec",
+            },
+            "selected_endpoints": ["list_charges"],
+        }
+    ]
+    auth_swapped_fp = compute_execution_fingerprint(wrapper)
+    assert first_fp == auth_swapped_fp
+    wrapper.openapi_services = [
+        {
+            "name": "stripe",
+            "spec_url": "https://api.stripe.com/openapi.json",
+            "base_url": "https://api.stripe.com",
+            "auth": {"type": "api_key", "api_key": "sk-live-1"},
+            "selected_endpoints": ["retrieve_charge"],
+        }
+    ]
+    endpoint_fp = compute_execution_fingerprint(wrapper)
+    assert first_fp != endpoint_fp
+
+
+def test_execution_fingerprint_stable_when_external_agent_credentials_rotate() -> None:
+    """External ACP agent configs carry auth api_key (external_agents_runtime_config:48),
+    which must be stripped before hashing — credential rotation must not bust the
+    POOLED cache while the agent command/config changes must."""
+    wrapper = _base_wrapper()
+    wrapper.external_agents_config = [
+        {
+            "agentName": "codex",
+            "command": "codex",
+            "authMode": "api_key",
+            "api_key": "sk-1",
+            "env": {"OPENAI_API_KEY": "sk-1"},
+        }
+    ]
+    first_fp = compute_execution_fingerprint(wrapper)
+    wrapper.external_agents_config = [
+        {
+            "agentName": "codex",
+            "command": "codex",
+            "authMode": "api_key",
+            "api_key": "sk-rotated",
+            "env": {"OPENAI_API_KEY": "sk-rotated"},
+        }
+    ]
+    rotated_fp = compute_execution_fingerprint(wrapper)
+    assert first_fp == rotated_fp
+    wrapper.external_agents_config = [
+        {
+            "agentName": "claude",
+            "command": "claude",
+            "authMode": "subscription",
+        }
+    ]
+    changed_fp = compute_execution_fingerprint(wrapper)
+    assert first_fp != changed_fp

@@ -176,7 +176,7 @@ wechat_d4e5f6   ← 额外实例 2
 - **配置持久化**：实例元数据（channelType / instanceId / displayName）存储在 `UserConfig` 表中（key=`channel-instances`），服务重启后自动恢复
 - **实例级登录**：每个实例通过 `/{channel_name}/wechat-status` 和 `/{channel_name}/wechat-login` 独立完成 QR 扫码登录，实例登录凭据存储在 `UserConfig.config_key` 列（key 形如 `{channel_name}Credentials`，如 `wechat_a1b2c3Credentials`），读取/删除统一经 `channel_credentials_key()` 解析（默认实例走 `_CHANNEL_CONFIG_KEYS` 映射，额外实例回退 `{channel_name}Credentials`）。凭据经 `ConfigService` 加密落库：凡以 `Credentials` 结尾的 key 均按敏感配置加密存储（`is_sensitive_config` 后缀匹配），读取时透明解密
 - **飞书多应用 QR 注册（`app/api/channels/feishu_register.py`）**：`display_name` 空白归一化为 `None`（无标签 = 刷新默认实例，防止多应用区空标签静默覆盖默认凭据）；`poll` 成功分支以 `_RegistrationSession.consumed` 原子标志（检查与置位间无 `await`）保证并发轮询只创建一次实例——已消费的并发请求保持 pending（等待首个请求的真实结果，避免假成功）；provision 失败即丢弃会话，后续 poll 404
-- **实例凭据更新（`app/api/channels/instances.py` `save_channel_credentials`）**：密钥轮换/重置场景下，前端在实例卡片「编辑凭据」提交新 App Secret（留空保留旧值，按 merge 语义落库）；已注册实例按其 `instance_id` 重建 channel 对象（`remove_channel` + `factory_create` 同 id + `add_channel`），channel_name（`{type}_{id}`）与智能体绑定保持不变；默认实例复用 `_try_hot_register_channel` 热重载（未注册时也发起热注册尝试，使首次配置凭据即生效，失败则下次启动生效）；未注册实例凭据落库后于下次启动生效
+- **实例凭据更新（`app/api/channels/instances.py` `save_channel_credentials`）**：密钥轮换/重置场景下，前端在实例卡片「编辑凭据」提交新 App Secret（留空保留旧值，按 merge 语义落库）；已注册实例按其 `instance_id` 重建 channel 对象（**先 `factory_create` 同 id 成功后再 `remove_channel` + `add_channel`**，构造失败不影响在跑实例；channel_name（`{type}_{id}`）与智能体绑定保持不变）；默认实例复用 `_try_hot_register_channel` 热重载（未注册时也发起热注册尝试，使首次配置凭据即生效，失败则下次启动生效；热重载先解析新凭据再移除旧实例，重建保留 `display_name`）；未注册实例凭据落库后于下次启动生效
 
 ### 3.3 MessageBus
 

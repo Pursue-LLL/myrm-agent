@@ -252,13 +252,13 @@ async def get_chat_share_status(
 ) -> ChatShareStatusResponse:
     """Return the current share state so the GUI can surface it on reopen.
 
-    Four states: unshared (never shared or link already expired), revoked
-    (all links withdrawn), active (unprotected: the link is rebuilt
-    deterministically from the persisted expiry so it stays copyable), and
-    password-protected (the link cannot be rebuilt because the password is
-    never stored — only a status is returned). The revoked flag is reported
-    first: a revoked chat must never look active even if stale display
-    metadata remains.
+    Four states: unshared (never shared or link already expired — expired
+    links are unshared regardless of password protection), revoked (all links
+    withdrawn), active (unprotected: the link is rebuilt deterministically
+    from the persisted expiry so it stays copyable), and password-protected
+    (the link cannot be rebuilt because the password is never stored — only a
+    status is returned). The revoked flag is reported first: a revoked chat
+    must never look active even if stale display metadata remains.
     """
     chat = await ChatService.get_chat_metadata(chat_id)
     if not chat:
@@ -272,11 +272,13 @@ async def get_chat_share_status(
 
     protected = chat.share_token_protected is True
     expires_at = chat.share_token_expires_at
+    # Expired links are unshared regardless of protection: a past-due share
+    # must never surface as active/password-protected when it cannot be opened.
+    if expires_at is not None and expires_at <= int(datetime.now(timezone.utc).timestamp()):
+        return ChatShareStatusResponse()
+
     if protected or expires_at is None:
         return ChatShareStatusResponse(shared=True, password_protected=protected)
-
-    if expires_at <= int(datetime.now(timezone.utc).timestamp()):
-        return ChatShareStatusResponse()
 
     token = rebuild_chat_share_token(chat_id, expires_at_unix=expires_at)
     base_url = await resolve_share_url_base(fallback=str(request.base_url).rstrip("/"))

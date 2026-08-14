@@ -389,7 +389,9 @@ class AgentService:
                 and agent_data.system_prompt != HIDDEN_SYSTEM_PROMPT
             ):
                 updates["system_prompt"] = agent_data.system_prompt
-            if agent_data.max_iterations is not None:
+            if "max_iterations" in agent_data.model_fields_set:
+                # 显式 null 表示恢复系统默认（DB 置 NULL）；不传则保持原值。
+                # 前端清空 Max Iterations 输入框会发送 null，必须能真正重置。
                 updates["max_iterations"] = agent_data.max_iterations
             if "memory_policy" in agent_data.model_fields_set:
                 updates["memory_policy"] = _memory_policy_from_request(

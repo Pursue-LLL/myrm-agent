@@ -172,3 +172,84 @@ def test_default_max_iterations_completes_normally(
         for e in events
     )
     assert got_reply, "expected a message event with content for a simple turn"
+
+
+def _put_max_iterations(
+    client: TestClient, value: int | str | None
+):
+    """Create a fresh agent then PUT a max_iterations value onto it."""
+    agent_id = _create_agent(client, name=f"put-{uuid.uuid4().hex[:8]}", max_iterations=None)
+    payload: dict[str, object] = {"max_iterations": value}
+    return client.put(f"/api/agents/{agent_id}", json=payload)
+
+
+@pytest.mark.integration
+def test_update_agent_rejects_max_iterations_below_min(client: TestClient) -> None:
+    """PUT must enforce the same [5, 500] bounds as POST."""
+    resp = _put_max_iterations(client, 4)
+    assert resp.status_code == 422, resp.text
+
+
+@pytest.mark.integration
+def test_update_agent_rejects_max_iterations_above_max(client: TestClient) -> None:
+    """Boundary: max_iterations=501 rejected on PUT too."""
+    resp = _put_max_iterations(client, 501)
+    assert resp.status_code == 422, resp.text
+
+
+@pytest.mark.integration
+def test_update_agent_rejects_non_integer_max_iterations(client: TestClient) -> None:
+    """A non-integer value must fail Pydantic int coercion on PUT."""
+    resp = _put_max_iterations(client, "abc")
+    assert resp.status_code == 422, resp.text
+
+
+@pytest.mark.integration
+def test_update_agent_accepts_max_iterations_at_max(client: TestClient) -> None:
+    """PUT max_iterations=500 is the legal upper bound and must persist."""
+    resp = _put_max_iterations(client, 500)
+    assert resp.status_code == 200, resp.text
+    assert (resp.json().get("data") or {}).get("max_iterations") == 500
+
+
+@pytest.mark.integration
+def test_update_agent_explicit_null_resets_to_default(client: TestClient) -> None:
+    """Clearing the field in the UI sends explicit null; that must reset the
+    stored value back to the system default (DB NULL), not be ignored."""
+    agent_id = _create_agent(client, name=f"reset-{uuid.uuid4().hex[:8]}", max_iterations=50)
+    resp = client.put(f"/api/agents/{agent_id}", json={"max_iterations": None})
+    assert resp.status_code == 200, resp.text
+    data = (resp.json().get("data") or {})
+    assert data.get("max_iterations") is None, (
+        f"explicit null must reset to default, got {data.get('max_iterations')}"
+    )
+
+
+@pytest.mark.integration
+def test_update_agent_omitted_field_keeps_existing(client: TestClient) -> None:
+    """A partial PUT that omits max_iterations must leave the stored value
+    untouched (standard no-op semantics for non-sent fields)."""
+    agent_id = _create_agent(client, name=f"keep-{uuid.uuid4().hex[:8]}", max_iterations=50)
+    resp = client.put(f"/api/agents/{agent_id}", json={"description": "only desc"})
+    assert resp.status_code == 200, resp.text
+    data = (resp.json().get("data") or {})
+    assert data.get("max_iterations") == 50, (
+        f"omitted max_iterations must be preserved, got {data.get('max_iterations')}"
+    )
+
+
+@pytest.mark.integration
+def test_create_agent_ignores_unknown_camelcase_field(client: TestClient) -> None:
+    """The frontend always sends snake_case ``max_iterations``. A camelCase
+    ``maxIterations`` payload key is an *unknown* field today and must be
+    silently ignored — locking the contract so a future Pydantic
+    ``populate_by_name`` switch cannot silently change behavior."""
+    resp = client.post(
+        "/api/agents",
+        json={"name": "camel-case-guard", "maxIterations": 50},
+    )
+    assert resp.status_code == 200, resp.text
+    data = (resp.json().get("data") or {})
+    assert data.get("max_iterations") is None, (
+        f"camelCase maxIterations must be ignored, got {data.get('max_iterations')}"
+    )

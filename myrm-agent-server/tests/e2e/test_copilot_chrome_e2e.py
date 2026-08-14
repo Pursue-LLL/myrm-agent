@@ -105,29 +105,15 @@ _SET_CHAT_LOADING_JS = """(() => {
 })()"""
 
 _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
-  window.__E2E_RFA_TICKS = 0;
-  requestAnimationFrame(() => { window.__E2E_RFA_TICKS = (window.__E2E_RFA_TICKS ?? 0) + 1; });
-  const needle = 'connection refused';
-  const hits = [];
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  let node = walker.nextNode();
-  while (node) {
-    const value = node.textContent || '';
-    if (value.includes(needle)) {
-      const el = node.parentElement;
-      const msgContainer = el?.closest?.('[data-message-id]');
-      hits.push({
-        nodeValue: value.slice(0, 80),
-        inMsg: !!msgContainer,
-        msgId: msgContainer?.getAttribute?.('data-message-id') || '',
-        tag: el?.tagName || '',
-        testid: el?.getAttribute?.('data-testid') || '',
-        msgText: msgContainer ? (msgContainer.textContent || '').slice(0, 120) : '',
-      });
-    }
-    node = walker.nextNode();
-  }
-  return { ok: false, err: 'diag', hits, msgCount: document.querySelectorAll('[data-message-id]').length };
+  const state = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {};
+  const messages = Array.isArray(state.messages) ? state.messages : [];
+  const contents = messages.map((m) => ({
+    role: m.role,
+    content: (m.content || '').slice(0, 120),
+    len: (m.content || '').length,
+    id: m.messageId,
+  }));
+  return { ok: false, err: 'diag', contents };
 })()"""
 
 _QUOTE_ADVISOR_READY_JS = """(() => {

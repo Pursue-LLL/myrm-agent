@@ -31,32 +31,41 @@ if TYPE_CHECKING:
 
 _CREDENTIAL_KEYS = frozenset(
     {
+        # Provider/model configs (snake_case + camelCase variants).
         "api_key",
         "api_keys",
-        # CamelCase variants used by provider configs (model_resolver:331) and
-        # OAuth tokens injected by config_loader (config_loader.py:80-83).
+        "apiKey",
         "apiKeys",
+        # OAuth tokens injected into provider configs by config_loader.
         "_oauthToken",
         "_oauthBaseUrl",
+        # OpenAPI bridge AuthConfig credential fields.
+        "bearer_token",
+        "bearerToken",
+        "password",
+        "client_secret",
+        "clientSecret",
     }
 )
 
 
-def _stable_json(value: object) -> object:
+def _stable_json(
+    value: object, *, skip_keys: frozenset[str] | None = None
+) -> object:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
+    if isinstance(value, BaseModel):
+        return _stable_json(value.model_dump(mode="json"), skip_keys=skip_keys)
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return _stable_json(dataclasses.asdict(value), skip_keys=skip_keys)
     if isinstance(value, dict):
         return {
-            str(k): _stable_json(v)
+            str(k): _stable_json(v, skip_keys=skip_keys)
             for k, v in sorted(value.items(), key=lambda item: item[0])
+            if skip_keys is None or str(k) not in skip_keys
         }
     if isinstance(value, (list, tuple)):
-        return [_stable_json(v) for v in value]
-    if isinstance(value, BaseModel):
-        dumped = value.model_dump(mode="json")
-        return _stable_json(dumped)
-    if dataclasses.is_dataclass(value) and not isinstance(value, type):
-        return _stable_json(dataclasses.asdict(value))
+        return [_stable_json(v, skip_keys=skip_keys) for v in value]
     return str(value)
 
 
@@ -65,26 +74,12 @@ def _credential_free_json(value: object) -> object:
 
     Mirrors ``_model_sig``'s rule that keys must never enter the fingerprint,
     applied generically to structured configs (media generation, search service,
-    embedding/reranker, provider pool) that carry api_key/api_keys/apiKeys or
-    OAuth-injected _oauthToken. Key rotation and OAuth token refresh do not
-    change build semantics, so credential changes must neither bust the POOLED
-    cache nor leak into the hash.
+    embedding/reranker, provider pool, OpenAPI services) that carry api_key,
+    bearer_token, password or client_secret. Key rotation and OAuth token refresh
+    do not change build semantics, so credential changes must neither bust the
+    POOLED cache nor leak into the hash.
     """
-    if isinstance(value, BaseModel):
-        value = value.model_dump(mode="json")
-    elif dataclasses.is_dataclass(value) and not isinstance(value, type):
-        value = dataclasses.asdict(value)
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, dict):
-        return {
-            str(k): _credential_free_json(v)
-            for k, v in sorted(value.items(), key=lambda item: item[0])
-            if str(k) not in _CREDENTIAL_KEYS
-        }
-    if isinstance(value, (list, tuple)):
-        return [_credential_free_json(v) for v in value]
-    return str(value)
+    return _stable_json(value, skip_keys=_CREDENTIAL_KEYS)
 
 
 def _model_sig(model_cfg: ModelConfig | None) -> dict[str, object] | None:
@@ -166,8 +161,10 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "skill_configs": _stable_json(agent_wrapper.skill_configs),
         "subagent_ids": sorted(agent_wrapper.subagent_ids or []),
         "mcp_servers": _serialize_mcp_configs(agent_wrapper),
-        "openapi_services": _stable_json(agent_wrapper.openapi_services),
-        "external_agents": _stable_json(agent_wrapper.external_agents_config),
+        "openapi_services": _credential_free_json(agent_wrapper.openapi_services),
+        "external_agents": _credential_free_json(
+            agent_wrapper.external_agents_config
+        ),
         "user_instructions": agent_wrapper.user_instructions or "",
         "max_iterations": agent_wrapper.max_iterations,
         "locale": agent_wrapper.locale,

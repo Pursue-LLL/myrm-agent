@@ -339,6 +339,22 @@ class TestGetChatShareStatus:
         assert data["password_protected"] is True
         assert data["share_url"] is None
 
+    def test_expired_password_protected_reports_unshared(self, share_client: TestClient) -> None:
+        """An expired password-protected link is unshared, not active/protected."""
+        from app.core.security.share_hmac import token_fingerprint
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, expires_at = create_chat_share_token("chat-1", ttl_seconds=1, password="s3cret")
+        chat = _make_chat_dto(
+            share_token_fingerprint=token_fingerprint(token),
+            share_token_expires_at=expires_at - 60,
+            share_token_protected=True,
+        )
+        data = self._get_status(share_client, chat)
+        assert data["shared"] is False
+        assert data["password_protected"] is False
+        assert data["share_url"] is None
+
     def test_stale_fingerprint_without_expiry(self, share_client: TestClient) -> None:
         """Legacy rows with a fingerprint but no expiry report shared without a URL."""
         chat = _make_chat_dto(share_token_fingerprint="legacy-fp")

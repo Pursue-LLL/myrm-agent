@@ -265,3 +265,178 @@ def test_real_context_compression_preserves_failed_tool_chain(
         or "失败" in normalized_answer
         or "exit code" in normalized_answer
     ), f"Final answer should preserve failed tool-call semantics. Got: {final_answer[:300]}"
+
+
+def _read_compacted_summary(chat_id: str) -> str | None:
+    """Read the persisted compaction summary from the test SQLite file.
+
+    Raw sqlite3 is used so the assertion observes the exact DB boundary that
+    ``load_chat`` / ``parse_existing_summary`` read from, without racing the
+    async engine's event loop from inside the sync TestClient.
+    """
+    import sqlite3
+
+    db_path = os.environ.get("TEST_AGENT_DB_PATH")
+    if not db_path or not os.path.exists(db_path):
+        return None
+    conn = sqlite3.connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT compacted_summary FROM chats WHERE id = ?", (chat_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return row[0] if row else None
+
+
+def _wait_for_compaction(chat_id: str, *, timeout: float = 45.0) -> str:
+    import time
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        summary = _read_compacted_summary(chat_id)
+        if summary:
+            return summary
+        time.sleep(0.5)
+    raise AssertionError(
+        f"compaction summary was never persisted for chat {chat_id} within {timeout}s"
+    )
+
+
+_STRUCTURED_SUMMARY_FIELDS: Final[tuple[str, ...]] = (
+    "user_goal",
+    "active_task",
+    "completed_actions",
+    "key_findings",
+    "errors_and_fixes",
+    "files_modified",
+    "last_action",
+    "constraints_and_preferences",
+    "resolved_questions",
+    "pending_user_asks",
+    "active_state",
+    "blocked_items",
+    "next_steps",
+)
+
+
+def _assert_summary_roundtrip_preserves_fields(summary_json: str) -> None:
+    """The DB JSON → StructuredSummary → to_json roundtrip must be lossless.
+
+    Guards the O-2/O-3 fixes: every field ``to_json`` emits must survive the
+    ``parse_existing_summary`` deserialization boundary with its exact value.
+    """
+    from myrm_agent_harness.agent.context_management.strategies.summary.summary_parser import (
+        parse_structured_summary_json,
+    )
+
+    parsed = parse_structured_summary_json(summary_json)
+    assert parsed is not None, "persisted summary must parse as StructuredSummary"
+
+    original = json.loads(summary_json)
+    for field in _STRUCTURED_SUMMARY_FIELDS:
+        if field in original:
+            assert getattr(parsed, field) == original[field], (
+                f"field '{field}' mutated across the DB boundary: "
+                f"{original[field]!r} != {getattr(parsed, field)!r}"
+            )
+
+    reserialized = json.loads(parsed.to_json())
+    assert set(reserialized) == set(original), (
+        f"roundtrip key set mismatch: lost={set(original) - set(reserialized)} "
+        f"extra={set(reserialized) - set(original)}"
+    )
+
+
+@pytest.mark.timeout(300)
+def test_online_compaction_persists_full_structured_summary(
+    client: TestClient, mock_load_user_configs
+) -> None:
+    """Real streaming compaction must persist a full structured summary to DB.
+
+    Uses a low max_context_tokens so the pipeline is forced to summarize
+    synchronously during the streaming turns (O-3 full-field persistence).
+    """
+    configs = mock_load_user_configs.return_value
+    configs.model_cfg = configs.model_cfg.model_copy(
+        update={"max_context_tokens": 6000}
+    )
+
+    chat_id = f"context-persist-{uuid.uuid4().hex}"
+    queries = (
+        _FOCUS_INITIAL_QUERY,
+        *_FOCUS_FOLLOWUPS,
+        "继续。再补充 asyncio.Event 与 threading.Event 的一个区别。",
+    )
+
+    for query in queries:
+        _stream_agent_turn(client, query=query, chat_id=chat_id, action_mode="agent")
+
+    summary_json = _wait_for_compaction(chat_id)
+    _assert_summary_roundtrip_preserves_fields(summary_json)
+
+    # The next turn must still work with the compacted history injected.
+    final_answer, _ = _stream_agent_turn(
+        client,
+        query="一句话总结：asyncio.Event 的核心用途？",
+        chat_id=chat_id,
+        action_mode="agent",
+    )
+    assert "event" in final_answer.lower() or "事件" in final_answer
+
+
+@pytest.mark.timeout(300)
+def test_compact_chat_incremental_preserves_existing_summary(
+    client: TestClient, mock_load_user_configs
+) -> None:
+    """``compact_chat`` must reload and reuse a persisted summary (O-2 boundary).
+
+    Builds a real conversation via the agent API, then runs the real compaction
+    service (real LLM) twice so the second pass exercises the incremental path
+    that reads ``Chat.compacted_summary`` through ``parse_existing_summary``.
+    """
+    import asyncio
+
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.services.chat.compact_service import compact_chat
+
+    chat_id = f"context-incremental-{uuid.uuid4().hex}"
+
+    for query in (_FOCUS_INITIAL_QUERY, *_FOCUS_FOLLOWUPS):
+        _stream_agent_turn(client, query=query, chat_id=chat_id, action_mode="agent")
+
+    async def _compact() -> object:
+        db_path = os.environ["TEST_AGENT_DB_PATH"]
+        engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
+        try:
+            session_cls = sessionmaker(
+                engine, class_=AsyncSession, expire_on_commit=False
+            )
+            async with session_cls() as db:
+                return await compact_chat(db, chat_id)
+        finally:
+            await engine.dispose()
+
+    first = asyncio.run(_compact())
+    assert first.compacted is True, f"first compact_chat failed: {first.reason}"
+
+    first_summary = _read_compacted_summary(chat_id)
+    assert first_summary, "compacted_summary must exist after first compact_chat"
+    _assert_summary_roundtrip_preserves_fields(first_summary)
+
+    # One extra turn adds fresh messages so the incremental pass has a slice.
+    _stream_agent_turn(
+        client,
+        query="继续。用一句话说明 asyncio.Queue 与 Event 的适用场景差异。",
+        chat_id=chat_id,
+        action_mode="agent",
+    )
+
+    second = asyncio.run(_compact())
+    assert second.compacted is True, f"incremental compact_chat failed: {second.reason}"
+
+    second_summary = _read_compacted_summary(chat_id)
+    assert second_summary, "compacted_summary must exist after incremental compact"
+    _assert_summary_roundtrip_preserves_fields(second_summary)
