@@ -43,6 +43,8 @@ vi.mock('../handlerDeps', () => ({
   playCompletionSound: vi.fn(() => false),
   dispatchPetSurfaceAwayCompletion: vi.fn(),
   releaseInspectorControls: vi.fn(),
+  resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
+    state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
 }));
 
 import { completionEvents } from '../completionEvents';

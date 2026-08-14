@@ -140,7 +140,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         state.messages.push({
           content: '',
           messageId: data.messageId,
-          chatId: state.messages[0]?.chatId || '',
+          chatId: H.resolveStreamChatId(ctx.state),
           role: 'assistant',
           progressSteps: [stepItem],
           createdAt: new Date(),
@@ -293,7 +293,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         state.messages.push({
           content: '',
           messageId: data.messageId,
-          chatId: state.messages[0]?.chatId || '',
+          chatId: H.resolveStreamChatId(ctx.state),
           role: 'assistant',
           createdAt: new Date(),
           clarification: {
@@ -350,7 +350,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         state.messages.push({
           content: '',
           messageId: data.messageId,
-          chatId: state.messages[0]?.chatId || '',
+          chatId: H.resolveStreamChatId(ctx.state),
           role: 'assistant',
           createdAt: new Date(),
           directoryRequest,

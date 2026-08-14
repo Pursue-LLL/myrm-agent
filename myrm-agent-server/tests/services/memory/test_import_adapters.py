@@ -89,7 +89,10 @@ class TestNativeJsonDryRun:
         assert len(result.normalized_data["semantic"]) == 2
 
     def test_all_supported_buckets(self) -> None:
-        payload = {bucket: [{"content": f"{bucket} item"}] for bucket in SUPPORTED_NATIVE_BUCKETS}
+        payload = {
+            bucket: [{"content": f"{bucket} item"}]
+            for bucket in SUPPORTED_NATIVE_BUCKETS
+        }
         result = build_memory_import_dry_run(payload, source="native_json")
         assert result.summary.status == "ready"
         assert result.summary.mapped_items == len(SUPPORTED_NATIVE_BUCKETS)
@@ -190,7 +193,13 @@ class TestAgentMemoryDryRun:
             "memories": [],
             "summaries": [],
             "observations": {},
-            "proceduralMemories": [{"name": "Deploy", "steps": ["build", "push"], "triggerCondition": "deploy request"}],
+            "proceduralMemories": [
+                {
+                    "name": "Deploy",
+                    "steps": ["build", "push"],
+                    "triggerCondition": "deploy request",
+                }
+            ],
         }
         result = build_memory_import_dry_run(payload, source="agentmemory")
         assert "procedural" in result.normalized_data
@@ -281,7 +290,10 @@ class TestExternalSourceDetection:
         assert result.summary.source == "openclaw"
 
     def test_detect_cursor_via_source_tag(self) -> None:
-        payload = {"_source": "cursor_rules", "cursor_rules": [{"name": "r", "content": "c"}]}
+        payload = {
+            "_source": "cursor_rules",
+            "cursor_rules": [{"name": "r", "content": "c"}],
+        }
         result = build_memory_import_dry_run(payload)
         assert result.summary.source == "cursor_rules"
 
@@ -334,7 +346,9 @@ class TestAdapterRegistryConsistency:
         statuses = memory_import_adapter_status()
         ready = [s for s, st in statuses.items() if st == "ready"]
         for adapter in ready:
-            assert adapter in sources, f"Ready adapter '{adapter}' missing from supported sources"
+            assert (
+                adapter in sources
+            ), f"Ready adapter '{adapter}' missing from supported sources"
 
     def test_ready_registry_matches_expected_sources(self) -> None:
         """Registry 'ready' set must exactly match the adapters implemented today.
@@ -343,7 +357,9 @@ class TestAdapterRegistryConsistency:
         a declared-but-unimplemented source (e.g. windsurf/trae) must not be
         marked 'ready'.
         """
-        from app.services.memory.import_adapter_registry import memory_import_adapter_status
+        from app.services.memory.import_adapter_registry import (
+            memory_import_adapter_status,
+        )
 
         statuses = memory_import_adapter_status()
         ready_sources = {s for s, st in statuses.items() if st == "ready"}
@@ -362,7 +378,9 @@ class TestAdapterRegistryConsistency:
         }, "Registry 'ready' set drifted from actual adapters"
 
     def test_source_adapters_are_ready(self) -> None:
-        from app.services.memory.import_adapter_registry import memory_import_adapter_status
+        from app.services.memory.import_adapter_registry import (
+            memory_import_adapter_status,
+        )
 
         statuses = memory_import_adapter_status()
         for source in ("hermes", "openclaw", "cursor", "codex"):

@@ -1116,6 +1116,72 @@ async def test_csp_integration_pdf_real_vault(
     assert serve.headers.get("x-content-type-options") is None
 
 
+@pytest.mark.asyncio
+async def test_password_share_unlock_cookie_keeps_extensionless_media_type(
+    share_client, db_session, tmp_path
+) -> None:
+    """R1: unlock-cookie auth keeps artifact_type for extension-less PDF entries.
+
+    A password share of a PDF whose artifact name has no suffix (entry file has
+    no extension) must still be served as ``application/pdf`` when the browser
+    refreshes and authenticates via the unlock cookie instead of ``p``.
+    """
+    from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
+
+    vault = ArtifactVault(str(tmp_path))
+    uri = vault.put("%PDF-1.4 dummy", "report")
+
+    artifact = Artifact(
+        id=str(uuid.uuid4()),
+        name="report",
+        chat_id=str(uuid.uuid4()),
+        is_deleted=False,
+    )
+    db_session.add(artifact)
+    await db_session.commit()
+    ver = ArtifactVersion(
+        id=str(uuid.uuid4()),
+        artifact_id=artifact.id,
+        vault_uri=uri,
+        sha256_hash="h_pdf_noext",
+    )
+    db_session.add(ver)
+    await db_session.commit()
+    await db_session.refresh(artifact)
+
+    with patch(
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
+        new_callable=AsyncMock,
+        return_value=artifact,
+    ):
+        resp = share_client.post(
+            f"/{artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "pdf", "password": "s3cret"},
+        )
+    assert resp.status_code == 200
+    token = resp.json()["token"]
+
+    first = share_client.get(
+        f"/public/artifact-share/{token}?p=s3cret", follow_redirects=False
+    )
+    assert first.status_code == 200
+    assert first.headers["content-type"].startswith("application/pdf")
+    cookie_name = _unlock_cookie_name(token)
+    unlock = share_client.cookies.get(cookie_name)
+    assert unlock is not None
+
+    # Test router mounts under /public/artifact-share while the cookie path is
+    # the production /api/v1/... prefix, so TestClient's jar would not auto-send
+    # it; pass the cookie explicitly like the other unlock-cookie tests.
+    refreshed = share_client.get(
+        f"/public/artifact-share/{token}/",
+        headers={"Cookie": f"{cookie_name}={unlock}"},
+        follow_redirects=False,
+    )
+    assert refreshed.status_code == 200
+    assert refreshed.headers["content-type"].startswith("application/pdf")
+
+
 # ---------------------------------------------------------------------------
 # _file_response unit tests (direct function, no HTTP)
 # ---------------------------------------------------------------------------
@@ -1548,6 +1614,21 @@ def test_unlock_credential_roundtrip() -> None:
     assert recovered is not None
     assert recovered.artifact_id == "a"
     assert recovered.version_id == "v"
+
+
+def test_unlock_credential_roundtrip_keeps_artifact_type() -> None:
+    """The unlock cookie must not drop artifact_type for extension-less entries."""
+    claims = ArtifactShareClaims(
+        artifact_id="a",
+        version_id="v",
+        exp=int(time.time()) + 3600,
+        artifact_type="document",
+    )
+    credential = _build_unlock_credential(claims)
+    assert credential is not None
+    recovered = _unlock_claims_from_cookie(credential)
+    assert recovered is not None
+    assert recovered.artifact_type == "document"
 
 
 def test_unlock_claims_rejects_garbage() -> None:

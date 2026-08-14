@@ -113,7 +113,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
       usePlanStore.getState().clearActivePlan();
     });
-    H.releaseInspectorControls(ctx.state.messages[0]?.chatId?.trim() ?? '');
+    H.releaseInspectorControls(H.resolveStreamChatId(ctx.state));
     return done(ctx);
   }
 
@@ -184,7 +184,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     toast.warning(H.getContextOverflowMessage(), { duration: 8000 });
     H.useChatStore.getState().initializeChat(undefined);
     actions.setLoading(false);
-    H.releaseInspectorControls(ctx.state.messages[0]?.chatId?.trim() ?? '');
+    H.releaseInspectorControls(H.resolveStreamChatId(ctx.state));
     return done(ctx);
   }
 

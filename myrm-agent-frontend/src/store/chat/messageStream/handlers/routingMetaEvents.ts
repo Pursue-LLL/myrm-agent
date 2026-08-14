@@ -25,7 +25,7 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
           state.messages.push({
             content: '',
             messageId: data.messageId,
-            chatId: state.messages[0]?.chatId || '',
+            chatId: H.resolveStreamChatId(ctx.state),
             role: 'assistant',
             routingTier: tier,
             modelTier,

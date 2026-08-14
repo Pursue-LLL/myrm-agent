@@ -28,6 +28,8 @@ vi.mock('../handlerDeps', () => ({
   useChatStore: { getState: vi.fn(() => ({ chatId: 'c1' })) },
   useToolApprovalStore: { getState: vi.fn(() => ({ unmarkProcessing: vi.fn() })) },
   getContextOverflowMessage: vi.fn(),
+  resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
+    state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
 }));
 
 import { agentControlEvents } from '../agentControlEvents';

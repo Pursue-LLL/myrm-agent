@@ -38,6 +38,8 @@ vi.mock('../handlerDeps', () => ({
   findAssistantMessageIndex: vi.fn(() => 0),
   getUserFriendlyError: vi.fn(async () => ({ message: 'Error', hint: undefined })),
   releaseInspectorControls: (chatId: string) => mockReleaseTurnInspectorControls(chatId),
+  resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
+    state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
   useChatStore: {
     getState: vi.fn(() => ({ chatId: 'c1', initializeChat: vi.fn() })),
   },

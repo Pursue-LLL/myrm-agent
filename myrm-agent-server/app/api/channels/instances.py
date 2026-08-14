@@ -24,12 +24,13 @@ from nanoid import generate as nanoid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.channels.router import _channel_config_key
+from app.api.channels.router import _CHANNEL_CONFIG_KEYS
 from app.api.channels.schemas import (
     ChannelInstanceCreate,
     ChannelInstanceResponse,
     DisplayNameUpdate,
 )
+from app.channels.core.credentials import channel_credentials_config_key
 from app.database.connection import get_db
 
 router = APIRouter()
@@ -148,13 +149,14 @@ async def _delete_instance_credentials(channel_name: str) -> None:
     """Remove instance-specific credentials from UserConfig."""
     from sqlalchemy import delete
 
+    from app.channels.core.credentials import channel_credentials_config_key
     from app.database.connection import get_session
     from app.database.models import UserConfig
 
-    creds_id = f"{channel_name}-credentials"
+    config_key = channel_credentials_config_key(channel_name, _CHANNEL_CONFIG_KEYS)
     try:
         async with get_session() as session:
-            await session.execute(delete(UserConfig).where(UserConfig.id == creds_id))
+            await session.execute(delete(UserConfig).where(UserConfig.config_key == config_key))
             await session.commit()
     except Exception:
         logging.getLogger(__name__).warning("Failed to delete credentials for %s", channel_name)
@@ -221,9 +223,7 @@ async def get_channel_credentials(
     """Get channel credentials (with sensitive fields redacted)."""
     from app.database.models import UserConfig
 
-    config_key = _channel_config_key(channel_name)
-    if not config_key:
-        config_key = f"{channel_name}Credentials"
+    config_key = channel_credentials_config_key(channel_name, _CHANNEL_CONFIG_KEYS)
 
     row = (
         await db.execute(
@@ -257,9 +257,7 @@ async def save_channel_credentials(
     """Save channel credentials to database."""
     from app.database.models import UserConfig
 
-    config_key = _channel_config_key(channel_name)
-    if not config_key:
-        config_key = f"{channel_name}Credentials"
+    config_key = channel_credentials_config_key(channel_name, _CHANNEL_CONFIG_KEYS)
 
     row = (
         await db.execute(

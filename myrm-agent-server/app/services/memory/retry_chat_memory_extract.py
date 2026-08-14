@@ -7,6 +7,7 @@ app.services.memory.resolve_chat_extraction_llm::resolve_chat_extraction_llm (PO
 app.services.memory.extract_retry_queue::enqueue (POS: 持久化重试队列)
 myrm_agent_harness.api.hooks::auto_extract_memories (POS: harness extract)
 app.ai_agents.extensions.extraction_lifecycle::make_extraction_lifecycle_observer (POS: ledger bridge)
+app.core.channel_bridge.config_loader::load_user_configs (POS: 用户 personalSettings 配置)
 
 [OUTPUT]
 schedule_retry_chat_memory_extract: 幂等入队手动重试，返回 `scheduled` 或 `already_in_flight`。
@@ -18,12 +19,17 @@ Business-layer recovery for failed memory extraction. Enqueues durable tasks con
 by the background worker, reusing harness extract with factory-aligned memory binding
 and extraction LLM. Retries run compressed-track only (enable_verbatim=False) to avoid
 duplicating verbatim chunks that the original auto-extract already stored.
+When the user has enabled deep PII scan (privacyDeepScan), the extraction task
+re-establishes the harness privacy context (policy + PseudonymStore) so LLM-based
+deep scan applies to retried memories exactly like the agent-run path.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Literal
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Iterator, Literal
 
 from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
 
@@ -33,6 +39,79 @@ from app.services.chat.chat_service import ChatService
 logger = logging.getLogger(__name__)
 
 RetryScheduleStatus = Literal["scheduled", "already_in_flight"]
+
+
+@contextmanager
+def _privacy_deep_scan_context(
+    personal_settings: dict[str, object] | None,
+    workspace_path: str | None,
+) -> Iterator[bool]:
+    """Bridge user privacy settings into the harness privacy context.
+
+    Yields True when deep PII scan should be enabled for the wrapped extraction,
+    False otherwise. On entry it installs the PrivacyPolicy and (when S2/S3 use
+    PSEUDONYMIZE) the shared PseudonymStore; on exit it restores the previous
+    context so background tasks do not leak privacy state across chats.
+    """
+    from myrm_agent_harness.agent.security.types import PIIAction, PrivacyPolicy
+    from myrm_agent_harness.api.hooks import (
+        get_privacy_policy,
+        get_pseudonym_store,
+        set_privacy_policy,
+        set_pseudonym_store,
+    )
+    from myrm_agent_harness.core.security.detection.pseudonym_store import (
+        get_pseudonym_store as build_pseudonym_store,
+    )
+
+    deep_scan = bool(
+        personal_settings.get("privacyDeepScan")
+        if isinstance(personal_settings, dict)
+        else False
+    )
+    if not deep_scan:
+        yield False
+        return
+
+    policy = PrivacyPolicy(
+        enabled=bool(
+            personal_settings.get("privacyEnabled")
+            if isinstance(personal_settings, dict)
+            else False
+        ),
+        s2_action=PIIAction(
+            str(
+                personal_settings.get("privacyS2Action")
+                if isinstance(personal_settings, dict)
+                and personal_settings.get("privacyS2Action")
+                else "warn"
+            )
+        ),
+        s3_action=PIIAction(
+            str(
+                personal_settings.get("privacyS3Action")
+                if isinstance(personal_settings, dict)
+                and personal_settings.get("privacyS3Action")
+                else "redact"
+            )
+        ),
+        deep_scan=True,
+    )
+    previous_policy = get_privacy_policy()
+    previous_store = get_pseudonym_store()
+    set_privacy_policy(policy)
+    try:
+        needs_store = (
+            policy.s2_action == PIIAction.PSEUDONYMIZE
+            or policy.s3_action == PIIAction.PSEUDONYMIZE
+        )
+        if needs_store and workspace_path:
+            db_path = str(Path(workspace_path).parent / "pseudonym_store.db")
+            set_pseudonym_store(build_pseudonym_store(db_path))
+        yield True
+    finally:
+        set_privacy_policy(previous_policy)
+        set_pseudonym_store(previous_store)
 
 
 def _time_decay_half_life_days(memory_decay_profile: str | None) -> float:
@@ -82,6 +161,7 @@ async def _run_retry_extract(
     assistant_reply: str,
     *,
     source: str,
+    workspace_path: str | None,
 ) -> None:
     from myrm_agent_harness.api.hooks import auto_extract_memories
 
@@ -113,21 +193,29 @@ async def _run_retry_extract(
         on_conflict=create_conflict_callback(agent_id=binding_context.agent_id),
     )
 
-    await auto_extract_memories(
-        query,
-        history,
-        memory_manager,
-        llm,
-        extraction_llm=extraction_llm,
-        source_chat_id=chat_id,
-        assistant_reply=assistant_reply,
-        enable_verbatim=False,
-        lifecycle_observer=make_extraction_lifecycle_observer(
-            chat_id,
-            source=source,
-            is_retry=True,
-        ),
-    )
+    from app.core.channel_bridge.config_loader import load_user_configs
+
+    configs = await load_user_configs()
+    with _privacy_deep_scan_context(
+        configs.personal_settings_dict if configs else None,
+        workspace_path,
+    ) as deep_scan:
+        await auto_extract_memories(
+            query,
+            history,
+            memory_manager,
+            llm,
+            extraction_llm=extraction_llm,
+            source_chat_id=chat_id,
+            assistant_reply=assistant_reply,
+            enable_verbatim=False,
+            deep_scan=deep_scan,
+            lifecycle_observer=make_extraction_lifecycle_observer(
+                chat_id,
+                source=source,
+                is_retry=True,
+            ),
+        )
 
 
 async def run_retry_extract_for_chat(
@@ -157,6 +245,7 @@ async def run_retry_extract_for_chat(
         history,
         last_assistant.content or "",
         source=source,
+        workspace_path=chat.workspace_dir or chat.sandbox_base_dir,
     )
     return True
 

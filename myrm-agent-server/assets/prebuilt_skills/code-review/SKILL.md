@@ -5,7 +5,7 @@ description: >-
   maintainability priority order. Attributes each finding (introduced vs
   pre-existing), tracks non-blocking follow-ups, and maps findings against
   the original requirements.
-version: 1.1.0
+version: 1.2.0
 category: development
 tags:
   - code-review
@@ -30,6 +30,9 @@ contract:
       severity: medium
     - description: "Mis-attributing issues between the change and pre-existing code"
       mitigation: "Base attribution on the diff or git blame evidence; mark Unknown when unverifiable, never default to Pre-existing"
+      severity: medium
+    - description: "Reporting speculative edge cases or out-of-scope blockers as must-fix findings"
+      mitigation: "Ground findings in the actual diff; reject unrealistic edge cases; mark out-of-scope blockers as needs user decision"
       severity: medium
   verification_steps:
     - step_id: context_understood
@@ -61,7 +64,17 @@ When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 character
 SECURITY → CORRECTNESS → PERFORMANCE → MAINTAINABILITY
 ```
 
-Never review style while security vulnerabilities exist. Fix critical issues first.
+Never review style while security vulnerabilities exist. Address critical findings first in review priority.
+
+## Scope Discipline
+
+This skill produces a review report only. Findings are reported with actionable suggestions; applying fixes is a separate step for the user or a dedicated fix pipeline.
+
+Ground every finding in real code:
+
+- Verify each finding against the actual diff and surrounding code before reporting it.
+- Reject unrealistic edge cases, speculative risks, and hypothetical failures the code cannot exhibit.
+- When a real blocker falls outside this change's scope (new contract, cross-module design, ownership boundary), report it in the Findings section and mark it **needs user decision** rather than expanding the change.
 
 ## Phase 1: Context
 
@@ -149,6 +162,7 @@ Severity × Attribution:
 - CRITICAL/HIGH + **Pre-existing** → report in Findings with a note that it predates the change; do not block the change on unrelated legacy code.
 - MEDIUM/LOW + **Pre-existing** → move to the Follow-up section below.
 - **Unknown** attribution → treat conservatively as Introduced-in-change: report in Findings and recommend verification before merge.
+- **Out-of-scope blocker** (new contract, cross-module design, ownership boundary) → report in Findings with **Needs user decision** in the title; it is a real risk but the fix decision belongs to the user, not this change.
 
 ### Follow-up (Pre-existing, non-blocking)
 

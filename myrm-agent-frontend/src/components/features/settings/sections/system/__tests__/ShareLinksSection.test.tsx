@@ -67,6 +67,15 @@ const protectedRecord = {
   artifact_name: 'secret.pdf',
   artifact_type: 'pdf',
   password_protected: true,
+  share_path: '/api/v1/public/artifact-share/secret.def',
+};
+
+const legacyProtectedRecord = {
+  ...protectedRecord,
+  id: 'rec-4',
+  artifact_name: 'legacy.pdf',
+  // Pre-R2 rows for password shares have no persisted path (token cannot be
+  // rebuilt) and fall back to the protected hint.
   share_path: null,
 };
 
@@ -197,12 +206,33 @@ describe('ShareLinksSection', () => {
     );
   });
 
-  it('shows a protected hint instead of a copy button for password-protected records', async () => {
+  it('renders copy/open buttons for password-protected records with a persisted path', async () => {
     const fetchMock = mockFetchRoutes([
       {
         method: 'GET',
         url: '/files/artifacts/shares',
         body: [shareRecord, protectedRecord],
+      },
+    ]);
+    vi.stubGlobal('location', { origin: 'http://localhost:3000' });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<ShareLinksSection />);
+
+    await waitFor(() => expect(screen.getByTestId('shares-table')).toBeInTheDocument());
+    expect(screen.queryByText('linkProtected')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /copyLabel/ })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /openLabel/ })).toHaveLength(2);
+  });
+
+  it('shows a protected hint instead of copy buttons for password records without a path', async () => {
+    // Legacy rows created before R2 have no persisted share_path for password
+    // shares; the GUI degrades to a hint instead of a dead link.
+    const fetchMock = mockFetchRoutes([
+      {
+        method: 'GET',
+        url: '/files/artifacts/shares',
+        body: [legacyProtectedRecord],
       },
     ]);
     vi.stubGlobal('fetch', fetchMock);
@@ -211,7 +241,7 @@ describe('ShareLinksSection', () => {
 
     await waitFor(() => expect(screen.getByTestId('shares-table')).toBeInTheDocument());
     expect(screen.getByText('linkProtected')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /copyLabel.*secret/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /copyLabel/ })).not.toBeInTheDocument();
   });
 
   it('opens the impact preview dialog and revokes a share link on confirm', async () => {

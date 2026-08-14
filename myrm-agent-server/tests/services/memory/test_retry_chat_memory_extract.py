@@ -222,7 +222,12 @@ async def test_run_retry_extract_for_chat_runs_latest_turn(
 
     assert await run_retry_extract_for_chat("chat-1") is True
     run_mock.assert_awaited_once_with(
-        "chat-1", "question", [], "answer", source="manual_retry_extract"
+        "chat-1",
+        "question",
+        [],
+        "answer",
+        source="manual_retry_extract",
+        workspace_path=None,
     )
 
 
@@ -266,16 +271,27 @@ async def test_run_retry_extract_uses_chat_binding_and_compressed_track(
         AsyncMock(return_value=MagicMock()),
     )
     monkeypatch.setattr(
-        "myrm_agent_harness.agent._internals.memory_extraction.auto_extract_memories",
+        "myrm_agent_harness.api.hooks.auto_extract_memories",
         auto_extract,
     )
     monkeypatch.setattr(
         "app.ai_agents.extensions.extraction_lifecycle.make_extraction_lifecycle_observer",
         lambda chat_id, **kwargs: f"observer-{chat_id}",
     )
+    configs = MagicMock()
+    configs.personal_settings_dict = {"privacyDeepScan": False}
+    monkeypatch.setattr(
+        "app.core.channel_bridge.config_loader.load_user_configs",
+        AsyncMock(return_value=configs),
+    )
 
     await retry_module._run_retry_extract(
-        "chat-1", "question", [], "answer", source="manual_retry_extract"
+        "chat-1",
+        "question",
+        [],
+        "answer",
+        source="manual_retry_extract",
+        workspace_path="/tmp/ws",
     )
 
     resolve_binding.assert_awaited_once_with("chat-1")
@@ -287,3 +303,4 @@ async def test_run_retry_extract_uses_chat_binding_and_compressed_track(
     call_kwargs = auto_extract.call_args.kwargs
     assert call_kwargs["enable_verbatim"] is False
     assert call_kwargs["lifecycle_observer"] == "observer-chat-1"
+    assert call_kwargs["deep_scan"] is False

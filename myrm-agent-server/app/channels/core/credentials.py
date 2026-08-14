@@ -22,10 +22,44 @@ required credentials; business layer provides values via CredentialSource callba
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
+import re
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+
+def camel_to_snake(name: str) -> str:
+    """Convert a camelCase key to snake_case.
+
+    Uses a lookbehind so consecutive capitals survive intact
+    (e.g. ``baseURL`` -> ``base_url``, never ``base_u_r_l``).
+    """
+    return re.sub(r"(?<=[a-z0-9])([A-Z])", r"_\1", name).lower()
+
+
+def channel_credentials_config_key(
+    channel_name: str,
+    known_keys: Mapping[str, str] | None = None,
+) -> str:
+    """Resolve the UserConfig ``config_key`` for a channel or its instances.
+
+    Default channels look up *known_keys* (e.g. ``{"wechat": "wechatCredentials"}``);
+    instance channels (named ``{type}_{instance_id}``) and unknown channels
+    fall back to the ``{channel_name}Credentials`` convention.
+
+    Args:
+        channel_name: Channel or instance name (e.g. ``"wechat"``, ``"wechat_a1b2c3"``).
+        known_keys: Optional default-instance mapping (channel name -> config_key).
+
+    Returns:
+        The config_key used to read/write this channel's credentials in UserConfig.
+    """
+    if known_keys:
+        mapped = known_keys.get(channel_name)
+        if mapped:
+            return mapped
+    return f"{channel_name}Credentials"
 
 
 @dataclass(frozen=True, slots=True)

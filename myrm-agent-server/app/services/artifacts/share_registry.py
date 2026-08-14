@@ -16,7 +16,9 @@ stateless HMAC token: register on create, list active links, revoke on demand.
 Revocation commits ``revoked_at`` (logged for audit) then deletes the on-disk
 bundle, so the public gate refuses both existing files and any re-materialization
 attempt. ``list_active_shares`` also exposes ``version_id`` so the API layer can
-rebuild unprotected share paths.
+rebuild unprotected share paths; password-protected rows persist their
+``share_path`` at register time (the token cannot be rebuilt because the
+password is never stored).
 """
 
 from __future__ import annotations
@@ -90,6 +92,7 @@ class ActiveShareRow:
     password_protected: bool
     created_at: datetime
     expires_at: datetime
+    share_path: str | None = None
 
 
 def _claims_from_record(record: ArtifactShareRecord) -> ArtifactShareClaims:
@@ -111,12 +114,17 @@ async def register_share(
     artifact_type: str | None,
     password_protected: bool,
     expires_at_unix: int,
+    share_path: str | None = None,
 ) -> ArtifactShareRecord:
     """Persist a share-link registry row. Idempotent on token fingerprint.
 
     Tokens are deterministic (same artifact + TTL in the same second produce an
     identical token), so a concurrent duplicate insert is resolved by returning
     the existing row instead of surfacing a unique-constraint error.
+
+    ``share_path`` is stored only for password-protected shares whose token
+    cannot be rebuilt (the password is never persisted); unprotected rows leave
+    it NULL and rebuild the path on demand.
     """
     fingerprint = token_fingerprint(token)
 
@@ -132,6 +140,7 @@ async def register_share(
         artifact_type=artifact_type,
         password_protected=password_protected,
         expires_at=_from_unix(expires_at_unix),
+        share_path=share_path,
     )
     db.add(record)
     try:
@@ -170,6 +179,7 @@ async def list_active_shares(db: AsyncSession) -> list[ActiveShareRow]:
             password_protected=record.password_protected,
             created_at=record.created_at,
             expires_at=record.expires_at,
+            share_path=record.share_path,
         )
         for record, name in rows
     ]

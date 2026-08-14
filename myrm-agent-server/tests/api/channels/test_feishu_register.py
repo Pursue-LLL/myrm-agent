@@ -144,6 +144,7 @@ class TestPollQRRegister:
         _active_sessions[session_id] = _RegistrationSession(registration=mock_reg, device_code="dc_test")
 
         with patch("app.api.channels.feishu_register._save_credentials_to_db", new_callable=AsyncMock) as mock_save:
+            mock_save.return_value = None
             resp = await client.post(
                 "/channels/manage/feishu/qr-register/poll",
                 json={"session_id": session_id},
@@ -154,8 +155,57 @@ class TestPollQRRegister:
         assert data["status"] == "success"
         assert data["credentials"]["appId"] == "cli_test_abc"
         assert data["credentials"]["appSecret"] == "secret_test_xyz"
+        assert data["instance_id"] is None
+        assert data["channel_name"] is None
         mock_save.assert_called_once()
         assert session_id not in _active_sessions
+
+    @pytest.mark.asyncio
+    async def test_poll_success_provisions_target_instance(self, client: AsyncClient) -> None:
+        mock_reg = AsyncMock()
+        mock_reg.poll.return_value = _mock_poll_success()
+        mock_reg.probe_bot.return_value = {"bot_name": "TestBot", "bot_open_id": "ou_bot_test"}
+
+        session_id = "test_session_005"
+        _active_sessions[session_id] = _RegistrationSession(
+            registration=mock_reg,
+            device_code="dc_test",
+            target_display_name="Second App",
+        )
+
+        with patch("app.api.channels.feishu_register._save_credentials_to_db", new_callable=AsyncMock) as mock_save:
+            mock_save.return_value = {"instanceId": "abc123", "channelName": "feishu_abc123"}
+            resp = await client.post(
+                "/channels/manage/feishu/qr-register/poll",
+                json={"session_id": session_id},
+            )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["instance_id"] == "abc123"
+        assert data["channel_name"] == "feishu_abc123"
+        _, kwargs = mock_save.call_args
+        assert kwargs["display_name"] == "Second App"
+        assert session_id not in _active_sessions
+
+    @pytest.mark.asyncio
+    async def test_start_with_display_name_stores_target(self, client: AsyncClient) -> None:
+        mock_reg = AsyncMock()
+        mock_reg.begin.return_value = _mock_begin_result()
+
+        with patch(
+            "app.channels.providers.feishu.registration.FeishuAppRegistration",
+            return_value=mock_reg,
+        ):
+            resp = await client.post(
+                "/channels/manage/feishu/qr-register",
+                json={"display_name": "My Second App"},
+            )
+
+        assert resp.status_code == 200
+        session_id = resp.json()["session_id"]
+        assert _active_sessions[session_id].target_display_name == "My Second App"
 
     @pytest.mark.asyncio
     async def test_poll_pending_keeps_session(self, client: AsyncClient) -> None:

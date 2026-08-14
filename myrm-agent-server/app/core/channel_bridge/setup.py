@@ -252,27 +252,20 @@ async def _restore_channel_instances() -> None:
 async def _load_instance_credentials(channel_name: str) -> dict[str, str] | None:
     """Load instance-specific credentials from UserConfig.
 
-    Credentials are stored in camelCase (e.g. botToken) but channel constructors
+    Credentials are stored in camelCase (e.g. botToken) under the
+    ``{channel_name}Credentials`` config_key but channel constructors
     expect snake_case (e.g. bot_token). This function converts keys accordingly.
 
     Returns the credential dict if found, or None to fall back to default credentials.
     """
-    import re
+    from app.channels.core.credentials import camel_to_snake, channel_credentials_config_key
+    from app.core.channel_bridge.credential_spec import load_from_db
 
-    from sqlalchemy import select
-
-    from app.database.connection import get_session
-    from app.database.models import UserConfig
-
-    creds_id = f"{channel_name}-credentials"
-    try:
-        async with get_session() as session:
-            row = (await session.execute(select(UserConfig).where(UserConfig.id == creds_id))).scalar_one_or_none()
-            if row and isinstance(row.config_value, dict):
-                return {re.sub(r"([A-Z])", r"_\1", k).lower(): str(v) for k, v in row.config_value.items()}
-    except Exception:
-        logger.debug("No instance credentials for %s", channel_name)
-    return None
+    config_key = channel_credentials_config_key(channel_name)
+    raw = await load_from_db(config_key)
+    if not raw:
+        return None
+    return {camel_to_snake(k): str(v) for k, v in raw.items()}
 
 
 async def refresh_reaction_policy() -> None:

@@ -43,12 +43,18 @@ _SESSION_TTL_S = 900
 class _RegistrationSession:
     """Tracks an active QR registration flow with TTL."""
 
-    __slots__ = ("registration", "device_code", "created_at")
+    __slots__ = ("registration", "device_code", "created_at", "target_display_name")
 
-    def __init__(self, registration: FeishuAppRegistration, device_code: str) -> None:
+    def __init__(
+        self,
+        registration: FeishuAppRegistration,
+        device_code: str,
+        target_display_name: str | None = None,
+    ) -> None:
         self.registration = registration
         self.device_code = device_code
         self.created_at = time.monotonic()
+        self.target_display_name = target_display_name
 
 
 _active_sessions: dict[str, _RegistrationSession] = {}
@@ -60,6 +66,17 @@ def _cleanup_expired_sessions() -> None:
     expired = [sid for sid, s in _active_sessions.items() if now - s.created_at > _SESSION_TTL_S]
     for sid in expired:
         _active_sessions.pop(sid, None)
+
+
+class QRRegisterRequest(BaseModel):
+    """Request for starting QR registration.
+
+    When *display_name* is provided, the registered bot is provisioned as a
+    new channel instance (multi-app support); otherwise it updates the
+    default ``feishu`` instance.
+    """
+
+    display_name: str | None = None
 
 
 class QRRegisterResponse(BaseModel):
@@ -82,11 +99,19 @@ class QRPollResponse(BaseModel):
 
     status: str  # pending | success | denied | expired
     credentials: dict[str, str | None] | None = None
+    instance_id: str | None = None
+    channel_name: str | None = None
 
 
 @router.post("/feishu/qr-register", response_model=QRRegisterResponse)
-async def start_feishu_qr_register() -> QRRegisterResponse:
+async def start_feishu_qr_register(
+    body: QRRegisterRequest | None = None,
+) -> QRRegisterResponse:
     """Start Feishu/Lark QR scan-to-create registration flow.
+
+    When ``body.display_name`` is provided, the resulting bot is provisioned
+    as a new multi-app channel instance; otherwise it updates the default
+    ``feishu`` instance credentials.
 
     Returns QR URL for the frontend to render as a QR code image.
     Frontend should poll the companion endpoint for scan status.
@@ -107,6 +132,7 @@ async def start_feishu_qr_register() -> QRRegisterResponse:
         _active_sessions[session_id] = _RegistrationSession(
             registration=reg,
             device_code=result["device_code"],
+            target_display_name=(body.display_name.strip() if body and body.display_name else None),
         )
 
         return QRRegisterResponse(
@@ -153,7 +179,10 @@ async def poll_feishu_qr_register(body: QRPollRequest) -> QRPollResponse:
         creds["bot_name"] = bot_info.get("bot_name")
         creds["bot_open_id"] = bot_info.get("bot_open_id")
 
-        await _save_credentials_to_db(creds)
+        instance = await _save_credentials_to_db(
+            creds,
+            display_name=session.target_display_name,
+        )
 
         _active_sessions.pop(body.session_id, None)
 
@@ -165,6 +194,8 @@ async def poll_feishu_qr_register(body: QRPollRequest) -> QRPollResponse:
                 "useLark": str(creds["domain"] == "lark").lower(),
                 "botOpenId": creds.get("bot_open_id") or "",
             },
+            instance_id=instance.get("instanceId") if instance else None,
+            channel_name=instance.get("channelName") if instance else None,
         )
 
     if poll_result["status"] in ("denied", "expired"):
@@ -173,12 +204,21 @@ async def poll_feishu_qr_register(body: QRPollRequest) -> QRPollResponse:
     return QRPollResponse(status=poll_result["status"], credentials=None)
 
 
-async def _save_credentials_to_db(creds: dict[str, str | None]) -> None:
-    """Save registration credentials to UserConfig DB via ConfigService."""
-    try:
-        from app.services.config.service import ConfigService
+async def _save_credentials_to_db(
+    creds: dict[str, str | None],
+    *,
+    display_name: str | None = None,
+) -> dict[str, str] | None:
+    """Save registration credentials to UserConfig DB via ConfigService.
 
-        config_key = "feishuCredentials"
+    With *display_name*, the bot is provisioned as a new multi-app instance:
+    credentials are persisted under ``feishu_{id}Credentials`` and the channel
+    is hot-registered. Otherwise the default ``feishuCredentials`` are updated.
+
+    Returns instance metadata (``instanceId`` / ``channelName``) when a new
+    instance was created, else None.
+    """
+    try:
         value: dict[str, object] = {
             "appId": creds["app_id"],
             "appSecret": creds["app_secret"],
@@ -191,12 +231,68 @@ async def _save_credentials_to_db(creds: dict[str, str | None]) -> None:
             "botPolicy": "deny",
         }
 
-        await ConfigService().set(config_key, value, device_id="feishu-qr-register")
+        if display_name:
+            instance = await _provision_feishu_instance(value, display_name.strip())
+            return instance
+
+        from app.services.config.service import ConfigService
+
+        await ConfigService().set("feishuCredentials", value, device_id="feishu-qr-register")
 
         logger.info("Feishu QR registration credentials saved to DB")
         from app.api.config.router import _try_hot_register_channel
 
-        await _try_hot_register_channel(config_key)
+        await _try_hot_register_channel("feishuCredentials")
+        return None
     except Exception as exc:
         logger.error("Failed to save Feishu registration credentials: %s", exc)
         raise
+
+
+async def _provision_feishu_instance(
+    value: dict[str, object],
+    display_name: str,
+) -> dict[str, str]:
+    """Create a new Feishu channel instance and persist its credentials.
+
+    Generates a unique instance id, saves the credentials under
+    ``feishu_{id}Credentials``, hot-registers the channel in the gateway,
+    and records it in the persisted instance list.
+    """
+    from app.channels.core.credentials import channel_credentials_config_key
+    from app.core.channel_bridge import channel_gateway
+    from app.core.channel_bridge.channel_factory import (
+        create_channel_instance as factory_create,
+    )
+    from app.core.channel_bridge.channel_factory import (
+        generate_instance_id,
+        load_persisted_instances,
+        save_persisted_instances,
+    )
+    from app.services.config.service import ConfigService
+
+    instance_id = generate_instance_id()
+    config_key = channel_credentials_config_key(f"feishu_{instance_id}")
+
+    await ConfigService().set(config_key, value, device_id="feishu-qr-register")
+
+    channel = await factory_create(
+        channel_type="feishu",
+        instance_id=instance_id,
+        credentials={str(k): str(v) for k, v in value.items()},
+    )
+    channel.display_name = display_name
+    channel_name = await channel_gateway.add_channel(channel)
+
+    current = await load_persisted_instances()
+    current.append(
+        {
+            "channelType": "feishu",
+            "instanceId": instance_id,
+            "displayName": display_name,
+        }
+    )
+    await save_persisted_instances(current)
+
+    logger.info("Feishu QR registration provisioned instance %s", channel_name)
+    return {"instanceId": instance_id, "channelName": channel_name}

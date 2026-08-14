@@ -70,7 +70,7 @@ BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
 _FILE_EDIT_TOOL = "file_edit_tool"
 _WORKSPACE_FILENAME = "batch_edit_e2e.txt"
-_MAX_CHAT_ATTEMPTS = 2
+_MAX_CHAT_ATTEMPTS = 1
 
 _LIVE_USER_PROMPT = (
     f"The workspace file {_WORKSPACE_FILENAME} contains exactly three lines: line_a, line_b, line_c. "
@@ -479,7 +479,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
 
         await chat.navigate_to_chat(resolved_chat_id, BASE_URL, timeout_sec=90.0)
         result = await _wait_live_turn_done(
-            chat, resolved_chat_id, file_path=file_path, timeout_sec=180.0
+            chat, resolved_chat_id, file_path=file_path, timeout_sec=300.0
         )
         assert result.get("invoked") is True, result
 

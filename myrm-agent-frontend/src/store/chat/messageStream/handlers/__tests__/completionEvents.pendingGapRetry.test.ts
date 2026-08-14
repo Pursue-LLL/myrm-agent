@@ -40,6 +40,8 @@ vi.mock('../handlerDeps', () => ({
   findAssistantMessageIndex: vi.fn(() => 0),
   normalizeGoalState: vi.fn(),
   releaseInspectorControls: vi.fn(),
+  resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
+    state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
   useChatStore: {
     getState: vi.fn(() => ({ chatId: 'c1', setWorkspaceDir: vi.fn() })),
   },

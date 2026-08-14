@@ -10,7 +10,7 @@
 
 分享链接生命周期治理（`share_registry.py`）：创建时按 `sha256(token)` fingerprint 登记 DB（`ArtifactShareRecord`），GUI 可列出活跃链接并手动撤销。撤销为「物理删 bundle + 置 `revoked_at` 逻辑拒绝」双防线，并写审计日志：公开入口前置校验，撤销后 404 且拒绝重新 materialize（防复活）。清理分层：过期 bundle 磁盘文件按 TTL 清理，DB 记录保留 TTL + 60 天审计窗口后硬删（`ix_artifact_share_records_expiry` 复合索引加速 purge/活跃查询）。`GET /shares` 为纯读操作，无清理副作用（REST 语义）。
 
-分享链接可复制展示（`share_token.py::rebuild_artifact_share_token`）：HMAC 令牌确定性生成，相同 payload + expiry 得到相同 token，因此无需落库存储原始 token，即可在列表接口中按需重建无密码分享链接（`share_path`）返回前端展示/复制；密码保护链接因密码不落库而无法重建，返回 `null`。`artifact_share_api.py` 基于 `share_path` 组装绝对 `share_url`（前缀取 `app.core.infra.ingress::get_public_ingress_base_url` 公网 Ingress SSOT），保证托管/隧道部署下链接外网可达；无 ingress 时 `share_url` 为 `null`，由前端按当前 origin 组装。
+分享链接可复制展示（`share_token.py::rebuild_artifact_share_token`）：HMAC 令牌确定性生成，相同 payload + expiry 得到相同 token，因此无需落库存储原始 token，即可在列表接口中按需重建无密码分享链接（`share_path`）返回前端展示/复制；密码保护链接因密码不落库而无法重建，故 `register_share` 在登记时持久化 `share_path`（`ArtifactShareRecord.share_path` 列），列表接口优先返回持久化值，两类链接均可复制/打开。`artifact_share_api.py` 基于 `share_path` 组装绝对 `share_url`（前缀取 `app.core.infra.ingress::get_public_ingress_base_url` 公网 Ingress SSOT），保证托管/隧道部署下链接外网可达；无 ingress 时 `share_url` 为 `null`，由前端按当前 origin 组装。
 
 ---
 
@@ -20,7 +20,7 @@
 |------|------|------|
 | `share_bundle.py` | 核心 | 物化 share 静态包 |
 | `share_token.py` | 核心 | 工件分享令牌签发/校验/无密码令牌重建（委托 share_hmac 通用签名层） |
-| `share_registry.py` | 核心 | 分享链接生命周期登记/列表/撤销（含审计日志）/TTL 清理（`ArtifactShareRecord`），列表暴露 `version_id` 供重建 share_path |
+| `share_registry.py` | 核心 | 分享链接生命周期登记/列表/撤销（含审计日志）/TTL 清理（`ArtifactShareRecord`），列表暴露 `version_id` 供重建无密码 share_path，密码分享持久化 `share_path` 列供展示 |
 
 ---
 

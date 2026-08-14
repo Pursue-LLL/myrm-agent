@@ -111,7 +111,9 @@ class TestConnectorState:
         service.mark_ready("unknown_profile")
 
     @pytest.mark.asyncio
-    async def test_state_persists_agent_id(self, service: ConnectService, tmp_data_dir: Path):
+    async def test_state_persists_agent_id(
+        self, service: ConnectService, tmp_data_dir: Path
+    ):
         await service.generate_config("codex", agent_id="ops-agent")
 
         service2 = ConnectService(data_dir=tmp_data_dir)
@@ -119,7 +121,9 @@ class TestConnectorState:
         assert state.agent_id == "ops-agent"
 
     @pytest.mark.asyncio
-    async def test_state_persists_to_disk(self, service: ConnectService, tmp_data_dir: Path):
+    async def test_state_persists_to_disk(
+        self, service: ConnectService, tmp_data_dir: Path
+    ):
         await service.generate_config("windsurf")
 
         service2 = ConnectService(data_dir=tmp_data_dir)

@@ -591,6 +591,11 @@ MIGRATION_STATEMENTS: list[str] = [
     # migration engine skips duplicate-column errors idempotently). The default
     # matches the harness session_id_var fallback ("default_session").
     "ALTER TABLE skill_permission_usage_logs ADD COLUMN user_id VARCHAR(255) NOT NULL DEFAULT 'default_session'",
+    # Password-protected share rows persist their share_path (the token cannot be
+    # rebuilt because the password is never stored); unprotected rows keep the
+    # column NULL and rebuild the path on demand. New DBs get the column from
+    # create_all; this append-only ALTER covers existing databases.
+    "ALTER TABLE artifact_share_records ADD COLUMN share_path VARCHAR(512)",
 ]
 
 # 创建索引的SQL语句列表

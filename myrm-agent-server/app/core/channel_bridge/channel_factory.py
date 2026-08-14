@@ -23,7 +23,7 @@ import secrets
 from collections.abc import AsyncGenerator
 
 from app.channels.core.base import BaseChannel
-from app.channels.core.credentials import resolve_credentials
+from app.channels.core.credentials import camel_to_snake, resolve_credentials
 from app.channels.core.factory import create_channels
 from app.channels.providers.registry import (
     get_channel_class_safe,
@@ -128,7 +128,9 @@ async def create_channel_instance(
 
     spec = cls.credential_spec
     if credentials is not None:
-        creds = credentials
+        # Frontend/API submit camelCase keys (e.g. appId); constructors expect
+        # snake_case (e.g. app_id). Conversion is idempotent for already-snake keys.
+        creds = {camel_to_snake(k): str(v) for k, v in credentials.items()}
     elif spec is not None:
         creds = await resolve_credentials(spec, load_from_db)
         kwargs_dict = dict(creds)

@@ -35,6 +35,8 @@ vi.mock('./handlerDeps', () => {
     },
     mapTaskStepStatus,
     mergeMessageSources: vi.fn(),
+    resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
+      state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
   };
 });
 

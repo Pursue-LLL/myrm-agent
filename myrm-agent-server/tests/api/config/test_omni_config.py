@@ -34,6 +34,8 @@ def test_personal_settings_schema_ui_sections() -> None:
     assert properties["systemInstructions"]["x-ui-section"] == "personalization"
     assert properties["notificationDeliveries"]["x-ui-section"] == "notifications"
     assert properties["publicIngressBaseUrl"]["x-ui-section"] == "system"
+    assert properties["privacyDeepScan"]["x-ui-section"] == "security"
+    assert properties["privacyS2Action"]["x-ui-section"] == "security"
 
 
 @pytest.fixture(autouse=True)

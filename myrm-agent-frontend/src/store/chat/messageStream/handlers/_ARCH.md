@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `index.ts` | 核心 | 导出 `STREAM_EVENT_HANDLERS` 调用顺序 | ✅ |
-| `handlerDeps.ts` | 辅助 | 切片共享 import（types、stores、helpers）；`releaseInspectorControls(chatId)` 为共享 fire-and-forget 包装（动态加载 [lib/inspector 共享 `releaseTurnInspectorControls`](../../../../lib/inspector/_ARCH.md) 按归属 chatId 归还控制权，chunk 加载失败静默不产生 unhandled rejection） | ✅ |
+| `handlerDeps.ts` | 辅助 | 切片共享 import（types、stores、helpers）；`releaseInspectorControls(chatId)` 为共享 fire-and-forget 包装（动态加载 [lib/inspector 共享 `releaseTurnInspectorControls`](../../../../lib/inspector/_ARCH.md) 按归属 chatId 归还控制权，chunk 加载失败静默不产生 unhandled rejection）；`resolveStreamChatId(state)` 解析当前 stream 归属 chatId（优先 `state.chatId`（发送时快照），fallback `messages[0].chatId`；新 chat 首轮 messages 可能为空，避免空 chatId 导致 engage/release 静默 no-op） | ✅ |
 | `companionEvents.ts` | 核心 | `mascot_xp`、`dag`、`catchup_snapshot` 桌宠/Companion 事件 | ✅ |
 | `rateLimitEvents.ts` | 核心 | `rate_limit_updated` / warning 配额告警合并 | ✅ |
 | `agentControlEvents.ts` | 核心 | ERROR、取消、澄清、Goal、审批；ERROR/CANCEL 后 `scheduleFlushPendingGapRetry`；ERROR/AGENT_CANCELLED/CONTEXT_OVERFLOW_RESET 三条终止路径经 [lib/inspector 共享 `releaseTurnInspectorControls`](../../../../lib/inspector/_ARCH.md) 按归属 chatId 归还 desktop + browser inspector 控制状态（均无 MESSAGE_END 跟随；多 pane 并行互不误关） | ✅ |

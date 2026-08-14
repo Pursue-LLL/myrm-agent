@@ -13,7 +13,7 @@
 
 | 文件 / 目录 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `types.ts` | 核心 | `StreamHandlerState` / `StreamHandlerActions` | ✅ |
+| `types.ts` | 核心 | `StreamHandlerState`（含 `chatId`：发送时快照的 stream 归属 chat，供新 chat 首轮在 messages 为空时解析 chatId） / `StreamHandlerActions` | ✅ |
 | `streamContext.ts` | 核心 | 每事件 handler 上下文与 `done()` | ✅ |
 | `handleMessageStream.ts` | 核心 | SSE 事件分发器 | ✅ |
 | `handlers/index.ts` | 核心 | `STREAM_EVENT_HANDLERS` 顺序表 | ✅ |

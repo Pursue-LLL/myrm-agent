@@ -40,7 +40,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
         state.messages.push({
           content: '',
           messageId: data.messageId,
-          chatId: state.messages[0]?.chatId || '',
+          chatId: H.resolveStreamChatId(ctx.state),
           role: 'assistant',
           progressSteps: [],
           createdAt: new Date(),
@@ -142,7 +142,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   if (data.type === H.AgentEventType.BROWSER_VIEW_UPDATE) {
     const { default: useBrowserInspectorStore } = await import('@/store/useBrowserInspectorStore');
     const store = useBrowserInspectorStore.getState();
-    const sourceChatId = state.messages[0]?.chatId?.trim() ?? '';
+    const sourceChatId = H.resolveStreamChatId(state);
     if (!sourceChatId) {
       return done(ctx);
     }
@@ -172,7 +172,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   if (data.type === H.AgentEventType.DESKTOP_VIEW_UPDATE) {
     const { default: useDesktopInspectorStore } = await import('@/store/useDesktopInspectorStore');
     const store = useDesktopInspectorStore.getState();
-    const sourceChatId = state.messages[0]?.chatId?.trim() ?? '';
+    const sourceChatId = H.resolveStreamChatId(state);
     if (!sourceChatId) {
       return done(ctx);
     }
@@ -219,7 +219,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     };
     useDesktopControlApprovalStore.getState().requestApproval(approvalPayload);
 
-    const streamChatId = state.messages[0]?.chatId?.trim() ?? '';
+    const streamChatId = H.resolveStreamChatId(state);
     const { default: useChatStore } = await import('@/store/useChatStore');
     const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
     if (streamChatId && activeChatId && streamChatId === activeChatId) {
@@ -291,7 +291,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       });
     } else {
       const { default: useChatStore } = await import('@/store/useChatStore');
-      const fallbackChatId = state.messages[0]?.chatId?.trim() ?? '';
+      const fallbackChatId = H.resolveStreamChatId(state);
       const chatId = useChatStore.getState().chatId?.trim() || fallbackChatId;
       if (chatId) {
         void (async () => {

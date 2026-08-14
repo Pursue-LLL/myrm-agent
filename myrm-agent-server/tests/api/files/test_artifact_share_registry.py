@@ -138,6 +138,52 @@ async def test_register_share_persists_fingerprint(db_session) -> None:
 
 
 @pytest.mark.asyncio
+async def test_register_share_persists_password_share_path(
+    db_session, html_artifact
+) -> None:
+    """Password-protected rows keep their share_path so the GUI can offer
+    copy/open links even though the token itself cannot be rebuilt."""
+    token, exp = create_artifact_share_token(
+        html_artifact.id, "ver-1", ttl_seconds=3600
+    )
+    record = await register_share(
+        db_session,
+        token=token,
+        artifact_id=html_artifact.id,
+        version_id="ver-1",
+        artifact_type="html",
+        password_protected=True,
+        expires_at_unix=exp,
+        share_path=f"/api/v1/public/artifact-share/{token}",
+    )
+    assert record.share_path == f"/api/v1/public/artifact-share/{token}"
+    rows = await list_active_shares(db_session)
+    assert rows[0].share_path == f"/api/v1/public/artifact-share/{token}"
+
+
+@pytest.mark.asyncio
+async def test_register_share_keeps_unprotected_share_path_null(
+    db_session, html_artifact
+) -> None:
+    """Unprotected rows stay stateless; the path is rebuilt on demand."""
+    token, exp = create_artifact_share_token(
+        html_artifact.id, "ver-1", ttl_seconds=3600
+    )
+    record = await register_share(
+        db_session,
+        token=token,
+        artifact_id=html_artifact.id,
+        version_id="ver-1",
+        artifact_type="html",
+        password_protected=False,
+        expires_at_unix=exp,
+    )
+    assert record.share_path is None
+    rows = await list_active_shares(db_session)
+    assert rows[0].share_path is None
+
+
+@pytest.mark.asyncio
 async def test_rebuild_unprotected_token_matches_original(db_session) -> None:
     """An unprotected token is deterministically rebuilt from registry fields."""
     token, exp = create_artifact_share_token(
@@ -443,10 +489,14 @@ async def test_list_shares_endpoint_exposes_absolute_share_url(
 
 
 @pytest.mark.asyncio
-async def test_list_shares_password_protected_has_no_share_path(
+async def test_list_shares_password_protected_exposes_persisted_share_path(
     share_client, html_artifact
 ) -> None:
-    """Password-protected shares cannot rebuild the token (password not stored)."""
+    """Password-protected shares persist share_path at register time.
+
+    The token cannot be rebuilt because the password is never stored, so the
+    management GUI needs the path stored on the row to offer copy/open links.
+    """
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
@@ -457,12 +507,14 @@ async def test_list_shares_password_protected_has_no_share_path(
             json={"ttl_days": 7, "artifact_type": "html", "password": "s3cret"},
         )
     assert create_resp.status_code == 200
+    created_path = create_resp.json()["share_path"]
 
     list_resp = share_client.get("/shares")
     assert list_resp.status_code == 200
     row = list_resp.json()[0]
     assert row["password_protected"] is True
-    assert row["share_path"] is None
+    assert row["share_path"] == created_path
+    assert row["share_path"].startswith("/api/v1/public/artifact-share/")
 
 
 @pytest.mark.asyncio

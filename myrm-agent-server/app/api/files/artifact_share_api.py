@@ -17,10 +17,12 @@ Vercel deploy, list active links, and revoke them immediately. Registration is
 committed before the token is returned so every issued token is revocable. The
 list endpoint rebuilds each unprotected share path on the fly (deterministic
 HMAC tokens) so links are displayable/copyable without persisting raw tokens;
-password-protected rows expose no path. Create and list responses also carry an
-absolute ``share_url`` derived from the public-ingress SSOT so links stay
-reachable outside the local host in hosted/tunneled deployments (falls back to
-``None`` so the frontend assembles from origin when no ingress is configured).
+password-protected rows carry a persisted ``share_path`` (their token cannot be
+rebuilt because the password is never stored). Create and list responses also
+carry an absolute ``share_url`` derived from the public-ingress SSOT so links
+stay reachable outside the local host in hosted/tunneled deployments (falls
+back to ``None`` so the frontend assembles from origin when no ingress is
+configured).
 """
 
 from __future__ import annotations
@@ -122,11 +124,15 @@ def _absolute_share_url(base: str, share_path: str | None) -> str | None:
 
 
 def _record_share_path(row: ActiveShareRow) -> str | None:
-    """Rebuild the public URL for unprotected shares.
+    """Return the share URL path for a registry row.
 
     Password-protected tokens cannot be reconstructed because the password is
-    never persisted, so those rows carry ``None``.
+    never persisted, so their ``share_path`` is read from the stored column.
+    Unprotected rows stay stateless and are rebuilt on the fly (deterministic
+    HMAC tokens).
     """
+    if row.share_path:
+        return row.share_path
     if row.password_protected:
         return None
     token = rebuild_artifact_share_token(
@@ -200,6 +206,7 @@ async def create_artifact_share_preview(
             artifact_type=share_type,
             password_protected=body.password is not None,
             expires_at_unix=expires_at,
+            share_path=_share_path(token) if body.password is not None else None,
         )
     except Exception as exc:
         logger.error("Failed to register share link: %s", exc)

@@ -26,7 +26,12 @@ def _utcnow() -> datetime:
 
 
 class ArtifactShareRecord(Base):
-    """Immutable share-link metadata plus a nullable revocation timestamp."""
+    """Immutable share-link metadata plus a nullable revocation timestamp.
+
+    ``share_path`` is persisted only for password-protected shares whose token
+    cannot be rebuilt (the password is never stored); unprotected share paths
+    stay stateless and are reconstructed on demand from the fingerprint row.
+    """
 
     __tablename__ = "artifact_share_records"
     __table_args__ = (
@@ -43,3 +48,4 @@ class ArtifactShareRecord(Base):
     created_at = Column(DateTime, default=_utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     revoked_at = Column(DateTime, nullable=True)
+    share_path = Column(String(512), nullable=True)

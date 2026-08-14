@@ -16,7 +16,10 @@ hardened CSP headers, optional password gate, and a manual-revocation gate that
 blocks both existing files and any re-materialization attempt after revoke.
 Every served file carries noindex/nofollow + no-store so shared work products are
 never search-engine indexed and revoking a link cannot be bypassed by browser or
-CDN caches.
+CDN caches. The HMAC unlock credential issued after a correct password keeps the
+share's ``artifact_type`` so extension-less entries (e.g. a PDF artifact named
+without a suffix) still resolve the right media type when the browser re-authenticates
+via the unlock cookie instead of the ``p`` query parameter.
 """
 
 from __future__ import annotations
@@ -115,15 +118,23 @@ def _unlock_cookie_name(token: str) -> str:
 def _build_unlock_credential(claims: ArtifactShareClaims) -> str | None:
     """Issue a short-lived credential after a correct password unlock.
 
-    Stateless HMAC token that carries the same artifact identity and expiry as
-    the share token, so static-asset requests (which cannot carry the password)
-    are authorized without re-entering it.
+    Stateless HMAC token that carries the same artifact identity, type, and
+    expiry as the share token, so static-asset requests (which cannot carry
+    the password) are authorized without re-entering it and keep resolving
+    the correct media type for extension-less entries.
     """
     remaining = claims.exp - int(time.time())
     if remaining < 60:
         return None
+    payload: dict[str, object] = {
+        "aid": claims.artifact_id,
+        "vid": claims.version_id,
+        "exp": claims.exp,
+    }
+    if claims.artifact_type and claims.artifact_type.strip():
+        payload["typ"] = claims.artifact_type.strip().lower()
     credential, _ = create_share_token(
-        {"aid": claims.artifact_id, "vid": claims.version_id, "exp": claims.exp},
+        payload,
         salt=_UNLOCK_SALT,
         ttl_seconds=remaining,
         max_ttl_seconds=30 * 24 * 3600,
@@ -145,7 +156,14 @@ def _unlock_claims_from_cookie(value: str) -> ArtifactShareClaims | None:
         or not isinstance(exp, int)
     ):
         return None
-    return ArtifactShareClaims(artifact_id=artifact_id, version_id=version_id, exp=exp)
+    artifact_type_raw = parsed.get("typ")
+    artifact_type = artifact_type_raw if isinstance(artifact_type_raw, str) else None
+    return ArtifactShareClaims(
+        artifact_id=artifact_id,
+        version_id=version_id,
+        exp=exp,
+        artifact_type=artifact_type,
+    )
 
 
 def _attach_unlock_cookie(

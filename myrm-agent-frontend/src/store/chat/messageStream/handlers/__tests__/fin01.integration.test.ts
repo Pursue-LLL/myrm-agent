@@ -48,6 +48,8 @@ vi.mock('../handlerDeps', () => ({
   normalizeGoalState: vi.fn(),
   getUserFriendlyError: vi.fn(async () => ({ message: 'Error', hint: undefined })),
   releaseInspectorControls: vi.fn(),
+  resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
+    state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
   useChatStore: {
     getState: vi.fn(() => ({ chatId: 'c1', setWorkspaceDir: vi.fn(), initializeChat: vi.fn() })),
   },
