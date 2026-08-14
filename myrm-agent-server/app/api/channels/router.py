@@ -81,6 +81,18 @@ def _channel_config_key(channel_name: str) -> str | None:
     return _CHANNEL_CONFIG_KEYS.get(channel_name)
 
 
+def channel_credentials_key(channel_name: str) -> str:
+    """Resolve the UserConfig config_key for a channel or instance credentials.
+
+    Default channels use the registered mapping (e.g. ``wechatCredentials``);
+    instance channels (``{type}_{instance_id}``) fall back to
+    ``{channel_name}Credentials``.
+    """
+    from app.channels.core.credentials import channel_credentials_config_key
+
+    return channel_credentials_config_key(channel_name, _CHANNEL_CONFIG_KEYS)
+
+
 # ── Status & Toggle ──────────────────────────────────────────
 
 

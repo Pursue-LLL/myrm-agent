@@ -219,10 +219,9 @@ async def _persist_login_credentials(channel_name: str, channel: object) -> None
         logger.warning("No credentials to persist for '%s' after login", channel_name)
         return
 
-    from app.api.channels.router import _CHANNEL_CONFIG_KEYS
-    from app.channels.core.credentials import channel_credentials_config_key
+    from app.api.channels.router import channel_credentials_key
 
-    config_key = channel_credentials_config_key(channel_name, _CHANNEL_CONFIG_KEYS)
+    config_key = channel_credentials_key(channel_name)
 
     camel_creds: dict[str, object] = {
         "botToken": creds.bot_token,

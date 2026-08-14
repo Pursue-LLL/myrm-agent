@@ -92,7 +92,11 @@ export function WikiConceptDetailPanel({
               )}
               {selectedConcept.source_chat && (
                 <Link
-                  href={`/${selectedConcept.source_chat}`}
+                  href={
+                    selectedConcept.source_message
+                      ? `/${selectedConcept.source_chat}?highlight=${encodeURIComponent(selectedConcept.source_message)}`
+                      : `/${selectedConcept.source_chat}`
+                  }
                   className="text-xs text-primary hover:underline shrink-0"
                 >
                   {t('sourceChat')}

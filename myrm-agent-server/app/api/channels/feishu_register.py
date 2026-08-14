@@ -259,7 +259,7 @@ async def _provision_feishu_instance(
     ``feishu_{id}Credentials``, hot-registers the channel in the gateway,
     and records it in the persisted instance list.
     """
-    from app.channels.core.credentials import channel_credentials_config_key
+    from app.api.channels.router import channel_credentials_key
     from app.core.channel_bridge import channel_gateway
     from app.core.channel_bridge.channel_factory import (
         create_channel_instance as factory_create,
@@ -272,7 +272,7 @@ async def _provision_feishu_instance(
     from app.services.config.service import ConfigService
 
     instance_id = generate_instance_id()
-    config_key = channel_credentials_config_key(f"feishu_{instance_id}")
+    config_key = channel_credentials_key(f"feishu_{instance_id}")
 
     await ConfigService().set(config_key, value, device_id="feishu-qr-register")
 
