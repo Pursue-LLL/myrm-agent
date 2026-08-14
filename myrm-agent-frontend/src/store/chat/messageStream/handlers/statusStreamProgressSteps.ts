@@ -136,6 +136,17 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
                         typeof data.data?.message === 'string'
                       ? data.data.message
                       : '';
+  // dropped-manifest: constraint snippets evicted by compaction, surfaced so the
+  // user can tell "compression dropped my instruction" from "the model ignored
+  // it" (fault-side attribution, InteractionCentricFailureLocalizerStack).
+  const droppedManifest =
+    stepKey === 'context_compaction' && data.data?.phase === 'completed'
+      ? (data.data as Record<string, unknown> | undefined)?.dropped_manifest
+      : undefined;
+  const droppedManifestItems =
+    Array.isArray(droppedManifest) && droppedManifest.length > 0
+      ? droppedManifest.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      : [];
   const isRestartDrop =
     stepKey === 'model_failover' ||
     stepKey === 'safety_fallback_active' ||
@@ -206,6 +217,13 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
                 ? 'complete'
                 : data.status,
       };
+      if (droppedManifestItems.length > 0) {
+        progressStep.dropped_manifest = droppedManifestItems;
+        const baseItems = Array.isArray(progressStep.items) ? [...progressStep.items] : [];
+        if (baseItems.length === 0) {
+          progressStep.items = droppedManifestItems.map((item) => ({ text: item }));
+        }
+      }
       if (stepKey === 'workflow_stage') {
         const sd = data.data as Record<string, unknown> | undefined;
         if (sd) {

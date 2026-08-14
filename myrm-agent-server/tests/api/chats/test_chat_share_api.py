@@ -887,3 +887,82 @@ class TestPublicSharePage:
             resp = share_client.get(f"/public/chat-share/{old_token}?p=s3cret")
             assert resp.status_code == 404
             assert share_client.get(f"/public/chat-share/{new_token}?p=s3cret").status_code == 200
+
+    def test_invalid_unlock_cookie_keeps_gate(self, share_client: TestClient) -> None:
+        """A malformed unlock cookie must not bypass the password gate."""
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
+        from app.core.security.share_unlock import unlock_cookie_name
+
+        resp = share_client.get(
+            f"/public/chat-share/{token}",
+            headers={"Cookie": f"{unlock_cookie_name('chat_share_unlock', token)}=garbage"},
+        )
+        assert resp.status_code == 403
+        assert "Password Required" in resp.text
+
+    def test_unlock_cookie_with_non_string_chat_id_keeps_gate(
+        self, share_client: TestClient
+    ) -> None:
+        """A validly-signed unlock credential with wrong claim types must not bypass."""
+        import time
+
+        from app.core.security.share_hmac import sign_share_token
+        from app.core.security.share_unlock import unlock_cookie_name
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
+        # Signed with the chat unlock salt but with a non-string cid.
+        credential = sign_share_token(
+            {"cid": 12345, "exp": int(time.time()) + 300},
+            salt="chat-share-unlock",
+            exp=int(time.time()) + 300,
+        )
+        resp = share_client.get(
+            f"/public/chat-share/{token}",
+            headers={"Cookie": f"{unlock_cookie_name('chat_share_unlock', token)}={credential}"},
+        )
+        assert resp.status_code == 403
+        assert "Password Required" in resp.text
+
+    def test_chat_missing_still_404(self, share_client: TestClient) -> None:
+        """A share whose chat has been deleted answers 404 Content Unavailable."""
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-ghost", ttl_seconds=3600)
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            resp = share_client.get(
+                f"/public/chat-share/{token}",
+                headers={"Accept": "text/html"},
+            )
+        assert resp.status_code == 404
+        assert "Content Unavailable" in resp.text
+
+    def test_render_failure_still_404(self, share_client: TestClient) -> None:
+        """A share whose renderer cannot materialize content answers 404."""
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600)
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=_make_chat_dto(),
+            ),
+            patch(
+                "app.api.chats.chat.share.render_share_html",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+        ):
+            resp = share_client.get(
+                f"/public/chat-share/{token}",
+                headers={"Accept": "text/html"},
+            )
+        assert resp.status_code == 404
+        assert "Content Unavailable" in resp.text

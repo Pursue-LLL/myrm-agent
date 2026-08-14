@@ -15,6 +15,7 @@ reproducible with real git; mocked subprocess tests cannot catch them.
 
 from __future__ import annotations
 
+import asyncio
 import subprocess
 from pathlib import Path
 
@@ -332,3 +333,114 @@ async def test_merge_rejects_unusable_target_branch(git_repo: Path) -> None:
     # Worktree preserved; base_dir still on main.
     assert Path(wt).exists()
     assert _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+
+
+@pytest.mark.asyncio
+async def test_cleanup_preserves_dirty_worktree(git_repo: Path) -> None:
+    """Safe cleanup keeps a worktree with uncommitted agent edits instead of
+    force-deleting it (ARCHIVED/FAILED data-loss protection).
+
+    Only a committed worktree may be removed; a dirty one must survive so the
+    user can recover the agent's uncommitted file-tool edits.
+    """
+    store = InMemoryKanbanStore()
+    task = await _seed_task(store, task_id="tj", base=str(git_repo), branch="main")
+
+    wt = await create_worktree(str(git_repo), "main", task.task_id)
+    assert isinstance(wt, str)
+    (Path(wt) / "uncommitted.txt").write_text("agent edit\n", encoding="utf-8")
+
+    removed = await cleanup_worktree(store, task)
+    assert removed is False
+    # Dirty worktree and its uncommitted file survive.
+    assert Path(wt).exists()
+    assert (Path(wt) / "uncommitted.txt").read_text(encoding="utf-8") == "agent edit\n"
+
+    # After committing, safe cleanup removes the worktree.
+    _commit_in(Path(wt), "task-j commit")
+    removed = await cleanup_worktree(store, task)
+    assert removed is True
+    assert not Path(wt).exists()
+
+
+@pytest.mark.asyncio
+async def test_concurrent_merges_serialize_without_failure(git_repo: Path) -> None:
+    """Two tasks merging on the same base_dir concurrently must both succeed.
+
+    The per-base_dir merge lock serializes access to git's shared index; the
+    pre-fix behavior observed one of two concurrent merges fail with
+    "Unable to write index".
+    """
+    store = InMemoryKanbanStore()
+    task_a = await _seed_task(store, task_id="tk", base=str(git_repo), branch="main")
+    task_b = await _seed_task(store, task_id="tl", base=str(git_repo), branch="main")
+
+    wt_a = await create_worktree(str(git_repo), "main", task_a.task_id)
+    wt_b = await create_worktree(str(git_repo), "main", task_b.task_id)
+    assert isinstance(wt_a, str) and isinstance(wt_b, str)
+
+    (Path(wt_a) / "x.txt").write_text("a\n", encoding="utf-8")
+    _commit_in(Path(wt_a), "task-k commit")
+    (Path(wt_b) / "y.txt").write_text("b\n", encoding="utf-8")
+    _commit_in(Path(wt_b), "task-l commit")
+
+    results = await asyncio.gather(
+        merge_task_worktree(store, task_a),
+        merge_task_worktree(store, task_b),
+    )
+    assert results == [True, True]
+    # Both commits landed on main and both worktrees were cleaned up.
+    log = _run_git(git_repo, "log", "--oneline", "-4", "main").stdout
+    assert "task-k commit" in log
+    assert "task-l commit" in log
+    assert not Path(wt_a).exists()
+    assert not Path(wt_b).exists()
+
+
+@pytest.mark.asyncio
+async def test_merge_conflict_emits_event_when_store_provided(git_repo: Path) -> None:
+    """A failed merge appends a MERGE_CONFLICT event so users see the task's
+    code never landed on its branch.
+
+    move_orchestrator passes a store into merge_task_worktree; a conflicting
+    merge must surface as an observable task event rather than a silent log.
+    """
+    store = InMemoryKanbanStore()
+    task = await _seed_task(store, task_id="tm", base=str(git_repo), branch="main")
+
+    wt = await create_worktree(str(git_repo), "main", task.task_id)
+    assert isinstance(wt, str)
+    (Path(wt) / "a.txt").write_text("task-m conflict\n", encoding="utf-8")
+    _commit_in(Path(wt), "task-m conflicting commit")
+
+    (git_repo / "a.txt").write_text("main side\n", encoding="utf-8")
+    _commit_in(git_repo, "main-side change")
+
+    from app.services.kanban.move_orchestrator import merge_task_worktree as orchestrate
+
+    merged = await orchestrate(_FakeRunner(store), task, store)
+    assert merged is False
+
+    events = await store.list_events(task.task_id)
+    kinds = [e.kind.value for e in events]
+    assert "merge_conflict" in kinds
+    conflict = next(e for e in events if e.kind.value == "merge_conflict")
+    assert conflict.payload is not None
+    assert "branch" in conflict.payload
+
+
+class _FakeRunner:
+    """Minimal TaskRunner exposing merge_task_worktree for orchestration tests."""
+
+    def __init__(self, store: InMemoryKanbanStore) -> None:
+        self._store = store
+
+    async def merge_task_worktree(self, task: KanbanTask) -> bool:
+        from app.services.kanban.task_runner.worktree import (
+            merge_task_worktree as merge,
+        )
+
+        return await merge(self._store, task)
+
+    async def cleanup_worktree(self, task: KanbanTask) -> bool:
+        return True

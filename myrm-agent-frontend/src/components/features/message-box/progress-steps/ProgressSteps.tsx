@@ -418,8 +418,30 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
               {step.archive_restore_actions && step.archive_restore_actions.length > 0 && (
                 <ArchiveRestoreStepAction actions={step.archive_restore_actions} block={step.archive_restore_block} />
               )}
-
               {step.archive_restore_result && <ArchiveRestoreResultChip result={step.archive_restore_result} />}
+
+              {step.dropped_manifest && step.dropped_manifest.length > 0 && (
+                <div className="mt-2 p-2.5 rounded-lg border bg-muted/40 border-border/60">
+                  <div className="text-[11px] font-medium text-foreground/70 mb-1.5">
+                    {t('dropped_manifest_title')}
+                  </div>
+                  <ul className="space-y-1">
+                    {step.dropped_manifest.slice(0, 3).map((item, itemIdx) => (
+                      <li
+                        key={itemIdx}
+                        className="text-[11px] leading-relaxed text-foreground/80 italic break-all whitespace-pre-wrap"
+                      >
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  {step.dropped_manifest.length > 3 && (
+                    <div className="mt-1 text-[10px] text-muted-foreground">
+                      {t('dropped_manifest_more', { count: step.dropped_manifest.length - 3 })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <LiveTerminal
                 stdout={step.stdout}

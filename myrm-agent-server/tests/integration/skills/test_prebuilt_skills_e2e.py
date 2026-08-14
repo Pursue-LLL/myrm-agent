@@ -452,6 +452,8 @@ async def test_tdd_skill_v120_contract_guard(
     assert "run the artifact and assert its effects" in body
     assert '"The test passes immediately"' in body, "missing Red Flags test-passes-immediately"
     assert "Fix the test to fail first" in body
+    assert '"Can\'t explain why test failed"' in body, "missing Red Flags cant-explain-why-failed"
+    assert "Figure out the failure cause first" in body
 
     ref_path = get_skill_file_path(
         SkillType.PREBUILT,

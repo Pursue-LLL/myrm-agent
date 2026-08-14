@@ -110,3 +110,73 @@ def test_rejects_malformed_input() -> None:
     assert parse_share_token("", salt=_SALT) is None
     assert parse_share_token("no-dot-here", salt=_SALT) is None
     assert parse_share_token("not-base64.abcdef", salt=_SALT) is None
+
+
+def test_rejects_unknown_token_version() -> None:
+    """A token carrying an unsupported version must be rejected."""
+    from app.core.security.share_hmac import (
+        b64url_encode,
+        sign_share_token,
+    )
+
+    base, sig = sign_share_token(
+        {"x": 1}, salt=_SALT, exp=int(time.time()) + 300,
+    ).rsplit(".", 1)
+    # Rewrite the version field to an unknown one; the signature check is
+    # reached after the version gate, so tampering breaks both.
+    import json
+
+    raw = json.loads(b64url_decode(base))
+    raw["v"] = 999
+    forged = b64url_encode(json.dumps(raw, separators=(",", ":")).encode("utf-8"))
+    assert parse_share_token(f"{forged}.{sig}", salt=_SALT) is None
+
+
+def test_signing_secret_falls_back_to_state_dir() -> None:
+    """When no secret is configured the signing key degrades to state_dir."""
+    from app.core.security.share_hmac import _signing_secret
+
+    with (
+        patch(
+            "app.core.security.share_hmac.settings.config_encryption_key.get_secret_value",
+            return_value="",
+        ),
+        patch(
+            "app.core.security.share_hmac.settings.internal_service_key.get_secret_value",
+            return_value="  ",
+        ),
+        patch(
+            "app.core.security.share_hmac.settings.sandbox_api_key.get_secret_value",
+            return_value=None,
+        ),
+        patch(
+            "app.core.security.share_hmac.settings.database.state_dir",
+            new="myrm-test-dir",
+        ),
+    ):
+        key = _signing_secret("test-salt")
+    assert key != b""
+
+
+def test_signing_secret_uses_configured_key() -> None:
+    """When a secret is configured it is used as the signing base key."""
+    from app.core.security.share_hmac import _signing_secret
+
+    with (
+        patch(
+            "app.core.security.share_hmac.settings.config_encryption_key.get_secret_value",
+            return_value="  my-enc-key  ",
+        ),
+        patch(
+            "app.core.security.share_hmac.settings.internal_service_key.get_secret_value",
+            return_value="other-key",
+        ),
+    ):
+        key = _signing_secret("test-salt")
+    assert key != b""
+    # A different configured key must derive a different signing secret.
+    with patch(
+        "app.core.security.share_hmac.settings.config_encryption_key.get_secret_value",
+        return_value="  my-enc-key-2  ",
+    ):
+        assert _signing_secret("test-salt") != key

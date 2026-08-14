@@ -75,3 +75,17 @@ def test_password_token_rejects_wrong_password() -> None:
 def test_non_password_token_not_protected() -> None:
     token, _ = create_chat_share_token("chat-1")
     assert is_password_protected(token) is False
+
+
+def test_share_token_rejects_non_string_chat_id() -> None:
+    """A validly-signed token whose cid claim is not a string must be rejected."""
+    import time
+
+    from app.core.security.share_hmac import sign_share_token
+
+    token = sign_share_token(
+        {"cid": 12345},
+        salt="chat-share",
+        exp=int(time.time()) + 3600,
+    )
+    assert parse_chat_share_token(token) is None

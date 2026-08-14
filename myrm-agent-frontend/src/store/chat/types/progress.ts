@@ -59,6 +59,9 @@ export type ProgressItem = {
   notify_level?: 'info' | 'warn' | 'alert'; // notify 等级（用于渲染颜色）
   notify_category?: string; // 业务分类（如 parse / render）
   recovery_actions?: RecoveryAction[]; // LLM 错误恢复操作按钮
+  // context_compaction completed 事件附带：被压缩丢弃的用户约束片段（脱敏后），
+  // 用于「压缩删约束 vs 模型未遵循」分锅提示
+  dropped_manifest?: string[]; // 压缩丢弃的用户约束片段
   archive_restore_block?: ArchiveRestoreBlockPayload; // 归档恢复阻断详情，用于聊天流内恢复入口
   archive_restore_actions?: ArchiveRestoreAction[]; // 可直接发送的 typed archive restore actions
   archive_restore_result?: ArchiveRestoreResultPayload; // typed archive restore 恢复结果

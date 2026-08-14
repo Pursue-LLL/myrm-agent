@@ -132,6 +132,7 @@ If you catch yourself:
 - "This is too simple for tests" → Simple code gets complex. Start testing now.
 - "I'll test the whole flow instead" → Integration tests don't replace unit tests.
 - "The test passes immediately" → You're testing existing behavior. Fix the test to fail first.
+- "Can't explain why test failed" → Stop. Figure out the failure cause first; a test you can't explain protects nothing.
 
 ## Writing Good Tests
 
