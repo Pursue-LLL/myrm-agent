@@ -8,6 +8,9 @@ import logging
 from fastapi import APIRouter
 
 from app.api.memory.follow_ups import router as follow_ups_router
+from app.api.memory.migration_readiness_seed import (
+    router as migration_readiness_fixture_router,
+)
 from app.api.memory.operations import (
     backup,
     backup_remote,
@@ -21,9 +24,6 @@ from app.api.memory.operations import (
     shared_context_migration,
     shared_contexts,
     working_state,
-)
-from app.api.memory.migration_readiness_seed import (
-    router as migration_readiness_fixture_router,
 )
 
 logger = logging.getLogger(__name__)

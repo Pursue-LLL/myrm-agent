@@ -105,6 +105,7 @@ Write the SIMPLEST code that makes the test pass:
 2. **Don't anticipate future tests** — solve only this test
 3. **Run ALL tests** — new test passes, existing tests still pass
 4. **If a test fails**, fix ONLY that failure
+5. **It's OK to cheat in GREEN** — hardcoded returns, copy-paste, and ugly shortcuts are legal here; REFACTOR is where they get cleaned up
 
 ```bash
 pytest tests/ -q
@@ -119,6 +120,7 @@ Now that tests are green, improve the code:
 2. **Improve naming** — make intent clear
 3. **Simplify** — remove unnecessary complexity
 4. **Run tests after every change** — stay green
+5. **If tests fail during refactor** — undo immediately, take smaller steps
 
 ## When to Use
 
