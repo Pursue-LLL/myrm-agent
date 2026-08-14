@@ -8934,6 +8934,8 @@
     "context_compaction_circuit_open": "壓縮暫不可用，已切換快速回退",
     "context_compaction_fallback": "壓縮降級，使用快速回退",
     "context_compaction_completed": "上下文壓縮完成",
+    "dropped_manifest_title": "以下指令在壓縮時被裁剪出上下文。若仍有重要內容，請重新說明：",
+    "dropped_manifest_more": "還有 {count} 條被裁剪的指令",
     "visionBackend": {
       "vlm": "視覺模型",
       "ocr": "OCR 降級",

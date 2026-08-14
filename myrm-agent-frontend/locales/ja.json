@@ -8934,6 +8934,8 @@
     "context_compaction_circuit_open": "圧縮を利用できません。フォールバックを使用",
     "context_compaction_fallback": "圧縮が低下しました。高速フォールバックを使用",
     "context_compaction_completed": "コンテキストの圧縮に成功しました",
+    "dropped_manifest_title": "以下の指示は圧縮中にコンテキストから削除されました。重要なら再度お伝えください：",
+    "dropped_manifest_more": "他に {count} 件の指示が削除されました",
     "visionBackend": {
       "vlm": "視覚モデル",
       "ocr": "OCRフォールバック",

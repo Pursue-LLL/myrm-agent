@@ -8708,6 +8708,8 @@
     "context_compaction_circuit_open": "압축 사용 불가, 폴백 사용 중",
     "context_compaction_fallback": "압축 저하, 빠른 폴백 사용 중",
     "context_compaction_completed": "컨텍스트가 성공적으로 압축되었습니다",
+    "dropped_manifest_title": "압축 중 다음 지시사항이 컨텍스트에서 제거되었습니다. 중요한 내용이라면 다시 말씀해 주세요：",
+    "dropped_manifest_more": "그 외 {count}개의 지시사항이 제거되었습니다",
     "visionBackend": {
       "vlm": "비전 모델",
       "ocr": "OCR 폴백",

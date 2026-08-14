@@ -8852,6 +8852,8 @@
     "context_compaction_circuit_open": "Compression unavailable, using fallback",
     "context_compaction_fallback": "Compression degraded, using fast fallback",
     "context_compaction_completed": "Context compressed successfully",
+    "dropped_manifest_title": "These instructions were trimmed from context during compression. If any are still important, please restate them:",
+    "dropped_manifest_more": "+{count} more trimmed instruction(s)",
     "memory_archived": "Agent archived early history to maintain extreme focus",
     "context_pruned": "Pruned expired cached context",
     "archive_checkpoint": "Stored archive summary for later recall",

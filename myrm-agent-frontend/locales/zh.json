@@ -8852,6 +8852,8 @@
     "context_compaction_circuit_open": "压缩暂不可用，已切换快速回退",
     "context_compaction_fallback": "压缩降级，使用快速回退",
     "context_compaction_completed": "上下文压缩完成",
+    "dropped_manifest_title": "以下指令在压缩时被裁剪出上下文。若仍有重要内容，请重新说明：",
+    "dropped_manifest_more": "还有 {count} 条被裁剪的指令",
     "memory_archived": "Agent 归档了早期历史，保持极致专注",
     "context_pruned": "已清理过期缓存上下文",
     "archive_checkpoint": "已保存归档摘要，便于后续召回",

@@ -34,11 +34,11 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 | └─ `spec_io.py` | ✅ 核心 | Pipeline frontmatter 解析；`TaskSeed.repeat_for_item_skills` 按 repeat 项注入技能 | ✅ |
 | `board_ops.py` | ✅ 核心 | Board CRUD + `project_id/milestone_id` 作用域校验与绑定；`update_board` 在 settings 变更时热刷新运行中 dispatcher（`refresh_board`） | ❌ |
 | `task_ops.py` | ✅ 核心 | Task add/update/delete；update 对 `require_approval` 有状态守卫（IN_REVIEW/COMPLETED/FAILED/ARCHIVED 禁改，仅活动状态 TRIAGE/BACKLOG/READY/RUNNING/BLOCKED 可改，避免审批流程开始后语义矛盾） | ❌ |
-| `move_orchestrator.py` | ✅ 核心 | move/reclaim/cancel 编排；IN_REVIEW 源/目标守卫（手动 move 绕过审批禁止） | ❌ |
+| `move_orchestrator.py` | ✅ 核心 | move/reclaim/cancel 编排；IN_REVIEW 源/目标守卫（手动 move 绕过审批禁止）；COMPLETED 触发 worktree merge（失败追加 `MERGE_CONFLICT` 事件）、ARCHIVED 触发 safe cleanup（dirty worktree 保留） | ❌ |
 | `review_ops.py` | ✅ 核心 | IN_REVIEW 审批编排：approve→COMPLETED（promote dependents、error 清空）、reject→READY（reason 回写 error、retry_count 重置），优先委托 dispatcher，fallback 走 store 原子 CAS 流转 + 统一 action（task_completed/task_rejected）+ 完成/驳回通知补发（emit_task_rejected）；非 IN_REVIEW 幂等 no-op | ✅ |
 | `dependency_ops.py` | ✅ 核心 | 依赖边 CRUD、promote | ❌ |
 | `board_summary.py` | ✅ 核心 | `build_board_summary`（含 `stale_running_count`） | ❌ |
-| `dispatcher_lifecycle.py` | ✅ 核心 | Dispatcher 启停、boot recovery；注册 task_completed/failed/blocked、task_review_requested 与 task_rejected 通知回调；注册 `BatchDirectoryService.dispatcher_event_hook`（批量目录项目终态检测 → 完成/失败通知） | ❌ |
+| `dispatcher_lifecycle.py` | ✅ 核心 | Dispatcher 启停、boot recovery；注册 task_completed/failed/blocked、task_review_requested 与 task_rejected 通知回调；task_completed 钩子把 store 传入 merge（失败可追加 `MERGE_CONFLICT` 事件）；注册 `BatchDirectoryService.dispatcher_event_hook`（批量目录项目终态检测 → 完成/失败通知） | ❌ |
 | `event_publisher.py` | ✅ 核心 | SSE ServerEventBus 发布、`emit_btw_done`、`emit_source_chat_done`（completed/failed/blocked，scheduled block 跳过，共用 `_terminal_status`/`_terminal_result`）、`emit_review_requested`（IN_REVIEW 进入时 pending_review 通知）、`emit_task_rejected`（reject 时 rejected 通知，共用 `_publish_task_notice`）；`_build_background_done_payload` 统一构造 BACKGROUND_TASK_DONE 载荷（BTW/source_chat 路由，thread_id/user_id 空值兜底，含 board_id 供通知点击直达看板 in_review 列） | ❌ |
 | `query_ops.py` | ✅ 核心 | Store 只读查询（含 `source_chat_id` / `project_id` 过滤）与 user comment | ❌ |
 | `kanban_attach_handler.py` | ✅ 核心 | Worker `kanban_attach` 回调：workspace 路径（相对路径与 `/workspace/...` 抽象路径按 resolve_workspace 基准解析，适配 worktree 隔离）+ HTTPS URL（SSRF guard）→ files vault + task attachment_ids | ✅ |
