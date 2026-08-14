@@ -11,6 +11,9 @@ Validates:
 8. Config loader failure defaults to enabled
 9. Empty stream does not persist message
 10. Chat history is loaded before stream
+11. Startup scan DB failure is swallowed (boot safety)
+12. Non-dict stream chunks are skipped defensively
+13. Marker cleanup failure is swallowed
 """
 
 from __future__ import annotations
@@ -541,3 +544,96 @@ async def test_dispatch_injects_runtime_context():
     assert isinstance(extra_context, dict)
     assert extra_context["execution_mode"] == "pooled"
     assert extra_context["disabled_skill_roots"] == ["skills/prebuilt/off"]
+
+
+@pytest.mark.asyncio
+async def test_startup_scan_swallows_db_failure():
+    """Startup scan DB failure is swallowed so startup continues safely."""
+    factory = MagicMock()
+    db = AsyncMock()
+    db.commit = AsyncMock()
+    db.execute = AsyncMock(side_effect=RuntimeError("db unavailable"))
+    factory.return_value.__aenter__ = AsyncMock(return_value=db)
+    factory.return_value.__aexit__ = AsyncMock(return_value=False)
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(return_value=MagicMock(personal_settings_dict={})),
+        ),
+    ):
+        from app.lifecycle.auto_continue import auto_continue_interrupted_turns
+
+        await auto_continue_interrupted_turns()
+
+
+@pytest.mark.asyncio
+async def test_dispatch_ignores_non_dict_chunks():
+    """Stream chunks that are not dicts are skipped defensively."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    async def _stream_with_non_dict(*_a, **_kw):
+        yield "raw-string-chunk"
+        yield {"type": "message", "data": "ok"}
+
+    mock_persist = AsyncMock()
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_stream_with_non_dict),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            AsyncMock(),
+        ),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
+
+    mock_persist.assert_awaited_once()
+    assert mock_persist.call_args[0][1] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_cleanup_failure_is_swallowed():
+    """Marker cleanup failure in finally is swallowed without raising."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+    db.execute = AsyncMock(side_effect=[MagicMock(), RuntimeError("cleanup db down")])
+
+    async def _fake_stream(*_a, **_kw):
+        yield {"type": "message", "data": "ok"}
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", AsyncMock()),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            AsyncMock(),
+        ),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
