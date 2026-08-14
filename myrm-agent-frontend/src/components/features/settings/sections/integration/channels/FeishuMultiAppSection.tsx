@@ -21,13 +21,7 @@ export function FeishuMultiAppSection() {
   const [statuses, setStatuses] = useState<ChannelStatus[]>([]);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-  const {
-    extraInstances,
-    loading,
-    refresh,
-    removeInstance,
-    renameInstance,
-  } = useChannelInstances({
+  const { extraInstances, loading, refresh, removeInstance, renameInstance } = useChannelInstances({
     channelType: 'feishu',
     primaryName: 'feishu',
     i18nPrefix: 'feishu',
@@ -49,13 +43,10 @@ export function FeishuMultiAppSection() {
     [statuses],
   );
 
-  const handleQrSuccess = useCallback(
-    () => {
-      void refresh();
-      refreshStatuses();
-    },
-    [refresh, refreshStatuses],
-  );
+  const handleQrSuccess = useCallback(() => {
+    void refresh();
+    refreshStatuses();
+  }, [refresh, refreshStatuses]);
 
   const handleAddClick = useCallback(() => {
     setAddDialogOpen(true);
@@ -166,8 +157,12 @@ function FeishuAppCard({
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {commitEdit();}
-                if (e.key === 'Escape') {cancelEdit();}
+                if (e.key === 'Enter') {
+                  commitEdit();
+                }
+                if (e.key === 'Escape') {
+                  cancelEdit();
+                }
               }}
               onBlur={commitEdit}
               className="h-5 w-28 rounded border bg-background px-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring"

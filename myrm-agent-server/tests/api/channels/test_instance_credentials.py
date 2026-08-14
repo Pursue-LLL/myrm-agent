@@ -366,3 +366,63 @@ async def test_api_create_instance_persists_credentials() -> None:
     async with get_session() as session:
         await session.execute(UserConfig.__table__.delete())
         await session.commit()
+
+
+# ── credentials endpoint stores encrypted & returns redacted ─────────
+
+
+@pytest.mark.asyncio
+async def test_save_channel_credentials_encrypts_instance_key() -> None:
+    """The credentials endpoint must store instance keys encrypted at rest."""
+    from sqlalchemy import select
+
+    from app.api.channels.instances import save_channel_credentials
+    from app.api.channels.router import channel_credentials_key
+    from app.database.connection import get_session
+    from app.database.models import UserConfig
+
+    channel_name = f"feishu_{uuid.uuid4().hex[:8]}"
+    creds = {"appId": "cli_endpoint", "appSecret": "sec_endpoint", "useLark": "false"}
+
+    with patch("app.core.channel_bridge.channel_gateway.bus") as mock_bus:
+        mock_bus.get_channel.return_value = None
+        result = await save_channel_credentials(channel_name, creds)
+
+    assert result["status"] == "saved"
+
+    config_key = channel_credentials_key(channel_name)
+    async with get_session() as session:
+        row = (
+            await session.execute(select(UserConfig).where(UserConfig.config_key == config_key))
+        ).scalar_one_or_none()
+    assert row is not None
+    assert row.is_encrypted is True
+    assert "_cipher" in row.config_value
+
+    async with get_session() as session:
+        await session.execute(UserConfig.__table__.delete())
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_get_channel_credentials_redacts_secret_fields() -> None:
+    """Reading credentials returns decrypted values with secret fields redacted."""
+    from app.api.channels.instances import get_channel_credentials
+    from app.api.channels.router import channel_credentials_key
+    from app.services.config.service import ConfigService
+
+    channel_name = f"feishu_{uuid.uuid4().hex[:8]}"
+    config_key = channel_credentials_key(channel_name)
+    await ConfigService().set(
+        config_key,
+        {"appId": "cli_redact", "appSecret": "long_secret_value", "botOpenId": "ou_123"},
+        device_id="test",
+    )
+
+    try:
+        result = await get_channel_credentials(channel_name)
+        assert result["appId"] == "cli_redact"
+        assert result["appSecret"] == "•" * (len("long_secret_value") - 4) + "long_secret_value"[-4:]
+        assert result["botOpenId"] == "ou_123"
+    finally:
+        await ConfigService().delete(config_key)

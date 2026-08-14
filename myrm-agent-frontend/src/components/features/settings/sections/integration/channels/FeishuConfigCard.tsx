@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
@@ -57,9 +57,9 @@ export function FeishuConfigCard() {
     i18nPrefix: 'feishu',
   });
 
-  const handleQrSuccess = () => {
+  const handleQrSuccess = useCallback(() => {
     refreshCreds?.();
-  };
+  }, [refreshCreds]);
 
   if (loading) {
     return (
@@ -263,7 +263,7 @@ export function FeishuConfigCard() {
         <FeishuMultiAppSection />
       </div>
 
-      <FeishuQrRegisterDialog open={qrDialogOpen} onOpenChange={setQrDialogOpen} onSuccess={handleQrSuccess} />    </div>
+      <FeishuQrRegisterDialog open={qrDialogOpen} onOpenChange={setQrDialogOpen} onSuccess={handleQrSuccess} />
+    </div>
   );
 }
-
