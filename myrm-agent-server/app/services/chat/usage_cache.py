@@ -40,9 +40,7 @@ class ChatUsageCache:
         self._last_message_ids: dict[str, str | None] = {}
         self._values: dict[str, dict[str, int | float]] = {}
 
-    def get(
-        self, chat_id: str, last_message_id: str | None
-    ) -> dict[str, int | float] | None:
+    def get(self, chat_id: str, last_message_id: str | None) -> dict[str, int | float] | None:
         """Return the cached aggregate if it is fresh and covers the same messages."""
         touched = self._touched_at.get(chat_id)
         if touched is None:

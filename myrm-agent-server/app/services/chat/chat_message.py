@@ -5,10 +5,11 @@
 - database.dto::MessageDTO (POS: 消息数据传输对象)
 - chat_helpers::ALLOWED_MESSAGE_ROLES (POS: 合法消息角色集合)
 - conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
-- core.utils.session_id::is_safe_session_id (POS: session_id/chat_id 文件路径插值白名单校验)
+- chat_usage_sync::sync_chat_usage (POS: Chat.total_* 用量缓存重建)
+- chat_memory_events::record_memory_influence_event (POS: 记忆影响账本投影)
 
 [OUTPUT]
-- _ChatMessageMixin: 消息追加、分页查询、全量查询、按 id 查询、assistant 消息安全持久化与记忆影响账本记录
+- _ChatMessageMixin: 消息追加、分页查询、全量查询、按 id 查询、assistant 消息安全持久化
 
 [POS]
 消息持久化编排层。提供消息追加（含自动 chat 元数据更新）、
@@ -22,21 +23,18 @@ import logging
 from datetime import datetime
 from uuid import uuid4
 
-from myrm_agent_harness.toolkits.memory import MemoryInfluenceRef
-
 from app.database.dto import ChatDTO, MessageDTO
 from app.database.repositories.uow import UnitOfWork
 
 from ._base import _ChatServiceBase
 from .chat_helpers import ALLOWED_MESSAGE_ROLES
+from .chat_memory_events import record_memory_influence_event
+from .chat_usage_sync import sync_chat_usage
 from .conversation_recall_index_service import ConversationRecallIndexService
-from .usage_cache import ChatUsageCache
 
 logger = logging.getLogger(__name__)
 
 _RECALL_INDEX_TIMEOUT_SECONDS = 2.0
-
-_chat_usage_cache = ChatUsageCache()
 
 
 class _ChatMessageMixin(_ChatServiceBase):
@@ -103,9 +101,7 @@ class _ChatMessageMixin(_ChatServiceBase):
         sibling_group_id: str | None = None,
     ) -> MessageDTO:
         if role not in ALLOWED_MESSAGE_ROLES:
-            raise ValueError(
-                f"Invalid message role: {role!r}. Must be one of {ALLOWED_MESSAGE_ROLES}"
-            )
+            raise ValueError(f"Invalid message role: {role!r}. Must be one of {ALLOWED_MESSAGE_ROLES}")
 
         try:
             from app.core.eval.adaptive import mark_chat_activity
@@ -177,9 +173,7 @@ class _ChatMessageMixin(_ChatServiceBase):
                     id=chat_id,
                     agent_id=agent_id,
                     action_mode=action_mode,
-                    active_moa_preset_id=(
-                        active_moa_preset_id if persist_moa_preset else None
-                    ),
+                    active_moa_preset_id=(active_moa_preset_id if persist_moa_preset else None),
                     ephemeral_subagents=ephemeral_subagents,
                     is_incognito=is_incognito,
                     created_at=datetime.utcnow(),
@@ -191,10 +185,7 @@ class _ChatMessageMixin(_ChatServiceBase):
                 await sess.flush()
             else:
                 field_updates: dict[str, object] = {}
-                if (
-                    ephemeral_subagents is not None
-                    and chat.ephemeral_subagents != ephemeral_subagents
-                ):
+                if ephemeral_subagents is not None and chat.ephemeral_subagents != ephemeral_subagents:
                     field_updates["ephemeral_subagents"] = ephemeral_subagents
                 if agent_id and chat.agent_id != agent_id:
                     field_updates["agent_id"] = agent_id
@@ -202,15 +193,11 @@ class _ChatMessageMixin(_ChatServiceBase):
                     field_updates["action_mode"] = action_mode
                     field_updates["active_moa_preset_id"] = active_moa_preset_id
                 if field_updates:
-                    await _ChatServiceBase._cr(uow).update_chat_fields(
-                        chat_id, field_updates
-                    )
+                    await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, field_updates)
 
             resolved_message_id = message_id or str(uuid4())
             if message_id:
-                existing = await _ChatServiceBase._cr(uow).get_message_by_id(
-                    chat_id, message_id
-                )
+                existing = await _ChatServiceBase._cr(uow).get_message_by_id(chat_id, message_id)
                 if existing is not None:
                     if existing.role == "user" and existing.content == content:
                         logger.info(
@@ -267,9 +254,7 @@ class _ChatMessageMixin(_ChatServiceBase):
     ) -> tuple[list[MessageDTO], bool]:
         limit = min(limit, 100)
         async with UnitOfWork() as uow:
-            messages = await _ChatServiceBase._cr(uow).get_messages_paginated(
-                chat_id, before, limit + 1
-            )
+            messages = await _ChatServiceBase._cr(uow).get_messages_paginated(chat_id, before, limit + 1)
             has_more = len(messages) > limit
             result_msgs = list(reversed(messages[:limit]))
             return (result_msgs, has_more)
@@ -282,9 +267,7 @@ class _ChatMessageMixin(_ChatServiceBase):
     @staticmethod
     async def get_message_by_id(chat_id: str, message_id: str) -> MessageDTO | None:
         async with UnitOfWork() as uow:
-            return await _ChatServiceBase._cr(uow).get_message_by_id(
-                chat_id, message_id
-            )
+            return await _ChatServiceBase._cr(uow).get_message_by_id(chat_id, message_id)
 
     @staticmethod
     async def persist_assistant_message_safe(
@@ -316,7 +299,7 @@ class _ChatMessageMixin(_ChatServiceBase):
                 extra_data=extra_data,
                 sibling_group_id=sibling_group_id,
             )
-            await _record_memory_influence_event(
+            await record_memory_influence_event(
                 chat_id=chat_id,
                 message_id=msg.id,
                 content=content,
@@ -327,215 +310,4 @@ class _ChatMessageMixin(_ChatServiceBase):
             await sync_chat_usage(chat_id)
 
         except Exception as e:
-            logger.error(
-                "Failed to persist assistant message for chat %s: %s", chat_id, e
-            )
-
-
-async def sync_chat_usage(chat_id: str) -> None:
-    """Rebuild Chat.total_calls/total_tokens/total_usd from assistant messages.
-
-    Aggregates the ``tokenEconomics`` snapshots persisted on assistant message
-    rows and overwrites the chat usage cache columns. The aggregation result is
-    cached with the last aggregated message id so consecutive turns within the
-    TTL window reuse the aggregate while a new or sibling-switched message
-    forces a rebuild. Best-effort: failures are logged and never break the
-    caller (the cache is rebuilt lazily on the next sync).
-    """
-    from app.core.utils.session_id import is_safe_session_id
-    from app.services.statistics.usage_aggregation import aggregate_chat_usage_rows
-
-    if not is_safe_session_id(chat_id):
-        return
-    try:
-        async with UnitOfWork() as uow:
-            extras, last_message_id = await _ChatServiceBase._cr(
-                uow
-            ).get_assistant_extra_data(chat_id)
-        cached = _chat_usage_cache.get(chat_id, last_message_id)
-        if cached is not None:
-            usage_updates = cached
-        else:
-            usage_updates = aggregate_chat_usage_rows(extras)
-            _chat_usage_cache.set(chat_id, last_message_id, usage_updates)
-        async with UnitOfWork() as uow:
-            await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, usage_updates)
-    except Exception as err:
-        logger.error(f"Failed to sync usage ledger to DB for chat {chat_id}: {err}")
-
-
-async def _record_memory_influence_event(
-    *,
-    chat_id: str,
-    message_id: str,
-    content: str,
-    extra_data: dict[str, object] | None,
-) -> None:
-    if not extra_data:
-        return
-    refs = _memory_influence_refs(extra_data)
-    traces = _memory_retrieval_traces(extra_data)
-    if not refs and not traces:
-        return
-    try:
-        from myrm_agent_harness.toolkits.memory import (
-            MemoryOperationKind,
-            MemoryOperationStatus,
-        )
-
-        from app.database.connection import get_session
-        from app.services.memory.operation_ledger import MemoryOperationLedgerService
-
-        async with get_session() as db:
-            ledger = MemoryOperationLedgerService(db)
-            for trace in traces:
-                trace_id = _optional_str(trace.get("id"))
-                query_preview = _optional_str(trace.get("query_preview")) or ""
-                result_count = _dict_int(trace, "result_count")
-                for index, step in enumerate(_trace_steps(trace)):
-                    phase = _optional_str(step.get("phase")) or "recall"
-                    status_value = _optional_str(step.get("status"))
-                    status = MemoryOperationStatus.SUCCESS
-                    if status_value == "skipped":
-                        status = MemoryOperationStatus.SKIPPED
-                    elif status_value == "warning":
-                        status = MemoryOperationStatus.WARNING
-                    elif status_value == "error":
-                        status = MemoryOperationStatus.ERROR
-                    output_count = _dict_int(step, "output_count")
-                    await ledger.record_event(
-                        kind=MemoryOperationKind.RECALL,
-                        status=status,
-                        summary=str(step.get("summary") or step.get("title") or phase)[
-                            :240
-                        ],
-                        source="memory_retrieval_trace",
-                        target_kind="chat",
-                        target_id=chat_id,
-                        correlation_id=message_id,
-                        metadata={
-                            "message_id": message_id,
-                            "chat_id": chat_id,
-                            "trace_id": trace_id,
-                            "query_preview": query_preview[:180],
-                            "step_index": index,
-                            "step_phase": phase,
-                            "step_title": str(step.get("title") or phase)[:80],
-                            "output_count": output_count,
-                            "result_count": result_count,
-                            "duration_ms": _optional_float(step.get("duration_ms")),
-                        },
-                    )
-            if refs:
-                await ledger.record_event(
-                    kind=MemoryOperationKind.CITE,
-                    status=MemoryOperationStatus.SUCCESS,
-                    summary=f"Assistant answer used {len(refs)} recalled memories: {content[:120]}",
-                    source="agent_stream",
-                    target_kind="chat",
-                    target_id=chat_id,
-                    correlation_id=message_id,
-                    influence_refs=refs,
-                    metadata={
-                        "message_id": message_id,
-                        "chat_id": chat_id,
-                        "influence_count": len(refs),
-                    },
-                )
-            await db.commit()
-    except Exception as exc:
-        logger.warning(
-            "Failed to record memory influence event for chat %s: %s", chat_id, exc
-        )
-
-
-def _memory_influence_refs(extra_data: dict[str, object]) -> list[MemoryInfluenceRef]:
-    raw_refs = extra_data.get("citedMemoryRefs")
-    if not isinstance(raw_refs, list):
-        return []
-    refs: list[MemoryInfluenceRef] = []
-    for raw_ref in raw_refs:
-        if not isinstance(raw_ref, dict):
-            continue
-        memory_id = raw_ref.get("id")
-        memory_type = raw_ref.get("memory_type")
-        if not isinstance(memory_id, str) or not isinstance(memory_type, str):
-            continue
-        raw_namespaces = raw_ref.get("namespaces")
-        refs.append(
-            MemoryInfluenceRef(
-                memory_id=memory_id,
-                memory_type=memory_type,
-                score=_optional_float(raw_ref.get("score")),
-                content_preview=str(raw_ref.get("content") or "")[:220],
-                primary_namespace=_optional_str(raw_ref.get("primary_namespace")),
-                namespaces=(
-                    [str(item) for item in raw_namespaces if isinstance(item, str)]
-                    if isinstance(raw_namespaces, list)
-                    else []
-                ),
-                source_chat_id=_optional_str(raw_ref.get("source_chat_id")),
-                source_message_id=_optional_str(raw_ref.get("source_message_id")),
-                reason="memory_search_tool",
-            )
-        )
-    return refs
-
-
-def _memory_retrieval_traces(extra_data: dict[str, object]) -> list[dict[str, object]]:
-    raw_traces = extra_data.get("memoryRetrievalTraces")
-    if not isinstance(raw_traces, list):
-        return []
-    traces: list[dict[str, object]] = []
-    for raw_trace in raw_traces:
-        if isinstance(raw_trace, dict):
-            traces.append(
-                {
-                    str(key): value
-                    for key, value in raw_trace.items()
-                    if isinstance(key, str)
-                }
-            )
-    return traces
-
-
-def _trace_steps(trace: dict[str, object]) -> list[dict[str, object]]:
-    raw_steps = trace.get("steps")
-    if not isinstance(raw_steps, list):
-        return []
-    steps: list[dict[str, object]] = []
-    for raw_step in raw_steps:
-        if isinstance(raw_step, dict):
-            steps.append(
-                {
-                    str(key): value
-                    for key, value in raw_step.items()
-                    if isinstance(key, str)
-                }
-            )
-    return steps
-
-
-def _optional_str(value: object) -> str | None:
-    return value if isinstance(value, str) and value else None
-
-
-def _optional_float(value: object) -> float | None:
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    return None
-
-
-def _dict_int(value: object, key: str) -> int:
-    if not isinstance(value, dict):
-        return 0
-    raw = value.get(key)
-    if isinstance(raw, bool):
-        return 0
-    if isinstance(raw, int):
-        return max(raw, 0)
-    if isinstance(raw, float):
-        return max(int(raw), 0)
-    return 0
+            logger.error("Failed to persist assistant message for chat %s: %s", chat_id, e)

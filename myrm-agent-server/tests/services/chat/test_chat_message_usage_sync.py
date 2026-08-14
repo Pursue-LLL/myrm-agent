@@ -10,8 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Chat
-from app.services.chat.chat_message import _chat_usage_cache
 from app.services.chat.chat_service import ChatService
+from app.services.chat.chat_usage_sync import _chat_usage_cache
 
 
 @pytest.fixture(autouse=True)

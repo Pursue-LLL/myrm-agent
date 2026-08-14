@@ -65,7 +65,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         counting removed messages. ``sync_chat_usage`` is best-effort, so this
         never blocks or fails the mutation itself.
         """
-        from .chat_message import sync_chat_usage
+        from .chat_usage_sync import sync_chat_usage
 
         await sync_chat_usage(chat_id)
 
