@@ -101,6 +101,7 @@ describe('useReferenceMention chat mode', () => {
         type: 'prior_chat',
         path: 'prior-chat-1',
         fileId: 'prior-chat-1',
+        viaText: true,
       }),
     );
   });

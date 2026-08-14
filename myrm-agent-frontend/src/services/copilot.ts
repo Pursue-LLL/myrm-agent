@@ -29,7 +29,7 @@ export interface AdvisorMessage {
 }
 
 export async function fetchRunDigest(chatId: string): Promise<RunDigest | null> {
-  const res = await fetchWithTimeout(`/agents/chats/${chatId}/copilot/run-digest`);
+  const res = await fetchWithTimeout(`/chats/${chatId}/copilot/run-digest`);
   if (!res.ok) {return null;}
   const json = (await res.json()) as { data?: { digest?: RunDigest | null } };
   return json.data?.digest ?? null;
@@ -40,7 +40,7 @@ export async function askAdvisor(
   question: string,
   selectionSnippet?: string,
 ): Promise<{ reply: string; tier: string; message: AdvisorMessage } | null> {
-  const res = await fetchWithTimeout(`/agents/chats/${chatId}/copilot/advisor/ask`, {
+  const res = await fetchWithTimeout(`/chats/${chatId}/copilot/advisor/ask`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -57,14 +57,14 @@ export async function askAdvisor(
 }
 
 export async function fetchAdvisorMessages(chatId: string): Promise<AdvisorMessage[]> {
-  const res = await fetchWithTimeout(`/agents/chats/${chatId}/copilot/advisor/messages`);
+  const res = await fetchWithTimeout(`/chats/${chatId}/copilot/advisor/messages`);
   if (!res.ok) {return [];}
   const json = (await res.json()) as { data?: { messages?: AdvisorMessage[] } };
   return json.data?.messages ?? [];
 }
 
 export async function clearAdvisorMessages(chatId: string): Promise<void> {
-  await fetchWithTimeout(`/agents/chats/${chatId}/copilot/advisor/messages`, {
+  await fetchWithTimeout(`/chats/${chatId}/copilot/advisor/messages`, {
     method: 'DELETE',
   });
 }

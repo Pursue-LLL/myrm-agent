@@ -80,7 +80,9 @@ _TIER0_ASK_JS = """(() => {
   const input = document.querySelector('[data-testid="copilot-advisor-input"]');
   const send = document.querySelector('[data-testid="copilot-advisor-send"]');
   if (!input || !send) return { ok: false, err: 'missing-advisor-controls' };
-  input.value = '现在在干嘛？';
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+  if (!setter) return { ok: false, err: 'setter-not-found' };
+  setter.call(input, '现在在干嘛？');
   input.dispatchEvent(new Event('input', { bubbles: true }));
   send.click();
   return { ok: true };
@@ -114,7 +116,8 @@ _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
       const selection = window.getSelection();
       selection?.removeAllRanges();
       selection?.addRange(range);
-      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      const target = node.parentElement ?? document.body;
+      target.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
       return { ok: true, selected: selection?.toString?.() || '' };
     }
     node = walker.nextNode();
@@ -124,7 +127,16 @@ _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
 
 _QUOTE_ADVISOR_READY_JS = """(() => {
   const btn = document.querySelector('[data-testid="quote-toolbar-advisor-ask"]');
-  return { ready: !!btn };
+  const portal = document.getElementById('quote-toolbar-portal');
+  const sel = window.getSelection();
+  return {
+    ready: !!btn,
+    btn: !!btn,
+    portal: !!portal,
+    loading: window.__MYRM_E2E_CHAT__?.getChatShellState?.().loading,
+    selText: sel?.toString?.().slice(0, 40) ?? '',
+    selCollapsed: sel?.isCollapsed,
+  };
 })()"""
 
 _CLICK_QUOTE_ADVISOR_JS = """(() => {

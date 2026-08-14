@@ -607,6 +607,46 @@ async def test_public_access_denied_after_revoke(
 
 
 @pytest.mark.asyncio
+async def test_revoked_share_browser_gets_status_page(
+    share_client, html_artifact, tmp_path
+) -> None:
+    """A revoked token answers browsers with a friendly status page, API JSON 404."""
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, _single_file_files()),
+    ):
+        create_resp = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html"},
+        )
+    assert create_resp.status_code == 200
+    token = create_resp.json()["token"]
+
+    record_id = share_client.get("/shares").json()[0]["id"]
+    assert share_client.delete(f"/shares/{record_id}").status_code == 204
+
+    html_resp = share_client.get(
+        f"/public/artifact-share/{token}",
+        headers={"Accept": "text/html"},
+        follow_redirects=False,
+    )
+    json_resp = share_client.get(
+        f"/public/artifact-share/{token}",
+        headers={"Accept": "application/json"},
+        follow_redirects=False,
+    )
+    assert html_resp.status_code == 404
+    assert html_resp.headers["content-type"].startswith("text/html")
+    assert html_resp.headers["x-robots-tag"] == "noindex, nofollow"
+    assert html_resp.headers["cache-control"] == "no-store"
+    assert "Link Revoked" in html_resp.text
+    assert json_resp.status_code == 404
+    assert json_resp.headers["content-type"].startswith("application/json")
+    assert "revoked" in json_resp.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_revoked_password_share_skips_password_gate(
     share_client, html_artifact
 ) -> None:

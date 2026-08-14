@@ -324,14 +324,15 @@ class TestPollConsumedGuard:
 
         with patch("app.api.channels.feishu_register._save_credentials_to_db", new_callable=AsyncMock) as mock_save:
             mock_save.side_effect = ValueError("Instance limit reached")
-            resp = await client.post(
-                "/channels/manage/feishu/qr-register/poll",
-                json={"session_id": session_id},
-            )
+            with pytest.raises(ValueError, match="Instance limit reached"):
+                await client.post(
+                    "/channels/manage/feishu/qr-register/poll",
+                    json={"session_id": session_id},
+                )
 
-        assert resp.status_code == 500
+        # The session is gone, so a subsequent poll 404s instead of observing
+        # `consumed` and falsely reporting a success.
         assert session_id not in _active_sessions
-        # A subsequent poll must 404 instead of observing `consumed` and falsely reporting success.
         resp2 = await client.post(
             "/channels/manage/feishu/qr-register/poll",
             json={"session_id": session_id},
@@ -348,12 +349,12 @@ class TestPollConsumedGuard:
         session_id = "test_session_probe_fail"
         _active_sessions[session_id] = _RegistrationSession(registration=mock_reg, device_code="dc_test")
 
-        resp = await client.post(
-            "/channels/manage/feishu/qr-register/poll",
-            json={"session_id": session_id},
-        )
+        with pytest.raises(RuntimeError, match="bot API unavailable"):
+            await client.post(
+                "/channels/manage/feishu/qr-register/poll",
+                json={"session_id": session_id},
+            )
 
-        assert resp.status_code == 500
         assert session_id not in _active_sessions
 
 

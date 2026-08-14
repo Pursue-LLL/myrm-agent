@@ -20,7 +20,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | `session_lifecycle.py` | 核心 | `resolve_execution_mode`、`finalize_agent_session`（release 前 refresh_unit） | ✅ |
 | `prewarm/` | 核心 | Turn1 冷启动预热（见 [prewarm/_ARCH.md](prewarm/_ARCH.md)） | ✅ |
 
-测试：`tests/services/agent/execution_cache/`（registry + fingerprint MoA preset bust + prewarm coordinator）· `tests/api/agent/test_prewarm_api.py` · Chrome E2E `tests/e2e/test_execution_cache_chrome_e2e.py`（prewarm log + 2msg1build）。
+测试：`tests/services/agent/execution_cache/`（registry + fingerprint MoA preset/记忆配置 bust + prewarm coordinator）· `tests/api/agent/test_prewarm_api.py` · Chrome E2E `tests/e2e/test_execution_cache_chrome_e2e.py`（prewarm log + 2msg1build）。
 
 ---
 

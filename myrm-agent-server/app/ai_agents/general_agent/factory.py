@@ -1,5 +1,5 @@
 """[INPUT]
-- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 门面与运行时配置容器)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现)
 - app.ai_agents.general_agent.llm_factory::create_agent_llms (POS: 创建 LLM 实例)
 - myrm_agent_harness.api.create_skill_agent (POS: SkillAgent 组装入口)
 

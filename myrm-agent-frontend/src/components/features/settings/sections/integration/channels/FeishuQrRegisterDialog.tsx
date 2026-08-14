@@ -54,6 +54,7 @@ export function FeishuQrRegisterDialog({
   const [appLabel, setAppLabel] = useState(displayName ?? '');
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const resolvedRef = useRef(false);
 
   const cleanupTimers = useCallback(() => {
     if (pollTimerRef.current) {
@@ -74,14 +75,17 @@ export function FeishuQrRegisterDialog({
       setQrStatus('idle');
       setQrUrl('');
       setQrCountdown(0);
+      resolvedRef.current = false;
     } else {
       cleanupTimers();
       setQrStatus('idle');
       setQrUrl('');
+      resolvedRef.current = false;
     }
   }, [open, displayName, cleanupTimers]);
 
   const handleStartQRRegister = useCallback(async () => {
+    resolvedRef.current = false;
     setQrStatus('loading');
     try {
       const body: Record<string, string> = {};
@@ -118,15 +122,28 @@ export function FeishuQrRegisterDialog({
             });
 
             if (poll.status === 'success') {
+              resolvedRef.current = true;
               cleanupTimers();
               setQrStatus('success');
               onSuccess?.({ instanceId: poll.instance_id ?? null, channelName: poll.channel_name ?? null });
               setTimeout(() => onOpenChange(false), 1500);
             } else if (poll.status === 'denied' || poll.status === 'expired') {
+              resolvedRef.current = true;
               cleanupTimers();
               setQrStatus('failed');
             }
-          } catch {
+          } catch (err) {
+            // Ignore failures after a terminal status was already reached:
+            // an in-flight poll may 404 because the winning poll consumed the
+            // session, and must not overwrite `success` with `failed`.
+            if (!resolvedRef.current && err instanceof ApiError) {
+              resolvedRef.current = true;
+              cleanupTimers();
+              // HTTP error means the session was dropped server-side (404),
+              // provisioning failed (500), or the service is unavailable (503).
+              // Fail fast instead of scanning until expiry.
+              setQrStatus('failed');
+            }
             /* network hiccup, keep polling */
           }
         },

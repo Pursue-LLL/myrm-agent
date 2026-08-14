@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
 from app.api.dependencies import get_workspace_root
 from app.api.files.artifact_share_api import router as share_router
@@ -37,6 +38,23 @@ from app.services.artifacts.share_token import (
     parse_artifact_share_token,
 )
 from app.services.hosting.packager import PublishFile
+
+
+def _api_client_request() -> Request:
+    """A browser-free request scope so status helpers raise JSON 404s."""
+    return Request(
+        scope={
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [(b"accept", b"application/json")],
+            "server": ("testserver", 80),
+            "client": ("testclient", 50000),
+            "scheme": "http",
+            "query_string": b"",
+            "root_path": "",
+        }
+    )
 
 
 @pytest.fixture
@@ -1743,7 +1761,7 @@ async def test_serve_bundle_materialize_error_mapping(
         side_effect=exc,
     ):
         with pytest.raises(HTTPException) as exc_info:
-            await _serve_share_bundle(claims, None, "/tmp", None)
+            await _serve_share_bundle(claims, None, "/tmp", None, _api_client_request())
     assert exc_info.value.status_code == status
 
 
@@ -1761,7 +1779,7 @@ async def test_serve_bundle_missing_after_materialize(share_client) -> None:
         new_callable=AsyncMock,
     ):
         with pytest.raises(HTTPException) as exc_info:
-            await _serve_share_bundle(claims, None, "/tmp", None)
+            await _serve_share_bundle(claims, None, "/tmp", None, _api_client_request())
     assert exc_info.value.status_code == 404
 
 

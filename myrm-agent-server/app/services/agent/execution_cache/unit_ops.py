@@ -2,7 +2,7 @@
 
 [INPUT]
 - execution_cache.types::BuiltExecutionUnit (POS: 可复用构建单元)
-- app.ai_agents.general_agent.agent::GeneralAgent (POS: 业务 Agent 包装层)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现)
 
 [OUTPUT]
 - capture_built_unit, apply_built_unit, detach_wrapper_refs

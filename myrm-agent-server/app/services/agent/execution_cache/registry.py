@@ -1,7 +1,7 @@
 """Chat-scoped execution cache for built SkillAgent units.
 
 [INPUT]
-- myrm_agent_harness.api::SkillAgent (POS: harness agent instance)
+- myrm_agent_harness.api::SkillAgent (POS: harness agent 实例)
 
 [OUTPUT]
 - ChatAgentExecutionCache: reuse BuiltExecutionUnit per chat+agent scope
@@ -9,7 +9,8 @@
 - close_execution_cache_for_chat(): chat delete hook
 
 [POS]
-Server business layer. Mirrors ChatRuntimePoolRegistry lifecycle semantics.
+execution_cache 缓存注册表。维护 chat+agent 作用域的 BuiltExecutionUnit 池
+（acquire/release/refresh/guard_turn/idle-evict），进程级 singleton。
 """
 
 from __future__ import annotations

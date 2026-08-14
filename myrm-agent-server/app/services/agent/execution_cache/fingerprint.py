@@ -1,7 +1,7 @@
 """Execution fingerprint — server inputs for harness runtime spec hashing.
 
 [INPUT]
-- app.ai_agents.general_agent.agent::GeneralAgent (POS: 业务 Agent 包装层)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现)
 
 [OUTPUT]
 - compute_execution_fingerprint, build_execution_scope_key

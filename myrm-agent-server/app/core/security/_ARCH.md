@@ -29,6 +29,7 @@ security/
 ├── llm_reviewer.py      # 动态 LLM 适配器（Transcript Classifier）
 ├── share_hmac.py        # 公共分享链接 HMAC 签名原语（含密码门支持）
 ├── share_headers.py     # 分享响应公共隐私头（noindex/nofollow + no-store + no-referrer，chat/artifact 双端共用）
+├── share_status_page.py # 分享失效页（浏览器 HTML 状态页 / API JSON 404 按 Accept 分流）
 ├── share_unlock.py      # 分享链接解锁 cookie 公共机制（HttpOnly/SameSite/60s 阈值单点）
 ├── pii_actions.py       # PII action 字符串安全解析（非法/缺失值回退默认，防崩溃）
 ├── integration_write_patterns.py # 业务层 shell 命令分析集成写模式（委托框架层注册）
@@ -55,6 +56,7 @@ security/
 | `pii_actions.py` | 持久化 PII action 字符串安全解析：缺失/非法值回退默认枚举，杜绝非法配置导致 agent 初始化或记忆提取崩溃（retry 与 security extension 共用） |
 | `share_hmac.py` | 公共分享链接通用 HMAC-SHA256 签名层，支持可选密码门（密码参与 key 派生，无状态设计）|
 | `share_headers.py` | 分享响应公共隐私头常量（`X-Robots-Tag: noindex, nofollow` + `Cache-Control: no-store` + `Referrer-Policy: no-referrer`），chat 与 artifact 分享双端共用，防搜索引擎收录、防浏览器/CDN 缓存绕过撤销、防 token 型 URL 经 Referer 泄露 |
+| `share_status_page.py` | 分享链接失效页统一渲染：按 Accept 头分流（浏览器 `text/html` 返回自包含 HTML 状态页，API 客户端返回 JSON 404），覆盖过期/已撤销/内容不可用场景，页面自带 noindex 隐私 meta，不泄露 token 格式或存储内部信息 |
 | `share_unlock.py` | 分享链接解锁 cookie 公共机制：per-share cookie 名派生、60s 最小剩余 TTL 阈值、HttpOnly/SameSite=strict/Secure 属性、HMAC 凭证签发与解析；artifact 与 chat 分享双端共用，安全参数单点维护 |
 | `share_password_page.py` | 密码门自包含 HTML 页面模板（支持暗色模式、错误提示）+ 提交密码解析（表单 POST body 读取，GET 兼容旧 `?p=` query；密码不进 URL，CWE-598 防护） |
 | `integration_write_patterns.py` | 业务层 shell 命令分析的集成写模式：委托框架层 `register_integration_write_patterns` 注册 |
