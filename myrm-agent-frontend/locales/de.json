@@ -11971,6 +11971,7 @@
     "decomposeApply": "Erstellen Sie {count} Kinder",
     "decomposedChildren": "{count} untergeordnete Aufgaben erstellt",
     "timedOutDetail": "Zeitüberschreitung nach {elapsed}s (Limit {limit}s)",
+    "mergeConflictDetail": "Die Aufgabe wurde abgeschlossen, aber die Änderungen konnten nicht in den Branch {branch} zusammengeführt werden",
     "approvedBy": "Genehmigt von {approver}",
     "rejectedBy": "Abgelehnt von {approver}",
     "pipelineFromTemplate": "Aus Vorlage",

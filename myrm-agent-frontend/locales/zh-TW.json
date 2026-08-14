@@ -12214,6 +12214,7 @@
     "decomposeApply": "建立 {count} 個子任務",
     "decomposedChildren": "已建立 {count} 個子任務",
     "timedOutDetail": "執行超時，已執行 {elapsed} 秒（限制 {limit} 秒）",
+    "mergeConflictDetail": "任務已完成，但變更未能合併到分支 {branch}",
     "approvedBy": "由 {approver} 批准",
     "rejectedBy": "由 {approver} 駁回",
     "pipelineFromTemplate": "從模板建立",
