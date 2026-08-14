@@ -12,8 +12,8 @@ const chatStoreRef = vi.hoisted(() => ({
 }));
 
 const commandStoreRef = vi.hoisted(() => ({
-  getAllItems: vi.fn((): SlashCommand[] => []),
-  searchItems: vi.fn((): SlashCommand[] => []),
+  getAllItems: vi.fn<() => SlashItem[]>(() => []),
+  searchItems: vi.fn<(query: string) => SlashItem[]>(() => []),
   recordUsage: vi.fn(),
 }));
 
@@ -65,7 +65,7 @@ vi.mock('@/store/useFeatureGateStore', () => {
 });
 
 import { useSlashCommand } from '@/hooks/message-input/useSlashCommand';
-import type { SlashAction, SlashCommand } from '@/types/command';
+import type { SlashAction, SlashCommand, SlashItem } from '@/types/command';
 
 const skillAction: SlashAction = {
   id: 'skill:report_writer_skill',

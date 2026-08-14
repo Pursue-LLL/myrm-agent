@@ -61,7 +61,6 @@ def _model_sig(model_cfg: ModelConfig | None) -> dict[str, object] | None:
         return None
     return {
         "model": model_cfg.model,
-        "provider": getattr(model_cfg, "provider", None),
         "base_url": model_cfg.base_url,
         "max_context_tokens": model_cfg.max_context_tokens,
         "supports_vision": model_cfg.supports_vision,
@@ -70,10 +69,10 @@ def _model_sig(model_cfg: ModelConfig | None) -> dict[str, object] | None:
     }
 
 
-def _model_list_sig(model_cfgs: list[ModelConfig] | None) -> list[dict[str, object] | None] | None:
+def _model_list_sig(model_cfgs: list[ModelConfig] | None) -> list[dict[str, object]] | None:
     if not model_cfgs:
         return None
-    return [_model_sig(cfg) for cfg in model_cfgs]
+    return [sig for cfg in model_cfgs if (sig := _model_sig(cfg)) is not None]
 
 
 def _serialize_mcp_configs(agent_wrapper: GeneralAgent) -> list[dict[str, object]]:

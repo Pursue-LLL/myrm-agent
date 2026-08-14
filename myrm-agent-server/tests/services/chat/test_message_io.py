@@ -116,7 +116,9 @@ def _make_message(
 async def test_load_chat_returns_chat() -> None:
     db = AsyncMock()
     expected = Chat(id="chat-load", compacted_summary=None)
-    db.execute.return_value.scalar_one_or_none.return_value = expected
+    result_mock = MagicMock()
+    result_mock.scalar_one_or_none.return_value = expected
+    db.execute.return_value = result_mock
 
     result = await load_chat(db, "chat-load")
 
@@ -127,7 +129,9 @@ async def test_load_chat_returns_chat() -> None:
 @pytest.mark.asyncio
 async def test_load_chat_returns_none_when_missing() -> None:
     db = AsyncMock()
-    db.execute.return_value.scalar_one_or_none.return_value = None
+    result_mock = MagicMock()
+    result_mock.scalar_one_or_none.return_value = None
+    db.execute.return_value = result_mock
 
     result = await load_chat(db, "chat-missing")
 
@@ -139,7 +143,9 @@ async def test_load_compactable_messages_without_anchor() -> None:
     db = AsyncMock()
     chat = Chat(id="chat-plain", compacted_before_id=None)
     messages = [_make_message("chat-plain", 0), _make_message("chat-plain", 1)]
-    db.execute.return_value.scalars.return_value.all.return_value = messages
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = messages
+    db.execute.return_value = result_mock
 
     result = await load_compactable_messages(db, chat)
 
@@ -153,10 +159,11 @@ async def test_load_compactable_messages_with_anchor_filters_after() -> None:
     anchor_ts = datetime(2026, 8, 1, tzinfo=UTC)
     chat = Chat(id="chat-anchor", compacted_before_id="msg-anchor")
     messages = [_make_message("chat-anchor", 9, created_at=anchor_ts)]
-    db.execute.side_effect = [
-        MagicMock(scalar_one_or_none=MagicMock(return_value=anchor_ts)),
-        MagicMock(scalars=MagicMock(all=MagicMock(return_value=messages))),
-    ]
+    anchor_mock = MagicMock()
+    anchor_mock.scalar_one_or_none.return_value = anchor_ts
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = messages
+    db.execute.side_effect = [anchor_mock, result_mock]
 
     result = await load_compactable_messages(db, chat)
 
@@ -168,10 +175,11 @@ async def test_load_compactable_messages_with_anchor_filters_after() -> None:
 async def test_load_compactable_messages_with_anchor_missing_ts() -> None:
     db = AsyncMock()
     chat = Chat(id="chat-anchor-missing", compacted_before_id="msg-gone")
-    db.execute.side_effect = [
-        MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
-        MagicMock(scalars=MagicMock(all=MagicMock(return_value=[]))),
-    ]
+    anchor_mock = MagicMock()
+    anchor_mock.scalar_one_or_none.return_value = None
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = []
+    db.execute.side_effect = [anchor_mock, result_mock]
 
     result = await load_compactable_messages(db, chat)
 
@@ -207,7 +215,7 @@ async def test_backup_context_writes_jsonl() -> None:
     storage = AsyncMock()
 
     with patch(
-        "app.services.chat.compact.message_io.get_storage_provider",
+        "app.platform_utils.get_storage_provider",
         return_value=storage,
     ):
         result = await backup_context(chat, messages)
@@ -228,7 +236,7 @@ async def test_backup_context_returns_none_on_failure() -> None:
     storage.write.side_effect = RuntimeError("disk full")
 
     with patch(
-        "app.services.chat.compact.message_io.get_storage_provider",
+        "app.platform_utils.get_storage_provider",
         return_value=storage,
     ):
         result = await backup_context(chat, [])

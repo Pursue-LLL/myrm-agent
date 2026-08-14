@@ -7618,7 +7618,10 @@
       "ttlLabel": "有效期",
       "successProtected": "密码保护链接已创建，有效期 {days} 天。",
       "localFallback": "分享链接仅在云托管模式下可用。请使用导出 HTML 进行本地分享。",
-      "error": "创建分享链接失败"
+      "error": "创建分享链接失败",
+      "loading": "正在检查分享状态...",
+      "revokedStatus": "该分享链接已撤回。创建新链接可重新分享。",
+      "passwordProtectedStatus": "密码保护的分享链接生效中。持有链接和密码的人可以查看。"
     },
     "exportMessage": {
       "markdown": "导出为 Markdown",

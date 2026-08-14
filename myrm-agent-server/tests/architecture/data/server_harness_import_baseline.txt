@@ -89,7 +89,6 @@ myrm_agent_harness.agent.middlewares.completion
 myrm_agent_harness.agent.middlewares.guardrails
 myrm_agent_harness.agent.middlewares.guardrails.core
 myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware
-myrm_agent_harness.agent.middlewares.memory_context_middleware
 myrm_agent_harness.agent.middlewares.moa_advisor_middleware
 myrm_agent_harness.agent.parallel.config
 myrm_agent_harness.agent.parallel.fission
@@ -217,7 +216,6 @@ myrm_agent_harness.core.events
 myrm_agent_harness.core.events.types
 myrm_agent_harness.core.features
 myrm_agent_harness.core.features.types
-myrm_agent_harness.core.context_vars
 myrm_agent_harness.core.security.credential_vault
 myrm_agent_harness.core.security.detection.leak_detector
 myrm_agent_harness.core.security.guards.ssrf

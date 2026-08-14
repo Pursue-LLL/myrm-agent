@@ -7618,7 +7618,10 @@
       "ttlLabel": "Expires after",
       "successProtected": "Password-protected link created. Valid for {days} days.",
       "localFallback": "Share links are available in Cloud mode. Use Export as HTML to share locally.",
-      "error": "Failed to create share link"
+      "error": "Failed to create share link",
+      "loading": "Checking share status...",
+      "revokedStatus": "This share link has been revoked. Create a new link to share again.",
+      "passwordProtectedStatus": "A password-protected share link is active. Anyone with the link and password can view it."
     },
     "exportMessage": {
       "markdown": "Export as Markdown",

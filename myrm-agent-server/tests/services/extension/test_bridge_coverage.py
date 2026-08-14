@@ -510,6 +510,7 @@ async def test_import_fallback_definitions_when_harness_missing() -> None:
     import os
     import subprocess
     import textwrap
+    from pathlib import Path
 
     script = textwrap.dedent(
         """
@@ -534,7 +535,10 @@ async def test_import_fallback_definitions_when_harness_missing() -> None:
         """
     )
     env = dict(os.environ)
-    env["PYTHONPATH"] = os.getcwd()
+    server_root = Path(__file__).resolve().parents[3]
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(server_root), *filter(None, env.get("PYTHONPATH", "").split(os.pathsep))]
+    )
     result = subprocess.run(
         [sys.executable, "-c", script],
         capture_output=True,

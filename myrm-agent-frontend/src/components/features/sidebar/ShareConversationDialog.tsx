@@ -21,6 +21,8 @@ interface ShareConversationDialogProps {
   onOpenChange: (open: boolean) => void;
   shareUrl: string | null;
   expiresAt: number | null;
+  revoked: boolean;
+  passwordProtected: boolean;
   loading: boolean;
   onCreateLink: (ttlDays: number, password?: string) => void;
   onRevoke: () => void;
@@ -31,6 +33,8 @@ export function ShareConversationDialog({
   onOpenChange,
   shareUrl,
   expiresAt,
+  revoked,
+  passwordProtected,
   loading,
   onCreateLink,
   onRevoke,
@@ -73,7 +77,12 @@ export function ShareConversationDialog({
               <p className="text-xs text-amber-700 dark:text-amber-300">{t('chat.share.localFallback')}</p>
             </div>
           )}
-          {shareUrl ? (
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-6">
+              <Loader2 size={18} className="animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{t('chat.share.loading')}</span>
+            </div>
+          ) : shareUrl ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <input
@@ -91,6 +100,16 @@ export function ShareConversationDialog({
                   {t('chat.share.expires')}: {expiresDate}
                 </p>
               )}
+            </div>
+          ) : passwordProtected ? (
+            <div className="flex items-start gap-2 rounded-md border bg-muted p-3">
+              <Lock size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">{t('chat.share.passwordProtectedStatus')}</p>
+            </div>
+          ) : revoked ? (
+            <div className="flex items-start gap-2 rounded-md border bg-muted p-3">
+              <Unlink size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">{t('chat.share.revokedStatus')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -129,7 +148,7 @@ export function ShareConversationDialog({
         </div>
 
         <DialogFooter className="flex-row gap-2 sm:justify-between">
-          {shareUrl ? (
+          {shareUrl || passwordProtected ? (
             <Button variant="destructive" size="sm" onClick={onRevoke}>
               <Unlink size={14} className="mr-1.5" />
               {t('chat.share.revoke')}
