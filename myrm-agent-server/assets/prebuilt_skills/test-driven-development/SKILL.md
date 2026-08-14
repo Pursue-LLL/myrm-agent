@@ -131,6 +131,7 @@ If you catch yourself:
 - "I'll write tests after" → Tests written after code don't test the right things.
 - "This is too simple for tests" → Simple code gets complex. Start testing now.
 - "I'll test the whole flow instead" → Integration tests don't replace unit tests.
+- "The test passes immediately" → You're testing existing behavior. Fix the test to fail first.
 
 ## Writing Good Tests
 

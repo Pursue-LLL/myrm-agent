@@ -12408,8 +12408,6 @@
     "feishuDesc": "Lark アプリの認証情報を設定して Lark ボットのメッセージチャネルを有効にします。",
     "feishuAppId": "App ID",
     "feishuAppSecret": "App Secret",
-    "feishuBotOpenId": "Bot Open ID",
-    "feishuBotOpenIdHint": "@メンション検出に使用。Lark オープンプラットフォームで取得できます",
     "feishuVerificationToken": "Verification Token",
     "feishuVerificationTokenHint": "Webhook のセキュリティ検証に使用",
     "feishuOptional": "任意",

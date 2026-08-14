@@ -450,6 +450,8 @@ async def test_tdd_skill_v120_contract_guard(
         assert heading in body, f"missing v1.2.0 body section: {heading}"
     assert '"The source text changed"' in body, "missing Gate Function 4th branch"
     assert "run the artifact and assert its effects" in body
+    assert '"The test passes immediately"' in body, "missing Red Flags test-passes-immediately"
+    assert "Fix the test to fail first" in body
 
     ref_path = get_skill_file_path(
         SkillType.PREBUILT,

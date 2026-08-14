@@ -42,7 +42,6 @@ describe('FeishuCredentialsEditDialog', () => {
     mockGetChannelCredentials.mockResolvedValue({
       appId: 'cli_existing',
       appSecret: '••••othere',
-      botOpenId: 'ou_existing',
       useLark: 'false',
     });
     mockSaveChannelCredentials.mockResolvedValue({ status: 'saved', message: 'ok' });
@@ -54,7 +53,6 @@ describe('FeishuCredentialsEditDialog', () => {
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('cli_existing')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('ou_existing')).toBeInTheDocument();
     });
     expect(mockGetChannelCredentials).toHaveBeenCalledWith('feishu_abc');
   });
@@ -66,13 +64,30 @@ describe('FeishuCredentialsEditDialog', () => {
       expect(screen.getByDisplayValue('cli_existing')).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByDisplayValue('ou_existing'), { target: { value: 'ou_rotated' } });
+    fireEvent.change(screen.getByLabelText('feishuAppSecret'), { target: { value: 'sec_rotated' } });
     fireEvent.click(screen.getByRole('button', { name: 'feishuSave' }));
 
     await waitFor(() => {
       expect(mockSaveChannelCredentials).toHaveBeenCalledWith('feishu_abc', {
         appId: 'cli_existing',
-        botOpenId: 'ou_rotated',
+        appSecret: 'sec_rotated',
+        useLark: 'false',
+      });
+    });
+  });
+
+  it('does not submit a blank app secret', async () => {
+    render(<FeishuCredentialsEditDialog open onOpenChange={() => undefined} channelName="feishu_abc" />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('cli_existing')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'feishuSave' }));
+
+    await waitFor(() => {
+      expect(mockSaveChannelCredentials).toHaveBeenCalledWith('feishu_abc', {
+        appId: 'cli_existing',
         useLark: 'false',
       });
     });
@@ -94,14 +109,13 @@ describe('FeishuCredentialsEditDialog', () => {
       expect(mockSaveChannelCredentials).toHaveBeenCalledWith('feishu_abc', {
         appId: 'cli_existing',
         appSecret: 'sec_rotated',
-        botOpenId: 'ou_existing',
         useLark: 'false',
       });
     });
   });
 
   it('disables save and test when app id is empty', async () => {
-    mockGetChannelCredentials.mockResolvedValue({ appId: '', appSecret: '', botOpenId: '', useLark: 'false' });
+    mockGetChannelCredentials.mockResolvedValue({ appId: '', appSecret: '', useLark: 'false' });
     render(<FeishuCredentialsEditDialog open onOpenChange={() => undefined} channelName="feishu_abc" />);
 
     await waitFor(() => {
@@ -149,5 +163,33 @@ describe('FeishuCredentialsEditDialog', () => {
       expect(mockGetChannelCredentials).toHaveBeenCalledWith('feishu_abc');
       expect(screen.getByDisplayValue('cli_existing')).toBeInTheDocument();
     });
+  });
+
+  it('ignores a stale load when the dialog is re-opened for another instance', async () => {
+    let resolveFirst: (value: unknown) => void;
+    const pendingFirst = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+    mockGetChannelCredentials.mockReturnValueOnce(pendingFirst);
+    mockGetChannelCredentials.mockResolvedValue({ appId: 'cli_second', useLark: 'true' });
+
+    const { rerender } = render(
+      <FeishuCredentialsEditDialog open onOpenChange={() => undefined} channelName="feishu_abc" />,
+    );
+
+    // Re-open for a different instance while the first request is in flight.
+    rerender(<FeishuCredentialsEditDialog open={false} onOpenChange={() => undefined} channelName="feishu_abc" />);
+    rerender(<FeishuCredentialsEditDialog open onOpenChange={() => undefined} channelName="feishu_second" />);
+
+    await waitFor(() => {
+      expect(mockGetChannelCredentials).toHaveBeenCalledTimes(2);
+    });
+
+    // Resolve the stale first request late; it must not overwrite the form.
+    resolveFirst!({ appId: 'cli_stale', useLark: 'false' });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(screen.getByDisplayValue('cli_second')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('cli_stale')).not.toBeInTheDocument();
   });
 });

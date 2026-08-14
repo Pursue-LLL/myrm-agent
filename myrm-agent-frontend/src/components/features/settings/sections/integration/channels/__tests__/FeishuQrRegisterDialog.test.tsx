@@ -37,7 +37,7 @@ import { FeishuQrRegisterDialog } from '../FeishuQrRegisterDialog';
 
 const POLL_SUCCESS = {
   status: 'success',
-  credentials: { appId: 'cli_1', appSecret: 'sec_1', useLark: 'false', botOpenId: 'ou_1' },
+  credentials: { appId: 'cli_1', appSecret: 'sec_1', useLark: 'false' },
   instance_id: 'inst1',
   channel_name: 'feishu_inst1',
 };

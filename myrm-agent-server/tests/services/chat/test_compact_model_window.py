@@ -17,9 +17,11 @@ import pytest
 @pytest.mark.asyncio
 async def test_get_llm_for_user_returns_real_window():
     """_get_llm_for_user returns the model's actual max_context_tokens."""
-    mock_model_cfg = MagicMock()
-    mock_model_cfg.max_context_tokens = 32000
-    mock_model_cfg.api_keys = None
+    from app.core.types import ModelConfig
+
+    mock_model_cfg = ModelConfig(
+        model="openai/gpt-4o", api_key="test-key", max_context_tokens=32000
+    )
 
     mock_configs = MagicMock()
     mock_configs.model_cfg = mock_model_cfg
@@ -49,9 +51,9 @@ async def test_get_llm_for_user_returns_real_window():
 @pytest.mark.asyncio
 async def test_get_llm_for_user_fallback_128k_when_none():
     """_get_llm_for_user falls back to 128000 when max_context_tokens is None."""
-    mock_model_cfg = MagicMock()
-    mock_model_cfg.max_context_tokens = None
-    mock_model_cfg.api_keys = None
+    from app.core.types import ModelConfig
+
+    mock_model_cfg = ModelConfig(model="openai/gpt-4o", api_key="test-key")
 
     mock_configs = MagicMock()
     mock_configs.model_cfg = mock_model_cfg
@@ -75,6 +77,44 @@ async def test_get_llm_for_user_fallback_128k_when_none():
         _, max_tokens = await get_llm_for_user()
 
         assert max_tokens == 128000
+
+
+@pytest.mark.asyncio
+async def test_get_llm_for_user_normalizes_legacy_prefix():
+    """Legacy ``openai-like/xxx`` default_model must be converged to ``openai/xxx``."""
+    from app.core.types import ModelConfig
+
+    mock_model_cfg = ModelConfig(
+        model="openai-like/agnes-2.5-flash",
+        api_key="test-key",
+        max_context_tokens=32000,
+    )
+
+    mock_configs = MagicMock()
+    mock_configs.model_cfg = mock_model_cfg
+
+    mock_llm = AsyncMock()
+    mock_get_llm = AsyncMock(return_value=mock_llm)
+
+    with (
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new_callable=AsyncMock,
+            return_value=mock_configs,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
+            new=mock_get_llm,
+        ),
+    ):
+        from app.services.chat.compact.llm_config import get_llm_for_user
+
+        llm, max_tokens = await get_llm_for_user()
+
+        assert llm is mock_llm
+        assert max_tokens == 32000
+        passed_cfg = mock_get_llm.call_args.args[0]
+        assert passed_cfg.model == "openai/agnes-2.5-flash"
 
 
 @pytest.mark.asyncio
@@ -123,9 +163,11 @@ async def test_guarded_compact_summarize_passes_config():
 @pytest.mark.asyncio
 async def test_get_llm_for_user_large_window_200k():
     """_get_llm_for_user correctly returns large windows like Gemini 1M or Claude 200k."""
-    mock_model_cfg = MagicMock()
-    mock_model_cfg.max_context_tokens = 200000
-    mock_model_cfg.api_keys = None
+    from app.core.types import ModelConfig
+
+    mock_model_cfg = ModelConfig(
+        model="openai/gpt-4o", api_key="test-key", max_context_tokens=200000
+    )
 
     mock_configs = MagicMock()
     mock_configs.model_cfg = mock_model_cfg
@@ -154,9 +196,11 @@ async def test_get_llm_for_user_large_window_200k():
 @pytest.mark.asyncio
 async def test_get_llm_for_user_zero_treated_as_falsy():
     """max_context_tokens=0 is treated as falsy and falls back to 128000."""
-    mock_model_cfg = MagicMock()
-    mock_model_cfg.max_context_tokens = 0
-    mock_model_cfg.api_keys = None
+    from app.core.types import ModelConfig
+
+    mock_model_cfg = ModelConfig(
+        model="openai/gpt-4o", api_key="test-key", max_context_tokens=0
+    )
 
     mock_configs = MagicMock()
     mock_configs.model_cfg = mock_model_cfg

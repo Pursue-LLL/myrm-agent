@@ -418,7 +418,7 @@ async def test_save_channel_credentials_merge_preserves_omitted_fields() -> None
     config_key = channel_credentials_key(channel_name)
     await ConfigService().set(
         config_key,
-        {"appId": "cli_keep", "appSecret": "old_secret", "botOpenId": "ou_keep", "useLark": "false"},
+        {"appId": "cli_keep", "appSecret": "old_secret", "verificationToken": "vt_keep", "useLark": "false"},
         device_id="test",
     )
 
@@ -431,7 +431,7 @@ async def test_save_channel_credentials_merge_preserves_omitted_fields() -> None
         assert record is not None
         assert record.value["appId"] == "cli_keep"
         assert record.value["appSecret"] == "new_secret"
-        assert record.value["botOpenId"] == "ou_keep"
+        assert record.value["verificationToken"] == "vt_keep"
         assert record.value["useLark"] == "false"
     finally:
         await ConfigService().delete(config_key)
@@ -683,7 +683,7 @@ async def test_get_channel_credentials_redacts_secret_fields() -> None:
     config_key = channel_credentials_key(channel_name)
     await ConfigService().set(
         config_key,
-        {"appId": "cli_redact", "appSecret": "long_secret_value", "botOpenId": "ou_123"},
+        {"appId": "cli_redact", "appSecret": "long_secret_value"},
         device_id="test",
     )
 
@@ -691,7 +691,6 @@ async def test_get_channel_credentials_redacts_secret_fields() -> None:
         result = await get_channel_credentials(channel_name)
         assert result["appId"] == "cli_redact"
         assert result["appSecret"] == "•" * (len("long_secret_value") - 4) + "long_secret_value"[-4:]
-        assert result["botOpenId"] == "ou_123"
     finally:
         await ConfigService().delete(config_key)
 
@@ -718,3 +717,107 @@ async def test_get_channel_credentials_normalizes_boolean_use_lark() -> None:
         assert isinstance(result["useLark"], str)
     finally:
         await ConfigService().delete(config_key)
+
+
+@pytest.mark.asyncio
+async def test_hot_register_add_failure_restores_old_channel() -> None:
+    """If the replacement channel cannot be added, the previous instance must
+    be re-registered so a failed swap never leaves the channel offline."""
+    from app.api.config.router import _try_hot_register_channel
+    from app.services.config.service import ConfigService
+
+    await ConfigService().set(
+        "feishuCredentials",
+        {"appId": "cli_atomic", "appSecret": "sec_atomic", "useLark": "false"},
+        device_id="test",
+    )
+
+    try:
+        existing = MagicMock()
+        existing.display_name = "我的飞书"
+
+        replacement = MagicMock()
+
+        gateway = MagicMock()
+        gateway.bus.get_channel = MagicMock(return_value=existing)
+        gateway.remove_channel = AsyncMock(return_value=True)
+        gateway.add_channel = AsyncMock(side_effect=[ValueError("add failed"), None])
+
+        cls = MagicMock()
+        cls.credential_spec = MagicMock()
+        cls.from_credentials = MagicMock(return_value=replacement)
+
+        with (
+            patch("app.core.channel_bridge.channel_gateway", gateway),
+            patch("app.channels.providers.registry.get_channel_class_safe", return_value=cls),
+            patch("app.channels.core.credentials.resolve_credentials", new=AsyncMock(return_value={"app_id": "cli_atomic"})),
+            patch("app.core.channel_bridge.credential_spec.is_channel_enabled", new=AsyncMock(return_value=True)),
+        ):
+            with pytest.raises(ValueError, match="add failed"):
+                await _try_hot_register_channel("feishuCredentials")
+
+        assert gateway.remove_channel.await_count == 1
+        # First attempt adds the replacement, second re-registers the old one.
+        assert gateway.add_channel.await_args_list[0].args[0] is replacement
+        assert gateway.add_channel.await_args_list[1].args[0] is existing
+    finally:
+        await ConfigService().delete("feishuCredentials")
+
+
+@pytest.mark.asyncio
+async def test_hot_register_add_failure_propagates_exception() -> None:
+    """A failed swap must surface as an exception so the caller can log it
+    instead of silently leaving the channel in a half-removed state."""
+    from app.api.config.router import _try_hot_register_channel
+    from app.services.config.service import ConfigService
+
+    await ConfigService().set(
+        "feishuCredentials",
+        {"appId": "cli_atomic2", "appSecret": "sec_atomic2", "useLark": "false"},
+        device_id="test",
+    )
+
+    try:
+        existing = MagicMock()
+        existing.display_name = "我的飞书"
+
+        replacement = MagicMock()
+
+        gateway = MagicMock()
+        gateway.bus.get_channel = MagicMock(return_value=existing)
+        gateway.remove_channel = AsyncMock(return_value=True)
+        gateway.add_channel = AsyncMock(side_effect=[ValueError("add failed"), ValueError("restore failed")])
+
+        cls = MagicMock()
+        cls.credential_spec = MagicMock()
+        cls.from_credentials = MagicMock(return_value=replacement)
+
+        with pytest.raises(ValueError, match="add failed"):
+            with (
+                patch("app.core.channel_bridge.channel_gateway", gateway),
+                patch("app.channels.providers.registry.get_channel_class_safe", return_value=cls),
+                patch("app.channels.core.credentials.resolve_credentials", new=AsyncMock(return_value={"app_id": "cli_atomic2"})),
+                patch("app.core.channel_bridge.credential_spec.is_channel_enabled", new=AsyncMock(return_value=True)),
+            ):
+                await _try_hot_register_channel("feishuCredentials")
+
+        # Both the swap and the restore attempt are made; the original
+        # exception is preserved for the caller.
+        assert gateway.add_channel.await_count == 2
+    finally:
+        await ConfigService().delete("feishuCredentials")
+
+
+@pytest.mark.asyncio
+async def test_get_channel_instances_meta_returns_max_per_type() -> None:
+    """The capacity endpoint must expose the backend per-type limit."""
+    from app.api.channels.instances import get_channel_instances_meta
+
+    gateway = MagicMock()
+    gateway.max_instances_per_type = 5
+
+    with patch("app.core.channel_bridge.channel_gateway", gateway):
+        result = await get_channel_instances_meta()
+
+    assert result == {"maxInstancesPerType": 5}
+    assert gateway.max_instances_per_type == 5

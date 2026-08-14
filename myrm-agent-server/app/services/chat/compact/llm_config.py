@@ -21,9 +21,20 @@ async def get_llm_for_user() -> tuple[BaseChatModel, int]:
     from myrm_agent_harness.toolkits.llms import llm_manager
 
     from app.core.channel_bridge.config_loader import load_user_configs
+    from app.core.channel_bridge.model_resolver import _normalize_model_name
 
     configs = await load_user_configs()
-    model_cfg = configs.model_cfg
+    raw_cfg = configs.model_cfg
+
+    # ``default_model`` configs may carry legacy provider prefixes (e.g.
+    # ``openai-like/xxx``) that LiteLLM cannot resolve; converge them to the
+    # standard prefix (``openai/xxx``) before handing the config to the factory.
+    normalized_model = _normalize_model_name(raw_cfg.model)
+    model_cfg = (
+        raw_cfg
+        if normalized_model == raw_cfg.model
+        else raw_cfg.model_copy(update={"model": normalized_model})
+    )
 
     llm: BaseChatModel = await llm_manager.get_llm_from_config(
         model_cfg, streaming=True, api_keys=getattr(model_cfg, "api_keys", None)

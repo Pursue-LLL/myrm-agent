@@ -209,17 +209,52 @@ async def resolve_workspace(store: KanbanStore, task: KanbanTask) -> str | None:
     return base_dir
 
 
-async def cleanup_worktree(store: KanbanStore, task: KanbanTask) -> None:
+async def _worktree_is_dirty(path: str) -> bool:
+    """True when a worktree has uncommitted changes (untracked, modified, staged)."""
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "status", "--porcelain"],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=_GIT_ENV,
+        )
+        return result.returncode == 0 and bool(result.stdout.strip())
+    except Exception:
+        return False
+
+
+async def cleanup_worktree(store: KanbanStore, task: KanbanTask) -> bool:
+    """Remove a task's worktree, preserving any uncommitted agent edits.
+
+    ``force=True`` (used after a successful merge) deletes unconditionally —
+    the worktree was auto-committed and merged, so nothing is lost.  The
+    default safe mode checks for uncommitted changes first and keeps the
+    worktree when it is dirty, so an ARCHIVED/FAILED task never silently
+    drops file-tool edits the agent never committed.  Returns True when the
+    worktree was removed (or absent); False when preserved due to dirtiness.
+    """
     if not task.branch:
-        return
+        return True
 
     base_dir = await resolve_base_dir(store, task)
     if not base_dir:
-        return
+        return True
 
     path = worktree_dir(base_dir, task.branch, task.task_id)
     if not Path(path).exists():
-        return
+        return True
+
+    if not force and await _worktree_is_dirty(path):
+        logger.warning(
+            "Worktree %s for task %s has uncommitted changes; preserved for "
+            "manual handling instead of deleting (would lose data)",
+            path,
+            task.task_id[:8],
+        )
+        return False
 
     try:
         result = await asyncio.to_thread(
@@ -235,17 +270,18 @@ async def cleanup_worktree(store: KanbanStore, task: KanbanTask) -> None:
             logger.info(
                 "Cleaned up worktree at %s for archived task %s", path, task.task_id[:8]
             )
-        else:
-            logger.warning(
-                "git worktree remove failed (rc=%d): %s",
-                result.returncode,
-                result.stderr.strip(),
-            )
-            return
+            return True
+        logger.warning(
+            "git worktree remove failed (rc=%d): %s",
+            result.returncode,
+            result.stderr.strip(),
+        )
+        return False
     except Exception as exc:
         logger.warning(
             "Failed to cleanup worktree for task %s: %s", task.task_id[:8], exc
         )
+        return False
 
 
 async def _delete_worktree_branch(base_dir: str, branch: str, task_id: str) -> None:
@@ -313,7 +349,7 @@ async def merge_task_worktree(store: KanbanStore, task: KanbanTask) -> bool:
             unique_branch,
             task.task_id[:8],
         )
-        await cleanup_worktree(store, task)
+        await cleanup_worktree(store, task, force=True)
         await _delete_worktree_branch(base_dir, task.branch, task.task_id)
         return True
 

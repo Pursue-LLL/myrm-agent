@@ -10,6 +10,7 @@ vi.mock('next-intl', () => ({
 
 const mockListChannelStatuses = vi.fn();
 const mockListChannelInstances = vi.fn();
+const mockGetChannelInstanceMeta = vi.fn();
 const mockCreateChannelInstance = vi.fn();
 const mockDeleteChannelInstance = vi.fn();
 const mockUpdateChannelDisplayName = vi.fn();
@@ -21,6 +22,7 @@ vi.mock('@/services/channels', async (importOriginal) => {
     ...actual,
     listChannelStatuses: (...args: unknown[]) => mockListChannelStatuses(...args),
     listChannelInstances: (...args: unknown[]) => mockListChannelInstances(...args),
+    getChannelInstanceMeta: (...args: unknown[]) => mockGetChannelInstanceMeta(...args),
     createChannelInstance: (...args: unknown[]) => mockCreateChannelInstance(...args),
     deleteChannelInstance: (...args: unknown[]) => mockDeleteChannelInstance(...args),
     updateChannelDisplayName: (...args: unknown[]) => mockUpdateChannelDisplayName(...args),
@@ -46,13 +48,13 @@ describe('FeishuMultiAppSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListChannelInstances.mockResolvedValue([]);
+    mockGetChannelInstanceMeta.mockResolvedValue({ maxInstancesPerType: 5 });
     mockListChannelStatuses.mockResolvedValue([]);
     mockDeleteChannelInstance.mockResolvedValue(undefined);
     mockUpdateChannelDisplayName.mockResolvedValue({ displayName: 'renamed' });
     mockGetChannelCredentials.mockResolvedValue({
       appId: 'cli_existing',
       appSecret: '••••rest',
-      botOpenId: 'ou_existing',
       useLark: 'false',
     });
   });

@@ -217,6 +217,9 @@ if is_local_mode():
     from app.api.channels.dlq import router as channels_dlq_router
     from app.api.channels.feishu_register import router as feishu_register_router
     from app.api.channels.instances import router as channels_instances_router
+    from app.api.channels.instances_credentials import (
+        router as channels_instances_credentials_router,
+    )
     from app.api.channels.login import router as channels_login_router
     from app.api.channels.router import router as channels_manage_router
     from app.api.channels.routes_management import router as routes_management_router
@@ -247,6 +250,11 @@ if is_local_mode():
     )
     api_router.include_router(
         channels_instances_router, prefix="/channels/manage", tags=["channels"]
+    )
+    api_router.include_router(
+        channels_instances_credentials_router,
+        prefix="/channels/manage",
+        tags=["channels"],
     )
     api_router.include_router(
         channels_topics_router, prefix="/channels/manage", tags=["channels"]

@@ -311,6 +311,26 @@ class TestPollConsumedGuard:
         assert session_id in _active_sessions
 
     @pytest.mark.asyncio
+    async def test_poll_probe_returns_no_bot_id_fails(self, client: AsyncClient) -> None:
+        """A probe that cannot confirm the bot identity must fail the registration."""
+        mock_reg = AsyncMock()
+        mock_reg.poll.return_value = _mock_poll_success()
+        mock_reg.probe_bot.return_value = {"bot_name": None, "bot_open_id": None}
+
+        session_id = "test_session_probe_no_bot"
+        _active_sessions[session_id] = _RegistrationSession(registration=mock_reg, device_code="dc_test")
+
+        with patch("app.api.channels.feishu_register._save_credentials_to_db", new_callable=AsyncMock) as mock_save:
+            resp = await client.post(
+                "/channels/manage/feishu/qr-register/poll",
+                json={"session_id": session_id},
+            )
+
+        assert resp.status_code == 502
+        mock_save.assert_not_called()
+        assert session_id not in _active_sessions
+
+    @pytest.mark.asyncio
     async def test_poll_provision_failure_drops_session(self, client: AsyncClient) -> None:
         """A failed provisioning must drop the session so a late poll 404s (no false success)."""
         mock_reg = AsyncMock()
