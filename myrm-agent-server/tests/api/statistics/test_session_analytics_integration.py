@@ -362,5 +362,144 @@ async def test_session_analytics_endpoint_rejects_path_traversal():
             assert response.status_code == 404, f"{bad_id!r} -> {response.status_code}"
 
 
+@pytest.mark.asyncio
+async def test_session_trace_endpoint_security_labels_merged(
+    tmp_path, monkeypatch
+):
+    """Tool calls with tool_call_id must carry merged step-level security
+    decisions from the security_audit event (lineage DAG contract)."""
+    from datetime import datetime
+
+    from myrm_agent_harness.agent.event_log.backends.file_backend import (
+        FileEventLogBackend,
+    )
+    from myrm_agent_harness.agent.event_log.types import StructuredEvent
+
+    monkeypatch.setattr(
+        "app.config.settings.settings.database.event_log_dir",
+        str(tmp_path),
+    )
+
+    session_id = "test-lineage-security"
+    backend = FileEventLogBackend(tmp_path, session_id)
+    ts = datetime.now().timestamp()
+    events = [
+        StructuredEvent(session_id=session_id, sequence=1, timestamp=ts, event_type="session_start", data={}),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=2,
+            timestamp=ts + 1,
+            event_type="tool_start",
+            data={"tool_name": "bash", "tool_call_id": "call-1", "message_id": "msg-1"},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=3,
+            timestamp=ts + 2,
+            event_type="tool_end",
+            data={"tool_name": "bash", "tool_call_id": "call-1", "duration_ms": 50.0},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=4,
+            timestamp=ts + 3,
+            event_type="security_audit",
+            data={
+                "decisions": [
+                    {
+                        "tool": "bash",
+                        "decision": "DENY",
+                        "reason": "E-Stop active",
+                        "tainted": True,
+                        "ts": round(ts + 2.5, 3),
+                        "tool_call_id": "call-1",
+                        "labels": ["shell"],
+                    },
+                    {
+                        "tool": "bash",
+                        "decision": "ALLOW",
+                        "reason": "capability fence passed",
+                        "tainted": False,
+                        "ts": round(ts + 1.5, 3),
+                        "tool_call_id": "call-1",
+                    },
+                ],
+                "count": 2,
+            },
+        ),
+        StructuredEvent(session_id=session_id, sequence=5, timestamp=ts + 4, event_type="session_end", data={}),
+    ]
+    await backend.append(events)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get(
+            f"/api/v1/statistics/session/{session_id}/trace"
+        )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["success"] is True
+    trace = result["data"]
+    assert len(trace["tool_calls"]) == 1
+    tool_call = trace["tool_calls"][0]
+    assert tool_call["tool_call_id"] == "call-1"
+    assert tool_call["message_id"] == "msg-1"
+    assert tool_call["security_labels"] == [
+        {"decision": "DENY", "reason": "E-Stop active", "tainted": True, "ts": round(ts + 2.5, 3)},
+        {"decision": "ALLOW", "reason": "capability fence passed", "tainted": False, "ts": round(ts + 1.5, 3)},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_session_trace_endpoint_no_security_audit_is_noop(
+    tmp_path, monkeypatch
+):
+    """Sessions without a security_audit event must not attach security_labels."""
+    from datetime import datetime
+
+    from myrm_agent_harness.agent.event_log.backends.file_backend import (
+        FileEventLogBackend,
+    )
+    from myrm_agent_harness.agent.event_log.types import StructuredEvent
+
+    monkeypatch.setattr(
+        "app.config.settings.settings.database.event_log_dir",
+        str(tmp_path),
+    )
+
+    session_id = "test-lineage-no-audit"
+    backend = FileEventLogBackend(tmp_path, session_id)
+    ts = datetime.now().timestamp()
+    events = [
+        StructuredEvent(session_id=session_id, sequence=1, timestamp=ts, event_type="session_start", data={}),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=2,
+            timestamp=ts + 1,
+            event_type="tool_start",
+            data={"tool_name": "bash", "tool_call_id": "call-1", "message_id": "msg-1"},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=3,
+            timestamp=ts + 2,
+            event_type="tool_end",
+            data={"tool_name": "bash", "tool_call_id": "call-1", "duration_ms": 50.0},
+        ),
+        StructuredEvent(session_id=session_id, sequence=4, timestamp=ts + 3, event_type="session_end", data={}),
+    ]
+    await backend.append(events)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get(
+            f"/api/v1/statistics/session/{session_id}/trace"
+        )
+
+    assert response.status_code == 200
+    trace = response.json()["data"]
+    assert len(trace["tool_calls"]) == 1
+    assert "security_labels" not in trace["tool_calls"][0]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -12,6 +12,9 @@
 
 import { apiRequest } from '@/lib/api';
 
+/** Connector state id used for the Agent Plugins bundle (server-side constant). */
+export const AGENT_PLUGIN_PROFILE_ID = 'agent_plugin';
+
 export interface ConnectProfile {
   id: string;
   label: string;
@@ -49,6 +52,15 @@ export interface ConnectorStatus {
   connected_at: string | null;
 }
 
+export interface AgentPluginBundleResponse {
+  agent_id: string;
+  mcp_url: string;
+  token: string;
+  embed_token: boolean;
+  files: Record<string, string>;
+  instructions: string;
+}
+
 export async function listConnectProfiles(): Promise<ConnectProfile[]> {
   return apiRequest<ConnectProfile[]>('/connect/profiles');
 }
@@ -82,4 +94,14 @@ export async function revokeConnect(
 
 export async function listConnectorStatus(): Promise<ConnectorStatus[]> {
   return apiRequest<ConnectorStatus[]>('/connect/status');
+}
+
+export async function generateAgentPluginBundle(
+  agentId: string,
+  embedToken: boolean = false,
+): Promise<AgentPluginBundleResponse> {
+  return apiRequest<AgentPluginBundleResponse>('/connect/agent-plugin', {
+    method: 'POST',
+    body: JSON.stringify({ agent_id: agentId, embed_token: embedToken }),
+  });
 }

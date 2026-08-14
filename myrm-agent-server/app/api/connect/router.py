@@ -67,6 +67,20 @@ class RevokeResponse(BaseModel):
     trees_removed: int = 0
 
 
+class AgentPluginRequest(BaseModel):
+    agent_id: str = "default"
+    embed_token: bool = False
+
+
+class AgentPluginResponse(BaseModel):
+    agent_id: str
+    mcp_url: str
+    token: str
+    embed_token: bool
+    files: dict[str, str]
+    instructions: str
+
+
 class ConnectorStatusResponse(BaseModel):
     profile_id: str
     label: str
@@ -120,6 +134,23 @@ async def run_doctor(body: DoctorRequest) -> DoctorResponse:
     service = get_connect_service()
     healthy = await service.doctor(body.profile_id)
     return DoctorResponse(profile_id=body.profile_id, healthy=healthy)
+
+
+@router.post("/connect/agent-plugin")
+async def generate_agent_plugin(body: AgentPluginRequest) -> AgentPluginResponse:
+    """Generate a portable Agent Plugins 1.0.0 bundle exposing Myrm memory."""
+    service = get_connect_service()
+    bundle = await service.generate_agent_plugin_bundle(
+        agent_id=body.agent_id, embed_token=body.embed_token
+    )
+    return AgentPluginResponse(
+        agent_id=bundle.agent_id,
+        mcp_url=bundle.mcp_url,
+        token=bundle.token,
+        embed_token=bundle.embed_token,
+        files=bundle.files,
+        instructions=bundle.instructions,
+    )
 
 
 @router.post("/connect/revoke")

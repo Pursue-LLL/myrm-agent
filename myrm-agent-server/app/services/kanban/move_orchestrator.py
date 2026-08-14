@@ -95,38 +95,42 @@ async def merge_task_worktree(
     runner: TaskRunner | None,
     task: KanbanTask,
     store: SqlAlchemyKanbanStore | None = None,
-) -> bool:
+) -> tuple[bool, list[str]]:
     """Merge a completed task's worktree commits into its target branch.
 
-    Returns True on success or when the runner has no merge support.  On
-    failure (conflict, uncommittable changes, unusable branch) the worktree is
-    preserved; when a ``store`` is given, a MERGE_CONFLICT event is appended so
-    the user can see the completed task's code never landed on its branch.
+    Returns (success, conflict_files).  On failure (conflict, uncommittable
+    changes, unusable branch) the worktree is preserved; when a ``store`` is
+    given, a MERGE_CONFLICT event is appended (with the conflicting file paths
+    when known) so the user can see the completed task's code never landed on
+    its branch.
     """
     if runner is None or not hasattr(runner, "merge_task_worktree"):
-        return True
+        return True, []
     try:
-        merged = await runner.merge_task_worktree(task)  # type: ignore[attr-defined]
+        merged, conflicts = await runner.merge_task_worktree(task)  # type: ignore[attr-defined]
         if merged:
-            return True
+            return True, []
         logger.warning(
             "Merge skipped or conflicted for task %s; worktree preserved",
             task.task_id[:8],
         )
         if store is not None:
+            payload: dict[str, str | list[str]] = {
+                "branch": task.branch,
+                "message": (
+                    "Task completed but the worktree merge was blocked; "
+                    "code was not merged into the target branch. "
+                    "Resolve the conflict or preserved worktree manually."
+                ),
+            }
+            if conflicts:
+                payload["conflicts"] = conflicts
             await store.append_event(
                 task.task_id,
                 TaskEventKind.MERGE_CONFLICT,
-                payload={
-                    "branch": task.branch,
-                    "message": (
-                        "Task completed but the worktree merge was blocked; "
-                        "code was not merged into the target branch. "
-                        "Resolve the conflict or preserved worktree manually."
-                    ),
-                },
+                payload=payload,
             )
-        return False
+        return False, conflicts
     except Exception as exc:
         logger.warning(
             "Worktree merge failed for task %s: %s",
@@ -142,7 +146,7 @@ async def merge_task_worktree(
                     "message": f"Worktree merge failed: {exc}",
                 },
             )
-        return False
+        return False, []
 
 
 async def move_task(

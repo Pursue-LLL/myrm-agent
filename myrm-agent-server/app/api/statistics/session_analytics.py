@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.trace_builder import build_trace
+from myrm_agent_harness.agent.event_log.types import EventFilter
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -276,6 +277,59 @@ def _non_negative_int(value: object) -> int:
     return max(int(value), 0) if isinstance(value, (int, float)) else 0
 
 
+async def _attach_security_labels(
+    backend: FileEventLogBackend, session_id: str, trace_data: dict[str, object]
+) -> None:
+    """Attach step-level security decisions to matching tool calls.
+
+    Reads the session's ``security_audit`` event (batch-persisted at session end)
+    and groups decisions by ``tool_call_id`` so each tool call in the trace
+    carries the security labels that fired on it (deny / taint / injection / PII…).
+    In-place mutation of ``trace_data["tool_calls"]``; no-op when no audit exists.
+    """
+    try:
+        events = await backend.get_events(
+            session_id, EventFilter(event_types=frozenset({"security_audit"}))
+        )
+    except Exception:
+        logger.debug("Failed to read security_audit events for lineage", exc_info=True)
+        return
+
+    tool_calls = trace_data.get("tool_calls")
+    if not isinstance(tool_calls, list) or not events:
+        return
+
+    by_call_id: dict[str, list[dict[str, object]]] = {}
+    for event in events:
+        decisions = event.data.get("decisions")
+        if not isinstance(decisions, list):
+            continue
+        for decision in decisions:
+            if not isinstance(decision, dict):
+                continue
+            call_id = decision.get("tool_call_id")
+            if not isinstance(call_id, str) or not call_id:
+                continue
+            by_call_id.setdefault(call_id, []).append(
+                {
+                    "decision": decision.get("decision"),
+                    "reason": decision.get("reason"),
+                    "tainted": bool(decision.get("tainted")),
+                    "ts": decision.get("ts"),
+                }
+            )
+
+    if not by_call_id:
+        return
+
+    for tool_call in tool_calls:
+        if not isinstance(tool_call, dict):
+            continue
+        call_id = tool_call.get("tool_call_id")
+        if isinstance(call_id, str) and call_id in by_call_id:
+            tool_call["security_labels"] = by_call_id[call_id]
+
+
 @router.get("/session/{session_id}/trace")
 async def get_session_execution_trace(
     session_id: str,
@@ -307,6 +361,7 @@ async def get_session_execution_trace(
         )
         trace = await build_trace(backend, session_id)
         trace_data = trace.to_dict()
+        await _attach_security_labels(backend, session_id, trace_data)
         trace_data["memory_events"] = memory_events
         return success_response(data=trace_data)
 

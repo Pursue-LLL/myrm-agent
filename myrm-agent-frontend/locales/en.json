@@ -12308,6 +12308,7 @@
     "decomposedChildren": "{count} child tasks created",
     "timedOutDetail": "Timed out after {elapsed}s (limit {limit}s)",
     "mergeConflictDetail": "The task finished but its changes could not be merged into branch {branch}",
+    "mergeConflictFileCount": "{count} files conflicted",
     "approvedBy": "Approved by {approver}",
     "rejectedBy": "Rejected by {approver}",
     "pipelineFromTemplate": "From template",

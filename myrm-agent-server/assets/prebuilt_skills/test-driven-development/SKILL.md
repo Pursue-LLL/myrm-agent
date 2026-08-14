@@ -85,8 +85,10 @@ Write ONE minimal test showing what should happen:
 
 1. **Describe the behavior**, not the implementation
 2. **One assertion per test** — keep it focused
-3. **Run the test** — confirm it FAILS with the expected error
-4. **Never proceed** until you've seen the test fail
+3. **Run the test** — confirm it FAILS for the expected reason
+4. **Test passes?** (testing existing behavior) → Fix the test to fail first — a test that passes immediately protects nothing
+5. **Test errors?** (typo, import, setup) → Fix the error, re-run until it fails for the right reason
+6. **Never proceed** until you've seen the test fail
 
 **Action:** Create the test file with `file_write_tool`, then run with `bash_code_execute_tool`:
 

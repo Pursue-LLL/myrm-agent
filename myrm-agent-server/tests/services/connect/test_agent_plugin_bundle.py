@@ -8,6 +8,7 @@ token verification, revocation).
 import json
 from pathlib import Path
 
+import jsonschema
 import pytest
 
 from app.services.connect.agent_plugin import (
@@ -16,6 +17,21 @@ from app.services.connect.agent_plugin import (
     build_agent_plugin_bundle,
 )
 from app.services.connect.service import ConnectorStatus, ConnectService
+
+# tests/services/connect/test_agent_plugin_bundle.py -> tests/fixtures/agent_plugins/
+_FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "agent_plugins"
+
+
+@pytest.fixture(scope="module")
+def plugin_schema() -> dict[str, object]:
+    """Official Agent Plugins 1.0.0 plugin manifest schema (frozen fixture)."""
+    return json.loads((_FIXTURES / "plugin.schema.json").read_text())
+
+
+@pytest.fixture(scope="module")
+def mcp_schema() -> dict[str, object]:
+    """Official Agent Plugins 1.0.0 mcp configuration schema (frozen fixture)."""
+    return json.loads((_FIXTURES / "mcp.schema.json").read_text())
 
 
 @pytest.fixture
@@ -44,6 +60,21 @@ class TestBuildBundle:
         assert manifest["homepage"]
         assert "memory" in manifest["keywords"]
 
+    def test_plugin_json_validates_against_official_schema(
+        self, plugin_schema: dict[str, object]
+    ) -> None:
+        bundle = build_agent_plugin_bundle("http://x/mcp", "tok", agent_id="default")
+        jsonschema.validate(json.loads(bundle.files["plugin.json"]), plugin_schema)
+
+    def test_mcp_json_validates_against_official_schema(
+        self, mcp_schema: dict[str, object]
+    ) -> None:
+        for embed in (True, False):
+            bundle = build_agent_plugin_bundle(
+                "http://x/mcp", "tok", agent_id="default", embed_token=embed
+            )
+            jsonschema.validate(json.loads(bundle.files["mcp.json"]), mcp_schema)
+
     def test_mcp_json_embedded_token(self) -> None:
         bundle = build_agent_plugin_bundle(
             "http://x/mcp", "tok123", agent_id="default", embed_token=True
@@ -71,6 +102,11 @@ class TestBuildBundle:
             assert tool in skill
         for parameter in ('category: "preference"', "rule_trigger", "write_target"):
             assert parameter in skill
+
+    def test_skill_markdown_guards_secrets(self) -> None:
+        bundle = build_agent_plugin_bundle("http://x/mcp", "tok", agent_id="default")
+        skill = bundle.files["skills/myrm-memory/SKILL.md"]
+        assert "Never store passwords, API keys, or other secrets" in skill
 
     def test_env_mode_instructions_mention_var(self) -> None:
         bundle = build_agent_plugin_bundle(

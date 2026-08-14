@@ -12308,6 +12308,7 @@
     "decomposedChildren": "已创建 {count} 个子任务",
     "timedOutDetail": "执行超时，已运行 {elapsed} 秒（限制 {limit} 秒）",
     "mergeConflictDetail": "任务已完成，但改动未能合并到分支 {branch}",
+    "mergeConflictFileCount": "{count} 个文件冲突",
     "approvedBy": "由 {approver} 批准",
     "rejectedBy": "由 {approver} 驳回",
     "pipelineFromTemplate": "从模板创建",

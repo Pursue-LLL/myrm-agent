@@ -319,6 +319,13 @@ export interface TraceMetadata {
   trace_id: string | null;
 }
 
+export interface SecurityLabel {
+  decision: string;
+  reason: string;
+  tainted: boolean;
+  ts: number;
+}
+
 export interface TraceToolCall {
   sequence: number;
   tool_name: string;
@@ -327,9 +334,13 @@ export interface TraceToolCall {
   duration_ms: number | null;
   success: boolean;
   error: string | null;
+  tool_call_id?: string | null;
+  message_id?: string | null;
   input_data?: Record<string, unknown>;
   output_summary?: string | null;
   output_data?: unknown;
+  fault_side?: string | null;
+  security_labels?: SecurityLabel[];
 }
 
 export interface TraceLLMCall {
@@ -360,10 +371,29 @@ export interface TraceMemoryEvent {
   metadata?: Record<string, unknown>;
 }
 
+export interface TraceRecoveryAction {
+  id: string;
+  label: string;
+  url: string;
+}
+
 export interface TraceError {
   timestamp: number;
   error: string;
   error_type: string;
+  /** Deterministic fault-side attribution (harness FaultSide token). */
+  fault_side?: string | null;
+  /** LLM error classification (ErrorKind token). */
+  error_kind?: string | null;
+  /** Recovery action buttons surfaced in the trace error card. */
+  recovery_actions?: TraceRecoveryAction[];
+  /** Localized diagnostic payload from the harness LLMErrorDiagnostic. */
+  diagnostic_result?: {
+    error_type: string;
+    user_message: string;
+    resolution_steps: string[];
+    locale: string;
+  } | null;
 }
 
 export interface TraceHumanFeedback {
@@ -389,6 +419,10 @@ export interface ExecutionTrace {
   memory_events?: TraceMemoryEvent[];
   total_events: number;
   total_tokens: number;
+  /** Index into `errors` of the earliest unrecovered failure (first-irrecoverable). */
+  first_irrecoverable_index?: number | null;
+  /** Wall-clock timestamp (seconds) of the first irrecoverable error. */
+  first_irrecoverable_timestamp?: number | null;
 }
 
 export async function getSessionExecutionTrace(

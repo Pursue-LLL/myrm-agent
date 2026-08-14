@@ -130,6 +130,7 @@ dev = [
   "mypy>=2.3.0",
   "pyright>=1.1.411",
   "blockbuster>=1.5.26",
+  "jsonschema>=4.23.0",          # Agent Plugins 官方 schema 契约校验（tests/fixtures/agent_plugins/）
 ]
 
 # Sandbox 沙箱模式专属依赖（全部为延迟导入或 CLI 工具，本地模式不安装也不影响启动）

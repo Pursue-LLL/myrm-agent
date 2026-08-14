@@ -6,11 +6,10 @@
 
 [OUTPUT]
 - _branch_has_commits, _ensure_target_branch_checked_out, _is_valid_git_branch
-- re-exports _auto_commit_dirty_worktree from sandbox_worktree
 
 [POS]
 合并前的 git 前置步骤：判断是否有可合并提交、确保 merge 落在目标分支、校验分支名。
-自动提交未提交改动的共享实现由 sandbox_worktree 提供（kanban 与 sandbox 共用一份，
+自动提交未提交改动的共享实现位于 sandbox_worktree（kanban 与 sandbox 共用一份，
 避免语义漂移）。与 worktree.py 解耦，避免主文件超行数预算。
 """
 

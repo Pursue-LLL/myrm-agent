@@ -45,7 +45,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `handoff.py` | ✅ 辅助 | 跨平台会话交接：将 Chat 的 channel_session_key 重绑定到目标渠道，支持 UNIQUE 冲突自动解决和 pairing 验证 | ✅ |
 | `share_token.py` | ✅ 辅助 | 对话分享 HMAC+TTL 无状态签名 token 创建/验证/无密码确定性重建（同 payload+exp 同 token，GUI 状态查询据此恢复分享链接，零存储原始 token） | ✅ |
 | `share_renderer.py` | ✅ 辅助 | 对话分享只读 HTML 页面 SSR 渲染（markdown-it-py Markdown 渲染 + Agent 身份卡片 + 消息历史 + OG metadata + Dark Mode + XSS 防护） | ✅ |
-| `sandbox_worktree.py` | ✅ 辅助 | Git worktree 生命周期管理：create/cleanup/merge/status，供 converter.py 和 sandbox API 共用 | ✅ |
+| `sandbox_worktree.py` | ✅ 辅助 | Git worktree 生命周期管理：create/cleanup/merge/status，供 converter.py 和 sandbox API 共用；cleanup 默认 safe（dirty worktree 保留防丢数据），用户显式丢弃（`disable_sandbox`/chat 永久删除/清空回收站）或 merge 成功后 `force=True`；merge 失败自动 `git merge --abort` 恢复 repo（防 MERGE_HEAD 阻塞后续 merge）并收集冲突文件列表返回给调用方；提供 kanban/sandbox 共享的 per-base_dir merge 锁（`_get_merge_lock`）与 auto-commit git identity 兜底（repo 无 user 配置时注入 `-c user.name/-c user.email`） | ✅ |
 | `effective_workspace.py` | ✅ 核心 | SSOT：`resolve_effective_chat_workspace` — project.workspace_path > chat.workspace_dir > JIT sandbox；供 GET chat、converter、sandbox API、files suggest/browse、fork、`ensure_default_workspace_dir` 共用 | ✅ |
 
 ---

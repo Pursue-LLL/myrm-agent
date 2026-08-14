@@ -2,17 +2,21 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CheckCircle2, Copy, Link2, RefreshCw, Unlink, Zap } from 'lucide-react';
+import { CheckCircle2, Copy, FileJson, Link2, Package, RefreshCw, Unlink, Zap } from 'lucide-react';
 
 import { Button } from '@/components/primitives/button';
 import { Checkbox } from '@/components/primitives/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
+import { Switch } from '@/components/primitives/switch';
 import {
+  AGENT_PLUGIN_PROFILE_ID,
+  type AgentPluginBundleResponse,
   type ConnectProfile,
   type GenerateConfigResponse,
   listConnectProfiles,
   generateConnectConfig,
+  generateAgentPluginBundle,
   revokeConnect,
   runConnectDoctor,
 } from '@/services/connect';
@@ -26,7 +30,7 @@ interface ConnectWizardDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type WizardStep = 'select' | 'config' | 'done';
+type WizardStep = 'select' | 'config' | 'plugin' | 'done';
 
 export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogProps) {
   const locale = useLocale();
@@ -37,9 +41,13 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   const [selectedAgentId, setSelectedAgentId] = useState('default');
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [configResult, setConfigResult] = useState<GenerateConfigResponse | null>(null);
+  const [pluginResult, setPluginResult] = useState<AgentPluginBundleResponse | null>(null);
+  const [selectedFile, setSelectedFile] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
+  const [copiedFile, setCopiedFile] = useState(false);
+  const [pluginEmbedToken, setPluginEmbedToken] = useState(false);
   const [doctorResult, setDoctorResult] = useState<boolean | null>(null);
   const [doctorRunning, setDoctorRunning] = useState(false);
 
@@ -77,9 +85,15 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
         setSelectedAgentId('default');
         setSelectedProfile(null);
         setConfigResult(null);
+        setPluginResult(null);
+        setSelectedFile('');
+        setPluginEmbedToken(false);
         setCopiedConfig(false);
         setCopiedToken(false);
+        setCopiedFile(false);
         setDoctorResult(null);
+        setRevokeConfirming(false);
+        setClearSyncedMemory(false);
         void loadAgents();
         loadProfiles();
       }
@@ -120,6 +134,46 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     setTimeout(() => setCopiedToken(false), 2000);
   }, [configResult]);
 
+  const handleGeneratePlugin = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await generateAgentPluginBundle(selectedAgentId, pluginEmbedToken);
+      setPluginResult(result);
+      setSelectedFile(Object.keys(result.files)[0] ?? '');
+      setStep('plugin');
+    } catch {
+      // Error handled by apiRequest globally
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedAgentId, pluginEmbedToken]);
+
+  const handleCopyPluginFile = useCallback(async () => {
+    if (!pluginResult || !selectedFile) {return;}
+    await navigator.clipboard.writeText(pluginResult.files[selectedFile] ?? '');
+    setCopiedFile(true);
+    setTimeout(() => setCopiedFile(false), 2000);
+  }, [pluginResult, selectedFile]);
+
+  const handleCopyPluginToken = useCallback(async () => {
+    if (!pluginResult) {return;}
+    await navigator.clipboard.writeText(pluginResult.token);
+    setCopiedToken(true);
+    setTimeout(() => setCopiedToken(false), 2000);
+  }, [pluginResult]);
+
+  const handleDoctorPlugin = useCallback(async () => {
+    setDoctorRunning(true);
+    try {
+      const result = await runConnectDoctor(AGENT_PLUGIN_PROFILE_ID);
+      setDoctorResult(result.healthy);
+    } catch {
+      setDoctorResult(false);
+    } finally {
+      setDoctorRunning(false);
+    }
+  }, []);
+
   const handleDoctor = useCallback(async () => {
     if (!selectedProfile) {return;}
     setDoctorRunning(true);
@@ -136,6 +190,23 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   const [revokeConfirming, setRevokeConfirming] = useState(false);
   const [clearSyncedMemory, setClearSyncedMemory] = useState(false);
   const [providerTreeCount, setProviderTreeCount] = useState(0);
+
+  const handleRevokePlugin = useCallback(async () => {
+    if (!revokeConfirming) {
+      setRevokeConfirming(true);
+      return;
+    }
+    setRevokeConfirming(false);
+    try {
+      await revokeConnect(AGENT_PLUGIN_PROFILE_ID);
+      setStep('select');
+      setPluginResult(null);
+      setSelectedFile('');
+      setDoctorResult(null);
+    } catch {
+      // Error handled globally
+    }
+  }, [revokeConfirming]);
 
   const handleRevoke = useCallback(async () => {
     if (!selectedProfile) {return;}
@@ -220,6 +291,27 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
               <Zap className="mr-2 h-4 w-4" />
               {loading ? t('generating') : t('generate')}
             </Button>
+
+            <div className="rounded-lg border border-dashed p-3 space-y-3">
+              <div>
+                <p className="text-sm font-medium flex items-center gap-1.5">
+                  <Package className="h-4 w-4 text-primary" />
+                  {t('agentPlugin')}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('agentPluginDesc')}</p>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs text-muted-foreground flex items-center gap-2 cursor-pointer">
+                  <Switch checked={pluginEmbedToken} onCheckedChange={setPluginEmbedToken} />
+                  {t('agentPluginEmbedToken')}
+                </label>
+              </div>
+              <p className="text-[10px] text-muted-foreground/70">{t('agentPluginEmbedTokenHint')}</p>
+              <Button onClick={handleGeneratePlugin} disabled={loading} className="w-full" variant="secondary">
+                <FileJson className="mr-2 h-4 w-4" />
+                {loading ? t('generating') : t('agentPluginGenerate')}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -304,6 +396,93 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
                 </label>
               </div>
             )}
+
+            {doctorResult !== null && (
+              <div
+                className={cn(
+                  'rounded-full p-2 text-xs',
+                  doctorResult
+                    ? 'bg-green-500/10 text-green-700 dark:text-green-400'
+                    : 'bg-red-500/10 text-red-700 dark:text-red-400',
+                )}
+              >
+                {doctorResult ? t('doctorHealthy') : t('doctorUnhealthy')}
+              </div>
+            )}
+
+            <Button variant="ghost" className="w-full" onClick={() => handleOpen(false)}>
+              {t('close')}
+            </Button>
+          </div>
+        )}
+
+        {step === 'plugin' && pluginResult && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3">
+              <p className="text-sm font-medium text-green-700 dark:text-green-400">{t('agentPluginReady')}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('memoryScopeAgent', {
+                  agent: getBuiltinAgentName(
+                    pluginResult.agent_id,
+                    agents.find((agent) => agent.id === pluginResult.agent_id)?.name ?? pluginResult.agent_id,
+                    locale,
+                  ),
+                })}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">{pluginResult.instructions}</p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Select value={selectedFile} onValueChange={setSelectedFile}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder={t('pluginFile')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(pluginResult.files).map((file) => (
+                      <SelectItem key={file} value={file}>
+                        {file}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button variant="ghost" size="sm" onClick={handleCopyPluginFile}>
+                  {copiedFile ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                  <span className="ml-1 text-xs">{copiedFile ? t('copied') : t('copy')}</span>
+                </Button>
+              </div>
+              <pre className="rounded-lg bg-muted p-3 text-xs overflow-x-auto max-h-48">
+                {pluginResult.files[selectedFile] ?? ''}
+              </pre>
+            </div>
+
+            <div className="rounded-full border border-amber-500/20 bg-amber-500/5 p-2">
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                {t('token')}: <code className="text-[10px] break-all">{pluginResult.token}</code>
+              </p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-[10px] text-amber-600/70 dark:text-amber-400/70">{t('tokenWarning')}</p>
+                <Button variant="ghost" size="sm" className="h-6 px-2" onClick={handleCopyPluginToken}>
+                  <Copy className="h-3 w-3 mr-1" />
+                  <span className="text-[10px]">{copiedToken ? t('copied') : t('copy')}</span>
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={handleDoctorPlugin} disabled={doctorRunning}>
+                <RefreshCw className={cn('mr-2 h-4 w-4', doctorRunning && 'animate-spin')} />
+                {doctorRunning ? t('doctorRunning') : t('doctor')}
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleRevokePlugin}>
+                <Unlink className="mr-1 h-3.5 w-3.5" />
+                {revokeConfirming ? t('revokeConfirm') : t('revoke')}
+              </Button>
+            </div>
 
             {doctorResult !== null && (
               <div

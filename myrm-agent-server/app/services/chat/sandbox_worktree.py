@@ -7,7 +7,7 @@
 - get_sandbox_worktree_path: Compute the deterministic path for a chat's sandbox worktree.
 - is_git_repository: Check if a directory is within a git repository.
 - merge_sandbox_to_parent: Merge sandbox branch changes back to the source branch.
-- prune_stale_sandboxes: Startup cleanup for orphaned worktrees and branches.
+- _get_merge_lock: Shared per-base_dir merge lock reused by kanban task merges.
 - WorktreeCreateError: Structured error type for worktree creation failures.
 
 [POS]
@@ -30,6 +30,20 @@ logger = logging.getLogger(__name__)
 _SANDBOX_DIR_NAME = ".sandboxes"
 
 _GIT_ENV: dict[str, str] = {**os.environ, "LANG": "C", "LC_ALL": "C"}
+
+# Per-base_dir merge locks shared by kanban and sandbox.  Git writes the
+# shared index in base_dir, so concurrent merges on the same repo race
+# (observed "Unable to write index").  Serialize per base_dir so unrelated
+# repos merge in parallel while same-repo merges are mutually exclusive.
+_MERGE_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+def _get_merge_lock(base_dir: str) -> asyncio.Lock:
+    lock = _MERGE_LOCKS.get(base_dir)
+    if lock is None:
+        lock = asyncio.Lock()
+        _MERGE_LOCKS[base_dir] = lock
+    return lock
 
 
 class WorktreeErrorReason(str, Enum):
@@ -198,19 +212,58 @@ async def create_sandbox_worktree(
         )
         return worktree_dir
     except Exception as exc:
-        logger.warning("Failed to create sandbox worktree for chat %s: %s", chat_id[:8], exc)
-        return WorktreeCreateError(reason=WorktreeErrorReason.ERROR, message=str(exc)[:300])
+        logger.warning(
+            "Failed to create sandbox worktree for chat %s: %s", chat_id[:8], exc
+        )
+        return WorktreeCreateError(
+            reason=WorktreeErrorReason.ERROR, message=str(exc)[:300]
+        )
 
 
-async def cleanup_sandbox_worktree(base_dir: str, chat_id: str) -> bool:
-    """Remove the sandbox worktree and optionally its branch.
+async def _worktree_is_dirty(path: str) -> bool:
+    """True when a sandbox worktree has uncommitted changes (untracked, modified, staged)."""
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "status", "--porcelain"],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=_GIT_ENV,
+        )
+        return result.returncode == 0 and bool(result.stdout.strip())
+    except Exception:
+        # Fail-closed: an unreachable git status must not let cleanup force-delete
+        # a worktree that may hold uncommitted agent edits.
+        return True
 
-    Returns True if cleanup succeeded or worktree didn't exist.
+
+async def cleanup_sandbox_worktree(
+    base_dir: str, chat_id: str, *, force: bool = False
+) -> bool:
+    """Remove the sandbox worktree and its branch.
+
+    Default safe mode checks for uncommitted changes first and keeps the
+    worktree when it is dirty, so ending a chat session never silently drops
+    file-tool edits the agent never committed.  ``force=True`` (used after a
+    successful merge, or when the user explicitly discards the sandbox)
+    deletes unconditionally.  Returns True if the worktree was removed or
+    absent; False when preserved due to dirtiness.
     """
     worktree_dir = get_sandbox_worktree_path(base_dir, chat_id)
 
     if not Path(worktree_dir).exists():
         return True
+
+    if not force and await _worktree_is_dirty(worktree_dir):
+        logger.warning(
+            "Sandbox worktree %s for chat %s has uncommitted changes; preserved "
+            "for manual handling instead of deleting (would lose data)",
+            worktree_dir,
+            chat_id[:8],
+        )
+        return False
 
     try:
         result = await asyncio.to_thread(
@@ -223,7 +276,11 @@ async def cleanup_sandbox_worktree(base_dir: str, chat_id: str) -> bool:
             env=_GIT_ENV,
         )
         if result.returncode == 0:
-            logger.info("Cleaned up sandbox worktree at %s for chat %s", worktree_dir, chat_id[:8])
+            logger.info(
+                "Cleaned up sandbox worktree at %s for chat %s",
+                worktree_dir,
+                chat_id[:8],
+            )
 
             branch_name = f"sandbox/chat-{chat_id[:12]}"
             await asyncio.to_thread(
@@ -244,56 +301,115 @@ async def cleanup_sandbox_worktree(base_dir: str, chat_id: str) -> bool:
             )
             return False
     except Exception as exc:
-        logger.warning("Failed to cleanup sandbox worktree for chat %s: %s", chat_id[:8], exc)
+        logger.warning(
+            "Failed to cleanup sandbox worktree for chat %s: %s", chat_id[:8], exc
+        )
         return False
 
 
-async def _auto_commit_dirty_worktree(worktree_path: str) -> bool:
-    """Commit any uncommitted changes in the worktree before merge.
+async def _git_identity(repo_dir: str) -> list[str]:
+    """Return ``-c user.name/-c user.email`` overrides for a bare repo.
 
-    Prevents data loss when agent tools (file_write, etc.) modify files
-    without creating git commits.  Returns True if a commit was created.
+    Fresh ``git init``/``git clone`` repos often have no user identity
+    configured, which makes ``git commit`` fail with "Please tell me who you
+    are".  Only inject overrides when the repo (local + global config) has no
+    email, so configured environments keep their real author.
     """
-    status = await asyncio.to_thread(
-        subprocess.run,
-        ["git", "status", "--porcelain"],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        timeout=10,
-        env=_GIT_ENV,
-    )
-    if status.returncode != 0 or not status.stdout.strip():
-        return False
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "config", "--get", "user.email"],
+            cwd=repo_dir,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            env=_GIT_ENV,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return []
+    except Exception:
+        return []
+    return [
+        "-c",
+        "user.name=Myrm Agent",
+        "-c",
+        "user.email=agent@myrm.local",
+    ]
 
-    await asyncio.to_thread(
-        subprocess.run,
-        ["git", "add", "-A"],
-        cwd=worktree_path,
-        capture_output=True,
-        timeout=10,
-        env=_GIT_ENV,
-    )
-    commit = await asyncio.to_thread(
-        subprocess.run,
-        ["git", "commit", "-m", "Sandbox auto-commit before merge"],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        timeout=15,
-        env=_GIT_ENV,
-    )
-    if commit.returncode == 0:
-        logger.info("Auto-committed dirty sandbox worktree at %s", worktree_path)
-        return True
-    return False
+
+async def _auto_commit_dirty_worktree(
+    worktree_path: str, *, commit_message: str = "Auto-commit before merge"
+) -> bool:
+    """Commit uncommitted changes in a worktree before merging it back.
+
+    Returns True when the worktree is clean (nothing to commit) or the
+    auto-commit succeeded.  Returns False when there are uncommitted changes
+    that could not be committed — the caller must preserve the worktree
+    instead of cleaning it up, or the agent's edits would be silently lost.
+
+    ``commit_message`` lets the caller stamp the auto-commit with its own
+    context (e.g. sandbox session vs kanban task) so git history stays
+    accurate when this shared helper is reused.
+    """
+    try:
+        status = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "status", "--porcelain"],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=_GIT_ENV,
+        )
+        if status.returncode != 0 or not status.stdout.strip():
+            return status.returncode == 0
+
+        await asyncio.to_thread(
+            subprocess.run,
+            ["git", "add", "-A"],
+            cwd=worktree_path,
+            capture_output=True,
+            timeout=10,
+            env=_GIT_ENV,
+        )
+        identity = await _git_identity(worktree_path)
+        commit = await asyncio.to_thread(
+            subprocess.run,
+            ["git", *identity, "commit", "-m", commit_message],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            env=_GIT_ENV,
+        )
+        if commit.returncode == 0:
+            logger.info("Auto-committed dirty worktree at %s", worktree_path)
+            return True
+        logger.warning(
+            "Auto-commit failed in worktree %s: %s",
+            worktree_path,
+            commit.stderr.strip()[:200],
+        )
+        return False
+    except Exception as exc:
+        logger.warning("Auto-commit failed for %s: %s", worktree_path, exc)
+        return False
 
 
 async def merge_sandbox_to_parent(base_dir: str, chat_id: str) -> tuple[bool, str]:
     """Merge sandbox branch changes back to the parent branch.
 
-    Returns (success, message) tuple.
+    Returns (success, message) tuple.  Merges on the same base_dir are
+    serialized with kanban merges so git's shared index is never written
+    concurrently.
     """
+    async with _get_merge_lock(base_dir):
+        return await _merge_sandbox_to_parent_locked(base_dir, chat_id)
+
+
+async def _merge_sandbox_to_parent_locked(
+    base_dir: str, chat_id: str
+) -> tuple[bool, str]:
     branch_name = f"sandbox/chat-{chat_id[:12]}"
 
     parent_branch = await _get_current_branch(base_dir)
@@ -315,9 +431,18 @@ async def merge_sandbox_to_parent(base_dir: str, chat_id: str) -> tuple[bool, st
             return False, "Sandbox has uncommitted changes that could not be committed"
 
     try:
+        identity = await _git_identity(base_dir)
         result = await asyncio.to_thread(
             subprocess.run,
-            ["git", "merge", "--no-ff", branch_name, "-m", f"Merge sandbox session {chat_id[:8]}"],
+            [
+                "git",
+                *identity,
+                "merge",
+                "--no-ff",
+                branch_name,
+                "-m",
+                f"Merge sandbox session {chat_id[:8]}",
+            ],
             cwd=base_dir,
             capture_output=True,
             text=True,
@@ -325,40 +450,27 @@ async def merge_sandbox_to_parent(base_dir: str, chat_id: str) -> tuple[bool, st
             env=_GIT_ENV,
         )
         if result.returncode == 0:
-            await cleanup_sandbox_worktree(base_dir, chat_id)
+            await cleanup_sandbox_worktree(base_dir, chat_id, force=True)
             return True, f"Successfully merged sandbox to {parent_branch}"
-        else:
-            return False, f"Merge conflict: {result.stderr.strip()}"
+        # Roll the merge back so base_dir stays usable instead of lingering in
+        # a mid-merge state that blocks every later merge on the same repo.
+        conflicts = await _collect_conflict_files(base_dir)
+        await _abort_merge(base_dir)
+        message = "Merge conflict"
+        if conflicts:
+            message += f" in {len(conflicts)} file(s): {', '.join(conflicts[:5])}"
+        return False, message
     except Exception:
+        await _abort_merge(base_dir)
         return False, "Merge failed"
 
 
-async def prune_stale_sandboxes(base_dir: str) -> int:
-    """Startup cleanup: prune dead worktree references and remove orphaned sandbox branches.
-
-    Returns the number of stale branches removed.
-    """
-    if not await is_git_repository(base_dir):
-        return 0
-
-    try:
-        await asyncio.to_thread(
-            subprocess.run,
-            ["git", "worktree", "prune"],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=_GIT_ENV,
-        )
-    except Exception:
-        pass
-
-    removed = 0
+async def _collect_conflict_files(base_dir: str) -> list[str]:
+    """List files with unresolved merge conflicts in base_dir, or [] when none."""
     try:
         result = await asyncio.to_thread(
             subprocess.run,
-            ["git", "branch", "--list", "sandbox/*"],
+            ["git", "diff", "--name-only", "--diff-filter=U"],
             cwd=base_dir,
             capture_output=True,
             text=True,
@@ -366,41 +478,23 @@ async def prune_stale_sandboxes(base_dir: str) -> int:
             env=_GIT_ENV,
         )
         if result.returncode != 0:
-            return 0
+            return []
+        return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    except Exception:
+        return []
 
-        wt_result = await asyncio.to_thread(
+
+async def _abort_merge(base_dir: str) -> None:
+    """Roll back an in-progress merge so base_dir stays usable."""
+    try:
+        await asyncio.to_thread(
             subprocess.run,
-            ["git", "worktree", "list", "--porcelain"],
+            ["git", "merge", "--abort"],
             cwd=base_dir,
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=15,
             env=_GIT_ENV,
         )
-        active_branches: set[str] = set()
-        if wt_result.returncode == 0:
-            for line in wt_result.stdout.split("\n"):
-                if line.startswith("branch refs/heads/"):
-                    active_branches.add(line.removeprefix("branch refs/heads/"))
-
-        for line in result.stdout.strip().split("\n"):
-            branch = line.strip().removeprefix("* ")
-            if not branch or branch in active_branches:
-                continue
-            del_result = await asyncio.to_thread(
-                subprocess.run,
-                ["git", "branch", "-D", branch],
-                cwd=base_dir,
-                capture_output=True,
-                text=True,
-                timeout=5,
-                env=_GIT_ENV,
-            )
-            if del_result.returncode == 0:
-                removed += 1
-    except Exception as exc:
-        logger.debug("prune_stale_sandboxes partial failure: %s", exc)
-
-    if removed > 0:
-        logger.info("Pruned %d stale sandbox branches in %s", removed, base_dir)
-    return removed
+    except Exception:
+        pass

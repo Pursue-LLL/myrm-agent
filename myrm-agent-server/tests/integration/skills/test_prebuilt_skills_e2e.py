@@ -398,11 +398,12 @@ async def test_accept_upstream_endpoint_succeeds_with_pending(
 async def test_tdd_skill_v120_contract_guard(
     skills_service: SkillsService,
 ) -> None:
-    """test-driven-development v1.2.0 enhanced contract fields survive the pipeline.
+    """test-driven-development skill contract fields survive the pipeline.
 
-    Guards the v1.2.0 enhancement (VERIFY/mutation-check step, independent
-    expectation derivation, two new potential traps, deeper reference file)
-    against regression.
+    Guards the frontmatter contract (VERIFY/mutation-check step, independent
+    expectation derivation, six potential traps) and body sections (RED
+    test-passes/test-errors discipline, Red Flags red lines, deeper reference
+    file) against regression.
     """
     from myrm_agent_harness.api.skills import parse_skill_frontmatter
 
@@ -454,6 +455,11 @@ async def test_tdd_skill_v120_contract_guard(
     assert "Fix the test to fail first" in body
     assert '"Can\'t explain why test failed"' in body, "missing Red Flags cant-explain-why-failed"
     assert "Figure out the failure cause first" in body
+    assert "Test errors?" in body, "missing RED test-errors-discipline"
+    assert "re-run until it fails for the right reason" in body
+    assert "confirm it FAILS for the expected reason" in body, "missing RED expected-reason wording"
+    assert "Test passes?" in body, "missing RED test-passes-discipline"
+    assert "a test that passes immediately protects nothing" in body
 
     ref_path = get_skill_file_path(
         SkillType.PREBUILT,

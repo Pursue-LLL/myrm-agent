@@ -30,12 +30,17 @@ from app.services.chat.sandbox_worktree import (
     _GIT_ENV,
     WorktreeCreateError,
     WorktreeErrorReason,
+    _abort_merge,
+    _auto_commit_dirty_worktree,
     _classify_git_error,
+    _collect_conflict_files,
+    _get_merge_lock,
+    _git_identity,
 )
 from app.services.kanban.task_runner._worktree_merge import (
-    _auto_commit_dirty_worktree,
     _branch_has_commits,
     _ensure_target_branch_checked_out,
+    _is_valid_git_branch,
 )
 from app.services.kanban.task_runner.worktree_cleanup import (
     _delete_worktree_branch,
@@ -46,21 +51,10 @@ logger = logging.getLogger(__name__)
 
 WORKTREE_DIR_NAME = ".worktrees"
 
-# Per-base_dir merge locks.  A task's COMPLETED transition can trigger merge
-# through two paths (manual move in move_orchestrator + the dispatcher's
-# background task_completed hook); git writes the shared index in base_dir,
-# so concurrent merges on the same repo race (observed "Unable to write
-# index").  Serialize per base_dir instead of globally so unrelated repos
-# merge in parallel.
-_MERGE_LOCKS: dict[str, asyncio.Lock] = {}
-
-
-def _get_merge_lock(base_dir: str) -> asyncio.Lock:
-    lock = _MERGE_LOCKS.get(base_dir)
-    if lock is None:
-        lock = asyncio.Lock()
-        _MERGE_LOCKS[base_dir] = lock
-    return lock
+# Per-base_dir merge lock lives in the shared git layer
+# (app.services.chat.sandbox_worktree._get_merge_lock); kanban and sandbox
+# merges on the same repo must serialize because git writes the shared index
+# in base_dir (observed "Unable to write index" under concurrency).
 
 
 def _sanitize_git_branch(name: str) -> str:
@@ -229,20 +223,22 @@ async def resolve_workspace(store: KanbanStore, task: KanbanTask) -> str | None:
     return base_dir
 
 
-async def merge_task_worktree(store: KanbanStore, task: KanbanTask) -> bool:
+async def merge_task_worktree(store: KanbanStore, task: KanbanTask) -> tuple[bool, list[str]]:
     """Merge a completed task's worktree commits back into its target branch.
 
-    Returns True on success (or when there is nothing to merge).  On merge
-    conflict the worktree and its unique branch are preserved so the operator
-    can resolve manually — commits are never silently dropped.  Merges on the
-    same base_dir are serialized to avoid racing on git's shared index.
+    Returns (success, conflict_files).  On success ``conflict_files`` is empty;
+    on conflict the worktree and its unique branch are preserved so the
+    operator can resolve manually — commits are never silently dropped — and
+    the merge is rolled back so later merges on the same repo are not blocked.
+    Merges on the same base_dir are serialized to avoid racing on git's shared
+    index.
     """
     if not task.branch:
-        return True
+        return True, []
 
     base_dir = await resolve_base_dir(store, task)
     if not base_dir:
-        return True
+        return True, []
 
     async with _get_merge_lock(base_dir):
         return await _merge_task_worktree_locked(store, task, base_dir)
@@ -252,24 +248,36 @@ async def _merge_task_worktree_locked(
     store: KanbanStore,
     task: KanbanTask,
     base_dir: str,
-) -> bool:
+) -> tuple[bool, list[str]]:
     path = worktree_dir(base_dir, task.branch, task.task_id)
     if not Path(path).exists():
-        return True
+        return True, []
+
+    # Reject unusable branch names before any git command runs; a leading ``-``
+    # or git-forbidden characters would otherwise be parsed as CLI options.
+    if not _is_valid_git_branch(task.branch):
+        logger.warning(
+            "Unusable target branch %r for task %s; merge skipped, worktree preserved",
+            task.branch,
+            task.task_id[:8],
+        )
+        return False, []
 
     unique_branch = _worktree_branch_name(task.branch, task.task_id)
 
     # Auto-commit uncommitted worktree changes so agent edits made with
     # file tools (not git commits) still land in the merge.  If the commit
     # fails the worktree is preserved — cleaning it up would drop those edits.
-    if not await _auto_commit_dirty_worktree(path):
+    if not await _auto_commit_dirty_worktree(
+        path, commit_message=f"Auto-commit kanban task {task.task_id[:8]}"
+    ):
         logger.warning(
             "Cannot commit dirty worktree %s for task %s; merge skipped, "
             "worktree preserved for manual handling",
             path,
             task.task_id[:8],
         )
-        return False
+        return False, []
     if not await _branch_has_commits(base_dir, unique_branch, task.branch):
         logger.info(
             "No commits on branch %s for task %s; skipping merge",
@@ -278,7 +286,7 @@ async def _merge_task_worktree_locked(
         )
         await cleanup_worktree(store, task, force=True)
         await _delete_worktree_branch(base_dir, task.branch, task.task_id)
-        return True
+        return True, []
 
     # Ensure the merge lands on the task's target branch, not whatever is
     # currently checked out.  Default tasks share the current branch so this
@@ -289,13 +297,15 @@ async def _merge_task_worktree_locked(
             task.branch,
             task.task_id[:8],
         )
-        return False
+        return False, []
 
     try:
+        identity = await _git_identity(base_dir)
         result = await asyncio.to_thread(
             subprocess.run,
             [
                 "git",
+                *identity,
                 "merge",
                 "--no-ff",
                 unique_branch,
@@ -309,14 +319,21 @@ async def _merge_task_worktree_locked(
             env=_GIT_ENV,
         )
         if result.returncode != 0:
+            # Collect the conflicting files, then roll the merge back so the
+            # repo does not linger in a mid-merge state that would block every
+            # later merge on the same repo.  The worktree and its unique branch
+            # are preserved, so no commit is lost.
+            conflicts = await _collect_conflict_files(base_dir)
+            await _abort_merge(base_dir)
             logger.warning(
-                "Merge of task %s branch %s into %s failed: %s",
+                "Merge of task %s branch %s into %s failed (conflicts=%d): %s",
                 task.task_id[:8],
                 unique_branch,
                 task.branch,
+                len(conflicts),
                 result.stderr.strip()[:300],
             )
-            return False
+            return False, conflicts
         logger.info(
             "Merged task %s branch %s into %s",
             task.task_id[:8],
@@ -325,12 +342,13 @@ async def _merge_task_worktree_locked(
         )
         await cleanup_worktree(store, task, force=True)
         await _delete_worktree_branch(base_dir, task.branch, task.task_id)
-        return True
+        return True, []
     except Exception as exc:
+        await _abort_merge(base_dir)
         logger.warning(
             "Merge of task %s branch %s failed: %s",
             task.task_id[:8],
             unique_branch,
             exc,
         )
-        return False
+        return False, []

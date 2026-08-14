@@ -641,6 +641,14 @@ export default function KanbanTaskCard({
                             {t('mergeConflictDetail', {
                               branch: String(ev.payload.branch || 'unknown'),
                             })}
+                            {Array.isArray(ev.payload.conflicts) && ev.payload.conflicts.length > 0 && (
+                              <>
+                                {' '}·{' '}
+                                {t('mergeConflictFileCount', {
+                                  count: ev.payload.conflicts.length,
+                                })}
+                              </>
+                            )}
                           </p>
                         )}
                         {ev.kind === 'verification_failed' && typeof ev.payload?.reason === 'string' && (

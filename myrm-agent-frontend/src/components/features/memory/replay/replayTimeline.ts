@@ -106,7 +106,14 @@ export function buildMessageEvents(
     const windowStart = prevUser ? (messageTimestamp(prevUser) ?? sessionStartMs) : sessionStartMs;
     const windowEnd = baseTs;
 
+    // Prefer exact lineage linkage: the tool call's message_id equals this
+    // assistant message's id when the broadcaster persisted it. Falls back to
+    // the time-window heuristic for legacy/untagged event streams so long or
+    // cross-turn calls are never dropped.
     const turnTools = toolCalls.filter((tc) => {
+      if (m.messageId && tc.message_id) {
+        return tc.message_id === m.messageId;
+      }
       const startMs = tc.start_time * 1000;
       return startMs >= windowStart && startMs <= windowEnd + 1000;
     });
@@ -116,7 +123,7 @@ export function buildMessageEvents(
       displayTime = turnTools.reduce((max, tc) => {
         const endMs = tc.end_time ? tc.end_time * 1000 : tc.start_time * 1000;
         return Math.max(max, endMs);
-      }, windowStart);
+      }, 0);
     }
 
     events.push({ type: 'message', time: displayTime, data: m });

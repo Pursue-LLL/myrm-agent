@@ -4,15 +4,16 @@
 - myrm_agent_harness.api::KanbanStore (POS: Public protocol re-exports)
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask (POS: Kanban domain types)
 - worktree (POS: worktree_dir / _worktree_branch_name / resolve_base_dir)
+- sandbox_worktree (POS: _GIT_ENV / _worktree_is_dirty shared helpers)
 
 [OUTPUT]
 - cleanup_worktree (bool: worktree 是否已移除)
 - _delete_worktree_branch (None: 合并后删除唯一分支)
-- _worktree_is_dirty (bool: worktree 是否有未提交改动)
 
 [POS]
 Worktree 生命周期清理：删除 worktree 目录与唯一分支。与 worktree.py 解耦，
-避免主文件超行数预算。
+避免主文件超行数预算。脏状态检测复用 sandbox_worktree._worktree_is_dirty，
+避免两处实现语义漂移。
 """
 
 from __future__ import annotations
@@ -25,26 +26,9 @@ from pathlib import Path
 from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
-from app.services.chat.sandbox_worktree import _GIT_ENV
+from app.services.chat.sandbox_worktree import _GIT_ENV, _worktree_is_dirty
 
 logger = logging.getLogger(__name__)
-
-
-async def _worktree_is_dirty(path: str) -> bool:
-    """True when a worktree has uncommitted changes (untracked, modified, staged)."""
-    try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "status", "--porcelain"],
-            cwd=path,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=_GIT_ENV,
-        )
-        return result.returncode == 0 and bool(result.stdout.strip())
-    except Exception:
-        return False
 
 
 async def cleanup_worktree(

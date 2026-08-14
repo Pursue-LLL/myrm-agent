@@ -12230,6 +12230,7 @@
     "decomposedChildren": "{count} 個の子タスクを作成しました",
     "timedOutDetail": "タイムアウト：{elapsed} 秒実行（制限 {limit} 秒）",
     "mergeConflictDetail": "タスクは完了しましたが、変更はブランチ {branch} にマージできませんでした",
+    "mergeConflictFileCount": "{count} 個のファイルで競合",
     "approvedBy": "{approver} により承認",
     "rejectedBy": "{approver} により却下",
     "pipelineFromTemplate": "からテンプレート作成",

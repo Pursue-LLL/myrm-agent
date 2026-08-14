@@ -211,4 +211,90 @@ describe('replayTimeline', () => {
     const events = buildMessageEvents(messages, [], 0);
     expect(events).toHaveLength(1);
   });
+
+  it('attributes tool calls by exact message_id across overlapping turns', () => {
+    const messages = [
+      msg('user', 'u1', 1001000, 'task one'),
+      msg('assistant', 'a1', 1009000, 'reply one'),
+      msg('user', 'u2', 1010000, 'task two'),
+      msg('assistant', 'a2', 1019000, 'reply two'),
+    ];
+    const toolCalls = [
+      {
+        sequence: 1,
+        tool_name: 'bash',
+        start_time: 1001.5,
+        end_time: 1002,
+        duration_ms: 500,
+        success: true,
+        error: null,
+        tool_call_id: 'call-a1',
+        message_id: 'a1',
+      },
+      {
+        sequence: 2,
+        tool_name: 'bash',
+        start_time: 1001.8,
+        end_time: 1001.9,
+        duration_ms: 100,
+        success: true,
+        error: null,
+        tool_call_id: 'call-a2',
+        message_id: 'a2',
+      },
+    ];
+    const events = buildMessageEvents(messages, toolCalls, 1000000);
+    const assistantEvents = events.filter((e) => e.type === 'message' && e.data.role === 'assistant');
+    expect(assistantEvents.find((e) => e.data.messageId === 'a1')?.time).toBe(1002000);
+    expect(assistantEvents.find((e) => e.data.messageId === 'a2')?.time).toBe(1001900);
+  });
+
+  it('falls back to time-window attribution when message_id is absent', () => {
+    const messages = [msg('user', 'u1', 1001000, 'run'), msg('assistant', 'a1', 1008000, 'done')];
+    const toolCalls = [
+      {
+        sequence: 1,
+        tool_name: 'bash',
+        start_time: 1002,
+        end_time: 1004,
+        duration_ms: 2000,
+        success: true,
+        error: null,
+      },
+    ];
+    const events = buildMessageEvents(messages, toolCalls, 1000000);
+    const assistant = events.find((e) => e.type === 'message' && e.data.role === 'assistant');
+    expect(assistant?.time).toBe(1004000);
+  });
+
+  it('mixes exact attribution and legacy fallback per call', () => {
+    const messages = [msg('user', 'u1', 1001000, 'run'), msg('assistant', 'a1', 1008000, 'done')];
+    const toolCalls = [
+      {
+        sequence: 1,
+        tool_name: 'bash',
+        start_time: 1001.2,
+        end_time: 1001.5,
+        duration_ms: 300,
+        success: true,
+        error: null,
+        tool_call_id: 'call-x',
+        message_id: 'other-message',
+      },
+      {
+        sequence: 2,
+        tool_name: 'bash',
+        start_time: 1002,
+        end_time: 1004,
+        duration_ms: 2000,
+        success: true,
+        error: null,
+      },
+    ];
+    const events = buildMessageEvents(messages, toolCalls, 1000000);
+    const assistant = events.find((e) => e.type === 'message' && e.data.role === 'assistant');
+    // The id-tagged call belongs to another message and is excluded; the
+    // legacy call still aligns via the time-window heuristic.
+    expect(assistant?.time).toBe(1004000);
+  });
 });

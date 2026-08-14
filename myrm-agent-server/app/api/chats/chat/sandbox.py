@@ -37,7 +37,9 @@ from app.services.chat.sandbox_worktree import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_sandbox_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
+_sandbox_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = (
+    weakref.WeakValueDictionary()
+)
 
 
 def _get_sandbox_lock(chat_id: str) -> asyncio.Lock:
@@ -89,28 +91,40 @@ async def enable_sandbox(chat_id: str):
     async with _get_sandbox_lock(chat_id):
         effective_dir, existing_sandbox_base = await _resolve_chat_base_dir(chat_id)
         if not effective_dir:
-            raise HTTPException(status_code=400, detail="Chat has no associated workspace directory")
+            raise HTTPException(
+                status_code=400, detail="Chat has no associated workspace directory"
+            )
 
         base_dir = existing_sandbox_base or effective_dir
 
         if not await is_git_repository(base_dir):
-            raise HTTPException(status_code=400, detail="Workspace is not a git repository")
+            raise HTTPException(
+                status_code=400, detail="Workspace is not a git repository"
+            )
 
         result = await create_sandbox_worktree(base_dir, chat_id)
         if not isinstance(result, str):
-            raise HTTPException(status_code=500, detail=f"Failed to create sandbox worktree: {result.reason.value}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create sandbox worktree: {result.reason.value}",
+            )
 
-        await ChatService.update_chat_fields(chat_id, {
-            "workspace_dir": result,
-            "sandbox_base_dir": base_dir,
-        })
+        await ChatService.update_chat_fields(
+            chat_id,
+            {
+                "workspace_dir": result,
+                "sandbox_base_dir": base_dir,
+            },
+        )
 
-        return success_response({
-            "active": True,
-            "worktree_path": result,
-            "branch": f"sandbox/chat-{chat_id[:12]}",
-            "base_dir": base_dir,
-        })
+        return success_response(
+            {
+                "active": True,
+                "worktree_path": result,
+                "branch": f"sandbox/chat-{chat_id[:12]}",
+                "base_dir": base_dir,
+            }
+        )
 
 
 @router.post("/{chat_id}/sandbox/disable")
@@ -121,14 +135,21 @@ async def disable_sandbox(chat_id: str):
         if not sandbox_base:
             raise HTTPException(status_code=400, detail="No active sandbox session")
 
-        success = await cleanup_sandbox_worktree(sandbox_base, chat_id)
+        # User explicitly discards the sandbox, so force-remove even when the
+        # worktree holds uncommitted edits.
+        success = await cleanup_sandbox_worktree(sandbox_base, chat_id, force=True)
         if not success:
-            raise HTTPException(status_code=500, detail="Failed to cleanup sandbox worktree")
+            raise HTTPException(
+                status_code=500, detail="Failed to cleanup sandbox worktree"
+            )
 
-        await ChatService.update_chat_fields(chat_id, {
-            "workspace_dir": sandbox_base,
-            "sandbox_base_dir": None,
-        })
+        await ChatService.update_chat_fields(
+            chat_id,
+            {
+                "workspace_dir": sandbox_base,
+                "sandbox_base_dir": None,
+            },
+        )
 
         return success_response({"active": False, "message": "Sandbox discarded"})
 
@@ -144,12 +165,17 @@ async def merge_sandbox(chat_id: str):
         success, message = await merge_sandbox_to_parent(sandbox_base, chat_id)
 
         if success:
-            await ChatService.update_chat_fields(chat_id, {
-                "workspace_dir": sandbox_base,
-                "sandbox_base_dir": None,
-            })
+            await ChatService.update_chat_fields(
+                chat_id,
+                {
+                    "workspace_dir": sandbox_base,
+                    "sandbox_base_dir": None,
+                },
+            )
 
-        return success_response(SandboxMergeResponse(success=success, message=message).model_dump())
+        return success_response(
+            SandboxMergeResponse(success=success, message=message).model_dump()
+        )
 
 
 @router.get("/{chat_id}/sandbox/status")
@@ -163,12 +189,14 @@ async def sandbox_status(chat_id: str):
     sandbox_path = get_sandbox_worktree_path(sandbox_base, chat_id)
     active = Path(sandbox_path).exists()
 
-    return success_response(SandboxStatusResponse(
-        active=active,
-        worktree_path=sandbox_path if active else None,
-        branch=f"sandbox/chat-{chat_id[:12]}" if active else None,
-        base_dir=sandbox_base,
-    ).model_dump())
+    return success_response(
+        SandboxStatusResponse(
+            active=active,
+            worktree_path=sandbox_path if active else None,
+            branch=f"sandbox/chat-{chat_id[:12]}" if active else None,
+            base_dir=sandbox_base,
+        ).model_dump()
+    )
 
 
 @router.get("/{chat_id}/sandbox/diff")
@@ -212,14 +240,20 @@ async def sandbox_diff(chat_id: str):
         )
 
         if diff_result.returncode != 0:
-            logger.error("git diff failed (rc=%d): %s", diff_result.returncode, diff_result.stderr.strip())
+            logger.error(
+                "git diff failed (rc=%d): %s",
+                diff_result.returncode,
+                diff_result.stderr.strip(),
+            )
             raise HTTPException(status_code=500, detail="git diff failed")
 
-        return success_response({
-            "stat": stat_result.stdout if stat_result.returncode == 0 else "",
-            "diff": diff_result.stdout,
-            "has_changes": bool(diff_result.stdout.strip()),
-        })
+        return success_response(
+            {
+                "stat": stat_result.stdout if stat_result.returncode == 0 else "",
+                "diff": diff_result.stdout,
+                "has_changes": bool(diff_result.stdout.strip()),
+            }
+        )
     except subprocess.TimeoutExpired as exc:
         raise HTTPException(status_code=504, detail="git diff timed out") from exc
     except HTTPException:

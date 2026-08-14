@@ -175,6 +175,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       }
       lastStep.status = 'error';
       lastStep.error = data.error;
+      lastStep.fault_side = data.fault_side;
     }
     return done(ctx);
   }

@@ -61,7 +61,9 @@ def _make_task_completed_merge_hook(runner: TaskRunner, store: SqlAlchemyKanbanS
                 merge_task_worktree(runner, task, store)
             )
         except RuntimeError:  # pragma: no cover - 无事件循环时不调度
-            logger.debug("No running loop; skip worktree merge for %s", task.task_id[:8])
+            logger.debug(
+                "No running loop; skip worktree merge for %s", task.task_id[:8]
+            )
 
     return hook
 
@@ -110,14 +112,10 @@ async def start_dispatcher(
     )
     dispatcher.on_event(
         lambda event_type, task: (
-            emit_task_rejected(task)
-            if event_type == "task_rejected"
-            else None
+            emit_task_rejected(task) if event_type == "task_rejected" else None
         )
     )
-    dispatcher.on_event(
-        BatchDirectoryService.get_instance().dispatcher_event_hook
-    )
+    dispatcher.on_event(BatchDirectoryService.get_instance().dispatcher_event_hook)
     dispatcher.on_event(_make_task_completed_merge_hook(runner, store))
     await dispatcher.start()
     dispatchers[board_id] = dispatcher

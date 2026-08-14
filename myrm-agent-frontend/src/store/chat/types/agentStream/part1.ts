@@ -135,6 +135,8 @@ export interface ErrorStreamEvent extends BaseAgentEvent {
   recovery_actions?: RecoveryAction[];
   default_hint?: string;
   diagnostic_result?: DiagnosticResult;
+  /** Deterministic fault-side attribution (harness FaultSide token). */
+  fault_side?: string;
 }
 
 export interface RateLimitUpdatedStreamEvent {
@@ -182,6 +184,8 @@ export interface TasksStepsStreamEvent extends BaseAgentEvent {
   error_category?: string;
   error_hint?: string;
   recovery_actions?: RecoveryAction[];
+  /** Deterministic fault-side attribution (harness FaultSide token). */
+  fault_side?: string;
   progress_percent?: number;
   completed_count?: number;
   failed_count?: number;
@@ -350,6 +354,8 @@ export interface ToolFailureStreamEvent extends BaseAgentEvent {
   /** 与后端 ToolCallEventData.duration_ms 可选契约对齐，防御未来缺省。 */
   duration_ms?: number;
   error: string;
+  /** Deterministic fault-side attribution (harness FaultSide token). */
+  fault_side?: string;
 }
 
 export interface ToolStdoutChunkStreamEvent extends BaseAgentEvent {

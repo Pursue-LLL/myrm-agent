@@ -145,7 +145,9 @@ async def test_serial_tasks_do_not_lose_commits(git_repo: Path) -> None:
     assert isinstance(wt_b, str)
 
     # Task A's commit must still exist on its unique branch (branch preserved).
-    tip = _run_git(git_repo, "rev-parse", "--verify", "--quiet", "main-ta").stdout.strip()
+    tip = _run_git(
+        git_repo, "rev-parse", "--verify", "--quiet", "main-ta"
+    ).stdout.strip()
     assert tip == commit_a
 
 
@@ -162,8 +164,9 @@ async def test_merge_task_worktree_lands_commits_on_target(
     (Path(wt) / "b.txt").write_text("task-c\n", encoding="utf-8")
     _commit_in(Path(wt), "task-c commit")
 
-    merged = await merge_task_worktree(store, task)
+    merged, conflicts = await merge_task_worktree(store, task)
     assert merged is True
+    assert conflicts == []
 
     # The commit is now reachable from the target branch's history.
     log = _run_git(git_repo, "log", "--oneline", "-3", "main").stdout
@@ -190,12 +193,23 @@ async def test_merge_conflict_preserves_worktree(git_repo: Path) -> None:
     (git_repo / "a.txt").write_text("main side change\n", encoding="utf-8")
     _commit_in(git_repo, "main-side change")
 
-    merged = await merge_task_worktree(store, task)
+    merged, conflicts = await merge_task_worktree(store, task)
     assert merged is False
+    assert conflicts == ["a.txt"]
+
+    # The failed merge was rolled back: no MERGE_HEAD lingers, so the repo is
+    # not stuck in a mid-merge state that would block later merges.
+    assert _run_git(git_repo, "rev-parse", "-q", "--verify", "MERGE_HEAD").returncode != 0
+    assert (
+        _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+    )
 
     # Worktree still exists with the task's commit preserved.
     assert Path(wt).exists()
-    assert _run_git(Path(wt), "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main-td"
+    assert (
+        _run_git(Path(wt), "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        == "main-td"
+    )
 
 
 @pytest.mark.asyncio
@@ -217,7 +231,9 @@ async def test_cleanup_removes_worktree_keeps_branch(git_repo: Path) -> None:
 
     assert not Path(wt).exists()
     # Branch still present with the commit.
-    branch = _run_git(git_repo, "rev-parse", "--verify", "--quiet", "main-te").stdout.strip()
+    branch = _run_git(
+        git_repo, "rev-parse", "--verify", "--quiet", "main-te"
+    ).stdout.strip()
     assert branch != ""
 
 
@@ -233,7 +249,7 @@ async def test_merge_idempotent_when_no_worktree(git_repo: Path) -> None:
     _commit_in(Path(wt), "task-f commit")
 
     await cleanup_worktree(store, task)
-    assert await merge_task_worktree(store, task) is True
+    assert await merge_task_worktree(store, task) == (True, [])
 
 
 @pytest.mark.asyncio
@@ -252,8 +268,10 @@ async def test_merge_lands_on_explicit_target_branch(git_repo: Path) -> None:
     (Path(wt) / "feat.txt").write_text("task-g\n", encoding="utf-8")
     task_commit = _commit_in(Path(wt), "task-g feature commit")
 
-    assert _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
-    merged = await merge_task_worktree(store, task)
+    assert (
+        _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+    )
+    merged, _ = await merge_task_worktree(store, task)
     assert merged is True
 
     # base_dir switched to feature-x to perform the merge.
@@ -303,12 +321,14 @@ async def test_merge_auto_commit_failure_preserves_worktree(git_repo: Path) -> N
     hook.chmod(0o755)
 
     try:
-        merged = await merge_task_worktree(store, task)
+        merged, _ = await merge_task_worktree(store, task)
         assert merged is False
         # Worktree and the uncommitted file survive.
         assert Path(wt).exists()
-        assert (Path(wt) / "precious.txt").read_text(encoding="utf-8").startswith(
-            "AGENT_UNCOMMITTED_DATA"
+        assert (
+            (Path(wt) / "precious.txt")
+            .read_text(encoding="utf-8")
+            .startswith("AGENT_UNCOMMITTED_DATA")
         )
     finally:
         hook.unlink(missing_ok=True)
@@ -328,11 +348,13 @@ async def test_merge_rejects_unusable_target_branch(git_repo: Path) -> None:
     (Path(wt) / "u.txt").write_text("data\n", encoding="utf-8")
     _commit_in(Path(wt), "task-i commit")
 
-    merged = await merge_task_worktree(store, task)
+    merged, _ = await merge_task_worktree(store, task)
     assert merged is False
     # Worktree preserved; base_dir still on main.
     assert Path(wt).exists()
-    assert _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+    assert (
+        _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+    )
 
 
 @pytest.mark.asyncio
@@ -388,7 +410,7 @@ async def test_concurrent_merges_serialize_without_failure(git_repo: Path) -> No
         merge_task_worktree(store, task_a),
         merge_task_worktree(store, task_b),
     )
-    assert results == [True, True]
+    assert results == [(True, []), (True, [])]
     # Both commits landed on main (full history: initial + 2 task commits +
     # 2 merge commits; a fixed -N would flake on concurrent merge ordering)
     # and both worktrees were cleaned up.
@@ -420,7 +442,7 @@ async def test_merge_conflict_emits_event_when_store_provided(git_repo: Path) ->
 
     from app.services.kanban.move_orchestrator import merge_task_worktree as orchestrate
 
-    merged = await orchestrate(_FakeRunner(store), task, store)
+    merged, _ = await orchestrate(_FakeRunner(store), task, store)
     assert merged is False
 
     events = await store.list_events(task.task_id)
@@ -429,6 +451,7 @@ async def test_merge_conflict_emits_event_when_store_provided(git_repo: Path) ->
     conflict = next(e for e in events if e.kind.value == "merge_conflict")
     assert conflict.payload is not None
     assert "branch" in conflict.payload
+    assert conflict.payload["conflicts"] == ["a.txt"]
 
 
 class _FakeRunner:
@@ -437,7 +460,7 @@ class _FakeRunner:
     def __init__(self, store: InMemoryKanbanStore) -> None:
         self._store = store
 
-    async def merge_task_worktree(self, task: KanbanTask) -> bool:
+    async def merge_task_worktree(self, task: KanbanTask) -> tuple[bool, list[str]]:
         from app.services.kanban.task_runner.worktree import (
             merge_task_worktree as merge,
         )
@@ -446,3 +469,58 @@ class _FakeRunner:
 
     async def cleanup_worktree(self, task: KanbanTask) -> bool:
         return True
+
+
+@pytest.mark.asyncio
+async def test_merge_auto_commit_without_git_identity(tmp_path: Path) -> None:
+    """Auto-commit succeeds on repos without a configured git identity.
+
+    Freshly initialized/cloned repos have no user.name/user.email.  The merge
+    path auto-commits the agent's file-tool edits; without the identity
+    fallback the commit fails ("Please tell me who you are"), the merge is
+    skipped, and the task's work silently stays off the branch.
+    """
+    import os
+
+    from app.services.chat import sandbox_worktree as sw
+
+    repo = tmp_path / "no-identity-repo"
+    repo.mkdir()
+    _run_git(repo, "init", "-q", "-b", "main")
+    _run_git(repo, "config", "commit.gpgsign", "false")
+    (repo / "a.txt").write_text("v1\n", encoding="utf-8")
+    _run_git(repo, "add", ".")
+    _run_git(repo, "commit", "-q", "-m", "initial")
+    # No identity configured locally (independent of any global/dev config).
+    assert _run_git(repo, "config", "--local", "--get", "user.email").returncode != 0
+
+    # Isolate the fallback from any global identity so the injected author is
+    # what actually lands in history.  _GIT_ENV is a shared dict referenced by
+    # worktree.py/_worktree_merge.py, so in-place update covers every caller.
+    isolated = dict(os.environ)
+    isolated.update(
+        {
+            "HOME": str(tmp_path / "empty-home"),
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+        }
+    )
+    original = dict(sw._GIT_ENV)
+    sw._GIT_ENV.update(isolated)
+    try:
+        store = InMemoryKanbanStore()
+        task = await _seed_task(store, task_id="tn", base=str(repo), branch="main")
+
+        wt = await create_worktree(str(repo), "main", task.task_id)
+        assert isinstance(wt, str)
+        # Agent edits via file tools; never commits itself.
+        (Path(wt) / "b.txt").write_text("task-n\n", encoding="utf-8")
+
+        merged, conflicts = await merge_task_worktree(store, task)
+        assert merged is True
+        assert conflicts == []
+        author = _run_git(repo, "log", "-1", "--format=%an <%ae>").stdout.strip()
+        assert author == "Myrm Agent <agent@myrm.local>"
+    finally:
+        sw._GIT_ENV.clear()
+        sw._GIT_ENV.update(original)

@@ -209,6 +209,7 @@ async def archive_shared_context(
         target_kind="shared_context",
         target_id=context_id,
         metadata={"name": context.name},
+        commit=True,
     )
     return context_to_item(context)
 
@@ -266,6 +267,7 @@ async def delete_shared_context_binding(
         source="shared_context_api",
         target_kind="shared_context_binding",
         target_id=binding_id,
+        commit=True,
     )
 
 

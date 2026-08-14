@@ -9,7 +9,8 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 挂载 `chat/` 子路由 | ✅ |
-| `test_fixtures.py` | 测试 | local-only Chrome E2E seed（citation + Kanban closure + IN_REVIEW + RevertFiles 四 variant） | ✅ |
+| `test_fixtures.py` | 测试 | local-only Chrome E2E seed（citation + Kanban closure + IN_REVIEW + RevertFiles 四 variant + chat share） | ✅ |
+| `test_fixtures_chat_share.py` | 测试 | Chat Share 生命周期 Chrome E2E seed（chat + user/assistant 消息，公开分享页可渲染） | ✅ |
 | `test_fixtures_context_retention.py` | 测试 | context retention Chrome E2E seed（compacted summary + pins + snapshot bookmarks） | ✅ |
 | `test_fixtures_clarify_refresh.py` | 测试 | clarify refresh HITL hydrate seed（pending/answered/regenerate_sibling/structured_form） | ✅ |
 | `test_fixtures_file_edit_batch.py` | 测试 | file_edit batch live/read_ui + workspace-only seed | ✅ |

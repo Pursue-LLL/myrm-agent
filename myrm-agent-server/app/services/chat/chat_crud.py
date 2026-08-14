@@ -333,7 +333,9 @@ class _ChatCrudMixin(_ChatServiceBase):
     @staticmethod
     async def permanently_delete_chat(chat_id: str) -> bool:
         """Permanently delete a trashed chat and its workspace, including derived memories."""
-        sandbox_base_dir: str | None = await _ChatCrudMixin._read_sandbox_base_dir(chat_id)
+        sandbox_base_dir: str | None = await _ChatCrudMixin._read_sandbox_base_dir(
+            chat_id
+        )
         async with UnitOfWork() as uow:
             repo = _ChatServiceBase._cr(uow)
             sess = uow.session
@@ -351,7 +353,13 @@ class _ChatCrudMixin(_ChatServiceBase):
                         cleanup_sandbox_worktree,
                     )
 
-                    await cleanup_sandbox_worktree(sandbox_base_dir, chat_id)
+                    # User permanently deleted this chat; the sandbox worktree
+                    # has no remaining UI entry point, so remove it even when
+                    # it holds uncommitted edits (orphaned worktrees would
+                    # otherwise leak disk forever).
+                    await cleanup_sandbox_worktree(
+                        sandbox_base_dir, chat_id, force=True
+                    )
                 except Exception as e:
                     logger.warning(
                         "Sandbox worktree cleanup failed (chat=%s): %s", chat_id, e
@@ -426,7 +434,10 @@ class _ChatCrudMixin(_ChatServiceBase):
                         cleanup_sandbox_worktree,
                     )
 
-                    await cleanup_sandbox_worktree(sandbox_map[cid], cid)
+                    # Emptying the trash permanently deletes these chats; their
+                    # sandbox worktrees have no remaining entry point, so remove
+                    # them even when dirty instead of leaking orphans.
+                    await cleanup_sandbox_worktree(sandbox_map[cid], cid, force=True)
                 except Exception as e:
                     logger.warning(
                         "Sandbox worktree cleanup failed during empty_trash (chat=%s): %s",

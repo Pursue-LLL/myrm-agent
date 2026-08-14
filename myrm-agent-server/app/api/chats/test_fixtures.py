@@ -18,6 +18,7 @@ seed_deliverable_link_fixture: 见 test_fixtures_deliverable.py（workspace 文�
 seed_copilot_fixture: 见 test_fixtures_copilot.py（assistant markdown + active run digest，Lean Co-Pilot Chrome E2E）
 seed_prior_chat_fixture: 见 test_fixtures_prior_chat.py（composer @chat: mention Chrome E2E）
 seed_rich_media_preview_fixture: 见 test_fixtures_rich_media_preview.py（chat + workspace 富媒体文件 · workspace rich-media preview Chrome E2E）
+seed_chat_share_fixture: 见 test_fixtures_chat_share.py（chat + user/assistant 消息 · Chat Share 生命周期 Chrome E2E）
 
 [POS]
 Chats API 本地测试 fixture。为 Wiki citation / Kanban closure / dedup review Chrome E2E 提供可重复、无 LLM 的种子数据。
@@ -50,6 +51,7 @@ from app.services.kanban import KanbanService
 from .test_fixtures_allowed_tools_recovery import (
     router as allowed_tools_recovery_fixture_router,
 )
+from .test_fixtures_chat_share import router as chat_share_fixture_router
 from .test_fixtures_clarify_refresh import router as clarify_refresh_fixture_router
 from .test_fixtures_context_retention import (
     router as context_retention_fixture_router,
@@ -444,6 +446,7 @@ async def seed_kanban_in_review_fixture() -> dict[str, str]:
 router.include_router(deliverable_fixture_router)
 router.include_router(copilot_fixture_router)
 router.include_router(clarify_refresh_fixture_router)
+router.include_router(chat_share_fixture_router)
 router.include_router(file_edit_batch_fixture_router)
 router.include_router(file_mutation_fixture_router)
 router.include_router(workspace_merge_fixture_router)

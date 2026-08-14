@@ -78,6 +78,10 @@ const MARKER_COLORS: Record<ReplayEventMarker['kind'], string> = {
   error: 'bg-rose-500',
 };
 
+function isDenyDecision(decision: string): boolean {
+  return /DENY|BLOCK|BREAK|STOP|REJECT/i.test(decision);
+}
+
 async function loadAllMessages(sessionId: string): Promise<Message[]> {
   const collected: Message[] = [];
   let cursor: string | undefined;
@@ -359,9 +363,24 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
 
     if (activeEvent?.type === 'tool_start' || activeEvent?.type === 'tool_end') {
       const tool = activeEvent.data;
+      const securityLabels = tool.security_labels ?? [];
       return (
         <div className="flex flex-col gap-2">
           <div className="text-xs font-medium text-foreground">{t('latestTool', { name: tool.tool_name })}</div>
+          {securityLabels.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <div className="text-xs font-medium text-foreground">{t('securityLabels')}</div>
+              {securityLabels.map((label, idx) => (
+                <div
+                  key={`${label.decision}-${idx}`}
+                  className="flex flex-col gap-0.5 text-[10px] bg-rose-500/10 border border-rose-500/30 rounded-xl px-2 py-1.5"
+                >
+                  <span className="font-semibold text-rose-600 dark:text-rose-400 font-mono">{label.decision}</span>
+                  {label.reason && <span className="text-muted-foreground break-words">{label.reason}</span>}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-full overflow-x-auto whitespace-pre-wrap break-all">
             {JSON.stringify(tool.input_data ?? {}, null, 2)}
           </div>
@@ -585,21 +604,40 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
                 </div>
               );
             })}
-            {visibleState.tools.map((tc) => (
-              <div
-                key={`tool-${tc.sequence}-${tc.tool_name}`}
-                className="flex items-center gap-2 text-xs p-2 rounded-full border border-border/40 bg-muted/10"
-              >
-                <IconWrench
-                  className={cn(
-                    'w-3.5 h-3.5 shrink-0',
-                    tc.end_time ? (tc.success ? 'text-emerald-500' : 'text-rose-500') : 'text-amber-500 animate-pulse',
+            {visibleState.tools.map((tc) => {
+              const securityLabels = tc.security_labels ?? [];
+              const hasSecurity = securityLabels.length > 0;
+              const critical = hasSecurity && securityLabels.some((s) => s.tainted || isDenyDecision(s.decision));
+              return (
+                <div
+                  key={`tool-${tc.sequence}-${tc.tool_name}`}
+                  className="flex items-center gap-2 text-xs p-2 rounded-full border border-border/40 bg-muted/10"
+                >
+                  <IconWrench
+                    className={cn(
+                      'w-3.5 h-3.5 shrink-0',
+                      tc.end_time ? (tc.success ? 'text-emerald-500' : 'text-rose-500') : 'text-amber-500 animate-pulse',
+                    )}
+                  />
+                  <span className="font-medium text-foreground truncate">{tc.tool_name}</span>
+                  {!tc.end_time && <span className="text-muted-foreground ml-auto shrink-0">{t('running')}</span>}
+                  {hasSecurity && (
+                    <span
+                      className={cn(
+                        'ml-auto shrink-0 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium',
+                        critical
+                          ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+                      )}
+                      title={securityLabels.map((s) => `${s.decision}: ${s.reason ?? ''}`).join('\n')}
+                    >
+                      <IconShieldAlert className="w-3 h-3" />
+                      {t('securityFlag')}
+                    </span>
                   )}
-                />
-                <span className="font-medium text-foreground truncate">{tc.tool_name}</span>
-                {!tc.end_time && <span className="text-muted-foreground ml-auto shrink-0">{t('running')}</span>}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </div>
 

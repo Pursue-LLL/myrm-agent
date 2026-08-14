@@ -24,8 +24,9 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryOperationKind,
     MemoryOperationStatus,
 )
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, event, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.database.models.memory import (
     MemoryHealthSnapshotModel,
@@ -94,9 +95,11 @@ class MemoryOperationLedgerService:
         )
         row = self._event_to_model(event)
         self._db.add(row)
-        _publish_memory_operation_event(row)
         if commit:
             await self._db.commit()
+            _publish_memory_operation_event(row)
+        else:
+            _defer_publish_until_commit(self._db, row)
         return row
 
     async def list_events(self, *, limit: int = 50) -> list[MemoryOperationEventModel]:
@@ -353,6 +356,37 @@ def _publish_memory_operation_event(row: MemoryOperationEventModel) -> None:
         )
     except Exception as exc:
         logger.warning("Failed to publish memory_operation SSE event %s: %s", row.id, exc)
+
+
+_DEFERRED_PUBLISH_KEY = "_memory_operation_deferred_publish"
+_AFTER_COMMIT_WIRED_KEY = "_memory_operation_after_commit_wired"
+
+
+def _defer_publish_until_commit(db: AsyncSession, row: MemoryOperationEventModel) -> None:
+    """Queue an SSE publish until the surrounding transaction commits.
+
+    Used when the caller keeps ownership of the transaction (``commit=False``).
+    Publishing right after ``add()`` would announce events that a later
+    rollback discards, leaving ghost events in the Command Center timeline.
+    Deferring to SQLAlchemy ``after_commit`` keeps "published == persisted";
+    on rollback the queue is dropped and nothing is announced.
+    """
+    sync_session = db.sync_session
+    if not sync_session.info.get(_AFTER_COMMIT_WIRED_KEY):
+        sync_session.info[_AFTER_COMMIT_WIRED_KEY] = True
+
+        def _publish_pending(session: Session) -> None:
+            rows = session.info.pop(_DEFERRED_PUBLISH_KEY, [])
+            for pending_row in rows:
+                _publish_memory_operation_event(pending_row)
+
+        def _discard_pending(session: Session) -> None:
+            session.info.pop(_DEFERRED_PUBLISH_KEY, None)
+
+        event.listen(sync_session, "after_commit", _publish_pending)
+        event.listen(sync_session, "after_rollback", _discard_pending)
+
+    sync_session.info.setdefault(_DEFERRED_PUBLISH_KEY, []).append(row)
 
 
 def _coerce_metadata(value: dict[str, object] | None) -> JsonObject:

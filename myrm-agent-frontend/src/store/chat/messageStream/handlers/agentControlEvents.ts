@@ -37,6 +37,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
         items: [{ text: errorText }],
         error: hint || (true as boolean | string),
         recovery_actions: data.recovery_actions,
+        fault_side: data.fault_side,
       };
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
       if (messageIndex !== -1) {

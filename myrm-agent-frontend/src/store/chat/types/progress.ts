@@ -51,6 +51,9 @@ export type ProgressItem = {
   error?: boolean | string; // 错误标记或错误信息
   error_category?: string; // 错误分类（用于显示特殊 Badge，如 OOM, Network Blocked）
   error_hint?: string; // 诊断建议（LLM 友好或用户友好的文字提示）
+  // 确定性责任方标注（harness FaultSide token）：用于「分锅」提示 —
+  // 模型侧 / 工具侧 / 管线侧 / 环境侧 / 用户输入侧，纯规则无 LLM
+  fault_side?: string;
   // PTC `tools.notify` 内联活动卡字段（同 category 的多次 notify 合并到一个 step）
   notify_message?: string; // 最新一次 notify 的文本
   notify_progress?: number; // 0-100 进度百分比

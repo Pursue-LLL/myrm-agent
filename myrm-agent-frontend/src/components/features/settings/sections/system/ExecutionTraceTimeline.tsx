@@ -3,7 +3,6 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  IconAlertTriangle,
   IconCheckCircle,
   IconChevronDown,
   IconChevronRight,
@@ -19,7 +18,6 @@ import {
   getSessionExecutionTrace,
   type ExecutionTrace,
   type TraceToolCall,
-  type TraceLLMCall,
   type TraceOutcome,
 } from '@/services/statistics';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -27,6 +25,8 @@ import { cn } from '@/lib/utils/classnameUtils';
 import SaveEvalCase from '@/components/features/message-actions/SaveEvalCase';
 import useChatStore from '@/store/useChatStore';
 import SessionReplayPlayer from '@/components/features/memory/replay/SessionReplayPlayer';
+import TraceErrorItem from './TraceErrorItem';
+import TraceLLMCallItem from './TraceLLMCallItem';
 
 interface ExecutionTraceTimelineProps {
   sessionId: string;
@@ -212,7 +212,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
             {t('llmCalls', { defaultMessage: 'LLM Invocations' })}
           </div>
           {trace.llm_calls.map((lc, idx) => (
-            <LLMCallItem
+            <TraceLLMCallItem
               key={`lc-${lc.sequence}-${idx}`}
               llmCall={lc}
               isHighlighted={highlightedModels.some((hm) => {
@@ -232,13 +232,11 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
       {trace.errors && trace.errors.length > 0 && (
         <div className="space-y-1">
           {trace.errors.map((err, idx) => (
-            <div key={idx} className="flex items-start gap-3 p-2.5 rounded-lg bg-rose-500/5 border border-rose-500/20">
-              <IconAlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" />
-              <div className="min-w-0">
-                <span className="text-xs font-medium text-rose-600 dark:text-rose-400">{String(err.error_type)}</span>
-                <p className="text-xs text-muted-foreground mt-0.5 break-words">{String(err.error)}</p>
-              </div>
-            </div>
+            <TraceErrorItem
+              key={`err-${idx}-${err.timestamp}`}
+              error={err}
+              isFirstIrrecoverable={trace.first_irrecoverable_index === idx}
+            />
           ))}
         </div>
       )}
@@ -298,6 +296,8 @@ interface ToolCallItemProps {
 const ToolCallItem = memo<ToolCallItemProps>(({ toolCall, traceStartTime, isHighlighted }) => {
   const [expanded, setExpanded] = useState(false);
   const toggle = useCallback(() => setExpanded((prev) => !prev), []);
+  const tFault = useTranslations('progressSteps');
+  const faultSide = toolCall.fault_side && toolCall.fault_side !== 'unknown' ? toolCall.fault_side : null;
 
   const offsetMs = Math.max(0, Math.round((toolCall.start_time - traceStartTime) * 1000));
   const offsetText = offsetMs >= 1000 ? `+${(offsetMs / 1000).toFixed(1)}s` : `+${offsetMs}ms`;
@@ -341,6 +341,11 @@ const ToolCallItem = memo<ToolCallItemProps>(({ toolCall, traceStartTime, isHigh
 
       {expanded && toolCall.error && (
         <div className="px-10 pb-2.5">
+          {faultSide && (
+            <span className="mb-1.5 inline-flex items-center rounded-full bg-rose-500/10 border border-rose-500/25 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-600 dark:text-rose-400">
+              {tFault(`faultSides.${faultSide}`)}
+            </span>
+          )}
           <p className="text-xs text-rose-600 dark:text-rose-400 break-words">{toolCall.error}</p>
         </div>
       )}
@@ -350,101 +355,3 @@ const ToolCallItem = memo<ToolCallItemProps>(({ toolCall, traceStartTime, isHigh
 ToolCallItem.displayName = 'ToolCallItem';
 
 export default ExecutionTraceTimeline;
-
-interface LLMCallItemProps {
-  llmCall: TraceLLMCall;
-  isHighlighted?: boolean;
-}
-
-const LLMCallItem = memo<LLMCallItemProps>(({ llmCall, isHighlighted }) => {
-  const { duration_ms, ttft_ms, model_name, prompt_tokens, completion_tokens, total_tokens } = llmCall;
-
-  const hasLatencyData = duration_ms !== null && ttft_ms !== null && duration_ms > 0;
-  let ttftRatio = 0;
-  let genRatio = 0;
-  let tps = 0;
-
-  if (hasLatencyData) {
-    const validTtft = Math.min(ttft_ms!, duration_ms!);
-    const genMs = Math.max(0, duration_ms! - validTtft);
-    ttftRatio = (validTtft / duration_ms!) * 100;
-    genRatio = (genMs / duration_ms!) * 100;
-    if (genMs > 0 && completion_tokens > 0) {
-      tps = completion_tokens / (genMs / 1000);
-    }
-  }
-
-  const durationText = duration_ms
-    ? duration_ms >= 1000
-      ? `${(duration_ms / 1000).toFixed(1)}s`
-      : `${Math.round(duration_ms)}ms`
-    : '-';
-
-  return (
-    <div
-      className={cn(
-        'rounded-lg border p-2.5 transition-all duration-300 relative overflow-hidden',
-        isHighlighted
-          ? 'border-amber-500/60 dark:border-amber-500/40 bg-amber-50/10 dark:bg-amber-500/5 shadow-[0_0_12px_rgba(245,158,11,0.15)] ring-1 ring-amber-500/20'
-          : 'border-border/40 bg-background/60',
-      )}
-    >
-      {isHighlighted && (
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600" />
-      )}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <IconClock className="w-3.5 h-3.5 text-blue-500" />
-          <span className="text-sm font-medium text-foreground">{model_name || 'Unknown Model'}</span>
-        </div>
-        <div className="text-xs text-muted-foreground flex gap-3">
-          <span>{total_tokens.toLocaleString()} tokens</span>
-          <span className="font-mono">{durationText}</span>
-        </div>
-      </div>
-
-      {hasLatencyData && (
-        <div className="space-y-1.5 mt-2">
-          <div className="flex w-full h-1.5 rounded-full overflow-hidden bg-muted">
-            <div
-              className="h-full bg-amber-400 dark:bg-amber-500/80 transition-all"
-              style={{ width: `${ttftRatio}%` }}
-              title={`Network Wait (TTFT): ${Math.round(ttft_ms!)}ms`}
-            />
-            <div
-              className="h-full bg-emerald-400 dark:bg-emerald-500/80 transition-all"
-              style={{ width: `${genRatio}%` }}
-              title={`Token Generation: ${Math.round(duration_ms! - ttft_ms!)}ms`}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] text-muted-foreground px-0.5">
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 dark:bg-amber-500/80" />
-              TTFT: {Math.round(ttft_ms!)}ms
-            </span>
-            <span className="flex items-center gap-3">
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 dark:bg-emerald-500/80" />
-                Gen: {Math.round(duration_ms! - ttft_ms!)}ms
-              </span>
-              {tps > 0 && (
-                <span className="font-mono text-emerald-600 dark:text-emerald-400">{tps.toFixed(1)} tps</span>
-              )}
-            </span>
-          </div>
-        </div>
-      )}
-
-      <div className="flex gap-4 mt-2 text-[10px] text-muted-foreground/70">
-        <span>Prompt: {prompt_tokens}</span>
-        <span>Completion: {completion_tokens}</span>
-        {llmCall.message_count != null && <span>Messages: {llmCall.message_count}</span>}
-      </div>
-
-      {llmCall.prompt_preview && (
-        <p className="mt-1.5 text-[10px] text-muted-foreground/60 line-clamp-2 italic">{llmCall.prompt_preview}</p>
-      )}
-    </div>
-  );
-});
-LLMCallItem.displayName = 'LLMCallItem';

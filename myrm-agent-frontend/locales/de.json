@@ -11987,6 +11987,7 @@
     "decomposedChildren": "{count} untergeordnete Aufgaben erstellt",
     "timedOutDetail": "Zeitüberschreitung nach {elapsed}s (Limit {limit}s)",
     "mergeConflictDetail": "Die Aufgabe wurde abgeschlossen, aber die Änderungen konnten nicht in den Branch {branch} zusammengeführt werden",
+    "mergeConflictFileCount": "{count} Dateien im Konflikt",
     "approvedBy": "Genehmigt von {approver}",
     "rejectedBy": "Abgelehnt von {approver}",
     "pipelineFromTemplate": "Aus Vorlage",

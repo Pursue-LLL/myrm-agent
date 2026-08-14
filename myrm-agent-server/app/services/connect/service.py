@@ -24,9 +24,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from app.config.settings import settings
+
+if TYPE_CHECKING:
+    from app.services.connect.agent_plugin import AgentPluginBundle
 
 logger = logging.getLogger(__name__)
 
@@ -227,6 +230,7 @@ class ConnectService:
         token = self._generate_token()
 
         from app.core.infra.ingress import get_public_ingress_base_url
+        from app.services.connect.snippet_builder import build_config_json, build_instructions
 
         base_url = await get_public_ingress_base_url()
         if not base_url:
@@ -234,8 +238,8 @@ class ConnectService:
 
         mcp_url = f"{base_url}/mcp"
 
-        config_json = self._build_config_json(profile, mcp_url, token)
-        instructions = self._build_instructions(profile, mcp_url)
+        config_json = build_config_json(profile, mcp_url, token)
+        instructions = build_instructions(profile, mcp_url)
 
         self._states[profile_id] = ConnectorState(
             profile_id=profile_id,
@@ -267,6 +271,33 @@ class ConnectService:
         """Verify an incoming MCP token, return profile_id if valid."""
         resolved = self.resolve_token(token)
         return resolved.profile_id if resolved is not None else None
+
+    async def generate_agent_plugin_bundle(
+        self, *, agent_id: str = "default", embed_token: bool = False
+    ) -> "AgentPluginBundle":
+        """Generate a portable Agent Plugins 1.0.0 bundle exposing Myrm memory."""
+        from app.core.infra.ingress import get_public_ingress_base_url
+        from app.services.connect.agent_plugin import (
+            AGENT_PLUGIN_PROFILE,
+            build_agent_plugin_bundle,
+        )
+
+        token = self._generate_token()
+        normalized = self._normalize_agent_id(agent_id)
+        base_url = await get_public_ingress_base_url()
+        if not base_url:
+            base_url = f"http://127.0.0.1:{settings.port}"
+        self._states[AGENT_PLUGIN_PROFILE] = ConnectorState(
+            profile_id=AGENT_PLUGIN_PROFILE,
+            status=ConnectorStatus.CONFIGURED,
+            token_hash=self._hash_token(token),
+            agent_id=normalized,
+            connected_at=datetime.now(UTC),
+        )
+        self._save_state()
+        return build_agent_plugin_bundle(
+            f"{base_url}/mcp", token, agent_id=normalized, embed_token=embed_token
+        )
 
     async def doctor(self, profile_id: str) -> bool:
         """Run a health check on a connector.
@@ -323,53 +354,6 @@ class ConnectService:
     def _hash_token(token: str) -> str:
         """Hash a token for storage (SHA-256)."""
         return hashlib.sha256(token.encode()).hexdigest()
-
-    @staticmethod
-    def _build_config_json(
-        profile: ConnectionProfile, mcp_url: str, token: str
-    ) -> dict[str, object]:
-        """Build the MCP config snippet for the external agent's config file.
-
-        For TOML-based agents (Codex), returns a dict representation that
-        the frontend displays as TOML. For JSON-based agents, returns the
-        standard JSON config structure.
-        """
-        if profile.config_format == "toml_mcp":
-            return {
-                "_format": "toml",
-                "_toml_snippet": (
-                    f"[{profile.instructions_key}.myrm-memory]\n"
-                    f'url = "{mcp_url}"\n'
-                    f'transport = "streamable-http"\n\n'
-                    f"[{profile.instructions_key}.myrm-memory.headers]\n"
-                    f'Authorization = "Bearer {token}"\n'
-                ),
-                profile.instructions_key: {
-                    "myrm-memory": {
-                        "url": mcp_url,
-                        "transport": "streamable-http",
-                        "headers": {"Authorization": f"Bearer {token}"},
-                    }
-                },
-            }
-        return {
-            profile.instructions_key: {
-                "myrm-memory": {
-                    "url": mcp_url,
-                    "transport": "streamable-http",
-                    "headers": {"Authorization": f"Bearer {token}"},
-                }
-            }
-        }
-
-    @staticmethod
-    def _build_instructions(profile: ConnectionProfile, mcp_url: str) -> str:
-        """Build human-readable setup instructions."""
-        return (
-            f"Add the following to your {profile.config_file_path}:\n"
-            f"Under '{profile.instructions_key}', add a 'myrm-memory' entry "
-            f"pointing to {mcp_url} with the generated Bearer token."
-        )
 
 
 # Module singleton (lazily initialized per request in API layer)

@@ -208,7 +208,7 @@ class KanbanTaskRunner:
     async def cleanup_worktree(self, task: KanbanTask) -> bool:
         return await cleanup_worktree(self._store, task)
 
-    async def merge_task_worktree(self, task: KanbanTask) -> bool:
+    async def merge_task_worktree(self, task: KanbanTask) -> tuple[bool, list[str]]:
         return await merge_task_worktree(self._store, task)
 
     async def _load_attachment_ids(self, task_id: str) -> list[str]:

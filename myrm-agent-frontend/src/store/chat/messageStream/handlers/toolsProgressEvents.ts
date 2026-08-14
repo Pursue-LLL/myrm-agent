@@ -88,6 +88,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       error_category: data.error_category,
       error_hint: data.error_hint,
       recovery_actions: data.recovery_actions,
+      fault_side: data.fault_side,
       progress_percent: data.progress_percent,
     };
 

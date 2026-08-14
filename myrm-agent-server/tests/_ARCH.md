@@ -69,6 +69,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/artifacts/test_processor_oversized_shareable.py` | 模块 | Local 超大可分享 reference-only persist + processor→deliverable 集成（sandboxes 路径、一次 resolve） |
 | `core/artifacts/test_processor_upsert_emit.py` | 模块 | upsert 失败不 emit / 部分 upsert 失败只 emit 成功项 |
 | `e2e/test_deliverable_link_chrome_e2e.py` | 模块 | Deliverable inline link Chrome READ E2E（seed → 自然路由 hydrate → `[data-testid=deliverable-reference-link]` → Portal 预览；**禁止 attachToChat**，store/DOM 不同步） |
+| `e2e/test_chat_share_chrome_e2e.py` | 模块 | Chat Share 生命周期 Chrome E2E（PRIVATE exclusive_backend：seed chat → WebUI 侧栏 More→Share → 创建分享 → 对话框显示 live URL → 公开页 200；关闭重开 → status 重建同一链接；Revoke → revoked 态 + 公开页 404；重建链接 ≠ 复活已撤销链接） |
 | `api/wiki/test_wiki_structural_cache_invalidation.py` | 模块 | Wiki vault mutation SSOT：`_after_wiki_vault_mutation` 在 apply/move/repair-publication/delete/repair-types/pending approve 等端点触发或 skip（9 项） |
 | `api/wiki/test_maintain_endpoint.py` | 模块 | POST /maintain：默认 structural mode · `?mode=full` · compile-busy 409 |
 | `api/chats/test_kanban_closure_seed_fixture.py` | 模块 | Kanban closure fixture seed HTTP 单测（`/chats/test/seed-kanban-closure-fixture`） |
@@ -81,6 +82,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/files/test_evicted_background_spill.py` | 模块 | UECD bash/background spill → evicted API 单测 |
 | `integration/test_evicted_uecd_live_api_integration.py` | 模块 | UECD live API 集成（`resolve_verify_api_base()` 私池 · seed POST `_LIVE_SEED_POST_TIMEOUT_SEC=60` · GET evicted · 404 `expired` envelope） |
 | `integration/test_artifact_share_integration.py` | 模块 | 工件分享真实全链路集成（无 mock）：`ArtifactVault.put` 真实落盘 → DB artifact/version → create share 真实物化 → public entry redirect → 静态资源放行；密码分享 gate + 签名解锁 cookie 授权 asset；SQLite 内存库 + TestClient 进程内 |
+| `integration/test_chat_share_integration.py` | 模块 | 会话分享真实全链路集成（无 mock 关键路径）：SQLite 内存库 + TestClient 进程内——create 非加密分享 → status 反映活跃链接 → public GET 200；revoke → status revoked → public GET 404 → 重建链接不可复活已撤销链接；密码分享 gate（错误密码 403）→ 签名 unlock cookie → 放行 → revoke 后死链；未分享/过期链接按 unshared 上报；chat 删除后 public GET 404 |
 | `api/config/test_telegram_onboarding_apply.py` | 模块 | Telegram onboarding 原子编排回归（成功、失败回滚、同名冲突复用、并发防重、跨进程锁占用冲突） |
 | `api/config/test_search_services_validation.py` | 模块 | searchServices Omni 422：unknown slug、duplicate enabled priority、non-selectable enabled slug |
 | `api/config/test_omni_config.py` | 模块 | Omni-Config schema/sync/history/rollback；batch sync duplicate search priority 422 |
@@ -130,7 +132,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/projects/test_project_workspace_e2e.py` | 模块 | Project workspace 多 Agent 协作真实 LLM E2E（`@pytest.mark.e2e`：project bind → chat 归属 → agent-stream 提及内置 agent → message_end；load_user_configs patch + checkpointer 注入） |
 | `api/projects/test_seed_turn_lock_integration.py` | 模块 | 确定性项目锁 seed 端点集成：创建 project + 绑定 chat + `hold_ms` 三态语义（`None` 不占锁 / `0` 持有到 `release-turn-lock` 显式释放 / `>0` 到期自动释放）+ `release-turn-lock` 幂等释放 + `turn-lock-status` 只读查询（锁定/解锁/释放后 + 400/404 门控）+ 边界校验（400/404 门控） |
 | `services/kanban/test_kanban_attach_handler.py` | 模块 | attach handler 单测（path/URL/SSRF/limits） |
-| `services/kanban/test_worktree_integration.py` | 模块 | worktree 真实 git 集成（14 项）：分支唯一化防并行冲突 / 串行不丢提交 / COMPLETED merge 回目标分支 / 显式 target 分支（≠当前分支）merge 落地该分支且 main 不被污染 / auto-commit 被拒时保留 worktree 与未提交编辑（防丢数据回归）/ 非法分支名（`-` 开头）merge 拒绝且保留 worktree（防选项注入）/ merge 冲突保留 worktree / cleanup 保留分支、merge 后删分支 / safe cleanup 对 dirty worktree 保留（ARCHIVED 防丢数据）/ 并发 merge 串行化不失败 / merge 冲突时追加 MERGE_CONFLICT 事件 / 分支名消毒 / merge 幂等 |
+| `services/kanban/test_worktree_integration.py` | 模块 | worktree 真实 git 集成（15 项）：分支唯一化防并行冲突 / 串行不丢提交 / COMPLETED merge 回目标分支 / 显式 target 分支（≠当前分支）merge 落地该分支且 main 不被污染 / auto-commit 被拒时保留 worktree 与未提交编辑（防丢数据回归）/ 非法分支名（`-` 开头）merge 拒绝且保留 worktree（防选项注入）/ merge 冲突保留 worktree + 收集冲突文件列表 + abort 恢复 repo（MERGE_HEAD 不残留，后续 merge 不被阻塞）/ cleanup 保留分支、merge 后删分支 / safe cleanup 对 dirty worktree 保留（ARCHIVED 防丢数据）/ 并发 merge 串行化不失败 / merge 冲突时追加 MERGE_CONFLICT 事件（payload 含冲突文件）/ 无 git user 配置时 auto-commit+merge 注入兜底身份成功 / 分支名消毒 / merge 幂等 |
+| `services/chat/test_sandbox_worktree_integration.py` | 模块 | sandbox worktree 真实 git 集成（4 项）：clean merge 成功并入 main / dirty worktree auto-commit 后 merge 保数据 / safe cleanup 保留 dirty worktree（防丢数据）/ force cleanup 删除 dirty worktree（用户明确丢弃） |
 | `services/kanban/test_board_settings_roundtrip.py` | 模块 | BoardSettings 9 字段 ORM 往返完整性（三映射函数 + dataclass 字段覆盖守卫 + 旧库 ALTER 迁移默认值） |
 | `services/agent/test_agent_name_resolution.py` | 模块 | Agent 同名解析确定性单测（大小写归一 + 稳定排序 + 空名短路） |
 | `api/agent/test_kanban_agent_stream_e2e.py` | 模块 | Live LLM agent-stream kanban add/list（`@pytest.mark.e2e`） |

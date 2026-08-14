@@ -293,7 +293,7 @@ def _merge_tasks_step(
     }
     if isinstance(tool_call_id, str) and tool_call_id.strip():
         new_fields["tool_call_id"] = tool_call_id.strip()
-    for key in ("reason", "status", "error", "error_hint", "error_category"):
+    for key in ("reason", "status", "error", "error_hint", "error_category", "fault_side"):
         value = event.get(key)
         if value is not None:
             new_fields[key] = value
