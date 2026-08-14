@@ -14,6 +14,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | `approval/` | 工具审批 HITL、visual snapshot、browser takeover | [_ARCH.md](approval/_ARCH.md) |
 | `settings/` | System/Personal/MCP 配置与安全门禁 | [_ARCH.md](settings/_ARCH.md) |
 | `billing/` | 订阅、entitlements、配额、ingress | [_ARCH.md](billing/_ARCH.md) |
+| `channels/` | 渠道多实例管理 hook（`useChannelInstances`，飞书多应用区与微信配置卡复用） | [_ARCH.md](channels/_ARCH.md) |
 | `agent/` | 智能体编辑/配置面板/预设/gallery（含 `config-panel/` 子模块） | [_ARCH.md](agent/_ARCH.md) |
 | `chat/` | 会话级 UX：`useChatTurnPrewarm`；Tauri composer drop `usePriorChatComposerDrop`（prior_chat cite） | [_ARCH.md](chat/_ARCH.md) |
 | `shell/` | 全局 liveness、tab badge、nav badge、快捷键、crash guard | [_ARCH.md](shell/_ARCH.md) |
