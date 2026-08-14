@@ -9,9 +9,12 @@ Covers the real-user flow on the settings memory page:
 
 The command-center API needs a configured embedding model to build a
 MemoryManager. A PRIVATE backend starts from an empty database, so the test
-configures retrieval embedding through the same settings API the WebUI writes,
-pointing at a local OpenAI-compatible endpoint. The model ``BAAI/bge-m3`` is a
-known model whose dimension is resolved synchronously (no live probe needed),
+configures retrieval embedding through the same settings API the WebUI writes.
+It prefers the real SiliconFlow embedding account from ``.env.test`` (the
+exact provider a user configures in the WebUI settings page, stored in the
+database); a local OpenAI-compatible endpoint is used only as a fallback when
+no test embedding account exists. The model ``BAAI/bge-m3`` is a known model
+whose dimension is resolved synchronously (no live embedding call needed),
 matching how the shared backend is configured.
 
 This test drives the real dev stack and the real command-center API (no mock on

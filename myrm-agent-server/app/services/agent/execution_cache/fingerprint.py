@@ -193,7 +193,7 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "skill_configs": _stable_json(agent_wrapper.skill_configs),
         "subagent_ids": sorted(agent_wrapper.subagent_ids or []),
         "mcp_servers": _serialize_mcp_configs(agent_wrapper),
-        "openapi_services": _credential_free_json(agent_wrapper.openapi_services),
+        "openapi_services": _openapi_services_sig(agent_wrapper.openapi_services),
         "external_agents": _credential_free_json(
             agent_wrapper.external_agents_config
         ),

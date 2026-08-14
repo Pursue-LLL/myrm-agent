@@ -62,7 +62,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | kanban | kanban_tool_mode / kanban_default_board_id |
 
 ### 排除项（有意不进指纹）
-- 凭据：api_key/api_keys/apiKeys/_oauthToken/_oauthBaseUrl/credential_pool_strategy（`_model_sig` / `_credential_free_json`）
+- 凭据：api_key/api_keys/apiKeys/_oauthToken/_oauthBaseUrl/localApiKey/bearer_token/password/client_secret/credential_pool_strategy（`_model_sig` / `_credential_free_json`）
 - 每 run 状态：kanban_current_task_id、quote、force_skill_manage、timezone、reasoning_display_mode
 - 每 turn 刷新：privacy_enabled 等 10 个隐私字段 + enable_plan_confirm（stream_pipeline 每 turn 重应用）
 - 环境级固定：client_surface；全局静态：event_log_backend、tail_budget_ratio
