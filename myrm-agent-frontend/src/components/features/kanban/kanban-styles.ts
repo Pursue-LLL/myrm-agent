@@ -43,6 +43,7 @@ export const EVENT_KIND_STYLES: Record<string, string> = {
   user_comment: 'bg-primary/10 text-primary',
   verification_failed: 'bg-chart-5/20 text-chart-5',
   branch_switched: 'bg-blue-500/20 text-blue-500',
+  merge_conflict: 'bg-destructive/20 text-destructive',
   specified: 'bg-purple-500/20 text-purple-500',
   decomposed: 'bg-blue-500/20 text-blue-500',
   timed_out: 'bg-chart-5/20 text-chart-5',

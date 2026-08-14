@@ -45,7 +45,7 @@ async def recover_stale_tasks(store: SqlAlchemyKanbanStore) -> int:
     return count
 
 
-def _make_task_completed_merge_hook(runner: TaskRunner):
+def _make_task_completed_merge_hook(runner: TaskRunner, store: SqlAlchemyKanbanStore):
     """Synchronous dispatcher callback that schedules async worktree merge.
 
     Dispatcher emits are synchronous, so the actual merge runs in a
@@ -57,7 +57,9 @@ def _make_task_completed_merge_hook(runner: TaskRunner):
         if event_type != "task_completed":
             return
         try:
-            asyncio.get_running_loop().create_task(merge_task_worktree(runner, task))
+            asyncio.get_running_loop().create_task(
+                merge_task_worktree(runner, task, store)
+            )
         except RuntimeError:  # pragma: no cover - 无事件循环时不调度
             logger.debug("No running loop; skip worktree merge for %s", task.task_id[:8])
 
@@ -116,7 +118,7 @@ async def start_dispatcher(
     dispatcher.on_event(
         BatchDirectoryService.get_instance().dispatcher_event_hook
     )
-    dispatcher.on_event(_make_task_completed_merge_hook(runner))
+    dispatcher.on_event(_make_task_completed_merge_hook(runner, store))
     await dispatcher.start()
     dispatchers[board_id] = dispatcher
     logger.info("Started dispatcher for board %s", board_id)

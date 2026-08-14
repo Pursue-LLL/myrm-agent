@@ -12153,6 +12153,7 @@
       "user_comment": "Comment",
       "verification_failed": "Verification Failed",
       "branch_switched": "Branch Switched",
+      "merge_conflict": "Merge Conflict",
       "specified": "Specified",
       "decomposed": "Decomposed",
       "timed_out": "Timed Out",

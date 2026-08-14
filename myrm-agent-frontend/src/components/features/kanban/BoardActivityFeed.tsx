@@ -35,6 +35,7 @@ const VISIBLE_KINDS = [
   'decomposed',
   'specified',
   'branch_switched',
+  'merge_conflict',
   'edited',
 ] as const;
 

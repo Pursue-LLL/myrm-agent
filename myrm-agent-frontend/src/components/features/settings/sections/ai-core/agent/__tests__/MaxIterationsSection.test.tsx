@@ -9,25 +9,24 @@ vi.mock('next-intl', () => ({
 }));
 
 import { MaxIterationsSection } from '../AgentCapabilitiesTabSections';
+import type { AgentCapabilitiesTabProps } from '../AgentCapabilitiesTab';
 import type { useTranslations } from 'next-intl';
 
 const t = stableT as unknown as ReturnType<typeof useTranslations>;
 
-type EditorLike = {
-  maxIterations: number | null;
-  setMaxIterations: (value: number | null) => void;
-};
+type Editor = AgentCapabilitiesTabProps['editor'];
+type EditorLike = Pick<Editor, 'maxIterations' | 'setMaxIterations'>;
 
 function renderSection(editor: EditorLike) {
-  return render(<MaxIterationsSection editor={editor} t={t} />);
+  return render(<MaxIterationsSection editor={editor as unknown as Editor} t={t} />);
 }
 
 describe('MaxIterationsSection', () => {
-  let setMaxIterations: ReturnType<typeof vi.fn>;
+  let setMaxIterations: (value: number | null) => void;
   let editor: EditorLike;
 
   beforeEach(() => {
-    setMaxIterations = vi.fn();
+    setMaxIterations = vi.fn((value: number | null) => undefined);
     editor = { maxIterations: null, setMaxIterations };
   });
 

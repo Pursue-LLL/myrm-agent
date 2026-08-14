@@ -94,23 +94,55 @@ async def cleanup_task_worktree(
 async def merge_task_worktree(
     runner: TaskRunner | None,
     task: KanbanTask,
-) -> None:
-    """Merge a completed task's worktree commits into its target branch."""
+    store: SqlAlchemyKanbanStore | None = None,
+) -> bool:
+    """Merge a completed task's worktree commits into its target branch.
+
+    Returns True on success or when the runner has no merge support.  On
+    failure (conflict, uncommittable changes, unusable branch) the worktree is
+    preserved; when a ``store`` is given, a MERGE_CONFLICT event is appended so
+    the user can see the completed task's code never landed on its branch.
+    """
     if runner is None or not hasattr(runner, "merge_task_worktree"):
-        return
+        return True
     try:
         merged = await runner.merge_task_worktree(task)  # type: ignore[attr-defined]
-        if not merged:
-            logger.warning(
-                "Merge skipped or conflicted for task %s; worktree preserved",
-                task.task_id[:8],
+        if merged:
+            return True
+        logger.warning(
+            "Merge skipped or conflicted for task %s; worktree preserved",
+            task.task_id[:8],
+        )
+        if store is not None:
+            await store.append_event(
+                task.task_id,
+                TaskEventKind.MERGE_CONFLICT,
+                payload={
+                    "branch": task.branch,
+                    "message": (
+                        "Task completed but the worktree merge was blocked; "
+                        "code was not merged into the target branch. "
+                        "Resolve the conflict or preserved worktree manually."
+                    ),
+                },
             )
+        return False
     except Exception as exc:
         logger.warning(
             "Worktree merge failed for task %s: %s",
             task.task_id[:8],
             exc,
         )
+        if store is not None:
+            await store.append_event(
+                task.task_id,
+                TaskEventKind.MERGE_CONFLICT,
+                payload={
+                    "branch": task.branch,
+                    "message": f"Worktree merge failed: {exc}",
+                },
+            )
+        return False
 
 
 async def move_task(
@@ -266,7 +298,7 @@ async def move_task(
         await promote_dependents(store, task_id)
 
     if target_status == TaskStatus.COMPLETED and saved.branch:
-        await merge_task_worktree(runner, saved)
+        await merge_task_worktree(runner, saved, store)
     elif target_status == TaskStatus.ARCHIVED and saved.branch:
         await cleanup_task_worktree(runner, saved)
 

@@ -12153,6 +12153,7 @@
       "user_comment": "评论",
       "verification_failed": "验证失败",
       "branch_switched": "分支切换",
+      "merge_conflict": "合并冲突",
       "specified": "已规范化",
       "decomposed": "已分解",
       "timed_out": "已超时",

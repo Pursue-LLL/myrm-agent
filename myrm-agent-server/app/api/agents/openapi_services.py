@@ -22,7 +22,6 @@ from fastapi import APIRouter, HTTPException
 from myrm_agent_harness.toolkits.openapi_bridge import (
     OpenAPIBridge,
     OpenAPIServiceConfig,
-    ParsedEndpoint,
     ParsedSpec,
 )
 from pydantic import BaseModel, Field
