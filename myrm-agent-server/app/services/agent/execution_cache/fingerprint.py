@@ -52,9 +52,7 @@ _CREDENTIAL_KEYS = frozenset(
 )
 
 
-def _stable_json(
-    value: object, *, skip_keys: frozenset[str] | None = None
-) -> object:
+def _stable_json(value: object, *, skip_keys: frozenset[str] | None = None) -> object:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     if isinstance(value, BaseModel):
@@ -137,7 +135,9 @@ def _model_sig(model_cfg: ModelConfig | None) -> dict[str, object] | None:
     }
 
 
-def _model_list_sig(model_cfgs: list[ModelConfig] | None) -> list[dict[str, object]] | None:
+def _model_list_sig(
+    model_cfgs: list[ModelConfig] | None,
+) -> list[dict[str, object]] | None:
     if not model_cfgs:
         return None
     return [sig for cfg in model_cfgs if (sig := _model_sig(cfg)) is not None]
@@ -194,9 +194,7 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "subagent_ids": sorted(agent_wrapper.subagent_ids or []),
         "mcp_servers": _serialize_mcp_configs(agent_wrapper),
         "openapi_services": _openapi_services_sig(agent_wrapper.openapi_services),
-        "external_agents": _credential_free_json(
-            agent_wrapper.external_agents_config
-        ),
+        "external_agents": _credential_free_json(agent_wrapper.external_agents_config),
         "user_instructions": agent_wrapper.user_instructions or "",
         "max_iterations": agent_wrapper.max_iterations,
         "locale": agent_wrapper.locale,
@@ -251,9 +249,7 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "code_execution_allow_network": agent_wrapper.code_execution_allow_network,
         "notify_targets": _stable_json(agent_wrapper.notify_targets),
         "providers_dict": _credential_free_json(agent_wrapper.providers_dict),
-        "privacy_routing_raw": _credential_free_json(
-            agent_wrapper.privacy_routing_raw
-        ),
+        "privacy_routing_raw": _credential_free_json(agent_wrapper.privacy_routing_raw),
         "jit_subagents": _stable_json(agent_wrapper.jit_subagents),
         "force_delegate_agent": agent_wrapper.force_delegate_agent,
         # Org model policy revision busts POOLED cache after CP sandbox sync.

@@ -3,7 +3,10 @@
 Covers the real-user flow on the settings memory page:
 
 1. Open /settings/memory and confirm the Command Center has loaded (tabs render).
-2. Switch to the Verify tab and assert the Runtime panel renders the "Vector
+2. On the default Observe tab, assert the Memory Doctor panel exposes the
+   "Vector index" static check whose status derives from the same runtime
+   snapshot (persistence-aware via ``probe_vector_index``).
+3. Switch to the Verify tab and assert the Runtime panel renders the "Vector
    persistence" row with one of the three states (Persistent / Memory mode
    (lost on restart) / Unavailable).
 
@@ -95,6 +98,21 @@ _VECTOR_PERSISTENCE_READY_JS = r"""(() => {
   return { ready: ok, matchedLabel: true, value, labelRows: rows.length };
 })()"""
 
+_VECTOR_INDEX_DOCTOR_READY_JS = """(() => {
+  const cards = Array.from(document.querySelectorAll('div.rounded-lg.border.border-border\\/50.bg-accent\\/20.p-3'));
+  const target = cards.find((card) =>
+    Array.from(card.querySelectorAll('div.text-sm.font-medium')).some(
+      (el) => /Vector index|向量索引/.test(el.textContent || ''),
+    ),
+  );
+  if (!target) return { ready: false, matchedLabel: false, cardCount: cards.length };
+  const pill = target.querySelector('span.rounded-full.border');
+  const pillText = pill ? pill.textContent.trim() : '';
+  const statusOk =
+    /Ready|Warning|Missing|Critical|正常|警告|缺失|严重/.test(pillText);
+  return { ready: statusOk, matchedLabel: true, pillText, cardCount: cards.length };
+})()"""
+
 
 def _configure_embedding() -> None:
     """Configure retrieval embedding via the WebUI settings API (real path).
@@ -155,7 +173,10 @@ def _configure_embedding() -> None:
 def _command_center_verify_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
     _configure_embedding()
     warm_ui_route("/settings/memory")
-    with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
+    with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (
+        client,
+        page,
+    ):
         yield client, page
 
 
@@ -168,13 +189,21 @@ def _command_center_verify_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_memory_command_center_vector_persistence_row_chrome_e2e() -> None:
-    """Real user flow: open Command Center, switch to Verify, assert persistence row."""
+    """Real user flow: open Command Center, assert Doctor + Runtime persistence rows."""
     with _command_center_verify_panel() as (client, page):
         ready = wait_for_state(client, page, _COMMAND_CENTER_READY_JS, timeout_sec=90.0)
         assert ready.get("hasVerifyTab") is True, ready
 
+        # Observe tab (default) → Memory Doctor panel exposes the persistent
+        # vector index check derived from the same runtime snapshot.
+        doctor = wait_for_state(client, page, _VECTOR_INDEX_DOCTOR_READY_JS, timeout_sec=60.0)
+        assert doctor.get("ready") is True, doctor
+
+        # Verify tab → Runtime panel exposes the vector_persistence row.
         opened = wait_for_state(client, page, _OPEN_VERIFY_TAB_JS, timeout_sec=30.0)
         assert opened.get("clicked") is True, opened
 
-        panel = wait_for_state(client, page, _VECTOR_PERSISTENCE_READY_JS, timeout_sec=90.0)
+        panel = wait_for_state(
+            client, page, _VECTOR_PERSISTENCE_READY_JS, timeout_sec=90.0
+        )
         assert panel.get("ready") is True, panel

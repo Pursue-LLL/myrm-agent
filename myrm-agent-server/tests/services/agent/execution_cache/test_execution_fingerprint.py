@@ -704,10 +704,14 @@ def test_execution_fingerprint_changes_when_tts_params_change() -> None:
 
     wrapper = _base_wrapper()
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.tts_params = TTSParams(provider="openai", model="tts-1", voice="alloy", api_key="k")
+    wrapper.tts_params = TTSParams(
+        provider="openai", model="tts-1", voice="alloy", api_key="k"
+    )
     enabled_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != enabled_fp
-    wrapper.tts_params = TTSParams(provider="openai", model="tts-1", voice="onyx", api_key="k")
+    wrapper.tts_params = TTSParams(
+        provider="openai", model="tts-1", voice="onyx", api_key="k"
+    )
     changed_fp = compute_execution_fingerprint(wrapper)
     assert enabled_fp != changed_fp
 

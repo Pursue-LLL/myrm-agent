@@ -233,3 +233,42 @@ async def test_merge_idempotent_when_no_worktree(git_repo: Path) -> None:
 
     await cleanup_worktree(store, task)
     assert await merge_task_worktree(store, task) is True
+
+
+@pytest.mark.asyncio
+async def test_merge_lands_on_explicit_target_branch(git_repo: Path) -> None:
+    """An explicit task branch is honored even when it differs from the
+    currently checked-out branch.
+
+    The merge must land on ``feature-x`` (created from HEAD on first use),
+    not on whatever branch happens to be checked out in base_dir.
+    """
+    store = InMemoryKanbanStore()
+    task = await _seed_task(store, task_id="tg", base=str(git_repo), branch="feature-x")
+
+    wt = await create_worktree(str(git_repo), "feature-x", task.task_id)
+    assert isinstance(wt, str)
+    (Path(wt) / "feat.txt").write_text("task-g\n", encoding="utf-8")
+    task_commit = _commit_in(Path(wt), "task-g feature commit")
+
+    assert _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+    merged = await merge_task_worktree(store, task)
+    assert merged is True
+
+    # base_dir switched to feature-x to perform the merge.
+    assert (
+        _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        == "feature-x"
+    )
+
+    # The merge's second parent is the task commit, so feature-x history
+    # contains it, and main is untouched.
+    second_parent = _run_git(git_repo, "rev-parse", "feature-x^2").stdout.strip()
+    assert second_parent == task_commit
+    main_log = _run_git(git_repo, "log", "--oneline", "-2", "main").stdout
+    assert "task-g feature commit" not in main_log
+
+    # Worktree and unique branch are cleaned up after the merge.
+    assert not Path(wt).exists()
+    branches = _run_git(git_repo, "branch", "--list", "feature-x-tg").stdout
+    assert "feature-x-tg" not in branches

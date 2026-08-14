@@ -128,7 +128,9 @@ async def create_worktree(
     unique_branch = _worktree_branch_name(branch, task_id)
 
     if Path(worktree_path).exists():
-        logger.info("Worktree already exists at %s for task %s", worktree_path, task_id[:8])
+        logger.info(
+            "Worktree already exists at %s for task %s", worktree_path, task_id[:8]
+        )
         return worktree_path
 
     try:
@@ -137,7 +139,16 @@ async def create_worktree(
 
         result = await asyncio.to_thread(
             subprocess.run,
-            ["git", "worktree", "add", "--force", "-B", unique_branch, worktree_path, "HEAD"],
+            [
+                "git",
+                "worktree",
+                "add",
+                "--force",
+                "-B",
+                unique_branch,
+                worktree_path,
+                "HEAD",
+            ],
             cwd=base_dir,
             capture_output=True,
             text=True,
@@ -164,7 +175,9 @@ async def create_worktree(
         return worktree_path
     except Exception as exc:
         logger.warning("Failed to create worktree for task %s: %s", task_id[:8], exc)
-        return WorktreeCreateError(reason=WorktreeErrorReason.ERROR, message=str(exc)[:300])
+        return WorktreeCreateError(
+            reason=WorktreeErrorReason.ERROR, message=str(exc)[:300]
+        )
 
 
 async def resolve_workspace(store: KanbanStore, task: KanbanTask) -> str | None:
@@ -218,7 +231,9 @@ async def cleanup_worktree(store: KanbanStore, task: KanbanTask) -> None:
             env=_GIT_ENV,
         )
         if result.returncode == 0:
-            logger.info("Cleaned up worktree at %s for archived task %s", path, task.task_id[:8])
+            logger.info(
+                "Cleaned up worktree at %s for archived task %s", path, task.task_id[:8]
+            )
         else:
             logger.warning(
                 "git worktree remove failed (rc=%d): %s",
@@ -227,7 +242,9 @@ async def cleanup_worktree(store: KanbanStore, task: KanbanTask) -> None:
             )
             return
     except Exception as exc:
-        logger.warning("Failed to cleanup worktree for task %s: %s", task.task_id[:8], exc)
+        logger.warning(
+            "Failed to cleanup worktree for task %s: %s", task.task_id[:8], exc
+        )
 
 
 async def _delete_worktree_branch(base_dir: str, branch: str, task_id: str) -> None:

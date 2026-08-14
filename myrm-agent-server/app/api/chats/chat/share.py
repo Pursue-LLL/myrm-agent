@@ -275,7 +275,9 @@ async def get_chat_share_status(
     expires_at = chat.share_token_expires_at
     # Expired links are unshared regardless of protection: a past-due share
     # must never surface as active/password-protected when it cannot be opened.
-    if expires_at is not None and expires_at <= int(datetime.now(timezone.utc).timestamp()):
+    if expires_at is not None and expires_at <= int(
+        datetime.now(timezone.utc).timestamp()
+    ):
         return ChatShareStatusResponse()
 
     if protected or expires_at is None:
@@ -347,7 +349,8 @@ async def get_public_chat_share(
 
     revoked_fingerprints = set(chat.share_revoked_fingerprints or [])
     if chat.share_revoked_at is not None or (
-        chat.share_token_fingerprint is not None and token_fingerprint(token) in revoked_fingerprints
+        chat.share_token_fingerprint is not None
+        and token_fingerprint(token) in revoked_fingerprints
     ):
         return share_not_found(
             request,
