@@ -32,6 +32,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, Literal
 
+from myrm_agent_harness.agent.security.types import PIIAction
 from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
 
 from app.database.dto import MessageDTO
@@ -48,8 +49,6 @@ def _safe_pii_action(value: object, default: PIIAction) -> PIIAction:
     Falls back to *default* for missing or invalid values so a stale/foreign
     configuration cannot crash the extraction task.
     """
-    from myrm_agent_harness.agent.security.types import PIIAction
-
     if value is None:
         return default
     try:

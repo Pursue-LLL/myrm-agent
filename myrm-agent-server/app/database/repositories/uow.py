@@ -168,6 +168,11 @@ class BoundChatRepository:
     async def get_all_messages(self, chat_id: str) -> list[MessageDTO]:
         return await ChatRepository.get_all_messages(self.session, chat_id)
 
+    async def get_assistant_extra_data(
+        self, chat_id: str
+    ) -> list[dict[str, object] | None]:
+        return await ChatRepository.get_assistant_extra_data(self.session, chat_id)
+
     async def search_messages_fts(
         self,
         safe_query: str,

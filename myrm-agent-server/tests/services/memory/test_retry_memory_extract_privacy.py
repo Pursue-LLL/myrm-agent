@@ -1,8 +1,9 @@
 """Tests for retry memory extraction privacy context wiring.
 
 Covers the server-layer bridge that re-establishes the harness privacy
-context (policy + PseudonymStore) so LLM-based deep PII scan applies to
-retried memories exactly like the agent-run path.
+context (policy + PseudonymStore + regex PII pseudonymizer) so retried
+memories are protected exactly like the agent-run path, and LLM-based deep
+PII scan applies when the user enabled it.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -19,7 +20,7 @@ class TestPrivacyDeepScanContext:
     """Test the _privacy_deep_scan_context helper."""
 
     def test_disabled_when_no_personal_settings(self):
-        """Deep scan must be disabled when personal settings are missing."""
+        """Privacy context must stay inactive when settings are missing."""
         with (
             patch("myrm_agent_harness.api.hooks.set_privacy_policy") as mock_set_policy,
             patch("myrm_agent_harness.api.hooks.set_pseudonym_store") as mock_set_store,
@@ -29,9 +30,9 @@ class TestPrivacyDeepScanContext:
             mock_set_policy.assert_not_called()
             mock_set_store.assert_not_called()
 
-    def test_disabled_when_privacy_deep_scan_off(self):
-        """Deep scan must be disabled when privacyDeepScan is off."""
-        settings = {"privacyDeepScan": False, "privacyEnabled": True}
+    def test_disabled_when_privacy_disabled(self):
+        """Privacy context must stay inactive when privacyEnabled is off."""
+        settings = {"privacyDeepScan": True, "privacyEnabled": False}
         with (
             patch("myrm_agent_harness.api.hooks.set_privacy_policy") as mock_set_policy,
             patch("myrm_agent_harness.api.hooks.set_pseudonym_store") as mock_set_store,
@@ -42,7 +43,7 @@ class TestPrivacyDeepScanContext:
             mock_set_store.assert_not_called()
 
     def test_enabled_installs_policy_and_store(self):
-        """Deep scan on with PSEUDONYMIZE must install policy + store."""
+        """Deep scan on with PSEUDONYMIZE must install policy + store + closure."""
         settings = {
             "privacyDeepScan": True,
             "privacyEnabled": True,
@@ -65,6 +66,11 @@ class TestPrivacyDeepScanContext:
                 "myrm_agent_harness.api.hooks.build_pseudonym_store",
                 return_value=mock_store,
             ) as mock_build_store,
+            patch(
+                "myrm_agent_harness.api.hooks.install_memory_pseudonymizer",
+                return_value=None,
+            ) as mock_install,
+            patch("myrm_agent_harness.api.hooks.restore_memory_pseudonymizer"),
         ):
             with _privacy_deep_scan_context(settings, "/tmp/ws") as deep_scan:
                 assert deep_scan is True
@@ -73,6 +79,80 @@ class TestPrivacyDeepScanContext:
         assert installed_policy.s2_action.value == "pseudonymize"
         mock_build_store.assert_called_once_with("/tmp/pseudonym_store.db")
         assert mock_set_store.call_args_list[0].args[0] is mock_store
+        mock_install.assert_called_once_with(installed_policy, mock_store)
+
+    def test_regex_closure_installed_without_deep_scan(self):
+        """PSEUDONYMIZE alone must still install the regex pseudonymizer.
+
+        Privacy promise must not depend on the LLM deep-scan toggle: even with
+        deep_scan off, retried memory writes get regex-level pseudonymization.
+        """
+        settings = {
+            "privacyDeepScan": False,
+            "privacyEnabled": True,
+            "privacyS2Action": "pseudonymize",
+            "privacyS3Action": "redact",
+        }
+        mock_store = MagicMock()
+        with (
+            patch("myrm_agent_harness.api.hooks.set_privacy_policy"),
+            patch("myrm_agent_harness.api.hooks.set_pseudonym_store"),
+            patch(
+                "myrm_agent_harness.api.hooks.get_pseudonym_store",
+                return_value=None,
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_privacy_policy",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.build_pseudonym_store",
+                return_value=mock_store,
+            ) as mock_build_store,
+            patch(
+                "myrm_agent_harness.api.hooks.install_memory_pseudonymizer",
+                return_value=None,
+            ) as mock_install,
+            patch("myrm_agent_harness.api.hooks.restore_memory_pseudonymizer"),
+        ):
+            with _privacy_deep_scan_context(settings, "/tmp/ws") as deep_scan:
+                assert deep_scan is False
+        mock_build_store.assert_called_once_with("/tmp/pseudonym_store.db")
+        mock_install.assert_called_once()
+
+    def test_missing_workspace_logs_warning_and_skips_store(self):
+        """Missing workspace must log a warning and skip store + closure."""
+        settings = {
+            "privacyDeepScan": True,
+            "privacyEnabled": True,
+            "privacyS2Action": "pseudonymize",
+            "privacyS3Action": "redact",
+        }
+        with (
+            patch("myrm_agent_harness.api.hooks.set_privacy_policy"),
+            patch("myrm_agent_harness.api.hooks.set_pseudonym_store") as mock_set_store,
+            patch(
+                "myrm_agent_harness.api.hooks.get_pseudonym_store",
+                return_value=None,
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_privacy_policy",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.build_pseudonym_store",
+            ) as mock_build_store,
+            patch(
+                "myrm_agent_harness.api.hooks.install_memory_pseudonymizer",
+            ) as mock_install,
+            patch("app.services.memory.retry_chat_memory_extract.logger") as mock_logger,
+        ):
+            with _privacy_deep_scan_context(settings, None) as deep_scan:
+                assert deep_scan is True
+        mock_build_store.assert_not_called()
+        mock_install.assert_not_called()
+        mock_set_store.assert_not_called()
+        mock_logger.warning.assert_called_once()
 
     def test_enabled_without_store_when_no_pseudonymize(self):
         """Deep scan on without PSEUDONYMIZE must not build a store."""
@@ -103,7 +183,7 @@ class TestPrivacyDeepScanContext:
         assert installed_policy.deep_scan is True
 
     def test_restores_previous_context_on_exit(self):
-        """Exit must restore the previous policy and store values."""
+        """Exit must restore the previous policy, store, and pseudonymizer."""
         settings = {
             "privacyDeepScan": True,
             "privacyEnabled": True,
@@ -112,6 +192,7 @@ class TestPrivacyDeepScanContext:
         }
         prev_policy = MagicMock()
         prev_store = MagicMock()
+        prev_pseudonymizer = MagicMock()
         with (
             patch("myrm_agent_harness.api.hooks.set_privacy_policy") as mock_set_policy,
             patch("myrm_agent_harness.api.hooks.set_pseudonym_store") as mock_set_store,
@@ -127,6 +208,13 @@ class TestPrivacyDeepScanContext:
                 "myrm_agent_harness.api.hooks.build_pseudonym_store",
                 return_value=MagicMock(),
             ),
+            patch(
+                "myrm_agent_harness.api.hooks.install_memory_pseudonymizer",
+                return_value=prev_pseudonymizer,
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.restore_memory_pseudonymizer"
+            ) as mock_restore,
         ):
             with _privacy_deep_scan_context(settings, "/tmp/ws") as deep_scan:
                 assert deep_scan is True
@@ -135,6 +223,30 @@ class TestPrivacyDeepScanContext:
         assert calls[0] is not prev_policy
         assert calls[-1] is prev_policy
         assert mock_set_store.call_args_list[-1].args[0] is prev_store
+        mock_restore.assert_called_once_with(prev_pseudonymizer)
+
+    def test_invalid_action_falls_back_to_default(self):
+        """Invalid persisted PII actions must fall back without crashing."""
+        settings = {
+            "privacyDeepScan": True,
+            "privacyEnabled": True,
+            "privacyS2Action": "alert",
+            "privacyS3Action": "alert",
+        }
+        with (
+            patch("myrm_agent_harness.api.hooks.set_privacy_policy") as mock_set_policy,
+            patch("myrm_agent_harness.api.hooks.get_pseudonym_store"),
+            patch(
+                "myrm_agent_harness.api.hooks.get_privacy_policy",
+                return_value=MagicMock(),
+            ),
+            patch("myrm_agent_harness.api.hooks.set_pseudonym_store"),
+        ):
+            with _privacy_deep_scan_context(settings, "/tmp/ws") as deep_scan:
+                assert deep_scan is True
+        installed_policy = mock_set_policy.call_args_list[0].args[0]
+        assert installed_policy.s2_action.value == "warn"
+        assert installed_policy.s3_action.value == "redact"
 
 
 class TestRunRetryExtractDeepScan:
@@ -207,6 +319,8 @@ class TestRunRetryExtractDeepScan:
             ),
             patch("myrm_agent_harness.api.hooks.set_privacy_policy"),
             patch("myrm_agent_harness.api.hooks.set_pseudonym_store"),
+            patch("myrm_agent_harness.api.hooks.install_memory_pseudonymizer"),
+            patch("myrm_agent_harness.api.hooks.restore_memory_pseudonymizer"),
         ):
             await _run_retry_extract(
                 chat_id,

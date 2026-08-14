@@ -259,7 +259,7 @@ class AgentRequest(BaseModel):
     force_delegate_agent: str | None = None
     privacy_enabled: bool = False
     privacy_s2_action: str = "redact"
-    privacy_s3_action: str = "alert"
+    privacy_s3_action: str = "redact"
     privacy_routing: dict[str, str] | None = None
     privacy_custom_keywords_s2: list[str] | None = None
     privacy_custom_keywords_s3: list[str] | None = None

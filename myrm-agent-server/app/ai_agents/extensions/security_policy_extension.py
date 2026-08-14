@@ -17,6 +17,25 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _coerce_pii_action(value: object, default: str = "redact") -> str:
+    """Coerce a persisted PII action string to a valid enum value.
+
+    Falls back to *default* for missing or invalid values so a stale/foreign
+    configuration cannot crash agent initialization.
+    """
+    from myrm_agent_harness.agent.security.types import PIIAction
+
+    if value is None:
+        return default
+    try:
+        return str(PIIAction(str(value)))
+    except ValueError:
+        logger.warning(
+            "Invalid PII action %r, falling back to %s", value, default
+        )
+        return default
+
+
 class SecurityPolicyExtension(AgentExtension):
     """Extension that configures the agent's security policies and PII handling."""
 
@@ -71,8 +90,12 @@ class SecurityPolicyExtension(AgentExtension):
         privacy_policy = (
             PrivacyPolicy(
                 enabled=self.privacy_enabled,
-                s2_action=PIIAction(self.privacy_s2_action),
-                s3_action=PIIAction(self.privacy_s3_action),
+                s2_action=PIIAction(
+                    _coerce_pii_action(self.privacy_s2_action, "redact")
+                ),
+                s3_action=PIIAction(
+                    _coerce_pii_action(self.privacy_s3_action, "redact")
+                ),
                 custom_keywords_s2=self.privacy_custom_keywords_s2,
                 custom_keywords_s3=self.privacy_custom_keywords_s3,
                 custom_patterns_s2=self.privacy_custom_patterns_s2,
