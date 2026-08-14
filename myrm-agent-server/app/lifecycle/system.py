@@ -388,9 +388,7 @@ async def _dispatch_auto_continue(
         # Cleanup marker (stream_finalize may have already done this on success)
         try:
             async with session_factory() as db:
-                await db.execute(
-                    delete(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker.id)
-                )
+                await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker.id))
                 await db.commit()
         except Exception as cleanup_err:
             logger.debug("Auto-continue marker cleanup: %s", cleanup_err)

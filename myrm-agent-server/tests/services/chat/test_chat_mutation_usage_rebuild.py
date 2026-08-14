@@ -165,6 +165,7 @@ async def test_rewind_to_message_rebuilds_usage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Rewinding deletes the target user message and later turns, rebuilding usage."""
+
     async def _noop(*_args: object, **_kwargs: object) -> bool:
         return False
 
