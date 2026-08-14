@@ -7,6 +7,12 @@ Covers the real-user flow on the settings memory page:
    persistence" row with one of the three states (Persistent / Memory mode
    (lost on restart) / Unavailable).
 
+The command-center API needs a configured embedding model to build a
+MemoryManager (``require_platform_embedding_config``). A PRIVATE backend starts
+from an empty database, so the test configures retrieval embedding through the
+same settings API the WebUI writes, pointing at a local OpenAI-compatible
+endpoint (a supported self-hosted provider path, no external quota).
+
 This test drives the real dev stack and the real command-center API (no mock on
 the critical path). It runs PRIVATE because the workspace backend carries the
 new ``vector_persistence`` field that is not yet deployed to the shared :8080
@@ -15,18 +21,33 @@ epoch.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import (
+_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_LIB) not in sys.path:
+    sys.path.insert(0, str(_LIB))
+
+from cdp_chat.support import (  # noqa: E402
+    fetch_config_value,
+    get_e2e_api_url,
+    put_config_value,
+)
+
+from tests.support.chrome_mcp_e2e import (  # noqa: E402
     ChromeMcpClient,
     McpPage,
+    get_e2e_api_url,
+    http_json,
     open_settings_subroute,
     wait_for_state,
     warm_ui_route,
 )
+from tests.support.local_embedding_server import LocalEmbeddingServer  # noqa: E402
 
 _COMMAND_CENTER_READY_JS = """(() => {
   const text = document.body?.textContent || '';
@@ -68,8 +89,46 @@ _VECTOR_PERSISTENCE_READY_JS = r"""(() => {
 })()"""
 
 
+def _configure_embedding() -> None:
+    """Configure retrieval embedding via the WebUI settings API (real path)."""
+    api_url = get_e2e_api_url().rstrip("/")
+    existing = fetch_config_value("retrieval", api_url=api_url)
+    if existing.get("embeddingConfig"):
+        return
+
+    server = LocalEmbeddingServer(port=8398)
+    server.start()
+    try:
+        retrieval = {
+            "embeddingApplied": True,
+            "embeddingConfig": {
+                "provider": "openai",
+                "model": "test-embed-v1",
+                "apiKey": "test-key",
+                "apiBase": server.base_url,
+            },
+        }
+        put_config_value("retrieval", retrieval, api_url=api_url)
+        # Verify the backend can now build a memory manager (the exact path the
+        # command-center API depends on) before opening the page.
+        snapshot = http_json(
+            "GET",
+            f"{api_url}/api/v1/memory/command-center",
+            expected_statuses=frozenset({200}),
+        )
+        assert isinstance(snapshot, dict), snapshot
+        assert snapshot.get("runtime", {}).get("vector_persistence") in {
+            "persistent",
+            "memory_fallback",
+            "unavailable",
+        }, snapshot
+    finally:
+        server.stop()
+
+
 @contextmanager
 def _command_center_verify_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
+    _configure_embedding()
     warm_ui_route("/settings/memory")
     with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
         yield client, page

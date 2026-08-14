@@ -107,24 +107,13 @@ _SET_CHAT_LOADING_JS = """(() => {
 _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
   window.__E2E_RFA_TICKS = 0;
   requestAnimationFrame(() => { window.__E2E_RFA_TICKS = (window.__E2E_RFA_TICKS ?? 0) + 1; });
-  const needle = 'connection refused';
-  const hits = [];
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  let node = walker.nextNode();
-  while (node) {
-    const value = node.textContent || '';
-    if (value.includes(needle)) {
-      const el = node.parentElement;
-      hits.push({
-        inMsg: !!el?.closest?.('[data-message-id]'),
-        tag: el?.tagName || '',
-        testid: el?.getAttribute?.('data-testid') || '',
-        parentTestid: el?.parentElement?.getAttribute?.('data-testid') || '',
-      });
-    }
-    node = walker.nextNode();
-  }
-  return { ok: false, err: 'diag', hits, msgIdCount: document.querySelectorAll('[data-message-id]').length };
+  const msgEls = [...document.querySelectorAll('[data-message-id]')];
+  window.__MYRM_MSGS = msgEls.map((el) => ({
+    id: el.getAttribute('data-message-id'),
+    text: (el.textContent || '').slice(0, 100),
+    isSummary: !!el.querySelector('[data-testid="compacted-summary-view"]'),
+  }));
+  return { ok: true, count: msgEls.length };
 })()"""
 
 _QUOTE_ADVISOR_READY_JS = """(() => {
@@ -247,7 +236,9 @@ def test_copilot_desktop_and_mobile_full_flows() -> None:
         set_loading = client.evaluate(page, _SET_CHAT_LOADING_JS, timeout_sec=10.0)
         assert isinstance(set_loading, dict) and set_loading.get("ok") is True, set_loading
         selected = client.evaluate(page, _SELECT_ASSISTANT_SNIPPET_JS, timeout_sec=15.0)
-        print("MYRM_DIAG_SELECTED=" + json.dumps(selected, ensure_ascii=False)[:1500])
+        print("MYRM_DIAG_SELECTED=" + json.dumps(selected, ensure_ascii=False)[:500])
+        msgs_dump = client.evaluate(page, "window.__MYRM_MSGS || []", timeout_sec=10.0)
+        print("MYRM_DIAG_MSGS=" + json.dumps(msgs_dump, ensure_ascii=False)[:2000])
         assert isinstance(selected, dict) and selected.get("ok") is True, selected
         quote_ready = wait_for_state(client, page, _QUOTE_ADVISOR_READY_JS, timeout_sec=30.0)
         assert quote_ready.get("ready") is True, quote_ready

@@ -7500,7 +7500,10 @@
       "passwordLabel": "密碼（可選）",
       "passwordPlaceholder": "設置訪問密碼",
       "ttlLabel": "有效期",
-      "successProtected": "密碼保護連結已創建，有效期 {days} 天。"
+      "successProtected": "密碼保護連結已創建，有效期 {days} 天。",
+      "loading": "正在檢查分享狀態...",
+      "revokedStatus": "該分享連結已撤銷。創建新連結可重新分享。",
+      "passwordProtectedStatus": "密碼保護的分享連結生效中。持有連結和密碼的人可以查看。"
     },
     "exportMessage": {
       "markdown": "匯出為 Markdown",

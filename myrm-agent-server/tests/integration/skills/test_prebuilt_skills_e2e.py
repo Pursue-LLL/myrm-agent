@@ -395,13 +395,14 @@ async def test_accept_upstream_endpoint_succeeds_with_pending(
 
 
 @pytest.mark.asyncio
-async def test_tdd_skill_v110_contract_guard(
+async def test_tdd_skill_v120_contract_guard(
     skills_service: SkillsService,
 ) -> None:
-    """test-driven-development v1.1.0 enhanced contract fields survive the pipeline.
+    """test-driven-development v1.2.0 enhanced contract fields survive the pipeline.
 
-    Guards the v1.1.0 enhancement (PRIORITIZE step, tests_assert_behavior
-    verification, two new potential traps) against regression.
+    Guards the v1.2.0 enhancement (VERIFY/mutation-check step, independent
+    expectation derivation, two new potential traps, deeper reference file)
+    against regression.
     """
     from myrm_agent_harness.api.skills import parse_skill_frontmatter
 
@@ -414,21 +415,24 @@ async def test_tdd_skill_v110_contract_guard(
     content = await skills_service.storage.read_text(md_path)
     fm = parse_skill_frontmatter(content, "test-driven-development")
 
-    assert fm.version == "1.1.0"
+    assert fm.version == "1.2.0"
     assert fm.contract is not None
-    assert len(fm.contract.steps) == 4
+    assert len(fm.contract.steps) == 5
     assert any("PRIORITIZE" in step for step in fm.contract.steps)
+    assert any("VERIFY" in step for step in fm.contract.steps)
     assert {v.step_id for v in fm.contract.verification_steps} >= {
         "test_fails_first",
         "minimal_green",
         "tests_assert_behavior",
+        "expectations_derived_independently",
+        "mutation_check_covered",
     }
     trap_descriptions = {t.description for t in fm.contract.potential_traps}
     assert any("Mocking everything" in d for d in trap_descriptions)
     assert any("end-to-end tests" in d for d in trap_descriptions)
-    assert fm.contract.success_criteria == (
-        "All tests pass, code is clean, each test verifies exactly one behavior"
-    )
+    assert any("mirror assertion" in d for d in trap_descriptions)
+    assert any("constants or private structure" in d for d in trap_descriptions)
+    assert "derived independently" in fm.contract.success_criteria
 
     body = content.split("---", 2)[-1]
     for heading in (
@@ -436,8 +440,29 @@ async def test_tdd_skill_v110_contract_guard(
         "### Prefer Real Over Mocks",
         "### Test State, Not Interactions",
         "### Test Pyramid",
+        "### Derive Expectations Independently",
+        "### No Change Detectors",
+        "### Mutation Check",
+        "### Avoid Horizontal Slices",
+        "### Gate Function",
+        "### Deeper Reference",
     ):
-        assert heading in body, f"missing v1.1.0 body section: {heading}"
+        assert heading in body, f"missing v1.2.0 body section: {heading}"
+
+    ref_path = get_skill_file_path(
+        SkillType.PREBUILT,
+        "test-driven-development",
+        "references/writing-good-tests.md",
+    )
+    ref_content = await skills_service.storage.read_text(ref_path)
+    for section in (
+        "## Behavior, Not Text",
+        "## Your Code, Not the Framework",
+        "## Mock Discipline",
+        "## Quick Reference",
+        "## Warning Signs",
+    ):
+        assert section in ref_content, f"missing v1.2.0 reference section: {section}"
 
 
 @pytest.mark.asyncio

@@ -7881,7 +7881,10 @@
       "ttlLabel": "Läuft ab nach",
       "successProtected": "Passwortgeschützter Link erstellt. Gültig für {days} Tage.",
       "localFallback": "Freigabelinks sind im Cloud-Modus verfügbar. Verwenden Sie „Als HTML exportieren\", um lokal zu teilen.",
-      "error": "Erstellen des Freigabelinks fehlgeschlagen"
+      "error": "Erstellen des Freigabelinks fehlgeschlagen",
+      "loading": "Freigabestatus wird geprüft...",
+      "revokedStatus": "Dieser Freigabelink wurde widerrufen. Erstellen Sie einen neuen Link, um erneut zu teilen.",
+      "passwordProtectedStatus": "Ein passwortgeschützter Freigabelink ist aktiv. Personen mit Link und Passwort können ihn ansehen."
     },
     "sendBlocked": {
       "title": "Senden nicht möglich",
