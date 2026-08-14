@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import type { KeyboardEvent } from 'react';
 
 const chatStoreRef = vi.hoisted(() => ({
   setInputMessage: vi.fn(),
@@ -134,5 +135,42 @@ describe('useSlashCommand', () => {
 
     expect(chatStoreRef.setInputMessage).toHaveBeenCalledWith('开始 [use template]');
     expect(commandStoreRef.recordUsage).toHaveBeenCalledWith('cmd:write');
+  });
+
+  it('keeps the text prefix when a skill slash command name contains a hyphen', async () => {
+    const input = '帮我写周报 /weekly-report';
+    const { result } = renderHook(() => useSlashCommand(input, input.length));
+
+    await act(async () => {
+      await result.current.executeCommand(skillAction);
+    });
+
+    expect(chatStoreRef.setPendingExplicitSkillActivation).toHaveBeenCalledWith({
+      skillNames: ['report_writer_skill'],
+    });
+    expect(chatStoreRef.setInputMessage).toHaveBeenCalledWith('帮我写周报 ');
+  });
+
+  it('esc closes a hyphenated slash command', () => {
+    const command: SlashCommand = {
+      id: 'cmd:notes',
+      name: 'my-notes',
+      type: 'command',
+      template: 'organize notes',
+      createdAt: '2026-01-01T00:00:00Z',
+    };
+    commandStoreRef.searchItems.mockReturnValue([command]);
+
+    const input = '/weekly-report';
+    const { result } = renderHook(() => useSlashCommand(input, input.length));
+
+    act(() => {
+      result.current.handleKeyDown({
+        key: 'Escape',
+        preventDefault: vi.fn(),
+      } as unknown as KeyboardEvent);
+    });
+
+    expect(chatStoreRef.setInputMessage).toHaveBeenCalledWith('');
   });
 });

@@ -7,6 +7,7 @@
 - app.core.security.share_hmac (POS: password-protection detection)
 - app.core.security.share_headers (POS: shared share privacy headers)
 - app.core.security.share_password_page (POS: password gate HTML + submission parsing)
+- app.core.security.share_status_page (POS: browser-friendly share 404 page)
 - app.core.security.share_unlock (POS: shared unlock-cookie credential mechanics)
 - app.core.infra.ingress (POS: public-ingress SSOT + share base resolver)
 
@@ -26,8 +27,11 @@ headers) so shared conversations are never search-engine indexed, revoking a
 link cannot be bypassed by browser or CDN caches, and the token-bearing share
 URL never leaks to third parties via the Referer header. Share URLs are built
 from the public-ingress SSOT (falling back to the request origin) so links stay
-reachable in hosted/tunneled deployments. Cloud: public URL; Local/Desktop:
-falls back to client-side HTML export.
+reachable in hosted/tunneled deployments. Expired, revoked, or missing share
+links answer browsers with a friendly status page (and API clients with the
+JSON 404 contract) so link lifecycle failures never surface as raw JSON to
+end users. Cloud: public URL; Local/Desktop: falls back to client-side HTML
+export.
 """
 
 from __future__ import annotations
@@ -49,6 +53,7 @@ from app.core.security.share_password_page import (
     render_password_gate_html,
     resolve_gate_password,
 )
+from app.core.security.share_status_page import share_not_found
 from app.core.security.share_unlock import (
     attach_unlock_cookie,
     parse_unlock_credential,
@@ -209,7 +214,7 @@ async def get_public_chat_share(
     token: str,
     db: AsyncSession = Depends(get_db),
     password: str | None = Depends(resolve_gate_password),
-) -> HTMLResponse:
+) -> Response:
     """Serve the read-only HTML page for a valid chat share token (no auth).
 
     GET also accepts a ``p`` query parameter so links carrying the password in
@@ -238,18 +243,42 @@ async def get_public_chat_share(
                 return HTMLResponse(
                     render_password_gate_html(wrong_password=True), status_code=403,
                 )
-            raise HTTPException(status_code=404, detail="Share link is invalid or expired")
+            return share_not_found(
+                request,
+                detail="Share link is invalid or expired",
+                title="Link Expired",
+                message="This share link has expired or is no longer valid.",
+                headers=_SHARE_RESPONSE_HEADERS,
+            )
 
     chat = await ChatService.get_chat_metadata(claims.chat_id)
     if not chat:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        return share_not_found(
+            request,
+            detail="Conversation not found",
+            title="Content Unavailable",
+            message="The shared conversation is no longer available.",
+            headers=_SHARE_RESPONSE_HEADERS,
+        )
 
     if chat.share_revoked_at is not None:
-        raise HTTPException(status_code=404, detail="This share link has been revoked")
+        return share_not_found(
+            request,
+            detail="This share link has been revoked",
+            title="Link Revoked",
+            message="This share link has been revoked by its owner.",
+            headers=_SHARE_RESPONSE_HEADERS,
+        )
 
     html_content = await render_share_html(claims.chat_id, db)
     if html_content is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        return share_not_found(
+            request,
+            detail="Conversation not found",
+            title="Content Unavailable",
+            message="The shared conversation is no longer available.",
+            headers=_SHARE_RESPONSE_HEADERS,
+        )
 
     secure = request.url.scheme == "https"
     if request.method == "POST":

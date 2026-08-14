@@ -15,7 +15,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | `__init__.py` | 入口 | 公共导出 | ✅ |
 | `registry.py` | 核心 | acquire/release/refresh_unit/guard_turn/idle_evict；`snapshot_warm_units` / `is_scope_turn_active` 供 catalog 热更新；进程级 singleton | ✅ |
 | `types.py` | 核心 | `ExecutionMode`、`BuiltExecutionUnit.teardown()` | ✅ |
-| `fingerprint.py` | 核心 | `compute_execution_fingerprint`（MCP/skill/harness epoch/`engine_params` 含 MoA preset 激活态） | ✅ |
+| `fingerprint.py` | 核心 | `compute_execution_fingerprint`（MCP/skill/harness epoch/`engine_params` 含 MoA preset 激活态/记忆配置 `enable_memory_auto_extraction` 与 `memory_extraction_preset`） | ✅ |
 | `unit_ops.py` | 核心 | capture/apply/detach wrapper ↔ unit | ✅ |
 | `session_lifecycle.py` | 核心 | `resolve_execution_mode`、`finalize_agent_session`（release 前 refresh_unit） | ✅ |
 | `prewarm/` | 核心 | Turn1 冷启动预热（见 [prewarm/_ARCH.md](prewarm/_ARCH.md)） | ✅ |

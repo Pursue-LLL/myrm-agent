@@ -7,7 +7,7 @@
 - compute_execution_fingerprint, build_execution_scope_key
 
 [POS]
-execution_cache 指纹层。将 MCP/skill/harness 输入稳定哈希为 scope key。
+execution_cache 指纹层。将 MCP/skill/harness/记忆配置输入稳定哈希为 scope key。
 """
 
 from __future__ import annotations
@@ -95,6 +95,8 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "file_access_mode": agent_wrapper.file_access_mode.value,
         "enable_shell_tools": agent_wrapper.enable_shell_tools,
         "enable_memory": agent_wrapper.enable_memory,
+        "enable_memory_auto_extraction": agent_wrapper.enable_memory_auto_extraction,
+        "memory_extraction_preset": agent_wrapper.memory_extraction_preset,
         "incognito_mode": agent_wrapper.incognito_mode,
         "enable_wiki": agent_wrapper.enable_wiki,
         "enable_kanban": agent_wrapper.enable_kanban,

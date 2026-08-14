@@ -180,22 +180,30 @@ async def poll_feishu_qr_register(body: QRPollRequest) -> QRPollResponse:
 
     if poll_result["status"] == "success" and poll_result["credentials"]:
         if session.consumed:
-            # A concurrent poll already provisioned this session's bot.
-            # The check-and-set below runs without awaiting, so only one
-            # request can observe `consumed` as False for the same session.
-            return QRPollResponse(status="success", credentials=None)
+            # A concurrent poll is already provisioning this session. Stay
+            # pending so the frontend keeps polling until that request reports
+            # the real outcome (success, or a 404 once the session is dropped
+            # on provisioning failure). Reporting success here would falsely
+            # confirm an instance that may not have been created yet.
+            return QRPollResponse(status="pending", credentials=None)
         session.consumed = True
 
-        creds = poll_result["credentials"]
+        try:
+            creds = poll_result["credentials"]
 
-        bot_info = await reg.probe_bot(creds["app_id"], creds["app_secret"])
-        creds["bot_name"] = bot_info.get("bot_name")
-        creds["bot_open_id"] = bot_info.get("bot_open_id")
+            bot_info = await reg.probe_bot(creds["app_id"], creds["app_secret"])
+            creds["bot_name"] = bot_info.get("bot_name")
+            creds["bot_open_id"] = bot_info.get("bot_open_id")
 
-        instance = await _save_credentials_to_db(
-            creds,
-            display_name=session.target_display_name,
-        )
+            instance = await _save_credentials_to_db(
+                creds,
+                display_name=session.target_display_name,
+            )
+        except Exception:
+            # Provisioning failed: drop the session so later polls 404 instead
+            # of observing `consumed` and falsely reporting a success.
+            _active_sessions.pop(body.session_id, None)
+            raise
 
         _active_sessions.pop(body.session_id, None)
 

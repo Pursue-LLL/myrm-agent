@@ -53,6 +53,25 @@ def test_create_agent_rejects_max_iterations_below_min(client: TestClient) -> No
     assert resp.status_code == 422, resp.text
 
 
+@pytest.mark.integration
+def test_create_agent_rejects_max_iterations_above_max(client: TestClient) -> None:
+    """Boundary: max_iterations=501 must be rejected by the schema."""
+    resp = client.post("/api/agents", json={"name": "clamp-boundary", "max_iterations": 501})
+    assert resp.status_code == 422, resp.text
+
+
+@pytest.mark.integration
+def test_create_agent_accepts_max_iterations_at_max(client: TestClient) -> None:
+    """Boundary: max_iterations=500 is the legal upper bound and persists."""
+    name = f"clamp-max-{uuid.uuid4().hex[:8]}"
+    resp = client.post("/api/agents", json={"name": name, "max_iterations": 500})
+    assert resp.status_code == 200, resp.text
+    data = (resp.json().get("data") or {})
+    assert data.get("max_iterations") == 500
+    agent_id = data.get("id") or data.get("agent_id")
+    assert isinstance(agent_id, str) and agent_id
+
+
 @pytest.mark.e2e
 @pytest.mark.skipif(
     not os.environ.get("LITE_API_KEY") and not os.environ.get("BASIC_API_KEY"),

@@ -426,6 +426,18 @@ async def test_tdd_skill_v110_contract_guard(
     trap_descriptions = {t.description for t in fm.contract.potential_traps}
     assert any("Mocking everything" in d for d in trap_descriptions)
     assert any("end-to-end tests" in d for d in trap_descriptions)
+    assert fm.contract.success_criteria == (
+        "All tests pass, code is clean, each test verifies exactly one behavior"
+    )
+
+    body = content.split("---", 2)[-1]
+    for heading in (
+        "## Writing Good Tests",
+        "### Prefer Real Over Mocks",
+        "### Test State, Not Interactions",
+        "### Test Pyramid",
+    ):
+        assert heading in body, f"missing v1.1.0 body section: {heading}"
 
 
 @pytest.mark.asyncio

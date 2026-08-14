@@ -235,6 +235,67 @@ class TestPublicSharePage:
         resp = share_client.get("/public/chat-share/invalid-token-here")
         assert resp.status_code == 404
 
+    def test_expired_token_browser_gets_status_page(
+        self, share_client: TestClient
+    ) -> None:
+        """Browser visitors get a friendly HTML status page instead of JSON 404."""
+        import time
+
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=60)
+        future = int(time.time()) + 120
+        with patch("app.core.security.share_hmac.time.time", return_value=future):
+            resp = share_client.get(
+                f"/public/chat-share/{token}", headers={"Accept": "text/html"},
+            )
+        assert resp.status_code == 404
+        assert "text/html" in resp.headers["content-type"]
+        assert resp.headers["X-Robots-Tag"] == "noindex, nofollow"
+        assert resp.headers["Cache-Control"] == "no-store"
+        assert "Link Expired" in resp.text
+
+    def test_revoked_share_browser_gets_status_page(
+        self, share_client: TestClient
+    ) -> None:
+        """A revoked share answers browsers with a dedicated status page."""
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600)
+        revoked_chat = _make_chat_dto(share_revoked_at=datetime.now(timezone.utc))
+
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=revoked_chat,
+        ):
+            resp = share_client.get(
+                f"/public/chat-share/{token}", headers={"Accept": "text/html"},
+            )
+        assert resp.status_code == 404
+        assert "text/html" in resp.headers["content-type"]
+        assert resp.headers["X-Robots-Tag"] == "noindex, nofollow"
+        assert "Link Revoked" in resp.text
+
+    def test_invalid_token_browser_gets_status_page(
+        self, share_client: TestClient
+    ) -> None:
+        """Invalid tokens answer browsers with a status page and API clients with JSON."""
+        resp = share_client.get(
+            "/public/chat-share/invalid-token-here", headers={"Accept": "text/html"},
+        )
+        assert resp.status_code == 404
+        assert "text/html" in resp.headers["content-type"]
+        assert "Link Expired" in resp.text
+        assert resp.headers["Referrer-Policy"] == "no-referrer"
+
+        json_resp = share_client.get(
+            "/public/chat-share/invalid-token-here",
+            headers={"Accept": "application/json"},
+        )
+        assert json_resp.status_code == 404
+        assert json_resp.headers["content-type"].startswith("application/json")
+
     def test_password_token_requires_gate(self, share_client: TestClient) -> None:
         """A password-protected chat share renders the gate until unlocked."""
         from app.services.chat.share_token import create_chat_share_token

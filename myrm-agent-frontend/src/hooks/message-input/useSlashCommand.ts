@@ -1,7 +1,17 @@
 /**
- * 快捷指令Hook
+ * 快捷指令 Hook：统一 `/` 命令面板。
  *
- * Merges system actions, user commands, and agent-bound skills into a unified / command palette.
+ * [INPUT]
+ * - @/store/useChatStore (POS: Active chat state manager)
+ * - @/store/useCommandStore (POS: 系统行为与用户命令注册表)
+ * - @/store/skill (POS: 技能市场/本地技能目录)
+ * - @/store/useFeatureGateStore (POS: 功能开关)
+ *
+ * [OUTPUT]
+ * - useSlashCommand: 命令面板状态、键盘导航、命令执行（skill 激活 + 模板替换 + 前缀保留）
+ *
+ * [POS]
+ * 聊天输入框 `/` 快捷指令面板。合并系统行为、用户命令、Agent 绑定技能与命令捆绑为统一面板。
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
@@ -16,9 +26,9 @@ import type { SlashItem, SlashAction } from '@/types/command';
  * 斜杠命令后缀（`/命令名`，锚定到光标前文本末尾）。
  *
  * 命令名 token 与技能/命令命名规则一致（技能名允许连字符，见 harness
- * `agent/skills/market/sanitizer.py` 的 `SKILL_NAME_PATTERN`）。面板检测、
- * 命令移除、Esc 关闭必须共用同一正则——若面板用 `[a-zA-Z0-9_-]*` 而移除用
- * `\w`（不含 `-`），命令名含连字符时前缀指令文本会被误清空。
+ * `agent/skills/market/sanitizer.py` 的 `SKILL_NAME_PATTERN`），因此使用
+ * `[a-zA-Z0-9_-]`（含 `-`）而非 `\w`（不含 `-`）。面板检测、命令移除、
+ * Esc 关闭共用此单一正则，保持三处语义一致。
  */
 const SLASH_COMMAND_SUFFIX_RE = /\/[a-zA-Z0-9_-]*$/;
 

@@ -120,3 +120,31 @@ def test_execution_fingerprint_changes_when_org_model_policy_revision_bumps() ->
     ):
         second = compute_execution_fingerprint(wrapper)
     assert first != second
+
+
+def test_execution_fingerprint_changes_when_auto_extraction_toggles() -> None:
+    """POOLED cache must rebuild when the user toggles auto memory extraction."""
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+    enabled_fp = compute_execution_fingerprint(wrapper)
+    wrapper.enable_memory_auto_extraction = False
+    disabled_fp = compute_execution_fingerprint(wrapper)
+    assert enabled_fp != disabled_fp
+
+
+def test_execution_fingerprint_changes_when_extraction_preset_changes() -> None:
+    """POOLED cache must rebuild when the memory extraction preset is reconfigured."""
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+    default_fp = compute_execution_fingerprint(wrapper)
+    wrapper.memory_extraction_preset = "work_assistant"
+    reconfigured_fp = compute_execution_fingerprint(wrapper)
+    assert default_fp != reconfigured_fp

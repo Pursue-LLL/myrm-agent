@@ -4,6 +4,7 @@
 - app.core.security.share_hmac (POS: HMAC signing + password-protection detection)
 - app.core.security.share_headers (POS: shared share privacy headers)
 - app.core.security.share_password_page (POS: password gate HTML + submission parsing)
+- app.core.security.share_status_page (POS: browser-friendly share 404 page)
 - app.core.security.share_unlock (POS: shared unlock-cookie credential mechanics)
 - app.services.artifacts.share_bundle (POS: multi-file static bundle materialization)
 - app.services.artifacts.share_registry (POS: revocation gate check)
@@ -20,14 +21,17 @@ Every served file carries the shared privacy headers (noindex/nofollow +
 no-store + Referrer-Policy: no-referrer) so shared work products are never
 search-engine indexed, revoking a link cannot be bypassed by browser or CDN
 caches, and the token-bearing URL cannot leak to third-party origins via the
-Referer header. The password gate posts its ``p`` field in the request body so
-the password never reaches the URL (CWE-598); a successful unlock answers with
-a 303 See Other redirect (PRG) to the clean GET URL, or serves the content
-directly when the share is too close to expiry to issue an unlock cookie (no
-redirect loop). The HMAC unlock credential issued after a correct password
-keeps the share's ``artifact_type`` so extension-less entries (e.g. a PDF
-artifact named without a suffix) still resolve the right media type when the
-browser re-authenticates via the unlock cookie instead of a password parameter.
+Referer header. Expired, revoked, or missing shares answer browsers with a
+friendly status page (and API clients with the JSON 404 contract) so link
+lifecycle failures never surface as raw JSON to end users. The password gate
+posts its ``p`` field in the request body so the password never reaches the URL
+(CWE-598); a successful unlock answers with a 303 See Other redirect (PRG) to
+the clean GET URL, or serves the content directly when the share is too close
+to expiry to issue an unlock cookie (no redirect loop). The HMAC unlock
+credential issued after a correct password keeps the share's ``artifact_type``
+so extension-less entries (e.g. a PDF artifact named without a suffix) still
+resolve the right media type when the browser re-authenticates via the unlock
+cookie instead of a password parameter.
 """
 
 from __future__ import annotations
@@ -46,6 +50,7 @@ from app.core.security.share_password_page import (
     render_password_gate_html,
     resolve_gate_password,
 )
+from app.core.security.share_status_page import share_not_found
 from app.core.security.share_unlock import (
     attach_unlock_cookie,
     parse_unlock_credential,
@@ -88,6 +93,13 @@ _SHARE_SECURITY_HEADERS: dict[str, str] = {
     "X-Frame-Options": "DENY",
 }
 
+# Applied to every served HTML share surface (content entry, status page) via
+# the shared privacy headers + this module's HTML security headers.
+_SHARE_RESPONSE_HEADERS: dict[str, str] = {
+    **_SHARE_SECURITY_HEADERS,
+    **SHARE_PRIVACY_HEADERS,
+}
+
 # Privacy headers (noindex/nofollow + no-store + no-referrer) apply to every
 # served bundle file via the shared constant: shares are private, time-limited
 # content, never indexed for search engines, never cached by browsers/CDNs, and
@@ -98,9 +110,9 @@ _UNLOCK_COOKIE_PATH = "/api/v1/public/artifact-share"
 
 
 def _file_response(path: str, media_type: str, filename: str) -> FileResponse:
-    headers = dict(SHARE_PRIVACY_HEADERS)
-    if media_type in _HTML_MEDIA_TYPES:
-        headers.update(_SHARE_SECURITY_HEADERS)
+    headers = dict(
+        _SHARE_RESPONSE_HEADERS if media_type in _HTML_MEDIA_TYPES else SHARE_PRIVACY_HEADERS
+    )
     return FileResponse(
         path=path,
         headers=headers,
@@ -168,20 +180,29 @@ async def _serve_share_bundle(
     db: AsyncSession,
     workspace_root: str,
     relative_path: str | None,
-) -> FileResponse:
+    request: Request,
+) -> Response:
     purge_expired_share_bundles()
     resolved = resolve_share_bundle_file(claims, relative_path)
     if resolved is None:
         try:
             await materialize_share_bundle(db, workspace_root, claims)
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-        except LookupError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-        except FileNotFoundError as exc:
-            raise HTTPException(
-                status_code=404, detail="Artifact content not found"
-            ) from exc
+        except (ValueError, LookupError) as exc:
+            return share_not_found(
+                request,
+                detail=str(exc),
+                title="Content Unavailable",
+                message="The shared content is no longer available.",
+                headers=_SHARE_RESPONSE_HEADERS,
+            )
+        except FileNotFoundError:
+            return share_not_found(
+                request,
+                detail="Artifact content not found",
+                title="Content Unavailable",
+                message="The shared content is no longer available.",
+                headers=_SHARE_RESPONSE_HEADERS,
+            )
         except Exception as exc:
             logger.error("Share bundle materialize failed: %s", exc)
             raise HTTPException(
@@ -190,7 +211,13 @@ async def _serve_share_bundle(
         resolved = resolve_share_bundle_file(claims, relative_path)
 
     if resolved is None:
-        raise HTTPException(status_code=404, detail="Shared file not found")
+        return share_not_found(
+            request,
+            detail="Shared file not found",
+            title="Content Unavailable",
+            message="The shared file is no longer available.",
+            headers=_SHARE_RESPONSE_HEADERS,
+        )
 
     file_path, media_type, filename = resolved
     return _file_response(str(file_path), media_type, filename)
@@ -200,12 +227,13 @@ def _auth_or_gate(
     request: Request,
     token: str,
     password: str | None,
-) -> ArtifactShareClaims | HTMLResponse:
+) -> ArtifactShareClaims | Response:
     """Authenticate a password-protected share using ``p`` or a prior unlock cookie.
 
-    Returns ``ArtifactShareClaims`` on success, or a ``HTMLResponse`` password-gate
-    page when a password is required but missing/wrong. The unlock cookie lets
-    static-asset requests (which do not carry the password) pass once unlocked.
+    Returns ``ArtifactShareClaims`` on success, or a ``Response`` (password-gate
+    page or 404 status page) when a password is required but missing/wrong or
+    the share is invalid/expired. The unlock cookie lets static-asset requests
+    (which do not carry the password) pass once unlocked.
     """
     protected = is_password_protected(token)
     if protected and not password:
@@ -223,16 +251,27 @@ def _auth_or_gate(
                 render_password_gate_html(wrong_password=True),
                 status_code=403,
             )
-        raise HTTPException(status_code=404, detail="Share link is invalid or expired")
+        return share_not_found(
+            request,
+            detail="Share link is invalid or expired",
+            title="Link Expired",
+            message="This share link has expired or is no longer valid.",
+            headers=_SHARE_RESPONSE_HEADERS,
+        )
     return claims
 
 
-async def _ensure_not_revoked(db: AsyncSession, token: str) -> None:
+async def _ensure_not_revoked(
+    db: AsyncSession,
+    token: str,
+    request: Request,
+) -> Response | None:
     """Reject requests whose token has been manually revoked.
 
-    Called before token authentication on every public entry so a revoked
-    share (password-protected or not) is denied immediately without
-    presenting the password gate or touching the on-disk bundle.
+    Returns a 404 status page for revoked links (browsers) or ``None`` when the
+    share is still valid. Called before token authentication on every public
+    entry so a revoked share (password-protected or not) is denied immediately
+    without presenting the password gate or touching the on-disk bundle.
     """
     try:
         revoked = await is_token_revoked(db, token)
@@ -240,7 +279,14 @@ async def _ensure_not_revoked(db: AsyncSession, token: str) -> None:
         logger.warning("Share revocation check failed: %s", exc)
         revoked = False
     if revoked:
-        raise HTTPException(status_code=404, detail="Share link has been revoked")
+        return share_not_found(
+            request,
+            detail="Share link has been revoked",
+            title="Link Revoked",
+            message="This share link has been revoked by its owner.",
+            headers=_SHARE_RESPONSE_HEADERS,
+        )
+    return None
 
 
 @public_router.api_route("/{token}", methods=["GET", "POST"], response_model=None)
@@ -263,7 +309,9 @@ async def get_public_artifact_share(
     Revocation is checked before authentication so a revoked link (password
     protected or not) is denied immediately without presenting the gate.
     """
-    await _ensure_not_revoked(db, token)
+    revoked_response = await _ensure_not_revoked(db, token, request)
+    if revoked_response is not None:
+        return revoked_response
     result = _auth_or_gate(request, token, password)
     if isinstance(result, HTMLResponse):
         return result
@@ -275,13 +323,13 @@ async def get_public_artifact_share(
         response = RedirectResponse(url=redirect_path, status_code=303)
         if _attach_unlock_cookie(response, result, token, password, secure=secure):
             return response
-        return await _serve_share_bundle(result, db, workspace_root, None)
+        return await _serve_share_bundle(result, db, workspace_root, None, request)
     if bundle_asset_count(result) > 1 and not str(request.url.path).endswith("/"):
         redirect_url = str(request.url.replace(path=str(request.url.path) + "/"))
         response = RedirectResponse(url=redirect_url, status_code=307)
         _attach_unlock_cookie(response, result, token, password, secure=secure)
         return response
-    response = await _serve_share_bundle(result, db, workspace_root, None)
+    response = await _serve_share_bundle(result, db, workspace_root, None, request)
     _attach_unlock_cookie(response, result, token, password, secure=secure)
     return response
 
@@ -296,7 +344,9 @@ async def get_public_artifact_share_index(
     password: str | None = Depends(resolve_gate_password),
 ) -> Response:
     """Serve bundle entry under a trailing slash so relative static assets resolve."""
-    await _ensure_not_revoked(db, token)
+    revoked_response = await _ensure_not_revoked(db, token, request)
+    if revoked_response is not None:
+        return revoked_response
     result = _auth_or_gate(request, token, password)
     if isinstance(result, HTMLResponse):
         return result
@@ -306,8 +356,8 @@ async def get_public_artifact_share_index(
             response, result, token, password, secure=request.url.scheme == "https"
         ):
             return response
-        return await _serve_share_bundle(result, db, workspace_root, None)
-    response = await _serve_share_bundle(result, db, workspace_root, None)
+        return await _serve_share_bundle(result, db, workspace_root, None, request)
+    response = await _serve_share_bundle(result, db, workspace_root, None, request)
     _attach_unlock_cookie(
         response, result, token, password, secure=request.url.scheme == "https"
     )
@@ -325,7 +375,9 @@ async def get_public_artifact_share_asset(
     password: str | None = Depends(resolve_gate_password),
 ) -> Response:
     """Serve a static asset from a multi-file share bundle."""
-    await _ensure_not_revoked(db, token)
+    revoked_response = await _ensure_not_revoked(db, token, request)
+    if revoked_response is not None:
+        return revoked_response
     result = _auth_or_gate(request, token, password)
     if isinstance(result, HTMLResponse):
         return result
@@ -335,5 +387,5 @@ async def get_public_artifact_share_asset(
             response, result, token, password, secure=request.url.scheme == "https"
         ):
             return response
-        return await _serve_share_bundle(result, db, workspace_root, asset_path)
-    return await _serve_share_bundle(result, db, workspace_root, asset_path)
+        return await _serve_share_bundle(result, db, workspace_root, asset_path, request)
+    return await _serve_share_bundle(result, db, workspace_root, asset_path, request)

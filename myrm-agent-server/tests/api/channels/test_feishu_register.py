@@ -283,8 +283,8 @@ class TestPollQRRegister:
 
 class TestPollConsumedGuard:
     @pytest.mark.asyncio
-    async def test_poll_already_consumed_skips_provisioning(self, client: AsyncClient) -> None:
-        """A poll racing behind an already-consumed success must not provision a second instance."""
+    async def test_poll_already_consumed_stays_pending(self, client: AsyncClient) -> None:
+        """A poll racing behind an already-consumed success must stay pending, never provision twice."""
         mock_reg = AsyncMock()
         mock_reg.poll.return_value = _mock_poll_success()
         mock_reg.probe_bot.return_value = {"bot_name": "TestBot", "bot_open_id": "ou_bot_test"}
@@ -303,11 +303,58 @@ class TestPollConsumedGuard:
 
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "success"
+        # The first request is still provisioning; a false success would let the
+        # frontend confirm an instance that may never be created.
+        assert data["status"] == "pending"
         assert data["credentials"] is None
         mock_save.assert_not_called()
-        # The session is left in place so a late poll stays idempotent; TTL cleanup reclaims it.
+        # The session is left in place so the frontend keeps polling until the
+        # first request reports its real outcome; TTL cleanup reclaims it.
         assert session_id in _active_sessions
+
+    @pytest.mark.asyncio
+    async def test_poll_provision_failure_drops_session(self, client: AsyncClient) -> None:
+        """A failed provisioning must drop the session so a late poll 404s (no false success)."""
+        mock_reg = AsyncMock()
+        mock_reg.poll.return_value = _mock_poll_success()
+        mock_reg.probe_bot.return_value = {"bot_name": "TestBot", "bot_open_id": "ou_bot_test"}
+
+        session_id = "test_session_provision_fail"
+        _active_sessions[session_id] = _RegistrationSession(registration=mock_reg, device_code="dc_test")
+
+        with patch("app.api.channels.feishu_register._save_credentials_to_db", new_callable=AsyncMock) as mock_save:
+            mock_save.side_effect = ValueError("Instance limit reached")
+            resp = await client.post(
+                "/channels/manage/feishu/qr-register/poll",
+                json={"session_id": session_id},
+            )
+
+        assert resp.status_code == 500
+        assert session_id not in _active_sessions
+        # A subsequent poll must 404 instead of observing `consumed` and falsely reporting success.
+        resp2 = await client.post(
+            "/channels/manage/feishu/qr-register/poll",
+            json={"session_id": session_id},
+        )
+        assert resp2.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_poll_probe_failure_drops_session(self, client: AsyncClient) -> None:
+        """A probe failure must also drop the session, keeping later polls honest."""
+        mock_reg = AsyncMock()
+        mock_reg.poll.return_value = _mock_poll_success()
+        mock_reg.probe_bot.side_effect = RuntimeError("bot API unavailable")
+
+        session_id = "test_session_probe_fail"
+        _active_sessions[session_id] = _RegistrationSession(registration=mock_reg, device_code="dc_test")
+
+        resp = await client.post(
+            "/channels/manage/feishu/qr-register/poll",
+            json={"session_id": session_id},
+        )
+
+        assert resp.status_code == 500
+        assert session_id not in _active_sessions
 
 
 class TestSaveCredentialsToDb:
