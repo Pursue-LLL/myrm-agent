@@ -12184,8 +12184,6 @@
     "feishuDesc": "Konfigurieren Sie die Anmeldeinformationen für die Feishu-App, um den Feishu-Bot-Messaging-Kanal zu aktivieren.",
     "feishuAppId": "App ID",
     "feishuAppSecret": "App Secret",
-    "feishuBotOpenId": "Bot Open ID",
-    "feishuBotOpenIdHint": "Wird zur @mention-Erkennung verwendet und kann von der Feishu Open Platform bezogen werden",
     "feishuVerificationToken": "Verification Token",
     "feishuVerificationTokenHint": "Wird zur Überprüfung der Webhook-Sicherheit verwendet",
     "feishuOptional": "Freiwillig",
