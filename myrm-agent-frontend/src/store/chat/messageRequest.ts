@@ -229,14 +229,16 @@ const extractInlineMentionReferences = (input: string): MentionReference[] => {
 };
 
 /**
- * 判断菜单选中的引用是否仍以文本形式存在于输入中。
+ * 判断「通过输入框文本 @token 添加」（@ 菜单选中）的引用是否仍以文本形式存在。
  *
- * `selectReference` 写入输入框的 @token 与 store 引用字段一一对应；
+ * 仅对 `viaText` 引用生效：`selectReference` 写入输入框的 @token 与 store 引用字段一一对应，
  * 用户若直接删除引用文本（而非点击引用 chip 的 ×），store 引用会残留，
  * 提交前据此过滤，保证「文本有 @xxx → 生效；没有 → 不生效」语义一致，
  * 避免 @agent 意外委派、@wiki/@chat 意外注入。
+ * 文件浏览器/全局搜索/拖拽/research 等非文本入口添加的引用不参与过滤。
  */
 const isReferenceTokenAlive = (reference: MentionReference, input: string): boolean => {
+  if (!reference.viaText) {return true;}
   switch (reference.type) {
     case 'agent':
       return input.includes(`@${reference.label}`);

@@ -41,7 +41,6 @@ class ZeroCostMemoryExtension(AgentExtension):
         effective_chat_id: str,
         extractor_llm: BaseChatModel,
         *,
-        deep_scan: bool = False,
         memory_extraction_preset: str = "auto",
     ) -> None:
         self.enable_memory_auto_extraction = enable_memory_auto_extraction
@@ -50,7 +49,6 @@ class ZeroCostMemoryExtension(AgentExtension):
         self.memory_manager = memory_manager
         self.effective_chat_id = effective_chat_id
         self.extractor_llm = extractor_llm
-        self.deep_scan = deep_scan
         self.memory_extraction_preset = memory_extraction_preset
 
     @property
@@ -84,7 +82,6 @@ class ZeroCostMemoryExtension(AgentExtension):
         extractor = MemoryExtractor(config=config, llm_func=llm_func)
         memory_manager = self.memory_manager
         effective_chat_id = self.effective_chat_id
-        deep_scan_llm = llm_func if self.deep_scan else None
 
         async def _compress_eviction_cb(
             evicted_pairs: list[EvictedToolCall],
@@ -110,6 +107,13 @@ class ZeroCostMemoryExtension(AgentExtension):
 
             async def _extract_background() -> None:
                 try:
+                    from myrm_agent_harness.api.hooks import get_privacy_policy
+
+                    # Resolve deep scan at extraction time: the eviction callback may be
+                    # built once per pooled agent unit and reused across turns, so reading
+                    # the current PrivacyPolicy keeps this path consistent with the
+                    # session-end and goal-learnings memory writes.
+                    deep_scan_llm = llm_func if get_privacy_policy().deep_scan else None
                     result = await extractor.extract(
                         messages_for_extraction,
                         correction_detected=False,

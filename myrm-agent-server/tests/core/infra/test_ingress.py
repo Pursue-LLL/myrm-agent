@@ -2,7 +2,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.core.infra.ingress import get_public_ingress_base_url, invalidate_public_ingress_cache
+from app.core.infra.ingress import (
+    get_public_ingress_base_url,
+    invalidate_public_ingress_cache,
+    resolve_share_url_base,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -72,3 +76,29 @@ async def test_get_public_ingress_base_url_uses_short_lived_cache(mock_settings,
     assert first == "https://cached.example.com"
     assert second == "https://cached.example.com"
     mock_load_personal_settings.assert_awaited_once_with("personalSettings")
+
+
+@pytest.mark.asyncio
+async def test_resolve_share_url_base_returns_ingress(mock_settings, mock_load_personal_settings):
+    mock_settings.cp_public_ingress_url = "https://share.example.com/"
+
+    base = await resolve_share_url_base()
+
+    assert base == "https://share.example.com"
+
+
+@pytest.mark.asyncio
+async def test_resolve_share_url_base_falls_back_when_empty(mock_settings, mock_load_personal_settings):
+    mock_settings.cp_public_ingress_url = None
+    mock_load_personal_settings.return_value = {}
+
+    assert await resolve_share_url_base() == ""
+    assert await resolve_share_url_base(fallback="http://testserver") == "http://testserver"
+
+
+@pytest.mark.asyncio
+async def test_resolve_share_url_base_falls_back_on_error(mock_settings, mock_load_personal_settings):
+    mock_settings.cp_public_ingress_url = None
+    mock_load_personal_settings.side_effect = RuntimeError("boom")
+
+    assert await resolve_share_url_base(fallback="http://origin") == "http://origin"

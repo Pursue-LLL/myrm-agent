@@ -108,7 +108,7 @@ class TestCreateChatShare:
                 return_value=_make_chat_dto(),
             ),
             patch(
-                "app.api.chats.chat.share.get_public_ingress_base_url",
+                "app.core.infra.ingress.get_public_ingress_base_url",
                 new_callable=AsyncMock,
                 return_value="https://myrm-x.example.com",
             ),
@@ -127,7 +127,7 @@ class TestCreateChatShare:
                 return_value=_make_chat_dto(),
             ),
             patch(
-                "app.api.chats.chat.share.get_public_ingress_base_url",
+                "app.core.infra.ingress.get_public_ingress_base_url",
                 new_callable=AsyncMock,
                 return_value="",
             ),
@@ -148,7 +148,7 @@ class TestCreateChatShare:
                 return_value=_make_chat_dto(),
             ),
             patch(
-                "app.api.chats.chat.share.get_public_ingress_base_url",
+                "app.core.infra.ingress.get_public_ingress_base_url",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("ingress unavailable"),
             ),
@@ -204,6 +204,7 @@ class TestPublicSharePage:
             assert resp.headers["X-Frame-Options"] == "DENY"
             assert resp.headers["X-Robots-Tag"] == "noindex, nofollow"
             assert resp.headers["Cache-Control"] == "no-store"
+            assert resp.headers["Referrer-Policy"] == "no-referrer"
 
     def test_expired_token_returns_404(self, share_client: TestClient) -> None:
         import time

@@ -28,12 +28,12 @@ const featureGateRef = vi.hoisted(() => ({
 }));
 
 vi.mock('@/store/useChatStore', () => {
-  const useChatStore = ((selector: (state: typeof chatStoreRef.state) => unknown) =>
-    selector(chatStoreRef.state)) as unknown as {
-    (selector: (state: typeof chatStoreRef.state) => unknown): unknown;
-    getState: () => typeof chatStoreRef.state;
+  const useChatStore = ((selector: (state: typeof chatStoreRef) => unknown) =>
+    selector(chatStoreRef)) as unknown as {
+    (selector: (state: typeof chatStoreRef) => unknown): unknown;
+    getState: () => typeof chatStoreRef;
   };
-  useChatStore.getState = () => chatStoreRef.state;
+  useChatStore.getState = () => chatStoreRef;
   return { default: useChatStore };
 });
 
@@ -92,7 +92,7 @@ describe('useSlashCommand', () => {
   });
 
   it('keeps the text prefix when a skill slash command is executed', async () => {
-    const input = '帮我写个周报 /周报';
+    const input = '帮我写个周报 /report';
     const { result } = renderHook(() => useSlashCommand(input, input.length));
 
     await act(async () => {
@@ -106,7 +106,7 @@ describe('useSlashCommand', () => {
   });
 
   it('clears the input for a bare slash skill command', async () => {
-    const { result } = renderHook(() => useSlashCommand('/周报', 3));
+    const { result } = renderHook(() => useSlashCommand('/report', 7));
 
     await act(async () => {
       await result.current.executeCommand(skillAction);

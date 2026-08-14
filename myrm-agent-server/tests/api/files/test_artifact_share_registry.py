@@ -476,7 +476,7 @@ async def test_list_shares_endpoint_exposes_absolute_share_url(
     token = create_resp.json()["token"]
 
     with patch(
-        "app.api.files.artifact_share_api.get_public_ingress_base_url",
+        "app.core.infra.ingress.get_public_ingress_base_url",
         new_callable=AsyncMock,
         return_value="https://myrm-x.example.com",
     ):

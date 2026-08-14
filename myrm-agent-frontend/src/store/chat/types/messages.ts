@@ -223,6 +223,8 @@ export interface MentionReference {
   startLine?: number;
   endLine?: number;
   conceptName?: string;
+  /** 是否通过输入框文本 @token 添加（@ 菜单选中）；文本删除时提交前失效 */
+  viaText?: boolean;
 }
 
 export interface PaginationInfo {

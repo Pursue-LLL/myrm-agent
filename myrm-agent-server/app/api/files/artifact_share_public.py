@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.core.security.share_hmac (POS: HMAC signing + password-protection detection)
+- app.core.security.share_headers (POS: shared share privacy headers)
 - app.core.security.share_password_page (POS: password gate HTML + submission parsing)
 - app.core.security.share_unlock (POS: shared unlock-cookie credential mechanics)
 - app.services.artifacts.share_bundle (POS: multi-file static bundle materialization)
@@ -15,16 +16,18 @@
 Server business layer. Serves materialized share bundles to the public web with
 hardened CSP headers, optional password gate, and a manual-revocation gate that
 blocks both existing files and any re-materialization attempt after revoke.
-Every served file carries noindex/nofollow + no-store so shared work products are
-never search-engine indexed and revoking a link cannot be bypassed by browser or
-CDN caches. The password gate posts its ``p`` field in the request body so the
-password never reaches the URL (CWE-598); a successful unlock answers with a 303
-See Other redirect (PRG) to the clean GET URL, or serves the content directly
-when the share is too close to expiry to issue an unlock cookie (no redirect
-loop). The HMAC unlock credential issued after a correct password keeps the
-share's ``artifact_type`` so extension-less entries (e.g. a PDF artifact named
-without a suffix) still resolve the right media type when the browser
-re-authenticates via the unlock cookie instead of a password parameter.
+Every served file carries the shared privacy headers (noindex/nofollow +
+no-store + Referrer-Policy: no-referrer) so shared work products are never
+search-engine indexed, revoking a link cannot be bypassed by browser or CDN
+caches, and the token-bearing URL cannot leak to third-party origins via the
+Referer header. The password gate posts its ``p`` field in the request body so
+the password never reaches the URL (CWE-598); a successful unlock answers with
+a 303 See Other redirect (PRG) to the clean GET URL, or serves the content
+directly when the share is too close to expiry to issue an unlock cookie (no
+redirect loop). The HMAC unlock credential issued after a correct password
+keeps the share's ``artifact_type`` so extension-less entries (e.g. a PDF
+artifact named without a suffix) still resolve the right media type when the
+browser re-authenticates via the unlock cookie instead of a password parameter.
 """
 
 from __future__ import annotations
@@ -37,6 +40,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_workspace_root
 from app.core.infra.limiter import limiter
+from app.core.security.share_headers import SHARE_PRIVACY_HEADERS
 from app.core.security.share_hmac import is_password_protected
 from app.core.security.share_password_page import (
     render_password_gate_html,
@@ -84,22 +88,17 @@ _SHARE_SECURITY_HEADERS: dict[str, str] = {
     "X-Frame-Options": "DENY",
 }
 
-# Applied to every served bundle file (HTML, PDF, document, static asset).
-# Shares are private, time-limited content: never index them for search engines
-# and never let browsers/CDNs cache them, so revoking a link takes effect
-# immediately even for clients that already loaded the bundle.
-_SHARE_PRIVACY_HEADERS: dict[str, str] = {
-    "X-Robots-Tag": "noindex, nofollow",
-    "Cache-Control": "no-store",
-}
-
+# Privacy headers (noindex/nofollow + no-store + no-referrer) apply to every
+# served bundle file via the shared constant: shares are private, time-limited
+# content, never indexed for search engines, never cached by browsers/CDNs, and
+# the token-bearing URL must not leak to third parties via the Referer header.
 _UNLOCK_COOKIE_NAME = "artifact_share_unlock"
 _UNLOCK_SALT = "artifact-share-unlock"
 _UNLOCK_COOKIE_PATH = "/api/v1/public/artifact-share"
 
 
 def _file_response(path: str, media_type: str, filename: str) -> FileResponse:
-    headers = dict(_SHARE_PRIVACY_HEADERS)
+    headers = dict(SHARE_PRIVACY_HEADERS)
     if media_type in _HTML_MEDIA_TYPES:
         headers.update(_SHARE_SECURITY_HEADERS)
     return FileResponse(

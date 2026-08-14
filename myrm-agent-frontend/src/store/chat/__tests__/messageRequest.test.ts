@@ -982,7 +982,7 @@ describe('messageRequest - mention reference lifetime contract', () => {
     const state = {
       ...baseState,
       mentionReferences: [
-        { type: 'agent', label: '研究专家', fileId: 'agent-1', source: 'special', size: null },
+        { type: 'agent', label: '研究专家', fileId: 'agent-1', source: 'special', size: null, viaText: true },
       ],
     };
     await createMessageRequest('帮我分析竞品文档', 'msg-zombie-agent', state, null);
@@ -999,7 +999,7 @@ describe('messageRequest - mention reference lifetime contract', () => {
     const state = {
       ...baseState,
       mentionReferences: [
-        { type: 'agent', label: '研究专家', fileId: 'agent-1', source: 'special', size: null },
+        { type: 'agent', label: '研究专家', fileId: 'agent-1', source: 'special', size: null, viaText: true },
       ],
     };
     await createMessageRequest('@研究专家 帮我分析竞品文档', 'msg-live-agent', state, null);
@@ -1022,6 +1022,7 @@ describe('messageRequest - mention reference lifetime contract', () => {
           conceptName: '机器学习',
           source: 'wiki',
           size: null,
+          viaText: true,
         },
       ],
     };
@@ -1029,6 +1030,66 @@ describe('messageRequest - mention reference lifetime contract', () => {
 
     const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
     expect(requestBody).not.toHaveProperty('mention_references');
+  });
+
+  it('drops a zombie prior_chat mention once its @chat token is removed from the input', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const state = {
+      ...baseState,
+      mentionReferences: [
+        {
+          type: 'prior_chat',
+          label: '@chat:Alpha planning',
+          fileId: 'prior-chat-1',
+          path: 'prior-chat-1',
+          source: 'special',
+          size: null,
+          viaText: true,
+        },
+      ],
+    };
+    await createMessageRequest('回顾一下上次结论', 'msg-zombie-chat', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).not.toHaveProperty('mention_references');
+  });
+
+  it('keeps non-text references (file browser / search / research) regardless of input text', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const state = {
+      ...baseState,
+      mentionReferences: [
+        {
+          type: 'wiki_concept',
+          label: 'ML',
+          conceptName: '机器学习',
+          source: 'special',
+          size: null,
+        },
+        {
+          type: 'workspace_file',
+          label: '@main.py',
+          path: 'src/main.py',
+          source: 'workspace',
+          size: null,
+        },
+      ],
+    };
+    await createMessageRequest('继续分析', 'msg-non-text-refs', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).toMatchObject({
+      mention_references: [
+        { type: 'wiki_concept', concept_name: '机器学习' },
+        { type: 'workspace_file', path: 'src/main.py' },
+      ],
+    });
   });
 
   it('parses a pasted @wiki: token inline into a wiki_concept reference', async () => {

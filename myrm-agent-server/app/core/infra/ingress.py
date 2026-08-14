@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - get_public_ingress_base_url: 解析公网 Ingress 基础 URL
+- resolve_share_url_base: 分享链接公网 base（无 ingress 时降级 fallback）
 - invalidate_public_ingress_cache: 配置变更后失效缓存
 
 [POS]
@@ -15,10 +16,13 @@ Users configure publicIngressBaseUrl manually (cpolar, NATAPP, frp, cloud hostin
 
 from __future__ import annotations
 
+import logging
 import time
 
 from app.config.settings import settings
 from app.core.channel_bridge.config_loader import load_user_config_entry
+
+logger = logging.getLogger(__name__)
 
 _CACHE_TTL_SECONDS = 30.0
 _cached_url: str | None = None
@@ -77,4 +81,25 @@ async def get_public_ingress_base_url() -> str:
     return url
 
 
-__all__ = ["get_public_ingress_base_url", "invalidate_public_ingress_cache"]
+async def resolve_share_url_base(fallback: str = "") -> str:
+    """Resolve the public base for share links, or ``fallback`` when none is set.
+
+    Wraps ``get_public_ingress_base_url`` for the share-link use case so hosted/
+    tunneled deployments produce externally reachable links. An empty ingress or
+    a resolution failure degrades to ``fallback`` (chat passes the request
+    origin, artifact passes ``""``) instead of surfacing a 500 to callers.
+    """
+    try:
+        ingress = (await get_public_ingress_base_url()).strip().rstrip("/")
+        if ingress:
+            return ingress
+    except Exception as exc:
+        logger.warning("Failed to resolve public ingress base for share link: %s", exc)
+    return fallback
+
+
+__all__ = [
+    "get_public_ingress_base_url",
+    "invalidate_public_ingress_cache",
+    "resolve_share_url_base",
+]

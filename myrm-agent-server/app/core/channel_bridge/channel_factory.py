@@ -10,6 +10,9 @@ and provides ``create_channel_instance`` for multi-account support.
 [OUTPUT]
 - create_all_channels() -> AsyncGenerator[BaseChannel]
 - create_channel_instance() -> BaseChannel (for multi-instance)
+- flatten_credential_strings(value) -> dict[str, str] (bool → lowercase)
+- generate_instance_id() -> str
+- load_persisted_instances() / save_persisted_instances() (instance metadata)
 
 [POS]
 Business-layer assembly. Bridges framework channel factory with

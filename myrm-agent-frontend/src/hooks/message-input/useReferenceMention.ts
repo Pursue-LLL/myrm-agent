@@ -405,7 +405,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
 
       const reference = toMentionReference(item);
       if (reference) {
-        useChatStore.getState().addMentionReference(reference);
+        useChatStore.getState().addMentionReference({ ...reference, viaText: true });
       }
 
       dismiss();

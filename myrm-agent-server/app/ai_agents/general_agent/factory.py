@@ -343,7 +343,6 @@ async def build_general_agent(
         memory_manager=memory_manager,
         effective_chat_id=effective_chat_id,
         extractor_llm=agent_wrapper._lite_llm or llm,
-        deep_scan=agent_wrapper.privacy_deep_scan,
         memory_extraction_preset=extraction_preset,
     )
     compress_eviction_cb = memory_ext.build_eviction_callback()

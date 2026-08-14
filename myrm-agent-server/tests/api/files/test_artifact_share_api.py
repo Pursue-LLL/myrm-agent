@@ -102,7 +102,7 @@ async def test_create_share_preview_materializes_bundle(
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ), patch(
-        "app.api.files.artifact_share_api.get_public_ingress_base_url",
+        "app.core.infra.ingress.get_public_ingress_base_url",
         new_callable=AsyncMock,
         return_value="",
     ):
@@ -144,7 +144,7 @@ async def test_create_share_preview_exposes_absolute_share_url(
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ), patch(
-        "app.api.files.artifact_share_api.get_public_ingress_base_url",
+        "app.core.infra.ingress.get_public_ingress_base_url",
         new_callable=AsyncMock,
         return_value="https://myrm-x.example.com",
     ):
@@ -174,7 +174,7 @@ async def test_create_share_preview_share_url_falls_back_when_ingress_fails(
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ), patch(
-        "app.api.files.artifact_share_api.get_public_ingress_base_url",
+        "app.core.infra.ingress.get_public_ingress_base_url",
         new_callable=AsyncMock,
         side_effect=RuntimeError("ingress unavailable"),
     ):
@@ -214,6 +214,7 @@ async def test_html_share_includes_csp_headers(share_client, html_artifact) -> N
     assert index.headers.get("x-frame-options") == "DENY"
     assert index.headers.get("x-robots-tag") == "noindex, nofollow"
     assert index.headers.get("cache-control") == "no-store"
+    assert index.headers.get("referrer-policy") == "no-referrer"
 
 
 @pytest.mark.asyncio
@@ -238,6 +239,7 @@ async def test_pdf_share_omits_csp_headers(share_client, html_artifact) -> None:
     assert "content-security-policy" not in entry.headers
     assert entry.headers.get("x-robots-tag") == "noindex, nofollow"
     assert entry.headers.get("cache-control") == "no-store"
+    assert entry.headers.get("referrer-policy") == "no-referrer"
 
 
 @pytest.mark.asyncio
@@ -1263,6 +1265,7 @@ class TestFileResponsePrivacyHeaders:
         resp = _file_response(path, media_type, "file")
         assert resp.headers.get("x-robots-tag") == "noindex, nofollow"
         assert resp.headers.get("cache-control") == "no-store"
+        assert resp.headers.get("referrer-policy") == "no-referrer"
 
 
 class TestShareSecurityHeadersCompleteness:

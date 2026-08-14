@@ -8,10 +8,15 @@ to scan a QR code to automatically create a bot application.
 - POST /channels/manage/feishu/qr-register/poll - Poll for scan status
 
 [INPUT]
-- app.channels.providers.feishu.registration
+- app.channels.providers.feishu.registration::FeishuAppRegistration
+- app.core.channel_bridge.channel_gateway::add_channel, remove_channel
+- app.core.channel_bridge.channel_factory::create_channel_instance, flatten_credential_strings
+- app.services.config.service::ConfigService
+- app.api.channels.router::channel_credentials_key
 
 [OUTPUT]
 - router: FastAPI APIRouter for feishu QR registration
+- _save_credentials_to_db / _provision_feishu_instance: 凭据落库与多应用实例创建（失败自动回滚）
 
 [POS]
 Business layer API. Bridges harness-layer FeishuAppRegistration with

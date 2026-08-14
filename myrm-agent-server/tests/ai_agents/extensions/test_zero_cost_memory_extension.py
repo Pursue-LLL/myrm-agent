@@ -294,3 +294,76 @@ class TestEvictionCallbackPublishesSSE:
                     pass
 
             mock_persist.assert_called_once()
+
+
+class TestEvictionResolvesDeepScanAtExtractionTime:
+    """The eviction callback is built once per pooled agent unit and reused across
+    turns, so deep scan must be resolved from the live PrivacyPolicy at extraction
+    time rather than solidified at callback build time."""
+
+    async def _run_callback_and_collect(self, extension, deep_scan_value):
+        ai_msg = AIMessage(content="reading", tool_calls=[{"id": "tc1", "name": "read", "args": {}}])
+        tool_msg = ToolMessage(content="compacted", tool_call_id="tc1", name="read")
+        evicted = [EvictedToolCall(ai_msg=ai_msg, tool_msg=tool_msg, original_content="user mentioned a medical condition")]
+
+        mock_memory = MagicMock()
+        mock_result = MagicMock()
+        mock_result.memories = [mock_memory]
+        mock_extractor_instance = MagicMock()
+        mock_extractor_instance.extract = AsyncMock(return_value=mock_result)
+
+        mock_policy = MagicMock()
+        mock_policy.deep_scan = deep_scan_value
+
+        mock_persist = AsyncMock()
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.memory.strategies.extractor.MemoryExtractor",
+                return_value=mock_extractor_instance,
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.persist_extracted_memories",
+                mock_persist,
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.create_extraction_llm_func",
+                return_value=AsyncMock(),
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_privacy_policy",
+                return_value=mock_policy,
+            ),
+        ):
+            cb = extension.build_eviction_callback()
+            assert cb is not None
+            await cb(evicted, "user goal")
+
+            await asyncio.sleep(0.2)
+            pending = [t for t in asyncio.all_tasks() if not t.done() and t != asyncio.current_task()]
+            for t in pending:
+                try:
+                    await asyncio.wait_for(t, timeout=2.0)
+                except (TimeoutError, Exception):
+                    pass
+
+            return mock_persist
+
+    @pytest.mark.asyncio
+    async def test_passes_deep_scan_llm_when_policy_enabled(self, extension):
+        mock_persist = await self._run_callback_and_collect(extension, deep_scan_value=True)
+        assert mock_persist.call_args.kwargs["deep_scan_llm_func"] is not None
+
+    @pytest.mark.asyncio
+    async def test_skips_deep_scan_llm_when_policy_disabled(self, extension):
+        mock_persist = await self._run_callback_and_collect(extension, deep_scan_value=False)
+        assert mock_persist.call_args.kwargs["deep_scan_llm_func"] is None
+
+    @pytest.mark.asyncio
+    async def test_reused_callback_reads_updated_policy(self, extension):
+        """Same callback instance must reflect a later privacy change (pooled reuse)."""
+        first_persist = await self._run_callback_and_collect(extension, deep_scan_value=False)
+        assert first_persist.call_args.kwargs["deep_scan_llm_func"] is None
+
+        second_persist = await self._run_callback_and_collect(extension, deep_scan_value=True)
+        assert second_persist.call_args.kwargs["deep_scan_llm_func"] is not None

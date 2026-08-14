@@ -6,7 +6,7 @@ but the core AgentRouter is enabled in both local mode and sandbox/CP
 mode so internal channel ingress can execute through the same route.
 
 [INPUT]
-- channel_factory::create_all_channels
+- channel_factory::create_all_channels, flatten_credential_strings
 - app.config.deploy_mode::is_local_mode
 
 [OUTPUT]

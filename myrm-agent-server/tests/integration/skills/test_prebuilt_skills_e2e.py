@@ -395,6 +395,40 @@ async def test_accept_upstream_endpoint_succeeds_with_pending(
 
 
 @pytest.mark.asyncio
+async def test_tdd_skill_v110_contract_guard(
+    skills_service: SkillsService,
+) -> None:
+    """test-driven-development v1.1.0 enhanced contract fields survive the pipeline.
+
+    Guards the v1.1.0 enhancement (PRIORITIZE step, tests_assert_behavior
+    verification, two new potential traps) against regression.
+    """
+    from myrm_agent_harness.api.skills import parse_skill_frontmatter
+
+    sync_result = await prebuilt_sync.sync_prebuilt_seeds(skills_service.storage)
+    assert "test-driven-development" in sync_result.skill_ids
+
+    md_path = get_skill_file_path(
+        SkillType.PREBUILT, "test-driven-development", SKILL_MD_FILE
+    )
+    content = await skills_service.storage.read_text(md_path)
+    fm = parse_skill_frontmatter(content, "test-driven-development")
+
+    assert fm.version == "1.1.0"
+    assert fm.contract is not None
+    assert len(fm.contract.steps) == 4
+    assert any("PRIORITIZE" in step for step in fm.contract.steps)
+    assert {v.step_id for v in fm.contract.verification_steps} >= {
+        "test_fails_first",
+        "minimal_green",
+        "tests_assert_behavior",
+    }
+    trap_descriptions = {t.description for t in fm.contract.potential_traps}
+    assert any("Mocking everything" in d for d in trap_descriptions)
+    assert any("end-to-end tests" in d for d in trap_descriptions)
+
+
+@pytest.mark.asyncio
 async def test_evidence_discipline_synced_and_economy_bound(
     skills_service: SkillsService,
 ) -> None:
