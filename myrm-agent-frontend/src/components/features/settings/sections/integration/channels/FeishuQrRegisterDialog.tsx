@@ -161,9 +161,17 @@ export function FeishuQrRegisterDialog({
                     onChange={(e) => setAppLabel(e.target.value)}
                     maxLength={50}
                   />
+                  {!appLabel.trim() && (
+                    <p className="text-xs text-destructive">{t('feishuAppLabelRequired')}</p>
+                  )}
                 </div>
               )}
-              <Button className="w-full" onClick={() => void handleStartQRRegister()}>
+              <Button
+                className="w-full"
+                onClick={() => void handleStartQRRegister()}
+                disabled={allowLabel && !appLabel.trim()}
+                title={allowLabel && !appLabel.trim() ? t('feishuAppLabelRequired') : undefined}
+              >
                 <span>{allowLabel ? t('feishuScanToAdd') : t('feishuQrButton')}</span>
               </Button>
             </div>

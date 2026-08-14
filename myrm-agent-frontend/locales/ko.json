@@ -12241,6 +12241,7 @@
     "feishuMultiAppLimitReached": "앱 상한에 도달했습니다({count}/{max}). 추가하려면 앱을 삭제하세요",
     "feishuScanToAdd": "새 앱을 QR로 추가",
     "feishuAppLabelPlaceholder": "앱 라벨 (예: 고객지원, 운영)",
+    "feishuAppLabelRequired": "스캔하기 전에 앱 라벨을 입력하세요",
     "feishuInstanceAdded": "앱이 추가되었습니다",
     "feishuInstanceAddError": "앱 추가 실패",
     "feishuInstanceRemoved": "앱이 제거되었습니다",

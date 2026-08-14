@@ -241,7 +241,8 @@ const isReferenceTokenAlive = (reference: MentionReference, input: string): bool
   if (!reference.viaText) {return true;}
   switch (reference.type) {
     case 'agent':
-      return input.includes(`@${reference.label}`);
+      // toMentionReference 生成的 label 已带 @ 前缀（如 '@研究专家'），直接整体匹配文本 token
+      return input.includes(reference.label);
     case 'wiki_concept':
       return reference.conceptName
         ? input.includes(`@wiki:${reference.conceptName}`)

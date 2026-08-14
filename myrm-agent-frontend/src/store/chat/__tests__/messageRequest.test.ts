@@ -982,7 +982,7 @@ describe('messageRequest - mention reference lifetime contract', () => {
     const state = {
       ...baseState,
       mentionReferences: [
-        { type: 'agent', label: '研究专家', fileId: 'agent-1', source: 'special', size: null, viaText: true },
+        { type: 'agent', label: '@研究专家', fileId: 'agent-1', source: 'special', size: null, viaText: true },
       ],
     };
     await createMessageRequest('帮我分析竞品文档', 'msg-zombie-agent', state, null);
@@ -999,7 +999,7 @@ describe('messageRequest - mention reference lifetime contract', () => {
     const state = {
       ...baseState,
       mentionReferences: [
-        { type: 'agent', label: '研究专家', fileId: 'agent-1', source: 'special', size: null, viaText: true },
+        { type: 'agent', label: '@研究专家', fileId: 'agent-1', source: 'special', size: null, viaText: true },
       ],
     };
     await createMessageRequest('@研究专家 帮我分析竞品文档', 'msg-live-agent', state, null);

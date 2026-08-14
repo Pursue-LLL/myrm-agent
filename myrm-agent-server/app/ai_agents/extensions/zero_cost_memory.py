@@ -30,6 +30,12 @@ class ZeroCostMemoryExtension(AgentExtension):
     The eviction callback is built eagerly via ``build_eviction_callback()`` so that
     ``factory.py`` can pass it to ``create_context_pipeline_middleware`` before the
     agent graph is created.
+
+    Deep PII scan is resolved from the live ``PrivacyPolicy`` at extraction time
+    (``get_privacy_policy().deep_scan``) instead of being captured at callback build
+    time: the callback can outlive the run that created it (pooled agent reuse), so
+    a stale value would leak PII or silently waste LLM calls when the user toggles
+    privacy settings between turns.
     """
 
     def __init__(
@@ -70,6 +76,7 @@ class ZeroCostMemoryExtension(AgentExtension):
 
         from myrm_agent_harness.api.hooks import (
             create_extraction_llm_func,
+            get_privacy_policy,
             persist_extracted_memories,
         )
         from myrm_agent_harness.toolkits.memory.strategies.extractor import ExtractionConfig, MemoryExtractor
@@ -107,8 +114,6 @@ class ZeroCostMemoryExtension(AgentExtension):
 
             async def _extract_background() -> None:
                 try:
-                    from myrm_agent_harness.api.hooks import get_privacy_policy
-
                     # Resolve deep scan at extraction time: the eviction callback may be
                     # built once per pooled agent unit and reused across turns, so reading
                     # the current PrivacyPolicy keeps this path consistent with the

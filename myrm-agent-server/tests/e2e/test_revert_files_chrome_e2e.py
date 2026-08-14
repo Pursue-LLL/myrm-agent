@@ -22,7 +22,7 @@ from tests.support.chrome_mcp_e2e import (
 
 _FIXTURE_ANSWER = "Revert E2E fixture answer with file change."
 
-_SCOPED_REVERT_BTN_HELPER = """
+_SCOPED_REVERT_BTN_HELPER = r"""
   const findFixtureRevertButton = (answerText) => {
     const store = window.__myrmChatStore?.getState?.();
     const msg = (store?.messages || []).find(

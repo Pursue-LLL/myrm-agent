@@ -48,7 +48,7 @@ _SESSION_TTL_S = 900
 class _RegistrationSession:
     """Tracks an active QR registration flow with TTL."""
 
-    __slots__ = ("registration", "device_code", "created_at", "target_display_name")
+    __slots__ = ("registration", "device_code", "created_at", "target_display_name", "consumed")
 
     def __init__(
         self,
@@ -60,6 +60,7 @@ class _RegistrationSession:
         self.device_code = device_code
         self.created_at = time.monotonic()
         self.target_display_name = target_display_name
+        self.consumed = False
 
 
 _active_sessions: dict[str, _RegistrationSession] = {}
@@ -137,7 +138,7 @@ async def start_feishu_qr_register(
         _active_sessions[session_id] = _RegistrationSession(
             registration=reg,
             device_code=result["device_code"],
-            target_display_name=(body.display_name.strip() if body and body.display_name else None),
+            target_display_name=(body.display_name.strip() or None) if body and body.display_name else None,
         )
 
         return QRRegisterResponse(
@@ -178,6 +179,13 @@ async def poll_feishu_qr_register(body: QRPollRequest) -> QRPollResponse:
     poll_result = await reg.poll(session.device_code)
 
     if poll_result["status"] == "success" and poll_result["credentials"]:
+        if session.consumed:
+            # A concurrent poll already provisioned this session's bot.
+            # The check-and-set below runs without awaiting, so only one
+            # request can observe `consumed` as False for the same session.
+            return QRPollResponse(status="success", credentials=None)
+        session.consumed = True
+
         creds = poll_result["credentials"]
 
         bot_info = await reg.probe_bot(creds["app_id"], creds["app_secret"])

@@ -12,6 +12,16 @@ import { useSkillStore } from '@/store/skill';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import type { SlashItem, SlashAction } from '@/types/command';
 
+/**
+ * 斜杠命令后缀（`/命令名`，锚定到光标前文本末尾）。
+ *
+ * 命令名 token 与技能/命令命名规则一致（技能名允许连字符，见 harness
+ * `agent/skills/market/sanitizer.py` 的 `SKILL_NAME_PATTERN`）。面板检测、
+ * 命令移除、Esc 关闭必须共用同一正则——若面板用 `[a-zA-Z0-9_-]*` 而移除用
+ * `\w`（不含 `-`），命令名含连字符时前缀指令文本会被误清空。
+ */
+const SLASH_COMMAND_SUFFIX_RE = /\/[a-zA-Z0-9_-]*$/;
+
 export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
   const { setInputMessage, setPendingExplicitSkillActivation, agentConfig } = useChatStore(
     useShallow((state) => ({
@@ -97,7 +107,7 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
   // 检测是否应该显示命令面板
   const { shouldShow, query } = useMemo(() => {
     const textBeforeCursor = inputValue.slice(0, cursorPosition);
-    const match = textBeforeCursor.match(/\/([a-zA-Z0-9_-]*)$/);
+    const match = textBeforeCursor.match(SLASH_COMMAND_SUFFIX_RE);
 
     if (!match) {
       return { shouldShow: false, query: '' };
@@ -105,7 +115,8 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
 
     return {
       shouldShow: true,
-      query: match[1],
+      // match[0] 形如 "/report"（含斜杠），query 只取命令名部分
+      query: match[0].slice(1),
     };
   }, [inputValue, cursorPosition]);
 
@@ -145,11 +156,10 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
           // 如果行为返回了新的输入值，更新输入框
           if (result.skillActivation) {
             setPendingExplicitSkillActivation(result.skillActivation);
-            // 只移除 /命令 部分，保留前后文本作为指令，避免清空用户已输入的指令前缀
+            // 只移除末尾 /命令 部分，保留前后文本作为指令，避免清空用户已输入的指令前缀
             const textBeforeCursor = inputValue.slice(0, cursorPosition);
             const textAfterCursor = inputValue.slice(cursorPosition);
-            const match = textBeforeCursor.match(/^(.*)\/\w*$/);
-            const beforeCommand = match ? match[1] : '';
+            const beforeCommand = textBeforeCursor.replace(SLASH_COMMAND_SUFFIX_RE, '');
             setInputMessage(beforeCommand + textAfterCursor);
           } else if (result.newInputValue !== undefined) {
             setInputMessage(result.newInputValue);
@@ -159,9 +169,8 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
           const textBeforeCursor = inputValue.slice(0, cursorPosition);
           const textAfterCursor = inputValue.slice(cursorPosition);
 
-          // 移除 /命令 部分，保留之前的文本
-          const match = textBeforeCursor.match(/^(.*)\/\w*$/);
-          const beforeCommand = match ? match[1] : '';
+          // 移除末尾 /命令 部分，保留之前的文本
+          const beforeCommand = textBeforeCursor.replace(SLASH_COMMAND_SUFFIX_RE, '');
 
           // 构建新的输入值：直接在光标位置追加指令文本
           const newValue = beforeCommand + item.template + textAfterCursor;
@@ -206,11 +215,11 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
 
         case 'Escape':
           e.preventDefault();
-          // 关闭面板（通过删除斜杠字符）
+          // 关闭面板（通过删除斜杠命令）
           const textBeforeCursor = inputValue.slice(0, cursorPosition);
           const textAfterCursor = inputValue.slice(cursorPosition);
 
-          const beforeSlash = textBeforeCursor.replace(/\/\w*$/, '');
+          const beforeSlash = textBeforeCursor.replace(SLASH_COMMAND_SUFFIX_RE, '');
           setInputMessage(beforeSlash + textAfterCursor);
           break;
       }

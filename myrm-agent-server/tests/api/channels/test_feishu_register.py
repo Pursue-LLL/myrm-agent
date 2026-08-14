@@ -124,6 +124,25 @@ class TestStartQRRegister:
 
         assert resp.status_code == 500
 
+    @pytest.mark.asyncio
+    async def test_start_whitespace_display_name_normalized_to_none(self, client: AsyncClient) -> None:
+        """A blank display_name must be normalized to None (default-instance refresh)."""
+        mock_reg = AsyncMock()
+        mock_reg.begin.return_value = _mock_begin_result()
+
+        with patch(
+            "app.channels.providers.feishu.registration.FeishuAppRegistration",
+            return_value=mock_reg,
+        ):
+            resp = await client.post(
+                "/channels/manage/feishu/qr-register",
+                json={"display_name": "   "},
+            )
+
+        assert resp.status_code == 200
+        session_id = resp.json()["session_id"]
+        assert _active_sessions[session_id].target_display_name is None
+
 
 class TestPollQRRegister:
     @pytest.mark.asyncio
@@ -260,6 +279,35 @@ class TestPollQRRegister:
         assert resp.status_code == 200
         assert resp.json()["status"] == "expired"
         assert session_id not in _active_sessions
+
+
+class TestPollConsumedGuard:
+    @pytest.mark.asyncio
+    async def test_poll_already_consumed_skips_provisioning(self, client: AsyncClient) -> None:
+        """A poll racing behind an already-consumed success must not provision a second instance."""
+        mock_reg = AsyncMock()
+        mock_reg.poll.return_value = _mock_poll_success()
+        mock_reg.probe_bot.return_value = {"bot_name": "TestBot", "bot_open_id": "ou_bot_test"}
+
+        session_id = "test_session_consumed"
+        session = _RegistrationSession(registration=mock_reg, device_code="dc_test")
+        session.consumed = True
+        _active_sessions[session_id] = session
+
+        with patch("app.api.channels.feishu_register._save_credentials_to_db", new_callable=AsyncMock) as mock_save:
+            mock_save.return_value = None
+            resp = await client.post(
+                "/channels/manage/feishu/qr-register/poll",
+                json={"session_id": session_id},
+            )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["credentials"] is None
+        mock_save.assert_not_called()
+        # The session is left in place so a late poll stays idempotent; TTL cleanup reclaims it.
+        assert session_id in _active_sessions
 
 
 class TestSaveCredentialsToDb:

@@ -12567,6 +12567,7 @@
     "feishuMultiAppLimitReached": "已达到应用上限（{count}/{max}），请先移除应用后再添加",
     "feishuScanToAdd": "扫码添加新应用",
     "feishuAppLabelPlaceholder": "应用标签（如：客服、运营）",
+    "feishuAppLabelRequired": "请先填写应用标签再扫码",
     "feishuInstanceAdded": "应用已添加",
     "feishuInstanceAddError": "添加应用失败",
     "feishuInstanceRemoved": "应用已移除",

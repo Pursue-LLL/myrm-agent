@@ -12465,6 +12465,7 @@
     "feishuMultiAppLimitReached": "已達應用上限（{count}/{max}），請先移除應用後再新增",
     "feishuScanToAdd": "掃碼新增新應用",
     "feishuAppLabelPlaceholder": "應用標籤（如：客服、營運）",
+    "feishuAppLabelRequired": "請先填寫應用標籤再掃碼",
     "feishuInstanceAdded": "應用已新增",
     "feishuInstanceAddError": "新增應用失敗",
     "feishuInstanceRemoved": "應用已移除",

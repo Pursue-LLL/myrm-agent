@@ -32,7 +32,6 @@ falls back to client-side HTML export.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -67,8 +66,6 @@ from app.services.chat.share_token import (
 
 router = APIRouter()
 public_router = APIRouter()
-
-logger = logging.getLogger(__name__)
 
 _DEFAULT_TTL_DAYS = 7
 _MAX_TTL_DAYS = 30
@@ -171,9 +168,7 @@ async def create_chat_share(
         chat_id, ttl_seconds=ttl_seconds, password=body.password,
     )
 
-    base_url = await resolve_share_url_base(
-        fallback=str(request.base_url).rstrip("/")
-    )
+    base_url = await resolve_share_url_base(fallback=str(request.base_url).rstrip("/"))
     share_url = f"{base_url}/api/v1/public/chat-share/{token}"
 
     return CreateChatShareResponse(

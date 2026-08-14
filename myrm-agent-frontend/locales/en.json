@@ -12567,6 +12567,7 @@
     "feishuMultiAppLimitReached": "App limit reached ({count}/{max}). Remove an app to add more.",
     "feishuScanToAdd": "Scan to Add a New App",
     "feishuAppLabelPlaceholder": "App label (e.g. Support, Ops)",
+    "feishuAppLabelRequired": "Please enter an app label before scanning",
     "feishuInstanceAdded": "App added",
     "feishuInstanceAddError": "Failed to add app",
     "feishuInstanceRemoved": "App removed",
