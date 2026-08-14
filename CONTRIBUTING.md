@@ -129,7 +129,7 @@ Forbidden patterns (see `myrm-agent-harness/.../toolkits/_ARCH.md` and `TOOL_DES
 
 These domains use matching names under both layers:
 
-`approvals` · `audit` · `batch_directory` · `browser_recording` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `extension` · `external_agents` · `features` · `files` · `integrations` · `kanban` · `memory` · `message_filter` · `migration` · `plugins` · `progression` · `risk` · `security` · `skill_optimization` · `skills` · `theme` · `webui` · `wiki` · `workflow_templates` · `workspace`
+`approvals` · `audit` · `batch_directory` · `browser_recording` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `extension` · `external_agents` · `features` · `files` · `integrations` · `kanban` · `memory` · `message_filter` · `migration` · `plugins` · `progression` · `risk` · `security` · `skill_optimization` · `skills` · `statistics` · `theme` · `webui` · `wiki` · `workflow_templates` · `workspace`
 
 ### Intentional name pairs (most common confusion)
 
@@ -166,7 +166,6 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `external_agents/` | harness ACP subscription auth (CLI login SSE) |
 | `memory/follow_ups/` | `core/memory/proactive/` |
 | `notifications/` | `core/channel_bridge/` (gateway push) |
-| `statistics/` | `api/statistics/*` aggregators + `database/` |
 | `runs/` | Read-only Unified Runs Hub — aggregates `core/cron/`, `services/kanban/`, shell background tasks (see `api/runs/_ARCH.md`) |
 | `internal/` | Control Plane internal bridge (SaaS) |
 | `client_logs/` | ingest only — no business service |

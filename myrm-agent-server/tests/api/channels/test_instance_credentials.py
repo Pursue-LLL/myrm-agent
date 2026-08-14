@@ -81,9 +81,9 @@ async def test_load_instance_credentials_by_config_key() -> None:
 
     creds = await _load_instance_credentials("feishu_a1b2c3")
     assert creds is not None
-    assert creds["app_id"] == "cli_x"
-    assert creds["app_secret"] == "sec_y"
-    assert creds["bot_open_id"] == "ou_z"
+    assert creds["appId"] == "cli_x"
+    assert creds["appSecret"] == "sec_y"
+    assert creds["botOpenId"] == "ou_z"
 
     async with get_session() as session:
         await session.execute(UserConfig.__table__.delete())
@@ -229,6 +229,60 @@ async def test_create_instance_unknown_channel_raises() -> None:
 
     with pytest.raises(ValueError, match="Unknown channel type"):
         await create_channel_instance(channel_type="no_such_type", instance_id="x")
+
+
+@pytest.mark.asyncio
+async def test_create_dingtalk_instance_maps_spec_db_keys() -> None:
+    """Spec db_keys that are NOT camel_to_snake(param) (e.g. clientId -> app_key)
+    must still map to constructor params via the channel credential spec."""
+    from app.channels.providers.dingtalk.channel import DingTalkChannel
+    from app.core.channel_bridge.channel_factory import create_channel_instance
+
+    with (
+        patch.object(DingTalkChannel, "from_credentials", autospec=True) as mock_from,
+        patch("app.core.channel_bridge.channel_factory.get_channel_class_safe", return_value=DingTalkChannel),
+    ):
+        mock_channel = MagicMock()
+        mock_from.return_value = mock_channel
+        await create_channel_instance(
+            channel_type="dingtalk",
+            instance_id="camel03",
+            credentials={"clientId": "cli_a", "clientSecret": "sec_b", "robotCode": "robot_c"},
+        )
+
+    mock_from.assert_called_once()
+    creds = mock_from.call_args[0][0]
+    assert creds["app_key"] == "cli_a"
+    assert creds["app_secret"] == "sec_b"
+    assert creds["robot_code"] == "robot_c"
+    assert "client_id" not in creds
+    assert "clientId" not in creds
+
+
+@pytest.mark.asyncio
+async def test_create_instance_without_spec_falls_back_to_camel_to_snake() -> None:
+    """Channels without a credential spec keep camelCase → snake_case fallback."""
+    from app.channels.providers.webhook import WebhookChannel
+    from app.core.channel_bridge.channel_factory import create_channel_instance
+
+    assert WebhookChannel.credential_spec is None
+
+    with (
+        patch.object(WebhookChannel, "from_credentials", autospec=True) as mock_from,
+        patch("app.core.channel_bridge.channel_factory.get_channel_class_safe", return_value=WebhookChannel),
+    ):
+        mock_channel = MagicMock()
+        mock_from.return_value = mock_channel
+        await create_channel_instance(
+            channel_type="webhook",
+            instance_id="camel04",
+            credentials={"sharedSecret": "s3cret"},
+        )
+
+    mock_from.assert_called_once()
+    creds = mock_from.call_args[0][0]
+    assert creds["shared_secret"] == "s3cret"
+    assert "sharedSecret" not in creds
 
 
 # ── create_channel_instance API persists credentials ──────────────────

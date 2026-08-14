@@ -35,6 +35,8 @@ interface FeishuQrRegisterDialogProps {
   onOpenChange: (open: boolean) => void;
   /** When set, the registered bot is provisioned as a new multi-app instance. */
   displayName?: string;
+  /** Show the app label input (multi-app flow). Hidden for default-instance refresh. */
+  allowLabel?: boolean;
   onSuccess?: (result?: { instanceId?: string | null; channelName?: string | null }) => void;
 }
 
@@ -42,6 +44,7 @@ export function FeishuQrRegisterDialog({
   open,
   onOpenChange,
   displayName,
+  allowLabel = false,
   onSuccess,
 }: FeishuQrRegisterDialogProps) {
   const t = useTranslations('channels');
@@ -148,18 +151,20 @@ export function FeishuQrRegisterDialog({
         <div className="flex flex-col items-center gap-4 py-4">
           {qrStatus === 'idle' && (
             <div className="w-full space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="feishu-new-app-label">{t('feishuAppLabelPlaceholder')}</Label>
-                <Input
-                  id="feishu-new-app-label"
-                  placeholder={t('feishuAppLabelPlaceholder')}
-                  value={appLabel}
-                  onChange={(e) => setAppLabel(e.target.value)}
-                  maxLength={50}
-                />
-              </div>
+              {allowLabel && (
+                <div className="space-y-2">
+                  <Label htmlFor="feishu-new-app-label">{t('feishuAppLabelPlaceholder')}</Label>
+                  <Input
+                    id="feishu-new-app-label"
+                    placeholder={t('feishuAppLabelPlaceholder')}
+                    value={appLabel}
+                    onChange={(e) => setAppLabel(e.target.value)}
+                    maxLength={50}
+                  />
+                </div>
+              )}
               <Button className="w-full" onClick={() => void handleStartQRRegister()}>
-                <span>{t('feishuScanToAdd')}</span>
+                <span>{allowLabel ? t('feishuScanToAdd') : t('feishuQrButton')}</span>
               </Button>
             </div>
           )}

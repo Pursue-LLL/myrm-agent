@@ -263,8 +263,7 @@ export function FeishuConfigCard() {
         <FeishuMultiAppSection />
       </div>
 
-      <FeishuQrRegisterDialog open={qrDialogOpen} onOpenChange={setQrDialogOpen} onSuccess={handleQrSuccess} />
-    </div>
+      <FeishuQrRegisterDialog open={qrDialogOpen} onOpenChange={setQrDialogOpen} onSuccess={handleQrSuccess} />    </div>
   );
 }
 

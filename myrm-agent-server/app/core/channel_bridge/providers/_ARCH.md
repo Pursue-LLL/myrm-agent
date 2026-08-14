@@ -27,7 +27,7 @@
 
 ### 内部依赖
 - `app.channels`：BaseChannel 抽象基类
-- `../../database/`：Chat, Message ORM（仅 ChatChannel 使用）
+- `../../../database/`：Chat, Message ORM（仅 ChatChannel 使用）
 
 ### 外部依赖
 - `httpx`：DingTalkClient HTTP 请求

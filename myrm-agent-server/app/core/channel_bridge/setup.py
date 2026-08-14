@@ -252,20 +252,20 @@ async def _restore_channel_instances() -> None:
 async def _load_instance_credentials(channel_name: str) -> dict[str, str] | None:
     """Load instance-specific credentials from UserConfig.
 
-    Credentials are stored in camelCase (e.g. botToken) under the
-    ``{channel_name}Credentials`` config_key but channel constructors
-    expect snake_case (e.g. bot_token). This function converts keys accordingly.
+    Returns raw camelCase credentials (e.g. ``clientId``) as stored; the
+    channel factory maps them to constructor params via the channel's
+    credential spec, so both default and instance channels stay consistent.
 
     Returns the credential dict if found, or None to fall back to default credentials.
     """
-    from app.channels.core.credentials import camel_to_snake, channel_credentials_config_key
+    from app.channels.core.credentials import channel_credentials_config_key
     from app.core.channel_bridge.credential_spec import load_from_db
 
     config_key = channel_credentials_config_key(channel_name)
     raw = await load_from_db(config_key)
     if not raw:
         return None
-    return {camel_to_snake(k): str(v) for k, v in raw.items()}
+    return {str(k): str(v) for k, v in raw.items()}
 
 
 async def refresh_reaction_policy() -> None:

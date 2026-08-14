@@ -111,6 +111,7 @@ export function FeishuMultiAppSection() {
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
         displayName={newLabel.trim() || undefined}
+        allowLabel
         onSuccess={handleQrSuccess}
       />
     </div>

@@ -41,10 +41,10 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 
 ### 内部依赖
 - `myrm_agent_harness.toolkits.cron`：CronManager, CronScheduler, WebhookDelivery, 协议定义
-- `../../channels/`：ChannelGateway（channel_delivery 使用）
-- `../../channels/config_loader`：用户配置加载（agent_runner 使用）
+- `../../channel_bridge/`：ChannelGateway（channel_delivery 使用）
+- `../../channel_bridge/config_loader`：用户配置加载（agent_runner 使用）
 - `../../../ai_agents/`：AgentFactory（agent_runner 使用）
-- `../../../services/agent/profile_resolver`：AgentProfileResolver（agent_runner 使用，agent_id 绑定时加载完整配置）
+- `../../../services/agent/profile/profile_resolver`：AgentProfileResolver（agent_runner 使用，agent_id 绑定时加载完整配置）
 - `../../../services/chat/chat_service`：`ChatService.load_web_chat_history`（agent_runner 使用，Thread Automation 模式加载会话历史）
 - `../../../services/memory/shared_context`：Shared Context 绑定解析（agent_runner 使用）
 - `../../../database/`：CronJob / CronRun ORM
