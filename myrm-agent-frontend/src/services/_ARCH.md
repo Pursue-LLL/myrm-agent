@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-对 `myrm-agent-server` REST/SSE 的类型化客户端（约 85 个模块）。按业务域单文件或小子目录组织；**顶层单文件禁止** `index.ts` barrel，跨域门面见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」与 `scripts/ci/barrel_whitelist.txt`。
+对 `myrm-agent-server` REST/SSE 的类型化客户端（约 91 个模块）。按业务域单文件或小子目录组织；**顶层单文件禁止** `index.ts` barrel，跨域门面见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」与 `scripts/ci/barrel_whitelist.txt`。
 
 ## 域划分（文件 → API）
 
@@ -45,6 +45,7 @@
 | `org-model-policy.ts` | **仅 SaaS/sandbox** 组织模型白名单客户端：`fetchOrgModelPolicy` + `isModelAllowedByPolicy` glob 匹配 |
 | `apiKeys.ts` | `/api-keys/*` CRUD（OpenAI 兼容密钥） |
 | `budget.ts` | `/budget/*` 策略 CRUD 与状态（multi-dimension） |
+| `batch-directory.ts` | `/batch-directories/*`：BatchDirectory 批量目录并行项目 CRUD + cancel/delete（同 prompt × N 目录并行跑） |
 | `batch-image.ts` | 批量图片任务：`createBatchJob` / `startBatchJob` |
 | `chatTrash.ts` | 会话回收站：分页列表、计数、级联恢复信息 |
 | `fork-api.ts` | `POST /chat/{id}/fork` 会话派生 REST 封装 |
