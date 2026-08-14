@@ -103,6 +103,15 @@ def to_int(value: object) -> int:
     return int(value) if isinstance(value, (int, float)) else 0
 
 
+def to_float(value: object) -> float:
+    """Coerce a numeric value to float, returning 0.0 for invalid/None input."""
+    if isinstance(value, bool):
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    return 0.0
+
+
 def extract_stream_ttft_ms(extra_data: dict[str, object] | None) -> int | None:
     if not extra_data or not isinstance(extra_data, dict):
         return None
@@ -270,9 +279,50 @@ def aggregate_usage(
     return result
 
 
+def aggregate_chat_usage_rows(
+    extras: Sequence[dict[str, object] | None],
+) -> dict[str, int | float]:
+    """Aggregate per-session usage from assistant message extra_data.
+
+    Each assistant message persists the turn-level ``tokenEconomics`` snapshot
+    (harness ``tracker.to_dict()`` with exact call_count / total_cost_usd /
+    usage.total_tokens) at write time. Summing snapshots yields the session
+    cumulative usage that Chat.total_* caches. Legacy messages without the
+    snapshot fall back to ``usage`` / ``costUsd``.
+
+    Returns:
+        {"total_calls": int, "total_tokens": int, "total_usd": float}
+    """
+    total_calls = 0
+    total_tokens = 0
+    total_usd = 0.0
+    for extra in extras:
+        if not isinstance(extra, dict):
+            continue
+        token_economics = extra.get("tokenEconomics")
+        if isinstance(token_economics, dict):
+            total_calls += to_int(token_economics.get("call_count"))
+            usage = token_economics.get("usage")
+            if isinstance(usage, dict):
+                total_tokens += to_int(usage.get("total_tokens"))
+            total_usd += to_float(token_economics.get("total_cost_usd"))
+            continue
+        usage = extract_usage(extra)
+        if isinstance(usage, dict):
+            total_calls += 1
+            total_tokens += to_int(usage.get("total_tokens"))
+        total_usd += to_float(extra.get("costUsd"))
+    return {
+        "total_calls": total_calls,
+        "total_tokens": total_tokens,
+        "total_usd": round(total_usd, 6),
+    }
+
+
 __all__ = [
     "DayAccumulator",
     "TierAccumulator",
+    "aggregate_chat_usage_rows",
     "aggregate_usage",
     "compute_estimated_savings",
     "build_stream_ttft_summary",
@@ -280,5 +330,6 @@ __all__ = [
     "extract_usage",
     "normalize_tier",
     "normalize_usage_rows",
+    "to_float",
     "to_int",
 ]

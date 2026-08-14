@@ -626,8 +626,6 @@ async def test_revoked_password_share_skips_password_gate(
     record_id = share_client.get("/shares").json()[0]["id"]
     assert share_client.delete(f"/shares/{record_id}").status_code == 204
 
-    denied = share_client.get(
-        f"/public/artifact-share/{token}", follow_redirects=False
-    )
+    denied = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert denied.status_code == 404
     assert "revoked" in denied.json()["detail"]

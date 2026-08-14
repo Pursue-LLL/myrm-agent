@@ -172,7 +172,7 @@ def _decrypt_audit_log_value(config_key: str, value: dict[str, object] | None) -
 def _build_config_record(config: UserConfig, value: dict[str, object], *, is_system_default: bool = False) -> ConfigRecord:
     """Build ConfigRecord from UserConfig model."""
     return ConfigRecord(
-        key=cast(ConfigKey, config.config_key),
+        key=config.config_key,
         value=value,
         version=config.version,
         updatedAt=config.updated_at.isoformat(),
@@ -193,7 +193,17 @@ class ConfigService:
     """
 
     async def get_all(self, keys: list[str] | None = None) -> dict[str, ConfigRecord]:
-        """获取所有配置"""
+        """获取所有配置
+
+        Args:
+            keys: 指定 key 列表；None 时仅返回白名单内的已知配置，
+                避免动态实例 key（如 ``feishu_xxxCredentials``）的敏感
+                凭据被批量拉取暴露。
+        """
+        from typing import get_args
+
+        from app.schemas.config import ConfigKey
+
         if keys is not None and len(keys) == 0:
             return {}
 
@@ -204,6 +214,8 @@ class ConfigService:
             stmt = select(UserConfig)
             if keys:
                 stmt = stmt.where(UserConfig.config_key.in_(keys))
+            else:
+                stmt = stmt.where(UserConfig.config_key.in_(get_args(ConfigKey)))
             result = await session.execute(stmt)
 
             for config in result.scalars().all():

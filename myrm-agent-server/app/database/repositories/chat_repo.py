@@ -231,6 +231,27 @@ class ChatRepository:
         return [MessageDTO.model_validate(m) for m in msgs]
 
     @staticmethod
+    async def get_assistant_extra_data(
+        db: AsyncSession, chat_id: str
+    ) -> list[dict[str, object] | None]:
+        """Load assistant message extra_data only, for usage aggregation.
+
+        Skips the message content column so rebuilding the Chat.total_* cache
+        stays cheap even for long sessions.
+        """
+        result = await db.execute(
+            select(Message.extra_data)
+            .where(
+                Message.chat_id == chat_id,
+                Message.role == "assistant",
+                Message.is_active == True,  # noqa: E712
+                Message.extra_data.isnot(None),
+            )
+            .order_by(Message.created_at.asc(), Message.id.asc())
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
     async def search_messages_fts(
         db: AsyncSession,
         safe_query: str,

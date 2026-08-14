@@ -75,7 +75,7 @@ InboundMessage(
 
 ## Channel Implementations
 
-### 1. WeCom (`wecom_aibot.py`)
+### 1. WeCom (`wecom/aibot_channel.py`)
 
 **Mapping**: `body["quote"]` → `ReplyContext`
 

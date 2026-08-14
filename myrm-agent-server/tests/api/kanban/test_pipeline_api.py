@@ -345,6 +345,23 @@ class TestInstantiatePipeline:
         edges = edges_resp.json()["items"]
         assert len(edges) >= 3
 
+    def test_code_review_pipeline_verifier_task_contract(
+        self, client: TestClient
+    ) -> None:
+        """verifier 任务描述必须携带 Needs user decision 契约（弱模型不越权修复）。"""
+        board = _create_board(client)
+        board_id = board["board_id"]
+        resp = client.post(
+            f"/api/v1/kanban/boards/{board_id}/pipeline/instantiate",
+            json={"skill_id": "code-review-pipeline", "answers": {"target": "app/"}},
+        )
+        task_ids = resp.json()["task_ids"]
+        assert len(task_ids) == 4
+        verifier = client.get(f"/api/v1/kanban/tasks/{task_ids[3]}").json()
+        assert verifier["title"] == "修复验证与回归测试"
+        assert "Needs user decision" in verifier["description"]
+        assert "不自动修复" in verifier["description"]
+
     def test_board_not_found(self, client: TestClient) -> None:
         resp = client.post(
             "/api/v1/kanban/boards/nonexistent/pipeline/instantiate",

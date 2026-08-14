@@ -16,10 +16,13 @@ hardened CSP headers, optional password gate, and a manual-revocation gate that
 blocks both existing files and any re-materialization attempt after revoke.
 Every served file carries noindex/nofollow + no-store so shared work products are
 never search-engine indexed and revoking a link cannot be bypassed by browser or
-CDN caches. The HMAC unlock credential issued after a correct password keeps the
-share's ``artifact_type`` so extension-less entries (e.g. a PDF artifact named
-without a suffix) still resolve the right media type when the browser re-authenticates
-via the unlock cookie instead of the ``p`` query parameter.
+CDN caches. The password gate posts its ``p`` field in the request body so the
+password never reaches the URL (CWE-598); a successful unlock answers with a 303
+See Other redirect (PRG) to the clean GET URL. The HMAC unlock credential issued
+after a correct password keeps the share's ``artifact_type`` so extension-less
+entries (e.g. a PDF artifact named without a suffix) still resolve the right
+media type when the browser re-authenticates via the unlock cookie instead of a
+password parameter.
 """
 
 from __future__ import annotations
@@ -28,7 +31,7 @@ import hashlib
 import logging
 import time
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,7 +42,10 @@ from app.core.security.share_hmac import (
     is_password_protected,
     parse_share_token,
 )
-from app.core.security.share_password_page import render_password_gate_html
+from app.core.security.share_password_page import (
+    render_password_gate_html,
+    resolve_gate_password,
+)
 from app.database.connection import get_db
 from app.services.artifacts.share_bundle import (
     bundle_asset_count,
@@ -270,69 +276,92 @@ async def _ensure_not_revoked(db: AsyncSession, token: str) -> None:
         raise HTTPException(status_code=404, detail="Share link has been revoked")
 
 
-@public_router.get("/{token}", response_model=None)
+@public_router.api_route("/{token}", methods=["GET", "POST"], response_model=None)
 @limiter.limit("30/minute")
 async def get_public_artifact_share(
     request: Request,
     token: str,
-    pwd: str | None = Query(default=None, alias="p"),
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
 ) -> Response:
     """Serve the bundle entry file for a valid share token (no API key).
 
-    Revocation is checked before authentication so a revoked link (password
-    protected or not) is denied immediately without presenting the password gate.
+    GET keeps accepting the legacy ``p`` query so previously shared links
+    unlock unchanged; POST reads the password from the form body (CWE-598) and
+    answers with a 303 See Other redirect (PRG) so the password never appears
+    in the address bar or browser history. Revocation is checked before
+    authentication so a revoked link (password protected or not) is denied
+    immediately without presenting the password gate.
     """
     await _ensure_not_revoked(db, token)
-    result = _auth_or_gate(request, token, pwd)
+    password = await resolve_gate_password(request)
+    result = _auth_or_gate(request, token, password)
     if isinstance(result, HTMLResponse):
         return result
     secure = request.url.scheme == "https"
+    if request.method == "POST":
+        redirect_path = str(request.url.path)
+        if bundle_asset_count(result) > 1 and not redirect_path.endswith("/"):
+            redirect_path += "/"
+        response = RedirectResponse(url=redirect_path, status_code=303)
+        _attach_unlock_cookie(response, result, token, password, secure=secure)
+        return response
     if bundle_asset_count(result) > 1 and not str(request.url.path).endswith("/"):
         redirect_url = str(request.url.replace(path=str(request.url.path) + "/"))
         response = RedirectResponse(url=redirect_url, status_code=307)
-        _attach_unlock_cookie(response, result, token, pwd, secure=secure)
+        _attach_unlock_cookie(response, result, token, password, secure=secure)
         return response
     response = await _serve_share_bundle(result, db, workspace_root, None)
-    _attach_unlock_cookie(response, result, token, pwd, secure=secure)
+    _attach_unlock_cookie(response, result, token, password, secure=secure)
     return response
 
 
-@public_router.get("/{token}/")
+@public_router.api_route("/{token}/", methods=["GET", "POST"])
 @limiter.limit("30/minute")
 async def get_public_artifact_share_index(
     request: Request,
     token: str,
-    pwd: str | None = Query(default=None, alias="p"),
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
 ) -> Response:
     """Serve bundle entry under a trailing slash so relative static assets resolve."""
     await _ensure_not_revoked(db, token)
-    result = _auth_or_gate(request, token, pwd)
+    password = await resolve_gate_password(request)
+    result = _auth_or_gate(request, token, password)
     if isinstance(result, HTMLResponse):
         return result
+    if request.method == "POST":
+        response = RedirectResponse(url=str(request.url.path), status_code=303)
+        _attach_unlock_cookie(
+            response, result, token, password, secure=request.url.scheme == "https"
+        )
+        return response
     response = await _serve_share_bundle(result, db, workspace_root, None)
     _attach_unlock_cookie(
-        response, result, token, pwd, secure=request.url.scheme == "https"
+        response, result, token, password, secure=request.url.scheme == "https"
     )
     return response
 
 
-@public_router.get("/{token}/{asset_path:path}")
+@public_router.api_route("/{token}/{asset_path:path}", methods=["GET", "POST"])
 @limiter.limit("60/minute")
 async def get_public_artifact_share_asset(
     request: Request,
     token: str,
     asset_path: str,
-    pwd: str | None = Query(default=None, alias="p"),
     db: AsyncSession = Depends(get_db),
     workspace_root: str = Depends(get_workspace_root),
 ) -> Response:
     """Serve a static asset from a multi-file share bundle."""
     await _ensure_not_revoked(db, token)
-    result = _auth_or_gate(request, token, pwd)
+    password = await resolve_gate_password(request)
+    result = _auth_or_gate(request, token, password)
     if isinstance(result, HTMLResponse):
         return result
+    if request.method == "POST":
+        response = RedirectResponse(url=str(request.url.path), status_code=303)
+        _attach_unlock_cookie(
+            response, result, token, password, secure=request.url.scheme == "https"
+        )
+        return response
     return await _serve_share_bundle(result, db, workspace_root, asset_path)

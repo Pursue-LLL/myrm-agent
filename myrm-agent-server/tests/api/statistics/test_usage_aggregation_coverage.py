@@ -1,4 +1,10 @@
-from app.api.statistics.usage_aggregation import DayAccumulator, TierAccumulator, aggregate_usage
+from app.api.statistics.usage_aggregation import (
+    DayAccumulator,
+    TierAccumulator,
+    aggregate_chat_usage_rows,
+    aggregate_usage,
+    to_float,
+)
 
 
 def test_day_accumulator_cache_break():
@@ -91,3 +97,71 @@ def test_aggregate_usage_collects_stream_ttft_without_usage():
     assert stream_ttft["avgMs"] == 60.0
     assert stream_ttft["p95Ms"] == 80
     assert result["calls"] == 1
+
+
+def test_aggregate_chat_usage_rows_sums_token_economics_snapshots():
+    extras = [
+        {
+            "tokenEconomics": {
+                "call_count": 5,
+                "total_cost_usd": 0.2,
+                "usage": {"total_tokens": 6000},
+            }
+        },
+        {
+            "tokenEconomics": {
+                "call_count": 3,
+                "total_cost_usd": 0.15,
+                "usage": {"total_tokens": 1200},
+            }
+        },
+    ]
+    result = aggregate_chat_usage_rows(extras)
+    assert result == {"total_calls": 8, "total_tokens": 7200, "total_usd": 0.35}
+
+
+def test_aggregate_chat_usage_rows_skips_missing_and_non_dict_entries():
+    extras: list[dict[str, object] | None] = [
+        None,
+        "not-a-dict",
+        42,
+        {},
+        {"tokenEconomics": {"call_count": 1, "usage": {"total_tokens": 10}, "total_cost_usd": 0.001}},
+    ]
+    result = aggregate_chat_usage_rows(extras)
+    assert result == {"total_calls": 1, "total_tokens": 10, "total_usd": 0.001}
+
+
+def test_aggregate_chat_usage_rows_empty_input_is_zero():
+    assert aggregate_chat_usage_rows([]) == {
+        "total_calls": 0,
+        "total_tokens": 0,
+        "total_usd": 0.0,
+    }
+
+
+def test_aggregate_chat_usage_rows_falls_back_to_legacy_usage():
+    extras = [
+        {"usage": {"total_tokens": 300}, "costUsd": 0.03},
+        {"usage": {"total_tokens": 700}, "costUsd": 0.07},
+    ]
+    result = aggregate_chat_usage_rows(extras)
+    assert result == {"total_calls": 2, "total_tokens": 1000, "total_usd": 0.1}
+
+
+def test_aggregate_chat_usage_rows_handles_partial_snapshots():
+    extras = [
+        {"tokenEconomics": {"call_count": 2}},
+        {"usage": {"total_tokens": 5}, "costUsd": 0.01},
+    ]
+    result = aggregate_chat_usage_rows(extras)
+    assert result == {"total_calls": 3, "total_tokens": 5, "total_usd": 0.01}
+
+
+def test_to_float_rejects_non_numeric_values():
+    assert to_float(None) == 0.0
+    assert to_float("1.5") == 0.0
+    assert to_float(True) == 0.0
+    assert to_float(False) == 0.0
+    assert to_float(3) == 3.0
+    assert to_float(2.5) == 2.5

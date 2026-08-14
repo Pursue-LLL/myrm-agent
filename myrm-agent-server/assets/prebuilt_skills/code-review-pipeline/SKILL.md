@@ -4,7 +4,7 @@ description: >-
   Multi-agent code review pipeline: static analysis, security audit, logic review,
   and fix verification. Creates a DAG with parallel security and logic passes
   followed by sequential fix and verification.
-version: 1.0.0
+version: 1.0.1
 category: pipeline
 tags:
   - pipeline
@@ -51,7 +51,7 @@ pipeline_spec:
       description: "负责业务逻辑审查、边界条件和错误处理"
       required_skills: ["code-review", "systematic-debugging"]
     - role_id: "verifier"
-      description: "负责修复验证、回归测试和最终确认"
+      description: "负责修复验证、回归测试和最终确认；标记 Needs user decision 的项不自动修复，转交用户决策"
       required_skills: ["test-driven-development"]
   task_graph_seed:
     - title_template: "静态分析：{target}"
@@ -67,7 +67,7 @@ pipeline_spec:
       role: "logic_reviewer"
       parents: [0]
     - title_template: "修复验证与回归测试"
-      description_template: "验证所有审查发现的问题修复，运行回归测试确保无新引入问题"
+      description_template: "验证所有审查发现的问题修复，运行回归测试确保无新引入问题；标记 Needs user decision 的项不自动修复、不视为待修问题，转交用户决策"
       role: "verifier"
       parents: [1, 2]
 contract:
@@ -76,7 +76,7 @@ contract:
     - "Phase 2: Security Audit — vulnerability scanning (parallel with Phase 1)"
     - "Phase 3: Logic Review — business logic correctness and edge cases"
     - "Phase 4: Fix Verification — confirm fixes and run regression tests"
-  success_criteria: "All critical/high issues resolved with verified fixes and no regressions"
+  success_criteria: "All critical/high issues resolved with verified fixes and no regressions; out-of-scope blockers escalated to user decision"
   estimated_duration_seconds: 3600
 ---
 
@@ -103,4 +103,4 @@ A multi-agent code review pipeline that ensures comprehensive coverage by runnin
 | Analyzer | Code metrics, complexity, lint | Static analysis report, complexity hotspots |
 | Security Reviewer | Vulnerabilities, auth, injection | Security findings with severity ratings |
 | Logic Reviewer | Correctness, edge cases, error handling | Logic issue report with fix suggestions |
-| Verifier | Fix confirmation, regression testing | Verification report, test results |
+| Verifier | Fix confirmation, regression testing, needs-user-decision escalation | Verification report, test results, user decision items |

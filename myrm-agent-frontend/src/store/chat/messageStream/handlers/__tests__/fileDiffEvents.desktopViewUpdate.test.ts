@@ -91,7 +91,10 @@ describe('fileDiffEvents desktop_view_update', () => {
         viewport_height: 720,
       },
     });
-    ctx.state.messages[0]!.chatId = '';
+    const firstMsg = ctx.state.messages[0];
+    if (firstMsg) {
+      firstMsg.chatId = '';
+    }
 
     await fileDiffEvents(ctx);
 

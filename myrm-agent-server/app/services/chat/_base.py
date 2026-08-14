@@ -56,6 +56,10 @@ class _ChatRepositoryPort(Protocol):
 
     async def get_all_messages(self, chat_id: str) -> list[MessageDTO]: ...
 
+    async def get_assistant_extra_data(
+        self, chat_id: str
+    ) -> list[dict[str, object] | None]: ...
+
     async def get_message_created_at(self, message_id: str) -> datetime | None: ...
 
     async def get_recent_messages(

@@ -52,9 +52,12 @@ vi.mock('../handlerDeps', () => ({
   findAssistantMessageIndex: vi.fn(() => 0),
   normalizeGoalState: vi.fn((payload: { status?: string }) => ({ status: payload?.status ?? 'active' })),
   releaseInspectorControls: (chatId: string) => {
-    void import('@/lib/inspector/releaseTurnInspectorControls').then(({ releaseTurnInspectorControls }) =>
-      releaseTurnInspectorControls(chatId),
-    );
+    // Synchronous release spy chain: the production path lazily imports the
+    // shared helper, which is slow and timer-hostile under fake timers. Asserting
+    // the engaged turn release synchronously keeps the timing invariant test
+    // deterministic without depending on dynamic-import settling.
+    mockDesktopReleaseTurnEngagement(chatId);
+    mockBrowserReleaseTurnEngagement(chatId);
   },
   resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
     state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
@@ -150,7 +153,6 @@ describe('completionEvents inspector teardown', () => {
     try {
       const ctx = makeCtx();
       await completionEvents(ctx);
-      await vi.dynamicImportSettled();
 
       expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
       expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledWith('c1');
@@ -171,7 +173,6 @@ describe('completionEvents inspector teardown', () => {
       ctx.state.messages = [];
       ctx.state.chatId = 'c1';
       await completionEvents(ctx);
-      await vi.dynamicImportSettled();
 
       expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledTimes(1);
       expect(mockDesktopReleaseTurnEngagement).toHaveBeenCalledWith('c1');

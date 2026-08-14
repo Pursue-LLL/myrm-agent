@@ -1,0 +1,218 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import {
+  IconPlus,
+  IconTrash,
+  IconPencil,
+  IconLoader,
+  IconWifi,
+  IconWifiOff,
+} from '@/components/features/icons/PremiumIcons';
+import { Button } from '@/components/primitives/button';
+import { cn } from '@/lib/utils/classnameUtils';
+import { listChannelStatuses, type ChannelStatus } from '@/services/channels';
+import { useChannelInstances } from '@/hooks/channels/useChannelInstances';
+import { FeishuQrRegisterDialog } from './FeishuQrRegisterDialog';
+
+export function FeishuMultiAppSection() {
+  const t = useTranslations('channels');
+  const [statuses, setStatuses] = useState<ChannelStatus[]>([]);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [showLabelInput, setShowLabelInput] = useState(false);
+  const [newLabel, setNewLabel] = useState('');
+  const labelInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    extraInstances,
+    loading,
+    adding,
+    refresh,
+    removeInstance,
+    renameInstance,
+  } = useChannelInstances({
+    channelType: 'feishu',
+    primaryName: 'feishu',
+    i18nPrefix: 'feishu',
+  });
+
+  const refreshStatuses = useCallback(() => {
+    listChannelStatuses()
+      .then((all) => setStatuses(all))
+      .catch(() => setStatuses([]));
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    refreshStatuses();
+  }, [refresh, refreshStatuses]);
+
+  const statusFor = useCallback(
+    (channelName: string): ChannelStatus | undefined => statuses.find((s) => s.name === channelName),
+    [statuses],
+  );
+
+  const handleQrSuccess = useCallback(
+    () => {
+      void refresh();
+      refreshStatuses();
+    },
+    [refresh, refreshStatuses],
+  );
+
+  const handleAddClick = useCallback(() => {
+    setAddDialogOpen(true);
+    setShowLabelInput(false);
+    setNewLabel('');
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+        <IconLoader className="h-4 w-4 animate-spin" />
+        <span>{t('feishuMultiAppDesc')}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 pt-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">{t('feishuMultiAppTitle')}</p>
+          <p className="text-xs text-muted-foreground">{t('feishuMultiAppDesc')}</p>
+        </div>
+        <Button variant="outline" size="sm" className="shrink-0 text-xs gap-1.5" onClick={handleAddClick}>
+          <IconPlus className="h-3.5 w-3.5" />
+          {t('feishuAddApp')}
+        </Button>
+      </div>
+
+      {extraInstances.length === 0 && (
+        <p className="rounded-lg border border-dashed px-3 py-3 text-center text-xs text-muted-foreground">
+          {t('feishuScanToAdd')}
+        </p>
+      )}
+
+      {extraInstances.map((inst) => (
+        <FeishuAppCard
+          key={inst.instanceId}
+          channelName={inst.channelName}
+          label={inst.displayName || inst.channelName}
+          status={statusFor(inst.channelName)}
+          onDelete={() => void removeInstance(inst.instanceId)}
+          onRename={(label) => void renameInstance(inst.channelName, label)}
+          t={t}
+        />
+      ))}
+
+      <FeishuQrRegisterDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        displayName={newLabel.trim() || undefined}
+        onSuccess={handleQrSuccess}
+      />
+    </div>
+  );
+}
+
+function FeishuAppCard({
+  channelName,
+  label,
+  status,
+  onDelete,
+  onRename,
+  t,
+}: {
+  channelName: string;
+  label: string;
+  status?: ChannelStatus;
+  onDelete: () => void;
+  onRename: (label: string) => void;
+  t: ReturnType<typeof useTranslations<'channels'>>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  const isConnected = status?.connected ?? false;
+
+  const startEditing = useCallback(() => {
+    setEditValue(label);
+    setEditing(true);
+    setTimeout(() => editInputRef.current?.focus(), 50);
+  }, [label]);
+
+  const commitEdit = useCallback(() => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== label) {
+      onRename(trimmed);
+    }
+    setEditing(false);
+  }, [editValue, label, onRename]);
+
+  const cancelEdit = useCallback(() => {
+    setEditing(false);
+  }, []);
+
+  return (
+    <div className="rounded-lg border bg-card px-4 py-2.5 text-xs space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          {isConnected ? (
+            <IconWifi className="h-3.5 w-3.5 text-green-500 shrink-0" />
+          ) : (
+            <IconWifiOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          )}
+          {editing ? (
+            <input
+              ref={editInputRef}
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {commitEdit();}
+                if (e.key === 'Escape') {cancelEdit();}
+              }}
+              onBlur={commitEdit}
+              className="h-5 w-28 rounded border bg-background px-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring"
+              maxLength={50}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={startEditing}
+              aria-label={`rename-${channelName}`}
+              className="group inline-flex items-center gap-1 font-medium truncate max-w-[140px] hover:text-primary cursor-pointer"
+              title={label}
+            >
+              {label}
+              <IconPencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+            </button>
+          )}
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-medium shrink-0',
+              isConnected
+                ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20'
+                : 'bg-muted text-muted-foreground border-muted',
+            )}
+          >
+            {isConnected ? t('feishuConnected') : t('feishuStatusUnconfigured')}
+          </span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-destructive/60 hover:text-destructive shrink-0"
+          aria-label={`delete-${channelName}`}
+          onClick={onDelete}
+        >
+          <IconTrash className="h-3 w-3" />
+        </Button>
+      </div>
+      <p className="text-[10px] text-muted-foreground break-all">{channelName}</p>
+    </div>
+  );
+}

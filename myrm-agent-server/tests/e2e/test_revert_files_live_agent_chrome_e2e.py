@@ -72,6 +72,16 @@ _FILE_EDIT_TOOL = "file_edit_tool"
 _WORKSPACE_FILENAME = "batch_edit_e2e.txt"
 _MAX_CHAT_ATTEMPTS = 1
 
+_TRACE_LOG = Path("/tmp/revert_live_trace.log")
+
+
+def _trace(stage: str, detail: str = "") -> None:
+    try:
+        with _TRACE_LOG.open("a", encoding="utf-8") as fh:
+            fh.write(f"{time.strftime('%H:%M:%S')} [{stage}] {detail}\n")
+    except OSError:  # pragma: no cover - diagnostic only
+        pass
+
 _LIVE_USER_PROMPT = (
     f"The workspace file {_WORKSPACE_FILENAME} contains exactly three lines: line_a, line_b, line_c. "
     "Use file_edit_tool once with an edits array that replaces the line containing line_a "
@@ -432,11 +442,17 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         raise AssertionError(f"Hydrate with requestMessageId not reached: {last}")
 
     async def _run_flow(chat: McpChatSession) -> tuple[str, Path]:
+        if _TRACE_LOG.exists():
+            _TRACE_LOG.unlink()
+        _trace("flow_start")
         await chat.dismiss_modals()
         await _wait_agent_applied(chat)
+        _trace("agent_applied")
         await _pin_lite_model(chat)
+        _trace("model_pinned")
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
+        _trace("chat_surface")
 
         ensured = await chat.evaluate(
             _ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH
@@ -451,6 +467,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         assert file_path.is_file(), workspace_seed
 
         send_result = await chat.send_message(_LIVE_USER_PROMPT, _LIVE_USER_PROMPT)
+        _trace("send_done", str(send_result.get("submit", {}).get("chatId") or ""))
         chat_id_hint = str(
             send_result.get("started", {}).get("chatId")
             or send_result.get("submit", {}).get("chatId")
@@ -481,14 +498,17 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         result = await _wait_live_turn_done(
             chat, resolved_chat_id, file_path=file_path, timeout_sec=300.0
         )
+        _trace("turn_done", json.dumps(result, ensure_ascii=False, default=str)[:300])
         assert result.get("invoked") is True, result
 
         # --- 核心链路：刷新页面 → hydrate → requestMessageId 恢复 ---
         _touch_progress("revert_live_reload")
         await chat.navigate_to_chat(resolved_chat_id, BASE_URL, timeout_sec=120.0)
+        _trace("reloaded")
         await chat.evaluate(_HOOK_RESYNC_JS, intent=EvaluateIntent.BRIDGE_POLL, recv_timeout=10.0)
 
-        hydrated = await _wait_hydrate_request_id(chat, timeout_sec=120.0)
+        hydrated = await _wait_hydrate_request_id(chat, timeout_sec=60.0)
+        _trace("hydrated", json.dumps(hydrated, ensure_ascii=False)[:300])
         assert hydrated.get("ready") is True, hydrated
         assert hydrated.get("isRPrefix") is True, (
             f"requestMessageId must be an r- prefixed request id after reload: {hydrated}"
@@ -498,6 +518,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         probe = await chat.evaluate(
             _PROBE_REVERT_CHANGES_JS, intent=EvaluateIntent.AGENT_SUBMIT
         )
+        _trace("probed", json.dumps(probe, ensure_ascii=False, default=str)[:300])
         assert isinstance(probe, dict) and probe.get("ok") is True, json.dumps(
             probe, ensure_ascii=False
         )
@@ -506,11 +527,13 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         button = await chat.evaluate(
             _REVERT_BUTTON_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
         )
+        _trace("revert_btn", json.dumps(button, ensure_ascii=False)[:200])
         assert isinstance(button, dict) and button.get("ready") is True, button
 
         popover = await chat.evaluate(
             _CLICK_REVERT_AND_WAIT_POPOVER_JS, intent=EvaluateIntent.AGENT_SUBMIT
         )
+        _trace("popover", json.dumps(popover, ensure_ascii=False)[:200])
         assert isinstance(popover, dict) and popover.get("ready") is True, json.dumps(
             popover, ensure_ascii=False
         )
@@ -518,6 +541,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         confirmed = await chat.evaluate(
             _CLICK_CONFIRM_JS, intent=EvaluateIntent.AGENT_SUBMIT
         )
+        _trace("confirm_clicked", str(confirmed.get("clicked")))
         assert (
             isinstance(confirmed, dict) and confirmed.get("clicked") is True
         ), confirmed
@@ -526,7 +550,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
             _SUCCESS_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL
         )
         # resync 事件可能已触发（hook 是 once）；轮询兜底
-        deadline = time.monotonic() + 60.0
+        deadline = time.monotonic() + 30.0
         while time.monotonic() < deadline and not (
             isinstance(success, dict) and success.get("ready") is True
         ):
@@ -534,11 +558,13 @@ async def test_revert_files_live_agent_after_reload_restores_file(
             success = await chat.evaluate(
                 _SUCCESS_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL
             )
+        _trace("success_seen", str(success.get("ready")))
         assert isinstance(success, dict) and success.get("ready") is True, json.dumps(
             success, ensure_ascii=False
         )
 
         _assert_restored(file_path)
+        _trace("restore_ok")
 
         e2e_resource_ledger.register("chat", resolved_chat_id)
         return resolved_chat_id, file_path

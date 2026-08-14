@@ -436,7 +436,7 @@ class ConfigMeta(BaseModel):
 class ConfigRecord(BaseModel):
     """配置记录"""
 
-    key: ConfigKey
+    key: str
     value: dict[str, object]
     version: str
     updated_at: str = Field(..., alias="updatedAt")

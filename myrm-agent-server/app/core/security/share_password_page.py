@@ -1,18 +1,22 @@
-"""Minimal HTML page for password-gated share links.
+"""Password gate for public share links: HTML page + submission parsing.
 
 [INPUT]
-- none
+- starlette.requests::Request (POS: password-gate form submission)
 
 [OUTPUT]
 - render_password_gate_html: returns a self-contained HTML page
+- resolve_gate_password: resolves the gate password from a POST form / GET query
 
 [POS]
 Renders a lightweight, self-contained password prompt page for public share
-endpoints. The form submits the password as a query parameter ``p`` to the
-same URL, letting the share API verify the token with the supplied password.
+endpoints and resolves the submitted password. The form posts the password as
+a body field so it never appears in the URL (CWE-598); the legacy ``p`` query
+parameter is still accepted so links shared before the change keep unlocking.
 """
 
 from __future__ import annotations
+
+from starlette.requests import Request
 
 _LOCK_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" '
@@ -59,7 +63,7 @@ button:hover{background:#4f46e5}
 <div class="icon">%(lock_svg)s</div>
 <h1>Password Required</h1>
 <p>This shared content is password-protected.</p>
-<form method="get" action="">
+<form method="post" action="">
 <input type="password" name="p" placeholder="Enter password" required autofocus/>
 <button type="submit">Unlock</button>
 </form>
@@ -76,3 +80,17 @@ def render_password_gate_html(*, wrong_password: bool = False) -> str:
         "err_display": "block" if wrong_password else "none",
         "err_msg": "Incorrect password. Please try again." if wrong_password else "",
     }
+
+
+async def resolve_gate_password(request: Request) -> str | None:
+    """Resolve the password from a password-gate submission.
+
+    POST reads the ``p`` form field so the password never reaches the URL
+    (CWE-598). GET keeps accepting the legacy ``p`` query parameter so links
+    shared before the switch still unlock. Returns ``None`` when absent.
+    """
+    if request.method == "POST":
+        form = await request.form()
+        value = form.get("p")
+        return str(value) if value else None
+    return request.query_params.get("p")

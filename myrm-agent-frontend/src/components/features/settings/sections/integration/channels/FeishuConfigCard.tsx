@@ -1,11 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/primitives/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
@@ -13,10 +11,11 @@ import { Switch } from '@/components/primitives/switch';
 import { IconEye, IconEyeOff, IconQrCode } from '@/components/features/icons/PremiumIcons';
 import type { FeishuCredentials } from '@/services/channels';
 import { getFeishuCredentials, saveFeishuCredentials, testFeishuConnection } from '@/services/channels';
-import { ApiError, apiRequest } from '@/lib/api';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { ConnectionBadge } from './ConnectionBadge';
 import { useChannelConfig } from './useChannelConfig';
+import { FeishuMultiAppSection } from './FeishuMultiAppSection';
+import { FeishuQrRegisterDialog } from './FeishuQrRegisterDialog';
 
 type RenderMode = FeishuCredentials['renderMode'];
 
@@ -32,34 +31,10 @@ const EMPTY_CREDS: FeishuCredentials = {
   botPolicy: 'deny',
 };
 
-interface QRRegisterResponse {
-  session_id: string;
-  qr_url: string;
-  expire_in: number;
-  interval: number;
-}
-
-interface QRPollResponse {
-  status: 'pending' | 'success' | 'denied' | 'expired';
-  credentials?: {
-    appId: string;
-    appSecret: string;
-    useLark: string;
-    botOpenId: string;
-  };
-}
-
 export function FeishuConfigCard() {
   const t = useTranslations('channels');
   const [showSecret, setShowSecret] = useState(false);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
-  const [qrUrl, setQrUrl] = useState('');
-  const [qrStatus, setQrStatus] = useState<'idle' | 'loading' | 'scanning' | 'success' | 'failed' | 'unsupported'>(
-    'idle',
-  );
-  const [qrCountdown, setQrCountdown] = useState(0);
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const {
     creds,
@@ -82,76 +57,9 @@ export function FeishuConfigCard() {
     i18nPrefix: 'feishu',
   });
 
-  const cleanupTimers = useCallback(() => {
-    if (pollTimerRef.current) {
-      clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current);
-      countdownTimerRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => cleanupTimers, [cleanupTimers]);
-
-  const handleStartQRRegister = useCallback(async () => {
-    setQrStatus('loading');
-    setQrDialogOpen(true);
-    try {
-      const res = await apiRequest<QRRegisterResponse>('/channels/manage/feishu/qr-register', {
-        method: 'POST',
-      });
-      setQrUrl(res.qr_url);
-      setQrStatus('scanning');
-      setQrCountdown(res.expire_in);
-
-      countdownTimerRef.current = setInterval(() => {
-        setQrCountdown((prev) => {
-          if (prev <= 1) {
-            cleanupTimers();
-            setQrStatus('failed');
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      pollTimerRef.current = setInterval(
-        async () => {
-          try {
-            const poll = await apiRequest<QRPollResponse>('/channels/manage/feishu/qr-register/poll', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ session_id: res.session_id }),
-            });
-
-            if (poll.status === 'success') {
-              cleanupTimers();
-              setQrStatus('success');
-              refreshCreds?.();
-              setTimeout(() => setQrDialogOpen(false), 1500);
-            } else if (poll.status === 'denied' || poll.status === 'expired') {
-              cleanupTimers();
-              setQrStatus('failed');
-            }
-          } catch {
-            /* network hiccup, keep polling */
-          }
-        },
-        (res.interval || 5) * 1000,
-      );
-    } catch (err) {
-      setQrStatus(err instanceof ApiError && err.code === 503 ? 'unsupported' : 'failed');
-    }
-  }, [cleanupTimers, refreshCreds]);
-
-  const handleCloseQRDialog = useCallback(() => {
-    cleanupTimers();
-    setQrDialogOpen(false);
-    setQrStatus('idle');
-    setQrUrl('');
-  }, [cleanupTimers]);
+  const handleQrSuccess = () => {
+    refreshCreds?.();
+  };
 
   if (loading) {
     return (
@@ -174,10 +82,7 @@ export function FeishuConfigCard() {
             <div className="flex-1 space-y-2">
               <p className="text-sm font-medium">{t('feishuQrTitle')}</p>
               <p className="text-xs text-muted-foreground">{t('feishuQrDescription')}</p>
-              <Button size="sm" onClick={handleStartQRRegister} disabled={qrStatus === 'loading'}>
-                {qrStatus === 'loading' && (
-                  <div className="mr-2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                )}
+              <Button size="sm" onClick={() => setQrDialogOpen(true)}>
                 <IconQrCode className="mr-2 h-3.5 w-3.5" />
                 {t('feishuQrButton')}
               </Button>
@@ -185,68 +90,6 @@ export function FeishuConfigCard() {
           </div>
         </div>
       )}
-
-      <Dialog open={qrDialogOpen} onOpenChange={(open) => !open && handleCloseQRDialog()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('feishuQrDialogTitle')}</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-4">
-            {qrStatus === 'loading' && (
-              <div className="flex h-48 w-48 items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-3 border-primary border-t-transparent" />
-              </div>
-            )}
-            {qrStatus === 'scanning' && qrUrl && (
-              <>
-                <div className="rounded-xl bg-white p-4">
-                  <QRCodeSVG value={qrUrl} size={192} level="M" />
-                </div>
-                <p className="text-sm text-muted-foreground">{t('feishuQrScanHint')}</p>
-                <p className="text-xs text-muted-foreground/70">{t('feishuQrExpireIn', { seconds: qrCountdown })}</p>
-              </>
-            )}
-            {qrStatus === 'success' && (
-              <div className="flex flex-col items-center gap-2 py-8">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                  <svg
-                    width="24"
-                    height="24"
-                    viewBox="0 0 15 15"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="text-green-600 dark:text-green-400"
-                  >
-                    <path
-                      d="M11.4669 3.72684C11.7558 3.91574 11.8369 4.30308 11.648 4.59198L7.39799 11.092C7.29783 11.2452 7.13556 11.3467 6.95402 11.3699C6.77247 11.3931 6.58989 11.3355 6.45446 11.2124L3.70446 8.71241C3.44905 8.48022 3.43023 8.08494 3.66242 7.82953C3.89461 7.57412 4.28989 7.5553 4.5453 7.78749L6.75292 9.79441L10.6018 3.90792C10.7907 3.61902 11.178 3.53795 11.4669 3.72684Z"
-                      fill="currentColor"
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium">{t('feishuQrSuccess')}</p>
-              </div>
-            )}
-            {qrStatus === 'unsupported' && (
-              <div className="flex flex-col items-center gap-3 py-8 text-center">
-                <p className="text-sm text-muted-foreground">{t('feishuQrUnsupported')}</p>
-                <Button size="sm" variant="outline" onClick={handleCloseQRDialog}>
-                  {t('feishuQrManualFallback')}
-                </Button>
-              </div>
-            )}
-            {qrStatus === 'failed' && (
-              <div className="flex flex-col items-center gap-3 py-8">
-                <p className="text-sm text-muted-foreground">{t('feishuQrFailed')}</p>
-                <Button size="sm" variant="outline" onClick={handleStartQRRegister}>
-                  {t('feishuQrRetry')}
-                </Button>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
@@ -409,12 +252,19 @@ export function FeishuConfigCard() {
         </Button>
 
         {creds.appId && (
-          <Button variant="ghost" onClick={handleStartQRRegister} size="sm" className="ml-auto">
+          <Button variant="ghost" onClick={() => setQrDialogOpen(true)} size="sm" className="ml-auto">
             <IconQrCode className="mr-2 h-3.5 w-3.5" />
             {t('feishuQrRecreate')}
           </Button>
         )}
       </div>
+
+      <div className="border-t pt-4">
+        <FeishuMultiAppSection />
+      </div>
+
+      <FeishuQrRegisterDialog open={qrDialogOpen} onOpenChange={setQrDialogOpen} onSuccess={handleQrSuccess} />
     </div>
   );
 }
+

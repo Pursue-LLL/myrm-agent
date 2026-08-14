@@ -172,3 +172,67 @@ class TestPublicSharePage:
     def test_invalid_token_returns_404(self, share_client: TestClient) -> None:
         resp = share_client.get("/public/chat-share/invalid-token-here")
         assert resp.status_code == 404
+
+    def test_password_token_requires_gate(self, share_client: TestClient) -> None:
+        """A password-protected chat share renders the gate until unlocked."""
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
+        resp = share_client.get(f"/public/chat-share/{token}")
+        assert resp.status_code == 403
+        assert "Password Required" in resp.text
+
+    def test_password_token_unlocks_via_post_form(
+        self, share_client: TestClient
+    ) -> None:
+        """The password is posted in the form body, never the URL (CWE-598)."""
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=_make_chat_dto(),
+            ),
+            patch(
+                "app.api.chats.chat.share.render_share_html",
+                new_callable=AsyncMock,
+                return_value="<html><body>Shared</body></html>",
+            ),
+        ):
+            resp = share_client.post(f"/public/chat-share/{token}", data={"p": "s3cret"})
+        assert resp.status_code == 200
+        assert "Shared" in resp.text
+
+    def test_password_token_query_still_unlocks(self, share_client: TestClient) -> None:
+        """Legacy ``?p=`` links shared before the switch keep unlocking."""
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
+        with (
+            patch(
+                "app.api.chats.chat.share.ChatService.get_chat_metadata",
+                new_callable=AsyncMock,
+                return_value=_make_chat_dto(),
+            ),
+            patch(
+                "app.api.chats.chat.share.render_share_html",
+                new_callable=AsyncMock,
+                return_value="<html><body>Shared</body></html>",
+            ),
+        ):
+            resp = share_client.get(f"/public/chat-share/{token}?p=s3cret")
+        assert resp.status_code == 200
+        assert "Shared" in resp.text
+
+    def test_password_token_wrong_password_via_post(
+        self, share_client: TestClient
+    ) -> None:
+        """A wrong password posted via the form renders the gate again."""
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
+        resp = share_client.post(f"/public/chat-share/{token}", data={"p": "wrong"})
+        assert resp.status_code == 403
+        assert "Incorrect password" in resp.text

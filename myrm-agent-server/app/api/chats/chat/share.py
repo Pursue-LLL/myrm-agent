@@ -12,7 +12,8 @@
 
 [POS]
 Enables GUI users to share conversations via time-limited read-only URLs.
-Supports optional password-protected share links.
+Supports optional password-protected share links; the password gate posts its
+``p`` field in the request body so the password never reaches the URL (CWE-598).
 Cloud: public URL; Local/Desktop: falls back to client-side HTML export.
 """
 
@@ -20,7 +21,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import update
@@ -29,7 +30,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
 from app.core.security.share_hmac import is_password_protected
-from app.core.security.share_password_page import render_password_gate_html
+from app.core.security.share_password_page import (
+    render_password_gate_html,
+    resolve_gate_password,
+)
 from app.database.connection import get_db
 from app.database.models.chat import Chat
 from app.services.chat.chat_service import ChatService
@@ -129,22 +133,27 @@ async def revoke_chat_share(
     return Response(status_code=204)
 
 
-@public_router.get("/{token}")
+@public_router.api_route("/{token}", methods=["GET", "POST"])
 @limiter.limit("30/minute")
 async def get_public_chat_share(
     request: Request,
     token: str,
-    pwd: str | None = Query(default=None, alias="p"),
     db: AsyncSession = Depends(get_db),
 ) -> HTMLResponse:
-    """Serve the read-only HTML page for a valid chat share token (no auth)."""
+    """Serve the read-only HTML page for a valid chat share token (no auth).
+
+    GET keeps accepting the legacy ``p`` query so previously shared links
+    unlock unchanged; POST reads the password from the form body (CWE-598) so
+    it never appears in the URL or browser history.
+    """
     protected = is_password_protected(token)
-    if protected and not pwd:
+    password = await resolve_gate_password(request)
+    if protected and not password:
         return HTMLResponse(render_password_gate_html(), status_code=403)
 
-    claims = parse_chat_share_token(token, password=pwd)
+    claims = parse_chat_share_token(token, password=password)
     if claims is None:
-        if protected and pwd:
+        if protected and password:
             return HTMLResponse(
                 render_password_gate_html(wrong_password=True), status_code=403,
             )

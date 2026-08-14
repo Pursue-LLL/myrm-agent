@@ -632,6 +632,18 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
         body_wall = _body_wall_exceeded_reason(row)
         if body_wall is not None:
             return body_wall
+        if current_node and is_transport_stall_node(current_node):
+            stall_cap = float(
+                resolve_transport_stall_cap_sec(current_node=current_node)
+            )
+            if elapsed_f >= stall_cap:
+                return (
+                    f"E2E_NODE_STUCK: parallel node={current_node!r} "
+                    f"node_elapsed={int(elapsed_f)}s>={int(stall_cap)}s"
+                )
+            return None
+        # 普通 node 在 body 阶段仍 defer 到 BODY wall（body 预算内 node 卡死
+        # 不判 hung，与 Phase C defer 语义冲突时以 BODY 总时长为准）。
         if elapsed_f < _body_wall_cap_for_pid(row.pid):
             return None
     if wall == "bootstrap":
@@ -820,6 +832,11 @@ def _hung_reason_for_session(row: LiveE2ESessionRow) -> str | None:
     admit_semantic = _admit_semantic_node_stuck_reason(row)
     if admit_semantic is not None:
         return admit_semantic
+    wall = str(row.wall_phase or row.phase or "").strip().lower()
+    if wall == "body":
+        body_wall = _body_wall_exceeded_reason(row)
+        if body_wall is not None:
+            return body_wall
     if row.phase != "admit":
         return None
 

@@ -291,7 +291,7 @@ async def test_api_create_instance_persists_credentials() -> None:
 
         result = await api_create(body)
 
-    assert result.channelName == channel_name
+    assert result.channel_name == channel_name
 
     config_key = channel_credentials_key(channel_name)
     assert config_key == f"feishu_{instance_id}Credentials"

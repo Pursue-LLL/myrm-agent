@@ -30,10 +30,13 @@ from app.database.repositories.uow import UnitOfWork
 from ._base import _ChatServiceBase
 from .chat_helpers import ALLOWED_MESSAGE_ROLES
 from .conversation_recall_index_service import ConversationRecallIndexService
+from .usage_cache import ChatUsageCache
 
 logger = logging.getLogger(__name__)
 
 _RECALL_INDEX_TIMEOUT_SECONDS = 2.0
+
+_chat_usage_cache = ChatUsageCache()
 
 
 class _ChatMessageMixin(_ChatServiceBase):
@@ -322,47 +325,28 @@ class _ChatMessageMixin(_ChatServiceBase):
 
             # Sync usage ledger to DB (O(1) dashboard querying)
             try:
-                from pathlib import Path
-
-                from myrm_agent_harness.agent.event_log.analytics_queries import (
-                    get_session_summary,
+                from app.api.statistics.usage_aggregation import (
+                    aggregate_chat_usage_rows,
                 )
-                from myrm_agent_harness.agent.event_log.backends.file_backend import (
-                    FileEventLogBackend,
-                )
-
-                from app.config.settings import settings
                 from app.core.utils.session_id import is_safe_session_id
 
                 if not is_safe_session_id(chat_id):
                     return
 
-                event_log_file = (
-                    Path(settings.database.event_log_dir) / f"{chat_id}.jsonl"
-                )
-                if event_log_file.exists():
-                    backend = FileEventLogBackend(
-                        log_dir=Path(settings.database.event_log_dir),
-                        session_id=chat_id,
+                cached = _chat_usage_cache.get(chat_id)
+                if cached is not None:
+                    usage_updates = cached
+                else:
+                    async with UnitOfWork() as uow:
+                        extras = await _ChatServiceBase._cr(
+                            uow
+                        ).get_assistant_extra_data(chat_id)
+                    usage_updates = aggregate_chat_usage_rows(extras)
+                    _chat_usage_cache.set(chat_id, usage_updates)
+                async with UnitOfWork() as uow:
+                    await _ChatServiceBase._cr(uow).update_chat_fields(
+                        chat_id, usage_updates
                     )
-                    summary = await get_session_summary(
-                        backend, session_id=chat_id, events_limit=150, timeline_limit=10
-                    )
-                    if summary.token_economics:
-                        usage_updates = {
-                            "total_calls": summary.token_economics.get("call_count", 0),
-                            "total_tokens": summary.token_economics.get(
-                                "total_tokens", 0
-                            ),
-                            "total_usd": summary.token_economics.get(
-                                "total_cost_usd", 0.0
-                            ),
-                        }
-                        # update_chat_fields is in _ChatCrudMixin; use UnitOfWork directly
-                        async with UnitOfWork() as uow:
-                            await _ChatServiceBase._cr(uow).update_chat_fields(
-                                chat_id, usage_updates
-                            )
             except Exception as err:
                 logger.error(
                     f"Failed to sync usage ledger to DB for chat {chat_id}: {err}"

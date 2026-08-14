@@ -251,7 +251,7 @@ If rotation is required:
 
 ### Code signing certificate rotation
 
-Annual rotation cadence aligns with most CA renewal cycles. The `cert-expiry-check.yml` workflow auto-monitors expiry and creates GitHub Issues:
+Annual rotation cadence aligns with most CA renewal cycles. Track certificate expiry manually against the milestones below:
 
 - **WARNING** at T-60 days: procure replacement cert
 - **CRITICAL** at T-30 days: rotate immediately or release pipeline will fail
@@ -260,7 +260,7 @@ Rotation procedure:
 
 1. Order replacement certificate from CA (or rotate Azure Trusted Signing cert profile).
 2. Update the corresponding Repo Secret value.
-3. Trigger a workflow run to verify the new cert; the auto-monitor issue self-closes when status returns to `ok`.
+3. Trigger a release build to verify the new cert signs correctly.
 
 ---
 

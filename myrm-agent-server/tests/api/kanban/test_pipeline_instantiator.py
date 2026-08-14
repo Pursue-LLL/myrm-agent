@@ -315,6 +315,18 @@ class TestGetPipelineSkill:
         assert "logic_reviewer" in role_ids
         assert "verifier" in role_ids
 
+    def test_code_review_pipeline_verifier_user_decision_semantics(self) -> None:
+        """真实资产关键路径：verifier 角色/任务描述携带 Needs user decision 消费契约。"""
+        spec = get_pipeline_skill("code-review-pipeline")
+        assert spec is not None
+        verifier = next(r for r in spec.role_templates if r.role_id == "verifier")
+        assert "Needs user decision" in verifier.description
+        assert "不自动修复" in verifier.description
+        verifier_task = spec.task_graph_seed[3]
+        assert verifier_task.role == "verifier"
+        assert "Needs user decision" in verifier_task.description_template
+        assert "不自动修复" in verifier_task.description_template
+
 
 class TestEdgeCases:
     """Edge cases and robustness tests."""

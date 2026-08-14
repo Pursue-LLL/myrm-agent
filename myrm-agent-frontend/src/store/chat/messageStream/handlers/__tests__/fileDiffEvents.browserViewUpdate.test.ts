@@ -97,7 +97,10 @@ describe('fileDiffEvents browser_view_update', () => {
 
   it('skips update when stream chatId is missing', async () => {
     const { ctx } = buildCtx(browserViewUpdateData);
-    ctx.state.messages[0]!.chatId = '';
+    const firstMsg = ctx.state.messages[0];
+    if (firstMsg) {
+      firstMsg.chatId = '';
+    }
 
     await fileDiffEvents(ctx);
 
