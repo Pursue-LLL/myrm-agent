@@ -296,8 +296,16 @@ async def merge_task_worktree(store: KanbanStore, task: KanbanTask) -> bool:
     unique_branch = _worktree_branch_name(task.branch, task.task_id)
 
     # Auto-commit uncommitted worktree changes so agent edits made with
-    # file tools (not git commits) still land in the merge.
-    await _auto_commit_dirty_worktree(path)
+    # file tools (not git commits) still land in the merge.  If the commit
+    # fails the worktree is preserved — cleaning it up would drop those edits.
+    if not await _auto_commit_dirty_worktree(path):
+        logger.warning(
+            "Cannot commit dirty worktree %s for task %s; merge skipped, "
+            "worktree preserved for manual handling",
+            path,
+            task.task_id[:8],
+        )
+        return False
     if not await _branch_has_commits(base_dir, unique_branch, task.branch):
         logger.info(
             "No commits on branch %s for task %s; skipping merge",

@@ -88,3 +88,29 @@ depends on it.
 - A method is called only from test files
 - Mock setup is more than half the test, or you cannot explain why the mock is needed
 - Mocking "just to be safe"
+
+## Rationalizations
+
+The test's strongest enemy is the excuse to skip it. Meet each one head-on:
+
+| Excuse | Reality |
+|--------|---------|
+| "Too simple to test" | Simple code breaks. Test takes 30 seconds. |
+| "I'll test after" | Tests passing immediately prove nothing — you never watched them fail. |
+| "Already manually tested" | Ad-hoc ≠ systematic. No record, can't re-run. |
+| "Deleting X hours is wasteful" | Sunk cost. Keeping unverified code is technical debt. |
+| "Keep as reference, write tests first" | You'll adapt it. That's testing after. Delete means delete. |
+| "Need to explore first" | Fine. Throw away exploration, start with TDD. |
+| "Test hard = design unclear" | Listen to the test. Hard to test = hard to use. |
+| "TDD will slow me down" | TDD beats debugging. Pragmatic = test-first. |
+| "Existing code has no tests" | You're improving it. Add tests for the code you touch. |
+| "This is different because..." | Rationalization. Start with TDD. |
+
+## When Stuck
+
+| Problem | Solution |
+|---------|----------|
+| Don't know how to test | Write the wished-for API. Write the assertion first. Ask the user. |
+| Test too complicated | Design too complicated. Simplify the interface. |
+| Must mock everything | Code too coupled. Use dependency injection. |
+| Test setup huge | Extract helpers. Still complex? Simplify the design. |

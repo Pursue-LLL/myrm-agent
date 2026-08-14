@@ -272,3 +272,42 @@ async def test_merge_lands_on_explicit_target_branch(git_repo: Path) -> None:
     assert not Path(wt).exists()
     branches = _run_git(git_repo, "branch", "--list", "feature-x-tg").stdout
     assert "feature-x-tg" not in branches
+
+
+@pytest.mark.asyncio
+async def test_merge_auto_commit_failure_preserves_worktree(git_repo: Path) -> None:
+    """When the pre-merge auto-commit is rejected, the worktree (and the
+    agent's uncommitted edits inside it) must be preserved, not deleted.
+
+    This reproduces a data-loss bug: a blocking pre-commit hook made the
+    auto-commit fail, after which the merge path treated the branch as empty
+    and cleaned up the worktree, silently dropping the agent's edits.
+    """
+    store = InMemoryKanbanStore()
+    task = await _seed_task(store, task_id="th", base=str(git_repo), branch="main")
+
+    wt = await create_worktree(str(git_repo), "main", task.task_id)
+    assert isinstance(wt, str)
+    # Agent edited a file with file tools but never committed it.
+    (Path(wt) / "precious.txt").write_text("AGENT_UNCOMMITTED_DATA\n", encoding="utf-8")
+
+    # A pre-commit hook that rejects every commit.
+    common_dir = _run_git(
+        git_repo, "rev-parse", "--path-format=absolute", "--git-common-dir"
+    ).stdout.strip()
+    hooks = Path(common_dir) / "hooks"
+    hooks.mkdir(exist_ok=True)
+    hook = hooks / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    hook.chmod(0o755)
+
+    try:
+        merged = await merge_task_worktree(store, task)
+        assert merged is False
+        # Worktree and the uncommitted file survive.
+        assert Path(wt).exists()
+        assert (Path(wt) / "precious.txt").read_text(encoding="utf-8").startswith(
+            "AGENT_UNCOMMITTED_DATA"
+        )
+    finally:
+        hook.unlink(missing_ok=True)

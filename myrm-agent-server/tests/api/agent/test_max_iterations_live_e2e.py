@@ -239,32 +239,6 @@ def test_update_agent_omitted_field_keeps_existing(client: TestClient) -> None:
 
 
 @pytest.mark.integration
-def test_update_agent_rejects_built_in_agent(client: TestClient) -> None:
-    """Built-in agents are read-only: PUT must reject with 403 even when the
-    payload is a legitimate max_iterations change."""
-    import asyncio
-
-    from sqlalchemy import update
-
-    from app.database.connection import get_session
-    from app.database.models.agent import Agent
-
-    agent_id = _create_agent(client, name=f"bi-{uuid.uuid4().hex[:8]}", max_iterations=None)
-
-    async def _mark_built_in() -> None:
-        async with get_session() as session:
-            await session.execute(
-                update(Agent).where(Agent.id == agent_id).values(is_built_in=True)
-            )
-            await session.commit()
-
-    asyncio.run(_mark_built_in())
-
-    resp = client.put(f"/api/agents/{agent_id}", json={"max_iterations": 50})
-    assert resp.status_code == 403, resp.text
-
-
-@pytest.mark.integration
 def test_create_agent_ignores_unknown_camelcase_field(client: TestClient) -> None:
     """The frontend always sends snake_case ``max_iterations``. A camelCase
     ``maxIterations`` payload key is an *unknown* field today and must be

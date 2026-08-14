@@ -49,14 +49,11 @@ _SKIP_ERROR_KEYWORDS: Final[tuple[str, ...]] = (
 _FOCUS_FILE_PATH: Final[str] = "myrm-agent-server/app/main.py"
 
 _FOCUS_INITIAL_QUERY: Final[str] = (
-    f"""
-我在排查 `{_FOCUS_FILE_PATH}` 相关的异步逻辑。
-请用约150字解释 Python asyncio.Event：两个使用场景 + 与 Lock 的一个区别。
-""".strip()
+    "请用约150字解释 Python asyncio.Event：两个使用场景 + 与 Lock 的一个区别。"
 )
 
 _FOCUS_FOLLOWUPS: Final[tuple[str, ...]] = (
-    f"继续。结合 `{_FOCUS_FILE_PATH}` 的排查背景，用一句话对比 asyncio.Event 与 threading.Event。",
+    "继续。用一句话对比 asyncio.Event 与 threading.Event。",
 )
 
 _FAILURE_INITIAL_QUERY_TEMPLATE: Final[str] = (

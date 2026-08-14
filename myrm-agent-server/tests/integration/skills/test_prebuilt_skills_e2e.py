@@ -463,9 +463,13 @@ async def test_tdd_skill_v120_contract_guard(
         "## Mock Discipline",
         "## Quick Reference",
         "## Warning Signs",
+        "## Rationalizations",
+        "## When Stuck",
     ):
         assert section in ref_content, f"missing v1.2.0 reference section: {section}"
     assert 'Mocking "just to be safe"' in ref_content, "missing Warning Signs 11th item"
+    assert "wished-for API" in ref_content, "missing When Stuck wished-for API"
+    assert "Sunk cost" in ref_content, "missing Rationalizations sunk cost row"
 
 
 @pytest.mark.asyncio

@@ -4,7 +4,8 @@
 - worktree (POS: worktree_dir / branch-name resolution + merge orchestration)
 
 [OUTPUT]
-- _auto_commit_dirty_worktree, _branch_has_commits, _ensure_target_branch_checked_out
+- _auto_commit_dirty_worktree (bool: worktree 是否已干净/提交成功)
+- _branch_has_commits, _ensure_target_branch_checked_out, _is_valid_git_branch
 
 [POS]
 合并前的 git 前置步骤：自动提交 worktree 内未提交改动、判断是否有可合并提交、
@@ -15,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import subprocess
 
 from app.services.chat.sandbox_worktree import _GIT_ENV
@@ -22,8 +24,32 @@ from app.services.chat.sandbox_worktree import _GIT_ENV
 logger = logging.getLogger(__name__)
 
 
-async def _auto_commit_dirty_worktree(worktree_path: str) -> None:
-    """Commit uncommitted changes in a worktree before merging it back."""
+def _is_valid_git_branch(name: str) -> bool:
+    """True when ``name`` is a git-ref-format-valid branch name.
+
+    Mirrors the core rules of ``git check-ref-format``: no leading ``-``
+    (would be parsed as a CLI option), no spaces, no ``~^:?*[\\`` or ``..``,
+    not empty.  Slashes are allowed, so nested names like ``feature/x`` pass.
+    """
+    if not name or name.startswith("-"):
+        return False
+    if re.search(r"[ ~\^:?*\[\]\\]", name):
+        return False
+    if ".." in name or name.endswith("."):
+        return False
+    if name.startswith("/") or name.endswith("/") or "//" in name:
+        return False
+    return True
+
+
+async def _auto_commit_dirty_worktree(worktree_path: str) -> bool:
+    """Commit uncommitted changes in a worktree before merging it back.
+
+    Returns True when the worktree is clean (nothing to commit, or the
+    auto-commit succeeded).  Returns False when there are uncommitted changes
+    that could not be committed — the caller must preserve the worktree
+    instead of cleaning it up, or the agent's edits would be silently lost.
+    """
     try:
         status = await asyncio.to_thread(
             subprocess.run,
@@ -35,7 +61,7 @@ async def _auto_commit_dirty_worktree(worktree_path: str) -> None:
             env=_GIT_ENV,
         )
         if status.returncode != 0 or not status.stdout.strip():
-            return
+            return status.returncode == 0
         await asyncio.to_thread(
             subprocess.run,
             ["git", "add", "-A"],
@@ -56,8 +82,16 @@ async def _auto_commit_dirty_worktree(worktree_path: str) -> None:
         )
         if commit.returncode == 0:
             logger.info("Auto-committed dirty worktree at %s", worktree_path)
+            return True
+        logger.warning(
+            "Auto-commit failed in worktree %s: %s",
+            worktree_path,
+            commit.stderr.strip()[:200],
+        )
+        return False
     except Exception as exc:
-        logger.debug("Auto-commit failed for %s: %s", worktree_path, exc)
+        logger.warning("Auto-commit failed for %s: %s", worktree_path, exc)
+        return False
 
 
 async def _branch_has_commits(base_dir: str, branch: str, target_branch: str) -> bool:
@@ -92,7 +126,14 @@ async def _ensure_target_branch_checked_out(base_dir: str, target_branch: str) -
     explicit target branch may differ.  Check it out (creating it from HEAD
     on first use) so the merge lands on the branch the user asked for.
     Returns True when base_dir is on the target branch.
+
+    Unusable branch names (starting with ``-`` or containing git-forbidden
+    characters) are rejected rather than fed to ``git checkout``, where they
+    would be parsed as options — the caller preserves the worktree instead.
     """
+    if not _is_valid_git_branch(target_branch):
+        logger.warning("Unusable target branch %r; merge skipped", target_branch)
+        return False
     try:
         current = await asyncio.to_thread(
             subprocess.run,
