@@ -127,9 +127,17 @@ async def create_channel_instance(
         raise ValueError(f"Channel type '{channel_type}' unavailable (missing SDK?)")
 
     spec = cls.credential_spec
-    if credentials is not None:
-        # Frontend/API submit camelCase keys (e.g. appId); constructors expect
-        # snake_case (e.g. app_id). Conversion is idempotent for already-snake keys.
+    if credentials is not None and spec is not None:
+        # Frontend/API submit camelCase db_keys (e.g. clientId); constructors
+        # expect spec param names (e.g. app_key). resolve_credentials maps
+        # db_key -> param_name with field defaults for omitted keys.
+        async def _frontend_source(_config_key: str) -> dict[str, object]:
+            return dict(credentials)
+
+        creds = await resolve_credentials(spec, _frontend_source)
+        creds = {k: str(v) for k, v in creds.items()}
+    elif credentials is not None:
+        # No credential spec declared: fall back to camelCase → snake_case.
         creds = {camel_to_snake(k): str(v) for k, v in credentials.items()}
     elif spec is not None:
         creds = await resolve_credentials(spec, load_from_db)

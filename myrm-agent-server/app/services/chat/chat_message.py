@@ -325,10 +325,10 @@ class _ChatMessageMixin(_ChatServiceBase):
 
             # Sync usage ledger to DB (O(1) dashboard querying)
             try:
+                from app.core.utils.session_id import is_safe_session_id
                 from app.services.statistics.usage_aggregation import (
                     aggregate_chat_usage_rows,
                 )
-                from app.core.utils.session_id import is_safe_session_id
 
                 if not is_safe_session_id(chat_id):
                     return
