@@ -388,6 +388,8 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         last_api = ("", False)
         seen_turn_end: bool = False
         _last_ui_trace: float | None = None
+        no_invoke_since = time.monotonic()
+        ui: dict[str, object] = {}
         _trace("wait_turn_start", f"timeout={timeout_sec}s")
 
         def _finalize(source: str, assistant_text: str) -> dict[str, object]:
@@ -409,6 +411,16 @@ async def test_revert_files_live_agent_after_reload_restores_file(
                 chat_id, api_url=api_base
             )
             last_api = (assistant, invoked)
+            if invoked:
+                # 一旦检测到真实工具调用，重置「无工具调用」计时
+                no_invoke_since = time.monotonic()
+            elif time.monotonic() - no_invoke_since > 120.0:
+                # 回合已开始 120s 仍未调用任何文件工具：继续空等无意义，快速失败
+                raise AssertionError(
+                    f"LLM never invoked a file tool within 120s; api_assistant={assistant[:400]!r}; "
+                    f"isStreaming={ui.get('isStreaming')!r}; userCount={ui.get('userCount')!r}; "
+                    f"file_exists={file_path.exists()!r}"
+                )
             if invoked and "REVERT_LIVE_OK" in assistant.upper():
                 return _finalize("api", assistant)
 
@@ -481,7 +493,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
             await asyncio.sleep(1.0)
         raise AssertionError(f"Hydrate with requestMessageId not reached: {last}")
 
-    async def _run_flow(chat: McpChatSession) -> tuple[str, Path]:
+    async def _run_flow(chat: McpChatSession, *, sent_marker: dict[str, bool]) -> tuple[str, Path]:
         if _TRACE_LOG.exists():
             _TRACE_LOG.unlink()
         _trace("flow_start")
@@ -509,6 +521,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         assert not file_path.exists(), f"created file must not exist pre-turn: {file_path}"
 
         send_result = await chat.send_message(_LIVE_USER_PROMPT, _LIVE_USER_PROMPT)
+        sent_marker["sent"] = True
         _trace("send_done", str(send_result.get("submit", {}).get("chatId") or ""))
         chat_id_hint = str(
             send_result.get("started", {}).get("chatId")
@@ -624,17 +637,22 @@ async def test_revert_files_live_agent_after_reload_restores_file(
     agent_url = f"{ui_base}/?agentId={agent_id}"
     for attempt in range(_MAX_CHAT_ATTEMPTS):
         heartbeat_once()
+        sent_marker: dict[str, bool] = {"sent": False}
         try:
             with open_mcp_page(agent_url, timeout_ms=120_000) as (client, page):
                 chat = McpChatSession(client, page)
                 await chat.bootstrap(agent_url, timeout_sec=180.0)
                 await _apply_bootstrap(chat)
-                chat_id, file_path = await _run_flow(chat)
+                chat_id, file_path = await _run_flow(chat, sent_marker=sent_marker)
             _assert_deleted(file_path)
             assert chat_id
             break
         except (AssertionError, RuntimeError, TimeoutError) as exc:
             last_error = str(exc)
+            if sent_marker.get("sent"):
+                # LLM 回合已开始：重试只会再次消耗 BODY_WALL 预算（>600s），
+                # 且失败根因在 LLM 行为而非环境，直接失败止损。
+                raise
             if attempt >= _MAX_CHAT_ATTEMPTS - 1:
                 raise
             await asyncio.sleep(2.0)
