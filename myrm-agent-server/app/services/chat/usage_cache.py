@@ -11,7 +11,8 @@
 assistant message extra_data snapshots. Within one long-running session
 consecutive turns trigger one sync each; without caching every sync would
 re-aggregate the whole chat. This module debounces those rebuilds within a
-short window while still guaranteeing fresh values on TTL expiry.
+short window while still guaranteeing fresh values on TTL expiry. Entries are
+bounded to prevent unbounded growth in long-running processes.
 """
 
 from __future__ import annotations
@@ -19,11 +20,17 @@ from __future__ import annotations
 import time
 
 _TTL_SECONDS = 5
+_MAX_ENTRIES = 4096
 
 
 class ChatUsageCache:
-    def __init__(self, ttl_seconds: float = _TTL_SECONDS) -> None:
+    def __init__(
+        self,
+        ttl_seconds: float = _TTL_SECONDS,
+        max_entries: int = _MAX_ENTRIES,
+    ) -> None:
         self._ttl_seconds = ttl_seconds
+        self._max_entries = max_entries
         self._touched_at: dict[str, float] = {}
         self._values: dict[str, dict[str, int | float]] = {}
 
@@ -39,6 +46,10 @@ class ChatUsageCache:
         return self._values.get(chat_id)
 
     def set(self, chat_id: str, value: dict[str, int | float]) -> None:
+        if chat_id not in self._touched_at and len(self._touched_at) >= self._max_entries:
+            oldest = min(self._touched_at, key=self._touched_at.get)
+            self._touched_at.pop(oldest, None)
+            self._values.pop(oldest, None)
         self._touched_at[chat_id] = time.monotonic()
         self._values[chat_id] = value
 

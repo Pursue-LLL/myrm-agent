@@ -120,11 +120,20 @@ def to_int(value: object) -> int:
 
 
 def to_float(value: object) -> float:
-    """Coerce a numeric value to float, returning 0.0 for invalid/None input."""
+    """Coerce a numeric value to float, returning 0.0 for invalid/None input.
+
+    Accepts int/float and numeric strings (some model metadata reports costs
+    as strings); bool and non-numeric values are treated as 0.0.
+    """
     if isinstance(value, bool):
         return 0.0
     if isinstance(value, (int, float)):
         return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.strip())
+        except ValueError:
+            return 0.0
     return 0.0
 
 

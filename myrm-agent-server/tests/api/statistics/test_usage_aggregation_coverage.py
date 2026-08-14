@@ -160,8 +160,9 @@ def test_aggregate_chat_usage_rows_handles_partial_snapshots():
 
 def test_to_float_rejects_non_numeric_values():
     assert to_float(None) == 0.0
-    assert to_float("1.5") == 0.0
+    assert to_float("1.5x") == 0.0
     assert to_float(True) == 0.0
     assert to_float(False) == 0.0
     assert to_float(3) == 3.0
     assert to_float(2.5) == 2.5
+    assert to_float("1.5") == 1.5

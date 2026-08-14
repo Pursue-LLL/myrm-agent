@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""One-off backfill of Chat.total_calls/total_tokens/total_usd from message extra_data.
+"""Rebuild Chat.total_calls/total_tokens/total_usd from message extra_data.
 
-Before the message-level usage sync in chat_message.py, the Chat usage cache
-was only refreshed from the event_log ``session_end`` snapshot, which is never
-emitted under POOLED sessions and is lost on crashes. This script rebuilds the
-cache for chats whose totals are stale (zero or diverging from the
-message-derived aggregate).
+The Chat usage cache may diverge from the message-derived aggregate for
+sessions whose totals are stale (zero or mismatched), e.g. chats created
+before message-level usage sync or sessions that ended abnormally. This
+script recomputes the aggregate for every chat and rewrites stale totals.
 
 Usage:
     uv run python scripts/dev/backfill-chat-usage.py [--force]
