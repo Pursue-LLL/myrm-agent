@@ -23,7 +23,7 @@ describe('chat share services', () => {
       share_url: 'https://share.example.com/chat-1/abc',
       expires_at: 1_800_000_000,
     };
-    apiRequestMock.mockResolvedValue({ data: payload });
+    apiRequestMock.mockResolvedValue(payload);
 
     const status = await getChatShareStatus('chat-1');
 
@@ -33,13 +33,11 @@ describe('chat share services', () => {
 
   it('createChatShare posts ttl_days and omits password when absent', async () => {
     apiRequestMock.mockResolvedValue({
-      data: {
-        token: 'abc',
-        share_url: 'https://share.example.com/chat-1/abc',
-        expires_at: 1_800_000_000,
-        chat_id: 'chat-1',
-        password_protected: false,
-      },
+      token: 'abc',
+      share_url: 'https://share.example.com/chat-1/abc',
+      expires_at: 1_800_000_000,
+      chat_id: 'chat-1',
+      password_protected: false,
     });
 
     const result = await createChatShare('chat-1', 14);
@@ -56,13 +54,11 @@ describe('chat share services', () => {
 
   it('createChatShare includes password when provided', async () => {
     apiRequestMock.mockResolvedValue({
-      data: {
-        token: 'abc',
-        share_url: 'https://share.example.com/chat-1/abc',
-        expires_at: 1_800_000_000,
-        chat_id: 'chat-1',
-        password_protected: true,
-      },
+      token: 'abc',
+      share_url: 'https://share.example.com/chat-1/abc',
+      expires_at: 1_800_000_000,
+      chat_id: 'chat-1',
+      password_protected: true,
     });
 
     await createChatShare('chat-1', 7, 'secret');

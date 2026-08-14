@@ -404,7 +404,11 @@ def test_compact_chat_incremental_preserves_existing_summary(
 
     chat_id = f"context-incremental-{uuid.uuid4().hex}"
 
-    for query in (_FOCUS_INITIAL_QUERY, *_FOCUS_FOLLOWUPS):
+    knowledge_queries = (
+        "请用约100字解释 Python asyncio.Event 的核心用途，列举两个使用场景。",
+        "继续。用一句话说明 asyncio.Event 与 threading.Event 的区别。",
+    )
+    for query in knowledge_queries:
         _stream_agent_turn(client, query=query, chat_id=chat_id, action_mode="agent")
 
     async def _compact() -> object:
@@ -415,7 +419,7 @@ def test_compact_chat_incremental_preserves_existing_summary(
                 engine, class_=AsyncSession, expire_on_commit=False
             )
             async with session_cls() as db:
-                return await compact_chat(db, chat_id)
+                return await compact_chat(db, chat_id, for_idle_stale=True)
         finally:
             await engine.dispose()
 

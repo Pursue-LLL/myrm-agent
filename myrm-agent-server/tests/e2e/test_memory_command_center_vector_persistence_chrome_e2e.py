@@ -99,18 +99,18 @@ _VECTOR_PERSISTENCE_READY_JS = r"""(() => {
 })()"""
 
 _VECTOR_INDEX_DOCTOR_READY_JS = """(() => {
-  const cards = Array.from(document.querySelectorAll('div.rounded-lg.border.border-border\\/50.bg-accent\\/20.p-3'));
-  const target = cards.find((card) =>
-    Array.from(card.querySelectorAll('div.text-sm.font-medium')).some(
-      (el) => /Vector index|向量索引/.test(el.textContent || ''),
-    ),
-  );
-  if (!target) return { ready: false, matchedLabel: false, cardCount: cards.length };
-  const pill = target.querySelector('span.rounded-full.border');
+  const labels = Array.from(document.querySelectorAll('div.text-sm.font-medium'));
+  const target = labels.find((el) => /Vector index|向量索引/.test(el.textContent || ''));
+  if (!target) return { ready: false, matchedLabel: false, labelCount: labels.length };
+  let card = target.parentElement;
+  while (card && !(card.className && String(card.className).includes('rounded-lg'))) {
+    card = card.parentElement;
+  }
+  const pill = card ? card.querySelector('span.rounded-full.border') : null;
   const pillText = pill ? pill.textContent.trim() : '';
   const statusOk =
     /Ready|Warning|Missing|Critical|正常|警告|缺失|严重/.test(pillText);
-  return { ready: statusOk, matchedLabel: true, pillText, cardCount: cards.length };
+  return { ready: statusOk, matchedLabel: true, pillText };
 })()"""
 
 

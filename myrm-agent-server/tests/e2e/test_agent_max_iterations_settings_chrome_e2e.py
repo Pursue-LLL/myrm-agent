@@ -233,7 +233,7 @@ def _fetch_max_iterations(api_url: str, agent_id: str) -> int | None:
 
 
 def _wait_max_iterations(
-    api_url: str, agent_id: str, expected: int, *, timeout_sec: float = 30.0, diag: str = ""
+    api_url: str, agent_id: str, expected: int | None, *, timeout_sec: float = 30.0, diag: str = ""
 ) -> None:
     deadline = time.monotonic() + timeout_sec
     last: int | None = None
@@ -324,6 +324,124 @@ def test_agent_max_iterations_edit_persists_via_ui() -> None:
         # Persistence truth: the value must reach the backend.
         _wait_max_iterations(
             api_url, agent_id, expected=50, timeout_sec=30.0,
+            diag=json.dumps(diag, ensure_ascii=False),
+        )
+    finally:
+        http_json("DELETE", f"{api_url}/api/v1/user-agents/{agent_id}")
+
+
+# Clears the Max Iterations input through the native setter so React's onChange
+# receives '' and maps it to null (restore system default). Reports the Save
+# button state so tests confirm React state actually updated.
+def _clear_max_iterations_js() -> str:
+    return """(() => {
+      const headings = Array.from(document.querySelectorAll('label, h3'));
+      const heading = headings.find((el) => /Max Iterations|最大迭代次数|最大疊代次數/.test(el.textContent || ''));
+      if (!heading) return { ok: false, reason: 'no-heading' };
+      const card = heading.closest('div.rounded-xl') || heading.parentElement;
+      const input = card ? card.querySelector('input[type="number"]') : null;
+      if (!input) return { ok: false, reason: 'no-input' };
+      const setter = Object.getOwnPropertyDescriptor(
+        Object.getPrototypeOf(input), 'value',
+      );
+      setter.set.call(input, '');
+      input.dispatchEvent(new InputEvent('input', { bubbles: true, data: '' }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      return new Promise(resolve => setTimeout(() => {
+        const section = document.querySelector('[data-section="agents"]') || document.body;
+        const saveBtn = Array.from(section.querySelectorAll('button')).find((b) =>
+          /^(Save|保存|儲存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
+        );
+        resolve({
+          ok: true,
+          value: input.value,
+          saveDisabled: saveBtn ? saveBtn.disabled : null,
+        });
+      }, 300));
+    })()"""
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_agent_max_iterations_clear_resets_to_default_via_ui() -> None:
+    """Clearing the Max Iterations input must send an explicit null and reset the
+    stored value back to the system default (DB NULL). Regression for the
+    ``is not None`` guard that silently ignored explicit null resets."""
+    api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
+
+    name = f"clear-e2e-{uuid.uuid4().hex[:8]}"
+    agent_id = _create_agent(api_url, name=name)
+    try:
+        # Seed a concrete value through the backend so the reset has something
+        # to clear (the fresh-agent default is already NULL).
+        seed = http_json(
+            "PUT", f"{api_url}/api/v1/user-agents/{agent_id}", {"max_iterations": 50}
+        )
+        assert (seed.get("data") or {}).get("max_iterations") == 50, seed
+        assert _fetch_max_iterations(api_url, agent_id) == 50
+
+        warm_ui_route("/settings")
+        edit_url = f"{get_e2e_ui_url().rstrip('/')}{_EDIT_URL}{agent_id}"
+        with open_settings_subroute(
+            edit_url.replace(get_e2e_ui_url().rstrip("/"), ""),
+            timeout_ms=120_000,
+        ) as (client, page):
+            client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+            dismiss_blocking_modals(client, page)
+
+            # Wait for the editor to load the seeded value.
+            probe = wait_for_state(
+                client,
+                page,
+                _CAPABILITIES_INPUT_JS,
+                timeout_sec=_warm_ui_parallel_wait_sec(60.0),
+            )
+            assert probe.get("ready") is True, json.dumps(
+                probe, indent=2, ensure_ascii=False
+            )
+            assert probe.get("value") == "50", (
+                f"editor must render seeded max_iterations, got {probe.get('value')}"
+            )
+
+            # Clear the input -> React maps '' to null -> Save unlocks.
+            clear_res = client.evaluate(page, _clear_max_iterations_js(), timeout_sec=15.0)
+            assert isinstance(clear_res, dict) and clear_res.get("ok") is True, clear_res
+            assert str(clear_res.get("value")) == "", clear_res
+            assert clear_res.get("saveDisabled") is False, (
+                "clearing the field must mark the agent dirty so Save unlocks "
+                f"(saveDisabled={clear_res.get('saveDisabled')})"
+            )
+
+            client.evaluate(page, _INSTALL_FETCH_TAP_JS, timeout_sec=15.0)
+            clicked = wait_for_state(
+                client,
+                page,
+                _CLICK_SAVE_JS,
+                timeout_sec=_warm_ui_parallel_wait_sec(20.0),
+            )
+            assert isinstance(clicked, dict) and clicked.get("ready") is True, clicked
+
+            saved = wait_for_state(
+                client,
+                page,
+                _SAVE_COMPLETE_JS,
+                timeout_sec=_warm_ui_parallel_wait_sec(30.0),
+            )
+            assert saved.get("ready") is True, json.dumps(
+                saved, indent=2, ensure_ascii=False
+            )
+            diag = client.evaluate(page, _DIAG_DUMP_JS, timeout_sec=15.0)
+
+        # The explicit null must reach the backend and reset to default.
+        _wait_max_iterations(
+            api_url, agent_id, expected=None, timeout_sec=30.0,
             diag=json.dumps(diag, ensure_ascii=False),
         )
     finally:

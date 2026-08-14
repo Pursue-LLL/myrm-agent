@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 
 import app.database.repositories.uow
 from tests.api.agent.utils import (
+    _convert_litellm_model,
     _infer_provider_id,
     _require_env,
     _strip_provider_prefix,
@@ -68,7 +69,11 @@ def _build_mock_user_configs() -> object:
     if not os.getenv("OPENAI_API_KEY"):
         os.environ["OPENAI_API_KEY"] = basic_key
 
-    model_cfg = ModelConfig(model=basic_model, api_key=basic_key, base_url=basic_url)
+    model_cfg = ModelConfig(
+        model=_convert_litellm_model(basic_model),
+        api_key=basic_key,
+        base_url=basic_url,
+    )
     search_services_dict: dict[str, object] = {
         "searchServiceConfigs": [
             {

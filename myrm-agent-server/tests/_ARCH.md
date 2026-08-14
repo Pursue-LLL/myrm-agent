@@ -107,6 +107,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/test_reconnect_integration.py` | 模块 | ASGI Last-Event-ID 重连 + early busy 第二 turn 不双写 user row（mock agent） |
 | `api/chats/test_stream_retry_busy_seed_fixture.py` | 模块 | stream-retry-busy seed/release HTTP + **`test_busy_fixture_query_is_not_risk_blocked`**（fixture 文案不得触发 risk gate） |
 | `e2e/test_stream_retry_contract_chrome_e2e.py` | 模块 | Chrome READ×1 SHPOIB：seed busy fixture → API POST busy 断言 → **`retryStreamWithSameMessageId` UI `busy:true`** → userCount 不变 |
+| `e2e/test_slash_hyphen_command_chrome_e2e.py` | 模块 | Chrome E2E（PRIVATE+NAMESPACE_WRITE×2，无 LLM）：连字符 slash 命令回归——`fix it /systematic-d` 执行 skill 后保留前缀 `fix it ` + chip + wire `[use systematic-debugging] fix it`；Esc 关闭连字符命令面板且保留前缀（对应 `useSlashCommand.ts` 统一 `SLASH_COMMAND_SUFFIX_RE` 修复） |
 | `api/agent/test_timestamp_integration.py` | 模块 | Web 消息 timestamp/sent_at 持久化 + `ensure_chat_and_append_user_message` 幂等（同 id+content 复用 / 不同 content 换 id）；内存 SQLite |
 | `api/agent/test_shpoib_hitl_attach_replay.py` | 模块 | SHPOIB HITL attach replay 集成（subscribe / multiplexed attach / hitl-probe / CORP；无 Chrome/LLM） |
 | `api/security/test_allowlist_api.py` | 模块 | Allowlist REST list/delete + pattern 粒度 round-trip |
