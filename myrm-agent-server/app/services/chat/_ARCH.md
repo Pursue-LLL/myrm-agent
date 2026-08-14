@@ -43,7 +43,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `conversation_fork_manager.py` | ✅ 核心 | 对话分支管理（checkpoint 克隆 + commit 后 DB→checkpoint sync + Fork 关系追踪 + 完整 Chat 元数据继承 + `compacted_before_id` ID 映射 + sandbox 隔离语义：父有活跃沙箱时子回退至原仓库根 + fork 失败时清理孤儿 checkpoint） | ✅ |
 | `context_branch_fork.py` | ✅ 核心 | 从 volume snapshot bookmark 读取 jsonl 并 fork 新 chat（无 compaction 状态，对齐 GUI checkpoint branch） | ✅ |
 | `handoff.py` | ✅ 辅助 | 跨平台会话交接：将 Chat 的 channel_session_key 重绑定到目标渠道，支持 UNIQUE 冲突自动解决和 pairing 验证 | ✅ |
-| `share_token.py` | ✅ 辅助 | 对话分享 HMAC+TTL 无状态签名 token 创建与验证 | ✅ |
+| `share_token.py` | ✅ 辅助 | 对话分享 HMAC+TTL 无状态签名 token 创建/验证/无密码确定性重建（同 payload+exp 同 token，GUI 状态查询据此恢复分享链接，零存储原始 token） | ✅ |
 | `share_renderer.py` | ✅ 辅助 | 对话分享只读 HTML 页面 SSR 渲染（markdown-it-py Markdown 渲染 + Agent 身份卡片 + 消息历史 + OG metadata + Dark Mode + XSS 防护） | ✅ |
 | `sandbox_worktree.py` | ✅ 辅助 | Git worktree 生命周期管理：create/cleanup/merge/status，供 converter.py 和 sandbox API 共用 | ✅ |
 | `effective_workspace.py` | ✅ 核心 | SSOT：`resolve_effective_chat_workspace` — project.workspace_path > chat.workspace_dir > JIT sandbox；供 GET chat、converter、sandbox API、files suggest/browse、fork、`ensure_default_workspace_dir` 共用 | ✅ |

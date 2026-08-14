@@ -112,3 +112,54 @@ async def test_real_llm_turn_persists_token_economics_and_aggregates_chat_usage(
     assert calls == int(snapshot.get("call_count", 0))
     assert tokens == int(snapshot.get("usage", {}).get("total_tokens", 0))
     assert abs(usd - float(snapshot.get("total_cost_usd", 0.0))) < 1e-6
+
+
+@pytest.mark.e2e
+@pytest.mark.skipif(
+    not os.environ.get("BASIC_API_KEY"),
+    reason="E2E test requires BASIC_API_KEY environment variable",
+)
+@pytest.mark.asyncio
+async def test_real_llm_two_turns_accumulate_exact_usage(
+    client: TestClient,
+    db_session: AsyncSession,
+) -> None:
+    """Two consecutive real turns accumulate exact usage (no loss, no inflation)."""
+    chat_id = f"usage-live-2t-{uuid.uuid4().hex[:8]}"
+    create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
+    assert create_response.status_code == 200
+
+    def _request(turn: int) -> dict[str, object]:
+        return {
+            "messageId": f"usage-live-2t-{turn}-{uuid.uuid4().hex[:12]}",
+            "chatId": chat_id,
+            "query": "Reply with a single word: OK" if turn == 1 else "Now reply with a single word: DONE",
+            "modelSelection": get_model_selection(),
+            "actionMode": "chat",
+            "memoryRequireConfirmation": False,
+            "enableMemoryAutoExtraction": False,
+        }
+
+    snapshots: list[dict[str, object]] = []
+    for turn in (1, 2):
+        collected = _stream_once(client, _request(turn))
+        message_end_events = [d for d in collected if d.get("type") == "message_end"]
+        assert message_end_events, f"turn {turn}: agent-stream must emit message_end"
+        token_economics = message_end_events[-1].get("token_economics")
+        assert isinstance(token_economics, dict) and token_economics, (
+            f"turn {turn}: message_end must carry token_economics"
+        )
+        snapshots.append(dict(token_economics))
+
+    extras = await _assistant_extra_data(db_session, chat_id)
+    with_snapshot = [e for e in extras if e and e.get("tokenEconomics")]
+    assert len(with_snapshot) == 2, "two turns must persist two tokenEconomics snapshots"
+
+    expected_calls = sum(int(s.get("call_count", 0)) for s in snapshots)
+    expected_tokens = sum(int(s.get("usage", {}).get("total_tokens", 0)) for s in snapshots)
+    expected_usd = sum(float(s.get("total_cost_usd", 0.0)) for s in snapshots)
+
+    calls, tokens, usd = await _chat_usage(db_session, chat_id)
+    assert calls == expected_calls, f"expected {expected_calls} calls, got {calls}"
+    assert tokens == expected_tokens, f"expected {expected_tokens} tokens, got {tokens}"
+    assert abs(usd - expected_usd) < 1e-6, f"expected {expected_usd} usd, got {usd}"

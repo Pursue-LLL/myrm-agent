@@ -450,3 +450,221 @@ def test_execution_fingerprint_stable_when_api_key_rotates() -> None:
     )
     after_fp = compute_execution_fingerprint(wrapper)
     assert before_fp == after_fp
+
+
+def _base_wrapper() -> GeneralAgent:
+    """Minimal wrapper with a stable model for fingerprint diffing."""
+    return GeneralAgent(
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
+        mcp_config=None,
+    )
+
+
+def test_execution_fingerprint_changes_when_conversation_search_toggles() -> None:
+    """conversation_history tool group is derived at build time (active_tool_groups:83-88),
+    so toggling history search must bust the POOLED cache."""
+    wrapper = _base_wrapper()
+    off_fp = compute_execution_fingerprint(wrapper)
+    wrapper.enable_conversation_search = True
+    on_fp = compute_execution_fingerprint(wrapper)
+    assert off_fp != on_fp
+
+
+def test_execution_fingerprint_changes_when_advanced_retrieval_toggles() -> None:
+    """Advanced retrieval mounts embedding/reranker into web_fetch at build time
+    (tool_setup:292-294), so the retrieval switch must bust the POOLED cache."""
+    wrapper = _base_wrapper()
+    off_fp = compute_execution_fingerprint(wrapper)
+    wrapper.enable_advanced_retrieval = True
+    on_fp = compute_execution_fingerprint(wrapper)
+    assert off_fp != on_fp
+
+
+def test_execution_fingerprint_changes_when_reranker_config_changes() -> None:
+    """Reranker backend is solidified into web_fetch (tool_setup:325), so swapping
+    the reranker model must bust the POOLED cache while api_key rotation must not."""
+    from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
+
+    wrapper = _base_wrapper()
+    none_fp = compute_execution_fingerprint(wrapper)
+    wrapper.reranker_config = RerankerConfig(model="cohere/rerank-v3.5", api_key="k")
+    configured_fp = compute_execution_fingerprint(wrapper)
+    assert none_fp != configured_fp
+    wrapper.reranker_config = RerankerConfig(
+        model="cohere/rerank-v3.5", api_key="rotated"
+    )
+    rotated_fp = compute_execution_fingerprint(wrapper)
+    assert configured_fp == rotated_fp
+
+
+def test_execution_fingerprint_changes_when_skill_market_toggles() -> None:
+    """Skill market tool is mounted at build time (factory:772-775),
+    so toggling the tool must bust the POOLED cache."""
+    wrapper = _base_wrapper()
+    off_fp = compute_execution_fingerprint(wrapper)
+    wrapper.enable_skill_market = True
+    on_fp = compute_execution_fingerprint(wrapper)
+    assert off_fp != on_fp
+
+
+def test_execution_fingerprint_changes_when_skill_manage_toggles() -> None:
+    """Skill management tool is mounted at build time (factory:772-775),
+    so toggling the tool must bust the POOLED cache."""
+    wrapper = _base_wrapper()
+    off_fp = compute_execution_fingerprint(wrapper)
+    wrapper.enable_skill_manage = True
+    on_fp = compute_execution_fingerprint(wrapper)
+    assert off_fp != on_fp
+
+
+def test_execution_fingerprint_changes_when_memory_confirmation_toggles() -> None:
+    """Memory write approval is solidified into the memory tool (tool_setup:902),
+    so the confirmation switch must bust the POOLED cache."""
+    wrapper = _base_wrapper()
+    off_fp = compute_execution_fingerprint(wrapper)
+    wrapper.memory_require_confirmation = True
+    on_fp = compute_execution_fingerprint(wrapper)
+    assert off_fp != on_fp
+
+
+def test_execution_fingerprint_changes_when_memory_policy_changes() -> None:
+    """Memory isolation policy is resolved into context binding at build time
+    (agent:362 → factory:674,704), so policy changes must bust the POOLED cache."""
+    from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
+
+    wrapper = _base_wrapper()
+    inherit_fp = compute_execution_fingerprint(wrapper)
+    wrapper.memory_policy = AgentMemoryPolicy(conversation_id="conv-1")
+    scoped_fp = compute_execution_fingerprint(wrapper)
+    assert inherit_fp != scoped_fp
+
+
+def test_execution_fingerprint_changes_when_kanban_default_board_changes() -> None:
+    """Kanban default board resolves the dispatcher at build time (factory:1057-1063),
+    so the board override must bust the POOLED cache."""
+    wrapper = _base_wrapper()
+    none_fp = compute_execution_fingerprint(wrapper)
+    wrapper.kanban_default_board_id = "board-1"
+    configured_fp = compute_execution_fingerprint(wrapper)
+    assert none_fp != configured_fp
+
+
+def test_execution_fingerprint_changes_when_fetch_raw_toggles() -> None:
+    """Web fetch raw-markdown mode is solidified at build time (tool_setup:327),
+    so the toggle must bust the POOLED cache."""
+    wrapper = _base_wrapper()
+    off_fp = compute_execution_fingerprint(wrapper)
+    wrapper.fetch_raw_webpage = True
+    on_fp = compute_execution_fingerprint(wrapper)
+    assert off_fp != on_fp
+
+
+def test_execution_fingerprint_changes_when_auto_restore_domains_change() -> None:
+    """Browser auto-restore domains are solidified into the session at build time
+    (tool_setup:1100), so list changes must bust the POOLED cache."""
+    wrapper = _base_wrapper()
+    empty_fp = compute_execution_fingerprint(wrapper)
+    wrapper.auto_restore_domains = ["example.com"]
+    configured_fp = compute_execution_fingerprint(wrapper)
+    assert empty_fp != configured_fp
+
+
+def test_execution_fingerprint_changes_when_search_service_cfg_changes() -> None:
+    """Search service backend is mounted at build time (tool_setup:342-345), so engine
+    or base_url changes must bust the POOLED cache while api_key rotation must not."""
+    from myrm_agent_harness.toolkits.web_search.web_searcher import SearchServiceConfig
+
+    wrapper = _base_wrapper()
+    none_fp = compute_execution_fingerprint(wrapper)
+    wrapper.search_service_cfg = SearchServiceConfig(
+        search_service="searxng", api_key="k", api_base="http://searx"
+    )
+    configured_fp = compute_execution_fingerprint(wrapper)
+    assert none_fp != configured_fp
+    wrapper.search_service_cfg = SearchServiceConfig(
+        search_service="searxng", api_key="rotated", api_base="http://searx"
+    )
+    rotated_fp = compute_execution_fingerprint(wrapper)
+    assert configured_fp == rotated_fp
+    wrapper.search_service_cfg = SearchServiceConfig(
+        search_service="tavily", api_key="k", api_base="http://tavily"
+    )
+    swapped_fp = compute_execution_fingerprint(wrapper)
+    assert configured_fp != swapped_fp
+
+
+def test_execution_fingerprint_changes_when_image_generation_params_change() -> None:
+    """Image generation tool is mounted only when params are present (tool_setup:547,
+    active_tool_groups:96), so enabling or reconfiguring must bust the POOLED cache
+    while api_key rotation must not."""
+    from app.ai_agents.agents import ImageGenerationParams
+
+    wrapper = _base_wrapper()
+    none_fp = compute_execution_fingerprint(wrapper)
+    wrapper.image_generation_params = ImageGenerationParams(
+        model="dall-e-3", api_key="k"
+    )
+    enabled_fp = compute_execution_fingerprint(wrapper)
+    assert none_fp != enabled_fp
+    wrapper.image_generation_params = ImageGenerationParams(
+        model="dall-e-3", api_key="rotated"
+    )
+    rotated_fp = compute_execution_fingerprint(wrapper)
+    assert enabled_fp == rotated_fp
+    wrapper.image_generation_params = ImageGenerationParams(
+        model="gpt-image-1", api_key="k"
+    )
+    changed_fp = compute_execution_fingerprint(wrapper)
+    assert enabled_fp != changed_fp
+
+
+def test_execution_fingerprint_changes_when_video_generation_params_change() -> None:
+    """Video generation tool is mounted only when params are present (tool_setup:618,
+    active_tool_groups:97), so enabling or reconfiguring must bust the POOLED cache."""
+    from app.ai_agents.agents import VideoGenerationParams
+
+    wrapper = _base_wrapper()
+    none_fp = compute_execution_fingerprint(wrapper)
+    wrapper.video_generation_params = VideoGenerationParams(
+        provider="openai", model="sora", api_key="k"
+    )
+    enabled_fp = compute_execution_fingerprint(wrapper)
+    assert none_fp != enabled_fp
+    wrapper.video_generation_params = VideoGenerationParams(
+        provider="openai", model="veo-3", api_key="k"
+    )
+    changed_fp = compute_execution_fingerprint(wrapper)
+    assert enabled_fp != changed_fp
+
+
+def test_execution_fingerprint_changes_when_tts_params_change() -> None:
+    """TTS tool is mounted only when params are present (active_tool_groups:98),
+    so enabling or reconfiguring must bust the POOLED cache."""
+    from app.ai_agents.agents import TTSParams
+
+    wrapper = _base_wrapper()
+    none_fp = compute_execution_fingerprint(wrapper)
+    wrapper.tts_params = TTSParams(provider="openai", model="tts-1", voice="alloy", api_key="k")
+    enabled_fp = compute_execution_fingerprint(wrapper)
+    assert none_fp != enabled_fp
+    wrapper.tts_params = TTSParams(provider="openai", model="tts-1", voice="onyx", api_key="k")
+    changed_fp = compute_execution_fingerprint(wrapper)
+    assert enabled_fp != changed_fp
+
+
+def test_execution_fingerprint_stable_when_embedding_api_key_rotates() -> None:
+    """Embedding credentials are stripped before hashing, so api_key rotation must not
+    bust the POOLED cache while model changes still must."""
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+
+    wrapper = _base_wrapper()
+    wrapper.embedding_config = EmbeddingConfig(model="embed-a", api_key="k")
+    first_fp = compute_execution_fingerprint(wrapper)
+    wrapper.embedding_config = EmbeddingConfig(model="embed-a", api_key="rotated")
+    rotated_fp = compute_execution_fingerprint(wrapper)
+    assert first_fp == rotated_fp
+    wrapper.embedding_config = EmbeddingConfig(model="embed-b", api_key="k")
+    changed_fp = compute_execution_fingerprint(wrapper)
+    assert first_fp != changed_fp

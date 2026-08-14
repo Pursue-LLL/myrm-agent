@@ -126,4 +126,28 @@ describe('FeishuCredentialsEditDialog', () => {
       expect(mockTestFeishuConnection).toHaveBeenCalledWith('cli_existing', 'sec_rotated', false);
     });
   });
+
+  it('reloads credentials each time the dialog is opened with the same channel', async () => {
+    const { rerender } = render(
+      <FeishuCredentialsEditDialog open={false} onOpenChange={() => undefined} channelName="feishu_abc" />,
+    );
+    expect(mockGetChannelCredentials).not.toHaveBeenCalled();
+
+    rerender(<FeishuCredentialsEditDialog open onOpenChange={() => undefined} channelName="feishu_abc" />);
+    await waitFor(() => {
+      expect(mockGetChannelCredentials).toHaveBeenCalledTimes(1);
+      expect(screen.getByDisplayValue('cli_existing')).toBeInTheDocument();
+    });
+
+    // Close and reopen the same instance: the form must be refetched, not left blank.
+    rerender(<FeishuCredentialsEditDialog open={false} onOpenChange={() => undefined} channelName="feishu_abc" />);
+    mockGetChannelCredentials.mockClear();
+    rerender(<FeishuCredentialsEditDialog open onOpenChange={() => undefined} channelName="feishu_abc" />);
+
+    await waitFor(() => {
+      expect(mockGetChannelCredentials).toHaveBeenCalledTimes(1);
+      expect(mockGetChannelCredentials).toHaveBeenCalledWith('feishu_abc');
+      expect(screen.getByDisplayValue('cli_existing')).toBeInTheDocument();
+    });
+  });
 });

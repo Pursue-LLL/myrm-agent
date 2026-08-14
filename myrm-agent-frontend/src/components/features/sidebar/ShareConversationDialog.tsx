@@ -85,10 +85,10 @@ export function ShareConversationDialog({
           ) : shareUrl ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   readOnly
                   value={shareUrl}
-                  className="flex-1 rounded-md border bg-muted px-3 py-2 text-sm font-mono truncate"
+                  className="h-8 flex-1 truncate font-mono text-sm"
                 />
                 <Button size="sm" variant="outline" onClick={handleCopy} className="shrink-0">
                   {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
@@ -106,13 +106,14 @@ export function ShareConversationDialog({
               <Lock size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
               <p className="text-xs text-muted-foreground">{t('chat.share.passwordProtectedStatus')}</p>
             </div>
-          ) : revoked ? (
-            <div className="flex items-start gap-2 rounded-md border bg-muted p-3">
-              <Unlink size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">{t('chat.share.revokedStatus')}</p>
-            </div>
           ) : (
             <div className="space-y-3">
+              {revoked && (
+                <div className="flex items-start gap-2 rounded-md border bg-muted p-3">
+                  <Unlink size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">{t('chat.share.revokedStatus')}</p>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1">
                   <Lock size={12} />

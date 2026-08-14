@@ -308,6 +308,21 @@ class TestGetChatShareStatus:
         rebuilt_token = str(data["share_url"]).rsplit("/", 1)[-1]
         assert rebuilt_token == rebuild_chat_share_token("chat-1", expires_at_unix=expires_at)
 
+    def test_expired_unprotected_reports_unshared(self, share_client: TestClient) -> None:
+        """An expired unprotected link is treated as unshared, not active."""
+        from app.core.security.share_hmac import token_fingerprint
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, expires_at = create_chat_share_token("chat-1", ttl_seconds=1)
+        chat = _make_chat_dto(
+            share_token_fingerprint=token_fingerprint(token),
+            share_token_expires_at=expires_at - 60,
+            share_token_protected=False,
+        )
+        data = self._get_status(share_client, chat)
+        assert data["shared"] is False
+        assert data["share_url"] is None
+
     def test_password_protected_returns_status_only(self, share_client: TestClient) -> None:
         """Password-protected shares never rebuild a credential-less link."""
         from app.core.security.share_hmac import token_fingerprint

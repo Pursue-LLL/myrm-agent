@@ -127,14 +127,15 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectFilter]);
 
+  const { batchMode, handleExitBatchMode } = batch;
   useEffect(() => {
-    if (!batch.batchMode) {return;}
+    if (!batchMode) {return;}
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {batch.handleExitBatchMode();}
+      if (e.key === 'Escape') {handleExitBatchMode();}
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [batch.batchMode, batch.handleExitBatchMode]);
+  }, [batchMode, handleExitBatchMode]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;

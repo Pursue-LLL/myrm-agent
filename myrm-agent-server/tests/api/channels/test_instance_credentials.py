@@ -526,6 +526,43 @@ async def test_save_channel_credentials_default_instance_hot_reloads() -> None:
 
 
 @pytest.mark.asyncio
+async def test_save_channel_credentials_unregistered_channel_hot_registers() -> None:
+    """An unregistered channel must still trigger a hot-register attempt so the
+    update takes effect without a restart (e.g. first-time provisioning)."""
+    from app.api.channels.instances import save_channel_credentials
+    from app.api.channels.router import channel_credentials_key
+    from app.services.config.service import ConfigService
+
+    channel_name = "feishu"
+    config_key = channel_credentials_key(channel_name)
+    assert config_key == "feishuCredentials"
+    await ConfigService().set(
+        config_key,
+        {"appId": "cli_first", "appSecret": "sec_first", "useLark": "false"},
+        device_id="test",
+    )
+
+    try:
+        gateway = MagicMock()
+        gateway.bus.get_channel = MagicMock(return_value=None)
+
+        with (
+            patch("app.core.channel_bridge.channel_gateway", gateway),
+            patch("app.api.config.router._try_hot_register_channel", new_callable=AsyncMock) as mock_hot,
+        ):
+            result = await save_channel_credentials(channel_name, {"appSecret": "rotated_first"})
+
+        assert result["status"] == "saved"
+        mock_hot.assert_awaited_once_with("feishuCredentials")
+
+        record = await ConfigService().get(config_key)
+        assert record is not None
+        assert record.value["appSecret"] == "rotated_first"
+    finally:
+        await ConfigService().delete(config_key)
+
+
+@pytest.mark.asyncio
 async def test_get_channel_credentials_redacts_secret_fields() -> None:
     """Reading credentials returns decrypted values with secret fields redacted."""
     from app.api.channels.instances import get_channel_credentials
@@ -545,5 +582,29 @@ async def test_get_channel_credentials_redacts_secret_fields() -> None:
         assert result["appId"] == "cli_redact"
         assert result["appSecret"] == "•" * (len("long_secret_value") - 4) + "long_secret_value"[-4:]
         assert result["botOpenId"] == "ou_123"
+    finally:
+        await ConfigService().delete(config_key)
+
+
+@pytest.mark.asyncio
+async def test_get_channel_credentials_normalizes_boolean_use_lark() -> None:
+    """Boolean credentials stored by the QR flow must be returned as lowercase
+    strings so the frontend ``useLark === 'true'`` comparison is stable."""
+    from app.api.channels.instances import get_channel_credentials
+    from app.api.channels.router import channel_credentials_key
+    from app.services.config.service import ConfigService
+
+    channel_name = f"feishu_{uuid.uuid4().hex[:8]}"
+    config_key = channel_credentials_key(channel_name)
+    await ConfigService().set(
+        config_key,
+        {"appId": "cli_bool", "appSecret": "sec_bool", "useLark": True},
+        device_id="test",
+    )
+
+    try:
+        result = await get_channel_credentials(channel_name)
+        assert result["useLark"] == "true"
+        assert isinstance(result["useLark"], str)
     finally:
         await ConfigService().delete(config_key)

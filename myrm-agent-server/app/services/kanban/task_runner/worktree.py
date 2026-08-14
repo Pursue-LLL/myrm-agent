@@ -6,10 +6,11 @@
 - app.services.chat.sandbox_worktree (POS: Shared git worktree lifecycle management for chat sandbox sessions.)
 
 [OUTPUT]
-- resolve_base_dir, resolve_workspace, cleanup_worktree
+- resolve_base_dir, resolve_workspace, cleanup_worktree, merge_task_worktree
 
 [POS]
-Git worktree isolation: resolve workspace path, create/cleanup per-task worktrees.
+Git worktree isolation: resolve workspace path, create/cleanup per-task worktrees,
+and merge completed task worktrees back into their target branch.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -33,6 +35,35 @@ from app.services.chat.sandbox_worktree import (
 logger = logging.getLogger(__name__)
 
 WORKTREE_DIR_NAME = ".worktrees"
+
+
+def _sanitize_git_branch(name: str) -> str:
+    """Normalize an arbitrary string into a valid git branch name.
+
+    Git forbids spaces, `~ ^ : ? * [ \\`, control chars, leading/trailing
+    slashes, `..`, and names starting with `-`.  Replace illegal sequences
+    with `-` instead of rejecting them so user-supplied branches degrade
+    gracefully instead of failing the whole worktree creation.
+    """
+    cleaned = name.strip().replace("/", "-").replace("\\", "-")
+    cleaned = re.sub(r"[~\^:?*\[\]]", "-", cleaned)
+    cleaned = re.sub(r"\.\.+", "-", cleaned)
+    cleaned = re.sub(r"\s+", "-", cleaned)
+    cleaned = re.sub(r"-{2,}", "-", cleaned)
+    cleaned = cleaned.strip("-")
+    return cleaned or "worktree"
+
+
+def _worktree_branch_name(branch: str, task_id: str) -> str:
+    """Unique per-task worktree branch derived from the user-facing branch.
+
+    Two tasks may share the same target ``branch`` (e.g. the repo's current
+    branch is the default for every task).  A unique suffix guarantees each
+    task's worktree never collides with a sibling task's worktree, so
+    ``git worktree add --force -B`` only ever force-updates its own branch
+    instead of silently resetting another task's commits.
+    """
+    return f"{_sanitize_git_branch(branch)}-{task_id[:8]}"
 
 
 async def resolve_base_dir(store: KanbanStore, task: KanbanTask) -> str | None:
@@ -89,6 +120,7 @@ async def create_worktree(
 ) -> str | WorktreeCreateError:
     """Create a per-task worktree. Returns path on success or structured error."""
     worktree_path = worktree_dir(base_dir, branch, task_id)
+    unique_branch = _worktree_branch_name(branch, task_id)
 
     if Path(worktree_path).exists():
         logger.info("Worktree already exists at %s for task %s", worktree_path, task_id[:8])
@@ -100,7 +132,7 @@ async def create_worktree(
 
         result = await asyncio.to_thread(
             subprocess.run,
-            ["git", "worktree", "add", "--force", "-B", branch, worktree_path, "HEAD"],
+            ["git", "worktree", "add", "--force", "-B", unique_branch, worktree_path, "HEAD"],
             cwd=base_dir,
             capture_output=True,
             text=True,
@@ -121,7 +153,7 @@ async def create_worktree(
         logger.info(
             "Created worktree at %s (branch=%s) for task %s",
             worktree_path,
-            branch,
+            unique_branch,
             task_id[:8],
         )
         return worktree_path
@@ -188,5 +220,175 @@ async def cleanup_worktree(store: KanbanStore, task: KanbanTask) -> None:
                 result.returncode,
                 result.stderr.strip(),
             )
+            return
     except Exception as exc:
         logger.warning("Failed to cleanup worktree for task %s: %s", task.task_id[:8], exc)
+
+
+async def _delete_worktree_branch(base_dir: str, branch: str, task_id: str) -> None:
+    """Delete a worktree's unique branch after its commits were merged away.
+
+    Only called once the task's commits have been merged into the target
+    branch — deleting the branch earlier would drop commits.
+    """
+    unique_branch = _worktree_branch_name(branch, task_id)
+    try:
+        del_result = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "branch", "-D", unique_branch],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=_GIT_ENV,
+        )
+        if del_result.returncode != 0:
+            logger.debug(
+                "Branch %s for task %s already gone or not deletable: %s",
+                unique_branch,
+                task_id[:8],
+                del_result.stderr.strip(),
+            )
+    except Exception as exc:
+        logger.debug("Branch delete failed for task %s: %s", task_id[:8], exc)
+
+
+async def merge_task_worktree(store: KanbanStore, task: KanbanTask) -> bool:
+    """Merge a completed task's worktree commits back into its target branch.
+
+    Returns True on success (or when there is nothing to merge).  On merge
+    conflict the worktree and its unique branch are preserved so the operator
+    can resolve manually — commits are never silently dropped.
+    """
+    if not task.branch:
+        return True
+
+    base_dir = await resolve_base_dir(store, task)
+    if not base_dir:
+        return True
+
+    path = worktree_dir(base_dir, task.branch, task.task_id)
+    if not Path(path).exists():
+        return True
+
+    unique_branch = _worktree_branch_name(task.branch, task.task_id)
+
+    # Auto-commit uncommitted worktree changes so agent edits made with
+    # file tools (not git commits) still land in the merge.
+    await _auto_commit_dirty_worktree(path)
+    if not await _branch_has_commits(base_dir, unique_branch, task.branch):
+        logger.info(
+            "No commits on branch %s for task %s; skipping merge",
+            unique_branch,
+            task.task_id[:8],
+        )
+        await cleanup_worktree(store, task)
+        await _delete_worktree_branch(base_dir, task.branch, task.task_id)
+        return True
+
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            [
+                "git",
+                "merge",
+                "--no-ff",
+                unique_branch,
+                "-m",
+                f"Merge kanban task {task.task_id[:8]}",
+            ],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=_GIT_ENV,
+        )
+        if result.returncode != 0:
+            logger.warning(
+                "Merge of task %s branch %s into %s failed: %s",
+                task.task_id[:8],
+                unique_branch,
+                task.branch,
+                result.stderr.strip()[:300],
+            )
+            return False
+        logger.info(
+            "Merged task %s branch %s into %s",
+            task.task_id[:8],
+            unique_branch,
+            task.branch,
+        )
+        await cleanup_worktree(store, task)
+        await _delete_worktree_branch(base_dir, task.branch, task.task_id)
+        return True
+    except Exception as exc:
+        logger.warning(
+            "Merge of task %s branch %s failed: %s",
+            task.task_id[:8],
+            unique_branch,
+            exc,
+        )
+        return False
+
+
+async def _auto_commit_dirty_worktree(worktree_path: str) -> None:
+    """Commit uncommitted changes in a worktree before merging it back."""
+    try:
+        status = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "status", "--porcelain"],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=_GIT_ENV,
+        )
+        if status.returncode != 0 or not status.stdout.strip():
+            return
+        await asyncio.to_thread(
+            subprocess.run,
+            ["git", "add", "-A"],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=_GIT_ENV,
+        )
+        commit = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "commit", "-m", f"Kanban task auto-commit before merge"],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            env=_GIT_ENV,
+        )
+        if commit.returncode == 0:
+            logger.info("Auto-committed dirty worktree at %s", worktree_path)
+    except Exception as exc:
+        logger.debug("Auto-commit failed for %s: %s", worktree_path, exc)
+
+
+async def _branch_has_commits(base_dir: str, branch: str, target_branch: str) -> bool:
+    """Check whether a worktree branch has commits ahead of its merge target.
+
+    ``git rev-list --count target..branch`` counts commits on ``branch`` not
+    reachable from ``target``; a non-zero count means the merge would add
+    something.  Falls back to True so a failed lookup never silently skips a
+    merge that should happen.
+    """
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "rev-list", "--count", f"{target_branch}..{branch}"],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=_GIT_ENV,
+        )
+        if result.returncode != 0:
+            return True
+        return result.stdout.strip() != "0"
+    except Exception:
+        return True

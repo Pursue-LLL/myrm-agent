@@ -102,7 +102,13 @@ _SET_MAX_ITERATIONS_JS = """(expectedValue) => {
 
 
 def _set_max_iterations_js(expected_value: int) -> str:
-    """Returns an evaluate expression that sets the Max Iterations input to a value."""
+    """Returns an evaluate expression that sets the Max Iterations input to a value.
+
+    Uses the native HTMLInputElement value setter (the React Testing Library
+    approach) plus an InputEvent so React 19 controlled components observe the
+    change, and reports the agent Save button state after the change so tests
+    can confirm React state actually updated.
+    """
     return f"""(() => {{
       const headings = Array.from(document.querySelectorAll('label, h3'));
       const heading = headings.find((el) => /Max Iterations|最大迭代次数|最大疊代次數/.test(el.textContent || ''));
@@ -113,29 +119,45 @@ def _set_max_iterations_js(expected_value: int) -> str:
       const setter = Object.getOwnPropertyDescriptor(
         Object.getPrototypeOf(input), 'value',
       );
-      setter.set.call(input, String({json.dumps(expected_value)}));
-      input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+      const raw = String({json.dumps(expected_value)});
+      setter.set.call(input, raw);
+      input.dispatchEvent(new InputEvent('input', {{ bubbles: true, data: raw }}));
+      input.dispatchEvent(new Event('change', {{ bubbles: true }}));
       return new Promise(resolve => setTimeout(() => {{
-        resolve({{ ok: true, value: input.value }});
-      }}, 200));
+        const section = document.querySelector('[data-section="agents"]') || document.body;
+        const saveBtn = Array.from(section.querySelectorAll('button')).find((b) =>
+          /^(Save|保存|儲存)$/i.test((b.textContent || '').trim()) && b.offsetParent !== null,
+        );
+        resolve({{
+          ok: true,
+          value: input.value,
+          saveDisabled: saveBtn ? saveBtn.disabled : null,
+          hasValueTracker: !!input._valueTracker,
+        }});
+      }}, 300));
     }})()"""
 
 # Clicks the Save button on the agent preview card (text matches any locale).
+# Scoped to the active agents section and only visible buttons so hidden
+# sibling sections (SettingsLayout keeps visited tabs mounted with `hidden`)
+# can never be mis-targeted. Returns ready/bodyLength so wait_for_state does
+# not treat the page as blank and trigger a healing reload that wipes state.
 _CLICK_SAVE_JS = """(() => {
-  const buttons = Array.from(document.querySelectorAll('button'));
-  const matches = buttons.filter((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()),
+  const section = document.querySelector('[data-section="agents"]') || document.body;
+  const matches = Array.from(section.querySelectorAll('button')).filter((btn) =>
+    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
   );
   const save = matches.find((btn) => !btn.disabled);
+  const bodyLength = (document.body?.innerText || '').length;
   const list = matches.map((b) => ({
     text: (b.textContent || '').trim(),
     disabled: b.disabled,
   }));
   if (!save) {
-    return { ok: false, reason: 'no-enabled-save-button', list };
+    return { ready: false, reason: 'no-enabled-visible-save-button', list, bodyLength };
   }
   save.click();
-  return { ok: true, clicked: (save.textContent || '').trim(), list };
+  return { ready: true, clicked: (save.textContent || '').trim(), list, bodyLength };
 })()"""
 
 # Wraps window.fetch to record PUT bodies for the agent endpoint (diagnostic).
@@ -146,7 +168,7 @@ _INSTALL_FETCH_TAP_JS = """(() => {
   window.fetch = async (...args) => {
     const [url, opts] = args;
     try {
-      if (/\/api\/v1\/user-agents\/[^/]+$/.test(String(url)) && (opts?.method === 'PUT')) {
+      if (/\\/api\\/v1\\/user-agents\\/[^/]+$/.test(String(url)) && (opts?.method === 'PUT')) {
         window.__diag_put_bodies__.push({
           url: String(url),
           body: opts.body ? String(opts.body) : null,
@@ -165,22 +187,31 @@ _DIAG_DUMP_JS = """(() => ({
   putBodies: window.__diag_put_bodies__ ?? [],
   allSaveButtons: Array.from(document.querySelectorAll('button'))
     .filter((b) => /^(Save|保存|儲存)$/i.test((b.textContent || '').trim()))
-    .map((b) => ({ text: (b.textContent || '').trim(), disabled: b.disabled })),
+    .map((b) => ({
+      text: (b.textContent || '').trim(),
+      disabled: b.disabled,
+      visible: b.offsetParent !== null,
+      section: b.closest('[data-section]')?.getAttribute('data-section') ?? null,
+    })),
 }))()"""
 
 # Save completion probe: after a successful save the editor sets hasChanges=false and
 # saving=false, so the Save button is re-disabled and its loading spinner is gone.
+# Scoped to the visible agent editor Save button only.
 _SAVE_COMPLETE_JS = """(() => {
-  const buttons = Array.from(document.querySelectorAll('button'));
+  const section = document.querySelector('[data-section="agents"]') || document.body;
+  const buttons = Array.from(section.querySelectorAll('button'));
   const save = buttons.find((btn) =>
-    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()),
+    /^(Save|保存|儲存)$/i.test((btn.textContent || '').trim()) && btn.offsetParent !== null,
   );
-  if (!save) return { ready: false, reason: 'no-save-button' };
+  const bodyLength = (document.body?.innerText || '').length;
+  if (!save) return { ready: false, reason: 'no-visible-save-button', bodyLength };
   const hasSpinner = !!save.querySelector('.animate-spin');
   return {
     ready: save.disabled && !hasSpinner,
     disabled: save.disabled,
     hasSpinner,
+    bodyLength,
   };
 })()"""
 
@@ -262,10 +293,19 @@ def test_agent_max_iterations_edit_persists_via_ui() -> None:
             )
             assert isinstance(set_res, dict) and set_res.get("ok") is True, set_res
             assert str(set_res.get("value")) == "50", set_res
+            assert set_res.get("saveDisabled") is False, (
+                "React state must update so the agent Save button unlocks "
+                f"(saveDisabled={set_res.get('saveDisabled')})"
+            )
 
             client.evaluate(page, _INSTALL_FETCH_TAP_JS, timeout_sec=15.0)
-            clicked = client.evaluate(page, _CLICK_SAVE_JS, timeout_sec=15.0)
-            assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
+            clicked = wait_for_state(
+                client,
+                page,
+                _CLICK_SAVE_JS,
+                timeout_sec=_warm_ui_parallel_wait_sec(20.0),
+            )
+            assert isinstance(clicked, dict) and clicked.get("ready") is True, clicked
 
             saved = wait_for_state(
                 client,

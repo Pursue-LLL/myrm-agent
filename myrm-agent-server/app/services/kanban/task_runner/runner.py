@@ -58,7 +58,11 @@ from app.services.kanban.task_runner.stream import (
     _StreamAccumulator,
     build_multimodal_query,
 )
-from app.services.kanban.task_runner.worktree import cleanup_worktree, resolve_workspace
+from app.services.kanban.task_runner.worktree import (
+    cleanup_worktree,
+    merge_task_worktree,
+    resolve_workspace,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +207,9 @@ class KanbanTaskRunner:
 
     async def cleanup_worktree(self, task: KanbanTask) -> None:
         await cleanup_worktree(self._store, task)
+
+    async def merge_task_worktree(self, task: KanbanTask) -> bool:
+        return await merge_task_worktree(self._store, task)
 
     async def _load_attachment_ids(self, task_id: str) -> list[str]:
         from app.services.kanban.task_runner.stream import (

@@ -232,7 +232,10 @@ async def get_channel_credentials(
     if record is None:
         return {}
 
-    credentials = dict(record.value)
+    credentials = {
+        str(k): (str(v).lower() if isinstance(v, bool) else v)
+        for k, v in record.value.items()
+    }
 
     for key, value in credentials.items():
         if isinstance(value, str) and any(sensitive in key.lower() for sensitive in ["token", "password", "secret", "key"]):
@@ -255,8 +258,9 @@ async def save_channel_credentials(
     request (e.g. ``botOpenId`` when only rotating ``appSecret``) are kept.
     When the channel is currently registered in the gateway, it is rebuilt
     from the merged credentials with the same instance id so that agent
-    bindings and the channel name are preserved. When it is not registered
-    (or hot-reload fails), the update takes effect on the next startup.
+    bindings and the channel name are preserved. When it is not registered,
+    a hot-register attempt is made so the update takes effect immediately;
+    if hot-reload fails, the update takes effect on the next startup.
     """
     from app.services.config.service import ConfigService
 
@@ -271,6 +275,9 @@ async def save_channel_credentials(
     try:
         ch = channel_gateway.bus.get_channel(channel_name)
         if ch is None:
+            from app.api.config.router import _try_hot_register_channel
+
+            await _try_hot_register_channel(config_key)
             return {"status": "saved", "message": "Credentials saved successfully"}
 
         base_type = channel_gateway._resolve_channel_type(ch)

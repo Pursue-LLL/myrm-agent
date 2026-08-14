@@ -85,6 +85,28 @@ async def cleanup_task_worktree(
             )
 
 
+async def merge_task_worktree(
+    runner: TaskRunner | None,
+    task: KanbanTask,
+) -> None:
+    """Merge a completed task's worktree commits into its target branch."""
+    if runner is None or not hasattr(runner, "merge_task_worktree"):
+        return
+    try:
+        merged = await runner.merge_task_worktree(task)  # type: ignore[attr-defined]
+        if not merged:
+            logger.warning(
+                "Merge skipped or conflicted for task %s; worktree preserved",
+                task.task_id[:8],
+            )
+    except Exception as exc:
+        logger.warning(
+            "Worktree merge failed for task %s: %s",
+            task.task_id[:8],
+            exc,
+        )
+
+
 async def move_task(
     store: SqlAlchemyKanbanStore,
     dispatchers: dict[str, KanbanDispatcher],
@@ -237,7 +259,9 @@ async def move_task(
     if target_status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED):
         await promote_dependents(store, task_id)
 
-    if target_status == TaskStatus.ARCHIVED and saved.branch:
+    if target_status == TaskStatus.COMPLETED and saved.branch:
+        await merge_task_worktree(runner, saved)
+    elif target_status == TaskStatus.ARCHIVED and saved.branch:
         await cleanup_task_worktree(runner, saved)
 
     if task.board_id in dispatchers:

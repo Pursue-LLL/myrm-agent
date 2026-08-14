@@ -8,10 +8,11 @@ Covers the real-user flow on the settings memory page:
    (lost on restart) / Unavailable).
 
 The command-center API needs a configured embedding model to build a
-MemoryManager (``require_platform_embedding_config``). A PRIVATE backend starts
-from an empty database, so the test configures retrieval embedding through the
-same settings API the WebUI writes, pointing at a local OpenAI-compatible
-endpoint (a supported self-hosted provider path, no external quota).
+MemoryManager. A PRIVATE backend starts from an empty database, so the test
+configures retrieval embedding through the same settings API the WebUI writes,
+pointing at a local OpenAI-compatible endpoint. The model ``BAAI/bge-m3`` is a
+known model whose dimension is resolved synchronously (no live probe needed),
+matching how the shared backend is configured.
 
 This test drives the real dev stack and the real command-center API (no mock on
 the critical path). It runs PRIVATE because the workspace backend carries the
@@ -101,15 +102,13 @@ def _configure_embedding() -> None:
         retrieval = {
             "embeddingApplied": True,
             "embeddingConfig": {
-                "provider": "openai",
-                "model": "test-embed-v1",
+                "provider": "openai_compatible",
+                "model": "BAAI/bge-m3",
                 "apiKey": "test-key",
                 "apiBase": server.base_url,
             },
         }
         put_config_value("retrieval", retrieval, api_url=api_url)
-        # Verify the backend can now build a memory manager (the exact path the
-        # command-center API depends on) before opening the page.
         snapshot = http_json(
             "GET",
             f"{api_url}/api/v1/memory/command-center",

@@ -252,12 +252,13 @@ async def get_chat_share_status(
 ) -> ChatShareStatusResponse:
     """Return the current share state so the GUI can surface it on reopen.
 
-    Four states: unshared (never shared), revoked (all links withdrawn),
-    active (unprotected: the link is rebuilt deterministically from the
-    persisted expiry so it stays copyable), and password-protected (the link
-    cannot be rebuilt because the password is never stored — only a status is
-    returned). The revoked flag is reported first: a revoked chat must never
-    look active even if stale display metadata remains.
+    Four states: unshared (never shared or link already expired), revoked
+    (all links withdrawn), active (unprotected: the link is rebuilt
+    deterministically from the persisted expiry so it stays copyable), and
+    password-protected (the link cannot be rebuilt because the password is
+    never stored — only a status is returned). The revoked flag is reported
+    first: a revoked chat must never look active even if stale display
+    metadata remains.
     """
     chat = await ChatService.get_chat_metadata(chat_id)
     if not chat:
@@ -270,15 +271,19 @@ async def get_chat_share_status(
         return ChatShareStatusResponse()
 
     protected = chat.share_token_protected is True
-    if protected or chat.share_token_expires_at is None:
+    expires_at = chat.share_token_expires_at
+    if protected or expires_at is None:
         return ChatShareStatusResponse(shared=True, password_protected=protected)
 
-    token = rebuild_chat_share_token(chat_id, expires_at_unix=chat.share_token_expires_at)
+    if expires_at <= int(datetime.now(timezone.utc).timestamp()):
+        return ChatShareStatusResponse()
+
+    token = rebuild_chat_share_token(chat_id, expires_at_unix=expires_at)
     base_url = await resolve_share_url_base(fallback=str(request.base_url).rstrip("/"))
     return ChatShareStatusResponse(
         shared=True,
         share_url=f"{base_url}/api/v1/public/chat-share/{token}",
-        expires_at=chat.share_token_expires_at,
+        expires_at=expires_at,
     )
 
 

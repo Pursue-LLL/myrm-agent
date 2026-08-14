@@ -15,10 +15,12 @@ Dispatcher lifecycle: boot recovery, start/stop per-board dispatchers, graceful 
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
+from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
 from app.services.batch_directory import BatchDirectoryService
@@ -29,6 +31,7 @@ from app.services.kanban.event_publisher import (
     emit_task_rejected,
     publish_kanban_event,
 )
+from app.services.kanban.move_orchestrator import merge_task_worktree
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +42,25 @@ async def recover_stale_tasks(store: SqlAlchemyKanbanStore) -> int:
     if count > 0:
         logger.info("[Boot Recovery] Reset %d stale RUNNING tasks to READY", count)
     return count
+
+
+def _make_task_completed_merge_hook(runner: TaskRunner):
+    """Synchronous dispatcher callback that schedules async worktree merge.
+
+    Dispatcher emits are synchronous, so the actual merge runs in a
+    background task.  merge_task_worktree is idempotent — when the worktree
+    is already gone (manual move path already merged it) it is a no-op.
+    """
+
+    def hook(event_type: str, task: KanbanTask) -> None:
+        if event_type != "task_completed":
+            return
+        try:
+            asyncio.get_running_loop().create_task(merge_task_worktree(runner, task))
+        except RuntimeError:  # pragma: no cover - 无事件循环时不调度
+            logger.debug("No running loop; skip worktree merge for %s", task.task_id[:8])
+
+    return hook
 
 
 async def start_dispatcher(
@@ -93,6 +115,7 @@ async def start_dispatcher(
     dispatcher.on_event(
         BatchDirectoryService.get_instance().dispatcher_event_hook
     )
+    dispatcher.on_event(_make_task_completed_merge_hook(runner))
     await dispatcher.start()
     dispatchers[board_id] = dispatcher
     logger.info("Started dispatcher for board %s", board_id)

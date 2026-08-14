@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
@@ -43,7 +43,6 @@ export function FeishuCredentialsEditDialog({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const loadedChannelRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -53,23 +52,20 @@ export function FeishuCredentialsEditDialog({
     setShowSecret(false);
     setSaving(false);
     setTesting(false);
-    if (loadedChannelRef.current !== channelName) {
-      loadedChannelRef.current = channelName;
-      setLoading(true);
-      getChannelCredentials(channelName)
-        .then((creds) => {
-          setForm({
-            appId: creds.appId ?? '',
-            appSecret: '',
-            botOpenId: creds.botOpenId ?? '',
-            useLark: creds.useLark === 'true',
-          });
-        })
-        .catch(() => {
-          setForm(EMPTY_FORM);
-        })
-        .finally(() => setLoading(false));
-    }
+    setLoading(true);
+    getChannelCredentials(channelName)
+      .then((creds) => {
+        setForm({
+          appId: creds.appId ?? '',
+          appSecret: '',
+          botOpenId: creds.botOpenId ?? '',
+          useLark: creds.useLark === 'true',
+        });
+      })
+      .catch(() => {
+        setForm(EMPTY_FORM);
+      })
+      .finally(() => setLoading(false));
   }, [open, channelName]);
 
   const handleSave = useCallback(async () => {

@@ -110,8 +110,8 @@ _SELECT_ASSISTANT_SNIPPET_JS = """(() => {
   const msgEls = [...document.querySelectorAll('[data-message-id]')];
   window.__MYRM_MSGS = msgEls.map((el) => ({
     id: el.getAttribute('data-message-id'),
-    text: (el.textContent || '').slice(0, 100),
-    isSummary: !!el.querySelector('[data-testid="compacted-summary-view"]'),
+    text: (el.textContent || '').slice(0, 160),
+    inner: (el.innerHTML || '').slice(0, 200),
   }));
   return { ok: true, count: msgEls.length };
 })()"""
@@ -238,7 +238,13 @@ def test_copilot_desktop_and_mobile_full_flows() -> None:
         selected = client.evaluate(page, _SELECT_ASSISTANT_SNIPPET_JS, timeout_sec=15.0)
         print("MYRM_DIAG_SELECTED=" + json.dumps(selected, ensure_ascii=False)[:500])
         msgs_dump = client.evaluate(page, "window.__MYRM_MSGS || []", timeout_sec=10.0)
-        print("MYRM_DIAG_MSGS=" + json.dumps(msgs_dump, ensure_ascii=False)[:2000])
+        print("MYRM_DIAG_MSGS=" + json.dumps(msgs_dump, ensure_ascii=False)[:3000])
+        advisor_dump = client.evaluate(
+            page,
+            "(() => { const b = document.querySelector('[data-testid=\"copilot-advisor-messages\"]'); return { text: b?.textContent?.slice(0, 300) || '', html: b?.innerHTML?.slice(0, 300) || '' }; })()",
+            timeout_sec=10.0,
+        )
+        print("MYRM_DIAG_ADVISOR=" + json.dumps(advisor_dump, ensure_ascii=False)[:1000])
         assert isinstance(selected, dict) and selected.get("ok") is True, selected
         quote_ready = wait_for_state(client, page, _QUOTE_ADVISOR_READY_JS, timeout_sec=30.0)
         assert quote_ready.get("ready") is True, quote_ready
