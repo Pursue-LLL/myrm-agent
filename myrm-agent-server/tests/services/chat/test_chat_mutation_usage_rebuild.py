@@ -73,7 +73,7 @@ async def _assistant_message_id(db: AsyncSession, chat_id: str, content: str) ->
 
 
 async def _chat_usage(db: AsyncSession, chat_id: str) -> tuple[int, int, float]:
-    chat = await db.session.scalar(select(Chat).where(Chat.id == chat_id))
+    chat = await db.scalar(select(Chat).where(Chat.id == chat_id))
     assert chat is not None
     return chat.total_calls, chat.total_tokens, chat.total_usd
 
