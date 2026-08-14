@@ -82,7 +82,7 @@ async def test_usage_sync_reuses_ttl_cache_within_window(db_session: AsyncSessio
         assert get_extras.call_count == 0
         # turn1 append + turn1 sync + turn2 append + turn2 sync (cached)
         assert update_fields.call_count == 4
-        assert update_fields.call_args_list[3].args[1] == first
+        assert update_fields.call_args_list[3].args[2] == first
 
         # After invalidation the next sync recomputes from messages
         _chat_usage_cache.invalidate(chat_id)
@@ -91,7 +91,7 @@ async def test_usage_sync_reuses_ttl_cache_within_window(db_session: AsyncSessio
         ]
         await ChatService.persist_assistant_message_safe(chat_id=chat_id, content="turn three")
         assert get_extras.call_count == 1
-        assert update_fields.call_args_list[5].args[1] == {
+        assert update_fields.call_args_list[5].args[2] == {
             "total_calls": 7,
             "total_tokens": 4200,
             "total_usd": 0.5,

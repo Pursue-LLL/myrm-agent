@@ -24,11 +24,12 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `chat_service.py` | ✅ 核心 | ChatService 门面类，通过 Mixin 组合各域方法 | ✅ |
 | `_base.py` | ✅ 基础 | `_ChatRepositoryPort` 协议 + `_ChatServiceBase` 基类（`_cr()` 访问器） | ✅ |
 | `chat_crud.py` | ✅ 核心 | `_ChatCrudMixin`: Chat CRUD、软删除回收站 (trash/restore/permanent-delete/empty/auto-purge/batch-delete；permanent-delete/empty 将只读预读剥离独立短事务，写事务升级 `BEGIN IMMEDIATE` 防并发 snapshot 冲突)、session flush、channel chat 管理、Pinned Threads (pin/unpin/reorder, max 9)、LangGraph checkpointer 清理、`ensure_chat_source`（web→cron 打标并同步 recall 索引 source） | ✅ |
-| `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加、分页查询、assistant 消息持久化、memory_search_tool 引用证据与 retrieval trace 分步事件写入记忆操作账本 + 用量同步（usage sync 仅在 `chat_id` 通过 `is_safe_session_id` 白名单时拼接 event-log 路径，读路径防路径逃逸） | ✅ |
+| `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加、分页查询、assistant 消息持久化、memory_search_tool 引用证据与 retrieval trace 分步事件写入记忆操作账本 + 用量同步（assistant 消息落库后聚合该 chat 全部消息 extra_data 的 `tokenEconomics` 快照，覆盖式写 `Chat.total_calls/total_tokens/total_usd`，进程内 TTL 缓存防重复全量聚合；源为 DB 消息级数据，不依赖 event-log 文件） | ✅ |
 | `chat_history.py` | ✅ 核心 | `_ChatHistoryMixin`: Web/Channel 历史加载（含 compaction summary 注入）、FTS5 搜索 | ✅ |
 | `chat_turn.py` | ✅ 核心 | `_ChatTurnMixin`: 重试/撤销/截断/rewind/重新生成、兄弟消息切换、LLM 标题生成；rewind 支持 `scope=conversation/files/both`（both 联动体系 A 文件 revert + 快照清理 + restore_inbox，且 revert 前先取体系 B `PRE_ROLLBACK` 工作区快照作为可撤销保护点；conversation-only 联动孤儿快照清理）；突变后 checkpoint sync | ✅ |
 | `chat_compaction.py` | ✅ 核心 | `_ChatCompactionMixin`: compaction summary 更新、后台 drain 调度与 LLM 离线摘要（跟随真实模型窗口） | ✅ |
 | `chat_helpers.py` | ✅ 辅助 | 用于内部解耦的通用 DTO 和静态辅助函数（如消息过滤、Snippet清理）。 | ✅ |
+| `usage_cache.py` | ✅ 辅助 | `ChatUsageCache`: 进程内 TTL 缓存（默认 5s，key=chat_id），防同一会话连续消息落库时重复全量聚合 | ✅ |
 | `ui_artifact_patch.py` | ✅ 核心 | 跨轮次 `update_ui_data_tool`：`data_update` 深合并到宿主 assistant 消息的 `uiArtifacts` 并写回 DB | ✅ |
 | `compact_service.py` | ✅ 核心 | 无损上下文压缩 **facade**（实现见 `compact/` 子包）；导出 `compact_chat` / idle estimate / cooldown / anti-thrash 接线 | ✅ |
 | `compact/` | ✅ 核心 | 压缩子模块：`service.py`（compact_chat）、`persist.py`、`idle_estimate.py`、`message_io.py`、`summarize_guard.py`、`llm_config.py`、`archive.py` | ✅ |
@@ -132,7 +133,7 @@ Chat 表新增多个字段用于支撑高级功能：
 | `compacted_tokens_saved` | Integer | 累计节省的 token 数 |
 | `ephemeral_subagents` | JSON | JIT 虚拟团队名册（用于会话恢复与子 Agent 隔离） |
 | `session_loaded_skill_names` | JSON | 会话级已加载技能名 SSOT（压缩/历史裁剪后仍可用于 rehydrate） |
-| `total_calls`, `total_tokens`, `total_usd` | Int/Float | O(1) 性能的 BYOK 大盘资源用量缓存，在持久化时旁路聚合更新 |
+| `total_calls`, `total_tokens`, `total_usd` | Int/Float | O(1) 性能的 BYOK 大盘资源用量缓存，由 assistant 消息落库时旁路聚合（消息级 `tokenEconomics` 快照求和，覆盖式写，幂等且崩溃自愈）更新 |
 | `deleted_at` | DateTime(nullable) | 软删除时间戳。NULL=活跃，非NULL=已移入回收站。30天后由 `_db_maintenance_job` 自动永久删除 |
 | `share_revoked_at` | DateTime(nullable) | 对话分享撤回时间戳。非NULL时所有 HMAC token 即使未过期也拒绝访问 |
 
