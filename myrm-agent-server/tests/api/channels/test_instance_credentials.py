@@ -8,7 +8,7 @@ channel constructors.
 from __future__ import annotations
 
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -127,9 +127,7 @@ async def test_delete_instance_credentials_by_config_key() -> None:
 
     async with get_session() as session:
         row = (
-            await session.execute(
-                select(UserConfig).where(UserConfig.config_key == "wechat_deadbeefCredentials")
-            )
+            await session.execute(select(UserConfig).where(UserConfig.config_key == "wechat_deadbeefCredentials"))
         ).scalar_one_or_none()
     assert row is None
 
@@ -164,11 +162,7 @@ async def test_delete_default_channel_credentials() -> None:
     await _delete_instance_credentials("wechat")
 
     async with get_session() as session:
-        row = (
-            await session.execute(
-                select(UserConfig).where(UserConfig.config_key == "wechatCredentials")
-            )
-        ).scalar_one_or_none()
+        row = (await session.execute(select(UserConfig).where(UserConfig.config_key == "wechatCredentials"))).scalar_one_or_none()
     assert row is None
 
     async with get_session() as session:
@@ -235,3 +229,79 @@ async def test_create_instance_unknown_channel_raises() -> None:
 
     with pytest.raises(ValueError, match="Unknown channel type"):
         await create_channel_instance(channel_type="no_such_type", instance_id="x")
+
+
+# ── create_channel_instance API persists credentials ──────────────────
+
+
+@pytest.mark.asyncio
+async def test_api_create_instance_persists_credentials() -> None:
+    """Manually created instance with credentials must persist them to the
+    ``{channel_name}Credentials`` config_key so restart recovery works."""
+    from sqlalchemy import select
+
+    from app.api.channels.router import channel_credentials_key
+    from app.core.channel_bridge.channel_factory import (
+        generate_instance_id,
+    )
+    from app.database.connection import get_session
+    from app.database.models import UserConfig
+
+    instance_id = generate_instance_id()
+    channel_name = f"feishu_{instance_id}"
+    creds = {"appId": "cli_persist", "appSecret": "sec_persist", "useLark": "false"}
+
+    mock_channel = MagicMock()
+    mock_channel.name = channel_name
+    mock_channel.status = "stopped"
+    mock_channel.display_name = "Persist App"
+
+    gateway = MagicMock()
+    gateway.add_channel = AsyncMock(return_value=channel_name)
+
+    factory = MagicMock()
+    factory.create_channel_instance = AsyncMock(return_value=mock_channel)
+
+    with (
+        patch("app.core.channel_bridge.channel_gateway", gateway),
+        patch(
+            "app.core.channel_bridge.channel_factory.create_channel_instance",
+            factory.create_channel_instance,
+        ),
+        patch(
+            "app.core.channel_bridge.channel_factory.generate_instance_id",
+            return_value=instance_id,
+        ),
+        patch(
+            "app.core.channel_bridge.channel_factory.load_persisted_instances",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "app.core.channel_bridge.channel_factory.save_persisted_instances",
+            new_callable=AsyncMock,
+        ),
+    ):
+        from app.api.channels.instances import create_channel_instance as api_create
+
+        body = MagicMock()
+        body.channel_type = "feishu"
+        body.display_name = "Persist App"
+        body.credentials = creds
+
+        result = await api_create(body)
+
+    assert result.channelName == channel_name
+
+    config_key = channel_credentials_key(channel_name)
+    assert config_key == f"feishu_{instance_id}Credentials"
+
+    async with get_session() as session:
+        row = (await session.execute(select(UserConfig).where(UserConfig.config_key == config_key))).scalar_one_or_none()
+    assert row is not None
+    assert row.config_value["appId"] == "cli_persist"
+    assert row.config_value["appSecret"] == "sec_persist"
+
+    async with get_session() as session:
+        await session.execute(UserConfig.__table__.delete())
+        await session.commit()
