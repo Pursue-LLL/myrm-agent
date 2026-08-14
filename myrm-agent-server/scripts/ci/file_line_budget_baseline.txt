@@ -160,3 +160,4 @@ app/services/migration/hermes_moa_migrator.py
 app/services/onboarding/second_brain_preset.py
 app/services/project/assessment_import_service.py
 app/services/repair/actions.py
+app/services/kanban/task_runner/worktree.py
