@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from unittest.mock import patch
 
 import pytest
 
@@ -143,6 +144,107 @@ async def test_remove_default_channel() -> None:
         removed = await gw.remove_channel("wechat")
         assert removed is True
         assert "wechat" not in gw.bus.channels
+    finally:
+        await gw.stop()
+
+
+# ── swap_channel ─────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_swap_channel_replaces_registered_instance() -> None:
+    """A successful swap registers the replacement under the same name."""
+    gw = ChannelGateway()
+    gw.register(_make_stub("wechat"))
+    await gw.start()
+    try:
+        old = _make_instance("wechat", "swap_ok")
+        await gw.add_channel(old)
+
+        new = _make_instance("wechat", "swap_ok")
+        await gw.swap_channel(new, old)
+
+        assert gw.bus.channels["wechat_swap_ok"] is new
+        assert "wechat_swap_ok" in gw._channel_tasks
+    finally:
+        await gw.stop()
+
+
+@pytest.mark.asyncio
+async def test_swap_channel_without_previous_registers_directly() -> None:
+    """With no previously registered instance, swap_channel just registers."""
+    gw = ChannelGateway()
+    gw.register(_make_stub("wechat"))
+    await gw.start()
+    try:
+        ch = _make_instance("wechat", "swap_new")
+        await gw.swap_channel(ch, None)
+        assert gw.bus.channels["wechat_swap_new"] is ch
+    finally:
+        await gw.stop()
+
+
+@pytest.mark.asyncio
+async def test_swap_channel_restores_previous_on_add_failure() -> None:
+    """If the replacement fails to register, the previous instance must be
+    re-registered so a bad swap never leaves the channel silently offline."""
+    gw = ChannelGateway()
+    gw.register(_make_stub("wechat"))
+    await gw.start()
+    try:
+        old = _make_instance("wechat", "swap_restore")
+        await gw.add_channel(old)
+
+        new = _make_instance("wechat", "swap_restore")
+
+        real_add = gw.add_channel
+        add_calls = {"count": 0}
+
+        async def flaky_add(channel: BaseChannel) -> str:
+            add_calls["count"] += 1
+            if add_calls["count"] == 1:
+                raise ValueError("replacement add failed")
+            return await real_add(channel)
+
+        with patch.object(gw, "add_channel", new=flaky_add):
+            with pytest.raises(ValueError, match="replacement add failed"):
+                await gw.swap_channel(new, old)
+
+        # The previous instance is back online under the same name.
+        assert gw.bus.channels["wechat_swap_restore"] is old
+        assert "wechat_swap_restore" in gw._channel_tasks
+    finally:
+        await gw.stop()
+
+
+@pytest.mark.asyncio
+async def test_swap_channel_restore_failure_still_propagates_original() -> None:
+    """Even if restoring the previous instance also fails, the original swap
+    error must be propagated to the caller."""
+    gw = ChannelGateway()
+    gw.register(_make_stub("wechat"))
+    await gw.start()
+    try:
+        old = _make_instance("wechat", "swap_double_fail")
+        await gw.add_channel(old)
+
+        new = _make_instance("wechat", "swap_double_fail")
+
+        add_calls = {"count": 0}
+
+        async def flaky_add(channel: BaseChannel) -> str:
+            add_calls["count"] += 1
+            if add_calls["count"] == 1:
+                raise ValueError("replacement add failed")
+            raise ValueError("restore add failed")
+
+        with patch.object(gw, "add_channel", new=flaky_add):
+            with pytest.raises(ValueError, match="replacement add failed"):
+                await gw.swap_channel(new, old)
+
+        # Channel is offline (restore also failed) but the original error
+        # is the one surfaced; the warning log covers the restore failure.
+        assert add_calls["count"] == 2
     finally:
         await gw.stop()
 

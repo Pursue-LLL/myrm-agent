@@ -460,8 +460,7 @@ async def test_save_channel_credentials_rebuilds_multi_instance() -> None:
     gateway = MagicMock()
     gateway._resolve_channel_type = MagicMock(return_value="feishu")
     gateway.bus.get_channel = MagicMock(return_value=old_channel)
-    gateway.remove_channel = AsyncMock(return_value=True)
-    gateway.add_channel = AsyncMock(return_value=channel_name)
+    gateway.swap_channel = AsyncMock()
 
     factory = MagicMock()
     factory.create_channel_instance = AsyncMock(return_value=new_channel)
@@ -475,13 +474,14 @@ async def test_save_channel_credentials_rebuilds_multi_instance() -> None:
     ):
         await save_channel_credentials(channel_name, {"appSecret": "rotated"})
 
-    gateway.remove_channel.assert_awaited_once_with(channel_name)
     factory.create_channel_instance.assert_awaited_once()
     create_kwargs = factory.create_channel_instance.await_args.kwargs
     assert create_kwargs["channel_type"] == "feishu"
     assert create_kwargs["instance_id"] == instance_id
     assert new_channel.display_name == "客服机器人"
-    gateway.add_channel.assert_awaited_once_with(new_channel)
+    # The swap is delegated to the gateway's atomic swap_channel so the old
+    # instance is restored if the replacement fails to register.
+    gateway.swap_channel.assert_awaited_once_with(new_channel, old_channel)
 
     config_key = channel_credentials_key(channel_name)
     record = await ConfigService().get(config_key)
@@ -599,6 +599,57 @@ async def test_save_channel_credentials_rebuild_failure_preserves_old_channel() 
     assert result["status"] == "saved"
     gateway.remove_channel.assert_not_called()
     gateway.add_channel.assert_not_called()
+    gateway.swap_channel.assert_not_called()
+
+    config_key = channel_credentials_key(channel_name)
+    record = await ConfigService().get(config_key)
+    assert record is not None
+    assert record.value["appSecret"] == "rotated"
+
+
+@pytest.mark.asyncio
+async def test_save_channel_credentials_rebuild_swap_failure_keeps_credentials() -> None:
+    """A failed atomic swap must not surface to the client: the merged
+    credentials are already persisted and take effect on the next startup,
+    while the atomic restore (old instance back online) is owned by the
+    gateway's ``swap_channel``."""
+    from app.api.channels.instances import save_channel_credentials
+    from app.api.channels.router import channel_credentials_key
+    from app.services.config.service import ConfigService
+
+    instance_id = uuid.uuid4().hex[:8]
+    channel_name = f"feishu_{instance_id}"
+
+    old_channel = MagicMock()
+    old_channel.name = channel_name
+    old_channel.channel_type = "feishu"
+    old_channel.instance_id = instance_id
+    old_channel.display_name = "客服机器人"
+
+    new_channel = MagicMock()
+    new_channel.name = channel_name
+
+    gateway = MagicMock()
+    gateway._resolve_channel_type = MagicMock(return_value="feishu")
+    gateway.bus.get_channel = MagicMock(return_value=old_channel)
+    gateway.swap_channel = AsyncMock(side_effect=ValueError("add failed"))
+
+    factory = MagicMock()
+    factory.create_channel_instance = AsyncMock(return_value=new_channel)
+
+    with (
+        patch("app.core.channel_bridge.channel_gateway", gateway),
+        patch(
+            "app.core.channel_bridge.channel_factory.create_channel_instance",
+            factory.create_channel_instance,
+        ),
+    ):
+        result = await save_channel_credentials(channel_name, {"appSecret": "rotated"})
+
+    # The failure is logged (not surfaced to the client) since the merged
+    # credentials were already persisted for the next startup.
+    assert result["status"] == "saved"
+    gateway.swap_channel.assert_awaited_once_with(new_channel, old_channel)
 
     config_key = channel_credentials_key(channel_name)
     record = await ConfigService().get(config_key)
@@ -626,8 +677,7 @@ async def test_hot_register_preserves_display_name() -> None:
 
         gateway = MagicMock()
         gateway.bus.get_channel = MagicMock(return_value=existing)
-        gateway.remove_channel = AsyncMock(return_value=True)
-        gateway.add_channel = AsyncMock()
+        gateway.swap_channel = AsyncMock()
 
         cls = MagicMock()
         cls.credential_spec = MagicMock()
@@ -642,8 +692,7 @@ async def test_hot_register_preserves_display_name() -> None:
             await _try_hot_register_channel("feishuCredentials")
 
         assert replacement.display_name == "我的飞书"
-        gateway.remove_channel.assert_awaited_once_with("feishu")
-        gateway.add_channel.assert_awaited_once_with(replacement)
+        gateway.swap_channel.assert_awaited_once_with(replacement, existing)
     finally:
         await ConfigService().delete("feishuCredentials")
 
@@ -670,6 +719,7 @@ async def test_hot_register_empty_credentials_keeps_channel() -> None:
 
     gateway.remove_channel.assert_not_called()
     gateway.add_channel.assert_not_called()
+    gateway.swap_channel.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -720,9 +770,11 @@ async def test_get_channel_credentials_normalizes_boolean_use_lark() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hot_register_add_failure_restores_old_channel() -> None:
-    """If the replacement channel cannot be added, the previous instance must
-    be re-registered so a failed swap never leaves the channel offline."""
+async def test_hot_register_swap_failure_propagates_exception() -> None:
+    """A failed swap must surface as an exception so the caller can log it
+    instead of silently leaving the channel in a half-removed state. The
+    atomic restore (old instance back online) is owned by the gateway's
+    ``swap_channel``."""
     from app.api.config.router import _try_hot_register_channel
     from app.services.config.service import ConfigService
 
@@ -740,8 +792,7 @@ async def test_hot_register_add_failure_restores_old_channel() -> None:
 
         gateway = MagicMock()
         gateway.bus.get_channel = MagicMock(return_value=existing)
-        gateway.remove_channel = AsyncMock(return_value=True)
-        gateway.add_channel = AsyncMock(side_effect=[ValueError("add failed"), None])
+        gateway.swap_channel = AsyncMock(side_effect=ValueError("add failed"))
 
         cls = MagicMock()
         cls.credential_spec = MagicMock()
@@ -756,54 +807,7 @@ async def test_hot_register_add_failure_restores_old_channel() -> None:
             with pytest.raises(ValueError, match="add failed"):
                 await _try_hot_register_channel("feishuCredentials")
 
-        assert gateway.remove_channel.await_count == 1
-        # First attempt adds the replacement, second re-registers the old one.
-        assert gateway.add_channel.await_args_list[0].args[0] is replacement
-        assert gateway.add_channel.await_args_list[1].args[0] is existing
-    finally:
-        await ConfigService().delete("feishuCredentials")
-
-
-@pytest.mark.asyncio
-async def test_hot_register_add_failure_propagates_exception() -> None:
-    """A failed swap must surface as an exception so the caller can log it
-    instead of silently leaving the channel in a half-removed state."""
-    from app.api.config.router import _try_hot_register_channel
-    from app.services.config.service import ConfigService
-
-    await ConfigService().set(
-        "feishuCredentials",
-        {"appId": "cli_atomic2", "appSecret": "sec_atomic2", "useLark": "false"},
-        device_id="test",
-    )
-
-    try:
-        existing = MagicMock()
-        existing.display_name = "我的飞书"
-
-        replacement = MagicMock()
-
-        gateway = MagicMock()
-        gateway.bus.get_channel = MagicMock(return_value=existing)
-        gateway.remove_channel = AsyncMock(return_value=True)
-        gateway.add_channel = AsyncMock(side_effect=[ValueError("add failed"), ValueError("restore failed")])
-
-        cls = MagicMock()
-        cls.credential_spec = MagicMock()
-        cls.from_credentials = MagicMock(return_value=replacement)
-
-        with pytest.raises(ValueError, match="add failed"):
-            with (
-                patch("app.core.channel_bridge.channel_gateway", gateway),
-                patch("app.channels.providers.registry.get_channel_class_safe", return_value=cls),
-                patch("app.channels.core.credentials.resolve_credentials", new=AsyncMock(return_value={"app_id": "cli_atomic2"})),
-                patch("app.core.channel_bridge.credential_spec.is_channel_enabled", new=AsyncMock(return_value=True)),
-            ):
-                await _try_hot_register_channel("feishuCredentials")
-
-        # Both the swap and the restore attempt are made; the original
-        # exception is preserved for the caller.
-        assert gateway.add_channel.await_count == 2
+        gateway.swap_channel.assert_awaited_once_with(replacement, existing)
     finally:
         await ConfigService().delete("feishuCredentials")
 

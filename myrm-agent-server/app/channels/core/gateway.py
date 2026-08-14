@@ -475,6 +475,35 @@ class ChannelGateway:
         logger.info("Channel '%s' hot-added", channel.name)
         return channel.name
 
+    async def swap_channel(
+        self,
+        replacement: BaseChannel,
+        previous: BaseChannel | None,
+    ) -> None:
+        """Atomically replace a registered channel instance at runtime.
+
+        Removes ``previous`` (if any) and registers ``replacement`` with the
+        same name; if the replacement fails to register, ``previous`` is
+        restored so a bad swap never leaves a channel silently offline. The
+        original error is re-raised after restoration so callers can surface
+        or swallow the failed swap consistently.
+        """
+        if previous is not None:
+            await self.remove_channel(previous.name)
+        try:
+            await self.add_channel(replacement)
+        except Exception:
+            if previous is not None:
+                try:
+                    await self.add_channel(previous)
+                except Exception:
+                    logger.warning(
+                        "Failed to restore channel '%s' after a failed swap",
+                        previous.name,
+                        exc_info=True,
+                    )
+            raise
+
     async def remove_channel(self, name: str) -> bool:
         """Hot-remove a channel instance at runtime.
 

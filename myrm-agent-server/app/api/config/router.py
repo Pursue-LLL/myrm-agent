@@ -1451,11 +1451,11 @@ _CREDENTIAL_KEY_TO_CHANNEL: dict[str, str] = {
 async def _try_hot_register_channel(config_key: str) -> None:
     """Hot-register a channel after its credentials are saved.
 
-    If the channel is already registered in the gateway, it is removed and
-    re-added to apply the new credentials (hot-reload). A failed atomic swap
-    restores the previous instance and re-raises the error so callers (e.g.
-    the credentials endpoint) can surface it; non-critical lookup/parse
-    failures are logged and swallowed.
+    If the channel is already registered in the gateway, it is atomically
+    swapped via ``ChannelGateway.swap_channel`` to apply the new credentials
+    (hot-reload). A failed swap restores the previous instance and re-raises
+    the error so callers (e.g. the credentials endpoint) can surface it;
+    non-critical lookup/parse failures are logged and swallowed.
     """
     channel_name = _CREDENTIAL_KEY_TO_CHANNEL.get(config_key)
     if not channel_name:
@@ -1501,21 +1501,7 @@ async def _try_hot_register_channel(config_key: str) -> None:
     existing = channel_gateway.bus.get_channel(channel_name)
     if existing:
         instance.display_name = existing.display_name
-        await channel_gateway.remove_channel(channel_name)
-
-    try:
-        await channel_gateway.add_channel(instance)
-    except Exception:
-        if existing is not None:
-            try:
-                await channel_gateway.add_channel(existing)
-            except Exception:
-                logger.warning(
-                    "Failed to restore channel '%s' after a failed hot-reload",
-                    channel_name,
-                    exc_info=True,
-                )
-        raise
+    await channel_gateway.swap_channel(instance, existing)
     logger.info("Channel '%s' hot-registered after credential save", channel_name)
 
 

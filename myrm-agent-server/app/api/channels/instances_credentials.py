@@ -75,9 +75,11 @@ async def save_channel_credentials(
     kept.
     When the channel is currently registered in the gateway, it is rebuilt
     from the merged credentials with the same instance id so that agent
-    bindings and the channel name are preserved. When it is not registered,
-    a hot-register attempt is made so the update takes effect immediately;
-    if hot-reload fails, the update takes effect on the next startup.
+    bindings and the channel name are preserved, then atomically swapped in
+    via ``ChannelGateway.swap_channel`` (the previous instance is restored if
+    the swap fails). When it is not registered, a hot-register attempt is made
+    so the update takes effect immediately; if hot-reload fails, the update
+    takes effect on the next startup.
     """
     from app.services.config.service import ConfigService
 
@@ -110,15 +112,16 @@ async def save_channel_credentials(
 
         # Build the replacement first so a construction failure (e.g. invalid
         # credentials) leaves the current channel untouched instead of removing
-        # it and then failing to re-add it.
+        # it and then failing to re-add it. The gateway's atomic swap keeps the
+        # old instance alive until the replacement registers, restoring it on
+        # failure so a bad swap never leaves the instance silently offline.
         new_channel = await factory_create(
             channel_type=base_type,
             instance_id=ch.instance_id or channel_name,
             credentials=merged,
         )
         new_channel.display_name = ch.display_name
-        await channel_gateway.remove_channel(channel_name)
-        await channel_gateway.add_channel(new_channel)
+        await channel_gateway.swap_channel(new_channel, ch)
         logger.info("Channel '%s' re-registered with updated credentials", channel_name)
     except Exception as exc:
         logger.warning(
