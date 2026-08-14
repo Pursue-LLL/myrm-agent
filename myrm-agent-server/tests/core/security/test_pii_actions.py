@@ -7,7 +7,6 @@ memory extraction context and SecurityPolicyExtension.
 from unittest.mock import patch
 
 import pytest
-
 from myrm_agent_harness.agent.security.types import PIIAction
 
 from app.core.security.pii_actions import coerce_pii_action
