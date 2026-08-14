@@ -1,5 +1,6 @@
 """Lifecycle exports."""
 
+from .auto_continue import auto_continue_interrupted_turns
 from .browser import (
     cleanup_and_warmup_browser_threads,
     cleanup_browser_threads,
@@ -42,7 +43,6 @@ from .schedulers import (
 )
 from .skills import shutdown_skill_optimization_listeners, start_skill_optimization_listeners
 from .system import (
-    auto_continue_interrupted_turns,
     init_allowlist_store,
     init_risk_rules,
     pause_orphaned_active_goals,

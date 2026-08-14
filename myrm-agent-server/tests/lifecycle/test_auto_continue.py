@@ -111,7 +111,7 @@ async def test_auto_continue_success_persists_message():
         )
         mock_params_cls.model_validate.return_value = mock_params
 
-        from app.lifecycle.system import auto_continue_interrupted_turns
+        from app.lifecycle.auto_continue import auto_continue_interrupted_turns
 
         await auto_continue_interrupted_turns()
         await asyncio.sleep(0.15)
@@ -168,7 +168,7 @@ async def test_auto_continue_forwards_token_economics_to_persist():
             timezone="UTC",
         )
 
-        from app.lifecycle.system import _dispatch_auto_continue
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
 
         await _dispatch_auto_continue(marker, factory)
 
@@ -209,7 +209,7 @@ async def test_auto_continue_without_token_economics_persists_without_extra_data
             timezone="UTC",
         )
 
-        from app.lifecycle.system import _dispatch_auto_continue
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
 
         await _dispatch_auto_continue(marker, factory)
 
@@ -230,7 +230,7 @@ async def test_auto_continue_disabled_by_preference():
             AsyncMock(return_value=MagicMock(personal_settings_dict={"autoContinueInterruptedTurns": False})),
         ),
     ):
-        from app.lifecycle.system import auto_continue_interrupted_turns
+        from app.lifecycle.auto_continue import auto_continue_interrupted_turns
 
         await auto_continue_interrupted_turns()
 
@@ -259,7 +259,7 @@ async def test_auto_continue_no_markers():
             mock_notif,
         ),
     ):
-        from app.lifecycle.system import auto_continue_interrupted_turns
+        from app.lifecycle.auto_continue import auto_continue_interrupted_turns
 
         await auto_continue_interrupted_turns()
 
@@ -282,7 +282,7 @@ async def test_dispatch_skips_missing_params():
             mock_notif,
         ),
     ):
-        from app.lifecycle.system import _dispatch_auto_continue
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
 
         await _dispatch_auto_continue(marker, factory)
 
@@ -307,7 +307,7 @@ async def test_dispatch_skips_missing_model_cfg():
             message_id="msg-user-001",
         )
 
-        from app.lifecycle.system import _dispatch_auto_continue
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
 
         await _dispatch_auto_continue(marker, factory)
 
@@ -339,7 +339,7 @@ async def test_dispatch_failure_creates_error_notification():
             timezone="UTC",
         )
 
-        from app.lifecycle.system import _dispatch_auto_continue
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
 
         await _dispatch_auto_continue(marker, factory)
 
@@ -371,7 +371,7 @@ async def test_notification_failure_does_not_crash():
             timezone="UTC",
         )
 
-        from app.lifecycle.system import _dispatch_auto_continue
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
 
         await _dispatch_auto_continue(marker, factory)
 
@@ -413,7 +413,7 @@ async def test_config_loader_failure_defaults_to_enabled():
             timezone="UTC",
         )
 
-        from app.lifecycle.system import auto_continue_interrupted_turns
+        from app.lifecycle.auto_continue import auto_continue_interrupted_turns
 
         await auto_continue_interrupted_turns()
         await asyncio.sleep(0.15)
@@ -452,7 +452,7 @@ async def test_empty_stream_does_not_persist():
             timezone="UTC",
         )
 
-        from app.lifecycle.system import _dispatch_auto_continue
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
 
         await _dispatch_auto_continue(marker, factory)
 
@@ -489,7 +489,7 @@ async def test_dispatch_loads_chat_history():
         )
         mock_params_cls.model_validate.return_value = mock_params
 
-        from app.lifecycle.system import _dispatch_auto_continue
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
 
         await _dispatch_auto_continue(marker, factory)
 
@@ -532,7 +532,7 @@ async def test_dispatch_injects_runtime_context():
             timezone="UTC",
         )
 
-        from app.lifecycle.system import _dispatch_auto_continue
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
 
         await _dispatch_auto_continue(marker, factory)
 

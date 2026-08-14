@@ -42,19 +42,19 @@ async def test_chat(session_factory):
 async def test_marker_insert_and_select(session_factory, test_chat):
     marker_id = str(uuid.uuid4())
     async with session_factory() as db:
-        db.add(InterruptedTurnMarker(
-            id=marker_id,
-            chat_id=test_chat,
-            user_message_id="msg-001",
-            action_mode="fast",
-            serialized_params={"query": "hello", "model_cfg": {"provider": "test"}},
-        ))
+        db.add(
+            InterruptedTurnMarker(
+                id=marker_id,
+                chat_id=test_chat,
+                user_message_id="msg-001",
+                action_mode="fast",
+                serialized_params={"query": "hello", "model_cfg": {"provider": "test"}},
+            )
+        )
         await db.commit()
 
     async with session_factory() as db:
-        result = await db.execute(
-            select(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat)
-        )
+        result = await db.execute(select(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat))
         marker = result.scalar_one()
 
     assert marker.id == marker_id
@@ -67,31 +67,31 @@ async def test_marker_insert_and_select(session_factory, test_chat):
 async def test_marker_unique_chat_id(session_factory, test_chat):
     """Only one marker per chat_id (unique constraint)."""
     async with session_factory() as db:
-        db.add(InterruptedTurnMarker(
-            id=str(uuid.uuid4()),
-            chat_id=test_chat,
-            user_message_id="msg-001",
-            action_mode="fast",
-        ))
+        db.add(
+            InterruptedTurnMarker(
+                id=str(uuid.uuid4()),
+                chat_id=test_chat,
+                user_message_id="msg-001",
+                action_mode="fast",
+            )
+        )
         await db.commit()
 
     async with session_factory() as db:
-        await db.execute(
-            delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat)
+        await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat))
+        db.add(
+            InterruptedTurnMarker(
+                id=str(uuid.uuid4()),
+                chat_id=test_chat,
+                user_message_id="msg-002",
+                action_mode="deep",
+            )
         )
-        db.add(InterruptedTurnMarker(
-            id=str(uuid.uuid4()),
-            chat_id=test_chat,
-            user_message_id="msg-002",
-            action_mode="deep",
-        ))
         await db.commit()
 
     async with session_factory() as db:
         result = await db.execute(
-            select(func.count()).select_from(InterruptedTurnMarker).where(
-                InterruptedTurnMarker.chat_id == test_chat
-            )
+            select(func.count()).select_from(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat)
         )
         count = result.scalar()
 
@@ -102,25 +102,23 @@ async def test_marker_unique_chat_id(session_factory, test_chat):
 async def test_marker_delete_on_completion(session_factory, test_chat):
     """Marker should be deletable after stream completes."""
     async with session_factory() as db:
-        db.add(InterruptedTurnMarker(
-            id=str(uuid.uuid4()),
-            chat_id=test_chat,
-            user_message_id="msg-001",
-            action_mode="fast",
-        ))
-        await db.commit()
-
-    async with session_factory() as db:
-        await db.execute(
-            delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat)
+        db.add(
+            InterruptedTurnMarker(
+                id=str(uuid.uuid4()),
+                chat_id=test_chat,
+                user_message_id="msg-001",
+                action_mode="fast",
+            )
         )
         await db.commit()
 
     async with session_factory() as db:
+        await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat))
+        await db.commit()
+
+    async with session_factory() as db:
         result = await db.execute(
-            select(func.count()).select_from(InterruptedTurnMarker).where(
-                InterruptedTurnMarker.chat_id == test_chat
-            )
+            select(func.count()).select_from(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat)
         )
         assert result.scalar() == 0
 
@@ -128,7 +126,7 @@ async def test_marker_delete_on_completion(session_factory, test_chat):
 @pytest.mark.asyncio
 async def test_prune_stale_markers(session_factory, test_chat):
     """Markers older than freshness window should be pruned."""
-    from app.lifecycle.system import _AUTO_CONTINUE_FRESHNESS_MINUTES
+    from app.lifecycle.auto_continue import _AUTO_CONTINUE_FRESHNESS_MINUTES
 
     stale_time = datetime.now(UTC) - timedelta(minutes=_AUTO_CONTINUE_FRESHNESS_MINUTES + 5)
     marker_id = str(uuid.uuid4())
@@ -143,24 +141,18 @@ async def test_prune_stale_markers(session_factory, test_chat):
         db.add(marker)
         await db.commit()
         await db.execute(
-            InterruptedTurnMarker.__table__.update()
-            .where(InterruptedTurnMarker.id == marker_id)
-            .values(created_at=stale_time)
+            InterruptedTurnMarker.__table__.update().where(InterruptedTurnMarker.id == marker_id).values(created_at=stale_time)
         )
         await db.commit()
 
     cutoff = datetime.now(UTC) - timedelta(minutes=_AUTO_CONTINUE_FRESHNESS_MINUTES)
     async with session_factory() as db:
-        await db.execute(
-            delete(InterruptedTurnMarker).where(InterruptedTurnMarker.created_at < cutoff)
-        )
+        await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.created_at < cutoff))
         await db.commit()
 
     async with session_factory() as db:
         result = await db.execute(
-            select(func.count()).select_from(InterruptedTurnMarker).where(
-                InterruptedTurnMarker.id == marker_id
-            )
+            select(func.count()).select_from(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker_id)
         )
         assert result.scalar() == 0
 
@@ -168,32 +160,28 @@ async def test_prune_stale_markers(session_factory, test_chat):
 @pytest.mark.asyncio
 async def test_prune_exhausted_markers(session_factory, test_chat):
     """Markers with attempt_count >= max should be pruned."""
-    from app.lifecycle.system import _AUTO_CONTINUE_MAX_ATTEMPTS
+    from app.lifecycle.auto_continue import _AUTO_CONTINUE_MAX_ATTEMPTS
 
     marker_id = str(uuid.uuid4())
     async with session_factory() as db:
-        db.add(InterruptedTurnMarker(
-            id=marker_id,
-            chat_id=test_chat,
-            user_message_id="msg-exhaust",
-            action_mode="fast",
-            attempt_count=_AUTO_CONTINUE_MAX_ATTEMPTS,
-        ))
-        await db.commit()
-
-    async with session_factory() as db:
-        await db.execute(
-            delete(InterruptedTurnMarker).where(
-                InterruptedTurnMarker.attempt_count >= _AUTO_CONTINUE_MAX_ATTEMPTS
+        db.add(
+            InterruptedTurnMarker(
+                id=marker_id,
+                chat_id=test_chat,
+                user_message_id="msg-exhaust",
+                action_mode="fast",
+                attempt_count=_AUTO_CONTINUE_MAX_ATTEMPTS,
             )
         )
         await db.commit()
 
     async with session_factory() as db:
+        await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.attempt_count >= _AUTO_CONTINUE_MAX_ATTEMPTS))
+        await db.commit()
+
+    async with session_factory() as db:
         result = await db.execute(
-            select(func.count()).select_from(InterruptedTurnMarker).where(
-                InterruptedTurnMarker.id == marker_id
-            )
+            select(func.count()).select_from(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker_id)
         )
         assert result.scalar() == 0
 
@@ -202,12 +190,14 @@ async def test_prune_exhausted_markers(session_factory, test_chat):
 async def test_cascade_delete_on_chat_removal(session_factory, test_chat):
     """Marker should be cascade-deleted when parent chat is removed."""
     async with session_factory() as db:
-        db.add(InterruptedTurnMarker(
-            id=str(uuid.uuid4()),
-            chat_id=test_chat,
-            user_message_id="msg-cascade",
-            action_mode="fast",
-        ))
+        db.add(
+            InterruptedTurnMarker(
+                id=str(uuid.uuid4()),
+                chat_id=test_chat,
+                user_message_id="msg-cascade",
+                action_mode="fast",
+            )
+        )
         await db.commit()
 
     async with session_factory() as db:
@@ -216,9 +206,7 @@ async def test_cascade_delete_on_chat_removal(session_factory, test_chat):
 
     async with session_factory() as db:
         result = await db.execute(
-            select(func.count()).select_from(InterruptedTurnMarker).where(
-                InterruptedTurnMarker.chat_id == test_chat
-            )
+            select(func.count()).select_from(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat)
         )
         assert result.scalar() == 0
 
@@ -228,13 +216,15 @@ async def test_attempt_count_increment(session_factory, test_chat):
     """attempt_count should be updatable (simulating crash-loop breaker)."""
     marker_id = str(uuid.uuid4())
     async with session_factory() as db:
-        db.add(InterruptedTurnMarker(
-            id=marker_id,
-            chat_id=test_chat,
-            user_message_id="msg-retry",
-            action_mode="fast",
-            attempt_count=0,
-        ))
+        db.add(
+            InterruptedTurnMarker(
+                id=marker_id,
+                chat_id=test_chat,
+                user_message_id="msg-retry",
+                action_mode="fast",
+                attempt_count=0,
+            )
+        )
         await db.commit()
 
     async with session_factory() as db:
@@ -246,9 +236,7 @@ async def test_attempt_count_increment(session_factory, test_chat):
         await db.commit()
 
     async with session_factory() as db:
-        result = await db.execute(
-            select(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker_id)
-        )
+        result = await db.execute(select(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker_id))
         marker = result.scalar_one()
 
     assert marker.attempt_count == 1
@@ -267,19 +255,19 @@ async def test_serialized_params_json_roundtrip(session_factory, test_chat):
         "nested": {"a": [1, 2, 3], "b": None},
     }
     async with session_factory() as db:
-        db.add(InterruptedTurnMarker(
-            id=marker_id,
-            chat_id=test_chat,
-            user_message_id="msg-json",
-            action_mode="fast",
-            serialized_params=params,
-        ))
+        db.add(
+            InterruptedTurnMarker(
+                id=marker_id,
+                chat_id=test_chat,
+                user_message_id="msg-json",
+                action_mode="fast",
+                serialized_params=params,
+            )
+        )
         await db.commit()
 
     async with session_factory() as db:
-        result = await db.execute(
-            select(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker_id)
-        )
+        result = await db.execute(select(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker_id))
         marker = result.scalar_one()
 
     assert marker.serialized_params == params
@@ -290,31 +278,29 @@ async def test_serialized_params_json_roundtrip(session_factory, test_chat):
 @pytest.mark.asyncio
 async def test_fresh_marker_survives_prune(session_factory, test_chat):
     """A marker within freshness window should NOT be pruned."""
-    from app.lifecycle.system import _AUTO_CONTINUE_FRESHNESS_MINUTES
+    from app.lifecycle.auto_continue import _AUTO_CONTINUE_FRESHNESS_MINUTES
 
     marker_id = str(uuid.uuid4())
     async with session_factory() as db:
-        db.add(InterruptedTurnMarker(
-            id=marker_id,
-            chat_id=test_chat,
-            user_message_id="msg-fresh",
-            action_mode="fast",
-            attempt_count=0,
-        ))
+        db.add(
+            InterruptedTurnMarker(
+                id=marker_id,
+                chat_id=test_chat,
+                user_message_id="msg-fresh",
+                action_mode="fast",
+                attempt_count=0,
+            )
+        )
         await db.commit()
 
     cutoff = datetime.now(UTC) - timedelta(minutes=_AUTO_CONTINUE_FRESHNESS_MINUTES)
     async with session_factory() as db:
-        await db.execute(
-            delete(InterruptedTurnMarker).where(InterruptedTurnMarker.created_at < cutoff)
-        )
+        await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.created_at < cutoff))
         await db.commit()
 
     async with session_factory() as db:
         result = await db.execute(
-            select(func.count()).select_from(InterruptedTurnMarker).where(
-                InterruptedTurnMarker.id == marker_id
-            )
+            select(func.count()).select_from(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker_id)
         )
         assert result.scalar() == 1, "Fresh marker should survive prune"
 
@@ -338,9 +324,7 @@ async def test_write_marker_function_creates_and_replaces(session_factory, test_
         await _write_interrupted_turn_marker(request, params)
 
     async with session_factory() as db:
-        result = await db.execute(
-            select(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat)
-        )
+        result = await db.execute(select(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat))
         marker = result.scalar_one()
 
     assert marker.user_message_id == "msg-write-001"
@@ -354,9 +338,7 @@ async def test_write_marker_function_creates_and_replaces(session_factory, test_
         await _write_interrupted_turn_marker(request, params)
 
     async with session_factory() as db:
-        result = await db.execute(
-            select(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat)
-        )
+        result = await db.execute(select(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat))
         marker = result.scalar_one()
 
     assert marker.user_message_id == "msg-write-002", "Second write should replace first"
@@ -369,12 +351,14 @@ async def test_clear_marker_function(session_factory, test_chat):
     from app.services.agent.stream_session.stream_finalize import _clear_interrupted_turn_marker
 
     async with session_factory() as db:
-        db.add(InterruptedTurnMarker(
-            id=str(uuid.uuid4()),
-            chat_id=test_chat,
-            user_message_id="msg-clear",
-            action_mode="fast",
-        ))
+        db.add(
+            InterruptedTurnMarker(
+                id=str(uuid.uuid4()),
+                chat_id=test_chat,
+                user_message_id="msg-clear",
+                action_mode="fast",
+            )
+        )
         await db.commit()
 
     with patch("app.platform_utils.get_session_factory", return_value=session_factory):
@@ -382,8 +366,6 @@ async def test_clear_marker_function(session_factory, test_chat):
 
     async with session_factory() as db:
         result = await db.execute(
-            select(func.count()).select_from(InterruptedTurnMarker).where(
-                InterruptedTurnMarker.chat_id == test_chat
-            )
+            select(func.count()).select_from(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == test_chat)
         )
         assert result.scalar() == 0
