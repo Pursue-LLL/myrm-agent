@@ -396,7 +396,7 @@ async def merge_task_worktree(store: KanbanStore, task: KanbanTask) -> bool:
             unique_branch,
             task.branch,
         )
-        await cleanup_worktree(store, task)
+        await cleanup_worktree(store, task, force=True)
         await _delete_worktree_branch(base_dir, task.branch, task.task_id)
         return True
     except Exception as exc:

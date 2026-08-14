@@ -205,8 +205,8 @@ class KanbanTaskRunner:
                 "Could not unregister background tokens for %s", task.task_id[:8]
             )
 
-    async def cleanup_worktree(self, task: KanbanTask) -> None:
-        await cleanup_worktree(self._store, task)
+    async def cleanup_worktree(self, task: KanbanTask) -> bool:
+        return await cleanup_worktree(self._store, task)
 
     async def merge_task_worktree(self, task: KanbanTask) -> bool:
         return await merge_task_worktree(self._store, task)
