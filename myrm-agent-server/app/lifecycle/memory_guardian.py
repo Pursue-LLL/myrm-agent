@@ -422,7 +422,7 @@ async def _auto_resolve_expired_conflicts() -> int:
     from datetime import UTC
     from datetime import datetime as dt
 
-    from sqlalchemy import update
+    from sqlalchemy import func, update
 
     from app.database.connection import get_session
     from app.database.models import PendingMemory
@@ -441,7 +441,13 @@ async def _auto_resolve_expired_conflicts() -> int:
             .values(
                 status="resolved",
                 resolved_at=now,
-                metadata_json={"resolution": "keep_old", "auto_resolved": True},
+                metadata_json=func.json_set(
+                    PendingMemory.metadata_json,
+                    "$.resolution",
+                    "keep_old",
+                    "$.auto_resolved",
+                    True,
+                ),
             )
         )
         result = await db.execute(stmt)

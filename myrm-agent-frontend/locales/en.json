@@ -9077,7 +9077,8 @@
       "post_hook_blocked": "Blocked After Run",
       "tool_cancelled": "Cancelled",
       "guardrail_blocked": "Safety Blocked",
-      "benchmark_blocked": "Benchmark Blocked"
+      "benchmark_blocked": "Benchmark Blocked",
+      "skill_usage_guard": "Skill Usage Redirected"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",
@@ -9209,6 +9210,7 @@
       "autoResolveNever": "Won't auto-resolve — needs manual review",
       "autoResolveSoon": "Auto-resolving soon",
       "autoResolveInHours": "Auto-resolves in {hours} hours (keeps old)",
+      "autoResolveInMinutes": "Auto-resolves in {minutes} min (keeps old)",
       "autoResolveInDays": "Auto-resolves in {days} days (keeps old)"
     },
     "batchApproveSuccess": "Batch approval successful",
@@ -13705,6 +13707,8 @@
     "autoMemoryExtracted": "Remembered {count} items from conversation",
     "memoryRecallUpdated": "Memory recall scope updated",
     "conflictDetected": "Memory conflict detected — review and resolve in Memory",
+    "conflictDetectedDesc": "New memory conflict is awaiting your review.",
+    "conflictHighRiskDetectedDesc": "High-risk conflict — it will not auto-resolve, review required.",
     "viewMemoryCenter": "View in Memory",
     "reviewSharedContextProposal": "Review in Memory",
     "streamCompleted": "Agent response completed",

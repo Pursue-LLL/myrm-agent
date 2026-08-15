@@ -309,6 +309,8 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
         from datetime import datetime as dt
         from uuid import uuid4
 
+        from sqlalchemy import select
+
         from app.database.connection import get_session
         from app.database.models import PendingMemory
 
@@ -322,6 +324,24 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
 
         try:
             async with get_session() as db:
+                existing_id = await db.scalar(
+                    select(PendingMemory.id).where(
+                        PendingMemory.is_conflict.is_(True),
+                        PendingMemory.status == "pending",
+                        PendingMemory.conflict_old_memory_id == ctx.old_memory_id,
+                    )
+                )
+                if existing_id is not None:
+                    # A pending conflict for the same old memory already exists
+                    # (e.g. a later consolidation cycle re-detected it). Skip the
+                    # duplicate so the pending queue never stacks identical rows.
+                    logger.info(
+                        "Conflict for old=%s already pending (%s), skipping duplicate",
+                        ctx.old_memory_id,
+                        existing_id,
+                    )
+                    return ConflictResolution.PENDING
+
                 record = PendingMemory(
                     id=conflict_id,
                     agent_id=agent_id,

@@ -10218,6 +10218,7 @@
       "autoResolveNever": "Wird nicht automatisch aufgelöst · manuelle Prüfung erforderlich",
       "autoResolveSoon": "Automatische Auflösung steht kurz bevor",
       "autoResolveInHours": "Automatische Auflösung in {hours} Std. (alte Erinnerung bleibt)",
+      "autoResolveInMinutes": "Wird in {minutes} Min. automatisch aufgelöst (altes behalten)",
       "autoResolveInDays": "Automatische Auflösung in {days} Tagen (alte Erinnerung bleibt)"
     },
     "exportMarkdown": "Als Markdown exportieren (Obsidian-kompatibel)"
@@ -13372,6 +13373,8 @@
     "autoMemoryExtracted": "{count} Erinnerungen gespeichert",
     "memoryRecallUpdated": "Erinnerungsabruf aktualisiert",
     "conflictDetected": "Speicherkonflikt erkannt. Prüfen und entscheiden Sie in den Erinnerungen",
+    "conflictDetectedDesc": "Ein neuer Speicherkonflikt wartet auf Ihre Prüfung.",
+    "conflictHighRiskDetectedDesc": "Hochriskanten Konflikt — wird nicht automatisch aufgelöst, Prüfung erforderlich.",
     "viewMemoryCenter": "Erinnerungen anzeigen",
     "reviewSharedContextProposal": "Rezension im Gedächtnis",
     "streamCompleted": "Agent-Antwort abgeschlossen",

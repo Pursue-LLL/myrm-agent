@@ -8977,7 +8977,8 @@
       "post_hook_blocked": "実行後に制限",
       "tool_cancelled": "キャンセル",
       "guardrail_blocked": "安全制限",
-      "benchmark_blocked": "ベンチマーク遮断"
+      "benchmark_blocked": "ベンチマーク遮断",
+      "skill_usage_guard": "スキル使用方法の案内"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
@@ -9132,6 +9133,7 @@
       "autoResolveNever": "自動解決されません · 手動確認が必要",
       "autoResolveSoon": "まもなく自動解決",
       "autoResolveInHours": "{hours} 時間後に旧メモリを自動保持",
+      "autoResolveInMinutes": "{minutes} 分後に自動で旧記憶を保持します",
       "autoResolveInDays": "{days} 日後に旧メモリを自動保持"
     },
     "batchApproveSuccess": "一括で承認しました",
@@ -13627,6 +13629,8 @@
     "autoMemoryExtracted": "{count}件の記憶を保存しました",
     "memoryRecallUpdated": "記憶リコールの範囲が更新されました",
     "conflictDetected": "記憶の矛盾を検出しました。記憶で確認して裁定してください",
+    "conflictDetectedDesc": "新しい記憶の矛盾があなたの確認を待っています。",
+    "conflictHighRiskDetectedDesc": "高リスクの矛盾です。自動解決されず、確認が必要です。",
     "viewMemoryCenter": "記憶を確認",
     "reviewSharedContextProposal": "メモリセンターでレビュー",
     "streamCompleted": "Agent の応答が完了しました",

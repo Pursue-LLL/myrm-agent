@@ -72,8 +72,10 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
     : null;
 
   // High-risk conflicts (server keeps auto_resolve_at None) never auto-resolve.
+  // isHighRisk is the authoritative signal from the server; the badge follows it
+  // so the UI can never show "high risk" while a 72h countdown is running.
   const isHighRisk = !conflict.conflict_auto_resolve_at;
-  const showHighRiskBadge = importancePercent !== null && importancePercent >= 90;
+  const showHighRiskBadge = isHighRisk && importancePercent !== null;
 
   return (
     <div

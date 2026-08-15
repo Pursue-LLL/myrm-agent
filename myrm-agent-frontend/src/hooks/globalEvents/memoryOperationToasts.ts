@@ -122,8 +122,9 @@ export function showMemoryOperationToasts(data: Record<string, unknown>, deps: M
   if (!kind || status === 'skipped' || status === 'error') {return;}
 
   if (kind === 'conflict') {
+    const highRisk = (data.metadata as Record<string, unknown> | undefined)?.high_risk === true;
     toast.warning(t('conflictDetected'), {
-      description: description || undefined,
+      description: highRisk ? t('conflictHighRiskDetectedDesc') : t('conflictDetectedDesc'),
       duration: 10_000,
       dismissible: true,
       action: {
@@ -131,6 +132,15 @@ export function showMemoryOperationToasts(data: Record<string, unknown>, deps: M
         onClick: () => router.push(MEMORY_CENTER_PATH),
       },
     });
+    void import('@/store/memory').then(({ useMemoryStore }) => {
+      void useMemoryStore.getState().fetchConflicts();
+    });
+    return;
+  }
+
+  if (kind === 'maintenance' && (data.metadata as Record<string, unknown> | undefined)?.operation === 'conflict_auto_resolve') {
+    // The guardian auto-resolved expired low-risk conflicts; refresh the badge
+    // so stale conflict counts do not linger in the UI.
     void import('@/store/memory').then(({ useMemoryStore }) => {
       void useMemoryStore.getState().fetchConflicts();
     });

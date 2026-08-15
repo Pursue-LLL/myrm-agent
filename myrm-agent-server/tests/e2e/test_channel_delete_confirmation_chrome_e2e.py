@@ -161,12 +161,21 @@ def _extra_instance_open_js(instance_id: str) -> str:
 
 
 def _extra_instance_gone_js(instance_id: str) -> str:
-    """Return a probe that confirms the extra-instance card is gone."""
+    """Return a probe that confirms the extra-instance card is gone.
+
+    Also reports whether the confirm dialog is still open so a timeout can be
+    attributed to a failed DELETE (dialog stays open, by design) versus a
+    successful DELETE that the UI failed to re-render (dialog closed).
+    """
     return f"""(() => {{
   const delBtn = document.querySelector('[aria-label="delete-wechat_{instance_id}"]');
+  const confirm = document.querySelector('[data-testid="confirm-dialog-confirm"]');
+  const cancel = document.querySelector('[data-testid="confirm-dialog-cancel"]');
   return {{
     ready: !delBtn,
     instanceGone: !delBtn,
+    dialogOpen: !!confirm && !!cancel,
+    hasDeleteBtn: !!delBtn,
   }};
 }})()"""
 

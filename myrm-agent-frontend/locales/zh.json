@@ -9077,7 +9077,8 @@
       "post_hook_blocked": "执行后拦截",
       "tool_cancelled": "已取消",
       "guardrail_blocked": "安全拦截",
-      "benchmark_blocked": "评测内容拦截"
+      "benchmark_blocked": "评测内容拦截",
+      "skill_usage_guard": "技能用法已重定向"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
@@ -9210,6 +9211,7 @@
       "autoResolveNever": "不会自动解决 · 需手动确认",
       "autoResolveSoon": "即将自动解决",
       "autoResolveInHours": "{hours} 小时后自动保留旧记忆",
+      "autoResolveInMinutes": "{minutes} 分钟后自动保留旧记忆",
       "autoResolveInDays": "{days} 天后自动保留旧记忆"
     },
     "batchApproveSuccess": "批量确认成功",
@@ -13705,6 +13707,8 @@
     "autoMemoryExtracted": "已记住 {count} 条偏好",
     "memoryRecallUpdated": "记忆召回范围已更新",
     "conflictDetected": "检测到记忆冲突，请在记忆中查看并裁决",
+    "conflictDetectedDesc": "新的记忆冲突等待你审阅。",
+    "conflictHighRiskDetectedDesc": "高风险冲突，不会自动解决，需要你确认。",
     "viewMemoryCenter": "查看记忆",
     "reviewSharedContextProposal": "前往记忆中心审批",
     "streamCompleted": "Agent 回复已完成",

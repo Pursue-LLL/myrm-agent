@@ -8977,7 +8977,8 @@
       "post_hook_blocked": "執行後攔截",
       "tool_cancelled": "已取消",
       "guardrail_blocked": "安全攔截",
-      "benchmark_blocked": "評測內容攔截"
+      "benchmark_blocked": "評測內容攔截",
+      "skill_usage_guard": "技能用法已重新導向"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
@@ -9132,6 +9133,7 @@
       "autoResolveNever": "不會自動解決 · 需手動確認",
       "autoResolveSoon": "即將自動解決",
       "autoResolveInHours": "{hours} 小時後自動保留舊記憶",
+      "autoResolveInMinutes": "{minutes} 分鐘後自動保留舊記憶",
       "autoResolveInDays": "{days} 天後自動保留舊記憶"
     },
     "batchApproveSuccess": "批次確認成功",
@@ -13627,6 +13629,8 @@
     "autoMemoryExtracted": "已記住 {count} 條偏好",
     "memoryRecallUpdated": "記憶召回範圍已更新",
     "conflictDetected": "偵測到記憶衝突，請在記憶中查看並裁決",
+    "conflictDetectedDesc": "新的記憶衝突等待你審閱。",
+    "conflictHighRiskDetectedDesc": "高風險衝突，不會自動解決，需要你確認。",
     "viewMemoryCenter": "檢視記憶",
     "reviewSharedContextProposal": "前往記憶中心審批",
     "streamCompleted": "Agent 回覆已完成",
