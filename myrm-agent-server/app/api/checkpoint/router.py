@@ -1,7 +1,7 @@
 """Checkpoint and file snapshot management REST API.
 
 Provides endpoints for:
-- Subagent checkpoint management (list, resume, delete, cleanup)
+- Subagent checkpoint management (list, delete, cleanup)
 - File snapshot management (list, restore, diff, delete, cleanup)
 """
 
@@ -105,7 +105,6 @@ async def list_checkpoints(
                 timestamp=cp.timestamp,
                 progress=cp.progress,
                 last_tool=cp.last_tool,
-                resumable=cp.resumable,
                 task_description=cp.task_description,
             )
             for cp in checkpoints

@@ -1,7 +1,6 @@
 """Tests for corrupted subagent checkpoint handling in the checkpoint API.
 
 Verifies that a corrupted (unparseable) checkpoint file:
-- resumes with a 400 (not a generic 500)
 - can still be deleted (not blocked by a 500)
 """
 from __future__ import annotations
@@ -44,22 +43,6 @@ def _write_corrupt_checkpoint(storage, task_id: str) -> None:
 
 
 @pytest.mark.asyncio
-async def test_resume_corrupted_checkpoint_returns_400(
-    async_client: httpx.AsyncClient,
-    _isolate_storage,
-) -> None:
-    _write_corrupt_checkpoint(_isolate_storage, "corrupt-task")
-
-    response = await async_client.post(
-        "/api/v1/checkpoint/resume",
-        json={"task_id": "corrupt-task"},
-    )
-
-    assert response.status_code == 400
-    assert "corrupted" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
 async def test_delete_corrupted_checkpoint_succeeds(
     async_client: httpx.AsyncClient,
     _isolate_storage,
@@ -79,19 +62,6 @@ async def test_delete_missing_checkpoint_returns_404(
     _isolate_storage,
 ) -> None:
     response = await async_client.delete("/api/v1/checkpoint/not-exist")
-
-    assert response.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_resume_missing_checkpoint_returns_404(
-    async_client: httpx.AsyncClient,
-    _isolate_storage,
-) -> None:
-    response = await async_client.post(
-        "/api/v1/checkpoint/resume",
-        json={"task_id": "not-exist"},
-    )
 
     assert response.status_code == 404
 
@@ -123,4 +93,3 @@ async def test_list_exposes_task_description(
     info = payload["checkpoints"][0]
     assert info["task_id"] == "task-desc"
     assert info["task_description"] == "Research competitor pricing"
-    assert info["resumable"] is False

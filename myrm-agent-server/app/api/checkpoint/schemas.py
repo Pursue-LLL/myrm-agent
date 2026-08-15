@@ -2,11 +2,10 @@
 
 [POS] app/api/checkpoint/schemas.py
 [INPUT] None
-[OUTPUT] CheckpointInfo, CheckpointListResponse, CheckpointResumeRequest,
-         CheckpointResumeResponse, FileSnapshotCreateRequest, FileSnapshotCreateResponse,
-         FileSnapshotInfoResponse, FileSnapshotListResponse,
-         FileSnapshotRestoreRequest, FileSnapshotRestoreResponse,
-         FileChangeResponse, FileDiffResponse
+[OUTPUT] CheckpointInfo, CheckpointListResponse, FileSnapshotCreateRequest,
+         FileSnapshotCreateResponse, FileSnapshotInfoResponse,
+         FileSnapshotListResponse, FileSnapshotRestoreRequest,
+         FileSnapshotRestoreResponse, FileChangeResponse, FileDiffResponse
 """
 
 from __future__ import annotations
@@ -27,7 +26,6 @@ class CheckpointInfo(BaseModel):
     timestamp: float
     progress: float
     last_tool: str | None
-    resumable: bool
     task_description: str = ""
 
 
@@ -36,23 +34,6 @@ class CheckpointListResponse(BaseModel):
 
     checkpoints: list[CheckpointInfo]
     total: int
-
-
-class CheckpointResumeRequest(BaseModel):
-    """Resume from checkpoint request model."""
-
-    task_id: str = Field(..., description="Task ID to resume from checkpoint")
-
-
-class CheckpointResumeResponse(BaseModel):
-    """Resume from checkpoint response model."""
-
-    status: str
-    task_id: str
-    message: str
-    session_id: str | None = None
-    messages_count: int = 0
-    checkpoint_data: dict[str, object] | None = None
 
 
 # ============================================================================
