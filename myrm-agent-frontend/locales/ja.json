@@ -9267,12 +9267,12 @@
         "verify": "検証",
         "forget": "忘却",
         "correct": "修正",
+        "conflict": "矛盾",
         "maintenance": "メンテナンス",
         "import_memory": "インポート",
         "export_memory": "エクスポート",
         "health_check": "ヘルスチェック",
-        "shared_context_proposal": "共有提案",
-        "conflict": "矛盾"
+        "shared_context_proposal": "共有提案"
       },
       "openSessionReplay": "セッションリプレイを開く",
       "replayUnavailable": "セッションリプレイを開けません",

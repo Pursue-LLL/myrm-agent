@@ -9245,12 +9245,12 @@
         "verify": "Verifizieren",
         "forget": "Vergessen",
         "correct": "Richtig",
+        "conflict": "Konflikt",
         "maintenance": "Wartung",
         "import_memory": "Importieren",
         "export_memory": "Exportieren",
         "health_check": "Gesundheitscheck",
-        "shared_context_proposal": "Geteilter Vorschlag",
-        "conflict": "Konflikt"
+        "shared_context_proposal": "Geteilter Vorschlag"
       },
       "openSessionReplay": "Öffnen Sie die Sitzungswiedergabe",
       "replayUnavailable": "Sitzungswiedergabe nicht verfügbar",

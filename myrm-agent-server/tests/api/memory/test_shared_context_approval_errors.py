@@ -5,7 +5,7 @@ from typing import cast
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.memory.operations.shared_contexts import approve_shared_context_write_proposal
+from app.api.memory.operations.shared_context.shared_contexts import approve_shared_context_write_proposal
 from app.core.utils.errors import MyrmError
 from app.schemas.responses import BusinessCode
 from app.services.memory.shared_context.shared_context_materializer import SharedContextProposalMaterializer

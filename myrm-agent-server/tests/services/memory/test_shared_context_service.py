@@ -13,7 +13,7 @@ from myrm_agent_harness.toolkits.memory.types import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.api.memory.operations.shared_context_history import (
+from app.api.memory.operations.shared_context.shared_context_history import (
     create_shared_context_proposal_from_history,
 )
 from app.api.memory.shared_context_schemas import (

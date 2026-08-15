@@ -14,7 +14,7 @@ import time
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from myrm_agent_harness.agent.plugins.models import PluginMcpServer, PluginSkill
@@ -1288,24 +1288,16 @@ class TestListAndUninstallPlugins:
             ),
             update_profile=AsyncMock(),
         )
-        uow_cls = SimpleNamespace()
-        uow_instance = SimpleNamespace(agent_repo=agent_repo)
-
-        async def _uow_cm():
-            return uow_instance
-
-        uow_cls.__aenter__ = _uow_cm
-
-        async def _aexit(*_args: object) -> None:
-            return None
-
-        uow_cls.__aexit__ = _aexit
+        uow_mock = MagicMock()
+        uow_mock.agent_repo = agent_repo
+        uow_mock.__aenter__ = AsyncMock(return_value=uow_mock)
+        uow_mock.__aexit__ = AsyncMock(return_value=None)
 
         with (
             patch("app.services.config.service.config_service", config_service),
             patch(
                 "app.database.repositories.uow.UnitOfWork",
-                lambda: uow_cls(),
+                return_value=uow_mock,
             ),
             patch(
                 "app.core.skills.store.evolution_store.get_evolution_skill_store_db_path",
@@ -1325,10 +1317,9 @@ class TestListAndUninstallPlugins:
         persisted = set_args[1]["mcpConfigs"]
         assert [cfg["name"] for cfg in persisted] == ["user-mcp"]
         # Agent binding drops the uninstalled server name only.
-        assert agent_repo.update_profile.await_args.args == ("agent-1",)
-        update_meta = agent_repo.update_profile.await_args.kwargs["updates"]["metadata"]
-        assert update_meta["mcp_ids"] == ["user-mcp"]
-
+        call_args = agent_repo.update_profile.await_args.args
+        assert call_args[0] == "agent-1"
+        assert call_args[1]["metadata"]["mcp_ids"] == ["user-mcp"]
     async def test_uninstall_missing_plugin_noop(self, tmp_path: Path) -> None:
         from app.services.plugins.import_service import uninstall_plugin
 

@@ -9270,12 +9270,12 @@
         "verify": "驗證",
         "forget": "遺忘",
         "correct": "糾正",
+        "conflict": "衝突",
         "maintenance": "維護",
         "import_memory": "匯入",
         "export_memory": "匯出",
         "health_check": "健康檢查",
-        "shared_context_proposal": "共享提案",
-        "conflict": "衝突"
+        "shared_context_proposal": "共享提案"
       },
       "openSessionReplay": "開啟會話回放",
       "replayUnavailable": "無法開啟會話回放",

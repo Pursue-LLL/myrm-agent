@@ -9244,12 +9244,12 @@
         "verify": "검증",
         "forget": "삭제",
         "correct": "수정",
+        "conflict": "충돌",
         "maintenance": "유지보수",
         "import_memory": "가져오기",
         "export_memory": "내보내기",
         "health_check": "건강 점검",
-        "shared_context_proposal": "공유 제안",
-        "conflict": "충돌"
+        "shared_context_proposal": "공유 제안"
       },
       "openSessionReplay": "세션 리플레이 열기",
       "replayUnavailable": "세션 리플레이를 사용할 수 없습니다",

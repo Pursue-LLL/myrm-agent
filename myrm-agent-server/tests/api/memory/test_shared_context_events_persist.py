@@ -14,7 +14,7 @@ from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.api.memory.operations.shared_contexts import (
+from app.api.memory.operations.shared_context.shared_contexts import (
     archive_shared_context,
     delete_shared_context_binding,
 )

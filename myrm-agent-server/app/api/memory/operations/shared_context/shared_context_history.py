@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db_session
-from app.api.memory.operations.shared_context_serializers import proposal_to_item
+from .shared_context_serializers import proposal_to_item
 from app.api.memory.shared_context_schemas import (
     CreateSharedContextProposalFromHistoryRequest,
     SharedContextHistoryMessageItem,

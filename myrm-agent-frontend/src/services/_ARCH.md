@@ -43,7 +43,7 @@
 | `subscription*.ts` / `entitlements*.ts` | **仅 SaaS/sandbox** 构建使用的 CP 配额 |
 | `marketplace.ts` | **仅 SaaS/sandbox** Org Marketplace CRUD：browse/install/publish/force-push |
 | `themeMarketplace.ts` | **仅 SaaS/sandbox** 公开主题市场：CP catalog/checkout + admin suspend/restore + server install-from-marketplace |
-| `enterprise-org.ts` | **仅 SaaS/sandbox** Enterprise Org 管理：create/members/offboard/transfer |
+| `enterprise-org.ts` | **仅 SaaS/sandbox** Enterprise Org 管理：create/members/offboard/transfer、模型白名单（model-policy）、审批策略（approval-policy）；**直连 CP**（`resolveCpBaseUrl` + `getAuthHeaders`），orgId 由 `getMyOrg()` 获取 |
 | `org-model-policy.ts` | **仅 SaaS/sandbox** 组织模型白名单客户端：`fetchOrgModelPolicy` + `isModelAllowedByPolicy` glob 匹配 |
 | `apiKeys.ts` | `/api-keys/*` CRUD（OpenAI 兼容密钥） |
 | `budget.ts` | `/budget/*` 策略 CRUD 与状态（multi-dimension） |
@@ -59,7 +59,7 @@
 | `copilot.ts` | Run digest 顾问：`fetchRunDigest` / `askAdvisor` |
 | `credentials.ts` | 渠道/模型凭证文件与列表 API |
 | `dataset-export.ts` | 数据集导出：格式信息与导出请求 |
-| `enterprise-admin.ts` | 企业审计与用量 API（**仅**云托管企业版，经 sandbox 代理 CP） |
+| `enterprise-admin.ts` | 企业审计与用量 API（**仅**云托管企业版）：平台审计 logs / stats / 导出、Agent 行为审计（`/api/enterprise/org/{org_id}/agent-audit/events`）、组织用量与预算；**直连 CP**（`resolveCpBaseUrl` + `getAuthHeaders`） |
 | `eval.ts` | Eval 评估：summary / run / report / status / cases |
 | `external-agents.ts` | 外部 Agent 认证状态 + 登录流（SSE 喂入） |
 | `followUps.ts` | 记忆 follow-ups：列表 / dismiss / snooze |

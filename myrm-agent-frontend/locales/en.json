@@ -9346,12 +9346,12 @@
         "verify": "Verify",
         "forget": "Forget",
         "correct": "Correct",
+        "conflict": "Conflict",
         "maintenance": "Maintenance",
         "import_memory": "Import",
         "export_memory": "Export",
         "health_check": "Health Check",
-        "shared_context_proposal": "Shared Proposal",
-        "conflict": "Conflict"
+        "shared_context_proposal": "Shared Proposal"
       },
       "openSessionReplay": "Open Session Replay",
       "replayUnavailable": "Session replay unavailable",

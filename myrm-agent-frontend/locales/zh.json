@@ -9350,12 +9350,12 @@
         "verify": "验证",
         "forget": "遗忘",
         "correct": "纠正",
+        "conflict": "冲突",
         "maintenance": "维护",
         "import_memory": "导入",
         "export_memory": "导出",
         "health_check": "健康检查",
-        "shared_context_proposal": "共享提案",
-        "conflict": "冲突"
+        "shared_context_proposal": "共享提案"
       },
       "openSessionReplay": "打开会话回放",
       "replayUnavailable": "无法打开会话回放",

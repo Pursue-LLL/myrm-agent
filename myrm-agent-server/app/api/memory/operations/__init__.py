@@ -9,6 +9,8 @@ from app.api.memory.operations import (
     guardian,
     pending,
     reindex,
+)
+from app.api.memory.operations.shared_context import (
     shared_context_history,
     shared_context_migration,
     shared_contexts,

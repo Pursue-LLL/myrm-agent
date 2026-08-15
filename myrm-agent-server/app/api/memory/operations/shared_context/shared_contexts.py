@@ -22,7 +22,7 @@ from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperat
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db_session
-from app.api.memory.operations.shared_context_serializers import binding_to_item, context_to_item, proposal_to_item
+from .shared_context_serializers import binding_to_item, context_to_item, proposal_to_item
 from app.api.memory.shared_context_schemas import (
     CreateSharedContextBindingRequest,
     CreateSharedContextRequest,

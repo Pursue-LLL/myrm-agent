@@ -29,7 +29,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandDoctorCheck,
     MemoryCommandRuntimeStatus,
 )
-from app.services.memory.diagnostics.diagnostic_probe_results import (
+from app.services.memory.diagnostics.diagnostic.diagnostic_probe_results import (
     critical_probe,
     doctor_check_to_probe,
     missing_probe,
@@ -37,11 +37,11 @@ from app.services.memory.diagnostics.diagnostic_probe_results import (
     rollup_status,
     run_summary,
 )
-from app.services.memory.diagnostics.diagnostic_quality_governance import run_memory_quality_probe
-from app.services.memory.diagnostics.diagnostic_recall_benchmark import run_golden_recall_benchmark
-from app.services.memory.diagnostics.diagnostic_repair_plans import with_check_repair_plans, with_probe_repair_plans
-from app.services.memory.diagnostics.diagnostic_slo import build_diagnostic_slo
-from app.services.memory.diagnostics.diagnostic_static_checks import (
+from app.services.memory.diagnostics.diagnostic.diagnostic_quality_governance import run_memory_quality_probe
+from app.services.memory.diagnostics.diagnostic.diagnostic_recall_benchmark import run_golden_recall_benchmark
+from app.services.memory.diagnostics.diagnostic.diagnostic_repair_plans import with_check_repair_plans, with_probe_repair_plans
+from app.services.memory.diagnostics.diagnostic.diagnostic_slo import build_diagnostic_slo
+from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import (
     probe_context_bundle_manifest,
     probe_deployment_boundary,
     probe_embedding_provider,

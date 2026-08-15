@@ -29,8 +29,8 @@ from myrm_agent_harness.toolkits.memory import (
 )
 
 from app.schemas.memory.command_center import MemoryCommandBenchmarkSummary, MemoryCommandDiagnosticProbeResult
-from app.services.memory.diagnostics.diagnostic_probe_results import critical_probe, missing_probe
-from app.services.memory.diagnostics.diagnostic_repair_plans import with_probe_repair_plans
+from .diagnostic_probe_results import critical_probe, missing_probe
+from .diagnostic_repair_plans import with_probe_repair_plans
 
 logger = logging.getLogger(__name__)
 
