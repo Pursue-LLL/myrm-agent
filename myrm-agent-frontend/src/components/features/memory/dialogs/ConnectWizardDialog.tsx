@@ -23,6 +23,7 @@ import {
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { countProviderTrees } from '@/services/memory/integration';
 import { getFileExtension, getMimeType, triggerDownload } from '@/lib/utils/fileUtils';
+import { resolveDoctorMessageKey } from '@/lib/i18n/connectDoctor';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -32,6 +33,11 @@ interface ConnectWizardDialogProps {
 }
 
 type WizardStep = 'select' | 'config' | 'plugin' | 'done';
+
+interface DoctorOutcome {
+  healthy: boolean;
+  detail: string;
+}
 
 export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogProps) {
   const locale = useLocale();
@@ -49,7 +55,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   const [copiedToken, setCopiedToken] = useState(false);
   const [copiedFile, setCopiedFile] = useState(false);
   const [pluginEmbedToken, setPluginEmbedToken] = useState(false);
-  const [doctorResult, setDoctorResult] = useState<boolean | null>(null);
+  const [doctorResult, setDoctorResult] = useState<DoctorOutcome | null>(null);
   const [doctorRunning, setDoctorRunning] = useState(false);
 
   const loadProfiles = useCallback(async () => {
@@ -175,9 +181,9 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     setDoctorRunning(true);
     try {
       const result = await runConnectDoctor(AGENT_PLUGIN_PROFILE_ID);
-      setDoctorResult(result.healthy);
+      setDoctorResult({ healthy: result.healthy, detail: result.detail });
     } catch {
-      setDoctorResult(false);
+      setDoctorResult({ healthy: false, detail: 'unknown' });
     } finally {
       setDoctorRunning(false);
     }
@@ -188,9 +194,9 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     setDoctorRunning(true);
     try {
       const result = await runConnectDoctor(selectedProfile);
-      setDoctorResult(result.healthy);
+      setDoctorResult({ healthy: result.healthy, detail: result.detail });
     } catch {
-      setDoctorResult(false);
+      setDoctorResult({ healthy: false, detail: 'unknown' });
     } finally {
       setDoctorRunning(false);
     }
@@ -409,13 +415,13 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
             {doctorResult !== null && (
               <div
                 className={cn(
-                  'rounded-full p-2 text-xs',
-                  doctorResult
-                    ? 'bg-green-500/10 text-green-700 dark:text-green-400'
-                    : 'bg-red-500/10 text-red-700 dark:text-red-400',
+                  'rounded-lg border p-3 text-xs leading-relaxed',
+                  doctorResult.healthy
+                    ? 'border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400'
+                    : 'border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400',
                 )}
               >
-                {doctorResult ? t('doctorHealthy') : t('doctorUnhealthy')}
+                {t(resolveDoctorMessageKey(doctorResult.detail, doctorResult.healthy))}
               </div>
             )}
 
@@ -500,13 +506,13 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
             {doctorResult !== null && (
               <div
                 className={cn(
-                  'rounded-full p-2 text-xs',
-                  doctorResult
-                    ? 'bg-green-500/10 text-green-700 dark:text-green-400'
-                    : 'bg-red-500/10 text-red-700 dark:text-red-400',
+                  'rounded-lg border p-3 text-xs leading-relaxed',
+                  doctorResult.healthy
+                    ? 'border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400'
+                    : 'border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400',
                 )}
               >
-                {doctorResult ? t('doctorHealthy') : t('doctorUnhealthy')}
+                {t(resolveDoctorMessageKey(doctorResult.detail, doctorResult.healthy))}
               </div>
             )}
 

@@ -1,3 +1,14 @@
+/**
+ * [INPUT]
+ * @/lib/api::apiRequest (POS: frontend API request helper)
+ *
+ * [OUTPUT]
+ * 质量历史/洞察/推荐/版本对比/回滚/Shadow A/B API 与 `/batch-optimization/tasks/{id}/cancel`、`rollback` 封装。
+ *
+ * [POS]
+ * 技能优化客户端。`/skill-optimization/*` REST 契约。
+ */
+
 import { apiRequest } from '@/lib/api';
 
 const PREFIX = '/skill-optimization';

@@ -63,5 +63,5 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 ## 依赖
 
 - `@/store/useConfigStore` — 记忆策略（含 `memoryEnableConversationSearch`）
-- `@/services/memoryArchive`、`@/services/migrationDiscovery`
+- `@/services/memory/archive`、`@/services/migrationDiscovery`
 - 父模块 [`settings/sections/_ARCH.md`](../_ARCH.md) · [`features/_ARCH.md`](../../../_ARCH.md)

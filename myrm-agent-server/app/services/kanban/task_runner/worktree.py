@@ -3,8 +3,7 @@
 [INPUT]
 - myrm_agent_harness.api::KanbanStore (POS: Public protocol re-exports; KanbanStore defined in toolkits.kanban.protocols.)
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
-- app.services.chat._git_shared (POS: 共享 git 命令基础设施——per-base_dir merge 锁、merge abort/冲突文件收集、auto-commit 与 merge 的 git identity 兜底)
-- app.services.chat.sandbox_worktree (POS: worktree 业务错误类型 WorktreeCreateError/WorktreeErrorReason/_classify_git_error)
+- app.core.utils.git_worktree (POS: 共享 git worktree 命令基础设施——per-base_dir merge 锁、merge abort/冲突文件收集、auto-commit 与 merge 的 git identity 兜底、worktree 业务错误类型 WorktreeCreateError/WorktreeErrorReason/_classify_git_error)
 
 [OUTPUT]
 - resolve_base_dir, resolve_workspace, create_worktree, cleanup_worktree, merge_task_worktree
@@ -27,18 +26,16 @@ from pathlib import Path
 from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskEventKind
 
-from app.services.chat._git_shared import (
+from app.core.utils.git_worktree import (
     _GIT_ENV,
+    WorktreeCreateError,
+    WorktreeErrorReason,
     _abort_merge,
     _auto_commit_dirty_worktree,
+    _classify_git_error,
     _collect_conflict_files,
     _get_merge_lock,
     _git_identity,
-)
-from app.services.chat.sandbox_worktree import (
-    WorktreeCreateError,
-    WorktreeErrorReason,
-    _classify_git_error,
 )
 from app.services.kanban.task_runner._worktree_merge import (
     _branch_has_commits,

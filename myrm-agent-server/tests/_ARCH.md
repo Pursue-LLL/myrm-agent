@@ -62,14 +62,14 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/skills/test_permission_service.py` | 模块 | 技能权限 service 单测：async/sync checker、per-session 缓存命中/未命中、缓存清理、DB 脏值跳过（覆盖率 100%） |
 | `services/skills/test_permission_gate_integration.py` | 模块 | 技能权限 gate 装配链路集成（真实 checker + SkillBoundaryProvider + GuardrailMiddleware；授权/拒绝/无技能/MCP 绕过/网络工具） |
 | `services/skills/test_permission_gate_real_db_integration.py` | 模块 | 技能权限 gate 真实 DB 全链路集成（无 mock）：grant 行写入 SQLite → 缓存读取 → gate 决策；revoke 清缓存实时失效；脏值跳过 |
-| `integration/skills/` | 模块 | 技能管道集成测试目录：prebuilt 同步契约（`test_prebuilt_skills_e2e.py`——含 `test_tdd_skill_v120_contract_guard` 断言 TDD v1.2.0 契约字段/正文标题/references 段落 + batch import/curator/discovery 等 7 文件） |
+| `integration/skills/` | 模块 | 技能管道集成测试目录：prebuilt 同步契约（`test_prebuilt_skills_e2e.py`——含 `test_tdd_skill_v120_contract_guard` 断言 TDD v1.2.0 契约字段/正文标题/边界护栏措辞/references 段落 + batch import/curator/discovery 等 7 文件） |
 | `api/chats/test_citation_seed_fixture.py` | 模块 | citation fixture seed HTTP 单测（local-only，`/chats/test/seed-citation-fixture`） |
 | `api/chats/test_deliverable_seed_fixture.py` | 模块 | deliverable link fixture seed HTTP 单测（`/chats/test/seed-deliverable-link-fixture`） |
 | `core/artifacts/test_processor_short_file_id.py` | 模块 | LocalArtifactProcessor 透传 `short_file_id` → artifacts SSE JSON |
 | `core/artifacts/test_processor_oversized_shareable.py` | 模块 | Local 超大可分享 reference-only persist + processor→deliverable 集成（sandboxes 路径、一次 resolve） |
 | `core/artifacts/test_processor_upsert_emit.py` | 模块 | upsert 失败不 emit / 部分 upsert 失败只 emit 成功项 |
 | `e2e/test_deliverable_link_chrome_e2e.py` | 模块 | Deliverable inline link Chrome READ E2E（seed → 自然路由 hydrate → `[data-testid=deliverable-reference-link]` → Portal 预览；**禁止 attachToChat**，store/DOM 不同步） |
-| `e2e/test_chat_share_chrome_e2e.py` | 模块 | Chat Share Chrome E2E（PRIVATE exclusive_backend）— `test_chat_share_lifecycle_via_ui`：seed chat → WebUI 侧栏 More→Share → 创建分享 → 对话框 live URL + 有效期 → 公开页 HTTP 200 含内容 → 关闭重开 status 重建同一链接 → Revoke → revoked 态 + 公开页 404 → 重建链接 ≠ 复活已撤销链接；`test_chat_share_password_protected_via_ui`：对话框填密码创建 → 公开页 403 密码门 → 错误密码仍 403 → 正确密码（URL query + 表单 POST）放行内容 → 重开显示 passwordProtectedStatus（无 URL，密码不落库不可重建）→ Revoke → 公开页 404 |
+| `e2e/test_chat_share_chrome_e2e.py` | 模块 | Chat Share Chrome E2E（PRIVATE exclusive_backend）— `test_chat_share_lifecycle_via_ui`：seed chat → WebUI 侧栏 More→Share → 创建分享 → 对话框 live URL + 有效期 → 公开页 HTTP 200 含内容 → 关闭重开 status 重建同一链接 → Revoke → revoked 态 + 公开页 404 → 重建链接 ≠ 复活已撤销链接；`test_chat_share_password_protected_via_ui`：对话框填密码创建 → 公开页 403 密码门 → 错误密码仍 403 → 正确密码（URL query + 表单 POST）放行内容 → 重开显示 passwordProtectedStatus（无 URL，密码不落库不可重建）→ Revoke → 公开页 404；`test_chat_share_real_conversation_via_ui`：**真实 LLM 对话全链路**（McpChatSession 驱动真实输入框，WebUI 已配模型）→ 新对话发消息 → 等待助手回复（真实模型输出）→ 侧栏分享 → 公开页 HTTP 200 且复现真实 user 消息 + 助手回复 → Revoke → 404 |
 | `api/wiki/test_wiki_structural_cache_invalidation.py` | 模块 | Wiki vault mutation SSOT：`_after_wiki_vault_mutation` 在 apply/move/repair-publication/delete/repair-types/pending approve 等端点触发或 skip（9 项） |
 | `api/wiki/test_maintain_endpoint.py` | 模块 | POST /maintain：默认 structural mode · `?mode=full` · compile-busy 409 |
 | `api/chats/test_kanban_closure_seed_fixture.py` | 模块 | Kanban closure fixture seed HTTP 单测（`/chats/test/seed-kanban-closure-fixture`） |

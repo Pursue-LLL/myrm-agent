@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-批量技能优化 WebUI 薄壳路由。列表/创建经 `apiRequest` 直调 `/batch-optimization/tasks`；cancel/rollback 经 `@/services/skill-optimization.ts`；类型与统计工具在 `@/lib/batch-optimization.ts`。
+批量技能优化 WebUI 薄壳路由。列表/创建经 `apiRequest` 直调 `/batch-optimization/tasks`；cancel/rollback 经 `@/services/skill/optimization.ts`；类型与统计工具在 `@/lib/batch-optimization.ts`。
 
 ## 文件清单
 
@@ -16,7 +16,7 @@
 
 - `@/components/features/skills/*` — 未下沉；止损链核心组件在 Settings→技能
 - `@/lib/api`（`apiRequest`）— 列表 GET、创建 POST `/batch-optimization/tasks`
-- `@/services/skill-optimization.ts` — `cancelBatchTask` / `rollbackBatchTask`
+- `@/services/skill/optimization.ts` — `cancelBatchTask` / `rollbackBatchTask`
 - `@/lib/batch-optimization.ts` — 类型、进度/统计/format 工具
 - `locales/*` → `settings.skillOptimization.batchPage`（cancel/rollback toast 三分支：`cancelRollback*` / `rollbackSuccess`/`rollbackPartial`/`rollbackFailed`）+ `localizeReactNode` 渲染 shell 双语源串
 - `@/lib/batch-optimization.ts` → `resolveBatchRollbackToastParams`（cancel 与 terminal rollback 共用）

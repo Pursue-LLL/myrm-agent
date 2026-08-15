@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.chat._git_shared import (
+from app.core.utils.git_worktree import (
     _auto_commit_dirty_worktree,
 )
 from app.services.chat.sandbox_worktree import (

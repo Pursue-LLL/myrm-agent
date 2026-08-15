@@ -650,6 +650,31 @@ class TestPublicSharePage:
         assert resp.status_code == 404
         assert "Content Unavailable" in resp.text
 
+    def test_malformed_token_body_is_dead_link(self, share_client: TestClient) -> None:
+        """A token with a non-JSON payload answers 404 Link Expired."""
+        import base64
+
+        body = base64.urlsafe_b64encode(b"not-json").rstrip(b"=").decode()
+        resp = share_client.get(
+            f"/public/chat-share/{body}.bad-signature",
+            headers={"Accept": "text/html"},
+        )
+        assert resp.status_code == 404
+        assert "Link Expired" in resp.text
+
+    def test_token_with_bad_claim_types_is_dead_link(self, share_client: TestClient) -> None:
+        """A token whose payload decodes but has wrong claim types is invalid."""
+        import base64
+        import json
+
+        body = base64.urlsafe_b64encode(json.dumps({"v": 1}).encode()).rstrip(b"=").decode()
+        resp = share_client.get(
+            f"/public/chat-share/{body}.bad-signature",
+            headers={"Accept": "text/html"},
+        )
+        assert resp.status_code == 404
+        assert "Link Expired" in resp.text
+
     def test_password_token_unlocks_via_post_form(self, share_client: TestClient) -> None:
         """The password is posted in the form body (CWE-598) and PRG-redirects.
 

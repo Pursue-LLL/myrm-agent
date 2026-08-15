@@ -4,7 +4,7 @@
 - myrm_agent_harness.api::KanbanStore (POS: Public protocol re-exports)
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask (POS: Kanban domain types)
 - worktree (POS: worktree_dir / _worktree_branch_name / resolve_base_dir)
-- app.services.chat._git_shared (POS: _GIT_ENV / _worktree_is_dirty shared helpers)
+- app.core.utils.git_worktree (POS: _GIT_ENV / _worktree_is_dirty shared helpers)
 
 [OUTPUT]
 - cleanup_worktree (bool: worktree 是否已移除)
@@ -12,7 +12,7 @@
 
 [POS]
 Worktree 生命周期清理：删除 worktree 目录与唯一分支。与 worktree.py 解耦，
-避免主文件超行数预算。脏状态检测复用 _git_shared._worktree_is_dirty，
+避免主文件超行数预算。脏状态检测复用 core.utils.git_worktree._worktree_is_dirty，
 避免两处实现语义漂移。
 """
 
@@ -26,7 +26,7 @@ from pathlib import Path
 from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
-from app.services.chat._git_shared import _GIT_ENV, _worktree_is_dirty
+from app.core.utils.git_worktree import _GIT_ENV, _worktree_is_dirty
 
 logger = logging.getLogger(__name__)
 

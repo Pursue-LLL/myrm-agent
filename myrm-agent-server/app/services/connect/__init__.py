@@ -1,12 +1,12 @@
 """Connect service: external agent connection management."""
 
+from app.services.connect.profiles import PROFILES, ConnectionProfile
 from app.services.connect.service import (
-    PROFILES,
     ConfigSnippet,
-    ConnectionProfile,
     ConnectorState,
     ConnectorStatus,
     ConnectService,
+    DoctorResult,
     VerifiedConnectToken,
     get_connect_service,
 )
@@ -18,6 +18,7 @@ __all__ = [
     "ConnectionProfile",
     "ConnectorState",
     "ConnectorStatus",
+    "DoctorResult",
     "VerifiedConnectToken",
     "get_connect_service",
 ]

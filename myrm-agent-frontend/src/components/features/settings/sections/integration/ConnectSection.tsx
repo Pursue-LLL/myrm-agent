@@ -41,6 +41,7 @@ import {
 } from '@/components/primitives/alert-dialog';
 import { toast } from '@/hooks/shared/useToast';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { resolveDoctorMessageKey } from '@/lib/i18n/connectDoctor';
 import { cn } from '@/lib/utils';
 import SettingsSection from '../SettingsSection';
 import {
@@ -123,10 +124,11 @@ const ConnectSection = memo(() => {
       setAction(profileId, 'loading');
       try {
         const result = await runConnectDoctor(profileId);
+        const message = t(resolveDoctorMessageKey(result.detail, result.healthy));
         if (result.healthy) {
-          toast.success(t('doctorHealthy'));
+          toast.success(message);
         } else {
-          toast.error(t('doctorUnhealthy'));
+          toast.error(message);
         }
         await fetchStatus();
       } catch {

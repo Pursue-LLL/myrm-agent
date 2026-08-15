@@ -3,10 +3,13 @@
 [INPUT]
 - app.core.infra.ingress::get_public_ingress_base_url (POS: Resolve ingress URL)
 - app.config.settings::settings (POS: Application settings)
+- app.config.deploy_mode::is_local_mode (POS: Deployment-mode detection)
+- app.services.connect.profiles::ConnectionProfile (POS: External agent profile registry)
+- app.services.connect.doctor_check::verify_connector_config (POS: On-disk MCP config verification)
 
 [OUTPUT]
 - ConnectService: orchestrates connection profiles, tokens, and health checks.
-- ConnectionProfile: describes an external agent type and how to connect it.
+- DoctorResult: doctor check outcome with a machine-readable detail code.
 
 [POS]
 Manages external AI agent (Claude Code, Cursor, Windsurf, etc.) connections
@@ -16,7 +19,7 @@ health checks. Business logic for the Connect Wizard feature.
 
 from __future__ import annotations
 
-import hashlib
+import asyncio
 import json
 import logging
 import secrets
@@ -24,9 +27,18 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
+from app.config.deploy_mode import is_local_mode
 from app.config.settings import settings
+from app.services.connect.doctor_check import (
+    DOCTOR_TOKEN_VALID,
+    DOCTOR_UNKNOWN,
+    DoctorVerdict,
+    hash_token,
+    verify_connector_config,
+)
+from app.services.connect.profiles import PROFILES, ConnectionProfile
 
 if TYPE_CHECKING:
     from app.services.connect.agent_plugin import AgentPluginBundle
@@ -40,63 +52,6 @@ class ConnectorStatus(str, Enum):
     READY = "ready"
     CONFIGURED = "manual_config_required"
     MISSING = "missing"
-
-
-@dataclass(frozen=True)
-class ConnectionProfile:
-    """Describes how a specific external agent connects to our MCP server."""
-
-    id: str
-    label: str
-    description: str
-    config_format: Literal["json_mcp", "toml_mcp"]
-    config_file_path: str
-    instructions_key: str
-
-
-# Supported external agents and their MCP config details
-PROFILES: dict[str, ConnectionProfile] = {
-    "claude_code": ConnectionProfile(
-        id="claude_code",
-        label="Claude Code",
-        description="Anthropic's Claude Code CLI agent",
-        config_format="json_mcp",
-        config_file_path="~/.claude.json",
-        instructions_key="mcpServers",
-    ),
-    "cursor": ConnectionProfile(
-        id="cursor",
-        label="Cursor",
-        description="Cursor IDE AI assistant",
-        config_format="json_mcp",
-        config_file_path="~/.cursor/mcp.json",
-        instructions_key="mcpServers",
-    ),
-    "windsurf": ConnectionProfile(
-        id="windsurf",
-        label="Windsurf",
-        description="Codeium Windsurf IDE agent",
-        config_format="json_mcp",
-        config_file_path="~/.codeium/windsurf/mcp_config.json",
-        instructions_key="mcpServers",
-    ),
-    "codex": ConnectionProfile(
-        id="codex",
-        label="Codex CLI",
-        description="OpenAI Codex CLI agent",
-        config_format="toml_mcp",
-        config_file_path="~/.codex/config.toml",
-        instructions_key="mcp_servers",
-    ),
-    "gemini_cli": ConnectionProfile(
-        id="gemini_cli",
-        label="Gemini CLI",
-        description="Google Gemini CLI agent",
-        config_format="json_mcp",
-        config_file_path="~/.gemini/settings.json",
-        instructions_key="mcpServers",
-    ),
-}
 
 
 @dataclass
@@ -118,6 +73,14 @@ class VerifiedConnectToken:
 
     profile_id: str
     agent_id: str
+
+
+@dataclass(frozen=True)
+class DoctorResult:
+    """Outcome of a connector doctor check."""
+
+    healthy: bool
+    detail: str
 
 
 @dataclass
@@ -244,7 +207,7 @@ class ConnectService:
         self._states[profile_id] = ConnectorState(
             profile_id=profile_id,
             status=ConnectorStatus.CONFIGURED,
-            token_hash=self._hash_token(token),
+            token_hash=hash_token(token),
             agent_id=normalized_agent_id,
             connected_at=datetime.now(UTC),
         )
@@ -261,16 +224,11 @@ class ConnectService:
 
     def resolve_token(self, token: str) -> VerifiedConnectToken | None:
         """Verify an MCP bearer token and return its external + memory scope binding."""
-        token_hash = self._hash_token(token)
+        token_hash = hash_token(token)
         for pid, state in self._states.items():
             if state.token_hash and state.token_hash == token_hash:
                 return VerifiedConnectToken(profile_id=pid, agent_id=state.agent_id)
         return None
-
-    def verify_token(self, token: str) -> str | None:
-        """Verify an incoming MCP token, return profile_id if valid."""
-        resolved = self.resolve_token(token)
-        return resolved.profile_id if resolved is not None else None
 
     async def generate_agent_plugin_bundle(
         self, *, agent_id: str = "default", embed_token: bool = False
@@ -290,7 +248,7 @@ class ConnectService:
         self._states[AGENT_PLUGIN_PROFILE] = ConnectorState(
             profile_id=AGENT_PLUGIN_PROFILE,
             status=ConnectorStatus.CONFIGURED,
-            token_hash=self._hash_token(token),
+            token_hash=hash_token(token),
             agent_id=normalized,
             connected_at=datetime.now(UTC),
         )
@@ -299,21 +257,41 @@ class ConnectService:
             f"{base_url}/mcp", token, agent_id=normalized, embed_token=embed_token
         )
 
-    async def doctor(self, profile_id: str) -> bool:
+    async def doctor(self, profile_id: str) -> DoctorResult:
         """Run a health check on a connector.
 
-        Verifies the token is still valid and the connector state is active.
+        In local/Tauri deployments the external agent's on-disk config file is
+        verified directly (``myrm-memory`` entry + token match). In sandbox mode
+        the config lives on the user's machine, so only token validity is
+        reported and the limitation is surfaced through the detail code.
         """
         if profile_id not in self._states:
-            return False
+            return DoctorResult(healthy=False, detail=DOCTOR_UNKNOWN)
         state = self._states[profile_id]
-        is_healthy = bool(state.token_hash) and state.status != ConnectorStatus.MISSING
         state.last_doctor_at = datetime.now(UTC)
-        state.doctor_ok = is_healthy
-        if is_healthy:
+
+        verdict: DoctorVerdict | None = None
+        profile = PROFILES.get(profile_id)
+        if is_local_mode() and profile is not None and state.token_hash:
+            verdict = await asyncio.to_thread(
+                verify_connector_config,
+                config_file_path=profile.config_file_path,
+                instructions_key=profile.instructions_key,
+                config_format=profile.config_format,
+                token_hash=state.token_hash,
+            )
+
+        if verdict is not None:
+            healthy, detail = verdict.healthy, verdict.detail
+        else:
+            healthy = bool(state.token_hash) and state.status != ConnectorStatus.MISSING
+            detail = DOCTOR_TOKEN_VALID if healthy else DOCTOR_UNKNOWN
+
+        state.doctor_ok = healthy
+        if healthy:
             state.status = ConnectorStatus.READY
         self._save_state()
-        return is_healthy
+        return DoctorResult(healthy=healthy, detail=detail)
 
     def revoke(self, profile_id: str) -> bool:
         """Revoke a connector's token and reset its state."""
@@ -327,15 +305,17 @@ class ConnectService:
         return True
 
     def mark_ready(self, profile_id: str) -> None:
-        """Mark a connector as ready (called on first successful MCP request)."""
+        """Mark a connector as ready on its first successful MCP request.
+
+        ``doctor_ok`` reflects only the last doctor check result, not the mere
+        existence of an MCP call.
+        """
         if profile_id not in self._states:
             return
         state = self._states[profile_id]
         if state.status == ConnectorStatus.READY:
             return
         state.status = ConnectorStatus.READY
-        state.doctor_ok = True
-        state.last_doctor_at = datetime.now(UTC)
         self._save_state()
 
     @staticmethod
@@ -349,11 +329,6 @@ class ConnectService:
     def _generate_token() -> str:
         """Generate a secure API token."""
         return f"myrm_mcp_{secrets.token_urlsafe(32)}"
-
-    @staticmethod
-    def _hash_token(token: str) -> str:
-        """Hash a token for storage (SHA-256)."""
-        return hashlib.sha256(token.encode()).hexdigest()
 
 
 # Module singleton (lazily initialized per request in API layer)
@@ -375,6 +350,7 @@ __all__ = [
     "ConnectionProfile",
     "ConnectorState",
     "ConnectorStatus",
+    "DoctorResult",
     "VerifiedConnectToken",
     "get_connect_service",
 ]

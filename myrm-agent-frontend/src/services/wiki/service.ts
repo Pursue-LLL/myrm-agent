@@ -1,3 +1,16 @@
+/**
+ * [INPUT]
+ * @/lib/api::apiRequest,getApiUrl,fetchWithTimeout (POS: frontend API request helper)
+ * @/lib/wiki/claimStatusDisplay::WikiClaimStatus (POS: Wiki claim 状态展示纯函数)
+ *
+ * [OUTPUT]
+ * buildWikiApiPath/buildWikiAssetUrl: Wiki API 路径构造；Concept/WikiClaim/WikiQueryRequest/WikiQueryResponse DTO；
+ * wiki CRUD、队列、导入、审批与 query API 函数。
+ *
+ * [POS]
+ * Frontend Wiki API client。`/wiki/*` REST 契约与结构化 source_snippets 证据链查询。
+ */
+
 import { getApiUrl, fetchWithTimeout, apiRequest } from '@/lib/api';
 import type { WikiClaimStatus } from '@/lib/wiki/claimStatusDisplay';
 

@@ -7,7 +7,7 @@ import pytest
 from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
 from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KanbanTask, TaskEventKind
 
-from app.services.chat.sandbox_worktree import WorktreeCreateError, WorktreeErrorReason
+from app.core.utils.git_worktree import WorktreeCreateError, WorktreeErrorReason
 from app.services.kanban.task_runner.worktree import resolve_workspace, worktree_dir
 
 

@@ -114,6 +114,15 @@ class TestBuildBundle:
         )
         assert TOKEN_ENV_VAR in bundle.instructions
 
+    def test_instructions_prescribe_file_layout(self) -> None:
+        for embed in (True, False):
+            bundle = build_agent_plugin_bundle(
+                "http://x/mcp", "tok", agent_id="default", embed_token=embed
+            )
+            assert "skills/myrm-memory/" in bundle.instructions
+            assert "plugin.json" in bundle.instructions
+            assert "mcp.json" in bundle.instructions
+
 
 class TestServiceBundleGeneration:
     """ConnectService integration for bundle generation."""
@@ -152,7 +161,7 @@ class TestServiceBundleGeneration:
     async def test_revoke_invalidates_bundle_token(self, service: ConnectService) -> None:
         bundle = await service.generate_agent_plugin_bundle()
         assert service.revoke(AGENT_PLUGIN_PROFILE) is True
-        assert service.verify_token(bundle.token) is None
+        assert service.resolve_token(bundle.token) is None
 
     @pytest.mark.asyncio
     async def test_bundle_not_in_profiles(self, service: ConnectService) -> None:

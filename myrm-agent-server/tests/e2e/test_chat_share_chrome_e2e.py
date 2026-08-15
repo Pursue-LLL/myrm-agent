@@ -18,6 +18,12 @@ the dialog, verify the public link is gated (403), unlocks via the password
 reopen (the token cannot be rebuilt — the password is never stored), and revoke
 kills the link.
 
+A real-conversation journey drives the WebUI like a user: a fresh chat sends a
+message to the configured model (the E2E Chrome profile DB holds the provider),
+waits for the assistant reply, shares the conversation, and verifies the public
+page reproduces the real user prompt and the real model output, then revokes it
+(404).
+
 The public share pages are server-rendered HTML (not part of the SPA), and the
 E2E session owns a single UI-origin page, so they are validated through the
 loopback HTTP client — the same bytes a browser consumes.
@@ -30,12 +36,26 @@ Prerequisite:
 
 from __future__ import annotations
 
+import asyncio
 import json
+import re
+import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 import pytest
+
+_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_LIB) not in sys.path:
+    sys.path.insert(0, str(_LIB))
+
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
+from cdp_chat.support import chat_id_from_path  # noqa: E402
+from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
+from dev_gate.contract import EvaluateIntent  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
@@ -48,6 +68,7 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
+from tests.support.e2e_runtime_guard import heartbeat_once  # noqa: E402
 
 _DISMISS_MIGRATION_JS = """(() => {
   try {
@@ -209,6 +230,40 @@ def _fill_share_password_js(password: str) -> str:
 
 _GATE_READY_MARKER = "Password Required"
 _GATE_WRONG_PASSWORD_MARKER = "Incorrect password"
+
+
+_LAST_ASSISTANT_TEXT_JS = """(() => {
+  const els = Array.from(document.querySelectorAll('[data-message-id]'));
+  const el = els[els.length - 1];
+  if (!el) return { ready: false, reason: 'no-message-element' };
+  const text = (el.innerText || '').trim();
+  if (!text) return { ready: false, reason: 'empty-message-text' };
+  return { ready: true, text };
+})()"""
+
+
+async def _wait_ui_state(chat: McpChatSession, js: str, *, timeout_sec: float) -> dict[str, object]:
+    """Poll a UI probe until it reports ready (async — real LLM flows run here)."""
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        heartbeat_once()
+        try:
+            result = await chat.evaluate(js, intent=EvaluateIntent.SYNC_PROBE)
+        except TimeoutError as exc:
+            last = {"probeError": str(exc)}
+            await asyncio.sleep(1.0)
+            continue
+        if isinstance(result, dict) and result.get("ready") is True:
+            return result
+        last = result if isinstance(result, dict) else {"probeError": result}
+        await asyncio.sleep(1.0)
+    raise AssertionError(f"timed out waiting for UI state: {json.dumps(last, ensure_ascii=False)}")
+
+
+def _norm_ws(text: str) -> str:
+    """Collapse whitespace so markdown paragraph breaks do not break substrings."""
+    return re.sub(r"\\s+", "", text)
 
 
 def _seed_chat_share_fixture(api_url: str) -> dict[str, str]:
@@ -465,3 +520,97 @@ def test_chat_share_password_protected_via_ui() -> None:
         status, body = _fetch_public_page(share_url, api_url)
         assert status == 404, f"revoked protected public page status={status} body={body[:300]}"
         assert "Link Revoked" in body, body[:800]
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+async def test_chat_share_real_conversation_via_ui() -> None:
+    """A real LLM conversation is shared, served, and revoked from the WebUI.
+
+    Drives the WebUI like a user: open a fresh chat, send a message to the
+    configured model, wait for the assistant reply, share the conversation,
+    confirm the public page serves the real assistant output and the user
+    message, then revoke the link (404 afterwards).
+    """
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    prepare_e2e_ui_session(api_url)
+
+    client = ChromeMcpClient(request_timeout_sec=120.0)
+    await asyncio.to_thread(client.start)
+    try:
+        page: McpPage | None = None
+        try:
+            page = await asyncio.to_thread(client.new_page, ui_url, timeout_ms=120_000)
+        except TimeoutError:
+            await asyncio.sleep(2.0)
+            page = await asyncio.to_thread(client.new_page, ui_url, timeout_ms=120_000)
+        assert page is not None, "new_page returned no page"
+
+        chat = McpChatSession(client, page)
+        await chat.bootstrap(ui_url, timeout_sec=120.0)
+        await chat.click_new_chat()
+        await chat.ensure_chat_surface(ui_url)
+
+        # The LIVE-turn completion contract requires the assistant's final text
+        # to contain an OK/DONE marker (main_state.okInAssistant), so the prompt
+        # demands an "OK" prefix; "SUNSHINE" is our content-verification token.
+        prompt = (
+            "【E2E 分享真实对话】请用一句中文介绍你自己，"
+            "回答必须以 OK 开头，并且必须包含 SUNSHINE 字样，不超过 80 字。"
+        )
+        await chat.send_message(prompt, prompt)
+        heartbeat_once()
+        after = await chat.wait_turn_done(prompt, timeout_sec=240.0)
+        chat_id = str(after.get("chatId") or "").strip()
+        if not chat_id:
+            chat_id = str(chat_id_from_path(str(after.get("path") or "")) or "").strip()
+        if not chat_id:
+            chat_id = str((await chat.bridge_chat_id()) or "").strip()
+        assert chat_id, f"expected a chat id after the turn: {after}"
+
+        # The assistant reply is the real model output; the public page must
+        # reproduce it (whitespace-collapsed because markdown re-paragraphs).
+        reply = await _wait_ui_state(chat, _LAST_ASSISTANT_TEXT_JS, timeout_sec=60.0)
+        assistant_text = str(reply["text"]).strip()
+        assert len(assistant_text) >= 10, f"assistant reply too short: {assistant_text[:200]}"
+        assert "SUNSHINE" in assistant_text, assistant_text[:200]
+        assistant_probe = "SUNSHINE"
+
+        # Share the real conversation (unprotected) from the sidebar row menu.
+        opened = await _wait_ui_state(chat, _open_share_dialog_js(chat_id), timeout_sec=45.0)
+        assert opened.get("ready") is True, json.dumps(opened, indent=2)
+
+        form = await _wait_ui_state(chat, _CREATE_FORM_READY_JS, timeout_sec=20.0)
+        assert form.get("ready") is True, json.dumps(form, indent=2)
+
+        clicked = await chat.evaluate(_CLICK_CREATE_LINK_JS, intent=EvaluateIntent.SYNC_PROBE)
+        assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
+
+        url_state = await _wait_ui_state(chat, _SHARE_URL_READY_JS, timeout_sec=30.0)
+        assert url_state.get("ready") is True, json.dumps(url_state, indent=2)
+        share_url = str(url_state["url"])
+
+        status, body = _fetch_public_page(share_url, api_url)
+        assert status == 200, f"public page status={status} body={body[:300]}"
+        body_norm = _norm_ws(body)
+        assert _norm_ws(prompt) in body_norm, body[:800]
+        assert _norm_ws(assistant_probe) in body_norm, body[:800]
+
+        # Revoke from the dialog; the real conversation's link dies (404).
+        revoked_click = await chat.evaluate(_CLICK_REVOKE_JS, intent=EvaluateIntent.SYNC_PROBE)
+        assert isinstance(revoked_click, dict) and revoked_click.get("ok") is True, revoked_click
+        revoked = await _wait_ui_state(chat, _REVOKED_READY_JS, timeout_sec=30.0)
+        assert revoked.get("ready") is True, json.dumps(revoked, indent=2)
+
+        status, body = _fetch_public_page(share_url, api_url)
+        assert status == 404, f"revoked public page status={status} body={body[:300]}"
+        assert "Link Revoked" in body, body[:800]
+    finally:
+        await asyncio.to_thread(client.close)

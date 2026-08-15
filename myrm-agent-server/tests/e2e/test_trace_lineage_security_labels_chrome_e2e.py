@@ -102,6 +102,7 @@ def _trace_dialog_probe_js(tool_names: list[str]) -> str:
     }})()"""
 
 # Clicks the "Enter Replay" button inside the trace dialog (any locale).
+# Reports the exact button text that was clicked so a wrong-target click is visible.
 _ENTER_REPLAY_JS = """(() => {
   const dialogs = Array.from(document.querySelectorAll('.fixed.inset-0'));
   const dialog = dialogs.find((d) =>
@@ -113,30 +114,66 @@ _ENTER_REPLAY_JS = """(() => {
   );
   if (!btn) return { ready: false, reason: 'no-replay-button' };
   btn.click();
-  return { ready: true };
+  return {
+    ready: true,
+    clickedText: (btn.textContent || '').trim().slice(0, 60),
+    inDialog: Boolean(dialog),
+  };
 })()"""
 
 # Probes the replay player: drags the scrubber to the end, then reports the tool
 # chips visible in the "mind view" column plus whether the inspector painted.
+# Mind/chat/inspector labels differ per locale ("Mind Window" / "UI State" in en,
+# "脑电波" / "界面" in zh), so the regexes accept every shipped translation.
 _REPLAY_END_STATE_JS = """(() => {
   const root = document.querySelector('[role="application"]');
-  if (!root) return { ready: false, reason: 'no-replay-root' };
+  if (!root) {
+    const dialogs = Array.from(document.querySelectorAll('.fixed.inset-0'));
+    const bodyText = document.body?.innerText || '';
+    // Track whether the E2E fetch router's readiness promise is settled. If the
+    // private backend half-dies (accepts TCP but never answers), the proxy keeps
+    // every /api/v1 fetch pending forever and the replay player's message load
+    // never settles -> no [role="application"]. Sampling the marker across the
+    // probe loop tells "pending" (half-dead backend) from "rejected" (backend
+    // down) from "resolved" (backend fine, so the issue is elsewhere).
+    const rp = window.__MYRM_E2E_RUNTIME_READY__;
+    if (rp && !window.__E2E_RP_MARK__) {
+      window.__E2E_RP_MARK__ = 'pending';
+      rp.then(
+        () => { window.__E2E_RP_MARK__ = 'resolved'; },
+        () => { window.__E2E_RP_MARK__ = 'rejected'; },
+      );
+    }
+    return {
+      ready: false,
+      reason: 'no-replay-root',
+      dialogCount: dialogs.length,
+      dialogText: dialogs
+        .map((d) => (d.innerText || '').slice(0, 120))
+        .slice(0, 3),
+      hasLoadingText: /加载中|Loading|加载/.test(bodyText),
+      runtimeReady: window.__E2E_RP_MARK__ || (rp ? 'probing' : 'absent'),
+      apiBase: String(window.__MYRM_E2E_API_BASE__ || ''),
+      readyState: document.readyState,
+      bodyText: bodyText.slice(0, 250),
+    };
+  }
   const text = root.innerText || '';
-  if (!/录像回放|Replay|回放/.test(text)) {
+  if (!/录像回放|Session Replay|Replay|回放/.test(text)) {
     return { ready: false, reason: 'no-replay-title', text: text.slice(0, 200) };
   }
   const range = root.querySelector('input[type="range"]');
   if (range) {
     const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(range), 'value');
     setter.set.call(range, String(range.max));
-    range.dispatchEvent(new Event('change', { bubbles: true }));
+    range.dispatchEvent(new Event('input', { bubbles: true }));
     range.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
   }
   return new Promise((resolve) => setTimeout(() => {
     const root2 = document.querySelector('[role="application"]');
     const text2 = (root2?.innerText || '');
-    const hasMindView = /脑电波|Mind View|Brain/.test(text2);
-    const hasChatView = /界面|Chat View|Chat/.test(text2);
+    const hasMindView = /脑电波|Mind View|Mind Window|Brain/.test(text2);
+    const hasChatView = /界面|Chat View|UI State|Chat/.test(text2);
     const hasInspector = /原始参数|Inspector/.test(text2);
     const chips = root2
       ? Array.from(root2.querySelectorAll('.rounded-full')).filter((el) =>

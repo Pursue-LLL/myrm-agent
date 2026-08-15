@@ -174,7 +174,7 @@ async def test_build_agent_passes_message_locale_to_general_agent_params() -> No
 
     with (
         patch(
-            "app.services.memory.shared_context.resolve_shared_context_ids",
+            "app.services.memory.shared_context.shared_context.resolve_shared_context_ids",
             new_callable=AsyncMock,
             return_value=[],
         ),

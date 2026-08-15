@@ -160,7 +160,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
   }
 
   if (data.type === H.AgentEventType.ITERATION_LIMIT_REACHED) {
-    const limitData = data.data as { limit?: number; nodes_completed?: number } | undefined;
+    const limitData = data.data as { limit?: number; nodes_completed?: number; fault_side?: string } | undefined;
     const limit = limitData?.limit ?? '?';
     const nodes = limitData?.nodes_completed ?? '?';
 
@@ -174,6 +174,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
           step_key: 'iteration_limit_reached',
           items: [{ text: `${limit} iterations / ${nodes} nodes` }],
           status: 'warning' as const,
+          fault_side: limitData?.fault_side,
         });
       }
     });

@@ -3,7 +3,7 @@
  *
  * [INPUT]
  * lib/wiki/claimStatusDisplay.ts (POS: Wiki claim 状态展示纯函数)
- * services/wikiEvidenceMetrics.ts (POS: 证据展开/停留埋点)
+ * services/wiki/evidenceMetrics.ts (POS: 证据展开/停留埋点)
  *
  * [POS]
  * 当用户点击 KB citation 时，以右侧 Sheet 展示原文 snippet、分层标签（L0/L1/L2）、

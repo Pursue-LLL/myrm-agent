@@ -54,6 +54,7 @@ class DoctorRequest(BaseModel):
 class DoctorResponse(BaseModel):
     profile_id: str
     healthy: bool
+    detail: str = "unknown"
 
 
 class RevokeRequest(BaseModel):
@@ -132,8 +133,12 @@ async def generate_config(body: GenerateConfigRequest) -> GenerateConfigResponse
 async def run_doctor(body: DoctorRequest) -> DoctorResponse:
     """Run health check on a connector."""
     service = get_connect_service()
-    healthy = await service.doctor(body.profile_id)
-    return DoctorResponse(profile_id=body.profile_id, healthy=healthy)
+    result = await service.doctor(body.profile_id)
+    return DoctorResponse(
+        profile_id=body.profile_id,
+        healthy=result.healthy,
+        detail=result.detail,
+    )
 
 
 @router.post("/connect/agent-plugin")

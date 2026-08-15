@@ -6,9 +6,11 @@ doctor checks, revoke, and mark_ready flows.
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
+from app.services.connect.doctor_check import DoctorVerdict
 from app.services.connect.service import (
     ConnectorStatus,
     ConnectService,
@@ -59,10 +61,11 @@ class TestTokenGeneration:
         assert "/mcp" in snippet.mcp_url
 
     @pytest.mark.asyncio
-    async def test_verify_token_succeeds(self, service: ConnectService):
+    async def test_resolve_token_matches_profile(self, service: ConnectService):
         snippet = await service.generate_config("claude_code", agent_id="my-agent")
-        verified = service.verify_token(snippet.token)
-        assert verified == "claude_code"
+        resolved = service.resolve_token(snippet.token)
+        assert resolved is not None
+        assert resolved.profile_id == "claude_code"
 
     @pytest.mark.asyncio
     async def test_resolve_token_returns_agent_scope(self, service: ConnectService):
@@ -73,8 +76,8 @@ class TestTokenGeneration:
         assert resolved.agent_id == "research-agent"
 
     @pytest.mark.asyncio
-    async def test_verify_invalid_token_returns_none(self, service: ConnectService):
-        assert service.verify_token("invalid_token_xyz") is None
+    async def test_resolve_invalid_token_returns_none(self, service: ConnectService):
+        assert service.resolve_token("invalid_token_xyz") is None
 
     @pytest.mark.asyncio
     async def test_unknown_profile_raises(self, service: ConnectService):
@@ -97,7 +100,7 @@ class TestConnectorState:
         service.mark_ready("cursor")
         state = service.get_connector_status("cursor")
         assert state.status == ConnectorStatus.READY
-        assert state.doctor_ok is True
+        assert state.doctor_ok is False
 
     @pytest.mark.asyncio
     async def test_mark_ready_noop_when_already_ready(self, service: ConnectService):
@@ -154,18 +157,57 @@ class TestDoctor:
     """Test doctor (health check) functionality."""
 
     @pytest.mark.asyncio
-    async def test_doctor_healthy(self, service: ConnectService):
+    async def test_doctor_healthy_token_only(self, service: ConnectService):
+        """Without local file access (sandbox), a valid token reports healthy."""
         await service.generate_config("cursor")
-        healthy = await service.doctor("cursor")
-        assert healthy is True
+        with patch("app.services.connect.service.is_local_mode", return_value=False):
+            result = await service.doctor("cursor")
+        assert result.healthy is True
+        assert result.detail == "token_valid"
         state = service.get_connector_status("cursor")
         assert state.status == ConnectorStatus.READY
         assert state.doctor_ok is True
 
     @pytest.mark.asyncio
+    async def test_doctor_local_verified_config(self, service: ConnectService):
+        """In local mode a matching on-disk config reports verified."""
+        await service.generate_config("cursor")
+        with (
+            patch("app.services.connect.service.is_local_mode", return_value=True),
+            patch(
+                "app.services.connect.service.verify_connector_config",
+                return_value=DoctorVerdict(healthy=True, detail="verified"),
+            ),
+        ):
+            result = await service.doctor("cursor")
+        assert result.healthy is True
+        assert result.detail == "verified"
+
+    @pytest.mark.asyncio
+    async def test_doctor_local_mismatched_config_reports_unhealthy(
+        self, service: ConnectService
+    ):
+        """A stale on-disk token makes the connector unhealthy in local mode."""
+        await service.generate_config("cursor")
+        with (
+            patch("app.services.connect.service.is_local_mode", return_value=True),
+            patch(
+                "app.services.connect.service.verify_connector_config",
+                return_value=DoctorVerdict(healthy=False, detail="token_mismatch"),
+            ),
+        ):
+            result = await service.doctor("cursor")
+        assert result.healthy is False
+        assert result.detail == "token_mismatch"
+        state = service.get_connector_status("cursor")
+        assert state.doctor_ok is False
+        assert state.status == ConnectorStatus.CONFIGURED
+
+    @pytest.mark.asyncio
     async def test_doctor_unknown_profile(self, service: ConnectService):
-        healthy = await service.doctor("nonexistent")
-        assert healthy is False
+        result = await service.doctor("nonexistent")
+        assert result.healthy is False
+        assert result.detail == "unknown"
 
 
 class TestRevoke:
@@ -184,7 +226,7 @@ class TestRevoke:
     async def test_revoke_invalidates_token(self, service: ConnectService):
         snippet = await service.generate_config("claude_code")
         service.revoke("claude_code")
-        assert service.verify_token(snippet.token) is None
+        assert service.resolve_token(snippet.token) is None
 
     def test_revoke_unknown_returns_false(self, service: ConnectService):
         assert service.revoke("nonexistent") is False

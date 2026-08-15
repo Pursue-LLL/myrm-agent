@@ -99,6 +99,14 @@ def _build_mcp_json(url: str, token: str, embed_token: bool) -> str:
     return json.dumps(config, indent=2)
 
 
+#: Both token modes tell users to preserve the bundle's file layout. Consuming
+#: clients load SKILL.md only from the plugin's skills/<name>/ subdirectory, so a
+#: flat download silently loses the memory discipline layer.
+_FILE_STRUCTURE_HINT = (
+    "Keep the bundle structure: plugin.json and mcp.json in the plugin root, "
+    "SKILL.md under skills/myrm-memory/."
+)
+
 #: SKILL.md handed to the consuming agent. Written for best-model comprehension
 #: with low-token redundancy; every capability mentioned matches the real MCP
 #: tool signatures (see memory/agent_surface/mcp_server.py).
@@ -170,19 +178,21 @@ def build_agent_plugin_bundle(
     if embed_token:
         instructions = (
             f"Place this bundle in your agent client's plugin directory and enable it. "
-            f"The token is inlined into mcp.json, so keep the bundle out of version "
-            f"control. It is bound to the Myrm agent '{agent_id}'; regenerate it in "
-            f"Myrm's connect wizard to switch scope, or revoke to disconnect immediately."
+            f"{_FILE_STRUCTURE_HINT} The token is inlined into mcp.json, so keep the "
+            f"bundle out of version control. It is bound to the Myrm agent '{agent_id}'; "
+            f"regenerate it in Myrm's connect wizard to switch scope, or revoke to "
+            f"disconnect immediately."
         )
     else:
         env_ref = f"${{{TOKEN_ENV_VAR}}}"
         env_ref_vscode = f"${{env:{TOKEN_ENV_VAR}}}"
         instructions = (
             f"Place this bundle in your agent client's plugin directory and export "
-            f"{TOKEN_ENV_VAR} (below) in your shell profile. mcp.json reads the token "
-            f"from the environment, so the bundle is safe to commit to version control. "
-            f"Most clients substitute {env_ref}; if yours uses {env_ref_vscode} (VS Code, "
-            f"Cursor) or does not interpolate, adjust the Authorization value in mcp.json."
+            f"{TOKEN_ENV_VAR} (below) in your shell profile. {_FILE_STRUCTURE_HINT} "
+            f"mcp.json reads the token from the environment, so the bundle is safe "
+            f"to commit to version control. Most clients substitute {env_ref}; if "
+            f"yours uses {env_ref_vscode} (VS Code, Cursor) or does not interpolate, "
+            f"adjust the Authorization value in mcp.json."
         )
     return AgentPluginBundle(
         agent_id=agent_id,

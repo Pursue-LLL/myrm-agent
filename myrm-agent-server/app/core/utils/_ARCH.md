@@ -21,6 +21,7 @@
 | `delivery_provenance.py` | 核心 | Human 前缀投递横幅：`format_delivery_banner`、`prepend_plain_banner`、`ingress_from_channel_metadata`、`apply_delivery_banner`、`resolve_general_agent_pipeline_labels`（含 `web_chat`→http_gui/browser_sse、`cron`、`eval`、**`headless_wakeup`→async_wake_consumer** 等）、`apply_general_agent_pipeline_banner`；多模态首块合并且幂等 | ✅ I/O/P 见文件头 |
 | `session_id.py` | 核心 | `is_safe_session_id`：session_id/chat_id 文件路径插值的统一白名单校验（`[A-Za-z0-9:_-]`），拒绝 `..`/反斜杠/空字节等路径逃逸 | ✅ |
 | `lock.py` | 核心 | `StandaloneLockProvider`/`MemoryAsyncLockProvider`：进程内 per-key 异步锁（SQLite、Skills、Cron 共享资源互斥） | ✅ |
+| `git_worktree.py` | 核心 | 共享 git worktree 命令基础设施（kanban/sandbox 共用一份，避免语义漂移）：`_GIT_ENV`（C-locale env）、per-base_dir merge 锁 `_get_merge_lock`、`_git_identity`（repo 无 user 配置时仅注入缺失的 `user.name/user.email`）、`_auto_commit_dirty_worktree`、`_collect_conflict_files`、`_abort_merge`（失败时 warning 日志，防 MERGE_HEAD 静默残留）、`_worktree_is_dirty`（fail-closed）与 worktree 业务错误类型 `WorktreeErrorReason`/`WorktreeCreateError`/`_classify_git_error` | ✅ |
 | `ui_data_merge.py` | 辅助 | `deep_merge_ui_data`：A2UI binding dict 深合并（stream collector + chat UI artifact DB patch 共用） | ✅ |
 | `__init__.py` | 核心 | 模块入口，公共 API 导出 | — |
 

@@ -557,7 +557,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
                 <IconCpu className="w-3.5 h-3.5 shrink-0 text-violet-500" />
                 <span className="font-medium text-foreground truncate">{lc.model_name ?? 'LLM'}</span>
                 <span className="text-muted-foreground ml-auto shrink-0 font-mono">
-                  {lc.total_tokens.toLocaleString()} tok
+                  {(lc.total_tokens ?? 0).toLocaleString()} tok
                 </span>
               </div>
             ))}

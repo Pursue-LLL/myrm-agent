@@ -184,7 +184,7 @@ async def test_resolve_shared_contexts_false_skips_injection():
         with (
             patch("app.core.eval.executor.load_user_configs") as mock_configs,
             patch(
-                "app.services.memory.shared_context.resolve_shared_context_ids",
+                "app.services.memory.shared_context.shared_context.resolve_shared_context_ids",
                 new=AsyncMock(return_value=["shared-1", "shared-2"]),
             ) as mock_resolve,
         ):

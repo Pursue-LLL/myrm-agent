@@ -1,5 +1,17 @@
+/**
+ * [INPUT]
+ * @/lib/api::apiRequest (POS: frontend API request helper)
+ * ./service::buildWikiApiPath (POS: Wiki API 路径构造)
+ *
+ * [OUTPUT]
+ * WikiSourceSyncConfig/State/Status/ResultItem/RunSummary DTO 与源同步配置/状态/结果 API。
+ *
+ * [POS]
+ * Wiki 源同步客户端。`/wiki/source-sync/*` REST 契约。
+ */
+
 import { apiRequest } from '@/lib/api';
-import { buildWikiApiPath } from '@/services/wikiService';
+import { buildWikiApiPath } from './service';
 
 export interface WikiSourceSyncConfig {
   feishu_enabled: boolean;

@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * @/lib/api::apiRequest (POS: frontend API request helper)
+ * ./core::approveSkillDraft,rejectSkillDraft (POS: 技能审批 API)
+ *
+ * [OUTPUT]
+ * SkillGrowthCase/Summary/Audit DTO 与 `/skill-growth/*` cases/detail/stats/audit API。
+ *
+ * [POS]
+ * 技能进化（growth）客户端。`/skill-growth/*` REST 契约。
+ */
+
 import { apiRequest } from '@/lib/api';
 import { approveSkillDraft, rejectSkillDraft } from './core';
 

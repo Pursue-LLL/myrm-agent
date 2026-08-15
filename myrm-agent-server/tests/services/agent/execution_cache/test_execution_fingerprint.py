@@ -836,3 +836,142 @@ def test_execution_fingerprint_stable_when_external_agent_credentials_rotate() -
     ]
     changed_fp = compute_execution_fingerprint(wrapper)
     assert first_fp != changed_fp
+
+
+def test_execution_fingerprint_changes_when_model_kwargs_change() -> None:
+    """model_kwargs (temperature/max_tokens/reasoning_effort) are frozen into the
+    LLM instance at build time (builder.py:125-135, manager.py:238), so changing
+    them must bust the POOLED cache."""
+    wrapper = _base_wrapper()
+    base_fp = compute_execution_fingerprint(wrapper)
+    wrapper.model_cfg = ModelConfig(
+        model="test-model",
+        api_key="test-key",
+        base_url="http://test",
+        model_kwargs={"temperature": 0.7, "max_tokens": 2048},
+    )
+    configured_fp = compute_execution_fingerprint(wrapper)
+    assert base_fp != configured_fp
+    wrapper.model_cfg = ModelConfig(
+        model="test-model",
+        api_key="test-key",
+        base_url="http://test",
+        model_kwargs={"temperature": 1.0, "max_tokens": 2048},
+    )
+    changed_fp = compute_execution_fingerprint(wrapper)
+    assert configured_fp != changed_fp
+
+
+def test_execution_fingerprint_changes_when_temperature_field_changes() -> None:
+    """The top-level temperature field is frozen into the LLM instance at build
+    time (builder.py:132-133), so a change must bust the POOLED cache."""
+    wrapper = _base_wrapper()
+    none_fp = compute_execution_fingerprint(wrapper)
+    wrapper.model_cfg = ModelConfig(
+        model="test-model",
+        api_key="test-key",
+        base_url="http://test",
+        temperature=0.2,
+    )
+    chilled_fp = compute_execution_fingerprint(wrapper)
+    assert none_fp != chilled_fp
+    wrapper.model_cfg = ModelConfig(
+        model="test-model",
+        api_key="test-key",
+        base_url="http://test",
+        temperature=0.8,
+    )
+    heated_fp = compute_execution_fingerprint(wrapper)
+    assert chilled_fp != heated_fp
+
+
+def test_execution_fingerprint_stable_when_model_kwargs_credentials_rotate() -> None:
+    """model_kwargs may carry runtime-only values: credentials (api_key variants)
+    and transport headers injected at resolve time (extra_headers with
+    X-Sandbox-Id/X-Telemetry-Token/Authorization). Their rotation must NOT bust
+    the POOLED cache while non-credential kwargs changes still must."""
+    wrapper = _base_wrapper()
+    wrapper.model_cfg = ModelConfig(
+        model="test-model",
+        api_key="test-key",
+        base_url="http://test",
+        model_kwargs={
+            "temperature": 0.7,
+            "extra_headers": {
+                "X-Sandbox-Id": "sandbox-1",
+                "X-Telemetry-Token": "tok-1",
+            },
+        },
+    )
+    first_fp = compute_execution_fingerprint(wrapper)
+    wrapper.model_cfg = ModelConfig(
+        model="test-model",
+        api_key="test-key",
+        base_url="http://test",
+        model_kwargs={
+            "temperature": 0.7,
+            "extra_headers": {
+                "X-Sandbox-Id": "sandbox-2",
+                "X-Telemetry-Token": "tok-rotated",
+            },
+        },
+    )
+    rotated_fp = compute_execution_fingerprint(wrapper)
+    assert first_fp == rotated_fp
+    wrapper.model_cfg = ModelConfig(
+        model="test-model",
+        api_key="test-key",
+        base_url="http://test",
+        model_kwargs={"temperature": 0.9},
+    )
+    changed_fp = compute_execution_fingerprint(wrapper)
+    assert first_fp != changed_fp
+
+
+def test_execution_fingerprint_changes_when_credential_pool_strategy_changes() -> None:
+    """credential_pool_strategy is frozen into CredentialPool at build time
+    (manager.py:192, credential_pool.py:142-144) and drives acquire() dispatch
+    every call (key_pool_llm.py:100), so changing it must bust the POOLED cache
+    — in both the ModelConfig field and the providers_dict camelCase key."""
+    wrapper = _base_wrapper()
+    wrapper.model_cfg = ModelConfig(
+        model="test-model",
+        api_key="k-1",
+        api_keys=["k-1", "k-2"],
+        credential_pool_strategy="round_robin",
+        base_url="http://test",
+    )
+    round_robin_fp = compute_execution_fingerprint(wrapper)
+    wrapper.model_cfg = ModelConfig(
+        model="test-model",
+        api_key="k-1",
+        api_keys=["k-1", "k-2"],
+        credential_pool_strategy="least_used",
+        base_url="http://test",
+    )
+    least_used_fp = compute_execution_fingerprint(wrapper)
+    assert round_robin_fp != least_used_fp
+
+    wrapper.providers_dict = {
+        "providers": [
+            {
+                "id": "openai",
+                "models": [{"id": "gpt-4o", "isActive": True}],
+                "credentialPoolStrategy": "round_robin",
+            }
+        ],
+        "defaultModelConfig": {"model": "gpt-4o", "api_key": "sk-1"},
+    }
+    pooled_fp = compute_execution_fingerprint(wrapper)
+    wrapper.providers_dict = {
+        "providers": [
+            {
+                "id": "openai",
+                "models": [{"id": "gpt-4o", "isActive": True}],
+                "credentialPoolStrategy": "least_used",
+            }
+        ],
+        "defaultModelConfig": {"model": "gpt-4o", "api_key": "sk-1"},
+    }
+    switched_fp = compute_execution_fingerprint(wrapper)
+    assert pooled_fp != switched_fp

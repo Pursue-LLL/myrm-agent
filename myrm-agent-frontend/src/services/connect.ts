@@ -35,6 +35,8 @@ export interface GenerateConfigResponse {
 export interface DoctorResponse {
   profile_id: string;
   healthy: boolean;
+  /** Machine-readable outcome code; map to a localized message in the UI. */
+  detail: string;
 }
 
 export interface RevokeResponse {

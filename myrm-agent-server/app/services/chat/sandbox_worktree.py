@@ -1,6 +1,6 @@
 """[INPUT]
 - app.services.chat.chat_service::ChatService (POS: Chat metadata persistence)
-- app.services.chat._git_shared (POS: 共享 git 命令基础设施——per-base_dir merge 锁、git identity 兜底、auto-commit、冲突文件收集、merge abort、dirty 检测)
+- app.core.utils.git_worktree (POS: 共享 git worktree 命令基础设施与错误类型——per-base_dir merge 锁、git identity 兜底、auto-commit、冲突文件收集、merge abort、dirty 检测、WorktreeCreateError/WorktreeErrorReason/_classify_git_error)
 
 [OUTPUT]
 - create_sandbox_worktree: Create an isolated git worktree for a chat sandbox session.
@@ -8,7 +8,6 @@
 - get_sandbox_worktree_path: Compute the deterministic path for a chat's sandbox worktree.
 - is_git_repository: Check if a directory is within a git repository.
 - merge_sandbox_to_parent: Merge sandbox branch changes back to the source branch.
-- WorktreeCreateError: Structured error type for worktree creation failures.
 
 [POS]
 Shared git worktree lifecycle management for chat sandbox sessions.
@@ -21,14 +20,15 @@ import asyncio
 import logging
 import os
 import subprocess
-from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
 
-from app.services.chat._git_shared import (
+from app.core.utils.git_worktree import (
     _GIT_ENV,
+    WorktreeCreateError,
+    WorktreeErrorReason,
     _abort_merge,
     _auto_commit_dirty_worktree,
+    _classify_git_error,
     _collect_conflict_files,
     _get_merge_lock,
     _git_identity,
@@ -38,32 +38,6 @@ from app.services.chat._git_shared import (
 logger = logging.getLogger(__name__)
 
 _SANDBOX_DIR_NAME = ".sandboxes"
-
-
-class WorktreeErrorReason(str, Enum):
-    BRANCH_EXISTS = "branch-exists"
-    ALREADY_CHECKED_OUT = "already-checked-out"
-    PATH_EXISTS = "path-exists"
-    NOT_GIT_REPO = "not-git-repo"
-    ERROR = "error"
-
-
-@dataclass(frozen=True, slots=True)
-class WorktreeCreateError:
-    reason: WorktreeErrorReason
-    message: str = ""
-
-
-def _classify_git_error(stderr: str) -> WorktreeErrorReason:
-    """Map git stderr to a structured error reason."""
-    lower = stderr.lower()
-    if "already checked out" in lower:
-        return WorktreeErrorReason.ALREADY_CHECKED_OUT
-    if "already exists" in lower and "branch" in lower:
-        return WorktreeErrorReason.BRANCH_EXISTS
-    if "already exists" in lower:
-        return WorktreeErrorReason.PATH_EXISTS
-    return WorktreeErrorReason.ERROR
 
 
 def get_sandbox_worktree_path(base_dir: str, chat_id: str) -> str:

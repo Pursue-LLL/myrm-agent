@@ -15,7 +15,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | `__init__.py` | 入口 | 公共导出 | ✅ |
 | `registry.py` | 核心 | acquire/release/refresh_unit/guard_turn/idle_evict；`snapshot_warm_units` / `is_scope_turn_active` 供 catalog 热更新；进程级 singleton | ✅ |
 | `types.py` | 核心 | `ExecutionMode`、`BuiltExecutionUnit.teardown()` | ✅ |
-| `fingerprint.py` | 核心 | `compute_execution_fingerprint`（模型类字段统一经 `_model_sig` 提取 build 固化签名，含主/兜底/推理/轻量/视觉/视频模型；结构化配置经 `_credential_free_json` 剔除 api_key/api_keys/apiKeys/_oauthToken/localApiKey/bearer_token 等凭据后进哈希（媒体生成/搜索服务/嵌入/重排/provider 池/OpenAPI 服务/隐私路由）；技能/MCP/harness epoch/`engine_params` 含 MoA preset 激活态/安全配置/记忆配置（含确认开关/隔离策略/会话搜索/高级检索）/执行网络/通知/看板（含默认看板）/子代理/委托/网页抓取/域名恢复——覆盖所有 build 期固化的用户可配置输入；排除凭据池字段、每 run 状态与全局静态配置） | ✅ |
+| `fingerprint.py` | 核心 | `compute_execution_fingerprint`（模型类字段统一经 `_model_sig` 提取 build 固化签名，含主/兜底/推理/轻量/视觉/视频模型，且将 temperature/model_kwargs（LLM 实例 build 期固化）与 credential_pool_strategy（CredentialPool build 期固化）纳入签名；结构化配置经 `_credential_free_json` 剔除 api_key/api_keys/apiKeys/_oauthToken/localApiKey/bearer_token 等凭据后进哈希（媒体生成/搜索服务/嵌入/重排/provider 池/OpenAPI 服务/隐私路由）；技能/MCP/harness epoch/`engine_params` 含 MoA preset 激活态/安全配置/记忆配置（含确认开关/隔离策略/会话搜索/高级检索）/执行网络/通知/看板（含默认看板）/子代理/委托/网页抓取/域名恢复——覆盖所有 build 期固化的用户可配置输入；排除凭据、传输头、每 run 状态与全局静态配置） | ✅ |
 | `unit_ops.py` | 核心 | capture/apply/detach wrapper ↔ unit | ✅ |
 | `session_lifecycle.py` | 核心 | `resolve_execution_mode`、`finalize_agent_session`（release 前 refresh_unit） | ✅ |
 | `prewarm/` | 核心 | Turn1 冷启动预热（见 [prewarm/_ARCH.md](prewarm/_ARCH.md)） | ✅ |
@@ -42,6 +42,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 ### AgentRuntimeSpec 输出面
 | 输出 | 输入字段（均在指纹中） |
 |------|------------------------|
+| LLM 实例（主/兜底/推理/轻量/视觉/视频） | model/base_url/max_context_tokens/supports_vision/supports_video/custom_model_def + temperature + model_kwargs（凭据/传输头剔除后，见排除项）+ credential_pool_strategy（固化进 CredentialPool） |
 | system_prompt | prompt_mode / engine_params / search_depth（经 max_iterations/engine_params 间接覆盖）/ unattended_mode / enable_answer_tool |
 | tool_groups | 全部 `enable_*` flag + file_access_mode + image/video/tts params 存在性 |
 | skill_ids / skill_configs | skill_ids / skill_configs / skill_config_version |
@@ -64,7 +65,8 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | openapi_services | openapi_services（spec/base_url/endpoints 固化；整个 auth 子树剥离） |
 
 ### 排除项（有意不进指纹）
-- 凭据：api_key/api_keys/apiKeys/_oauthToken/_oauthBaseUrl/localApiKey/bearer_token/password/client_secret/credential_pool_strategy（`_model_sig` / `_credential_free_json`）
+- 凭据：api_key/api_keys/apiKeys/_oauthToken/_oauthBaseUrl/localApiKey/bearer_token/password/client_secret（`_model_sig` / `_credential_free_json`）
+- 传输头：model_kwargs 内 `extra_headers` 整棵子树（`_TRANSPORT_HEADER_KEYS`）：resolve 期注入的 X-Sandbox-Id/X-Telemetry-Token/Authorization 仅运行时鉴权，轮换不 bust
 - OpenAPI 服务 `auth` 整棵子树（`_openapi_services_sig`）：auth 仅运行时鉴权、不塑形 build 输出（工具名/描述来自 spec + selected_endpoints），含 auth.type 变化均不 bust
 - 每 run 状态：kanban_current_task_id、quote、force_skill_manage、timezone、reasoning_display_mode
 - 每 turn 刷新：privacy_enabled 等 10 个隐私字段 + enable_plan_confirm（stream_pipeline 每 turn 重应用）

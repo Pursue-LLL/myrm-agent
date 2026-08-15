@@ -1,0 +1,126 @@
+"""Doctor checks for external agent connections: on-disk config verification.
+
+[INPUT]
+- services.connect.profiles::ConnectionProfile (POS: External agent profile registry)
+- services.connect.snippet_builder (POS: MCP 配置片段构建，定义 ``myrm-memory`` 条目布局)
+
+[OUTPUT]
+- verify_connector_config: verifies the external agent's on-disk MCP config file
+- DoctorVerdict: healthy flag + machine-readable detail code
+- hash_token: SHA-256 token hashing shared with ConnectService
+
+[POS]
+Pure module: the only I/O is reading the config file it is asked to verify,
+so the verdict logic can be unit-tested against temporary files.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import tomllib
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
+
+# Machine-readable doctor outcome codes (consumed by the API layer for i18n).
+DOCTOR_VERIFIED = "verified"
+DOCTOR_TOKEN_VALID = "token_valid"
+DOCTOR_CONFIG_FILE_MISSING = "config_file_missing"
+DOCTOR_ENTRY_MISSING = "entry_missing"
+DOCTOR_TOKEN_MISMATCH = "token_mismatch"
+DOCTOR_FILE_UNREADABLE = "file_unreadable"
+DOCTOR_UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True)
+class DoctorVerdict:
+    """Result of verifying the external agent's on-disk config file."""
+
+    healthy: bool
+    detail: str
+
+
+def hash_token(token: str) -> str:
+    """Hash a token for storage (SHA-256)."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def verify_connector_config(
+    *,
+    config_file_path: str | None,
+    instructions_key: str,
+    config_format: Literal["json_mcp", "toml_mcp"],
+    token_hash: str,
+) -> DoctorVerdict | None:
+    """Verify the external agent's on-disk config file for a Myrm MCP entry.
+
+    Reads the profile's config file (expanding ``~``), locates the
+    ``myrm-memory`` entry under *instructions_key*, and checks that the
+    ``Authorization`` bearer token matches the stored *token_hash*.
+
+    Returns ``None`` when there is no config file path to verify, letting the
+    caller fall back to a token-only check.
+    """
+    if not config_file_path:
+        return None
+    path = Path(config_file_path).expanduser()
+    if not path.exists():
+        return DoctorVerdict(healthy=False, detail=DOCTOR_CONFIG_FILE_MISSING)
+    raw = _read_config_file(path, config_format)
+    if raw is None:
+        return DoctorVerdict(healthy=False, detail=DOCTOR_FILE_UNREADABLE)
+    entry = _find_mym_entry(raw, instructions_key)
+    if entry is None:
+        return DoctorVerdict(healthy=False, detail=DOCTOR_ENTRY_MISSING)
+    token = _extract_bearer_token(entry)
+    if token is None or hash_token(token) != token_hash:
+        return DoctorVerdict(healthy=False, detail=DOCTOR_TOKEN_MISMATCH)
+    return DoctorVerdict(healthy=True, detail=DOCTOR_VERIFIED)
+
+
+def _read_config_file(path: Path, config_format: str) -> dict[str, object] | None:
+    if config_format == "toml_mcp":
+        try:
+            with path.open("rb") as fh:
+                raw = tomllib.load(fh)
+        except (OSError, tomllib.TOMLDecodeError):
+            return None
+        return raw if isinstance(raw, dict) else None
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return raw if isinstance(raw, dict) else None
+
+
+def _find_mym_entry(raw: dict[str, object], instructions_key: str) -> dict[str, object] | None:
+    servers = raw.get(instructions_key)
+    if not isinstance(servers, dict):
+        return None
+    entry = servers.get("myrm-memory")
+    return entry if isinstance(entry, dict) else None
+
+
+def _extract_bearer_token(entry: dict[str, object]) -> str | None:
+    headers = entry.get("headers")
+    if not isinstance(headers, dict):
+        return None
+    auth = headers.get("Authorization")
+    if not isinstance(auth, str) or not auth.startswith("Bearer "):
+        return None
+    return auth[len("Bearer "):]
+
+
+__all__ = [
+    "DOCTOR_CONFIG_FILE_MISSING",
+    "DOCTOR_ENTRY_MISSING",
+    "DOCTOR_FILE_UNREADABLE",
+    "DOCTOR_TOKEN_MISMATCH",
+    "DOCTOR_TOKEN_VALID",
+    "DOCTOR_UNKNOWN",
+    "DOCTOR_VERIFIED",
+    "DoctorVerdict",
+    "hash_token",
+    "verify_connector_config",
+]

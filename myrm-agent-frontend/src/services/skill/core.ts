@@ -1,5 +1,19 @@
 /**
  * 技能 API 服务
+ *
+ * [INPUT]
+ * @/lib/api::apiRequest,fetchWithTimeout (POS: frontend API request helper)
+ * @/store/skill/types::Skill 等 DTO (POS: 技能 store 类型)
+ *
+ * [OUTPUT]
+ * 技能 CRUD、生命周期、用户配置、扫描、本机路径、审批 API 函数与 DTO。
+ *
+ * [POS]
+ * Frontend 技能 API client。`/skills/*` REST 契约。
+ */
+
+/**
+ * 技能 API 服务
  */
 
 import { apiRequest, fetchWithTimeout } from '@/lib/api';

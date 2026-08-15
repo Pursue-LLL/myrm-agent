@@ -1,7 +1,7 @@
 """Pure builders for per-tool MCP config snippets shown in the Connect wizard.
 
 [INPUT]
-- ConnectionProfile (services.connect.service) — describes the target agent
+- ConnectionProfile (services.connect.profiles) — describes the target agent
 
 [OUTPUT]
 - build_config_json: returns the JSON/TOML MCP config for the external agent
@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.services.connect.service import ConnectionProfile
+    from app.services.connect.profiles import ConnectionProfile
 
 
 def build_config_json(

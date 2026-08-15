@@ -9,9 +9,10 @@
 [POS]
 execution_cache 指纹层。将影响 build_general_agent 输出的模型/技能/MCP/安全/记忆/工具/
 检索/媒体/隐私路由配置稳定哈希为 scope key；模型类字段统一经 _model_sig 提取 build
-固化签名（排除 api_key 等凭据池字段与 temperature 等调用级参数），结构化配置
-（媒体生成/搜索服务/嵌入重排/provider 池/OpenAPI 服务/隐私路由）经
-_credential_free_json 剔除 api_key/api_keys/apiKeys/_oauthToken/localApiKey 等凭据后
+固化签名（排除 api_key/api_keys 等凭据；纳入 temperature、model_kwargs 与
+credential_pool_strategy——前者固化进 LLM 实例、后者固化进 CredentialPool，均 build
+期不可逆），结构化配置（媒体生成/搜索服务/嵌入重排/provider 池/OpenAPI 服务/隐私路由）
+经 _credential_free_json 剔除 api_key/api_keys/apiKeys/_oauthToken/localApiKey 等凭据后
 进哈希。排除每 run 状态（kanban_current_task_id、quote、force_skill_manage）与全局静态
 配置（event_log_backend、tail_budget_ratio）——前者会使缓存永不命中，后者不构成差异源。
 """
@@ -50,6 +51,11 @@ _CREDENTIAL_KEYS = frozenset(
         "localApiKey",
     }
 )
+
+# Transport-layer headers injected into model_kwargs at resolve time
+# (platform-managed X-Sandbox-Id / X-Telemetry-Token, empty Authorization).
+# Runtime authentication only — must not bust the POOLED cache.
+_TRANSPORT_HEADER_KEYS = frozenset({"extra_headers"})
 
 
 def _stable_json(value: object, *, skip_keys: frozenset[str] | None = None) -> object:
@@ -117,11 +123,14 @@ def _model_sig(model_cfg: ModelConfig | None) -> dict[str, object] | None:
 
     Only parameters solidified into ``build_general_agent`` output are kept:
     LLM wiring (base_url), harness spec model definition (custom_model_def,
-    max_context_tokens) and capability gates (supports_vision/video).
-    Credential-pool fields (api_key/api_keys/credential_pool_strategy) are
-    excluded — key rotation does not change build semantics and keys must not
-    enter the hash — along with call-time knobs (temperature/streaming/
-    model_kwargs) that are not build inputs.
+    max_context_tokens), capability gates (supports_vision/video), credential
+    pool dispatch strategy (frozen into ``CredentialPool`` at build time) and
+    runtime knobs frozen into the LLM instance (temperature, model_kwargs).
+    Credential values (api_key/api_keys) are excluded — key rotation does not
+    change build semantics and credentials must never enter the hash — and
+    model_kwargs is hashed through ``_stable_json`` plus transport-header
+    stripping so that resolve-time X-Sandbox-Id/X-Telemetry-Token/Authorization
+    headers never bust the cache.
     """
     if model_cfg is None:
         return None
@@ -132,6 +141,12 @@ def _model_sig(model_cfg: ModelConfig | None) -> dict[str, object] | None:
         "supports_vision": model_cfg.supports_vision,
         "supports_video": model_cfg.supports_video,
         "custom_model_def": _stable_json(model_cfg.custom_model_def),
+        "model_kwargs": _stable_json(
+            model_cfg.model_kwargs,
+            skip_keys=_CREDENTIAL_KEYS | _TRANSPORT_HEADER_KEYS,
+        ),
+        "temperature": model_cfg.temperature,
+        "credential_pool_strategy": model_cfg.credential_pool_strategy,
     }
 
 

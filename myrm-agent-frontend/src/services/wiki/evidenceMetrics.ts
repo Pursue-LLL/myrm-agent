@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * @/lib/api::apiRequest (POS: frontend API request helper)
+ * @/store/chat/types::WikiSourceLevel (POS: Wiki 源层级类型)
+ *
+ * [OUTPUT]
+ * 证据曝光/展开/核验停留/query attempt+success/负向结果事件记录与聚合摘要查询 API。
+ *
+ * [POS]
+ * Wiki 证据指标客户端。`/statistics/wiki-evidence/*` REST 契约（按 context_key 隔离复问口径）。
+ */
+
 import { apiRequest } from '@/lib/api';
 import type { WikiSourceLevel } from '@/store/chat/types';
 

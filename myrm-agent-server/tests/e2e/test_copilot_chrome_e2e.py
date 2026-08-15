@@ -121,6 +121,11 @@ _SELECTION_SNIPPET_READY_JS = """(() => {
 _SELECT_AND_CLICK_QUOTE_JS = """(async () => {
   window.__MYRM_E2E_CHAT__?.setLoading?.(true);
   const needle = 'connection refused';
+  const waitFrame = () =>
+    new Promise((r) => {
+      const t = setTimeout(() => r(), 16);
+      requestAnimationFrame(() => { clearTimeout(t); r(); });
+    });
   const findTarget = () => {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode();
@@ -153,8 +158,8 @@ _SELECT_AND_CLICK_QUOTE_JS = """(async () => {
   }
   selectAndNotify(target);
   const diag = [];
-  for (let i = 0; i < 60; i++) {
-    await new Promise((r) => requestAnimationFrame(r));
+  for (let i = 0; i < 180; i++) {
+    await waitFrame();
     const btn = document.querySelector('[data-testid="quote-toolbar-advisor-ask"]');
     if (btn) {
       btn.click();
@@ -162,17 +167,20 @@ _SELECT_AND_CLICK_QUOTE_JS = """(async () => {
       return { ok: true, clicked: true, waitedFrames: i, selText: sel?.toString?.().slice(0, 40) || '' };
     }
     const sel = window.getSelection();
-    if (sel?.isCollapsed || !target.msgContainer.isConnected) {
+    if (!target || sel?.isCollapsed || !target.msgContainer.isConnected) {
       if (i % 5 === 0) {
         diag.push({
           i,
           collapsed: sel?.isCollapsed ?? null,
-          disconnected: !target.msgContainer.isConnected,
+          disconnected: !target?.msgContainer?.isConnected,
           portal: !!document.getElementById('quote-toolbar-portal'),
         });
       }
-      target = findTarget();
-      if (target) selectAndNotify(target);
+      const next = findTarget();
+      if (next) {
+        target = next;
+        selectAndNotify(target);
+      }
     }
   }
   const sel = window.getSelection();

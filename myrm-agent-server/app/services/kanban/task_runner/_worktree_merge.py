@@ -2,14 +2,14 @@
 
 [INPUT]
 - worktree (POS: worktree_dir / branch-name resolution + merge orchestration)
-- app.services.chat._git_shared (POS: shared git environment `_GIT_ENV`)
+- app.core.utils.git_worktree (POS: 共享 git 环境 `_GIT_ENV`)
 
 [OUTPUT]
 - _branch_has_commits, _ensure_target_branch_checked_out, _is_valid_git_branch
 
 [POS]
 合并前的 git 前置步骤：判断是否有可合并提交、确保 merge 落在目标分支、校验分支名。
-自动提交未提交改动的共享实现位于 _git_shared（kanban 与 sandbox 共用一份，
+自动提交未提交改动的共享实现位于 core.utils.git_worktree（kanban 与 sandbox 共用一份，
 避免语义漂移）。与 worktree.py 解耦，避免主文件超行数预算。
 """
 
@@ -20,7 +20,7 @@ import logging
 import re
 import subprocess
 
-from app.services.chat._git_shared import _GIT_ENV
+from app.core.utils.git_worktree import _GIT_ENV
 
 logger = logging.getLogger(__name__)
 

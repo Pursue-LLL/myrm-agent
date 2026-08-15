@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-对 `myrm-agent-server` REST/SSE 的类型化客户端（约 91 个模块）。按业务域单文件或小子目录组织；**顶层单文件禁止** `index.ts` barrel，跨域门面见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」与 `scripts/ci/barrel_whitelist.txt`。
+对 `myrm-agent-server` REST/SSE 的类型化客户端（约 77 个根模块 + 10 个子目录）。按业务域单文件或小子目录组织；**顶层单文件禁止** `index.ts` barrel，跨域门面见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」与 `scripts/ci/barrel_whitelist.txt`。
 
 ## 域划分（文件 → API）
 
@@ -65,7 +65,7 @@
 | `followUps.ts` | 记忆 follow-ups：列表 / dismiss / snooze |
 | `heartbeat.ts` | 心跳调度（interval/cron）：`getHeartbeatStatus` / `enableHeartbeat` |
 | `i18nToastService.ts` | 非 React 环境（store 等）带 i18n 的 toast |
-| `integrationMemory.ts` | Integration Memory：sync / browse / status |
+| `memory/integration.ts` | Integration Memory：sync / browse / status |
 | `localCapabilitiesProbe.ts` | Onboarding 本地能力探测缓存（Ollama/LM Studio + SearXNG） |
 | `media.ts` | 媒体列表 / 标签 |
 | `models-dev.ts` | models.dev 模型信息（成本等，自 `models.dev/api.json`） |
@@ -80,17 +80,18 @@
 | `statistics.ts` | 全局用量统计 + context-health 查询 |
 | `system.ts` | 系统服务：ingress 需求快照 / 公开 ingress 基址 |
 | `uploadController.ts` | 模块级 AbortController：会话切换取消进行中的上传 |
-| `wikiSectionLabels.ts` | Wiki 区块标题 i18n key 解析（Chat/设置共享） |
-| `wikiSourceSync.ts` | Wiki 源同步：配置 / 状态 / 结果 |
+| `wiki/sectionLabels.ts` | Wiki 区块标题 i18n key 解析（Chat/设置共享） |
+| `wiki/sourceSync.ts` | Wiki 源同步：配置 / 状态 / 结果 |
 | `workflowTemplates.ts` | 工作流模板：CRUD / 从 run 保存 / upsert |
 | `xai-oauth.ts` | xAI OAuth：start / poll / status |
 | `ConnectionManager.ts` | multiplex 流连接管理：window 全局桥 + pending 缓冲 + terminal chunk 检测 |
 | `file.ts` | HTTP 上传、`UploadProgress`、PDF/文档内容提取（**非**本地选文件） |
 | `file-service/` | 平台 `FileService` 策略（Tauri FS vs Sandbox）；见 [_ARCH.md](file-service/_ARCH.md) |
-| `wikiService.ts` | `/wiki/*` 客户端：概念树/队列/导入/审批与 query；`queryWiki` 返回结构化 `source_snippets(level/path/section/snippet)` 供设置页与聊天证据链复用 |
-| `wikiEvidenceContextCore.ts` | Wiki 证据 query 上下文解析核心（chat `context_key` 回溯边界 + `turn_distance` 计算），供输入 Hook 与流式发送链路复用统一口径 |
-| `wikiEvidenceQuerySuccessPendingCore.ts` | Chat steer query success 延迟确认核心：按 `chatId + expectedMessageId` 注册待确认 success，在首个匹配业务 SSE 帧到达时消费，避免 accepted 即 success 的提前误计 |
-| `wikiEvidenceMetrics.ts` | `/statistics/wiki-evidence/*` 客户端：记录证据曝光/展开/核验停留/query attempt+success/负向结果事件（按 `context_key` 隔离复问口径，query 事件携带 `turn_distance`；离线丢样聚合上报 `dropped_report`，`quality_outcome_negative` 用于答案负反馈锚点；chat 输入侧由 `useMessageInputWikiEvidenceCore.ts` 解析上下文并上报），并查询聚合摘要（expansion/deep verification/re-query/quick bounce/dwell/negative outcome + query success rate）。 |
+| `wikiService.ts` | Wiki 门面 → `wiki/` 分片 |
+| `wiki/` | `/wiki/*` 客户端（概念树/队列/导入/审批/query）、源同步、区块标题、证据上下文/指标/成功确认 · [_ARCH.md](wiki/_ARCH.md) |
+| `wiki/evidenceContextCore.ts` | Wiki 证据 query 上下文解析核心（chat `context_key` 回溯边界 + `turn_distance` 计算），供输入 Hook 与流式发送链路复用统一口径 |
+| `wiki/evidenceQuerySuccessPendingCore.ts` | Chat steer query success 延迟确认核心：按 `chatId + expectedMessageId` 注册待确认 success，在首个匹配业务 SSE 帧到达时消费，避免 accepted 即 success 的提前误计 |
+| `wiki/evidenceMetrics.ts` | `/statistics/wiki-evidence/*` 客户端：记录证据曝光/展开/核验停留/query attempt+success/负向结果事件（按 `context_key` 隔离复问口径，query 事件携带 `turn_distance`；离线丢样聚合上报 `dropped_report`，`quality_outcome_negative` 用于答案负反馈锚点；chat 输入侧由 `useMessageInputWikiEvidenceCore.ts` 解析上下文并上报），并查询聚合摘要（expansion/deep verification/re-query/quick bounce/dwell/negative outcome + query success rate）。 |
 | `turnCapabilityMetrics.ts` | `/statistics/turn-capability/*` 客户端：记录单轮 Skill/MCP 能力覆写的提交/生效/noop/排队/完成/失败/busy 重排队事件（含 selected/effective 能力规模与 `failure_reason` 枚举：`network_error/archive_restore_invalid/abort/server_error/unknown_error`）；支持离线丢样按 source 分桶聚合回补 `dropped_report`，并查询 apply/noop/queue/completion/failure 率聚合。 |
 | `expertSummonMetrics.ts` | `/statistics/expert-summon/*` 客户端：记录专家召唤漏斗事件（surface/search/attempt/success/fail/route apply/first send/dropped），并按 surface 聚合离线丢样回补；支持查询召唤成功率、路由应用率、首条发送转化率等口径。 |
 | `assessmentImportMetrics.ts` | `/statistics/assessment-import/*` 客户端：记录评估导入漏斗事件（import_attempted/import_succeeded/import_failed/dropped，维度含 trigger=manual_input/recent_candidate 与 failure_reason），并按 trigger 聚合离线丢样回补；支持查询导入成功率、失败率、recent-candidate 入口占比与失败原因分布；支持读取导入后价值锚点 `value-summary`（任务完成率/里程碑完成率/激活率）。 |

@@ -44,7 +44,7 @@ async def test_resolve_binding_for_chat_uses_agent_id_and_shared_context() -> No
             return_value=resolver,
         ),
         patch(
-            "app.services.memory.shared_context.resolve_shared_context_ids",
+            "app.services.memory.shared_context.shared_context.resolve_shared_context_ids",
             new=AsyncMock(return_value=["ctx-brand"]),
         ),
         patch(

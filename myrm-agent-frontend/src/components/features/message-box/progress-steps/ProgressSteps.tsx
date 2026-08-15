@@ -257,6 +257,18 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                 {t(`errorCategories.${step.error_category}`)}
               </Badge>
             )}
+            {step.fault_side && step.fault_side !== 'unknown' && (
+              <span
+                className={cn(
+                  'ml-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide shrink-0',
+                  isWarningStep
+                    ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30'
+                    : 'bg-destructive/10 text-destructive border border-destructive/25',
+                )}
+              >
+                {t(`faultSides.${step.fault_side}`)}
+              </span>
+            )}
             {step.duration_ms != null && step.duration_ms > 0 && (
               <span className="ml-2 text-xs tabular-nums text-muted-foreground/60 flex-shrink-0">
                 {step.duration_ms < 1000 ? `${step.duration_ms}ms` : `${(step.duration_ms / 1000).toFixed(1)}s`}
@@ -316,20 +328,6 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                       : 'bg-destructive/5 dark:bg-destructive/10 border-destructive/20',
                   )}
                 >
-                  {step.fault_side && step.fault_side !== 'unknown' && (
-                    <div className="mb-2 flex items-center gap-1.5">
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide',
-                          isWarningStep
-                            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30'
-                            : 'bg-destructive/10 text-destructive border border-destructive/25',
-                        )}
-                      >
-                        {t(`faultSides.${step.fault_side}`)}
-                      </span>
-                    </div>
-                  )}
                   <div
                     className={cn(
                       'text-xs break-all leading-relaxed whitespace-pre-wrap',

@@ -22,9 +22,17 @@ def client() -> Iterator[TestClient]:
     import app.services.connect.service as svc
 
     svc._service = None
-    with patch(
-        "app.core.security.auth.identity.is_loopback_ip",
-        return_value=True,
+    with (
+        patch(
+            "app.core.security.auth.identity.is_loopback_ip",
+            return_value=True,
+        ),
+        # Force the token-only doctor path: file verification would otherwise
+        # read real user config files and make the API tests environment-bound.
+        patch(
+            "app.services.connect.service.is_local_mode",
+            return_value=False,
+        ),
     ):
         yield TestClient(_app)
 
@@ -89,12 +97,22 @@ class TestConnectDoctorAPI:
         client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "windsurf"})
         response = client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "windsurf"})
         assert response.status_code == 200
-        assert response.json()["healthy"] is True
+        data = response.json()
+        assert data["healthy"] is True
+        assert data["detail"] == "token_valid"
+
+    def test_doctor_response_has_detail_field(self, client: TestClient):
+        response = client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "cursor"})
+        assert response.status_code == 200
+        assert "detail" in response.json()
+        assert isinstance(response.json()["detail"], str)
 
     def test_doctor_unconfigured_returns_unhealthy(self, client: TestClient):
         response = client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "gemini_cli"})
         assert response.status_code == 200
-        assert response.json()["healthy"] is False
+        data = response.json()
+        assert data["healthy"] is False
+        assert data["detail"] == "unknown"
 
 
 class TestConnectRevokeAPI:
