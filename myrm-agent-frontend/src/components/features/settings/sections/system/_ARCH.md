@@ -95,7 +95,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `ExecutionTraceTimeline.tsx` | 执行 Trace 时间轴（LLM/Tool 调用链、Replay 入口）；`showEvalCase` prop 控制「保存为评测用例」按钮（kanban 任务无 Chat 记录，RunsHub/看板 Drawer 复用传 `false`）；`pollMs` prop 在任务运行中轮询刷新 trace（展开时实时看到执行过程） |
+| `ExecutionTraceTimeline.tsx` | 执行 Trace 时间轴（LLM/Tool 调用链、Replay 入口）；`showEvalCase` prop 控制「保存为评测用例」按钮（kanban 任务无 Chat 记录，RunsHub/看板 Drawer 复用传 `false`）；`pollMs` prop 在任务运行中轮询刷新 trace（展开时实时看到执行过程）；ToolCallItem 渲染 `security_labels`（tainted/deny 徽标 + 展开明细） |
 | `SessionAnalyticsDialog.tsx` | 会话分析对话框（嵌入 ExecutionTraceTimeline + 上下文健康） |
 | `SessionContextHealthPanel.tsx` | 会话上下文健康面板（压缩/裁剪/缓存命中） |
 | `SessionContextHealthPanelRestore.tsx` | 上下文健康恢复面板 |

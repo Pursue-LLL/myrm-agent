@@ -48,7 +48,6 @@
 | `theme/` | Theme Engine v2（预设、壁纸、Compiler runtime） | [_ARCH.md](theme/_ARCH.md) |
 | `theme-studio/` | Theme Studio：四步向导创建 ThemeProfileRecipe + 预览/导出 .myrmtheme | [_ARCH.md](theme-studio/_ARCH.md) |
 | `voice/` | 语音输入/会话 UI | [_ARCH.md](voice/_ARCH.md) |
-| `agent-events/` | Agent 事件时间线 | [_ARCH.md](agent-events/_ARCH.md) |
 | `file-preview/` | 通用文件预览 | [_ARCH.md](file-preview/_ARCH.md) |
 | `research/` | Research 三栏研究工作台（资料池 + Chat + 工件输出） | [_ARCH.md](research/_ARCH.md) |
 | `runs/` | Unified Runs Hub 聚合运行历史 | [_ARCH.md](runs/_ARCH.md) |

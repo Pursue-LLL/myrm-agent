@@ -10,7 +10,11 @@ import mimetypes
 
 from fastapi import APIRouter, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.utils.media import ImageCompressor
+from myrm_agent_harness.utils.media.image_compressor import (
+    SEND_COMPRESS_MAX_DIMENSION,
+    SEND_COMPRESS_QUALITY,
+    image_compressor,
+)
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
@@ -89,17 +93,26 @@ def _build_file_content_url(request: Request, file_id: str) -> str:
 
 
 async def _compress_image(content: bytes, filename: str) -> bytes:
-    """压缩图片，失败时返回原始内容"""
+    """Compress image, returning original content on failure or for animated GIFs."""
     try:
-        original_size = len(content)
-        compressor = ImageCompressor()
-        # Downsample large images to max 2048px to save LLM tokens and prevent payload explosion
-        compressed = compressor.compress(io.BytesIO(content), output_path=None, quality=0.8, max_dimension=2048)
-        if isinstance(compressed, bytes) and compressed:
-            logger.warning(f"Image compressed: {filename}, original: {original_size} bytes, compressed: {len(compressed)} bytes")
+        # Responsive compression: downsample oversized images to max 2048px to save LLM
+        # tokens and prevent payload explosion. Animated GIFs and small images pass
+        # through untouched (compress_if_needed preserves animation + zero-cost fast path).
+        compressed = image_compressor.compress_if_needed(
+            content,
+            max_dimension=SEND_COMPRESS_MAX_DIMENSION,
+            quality=SEND_COMPRESS_QUALITY,
+        )
+        if compressed is not content:
+            logger.warning(
+                "Image compressed: %s, original: %d bytes, compressed: %d bytes",
+                filename,
+                len(content),
+                len(compressed),
+            )
             return compressed
     except Exception as e:
-        logger.error(f"Failed to compress image {filename}: {e}")
+        logger.error("Failed to compress image %s: %s", filename, e)
     return content
 
 

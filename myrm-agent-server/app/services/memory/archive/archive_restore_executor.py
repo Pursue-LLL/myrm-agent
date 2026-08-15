@@ -2,7 +2,8 @@
 
 [INPUT] MemoryArchivePayload, MemoryManager, selected archive sections (POS: framework archive DTOs)
 [OUTPUT] MemoryArchiveRestoreExecutor: writes safe-merge mutations and rollback ledger rows.
-[POS] 归档恢复执行层。写入 memory/Shared Context/conversation/replay/audit 分区并记录可回滚账本。
+[POS] 归档恢复执行层。写入 memory/Shared Context/conversation/audit 分区并记录可回滚账本；
+replay 分区始终为空（AgentTurn/AgentEvent 事件回放系统已移除），恢复直接跳过。
 """
 
 from __future__ import annotations

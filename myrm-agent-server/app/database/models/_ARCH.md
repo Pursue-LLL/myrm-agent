@@ -25,7 +25,6 @@
 | `web_push_subscription.py` | 域模块 | WebPushSubscription（Web Push VAPID 订阅） | ✅ |
 | `memory.py` | 域模块 | ProfileAttribute, ProceduralRule, PendingMemory, SharedContextModel, SharedContextBindingModel, SharedContextWriteProposalModel, MemoryOperationEventModel, MemoryHealthSnapshotModel, MemoryMigrationProvenanceModel, MemoryImportDryRunModel, MemoryImportBatchModel, MemoryImportItemModel, MemoryArchiveRestoreBatchModel, MemoryArchiveRestoreItemModel；导入审查和归档恢复模型持久化 dry-run、确认批次、回滚状态和清理所需时间字段 | ✅ |
 | `config.py` | 域模块 | UserConfig | ✅ |
-| `agent_event.py` | 域模块 | AgentTurn, AgentEvent | ✅ |
 | `cron.py` | 域模块 | CronJobModel, CronRunModel, MonitorStateModel | ✅ |
 | `channel.py` | 域模块 | ChannelPairingModel | ✅ |
 | `media.py` | 域模块 | BatchImageJob, MediaLibrary | ✅ |

@@ -11,6 +11,7 @@
  */
 
 import { apiRequest } from '@/lib/api';
+import type { DoctorSeverity } from '@/lib/i18n/connectDoctor';
 
 /** Connector state id used for the Agent Plugins bundle (server-side constant). */
 export const AGENT_PLUGIN_PROFILE_ID = 'agent_plugin';
@@ -37,6 +38,8 @@ export interface DoctorResponse {
   healthy: boolean;
   /** Machine-readable outcome code; map to a localized message in the UI. */
   detail: string;
+  /** Server-owned presentation severity ('ok' | 'warn' | 'error'). */
+  severity: DoctorSeverity;
 }
 
 export interface RevokeResponse {

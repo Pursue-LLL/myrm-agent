@@ -1,7 +1,8 @@
 """Integration: discovery install → catalog enable → runtime skill IDs (SSOT).
 
-Mocks only external market download (_base.install). enable, user config,
-and runtime resolution run without mocks.
+Mocks only external market download/update paths (_base.install,
+SkillAutoUpdateChecker.update_skill). enable, user config, runtime resolution,
+and failure response assembly run without mocks.
 """
 
 from __future__ import annotations
@@ -14,6 +15,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.backends.skills.local_skill_id import local_skill_id_from_path
 from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
+from myrm_agent_harness.backends.skills.scanning.archive_security import (
+    ArchiveSecurityCode,
+)
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 from app.api.skills import discovery
@@ -474,7 +478,7 @@ async def test_update_api_failure_passes_error_and_error_code(
     )
     with (
         patch(
-            "app.core.skills.marketplace.autoupdate.AutoupdateChecker.update_skill",
+            "app.core.skills.discovery.autoupdate.SkillAutoUpdateChecker.update_skill",
             new=AsyncMock(return_value=failed_result),
         ),
         patch("app.api.skills.discovery._audit_skill_action") as audit,

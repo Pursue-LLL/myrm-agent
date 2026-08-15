@@ -55,6 +55,7 @@ class DoctorResponse(BaseModel):
     profile_id: str
     healthy: bool
     detail: str = "unknown"
+    severity: str = "error"
 
 
 class RevokeRequest(BaseModel):
@@ -140,6 +141,7 @@ async def run_doctor(body: DoctorRequest) -> DoctorResponse:
         profile_id=body.profile_id,
         healthy=result.healthy,
         detail=result.detail,
+        severity=result.severity,
     )
 
 

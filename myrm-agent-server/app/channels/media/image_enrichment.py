@@ -31,7 +31,6 @@ import asyncio
 import base64
 import dataclasses
 import hashlib
-import io
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -274,12 +273,14 @@ def _read_local_file(path: str) -> bytes | None:
 
 
 def _compress_image(raw_bytes: bytes) -> bytes | None:
-    """Compress image bytes using ImageCompressor, returning JPEG bytes."""
+    """Responsive image compression, preserving animated GIFs and returning None on failure."""
     try:
         from myrm_agent_harness.utils.media.image_compressor import image_compressor
 
-        result = image_compressor.compress(
-            io.BytesIO(raw_bytes),
+        # Responsive compression with animation protection: animated GIFs and images
+        # already under the 1568px / byte threshold pass through untouched.
+        result = image_compressor.compress_if_needed(
+            raw_bytes,
             quality=COMPRESS_QUALITY,
             max_dimension=MAX_DIMENSION_PX,
         )

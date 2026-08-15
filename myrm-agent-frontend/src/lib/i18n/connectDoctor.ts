@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * #locales/*.json::connectWizard.doctor* (POS: Doctor detail i18n message keys)
+ * #services.connect::DoctorResponse.severity (POS: server-owned severity)
  *
  * [OUTPUT]
  * - resolveDoctorMessageKey
@@ -15,7 +16,9 @@
  *
  * Severity is three-valued because a doctor result is not binary: some codes
  * report a healthy-but-unverifiable state (token_valid, token_env) that must
- * not be shown as a green "all good" nor as a red failure.
+ * not be shown as a green "all good" nor as a red failure. When the server
+ * reports a severity it wins; the local table is only a fallback for clients
+ * talking to older servers that omit the field.
  */
 
 import { formatDistanceToNow } from 'date-fns';
@@ -57,9 +60,17 @@ export function resolveDoctorMessageKey(detail: string, healthy: boolean): strin
 
 /**
  * Resolve the presentation severity for a doctor check outcome.
- * Falls back to the healthy flag for unknown detail codes.
+ * The server-owned severity is authoritative when present; the local detail
+ * table is the fallback for older servers, then the healthy flag.
  */
-export function resolveDoctorSeverity(detail: string, healthy: boolean): DoctorSeverity {
+export function resolveDoctorSeverity(
+  detail: string,
+  healthy: boolean,
+  serverSeverity?: DoctorSeverity,
+): DoctorSeverity {
+  if (serverSeverity) {
+    return serverSeverity;
+  }
   return DOCTOR_DETAIL_SEVERITIES[detail] ?? (healthy ? 'ok' : 'error');
 }
 

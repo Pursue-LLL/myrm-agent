@@ -11,9 +11,13 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
+    RoutingResult,
+    RoutingTier,
+)
 
 from app.core.types import ModelConfig
-from app.services.agent.params.models import AgentRequest
+from app.services.agent.params.models import AgentRequest, ModelSelection
 from tests.api.agent.utils import get_model_selection
 
 _DUMMY_KEY = "sk-test-routing"
@@ -36,16 +40,13 @@ def base_request() -> dict[str, object]:
     }
 
 
-async def _fake_resolve(selection: object, providers: object) -> ModelConfig:
+async def _fake_resolve(
+    selection: ModelSelection, providers: dict[str, object] | None
+) -> ModelConfig:
     return ModelConfig(model="gpt-4o-mini", api_key=_DUMMY_KEY)
 
 
-def _fake_route_result() -> object:
-    from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
-        RoutingResult,
-        RoutingTier,
-    )
-
+def _fake_route_result() -> RoutingResult:
     return RoutingResult(
         tier=RoutingTier.STANDARD,
         model_cfg=ModelConfig(model="gpt-4o-mini", api_key=_DUMMY_KEY),

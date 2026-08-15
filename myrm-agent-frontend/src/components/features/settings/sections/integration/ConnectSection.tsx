@@ -131,7 +131,7 @@ const ConnectSection = memo(() => {
       try {
         const result = await runConnectDoctor(profileId);
         const message = t(resolveDoctorMessageKey(result.detail, result.healthy));
-        const severity = resolveDoctorSeverity(result.detail, result.healthy);
+        const severity = resolveDoctorSeverity(result.detail, result.healthy, result.severity);
         if (severity === 'ok') {
           toast.success(message);
         } else if (severity === 'warn') {

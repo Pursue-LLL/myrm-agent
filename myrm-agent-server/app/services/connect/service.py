@@ -32,9 +32,9 @@ from typing import TYPE_CHECKING
 from app.config.deploy_mode import is_local_mode
 from app.config.settings import settings
 from app.services.connect.doctor_check import (
-    DOCTOR_TOKEN_ENV,
     DOCTOR_TOKEN_VALID,
     DOCTOR_UNKNOWN,
+    DoctorSeverity,
     DoctorVerdict,
     hash_token,
     verify_connector_config,
@@ -83,6 +83,7 @@ class DoctorResult:
 
     healthy: bool
     detail: str
+    severity: DoctorSeverity = "error"
 
 
 @dataclass
@@ -270,32 +271,32 @@ class ConnectService:
             )
 
         if verdict is not None:
-            healthy, detail = verdict.healthy, verdict.detail
+            healthy, detail, severity = verdict.healthy, verdict.detail, verdict.severity
         else:
             healthy = bool(state.token_hash) and state.status != ConnectorStatus.MISSING
             detail = DOCTOR_TOKEN_VALID if healthy else DOCTOR_UNKNOWN
+            # Token validity cannot be verified against an agent-side config in
+            # sandbox mode; that is a warn-level blind spot, not an error.
+            severity: DoctorSeverity = "warn" if healthy else "error"
 
         # A doctor result describes config/token health only; it must not promote
         # the lifecycle status (READY is set by mark_ready on real MCP traffic).
         state.doctor_ok = healthy
         state.last_doctor_detail = detail
-        if not healthy:
-            if detail == DOCTOR_TOKEN_ENV:
-                # Env-var token reference is a verification blind spot, not a
-                # failure; keep it below the WARNING threshold to avoid noise.
-                logger.info(
-                    "Connector doctor check: profile=%s detail=%s (env-var token, not verifiable)",
-                    profile_id,
-                    detail,
-                )
-            else:
-                logger.warning(
-                    "Connector doctor check failed: profile=%s detail=%s",
-                    profile_id,
-                    detail,
-                )
+        if severity == "error":
+            logger.warning(
+                "Connector doctor check failed: profile=%s detail=%s",
+                profile_id,
+                detail,
+            )
+        elif severity == "warn":
+            logger.info(
+                "Connector doctor check: profile=%s detail=%s (not verifiable)",
+                profile_id,
+                detail,
+            )
         self._save_state()
-        return DoctorResult(healthy=healthy, detail=detail)
+        return DoctorResult(healthy=healthy, detail=detail, severity=severity)
 
     def revoke(self, profile_id: str) -> bool:
         """Revoke a connector's token and reset its state."""

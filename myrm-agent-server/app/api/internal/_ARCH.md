@@ -16,3 +16,4 @@ Control Plane → sandbox internal 控制端点（中断、killswitch、归档�
 | `org_model_policy_sync.py` | 模块 | CP-to-sandbox model policy sync；POST 落盘 + bump revision + `execution_cache.close_all()`；GET `/org-policy/allowed-models` 返回 canonical patterns 供 FE 灰显 | ✅ |
 | `org_managed_approval_policy_sync.py` | 模块 | CP-to-sandbox internal endpoint for syncing org managed approval policy; POST sync + `AppEventType.MANAGED_POLICY_UPDATED` SSE fanout | ✅ |
 | `background_shell_status.py` | 模块 | CP-to-sandbox probe: running shell job count + `registry_ephemeral` (mirrors REST `shell_registry_is_ephemeral`) | ✅ |
+| `agent_audit.py` | 模块 | CP-to-sandbox agent audit pull：GET `/api/admin/agent-audit/events` 按时间窗口拉取 harness JSONL event-log（agent 事件 SSOT，替代已删除的 AgentTurn/AgentEvent 表）；`X-Telemetry-Token` 校验 + hours/limit 钳制 | ✅ |
