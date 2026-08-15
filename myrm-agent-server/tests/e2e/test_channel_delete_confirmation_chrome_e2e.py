@@ -29,7 +29,6 @@ from tests.support.chrome_mcp_e2e import (
     open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
-    warm_ui_route,
 )
 
 _CHANNELS_PATH = "/settings/channels"
@@ -138,6 +137,28 @@ def _extra_instance_gone_js(instance_id: str) -> str:
 }})()"""
 
 
+def _status_diagnostics(api_url: str) -> dict[str, object]:
+    """Best-effort backend status snapshot to pinpoint why the UI may not render the delete button."""
+    diag: dict[str, object] = {}
+    try:
+        statuses = http_json("GET", f"{api_url}/api/v1/channels/manage/status")
+        if isinstance(statuses, list):
+            diag["statusCount"] = len(statuses)
+            diag["statusNames"] = [s.get("name") for s in statuses if isinstance(s, dict)]
+            wechat = next((s for s in statuses if isinstance(s, dict) and s.get("name") == "wechat"), None)
+            diag["wechatStatus"] = wechat
+        else:
+            diag["statusRaw"] = statuses
+    except RuntimeError as exc:
+        diag["statusErr"] = str(exc)[:400]
+    try:
+        wechat_status = http_json("GET", f"{api_url}/api/v1/channels/manage/wechat/status")
+        diag["wechatEndpoint"] = wechat_status
+    except RuntimeError as exc:
+        diag["wechatEndpointErr"] = str(exc)[:400]
+    return diag
+
+
 def _seed_wechat_instance(api_url: str) -> dict[str, str]:
     """Create a WeChat extra instance through the real instances API."""
     created = http_json(
@@ -168,10 +189,14 @@ def test_wechat_primary_logout_confirmation() -> None:
     api_url = get_e2e_api_url()
     channels_url = f"{get_e2e_ui_url().rstrip('/')}{_CHANNELS_PATH}"
     prepare_e2e_ui_session(api_url)
+    diag = _status_diagnostics(api_url)
+    print(f"\n[channel-e2e] backend status diagnostics: {diag}")
 
     with open_settings_subroute(_CHANNELS_PATH, timeout_ms=120_000) as (client, page):
         dismiss_blocking_modals(client, page, recover_url=channels_url)
         nav = wait_for_state(client, page, _NAV_TO_WECHAT_JS, timeout_sec=120.0, page_url=channels_url)
+        if nav.get("ready") is not True:
+            nav["backendDiag"] = diag
         assert nav.get("ready") is True, nav
 
         # Cancel keeps the account.
@@ -229,6 +254,8 @@ def test_wechat_extra_instance_delete_confirmation() -> None:
     api_url = get_e2e_api_url()
     channels_url = f"{get_e2e_ui_url().rstrip('/')}{_CHANNELS_PATH}"
     prepare_e2e_ui_session(api_url)
+    diag = _status_diagnostics(api_url)
+    print(f"\n[channel-e2e] backend status diagnostics: {diag}")
 
     seeded = _seed_wechat_instance(api_url)
     instance_id = seeded["instanceId"]
@@ -236,6 +263,8 @@ def test_wechat_extra_instance_delete_confirmation() -> None:
         with open_settings_subroute(_CHANNELS_PATH, timeout_ms=120_000) as (client, page):
             dismiss_blocking_modals(client, page, recover_url=channels_url)
             nav = wait_for_state(client, page, _NAV_TO_WECHAT_JS, timeout_sec=120.0, page_url=channels_url)
+            if nav.get("ready") is not True:
+                nav["backendDiag"] = diag
             assert nav.get("ready") is True, nav
 
             extra = wait_for_state(
