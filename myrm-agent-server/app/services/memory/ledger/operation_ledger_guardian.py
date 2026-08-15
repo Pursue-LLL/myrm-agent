@@ -8,7 +8,8 @@
 - guardian_guard_alert_thresholds / latest_guardian_morning_digest / guardian_guard_alert_snapshot
 
 [POS]
-Extracted guardian-specific aggregation from operation_ledger to keep the core ledger module within line budget.
+Guardian 读侧账本聚合层。聚合 guardian 守护告警阈值、晨间摘要与守卫不可用快照，
+保持核心 ledger 模块行数受控。
 """
 
 from __future__ import annotations

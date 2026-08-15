@@ -5648,6 +5648,7 @@
         "toneLlm": "LLM",
         "toneOther": "Ereignis",
         "agentLoadFailed": "Agent-Aktivität konnte nicht geladen werden",
+        "agentOrgLoadFailed": "Organisation konnte nicht geladen werden",
         "eventTypes": {
           "toolStart": "Tool-Aufruf gestartet",
           "toolEnd": "Tool-Aufruf beendet",

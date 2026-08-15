@@ -724,6 +724,22 @@ async def test_build_llm_duration_breakdown(tmp_path):
             event_type="token_usage",
             data={"data": {"model_name": "gpt-4o", "duration_ms": 400.0}},
         ),
+        # Missing model name -> "unknown" bucket
+        StructuredEvent(
+            session_id=session_id,
+            sequence=6,
+            timestamp=ts + 5,
+            event_type="token_usage",
+            data={"duration_ms": 100.0},
+        ),
+        # Malformed non-dict payload -> ignored
+        StructuredEvent(
+            session_id=session_id,
+            sequence=7,
+            timestamp=ts + 6,
+            event_type="token_usage",
+            data="not-a-dict",
+        ),
     ]
     await backend.append(events)
 
@@ -734,6 +750,9 @@ async def test_build_llm_duration_breakdown(tmp_path):
     assert by_model["gpt-4o"]["total_duration_ms"] == 2400.0
     assert by_model["claude-sonnet"]["call_count"] == 1
     assert by_model["claude-sonnet"]["total_duration_ms"] == 2500.0
+    assert by_model["unknown"]["call_count"] == 1
+    assert by_model["unknown"]["total_duration_ms"] == 100.0
+    assert len(breakdown) == 3
 
 
 @pytest.mark.asyncio

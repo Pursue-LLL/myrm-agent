@@ -411,7 +411,7 @@ function renderToolCallDetailsHtml(
   const totalMs = turnCalls.reduce((sum, d) => sum + (d.durationMs ?? 0), 0);
   let items = '';
   for (const tc of turnCalls) {
-    const dur = tc.durationMs != null ? ` <span class="tool-dur">${formatDuration(tc.durationMs)}</span>` : '';
+    const dur = tc.durationMs !== null ? ` <span class="tool-dur">${formatDuration(tc.durationMs)}</span>` : '';
     const args = tc.argsSummary ? `(${esc(tc.argsSummary)})` : '';
     const mark = tc.success === false ? '<span class="tool-fail">&#x2717;</span> ' : '';
     items += `<li>${mark}${esc(tc.name)}${args}${dur}</li>`;

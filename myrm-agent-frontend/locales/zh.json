@@ -4632,6 +4632,7 @@
         "toneLlm": "LLM",
         "toneOther": "事件",
         "agentLoadFailed": "无法加载 Agent 行为数据",
+        "agentOrgLoadFailed": "组织加载失败",
         "eventTypes": {
           "toolStart": "工具调用开始",
           "toolEnd": "工具调用完成",

@@ -288,25 +288,31 @@ def _wechat_instances(api_url: str) -> list[dict[str, object]]:
 def _instances_fetch_probe_js() -> str:
     """Fetch the real instances API from the page context (same auth as the app).
 
-    Reveals exactly what ``listChannelInstances`` receives: the raw instanceId
-    values the frontend state will be seeded from.
+    Uses the E2E runtime apiBase when present (PRIVATE mode), matching exactly
+    what ``apiRequest`` resolves, so the response is what the frontend state is
+    seeded from.
     """
     return """(() => {
   const token = localStorage.getItem('auth_token') || '';
+  const runtimeBase = ((window.__MYRM_E2E_RUNTIME__?.apiBase ?? window.__MYRM_E2E_API_BASE__) || '').replace(/\\/+$/, '');
+  const url = runtimeBase
+    ? `${runtimeBase}/api/v1/channels/manage/instances?channel_type=wechat`
+    : '/api/v1/channels/manage/instances?channel_type=wechat';
   const xhr = new XMLHttpRequest();
   try {
-    xhr.open('GET', '/api/v1/channels/manage/instances?channel_type=wechat', false);
+    xhr.open('GET', url, false);
     if (token) {
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     }
     xhr.send();
     return {
+      runtimeBase,
       status: xhr.status,
       bodyLen: (xhr.responseText || '').length,
       body: (xhr.responseText || '').slice(0, 2500),
     };
   } catch (err) {
-    return { err: String(err) };
+    return { runtimeBase, err: String(err) };
   }
 })()"""
 

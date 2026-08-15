@@ -1,13 +1,12 @@
 """Memory Guardian — periodic autonomous memory maintenance scheduler.
 
 [INPUT]
-- myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager)
 - myrm_agent_harness.toolkits.memory.strategies.pattern_discovery (POS: Cross-cycle pattern discovery)
 - myrm_agent_harness.runtime.maintenance.scheduler::GlobalAdaptiveScheduler (POS: Load-aware capacity)
 - app.database.operations.backup::get_sqlite_backup_manager (POS: SQLite 备份管理器工厂)
 - app.services.agent.gateway::AgentGateway (POS: Active session tracking)
 - app.services.budget.enforcer::should_block_execution (POS: Budget enforcement)
-- app.core.memory.adapters.setup::create_memory_manager (POS: 业务层记忆管理器工厂)
+- app.lifecycle.memory_guardian_ops::create_guardian_memory_manager (POS: guardian 上下文 MemoryManager 工厂)
 - app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
 - app.services.memory.ledger.guardian_policy::MemoryGuardianPolicy (POS: 受约束调度策略)
 
@@ -39,7 +38,6 @@ import logging
 import time
 from typing import Literal
 
-from myrm_agent_harness.toolkits.memory import MemoryManager
 from myrm_agent_harness.toolkits.memory.health import MaintenanceReport
 
 from app.lifecycle.memory_guardian_ops import (

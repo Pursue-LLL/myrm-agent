@@ -60,29 +60,27 @@ async def _build_llm_duration_breakdown(
         logger.debug("Failed to read token_usage events for LLM breakdown", exc_info=True)
         return []
 
-    buckets: dict[str, dict[str, object]] = {}
+    totals: dict[str, list[int | float]] = {}
     for event in events:
-        payload = event.data.get("data") if isinstance(event.data.get("data"), dict) else event.data
+        payload = event.data if isinstance(event.data, dict) else {}
+        if isinstance(payload.get("data"), dict):
+            payload = payload["data"]
         duration_raw = payload.get("duration_ms")
         if not isinstance(duration_raw, (int, float)):
             continue
         model_name = payload.get("model_name")
         if not isinstance(model_name, str) or not model_name:
             model_name = "unknown"
-        bucket = buckets.setdefault(
-            model_name,
-            {"model_name": model_name, "call_count": 0, "total_duration_ms": 0.0},
-        )
-        bucket["call_count"] = int(bucket["call_count"]) + 1
-        bucket["total_duration_ms"] = float(bucket["total_duration_ms"]) + float(duration_raw)
+        count, total = totals.setdefault(model_name, [0, 0.0])
+        totals[model_name] = [count + 1, total + float(duration_raw)]
 
     return [
         {
-            "model_name": str(bucket["model_name"]),
-            "call_count": int(bucket["call_count"]),
-            "total_duration_ms": round(float(bucket["total_duration_ms"]), 1),
+            "model_name": model_name,
+            "call_count": count,
+            "total_duration_ms": round(total, 1),
         }
-        for bucket in buckets.values()
+        for model_name, (count, total) in totals.items()
     ]
 
 

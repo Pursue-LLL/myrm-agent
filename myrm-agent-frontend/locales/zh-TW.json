@@ -4285,6 +4285,7 @@
         "toneLlm": "LLM",
         "toneOther": "事件",
         "agentLoadFailed": "無法載入 Agent 行為資料",
+        "agentOrgLoadFailed": "組織載入失敗",
         "eventTypes": {
           "toolStart": "工具呼叫開始",
           "toolEnd": "工具呼叫完成",

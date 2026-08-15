@@ -5648,6 +5648,7 @@
         "toneLlm": "LLM",
         "toneOther": "이벤트",
         "agentLoadFailed": "에이전트 활동을 불러오지 못했습니다",
+        "agentOrgLoadFailed": "조직을 불러오지 못했습니다",
         "eventTypes": {
           "toolStart": "도구 호출 시작",
           "toolEnd": "도구 호출 완료",

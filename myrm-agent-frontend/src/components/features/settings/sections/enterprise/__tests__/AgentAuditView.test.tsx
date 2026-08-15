@@ -270,6 +270,23 @@ describe('AgentAuditView', () => {
     });
   });
 
+  it('shows an error when the organization lookup fails', async () => {
+    const fetchMock = vi.fn(async () => {
+      return { ok: false, status: 500, json: async () => ({}), text: async () => '' } as Response;
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<AgentAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/^agentOrgLoadFailed/)).toBeInTheDocument();
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/enterprise/org/me'),
+      expect.anything(),
+    );
+  });
+
   it('shows an error banner when the agent audit request fails', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input).split('?')[0];

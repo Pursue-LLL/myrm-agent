@@ -4632,6 +4632,7 @@
         "toneLlm": "LLM",
         "toneOther": "Event",
         "agentLoadFailed": "Failed to load agent activity",
+        "agentOrgLoadFailed": "Failed to load organization",
         "eventTypes": {
           "toolStart": "Tool call started",
           "toolEnd": "Tool call finished",

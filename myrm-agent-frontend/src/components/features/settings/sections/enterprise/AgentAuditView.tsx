@@ -52,7 +52,7 @@ const AgentAuditView = memo(() => {
         await loadData(org.id, 24);
       } catch {
         if (cancelled) {return;}
-        setError('Failed to load organization');
+        setError(t('agentOrgLoadFailed'));
         setLoading(false);
       }
     })();
@@ -60,7 +60,7 @@ const AgentAuditView = memo(() => {
       cancelled = true;
       requestSeqRef.current += 1;
     };
-  }, [loadData]);
+  }, [loadData, t]);
 
   const onHoursChange = useCallback(
     (value: string) => {
