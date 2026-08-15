@@ -14,12 +14,13 @@ import TraceErrorItem from '../TraceErrorItem';
 
 function baseError(overrides?: Partial<TraceError>): TraceError {
   return {
+    timestamp: 0,
     error_type: 'rate_limit_error',
     error: 'rate limited',
     fault_side: null,
     diagnostic_result: null,
     ...overrides,
-  };
+  } as TraceError;
 }
 
 describe('TraceErrorItem', () => {
@@ -53,7 +54,9 @@ describe('TraceErrorItem', () => {
     const error = baseError({
       diagnostic_result: {
         error_type: 'rate_limit_error',
+        user_message: 'Rate limit hit',
         resolution_steps: ['step 1', 'step 2', 'step 3', 'step 4', 'step 5'],
+        locale: 'en',
       },
     });
     render(<TraceErrorItem error={error} isFirstIrrecoverable={false} />);
