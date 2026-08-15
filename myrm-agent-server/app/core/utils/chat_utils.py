@@ -27,6 +27,7 @@ from myrm_agent_harness.utils.image_utils import (
     strip_images_from_content,
 )
 from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
+from myrm_agent_harness.utils.media.image_compressor import MAX_DECODE_PIXELS
 from myrm_agent_harness.utils.url_utils import is_image_url, is_valid_image_url
 
 from app.core.utils.files_utils import read_image_as_base64
@@ -286,7 +287,7 @@ def _needs_compression_base64(b64_data: str, byte_size: int) -> bool:
     try:
         from PIL import Image
 
-        Image.MAX_IMAGE_PIXELS = None
+        Image.MAX_IMAGE_PIXELS = MAX_DECODE_PIXELS
         raw_bytes = base64.b64decode(b64_data)
         with Image.open(io.BytesIO(raw_bytes)) as img:
             w, h = img.size
@@ -307,7 +308,7 @@ def _compress_base64_image(b64_data: str) -> str | None:
     try:
         from PIL import Image, ImageOps
 
-        Image.MAX_IMAGE_PIXELS = None
+        Image.MAX_IMAGE_PIXELS = MAX_DECODE_PIXELS
         raw_bytes = base64.b64decode(b64_data)
         img = Image.open(io.BytesIO(raw_bytes))
         img = ImageOps.exif_transpose(img)

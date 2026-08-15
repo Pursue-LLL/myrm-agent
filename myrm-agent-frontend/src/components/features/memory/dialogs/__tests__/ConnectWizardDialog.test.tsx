@@ -251,7 +251,7 @@ async function navigateToConfigStep() {
   const view = render(<ConnectWizardDialog open onOpenChange={() => {}} />);
   await screen.findByText('Cursor');
   fireEvent.click(screen.getByText('Cursor'));
-  fireEvent.click(screen.getByRole('button', { name: 'Generate', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
   await screen.findByText('configReady');
   return view;
 }

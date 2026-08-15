@@ -90,8 +90,11 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `ConversationRecallPanel.tsx` | 组件 | 历史会话召回搜索与插入面板 | ✅ |
+| `ReplayControls.tsx` | 组件 | 回放控制条（标题/跳错/速度/播放暂停/带事件标记的进度条） | ✅ |
+| `ReplayInspector.tsx` | 组件 | 回放明细检查器（当前时间线事件的错误/工具结果/安全标签/LLM 统计） | ✅ |
 | `ReplayMessageBubble.tsx` | 组件 | 回放消息气泡 | ✅ |
-| `SessionReplayPlayer.tsx` | 组件 | 会话回放播放器 | ✅ |
+| `ReplayMindView.tsx` | 组件 | 回放脑图面板（LLM 调用/记忆事件/人工反馈/推理轨迹/带安全徽标的工具行） | ✅ |
+| `SessionReplayPlayer.tsx` | 组件 | 会话回放播放器（编排 Controls/MindView/Inspector 三栏） | ✅ |
 | `memoryLiveStream.ts` | 工具 | 记忆实时流事件解析与 replay session 解析 | ✅ |
 | `replayTimeline.ts` | 工具 | 回放时间线构建 | ✅ |
 

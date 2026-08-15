@@ -228,10 +228,17 @@ _MOBILE_LOADING_APPLY_JS = """(() => {
   return { ok: true };
 })()"""
 
-_MOBILE_VIEW_FULL_READY_JS = """(() => ({
-  ready: !!document.querySelector('[data-testid="mobile-command-view-full-conversation"]'),
-  pathname: location.pathname,
-}))()"""
+_MOBILE_VIEW_FULL_READY_JS = """(() => {
+  const link = document.querySelector('[data-testid="mobile-command-view-full-conversation"]');
+  const bridge = window.__MYRM_E2E_MOBILE_CC__;
+  if (!link && bridge?.setLoading) {
+    bridge.setLoading(true);
+  }
+  return {
+    ready: !!link,
+    pathname: location.pathname,
+  };
+})()"""
 
 _CLICK_MOBILE_VIEW_FULL_JS = """(() => {
   const link = document.querySelector('[data-testid="mobile-command-view-full-conversation"]');

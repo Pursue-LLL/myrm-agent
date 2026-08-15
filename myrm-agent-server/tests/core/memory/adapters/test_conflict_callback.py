@@ -10,6 +10,7 @@ Covers:
 - Boundary: importance 0.9 is high-risk, 0.89 is not
 - None importance is treated as low-risk (safe default)
 - Ledger event is recorded on success and its failure is non-fatal
+- Episodic conflicts persist memory_type="episodic" and ledger it (frontend source)
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import ConflictContext
-from myrm_agent_harness.toolkits.memory.types import ConflictResolution
+from myrm_agent_harness.toolkits.memory.types import ConflictResolution, MemoryType
 
 
 @contextmanager
@@ -55,6 +56,7 @@ class TestCreateConflictCallback:
             accuracy_score=0.7,
             importance=0.8,
             merge_suggestion="Both have merits",
+            memory_type=MemoryType.SEMANTIC,
         )
 
         mock_db = AsyncMock()
@@ -98,6 +100,7 @@ class TestCreateConflictCallback:
             accuracy_score=0.5,
             importance=0.85,
             merge_suggestion="c",
+            memory_type=MemoryType.SEMANTIC,
         )
 
         mock_db = AsyncMock()
@@ -132,6 +135,7 @@ class TestCreateConflictCallback:
             accuracy_score=0.5,
             importance=0.95,
             merge_suggestion="c",
+            memory_type=MemoryType.SEMANTIC,
         )
 
         mock_db = AsyncMock()
@@ -163,6 +167,7 @@ class TestCreateConflictCallback:
             accuracy_score=0.5,
             importance=0.9,
             merge_suggestion="c",
+            memory_type=MemoryType.SEMANTIC,
         )
 
         mock_db = AsyncMock()
@@ -192,6 +197,7 @@ class TestCreateConflictCallback:
             accuracy_score=0.5,
             importance=0.89,
             merge_suggestion="c",
+            memory_type=MemoryType.SEMANTIC,
         )
 
         mock_db = AsyncMock()
@@ -221,6 +227,7 @@ class TestCreateConflictCallback:
             accuracy_score=0.5,
             importance=None,
             merge_suggestion="c",
+            memory_type=MemoryType.SEMANTIC,
         )
 
         mock_db = AsyncMock()
@@ -250,6 +257,7 @@ class TestCreateConflictCallback:
             accuracy_score=0.5,
             importance=0.9,
             merge_suggestion="c",
+            memory_type=MemoryType.SEMANTIC,
         )
 
         mock_session_ctx = AsyncMock()
@@ -260,6 +268,47 @@ class TestCreateConflictCallback:
             result = await callback(ctx)
 
         assert result == ConflictResolution.KEEP_OLD
+
+    @pytest.mark.asyncio
+    async def test_episodic_memory_type_persisted_and_ledgered(self) -> None:
+        """Episodic conflicts must persist memory_type="episodic" end-to-end (frontend source)."""
+        from app.core.memory.adapters.setup import create_conflict_callback
+
+        callback = create_conflict_callback(agent_id="agent-1")
+        ctx = ConflictContext(
+            old_memory_id="old-epi-1",
+            old_content="Went to Shanghai office",
+            new_content="Moved to Beijing office",
+            accuracy_score=0.7,
+            importance=0.8,
+            merge_suggestion="Moved to Beijing office",
+            memory_type=MemoryType.EPISODIC,
+        )
+
+        mock_db = AsyncMock()
+        mock_db.scalar = AsyncMock(return_value=None)
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        mock_ledger_service = AsyncMock()
+        mock_ledger_service.record_event = AsyncMock()
+        with (
+            patch("app.database.connection.get_session", return_value=mock_session_ctx),
+            patch(
+                "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
+                return_value=mock_ledger_service,
+            ),
+        ):
+            result = await callback(ctx)
+
+        assert result == ConflictResolution.PENDING
+        record = mock_db.add.call_args[0][0]
+        assert record.memory_type == "episodic"
+        assert record.conflict_old_memory_id == "old-epi-1"
+        mock_ledger_service.record_event.assert_awaited_once()
+        kwargs = mock_ledger_service.record_event.await_args.kwargs
+        assert kwargs["memory_type"] == "episodic"
 
     @pytest.mark.asyncio
     async def test_records_ledger_event_on_success(self) -> None:
@@ -274,6 +323,7 @@ class TestCreateConflictCallback:
             accuracy_score=0.7,
             importance=0.95,
             merge_suggestion="Both have merits",
+            memory_type=MemoryType.SEMANTIC,
         )
 
         mock_db = AsyncMock()
@@ -300,6 +350,7 @@ class TestCreateConflictCallback:
         assert kwargs["target_id"] == mock_db.add.call_args[0][0].id
         assert kwargs["commit"] is True
         assert kwargs["metadata"] == {"high_risk": True}
+        assert kwargs["memory_type"] == "semantic"
         assert "importance=" not in kwargs["summary"]
         assert "old_memory" not in kwargs["summary"]
 
@@ -316,6 +367,7 @@ class TestCreateConflictCallback:
             accuracy_score=0.5,
             importance=0.95,
             merge_suggestion="c",
+            memory_type=MemoryType.SEMANTIC,
         )
 
         mock_db = AsyncMock()
@@ -349,6 +401,7 @@ class TestCreateConflictCallback:
             accuracy_score=0.5,
             importance=0.9,
             merge_suggestion="c",
+            memory_type=MemoryType.SEMANTIC,
         )
 
         mock_db = AsyncMock()
@@ -380,6 +433,7 @@ class TestCreateConflictCallback:
             accuracy_score=0.7,
             importance=0.95,
             merge_suggestion="Both have merits",
+            memory_type=MemoryType.SEMANTIC,
         )
 
         mock_db = AsyncMock()

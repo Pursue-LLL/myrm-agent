@@ -41,6 +41,9 @@ async def test_agent_audit_empty_when_log_dir_missing(audit_app: FastAPI) -> Non
     data = resp.json()
     assert data["events"] == []
     assert data["total"] == 0
+    assert data["tool_call_total"] == 0
+    assert data["security_event_total"] == 0
+    assert data["security_deny_total"] == 0
 
 
 @pytest.mark.asyncio
@@ -54,7 +57,7 @@ async def test_agent_audit_returns_events_within_window(
         {
             "sequence": 1,
             "timestamp": 1_700_000_000.0,
-            "event_type": "tool_call",
+            "event_type": "tool_start",
             "session_id": "sess-1",
             "data": type("MockPayload", (), {"model_dump": lambda self: {"tool_name": "bash"}})(),
         },
@@ -80,9 +83,11 @@ async def test_agent_audit_returns_events_within_window(
     assert resp.status_code == 200
     data = resp.json()
     assert data["total"] == 1
+    assert data["tool_call_total"] == 1
+    assert data["security_event_total"] == 0
     event = data["events"][0]
     assert event["seq"] == 1
-    assert event["type"] == "tool_call"
+    assert event["type"] == "tool_start"
     assert event["sid"] == "sess-1"
     assert event["data"] == {"tool_name": "bash"}
     mock_backend.get_events.assert_awaited_once()
@@ -143,8 +148,8 @@ async def test_agent_audit_merges_and_sorts_desc(
     mock_backend = AsyncMock()
     mock_backend.get_all_session_ids.return_value = ["sess-1", "sess-2"]
     mock_backend.get_events.side_effect = [
-        [type("E", (), {"sequence": 1, "timestamp": 100.0, "event_type": "tool_call", "session_id": "sess-1", "data": type("P", (), {"model_dump": lambda self: {}})()})()],
-        [type("E", (), {"sequence": 1, "timestamp": 200.0, "event_type": "tool_call", "session_id": "sess-2", "data": type("P", (), {"model_dump": lambda self: {}})()})()],
+        [type("E", (), {"sequence": 1, "timestamp": 100.0, "event_type": "tool_start", "session_id": "sess-1", "data": type("P", (), {"model_dump": lambda self: {}})()})()],
+        [type("E", (), {"sequence": 1, "timestamp": 200.0, "event_type": "tool_start", "session_id": "sess-2", "data": type("P", (), {"model_dump": lambda self: {}})()})()],
     ]
 
     with (
@@ -164,6 +169,7 @@ async def test_agent_audit_merges_and_sorts_desc(
     assert resp.status_code == 200
     data = resp.json()
     assert data["total"] == 2
+    assert data["tool_call_total"] == 2
     assert [e["ts"] for e in data["events"]] == [200.0, 100.0]
     assert mock_backend.get_events.await_count == 2
 
@@ -176,7 +182,7 @@ async def test_agent_audit_truncates_to_limit(
     mock_backend = AsyncMock()
     mock_backend.get_all_session_ids.return_value = ["sess-1"]
     mock_backend.get_events.return_value = [
-        type("E", (), {"sequence": i, "timestamp": float(i), "event_type": "tool_call", "session_id": "sess-1", "data": type("P", (), {"model_dump": lambda self: {}})()})()
+        type("E", (), {"sequence": i, "timestamp": float(i), "event_type": "tool_start", "session_id": "sess-1", "data": type("P", (), {"model_dump": lambda self: {}})()})()
         for i in range(1, 6)
     ]
 
@@ -197,7 +203,70 @@ async def test_agent_audit_truncates_to_limit(
     assert resp.status_code == 200
     data = resp.json()
     assert data["total"] == 5
+    assert data["tool_call_total"] == 5
     assert len(data["events"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_agent_audit_counts_security_deny_decisions(
+    audit_app: FastAPI, event_log_dir: Path
+) -> None:
+    """security_deny_total counts BLOCK/DENY/REDACT/LEAK decisions, not ALLOW."""
+    def make_event(seq: int, ts: float, event_type: str, payload: dict[str, object]) -> object:
+        return type(
+            "E",
+            (),
+            {
+                "sequence": seq,
+                "timestamp": ts,
+                "event_type": event_type,
+                "session_id": "sess-1",
+                "data": type("P", (), {"model_dump": lambda self, p=payload: p})(),
+            },
+        )()
+
+    mock_backend = AsyncMock()
+    mock_backend.get_all_session_ids.return_value = ["sess-1"]
+    mock_backend.get_events.return_value = [
+        make_event(
+            1,
+            1_700_000_000.0,
+            "security_audit",
+            {
+                "decisions": [
+                    {"tool": "bash", "decision": "ALLOW", "reason": "benign"},
+                    {"tool": "bash", "decision": "DENY", "reason": "blocked"},
+                    {"tool": "read_file", "decision": "PII_REDACTED", "reason": "pii"},
+                    {"tool": "bash", "decision": "CRON_DENY", "reason": "cron policy"},
+                ],
+                "count": 4,
+            },
+        ),
+        make_event(2, 1_700_000_100.0, "security_audit", {"decisions": [], "count": 0}),
+        make_event(3, 1_700_000_200.0, "tool_start", {"tool_name": "bash"}),
+    ]
+
+    with (
+        patch(
+            "app.api.internal.agent_audit.settings",
+        ) as mock_settings,
+        patch(
+            "app.api.internal.agent_audit.FileEventLogBackend",
+            return_value=mock_backend,
+        ),
+    ):
+        mock_settings.database.event_log_dir = str(event_log_dir)
+        transport = ASGITransport(app=audit_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/api/admin/agent-audit/events")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 3
+    assert data["tool_call_total"] == 1
+    # 2 security_audit 事件（会话级），但 deny 决策 3 个（DENY/PII_REDACTED/CRON_DENY）
+    assert data["security_event_total"] == 2
+    assert data["security_deny_total"] == 3
 
 
 @pytest.mark.asyncio

@@ -75,25 +75,30 @@ function auditRoutes(failedSandboxes: string[] = []): Route[] {
       url: '/api/enterprise/org/org-1/agent-audit/events',
       body: {
         total: 5,
+        tool_call_total: 2,
+        security_event_total: 1,
+        security_deny_total: 1,
         scanned_sandboxes: 2,
         failed_sandboxes: failedSandboxes,
         events: [
           {
             seq: 1,
             ts: 1755000000,
-            type: 'tool_call_start',
+            type: 'tool_start',
             sid: 'session-abc',
             sandbox_id: 'sandbox-1',
             user_id: 'user-12345678901234567890',
+            user_display: 'alice@acme.com',
             data: { tool_name: 'web_search', tool_call_id: 'call-1', message_id: 'msg-1' },
           },
           {
             seq: 2,
             ts: 1755000001,
-            type: 'tool_call_finish',
+            type: 'tool_end',
             sid: 'session-abc',
             sandbox_id: 'sandbox-1',
             user_id: 'user-12345678901234567890',
+            user_display: 'alice@acme.com',
             data: { tool_name: 'web_search', tool_call_id: 'call-1', duration_ms: 120 },
           },
           {
@@ -103,6 +108,7 @@ function auditRoutes(failedSandboxes: string[] = []): Route[] {
             sid: 'session-abc',
             sandbox_id: 'sandbox-1',
             user_id: 'user-12345678901234567890',
+            user_display: 'alice@acme.com',
             data: {
               count: 1,
               decisions: [
@@ -147,6 +153,9 @@ describe('AgentAuditView', () => {
     );
 
     expect(screen.getAllByText('5').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('2').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('1').length).toBeGreaterThan(0);
+    expect(screen.getByText('agentSecurityBlocks')).toBeInTheDocument();
     expect(screen.getAllByText('web_search').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^toneTool/).length).toBeGreaterThan(0);
   });
@@ -161,6 +170,50 @@ describe('AgentAuditView', () => {
     expect(screen.getByText('sandbox-9')).toBeInTheDocument();
   });
 
+  it('classifies tool_failure as error and tool_approval_request as approval', async () => {
+    const routes: Route[] = [
+      { method: 'GET', url: '/api/enterprise/org/me', body: ORG_BODY },
+      {
+        method: 'GET',
+        url: '/api/enterprise/org/org-1/agent-audit/events',
+        body: {
+          total: 2,
+          tool_call_total: 0,
+          security_event_total: 0,
+          scanned_sandboxes: 1,
+          failed_sandboxes: [],
+          events: [
+            {
+              seq: 10,
+              ts: 1755000000,
+              type: 'tool_failure',
+              sid: 'session-abc',
+              sandbox_id: 'sandbox-1',
+              user_id: 'user-1',
+              data: { tool_name: 'bash', error: 'command not found' },
+            },
+            {
+              seq: 11,
+              ts: 1755000001,
+              type: 'tool_approval_request',
+              sid: 'session-abc',
+              sandbox_id: 'sandbox-1',
+              user_id: 'user-1',
+              data: { tool_name: 'bash', tool_call_id: 'call-2' },
+            },
+          ],
+        },
+      },
+    ];
+    vi.stubGlobal('fetch', mockFetchRoutes(routes));
+    render(<AgentAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/^toneError/)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/^toneApproval/)).toBeInTheDocument();
+  });
+
   it('renders member badges and the total hint for aggregated events', async () => {
     vi.stubGlobal('fetch', mockFetchRoutes(auditRoutes()));
     render(<AgentAuditView />);
@@ -169,10 +222,10 @@ describe('AgentAuditView', () => {
       expect(screen.getAllByText('web_search').length).toBeGreaterThan(0);
     });
 
-    // 截断后的 user_id 徽标（user-12345678901234567890 -> user-12345…7890）
-    expect(screen.getAllByText('user-12345…7890').length).toBeGreaterThan(0);
-    // 徽标带完整 user_id 提示
-    expect(screen.getAllByTitle('user-12345678901234567890').length).toBe(3);
+    // 邮箱徽标（alice@acme.com），tooltip 含完整 user_id
+    expect(screen.getAllByText('alice@acme.com').length).toBeGreaterThan(0);
+    // 徽标 tooltip 带完整身份
+    expect(screen.getAllByTitle('alice@acme.com (user-12345678901234567890)').length).toBe(3);
     // total 提示文案
     expect(screen.getByText('agentShowingLatest')).toBeInTheDocument();
   });
@@ -281,7 +334,7 @@ describe('AgentAuditView', () => {
   });
 
   it('ignores a stale response when the time range changes quickly', async () => {
-    let resolve168h: ((body: unknown) => void) | null = null;
+    const pending168h: { resolve: ((body: unknown) => void) | null } = { resolve: null };
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       const path = url.split('?')[0];
@@ -297,7 +350,7 @@ describe('AgentAuditView', () => {
           return okResponse({ total: 99, scanned_sandboxes: 1, failed_sandboxes: [], events: [] });
         }
         return new Promise<Response>((resolve) => {
-          resolve168h = (body: unknown) => resolve(okResponse(body));
+          pending168h.resolve = (body: unknown) => resolve(okResponse(body));
         });
       }
       throw new Error(`Unexpected fetch: ${url}`);
@@ -312,7 +365,7 @@ describe('AgentAuditView', () => {
     await userEvent.click(screen.getByRole('combobox'));
     await userEvent.click(await screen.findByRole('option', { name: '7d' }));
     await waitFor(() => {
-      expect(resolve168h).not.toBeNull();
+      expect(pending168h.resolve).not.toBeNull();
     });
 
     await userEvent.click(screen.getByRole('combobox'));
@@ -321,7 +374,7 @@ describe('AgentAuditView', () => {
       expect(screen.getAllByText('99').length).toBeGreaterThan(0);
     });
 
-    resolve168h?.({ total: 5, scanned_sandboxes: 1, failed_sandboxes: [], events: [] });
+    pending168h.resolve?.({ total: 5, scanned_sandboxes: 1, failed_sandboxes: [], events: [] });
     await new Promise((r) => setTimeout(r, 20));
 
     expect(screen.queryByText('5')).toBeNull();

@@ -1,8 +1,16 @@
 'use client';
 
 /**
- * Replay "mind" pane: LLM calls, memory events, human approvals, reasoning
- * traces, and tool rows with step-level security badges.
+ * [INPUT]
+ * - services/statistics::TraceToolCall, (POS: Session analytics trace types)
+ * - store/chat/types::Message (POS: Chat message entity)
+ * - memory/replayTimeline::messageReasoning (POS: Reasoning-trail extraction for messages)
+ *
+ * [OUTPUT]
+ * - ReplayMindView: "mind" pane — LLM calls, memory events, human approvals, reasoning traces, tool rows with security badges
+ *
+ * [POS]
+ * Session replay mind-view pane. Visualizes the agent's internal activity and step-level security flags.
  */
 
 import { useTranslations } from 'next-intl';

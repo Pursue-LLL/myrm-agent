@@ -27,7 +27,13 @@ the skill library never accumulates same-name records.
 - confirm_plugin_import: Persist skills, MCP servers, and agent bindings from a
   parsed plugin archive (offline, per-component failure isolation); returns
   imported/skipped counts plus ``required_secret_keys`` for the UI to guide
-  secret configuration.
+  secret configuration. Bundled plugin files are persisted via
+  ``._plugin_files.persist_plugin_files`` and their roots embedded into
+  ``extra_params`` (plugin_root / data_root).
+- list_installed_plugins: provenance-grouped listing of imported plugins
+  (extra_params.plugin_name → server names + has_bundled_files).
+- uninstall_plugin: full plugin teardown — remove its MCP entries, unbind
+  agent mcp_ids, and delete bundled/data directories; unsafe names are refused.
 - _load_existing_skill_ids: active skill name → skill_id map (conflict SSOT).
 - Re-exports PluginImportSession / PluginConfirmItem / PluginStaging /
   PluginArchiveSecurityError for the API layer and callers.
@@ -480,6 +486,17 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
     same server names from every agent's ``mcp_ids``, and deletes the plugin's
     bundled-file + data directories. Returns a summary of what was removed.
     """
+    from ._plugin_files import is_safe_plugin_name
+
+    if not is_safe_plugin_name(plugin_name):
+        logger.warning("Refusing to uninstall plugin with unsafe name %r", plugin_name)
+        return {
+            "plugin_name": plugin_name,
+            "removed_servers": 0,
+            "unbound_agents": 0,
+            "removed_files": False,
+        }
+
     from ._mcp_persist import (
         _remove_plugin_mcp_servers,
         _unbind_plugin_from_agents,

@@ -5,7 +5,7 @@
 - app.services.agent.agent_service::AgentService (POS: resolve default agent)
 - app.services.chat.chat_service::ChatService (POS: seed chat + messages + compaction)
 - myrm_agent_harness.runtime.context.context_branches::append_context_branch (POS: snapshot bookmark)
-- myrm_agent_harness.runtime.context.session_context_pins::write_pinned_files (POS: file pins)
+- myrm_agent_harness.runtime.context.session.session_context_pins::write_pinned_files (POS: file pins)
 
 [OUTPUT]
 - router: POST /test/seed-context-retention-fixture (POS: E2E seed endpoint)
@@ -24,7 +24,9 @@ from uuid import uuid4
 import myrm_agent_harness.runtime.execution_paths as execution_paths
 from fastapi import APIRouter, HTTPException
 from myrm_agent_harness.runtime.context.context_branches import append_context_branch
-from myrm_agent_harness.runtime.context.session_context_pins import write_pinned_files
+from myrm_agent_harness.runtime.context.session.session_context_pins import (
+    write_pinned_files,
+)
 
 from app.config.deploy_mode import is_local_mode
 from app.database.dto import ChatCreate

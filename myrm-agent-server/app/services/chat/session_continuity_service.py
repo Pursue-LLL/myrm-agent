@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 
 from myrm_agent_harness.agent.goals.types import GoalStatus
-from myrm_agent_harness.runtime.context.session_continuity import (
+from myrm_agent_harness.runtime.context.session.session_continuity import (
     ContinuitySyncError,
     sync_checkpoint_messages,
 )

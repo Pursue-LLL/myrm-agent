@@ -19,14 +19,13 @@ export const MiniGantt = ({ nodes, t }: { nodes: TreeNode[]; t: (key: string) =>
   const spans = useMemo(() => {
     const now = Date.now();
     return nodes
-      .filter((n) => n.startedAt != null)
-      .map((n) => ({
-        id: n.task_id,
-        label: n.description || n.agent_type,
-        status: n.status,
-        start: n.startedAt!,
-        end: n.duration_seconds != null ? n.startedAt! + n.duration_seconds * 1000 : now,
-      }))
+      .flatMap((n) => {
+        const start = n.startedAt;
+        if (start === undefined || start === null) {return [];}
+        const duration = n.duration_seconds;
+        const end = duration !== undefined && duration !== null ? start + duration * 1000 : now;
+        return [{ id: n.task_id, label: n.description || n.agent_type, status: n.status, start, end }];
+      })
       .filter((s) => s.end >= s.start);
   }, [nodes]);
 

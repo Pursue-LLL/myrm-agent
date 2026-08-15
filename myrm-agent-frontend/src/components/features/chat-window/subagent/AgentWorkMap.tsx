@@ -139,7 +139,7 @@ function CustomNode({ data }: NodeProps<Node<TopologyNodeData & Record<string, u
       <p className="text-xs text-muted-foreground line-clamp-2" title={label}>
         {label}
       </p>
-      {progress != null && Number.isFinite(progress) && (
+      {progress !== null && progress !== undefined && Number.isFinite(progress) && (
         <div className="flex items-center gap-1.5">
           <div className="flex-1 h-1.5 bg-muted/40 rounded-full overflow-hidden">
             <div

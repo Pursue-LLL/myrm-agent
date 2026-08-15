@@ -117,9 +117,11 @@ def test_voice_memory_settings_ui_enables_conversation_search_in_api() -> None:
         toggled = _toggle_conversation_search(client, page, target_checked=True)
         assert toggled.get("ok") is True, toggled
 
-    settings = _wait_personal_settings(enable_memory=True, conversation_search=True)
-    assert settings.get("enableMemory") is True
-    assert settings.get("memoryEnableConversationSearch") is True
+        settings = _wait_personal_settings(
+            enable_memory=True, conversation_search=True
+        )
+        assert settings.get("enableMemory") is True
+        assert settings.get("memoryEnableConversationSearch") is True
 
 
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="GLOBAL_WRITE", workload="STANDARD", private_reason="global_write_non_namespace")

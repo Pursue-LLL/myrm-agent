@@ -233,7 +233,7 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
                       {t('tunnelLastUpstreamError', { error: tunnel.last_upstream_error })}
                     </p>
                   )}
-                  {tunnel.status === 'degraded' && tunnel.last_error_at != null && (
+                  {tunnel.status === 'degraded' && tunnel.last_error_at !== null && tunnel.last_error_at !== undefined && (
                     <p className="text-xs text-muted-foreground">
                       {t('tunnelLastErrorAt', {
                         time: formatDistanceToNow(new Date(tunnel.last_error_at * 1000), {

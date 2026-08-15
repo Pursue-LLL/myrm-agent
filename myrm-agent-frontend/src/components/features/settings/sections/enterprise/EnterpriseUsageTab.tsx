@@ -82,7 +82,9 @@ const EnterpriseUsageTab = memo(() => {
     }
   }, [orgId, budgetInput, thresholdInput, t]);
 
-  const usagePercent = summary?.usage_ratio != null ? Math.round(summary.usage_ratio * 100) : null;
+  const usagePercent = summary?.usage_ratio !== null && summary?.usage_ratio !== undefined
+    ? Math.round(summary.usage_ratio * 100)
+    : null;
 
   if (loading && !summary) {
     return (
@@ -111,7 +113,7 @@ const EnterpriseUsageTab = memo(() => {
             size="sm"
             variant="outline"
             onClick={() => {
-              setBudgetInput(budget?.budget_wu_monthly != null ? String(budget.budget_wu_monthly) : '');
+              setBudgetInput(budget?.budget_wu_monthly !== null && budget?.budget_wu_monthly !== undefined ? String(budget.budget_wu_monthly) : '');
               setThresholdInput(budget ? String(Math.round(budget.alert_threshold * 100)) : '80');
               setShowBudgetDialog(true);
             }}
@@ -129,7 +131,7 @@ const EnterpriseUsageTab = memo(() => {
                 <span>{t('monthlyUsage', { month: summary.month })}</span>
                 <span className="font-mono font-bold">
                   {summary.total_wu.toLocaleString()} WU
-                  {summary.budget_wu_monthly != null && (
+                  {summary.budget_wu_monthly !== null && summary.budget_wu_monthly !== undefined && (
                     <span className="text-muted-foreground font-normal">
                       {' '}
                       / {summary.budget_wu_monthly.toLocaleString()} WU
@@ -137,13 +139,13 @@ const EnterpriseUsageTab = memo(() => {
                   )}
                 </span>
               </div>
-              {usagePercent != null && (
+              {usagePercent !== null && usagePercent !== undefined && (
                 <Progress
                   value={Math.min(usagePercent, 100)}
                   className={`h-3 ${usagePercent > 90 ? '[&>div]:bg-red-500' : usagePercent > 70 ? '[&>div]:bg-amber-500' : ''}`}
                 />
               )}
-              {usagePercent != null && usagePercent > 80 && (
+              {usagePercent !== null && usagePercent !== undefined && usagePercent > 80 && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   {t('budgetWarning', { percent: usagePercent })}
                 </p>

@@ -193,3 +193,291 @@ async def test_delegation_pause_resume_routes_hit_gate_not_task_resume(client: A
 
     status = await client.get(f"/api/v1/chats/{chat_id}/subagents/delegation/status")
     assert status.json()["data"]["paused"] is False
+
+
+class _CheckpointNode:
+    """Minimal stand-in for SubagentCheckpoint read from storage."""
+
+    def __init__(
+        self,
+        task_id: str,
+        agent_type: str = "researcher",
+        progress: float = 60.0,
+        last_tool: str = "web_search",
+        interruption_reason: str | None = "user_stop",
+        recovery_attempts: int = 1,
+        task_description: str = "Research the market",
+    ) -> None:
+        self.task_id = task_id
+        self.agent_type = agent_type
+        self.progress = progress
+        self.last_tool = last_tool
+        self.interruption_reason = interruption_reason
+        self.recovery_attempts = recovery_attempts
+        self.task_description = task_description
+
+
+@pytest.mark.anyio
+async def test_list_subagents_merges_checkpoints_without_resumable(client: AsyncClient) -> None:
+    """Re-initiate flow: interrupted checkpoint node must carry metadata and never expose resumable."""
+    chat_id = "cp-merge-e2e"
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "app.api.agents.subagents.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+            return_value=[_CheckpointNode("cp-worker")],
+        ),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
+            return_value=[],
+        ),
+    ):
+        mock_gateway.return_value._session_info.get.return_value = None
+        resp = await client.get(f"/api/v1/chats/{chat_id}/subagents")
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert len(data) == 1
+    node = data[0]
+    assert node["task_id"] == "cp-worker"
+    assert node["status"] == "interrupted"
+    assert node["done"] is True
+    assert node["cancelled"] is True
+    assert node["description"] == "Research the market"
+    assert node["interruption_reason"] == "user_stop"
+    assert node["recovery_attempts"] == 1
+    assert "resumable" not in node
+
+
+@pytest.mark.anyio
+async def test_list_subagents_checkpoint_plain_status(client: AsyncClient) -> None:
+    """Checkpoint without interruption_reason maps to status=checkpoint."""
+    chat_id = "cp-plain-e2e"
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "app.api.agents.subagents.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+            return_value=[
+                _CheckpointNode(
+                    "cp-plain",
+                    interruption_reason=None,
+                    recovery_attempts=0,
+                    task_description="",
+                )
+            ],
+        ),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
+            return_value=[],
+        ),
+    ):
+        mock_gateway.return_value._session_info.get.return_value = None
+        resp = await client.get(f"/api/v1/chats/{chat_id}/subagents")
+
+    node = resp.json()["data"][0]
+    assert node["status"] == "checkpoint"
+    assert "interruption_reason" not in node
+    assert "recovery_attempts" not in node
+    assert "description" not in node
+    assert "resumable" not in node
+
+
+@pytest.mark.anyio
+async def test_list_subagents_skips_checkpoint_still_active(client: AsyncClient) -> None:
+    """A checkpoint whose task_id is running again must not be duplicated."""
+    chat_id = "cp-dedup-e2e"
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "app.api.agents.subagents.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+            return_value=[_CheckpointNode("dup-worker")],
+        ),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
+            return_value=[{"task_id": "dup-worker", "status": "running"}],
+        ),
+    ):
+        mock_gateway.return_value._session_info.get.return_value = None
+        resp = await client.get(f"/api/v1/chats/{chat_id}/subagents")
+
+    data = resp.json()["data"]
+    assert len(data) == 1
+    assert data[0]["task_id"] == "dup-worker"
+
+
+@pytest.mark.anyio
+async def test_list_subagents_hydrates_teammate_messages(client: AsyncClient) -> None:
+    """Persisted teammate mailbox rows must be attached to list entries."""
+    chat_id = "cp-hydrate-e2e"
+    teammate_msg = {"task_id": "t-m", "role": "user", "content": "hi"}
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "app.api.agents.subagents.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
+            return_value=[{"task_id": "t-m", "status": "running"}],
+        ),
+        patch(
+            "app.api.agents.subagents.ChatService.ensure_default_workspace_dir",
+            new_callable=AsyncMock,
+            return_value="/tmp/ws",
+        ),
+        patch("app.api.agents.subagents.list_teammate_history") as mock_history,
+        patch("app.api.agents.subagents.group_history_by_task") as mock_group,
+    ):
+        mock_gateway.return_value._session_info.get.return_value = None
+        mock_history.return_value = [teammate_msg]
+        mock_group.return_value = {"t-m": [teammate_msg]}
+
+        resp = await client.get(f"/api/v1/chats/{chat_id}/subagents")
+
+    node = resp.json()["data"][0]
+    assert node["teammate_messages"] == [teammate_msg]
+
+
+@pytest.mark.anyio
+async def test_list_subagents_uses_agent_workspace_fallback(client: AsyncClient) -> None:
+    """Agent workspace path is used when ChatService cannot resolve one."""
+    chat_id = "cp-ws-fallback-e2e"
+    mock_agent = MagicMock()
+    mock_agent.workspace_path = "/agent/ws"
+    mock_info = SimpleNamespace(agent=lambda: mock_agent)
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "app.api.agents.subagents.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
+            return_value=[{"task_id": "t-ws", "status": "running"}],
+        ),
+        patch(
+            "app.api.agents.subagents.ChatService.ensure_default_workspace_dir",
+            side_effect=RuntimeError("boom"),
+        ),
+        patch("app.api.agents.subagents.list_teammate_history") as mock_history,
+        patch("app.api.agents.subagents.group_history_by_task"),
+    ):
+        mock_gateway.return_value._session_info.get.return_value = mock_info
+        mock_history.return_value = []
+
+        resp = await client.get(f"/api/v1/chats/{chat_id}/subagents")
+
+    assert resp.status_code == 200
+    mock_history.assert_called_once_with(chat_id, "/agent/ws", limit=200)
+
+
+@pytest.mark.anyio
+async def test_steer_subagent_success_and_404(client: AsyncClient) -> None:
+    """steer hits ACTIVE_SUBAGENTS manager; missing manager yields 404."""
+    chat_id = "steer-e2e"
+    task_id = "steer-worker"
+    mock_manager = MagicMock()
+    mock_manager.steer_child.return_value = True
+
+    with patch("app.api.agents.subagents.ACTIVE_SUBAGENTS", {task_id: mock_manager}):
+        ok = await client.post(
+            f"/api/v1/chats/{chat_id}/subagents/{task_id}/steer", json={"message": "go"}
+        )
+        assert ok.status_code == 200
+        assert ok.json()["data"]["steered"] is True
+        mock_manager.steer_child.assert_called_once_with(task_id, "go")
+
+        missing = await client.post(
+            f"/api/v1/chats/{chat_id}/subagents/ghost/steer", json={"message": "go"}
+        )
+        assert missing.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_steer_subagent_returns_400_when_steer_fails(client: AsyncClient) -> None:
+    """Failed steering must surface as 400."""
+    chat_id = "steer-fail-e2e"
+    task_id = "steer-worker"
+    mock_manager = MagicMock()
+    mock_manager.steer_child.return_value = False
+
+    with patch("app.api.agents.subagents.ACTIVE_SUBAGENTS", {task_id: mock_manager}):
+        resp = await client.post(
+            f"/api/v1/chats/{chat_id}/subagents/{task_id}/steer", json={"message": "go"}
+        )
+
+    assert resp.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_cancel_single_subagent_returns_400_when_cancel_fails(client: AsyncClient) -> None:
+    """Failed cancellation must surface as 400."""
+    chat_id = "single-cancel-fail"
+    task_id = "worker-1"
+    mock_manager = MagicMock()
+    mock_manager.cancel_child.return_value = False
+
+    with patch("app.api.agents.subagents.ACTIVE_SUBAGENTS", {task_id: mock_manager}):
+        resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/{task_id}/cancel")
+
+    assert resp.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_list_subagents_tolerates_checkpoint_storage_error(client: AsyncClient) -> None:
+    """A checkpoint storage failure must not break the whole subagent listing."""
+    chat_id = "cp-storage-error-e2e"
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "app.api.agents.subagents.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("storage down"),
+        ),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
+            return_value=[{"task_id": "t-act", "status": "running"}],
+        ),
+    ):
+        mock_gateway.return_value._session_info.get.return_value = None
+        resp = await client.get(f"/api/v1/chats/{chat_id}/subagents")
+
+    assert resp.status_code == 200
+    assert [node["task_id"] for node in resp.json()["data"]] == ["t-act"]
+
+
+@pytest.mark.anyio
+async def test_list_subagents_empty_tree_skips_teammate_hydrate(client: AsyncClient) -> None:
+    """No children and no checkpoints means no teammate hydration I/O."""
+    chat_id = "cp-empty-e2e"
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "app.api.agents.subagents.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
+            return_value=[],
+        ),
+        patch("app.api.agents.subagents.list_teammate_history") as mock_history,
+    ):
+        mock_gateway.return_value._session_info.get.return_value = None
+        resp = await client.get(f"/api/v1/chats/{chat_id}/subagents")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"] == []
+    mock_history.assert_not_called()

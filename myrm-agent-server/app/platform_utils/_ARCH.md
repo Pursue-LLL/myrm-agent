@@ -148,18 +148,18 @@ ThreadStore（线程生命周期管理）
 
 Sandbox 部署由两个独立部分组成：
 
-**1. 构建 Agent 沙箱镜像**（`claw-server` + `agent-harness` 打包）：
+**1. 构建运行时镜像**（`myrm-agent-server` + `myrm-agent-harness` 打包）：
 
 ```bash
-docker compose --profile sandbox build agent-image
-# 生成 myrm-agent:latest 镜像
+docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:latest .
+# 生成 myrm/runtime:latest 镜像（CP 契约 DEFAULT_AGENT_SERVER_IMAGE 默认引用）
 ```
 
 **2. 部署控制服务**（与 agent 镜像分开发布）：
 
 控制服务负责：
 - 管理用户认证和任务队列
-- 为每个用户创建 `myrm-agent:latest` 容器 + per-user 持久化卷
+- 为每个用户创建 `myrm-runtime` 容器（镜像由 CP 契约 `DEFAULT_AGENT_SERVER_IMAGE` 指定）+ per-user 持久化卷
 - 注入环境变量（`DEPLOY_MODE=sandbox`、`MYRM_DATA_DIR` 等）
 - 管理沙箱生命周期（sleep/wake/destroy）
 - Sleep 前自动备份持久化卷

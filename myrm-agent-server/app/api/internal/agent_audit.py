@@ -19,6 +19,7 @@ import logging
 import os
 import secrets
 import time
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
@@ -48,8 +49,20 @@ class AgentAuditEventResponse(BaseModel):
 class AgentAuditQueryResponse(BaseModel):
     events: list[AgentAuditEventResponse]
     total: int
+    tool_call_total: int
+    security_event_total: int
+    security_deny_total: int
     window_hours: int
     limit: int
+
+
+# Harness 权威 deny 语义（core/security/audit.py record_decision 的
+# policy_denial_total 口径）：决策字符串含 BLOCK/DENY/REDACT/LEAK 即为拦截类。
+_DENY_TOKENS = ("BLOCK", "DENY", "REDACT", "LEAK")
+
+
+def _is_deny_decision(decision: str) -> bool:
+    return any(token in decision for token in _DENY_TOKENS)
 
 
 def _verify_cp_token(request: Request) -> None:
@@ -74,9 +87,17 @@ async def agent_audit_events(
         raise HTTPException(status_code=400, detail="hours must be within [1, 720]")
     capped_limit = min(max(limit, 1), _MAX_LIMIT)
 
-    log_dir = settings.database.event_log_dir
+    log_dir = Path(settings.database.event_log_dir)
     if not os.path.isdir(log_dir):
-        return AgentAuditQueryResponse(events=[], total=0, window_hours=hours, limit=capped_limit)
+        return AgentAuditQueryResponse(
+            events=[],
+            total=0,
+            tool_call_total=0,
+            security_event_total=0,
+            security_deny_total=0,
+            window_hours=hours,
+            limit=capped_limit,
+        )
 
     start_time = time.time() - hours * 3600
     if session_id:
@@ -105,17 +126,45 @@ async def agent_audit_events(
 
     collected.sort(key=lambda e: e.ts, reverse=True)
     total = len(collected)
+    tool_call_total = sum(1 for e in collected if e.type == "tool_start")
+    security_event_total = sum(1 for e in collected if e.type == "security_audit")
+    security_deny_total = _count_security_denies(collected)
     truncated = collected[:capped_limit]
     logger.info(
-        "Agent audit pull: sessions=%d window_hours=%d total=%d returned=%d",
+        "Agent audit pull: sessions=%d window_hours=%d total=%d returned=%d "
+        "tool_calls=%d security_events=%d security_denies=%d",
         len(session_ids),
         hours,
         total,
         len(truncated),
+        tool_call_total,
+        security_event_total,
+        security_deny_total,
     )
     return AgentAuditQueryResponse(
         events=truncated,
         total=total,
+        tool_call_total=tool_call_total,
+        security_event_total=security_event_total,
+        security_deny_total=security_deny_total,
         window_hours=hours,
         limit=capped_limit,
     )
+
+
+def _count_security_denies(events: list[AgentAuditEventResponse]) -> int:
+    """Count policy-denial decisions across all security_audit events."""
+    deny_total = 0
+    for event in events:
+        if event.type != "security_audit":
+            continue
+        decisions = event.data.get("decisions")
+        if not isinstance(decisions, list):
+            continue
+        for decision in decisions:
+            if not isinstance(decision, dict):
+                continue
+            kind = decision.get("decision")
+            if isinstance(kind, str) and _is_deny_decision(kind):
+                deny_total += 1
+    return deny_total

@@ -71,6 +71,48 @@ async def _build_session_memory_events(
     ]
 
 
+async def _build_llm_duration_breakdown(
+    backend: FileEventLogBackend, session_id: str
+) -> list[dict[str, object]]:
+    """Aggregate LLM call durations from persisted ``token_usage`` events.
+
+    Buckets calls by model name and sums only events carrying a concrete
+    ``duration_ms`` so legacy or failed calls never distort the breakdown.
+    """
+    try:
+        events = await backend.get_events(
+            session_id, EventFilter(event_types=frozenset({"token_usage"}))
+        )
+    except Exception:
+        logger.debug("Failed to read token_usage events for LLM breakdown", exc_info=True)
+        return []
+
+    buckets: dict[str, dict[str, object]] = {}
+    for event in events:
+        payload = event.data.get("data") if isinstance(event.data.get("data"), dict) else event.data
+        duration_raw = payload.get("duration_ms")
+        if not isinstance(duration_raw, (int, float)):
+            continue
+        model_name = payload.get("model_name")
+        if not isinstance(model_name, str) or not model_name:
+            model_name = "unknown"
+        bucket = buckets.setdefault(
+            model_name,
+            {"model_name": model_name, "call_count": 0, "total_duration_ms": 0.0},
+        )
+        bucket["call_count"] = int(bucket["call_count"]) + 1
+        bucket["total_duration_ms"] = float(bucket["total_duration_ms"]) + float(duration_raw)
+
+    return [
+        {
+            "model_name": str(bucket["model_name"]),
+            "call_count": int(bucket["call_count"]),
+            "total_duration_ms": round(float(bucket["total_duration_ms"]), 1),
+        }
+        for bucket in buckets.values()
+    ]
+
+
 def _empty_trace_payload(
     session_id: str, memory_events: list[dict[str, object]]
 ) -> dict[str, object]:
@@ -209,6 +251,9 @@ async def get_session_analytics(
                 "task_metrics": summary.task_metrics,
                 "token_economics": summary.token_economics,
             }
+            llm_breakdown = await _build_llm_duration_breakdown(backend, session_id)
+            if llm_breakdown:
+                result["llm_breakdown"] = llm_breakdown
             if summary.security_audit:
                 result["security_audit"] = summary.security_audit
             return result
@@ -231,6 +276,7 @@ async def get_session_analytics(
             **message_stats,
             "duration_ms": event_log_data["duration_ms"],
             "tool_breakdown": event_log_data["tool_breakdown"],
+            "llm_breakdown": event_log_data.get("llm_breakdown", []),
             "events_timeline": event_log_data["events_timeline"],
             "task_metrics": event_log_data["task_metrics"],
             "token_economics": event_log_data.get("token_economics"),

@@ -1,4 +1,4 @@
-"""Tests for _auto_resolve_expired_conflicts in memory_guardian.
+"""Tests for auto_resolve_expired_conflicts in memory_guardian_ops.
 
 Covers:
 - Resolves expired conflicts (status → resolved, resolved_at set)
@@ -17,11 +17,11 @@ import pytest
 
 
 class TestAutoResolveExpiredConflicts:
-    """Tests for the _auto_resolve_expired_conflicts function."""
+    """Tests for the auto_resolve_expired_conflicts function."""
 
     @pytest.mark.asyncio
     async def test_resolves_expired_conflicts(self) -> None:
-        from app.lifecycle.memory_guardian import _auto_resolve_expired_conflicts
+        from app.lifecycle.memory_guardian_ops import auto_resolve_expired_conflicts
 
         mock_result = MagicMock()
         mock_result.rowcount = 3
@@ -35,7 +35,7 @@ class TestAutoResolveExpiredConflicts:
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
         with patch("app.database.connection.get_session", return_value=mock_session_ctx):
-            count = await _auto_resolve_expired_conflicts()
+            count = await auto_resolve_expired_conflicts()
 
         assert count == 3
         mock_db.execute.assert_called_once()
@@ -47,7 +47,7 @@ class TestAutoResolveExpiredConflicts:
 
     @pytest.mark.asyncio
     async def test_returns_zero_when_none_expired(self) -> None:
-        from app.lifecycle.memory_guardian import _auto_resolve_expired_conflicts
+        from app.lifecycle.memory_guardian_ops import auto_resolve_expired_conflicts
 
         mock_result = MagicMock()
         mock_result.rowcount = 0
@@ -61,13 +61,13 @@ class TestAutoResolveExpiredConflicts:
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
         with patch("app.database.connection.get_session", return_value=mock_session_ctx):
-            count = await _auto_resolve_expired_conflicts()
+            count = await auto_resolve_expired_conflicts()
 
         assert count == 0
 
     @pytest.mark.asyncio
     async def test_update_sets_resolved_status(self) -> None:
-        from app.lifecycle.memory_guardian import _auto_resolve_expired_conflicts
+        from app.lifecycle.memory_guardian_ops import auto_resolve_expired_conflicts
 
         mock_result = MagicMock()
         mock_result.rowcount = 1
@@ -81,7 +81,7 @@ class TestAutoResolveExpiredConflicts:
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
         with patch("app.database.connection.get_session", return_value=mock_session_ctx):
-            await _auto_resolve_expired_conflicts()
+            await auto_resolve_expired_conflicts()
 
         stmt = mock_db.execute.call_args[0][0]
         compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
@@ -99,7 +99,7 @@ class TestAutoResolveExpiredConflicts:
         IS NOT NULL and <= now, so high-risk conflicts stay pending forever until
         the user resolves them manually.
         """
-        from app.lifecycle.memory_guardian import _auto_resolve_expired_conflicts
+        from app.lifecycle.memory_guardian_ops import auto_resolve_expired_conflicts
 
         mock_result = MagicMock()
         mock_result.rowcount = 0
@@ -113,7 +113,7 @@ class TestAutoResolveExpiredConflicts:
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
         with patch("app.database.connection.get_session", return_value=mock_session_ctx):
-            await _auto_resolve_expired_conflicts()
+            await auto_resolve_expired_conflicts()
 
         stmt = mock_db.execute.call_args[0][0]
         compiled = str(stmt.compile(compile_kwargs={"literal_binds": False}))
@@ -126,7 +126,7 @@ class TestRecordConflictAutoResolveEvent:
 
     @pytest.mark.asyncio
     async def test_records_audit_event_with_count(self) -> None:
-        from app.lifecycle.memory_guardian import _record_conflict_auto_resolve_event
+        from app.services.memory.ledger.guardian_events import record_conflict_auto_resolve_event
 
         mock_ledger = AsyncMock()
         mock_ledger.record_event = AsyncMock(return_value=MagicMock())
@@ -144,7 +144,7 @@ class TestRecordConflictAutoResolveEvent:
                 mock_ledger_service_cls,
             ),
         ):
-            await _record_conflict_auto_resolve_event(2)
+            await record_conflict_auto_resolve_event(2)
 
         mock_ledger.record_event.assert_called_once()
         _, kwargs = mock_ledger.record_event.call_args
@@ -156,7 +156,7 @@ class TestRecordConflictAutoResolveEvent:
 
     @pytest.mark.asyncio
     async def test_ledger_failure_is_non_fatal(self) -> None:
-        from app.lifecycle.memory_guardian import _record_conflict_auto_resolve_event
+        from app.services.memory.ledger.guardian_events import record_conflict_auto_resolve_event
 
         mock_ledger = AsyncMock()
         mock_ledger.record_event = AsyncMock(side_effect=RuntimeError("ledger down"))
@@ -173,4 +173,4 @@ class TestRecordConflictAutoResolveEvent:
                 mock_ledger_service_cls,
             ),
         ):
-            await _record_conflict_auto_resolve_event(1)  # must not raise
+            await record_conflict_auto_resolve_event(1)  # must not raise

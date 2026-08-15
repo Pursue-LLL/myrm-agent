@@ -93,6 +93,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg \
     bc \
     sqlite3 \
+    tini \
     # 搜索工具
     ripgrep \
     fd-find \
@@ -164,6 +165,9 @@ COPY --chmod=755 deep_health_check.py /usr/local/bin/deep-health-check
 RUN rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/* \
     && find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' -exec rm -rf {} + \
     && rm -rf /tmp/* /var/tmp/*
+
+# tini 作为 PID-1：收养并收割孤儿/僵尸子进程，防止长期运行打爆 PidsLimit
+ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
 
 # 切换到非 root 用户
 USER sandbox

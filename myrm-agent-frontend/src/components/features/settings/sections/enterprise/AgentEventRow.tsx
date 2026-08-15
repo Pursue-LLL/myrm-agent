@@ -50,18 +50,20 @@ const TONE_STYLES: Record<AgentEventTone, { label: string; className: string }> 
 };
 
 function eventTone(type: string): AgentEventTone {
-  if (type.startsWith('tool_call')) {return 'tool';}
-  if (type.startsWith('approval')) {return 'approval';}
   if (type === 'security_audit') {return 'security';}
+  if (type === 'tool_approval_request' || type.startsWith('approval')) {return 'approval';}
   if (type.startsWith('session')) {return 'session';}
-  if (type.includes('error') || type.includes('failure')) {return 'error';}
+  if (/error|failure|failed|cancelled|timeout|denied|rejected|interruption|exhausted|aborted/i.test(type)) {
+    return 'error';
+  }
+  if (type.startsWith('tool_')) {return 'tool';}
   if (type.includes('llm')) {return 'llm';}
   return 'other';
 }
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
-  tool_call_start: 'eventTypes.toolCallStart',
-  tool_call_finish: 'eventTypes.toolCallFinish',
+  tool_start: 'eventTypes.toolStart',
+  tool_end: 'eventTypes.toolEnd',
   security_audit: 'eventTypes.securityAudit',
   session_start: 'eventTypes.sessionStart',
   session_end: 'eventTypes.sessionEnd',
@@ -81,7 +83,9 @@ function eventTypeLabel(type: string, t: (key: string) => string): string {
 }
 
 function isDenyDecision(decision: string): boolean {
-  return /DENY|BLOCK|BREAK|STOP|REJECT/i.test(decision);
+  // 与 harness core/security/audit.py record_decision 的权威 deny 语义
+  // （policy_denial_total 口径）保持一致：BLOCK/DENY/REDACT/LEAK。
+  return /BLOCK|DENY|REDACT|LEAK/i.test(decision);
 }
 
 function decisionDenied(decision: SecurityDecision): boolean {
@@ -114,6 +118,11 @@ function shortSessionId(sid: string): string {
 function shortUserId(userId: string): string {
   if (userId.length <= 16) {return userId;}
   return `${userId.slice(0, 10)}…${userId.slice(-4)}`;
+}
+
+function shortUserDisplay(display: string): string {
+  if (display.length <= 24) {return display;}
+  return `${display.slice(0, 16)}…${display.slice(-6)}`;
 }
 
 export function eventKey(event: AgentAuditEvent): string {
@@ -172,11 +181,11 @@ export const AgentEventRow = memo<AgentEventRowProps>(({ event, expanded, onTogg
             {event.user_id && (
               <>
                 <span
-                  title={event.user_id}
+                  title={event.user_display ? `${event.user_display} (${event.user_id})` : event.user_id}
                   className="inline-flex items-center gap-1 rounded border border-border/50 bg-muted/60 px-1.5 py-px font-mono text-[10px] text-foreground/80"
                 >
                   <IconUser className="h-2.5 w-2.5" />
-                  {shortUserId(event.user_id)}
+                  {event.user_display ? shortUserDisplay(event.user_display) : shortUserId(event.user_id)}
                 </span>
                 <span>·</span>
               </>

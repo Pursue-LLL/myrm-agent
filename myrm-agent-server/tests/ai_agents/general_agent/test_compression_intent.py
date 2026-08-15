@@ -99,7 +99,7 @@ def test_build_compression_intent_includes_pinned_files_when_present(
         return ["src/context/retention.py"]
 
     monkeypatch.setattr(
-        "myrm_agent_harness.runtime.context.session_context_pins.read_pinned_files",
+        "myrm_agent_harness.runtime.context.session.session_context_pins.read_pinned_files",
         _fake_read_pinned_files,
     )
 
@@ -125,7 +125,7 @@ def test_build_compression_intent_swallows_pinned_file_load_errors(
         raise RuntimeError("pin store unavailable")
 
     monkeypatch.setattr(
-        "myrm_agent_harness.runtime.context.session_context_pins.read_pinned_files",
+        "myrm_agent_harness.runtime.context.session.session_context_pins.read_pinned_files",
         _raise,
     )
 

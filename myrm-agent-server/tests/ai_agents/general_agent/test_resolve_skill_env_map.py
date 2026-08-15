@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from myrm_agent_harness.backends.skills.protocols import SkillBackend
-from myrm_agent_harness.backends.skills.types_metadata import SkillMetadata
+from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 from app.ai_agents.general_agent.config_builders import (
     build_execution_config,

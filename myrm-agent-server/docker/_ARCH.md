@@ -17,7 +17,7 @@ Server 容器构建与运行时入口。`Dockerfile` 从 PyPI 安装钉死版本
 
 ## 公开 Dockerfile
 
-`sandbox` profile 构建 agent 镜像时可通过环境变量 `MYRM_CP_BUILD_CONTEXT` 传入控制服务源码树（`docker-compose` 的 `control-plane` additional context）；仅全栈本地构建需要，PyPI/单机用户可忽略。
+云托管运行时镜像由 CP 契约 `DEFAULT_AGENT_SERVER_IMAGE` 指向 `Dockerfile.official` 产物；Skill 沙箱镜像由 `sandbox/Dockerfile` 独立构建；`docker-compose.yaml` 不含 agent 镜像 profile。
 
 构建上下文为 **myrm-agent 仓库根**（含 `myrm-agent-server/` 与 `shared/`，与 `docker-compose.yaml` backend build `context: ..` 一致）：
 

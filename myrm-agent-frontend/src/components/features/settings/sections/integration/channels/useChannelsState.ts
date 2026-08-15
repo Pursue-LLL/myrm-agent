@@ -79,15 +79,12 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
     setChannelIssues(issuesMap);
   }, []);
 
-  const clearChannelMaps = useCallback(() => {
-    setChannelStatuses({});
-    setChannelActivities({});
-    setChannelIssues({});
-  }, []);
-
   const fetchChannelStatuses = useCallback(() => {
-    listChannelStatuses().then(updateChannelStatusMaps).catch(clearChannelMaps);
-  }, [updateChannelStatusMaps, clearChannelMaps]);
+    listChannelStatuses().then(updateChannelStatusMaps).catch(() => {
+      // 查询失败时保留上次状态：清空会导致所有渠道配置面板卸载，正在进行的
+      // 实例增删在卸载组件上的 state 更新会被 React 丢弃，造成 UI 与后端失联。
+    });
+  }, [updateChannelStatusMaps]);
 
   const refreshGroupsAndStatuses = useCallback(() => {
     setGroupsRefreshing(true);
@@ -95,9 +92,11 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
       listGroups(true)
         .then(setGroups)
         .catch(() => setGroups([])),
-      listChannelStatuses().then(updateChannelStatusMaps).catch(clearChannelMaps),
+      listChannelStatuses().then(updateChannelStatusMaps).catch(() => {
+        // 同上：失败时保留上次状态，避免配置面板被整体卸载。
+      }),
     ]).finally(() => setGroupsRefreshing(false));
-  }, [updateChannelStatusMaps, clearChannelMaps]);
+  }, [updateChannelStatusMaps]);
 
   const fetchWhatsAppStatus = useCallback((showLoading = false) => {
     if (showLoading) {setWaLoading(true);}

@@ -112,7 +112,9 @@ class ContextBranchRequest(BaseModel):
 
 @router.get("/{chat_id}/context/pins", response_model=StandardSuccessResponse)
 async def get_context_pins(chat_id: str) -> JSONResponse:
-    from myrm_agent_harness.runtime.context.session_context_pins import read_pinned_files
+    from myrm_agent_harness.runtime.context.session.session_context_pins import (
+        read_pinned_files,
+    )
 
     chat = await ChatService.get_chat_metadata(chat_id)
     if not chat:
@@ -122,7 +124,9 @@ async def get_context_pins(chat_id: str) -> JSONResponse:
 
 @router.put("/{chat_id}/context/pins", response_model=StandardSuccessResponse)
 async def set_context_pins(chat_id: str, body: PinFilesRequest) -> JSONResponse:
-    from myrm_agent_harness.runtime.context.session_context_pins import write_pinned_files
+    from myrm_agent_harness.runtime.context.session.session_context_pins import (
+        write_pinned_files,
+    )
 
     chat = await ChatService.get_chat_metadata(chat_id)
     if not chat:
@@ -133,7 +137,9 @@ async def set_context_pins(chat_id: str, body: PinFilesRequest) -> JSONResponse:
 
 @router.post("/{chat_id}/context/pins", response_model=StandardSuccessResponse)
 async def add_context_pin(chat_id: str, body: PinFileRequest) -> JSONResponse:
-    from myrm_agent_harness.runtime.context.session_context_pins import add_pinned_file
+    from myrm_agent_harness.runtime.context.session.session_context_pins import (
+        add_pinned_file,
+    )
 
     chat = await ChatService.get_chat_metadata(chat_id)
     if not chat:

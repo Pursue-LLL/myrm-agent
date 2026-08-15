@@ -189,11 +189,19 @@ export interface AgentAuditEvent {
   sandbox_id?: string;
   /** Org member owning the sandbox — injected by the Control Plane during fan-out aggregation. */
   user_id?: string;
+  /** Human-readable identity (email/display_name) of the owning member — injected by the Control Plane. */
+  user_display?: string;
 }
 
 export interface OrgAgentAuditResponse {
   events: AgentAuditEvent[];
   total: number;
+  /** Full-window tool-call event count across all sandboxes, computed before truncation. */
+  tool_call_total: number;
+  /** Full-window security-audit event count across all sandboxes, computed before truncation. */
+  security_event_total: number;
+  /** Full-window policy-denial decision count (BLOCK/DENY/REDACT/LEAK) across all sandboxes. */
+  security_deny_total: number;
   scanned_sandboxes: number;
   failed_sandboxes: string[];
 }

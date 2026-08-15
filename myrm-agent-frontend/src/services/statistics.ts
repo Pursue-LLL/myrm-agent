@@ -205,6 +205,15 @@ export interface ToolBreakdown {
 }
 
 /**
+ * LLM call durations for a session, bucketed by model.
+ */
+export interface LlmBreakdown {
+  model_name: string;
+  call_count: number;
+  total_duration_ms: number;
+}
+
+/**
  * Event in session timeline.
  */
 export interface SessionEvent {
@@ -238,6 +247,8 @@ export interface SessionAnalytics {
   modelBreakdown: Record<string, ModelBreakdown>;
   // Tool usage
   tool_breakdown: ToolBreakdown[];
+  // LLM call durations, bucketed by model
+  llm_breakdown?: LlmBreakdown[];
   // Events timeline
   events_timeline: SessionEvent[];
   // Task metrics

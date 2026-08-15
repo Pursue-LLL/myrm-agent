@@ -96,11 +96,11 @@ class TestManualMemoryGuardianTrigger:
         manager.run_maintenance_cycle.return_value = report
 
         monkeypatch.setattr(memory_guardian, "_create_memory_manager", AsyncMock(return_value=manager))
-        monkeypatch.setattr(memory_guardian, "_record_maintenance_event", AsyncMock())
-        monkeypatch.setattr(memory_guardian, "_persist_health_snapshot", AsyncMock())
-        monkeypatch.setattr(memory_guardian, "_purge_expired_archives", AsyncMock(return_value=0))
-        monkeypatch.setattr(memory_guardian, "_record_purge_audit", AsyncMock())
-        monkeypatch.setattr(memory_guardian, "_auto_resolve_expired_conflicts", AsyncMock(return_value=0))
+        monkeypatch.setattr(memory_guardian, "record_maintenance_event", AsyncMock())
+        monkeypatch.setattr(memory_guardian, "record_health_snapshot", AsyncMock())
+        monkeypatch.setattr(memory_guardian, "purge_expired_archives", AsyncMock(return_value=0))
+        monkeypatch.setattr(memory_guardian, "record_purge_audit", AsyncMock())
+        monkeypatch.setattr(memory_guardian, "auto_resolve_expired_conflicts", AsyncMock(return_value=0))
         monkeypatch.setattr(memory_guardian, "_run_sqlite_backup", lambda: None)
 
         cycle_report, skipped_reason = await memory_guardian._run_guardian_cycle(
@@ -146,7 +146,7 @@ class TestManualMemoryGuardianTrigger:
         create_manager = AsyncMock()
         monkeypatch.setattr(memory_guardian, "_create_memory_manager", create_manager)
         warning_event = AsyncMock()
-        monkeypatch.setattr(memory_guardian, "_record_guard_unavailable_event", warning_event)
+        monkeypatch.setattr(memory_guardian, "record_guard_unavailable_event", warning_event)
 
         cycle_report, skipped_reason = await memory_guardian._run_guardian_cycle(
             force=False,
@@ -177,7 +177,7 @@ class TestManualMemoryGuardianTrigger:
         create_manager = AsyncMock()
         monkeypatch.setattr(memory_guardian, "_create_memory_manager", create_manager)
         warning_event = AsyncMock()
-        monkeypatch.setattr(memory_guardian, "_record_guard_unavailable_event", warning_event)
+        monkeypatch.setattr(memory_guardian, "record_guard_unavailable_event", warning_event)
 
         cycle_report, skipped_reason = await memory_guardian._run_guardian_cycle(
             force=False,
@@ -215,7 +215,7 @@ class TestManualMemoryGuardianTrigger:
         create_manager = AsyncMock()
         monkeypatch.setattr(memory_guardian, "_create_memory_manager", create_manager)
         warning_event = AsyncMock()
-        monkeypatch.setattr(memory_guardian, "_record_guard_unavailable_event", warning_event)
+        monkeypatch.setattr(memory_guardian, "record_guard_unavailable_event", warning_event)
 
         cycle_report, skipped_reason = await memory_guardian._run_guardian_cycle(
             force=False,
@@ -234,6 +234,7 @@ class TestManualMemoryGuardianTrigger:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        from app.services.memory.ledger.guardian_events import record_guard_unavailable_event
         enqueue_mock = MagicMock()
         monkeypatch.setattr(
             "app.services.agent.memory_guardian_guard_telemetry.enqueue_memory_guardian_guard_telemetry",
@@ -258,7 +259,7 @@ class TestManualMemoryGuardianTrigger:
             quiet_window_end_hour=6,
         )
 
-        await memory_guardian._record_guard_unavailable_event(
+        await record_guard_unavailable_event(
             reason="budget_guard_unavailable",
             guard="budget",
             policy=policy,

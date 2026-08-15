@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.backends.skills.types_metadata import SkillMetadata
+from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 from app.core.skills.discovery.autoupdate import (
     SkillAutoUpdateChecker,

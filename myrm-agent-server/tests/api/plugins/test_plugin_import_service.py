@@ -1355,3 +1355,26 @@ class TestListAndUninstallPlugins:
             "removed_files": False,
         }
         config_service.set.assert_not_awaited()
+
+    async def test_uninstall_refuses_unsafe_name(self) -> None:
+        """Uninstall with a path-traversal name must be a safe no-op."""
+        from app.services.plugins.import_service import uninstall_plugin
+
+        result = await uninstall_plugin("../important_dir")
+
+        assert result == {
+            "plugin_name": "../important_dir",
+            "removed_servers": 0,
+            "unbound_agents": 0,
+            "removed_files": False,
+        }
+
+    def test_remove_plugin_files_refuses_unsafe_name(self, tmp_path: Path) -> None:
+        """File removal must never touch paths derived from an unsafe name."""
+        from app.services.plugins._plugin_files import remove_plugin_files
+
+        victim = tmp_path / "important_dir"
+        victim.mkdir()
+        (victim / "file.txt").write_text("keep")
+        assert remove_plugin_files("../important_dir", tmp_path) is False
+        assert (victim / "file.txt").exists()

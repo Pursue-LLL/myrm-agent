@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | Memory operations submodule | ✅ |
+| `__init__.py` | 入口 | Memory operations submodule。聚合门面 re-export 全部 9 个顶层模块（archive_restore/backup/backup_remote/command_center/crud/guardian/pending/reindex/working_state）+ 4 个 `shared_context_*` 子模块，供 memory router 单一入口导入 | ✅ |
 | `archive_restore.py` | 模块 | 记忆归档恢复 API 操作层。只编排请求/响应和错误映射，恢复语义由服务层负责。 | ✅ |
 | `backup.py` | 模块 | Memory backup and restore endpoints. | ✅ |
 | `backup_remote.py` | 模块 | Remote backup API endpoints. | ✅ |

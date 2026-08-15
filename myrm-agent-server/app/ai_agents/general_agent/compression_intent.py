@@ -101,7 +101,9 @@ def _load_pinned_files(chat_id: str | None) -> list[str]:
     if not chat_id:
         return []
     try:
-        from myrm_agent_harness.runtime.context.session_context_pins import read_pinned_files
+        from myrm_agent_harness.runtime.context.session.session_context_pins import (
+            read_pinned_files,
+        )
 
         return read_pinned_files(chat_id)
     except Exception:

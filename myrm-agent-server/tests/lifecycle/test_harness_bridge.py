@@ -354,3 +354,336 @@ async def test_stale_event_empty_extra_uses_defaults():
         assert app_event.event_type == AppEventType.SUBAGENT_STALE
         assert app_event.data["stale_duration_seconds"] == 0
         assert app_event.data["wasted_tokens"] == 0
+
+
+class _FullCheckpoint:
+    task_id = "t-cp-full"
+    agent_type = "researcher"
+    progress = 42.0
+    last_tool = "web_search"
+    interruption_reason = "user_interrupt"
+    recovery_attempts = 1
+    task_description = "Research market size"
+
+
+class _PlainCheckpoint:
+    task_id = "t-cp-plain"
+    agent_type = "researcher"
+    progress = 100.0
+    last_tool = "final_answer"
+    interruption_reason = None
+    recovery_attempts = 0
+    task_description = ""
+
+
+@pytest.mark.asyncio
+async def test_emit_subagent_tree_checkpoint_full_fields_node():
+    """Re-initiate flow: interrupted checkpoint node must carry full metadata and no resumable flag."""
+    session_id = "test_session_full_cp"
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
+        patch("app.lifecycle.harness_bridge.get_agent_gateway") as mock_get_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+        ) as mock_list_checkpoints,
+    ):
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        mock_list_checkpoints.return_value = [_FullCheckpoint()]
+        mock_get_gateway.return_value._session_info.get.return_value = None
+
+        await _emit_subagent_tree(session_id)
+
+        published_event = mock_bus.publish.call_args.args[0]
+        node = published_event.data["tree"][0]
+        assert node["status"] == "interrupted"
+        assert node["interruption_reason"] == "user_interrupt"
+        assert node["recovery_attempts"] == 1
+        assert node["description"] == "Research market size"
+        assert "resumable" not in node
+
+
+@pytest.mark.asyncio
+async def test_emit_subagent_tree_checkpoint_plain_node():
+    """A checkpoint without interruption reason maps to status=checkpoint with no optional fields."""
+    session_id = "test_session_plain_cp"
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
+        patch("app.lifecycle.harness_bridge.get_agent_gateway") as mock_get_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+        ) as mock_list_checkpoints,
+    ):
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        mock_list_checkpoints.return_value = [_PlainCheckpoint()]
+        mock_get_gateway.return_value._session_info.get.return_value = None
+
+        await _emit_subagent_tree(session_id)
+
+        node = mock_bus.publish.call_args.args[0].data["tree"][0]
+        assert node["status"] == "checkpoint"
+        assert "interruption_reason" not in node
+        assert "recovery_attempts" not in node
+        assert "description" not in node
+        assert "resumable" not in node
+
+
+@pytest.mark.asyncio
+async def test_emit_subagent_tree_deduplicates_checkpoint_vs_active():
+    """A checkpoint whose task_id is still active must not be duplicated."""
+    session_id = "test_session_dedup"
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
+        patch("app.lifecycle.harness_bridge.get_agent_gateway") as mock_get_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+        ) as mock_list_checkpoints,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
+            return_value=[{"task_id": "t1", "status": "running"}],
+        ),
+    ):
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        plain = _PlainCheckpoint()
+        plain.task_id = "t1"
+        mock_list_checkpoints.return_value = [plain]
+        mock_get_gateway.return_value._session_info.get.return_value = None
+
+        await _emit_subagent_tree(session_id)
+
+        tree = mock_bus.publish.call_args.args[0].data["tree"]
+        assert [node["task_id"] for node in tree] == ["t1"]
+
+
+@pytest.mark.asyncio
+async def test_emit_subagent_tree_hydrates_teammate_messages():
+    """Persisted teammate mailbox rows are attached onto tree nodes."""
+    session_id = "chat_hydrate-session"
+    teammate_msg = {"task_id": "t-hyd", "role": "user", "content": "hi"}
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
+        patch("app.lifecycle.harness_bridge.get_agent_gateway") as mock_get_gateway,
+        patch(
+            "app.services.chat.chat_service.ChatService.ensure_default_workspace_dir",
+            new_callable=AsyncMock,
+        ) as mock_ws,
+        patch(
+            "myrm_agent_harness.agent.coordination.mailbox.list_teammate_history"
+        ) as mock_history,
+        patch(
+            "myrm_agent_harness.agent.coordination.mailbox.group_history_by_task"
+        ) as mock_group,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
+            return_value=[{"task_id": "t-hyd", "status": "running"}],
+        ),
+    ):
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        mock_get_gateway.return_value._session_info.get.return_value = None
+        mock_ws.return_value = "/tmp/ws"
+        mock_history.return_value = [teammate_msg]
+        mock_group.return_value = {"t-hyd": [teammate_msg]}
+
+        await _emit_subagent_tree(session_id)
+
+        node = mock_bus.publish.call_args.args[0].data["tree"][0]
+        assert node["teammate_messages"] == [teammate_msg]
+        mock_history.assert_called_once_with("hydrate-session", "/tmp/ws", limit=200)
+
+
+@pytest.mark.asyncio
+async def test_emit_subagent_tree_falls_back_to_raw_session_id():
+    """When rest_chat_id lookup misses, the raw harness session_id must be consulted."""
+    session_id = "chat_fallback-session"
+    mock_agent_instance = MagicMock()
+    mock_agent_instance.subagent_manager.list_children.return_value = []
+    mock_info = MagicMock()
+    mock_info.agent.return_value = mock_agent_instance
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
+        patch("app.lifecycle.harness_bridge.get_agent_gateway") as mock_get_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+    ):
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        mock_get_gateway.return_value._session_info.get.side_effect = [None, mock_info]
+
+        await _emit_subagent_tree(session_id)
+
+        published_event = mock_bus.publish.call_args.args[0]
+        assert published_event.data["chat_id"] == "fallback-session"
+        mock_agent_instance.subagent_manager.list_children.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_emit_subagent_tree_checkpoint_list_exception_tolerated():
+    """A checkpoint listing failure must not abort the whole tree emission."""
+    session_id = "test_session_cp_error"
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
+        patch("app.lifecycle.harness_bridge.get_agent_gateway") as mock_get_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("storage down"),
+        ),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
+            return_value=[],
+        ),
+    ):
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        mock_get_gateway.return_value._session_info.get.return_value = None
+
+        await _emit_subagent_tree(session_id)
+
+        assert mock_bus.publish.call_count == 1
+        assert mock_bus.publish.call_args.args[0].data["tree"] == []
+
+
+@pytest.mark.asyncio
+async def test_emit_subagent_tree_teammate_hydrate_exception_and_non_dict_child():
+    """Hydrate failures are tolerated and non-dict children are skipped."""
+    session_id = "chat_hydrate-error-session"
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
+        patch("app.lifecycle.harness_bridge.get_agent_gateway") as mock_get_gateway,
+        patch(
+            "app.services.chat.chat_service.ChatService.ensure_default_workspace_dir",
+            side_effect=RuntimeError("ws down"),
+        ),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.merge_active_subagent_children",
+            return_value=[{"task_id": "t-ok"}, "not-a-dict", 42],
+        ),
+    ):
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        mock_get_gateway.return_value._session_info.get.return_value = None
+
+        await _emit_subagent_tree(session_id)
+
+        published_event = mock_bus.publish.call_args.args[0]
+        tree = published_event.data["tree"]
+        assert len(tree) == 3
+        dict_task_ids = [c["task_id"] for c in tree if isinstance(c, dict)]
+        assert dict_task_ids == ["t-ok"]
+
+
+@pytest.mark.asyncio
+async def test_handle_skill_failure_event_delegates_and_tolerates_error():
+    """Skill failure events must be routed to the immune service and never raise."""
+    from app.lifecycle.harness_bridge import _handle_skill_failure_event
+
+    event = SkillFailureEvent(
+        tool_name="memory.search",
+        error_message="boom",
+        error_signature="sig",
+        candidates=(),
+        session_id="chat_skill-session",
+    )
+
+    with patch(
+        "app.services.agent.evolution.skill_immune_service.handle_skill_failure_event",
+        new_callable=AsyncMock,
+    ) as mock_handle:
+        await _handle_skill_failure_event(event)
+        mock_handle.assert_awaited_once_with(event)
+
+    with patch(
+        "app.services.agent.evolution.skill_immune_service.handle_skill_failure_event",
+        side_effect=RuntimeError("immune down"),
+    ):
+        await _handle_skill_failure_event(event)
+
+
+@pytest.mark.asyncio
+async def test_handle_locator_healed_event_publishes_and_tolerates_error():
+    """Locator healed events must be forwarded as LOCATOR_HEALED AppEvents."""
+    from app.lifecycle.harness_bridge import _handle_locator_healed_event
+    from app.services.event.app_event_bus import AppEventType
+
+    event = LocatorSelfHealedEvent(
+        ref="locator-1",
+        old_name="old",
+        new_name="new",
+        url="https://example.com",
+        role="button",
+        distance=0.3,
+    )
+
+    with patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus:
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        await _handle_locator_healed_event(event)
+        app_event = mock_bus.publish.call_args[0][0]
+        assert app_event.event_type == AppEventType.LOCATOR_HEALED
+        assert app_event.data["ref"] == "locator-1"
+        assert app_event.data["new_name"] == "new"
+
+    with patch("app.lifecycle.harness_bridge.get_server_bus", side_effect=Exception("Bus down")):
+        await _handle_locator_healed_event(event)
+
+
+@pytest.mark.asyncio
+async def test_close_harness_resources_drains_bridge_and_mcp():
+    """close_harness_resources must stop the bridge and drain the MCP lifecycle."""
+    from app.lifecycle.harness_bridge import close_harness_resources
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_harness_bus") as mock_get_bus,
+        patch(
+            "myrm_agent_harness.toolkits.mcp.lifecycle.mcp_lifecycle.shutdown",
+            new_callable=AsyncMock,
+        ) as mock_shutdown,
+    ):
+        mock_bus = MagicMock()
+        mock_bus.stop = AsyncMock()
+        mock_get_bus.return_value = mock_bus
+
+        await close_harness_resources()
+        mock_bus.stop.assert_awaited_once()
+        mock_shutdown.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_close_harness_resources_tolerates_teardown_errors():
+    """Teardown errors must be logged, not raised."""
+    from app.lifecycle.harness_bridge import close_harness_resources
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_harness_bus", side_effect=RuntimeError("bus gone")),
+        patch(
+            "myrm_agent_harness.toolkits.mcp.lifecycle.mcp_lifecycle.shutdown",
+            side_effect=RuntimeError("mcp gone"),
+        ),
+    ):
+        await close_harness_resources()

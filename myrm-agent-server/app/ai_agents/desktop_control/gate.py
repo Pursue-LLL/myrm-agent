@@ -386,8 +386,42 @@ def _trust_store_workspace_roots(*, fallback_root: str | None) -> list[Path]:
 
         harness_dir = Path(get_settings().database.harness_dir)
         if harness_dir.is_dir():
-            for approval_file in harness_dir.rglob(_APPROVAL_FILE):
-                _add(approval_file.parent.parent.parent)
+            # approved_apps.json only ever lives at
+            # {workspace_root}/.agent/desktop_control/approved_apps.json, and
+            # harness workspaces use a two-level layout (e.g.
+            # harness/workspaces/chat_*/...). Probe that bounded layout with
+            # os.scandir instead of a full recursive rglob over the whole
+            # harness dir, which can contain tens of thousands of files.
+            def _collect(root: str) -> None:
+                try:
+                    with os.scandir(root) as entries:
+                        for entry in entries:
+                            if not entry.is_dir(follow_symlinks=False):
+                                continue
+                            agent_dir = os.path.join(entry.path, _APPROVAL_DIR)
+                            if os.path.isdir(agent_dir) and os.path.isfile(
+                                os.path.join(agent_dir, _APPROVAL_FILE)
+                            ):
+                                _add(Path(entry.path))
+                except OSError:
+                    return
+
+            try:
+                collections = [
+                    entry.path
+                    for entry in os.scandir(harness_dir)
+                    if entry.is_dir(follow_symlinks=False)
+                ]
+            except OSError:
+                collections = []
+            for collection in collections:
+                agent_dir = os.path.join(collection, _APPROVAL_DIR)
+                if os.path.isdir(agent_dir) and os.path.isfile(
+                    os.path.join(agent_dir, _APPROVAL_FILE)
+                ):
+                    _add(Path(collection))
+                else:
+                    _collect(collection)
     except Exception as exc:
         logger.warning("Failed to scan harness desktop trust stores: %s", exc)
 

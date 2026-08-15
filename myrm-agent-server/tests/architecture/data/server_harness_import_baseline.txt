@@ -250,8 +250,8 @@ myrm_agent_harness.runtime.context.cleanup_task
 myrm_agent_harness.runtime.context.context_branches
 myrm_agent_harness.runtime.context.file_access_tracker
 myrm_agent_harness.runtime.context.offload
-myrm_agent_harness.runtime.context.session_context_pins
-myrm_agent_harness.runtime.context.session_continuity
+myrm_agent_harness.runtime.context.session.session_context_pins
+myrm_agent_harness.runtime.context.session.session_continuity
 myrm_agent_harness.runtime.context.transparent_reader
 myrm_agent_harness.runtime.events
 myrm_agent_harness.runtime.events.bus

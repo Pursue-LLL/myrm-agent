@@ -42,7 +42,10 @@ export function WeChatConfigCard() {
     }
     getWeChatStatus()
       .then(setPrimaryStatus)
-      .catch(() => setPrimaryStatus(null))
+      .catch(() => {
+        // 轮询/刷新失败时保留上次状态：置 null 会卸载整个卡片区，正在进行的
+        // 删除/重命名等异步操作在卸载组件上的 state 更新会被 React 丢弃。
+      })
       .finally(() => setLoading(false));
   }, []);
 

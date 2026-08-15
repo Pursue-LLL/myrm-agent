@@ -19,7 +19,7 @@ ContextBundle 卷布局由 `myrm_agent_harness.toolkits.context_bundle` 定义�
 |----------|------|------|-------|
 | `__init__.py` | 📄 占位 | 模块声明 | ❌ |
 | `_ARCH.md` | 📄 文档 | 本架构文档 | ❌ |
-| `setup.py` | ✅ 核心 | 解析 `ResolvedContextBinding` 并创建/缓存 `MemoryManager`；`create_memory_tools_for_user` 支持 `description_locale`；`create_conflict_callback` 工厂提供冲突持久化回调（写时按 `importance>=0.9` 分级：high_risk 不设 auto_resolve_at 永不静默保旧，低风险 72h 自动保留旧记忆；持久化成功后异步记录 `MemoryOperationKind.CONFLICT` ledger 事件，经 operation_ledger SSE 推送给前端刷新待裁决角标，失败仅丢通知不影响主流程）；`evict_cached_memory_manager` 联动释放隔离卷的 harness 嵌入式 Qdrant 单例 | ✅ |
+| `setup.py` | ✅ 核心 | 解析 `ResolvedContextBinding` 并创建/缓存 `MemoryManager`；`create_memory_tools_for_user` 支持 `description_locale`；`create_conflict_callback` 工厂提供冲突持久化回调（写时按 `importance>=0.9` 分级：high_risk 不设 auto_resolve_at 永不静默保旧，低风险 72h 自动保留旧记忆；冲突 `memory_type` 如实取自 `ConflictContext.memory_type`（semantic/episodic 如实标注）；同 `old_memory_id` 已有 pending 冲突时跳过重复入库，防止待裁决队列堆积；持久化成功后异步记录 `MemoryOperationKind.CONFLICT` ledger 事件，经 operation_ledger SSE 推送给前端刷新待裁决角标，失败仅丢通知不影响主流程）；`evict_cached_memory_manager` 联动释放隔离卷的 harness 嵌入式 Qdrant 单例 | ✅ |
 | `cascade.py` | ✅ 核心 | Cascade-deletion MemoryManager 单例：按 `source_chat_id` 清理记忆 | ✅ |
 | `policy.py` | ✅ 核心 | AgentProfile `memory_policy` 与 namespace 派生 | ✅ |
 | `types.py` | ✅ 核心 | `ResolvedContextBinding` — Server 到 Harness 的上下文运行时合同 | ✅ |

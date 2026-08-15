@@ -447,7 +447,7 @@ class ControlPlaneSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="")
 
     url: str = Field(default="", validation_alias="CONTROL_PLANE_URL")
-    telemetry_token: SecretStr = Field(default="", validation_alias="CONTROL_PLANE_TELEMETRY_TOKEN")
+    telemetry_token: SecretStr = Field(default=SecretStr(""), validation_alias="CONTROL_PLANE_TELEMETRY_TOKEN")
     telemetry_subject: str = Field(default="", validation_alias="CONTROL_PLANE_TELEMETRY_SUBJECT")
     tenant_id: str = Field(default="default-tenant", validation_alias="TENANT_ID")
     sandbox_id: str = Field(default="", validation_alias="SANDBOX_ID")

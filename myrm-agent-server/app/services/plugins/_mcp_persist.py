@@ -11,15 +11,21 @@ skill ids / server names to an Agent profile.
 - app.services.config.service::config_service (POS: global UserConfig store.)
 - app.core.channel_bridge.config_cache::invalidate_user_configs_cache (POS:
   force config cache invalidation after updates.)
-- app.services.agent.agent_service::AgentService (POS: agent profile CRUD.)
+- app.database.repositories.uow::UnitOfWork (POS: transactional agent profile
+  repository access for bind/unbind.)
 
 [OUTPUT]
 - _collect_server_configs / _write_mcp_servers: MCP decision filtering + merge
   into mcpServers UserConfig; returns persisted names only.
 - _server_to_config_dict: serialize a plugin MCP server (secret references +
-  required_secrets for Scoped Secret Injection).
+  required_secrets for Scoped Secret Injection); embeds plugin_name / cwd / env
+  and the persisted plugin_root / data_root into extra_params.
 - _collect_required_secret_keys: dedupe secret keys an import requires.
 - _bind_agent: atomically append skill_ids + mcp_ids to an Agent profile.
+- _remove_plugin_mcp_servers: drop every mcpServers entry imported by a plugin
+  name (uninstall).
+- _unbind_plugin_from_agents: remove uninstalled server names from every
+  agent's mcp_ids (uninstall).
 
 [POS]
 Business-layer MCP/agent persistence for plugin import (dedup by name,

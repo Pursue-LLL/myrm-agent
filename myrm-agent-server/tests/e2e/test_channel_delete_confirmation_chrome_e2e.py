@@ -29,6 +29,9 @@ as a robustness guard, and restores the previous state afterwards.
 
 from __future__ import annotations
 
+import json
+import sys
+
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
@@ -98,6 +101,7 @@ _DIALOG_OPEN_STATE_JS = """(() => {
     ready: !!confirm && !!cancel,
     hasConfirm: !!confirm,
     hasCancel: !!cancel,
+    bodyLen: (document.body?.innerText || '').length,
     bodySnippet: (document.body.innerText || '').slice(0, 300),
   };
 })()"""
@@ -110,6 +114,7 @@ _DIALOG_CLOSED_KEEPING_JS = """(() => {
     ready: !confirm && !!delBtn,
     dialogClosed: !confirm,
     hasDeleteBtn: !!delBtn,
+    bodyLen: (document.body?.innerText || '').length,
   };
 })()"""
 
@@ -119,6 +124,7 @@ _DIALOG_CLOSED_AFTER_CONFIRM_JS = """(() => {
   return {
     ready: !confirm,
     dialogClosed: !confirm,
+    bodyLen: (document.body?.innerText || '').length,
     bodySnippet: (document.body.innerText || '').slice(0, 300),
   };
 })()"""
@@ -145,6 +151,7 @@ def _extra_instance_probe_js(instance_id: str) -> str:
   return {{
     ready: !!delBtn,
     hasDeleteBtn: !!delBtn,
+    bodyLen: (document.body?.innerText || '').length,
     bodySnippet: (document.body.innerText || '').slice(0, 300),
   }};
 }})()"""
@@ -176,6 +183,7 @@ def _extra_instance_gone_js(instance_id: str) -> str:
     instanceGone: !delBtn,
     dialogOpen: !!confirm && !!cancel,
     hasDeleteBtn: !!delBtn,
+    bodyLen: (document.body?.innerText || '').length,
   }};
 }})()"""
 
@@ -185,10 +193,16 @@ def _extra_instance_dialog_closed_js(instance_id: str) -> str:
     return f"""(() => {{
   const confirm = document.querySelector('[data-testid="confirm-dialog-confirm"]');
   const delBtn = document.querySelector('[aria-label="delete-wechat_{instance_id}"]');
+  const primaryBtn = document.querySelector('[aria-label="delete-wechat"]');
   return {{
     ready: !confirm && !!delBtn,
     dialogClosed: !confirm,
     hasDeleteBtn: !!delBtn,
+    hasPrimaryBtn: !!primaryBtn,
+    bodyLen: (document.body?.innerText || '').length,
+    bodySnippet: (document.body.innerText || '').slice(0, 300),
+    navType: performance.getEntriesByType('navigation')[0]?.type || 'navigate',
+    href: location.href,
   }};
 }})()"""
 
@@ -269,6 +283,29 @@ def _wechat_instances(api_url: str) -> list[dict[str, object]]:
     listed = http_json("GET", f"{api_url}{_INSTANCES_ENDPOINT}?channel_type=wechat")
     assert isinstance(listed, list), listed
     return [i for i in listed if isinstance(i, dict)]
+
+
+def _instance_ui_probe_js(instance_id: str) -> str:
+    """Probe the extra-instance card: is its delete button / dialog still present?"""
+    return f"""(() => {{
+  const delBtn = document.querySelector('[aria-label="delete-wechat_{instance_id}"]');
+  const confirm = document.querySelector('[data-testid="confirm-dialog-confirm"]');
+  const cancel = document.querySelector('[data-testid="confirm-dialog-cancel"]');
+  const cards = Array.from(document.querySelectorAll('[aria-label^="delete-wechat_"]')).map((b) => b.getAttribute('aria-label'));
+  const primaryBtn = document.querySelector('[aria-label="delete-wechat"]');
+  const noChannel = document.body.innerText || '';
+  return {{
+    hasDeleteBtn: !!delBtn,
+    dialogOpen: !!confirm && !!cancel,
+    deleteBtns: cards,
+    hasPrimaryBtn: !!primaryBtn,
+    showsNoChannel: noChannel.includes('wechatNoChannel') || noChannel.includes('not configured') || noChannel.includes('未配置'),
+    bodyLen: (document.body?.innerText || '').length,
+    navType: performance.getEntriesByType('navigation')[0]?.type || 'navigate',
+    href: location.href,
+    bodySnippet: (document.body.innerText || '').slice(0, 400),
+  }};
+}})()"""
 
 
 @pytest.mark.chrome_e2e(
@@ -372,15 +409,29 @@ def test_wechat_delete_confirmation_flows() -> None:
 
             confirmed = client.evaluate(page, _CONFIRM_DIALOG_JS, timeout_sec=30.0)
             assert isinstance(confirmed, dict) and confirmed.get("ok") is True, confirmed
-            gone = wait_for_state(
-                client,
-                page,
-                _extra_instance_gone_js(instance_id),
-                timeout_sec=60.0,
-                page_url=channels_url,
-            )
+            gone: dict[str, object]
+            try:
+                gone = wait_for_state(
+                    client,
+                    page,
+                    _extra_instance_gone_js(instance_id),
+                    timeout_sec=60.0,
+                    page_url=channels_url,
+                )
+            except AssertionError:
+                gone = {"ready": False}
             if gone.get("ready") is not True:
                 gone["backendInstancesAfter"] = _wechat_instances(api_url)
+                for probe_name, probe_js in (
+                    ("goneProbe", _extra_instance_gone_js(instance_id)),
+                    ("uiProbe", _instance_ui_probe_js(instance_id)),
+                ):
+                    try:
+                        gone[probe_name] = client.evaluate(page, probe_js, timeout_sec=30.0)
+                    except (RuntimeError, TimeoutError, OSError, AssertionError) as exc:
+                        gone[probe_name] = {"evaluateErr": str(exc)[:300]}
+                print(f"[channel-e2e] Flow2 gone diagnostics: {json.dumps(gone, ensure_ascii=False)}")
+                sys.stdout.flush()
             assert gone.get("ready") is True, gone
 
             # The instance is really gone from the backend too.
@@ -434,13 +485,29 @@ def test_wechat_delete_confirmation_flows() -> None:
             # (the frontend list is not auto-refreshed after a failed delete).
             canceled = client.evaluate(page, _CANCEL_DIALOG_JS, timeout_sec=30.0)
             assert isinstance(canceled, dict) and canceled.get("ok") is True, canceled
-            closed = wait_for_state(
-                client,
-                page,
-                _extra_instance_dialog_closed_js(instance3),
-                timeout_sec=30.0,
-                page_url=channels_url,
-            )
+            closed: dict[str, object]
+            try:
+                closed = wait_for_state(
+                    client,
+                    page,
+                    _extra_instance_dialog_closed_js(instance3),
+                    timeout_sec=30.0,
+                    page_url=channels_url,
+                )
+            except AssertionError:
+                closed = {"ready": False}
+            if closed.get("ready") is not True:
+                closed["backendInstancesAfter"] = _wechat_instances(api_url)
+                for probe_name, probe_js in (
+                    ("closedProbe", _extra_instance_dialog_closed_js(instance3)),
+                    ("uiProbe", _instance_ui_probe_js(instance3)),
+                ):
+                    try:
+                        closed[probe_name] = client.evaluate(page, probe_js, timeout_sec=30.0)
+                    except (RuntimeError, TimeoutError, OSError, AssertionError) as exc:
+                        closed[probe_name] = {"evaluateErr": str(exc)[:300]}
+                print(f"[channel-e2e] Flow3 closed diagnostics: {json.dumps(closed, ensure_ascii=False)}")
+                sys.stdout.flush()
             assert closed.get("ready") is True, closed
     finally:
         if seeded:

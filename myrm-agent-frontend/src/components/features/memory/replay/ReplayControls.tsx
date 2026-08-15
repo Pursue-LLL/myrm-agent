@@ -1,8 +1,15 @@
 'use client';
 
 /**
- * Replay controls header: title, seek-to-error, playback speed, play/pause,
- * scrubber timeline with event markers, and the current-position readout.
+ * [INPUT]
+ * - memory/replayTimeline::ReplayEventMarker (POS: Timeline marker data for the scrubber)
+ * - features/icons/PremiumIcons (POS: Premium icon set used across the product UI)
+ *
+ * [OUTPUT]
+ * - ReplayControls: playback control bar — title, seek-to-error, speed selector, play/pause, scrubber with event markers
+ *
+ * [POS]
+ * Session replay control bar. Owns playback interaction chrome; parent player supplies time/playback state.
  */
 
 import { useTranslations } from 'next-intl';

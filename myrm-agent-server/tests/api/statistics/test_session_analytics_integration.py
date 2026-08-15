@@ -671,5 +671,142 @@ async def test_session_trace_endpoint_tasks_steps_lineage_with_labels(
     ]
 
 
+@pytest.mark.asyncio
+async def test_build_llm_duration_breakdown(tmp_path):
+    """token_usage events aggregate per-model durations; non-numeric duration skipped."""
+    from datetime import datetime
+
+    from myrm_agent_harness.agent.event_log.backends.file_backend import (
+        FileEventLogBackend,
+    )
+    from myrm_agent_harness.agent.event_log.types import StructuredEvent
+
+    from app.api.statistics.session_analytics import _build_llm_duration_breakdown
+
+    session_id = "llm-breakdown-session"
+    backend = FileEventLogBackend(tmp_path, session_id)
+    ts = datetime.now().timestamp()
+    events = [
+        StructuredEvent(
+            session_id=session_id,
+            sequence=1,
+            timestamp=ts,
+            event_type="token_usage",
+            data={"model_name": "gpt-4o", "duration_ms": 1200.0},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=2,
+            timestamp=ts + 1,
+            event_type="token_usage",
+            data={"model_name": "gpt-4o", "duration_ms": 800.0},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=3,
+            timestamp=ts + 2,
+            event_type="token_usage",
+            data={"model_name": "claude-sonnet", "duration_ms": 2500.0},
+        ),
+        # No duration -> skipped entirely
+        StructuredEvent(
+            session_id=session_id,
+            sequence=4,
+            timestamp=ts + 3,
+            event_type="token_usage",
+            data={"model_name": "gpt-4o"},
+        ),
+        # Nested payload (legacy recorder format) still parsed
+        StructuredEvent(
+            session_id=session_id,
+            sequence=5,
+            timestamp=ts + 4,
+            event_type="token_usage",
+            data={"data": {"model_name": "gpt-4o", "duration_ms": 400.0}},
+        ),
+    ]
+    await backend.append(events)
+
+    breakdown = await _build_llm_duration_breakdown(backend, session_id)
+    by_model = {bucket["model_name"]: bucket for bucket in breakdown}
+
+    assert by_model["gpt-4o"]["call_count"] == 3
+    assert by_model["gpt-4o"]["total_duration_ms"] == 2400.0
+    assert by_model["claude-sonnet"]["call_count"] == 1
+    assert by_model["claude-sonnet"]["total_duration_ms"] == 2500.0
+
+
+@pytest.mark.asyncio
+async def test_session_analytics_includes_llm_breakdown(tmp_path, monkeypatch):
+    """API returns per-model LLM durations when token_usage events exist."""
+    from datetime import datetime
+
+    from myrm_agent_harness.agent.event_log.backends.file_backend import (
+        FileEventLogBackend,
+    )
+    from myrm_agent_harness.agent.event_log.types import StructuredEvent
+
+    from app.database.models import Chat
+    from app.platform_utils import get_session_factory
+
+    monkeypatch.setattr(
+        "app.config.settings.settings.database.event_log_dir",
+        str(tmp_path),
+    )
+
+    session_id = "analytics-llm-breakdown"
+    backend = FileEventLogBackend(tmp_path, session_id)
+    ts = datetime.now().timestamp()
+    events = [
+        StructuredEvent(
+            session_id=session_id,
+            sequence=1,
+            timestamp=ts,
+            event_type="session_start",
+            data={},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=2,
+            timestamp=ts + 1,
+            event_type="token_usage",
+            data={"model_name": "gpt-4o", "duration_ms": 900.0},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=3,
+            timestamp=ts + 2,
+            event_type="token_usage",
+            data={"model_name": "gpt-4o", "duration_ms": 1100.0},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=4,
+            timestamp=ts + 3,
+            event_type="session_end",
+            data={},
+        ),
+    ]
+    await backend.append(events)
+
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        db.add(Chat(id=session_id, title="LLM Breakdown", action_mode="fast", source="web"))
+        await db.commit()
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get(f"/api/v1/statistics/session/{session_id}")
+
+    assert response.status_code == 200
+    analytics = response.json()["data"]
+    llm_breakdown = analytics.get("llm_breakdown", [])
+    assert len(llm_breakdown) == 1
+    assert llm_breakdown[0]["model_name"] == "gpt-4o"
+    assert llm_breakdown[0]["call_count"] == 2
+    assert llm_breakdown[0]["total_duration_ms"] == 2000.0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -280,7 +280,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
       window.removeEventListener('subagents_updated', handleSseEvent);
       window.removeEventListener('teammate_message', handleTeammateEvent);
     };
-  }, [chatId]);
+  }, [chatId, fetchSubagents]);
 
   useEffect(() => {
     if (!chatId) {return;}

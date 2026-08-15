@@ -1,9 +1,9 @@
 'use client';
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Download, Filter, ShieldAlert } from 'lucide-react';
+import { IconDownload, IconShieldAlert, IconSliders } from '@/components/features/icons/PremiumIcons';
 import {
   Area,
   AreaChart,
@@ -47,12 +47,16 @@ const EnterpriseAuditTab = memo(() => {
   const [hours, setHours] = useState<number>(24);
   const [filters, setFilters] = useState<AuditLogFilters>({ limit: 50 });
   const [activeView, setActiveView] = useState<string>('platform');
+  const filtersRef = useRef(filters);
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
 
   const loadData = useCallback(
     async (overrideFilters?: AuditLogFilters) => {
       try {
         setLoading(true);
-        const activeFilters = overrideFilters ?? filters;
+        const activeFilters = overrideFilters ?? filtersRef.current;
         const [statsData, logsData] = await Promise.all([getAuditStats(hours), queryAuditLogs(activeFilters)]);
         setStats(statsData);
         setEvents(logsData.events);
@@ -61,7 +65,6 @@ const EnterpriseAuditTab = memo(() => {
       } finally {
         setLoading(false);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [hours],
   );
@@ -125,7 +128,7 @@ const EnterpriseAuditTab = memo(() => {
           <SettingsSection
             title={
               <span className="flex items-center gap-2">
-                <ShieldAlert className="h-5 w-5" />
+                <IconShieldAlert className="h-5 w-5" />
                 {t('title')}
               </span>
             }
@@ -143,11 +146,11 @@ const EnterpriseAuditTab = memo(() => {
                   </SelectContent>
                 </Select>
                 <Button size="sm" variant="outline" onClick={() => handleExport('csv')}>
-                  <Download className="h-3.5 w-3.5 mr-1" />
+                  <IconDownload className="h-3.5 w-3.5 mr-1" />
                   CSV
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => handleExport('json')}>
-                  <Download className="h-3.5 w-3.5 mr-1" />
+                  <IconDownload className="h-3.5 w-3.5 mr-1" />
                   JSON
                 </Button>
               </div>
@@ -255,7 +258,7 @@ const EnterpriseAuditTab = memo(() => {
           <SettingsSection
             title={
               <span className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
+                <IconSliders className="h-4 w-4" />
                 {t('eventList')}
               </span>
             }

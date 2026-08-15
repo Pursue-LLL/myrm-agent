@@ -456,6 +456,55 @@ def test_list_trusted_apps_discovers_persisted_harness_workspace(
     assert apps[0]["trust_key"] == "com.apple.TextEdit"
 
 
+def test_list_trusted_apps_discovers_collection_root_approval(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    harness_dir = tmp_path / "harness"
+    collection = harness_dir / "workspaces"
+    approval_dir = collection / ".agent" / "desktop_control"
+    approval_dir.mkdir(parents=True)
+    (approval_dir / "approved_apps.json").write_text(
+        json.dumps(
+            {
+                "apps": {
+                    "com.apple.TextEdit": {
+                        "scope": "always",
+                        "display_name": "TextEdit",
+                        "app_id": "com.apple.TextEdit",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    from app.config.settings import get_settings
+
+    monkeypatch.setattr(get_settings().database, "harness_dir", str(harness_dir))
+
+    apps = list_trusted_desktop_apps(workspace_root=str(tmp_path / "server_cwd"))
+    assert len(apps) == 1
+    assert apps[0]["trust_key"] == "com.apple.TextEdit"
+
+
+def test_list_trusted_apps_ignores_sessions_without_approval_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    harness_dir = tmp_path / "harness"
+    (harness_dir / "workspaces" / "chat_no_approval").mkdir(parents=True)
+    (harness_dir / "workspaces" / "chat_other_agent").mkdir(parents=True)
+    (harness_dir / "wiki").mkdir(parents=True)
+
+    from app.config.settings import get_settings
+
+    monkeypatch.setattr(get_settings().database, "harness_dir", str(harness_dir))
+
+    apps = list_trusted_desktop_apps(workspace_root=str(tmp_path / "server_cwd"))
+    assert apps == []
+
+
 def test_revoke_trusted_app_hits_live_gate_when_api_workspace_differs(
     tmp_path: Path,
 ) -> None:

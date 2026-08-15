@@ -12,6 +12,7 @@ from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
 )
 from app.api.memory.operations import (
+    archive_restore,
     backup,
     backup_remote,
     command_center,
@@ -44,5 +45,6 @@ router.include_router(crud.router, tags=["memory-crud"])
 router.include_router(backup.router, tags=["memory-backup"])
 router.include_router(backup_remote.router, tags=["memory-backup-remote"])
 router.include_router(reindex.router, tags=["memory-reindex"])
+router.include_router(archive_restore.router, tags=["memory-archive-restore"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
 router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])

@@ -21,8 +21,8 @@ never escape the plugin root.
 [INPUT]
 - myrm_agent_harness.agent.plugins.models::PluginMcpServer (POS: framework
   parser output dataclasses.)
-- myrm_agent_harness.backends.skills.scanning.zip_extract::safe_extract_zip
-  (POS: framework secure ZIP extraction — the upstream file filter.)
+- myrm_agent_harness.agent.plugins.mcp_config::has_placeholders (POS: stdio
+  placeholder detection for env/cwd/args.)
 
 [OUTPUT]
 - persist_plugin_files / remove_plugin_files / plugin_installed_dir /
@@ -169,7 +169,15 @@ def _contained_path(root_dir: Path, rel_path: str) -> Path | None:
 
 
 def remove_plugin_files(plugin_name: str, data_dir: Path) -> bool:
-    """Remove a plugin's root + data directories. Returns True if anything was removed."""
+    """Remove a plugin's root + data directories. Returns True if anything was removed.
+
+    Refuses unsafe names (path traversal / shell-hostile characters): the
+    canonical directories are derived from ``plugin_name`` by string join, so a
+    hostile value must never reach ``shutil.rmtree``.
+    """
+    if not is_safe_plugin_name(plugin_name):
+        logger.warning("Refusing to remove files for unsafe plugin name %r", plugin_name)
+        return False
     removed = False
     for directory in (
         plugin_installed_dir(data_dir, plugin_name),

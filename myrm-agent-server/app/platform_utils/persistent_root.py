@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.runtime.execution_paths (POS: PERSISTENT_ROOT and derived paths)
 - myrm_agent_harness.runtime.context.context_branches (POS: PERSISTENT_ROOT override)
-- myrm_agent_harness.runtime.context.session_context_pins (POS: PERSISTENT_ROOT override)
+- myrm_agent_harness.runtime.context.session.session_context_pins (POS: PERSISTENT_ROOT override)
 
 [OUTPUT]
 - configure_persistent_root_for_local_dev() (POS: startup-time path mapper)
@@ -30,7 +30,7 @@ def configure_persistent_root_for_local_dev(state_dir: str) -> str:
     root_str = str(root)
 
     import myrm_agent_harness.runtime.context.context_branches as branches_module
-    import myrm_agent_harness.runtime.context.session_context_pins as pins_module
+    import myrm_agent_harness.runtime.context.session.session_context_pins as pins_module
     import myrm_agent_harness.runtime.execution_paths as execution_paths
 
     execution_paths.PERSISTENT_ROOT = root_str

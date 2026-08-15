@@ -71,7 +71,7 @@ RUN groupadd -r myrm && useradd -r -g myrm -m -d /home/myrm myrm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates xvfb x11vnc novnc websockify fluxbox \
-    scrot xdotool at-spi2-core dbus-x11 gosu \
+    scrot xdotool at-spi2-core dbus-x11 gosu tini \
     fontconfig fonts-noto-cjk fonts-noto-color-emoji fonts-liberation \
     && fc-cache -f \
     && rm -rf /var/lib/apt/lists/*
@@ -98,5 +98,5 @@ EXPOSE 25808 6080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:25808/health || exit 1
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/app/entrypoint.sh"]
 CMD ["python", "run.py", "--skip-port-check", "--host", "0.0.0.0", "--port", "25808"]

@@ -1,8 +1,15 @@
 'use client';
 
 /**
- * Replay inspector pane: detailed payload of the active timeline event
- * (error, tool result with security labels, LLM call, memory event, etc.).
+ * [INPUT]
+ * - memory/replayTimeline::ReplayEvent (POS: Active timeline event for the replay player)
+ * - memory/ReplayMessageBubble (POS: Read-only Markdown message rendering)
+ *
+ * [OUTPUT]
+ * - ReplayInspector: detail pane for the active timeline event — errors, tool results, security labels, LLM call stats
+ *
+ * [POS]
+ * Session replay inspector pane. Renders the full payload of the currently active timeline event.
  */
 
 import { useTranslations } from 'next-intl';

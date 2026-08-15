@@ -7,7 +7,8 @@ Organized memory operation endpoints by functionality.
 
 [OUTPUT]
 - Aggregate facade re-exporting every memory operation subpackage:
-  command_center, crud, guardian, pending, reindex, shared_context.
+  archive_restore, backup, backup_remote, command_center, crud, guardian,
+  pending, reindex, working_state, shared_context.
 
 [POS]
 Server business layer (Memory API). Single import facade for memory operation
@@ -16,25 +17,35 @@ self-contained.
 """
 
 from app.api.memory.operations import (
+    archive_restore,
+    backup,
+    backup_remote,
     command_center,
     crud,
     guardian,
     pending,
     reindex,
+    working_state,
 )
 from app.api.memory.operations.shared_context import (
+    shared_context_health,
     shared_context_history,
     shared_context_migration,
     shared_contexts,
 )
 
 __all__ = [
+    "archive_restore",
+    "backup",
+    "backup_remote",
     "command_center",
     "crud",
     "guardian",
     "pending",
     "reindex",
-    "shared_contexts",
+    "working_state",
+    "shared_context_health",
     "shared_context_history",
     "shared_context_migration",
+    "shared_contexts",
 ]

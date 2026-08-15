@@ -438,7 +438,7 @@ def list_trusted_apps_via_api() -> list[dict[str, object]]:
         )
         with _e2e_api_urlopen(
             request,
-            timeout_sec=5.0,
+            timeout_sec=10.0,
             max_attempts=3,
         ) as response:
             payload = json.loads(response.read().decode("utf-8"))

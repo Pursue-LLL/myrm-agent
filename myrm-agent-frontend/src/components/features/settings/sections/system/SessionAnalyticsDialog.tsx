@@ -212,7 +212,68 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
             </div>
           )}
 
+          {/* Response Speed (per-reply first-token latency) */}
+          {data.streamTtft && data.streamTtft.sampleCount > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">{t('responseSpeed')}</h3>
+              <p className="text-xs text-muted-foreground">{t('responseSpeedHint')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
+                  <span className="text-xs text-muted-foreground font-medium">{t('ttftAvg')}</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold tabular-nums text-foreground">
+                      {Math.round(data.streamTtft.avgMs)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">ms</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
+                  <span className="text-xs text-muted-foreground font-medium">{t('ttftP95')}</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold tabular-nums text-foreground">
+                      {Math.round(data.streamTtft.p95Ms)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">ms</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
+                  <span className="text-xs text-muted-foreground font-medium">{t('samples')}</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold tabular-nums text-foreground">
+                      {data.streamTtft.sampleCount}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <ExecutionTraceTimeline sessionId={sessionId} />
+
+          {/* LLM Breakdown */}
+          {data.llm_breakdown && data.llm_breakdown.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">{t('llmBreakdown')}</h3>
+              <div className="space-y-2">
+                {data.llm_breakdown.map((llm, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-3 bg-background/60 border border-border/40 rounded-lg"
+                  >
+                    <span className="text-sm font-medium text-foreground">{llm.model_name}</span>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span>
+                        {llm.call_count} {t('calls')}
+                      </span>
+                      <span>
+                        {Math.round(llm.total_duration_ms)}ms {t('total')}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Tool Breakdown */}
           {data.tool_breakdown && data.tool_breakdown.length > 0 && (

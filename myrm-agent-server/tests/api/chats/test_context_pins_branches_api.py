@@ -47,7 +47,7 @@ async def test_context_pins_roundtrip(
     tmp_path: pytest.TempPathFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import myrm_agent_harness.runtime.context.session_context_pins as pins_module
+    import myrm_agent_harness.runtime.context.session.session_context_pins as pins_module
 
     monkeypatch.setattr(pins_module, "PERSISTENT_ROOT", str(tmp_path))
 

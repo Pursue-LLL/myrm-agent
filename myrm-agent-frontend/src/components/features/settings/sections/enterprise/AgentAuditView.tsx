@@ -80,11 +80,8 @@ const AgentAuditView = memo(() => {
   }, []);
 
   const events = useMemo(() => data?.events ?? [], [data]);
-  const securityEvents = useMemo(() => events.filter((e) => e.type === 'security_audit'), [events]);
-  const toolEvents = useMemo(
-    () => events.filter((e) => e.type === 'tool_call_start' || e.type === 'tool_call_finish'),
-    [events],
-  );
+  const toolCallTotal = data?.tool_call_total ?? 0;
+  const securityDenyTotal = data?.security_deny_total ?? 0;
 
   if (loading && !data) {
     return (
@@ -139,12 +136,12 @@ const AgentAuditView = memo(() => {
                 <div className="text-xs text-muted-foreground">{t('agentTotalEvents')}</div>
               </div>
               <div className="rounded-lg border p-3 text-center">
-                <div className="text-2xl font-bold">{toolEvents.length}</div>
+                <div className="text-2xl font-bold">{toolCallTotal}</div>
                 <div className="text-xs text-muted-foreground">{t('agentToolCalls')}</div>
               </div>
               <div className="rounded-lg border p-3 text-center">
-                <div className="text-2xl font-bold text-red-600">{securityEvents.length}</div>
-                <div className="text-xs text-muted-foreground">{t('agentSecurityEvents')}</div>
+                <div className="text-2xl font-bold text-red-600">{securityDenyTotal}</div>
+                <div className="text-xs text-muted-foreground">{t('agentSecurityBlocks')}</div>
               </div>
               <div className="rounded-lg border p-3 text-center">
                 <div className="text-2xl font-bold">{data.scanned_sandboxes}</div>

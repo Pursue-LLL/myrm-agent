@@ -26,6 +26,7 @@ const conflictFallbacks: Record<string, string> = {
   'conflict.autoResolveNever': "Won't auto-resolve — needs manual review",
   'conflict.autoResolveSoon': 'Auto-resolving soon',
   'conflict.autoResolveInHours': 'Auto-resolves in {hours} hours (keeps old)',
+  'conflict.autoResolveInMinutes': 'Auto-resolves in {minutes} min (keeps old)',
   'conflict.autoResolveInDays': 'Auto-resolves in {days} days (keeps old)',
 };
 
@@ -35,6 +36,9 @@ const stableTranslate = (key: string, options?: { defaultMessage?: string; [k: s
   }
   if (options?.hours !== undefined) {
     return `Auto-resolves in ${options.hours} hours (keeps old)`;
+  }
+  if (options?.minutes !== undefined) {
+    return `Auto-resolves in ${options.minutes} min (keeps old)`;
   }
   return conflictFallbacks[key] ?? options?.defaultMessage ?? key;
 };
@@ -148,6 +152,44 @@ describe('ConflictCard', () => {
     );
 
     expect(screen.getByText(/Auto-resolves in 10 hours/)).toBeInTheDocument();
+  });
+
+  it('renders minute-level countdown when deadline is under an hour away', () => {
+    const inThirtyMinutes = new Date(FIXED_NOW.getTime() + 30 * 60 * 1000).toISOString();
+    render(
+      <ConflictCard
+        conflict={{ ...baseConflict, conflict_importance: 0.7, conflict_auto_resolve_at: inThirtyMinutes }}
+        onResolve={mockResolve}
+      />,
+    );
+
+    expect(screen.getByText(/Auto-resolves in 30 min/)).toBeInTheDocument();
+  });
+
+  it('renders auto-resolving-soon text once the deadline has passed', () => {
+    const pastDeadline = new Date(FIXED_NOW.getTime() - 60 * 1000).toISOString();
+    render(
+      <ConflictCard
+        conflict={{ ...baseConflict, conflict_importance: 0.7, conflict_auto_resolve_at: pastDeadline }}
+        onResolve={mockResolve}
+      />,
+    );
+
+    expect(screen.getByText('Auto-resolving soon')).toBeInTheDocument();
+  });
+
+  it('renders episodic conflict with correct type icon', () => {
+    render(
+      <ConflictCard
+        conflict={{ ...baseConflict, memory_type: 'episodic' }}
+        onResolve={mockResolve}
+      />,
+    );
+
+    expect(screen.getByText('Use New')).toBeInTheDocument();
+    expect(screen.getByText('Keep Old')).toBeInTheDocument();
+    expect(screen.getByText('Current Memory')).toBeInTheDocument();
+    expect(screen.getByText('New Extracted Content')).toBeInTheDocument();
   });
 
   it('calls onResolve with keep_new when "Use New" is clicked', () => {

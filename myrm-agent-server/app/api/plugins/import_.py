@@ -2,13 +2,17 @@
 
 [INPUT]
 - app.services.plugins.import_service::parse_plugin_zip, build_preview_result,
-  confirm_plugin_import, _load_existing_skill_ids (POS: plugin import orchestration)
+  confirm_plugin_import, list_installed_plugins, uninstall_plugin,
+  _load_existing_skill_ids (POS: plugin import orchestration)
 - myrm_agent_harness.agent.plugins::AgentPluginParser (POS: framework-level parser)
 
 [OUTPUT]
 - POST /plugins/import/preview — parse + preview components (incl. name-conflict flags)
 - POST /plugins/import/confirm — persist selected components (replace upgrades
   same-name skills) + bind agent
+- GET /plugins/import/installed — provenance-grouped list of imported plugins
+- DELETE /plugins/import/{plugin_name} — uninstall a plugin (MCP entries +
+  agent bindings + bundled files)
 
 [POS]
 Business HTTP layer for Agent Plugins import. GUI-First: preview shows the plugin

@@ -10,4 +10,5 @@
 |------|------|------|-------|
 | `operation_ledger.py` | 核心 | 单用户记忆操作账本服务。持久化记忆事件、健康快照缓存和外部记忆导入来源；`record_event` 统一保证事件发布发生在持久化成功之后（`commit=True` 落库后立即发布，`commit=False` 经 after_commit 延迟到调用方事务成功提交，回滚则丢弃）——杜绝 ghost event；提供 `list_events_for_session` 供 Session Replay memory_events 叠加查询；`list_diagnostic_events` 按 source/target 约定检索诊断审计事件供历史趋势；metadata 列支持嵌套 JSON（标量 SSE 收缩与嵌套趋势反投影并存） | ✅ |
 | `operation_ledger_guardian.py` | 辅助 | Guardian 晨间摘要按维护窗口聚合读取与守卫不可用告警聚合快照（按 frequency tier 自适应最小事件阈值 + escalation 阈值元数据） | ✅ |
+| `guardian_events.py` | 辅助 | Guardian 写侧审计事件：维护周期汇总、守卫不可用 WARNING、健康快照持久化、过期归档清理审计、冲突自动解决审计（keep_old）统一写 operation_ledger，与读侧 `operation_ledger_guardian.py` 对称 | ✅ |
 | `guardian_policy.py` | 核心 | Memory Guardian 调度策略服务。持久化 `frequency_tier`/`quiet_window` 配置，提供运行窗口判定与下次窗口开启时间计算，并记录 `timezone_source`；首访时完成浏览器时区初始化，无浏览器时区头时由 API 使用服务端本地时区兜底，后续收到真实客户端时区头时可自动纠偏 | ✅ |

@@ -19,9 +19,11 @@ def ensure_local_harness_on_path() -> None:
 def patch_session_continuity_sync(monkeypatch) -> None:
     """Point server continuity adapter at in-repo harness implementation."""
     ensure_local_harness_on_path()
-    module_name = "myrm_agent_harness.runtime.context.session_continuity"
+    module_name = "myrm_agent_harness.runtime.context.session.session_continuity"
     sys.modules.pop(module_name, None)
-    from myrm_agent_harness.runtime.context import session_continuity as local_sc
+    from myrm_agent_harness.runtime.context.session import (
+        session_continuity as local_sc,
+    )
 
     monkeypatch.setattr(
         "app.services.chat.session_continuity_service.sync_checkpoint_messages",
