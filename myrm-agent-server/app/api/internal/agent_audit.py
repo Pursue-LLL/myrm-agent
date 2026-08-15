@@ -9,8 +9,8 @@
 
 [POS]
 Exposes the harness event log (the agent-event SSOT shared by all three
-deployment modes) as an internal pull API for the control plane. This replaces
-the removed AgentTurn/AgentEvent tables as the cloud compliance audit source.
+deployment modes) as an internal pull API for the control plane's org-level
+agent compliance audit.
 """
 
 from __future__ import annotations

@@ -6,7 +6,7 @@
 
 全局 SSE AppEvent 总线（Kanban/记忆/技能等实时推送）。
 
-AgentTurn/AgentEvent 持久化系统（recorder/turn_manager/types）已整体移除——agent 事件 SSOT 为 harness JSONL event-log（`FileEventLogBackend`），云合规审计经 `app/api/internal/agent_audit.py` 暴露。
+agent 事件 SSOT 为 harness JSONL event-log（`FileEventLogBackend`），云合规审计经 `app/api/internal/agent_audit.py` 暴露。
 
 ---
 

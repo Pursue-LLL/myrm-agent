@@ -128,7 +128,7 @@ class MemoryArchiveRestorePlanner:
         if section == "conversation":
             return await self._conversation_plan(value)
         if section == "replay":
-            # AgentTurn/AgentEvent 事件回放系统已移除，replay 分区不可恢复
+            # replay 分区恒为空（agent 事件回放以 harness JSONL event-log 为准），不可恢复
             return MemoryArchiveRestoreSectionPlan(
                 section="replay",
                 mode="skip",

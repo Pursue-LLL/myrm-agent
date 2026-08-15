@@ -220,13 +220,13 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE agents ADD COLUMN memory_policy JSON",
     "ALTER TABLE agents ADD COLUMN personality_style VARCHAR(32) NOT NULL DEFAULT 'professional'",
     "ALTER TABLE agents ADD COLUMN prompt_mode VARCHAR(20) NOT NULL DEFAULT 'full'",
-    # V223-V225: agent_turns 列迁移。AgentTurn/AgentEvent 系统已移除（V187 DROP）。
+    # V223-V225: 对应 agent_turns 表列迁移的 no-op 占位。
+    # agent_turns 表在当前 schema 中不存在（后续版本已 DROP），
     # 列表 APPEND-ONLY 且版本号由索引决定，删除会重排后续版本导致已迁移库跳过；
-    # 故保持元素位置不变、替换为 no-op（全新库无 agent_turns 表，原语句会致命失败；
-    # 已迁移库该版本早已执行，checksum 差异仅触发跳过）。
-    "SELECT 1 -- agent_turns.spawn_depth column migration removed (AgentTurn system deleted)",
-    "SELECT 1 -- agent_turns.spawned_by column migration removed (AgentTurn system deleted)",
-    "SELECT 1 -- ix_agent_turns_spawned_by index migration removed (AgentTurn system deleted)",
+    # 故保持元素位置不变、替换为 no-op。
+    "SELECT 1 -- agent_turns.spawn_depth column migration placeholder",
+    "SELECT 1 -- agent_turns.spawned_by column migration placeholder",
+    "SELECT 1 -- ix_agent_turns_spawned_by index migration placeholder",
     # Agent Secrets table
     """CREATE TABLE IF NOT EXISTS agent_secrets (
         id VARCHAR(255) PRIMARY KEY,
@@ -612,10 +612,8 @@ MIGRATION_STATEMENTS: list[str] = [
     # the current share state and rebuild unprotected links deterministically.
     "ALTER TABLE chats ADD COLUMN share_token_expires_at INTEGER",
     "ALTER TABLE chats ADD COLUMN share_token_protected BOOLEAN",
-    # V187: AgentTurn/AgentEvent (agent_turns/agent_events) were a dead feature
-    # path — tables/API/UI existed but nothing ever wrote rows (the harness
-    # event_log is the real agent-event SSOT). Drop the tables here for existing
-    # databases; new databases never create them (model file removed).
+    # agent_turns/agent_events 表不存在于当前 schema：agent 事件以 harness
+    # JSONL event-log 为 SSOT，这两个表在全新库中不创建，此处为存量库清表。
     "DROP TABLE IF EXISTS agent_events",
     "DROP TABLE IF EXISTS agent_turns",
 ]

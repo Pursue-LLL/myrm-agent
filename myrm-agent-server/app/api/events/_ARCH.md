@@ -4,7 +4,7 @@
 
 SSE 事件流 HTTP 层（仅 local 模式注册）。上级文档：[../_ARCH.md](../_ARCH.md)。
 
-AgentTurn/AgentEvent 历史事件 API（原 `router.py`）已随模型一起移除，此处仅保留实时通知与权限审批。
+此处仅提供实时通知与权限审批，不承载 agent 历史事件查询（agent 事件回放以 harness JSONL event-log 为准）。
 
 ## 文件清单
 
