@@ -4620,6 +4620,7 @@
         "agentScannedSandboxes": "已扫描沙箱",
         "agentFailedSandboxes": "部分成员沙箱在该时间窗口内无法扫描：",
         "agentEventList": "事件流",
+        "agentShowingLatest": "共 {total} 条事件，当前显示最新 {shown} 条",
         "agentNoEvents": "所选时间范围内无 Agent 活动",
         "agentSecurityDecisions": "安全决策",
         "agentDetails": "事件详情",

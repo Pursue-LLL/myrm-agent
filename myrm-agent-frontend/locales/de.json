@@ -5628,6 +5628,7 @@
         "agentScannedSandboxes": "Gescannte Sandboxes",
         "agentFailedSandboxes": "Einige Mitglieder-Sandboxes konnten in diesem Zeitraum nicht gescannt werden:",
         "agentEventList": "Ereignisstrom",
+        "agentShowingLatest": "Zeige die neuesten {shown} von insgesamt {total} Ereignissen",
         "agentNoEvents": "Für den ausgewählten Zeitraum wurden keine Agent-Aktivitäten gefunden",
         "agentSecurityDecisions": "Sicherheitsentscheidungen",
         "agentDetails": "Ereignisdetails",

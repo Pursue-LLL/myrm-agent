@@ -4273,6 +4273,7 @@
         "agentScannedSandboxes": "已掃描沙箱",
         "agentFailedSandboxes": "部分成員沙箱在該時間範圍內無法掃描：",
         "agentEventList": "事件流",
+        "agentShowingLatest": "共 {total} 條事件，目前顯示最新 {shown} 條",
         "agentNoEvents": "所選時間範圍內無 Agent 活動",
         "agentSecurityDecisions": "安全決策",
         "agentDetails": "事件詳情",

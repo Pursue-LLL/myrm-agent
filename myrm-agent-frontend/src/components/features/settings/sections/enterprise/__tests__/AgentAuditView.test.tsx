@@ -83,6 +83,8 @@ function auditRoutes(failedSandboxes: string[] = []): Route[] {
             ts: 1755000000,
             type: 'tool_call_start',
             sid: 'session-abc',
+            sandbox_id: 'sandbox-1',
+            user_id: 'user-12345678901234567890',
             data: { tool_name: 'web_search', tool_call_id: 'call-1', message_id: 'msg-1' },
           },
           {
@@ -90,6 +92,8 @@ function auditRoutes(failedSandboxes: string[] = []): Route[] {
             ts: 1755000001,
             type: 'tool_call_finish',
             sid: 'session-abc',
+            sandbox_id: 'sandbox-1',
+            user_id: 'user-12345678901234567890',
             data: { tool_name: 'web_search', tool_call_id: 'call-1', duration_ms: 120 },
           },
           {
@@ -97,6 +101,8 @@ function auditRoutes(failedSandboxes: string[] = []): Route[] {
             ts: 1755000002,
             type: 'security_audit',
             sid: 'session-abc',
+            sandbox_id: 'sandbox-1',
+            user_id: 'user-12345678901234567890',
             data: {
               count: 1,
               decisions: [
@@ -153,6 +159,22 @@ describe('AgentAuditView', () => {
       expect(screen.getByText(/^agentFailedSandboxes/)).toBeInTheDocument();
     });
     expect(screen.getByText('sandbox-9')).toBeInTheDocument();
+  });
+
+  it('renders member badges and the total hint for aggregated events', async () => {
+    vi.stubGlobal('fetch', mockFetchRoutes(auditRoutes()));
+    render(<AgentAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('web_search').length).toBeGreaterThan(0);
+    });
+
+    // 截断后的 user_id 徽标（user-12345678901234567890 -> user-12345…7890）
+    expect(screen.getAllByText('user-12345…7890').length).toBeGreaterThan(0);
+    // 徽标带完整 user_id 提示
+    expect(screen.getAllByTitle('user-12345678901234567890').length).toBe(3);
+    // total 提示文案
+    expect(screen.getByText('agentShowingLatest')).toBeInTheDocument();
   });
 
   it('expands an event to reveal security decisions', async () => {
