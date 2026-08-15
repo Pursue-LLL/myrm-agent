@@ -8745,7 +8745,8 @@
       "post_hook_blocked": "Nach Ausführung blockiert",
       "tool_cancelled": "Abgesagt",
       "guardrail_blocked": "Sicherheit blockiert",
-      "benchmark_blocked": "Benchmark gesperrt"
+      "benchmark_blocked": "Benchmark gesperrt",
+      "skill_usage_guard": "Skill-Anleitung umgeleitet"
     },
     "categoryStageLabels": {
       "thinking": "Denken",

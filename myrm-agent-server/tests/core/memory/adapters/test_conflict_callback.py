@@ -58,6 +58,7 @@ class TestCreateConflictCallback:
         )
 
         mock_db = AsyncMock()
+        mock_db.scalar = AsyncMock(return_value=None)
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
@@ -100,6 +101,7 @@ class TestCreateConflictCallback:
         )
 
         mock_db = AsyncMock()
+        mock_db.scalar = AsyncMock(return_value=None)
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
@@ -133,6 +135,7 @@ class TestCreateConflictCallback:
         )
 
         mock_db = AsyncMock()
+        mock_db.scalar = AsyncMock(return_value=None)
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
@@ -163,6 +166,7 @@ class TestCreateConflictCallback:
         )
 
         mock_db = AsyncMock()
+        mock_db.scalar = AsyncMock(return_value=None)
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
@@ -191,6 +195,7 @@ class TestCreateConflictCallback:
         )
 
         mock_db = AsyncMock()
+        mock_db.scalar = AsyncMock(return_value=None)
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
@@ -219,6 +224,7 @@ class TestCreateConflictCallback:
         )
 
         mock_db = AsyncMock()
+        mock_db.scalar = AsyncMock(return_value=None)
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
@@ -271,6 +277,7 @@ class TestCreateConflictCallback:
         )
 
         mock_db = AsyncMock()
+        mock_db.scalar = AsyncMock(return_value=None)
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
@@ -312,6 +319,7 @@ class TestCreateConflictCallback:
         )
 
         mock_db = AsyncMock()
+        mock_db.scalar = AsyncMock(return_value=None)
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
@@ -344,6 +352,7 @@ class TestCreateConflictCallback:
         )
 
         mock_db = AsyncMock()
+        mock_db.scalar = AsyncMock(return_value=None)
         mock_session_ctx = AsyncMock()
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
@@ -357,3 +366,31 @@ class TestCreateConflictCallback:
         assert result == ConflictResolution.PENDING
         record = mock_db.add.call_args[0][0]
         assert record.agent_id is None
+
+    @pytest.mark.asyncio
+    async def test_skips_duplicate_pending_conflict_for_same_old_memory(self) -> None:
+        """A re-detected conflict for the same old memory must not stack a duplicate row."""
+        from app.core.memory.adapters.setup import create_conflict_callback
+
+        callback = create_conflict_callback(agent_id="agent-1")
+        ctx = ConflictContext(
+            old_memory_id="old-mem-1",
+            old_content="Python is best",
+            new_content="Rust is better",
+            accuracy_score=0.7,
+            importance=0.95,
+            merge_suggestion="Both have merits",
+        )
+
+        mock_db = AsyncMock()
+        mock_db.scalar = AsyncMock(return_value="existing-conflict-id")
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
+            result = await callback(ctx)
+
+        assert result == ConflictResolution.PENDING
+        mock_db.add.assert_not_called()
+        mock_db.commit.assert_not_called()

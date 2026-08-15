@@ -8745,7 +8745,8 @@
       "post_hook_blocked": "실행 후 차단됨",
       "tool_cancelled": "취소됨",
       "guardrail_blocked": "안전 차단됨",
-      "benchmark_blocked": "평가 콘텐츠 차단"
+      "benchmark_blocked": "평가 콘텐츠 차단",
+      "skill_usage_guard": "스킬 사용법 안내"
     },
     "categoryStageLabels": {
       "thinking": "사고 중",
