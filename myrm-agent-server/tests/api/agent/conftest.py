@@ -276,7 +276,10 @@ async def setup_test_database(tmp_path: Path):
         ),
         patch("app.database.connection.get_session_factory", mock_get_session_factory),
         patch("app.services.budget.enforcer.get_session_factory", mock_get_session_factory),
-        patch("app.services.memory.shared_context.get_session", mock_get_session),
+        patch(
+            "app.services.memory.shared_context.shared_context.get_session",
+            mock_get_session,
+        ),
     ):
         yield
 
