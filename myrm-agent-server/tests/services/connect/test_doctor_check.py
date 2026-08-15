@@ -106,6 +106,14 @@ class TestVerifyConnectorConfig:
         assert verdict is not None
         assert verdict.detail == DOCTOR_FILE_UNREADABLE
 
+    def test_invalid_toml_is_unreadable(self, tmp_path: Path):
+        config_file = tmp_path / "config.toml"
+        config_file.write_text("[mcp_servers.myrm-memory\nbroken =", encoding="utf-8")
+        verdict = _verify(config_file, instructions_key="mcp_servers", config_format="toml_mcp")
+        assert verdict is not None
+        assert verdict.healthy is False
+        assert verdict.detail == DOCTOR_FILE_UNREADABLE
+
     def test_missing_entry(self, tmp_path: Path):
         config_file = tmp_path / "mcp.json"
         _write_json(config_file, {"mcpServers": {"other-agent": _entry()}})
@@ -141,6 +149,14 @@ class TestVerifyConnectorConfig:
     def test_missing_authorization_header_is_token_missing(self, tmp_path: Path):
         config_file = tmp_path / "mcp.json"
         _write_json(config_file, {"mcpServers": {"myrm-memory": {"headers": {"X-Custom": "1"}}}})
+        verdict = _verify(config_file)
+        assert verdict is not None
+        assert verdict.healthy is False
+        assert verdict.detail == DOCTOR_TOKEN_MISSING
+
+    def test_non_dict_headers_is_token_missing(self, tmp_path: Path):
+        config_file = tmp_path / "mcp.json"
+        _write_json(config_file, {"mcpServers": {"myrm-memory": {"headers": "broken"}}})
         verdict = _verify(config_file)
         assert verdict is not None
         assert verdict.healthy is False

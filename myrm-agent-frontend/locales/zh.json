@@ -9141,6 +9141,7 @@
     "conflict": {
       "title": "记忆冲突",
       "importance": "重要度",
+      "highRisk": "高风险",
       "currentMemory": "当前记忆",
       "unknown": "（内容不可用）",
       "newMemory": "新提取内容",
@@ -9154,7 +9155,11 @@
       "discardBoth": "丢弃两者",
       "resolveSuccess": "冲突已解决",
       "resolveSuccessDesc": "记忆冲突已成功处理",
-      "resolveFailed": "解决失败"
+      "resolveFailed": "解决失败",
+      "autoResolveNever": "不会自动解决 · 需手动确认",
+      "autoResolveSoon": "即将自动解决",
+      "autoResolveInHours": "{hours} 小时后自动保留旧记忆",
+      "autoResolveInDays": "{days} 天后自动保留旧记忆"
     },
     "batchApproveSuccess": "批量确认成功",
     "batchApproveSuccessDesc": "已成功确认 {count} 条记忆",

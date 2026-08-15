@@ -10148,6 +10148,7 @@
     "conflict": {
       "title": "Speicherkonflikt",
       "importance": "Bedeutung",
+      "highRisk": "Hohes Risiko",
       "currentMemory": "Aktueller Speicher",
       "unknown": "(Inhalt nicht verfügbar)",
       "newMemory": "Neuer extrahierter Inhalt",
@@ -10161,7 +10162,11 @@
       "discardBoth": "Entsorgen Sie beides",
       "resolveSuccess": "Konflikt gelöst",
       "resolveSuccessDesc": "Der Speicherkonflikt wurde erfolgreich gelöst",
-      "resolveFailed": "Auflösung fehlgeschlagen"
+      "resolveFailed": "Auflösung fehlgeschlagen",
+      "autoResolveNever": "Wird nicht automatisch aufgelöst · manuelle Prüfung erforderlich",
+      "autoResolveSoon": "Automatische Auflösung steht kurz bevor",
+      "autoResolveInHours": "Automatische Auflösung in {hours} Std. (alte Erinnerung bleibt)",
+      "autoResolveInDays": "Automatische Auflösung in {days} Tagen (alte Erinnerung bleibt)"
     },
     "exportMarkdown": "Als Markdown exportieren (Obsidian-kompatibel)"
   },

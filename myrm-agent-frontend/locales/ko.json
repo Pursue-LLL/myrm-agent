@@ -10147,6 +10147,7 @@
     "conflict": {
       "title": "메모리 충돌",
       "importance": "중요도",
+      "highRisk": "고위험",
       "currentMemory": "현재 메모리",
       "unknown": "(내용 사용 불가)",
       "newMemory": "새로 추출된 내용",
@@ -10160,7 +10161,11 @@
       "discardBoth": "둘 다 삭제",
       "resolveSuccess": "충돌 해결됨",
       "resolveSuccessDesc": "메모리 충돌이 성공적으로 해결되었습니다",
-      "resolveFailed": "해결 실패"
+      "resolveFailed": "해결 실패",
+      "autoResolveNever": "자동 해결되지 않음 · 수동 확인 필요",
+      "autoResolveSoon": "곧 자동 해결",
+      "autoResolveInHours": "{hours}시간 후 이전 메모리 자동 유지",
+      "autoResolveInDays": "{days}일 후 이전 메모리 자동 유지"
     },
     "exportMarkdown": "Markdown으로 내보내기 (Obsidian 호환)",
     "enabled": "사용"

@@ -6,6 +6,7 @@ Covers:
 - Does not resolve already-resolved conflicts
 - Returns correct count
 - Handles empty result set
+- Filters out rows where conflict_auto_resolve_at IS NULL (high-risk conflicts)
 """
 
 from __future__ import annotations
@@ -85,3 +86,32 @@ class TestAutoResolveExpiredConflicts:
         stmt = mock_db.execute.call_args[0][0]
         compiled = str(stmt.compile(compile_kwargs={"literal_binds": False}))
         assert "resolved" in compiled.lower() or "status" in compiled.lower()
+
+    @pytest.mark.asyncio
+    async def test_query_filters_out_none_auto_resolve_at(self) -> None:
+        """High-risk conflicts (auto_resolve_at=None) must never match the expiry query.
+
+        The auto-resolve UPDATE only targets rows where conflict_auto_resolve_at
+        IS NOT NULL and <= now, so high-risk conflicts stay pending forever until
+        the user resolves them manually.
+        """
+        from app.lifecycle.memory_guardian import _auto_resolve_expired_conflicts
+
+        mock_result = MagicMock()
+        mock_result.rowcount = 0
+
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=mock_result)
+        mock_db.commit = AsyncMock()
+
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
+            await _auto_resolve_expired_conflicts()
+
+        stmt = mock_db.execute.call_args[0][0]
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": False}))
+        assert "conflict_auto_resolve_at is not null" in compiled.lower()
+        assert "conflict_auto_resolve_at" in compiled.lower()

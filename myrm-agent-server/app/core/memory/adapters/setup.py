@@ -46,6 +46,13 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Conflicts whose importance reaches this threshold are treated as high-risk:
+# they are never auto-resolved (auto_resolve_at stays None) and always require
+# explicit user resolution, so critical preferences (stack moves, relocations,
+# allergy changes) cannot be silently reverted to the stale old memory.
+_HIGH_RISK_IMPORTANCE = 0.9
+_CONFLICT_AUTO_RESOLVE_HOURS = 72
+
 _memory_manager_cache: dict[tuple[object, ...], MemoryManager] = {}
 _memory_manager_cache_lock = asyncio.Lock()
 
@@ -248,6 +255,12 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
     auto-resolve, this callback writes a PendingMemory record with ``is_conflict=True``
     and returns ``ConflictResolution.PENDING`` so the framework keeps the old memory
     untouched until the user resolves it via the GUI.
+
+    Low-risk conflicts (importance < ``_HIGH_RISK_IMPORTANCE``) get an
+    ``conflict_auto_resolve_at`` deadline and are auto-resolved (keep_old) by the
+    guardian if the user ignores them. High-risk conflicts keep ``conflict_auto_resolve_at``
+    as None so they never silently auto-resolve — critical preferences (stack moves,
+    relocations, allergy changes) always require explicit user action.
     """
 
     from myrm_agent_harness.toolkits.memory.types import ConflictResolution
@@ -261,7 +274,12 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
         from app.database.models import PendingMemory
 
         conflict_id = str(uuid4())
-        auto_resolve_at = dt.now(UTC) + timedelta(hours=72)
+        high_risk = (ctx.importance or 0.0) >= _HIGH_RISK_IMPORTANCE
+        auto_resolve_at = (
+            None
+            if high_risk
+            else dt.now(UTC) + timedelta(hours=_CONFLICT_AUTO_RESOLVE_HOURS)
+        )
 
         try:
             async with get_session() as db:
@@ -287,9 +305,11 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
                 await db.commit()
 
             logger.info(
-                "Conflict persisted as PendingMemory %s (old=%s, auto_resolve=%s)",
+                "Conflict persisted as PendingMemory %s (old=%s, importance=%.2f, high_risk=%s, auto_resolve=%s)",
                 conflict_id,
                 ctx.old_memory_id,
+                ctx.importance or 0.0,
+                high_risk,
                 auto_resolve_at,
             )
         except Exception:

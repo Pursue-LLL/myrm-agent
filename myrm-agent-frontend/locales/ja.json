@@ -9063,6 +9063,7 @@
     "conflict": {
       "title": "メモリ競合",
       "importance": "重要度",
+      "highRisk": "高リスク",
       "currentMemory": "現在メモリ",
       "unknown": "（内容を利用できません）",
       "newMemory": "新しく抽出された内容",
@@ -9076,7 +9077,11 @@
       "discardBoth": "両方破棄",
       "resolveSuccess": "競合を解決しました",
       "resolveSuccessDesc": "メモリの競合を正常に解決しました",
-      "resolveFailed": "解決に失敗しました"
+      "resolveFailed": "解決に失敗しました",
+      "autoResolveNever": "自動解決されません · 手動確認が必要",
+      "autoResolveSoon": "まもなく自動解決",
+      "autoResolveInHours": "{hours} 時間後に旧メモリを自動保持",
+      "autoResolveInDays": "{days} 日後に旧メモリを自動保持"
     },
     "batchApproveSuccess": "一括で承認しました",
     "batchApproveSuccessDesc": "{count} 件のメモリを承認しました",

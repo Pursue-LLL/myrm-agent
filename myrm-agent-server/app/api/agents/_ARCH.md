@@ -19,7 +19,7 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `media.py` | 模块 | Request to test media generation configuration connectivity. | ✅ |
 | `openapi_services.py` | 模块 | OpenAPI Services API. | ✅ |
 | `providers.py` | 模块 | Agent provider configuration endpoints for deletion impact analysis and batch operations | ✅ |
-| `subagents.py` | 模块 | Subagent REST：list / cancel-all / steer / cancel / resume；registry merge via harness session_tree。 | ✅ |
+| `subagents.py` | 模块 | Subagent REST：list / cancel-all / steer / cancel；registry merge via harness session_tree。 | ✅ |
 | `suggestions.py` | 模块 | Generate follow-up question suggestions using the filter model. | ✅ |
 | `fleet_overview.py` | 模块 | Agent Fleet Overview — 按 agent_id 聚合月度 Token/Cost、Cron 数、待审批数（goal 审批 + kanban IN_REVIEW 按 agent 分组）、实时运行状态的 KPI 端点，供 /agents 页面 Fleet 视图使用。零新表，纯读聚合。 | ✅ |
 | `templates.py` | 模块 | Agent template catalog and factory. | ✅ |

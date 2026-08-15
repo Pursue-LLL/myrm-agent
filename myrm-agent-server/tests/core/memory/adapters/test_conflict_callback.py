@@ -5,6 +5,10 @@ Covers:
 - Callback falls back to ConflictResolution.KEEP_OLD on DB error
 - PendingMemory record fields are populated correctly
 - agent_id is captured in closure
+- Low-risk conflicts (importance < 0.9) get a 72h auto_resolve_at deadline
+- High-risk conflicts (importance >= 0.9) keep auto_resolve_at None (never auto-resolve)
+- Boundary: importance 0.9 is high-risk, 0.89 is not
+- None importance is treated as low-risk (safe default)
 """
 
 from __future__ import annotations
@@ -60,7 +64,7 @@ class TestCreateConflictCallback:
         assert record.metadata_json["source"] == "consolidation_conflict"
 
     @pytest.mark.asyncio
-    async def test_auto_resolve_at_set_72h(self) -> None:
+    async def test_auto_resolve_at_set_72h_for_low_risk(self) -> None:
         from app.core.memory.adapters.setup import create_conflict_callback
 
         callback = create_conflict_callback(agent_id="agent-1")
@@ -69,7 +73,7 @@ class TestCreateConflictCallback:
             old_content="a",
             new_content="b",
             accuracy_score=0.5,
-            importance=0.9,
+            importance=0.85,
             merge_suggestion="c",
         )
 
@@ -88,6 +92,108 @@ class TestCreateConflictCallback:
         expected_min = before + timedelta(hours=72)
         expected_max = after + timedelta(hours=72)
         assert expected_min <= record.conflict_auto_resolve_at <= expected_max
+
+    @pytest.mark.asyncio
+    async def test_high_risk_importance_keeps_auto_resolve_at_none(self) -> None:
+        from app.core.memory.adapters.setup import create_conflict_callback
+
+        callback = create_conflict_callback(agent_id="agent-1")
+        ctx = ConflictContext(
+            old_memory_id="old-1",
+            old_content="a",
+            new_content="b",
+            accuracy_score=0.5,
+            importance=0.95,
+            merge_suggestion="c",
+        )
+
+        mock_db = AsyncMock()
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
+            result = await callback(ctx)
+
+        assert result == ConflictResolution.PENDING
+        record = mock_db.add.call_args[0][0]
+        assert record.conflict_importance == 0.95
+        assert record.conflict_auto_resolve_at is None
+
+    @pytest.mark.asyncio
+    async def test_importance_boundary_0_9_is_high_risk(self) -> None:
+        from app.core.memory.adapters.setup import create_conflict_callback
+
+        callback = create_conflict_callback(agent_id="agent-1")
+        ctx = ConflictContext(
+            old_memory_id="old-1",
+            old_content="a",
+            new_content="b",
+            accuracy_score=0.5,
+            importance=0.9,
+            merge_suggestion="c",
+        )
+
+        mock_db = AsyncMock()
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
+            await callback(ctx)
+
+        record = mock_db.add.call_args[0][0]
+        assert record.conflict_auto_resolve_at is None
+
+    @pytest.mark.asyncio
+    async def test_importance_below_0_9_keeps_auto_resolve(self) -> None:
+        from app.core.memory.adapters.setup import create_conflict_callback
+
+        callback = create_conflict_callback(agent_id="agent-1")
+        ctx = ConflictContext(
+            old_memory_id="old-1",
+            old_content="a",
+            new_content="b",
+            accuracy_score=0.5,
+            importance=0.89,
+            merge_suggestion="c",
+        )
+
+        mock_db = AsyncMock()
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
+            await callback(ctx)
+
+        record = mock_db.add.call_args[0][0]
+        assert record.conflict_auto_resolve_at is not None
+
+    @pytest.mark.asyncio
+    async def test_none_importance_is_not_high_risk(self) -> None:
+        from app.core.memory.adapters.setup import create_conflict_callback
+
+        callback = create_conflict_callback(agent_id="agent-1")
+        ctx = ConflictContext(
+            old_memory_id="old-1",
+            old_content="a",
+            new_content="b",
+            accuracy_score=0.5,
+            importance=None,
+            merge_suggestion="c",
+        )
+
+        mock_db = AsyncMock()
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
+            await callback(ctx)
+
+        record = mock_db.add.call_args[0][0]
+        assert record.conflict_auto_resolve_at is not None
 
     @pytest.mark.asyncio
     async def test_falls_back_to_keep_old_on_db_error(self) -> None:

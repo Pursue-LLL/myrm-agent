@@ -14,7 +14,6 @@ import TraceErrorItem from '../TraceErrorItem';
 
 function baseError(overrides?: Partial<TraceError>): TraceError {
   return {
-    sequence: 1,
     error_type: 'rate_limit_error',
     error: 'rate limited',
     fault_side: null,

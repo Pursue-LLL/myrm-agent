@@ -9069,6 +9069,7 @@
     "conflict": {
       "title": "記憶衝突",
       "importance": "重要度",
+      "highRisk": "高風險",
       "currentMemory": "當前記憶",
       "unknown": "（內容不可用）",
       "newMemory": "新提取內容",
@@ -9082,7 +9083,11 @@
       "discardBoth": "丟棄兩者",
       "resolveSuccess": "衝突已解決",
       "resolveSuccessDesc": "記憶衝突已成功處理",
-      "resolveFailed": "解決失敗"
+      "resolveFailed": "解決失敗",
+      "autoResolveNever": "不會自動解決 · 需手動確認",
+      "autoResolveSoon": "即將自動解決",
+      "autoResolveInHours": "{hours} 小時後自動保留舊記憶",
+      "autoResolveInDays": "{days} 天後自動保留舊記憶"
     },
     "batchApproveSuccess": "批次確認成功",
     "batchApproveSuccessDesc": "已成功確認 {count} 條記憶",

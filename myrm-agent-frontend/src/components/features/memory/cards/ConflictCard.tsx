@@ -32,15 +32,15 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const formatTimeRemaining = (autoResolveAt: string): string => {
+const formatTimeRemaining = (autoResolveAt: string, t: ReturnType<typeof useTranslations<'memory'>>): string => {
   const diff = new Date(autoResolveAt).getTime() - Date.now();
-  if (diff <= 0) {return '即将自动解决';}
+  if (diff <= 0) {return t('conflict.autoResolveSoon', { defaultMessage: '即将自动解决' });}
   const hours = Math.floor(diff / (1000 * 60 * 60));
   if (hours >= 24) {
     const days = Math.floor(hours / 24);
-    return `${days}天后自动保留旧记忆`;
+    return t('conflict.autoResolveInDays', { days, defaultMessage: '{days}天后自动保留旧记忆' });
   }
-  return `${hours}小时后自动保留旧记忆`;
+  return t('conflict.autoResolveInHours', { hours, defaultMessage: '{hours}小时后自动保留旧记忆' });
 };
 
 const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }) => {
@@ -67,22 +67,28 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
     ? Math.round(conflict.conflict_importance * 100)
     : null;
 
+  // High-risk conflicts (server keeps auto_resolve_at None) never auto-resolve.
+  const isHighRisk = !conflict.conflict_auto_resolve_at;
+  const showHighRiskBadge = importancePercent !== null && importancePercent >= 90;
+
   return (
     <div
       className={cn(
-        'relative rounded-xl border-2 border-amber-500/40 bg-card',
-        'transition-all duration-200 hover:shadow-md hover:shadow-amber-500/10',
-        'hover:border-amber-500/60',
+        'relative rounded-xl border-2 bg-card',
+        'transition-all duration-200 hover:shadow-md',
+        isHighRisk
+          ? 'border-red-500/50 hover:shadow-red-500/10 hover:border-red-500/70'
+          : 'border-amber-500/40 hover:shadow-amber-500/10 hover:border-amber-500/60',
         resolving && 'opacity-60 pointer-events-none',
         className,
       )}
     >
       {/* Header */}
       <div className="flex flex-wrap items-center gap-2 px-4 pt-4 pb-2">
-        <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-amber-500/15">
-          <AlertTriangle size={16} className="text-amber-500" />
+        <div className={cn('flex items-center justify-center h-7 w-7 rounded-lg', isHighRisk ? 'bg-red-600/15' : 'bg-amber-500/15')}>
+          <AlertTriangle size={16} className={isHighRisk ? 'text-red-500' : 'text-amber-500'} />
         </div>
-        <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+        <span className={cn('text-xs font-semibold uppercase tracking-wide', isHighRisk ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400')}>
           {t('conflict.title', { defaultMessage: '记忆冲突' })}
         </span>
         <MemoryTypeIcon type={conflict.memory_type} size={14} showBackground />
@@ -91,19 +97,31 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
             <span
               className={cn(
                 'px-1.5 py-0.5 rounded-md font-medium',
-                importancePercent >= 70
-                  ? 'bg-red-500/10 text-red-600 dark:text-red-400'
-                  : 'bg-muted text-muted-foreground',
+                showHighRiskBadge
+                  ? 'bg-red-600/15 text-red-600 dark:text-red-400 border border-red-500/30'
+                  : importancePercent >= 70
+                    ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                    : 'bg-muted text-muted-foreground',
               )}
             >
+              {showHighRiskBadge
+                ? `${t('conflict.highRisk', { defaultMessage: '高风险' })} · `
+                : ''}
               {t('conflict.importance', { defaultMessage: '重要度' })} {importancePercent}%
             </span>
           )}
-          {conflict.conflict_auto_resolve_at && (
-            <span className="flex items-center gap-1 text-muted-foreground/70">
+          {isHighRisk ? (
+            <span className="flex items-center gap-1 font-medium text-red-600 dark:text-red-400">
               <Clock size={11} />
-              {formatTimeRemaining(conflict.conflict_auto_resolve_at)}
+              {t('conflict.autoResolveNever', { defaultMessage: '不会自动解决 · 需手动确认' })}
             </span>
+          ) : (
+            conflict.conflict_auto_resolve_at && (
+              <span className="flex items-center gap-1 text-muted-foreground/70">
+                <Clock size={11} />
+                {formatTimeRemaining(conflict.conflict_auto_resolve_at, t)}
+              </span>
+            )
           )}
         </div>
       </div>

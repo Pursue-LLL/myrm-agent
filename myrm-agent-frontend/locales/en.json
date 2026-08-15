@@ -9140,6 +9140,7 @@
     "conflict": {
       "title": "Memory Conflict",
       "importance": "Importance",
+      "highRisk": "High risk",
       "currentMemory": "Current Memory",
       "unknown": "(Content unavailable)",
       "newMemory": "New Extracted Content",
@@ -9153,7 +9154,11 @@
       "discardBoth": "Discard Both",
       "resolveSuccess": "Conflict Resolved",
       "resolveSuccessDesc": "Memory conflict has been resolved successfully",
-      "resolveFailed": "Resolution Failed"
+      "resolveFailed": "Resolution Failed",
+      "autoResolveNever": "Won't auto-resolve — needs manual review",
+      "autoResolveSoon": "Auto-resolving soon",
+      "autoResolveInHours": "Auto-resolves in {hours} hours (keeps old)",
+      "autoResolveInDays": "Auto-resolves in {days} days (keeps old)"
     },
     "batchApproveSuccess": "Batch approval successful",
     "batchApproveSuccessDesc": "Successfully approved {count} memories",
