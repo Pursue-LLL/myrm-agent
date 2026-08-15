@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     )
 
     from app.api.skills._staging import SkillStagingManager
+
     from .batch_import_schemas import ConfirmImportRequest
 
 logger = logging.getLogger(__name__)

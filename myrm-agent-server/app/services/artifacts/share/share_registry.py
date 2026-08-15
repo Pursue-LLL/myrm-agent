@@ -37,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security.share.share_hmac import token_fingerprint
 from app.database.models import Artifact, ArtifactShareRecord
+
 from .share_bundle import bundle_dir_for_claims
 from .share_token import ArtifactShareClaims
 

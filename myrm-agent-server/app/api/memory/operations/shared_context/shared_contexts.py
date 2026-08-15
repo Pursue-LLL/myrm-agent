@@ -22,7 +22,6 @@ from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperat
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db_session
-from .shared_context_serializers import binding_to_item, context_to_item, proposal_to_item
 from app.api.memory.shared_context_schemas import (
     CreateSharedContextBindingRequest,
     CreateSharedContextRequest,
@@ -45,6 +44,8 @@ from app.services.memory.shared_context.shared_context import (
     SharedContextService,
 )
 from app.services.memory.shared_context.shared_context_materializer import SharedContextProposalMaterializer
+
+from .shared_context_serializers import binding_to_item, context_to_item, proposal_to_item
 
 router = APIRouter(prefix="/shared-contexts")
 

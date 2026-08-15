@@ -20,9 +20,10 @@ from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryRepairExecut
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.memory.command_center import MemoryCommandDiagnosticRun
-from app.services.memory.command_center.command_center import MemoryCommandCenterService
-from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
-from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+
+# MemoryCommandCenterService / MemoryDiagnosticsService are imported lazily in
+# run(): command_center back-references the diagnostics facade, so module-level
+# imports would deadlock on ``diagnostic/__init__`` partial init.
 
 RepairPlanId = Literal[
     "run_diagnostics",
@@ -48,6 +49,10 @@ class MemoryDiagnosticRepairExecutor:
         mode: RepairMode,
     ) -> tuple[MemoryRepairExecutionResult, MemoryCommandDiagnosticRun | None]:
         """Run a repair plan or return a blocked/manual result."""
+
+        from app.services.memory.command_center.command_center import MemoryCommandCenterService
+        from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
+        from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
         if mode == "dry_run":
             return (
