@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memoryCommandCenter::getMemoryGraph, MemoryCommandGraphResponse (POS: Frontend Personal Brain Command Center client)
+ * @/services/memory/commandCenter::getMemoryGraph, MemoryCommandGraphResponse (POS: Frontend Personal Brain Command Center client)
  *
  * [OUTPUT]
  * MemoryKnowledgeGraph: Claim graph 2D force-directed visualization with relation coloring, search, legend, focus mode, and fullscreen.
@@ -21,7 +21,7 @@ import {
   type MemoryCommandGraphNode,
   type MemoryCommandGraphResponse,
   type MemoryCommandGraphStats,
-} from '@/services/memoryCommandCenter';
+} from '@/services/memory/commandCenter';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
 

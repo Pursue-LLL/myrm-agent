@@ -43,7 +43,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/primitives/alert-dialog';
 import { apiRequest } from '@/lib/api';
-import { cancelBatchTask, type BatchCancelCleanupStrategy } from '@/services/skill-optimization';
+import { cancelBatchTask, type BatchCancelCleanupStrategy } from '@/services/skill/optimization';
 import { localizeReactNode, selectLocalizedText } from '@/lib/utils/localeText';
 import { toast } from '@/hooks/shared/useToast';
 import { useBatchWebSocket, BatchProgressUpdate } from '@/hooks/workspace/useBatchWebSocket';

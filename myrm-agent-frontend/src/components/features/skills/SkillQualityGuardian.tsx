@@ -33,7 +33,7 @@ import {
   getSkillVersionDetail,
   listSkillVersions,
   startShadowAbTest,
-} from '@/services/skill-optimization';
+} from '@/services/skill/optimization';
 
 interface ShadowSample {
   id: number;

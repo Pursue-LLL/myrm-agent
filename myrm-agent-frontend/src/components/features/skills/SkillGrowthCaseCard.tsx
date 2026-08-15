@@ -1,5 +1,5 @@
 /**
- * [INPUT] SkillGrowthCaseSummary via @/services/skill-growth; detail fetched on expand
+ * [INPUT] SkillGrowthCaseSummary via @/services/skill/growth; detail fetched on expand
  * [OUTPUT] SkillGrowthCaseCard: 技能进化提案卡片（Simple/Detailed 双视图、Monaco DiffEditor 就地修订、审批/拒绝）; SkillGrowthViewMode type
  * [POS] features/skills 单个技能进化提案的展示与交互卡片
  */
@@ -19,7 +19,7 @@ import {
   getSkillGrowthCaseDetail,
   type SkillGrowthCaseDetail,
   type SkillGrowthCaseSummary,
-} from '@/services/skill-growth';
+} from '@/services/skill/growth';
 import { LazyMonacoDiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import type { DiffOnMount } from '@monaco-editor/react';
 import { useIsMobile } from '@/hooks/ui/useMediaQuery';

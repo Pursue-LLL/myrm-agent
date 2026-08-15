@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - @/lib/utils/classnameUtils::cn (POS: Tailwind class merge helper)
- * - @/services/skill-growth::SkillGrowthCaseSummary, SkillGrowthSummary (POS: Skill growth REST types)
+ * - @/services/skill/growth::SkillGrowthCaseSummary, SkillGrowthSummary (POS: Skill growth REST types)
  *
  * [OUTPUT]
  * - GrowthFilter, FILTER_ORDER, VIEW_MODE_KEY, LIST_CASES_LIMIT, EMPTY_SUMMARY
@@ -13,7 +13,7 @@
 
 import type { ComponentType } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import type { SkillGrowthCaseSummary, SkillGrowthSummary } from '@/services/skill-growth';
+import type { SkillGrowthCaseSummary, SkillGrowthSummary } from '@/services/skill/growth';
 
 export type GrowthFilter = 'all' | 'pending' | 'applied' | 'blocked' | 'reviewed';
 

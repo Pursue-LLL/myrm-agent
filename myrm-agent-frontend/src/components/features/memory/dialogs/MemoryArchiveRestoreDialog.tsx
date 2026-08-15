@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memoryArchive::MemoryArchiveRestoreDryRunResult / execution DTOs (POS: Frontend Memory Archive and import API client)
+ * @/services/memory/archive::MemoryArchiveRestoreDryRunResult / execution DTOs (POS: Frontend Memory Archive and import API client)
  *
  * [OUTPUT]
  * MemoryArchiveRestoreDialog: GUI review surface for archive restore and immediate rollback.
@@ -29,7 +29,7 @@ import type {
   MemoryArchiveRestoreRollbackResult,
   MemoryArchiveRestoreSectionPlan,
   MemoryArchiveSectionName,
-} from '@/services/memoryArchive';
+} from '@/services/memory/archive';
 
 interface MemoryArchiveRestoreDialogProps {
   open: boolean;

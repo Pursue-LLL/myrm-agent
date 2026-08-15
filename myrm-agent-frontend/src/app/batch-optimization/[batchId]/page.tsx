@@ -13,7 +13,7 @@ import {
   cancelBatchTask,
   rollbackBatchTask,
   type BatchCancelCleanupStrategy,
-} from '@/services/skill-optimization';
+} from '@/services/skill/optimization';
 import { toast } from '@/hooks/shared/useToast';
 import {
   AlertDialog,

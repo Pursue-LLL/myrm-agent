@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * @/services/migrationDiscovery (POS: external assistant auto-discovery client)
- * @/services/memoryArchive (POS: memory import dry-run / confirm / rollback client)
+ * @/services/memory/archive (POS: memory import dry-run / confirm / rollback client)
  *
  * [OUTPUT]
  * MigrationWizardSection: discover → preview → import; honors ?source= deep link auto-preview.
@@ -38,9 +38,9 @@ import {
   type MemoryImportConfirmResponse,
   type MemoryImportDryRunResponse,
   type MemoryImportPendingSkill,
-} from '@/services/memoryArchive';
+} from '@/services/memory/archive';
 import { clearMigrationReadinessAnchor, queueMigrationWorkspaceBindCandidates, type MigrationWorkspaceBindCandidate } from '@/lib/migrationChatHandoff';
-import { submitSkillMigration, type SkillMigrationSubmitResponse } from '@/services/skillMigration';
+import { submitSkillMigration, type SkillMigrationSubmitResponse } from '@/services/skill/migration';
 
 import useAgentStore from '@/store/useAgentStore';
 

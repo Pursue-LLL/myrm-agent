@@ -12,7 +12,7 @@ import {
   unforgetPreference,
   type PreferenceFacet,
   type PreferenceFacetListResponse,
-} from '@/services/memoryPreferences';
+} from '@/services/memory/preferences';
 import { DashboardBrowsingIcon, PinIcon, Delete02Icon, UndoIcon } from 'hugeicons-react';
 
 const LIFECYCLE_CONFIG: Record<string, { color: string; dotColor: string }> = {

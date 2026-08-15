@@ -53,7 +53,7 @@ vi.mock('@/components/features/message-box/SourceChunkDrawer', () => ({
   default: () => <div data-testid="kb-drawer" />,
 }));
 
-vi.mock('@/services/wikiEvidenceMetrics', () => ({
+vi.mock('@/services/wiki/evidenceMetrics', () => ({
   recordEvidenceSurface: vi.fn(),
 }));
 

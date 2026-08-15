@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import MemoryCitationsButton from '../MemoryCitationsButton';
-import type { SharedContext } from '@/services/memorySharedContexts';
+import type { SharedContext } from '@/services/memory/sharedContexts';
 
 const memoryApi = vi.hoisted(() => ({
   listSharedContexts: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }));
 
-vi.mock('@/services/memorySharedContexts', () => ({
+vi.mock('@/services/memory/sharedContexts', () => ({
   listSharedContexts: memoryApi.listSharedContexts,
 }));
 

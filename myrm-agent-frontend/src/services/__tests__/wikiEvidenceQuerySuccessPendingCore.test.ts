@@ -4,7 +4,7 @@ import {
   __resetPendingChatWikiQuerySuccessForTest,
   consumePendingChatWikiQuerySuccess,
   queuePendingChatWikiQuerySuccess,
-} from '@/services/wikiEvidenceQuerySuccessPendingCore';
+} from '@/services/wiki/evidenceQuerySuccessPendingCore';
 
 describe('wikiEvidenceQuerySuccessPendingCore', () => {
   beforeEach(() => {

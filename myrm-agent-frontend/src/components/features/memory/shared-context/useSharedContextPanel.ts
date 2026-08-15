@@ -27,7 +27,7 @@ import {
   type SharedContextMemoryType,
   type SharedContextTargetType,
   type SharedContextWriteProposal,
-} from '@/services/memorySharedContexts';
+} from '@/services/memory/sharedContexts';
 
 export interface TargetOption {
   type: SharedContextTargetType;

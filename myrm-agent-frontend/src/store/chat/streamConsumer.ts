@@ -28,9 +28,9 @@ import { decryptSseFrame, loadStoredE2EESession } from '@/lib/e2ee/client';
 import { createMultiplexReadableStream } from './multiplexChunkBridge';
 import { recoverPendingApprovals } from '@/hooks/approval/usePendingApprovalsRecovery';
 import { connectionManager } from '@/services/ConnectionManager';
-import { resolveChatWikiEvidenceContext } from '@/services/wikiEvidenceContextCore';
-import { recordWikiQuerySubmitted } from '@/services/wikiEvidenceMetrics';
-import { consumePendingChatWikiQuerySuccess } from '@/services/wikiEvidenceQuerySuccessPendingCore';
+import { resolveChatWikiEvidenceContext } from '@/services/wiki/evidenceContextCore';
+import { recordWikiQuerySubmitted } from '@/services/wiki/evidenceMetrics';
+import { consumePendingChatWikiQuerySuccess } from '@/services/wiki/evidenceQuerySuccessPendingCore';
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 

@@ -153,7 +153,7 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
                     {t('diffPreview')}
                   </div>
                   <ScrollArea className="flex-1 p-0">
-                    {Object.entries(preview.redactions!).map(([filename, redactions]) => (
+                    {Object.entries(preview.redactions ?? {}).map(([filename, redactions]) => (
                       <div key={filename} className="mb-4 last:mb-0">
                         <div className="bg-muted/50 px-3 py-1.5 text-xs font-mono border-y first:border-t-0 flex items-center justify-between">
                           <span>{filename}</span>

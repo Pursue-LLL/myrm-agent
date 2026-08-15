@@ -118,56 +118,78 @@ _SELECTION_SNIPPET_READY_JS = """(() => {
   return { ready: false };
 })()"""
 
-_SELECT_ASSISTANT_SNIPPET_JS = """(() => {
-  window.__E2E_RFA_TICKS = 0;
-  requestAnimationFrame(() => { window.__E2E_RFA_TICKS = (window.__E2E_RFA_TICKS ?? 0) + 1; });
-  const needle = 'connection refused';
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  let node = walker.nextNode();
-  while (node) {
-    const value = node.textContent || '';
-    const msgContainer = node.parentElement?.closest?.('[data-message-id]');
-    if (value.includes(needle) && msgContainer) {
-      const range = document.createRange();
-      range.selectNodeContents(node);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      msgContainer.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-      return {
-        ok: true,
-        selected: selection?.toString?.() || '',
-        msgId: msgContainer.getAttribute?.('data-message-id') || '',
-      };
-    }
-    node = walker.nextNode();
-  }
-  return { ok: false, err: 'snippet-not-found-in-message' };
-})()"""
-
-_QUOTE_ADVISOR_READY_JS = """(() => {
+_SELECT_AND_CLICK_QUOTE_JS = """(async () => {
   window.__MYRM_E2E_CHAT__?.setLoading?.(true);
-  const btn = document.querySelector('[data-testid="quote-toolbar-advisor-ask"]');
-  if (btn) {
-    btn.click();
-    return { ready: true, ok: true, clicked: true };
+  const needle = 'connection refused';
+  const findTarget = () => {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const value = node.textContent || '';
+      const msgContainer = node.parentElement?.closest?.('[data-message-id]');
+      if (value.includes(needle) && msgContainer) {
+        return { node, msgContainer };
+      }
+      node = walker.nextNode();
+    }
+    return null;
+  };
+  const selectAndNotify = (target) => {
+    const range = document.createRange();
+    range.selectNodeContents(target.node);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    target.msgContainer.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  };
+  let target = findTarget();
+  if (!target) {
+    return {
+      ok: false,
+      err: 'snippet-not-found',
+      portal: !!document.getElementById('quote-toolbar-portal'),
+      msgIdCount: document.querySelectorAll('[data-message-id]').length,
+    };
+  }
+  selectAndNotify(target);
+  const diag = [];
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => requestAnimationFrame(r));
+    const btn = document.querySelector('[data-testid="quote-toolbar-advisor-ask"]');
+    if (btn) {
+      btn.click();
+      const sel = window.getSelection();
+      return { ok: true, clicked: true, waitedFrames: i, selText: sel?.toString?.().slice(0, 40) || '' };
+    }
+    const sel = window.getSelection();
+    if (sel?.isCollapsed || !target.msgContainer.isConnected) {
+      if (i % 5 === 0) {
+        diag.push({
+          i,
+          collapsed: sel?.isCollapsed ?? null,
+          disconnected: !target.msgContainer.isConnected,
+          portal: !!document.getElementById('quote-toolbar-portal'),
+        });
+      }
+      target = findTarget();
+      if (target) selectAndNotify(target);
+    }
   }
   const sel = window.getSelection();
-  const anchor = sel?.anchorNode;
-  const anchorEl = anchor?.nodeType === 3 ? anchor.parentElement : anchor;
-  const container = anchorEl?.closest?.('[data-message-id]');
-  const portal = document.getElementById('quote-toolbar-portal');
-  const quoteBtn = document.querySelector('[data-testid="quote-toolbar-advisor-ask"]');
+  const anchorEl = sel?.anchorNode?.nodeType === 3 ? sel.anchorNode.parentElement : sel?.anchorNode;
   return {
-    ready: false,
-    selText: sel?.toString?.().slice(0, 40) ?? '',
+    ok: false,
+    err: 'toolbar-timeout',
+    diag,
+    selText: sel?.toString?.().slice(0, 40) || '',
     selCollapsed: sel?.isCollapsed,
-    anchorNodeType: anchor?.nodeType ?? -1,
+    anchorNodeType: sel?.anchorNode?.nodeType ?? -1,
     anchorTag: anchorEl?.tagName ?? '',
-    anchorInMsg: !!container,
-    portal: !!portal,
-    quoteBtn: !!quoteBtn,
-    rfaTicks: window.__E2E_RFA_TICKS ?? -1,
+    anchorInMsg: !!anchorEl?.closest?.('[data-message-id]'),
+    portal: !!document.getElementById('quote-toolbar-portal'),
+    quoteBtn: !!document.querySelector('[data-testid="quote-toolbar-advisor-ask"]'),
+    loading: window.__MYRM_E2E_CHAT__?.getChatShellState?.().loading,
+    msgIdCount: document.querySelectorAll('[data-message-id]').length,
   };
 })()"""
 
@@ -264,10 +286,8 @@ def test_copilot_desktop_and_mobile_full_flows() -> None:
         assert isinstance(set_loading, dict) and set_loading.get("ok") is True, set_loading
         snippet_ready = wait_for_state(client, page, _SELECTION_SNIPPET_READY_JS, timeout_sec=30.0)
         assert snippet_ready.get("ready") is True, snippet_ready
-        selected = client.evaluate(page, _SELECT_ASSISTANT_SNIPPET_JS, timeout_sec=15.0)
-        assert isinstance(selected, dict) and selected.get("ok") is True, selected
-        quote_ready = wait_for_state(client, page, _QUOTE_ADVISOR_READY_JS, timeout_sec=30.0)
-        assert isinstance(quote_ready, dict) and quote_ready.get("ok") is True, quote_ready
+        quote_clicked = client.evaluate(page, _SELECT_AND_CLICK_QUOTE_JS, timeout_sec=30.0)
+        assert isinstance(quote_clicked, dict) and quote_clicked.get("ok") is True, quote_clicked
         selection_msg = wait_for_state(
             client,
             page,

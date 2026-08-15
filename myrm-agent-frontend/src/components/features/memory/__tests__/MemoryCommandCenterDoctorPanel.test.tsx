@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   MemoryCommandCenterResponse,
   MemoryCommandDiagnosticHistoryItem,
-} from '@/services/memoryCommandCenter';
+} from '@/services/memory/commandCenter';
 import { MemoryDoctorPanel } from '../command-center/MemoryCommandCenterDoctorPanel';
 import type { DoctorExecutableAction } from '../command-center/MemoryCommandCenterDoctorPanel';
 

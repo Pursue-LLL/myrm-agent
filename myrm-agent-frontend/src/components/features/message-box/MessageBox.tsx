@@ -49,7 +49,7 @@ import { useCLIAgentStore } from '@/store/useCLIAgentStore';
 import { CLIDiffViewer } from '@/components/features/cli-visualization/CLIDiffViewer';
 import { isTauriEnvironment } from '@/lib/tauri';
 import { ImageTaskCard, VideoTaskCard } from '@/components/features/task-card';
-import { recordQualityOutcomeNegative } from '@/services/wikiEvidenceMetrics';
+import { recordQualityOutcomeNegative } from '@/services/wiki/evidenceMetrics';
 import { CronJobSystemCard } from './CronJobSystemCard';
 import { KanbanTaskCreatedCard, type KanbanTaskCreatedResult } from './KanbanTaskCreatedCard';
 import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';

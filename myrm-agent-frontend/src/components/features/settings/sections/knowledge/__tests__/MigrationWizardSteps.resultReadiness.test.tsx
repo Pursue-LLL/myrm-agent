@@ -18,8 +18,8 @@ vi.mock('@/lib/migrationChatHandoff', () => ({
   queueMigrationReadinessAnchor: (...args: unknown[]) => mockQueueMigrationReadinessAnchor(...args),
 }));
 
-vi.mock('@/services/memoryArchive', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/services/memoryArchive')>();
+vi.mock('@/services/memory/archive', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/memory/archive')>();
   return {
     ...actual,
     recheckImportReadiness: (...args: unknown[]) => mockRecheckImportReadiness(...args),

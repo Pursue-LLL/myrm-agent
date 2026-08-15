@@ -24,7 +24,7 @@ import {
   reviseSkillGrowthCase,
   type SkillGrowthCaseSummary,
   type SkillGrowthSummary,
-} from '@/services/skill-growth';
+} from '@/services/skill/growth';
 import { createCronJob } from '@/services/cron';
 import { useSkillStore } from '@/store/skill';
 import useAuthStore from '@/store/useAuthStore';

@@ -83,15 +83,15 @@ vi.mock('@/store/useToolApprovalStore', () => ({
   },
 }));
 
-vi.mock('@/services/wikiEvidenceContextCore', () => ({
+vi.mock('@/services/wiki/evidenceContextCore', () => ({
   resolveChatWikiEvidenceContext: (...args: unknown[]) => mockResolveChatWikiEvidenceContext(...args),
 }));
 
-vi.mock('@/services/wikiEvidenceMetrics', () => ({
+vi.mock('@/services/wiki/evidenceMetrics', () => ({
   recordWikiQuerySubmitted: (...args: unknown[]) => mockRecordWikiQuerySubmitted(...args),
 }));
 
-vi.mock('@/services/wikiEvidenceQuerySuccessPendingCore', () => ({
+vi.mock('@/services/wiki/evidenceQuerySuccessPendingCore', () => ({
   consumePendingChatWikiQuerySuccess: (...args: unknown[]) => mockConsumePendingChatWikiQuerySuccess(...args),
 }));
 

@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * @/services/agent::getAgent, getAgentReadiness (POS: Agent profile and readiness API client)
- * @/services/memorySharedContexts::listSharedContextBindingsForTarget, listSharedContexts, listSharedContextWriteProposals (POS: Shared Context frontend API client)
+ * @/services/memory/sharedContexts::listSharedContextBindingsForTarget, listSharedContexts, listSharedContextWriteProposals (POS: Shared Context frontend API client)
  * @/store/useConfigStore (POS: Global memory policy configuration store)
  *
  * [OUTPUT]
@@ -30,7 +30,7 @@ import {
   listSharedContextWriteProposals,
   type SharedContext,
   type SharedContextBinding,
-} from '@/services/memorySharedContexts';
+} from '@/services/memory/sharedContexts';
 import useConfigStore from '@/store/useConfigStore';
 
 export type LoadoutFetchStatus = 'ok' | 'unavailable';

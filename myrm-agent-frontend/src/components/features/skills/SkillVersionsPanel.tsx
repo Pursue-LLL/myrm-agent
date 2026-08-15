@@ -26,7 +26,7 @@ import {
   listSkillVersions,
   rollbackSkillVersion,
   type SkillVersionSummary,
-} from '@/services/skill-optimization';
+} from '@/services/skill/optimization';
 
 interface SkillVersionsPanelProps {
   skillId: string;

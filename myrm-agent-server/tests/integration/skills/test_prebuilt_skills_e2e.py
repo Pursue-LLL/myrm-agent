@@ -402,9 +402,9 @@ async def test_tdd_skill_v120_contract_guard(
 
     Guards the frontmatter contract (VERIFY/mutation-check step, independent
     expectation derivation, six potential traps) and body sections (RED
-    test-passes/test-errors discipline, GREEN cheat-permission, REFACTOR
-    rollback instruction, Red Flags red lines, deeper reference file) against
-    regression.
+    test-passes/test-errors discipline, GREEN cheat-permission/pristine check,
+    REFACTOR no-behavior/rollback instruction, Repeat cycle, Red Flags red
+    lines, deeper reference file) against regression.
     """
     from myrm_agent_harness.api.skills import parse_skill_frontmatter
 
@@ -465,6 +465,12 @@ async def test_tdd_skill_v120_contract_guard(
     assert "REFACTOR is where they get cleaned up" in body
     assert "If tests fail during refactor" in body, "missing REFACTOR rollback instruction"
     assert "undo immediately, take smaller steps" in body
+    assert "Don't add behavior" in body, "missing REFACTOR no-behavior discipline"
+    assert "changes how code is structured, not what it does" in body
+    assert "output pristine (no errors, warnings)" in body, "missing GREEN pristine check"
+    assert "skipping edge cases" in body, "missing GREEN cheat-permission edge-cases"
+    assert "### Repeat" in body, "missing Repeat cycle section"
+    assert "one cycle at a time" in body
 
     ref_path = get_skill_file_path(
         SkillType.PREBUILT,

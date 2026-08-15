@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * @/lib/api::apiRequest (POS: frontend API request helper)
- * ./memory::MemoryType (POS: Frontend memory API client)
+ * ./core::MemoryType (POS: Frontend memory API client)
  *
  * [OUTPUT]
  * getMemoryCommandCenter, runMemoryCommandAction, runMemoryDiagnosticAction, getMemoryDiagnosticHistory: Personal Brain Command Center API client with migration diagnostics and cleanup DTOs.
@@ -11,8 +11,8 @@
  */
 
 import { apiRequest } from '@/lib/api';
-import type { MemoryImportSource } from '@/services/memoryArchive';
-import type { MemoryType } from './memory';
+import type { MemoryImportSource } from './archive';
+import type { MemoryType } from './core';
 
 export interface MemoryCommandOverview {
   total_memories: number;

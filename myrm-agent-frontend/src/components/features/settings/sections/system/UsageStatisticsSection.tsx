@@ -35,7 +35,7 @@ import {
   type GlobalActivityPatterns,
   type TopSession,
 } from '@/services/statistics';
-import { getWikiEvidenceSummary, type WikiEvidenceSummary } from '@/services/wikiEvidenceMetrics';
+import { getWikiEvidenceSummary, type WikiEvidenceSummary } from '@/services/wiki/evidenceMetrics';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   StatCard,

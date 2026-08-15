@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SharedContextTargetBinding } from '../shared-context/SharedContextTargetBinding';
-import type { SharedContext, SharedContextBinding, SharedContextListResponse } from '@/services/memorySharedContexts';
+import type { SharedContext, SharedContextBinding, SharedContextListResponse } from '@/services/memory/sharedContexts';
 
 const memoryApi = vi.hoisted(() => ({
   listSharedContexts: vi.fn(),
@@ -19,8 +19,8 @@ vi.mock('next-intl', () => ({
   useTranslations: () => translate,
 }));
 
-vi.mock('@/services/memorySharedContexts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/services/memorySharedContexts')>()),
+vi.mock('@/services/memory/sharedContexts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/memory/sharedContexts')>()),
   listSharedContexts: memoryApi.listSharedContexts,
   listSharedContextBindingsForTarget: memoryApi.listSharedContextBindingsForTarget,
   createSharedContextBinding: memoryApi.createSharedContextBinding,

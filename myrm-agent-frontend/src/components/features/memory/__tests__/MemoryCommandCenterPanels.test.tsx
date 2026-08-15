@@ -13,7 +13,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { MemoryCommandCenterResponse } from '@/services/memoryCommandCenter';
+import type { MemoryCommandCenterResponse } from '@/services/memory/commandCenter';
 import { ActSection, VerifySection } from '../command-center/MemoryCommandCenterPanels';
 type ActSectionProps = Parameters<typeof ActSection>[0];
 type VerifySectionProps = Parameters<typeof VerifySection>[0];

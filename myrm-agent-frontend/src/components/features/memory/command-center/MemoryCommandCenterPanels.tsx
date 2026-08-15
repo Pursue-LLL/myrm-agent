@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memoryCommandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
+ * @/services/memory/commandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
  * ./MemoryCommandCenterAdvancedPanels::MemoryAdvancedVerifyPanels (POS: 个人大脑指挥中心验证面板)
  *
  * [OUTPUT]
@@ -27,7 +27,7 @@ import type {
   MemoryCommandInfluenceItem,
   MemoryCommandReplayOverlay,
   MemoryCommandTimelineEvent,
-} from '@/services/memoryCommandCenter';
+} from '@/services/memory/commandCenter';
 import type { MemoryType } from '@/services/memory';
 import { MemoryAdvancedVerifyPanels } from './MemoryCommandCenterAdvancedPanels';
 import { MemoryLayerGuide } from '../guides/MemoryLayerGuide';

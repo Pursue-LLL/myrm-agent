@@ -11,7 +11,7 @@ import {
   recordSnippetOpen,
   recordWikiQueryAttempt,
   recordWikiQuerySubmitted,
-} from '@/services/wikiEvidenceMetrics';
+} from '@/services/wiki/evidenceMetrics';
 
 vi.mock('@/lib/api', () => ({
   apiRequest: vi.fn(),

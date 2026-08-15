@@ -9,11 +9,11 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
-vi.mock('@/services/memory-health', () => ({
+vi.mock('@/services/memory/health', () => ({
   getSharedContextMemoryHealth: vi.fn(),
 }));
 
-import { getSharedContextMemoryHealth } from '@/services/memory-health';
+import { getSharedContextMemoryHealth } from '@/services/memory/health';
 
 describe('MemoryRecallDegradedBanner', () => {
   it('renders when health is not ready', async () => {

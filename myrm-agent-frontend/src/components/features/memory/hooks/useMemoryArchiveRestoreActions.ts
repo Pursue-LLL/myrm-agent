@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memoryArchive::*ArchiveRestore* (POS: Frontend Memory Archive and import API client)
+ * @/services/memory/archive::*ArchiveRestore* (POS: Frontend Memory Archive and import API client)
  * command-center refresh callback.
  *
  * [OUTPUT]
@@ -29,7 +29,7 @@ import {
   type MemoryArchiveRestoreRollbackPreview,
   type MemoryArchiveRestoreRollbackResult,
   type MemoryArchiveSectionName,
-} from '@/services/memoryArchive';
+} from '@/services/memory/archive';
 
 export const useMemoryArchiveRestoreActions = ({
   setActionId,

@@ -8,7 +8,7 @@ const mockListSkillGrowthAudit = vi.hoisted(() => vi.fn());
 const mockGetSkillGrowthAuditStats = vi.hoisted(() => vi.fn());
 const mockToastError = vi.hoisted(() => vi.fn());
 
-vi.mock('@/services/skill-growth', () => ({
+vi.mock('@/services/skill/growth', () => ({
   listSkillGrowthAudit: mockListSkillGrowthAudit,
   getSkillGrowthAuditStats: mockGetSkillGrowthAuditStats,
 }));

@@ -16,7 +16,7 @@ import { BookOpen, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/primitives/sheet';
 import { useLocale, useTranslations } from 'next-intl';
 import { WikiSourceLevel } from '@/store/chat/types';
-import { recordSnippetClose, recordSnippetOpen, type WikiEvidenceSurface } from '@/services/wikiEvidenceMetrics';
+import { recordSnippetClose, recordSnippetOpen, type WikiEvidenceSurface } from '@/services/wiki/evidenceMetrics';
 import {
   claimStatusClass,
   claimStatusLabel,

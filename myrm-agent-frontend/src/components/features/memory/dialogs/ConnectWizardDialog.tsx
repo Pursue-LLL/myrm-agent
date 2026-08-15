@@ -21,7 +21,7 @@ import {
   runConnectDoctor,
 } from '@/services/connect';
 import { listAgents, type AgentListItem } from '@/services/agent';
-import { countProviderTrees } from '@/services/integrationMemory';
+import { countProviderTrees } from '@/services/memory/integration';
 import { getFileExtension, getMimeType, triggerDownload } from '@/lib/utils/fileUtils';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { cn } from '@/lib/utils/classnameUtils';

@@ -10,6 +10,7 @@ app/api/batch_optimization/router.py
 app/api/channels/router.py
 app/api/channels/test_connections.py
 app/api/chats/chat/core.py
+app/api/chats/chat/share.py
 app/api/chats/test_fixtures.py
 app/api/companion/router.py
 app/api/config/router.py
@@ -141,7 +142,6 @@ app/services/chat/chat_crud.py
 app/services/chat/chat_turn.py
 app/services/chat/conversation_fork_manager.py
 app/services/chat/conversation_search_service.py
-app/services/chat/sandbox_worktree.py
 app/services/extension/bridge.py
 app/services/extension/cdp_relay/bridge.py
 app/services/kanban/task_runner/runner.py

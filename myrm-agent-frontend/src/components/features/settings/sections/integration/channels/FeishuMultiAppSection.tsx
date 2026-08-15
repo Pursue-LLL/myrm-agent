@@ -124,7 +124,7 @@ export function FeishuMultiAppSection() {
           channelName={inst.channelName}
           label={inst.displayName || inst.channelName}
           status={statusFor(inst.channelName)}
-          onDelete={() => void removeInstance(inst.instanceId)}
+          onDelete={() => removeInstance(inst.instanceId)}
           onRename={(label) => void renameInstance(inst.channelName, label)}
           onEditCredentials={() => setEditChannelName(inst.channelName)}
           t={t}

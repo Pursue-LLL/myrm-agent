@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memoryCommandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
+ * @/services/memory/commandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
  *
  * [OUTPUT]
  * MemoryDoctorPanel: executable Memory Doctor panel for diagnostic runs, SLOs, repair plans, static checks, and structured benchmark metrics.
@@ -20,7 +20,7 @@ import type {
   MemoryCommandDiagnosticRun,
   MemoryCommandDoctorCheck,
   MemoryCommandRepairPlan,
-} from '@/services/memoryCommandCenter';
+} from '@/services/memory/commandCenter';
 
 type MemoryTranslation = ReturnType<typeof useTranslations<'memory'>>;
 

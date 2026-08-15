@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * @/services/memoryArchive::MemoryImportConfirmResponse (POS: Frontend Memory Archive and import API client. Owns typed HTTP contracts for archive restore, rollback, and import governance.)
+ * @/services/memory/archive::MemoryImportConfirmResponse (POS: Frontend Memory Archive and import API client. Owns typed HTTP contracts for archive restore, rollback, and import governance.)
  *
  * [OUTPUT]
  * Import readiness status/style helpers and issue formatter for migration result UI.
@@ -9,7 +9,7 @@
  * Migration Wizard 就绪态展示辅助层。将后端 readiness 合同映射为 UI 状态与可读文案。
  */
 
-import type { MemoryImportConfirmResponse, MemoryImportReadinessIssue } from '@/services/memoryArchive';
+import type { MemoryImportConfirmResponse, MemoryImportReadinessIssue } from '@/services/memory/archive';
 
 export interface MigrationWizardTranslationFn {
   (key: string, values?: Record<string, string | number>): string;

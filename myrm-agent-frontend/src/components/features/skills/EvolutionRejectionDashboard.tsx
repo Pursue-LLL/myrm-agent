@@ -21,7 +21,7 @@ import {
   type SkillGrowthAuditEntry,
   type SkillGrowthStatus,
   type SkillGrowthAuditStats,
-} from '@/services/skill-growth';
+} from '@/services/skill/growth';
 import { toast } from 'sonner';
 
 const STATUS_TONE: Record<

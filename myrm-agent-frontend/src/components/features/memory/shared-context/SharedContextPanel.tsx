@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * ./useSharedContextPanel::useSharedContextPanel (POS: Shared Context panel state and operation orchestration hook)
- * @/services/memorySharedContexts::SharedContextTargetType (POS: Frontend Shared Context API client)
+ * @/services/memory/sharedContexts::SharedContextTargetType (POS: Frontend Shared Context API client)
  *
  * [OUTPUT]
  * SharedContextPanel: Memory Center Shared Context management panel.
@@ -29,7 +29,7 @@ import {
   IconGlow,
   IconX,
 } from '@/components/features/icons/PremiumIcons';
-import type { SharedContextMemoryType, SharedContextTargetType } from '@/services/memorySharedContexts';
+import type { SharedContextMemoryType, SharedContextTargetType } from '@/services/memory/sharedContexts';
 import {
   formatSharedContextDate,
   SHARED_CONTEXT_MEMORY_TYPES,

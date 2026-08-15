@@ -5,7 +5,7 @@ import {
   getDefaultArchiveRestoreSections,
   parseMemoryArchivePayload,
   type MemoryArchivePayload,
-} from '@/services/memoryArchive';
+} from '@/services/memory/archive';
 
 const archivePayload = (sections: MemoryArchivePayload['manifest']['sections']): unknown => ({
   manifest: {

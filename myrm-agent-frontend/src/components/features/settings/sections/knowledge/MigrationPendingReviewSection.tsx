@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/skillMigration (POS: migration pending review client)
+ * @/services/skill/migration (POS: migration pending review client)
  *
  * [OUTPUT]
  * MigrationPendingReviewSection: list and approve/reject staged external source migrations
@@ -23,7 +23,7 @@ import {
   listPendingMigrations,
   rejectPendingMigration,
   type PendingMigrationItem,
-} from '@/services/skillMigration';
+} from '@/services/skill/migration';
 import useSkillStore from '@/store/skill/useSkillStore';
 import useAgentStore from '@/store/useAgentStore';
 import { getMigrationSourceDisplayName } from '@/services/migrationDiscovery';

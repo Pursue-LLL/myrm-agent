@@ -84,7 +84,7 @@ vi.mock('@/components/features/message-box/SourceChunkDrawer', () => ({
   ),
 }));
 
-vi.mock('@/services/wikiEvidenceMetrics', () => ({
+vi.mock('@/services/wiki/evidenceMetrics', () => ({
   recordEvidenceSurface: (...args: unknown[]) => recordEvidenceSurfaceMock(...args),
 }));
 

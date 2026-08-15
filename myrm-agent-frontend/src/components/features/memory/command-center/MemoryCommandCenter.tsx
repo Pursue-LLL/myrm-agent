@@ -2,8 +2,8 @@
 
 /**
  * [INPUT]
- * @/services/memoryCommandCenter::getMemoryCommandCenter (POS: Frontend Personal Brain Command Center client)
- * @/services/memoryArchive::dryRunRollbackMemoryImport, exportMemoryArchive (POS: Frontend Memory Archive and import API client)
+ * @/services/memory/commandCenter::getMemoryCommandCenter (POS: Frontend Personal Brain Command Center client)
+ * @/services/memory/archive::dryRunRollbackMemoryImport, exportMemoryArchive (POS: Frontend Memory Archive and import API client)
  * @/services/projects::getProjects (POS: 项目管理 API 服务层)
  *
  * [OUTPUT]
@@ -35,7 +35,7 @@ import {
   type MemoryArchiveSection,
   type MemoryImportRollbackPreviewResponse,
   type MemoryImportRollbackResponse,
-} from '@/services/memoryArchive';
+} from '@/services/memory/archive';
 import { ActSection, ObserveSection, UnderstandSection, VerifySection } from './MemoryCommandCenterPanels';
 import {
   getMemoryCommandCenter,
@@ -50,7 +50,7 @@ import {
   type MemoryCommandDiagnosticRun,
   type MemoryCommandGovernanceItem,
   type MemoryCommandTimelineEvent,
-} from '@/services/memoryCommandCenter';
+} from '@/services/memory/commandCenter';
 import { MemoryArchiveRestoreDialog } from '../dialogs/MemoryArchiveRestoreDialog';
 import { CommandCenterSkeleton, MetricTile, RollbackPreviewDialog, StatusPill } from './MemoryCommandCenterChrome';
 import { useMemoryArchiveRestoreActions } from '../hooks/useMemoryArchiveRestoreActions';

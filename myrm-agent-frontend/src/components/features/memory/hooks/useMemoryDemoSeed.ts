@@ -3,7 +3,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/hooks/shared/useToast';
-import { dryRunImportMemories, confirmImportMemories, rollbackMemoryImport } from '@/services/memoryArchive';
+import { dryRunImportMemories, confirmImportMemories, rollbackMemoryImport } from '@/services/memory/archive';
 import { getConfigSyncManager } from '@/services/config';
 
 const DEMO_BATCH_ID_KEY = 'myrm_demo_batch_id';

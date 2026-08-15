@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memory-health::getSharedContextMemoryHealth (POS: memory embedding health API)
+ * @/services/memory/health::getSharedContextMemoryHealth (POS: memory embedding health API)
  *
  * [OUTPUT]
  * MemoryRecallDegradedBanner: Chat/Memory top-bar banner when semantic recall is degraded.
@@ -17,7 +17,7 @@ import { useTranslations } from 'next-intl';
 import { Loader2, RefreshCw, ShieldAlert, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils/classnameUtils';
-import { getSharedContextMemoryHealth, type SharedContextMemoryHealthResponse } from '@/services/memory-health';
+import { getSharedContextMemoryHealth, type SharedContextMemoryHealthResponse } from '@/services/memory/health';
 
 interface MemoryRecallDegradedBannerProps {
   compact?: boolean;

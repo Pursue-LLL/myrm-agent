@@ -7,7 +7,7 @@
  */
 
 import { apiRequest } from '@/lib/api';
-import type { MemoryImportSource } from '@/services/memoryArchive';
+import type { MemoryImportSource } from '@/services/memory/archive';
 
 export interface DiscoveredFile {
   path: string;

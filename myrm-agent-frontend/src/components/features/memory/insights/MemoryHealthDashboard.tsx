@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memoryCommandCenter::MemoryCommandHealth (POS: Memory health DTO)
+ * @/services/memory/commandCenter::MemoryCommandHealth (POS: Memory health DTO)
  *
  * [OUTPUT]
  * MemoryHealthDashboard: Memory health dashboard panel with score arc, dimension cards, suggestions and guardian status.
@@ -13,7 +13,7 @@
 
 import { memo, useMemo } from 'react';
 import type { useTranslations } from 'next-intl';
-import type { MemoryCommandHealth } from '@/services/memoryCommandCenter';
+import type { MemoryCommandHealth } from '@/services/memory/commandCenter';
 import { cn } from '@/lib/utils/classnameUtils';
 
 type T = ReturnType<typeof useTranslations<'memory'>>;

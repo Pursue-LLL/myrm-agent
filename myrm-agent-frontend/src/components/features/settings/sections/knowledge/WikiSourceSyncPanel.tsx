@@ -15,7 +15,7 @@ import {
   updateWikiSourceSyncConfig,
   type WikiSourceSyncState,
   type WikiSourceSyncStatus,
-} from '@/services/wikiSourceSync';
+} from '@/services/wiki/sourceSync';
 import { useWikiAgentScope } from './WikiAgentScopeContext';
 
 interface WikiSourceSyncPanelProps {

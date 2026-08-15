@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * @/services/memoryCommandCenter::MemoryCommandTimelineEvent (POS: Frontend Personal Brain Command Center client)
+ * @/services/memory/commandCenter::MemoryCommandTimelineEvent (POS: Frontend Personal Brain Command Center client)
  *
  * [OUTPUT]
  * isMemoryTimelineEvent, resolveReplaySessionId, mergeLiveStreamEvents: Live Memory Stream SSE helpers with RECALL burst coalescing.
@@ -9,7 +9,7 @@
  * Command Center 实时记忆流纯函数。校验 SSE payload、解析 replay 深链 session_id、合并增量事件。
  */
 
-import type { MemoryCommandTimelineEvent } from '@/services/memoryCommandCenter';
+import type { MemoryCommandTimelineEvent } from '@/services/memory/commandCenter';
 
 export const LIVE_STREAM_LIMIT = 50;
 

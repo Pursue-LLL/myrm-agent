@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * @/store/chat/types::CitedMemoryReference (POS: Chat state and SSE event type definitions)
- * @/services/memorySharedContexts::listSharedContexts (POS: Frontend Shared Context API client)
+ * @/services/memory/sharedContexts::listSharedContexts (POS: Frontend Shared Context API client)
  *
  * [OUTPUT]
  * MemoryCitationsButton: Opens the unified evidence sheet (memories + message sources).
@@ -20,7 +20,7 @@ import { Badge } from '@/components/primitives/badge';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
 import { cn } from '@/lib/utils/classnameUtils';
 import { IconBrain, IconFolder } from '@/components/features/icons/PremiumIcons';
-import { listSharedContexts, type SharedContext } from '@/services/memorySharedContexts';
+import { listSharedContexts, type SharedContext } from '@/services/memory/sharedContexts';
 import { SourceItem } from '@/components/features/message-actions/SourcesButton';
 import type { CitedMemoryReference, Source } from '@/store/chat/types';
 

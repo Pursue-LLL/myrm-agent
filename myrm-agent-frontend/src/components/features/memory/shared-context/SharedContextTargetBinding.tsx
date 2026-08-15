@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memorySharedContexts (POS: Frontend Shared Context API client)
+ * @/services/memory/sharedContexts (POS: Frontend Shared Context API client)
  *
  * [OUTPUT]
  * SharedContextTargetBinding: Reusable runtime-target Shared Context binding UI with optional onBindingsChanged callback.
@@ -27,7 +27,7 @@ import {
   type SharedContext,
   type SharedContextBinding,
   type SharedContextTargetType,
-} from '@/services/memorySharedContexts';
+} from '@/services/memory/sharedContexts';
 
 interface SharedContextTargetBindingProps {
   targetType: SharedContextTargetType;

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/hooks/shared/useToast';
-import { countProviderTrees } from '@/services/integrationMemory';
+import { countProviderTrees } from '@/services/memory/integration';
 import {
   disconnectGoogleWorkspaceOAuth,
   fetchGoogleWorkspaceOAuthConfig,

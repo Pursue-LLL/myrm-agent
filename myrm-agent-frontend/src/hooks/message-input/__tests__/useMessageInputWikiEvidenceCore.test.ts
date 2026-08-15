@@ -12,12 +12,12 @@ const recordWikiQueryAttemptMock = vi.fn();
 const recordWikiQuerySubmittedMock = vi.fn();
 const queuePendingChatWikiQuerySuccessMock = vi.fn();
 
-vi.mock('@/services/wikiEvidenceMetrics', () => ({
+vi.mock('@/services/wiki/evidenceMetrics', () => ({
   recordWikiQueryAttempt: (...args: unknown[]) => recordWikiQueryAttemptMock(...args),
   recordWikiQuerySubmitted: (...args: unknown[]) => recordWikiQuerySubmittedMock(...args),
 }));
 
-vi.mock('@/services/wikiEvidenceQuerySuccessPendingCore', () => ({
+vi.mock('@/services/wiki/evidenceQuerySuccessPendingCore', () => ({
   queuePendingChatWikiQuerySuccess: (...args: unknown[]) => queuePendingChatWikiQuerySuccessMock(...args),
 }));
 

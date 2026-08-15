@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memoryArchive::*Rollback* (POS: Frontend Memory Archive and import API client)
+ * @/services/memory/archive::*Rollback* (POS: Frontend Memory Archive and import API client)
  * translated memory namespace.
  *
  * [OUTPUT]
@@ -28,7 +28,7 @@ import type {
   MemoryImportRollbackPreviewResponse,
   MemoryImportRollbackResponse,
   MemoryImportRollbackWarning,
-} from '@/services/memoryArchive';
+} from '@/services/memory/archive';
 
 const ROLLBACK_INTEGRITY_STATUSES = ['ready', 'warning', 'critical', 'not_checked'] as const;
 

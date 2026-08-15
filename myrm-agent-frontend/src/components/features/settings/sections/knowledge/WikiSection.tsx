@@ -28,8 +28,8 @@ import {
   type TreeNode,
 } from '@/services/wikiService';
 import { formatClaimConfidence } from '@/lib/wiki/claimStatusDisplay';
-import { recordEvidenceSurface, recordWikiQueryAttempt, recordWikiQuerySubmitted } from '@/services/wikiEvidenceMetrics';
-import { resolveWikiSectionLabel } from '@/services/wikiSectionLabels';
+import { recordEvidenceSurface, recordWikiQueryAttempt, recordWikiQuerySubmitted } from '@/services/wiki/evidenceMetrics';
+import { resolveWikiSectionLabel } from '@/services/wiki/sectionLabels';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import SourceChunkDrawer from '@/components/features/message-box/SourceChunkDrawer';

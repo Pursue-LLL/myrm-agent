@@ -1,6 +1,6 @@
 # memory/operations/crud 模块架构
 
-记忆 CRUD 域处理器。由 `crud_handlers.py` facade 统一 re-export，供 `app/api/memory/operations/crud.py` 路由绑定。
+记忆 CRUD 域处理器。由父目录 `crud_handlers.py` 门面统一 re-export（见 `operations/_ARCH.md`），供 `app/api/memory/operations/crud.py` 路由绑定。
 
 ## 文件清单
 

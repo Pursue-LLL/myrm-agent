@@ -1,5 +1,5 @@
 import { apiRequest } from '@/lib/api';
-import { approveSkillDraft, rejectSkillDraft } from '@/services/skill';
+import { approveSkillDraft, rejectSkillDraft } from './core';
 
 export type SkillGrowthStatus =
   | 'PENDING_REVIEW'

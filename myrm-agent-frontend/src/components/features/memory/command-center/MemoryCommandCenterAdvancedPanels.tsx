@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memoryCommandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
+ * @/services/memory/commandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
  *
  * [OUTPUT]
  * MemoryAdvancedVerifyPanels: validation-focused Personal Brain Command Center panels.
@@ -25,7 +25,7 @@ import type {
   MemoryCommandTraceRun,
   MemoryCommandTraceStep,
   MemoryCommandWaterfallStep,
-} from '@/services/memoryCommandCenter';
+} from '@/services/memory/commandCenter';
 import { MemoryDoctorPanel, type DoctorExecutableAction } from './MemoryCommandCenterDoctorPanel';
 
 type MemoryTranslation = ReturnType<typeof useTranslations<'memory'>>;

@@ -28,7 +28,7 @@ vi.mock('@/services/agent', () => ({
   getAgentReadiness: agentApi.getAgentReadiness,
 }));
 
-vi.mock('@/services/memorySharedContexts', () => ({
+vi.mock('@/services/memory/sharedContexts', () => ({
   listSharedContextBindingsForTarget: memoryApi.listSharedContextBindingsForTarget,
   listSharedContexts: memoryApi.listSharedContexts,
   listSharedContextWriteProposals: memoryApi.listSharedContextWriteProposals,

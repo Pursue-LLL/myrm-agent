@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MemoryCommandTimelineEvent } from '@/services/memoryCommandCenter';
+import type { MemoryCommandTimelineEvent } from '@/services/memory/commandCenter';
 import {
   isMemoryTimelineEvent,
   mergeLiveStreamEvents,

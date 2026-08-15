@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memory-health::getSharedContextMemoryHealth (POS: Frontend Shared Context health API client)
+ * @/services/memory/health::getSharedContextMemoryHealth (POS: Frontend Shared Context health API client)
  *
  * [OUTPUT]
  * SharedContextMemoryHealthBanner: Shared Context memory dependency health banner.
@@ -16,7 +16,7 @@ import { useTranslations } from 'next-intl';
 import { CheckCircle2, Loader2, RefreshCw, ShieldAlert, TriangleAlert } from 'lucide-react';
 
 import { cn } from '@/lib/utils/classnameUtils';
-import { getSharedContextMemoryHealth, type SharedContextMemoryHealthResponse } from '@/services/memory-health';
+import { getSharedContextMemoryHealth, type SharedContextMemoryHealthResponse } from '@/services/memory/health';
 
 type HealthTone = 'ready' | 'warning' | 'error';
 

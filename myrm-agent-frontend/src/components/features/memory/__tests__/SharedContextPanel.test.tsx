@@ -8,7 +8,7 @@ import type {
   SharedContextBinding,
   SharedContextHistoryMessage,
   SharedContextWriteProposal,
-} from '@/services/memorySharedContexts';
+} from '@/services/memory/sharedContexts';
 
 const memoryApi = vi.hoisted(() => ({
   getSharedContextMemoryHealth: vi.fn(),
@@ -48,8 +48,8 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }));
 
-vi.mock('@/services/memorySharedContexts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/services/memorySharedContexts')>()),
+vi.mock('@/services/memory/sharedContexts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/memory/sharedContexts')>()),
   listSharedContexts: memoryApi.listSharedContexts,
   createSharedContext: memoryApi.createSharedContext,
   updateSharedContext: memoryApi.updateSharedContext,
@@ -66,7 +66,7 @@ vi.mock('@/services/memorySharedContexts', async (importOriginal) => ({
   createSharedContextProposalFromHistory: memoryApi.createSharedContextProposalFromHistory,
 }));
 
-vi.mock('@/services/memory-health', () => ({
+vi.mock('@/services/memory/health', () => ({
   getSharedContextMemoryHealth: memoryApi.getSharedContextMemoryHealth,
 }));
 

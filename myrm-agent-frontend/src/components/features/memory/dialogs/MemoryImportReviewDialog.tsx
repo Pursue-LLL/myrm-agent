@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/memoryArchive::MemoryImportDryRunResult (POS: Frontend Memory Archive and import API client)
+ * @/services/memory/archive::MemoryImportDryRunResult (POS: Frontend Memory Archive and import API client)
  *
  * [OUTPUT]
  * MemoryImportReviewDialog: server-bound import dry-run review and confirm surface.
@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/primitives/dialog';
-import type { MemoryImportDryRunResult } from '@/services/memoryArchive';
+import type { MemoryImportDryRunResult } from '@/services/memory/archive';
 
 interface MemoryImportReviewDialogProps {
   open: boolean;

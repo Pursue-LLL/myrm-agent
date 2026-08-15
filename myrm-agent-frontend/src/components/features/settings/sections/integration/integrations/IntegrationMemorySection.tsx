@@ -14,7 +14,7 @@ import {
   type IntegrationStatus,
   type IntegrationTreeSummary,
   type IntegrationSyncResult,
-} from '@/services/integrationMemory';
+} from '@/services/memory/integration';
 import SettingsSection from '../../SettingsSection';
 
 const IntegrationMemorySection = memo(() => {

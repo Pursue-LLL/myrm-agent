@@ -47,7 +47,7 @@ import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { toast } from '@/hooks/shared/useToast';
 import { toast as actionToast } from '@/lib/utils/toast';
 import { exportMemories, exportMemoriesMarkdown, updateMemoryStatus, getMemoryTags, type TagStatsItem } from '@/services/memory';
-import { confirmImportMemories, dryRunImportMemories, type MemoryImportDryRunResult } from '@/services/memoryArchive';
+import { confirmImportMemories, dryRunImportMemories, type MemoryImportDryRunResult } from '@/services/memory/archive';
 import {
   formatReadinessIssue,
   getImportReadinessStatus,

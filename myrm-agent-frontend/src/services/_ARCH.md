@@ -19,11 +19,13 @@
 | `web-push.ts` | Web Push VAPID REST：`/web-push/vapid-key`, subscribe/unsubscribe/test |
 | `projects.ts` | 项目 CRUD、会话归属移动 |
 | `milestones.ts` | `/projects/*/milestones` CRUD、progress/roadmap、`import-assessment` 导入回执（含 `import_id`）；并复用 `/files/artifacts?limit=N&project_id=...&assessment_import_candidate=true` 拉取当前项目最近工件候选供里程碑导入入口，优先返回后端语义探测为 `importable` 的候选（`already_imported` 与 `not_importable` 均视为不可导入，无 importable 命中时回退时间排序）；导入失败时可从标准错误结构 `error.details[field=import_reason]` 读取机器可读原因 |
-| `skill*.ts` / `skills-*.ts` | 技能 CRUD、进化、打包 |
+| `skill.ts` | 技能门面 → `skill/` 分片 |
+| `skill/` | 技能 CRUD 核心、进化、优化、迁移 · [_ARCH.md](skill/_ARCH.md) |
 | `archiveSecurityErrorCore.ts` | 批量导入 `archive_security.*` 错误码解析与 i18n key 映射纯函数，供技能导入 UI 稳定消费 |
-| `skill-growth.ts` | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit |
-| `skill-optimization.ts` | `/skill-optimization/*` 质量历史、版本列表/对比/回滚、Shadow A/B 启动；另封装 `/batch-optimization/tasks/{id}/cancel` 与 `rollback` |
-| `memory*.ts` / `memoryArchive.ts` | 记忆、Shared Context、导入 dry-run/confirm（含 post-import readiness 合同 + `readiness-recheck`）、Memory Guardian `safe/force` 触发 + 策略配置 + `overview` 单接口（health/policy/alerts+digest，携带客户端时区头）+ 守卫不可用告警阈值契约 |
+| `skill/growth.ts` | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit |
+| `skill/optimization.ts` | `/skill-optimization/*` 质量历史、版本列表/对比/回滚、Shadow A/B 启动；另封装 `/batch-optimization/tasks/{id}/cancel` 与 `rollback` |
+| `memory.ts` | 记忆门面 → `memory/` 分片 |
+| `memory/` | 记忆 CRUD 核心、归档、Command Center、偏好、Shared Context、健康探测、Integration Memory · [_ARCH.md](memory/_ARCH.md) |
 | `migrationDiscovery.ts` | Local/Tauri 外部助手数据自动发现（Hermes / OpenClaw / Claude Code / Codex / Pi）+ server 下发 `source_manifest`（display/import/deep-link）与 `source_manifest_authoritative` 覆盖语义消费 |
 | `onboarding.ts` | Onboarding readiness/complete + Telegram assistant 一键接入编排接口 `/config/onboarding/telegram-assistant/apply` |
 | `google-workspace-oauth.ts` | `/integrations/google-workspace/oauth/*`：config/start/poll/status/disconnect；Tauri 用 shell.open |

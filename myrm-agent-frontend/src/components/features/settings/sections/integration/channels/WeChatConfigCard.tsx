@@ -117,7 +117,7 @@ export function WeChatConfigCard() {
           key={inst.instanceId}
           label={inst.displayName || inst.channelName}
           channelName={inst.channelName}
-          onDelete={() => void removeInstance(inst.instanceId)}
+          onDelete={() => removeInstance(inst.instanceId)}
           onLabelChange={(v) => void renameInstance(inst.channelName, v)}
           t={t}
         />

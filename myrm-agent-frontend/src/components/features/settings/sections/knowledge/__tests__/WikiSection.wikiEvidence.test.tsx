@@ -80,7 +80,7 @@ vi.mock('@/components/agent/builtin-agent-i18n', () => ({
   getBuiltinAgentName: (_id: string, name: string) => name,
 }));
 
-vi.mock('@/services/wikiEvidenceMetrics', () => ({
+vi.mock('@/services/wiki/evidenceMetrics', () => ({
   recordWikiQueryAttempt: (...args: unknown[]) => recordWikiQueryAttemptMock(...args),
   recordWikiQuerySubmitted: (...args: unknown[]) => recordWikiQuerySubmittedMock(...args),
   recordEvidenceSurface: (...args: unknown[]) => recordEvidenceSurfaceMock(...args),

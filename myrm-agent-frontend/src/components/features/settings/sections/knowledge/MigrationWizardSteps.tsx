@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 import { queueMigrationChatAgent, queueMigrationReadinessAnchor } from '@/lib/migrationChatHandoff';
-import { exportMemoryArchive, recheckImportReadiness } from '@/services/memoryArchive';
+import { exportMemoryArchive, recheckImportReadiness } from '@/services/memory/archive';
 import { agentSettingsHref, teamAssetsHubHref } from '@/components/features/loadout/loadoutDeepLinks';
 import useConfigStore from '@/store/useConfigStore';
 
@@ -37,8 +37,8 @@ import type {
   MemoryImportReadiness,
   MigrationLanePreviewItem,
   TokenEconomicsComparison,
-} from '@/services/memoryArchive';
-import type { SkillMigrationSubmitResponse } from '@/services/skillMigration';
+} from '@/services/memory/archive';
+import type { SkillMigrationSubmitResponse } from '@/services/skill/migration';
 import {
   formatReadinessIssue,
   getReadinessIssueAction,
