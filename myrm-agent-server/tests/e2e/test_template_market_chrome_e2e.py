@@ -14,7 +14,14 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
 )
 
-pytestmark = pytest.mark.e2e
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.chrome_e2e(
+        execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+    ),
+    pytest.mark.integration,
+    pytest.mark.timeout(300),
+]
 
 
 def test_template_market_lists_official_document_assistant():

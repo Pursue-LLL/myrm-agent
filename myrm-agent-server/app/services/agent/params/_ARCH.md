@@ -75,6 +75,6 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 ## Smart Routing（converter.py）
 
 - 触发条件：`light_model_selection` / `reasoning_model_selection` 任一存在时调用 harness `route_task`，三档模型路由（SIMPLE / STANDARD / REASONING），产物覆盖 `model_cfg` / `fallback_model_cfg` 并返回 `routing_tier`。
-- 两阶段判定（引擎语义 SSOT 见 `myrm-agent-harness/.../toolkits/llms/routing/_ARCH.md`）：规则评分优先；规则无法判定时走 **LLM judge**。judge 模型取自 `lite_model_selection` 解析出的 `lite_model_cfg`，经 `llm_manager.get_llm_from_config(lite_model_cfg)` 创建 —— 只传 config 一个位置参数，`api_keys` / `credential_pool_strategy` 由 manager 内部从 `ModelConfig` 字段自动提取，`temperature` 走「顶层优先合并 model_kwargs」统一语义。
+- 两阶段判定（引擎语义 SSOT 见 `myrm-agent-harness/.../toolkits/llms/routing/_ARCH.md`）：规则评分优先；规则无法判定时走 **LLM judge**。judge 模型取自 `lite_model_selection` 解析出的 `lite_model_cfg`，经 `llm_manager.get_llm_from_config(lite_model_cfg.model_copy(update={"temperature": 0.0}))` 创建 —— 只传 config 一个位置参数，`api_keys` / `credential_pool_strategy` 由 manager 内部从 `ModelConfig` 字段自动提取；judge 是**确定性判定角色**，创建时固化低温 0.0（与 harness 评估器一致，保证分类稳定），`temperature` 走「顶层优先合并 model_kwargs」统一语义。
 - 降级策略：judge 创建失败仅回退规则路由（`logger.warning` 可观测，不阻断主流程）；整个路由块异常时回退默认模型并 `logger.warning`。
 - 会话动量与纠偏：`chat_id` 历史档位供 momentum 与 complaint-up 升级（regenerate 时 min-tier 抬档）；`record_misroute` 写入 PenaltyTracker（24h 衰减）。

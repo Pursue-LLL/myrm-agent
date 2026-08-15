@@ -136,6 +136,71 @@ async def test_agent_audit_rejects_invalid_hours(audit_app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
+async def test_agent_audit_merges_and_sorts_desc(
+    audit_app: FastAPI, event_log_dir: Path
+) -> None:
+    """Events from multiple sessions are merged and sorted newest-first."""
+    mock_backend = AsyncMock()
+    mock_backend.get_all_session_ids.return_value = ["sess-1", "sess-2"]
+    mock_backend.get_events.side_effect = [
+        [type("E", (), {"sequence": 1, "timestamp": 100.0, "event_type": "tool_call", "session_id": "sess-1", "data": type("P", (), {"model_dump": lambda self: {}})()})()],
+        [type("E", (), {"sequence": 1, "timestamp": 200.0, "event_type": "tool_call", "session_id": "sess-2", "data": type("P", (), {"model_dump": lambda self: {}})()})()],
+    ]
+
+    with (
+        patch(
+            "app.api.internal.agent_audit.settings",
+        ) as mock_settings,
+        patch(
+            "app.api.internal.agent_audit.FileEventLogBackend",
+            return_value=mock_backend,
+        ),
+    ):
+        mock_settings.database.event_log_dir = str(event_log_dir)
+        transport = ASGITransport(app=audit_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/api/admin/agent-audit/events")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 2
+    assert [e["ts"] for e in data["events"]] == [200.0, 100.0]
+    assert mock_backend.get_events.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_agent_audit_truncates_to_limit(
+    audit_app: FastAPI, event_log_dir: Path
+) -> None:
+    """Returned events are capped while total reflects the full match count."""
+    mock_backend = AsyncMock()
+    mock_backend.get_all_session_ids.return_value = ["sess-1"]
+    mock_backend.get_events.return_value = [
+        type("E", (), {"sequence": i, "timestamp": float(i), "event_type": "tool_call", "session_id": "sess-1", "data": type("P", (), {"model_dump": lambda self: {}})()})()
+        for i in range(1, 6)
+    ]
+
+    with (
+        patch(
+            "app.api.internal.agent_audit.settings",
+        ) as mock_settings,
+        patch(
+            "app.api.internal.agent_audit.FileEventLogBackend",
+            return_value=mock_backend,
+        ),
+    ):
+        mock_settings.database.event_log_dir = str(event_log_dir)
+        transport = ASGITransport(app=audit_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/api/admin/agent-audit/events?limit=2")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 5
+    assert len(data["events"]) == 2
+
+
+@pytest.mark.asyncio
 async def test_agent_audit_rejects_invalid_cp_token(audit_app: FastAPI) -> None:
     """Wrong telemetry token returns 403."""
     with (

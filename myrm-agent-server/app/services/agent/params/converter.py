@@ -288,7 +288,13 @@ async def convert_to_general_agent_params(
                 from myrm_agent_harness.toolkits.llms import llm_manager
 
                 try:
-                    judge_llm = await llm_manager.get_llm_from_config(lite_model_cfg)
+                    # judge 是确定性判定角色：低温保证分类稳定，与 harness 评估器
+                    # （sufficiency/evaluator 默认 0.0）保持一致的「评审低温」语义。
+                    # model_copy 不改动原 lite_model_cfg（frozen 实例），
+                    # 该配置仅供 judge 使用，不影响 SIMPLE tier 的 light_model_cfg。
+                    judge_llm = await llm_manager.get_llm_from_config(
+                        lite_model_cfg.model_copy(update={"temperature": 0.0})
+                    )
                 except Exception as exc:
                     logger.warning(
                         "Failed to create judge LLM for smart routing: %s", exc

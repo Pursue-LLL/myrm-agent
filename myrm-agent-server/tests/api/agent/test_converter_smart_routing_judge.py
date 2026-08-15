@@ -93,7 +93,11 @@ class TestSmartRoutingJudgeCreation:
         assert mock_get_llm.call_count == 1
         args = mock_get_llm.call_args
         assert args is not None
-        assert len(args.args) == 1 and args.args[0] is not None
+        assert len(args.args) == 1
+        judge_cfg = args.args[0]
+        assert isinstance(judge_cfg, ModelConfig)
+        # judge 是确定性判定角色，converter 必须固化低温 0.0（与 harness 评估器一致）
+        assert judge_cfg.temperature == 0.0
         assert args.kwargs == {}
 
         assert mock_route.call_count == 1
