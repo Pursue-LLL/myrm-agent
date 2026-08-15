@@ -21,13 +21,13 @@ from tests.api.agent.utils import get_lite_model_selection, get_model_selection
 _TINY_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 
 
-def _make_boundary_bmp_b64() -> str:
-    """Build an image whose raw bytes sit under 4 MiB but whose base64 form
-    (~4.84 MiB) exceeds the send-time trigger — the raw-byte check that used
-    to exist would have let it pass, then hit a provider IMAGE_TOO_LARGE."""
-    img = Image.new("RGB", (1100, 1100), color=(120, 60, 200))
+def _make_boundary_jpeg_b64() -> str:
+    """Build a noise-heavy JPEG whose raw bytes sit under 4 MiB but whose
+    base64 form (~4.4 MiB) exceeds the send-time trigger — a raw-byte check
+    would have let it pass, then hit a provider IMAGE_TOO_LARGE."""
+    img = Image.effect_noise((1400, 1400), 255).convert("RGB")
     buf = io.BytesIO()
-    img.save(buf, format="BMP")
+    img.save(buf, format="JPEG", quality=100, optimize=False)
     raw = buf.getvalue()
     assert len(raw) < 4 * 1024 * 1024
     assert 4 * ((len(raw) + 2) // 3) > 4 * 1024 * 1024
@@ -172,7 +172,7 @@ def test_boundary_oversized_image_agent_stream_succeeds(client: TestClient) -> N
             {
                 "type": "image_url",
                 "image_url": {
-                    "url": f"data:image/bmp;base64,{_make_boundary_bmp_b64()}"
+                    "url": f"data:image/jpeg;base64,{_make_boundary_jpeg_b64()}"
                 },
             },
         ],

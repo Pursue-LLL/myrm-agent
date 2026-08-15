@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.responses import JSONResponse
 
-from app.services.agent.stream_session.orchestrator import run_agent_stream
+from app.services.agent.stream_session import run_agent_stream
 
 
 @pytest.fixture

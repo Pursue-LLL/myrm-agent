@@ -23,6 +23,8 @@ interface UseChannelInstancesOptions {
   onChange?: () => void;
 }
 
+const EMPTY_INSTANCES: ChannelInstance[] = [];
+
 interface UseChannelInstancesResult {
   instances: ChannelInstance[];
   /** Extra instances excluding the primary one. */
@@ -40,7 +42,7 @@ export function useChannelInstances(options: UseChannelInstancesOptions): UseCha
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
-  const instances = useChannelInstancesStore((s) => s.instancesByType[options.channelType] ?? []);
+  const instances = useChannelInstancesStore((s) => s.instancesByType[options.channelType] ?? EMPTY_INSTANCES);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 

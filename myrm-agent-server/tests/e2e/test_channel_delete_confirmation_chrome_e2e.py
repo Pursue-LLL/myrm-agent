@@ -318,21 +318,42 @@ def _instances_fetch_probe_js() -> str:
 
 
 def _instance_ui_probe_js(instance_id: str) -> str:
-    """Probe the extra-instance card: is its delete button / dialog still present?"""
+    """Probe the extra-instance card: is its delete button / dialog still present?
+
+    Also attributes each delete button to its container so we can tell whether a
+    stale card lives in the responsive in-list detail (``lg:hidden``) or in the
+    right-hand settings panel (``hidden lg:block``) — both mount a full
+    ``WeChatConfigCard`` on desktop.
+    """
     return f"""(() => {{
-  const delBtn = document.querySelector('[aria-label="delete-wechat_{instance_id}"]');
   const confirm = document.querySelector('[data-testid="confirm-dialog-confirm"]');
   const cancel = document.querySelector('[data-testid="confirm-dialog-cancel"]');
   const cards = Array.from(document.querySelectorAll('[aria-label^="delete-wechat_"]')).map((b) => b.getAttribute('aria-label'));
+  const delBtns = Array.from(document.querySelectorAll('[aria-label="delete-wechat_{instance_id}"]'));
+  const btnContexts = delBtns.map((b) => {{
+    let el = b;
+    let inListDetail = false;
+    let inSidePanel = false;
+    while (el && el !== document.body) {{
+      const cls = el.className && typeof el.className === 'string' ? el.className : '';
+      if (cls.includes('lg:hidden')) inListDetail = true;
+      if (cls.includes('hidden lg:block')) inSidePanel = true;
+      el = el.parentElement;
+    }}
+    return {{ inListDetail, inSidePanel }};
+  }});
   const primaryBtn = document.querySelector('[aria-label="delete-wechat"]');
   const noChannel = document.body.innerText || '';
   return {{
-    hasDeleteBtn: !!delBtn,
+    hasDeleteBtn: delBtns.length > 0,
+    deleteBtnCount: delBtns.length,
+    btnContexts,
     dialogOpen: !!confirm && !!cancel,
     deleteBtns: cards,
     hasPrimaryBtn: !!primaryBtn,
     showsNoChannel: noChannel.includes('wechatNoChannel') || noChannel.includes('not configured') || noChannel.includes('未配置'),
     bodyLen: (document.body?.innerText || '').length,
+    viewportWidth: window.innerWidth,
     navType: performance.getEntriesByType('navigation')[0]?.type || 'navigate',
     href: location.href,
     bodyFull: (document.body.innerText || '').slice(0, 2000),

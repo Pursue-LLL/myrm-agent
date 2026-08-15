@@ -49,9 +49,19 @@ DEBUG_PROMPT = (
     "for +: 'int' and 'str'，问题出现在数据处理管线的第三行，我需要定位根因并修复它。"
 )
 
+_PIN_BASIC_PRIMARY_JS = """(async () => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.pinBasicModelForE2e) {
+    return { ok: false, err: 'no pinBasicModelForE2e' };
+  }
+  const sel = await bridge.pinBasicModelForE2e();
+  return { ok: true, selection: sel };
+})()"""
+
 _LATEST_ASSISTANT_JS = """(() => {
   const store = window.__myrmChatStore?.getState?.();
   const msgs = store?.messages || [];
+  const roles = msgs.map((m) => m.role || m.type || '?');
   for (let i = msgs.length - 1; i >= 0; i -= 1) {
     const msg = msgs[i];
     if (msg.role !== 'assistant' && msg.type !== 'assistant') continue;
@@ -60,9 +70,16 @@ _LATEST_ASSISTANT_JS = """(() => {
       routingTier: msg.routingTier || null,
       modelName: msg.modelName || msg.model || null,
       content: String(msg.content || msg.text || '').slice(0, 100),
+      msg_count: msgs.length,
+      roles: roles.slice(-5),
     };
   }
-  return { ready: false, msg_count: msgs.length };
+  return {
+    ready: false,
+    msg_count: msgs.length,
+    roles: roles.slice(-5),
+    storePresent: !!window.__myrmChatStore,
+  };
 })()"""
 
 _TIER_BADGE_JS = """(() => {
