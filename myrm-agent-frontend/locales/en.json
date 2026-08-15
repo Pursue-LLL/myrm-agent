@@ -5567,7 +5567,9 @@
         "llmCalls": "LLM Invocations",
         "saveAsEval": "Save as Eval Case",
         "firstIrrecoverable": "First point of no recovery",
-        "recoverySteps": "Recovery steps"
+        "recoverySteps": "Recovery steps",
+        "securityLabels": "Security Labels",
+        "securityFlag": "Security"
       },
       "replay": {
         "title": "Session Replay",
@@ -5782,6 +5784,7 @@
       "savedCheckpointsDesc": "All checkpoints are automatically saved when an Agent task is interrupted",
       "resumeSuccess": "Checkpoint resumed successfully",
       "resumeSuccessDesc": "Task {taskId} resumed",
+      "reinitiateInfo": "Task description pre-filled in the input",
       "confirmDelete": "Are you sure you want to delete this checkpoint?",
       "confirmCleanup": "Are you sure you want to clean up old checkpoints (7-day TTL)?",
       "resumable": "Resumable",
@@ -11339,59 +11342,6 @@
     "toolGatewayNote": "Web search, image generation, and text-to-speech are included in your Work Units — no separate API keys needed in cloud mode.",
     "loading": "Loading..."
   },
-  "agentEvents": {
-    "noEvents": "No events yet",
-    "showDetails": "Show details",
-    "toolCallStart": "Tool call started",
-    "toolCallEnd": "Tool call completed",
-    "commandStart": "Command started",
-    "commandOutput": "Command output",
-    "commandEnd": "Command completed",
-    "fileDiff": "File changed",
-    "artifactCreated": "Artifact created",
-    "permissionRequest": "Permission requested",
-    "permissionResponse": "Permission responded",
-    "thinking": "Thinking",
-    "assistantMessage": "Assistant message",
-    "error": "Error occurred",
-    "risk": {
-      "low": "Low Risk",
-      "medium": "Medium Risk",
-      "high": "High Risk",
-      "critical": "Critical Risk"
-    },
-    "permission": {
-      "title": "Permission Required",
-      "resource": "Resource",
-      "reason": "Reason",
-      "details": "Details",
-      "approve": "Approve",
-      "deny": "Deny",
-      "warningHigh": "This operation has high risk. Please review carefully before approving.",
-      "warningCritical": "This operation is critical and may cause irreversible changes. Proceed with extreme caution.",
-      "actions": {
-        "toolCall": "Tool Call",
-        "command": "Command Execution",
-        "fileWrite": "File Write",
-        "fileDelete": "File Delete"
-      }
-    },
-    "permissionMode": {
-      "title": "Permission Mode",
-      "safe": {
-        "label": "Safe Mode",
-        "description": "Only allows read-only and safe operations. Best for untrusted environments."
-      },
-      "ask": {
-        "label": "Ask Mode",
-        "description": "Prompts for approval on potentially dangerous operations. Recommended for most users."
-      },
-      "allowAll": {
-        "label": "Allow All",
-        "description": "Trusts all operations without confirmation. Use with caution in trusted environments only."
-      }
-    }
-  },
   "runs": {
     "title": "Activity",
     "subtitle": "All background activity in one place",
@@ -14148,6 +14098,8 @@
     "progress": "Progress",
     "lastTool": "Last Tool",
     "resume": "Resume",
+    "reinitiateAction": "Re-initiate",
+    "reinitiateTitle": "Re-run this task with its saved description",
     "delete": "Delete",
     "deleting": "Deleting...",
     "refresh": "Refresh",
@@ -14679,6 +14631,9 @@
     "steerTitle": "Steer / Intervene",
     "cancelTitle": "Cancel & Checkpoint",
     "resumeTitle": "Resume from Checkpoint",
+    "reinitiateAction": "Re-initiate",
+    "reinitiateTitle": "Re-run this task with its saved description",
+    "reinitiateSuccess": "Task description pre-filled in the input",
     "dismiss": "Dismiss",
     "steerPlaceholder": "Type steering command...",
     "send": "Send",
@@ -15662,6 +15617,7 @@
     "doctorDetailTokenMismatch": "Token in the config doesn't match the server - the config may be stale, regenerate it",
     "doctorDetailFileUnreadable": "Config file is unreadable or invalid - check its format",
     "doctorStatusOk": "Healthy",
+    "doctorStatusWarn": "Partially verified",
     "doctorStatusFail": "Unhealthy",
     "doctorStatusUnknown": "Not checked",
     "doctorLastChecked": "Checked {time}",

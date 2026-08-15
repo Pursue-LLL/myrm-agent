@@ -11,9 +11,9 @@ seed_rich_media_preview_fixture: chat + workspace rich-media files (png/pdf/zip/
 for the workspace browser preview Chrome E2E.
 
 [POS]
-Split from test_fixtures.py for line-budget compliance; mounted via the test_fixtures
-router include. Files are written to the chat workspace on disk so the real
-/files/browse/content path (including binary streaming) is exercised end-to-end.
+Mounted via test_fixtures/__init__.py router include. Files are written to the
+chat workspace on disk so the real /files/browse/content path (including binary
+streaming) is exercised end-to-end.
 """
 
 from __future__ import annotations

@@ -2,18 +2,25 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Clock, Trash2, Play } from 'lucide-react';
+import { Clock, Trash2, Play, RotateCcw } from 'lucide-react';
 import { CheckpointInfo } from '@/services/checkpoint';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface CheckpointCardProps {
   checkpoint: CheckpointInfo;
   onResume: (taskId: string) => void;
+  onReinitiate: (description: string, sessionId: string) => void;
   onDelete: (taskId: string) => void;
   isLoading?: boolean;
 }
 
-const CheckpointCard: React.FC<CheckpointCardProps> = ({ checkpoint, onResume, onDelete, isLoading = false }) => {
+const CheckpointCard: React.FC<CheckpointCardProps> = ({
+  checkpoint,
+  onResume,
+  onReinitiate,
+  onDelete,
+  isLoading = false,
+}) => {
   const t = useTranslations('checkpoint');
   const [deleting, setDeleting] = useState(false);
 
@@ -37,6 +44,10 @@ const CheckpointCard: React.FC<CheckpointCardProps> = ({ checkpoint, onResume, o
     onResume(checkpoint.taskId);
   };
 
+  const handleReinitiate = () => {
+    onReinitiate(checkpoint.taskDescription || checkpoint.agentType, checkpoint.sessionId);
+  };
+
   return (
     <div
       className={cn(
@@ -45,10 +56,13 @@ const CheckpointCard: React.FC<CheckpointCardProps> = ({ checkpoint, onResume, o
       )}
     >
       <div className="flex items-start justify-between mb-2">
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{checkpoint.agentType}</h3>
+          {checkpoint.taskDescription && (
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{checkpoint.taskDescription}</p>
+          )}
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
-            <Clock className="w-3 h-3" />
+            <Clock className="w-3 h-3 shrink-0" />
             {formattedDate}
           </p>
         </div>
@@ -86,19 +100,31 @@ const CheckpointCard: React.FC<CheckpointCardProps> = ({ checkpoint, onResume, o
       )}
 
       <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-        <button
-          onClick={handleResume}
-          disabled={!checkpoint.resumable || isLoading}
-          className={cn(
-            'flex items-center gap-1 px-3 py-1.5 text-sm rounded-full transition-colors',
-            checkpoint.resumable && !isLoading
-              ? 'bg-blue-500 hover:bg-blue-600 text-white'
-              : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed',
-          )}
-        >
-          <Play className="w-3.5 h-3.5" />
-          {t('resume')}
-        </button>
+        {checkpoint.resumable ? (
+          <button
+            onClick={handleResume}
+            disabled={isLoading}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-full transition-colors bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50"
+          >
+            <Play className="w-3.5 h-3.5" />
+            {t('resume')}
+          </button>
+        ) : (
+          <button
+            onClick={handleReinitiate}
+            disabled={isLoading}
+            title={t('reinitiateTitle')}
+            className={cn(
+              'flex items-center gap-1 px-3 py-1.5 text-sm rounded-full transition-colors',
+              'border border-purple-300 text-purple-600 hover:bg-purple-50 hover:text-purple-700',
+              'dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20 dark:hover:text-purple-300',
+              'disabled:opacity-50',
+            )}
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            {t('reinitiateAction')}
+          </button>
+        )}
         <button
           onClick={handleDelete}
           disabled={deleting || isLoading}

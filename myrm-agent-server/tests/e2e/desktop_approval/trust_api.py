@@ -118,8 +118,7 @@ def fetch_first_desktop_dref_from_local_capture() -> str | None:
             meta, refs = capture_snapshot(backend, scope, app_name)
         except OSError as exc:
             progress(
-                "local AX capture failed "
-                f"scope={scope} app={app_name!r}: {exc}"
+                "local AX capture failed " f"scope={scope} app={app_name!r}: {exc}"
             )
             continue
         except Exception as exc:

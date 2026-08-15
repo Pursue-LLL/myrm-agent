@@ -17,9 +17,10 @@ import { toast } from '@/hooks/shared/useToast';
 interface CheckpointListProps {
   sessionId?: string;
   onResumeSuccess?: (taskId: string, sessionId: string, checkpointData: Record<string, unknown>) => void;
+  onReinitiate?: (description: string, sessionId: string) => void;
 }
 
-const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onResumeSuccess }) => {
+const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onResumeSuccess, onReinitiate }) => {
   const t = useTranslations('checkpoint');
   const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -147,6 +148,7 @@ const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onResumeSucc
               key={checkpoint.taskId}
               checkpoint={checkpoint}
               onResume={handleResume}
+              onReinitiate={(description, cpSessionId) => onReinitiate?.(description, cpSessionId)}
               onDelete={handleDelete}
               isLoading={loading}
             />

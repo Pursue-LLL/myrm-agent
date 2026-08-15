@@ -11,7 +11,7 @@ myrm_agent_harness.api.hooks::build_evicted_basename (POS: spill filename)
 seed_evicted_live_terminal_fixture: UECD web_fetch spill + LiveTerminal progressSteps
 
 [POS]
-Split from test_fixtures.py for line-budget compliance; mounted via test_fixtures router include.
+Mounted via test_fixtures/__init__.py router include.
 """
 
 from __future__ import annotations

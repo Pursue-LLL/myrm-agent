@@ -8,7 +8,7 @@ myrm_agent_harness.toolkits.memory::MemoryManager (POS: framework archive DTOs)
 Rollback preview and rollback mutation refs.
 
 [POS]
-归档恢复回滚执行层。按恢复账本精准撤销 memory、Shared Context、conversation、replay 和 audit 写入。
+归档恢复回滚执行层。按恢复账本精准撤销 memory、Shared Context、conversation 和 audit 写入。
 """
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ from myrm_agent_harness.toolkits.memory import (
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.agent_event import AgentTurn
 from app.database.models.chat import Chat
 from app.database.models.memory import (
     MemoryArchiveRestoreItemModel,
@@ -244,7 +243,6 @@ def _string_list(value: object) -> list[str]:
 def _rollback_models() -> tuple[tuple[str, type[object]], ...]:
     return (
         ("audit.event", MemoryOperationEventModel),
-        ("replay.turn", AgentTurn),
         ("conversation.chat", Chat),
         ("shared_context.proposal", SharedContextWriteProposalModel),
         ("shared_context.binding", SharedContextBindingModel),

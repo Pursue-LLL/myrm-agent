@@ -5608,7 +5608,9 @@
         "llmCalls": "LLM 调用",
         "saveAsEval": "保存为评测用例",
         "firstIrrecoverable": "首个无法恢复的错误点",
-        "recoverySteps": "恢复步骤"
+        "recoverySteps": "恢复步骤",
+        "securityLabels": "安全标签",
+        "securityFlag": "安全"
       },
       "replay": {
         "title": "录像回放",
@@ -5823,6 +5825,7 @@
       "savedCheckpointsDesc": "当 Agent 任务中断时，所有检查点会自动保存",
       "resumeSuccess": "检查点恢复成功",
       "resumeSuccessDesc": "任务 {taskId} 已恢复",
+      "reinitiateInfo": "任务描述已填入输入框",
       "confirmDelete": "确定要删除这个检查点吗？",
       "confirmCleanup": "确定要清理旧检查点吗（7天TTL）？",
       "resumable": "可恢复",
@@ -11339,59 +11342,6 @@
     "toolGatewayNote": "网页搜索、图片生成与语音合成已包含在 Work Units 用量中，云端模式无需单独配置 API Key。",
     "loading": "加载中..."
   },
-  "agentEvents": {
-    "noEvents": "暂无事件",
-    "showDetails": "显示详情",
-    "toolCallStart": "工具调用开始",
-    "toolCallEnd": "工具调用完成",
-    "commandStart": "命令开始执行",
-    "commandOutput": "命令输出",
-    "commandEnd": "命令执行完成",
-    "fileDiff": "文件变更",
-    "artifactCreated": "产物已生成",
-    "permissionRequest": "请求权限",
-    "permissionResponse": "权限响应",
-    "thinking": "思考中",
-    "assistantMessage": "助手消息",
-    "error": "发生错误",
-    "risk": {
-      "low": "低风险",
-      "medium": "中等风险",
-      "high": "高风险",
-      "critical": "极高风险"
-    },
-    "permission": {
-      "title": "需要权限确认",
-      "resource": "资源",
-      "reason": "原因",
-      "details": "详情",
-      "approve": "允许",
-      "deny": "拒绝",
-      "warningHigh": "此操作风险较高，请仔细审核后再批准。",
-      "warningCritical": "此操作极其危险，可能导致不可逆的更改。请格外谨慎。",
-      "actions": {
-        "toolCall": "工具调用",
-        "command": "命令执行",
-        "fileWrite": "文件写入",
-        "fileDelete": "文件删除"
-      }
-    },
-    "permissionMode": {
-      "title": "权限模式",
-      "safe": {
-        "label": "安全模式",
-        "description": "仅允许只读和安全操作。适用于不受信任的环境。"
-      },
-      "ask": {
-        "label": "询问模式",
-        "description": "对潜在危险操作进行确认提示。推荐大多数用户使用。"
-      },
-      "allowAll": {
-        "label": "完全信任",
-        "description": "无需确认即可执行所有操作。仅在受信任的环境中使用。"
-      }
-    }
-  },
   "runs": {
     "title": "活动",
     "subtitle": "所有后台活动一目了然",
@@ -14650,6 +14600,9 @@
     "steerTitle": "引导 / 介入",
     "cancelTitle": "取消并保存检查点",
     "resumeTitle": "从检查点恢复",
+    "reinitiateAction": "重新发起",
+    "reinitiateTitle": "使用保存的任务描述重新运行该任务",
+    "reinitiateSuccess": "任务描述已填入输入框",
     "dismiss": "忽略",
     "steerPlaceholder": "输入引导指令...",
     "send": "发送",
@@ -15633,6 +15586,7 @@
     "doctorDetailTokenMismatch": "配置中的令牌与服务器不匹配 - 配置可能已过期，请重新生成",
     "doctorDetailFileUnreadable": "配置文件无法读取或格式无效 - 请检查文件格式",
     "doctorStatusOk": "健康",
+    "doctorStatusWarn": "部分已验证",
     "doctorStatusFail": "不健康",
     "doctorStatusUnknown": "未检查",
     "doctorLastChecked": "上次检查：{time}",
@@ -15861,6 +15815,8 @@
     "progress": "进度",
     "lastTool": "最后使用的工具",
     "resume": "恢复",
+    "reinitiateAction": "重新发起",
+    "reinitiateTitle": "使用保存的任务描述重新运行该任务",
     "delete": "删除",
     "deleting": "正在删除...",
     "refresh": "刷新",

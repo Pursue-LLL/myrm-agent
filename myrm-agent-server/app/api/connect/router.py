@@ -88,6 +88,7 @@ class ConnectorStatusResponse(BaseModel):
     status: str
     agent_id: str
     doctor_ok: bool
+    last_doctor_detail: str = ""
     connected_at: str | None
     last_doctor_at: str | None
 
@@ -193,6 +194,7 @@ async def list_connector_status() -> list[ConnectorStatusResponse]:
             status=s.status.value,
             agent_id=s.agent_id,
             doctor_ok=s.doctor_ok,
+            last_doctor_detail=s.last_doctor_detail,
             connected_at=s.connected_at.isoformat() if s.connected_at else None,
             last_doctor_at=s.last_doctor_at.isoformat() if s.last_doctor_at else None,
         )

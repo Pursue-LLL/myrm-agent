@@ -72,63 +72,44 @@ async def _create_chat_with_messages(
         await db.commit()
 
 
+def _write_event_log(chat_id: str, events: list[dict[str, object]]) -> None:
+    """Write harness-style JSONL event-log lines for a chat (agent-event SSOT)."""
+    import json
+    from pathlib import Path
+
+    from app.config.settings import settings
+
+    log_dir = Path(settings.database.event_log_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    path = log_dir / f"{chat_id}.jsonl"
+    with path.open("w", encoding="utf-8") as f:
+        for seq, event in enumerate(events):
+            record = {
+                "seq": seq,
+                "ts": event["ts"],
+                "type": event["type"],
+                "sid": chat_id,
+                "data": event["data"],
+            }
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
 async def _create_tool_events(chat_id: str) -> None:
-    """Insert AgentTurn + AgentEvent records for tool call testing."""
-    from app.database.models.agent_event import AgentEvent, AgentTurn
-    from app.platform_utils import get_session_factory
-    from app.services.event.types import EventType
+    """Write harness event-log tool activity for tool-call testing."""
+    from datetime import datetime, timezone
 
-    turn_id = f"turn-{uuid.uuid4().hex[:8]}"
-
-    session_factory = get_session_factory()
-    async with session_factory() as db:
-        db.add(
-            AgentTurn(
-                id=turn_id,
-                chat_id=chat_id,
-                turn_index=0,
-                status="completed",
-            )
-        )
-        await db.flush()
-
-        db.add(
-            AgentEvent(
-                id=f"evt-{uuid.uuid4().hex[:8]}",
-                turn_id=turn_id,
-                event_type=EventType.TOOL_CALL_END.value,
-                level="info",
-                event_index=0,
-                payload={"output": {}, "success": True},
-                tool_name="web_search",
-                duration_ms=1200,
-            )
-        )
-        db.add(
-            AgentEvent(
-                id=f"evt-{uuid.uuid4().hex[:8]}",
-                turn_id=turn_id,
-                event_type=EventType.TOOL_CALL_END.value,
-                level="info",
-                event_index=1,
-                payload={"output": {}, "success": True},
-                tool_name="web_search",
-                duration_ms=800,
-            )
-        )
-        db.add(
-            AgentEvent(
-                id=f"evt-{uuid.uuid4().hex[:8]}",
-                turn_id=turn_id,
-                event_type=EventType.TOOL_CALL_END.value,
-                level="info",
-                event_index=2,
-                payload={"output": {}, "success": True},
-                tool_name="file_read",
-                duration_ms=50,
-            )
-        )
-        await db.commit()
+    base_ts = datetime.now(tz=timezone.utc).timestamp() - 10
+    _write_event_log(
+        chat_id,
+        [
+            {"ts": base_ts, "type": "tool_start", "data": {"tool_name": "web_search", "tool_call_id": "call-1", "query": "test"}},
+            {"ts": base_ts + 1.2, "type": "tool_end", "data": {"tool_name": "web_search", "tool_call_id": "call-1", "duration_ms": 1200}},
+            {"ts": base_ts + 2.0, "type": "tool_start", "data": {"tool_name": "web_search", "tool_call_id": "call-2", "query": "test 2"}},
+            {"ts": base_ts + 2.8, "type": "tool_end", "data": {"tool_name": "web_search", "tool_call_id": "call-2", "duration_ms": 800}},
+            {"ts": base_ts + 3.0, "type": "tool_start", "data": {"tool_name": "file_read", "tool_call_id": "call-3", "path": "/tmp/x.txt"}},
+            {"ts": base_ts + 3.05, "type": "tool_end", "data": {"tool_name": "file_read", "tool_call_id": "call-3", "duration_ms": 50}},
+        ],
+    )
 
 
 @pytest.mark.asyncio
@@ -153,7 +134,7 @@ async def test_export_chat_returns_usage_summary(
 async def test_export_chat_returns_tool_summary(
     async_client: httpx.AsyncClient,
 ) -> None:
-    """Export endpoint aggregates tool calls from AgentTurn/AgentEvent."""
+    """Export endpoint aggregates tool calls from the harness event log."""
     chat_id = f"test-export-tools-{uuid.uuid4().hex[:8]}"
     await _create_chat_with_messages(chat_id)
     await _create_tool_events(chat_id)
@@ -180,7 +161,7 @@ async def test_export_chat_returns_tool_summary(
 async def test_export_chat_tool_summary_null_when_no_turns(
     async_client: httpx.AsyncClient,
 ) -> None:
-    """toolSummary is null when no AgentTurn data exists (e.g. SaaS mode)."""
+    """toolSummary is null when no tool activity exists in the event log."""
     chat_id = f"test-export-no-turns-{uuid.uuid4().hex[:8]}"
     await _create_chat_with_messages(chat_id)
 
@@ -237,27 +218,13 @@ async def test_export_chat_metadata(
 
 
 @pytest.mark.asyncio
-async def test_export_tool_summary_null_when_turns_exist_but_no_tool_events(
+async def test_export_tool_summary_null_when_no_tool_events(
     async_client: httpx.AsyncClient,
 ) -> None:
-    """toolSummary is None when turns exist but contain no tool_call_end events."""
-    from app.database.models.agent_event import AgentTurn
-    from app.platform_utils import get_session_factory
-
+    """toolSummary is None when the event log exists but contains no tool events."""
     chat_id = f"test-export-notool-{uuid.uuid4().hex[:8]}"
     await _create_chat_with_messages(chat_id)
-
-    session_factory = get_session_factory()
-    async with session_factory() as db:
-        db.add(
-            AgentTurn(
-                id=f"turn-empty-{uuid.uuid4().hex[:8]}",
-                chat_id=chat_id,
-                turn_index=0,
-                status="completed",
-            )
-        )
-        await db.commit()
+    _write_event_log(chat_id, [])
 
     res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
     assert res.status_code == 200, res.text
@@ -268,32 +235,20 @@ async def test_export_tool_summary_null_when_turns_exist_but_no_tool_events(
 async def test_export_tool_summary_handles_null_duration(
     async_client: httpx.AsyncClient,
 ) -> None:
-    """duration_ms=None in AgentEvent is treated as 0."""
-    from app.database.models.agent_event import AgentEvent, AgentTurn
-    from app.platform_utils import get_session_factory
-    from app.services.event.types import EventType
+    """tool_end without duration_ms in the event log is treated as 0."""
+    from datetime import datetime, timezone
 
     chat_id = f"test-export-nulldur-{uuid.uuid4().hex[:8]}"
     await _create_chat_with_messages(chat_id)
 
-    turn_id = f"turn-{uuid.uuid4().hex[:8]}"
-    session_factory = get_session_factory()
-    async with session_factory() as db:
-        db.add(AgentTurn(id=turn_id, chat_id=chat_id, turn_index=0, status="completed"))
-        await db.flush()
-        db.add(
-            AgentEvent(
-                id=f"evt-{uuid.uuid4().hex[:8]}",
-                turn_id=turn_id,
-                event_type=EventType.TOOL_CALL_END.value,
-                level="info",
-                event_index=0,
-                payload={"output": {}, "success": True},
-                tool_name="web_search",
-                duration_ms=None,
-            )
-        )
-        await db.commit()
+    base_ts = datetime.now(tz=timezone.utc).timestamp() - 10
+    _write_event_log(
+        chat_id,
+        [
+            {"ts": base_ts, "type": "tool_start", "data": {"tool_name": "web_search", "tool_call_id": "call-1", "query": "test"}},
+            {"ts": base_ts + 1.0, "type": "tool_end", "data": {"tool_name": "web_search", "tool_call_id": "call-1"}},
+        ],
+    )
 
     res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
     assert res.status_code == 200, res.text
@@ -309,59 +264,24 @@ async def test_export_tool_summary_handles_null_duration(
 async def test_export_aggregates_across_multiple_turns(
     async_client: httpx.AsyncClient,
 ) -> None:
-    """Tool calls from multiple turns are aggregated correctly."""
-    from app.database.models.agent_event import AgentEvent, AgentTurn
-    from app.platform_utils import get_session_factory
-    from app.services.event.types import EventType
+    """Tool calls from multiple assistant turns are aggregated correctly."""
+    from datetime import datetime, timezone
 
     chat_id = f"test-export-multi-{uuid.uuid4().hex[:8]}"
     await _create_chat_with_messages(chat_id)
 
-    session_factory = get_session_factory()
-    async with session_factory() as db:
-        turn1_id = f"turn-1-{uuid.uuid4().hex[:8]}"
-        turn2_id = f"turn-2-{uuid.uuid4().hex[:8]}"
-        db.add(AgentTurn(id=turn1_id, chat_id=chat_id, turn_index=0, status="completed"))
-        db.add(AgentTurn(id=turn2_id, chat_id=chat_id, turn_index=1, status="completed"))
-        await db.flush()
-
-        db.add(
-            AgentEvent(
-                id=f"evt-{uuid.uuid4().hex[:8]}",
-                turn_id=turn1_id,
-                event_type=EventType.TOOL_CALL_END.value,
-                level="info",
-                event_index=0,
-                payload={},
-                tool_name="web_search",
-                duration_ms=500,
-            )
-        )
-        db.add(
-            AgentEvent(
-                id=f"evt-{uuid.uuid4().hex[:8]}",
-                turn_id=turn2_id,
-                event_type=EventType.TOOL_CALL_END.value,
-                level="info",
-                event_index=0,
-                payload={},
-                tool_name="web_search",
-                duration_ms=300,
-            )
-        )
-        db.add(
-            AgentEvent(
-                id=f"evt-{uuid.uuid4().hex[:8]}",
-                turn_id=turn2_id,
-                event_type=EventType.TOOL_CALL_END.value,
-                level="info",
-                event_index=1,
-                payload={},
-                tool_name="code_exec",
-                duration_ms=1000,
-            )
-        )
-        await db.commit()
+    base_ts = datetime.now(tz=timezone.utc).timestamp() - 10
+    _write_event_log(
+        chat_id,
+        [
+            {"ts": base_ts, "type": "tool_start", "data": {"tool_name": "web_search", "tool_call_id": "call-1", "query": "a"}},
+            {"ts": base_ts + 0.5, "type": "tool_end", "data": {"tool_name": "web_search", "tool_call_id": "call-1", "duration_ms": 500}},
+            {"ts": base_ts + 1.0, "type": "tool_start", "data": {"tool_name": "web_search", "tool_call_id": "call-2", "query": "b"}},
+            {"ts": base_ts + 1.3, "type": "tool_end", "data": {"tool_name": "web_search", "tool_call_id": "call-2", "duration_ms": 300}},
+            {"ts": base_ts + 2.0, "type": "tool_start", "data": {"tool_name": "code_exec", "tool_call_id": "call-3", "cmd": "ls"}},
+            {"ts": base_ts + 3.0, "type": "tool_end", "data": {"tool_name": "code_exec", "tool_call_id": "call-3", "duration_ms": 1000}},
+        ],
+    )
 
     res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
     assert res.status_code == 200, res.text
@@ -463,43 +383,21 @@ async def test_export_chat_includes_tool_call_details(
     async_client: httpx.AsyncClient,
 ) -> None:
     """Export includes toolCallDetails with per-call name, argsSummary, durationMs, success."""
-    from app.database.models.agent_event import AgentEvent, AgentTurn
-    from app.platform_utils import get_session_factory
-    from app.services.event.types import EventType
+    from datetime import datetime, timezone
 
     chat_id = f"test-export-details-{uuid.uuid4().hex[:8]}"
     await _create_chat_with_messages(chat_id)
 
-    turn_id = f"turn-{uuid.uuid4().hex[:8]}"
-    session_factory = get_session_factory()
-    async with session_factory() as db:
-        db.add(AgentTurn(id=turn_id, chat_id=chat_id, turn_index=0, status="completed"))
-        await db.flush()
-        db.add(AgentEvent(
-            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
-            event_type=EventType.TOOL_CALL_START.value, level="info", event_index=0,
-            payload={"input": {"path": "/src/utils.ts"}},
-            tool_name="read_file",
-        ))
-        db.add(AgentEvent(
-            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
-            event_type=EventType.TOOL_CALL_END.value, level="info", event_index=1,
-            payload={"output": {"content": "file data"}, "success": True},
-            tool_name="read_file", duration_ms=120,
-        ))
-        db.add(AgentEvent(
-            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
-            event_type=EventType.TOOL_CALL_START.value, level="info", event_index=2,
-            payload={"input": {"pattern": "useEffect", "path": "src/"}},
-            tool_name="grep_search",
-        ))
-        db.add(AgentEvent(
-            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
-            event_type=EventType.TOOL_CALL_END.value, level="info", event_index=3,
-            payload={"output": {"matches": []}, "success": True},
-            tool_name="grep_search", duration_ms=350,
-        ))
-        await db.commit()
+    base_ts = datetime.now(tz=timezone.utc).timestamp() - 10
+    _write_event_log(
+        chat_id,
+        [
+            {"ts": base_ts, "type": "tool_start", "data": {"tool_name": "read_file", "tool_call_id": "call-1", "path": "/src/utils.ts"}},
+            {"ts": base_ts + 0.12, "type": "tool_end", "data": {"tool_name": "read_file", "tool_call_id": "call-1", "duration_ms": 120}},
+            {"ts": base_ts + 0.5, "type": "tool_start", "data": {"tool_name": "grep_search", "tool_call_id": "call-2", "pattern": "useEffect", "path": "src/"}},
+            {"ts": base_ts + 0.85, "type": "tool_end", "data": {"tool_name": "grep_search", "tool_call_id": "call-2", "duration_ms": 350}},
+        ],
+    )
 
     res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
     assert res.status_code == 200, res.text
@@ -521,31 +419,19 @@ async def test_export_tool_call_details_sanitizes_sensitive_args(
     async_client: httpx.AsyncClient,
 ) -> None:
     """Tool call argsSummary redacts fields containing 'key', 'secret', 'token'."""
-    from app.database.models.agent_event import AgentEvent, AgentTurn
-    from app.platform_utils import get_session_factory
-    from app.services.event.types import EventType
+    from datetime import datetime, timezone
 
     chat_id = f"test-export-sanitize-{uuid.uuid4().hex[:8]}"
     await _create_chat_with_messages(chat_id)
 
-    turn_id = f"turn-{uuid.uuid4().hex[:8]}"
-    session_factory = get_session_factory()
-    async with session_factory() as db:
-        db.add(AgentTurn(id=turn_id, chat_id=chat_id, turn_index=0, status="completed"))
-        await db.flush()
-        db.add(AgentEvent(
-            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
-            event_type=EventType.TOOL_CALL_START.value, level="info", event_index=0,
-            payload={"input": {"api_key": "sk-1234secret", "url": "https://example.com"}},
-            tool_name="http_request",
-        ))
-        db.add(AgentEvent(
-            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
-            event_type=EventType.TOOL_CALL_END.value, level="info", event_index=1,
-            payload={"output": {"status": 200}, "success": True},
-            tool_name="http_request", duration_ms=200,
-        ))
-        await db.commit()
+    base_ts = datetime.now(tz=timezone.utc).timestamp() - 10
+    _write_event_log(
+        chat_id,
+        [
+            {"ts": base_ts, "type": "tool_start", "data": {"tool_name": "http_request", "tool_call_id": "call-1", "api_key": "sk-1234secret", "url": "https://example.com"}},
+            {"ts": base_ts + 0.2, "type": "tool_end", "data": {"tool_name": "http_request", "tool_call_id": "call-1", "duration_ms": 200}},
+        ],
+    )
 
     res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
     assert res.status_code == 200, res.text

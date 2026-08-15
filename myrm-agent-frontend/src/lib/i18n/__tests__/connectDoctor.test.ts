@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveDoctorMessageKey, resolveDoctorSeverity } from '../connectDoctor';
+import {
+  resolveDoctorMessageKey,
+  resolveDoctorSeverity,
+  resolveDoctorStatusKey,
+} from '../connectDoctor';
 
 describe('resolveDoctorMessageKey', () => {
   it('maps every known detail code to its dedicated message key', () => {
@@ -41,5 +45,18 @@ describe('resolveDoctorSeverity', () => {
   it('falls back to the healthy flag for unknown detail codes', () => {
     expect(resolveDoctorSeverity('unknown', false)).toBe('error');
     expect(resolveDoctorSeverity('unknown', true)).toBe('ok');
+  });
+});
+
+describe('resolveDoctorStatusKey', () => {
+  it('reports unknown when no check has run yet', () => {
+    expect(resolveDoctorStatusKey(false, 'ok')).toBe('doctorStatusUnknown');
+    expect(resolveDoctorStatusKey(false, 'error')).toBe('doctorStatusUnknown');
+  });
+
+  it('mirrors the severity tri-state for a checked connector', () => {
+    expect(resolveDoctorStatusKey(true, 'ok')).toBe('doctorStatusOk');
+    expect(resolveDoctorStatusKey(true, 'warn')).toBe('doctorStatusWarn');
+    expect(resolveDoctorStatusKey(true, 'error')).toBe('doctorStatusFail');
   });
 });

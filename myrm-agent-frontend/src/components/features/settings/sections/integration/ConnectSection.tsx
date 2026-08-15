@@ -45,6 +45,7 @@ import {
   formatDoctorRelativeTime,
   resolveDoctorMessageKey,
   resolveDoctorSeverity,
+  resolveDoctorStatusKey,
 } from '@/lib/i18n/connectDoctor';
 import { cn } from '@/lib/utils';
 import SettingsSection from '../SettingsSection';
@@ -226,6 +227,12 @@ const ConnectSection = memo(() => {
             const agentIcon = AGENT_ICONS[connector.profile_id];
             const IconComponent = agentIcon?.icon ?? Share2;
             const iconColor = agentIcon?.color ?? 'text-muted-foreground';
+            const doctorSeverity = resolveDoctorSeverity(
+              connector.last_doctor_detail,
+              connector.doctor_ok,
+            );
+            const doctorChecked = Boolean(connector.last_doctor_at);
+            const doctorStatusKey = resolveDoctorStatusKey(doctorChecked, doctorSeverity);
 
             return (
               <div
@@ -252,20 +259,16 @@ const ConnectSection = memo(() => {
                     <span
                       className={cn(
                         'h-1.5 w-1.5 rounded-full',
-                        connector.doctor_ok
-                          ? 'bg-emerald-500'
-                          : connector.last_doctor_at
-                            ? 'bg-red-500'
-                            : 'bg-muted-foreground/40',
+                        !doctorChecked
+                          ? 'bg-muted-foreground/40'
+                          : doctorSeverity === 'ok'
+                            ? 'bg-emerald-500'
+                            : doctorSeverity === 'warn'
+                              ? 'bg-amber-500'
+                              : 'bg-red-500',
                       )}
                     />
-                    {t(
-                      connector.doctor_ok
-                        ? 'doctorStatusOk'
-                        : connector.last_doctor_at
-                          ? 'doctorStatusFail'
-                          : 'doctorStatusUnknown',
-                    )}
+                    {t(doctorStatusKey)}
                   </span>
                   {connector.last_doctor_at && (
                     <span>

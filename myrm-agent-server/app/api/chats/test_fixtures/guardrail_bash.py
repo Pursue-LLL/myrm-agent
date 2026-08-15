@@ -8,7 +8,8 @@
 [OUTPUT]
 - router: POST /test/seed-guardrail-bash-fixture (POS: E2E seed endpoint)
 
-[POSITION] app.api.chats — Chrome E2E test fixture for bash myrm_tools guardrail Badge UI.
+[POS]
+Sub-package of app.api.chats.test_fixtures. Chrome E2E test fixture for bash myrm_tools guardrail Badge UI (local-only).
 """
 
 from __future__ import annotations

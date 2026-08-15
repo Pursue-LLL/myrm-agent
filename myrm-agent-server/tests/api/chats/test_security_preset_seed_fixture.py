@@ -30,16 +30,16 @@ class TestSecurityPresetSeedFixture:
 
         with (
             patch(
-                "app.api.chats.test_fixtures_security_preset.is_local_mode",
+                "app.api.chats.test_fixtures.security_preset.is_local_mode",
                 return_value=True,
             ),
             patch(
-                "app.api.chats.test_fixtures_security_preset.AgentService.create_agent",
+                "app.api.chats.test_fixtures.security_preset.AgentService.create_agent",
                 new_callable=AsyncMock,
                 side_effect=[preset_agent, plain_agent, explore_agent],
             ),
             patch(
-                "app.api.chats.test_fixtures_security_preset.ChatService.create_or_update_chat",
+                "app.api.chats.test_fixtures.security_preset.ChatService.create_or_update_chat",
                 new_callable=AsyncMock,
             ) as create_chat,
         ):
@@ -65,7 +65,7 @@ class TestSecurityPresetSeedFixture:
         self, client: TestClient
     ) -> None:
         with patch(
-            "app.api.chats.test_fixtures_security_preset.is_local_mode",
+            "app.api.chats.test_fixtures.security_preset.is_local_mode",
             return_value=False,
         ):
             resp = client.post("/api/v1/chats/test/seed-security-preset-fixture")

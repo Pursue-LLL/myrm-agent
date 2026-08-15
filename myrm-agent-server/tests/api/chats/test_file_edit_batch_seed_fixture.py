@@ -43,7 +43,7 @@ def _seed(
     if agent_id:
         query += f"&agent_id={agent_id}"
     with patch(
-        "app.api.chats.test_fixtures_file_edit_batch.is_local_mode", return_value=True
+        "app.api.chats.test_fixtures.file_edit_batch.is_local_mode", return_value=True
     ):
         resp = client.post(f"/api/v1/chats/test/seed-file-edit-batch-fixture?{query}")
     assert resp.status_code == 200, resp.text
@@ -102,7 +102,7 @@ class TestFileEditBatchSeedIntegration:
     ) -> None:
         chat_id = f"c-{uuid.uuid4().hex[:12]}"
         with patch(
-            "app.api.chats.test_fixtures_file_edit_batch.is_local_mode",
+            "app.api.chats.test_fixtures.file_edit_batch.is_local_mode",
             return_value=True,
         ):
             resp = client.post(

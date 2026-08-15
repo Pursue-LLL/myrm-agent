@@ -49,13 +49,13 @@ def test_seed_wechat_draft_fixture_creates_html_artifact(client: TestClient, tmp
         return str(workspace)
 
     with (
-        patch("app.api.chats.test_fixtures_wechat_draft.is_local_mode", return_value=True),
+        patch("app.api.chats.test_fixtures.wechat_draft.is_local_mode", return_value=True),
         patch(
             "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
             side_effect=_fake_resolve,
         ),
         patch(
-            "app.api.chats.test_fixtures_wechat_draft.AgentService.get_agent_list",
+            "app.api.chats.test_fixtures.wechat_draft.AgentService.get_agent_list",
             return_value=([type("A", (), {"id": agent_id})()], 1),
         ),
     ):
@@ -82,7 +82,7 @@ def test_seed_wechat_draft_fixture_creates_html_artifact(client: TestClient, tmp
 
 @pytest.mark.integration
 def test_seed_wechat_official_settings_fixture(client: TestClient) -> None:
-    with patch("app.api.chats.test_fixtures_wechat_draft.is_local_mode", return_value=True):
+    with patch("app.api.chats.test_fixtures.wechat_draft.is_local_mode", return_value=True):
         resp = client.post("/api/v1/chats/test/seed-wechat-official-settings-fixture")
 
     assert resp.status_code == 200, resp.text

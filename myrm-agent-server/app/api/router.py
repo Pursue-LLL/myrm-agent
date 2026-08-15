@@ -334,7 +334,7 @@ api_router.include_router(workflow_templates_router, tags=["workflow-templates"]
 api_router.include_router(media_router, prefix="/media", tags=["media"])
 api_router.include_router(client_logs_router, tags=["logs"])
 
-# Agent Events（仅本地模式）
+# 本地模式：dev-gate + 事件通知/权限审批（SSE + 权限 API）
 if is_local_mode():
     from app.api.dev_gate.readiness import router as dev_gate_router
     from app.api.events import router as events_router

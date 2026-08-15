@@ -20,7 +20,6 @@ from myrm_agent_harness.toolkits.memory import (
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.agent_event import AgentEvent, AgentTurn
 from app.database.models.chat import Chat, Message
 from app.database.models.memory import (
     MemoryOperationEventModel,
@@ -32,11 +31,9 @@ from app.services.memory.archive.archive_restore_common import (
     RESTORE_ITEM_STATUS_RESTORED,
     RESTORE_ITEM_STATUS_SKIPPED,
     add_restore_item,
-    int_value,
     make_ref,
     object_dict,
     object_rows,
-    optional_int,
     optional_str,
     parse_datetime,
     parse_datetime_or_none,
@@ -99,7 +96,7 @@ class MemoryArchiveRestoreExecutor:
         if section == "conversation":
             return await self._restore_conversation(archive.data.get("conversation"), batch_id)
         if section == "replay":
-            return await self._restore_replay(archive.data.get("replay"), batch_id)
+            return []
         if section == "audit":
             return await self._restore_audit(archive.data.get("audit"), batch_id)
         return []
@@ -325,38 +322,6 @@ class MemoryArchiveRestoreExecutor:
         await self._db.flush()
         return refs
 
-    async def _restore_replay(self, value: object, batch_id: str) -> list[MemoryArchiveRestoreMutationRef]:
-        refs: list[MemoryArchiveRestoreMutationRef] = []
-        for row in object_rows(value):
-            turn_id = str(row.get("id") or "")
-            chat_id = str(row.get("chat_id") or "")
-            turn_exists = await self._turn_exists(turn_id) if turn_id else False
-            if not turn_id or turn_exists:
-                refs.append(self._tracked_ref(batch_id, "replay", "replay.turn", turn_id, turn_id, "conflict"))
-                continue
-            if not chat_id or not await self._chat_exists(chat_id):
-                refs.append(self._tracked_ref(batch_id, "replay", "replay.turn", turn_id, turn_id, "skipped", "chat_missing"))
-                continue
-            events = object_rows(row.get("events"))
-            self._db.add(_turn_from_archive(row, events))
-            for event in events:
-                event_id = str(event.get("id") or "")
-                if event_id:
-                    self._db.add(_event_from_archive(event, turn_id))
-            refs.append(
-                self._tracked_ref(
-                    batch_id,
-                    "replay",
-                    "replay.turn",
-                    turn_id,
-                    turn_id,
-                    "restored",
-                    metadata={"event_count": len(events)},
-                )
-            )
-        await self._db.flush()
-        return refs
-
     async def _restore_audit(self, value: object, batch_id: str) -> list[MemoryArchiveRestoreMutationRef]:
         refs: list[MemoryArchiveRestoreMutationRef] = []
         for row in object_rows(value):
@@ -394,10 +359,6 @@ class MemoryArchiveRestoreExecutor:
 
     async def _chat_exists(self, chat_id: str) -> bool:
         result = await self._db.execute(select(Chat.id).where(Chat.id == chat_id))
-        return result.scalar_one_or_none() is not None
-
-    async def _turn_exists(self, turn_id: str) -> bool:
-        result = await self._db.execute(select(AgentTurn.id).where(AgentTurn.id == turn_id))
         return result.scalar_one_or_none() is not None
 
     async def _audit_event_exists(self, event_id: str) -> bool:
@@ -459,37 +420,6 @@ def _message_from_archive(row: dict[str, object], chat_id: str) -> Message:
         sent_timezone=str(row.get("sent_timezone") or "UTC"),
         extra_data=object_dict(row.get("extra_data")),
         is_active=bool(row.get("is_active", True)),
-    )
-
-
-def _turn_from_archive(row: dict[str, object], events: list[dict[str, object]]) -> AgentTurn:
-    return AgentTurn(
-        id=str(row.get("id") or ""),
-        chat_id=str(row.get("chat_id") or ""),
-        turn_index=int_value(row.get("turn_index")),
-        status=str(row.get("status") or "completed"),
-        event_count=int_value(row.get("event_count"), len(events)),
-        tool_call_count=int_value(row.get("tool_call_count")),
-        error_count=int_value(row.get("error_count")),
-        duration_ms=optional_int(row.get("duration_ms")),
-        created_at=parse_datetime(row.get("created_at")),
-        started_at=parse_datetime_or_none(row.get("started_at")),
-        completed_at=parse_datetime_or_none(row.get("completed_at")),
-    )
-
-
-def _event_from_archive(row: dict[str, object], turn_id: str) -> AgentEvent:
-    return AgentEvent(
-        id=str(row.get("id") or ""),
-        turn_id=turn_id,
-        event_type=str(row.get("event_type") or "archive_restore"),
-        level=str(row.get("level") or "info"),
-        event_index=int_value(row.get("event_index")),
-        payload=object_dict(row.get("payload")),
-        tool_name=optional_str(row.get("tool_name")),
-        file_path=optional_str(row.get("file_path")),
-        duration_ms=optional_int(row.get("duration_ms")),
-        created_at=parse_datetime(row.get("created_at")),
     )
 
 

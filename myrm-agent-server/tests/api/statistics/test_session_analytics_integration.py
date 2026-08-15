@@ -413,7 +413,6 @@ async def test_session_trace_endpoint_security_labels_merged(
                         "tainted": True,
                         "ts": round(ts + 2.5, 3),
                         "tool_call_id": "call-1",
-                        "labels": ["shell"],
                     },
                     {
                         "tool": "bash",

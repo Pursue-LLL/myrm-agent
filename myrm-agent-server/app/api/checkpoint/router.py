@@ -108,6 +108,7 @@ async def list_checkpoints(
                 progress=cp.progress,
                 last_tool=cp.last_tool,
                 resumable=cp.resumable,
+                task_description=cp.task_description,
             )
             for cp in checkpoints
         ]

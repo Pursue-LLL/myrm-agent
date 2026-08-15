@@ -53,11 +53,11 @@ class TestDeliverableLinkSeedIntegration:
 
         with (
             patch(
-                "app.api.chats.test_fixtures_deliverable.is_local_mode",
+                "app.api.chats.test_fixtures.deliverable.is_local_mode",
                 return_value=True,
             ),
             patch(
-                "app.api.chats.test_fixtures_deliverable.resolve_default_chat_workspace_dir",
+                "app.api.chats.test_fixtures.deliverable.resolve_default_chat_workspace_dir",
                 side_effect=_fake_resolve,
             ),
             patch(

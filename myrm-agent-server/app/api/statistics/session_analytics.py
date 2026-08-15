@@ -320,14 +320,30 @@ async def _attach_security_labels(
             )
 
     if not by_call_id:
+        logger.debug(
+            "security_audit decisions for session %s carry no tool_call_id; "
+            "cannot attach decisions to trace tool calls",
+            session_id,
+        )
         return
 
+    matched_call_ids: set[str] = set()
     for tool_call in tool_calls:
         if not isinstance(tool_call, dict):
             continue
         call_id = tool_call.get("tool_call_id")
         if isinstance(call_id, str) and call_id in by_call_id:
             tool_call["security_labels"] = by_call_id[call_id]
+            matched_call_ids.add(call_id)
+
+    unmatched = sorted(set(by_call_id) - matched_call_ids)
+    if unmatched:
+        logger.debug(
+            "security_audit tool_call_id(s) %s for session %s have no matching trace tool call; "
+            "their decisions were not attached",
+            unmatched,
+            session_id,
+        )
 
 
 @router.get("/session/{session_id}/trace")

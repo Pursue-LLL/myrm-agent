@@ -12,7 +12,7 @@ seed_file_edit_batch_fixture: batch file_edit E2E（variant=live|read_ui）
 seed_file_edit_batch_workspace: 向已有 chat workspace 写入 batch_edit_e2e.txt
 
 [POS]
-Split from test_fixtures.py for line-budget compliance; mounted via test_fixtures router include.
+Mounted via test_fixtures/__init__.py router include.
 """
 
 from __future__ import annotations

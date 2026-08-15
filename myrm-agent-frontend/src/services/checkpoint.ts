@@ -8,6 +8,7 @@ export interface CheckpointInfo {
   progress: number;
   lastTool: string | null;
   resumable: boolean;
+  taskDescription: string;
 }
 
 export interface CheckpointListResponse {
@@ -77,6 +78,32 @@ export interface FileDiffResponse {
   totalChanges: number;
 }
 
+// ============================================================================
+// snake_case → camelCase mapping
+//
+// The backend serializes these endpoints with snake_case keys (task_id, agent_type,
+// snapshot_id, ...) while the UI consumes camelCase. This is the single place
+// that normalizes responses so components never see a field-name mismatch.
+// ============================================================================
+
+const snakeToCamelKey = (key: string): string => key.replace(/_([a-z0-9])/g, (_, ch: string) => ch.toUpperCase());
+
+const toCamel = <T>(value: unknown): T => {
+  if (Array.isArray(value)) {
+    return value.map((item) => toCamel<unknown>(item)) as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [snakeToCamelKey(k), toCamel<unknown>(v)]),
+    ) as T;
+  }
+  return value as T;
+};
+
+// ============================================================================
+// Subagent Checkpoint API
+// ============================================================================
+
 /**
  * List all saved checkpoints
  */
@@ -88,35 +115,35 @@ export const listCheckpoints = async (sessionId?: string, limit: number = 50): P
   const queryString = params.toString();
   const url = `/checkpoint/list${queryString ? `?${queryString}` : ''}`;
 
-  return (await apiRequest(url)) as CheckpointListResponse;
+  return toCamel<CheckpointListResponse>(await apiRequest(url));
 };
 
 /**
  * Resume from checkpoint
  */
 export const resumeCheckpoint = async (taskId: string): Promise<CheckpointResumeResponse> => {
-  return (await apiRequest('/checkpoint/resume', {
+  return toCamel<CheckpointResumeResponse>(await apiRequest('/checkpoint/resume', {
     method: 'POST',
-    body: JSON.stringify({ taskId }),
-  })) as CheckpointResumeResponse;
+    body: JSON.stringify({ task_id: taskId }),
+  }));
 };
 
 /**
  * Delete checkpoint
  */
 export const deleteCheckpoint = async (taskId: string): Promise<{ status: string; taskId: string }> => {
-  return (await apiRequest(`/checkpoint/${taskId}`, {
+  return toCamel<{ status: string; taskId: string }>(await apiRequest(`/checkpoint/${taskId}`, {
     method: 'DELETE',
-  })) as { status: string; taskId: string };
+  }));
 };
 
 /**
  * Cleanup old checkpoints
  */
 export const cleanupCheckpoints = async (ttlDays: number = 7): Promise<CheckpointCleanupResponse> => {
-  return (await apiRequest(`/checkpoint/cleanup?ttl_days=${ttlDays}`, {
+  return toCamel<CheckpointCleanupResponse>(await apiRequest(`/checkpoint/cleanup?ttl_days=${ttlDays}`, {
     method: 'POST',
-  })) as CheckpointCleanupResponse;
+  }));
 };
 
 // ============================================================================
@@ -136,7 +163,7 @@ export const listFileSnapshots = async (
   params.append('limit', limit.toString());
   if (agentId) {params.append('agent_id', agentId);}
 
-  return (await apiRequest(`/checkpoint/file-snapshot/list?${params.toString()}`)) as FileSnapshotListResponse;
+  return toCamel<FileSnapshotListResponse>(await apiRequest(`/checkpoint/file-snapshot/list?${params.toString()}`));
 };
 
 /**
@@ -146,10 +173,10 @@ export const createFileSnapshot = async (
   workingDir: string,
   description: string = '',
 ): Promise<FileSnapshotCreateResponse> => {
-  return (await apiRequest('/checkpoint/file-snapshot/create', {
+  return toCamel<FileSnapshotCreateResponse>(await apiRequest('/checkpoint/file-snapshot/create', {
     method: 'POST',
-    body: JSON.stringify({ workingDir, description }),
-  })) as FileSnapshotCreateResponse;
+    body: JSON.stringify({ working_dir: workingDir, description }),
+  }));
 };
 
 /**
@@ -159,26 +186,26 @@ export const restoreFileSnapshot = async (
   snapshotId: string,
   files?: string[],
 ): Promise<FileSnapshotRestoreResponse> => {
-  return (await apiRequest('/checkpoint/file-snapshot/restore', {
+  return toCamel<FileSnapshotRestoreResponse>(await apiRequest('/checkpoint/file-snapshot/restore', {
     method: 'POST',
-    body: JSON.stringify({ snapshotId, files }),
-  })) as FileSnapshotRestoreResponse;
+    body: JSON.stringify({ snapshot_id: snapshotId, files }),
+  }));
 };
 
 /**
  * Get diff between snapshot and current state
  */
 export const getFileSnapshotDiff = async (snapshotId: string): Promise<FileDiffResponse> => {
-  return (await apiRequest(`/checkpoint/file-snapshot/${snapshotId}/diff`)) as FileDiffResponse;
+  return toCamel<FileDiffResponse>(await apiRequest(`/checkpoint/file-snapshot/${snapshotId}/diff`));
 };
 
 /**
  * Delete a file snapshot
  */
 export const deleteFileSnapshot = async (snapshotId: string): Promise<{ status: string; snapshotId: string }> => {
-  return (await apiRequest(`/checkpoint/file-snapshot/${snapshotId}`, {
+  return toCamel<{ status: string; snapshotId: string }>(await apiRequest(`/checkpoint/file-snapshot/${snapshotId}`, {
     method: 'DELETE',
-  })) as { status: string; snapshotId: string };
+  }));
 };
 
 /**
@@ -192,7 +219,9 @@ export const cleanupFileSnapshots = async (
   params.append('working_dir', workingDir);
   params.append('max_snapshots', maxSnapshots.toString());
 
-  return (await apiRequest(`/checkpoint/file-snapshot/cleanup?${params.toString()}`, {
-    method: 'POST',
-  })) as { status: string; deleted: number; maxSnapshots: number };
+  return toCamel<{ status: string; deleted: number; maxSnapshots: number }>(
+    await apiRequest(`/checkpoint/file-snapshot/cleanup?${params.toString()}`, {
+      method: 'POST',
+    }),
+  );
 };

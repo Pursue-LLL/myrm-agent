@@ -4,7 +4,6 @@
 """
 
 from .agent import Agent, AgentProfileSnapshot, AgentSecret
-from .agent_event import AgentEvent, AgentTurn
 from .agent_history import AgentProfileHistory
 from .api_key import APIKey
 from .approval import ApprovalRecord
@@ -122,9 +121,6 @@ __all__ = [
     # Config
     "UserConfig",
     "ConfigAuditLog",
-    # Agent Event
-    "AgentTurn",
-    "AgentEvent",
     # Cron
     "CronJobModel",
     "CronRunModel",

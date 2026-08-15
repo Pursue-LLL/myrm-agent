@@ -1,4 +1,4 @@
-"""Local-only allowed_tools recovery Chrome E2E seed routes.
+"""Local-only tool_history recovery Chrome E2E seed routes.
 
 [INPUT]
 - app.config.deploy_mode::is_local_mode (POS: gate local-only access)
@@ -6,9 +6,10 @@
 - app.services.chat.chat_service::ChatService (POS: seed chat + messages)
 
 [OUTPUT]
-- router: POST /test/seed-allowed-tools-recovery-fixture (POS: E2E seed endpoint)
+- router: POST /test/seed-tool-history-recovery-fixture (POS: E2E seed endpoint)
 
-[POSITION] app.api.chats — Chrome E2E test fixture for allowed_tools recovery UI.
+[POS]
+Sub-package of app.api.chats.test_fixtures. Chrome E2E test fixture for tool_history_recovery UI (local-only).
 """
 
 from __future__ import annotations
@@ -25,12 +26,12 @@ from app.services.chat.chat_service import ChatService
 
 router = APIRouter()
 
-_RECOVERY_ANSWER = "Allowed tools recovery Chrome E2E fixture answer."
+_RECOVERY_ANSWER = "Tool history recovery Chrome E2E fixture answer."
 
 
-@router.post("/test/seed-allowed-tools-recovery-fixture", include_in_schema=False)
-async def seed_allowed_tools_recovery_fixture() -> dict[str, str]:
-    """Local dev/test only: seed chat with allowed_tools_rejected_recovery progress step."""
+@router.post("/test/seed-tool-history-recovery-fixture", include_in_schema=False)
+async def seed_tool_history_recovery_fixture() -> dict[str, str]:
+    """Local dev/test only: seed chat with tool_history_recovery progress step."""
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
@@ -38,17 +39,17 @@ async def seed_allowed_tools_recovery_fixture() -> dict[str, str]:
     if not agents:
         raise HTTPException(
             status_code=500,
-            detail="No agents available for allowed-tools recovery E2E seed",
+            detail="No agents available for tool-history recovery E2E seed",
         )
 
     agent = agents[0]
-    chat_id = f"e2eallowed{uuid4().hex[:8]}"
+    chat_id = f"e2etoolhist{uuid4().hex[:8]}"
     message_id = str(uuid4())
 
     await ChatService.create_or_update_chat(
         ChatCreate(
             chat_id=chat_id,
-            title="Allowed tools recovery Chrome E2E",
+            title="Tool history recovery Chrome E2E",
             agent_id=agent.id,
             messages=[],
         ),
@@ -59,7 +60,7 @@ async def seed_allowed_tools_recovery_fixture() -> dict[str, str]:
     await ChatService.append_message(
         chat_id,
         "user",
-        "Allowed tools recovery E2E fixture question",
+        "Tool history recovery E2E fixture question",
         now,
         timezone,
     )
@@ -67,16 +68,9 @@ async def seed_allowed_tools_recovery_fixture() -> dict[str, str]:
     extra_data: dict[str, object] = {
         "progressSteps": [
             {
-                "step_key": "allowed_tools_rejected_recovery",
+                "step_key": "tool_history_recovery",
                 "status": "success",
                 "items": [],
-            },
-            {
-                "step_key": "bash_code_execute_tool",
-                "tool_name": "bash_code_execute_tool",
-                "status": "error",
-                "error_category": "trust_attenuation",
-                "items": [{"text": "Tool blocked by trust policy (fixture)."}],
             },
         ]
     }

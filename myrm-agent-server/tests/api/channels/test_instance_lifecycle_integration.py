@@ -46,6 +46,9 @@ async def _clear_instance_state() -> None:
         await session.execute(
             delete(UserConfig).where(UserConfig.config_key.like("webhook_%Credentials"))
         )
+        await session.execute(
+            delete(UserConfig).where(UserConfig.config_key.like("wechat_%Credentials"))
+        )
         await session.commit()
 
 
@@ -104,6 +107,48 @@ async def test_create_webhook_instance_then_delete(
 
         # Removed from the real gateway bus and the persisted list.
         assert f"webhook_{instance_id}" not in gateway.bus.channels
+        persisted_after = await load_persisted_instances()
+        assert all(i.get("instanceId") != instance_id for i in persisted_after)
+    finally:
+        await _clear_instance_state()
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_create_wechat_instance_then_delete(
+    client: httpx.AsyncClient, gateway: ChannelGateway
+) -> None:
+    """Create a WeChat (iLink) instance via the API, then delete it — the same
+    channel type the delete-confirmation E2E exercises."""
+    await _clear_instance_state()
+    try:
+        created = await client.post(
+            _INSTANCES_ENDPOINT,
+            json={"channelType": "wechat", "displayName": "E2E WeChat"},
+        )
+        assert created.status_code == 201, created.text
+        body = created.json()
+        instance_id = body["instanceId"]
+        assert instance_id
+        assert body["channelName"] == f"wechat_{instance_id}"
+
+        assert f"wechat_{instance_id}" in gateway.bus.channels
+        persisted = await load_persisted_instances()
+        assert any(i.get("instanceId") == instance_id for i in persisted)
+
+        listed = await client.get(f"{_INSTANCES_ENDPOINT}?channel_type=wechat")
+        assert listed.status_code == 200, listed.text
+        listed_body = listed.json()
+        assert isinstance(listed_body, list), listed_body
+        listed_ids = [i.get("instanceId") for i in listed_body if isinstance(i, dict)]
+        # The instance list must expose the same bare instance id the UI passes
+        # to DELETE, otherwise the delete-confirmation flow removes nothing.
+        assert instance_id in listed_ids, f"listed ids: {listed_ids}"
+
+        deleted = await client.delete(f"{_INSTANCES_ENDPOINT}/{instance_id}")
+        assert deleted.status_code == 204, deleted.text
+
+        assert f"wechat_{instance_id}" not in gateway.bus.channels
         persisted_after = await load_persisted_instances()
         assert all(i.get("instanceId") != instance_id for i in persisted_after)
     finally:

@@ -9,7 +9,7 @@ app.services.chat.chat_service::ChatService (POS: chat/message persistence)
 seed_clarify_refresh_fixture: HITL clarify hydrate states (pending|answered|regenerate_sibling|structured_form)
 
 [POS]
-Split from test_fixtures.py for line-budget compliance; mounted via test_fixtures router include.
+Mounted via test_fixtures/__init__.py router include.
 """
 
 from __future__ import annotations

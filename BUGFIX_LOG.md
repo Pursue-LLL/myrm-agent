@@ -187,7 +187,7 @@ daemon.py → subprocess.run(["bash", "wave.sh", "reap"]) → wave.sh → python
 | 发现日期 | 2026-07-27 |
 | 修复日期 | 2026-07-27 |
 | 严重程度 | P2（测试假红，非生产逻辑 bug） |
-| 影响范围 | `app/api/chats/test_fixtures_stream_retry_busy.py`, Chrome READ E2E |
+| 影响范围 | `app/api/chats/test_fixtures/stream_retry_busy.py`, Chrome READ E2E |
 | 出现次数 | 1 |
 | 关联 roadmap | Stream-Retry 幂等闭合修复方案（dev-shell 内部 roadmap，未归档进本仓） |
 

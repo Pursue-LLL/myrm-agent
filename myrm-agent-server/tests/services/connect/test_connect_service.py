@@ -180,6 +180,46 @@ class TestDoctor:
         assert state.status == ConnectorStatus.CONFIGURED
         assert state.doctor_ok is True
         assert state.last_doctor_at is not None
+        # The detail code is persisted so the frontend can render the amber
+        # "partially verified" state instead of a plain green healthy dot.
+        assert state.last_doctor_detail == "token_valid"
+
+    @pytest.mark.asyncio
+    async def test_doctor_detail_persists_across_instances(
+        self, service: ConnectService, tmp_data_dir: Path
+    ):
+        """Doctor detail survives a service reload (drives card severity)."""
+        await service.generate_config("cursor")
+        with patch("app.services.connect.service.is_local_mode", return_value=False):
+            await service.doctor("cursor")
+
+        reloaded = ConnectService(data_dir=tmp_data_dir)
+        state = reloaded.get_connector_status("cursor")
+        assert state.last_doctor_detail == "token_valid"
+        assert state.doctor_ok is True
+
+    @pytest.mark.asyncio
+    async def test_doctor_detail_defaults_empty_for_legacy_state(
+        self, service: ConnectService, tmp_data_dir: Path
+    ):
+        """Legacy state files without the field load with an empty detail."""
+        state_file = tmp_data_dir / "connect_state.json"
+        state_file.write_text(
+            json.dumps(
+                {
+                    "cursor": {
+                        "status": "ready",
+                        "token_hash": "abc",
+                        "doctor_ok": True,
+                        "last_doctor_at": "2026-08-15T00:00:00+00:00",
+                    }
+                }
+            )
+        )
+        service2 = ConnectService(data_dir=tmp_data_dir)
+        state = service2.get_connector_status("cursor")
+        assert state.doctor_ok is True
+        assert state.last_doctor_detail == ""
 
     @pytest.mark.asyncio
     async def test_doctor_local_verified_config(self, service: ConnectService):

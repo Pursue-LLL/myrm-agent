@@ -9,7 +9,7 @@ app.services.chat.chat_service::ChatService (POS: chat + message persistence)
 seed_chat_share_fixture: chat with a user + assistant exchange (public share page renderable)
 
 [POS]
-Mounted via test_fixtures router include.
+Mounted via test_fixtures/__init__.py router include.
 """
 
 from __future__ import annotations

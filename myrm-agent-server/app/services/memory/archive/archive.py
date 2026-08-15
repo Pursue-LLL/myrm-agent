@@ -4,14 +4,14 @@
 myrm_agent_harness.toolkits.memory::MemoryArchivePayload (POS: Framework memory reliability kit)
 app.database.models.memory::* (POS: 记忆域 ORM 模型)
 app.database.models.chat::* (POS: 会话与消息域模型)
-app.database.models.agent_event::* (POS: Agent 事件域模型)
 
 [OUTPUT]
 MemoryArchiveService: export and dry-run validation for GUI-reviewed memory archives.
 
 [POS]
-单用户记忆归档服务。聚合普通记忆、Shared Context、会话、回放事件和审计账本，
+单用户记忆归档服务。聚合普通记忆、Shared Context、会话和审计账本，
 生成可审查的本地 archive payload，不包含多租户或控制平面语义。
+replay 分区始终为空（AgentTurn/AgentEvent 事件回放系统已移除）。
 """
 
 from __future__ import annotations
@@ -31,7 +31,6 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database.models.agent_event import AgentTurn
 from app.database.models.chat import Chat
 from app.database.models.memory import (
     MemoryOperationEventModel,
@@ -62,7 +61,7 @@ class MemoryArchiveService:
         memory = self._redact(await self._export_memory(manager))
         shared_context = self._redact(await self._export_shared_context())
         conversation = self._redact(await self._export_conversation())
-        replay = self._redact(await self._export_replay())
+        replay: list[dict[str, object]] = []
         audit = self._redact(await self._export_audit())
         data = {
             "memory": memory,
@@ -198,42 +197,6 @@ class MemoryArchiveService:
                 ],
             }
             for chat in chats
-        ]
-
-    async def _export_replay(self) -> list[dict[str, object]]:
-        result = await self._db.execute(
-            select(AgentTurn).options(selectinload(AgentTurn.events)).order_by(desc(AgentTurn.created_at))
-        )
-        turns = list(result.scalars().unique().all())
-        return [
-            {
-                "id": turn.id,
-                "chat_id": turn.chat_id,
-                "turn_index": turn.turn_index,
-                "status": turn.status,
-                "event_count": turn.event_count,
-                "tool_call_count": turn.tool_call_count,
-                "error_count": turn.error_count,
-                "duration_ms": turn.duration_ms,
-                "created_at": self._jsonable(turn.created_at),
-                "started_at": self._jsonable(turn.started_at),
-                "completed_at": self._jsonable(turn.completed_at),
-                "events": [
-                    {
-                        "id": event.id,
-                        "event_type": event.event_type,
-                        "level": event.level,
-                        "event_index": event.event_index,
-                        "payload": event.payload,
-                        "tool_name": event.tool_name,
-                        "file_path": event.file_path,
-                        "duration_ms": event.duration_ms,
-                        "created_at": self._jsonable(event.created_at),
-                    }
-                    for event in turn.events
-                ],
-            }
-            for turn in turns
         ]
 
     async def _export_audit(self) -> list[dict[str, object]]:

@@ -62,6 +62,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
     return (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        role="presentation"
         onClick={handleBackdropClick}
       >
         <div className="bg-background border border-border rounded-lg p-8 max-w-4xl w-full mx-4">
@@ -77,6 +78,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
     return (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        role="presentation"
         onClick={handleBackdropClick}
       >
         <div className="bg-background border border-border rounded-lg p-8 max-w-4xl w-full mx-4">
@@ -102,6 +104,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      role="presentation"
       onClick={handleBackdropClick}
     >
       <div className="bg-background border border-border rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">

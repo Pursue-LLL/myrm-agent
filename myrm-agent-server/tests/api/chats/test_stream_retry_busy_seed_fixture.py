@@ -21,7 +21,7 @@ def client() -> TestClient:
 @pytest.mark.asyncio
 async def test_busy_fixture_query_is_not_risk_blocked() -> None:
     """Fixture query must not hit stream risk gate (e.g. avoid 'contract' keyword)."""
-    from app.api.chats.test_fixtures_stream_retry_busy import _BUSY_QUERY_TEXT
+    from app.api.chats.test_fixtures.stream_retry_busy import _BUSY_QUERY_TEXT
     from app.services.agent.stream_session.risk_gate import check_stream_risk
 
     blocked = await check_stream_risk(_BUSY_QUERY_TEXT, "e2estreamretryfixture")
@@ -35,24 +35,24 @@ def test_seed_and_release_stream_retry_busy_fixture(client: TestClient) -> None:
 
     with (
         patch(
-            "app.api.chats.test_fixtures_stream_retry_busy.is_local_mode",
+            "app.api.chats.test_fixtures.stream_retry_busy.is_local_mode",
             return_value=True,
         ),
         patch(
-            "app.api.chats.test_fixtures_stream_retry_busy.AgentService.get_agent_list",
+            "app.api.chats.test_fixtures.stream_retry_busy.AgentService.get_agent_list",
             new_callable=AsyncMock,
             return_value=([fake_agent], 1),
         ),
         patch(
-            "app.api.chats.test_fixtures_stream_retry_busy.ChatService.create_or_update_chat",
+            "app.api.chats.test_fixtures.stream_retry_busy.ChatService.create_or_update_chat",
             new_callable=AsyncMock,
         ),
         patch(
-            "app.api.chats.test_fixtures_stream_retry_busy.ChatService.ensure_chat_and_append_user_message",
+            "app.api.chats.test_fixtures.stream_retry_busy.ChatService.ensure_chat_and_append_user_message",
             new_callable=AsyncMock,
         ),
         patch(
-            "app.api.chats.test_fixtures_stream_retry_busy.get_agent_gateway",
+            "app.api.chats.test_fixtures.stream_retry_busy.get_agent_gateway",
         ) as gateway_factory,
     ):
         gateway = MagicMock()
@@ -65,7 +65,7 @@ def test_seed_and_release_stream_retry_busy_fixture(client: TestClient) -> None:
         gateway.reserve_session.assert_called_once()
 
     with patch(
-        "app.api.chats.test_fixtures_stream_retry_busy.is_local_mode",
+        "app.api.chats.test_fixtures.stream_retry_busy.is_local_mode",
         return_value=True,
     ):
         release_resp = client.post(

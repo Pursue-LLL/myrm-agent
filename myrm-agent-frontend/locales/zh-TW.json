@@ -5304,7 +5304,9 @@
         "llmCalls": "LLM 調用",
         "saveAsEval": "儲存為評測案例",
         "firstIrrecoverable": "首個無法恢復的錯誤點",
-        "recoverySteps": "恢復步驟"
+        "recoverySteps": "恢復步驟",
+        "securityLabels": "安全標籤",
+        "securityFlag": "安全"
       },
       "replay": {
         "title": "錄影回放",
@@ -5519,6 +5521,7 @@
       "savedCheckpointsDesc": "當 Agent 任務中斷時，所有檢查點會自動儲存",
       "resumeSuccess": "檢查點恢復成功",
       "resumeSuccessDesc": "任務 {taskId} 已恢復",
+      "reinitiateInfo": "任務描述已預先填入輸入框",
       "confirmDelete": "確定要刪除這個檢查點嗎？",
       "confirmCleanup": "確定要清理舊檢查點嗎（7天TTL）？",
       "resumable": "可恢復",
@@ -11261,59 +11264,6 @@
     "toolGatewayNote": "網頁搜尋、圖片生成與語音合成已包含在 Work Units 用量中，雲端模式無需單獨配置 API Key。",
     "loading": "載入中..."
   },
-  "agentEvents": {
-    "noEvents": "暫無事件",
-    "showDetails": "顯示詳情",
-    "toolCallStart": "工具呼叫開始",
-    "toolCallEnd": "工具呼叫完成",
-    "commandStart": "命令開始執行",
-    "commandOutput": "命令輸出",
-    "commandEnd": "命令執行完成",
-    "fileDiff": "檔案變更",
-    "artifactCreated": "產物已生成",
-    "permissionRequest": "請求許可權",
-    "permissionResponse": "許可權響應",
-    "thinking": "思考中",
-    "assistantMessage": "助手訊息",
-    "error": "發生錯誤",
-    "risk": {
-      "low": "低風險",
-      "medium": "中等風險",
-      "high": "高風險",
-      "critical": "極高風險"
-    },
-    "permission": {
-      "title": "需要許可權確認",
-      "resource": "資源",
-      "reason": "原因",
-      "details": "詳情",
-      "approve": "允許",
-      "deny": "拒絕",
-      "warningHigh": "此操作風險較高，請仔細稽核後再批准。",
-      "warningCritical": "此操作極其危險，可能導致不可逆的更改。請格外謹慎。",
-      "actions": {
-        "toolCall": "工具呼叫",
-        "command": "命令執行",
-        "fileWrite": "檔案寫入",
-        "fileDelete": "檔案刪除"
-      }
-    },
-    "permissionMode": {
-      "title": "許可權模式",
-      "safe": {
-        "label": "安全模式",
-        "description": "僅允許只讀和安全操作。適用於不受信任的環境。"
-      },
-      "ask": {
-        "label": "詢問模式",
-        "description": "對潛在危險操作進行確認提示。推薦大多數使用者使用。"
-      },
-      "allowAll": {
-        "label": "完全信任",
-        "description": "無需確認即可執行所有操作。僅在受信任的環境中使用。"
-      }
-    }
-  },
   "runs": {
     "title": "活動",
     "subtitle": "所有後臺活動一目瞭然",
@@ -14572,6 +14522,9 @@
     "steerTitle": "引導 / 介入",
     "cancelTitle": "取消並儲存檢查點",
     "resumeTitle": "從檢查點恢復",
+    "reinitiateAction": "重新發起",
+    "reinitiateTitle": "使用儲存的任務描述重新運行該任務",
+    "reinitiateSuccess": "任務描述已填入輸入框",
     "dismiss": "忽略",
     "steerPlaceholder": "輸入引導指令...",
     "send": "傳送",
@@ -15540,6 +15493,7 @@
     "doctorDetailTokenMismatch": "設定中的令牌與伺服器不匹配 - 設定可能已過期，請重新產生",
     "doctorDetailFileUnreadable": "設定檔無法讀取或格式無效 - 請檢查檔案格式",
     "doctorStatusOk": "健康",
+    "doctorStatusWarn": "部分已驗證",
     "doctorStatusFail": "不健康",
     "doctorStatusUnknown": "未檢查",
     "doctorLastChecked": "上次檢查：{time}",
@@ -15768,6 +15722,8 @@
     "progress": "進度",
     "lastTool": "最後使用的工具",
     "resume": "恢復",
+    "reinitiateAction": "重新發起",
+    "reinitiateTitle": "使用儲存的任務描述重新運行該任務",
     "delete": "刪除",
     "deleting": "正在刪除...",
     "refresh": "重新整理",

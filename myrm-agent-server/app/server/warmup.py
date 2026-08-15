@@ -4,12 +4,11 @@
 - app.lifecycle (POS: 应用生命周期编排)
 - app.config.settings (POS: 应用配置)
 - app.services.agent.wakeup_handler (POS: 异步子代理唤醒处理器)
-- app.services.event.types (POS: 事件系统类型定义)
 - app.database.models (POS: ORM 模型定义)
 - myrm_agent_harness.utils.text_utils::preheat_tiktoken (POS: Text processing utilities)
 
 [OUTPUT]
-- run_async_warmup: 执行后台预热任务（调度器、浏览器池、批量恢复、stale turn 恢复、分词器等）
+- run_async_warmup: 执行后台预热任务（调度器、浏览器池、批量恢复、记忆回滚恢复、分词器等）
 
 [POS]
 后台预热引擎。HTTP 就绪后在后台异步执行非阻塞预热任务，减少启动延迟。
@@ -125,43 +124,6 @@ async def _start_rate_limiter_cleanup() -> None:
     except Exception as e:
         logger.error("[Startup] Rate limiter cleanup task failed to start: %s", e)
         raise
-
-
-async def _recover_stale_agent_turns() -> None:
-    """Mark agent turns left in pending/running state as interrupted after crash/restart."""
-    from app.config.deploy_mode import is_local_mode
-
-    if not is_local_mode():
-        return
-
-    from datetime import datetime, timezone
-
-    from sqlalchemy import update
-
-    from app.database.models import AgentTurn
-    from app.platform_utils import get_session_factory
-    from app.services.event.types import TurnStatus
-
-    factory = get_session_factory()
-    async with factory() as session:
-        result = await session.execute(
-            update(AgentTurn)
-            .where(
-                AgentTurn.status.in_(
-                    [TurnStatus.PENDING.value, TurnStatus.RUNNING.value]
-                )
-            )
-            .values(
-                status=TurnStatus.INTERRUPTED.value,
-                completed_at=datetime.now(timezone.utc),
-            )
-        )
-        if result.rowcount > 0:
-            logger.info(
-                "[Startup] Recovered %d stale agent turns → interrupted",
-                result.rowcount,
-            )
-        await session.commit()
 
 
 async def _recover_incomplete_memory_import_rollbacks() -> None:
@@ -347,7 +309,6 @@ async def run_async_warmup() -> None:
     except Exception as e:
         logger.warning("Batch job recovery skipped in warmup: %s", e)
 
-    warmup_tasks.append(_recover_stale_agent_turns())
     warmup_tasks.append(_recover_incomplete_memory_import_rollbacks())
 
     try:

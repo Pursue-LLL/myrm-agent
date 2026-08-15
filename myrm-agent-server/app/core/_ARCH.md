@@ -30,7 +30,6 @@
 | `utils/` | 辅助 | 工具函数（错误处理、文件工具、响应工具等） | [_ARCH.md](utils/_ARCH.md) |
 | `monitoring/` | 辅助 | 监控与可观测性（Prometheus 指标、LLM/Slack 指标导出、OpenTelemetry 追踪初始化） | [_ARCH.md](monitoring/_ARCH.md) |
 | `notifications/` | 辅助 | 系统通知分发 | [_ARCH.md](notifications/_ARCH.md) |
-| `subagents/` | 核心 | 子 Agent 模型解析（`ModelResolver` 业务实现） | [_ARCH.md](subagents/_ARCH.md) |
 | `errors/` | 辅助 | LLM 错误类型定义 | [_ARCH.md](errors/_ARCH.md) |
 | `media/` | 辅助 | 媒体处理（批量编排） | [_ARCH.md](media/_ARCH.md) |
 | `kanban/` | 核心 | Kanban 持久化适配器（SqlAlchemyKanbanStore、ORM 映射） | [_ARCH.md](kanban/_ARCH.md) |

@@ -9,7 +9,7 @@ app.services.chat.chat_service::ChatService (POS: chat/message persistence)
 seed_workspace_merge_fixture: persisted workspaceMergeFailures for Chrome E2E (variant=batch_merge_fail)
 
 [POS]
-Split from test_fixtures.py for line-budget compliance; mounted via test_fixtures router include.
+Mounted via test_fixtures/__init__.py router include.
 """
 
 from __future__ import annotations

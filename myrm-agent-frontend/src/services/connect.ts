@@ -51,6 +51,7 @@ export interface ConnectorStatus {
   status: 'ready' | 'manual_config_required' | 'missing';
   agent_id: string;
   doctor_ok: boolean;
+  last_doctor_detail: string;
   connected_at: string | null;
   last_doctor_at: string | null;
 }

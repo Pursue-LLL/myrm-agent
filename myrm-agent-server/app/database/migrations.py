@@ -220,9 +220,13 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE agents ADD COLUMN memory_policy JSON",
     "ALTER TABLE agents ADD COLUMN personality_style VARCHAR(32) NOT NULL DEFAULT 'professional'",
     "ALTER TABLE agents ADD COLUMN prompt_mode VARCHAR(20) NOT NULL DEFAULT 'full'",
-    "ALTER TABLE agent_turns ADD COLUMN spawn_depth INTEGER NOT NULL DEFAULT 0",
-    "ALTER TABLE agent_turns ADD COLUMN spawned_by VARCHAR(255)",
-    "CREATE INDEX ix_agent_turns_spawned_by ON agent_turns(spawned_by)",
+    # V223-V225: agent_turns 列迁移。AgentTurn/AgentEvent 系统已移除（V187 DROP）。
+    # 列表 APPEND-ONLY 且版本号由索引决定，删除会重排后续版本导致已迁移库跳过；
+    # 故保持元素位置不变、替换为 no-op（全新库无 agent_turns 表，原语句会致命失败；
+    # 已迁移库该版本早已执行，checksum 差异仅触发跳过）。
+    "SELECT 1 -- agent_turns.spawn_depth column migration removed (AgentTurn system deleted)",
+    "SELECT 1 -- agent_turns.spawned_by column migration removed (AgentTurn system deleted)",
+    "SELECT 1 -- ix_agent_turns_spawned_by index migration removed (AgentTurn system deleted)",
     # Agent Secrets table
     """CREATE TABLE IF NOT EXISTS agent_secrets (
         id VARCHAR(255) PRIMARY KEY,
@@ -608,6 +612,12 @@ MIGRATION_STATEMENTS: list[str] = [
     # the current share state and rebuild unprotected links deterministically.
     "ALTER TABLE chats ADD COLUMN share_token_expires_at INTEGER",
     "ALTER TABLE chats ADD COLUMN share_token_protected BOOLEAN",
+    # V187: AgentTurn/AgentEvent (agent_turns/agent_events) were a dead feature
+    # path — tables/API/UI existed but nothing ever wrote rows (the harness
+    # event_log is the real agent-event SSOT). Drop the tables here for existing
+    # databases; new databases never create them (model file removed).
+    "DROP TABLE IF EXISTS agent_events",
+    "DROP TABLE IF EXISTS agent_turns",
 ]
 
 # 创建索引的SQL语句列表
@@ -628,15 +638,6 @@ INDEX_STATEMENTS = [
     # User Configs 索引
     "CREATE INDEX IF NOT EXISTS idx_user_configs_config_key ON user_configs(config_key)",
     "CREATE INDEX IF NOT EXISTS idx_user_configs_user_config_key ON user_configs( config_key)",
-    # Agent Event System 索引 (Local Mode Only)
-    "CREATE INDEX IF NOT EXISTS idx_agent_turns_chat_id ON agent_turns(chat_id)",
-    "CREATE INDEX IF NOT EXISTS idx_agent_turns_status ON agent_turns(status)",
-    "CREATE INDEX IF NOT EXISTS idx_agent_turns_created_at ON agent_turns(created_at DESC)",
-    "CREATE INDEX IF NOT EXISTS idx_agent_events_turn_id ON agent_events(turn_id)",
-    "CREATE INDEX IF NOT EXISTS idx_agent_events_event_type ON agent_events(event_type)",
-    "CREATE INDEX IF NOT EXISTS idx_agent_events_tool_name ON agent_events(tool_name)",
-    "CREATE INDEX IF NOT EXISTS idx_agent_events_created_at ON agent_events(created_at DESC)",
-    "CREATE INDEX IF NOT EXISTS idx_agent_events_turn_id_event_index ON agent_events(turn_id, event_index)",
     # Channel Pairings 索引
     "CREATE INDEX IF NOT EXISTS idx_channel_pairings_channel ON channel_pairings(channel)",
     "CREATE INDEX IF NOT EXISTS idx_channel_pairings_channel_sender ON channel_pairings(channel, sender_id)",

@@ -31,7 +31,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
-from app.database.models.agent_event import AgentTurn
 from app.database.models.chat import Chat
 from app.database.models.memory import (
     MemoryOperationEventModel,
@@ -129,7 +128,14 @@ class MemoryArchiveRestorePlanner:
         if section == "conversation":
             return await self._conversation_plan(value)
         if section == "replay":
-            return await self._replay_plan(archive, value)
+            # AgentTurn/AgentEvent 事件回放系统已移除，replay 分区不可恢复
+            return MemoryArchiveRestoreSectionPlan(
+                section="replay",
+                mode="skip",
+                item_count=item_count,
+                skipped_items=item_count,
+                warning_codes=["section_not_supported"] if item_count else [],
+            )
         if section == "audit":
             return await self._audit_plan(value)
         return MemoryArchiveRestoreSectionPlan(section=section, mode="skip", item_count=item_count, skipped_items=item_count)
@@ -181,32 +187,6 @@ class MemoryArchiveRestorePlanner:
             conflict_items=conflict_items,
             warning_codes=["conversation_conflicts"] if conflict_items else [],
             target_kinds=["chats", "messages"],
-        )
-
-    async def _replay_plan(self, archive: MemoryArchivePayload, value: object) -> MemoryArchiveRestoreSectionPlan:
-        rows = object_rows(value)
-        existing = await self._existing_ids(AgentTurn.id, _row_ids(rows))
-        existing_chats = await self._existing_ids(Chat.id, [str(row.get("chat_id") or "") for row in rows])
-        archive_chat_ids = {str(row.get("id") or "") for row in object_rows(archive.data.get("conversation"))}
-        missing_chats = [
-            row
-            for row in rows
-            if str(row.get("chat_id") or "") not in existing_chats and str(row.get("chat_id") or "") not in archive_chat_ids
-        ]
-        event_count = sum(len(object_rows(row.get("events"))) for row in rows)
-        warnings = []
-        if existing:
-            warnings.append("replay_conflicts")
-        if missing_chats:
-            warnings.append("replay_missing_chats")
-        return MemoryArchiveRestoreSectionPlan(
-            section="replay",
-            item_count=len(rows) + event_count,
-            restorable_items=max(len(rows) - len(existing) - len(missing_chats), 0),
-            skipped_items=len(missing_chats),
-            conflict_items=len(existing),
-            warning_codes=warnings,
-            target_kinds=["turns", "events"],
         )
 
     async def _audit_plan(self, value: object) -> MemoryArchiveRestoreSectionPlan:

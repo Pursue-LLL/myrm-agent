@@ -37,28 +37,28 @@ def test_seed_memory_lifecycle_fixture_returns_chat_and_message_ids(
 
     with (
         patch(
-            "app.api.chats.test_fixtures_memory_lifecycle.is_local_mode",
+            "app.api.chats.test_fixtures.memory_lifecycle.is_local_mode",
             return_value=True,
         ),
         patch(
-            "app.api.chats.test_fixtures_memory_lifecycle.AgentService.get_agent_list",
+            "app.api.chats.test_fixtures.memory_lifecycle.AgentService.get_agent_list",
             new_callable=AsyncMock,
             return_value=([fake_agent], 1),
         ),
         patch(
-            "app.api.chats.test_fixtures_memory_lifecycle.ChatService.create_or_update_chat",
+            "app.api.chats.test_fixtures.memory_lifecycle.ChatService.create_or_update_chat",
             new_callable=AsyncMock,
         ),
         patch(
-            "app.api.chats.test_fixtures_memory_lifecycle.ChatService.append_message",
+            "app.api.chats.test_fixtures.memory_lifecycle.ChatService.append_message",
             new_callable=AsyncMock,
         ),
         patch(
-            "app.api.chats.test_fixtures_memory_lifecycle.get_session",
+            "app.api.chats.test_fixtures.memory_lifecycle.get_session",
             return_value=mock_session,
         ),
         patch(
-            "app.api.chats.test_fixtures_memory_lifecycle.MemoryOperationLedgerService",
+            "app.api.chats.test_fixtures.memory_lifecycle.MemoryOperationLedgerService",
             return_value=mock_ledger,
         ),
     ):

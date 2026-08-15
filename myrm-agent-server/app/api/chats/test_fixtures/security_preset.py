@@ -12,7 +12,7 @@ seed_security_preset_fixture: 创建「带 default_security_preset 的 Agent（a
 会话级安全预设的初始化 / UI 切换 / hitl 回落。
 
 [POS]
-Chats API 本地测试 fixture 子模块（test_fixtures.py include 挂载）。
+Chats API 本地测试 fixture 子模块（test_fixtures/__init__.py include 挂载）。
 SecurityPreset 生命周期（绑定/切换/重置）的 E2E 种子，复用 seed_citation_fixture 的
 「创建 agent → 绑定 chat → 返回 ui_path」模式，零业务逻辑、无 LLM。
 """

@@ -10,7 +10,8 @@
 [OUTPUT]
 - router: POST /test/seed-context-retention-fixture (POS: E2E seed endpoint)
 
-[POSITION] app.api.chats — Chrome E2E test fixture for context retention UI.
+[POS]
+Sub-package of app.api.chats.test_fixtures. Chrome E2E test fixture for context retention UI (local-only).
 """
 
 from __future__ import annotations

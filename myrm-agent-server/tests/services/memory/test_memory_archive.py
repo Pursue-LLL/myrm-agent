@@ -10,7 +10,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.database.models import Base
-from app.database.models.agent_event import AgentEvent, AgentTurn
 from app.database.models.chat import Chat, Message
 from app.database.models.memory import (
     MemoryArchiveRestoreBatchModel,
@@ -165,15 +164,6 @@ async def test_memory_archive_exports_single_sandbox_sections(db_session: AsyncS
         sent_at=now,
         sent_timezone="UTC",
     )
-    turn = AgentTurn(id="turn-1", chat_id="chat-1", turn_index=1, status="completed")
-    event = AgentEvent(
-        id="event-1",
-        turn_id="turn-1",
-        event_type="memory_write",
-        level="info",
-        event_index=1,
-        payload={"memory_id": "mem-1"},
-    )
     audit = MemoryOperationEventModel(
         id="audit-1",
         kind="write",
@@ -182,7 +172,7 @@ async def test_memory_archive_exports_single_sandbox_sections(db_session: AsyncS
         summary="Memory write recorded.",
         metadata_json={"source": "test"},
     )
-    db_session.add_all([context, binding, chat, message, turn, event, audit])
+    db_session.add_all([context, binding, chat, message, audit])
     await db_session.commit()
 
     archive = await MemoryArchiveService(db_session).export_archive(_ArchiveMemoryManager())
@@ -192,7 +182,7 @@ async def test_memory_archive_exports_single_sandbox_sections(db_session: AsyncS
     assert section_counts["memory"] == 1
     assert section_counts["shared_context"] == 2
     assert section_counts["conversation"] == 1
-    assert section_counts["replay"] == 1
+    assert section_counts["replay"] == 0
     assert section_counts["audit"] == 1
     assert archive.manifest.content_redacted is True
     memory_section = archive.data["memory"]

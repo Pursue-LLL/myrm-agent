@@ -44,20 +44,20 @@ def test_seed_guardrail_bash_fixture_persists_guardrail_step(
 
     with (
         patch(
-            "app.api.chats.test_fixtures_guardrail_bash.is_local_mode",
+            "app.api.chats.test_fixtures.guardrail_bash.is_local_mode",
             return_value=True,
         ),
         patch(
-            "app.api.chats.test_fixtures_guardrail_bash.AgentService.get_agent_list",
+            "app.api.chats.test_fixtures.guardrail_bash.AgentService.get_agent_list",
             new_callable=AsyncMock,
             return_value=([fake_agent], 1),
         ),
         patch(
-            "app.api.chats.test_fixtures_guardrail_bash.ChatService.create_or_update_chat",
+            "app.api.chats.test_fixtures.guardrail_bash.ChatService.create_or_update_chat",
             new_callable=AsyncMock,
         ),
         patch(
-            "app.api.chats.test_fixtures_guardrail_bash.ChatService.append_message",
+            "app.api.chats.test_fixtures.guardrail_bash.ChatService.append_message",
             side_effect=_append_message,
         ),
     ):
@@ -83,7 +83,7 @@ def test_seed_guardrail_bash_fixture_persists_guardrail_step(
 
 def test_seed_guardrail_bash_fixture_rejects_unknown_variant(client: TestClient) -> None:
     with patch(
-        "app.api.chats.test_fixtures_guardrail_bash.is_local_mode",
+        "app.api.chats.test_fixtures.guardrail_bash.is_local_mode",
         return_value=True,
     ):
         response = client.post(

@@ -28,6 +28,7 @@ class CheckpointInfo(BaseModel):
     progress: float
     last_tool: str | None
     resumable: bool
+    task_description: str = ""
 
 
 class CheckpointListResponse(BaseModel):

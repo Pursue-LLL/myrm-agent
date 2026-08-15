@@ -174,6 +174,13 @@ _REPLAY_END_STATE_JS = """(() => {
         () => { window.__E2E_RP_MARK__ = 'rejected'; },
       );
     }
+    // Decide whether the trace dialog actually switched into replay mode: if it
+    // still shows the Enter Replay button and no Session Replay title, the click
+    // never flipped replayMode (wrong button target / state not committed).
+    const traceDialog = dialogs.find((d) =>
+      /Execution Replay|执行回放|執行回放|Execution Trace|执行轨迹/.test(d.innerText || ''),
+    );
+    const traceText = traceDialog ? traceDialog.innerText : '';
     return {
       ready: false,
       reason: 'no-replay-root',
@@ -181,7 +188,12 @@ _REPLAY_END_STATE_JS = """(() => {
       dialogText: dialogs
         .map((d) => (d.innerText || '').slice(0, 120))
         .slice(0, 3),
+      traceDialogFound: Boolean(traceDialog),
+      traceDialogStillHasEnterReplay: /Enter Replay|播放录像|播放錄像|进入回放|進入回放/.test(traceText),
+      traceDialogHasReplayTitle: /Session Replay|录像回放|錄像回放/.test(traceText),
+      traceDialogText: traceText.slice(0, 600),
       hasLoadingText: /加载中|Loading|加载/.test(bodyText),
+      bodyErr: /应用出错了|Application error|page error/i.test(bodyText),
       runtimeReady: window.__E2E_RP_MARK__ || (rp ? 'probing' : 'absent'),
       apiBase: String(window.__MYRM_E2E_API_BASE__ || ''),
       readyState: document.readyState,
@@ -405,8 +417,9 @@ async def test_chrome_ui_lineage_trace_replay(
             _REPLAY_END_STATE_JS,
             timeout_sec=60.0,
         )
-        assert replay_probe.get("ready") is True, json.dumps(
-            replay_probe, ensure_ascii=False
+        assert replay_probe.get("ready") is True, (
+            f"replay_click={json.dumps(replay_click, ensure_ascii=False)} "
+            f"replay_probe={json.dumps(replay_probe, ensure_ascii=False)}"
         )
         assert replay_probe.get("toolChips", 0) >= 1, json.dumps(
             replay_probe, ensure_ascii=False

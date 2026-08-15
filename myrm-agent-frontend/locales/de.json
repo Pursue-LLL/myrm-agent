@@ -2359,6 +2359,7 @@
       "savedCheckpointsDesc": "Alle Prüfpunkte werden automatisch gespeichert, wenn eine Agentenaufgabe unterbrochen wird",
       "resumeSuccess": "Checkpoint wurde erfolgreich fortgesetzt",
       "resumeSuccessDesc": "Task {taskId} fortgesetzt",
+      "reinitiateInfo": "Aufgabenbeschreibung vorausgefüllt im Eingabefeld",
       "confirmDelete": "Möchten Sie diesen Kontrollpunkt wirklich löschen?",
       "confirmCleanup": "Möchten Sie alte Kontrollpunkte bereinigen? (7-Tage-TTL)",
       "resumable": "Fortsetzbar",
@@ -4871,7 +4872,9 @@
         "llmCalls": "LLM-Aufrufe",
         "saveAsEval": "Als Eval-Case speichern",
         "firstIrrecoverable": "Erster nicht behebbarer Fehlerpunkt",
-        "recoverySteps": "Wiederherstellungsschritte"
+        "recoverySteps": "Wiederherstellungsschritte",
+        "securityLabels": "Sicherheitskennzeichnungen",
+        "securityFlag": "Sicherheit"
       },
       "replay": {
         "title": "Sitzungs-Wiedergabe",
@@ -11037,59 +11040,6 @@
     "loading": "Laden...",
     "toolGatewayNote": "Web search, image generation, and text-to-speech are included in your Work Units — no separate API keys needed in cloud mode."
   },
-  "agentEvents": {
-    "noEvents": "Noch keine Ereignisse",
-    "showDetails": "Details anzeigen",
-    "toolCallStart": "Tool-Aufruf gestartet",
-    "toolCallEnd": "Tool-Aufruf abgeschlossen",
-    "commandStart": "Befehl gestartet",
-    "commandOutput": "Befehlsausgabe",
-    "commandEnd": "Befehl abgeschlossen",
-    "fileDiff": "Datei geändert",
-    "artifactCreated": "Artefakt erstellt",
-    "permissionRequest": "Genehmigung angefordert",
-    "permissionResponse": "Genehmigung beantwortet",
-    "thinking": "Denkt nach",
-    "assistantMessage": "Assistenten-Nachricht",
-    "error": "Fehler aufgetreten",
-    "risk": {
-      "low": "Geringes Risiko",
-      "medium": "Mittleres Risiko",
-      "high": "Hohes Risiko",
-      "critical": "Kritisches Risiko"
-    },
-    "permission": {
-      "title": "Genehmigung erforderlich",
-      "resource": "Ressource",
-      "reason": "Grund",
-      "details": "Einzelheiten",
-      "approve": "Genehmigen",
-      "deny": "Ablehnen",
-      "warningHigh": "Dieser Vorgang birgt hohes Risiko. Bitte prüfen Sie sorgfältig vor der Genehmigung.",
-      "warningCritical": "Dieser Vorgang ist kritisch und kann irreversible Änderungen verursachen. Mit äußerster Vorsicht fortfahren.",
-      "actions": {
-        "toolCall": "Tool-Aufruf",
-        "command": "Befehlsausführung",
-        "fileWrite": "Datei schreiben",
-        "fileDelete": "Datei löschen"
-      }
-    },
-    "permissionMode": {
-      "title": "Genehmigungsmodus",
-      "safe": {
-        "label": "Sicherer Modus",
-        "description": "Erlaubt nur schreibgeschützte und sichere Vorgänge. Am besten für nicht vertrauenswürdige Umgebungen."
-      },
-      "ask": {
-        "label": "Fragen-Modus",
-        "description": "Fordert Genehmigung bei potenziell gefährlichen Vorgängen an. Für die meisten Nutzer empfohlen."
-      },
-      "allowAll": {
-        "label": "Alles erlauben",
-        "description": "Vertraut allen Vorgängen ohne Bestätigung. Nur in vertrauenswürdigen Umgebungen verwenden."
-      }
-    }
-  },
   "runs": {
     "title": "Aktivität",
     "subtitle": "Alle Hintergrundaktivitäten an einem Ort",
@@ -13771,6 +13721,8 @@
     "progress": "Fortschritt",
     "lastTool": "Letztes Werkzeug",
     "resume": "Wieder aufnehmen",
+    "reinitiateAction": "Erneut starten",
+    "reinitiateTitle": "Diese Aufgabe mit der gespeicherten Beschreibung erneut ausführen",
     "delete": "Löschen",
     "deleting": "Löschen...",
     "refresh": "Aktualisieren",
@@ -13992,6 +13944,9 @@
     "steerTitle": "Steuern / Eingreifen",
     "cancelTitle": "Abbrechen und Kontrollpunkt",
     "resumeTitle": "Vom Checkpoint aus fortfahren",
+    "reinitiateAction": "Erneut starten",
+    "reinitiateTitle": "Diese Aufgabe mit der gespeicherten Beschreibung erneut ausführen",
+    "reinitiateSuccess": "Aufgabenbeschreibung ins Eingabefeld vorausgefüllt",
     "dismiss": "Zurückweisen",
     "steerPlaceholder": "Lenkbefehl eingeben...",
     "send": "Schicken",
@@ -15523,6 +15478,7 @@
     "doctorDetailTokenMismatch": "Token in der Konfiguration stimmt nicht mit dem Server überein – Konfiguration ist möglicherweise veraltet, neu generieren",
     "doctorDetailFileUnreadable": "Konfigurationsdatei nicht lesbar oder ungültig – Dateiformat überprüfen",
     "doctorStatusOk": "Gesund",
+    "doctorStatusWarn": "Teilweise geprüft",
     "doctorStatusFail": "Nicht gesund",
     "doctorStatusUnknown": "Nicht geprüft",
     "doctorLastChecked": "Geprüft: {time}",

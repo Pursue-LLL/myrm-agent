@@ -750,16 +750,6 @@ async def build_general_agent(
                 e,
             )
 
-    from app.core.subagents.resolver import SubagentModelResolver
-
-    subagent_model_resolver = SubagentModelResolver(
-        providers_dict=agent_wrapper.providers_dict,
-        task_description="",  # Will be populated by the builder per task
-        standard_model_cfg=agent_wrapper.model_cfg,
-        light_model_cfg=agent_wrapper.light_model_cfg,
-        reasoning_model_cfg=agent_wrapper.reasoning_model_cfg,
-    )
-
     # PTC dependency auto-injection: MCP/PTC skills require bash + file_read
     from app.services.agent.tool_mount import apply_ptc_meta_mount
 
@@ -850,7 +840,6 @@ async def build_general_agent(
         ),
         wiki_scope_id=agent_wrapper.agent_id,
         similarity_checker=sim_checker,
-        model_resolver=subagent_model_resolver,
         file_access_mode=effective_file_access,
         enable_shell_tools=effective_enable_shell,
         enable_answer_tool=agent_wrapper.enable_answer_tool,

@@ -44,7 +44,7 @@ class TestFileMutationSeedIntegration:
         asyncio.run(_seed_visible_agent(agent_id, display_name="Mutation Seed Agent"))
 
         with patch(
-            "app.api.chats.test_fixtures_file_mutation.is_local_mode",
+            "app.api.chats.test_fixtures.file_mutation.is_local_mode",
             return_value=True,
         ):
             resp = client.post(

@@ -65,6 +65,7 @@ class ConnectorState:
     connected_at: datetime | None = None
     last_doctor_at: datetime | None = None
     doctor_ok: bool = False
+    last_doctor_detail: str = ""
 
 
 @dataclass(frozen=True)
@@ -135,6 +136,7 @@ class ConnectService:
                         else None
                     ),
                     doctor_ok=data.get("doctor_ok", False),
+                    last_doctor_detail=data.get("last_doctor_detail", ""),
                 )
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.warning("Failed to load connect state, starting fresh: %s", e)
@@ -156,6 +158,7 @@ class ConnectService:
                     state.last_doctor_at.isoformat() if state.last_doctor_at else None
                 ),
                 "doctor_ok": state.doctor_ok,
+                "last_doctor_detail": state.last_doctor_detail,
             }
         path.write_text(json.dumps(data, indent=2))
 
@@ -263,8 +266,9 @@ class ConnectService:
         the config lives on the user's machine, so only token validity is
         reported and the limitation is surfaced through the detail code.
 
-        The check only records ``doctor_ok``/``last_doctor_at``; the lifecycle
-        ``status`` is left untouched (it is driven by generate/mark_ready/revoke).
+        The check only records ``doctor_ok``/``last_doctor_detail``/``last_doctor_at``;
+        the lifecycle ``status`` is left untouched (it is driven by
+        generate/mark_ready/revoke).
         """
         if profile_id not in self._states:
             return DoctorResult(healthy=False, detail=DOCTOR_UNKNOWN)
@@ -291,6 +295,7 @@ class ConnectService:
         # A doctor result describes config/token health only; it must not promote
         # the lifecycle status (READY is set by mark_ready on real MCP traffic).
         state.doctor_ok = healthy
+        state.last_doctor_detail = detail
         if not healthy:
             logger.warning(
                 "Connector doctor check failed: profile=%s detail=%s",

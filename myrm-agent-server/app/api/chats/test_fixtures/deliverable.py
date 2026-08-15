@@ -8,7 +8,7 @@ app.services.agent.params.workspace_resolve::resolve_default_chat_workspace_dir 
 seed_deliverable_link_fixture: workspace file + assistant markdown with workspace/ inline deliverable
 
 [POS]
-Mounted via test_fixtures router include.
+Mounted via test_fixtures/__init__.py router include.
 """
 
 from __future__ import annotations

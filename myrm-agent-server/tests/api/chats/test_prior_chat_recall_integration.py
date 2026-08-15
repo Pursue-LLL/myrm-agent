@@ -2,7 +2,7 @@
 
 [INPUT]
 tests.support.minimal_app::build_minimal_app (POS: 按需挂载 API 路由的测试 app)
-app.api.chats.test_fixtures_prior_chat::seed_prior_chat_fixture (POS: @chat E2E seed)
+app.api.chats.test_fixtures.prior_chat::seed_prior_chat_fixture (POS: @chat E2E seed)
 
 [OUTPUT]
 TestPriorChatRecallIntegration: HTTP recall search matches seeded prior chat index.
@@ -59,7 +59,7 @@ class TestPriorChatRecallIntegration:
         )
 
         with patch(
-            "app.api.chats.test_fixtures_prior_chat.is_local_mode", return_value=True
+            "app.api.chats.test_fixtures.prior_chat.is_local_mode", return_value=True
         ):
             seed_resp = client.post("/api/v1/chats/test/seed-prior-chat-fixture")
 
@@ -93,7 +93,7 @@ class TestPriorChatRecallIntegration:
         )
 
         with patch(
-            "app.api.chats.test_fixtures_prior_chat.is_local_mode", return_value=True
+            "app.api.chats.test_fixtures.prior_chat.is_local_mode", return_value=True
         ):
             seed_resp = client.post("/api/v1/chats/test/seed-prior-chat-fixture")
 

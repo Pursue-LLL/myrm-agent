@@ -5263,7 +5263,9 @@
         "llmCalls": "LLM 呼び出し",
         "saveAsEval": "評価ケースとして保存",
         "firstIrrecoverable": "回復不能になった最初のエラーポイント",
-        "recoverySteps": "回復手順"
+        "recoverySteps": "回復手順",
+        "securityLabels": "セキュリティラベル",
+        "securityFlag": "セキュリティ"
       },
       "replay": {
         "title": "セッションリプレイ",
@@ -5478,6 +5480,7 @@
       "savedCheckpointsDesc": "Agentタスクが中断された場合、すべてのチェックポイントは自動的に保存されます",
       "resumeSuccess": "チェックポイントの再開に成功しました",
       "resumeSuccessDesc": "タスク {taskId} が再開されました",
+      "reinitiateInfo": "タスクの説明が入力欄に事前入力されます",
       "confirmDelete": "このチェックポイントを削除しますか？",
       "confirmCleanup": "古いチェックポイントをクリーンアップしますか？（7日TTL）",
       "resumable": "再開可能",
@@ -11261,59 +11264,6 @@
     "toolGatewayNote": "ウェブ検索、画像生成、テキスト読み上げはワークユニットに含まれています — クラウドモードでは別途 API キーは不要です。",
     "loading": "読み込み中..."
   },
-  "agentEvents": {
-    "noEvents": "イベントはまだありません",
-    "showDetails": "詳細を表示",
-    "toolCallStart": "ツール呼び出しを開始",
-    "toolCallEnd": "ツール呼び出しが完了しました",
-    "commandStart": "コマンド開始実行",
-    "commandOutput": "コマンド出力",
-    "commandEnd": "コマンド実行完了",
-    "fileDiff": "ファイル変更",
-    "artifactCreated": "アーティファクトを作成しました",
-    "permissionRequest": "リクエスト権限",
-    "permissionResponse": "権限レスポンス",
-    "thinking": "思考中",
-    "assistantMessage": "助手メッセージ",
-    "error": "エラーが発生しました",
-    "risk": {
-      "low": "低リスク",
-      "medium": "中等リスク",
-      "high": "高リスク",
-      "critical": "重大リスク"
-    },
-    "permission": {
-      "title": "権限確認が必要です",
-      "resource": "リソース",
-      "reason": "理由",
-      "details": "詳細",
-      "approve": "許可",
-      "deny": "拒否",
-      "warningHigh": "この操作はリスクが高いです。承認前によく確認してください。",
-      "warningCritical": "この操作は重大で、取り返しのつかない変更を引き起こす可能性があります。細心の注意を払って進めてください。",
-      "actions": {
-        "toolCall": "ツール呼び出し",
-        "command": "コマンド実行",
-        "fileWrite": "ファイル書き込み入",
-        "fileDelete": "ファイル削除"
-      }
-    },
-    "permissionMode": {
-      "title": "権限モード",
-      "safe": {
-        "label": "セーフモード",
-        "description": "読み取り専用と安全な操作のみを許可します。信頼できない環境に最適です。"
-      },
-      "ask": {
-        "label": "確認モード",
-        "description": "潜在的に危険な操作について確認を求めます。ほとんどのユーザーに推奨します。"
-      },
-      "allowAll": {
-        "label": "完全信頼",
-        "description": "確認なしで全操作を実行します。信頼できる環境でのみ使用してください。"
-      }
-    }
-  },
   "runs": {
     "title": "アクティビティ",
     "subtitle": "すべてのバックグラウンド活動を一覧表示",
@@ -14070,6 +14020,8 @@
     "progress": "進捗",
     "lastTool": "最後のツール",
     "resume": "再開",
+    "reinitiateAction": "再開する",
+    "reinitiateTitle": "保存された説明でこのタスクを再実行する",
     "delete": "削除",
     "deleting": "削除中...",
     "refresh": "更新",
@@ -14601,6 +14553,9 @@
     "steerTitle": "操作 / 介入",
     "cancelTitle": "キャンセルしてチェックポイントを保存",
     "resumeTitle": "からチェックポイント復元",
+    "reinitiateAction": "再開する",
+    "reinitiateTitle": "保存された説明でこのタスクを再実行する",
+    "reinitiateSuccess": "タスクの説明を入力欄に事前入力しました",
     "dismiss": "閉じる",
     "steerPlaceholder": "操作コマンドを入力...",
     "send": "送信",
@@ -15569,6 +15524,7 @@
     "doctorDetailTokenMismatch": "設定内のトークンがサーバーと一致しません - 設定が古い可能性があります。再生成してください",
     "doctorDetailFileUnreadable": "設定ファイルを読み込めないか、形式が無効です - ファイル形式を確認してください",
     "doctorStatusOk": "正常",
+    "doctorStatusWarn": "一部検証済み",
     "doctorStatusFail": "異常",
     "doctorStatusUnknown": "未確認",
     "doctorLastChecked": "確認済み：{time}",

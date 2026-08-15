@@ -1,8 +1,17 @@
 """Local-only WeChat Official draft Chrome E2E seed routes.
 
+[INPUT]
+- app.config.deploy_mode::is_local_mode (POS: gate local-only access)
+- app.services.agent.agent_service::AgentService (POS: resolve default agent)
+- app.services.chat.chat_service::ChatService (POS: seed chat + messages)
+- app.services.config.service::ConfigService (POS: WeChat draft settings)
+
+[OUTPUT]
+- router: POST /test/seed-wechat-official-settings-fixture (POS: E2E seed endpoint)
+
 [POS]
-- api/chats: local-only seed endpoints for WeChat official draft Chrome E2E
-  (guarded by ``is_local_mode``; never exposed outside local dev).
+app.api.chats.test_fixtures 子包。WeChat Official draft Chrome E2E 的 local-only seed
+端点（is_local_mode 守卫，仅 local dev 暴露）。
 """
 
 from __future__ import annotations

@@ -9,6 +9,7 @@ import {
   GitCompareArrows,
   MessageSquare,
   PlayCircle,
+  RotateCcw,
   ShieldAlert,
   ShieldCheck,
   StopCircle,
@@ -31,6 +32,7 @@ import {
   type TreeNode,
 } from '@/lib/utils/subagentTree';
 import { isNodeOvertime, useSubagentStore, type SubagentVerification, type TeammateMessageEntry } from '@/store/chat/useSubagentStore';
+import useChatStore from '@/store/useChatStore';
 import { NodeStream, STATUS_ICON_MAP, StatusIcon } from './subagent-stream';
 
 type TeammateRowProps = {
@@ -203,9 +205,17 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
     }
   }, [chatId, node.task_id, t]);
 
+  const handleReinitiate = useCallback(() => {
+    const description = node.description || node.agent_type;
+    useChatStore.getState().setInputMessage(description);
+    setOpen(false);
+    toast.success(t('reinitiateSuccess'));
+  }, [node.description, node.agent_type, setOpen, t]);
+
   const isRunning = node.status === 'running';
   const isCheckpoint = node.status === 'checkpoint';
   const isInterrupted = node.status === 'interrupted';
+  const isPendingApproval = node.status === 'pending_approval';
   const hasChildren = !!node.children?.length;
 
   const handleJumpToApproval = useCallback(() => {
@@ -355,6 +365,18 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
             </Button>
           )}
           {isInterrupted && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs px-2 border-purple-300 text-purple-600 hover:bg-purple-50 hover:text-purple-700 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20 dark:hover:text-purple-300"
+              onClick={handleReinitiate}
+              title={t('reinitiateTitle')}
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+              {t('reinitiateAction')}
+            </Button>
+          )}
+          {isPendingApproval && (
             <Button
               variant="default"
               size="sm"

@@ -38,7 +38,7 @@ async def _seed_visible_agent(agent_id: str, *, display_name: str) -> None:
 
 def _seed(client: TestClient, *, agent_id: str) -> dict[str, object]:
     with patch(
-        "app.api.chats.test_fixtures_rich_media_preview.is_local_mode",
+        "app.api.chats.test_fixtures.rich_media_preview.is_local_mode",
         return_value=True,
     ):
         resp = client.post(
@@ -72,7 +72,7 @@ class TestRichMediaPreviewSeedIntegration:
         assert isinstance(files, dict)
         assert sorted(files) == ["bundle.zip", "preview.pdf", "preview.png", "readme.txt"]
 
-        from app.api.chats.test_fixtures_rich_media_preview import (
+        from app.api.chats.test_fixtures.rich_media_preview import (
             _minimal_pdf,
             _png_bytes,
         )
@@ -119,7 +119,7 @@ class TestRichMediaPreviewSeedIntegration:
         assert resp.headers.get("X-Content-Truncated") is None
         assert "inline" in resp.headers.get("content-disposition", "")
 
-        from app.api.chats.test_fixtures_rich_media_preview import _png_bytes
+        from app.api.chats.test_fixtures.rich_media_preview import _png_bytes
 
         assert resp.content == _png_bytes()
 

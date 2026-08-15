@@ -42,20 +42,20 @@ def test_seed_tool_history_recovery_fixture_persists_progress_steps(
 
     with (
         patch(
-            "app.api.chats.test_fixtures_tool_history_recovery.is_local_mode",
+            "app.api.chats.test_fixtures.tool_history_recovery.is_local_mode",
             return_value=True,
         ),
         patch(
-            "app.api.chats.test_fixtures_tool_history_recovery.AgentService.get_agent_list",
+            "app.api.chats.test_fixtures.tool_history_recovery.AgentService.get_agent_list",
             new_callable=AsyncMock,
             return_value=([fake_agent], 1),
         ),
         patch(
-            "app.api.chats.test_fixtures_tool_history_recovery.ChatService.create_or_update_chat",
+            "app.api.chats.test_fixtures.tool_history_recovery.ChatService.create_or_update_chat",
             new_callable=AsyncMock,
         ),
         patch(
-            "app.api.chats.test_fixtures_tool_history_recovery.ChatService.append_message",
+            "app.api.chats.test_fixtures.tool_history_recovery.ChatService.append_message",
             side_effect=_append_message,
         ),
     ):

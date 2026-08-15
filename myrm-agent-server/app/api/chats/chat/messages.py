@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+from myrm_agent_harness.agent.event_log.trace_builder import build_trace
+from myrm_agent_harness.agent.event_log.trace_types import ToolCallRecord
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config.settings import settings
 from app.core.utils.errors import internal_error, not_found_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
@@ -13,6 +20,7 @@ from app.database.dto import (
     CursorPage,
     MessageResponse,
 )
+from app.database.models.chat import Message
 from app.schemas.responses import StandardSuccessResponse
 from app.services.chat.chat_helpers import filter_messages
 from app.services.chat.chat_service import ChatService
@@ -211,45 +219,34 @@ async def export_chat(
         raise internal_error(operation="Export chat", exception=e) from e
 
 
+async def _load_tool_calls(chat_id: str) -> list[ToolCallRecord]:
+    """Read a chat's real tool calls from the harness event log (agent-event SSOT)."""
+    log_dir = Path(settings.database.event_log_dir)
+    if not (log_dir / f"{chat_id}.jsonl").exists():
+        return []
+    backend = FileEventLogBackend(log_dir=log_dir, session_id=chat_id)
+    trace = await build_trace(backend, chat_id)
+    return list(trace.tool_calls)
+
+
 async def _build_tool_summary(chat_id: str, db: AsyncSession) -> dict[str, object] | None:
-    """Aggregate tool call statistics from AgentTurn/AgentEvent tables.
+    """Aggregate tool call statistics from the harness event log.
 
-    Returns None when no turn data exists (e.g. sandbox mode where TurnManager is disabled).
+    Returns None when no tool activity exists for this chat.
     """
-    from collections import defaultdict
-
-    from sqlalchemy import select
-
-    from app.database.models.agent_event import AgentEvent, AgentTurn
-    from app.services.event.types import EventType
-
-    turn_rows = (await db.execute(select(AgentTurn.id).where(AgentTurn.chat_id == chat_id))).scalars().all()
-
-    if not turn_rows:
-        return None
-
-    events = (
-        await db.execute(
-            select(AgentEvent.tool_name, AgentEvent.duration_ms).where(
-                AgentEvent.turn_id.in_(turn_rows),
-                AgentEvent.tool_name.isnot(None),
-                AgentEvent.event_type == EventType.TOOL_CALL_END.value,
-            )
-        )
-    ).all()
-
-    if not events:
+    tool_calls = await _load_tool_calls(chat_id)
+    if not tool_calls:
         return None
 
     tool_buckets: dict[str, dict[str, int]] = defaultdict(lambda: {"count": 0, "totalMs": 0})
     total_calls = 0
     total_ms = 0
-    for tool_name, duration_ms in events:
-        bucket = tool_buckets[tool_name]
+    for call in tool_calls:
+        bucket = tool_buckets[call.tool_name]
         bucket["count"] += 1
-        bucket["totalMs"] += duration_ms or 0
+        bucket["totalMs"] += int(call.duration_ms or 0)
         total_calls += 1
-        total_ms += duration_ms or 0
+        total_ms += int(call.duration_ms or 0)
 
     tools_used = sorted(
         [{"name": name, "count": b["count"], "totalMs": b["totalMs"]} for name, b in tool_buckets.items()],
@@ -293,8 +290,17 @@ _ARG_SUMMARY_MAX_LEN = 200
 
 
 def _sanitize_args_summary(payload: dict) -> str:
-    """Extract a truncated, sanitized summary of tool call arguments from event payload."""
-    args = payload.get("arguments") or payload.get("args") or payload.get("input")
+    """Extract a truncated, sanitized summary of tool call arguments.
+
+    Accepts the raw tool input (event-log ``input_data``) directly, or a payload
+    that wraps arguments under ``arguments``/``args``/``input``.
+    """
+    args: object = payload
+    if isinstance(payload, dict):
+        for key in ("arguments", "args", "input"):
+            if payload.get(key):
+                args = payload[key]
+                break
     if not args:
         return ""
     if isinstance(args, str):
@@ -319,72 +325,44 @@ def _sanitize_args_summary(payload: dict) -> str:
 
 
 async def _build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[str, object]] | None:
-    """Fetch per-tool-call details by pairing START (args) and END (duration, success) events."""
-    from sqlalchemy import select
+    """Fetch per-tool-call details from the harness event log.
 
-    from app.database.models.agent_event import AgentEvent, AgentTurn
-    from app.services.event.types import EventType
-
-    turn_rows = (
-        await db.execute(
-            select(AgentTurn.id, AgentTurn.turn_index)
-            .where(AgentTurn.chat_id == chat_id)
-            .order_by(AgentTurn.turn_index)
-        )
-    ).all()
-
-    if not turn_rows:
+    ``turnIndex`` maps each call to the assistant message that produced it:
+    by the event's ``message_id`` when present, otherwise by the first
+    assistant message sent at or after the call's start time.
+    """
+    tool_calls = await _load_tool_calls(chat_id)
+    if not tool_calls:
         return None
 
-    turn_ids = [t[0] for t in turn_rows]
-
-    events = (
+    assistant_rows = (
         await db.execute(
-            select(
-                AgentEvent.turn_id,
-                AgentEvent.tool_name,
-                AgentEvent.event_type,
-                AgentEvent.payload,
-                AgentEvent.duration_ms,
-                AgentEvent.event_index,
-            )
-            .where(
-                AgentEvent.turn_id.in_(turn_ids),
-                AgentEvent.tool_name.isnot(None),
-                AgentEvent.event_type.in_([
-                    EventType.TOOL_CALL_START.value,
-                    EventType.TOOL_CALL_END.value,
-                ]),
-            )
-            .order_by(AgentEvent.turn_id, AgentEvent.event_index)
+            select(Message.id, Message.sent_at)
+            .where(Message.chat_id == chat_id, Message.role == "assistant")
+            .order_by(Message.sent_at)
         )
     ).all()
-
-    if not events:
-        return None
-
-    turn_index_map = {t[0]: t[1] for t in turn_rows}
-
-    start_events: list[tuple[str, str, dict]] = []
-    end_events: list[tuple[str, str, int | None, bool]] = []
-
-    for turn_id, tool_name, event_type, payload, duration_ms, _idx in events:
-        p = payload or {}
-        if event_type == EventType.TOOL_CALL_START.value:
-            start_events.append((turn_id, tool_name, p))
-        else:
-            success = p.get("success", True)
-            end_events.append((turn_id, tool_name, duration_ms, bool(success)))
+    by_message_id = {str(row.id): index for index, row in enumerate(assistant_rows)}
+    message_windows = [(row.sent_at.timestamp(), index) for index, row in enumerate(assistant_rows)]
 
     details: list[dict[str, object]] = []
-    for i, (turn_id, tool_name, duration_ms, success) in enumerate(end_events):
-        args_payload = start_events[i][2] if i < len(start_events) else {}
+    for call in tool_calls:
+        turn_index = by_message_id.get(str(call.message_id)) if call.message_id else None
+        if turn_index is None:
+            turn_index = _assistant_turn_index_at(call.start_time, message_windows)
         details.append({
-            "turnIndex": turn_index_map.get(turn_id, 0),
-            "name": tool_name,
-            "argsSummary": _sanitize_args_summary(args_payload),
-            "durationMs": duration_ms,
-            "success": success,
+            "turnIndex": turn_index,
+            "name": call.tool_name,
+            "argsSummary": _sanitize_args_summary(call.input_data),
+            "durationMs": int(call.duration_ms) if call.duration_ms is not None else None,
+            "success": call.success,
         })
-
     return details
+
+
+def _assistant_turn_index_at(start_time: float, windows: list[tuple[float, int]]) -> int:
+    """Index of the first assistant message sent at/after ``start_time`` (last if none)."""
+    for sent_at, index in windows:
+        if start_time <= sent_at:
+            return index
+    return windows[-1][1] if windows else 0

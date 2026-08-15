@@ -11,6 +11,7 @@ from importlib import import_module
 import httpx
 import pytest
 from httpx import ASGITransport
+from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpoint
 
 from tests.support.minimal_app import build_minimal_app
 
@@ -93,3 +94,33 @@ async def test_resume_missing_checkpoint_returns_404(
     )
 
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_list_exposes_task_description(
+    async_client: httpx.AsyncClient,
+    _isolate_storage,
+) -> None:
+    """The list endpoint must surface task_description so the UI can offer
+    a "re-initiate" flow for non-resumable checkpoints."""
+    cp = SubagentCheckpoint(
+        task_id="task-desc",
+        agent_type="researcher",
+        session_id="session-1",
+        timestamp=1728000000.0,
+        progress=0.4,
+        last_tool="web_search",
+        resumable=False,
+        task_description="Research competitor pricing",
+    )
+    await _isolate_storage.save(cp)
+
+    response = await async_client.get("/api/v1/checkpoint/list")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    info = payload["checkpoints"][0]
+    assert info["task_id"] == "task-desc"
+    assert info["task_description"] == "Research competitor pricing"
+    assert info["resumable"] is False

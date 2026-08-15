@@ -44,7 +44,7 @@ class TestWorkspaceMergeSeedIntegration:
         asyncio.run(_seed_visible_agent(agent_id, display_name="Merge Seed Agent"))
 
         with patch(
-            "app.api.chats.test_fixtures_workspace_merge.is_local_mode",
+            "app.api.chats.test_fixtures.workspace_merge.is_local_mode",
             return_value=True,
         ):
             resp = client.post(

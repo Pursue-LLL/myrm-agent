@@ -26,9 +26,9 @@ def test_seed_context_retention_fixture(client: TestClient, tmp_path: pytest.Tem
     fake_agent.display_name = "Context Retention E2E Agent"
 
     with (
-        patch("app.api.chats.test_fixtures_context_retention.is_local_mode", return_value=True),
+        patch("app.api.chats.test_fixtures.context_retention.is_local_mode", return_value=True),
         patch(
-            "app.api.chats.test_fixtures_context_retention.AgentService.get_agent_list",
+            "app.api.chats.test_fixtures.context_retention.AgentService.get_agent_list",
             new_callable=AsyncMock,
             return_value=([fake_agent], 1),
         ),

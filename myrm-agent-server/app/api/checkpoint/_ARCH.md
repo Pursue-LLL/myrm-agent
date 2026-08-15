@@ -8,6 +8,8 @@ LangGraph checkpoint 管理 HTTP 层。上级文档：[../_ARCH.md](../_ARCH.md)
 
 损坏的 subagent checkpoint：`resume` 返回 400（而非 500），`delete` 容错删除损坏文件——异常类型 `CheckpointCorruptedError` 由 harness `saver.load` 抛出，router 捕获映射。
 
+`GET /list` 暴露 `task_description` 字段：普通 shutdown checkpoint 的 `resumable=False`（同步状态提取无法恢复 LangGraph 消息），无法真正续跑。前端对不可恢复的 checkpoint 提供「重新发起」入口——用保存的任务描述填充聊天输入框，让用户重跑该任务；subagent 树与设置页两个入口行为一致。
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |

@@ -14,20 +14,11 @@ seed_skill_chip_composer_fixture: 创建绑定 systematic-debugging 的空会话
 seed_embed_fixture: 创建带 YouTube markdown 链接的 assistant 消息（Link Embeds Chrome E2E）
 seed_kanban_closure_fixture: 创建 Kanban 看板/任务 + Chat 内 kanban_tasks_created 卡片数据
 seed_kanban_in_review_fixture: 创建 IN_REVIEW 看板任务（Fleet pendingApprovals KPI Chrome E2E；task 绑定内置 agent 供抽屉本地化断言）
-seed_deliverable_link_fixture: 见 test_fixtures_deliverable.py（workspace 文件 + inline deliverable markdown）
-seed_copilot_fixture: 见 test_fixtures_copilot.py（assistant markdown + active run digest，Lean Co-Pilot Chrome E2E）
-seed_prior_chat_fixture: 见 test_fixtures_prior_chat.py（composer @chat: mention Chrome E2E）
-seed_rich_media_preview_fixture: 见 test_fixtures_rich_media_preview.py（chat + workspace 富媒体文件 · workspace rich-media preview Chrome E2E）
-seed_chat_share_fixture: 见 test_fixtures_chat_share.py（chat + user/assistant 消息 · Chat Share 生命周期 Chrome E2E）
+router: 聚合门面，include 21 个 seed 子模块 router（完整清单见 [test_fixtures/_ARCH.md](test_fixtures/_ARCH.md)）
 
 [POS]
-Chats API 本地测试 fixture。为 Wiki citation / Kanban closure / dedup review Chrome E2E 提供可重复、无 LLM 的种子数据。
-RevertFiles fixture 见 test_fixtures_revert.py。
-clarify refresh / file_edit batch / UECD evicted seed 见子模块 test_fixtures_*（子路由挂载）。
-seed_guardrail_bash_fixture: 见 test_fixtures_guardrail_bash.py（Chrome guardrail bash Badge E2E）
-seed_tool_history_recovery_fixture: 见 test_fixtures_tool_history_recovery.py（tool_history_recovery progress step Chrome E2E）
-seed_wiki_dedup_fixture: 见 test_fixtures_wiki_dedup.py（duplicate raw + sync scan · Wiki Duplicate Review Chrome E2E）
-seed_wiki_provenance_gap_fixture: 见 test_fixtures_wiki_provenance.py（compiled concept missing sources · Wiki Health Chrome E2E）
+Chats API 本地测试 fixture 子包聚合入口。内联定义 6 个核心 seed 端点，
+其余 seed 端点由子模块提供（见 _ARCH.md 文件清单），全部仅 local/tauri 模式可用。
 """
 
 from __future__ import annotations
@@ -48,37 +39,37 @@ from app.services.agent.agent_service import AgentService
 from app.services.chat.chat_service import ChatService
 from app.services.kanban import KanbanService
 
-from .test_fixtures_allowed_tools_recovery import (
+from .allowed_tools_recovery import (
     router as allowed_tools_recovery_fixture_router,
 )
-from .test_fixtures_chat_share import router as chat_share_fixture_router
-from .test_fixtures_clarify_refresh import router as clarify_refresh_fixture_router
-from .test_fixtures_context_retention import (
+from .chat_share import router as chat_share_fixture_router
+from .clarify_refresh import router as clarify_refresh_fixture_router
+from .context_retention import (
     router as context_retention_fixture_router,
 )
-from .test_fixtures_copilot import router as copilot_fixture_router
-from .test_fixtures_deliverable import router as deliverable_fixture_router
-from .test_fixtures_evicted import router as evicted_fixture_router
-from .test_fixtures_file_edit_batch import router as file_edit_batch_fixture_router
-from .test_fixtures_file_mutation import router as file_mutation_fixture_router
-from .test_fixtures_guardrail_bash import router as guardrail_bash_fixture_router
-from .test_fixtures_memory_lifecycle import router as memory_lifecycle_fixture_router
-from .test_fixtures_prior_chat import router as prior_chat_fixture_router
-from .test_fixtures_revert import router as revert_fixture_router
-from .test_fixtures_rich_media_preview import (
+from .copilot import router as copilot_fixture_router
+from .deliverable import router as deliverable_fixture_router
+from .evicted import router as evicted_fixture_router
+from .file_edit_batch import router as file_edit_batch_fixture_router
+from .file_mutation import router as file_mutation_fixture_router
+from .guardrail_bash import router as guardrail_bash_fixture_router
+from .memory_lifecycle import router as memory_lifecycle_fixture_router
+from .prior_chat import router as prior_chat_fixture_router
+from .revert import router as revert_fixture_router
+from .rich_media_preview import (
     router as rich_media_preview_fixture_router,
 )
-from .test_fixtures_security_preset import router as security_preset_fixture_router
-from .test_fixtures_stream_retry_busy import (
+from .security_preset import router as security_preset_fixture_router
+from .stream_retry_busy import (
     router as stream_retry_busy_fixture_router,
 )
-from .test_fixtures_tool_history_recovery import (
+from .tool_history_recovery import (
     router as tool_history_recovery_fixture_router,
 )
-from .test_fixtures_wechat_draft import router as wechat_draft_fixture_router
-from .test_fixtures_wiki_dedup import router as wiki_dedup_fixture_router
-from .test_fixtures_wiki_provenance import router as wiki_provenance_fixture_router
-from .test_fixtures_workspace_merge import router as workspace_merge_fixture_router
+from .wechat_draft import router as wechat_draft_fixture_router
+from .wiki_dedup import router as wiki_dedup_fixture_router
+from .wiki_provenance import router as wiki_provenance_fixture_router
+from .workspace_merge import router as workspace_merge_fixture_router
 
 router = APIRouter()
 

@@ -23,20 +23,20 @@ class TestChatsClarifyRefreshSeedFixture:
 
         with (
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.is_local_mode",
+                "app.api.chats.test_fixtures.clarify_refresh.is_local_mode",
                 return_value=True,
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.AgentService.get_agent_list",
+                "app.api.chats.test_fixtures.clarify_refresh.AgentService.get_agent_list",
                 new_callable=AsyncMock,
                 return_value=([fake_agent], 1),
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.ChatService.create_or_update_chat",
+                "app.api.chats.test_fixtures.clarify_refresh.ChatService.create_or_update_chat",
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.ChatService.append_message",
+                "app.api.chats.test_fixtures.clarify_refresh.ChatService.append_message",
                 new_callable=AsyncMock,
             ) as append_message,
         ):
@@ -60,20 +60,20 @@ class TestChatsClarifyRefreshSeedFixture:
 
         with (
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.is_local_mode",
+                "app.api.chats.test_fixtures.clarify_refresh.is_local_mode",
                 return_value=True,
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.AgentService.get_agent_list",
+                "app.api.chats.test_fixtures.clarify_refresh.AgentService.get_agent_list",
                 new_callable=AsyncMock,
                 return_value=([fake_agent], 1),
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.ChatService.create_or_update_chat",
+                "app.api.chats.test_fixtures.clarify_refresh.ChatService.create_or_update_chat",
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.ChatService.append_message",
+                "app.api.chats.test_fixtures.clarify_refresh.ChatService.append_message",
                 new_callable=AsyncMock,
             ) as append_message,
         ):
@@ -95,20 +95,20 @@ class TestChatsClarifyRefreshSeedFixture:
 
         with (
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.is_local_mode",
+                "app.api.chats.test_fixtures.clarify_refresh.is_local_mode",
                 return_value=True,
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.AgentService.get_agent_list",
+                "app.api.chats.test_fixtures.clarify_refresh.AgentService.get_agent_list",
                 new_callable=AsyncMock,
                 return_value=([fake_agent], 1),
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.ChatService.create_or_update_chat",
+                "app.api.chats.test_fixtures.clarify_refresh.ChatService.create_or_update_chat",
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.ChatService.append_message",
+                "app.api.chats.test_fixtures.clarify_refresh.ChatService.append_message",
                 new_callable=AsyncMock,
             ) as append_message,
         ):
@@ -131,20 +131,20 @@ class TestChatsClarifyRefreshSeedFixture:
 
         with (
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.is_local_mode",
+                "app.api.chats.test_fixtures.clarify_refresh.is_local_mode",
                 return_value=True,
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.AgentService.get_agent_list",
+                "app.api.chats.test_fixtures.clarify_refresh.AgentService.get_agent_list",
                 new_callable=AsyncMock,
                 return_value=([fake_agent], 1),
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.ChatService.create_or_update_chat",
+                "app.api.chats.test_fixtures.clarify_refresh.ChatService.create_or_update_chat",
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.api.chats.test_fixtures_clarify_refresh.ChatService.append_message",
+                "app.api.chats.test_fixtures.clarify_refresh.ChatService.append_message",
                 new_callable=AsyncMock,
             ) as append_message,
         ):
@@ -163,7 +163,7 @@ class TestChatsClarifyRefreshSeedFixture:
         self, client: TestClient
     ) -> None:
         with patch(
-            "app.api.chats.test_fixtures_clarify_refresh.is_local_mode",
+            "app.api.chats.test_fixtures.clarify_refresh.is_local_mode",
             return_value=False,
         ):
             resp = client.post(
