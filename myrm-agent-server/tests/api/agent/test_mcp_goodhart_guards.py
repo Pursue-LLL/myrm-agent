@@ -13,7 +13,11 @@ from tests.api.agent.mcp_e2e_goodhart import (
 
 
 def _tasks_step(
-    tool_name: str, data: list[dict[str, object]], *, status: str | None = None
+    tool_name: str,
+    data: list[dict[str, object]],
+    *,
+    status: str | None = None,
+    error_category: str | None = None,
 ) -> dict[str, object]:
     event: dict[str, object] = {
         "type": "tasks_steps",
@@ -22,6 +26,8 @@ def _tasks_step(
     }
     if status is not None:
         event["status"] = status
+    if error_category is not None:
+        event["error_category"] = error_category
     return event
 
 
@@ -102,6 +108,42 @@ def test_no_skill_usage_memory_search_ignores_unrelated_query() -> None:
         _tasks_step("skill_select_tool", [{"skill_name": "mcp_12306_skill"}]),
     ]
     assert mcp_no_skill_usage_memory_search(collected, "12306") is True
+
+
+def test_no_skill_usage_memory_search_skips_guard_intercepted_call() -> None:
+    """A call intercepted by the runtime skill-usage guard is a controlled
+    correction (the agent was redirected to the SOP/docs path), not a misuse."""
+    collected = [
+        _tasks_step("skill_select_tool", [{"skill_name": "mcp_12306_skill"}]),
+        _tasks_step(
+            "memory_search_tool",
+            [{"query": "12306 查询 北京 上海 高铁"}],
+            status="error",
+            error_category="skill_usage_guard",
+        ),
+        _tasks_step(
+            "file_read_tool",
+            [{"file_path": "/mcp/mcp_12306_skill/get_tickets.md"}],
+        ),
+    ]
+    assert mcp_no_skill_usage_memory_search(collected, "12306") is True
+
+
+def test_no_skill_usage_memory_search_still_fails_after_guard_intercept() -> None:
+    """Guarding one call does not forgive a later real (unintercepted) misuse."""
+    collected = [
+        _tasks_step(
+            "memory_search_tool",
+            [{"query": "how to use the 12306 skill"}],
+            status="error",
+            error_category="skill_usage_guard",
+        ),
+        _tasks_step(
+            "memory_search_tool",
+            [{"query": "12306 skill usage"}],
+        ),
+    ]
+    assert mcp_no_skill_usage_memory_search(collected, "12306") is False
 
 
 def test_bash_get_tickets_succeeded_requires_success_status() -> None:

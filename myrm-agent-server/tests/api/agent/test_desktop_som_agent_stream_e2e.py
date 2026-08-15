@@ -41,6 +41,7 @@ def _activate_textedit() -> None:
 
 
 @pytest.mark.e2e
+@pytest.mark.timeout(600)
 @pytest.mark.skipif(platform.system() != "Darwin", reason="macOS computer_use only")
 def test_agent_stream_desktop_snapshot_api_returns_som_nth(
     client: TestClient,

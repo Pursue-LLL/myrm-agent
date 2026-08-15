@@ -452,6 +452,9 @@ class LocalEvalExecutor:
                         step_detail["error"] = str(
                             event.get("error", "") or ""
                         )[:300]
+                    raw_error_category = event.get("error_category")
+                    if isinstance(raw_error_category, str) and raw_error_category:
+                        step_detail["error_category"] = raw_error_category
                     tool_call_details.append(step_detail)
                     if (
                         event.get("error_category")

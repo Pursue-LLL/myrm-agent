@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from myrm_agent_harness.agent.errors.tool_error_category import ToolErrorCategory
+
 _ITERATION_LIMIT_MARKERS = (
     "iteration limit",
     "iterations limit",
@@ -39,10 +41,17 @@ def mcp_skill_was_invoked(collected_data: list[dict[str, object]], marker: str) 
 
 
 def mcp_no_skill_usage_memory_search(collected_data: list[dict[str, object]], marker: str) -> bool:
-    """True when no memory_search_tool was used to look up skill usage for the marker skill.
+    """True when no memory_search_tool successfully looked up skill usage.
 
-    Skill SOPs and /mcp/*.md function docs are authoritative for usage; memory_search_tool
-    only recalls stored memories and must not be misused as a usage lookup during MCP tasks.
+    Skill SOPs and /mcp/*.md function docs are authoritative for usage;
+    memory_search_tool only recalls stored memories and must not be misused as
+    a usage lookup during MCP tasks.
+
+    Calls intercepted by the runtime skill-usage guard (error_category equals
+    ``SKILL_USAGE_GUARD``) are a controlled correction — the harness redirected
+    the agent to the SOP/docs path without executing a search — so they do not
+    count as a real misuse. Any other memory_search call whose query carries the
+    marker skill term fails the guard.
     """
     marker = marker.lower()
     for event in collected_data:
@@ -50,6 +59,11 @@ def mcp_no_skill_usage_memory_search(collected_data: list[dict[str, object]], ma
             continue
         tool_name = event.get("tool_name")
         if tool_name != "memory_search_tool":
+            continue
+        if (
+            event.get("error_category")
+            == ToolErrorCategory.SKILL_USAGE_GUARD.value
+        ):
             continue
         items = event.get("data")
         if not isinstance(items, list):

@@ -4,7 +4,7 @@
 
 本模块实现跨端的统一拦截与审批决策业务层（Approval Registry）。
 基于 Harness 层抛出的 `ApprovalContract` 中断原语，将审批请求落库至 `approvals` 表（ORM：`ApprovalRecord`），并广播 SSE 事件至 Web 前端，同时支持拦截并转化成 `OutboundMessage` 发送至原生 IM 渠道（如 Slack/Feishu）。
-IM/渠道 ActionButton 回调由 `channels/routing/router_commands.py::_handle_action_button_approval` 处理：解析 `approval:{action}:{id}` → 权限校验 → `resolve_approval` 落库 → 编辑原 IM 消息 → `SessionGate.submit(resume_msg)` 恢复 Agent。`resolve_approval` 仅处理 `status == "PENDING"` 的记录，已解决的审批返回 `None`（幂等保护，防止重复点击导致状态翻转）。Web Drawer 对 `subagent_approval` 由前端 `resumeApprovalStream` 先 resume，再由本模块 `resolve_approval` 落库；growth/无 thread_id 项仅落库不 resume。
+IM/渠道 ActionButton 回调由 `channels/routing/commands/router_commands_approval.py::_handle_action_button_approval` 处理：解析 `approval:{action}:{id}` → 权限校验 → `resolve_approval` 落库 → 编辑原 IM 消息 → `SessionGate.submit(resume_msg)` 恢复 Agent。`resolve_approval` 仅处理 `status == "PENDING"` 的记录，已解决的审批返回 `None`（幂等保护，防止重复点击导致状态翻转）。Web Drawer 对 `subagent_approval` 由前端 `resumeApprovalStream` 先 resume，再由本模块 `resolve_approval` 落库；growth/无 thread_id 项仅落库不 resume。
 支持通过 `expires_at` 和 Cron 定时任务进行超时审批 (TTL) 的自动降级与自动清理。
 
 **Outbound Draft Review（Channel HITL）**：`action_type == "outbound_draft"` 的审批项用于 Channel 消息草稿审核。当 Topic 配置 `replyMode: "draft_review"` 时，Agent 的 Channel 回复被拦截为 ApprovalRecord 而非直接发送。审批通过后消息被发送，拒绝则丢弃。超时行为由 `draft_timeout_action` 控制（`auto_send` 或 `auto_reject`）。此类审批无 `thread_id`（不涉及 LangGraph 恢复），resolution 直接触发消息发送/丢弃。

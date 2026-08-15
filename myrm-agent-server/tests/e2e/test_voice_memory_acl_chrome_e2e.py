@@ -106,9 +106,7 @@ def voice_feature_enabled() -> None:
 @pytest.mark.timeout(240)
 def test_voice_memory_settings_ui_enables_conversation_search_in_api() -> None:
     warm_ui_route("/settings/memory")
-    ui_base = get_e2e_ui_url()
-    with open_mcp_page(ui_base, timeout_ms=90_000) as (client, page):
-        client.navigate(page, f"{ui_base}/settings/memory", timeout_ms=90_000)
+    with open_settings_subroute("/settings/memory") as (client, page):
         shell = wait_for_state(client, page, SETTINGS_SHELL_READY_JS, timeout_sec=90.0)
         assert shell.get("ready") is True, shell
 
@@ -128,9 +126,7 @@ def test_voice_memory_settings_ui_enables_conversation_search_in_api() -> None:
 @pytest.mark.timeout(240)
 def test_voice_memory_settings_ui_disables_conversation_search_in_api() -> None:
     warm_ui_route("/settings/memory")
-    ui_base = get_e2e_ui_url()
-    with open_mcp_page(ui_base, timeout_ms=90_000) as (client, page):
-        client.navigate(page, f"{ui_base}/settings/memory", timeout_ms=90_000)
+    with open_settings_subroute("/settings/memory") as (client, page):
         shell = wait_for_state(client, page, SETTINGS_SHELL_READY_JS, timeout_sec=90.0)
         assert shell.get("ready") is True, shell
 
