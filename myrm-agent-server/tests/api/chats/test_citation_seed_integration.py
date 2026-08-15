@@ -53,7 +53,7 @@ class TestCitationSeedIntegration:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
         asyncio.run(_seed_visible_agent(agent_id, display_name="Citation Seed Integration Agent"))
 
-        with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
+        with patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=True):
             seed_resp = client.post("/api/v1/chats/test/seed-citation-fixture")
 
         assert seed_resp.status_code == 200

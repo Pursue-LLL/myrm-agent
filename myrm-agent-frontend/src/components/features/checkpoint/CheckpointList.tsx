@@ -148,7 +148,7 @@ const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onResumeSucc
               key={checkpoint.taskId}
               checkpoint={checkpoint}
               onResume={handleResume}
-              onReinitiate={(description, cpSessionId) => onReinitiate?.(description, cpSessionId)}
+              onReinitiate={onReinitiate ?? (() => undefined)}
               onDelete={handleDelete}
               isLoading={loading}
             />

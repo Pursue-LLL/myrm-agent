@@ -125,16 +125,8 @@ class ConnectService:
                     status=ConnectorStatus(data.get("status", "missing")),
                     token_hash=data.get("token_hash", ""),
                     agent_id=self._normalize_agent_id(data.get("agent_id")),
-                    connected_at=(
-                        datetime.fromisoformat(data["connected_at"])
-                        if data.get("connected_at")
-                        else None
-                    ),
-                    last_doctor_at=(
-                        datetime.fromisoformat(data["last_doctor_at"])
-                        if data.get("last_doctor_at")
-                        else None
-                    ),
+                    connected_at=(datetime.fromisoformat(data["connected_at"]) if data.get("connected_at") else None),
+                    last_doctor_at=(datetime.fromisoformat(data["last_doctor_at"]) if data.get("last_doctor_at") else None),
                     doctor_ok=data.get("doctor_ok", False),
                     last_doctor_detail=data.get("last_doctor_detail", ""),
                 )
@@ -151,12 +143,8 @@ class ConnectService:
                 "status": state.status.value,
                 "token_hash": state.token_hash,
                 "agent_id": state.agent_id,
-                "connected_at": (
-                    state.connected_at.isoformat() if state.connected_at else None
-                ),
-                "last_doctor_at": (
-                    state.last_doctor_at.isoformat() if state.last_doctor_at else None
-                ),
+                "connected_at": (state.connected_at.isoformat() if state.connected_at else None),
+                "last_doctor_at": (state.last_doctor_at.isoformat() if state.last_doctor_at else None),
                 "doctor_ok": state.doctor_ok,
                 "last_doctor_detail": state.last_doctor_detail,
             }
@@ -179,9 +167,7 @@ class ConnectService:
             result.append(self.get_connector_status(pid))
         return result
 
-    async def generate_config(
-        self, profile_id: str, *, agent_id: str = "default"
-    ) -> ConfigSnippet:
+    async def generate_config(self, profile_id: str, *, agent_id: str = "default") -> ConfigSnippet:
         """Generate MCP config snippet and token for an external agent.
 
         Creates a new API token, generates the appropriate JSON config,
@@ -232,9 +218,7 @@ class ConnectService:
                 return VerifiedConnectToken(profile_id=pid, agent_id=state.agent_id)
         return None
 
-    async def generate_agent_plugin_bundle(
-        self, *, agent_id: str = "default", embed_token: bool = False
-    ) -> "AgentPluginBundle":
+    async def generate_agent_plugin_bundle(self, *, agent_id: str = "default", embed_token: bool = False) -> "AgentPluginBundle":
         """Generate a portable Agent Plugins 1.0.0 bundle exposing Myrm memory."""
         from app.core.infra.ingress import get_public_ingress_base_url
         from app.services.connect.agent_plugin import (
@@ -254,9 +238,7 @@ class ConnectService:
             agent_id=normalized,
         )
         self._save_state()
-        return build_agent_plugin_bundle(
-            f"{base_url}/mcp", token, agent_id=normalized, embed_token=embed_token
-        )
+        return build_agent_plugin_bundle(f"{base_url}/mcp", token, agent_id=normalized, embed_token=embed_token)
 
     async def doctor(self, profile_id: str) -> DoctorResult:
         """Run a health check on a connector.

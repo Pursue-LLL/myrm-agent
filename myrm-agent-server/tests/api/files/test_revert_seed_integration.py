@@ -38,7 +38,9 @@ async def _seed_visible_agent(agent_id: str, *, display_name: str) -> None:
 
 
 def _seed(client: TestClient, *, variant: str = "modify") -> dict[str, object]:
-    with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
+    with patch(
+        "app.api.chats.test_fixtures.revert.is_local_mode", return_value=True
+    ):
         resp = client.post(f"/api/v1/chats/test/seed-revert-fixture?variant={variant}")
     assert resp.status_code == 200, resp.text
     body = resp.json()

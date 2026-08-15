@@ -27,7 +27,7 @@ class TestChatsKanbanClosureSeedFixture:
         fake_task.task_id = "task-e2e-1"
 
         with (
-            patch("app.api.chats.test_fixtures.is_local_mode", return_value=True),
+            patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=True),
             patch(
                 "app.api.chats.test_fixtures.AgentService.get_agent_list",
                 new_callable=AsyncMock,
@@ -77,6 +77,6 @@ class TestChatsKanbanClosureSeedFixture:
     def test_seed_kanban_closure_fixture_hidden_outside_local_mode(
         self, client: TestClient
     ) -> None:
-        with patch("app.api.chats.test_fixtures.is_local_mode", return_value=False):
+        with patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=False):
             resp = client.post("/api/v1/chats/test/seed-kanban-closure-fixture")
         assert resp.status_code == 404

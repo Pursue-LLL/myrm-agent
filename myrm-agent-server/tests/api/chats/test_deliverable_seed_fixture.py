@@ -61,7 +61,7 @@ class TestDeliverableLinkSeedIntegration:
                 side_effect=_fake_resolve,
             ),
             patch(
-                "app.api.chats.test_fixtures.AgentService.get_agent_list",
+                "app.api.chats.test_fixtures.deliverable.AgentService.get_agent_list",
                 return_value=([type("A", (), {"id": agent_id})()], 1),
             ),
         ):

@@ -91,7 +91,7 @@ class TestKanbanInReviewSeedIntegration:
 
         before_kanban = asyncio.run(_read_kanban_review_count())
 
-        with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
+        with patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=True):
             seed_resp = client.post("/api/v1/chats/test/seed-kanban-in-review-fixture")
 
         assert seed_resp.status_code == 200
@@ -125,7 +125,7 @@ class TestKanbanInReviewSeedIntegration:
         baseline = client.get("/api/v1/statistics/badges").json()["data"][
             "pendingApprovals"
         ]
-        with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
+        with patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=True):
             seed_resp = client.post("/api/v1/chats/test/seed-kanban-in-review-fixture")
         task_id = str(seed_resp.json()["task_id"])
 
@@ -149,7 +149,7 @@ class TestKanbanInReviewSeedIntegration:
         baseline = client.get("/api/v1/statistics/badges").json()["data"][
             "pendingApprovals"
         ]
-        with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
+        with patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=True):
             seed_resp = client.post("/api/v1/chats/test/seed-kanban-in-review-fixture")
         task_id = str(seed_resp.json()["task_id"])
 

@@ -204,13 +204,9 @@ class TestAgentPluginAPI:
 
     def test_revoke_agent_plugin_through_api(self, client: TestClient):
         client.post(f"{API_PREFIX}/connect/agent-plugin", json={"agent_id": "default"})
-        revoke = client.post(
-            f"{API_PREFIX}/connect/revoke", json={"profile_id": "agent_plugin"}
-        )
+        revoke = client.post(f"{API_PREFIX}/connect/revoke", json={"profile_id": "agent_plugin"})
         assert revoke.status_code == 200
         assert revoke.json()["revoked"] is True
         # The revoked token must no longer authenticate (doctor reports unhealthy).
-        doctor = client.post(
-            f"{API_PREFIX}/connect/doctor", json={"profile_id": "agent_plugin"}
-        )
+        doctor = client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "agent_plugin"})
         assert doctor.json()["healthy"] is False

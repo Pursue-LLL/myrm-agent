@@ -86,6 +86,7 @@ _OPEN_DIAGNOSTICS_JS = """(() => {
   return { ready: true };
 })()"""
 
+
 # Waits for the session-analytics dialog with the execution trace section, and
 # reports the shell tool-call card (matched by the injected tool name).
 def _trace_dialog_probe_js(tool_names: list[str]) -> str:
@@ -110,6 +111,7 @@ def _trace_dialog_probe_js(tool_names: list[str]) -> str:
         textSnippet: text.slice(0, 300),
       }};
     }})()"""
+
 
 # Clicks the "Enter Replay" button inside the trace dialog (any locale).
 # Reports the exact button text that was clicked so a wrong-target click is visible.
@@ -245,15 +247,15 @@ def _wait_py(predicate, *, timeout_sec: float, what: str):
 
 
 def _fetch_trace(api_url: str, chat_id: str) -> dict[str, object]:
-    resp = http_json(
-        "GET", f"{api_url}/api/v1/statistics/session/{chat_id}/trace"
-    )
+    resp = http_json("GET", f"{api_url}/api/v1/statistics/session/{chat_id}/trace")
     data = resp.get("data")
     assert isinstance(data, dict), resp
     return data
 
 
-async def _run_session(chat: McpChatSession, ledger: E2EResourceLedger) -> tuple[str, str, dict[str, object]]:
+async def _run_session(
+    chat: McpChatSession, ledger: E2EResourceLedger
+) -> tuple[str, str, dict[str, object]]:
     await chat.dismiss_modals()
     path_probe = await chat.evaluate(
         "(() => location.pathname)()",
@@ -308,26 +310,28 @@ async def _run_session(chat: McpChatSession, ledger: E2EResourceLedger) -> tuple
             if lineaged:
                 ledger.register("chat", chat_id)
                 tool_names = [
-                    tc.get("tool_name")
-                    for tc in tool_calls
-                    if isinstance(tc, dict)
+                    tc.get("tool_name") for tc in tool_calls if isinstance(tc, dict)
                 ]
                 for tc in tool_calls:
                     if isinstance(tc, dict):
                         labels = tc.get("security_labels")
-                        assert labels is None or isinstance(labels, list), (
-                            f"security_labels must be a list when present: {tc}"
-                        )
+                        assert labels is None or isinstance(
+                            labels, list
+                        ), f"security_labels must be a list when present: {tc}"
                 with_message_id = [
                     tc.get("tool_name")
                     for tc in tool_calls
                     if isinstance(tc, dict) and tc.get("message_id")
                 ]
-                return chat_id, api_url, {
-                    "tool_names": tool_names,
-                    "lineaged": [tc.get("tool_name") for tc in lineaged],
-                    "with_message_id": with_message_id,
-                }
+                return (
+                    chat_id,
+                    api_url,
+                    {
+                        "tool_names": tool_names,
+                        "lineaged": [tc.get("tool_name") for tc in lineaged],
+                        "with_message_id": with_message_id,
+                    },
+                )
 
     raise AssertionError(
         f"No lineaged tool call after {MAX_TURNS} real turns: "
@@ -356,10 +360,14 @@ async def test_chrome_ui_lineage_trace_replay(
     try:
         page: McpPage | None = None
         try:
-            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+            page = await asyncio.to_thread(
+                client.new_page, BASE_URL, timeout_ms=120_000
+            )
         except TimeoutError:
             await asyncio.sleep(2.0)
-            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+            page = await asyncio.to_thread(
+                client.new_page, BASE_URL, timeout_ms=120_000
+            )
         assert page is not None, "new_page returned no page"
         chat = McpChatSession(client, page)
         await chat.bootstrap(BASE_URL, timeout_sec=120.0)
@@ -375,10 +383,14 @@ async def test_chrome_ui_lineage_trace_replay(
     try:
         page2: McpPage | None = None
         try:
-            page2 = await asyncio.to_thread(client2.new_page, BASE_URL, timeout_ms=120_000)
+            page2 = await asyncio.to_thread(
+                client2.new_page, BASE_URL, timeout_ms=120_000
+            )
         except TimeoutError:
             await asyncio.sleep(2.0)
-            page2 = await asyncio.to_thread(client2.new_page, BASE_URL, timeout_ms=120_000)
+            page2 = await asyncio.to_thread(
+                client2.new_page, BASE_URL, timeout_ms=120_000
+            )
         assert page2 is not None, "new_page returned no page (second session)"
         chat2 = McpChatSession(client2, page2)
         await chat2.bootstrap(BASE_URL, timeout_sec=120.0)

@@ -124,9 +124,7 @@ class TestConnectorState:
         service.mark_ready("unknown_profile")
 
     @pytest.mark.asyncio
-    async def test_state_persists_agent_id(
-        self, service: ConnectService, tmp_data_dir: Path
-    ):
+    async def test_state_persists_agent_id(self, service: ConnectService, tmp_data_dir: Path):
         await service.generate_config("codex", agent_id="ops-agent")
 
         service2 = ConnectService(data_dir=tmp_data_dir)
@@ -134,9 +132,7 @@ class TestConnectorState:
         assert state.agent_id == "ops-agent"
 
     @pytest.mark.asyncio
-    async def test_state_persists_to_disk(
-        self, service: ConnectService, tmp_data_dir: Path
-    ):
+    async def test_state_persists_to_disk(self, service: ConnectService, tmp_data_dir: Path):
         await service.generate_config("windsurf")
 
         service2 = ConnectService(data_dir=tmp_data_dir)
@@ -185,9 +181,7 @@ class TestDoctor:
         assert state.last_doctor_detail == "token_valid"
 
     @pytest.mark.asyncio
-    async def test_doctor_detail_persists_across_instances(
-        self, service: ConnectService, tmp_data_dir: Path
-    ):
+    async def test_doctor_detail_persists_across_instances(self, service: ConnectService, tmp_data_dir: Path):
         """Doctor detail survives a service reload (drives card severity)."""
         await service.generate_config("cursor")
         with patch("app.services.connect.service.is_local_mode", return_value=False):
@@ -199,9 +193,7 @@ class TestDoctor:
         assert state.doctor_ok is True
 
     @pytest.mark.asyncio
-    async def test_doctor_detail_defaults_empty_for_legacy_state(
-        self, service: ConnectService, tmp_data_dir: Path
-    ):
+    async def test_doctor_detail_defaults_empty_for_legacy_state(self, service: ConnectService, tmp_data_dir: Path):
         """Legacy state files without the field load with an empty detail."""
         state_file = tmp_data_dir / "connect_state.json"
         state_file.write_text(
@@ -237,9 +229,7 @@ class TestDoctor:
         assert result.detail == "verified"
 
     @pytest.mark.asyncio
-    async def test_doctor_local_mismatched_config_reports_unhealthy(
-        self, service: ConnectService
-    ):
+    async def test_doctor_local_mismatched_config_reports_unhealthy(self, service: ConnectService):
         """A stale on-disk token makes the connector unhealthy in local mode."""
         await service.generate_config("cursor")
         with (

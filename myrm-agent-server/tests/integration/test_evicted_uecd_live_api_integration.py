@@ -147,7 +147,9 @@ class TestEvictedUecdSeedFixtureIntegration:
             return agent_id
 
         asyncio.run(_seed_agent())
-        with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
+        with patch(
+            "app.api.chats.test_fixtures.evicted.is_local_mode", return_value=True
+        ):
             resp = client.post(
                 "/api/v1/chats/test/seed-evicted-live-terminal-fixture",
             )
@@ -196,7 +198,9 @@ class TestEvictedUecdSeedFixtureIntegration:
                 await db.commit()
 
         asyncio.run(_seed_agent())
-        with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
+        with patch(
+            "app.api.chats.test_fixtures.evicted.is_local_mode", return_value=True
+        ):
             resp = client.post(
                 "/api/v1/chats/test/seed-evicted-live-terminal-fixture?variant=expired",
             )

@@ -10,6 +10,7 @@ import {
   IconLoader,
   IconMessageSquare,
   IconPlay,
+  IconShieldAlert,
   IconSquare,
   IconWrench,
   IconXCircle,
@@ -65,6 +66,10 @@ const OUTCOME_CONFIG: Record<TraceOutcome, { icon: React.ElementType; label: str
     className: 'bg-muted text-muted-foreground',
   },
 };
+
+function isDenyDecision(decision: string): boolean {
+  return /DENY|BLOCK|BREAK|STOP|REJECT/i.test(decision);
+}
 
 const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, showEvalCase = true, pollMs }) => {
   const t = useTranslations('settings.sessionAnalytics.trace');
@@ -297,7 +302,12 @@ const ToolCallItem = memo<ToolCallItemProps>(({ toolCall, traceStartTime, isHigh
   const [expanded, setExpanded] = useState(false);
   const toggle = useCallback(() => setExpanded((prev) => !prev), []);
   const tFault = useTranslations('progressSteps');
+  const tSecurity = useTranslations('settings.sessionAnalytics.trace');
   const faultSide = toolCall.fault_side && toolCall.fault_side !== 'unknown' ? toolCall.fault_side : null;
+
+  const securityLabels = toolCall.security_labels ?? [];
+  const hasSecurity = securityLabels.length > 0;
+  const critical = hasSecurity && securityLabels.some((s) => s.tainted || isDenyDecision(s.decision));
 
   const offsetMs = Math.max(0, Math.round((toolCall.start_time - traceStartTime) * 1000));
   const offsetText = offsetMs >= 1000 ? `+${(offsetMs / 1000).toFixed(1)}s` : `+${offsetMs}ms`;
@@ -331,6 +341,20 @@ const ToolCallItem = memo<ToolCallItemProps>(({ toolCall, traceStartTime, isHigh
         <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
           <span className="font-mono">{offsetText}</span>
           {durationText && <span className="font-mono">{durationText}</span>}
+          {hasSecurity && (
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium',
+                critical
+                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+              )}
+              title={securityLabels.map((s) => `${s.decision}: ${s.reason ?? ''}`).join('\n')}
+            >
+              <IconShieldAlert className="h-3 w-3" />
+              {tSecurity('securityFlag')}
+            </span>
+          )}
           {toolCall.success ? (
             <IconCheckCircle className="h-3.5 w-3.5 text-emerald-500" />
           ) : (
@@ -339,14 +363,51 @@ const ToolCallItem = memo<ToolCallItemProps>(({ toolCall, traceStartTime, isHigh
         </div>
       </button>
 
-      {expanded && toolCall.error && (
-        <div className="px-10 pb-2.5">
-          {faultSide && (
-            <span className="mb-1.5 inline-flex items-center rounded-full bg-rose-500/10 border border-rose-500/25 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-600 dark:text-rose-400">
-              {tFault(`faultSides.${faultSide}`)}
-            </span>
+      {expanded && (
+        <div className="space-y-2 pb-2.5">
+          {hasSecurity && (
+            <div className="px-10">
+              <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                {tSecurity('securityLabels')}
+              </p>
+              <div className="space-y-1">
+                {securityLabels.map((label, idx) => (
+                  <div
+                    key={idx}
+                    className={cn(
+                      'flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs',
+                      label.tainted || isDenyDecision(label.decision)
+                        ? 'border-rose-500/25 bg-rose-500/5'
+                        : 'border-amber-500/25 bg-amber-500/5',
+                    )}
+                  >
+                    <IconShieldAlert
+                      className={cn(
+                        'h-3.5 w-3.5 shrink-0 mt-0.5',
+                        label.tainted || isDenyDecision(label.decision)
+                          ? 'text-rose-500'
+                          : 'text-amber-500',
+                      )}
+                    />
+                    <div className="min-w-0">
+                      <span className="font-medium text-foreground">{label.decision}</span>
+                      {label.reason && <span className="ml-2 text-muted-foreground break-words">{label.reason}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-          <p className="text-xs text-rose-600 dark:text-rose-400 break-words">{toolCall.error}</p>
+          {toolCall.error && (
+            <div className="px-10">
+              {faultSide && (
+                <span className="mb-1.5 inline-flex items-center rounded-full bg-rose-500/10 border border-rose-500/25 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-600 dark:text-rose-400">
+                  {tFault(`faultSides.${faultSide}`)}
+                </span>
+              )}
+              <p className="text-xs text-rose-600 dark:text-rose-400 break-words">{toolCall.error}</p>
+            </div>
+          )}
         </div>
       )}
     </div>

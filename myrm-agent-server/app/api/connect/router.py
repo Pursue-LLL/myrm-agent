@@ -147,9 +147,7 @@ async def run_doctor(body: DoctorRequest) -> DoctorResponse:
 async def generate_agent_plugin(body: AgentPluginRequest) -> AgentPluginResponse:
     """Generate a portable Agent Plugins 1.0.0 bundle exposing Myrm memory."""
     service = get_connect_service()
-    bundle = await service.generate_agent_plugin_bundle(
-        agent_id=body.agent_id, embed_token=body.embed_token
-    )
+    bundle = await service.generate_agent_plugin_bundle(agent_id=body.agent_id, embed_token=body.embed_token)
     return AgentPluginResponse(
         agent_id=bundle.agent_id,
         mcp_url=bundle.mcp_url,

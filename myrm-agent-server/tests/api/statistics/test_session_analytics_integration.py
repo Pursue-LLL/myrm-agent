@@ -9,13 +9,19 @@ from httpx import ASGITransport, AsyncClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="statistics")
+
+
 @pytest.mark.asyncio
 async def test_session_analytics_endpoint_with_real_session():
     """Test /api/v1/statistics/session/{session_id} with a real session."""
     # Use httpx to call the API
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         # First, check if there are any sessions
-        response = await ac.get("/api/v1/statistics/usage/sessions", params={"limit": 1})
+        response = await ac.get(
+            "/api/v1/statistics/usage/sessions", params={"limit": 1}
+        )
         assert response.status_code == 200
 
         data = response.json()
@@ -50,7 +56,9 @@ async def test_session_analytics_endpoint_with_real_session():
 @pytest.mark.asyncio
 async def test_session_analytics_endpoint_not_found():
     """Test /api/v1/statistics/session/{session_id} with non-existent session."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         response = await ac.get("/api/v1/statistics/session/non-existent-session-id")
 
         # Should return 404 or empty data
@@ -60,9 +68,13 @@ async def test_session_analytics_endpoint_not_found():
 @pytest.mark.asyncio
 async def test_session_analytics_endpoint_structure():
     """Test session analytics response structure."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         # Get a session
-        response = await ac.get("/api/v1/statistics/usage/sessions", params={"limit": 1})
+        response = await ac.get(
+            "/api/v1/statistics/usage/sessions", params={"limit": 1}
+        )
         if response.status_code != 200:
             pytest.skip("Cannot fetch sessions")
 
@@ -102,8 +114,12 @@ async def test_session_analytics_endpoint_structure():
 @pytest.mark.asyncio
 async def test_session_trace_endpoint_with_real_session():
     """Test /api/v1/statistics/session/{session_id}/trace with a real session."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get("/api/v1/statistics/usage/sessions", params={"limit": 1})
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get(
+            "/api/v1/statistics/usage/sessions", params={"limit": 1}
+        )
         assert response.status_code == 200
 
         sessions = response.json().get("data", {}).get("sessions", [])
@@ -134,15 +150,15 @@ async def test_session_trace_endpoint_with_real_session():
 @pytest.mark.asyncio
 async def test_session_trace_endpoint_not_found():
     """Test /api/v1/statistics/session/{session_id}/trace with non-existent session."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         response = await ac.get("/api/v1/statistics/session/non-existent-id/trace")
         assert response.status_code in [200, 404]
 
 
 @pytest.mark.asyncio
-async def test_session_trace_endpoint_kanban_without_chat(
-    tmp_path, monkeypatch
-):
+async def test_session_trace_endpoint_kanban_without_chat(tmp_path, monkeypatch):
     """Kanban runs have no Chat record but do write event logs; trace must not 404."""
     from datetime import datetime
 
@@ -187,10 +203,10 @@ async def test_session_trace_endpoint_kanban_without_chat(
     ]
     await backend.append(events)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get(
-            f"/api/v1/statistics/session/{session_id}/trace"
-        )
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get(f"/api/v1/statistics/session/{session_id}/trace")
 
     assert response.status_code == 200
     result = response.json()
@@ -202,9 +218,7 @@ async def test_session_trace_endpoint_kanban_without_chat(
 
 
 @pytest.mark.asyncio
-async def test_session_trace_endpoint_kanban_colon_session_id(
-    tmp_path, monkeypatch
-):
+async def test_session_trace_endpoint_kanban_colon_session_id(tmp_path, monkeypatch):
     """Real kanban goal sessions use `kanban:{task_id}` (colon). Whitelist
     must allow the colon and the trace must resolve to the event log file."""
     from datetime import datetime
@@ -250,10 +264,10 @@ async def test_session_trace_endpoint_kanban_colon_session_id(
     ]
     await backend.append(events)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get(
-            f"/api/v1/statistics/session/{session_id}/trace"
-        )
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get(f"/api/v1/statistics/session/{session_id}/trace")
 
     assert response.status_code == 200
     result = response.json()
@@ -264,19 +278,17 @@ async def test_session_trace_endpoint_kanban_colon_session_id(
 
 
 @pytest.mark.asyncio
-async def test_session_trace_endpoint_missing_both_returns_404(
-    tmp_path, monkeypatch
-):
+async def test_session_trace_endpoint_missing_both_returns_404(tmp_path, monkeypatch):
     """Trace with neither Chat record nor event log file must 404 (not leak)."""
     monkeypatch.setattr(
         "app.config.settings.settings.database.event_log_dir",
         str(tmp_path),
     )
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get(
-            "/api/v1/statistics/session/kanban-no-eventlog/trace"
-        )
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get("/api/v1/statistics/session/kanban-no-eventlog/trace")
 
     assert response.status_code == 404
 
@@ -284,8 +296,12 @@ async def test_session_trace_endpoint_missing_both_returns_404(
 @pytest.mark.asyncio
 async def test_session_trace_endpoint_structure():
     """Test trace response structure has all expected fields."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get("/api/v1/statistics/usage/sessions", params={"limit": 1})
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get(
+            "/api/v1/statistics/usage/sessions", params={"limit": 1}
+        )
         if response.status_code != 200:
             pytest.skip("Cannot fetch sessions")
 
@@ -319,7 +335,9 @@ async def test_session_trace_endpoint_structure():
 @pytest.mark.asyncio
 async def test_model_sessions_endpoint_basic():
     """Test /api/v1/statistics/usage/model-sessions with mock or non-existent model."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         # Query with a non-existent/dummy model name
         response = await ac.get(
             "/api/v1/statistics/usage/model-sessions",
@@ -347,7 +365,9 @@ _MALICIOUS_SESSION_IDS = [
 @pytest.mark.asyncio
 async def test_session_trace_endpoint_rejects_path_traversal():
     """Crafted session ids must not escape the event-log dir (404, no oracle)."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         for bad_id in _MALICIOUS_SESSION_IDS:
             response = await ac.get(f"/api/v1/statistics/session/{bad_id}/trace")
             assert response.status_code == 404, f"{bad_id!r} -> {response.status_code}"
@@ -356,16 +376,16 @@ async def test_session_trace_endpoint_rejects_path_traversal():
 @pytest.mark.asyncio
 async def test_session_analytics_endpoint_rejects_path_traversal():
     """Analytics endpoint applies the same session-id whitelist."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         for bad_id in _MALICIOUS_SESSION_IDS:
             response = await ac.get(f"/api/v1/statistics/session/{bad_id}")
             assert response.status_code == 404, f"{bad_id!r} -> {response.status_code}"
 
 
 @pytest.mark.asyncio
-async def test_session_trace_endpoint_security_labels_merged(
-    tmp_path, monkeypatch
-):
+async def test_session_trace_endpoint_security_labels_merged(tmp_path, monkeypatch):
     """Tool calls with tool_call_id must carry merged step-level security
     decisions from the security_audit event (lineage DAG contract)."""
     from datetime import datetime
@@ -384,7 +404,13 @@ async def test_session_trace_endpoint_security_labels_merged(
     backend = FileEventLogBackend(tmp_path, session_id)
     ts = datetime.now().timestamp()
     events = [
-        StructuredEvent(session_id=session_id, sequence=1, timestamp=ts, event_type="session_start", data={}),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=1,
+            timestamp=ts,
+            event_type="session_start",
+            data={},
+        ),
         StructuredEvent(
             session_id=session_id,
             sequence=2,
@@ -426,14 +452,20 @@ async def test_session_trace_endpoint_security_labels_merged(
                 "count": 2,
             },
         ),
-        StructuredEvent(session_id=session_id, sequence=5, timestamp=ts + 4, event_type="session_end", data={}),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=5,
+            timestamp=ts + 4,
+            event_type="session_end",
+            data={},
+        ),
     ]
     await backend.append(events)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get(
-            f"/api/v1/statistics/session/{session_id}/trace"
-        )
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get(f"/api/v1/statistics/session/{session_id}/trace")
 
     assert response.status_code == 200
     result = response.json()
@@ -444,15 +476,23 @@ async def test_session_trace_endpoint_security_labels_merged(
     assert tool_call["tool_call_id"] == "call-1"
     assert tool_call["message_id"] == "msg-1"
     assert tool_call["security_labels"] == [
-        {"decision": "DENY", "reason": "E-Stop active", "tainted": True, "ts": round(ts + 2.5, 3)},
-        {"decision": "ALLOW", "reason": "capability fence passed", "tainted": False, "ts": round(ts + 1.5, 3)},
+        {
+            "decision": "DENY",
+            "reason": "E-Stop active",
+            "tainted": True,
+            "ts": round(ts + 2.5, 3),
+        },
+        {
+            "decision": "ALLOW",
+            "reason": "capability fence passed",
+            "tainted": False,
+            "ts": round(ts + 1.5, 3),
+        },
     ]
 
 
 @pytest.mark.asyncio
-async def test_session_trace_endpoint_no_security_audit_is_noop(
-    tmp_path, monkeypatch
-):
+async def test_session_trace_endpoint_no_security_audit_is_noop(tmp_path, monkeypatch):
     """Sessions without a security_audit event must not attach security_labels."""
     from datetime import datetime
 
@@ -470,7 +510,13 @@ async def test_session_trace_endpoint_no_security_audit_is_noop(
     backend = FileEventLogBackend(tmp_path, session_id)
     ts = datetime.now().timestamp()
     events = [
-        StructuredEvent(session_id=session_id, sequence=1, timestamp=ts, event_type="session_start", data={}),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=1,
+            timestamp=ts,
+            event_type="session_start",
+            data={},
+        ),
         StructuredEvent(
             session_id=session_id,
             sequence=2,
@@ -485,14 +531,20 @@ async def test_session_trace_endpoint_no_security_audit_is_noop(
             event_type="tool_end",
             data={"tool_name": "bash", "tool_call_id": "call-1", "duration_ms": 50.0},
         ),
-        StructuredEvent(session_id=session_id, sequence=4, timestamp=ts + 3, event_type="session_end", data={}),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=4,
+            timestamp=ts + 3,
+            event_type="session_end",
+            data={},
+        ),
     ]
     await backend.append(events)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get(
-            f"/api/v1/statistics/session/{session_id}/trace"
-        )
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get(f"/api/v1/statistics/session/{session_id}/trace")
 
     assert response.status_code == 200
     trace = response.json()["data"]
@@ -528,7 +580,13 @@ async def test_session_trace_endpoint_tasks_steps_lineage_with_labels(
     backend = FileEventLogBackend(tmp_path, session_id)
     ts = datetime.now().timestamp()
     events = [
-        StructuredEvent(session_id=session_id, sequence=1, timestamp=ts, event_type="session_start", data={}),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=1,
+            timestamp=ts,
+            event_type="session_start",
+            data={},
+        ),
         # Exact payload of streaming.event_handlers._handle_tool_calls
         StructuredEvent(
             session_id=session_id,
@@ -578,14 +636,20 @@ async def test_session_trace_endpoint_tasks_steps_lineage_with_labels(
                 "count": 1,
             },
         ),
-        StructuredEvent(session_id=session_id, sequence=5, timestamp=ts + 4, event_type="session_end", data={}),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=5,
+            timestamp=ts + 4,
+            event_type="session_end",
+            data={},
+        ),
     ]
     await backend.append(events)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get(
-            f"/api/v1/statistics/session/{session_id}/trace"
-        )
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get(f"/api/v1/statistics/session/{session_id}/trace")
 
     assert response.status_code == 200
     assert response.json()["success"] is True
@@ -598,7 +662,12 @@ async def test_session_trace_endpoint_tasks_steps_lineage_with_labels(
     assert tool_call["success"] is False
     assert tool_call["error"] == "exit code 1"
     assert tool_call["security_labels"] == [
-        {"decision": "DENY", "reason": "E-Stop active", "tainted": True, "ts": round(ts + 1.5, 3)},
+        {
+            "decision": "DENY",
+            "reason": "E-Stop active",
+            "tainted": True,
+            "ts": round(ts + 1.5, 3),
+        },
     ]
 
 

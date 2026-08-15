@@ -288,11 +288,9 @@ async def convert_to_general_agent_params(
                 from myrm_agent_harness.toolkits.llms import llm_manager
 
                 try:
-                    judge_llm = await llm_manager.get_llm_from_config(
-                        lite_model_cfg, "api_keys", None
-                    )
+                    judge_llm = await llm_manager.get_llm_from_config(lite_model_cfg)
                 except Exception as exc:
-                    logger.debug(
+                    logger.warning(
                         "Failed to create judge LLM for smart routing: %s", exc
                     )
 

@@ -22,7 +22,7 @@ class TestChatsEmbedSeedFixture:
         fake_agent.display_name = "Embed E2E Agent"
 
         with (
-            patch("app.api.chats.test_fixtures.is_local_mode", return_value=True),
+            patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=True),
             patch(
                 "app.api.chats.test_fixtures.AgentService.get_agent_list",
                 new_callable=AsyncMock,
@@ -49,6 +49,6 @@ class TestChatsEmbedSeedFixture:
         assert append_message.await_count == 2
 
     def test_seed_embed_fixture_hidden_outside_local_mode(self, client: TestClient) -> None:
-        with patch("app.api.chats.test_fixtures.is_local_mode", return_value=False):
+        with patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=False):
             resp = client.post("/api/v1/chats/test/seed-embed-fixture")
         assert resp.status_code == 404
