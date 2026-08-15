@@ -32,13 +32,14 @@ const AgentAuditView = memo(() => {
         setError(null);
       } catch (e) {
         if (seq !== requestSeqRef.current) {return;}
-        setError(e instanceof Error ? e.message : 'Failed to load agent activity');
-        toast.error(e instanceof Error ? e.message : 'Failed to load agent activity');
+        const message = e instanceof Error ? e.message : t('agentLoadFailed');
+        setError(message);
+        toast.error(message);
       } finally {
         if (seq === requestSeqRef.current) {setLoading(false);}
       }
     },
-    [],
+    [t],
   );
 
   useEffect(() => {

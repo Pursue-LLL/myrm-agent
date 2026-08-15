@@ -410,6 +410,20 @@ def test_wechat_delete_confirmation_flows() -> None:
                 extra["backendInstancesBefore"] = _wechat_instances(api_url)
             assert extra.get("ready") is True, extra
 
+            # Decisive evidence: what does the frontend's own fetch of
+            # /instances return? The React state is seeded from this response,
+            # so a mismatch here explains why the setInstances filter misses.
+            try:
+                fetch_probe = client.evaluate(page, _instances_fetch_probe_js(), timeout_sec=30.0)
+                print(
+                    f"[channel-e2e] Flow2 page-context instances fetch: "
+                    f"{json.dumps(fetch_probe, ensure_ascii=False)}"
+                )
+                sys.stdout.flush()
+            except (RuntimeError, TimeoutError, OSError) as exc:
+                print(f"[channel-e2e] Flow2 page-context fetch failed: {str(exc)[:300]}")
+                sys.stdout.flush()
+
             # Cancel keeps the instance.
             opened = client.evaluate(page, _extra_instance_open_js(instance_id), timeout_sec=30.0)
             assert isinstance(opened, dict) and opened.get("ok") is True, opened
@@ -451,6 +465,7 @@ def test_wechat_delete_confirmation_flows() -> None:
                 for probe_name, probe_js in (
                     ("goneProbe", _extra_instance_gone_js(instance_id)),
                     ("uiProbe", _instance_ui_probe_js(instance_id)),
+                    ("fetchProbe", _instances_fetch_probe_js()),
                 ):
                     try:
                         gone[probe_name] = client.evaluate(page, probe_js, timeout_sec=30.0)

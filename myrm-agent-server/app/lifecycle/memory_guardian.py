@@ -44,6 +44,7 @@ from myrm_agent_harness.toolkits.memory.health import MaintenanceReport
 
 from app.lifecycle.memory_guardian_ops import (
     auto_resolve_expired_conflicts,
+    create_guardian_memory_manager,
     purge_expired_archives,
 )
 from app.services.memory.ledger.guardian_events import (
@@ -109,26 +110,6 @@ def get_memory_guardian_status(*, policy: MemoryGuardianPolicy | None = None) ->
             else 0
         ),
     }
-
-
-async def _create_memory_manager() -> MemoryManager:
-    """Create a MemoryManager for background maintenance (no user session context)."""
-    from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
-    from app.services.agent.platform_config import require_platform_embedding_config
-
-    binding = resolve_context_binding(
-        namespaces=None,
-        agent_id=None,
-        channel_id=None,
-        conversation_id=None,
-        task_id=None,
-    )
-    embedding_cfg = await require_platform_embedding_config()
-    return await create_memory_manager(
-        binding,
-        embedding_cfg,
-        approval_required=False,
-    )
 
 
 async def _record_guard_unavailable(*, reason: str, guard: str, policy: MemoryGuardianPolicy) -> None:
@@ -237,7 +218,7 @@ async def _run_guardian_cycle(
     report: MaintenanceReport | None = None
     effective_force = force or _consecutive_unhealthy >= 2
     try:
-        manager = await _create_memory_manager()
+        manager = await create_guardian_memory_manager()
         report = await manager.run_maintenance_cycle(force=effective_force)
         _last_run = time.time()
 
@@ -278,7 +259,7 @@ async def _run_guardian_cycle(
         )
 
     try:
-        purge_mgr = await _create_memory_manager()
+        purge_mgr = await create_guardian_memory_manager()
         purge_count = await purge_expired_archives(purge_mgr)
         if purge_count > 0:
             await record_purge_audit(purge_count)
@@ -376,7 +357,7 @@ async def start_memory_guardian_scheduler() -> None:
                 get_last_pattern_discovery_at,
             )
 
-            mgr = await _create_memory_manager()
+            mgr = await create_guardian_memory_manager()
             last_ts = await get_last_pattern_discovery_at(mgr)
             if last_ts is not None:
                 _last_pattern_discovery = last_ts.timestamp()

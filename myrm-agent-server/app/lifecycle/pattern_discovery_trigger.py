@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.memory.strategies.pattern_discovery (POS: Cross-cycle pattern discovery)
-- app.lifecycle.memory_guardian::_create_memory_manager (POS: MemoryManager factory)
+- app.lifecycle.memory_guardian_ops::create_guardian_memory_manager (POS: guardian 上下文 MemoryManager 工厂)
 - app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
 
 [OUTPUT]
@@ -43,14 +43,14 @@ async def run_pattern_discovery_cycle() -> None:
             run_pattern_discovery,
         )
 
-        from app.lifecycle.memory_guardian import _create_memory_manager
+        from app.lifecycle.memory_guardian_ops import create_guardian_memory_manager
 
-        manager = await _create_memory_manager()
-        if manager._consolidation_llm is None:
+        manager = await create_guardian_memory_manager()
+        if manager.consolidation_llm is None:
             logger.debug("Pattern discovery: skipped (no consolidation LLM)")
             return
 
-        report = await run_pattern_discovery(manager, manager._consolidation_llm)
+        report = await run_pattern_discovery(manager, manager.consolidation_llm)
         if report.skipped:
             logger.info("Pattern discovery: skipped (%s)", report.skip_reason)
         elif report.has_patterns:
@@ -107,13 +107,13 @@ async def run_pattern_discovery_once() -> dict[str, object]:
             run_pattern_discovery,
         )
 
-        from app.lifecycle.memory_guardian import _create_memory_manager
+        from app.lifecycle.memory_guardian_ops import create_guardian_memory_manager
 
-        manager = await _create_memory_manager()
-        if manager._consolidation_llm is None:
+        manager = await create_guardian_memory_manager()
+        if manager.consolidation_llm is None:
             return {"triggered": True, "skipped": True, "reason": "no consolidation LLM configured"}
 
-        report = await run_pattern_discovery(manager, manager._consolidation_llm)
+        report = await run_pattern_discovery(manager, manager.consolidation_llm)
         if report.skipped:
             return {"triggered": True, "skipped": True, "reason": report.skip_reason}
 

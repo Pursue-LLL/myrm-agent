@@ -4,14 +4,16 @@
 - myrm_agent_harness.toolkits.memory::MemoryManager / MemoryType
 - myrm_agent_harness.toolkits.memory.types::MemoryStatus
 - app.database.models::PendingMemory
+- app.core.memory.adapters.setup::create_memory_manager (POS: 业务层记忆管理器工厂)
 
 [OUTPUT]
+- create_guardian_memory_manager: guardian 上下文 MemoryManager 工厂
 - auto_resolve_expired_conflicts: keep_old resolve for expired low-risk conflicts
 - purge_expired_archives: hard-delete archived memories past their TTL
 
 [POS]
-Guardian 维护子任务（冲突自动解决、过期归档清理）。纯数据操作，不依赖调度状态，
-由 memory_guardian 调度器在维护周期内调用。
+Guardian 维护子任务与工厂。纯数据/对象操作，不依赖调度状态，
+由 memory_guardian 调度器与 pattern_discovery_trigger 在维护周期内调用。
 """
 
 from __future__ import annotations
@@ -23,6 +25,26 @@ from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 from myrm_agent_harness.toolkits.memory.types import MemoryStatus
 
 logger = logging.getLogger(__name__)
+
+
+async def create_guardian_memory_manager() -> MemoryManager:
+    """Create a MemoryManager for background maintenance (no user session context)."""
+    from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
+    from app.services.agent.platform_config import require_platform_embedding_config
+
+    binding = resolve_context_binding(
+        namespaces=None,
+        agent_id=None,
+        channel_id=None,
+        conversation_id=None,
+        task_id=None,
+    )
+    embedding_cfg = await require_platform_embedding_config()
+    return await create_memory_manager(
+        binding,
+        embedding_cfg,
+        approval_required=False,
+    )
 
 
 async def auto_resolve_expired_conflicts() -> int:
