@@ -184,6 +184,25 @@ def _ensure_context_bundle_layout() -> None:
         logger.warning("[Startup] Context bundle layout init failed: %s", exc)
 
 
+async def _warmup_desktop_gate() -> None:
+    """Pre-import desktop gate and warm its trust-store scan.
+
+    Importing app.ai_agents.desktop_control.gate pulls in the harness
+    computer_use stack (~seconds of cold import time) and the first
+    /webui/desktop/trust/apps request also pays the harness trust-store
+    scan. Consuming both during startup keeps the first real request fast.
+    """
+    try:
+        from app.ai_agents.desktop_control.gate import list_trusted_desktop_apps
+
+        await asyncio.to_thread(list_trusted_desktop_apps, workspace_root=None)
+        logger.info("[Startup] Desktop control gate warmed up")
+    except Exception as exc:
+        logger.warning(
+            "[Startup] Desktop gate warmup failed (non-critical): %s", exc
+        )
+
+
 async def run_async_warmup() -> None:
     """Background warmup tasks after HTTP server is ready.
 
@@ -436,6 +455,7 @@ async def run_async_warmup() -> None:
 
     warmup_tasks.append(_kanban_gc_warmup())
     warmup_tasks.append(_init_integration_memory())
+    warmup_tasks.append(_warmup_desktop_gate())
 
     results = await asyncio.gather(*warmup_tasks, return_exceptions=True)
 
