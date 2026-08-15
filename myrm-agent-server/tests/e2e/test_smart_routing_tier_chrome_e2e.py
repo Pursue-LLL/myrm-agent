@@ -220,10 +220,30 @@ async def test_smart_routing_tier_surfaced_in_webui(
         if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=60.0):
             pytest.fail("Provider readiness failed after smart-routing seed")
 
+        async def re_seed() -> None:
+            _configure_smart_routing_providers(api_url)
+            if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=30.0):
+                pytest.fail("Provider readiness failed on re-seed (parallel overwrite)")
+
         async def run_flow(chat: McpChatSession) -> None:
             ui_base = _base_url()
             await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
             await chat.click_new_chat()
+
+            # 并行 chrome_e2e 会改写共享 config——每次发送前重 seed + pin 权威 baseModel，
+            # 确保 store 里的模型选择始终来自本测试的合法 seed。
+            await re_seed()
+            pin_raw = await chat.evaluate(
+                _PIN_BASIC_PRIMARY_JS,
+                intent=EvaluateIntent.AGENT_SUBMIT,
+            )
+            pin_state = (
+                pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
+            )
+            assert pin_state.get("ok") is True, pin_state
+            selection = pin_state.get("selection")
+            assert isinstance(selection, dict), pin_state
+            assert str(selection.get("model") or ""), pin_state
 
             send_result = await chat.send_message(
                 SIMPLE_PROMPT,
@@ -240,6 +260,11 @@ async def test_smart_routing_tier_surfaced_in_webui(
             assert simple_state.get("routingTier") == "simple", simple_state
             heartbeat_once()
 
+            await re_seed()
+            await chat.evaluate(
+                _PIN_BASIC_PRIMARY_JS,
+                intent=EvaluateIntent.AGENT_SUBMIT,
+            )
             await chat.send_message(
                 DEBUG_PROMPT,
                 DEBUG_PROMPT,

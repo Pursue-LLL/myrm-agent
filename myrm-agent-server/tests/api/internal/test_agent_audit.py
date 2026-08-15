@@ -59,7 +59,9 @@ async def test_agent_audit_returns_events_within_window(
             "timestamp": 1_700_000_000.0,
             "event_type": "tool_start",
             "session_id": "sess-1",
-            "data": type("MockPayload", (), {"model_dump": lambda self: {"tool_name": "bash"}})(),
+            "data": type(
+                "MockPayload", (), {"model_dump": lambda self: {"tool_name": "bash"}}
+            )(),
         },
     )
     mock_backend = AsyncMock()
@@ -148,8 +150,32 @@ async def test_agent_audit_merges_and_sorts_desc(
     mock_backend = AsyncMock()
     mock_backend.get_all_session_ids.return_value = ["sess-1", "sess-2"]
     mock_backend.get_events.side_effect = [
-        [type("E", (), {"sequence": 1, "timestamp": 100.0, "event_type": "tool_start", "session_id": "sess-1", "data": type("P", (), {"model_dump": lambda self: {}})()})()],
-        [type("E", (), {"sequence": 1, "timestamp": 200.0, "event_type": "tool_start", "session_id": "sess-2", "data": type("P", (), {"model_dump": lambda self: {}})()})()],
+        [
+            type(
+                "E",
+                (),
+                {
+                    "sequence": 1,
+                    "timestamp": 100.0,
+                    "event_type": "tool_start",
+                    "session_id": "sess-1",
+                    "data": type("P", (), {"model_dump": lambda self: {}})(),
+                },
+            )()
+        ],
+        [
+            type(
+                "E",
+                (),
+                {
+                    "sequence": 1,
+                    "timestamp": 200.0,
+                    "event_type": "tool_start",
+                    "session_id": "sess-2",
+                    "data": type("P", (), {"model_dump": lambda self: {}})(),
+                },
+            )()
+        ],
     ]
 
     with (
@@ -182,7 +208,17 @@ async def test_agent_audit_truncates_to_limit(
     mock_backend = AsyncMock()
     mock_backend.get_all_session_ids.return_value = ["sess-1"]
     mock_backend.get_events.return_value = [
-        type("E", (), {"sequence": i, "timestamp": float(i), "event_type": "tool_start", "session_id": "sess-1", "data": type("P", (), {"model_dump": lambda self: {}})()})()
+        type(
+            "E",
+            (),
+            {
+                "sequence": i,
+                "timestamp": float(i),
+                "event_type": "tool_start",
+                "session_id": "sess-1",
+                "data": type("P", (), {"model_dump": lambda self: {}})(),
+            },
+        )()
         for i in range(1, 6)
     ]
 
@@ -212,7 +248,10 @@ async def test_agent_audit_counts_security_deny_decisions(
     audit_app: FastAPI, event_log_dir: Path
 ) -> None:
     """security_deny_total counts BLOCK/DENY/REDACT/LEAK decisions, not ALLOW."""
-    def make_event(seq: int, ts: float, event_type: str, payload: dict[str, object]) -> object:
+
+    def make_event(
+        seq: int, ts: float, event_type: str, payload: dict[str, object]
+    ) -> object:
         return type(
             "E",
             (),

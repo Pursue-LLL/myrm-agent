@@ -349,10 +349,14 @@ class DatabaseSettings(BaseSettings):
     memory_base_path: str = Field(default="", validation_alias="MEMORY_BASE_PATH")
 
     sqlite_pool_size: int = 5  # SQLITE_POOL_SIZE
-    sqlite_pool_max_overflow: int = 10  # SQLITE_POOL_MAX_OVERFLOW (burst headroom for parallel E2E)
+    sqlite_pool_max_overflow: int = (
+        10  # SQLITE_POOL_MAX_OVERFLOW (burst headroom for parallel E2E)
+    )
     sqlite_busy_timeout_ms: int = 3000  # SQLITE_BUSY_TIMEOUT_MS
     database_echo: bool = False  # DATABASE_ECHO
-    database_url: str = ""  # DATABASE_URL (optional AGE graph store; default SQLite graph)
+    database_url: str = (
+        ""  # DATABASE_URL (optional AGE graph store; default SQLite graph)
+    )
     qdrant_url: str = ""  # QDRANT_URL (remote vector store)
     qdrant_api_key: SecretStr = SecretStr("")  # QDRANT_API_KEY
     checkpointer_mode: str = ""  # CHECKPOINTER_MODE (memory|sqlite; empty = sqlite)
@@ -432,7 +436,9 @@ class ServiceSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="")
 
-    github_token: SecretStr = SecretStr("")  # GITHUB_TOKEN (skill discovery, security dashboard)
+    github_token: SecretStr = SecretStr(
+        ""
+    )  # GITHUB_TOKEN (skill discovery, security dashboard)
     cron_failure_webhook_url: str = ""  # CRON_FAILURE_WEBHOOK_URL
 
 
@@ -447,13 +453,23 @@ class ControlPlaneSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="")
 
     url: str = Field(default="", validation_alias="CONTROL_PLANE_URL")
-    telemetry_token: SecretStr = Field(default=SecretStr(""), validation_alias="CONTROL_PLANE_TELEMETRY_TOKEN")
-    telemetry_subject: str = Field(default="", validation_alias="CONTROL_PLANE_TELEMETRY_SUBJECT")
+    telemetry_token: SecretStr = Field(
+        default=SecretStr(""), validation_alias="CONTROL_PLANE_TELEMETRY_TOKEN"
+    )
+    telemetry_subject: str = Field(
+        default="", validation_alias="CONTROL_PLANE_TELEMETRY_SUBJECT"
+    )
     tenant_id: str = Field(default="default-tenant", validation_alias="TENANT_ID")
     sandbox_id: str = Field(default="", validation_alias="SANDBOX_ID")
-    telemetry_push_interval: int = Field(default=3600, validation_alias="TELEMETRY_PUSH_INTERVAL")
-    baseline_sync_interval: int = Field(default=86400, validation_alias="BASELINE_SYNC_INTERVAL")
-    platform_wu_per_usd: float = Field(default=1000.0, validation_alias="PLATFORM_WU_PER_USD")
+    telemetry_push_interval: int = Field(
+        default=3600, validation_alias="TELEMETRY_PUSH_INTERVAL"
+    )
+    baseline_sync_interval: int = Field(
+        default=86400, validation_alias="BASELINE_SYNC_INTERVAL"
+    )
+    platform_wu_per_usd: float = Field(
+        default=1000.0, validation_alias="PLATFORM_WU_PER_USD"
+    )
 
     def effective_url(self, *, dev_fallback: str = "http://localhost:8001") -> str:
         normalized = self.url.strip().rstrip("/")
@@ -568,7 +584,9 @@ class AppSettings(BaseSettings):
 
     # --- [O] Google Workspace OAuth (GUI integration connect flow) ---
     google_client_id: str = Field(default="", validation_alias="GOOGLE_CLIENT_ID")
-    google_client_secret: SecretStr = Field(default=SecretStr(""), validation_alias="GOOGLE_CLIENT_SECRET")
+    google_client_secret: SecretStr = Field(
+        default=SecretStr(""), validation_alias="GOOGLE_CLIENT_SECRET"
+    )
 
     # --- Grouped sub-settings (see classes above for env var names) ---
     cache: CacheSettings = CacheSettings()
@@ -587,9 +605,15 @@ class AppSettings(BaseSettings):
     storage: StorageSettings = StorageSettings()
     services: ServiceSettings = ServiceSettings()
     control_plane: ControlPlaneSettings = ControlPlaneSettings()
-    context_compaction_telemetry: ContextCompactionTelemetrySettings = ContextCompactionTelemetrySettings()
-    memory_brief_status_telemetry: MemoryBriefStatusTelemetrySettings = MemoryBriefStatusTelemetrySettings()
-    memory_guardian_guard_telemetry: MemoryGuardianGuardTelemetrySettings = MemoryGuardianGuardTelemetrySettings()
+    context_compaction_telemetry: ContextCompactionTelemetrySettings = (
+        ContextCompactionTelemetrySettings()
+    )
+    memory_brief_status_telemetry: MemoryBriefStatusTelemetrySettings = (
+        MemoryBriefStatusTelemetrySettings()
+    )
+    memory_guardian_guard_telemetry: MemoryGuardianGuardTelemetrySettings = (
+        MemoryGuardianGuardTelemetrySettings()
+    )
 
     @field_validator("port")
     @classmethod
@@ -604,7 +628,9 @@ class AppSettings(BaseSettings):
         if v < 64:
             raise ValueError("event_log_max_jsonl_line_bytes must be >= 64")
         if v > 10 * 1024 * 1024:
-            raise ValueError("event_log_max_jsonl_line_bytes unreasonably large (max 10 MiB)")
+            raise ValueError(
+                "event_log_max_jsonl_line_bytes unreasonably large (max 10 MiB)"
+            )
         return v
 
     # --- Provider helpers ---
@@ -631,7 +657,9 @@ class AppSettings(BaseSettings):
     def get_provider_cache_config(self, model: str) -> ProviderCacheConfig:
         """获取特定模型的缓存配置"""
         provider = self.get_provider(model)
-        return PROVIDER_CACHE_CONFIGS.get(provider, PROVIDER_CACHE_CONFIGS[LLMProvider.OTHER])
+        return PROVIDER_CACHE_CONFIGS.get(
+            provider, PROVIDER_CACHE_CONFIGS[LLMProvider.OTHER]
+        )
 
     def validate_for_sandbox(self) -> None:
         """Sandbox 模式启动前校验，缺少必要配置时立即抛出 RuntimeError。"""
@@ -655,8 +683,12 @@ class AppSettings(BaseSettings):
             "agent.max_concurrent": self.agent.max_concurrent,
             "database.sqlite_path": self.database.sqlite_path,
             "cp_public_ingress_url": self.cp_public_ingress_url or "(not set)",
-            "sandbox_api_key": ("***" if self.sandbox_api_key.get_secret_value() else "(not set)"),
-            "config_encryption_key": ("***" if self.config_encryption_key.get_secret_value() else "(not set)"),
+            "sandbox_api_key": (
+                "***" if self.sandbox_api_key.get_secret_value() else "(not set)"
+            ),
+            "config_encryption_key": (
+                "***" if self.config_encryption_key.get_secret_value() else "(not set)"
+            ),
         }
 
 
