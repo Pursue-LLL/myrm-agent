@@ -46,6 +46,12 @@ describe('resolveDoctorSeverity', () => {
     expect(resolveDoctorSeverity('unknown', false)).toBe('error');
     expect(resolveDoctorSeverity('unknown', true)).toBe('ok');
   });
+
+  it('prefers the server-owned severity when present', () => {
+    expect(resolveDoctorSeverity('token_env', false, 'warn')).toBe('warn');
+    expect(resolveDoctorSeverity('verified', true, 'ok')).toBe('ok');
+    expect(resolveDoctorSeverity('unknown', true, 'error')).toBe('error');
+  });
 });
 
 describe('resolveDoctorStatusKey', () => {

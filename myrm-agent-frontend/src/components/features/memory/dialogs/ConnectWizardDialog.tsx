@@ -38,6 +38,7 @@ type WizardStep = 'select' | 'config' | 'plugin' | 'done';
 interface DoctorOutcome {
   healthy: boolean;
   detail: string;
+  severity?: DoctorSeverity;
 }
 
 const DOCTOR_BOX_CLASSES: Record<DoctorSeverity, string> = {
@@ -218,7 +219,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     setDoctorRunning(true);
     try {
       const result = await runConnectDoctor(AGENT_PLUGIN_PROFILE_ID);
-      setDoctorResult({ healthy: result.healthy, detail: result.detail });
+      setDoctorResult({ healthy: result.healthy, detail: result.detail, severity: result.severity });
     } catch {
       setDoctorResult({ healthy: false, detail: 'unknown' });
     } finally {
@@ -231,7 +232,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     setDoctorRunning(true);
     try {
       const result = await runConnectDoctor(selectedProfile);
-      setDoctorResult({ healthy: result.healthy, detail: result.detail });
+      setDoctorResult({ healthy: result.healthy, detail: result.detail, severity: result.severity });
     } catch {
       setDoctorResult({ healthy: false, detail: 'unknown' });
     } finally {
@@ -453,7 +454,9 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
               <div
                 className={cn(
                   'rounded-lg border p-3 text-xs leading-relaxed',
-                  DOCTOR_BOX_CLASSES[resolveDoctorSeverity(doctorResult.detail, doctorResult.healthy)],
+                  DOCTOR_BOX_CLASSES[
+                    resolveDoctorSeverity(doctorResult.detail, doctorResult.healthy, doctorResult.severity)
+                  ],
                 )}
               >
                 {t(resolveDoctorMessageKey(doctorResult.detail, doctorResult.healthy))}
@@ -551,7 +554,9 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
               <div
                 className={cn(
                   'rounded-lg border p-3 text-xs leading-relaxed',
-                  DOCTOR_BOX_CLASSES[resolveDoctorSeverity(doctorResult.detail, doctorResult.healthy)],
+                  DOCTOR_BOX_CLASSES[
+                    resolveDoctorSeverity(doctorResult.detail, doctorResult.healthy, doctorResult.severity)
+                  ],
                 )}
               >
                 {t(resolveDoctorMessageKey(doctorResult.detail, doctorResult.healthy))}

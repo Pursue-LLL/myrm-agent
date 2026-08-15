@@ -170,6 +170,7 @@ class TestDoctor:
             result = await service.doctor("cursor")
         assert result.healthy is True
         assert result.detail == "token_valid"
+        assert result.severity == "warn"
         state = service.get_connector_status("cursor")
         # doctor must not promote the lifecycle status: READY is set only by
         # mark_ready on real MCP traffic.
@@ -189,11 +190,12 @@ class TestDoctor:
             patch("app.services.connect.service.is_local_mode", return_value=True),
             patch(
                 "app.services.connect.service.verify_connector_config",
-                return_value=DoctorVerdict(healthy=False, detail="token_env"),
+                return_value=DoctorVerdict(healthy=False, detail="token_env", severity="warn"),
             ),
         ):
             result = await service.doctor("cursor")
         assert result.detail == "token_env"
+        assert result.severity == "warn"
         assert not any(r.levelno >= 30 for r in caplog.records)
 
     @pytest.mark.asyncio

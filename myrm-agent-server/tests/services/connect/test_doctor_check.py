@@ -69,6 +69,7 @@ class TestVerifyConnectorConfig:
         assert verdict is not None
         assert verdict.healthy is True
         assert verdict.detail == DOCTOR_VERIFIED
+        assert verdict.severity == "ok"
 
     def test_verified_toml_config(self, tmp_path: Path):
         config_file = tmp_path / "settings.toml"
@@ -152,6 +153,9 @@ class TestVerifyConnectorConfig:
         assert verdict is not None
         assert verdict.healthy is False
         assert verdict.detail == DOCTOR_TOKEN_ENV
+        # A blind spot (unverifiable) is warn, not an error; this drives the
+        # log threshold and the amber UI state.
+        assert verdict.severity == "warn"
 
     def test_lowercase_bearer_scheme_still_verifies(self, tmp_path: Path):
         """HTTP auth scheme is case-insensitive; 'bearer' must verify like 'Bearer'."""

@@ -137,6 +137,63 @@ class TestInferContentType:
         assert result is None
 
 
+class TestCompressImage:
+    """Tests for _compress_image send-time compression (GIF protection + responsive)."""
+
+    @pytest.mark.asyncio
+    async def test_small_image_passes_through_unchanged(self) -> None:
+        """Small images bypass compression entirely (zero-loss fast path)."""
+        from PIL import Image
+
+        buf = io.BytesIO()
+        Image.new("RGB", (640, 480), color=(100, 150, 200)).save(buf, format="PNG")
+        content = buf.getvalue()
+
+        from app.api.files.upload import _compress_image
+
+        result = await _compress_image(content, "small.png")
+        assert result == content
+
+    @pytest.mark.asyncio
+    async def test_oversized_image_compressed(self) -> None:
+        """Oversized images are downsampled to 2048px and shrunk."""
+        from PIL import Image
+
+        img = Image.new("RGB", (6000, 4000), color=(100, 150, 200))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=95)
+        content = buf.getvalue()
+
+        from app.api.files.upload import _compress_image
+
+        result = await _compress_image(content, "large.jpg")
+        assert result is not content
+        assert len(result) < len(content)
+        out = Image.open(io.BytesIO(result))
+        assert max(out.size) <= 2048
+
+    @pytest.mark.asyncio
+    async def test_animated_gif_preserved(self) -> None:
+        """Animated GIFs keep their animation frames — never flattened to a static image."""
+        from PIL import Image
+
+        frames = [
+            Image.new("RGB", (64, 64), color=(255, 0, 0)),
+            Image.new("RGB", (64, 64), color=(0, 255, 0)),
+            Image.new("RGB", (64, 64), color=(0, 0, 255)),
+        ]
+        buf = io.BytesIO()
+        frames[0].save(buf, format="GIF", save_all=True, append_images=frames[1:], duration=100, loop=0)
+        content = buf.getvalue()
+
+        from app.api.files.upload import _compress_image
+
+        result = await _compress_image(content, "anim.gif")
+        assert result == content
+        out = Image.open(io.BytesIO(result))
+        assert getattr(out, "n_frames", 1) == 3
+
+
 def _make_upload(content: bytes) -> MagicMock:
     """Create a mock UploadFile that streams content in chunks."""
     stream = io.BytesIO(content)

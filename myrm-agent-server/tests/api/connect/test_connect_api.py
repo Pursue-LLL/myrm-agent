@@ -100,12 +100,14 @@ class TestConnectDoctorAPI:
         data = response.json()
         assert data["healthy"] is True
         assert data["detail"] == "token_valid"
+        assert data["severity"] == "warn"
 
     def test_doctor_response_has_detail_field(self, client: TestClient):
         response = client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "cursor"})
         assert response.status_code == 200
         assert "detail" in response.json()
         assert isinstance(response.json()["detail"], str)
+        assert "severity" in response.json()
 
     def test_doctor_unconfigured_returns_unhealthy(self, client: TestClient):
         response = client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "gemini_cli"})
