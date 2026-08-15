@@ -8,7 +8,7 @@
 - coordination.mailbox::list_teammate_history, group_history_by_task (POS: P2P teammate message history)
 
 [OUTPUT]
-GET list / POST cancel-all / POST steer / POST cancel / POST resume for /chats/{chat_id}/subagents
+GET list / POST cancel-all / POST steer / POST cancel for /chats/{chat_id}/subagents
 
 [POS]
 Server HTTP facade for Task Tray observability and subagent control; delegates registry merge/cancel to harness session_tree.
@@ -23,10 +23,7 @@ from myrm_agent_harness.agent.coordination.mailbox import (
     group_history_by_task,
     list_teammate_history,
 )
-from myrm_agent_harness.agent.sub_agents.checkpoint.saver import (
-    CheckpointCorruptedError,
-    SubagentCheckpointStorage,
-)
+from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpointStorage
 from myrm_agent_harness.agent.sub_agents.manager import ACTIVE_SUBAGENTS
 
 from app.core.utils.response_utils import error_response, success_response
@@ -232,44 +229,4 @@ async def cancel_subagent(
         return error_response(message=f"Failed to cancel subagent {task_id}", status_code=400)
 
     return success_response(data={"cancelled": True, "task_id": task_id})
-
-
-@router.post("/{chat_id}/subagents/{task_id}/resume")
-async def resume_subagent(
-    chat_id: Annotated[str, Path(..., description="The chat session ID")],
-    task_id: Annotated[str, Path(..., description="The subagent task ID")],
-) -> JSONResponse:
-    """Resume a subagent from a checkpoint."""
-    gateway = get_agent_gateway()
-    info = gateway._session_info.get(chat_id)
-    if not info or not info.agent or info.agent() is None:
-        return error_response(
-            message=f"Session {chat_id} is not currently active.",
-            status_code=400,
-        )
-
-    agent = info.agent()
-    if not hasattr(agent, "subagent_manager"):
-        return error_response(
-            message=f"Session {chat_id} does not support subagents.",
-            status_code=400,
-        )
-
-    try:
-        # Await the resume so failures (e.g. corrupted checkpoint) are
-        # surfaced to the client instead of being swallowed by a detached task.
-        await agent.subagent_manager.resume_from_checkpoint(task_id)
-        return success_response(data={"resumed": True, "task_id": task_id})
-    except CheckpointCorruptedError:
-        logger.error("Failed to resume subagent %s: checkpoint corrupted", task_id)
-        return error_response(
-            message=f"Checkpoint for {task_id} is corrupted and cannot be resumed.",
-            status_code=400,
-        )
-    except ValueError as e:
-        logger.error("Failed to resume subagent %s: %s", task_id, e)
-        return error_response(message=str(e), status_code=404)
-    except Exception:
-        logger.exception("Failed to resume subagent %s", task_id)
-        return error_response(message=f"Failed to resume subagent {task_id}", status_code=500)
 

@@ -21,8 +21,6 @@ from ._snapshot_notify import notify_agent_of_restore
 from .schemas import (
     CheckpointInfo,
     CheckpointListResponse,
-    CheckpointResumeRequest,
-    CheckpointResumeResponse,
     FileChangeResponse,
     FileDiffResponse,
     FileSnapshotCreateRequest,
@@ -119,59 +117,6 @@ async def list_checkpoints(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to list checkpoints") from e
-
-
-@router.post("/resume", response_model=CheckpointResumeResponse)
-async def resume_from_checkpoint(request: CheckpointResumeRequest) -> CheckpointResumeResponse:
-    """Resume execution from saved checkpoint.
-
-    This endpoint loads the checkpoint and returns its data (messages/context) to the client.
-    The client can then use this data to restart the agent conversation with preserved history.
-
-    Args:
-        request: Resume request with task_id
-
-    Returns:
-        Resume status with checkpoint data
-
-    Note:
-        This returns the checkpoint data for client-side restoration.
-        For direct agent resumption, integrate with SubagentManager in agent execution layer.
-    """
-    try:
-        checkpoint = await _checkpoint_storage.load(request.task_id)
-        if not checkpoint:
-            raise HTTPException(status_code=404, detail=f"Checkpoint not found: {request.task_id}")
-
-        if not checkpoint.resumable:
-            raise HTTPException(status_code=400, detail=f"Checkpoint {request.task_id} is not resumable (missing required state)")
-
-        checkpoint_data = {
-            "messages": checkpoint.messages,
-            "variables": checkpoint.variables,
-            "progress": checkpoint.progress,
-            "last_tool": checkpoint.last_tool,
-            "timestamp": checkpoint.timestamp,
-        }
-
-        return CheckpointResumeResponse(
-            status="ready",
-            task_id=request.task_id,
-            message=f"Checkpoint loaded successfully (agent_type={checkpoint.agent_type}, "
-            f"progress={checkpoint.progress:.1%}, messages={len(checkpoint.messages)})",
-            session_id=checkpoint.session_id,
-            messages_count=len(checkpoint.messages),
-            checkpoint_data=checkpoint_data,
-        )
-    except CheckpointCorruptedError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Checkpoint {request.task_id} is corrupted and cannot be resumed",
-        ) from e
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to resume from checkpoint") from e
 
 
 @router.delete("/{task_id}")
