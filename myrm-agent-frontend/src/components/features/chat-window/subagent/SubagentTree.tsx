@@ -32,7 +32,7 @@ import {
 } from '@/lib/utils/subagentTree';
 import { isNodeOvertime, useSubagentStore, type SubagentVerification, type TeammateMessageEntry } from '@/store/chat/useSubagentStore';
 import useChatStore from '@/store/useChatStore';
-import { NodeStream, STATUS_ICON_MAP, StatusIcon } from './subagent-stream';
+import { NodeStream, STATUS_ICON_MAP, StatusIcon } from './SubagentStream';
 
 type TeammateRowProps = {
   entry: TeammateMessageEntry;

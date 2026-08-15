@@ -16,7 +16,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.toolkits.file_parsers.pdf_content_extractor import PDFExtractConfig
+from myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor import PDFExtractConfig
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 

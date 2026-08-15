@@ -52,12 +52,23 @@ function mockFetchRoutes(routes: Route[]) {
   });
 }
 
+const ORG_BODY = { id: 'org-1', name: 'Acme', owner_user_id: 'owner-1', sso_domain: null, archive_retention_days: 30 };
+
+function okResponse(body: unknown) {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+  } as Response;
+}
+
 function auditRoutes(failedSandboxes: string[] = []): Route[] {
   return [
     {
       method: 'GET',
       url: '/api/enterprise/org/me',
-      body: { id: 'org-1', name: 'Acme', owner_user_id: 'owner-1', sso_domain: null, archive_retention_days: 30 },
+      body: ORG_BODY,
     },
     {
       method: 'GET',
@@ -152,7 +163,7 @@ describe('AgentAuditView', () => {
       expect(screen.getAllByText('web_search').length).toBeGreaterThan(0);
     });
 
-    const securityRow = screen.getByText('security audit').closest('button');
+    const securityRow = screen.getByText('eventTypes.securityAudit').closest('button');
     expect(securityRow).not.toBeNull();
     await userEvent.click(securityRow as HTMLButtonElement);
 
@@ -168,7 +179,7 @@ describe('AgentAuditView', () => {
         {
           method: 'GET',
           url: '/api/enterprise/org/me',
-          body: { id: 'org-1', name: 'Acme', owner_user_id: 'owner-1', sso_domain: null, archive_retention_days: 30 },
+          body: ORG_BODY,
         },
         {
           method: 'GET',
@@ -182,5 +193,116 @@ describe('AgentAuditView', () => {
     await waitFor(() => {
       expect(screen.getByText(/^agentNoEvents/)).toBeInTheDocument();
     });
+  });
+
+  it('shows an error banner when the agent audit request fails', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input).split('?')[0];
+      if (path.endsWith('/api/enterprise/org/me')) {
+        return okResponse(ORG_BODY);
+      }
+      return {
+        ok: false,
+        status: 500,
+        json: async () => ({ detail: 'boom' }),
+        text: async () => 'boom',
+      } as Response;
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<AgentAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/^agentLoadFailed/)).toBeInTheDocument();
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/agent-audit/events'),
+      expect.anything(),
+    );
+  });
+
+  it('refetches with the new window when the time range changes', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const path = url.split('?')[0];
+      if (path.endsWith('/api/enterprise/org/me')) {
+        return okResponse(ORG_BODY);
+      }
+      if (path.endsWith('/agent-audit/events')) {
+        const hours = new URL(url).searchParams.get('hours');
+        return okResponse({
+          total: hours === '168' ? 5 : 2,
+          scanned_sandboxes: 1,
+          failed_sandboxes: [],
+          events: [],
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<AgentAuditView />);
+    await waitFor(() => {
+      expect(screen.getAllByText('2').length).toBeGreaterThan(0);
+    });
+
+    await userEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: '7d' }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('5').length).toBeGreaterThan(0);
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('hours=168'),
+      expect.anything(),
+    );
+  });
+
+  it('ignores a stale response when the time range changes quickly', async () => {
+    let resolve168h: ((body: unknown) => void) | null = null;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const path = url.split('?')[0];
+      if (path.endsWith('/api/enterprise/org/me')) {
+        return okResponse(ORG_BODY);
+      }
+      if (path.endsWith('/agent-audit/events')) {
+        const hours = new URL(url).searchParams.get('hours');
+        if (hours === '24') {
+          return okResponse({ total: 2, scanned_sandboxes: 1, failed_sandboxes: [], events: [] });
+        }
+        if (hours === '720') {
+          return okResponse({ total: 99, scanned_sandboxes: 1, failed_sandboxes: [], events: [] });
+        }
+        return new Promise<Response>((resolve) => {
+          resolve168h = (body: unknown) => resolve(okResponse(body));
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<AgentAuditView />);
+    await waitFor(() => {
+      expect(screen.getAllByText('2').length).toBeGreaterThan(0);
+    });
+
+    await userEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: '7d' }));
+    await waitFor(() => {
+      expect(resolve168h).not.toBeNull();
+    });
+
+    await userEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: '30d' }));
+    await waitFor(() => {
+      expect(screen.getAllByText('99').length).toBeGreaterThan(0);
+    });
+
+    resolve168h?.({ total: 5, scanned_sandboxes: 1, failed_sandboxes: [], events: [] });
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(screen.queryByText('5')).toBeNull();
+    expect(screen.getAllByText('99').length).toBeGreaterThan(0);
   });
 });

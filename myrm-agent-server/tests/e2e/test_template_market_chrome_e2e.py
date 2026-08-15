@@ -16,14 +16,14 @@ from tests.support.chrome_mcp_e2e import (
 
 pytestmark = [
     pytest.mark.e2e,
-    pytest.mark.chrome_e2e(
-        execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-    ),
     pytest.mark.integration,
     pytest.mark.timeout(300),
 ]
 
 
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 def test_template_market_lists_official_document_assistant():
     """Templates API returns official_document_assistant with correct metadata."""
     api_url = get_e2e_api_url()
@@ -41,6 +41,9 @@ def test_template_market_lists_official_document_assistant():
     assert "GB/T 9704" in tpl["description"]
 
 
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 def test_template_market_i18n_negotiation():
     """Templates API respects Accept-Language for i18n content."""
     api_url = get_e2e_api_url()

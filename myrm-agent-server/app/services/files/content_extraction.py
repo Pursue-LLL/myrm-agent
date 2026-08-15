@@ -18,7 +18,7 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.file_parsers.pdf_content_extractor import (
+from myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor import (
     PDFExtractConfig,
     PDFExtractResult,
     extract_pdf_content,

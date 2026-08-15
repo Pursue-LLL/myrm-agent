@@ -84,8 +84,12 @@ class TestAutoResolveExpiredConflicts:
             await _auto_resolve_expired_conflicts()
 
         stmt = mock_db.execute.call_args[0][0]
-        compiled = str(stmt.compile(compile_kwargs={"literal_binds": False}))
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
         assert "resolved" in compiled.lower() or "status" in compiled.lower()
+        # metadata_json must be merged via json_set so existing fields
+        # (merge_suggestion/source) survive the auto-resolve write.
+        assert "json_set" in compiled.lower()
+        assert "'keep_old'" in compiled.lower() or '"keep_old"' in compiled.lower()
 
     @pytest.mark.asyncio
     async def test_query_filters_out_none_auto_resolve_at(self) -> None:

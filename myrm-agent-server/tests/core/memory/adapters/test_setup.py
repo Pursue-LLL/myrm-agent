@@ -488,6 +488,7 @@ async def test_create_conflict_callback_persists_pending_memory(tmp_path: Path) 
     fake_db.__aexit__ = AsyncMock(return_value=False)
     fake_db.add = MagicMock()
     fake_db.commit = AsyncMock()
+    fake_db.scalar = AsyncMock(return_value=None)
 
     ctx = MagicMock(
         new_content="conflicting fact",

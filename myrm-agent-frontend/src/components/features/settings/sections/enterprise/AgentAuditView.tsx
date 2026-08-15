@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
@@ -68,6 +68,27 @@ function eventTone(type: string): AgentEventTone {
   return 'other';
 }
 
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  tool_call_start: 'eventTypes.toolCallStart',
+  tool_call_finish: 'eventTypes.toolCallFinish',
+  security_audit: 'eventTypes.securityAudit',
+  session_start: 'eventTypes.sessionStart',
+  session_end: 'eventTypes.sessionEnd',
+  llm_request: 'eventTypes.llmRequest',
+  tool_approval_request: 'eventTypes.approvalRequest',
+  approval_intercepted: 'eventTypes.approvalIntercepted',
+  tool_failure: 'eventTypes.toolFailure',
+  error: 'eventTypes.error',
+  user_interruption: 'eventTypes.userInterruption',
+  message_end: 'eventTypes.messageEnd',
+};
+
+/** 将 harness 内部事件类型映射为人性化文案；未知类型降级为空格分隔形式。 */
+function eventTypeLabel(type: string, t: (key: string) => string): string {
+  const labelKey = EVENT_TYPE_LABELS[type];
+  return labelKey ? t(labelKey) : type.replace(/_/g, ' ');
+}
+
 function isDenyDecision(decision: string): boolean {
   return /DENY|BLOCK|BREAK|STOP|REJECT/i.test(decision);
 }
@@ -95,19 +116,26 @@ const AgentAuditView = memo(() => {
   const [orgId, setOrgId] = useState('');
   const [data, setData] = useState<OrgAgentAuditResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [hours, setHours] = useState<number>(24);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const requestSeqRef = useRef(0);
 
   const loadData = useCallback(
     async (targetOrgId: string, targetHours: number) => {
+      const seq = ++requestSeqRef.current;
       try {
         setLoading(true);
         const result = await queryOrgAgentAudit(targetOrgId, { hours: targetHours, limit: 200 });
+        if (seq !== requestSeqRef.current) {return;}
         setData(result);
+        setError(null);
       } catch (e) {
+        if (seq !== requestSeqRef.current) {return;}
+        setError(e instanceof Error ? e.message : 'Failed to load agent activity');
         toast.error(e instanceof Error ? e.message : 'Failed to load agent activity');
       } finally {
-        setLoading(false);
+        if (seq === requestSeqRef.current) {setLoading(false);}
       }
     },
     [],
@@ -123,11 +151,13 @@ const AgentAuditView = memo(() => {
         await loadData(org.id, 24);
       } catch {
         if (cancelled) {return;}
+        setError('Failed to load organization');
         setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
+      requestSeqRef.current += 1;
     };
   }, [loadData]);
 
@@ -193,6 +223,15 @@ const AgentAuditView = memo(() => {
           </div>
         }
       >
+        {error && (
+          <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-xs text-red-700 dark:text-red-400">
+            <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">{t('agentLoadFailed')}</p>
+              <p className="mt-0.5 break-all">{error}</p>
+            </div>
+          </div>
+        )}
         {data && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -303,7 +342,7 @@ const AgentEventRow = memo<AgentEventRowProps>(({ event, expanded, onToggle }) =
             {toolName ? (
               <span className="font-mono text-sm truncate">{toolName}</span>
             ) : (
-              <span className="text-sm truncate">{event.type.replace(/_/g, ' ')}</span>
+              <span className="text-sm truncate">{eventTypeLabel(event.type, t)}</span>
             )}
           </div>
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">

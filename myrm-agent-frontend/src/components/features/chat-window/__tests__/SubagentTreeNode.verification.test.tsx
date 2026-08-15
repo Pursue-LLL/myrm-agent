@@ -25,7 +25,16 @@ vi.mock('@/lib/api', () => ({
 }));
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    promise: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+    message: vi.fn(),
+  },
 }));
 
 vi.mock('@/components/primitives/button', () => ({
@@ -38,13 +47,13 @@ vi.mock('@/components/features/app-shell/confirm-dialog', () => ({
   ConfirmDialog: () => null,
 }));
 
-vi.mock('../subagent/subagent-stream', () => ({
+vi.mock('../subagent/SubagentStream', () => ({
   StatusIcon: () => null,
   NodeStream: () => null,
   STATUS_ICON_MAP: {},
 }));
 
-import { SubagentTreeNode } from '../subagent/subagent-tree';
+import { SubagentTreeNode } from '../subagent/SubagentTree';
 import type { TreeNode } from '@/lib/utils/subagentTree';
 
 function nodeWithVerification(overrides: Partial<TreeNode> = {}): TreeNode {

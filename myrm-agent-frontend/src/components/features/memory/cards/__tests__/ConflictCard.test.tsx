@@ -104,10 +104,33 @@ describe('ConflictCard', () => {
     expect(screen.getByText(/High risk/)).toBeInTheDocument();
   });
 
-  it('does not render high-risk badge for importance below 90%', () => {
+  it('shows high-risk badge for any high-risk conflict with importance (no 90% gate)', () => {
     render(
       <ConflictCard
         conflict={{ ...baseConflict, conflict_importance: 0.8, conflict_auto_resolve_at: undefined }}
+        onResolve={mockResolve}
+      />,
+    );
+
+    expect(screen.getByText(/High risk/)).toBeInTheDocument();
+  });
+
+  it('does not render high-risk badge when importance is missing', () => {
+    render(
+      <ConflictCard
+        conflict={{ ...baseConflict, conflict_importance: undefined, conflict_auto_resolve_at: undefined }}
+        onResolve={mockResolve}
+      />,
+    );
+
+    expect(screen.queryByText(/High risk/)).not.toBeInTheDocument();
+  });
+
+  it('does not render high-risk badge for auto-resolving conflict even at high importance', () => {
+    const inTenHours = new Date(FIXED_NOW.getTime() + 10 * 60 * 60 * 1000).toISOString();
+    render(
+      <ConflictCard
+        conflict={{ ...baseConflict, conflict_importance: 0.95, conflict_auto_resolve_at: inTenHours }}
         onResolve={mockResolve}
       />,
     );

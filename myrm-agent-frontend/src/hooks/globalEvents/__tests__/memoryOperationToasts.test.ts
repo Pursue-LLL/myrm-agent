@@ -231,7 +231,7 @@ describe('showMemoryOperationToasts', () => {
       expect(router.push).toHaveBeenCalledWith('/settings/memory');
     });
 
-    it('shows warning toast and refreshes conflicts for conflict kind', async () => {
+    it('shows warning toast for conflict kind and refreshes conflicts', async () => {
       showMemoryOperationToasts(
         { kind: 'conflict', description: 'High-risk conflict pending', status: 'success' },
         { t, router },
@@ -240,12 +240,34 @@ describe('showMemoryOperationToasts', () => {
       expect(toastMocks.warning).toHaveBeenCalledOnce();
       const call = toastMocks.warning.mock.calls[0];
       expect(call[0]).toBe('conflictDetected');
-      expect(call[1]?.description).toBe('High-risk conflict pending');
+      expect(call[1]?.description).toBe('conflictDetectedDesc');
       expect(call[1]?.action?.label).toBe('viewMemoryCenter');
       await vi.waitFor(() => expect(storeMocks.fetchConflicts).toHaveBeenCalledOnce());
 
       call[1]?.action?.onClick();
       expect(router.push).toHaveBeenCalledWith('/settings/memory');
+    });
+
+    it('uses high-risk description when conflict metadata marks high_risk', async () => {
+      showMemoryOperationToasts(
+        { kind: 'conflict', metadata: { high_risk: true }, status: 'success' },
+        { t, router },
+      );
+
+      expect(toastMocks.warning).toHaveBeenCalledOnce();
+      const call = toastMocks.warning.mock.calls[0];
+      expect(call[1]?.description).toBe('conflictHighRiskDetectedDesc');
+      await vi.waitFor(() => expect(storeMocks.fetchConflicts).toHaveBeenCalledOnce());
+    });
+
+    it('refreshes conflicts when guardian auto-resolves expired conflicts', async () => {
+      showMemoryOperationToasts(
+        { kind: 'maintenance', metadata: { operation: 'conflict_auto_resolve' }, status: 'success' },
+        { t, router },
+      );
+
+      expect(toastMocks.warning).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(storeMocks.fetchConflicts).toHaveBeenCalledOnce());
     });
 
     it('skips conflict toast when status is error', () => {

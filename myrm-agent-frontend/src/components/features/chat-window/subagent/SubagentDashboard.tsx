@@ -23,8 +23,8 @@ import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentSto
 import useChatStore from '@/store/useChatStore';
 import { AgentToolDiagnostics } from '../AgentToolDiagnostics';
 import AgentWorkMap from './AgentWorkMap';
-import { MiniGantt } from './subagent-gantt';
-import { SubagentTreeNode } from './subagent-tree';
+import { MiniGantt } from './SubagentGantt';
+import { SubagentTreeNode } from './SubagentTree';
 
 // ── Sort/Filter Controls ─────────────────────────────────────────────
 
