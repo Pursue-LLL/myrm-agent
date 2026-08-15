@@ -111,7 +111,6 @@ def fetch_first_desktop_dref_from_local_capture() -> str | None:
     strategies: tuple[tuple[str, str | None], ...] = (
         ("target", "TextEdit"),
         ("foreground", None),
-        ("full_screen", None),
     )
 
     for scope, app_name in strategies:

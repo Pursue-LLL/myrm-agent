@@ -124,6 +124,7 @@
 | `__tests__/SharedContextTargetBinding.test.tsx` | 共享上下文目标绑定测试 | ✅ |
 | `__tests__/memoryLiveStream.test.ts` | 记忆实时流测试 | ✅ |
 | `__tests__/replayTimeline.test.ts` | 记忆回放时间线测试 | ✅ |
+| `__tests__/SessionReplayPlayer.test.tsx` | 回放播放器安全徽标渲染与 store selector 稳定性测试 | ✅ |
 
 ## 依赖
 
