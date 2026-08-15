@@ -11,7 +11,6 @@ app/api/channels/router.py
 app/api/channels/test_connections.py
 app/api/chats/chat/core.py
 app/api/chats/chat/share.py
-app/api/chats/test_fixtures.py
 app/api/companion/router.py
 app/api/config/router.py
 app/api/cron/schemas.py
@@ -31,7 +30,7 @@ app/api/skills/drafts.py
 app/api/skills/migrations.py
 app/api/skills/permissions.py
 app/api/skills/sync.py
-app/api/statistics/context_health.py
+app/api/statistics/context_health/context_health.py
 app/api/statistics/growth_dashboard.py
 app/api/statistics/router.py
 app/api/statistics/wiki_evidence.py
@@ -72,10 +71,10 @@ app/channels/providers/wechat/ilink_channel.py
 app/channels/providers/wecom/aibot_channel.py
 app/channels/providers/wecom/channel.py
 app/channels/providers/whatsapp/channel.py
-app/channels/routing/commands.py
+app/channels/routing/commands/commands.py
+app/channels/routing/commands/router_commands_approval.py
 app/channels/routing/message_effects.py
 app/channels/routing/router.py
-app/channels/routing/router_commands_approval.py
 app/channels/routing/router_execution.py
 app/channels/routing/router_stream.py
 app/channels/routing/stream_manager.py
@@ -159,6 +158,6 @@ app/services/memory/operations/crud/list_write.py
 app/services/memory/shared_context/shared_context.py
 app/services/migration/hermes/hermes_moa_migrator.py
 app/services/onboarding/second_brain_preset.py
-app/services/project/assessment_import_service.py
 app/services/plugins/import_service.py
+app/services/project/assessment_import_service.py
 app/services/repair/actions.py

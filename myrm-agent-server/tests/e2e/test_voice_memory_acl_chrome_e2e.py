@@ -10,9 +10,8 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     wait_for_state,
     warm_ui_route,
 )
