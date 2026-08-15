@@ -68,9 +68,15 @@ export function resolveDoctorSeverity(detail: string, healthy: boolean): DoctorS
  * Mirrors `resolveDoctorSeverity` so the card, toast, and wizard always agree.
  */
 export function resolveDoctorStatusKey(checked: boolean, severity: DoctorSeverity): string {
-  if (!checked) return 'doctorStatusUnknown';
-  if (severity === 'ok') return 'doctorStatusOk';
-  if (severity === 'warn') return 'doctorStatusWarn';
+  if (!checked) {
+    return 'doctorStatusUnknown';
+  }
+  if (severity === 'ok') {
+    return 'doctorStatusOk';
+  }
+  if (severity === 'warn') {
+    return 'doctorStatusWarn';
+  }
   return 'doctorStatusFail';
 }
 
