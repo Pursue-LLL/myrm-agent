@@ -11,7 +11,7 @@ MemoryArchiveService: export and dry-run validation for GUI-reviewed memory arch
 [POS]
 单用户记忆归档服务。聚合普通记忆、Shared Context、会话和审计账本，
 生成可审查的本地 archive payload，不包含多租户或控制平面语义。
-replay 分区始终为空（AgentTurn/AgentEvent 事件回放系统已移除）。
+replay 分区始终为空：agent 事件回放以 harness JSONL event-log 为准，不入归档。
 """
 
 from __future__ import annotations
