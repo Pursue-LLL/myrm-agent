@@ -1,7 +1,18 @@
-"""批量导入 (GUI-First 技能迁移) 接口
+"""批量导入 (GUI-First 技能迁移) 接口.
 
 处理从前端上传的 ZIP，进行安全解压与冲突预览。
 用户确认策略后，落盘到 Sandbox 的 SkillStore 中。
+
+[INPUT]
+- POST skills batch-import multipart ZIP upload（前端 GUI 触发）.
+- HermesBatchParser（myrm_agent_harness）解析技能包.
+
+[OUTPUT]
+- 安全解压 + 冲突预览；用户确认策略后落盘 Sandbox SkillStore.
+
+[POS]
+Server business layer (Skills API). GUI-First skill migration entrypoint:
+ZIP → safe extract → conflict preview → confirmed install to SkillStore.
 """
 
 from __future__ import annotations

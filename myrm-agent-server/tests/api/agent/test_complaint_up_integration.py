@@ -119,6 +119,38 @@ class TestComplaintUpEscalation:
         mock_misroute.assert_called_once_with(RoutingTier.STANDARD)
 
     @pytest.mark.asyncio
+    async def test_complaint_up_reasoning_keeps_tier_no_misroute(self, base_request: dict[str, object]) -> None:
+        """sibling_group_id + no instruction + last tier REASONING → min_tier stays
+        REASONING and record_misroute is NOT called (the highest tier has nothing
+        to escalate to, so penalizing it would only degrade future routing)."""
+        base_request["sibling_group_id"] = "sg-test-5"
+        request = AgentRequest(**base_request)
+
+        mock_route = AsyncMock(return_value=_make_routing_result(RoutingTier.REASONING))
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.llms.routing.complexity_router.route_task",
+                mock_route,
+            ),
+            patch(
+                "app.database.repositories.chat_repo.ChatRepository.get_recent_routing_tiers",
+                new_callable=AsyncMock,
+                return_value=["reasoning"],
+            ),
+            patch(
+                "myrm_agent_harness.toolkits.llms.routing.complexity_router.record_misroute",
+            ) as mock_misroute,
+        ):
+            from app.services.agent.params.converter import convert_to_general_agent_params
+
+            await convert_to_general_agent_params(request, [])
+
+        call_kwargs = mock_route.call_args
+        assert call_kwargs.kwargs.get("min_tier") == RoutingTier.REASONING
+        mock_misroute.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_complaint_up_no_history_defaults_standard(self, base_request: dict[str, object]) -> None:
         """sibling_group_id + no instruction + no history → min_tier STANDARD (safe default)."""
         base_request["sibling_group_id"] = "sg-test-3"
