@@ -25,19 +25,19 @@ async def test_sweep_deletes_row_on_success() -> None:
     worker = ExtractRetryWorker()
     with (
         patch(
-            "app.services.memory.extract_retry_queue.claim_due",
+            "app.services.memory.extract_retry.extract_retry_queue.claim_due",
             AsyncMock(return_value=[("chat-1", 1)]),
         ),
         patch(
-            "app.services.memory.retry_chat_memory_extract.run_retry_extract_for_chat",
+            "app.services.memory.extract_retry.retry_chat_memory_extract.run_retry_extract_for_chat",
             AsyncMock(return_value=True),
         ),
         patch(
-            "app.services.memory.extract_retry_queue.delete",
+            "app.services.memory.extract_retry.extract_retry_queue.delete",
             AsyncMock(),
         ) as mock_delete,
         patch(
-            "app.services.memory.extract_retry_queue.mark_failure",
+            "app.services.memory.extract_retry.extract_retry_queue.mark_failure",
             AsyncMock(),
         ) as mock_mark_failure,
     ):
@@ -53,23 +53,23 @@ async def test_sweep_schedules_backoff_on_failure() -> None:
     worker = ExtractRetryWorker()
     with (
         patch(
-            "app.services.memory.extract_retry_queue.claim_due",
+            "app.services.memory.extract_retry.extract_retry_queue.claim_due",
             AsyncMock(return_value=[("chat-1", 1)]),
         ),
         patch(
-            "app.services.memory.retry_chat_memory_extract.run_retry_extract_for_chat",
+            "app.services.memory.extract_retry.retry_chat_memory_extract.run_retry_extract_for_chat",
             AsyncMock(side_effect=TimeoutError("llm timeout")),
         ),
         patch(
-            "app.services.memory.extract_retry_queue.delete",
+            "app.services.memory.extract_retry.extract_retry_queue.delete",
             AsyncMock(),
         ) as mock_delete,
         patch(
-            "app.services.memory.extract_retry_queue.mark_failure",
+            "app.services.memory.extract_retry.extract_retry_queue.mark_failure",
             AsyncMock(return_value=False),
         ) as mock_mark_failure,
         patch(
-            "app.services.memory.extract_retry_worker._record_terminal_failure",
+            "app.services.memory.extract_retry.extract_retry_worker._record_terminal_failure",
             AsyncMock(),
         ) as mock_terminal,
     ):
@@ -89,19 +89,19 @@ async def test_sweep_records_terminal_failure_when_attempts_exhausted() -> None:
     worker = ExtractRetryWorker()
     with (
         patch(
-            "app.services.memory.extract_retry_queue.claim_due",
+            "app.services.memory.extract_retry.extract_retry_queue.claim_due",
             AsyncMock(return_value=[("chat-1", 3)]),
         ),
         patch(
-            "app.services.memory.retry_chat_memory_extract.run_retry_extract_for_chat",
+            "app.services.memory.extract_retry.retry_chat_memory_extract.run_retry_extract_for_chat",
             AsyncMock(side_effect=RuntimeError("permanent")),
         ),
         patch(
-            "app.services.memory.extract_retry_queue.mark_failure",
+            "app.services.memory.extract_retry.extract_retry_queue.mark_failure",
             AsyncMock(return_value=True),
         ),
         patch(
-            "app.services.memory.extract_retry_worker._record_terminal_failure",
+            "app.services.memory.extract_retry.extract_retry_worker._record_terminal_failure",
             AsyncMock(),
         ) as mock_terminal,
     ):
@@ -181,7 +181,7 @@ async def test_stop_without_start_is_noop() -> None:
 async def test_sweep_claim_failure_is_handled() -> None:
     worker = ExtractRetryWorker()
     with patch(
-        "app.services.memory.extract_retry_queue.claim_due",
+        "app.services.memory.extract_retry.extract_retry_queue.claim_due",
         AsyncMock(side_effect=RuntimeError("db down")),
     ):
         await worker._sweep()
@@ -194,15 +194,15 @@ async def test_sweep_cleanup_failure_keeps_loop_alive() -> None:
     worker = ExtractRetryWorker()
     with (
         patch(
-            "app.services.memory.extract_retry_queue.claim_due",
+            "app.services.memory.extract_retry.extract_retry_queue.claim_due",
             AsyncMock(return_value=[("chat-1", 1)]),
         ),
         patch(
-            "app.services.memory.retry_chat_memory_extract.run_retry_extract_for_chat",
+            "app.services.memory.extract_retry.retry_chat_memory_extract.run_retry_extract_for_chat",
             AsyncMock(return_value=True),
         ),
         patch(
-            "app.services.memory.extract_retry_queue.delete",
+            "app.services.memory.extract_retry.extract_retry_queue.delete",
             AsyncMock(side_effect=RuntimeError("db down")),
         ),
     ):
@@ -279,7 +279,7 @@ async def test_record_terminal_failure_writes_ledger() -> None:
             _fake_db_session,
         ),
         patch(
-            "app.services.memory.operation_ledger.MemoryOperationLedgerService",
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
         ) as mock_cls,
     ):
         mock_cls.return_value.record_event = AsyncMock()
@@ -300,7 +300,7 @@ async def test_record_terminal_failure_survives_ledger_error() -> None:
             _fake_db_session,
         ),
         patch(
-            "app.services.memory.operation_ledger.MemoryOperationLedgerService",
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
         ) as mock_cls,
     ):
         mock_cls.return_value.record_event = AsyncMock(

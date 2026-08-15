@@ -11,3 +11,4 @@
 - `mcpConfigNormalizer.ts`：MCP transport/keepalive 语义归一化（`http` → `streamable_http`；`stdio` keepalive 清空）。
 - `subagentTree.ts`：Subagent 树数据工具 — 构建树、子树聚合（成本/tokens/后代）、全局统计、排序（spawn/busiest/slowest/status）、过滤（all/running/failed/leaf）、展平、格式化（fmtCost/fmtTokens/fmtBudgetCost）、预算/用量提取（extractCostUsd/extractTotalTokens/extractBudgetTokens/extractMaxCostUsd，成本经 `token_usage.total_cost_usd`，上限经 `budget.max_cost_usd`/`budget.budget_tokens`）。
 - `taskTopologyModel.ts`：任务拓扑数据模型 — 纯函数把 subagent 树 / fission 拓扑转为 ReactFlow 可渲染图模型（buildTopologyModel / buildFissionTopologyModel / buildMergedTopologyModel：节点/边/墓碑/焦点/进度/元数据、悬空边过滤、label 截断、状态 tone 映射；**验证失败节点 tone 降级为 danger 并透传 verification 字段**；fission 命名空间按 fission_id 隔离）。
+- `fileUtils.ts`：通用文件工具 — 扩展名分类（image/video/audio/pdf/document/text）、MIME 推断（getMimeType）、扩展名提取（getFileExtension）、Web/Tauri 展示 URL（getDisplayUrl）、base64 转换（fetchFileAsBase64DataURL）、SHA-256 哈希（computeFileHash）、浏览器 Blob 下载（triggerDownload）。

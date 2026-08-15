@@ -23,13 +23,16 @@
 | `*ConfigCard.tsx` / `WhatsAppCard.tsx` | 各平台配置 UI（含 `WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引） |
 | `FeishuQrRegisterDialog.tsx` | 飞书 QR 扫码注册弹窗（新增多应用实例 / 刷新默认实例；含失败快速响应 + `resolvedRef` 终态守卫） |
 | `FeishuCredentialsEditDialog.tsx` | 多应用实例「编辑凭据」弹窗（App ID / Secret / Lark；Secret 留空保留旧值，merge 落库后重建实例生效） |
-| `FeishuMultiAppSection.tsx` | 飞书多应用管理区（实例列表/添加/删除/重命名/编辑凭据，上限 UX） |
+| `FeishuMultiAppSection.tsx` | 飞书多应用管理区（实例列表/添加/删除/重命名/编辑凭据，上限 UX；删除实例不可逆，需二次确认） |
 | `DmPolicySelector.tsx` / `GroupManager.tsx` | DM 策略与群组管理 |
 | `NotificationChannelEditor.tsx` | 通知渠道编辑（Preferences 复用） |
 
 ## 测试
 
 - `__tests__/topicWorkspaceLabel.test.ts` — workspace 展示 label 解析
+- `__tests__/FeishuMultiAppSection.test.tsx` — 多应用区渲染/编辑/删除确认/重命名/上限 UX
+- `__tests__/FeishuCredentialsEditDialog.test.tsx` — 编辑凭据弹窗（脱敏回显、留空保留、校验）
+- `__tests__/FeishuQrRegisterDialog.test.tsx` — QR 注册弹窗（扫描/超时/手动回退）
 
 ## Reaction 配置链路
 

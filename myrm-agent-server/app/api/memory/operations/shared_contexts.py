@@ -3,8 +3,8 @@
 [INPUT]
 app.core.utils.errors::handle_llm_exception (POS: 核心错误处理模块)
 app.api.memory.shared_context_schemas (POS: 共享上下文 API Schema 层)
-app.services.memory.shared_context::SharedContextService (POS: 共享上下文业务服务)
-app.services.memory.shared_context_materializer::SharedContextProposalMaterializer (POS: 共享上下文写入物化服务)
+app.services.memory.shared_context.shared_context::SharedContextService (POS: 共享上下文业务服务)
+app.services.memory.shared_context.shared_context_materializer::SharedContextProposalMaterializer (POS: 共享上下文写入物化服务)
 
 [OUTPUT]
 router: 共享上下文 CRUD、绑定管理和写入提案审批端点

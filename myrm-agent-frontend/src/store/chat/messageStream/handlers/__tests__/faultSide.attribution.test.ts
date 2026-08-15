@@ -113,9 +113,7 @@ describe('agentControlEvents fault_side', () => {
 describe('toolLifecycleEvents fault_side', () => {
   it('surfaces fault_side from the TOOL_FAILURE event onto the last step', async () => {
     const state = makeAssistantState();
-    state.messages[0].progressSteps = [
-      { step_key: 'code_execute', tool_name: 'code_execute', status: 'running' },
-    ];
+    state.messages[0].progressSteps = [{ step_key: 'code_execute', tool_name: 'code_execute' }];
     const ctx: StreamCtx = {
       data: {
         type: 'tool_failure',
@@ -147,9 +145,7 @@ describe('toolLifecycleEvents fault_side', () => {
 
   it('does not set fault_side when the TOOL_FAILURE event carries none', async () => {
     const state = makeAssistantState();
-    state.messages[0].progressSteps = [
-      { step_key: 'code_execute', tool_name: 'code_execute', status: 'running' },
-    ];
+    state.messages[0].progressSteps = [{ step_key: 'code_execute', tool_name: 'code_execute' }];
     const ctx: StreamCtx = {
       data: {
         type: 'tool_failure',

@@ -144,8 +144,43 @@ describe('FeishuMultiAppSection', () => {
     fireEvent.click(screen.getByLabelText('delete-feishu_inst1'));
 
     await waitFor(() => {
+      expect(screen.getByText('channelDeleteInstanceTitle')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'channelDeleteInstanceConfirm' }));
+
+    await waitFor(() => {
       expect(mockDeleteChannelInstance).toHaveBeenCalledWith('inst1');
     });
+  });
+
+  it('keeps the instance when the delete confirmation is cancelled', async () => {
+    mockListChannelInstances.mockResolvedValue([
+      {
+        instanceId: 'inst1',
+        channelType: 'feishu',
+        channelName: 'feishu_inst1',
+        displayName: '客服机器人',
+      },
+    ]);
+
+    render(<FeishuMultiAppSection />);
+    await waitFor(() => {
+      expect(screen.getByText('客服机器人')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('delete-feishu_inst1'));
+
+    await waitFor(() => {
+      expect(screen.getByText('channelDeleteInstanceTitle')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'channelDeleteInstanceCancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('channelDeleteInstanceTitle')).not.toBeInTheDocument();
+    });
+    expect(mockDeleteChannelInstance).not.toHaveBeenCalled();
   });
 
   it('renames an instance display name', async () => {

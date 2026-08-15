@@ -2,7 +2,7 @@
 [INPUT]
 app.core.memory.adapters.setup::create_memory_manager (POS: 业务层记忆适配器入口)
 app.database.models::SharedContextWriteProposalModel (POS: 记忆域模型)
-app.services.memory.shared_context::SharedContextService (POS: 共享上下文业务服务)
+app.services.memory.shared_context.shared_context::SharedContextService (POS: 共享上下文业务服务)
 myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 
 [OUTPUT]

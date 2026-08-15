@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.agent.params::AgentRequest (POS: migration_readiness_anchor field)
-- app.services.memory.import_sessions::MemoryImportSessionService (POS: save outcome)
+- app.services.memory.imports.import_sessions::MemoryImportSessionService (POS: save outcome)
 
 [OUTPUT]
 - resolve_first_turn_outcome: Classify outcome from finalization signals.

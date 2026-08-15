@@ -2,8 +2,8 @@
 
 [INPUT]
 app.api.memory.shared_context_schemas (POS: 共享上下文 API Schema 层)
-app.services.memory.shared_context::SharedContextService (POS: 共享上下文业务服务)
-app.services.memory.shared_context_history::SharedContextHistoryService (POS: 共享上下文历史证据服务)
+app.services.memory.shared_context.shared_context::SharedContextService (POS: 共享上下文业务服务)
+app.services.memory.shared_context.shared_context_history::SharedContextHistoryService (POS: 共享上下文历史证据服务)
 
 [OUTPUT]
 router: 会话历史搜索和历史消息提升为 Shared Context 写入提案的端点

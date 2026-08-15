@@ -57,8 +57,8 @@
 
 ## 模块依赖
 
-- `app.services.memory.import_adapters` — 记忆车道 dry-run / confirm
-- `app.services.memory.import_sessions` — dry-run 会话 metadata（instruction plan）
+- `app.services.memory.imports.import_adapters` — 记忆车道 dry-run / confirm
+- `app.services.memory.imports.import_sessions` — dry-run 会话 metadata（instruction plan）
 - `app.services.memory.operations.crud.import_archive` — 竞品发现 payload 编排入口
 - `app.api.skills.migrations` — 技能审核队列 API
 - `app.services.config.service` — 凭证车道 opt-in 写入

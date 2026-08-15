@@ -247,7 +247,7 @@ class TestManualMemoryGuardianTrigger:
         monkeypatch.setattr("app.database.connection.get_session", lambda: _fake_session())
         record_event_mock = AsyncMock()
         monkeypatch.setattr(
-            "app.services.memory.operation_ledger.MemoryOperationLedgerService.record_event",
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService.record_event",
             record_event_mock,
         )
 

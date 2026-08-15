@@ -501,5 +501,107 @@ async def test_session_trace_endpoint_no_security_audit_is_noop(
     assert "security_labels" not in trace["tool_calls"][0]
 
 
+@pytest.mark.asyncio
+async def test_session_trace_endpoint_tasks_steps_lineage_with_labels(
+    tmp_path, monkeypatch
+):
+    """tasks_steps stream events (real LLM tool-call path) build lineaged records.
+
+    The streaming layer reports tool invocations via ``tasks_steps`` events
+    (``_handle_tool_calls`` carries tool_call_id; ``_handle_tool_result`` emits a
+    ``*_error`` step without tool_call_id). The read-side trace_builder must turn
+    those into ToolCallRecords and the trace API must then attach the matching
+    security decisions by tool_call_id.
+    """
+    from datetime import datetime
+
+    from myrm_agent_harness.agent.event_log.backends.file_backend import (
+        FileEventLogBackend,
+    )
+    from myrm_agent_harness.agent.event_log.types import StructuredEvent
+
+    monkeypatch.setattr(
+        "app.config.settings.settings.database.event_log_dir",
+        str(tmp_path),
+    )
+
+    session_id = "test-tasks-steps-lineage"
+    backend = FileEventLogBackend(tmp_path, session_id)
+    ts = datetime.now().timestamp()
+    events = [
+        StructuredEvent(session_id=session_id, sequence=1, timestamp=ts, event_type="session_start", data={}),
+        # Exact payload of streaming.event_handlers._handle_tool_calls
+        StructuredEvent(
+            session_id=session_id,
+            sequence=2,
+            timestamp=ts + 1,
+            event_type="tasks_steps",
+            data={
+                "step_key": "bash_code_execute_tool_tool",
+                "tool_call_id": "call-9",
+                "tool_name": "bash_code_execute_tool",
+                "reason": "get cwd",
+                "data": [{"text": "run: pwd"}],
+                "messageId": "msg-9",
+            },
+        ),
+        # Exact payload of _handle_tool_result error step (no tool_call_id)
+        StructuredEvent(
+            session_id=session_id,
+            sequence=3,
+            timestamp=ts + 2,
+            event_type="tasks_steps",
+            data={
+                "step_key": "bash_code_execute_tool_tool_error",
+                "tool_name": "bash_code_execute_tool",
+                "status": "error",
+                "error": "exit code 1",
+                "messageId": "msg-9",
+                "fault_side": "harness_tool",
+            },
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=4,
+            timestamp=ts + 3,
+            event_type="security_audit",
+            data={
+                "decisions": [
+                    {
+                        "tool": "bash",
+                        "decision": "DENY",
+                        "reason": "E-Stop active",
+                        "tainted": True,
+                        "ts": round(ts + 1.5, 3),
+                        "tool_call_id": "call-9",
+                    },
+                ],
+                "count": 1,
+            },
+        ),
+        StructuredEvent(session_id=session_id, sequence=5, timestamp=ts + 4, event_type="session_end", data={}),
+    ]
+    await backend.append(events)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get(
+            f"/api/v1/statistics/session/{session_id}/trace"
+        )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    trace = response.json()["data"]
+    assert len(trace["tool_calls"]) == 1
+    tool_call = trace["tool_calls"][0]
+    assert tool_call["tool_name"] == "bash_code_execute_tool"
+    assert tool_call["tool_call_id"] == "call-9"
+    assert tool_call["message_id"] == "msg-9"
+    assert tool_call["success"] is False
+    assert tool_call["error"] == "exit code 1"
+    assert tool_call["security_labels"] == [
+        {"decision": "DENY", "reason": "E-Stop active", "tainted": True, "ts": round(ts + 1.5, 3)},
+    ]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

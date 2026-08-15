@@ -482,7 +482,7 @@ async def test_merge_auto_commit_without_git_identity(tmp_path: Path) -> None:
     """
     import os
 
-    from app.services.chat import sandbox_worktree as sw
+    from app.services.chat import _git_shared as sw
 
     repo = tmp_path / "no-identity-repo"
     repo.mkdir()
@@ -532,7 +532,7 @@ async def test_git_identity_injects_only_missing_keys(tmp_path: Path) -> None:
     ``user.email`` is injected, so a real author is never overwritten."""
     import os
 
-    from app.services.chat import sandbox_worktree as sw
+    from app.services.chat import _git_shared as sw
 
     repo = tmp_path / "repo"
     repo.mkdir()

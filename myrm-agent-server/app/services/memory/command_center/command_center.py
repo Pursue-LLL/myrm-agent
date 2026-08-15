@@ -4,7 +4,7 @@
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 app.database.models.memory::PendingMemory (POS: 记忆域模型)
 app.database.models.memory::SharedContextModel (POS: 记忆域模型)
-app.services.memory.shared_context::SharedContextService (POS: 共享上下文业务服务)
+app.services.memory.shared_context.shared_context::SharedContextService (POS: 共享上下文业务服务)
 
 [OUTPUT]
 MemoryCommandCenterService: builds the single-user memory command center snapshot with optional project-scoped filtering.

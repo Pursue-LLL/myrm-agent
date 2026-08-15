@@ -11,6 +11,7 @@ import {
   mergeMessages,
   normalizeApiMessage,
   snapToNearestEventTime,
+  type ReplayEvent,
 } from '@/components/features/memory/replay/replayTimeline';
 
 const baseTrace: ExecutionTrace = {
@@ -244,7 +245,9 @@ describe('replayTimeline', () => {
       },
     ];
     const events = buildMessageEvents(messages, toolCalls, 1000000);
-    const assistantEvents = events.filter((e) => e.type === 'message' && e.data.role === 'assistant');
+    const assistantEvents = events.filter(
+      (e): e is Extract<ReplayEvent, { type: 'message' }> => e.type === 'message' && e.data.role === 'assistant',
+    );
     expect(assistantEvents.find((e) => e.data.messageId === 'a1')?.time).toBe(1002000);
     expect(assistantEvents.find((e) => e.data.messageId === 'a2')?.time).toBe(1001900);
   });

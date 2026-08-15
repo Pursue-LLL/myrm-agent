@@ -12265,6 +12265,10 @@
     "feishuInstanceAddError": "앱 추가 실패",
     "feishuInstanceRemoved": "앱이 제거되었습니다",
     "feishuInstanceRemoveError": "앱 제거 실패",
+    "channelDeleteInstanceTitle": "인스턴스 제거",
+    "channelDeleteInstanceMessage": "「{name}」및 해당 자격 증명을 제거할까요? 이 작업은 되돌릴 수 없습니다.",
+    "channelDeleteInstanceConfirm": "제거",
+    "channelDeleteInstanceCancel": "취소",
     "feishuLabelSaveError": "라벨 저장 실패",
     "feishuDefaultLabel": "기본 앱",
     "feishuEditCredentials": "자격 증명 편집",
@@ -15548,7 +15552,8 @@
     "agentPluginEmbedTokenHint": "끄기(권장): 번들이 환경 변수 MYRM_MCP_TOKEN에서 토큰을 읽어 버전 관리에 커밋해도 안전합니다(대부분의 클라이언트는 ${VAR}, VS Code·Cursor는 ${env:VAR} 사용). 켜기: 환경 변수를 지원하지 않는 클라이언트를 위해 토큰을 인라인합니다(언제든 취소 가능).",
     "agentPluginGenerate": "Agent Plugins 번들 생성",
     "agentPluginReady": "Agent Plugins 번들이 준비되었습니다",
-    "pluginFile": "플러그인 파일"
+    "pluginFile": "플러그인 파일",
+    "download": "다운로드"
   },
   "about": {
     "title": "정보",

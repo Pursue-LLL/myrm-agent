@@ -35,7 +35,7 @@
 ## 依赖关系
 
 - `app.services.migration.*`
-- `app.services.memory.import_adapters`
+- `app.services.memory.imports.import_adapters`
 - `tests/architecture/test_migration_source_closure.py` — 结构闭包（非本目录）
 
 ---

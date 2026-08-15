@@ -91,7 +91,7 @@ def test_record_event_publishes_only_after_commit_when_commit_requested() -> Non
     """commit=True 时 SSE publish 必须发生在 DB commit 之后，杜绝 ghost event。"""
     db = _RecordingSession()
     with patch(
-        "app.services.memory.operation_ledger._publish_memory_operation_event",
+        "app.services.memory.ledger.operation_ledger._publish_memory_operation_event",
         side_effect=lambda _row: db.calls.append("publish"),
     ):
         asyncio.run(

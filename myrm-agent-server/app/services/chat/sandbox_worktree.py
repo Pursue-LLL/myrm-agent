@@ -8,7 +8,6 @@
 - get_sandbox_worktree_path: Compute the deterministic path for a chat's sandbox worktree.
 - is_git_repository: Check if a directory is within a git repository.
 - merge_sandbox_to_parent: Merge sandbox branch changes back to the source branch.
-- re-exports from _git_shared (POS: 共享 git 命令基础设施): _GIT_ENV / _get_merge_lock / _git_identity / _auto_commit_dirty_worktree / _collect_conflict_files / _abort_merge / _worktree_is_dirty
 - WorktreeCreateError: Structured error type for worktree creation failures.
 
 [POS]
@@ -350,38 +349,3 @@ async def _merge_sandbox_to_parent_locked(
     except Exception:
         await _abort_merge(base_dir)
         return False, "Merge failed"
-
-
-async def _collect_conflict_files(base_dir: str) -> list[str]:
-    """List files with unresolved merge conflicts in base_dir, or [] when none."""
-    try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "diff", "--name-only", "--diff-filter=U"],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=_GIT_ENV,
-        )
-        if result.returncode != 0:
-            return []
-        return [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    except Exception:
-        return []
-
-
-async def _abort_merge(base_dir: str) -> None:
-    """Roll back an in-progress merge so base_dir stays usable."""
-    try:
-        await asyncio.to_thread(
-            subprocess.run,
-            ["git", "merge", "--abort"],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=15,
-            env=_GIT_ENV,
-        )
-    except Exception:
-        pass

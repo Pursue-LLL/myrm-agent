@@ -8,7 +8,7 @@
 - app.services.agent.gateway::AgentGateway (POS: Active session tracking)
 - app.services.budget.enforcer::should_block_execution (POS: Budget enforcement)
 - app.core.memory.adapters.setup::create_memory_manager (POS: 业务层记忆管理器工厂)
-- app.services.memory.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
+- app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
 - app.services.memory.guardian_policy::MemoryGuardianPolicy (POS: 受约束调度策略)
 
 [OUTPUT]

@@ -1,12 +1,12 @@
 """Memory import dry-run session service.
 
 [INPUT]
-app.services.memory.import_adapters::build_memory_import_dry_run (POS: 记忆导入 dry-run adapter)
-app.services.memory.import_session_data::* (POS: 记忆导入会话数据转换层)
-app.services.memory.import_session_models::* (POS: 记忆导入会话 DTO 层)
-app.services.memory.import_ledger::MemoryImportLedgerService (POS: 导入批次/条目账本状态机)
-app.services.memory.import_rollback::* (POS: 记忆导入回滚辅助层)
-app.services.memory.operation_ledger::MemoryOperationLedgerService (POS: 单用户记忆观测账本服务)
+app.services.memory.imports.import_adapters::build_memory_import_dry_run (POS: 记忆导入 dry-run adapter)
+app.services.memory.imports.import_session_data::* (POS: 记忆导入会话数据转换层)
+app.services.memory.imports.import_session_models::* (POS: 记忆导入会话 DTO 层)
+app.services.memory.imports.import_ledger::MemoryImportLedgerService (POS: 导入批次/条目账本状态机)
+app.services.memory.imports.import_rollback::* (POS: 记忆导入回滚辅助层)
+app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 单用户记忆观测账本服务)
 app.database.models.memory::MemoryImportDryRunModel (POS: 记忆域模型)
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 

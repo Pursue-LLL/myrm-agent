@@ -25,7 +25,10 @@ re-entering the password. Revocation is per-token: the active token fingerprint
 is persisted on create and moved into an append-only revoked-fingerprint set on
 revoke, so recreating a share for the same chat can never resurrect a previously
 revoked link; previously issued (non-revoked) links keep working until their own
-TTL expires. The status endpoint reports the current share state (unshared /
+TTL expires. Revoked or deleted links are retired before the password gate, so a
+dead password-protected link answers 404 to every visitor instead of presenting
+a password prompt for content that no longer exists. The status endpoint reports
+the current share state (unshared /
 revoked / active / password-protected) so the GUI can reopen the share dialog
 with the live link and a working revoke entry; unprotected links are rebuilt
 deterministically from the persisted expiry, password-protected shares return a
@@ -46,6 +49,7 @@ export.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -58,7 +62,11 @@ from app.config.settings import settings
 from app.core.infra.ingress import resolve_share_url_base
 from app.core.infra.limiter import limiter
 from app.core.security.share_headers import SHARE_PRIVACY_HEADERS
-from app.core.security.share_hmac import is_password_protected, token_fingerprint
+from app.core.security.share_hmac import (
+    b64url_decode,
+    is_password_protected,
+    token_fingerprint,
+)
 from app.core.security.share_password_page import (
     render_password_gate_html,
     resolve_gate_password,
@@ -70,6 +78,7 @@ from app.core.security.share_unlock import (
     unlock_cookie_name,
 )
 from app.database.connection import get_db
+from app.database.dto import ChatDTO
 from app.database.models.chat import Chat
 from app.services.chat.chat_service import ChatService
 from app.services.chat.share_renderer import render_share_html
@@ -115,6 +124,40 @@ def _unlock_claims_from_cookie(value: str) -> ChatShareClaims | None:
     if not isinstance(chat_id, str) or not isinstance(exp, int):
         return None
     return ChatShareClaims(chat_id=chat_id, exp=exp, password_protected=True)
+
+
+def _decode_share_claims_unverified(token: str) -> ChatShareClaims | None:
+    """Decode token claims without verifying the HMAC signature.
+
+    The payload is base64-encoded JSON — only the signature requires the
+    password — so the chat id is readable before a visitor unlocks a protected
+    share. This is used solely to look up the share lifecycle state so a
+    revoked or deleted link answers 404 instead of presenting as alive behind
+    the password gate.
+    """
+    if not token or "." not in token:
+        return None
+    try:
+        raw = json.loads(b64url_decode(token.rsplit(".", 1)[0]))
+    except (json.JSONDecodeError, ValueError):
+        return None
+    chat_id = raw.get("cid")
+    exp = raw.get("exp")
+    if not isinstance(chat_id, str) or not isinstance(exp, int):
+        return None
+    return ChatShareClaims(
+        chat_id=chat_id,
+        exp=exp,
+        password_protected=raw.get("p") == 1,
+    )
+
+
+def _chat_share_is_revoked(chat: ChatDTO, token: str) -> bool:
+    """Whether the presented token has been revoked for this conversation."""
+    revoked_fingerprints = set(chat.share_revoked_fingerprints or [])
+    return chat.share_revoked_at is not None or (
+        chat.share_token_fingerprint is not None and token_fingerprint(token) in revoked_fingerprints
+    )
 
 
 def _attach_unlock_cookie(
@@ -275,9 +318,7 @@ async def get_chat_share_status(
     expires_at = chat.share_token_expires_at
     # Expired links are unshared regardless of protection: a past-due share
     # must never surface as active/password-protected when it cannot be opened.
-    if expires_at is not None and expires_at <= int(
-        datetime.now(timezone.utc).timestamp()
-    ):
+    if expires_at is not None and expires_at <= int(datetime.now(timezone.utc).timestamp()):
         return ChatShareStatusResponse()
 
     if protected or expires_at is None:
@@ -310,8 +351,28 @@ async def get_public_chat_share(
     HMAC cookie so revisiting the link (or refreshing) skips the gate; when the
     share is too close to expiry to issue the cookie the page is served directly
     so a successful unlock can never loop back to the gate.
+
+    Lifecycle state is resolved before the password gate: a revoked or deleted
+    share answers 404 to everyone — including a visitor who has not unlocked a
+    password-protected link yet — so a dead link never presents as alive behind
+    a password prompt.
     """
     protected = is_password_protected(token)
+
+    # The token payload is base64-encoded JSON (only the HMAC signature is
+    # secret), so the chat id is readable pre-unlock. Look the conversation up
+    # up front and retire revoked links before the gate can mask them.
+    decoded = _decode_share_claims_unverified(token)
+    chat = await ChatService.get_chat_metadata(decoded.chat_id) if decoded else None
+    if chat is not None and _chat_share_is_revoked(chat, token):
+        return share_not_found(
+            request,
+            detail="This share link has been revoked",
+            title="Link Revoked",
+            message="This share link has been revoked by its owner.",
+            headers=_SHARE_RESPONSE_HEADERS,
+        )
+
     claims: ChatShareClaims | None
     if protected and not password:
         unlock = request.cookies.get(unlock_cookie_name(_UNLOCK_COOKIE_NAME, token))
@@ -320,6 +381,14 @@ async def get_public_chat_share(
         else:
             claims = None
         if claims is None:
+            if decoded is not None and chat is None:
+                return share_not_found(
+                    request,
+                    detail="Conversation not found",
+                    title="Content Unavailable",
+                    message="The shared conversation is no longer available.",
+                    headers=_SHARE_RESPONSE_HEADERS,
+                )
             return HTMLResponse(render_password_gate_html(), status_code=403)
     else:
         claims = parse_chat_share_token(token, password=password)
@@ -337,26 +406,14 @@ async def get_public_chat_share(
                 headers=_SHARE_RESPONSE_HEADERS,
             )
 
-    chat = await ChatService.get_chat_metadata(claims.chat_id)
-    if not chat:
+    if chat is None:
+        chat = await ChatService.get_chat_metadata(claims.chat_id)
+    if chat is None:
         return share_not_found(
             request,
             detail="Conversation not found",
             title="Content Unavailable",
             message="The shared conversation is no longer available.",
-            headers=_SHARE_RESPONSE_HEADERS,
-        )
-
-    revoked_fingerprints = set(chat.share_revoked_fingerprints or [])
-    if chat.share_revoked_at is not None or (
-        chat.share_token_fingerprint is not None
-        and token_fingerprint(token) in revoked_fingerprints
-    ):
-        return share_not_found(
-            request,
-            detail="This share link has been revoked",
-            title="Link Revoked",
-            message="This share link has been revoked by its owner.",
             headers=_SHARE_RESPONSE_HEADERS,
         )
 

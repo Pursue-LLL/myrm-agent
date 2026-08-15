@@ -1,7 +1,7 @@
 """Memory diagnostics SLO rollup.
 
 [INPUT]
-app.services.memory.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本服务)
+app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本服务)
 
 [OUTPUT]
 build_diagnostic_slo: content-free diagnostic reliability rollup for Memory Doctor.

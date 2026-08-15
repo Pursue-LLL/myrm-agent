@@ -1,7 +1,7 @@
 """Memory import session data helpers.
 
 [INPUT]
-app.services.memory.import_session_models::NormalizedMemoryData (POS: 记忆导入会话 DTO 层),
+app.services.memory.imports.import_session_models::NormalizedMemoryData (POS: 记忆导入会话 DTO 层),
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 
 [OUTPUT]

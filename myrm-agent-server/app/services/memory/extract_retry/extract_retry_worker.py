@@ -1,10 +1,10 @@
 """Background worker for the memory extraction retry queue.
 
 [INPUT]
-app.services.memory.extract_retry_queue (POS: 业务层持久化重试队列)
-app.services.memory.retry_chat_memory_extract::run_retry_extract_for_chat (POS: 压缩轨提取执行)
+app.services.memory.extract_retry.extract_retry_queue (POS: 业务层持久化重试队列)
+app.services.memory.extract_retry.retry_chat_memory_extract::run_retry_extract_for_chat (POS: 压缩轨提取执行)
 myrm_agent_harness.toolkits.memory::MemoryOperationKind/Status (POS: 账本状态枚举)
-app.services.memory.operation_ledger::MemoryOperationLedgerService (POS: 记忆账本)
+app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆账本)
 
 [OUTPUT]
 extract_retry_worker: 单进程后台 worker，启动即扫描（重启恢复）+ 每 60s 扫描一次。

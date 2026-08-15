@@ -52,7 +52,7 @@ def _make_snapshot(
 class TestBuildEvalMetrics:
     """build_eval_metrics() cross_session_transfer eval metric."""
 
-    @patch("app.services.memory.command_center_insights.get_search_metrics")
+    @patch("app.services.memory.command_center.command_center_insights.get_search_metrics")
     def test_cross_session_transfer_present(
         self,
         mock_get: MagicMock,
@@ -81,7 +81,7 @@ class TestBuildEvalMetrics:
         assert "10 cross-session" in cs_metric.evidence
         assert "20 sourced" in cs_metric.evidence
 
-    @patch("app.services.memory.command_center_insights.get_search_metrics")
+    @patch("app.services.memory.command_center.command_center_insights.get_search_metrics")
     def test_cross_session_transfer_missing_when_zero_hits(
         self,
         mock_get: MagicMock,
@@ -101,7 +101,7 @@ class TestBuildEvalMetrics:
         assert cs_metric.status == "missing"
         assert "0%" in cs_metric.evidence
 
-    @patch("app.services.memory.command_center_insights.get_search_metrics")
+    @patch("app.services.memory.command_center.command_center_insights.get_search_metrics")
     def test_cross_session_transfer_partial_when_few_hits(
         self,
         mock_get: MagicMock,
@@ -124,7 +124,7 @@ class TestBuildEvalMetrics:
         cs_metric = next(m for m in result if m.id == "cross_session_transfer")
         assert cs_metric.status == "partial"
 
-    @patch("app.services.memory.command_center_insights.get_search_metrics")
+    @patch("app.services.memory.command_center.command_center_insights.get_search_metrics")
     def test_eval_metrics_count(
         self,
         mock_get: MagicMock,
@@ -143,7 +143,7 @@ class TestBuildEvalMetrics:
 
         assert len(result) == 5
 
-    @patch("app.services.memory.command_center_insights.get_search_metrics")
+    @patch("app.services.memory.command_center.command_center_insights.get_search_metrics")
     def test_eval_metrics_with_timeline_influence(
         self,
         mock_get: MagicMock,

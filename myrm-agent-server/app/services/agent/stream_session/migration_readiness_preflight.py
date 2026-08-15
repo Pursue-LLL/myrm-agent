@@ -3,7 +3,7 @@
 [INPUT]
 - app.services.agent.params.models::MigrationReadinessAnchorRequest (POS: one-shot migration readiness anchor on AgentRequest)
 - app.services.agent.stream_session.entitlement_gap_preflight::get_capability_gap_emission_tracker (POS: entitlement gap 预检与 capability_gap SSE 发射)
-- app.services.memory.import_sessions::MemoryImportSessionService (POS: resolve live post-import readiness)
+- app.services.memory.imports.import_sessions::MemoryImportSessionService (POS: resolve live post-import readiness)
 
 [OUTPUT]
 - build_migration_readiness_gap_sse_event_from_readiness: build SSE from live readiness contract

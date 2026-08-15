@@ -145,7 +145,7 @@ class TestPrivacyDeepScanContext:
             patch(
                 "myrm_agent_harness.api.hooks.install_memory_pseudonymizer",
             ) as mock_install,
-            patch("app.services.memory.retry_chat_memory_extract.logger") as mock_logger,
+            patch("app.services.memory.extract_retry.retry_chat_memory_extract.logger") as mock_logger,
         ):
             with _privacy_deep_scan_context(settings, None) as deep_scan:
                 assert deep_scan is True

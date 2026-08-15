@@ -604,9 +604,51 @@ class TestPublicSharePage:
         from app.services.chat.share_token import create_chat_share_token
 
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
-        resp = share_client.get(f"/public/chat-share/{token}")
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=_make_chat_dto(),
+        ):
+            resp = share_client.get(f"/public/chat-share/{token}")
         assert resp.status_code == 403
         assert "Password Required" in resp.text
+
+    def test_revoked_password_share_answers_404_before_gate(self, share_client: TestClient) -> None:
+        """A revoked protected link answers 404, never a gate, to a fresh visitor."""
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
+        revoked_chat = _make_chat_dto(share_revoked_at=datetime.now(timezone.utc))
+
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=revoked_chat,
+        ):
+            resp = share_client.get(
+                f"/public/chat-share/{token}",
+                headers={"Accept": "text/html"},
+            )
+        assert resp.status_code == 404
+        assert "Link Revoked" in resp.text
+
+    def test_deleted_password_share_answers_404_before_gate(self, share_client: TestClient) -> None:
+        """A protected link for a deleted chat answers 404, not a password gate."""
+        from app.services.chat.share_token import create_chat_share_token
+
+        token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
+
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            resp = share_client.get(
+                f"/public/chat-share/{token}",
+                headers={"Accept": "text/html"},
+            )
+        assert resp.status_code == 404
+        assert "Content Unavailable" in resp.text
 
     def test_password_token_unlocks_via_post_form(self, share_client: TestClient) -> None:
         """The password is posted in the form body (CWE-598) and PRG-redirects.
@@ -895,16 +937,19 @@ class TestPublicSharePage:
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
         from app.core.security.share_unlock import unlock_cookie_name
 
-        resp = share_client.get(
-            f"/public/chat-share/{token}",
-            headers={"Cookie": f"{unlock_cookie_name('chat_share_unlock', token)}=garbage"},
-        )
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=_make_chat_dto(),
+        ):
+            resp = share_client.get(
+                f"/public/chat-share/{token}",
+                headers={"Cookie": f"{unlock_cookie_name('chat_share_unlock', token)}=garbage"},
+            )
         assert resp.status_code == 403
         assert "Password Required" in resp.text
 
-    def test_unlock_cookie_with_non_string_chat_id_keeps_gate(
-        self, share_client: TestClient
-    ) -> None:
+    def test_unlock_cookie_with_non_string_chat_id_keeps_gate(self, share_client: TestClient) -> None:
         """A validly-signed unlock credential with wrong claim types must not bypass."""
         import time
 
@@ -919,10 +964,15 @@ class TestPublicSharePage:
             salt="chat-share-unlock",
             exp=int(time.time()) + 300,
         )
-        resp = share_client.get(
-            f"/public/chat-share/{token}",
-            headers={"Cookie": f"{unlock_cookie_name('chat_share_unlock', token)}={credential}"},
-        )
+        with patch(
+            "app.api.chats.chat.share.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+            return_value=_make_chat_dto(),
+        ):
+            resp = share_client.get(
+                f"/public/chat-share/{token}",
+                headers={"Cookie": f"{unlock_cookie_name('chat_share_unlock', token)}={credential}"},
+            )
         assert resp.status_code == 403
         assert "Password Required" in resp.text
 

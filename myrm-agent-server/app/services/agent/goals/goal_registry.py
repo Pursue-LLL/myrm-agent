@@ -4,8 +4,8 @@
 - myrm_agent_harness.agent.goals.protocol::GoalProvider (POS: Goal provider protocol)
 - myrm_agent_harness.agent.sub_agents.planner.storage::PlannerStorage (POS: Planner 计划持久化)
 - app.services.chat.chat_service::ChatService (POS: Chat CRUD 编排层)
-- app.services.memory.shared_context::SharedContextService (POS: Shared Context 共享上下文服务)
-- app.services.memory.shared_context_materializer::SharedContextProposalMaterializer (POS: Shared Context 写入物化服务)
+- app.services.memory.shared_context.shared_context::SharedContextService (POS: Shared Context 共享上下文服务)
+- app.services.memory.shared_context.shared_context_materializer::SharedContextProposalMaterializer (POS: Shared Context 写入物化服务)
 - app.services.event.app_event_bus::get_event_bus (POS: 应用级事件总线)
 
 [OUTPUT]

@@ -12,6 +12,7 @@ import {
   IconKey,
 } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
+import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getChannelInstanceMeta, listChannelStatuses, type ChannelStatus } from '@/services/channels';
 import { useChannelInstances } from '@/hooks/channels/useChannelInstances';
@@ -94,7 +95,11 @@ export function FeishuMultiAppSection() {
           className="shrink-0 text-xs gap-1.5"
           onClick={handleAddClick}
           disabled={atInstanceLimit}
-          title={atInstanceLimit ? t('feishuMultiAppLimitReached', { count: instances.length, max: maxInstances }) : undefined}
+          title={
+            atInstanceLimit
+              ? t('feishuMultiAppLimitReached', { count: instances.length, max: maxInstances })
+              : undefined
+          }
         >
           <IconPlus className="h-3.5 w-3.5" />
           {t('feishuAddApp')}
@@ -245,15 +250,25 @@ function FeishuAppCard({
           >
             <IconKey className="h-3 w-3" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-destructive/60 hover:text-destructive shrink-0"
-            aria-label={`delete-${channelName}`}
-            onClick={onDelete}
-          >
-            <IconTrash className="h-3 w-3" />
-          </Button>
+          <ConfirmDialog
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-destructive/60 hover:text-destructive shrink-0"
+                aria-label={`delete-${channelName}`}
+                title={t('channelDeleteInstanceTitle')}
+              >
+                <IconTrash className="h-3 w-3" />
+              </Button>
+            }
+            title={t('channelDeleteInstanceTitle')}
+            description={t('channelDeleteInstanceMessage', { name: label })}
+            confirmText={t('channelDeleteInstanceConfirm')}
+            cancelText={t('channelDeleteInstanceCancel')}
+            variant="destructive"
+            onConfirm={onDelete}
+          />
         </div>
       </div>
       <p className="text-[10px] text-muted-foreground break-all">{channelName}</p>

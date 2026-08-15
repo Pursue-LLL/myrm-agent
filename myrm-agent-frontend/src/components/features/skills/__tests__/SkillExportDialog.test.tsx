@@ -52,6 +52,9 @@ vi.mock('@/hooks/shared/useToast', () => ({
 vi.mock('@/services/skill', () => ({
   previewSkillPackage: previewSkillPackageMock,
   downloadSkill: downloadSkillMock,
+}));
+
+vi.mock('@/lib/utils/fileUtils', () => ({
   triggerDownload: triggerDownloadMock,
 }));
 

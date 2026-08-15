@@ -1,7 +1,7 @@
 """Memory command center endpoint.
 
 [INPUT]
-app.services.memory.command_center::MemoryCommandCenterService (POS: 个人大脑指挥中心聚合服务)
+app.services.memory.command_center.command_center::MemoryCommandCenterService (POS: 个人大脑指挥中心聚合服务)
 
 [OUTPUT]
 router: `/memory/command-center` memory command center snapshot endpoint.

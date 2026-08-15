@@ -3,7 +3,7 @@
 [INPUT]
 app.config.deploy_mode::is_local_mode (POS: local/tauri gate)
 app.services.agent.agent_service::AgentService (POS: agent list for seed scope)
-app.services.memory.import_sessions::MemoryImportSessionService (POS: readiness recheck facts)
+app.services.memory.imports.import_sessions::MemoryImportSessionService (POS: readiness recheck facts)
 
 [OUTPUT]
 seed_migration_readiness_fixture: post-import readiness batch for Chrome E2E

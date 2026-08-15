@@ -108,7 +108,7 @@ def test_memory_influence_refs_full_projection() -> None:
 async def test_record_event_noop_without_extra_data() -> None:
     with (
         patch("app.database.connection.get_session") as mock_gs,
-        patch("app.services.memory.operation_ledger.MemoryOperationLedgerService") as mock_ledger_cls,
+        patch("app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService") as mock_ledger_cls,
     ):
         await record_memory_influence_event(
             chat_id="chat-x",
@@ -159,7 +159,7 @@ async def test_record_event_projects_recall_traces() -> None:
     with (
         patch("app.database.connection.get_session", return_value=session_cm),
         patch(
-            "app.services.memory.operation_ledger.MemoryOperationLedgerService",
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
             return_value=mock_ledger,
         ) as mock_ledger_cls,
     ):
@@ -203,7 +203,7 @@ async def test_record_event_projects_cite_refs() -> None:
     with (
         patch("app.database.connection.get_session", return_value=session_cm),
         patch(
-            "app.services.memory.operation_ledger.MemoryOperationLedgerService",
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
             return_value=mock_ledger,
         ),
     ):
@@ -232,7 +232,7 @@ async def test_record_event_swallows_ledger_errors() -> None:
     with (
         patch("app.database.connection.get_session", return_value=session_cm),
         patch(
-            "app.services.memory.operation_ledger.MemoryOperationLedgerService",
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
             return_value=mock_ledger,
         ),
     ):

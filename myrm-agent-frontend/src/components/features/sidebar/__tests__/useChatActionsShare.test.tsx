@@ -1,11 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import {
-  createChatShare,
-  getChatShareStatus,
-  revokeChatShare,
-} from '@/services/chat';
+import { createChatShare, getChatShareStatus, revokeChatShare } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import { useChatActions } from '@/components/features/sidebar/useChatActions';
 
@@ -100,6 +96,8 @@ describe('useChatActions share lifecycle', () => {
       expires_at: null,
     });
     vi.mocked(createChatShare).mockResolvedValue({
+      token: 'tok-1',
+      chat_id: 'chat-1',
       share_url: 'https://example.com/s/new',
       expires_at: 1700000100,
       password_protected: false,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CheckCircle2, Copy, FileJson, Link2, Package, RefreshCw, Unlink, Zap } from 'lucide-react';
+import { CheckCircle2, Copy, Download, FileJson, Link2, Package, RefreshCw, Unlink, Zap } from 'lucide-react';
 
 import { Button } from '@/components/primitives/button';
 import { Checkbox } from '@/components/primitives/checkbox';
@@ -22,6 +22,7 @@ import {
 } from '@/services/connect';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { countProviderTrees } from '@/services/integrationMemory';
+import { getFileExtension, getMimeType, triggerDownload } from '@/lib/utils/fileUtils';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -153,6 +154,14 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     await navigator.clipboard.writeText(pluginResult.files[selectedFile] ?? '');
     setCopiedFile(true);
     setTimeout(() => setCopiedFile(false), 2000);
+  }, [pluginResult, selectedFile]);
+
+  const handleDownloadPluginFile = useCallback(() => {
+    if (!pluginResult || !selectedFile) {return;}
+    const content = pluginResult.files[selectedFile] ?? '';
+    if (!content) {return;}
+    const filename = selectedFile.split('/').pop() ?? selectedFile;
+    triggerDownload(new Blob([content], { type: getMimeType(getFileExtension(filename)) }), filename);
   }, [pluginResult, selectedFile]);
 
   const handleCopyPluginToken = useCallback(async () => {
@@ -453,6 +462,10 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
                     <Copy className="h-3.5 w-3.5" />
                   )}
                   <span className="ml-1 text-xs">{copiedFile ? t('copied') : t('copy')}</span>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleDownloadPluginFile}>
+                  <Download className="h-3.5 w-3.5" />
+                  <span className="ml-1 text-xs">{t('download')}</span>
                 </Button>
               </div>
               <pre className="rounded-lg bg-muted p-3 text-xs overflow-x-auto max-h-48">

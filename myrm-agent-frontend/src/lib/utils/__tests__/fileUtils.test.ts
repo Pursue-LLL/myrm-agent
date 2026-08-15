@@ -12,6 +12,7 @@ import {
   partitionFilesByType,
   fetchFileAsBase64DataURL,
   computeFileHash,
+  triggerDownload,
 } from '../fileUtils';
 import type { File } from '@/store/chat/types';
 
@@ -387,6 +388,35 @@ describe('fileUtils', () => {
       const hash2 = await computeFileHash(file2);
 
       expect(hash1).not.toBe(hash2);
+    });
+  });
+
+  describe('triggerDownload', () => {
+    it('should create a temporary anchor, click it and clean up', () => {
+      const createObjectURL = vi.fn(() => 'blob:mock-url');
+      const revokeObjectURL = vi.fn();
+      vi.stubGlobal('URL', {
+        createObjectURL,
+        revokeObjectURL,
+      });
+
+      const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+      const appendChildSpy = vi.spyOn(document.body, 'appendChild');
+      const removeChildSpy = vi.spyOn(document.body, 'removeChild');
+
+      const blob = new Blob(['{}'], { type: 'application/json' });
+      triggerDownload(blob, 'plugin.json');
+
+      expect(createObjectURL).toHaveBeenCalledWith(blob);
+      expect(appendChildSpy).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
+      expect(removeChildSpy).toHaveBeenCalled();
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+
+      clickSpy.mockRestore();
+      appendChildSpy.mockRestore();
+      removeChildSpy.mockRestore();
+      vi.unstubAllGlobals();
     });
   });
 });

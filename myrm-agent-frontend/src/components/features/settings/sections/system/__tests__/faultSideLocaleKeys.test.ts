@@ -17,14 +17,7 @@ import { describe, expect, it } from 'vitest';
 const LOCALES_ROOT = resolve(process.cwd(), 'locales');
 const LANGUAGES = ['zh', 'en', 'zh-TW', 'ja', 'ko', 'de'] as const;
 
-const FAULT_SIDE_KEYS = [
-  'model',
-  'harness_tool',
-  'harness_pipeline',
-  'env',
-  'grader',
-  'owner',
-] as const;
+const FAULT_SIDE_KEYS = ['model', 'harness_tool', 'harness_pipeline', 'env', 'grader', 'owner'] as const;
 
 function loadLocale(lang: (typeof LANGUAGES)[number]): Record<string, unknown> {
   const raw = readFileSync(resolve(LOCALES_ROOT, `${lang}.json`), 'utf-8');
@@ -60,7 +53,8 @@ describe('fault-side attribution locale keys', () => {
 
     it(`${lang}.json defines the trace first-irrecoverable keys`, () => {
       const data = loadLocale(lang);
-      const sessionAnalytics = data.settings?.sessionAnalytics as Record<string, unknown> | undefined;
+      const settings = data.settings as Record<string, unknown> | undefined;
+      const sessionAnalytics = settings?.sessionAnalytics as Record<string, unknown> | undefined;
       const trace = sessionAnalytics?.trace as Record<string, unknown> | undefined;
       expect(trace, `${lang}.settings.sessionAnalytics.trace`).toBeDefined();
       for (const key of ['firstIrrecoverable', 'recoverySteps'] as const) {

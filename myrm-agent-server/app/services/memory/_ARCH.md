@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-记忆服务层。按领域拆分为 8 个子目录：`backup/`（记忆数据备份与恢复、WebDAV/S3 远程备份策略与调度）、`archive/`（单用户 Memory Archive 导出与审查预检、安全合并恢复与回滚账本）、`command_center/`（个人大脑指挥中心聚合与洞察）、`diagnostics/`（独立 Memory Diagnostics 探针、质量治理、黄金召回基准与修复计划）、`extract_retry/`（记忆提取失败持久化重试队列与后台 worker）、`imports/`（导入 adapter 目录、导入审查会话、事务账本与崩溃安全回滚、Integration Memory 业务与同步守护）、`ledger/`（单用户记忆操作账本与 Guardian 摘要聚合）、`shared_context/`（Shared Context 产品层治理、健康、历史证据与物化）。根目录保留 MemoryGuardian 调度策略、MemoryManager 依赖工厂、DTO 呈现、MCP Bridge 与 extraction LLM 解析等单体文件。
+记忆服务层。按领域拆分为 9 个子目录：`backup/`（记忆数据备份与恢复、WebDAV/S3 远程备份策略与调度）、`archive/`（单用户 Memory Archive 导出与审查预检、安全合并恢复与回滚账本）、`command_center/`（个人大脑指挥中心聚合与洞察）、`diagnostics/`（独立 Memory Diagnostics 探针、质量治理、黄金召回基准与修复计划）、`extract_retry/`（记忆提取失败持久化重试队列与后台 worker）、`imports/`（导入 adapter 目录、导入审查会话、事务账本与崩溃安全回滚、Integration Memory 业务与同步守护）、`ledger/`（单用户记忆操作账本与 Guardian 摘要聚合）、`operations/`（记忆 CRUD 业务处理器与 crud 子模块聚合）、`shared_context/`（Shared Context 产品层治理、健康、历史证据与物化）。根目录保留 MemoryGuardian 调度策略、MemoryManager 依赖工厂、DTO 呈现、MCP Bridge 与 extraction LLM 解析等单体文件。
 
 ## 子目录清单
 
@@ -15,6 +15,7 @@
 | `extract_retry/` | 记忆提取持久化重试队列（幂等入队、退避重试、重启恢复、终态账本）与后台 worker；对指定 chat 重新调度 `auto_extract_memories`（含隐私保护上下文重建）。见 `extract_retry/_ARCH.md` |
 | `imports/` | 导入 adapter 目录与解析器、dry-run dispatcher、导入审查会话编排、item-level 事务账本与崩溃安全回滚 journal、Integration Memory 业务服务与 Sync Daemon。见 `imports/_ARCH.md` |
 | `ledger/` | 单用户记忆操作账本（`record_event` 事件发布在持久化成功之后，杜绝 ghost event）与 Guardian 晨间摘要聚合。见 `ledger/_ARCH.md` |
+| `operations/` | 记忆 CRUD 业务处理器（列表/创建/更新/回收站/归档导入/偏好），`crud_handlers.py` 作为门面聚合 `crud/` 子模块。见 `operations/_ARCH.md` |
 | `shared_context/` | Shared Context 共享上下文服务（CRUD、绑定解析、写入提案生命周期与治理 policy）、记忆健康、历史证据、写入物化。见 `shared_context/_ARCH.md` |
 
 ## 根目录文件清单

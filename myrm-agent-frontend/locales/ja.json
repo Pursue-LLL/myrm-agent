@@ -12489,6 +12489,10 @@
     "feishuInstanceAddError": "アプリの追加に失敗しました",
     "feishuInstanceRemoved": "アプリを削除しました",
     "feishuInstanceRemoveError": "アプリの削除に失敗しました",
+    "channelDeleteInstanceTitle": "インスタンスを削除",
+    "channelDeleteInstanceMessage": "「{name}」とその認証情報を削除しますか？この操作は元に戻せません。",
+    "channelDeleteInstanceConfirm": "削除",
+    "channelDeleteInstanceCancel": "キャンセル",
     "feishuLabelSaveError": "ラベルの保存に失敗しました",
     "feishuDefaultLabel": "デフォルトアプリ",
     "feishuEditCredentials": "認証情報を編集",
@@ -15594,7 +15598,8 @@
     "agentPluginEmbedTokenHint": "オフ（推奨）: プラグインは環境変数 MYRM_MCP_TOKEN からトークンを読み取るため、バージョン管理へのコミットも安全です（多くのクライアントは ${VAR}、VS Code と Cursor は ${env:VAR}）。オン: 環境変数に対応しないクライアント向けにトークンを埋め込みます（いつでも無効化可能）。",
     "agentPluginGenerate": "Agent Plugins プラグインを生成",
     "agentPluginReady": "Agent Plugins プラグインが準備できました",
-    "pluginFile": "プラグインファイル"
+    "pluginFile": "プラグインファイル",
+    "download": "ダウンロード"
   },
   "about": {
     "title": "について",

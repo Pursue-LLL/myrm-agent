@@ -1,3 +1,18 @@
+/**
+ * [INPUT]
+ * - @/store/chat/types::File (POS: @/store/chat/types 稳定入口；实现位于 types/)
+ * - @/lib/deploy-mode::isTauriRuntime (POS: 前端部署模式与基础地址解析层)
+ *
+ * [OUTPUT]
+ * - getDisplayUrl: Web/Tauri 文件展示 URL 解析。
+ * - fetchFileAsBase64DataURL: 文件 URL → base64 data URL。
+ * - partitionFilesByType / isXxxFile / getFileExtension / getMimeType: 扩展名分类与 MIME 推断。
+ * - computeFileHash: Blob/File SHA-256 哈希。
+ * - triggerDownload: 触发浏览器下载 Blob。
+ *
+ * [POS]
+ * 通用文件工具集。提供扩展名分类、MIME 推断、哈希计算与 Blob 下载等纯函数能力。
+ */
 import type { File } from '@/store/chat/types';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 
@@ -157,3 +172,19 @@ export const isTextFile = (fileExtension: string): boolean => {
 export const getFileExtension = (fileName: string): string => {
   return fileName.split('.').pop()?.toLowerCase() || '';
 };
+
+/**
+ * 触发浏览器下载 Blob。
+ * @param blob 文件内容
+ * @param filename 文件名
+ */
+export function triggerDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

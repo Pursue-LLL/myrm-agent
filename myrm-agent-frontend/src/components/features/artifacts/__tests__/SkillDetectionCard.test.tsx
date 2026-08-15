@@ -48,6 +48,9 @@ vi.mock('@/hooks/shared/useToast', () => ({
 vi.mock('@/services/skill', () => ({
   packageWorkspaceDirectory: packageWorkspaceDirectoryMock,
   uploadSkill: uploadSkillMock,
+}));
+
+vi.mock('@/lib/utils/fileUtils', () => ({
   triggerDownload: triggerDownloadMock,
 }));
 

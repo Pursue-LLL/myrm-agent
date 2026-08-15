@@ -2,8 +2,8 @@
 
 [INPUT]
 myrm_agent_harness.agent._internals.memory_extraction::ExtractionLifecycleObserver (POS: harness callback protocol)
-app.services.memory.operation_ledger::MemoryOperationLedgerService (POS: memory operation ledger)
-app.services.memory.extract_retry_queue (POS: 业务层持久化重试队列)
+app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: memory operation ledger)
+app.services.memory.extract_retry.extract_retry_queue (POS: 业务层持久化重试队列)
 
 [OUTPUT]
 make_extraction_lifecycle_observer: Factory for harness ExtractionLifecycleObserver callback

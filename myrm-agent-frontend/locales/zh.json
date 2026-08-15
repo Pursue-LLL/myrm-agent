@@ -12591,6 +12591,10 @@
     "feishuInstanceAddError": "添加应用失败",
     "feishuInstanceRemoved": "应用已移除",
     "feishuInstanceRemoveError": "移除应用失败",
+    "channelDeleteInstanceTitle": "移除实例",
+    "channelDeleteInstanceMessage": "移除「{name}」及其凭据？此操作不可撤销。",
+    "channelDeleteInstanceConfirm": "移除",
+    "channelDeleteInstanceCancel": "取消",
     "feishuLabelSaveError": "保存标签失败",
     "feishuDefaultLabel": "默认应用",
     "feishuEditCredentials": "编辑凭据",
@@ -15658,7 +15662,8 @@
     "agentPluginEmbedTokenHint": "关闭（推荐）：插件从环境变量 MYRM_MCP_TOKEN 读取 token，可安全提交到版本库（多数客户端支持 ${VAR}，VS Code/Cursor 用 ${env:VAR}）。开启：将 token 写入插件文件，供不支持环境变量的客户端使用（可随时撤销）。",
     "agentPluginGenerate": "生成 Agent Plugins 插件",
     "agentPluginReady": "Agent Plugins 插件已就绪",
-    "pluginFile": "插件文件"
+    "pluginFile": "插件文件",
+    "download": "下载"
   },
   "securityDashboard": {
     "title": "安全仪表盘",

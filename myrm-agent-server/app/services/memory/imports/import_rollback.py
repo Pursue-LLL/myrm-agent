@@ -2,7 +2,7 @@
 
 [INPUT]
 app.database.models.memory::MemoryImportItemModel (POS: 记忆域模型),
-app.services.memory.import_ledger::MemoryImportLedgerService (POS: 导入批次/条目账本状态机),
+app.services.memory.imports.import_ledger::MemoryImportLedgerService (POS: 导入批次/条目账本状态机),
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 
 [OUTPUT]

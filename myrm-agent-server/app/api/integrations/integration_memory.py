@@ -1,7 +1,7 @@
 """Integration Memory REST API endpoints.
 
 [INPUT]
-- app.services.memory.integration_memory (POS: Integration Memory business service)
+- app.services.memory.imports.integration_memory (POS: Integration Memory business service)
 
 [OUTPUT]
 - router: FastAPI APIRouter with integration memory endpoints.

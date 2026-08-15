@@ -14,7 +14,8 @@ import {
 import { Button } from '@/components/primitives/button';
 import { ScrollArea } from '@/components/primitives/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/alert';
-import { previewSkillPackage, downloadSkill, triggerDownload } from '@/services/skill';
+import { previewSkillPackage, downloadSkill } from '@/services/skill';
+import { triggerDownload } from '@/lib/utils/fileUtils';
 import type { PackagePreviewResponse } from '@/services/skill';
 import type { Skill } from '@/store/skill/types';
 import { toast } from '@/hooks/shared/useToast';

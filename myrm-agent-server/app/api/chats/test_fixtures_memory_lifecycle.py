@@ -3,7 +3,7 @@
 [INPUT]
 - app.config.deploy_mode::is_local_mode (POS: gate local-only access)
 - app.services.chat.chat_service::ChatService (POS: seed chat + messages)
-- app.services.memory.operation_ledger::MemoryOperationLedgerService (POS: ledger trace hydrate)
+- app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: ledger trace hydrate)
 
 [OUTPUT]
 - router: POST /test/seed-memory-lifecycle-fixture (POS: E2E seed for extract error timeline)

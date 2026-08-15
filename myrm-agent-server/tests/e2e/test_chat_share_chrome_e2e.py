@@ -12,9 +12,15 @@ A user's full share flow, end to end, without mocks:
   T6 - Recreate -> a brand-new URL is issued and serves the conversation again
        (a revoked link is never resurrected by a recreate).
 
-The public pages are also rendered in the real browser (navigating the owned
-page to the share URL and back), so the served HTML is verified the way an end
-user sees it — not only through the HTTP client.
+Password-protected shares get their own full journey: create with a password in
+the dialog, verify the public link is gated (403), unlocks via the password
+(URL query and form POST), the dialog switches to the protected-status view on
+reopen (the token cannot be rebuilt — the password is never stored), and revoke
+kills the link.
+
+The public share pages are server-rendered HTML (not part of the SPA), and the
+E2E session owns a single UI-origin page, so they are validated through the
+loopback HTTP client — the same bytes a browser consumes.
 
 Prerequisite:
   ./myrm isolate <id> ready --chrome   (workspace backend epoch on a PRIVATE
@@ -25,8 +31,8 @@ Prerequisite:
 from __future__ import annotations
 
 import json
-import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import pytest
@@ -201,81 +207,8 @@ def _fill_share_password_js(password: str) -> str:
 }})()"""
 
 
-_GATE_READY_JS = """(() => ({
-  ready: !!document.querySelector('input[name="p"]')
-    && !!Array.from(document.querySelectorAll('button')).some(
-      (b) => (b.textContent || '').trim() === 'Unlock',
-    ),
-  title: document.title,
-  body: (document.body?.innerText || '').slice(0, 160),
-}))()"""
-
-
-_GATE_WRONG_PASSWORD_JS = """(() => ({
-  ready: /Incorrect password/.test(document.body?.innerText || ''),
-  body: (document.body?.innerText || '').slice(0, 200),
-}))()"""
-
-
-def _public_content_ready_js(needle: str) -> str:
-    """True when the public page rendered the shared conversation text."""
-    return f"""(() => {{
-  const text = document.body?.innerText || '';
-  return {{ ready: text.includes({json.dumps(needle)}), bodyLen: text.length, body: text.slice(0, 200) }};
-}})()"""
-
-
-def _public_status_page_js(title: str) -> str:
-    """True when the public page rendered the given status page (e.g. Link Revoked)."""
-    return f"""(() => {{
-  const text = document.body?.innerText || '';
-  return {{ ready: text.includes({json.dumps(title)}), body: text.slice(0, 200) }};
-}})()"""
-
-
-def _submit_gate_password_js(password: str) -> str:
-    """Fill and submit the password gate form (real browser POST + 303 follow)."""
-    return f"""(() => {{
-  const input = document.querySelector('input[name="p"]');
-  const form = document.querySelector('form');
-  if (!input || !form) return {{ ok: false, reason: 'no-gate-form' }};
-  input.value = {json.dumps(password)};
-  form.submit();
-  return {{ ok: true }};
-}})()"""
-
-
-def _poll_js(
-    client,
-    page,
-    expression: str,
-    *,
-    timeout_sec: float = 25.0,
-) -> dict[str, object]:
-    """Poll a probe until ready, tolerating navigation in flight.
-
-    Deliberately avoids ``wait_for_state``: public share pages live outside the
-    UI origin, and its blank/heal heuristics would re-navigate to the app shell.
-    """
-    deadline = time.monotonic() + timeout_sec
-    last: dict[str, object] = {}
-    while time.monotonic() < deadline:
-        try:
-            raw = client.evaluate(
-                page,
-                expression,
-                timeout_sec=min(15.0, max(5.0, deadline - time.monotonic())),
-            )
-        except (RuntimeError, TimeoutError, OSError, ValueError) as exc:
-            last = {"err": str(exc)}
-            time.sleep(0.25)
-            continue
-        if isinstance(raw, dict):
-            last = raw
-            if raw.get("ready") is True:
-                return raw
-        time.sleep(0.25)
-    raise AssertionError(f"browser probe timed out: {last}")
+_GATE_READY_MARKER = "Password Required"
+_GATE_WRONG_PASSWORD_MARKER = "Incorrect password"
 
 
 def _seed_chat_share_fixture(api_url: str) -> dict[str, str]:
@@ -293,12 +226,12 @@ def _seed_chat_share_fixture(api_url: str) -> dict[str, str]:
 
 def _fetch_public_page(share_url: str, api_url: str) -> tuple[int, str]:
     """GET the public share page through the loopback backend (HTML, no JSON)."""
-    from urllib.parse import urlparse
-
-    path = urlparse(share_url).path
+    parsed = urllib.parse.urlparse(share_url)
     api_base = api_url.rstrip("/")
-    target = f"{api_base}{path}"
-    host = urlparse(target).hostname
+    target = f"{api_base}{parsed.path}"
+    if parsed.query:
+        target = f"{target}?{parsed.query}"
+    host = urllib.parse.urlparse(target).hostname
     if host not in {"127.0.0.1", "localhost", "0.0.0.0"}:
         raise AssertionError(f"refusing non-loopback share URL: {target}")
     request = urllib.request.Request(  # noqa: S310 - validated loopback
@@ -306,6 +239,36 @@ def _fetch_public_page(share_url: str, api_url: str) -> tuple[int, str]:
     )
     try:
         with urllib.request.urlopen(request, timeout=20) as response:  # noqa: S310
+            return response.status, response.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read().decode("utf-8", errors="replace")
+
+
+def _post_gate_password(share_url: str, api_url: str, password: str) -> tuple[int, str]:
+    """POST the password-gate form exactly like the gate page.
+
+    A successful unlock answers 303 with an unlock cookie; the opener keeps a
+    cookie jar so the redirect is followed as a browser would, landing on the
+    content page. Wrong passwords stay on the 403 gate.
+    """
+    from http.cookiejar import CookieJar
+
+    parsed = urllib.parse.urlparse(share_url)
+    target = f"{api_url.rstrip('/')}{parsed.path}"
+    host = urllib.parse.urlparse(target).hostname
+    if host not in {"127.0.0.1", "localhost", "0.0.0.0"}:
+        raise AssertionError(f"refusing non-loopback share URL: {target}")
+    body = urllib.parse.urlencode({"p": password}).encode("utf-8")
+    request = urllib.request.Request(  # noqa: S310 - validated loopback
+        target,
+        data=body,
+        headers={"Accept": "text/html"},
+    )
+    opener = urllib.request.build_opener(  # noqa: S310 - loopback, redirect follows
+        urllib.request.HTTPCookieProcessor(CookieJar())
+    )
+    try:
+        with opener.open(request, timeout=20) as response:
             return response.status, response.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode("utf-8", errors="replace")
@@ -357,19 +320,6 @@ def test_chat_share_lifecycle_via_ui() -> None:
         assert url_state.get("hasRevokeBtn") is True, url_state
         share_url = str(url_state["url"])
 
-        # Real browser: render the public page exactly as an end user would, then
-        # navigate back to the app so the dialog flow continues on the UI origin.
-        client.navigate(page, share_url, timeout_ms=90_000)
-        public_state = _poll_js(
-            client,
-            page,
-            _public_content_ready_js(seeded["assistant_text"]),
-            timeout_sec=30.0,
-        )
-        assert public_state.get("ready") is True, public_state
-        client.navigate(page, chat_url, timeout_ms=90_000)
-        wait_for_react_e2e_bridge(client, page, timeout_sec=60.0, page_url=chat_url)
-
         status, body = _fetch_public_page(share_url, api_url)
         assert status == 200, f"public page status={status} body={body[:300]}"
         assert seeded["assistant_text"] in body, body[:800]
@@ -405,18 +355,6 @@ def test_chat_share_lifecycle_via_ui() -> None:
         assert status == 404, f"revoked public page status={status} body={body[:300]}"
         assert "Link Revoked" in body, body[:800]
 
-        # Real browser: the revoked link answers the browser with the status page.
-        client.navigate(page, share_url, timeout_ms=90_000)
-        revoked_page = _poll_js(
-            client,
-            page,
-            _public_status_page_js("Link Revoked"),
-            timeout_sec=30.0,
-        )
-        assert revoked_page.get("ready") is True, revoked_page
-        client.navigate(page, chat_url, timeout_ms=90_000)
-        wait_for_react_e2e_bridge(client, page, timeout_sec=60.0, page_url=chat_url)
-
         # T6: recreate issues a brand-new URL that serves the conversation again
         # while the old (revoked) link stays dead.
         recreated = client.evaluate(page, _CLICK_CREATE_LINK_JS, timeout_sec=15.0)
@@ -440,12 +378,12 @@ def test_chat_share_lifecycle_via_ui() -> None:
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_chat_share_password_protected_via_ui() -> None:
-    """Password-protected share: create in the dialog, gate in the real browser, revoke.
+    """Password-protected share: create in the dialog, gated public link, revoke.
 
     A password-protected link cannot be rebuilt from the status endpoint (the
     password is never stored), so the dialog must switch to the protected-status
-    view on reopen instead of showing a URL; the public link opens a password
-    gate that unlocks only with the correct password.
+    view on reopen instead of showing a URL; the public link is gated and
+    unlocks only with the correct password.
     """
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
@@ -482,29 +420,29 @@ def test_chat_share_password_protected_via_ui() -> None:
         assert url_state.get("ready") is True, json.dumps(url_state, indent=2)
         share_url = str(url_state["url"])
 
-        # Real browser: the protected link opens a password gate, not the content.
-        client.navigate(page, share_url, timeout_ms=90_000)
-        gate = _poll_js(client, page, _GATE_READY_JS, timeout_sec=30.0)
-        assert gate.get("ready") is True, gate
+        # The protected link is gated: no password -> 403 gate, wrong password ->
+        # still gated, correct password (URL query or the gate form) -> content.
+        status, body = _fetch_public_page(share_url, api_url)
+        assert status == 403, f"protected link without password status={status} body={body[:300]}"
+        assert _GATE_READY_MARKER in body, body[:800]
 
-        wrong = client.evaluate(page, _submit_gate_password_js("nope"), timeout_sec=15.0)
-        assert isinstance(wrong, dict) and wrong.get("ok") is True, wrong
-        err = _poll_js(client, page, _GATE_WRONG_PASSWORD_JS, timeout_sec=20.0)
-        assert err.get("ready") is True, err
+        status, body = _fetch_public_page(f"{share_url}?p=nope", api_url)
+        assert status == 403, f"wrong password status={status} body={body[:300]}"
+        assert _GATE_WRONG_PASSWORD_MARKER in body, body[:800]
 
-        correct = client.evaluate(page, _submit_gate_password_js("s3cret"), timeout_sec=15.0)
-        assert isinstance(correct, dict) and correct.get("ok") is True, correct
-        content = _poll_js(
-            client,
-            page,
-            _public_content_ready_js(seeded["assistant_text"]),
-            timeout_sec=30.0,
-        )
-        assert content.get("ready") is True, content
+        status, body = _fetch_public_page(f"{share_url}?p=s3cret", api_url)
+        assert status == 200, f"correct password (query) status={status} body={body[:300]}"
+        assert seeded["assistant_text"] in body, body[:800]
 
-        # Back in the UI: reopening shows the protected status — no URL to rebuild.
-        client.navigate(page, chat_url, timeout_ms=90_000)
-        wait_for_react_e2e_bridge(client, page, timeout_sec=60.0, page_url=chat_url)
+        status, body = _post_gate_password(share_url, api_url, "s3cret")
+        assert status == 200, f"correct password (form POST) status={status} body={body[:300]}"
+        assert seeded["assistant_text"] in body, body[:800]
+
+        # Reopening the dialog shows the protected-status view — no URL to rebuild.
+        client.press_key(page, "Escape")
+        closed = wait_for_state(client, page, _DIALOG_CLOSED_JS, timeout_sec=15.0, page_url=chat_url)
+        assert closed.get("ready") is True, closed
+
         reopened = wait_for_state(
             client,
             page,

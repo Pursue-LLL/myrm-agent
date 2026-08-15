@@ -77,11 +77,11 @@ async def _patch_chat_service(
     messages: list[MessageDTO] | None = None,
 ) -> None:
     monkeypatch.setattr(
-        "app.services.memory.retry_chat_memory_extract.ChatService.get_chat_metadata",
+        "app.services.memory.extract_retry.retry_chat_memory_extract.ChatService.get_chat_metadata",
         AsyncMock(return_value=chat),
     )
     monkeypatch.setattr(
-        "app.services.memory.retry_chat_memory_extract.ChatService.get_all_messages",
+        "app.services.memory.extract_retry.retry_chat_memory_extract.ChatService.get_all_messages",
         AsyncMock(return_value=messages or []),
     )
 
@@ -101,7 +101,7 @@ async def test_schedule_retry_enqueues_and_returns_scheduled(
     )
     enqueue_mock = AsyncMock(return_value="queued")
     monkeypatch.setattr(
-        "app.services.memory.extract_retry_queue.enqueue", enqueue_mock
+        "app.services.memory.extract_retry.extract_retry_queue.enqueue", enqueue_mock
     )
 
     status = await schedule_retry_chat_memory_extract("chat-1")
@@ -125,7 +125,7 @@ async def test_schedule_retry_maps_already_queued_to_in_flight(
     )
     enqueue_mock = AsyncMock(return_value="already_queued")
     monkeypatch.setattr(
-        "app.services.memory.extract_retry_queue.enqueue", enqueue_mock
+        "app.services.memory.extract_retry.extract_retry_queue.enqueue", enqueue_mock
     )
 
     status = await schedule_retry_chat_memory_extract("chat-1")
@@ -173,7 +173,7 @@ async def test_run_retry_extract_for_chat_returns_false_when_chat_missing(
     await _patch_chat_service(monkeypatch, chat=None)
     run_mock = AsyncMock()
     monkeypatch.setattr(
-        "app.services.memory.retry_chat_memory_extract._run_retry_extract",
+        "app.services.memory.extract_retry.retry_chat_memory_extract._run_retry_extract",
         run_mock,
     )
 
@@ -193,7 +193,7 @@ async def test_run_retry_extract_for_chat_returns_false_when_no_turn(
     )
     run_mock = AsyncMock()
     monkeypatch.setattr(
-        "app.services.memory.retry_chat_memory_extract._run_retry_extract",
+        "app.services.memory.extract_retry.retry_chat_memory_extract._run_retry_extract",
         run_mock,
     )
 
@@ -216,7 +216,7 @@ async def test_run_retry_extract_for_chat_runs_latest_turn(
     )
     run_mock = AsyncMock()
     monkeypatch.setattr(
-        "app.services.memory.retry_chat_memory_extract._run_retry_extract",
+        "app.services.memory.extract_retry.retry_chat_memory_extract._run_retry_extract",
         run_mock,
     )
 

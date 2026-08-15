@@ -12591,6 +12591,10 @@
     "feishuInstanceAddError": "Failed to add app",
     "feishuInstanceRemoved": "App removed",
     "feishuInstanceRemoveError": "Failed to remove app",
+    "channelDeleteInstanceTitle": "Remove Instance",
+    "channelDeleteInstanceMessage": "Remove \"{name}\" and its credentials? This action cannot be undone.",
+    "channelDeleteInstanceConfirm": "Remove",
+    "channelDeleteInstanceCancel": "Cancel",
     "feishuLabelSaveError": "Failed to save label",
     "feishuDefaultLabel": "Default App",
     "feishuEditCredentials": "Edit credentials",
@@ -15687,7 +15691,8 @@
     "agentPluginEmbedTokenHint": "Off (recommended): the bundle reads MYRM_MCP_TOKEN from the environment — safe to commit to version control. Most clients read ${VAR}; VS Code and Cursor use ${env:VAR}. On: inline the token for clients that cannot interpolate (revocable anytime).",
     "agentPluginGenerate": "Generate Agent Plugins bundle",
     "agentPluginReady": "Agent Plugins bundle ready",
-    "pluginFile": "Plugin file"
+    "pluginFile": "Plugin file",
+    "download": "Download"
   },
   "about": {
     "title": "About",

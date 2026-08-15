@@ -37,7 +37,7 @@ async def test_build_migration_projects_source_manifest_and_authoritative_flag()
     )
 
     with patch(
-        "app.services.memory.command_center_insights.MemoryImportSessionService",
+        "app.services.memory.command_center.command_center_insights.MemoryImportSessionService",
     ) as mock_session_service:
         mock_session_service.return_value.session_metrics = AsyncMock(
             return_value={
@@ -79,10 +79,10 @@ async def test_build_migration_downgrades_authoritative_when_manifest_incomplete
 
     with (
         patch(
-            "app.services.memory.command_center_insights.MemoryImportSessionService",
+            "app.services.memory.command_center.command_center_insights.MemoryImportSessionService",
         ) as mock_session_service,
         patch(
-            "app.services.memory.command_center_insights.migration_source_manifest_payload",
+            "app.services.memory.command_center.command_center_insights.migration_source_manifest_payload",
             return_value=partial_manifest,
         ),
     ):

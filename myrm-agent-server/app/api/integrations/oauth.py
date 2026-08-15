@@ -4,7 +4,7 @@
 app.database.connection::get_db (POS: 异步数据库会话工厂)
 app.database.models::UserConfig (POS: 用户配置 ORM 模型)
 app.services.config.encryption::get_encryption_service (POS: AES-256-GCM 加密服务单例)
-app.services.memory.integration_memory::get_integration_memory_service (POS: 集成记忆服务单例)
+app.services.memory.imports.integration_memory::get_integration_memory_service (POS: 集成记忆服务单例)
 
 [OUTPUT]
 OAuth credential CRUD endpoints: GET /oauth, POST /oauth/{issuer}, DELETE /oauth/{issuer}

@@ -5,7 +5,7 @@ myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager a
 myrm_agent_harness.toolkits.memory::get_scan_metrics (POS: Global security scan metrics singleton)
 myrm_agent_harness.toolkits.memory::get_search_metrics (POS: Global search quality metrics singleton)
 app.database.models.chat::Message (POS: 会话消息 ORM)
-app.services.memory.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本服务)
+app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本服务)
 
 [OUTPUT]
 MemoryCommandCenterInsights: influence, cost, conflict, replay, eval, privacy, and migration projections.

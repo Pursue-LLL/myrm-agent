@@ -56,7 +56,7 @@ class TestConnectRevokeClearMemory:
         with (
             patch("app.api.connect.router.get_connect_service") as mock_get_svc,
             patch(
-                "app.services.memory.integration_memory.get_integration_memory_service",
+                "app.services.memory.imports.integration_memory.get_integration_memory_service",
                 new=AsyncMock(return_value=mock_mem_svc),
             ),
         ):
@@ -79,7 +79,7 @@ class TestConnectRevokeClearMemory:
         with (
             patch("app.api.connect.router.get_connect_service") as mock_get_svc,
             patch(
-                "app.services.memory.integration_memory.get_integration_memory_service",
+                "app.services.memory.imports.integration_memory.get_integration_memory_service",
                 new=AsyncMock(return_value=None),
             ),
         ):

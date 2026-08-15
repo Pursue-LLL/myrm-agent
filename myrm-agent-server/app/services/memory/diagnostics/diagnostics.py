@@ -2,7 +2,7 @@
 
 [INPUT]
 app.schemas.memory.command_center::MemoryCommandRuntimeStatus (POS: Deployment and storage status visible to the local memory UI)
-app.services.memory.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本服务)
+app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本服务)
 
 [OUTPUT]
 MemoryDiagnosticsService: builds Memory Doctor checks, executes probe-level diagnostics including migration integrity, and returns SLO evidence.

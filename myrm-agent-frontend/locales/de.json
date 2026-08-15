@@ -12265,6 +12265,10 @@
     "feishuInstanceAddError": "Hinzufügen der App fehlgeschlagen",
     "feishuInstanceRemoved": "App entfernt",
     "feishuInstanceRemoveError": "Entfernen der App fehlgeschlagen",
+    "channelDeleteInstanceTitle": "Instanz entfernen",
+    "channelDeleteInstanceMessage": "\"{name}\" und die zugehörigen Anmeldedaten entfernen? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "channelDeleteInstanceConfirm": "Entfernen",
+    "channelDeleteInstanceCancel": "Abbrechen",
     "feishuLabelSaveError": "Speichern des Labels fehlgeschlagen",
     "feishuDefaultLabel": "Standard-App",
     "feishuEditCredentials": "Anmeldedaten bearbeiten",
@@ -15548,7 +15552,8 @@
     "agentPluginEmbedTokenHint": "Aus (empfohlen): Das Bundle liest das Token aus der Umgebungsvariable MYRM_MCP_TOKEN und ist damit sicher für die Versionskontrolle. Die meisten Clients verwenden ${VAR}; VS Code und Cursor verwenden ${env:VAR}. An: Token für Clients einbetten, die keine Interpolation unterstützen (jederzeit widerrufbar).",
     "agentPluginGenerate": "Agent-Plugins-Bundle generieren",
     "agentPluginReady": "Agent-Plugins-Bundle bereit",
-    "pluginFile": "Plugin-Datei"
+    "pluginFile": "Plugin-Datei",
+    "download": "Herunterladen"
   },
   "about": {
     "title": "Über",

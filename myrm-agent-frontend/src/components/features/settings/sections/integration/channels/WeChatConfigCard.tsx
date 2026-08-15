@@ -13,6 +13,7 @@ import {
   IconPencil,
 } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
+import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
 import { getWeChatStatus, triggerWeChatLogin, logoutWeChatChannel } from '@/services/channels';
@@ -36,7 +37,9 @@ export function WeChatConfigCard() {
   const primaryLabel = instances.find((i) => i.channelName === 'wechat')?.displayName ?? '';
 
   const fetchPrimaryStatus = useCallback((showLoading = false) => {
-    if (showLoading) {setLoading(true);}
+    if (showLoading) {
+      setLoading(true);
+    }
     getWeChatStatus()
       .then(setPrimaryStatus)
       .catch(() => setPrimaryStatus(null))
@@ -49,7 +52,9 @@ export function WeChatConfigCard() {
 
   useEffect(() => {
     const needsPolling = primaryStatus !== null && (!primaryStatus.connected || primaryStatus.qr_code);
-    if (!needsPolling) {return;}
+    if (!needsPolling) {
+      return;
+    }
     const timer = setInterval(() => fetchPrimaryStatus(), 3_000);
     return () => clearInterval(timer);
   }, [primaryStatus, fetchPrimaryStatus]);
@@ -127,7 +132,9 @@ export function WeChatConfigCard() {
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {handleAddInstance();}
+                if (e.key === 'Enter') {
+                  handleAddInstance();
+                }
                 if (e.key === 'Escape') {
                   setShowLabelInput(false);
                   setNewLabel('');
@@ -144,11 +151,7 @@ export function WeChatConfigCard() {
               onClick={handleAddInstance}
               disabled={adding}
             >
-              {adding ? (
-                <IconLoader className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <IconCheck className="h-3.5 w-3.5" />
-              )}
+              {adding ? <IconLoader className="h-3.5 w-3.5 animate-spin" /> : <IconCheck className="h-3.5 w-3.5" />}
             </Button>
             <Button
               variant="ghost"
@@ -210,16 +213,22 @@ function WeChatAccountCard({
   const isConnected = cardStatus?.connected ?? false;
 
   useEffect(() => {
-    if (isPrimary) {return;}
+    if (isPrimary) {
+      return;
+    }
     getWeChatStatus(channelName)
       .then(setLocalStatus)
       .catch(() => setLocalStatus(null));
   }, [channelName, isPrimary]);
 
   useEffect(() => {
-    if (isPrimary) {return;}
+    if (isPrimary) {
+      return;
+    }
     const needsPolling = localStatus !== null && (!localStatus.connected || localStatus.qr_code);
-    if (!needsPolling) {return;}
+    if (!needsPolling) {
+      return;
+    }
     const timer = setInterval(() => {
       getWeChatStatus(channelName)
         .then(setLocalStatus)
@@ -229,9 +238,13 @@ function WeChatAccountCard({
   }, [localStatus, channelName, isPrimary]);
 
   useEffect(() => {
-    if (!loginTriggering) {return;}
+    if (!loginTriggering) {
+      return;
+    }
     const elapsed = Date.now() - loginTriggerTs.current;
-    if (elapsed < 500) {return;}
+    if (elapsed < 500) {
+      return;
+    }
     if (cardStatus?.qr_code || cardStatus?.connected) {
       setLoginTriggering(false);
     }
@@ -242,7 +255,9 @@ function WeChatAccountCard({
     loginTriggerTs.current = Date.now();
     try {
       await triggerWeChatLogin(channelName);
-      if (!isPrimary) {toast.info(t('wechatLoginTriggered'));}
+      if (!isPrimary) {
+        toast.info(t('wechatLoginTriggered'));
+      }
       let attempts = 0;
       const poll = setInterval(async () => {
         attempts++;
@@ -315,8 +330,12 @@ function WeChatAccountCard({
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {commitEdit();}
-                if (e.key === 'Escape') {cancelEdit();}
+                if (e.key === 'Enter') {
+                  commitEdit();
+                }
+                if (e.key === 'Escape') {
+                  cancelEdit();
+                }
               }}
               onBlur={commitEdit}
               className="h-5 w-28 rounded border bg-background px-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring"
@@ -376,14 +395,25 @@ function WeChatAccountCard({
             )}
           </Button>
           {onDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 text-destructive/60 hover:text-destructive"
-              onClick={onDelete}
-            >
-              <IconTrash className="h-3 w-3" />
-            </Button>
+            <ConfirmDialog
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-destructive/60 hover:text-destructive"
+                  aria-label={`delete-${channelName}`}
+                  title={t('channelDeleteInstanceTitle')}
+                >
+                  <IconTrash className="h-3 w-3" />
+                </Button>
+              }
+              title={t('channelDeleteInstanceTitle')}
+              description={t('channelDeleteInstanceMessage', { name: label })}
+              confirmText={t('channelDeleteInstanceConfirm')}
+              cancelText={t('channelDeleteInstanceCancel')}
+              variant="destructive"
+              onConfirm={onDelete}
+            />
           )}
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 [INPUT]
 app.api.memory.shared_context_schemas::SharedContextMemoryHealthResponse (POS: 共享上下文 API Schema 层)
-app.services.memory.shared_context_health::check_shared_context_memory_health (POS: 共享上下文记忆健康服务)
+app.services.memory.shared_context.shared_context_health::check_shared_context_memory_health (POS: 共享上下文记忆健康服务)
 
 [OUTPUT]
 router: Shared Context 记忆依赖健康检查端点

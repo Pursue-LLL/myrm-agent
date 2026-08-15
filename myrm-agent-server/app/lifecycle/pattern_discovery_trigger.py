@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.toolkits.memory.strategies.pattern_discovery (POS: Cross-cycle pattern discovery)
 - app.lifecycle.memory_guardian::_create_memory_manager (POS: MemoryManager factory)
-- app.services.memory.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
+- app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
 
 [OUTPUT]
 - run_pattern_discovery_cycle: Called by guardian scheduler on 168h interval

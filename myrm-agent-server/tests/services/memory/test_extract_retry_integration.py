@@ -34,7 +34,7 @@ async def test_full_success_cycle_deletes_row(
 
     worker = ExtractRetryWorker()
     with patch(
-        "app.services.memory.retry_chat_memory_extract.run_retry_extract_for_chat",
+        "app.services.memory.extract_retry.retry_chat_memory_extract.run_retry_extract_for_chat",
         AsyncMock(return_value=True),
     ):
         await worker._sweep()
@@ -53,7 +53,7 @@ async def test_failure_backoff_then_retry_recovers(
 
     worker = ExtractRetryWorker()
     with patch(
-        "app.services.memory.retry_chat_memory_extract.run_retry_extract_for_chat",
+        "app.services.memory.extract_retry.retry_chat_memory_extract.run_retry_extract_for_chat",
         AsyncMock(side_effect=RuntimeError("llm unavailable")),
     ):
         await worker._sweep()
@@ -71,7 +71,7 @@ async def test_failure_backoff_then_retry_recovers(
         await db.commit()
 
     with patch(
-        "app.services.memory.retry_chat_memory_extract.run_retry_extract_for_chat",
+        "app.services.memory.extract_retry.retry_chat_memory_extract.run_retry_extract_for_chat",
         AsyncMock(return_value=True),
     ):
         await worker._sweep()
@@ -96,7 +96,7 @@ async def test_restart_reclaims_inflight_task(
 
     restarted_worker = ExtractRetryWorker()
     with patch(
-        "app.services.memory.retry_chat_memory_extract.run_retry_extract_for_chat",
+        "app.services.memory.extract_retry.retry_chat_memory_extract.run_retry_extract_for_chat",
         AsyncMock(return_value=True),
     ):
         await restarted_worker._sweep()
@@ -305,7 +305,7 @@ async def test_attempts_exhausted_marks_failed_and_records_ledger(
 
     worker = ExtractRetryWorker()
     with patch(
-        "app.services.memory.retry_chat_memory_extract.run_retry_extract_for_chat",
+        "app.services.memory.extract_retry.retry_chat_memory_extract.run_retry_extract_for_chat",
         AsyncMock(side_effect=RuntimeError("provider down")),
     ):
         for _ in range(queue.MAX_ATTEMPTS):

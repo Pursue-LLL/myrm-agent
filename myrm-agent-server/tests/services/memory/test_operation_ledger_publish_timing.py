@@ -59,7 +59,7 @@ def _record_publish(
 async def test_commit_true_publishes_after_commit(db: AsyncSession) -> None:
     published: list[MemoryOperationEventModel] = []
     with patch(
-        "app.services.memory.operation_ledger._publish_memory_operation_event",
+        "app.services.memory.ledger.operation_ledger._publish_memory_operation_event",
         side_effect=_record_publish(published),
     ):
         row = await MemoryOperationLedgerService(db).record_event(
@@ -76,7 +76,7 @@ async def test_commit_true_publishes_after_commit(db: AsyncSession) -> None:
 async def test_commit_false_publishes_after_outer_commit(db: AsyncSession) -> None:
     published: list[MemoryOperationEventModel] = []
     with patch(
-        "app.services.memory.operation_ledger._publish_memory_operation_event",
+        "app.services.memory.ledger.operation_ledger._publish_memory_operation_event",
         side_effect=_record_publish(published),
     ):
         row = await MemoryOperationLedgerService(db).record_event(
@@ -95,7 +95,7 @@ async def test_commit_false_publishes_after_outer_commit(db: AsyncSession) -> No
 async def test_commit_false_not_published_on_rollback(db: AsyncSession) -> None:
     published: list[MemoryOperationEventModel] = []
     with patch(
-        "app.services.memory.operation_ledger._publish_memory_operation_event",
+        "app.services.memory.ledger.operation_ledger._publish_memory_operation_event",
         side_effect=_record_publish(published),
     ):
         await MemoryOperationLedgerService(db).record_event(
@@ -114,7 +114,7 @@ async def test_commit_false_not_published_on_rollback(db: AsyncSession) -> None:
 async def test_commit_false_closed_without_commit_not_published(db: AsyncSession) -> None:
     published: list[MemoryOperationEventModel] = []
     with patch(
-        "app.services.memory.operation_ledger._publish_memory_operation_event",
+        "app.services.memory.ledger.operation_ledger._publish_memory_operation_event",
         side_effect=_record_publish(published),
     ):
         await MemoryOperationLedgerService(db).record_event(
@@ -131,7 +131,7 @@ async def test_commit_false_closed_without_commit_not_published(db: AsyncSession
 async def test_commit_false_batched_publishes_all_after_commit(db: AsyncSession) -> None:
     published: list[MemoryOperationEventModel] = []
     with patch(
-        "app.services.memory.operation_ledger._publish_memory_operation_event",
+        "app.services.memory.ledger.operation_ledger._publish_memory_operation_event",
         side_effect=_record_publish(published),
     ):
         ledger = MemoryOperationLedgerService(db)

@@ -29,7 +29,7 @@ async def test_observer_records_extract_pending_to_ledger() -> None:
     with (
         patch("app.database.connection.get_session", return_value=mock_session),
         patch(
-            "app.services.memory.operation_ledger.MemoryOperationLedgerService",
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
             return_value=mock_ledger,
         ),
     ):
@@ -64,7 +64,7 @@ async def test_observer_publishes_toast_on_extract_success_with_cards() -> None:
     with (
         patch("app.database.connection.get_session", return_value=mock_session),
         patch(
-            "app.services.memory.operation_ledger.MemoryOperationLedgerService",
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
             return_value=mock_ledger,
         ),
         patch("app.services.event.app_event_bus.get_event_bus", return_value=mock_bus),
@@ -96,7 +96,7 @@ async def test_observer_publishes_toast_on_extract_success_with_verbatim_only() 
     with (
         patch("app.database.connection.get_session", return_value=mock_session),
         patch(
-            "app.services.memory.operation_ledger.MemoryOperationLedgerService",
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
             return_value=mock_ledger,
         ),
         patch("app.services.event.app_event_bus.get_event_bus", return_value=mock_bus),
@@ -129,7 +129,7 @@ async def test_observer_skips_toast_when_extract_success_has_no_cards() -> None:
     with (
         patch("app.database.connection.get_session", return_value=mock_session),
         patch(
-            "app.services.memory.operation_ledger.MemoryOperationLedgerService",
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
             return_value=mock_ledger,
         ),
         patch("app.services.event.app_event_bus.get_event_bus", return_value=mock_bus),
@@ -162,7 +162,7 @@ async def test_manual_retry_observer_uses_custom_source_and_metadata() -> None:
     with (
         patch("app.database.connection.get_session", return_value=mock_session),
         patch(
-            "app.services.memory.operation_ledger.MemoryOperationLedgerService",
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
             return_value=mock_ledger,
         ),
     ):
@@ -178,9 +178,9 @@ async def test_manual_retry_observer_uses_custom_source_and_metadata() -> None:
     assert call_kwargs["metadata"]["is_retry"] is True
 
 
-@patch("app.services.memory.extract_retry_queue.enqueue", new_callable=AsyncMock)
+@patch("app.services.memory.extract_retry.extract_retry_queue.enqueue", new_callable=AsyncMock)
 @patch("app.database.connection.get_session")
-@patch("app.services.memory.operation_ledger.MemoryOperationLedgerService")
+@patch("app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService")
 @pytest.mark.asyncio
 async def test_auto_extract_error_enqueues_retry(
     mock_ledger_cls, mock_session_factory, mock_enqueue
@@ -203,9 +203,9 @@ async def test_auto_extract_error_enqueues_retry(
     mock_enqueue.assert_awaited_once_with("chat-99", reset_failed=False)
 
 
-@patch("app.services.memory.extract_retry_queue.enqueue", new_callable=AsyncMock)
+@patch("app.services.memory.extract_retry.extract_retry_queue.enqueue", new_callable=AsyncMock)
 @patch("app.database.connection.get_session")
-@patch("app.services.memory.operation_ledger.MemoryOperationLedgerService")
+@patch("app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService")
 @pytest.mark.asyncio
 async def test_manual_retry_error_does_not_enqueue_again(
     mock_ledger_cls, mock_session_factory, mock_enqueue

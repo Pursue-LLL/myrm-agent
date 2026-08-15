@@ -2,7 +2,7 @@
 
 [INPUT]
 app.api.memory.shared_context_schemas::LegacyTeamMemoryMigrationResponse (POS: 共享上下文 API Schema 层)
-app.services.memory.shared_context::SharedContextService (POS: 共享上下文业务服务)
+app.services.memory.shared_context.shared_context::SharedContextService (POS: 共享上下文业务服务)
 app.core.memory.adapters.setup::create_memory_manager (POS: 业务层记忆适配器入口)
 
 [OUTPUT]

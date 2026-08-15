@@ -1,7 +1,7 @@
 """Integration Sync Daemon — scheduled background sync for knowledge sources.
 
 [INPUT]
-- app.services.memory.integration_memory (POS: IntegrationMemoryService facade)
+- app.services.memory.imports.integration_memory (POS: IntegrationMemoryService facade)
 - app.core.channel_bridge.config_loader (POS: User config loader with TTL cache)
 - app.core.channel_bridge.config_parsers (POS: MCP config parser)
 - myrm_agent_harness.toolkits.mcp.connection_manager (POS: MCP connection pool)

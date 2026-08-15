@@ -56,7 +56,7 @@ class TestOAuthDeleteClearSyncedMemory:
                 new=AsyncMock(return_value=True),
             ),
             patch(
-                "app.services.memory.integration_memory.get_integration_memory_service",
+                "app.services.memory.imports.integration_memory.get_integration_memory_service",
                 new=AsyncMock(return_value=mock_mem_svc),
             ),
         ):

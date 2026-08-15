@@ -2,7 +2,7 @@
 
 [INPUT]
 app.schemas.memory.archive::*ArchiveRestore* (POS: 记忆归档与导入 API Schema 层)
-app.services.memory.archive_restore::MemoryArchiveRestoreService (POS: 单用户归档恢复服务)
+app.services.memory.archive.archive_restore::MemoryArchiveRestoreService (POS: 单用户归档恢复服务)
 
 [OUTPUT]
 router: Myrm Memory Archive restore dry-run, confirm, rollback preview, and rollback endpoints.

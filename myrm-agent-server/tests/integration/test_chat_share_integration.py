@@ -241,6 +241,22 @@ class TestShareLifecycle:
         assert client.delete("/chats/chat-pw/share").status_code == 204
         assert client.get(f"{_PUBLIC_PREFIX}/{token}", cookies={cookie_name: cookie_value}).status_code == 404
 
+    def test_revoked_protected_link_answers_404_to_fresh_visitor(self, client: TestClient, db_engine) -> None:
+        """A revoked password-protected link never shows a gate to a new visitor."""
+        _insert_chat(db_engine, chat_id="chat-pwrvk")
+
+        created = client.post("/chats/chat-pwrvk/share", json={"ttl_days": 7, "password": "s3cret"})
+        token = created.json()["token"]
+
+        assert client.delete("/chats/chat-pwrvk/share").status_code == 204
+
+        page = client.get(
+            f"{_PUBLIC_PREFIX}/{token}",
+            headers={"Accept": "text/html"},
+        )
+        assert page.status_code == 404
+        assert "Link Revoked" in page.text
+
     def test_password_in_url_query_param_unlocks(self, client: TestClient, db_engine) -> None:
         """GET ?p=... (legacy links carrying the password) serves the content directly."""
         _insert_chat(db_engine, chat_id="chat-pwq")

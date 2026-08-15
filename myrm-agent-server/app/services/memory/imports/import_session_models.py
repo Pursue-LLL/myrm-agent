@@ -1,7 +1,7 @@
 """Memory import session DTOs.
 
 [INPUT]
-app.services.memory.import_ledger::ImportRollbackWarning (POS: 导入批次/条目账本状态机)
+app.services.memory.imports.import_ledger::ImportRollbackWarning (POS: 导入批次/条目账本状态机)
 
 [OUTPUT]
 NormalizedMemoryData, MemoryImportConfirmResult, MemoryImportRollbackResult,

@@ -2,7 +2,7 @@
 
 [INPUT]
 app.services.chat.chat_service::ChatService (POS: chat metadata)
-app.services.memory.retry_chat_memory_extract::schedule_retry_chat_memory_extract (POS: manual recovery)
+app.services.memory.extract_retry.retry_chat_memory_extract::schedule_retry_chat_memory_extract (POS: manual recovery)
 
 [OUTPUT]
 POST /{chat_id}/memory/retry-extract — schedule background re-extract for latest turn.

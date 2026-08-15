@@ -2,7 +2,7 @@
 
 [INPUT]
 app.schemas.memory.command_center::MemoryCommandRuntimeStatus (POS: deployment and storage status)
-app.services.memory.diagnostic_static_checks (POS: static doctor check builders)
+app.services.memory.diagnostics.diagnostic_static_checks (POS: static doctor check builders)
 
 [OUTPUT]
 Coverage for all static doctor probes, including persistence-aware probe_vector_index.

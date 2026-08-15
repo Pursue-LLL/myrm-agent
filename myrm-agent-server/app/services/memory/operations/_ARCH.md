@@ -11,11 +11,12 @@
 | `crud/list_write.py` | 核心 | 列表、创建、更新、纠正、删除、搜索、统计、评分、状态变更 | ✅ |
 | `crud/trash.py` | 核心 | 回收站列表、恢复、永久删除 | ✅ |
 | `crud/import_archive.py` | 核心 | 导出、归档、导入 dry-run/confirm、回滚预演与执行 | ✅ |
+| `crud/import_readiness.py` | 核心 | 导入就绪契约构建（`MemoryImportReadiness` 状态 + issue 码 SSOT，供 stream preflight 与设置深链） | ✅ |
 | `crud/preferences.py` | 核心 | 偏好摘要、偏好列表、pin/forget/unpin/unforget | ✅ |
 
 ## 依赖关系
 
 - `app/schemas/memory/crud.py` — CRUD 请求/响应 Schema
 - `app/schemas/memory/archive.py` — 归档/导入 Schema
-- `app/services/memory/archive.py` — 归档服务
-- `app/services/memory/import_sessions.py` — 导入会话服务
+- `app/services/memory/archive/archive.py` — 归档服务
+- `app/services/memory/imports/import_sessions.py` — 导入会话服务

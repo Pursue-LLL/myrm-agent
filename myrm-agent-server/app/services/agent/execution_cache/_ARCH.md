@@ -15,7 +15,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | `__init__.py` | 入口 | 公共导出 | ✅ |
 | `registry.py` | 核心 | acquire/release/refresh_unit/guard_turn/idle_evict；`snapshot_warm_units` / `is_scope_turn_active` 供 catalog 热更新；进程级 singleton | ✅ |
 | `types.py` | 核心 | `ExecutionMode`、`BuiltExecutionUnit.teardown()` | ✅ |
-| `fingerprint.py` | 核心 | `compute_execution_fingerprint`（模型类字段统一经 `_model_sig` 提取 build 固化签名，含主/兜底/推理/轻量/视觉/视频模型；结构化配置经 `_credential_free_json` 剔除 api_key/api_keys/apiKeys/_oauthToken/localApiKey/bearer_token 等凭据后进哈希（媒体生成/搜索服务/嵌入/重排/provider 池/OpenAPI 服务/隐私路由）；技能/MCP/harness epoch/`engine_params` 含 MoA preset 激活态/安全配置/记忆配置（含确认开关/隔离策略/会话搜索/高级检索）/执行网络/通知/看板（含默认看板）/子代理/委托/网页抓取/域名恢复——覆盖所有 build 期固化的用户可配置输入；排除 api_key 等凭据池字段、每 run 状态与全局静态配置） | ✅ |
+| `fingerprint.py` | 核心 | `compute_execution_fingerprint`（模型类字段统一经 `_model_sig` 提取 build 固化签名，含主/兜底/推理/轻量/视觉/视频模型；结构化配置经 `_credential_free_json` 剔除 api_key/api_keys/apiKeys/_oauthToken/localApiKey/bearer_token 等凭据后进哈希（媒体生成/搜索服务/嵌入/重排/provider 池/OpenAPI 服务/隐私路由）；技能/MCP/harness epoch/`engine_params` 含 MoA preset 激活态/安全配置/记忆配置（含确认开关/隔离策略/会话搜索/高级检索）/执行网络/通知/看板（含默认看板）/子代理/委托/网页抓取/域名恢复——覆盖所有 build 期固化的用户可配置输入；排除凭据池字段、每 run 状态与全局静态配置） | ✅ |
 | `unit_ops.py` | 核心 | capture/apply/detach wrapper ↔ unit | ✅ |
 | `session_lifecycle.py` | 核心 | `resolve_execution_mode`、`finalize_agent_session`（release 前 refresh_unit） | ✅ |
 | `prewarm/` | 核心 | Turn1 冷启动预热（见 [prewarm/_ARCH.md](prewarm/_ARCH.md)） | ✅ |
@@ -60,9 +60,12 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | skill_market / skill_manage | enable_skill_market / enable_skill_manage |
 | memory 写入 | memory_require_confirmation / enable_memory_auto_extraction / memory_extraction_preset |
 | kanban | kanban_tool_mode / kanban_default_board_id |
+| external_agents | external_agents（name/command/args/authMode 固化；api_key 剔除） |
+| openapi_services | openapi_services（spec/base_url/endpoints 固化；整个 auth 子树剥离） |
 
 ### 排除项（有意不进指纹）
 - 凭据：api_key/api_keys/apiKeys/_oauthToken/_oauthBaseUrl/localApiKey/bearer_token/password/client_secret/credential_pool_strategy（`_model_sig` / `_credential_free_json`）
+- OpenAPI 服务 `auth` 整棵子树（`_openapi_services_sig`）：auth 仅运行时鉴权、不塑形 build 输出（工具名/描述来自 spec + selected_endpoints），含 auth.type 变化均不 bust
 - 每 run 状态：kanban_current_task_id、quote、force_skill_manage、timezone、reasoning_display_mode
 - 每 turn 刷新：privacy_enabled 等 10 个隐私字段 + enable_plan_confirm（stream_pipeline 每 turn 重应用）
 - 环境级固定：client_surface；全局静态：event_log_backend、tail_budget_ratio
