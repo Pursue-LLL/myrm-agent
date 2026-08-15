@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 import time
 
 from fastapi import APIRouter, HTTPException, Request
@@ -56,7 +57,7 @@ def _verify_cp_token(request: Request) -> None:
     if not expected:
         return
     token = request.headers.get(_CP_TOKEN_HEADER, "")
-    if token != expected:
+    if not token or not secrets.compare_digest(token, expected):
         raise HTTPException(status_code=403, detail="Invalid CP token")
 
 

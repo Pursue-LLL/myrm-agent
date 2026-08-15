@@ -74,7 +74,7 @@ function auditRoutes(failedSandboxes: string[] = []): Route[] {
       method: 'GET',
       url: '/api/enterprise/org/org-1/agent-audit/events',
       body: {
-        total: 3,
+        total: 5,
         scanned_sandboxes: 2,
         failed_sandboxes: failedSandboxes,
         events: [
@@ -146,7 +146,7 @@ describe('AgentAuditView', () => {
       expect.anything(),
     );
 
-    expect(screen.getAllByText('3').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('5').length).toBeGreaterThan(0);
     expect(screen.getAllByText('web_search').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^toneTool/).length).toBeGreaterThan(0);
   });

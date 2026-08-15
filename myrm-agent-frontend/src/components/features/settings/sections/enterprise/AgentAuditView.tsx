@@ -12,6 +12,7 @@ import {
   IconChevronRight,
   IconClock,
   IconShieldAlert,
+  IconUser,
   IconWrench,
   IconXCircle,
 } from '@/components/features/icons/PremiumIcons';
@@ -93,11 +94,15 @@ function isDenyDecision(decision: string): boolean {
   return /DENY|BLOCK|BREAK|STOP|REJECT/i.test(decision);
 }
 
+function decisionDenied(decision: SecurityDecision): boolean {
+  return decision.tainted === true || (decision.decision !== null && decision.decision !== undefined && isDenyDecision(decision.decision));
+}
+
 function extractDecisions(data: Record<string, unknown>): SecurityDecision[] {
   const decisions = data.decisions;
   if (!Array.isArray(decisions)) {return [];}
   return decisions.filter(
-    (d): d is SecurityDecision => d != null && typeof d === 'object',
+    (d): d is SecurityDecision => d !== null && d !== undefined && typeof d === 'object',
   );
 }
 
@@ -286,9 +291,9 @@ const AgentAuditView = memo(() => {
         }
       >
         <div className="space-y-1.5 max-h-[26rem] overflow-y-auto pr-1">
-          {events.length > 0 && (
+          {data && data.total > events.length && (
             <p className="pb-1 px-0.5 text-[10px] text-muted-foreground">
-              {t('agentShowingLatest', { shown: events.length, total: data?.total ?? 0 })}
+              {t('agentShowingLatest', { shown: events.length, total: data.total })}
             </p>
           )}
           {events.map((event) => (
@@ -322,8 +327,7 @@ const AgentEventRow = memo<AgentEventRowProps>(({ event, expanded, onToggle }) =
   const toolName = extractToolName(event.data);
   const decisions = extractDecisions(event.data);
   const critical =
-    decisions.length > 0 &&
-    decisions.some((d) => d.tainted || (d.decision != null && isDenyDecision(d.decision)));
+    decisions.length > 0 && decisions.some((d) => decisionDenied(d));
   const Chevron = expanded ? IconChevronDown : IconChevronRight;
 
   const ToneIcon = tone === 'security'
@@ -359,14 +363,14 @@ const AgentEventRow = memo<AgentEventRowProps>(({ event, expanded, onToggle }) =
               <span className="text-sm truncate">{eventTypeLabel(event.type, t)}</span>
             )}
           </div>
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5 flex-wrap">
             {event.user_id && (
               <>
                 <span
                   title={event.user_id}
                   className="inline-flex items-center gap-1 rounded border border-border/50 bg-muted/60 px-1.5 py-px font-mono text-[10px] text-foreground/80"
                 >
-                  <IconBot className="h-2.5 w-2.5" />
+                  <IconUser className="h-2.5 w-2.5" />
                   {shortUserId(event.user_id)}
                 </span>
                 <span>·</span>
@@ -395,7 +399,7 @@ const AgentEventRow = memo<AgentEventRowProps>(({ event, expanded, onToggle }) =
                     key={idx}
                     className={cn(
                       'flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs',
-                      decision.tainted || (decision.decision != null && isDenyDecision(decision.decision))
+                      decisionDenied(decision)
                         ? 'border-rose-500/25 bg-rose-500/5'
                         : 'border-amber-500/25 bg-amber-500/5',
                     )}
@@ -403,7 +407,7 @@ const AgentEventRow = memo<AgentEventRowProps>(({ event, expanded, onToggle }) =
                     <IconShieldAlert
                       className={cn(
                         'h-3.5 w-3.5 shrink-0 mt-0.5',
-                        decision.tainted || (decision.decision != null && isDenyDecision(decision.decision))
+                        decisionDenied(decision)
                           ? 'text-rose-500'
                           : 'text-amber-500',
                       )}

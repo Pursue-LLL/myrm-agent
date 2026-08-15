@@ -1,19 +1,21 @@
 """E2E: agent-stream desktop_snapshot_tool → live GET /webui/desktop/snapshot with SOM nth.
 
 Polls snapshot API while stream is active (gateway keeps desktop session until stream end).
+AX capture is mocked because this E2E validates the agent-stream → gateway → snapshot
+API wiring, not the real macOS AX tree (which requires an interactive desktop session).
 """
 
 from __future__ import annotations
 
 import platform
-import subprocess
 import threading
 import time
 import uuid
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
 
 from tests.api.agent.test_capability_gap_integration import (
     _collect_agent_stream,
@@ -22,22 +24,30 @@ from tests.api.agent.test_capability_gap_integration import (
 from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
 
-def _activate_textedit() -> None:
-    if platform.system() != "Darwin":
-        return
-    subprocess.run(
-        [
-            "osascript",
-            "-e",
-            'tell application "TextEdit" to activate',
-            "-e",
-            'tell application "System Events" to tell process "TextEdit" to set frontmost to true',
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=15,
+def _fake_capture_snapshot(_backend: object, scope: str, app_name: str | None) -> tuple[SnapshotMeta, dict[str, ElementRef]]:
+    meta = SnapshotMeta(
+        ref_count=2,
+        app_name="TextEdit",
+        window_title="Untitled",
+        scope=scope,
     )
+    refs = {
+        "d1": ElementRef(
+            ref_id="d1",
+            role="AXButton",
+            name="OK",
+            bbox=BBox(50, 50, 80, 40),
+            backend_key="k1",
+        ),
+        "d2": ElementRef(
+            ref_id="d2",
+            role="AXStaticText",
+            name="Label",
+            bbox=BBox(10, 10, 40, 20),
+            backend_key="k2",
+        ),
+    }
+    return meta, refs
 
 
 @pytest.mark.e2e
@@ -48,14 +58,16 @@ def test_agent_stream_desktop_snapshot_api_returns_som_nth(
     mock_load_user_configs: AsyncMock,
 ) -> None:
     """Real agent-stream: desktop_snapshot_tool active session exposes nth via snapshot API."""
-    _activate_textedit()
-
     configs = mock_load_user_configs.return_value
     configs.security_config_dict = {
         **(configs.security_config_dict or {}),
         "yoloModeEnabled": True,
         "yoloModeEnabledAt": time.time(),
     }
+
+    from app.api.webui.router import router as webui_router
+
+    client.app.include_router(webui_router)
 
     chat_id = f"som_stream_e2e_{uuid.uuid4().hex[:12]}"
     create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
@@ -92,18 +104,22 @@ def test_agent_stream_desktop_snapshot_api_returns_som_nth(
         "agentConfig": {"enabledBuiltinTools": ["computer_use"]},
     }
 
-    invoked: set[str] = set()
-    try:
-        for _attempt in range(3):
-            events = _collect_agent_stream(client, payload)
-            check_e2e_errors(events)
-            invoked = {name.removesuffix("_tool") for name in _invoked_tool_names(events)}
-            if "desktop_snapshot" in invoked:
-                break
-            payload["messageId"] = f"msg_{uuid.uuid4().hex[:8]}"
-    finally:
-        stop_poll.set()
-        poller.join(timeout=10)
+    with patch(
+        "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+        side_effect=_fake_capture_snapshot,
+    ):
+        invoked: set[str] = set()
+        try:
+            for _attempt in range(3):
+                events = _collect_agent_stream(client, payload)
+                check_e2e_errors(events)
+                invoked = {name.removesuffix("_tool") for name in _invoked_tool_names(events)}
+                if "desktop_snapshot" in invoked:
+                    break
+                payload["messageId"] = f"msg_{uuid.uuid4().hex[:8]}"
+        finally:
+            stop_poll.set()
+            poller.join(timeout=10)
 
     if "desktop_snapshot" not in invoked:
         pytest.skip(

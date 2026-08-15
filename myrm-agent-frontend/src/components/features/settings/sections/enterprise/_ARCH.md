@@ -18,7 +18,7 @@ SaaS / sandbox 部署下的 Enterprise Org 管理 Section（`SettingsMenu` 中 `
 | `EnterpriseModelPolicyTab.tsx` | 子 Tab | Org 模型白名单 CRUD（fnmatch pattern 列表）；`orgId` 经 `getMyOrg()` 获取；add/remove 后 fanout 部分失败 warning toast | ✅ |
 | `EnterpriseApprovalPolicyTab.tsx` | 子 Tab | Org Managed Approval Policy CRUD（ignore allowlist / force auto-review patterns + YOLO / allow-always 开关）；`orgId` 经 `getMyOrg()` 获取 | ✅ |
 | `EnterpriseAuditTab.tsx` | 子 Tab | 审计大盘（Tabs 容器）：`platform` 平台审计（KPI 卡片、时间线图表、事件列表、导出）+ `agent` Agent 行为审计（`AgentAuditView`） | ✅ |
-| `AgentAuditView.tsx` | 子模块 | 组织级 Agent 行为审计视图：消费 CP `/api/enterprise/org/{org_id}/agent-audit/events` 聚合事件；KPI（总事件/工具调用/安全事件/扫描沙箱数）、failed_sandboxes 告警条、事件流（tone 分类 + security_label 决策详情）、时间范围选择（24h/7d/30d） | ✅ |
+| `AgentAuditView.tsx` | 子模块 | 组织级 Agent 行为审计视图：消费 CP `/api/enterprise/org/{org_id}/agent-audit/events` 聚合事件；KPI（总事件/工具调用/安全事件/扫描沙箱数）、failed_sandboxes 告警条、事件流（tone 分类 + security_label 决策详情）、时间范围选择（24h/7d/30d）；CP 聚合注入 `user_id`/`sandbox_id` 归属 → 事件行渲染成员徽标（短码 + tooltip 完整值），事件 key 含 sandbox_id 前缀防跨沙箱碰撞，仅截断时显示「显示最新 N/共 M 条」提示 | ✅ |
 | `EnterpriseUsageTab.tsx` | 子 Tab | 成本报表：月度用量进度、成员排行、分类分布、预算设置 | ✅ |
 | `OrgMcpAdminPanel.tsx` | 子模块 | Org 级 MCP 列表与 CRUD 编排 | ✅ |
 | `OrgMcpAdminDialogs.tsx` | 子模块 | Create/Edit/Delete 对话框 | ✅ |
