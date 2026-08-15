@@ -1,7 +1,7 @@
 """Guardian digest and guard-unavailable alert helpers for the memory operation ledger.
 
 [INPUT]
-- app.services.memory.guardian_policy::MemoryGuardianPolicy (POS: guardian schedule policy)
+- app.services.memory.ledger.guardian_policy::MemoryGuardianPolicy (POS: guardian schedule policy)
 - app.database.models.memory::* (POS: memory operation + health snapshot ORM)
 
 [OUTPUT]
@@ -21,7 +21,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.memory import MemoryHealthSnapshotModel, MemoryOperationEventModel
-from app.services.memory.guardian_policy import MemoryGuardianPolicy
+from app.services.memory.ledger.guardian_policy import MemoryGuardianPolicy
 
 
 @dataclass(frozen=True, slots=True)

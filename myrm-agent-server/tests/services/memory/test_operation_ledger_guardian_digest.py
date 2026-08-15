@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.database.models.memory import MemoryHealthSnapshotModel, MemoryOperationEventModel
-from app.services.memory.guardian_policy import MemoryGuardianPolicy
+from app.services.memory.ledger.guardian_policy import MemoryGuardianPolicy
 from app.services.memory.ledger.operation_ledger import (
     MemoryOperationLedgerService,
     _resolve_guardian_digest_window,

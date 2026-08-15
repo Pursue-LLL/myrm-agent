@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/primitives/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { Switch } from '@/components/primitives/switch';
+import { toast } from '@/lib/utils/toast';
 import {
   AGENT_PLUGIN_PROFILE_ID,
   type AgentPluginBundleResponse,
@@ -22,7 +23,7 @@ import {
 } from '@/services/connect';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { countProviderTrees } from '@/services/memory/integration';
-import { getFileExtension, getMimeType, triggerDownload } from '@/lib/utils/fileUtils';
+import { getFileExtension, getMimeType, triggerDownload, buildZipFromFiles } from '@/lib/utils/fileUtils';
 import { resolveDoctorMessageKey } from '@/lib/i18n/connectDoctor';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -101,6 +102,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
         setDoctorResult(null);
         setRevokeConfirming(false);
         setClearSyncedMemory(false);
+        setDownloadingBundle(false);
         void loadAgents();
         loadProfiles();
       }
@@ -169,6 +171,21 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     const filename = selectedFile.split('/').pop() ?? selectedFile;
     triggerDownload(new Blob([content], { type: getMimeType(getFileExtension(filename)) }), filename);
   }, [pluginResult, selectedFile]);
+
+  const [downloadingBundle, setDownloadingBundle] = useState(false);
+
+  const handleDownloadPluginBundle = useCallback(async () => {
+    if (!pluginResult || downloadingBundle) {return;}
+    setDownloadingBundle(true);
+    try {
+      const blob = await buildZipFromFiles(pluginResult.files);
+      triggerDownload(blob, 'myrm-memory.zip');
+    } catch {
+      toast.error(t('downloadBundleFailed'));
+    } finally {
+      setDownloadingBundle(false);
+    }
+  }, [pluginResult, downloadingBundle, t]);
 
   const handleCopyPluginToken = useCallback(async () => {
     if (!pluginResult) {return;}
@@ -474,6 +491,15 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
                   <span className="ml-1 text-xs">{t('download')}</span>
                 </Button>
               </div>
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={handleDownloadPluginBundle}
+                disabled={downloadingBundle}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {downloadingBundle ? t('downloadingBundle') : t('downloadBundle')}
+              </Button>
               <pre className="rounded-lg bg-muted p-3 text-xs overflow-x-auto max-h-48">
                 {pluginResult.files[selectedFile] ?? ''}
               </pre>

@@ -15698,7 +15698,10 @@
     "agentPluginGenerate": "Generate Agent Plugins bundle",
     "agentPluginReady": "Agent Plugins bundle ready",
     "pluginFile": "Plugin file",
-    "download": "Download"
+    "download": "Download",
+    "downloadBundle": "Download All (.zip)",
+    "downloadingBundle": "Packaging…",
+    "downloadBundleFailed": "Failed to create the bundle archive"
   },
   "about": {
     "title": "About",

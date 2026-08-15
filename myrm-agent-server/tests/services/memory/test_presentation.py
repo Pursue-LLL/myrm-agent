@@ -21,7 +21,7 @@ from myrm_agent_harness.toolkits.memory.types import (
     ToolRulePriority,
 )
 
-from app.services.memory.presentation import memory_to_item, parse_memory_type
+from app.services.memory.operations.presentation import memory_to_item, parse_memory_type
 
 
 class TestParseMemoryType:

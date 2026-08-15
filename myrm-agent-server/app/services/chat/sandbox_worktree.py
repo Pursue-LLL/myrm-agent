@@ -26,12 +26,12 @@ from app.core.utils.git_worktree import (
     _GIT_ENV,
     WorktreeCreateError,
     WorktreeErrorReason,
-    _abort_merge,
     _auto_commit_dirty_worktree,
-    _classify_git_error,
-    _collect_conflict_files,
+    _delete_git_branch,
     _get_merge_lock,
-    _git_identity,
+    _git_worktree_add,
+    _merge_branch_into_current,
+    _remove_worktree,
     _worktree_is_dirty,
 )
 
@@ -82,39 +82,6 @@ async def _get_current_branch(base_dir: str) -> str | None:
     return None
 
 
-def _ensure_worktrees_excluded(base_dir: str) -> None:
-    """Ensure .sandboxes/ is listed in .git/info/exclude so git status stays clean."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=5,
-            env=_GIT_ENV,
-        )
-        if result.returncode != 0:
-            return
-        common_dir = result.stdout.strip()
-        exclude_path = os.path.join(common_dir, "info", "exclude")
-
-        line = f"/{_SANDBOX_DIR_NAME}/"
-        current = ""
-        try:
-            current = Path(exclude_path).read_text(encoding="utf-8")
-        except OSError:
-            pass
-
-        if any(existing_line.strip() == line for existing_line in current.split("\n")):
-            return
-
-        prefix = "\n" if current and not current.endswith("\n") else ""
-        with open(exclude_path, "a", encoding="utf-8") as f:
-            f.write(f"{prefix}{line}\n")
-    except Exception:
-        pass
-
-
 async def create_sandbox_worktree(
     base_dir: str, chat_id: str
 ) -> str | WorktreeCreateError:
@@ -135,55 +102,13 @@ async def create_sandbox_worktree(
         logger.info("Sandbox worktree already exists at %s", worktree_dir)
         return worktree_dir
 
-    effective_branch = f"sandbox/chat-{chat_id[:12]}"
-
-    try:
-        os.makedirs(os.path.dirname(worktree_dir), exist_ok=True)
-        _ensure_worktrees_excluded(base_dir)
-
-        result = await asyncio.to_thread(
-            subprocess.run,
-            [
-                "git",
-                "worktree",
-                "add",
-                "--force",
-                "-B",
-                effective_branch,
-                worktree_dir,
-                "HEAD",
-            ],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env=_GIT_ENV,
-        )
-        if result.returncode != 0:
-            stderr = result.stderr.strip()
-            reason = _classify_git_error(stderr)
-            logger.warning(
-                "git worktree add failed for chat sandbox (rc=%d, reason=%s): %s",
-                result.returncode,
-                reason.value,
-                stderr[:300],
-            )
-            return WorktreeCreateError(reason=reason, message=stderr[:300])
-
-        logger.info(
-            "Created sandbox worktree at %s (branch=%s) for chat %s",
-            worktree_dir,
-            effective_branch,
-            chat_id[:8],
-        )
-        return worktree_dir
-    except Exception as exc:
-        logger.warning(
-            "Failed to create sandbox worktree for chat %s: %s", chat_id[:8], exc
-        )
-        return WorktreeCreateError(
-            reason=WorktreeErrorReason.ERROR, message=str(exc)[:300]
-        )
+    return await _git_worktree_add(
+        base_dir,
+        f"sandbox/chat-{chat_id[:12]}",
+        worktree_dir,
+        _SANDBOX_DIR_NAME,
+        context="chat sandbox",
+    )
 
 
 async def cleanup_sandbox_worktree(
@@ -212,46 +137,10 @@ async def cleanup_sandbox_worktree(
         )
         return False
 
-    try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "worktree", "remove", "--force", worktree_dir],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env=_GIT_ENV,
-        )
-        if result.returncode == 0:
-            logger.info(
-                "Cleaned up sandbox worktree at %s for chat %s",
-                worktree_dir,
-                chat_id[:8],
-            )
-
-            branch_name = f"sandbox/chat-{chat_id[:12]}"
-            await asyncio.to_thread(
-                subprocess.run,
-                ["git", "branch", "-D", branch_name],
-                cwd=base_dir,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                env=_GIT_ENV,
-            )
-            return True
-        else:
-            logger.warning(
-                "git worktree remove failed (rc=%d): %s",
-                result.returncode,
-                result.stderr.strip(),
-            )
-            return False
-    except Exception as exc:
-        logger.warning(
-            "Failed to cleanup sandbox worktree for chat %s: %s", chat_id[:8], exc
-        )
-        return False
+    if await _remove_worktree(base_dir, worktree_dir, context="sandbox"):
+        await _delete_git_branch(base_dir, f"sandbox/chat-{chat_id[:12]}")
+        return True
+    return False
 
 
 async def merge_sandbox_to_parent(base_dir: str, chat_id: str) -> tuple[bool, str]:
@@ -288,38 +177,14 @@ async def _merge_sandbox_to_parent_locked(
             )
             return False, "Sandbox has uncommitted changes that could not be committed"
 
-    try:
-        identity = await _git_identity(base_dir)
-        result = await asyncio.to_thread(
-            subprocess.run,
-            [
-                "git",
-                *identity,
-                "merge",
-                "--no-ff",
-                branch_name,
-                "-m",
-                f"Merge sandbox session {chat_id[:8]}",
-            ],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            env=_GIT_ENV,
-        )
-        if result.returncode == 0:
-            await cleanup_sandbox_worktree(base_dir, chat_id, force=True)
-            return True, f"Successfully merged sandbox to {parent_branch}"
-        # Roll the merge back so base_dir stays usable instead of lingering in
-        # a mid-merge state that blocks every later merge on the same repo.
-        conflicts = await _collect_conflict_files(base_dir)
-        await _abort_merge(base_dir)
-        if conflicts:
-            return False, f"Merge conflict in {len(conflicts)} file(s)"
-        # Non-conflict merge failure (e.g. rejected by a merge hook); surface
-        # the actual reason so the user is not told it was a conflict.
-        stderr = result.stderr.strip()
-        return False, f"Merge failed: {stderr[:200]}" if stderr else "Merge failed"
-    except Exception:
-        await _abort_merge(base_dir)
-        return False, "Merge failed"
+    success, conflicts, stderr = await _merge_branch_into_current(
+        base_dir, branch_name, f"Merge sandbox session {chat_id[:8]}"
+    )
+    if success:
+        await cleanup_sandbox_worktree(base_dir, chat_id, force=True)
+        return True, f"Successfully merged sandbox to {parent_branch}"
+    if conflicts:
+        return False, f"Merge conflict in {len(conflicts)} file(s)"
+    # Non-conflict merge failure (e.g. rejected by a merge hook); surface the
+    # actual reason so the user is not told it was a conflict.
+    return False, f"Merge failed: {stderr[:200]}" if stderr else "Merge failed"

@@ -9,7 +9,7 @@
 - app.services.budget.enforcer::should_block_execution (POS: Budget enforcement)
 - app.core.memory.adapters.setup::create_memory_manager (POS: 业务层记忆管理器工厂)
 - app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
-- app.services.memory.guardian_policy::MemoryGuardianPolicy (POS: 受约束调度策略)
+- app.services.memory.ledger.guardian_policy::MemoryGuardianPolicy (POS: 受约束调度策略)
 
 [OUTPUT]
 - start_memory_guardian_scheduler: Start periodic background memory maintenance
@@ -39,7 +39,7 @@ from typing import Literal
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind, MemoryOperationStatus
 from myrm_agent_harness.toolkits.memory.health import MaintenanceReport
 
-from app.services.memory.guardian_policy import (
+from app.services.memory.ledger.guardian_policy import (
     MemoryGuardianPolicy,
     current_local_hour,
     is_within_quiet_window,

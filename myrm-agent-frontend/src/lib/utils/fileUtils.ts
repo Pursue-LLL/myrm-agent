@@ -8,10 +8,11 @@
  * - fetchFileAsBase64DataURL: 文件 URL → base64 data URL。
  * - partitionFilesByType / isXxxFile / getFileExtension / getMimeType: 扩展名分类与 MIME 推断。
  * - computeFileHash: Blob/File SHA-256 哈希。
+ * - buildZipFromFiles: 「路径 → 内容」字典 → DEFLATE zip Blob。
  * - triggerDownload: 触发浏览器下载 Blob。
  *
  * [POS]
- * 通用文件工具集。提供扩展名分类、MIME 推断、哈希计算与 Blob 下载等纯函数能力。
+ * 通用文件工具集。提供扩展名分类、MIME 推断、哈希计算、zip 打包与 Blob 下载等纯函数能力。
  */
 import type { File } from '@/store/chat/types';
 import { isTauriRuntime } from '@/lib/deploy-mode';
@@ -172,6 +173,20 @@ export const isTextFile = (fileExtension: string): boolean => {
 export const getFileExtension = (fileName: string): string => {
   return fileName.split('.').pop()?.toLowerCase() || '';
 };
+
+/**
+ * 将「路径 → 内容」字典打包为 DEFLATE zip Blob。
+ * 目录路径由 key 携带（如 `skills/myrm-memory/SKILL.md`），保持 zip 内目录结构。
+ * JSZip 动态导入避免打进主 bundle，与 batchExport / WikiSection 打包先例一致。
+ */
+export async function buildZipFromFiles(files: Record<string, string>): Promise<Blob> {
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  for (const [path, content] of Object.entries(files)) {
+    zip.file(path, content);
+  }
+  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+}
 
 /**
  * 触发浏览器下载 Blob。

@@ -11,7 +11,7 @@ from app.core.types import ModelConfig
 
 @pytest.mark.asyncio
 async def test_resolve_main_model_cfg_applies_agent_override() -> None:
-    from app.services.memory.resolve_chat_extraction_llm import _resolve_main_model_cfg
+    from app.services.memory.extract_retry.resolve_chat_extraction_llm import _resolve_main_model_cfg
 
     default_cfg = ModelConfig(model="openai/gpt-4o-mini", api_key="sk-default")
     agent_cfg = ModelConfig(model="openai/gpt-4o", api_key="sk-agent")
@@ -40,7 +40,7 @@ async def test_resolve_main_model_cfg_applies_agent_override() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_chat_extraction_llm_uses_create_agent_llms() -> None:
-    from app.services.memory.resolve_chat_extraction_llm import (
+    from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
         resolve_chat_extraction_llm,
     )
 
@@ -64,11 +64,11 @@ async def test_resolve_chat_extraction_llm_uses_create_agent_llms() -> None:
             new=AsyncMock(return_value=MagicMock(providers_dict={"providers": []})),
         ),
         patch(
-            "app.services.memory.resolve_chat_extraction_llm._resolve_main_model_cfg",
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm._resolve_main_model_cfg",
             new=AsyncMock(return_value=main_cfg),
         ),
         patch(
-            "app.services.memory.resolve_chat_extraction_llm._resolve_lite_model_cfg",
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm._resolve_lite_model_cfg",
             new=AsyncMock(return_value=lite_cfg),
         ),
         patch(

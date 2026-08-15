@@ -15559,7 +15559,10 @@
     "agentPluginGenerate": "Agent-Plugins-Bundle generieren",
     "agentPluginReady": "Agent-Plugins-Bundle bereit",
     "pluginFile": "Plugin-Datei",
-    "download": "Herunterladen"
+    "download": "Herunterladen",
+    "downloadBundle": "Alles herunterladen (.zip)",
+    "downloadingBundle": "Verpacken…",
+    "downloadBundleFailed": "Das Bundle-Archiv konnte nicht erstellt werden"
   },
   "about": {
     "title": "Über",

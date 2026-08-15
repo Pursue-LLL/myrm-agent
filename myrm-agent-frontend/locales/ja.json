@@ -15605,7 +15605,10 @@
     "agentPluginGenerate": "Agent Plugins プラグインを生成",
     "agentPluginReady": "Agent Plugins プラグインが準備できました",
     "pluginFile": "プラグインファイル",
-    "download": "ダウンロード"
+    "download": "ダウンロード",
+    "downloadBundle": "すべてダウンロード (.zip)",
+    "downloadingBundle": "圧縮中…",
+    "downloadBundleFailed": "バンドルのアーカイブを作成できませんでした"
   },
   "about": {
     "title": "について",

@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.api::KanbanStore (POS: Public protocol re-exports; KanbanStore defined in toolkits.kanban.protocols.)
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
-- app.core.utils.git_worktree (POS: 共享 git worktree 命令基础设施——per-base_dir merge 锁、merge abort/冲突文件收集、auto-commit 与 merge 的 git identity 兜底、worktree 业务错误类型 WorktreeCreateError/WorktreeErrorReason/_classify_git_error)
+- app.core.utils.git_worktree (POS: 共享 git worktree 命令基础设施——per-base_dir merge 锁、worktree add/remove/分支删除/merge 组合、auto-commit 与 git identity 兜底、worktree 业务错误类型 WorktreeCreateError/WorktreeErrorReason/_classify_git_error)
 
 [OUTPUT]
 - resolve_base_dir, resolve_workspace, create_worktree, cleanup_worktree, merge_task_worktree
@@ -16,36 +16,28 @@ and merge completed task worktrees back into their target branch.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import re
-import subprocess
 from pathlib import Path
 
 from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskEventKind
 
 from app.core.utils.git_worktree import (
-    _GIT_ENV,
     WorktreeCreateError,
-    WorktreeErrorReason,
-    _abort_merge,
     _auto_commit_dirty_worktree,
-    _classify_git_error,
-    _collect_conflict_files,
+    _delete_git_branch,
     _get_merge_lock,
-    _git_identity,
+    _git_worktree_add,
+    _merge_branch_into_current,
 )
 from app.services.kanban.task_runner._worktree_merge import (
     _branch_has_commits,
     _ensure_target_branch_checked_out,
     _is_valid_git_branch,
 )
-from app.services.kanban.task_runner.worktree_cleanup import (
-    _delete_worktree_branch,
-    cleanup_worktree,
-)
+from app.services.kanban.task_runner.worktree_cleanup import cleanup_worktree
 
 logger = logging.getLogger(__name__)
 
@@ -97,39 +89,6 @@ def worktree_dir(base_dir: str, branch: str, task_id: str) -> str:
     return os.path.join(base_dir, WORKTREE_DIR_NAME, f"{safe_name}-{task_id[:8]}")
 
 
-def _ensure_worktrees_dir_excluded(base_dir: str) -> None:
-    """Ensure .worktrees/ is listed in .git/info/exclude."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=5,
-            env=_GIT_ENV,
-        )
-        if result.returncode != 0:
-            return
-        common_dir = result.stdout.strip()
-        exclude_path = os.path.join(common_dir, "info", "exclude")
-
-        line = f"/{WORKTREE_DIR_NAME}/"
-        current = ""
-        try:
-            current = Path(exclude_path).read_text(encoding="utf-8")
-        except OSError:
-            pass
-
-        if any(existing_line.strip() == line for existing_line in current.split("\n")):
-            return
-
-        prefix = "\n" if current and not current.endswith("\n") else ""
-        with open(exclude_path, "a", encoding="utf-8") as f:
-            f.write(f"{prefix}{line}\n")
-    except Exception:
-        pass
-
-
 async def create_worktree(
     base_dir: str, branch: str, task_id: str
 ) -> str | WorktreeCreateError:
@@ -143,51 +102,13 @@ async def create_worktree(
         )
         return worktree_path
 
-    try:
-        os.makedirs(os.path.dirname(worktree_path), exist_ok=True)
-        _ensure_worktrees_dir_excluded(base_dir)
-
-        result = await asyncio.to_thread(
-            subprocess.run,
-            [
-                "git",
-                "worktree",
-                "add",
-                "--force",
-                "-B",
-                unique_branch,
-                worktree_path,
-                "HEAD",
-            ],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env=_GIT_ENV,
-        )
-        if result.returncode != 0:
-            stderr = result.stderr.strip()
-            reason = _classify_git_error(stderr)
-            logger.warning(
-                "git worktree add failed (rc=%d, reason=%s): %s",
-                result.returncode,
-                reason.value,
-                stderr[:300],
-            )
-            return WorktreeCreateError(reason=reason, message=stderr[:300])
-
-        logger.info(
-            "Created worktree at %s (branch=%s) for task %s",
-            worktree_path,
-            unique_branch,
-            task_id[:8],
-        )
-        return worktree_path
-    except Exception as exc:
-        logger.warning("Failed to create worktree for task %s: %s", task_id[:8], exc)
-        return WorktreeCreateError(
-            reason=WorktreeErrorReason.ERROR, message=str(exc)[:300]
-        )
+    return await _git_worktree_add(
+        base_dir,
+        unique_branch,
+        worktree_path,
+        WORKTREE_DIR_NAME,
+        context="kanban task",
+    )
 
 
 async def resolve_workspace(store: KanbanStore, task: KanbanTask) -> str | None:
@@ -280,7 +201,7 @@ async def _merge_task_worktree_locked(
             task.task_id[:8],
         )
         await cleanup_worktree(store, task, force=True)
-        await _delete_worktree_branch(base_dir, task.branch, task.task_id)
+        await _delete_git_branch(base_dir, unique_branch)
         return True, []
 
     # Ensure the merge lands on the task's target branch, not whatever is
@@ -294,56 +215,27 @@ async def _merge_task_worktree_locked(
         )
         return False, []
 
-    try:
-        identity = await _git_identity(base_dir)
-        result = await asyncio.to_thread(
-            subprocess.run,
-            [
-                "git",
-                *identity,
-                "merge",
-                "--no-ff",
-                unique_branch,
-                "-m",
-                f"Merge kanban task {task.task_id[:8]}",
-            ],
-            cwd=base_dir,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            env=_GIT_ENV,
-        )
-        if result.returncode != 0:
-            # Collect the conflicting files, then roll the merge back so the
-            # repo does not linger in a mid-merge state that would block every
-            # later merge on the same repo.  The worktree and its unique branch
-            # are preserved, so no commit is lost.
-            conflicts = await _collect_conflict_files(base_dir)
-            await _abort_merge(base_dir)
-            logger.warning(
-                "Merge of task %s branch %s into %s failed (conflicts=%d): %s",
-                task.task_id[:8],
-                unique_branch,
-                task.branch,
-                len(conflicts),
-                result.stderr.strip()[:300],
-            )
-            return False, conflicts
-        logger.info(
-            "Merged task %s branch %s into %s",
+    success, conflicts, stderr = await _merge_branch_into_current(
+        base_dir, unique_branch, f"Merge kanban task {task.task_id[:8]}"
+    )
+    if not success:
+        # The worktree and its unique branch are preserved, so no commit is
+        # lost; only the failed merge is rolled back by the shared helper.
+        logger.warning(
+            "Merge of task %s branch %s into %s failed (conflicts=%d): %s",
             task.task_id[:8],
             unique_branch,
             task.branch,
+            len(conflicts),
+            stderr[:300],
         )
-        await cleanup_worktree(store, task, force=True)
-        await _delete_worktree_branch(base_dir, task.branch, task.task_id)
-        return True, []
-    except Exception as exc:
-        await _abort_merge(base_dir)
-        logger.warning(
-            "Merge of task %s branch %s failed: %s",
-            task.task_id[:8],
-            unique_branch,
-            exc,
-        )
-        return False, []
+        return False, conflicts
+    logger.info(
+        "Merged task %s branch %s into %s",
+        task.task_id[:8],
+        unique_branch,
+        task.branch,
+    )
+    await cleanup_worktree(store, task, force=True)
+    await _delete_git_branch(base_dir, unique_branch)
+    return True, []

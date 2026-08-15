@@ -36,7 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_db_session
 from app.api.memory.utils import get_crud_memory_manager
 from app.database.models.memory import MemoryOperationEventModel
-from app.services.memory.guardian_policy import (
+from app.services.memory.ledger.guardian_policy import (
     MemoryGuardianPolicy,
     ensure_memory_guardian_timezone_initialized,
     load_memory_guardian_policy,

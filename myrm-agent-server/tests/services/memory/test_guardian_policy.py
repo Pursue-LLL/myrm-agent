@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.services.memory.guardian_policy import (
+from app.services.memory.ledger.guardian_policy import (
     MemoryGuardianPolicy,
     ensure_memory_guardian_timezone_initialized,
     is_within_quiet_window,
@@ -130,7 +130,7 @@ async def test_ensure_timezone_initialized_upgrades_server_fallback_with_client_
     row = type("Row", (), {"config_value": existing.model_dump(), "version": "v1"})()
     session = _FakeSession(row)
     monkeypatch.setattr(
-        "app.services.memory.guardian_policy.get_session_factory",
+        "app.services.memory.ledger.guardian_policy.get_session_factory",
         lambda: (lambda: _FakeSessionContext(session)),
     )
 
@@ -154,7 +154,7 @@ async def test_ensure_timezone_initialized_does_not_override_manual_policy(
     row = type("Row", (), {"config_value": existing.model_dump(), "version": "v1"})()
     session = _FakeSession(row)
     monkeypatch.setattr(
-        "app.services.memory.guardian_policy.get_session_factory",
+        "app.services.memory.ledger.guardian_policy.get_session_factory",
         lambda: (lambda: _FakeSessionContext(session)),
     )
 

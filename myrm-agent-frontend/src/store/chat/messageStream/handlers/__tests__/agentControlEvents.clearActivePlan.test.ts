@@ -145,6 +145,33 @@ describe('agentControlEvents clearActivePlan', () => {
     expect(mockReleaseTurnInspectorControls).toHaveBeenCalledWith('c1');
   });
 
+  it('passes fault_side through on ITERATION_LIMIT_REACHED into the progress step', async () => {
+    let updatedState: Record<string, unknown> | undefined;
+    const ctx = makeCtx('iteration_limit_reached', {
+      data: { limit: 25, nodes_completed: 24, fault_side: 'harness_pipeline' },
+    });
+    (ctx.actions.setMessages as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      (updater: (s: Record<string, unknown>) => void) => {
+        const base = {
+          messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date(), progressSteps: [] }],
+        };
+        updatedState = base;
+        updater(base as never);
+        return base;
+      },
+    );
+    await agentControlEvents(ctx);
+    await vi.dynamicImportSettled();
+
+    const messages = updatedState?.messages as Array<Record<string, unknown>>;
+    const step = (messages?.[0].progressSteps as Array<Record<string, unknown>>).at(-1);
+    expect(step).toMatchObject({
+      step_key: 'iteration_limit_reached',
+      status: 'warning',
+      fault_side: 'harness_pipeline',
+    });
+  });
+
   it('creates the error message with the resolved chatId for a brand-new chat', async () => {
     mockFindAssistantMessageIndex.mockReturnValue(-1);
     const messages: Array<Record<string, unknown>> = [];

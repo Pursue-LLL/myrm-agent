@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   isImageFile,
   isVideoFile,
@@ -13,10 +13,26 @@ import {
   fetchFileAsBase64DataURL,
   computeFileHash,
   triggerDownload,
+  buildZipFromFiles,
 } from '../fileUtils';
 import type { File } from '@/store/chat/types';
 
+const jsZipFile = vi.hoisted(() => vi.fn());
+const jsZipGenerateAsync = vi.hoisted(() => vi.fn());
+
+vi.mock('jszip', () => ({
+  __esModule: true,
+  default: class MockJSZip {
+    file = jsZipFile;
+    generateAsync = jsZipGenerateAsync;
+  },
+}));
+
 describe('fileUtils', () => {
+  beforeEach(() => {
+    jsZipFile.mockClear();
+    jsZipGenerateAsync.mockReset();
+  });
   describe('isImageFile', () => {
     it('should return true for image extensions', () => {
       const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
@@ -388,6 +404,35 @@ describe('fileUtils', () => {
       const hash2 = await computeFileHash(file2);
 
       expect(hash1).not.toBe(hash2);
+    });
+  });
+
+  describe('buildZipFromFiles', () => {
+    it('writes each file at its path and compresses with DEFLATE', async () => {
+      const files = {
+        'plugin.json': '{"name":"myrm-memory"}',
+        'mcp.json': '{"mcpServers":{}}',
+        'skills/myrm-memory/SKILL.md': '# Persistent long-term memory',
+      };
+      jsZipGenerateAsync.mockResolvedValue(new Blob(['zip'], { type: 'application/zip' }));
+
+      const blob = await buildZipFromFiles(files);
+
+      expect(jsZipFile).toHaveBeenCalledTimes(3);
+      expect(jsZipFile).toHaveBeenCalledWith('plugin.json', files['plugin.json']);
+      expect(jsZipFile).toHaveBeenCalledWith('mcp.json', files['mcp.json']);
+      expect(jsZipFile).toHaveBeenCalledWith('skills/myrm-memory/SKILL.md', files['skills/myrm-memory/SKILL.md']);
+      expect(jsZipGenerateAsync).toHaveBeenCalledWith({ type: 'blob', compression: 'DEFLATE' });
+      expect(blob).toBeInstanceOf(Blob);
+    });
+
+    it('handles an empty file map without failing', async () => {
+      jsZipGenerateAsync.mockResolvedValue(new Blob(['zip'], { type: 'application/zip' }));
+
+      const blob = await buildZipFromFiles({});
+
+      expect(jsZipFile).not.toHaveBeenCalled();
+      expect(blob).toBeInstanceOf(Blob);
     });
   });
 

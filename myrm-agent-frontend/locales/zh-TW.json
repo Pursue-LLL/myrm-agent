@@ -15576,7 +15576,10 @@
     "agentPluginGenerate": "產生 Agent Plugins 外掛",
     "agentPluginReady": "Agent Plugins 外掛已就緒",
     "pluginFile": "外掛檔案",
-    "download": "下載"
+    "download": "下載",
+    "downloadBundle": "下載全部 (.zip)",
+    "downloadingBundle": "正在打包…",
+    "downloadBundleFailed": "建立外掛壓縮檔失敗"
   },
   "securityDashboard": {
     "title": "安全儀表盤",

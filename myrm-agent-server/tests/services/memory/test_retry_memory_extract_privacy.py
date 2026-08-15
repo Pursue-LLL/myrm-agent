@@ -334,7 +334,7 @@ class TestRunRetryExtractDeepScan:
                 return_value=binding_context,
             ),
             patch(
-                "app.services.memory.resolve_chat_extraction_llm.resolve_chat_extraction_llm",
+                "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_chat_extraction_llm",
                 new_callable=AsyncMock,
                 return_value=(MagicMock(), MagicMock()),
             ),
@@ -414,7 +414,7 @@ class TestRunRetryExtractDeepScan:
                 return_value=binding_context,
             ),
             patch(
-                "app.services.memory.resolve_chat_extraction_llm.resolve_chat_extraction_llm",
+                "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_chat_extraction_llm",
                 new_callable=AsyncMock,
                 return_value=(MagicMock(), MagicMock()),
             ),

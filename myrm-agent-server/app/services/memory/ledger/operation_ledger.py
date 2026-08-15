@@ -33,7 +33,7 @@ from app.database.models.memory import (
     MemoryMigrationProvenanceModel,
     MemoryOperationEventModel,
 )
-from app.services.memory.guardian_policy import MemoryGuardianPolicy
+from app.services.memory.ledger.guardian_policy import MemoryGuardianPolicy
 from app.services.memory.ledger.operation_ledger_guardian import (
     _resolve_guardian_digest_window,
     as_aware,

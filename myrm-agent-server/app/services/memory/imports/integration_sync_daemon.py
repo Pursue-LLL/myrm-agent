@@ -118,7 +118,7 @@ async def _register_mcp_providers(
 
         from myrm_agent_harness.toolkits.mcp.connection_manager import get_mcp_connection
 
-        from app.services.memory.mcp_bridge_provider import MCPBridgeProvider
+        from app.services.memory.imports.mcp_bridge_provider import MCPBridgeProvider
 
         existing_ids = set(svc.provider_ids)
         conn = await get_mcp_connection(mcp_configs)

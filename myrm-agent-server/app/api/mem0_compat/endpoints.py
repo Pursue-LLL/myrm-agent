@@ -43,7 +43,7 @@ from app.api.mem0_compat.types import (
 from app.schemas.memory.crud import MemoryItem
 from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
-from app.services.memory.presentation import memory_to_item
+from app.services.memory.operations.presentation import memory_to_item
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +248,6 @@ async def _find_memory_by_id(
 
 def _parse_type_from_item(item: MemoryItem) -> MemoryType:
     """Parse MemoryType from a MemoryItem's memory_type string."""
-    from app.services.memory.presentation import parse_memory_type
+    from app.services.memory.operations.presentation import parse_memory_type
 
     return parse_memory_type(item.memory_type)

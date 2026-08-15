@@ -255,7 +255,7 @@ async def test_run_retry_extract_uses_chat_binding_and_compressed_track(
         resolve_binding,
     )
     monkeypatch.setattr(
-        "app.services.memory.resolve_chat_extraction_llm.resolve_chat_extraction_llm",
+        "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_chat_extraction_llm",
         resolve_llm,
     )
     monkeypatch.setattr(

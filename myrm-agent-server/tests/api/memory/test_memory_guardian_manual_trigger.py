@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.lifecycle import memory_guardian
-from app.services.memory.guardian_policy import MemoryGuardianPolicy
+from app.services.memory.ledger.guardian_policy import MemoryGuardianPolicy
 
 
 def _make_report(

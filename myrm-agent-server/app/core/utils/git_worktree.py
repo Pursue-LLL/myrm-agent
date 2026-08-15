@@ -7,10 +7,14 @@
 - _GIT_ENV: C-locale git environment for subprocess calls.
 - _get_merge_lock: Per-base_dir merge lock shared across kanban/sandbox merges.
 - _git_identity: Per-repo ``-c user.name/-c user.email`` overrides for missing identity.
+- _ensure_worktree_excluded: Add a worktree directory name to .git/info/exclude.
+- _git_worktree_add: Create a worktree (exclude + ``git worktree add --force -B``).
 - _auto_commit_dirty_worktree: Commit uncommitted worktree edits before a merge.
+- _merge_branch_into_current: Merge a branch into HEAD with identity fallback + abort-on-failure.
 - _collect_conflict_files: List files with unresolved merge conflicts.
 - _abort_merge: Roll back an in-progress merge so the repo stays usable.
-- _worktree_is_dirty: Fail-closed dirty check for a worktree.
+- _remove_worktree: Remove a worktree directory with ``git worktree remove --force``.
+- _delete_git_branch: Delete a local branch whose commits were merged away.
 - WorktreeErrorReason / WorktreeCreateError: Structured worktree creation error types.
 - _classify_git_error: Map git stderr to a WorktreeErrorReason.
 
@@ -28,6 +32,7 @@ import os
 import subprocess
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +106,107 @@ async def _git_identity(repo_dir: str) -> list[str]:
     return overrides
 
 
+def _ensure_worktree_excluded(base_dir: str, dir_name: str) -> None:
+    """Ensure a worktree directory name is listed in .git/info/exclude.
+
+    Worktrees live inside the repo (``.sandboxes/`` / ``.worktrees/``), so
+    without an exclude entry every file under them would pollute ``git status``.
+    ``dir_name`` is the bare directory name (no leading/trailing slashes).
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            env=_GIT_ENV,
+        )
+        if result.returncode != 0:
+            return
+        common_dir = result.stdout.strip()
+        exclude_path = os.path.join(common_dir, "info", "exclude")
+
+        line = f"/{dir_name}/"
+        current = ""
+        try:
+            current = Path(exclude_path).read_text(encoding="utf-8")
+        except OSError:
+            pass
+
+        if any(existing_line.strip() == line for existing_line in current.split("\n")):
+            return
+
+        prefix = "\n" if current and not current.endswith("\n") else ""
+        with open(exclude_path, "a", encoding="utf-8") as f:
+            f.write(f"{prefix}{line}\n")
+    except Exception:
+        pass
+
+
+async def _git_worktree_add(
+    base_dir: str,
+    branch: str,
+    worktree_path: str,
+    dir_name: str,
+    *,
+    context: str,
+) -> str | WorktreeCreateError:
+    """Create an isolated worktree via ``git worktree add --force -B``.
+
+    Ensures the worktree directory is excluded from ``git status`` before the
+    add.  ``context`` (e.g. "chat sandbox" / "kanban task") stamps log
+    messages so owners are identifiable.  Returns the worktree path on success
+    or a structured error.
+    """
+    try:
+        os.makedirs(os.path.dirname(worktree_path), exist_ok=True)
+        _ensure_worktree_excluded(base_dir, dir_name)
+
+        result = await asyncio.to_thread(
+            subprocess.run,
+            [
+                "git",
+                "worktree",
+                "add",
+                "--force",
+                "-B",
+                branch,
+                worktree_path,
+                "HEAD",
+            ],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=_GIT_ENV,
+        )
+        if result.returncode != 0:
+            stderr = result.stderr.strip()
+            reason = _classify_git_error(stderr)
+            logger.warning(
+                "git worktree add failed for %s (rc=%d, reason=%s): %s",
+                context,
+                result.returncode,
+                reason.value,
+                stderr[:300],
+            )
+            return WorktreeCreateError(reason=reason, message=stderr[:300])
+
+        logger.info(
+            "Created %s worktree at %s (branch=%s)",
+            context,
+            worktree_path,
+            branch,
+        )
+        return worktree_path
+    except Exception as exc:
+        logger.warning("Failed to create %s worktree: %s", context, exc)
+        return WorktreeCreateError(
+            reason=WorktreeErrorReason.ERROR, message=str(exc)[:300]
+        )
+
+
 async def _auto_commit_dirty_worktree(
     worktree_path: str, *, commit_message: str = "Auto-commit before merge"
 ) -> bool:
@@ -169,6 +275,34 @@ async def _auto_commit_dirty_worktree(
         return False
 
 
+async def _merge_branch_into_current(
+    base_dir: str, branch: str, merge_message: str
+) -> tuple[bool, list[str], str]:
+    """Merge ``branch`` into the checked-out branch with identity fallback.
+
+    Returns (success, conflict_files, stderr).  On failure the merge is rolled
+    back so base_dir does not linger in a mid-merge state that would block
+    every later merge on the same repo; ``conflict_files`` is empty for
+    non-conflict failures.  Callers decide how to surface the result (user
+    message vs task event).
+    """
+    identity = await _git_identity(base_dir)
+    result = await asyncio.to_thread(
+        subprocess.run,
+        ["git", *identity, "merge", "--no-ff", branch, "-m", merge_message],
+        cwd=base_dir,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env=_GIT_ENV,
+    )
+    if result.returncode == 0:
+        return True, [], ""
+    conflicts = await _collect_conflict_files(base_dir)
+    await _abort_merge(base_dir)
+    return False, conflicts, result.stderr.strip()
+
+
 async def _collect_conflict_files(base_dir: str) -> list[str]:
     """List files with unresolved merge conflicts in base_dir, or [] when none."""
     try:
@@ -216,6 +350,65 @@ async def _abort_merge(base_dir: str) -> None:
                 )
     except Exception as exc:
         logger.warning("Failed to abort merge in %s: %s", base_dir, exc)
+
+
+async def _remove_worktree(base_dir: str, worktree_path: str, *, context: str) -> bool:
+    """Remove a worktree directory with ``git worktree remove --force``.
+
+    Returns True when the worktree is gone.  Callers are responsible for the
+    dirty check before calling; this helper only runs the removal command.
+    """
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "worktree", "remove", "--force", worktree_path],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=_GIT_ENV,
+        )
+        if result.returncode == 0:
+            logger.info("Cleaned up %s worktree at %s", context, worktree_path)
+            return True
+        logger.warning(
+            "git worktree remove failed (rc=%d): %s",
+            result.returncode,
+            result.stderr.strip(),
+        )
+        return False
+    except Exception as exc:
+        logger.warning("Failed to cleanup %s worktree: %s", context, exc)
+        return False
+
+
+async def _delete_git_branch(base_dir: str, branch: str) -> bool:
+    """Delete a local branch whose commits were merged away.
+
+    Returns True on success or when the branch is already gone; False when
+    git refused (e.g. the branch still holds unmerged commits).
+    """
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "branch", "-D", branch],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=_GIT_ENV,
+        )
+        if result.returncode != 0:
+            logger.debug(
+                "Branch %s already gone or not deletable: %s",
+                branch,
+                result.stderr.strip(),
+            )
+            return False
+        return True
+    except Exception as exc:
+        logger.debug("Branch delete failed for %s: %s", branch, exc)
+        return False
 
 
 class WorktreeErrorReason(str, Enum):

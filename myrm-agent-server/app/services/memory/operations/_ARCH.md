@@ -1,12 +1,13 @@
 # services/memory/operations 模块架构
 
-记忆 CRUD 业务处理器。HTTP 路由在 `app/api/memory/operations/crud.py` 薄绑定 handler 函数。
+记忆 CRUD 业务处理器与实体呈现转换。HTTP 路由在 `app/api/memory/operations/crud.py` 薄绑定 handler 函数。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `crud_handlers.py` | 门面 | 从 `crud/` 子模块 re-export 全部 handler，供路由绑定 | ✅ |
+| `presentation.py` | 辅助 | 记忆实体→`MemoryItem` DTO 转换与 `parse_memory_type` 校验，供 api 与各 handler 共用 | ✅ |
 | `crud/_common.py` | 辅助 | `_record_memory_event`、`_SORT_KEYS` 共享工具 | ✅ |
 | `crud/list_write.py` | 核心 | 列表、创建、更新、纠正、删除、搜索、统计、评分、状态变更 | ✅ |
 | `crud/trash.py` | 核心 | 回收站列表、恢复、永久删除 | ✅ |

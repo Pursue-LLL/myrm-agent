@@ -3,7 +3,7 @@
 [INPUT]
 app.services.chat.chat_service::ChatService (POS: chat metadata)
 app.services.context.context_assembly::ContextAssemblyService (POS: chat memory binding SSOT)
-app.services.memory.resolve_chat_extraction_llm::resolve_chat_extraction_llm (POS: extraction LLM SSOT)
+app.services.memory.extract_retry.resolve_chat_extraction_llm::resolve_chat_extraction_llm (POS: extraction LLM SSOT)
 app.services.memory.extract_retry.extract_retry_queue::enqueue (POS: 持久化重试队列)
 myrm_agent_harness.api.hooks::auto_extract_memories (POS: harness extract)
 app.ai_agents.extensions.extraction_lifecycle::make_extraction_lifecycle_observer (POS: ledger bridge)
@@ -169,7 +169,7 @@ async def _run_retry_extract(
     )
     from app.services.agent.platform_config import require_platform_embedding_config
     from app.services.context.context_assembly import ContextAssemblyService
-    from app.services.memory.resolve_chat_extraction_llm import (
+    from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
         resolve_chat_extraction_llm,
     )
 

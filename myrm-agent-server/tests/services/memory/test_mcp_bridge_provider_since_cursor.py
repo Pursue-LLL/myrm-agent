@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from app.services.memory.mcp_bridge_provider import MCPBridgeProvider
+from app.services.memory.imports.mcp_bridge_provider import MCPBridgeProvider
 
 
 def _tool(name: str, args_schema: object) -> SimpleNamespace:

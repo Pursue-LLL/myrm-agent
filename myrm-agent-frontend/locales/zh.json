@@ -15669,7 +15669,10 @@
     "agentPluginGenerate": "生成 Agent Plugins 插件",
     "agentPluginReady": "Agent Plugins 插件已就绪",
     "pluginFile": "插件文件",
-    "download": "下载"
+    "download": "下载",
+    "downloadBundle": "下载全部 (.zip)",
+    "downloadingBundle": "正在打包…",
+    "downloadBundleFailed": "创建插件压缩包失败"
   },
   "securityDashboard": {
     "title": "安全仪表盘",

@@ -15559,7 +15559,10 @@
     "agentPluginGenerate": "Agent Plugins 번들 생성",
     "agentPluginReady": "Agent Plugins 번들이 준비되었습니다",
     "pluginFile": "플러그인 파일",
-    "download": "다운로드"
+    "download": "다운로드",
+    "downloadBundle": "전체 다운로드 (.zip)",
+    "downloadingBundle": "압축 중…",
+    "downloadBundleFailed": "번들 압축 파일을 만들지 못했습니다"
   },
   "about": {
     "title": "정보",

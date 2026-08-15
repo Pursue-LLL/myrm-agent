@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-记忆导入 adapter 目录、服务端绑定导入审查会话、纯导入计划校验、关系型导入批次/条目事务账本、崩溃安全回滚 journal、导入后自动诊断、账本权威回滚预演与基于 exact mutation refs 的精准回滚、回滚后完整性探针、画像 revision 乐观并发保护、Integration Memory 业务服务与 Integration Sync Daemon。
+记忆导入 adapter 目录、服务端绑定导入审查会话、纯导入计划校验、关系型导入批次/条目事务账本、崩溃安全回滚 journal、导入后自动诊断、账本权威回滚预演与基于 exact mutation refs 的精准回滚、回滚后完整性探针、画像 revision 乐观并发保护、Integration Memory 业务服务与 Integration Sync Daemon、MCP Server→IntegrationProvider 桥接。
 
 ## 文件清单
 
@@ -30,3 +30,4 @@
 | `import_sessions.py` | 核心 | 记忆导入审查会话编排服务。持久化 dry-run 结果、payload hash、过期时间、normalized data 和 plan hash，确认时只接受 dry_run_id 并校验计划一致性，协调导入批次审计、迁移来源、关系型 item-level transaction ledger、崩溃安全回滚 journal、账本权威回滚预演、profile revision 冲突保护、回滚后完整性探针、导入后诊断结果回写、运行就绪合同（readiness status/issues + **`recheck_facts` SSOT**）回写、**`resolve_live_import_readiness` live 重算**、首轮执行结果锚点（first-turn outcome）回写和保留窗口清理指标 | ✅ |
 | `integration_memory.py` | 核心 | Integration Memory 业务服务。封装框架层 IntegrationFetcher/TreeManager/Summariser，提供 sync/browse/status/remove facade 和类型安全 DTO（IntegrationStatusSnapshot/IntegrationTreeNodeDTO）供 API 层消费 | ✅ |
 | `integration_sync_daemon.py` | 核心 | Integration Sync Daemon — 基于 APScheduler 的后台定时同步守护进程。每次触发时动态加载用户 MCP 配置（含 Control Plane 推送的 org MCP，经 `merge_org_mcp_configs` 合并），将符合条件的 MCP Server 注册为 MCPBridgeProvider，然后调用 IntegrationMemoryService.sync_all() 保持知识源新鲜 | ✅ |
+| `mcp_bridge_provider.py` | 核心 | MCPBridgeProvider — 将任意 MCP Server 桥接为 IntegrationProvider。通过 DI 注入 MCPConnection，自动探测 fetch 工具并将结果转换为 IntegrationLeaf | ✅ |

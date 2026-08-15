@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from app.api.dependencies import get_db_session
 from app.api.memory.operations import guardian as guardian_operation
 from app.lifecycle import memory_guardian
-from app.services.memory.guardian_policy import MemoryGuardianPolicy
+from app.services.memory.ledger.guardian_policy import MemoryGuardianPolicy
 
 
 @pytest.fixture
