@@ -211,4 +211,33 @@ describe('ConnectWizardDialog bundle download', () => {
       expect(triggerDownloadMock).toHaveBeenCalledWith(expect.any(Blob), 'plugin.json');
     });
   });
+
+  it('truncates an overly long agent name to 64 chars in the zip filename', async () => {
+    const longName = 'A'.repeat(255);
+    listAgentsMock.mockResolvedValue({ items: [{ id: 'default', name: longName }] });
+    await navigateToPluginStep();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download all' }));
+
+    await waitFor(() => {
+      expect(triggerDownloadMock).toHaveBeenCalledWith(
+        expect.any(Blob),
+        `myrm-memory-${'A'.repeat(64)}.zip`,
+      );
+    });
+  });
+
+  it('passes the embed token switch through to the bundle API', async () => {
+    render(<ConnectWizardDialog open onOpenChange={() => {}} />);
+    await screen.findByText('Cursor');
+    fireEvent.click(screen.getByText('Cursor'));
+
+    const embedSwitch = screen.getByRole('switch', { name: /agentPluginEmbedToken/ });
+    fireEvent.click(embedSwitch);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Plugin' }));
+    await screen.findByText('agentPluginReady');
+
+    expect(generateAgentPluginBundleMock).toHaveBeenCalledWith('default', true);
+  });
 });
