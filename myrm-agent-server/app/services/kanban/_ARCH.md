@@ -22,9 +22,12 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 | `task_runner/` | ✅ 子包 | TaskRunner 执行域（聚合出口见其 `__init__.py`） | - |
 | ├─ `runner.py` | ✅ 核心 | KanbanTaskRunner 编排入口；worker 工具绑定 + goal-mode GoalProvider 注入；team protocol 与 **`profile_output_suffixes`**（人格 + `response_locale_policy`）注入 `user_instructions` 尾；注入 `event_log_dir` 使 kanban 任务写 event_log（供 RunsHub/看板 drawer trace 回放）；per-task `model_override` 优先于 agent profile 默认模型解析（override 无效时回退默认模型并记录 WARNING）；**`enable_memory` 遵循用户全局 `enableMemory` 开关（`resolve_memory_enabled`，与 channel/voice/cron 一致），看板无人值守任务不写用户已关闭的记忆**；`_augment_context` 把 `workspace_root`（工作目录）与 metadata `context_annotations`（业务注入的执行指令，如批量目录产物要求）追加进 worker 上下文 | ✅ |
 | ├─ `stream.py` | ✅ 核心 | Stream 累积、附件、multimodal query；PDF/Office 提取经 `files_service.get_content` SSOT | ❌ |
-| ├─ `worktree.py` | ✅ 核心 | Git worktree 隔离（路径解析、创建、清理、合并编排；merge 前置 git 步骤在 `_worktree_merge.py`；worktree add/remove/分支删除/merge 组合与 per-base_dir merge 锁/auto-commit/身份兜底复用共享 git 层 `app.core.utils.git_worktree`） | ❌ |
-| ├─ `_worktree_merge.py` | ✅ 核心 | merge 前置 git 辅助（`_branch_has_commits` / `_ensure_target_branch_checked_out` / `_is_valid_git_branch`） | ✅ |
-| └─ `profile.py` | ✅ 核心 | Agent profile 解析 | ❌ |
+| ├─ `profile.py` | ✅ 核心 | Agent profile 解析 | ❌ |
+| └─ `worktree/` | ✅ 子包 | Git worktree 隔离域（聚合出口见其 `__init__.py`；`lifecycle.py` 路径解析/创建/合并编排，`merge.py` merge 前置 git 步骤，`cleanup.py` 清理；worktree add/remove/分支删除/merge 组合与 per-base_dir merge 锁/auto-commit/身份兜底复用共享 git 层 `app.core.utils.git_worktree`） | - |
+|    ├─ `__init__.py` | ✅ 核心 | 聚合门面：re-export `resolve_base_dir`/`resolve_workspace`/`create_worktree`/`merge_task_worktree`/`cleanup_worktree`/`worktree_dir`/`_sanitize_git_branch`/`_worktree_branch_name` | ❌ |
+|    ├─ `lifecycle.py` | ✅ 核心 | Worktree 生命周期编排：`resolve_base_dir`/`resolve_workspace`/`create_worktree`/`merge_task_worktree`/`_worktree_branch_name`（分支唯一化） | ❌ |
+|    ├─ `merge.py` | ✅ 核心 | merge 前置 git 辅助（`_branch_has_commits` / `_ensure_target_branch_checked_out` / `_is_valid_git_branch`） | ✅ |
+|    └─ `cleanup.py` | ✅ 核心 | safe/force 清理（`cleanup_worktree`，dirty 保留防丢数据） | ✅ |
 | `diagnostics/` | ✅ 子包 | 诊断域（聚合出口即 `__init__.py`，保留原 `diagnostics.py` 公共 API） | - |
 | ├─ `__init__.py` | ✅ 核心 | 诊断引擎工厂、摘要（`create_diagnostic_engine`、`CARD_FAST_RULES`、`compute_diagnostics_summary`） | ✅ |
 | ├─ `rules.py` | ✅ 核心 | 5 条诊断规则（滞留/失败/阻塞/死依赖/triage）+ 阈值与 helpers | ❌ |

@@ -56,7 +56,7 @@ async def test_attach_caller_reuse_does_not_duplicate_branch_event(
     Path(wt_path).mkdir(parents=True)
 
     with patch(
-        "app.services.kanban.task_runner.worktree.create_worktree",
+        "app.services.kanban.task_runner.worktree.lifecycle.create_worktree",
         new_callable=AsyncMock,
         return_value=wt_path,
     ):
@@ -76,7 +76,7 @@ async def test_first_resolve_emits_branch_event_once(tmp_path: Path) -> None:
     wt_path = worktree_dir(str(base), "feat", task.task_id)
 
     with patch(
-        "app.services.kanban.task_runner.worktree.create_worktree",
+        "app.services.kanban.task_runner.worktree.lifecycle.create_worktree",
         new_callable=AsyncMock,
         return_value=wt_path,
     ):
@@ -112,7 +112,7 @@ async def test_worktree_creation_failure_falls_back_without_event(
 
     error = WorktreeCreateError(reason=WorktreeErrorReason.ERROR, message="boom")
     with patch(
-        "app.services.kanban.task_runner.worktree.create_worktree",
+        "app.services.kanban.task_runner.worktree.lifecycle.create_worktree",
         new_callable=AsyncMock,
         return_value=error,
     ):

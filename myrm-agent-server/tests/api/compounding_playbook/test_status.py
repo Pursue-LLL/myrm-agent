@@ -38,12 +38,17 @@ async def test_build_compounding_status_counts() -> None:
     cron_manager = MagicMock()
     cron_manager.list_jobs = AsyncMock(return_value=[_sample_job(with_acceptance=True)])
 
-    snapshot = await build_compounding_status(
-        memory_manager=memory_manager,
-        cron_manager=cron_manager,
-        agent_id=None,
-        db=None,
-    )
+    with patch(
+        "app.services.compounding_playbook.status_service._count_active_skills",
+        new_callable=AsyncMock,
+        return_value=0,
+    ):
+        snapshot = await build_compounding_status(
+            memory_manager=memory_manager,
+            cron_manager=cron_manager,
+            agent_id=None,
+            db=None,
+        )
 
     assert snapshot.ready_count == 3
     assert snapshot.items[0].id == "memory"

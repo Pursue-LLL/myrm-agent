@@ -3,7 +3,6 @@
 [POS]
 Wraps the framework-layer BaseSkillMarketService to add:
 - Integration with app.config.settings (e.g., GitHub token)
-- SSE ServerEventBus progress emission
 - Integration with installed versions
 
 [INPUT]
@@ -169,25 +168,13 @@ class SkillMarketService:
         skill_id: str,
         source: str,
     ) -> SkillInstallResult:
-        def progress_callback(sid: str, stage: str, message: str) -> None:
-            self._emit_progress(sid, stage, message)
-
-        result = await self._base.install(
-            skill_id, source, progress_callback=progress_callback
-        )
-        return result
+        return await self._base.install(skill_id, source)
 
     async def install_from_url(
         self,
         url: str,
     ) -> SkillInstallResult:
-        def progress_callback(sid: str, stage: str, message: str) -> None:
-            self._emit_progress(sid, stage, message)
-
-        result = await self._base.install_from_url(
-            url, progress_callback=progress_callback
-        )
-        return result
+        return await self._base.install_from_url(url)
 
     async def analyze_url(self, url: str) -> list[dict[str, object]]:
         """Analyze a GitHub URL and return a list of specific subdirectories that contain skills."""
@@ -301,20 +288,6 @@ class SkillMarketService:
         except Exception as e:
             logger.warning("Failed to fetch installed local skill ids: %s", e)
             return {}
-
-    def _emit_progress(self, skill_id: str, stage: str, message: str) -> None:
-        from app.services.event.app_event_bus import (
-            AppEvent,
-            AppEventType,
-            get_event_bus,
-        )
-
-        get_event_bus().publish(
-            AppEvent(
-                event_type=AppEventType.SKILL_INSTALL_PROGRESS,
-                data={"skill_id": skill_id, "stage": stage, "message": message},
-            )
-        )
 
     async def _auto_disable_local_skill(self, skill_id: str) -> None:
         from app.core.skills.store.service import skills_service

@@ -122,7 +122,9 @@ def _extract_bearer_token(entry: dict[str, object]) -> str | None:
     if not isinstance(headers, dict):
         return None
     auth = headers.get("Authorization")
-    if not isinstance(auth, str) or not auth.startswith("Bearer "):
+    # HTTP auth scheme is case-insensitive (RFC 9110 §11.1): accept "Bearer"
+    # and "bearer" alike so hand-written configs are not misjudged.
+    if not isinstance(auth, str) or not auth.lower().startswith("bearer "):
         return None
     return auth[len("Bearer "):]
 

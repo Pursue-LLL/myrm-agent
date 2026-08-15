@@ -95,7 +95,7 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
           }
 
           const date = new Date().toISOString().slice(0, 10);
-          triggerDownload(blob, `myrm-export-${date}.zip`);
+          await triggerDownload(blob, `myrm-export-${date}.zip`);
 
           let msg = t('chat.batch.exportComplete', { exported: result.exported });
           if (result.skipped > 0 || result.failed > 0) {

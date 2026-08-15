@@ -159,6 +159,7 @@ export const ConfirmDialog = ({
           <AlertDialogCancel
             disabled={isLoading}
             onClick={handleCancel}
+            data-testid="confirm-dialog-cancel"
             className="transition-all duration-200 hover:scale-105"
           >
             {cancelText}
@@ -166,6 +167,7 @@ export const ConfirmDialog = ({
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={isLoading}
+            data-testid="confirm-dialog-confirm"
             className={cn(
               config.buttonClass,
               'transition-all duration-200 hover:scale-105 hover:shadow-md',

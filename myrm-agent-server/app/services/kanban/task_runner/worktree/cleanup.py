@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.api::KanbanStore (POS: Public protocol re-exports)
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask (POS: Kanban domain types)
-- worktree (POS: worktree_dir / resolve_base_dir)
+- worktree.lifecycle (POS: worktree_dir / resolve_base_dir)
 - app.core.utils.git_worktree (POS: _remove_worktree / _worktree_is_dirty shared helpers)
 
 [OUTPUT]
@@ -40,7 +40,7 @@ async def cleanup_worktree(
     drops file-tool edits the agent never committed.  Returns True when the
     worktree was removed (or absent); False when preserved due to dirtiness.
     """
-    from app.services.kanban.task_runner.worktree import (
+    from app.services.kanban.task_runner.worktree.lifecycle import (
         resolve_base_dir,
         worktree_dir,
     )

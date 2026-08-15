@@ -125,7 +125,7 @@ const SkillDetectionCard: React.FC<SkillDetectionCardProps> = ({ artifacts, chat
       const blob = await packageWorkspaceDirectory(chatId, skillDirectory);
       // 使用目录名作为 ZIP 文件名
       const zipName = skillDirectory || 'skill_package';
-      triggerDownload(blob, `${zipName}.zip`);
+      await triggerDownload(blob, `${zipName}.zip`);
 
       toast({
         title: t('packageSuccess'),

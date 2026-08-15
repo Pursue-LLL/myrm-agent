@@ -153,6 +153,18 @@ class TestVerifyConnectorConfig:
         assert verdict.healthy is False
         assert verdict.detail == DOCTOR_TOKEN_ENV
 
+    def test_lowercase_bearer_scheme_still_verifies(self, tmp_path: Path):
+        """HTTP auth scheme is case-insensitive; 'bearer' must verify like 'Bearer'."""
+        config_file = tmp_path / "mcp.json"
+        _write_json(
+            config_file,
+            {"mcpServers": {"myrm-memory": {"headers": {"Authorization": f"bearer {TOKEN}"}}}},
+        )
+        verdict = _verify(config_file)
+        assert verdict is not None
+        assert verdict.healthy is True
+        assert verdict.detail == DOCTOR_VERIFIED
+
     def test_env_var_vscode_syntax_is_token_env(self, tmp_path: Path):
         config_file = tmp_path / "mcp.json"
         _write_json(config_file, {"mcpServers": {"myrm-memory": _entry("${env:MYRM_MCP_TOKEN}")}})

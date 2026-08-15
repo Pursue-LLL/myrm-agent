@@ -74,7 +74,8 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 ### 外部依赖
 - `tauri`：桌面应用框架
 - `tauri-plugin-shell`：进程管理
-- `tauri-plugin-dialog`：系统对话框
+- `tauri-plugin-dialog`：系统对话框（保存/打开，配合前端 triggerDownload 保存文件）
+- `tauri-plugin-fs`：文件读写（前端 triggerDownload 的 Tauri 分支经 fs:allow-write-file + scope ** 写入用户选择的路径）
 - `tauri-plugin-updater`：自动更新（检查/下载/安装，前端 JS API 驱动）
 - `tauri-plugin-window-state`：窗口位置/尺寸跨重启持久化（三平台）
 - `tokio`：异步运行时

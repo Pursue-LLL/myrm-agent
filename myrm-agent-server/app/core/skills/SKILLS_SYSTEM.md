@@ -54,7 +54,7 @@ SkillBackend.load_skills(skill_ids)
 discovery/    搜索外部源（空 query 返回 []，需用户显式搜索）
     → sources/     MCP 源、市场源（ClawHub / ModelScope / Aliyun 等）
     → installers/  安装流程编排
-marketplace/market_service  业务层：SSE 进度、自定义源、ClawHub 镜像懒加载、installed_skill_id 搜索 enrich
+marketplace/market_service  业务层：GitHub 源分析、自定义源、ClawHub 镜像懒加载、installed_skill_id 搜索 enrich
 discovery/mount 安装/更新后 catalog enable 入口（prebuilt/local）
 discovery/adopt   显式 agent.skill_ids 非空时，Discover install 自动 append 新技能（采纳契约）
 marketplace/clawhub_registry UserSkillConfig.clawhub_registry_url → CLAWHUB_URL（运行时 SSOT）；bootstrap 迁移 OpenClaw legacy env；CN 预设 skill.xfyun.cn；legacy skillhub.cn 自动迁移；strict probe 验 ClawHub dict JSON

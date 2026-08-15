@@ -281,7 +281,9 @@ const ConnectSection = memo(() => {
                   )}
                   {connector.connected_at && (
                     <span>
-                      {new Date(connector.connected_at).toLocaleDateString()}
+                      {new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
+                        new Date(connector.connected_at),
+                      )}
                     </span>
                   )}
                 </div>

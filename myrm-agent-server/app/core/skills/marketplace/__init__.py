@@ -2,7 +2,7 @@
 
 [POS]
 聚合出口：
-- market_service: 业务层技能市场服务（GitHub 源分析、SSE 进度、镜像懒加载）
+- market_service: 业务层技能市场服务（GitHub 源分析、镜像懒加载）
 - clawhub_registry: ClawHub 镜像 URL 持久化/apply（CLAWHUB_URL SSOT）
 - clawhub_probe: ClawHub registry 连通性探测（薄封装 harness）
 - custom_source_config: 自定义技能源持久化管理（.well-known/skills）

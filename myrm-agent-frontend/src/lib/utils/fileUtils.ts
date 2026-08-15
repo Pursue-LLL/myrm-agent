@@ -10,7 +10,7 @@
  * - computeFileHash: Blob/File SHA-256 哈希。
  * - sanitizeFilename: 文件名非法字符清理（空名回退 Untitled）。
  * - buildZipFromFiles: 「路径 → 内容」字典 → DEFLATE zip Blob。
- * - triggerDownload: 触发浏览器下载 Blob。
+ * - triggerDownload: 触发文件下载（Web a[download] / Tauri 系统保存对话框）。
  *
  * [POS]
  * 通用文件工具集。提供扩展名分类、MIME 推断、哈希计算、zip 打包与 Blob 下载等纯函数能力。
@@ -198,11 +198,25 @@ export async function buildZipFromFiles(files: Record<string, string>): Promise<
 }
 
 /**
- * 触发浏览器下载 Blob。
+ * 触发文件下载。
+ * - Tauri 桌面端：弹出系统保存对话框并将 Blob 写入用户选择的路径。
+ *   WKWebView/WebView2 的 `<a download>` + blob URL 下载不可靠，官方推荐 dialog.save + fs.writeFile。
+ * - Web 端：保留 a[download] 下载逻辑。
  * @param blob 文件内容
- * @param filename 文件名
+ * @param filename 建议文件名
+ * @returns Promise；Tauri 端用户取消保存对话框时正常 resolve，写入失败则 reject
  */
-export function triggerDownload(blob: Blob, filename: string): void {
+export async function triggerDownload(blob: Blob, filename: string): Promise<void> {
+  if (isTauriRuntime()) {
+    const [{ save }, { writeFile }] = await Promise.all([
+      import('@tauri-apps/plugin-dialog'),
+      import('@tauri-apps/plugin-fs'),
+    ]);
+    const path = await save({ defaultPath: filename });
+    if (!path) {return;} // 用户取消保存
+    await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

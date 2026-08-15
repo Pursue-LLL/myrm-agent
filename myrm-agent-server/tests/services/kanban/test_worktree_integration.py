@@ -496,7 +496,8 @@ async def test_merge_auto_commit_without_git_identity(tmp_path: Path) -> None:
 
     # Isolate the fallback from any global identity so the injected author is
     # what actually lands in history.  _GIT_ENV is a shared dict referenced by
-    # worktree.py/_worktree_merge.py, so in-place update covers every caller.
+    # worktree/lifecycle.py and worktree/merge.py, so in-place update covers
+    # every caller.
     isolated = dict(os.environ)
     isolated.update(
         {

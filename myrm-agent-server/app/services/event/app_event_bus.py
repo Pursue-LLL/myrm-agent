@@ -29,7 +29,6 @@ class AppEventType(StrEnum):
     CHANNEL_CONNECTED = "channel_connected"
     CHANNEL_DISCONNECTED = "channel_disconnected"
     GROUPS_UPDATED = "groups_updated"
-    SKILL_INSTALL_PROGRESS = "skill_install_progress"
     CONFIG_HEALTH_WARNING = "config_health_warning"
     AGENT_CONFIG_UPDATED = "agent_config_updated"
     MANAGED_POLICY_UPDATED = "managed_policy_updated"

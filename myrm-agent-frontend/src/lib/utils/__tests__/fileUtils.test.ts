@@ -28,10 +28,29 @@ vi.mock('jszip', () => ({
   },
 }));
 
+const mockIsTauriRuntime = vi.hoisted(() => vi.fn(() => false));
+const mockDialogSave = vi.hoisted(() => vi.fn());
+const mockFsWriteFile = vi.hoisted(() => vi.fn());
+
+vi.mock('@/lib/deploy-mode', () => ({
+  isTauriRuntime: mockIsTauriRuntime,
+}));
+
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  save: mockDialogSave,
+}));
+
+vi.mock('@tauri-apps/plugin-fs', () => ({
+  writeFile: mockFsWriteFile,
+}));
+
 describe('fileUtils', () => {
   beforeEach(() => {
     jsZipFile.mockClear();
     jsZipGenerateAsync.mockReset();
+    mockIsTauriRuntime.mockReturnValue(false);
+    mockDialogSave.mockReset();
+    mockFsWriteFile.mockReset();
   });
   describe('isImageFile', () => {
     it('should return true for image extensions', () => {
@@ -437,7 +456,7 @@ describe('fileUtils', () => {
   });
 
   describe('triggerDownload', () => {
-    it('should create a temporary anchor, click it and clean up', () => {
+    it('should create a temporary anchor, click it and clean up', async () => {
       const createObjectURL = vi.fn(() => 'blob:mock-url');
       const revokeObjectURL = vi.fn();
       vi.stubGlobal('URL', {
@@ -450,7 +469,7 @@ describe('fileUtils', () => {
       const removeChildSpy = vi.spyOn(document.body, 'removeChild');
 
       const blob = new Blob(['{}'], { type: 'application/json' });
-      triggerDownload(blob, 'plugin.json');
+      await triggerDownload(blob, 'plugin.json');
 
       expect(createObjectURL).toHaveBeenCalledWith(blob);
       expect(appendChildSpy).toHaveBeenCalled();
@@ -462,6 +481,34 @@ describe('fileUtils', () => {
       appendChildSpy.mockRestore();
       removeChildSpy.mockRestore();
       vi.unstubAllGlobals();
+    });
+
+    it('should use native save dialog and write the blob in Tauri runtime', async () => {
+      mockIsTauriRuntime.mockReturnValue(true);
+      mockDialogSave.mockResolvedValue('/Users/tester/Downloads/plugin.zip');
+      mockFsWriteFile.mockResolvedValue(undefined);
+
+      const blob = new Blob(['{}'], { type: 'application/json' });
+      await triggerDownload(blob, 'plugin.zip');
+
+      expect(mockDialogSave).toHaveBeenCalledWith({ defaultPath: 'plugin.zip' });
+      expect(mockFsWriteFile).toHaveBeenCalledWith('/Users/tester/Downloads/plugin.zip', expect.any(Uint8Array));
+    });
+
+    it('should resolve without writing when the save dialog is cancelled', async () => {
+      mockIsTauriRuntime.mockReturnValue(true);
+      mockDialogSave.mockResolvedValue(null);
+
+      await expect(triggerDownload(new Blob(['x']), 'x.zip')).resolves.toBeUndefined();
+      expect(mockFsWriteFile).not.toHaveBeenCalled();
+    });
+
+    it('should reject when the native save dialog or file write fails', async () => {
+      mockIsTauriRuntime.mockReturnValue(true);
+      mockDialogSave.mockResolvedValue('/tmp/plugin.zip');
+      mockFsWriteFile.mockRejectedValue(new Error('EACCES: permission denied'));
+
+      await expect(triggerDownload(new Blob(['{}']), 'plugin.zip')).rejects.toThrow('EACCES');
     });
   });
 });

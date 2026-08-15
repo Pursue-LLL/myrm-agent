@@ -50,9 +50,6 @@ class TestPushTemplates:
     def test_idle_status_not_in_templates(self) -> None:
         assert AppEventType.IDLE_STATUS not in _PUSH_TEMPLATES
 
-    def test_skill_install_progress_not_in_templates(self) -> None:
-        assert AppEventType.SKILL_INSTALL_PROGRESS not in _PUSH_TEMPLATES
-
 
 class TestWebPushDispatcher:
     """Verify dispatcher lifecycle and event handling."""

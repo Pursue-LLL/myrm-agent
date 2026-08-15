@@ -3,12 +3,12 @@
 - app.core.utils.git_worktree (POS: 共享 git worktree 命令基础设施与错误类型——worktree add/remove/分支删除/merge 组合、per-base_dir merge 锁、git identity 兜底、auto-commit、dirty 检测、WorktreeCreateError/WorktreeErrorReason/_classify_git_error)
 
 [OUTPUT]
+- _sandbox_branch_name: Deterministic per-chat sandbox branch name (single source of truth).
 - create_sandbox_worktree: Create an isolated git worktree for a chat sandbox session.
 - cleanup_sandbox_worktree: Remove the sandbox worktree when session ends.
 - get_sandbox_worktree_path: Compute the deterministic path for a chat's sandbox worktree.
 - is_git_repository: Check if a directory is within a git repository.
 - merge_sandbox_to_parent: Merge sandbox branch changes back to the source branch.
-- _sandbox_branch_name: Deterministic per-chat sandbox branch name (single source of truth).
 
 [POS]
 Shared git worktree lifecycle management for chat sandbox sessions.

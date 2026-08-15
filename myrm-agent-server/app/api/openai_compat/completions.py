@@ -112,10 +112,9 @@ async def _build_agent_params(
     params, _, _, _archive_restore_results = await convert_to_general_agent_params(agent_request, chat_history)
 
     if request.temperature is not None and params.model_cfg:
-        # Dual-channel write: model_kwargs.temperature is consumed by the main
-        # agent path (llm_manager.get_llm_from_config expands **model_kwargs),
-        # while the top-level field feeds the subagent resolver (resolver.py:118)
-        # and mirrors the harness LLMConfig contract.
+        # Dual-channel write: temperature 同时写入顶层字段与 model_kwargs，
+        # 覆盖主 agent 路径（get_llm_from_config/builder 展开）与 subagent resolver
+        # 两条消费通道，保证 OpenAI-compat 请求的温度参数对全链路生效。
         model_cfg = params.model_cfg
         merged_kwargs = dict(model_cfg.model_kwargs or {})
         merged_kwargs["temperature"] = request.temperature

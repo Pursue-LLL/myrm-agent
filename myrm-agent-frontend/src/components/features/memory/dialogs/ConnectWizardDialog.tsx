@@ -92,29 +92,33 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     }
   }, [agents, selectedAgentId]);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setStep('select');
+    setSelectedAgentId('default');
+    setSelectedProfile(null);
+    setConfigResult(null);
+    setPluginResult(null);
+    setSelectedFile('');
+    setPluginEmbedToken(false);
+    setCopiedConfig(false);
+    setCopiedToken(false);
+    setCopiedFile(false);
+    setDoctorResult(null);
+    setRevokeConfirming(false);
+    setClearSyncedMemory(false);
+    setDownloadingBundle(false);
+    void loadAgents();
+    loadProfiles();
+  }, [open, loadProfiles, loadAgents]);
+
   const handleOpen = useCallback(
     (isOpen: boolean) => {
-      if (isOpen) {
-        setStep('select');
-        setSelectedAgentId('default');
-        setSelectedProfile(null);
-        setConfigResult(null);
-        setPluginResult(null);
-        setSelectedFile('');
-        setPluginEmbedToken(false);
-        setCopiedConfig(false);
-        setCopiedToken(false);
-        setCopiedFile(false);
-        setDoctorResult(null);
-        setRevokeConfirming(false);
-        setClearSyncedMemory(false);
-        setDownloadingBundle(false);
-        void loadAgents();
-        loadProfiles();
-      }
       onOpenChange(isOpen);
     },
-    [onOpenChange, loadProfiles, loadAgents],
+    [onOpenChange],
   );
 
   const handleGenerate = useCallback(async () => {
@@ -170,13 +174,20 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     setTimeout(() => setCopiedFile(false), 2000);
   }, [pluginResult, selectedFile]);
 
-  const handleDownloadPluginFile = useCallback(() => {
-    if (!pluginResult || !selectedFile) {return;}
-    const content = pluginResult.files[selectedFile] ?? '';
-    if (!content) {return;}
-    const filename = selectedFile.split('/').pop() ?? selectedFile;
-    triggerDownload(new Blob([content], { type: getMimeType(getFileExtension(filename)) }), filename);
-  }, [pluginResult, selectedFile]);
+  const handleDownloadPluginFile = useCallback(
+    async () => {
+      if (!pluginResult || !selectedFile) {return;}
+      const content = pluginResult.files[selectedFile] ?? '';
+      if (!content) {return;}
+      const filename = selectedFile.split('/').pop() ?? selectedFile;
+      try {
+        await triggerDownload(new Blob([content], { type: getMimeType(getFileExtension(filename)) }), filename);
+      } catch (err) {
+        console.error('[ConnectWizard] plugin file download failed:', err);
+      }
+    },
+    [pluginResult, selectedFile],
+  );
 
   const [downloadingBundle, setDownloadingBundle] = useState(false);
 
@@ -188,7 +199,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
       const agentName = agents.find((agent) => agent.id === pluginResult.agent_id)?.name;
       const safeAgentName = agentName ? sanitizeFilename(agentName).slice(0, 64) : '';
       const zipName = safeAgentName ? `myrm-memory-${safeAgentName}.zip` : 'myrm-memory.zip';
-      triggerDownload(blob, zipName);
+      await triggerDownload(blob, zipName);
     } catch {
       toast.error(t('downloadBundleFailed'));
     } finally {

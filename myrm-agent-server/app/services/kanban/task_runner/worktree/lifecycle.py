@@ -1,17 +1,19 @@
-"""Git worktree isolation helpers for KanbanTaskRunner.
+"""Git worktree lifecycle orchestration for KanbanTaskRunner.
 
 [INPUT]
 - myrm_agent_harness.api::KanbanStore (POS: Public protocol re-exports; KanbanStore defined in toolkits.kanban.protocols.)
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
 - app.core.utils.git_worktree (POS: 共享 git worktree 命令基础设施——per-base_dir merge 锁、worktree add/remove/分支删除/merge 组合、auto-commit 与 git identity 兜底、worktree 业务错误类型 WorktreeCreateError/WorktreeErrorReason/_classify_git_error)
+- worktree.merge (POS: merge 前置 git 步骤——可合并判断/target 分支切换/分支名校验)
+- worktree.cleanup (POS: safe/force 清理)
 
 [OUTPUT]
-- resolve_base_dir, resolve_workspace, create_worktree, cleanup_worktree, merge_task_worktree
-- _sanitize_git_branch, _worktree_branch_name (分支名消毒/唯一化，测试直接引用)
+- resolve_base_dir, resolve_workspace, create_worktree, merge_task_worktree
+- worktree_dir, _sanitize_git_branch, _worktree_branch_name (分支名消毒/唯一化，测试直接引用)
 
 [POS]
-Git worktree isolation: resolve workspace path, create/cleanup per-task worktrees,
-and merge completed task worktrees back into their target branch.
+Git worktree 生命周期编排：resolve workspace path、创建 per-task worktree，
+以及把完成的 task worktree merge 回目标分支。git 命令基础设施复用共享层。
 """
 
 from __future__ import annotations
@@ -32,12 +34,12 @@ from app.core.utils.git_worktree import (
     _git_worktree_add,
     _merge_branch_into_current,
 )
-from app.services.kanban.task_runner._worktree_merge import (
+from app.services.kanban.task_runner.worktree.cleanup import cleanup_worktree
+from app.services.kanban.task_runner.worktree.merge import (
     _branch_has_commits,
     _ensure_target_branch_checked_out,
     _is_valid_git_branch,
 )
-from app.services.kanban.task_runner.worktree_cleanup import cleanup_worktree
 
 logger = logging.getLogger(__name__)
 

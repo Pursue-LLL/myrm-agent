@@ -4,7 +4,7 @@ import type { Message, Source } from '@/store/chat/types';
 /**
  * [INPUT] 聊天详情页与聊天列表传入的导出数据；Message 用于单条消息导出。
  *         fileUtils::sanitizeFilename (POS: 通用文件工具 — 文件名非法字符清理)；
- *         fileUtils::triggerDownload (POS: 通用文件工具 — 浏览器 Blob 下载)。
+ *         fileUtils::triggerDownload (POS: 通用文件工具 — 文件下载，Web a[download] / Tauri 系统保存对话框)。
  * [OUTPUT] ExportMessage, ExportChat, ExportData, formatChatAsMarkdown, formatChatAsJson,
  *          downloadAsMarkdown, downloadAsJson, downloadAsHtml, copyAsMarkdown, printChat,
  *          downloadMessageAsMarkdown, downloadMessageAsDocx, downloadMessageAsHtml, downloadMessageAsImage,
@@ -201,7 +201,9 @@ export function formatChatAsJson(data: ExportData): string {
 }
 
 export function downloadFile(content: string, filename: string, mimeType: string): void {
-  triggerDownload(new Blob([content], { type: mimeType }), filename);
+  void triggerDownload(new Blob([content], { type: mimeType }), filename).catch((err) => {
+    console.error('[chatExport] download failed:', err);
+  });
 }
 
 export function downloadAsMarkdown(data: ExportData): void {
@@ -326,7 +328,7 @@ export async function downloadMessageAsDocx(message: Message, includeReasoning: 
   const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown), 'light', 'en');
   const { toDocx } = await import('docshift');
   const docxBlob = await toDocx(html);
-  triggerDownload(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
+  await triggerDownload(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
 }
 
 export async function downloadMessageAsImage(element: HTMLElement, message: Message): Promise<void> {
@@ -336,14 +338,11 @@ export async function downloadMessageAsImage(element: HTMLElement, message: Mess
     backgroundColor: null,
     scale: 2,
   });
-  return new Promise<void>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error('Failed to create image blob'));
-        return;
-      }
-      triggerDownload(blob, buildFilename(extractMessageTitle(message.content), 'png'));
-      resolve();
-    }, 'image/png');
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('Failed to create image blob'))),
+      'image/png',
+    );
   });
+  await triggerDownload(blob, buildFilename(extractMessageTitle(message.content), 'png'));
 }

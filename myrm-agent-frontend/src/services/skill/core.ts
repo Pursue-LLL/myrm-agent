@@ -31,6 +31,12 @@ import type {
 
 const SKILLS_API_PREFIX = '/skills';
 
+/** Remote skill operations (preview/analyze/install) download from GitHub or
+ * archives; the default 30s request timeout would abort mid-operation on slow
+ * networks even though the server eventually succeeds. Keep the client request
+ * open well beyond the server-side zip download cap (30s) and git clone cap (60s). */
+const SKILL_REMOTE_OP_TIMEOUT_MS = 120_000;
+
 export interface ScanFinding {
   threat_type: string;
   severity: number;
@@ -422,6 +428,7 @@ export async function searchDiscoverySkills(
 export async function previewDiscoverySkill(skillId: string, source: string): Promise<DiscoveryPreviewResponse> {
   return apiRequest<DiscoveryPreviewResponse>(`${SKILLS_API_PREFIX}/discovery/preview`, {
     method: 'POST',
+    timeout: SKILL_REMOTE_OP_TIMEOUT_MS,
     body: JSON.stringify({ skill_id: skillId, source }),
   });
 }
@@ -433,6 +440,7 @@ export async function installDiscoverySkill(
 ): Promise<DiscoveryInstallResponse> {
   return apiRequest<DiscoveryInstallResponse>(`${SKILLS_API_PREFIX}/discovery/install`, {
     method: 'POST',
+    timeout: SKILL_REMOTE_OP_TIMEOUT_MS,
     body: JSON.stringify({
       skill_id: skillId,
       source,
@@ -466,6 +474,7 @@ export interface DiscoveryAnalyzeUrlResponse {
 export async function analyzeDiscoveryUrl(url: string): Promise<DiscoveryAnalyzeUrlResponse> {
   return apiRequest<DiscoveryAnalyzeUrlResponse>(`${SKILLS_API_PREFIX}/discovery/analyze-url`, {
     method: 'POST',
+    timeout: SKILL_REMOTE_OP_TIMEOUT_MS,
     body: JSON.stringify({ url }),
   });
 }
@@ -476,6 +485,7 @@ export async function installDiscoverySkillFromUrl(
 ): Promise<DiscoveryInstallResponse> {
   return apiRequest<DiscoveryInstallResponse>(`${SKILLS_API_PREFIX}/discovery/install-from-url`, {
     method: 'POST',
+    timeout: SKILL_REMOTE_OP_TIMEOUT_MS,
     body: JSON.stringify({
       url,
       agent_id: options?.agentId,

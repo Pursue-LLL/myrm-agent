@@ -65,7 +65,7 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
       setIsExporting(true);
       try {
         const { blob, filename } = await downloadSkill(skill.id, applyRedactions, ignoredRedactions);
-        triggerDownload(blob, filename || `${skill.name}_v${skill.version || '1.0.0'}.zip`);
+        await triggerDownload(blob, filename || `${skill.name}_v${skill.version || '1.0.0'}.zip`);
         toast({
           title: t('exportSuccess'),
         });

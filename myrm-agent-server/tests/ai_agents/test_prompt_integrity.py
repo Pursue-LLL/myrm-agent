@@ -267,3 +267,20 @@ class TestPromptTokenBudgetGate:
         assert (
             ratio <= self._LEAN_FULL_RATIO_CAP
         ), f"lean/full ratio {ratio:.3f} exceeds cap {self._LEAN_FULL_RATIO_CAP}"
+
+
+class TestDesktopControlRules:
+    """Validates DESKTOP_CONTROL_RULES stays aligned with desktop tool capabilities."""
+
+    def test_rules_disclose_target_scope(self) -> None:
+        from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
+
+        assert 'scope="target"' in DESKTOP_CONTROL_RULES
+        assert 'app_name="<app name>"' in DESKTOP_CONTROL_RULES
+        assert "desktop_snapshot_tool" in DESKTOP_CONTROL_RULES
+
+    def test_rules_do_not_mention_window_title(self) -> None:
+        """app_name must stay an app-name hint; 'window name' is unsupported on macOS."""
+        from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
+
+        assert "window name" not in DESKTOP_CONTROL_RULES

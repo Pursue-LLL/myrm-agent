@@ -61,6 +61,7 @@ DESKTOP_CONTROL_RULES = """
 - Use desktop_vision_tool only when the AX tree is empty, canvas-only, or desktop_interact_tool failed.
 - Use set_value for atomic field replacement; use type for keystroke simulation.
 - After desktop_interact_tool, read the follow-up snapshot before the next action.
+- To act on a specific app without switching the foreground, call desktop_snapshot_tool(scope="target", app_name="<app name>") and then interact via its @dref refs.
 - On macOS, if snapshot reports permission required, ask the user to grant Accessibility access before retrying.
 - First-time control of each desktop app requires user approval in the Web UI.
 </desktop_control_rules>
