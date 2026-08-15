@@ -7,22 +7,12 @@ export interface CheckpointInfo {
   timestamp: number;
   progress: number;
   lastTool: string | null;
-  resumable: boolean;
   taskDescription: string;
 }
 
 export interface CheckpointListResponse {
   checkpoints: CheckpointInfo[];
   total: number;
-}
-
-export interface CheckpointResumeResponse {
-  status: string;
-  taskId: string;
-  message: string;
-  sessionId: string | null;
-  messagesCount: number;
-  checkpointData: Record<string, unknown> | null;
 }
 
 export interface CheckpointCleanupResponse {
@@ -88,17 +78,14 @@ export interface FileDiffResponse {
 
 const snakeToCamelKey = (key: string): string => key.replace(/_([a-z0-9])/g, (_, ch: string) => ch.toUpperCase());
 
-const toCamel = <T>(value: unknown, preserveValues?: ReadonlySet<string>): T => {
+const toCamel = <T>(value: unknown): T => {
   if (Array.isArray(value)) {
-    return value.map((item) => toCamel<unknown>(item, preserveValues)) as T;
+    return value.map((item) => toCamel<unknown>(item)) as T;
   }
   if (value !== null && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>).map(([k, v]) => {
-        const camelKey = snakeToCamelKey(k);
-        // Pass-through values (e.g. checkpoint_data) keep their raw nested keys:
-        // they are opaque payloads owned by the backend, not UI-shaped fields.
-        return preserveValues?.has(k) ? [camelKey, v] : [camelKey, toCamel<unknown>(v, preserveValues)];
+        return [snakeToCamelKey(k), toCamel<unknown>(v)];
       }),
     ) as T;
   }
@@ -121,19 +108,6 @@ export const listCheckpoints = async (sessionId?: string, limit: number = 50): P
   const url = `/checkpoint/list${queryString ? `?${queryString}` : ''}`;
 
   return toCamel<CheckpointListResponse>(await apiRequest(url));
-};
-
-/**
- * Resume from checkpoint
- */
-export const resumeCheckpoint = async (taskId: string): Promise<CheckpointResumeResponse> => {
-  return toCamel<CheckpointResumeResponse>(
-    await apiRequest('/checkpoint/resume', {
-      method: 'POST',
-      body: JSON.stringify({ task_id: taskId }),
-    }),
-    new Set(['checkpoint_data']),
-  );
 };
 
 /**

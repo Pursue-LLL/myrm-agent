@@ -6,7 +6,6 @@ import { RefreshCw, Trash } from 'lucide-react';
 import CheckpointCard from './CheckpointCard';
 import {
   listCheckpoints,
-  resumeCheckpoint,
   deleteCheckpoint,
   cleanupCheckpoints,
   CheckpointInfo,
@@ -16,11 +15,10 @@ import { toast } from '@/hooks/shared/useToast';
 
 interface CheckpointListProps {
   sessionId?: string;
-  onResumeSuccess?: (taskId: string, sessionId: string, checkpointData: Record<string, unknown>) => void;
   onReinitiate?: (description: string, sessionId: string) => void;
 }
 
-const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onResumeSuccess, onReinitiate }) => {
+const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onReinitiate }) => {
   const t = useTranslations('checkpoint');
   const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -44,38 +42,6 @@ const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onResumeSucc
   useEffect(() => {
     loadCheckpoints();
   }, [sessionId]);
-
-  const handleResume = async (taskId: string) => {
-    setLoading(true);
-    try {
-      const response = await resumeCheckpoint(taskId);
-
-      if (response.status === 'ready' && response.sessionId && response.checkpointData) {
-        // Notify parent component with checkpoint data for restoration
-        onResumeSuccess?.(taskId, response.sessionId, response.checkpointData);
-
-        // Delete checkpoint after successful resume
-        try {
-          await deleteCheckpoint(taskId);
-          setCheckpoints((prev) => prev.filter((cp) => cp.taskId !== taskId));
-        } catch {
-          // Non-critical: checkpoint will be cleaned up by TTL
-        }
-
-        toast.success(
-          t('resumeSuccess', {
-            agentType: response.sessionId,
-            messagesCount: response.messagesCount,
-          }),
-        );
-      }
-    } catch (err) {
-      console.error('Failed to resume checkpoint:', err);
-      setError(t('resumeError'));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = async (taskId: string) => {
     try {
@@ -147,7 +113,6 @@ const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onResumeSucc
             <CheckpointCard
               key={checkpoint.taskId}
               checkpoint={checkpoint}
-              onResume={handleResume}
               onReinitiate={onReinitiate ?? (() => undefined)}
               onDelete={handleDelete}
               isLoading={loading}

@@ -1,9 +1,35 @@
-import { describe, it, expect } from 'vitest';
+/** @vitest-environment jsdom */
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import { isValidElement } from 'react';
 
 import { linkifyErrorText } from '../utils';
 
+const stableT = (key: string) => key;
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+  useLocale: () => 'en',
+}));
+
+vi.mock('@/store/useChatStore', () => ({
+  default: (selector: (state: unknown) => unknown) =>
+    selector({ sendMessage: vi.fn(), messages: [] }),
+}));
+
+import ProgressSteps from '../ProgressSteps';
+import type { ProgressItem } from '@/store/chat/types';
+
 type AnchorElement = React.ReactElement<React.AnchorHTMLAttributes<HTMLAnchorElement>>;
+
+function errorStep(overrides?: Partial<ProgressItem>): ProgressItem {
+  return {
+    step_key: 'tool_execution_failed',
+    status: 'error',
+    error: true,
+    ...overrides,
+  };
+}
 
 describe('linkifyErrorText', () => {
   it('converts a URL into a React anchor element', () => {
@@ -70,5 +96,31 @@ describe('linkifyErrorText', () => {
     const anchors = nodes.filter(isValidElement);
     expect(anchors).toHaveLength(1);
     expect((anchors[0] as AnchorElement).props.href).toBe('https://only-url.com');
+  });
+});
+
+describe('ProgressSteps fault-side badge', () => {
+  it('renders the localized fault badge when an error step carries fault_side', async () => {
+    render(
+      <ProgressSteps
+        messageId="m-1"
+        steps={[errorStep({ fault_side: 'model' })]}
+        loading={false}
+      />,
+    );
+    await userEvent.click(screen.getByTestId('progress-steps-toggle'));
+    expect(screen.getByText('faultSides.model')).toBeInTheDocument();
+  });
+
+  it('omits the fault badge when fault_side is unknown or absent', async () => {
+    const { rerender } = render(
+      <ProgressSteps messageId="m-1" steps={[errorStep({ fault_side: 'unknown' })]} loading={false} />,
+    );
+    await userEvent.click(screen.getByTestId('progress-steps-toggle'));
+    expect(screen.queryByText(/^faultSides\./)).not.toBeInTheDocument();
+
+    rerender(<ProgressSteps messageId="m-1" steps={[errorStep()]} loading={false} />);
+    await userEvent.click(screen.getByTestId('progress-steps-toggle'));
+    expect(screen.queryByText(/^faultSides\./)).not.toBeInTheDocument();
   });
 });

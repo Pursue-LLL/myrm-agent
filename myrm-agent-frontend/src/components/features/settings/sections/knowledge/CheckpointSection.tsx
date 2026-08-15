@@ -13,9 +13,8 @@ import { toast } from 'sonner';
  *
  * Features:
  * - Display all saved checkpoints
- * - Resume resumable interrupted agent tasks
- * - Re-initiate a checkpoint whose execution state cannot be restored,
- *   pre-filling the chat input with the original task description
+ * - Re-initiate a checkpoint, pre-filling the chat input with the original
+ *   task description so the user can restart the interrupted task
  * - Delete old checkpoints
  * - Cleanup expired checkpoints
  */
@@ -23,16 +22,6 @@ const CheckpointSection: React.FC = () => {
   const t = useTranslations('settings.checkpoint');
   const router = useRouter();
   const sessionId = useChatStore((state) => state.chatId);
-
-  const handleResumeSuccess = (taskId: string, newSessionId: string) => {
-    toast.success(t('resumeSuccess'), {
-      description: t('resumeSuccessDesc', { taskId: taskId.slice(0, 8) }),
-    });
-    // Navigate to the resumed session if needed
-    if (newSessionId) {
-      useChatStore.getState().setChatId(newSessionId);
-    }
-  };
 
   const handleReinitiate = (description: string, cpSessionId: string) => {
     useChatStore.getState().setInputMessage(description);
@@ -61,7 +50,6 @@ const CheckpointSection: React.FC = () => {
         <CardContent>
           <CheckpointList
             sessionId={sessionId}
-            onResumeSuccess={handleResumeSuccess}
             onReinitiate={handleReinitiate}
           />
         </CardContent>
