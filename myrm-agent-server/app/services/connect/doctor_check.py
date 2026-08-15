@@ -133,7 +133,7 @@ def _extract_bearer_token(entry: dict[str, object]) -> str | None:
     # and "bearer" alike so hand-written configs are not misjudged.
     if not isinstance(auth, str) or not auth.lower().startswith("bearer "):
         return None
-    return auth[len("Bearer "):]
+    return auth[len("Bearer ") :]
 
 
 __all__ = [

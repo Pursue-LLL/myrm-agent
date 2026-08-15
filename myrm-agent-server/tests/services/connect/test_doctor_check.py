@@ -76,7 +76,7 @@ class TestVerifyConnectorConfig:
         config_file.write_text(
             "[mcp_servers.myrm-memory]\n"
             'url = "http://127.0.0.1:8080/mcp"\n'
-            '[mcp_servers.myrm-memory.headers]\n'
+            "[mcp_servers.myrm-memory.headers]\n"
             f'Authorization = "Bearer {TOKEN}"\n',
             encoding="utf-8",
         )

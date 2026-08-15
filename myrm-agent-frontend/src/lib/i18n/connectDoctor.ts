@@ -16,9 +16,10 @@
  *
  * Severity is three-valued because a doctor result is not binary: some codes
  * report a healthy-but-unverifiable state (token_valid, token_env) that must
- * not be shown as a green "all good" nor as a red failure. When the server
- * reports a severity it wins; the local table is only a fallback for clients
- * talking to older servers that omit the field.
+ * not be shown as a green "all good" nor as a red failure. The doctor endpoint
+ * returns the server-owned severity; the status endpoint returns only the
+ * persisted detail code, so the card path derives severity from the local
+ * table, keeping toast, wizard, and card rendering in sync.
  */
 
 import { formatDistanceToNow } from 'date-fns';
@@ -60,8 +61,9 @@ export function resolveDoctorMessageKey(detail: string, healthy: boolean): strin
 
 /**
  * Resolve the presentation severity for a doctor check outcome.
- * The server-owned severity is authoritative when present; the local detail
- * table is the fallback for older servers, then the healthy flag.
+ * The server-owned severity (doctor endpoint) is authoritative; the local
+ * detail table covers the card path, which reads only the persisted detail
+ * code, falling back to the healthy flag for unknown codes.
  */
 export function resolveDoctorSeverity(
   detail: string,
