@@ -30,7 +30,7 @@ class TestCollectChannelArtifacts:
         collect_channel_artifacts(event, acc)
 
     @patch(
-        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
     )
     def test_shareable_artifact_tracked(
         self, mock_shareable: MagicMock, tmp_path
@@ -59,7 +59,7 @@ class TestCollectChannelArtifacts:
         assert sa.artifact_type == "text/html"
 
     @patch(
-        "app.services.artifacts.share_token.is_shareable_artifact", return_value=False
+        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=False
     )
     def test_non_shareable_not_tracked(
         self, mock_shareable: MagicMock, tmp_path
@@ -83,7 +83,7 @@ class TestCollectChannelArtifacts:
         assert len(acc.shareable_artifacts) == 0
 
     @patch(
-        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
     )
     def test_missing_artifact_id_not_tracked(
         self, mock_shareable: MagicMock, tmp_path
@@ -222,7 +222,7 @@ class TestBuildArtifactDeepLinks:
         return_value="https://ingress.example.com",
     )
     @patch(
-        "app.services.artifacts.share_token.create_artifact_share_token",
+        "app.services.artifacts.share.share_token.create_artifact_share_token",
         return_value=("token-abc", 9999999999),
     )
     async def test_missing_version_id_logs_warning(
@@ -271,7 +271,7 @@ class TestBuildArtifactDeepLinks:
         return_value="https://ingress.example.com",
     )
     @patch(
-        "app.services.artifacts.share_token.create_artifact_share_token",
+        "app.services.artifacts.share.share_token.create_artifact_share_token",
         return_value=("tok-abc123", 604800),
     )
     @patch(
@@ -321,7 +321,7 @@ class TestBuildArtifactDeepLinks:
         return_value="https://ingress.example.com",
     )
     @patch(
-        "app.services.artifacts.share_token.create_artifact_share_token",
+        "app.services.artifacts.share.share_token.create_artifact_share_token",
         return_value=("tok-abc123", 604800),
     )
     @patch(
@@ -368,7 +368,7 @@ class TestBuildArtifactDeepLinks:
         return_value="https://ingress.example.com",
     )
     @patch(
-        "app.services.artifacts.share_token.create_artifact_share_token",
+        "app.services.artifacts.share.share_token.create_artifact_share_token",
         side_effect=RuntimeError("token service down"),
     )
     @patch(
@@ -472,7 +472,7 @@ class TestBuildArtifactDeepLinks:
         return_value="https://ingress.example.com",
     )
     @patch(
-        "app.services.artifacts.share_token.create_artifact_share_token",
+        "app.services.artifacts.share.share_token.create_artifact_share_token",
         return_value=("tok-multi", 604800),
     )
     @patch(
@@ -520,7 +520,7 @@ class TestBuildArtifactDeepLinks:
         return_value="",
     )
     @patch(
-        "app.services.artifacts.share_token.create_artifact_share_token",
+        "app.services.artifacts.share.share_token.create_artifact_share_token",
         side_effect=RuntimeError("HMAC key missing"),
     )
     @patch("app.channels.i18n.channel_t", return_value="view")
@@ -550,7 +550,7 @@ class TestCollectMultipleArtifacts:
     """Edge cases for collecting multiple artifacts."""
 
     @patch(
-        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
     )
     def test_oversized_shareable_tracked_with_fallback_note(
         self, mock_shareable: MagicMock, tmp_path
@@ -607,7 +607,7 @@ class TestCollectMultipleArtifacts:
         assert acc.oversized_deliverables == [("report.pdf", "8.0 MB")]
 
     @patch(
-        "app.services.artifacts.share_token.is_shareable_artifact", return_value=False
+        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=False
     )
     def test_oversized_non_shareable_reported(
         self, mock_shareable: MagicMock, tmp_path
@@ -713,7 +713,7 @@ class TestCollectMultipleArtifacts:
             Path(p).unlink(missing_ok=True)
 
     @patch(
-        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
     )
     def test_nonexistent_file_skipped(
         self, mock_shareable: MagicMock, caplog: pytest.LogCaptureFixture
@@ -754,7 +754,7 @@ class TestCollectMultipleArtifacts:
         assert len(acc.file_attachments) == 0
 
     @patch(
-        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
     )
     def test_non_string_file_path_skipped(
         self, mock_shareable: MagicMock
@@ -781,7 +781,7 @@ class TestCollectMultipleArtifacts:
         assert len(acc.shareable_artifacts) == 0
 
     @patch(
-        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
     )
     def test_getsize_oserror_skipped(
         self, mock_shareable: MagicMock, tmp_path, monkeypatch: pytest.MonkeyPatch
@@ -941,7 +941,7 @@ class TestCollectEmptyFileSkipped:
     """Zero-byte files must be skipped."""
 
     @patch(
-        "app.services.artifacts.share_token.is_shareable_artifact", return_value=True
+        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
     )
     def test_zero_byte_file_skipped(
         self, mock_shareable: MagicMock, tmp_path

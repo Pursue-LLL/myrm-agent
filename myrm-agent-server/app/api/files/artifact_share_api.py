@@ -1,9 +1,9 @@
 """Authenticated artifact share-link lifecycle (create / list / revoke).
 
 [INPUT]
-- app.services.artifacts.share_token (POS: HMAC token create/parse)
-- app.services.artifacts.share_bundle (POS: multi-file static bundle materialization)
-- app.services.artifacts.share_registry (POS: share-link lifecycle registry)
+- app.services.artifacts.share.share_token (POS: HMAC token create/parse)
+- app.services.artifacts.share.share_bundle (POS: multi-file static bundle materialization)
+- app.services.artifacts.share.share_registry (POS: share-link lifecycle registry)
 - app.database.models.artifact::Artifact (POS: artifact + versions metadata)
 - app.core.infra.ingress::resolve_share_url_base (POS: public-ingress share base SSOT)
 - app.api.files.artifact_share_public::public_router (POS: unauthenticated serving)
@@ -43,14 +43,14 @@ from app.core.infra.ingress import resolve_share_url_base
 from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
-from app.services.artifacts.share_bundle import materialize_share_bundle
-from app.services.artifacts.share_registry import (
+from app.services.artifacts.share.share_bundle import materialize_share_bundle
+from app.services.artifacts.share.share_registry import (
     ActiveShareRow,
     list_active_shares,
     register_share,
     revoke_share,
 )
-from app.services.artifacts.share_token import (
+from app.services.artifacts.share.share_token import (
     ArtifactShareClaims,
     create_artifact_share_token,
     is_shareable_artifact,

@@ -38,7 +38,8 @@ function mockFetchRoutes(routes: Route[]) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
-    const route = routes.find((r) => r.method === method && url.endsWith(r.url));
+    const path = url.split('?')[0];
+    const route = routes.find((r) => r.method === method && path.endsWith(r.url));
     if (!route) {
       throw new Error(`Unexpected fetch: ${method} ${url}`);
     }

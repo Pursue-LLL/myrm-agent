@@ -29,11 +29,11 @@ from app.core.security.share.share_hmac import create_share_token, sign_share_to
 from app.core.security.share.share_unlock import build_unlock_credential, unlock_cookie_name
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactVersion
-from app.services.artifacts.share_bundle import (
+from app.services.artifacts.share.share_bundle import (
     bundle_asset_count,
     bundle_dir_for_claims,
 )
-from app.services.artifacts.share_token import (
+from app.services.artifacts.share.share_token import (
     ArtifactShareClaims,
     parse_artifact_share_token,
 )
@@ -60,7 +60,7 @@ def _api_client_request() -> Request:
 @pytest.fixture
 def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     limiter.enabled = False
@@ -116,7 +116,7 @@ async def test_create_share_preview_materializes_bundle(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ), patch(
@@ -158,7 +158,7 @@ async def test_create_share_preview_exposes_absolute_share_url(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ), patch(
@@ -188,7 +188,7 @@ async def test_create_share_preview_share_url_falls_back_when_ingress_fails(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ), patch(
@@ -213,7 +213,7 @@ async def test_html_share_includes_csp_headers(share_client, html_artifact) -> N
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -243,7 +243,7 @@ async def test_pdf_share_omits_csp_headers(share_client, html_artifact) -> None:
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -274,7 +274,7 @@ async def test_multi_file_bundle_csp_allows_self(share_client, html_artifact) ->
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -330,7 +330,7 @@ async def test_single_file_share_serves_without_redirect(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -369,7 +369,7 @@ async def test_create_share_accepts_document_type_without_suffix(
         "季度报告": PublishFile(path="季度报告", content="# Title", encoding="utf-8"),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(artifact, files),
     ):
@@ -422,7 +422,7 @@ async def test_create_share_deleted_artifact(share_client, db_session) -> None:
 @pytest.mark.asyncio
 async def test_create_share_empty_files(share_client, html_artifact) -> None:
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, {}),
     ):
@@ -450,7 +450,7 @@ async def test_public_share_expired_token(share_client, html_artifact) -> None:
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -484,7 +484,7 @@ async def test_public_share_nested_asset_path(share_client, html_artifact) -> No
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -509,7 +509,7 @@ async def test_public_share_manifest_not_served(share_client, html_artifact) -> 
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -533,7 +533,7 @@ async def test_share_rematerialization_uses_pinned_version(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files_v1),
     ) as mock_resolve:
@@ -557,7 +557,7 @@ async def test_share_rematerialization_uses_pinned_version(
     assert bundle_asset_count(claims) == 0
 
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files_v1),
     ) as mock_resolve_again:
@@ -964,7 +964,7 @@ async def test_create_share_rejects_ambiguous_multi_html(
         "b.html": PublishFile(path="b.html", content="<html/>", encoding="utf-8"),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1330,7 +1330,7 @@ async def test_multi_file_redirect_has_no_csp(share_client, html_artifact) -> No
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1363,7 +1363,7 @@ async def test_nested_css_asset_no_csp(share_client, html_artifact) -> None:
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1396,7 +1396,7 @@ async def test_password_share_redirect_preserves_query(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1428,7 +1428,7 @@ async def test_password_share_asset_requires_credential(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1458,7 +1458,7 @@ async def test_password_share_asset_served_after_unlock(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1494,7 +1494,7 @@ async def test_password_single_file_share_serves_without_redirect(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1520,7 +1520,7 @@ async def test_password_share_wrong_password_gate(share_client, html_artifact) -
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1574,7 +1574,7 @@ async def test_password_shares_use_independent_cookies(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1583,7 +1583,7 @@ async def test_password_shares_use_independent_cookies(
             json={"ttl_days": 7, "artifact_type": "html", "password": "s3cret"},
         )
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(second_artifact, files),
     ):
@@ -1723,7 +1723,7 @@ async def test_password_share_index_gate_without_password(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1804,7 +1804,7 @@ async def test_password_share_post_unlock_single_file(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1856,7 +1856,7 @@ async def test_password_share_post_unlock_multi_file_redirects_to_index(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1892,7 +1892,7 @@ async def test_password_share_post_index_redirects_to_clean_index(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1928,7 +1928,7 @@ async def test_password_share_post_asset_unlock_redirects(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1968,7 +1968,7 @@ async def test_password_share_post_wrong_password_gate(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -1998,7 +1998,7 @@ async def test_password_share_post_without_password_gate(
         ),
     }
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):
@@ -2038,7 +2038,7 @@ async def test_password_share_post_short_remaining_serves_directly(
         password="s3cret",
     )
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, files),
     ):

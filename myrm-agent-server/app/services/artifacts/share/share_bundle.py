@@ -3,7 +3,7 @@
 [INPUT]
 - app.services.hosting.artifact_files::resolve_artifact_deploy_files (POS: vault + asset_root packaging)
 - app.services.hosting.packager::PublishFile, validate_publish_payload
-- app.services.artifacts.share_token::ArtifactShareClaims (POS: HMAC claims)
+- app.services.artifacts.share.share_token::ArtifactShareClaims (POS: HMAC claims)
 - app.config.settings::settings (POS: state_dir root)
 
 [OUTPUT]
@@ -29,7 +29,7 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
-from app.services.artifacts.share_token import ArtifactShareClaims
+from .share_token import ArtifactShareClaims
 from app.services.hosting.artifact_files import resolve_artifact_deploy_files
 from app.services.hosting.packager import PublishFile, validate_publish_payload
 

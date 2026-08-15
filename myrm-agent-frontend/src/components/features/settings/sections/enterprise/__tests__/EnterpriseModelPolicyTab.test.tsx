@@ -174,7 +174,7 @@ describe('EnterpriseModelPolicyTab', () => {
       expect(screen.getByText('openai/*')).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByTitle('Remove pattern'));
+    await userEvent.click(screen.getByTitle('modelPolicy.removePattern'));
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith('success', 'modelPolicy.removed');
     });

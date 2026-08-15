@@ -93,7 +93,7 @@ describe('EnterpriseApprovalPolicyTab', () => {
       expect.stringContaining('/api/enterprise/org/me'),
       expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer test-token' }) }),
     );
-    expect(screen.getByText('claude-opus*')).toBeInTheDocument();
+    expect(screen.getByText(/claude-opus\*/)).toBeInTheDocument();
   });
 
   it('saves the policy via PUT and toasts success', async () => {
@@ -163,12 +163,12 @@ describe('EnterpriseApprovalPolicyTab', () => {
     });
 
     await userEvent.type(
-      screen.getByPlaceholderText('e.g. claude-opus*'),
+      screen.getAllByPlaceholderText('e.g. claude-opus*')[0],
       'deepseek-r1*',
     );
     await userEvent.click(screen.getAllByText(/^approvalPolicy\.addPattern/)[0]);
 
-    expect(screen.getByText('deepseek-r1*')).toBeInTheDocument();
+    expect(screen.getByText(/deepseek-r1\*/)).toBeInTheDocument();
   });
 
   it('shows loadFailed toast when /me fails', async () => {

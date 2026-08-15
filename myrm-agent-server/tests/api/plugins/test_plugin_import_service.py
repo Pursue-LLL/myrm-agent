@@ -304,7 +304,7 @@ class TestServerToConfigDict:
         assert extra["plugin_name"] == "demo-plugin"
         assert extra["plugin_root"] == "/data/plugins/demo-plugin"
         assert extra["data_root"] == "/data/plugins/demo-plugin_data"
-        assert extra["cwd"] is None  # cwd not set on the server
+        assert "cwd" not in extra  # cwd not set on the server
         assert "env" not in extra
 
     def test_plugin_metadata_preserves_cwd_and_env(self) -> None:
@@ -1308,7 +1308,7 @@ class TestListAndUninstallPlugins:
                 lambda: uow_cls(),
             ),
             patch(
-                "app.services.plugins.import_service.get_evolution_skill_store_db_path",
+                "app.core.skills.store.evolution_store.get_evolution_skill_store_db_path",
                 return_value=tmp_path / "skills.db",
             ),
         ):
@@ -1329,7 +1329,7 @@ class TestListAndUninstallPlugins:
         update_meta = agent_repo.update_profile.await_args.kwargs["updates"]["metadata"]
         assert update_meta["mcp_ids"] == ["user-mcp"]
 
-    async def test_uninstall_missing_plugin_noop(self) -> None:
+    async def test_uninstall_missing_plugin_noop(self, tmp_path: Path) -> None:
         from app.services.plugins.import_service import uninstall_plugin
 
         config_service = SimpleNamespace(
@@ -1343,8 +1343,12 @@ class TestListAndUninstallPlugins:
         with (
             patch("app.services.config.service.config_service", config_service),
             patch(
-                "app.services.plugins.import_service._unbind_plugin_from_agents",
+                "app.services.plugins._mcp_persist._unbind_plugin_from_agents",
                 AsyncMock(return_value=0),
+            ),
+            patch(
+                "app.core.skills.store.evolution_store.get_evolution_skill_store_db_path",
+                return_value=tmp_path / "skills.db",
             ),
             patch(
                 "app.services.plugins._plugin_files.remove_plugin_files",

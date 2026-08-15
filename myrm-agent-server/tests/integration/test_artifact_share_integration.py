@@ -29,11 +29,11 @@ from app.core.security.share.share_unlock import unlock_cookie_name
 from app.database.connection import get_db
 from app.database.models import Base
 from app.database.models.artifact import Artifact, ArtifactVersion
-from app.services.artifacts.share_bundle import (
+from app.services.artifacts.share.share_bundle import (
     bundle_asset_count,
     bundle_dir_for_claims,
 )
-from app.services.artifacts.share_token import parse_artifact_share_token
+from app.services.artifacts.share.share_token import parse_artifact_share_token
 
 
 @pytest.fixture
@@ -56,7 +56,7 @@ async def db_session():
 @pytest.fixture
 def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     limiter.enabled = False

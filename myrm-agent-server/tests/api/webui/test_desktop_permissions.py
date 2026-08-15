@@ -72,7 +72,10 @@ class TestGetDesktopPermissions:
         mock_status.screen_recording = True
         mock_status.all_granted = False
         mock_status.platform = "macos"
-        mock_status.settings_deeplinks = {"accessibility": "url://a", "screen_recording": "url://b"}
+        mock_status.settings_deeplinks = {
+            "accessibility": "url://a",
+            "screen_recording": "url://b",
+        }
         mock_session.check_permissions = AsyncMock(return_value=mock_status)
         mock_session.close = AsyncMock()
 
@@ -97,7 +100,10 @@ class TestGetDesktopPermissions:
         mock_status.screen_recording = False
         mock_status.all_granted = False
         mock_status.platform = "macos"
-        mock_status.settings_deeplinks = {"accessibility": "url://a", "screen_recording": "url://b"}
+        mock_status.settings_deeplinks = {
+            "accessibility": "url://a",
+            "screen_recording": "url://b",
+        }
         mock_session.check_permissions = AsyncMock(return_value=mock_status)
         mock_session.close = AsyncMock()
 
@@ -115,7 +121,9 @@ class TestGetDesktopPermissions:
         mock_session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_harness_exception_returns_500(self, client: httpx.AsyncClient) -> None:
+    async def test_harness_exception_returns_500(
+        self, client: httpx.AsyncClient
+    ) -> None:
         with patch(
             "myrm_agent_harness.toolkits.computer_use.session.create_computer_session",
             side_effect=RuntimeError("harness import failed"),
@@ -128,9 +136,13 @@ class TestGetDesktopPermissions:
         assert data["message"] == "Desktop permissions check failed"
 
     @pytest.mark.asyncio
-    async def test_check_permissions_raises_returns_500(self, client: httpx.AsyncClient) -> None:
+    async def test_check_permissions_raises_returns_500(
+        self, client: httpx.AsyncClient
+    ) -> None:
         mock_session = AsyncMock()
-        mock_session.check_permissions = AsyncMock(side_effect=OSError("AX probe crash"))
+        mock_session.check_permissions = AsyncMock(
+            side_effect=OSError("AX probe crash")
+        )
         mock_session.close = AsyncMock()
 
         with patch(

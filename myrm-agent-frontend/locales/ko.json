@@ -9248,7 +9248,8 @@
         "import_memory": "가져오기",
         "export_memory": "내보내기",
         "health_check": "건강 점검",
-        "shared_context_proposal": "공유 제안"
+        "shared_context_proposal": "공유 제안",
+        "conflict": "충돌"
       },
       "openSessionReplay": "세션 리플레이 열기",
       "replayUnavailable": "세션 리플레이를 사용할 수 없습니다",

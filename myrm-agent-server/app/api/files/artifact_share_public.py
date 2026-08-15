@@ -6,9 +6,9 @@
 - app.core.security.share.share_password_page (POS: password gate HTML + submission parsing)
 - app.core.security.share.share_status_page (POS: browser-friendly share 404 page)
 - app.core.security.share.share_unlock (POS: shared unlock-cookie credential mechanics)
-- app.services.artifacts.share_bundle (POS: multi-file static bundle materialization)
-- app.services.artifacts.share_registry (POS: revocation gate check)
-- app.services.artifacts.share_token::ArtifactShareClaims (POS: HMAC claims)
+- app.services.artifacts.share.share_bundle (POS: multi-file static bundle materialization)
+- app.services.artifacts.share.share_registry (POS: revocation gate check)
+- app.services.artifacts.share.share_token::ArtifactShareClaims (POS: HMAC claims)
 
 [OUTPUT]
 - public_router: unauthenticated inline file view (entry + static assets)
@@ -57,14 +57,14 @@ from app.core.security.share.share_unlock import (
     unlock_cookie_name,
 )
 from app.database.connection import get_db
-from app.services.artifacts.share_bundle import (
+from app.services.artifacts.share.share_bundle import (
     bundle_asset_count,
     materialize_share_bundle,
     purge_expired_share_bundles,
     resolve_share_bundle_file,
 )
-from app.services.artifacts.share_registry import is_token_revoked
-from app.services.artifacts.share_token import (
+from app.services.artifacts.share.share_registry import is_token_revoked
+from app.services.artifacts.share.share_token import (
     ArtifactShareClaims,
     parse_artifact_share_token,
 )

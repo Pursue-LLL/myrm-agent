@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  formatDoctorRelativeTime,
   resolveDoctorMessageKey,
   resolveDoctorSeverity,
   resolveDoctorStatusKey,
@@ -64,5 +65,16 @@ describe('resolveDoctorStatusKey', () => {
     expect(resolveDoctorStatusKey(true, 'ok')).toBe('doctorStatusOk');
     expect(resolveDoctorStatusKey(true, 'warn')).toBe('doctorStatusWarn');
     expect(resolveDoctorStatusKey(true, 'error')).toBe('doctorStatusFail');
+  });
+});
+
+describe('formatDoctorRelativeTime', () => {
+  it('formats a valid ISO timestamp as a localized relative time', () => {
+    expect(formatDoctorRelativeTime(new Date().toISOString(), 'en')).not.toBe('');
+  });
+
+  it('returns an empty string for an invalid timestamp', () => {
+    expect(formatDoctorRelativeTime('not-a-date', 'en')).toBe('');
+    expect(formatDoctorRelativeTime('', 'en')).toBe('');
   });
 });

@@ -542,7 +542,7 @@ async def _db_maintenance_job() -> None:
     # Keeps registry rows in sync with purge_expired_share_bundles (on-disk).
     try:
         from app.platform_utils import session_factory
-        from app.services.artifacts.share_registry import purge_expired_shares
+        from app.services.artifacts.share.share_registry import purge_expired_shares
 
         async with session_factory() as session:
             removed = await purge_expired_shares(session)

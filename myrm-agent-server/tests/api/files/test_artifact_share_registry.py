@@ -24,8 +24,8 @@ from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models import Base
 from app.database.models.artifact import Artifact, ArtifactVersion
-from app.services.artifacts.share_bundle import bundle_dir_for_claims
-from app.services.artifacts.share_registry import (
+from app.services.artifacts.share.share_bundle import bundle_dir_for_claims
+from app.services.artifacts.share.share_registry import (
     is_token_revoked,
     list_active_shares,
     purge_expired_shares,
@@ -33,7 +33,7 @@ from app.services.artifacts.share_registry import (
     revoke_share,
     token_fingerprint,
 )
-from app.services.artifacts.share_token import (
+from app.services.artifacts.share.share_token import (
     create_artifact_share_token,
     parse_artifact_share_token,
     rebuild_artifact_share_token,
@@ -59,7 +59,7 @@ async def db_session() -> AsyncSession:
 @pytest.fixture
 def share_client(db_session, tmp_path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     limiter.enabled = False
@@ -342,7 +342,7 @@ async def test_revoke_share_unknown_id_returns_false(db_session) -> None:
 @pytest.mark.asyncio
 async def test_revoke_share_deletes_bundle(db_session, tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     token, exp = create_artifact_share_token("art-1", "ver-1", ttl_seconds=3600)
@@ -379,7 +379,7 @@ async def test_revoke_share_writes_audit_log(db_session, caplog) -> None:
         expires_at_unix=exp,
     )
 
-    with caplog.at_level(logging.INFO, logger="app.services.artifacts.share_registry"):
+    with caplog.at_level(logging.INFO, logger="app.services.artifacts.share.share_registry"):
         assert await revoke_share(db_session, record.id) is True
 
     assert any(
@@ -416,7 +416,7 @@ async def test_purge_expired_shares_removes_stale_records(db_session) -> None:
 @pytest.mark.asyncio
 async def test_create_registers_record(share_client, html_artifact) -> None:
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, _single_file_files()),
     ):
@@ -432,7 +432,7 @@ async def test_create_registers_record(share_client, html_artifact) -> None:
 @pytest.mark.asyncio
 async def test_list_shares_endpoint(share_client, html_artifact) -> None:
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, _single_file_files()),
     ):
@@ -464,7 +464,7 @@ async def test_list_shares_endpoint_exposes_absolute_share_url(
 ) -> None:
     """List exposes an absolute share_url once public ingress is configured."""
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, _single_file_files()),
     ):
@@ -498,7 +498,7 @@ async def test_list_shares_password_protected_exposes_persisted_share_path(
     management GUI needs the path stored on the row to offer copy/open links.
     """
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, _single_file_files()),
     ):
@@ -522,7 +522,7 @@ async def test_revoke_share_endpoint_and_public_denied(
     share_client, html_artifact, tmp_path
 ) -> None:
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, _single_file_files()),
     ):
@@ -556,7 +556,7 @@ async def test_revoke_unknown_record_returns_404(share_client) -> None:
 @pytest.mark.asyncio
 async def test_register_share_failure_returns_500(share_client, html_artifact) -> None:
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, _single_file_files()),
     ), patch(
@@ -578,7 +578,7 @@ async def test_public_access_denied_after_revoke(
 ) -> None:
     """A revoked token returns 404 even though its bundle was materialized."""
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, _single_file_files()),
     ):
@@ -612,7 +612,7 @@ async def test_revoked_share_browser_gets_status_page(
 ) -> None:
     """A revoked token answers browsers with a friendly status page, API JSON 404."""
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, _single_file_files()),
     ):
@@ -652,7 +652,7 @@ async def test_revoked_password_share_skips_password_gate(
 ) -> None:
     """A revoked password-protected token 404s immediately, without a gate page."""
     with patch(
-        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(html_artifact, _single_file_files()),
     ):

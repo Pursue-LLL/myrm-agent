@@ -9249,7 +9249,8 @@
         "import_memory": "Importieren",
         "export_memory": "Exportieren",
         "health_check": "Gesundheitscheck",
-        "shared_context_proposal": "Geteilter Vorschlag"
+        "shared_context_proposal": "Geteilter Vorschlag",
+        "conflict": "Konflikt"
       },
       "openSessionReplay": "Öffnen Sie die Sitzungswiedergabe",
       "replayUnavailable": "Sitzungswiedergabe nicht verfügbar",

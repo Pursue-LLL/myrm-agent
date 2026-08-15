@@ -4,7 +4,7 @@
 - app.core.channel_bridge.executor_helpers::StreamAccumulator, ShareableArtifact (POS: Stream accumulation for channel turns.)
 - app.channels.types::MediaAttachment (POS: Channel message types.)
 - deliverable.media::MAX_CHANNEL_ATTACHMENT_BYTES, compress_oversized_image, format_human_size, is_compressible_image (POS: Channel deliverable attachment cap + oversized-image fallback)
-- app.services.artifacts.share_token (POS: HMAC share token for artifact deep links.)
+- app.services.artifacts.share.share_token (POS: HMAC share token for artifact deep links.)
 - app.core.infra.ingress::get_public_ingress_base_url (POS: Public ingress URL for share links.)
 - app.remote_access.mobile_deep_link::resolve_mobile_remote_base_url (POS: Public URL resolution for deep links.)
 
@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) -> None:
     """Extract deliverable file artifacts from an 'artifacts' event into the accumulator."""
-    from app.services.artifacts.share_token import is_shareable_artifact
+    from app.services.artifacts.share.share_token import is_shareable_artifact
 
     artifacts_data = event.get("data")
     if not isinstance(artifacts_data, list):
@@ -157,7 +157,7 @@ async def build_artifact_deep_links(
     from app.channels.types.components import ActionButton, ButtonStyle
     from app.core.infra.ingress import get_public_ingress_base_url
     from app.remote_access.mobile_deep_link import resolve_mobile_remote_base_url
-    from app.services.artifacts.share_token import create_artifact_share_token
+    from app.services.artifacts.share.share_token import create_artifact_share_token
 
     try:
         ingress = await get_public_ingress_base_url()

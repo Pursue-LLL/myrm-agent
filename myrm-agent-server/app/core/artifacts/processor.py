@@ -4,7 +4,7 @@
 - myrm_agent_harness.agent.artifacts::ArtifactInfo, infer_artifact_type (POS: Harness artifact types)
 - app.core.artifacts.listener::upsert_processor_artifact, resolve_sandbox_file_path (POS: Deploy DB rows + sandbox path resolution)
 - app.core.storage::FilesService (POS: File reference persistence)
-- app.services.artifacts.share_token::is_shareable_artifact (POS: Share eligibility for oversized artifacts)
+- app.services.artifacts.share.share_token::is_shareable_artifact (POS: Share eligibility for oversized artifacts)
 
 [OUTPUT]
 - LocalArtifactProcessor.process_artifacts_ready: artifacts SSE event (emit only after successful DB upsert)
@@ -322,7 +322,7 @@ class LocalArtifactProcessor(BaseArtifactProcessor):
 
         from app.core.artifacts.listener import resolve_sandbox_file_path
         from app.core.storage import FilesService
-        from app.services.artifacts.share_token import is_shareable_artifact
+        from app.services.artifacts.share.share_token import is_shareable_artifact
 
         _ = read_content  # local mode uses stat-only sizing; harness may still pass read_content
 

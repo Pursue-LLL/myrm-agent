@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.artifacts.share_bundle import (
+from app.services.artifacts.share.share_bundle import (
     ShareBundleManifest,
     _pick_entry_name,
     _write_deploy_files,
@@ -17,7 +17,7 @@ from app.services.artifacts.share_bundle import (
     purge_expired_share_bundles,
     resolve_share_bundle_file,
 )
-from app.services.artifacts.share_token import ArtifactShareClaims
+from app.services.artifacts.share.share_token import ArtifactShareClaims
 from app.services.hosting.packager import PublishFile
 
 
@@ -55,7 +55,7 @@ def test_pick_entry_single_non_index_html() -> None:
 def test_write_deploy_files_overwrites_existing_bundle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Re-materializing a bundle replaces stale on-disk files."""
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     claims = ArtifactShareClaims(artifact_id="ow1", version_id="v1", exp=9_999_999_999)
@@ -73,7 +73,7 @@ def test_write_deploy_files_overwrites_existing_bundle(tmp_path: Path, monkeypat
 
 def test_load_manifest_tolerates_corrupt_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     claims = ArtifactShareClaims(artifact_id="corrupt", version_id="v1", exp=9_999_999_999)
@@ -91,7 +91,7 @@ def test_load_manifest_tolerates_corrupt_file(tmp_path: Path, monkeypatch: pytes
 def test_purge_skips_non_directories(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Non-directory entries under the bundle root are ignored by purge."""
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     root = bundle_dir_for_claims(
@@ -106,7 +106,7 @@ def test_purge_skips_non_directories(tmp_path: Path, monkeypatch: pytest.MonkeyP
 def test_guess_media_type_fallbacks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Unknown-extension assets fall back to explicit content types."""
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     monkeypatch.setattr("mimetypes.guess_type", lambda filename: (None, None))
@@ -133,7 +133,7 @@ def test_resolve_extensionless_entry_uses_artifact_type(
 ) -> None:
     """Extension-less bundle entries resolve media type from token artifact_type."""
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     monkeypatch.setattr("mimetypes.guess_type", lambda filename: (None, None))
@@ -166,7 +166,7 @@ def test_resolve_extensionless_entry_uses_artifact_type(
 def test_resolve_empty_relative_falls_back_to_entry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An empty relative path is normalized to the manifest entry."""
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     claims = ArtifactShareClaims(artifact_id="empty", version_id="v1", exp=9_999_999_999)
@@ -181,7 +181,7 @@ def test_resolve_empty_relative_falls_back_to_entry(tmp_path: Path, monkeypatch:
 
 def test_resolve_share_bundle_file_blocks_traversal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     claims = ArtifactShareClaims(artifact_id="a1", version_id="v1", exp=9_999_999_999)
@@ -213,7 +213,7 @@ def test_resolve_share_bundle_file_blocks_prefix_sibling(tmp_path: Path, monkeyp
     directory names cannot escape the bundle boundary.
     """
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     claims = ArtifactShareClaims(
@@ -239,7 +239,7 @@ def test_resolve_share_bundle_file_blocks_prefix_sibling(tmp_path: Path, monkeyp
 def test_resolve_share_bundle_file_allows_nested_asset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Nested assets inside the bundle must still resolve after the strict containment check."""
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     claims = ArtifactShareClaims(
@@ -264,7 +264,7 @@ def test_resolve_share_bundle_file_allows_nested_asset(tmp_path: Path, monkeypat
 
 def test_manifest_round_trip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     claims = ArtifactShareClaims(artifact_id="a2", version_id="v2", exp=9_999_999_999)
@@ -279,7 +279,7 @@ def test_manifest_round_trip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 
 def test_purge_expired_share_bundles(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "app.services.artifacts.share_bundle.settings.database.state_dir",
+        "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     claims = ArtifactShareClaims(artifact_id="exp", version_id="v1", exp=1)

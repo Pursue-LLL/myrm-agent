@@ -9271,7 +9271,8 @@
         "import_memory": "インポート",
         "export_memory": "エクスポート",
         "health_check": "ヘルスチェック",
-        "shared_context_proposal": "共有提案"
+        "shared_context_proposal": "共有提案",
+        "conflict": "矛盾"
       },
       "openSessionReplay": "セッションリプレイを開く",
       "replayUnavailable": "セッションリプレイを開けません",

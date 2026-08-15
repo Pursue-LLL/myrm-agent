@@ -4,7 +4,7 @@ import time
 from unittest.mock import patch
 
 from app.core.security.share.share_hmac import is_password_protected
-from app.services.artifacts.share_token import (
+from app.services.artifacts.share.share_token import (
     create_artifact_share_token,
     is_shareable_artifact,
     is_shareable_artifact_name,
@@ -99,7 +99,7 @@ def test_parse_rejects_malformed_claims() -> None:
         _derive_key,
         b64url_encode,
     )
-    from app.services.artifacts.share_token import _SALT
+    from app.services.artifacts.share.share_token import _SALT
 
     payload = {"v": _TOKEN_VERSION, "aid": 123, "vid": "ver-1", "exp": 9_999_999_999}
     body = b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))

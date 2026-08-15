@@ -9350,7 +9350,8 @@
         "import_memory": "Import",
         "export_memory": "Export",
         "health_check": "Health Check",
-        "shared_context_proposal": "Shared Proposal"
+        "shared_context_proposal": "Shared Proposal",
+        "conflict": "Conflict"
       },
       "openSessionReplay": "Open Session Replay",
       "replayUnavailable": "Session replay unavailable",

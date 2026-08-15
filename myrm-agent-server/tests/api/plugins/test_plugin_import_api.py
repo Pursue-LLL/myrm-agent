@@ -494,7 +494,7 @@ def test_list_installed_plugins(client: TestClient) -> None:
     """GET /installed proxies the service layer's provenance-grouped listing."""
     with (
         patch(
-            "app.api.plugins.import_.list_installed_plugins",
+            "app.services.plugins.import_service.list_installed_plugins",
             new=AsyncMock(
                 return_value=[
                     {"name": "demo-plugin", "servers": ["pdf-server"], "has_bundled_files": True},
@@ -517,7 +517,7 @@ def test_uninstall_plugin(client: TestClient) -> None:
     """DELETE /{plugin_name} proxies the service layer's uninstall result."""
     with (
         patch(
-            "app.api.plugins.import_.uninstall_plugin",
+            "app.services.plugins.import_service.uninstall_plugin",
             new=AsyncMock(
                 return_value={
                     "plugin_name": "demo-plugin",

@@ -4,8 +4,8 @@
 - app.database.models::ArtifactShareRecord (POS: share-link registry row)
 - app.database.models::Artifact (POS: artifact metadata for display)
 - app.core.security.share.share_hmac::token_fingerprint (POS: shared share-lookup key)
-- app.services.artifacts.share_bundle (POS: bundle materialization + TTL purge)
-- app.services.artifacts.share_token::ArtifactShareClaims (POS: HMAC claims)
+- app.services.artifacts.share.share_bundle (POS: bundle materialization + TTL purge)
+- app.services.artifacts.share.share_token::ArtifactShareClaims (POS: HMAC claims)
 
 [OUTPUT]
 - register_share / list_active_shares / revoke_share / purge_expired_shares
@@ -37,8 +37,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security.share.share_hmac import token_fingerprint
 from app.database.models import Artifact, ArtifactShareRecord
-from app.services.artifacts.share_bundle import bundle_dir_for_claims
-from app.services.artifacts.share_token import ArtifactShareClaims
+from .share_bundle import bundle_dir_for_claims
+from .share_token import ArtifactShareClaims
 
 logger = logging.getLogger(__name__)
 

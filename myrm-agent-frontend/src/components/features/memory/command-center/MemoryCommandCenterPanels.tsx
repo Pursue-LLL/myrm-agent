@@ -746,6 +746,7 @@ const OPERATION_KINDS = [
   'reject',
   'forget',
   'correct',
+  'conflict',
   'maintenance',
   'import_memory',
   'export_memory',
