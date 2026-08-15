@@ -353,7 +353,7 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
               </Button>
             </>
           )}
-          {isCheckpoint && (
+          {isCheckpoint && node.resumable !== false && (
             <Button
               variant="ghost"
               size="icon"
@@ -364,7 +364,7 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
               <PlayCircle className="w-4 h-4" />
             </Button>
           )}
-          {isInterrupted && (
+          {(isInterrupted || (isCheckpoint && node.resumable === false)) && (
             <Button
               variant="outline"
               size="sm"
