@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { ExecutionTrace } from '@/services/statistics';
 import type { Message } from '@/store/chat/types';
 
@@ -151,6 +151,113 @@ describe('SessionReplayPlayer security labels', () => {
     expect(await screen.findByText('securityLabels')).toBeInTheDocument();
     expect(screen.getByText('DENY')).toBeInTheDocument();
     expect(screen.getByText('destructive path blocked')).toBeInTheDocument();
+  });
+
+  it('treats a mixed ALLOW + DENY label set as critical (rose chip)', async () => {
+    const trace = baseTrace({
+      tool_calls: [
+        {
+          sequence: 1,
+          tool_name: 'bash',
+          start_time: 1000,
+          end_time: 1002,
+          duration_ms: 2000,
+          success: true,
+          error: null,
+          tool_call_id: 'call-1',
+          message_id: 'm1',
+          security_labels: [
+            { decision: 'ALLOW', reason: 'low risk', tainted: false, ts: 1000.5 },
+            { decision: 'DENY', reason: 'destructive path', tainted: true, ts: 1001.5 },
+          ],
+        },
+      ],
+    });
+    render(<SessionReplayPlayer sessionId="sess-1" trace={trace} />);
+
+    expect(await screen.findByText('bash')).toBeInTheDocument();
+    const flag = screen.getByText('securityFlag');
+    // Any deny/tainted label dominates the chip palette.
+    expect(flag.className).toContain('bg-rose-500/10');
+    // The tooltip carries every decision + reason for the step.
+    expect(flag.getAttribute('title')).toContain('ALLOW: low risk');
+    expect(flag.getAttribute('title')).toContain('DENY: destructive path');
+  });
+
+  it('shows no security chip for an empty security_labels array', async () => {
+    const trace = baseTrace({
+      tool_calls: [
+        {
+          sequence: 1,
+          tool_name: 'bash',
+          start_time: 1000,
+          end_time: 1002,
+          duration_ms: 2000,
+          success: true,
+          error: null,
+          tool_call_id: 'call-1',
+          message_id: 'm1',
+          security_labels: [],
+        },
+      ],
+    });
+    render(<SessionReplayPlayer sessionId="sess-1" trace={trace} />);
+
+    expect(await screen.findByText('bash')).toBeInTheDocument();
+    expect(screen.queryByText('securityFlag')).not.toBeInTheDocument();
+  });
+
+  it('paints a failed tool step with the error palette and surfaces its error', async () => {
+    const trace = baseTrace({
+      outcome: 'failure',
+      end_time: 2003,
+      tool_calls: [
+        {
+          sequence: 1,
+          tool_name: 'bash',
+          start_time: 1000,
+          end_time: 2000,
+          duration_ms: 1000,
+          success: false,
+          error: 'exit code 1',
+          tool_call_id: 'call-1',
+          message_id: 'm1',
+        },
+      ],
+    });
+    const { container } = render(<SessionReplayPlayer sessionId="sess-1" trace={trace} />);
+
+    expect(await screen.findByText('bash')).toBeInTheDocument();
+    // Mind-view row paints the failed tool with the rose icon.
+    expect(container.querySelector('svg.text-rose-500')).not.toBeNull();
+
+    // Scrub to the end so the failed tool_end becomes the active event.
+    const range = container.querySelector('input[type="range"]') as HTMLInputElement;
+    fireEvent.change(range, { target: { value: String(range.max) } });
+    expect(await screen.findByText('exit code 1')).toBeInTheDocument();
+  });
+
+  it('renders a running tool step with the pending amber pulse and running label', async () => {
+    const trace = baseTrace({
+      tool_calls: [
+        {
+          sequence: 1,
+          tool_name: 'bash',
+          start_time: 1000,
+          end_time: null,
+          duration_ms: null,
+          success: true,
+          error: null,
+          tool_call_id: 'call-1',
+          message_id: 'm1',
+        },
+      ],
+    });
+    const { container } = render(<SessionReplayPlayer sessionId="sess-1" trace={trace} />);
+
+    expect(await screen.findByText('bash')).toBeInTheDocument();
+    expect(container.querySelector('svg.text-amber-500')).not.toBeNull();
+    expect(screen.getByText('running')).toBeInTheDocument();
   });
 });
 

@@ -200,7 +200,7 @@ def _extra_instance_dialog_closed_js(instance_id: str) -> str:
     hasDeleteBtn: !!delBtn,
     hasPrimaryBtn: !!primaryBtn,
     bodyLen: (document.body?.innerText || '').length,
-    bodySnippet: (document.body.innerText || '').slice(0, 300),
+    bodyFull: (document.body.innerText || '').slice(0, 2000),
     navType: performance.getEntriesByType('navigation')[0]?.type || 'navigate',
     href: location.href,
   }};
@@ -335,7 +335,7 @@ def _instance_ui_probe_js(instance_id: str) -> str:
     bodyLen: (document.body?.innerText || '').length,
     navType: performance.getEntriesByType('navigation')[0]?.type || 'navigate',
     href: location.href,
-    bodySnippet: (document.body.innerText || '').slice(0, 400),
+    bodyFull: (document.body.innerText || '').slice(0, 2000),
   }};
 }})()"""
 

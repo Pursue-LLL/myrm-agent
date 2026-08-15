@@ -61,6 +61,9 @@ def _messages_from_payload(payload: object) -> list[dict[str, object]]:
     if isinstance(payload, list):
         return [msg for msg in payload if isinstance(msg, dict)]
     if isinstance(payload, dict):
+        data = payload.get("data")
+        if isinstance(data, dict) and isinstance(data.get("messages"), list):
+            return [msg for msg in data["messages"] if isinstance(msg, dict)]
         messages = payload.get("messages")
         if isinstance(messages, list):
             return [msg for msg in messages if isinstance(msg, dict)]

@@ -6,16 +6,32 @@ verifies STATUS events reach the client.
 
 from __future__ import annotations
 
+import base64
+import io
 import json
 import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from tests.api.agent.utils import get_lite_model_selection, get_model_selection
 
 # Minimal 1x1 red PNG
 _TINY_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+
+
+def _make_boundary_bmp_b64() -> str:
+    """Build an image whose raw bytes sit under 4 MiB but whose base64 form
+    (~4.84 MiB) exceeds the send-time trigger — the raw-byte check that used
+    to exist would have let it pass, then hit a provider IMAGE_TOO_LARGE."""
+    img = Image.new("RGB", (1100, 1100), color=(120, 60, 200))
+    buf = io.BytesIO()
+    img.save(buf, format="BMP")
+    raw = buf.getvalue()
+    assert len(raw) < 4 * 1024 * 1024
+    assert 4 * ((len(raw) + 2) // 3) > 4 * 1024 * 1024
+    return base64.b64encode(raw).decode("ascii")
 
 
 def _build_image_query(text: str) -> list[dict[str, object]]:
@@ -141,3 +157,30 @@ def test_no_media_stripped_when_vision_enabled(client: TestClient) -> None:
     )
     _skip_on_flaky(collected)
     assert "media_stripped" not in status_events, f"Unexpected media_stripped when vision enabled: {status_events}"
+
+
+@pytest.mark.e2e
+def test_boundary_oversized_image_agent_stream_succeeds(client: TestClient) -> None:
+    """A boundary-oversized base64 image (raw < 4 MiB, base64 > 4 MiB) must not
+    fail the real agent-stream call: send-time compression or the shrink
+    fallback keeps the payload within provider limits and the model replies."""
+    selection = {**get_lite_model_selection(), "supportsVision": True}
+    status_events, collected = _collect_stream(
+        client,
+        [
+            {"type": "text", "text": "E2E boundary image: reply one word only."},
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/bmp;base64,{_make_boundary_bmp_b64()}"
+                },
+            },
+        ],
+        selection,
+    )
+    _skip_on_flaky(collected)
+    blob = json.dumps(collected)
+    assert "IMAGE_TOO_LARGE" not in blob, f"Provider rejected oversized image: {blob[:500]}"
+    assert any(d.get("type") == "message" for d in collected), (
+        f"No assistant message received — status events: {status_events}"
+    )

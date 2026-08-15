@@ -68,8 +68,21 @@ _LATEST_ASSISTANT_JS = """(() => {
 _TIER_BADGE_JS = """(() => {
   const labels = Array.from(document.querySelectorAll('span,div'))
     .map((el) => (el.textContent || '').trim())
-    .filter((t) => /^(Light|Standard|Reasoning)$/i.test(t));
+    .filter((t) => /^(Light|Standard|Reasoning|轻量|常规|推理)$/.test(t));
   return { found: labels.length > 0, labels: labels.slice(0, 5) };
+})()"""
+
+_HOVER_TOKEN_BTN_JS = """(() => {
+  const btn = Array.from(document.querySelectorAll('button')).find((b) => {
+    const label = b.getAttribute('aria-label') || '';
+    return /token|context/i.test(label);
+  });
+  if (!btn) return { ok: false, err: 'no token button' };
+  const opts = { bubbles: true, cancelable: true };
+  btn.dispatchEvent(new PointerEvent('pointerover', opts));
+  btn.dispatchEvent(new MouseEvent('mouseover', opts));
+  btn.dispatchEvent(new MouseEvent('mouseenter', opts));
+  return { ok: true, aria: btn.getAttribute('aria-label') };
 })()"""
 
 
@@ -218,11 +231,26 @@ async def test_smart_routing_tier_surfaced_in_webui(
             standard_state = await _wait_tier(chat, "standard")
             assert standard_state.get("routingTier") == "standard", standard_state
 
-            badge = await chat.evaluate(
-                _TIER_BADGE_JS,
-                intent=EvaluateIntent.SYNC_PROBE,
+            # 档位 badge 位于 token 用量 tooltip 内（默认隐藏）——hover 触发后轮询可见。
+            hover = await chat.evaluate(
+                _HOVER_TOKEN_BTN_JS,
+                intent=EvaluateIntent.AGENT_SUBMIT,
             )
-            badge_state = badge if isinstance(badge, dict) else json.loads(str(badge))
+            hover_state = hover if isinstance(hover, dict) else json.loads(str(hover))
+            assert hover_state.get("ok") is True, hover_state
+            deadline = time.monotonic() + 10.0
+            badge_state: dict[str, object] = {}
+            while time.monotonic() < deadline:
+                badge = await chat.evaluate(
+                    _TIER_BADGE_JS,
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
+                badge_state = (
+                    badge if isinstance(badge, dict) else json.loads(str(badge))
+                )
+                if badge_state.get("found") is True:
+                    break
+                await asyncio.sleep(0.5)
             assert badge_state.get("found") is True, badge_state
 
             resolved_chat_id = chat_id

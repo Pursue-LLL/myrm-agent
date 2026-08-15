@@ -553,6 +553,287 @@ async def test_session_trace_endpoint_no_security_audit_is_noop(tmp_path, monkey
 
 
 @pytest.mark.asyncio
+async def test_session_trace_endpoint_security_labels_multiple_audit_batches(
+    tmp_path, monkeypatch
+):
+    """Decisions persisted across several security_audit events must all attach.
+
+    The session audit is batch-persisted at session end, but E-stop/taint
+    decisions from different phases can arrive in separate audit events; the
+    read side must merge every batch for the same tool_call_id, in order.
+    """
+    from datetime import datetime
+
+    from myrm_agent_harness.agent.event_log.backends.file_backend import (
+        FileEventLogBackend,
+    )
+    from myrm_agent_harness.agent.event_log.types import StructuredEvent
+
+    monkeypatch.setattr(
+        "app.config.settings.settings.database.event_log_dir",
+        str(tmp_path),
+    )
+
+    session_id = "test-lineage-multi-batch"
+    backend = FileEventLogBackend(tmp_path, session_id)
+    ts = datetime.now().timestamp()
+    events = [
+        StructuredEvent(
+            session_id=session_id,
+            sequence=1,
+            timestamp=ts,
+            event_type="session_start",
+            data={},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=2,
+            timestamp=ts + 1,
+            event_type="tool_start",
+            data={"tool_name": "bash", "tool_call_id": "call-1", "message_id": "msg-1"},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=3,
+            timestamp=ts + 2,
+            event_type="tool_end",
+            data={"tool_name": "bash", "tool_call_id": "call-1", "duration_ms": 50.0},
+        ),
+        # First audit batch — pre-execution taint scan.
+        StructuredEvent(
+            session_id=session_id,
+            sequence=4,
+            timestamp=ts + 3,
+            event_type="security_audit",
+            data={
+                "decisions": [
+                    {
+                        "tool": "bash",
+                        "decision": "ALLOW",
+                        "reason": "capability fence passed",
+                        "tainted": False,
+                        "ts": round(ts + 1.5, 3),
+                        "tool_call_id": "call-1",
+                    },
+                ],
+                "count": 1,
+            },
+        ),
+        # Second audit batch — post-execution E-stop review.
+        StructuredEvent(
+            session_id=session_id,
+            sequence=5,
+            timestamp=ts + 4,
+            event_type="security_audit",
+            data={
+                "decisions": [
+                    {
+                        "tool": "bash",
+                        "decision": "DENY",
+                        "reason": "E-Stop active",
+                        "tainted": True,
+                        "ts": round(ts + 3.5, 3),
+                        "tool_call_id": "call-1",
+                    },
+                ],
+                "count": 1,
+            },
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=6,
+            timestamp=ts + 5,
+            event_type="session_end",
+            data={},
+        ),
+    ]
+    await backend.append(events)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get(f"/api/v1/statistics/session/{session_id}/trace")
+
+    assert response.status_code == 200
+    trace = response.json()["data"]
+    assert len(trace["tool_calls"]) == 1
+    labels = trace["tool_calls"][0]["security_labels"]
+    assert len(labels) == 2
+    assert [label["decision"] for label in labels] == ["ALLOW", "DENY"]
+    assert labels[1]["tainted"] is True
+
+
+@pytest.mark.asyncio
+async def test_session_trace_endpoint_audit_without_call_id_skipped(
+    tmp_path, monkeypatch
+):
+    """Legacy decisions without tool_call_id cannot anchor to lineage and must
+    be skipped without crashing or mis-attaching."""
+    from datetime import datetime
+
+    from myrm_agent_harness.agent.event_log.backends.file_backend import (
+        FileEventLogBackend,
+    )
+    from myrm_agent_harness.agent.event_log.types import StructuredEvent
+
+    monkeypatch.setattr(
+        "app.config.settings.settings.database.event_log_dir",
+        str(tmp_path),
+    )
+
+    session_id = "test-lineage-legacy-audit"
+    backend = FileEventLogBackend(tmp_path, session_id)
+    ts = datetime.now().timestamp()
+    events = [
+        StructuredEvent(
+            session_id=session_id,
+            sequence=1,
+            timestamp=ts,
+            event_type="session_start",
+            data={},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=2,
+            timestamp=ts + 1,
+            event_type="tool_start",
+            data={"tool_name": "bash", "tool_call_id": "call-1", "message_id": "msg-1"},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=3,
+            timestamp=ts + 2,
+            event_type="tool_end",
+            data={"tool_name": "bash", "tool_call_id": "call-1", "duration_ms": 50.0},
+        ),
+        # Legacy audit: decisions keyed by tool name only — no tool_call_id.
+        StructuredEvent(
+            session_id=session_id,
+            sequence=4,
+            timestamp=ts + 3,
+            event_type="security_audit",
+            data={
+                "decisions": [
+                    {
+                        "tool": "bash",
+                        "decision": "DENY",
+                        "reason": "destructive",
+                        "tainted": True,
+                        "ts": round(ts + 2.5, 3),
+                    },
+                    "not-a-dict",
+                    {"tool_call_id": "", "decision": "ALLOW"},
+                ],
+                "count": 3,
+            },
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=5,
+            timestamp=ts + 4,
+            event_type="session_end",
+            data={},
+        ),
+    ]
+    await backend.append(events)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get(f"/api/v1/statistics/session/{session_id}/trace")
+
+    assert response.status_code == 200
+    trace = response.json()["data"]
+    assert len(trace["tool_calls"]) == 1
+    assert "security_labels" not in trace["tool_calls"][0]
+
+
+@pytest.mark.asyncio
+async def test_session_trace_endpoint_audit_unmatched_call_id_is_noop(
+    tmp_path, monkeypatch
+):
+    """Audit decisions whose tool_call_id does not match any trace tool call must
+    be dropped (debug-logged), never attached to the wrong record."""
+    from datetime import datetime
+
+    from myrm_agent_harness.agent.event_log.backends.file_backend import (
+        FileEventLogBackend,
+    )
+    from myrm_agent_harness.agent.event_log.types import StructuredEvent
+
+    monkeypatch.setattr(
+        "app.config.settings.settings.database.event_log_dir",
+        str(tmp_path),
+    )
+
+    session_id = "test-lineage-unmatched-audit"
+    backend = FileEventLogBackend(tmp_path, session_id)
+    ts = datetime.now().timestamp()
+    events = [
+        StructuredEvent(
+            session_id=session_id,
+            sequence=1,
+            timestamp=ts,
+            event_type="session_start",
+            data={},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=2,
+            timestamp=ts + 1,
+            event_type="tool_start",
+            data={"tool_name": "bash", "tool_call_id": "call-1", "message_id": "msg-1"},
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=3,
+            timestamp=ts + 2,
+            event_type="tool_end",
+            data={"tool_name": "bash", "tool_call_id": "call-1", "duration_ms": 50.0},
+        ),
+        # Decision references a call id that never appeared in the event stream.
+        StructuredEvent(
+            session_id=session_id,
+            sequence=4,
+            timestamp=ts + 3,
+            event_type="security_audit",
+            data={
+                "decisions": [
+                    {
+                        "tool": "bash",
+                        "decision": "DENY",
+                        "reason": "ghost call",
+                        "tainted": True,
+                        "ts": round(ts + 2.5, 3),
+                        "tool_call_id": "call-999",
+                    },
+                ],
+                "count": 1,
+            },
+        ),
+        StructuredEvent(
+            session_id=session_id,
+            sequence=5,
+            timestamp=ts + 4,
+            event_type="session_end",
+            data={},
+        ),
+    ]
+    await backend.append(events)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get(f"/api/v1/statistics/session/{session_id}/trace")
+
+    assert response.status_code == 200
+    trace = response.json()["data"]
+    assert len(trace["tool_calls"]) == 1
+    assert trace["tool_calls"][0]["tool_call_id"] == "call-1"
+    assert "security_labels" not in trace["tool_calls"][0]
+
+
+@pytest.mark.asyncio
 async def test_session_trace_endpoint_tasks_steps_lineage_with_labels(
     tmp_path, monkeypatch
 ):
@@ -732,13 +1013,13 @@ async def test_build_llm_duration_breakdown(tmp_path):
             event_type="token_usage",
             data={"duration_ms": 100.0},
         ),
-        # Malformed non-dict payload -> ignored
+        # Malformed duration type -> ignored
         StructuredEvent(
             session_id=session_id,
             sequence=7,
             timestamp=ts + 6,
             event_type="token_usage",
-            data="not-a-dict",
+            data={"model_name": "gpt-4o", "duration_ms": "oops"},
         ),
     ]
     await backend.append(events)

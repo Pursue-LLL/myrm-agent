@@ -62,9 +62,10 @@ async def _build_llm_duration_breakdown(
 
     totals: dict[str, list[int | float]] = {}
     for event in events:
-        payload = event.data if isinstance(event.data, dict) else {}
-        if isinstance(payload.get("data"), dict):
-            payload = payload["data"]
+        payload = event.data
+        inner = payload.get("data")
+        if isinstance(inner, dict):
+            payload = inner
         duration_raw = payload.get("duration_ms")
         if not isinstance(duration_raw, (int, float)):
             continue
