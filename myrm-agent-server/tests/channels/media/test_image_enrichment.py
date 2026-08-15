@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import base64
+import io
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from PIL import Image
 
 from app.channels.media.image_enrichment import (
     MAX_IMAGE_BYTES,
@@ -414,7 +416,7 @@ class TestCompressImage:
             "app.channels.media.image_enrichment.image_compressor",
             create=True,
         ) as mock_mod:
-            mock_mod.compress.side_effect = RuntimeError("PIL not available")
+            mock_mod.compress_if_needed.side_effect = RuntimeError("PIL not available")
             with patch(
                 "myrm_agent_harness.utils.media.image_compressor.image_compressor",
                 mock_mod,
@@ -425,11 +427,25 @@ class TestCompressImage:
     def test_compression_success_returns_bytes(self) -> None:
         compressed = b"\xff\xd8\xff\xe0compressed"
         with patch(
-            "myrm_agent_harness.utils.media.image_compressor.image_compressor.compress",
+            "myrm_agent_harness.utils.media.image_compressor.image_compressor.compress_if_needed",
             return_value=compressed,
         ):
             result = _compress_image(b"\xff\xd8\xff\xe0" + b"\x00" * 100)
         assert result == compressed
+
+    def test_animated_gif_passthrough_preserved(self) -> None:
+        """Animated GIFs pass through compress_if_needed untouched."""
+
+        frames = [
+            Image.new("RGB", (64, 64), color=(255, 0, 0)),
+            Image.new("RGB", (64, 64), color=(0, 255, 0)),
+        ]
+        buf = io.BytesIO()
+        frames[0].save(buf, format="GIF", save_all=True, append_images=frames[1:], duration=100, loop=0)
+        gif_bytes = buf.getvalue()
+
+        result = _compress_image(gif_bytes)
+        assert result == gif_bytes
 
 
 class TestDownloadViaChannelApi:
