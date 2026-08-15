@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from app.core.utils.response_utils import success_response
 from app.services.chat.chat_service import ChatService
 from app.services.chat.sandbox_worktree import (
+    _sandbox_branch_name,
     cleanup_sandbox_worktree,
     create_sandbox_worktree,
     get_sandbox_worktree_path,
@@ -121,7 +122,7 @@ async def enable_sandbox(chat_id: str):
             {
                 "active": True,
                 "worktree_path": result,
-                "branch": f"sandbox/chat-{chat_id[:12]}",
+                "branch": _sandbox_branch_name(chat_id),
                 "base_dir": base_dir,
             }
         )
@@ -193,7 +194,7 @@ async def sandbox_status(chat_id: str):
         SandboxStatusResponse(
             active=active,
             worktree_path=sandbox_path if active else None,
-            branch=f"sandbox/chat-{chat_id[:12]}" if active else None,
+            branch=_sandbox_branch_name(chat_id) if active else None,
             base_dir=sandbox_base,
         ).model_dump()
     )

@@ -58,6 +58,8 @@ MAX_TURNS = 3
 # ── UI probe snippets ─────────────────────────────────────────────────────────
 
 # Clicks the assistant message "performance diagnostics" button (any locale).
+# On failure dumps the page URL, message-region state and full aria-label list so
+# a not-yet-hydrated message list is distinguishable from a genuinely missing button.
 _OPEN_DIAGNOSTICS_JS = """(() => {
   const candidates = Array.from(document.querySelectorAll('button[aria-label]'));
   const btn = candidates.find((b) =>
@@ -66,10 +68,18 @@ _OPEN_DIAGNOSTICS_JS = """(() => {
     ),
   );
   if (!btn) {
+    const bodyText = document.body?.innerText || '';
+    const hasMsgRegion = /搜索对话|新对话|发送|Send/.test(bodyText);
+    const hasAssistantBlock = /助手|assistant|Assistant/.test(bodyText);
     return {
       ready: false,
       reason: 'no-diagnostics-button',
-      ariaLabels: candidates.slice(0, 30).map((b) => b.getAttribute('aria-label')),
+      path: location.pathname,
+      hasMsgRegion,
+      hasAssistantBlock,
+      hasLoading: /加载中|Loading|加载/.test(bodyText),
+      bodySnip: bodyText.slice(0, 150),
+      ariaLabels: candidates.slice(0, 40).map((b) => b.getAttribute('aria-label')),
     };
   }
   btn.click();
@@ -364,14 +374,16 @@ async def test_chrome_ui_lineage_trace_replay(
         await chat2.wait_shell_ready(timeout_sec=90.0, require_bridge=True)
 
         # Open the performance-diagnostics dialog from the assistant message bar.
-        probe = await _wait_ui_state(chat2, _OPEN_DIAGNOSTICS_JS, timeout_sec=60.0)
+        # Message hydration over the E2E private runtime can be slow under
+        # parallel load, so budget generously for the button to appear.
+        probe = await _wait_ui_state(chat2, _OPEN_DIAGNOSTICS_JS, timeout_sec=90.0)
         assert probe.get("ready") is True, json.dumps(probe, ensure_ascii=False)
 
         # T3: the trace dialog shows the shell tool-call card.
         trace_probe = await _wait_ui_state(
             chat2,
             _trace_dialog_probe_js(lineage["tool_names"]),
-            timeout_sec=60.0,
+            timeout_sec=90.0,
         )
         assert trace_probe.get("ready") is True, json.dumps(
             trace_probe, ensure_ascii=False
@@ -384,7 +396,7 @@ async def test_chrome_ui_lineage_trace_replay(
         )
 
         # T4: enter replay, scrub to the end and expect the tool chip in the mind view.
-        replay_click = await _wait_ui_state(chat2, _ENTER_REPLAY_JS, timeout_sec=30.0)
+        replay_click = await _wait_ui_state(chat2, _ENTER_REPLAY_JS, timeout_sec=60.0)
         assert replay_click.get("ready") is True, json.dumps(
             replay_click, ensure_ascii=False
         )

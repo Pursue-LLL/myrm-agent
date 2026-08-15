@@ -7,7 +7,6 @@ Verifies that a corrupted (unparseable) checkpoint file:
 from __future__ import annotations
 
 from importlib import import_module
-from unittest.mock import patch
 
 import httpx
 import pytest

@@ -253,7 +253,7 @@ async def resume_subagent(
         # surfaced to the client instead of being swallowed by a detached task.
         await agent.subagent_manager.resume_from_checkpoint(task_id)
         return success_response(data={"resumed": True, "task_id": task_id})
-    except CheckpointCorruptedError as e:
+    except CheckpointCorruptedError:
         logger.error("Failed to resume subagent %s: checkpoint corrupted", task_id)
         return error_response(
             message=f"Checkpoint for {task_id} is corrupted and cannot be resumed.",

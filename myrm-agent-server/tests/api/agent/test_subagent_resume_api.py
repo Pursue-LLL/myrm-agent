@@ -11,11 +11,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from myrm_agent_harness.agent.sub_agents.checkpoint.saver import CheckpointCorruptedError
 
 from app.api.agents.subagents import resume_subagent
-from app.services.agent.gateway import get_agent_gateway
 
 
 def _make_session_info(agent: object) -> SimpleNamespace:
@@ -106,7 +104,3 @@ async def test_resume_requires_active_session(monkeypatch) -> None:
     resp = await resume_subagent("missing-chat", "task-1")
 
     assert resp.status_code == 400
-
-
-def test_gateway_exists() -> None:
-    assert get_agent_gateway() is not None

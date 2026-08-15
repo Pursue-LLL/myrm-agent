@@ -18,7 +18,6 @@ import pytest
 from httpx import ASGITransport
 
 from app.channels.core.gateway import ChannelGateway
-from app.channels.providers.webhook import WebhookChannel
 from app.core.channel_bridge.channel_factory import (
     _INSTANCES_CONFIG_KEY,
     load_persisted_instances,
