@@ -25,7 +25,7 @@ from app.api.dependencies import get_workspace_root
 from app.api.files.artifact_share_api import router as share_router
 from app.api.files.artifact_share_public import public_router
 from app.core.infra.limiter import limiter
-from app.core.security.share_unlock import unlock_cookie_name
+from app.core.security.share.share_unlock import unlock_cookie_name
 from app.database.connection import get_db
 from app.database.models import Base
 from app.database.models.artifact import Artifact, ArtifactVersion

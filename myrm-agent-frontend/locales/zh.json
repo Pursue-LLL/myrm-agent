@@ -4561,6 +4561,7 @@
         "fanoutPartial": "策略已保存，但有 {failed} 个成员沙箱未同步成功。在线成员可能需要刷新页面。",
         "descPlaceholder": "描述（可选）",
         "add": "添加",
+        "removePattern": "删除规则",
         "empty": "暂无模型限制，所有模型均可使用。",
         "note": "成员只能使用符合以上规则的模型，变更会立即生效。"
       },
@@ -4609,6 +4610,26 @@
       "audit": {
         "title": "安全审计大盘",
         "description": "监控组织安全事件、访问模式和合规情况",
+        "viewPlatform": "平台审计",
+        "viewAgent": "Agent 行为",
+        "agentTitle": "Agent 行为审计",
+        "agentDescription": "查看成员沙箱内 Agent 的实际行为 —— 跨全部会话的工具调用、审批请求与安全决策",
+        "agentTotalEvents": "总事件数",
+        "agentToolCalls": "工具调用",
+        "agentSecurityEvents": "安全事件",
+        "agentScannedSandboxes": "已扫描沙箱",
+        "agentFailedSandboxes": "部分成员沙箱在该时间窗口内无法扫描：",
+        "agentEventList": "事件流",
+        "agentNoEvents": "所选时间范围内无 Agent 活动",
+        "agentSecurityDecisions": "安全决策",
+        "agentDetails": "事件详情",
+        "toneTool": "工具调用",
+        "toneApproval": "审批",
+        "toneSecurity": "安全",
+        "toneSession": "会话",
+        "toneError": "错误",
+        "toneLlm": "LLM",
+        "toneOther": "事件",
         "totalEvents": "总事件数",
         "failedEvents": "失败事件",
         "failureRate": "失败率",
@@ -6069,6 +6090,36 @@
           "description": "已导入 {skills} 个技能、{servers} 个 MCP 服务器",
           "requiredKeys": "导入后请在「智能体密钥」中配置：{keys}",
           "disabledHint": "导入的 MCP 服务器默认停用，请在 MCP 设置中启用后再使用"
+        }
+      },
+      "manager": {
+        "title": "插件管理",
+        "subtitle": "管理已导入的 Agent 插件，可查看其 MCP 服务器并卸载整个插件。",
+        "empty": {
+          "title": "暂无已安装插件",
+          "hint": "先通过「导入 Agent 插件」安装插件包。",
+          "servers": "无 MCP 服务器"
+        },
+        "badges": {
+          "bundled": "含打包文件"
+        },
+        "actions": {
+          "refresh": "刷新",
+          "close": "关闭",
+          "cancel": "取消",
+          "uninstall": "卸载"
+        },
+        "confirm": {
+          "title": "确认卸载插件",
+          "description": "卸载「{name}」将移除其 MCP 服务器配置、智能体绑定及打包文件，此操作不可撤销。"
+        },
+        "success": {
+          "uninstalled": "卸载成功",
+          "summary": "已移除 {servers} 个 MCP 服务器，解除 {agents} 个智能体绑定"
+        },
+        "errors": {
+          "listFailed": "加载已安装插件失败",
+          "uninstallFailed": "卸载插件失败"
         }
       }
     }
@@ -13652,6 +13703,7 @@
     "frustrationSkillLearned": "已学会偏好，技能「{skillName}」已更新",
     "autoMemoryExtracted": "已记住 {count} 条偏好",
     "memoryRecallUpdated": "记忆召回范围已更新",
+    "conflictDetected": "检测到记忆冲突，请在记忆中查看并裁决",
     "viewMemoryCenter": "查看记忆",
     "reviewSharedContextProposal": "前往记忆中心审批",
     "streamCompleted": "Agent 回复已完成",

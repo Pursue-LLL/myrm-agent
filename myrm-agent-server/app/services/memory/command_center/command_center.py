@@ -50,7 +50,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandTraceRun,
     MemoryCommandTraceStep,
 )
-from app.services.memory.archive.archive_restore import MemoryArchiveRestoreService
+from app.services.memory.archive.restore.archive_restore import MemoryArchiveRestoreService
 from app.services.memory.command_center.command_center_insights import MemoryCommandCenterInsights
 from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
 from app.services.memory.imports.import_ledger import MemoryImportLedgerService

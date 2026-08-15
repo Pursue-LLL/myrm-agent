@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.services.migration.source_payload_split import (
+from app.services.migration.source.source_payload_split import (
     build_instruction_plan,
     extract_memory_payload,
 )
@@ -60,7 +60,7 @@ def test_agents_md_goes_to_agent_persona() -> None:
 
 
 def test_build_coverage_items_four_lanes() -> None:
-    from app.services.migration.source_payload_loader import build_coverage_items
+    from app.services.migration.source.source_payload_loader import build_coverage_items
 
     rows = build_coverage_items(
         {
@@ -80,7 +80,7 @@ def test_build_coverage_items_four_lanes() -> None:
 
 
 def test_pi_payload_builds_correct_coverage_items() -> None:
-    from app.services.migration.source_payload_loader import build_coverage_items
+    from app.services.migration.source.source_payload_loader import build_coverage_items
 
     rows = build_coverage_items(
         {

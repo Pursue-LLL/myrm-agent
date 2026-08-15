@@ -106,7 +106,7 @@ def _token_for_exp(exp: int, *, password: str | None = None) -> str:
     tokens minted in the same second are identical; pinning ``exp`` guarantees
     distinct tokens that exercise per-token revocation semantics.
     """
-    from app.core.security.share_hmac import sign_share_token
+    from app.core.security.share.share_hmac import sign_share_token
 
     payload: dict[str, object] = {"cid": "chat-1"}
     if password is not None:
@@ -275,7 +275,7 @@ class TestGetChatShareStatus:
 
     def test_revoked_takes_precedence(self, share_client: TestClient) -> None:
         """A revoked chat reports revoked even if stale display metadata remains."""
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
 
         token, expires_at = create_chat_share_token("chat-1", ttl_seconds=3600)
@@ -291,7 +291,7 @@ class TestGetChatShareStatus:
         assert data["share_url"] is None
 
     def test_active_unprotected_rebuilds_url(self, share_client: TestClient) -> None:
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token, rebuild_chat_share_token
 
         token, expires_at = create_chat_share_token("chat-1", ttl_seconds=3600)
@@ -310,7 +310,7 @@ class TestGetChatShareStatus:
 
     def test_expired_unprotected_reports_unshared(self, share_client: TestClient) -> None:
         """An expired unprotected link is treated as unshared, not active."""
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
 
         token, expires_at = create_chat_share_token("chat-1", ttl_seconds=1)
@@ -325,7 +325,7 @@ class TestGetChatShareStatus:
 
     def test_password_protected_returns_status_only(self, share_client: TestClient) -> None:
         """Password-protected shares never rebuild a credential-less link."""
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
 
         token, expires_at = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
@@ -341,7 +341,7 @@ class TestGetChatShareStatus:
 
     def test_expired_password_protected_reports_unshared(self, share_client: TestClient) -> None:
         """An expired password-protected link is unshared, not active/protected."""
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
 
         token, expires_at = create_chat_share_token("chat-1", ttl_seconds=1, password="s3cret")
@@ -412,7 +412,7 @@ class TestRevokeChatShare:
 
     def test_revoke_records_active_token_fingerprint(self, share_client: TestClient) -> None:
         """Revoke moves the active token fingerprint into the revoked set."""
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
 
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600)
@@ -434,7 +434,7 @@ class TestRevokeChatShare:
 
     def test_create_keeps_previous_token_valid(self, share_client: TestClient) -> None:
         """A fresh share persists the new fingerprint without retiring old links."""
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
 
         old_token, _ = create_chat_share_token("chat-1", ttl_seconds=3600)
@@ -459,7 +459,7 @@ class TestRevokeChatShare:
 
     def test_create_after_revoke_keeps_old_fingerprint_revoked(self, share_client: TestClient) -> None:
         """Recreating a share after revoke clears the flag but keeps the set."""
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
         from app.services.chat.share_token import create_chat_share_token
 
         old_token, _ = create_chat_share_token("chat-1", ttl_seconds=3600)
@@ -519,7 +519,7 @@ class TestPublicSharePage:
 
         token, _ = create_chat_share_token("chat-1", ttl_seconds=60)
         future = int(time.time()) + 120
-        with patch("app.core.security.share_hmac.time.time", return_value=future):
+        with patch("app.core.security.share.share_hmac.time.time", return_value=future):
             resp = share_client.get(f"/public/chat-share/{token}")
             assert resp.status_code == 404
 
@@ -549,7 +549,7 @@ class TestPublicSharePage:
 
         token, _ = create_chat_share_token("chat-1", ttl_seconds=60)
         future = int(time.time()) + 120
-        with patch("app.core.security.share_hmac.time.time", return_value=future):
+        with patch("app.core.security.share.share_hmac.time.time", return_value=future):
             resp = share_client.get(
                 f"/public/chat-share/{token}",
                 headers={"Accept": "text/html"},
@@ -706,7 +706,7 @@ class TestPublicSharePage:
         assert resp.status_code == 303
         assert resp.headers["location"].endswith(f"/public/chat-share/{token}")
 
-        from app.core.security.share_unlock import unlock_cookie_name
+        from app.core.security.share.share_unlock import unlock_cookie_name
 
         cookie = share_client.cookies.get(unlock_cookie_name("chat_share_unlock", token))
         assert cookie is not None
@@ -755,7 +755,7 @@ class TestPublicSharePage:
             )
         assert unlock.status_code == 303
 
-        from app.core.security.share_unlock import unlock_cookie_name
+        from app.core.security.share.share_unlock import unlock_cookie_name
 
         cookie = unlock.headers["set-cookie"].split(";")[0].split("=", 1)[1]
         with (
@@ -781,7 +781,7 @@ class TestPublicSharePage:
         """POST unlock with <60s remaining serves content instead of 303-looping."""
         import time
 
-        from app.core.security.share_hmac import sign_share_token
+        from app.core.security.share.share_hmac import sign_share_token
 
         token = sign_share_token(
             {"cid": "chat-1", "p": 1},
@@ -848,7 +848,7 @@ class TestPublicSharePage:
         """
         import time
 
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
 
         old_token = _token_for_exp(int(time.time()) + 3600)
         new_token = _token_for_exp(int(time.time()) + 7200)
@@ -875,7 +875,7 @@ class TestPublicSharePage:
         """Browser visitors see the revoked status page, not conversation content."""
         import time
 
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
 
         old_token = _token_for_exp(int(time.time()) + 3600)
         new_token = _token_for_exp(int(time.time()) + 7200)
@@ -899,7 +899,7 @@ class TestPublicSharePage:
         """Tokens revoked across multiple revoke/recreate cycles stay dead."""
         import time
 
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
 
         t1 = _token_for_exp(int(time.time()) + 3600)
         t2 = _token_for_exp(int(time.time()) + 7200)
@@ -929,7 +929,7 @@ class TestPublicSharePage:
         """A revoked password-protected token still dies after a fresh share."""
         import time
 
-        from app.core.security.share_hmac import token_fingerprint
+        from app.core.security.share.share_hmac import token_fingerprint
 
         old_token = _token_for_exp(int(time.time()) + 3600, password="s3cret")
         new_token = _token_for_exp(int(time.time()) + 7200, password="s3cret")
@@ -960,7 +960,7 @@ class TestPublicSharePage:
         from app.services.chat.share_token import create_chat_share_token
 
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")
-        from app.core.security.share_unlock import unlock_cookie_name
+        from app.core.security.share.share_unlock import unlock_cookie_name
 
         with patch(
             "app.api.chats.chat.share.ChatService.get_chat_metadata",
@@ -978,8 +978,8 @@ class TestPublicSharePage:
         """A validly-signed unlock credential with wrong claim types must not bypass."""
         import time
 
-        from app.core.security.share_hmac import sign_share_token
-        from app.core.security.share_unlock import unlock_cookie_name
+        from app.core.security.share.share_hmac import sign_share_token
+        from app.core.security.share.share_unlock import unlock_cookie_name
         from app.services.chat.share_token import create_chat_share_token
 
         token, _ = create_chat_share_token("chat-1", ttl_seconds=3600, password="s3cret")

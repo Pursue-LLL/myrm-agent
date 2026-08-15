@@ -19,8 +19,8 @@ from app.database.models.memory import (
     SharedContextModel,
 )
 from app.services.memory.archive.archive import MemoryArchiveService
-from app.services.memory.archive.archive_restore import MemoryArchiveRestoreService
-from app.services.memory.archive.archive_restore_common import (
+from app.services.memory.archive.restore.archive_restore import MemoryArchiveRestoreService
+from app.services.memory.archive.restore.archive_restore_common import (
     RESTORE_BATCH_STATUS_CONFIRMED,
     RESTORE_BATCH_STATUS_IN_PROGRESS,
     RESTORE_BATCH_STATUS_ROLLED_BACK,

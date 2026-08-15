@@ -34,7 +34,7 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 )
 from myrm_agent_harness.agent.skills.packaging import is_evals_file, parse_evals_json
 
-from app.api.skills.batch_import_helpers import _build_batch_import_error_detail
+from .batch_import_helpers import _build_batch_import_error_detail
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     )
 
     from app.api.skills._staging import SkillStagingManager
-    from app.api.skills.batch_import_schemas import ConfirmImportRequest
+    from .batch_import_schemas import ConfirmImportRequest
 
 logger = logging.getLogger(__name__)
 

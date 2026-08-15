@@ -255,7 +255,7 @@ components: []
 Discord / Signal / Feishu / iMessage / **Mattermost** / **Matrix**）会把
 `reaction_added` / `m.reaction` / Tapback 等事件转换为
 `InboundMessage(metadata={"reaction": True, "target_message_id": ...})`，由
-`routing.commands.parse_approval_command` 统一识别。
+`routing.commands.commands.parse_approval_command` 统一识别。
 
 | 决策档位        | 输入示例                                       | 透传给 harness 的 payload                                |
 |-----------------|------------------------------------------------|----------------------------------------------------------|

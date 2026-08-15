@@ -293,6 +293,35 @@ class TestServerToConfigDict:
         )
         assert cfg["headers"]["X-Api-Key"] == "{{secret:X-Api-Key}}"
 
+    def test_plugin_metadata_embedded_in_extra_params(self) -> None:
+        cfg = _server_to_config_dict(
+            self._server(),
+            plugin_name="demo-plugin",
+            plugin_root="/data/plugins/demo-plugin",
+            data_root="/data/plugins/demo-plugin_data",
+        )
+        extra = cfg["extra_params"]
+        assert extra["plugin_name"] == "demo-plugin"
+        assert extra["plugin_root"] == "/data/plugins/demo-plugin"
+        assert extra["data_root"] == "/data/plugins/demo-plugin_data"
+        assert extra["cwd"] is None  # cwd not set on the server
+        assert "env" not in extra
+
+    def test_plugin_metadata_preserves_cwd_and_env(self) -> None:
+        cfg = _server_to_config_dict(
+            self._server(cwd="./workdir", raw_env={"FOO": "bar"}),
+            plugin_name="demo-plugin",
+            plugin_root="/root",
+            data_root="/data",
+        )
+        extra = cfg["extra_params"]
+        assert extra["cwd"] == "./workdir"
+        assert extra["env"] == {"FOO": "bar"}
+
+    def test_plugin_metadata_omitted_without_name(self) -> None:
+        cfg = _server_to_config_dict(self._server())
+        assert "extra_params" not in cfg
+
 
 class TestCollectRequiredSecretKeys:
     def test_dedupes_env_and_header_refs(self) -> None:
@@ -1042,3 +1071,292 @@ class TestPluginStaging:
 
         assert not old_file.exists()
         assert (tmp_path / "plugin_staging" / "new-session.pkl").exists()
+
+
+class TestPluginFiles:
+    """Bundled-file persistence: decision, write, containment, removal."""
+
+    def _stdio_server(self, **overrides: object) -> PluginMcpServer:
+        base: dict[str, object] = {
+            "name": "srv",
+            "server_type": "stdio",
+            "command": None,
+            "args": None,
+            "url": None,
+            "headers": None,
+            "cwd": None,
+            "env_key_names": [],
+            "raw_env": {},
+        }
+        base.update(overrides)
+        return PluginMcpServer(**base)
+
+    def test_server_needs_bundled_files_dot_command(self) -> None:
+        from app.services.plugins._plugin_files import server_needs_bundled_files
+
+        assert server_needs_bundled_files(self._stdio_server(command="./bin/pdf")) is True
+
+    def test_server_needs_bundled_files_placeholders(self) -> None:
+        from app.services.plugins._plugin_files import server_needs_bundled_files
+
+        assert (
+            server_needs_bundled_files(
+                self._stdio_server(command="python", args=["${PLUGIN_ROOT}/server.py"])
+            )
+            is True
+        )
+        assert (
+            server_needs_bundled_files(
+                self._stdio_server(command="python", raw_env={"DATA": "${PLUGIN_DATA}"})
+            )
+            is True
+        )
+
+    def test_server_needs_bundled_files_plain_stdio_and_remote(self) -> None:
+        from app.services.plugins._plugin_files import server_needs_bundled_files
+
+        assert server_needs_bundled_files(self._stdio_server(command="python -m mcp")) is False
+        assert (
+            server_needs_bundled_files(
+                self._stdio_server(
+                    server_type="streamable_http",
+                    command=None,
+                    url="https://api.example.com/mcp",
+                )
+            )
+            is False
+        )
+
+    def test_persist_writes_and_returns_roots(self, tmp_path: Path) -> None:
+        from app.services.plugins._plugin_files import (
+            persist_plugin_files,
+            plugin_data_dir,
+            plugin_installed_dir,
+        )
+
+        files = {
+            "bin/pdf": b"#!/bin/sh\necho ok",
+            "plugin.json": b"{}",
+            "mcp.json": b"{}",
+        }
+        roots = persist_plugin_files("demo-plugin", files, tmp_path)
+        assert roots is not None
+        root_dir, data_dir = roots
+        assert Path(root_dir) == plugin_installed_dir(tmp_path, "demo-plugin")
+        assert Path(data_dir) == plugin_data_dir(tmp_path, "demo-plugin")
+        assert (Path(root_dir) / "bin" / "pdf").read_bytes() == files["bin/pdf"]
+        assert (Path(root_dir) / "plugin.json").read_bytes() == b"{}"
+        assert Path(data_dir).is_dir()
+
+    def test_persist_rejects_traversal(self, tmp_path: Path) -> None:
+        from app.services.plugins._plugin_files import persist_plugin_files
+
+        roots = persist_plugin_files(
+            "demo-plugin",
+            {"../escape.txt": b"nope", "ok.txt": b"yes"},
+            tmp_path,
+        )
+        assert roots is not None
+        root_dir = Path(roots[0])
+        assert not (root_dir.parent / "escape.txt").exists()
+        assert (root_dir / "ok.txt").read_bytes() == b"yes"
+
+    def test_persist_rejects_unsafe_name(self, tmp_path: Path) -> None:
+        from app.services.plugins._plugin_files import persist_plugin_files
+
+        with pytest.raises(ValueError):
+            persist_plugin_files("..", {"a": b"b"}, tmp_path)
+        with pytest.raises(ValueError):
+            persist_plugin_files("Bad Name", {"a": b"b"}, tmp_path)
+
+    def test_persist_none_when_no_files(self, tmp_path: Path) -> None:
+        from app.services.plugins._plugin_files import persist_plugin_files
+
+        assert persist_plugin_files("demo-plugin", {}, tmp_path) is None
+
+    def test_remove_plugin_files(self, tmp_path: Path) -> None:
+        from app.services.plugins._plugin_files import (
+            persist_plugin_files,
+            plugin_data_dir,
+            plugin_installed_dir,
+            remove_plugin_files,
+        )
+
+        persist_plugin_files("demo-plugin", {"a.txt": b"x"}, tmp_path)
+        assert plugin_installed_dir(tmp_path, "demo-plugin").exists()
+        assert plugin_data_dir(tmp_path, "demo-plugin").exists()
+
+        assert remove_plugin_files("demo-plugin", tmp_path) is True
+        assert not plugin_installed_dir(tmp_path, "demo-plugin").exists()
+        assert not plugin_data_dir(tmp_path, "demo-plugin").exists()
+        # Second removal is a no-op.
+        assert remove_plugin_files("demo-plugin", tmp_path) is False
+
+    def test_plugin_dir_exists(self, tmp_path: Path) -> None:
+        from app.services.plugins._plugin_files import (
+            persist_plugin_files,
+            plugin_dir_exists,
+        )
+
+        assert plugin_dir_exists(tmp_path, "demo-plugin") is False
+        persist_plugin_files("demo-plugin", {"a.txt": b"x"}, tmp_path)
+        assert plugin_dir_exists(tmp_path, "demo-plugin") is True
+
+
+class TestListAndUninstallPlugins:
+    async def test_list_installed_plugins_groups_by_provenance(self) -> None:
+        from app.services.plugins.import_service import list_installed_plugins
+
+        config_service = SimpleNamespace(
+            get=AsyncMock(
+                return_value=SimpleNamespace(
+                    value={
+                        "mcpConfigs": [
+                            {
+                                "name": "pdf-server",
+                                "extra_params": {"plugin_name": "demo-plugin"},
+                            },
+                            {
+                                "name": "remote",
+                                "extra_params": {
+                                    "plugin_name": "demo-plugin",
+                                    "plugin_root": "/x",
+                                },
+                            },
+                            {"name": "user-mcp", "command": "/keep"},
+                        ]
+                    }
+                )
+            ),
+            set=AsyncMock(),
+        )
+        with (
+            patch("app.services.config.service.config_service", config_service),
+            patch(
+                "app.services.plugins.import_service._plugin_dir_exists",
+                side_effect=lambda name: name == "demo-plugin",
+            ),
+        ):
+            items = await list_installed_plugins()
+
+        assert items == [
+            {
+                "name": "demo-plugin",
+                "servers": ["pdf-server", "remote"],
+                "has_bundled_files": True,
+            }
+        ]
+
+    async def test_list_installed_plugins_empty(self) -> None:
+        from app.services.plugins.import_service import list_installed_plugins
+
+        config_service = SimpleNamespace(
+            get=AsyncMock(return_value=SimpleNamespace(value={"mcpConfigs": []})),
+            set=AsyncMock(),
+        )
+        with patch("app.services.config.service.config_service", config_service):
+            assert await list_installed_plugins() == []
+
+    async def test_uninstall_removes_servers_bindings_and_files(self, tmp_path: Path) -> None:
+        from app.services.plugins.import_service import uninstall_plugin
+
+        config_service = SimpleNamespace(
+            get=AsyncMock(
+                return_value=SimpleNamespace(
+                    value={
+                        "mcpConfigs": [
+                            {
+                                "name": "pdf-server",
+                                "extra_params": {"plugin_name": "demo-plugin"},
+                            },
+                            {"name": "user-mcp", "command": "/keep"},
+                        ]
+                    }
+                )
+            ),
+            set=AsyncMock(),
+        )
+        agent_repo = SimpleNamespace(
+            list_profiles=AsyncMock(
+                return_value=[
+                    SimpleNamespace(
+                        id="agent-1",
+                        metadata={"mcp_ids": ["pdf-server", "user-mcp"]},
+                    ),
+                    SimpleNamespace(id="agent-2", metadata={"mcp_ids": []}),
+                ]
+            ),
+            update_profile=AsyncMock(),
+        )
+        uow_cls = SimpleNamespace()
+        uow_instance = SimpleNamespace(agent_repo=agent_repo)
+
+        async def _uow_cm():
+            return uow_instance
+
+        uow_cls.__aenter__ = _uow_cm
+
+        async def _aexit(*_args: object) -> None:
+            return None
+
+        uow_cls.__aexit__ = _aexit
+
+        with (
+            patch("app.services.config.service.config_service", config_service),
+            patch(
+                "app.database.repositories.uow.UnitOfWork",
+                lambda: uow_cls(),
+            ),
+            patch(
+                "app.services.plugins.import_service.get_evolution_skill_store_db_path",
+                return_value=tmp_path / "skills.db",
+            ),
+        ):
+            result = await uninstall_plugin("demo-plugin")
+
+        assert result == {
+            "plugin_name": "demo-plugin",
+            "removed_servers": 1,
+            "unbound_agents": 1,
+            "removed_files": False,
+        }
+        # Only the plugin's server is removed; user-mcp survives.
+        set_args = config_service.set.await_args.args
+        persisted = set_args[1]["mcpConfigs"]
+        assert [cfg["name"] for cfg in persisted] == ["user-mcp"]
+        # Agent binding drops the uninstalled server name only.
+        assert agent_repo.update_profile.await_args.args == ("agent-1",)
+        update_meta = agent_repo.update_profile.await_args.kwargs["updates"]["metadata"]
+        assert update_meta["mcp_ids"] == ["user-mcp"]
+
+    async def test_uninstall_missing_plugin_noop(self) -> None:
+        from app.services.plugins.import_service import uninstall_plugin
+
+        config_service = SimpleNamespace(
+            get=AsyncMock(
+                return_value=SimpleNamespace(
+                    value={"mcpConfigs": [{"name": "user-mcp", "command": "/keep"}]}
+                )
+            ),
+            set=AsyncMock(),
+        )
+        with (
+            patch("app.services.config.service.config_service", config_service),
+            patch(
+                "app.services.plugins.import_service._unbind_plugin_from_agents",
+                AsyncMock(return_value=0),
+            ),
+            patch(
+                "app.services.plugins._plugin_files.remove_plugin_files",
+                return_value=False,
+            ),
+        ):
+            result = await uninstall_plugin("nope")
+
+        assert result == {
+            "plugin_name": "nope",
+            "removed_servers": 0,
+            "unbound_agents": 0,
+            "removed_files": False,
+        }
+        config_service.set.assert_not_awaited()

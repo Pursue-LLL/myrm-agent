@@ -21,7 +21,7 @@ from app.ai_agents.extensions.archive_checkpoint_memory import (
     ArchiveCheckpointMemoryExtension,
     _dispatch_archive_checkpoint_status,
 )
-from app.api.statistics.context_health import build_chat_compaction_snapshot, build_context_health
+from app.api.statistics.context_health.context_health import build_chat_compaction_snapshot, build_context_health
 
 
 @pytest.mark.asyncio

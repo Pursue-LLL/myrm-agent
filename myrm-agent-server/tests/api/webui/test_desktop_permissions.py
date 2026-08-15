@@ -125,7 +125,7 @@ class TestGetDesktopPermissions:
         assert response.status_code == 500
         data = response.json()
         assert data["error"] == "permissions_check_failed"
-        assert "harness import failed" in data["message"]
+        assert data["message"] == "Desktop permissions check failed"
 
     @pytest.mark.asyncio
     async def test_check_permissions_raises_returns_500(self, client: httpx.AsyncClient) -> None:
@@ -142,5 +142,5 @@ class TestGetDesktopPermissions:
         assert response.status_code == 500
         data = response.json()
         assert data["error"] == "permissions_check_failed"
-        assert "AX probe crash" in data["message"]
+        assert data["message"] == "Desktop permissions check failed"
         mock_session.close.assert_awaited_once()

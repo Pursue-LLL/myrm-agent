@@ -8,7 +8,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.internal.org_mcp_sync import router as org_mcp_sync_router
+from app.api.internal.org_policy_sync.org_mcp_sync import router as org_mcp_sync_router
 
 
 @pytest.fixture
@@ -22,10 +22,10 @@ def org_mcp_sync_app() -> FastAPI:
 async def test_org_mcp_sync_filters_stdio_when_disabled(org_mcp_sync_app: FastAPI) -> None:
     transport = ASGITransport(app=org_mcp_sync_app)
 
-    with patch("app.api.internal.org_mcp_sync.settings") as mock_settings:
+    with patch("app.api.internal.org_policy_sync.org_mcp_sync.settings") as mock_settings:
         mock_settings.mcp.allow_stdio = False
         with patch(
-            "app.api.internal.org_mcp_sync.ConfigService",
+            "app.api.internal.org_policy_sync.org_mcp_sync.ConfigService",
         ) as mock_config_cls:
             mock_config = AsyncMock()
             mock_config_cls.return_value = mock_config
@@ -53,9 +53,9 @@ async def test_org_mcp_sync_infers_missing_type(org_mcp_sync_app: FastAPI) -> No
     """Servers pushed without ``type`` get inferred (command→stdio, url→sse)."""
     transport = ASGITransport(app=org_mcp_sync_app)
 
-    with patch("app.api.internal.org_mcp_sync.settings") as mock_settings:
+    with patch("app.api.internal.org_policy_sync.org_mcp_sync.settings") as mock_settings:
         mock_settings.mcp.allow_stdio = True
-        with patch("app.api.internal.org_mcp_sync.ConfigService") as mock_config_cls:
+        with patch("app.api.internal.org_policy_sync.org_mcp_sync.ConfigService") as mock_config_cls:
             mock_config = AsyncMock()
             mock_config_cls.return_value = mock_config
 

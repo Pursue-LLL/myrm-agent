@@ -174,7 +174,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_no_handler_returns_not_available(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         host = self._make_host(background_handler=None)
         msg = _make_msg()
@@ -186,7 +186,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_empty_args_shows_usage(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         host = self._make_host(background_handler=handler)
@@ -199,7 +199,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_list_empty(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         handler.list_background = AsyncMock(return_value=[])
@@ -212,7 +212,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_list_with_tasks(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         tasks = [
             BackgroundTaskInfo(
@@ -243,7 +243,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_cancel_success(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         handler.cancel_background = AsyncMock(return_value=True)
@@ -257,7 +257,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_cancel_not_found(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         handler.cancel_background = AsyncMock(return_value=False)
@@ -271,7 +271,7 @@ class TestHandleBackgroundCommand:
     @pytest.mark.asyncio
     async def test_cancel_bare_word_is_treated_as_spawn(self) -> None:
         """'/btw cancel' (no task_id) is treated as spawn with prompt='cancel'."""
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         handler.spawn_background = AsyncMock(return_value="bg_cancel1")
@@ -285,7 +285,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_steer_success(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         handler.steer_background = AsyncMock(return_value=True)
@@ -300,7 +300,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_steer_not_found(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         handler.steer_background = AsyncMock(return_value=False)
@@ -313,7 +313,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_steer_missing_instruction(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         host = self._make_host(background_handler=handler)
@@ -325,7 +325,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_spawn_success(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         handler.spawn_background = AsyncMock(return_value="bg_new123")
@@ -340,7 +340,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_spawn_concurrent_limit(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         handler.spawn_background = AsyncMock(side_effect=RuntimeError("Maximum concurrent background tasks reached (5)."))
@@ -353,7 +353,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_reply_uses_correct_recipient(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         handler.list_background = AsyncMock(return_value=[])
@@ -367,7 +367,7 @@ class TestHandleBackgroundCommand:
 
     @pytest.mark.asyncio
     async def test_reply_uses_sender_when_no_chat_id(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         handler = MagicMock()
         handler.list_background = AsyncMock(return_value=[])

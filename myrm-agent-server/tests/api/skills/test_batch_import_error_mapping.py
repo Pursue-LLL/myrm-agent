@@ -12,7 +12,7 @@ from myrm_agent_harness.backends.skills.scanning.archive_security import (
 
 from app.api.skills._staging import SkillStagingManager
 from app.api.skills.batch_import import router
-from app.api.skills.batch_import_helpers import (
+from app.api.skills.batch_import.batch_import_helpers import (
     _build_batch_import_error_detail,
     _resolve_batch_import_error_message,
 )
@@ -197,7 +197,7 @@ def test_preview_batch_import_archive_violation_uses_structured_detail(
         )
 
     monkeypatch.setattr(
-        "app.api.skills.batch_import.HermesBatchParser.parse_zip",
+        "app.api.skills.batch_import.batch_import.HermesBatchParser.parse_zip",
         _raise_archive_security,
     )
 
@@ -269,7 +269,7 @@ def test_preview_batch_import_generic_parse_error_uses_structured_detail(
     client = TestClient(app)
 
     monkeypatch.setattr(
-        "app.api.skills.batch_import.HermesBatchParser.parse_zip",
+        "app.api.skills.batch_import.batch_import.HermesBatchParser.parse_zip",
         lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("bad zip payload")),
     )
 
@@ -294,7 +294,7 @@ def test_preview_batch_import_returns_empty_response_when_no_skills(
     client = TestClient(app)
 
     monkeypatch.setattr(
-        "app.api.skills.batch_import.HermesBatchParser.parse_zip",
+        "app.api.skills.batch_import.batch_import.HermesBatchParser.parse_zip",
         lambda *args, **kwargs: [],
     )
 
@@ -322,10 +322,10 @@ def test_preview_batch_import_uses_server_optimization_modules_when_available(
     _install_fake_app_optimization_modules(monkeypatch, passed=True, issues=[])
     fake_store = _FakeSkillStore(tmp_path)
     monkeypatch.setattr(
-        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+        "app.api.skills.batch_import.batch_import._get_skill_store", lambda: fake_store
     )
     monkeypatch.setattr(
-        "app.api.skills.batch_import.HermesBatchParser.parse_zip",
+        "app.api.skills.batch_import.batch_import.HermesBatchParser.parse_zip",
         lambda *args, **kwargs: [_make_imported_skill()],
     )
 
@@ -352,10 +352,10 @@ def test_preview_batch_import_success_persists_session_and_marks_conflict(
         existing_skills=[SimpleNamespace(name="skill-one", skill_id="existing-1")],
     )
     monkeypatch.setattr(
-        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+        "app.api.skills.batch_import.batch_import._get_skill_store", lambda: fake_store
     )
     monkeypatch.setattr(
-        "app.api.skills.batch_import.HermesBatchParser.parse_zip",
+        "app.api.skills.batch_import.batch_import.HermesBatchParser.parse_zip",
         lambda *args, **kwargs: [_make_imported_skill()],
     )
     monkeypatch.setattr(
@@ -393,7 +393,7 @@ def test_confirm_batch_import_blank_load_session_error_uses_default_message(
         raise BlankMessageError()
 
     monkeypatch.setattr(
-        "app.api.skills.batch_import._get_skill_store",
+        "app.api.skills.batch_import.batch_import._get_skill_store",
         lambda: SimpleNamespace(db_path=tmp_path / "skills.db"),
     )
     monkeypatch.setattr(
@@ -433,10 +433,10 @@ def test_confirm_batch_import_success_returns_counts_and_saves_batch(
 
     fake_store = _FakeSkillStore(tmp_path)
     monkeypatch.setattr(
-        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+        "app.api.skills.batch_import.batch_import._get_skill_store", lambda: fake_store
     )
     monkeypatch.setattr(
-        "app.api.skills.batch_import.HermesBatchParser.parse_zip",
+        "app.api.skills.batch_import.batch_import.HermesBatchParser.parse_zip",
         lambda *args, **kwargs: [_make_imported_skill()],
     )
     monkeypatch.setattr(
@@ -492,10 +492,10 @@ def test_confirm_batch_import_success_falls_back_to_save_skill(
 
     fake_store = _FakeSkillStoreNoBatch(tmp_path)
     monkeypatch.setattr(
-        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+        "app.api.skills.batch_import.batch_import._get_skill_store", lambda: fake_store
     )
     monkeypatch.setattr(
-        "app.api.skills.batch_import.HermesBatchParser.parse_zip",
+        "app.api.skills.batch_import.batch_import.HermesBatchParser.parse_zip",
         lambda *args, **kwargs: [_make_imported_skill()],
     )
     monkeypatch.setattr(
@@ -543,7 +543,7 @@ def test_confirm_batch_import_accumulates_restored_eval_cases_and_keeps_first_va
 
     fake_store = _FakeSkillStore(tmp_path)
     monkeypatch.setattr(
-        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+        "app.api.skills.batch_import.batch_import._get_skill_store", lambda: fake_store
     )
     monkeypatch.setattr(
         "myrm_agent_harness.agent.skills.optimization.security.SkillSecurityValidator.validate_skill",
@@ -616,7 +616,7 @@ def test_confirm_batch_import_replace_and_rename_use_server_validator(
     _install_fake_app_optimization_modules(monkeypatch, passed=True, issues=[])
     fake_store = _FakeSkillStore(tmp_path)
     monkeypatch.setattr(
-        "app.api.skills.batch_import._get_skill_store", lambda: fake_store
+        "app.api.skills.batch_import.batch_import._get_skill_store", lambda: fake_store
     )
 
     from app.api.skills._staging import SkillStagingManager
@@ -685,7 +685,7 @@ def test_confirm_batch_import_archive_violation_uses_structured_detail(
         )
 
     monkeypatch.setattr(
-        "app.api.skills.batch_import._get_skill_store",
+        "app.api.skills.batch_import.batch_import._get_skill_store",
         lambda: SimpleNamespace(db_path=tmp_path / "skills.db"),
     )
     monkeypatch.setattr(
@@ -728,7 +728,7 @@ def test_confirm_batch_import_generic_load_session_error_uses_structured_detail(
         raise RuntimeError("session expired")
 
     monkeypatch.setattr(
-        "app.api.skills.batch_import._get_skill_store",
+        "app.api.skills.batch_import.batch_import._get_skill_store",
         lambda: SimpleNamespace(db_path=tmp_path / "skills.db"),
     )
     monkeypatch.setattr(
@@ -767,7 +767,7 @@ def test_confirm_batch_import_invalid_virtual_id_uses_structured_detail(
     client = TestClient(app)
 
     monkeypatch.setattr(
-        "app.api.skills.batch_import._get_skill_store",
+        "app.api.skills.batch_import.batch_import._get_skill_store",
         lambda: SimpleNamespace(db_path=tmp_path / "skills.db"),
     )
     monkeypatch.setattr(
@@ -807,7 +807,7 @@ def test_confirm_batch_import_security_scan_failure_uses_structured_detail(
     client = TestClient(app)
 
     monkeypatch.setattr(
-        "app.api.skills.batch_import._get_skill_store",
+        "app.api.skills.batch_import.batch_import._get_skill_store",
         lambda: SimpleNamespace(db_path=tmp_path / "skills.db"),
     )
     monkeypatch.setattr(

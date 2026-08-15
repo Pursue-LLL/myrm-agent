@@ -17,8 +17,12 @@ vi.mock('sonner', () => ({
   },
 }));
 
-vi.mock('@/lib/api', () => ({
-  getApiUrl: (path: string) => path,
+vi.mock('@/lib/cp-base-url', () => ({
+  resolveCpBaseUrl: () => 'https://cp.example.com',
+}));
+
+vi.mock('@/lib/utils/authHeaders', () => ({
+  getAuthHeaders: () => ({ Authorization: 'Bearer test-token' }),
 }));
 
 const { authUserState } = vi.hoisted(() => ({

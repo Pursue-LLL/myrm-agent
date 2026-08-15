@@ -128,7 +128,7 @@ class TestHandleSteerCommand:
 
     @pytest.mark.asyncio
     async def test_steer_no_args_shows_usage(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -143,7 +143,7 @@ class TestHandleSteerCommand:
 
     @pytest.mark.asyncio
     async def test_steer_with_active_task_injects_message(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -172,7 +172,7 @@ class TestHandleSteerCommand:
 
     @pytest.mark.asyncio
     async def test_steer_no_active_task_submits_as_normal(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -206,7 +206,7 @@ class TestHandleQueueCommand:
 
     @pytest.mark.asyncio
     async def test_queue_no_args_shows_usage(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -221,7 +221,7 @@ class TestHandleQueueCommand:
 
     @pytest.mark.asyncio
     async def test_queue_with_active_task_queues_and_confirms(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -250,7 +250,7 @@ class TestHandleQueueCommand:
 
     @pytest.mark.asyncio
     async def test_queue_no_active_task_executes_immediately(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -360,7 +360,7 @@ class TestSteerCommandEdgeCases:
 
     @pytest.mark.asyncio
     async def test_steer_long_instruction_truncated_in_preview(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -388,7 +388,7 @@ class TestSteerCommandEdgeCases:
 
     @pytest.mark.asyncio
     async def test_steer_whitespace_only_shows_usage(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -403,7 +403,7 @@ class TestSteerCommandEdgeCases:
     @pytest.mark.asyncio
     async def test_steer_active_task_without_steering_token_fallback(self) -> None:
         """If _ActiveTask exists but steering_token is None, fall back to gate."""
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -443,7 +443,7 @@ class TestQueueCommandEdgeCases:
 
     @pytest.mark.asyncio
     async def test_queue_whitespace_only_shows_usage(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -458,7 +458,7 @@ class TestQueueCommandEdgeCases:
     @pytest.mark.asyncio
     async def test_queue_preserves_message_channel_info(self) -> None:
         """Queued message should retain original channel/sender info."""
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 

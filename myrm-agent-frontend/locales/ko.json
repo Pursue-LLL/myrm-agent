@@ -5569,6 +5569,7 @@
         "fanoutPartial": "정책이 저장되었지만 {failed}개의 구성원 샌드박스가 동기화되지 않았습니다. 활성 구성원은 새로고침이 필요할 수 있습니다.",
         "descPlaceholder": "설명(선택)",
         "add": "추가",
+        "removePattern": "패턴 제거",
         "empty": "모델 제한이 없습니다. 모든 모델을 사용할 수 있습니다.",
         "note": "구성원은 위 패턴과 일치하는 모델만 사용할 수 있습니다. 변경 사항은 즉시 적용됩니다."
       },
@@ -5617,6 +5618,26 @@
       "audit": {
         "title": "보안 감사 대시보드",
         "description": "조직 전반의 보안 이벤트, 액세스 패턴 및 규정 준수를 모니터링하세요",
+        "viewPlatform": "플랫폼 감사",
+        "viewAgent": "Agent 동작",
+        "agentTitle": "Agent 동작 감사",
+        "agentDescription": "멤버 샌드박스에서 Agent가 수행한 작업을 확인 — 모든 세션의 도구 호출, 승인 요청, 보안 결정",
+        "agentTotalEvents": "총 이벤트",
+        "agentToolCalls": "도구 호출",
+        "agentSecurityEvents": "보안 이벤트",
+        "agentScannedSandboxes": "스캔된 샌드박스",
+        "agentFailedSandboxes": "이 기간 동안 스캔할 수 없는 멤버 샌드박스:",
+        "agentEventList": "이벤트 스트림",
+        "agentNoEvents": "선택한 시간 범위에 Agent 활동이 없습니다",
+        "agentSecurityDecisions": "보안 결정",
+        "agentDetails": "이벤트 상세",
+        "toneTool": "도구 호출",
+        "toneApproval": "승인",
+        "toneSecurity": "보안",
+        "toneSession": "세션",
+        "toneError": "오류",
+        "toneLlm": "LLM",
+        "toneOther": "이벤트",
         "totalEvents": "총 이벤트",
         "failedEvents": "실패 이벤트",
         "failureRate": "실패율",
@@ -5919,6 +5940,36 @@
           "description": "스킬 {skills}개, MCP 서버 {servers}개를 가져왔습니다",
           "requiredKeys": "가져온 후 Agent Secrets에서 다음 키를 구성하세요: {keys}",
           "disabledHint": "가져온 MCP 서버는 기본적으로 비활성화되어 있습니다. MCP 설정에서 활성화하세요"
+        }
+      },
+      "manager": {
+        "title": "플러그인 관리",
+        "subtitle": "가져온 Agent 플러그인을 관리합니다. MCP 서버를 확인하고 플러그인 전체를 제거할 수 있습니다.",
+        "empty": {
+          "title": "설치된 플러그인이 없습니다",
+          "hint": "먼저 'Agent 플러그인 가져오기'로 플러그인 패키지를 설치하세요.",
+          "servers": "MCP 서버 없음"
+        },
+        "badges": {
+          "bundled": "번들 파일 포함"
+        },
+        "actions": {
+          "refresh": "새로 고침",
+          "close": "닫기",
+          "cancel": "취소",
+          "uninstall": "제거"
+        },
+        "confirm": {
+          "title": "플러그인 제거 확인",
+          "description": "'{name}'을(를) 제거하면 MCP 서버 구성, 에이전트 바인딩 및 번들 파일이 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
+        },
+        "success": {
+          "uninstalled": "제거 성공",
+          "summary": "MCP 서버 {servers}개 제거, 에이전트 바인딩 {agents}개 해제"
+        },
+        "errors": {
+          "listFailed": "설치된 플러그인을 불러오지 못했습니다",
+          "uninstallFailed": "플러그인 제거에 실패했습니다"
         }
       }
     }
@@ -13319,6 +13370,7 @@
     "frustrationSkillLearned": "스킬 \"{skillName}\"에 대한 선호도가 학습되었습니다",
     "autoMemoryExtracted": "{count}개의 기억을 저장했습니다",
     "memoryRecallUpdated": "기억 리콜 범위가 업데이트되었습니다",
+    "conflictDetected": "기억 충돌이 감지되었습니다. 기억에서 확인하고 판결하세요",
     "viewMemoryCenter": "기억 보기",
     "reviewSharedContextProposal": "메모리에서 검토",
     "streamCompleted": "Agent 응답이 완료되었습니다",

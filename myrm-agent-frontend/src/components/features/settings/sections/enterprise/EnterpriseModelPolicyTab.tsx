@@ -6,47 +6,59 @@ import { toast } from 'sonner';
 import { IconPlus, IconTrash } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
-import { getApiUrl } from '@/lib/api';
-
-interface PolicyEntry {
-  id: string;
-  pattern: string;
-  description: string;
-  created_by: string;
-  created_at: number;
-}
+import {
+  type ModelPolicyEntry,
+  addModelPolicy,
+  getModelPolicy,
+  getMyOrg,
+  removeModelPolicy,
+} from '@/services/enterprise-org';
 
 const EnterpriseModelPolicyTab = memo(() => {
   const t = useTranslations('settings.enterprise');
-  const [policies, setPolicies] = useState<PolicyEntry[]>([]);
+  const [policies, setPolicies] = useState<ModelPolicyEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPattern, setNewPattern] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [adding, setAdding] = useState(false);
+  const [orgId, setOrgId] = useState('');
 
-  const orgId = typeof window !== 'undefined' ? localStorage.getItem('org_id') || '' : '';
-
-  const fetchPolicies = useCallback(async () => {
-    if (!orgId) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const res = await fetch(getApiUrl(`/api/enterprise/org/${orgId}/model-policy`));
-      if (res.ok) {
-        const data = await res.json();
-        setPolicies(data.patterns || []);
+  const fetchPolicies = useCallback(
+    async (targetOrgId: string) => {
+      if (!targetOrgId) {
+        setLoading(false);
+        return;
       }
-    } catch {
-      toast.error(t('modelPolicy.loadFailed', { default: 'Failed to load model policy' }));
-    } finally {
-      setLoading(false);
-    }
-  }, [orgId, t]);
+      try {
+        const data = await getModelPolicy(targetOrgId);
+        setPolicies(data.patterns || []);
+      } catch {
+        toast.error(t('modelPolicy.loadFailed', { default: 'Failed to load model policy' }));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
-    void fetchPolicies();
-  }, [fetchPolicies]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const org = await getMyOrg();
+        if (cancelled) {return;}
+        setOrgId(org.id);
+        await fetchPolicies(org.id);
+      } catch {
+        if (cancelled) {return;}
+        toast.error(t('modelPolicy.loadFailed', { default: 'Failed to load model policy' }));
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchPolicies, t]);
 
   const warnFanoutPartial = (failed: number) => {
     if (failed <= 0) {
@@ -65,20 +77,12 @@ const EnterpriseModelPolicyTab = memo(() => {
     if (!newPattern.trim() || !orgId) {return;}
     setAdding(true);
     try {
-      const res = await fetch(getApiUrl(`/api/enterprise/org/${orgId}/model-policy`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pattern: newPattern.trim(), description: newDescription.trim() }),
-      });
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-      const saved = (await res.json()) as { fanout?: { failed?: number } };
+      const saved = await addModelPolicy(orgId, newPattern.trim(), newDescription.trim());
       toast.success(t('modelPolicy.added', { default: 'Model policy updated' }));
       warnFanoutPartial(saved.fanout?.failed ?? 0);
       setNewPattern('');
       setNewDescription('');
-      await fetchPolicies();
+      await fetchPolicies(orgId);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -93,16 +97,10 @@ const EnterpriseModelPolicyTab = memo(() => {
   const handleRemove = async (entryId: string) => {
     if (!orgId) {return;}
     try {
-      const res = await fetch(getApiUrl(`/api/enterprise/org/${orgId}/model-policy/${entryId}`), {
-        method: 'DELETE',
-      });
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-      const saved = (await res.json()) as { fanout?: { failed?: number } };
+      const saved = await removeModelPolicy(orgId, entryId);
       toast.success(t('modelPolicy.removed', { default: 'Pattern removed' }));
       warnFanoutPartial(saved.fanout?.failed ?? 0);
-      await fetchPolicies();
+      await fetchPolicies(orgId);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -187,6 +185,8 @@ const EnterpriseModelPolicyTab = memo(() => {
                 size="sm"
                 onClick={() => handleRemove(entry.id)}
                 className="text-destructive hover:text-destructive/80"
+                aria-label={t('modelPolicy.removePattern', { default: 'Remove pattern' })}
+                title={t('modelPolicy.removePattern', { default: 'Remove pattern' })}
               >
                 <IconTrash className="h-3.5 w-3.5" />
               </Button>

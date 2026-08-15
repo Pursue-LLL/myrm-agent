@@ -35,7 +35,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.memory import MemoryArchiveRestoreBatchModel, MemoryArchiveRestoreItemModel
-from app.services.memory.archive.archive_restore_common import (
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+
+from .archive_restore_common import (
     RESTORE_BATCH_STATUS_CONFIRMED,
     RESTORE_BATCH_STATUS_FAILED,
     RESTORE_BATCH_STATUS_IN_PROGRESS,
@@ -55,10 +57,9 @@ from app.services.memory.archive.archive_restore_common import (
     operation_status,
     selected_sections,
 )
-from app.services.memory.archive.archive_restore_executor import MemoryArchiveRestoreExecutor
-from app.services.memory.archive.archive_restore_planner import MemoryArchiveRestorePlanner
-from app.services.memory.archive.archive_restore_rollback import MemoryArchiveRestoreRollbacker
-from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+from .archive_restore_executor import MemoryArchiveRestoreExecutor
+from .archive_restore_planner import MemoryArchiveRestorePlanner
+from .archive_restore_rollback import MemoryArchiveRestoreRollbacker
 
 ArchiveRestoreHealthStatus = Literal["ready", "warning", "critical"]
 

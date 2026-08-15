@@ -7,6 +7,7 @@ myrm_agent_harness.toolkits.memory.setup::create_local_memory_manager (POS: 开�
 resolve_context_binding: 统一解析业务侧上下文绑定合同
 create_memory_manager: 业务层记忆管理器工厂
 create_memory_tools_for_user: 业务层记忆工具工厂
+create_conflict_callback: 冲突持久化回调工厂（importance>=0.9 写时分级：high_risk 不设 auto_resolve_at 永不静默保旧，低风险 72h 自动保留旧记忆）
 shutdown_cached_memory_managers: 释放进程级记忆管理器缓存（联动清理 harness 嵌入式 Qdrant 单例）
 evict_cached_memory_manager: 关闭并逐出指定 base_path 的 MemoryManager，联动释放对应嵌入式 Qdrant 单例（隔离评测卷专用）
 
@@ -265,6 +266,44 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
 
     from myrm_agent_harness.toolkits.memory.types import ConflictResolution
 
+    async def _record_conflict_ledger_event(
+        *,
+        conflict_id: str,
+        high_risk: bool,
+    ) -> None:
+        """Record a conflict ledger event so the UI badge refreshes via SSE.
+
+        Non-fatal: ledger failures must never affect conflict persistence.
+        """
+        try:
+            from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperationStatus
+
+            from app.database.connection import get_session
+            from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+
+            summary = (
+                "New high-risk memory conflict awaiting your review."
+                if high_risk
+                else "New memory conflict awaiting your review."
+            )
+            async with get_session() as db:
+                await MemoryOperationLedgerService(db).record_event(
+                    kind=MemoryOperationKind.CONFLICT,
+                    status=MemoryOperationStatus.SUCCESS,
+                    summary=summary,
+                    memory_id=conflict_id,
+                    memory_type="semantic",
+                    source="consolidation_conflict",
+                    target_kind="pending_memory",
+                    target_id=conflict_id,
+                    metadata={"high_risk": high_risk},
+                    commit=True,
+                )
+        except Exception:
+            logger.warning(
+                "Failed to record conflict ledger event for %s (non-fatal)", conflict_id, exc_info=True
+            )
+
     async def _on_conflict(ctx: ConflictContext) -> ConflictResolution:
         from datetime import UTC, timedelta
         from datetime import datetime as dt
@@ -311,6 +350,10 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
                 ctx.importance or 0.0,
                 high_risk,
                 auto_resolve_at,
+            )
+            await _record_conflict_ledger_event(
+                conflict_id=conflict_id,
+                high_risk=high_risk,
             )
         except Exception:
             logger.warning(

@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.api.security import ManagedApprovalPolicy, get_process_managed_approval_policy
 
-from app.api.internal.org_managed_approval_policy_sync import (
+from app.api.internal.org_policy_sync.org_managed_approval_policy_sync import (
     router as org_managed_approval_policy_sync_router,
 )
 
@@ -97,7 +97,7 @@ async def test_sync_rejects_invalid_token(map_sync_app: FastAPI) -> None:
 async def test_sync_publishes_managed_policy_updated_event(map_sync_app: FastAPI) -> None:
     from app.services.event.app_event_bus import AppEventType
 
-    with patch("app.api.internal.org_managed_approval_policy_sync.get_event_bus") as mock_bus:
+    with patch("app.api.internal.org_policy_sync.org_managed_approval_policy_sync.get_event_bus") as mock_bus:
         transport = ASGITransport(app=map_sync_app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.post(

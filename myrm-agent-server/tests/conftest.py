@@ -577,9 +577,15 @@ def _chrome_e2e_epoch_pin(
         if (
             outcome.detail not in _EPOCH_PIN_DEFER_DETAILS
             and not outcome.detail.startswith("verify_seed_failed_defer_shared:")
+            and not outcome.detail.startswith("verify_seed_failed_no_shared:")
         ):
             pytest.fail(
                 f"E2E_EPOCH_PIN_FAILED: node={request.node.nodeid} detail={outcome.detail!r}"
+            )
+        if outcome.detail.startswith("verify_seed_failed_no_shared:"):
+            pytest.skip(
+                f"E2E_EPOCH_PIN_DEFER_SKIP: shared backend unhealthy and verify "
+                f"seed failed; heal then retry: {outcome.detail}"
             )
         if outcome.api_base:
             monkeypatch.setenv("E2E_API_BASE", outcome.api_base.rstrip("/"))

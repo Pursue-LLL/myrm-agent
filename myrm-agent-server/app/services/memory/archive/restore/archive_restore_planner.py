@@ -38,15 +38,16 @@ from app.database.models.memory import (
     SharedContextModel,
     SharedContextWriteProposalModel,
 )
-from app.services.memory.archive.archive_restore_common import (
+from app.services.memory.imports.import_adapters import build_memory_import_dry_run
+from app.services.memory.imports.import_session_data import canonical_hash
+
+from .archive_restore_common import (
     DEFAULT_ARCHIVE_RESTORE_SECTIONS,
     count_items,
     object_dict,
     object_rows,
     selected_sections,
 )
-from app.services.memory.imports.import_adapters import build_memory_import_dry_run
-from app.services.memory.imports.import_session_data import canonical_hash
 
 MAX_SECURITY_FINDINGS = 100
 _BLOCKING_SECURITY_VERDICTS = {"blocked", "redacted"}

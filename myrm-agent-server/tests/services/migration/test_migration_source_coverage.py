@@ -11,8 +11,8 @@ from app.services.memory.imports.import_adapters import (
     build_memory_import_dry_run,
     resolve_migration_source,
 )
-from app.services.migration.source_payload_loader import load_source_payload
-from app.services.migration.source_payload_split import (
+from app.services.migration.source.source_payload_loader import load_source_payload
+from app.services.migration.source.source_payload_split import (
     build_instruction_plan,
     extract_memory_payload,
 )
@@ -21,7 +21,7 @@ from app.services.migration.source_payload_split import (
 @pytest.fixture()
 def _local(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "app.services.migration.source_payload_loader.is_local_mode",
+        "app.services.migration.source.source_payload_loader.is_local_mode",
         lambda: True,
     )
 
@@ -45,7 +45,7 @@ class TestResolveCompetitorImportSource:
 
 class TestSupportedCompetitorIds:
     def test_closed_set_matches_wizard(self) -> None:
-        from app.services.migration.source_payload_loader import supported_source_ids
+        from app.services.migration.source.source_payload_loader import supported_source_ids
 
         assert supported_source_ids() == frozenset({"hermes", "openclaw", "claude", "codex", "pi"})
 

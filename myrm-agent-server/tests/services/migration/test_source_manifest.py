@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.services.migration.source_manifest import (
+from app.services.migration.source.source_manifest import (
     migration_source_deep_link_ids,
     migration_source_import_map,
     migration_source_local_scan_ids,
@@ -12,7 +12,7 @@ from app.services.migration.source_manifest import (
     migration_source_manifest_ids,
     migration_source_manifest_payload,
 )
-from app.services.migration.source_payload_loader import supported_source_ids
+from app.services.migration.source.source_payload_loader import supported_source_ids
 
 
 def test_manifest_ids_match_expected_sources() -> None:

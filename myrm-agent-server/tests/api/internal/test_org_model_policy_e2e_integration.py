@@ -16,10 +16,10 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.internal.org_model_policy_sync import (
+from app.api.internal.org_policy_sync.org_model_policy_sync import (
     frontend_router as org_model_policy_frontend_router,
 )
-from app.api.internal.org_model_policy_sync import (
+from app.api.internal.org_policy_sync.org_model_policy_sync import (
     router as org_model_policy_sync_router,
 )
 
@@ -54,10 +54,10 @@ class FakeConfigStore:
 def fake_config():
     store = FakeConfigStore()
     with patch(
-        "app.api.internal.org_model_policy_sync.ConfigService",
+        "app.api.internal.org_policy_sync.org_model_policy_sync.ConfigService",
         return_value=store,
     ):
-        with patch("app.api.internal.org_model_policy_sync.invalidate_user_configs_cache"):
+        with patch("app.api.internal.org_policy_sync.org_model_policy_sync.invalidate_user_configs_cache"):
             yield store
 
 

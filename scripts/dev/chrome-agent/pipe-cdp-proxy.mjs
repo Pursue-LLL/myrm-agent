@@ -344,15 +344,31 @@ function cdpRequest(method, params = {}) {
 
 // On Chrome boot/restart: enable discovery + auto-attach so the proxy receives
 // (and caches) every Target.* event, even before any real clients connect.
-async function enableProxyDiscovery() {
+// Chrome via --remote-debugging-pipe can take well over 500ms to accept CDP;
+// retry instead of giving up, otherwise knownTargets stays empty and every
+// client sees "No page selected".
+async function enableProxyDiscovery(retries = 10) {
     if (!chromeWritable) return;
-    await cdpRequest('Target.setDiscoverTargets', { discover: true });
-    await cdpRequest('Target.setAutoAttach', {
-        autoAttach: true,
-        waitForDebuggerOnStart: false,
-        flatten: true,
-    });
-    console.log('[Proxy] Discovery + auto-attach enabled by proxy itself');
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            await cdpRequest('Target.setDiscoverTargets', { discover: true });
+            await cdpRequest('Target.setAutoAttach', {
+                autoAttach: true,
+                waitForDebuggerOnStart: false,
+                flatten: true,
+            });
+            console.log('[Proxy] Discovery + auto-attach enabled by proxy itself');
+            return;
+        } catch (e) {
+            if (attempt === retries) {
+                console.error(
+                    `[Proxy] Discovery enable failed after ${retries} attempts: ${e.message}`
+                );
+                return;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+    }
 }
 
 // ═══════════════════════════════════════════

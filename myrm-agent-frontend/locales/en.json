@@ -4561,6 +4561,7 @@
         "fanoutPartial": "Policy saved, but {failed} member sandbox(es) did not sync. Active members may need to refresh.",
         "descPlaceholder": "Description (optional)",
         "add": "Add",
+        "removePattern": "Remove pattern",
         "empty": "No model restrictions. All models are accessible.",
         "note": "Members can only use models matching the patterns above. Changes apply immediately."
       },
@@ -4609,6 +4610,26 @@
       "audit": {
         "title": "Security Audit Dashboard",
         "description": "Monitor security events, access patterns, and compliance across your organization",
+        "viewPlatform": "Platform Audit",
+        "viewAgent": "Agent Behavior",
+        "agentTitle": "Agent Behavior Audit",
+        "agentDescription": "Review what agents did inside member sandboxes — tool calls, approvals, and security decisions across all sessions",
+        "agentTotalEvents": "Total Events",
+        "agentToolCalls": "Tool Calls",
+        "agentSecurityEvents": "Security Events",
+        "agentScannedSandboxes": "Scanned Sandboxes",
+        "agentFailedSandboxes": "Some member sandboxes could not be scanned within this window:",
+        "agentEventList": "Event Stream",
+        "agentNoEvents": "No agent activity found for the selected time range",
+        "agentSecurityDecisions": "Security decisions",
+        "agentDetails": "Event details",
+        "toneTool": "Tool call",
+        "toneApproval": "Approval",
+        "toneSecurity": "Security",
+        "toneSession": "Session",
+        "toneError": "Error",
+        "toneLlm": "LLM",
+        "toneOther": "Event",
         "totalEvents": "Total Events",
         "failedEvents": "Failed Events",
         "failureRate": "Failure Rate",
@@ -6069,6 +6090,36 @@
           "description": "Imported {skills} skills and {servers} MCP servers",
           "requiredKeys": "Configure these keys in Agent Secrets after import: {keys}",
           "disabledHint": "Imported MCP servers are disabled by default — enable them in MCP Settings"
+        }
+      },
+      "manager": {
+        "title": "Manage Plugins",
+        "subtitle": "Manage imported Agent Plugins — inspect their MCP servers and uninstall a whole plugin.",
+        "empty": {
+          "title": "No installed plugins",
+          "hint": "Import a plugin package first via \"Import Agent Plugin\".",
+          "servers": "No MCP servers"
+        },
+        "badges": {
+          "bundled": "Bundled files"
+        },
+        "actions": {
+          "refresh": "Refresh",
+          "close": "Close",
+          "cancel": "Cancel",
+          "uninstall": "Uninstall"
+        },
+        "confirm": {
+          "title": "Confirm Uninstall",
+          "description": "Uninstalling \"{name}\" removes its MCP server configurations, agent bindings, and bundled files. This cannot be undone."
+        },
+        "success": {
+          "uninstalled": "Uninstall Successful",
+          "summary": "Removed {servers} MCP server(s) and unbound {agents} agent(s)"
+        },
+        "errors": {
+          "listFailed": "Failed to load installed plugins",
+          "uninstallFailed": "Failed to uninstall the plugin"
         }
       }
     }
@@ -13652,6 +13703,7 @@
     "frustrationSkillLearned": "Preference learned for skill \"{skillName}\"",
     "autoMemoryExtracted": "Remembered {count} items from conversation",
     "memoryRecallUpdated": "Memory recall scope updated",
+    "conflictDetected": "Memory conflict detected — review and resolve in Memory",
     "viewMemoryCenter": "View in Memory",
     "reviewSharedContextProposal": "Review in Memory",
     "streamCompleted": "Agent response completed",

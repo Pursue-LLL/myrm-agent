@@ -1,11 +1,11 @@
 """Unauthenticated public endpoint for artifact share bundles (entry + assets).
 
 [INPUT]
-- app.core.security.share_hmac (POS: HMAC signing + password-protection detection)
-- app.core.security.share_headers (POS: shared share privacy headers)
-- app.core.security.share_password_page (POS: password gate HTML + submission parsing)
-- app.core.security.share_status_page (POS: browser-friendly share 404 page)
-- app.core.security.share_unlock (POS: shared unlock-cookie credential mechanics)
+- app.core.security.share.share_hmac (POS: HMAC signing + password-protection detection)
+- app.core.security.share.share_headers (POS: shared share privacy headers)
+- app.core.security.share.share_password_page (POS: password gate HTML + submission parsing)
+- app.core.security.share.share_status_page (POS: browser-friendly share 404 page)
+- app.core.security.share.share_unlock (POS: shared unlock-cookie credential mechanics)
 - app.services.artifacts.share_bundle (POS: multi-file static bundle materialization)
 - app.services.artifacts.share_registry (POS: revocation gate check)
 - app.services.artifacts.share_token::ArtifactShareClaims (POS: HMAC claims)
@@ -44,14 +44,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_workspace_root
 from app.core.infra.limiter import limiter
-from app.core.security.share_headers import SHARE_PRIVACY_HEADERS
-from app.core.security.share_hmac import is_password_protected
-from app.core.security.share_password_page import (
+from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
+from app.core.security.share.share_hmac import is_password_protected
+from app.core.security.share.share_password_page import (
     render_password_gate_html,
     resolve_gate_password,
 )
-from app.core.security.share_status_page import share_not_found
-from app.core.security.share_unlock import (
+from app.core.security.share.share_status_page import share_not_found
+from app.core.security.share.share_unlock import (
     attach_unlock_cookie,
     parse_unlock_credential,
     unlock_cookie_name,

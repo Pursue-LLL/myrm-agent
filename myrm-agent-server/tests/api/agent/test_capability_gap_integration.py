@@ -758,7 +758,7 @@ async def test_migration_readiness_live_resolve_emits_gap_after_db_seed() -> Non
         import_batch_id = confirm.import_batch_id
 
     with patch(
-        "app.services.migration.source_secrets_importer.external_source_providers_configured",
+        "app.services.migration.source.source_secrets_importer.external_source_providers_configured",
         new=AsyncMock(return_value=False),
     ):
         event, status = await resolve_and_build_migration_readiness_gap_sse_event(
@@ -869,7 +869,7 @@ def test_agent_stream_migration_readiness_gap_does_not_block_assistant(
     }
 
     with patch(
-        "app.services.migration.source_secrets_importer.external_source_providers_configured",
+        "app.services.migration.source.source_secrets_importer.external_source_providers_configured",
         new=AsyncMock(return_value=False),
     ):
         events = _collect_agent_stream(client, payload)

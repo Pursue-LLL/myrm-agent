@@ -57,6 +57,7 @@ import { SkillPermissionsManager } from '@/components/features/skills/SkillPermi
 import { SkillInstanceManager } from '@/components/features/skills/SkillInstanceManager';
 import SkillBatchImportDialog from '@/components/features/skills/SkillBatchImportDialog';
 import PluginImportDialog from '@/components/features/plugins/PluginImportDialog';
+import PluginManagerDialog from '@/components/features/plugins/PluginManagerDialog';
 import { getSkillStatus } from '@/components/features/skills/SkillCard';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import SettingsSection from '../SettingsSection';
@@ -66,6 +67,7 @@ type TabValue = 'discover' | 'installed' | 'permissions';
 const SkillsSection = memo(() => {
   const t = useTranslations('settings.skills');
   const tPlugins = useTranslations('settings.plugins.import');
+  const tPluginManager = useTranslations('settings.plugins.manager');
   const { user, isInitialized } = useAuthStore();
 
   const [isMounted, setIsMounted] = useState(false);
@@ -124,6 +126,7 @@ const SkillsSection = memo(() => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isBatchImportOpen, setIsBatchImportOpen] = useState(false);
   const [isPluginImportOpen, setIsPluginImportOpen] = useState(false);
+  const [isPluginManagerOpen, setIsPluginManagerOpen] = useState(false);
   const handleExport = useCallback(async () => {
     if (!user?.id) {return;}
     try {
@@ -628,16 +631,28 @@ const SkillsSection = memo(() => {
                 </>
               )}
               {isLoggedIn && activeTab === 'installed' && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsPluginImportOpen(true)}
-                  disabled={isSyncing}
-                  className="h-9 w-9"
-                  title={tPlugins('title')}
-                >
-                  <IconPlug className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsPluginImportOpen(true)}
+                    disabled={isSyncing}
+                    className="h-9 w-9"
+                    title={tPlugins('title')}
+                  >
+                    <IconPlug className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsPluginManagerOpen(true)}
+                    disabled={isSyncing}
+                    className="h-9 w-9"
+                    title={tPluginManager('title')}
+                  >
+                    <IconFolder className="h-4 w-4" />
+                  </Button>
+                </>
               )}
               <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isLoading} className="h-9 w-9">
                 <IconRefresh className={cn('h-4 w-4', isLoading && 'animate-spin')} />
@@ -964,6 +979,16 @@ const SkillsSection = memo(() => {
         open={isPluginImportOpen}
         onOpenChange={setIsPluginImportOpen}
         onImportComplete={() => {
+          fetchLocalSkills();
+          fetchUserSkillConfig(true);
+        }}
+      />
+
+      {/* Agent Plugin Manager Dialog */}
+      <PluginManagerDialog
+        open={isPluginManagerOpen}
+        onOpenChange={setIsPluginManagerOpen}
+        onPluginChanged={() => {
           fetchLocalSkills();
           fetchUserSkillConfig(true);
         }}

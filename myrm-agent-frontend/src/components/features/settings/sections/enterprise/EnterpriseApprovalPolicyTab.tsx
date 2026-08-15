@@ -6,14 +6,12 @@ import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
-import { getApiUrl } from '@/lib/api';
-
-interface ApprovalPolicyState {
-  ignoreAllowlistForModels: string[];
-  forceAutoReviewForModels: string[];
-  disableYolo: boolean;
-  disableAllowAlways: boolean;
-}
+import {
+  type ApprovalPolicyState,
+  getApprovalPolicy,
+  getMyOrg,
+  saveApprovalPolicy,
+} from '@/services/enterprise-org';
 
 const EMPTY_POLICY: ApprovalPolicyState = {
   ignoreAllowlistForModels: [],
@@ -29,56 +27,55 @@ const EnterpriseApprovalPolicyTab = memo(() => {
   const [saving, setSaving] = useState(false);
   const [ignoreInput, setIgnoreInput] = useState('');
   const [forceInput, setForceInput] = useState('');
+  const [orgId, setOrgId] = useState('');
 
-  const orgId = typeof window !== 'undefined' ? localStorage.getItem('org_id') || '' : '';
-
-  const fetchPolicy = useCallback(async () => {
-    if (!orgId) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const res = await fetch(getApiUrl(`/api/enterprise/org/${orgId}/approval-policy`));
-      if (res.ok) {
-        const data = (await res.json()) as ApprovalPolicyState;
+  const fetchPolicy = useCallback(
+    async (targetOrgId: string) => {
+      if (!targetOrgId) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const data = await getApprovalPolicy(targetOrgId);
         setPolicy({
           ignoreAllowlistForModels: data.ignoreAllowlistForModels ?? [],
           forceAutoReviewForModels: data.forceAutoReviewForModels ?? [],
           disableYolo: Boolean(data.disableYolo),
           disableAllowAlways: Boolean(data.disableAllowAlways),
         });
+      } catch {
+        toast.error(t('approvalPolicy.loadFailed', { default: 'Failed to load approval policy' }));
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      toast.error(t('approvalPolicy.loadFailed', { default: 'Failed to load approval policy' }));
-    } finally {
-      setLoading(false);
-    }
-  }, [orgId, t]);
+    },
+    [t],
+  );
 
   useEffect(() => {
-    void fetchPolicy();
-  }, [fetchPolicy]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const org = await getMyOrg();
+        if (cancelled) {return;}
+        setOrgId(org.id);
+        await fetchPolicy(org.id);
+      } catch {
+        if (cancelled) {return;}
+        toast.error(t('approvalPolicy.loadFailed', { default: 'Failed to load approval policy' }));
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchPolicy, t]);
 
   const handleSave = async () => {
     if (!orgId) {return;}
     setSaving(true);
     try {
-      const res = await fetch(getApiUrl(`/api/enterprise/org/${orgId}/approval-policy`), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ignore_allowlist_for_models: policy.ignoreAllowlistForModels,
-          force_auto_review_for_models: policy.forceAutoReviewForModels,
-          disable_yolo: policy.disableYolo,
-          disable_allow_always: policy.disableAllowAlways,
-        }),
-      });
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-      const saved = (await res.json()) as ApprovalPolicyState & {
-        fanout?: { failed?: number; synced?: number };
-      };
+      const saved = await saveApprovalPolicy(orgId, policy);
       toast.success(t('approvalPolicy.saved', { default: 'Approval policy saved' }));
       if ((saved.fanout?.failed ?? 0) > 0) {
         toast.warning(
@@ -88,7 +85,7 @@ const EnterpriseApprovalPolicyTab = memo(() => {
           }),
         );
       }
-      await fetchPolicy();
+      await fetchPolicy(orgId);
     } catch (error) {
       toast.error(
         error instanceof Error

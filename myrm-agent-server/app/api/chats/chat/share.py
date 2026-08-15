@@ -4,11 +4,11 @@
 - app.services.chat.share_token (POS: HMAC token create/parse)
 - app.services.chat.share_renderer (POS: HTML generation)
 - app.services.chat.chat_service::ChatService (POS: chat metadata)
-- app.core.security.share_hmac (POS: password-protection detection)
-- app.core.security.share_headers (POS: shared share privacy headers)
-- app.core.security.share_password_page (POS: password gate HTML + submission parsing)
-- app.core.security.share_status_page (POS: browser-friendly share 404 page)
-- app.core.security.share_unlock (POS: shared unlock-cookie credential mechanics)
+- app.core.security.share.share_hmac (POS: password-protection detection)
+- app.core.security.share.share_headers (POS: shared share privacy headers)
+- app.core.security.share.share_password_page (POS: password gate HTML + submission parsing)
+- app.core.security.share.share_status_page (POS: browser-friendly share 404 page)
+- app.core.security.share.share_unlock (POS: shared unlock-cookie credential mechanics)
 - app.core.infra.ingress (POS: public-ingress SSOT + share base resolver)
 
 [OUTPUT]
@@ -61,18 +61,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.settings import settings
 from app.core.infra.ingress import resolve_share_url_base
 from app.core.infra.limiter import limiter
-from app.core.security.share_headers import SHARE_PRIVACY_HEADERS
-from app.core.security.share_hmac import (
+from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
+from app.core.security.share.share_hmac import (
     b64url_decode,
     is_password_protected,
     token_fingerprint,
 )
-from app.core.security.share_password_page import (
+from app.core.security.share.share_password_page import (
     render_password_gate_html,
     resolve_gate_password,
 )
-from app.core.security.share_status_page import share_not_found
-from app.core.security.share_unlock import (
+from app.core.security.share.share_status_page import share_not_found
+from app.core.security.share.share_unlock import (
     attach_unlock_cookie,
     parse_unlock_credential,
     unlock_cookie_name,

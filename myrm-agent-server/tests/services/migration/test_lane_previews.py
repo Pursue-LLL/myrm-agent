@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.services.migration.source_migration_types import (
+from app.services.migration.source.source_migration_types import (
     INSTRUCTION_CHAR_WARN_THRESHOLD,
     SourceInstructionPlan,
     build_lane_previews,

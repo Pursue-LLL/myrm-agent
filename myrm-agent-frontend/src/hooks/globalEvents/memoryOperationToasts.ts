@@ -121,6 +121,22 @@ export function showMemoryOperationToasts(data: Record<string, unknown>, deps: M
 
   if (!kind || status === 'skipped' || status === 'error') {return;}
 
+  if (kind === 'conflict') {
+    toast.warning(t('conflictDetected'), {
+      description: description || undefined,
+      duration: 10_000,
+      dismissible: true,
+      action: {
+        label: t('viewMemoryCenter'),
+        onClick: () => router.push(MEMORY_CENTER_PATH),
+      },
+    });
+    void import('@/store/memory').then(({ useMemoryStore }) => {
+      void useMemoryStore.getState().fetchConflicts();
+    });
+    return;
+  }
+
   if (kind === 'forget' || kind === 'write') {
     toast.info(t('memoryRecallUpdated'), {
       description: description || undefined,

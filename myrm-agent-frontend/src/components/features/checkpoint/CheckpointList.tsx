@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { RefreshCw, Trash } from 'lucide-react';
 import CheckpointCard from './CheckpointCard';
@@ -25,7 +25,7 @@ const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onReinitiate
   const [error, setError] = useState<string | null>(null);
   const [cleaningUp, setCleaningUp] = useState(false);
 
-  const loadCheckpoints = async () => {
+  const loadCheckpoints = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -37,11 +37,11 @@ const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onReinitiate
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId, t]);
 
   useEffect(() => {
     loadCheckpoints();
-  }, [sessionId]);
+  }, [loadCheckpoints]);
 
   const handleDelete = async (taskId: string) => {
     try {

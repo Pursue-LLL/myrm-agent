@@ -1,7 +1,7 @@
 """Stateless HMAC tokens for time-limited public conversation share links.
 
 [INPUT]
-- app.core.security.share_hmac (POS: shared HMAC signing primitives)
+- app.core.security.share.share_hmac (POS: shared HMAC signing primitives)
 
 [OUTPUT]
 - create_chat_share_token / parse_chat_share_token
@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.core.security.share_hmac import create_share_token, parse_share_token, sign_share_token
+from app.core.security.share.share_hmac import create_share_token, parse_share_token, sign_share_token
 
 _SALT = "chat-share"
 _DEFAULT_TTL_SECONDS = 7 * 24 * 3600

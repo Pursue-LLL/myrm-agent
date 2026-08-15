@@ -13,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.migration.discovery import MigrationSourceManifestItemResponse
-from app.services.migration.source_discovery import DiscoveryResult
+from app.services.migration.source.source_discovery import DiscoveryResult
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app("memory", "migration_discovery")
@@ -38,11 +38,11 @@ class TestDiscoveryEndpointLocalMode:
         with patch(
             "app.api.migration.discovery.discover_external_sources",
             wraps=__import__(
-                "app.services.migration.source_discovery", fromlist=["discover_external_sources"]
+                "app.services.migration.source.source_discovery", fromlist=["discover_external_sources"]
             ).discover_external_sources,
         ) as mock_discover:
             mock_discover.side_effect = lambda home_dir=None: __import__(
-                "app.services.migration.source_discovery", fromlist=["discover_external_sources"]
+                "app.services.migration.source.source_discovery", fromlist=["discover_external_sources"]
             ).discover_external_sources(str(tmp_path))
 
             resp = client.get("/api/v1/migration/discover")
@@ -71,7 +71,7 @@ class TestDiscoveryEndpointLocalMode:
         mem.mkdir()
         (mem / "MEMORY.md").write_text("- User likes Python\n- Uses VS Code")
 
-        from app.services.migration.source_discovery import discover_external_sources
+        from app.services.migration.source.source_discovery import discover_external_sources
 
         real_result = discover_external_sources(str(tmp_path))
 
@@ -100,7 +100,7 @@ class TestDiscoveryEndpointLocalMode:
         (claude / "CLAUDE.md").write_text("- pref")
         (claude / "settings.json").write_text("{}")
 
-        from app.services.migration.source_discovery import discover_external_sources
+        from app.services.migration.source.source_discovery import discover_external_sources
 
         real_result = discover_external_sources(str(tmp_path))
 
@@ -118,7 +118,7 @@ class TestDiscoveryEndpointLocalMode:
         (codex / "instructions.md").write_text("# Instructions")
         (codex / "config.json").write_text("{}")
 
-        from app.services.migration.source_discovery import discover_external_sources
+        from app.services.migration.source.source_discovery import discover_external_sources
 
         real_result = discover_external_sources(str(tmp_path))
 

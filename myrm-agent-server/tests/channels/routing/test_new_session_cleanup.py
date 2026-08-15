@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.channels.routing.router_commands import RouterCommandsMixin
+from app.channels.routing.commands import RouterCommandsMixin
 from app.channels.routing.router_models import _ActiveTask
 from app.channels.types import InboundMessage
 

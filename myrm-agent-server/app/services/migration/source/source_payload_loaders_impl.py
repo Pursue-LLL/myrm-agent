@@ -18,7 +18,7 @@ from pathlib import Path
 
 import yaml
 
-from ._loader_utils import (
+from .._loader_utils import (
     extract_env_key_names,
     find_file,
     load_skill_directories,
@@ -79,7 +79,7 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
                         skill_item["usage_stats"] = usage_record
             result["skills"] = skills
 
-    from .hermes_cron_converter import (
+    from ..hermes_cron_converter import (
         build_hermes_cron_migration_plan,
         load_hermes_cron_jobs,
     )
@@ -94,8 +94,8 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
 
 
 def load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
-    from ._loader_utils import read_json
-    from .obsidian_vault_hints import collect_codex_obsidian_vault_hints
+    from .._loader_utils import read_json
+    from ..obsidian_vault_hints import collect_codex_obsidian_vault_hints
 
     result: dict[str, object] = {}
     settings_data: dict[str, object] | None = None
@@ -125,7 +125,7 @@ def load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
 
 
 def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
-    from ._loader_utils import read_json
+    from .._loader_utils import read_json
 
     result: dict[str, object] = {}
 
@@ -178,7 +178,7 @@ def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
 def load_chatgpt(root: Path, file_paths: list[str]) -> dict[str, object]:
     """Load ChatGPT conversations.json into adapter-ready payload."""
 
-    from ._loader_utils import read_json
+    from .._loader_utils import read_json
 
     result: dict[str, object] = {}
 
@@ -257,5 +257,5 @@ def load_gbrain(root: Path, file_paths: list[str]) -> dict[str, object]:
     return {"gbrain_pages": pages, "_source": "gbrain"}
 
 
-from ._loaders_openclaw import load_openclaw  # noqa: E402, F401
-from ._loaders_pi import load_pi  # noqa: E402, F401
+from .._loaders_openclaw import load_openclaw  # noqa: E402, F401
+from .._loaders_pi import load_pi  # noqa: E402, F401

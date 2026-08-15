@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.channels.routing.router_commands import RouterCommandsMixin
+from app.channels.routing.commands import RouterCommandsMixin
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.routing.router_models import _ActiveTask
 from app.channels.types import InboundMessage

@@ -7,14 +7,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.migration.source_model_migrator import (
+from app.services.migration.source.source_model_migrator import (
     AuxiliaryMigrationResult,
     extract_hermes_auxiliary_config,
     migrate_hermes_auxiliary_models,
     migrate_openclaw_default_model,
 )
 
-MODULE = "app.services.migration.source_model_migrator"
+MODULE = "app.services.migration.source.source_model_migrator"
 
 
 # ---------------------------------------------------------------------------

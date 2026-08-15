@@ -1,7 +1,7 @@
 """Session-level analytics and execution trace endpoints.
 
 [INPUT]
-- app.api.statistics.context_health (POS: 上下文健康指标构建)
+- app.api.statistics.context_health.context_health (POS: 上下文健康指标构建)
 - app.api.statistics.usage_aggregation (POS: 使用量聚合)
 - myrm_agent_harness.agent.event_log (POS: 事件日志分析框架)
 - app.core.utils.session_id::is_safe_session_id (POS: session_id/chat_id 文件路径插值白名单校验)
@@ -27,7 +27,7 @@ from myrm_agent_harness.agent.event_log.types import EventFilter
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.statistics.context_health import (
+from app.api.statistics.context_health.context_health import (
     build_chat_compaction_snapshot,
     build_context_health,
 )

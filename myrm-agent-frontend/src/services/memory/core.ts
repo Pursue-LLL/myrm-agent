@@ -38,7 +38,7 @@ export interface PendingMemory {
   conflict_old_content?: string;
   conflict_accuracy_score?: number;
   conflict_importance?: number;
-  conflict_auto_resolve_at?: string;
+  conflict_auto_resolve_at?: string | null;
 }
 
 export interface Memory {

@@ -30,7 +30,7 @@ from tests.support.minimal_app import build_minimal_app
 
 
 def _mount_app() -> httpx.ASGITransport:
-    from app.api.internal.org_mcp_sync import router as org_mcp_sync_router
+    from app.api.internal.org_policy_sync.org_mcp_sync import router as org_mcp_sync_router
 
     app = build_minimal_app(register_handlers=False)
     app.include_router(org_mcp_sync_router)
@@ -159,7 +159,7 @@ async def test_org_mcp_sync_config_api_can_read_org_mcp() -> None:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         # Seed org MCP through the real sync endpoint first.
-        from app.api.internal.org_mcp_sync import router as org_mcp_sync_router
+        from app.api.internal.org_policy_sync.org_mcp_sync import router as org_mcp_sync_router
 
         sync_app = build_minimal_app(register_handlers=False)
         sync_app.include_router(org_mcp_sync_router)

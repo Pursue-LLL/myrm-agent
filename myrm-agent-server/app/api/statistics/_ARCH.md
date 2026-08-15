@@ -10,9 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Statistics package entrypoint. | ✅ |
 | `agent_usage.py` | 模块 | Per-Agent usage analytics — per-agent token/cost breakdown with sparkline trends. | ✅ |
-| `context_health.py` | 模块 | Statistics context-health layer. | ✅ |
-| `context_health_cache.py` | 模块 | Statistics API cache-health layer. | ✅ |
-| `context_health_restore.py` | 模块 | Statistics API restore-health normalization layer. | ✅ |
+| `context_health/`（子包） | 模块 | Statistics context-health 域：`context_health.py`（compaction/pruning aggregate）、`context_health_cache.py`（cache-health 层）、`context_health_restore.py`（restore-health 归一化层）。`context_health/__init__.py` 为聚合门面。 | ✅ |
 | `daily_journal.py` | 模块 | Daily journal API. | ✅ |
 | `daily_wrap.py` | 模块 | Daily Wrap API — AI-generated daily activity summary with SQLite caching. | ✅ |
 | `assessment_import.py` | 模块 | 评估导入漏斗观测 API：写入 `import_attempted/import_succeeded/import_failed/dropped_report` 事件（维度含 `surface`、`trigger`、`failure_reason`）；聚合导入成功率/失败率、recent-candidate 入口占比、失败原因分布，含 90 天 retention 清理。 | ✅ |

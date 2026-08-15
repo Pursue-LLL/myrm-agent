@@ -3,7 +3,7 @@
 import time
 from unittest.mock import patch
 
-from app.core.security.share_hmac import (
+from app.core.security.share.share_hmac import (
     b64url_decode,
     b64url_encode,
     create_share_token,
@@ -37,7 +37,7 @@ def test_rejects_expired() -> None:
         {"x": 1}, salt=_SALT, ttl_seconds=60, max_ttl_seconds=600,
     )
     future = int(time.time()) + 120
-    with patch("app.core.security.share_hmac.time.time", return_value=future):
+    with patch("app.core.security.share.share_hmac.time.time", return_value=future):
         assert parse_share_token(token, salt=_SALT) is None
 
 
@@ -114,7 +114,7 @@ def test_rejects_malformed_input() -> None:
 
 def test_rejects_unknown_token_version() -> None:
     """A token carrying an unsupported version must be rejected."""
-    from app.core.security.share_hmac import (
+    from app.core.security.share.share_hmac import (
         b64url_encode,
         sign_share_token,
     )
@@ -134,23 +134,23 @@ def test_rejects_unknown_token_version() -> None:
 
 def test_signing_secret_falls_back_to_state_dir() -> None:
     """When no secret is configured the signing key degrades to state_dir."""
-    from app.core.security.share_hmac import _signing_secret
+    from app.core.security.share.share_hmac import _signing_secret
 
     with (
         patch(
-            "app.core.security.share_hmac.settings.config_encryption_key.get_secret_value",
+            "app.core.security.share.share_hmac.settings.config_encryption_key.get_secret_value",
             return_value="",
         ),
         patch(
-            "app.core.security.share_hmac.settings.internal_service_key.get_secret_value",
+            "app.core.security.share.share_hmac.settings.internal_service_key.get_secret_value",
             return_value="  ",
         ),
         patch(
-            "app.core.security.share_hmac.settings.sandbox_api_key.get_secret_value",
+            "app.core.security.share.share_hmac.settings.sandbox_api_key.get_secret_value",
             return_value=None,
         ),
         patch(
-            "app.core.security.share_hmac.settings.database.state_dir",
+            "app.core.security.share.share_hmac.settings.database.state_dir",
             new="myrm-test-dir",
         ),
     ):
@@ -160,15 +160,15 @@ def test_signing_secret_falls_back_to_state_dir() -> None:
 
 def test_signing_secret_uses_configured_key() -> None:
     """When a secret is configured it is used as the signing base key."""
-    from app.core.security.share_hmac import _signing_secret
+    from app.core.security.share.share_hmac import _signing_secret
 
     with (
         patch(
-            "app.core.security.share_hmac.settings.config_encryption_key.get_secret_value",
+            "app.core.security.share.share_hmac.settings.config_encryption_key.get_secret_value",
             return_value="  my-enc-key  ",
         ),
         patch(
-            "app.core.security.share_hmac.settings.internal_service_key.get_secret_value",
+            "app.core.security.share.share_hmac.settings.internal_service_key.get_secret_value",
             return_value="other-key",
         ),
     ):
@@ -176,7 +176,7 @@ def test_signing_secret_uses_configured_key() -> None:
     assert key != b""
     # A different configured key must derive a different signing secret.
     with patch(
-        "app.core.security.share_hmac.settings.config_encryption_key.get_secret_value",
+        "app.core.security.share.share_hmac.settings.config_encryption_key.get_secret_value",
         return_value="  my-enc-key-2  ",
     ):
         assert _signing_secret("test-salt") != key

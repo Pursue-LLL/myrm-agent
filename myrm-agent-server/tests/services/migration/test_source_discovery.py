@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.migration.source_discovery import (
+from app.services.migration.source.source_discovery import (
     DiscoveryResult,
     discover_external_sources,
 )

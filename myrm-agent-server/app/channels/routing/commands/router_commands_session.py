@@ -19,7 +19,11 @@ from __future__ import annotations
 import logging
 
 from app.channels.i18n import get_text
-from app.channels.routing.commands import (
+from app.channels.routing.router_host import RouterCommandsHost
+from app.channels.routing.router_keys import routing_session_key
+from app.channels.types import InboundMessage
+
+from .commands import (
     TopicCommand,
     handle_compact,
     handle_new_session,
@@ -27,9 +31,6 @@ from app.channels.routing.commands import (
     handle_topic_command,
     handle_undo,
 )
-from app.channels.routing.router_host import RouterCommandsHost
-from app.channels.routing.router_keys import routing_session_key
-from app.channels.types import InboundMessage
 
 logger = logging.getLogger("app.channels.routing.router")
 

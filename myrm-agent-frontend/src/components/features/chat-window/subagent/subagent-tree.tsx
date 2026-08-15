@@ -144,8 +144,9 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
   const isRunningNode = node.status === 'running';
   useEffect(() => {
     if (!isRunningNode || !node.startedAt) {return;}
-    setElapsedMs(Date.now() - node.startedAt);
-    const timer = setInterval(() => setElapsedMs(Date.now() - node.startedAt!), 1000);
+    const startedAt = node.startedAt;
+    setElapsedMs(Date.now() - startedAt);
+    const timer = setInterval(() => setElapsedMs(Date.now() - startedAt), 1000);
     return () => clearInterval(timer);
   }, [isRunningNode, node.startedAt]);
 
@@ -464,7 +465,7 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
 
       {expanded && hasChildren && (
         <div className="flex flex-col">
-          {node.children!.map((child) => (
+          {node.children?.map((child) => (
             <SubagentTreeNode key={child.task_id} node={child} chatId={chatId} setOpen={setOpen} />
           ))}
         </div>

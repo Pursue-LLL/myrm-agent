@@ -3,7 +3,7 @@
 import time
 from unittest.mock import patch
 
-from app.core.security.share_hmac import is_password_protected
+from app.core.security.share.share_hmac import is_password_protected
 from app.services.artifacts.share_token import (
     create_artifact_share_token,
     is_shareable_artifact,
@@ -56,7 +56,7 @@ def test_share_token_round_trip_with_artifact_type() -> None:
 def test_share_token_rejects_expired() -> None:
     token, _ = create_artifact_share_token("art-1", "ver-1", ttl_seconds=60)
     future = int(time.time()) + 120
-    with patch("app.core.security.share_hmac.time.time", return_value=future):
+    with patch("app.core.security.share.share_hmac.time.time", return_value=future):
         assert parse_artifact_share_token(token) is None
 
 
@@ -94,7 +94,7 @@ def test_parse_rejects_malformed_claims() -> None:
     import hmac
     import json
 
-    from app.core.security.share_hmac import (
+    from app.core.security.share.share_hmac import (
         _TOKEN_VERSION,
         _derive_key,
         b64url_encode,

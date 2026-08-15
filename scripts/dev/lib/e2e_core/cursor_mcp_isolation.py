@@ -12,6 +12,7 @@
 - canonical_chrome_devtools_entry(): ChromeAgent :9410 MCP server dict
 - probe_chrome_agent_reachable(): live ChromeAgent prerequisite
 - probe_chrome_agent_launchagent(): LaunchAgent daemon state
+- probe_chrome_agent_install(): machine-level bundle/plist path contract
 - probe_chrome_agent_focus(): macOS focus theft mechanical check
 
 [POS]
@@ -128,6 +129,7 @@ class DoctorReport:
     contract: ContractReport
     chrome_probe: ChromeProbe | None
     launchagent_probe: LiveProbe | None
+    install_probe: LiveProbe | None
     focus_probe: LiveProbe | None
     strict_live: bool = False
     ok: bool = field(init=False)
@@ -137,6 +139,7 @@ class DoctorReport:
         live_probes: list[LiveProbe | None] = [
             self.chrome_probe,
             self.launchagent_probe,
+            self.install_probe,
             self.focus_probe,
         ]
         if self.strict_live:
@@ -420,6 +423,63 @@ def probe_chrome_agent_launchagent() -> LiveProbe:
     return {"ok": True, "detail": f"LaunchAgent {label} running"}
 
 
+def probe_chrome_agent_install() -> LiveProbe:
+    """Machine-level bundle contract: `current` symlink, sha stamp, plist path.
+
+    Guards against the old failure mode where the LaunchAgent pointed into a
+    checkout (deleting the repo killed the Agent browser) and against version
+    drift between the active bundle and the recorded install.
+    """
+    install_base = _real_home() / ".local/lib/myrm-chrome-agent"
+    current = install_base / "current"
+    hint = "run ./myrm ready --chrome-agent --daemon"
+    if not current.is_symlink():
+        return {
+            "ok": False,
+            "detail": f"ChromeAgent machine install missing ({current}) — {hint}",
+        }
+    try:
+        target = current.resolve()
+    except OSError:
+        return {
+            "ok": False,
+            "detail": f"ChromeAgent current symlink broken: {current}",
+        }
+    if target.parent.name != "versions" or not target.is_dir():
+        return {
+            "ok": False,
+            "detail": f"ChromeAgent current target invalid: {current} -> {target}",
+        }
+    stamp = install_base / ".installed-sha"
+    installed_sha = stamp.read_text(encoding="utf-8").strip() if stamp.is_file() else ""
+    if installed_sha and installed_sha != target.name:
+        return {
+            "ok": False,
+            "detail": (
+                f"ChromeAgent version drift: current={target.name} "
+                f"installed={installed_sha} — {hint}"
+            ),
+        }
+    plist = (
+        _real_home() / "Library/LaunchAgents" / f"{CHROME_AGENT_LAUNCHAGENT_LABEL}.plist"
+    )
+    if not plist.is_file():
+        return {"ok": False, "detail": f"LaunchAgent plist absent ({plist}) — {hint}"}
+    plist_text = plist.read_text(encoding="utf-8")
+    if f"{install_base}/current/" not in plist_text:
+        return {
+            "ok": False,
+            "detail": (
+                "LaunchAgent plist points outside machine install (stale repo path) — "
+                f"{hint}"
+            ),
+        }
+    return {
+        "ok": True,
+        "detail": f"machine install ok sha={target.name} (plist -> {install_base}/current)",
+    }
+
+
 def probe_chrome_agent_focus(*, probes: int = CHROME_AGENT_FOCUS_PROBES) -> LiveProbe:
     chrome_probe = probe_chrome_agent_reachable()
     if not chrome_probe["ok"]:
@@ -509,11 +569,13 @@ def build_doctor_report(
     )
     chrome_probe = None if skip_live else probe_chrome_agent_reachable()
     launchagent_probe = None if skip_live else probe_chrome_agent_launchagent()
+    install_probe = None if skip_live else probe_chrome_agent_install()
     focus_probe = None if skip_live else probe_chrome_agent_focus()
     return DoctorReport(
         contract=contract,
         chrome_probe=chrome_probe,
         launchagent_probe=launchagent_probe,
+        install_probe=install_probe,
         focus_probe=focus_probe,
         strict_live=strict_live,
     )
@@ -545,6 +607,7 @@ def _print_doctor_report(report: DoctorReport) -> None:
 
     for probe_name, probe in (
         ("LAUNCHAGENT", report.launchagent_probe),
+        ("INSTALL", report.install_probe),
         ("FOCUS", report.focus_probe),
     ):
         if probe is None:
@@ -576,7 +639,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--strict-live",
         action="store_true",
-        help="Treat live probe failures (proxy, LaunchAgent, focus) as FAIL",
+        help="Treat live probe failures (proxy, LaunchAgent, install, focus) as FAIL",
     )
     parser.add_argument(
         "--json",
@@ -616,6 +679,7 @@ def main(argv: list[str] | None = None) -> int:
             "contract": report.contract,
             "chrome_probe": report.chrome_probe,
             "launchagent_probe": report.launchagent_probe,
+            "install_probe": report.install_probe,
             "focus_probe": report.focus_probe,
         }
         print(json.dumps(payload, indent=2, sort_keys=True))

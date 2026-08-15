@@ -28,10 +28,10 @@ import pytest
 from app.channels.routing.commands import (
     ApprovalDecision,
     DenyWithReason,
+    RouterCommandsMixin,
     normalize_approval_emoji,
     parse_approval_command,
 )
-from app.channels.routing.router_commands import RouterCommandsMixin
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.routing.router_models import _ActiveTask
 from app.channels.types import InboundMessage

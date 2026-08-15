@@ -9,7 +9,7 @@ import {
   Hand,
   Hourglass,
   Loader2,
-  PlayCircle,
+  RotateCcw,
   ShieldCheck,
   StopCircle,
   XCircle,
@@ -27,7 +27,7 @@ export const STATUS_ICON_MAP: Record<SubagentStatus, { icon: typeof Loader2; cla
   cancelled: { icon: StopCircle, className: 'text-gray-500' },
   cancelled_by_budget: { icon: Ban, className: 'text-rose-500' },
   yielded: { icon: Hand, className: 'text-purple-500' },
-  checkpoint: { icon: PlayCircle, className: 'text-purple-500' },
+  checkpoint: { icon: RotateCcw, className: 'text-purple-500' },
   interrupted: { icon: AlertTriangle, className: 'text-orange-500' },
 };
 
@@ -52,7 +52,7 @@ const StreamLine = ({ entry, expanded }: { entry: StreamEntry; expanded?: boolea
       <span className={`min-w-0 ${expanded ? 'break-words' : 'truncate'} ${entry.isError ? 'text-destructive' : 'text-muted-foreground/80'}`}>
         {entry.text}
       </span>
-      {entry.durationMs != null && (
+      {entry.durationMs !== null && entry.durationMs !== undefined && (
         <span className="shrink-0 text-[10px] text-muted-foreground/50 tabular-nums">
           {entry.durationMs < 1000 ? `${entry.durationMs}ms` : `${(entry.durationMs / 1000).toFixed(1)}s`}
         </span>

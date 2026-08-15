@@ -13,7 +13,7 @@ from app.services.migration.hermes_cron_converter import (
     convert_hermes_job,
     load_hermes_cron_jobs,
 )
-from app.services.migration.source_payload_loader import build_coverage_items, load_source_payload
+from app.services.migration.source.source_payload_loader import build_coverage_items, load_source_payload
 
 
 def test_convert_hermes_cron_job_maps_schedule() -> None:
@@ -105,7 +105,7 @@ def test_hermes_loader_includes_cron_plan(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "app.services.migration.source_payload_loader.is_local_mode",
+        "app.services.migration.source.source_payload_loader.is_local_mode",
         lambda: True,
     )
     root = tmp_path / ".hermes"

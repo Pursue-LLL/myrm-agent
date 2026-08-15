@@ -91,7 +91,7 @@ async def test_readiness_recheck_http_returns_current_readiness(
     )
 
     with patch(
-        "app.services.migration.source_secrets_importer.external_source_providers_configured",
+        "app.services.migration.source.source_secrets_importer.external_source_providers_configured",
         return_value=True,
     ):
         resp = client.post(

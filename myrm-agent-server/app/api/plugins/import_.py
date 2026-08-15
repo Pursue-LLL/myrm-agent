@@ -239,3 +239,36 @@ async def confirm_plugin_import(
         background_tasks.add_task(staging.cleanup_expired_sessions)
 
     return PluginImportConfirmResponse(**result)
+
+
+class InstalledPluginResponse(BaseModel):
+    """One installed plugin (provenance-grouped from global mcpServers entries)."""
+
+    name: str
+    servers: list[str] = Field(default_factory=list)
+    has_bundled_files: bool = False
+
+
+class PluginUninstallResult(BaseModel):
+    plugin_name: str
+    removed_servers: int = 0
+    unbound_agents: int = 0
+    removed_files: bool = False
+
+
+@router.get("/installed", response_model=list[InstalledPluginResponse])
+async def list_installed_plugins() -> list[InstalledPluginResponse]:
+    """List plugins imported with at least one MCP server."""
+    from app.services.plugins.import_service import list_installed_plugins as _list
+
+    items = await _list()
+    return [InstalledPluginResponse(**item) for item in items]
+
+
+@router.delete("/{plugin_name}", response_model=PluginUninstallResult)
+async def uninstall_plugin(plugin_name: str) -> PluginUninstallResult:
+    """Uninstall a plugin: remove its MCP servers, agent bindings, and files."""
+    from app.services.plugins.import_service import uninstall_plugin as _uninstall
+
+    result = await _uninstall(plugin_name)
+    return PluginUninstallResult(**result)

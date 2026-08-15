@@ -185,7 +185,6 @@ async def test_emit_subagent_tree_with_checkpoints():
             interruption_reason = ""
             recovery_attempts = 0
             task_description = ""
-            resumable = True
 
         mock_list_checkpoints.return_value = [DummyCheckpoint()]
 

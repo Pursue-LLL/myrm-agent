@@ -38,6 +38,31 @@ def mcp_skill_was_invoked(collected_data: list[dict[str, object]], marker: str) 
     return False
 
 
+def mcp_no_skill_usage_memory_search(collected_data: list[dict[str, object]], marker: str) -> bool:
+    """True when no memory_search_tool was used to look up skill usage for the marker skill.
+
+    Skill SOPs and /mcp/*.md function docs are authoritative for usage; memory_search_tool
+    only recalls stored memories and must not be misused as a usage lookup during MCP tasks.
+    """
+    marker = marker.lower()
+    for event in collected_data:
+        if event.get("type") != "tasks_steps":
+            continue
+        tool_name = event.get("tool_name")
+        if tool_name != "memory_search_tool":
+            continue
+        items = event.get("data")
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            query = str(item.get("query", "")) + " " + str(item.get("memory_query", ""))
+            if marker in query.lower():
+                return False
+    return True
+
+
 def mcp_ptc_bash_was_engaged(collected_data: list[dict[str, object]], marker: str) -> bool:
     """True when bash executed PTC import path (success preferred, attempt required)."""
     marker = marker.lower()

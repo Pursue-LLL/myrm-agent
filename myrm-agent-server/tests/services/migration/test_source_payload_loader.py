@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.services.memory.imports.import_adapters import build_memory_import_dry_run
-from app.services.migration.source_payload_loader import (
+from app.services.migration.source.source_payload_loader import (
     is_source_discovery_payload,
     load_source_payload,
 )
@@ -56,7 +56,7 @@ class TestCompetitorPayloadLoader:
 
     def test_load_hermes(self, hermes_fixture: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         loaded = load_source_payload(
@@ -69,7 +69,7 @@ class TestCompetitorPayloadLoader:
 
     def test_load_openclaw(self, openclaw_fixture: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         loaded = load_source_payload(
@@ -89,7 +89,7 @@ class TestCompetitorPayloadLoader:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         loaded = load_source_payload(
@@ -115,7 +115,7 @@ class TestCompetitorPayloadLoader:
         (skill_dir / "SKILL.md").write_text("---\nname: review\n---\nReview code", encoding="utf-8")
 
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         loaded = load_source_payload(
@@ -133,7 +133,7 @@ class TestCompetitorPayloadLoader:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         discovery_payload = {

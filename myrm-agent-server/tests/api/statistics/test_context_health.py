@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from app.api.statistics.context_health import build_chat_compaction_snapshot, build_context_health
+from app.api.statistics.context_health.context_health import build_chat_compaction_snapshot, build_context_health
 
 
 def test_build_context_health_prefers_runtime_compaction_metrics() -> None:

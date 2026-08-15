@@ -488,3 +488,53 @@ def test_preview_confirm_roundtrip(client: TestClient, tmp_path: Path) -> None:
     assert body["imported_skills"] == 0
     assert body["imported_servers"] == 0
     assert not staging_file.exists(), "confirm must clean up its session file"
+
+
+def test_list_installed_plugins(client: TestClient) -> None:
+    """GET /installed proxies the service layer's provenance-grouped listing."""
+    with (
+        patch(
+            "app.api.plugins.import_.list_installed_plugins",
+            new=AsyncMock(
+                return_value=[
+                    {"name": "demo-plugin", "servers": ["pdf-server"], "has_bundled_files": True},
+                    {"name": "other-plugin", "servers": ["srv-a", "srv-b"], "has_bundled_files": False},
+                ]
+            ),
+        ),
+    ):
+        response = client.get("/api/v1/plugins/import/installed")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == [
+        {"name": "demo-plugin", "servers": ["pdf-server"], "has_bundled_files": True},
+        {"name": "other-plugin", "servers": ["srv-a", "srv-b"], "has_bundled_files": False},
+    ]
+
+
+def test_uninstall_plugin(client: TestClient) -> None:
+    """DELETE /{plugin_name} proxies the service layer's uninstall result."""
+    with (
+        patch(
+            "app.api.plugins.import_.uninstall_plugin",
+            new=AsyncMock(
+                return_value={
+                    "plugin_name": "demo-plugin",
+                    "removed_servers": 2,
+                    "unbound_agents": 1,
+                    "removed_files": True,
+                }
+            ),
+        ),
+    ):
+        response = client.delete("/api/v1/plugins/import/demo-plugin")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {
+        "plugin_name": "demo-plugin",
+        "removed_servers": 2,
+        "unbound_agents": 1,
+        "removed_files": True,
+    }

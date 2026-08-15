@@ -20,10 +20,11 @@ import dataclasses
 import logging
 
 from app.channels.i18n import get_text
-from app.channels.routing.commands import ApprovalDecision, DenyWithReason
 from app.channels.routing.router_host import RouterCommandsHost
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.types import InboundMessage, OutboundMessage
+
+from .commands import ApprovalDecision, DenyWithReason
 
 logger = logging.getLogger("app.channels.routing.router")
 

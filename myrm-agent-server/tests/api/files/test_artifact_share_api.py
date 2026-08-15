@@ -25,8 +25,8 @@ from app.api.files.artifact_share_public import (
     public_router,
 )
 from app.core.infra.limiter import limiter
-from app.core.security.share_hmac import create_share_token, sign_share_token
-from app.core.security.share_unlock import build_unlock_credential, unlock_cookie_name
+from app.core.security.share.share_hmac import create_share_token, sign_share_token
+from app.core.security.share.share_unlock import build_unlock_credential, unlock_cookie_name
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.services.artifacts.share_bundle import (
@@ -462,7 +462,7 @@ async def test_public_share_expired_token(share_client, html_artifact) -> None:
     claims = parse_artifact_share_token(token)
     assert claims is not None
     with patch(
-        "app.core.security.share_hmac.time.time",
+        "app.core.security.share.share_hmac.time.time",
         return_value=claims.exp + 1,
     ):
         expired = share_client.get(f"/public/artifact-share/{token}")

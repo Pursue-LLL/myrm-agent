@@ -215,7 +215,7 @@ class TestHandleGoalCommand:
 
     @pytest.mark.asyncio
     async def test_no_handler_returns_not_available_zh(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -234,7 +234,7 @@ class TestHandleGoalCommand:
 
     @pytest.mark.asyncio
     async def test_status_publishes_handler_response_zh(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -256,7 +256,7 @@ class TestHandleGoalCommand:
 
     @pytest.mark.asyncio
     async def test_no_handler_returns_not_available(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -270,7 +270,7 @@ class TestHandleGoalCommand:
 
     @pytest.mark.asyncio
     async def test_set_during_active_task_blocked(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -287,7 +287,7 @@ class TestHandleGoalCommand:
 
     @pytest.mark.asyncio
     async def test_status_during_active_task_allowed(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -301,7 +301,7 @@ class TestHandleGoalCommand:
 
     @pytest.mark.asyncio
     async def test_set_triggers_kickoff(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -318,7 +318,7 @@ class TestHandleGoalCommand:
 
     @pytest.mark.asyncio
     async def test_set_no_kickoff_when_none(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -333,7 +333,7 @@ class TestHandleGoalCommand:
 
     @pytest.mark.asyncio
     async def test_pause_does_not_trigger_kickoff(self) -> None:
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -394,7 +394,7 @@ class TestGoalEdgeCases:
     @pytest.mark.asyncio
     async def test_goal_subcommand_case_insensitive(self) -> None:
         """Subcommand parsing should be case-insensitive."""
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -416,7 +416,7 @@ class TestGoalEdgeCases:
     @pytest.mark.asyncio
     async def test_goal_reply_includes_correct_channel_info(self) -> None:
         """Reply should go to correct channel and recipient."""
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -440,7 +440,7 @@ class TestGoalEdgeCases:
     @pytest.mark.asyncio
     async def test_goal_clear_aliases(self) -> None:
         """clear, stop, and done should all map to CLEAR."""
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -463,7 +463,7 @@ class TestGoalEdgeCases:
     @pytest.mark.asyncio
     async def test_mid_run_allows_safe_commands(self) -> None:
         """pause, clear, status, budget should work during active task."""
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -485,7 +485,7 @@ class TestGoalEdgeCases:
     @pytest.mark.asyncio
     async def test_mid_run_blocks_resume(self) -> None:
         """resume is parsed as SET (not a known subcommand when active task), but resume IS known."""
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 
@@ -507,7 +507,7 @@ class TestGoalEdgeCases:
     @pytest.mark.asyncio
     async def test_group_message_goal(self) -> None:
         """Goal command should work in group chats using chat_id."""
-        from app.channels.routing.router_commands import (
+        from app.channels.routing.commands import (
             RouterCommandsMixin,
         )
 

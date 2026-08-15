@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from app.services.migration import source_probes
-from app.services.migration.source_payload_loader import (
+import app.services.migration.source.source_probes as source_probes
+from app.services.migration.source.source_payload_loader import (
     load_source_payload,
     supported_source_ids,
 )
@@ -37,7 +37,7 @@ def test_migration_loaders_registered_for_all_supported_ids(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "app.services.migration.source_payload_loader.is_local_mode",
+        "app.services.migration.source.source_payload_loader.is_local_mode",
         lambda: True,
     )
     closed = supported_source_ids()
@@ -56,7 +56,7 @@ def test_migration_loaders_reject_unknown_competitor_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "app.services.migration.source_payload_loader.is_local_mode",
+        "app.services.migration.source.source_payload_loader.is_local_mode",
         lambda: True,
     )
     loaded = load_source_payload(

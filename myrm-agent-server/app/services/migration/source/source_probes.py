@@ -73,7 +73,7 @@ def discover_hermes(explicit_home: Path | None) -> ExternalSource | None:
     if skills_dir.is_dir():
         source.skill_count = sum(1 for entry in skills_dir.iterdir() if entry.is_dir() and (entry / "SKILL.md").is_file())
 
-    from .hermes_cron_converter import discover_hermes_cron_job_files
+    from ..hermes_cron_converter import discover_hermes_cron_job_files
 
     for cron_path, _profile in discover_hermes_cron_job_files(root):
         source.files.append(

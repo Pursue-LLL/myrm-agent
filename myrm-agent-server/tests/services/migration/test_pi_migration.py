@@ -7,18 +7,18 @@ from pathlib import Path
 
 import pytest
 
-from app.services.migration.source_payload_loader import load_source_payload
-from app.services.migration.source_payload_split import (
+from app.services.migration.source.source_payload_loader import load_source_payload
+from app.services.migration.source.source_payload_split import (
     build_instruction_plan,
     extract_memory_payload,
 )
-from app.services.migration.source_probes import discover_pi
+from app.services.migration.source.source_probes import discover_pi
 
 
 @pytest.fixture()
 def _local(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "app.services.migration.source_payload_loader.is_local_mode",
+        "app.services.migration.source.source_payload_loader.is_local_mode",
         lambda: True,
     )
 

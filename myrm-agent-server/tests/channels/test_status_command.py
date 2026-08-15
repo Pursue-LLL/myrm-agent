@@ -15,7 +15,7 @@ from app.channels.routing.command_defs import (
     SYSTEM_COMMANDS,
     CommandAction,
 )
-from app.channels.routing.router_commands import (
+from app.channels.routing.commands import (
     RouterCommandsMixin,
 )
 from app.channels.types import InboundMessage
@@ -400,7 +400,7 @@ class TestHandleStatusCommand:
         }
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(
-                "app.channels.routing.router_commands_memory._get_channel_budget_summary",
+                "app.channels.routing.commands.router_commands_memory._get_channel_budget_summary",
                 lambda _msg: budget_mock,
             )
             await RouterCommandsMixin._handle_status_command(host, group_msg)
@@ -423,7 +423,7 @@ class TestHandleStatusCommand:
 
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(
-                "app.channels.routing.router_commands_memory._get_channel_budget_summary",
+                "app.channels.routing.commands.router_commands_memory._get_channel_budget_summary",
                 lambda _msg: None,
             )
             await RouterCommandsMixin._handle_status_command(host, inbound_msg)
@@ -465,7 +465,7 @@ class TestGetChannelBudgetSummary:
         )
 
     def test_returns_none_for_dm(self) -> None:
-        from app.channels.routing.router_commands_memory import _get_channel_budget_summary
+        from app.channels.routing.commands.router_commands_memory import _get_channel_budget_summary
 
         dm_msg = InboundMessage(
             channel="telegram",
@@ -483,7 +483,7 @@ class TestGetChannelBudgetSummary:
         assert result is None
 
     def test_returns_none_when_no_policy(self) -> None:
-        from app.channels.routing.router_commands_memory import _get_channel_budget_summary
+        from app.channels.routing.commands.router_commands_memory import _get_channel_budget_summary
 
         mock_registry = MagicMock()
         mock_registry.get_status.return_value = None
@@ -501,7 +501,7 @@ class TestGetChannelBudgetSummary:
         assert result is None
 
     def test_returns_none_when_disabled(self) -> None:
-        from app.channels.routing.router_commands_memory import _get_channel_budget_summary
+        from app.channels.routing.commands.router_commands_memory import _get_channel_budget_summary
 
         mock_registry = MagicMock()
         mock_registry.get_status.return_value = {"enabled": False, "today_cost_usd": 0.0}
@@ -519,7 +519,7 @@ class TestGetChannelBudgetSummary:
         assert result is None
 
     def test_returns_info_when_enabled(self) -> None:
-        from app.channels.routing.router_commands_memory import _get_channel_budget_summary
+        from app.channels.routing.commands.router_commands_memory import _get_channel_budget_summary
 
         expected = {"enabled": True, "today_cost_usd": 1.5, "daily_limit_usd": 10.0, "usage_pct": 15.0}
         mock_registry = MagicMock()
@@ -538,7 +538,7 @@ class TestGetChannelBudgetSummary:
         assert result == expected
 
     def test_swallows_exception(self) -> None:
-        from app.channels.routing.router_commands_memory import _get_channel_budget_summary
+        from app.channels.routing.commands.router_commands_memory import _get_channel_budget_summary
 
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(

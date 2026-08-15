@@ -4,7 +4,7 @@
 - services.agent.gateway::get_agent_gateway (POS: active agent session registry for streaming runs)
 - services.chat.chat_service::ChatService (POS: workspace dir for teammate mailbox hydrate)
 - sub_agents.session_tree::merge_active_subagent_children, cancel_active_children_for_session (POS: ACTIVE_SUBAGENTS registry SSOT)
-- sub_agents.checkpoint.saver::SubagentCheckpointStorage, CheckpointCorruptedError (POS: interrupted subagent checkpoint persistence)
+- sub_agents.checkpoint.saver::SubagentCheckpointStorage (POS: interrupted subagent checkpoint persistence)
 - coordination.mailbox::list_teammate_history, group_history_by_task (POS: P2P teammate message history)
 
 [OUTPUT]
@@ -107,7 +107,6 @@ async def list_subagents(
                     "status": status,
                     "progress": c.progress,
                     "last_tool": c.last_tool,
-                    "resumable": c.resumable,
                     "done": True,
                     "cancelled": True,
                 }

@@ -4214,6 +4214,7 @@
         "fanoutPartial": "ポリシーは保存されましたが、{failed} 件のメンバーサンドボックスが同期されませんでした。アクティブなメンバーは更新が必要な場合があります。",
         "descPlaceholder": "説明（任意）",
         "add": "追加",
+        "removePattern": "パターンを削除",
         "empty": "モデル制限はありません。すべてのモデルが利用可能です。",
         "note": "メンバーは上記パターンに一致するモデルのみ使用できます。変更はすぐに反映されます。"
       },
@@ -4262,6 +4263,26 @@
       "audit": {
         "title": "セキュリティ監査ダッシュボード",
         "description": "組織全体のセキュリティイベント、アクセスパターン、コンプライアンス状況を監視します",
+        "viewPlatform": "プラットフォーム監査",
+        "viewAgent": "Agent 動作",
+        "agentTitle": "Agent 動作監査",
+        "agentDescription": "メンバーサンドボックス内で Agent が実行した内容を確認 — 全セッションにわたるツール呼び出し、承認リクエスト、セキュリティ判断",
+        "agentTotalEvents": "総イベント数",
+        "agentToolCalls": "ツール呼び出し",
+        "agentSecurityEvents": "セキュリティイベント",
+        "agentScannedSandboxes": "スキャン済みサンドボックス",
+        "agentFailedSandboxes": "この期間中にスキャンできなかったメンバーサンドボックス:",
+        "agentEventList": "イベントストリーム",
+        "agentNoEvents": "選択した期間に Agent アクティビティが見つかりません",
+        "agentSecurityDecisions": "セキュリティ判断",
+        "agentDetails": "イベント詳細",
+        "toneTool": "ツール呼び出し",
+        "toneApproval": "承認",
+        "toneSecurity": "セキュリティ",
+        "toneSession": "セッション",
+        "toneError": "エラー",
+        "toneLlm": "LLM",
+        "toneOther": "イベント",
         "totalEvents": "総イベント数",
         "failedEvents": "失敗イベント",
         "failureRate": "失敗率",
@@ -6049,6 +6070,36 @@
           "description": "スキル {skills} 個、MCP サーバー {servers} 個をインポートしました",
           "requiredKeys": "インポート後、Agent Secrets でこれらのキーを設定してください：{keys}",
           "disabledHint": "インポートした MCP サーバーは初期状態で無効です。MCP 設定で有効にしてください"
+        }
+      },
+      "manager": {
+        "title": "プラグイン管理",
+        "subtitle": "インポートした Agent プラグインを管理します。MCP サーバーの確認とプラグイン全体のアンインストールができます。",
+        "empty": {
+          "title": "インストール済みプラグインはありません",
+          "hint": "「Agent プラグインのインポート」からプラグインパッケージをインストールしてください。",
+          "servers": "MCP サーバーなし"
+        },
+        "badges": {
+          "bundled": "同梱ファイルあり"
+        },
+        "actions": {
+          "refresh": "更新",
+          "close": "閉じる",
+          "cancel": "キャンセル",
+          "uninstall": "アンインストール"
+        },
+        "confirm": {
+          "title": "アンインストールの確認",
+          "description": "「{name}」をアンインストールすると、MCP サーバー設定・エージェント連携・同梱ファイルが削除されます。この操作は元に戻せません。"
+        },
+        "success": {
+          "uninstalled": "アンインストール成功",
+          "summary": "{servers} 個の MCP サーバーを削除し、{agents} 個のエージェント連携を解除しました"
+        },
+        "errors": {
+          "listFailed": "インストール済みプラグインの読み込みに失敗しました",
+          "uninstallFailed": "プラグインのアンインストールに失敗しました"
         }
       }
     }
@@ -13574,6 +13625,7 @@
     "frustrationSkillLearned": "環境設定を学習し、スキル「{skillName}」を更新しました",
     "autoMemoryExtracted": "{count}件の記憶を保存しました",
     "memoryRecallUpdated": "記憶リコールの範囲が更新されました",
+    "conflictDetected": "記憶の矛盾を検出しました。記憶で確認して裁定してください",
     "viewMemoryCenter": "記憶を確認",
     "reviewSharedContextProposal": "メモリセンターでレビュー",
     "streamCompleted": "Agent の応答が完了しました",

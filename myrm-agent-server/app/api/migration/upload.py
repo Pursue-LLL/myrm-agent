@@ -35,8 +35,8 @@ from app.api.migration.discovery import (
     _to_response,
     build_source_manifest_response,
 )
-from app.services.migration.source_discovery import discover_external_sources
-from app.services.migration.source_manifest import (
+from app.services.migration.source.source_discovery import discover_external_sources
+from app.services.migration.source.source_manifest import (
     migration_source_manifest_authoritative,
     migration_source_manifest_authoritative_for_ids,
 )

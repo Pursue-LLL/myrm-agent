@@ -7,6 +7,7 @@ from tests.api.agent.mcp_e2e_goodhart import (
     assert_12306_ticket_evidence_delivered,
     mcp_bash_get_tickets_succeeded,
     mcp_get_tickets_delivered,
+    mcp_no_skill_usage_memory_search,
     mcp_ptc_get_tickets_engaged,
 )
 
@@ -64,6 +65,43 @@ def test_get_tickets_not_engaged_when_only_station_lookup() -> None:
         ),
     ]
     assert mcp_ptc_get_tickets_engaged(collected, "12306") is False
+
+
+def test_no_skill_usage_memory_search_passes_without_memory_search() -> None:
+    collected = [
+        _tasks_step("skill_select_tool", [{"skill_name": "mcp_12306_skill"}]),
+        _tasks_step(
+            "file_read_tool",
+            [{"file_path": "/mcp/mcp_12306_skill/get_tickets.md"}],
+        ),
+        _tasks_step(
+            "bash_code_execute_tool",
+            [{"code": "from skills.mcp_12306_skill import get_tickets"}],
+        ),
+    ]
+    assert mcp_no_skill_usage_memory_search(collected, "12306") is True
+
+
+def test_no_skill_usage_memory_search_fails_on_usage_lookup() -> None:
+    collected = [
+        _tasks_step("skill_select_tool", [{"skill_name": "mcp_12306_skill"}]),
+        _tasks_step(
+            "memory_search_tool",
+            [{"query": "how to use the 12306 skill"}],
+        ),
+    ]
+    assert mcp_no_skill_usage_memory_search(collected, "12306") is False
+
+
+def test_no_skill_usage_memory_search_ignores_unrelated_query() -> None:
+    collected = [
+        _tasks_step(
+            "memory_search_tool",
+            [{"query": "user's travel preferences"}],
+        ),
+        _tasks_step("skill_select_tool", [{"skill_name": "mcp_12306_skill"}]),
+    ]
+    assert mcp_no_skill_usage_memory_search(collected, "12306") is True
 
 
 def test_bash_get_tickets_succeeded_requires_success_status() -> None:

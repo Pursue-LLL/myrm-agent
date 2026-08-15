@@ -1,11 +1,14 @@
 /**
  * Enterprise Admin API Service — Audit & Usage.
  *
- * Calls Control Plane security and usage endpoints via sandbox proxy.
+ * Calls Control Plane security, usage, and agent-audit endpoints directly
+ * (not via the sandbox proxy — these routes live on the Control Plane itself).
+ * Requires the Control Plane JWT that the sandbox proxy already validated.
  * Only available in cloud-hosted enterprise edition.
  */
 
-import { getApiUrl } from '@/lib/api';
+import { resolveCpBaseUrl } from '@/lib/cp-base-url';
+import { getAuthHeaders } from '@/lib/utils/authHeaders';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -80,7 +83,11 @@ export interface BudgetSettings {
 const SECURITY_BASE = '/api/security';
 
 function securityUrl(path: string): string {
-  return getApiUrl(`${SECURITY_BASE}${path}`);
+  return `${resolveCpBaseUrl()}${SECURITY_BASE}${path}`;
+}
+
+function jsonHeaders(): Record<string, string> {
+  return { 'Content-Type': 'application/json', ...getAuthHeaders() };
 }
 
 export interface AuditLogFilters {
@@ -103,13 +110,15 @@ export async function queryAuditLogs(filters: AuditLogFilters = {}): Promise<Aud
 
   const qs = params.toString();
   const url = securityUrl(`/audit-logs${qs ? `?${qs}` : ''}`);
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: getAuthHeaders() });
   if (!res.ok) {throw new Error(`Query audit logs failed: ${res.status}`);}
   return res.json();
 }
 
 export async function getAuditStats(hours: number = 24): Promise<AuditStatsResponse> {
-  const res = await fetch(securityUrl(`/audit-logs/stats?hours=${hours}`));
+  const res = await fetch(securityUrl(`/audit-logs/stats?hours=${hours}`), {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) {throw new Error(`Get audit stats failed: ${res.status}`);}
   return res.json();
 }
@@ -126,7 +135,9 @@ export async function exportAuditLogs(
   if (filters.end_time) {params.set('end_time', filters.end_time);}
   if (filters.limit) {params.set('limit', String(filters.limit));}
 
-  const res = await fetch(securityUrl(`/audit-logs/export?${params.toString()}`));
+  const res = await fetch(securityUrl(`/audit-logs/export?${params.toString()}`), {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) {throw new Error(`Export audit logs failed: ${res.status}`);}
   return res.blob();
 }
@@ -136,18 +147,18 @@ export async function exportAuditLogs(
 const ORG_BASE = '/api/enterprise/org';
 
 function orgUrl(orgId: string, path: string): string {
-  return getApiUrl(`${ORG_BASE}/${orgId}${path}`);
+  return `${resolveCpBaseUrl()}${ORG_BASE}/${orgId}${path}`;
 }
 
 export async function getOrgUsageSummary(orgId: string, month?: string): Promise<OrgUsageSummary> {
   const params = month ? `?month=${month}` : '';
-  const res = await fetch(orgUrl(orgId, `/usage-summary${params}`));
+  const res = await fetch(orgUrl(orgId, `/usage-summary${params}`), { headers: getAuthHeaders() });
   if (!res.ok) {throw new Error(`Get usage summary failed: ${res.status}`);}
   return res.json();
 }
 
 export async function getOrgBudget(orgId: string): Promise<BudgetSettings> {
-  const res = await fetch(orgUrl(orgId, '/budget'));
+  const res = await fetch(orgUrl(orgId, '/budget'), { headers: getAuthHeaders() });
   if (!res.ok) {throw new Error(`Get budget failed: ${res.status}`);}
   return res.json();
 }
@@ -159,9 +170,42 @@ export async function setOrgBudget(
 ): Promise<BudgetSettings> {
   const res = await fetch(orgUrl(orgId, '/budget'), {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders(),
     body: JSON.stringify({ budget_wu_monthly: budgetWuMonthly, alert_threshold: alertThreshold }),
   });
   if (!res.ok) {throw new Error(`Set budget failed: ${res.status}`);}
+  return res.json();
+}
+
+// ── Agent Audit API (org-level, from CP fan-out) ────────────────────────
+
+export interface AgentAuditEvent {
+  seq: number;
+  ts: number;
+  type: string;
+  sid: string;
+  data: Record<string, unknown>;
+}
+
+export interface OrgAgentAuditResponse {
+  events: AgentAuditEvent[];
+  total: number;
+  scanned_sandboxes: number;
+  failed_sandboxes: string[];
+}
+
+export async function queryOrgAgentAudit(
+  orgId: string,
+  options: { hours?: number; limit?: number } = {},
+): Promise<OrgAgentAuditResponse> {
+  const params = new URLSearchParams({
+    hours: String(options.hours ?? 24),
+    limit: String(options.limit ?? 200),
+  });
+  const res = await fetch(
+    `${resolveCpBaseUrl()}${ORG_BASE}/${orgId}/agent-audit/events?${params.toString()}`,
+    { headers: getAuthHeaders() },
+  );
+  if (!res.ok) {throw new Error(`Query org agent audit failed: ${res.status}`);}
   return res.json();
 }

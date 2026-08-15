@@ -1,10 +1,9 @@
 'use client';
 
-import { memo, useEffect, useRef } from 'react';
+import { memo } from 'react';
 import { AlertTriangle, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useMemoryStore } from '@/store/memory';
-import { toast } from '@/hooks/shared/useToast';
 
 interface PendingMemoryBadgeProps {
   onClick?: () => void;
@@ -15,18 +14,6 @@ interface PendingMemoryBadgeProps {
 const PendingMemoryBadge = memo<PendingMemoryBadgeProps>(({ onClick, className, showIcon = true }) => {
   const pendingCount = useMemoryStore((state) => state.pendingCount);
   const conflictCount = useMemoryStore((state) => state.conflictCount);
-  const prevConflictCount = useRef(conflictCount);
-
-  useEffect(() => {
-    if (conflictCount > prevConflictCount.current && prevConflictCount.current === 0) {
-      toast({
-        title: '检测到记忆冲突',
-        description: `发现 ${conflictCount} 条记忆冲突，请在记忆管理中查看并裁决`,
-        variant: 'default',
-      });
-    }
-    prevConflictCount.current = conflictCount;
-  }, [conflictCount]);
 
   const totalCount = pendingCount + conflictCount;
 

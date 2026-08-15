@@ -6,7 +6,7 @@ app.schemas.memory.crud::MemoryItem (POS: 记忆 API 通用 Schema 层)
 app.schemas.memory.crud::UpdateMemoryStatusRequest (POS: 记忆 API 通用 Schema 层)
 app.schemas.memory.crud::TasteSummaryResponse (POS: 记忆 API 通用 Schema 层)
 app.schemas.memory.archive::*Import* / *Archive* (POS: 记忆归档与导入 API Schema 层)
-app.services.migration.source_payload_split (POS: 竞品 payload 指令/记忆车道拆分)
+app.services.migration.source.source_payload_split (POS: 竞品 payload 指令/记忆车道拆分)
 app.services.migration.instruction_writer (POS: 竞品指令车道写入 Agent 与全局设置)
 app.services.migration.memory_import_binding (POS: 迁移事实记忆的全局 namespace 绑定)
 app.services.memory.operations.crud.import_readiness (POS: 记忆导入就绪合同构建层。负责把 provider、diagnostic、MCP 与规则跳过事实归并为可执行门禁状态。)
@@ -72,7 +72,7 @@ from app.services.memory.imports.import_sessions import (
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _record_memory_event
 from app.services.memory.operations.crud.import_readiness import build_import_readiness
-from app.services.migration.source_secrets_importer import (
+from app.services.migration.source.source_secrets_importer import (
     external_source_providers_configured,
 )
 
@@ -261,24 +261,24 @@ async def dry_run_import_memories(
     """Preview memory import mapping and bind the review result server-side."""
 
     from app.services.memory.imports.import_adapters import resolve_migration_source
-    from app.services.migration.source_migration_types import (
+    from app.services.migration.source.source_migration_types import (
         MigrationLanePreview,
         MigrationWizardOptions,
         build_lane_previews,
         instruction_char_total,
     )
-    from app.services.migration.source_payload_loader import (
+    from app.services.migration.source.source_payload_loader import (
         build_coverage_items,
         extract_pending_skills,
         is_source_discovery_payload,
         load_source_payload,
     )
-    from app.services.migration.source_payload_split import (
+    from app.services.migration.source.source_payload_split import (
         build_instruction_plan,
         extract_memory_payload,
         has_api_keys,
     )
-    from app.services.migration.source_secrets_importer import (
+    from app.services.migration.source.source_secrets_importer import (
         external_source_providers_configured,
     )
 
@@ -542,7 +542,7 @@ async def confirm_import_memories(
     from app.services.migration.memory_import_binding import (
         create_global_import_memory_manager,
     )
-    from app.services.migration.source_migration_types import (
+    from app.services.migration.source.source_migration_types import (
         MigrationWizardOptions,
         SourceInstructionPlan,
         WorkspaceRuleWrite,
@@ -1054,7 +1054,7 @@ async def _apply_model_migration(
     target_agent_id: str | None = None,
 ) -> None:
     """Apply model configuration migration from competitor payload (non-fatal)."""
-    from app.services.migration.source_model_migrator import (
+    from app.services.migration.source.source_model_migrator import (
         migrate_hermes_auxiliary_models,
         migrate_openclaw_default_model,
     )

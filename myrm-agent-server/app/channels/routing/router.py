@@ -153,6 +153,7 @@ from app.channels.routing.command_registry import (
     ResolvedCommand,
 )
 from app.channels.routing.commands import (
+    RouterCommandsMixin,
     is_explicit_approval_command,
     parse_approval_command,
     parse_personality_args,
@@ -172,9 +173,6 @@ from app.channels.routing.retry_policy import (
 )
 from app.channels.routing.retry_policy import (
     RetryPolicy,
-)
-from app.channels.routing.router_commands import (
-    RouterCommandsMixin,
 )
 from app.channels.routing.router_constants import (
     _CLEANUP_TTL,

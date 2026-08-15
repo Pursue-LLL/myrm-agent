@@ -25,12 +25,12 @@
 | `chrome-e2e/` | Unix | **AOS SSOT**：`surface.py`（Agent Window）、`focus.sh`（macOS FALLBACK）、`cli.sh`、`hil.py` |
 | `chrome-e2e-doctor.sh` | Unix | `./myrm doctor --chrome` 一站式诊断 |
 | `cursor-mcp-isolation-doctor.sh` | Unix | Cursor Agent MCP isolation doctor（`./myrm doctor --mcp-isolation`）：ChromeAutoConnect 每日契约校验；委托 `lib/e2e_core/cursor_mcp_isolation.py`；被 `test_browser_mcp_ssot_static` / `test_chrome_e2e_module_static` 静态守卫引用 |
-| `ensure-myrm-chrome-agent.sh` | Unix | 拉起/验证 Myrm Agent Chrome（pipe-proxy `:9410`，不抢 macOS 焦点）；`./myrm ready --chrome-agent`；幂等健康检查 + stale listener 回收 + 自动 npm install + nohup 启动 pipe-cdp-proxy |
-| `install-chrome-agent-launchagent.sh` | Unix | 安装 macOS LaunchAgent `com.myrm.chrome-agent`（KeepAlive + RunAtLoad，常驻 pipe-proxy 离屏）；`./myrm ready --chrome-agent --daemon` |
-| `login-chrome-agent.sh` | Unix | ChromeAgent profile 一次性 X/OAuth 登录（无 CDP 自动化 flags，避免 Google/X 拦截 sign-in）；`./myrm ready --chrome-agent --login` |
+| `ensure-myrm-chrome-agent.sh` | Unix | 拉起/验证 Myrm Agent Chrome（pipe-proxy `:9410`，不抢 macOS 焦点）；`./myrm ready --chrome-agent`；幂等健康检查 + stale listener 回收 + 首跑自动机器级 install + nohup 启动 pipe-cdp-proxy（`current` 符号链接解析） |
+| `install-chrome-agent-launchagent.sh` | Unix | 安装/启动 macOS LaunchAgent `com.myrm.chrome-agent`（KeepAlive + RunAtLoad，常驻 pipe-proxy 离屏）；`./myrm ready --chrome-agent --daemon`；**委托机器级 CLI `chrome-agent/myrm-chrome-agent.sh install`**，plist 指向 `~/.local/lib/myrm-chrome-agent/current`（解耦：删仓不影响运行） |
+| `login-chrome-agent.sh` | Unix | ChromeAgent profile 一次性 X/OAuth 登录（无 CDP 自动化 flags，避免 Google/X 拦截 sign-in）；`./myrm ready --chrome-agent --login`；持机器级 `.install.lock` 防止与 install/upgrade 并发 |
 | `verify-chrome-agent-focus.sh` | Unix | 机械 macOS focus 校验：ChromeAgent CDP 探针不得抢 frontmost app（CHROME_AGENT_FOCUS_OK/FAIL）；`CHROME_MCP_E2E.md` 验收标准 |
 | `benchmark-chrome-agent.sh` | Unix | ChromeAgent pipe-proxy 延迟 + macOS focus 基准（before/after tuning）；`CHROME_MCP_E2E.md` 验收标准 |
-| `chrome-agent/` | Unix | **ChromeAgent 域**：`pipe-cdp-proxy.mjs`（多客户端 WebSocket → 单 pipe 连接 Chrome 复用）、`chrome-arm64-launcher.sh`（Apple Silicon arm64 强制）、`package.json`（ws 依赖）；由 ensure/install 脚本引用 |
+| `chrome-agent/` | Unix | **ChromeAgent 域（机器级运行时 SSOT 源码）**：`pipe-cdp-proxy.mjs`（多客户端 WebSocket → 单 pipe 连接 Chrome 复用）、`chrome-arm64-launcher.sh`（Apple Silicon arm64 强制）、`package.json`/`package-lock.json`（ws 依赖）、`lib-chrome-agent.sh`（路径/锁/bundle/plist 公共库）、`myrm-chrome-agent.sh`（机器级 CLI：install/upgrade/daemon/login/status/uninstall）；安装位 `~/.local/lib/myrm-chrome-agent/versions/<sha>/` + `current` 符号链接 |
 | `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
 | `wave-e2e-lease.sh` | Unix | `./myrm test -m chrome_e2e` LIVE_AGENT/READ 租约；最后一个 lease 释放时原子关闭 Wave |
 | `wave.sh` | Unix | Wave orchestrator CLI 入口（open/close/status、lease acquire/release、STACK_WRITE gate）；委托 `python -m wave_orchestrator.cli`；被 monorepo `scripts/dev/ready.sh` 与 `scripts/dev/isolated_runtime/reaper.py`（reaper.py:102 直调）、本仓 `lib/e2e_core/stack_mutation_policy.py` / `lib/chrome_e2e/gates/lease_gate.py` 调用 |

@@ -206,10 +206,10 @@ def apply_epoch_pin_for_shared_live(
             )
         return EpochPinOutcome(
             applied=False,
-            api_base="",
-            runtime_id="",
+            api_base=shared,
+            runtime_id=shared_rid,
             environment={},
-            detail=seed.detail,
+            detail=f"verify_seed_failed_no_shared:{seed.detail}",
             seeded=False,
         )
     outcome = _outcome_from_api_base(

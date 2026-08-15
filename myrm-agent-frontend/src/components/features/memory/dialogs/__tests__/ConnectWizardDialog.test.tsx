@@ -50,6 +50,11 @@ const TRANSLATIONS: Record<string, string> = {
   'downloadingBundle': 'Downloading...',
   'downloadBundleFailed': 'Download failed',
   'status.ready': 'Ready',
+  'doctorHealthyVerified': 'doctorHealthyVerified',
+  'doctorHealthyTokenValid': 'doctorHealthyTokenValid',
+  'doctorDetailTokenEnv': 'doctorDetailTokenEnv',
+  'doctorDetailTokenMismatch': 'doctorDetailTokenMismatch',
+  'doctorUnhealthy': 'doctorUnhealthy',
 };
 
 const stableT = (key: string, values?: Record<string, string | number>): string => {
@@ -239,5 +244,75 @@ describe('ConnectWizardDialog bundle download', () => {
     await screen.findByText('agentPluginReady');
 
     expect(generateAgentPluginBundleMock).toHaveBeenCalledWith('default', true);
+  });
+});
+
+async function navigateToConfigStep() {
+  const view = render(<ConnectWizardDialog open onOpenChange={() => {}} />);
+  await screen.findByText('Cursor');
+  fireEvent.click(screen.getByText('Cursor'));
+  fireEvent.click(screen.getByRole('button', { name: 'Generate', exact: true }));
+  await screen.findByText('configReady');
+  return view;
+}
+
+describe('ConnectWizardDialog doctor check', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listConnectProfilesMock.mockResolvedValue([PROFILE]);
+    listAgentsMock.mockResolvedValue({ items: AGENTS });
+    generateConnectConfigMock.mockResolvedValue({
+      agent_id: 'default',
+      token: 'cfg_tok',
+      instructions: 'Add to cursor',
+      config_json: { _toml_snippet: 'snippet' },
+    });
+    countProviderTreesMock.mockResolvedValue(0);
+    revokeConnectMock.mockResolvedValue({ profile_id: 'cursor', revoked: true, trees_removed: 0 });
+  });
+
+  it('renders the green doctor box when the check verifies', async () => {
+    runConnectDoctorMock.mockResolvedValue({ healthy: true, detail: 'verified', severity: 'ok' });
+    await navigateToConfigStep();
+    fireEvent.click(screen.getByRole('button', { name: 'Doctor' }));
+
+    const box = await screen.findByText('doctorHealthyVerified');
+    expect(box.className).toContain('border-green-500/20');
+  });
+
+  it('renders the amber doctor box for a warn-level blind spot', async () => {
+    runConnectDoctorMock.mockResolvedValue({ healthy: false, detail: 'token_env', severity: 'warn' });
+    await navigateToConfigStep();
+    fireEvent.click(screen.getByRole('button', { name: 'Doctor' }));
+
+    const box = await screen.findByText('doctorDetailTokenEnv');
+    expect(box.className).toContain('border-amber-500/20');
+  });
+
+  it('renders the red doctor box for a failed check', async () => {
+    runConnectDoctorMock.mockResolvedValue({ healthy: false, detail: 'token_mismatch', severity: 'error' });
+    await navigateToConfigStep();
+    fireEvent.click(screen.getByRole('button', { name: 'Doctor' }));
+
+    const box = await screen.findByText('doctorDetailTokenMismatch');
+    expect(box.className).toContain('border-red-500/20');
+  });
+
+  it('prefers the server-owned severity over the healthy flag', async () => {
+    runConnectDoctorMock.mockResolvedValue({ healthy: true, detail: 'token_valid', severity: 'warn' });
+    await navigateToConfigStep();
+    fireEvent.click(screen.getByRole('button', { name: 'Doctor' }));
+
+    const box = await screen.findByText('doctorHealthyTokenValid');
+    expect(box.className).toContain('border-amber-500/20');
+  });
+
+  it('falls back to the unhealthy box when the doctor API fails', async () => {
+    runConnectDoctorMock.mockRejectedValue(new Error('boom'));
+    await navigateToConfigStep();
+    fireEvent.click(screen.getByRole('button', { name: 'Doctor' }));
+
+    const box = await screen.findByText('doctorUnhealthy');
+    expect(box.className).toContain('border-red-500/20');
   });
 });

@@ -14,7 +14,7 @@ from app.services.memory.imports.import_sessions import (
     DRY_RUN_STATUS_PENDING,
     DRY_RUN_STATUS_ROLLED_BACK,
 )
-from app.services.migration.source_manifest import migration_source_manifest_payload
+from app.services.migration.source.source_manifest import migration_source_manifest_payload
 
 
 @pytest.mark.asyncio

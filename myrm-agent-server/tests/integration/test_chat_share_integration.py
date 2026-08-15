@@ -29,8 +29,8 @@ from sqlalchemy.pool import StaticPool
 from app.api.chats.chat.share import public_router, router
 from app.core.infra.ingress import invalidate_public_ingress_cache
 from app.core.infra.limiter import limiter
-from app.core.security.share_hmac import sign_share_token
-from app.core.security.share_unlock import unlock_cookie_name
+from app.core.security.share.share_hmac import sign_share_token
+from app.core.security.share.share_unlock import unlock_cookie_name
 from app.database.connection import get_db
 from app.database.models import Base, Chat, Message
 

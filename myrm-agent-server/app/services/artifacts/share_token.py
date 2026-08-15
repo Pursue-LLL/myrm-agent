@@ -1,7 +1,7 @@
 """Signed tokens for read-only public artifact preview links.
 
 [INPUT]
-- app.core.security.share_hmac (POS: shared HMAC signing primitives)
+- app.core.security.share.share_hmac (POS: shared HMAC signing primitives)
 
 [OUTPUT]
 - create_artifact_share_token / parse_artifact_share_token
@@ -25,7 +25,7 @@ from myrm_agent_harness.agent.artifacts.constants import (
     infer_artifact_type_from_extension,
 )
 
-from app.core.security.share_hmac import (
+from app.core.security.share.share_hmac import (
     create_share_token,
     parse_share_token,
     sign_share_token,

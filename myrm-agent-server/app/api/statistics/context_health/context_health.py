@@ -1,8 +1,8 @@
 """Session context-health aggregation.
 
 [INPUT]
-- app.api.statistics.context_health_cache::build_cache_health (POS: Statistics API cache-health layer. Owns provider/model sample selection so the context-health aggregate can stay focused on composition.)
-- app.api.statistics.context_health_restore::to_restore_block_events (POS: Statistics API restore-health normalization layer. Converts raw task metrics into small, typed payloads before the main context-health aggregate is serialized.)
+- app.api.statistics.context_health.context_health_cache::build_cache_health (POS: Statistics API cache-health layer. Owns provider/model sample selection so the context-health aggregate can stay focused on composition.)
+- app.api.statistics.context_health.context_health_restore::to_restore_block_events (POS: Statistics API restore-health normalization layer. Converts raw task metrics into small, typed payloads before the main context-health aggregate is serialized.)
 
 [OUTPUT]
 - build_context_health: Aggregates message usage, chat compaction metadata, and task metrics into session context-health DTOs.
@@ -19,12 +19,12 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Literal
 
-from app.api.statistics.context_health_cache import (
+from .context_health_cache import (
     CacheHealth,
     RetentionObservationState,
     build_cache_health,
 )
-from app.api.statistics.context_health_restore import (
+from .context_health_restore import (
     RestoreBlockEventHealth,
     to_restore_block_events,
 )

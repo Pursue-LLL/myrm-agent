@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from app.services.migration.source_migration_types import (
+from .source_migration_types import (
     SourceInstructionPlan,
     WorkspaceRuleWrite,
 )

@@ -47,6 +47,10 @@ _SECRET_REF_PATTERN = re.compile(r"\{\{secret:([^}]+)\}\}")
 def _collect_server_configs(
     session: PluginImportSession,
     decisions: list[PluginConfirmItem],
+    *,
+    plugin_name: str | None = None,
+    plugin_root: str | None = None,
+    data_root: str | None = None,
 ) -> tuple[list[dict[str, object]], int]:
     configs: list[dict[str, object]] = []
     skipped = 0
@@ -58,12 +62,33 @@ def _collect_server_configs(
         if server is None:
             skipped += 1
             continue
-        configs.append(_server_to_config_dict(server))
+        configs.append(
+            _server_to_config_dict(
+                server,
+                plugin_name=plugin_name,
+                plugin_root=plugin_root,
+                data_root=data_root,
+            )
+        )
     return configs, skipped
 
 
-def _server_to_config_dict(server: PluginMcpServer) -> dict[str, object]:
-    """Serialize a plugin MCP server into the mcpServers entry shape."""
+def _server_to_config_dict(
+    server: PluginMcpServer,
+    *,
+    plugin_name: str | None = None,
+    plugin_root: str | None = None,
+    data_root: str | None = None,
+) -> dict[str, object]:
+    """Serialize a plugin MCP server into the mcpServers entry shape.
+
+    ``plugin_name`` is always embedded (under ``extra_params``) as the uninstall
+    provenance marker — the uninstall endpoint locates every entry imported by a
+    plugin through it. ``plugin_root`` / ``data_root`` are only embedded when the
+    server references the plugin package (a ``./`` command or a
+    PLUGIN_ROOT/PLUGIN_DATA placeholder); remote servers and plain stdio
+    commands get no plugin roots.
+    """
     cfg: dict[str, object] = {
         "name": server.name,
         "type": server.server_type,
@@ -88,10 +113,15 @@ def _server_to_config_dict(server: PluginMcpServer) -> dict[str, object]:
             for k, v in server.headers.items()
         }
     extra_params: dict[str, object] = {}
+    if plugin_name:
+        extra_params["plugin_name"] = plugin_name
     if server.cwd:
         extra_params["cwd"] = server.cwd
     if server.raw_env:
         extra_params["env"] = server.raw_env
+    if plugin_root and data_root:
+        extra_params["plugin_root"] = plugin_root
+        extra_params["data_root"] = data_root
     if extra_params:
         cfg["extra_params"] = extra_params
     if server.env_key_names:
@@ -228,3 +258,66 @@ async def _bind_agent(
         )
     if update_fields:
         await AgentService.update_agent(agent_id, AgentUpdate(**update_fields))
+
+
+def _plugin_name_of_cfg(cfg: dict[str, object]) -> str | None:
+    """Extract the provenance plugin name from an mcpServers entry (if any)."""
+    extra = cfg.get("extra_params")
+    if not isinstance(extra, dict):
+        return None
+    name = extra.get("plugin_name")
+    return str(name) if isinstance(name, str) and name else None
+
+
+async def _remove_plugin_mcp_servers(plugin_name: str) -> int:
+    """Remove every mcpServers entry imported by ``plugin_name``.
+
+    Returns the number of removed entries. The global mcpServers UserConfig is
+    rewritten without the plugin's entries; user-configured servers are kept.
+    """
+    from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+    from app.services.config.service import config_service
+
+    existing = await _load_persisted_mcp_configs(config_service)
+    remaining: list[dict[str, object]] = []
+    removed = 0
+    for cfg in existing:
+        if _plugin_name_of_cfg(cfg) == plugin_name:
+            removed += 1
+            continue
+        remaining.append(cfg)
+
+    if removed:
+        await config_service.set(
+            "mcpServers", {"mcpConfigs": remaining}, device_id="plugin-uninstall"
+        )
+        invalidate_user_configs_cache()
+    return removed
+
+
+async def _unbind_plugin_from_agents(server_names: list[str]) -> int:
+    """Drop uninstalled server names from every agent's ``mcp_ids``.
+
+    Returns the number of agent profiles updated. Missing agents and names that
+    are not bound are silently tolerated.
+    """
+    from app.database.repositories.uow import UnitOfWork
+
+    if not server_names:
+        return 0
+    targets = set(server_names)
+    updated = 0
+    async with UnitOfWork() as uow:
+        profiles = await uow.agent_repo.list_profiles(limit=1000)
+        for profile in profiles:
+            metadata = profile.metadata or {}
+            existing_servers = metadata.get("mcp_ids", [])
+            kept = [
+                str(s) for s in existing_servers if isinstance(s, str) and s not in targets
+            ]
+            if len(kept) != len(existing_servers):
+                await uow.agent_repo.update_profile(
+                    profile.id, {"metadata": {**metadata, "mcp_ids": kept}}
+                )
+                updated += 1
+    return updated

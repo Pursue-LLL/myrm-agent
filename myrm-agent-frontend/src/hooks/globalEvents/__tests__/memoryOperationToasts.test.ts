@@ -6,10 +6,21 @@ const toastMocks = vi.hoisted(() => ({
   success: vi.fn(),
   info: vi.fn(),
   error: vi.fn(),
+  warning: vi.fn(),
+}));
+
+const storeMocks = vi.hoisted(() => ({
+  fetchConflicts: vi.fn(),
 }));
 
 vi.mock('@/lib/utils/toast', () => ({
   toast: toastMocks,
+}));
+
+vi.mock('@/store/memory', () => ({
+  useMemoryStore: {
+    getState: () => ({ fetchConflicts: storeMocks.fetchConflicts }),
+  },
 }));
 
 describe('showMemoryOperationToasts', () => {
@@ -218,6 +229,33 @@ describe('showMemoryOperationToasts', () => {
 
       toastMocks.info.mock.calls[0][1]?.action?.onClick();
       expect(router.push).toHaveBeenCalledWith('/settings/memory');
+    });
+
+    it('shows warning toast and refreshes conflicts for conflict kind', async () => {
+      showMemoryOperationToasts(
+        { kind: 'conflict', description: 'High-risk conflict pending', status: 'success' },
+        { t, router },
+      );
+
+      expect(toastMocks.warning).toHaveBeenCalledOnce();
+      const call = toastMocks.warning.mock.calls[0];
+      expect(call[0]).toBe('conflictDetected');
+      expect(call[1]?.description).toBe('High-risk conflict pending');
+      expect(call[1]?.action?.label).toBe('viewMemoryCenter');
+      await vi.waitFor(() => expect(storeMocks.fetchConflicts).toHaveBeenCalledOnce());
+
+      call[1]?.action?.onClick();
+      expect(router.push).toHaveBeenCalledWith('/settings/memory');
+    });
+
+    it('skips conflict toast when status is error', () => {
+      showMemoryOperationToasts(
+        { kind: 'conflict', description: 'test', status: 'error' },
+        { t, router },
+      );
+
+      expect(toastMocks.warning).not.toHaveBeenCalled();
+      expect(storeMocks.fetchConflicts).not.toHaveBeenCalled();
     });
   });
 });

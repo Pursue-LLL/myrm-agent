@@ -16,7 +16,7 @@ iMessage, **Mattermost**, **Matrix** — convert inbound emoji reactions into
 > would silently drop every group-chat approval. Pinned by
 > `tests/channels/test_reaction_inbound_policy.py::TestReactionConstructionSiteContract`.
 
-`parse_approval_command` (commands.py) recognises a unified, three-tier
+`parse_approval_command` (commands/commands.py) recognises a unified, three-tier
 approval alphabet (skin-tone modifiers and Unicode variation selectors are
 normalised away by `normalize_approval_emoji`):
 
@@ -26,7 +26,7 @@ normalised away by `normalize_approval_emoji`):
 | `allow_always`  | ♾️, ⭐                                         | `/approve-always`, `/always`, `aa`, `!y`, 永远允许 |
 | `deny`          | 👎, ❌, 🚫                                      | `/deny`, `/deny <reason>`, `2`, `n`/`no`, 拒绝, 不行 |
 
-`_is_reaction_approval_valid` in `router_commands_approval.py` enforces a layered gate:
+`_is_reaction_approval_valid` in `commands/router_commands_approval.py` enforces a layered gate:
 1. **Pending-approval check** — the chat must have an active interrupted task.
 2. **Target match** — when the reaction carries `target_message_id`, it must
    equal the cached approval message id (`_approval_msg_ids`).
@@ -67,7 +67,7 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
     asyncio.create_task(self._handle_action_button_approval(msg))
 ```
 
-`_handle_action_button_approval` in `router_commands_approval.py` then:
+`_handle_action_button_approval` in `commands/router_commands_approval.py` then:
 
 1. **Parses** action (`approve`/`deny`) and `approval_id` from content.
 2. **Authorises** — in group chats, only the original requester or a
@@ -86,7 +86,7 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
 
 ## `/new` Session Boundary Cleanup
 
-`_handle_new_session` in `router_commands_session.py` performs a three-phase cleanup
+`_handle_new_session` in `commands/router_commands_session.py` performs a three-phase cleanup
 before marking the peer for a fresh Chat:
 
 1. **Abort running task** — `_abort_session_task(state_key, …)` cancels
@@ -99,7 +99,7 @@ before marking the peer for a fresh Chat:
    overrides (`_session_personality`) are cleared so the new session starts
    with default behaviour.
 
-Only after cleanup does `handle_new_session` (commands.py) flag the peer and
+Only after cleanup does `handle_new_session` (commands/commands.py) flag the peer and
 send the confirmation reply.
 
 ## Stuck Task Watchdog
@@ -124,7 +124,7 @@ deadlocks when an agent execution hangs without crashing.
 | __init__.py | Package | Inbound message processing pipeline: routing, commands, policy, sessions. | — |
 | command_defs.py | Core | CommandDef data model, CommandAction/CommandKind enums, built-in SYSTEM_COMMANDS tuple (stop, new, compact, retry, undo, yolo, personality, bind, unbind, topic, goal, steer, queue, background, kanban, memory, learn, handoff, status, help). | — |
 | command_registry.py | Core | CommandRegistry: central O(1) lookup for slash commands. Validates names and prevents system command overwriting. | — |
-| commands.py | Core | Pure argument parsers for complex commands (approval incl. emoji reactions, yolo, personality, memory, topic) and async command handlers. No business-specific route definitions. | ✅ |
+| commands/（子包） | Core | 命令域子包：`commands.py`（参数解析 + 高层 handler）、`router_commands.py`（聚合 `RouterCommandsMixin`）、`router_commands_approval.py`（`/stop`、reaction/button approval）、`router_commands_session.py`（`/new`、`/compact`、`/retry`、`/undo`、topic）、`router_commands_modes.py`（`/yolo`、`/personality`、`/steer`、`/queue`）、`router_commands_goals.py`（`/goal`、`/subgoal`、`/background`、`/handoff`）、`router_commands_memory.py`（`/status`、`/kanban`、`/learn`、`/memory`）。`commands/__init__.py` 为聚合门面 | ✅ |
 | context_buffer.py | Core | Pure in-memory buffer, no I/O, no lifecycle management. | ✅ |
 | graceful_degradation.py | Core | Graceful degradation controller for smooth quality adaptation. | ✅ |
 | message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply, busy ack). Operational replies use `MessagePriority.SYSTEM` for important-mode notify. `send_busy_ack` delivers queued/dropped acknowledgements with `send_with_retry`. | ✅ |
@@ -133,17 +133,11 @@ deadlocks when an agent execution hangs without crashing.
 | policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker helpers for PolicyResolver. | ✅ |
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
 | router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, applies inbound risk gate (symmetric with outbound risk gate in bus.py), dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | ✅ |
-| router_commands.py | Core | Composed `RouterCommandsMixin` — aggregates approval/session/modes/goals/memory mixins. | ✅ |
-| router_commands_approval.py | Core | `/stop`, reaction/button approval, decision resume payloads. | ✅ |
-| router_commands_session.py | Core | `/new`, `/compact`, `/retry`, `/undo`, topic commands. | ✅ |
-| router_commands_modes.py | Core | `/yolo`, `/personality`, `/steer`, `/queue` commands. | ✅ |
-| router_commands_goals.py | Core | `/goal`, `/subgoal`, `/background`, `/handoff` commands. | ✅ |
-| router_commands_memory.py | Core | `/status`, `/kanban`, `/learn`, `/memory` commands. | ✅ |
 | router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
 | router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; `_prepare_execution_context` rejects search-track `route_agent_id` (external CLI aliases like `claude` unchanged); `_deliver_agent_result` auto-attaches WebUI handoff deep link button for IM channel replies and intercepts outbound messages as draft ApprovalRecord when `topic_ctx.reply_mode == "draft_review"` (Channel Outbound HITL). | — |
 | router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | ✅ |
 | router_keys.py | Core | ``routing_session_key`` builds ``f"{channel}:{peer_id}"`` for DM/group peer maps | — |
-| router_models.py | Core | Data models referenced by AgentRouter in router.py and router_commands (_ActiveTask with steering_token, `requester_id` for reaction approval auth, `locale` for stuck watchdog i18n, ReactionPolicy, etc.) | — |
+| router_models.py | Core | Data models referenced by AgentRouter in router.py and commands/ (_ActiveTask with steering_token, `requester_id` for reaction approval auth, `locale` for stuck watchdog i18n, ReactionPolicy, etc.) | — |
 | router_stream.py | Core | RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance; includes edit-in-place heartbeat loop for long-task silence detection (sends once, then edits the same message with elapsed time). | — |
 | router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | ✅ |
 | session_gate.py | Core | Sits between Router's consume loop and the per-message handler. Supports optional `on_busy_ack` callback (30s debounce) for immediate user feedback when messages are queued or dropped. | ✅ |

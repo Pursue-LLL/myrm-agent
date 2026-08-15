@@ -77,7 +77,9 @@ __all__ = [
     "PluginStaging",
     "build_preview_result",
     "confirm_plugin_import",
+    "list_installed_plugins",
     "parse_plugin_zip",
+    "uninstall_plugin",
 ]
 
 
@@ -234,6 +236,48 @@ def _server_has_placeholders(server: PluginMcpServer) -> bool:
     return has_placeholders(*values)
 
 
+def _plugin_name_of(session: PluginImportSession) -> str | None:
+    meta = session.plugin_result.meta
+    return meta.name if meta is not None else None
+
+
+def _persist_plugin_files_if_needed(
+    session: PluginImportSession,
+    server_decisions: list[PluginConfirmItem],
+    plugin_name: str | None,
+) -> tuple[str | None, str | None]:
+    """Persist bundled plugin files when any accepted server needs them.
+
+    Returns ``(plugin_root, data_root)`` absolute paths, or ``(None, None)``
+    when no accepted server references the plugin package (nothing to persist)
+    or the plugin name is missing/unsafe.
+    """
+    if not plugin_name:
+        return None, None
+
+    from ._plugin_files import persist_plugin_files, server_needs_bundled_files
+
+    accepted = [
+        decision
+        for decision in server_decisions
+        if decision.resolution != "skip"
+        and session.servers_by_key.get(decision.virtual_id) is not None
+    ]
+    if not any(
+        server_needs_bundled_files(session.servers_by_key[d.virtual_id])
+        for d in accepted
+    ):
+        return None, None
+
+    from app.core.skills.store.evolution_store import get_evolution_skill_store_db_path
+
+    data_dir = get_evolution_skill_store_db_path().parent
+    persisted = persist_plugin_files(plugin_name, session.plugin_result.files, data_dir)
+    if persisted is None:
+        return None, None
+    return persisted
+
+
 async def confirm_plugin_import(
     session: PluginImportSession,
     *,
@@ -248,11 +292,26 @@ async def confirm_plugin_import(
     exists. MCP servers are appended to the global ``mcpServers`` UserConfig
     disabled. When ``bind_agent_id`` is set, imported skill ids and server names
     are appended to the agent's ``skill_ids`` / ``mcp_ids``.
+
+    Bundled MCP servers (``./`` commands or PLUGIN_ROOT/PLUGIN_DATA placeholders)
+    have their plugin files persisted to ``{data_dir}/plugins/{plugin_name}/`` so
+    the server can actually launch; the resulting ``plugin_root`` / ``data_root``
+    are embedded into each entry's ``extra_params``.
     """
     skill_records, skill_ids, skipped_skills = _collect_skill_records(
         session, skill_decisions, _load_existing_skill_ids()
     )
-    server_configs, skipped_servers = _collect_server_configs(session, server_decisions)
+    plugin_name = _plugin_name_of(session)
+    plugin_root, data_root = _persist_plugin_files_if_needed(
+        session, server_decisions, plugin_name
+    )
+    server_configs, skipped_servers = _collect_server_configs(
+        session,
+        server_decisions,
+        plugin_name=plugin_name,
+        plugin_root=plugin_root,
+        data_root=data_root,
+    )
 
     if skill_records:
         await _write_skills(skill_records)
@@ -360,3 +419,95 @@ async def _write_skills(records: list[SkillRecord]) -> None:
 
     store = get_evolution_skill_store()
     await store.save_skills_batch(records)
+
+
+async def list_installed_plugins() -> list[dict[str, object]]:
+    """List plugins with at least one imported MCP server entry.
+
+    Groups global mcpServers entries by their provenance ``plugin_name`` marker
+    (see ``_server_to_config_dict``) and reports the bound server names per
+    plugin. Entries without a plugin marker (user-configured servers) are not
+    listed here.
+    """
+    from app.services.config.service import config_service
+
+    from ._mcp_persist import _load_persisted_mcp_configs
+
+    entries = await _load_persisted_mcp_configs(config_service)
+    by_plugin: dict[str, list[str]] = {}
+    for cfg in entries:
+        name = str(cfg.get("name", "")).strip()
+        extra = cfg.get("extra_params")
+        plugin_name = None
+        if isinstance(extra, dict):
+            raw = extra.get("plugin_name")
+            if isinstance(raw, str) and raw:
+                plugin_name = raw
+        if not plugin_name or not name:
+            continue
+        by_plugin.setdefault(plugin_name, []).append(name)
+
+    return [
+        {
+            "name": plugin_name,
+            "servers": sorted(server_names),
+            "has_bundled_files": _plugin_dir_exists(plugin_name),
+        }
+        for plugin_name, server_names in sorted(by_plugin.items())
+    ]
+
+
+def _plugin_dir_exists(plugin_name: str) -> bool:
+    """True when the plugin's bundled-file directory exists on disk."""
+    try:
+        from app.core.skills.store.evolution_store import get_evolution_skill_store_db_path
+
+        from ._plugin_files import is_safe_plugin_name, plugin_dir_exists
+
+        if not is_safe_plugin_name(plugin_name):
+            return False
+        data_dir = get_evolution_skill_store_db_path().parent
+        return plugin_dir_exists(data_dir, plugin_name)
+    except Exception as exc:  # defensive: listing must never fail on lookup
+        logger.warning("Failed to check plugin dir for '%s': %s", plugin_name, exc)
+        return False
+
+
+async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
+    """Uninstall a plugin: remove its MCP servers, agent bindings, and files.
+
+    Removes every global mcpServers entry imported by ``plugin_name``, drops the
+    same server names from every agent's ``mcp_ids``, and deletes the plugin's
+    bundled-file + data directories. Returns a summary of what was removed.
+    """
+    from ._mcp_persist import (
+        _remove_plugin_mcp_servers,
+        _unbind_plugin_from_agents,
+    )
+
+    installed = await list_installed_plugins()
+    server_names: list[str] = []
+    for item in installed:
+        if item["name"] == plugin_name:
+            server_names = [str(s) for s in item["servers"]]
+            break
+
+    removed_servers = await _remove_plugin_mcp_servers(plugin_name)
+    unbound_agents = await _unbind_plugin_from_agents(server_names)
+    removed_files = False
+    try:
+        from app.core.skills.store.evolution_store import get_evolution_skill_store_db_path
+
+        from ._plugin_files import remove_plugin_files
+
+        data_dir = get_evolution_skill_store_db_path().parent
+        removed_files = remove_plugin_files(plugin_name, data_dir)
+    except Exception as exc:
+        logger.warning("Failed to remove plugin files for '%s': %s", plugin_name, exc)
+
+    return {
+        "plugin_name": plugin_name,
+        "removed_servers": removed_servers,
+        "unbound_agents": unbound_agents,
+        "removed_files": removed_files,
+    }

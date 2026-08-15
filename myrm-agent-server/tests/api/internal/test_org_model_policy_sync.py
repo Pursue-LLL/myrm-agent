@@ -8,10 +8,10 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.internal.org_model_policy_sync import (
+from app.api.internal.org_policy_sync.org_model_policy_sync import (
     frontend_router as org_model_policy_frontend_router,
 )
-from app.api.internal.org_model_policy_sync import (
+from app.api.internal.org_policy_sync.org_model_policy_sync import (
     router as org_model_policy_sync_router,
 )
 
@@ -28,18 +28,18 @@ def policy_sync_app() -> FastAPI:
 async def test_sync_stores_patterns(policy_sync_app: FastAPI) -> None:
     """POST stores patterns via ConfigService.set and returns count."""
     with patch(
-        "app.api.internal.org_model_policy_sync.ConfigService",
+        "app.api.internal.org_policy_sync.org_model_policy_sync.ConfigService",
     ) as mock_config_cls:
         mock_config = AsyncMock()
         mock_config_cls.return_value = mock_config
 
-        with patch("app.api.internal.org_model_policy_sync.invalidate_user_configs_cache"):
+        with patch("app.api.internal.org_policy_sync.org_model_policy_sync.invalidate_user_configs_cache"):
             with patch(
-                "app.api.internal.org_model_policy_sync.bump_org_model_policy_revision",
+                "app.api.internal.org_policy_sync.org_model_policy_sync.bump_org_model_policy_revision",
                 return_value=1,
             ) as bump_revision:
                 with patch(
-                    "app.api.internal.org_model_policy_sync.get_execution_cache",
+                    "app.api.internal.org_policy_sync.org_model_policy_sync.get_execution_cache",
                 ) as mock_get_cache:
                     mock_cache = AsyncMock()
                     mock_cache.close_all = AsyncMock()
@@ -67,12 +67,12 @@ async def test_sync_stores_patterns(policy_sync_app: FastAPI) -> None:
 async def test_sync_empty_patterns(policy_sync_app: FastAPI) -> None:
     """Empty pattern list clears restriction."""
     with patch(
-        "app.api.internal.org_model_policy_sync.ConfigService",
+        "app.api.internal.org_policy_sync.org_model_policy_sync.ConfigService",
     ) as mock_config_cls:
         mock_config = AsyncMock()
         mock_config_cls.return_value = mock_config
 
-        with patch("app.api.internal.org_model_policy_sync.invalidate_user_configs_cache"):
+        with patch("app.api.internal.org_policy_sync.org_model_policy_sync.invalidate_user_configs_cache"):
             transport = ASGITransport(app=policy_sync_app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 resp = await client.post(
@@ -88,7 +88,7 @@ async def test_sync_empty_patterns(policy_sync_app: FastAPI) -> None:
 async def test_get_allowed_models_no_record(policy_sync_app: FastAPI) -> None:
     """GET returns empty patterns + restricted=false when no config exists."""
     with patch(
-        "app.api.internal.org_model_policy_sync.ConfigService",
+        "app.api.internal.org_policy_sync.org_model_policy_sync.ConfigService",
     ) as mock_config_cls:
         mock_config = AsyncMock()
         mock_config.get.return_value = None
@@ -111,7 +111,7 @@ async def test_get_allowed_models_with_patterns(policy_sync_app: FastAPI) -> Non
     mock_record.value = {"allowed_patterns": ["gpt-4*", "claude-*"]}
 
     with patch(
-        "app.api.internal.org_model_policy_sync.ConfigService",
+        "app.api.internal.org_policy_sync.org_model_policy_sync.ConfigService",
     ) as mock_config_cls:
         mock_config = AsyncMock()
         mock_config.get.return_value = mock_record

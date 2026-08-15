@@ -125,7 +125,7 @@ async def _dispatch_learn(
     raw_args: str,
 ) -> None:
     """Execute _handle_learn_command on the fake host using real mixin logic."""
-    from app.channels.routing.router_commands import RouterCommandsMixin
+    from app.channels.routing.commands import RouterCommandsMixin
 
     bound = RouterCommandsMixin._handle_learn_command.__get__(host, type(host))
     await bound(msg, raw_args)

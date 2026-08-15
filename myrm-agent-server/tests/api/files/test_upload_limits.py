@@ -183,7 +183,14 @@ class TestCompressImage:
             Image.new("RGB", (64, 64), color=(0, 0, 255)),
         ]
         buf = io.BytesIO()
-        frames[0].save(buf, format="GIF", save_all=True, append_images=frames[1:], duration=100, loop=0)
+        frames[0].save(
+            buf,
+            format="GIF",
+            save_all=True,
+            append_images=frames[1:],
+            duration=100,
+            loop=0,
+        )
         content = buf.getvalue()
 
         from app.api.files.upload import _compress_image

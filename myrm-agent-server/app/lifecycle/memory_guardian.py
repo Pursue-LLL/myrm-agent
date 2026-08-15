@@ -413,6 +413,10 @@ async def _auto_resolve_expired_conflicts() -> int:
 
     Applies KEEP_OLD (safe default): the old memory stays, the conflicting
     new content is discarded. Returns the number of resolved conflicts.
+
+    Conflicts whose ``conflict_auto_resolve_at`` is None (high-risk conflicts
+    created with importance >= 0.9) never match the ``isnot(None)`` filter and
+    are therefore never auto-resolved — they require explicit user action.
     """
     from datetime import UTC
     from datetime import datetime as dt

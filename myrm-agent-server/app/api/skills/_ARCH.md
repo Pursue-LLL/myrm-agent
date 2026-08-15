@@ -12,9 +12,7 @@
 | `_deploy_capability.py` | 模块 | 部署能力门控：`require_local_skills_capability()` 供所有落盘本地技能的 install/import/export API 复用，沙箱模式 fail-closed。 | ✅ |
 | `_staging.py` | 模块 | 管理批量导入技能时的持久化暂存区 (Persistent Staging Area)。 | ✅ |
 | `audit.py` | 模块 | Structured audit log for skill lifecycle operations. | ✅ |
-| `batch_import.py` | 模块 | 批量导入 (GUI-First 技能迁移) 接口；`preview/confirm` 错误统一输出 `detail={message,error_code}`，归档安全错误映射为用户安全文案；本地落盘入口受沙箱能力门控；confirm 路由保持业务编排，落盘执行（安全预检/蓝绿原子写入/DB 事务）委托 `batch_import_execute.py`。 | ✅ |
-| `batch_import_execute.py` | 模块 | 批量导入确认落盘执行器 `execute_batch_import_confirm`：Phase1 逐项安全预检（命中恶意代码立即撤销）→ Phase2 蓝绿目录准备（全保真写入 .tmp、剥离 evals.json、replace 继承 DB 回归门禁快照与演化元数据）→ Phase3 DB 单事务批量写入 → Phase4 操作系统级目录原子替换；任一失败清空 tmp 并尽力恢复 old；返回 `restored_eval_cases` 为导入后保留门禁总数（包内还原 + DB 继承），与落盘一致。 | ✅ |
-| `batch_import_schemas.py` | 模块 | 批量导入接口的请求/响应 Pydantic 模型（`ImportPreviewSkillItem`/`ImportPreviewResponse`/`ConfirmImportItem`/`ConfirmImportRequest`/`ConfirmImportResponse`），`ConfirmImportResponse.restored_eval_cases` 为导入后保留的回归门禁用例总数（包内还原 + DB 继承），与路由拆分保持 `batch_import.py` 聚焦业务编排。 | ✅ |
+| `batch_import/`（子包） | 模块 | 批量导入 (GUI-First 技能迁移) 域：`batch_import.py`（`preview/confirm` 路由，错误统一输出 `detail={message,error_code}`）、`batch_import_execute.py`（落盘执行器 `execute_batch_import_confirm`，蓝绿原子写入 + DB 事务）、`batch_import_helpers.py`（错误映射助手）、`batch_import_schemas.py`（请求/响应 Pydantic 模型）。`batch_import/__init__.py` 为聚合门面（导出 `router`）。 | ✅ |
 | `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url；`POST /{skill_id}/disable` 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents） | ✅ |
 | `config_version.py` | 模块 | Re-export from app.core.skills.config_version（单一来源）。 | ✅ |
 | `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |

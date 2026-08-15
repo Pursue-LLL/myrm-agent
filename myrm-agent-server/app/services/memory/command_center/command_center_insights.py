@@ -41,7 +41,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandTimelineEvent,
     MemoryCommandWaterfallStep,
 )
-from app.services.memory.archive.archive_restore import ArchiveRestoreHealth
+from app.services.memory.archive.restore.archive_restore import ArchiveRestoreHealth
 from app.services.memory.command_center.command_center_projection_utils import (
     WATERFALL_PHASES,
     WaterfallPhase,
@@ -66,7 +66,7 @@ from app.services.memory.imports.import_sessions import (
     MemoryImportSessionService,
 )
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
-from app.services.migration.source_manifest import (
+from app.services.migration.source.source_manifest import (
     migration_source_manifest_authoritative,
     migration_source_manifest_authoritative_for_ids,
     migration_source_manifest_payload,

@@ -1,7 +1,7 @@
 """Shared unlock-cookie mechanics for password-protected share links.
 
 [INPUT]
-- app.core.security.share_hmac (POS: HMAC signing primitives)
+- app.core.security.share.share_hmac (POS: HMAC signing primitives)
 
 [OUTPUT]
 - unlock_cookie_name / build_unlock_credential / parse_unlock_credential /
@@ -22,7 +22,10 @@ import time
 
 from fastapi import Response
 
-from app.core.security.share_hmac import create_share_token, parse_share_token
+from app.core.security.share.share_hmac import (
+    create_share_token,
+    parse_share_token,
+)
 
 # Below this remaining TTL no unlock credential is issued: the share would
 # expire before the viewer finishes with it, and serving content directly

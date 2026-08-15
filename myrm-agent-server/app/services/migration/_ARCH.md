@@ -33,11 +33,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `source_discovery.py` | 核心 | 数据类定义、工具函数、discover_external_sources 编排入口 | ✅ |
-| `source_manifest.py` | 核心 | 迁移来源 SSOT：来源清单、display name、import source 映射、discover mode、deep-link 开关 | ✅ |
-| `source_probes.py` | 核心 | 5 源 filesystem probe（hermes/claude/openclaw/codex/pi） | ✅ |
-| `source_payload_loader.py` | 核心 | 公共 API：load_source_payload / build_coverage_items / extract_pending_skills / supported_source_ids | ✅ |
-| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw、pi；Hermes loader 含 .usage.json 与 **cron/jobs.json** 导入计划 | ✅ |
+| `source/`（子包） | 核心 | 迁移源处理子域：发现、SSOT 清单、探针、payload 加载与拆分、迁移 DTO、凭证导入、模型迁移。9 个 `source_*` 模块聚合于此，`source/__init__.py` 为聚合门面统一 re-export | ✅ |
 | `hermes_cron_converter.py` | 核心 | Hermes jobs.json → Myrm CronJob 映射 + dry-run plan + skipped preview rows（无 model 字段，agent SSOT） | ✅ |
 | `hermes_cron_migration.py` | 核心 | confirm 写入 CronManager（默认 paused，model=None）+ batch rollback | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
@@ -46,14 +42,28 @@
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |
 | `source_model_migrator.py` | 辅助 | 竞品模型配置 → Myrm 模型设置（Hermes auxiliary slots + Smart Routing economy 推断；仅 migrated_slots 非空时启用 routing），由 Wizard confirm 调用 | ✅ |
 | `hermes_moa_migrator.py` | 辅助 | Hermes ``moa.presets`` → 目标 Agent ``engine_params.moa_overlay``（ref 模型 + fanout/隐私参数；不迁移 aggregator） | ✅ |
-| `source_migration_types.py` | 核心 | 四车道迁移 DTO | ✅ |
-| `source_payload_split.py` | 核心 | payload 拆分为 instruction 与 memory 两路 | ✅ |
 | `instruction_writer.py` | 核心 | 写入 Agent.systemPrompt、personalSettings、`.myrm/rules` | ✅ |
 | `memory_import_binding.py` | 辅助 | 全局 namespace MemoryManager 工厂 | ✅ |
 | `instruction_rollback.py` | 辅助 | 与 memory import batch 绑定的指令车道回滚 | ✅ |
 | `skill_binding.py` | 辅助 | 技能审核通过后绑定 Agent profile | ✅ |
 | `mcp_config_converter.py` | 核心 | 竞品 MCP 配置 → MCPMigrationItem → config dict / preview；无状态转换器；并发策略映射（`supports_parallel_*` ↔ `hostSerial`）；transport 别名收敛（`http` → `streamable_http`）；可选保活间隔映射（`keepalive*` → `keepaliveInterval`；仅 remote transport 生效，`stdio` 或低于 5 秒时标记 `keepaliveIntervalIgnored` 供前端解释） | ✅ |
 | `workspace_bind_candidates.py` | 辅助 | OpenClaw migration → project workspace bind 候选路径 + Obsidian/md fingerprint；dry-run/confirm 响应与 session metadata SSOT | ✅ |
+
+### source/ 子包内部结构
+
+```
+source/
+├── __init__.py               # 聚合门面，统一 re-export 9 个模块公共符号
+├── source_discovery.py       # 数据类 + discover_external_sources 编排入口
+├── source_manifest.py        # 迁移来源 SSOT（display name / import map / discover / deep-link）
+├── source_probes.py          # 5 源 filesystem probe（hermes/claude/openclaw/codex/pi）
+├── source_payload_loader.py  # 公共 API：load_source_payload / build_coverage_items / extract_pending_skills
+├── source_payload_loaders_impl.py # 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw/pi
+├── source_payload_split.py   # payload 拆分为 instruction 与 memory 两路
+├── source_migration_types.py # 四车道迁移 DTO
+├── source_secrets_importer.py # opt-in 从竞品 .env 导入 API Key
+└── source_model_migrator.py  # 竞品模型配置 → Myrm 模型设置
+```
 
 ## 模块依赖
 

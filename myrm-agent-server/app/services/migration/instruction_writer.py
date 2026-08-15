@@ -22,7 +22,7 @@ from app.database.repositories.uow import UnitOfWork
 from app.services.agent.agent_service import AgentService
 from app.services.agent.profile.profile_snapshot_service import ProfileSnapshotService
 from app.services.config.service import config_service
-from app.services.migration.source_migration_types import (
+from app.services.migration.source.source_migration_types import (
     InstructionApplyResult,
     InstructionRollbackRecord,
     MigrationWizardOptions,

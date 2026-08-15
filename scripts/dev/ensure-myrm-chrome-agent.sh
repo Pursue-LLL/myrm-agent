@@ -1,20 +1,19 @@
 #!/usr/bin/env bash
-# Launch or verify Myrm Agent Chrome (pipe-proxy :9410, no macOS focus theft).
+# Launch or verify ChromeAgent pipe-proxy (:9410, no macOS focus theft).
+# Preferred path is the LaunchAgent daemon (./myrm ready --chrome-agent --daemon);
+# this script health-checks first and only falls back to a nohup proxy when no
+# daemon is installed. All runtime paths resolve from the machine-level
+# `current` symlink, so the repo can be moved or deleted afterwards.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AGENT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-# shellcheck source=lib/dev_state_paths.sh
-source "${AGENT_ROOT}/scripts/dev/lib/dev_state_paths.sh"
-export_spawn_home
+# shellcheck source=chrome-agent/lib-chrome-agent.sh
+source "${SCRIPT_DIR}/chrome-agent/lib-chrome-agent.sh"
 
-MYRM_CHROME_AGENT_PORT="${MYRM_CHROME_AGENT_PORT:-9410}"
-MYRM_CHROME_AGENT_DATA_DIR="${MYRM_CHROME_AGENT_DATA_DIR:-${HOME}/Library/Application Support/Myrm/ChromeAgent}"
-MYRM_CHROME_AGENT_CHROME_PATH="${MYRM_CHROME_AGENT_CHROME_PATH:-${SCRIPT_DIR}/chrome-agent/chrome-arm64-launcher.sh}"
-CHROME_LAUNCHER="$(cd "$(dirname "${MYRM_CHROME_AGENT_CHROME_PATH}")" && pwd)/$(basename "${MYRM_CHROME_AGENT_CHROME_PATH}")"
-PROXY_DIR="${SCRIPT_DIR}/chrome-agent"
-PID_FILE="${MYRM_CHROME_AGENT_PID_FILE:-$(dev_state_dir)/chrome-agent-proxy.pid}"
-LOG_FILE="${MYRM_CHROME_AGENT_LOG_FILE:-$(dev_state_dir)/chrome-agent-proxy.log}"
+MYRM_CHROME_AGENT_PORT="${MYRM_CHROME_AGENT_PORT:-${CHROME_AGENT_DEFAULT_PORT}}"
+PID_FILE="${MYRM_CHROME_AGENT_PID_FILE:-$(real_user_home)/.local/state/myrm-dev/chrome-agent-proxy.pid}"
+LOG_FILE="$(chrome_agent_log_file)"
+CURRENT_DIR="$(chrome_agent_current_link)"
 
 fail() {
   echo "MYRM_CHROME_AGENT_FAIL: $*" >&2
@@ -25,10 +24,8 @@ ok() {
   echo "MYRM_CHROME_AGENT_OK: $*"
 }
 
-_chrome_agent_healthy() {
-  curl -sf --max-time 3 "http://127.0.0.1:${MYRM_CHROME_AGENT_PORT}/proxy/status" \
-    | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("chromeRunning") else 1)' \
-    2>/dev/null
+_stale_port_pid() {
+  lsof -tiTCP:"${MYRM_CHROME_AGENT_PORT}" -sTCP:LISTEN 2>/dev/null | head -1 || true
 }
 
 _read_pid() {
@@ -39,17 +36,26 @@ _read_pid() {
   echo "${raw}"
 }
 
-_stale_port_pid() {
-  lsof -tiTCP:"${MYRM_CHROME_AGENT_PORT}" -sTCP:LISTEN 2>/dev/null | head -1 || true
-}
-
-if _chrome_agent_healthy; then
+if chrome_agent_health; then
   live_pid="$(_stale_port_pid || true)"
-  if [[ -n "${live_pid}" ]]; then
-    echo "${live_pid}" >"${PID_FILE}"
-  fi
-  ok "already running port=${MYRM_CHROME_AGENT_PORT} profile=${MYRM_CHROME_AGENT_DATA_DIR}"
+  [[ -n "${live_pid}" ]] && echo "${live_pid}" >"${PID_FILE}"
+  ok "already running port=${MYRM_CHROME_AGENT_PORT} profile=$(chrome_agent_data_dir)"
   exit 0
+fi
+
+# Machine-level bundle must exist before anything else; auto-install on first run.
+if [[ ! -L "${CURRENT_DIR}" ]] || [[ ! -f "${CURRENT_DIR}/pipe-cdp-proxy.mjs" ]]; then
+  echo "MYRM_CHROME_AGENT_AUTO_INSTALL: installing machine-level bundle..." >&2
+  bash "${SCRIPT_DIR}/chrome-agent/myrm-chrome-agent.sh" install \
+    || fail "machine-level install failed — run ./myrm ready --chrome-agent --daemon"
+fi
+
+if chrome_agent_launchagent_loaded; then
+  echo "MYRM_CHROME_AGENT_DAEMON: restarting LaunchAgent ${CHROME_AGENT_LABEL}..." >&2
+  chrome_agent_launchagent_start
+  chrome_agent_wait_health \
+    && ok "daemon healthy port=${MYRM_CHROME_AGENT_PORT}" && exit 0 \
+    || fail "daemon unhealthy — see ${LOG_FILE}"
 fi
 
 stale_port_pid="$(_stale_port_pid)"
@@ -63,13 +69,8 @@ if [[ -f "${PID_FILE}" ]]; then
   stale_pid="$(_read_pid || true)"
   if [[ -n "${stale_pid:-}" ]] && kill -0 "${stale_pid}" 2>/dev/null; then
     echo "MYRM_CHROME_AGENT_WAIT: proxy pid=${stale_pid} starting..." >&2
-    for _ in $(seq 1 30); do
-      if _chrome_agent_healthy; then
-        ok "became healthy port=${MYRM_CHROME_AGENT_PORT}"
-        exit 0
-      fi
-      sleep 1
-    done
+    chrome_agent_wait_health \
+      && ok "became healthy port=${MYRM_CHROME_AGENT_PORT}" && exit 0
     fail "proxy pid=${stale_pid} alive but /proxy/status unhealthy — see ${LOG_FILE}"
   fi
   rm -f "${PID_FILE}"
@@ -79,36 +80,21 @@ if lsof -iTCP:"${MYRM_CHROME_AGENT_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
   fail "Port ${MYRM_CHROME_AGENT_PORT} in use by non-Myrm process — free the port or set MYRM_CHROME_AGENT_PORT"
 fi
 
-[[ -x "${CHROME_LAUNCHER}" ]] || fail "missing Chrome launcher ${CHROME_LAUNCHER}"
-if [[ ! -d "${PROXY_DIR}/node_modules/ws" ]]; then
-  echo "MYRM_CHROME_AGENT_NPM: installing ws in ${PROXY_DIR}" >&2
-  (cd "${PROXY_DIR}" && npm install --ignore-scripts) || fail "npm install failed in ${PROXY_DIR}"
-fi
-
-NODE_BIN="${MYRM_NODE_BIN:-}"
-if [[ -z "${NODE_BIN}" ]]; then
-  NODE_BIN="$(command -v node || true)"
-fi
+NODE_BIN="${MYRM_NODE_BIN:-$(command -v node || true)}"
 [[ -n "${NODE_BIN}" && -x "${NODE_BIN}" ]] || fail "node not found — set MYRM_NODE_BIN"
 
-mkdir -p "$(dev_state_dir)" "${MYRM_CHROME_AGENT_DATA_DIR}"
+mkdir -p "$(dirname "${PID_FILE}")" "$(dirname "${LOG_FILE}")" "$(chrome_agent_data_dir)"
 
-echo "MYRM_CHROME_AGENT_START: pipe-proxy port=${MYRM_CHROME_AGENT_PORT}" >&2
-nohup "${NODE_BIN}" "${PROXY_DIR}/pipe-cdp-proxy.mjs" \
+echo "MYRM_CHROME_AGENT_START: pipe-proxy port=${MYRM_CHROME_AGENT_PORT} (nohup fallback)" >&2
+nohup "${NODE_BIN}" "${CURRENT_DIR}/pipe-cdp-proxy.mjs" \
   --port "${MYRM_CHROME_AGENT_PORT}" \
-  --chrome-path "${CHROME_LAUNCHER}" \
-  --user-data-dir "${MYRM_CHROME_AGENT_DATA_DIR}" \
+  --chrome-path "${CURRENT_DIR}/chrome-arm64-launcher.sh" \
+  --user-data-dir "$(chrome_agent_data_dir)" \
   >>"${LOG_FILE}" 2>&1 </dev/null &
 proxy_pid=$!
 echo "${proxy_pid}" >"${PID_FILE}"
 disown "${proxy_pid}" 2>/dev/null || true
 
-for _ in $(seq 1 60); do
-  if _chrome_agent_healthy; then
-    ok "started port=${MYRM_CHROME_AGENT_PORT} profile=${MYRM_CHROME_AGENT_DATA_DIR} log=${LOG_FILE}"
-    exit 0
-  fi
-  sleep 1
-done
-
-fail "timeout waiting for proxy — see ${LOG_FILE}"
+chrome_agent_wait_health \
+  && ok "started port=${MYRM_CHROME_AGENT_PORT} profile=$(chrome_agent_data_dir) log=${LOG_FILE}" \
+  || fail "timeout waiting for proxy — see ${LOG_FILE}"

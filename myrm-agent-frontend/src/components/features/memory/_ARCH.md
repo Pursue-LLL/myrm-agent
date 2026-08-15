@@ -81,7 +81,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `PendingMemoryBadge.tsx` | 组件 | 待审批记忆计数徽章（ChatWindow 顶栏入口，pendingCount=0 时隐藏） | ✅ |
+| `PendingMemoryBadge.tsx` | 组件 | 待审批记忆计数徽章（ChatWindow 顶栏入口，待审批与冲突总数均为 0 时隐藏；纯展示，新冲突通知由全局 memory_operation SSE toast 承担） | ✅ |
 | `PendingMemoryDialog.tsx` | 组件 | 待审批记忆审批弹窗（支持编辑、批准、拒绝、来源跳转；连续审批：处理完自动显示下一条） | ✅ |
 | `PendingMemoryList.tsx` | 组件 | 待审批记忆列表（含批量操作，用于 MemorySection pending tab） | ✅ |
 

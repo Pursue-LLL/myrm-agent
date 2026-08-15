@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.migration.source_payload_loader import (
+from app.services.migration.source.source_payload_loader import (
     extract_pending_skills,
     load_source_payload,
 )
@@ -65,7 +65,7 @@ class TestUsageSidecarIntegration:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         discovery = {
@@ -94,7 +94,7 @@ class TestUsageSidecarIntegration:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         import app.core.skills.models as models_mod
@@ -148,7 +148,7 @@ class TestUsageSidecarIntegration:
     ) -> None:
         """Skills without .usage.json load normally — no usage_stats field."""
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         root = tmp_path / ".hermes"
@@ -172,7 +172,7 @@ class TestUsageSidecarIntegration:
     ) -> None:
         """When .usage.json has records for only some skills, unmatched skills get no .stats.json."""
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         import app.core.skills.models as models_mod
@@ -257,7 +257,7 @@ class TestUsageSidecarIntegration:
         (skills_dir / ".usage.json").write_text(json.dumps(usage_data), encoding="utf-8")
 
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         skills_dest = tmp_path / "dest"
@@ -320,7 +320,7 @@ class TestUsageSidecarIntegration:
         (skills_dir / ".usage.json").write_text(json.dumps(usage_data), encoding="utf-8")
 
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         skills_dest = tmp_path / "dest2"
@@ -384,7 +384,7 @@ class TestUsageSidecarIntegration:
         (skills_dir / ".usage.json").write_text(json.dumps(usage_data), encoding="utf-8")
 
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         skills_dest = tmp_path / "dest3"
@@ -455,7 +455,7 @@ class TestUsageSidecarIntegration:
         (skills_dir / ".usage.json").write_text(json.dumps(usage_data), encoding="utf-8")
 
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         skills_dest = tmp_path / "dest4"

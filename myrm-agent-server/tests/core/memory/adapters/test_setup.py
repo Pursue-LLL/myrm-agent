@@ -498,9 +498,15 @@ async def test_create_conflict_callback_persists_pending_memory(tmp_path: Path) 
         importance=0.9,
     )
 
-    with mock_patch(
-        "app.database.connection.get_session",
-        return_value=fake_db,
+    with (
+        mock_patch(
+            "app.database.connection.get_session",
+            return_value=fake_db,
+        ),
+        mock_patch(
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
+            return_value=AsyncMock(),
+        ),
     ):
         callback = create_conflict_callback(agent_id="agent-x")
         result = await callback(ctx)

@@ -566,7 +566,7 @@ class MemoryImportSessionService:
         """Rebuild post-import readiness using persisted batch facts and live provider state."""
 
         from app.services.memory.operations.crud.import_readiness import build_import_readiness
-        from app.services.migration.source_secrets_importer import external_source_providers_configured
+        from app.services.migration.source.source_secrets_importer import external_source_providers_configured
 
         facts = await self.load_import_readiness_recheck_facts(import_batch_id)
         providers_configured = await external_source_providers_configured()

@@ -6,7 +6,7 @@ import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
-from app.core.security.share_status_page import (
+from app.core.security.share.share_status_page import (
     render_share_status_html,
     share_not_found,
     wants_html,

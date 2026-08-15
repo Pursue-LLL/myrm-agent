@@ -9,7 +9,7 @@ from app.services.migration.obsidian_vault_hints import (
     collect_codex_obsidian_vault_hints,
     extract_obsidian_vault_paths_from_settings,
 )
-from app.services.migration.source_payload_loaders_impl import load_codex
+from app.services.migration.source.source_payload_loaders_impl import load_codex
 from app.services.migration.workspace_bind_candidates import (
     discover_workspace_bind_candidates,
 )

@@ -18,11 +18,11 @@ router_keys.routing_session_key. Logger name is consistent with the router packa
 
 from __future__ import annotations
 
-from app.channels.routing.router_commands_approval import RouterCommandsApprovalMixin
-from app.channels.routing.router_commands_goals import RouterCommandsGoalsMixin
-from app.channels.routing.router_commands_memory import RouterCommandsMemoryMixin
-from app.channels.routing.router_commands_modes import RouterCommandsModesMixin
-from app.channels.routing.router_commands_session import RouterCommandsSessionMixin
+from .router_commands_approval import RouterCommandsApprovalMixin
+from .router_commands_goals import RouterCommandsGoalsMixin
+from .router_commands_memory import RouterCommandsMemoryMixin
+from .router_commands_modes import RouterCommandsModesMixin
+from .router_commands_session import RouterCommandsSessionMixin
 
 
 class RouterCommandsMixin(

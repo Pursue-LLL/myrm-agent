@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 
 from app.services.memory.imports.import_adapters import build_memory_import_dry_run
-from app.services.migration.source_payload_loader import (
+from app.services.migration.source.source_payload_loader import (
     extract_pending_skills,
     load_source_payload,
 )
-from app.services.migration.source_payload_split import (
+from app.services.migration.source.source_payload_split import (
     build_instruction_plan,
     extract_memory_payload,
 )
@@ -116,7 +116,7 @@ class TestMigrationE2E:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         discovery = {"competitor": "hermes", "root": str(hermes_e2e_root), "files": []}
@@ -136,7 +136,7 @@ class TestMigrationE2E:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         loaded = load_source_payload(
@@ -157,7 +157,7 @@ class TestMigrationE2E:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         discovery = {"competitor": "openclaw", "root": str(openclaw_e2e_root), "files": []}
@@ -178,7 +178,7 @@ class TestMigrationE2E:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         loaded = load_source_payload(
@@ -198,7 +198,7 @@ class TestMigrationE2E:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         discovery = {"competitor": "pi", "root": str(pi_e2e_root), "files": []}
@@ -223,7 +223,7 @@ class TestMigrationE2E:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         loaded = load_source_payload(
@@ -250,7 +250,7 @@ class TestMigrationE2E:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.source_payload_loader.is_local_mode",
+            "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
         loaded = load_source_payload(

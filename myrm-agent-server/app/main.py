@@ -30,14 +30,14 @@ from app.api.internal.agent_interrupt import router as internal_agent_interrupt_
 from app.api.internal.background_shell_status import router as internal_background_shell_status_router
 from app.api.internal.import_agent_profile import router as internal_import_agent_profile_router
 from app.api.internal.import_archive import router as internal_import_archive_router
-from app.api.internal.org_managed_approval_policy_sync import (
+from app.api.internal.org_policy_sync.org_managed_approval_policy_sync import (
     router as internal_org_managed_approval_policy_sync_router,
 )
-from app.api.internal.org_mcp_sync import router as internal_org_mcp_sync_router
-from app.api.internal.org_model_policy_sync import (
+from app.api.internal.org_policy_sync.org_mcp_sync import router as internal_org_mcp_sync_router
+from app.api.internal.org_policy_sync.org_model_policy_sync import (
     frontend_router as org_model_policy_frontend_router,
 )
-from app.api.internal.org_model_policy_sync import (
+from app.api.internal.org_policy_sync.org_model_policy_sync import (
     router as internal_org_model_policy_sync_router,
 )
 from app.api.internal.skills_killswitch import router as internal_skills_killswitch_router

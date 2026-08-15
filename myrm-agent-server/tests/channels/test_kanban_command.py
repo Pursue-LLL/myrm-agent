@@ -685,7 +685,7 @@ class TestHandleKanbanCommand:
 
     @pytest.mark.asyncio
     async def test_no_handler_returns_not_available(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         host = self._make_host(kanban_handler=None)
         msg = _make_msg(chat_id="chat_1")
@@ -696,7 +696,7 @@ class TestHandleKanbanCommand:
 
     @pytest.mark.asyncio
     async def test_empty_args_returns_usage(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         mock_handler = AsyncMock()
         host = self._make_host(kanban_handler=mock_handler)
@@ -707,7 +707,7 @@ class TestHandleKanbanCommand:
 
     @pytest.mark.asyncio
     async def test_whitespace_args_returns_usage(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         mock_handler = AsyncMock()
         host = self._make_host(kanban_handler=mock_handler)
@@ -718,7 +718,7 @@ class TestHandleKanbanCommand:
 
     @pytest.mark.asyncio
     async def test_success_delegates_to_handler(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         mock_handler = AsyncMock()
         mock_handler.handle_kanban = AsyncMock(return_value="Task list...")
@@ -731,7 +731,7 @@ class TestHandleKanbanCommand:
 
     @pytest.mark.asyncio
     async def test_exception_returns_error_message(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         mock_handler = AsyncMock()
         mock_handler.handle_kanban = AsyncMock(side_effect=RuntimeError("DB down"))
@@ -742,7 +742,7 @@ class TestHandleKanbanCommand:
 
     @pytest.mark.asyncio
     async def test_reply_uses_chat_id(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         mock_handler = AsyncMock()
         mock_handler.handle_kanban = AsyncMock(return_value="ok")
@@ -754,7 +754,7 @@ class TestHandleKanbanCommand:
 
     @pytest.mark.asyncio
     async def test_reply_falls_back_to_sender_id(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         mock_handler = AsyncMock()
         mock_handler.handle_kanban = AsyncMock(return_value="ok")
@@ -766,7 +766,7 @@ class TestHandleKanbanCommand:
 
     @pytest.mark.asyncio
     async def test_group_reply_includes_reply_to_id(self) -> None:
-        from app.channels.routing.router_commands import RouterCommandsMixin
+        from app.channels.routing.commands import RouterCommandsMixin
 
         mock_handler = AsyncMock()
         mock_handler.handle_kanban = AsyncMock(return_value="ok")

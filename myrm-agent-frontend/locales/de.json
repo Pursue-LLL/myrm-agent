@@ -5569,6 +5569,7 @@
         "fanoutPartial": "Richtlinie gespeichert, aber {failed} Mitglieder-Sandbox(s) wurden nicht synchronisiert. Aktive Mitglieder müssen möglicherweise aktualisieren.",
         "descPlaceholder": "Beschreibung (optional)",
         "add": "Hinzufügen",
+        "removePattern": "Muster entfernen",
         "empty": "Keine Modellbeschränkungen. Alle Modelle sind verfügbar.",
         "note": "Mitglieder können nur Modelle gemäß den obigen Mustern nutzen. Änderungen gelten sofort."
       },
@@ -5617,6 +5618,26 @@
       "audit": {
         "title": "Sicherheitsaudit-Dashboard",
         "description": "Überwachen Sie Sicherheitsereignisse, Zugriffsmuster und Compliance in Ihrem gesamten Unternehmen",
+        "viewPlatform": "Plattform-Audit",
+        "viewAgent": "Agent-Verhalten",
+        "agentTitle": "Agent-Verhaltensaudit",
+        "agentDescription": "Sehen Sie, was Agents in Mitglieder-Sandboxes getan haben — Tool-Aufrufe, Genehmigungen und Sicherheitsentscheidungen über alle Sitzungen hinweg",
+        "agentTotalEvents": "Gesamtzahl der Ereignisse",
+        "agentToolCalls": "Tool-Aufrufe",
+        "agentSecurityEvents": "Sicherheitsereignisse",
+        "agentScannedSandboxes": "Gescannte Sandboxes",
+        "agentFailedSandboxes": "Einige Mitglieder-Sandboxes konnten in diesem Zeitraum nicht gescannt werden:",
+        "agentEventList": "Ereignisstrom",
+        "agentNoEvents": "Für den ausgewählten Zeitraum wurden keine Agent-Aktivitäten gefunden",
+        "agentSecurityDecisions": "Sicherheitsentscheidungen",
+        "agentDetails": "Ereignisdetails",
+        "toneTool": "Tool-Aufruf",
+        "toneApproval": "Genehmigung",
+        "toneSecurity": "Sicherheit",
+        "toneSession": "Sitzung",
+        "toneError": "Fehler",
+        "toneLlm": "LLM",
+        "toneOther": "Ereignis",
         "totalEvents": "Gesamtzahl der Ereignisse",
         "failedEvents": "Fehlgeschlagene Ereignisse",
         "failureRate": "Ausfallrate",
@@ -5919,6 +5940,36 @@
           "blocked": "Blockiert: {count} Sicherheitsrisiko(n) gefunden — automatisch übersprungen",
           "oversized": "Skill-Inhalt überschreitet das Speicherlimit (64 KB) — automatisch übersprungen",
           "conflict": "Ein Skill mit diesem Namen ist bereits vorhanden — „Ersetzen“ aktualisiert ihn, „Überspringen“ behält den aktuellen"
+        }
+      },
+      "manager": {
+        "title": "Plugins verwalten",
+        "subtitle": "Importierte Agent-Plugins verwalten — MCP-Server einsehen und ein ganzes Plugin deinstallieren.",
+        "empty": {
+          "title": "Keine installierten Plugins",
+          "hint": "Installieren Sie zuerst ein Plugin-Paket über „Agent-Plugin importieren“.",
+          "servers": "Keine MCP-Server"
+        },
+        "badges": {
+          "bundled": "Gebündelte Dateien"
+        },
+        "actions": {
+          "refresh": "Aktualisieren",
+          "close": "Schließen",
+          "cancel": "Abbrechen",
+          "uninstall": "Deinstallieren"
+        },
+        "confirm": {
+          "title": "Deinstallation bestätigen",
+          "description": "Die Deinstallation von „{name}“ entfernt die MCP-Server-Konfiguration, Agent-Bindungen und gebündelten Dateien. Dieser Vorgang kann nicht rückgängig gemacht werden."
+        },
+        "success": {
+          "uninstalled": "Deinstallation erfolgreich",
+          "summary": "{servers} MCP-Server entfernt und {agents} Agent-Bindung(en) aufgehoben"
+        },
+        "errors": {
+          "listFailed": "Installierte Plugins konnten nicht geladen werden",
+          "uninstallFailed": "Plugin konnte nicht deinstalliert werden"
         }
       }
     }
@@ -13319,6 +13370,7 @@
     "frustrationSkillLearned": "Erlernte Präferenz für die Fertigkeit „{skillName}“",
     "autoMemoryExtracted": "{count} Erinnerungen gespeichert",
     "memoryRecallUpdated": "Erinnerungsabruf aktualisiert",
+    "conflictDetected": "Speicherkonflikt erkannt. Prüfen und entscheiden Sie in den Erinnerungen",
     "viewMemoryCenter": "Erinnerungen anzeigen",
     "reviewSharedContextProposal": "Rezension im Gedächtnis",
     "streamCompleted": "Agent-Antwort abgeschlossen",

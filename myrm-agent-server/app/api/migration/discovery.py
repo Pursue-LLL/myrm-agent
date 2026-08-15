@@ -21,17 +21,17 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.config.deploy_mode import is_local_mode
-from app.services.migration.source_discovery import (
+from app.services.migration.source.source_discovery import (
     ExternalSource,
     discover_external_sources,
 )
-from app.services.migration.source_manifest import (
+from app.services.migration.source.source_manifest import (
     MigrationImportSource,
     migration_source_manifest_authoritative,
     migration_source_manifest_authoritative_for_ids,
     migration_source_manifest_payload,
 )
-from app.services.migration.source_secrets_importer import import_external_source_secrets
+from app.services.migration.source.source_secrets_importer import import_external_source_secrets
 
 router = APIRouter(prefix="/migration", tags=["migration"])
 logger = logging.getLogger(__name__)

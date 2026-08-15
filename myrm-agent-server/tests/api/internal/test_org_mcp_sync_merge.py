@@ -22,7 +22,7 @@ from tests.support.minimal_app import build_minimal_app
 
 
 def _mount_app() -> httpx.ASGITransport:
-    from app.api.internal.org_mcp_sync import router as org_mcp_sync_router
+    from app.api.internal.org_policy_sync.org_mcp_sync import router as org_mcp_sync_router
 
     app = build_minimal_app(register_handlers=False)
     app.include_router(org_mcp_sync_router)
