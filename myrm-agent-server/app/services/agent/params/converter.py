@@ -351,7 +351,13 @@ async def convert_to_general_agent_params(
                 fallback_model_cfg = routing_result.fallback_model_cfg
             routing_tier = routing_result.tier.value
 
-            if is_complaint_up and recent_routing_tiers:
+            # 最高档 REASONING 无更高档可升：complaint-up 只是重新生成，并非
+            # 档位选择错误。记录惩罚会削弱未来同类任务的档位选择（越用越笨），故跳过。
+            if (
+                is_complaint_up
+                and recent_routing_tiers
+                and recent_routing_tiers[-1] is not RoutingTier.REASONING
+            ):
                 from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
                     record_misroute,
                 )

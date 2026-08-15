@@ -251,6 +251,7 @@ async def _run_guardian_cycle(
         resolved_count = await _auto_resolve_expired_conflicts()
         if resolved_count > 0:
             logger.info("Memory guardian: auto-resolved %d expired conflicts (keep_old)", resolved_count)
+            await _record_conflict_auto_resolve_event(resolved_count)
     except Exception as exc:
         logger.warning("Memory guardian: conflict auto-resolve failed (non-fatal): %s", exc)
 
@@ -446,6 +447,33 @@ async def _auto_resolve_expired_conflicts() -> int:
         result = await db.execute(stmt)
         await db.commit()
         return result.rowcount  # type: ignore[return-value]
+
+
+async def _record_conflict_auto_resolve_event(count: int) -> None:
+    """Record an audit event when the guardian auto-resolves expired conflicts.
+
+    Every silent write-time decision must be logged so the judge's choice
+    (keep_old) stays visible in the Command Center timeline and replayable.
+    """
+    from app.database.connection import get_session
+    from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+
+    try:
+        async with get_session() as db:
+            await MemoryOperationLedgerService(db).record_event(
+                kind=MemoryOperationKind.MAINTENANCE,
+                status=MemoryOperationStatus.SUCCESS,
+                summary=f"Guardian auto-resolved {count} expired low-risk conflicts (keep_old).",
+                source="memory_guardian",
+                metadata={
+                    "auto_resolved_conflicts": count,
+                    "operation": "conflict_auto_resolve",
+                    "resolution": "keep_old",
+                },
+                commit=True,
+            )
+    except Exception as exc:
+        logger.warning("Memory guardian: failed to record conflict auto-resolve audit event: %s", exc)
 
 
 async def _purge_expired_archives(manager: MemoryManager) -> int:

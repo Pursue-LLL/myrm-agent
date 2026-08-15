@@ -9,7 +9,7 @@ from __future__ import annotations
 from myrm_agent_harness.toolkits.memory.reliability import MemoryRecallBenchmarkResult
 
 from app.schemas.memory.command_center import MemoryCommandBenchmarkSummary
-from app.services.memory.diagnostics.diagnostic_recall_benchmark import (
+from app.services.memory.diagnostics.diagnostic.diagnostic_recall_benchmark import (
     _aggregate_category_stats,
     _build_categories_dict,
     _count_category_hits,

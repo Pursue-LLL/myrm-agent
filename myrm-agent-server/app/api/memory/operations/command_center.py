@@ -41,7 +41,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandTimelineEvent,
 )
 from app.services.memory.command_center.command_center import MemoryCommandCenterService
-from app.services.memory.diagnostics.diagnostic_repair_executor import MemoryDiagnosticRepairExecutor
+from app.services.memory.diagnostics.diagnostic.diagnostic_repair_executor import MemoryDiagnosticRepairExecutor
 from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 from app.services.memory.ledger.operation_ledger_guardian import as_aware
