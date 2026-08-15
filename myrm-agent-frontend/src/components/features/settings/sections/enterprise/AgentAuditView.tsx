@@ -111,6 +111,15 @@ function shortSessionId(sid: string): string {
   return `${sid.slice(0, 8)}…${sid.slice(-4)}`;
 }
 
+function shortUserId(userId: string): string {
+  if (userId.length <= 16) {return userId;}
+  return `${userId.slice(0, 10)}…${userId.slice(-4)}`;
+}
+
+function eventKey(event: AgentAuditEvent): string {
+  return `${event.sandbox_id ?? 'sb'}::${event.sid}-${event.seq}`;
+}
+
 const AgentAuditView = memo(() => {
   const t = useTranslations('settings.enterprise.audit');
   const [orgId, setOrgId] = useState('');
@@ -277,12 +286,17 @@ const AgentAuditView = memo(() => {
         }
       >
         <div className="space-y-1.5 max-h-[26rem] overflow-y-auto pr-1">
+          {events.length > 0 && (
+            <p className="pb-1 px-0.5 text-[10px] text-muted-foreground">
+              {t('agentShowingLatest', { shown: events.length, total: data?.total ?? 0 })}
+            </p>
+          )}
           {events.map((event) => (
             <AgentEventRow
-              key={`${event.sid}-${event.seq}`}
+              key={eventKey(event)}
               event={event}
-              expanded={expanded.has(`${event.sid}-${event.seq}`)}
-              onToggle={() => toggleExpanded(`${event.sid}-${event.seq}`)}
+              expanded={expanded.has(eventKey(event))}
+              onToggle={() => toggleExpanded(eventKey(event))}
             />
           ))}
           {events.length === 0 && (
@@ -346,6 +360,18 @@ const AgentEventRow = memo<AgentEventRowProps>(({ event, expanded, onToggle }) =
             )}
           </div>
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+            {event.user_id && (
+              <>
+                <span
+                  title={event.user_id}
+                  className="inline-flex items-center gap-1 rounded border border-border/50 bg-muted/60 px-1.5 py-px font-mono text-[10px] text-foreground/80"
+                >
+                  <IconBot className="h-2.5 w-2.5" />
+                  {shortUserId(event.user_id)}
+                </span>
+                <span>·</span>
+              </>
+            )}
             <span className="font-mono">{shortSessionId(event.sid)}</span>
             <span>·</span>
             <span>{new Date(event.ts * 1000).toLocaleString()}</span>

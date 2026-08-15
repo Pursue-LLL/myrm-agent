@@ -185,6 +185,10 @@ export interface AgentAuditEvent {
   type: string;
   sid: string;
   data: Record<string, unknown>;
+  /** Sandbox the event originated from — injected by the Control Plane during fan-out aggregation. */
+  sandbox_id?: string;
+  /** Org member owning the sandbox — injected by the Control Plane during fan-out aggregation. */
+  user_id?: string;
 }
 
 export interface OrgAgentAuditResponse {

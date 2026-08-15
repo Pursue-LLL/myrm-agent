@@ -4620,6 +4620,7 @@
         "agentScannedSandboxes": "Scanned Sandboxes",
         "agentFailedSandboxes": "Some member sandboxes could not be scanned within this window:",
         "agentEventList": "Event Stream",
+        "agentShowingLatest": "Showing latest {shown} of {total} events",
         "agentNoEvents": "No agent activity found for the selected time range",
         "agentSecurityDecisions": "Security decisions",
         "agentDetails": "Event details",

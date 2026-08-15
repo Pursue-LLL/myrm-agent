@@ -5628,6 +5628,7 @@
         "agentScannedSandboxes": "스캔된 샌드박스",
         "agentFailedSandboxes": "이 기간 동안 스캔할 수 없는 멤버 샌드박스:",
         "agentEventList": "이벤트 스트림",
+        "agentShowingLatest": "총 {total}개 중 최신 {shown}개 이벤트를 표시 중입니다",
         "agentNoEvents": "선택한 시간 범위에 Agent 활동이 없습니다",
         "agentSecurityDecisions": "보안 결정",
         "agentDetails": "이벤트 상세",

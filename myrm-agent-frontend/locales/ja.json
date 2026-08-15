@@ -4273,6 +4273,7 @@
         "agentScannedSandboxes": "スキャン済みサンドボックス",
         "agentFailedSandboxes": "この期間中にスキャンできなかったメンバーサンドボックス:",
         "agentEventList": "イベントストリーム",
+        "agentShowingLatest": "合計 {total} 件中、最新の {shown} 件を表示しています",
         "agentNoEvents": "選択した期間に Agent アクティビティが見つかりません",
         "agentSecurityDecisions": "セキュリティ判断",
         "agentDetails": "イベント詳細",
