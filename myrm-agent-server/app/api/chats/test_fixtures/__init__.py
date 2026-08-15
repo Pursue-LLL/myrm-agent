@@ -2,7 +2,8 @@
 
 [INPUT]
 app.config.deploy_mode::is_local_mode (POS: 部署模式判定，限制 seed 端点仅 local/tauri)
-_inline_core (POS: citation / skill chip / embed / Kanban closure / Kanban IN_REVIEW seed)
+_inline_core (POS: citation / skill chip transcript / skill chip composer / embed seed)
+_kanban (POS: Kanban closure / IN_REVIEW seed)
 其余 seed 子模块（见 [test_fixtures/_ARCH.md](test_fixtures/_ARCH.md) 文件清单）
 
 [OUTPUT]
@@ -10,7 +11,7 @@ router: 聚合门面，include 全部 seed 子模块 router（完整清单见 [t
 
 [POS]
 Chats API 本地测试 fixture 子包聚合入口。核心 seed 端点由 _inline_core 子模块提供，
-其余 seed 端点由各业务子模块提供，全部仅 local/tauri 模式可用。
+Kanban seed 端点由 _kanban 子模块提供，其余 seed 端点由各业务子模块提供，全部仅 local/tauri 模式可用。
 """
 
 from __future__ import annotations

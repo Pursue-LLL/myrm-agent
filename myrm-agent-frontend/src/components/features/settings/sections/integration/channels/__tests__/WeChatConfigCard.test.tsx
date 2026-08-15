@@ -8,12 +8,27 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
-const mockGetWeChatStatus = vi.fn();
-const mockLogoutWeChatChannel = vi.fn();
-const mockListChannelInstances = vi.fn();
-const mockDeleteChannelInstance = vi.fn();
-const mockCreateChannelInstance = vi.fn();
-const mockUpdateChannelDisplayName = vi.fn();
+const mocks = vi.hoisted(() => ({
+  getWeChatStatus: vi.fn(),
+  logoutWeChatChannel: vi.fn(),
+  listChannelInstances: vi.fn(),
+  deleteChannelInstance: vi.fn(),
+  createChannelInstance: vi.fn(),
+  updateChannelDisplayName: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
+
+const {
+  getWeChatStatus: mockGetWeChatStatus,
+  logoutWeChatChannel: mockLogoutWeChatChannel,
+  listChannelInstances: mockListChannelInstances,
+  deleteChannelInstance: mockDeleteChannelInstance,
+  createChannelInstance: mockCreateChannelInstance,
+  updateChannelDisplayName: mockUpdateChannelDisplayName,
+  toastSuccess: mockToastSuccess,
+  toastError: mockToastError,
+} = mocks;
 
 vi.mock('@/services/channels', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
@@ -35,8 +50,8 @@ vi.mock('@/lib/api', () => ({
 
 vi.mock('sonner', () => ({
   toast: {
-    success: () => undefined,
-    error: () => undefined,
+    success: (...args: unknown[]) => mockToastSuccess(...args),
+    error: (...args: unknown[]) => mockToastError(...args),
   },
 }));
 
@@ -116,5 +131,57 @@ describe('WeChatConfigCard', () => {
     await waitFor(() => {
       expect(mockDeleteChannelInstance).toHaveBeenCalledWith('inst1');
     });
+  });
+
+  it('keeps the confirm dialog open and toasts when primary logout fails', async () => {
+    mockLogoutWeChatChannel.mockRejectedValue(new Error('logout failed'));
+    render(<WeChatConfigCard />);
+    await waitFor(() => {
+      expect(screen.getByLabelText('delete-wechat')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('delete-wechat'));
+    await waitFor(() => {
+      expect(screen.getByText('channelDeleteInstanceTitle')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'channelDeleteInstanceConfirm' }));
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('wechatInstanceRemoveError');
+    });
+    // 失败时对话框必须保持打开（ConfirmDialog 捕获错误后不关闭）
+    expect(screen.getByText('channelDeleteInstanceTitle')).toBeInTheDocument();
+    // 账户卡片仍在（未登出）
+    expect(screen.getByLabelText('delete-wechat')).toBeInTheDocument();
+  });
+
+  it('keeps the confirm dialog open and toasts when extra instance delete fails', async () => {
+    mockListChannelInstances.mockResolvedValue([
+      {
+        instanceId: 'inst1',
+        channelType: 'wechat',
+        channelName: 'wechat_inst1',
+        displayName: '客服微信',
+      },
+    ]);
+    mockDeleteChannelInstance.mockRejectedValue(new Error('delete failed'));
+
+    render(<WeChatConfigCard />);
+    await waitFor(() => {
+      expect(screen.getByLabelText('delete-wechat_inst1')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('delete-wechat_inst1'));
+    await waitFor(() => {
+      expect(screen.getByText('channelDeleteInstanceTitle')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'channelDeleteInstanceConfirm' }));
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('wechatInstanceRemoveError');
+    });
+    // 失败时对话框保持打开，实例卡片仍在
+    expect(screen.getByText('channelDeleteInstanceTitle')).toBeInTheDocument();
+    expect(screen.getByLabelText('delete-wechat_inst1')).toBeInTheDocument();
   });
 });

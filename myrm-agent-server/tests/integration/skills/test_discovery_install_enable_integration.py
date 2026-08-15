@@ -14,6 +14,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.backends.skills.local_skill_id import local_skill_id_from_path
 from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
+from myrm_agent_harness.backends.skills.scanning.archive_security import (
+    ArchiveSecurityCode,
+)
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 from app.api.skills import discovery

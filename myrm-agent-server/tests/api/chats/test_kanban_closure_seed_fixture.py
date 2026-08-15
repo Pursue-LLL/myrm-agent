@@ -27,22 +27,22 @@ class TestChatsKanbanClosureSeedFixture:
         fake_task.task_id = "task-e2e-1"
 
         with (
-            patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=True),
+            patch("app.api.chats.test_fixtures._kanban.is_local_mode", return_value=True),
             patch(
-                "app.api.chats.test_fixtures.AgentService.get_agent_list",
+                "app.api.chats.test_fixtures._kanban.AgentService.get_agent_list",
                 new_callable=AsyncMock,
                 return_value=([fake_agent], 1),
             ),
             patch(
-                "app.api.chats.test_fixtures.ChatService.create_or_update_chat",
+                "app.api.chats.test_fixtures._kanban.ChatService.create_or_update_chat",
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.api.chats.test_fixtures.ChatService.append_message",
+                "app.api.chats.test_fixtures._kanban.ChatService.append_message",
                 new_callable=AsyncMock,
             ) as append_message,
             patch(
-                "app.api.chats.test_fixtures.KanbanService.get_instance"
+                "app.api.chats.test_fixtures._kanban.KanbanService.get_instance"
             ) as get_kanban,
         ):
             kanban = MagicMock()
@@ -77,6 +77,6 @@ class TestChatsKanbanClosureSeedFixture:
     def test_seed_kanban_closure_fixture_hidden_outside_local_mode(
         self, client: TestClient
     ) -> None:
-        with patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=False):
+        with patch("app.api.chats.test_fixtures._kanban.is_local_mode", return_value=False):
             resp = client.post("/api/v1/chats/test/seed-kanban-closure-fixture")
         assert resp.status_code == 404

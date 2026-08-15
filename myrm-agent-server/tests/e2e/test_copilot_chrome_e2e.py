@@ -215,7 +215,13 @@ _MOBILE_VIEWPORT_JS = """(() => {
   return { width: window.innerWidth, height: window.innerHeight };
 })()"""
 
-_SET_MOBILE_LOADING_JS = """(() => {
+_SET_MOBILE_LOADING_JS = """(() => ({
+  ready: !!(window.__MYRM_E2E_MOBILE_CC__?.setLoading),
+  ok: false,
+  err: window.__MYRM_E2E_MOBILE_CC__?.setLoading ? undefined : 'missing-mobile-bridge',
+}))()"""
+
+_MOBILE_LOADING_APPLY_JS = """(() => {
   const bridge = window.__MYRM_E2E_MOBILE_CC__;
   if (!bridge?.setLoading) return { ok: false, err: 'missing-mobile-bridge' };
   bridge.setLoading(true);
@@ -308,7 +314,9 @@ def test_copilot_desktop_and_mobile_full_flows() -> None:
         dismiss_blocking_modals(client, page)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=10.0)
         client.evaluate(page, _MOBILE_VIEWPORT_JS, timeout_sec=5.0)
-        set_mobile = client.evaluate(page, _SET_MOBILE_LOADING_JS, timeout_sec=10.0)
+        mobile_bridge = wait_for_state(client, page, _SET_MOBILE_LOADING_JS, timeout_sec=30.0)
+        assert mobile_bridge.get("ready") is True, mobile_bridge
+        set_mobile = client.evaluate(page, _MOBILE_LOADING_APPLY_JS, timeout_sec=10.0)
         assert isinstance(set_mobile, dict) and set_mobile.get("ok") is True, set_mobile
         ready = wait_for_state(client, page, _MOBILE_VIEW_FULL_READY_JS, timeout_sec=60.0)
         assert ready.get("ready") is True, ready

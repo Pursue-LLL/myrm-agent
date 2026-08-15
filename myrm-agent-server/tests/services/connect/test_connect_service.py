@@ -181,6 +181,37 @@ class TestDoctor:
         assert state.last_doctor_detail == "token_valid"
 
     @pytest.mark.asyncio
+    async def test_doctor_token_env_uses_info_not_warning(self, service: ConnectService, caplog):
+        """Env-var token references are a blind spot, not a failure: log at INFO."""
+        await service.generate_config("cursor")
+        with (
+            caplog.at_level("WARNING", logger="app.services.connect.service"),
+            patch("app.services.connect.service.is_local_mode", return_value=True),
+            patch(
+                "app.services.connect.service.verify_connector_config",
+                return_value=DoctorVerdict(healthy=False, detail="token_env"),
+            ),
+        ):
+            result = await service.doctor("cursor")
+        assert result.detail == "token_env"
+        assert not any(r.levelno >= 30 for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_doctor_mismatch_logs_warning(self, service: ConnectService, caplog):
+        """A real failure (token mismatch) still logs at WARNING for ops."""
+        await service.generate_config("cursor")
+        with (
+            caplog.at_level("WARNING", logger="app.services.connect.service"),
+            patch("app.services.connect.service.is_local_mode", return_value=True),
+            patch(
+                "app.services.connect.service.verify_connector_config",
+                return_value=DoctorVerdict(healthy=False, detail="token_mismatch"),
+            ),
+        ):
+            await service.doctor("cursor")
+        assert any(r.levelno >= 30 for r in caplog.records)
+
+    @pytest.mark.asyncio
     async def test_doctor_detail_persists_across_instances(self, service: ConnectService, tmp_data_dir: Path):
         """Doctor detail survives a service reload (drives card severity)."""
         await service.generate_config("cursor")

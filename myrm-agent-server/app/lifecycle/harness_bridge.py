@@ -104,6 +104,7 @@ async def _emit_subagent_tree(session_id: str) -> None:
                         "status": status,
                         "progress": c.progress,
                         "last_tool": c.last_tool,
+                        "resumable": c.resumable,
                         "done": True,
                         "cancelled": True,
                     }

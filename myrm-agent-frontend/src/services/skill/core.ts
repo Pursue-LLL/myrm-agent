@@ -391,6 +391,9 @@ export interface DiscoveryInstallResponse {
   installed_path: string;
   version?: string;
   error: string;
+  /** Machine-readable error code (archive_security.* etc.) aligned with server
+   * SkillInstallResponse; empty when the failure is not security-classified. */
+  error_code?: string;
   mounted?: boolean;
   mount_agent_id?: string;
   mount_skill_id?: string;

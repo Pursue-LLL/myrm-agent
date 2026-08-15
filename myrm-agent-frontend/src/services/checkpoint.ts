@@ -88,13 +88,18 @@ export interface FileDiffResponse {
 
 const snakeToCamelKey = (key: string): string => key.replace(/_([a-z0-9])/g, (_, ch: string) => ch.toUpperCase());
 
-const toCamel = <T>(value: unknown): T => {
+const toCamel = <T>(value: unknown, preserveValues?: ReadonlySet<string>): T => {
   if (Array.isArray(value)) {
-    return value.map((item) => toCamel<unknown>(item)) as T;
+    return value.map((item) => toCamel<unknown>(item, preserveValues)) as T;
   }
   if (value !== null && typeof value === 'object') {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([k, v]) => [snakeToCamelKey(k), toCamel<unknown>(v)]),
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => {
+        const camelKey = snakeToCamelKey(k);
+        // Pass-through values (e.g. checkpoint_data) keep their raw nested keys:
+        // they are opaque payloads owned by the backend, not UI-shaped fields.
+        return preserveValues?.has(k) ? [camelKey, v] : [camelKey, toCamel<unknown>(v, preserveValues)];
+      }),
     ) as T;
   }
   return value as T;
@@ -122,10 +127,13 @@ export const listCheckpoints = async (sessionId?: string, limit: number = 50): P
  * Resume from checkpoint
  */
 export const resumeCheckpoint = async (taskId: string): Promise<CheckpointResumeResponse> => {
-  return toCamel<CheckpointResumeResponse>(await apiRequest('/checkpoint/resume', {
-    method: 'POST',
-    body: JSON.stringify({ task_id: taskId }),
-  }));
+  return toCamel<CheckpointResumeResponse>(
+    await apiRequest('/checkpoint/resume', {
+      method: 'POST',
+      body: JSON.stringify({ task_id: taskId }),
+    }),
+    new Set(['checkpoint_data']),
+  );
 };
 
 /**

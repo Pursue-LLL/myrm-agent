@@ -82,8 +82,10 @@ export function WeChatConfigCard() {
         prev ? { ...prev, connected: false, qr_code: null, bot_id: null, status: 'stopped' } : prev,
       );
       toast.success(t('wechatInstanceRemoved'));
-    } catch {
+    } catch (error) {
       toast.error(t('wechatInstanceRemoveError'));
+      // 向上抛出让 ConfirmDialog 捕获，保持对话框打开以便用户重试
+      throw error;
     }
   }, [t]);
 

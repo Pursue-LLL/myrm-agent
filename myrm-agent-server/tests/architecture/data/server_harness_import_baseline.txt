@@ -44,6 +44,7 @@ myrm_agent_harness.agent.event_log.dataset_export
 myrm_agent_harness.agent.event_log.dataset_export.protocols
 myrm_agent_harness.agent.event_log.protocols
 myrm_agent_harness.agent.event_log.trace_builder
+myrm_agent_harness.agent.event_log.trace_types
 myrm_agent_harness.agent.event_log.types
 myrm_agent_harness.agent.extensions.protocols
 myrm_agent_harness.agent.file_snapshot

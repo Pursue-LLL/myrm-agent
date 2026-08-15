@@ -71,3 +71,10 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 - Turn1：`web_search_tool`、`web_fetch_tool`、记忆三件套（`enable_memory` 且非无痕，COMMON 层）；`file_read_tool`（UECD 只读，读 evicted spill + `_uploaded/`）；`request_answer_user_tool`（`answer_tool` opt-in，EXTENDED 层）。历史会话搜索不单独 bind 工具：`memoryEnableConversationSearch=true` 时在 `memory_search_tool` 上启用 `corpus=sessions` ACL。**不默认 bind browser**；browser 仅当用户选用带 `browser` 开关的 Agent profile 时加载。
 - Browser 开启时，`browser-automation` peripheral skill 在 `AgentFactory.create_general_agent` 合并（非 converter），保证 Cron/Channel/Kanban 与 Web 一致；`prompt_mode="search"` 跳过绑定。
 - SSOT：`myrm-agent-server/app/services/agent/builtin_specs/builtin_tool_ids.py`（全局默认 4 项开关）；Fast 模式运行时覆盖见 `converter.py`。
+
+## Smart Routing（converter.py）
+
+- 触发条件：`light_model_selection` / `reasoning_model_selection` 任一存在时调用 harness `route_task`，三档模型路由（SIMPLE / STANDARD / REASONING），产物覆盖 `model_cfg` / `fallback_model_cfg` 并返回 `routing_tier`。
+- 两阶段判定（引擎语义 SSOT 见 `myrm-agent-harness/.../toolkits/llms/routing/_ARCH.md`）：规则评分优先；规则无法判定时走 **LLM judge**。judge 模型取自 `lite_model_selection` 解析出的 `lite_model_cfg`，经 `llm_manager.get_llm_from_config(lite_model_cfg)` 创建 —— 只传 config 一个位置参数，`api_keys` / `credential_pool_strategy` 由 manager 内部从 `ModelConfig` 字段自动提取，`temperature` 走「顶层优先合并 model_kwargs」统一语义。
+- 降级策略：judge 创建失败仅回退规则路由（`logger.warning` 可观测，不阻断主流程）；整个路由块异常时回退默认模型并 `logger.warning`。
+- 会话动量与纠偏：`chat_id` 历史档位供 momentum 与 complaint-up 升级（regenerate 时 min-tier 抬档）；`record_misroute` 写入 PenaltyTracker（24h 衰减）。

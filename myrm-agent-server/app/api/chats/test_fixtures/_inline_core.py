@@ -6,7 +6,7 @@ local/tauri-only via the ``is_local_mode`` guard.
 
 [INPUT]
 app.config.deploy_mode::is_local_mode (POS: 部署模式判定，限制 seed 端点仅 local/tauri)
-app.services.agent.agent_service::AgentService (POS: 智能体列表，选取 E2E seed 关联 agent)
+app.services.agent.agent_service::AgentService (POS: 智能体列表/创建，选取 E2E seed 关联 agent)
 app.services.chat.chat_service::ChatService (POS: 会话与消息持久化)
 
 [OUTPUT]

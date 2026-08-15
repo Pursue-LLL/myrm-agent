@@ -103,17 +103,24 @@ async def list_subagents(
 
         for c in checkpoints:
             if c.task_id not in active_task_ids:
-                children_data.append(
-                    {
-                        "task_id": c.task_id,
-                        "agent_type": c.agent_type,
-                        "status": "checkpoint",
-                        "progress": c.progress,
-                        "last_tool": c.last_tool,
-                        "done": True,
-                        "cancelled": True,
-                    }
-                )
+                status = "interrupted" if c.interruption_reason else "checkpoint"
+                node: dict[str, object] = {
+                    "task_id": c.task_id,
+                    "agent_type": c.agent_type,
+                    "status": status,
+                    "progress": c.progress,
+                    "last_tool": c.last_tool,
+                    "resumable": c.resumable,
+                    "done": True,
+                    "cancelled": True,
+                }
+                if c.interruption_reason:
+                    node["interruption_reason"] = c.interruption_reason
+                if c.recovery_attempts > 0:
+                    node["recovery_attempts"] = c.recovery_attempts
+                if c.task_description:
+                    node["description"] = c.task_description
+                children_data.append(node)
     except Exception:
         logger.exception("Failed to list subagent checkpoints for session %s", chat_id)
 

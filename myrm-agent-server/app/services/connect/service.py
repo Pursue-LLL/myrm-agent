@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING
 from app.config.deploy_mode import is_local_mode
 from app.config.settings import settings
 from app.services.connect.doctor_check import (
+    DOCTOR_TOKEN_ENV,
     DOCTOR_TOKEN_VALID,
     DOCTOR_UNKNOWN,
     DoctorVerdict,
@@ -279,11 +280,20 @@ class ConnectService:
         state.doctor_ok = healthy
         state.last_doctor_detail = detail
         if not healthy:
-            logger.warning(
-                "Connector doctor check failed: profile=%s detail=%s",
-                profile_id,
-                detail,
-            )
+            if detail == DOCTOR_TOKEN_ENV:
+                # Env-var token reference is a verification blind spot, not a
+                # failure; keep it below the WARNING threshold to avoid noise.
+                logger.info(
+                    "Connector doctor check: profile=%s detail=%s (env-var token, not verifiable)",
+                    profile_id,
+                    detail,
+                )
+            else:
+                logger.warning(
+                    "Connector doctor check failed: profile=%s detail=%s",
+                    profile_id,
+                    detail,
+                )
         self._save_state()
         return DoctorResult(healthy=healthy, detail=detail)
 

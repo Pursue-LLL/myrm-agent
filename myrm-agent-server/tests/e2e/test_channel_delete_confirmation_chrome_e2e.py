@@ -9,9 +9,13 @@ dialog (``ConfirmDialog``) for WeChat multi-account:
 - Extra instance delete confirmation: seed a WeChat extra instance through the
   real ``POST /instances`` API, delete it through the UI confirmation dialog,
   and verify the card disappears from the settings page and from the backend.
+- Delete failure resilience: after the dialog is open, the instance is removed
+  out-of-band (concurrent deletion), so the UI confirm hits a backend 404; the
+  dialog must stay open (error toast shown) instead of closing, and the user
+  can cancel afterwards.
 
-Both flows drive the real WebUI (settings → channels → WeChat) via Chrome MCP
-and assert on real API effects (logout / instance removal).
+All flows drive the real WebUI (settings → channels → WeChat) via Chrome MCP
+and assert on real API effects (logout / instance removal / 404-on-missing).
 
 Execution mode is PRIVATE because the flows depend on the workspace backend
 code (WeChat channel registered as enabled by default; ``list_channel_instances``
@@ -163,6 +167,19 @@ def _extra_instance_gone_js(instance_id: str) -> str:
   return {{
     ready: !delBtn,
     instanceGone: !delBtn,
+  }};
+}})()"""
+
+
+def _extra_instance_dialog_closed_js(instance_id: str) -> str:
+    """Probe: the confirm dialog is closed but the (stale) extra-instance card remains."""
+    return f"""(() => {{
+  const confirm = document.querySelector('[data-testid="confirm-dialog-confirm"]');
+  const delBtn = document.querySelector('[aria-label="delete-wechat_{instance_id}"]');
+  return {{
+    ready: !confirm && !!delBtn,
+    dialogClosed: !confirm,
+    hasDeleteBtn: !!delBtn,
   }};
 }})()"""
 
@@ -361,6 +378,61 @@ def test_wechat_delete_confirmation_flows() -> None:
             assert all(
                 i.get("instanceId") != instance_id for i in _wechat_instances(api_url)
             )
+
+        # ── Flow 3: delete failure keeps the confirm dialog open ──
+        # A concurrent removal (out-of-band API delete) makes the UI confirm hit
+        # a backend 404. ConfirmDialog must NOT close: the user sees the error
+        # toast and can retry or cancel.
+        seeded = _seed_wechat_instance(api_url)
+        instance3 = seeded["instanceId"]
+        with open_settings_subroute(_CHANNELS_PATH, timeout_ms=120_000) as (client, page):
+            dismiss_blocking_modals(client, page, recover_url=channels_url)
+            nav3 = wait_for_state(client, page, _NAV_TO_WECHAT_JS, timeout_sec=120.0, page_url=channels_url)
+            assert nav3.get("ready") is True, nav3
+
+            extra3 = wait_for_state(
+                client,
+                page,
+                _extra_instance_probe_js(instance3),
+                timeout_sec=60.0,
+                page_url=channels_url,
+            )
+            assert extra3.get("ready") is True, extra3
+
+            # Open the dialog, then remove the instance out-of-band so the
+            # confirm action hits a 404.
+            opened = client.evaluate(page, _extra_instance_open_js(instance3), timeout_sec=30.0)
+            assert isinstance(opened, dict) and opened.get("ok") is True, opened
+            dlg = wait_for_state(client, page, _DIALOG_OPEN_STATE_JS, timeout_sec=30.0)
+            assert dlg.get("ready") is True, dlg
+
+            _delete_instance_via_api(api_url, instance3)
+
+            confirmed = client.evaluate(page, _CONFIRM_DIALOG_JS, timeout_sec=30.0)
+            assert isinstance(confirmed, dict) and confirmed.get("ok") is True, confirmed
+            # On failure the dialog must stay open (ConfirmDialog catches and
+            # keeps it), so the user can retry or cancel.
+            still_open = wait_for_state(
+                client,
+                page,
+                _DIALOG_OPEN_STATE_JS,
+                timeout_sec=30.0,
+                page_url=channels_url,
+            )
+            assert still_open.get("ready") is True, still_open
+
+            # Cancel then closes the dialog; the stale card remains in the UI
+            # (the frontend list is not auto-refreshed after a failed delete).
+            canceled = client.evaluate(page, _CANCEL_DIALOG_JS, timeout_sec=30.0)
+            assert isinstance(canceled, dict) and canceled.get("ok") is True, canceled
+            closed = wait_for_state(
+                client,
+                page,
+                _extra_instance_dialog_closed_js(instance3),
+                timeout_sec=30.0,
+                page_url=channels_url,
+            )
+            assert closed.get("ready") is True, closed
     finally:
         if seeded:
             _delete_instance_via_api(api_url, seeded["instanceId"])

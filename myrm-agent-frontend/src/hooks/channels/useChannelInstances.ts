@@ -88,9 +88,10 @@ export function useChannelInstances(options: UseChannelInstancesOptions): UseCha
         toast.success(t(`${i18nPrefix}InstanceRemoved`));
         optionsRef.current.onChange?.();
         return true;
-      } catch {
+      } catch (error) {
         toast.error(t(`${i18nPrefix}InstanceRemoveError`));
-        return false;
+        // 向上抛出让 ConfirmDialog 捕获，保持对话框打开以便用户重试
+        throw error;
       }
     },
     [t],

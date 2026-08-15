@@ -4,7 +4,7 @@
 
 local-only Chrome E2E seed 路由子包。上级文档：[../_ARCH.md](../_ARCH.md)。
 
-`__init__.py` 为聚合门面：include `_inline_core` 与全部 21 个子模块的 router。上层通过 `from ..test_fixtures import router` 挂载。
+`__init__.py` 为聚合门面：include `_inline_core`、`_kanban` 与全部 21 个子模块的 router。上层通过 `from ..test_fixtures import router` 挂载。
 
 所有 seed 端点以 `POST /chats/test/seed-*` 暴露，`include_in_schema=False`，且仅 local/tauri 模式可用（`is_local_mode` 守卫）。
 
@@ -41,3 +41,5 @@ local-only Chrome E2E seed 路由子包。上级文档：[../_ARCH.md](../_ARCH.
 
 - `app.services.chat.chat_service` — 会话/消息持久化
 - `app.services.agent.agent_service` — E2E seed 选取 agent scope
+- `app.services.kanban.KanbanService` — Kanban seed 的看板/任务持久化（`_kanban.py`）
+- `myrm_agent_harness.toolkits.kanban.types` — TaskPriority/TaskStatus/source_chat metadata SSOT（`_kanban.py`）

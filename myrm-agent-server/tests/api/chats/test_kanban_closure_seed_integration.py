@@ -62,7 +62,7 @@ class TestKanbanClosureSeedIntegration:
             _seed_visible_agent(agent_id, display_name="Kanban Closure Seed Agent")
         )
 
-        with patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=True):
+        with patch("app.api.chats.test_fixtures._kanban.is_local_mode", return_value=True):
             seed_resp = client.post("/api/v1/chats/test/seed-kanban-closure-fixture")
 
         assert seed_resp.status_code == 200

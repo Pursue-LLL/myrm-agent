@@ -75,6 +75,8 @@ export interface SubagentNode {
   status: SubagentStatus;
   progress: number;
   last_tool?: string;
+  /** Whether the checkpoint carries enough state to actually resume (false for graceful-shutdown checkpoints). */
+  resumable?: boolean;
   duration_seconds?: number;
   error?: string;
   role?: string;

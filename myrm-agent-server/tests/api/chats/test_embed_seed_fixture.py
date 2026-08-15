@@ -24,16 +24,16 @@ class TestChatsEmbedSeedFixture:
         with (
             patch("app.api.chats.test_fixtures._inline_core.is_local_mode", return_value=True),
             patch(
-                "app.api.chats.test_fixtures.AgentService.get_agent_list",
+                "app.api.chats.test_fixtures._inline_core.AgentService.get_agent_list",
                 new_callable=AsyncMock,
                 return_value=([fake_agent], 1),
             ),
             patch(
-                "app.api.chats.test_fixtures.ChatService.create_or_update_chat",
+                "app.api.chats.test_fixtures._inline_core.ChatService.create_or_update_chat",
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.api.chats.test_fixtures.ChatService.append_message",
+                "app.api.chats.test_fixtures._inline_core.ChatService.append_message",
                 new_callable=AsyncMock,
             ) as append_message,
         ):
