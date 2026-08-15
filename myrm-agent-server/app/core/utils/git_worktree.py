@@ -165,7 +165,7 @@ async def _git_worktree_add(
     """
     try:
         os.makedirs(os.path.dirname(worktree_path), exist_ok=True)
-        _ensure_worktree_excluded(base_dir, dir_name)
+        await asyncio.to_thread(_ensure_worktree_excluded, base_dir, dir_name)
 
         result = await asyncio.to_thread(
             subprocess.run,

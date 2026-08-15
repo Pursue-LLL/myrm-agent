@@ -8,6 +8,7 @@
 - get_sandbox_worktree_path: Compute the deterministic path for a chat's sandbox worktree.
 - is_git_repository: Check if a directory is within a git repository.
 - merge_sandbox_to_parent: Merge sandbox branch changes back to the source branch.
+- _sandbox_branch_name: Deterministic per-chat sandbox branch name (single source of truth).
 
 [POS]
 Shared git worktree lifecycle management for chat sandbox sessions.
@@ -38,6 +39,11 @@ from app.core.utils.git_worktree import (
 logger = logging.getLogger(__name__)
 
 _SANDBOX_DIR_NAME = ".sandboxes"
+
+
+def _sandbox_branch_name(chat_id: str) -> str:
+    """Deterministic per-chat sandbox branch name (single source of truth)."""
+    return f"sandbox/chat-{chat_id[:12]}"
 
 
 def get_sandbox_worktree_path(base_dir: str, chat_id: str) -> str:
@@ -104,7 +110,7 @@ async def create_sandbox_worktree(
 
     return await _git_worktree_add(
         base_dir,
-        f"sandbox/chat-{chat_id[:12]}",
+        _sandbox_branch_name(chat_id),
         worktree_dir,
         _SANDBOX_DIR_NAME,
         context="chat sandbox",
@@ -138,7 +144,7 @@ async def cleanup_sandbox_worktree(
         return False
 
     if await _remove_worktree(base_dir, worktree_dir, context="sandbox"):
-        await _delete_git_branch(base_dir, f"sandbox/chat-{chat_id[:12]}")
+        await _delete_git_branch(base_dir, _sandbox_branch_name(chat_id))
         return True
     return False
 
@@ -157,7 +163,7 @@ async def merge_sandbox_to_parent(base_dir: str, chat_id: str) -> tuple[bool, st
 async def _merge_sandbox_to_parent_locked(
     base_dir: str, chat_id: str
 ) -> tuple[bool, str]:
-    branch_name = f"sandbox/chat-{chat_id[:12]}"
+    branch_name = _sandbox_branch_name(chat_id)
 
     parent_branch = await _get_current_branch(base_dir)
     if not parent_branch:
