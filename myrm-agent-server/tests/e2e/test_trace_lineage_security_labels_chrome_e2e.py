@@ -192,33 +192,33 @@ _REPLAY_END_STATE_JS = """(() => {
   if (!/录像回放|Session Replay|Replay|回放/.test(text)) {
     return { ready: false, reason: 'no-replay-title', text: text.slice(0, 200) };
   }
+  // BRIDGE_POLL evaluates synchronously (no awaitPromise), so this probe must
+  // never return a Promise. Scrub once on the first poll, then let _wait_ui_state
+  // re-poll after React has flushed the scrubbed frame.
   const range = root.querySelector('input[type="range"]');
-  if (range) {
+  if (range && !window.__MYRM_SCRUBBED__) {
+    window.__MYRM_SCRUBBED__ = true;
     const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(range), 'value');
     setter.set.call(range, String(range.max));
     range.dispatchEvent(new Event('input', { bubbles: true }));
     range.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    return { ready: false, reason: 'scrubbing' };
   }
-  return new Promise((resolve) => setTimeout(() => {
-    const root2 = document.querySelector('[role="application"]');
-    const text2 = (root2?.innerText || '');
-    const hasMindView = /脑电波|Mind View|Mind Window|Brain/.test(text2);
-    const hasChatView = /界面|Chat View|UI State|Chat/.test(text2);
-    const hasInspector = /原始参数|Inspector/.test(text2);
-    const chips = root2
-      ? Array.from(root2.querySelectorAll('.rounded-full')).filter((el) =>
-          /bash|terminal|shell|exec|command/i.test((el.textContent || '').trim()),
-        )
-      : [];
-    resolve({
-      ready: hasMindView && hasChatView && hasInspector,
-      hasMindView,
-      hasChatView,
-      hasInspector,
-      toolChips: chips.length,
-      text: text2.slice(0, 500),
-    });
-  }, 600));
+  const text2 = root.innerText || '';
+  const hasMindView = /脑电波|Mind View|Mind Window|Brain/.test(text2);
+  const hasChatView = /界面|Chat View|UI State|Chat/.test(text2);
+  const hasInspector = /原始参数|Inspector/.test(text2);
+  const chips = Array.from(root.querySelectorAll('.rounded-full')).filter((el) =>
+    /bash|terminal|shell|exec|command/i.test((el.textContent || '').trim()),
+  );
+  return {
+    ready: hasMindView && hasChatView && hasInspector,
+    hasMindView,
+    hasChatView,
+    hasInspector,
+    toolChips: chips.length,
+    text: text2.slice(0, 500),
+  };
 })()"""
 
 

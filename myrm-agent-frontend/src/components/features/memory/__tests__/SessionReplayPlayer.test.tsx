@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { ExecutionTrace } from '@/services/statistics';
+import type { Message } from '@/store/chat/types';
 
 const stableT = (key: string) => key;
 
@@ -18,7 +19,7 @@ vi.mock('@/services/chat', () => ({
   }),
 }));
 
-let mockChatState: { chatId: string | null; messages: Array<Record<string, unknown>> } = {
+let mockChatState: { chatId: string | null; messages: Message[] } = {
   chatId: null,
   messages: [],
 };
