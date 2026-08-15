@@ -99,4 +99,25 @@ describe('SessionAnalyticsDialog', () => {
     expect(screen.getByText('toolBreakdown')).toBeInTheDocument();
     expect(screen.getByText('bash')).toBeInTheDocument();
   });
+
+  it('renders response speed summary when streamTtft is present', async () => {
+    getSessionAnalyticsMock.mockResolvedValue({
+      ...BASE_ANALYTICS,
+      streamTtft: { sampleCount: 5, avgMs: 800, p95Ms: 1500 },
+    });
+
+    render(<SessionAnalyticsDialog sessionId="s1" onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText('responseSpeed')).toBeInTheDocument());
+    expect(screen.getByText('800')).toBeInTheDocument();
+    expect(screen.getByText('1500')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
+  });
+
+  it('hides response speed section when streamTtft is absent', async () => {
+    render(<SessionAnalyticsDialog sessionId="s1" onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText('duration')).toBeInTheDocument());
+    expect(screen.queryByText('responseSpeed')).not.toBeInTheDocument();
+  });
 });

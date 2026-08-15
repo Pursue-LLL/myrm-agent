@@ -83,8 +83,8 @@ function eventTypeLabel(type: string, t: (key: string) => string): string {
 }
 
 function isDenyDecision(decision: string): boolean {
-  // 与 harness core/security/audit.py record_decision 的权威 deny 语义
-  // （policy_denial_total 口径）保持一致：BLOCK/DENY/REDACT/LEAK。
+  // 与 harness myrm-agent-harness/core/security/audit.py record_decision 的
+  // 权威 deny 语义（policy_denial_total 口径）保持一致：BLOCK/DENY/REDACT/LEAK。
   return /BLOCK|DENY|REDACT|LEAK/i.test(decision);
 }
 

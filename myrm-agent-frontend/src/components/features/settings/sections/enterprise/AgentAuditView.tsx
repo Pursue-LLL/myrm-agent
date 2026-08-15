@@ -7,6 +7,7 @@ import { IconActivity, IconAlertTriangle, IconBot } from '@/components/features/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { type OrgAgentAuditResponse, queryOrgAgentAudit } from '@/services/enterprise-admin';
 import { getMyOrg } from '@/services/enterprise-org';
+import { cn } from '@/lib/utils/classnameUtils';
 import SettingsSection from '../SettingsSection';
 import { AgentEventRow, eventKey } from './AgentEventRow';
 
@@ -140,7 +141,14 @@ const AgentAuditView = memo(() => {
                 <div className="text-xs text-muted-foreground">{t('agentToolCalls')}</div>
               </div>
               <div className="rounded-lg border p-3 text-center">
-                <div className="text-2xl font-bold text-red-600">{securityDenyTotal}</div>
+                <div
+                  className={cn(
+                    'text-2xl font-bold',
+                    securityDenyTotal > 0 ? 'text-red-600' : 'text-foreground',
+                  )}
+                >
+                  {securityDenyTotal}
+                </div>
                 <div className="text-xs text-muted-foreground">{t('agentSecurityBlocks')}</div>
               </div>
               <div className="rounded-lg border p-3 text-center">

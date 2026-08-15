@@ -56,7 +56,7 @@ class AgentAuditQueryResponse(BaseModel):
     limit: int
 
 
-# Harness 权威 deny 语义（core/security/audit.py record_decision 的
+# Harness 权威 deny 语义（myrm-agent-harness/core/security/audit.py record_decision 的
 # policy_denial_total 口径）：决策字符串含 BLOCK/DENY/REDACT/LEAK 即为拦截类。
 _DENY_TOKENS = ("BLOCK", "DENY", "REDACT", "LEAK")
 
