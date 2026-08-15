@@ -24,7 +24,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
-from myrm_agent_harness.agent.event_log.types import EventFilter
+from myrm_agent_harness.agent.event_log.types import EventFilter, EventPayload
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,12 +57,14 @@ async def _build_llm_duration_breakdown(
             session_id, EventFilter(event_types=frozenset({"token_usage"}))
         )
     except Exception:
-        logger.debug("Failed to read token_usage events for LLM breakdown", exc_info=True)
+        logger.debug(
+            "Failed to read token_usage events for LLM breakdown", exc_info=True
+        )
         return []
 
     totals: dict[str, list[int | float]] = {}
     for event in events:
-        payload = event.data
+        payload: EventPayload | dict[str, object] = event.data
         inner = payload.get("data")
         if isinstance(inner, dict):
             payload = inner

@@ -10,6 +10,7 @@ import {
   updateChannelDisplayName,
   type ChannelInstance,
 } from '@/services/channels';
+import { useChannelInstancesStore } from './useChannelInstancesStore';
 
 interface UseChannelInstancesOptions {
   /** Channel type to manage (e.g. "feishu"). */
@@ -39,20 +40,24 @@ export function useChannelInstances(options: UseChannelInstancesOptions): UseCha
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
-  const [instances, setInstances] = useState<ChannelInstance[]>([]);
+  const instances = useChannelInstancesStore((s) => s.instancesByType[options.channelType] ?? []);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+
+  const updateInstances = useCallback((updater: (prev: ChannelInstance[]) => ChannelInstance[]) => {
+    useChannelInstancesStore.getState().updateInstancesForType(optionsRef.current.channelType, updater);
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
       const all = await listChannelInstances(optionsRef.current.channelType);
-      setInstances(all);
+      updateInstances(() => all);
     } catch {
-      setInstances([]);
+      updateInstances(() => []);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [updateInstances]);
 
   useEffect(() => {
     void refresh();
@@ -64,7 +69,7 @@ export function useChannelInstances(options: UseChannelInstancesOptions): UseCha
       setAdding(true);
       try {
         const inst = await createChannelInstance(channelType, displayName, credentials);
-        setInstances((prev) => [...prev, inst]);
+        updateInstances((prev) => [...prev, inst]);
         toast.success(t(`${i18nPrefix}InstanceAdded`));
         optionsRef.current.onChange?.();
         return inst;
@@ -76,7 +81,7 @@ export function useChannelInstances(options: UseChannelInstancesOptions): UseCha
         setAdding(false);
       }
     },
-    [t],
+    [t, updateInstances],
   );
 
   const removeInstance = useCallback(
@@ -84,7 +89,7 @@ export function useChannelInstances(options: UseChannelInstancesOptions): UseCha
       const { i18nPrefix } = optionsRef.current;
       try {
         await deleteChannelInstance(instanceId);
-        setInstances((prev) => prev.filter((i) => i.instanceId !== instanceId));
+        updateInstances((prev) => prev.filter((i) => i.instanceId !== instanceId));
         toast.success(t(`${i18nPrefix}InstanceRemoved`));
         optionsRef.current.onChange?.();
         return true;
@@ -94,7 +99,7 @@ export function useChannelInstances(options: UseChannelInstancesOptions): UseCha
         throw error;
       }
     },
-    [t],
+    [t, updateInstances],
   );
 
   const renameInstance = useCallback(
@@ -102,7 +107,7 @@ export function useChannelInstances(options: UseChannelInstancesOptions): UseCha
       const { i18nPrefix } = optionsRef.current;
       try {
         const updated = await updateChannelDisplayName(channelName, displayName);
-        setInstances((prev) =>
+        updateInstances((prev) =>
           prev.map((i) => (i.channelName === channelName ? { ...i, displayName: updated.displayName } : i)),
         );
         optionsRef.current.onChange?.();
@@ -110,7 +115,7 @@ export function useChannelInstances(options: UseChannelInstancesOptions): UseCha
         toast.error(t(`${i18nPrefix}LabelSaveError`));
       }
     },
-    [t],
+    [t, updateInstances],
   );
 
   const primaryName = optionsRef.current.primaryName;

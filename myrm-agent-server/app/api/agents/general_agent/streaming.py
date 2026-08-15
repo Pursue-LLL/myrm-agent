@@ -12,7 +12,7 @@ from app.config.settings import settings
 from app.core.infra.limiter import limiter
 from app.services.agent.params import AgentRequest
 from app.services.agent.steering_registry import SteeringRegistry
-from app.services.agent.stream_session.orchestrator import run_agent_stream
+from app.services.agent.stream_session import run_agent_stream
 
 logger = logging.getLogger(__name__)
 
