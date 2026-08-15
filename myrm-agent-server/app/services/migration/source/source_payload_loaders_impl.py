@@ -79,7 +79,7 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
                         skill_item["usage_stats"] = usage_record
             result["skills"] = skills
 
-    from ..hermes_cron_converter import (
+    from ..hermes.hermes_cron_converter import (
         build_hermes_cron_migration_plan,
         load_hermes_cron_jobs,
     )

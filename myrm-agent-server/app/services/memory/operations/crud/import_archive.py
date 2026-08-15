@@ -87,7 +87,7 @@ def _cron_skipped_preview_from_plan(
 ) -> list[CronMigrationSkippedPreviewItem]:
     if not isinstance(raw, dict):
         return []
-    from app.services.migration.hermes_cron_converter import (
+    from app.services.migration.hermes.hermes_cron_converter import (
         HermesCronMigrationPlan,
         cron_skipped_preview_rows,
     )
@@ -686,10 +686,10 @@ async def confirm_import_memories(
 
             cron_migration_raw = metadata.get("cron_migration")
             if isinstance(cron_migration_raw, dict):
-                from app.services.migration.hermes_cron_converter import (
+                from app.services.migration.hermes.hermes_cron_converter import (
                     HermesCronMigrationPlan,
                 )
-                from app.services.migration.hermes_cron_migration import (
+                from app.services.migration.hermes.hermes_cron_migration import (
                     apply_hermes_cron_migration_plan,
                 )
 
@@ -961,7 +961,7 @@ async def rollback_import_memories(
                 )
                 cron_raw = metadata.get("cron_rollback")
                 if isinstance(cron_raw, dict):
-                    from app.services.migration.hermes_cron_migration import (
+                    from app.services.migration.hermes.hermes_cron_migration import (
                         rollback_hermes_cron_migration,
                     )
 
@@ -1025,7 +1025,7 @@ async def _resolve_post_import_moa_overlay_configured(
     """Return whether the migrated agent has MoA overlay refs after import."""
     if target_agent_id:
         from app.services.agent.agent_service import AgentService
-        from app.services.migration.hermes_moa_migrator import (
+        from app.services.migration.hermes.hermes_moa_migrator import (
             agent_has_moa_overlay_refs,
         )
 
@@ -1038,7 +1038,7 @@ async def _resolve_post_import_moa_overlay_configured(
     if isinstance(model_migration_data, dict):
         hermes_moa = model_migration_data.get("hermes_moa")
         if isinstance(hermes_moa, dict):
-            from app.services.migration.hermes_moa_migrator import (
+            from app.services.migration.hermes.hermes_moa_migrator import (
                 build_moa_overlay_from_hermes_config,
             )
 
@@ -1078,7 +1078,7 @@ async def _apply_model_migration(
     hermes_moa = model_data.get("hermes_moa")
     if isinstance(hermes_moa, dict) and target_agent_id:
         try:
-            from app.services.migration.hermes_moa_migrator import (
+            from app.services.migration.hermes.hermes_moa_migrator import (
                 migrate_hermes_moa_overlay,
             )
 

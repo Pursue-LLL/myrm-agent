@@ -34,14 +34,12 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `source/`（子包） | 核心 | 迁移源处理子域：发现、SSOT 清单、探针、payload 加载与拆分、迁移 DTO、凭证导入、模型迁移。9 个 `source_*` 模块聚合于此，`source/__init__.py` 为聚合门面统一 re-export | ✅ |
-| `hermes_cron_converter.py` | 核心 | Hermes jobs.json → Myrm CronJob 映射 + dry-run plan + skipped preview rows（无 model 字段，agent SSOT） | ✅ |
-| `hermes_cron_migration.py` | 核心 | confirm 写入 CronManager（默认 paused，model=None）+ batch rollback | ✅ |
+| `hermes/`（子包） | 核心 | Hermes 迁移子域：cron 迁移（jobs.json → Myrm CronJob 映射 + dry-run plan + confirm 写入 CronManager 默认 paused + batch rollback）与 MoA 迁移（`moa.presets` → 目标 Agent `moa_overlay`）。3 个 `hermes_*` 模块聚合于此，`hermes/__init__.py` 为聚合门面统一 re-export | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
 | `_loaders_pi.py` | 核心 | Pi loader（AGENTS.md、settings.json、auth.json、sessions/*.jsonl、skills/） | ✅ |
 | `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（含 load_usage_sidecar 读取 Hermes .usage.json） | ✅ |
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |
 | `source_model_migrator.py` | 辅助 | 竞品模型配置 → Myrm 模型设置（Hermes auxiliary slots + Smart Routing economy 推断；仅 migrated_slots 非空时启用 routing），由 Wizard confirm 调用 | ✅ |
-| `hermes_moa_migrator.py` | 辅助 | Hermes ``moa.presets`` → 目标 Agent ``engine_params.moa_overlay``（ref 模型 + fanout/隐私参数；不迁移 aggregator） | ✅ |
 | `instruction_writer.py` | 核心 | 写入 Agent.systemPrompt、personalSettings、`.myrm/rules` | ✅ |
 | `memory_import_binding.py` | 辅助 | 全局 namespace MemoryManager 工厂 | ✅ |
 | `instruction_rollback.py` | 辅助 | 与 memory import batch 绑定的指令车道回滚 | ✅ |

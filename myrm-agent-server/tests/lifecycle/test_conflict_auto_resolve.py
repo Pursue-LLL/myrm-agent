@@ -115,3 +115,58 @@ class TestAutoResolveExpiredConflicts:
         compiled = str(stmt.compile(compile_kwargs={"literal_binds": False}))
         assert "conflict_auto_resolve_at is not null" in compiled.lower()
         assert "conflict_auto_resolve_at" in compiled.lower()
+
+
+class TestRecordConflictAutoResolveEvent:
+    """Tests for the guardian's auto-resolve audit event."""
+
+    @pytest.mark.asyncio
+    async def test_records_audit_event_with_count(self) -> None:
+        from app.lifecycle.memory_guardian import _record_conflict_auto_resolve_event
+
+        mock_ledger = AsyncMock()
+        mock_ledger.record_event = AsyncMock(return_value=MagicMock())
+        mock_ledger_service_cls = MagicMock(return_value=mock_ledger)
+
+        mock_db = AsyncMock()
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch("app.database.connection.get_session", return_value=mock_session_ctx),
+            patch(
+                "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
+                mock_ledger_service_cls,
+            ),
+        ):
+            await _record_conflict_auto_resolve_event(2)
+
+        mock_ledger.record_event.assert_called_once()
+        _, kwargs = mock_ledger.record_event.call_args
+        assert kwargs["kind"].value == "maintenance"
+        assert kwargs["status"].value == "success"
+        assert kwargs["metadata"]["auto_resolved_conflicts"] == 2
+        assert kwargs["metadata"]["resolution"] == "keep_old"
+        assert kwargs["commit"] is True
+
+    @pytest.mark.asyncio
+    async def test_ledger_failure_is_non_fatal(self) -> None:
+        from app.lifecycle.memory_guardian import _record_conflict_auto_resolve_event
+
+        mock_ledger = AsyncMock()
+        mock_ledger.record_event = AsyncMock(side_effect=RuntimeError("ledger down"))
+        mock_ledger_service_cls = MagicMock(return_value=mock_ledger)
+
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=AsyncMock())
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch("app.database.connection.get_session", return_value=mock_session_ctx),
+            patch(
+                "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
+                mock_ledger_service_cls,
+            ),
+        ):
+            await _record_conflict_auto_resolve_event(1)  # must not raise

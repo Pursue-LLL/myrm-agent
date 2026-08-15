@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.migration.hermes_moa_migrator import (
+from app.services.migration.hermes.hermes_moa_migrator import (
     MoaOverlayMigrationResult,
     agent_has_moa_overlay_refs,
     build_moa_overlay_from_hermes_config,
@@ -18,7 +18,7 @@ from app.services.migration.hermes_moa_migrator import (
     resolve_hermes_moa_preset,
 )
 
-MODULE = "app.services.migration.hermes_moa_migrator"
+MODULE = "app.services.migration.hermes.hermes_moa_migrator"
 
 
 class TestExtractHermesMoaBlock:
@@ -373,7 +373,7 @@ class TestApplyModelMigrationIntegration:
             ],
         }
         with patch(
-            "app.services.migration.hermes_moa_migrator.migrate_hermes_moa_overlay",
+            "app.services.migration.hermes.hermes_moa_migrator.migrate_hermes_moa_overlay",
             new_callable=AsyncMock,
         ) as migrate_moa:
             migrate_moa.return_value = MoaOverlayMigrationResult(

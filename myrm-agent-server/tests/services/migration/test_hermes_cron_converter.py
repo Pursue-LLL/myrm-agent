@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from myrm_agent_harness.toolkits.cron.types import ScheduleKind
 
-from app.services.migration.hermes_cron_converter import (
+from app.services.migration.hermes.hermes_cron_converter import (
     build_hermes_cron_migration_plan,
     convert_hermes_job,
     load_hermes_cron_jobs,
@@ -62,7 +62,7 @@ def test_convert_hermes_job_skips_no_agent_script() -> None:
 
 
 def test_cron_skipped_preview_rows() -> None:
-    from app.services.migration.hermes_cron_converter import (
+    from app.services.migration.hermes.hermes_cron_converter import (
         HermesCronMigrationPlan,
         HermesCronSkippedJob,
         cron_skipped_preview_rows,
