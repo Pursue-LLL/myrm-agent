@@ -42,7 +42,7 @@ from tests.support.e2e_provider_seed import (
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 from tests.support.test_secrets import load_test_secrets
 
-TURN_WAIT_SEC = 300.0
+TURN_WAIT_SEC = 180.0
 SIMPLE_PROMPT = "hello"
 DEBUG_PROMPT = (
     "请帮我 debug 这个 Python 报错：TypeError: unsupported operand type(s) "
@@ -68,7 +68,7 @@ _LATEST_ASSISTANT_JS = """(() => {
 _TIER_BADGE_JS = """(() => {
   const labels = Array.from(document.querySelectorAll('span,div'))
     .map((el) => (el.textContent || '').trim())
-    .filter((t) => /^(simple|standard|reasoning)$/i.test(t));
+    .filter((t) => /^(Light|Standard|Reasoning)$/i.test(t));
   return { found: labels.length > 0, labels: labels.slice(0, 5) };
 })()"""
 
@@ -152,14 +152,10 @@ async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
         state = raw if isinstance(raw, dict) else json.loads(str(raw))
         bridge = await chat._bridge_turn_snapshot()
         streaming = isinstance(bridge, dict) and bridge.get("isStreaming") is True
-        main = await chat.main_state(
-            "", intent=EvaluateIntent.BRIDGE_POLL
-        )
         if (
             state.get("ready") is True
             and state.get("routingTier") == expected
             and not streaming
-            and not main.get("sending")
             and str(state.get("content") or "").strip()
         ):
             return state

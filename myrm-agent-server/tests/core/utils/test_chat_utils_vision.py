@@ -2,16 +2,26 @@
 
 from __future__ import annotations
 
+import base64
+import io
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from PIL import Image
 
 from app.core.utils.chat_utils import _process_image_item, _process_video_item
 
 _TINY_PNG_B64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg=="
 )
+
+
+def _jpeg_data_url(width: int, height: int) -> str:
+    img = Image.new("RGB", (width, height), color=(100, 150, 200))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=95)
+    return f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode('ascii')}"
 
 
 def _text_only_model() -> SimpleNamespace:
@@ -35,6 +45,100 @@ async def test_process_image_passthrough_when_model_supports_vision() -> None:
         vision_fallback_model_cfg=SimpleNamespace(model="vl"),
     )
     assert result["type"] == "image_url"
+
+
+@pytest.mark.asyncio
+async def test_process_image_compresses_oversized_image() -> None:
+    """Images over 4096px trigger channel compression to JPEG."""
+    item = {
+        "type": "image_url",
+        "image_url": {"url": _jpeg_data_url(5000, 3000)},
+    }
+    result = await _process_image_item(
+        item,
+        meta={},
+        model_cfg=_vision_model(),
+        vision_fallback_model_cfg=SimpleNamespace(model="vl"),
+    )
+    assert result["type"] == "image_url"
+    assert "image/jpeg" in result["image_url"]["url"]
+
+
+@pytest.mark.asyncio
+async def test_process_image_probe_failure_passthrough() -> None:
+    """Corrupt small base64 image: probe fails, original item is kept."""
+    corrupt_b64 = base64.b64encode(b"not an image at all").decode("ascii")
+    item = {
+        "type": "image_url",
+        "image_url": {"url": f"data:image/png;base64,{corrupt_b64}"},
+    }
+    result = await _process_image_item(
+        item,
+        meta={},
+        model_cfg=_vision_model(),
+        vision_fallback_model_cfg=SimpleNamespace(model="vl"),
+    )
+    assert result["type"] == "image_url"
+    assert "image/png" in result["image_url"]["url"]
+
+
+@pytest.mark.asyncio
+async def test_process_image_compresses_rgba_png_with_background() -> None:
+    """RGBA PNG over 4096px is flattened onto a white background as JPEG."""
+    img = Image.new("RGBA", (5000, 3000), color=(255, 0, 0, 128))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    item = {
+        "type": "image_url",
+        "image_url": {"url": f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode('ascii')}"},
+    }
+    result = await _process_image_item(
+        item,
+        meta={},
+        model_cfg=_vision_model(),
+        vision_fallback_model_cfg=SimpleNamespace(model="vl"),
+    )
+    assert result["type"] == "image_url"
+    assert "image/jpeg" in result["image_url"]["url"]
+
+
+@pytest.mark.asyncio
+async def test_process_image_compresses_grayscale_jpeg() -> None:
+    """L-mode JPEG over 4096px is converted to RGB and re-encoded as JPEG."""
+    img = Image.new("L", (5000, 3000), color=128)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=95)
+    item = {
+        "type": "image_url",
+        "image_url": {"url": f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode('ascii')}"},
+    }
+    result = await _process_image_item(
+        item,
+        meta={},
+        model_cfg=_vision_model(),
+        vision_fallback_model_cfg=SimpleNamespace(model="vl"),
+    )
+    assert result["type"] == "image_url"
+    assert "image/jpeg" in result["image_url"]["url"]
+
+
+@pytest.mark.asyncio
+async def test_process_image_huge_bytes_compression_failure_keeps_original() -> None:
+    """byte_size over the inline threshold forces a compression attempt; a
+    decode failure keeps the original data URL untouched."""
+    huge_b64 = base64.b64encode(b"\x00" * (6 * 1024 * 1024)).decode("ascii")
+    item = {
+        "type": "image_url",
+        "image_url": {"url": f"data:image/png;base64,{huge_b64}"},
+    }
+    result = await _process_image_item(
+        item,
+        meta={},
+        model_cfg=_vision_model(),
+        vision_fallback_model_cfg=SimpleNamespace(model="vl"),
+    )
+    assert result["type"] == "image_url"
+    assert "image/png" in result["image_url"]["url"]
 
 
 @pytest.mark.asyncio

@@ -285,6 +285,32 @@ def _wechat_instances(api_url: str) -> list[dict[str, object]]:
     return [i for i in listed if isinstance(i, dict)]
 
 
+def _instances_fetch_probe_js() -> str:
+    """Fetch the real instances API from the page context (same auth as the app).
+
+    Reveals exactly what ``listChannelInstances`` receives: the raw instanceId
+    values the frontend state will be seeded from.
+    """
+    return """(() => {
+  const token = localStorage.getItem('auth_token') || '';
+  const xhr = new XMLHttpRequest();
+  try {
+    xhr.open('GET', '/api/v1/channels/manage/instances?channel_type=wechat', false);
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+    xhr.send();
+    return {
+      status: xhr.status,
+      bodyLen: (xhr.responseText || '').length,
+      body: (xhr.responseText || '').slice(0, 2500),
+    };
+  } catch (err) {
+    return { err: String(err) };
+  }
+})()"""
+
+
 def _instance_ui_probe_js(instance_id: str) -> str:
     """Probe the extra-instance card: is its delete button / dialog still present?"""
     return f"""(() => {{

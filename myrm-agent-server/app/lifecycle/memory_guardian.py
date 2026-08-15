@@ -131,6 +131,25 @@ async def _create_memory_manager() -> MemoryManager:
     )
 
 
+async def _record_guard_unavailable(*, reason: str, guard: str, policy: MemoryGuardianPolicy) -> None:
+    """Report a guard-unavailable skip to telemetry and persist its audit event.
+
+    Telemetry lives in the agent service domain (lifecycle may depend on it),
+    while the ledger audit event stays in the memory ledger domain.
+    """
+    from app.services.agent.memory_guardian_guard_telemetry import (
+        enqueue_memory_guardian_guard_telemetry,
+    )
+
+    enqueue_memory_guardian_guard_telemetry(
+        reason=reason,
+        guard=guard,
+        frequency_tier=policy.frequency_tier,
+        quiet_window_enabled=policy.quiet_window_enabled,
+    )
+    await record_guard_unavailable_event(reason=reason, guard=guard, policy=policy)
+
+
 async def _run_guardian_cycle(
     *,
     force: bool = False,
@@ -158,7 +177,7 @@ async def _run_guardian_cycle(
                 return None, "active_sessions"
         except Exception as exc:
             logger.warning("Memory guardian: skipped (active-session guard unavailable): %s", exc)
-            await record_guard_unavailable_event(
+            await _record_guard_unavailable(
                 reason="active_session_guard_unavailable",
                 guard="active_session",
                 policy=active_policy,
@@ -173,7 +192,7 @@ async def _run_guardian_cycle(
                 return None, "budget_blocked"
         except Exception as exc:
             logger.warning("Memory guardian: skipped (budget guard unavailable): %s", exc)
-            await record_guard_unavailable_event(
+            await _record_guard_unavailable(
                 reason="budget_guard_unavailable",
                 guard="budget",
                 policy=active_policy,
@@ -190,7 +209,7 @@ async def _run_guardian_cycle(
             adaptive_scheduler = get_maintenance_scheduler()
         except Exception as exc:
             logger.warning("Memory guardian: skipped (capacity guard unavailable): %s", exc)
-            await record_guard_unavailable_event(
+            await _record_guard_unavailable(
                 reason="capacity_guard_unavailable",
                 guard="capacity",
                 policy=active_policy,
@@ -204,7 +223,7 @@ async def _run_guardian_cycle(
             )
         except Exception as exc:
             logger.warning("Memory guardian: skipped (capacity guard request failed): %s", exc)
-            await record_guard_unavailable_event(
+            await _record_guard_unavailable(
                 reason="capacity_guard_unavailable",
                 guard="capacity",
                 policy=active_policy,

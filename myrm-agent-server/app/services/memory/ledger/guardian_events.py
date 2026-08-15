@@ -3,7 +3,6 @@
 [INPUT]
 - myrm_agent_harness.toolkits.memory::MemoryOperationKind / MemoryOperationStatus
 - myrm_agent_harness.toolkits.memory.health::MaintenanceReport
-- app.services.agent.memory_guardian_guard_telemetry::enqueue_memory_guardian_guard_telemetry
 - app.services.memory.ledger.guardian_policy::MemoryGuardianPolicy / resolve_guardian_intervals
 
 [OUTPUT]
@@ -95,17 +94,7 @@ async def record_guard_unavailable_event(
 ) -> None:
     """Record warning-level observability event when safe guard dependencies are unavailable."""
     from app.database.connection import get_session
-    from app.services.agent.memory_guardian_guard_telemetry import (
-        enqueue_memory_guardian_guard_telemetry,
-    )
     from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
-
-    enqueue_memory_guardian_guard_telemetry(
-        reason=reason,
-        guard=guard,
-        frequency_tier=policy.frequency_tier,
-        quiet_window_enabled=policy.quiet_window_enabled,
-    )
 
     try:
         async with get_session() as db:
