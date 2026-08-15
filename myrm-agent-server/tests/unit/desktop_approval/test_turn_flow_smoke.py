@@ -209,7 +209,8 @@ def test_turn_flow_seeded_resend_api_kickoff_ssot() -> None:
     assert "R288 signoff lightweight mux recover" in text
     assert "_signoff_mux_recover_lightweight" in text
     assert "R232 mux-bypass" in text
-    assert "R233 api-primary DONE wait" in text
+    assert "R233 api-primary" in text
+    assert "DONE wait (mux-bypass)" in text
     assert "api_primary_done=seeded_api_kickoff" in text
     assert "initial_api_kickoff" in text
     assert "R264 CDP resend transport fail" in text
