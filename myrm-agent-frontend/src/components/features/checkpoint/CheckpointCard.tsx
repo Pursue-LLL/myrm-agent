@@ -2,13 +2,12 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Clock, Trash2, Play, RotateCcw } from 'lucide-react';
+import { Clock, Trash2, RotateCcw } from 'lucide-react';
 import { CheckpointInfo } from '@/services/checkpoint';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface CheckpointCardProps {
   checkpoint: CheckpointInfo;
-  onResume: (taskId: string) => void;
   onReinitiate: (description: string, sessionId: string) => void;
   onDelete: (taskId: string) => void;
   isLoading?: boolean;
@@ -16,7 +15,6 @@ interface CheckpointCardProps {
 
 const CheckpointCard: React.FC<CheckpointCardProps> = ({
   checkpoint,
-  onResume,
   onReinitiate,
   onDelete,
   isLoading = false,
@@ -38,10 +36,6 @@ const CheckpointCard: React.FC<CheckpointCardProps> = ({
         setDeleting(false);
       }
     }
-  };
-
-  const handleResume = () => {
-    onResume(checkpoint.taskId);
   };
 
   const handleReinitiate = () => {
@@ -66,18 +60,6 @@ const CheckpointCard: React.FC<CheckpointCardProps> = ({
             {formattedDate}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              'text-xs px-2 py-1 rounded-full',
-              checkpoint.resumable
-                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-            )}
-          >
-            {checkpoint.resumable ? t('resumable') : t('notResumable')}
-          </span>
-        </div>
       </div>
 
       <div className="mb-3">
@@ -100,31 +82,20 @@ const CheckpointCard: React.FC<CheckpointCardProps> = ({
       )}
 
       <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-        {checkpoint.resumable ? (
-          <button
-            onClick={handleResume}
-            disabled={isLoading}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-full transition-colors bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50"
-          >
-            <Play className="w-3.5 h-3.5" />
-            {t('resume')}
-          </button>
-        ) : (
-          <button
-            onClick={handleReinitiate}
-            disabled={isLoading}
-            title={t('reinitiateTitle')}
-            className={cn(
-              'flex items-center gap-1 px-3 py-1.5 text-sm rounded-full transition-colors',
-              'border border-purple-300 text-purple-600 hover:bg-purple-50 hover:text-purple-700',
-              'dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20 dark:hover:text-purple-300',
-              'disabled:opacity-50',
-            )}
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            {t('reinitiateAction')}
-          </button>
-        )}
+        <button
+          onClick={handleReinitiate}
+          disabled={isLoading}
+          title={t('reinitiateTitle')}
+          className={cn(
+            'flex items-center gap-1 px-3 py-1.5 text-sm rounded-full transition-colors',
+            'border border-purple-300 text-purple-600 hover:bg-purple-50 hover:text-purple-700',
+            'dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20 dark:hover:text-purple-300',
+            'disabled:opacity-50',
+          )}
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          {t('reinitiateAction')}
+        </button>
         <button
           onClick={handleDelete}
           disabled={deleting || isLoading}

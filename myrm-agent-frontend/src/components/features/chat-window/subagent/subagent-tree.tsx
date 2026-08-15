@@ -8,7 +8,6 @@ import {
   Clock,
   GitCompareArrows,
   MessageSquare,
-  PlayCircle,
   RotateCcw,
   ShieldAlert,
   ShieldCheck,
@@ -190,21 +189,6 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
     }
   }, [chatId, node.task_id, steerMessage, t]);
 
-  const handleResume = useCallback(async () => {
-    try {
-      const res = await fetchWithTimeout(`/chats/${chatId}/subagents/${node.task_id}/resume`, { method: 'POST' });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        toast.error(body.message || t('resumeFailed'));
-        return;
-      }
-      useSubagentStore.getState().upsertNode({ task_id: node.task_id, status: 'running' });
-      toast.success(t('resumeSuccess'));
-    } catch {
-      toast.error(t('resumeNetworkError'));
-    }
-  }, [chatId, node.task_id, t]);
-
   const handleReinitiate = useCallback(() => {
     const description = node.description || node.agent_type;
     useChatStore.getState().setInputMessage(description);
@@ -353,18 +337,7 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
               </Button>
             </>
           )}
-          {isCheckpoint && node.resumable !== false && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-green-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
-              onClick={handleResume}
-              title={t('resumeTitle')}
-            >
-              <PlayCircle className="w-4 h-4" />
-            </Button>
-          )}
-          {(isInterrupted || (isCheckpoint && node.resumable === false)) && (
+          {(isInterrupted || isCheckpoint) && (
             <Button
               variant="outline"
               size="sm"
