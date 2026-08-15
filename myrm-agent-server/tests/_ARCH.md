@@ -76,6 +76,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_kanban_closure_seed_integration.py` | 模块 | Kanban closure seed 真 DB 集成（metadata + board task） |
 | `api/chats/test_citation_seed_integration.py` | 模块 | citation seed → GET messages 集成单测（真 DB metadata） |
 | `api/chats/test_prior_chat_recall_integration.py` | 模块 | prior_chat seed → GET `/recall/search` SSOT + mention inject 集成（真 DB，无 mock） |
+| `api/channels/test_instance_lifecycle_integration.py` | 模块 | 渠道实例真实全链路集成（`@pytest.mark.integration`，关键路径无 mock）：`POST /instances` → 真实 `channel_factory` 创建 WebhookChannel → 真实 `ChannelGateway.add_channel` 热注册 → 持久化列表落库 → `DELETE /instances` → 真实 `remove_channel` 移除 + 持久化/凭据清理；删除不存在实例 404（覆盖设置页「删除实例确认」背后后端链路） |
 | `e2e/test_evicted_live_terminal_chrome_e2e.py` | 模块 | UECD EvictedOutputDrawer Chrome MCP E2E（READ×1 SHPOIB：**单 tab** 全文 spill + `navigate` 过期 chat；选择器与分页探针统一来自 `support/evicted_drawer_selectors.py`；禁止拆成 2× `open_mcp_page`，并行 mux 会 30s timeout） |
 | `e2e/test_bash_failure_dual_evicted_drawer_chrome_e2e.py` | 模块 | 失败 bash 双 evicted 流 Chrome MCP E2E（SHARED+NAMESPACE_WRITE×1：seed `bash_failure` variant → LiveTerminal stdout/stderr 双入口 → 各自 Drawer 读回；`evicted_view_full_output` / `evicted_view_full_stderr_output` data-testid） |
 | `api/files/test_evicted_web_fetch_spill.py` | 模块 | UECD evicted-file API 单测（`web_fetch_{hex8}.md` basename + GET content） |

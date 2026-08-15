@@ -3,16 +3,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   formatChatAsMarkdown,
   formatChatAsJson,
-  downloadBlob,
   downloadFile,
   downloadAsMarkdown,
   downloadAsJson,
   downloadMessageAsMarkdown,
   formatDuration,
   formatUsd,
-  sanitizeFilename,
   type ExportData,
 } from '../chatExport';
+import { sanitizeFilename } from '../fileUtils';
 import type { Message, Source } from '@/store/chat/types';
 
 function createMockMessage(overrides: Partial<Message> = {}): Message {
@@ -207,37 +206,7 @@ describe('chatExport', () => {
     });
   });
 
-  describe('downloadBlob', () => {
-    let linkMock: Record<string, unknown>;
-    let createObjectURLSpy: ReturnType<typeof vi.spyOn>;
-    let revokeObjectURLSpy: ReturnType<typeof vi.spyOn>;
-
-    beforeEach(() => {
-      linkMock = { href: '', download: '', click: vi.fn(), style: {} };
-      vi.spyOn(document, 'createElement').mockReturnValue(linkMock as unknown as HTMLAnchorElement);
-      vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
-      vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
-      createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test-url');
-      revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
-    it('should create object URL, trigger click, then revoke', () => {
-      const blob = new Blob(['hello'], { type: 'text/plain' });
-      downloadBlob(blob, 'test.txt');
-
-      expect(createObjectURLSpy).toHaveBeenCalledWith(blob);
-      expect(linkMock.href).toBe('blob:test-url');
-      expect(linkMock.download).toBe('test.txt');
-      expect(linkMock.click).toHaveBeenCalled();
-      expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:test-url');
-    });
-  });
-
-  describe('downloadFile delegates to downloadBlob', () => {
+  describe('downloadFile delegates to triggerDownload', () => {
     let createObjectURLSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {

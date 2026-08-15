@@ -30,7 +30,8 @@
 ## 测试
 
 - `__tests__/topicWorkspaceLabel.test.ts` — workspace 展示 label 解析
-- `__tests__/FeishuMultiAppSection.test.tsx` — 多应用区渲染/编辑/删除确认/重命名/上限 UX
+- `__tests__/FeishuMultiAppSection.test.tsx` — 多应用区渲染/编辑/删除确认/重命名/上限 UX（删除确认：确认后真实调 `deleteChannelInstance`、取消保留实例）
+- `__tests__/WeChatConfigCard.test.tsx` — 微信卡片删除/登出确认（主账号登出二次确认后调 `logoutWeChatChannel`、取消保留；附加实例删除确认后调 `deleteChannelInstance`）
 - `__tests__/FeishuCredentialsEditDialog.test.tsx` — 编辑凭据弹窗（脱敏回显、留空保留、校验）
 - `__tests__/FeishuQrRegisterDialog.test.tsx` — QR 注册弹窗（扫描/超时/手动回退）
 

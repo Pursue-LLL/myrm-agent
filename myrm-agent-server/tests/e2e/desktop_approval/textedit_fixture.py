@@ -160,13 +160,13 @@ def _probe_textedit_ax_ready() -> tuple[bool, str]:
 
     backend = MacOSBackend()
     probes: tuple[tuple[str, str | None], ...] = (
-        ("window_title", "TextEdit"),
+        ("target", "TextEdit"),
         ("foreground", None),
     )
     diagnostics: list[str] = []
-    for scope, window_title in probes:
+    for scope, app_name in probes:
         try:
-            meta, refs = capture_snapshot(backend, scope, window_title)
+            meta, refs = capture_snapshot(backend, scope, app_name)
         except Exception as exc:  # noqa: BLE001 - diagnostics for E2E recovery
             diagnostics.append(f"{scope}: {type(exc).__name__}: {exc}")
             continue
@@ -176,7 +176,7 @@ def _probe_textedit_ax_ready() -> tuple[bool, str]:
                 f"{scope}: empty refs app={meta.app_name!r} window={meta.window_title!r}"
             )
             continue
-        if scope == "window_title" and str(meta.app_name or "").strip() != "TextEdit":
+        if scope == "target" and str(meta.app_name or "").strip() != "TextEdit":
             diagnostics.append(
                 f"{scope}: unexpected app {meta.app_name!r} with refs={ref_count}"
             )

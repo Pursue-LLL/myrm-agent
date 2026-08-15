@@ -201,6 +201,74 @@ async def test_completions_streaming_agent_message_event(client: AsyncClient, ap
 
 
 @pytest.mark.asyncio
+async def test_build_agent_params_writes_temperature_to_model_kwargs() -> None:
+    """temperature must reach the main agent path: harness expands **model_kwargs,
+    so the value must be written into model_kwargs (dual-channel alongside the
+    top-level field consumed by the subagent resolver)."""
+    from app.api.openai_compat.completions import _build_agent_params
+    from app.api.openai_compat.types import ChatCompletionRequest
+    from app.core.types import ModelConfig
+
+    request = ChatCompletionRequest(
+        model="default",
+        messages=[{"role": "user", "content": "hello"}],
+        temperature=0.2,
+    )
+
+    with (
+        patch(
+            "app.services.agent.params.convert_to_general_agent_params",
+            new_callable=AsyncMock,
+        ) as mock_convert,
+    ):
+        params = MagicMock()
+        params.model_cfg = ModelConfig(
+            model="test-model",
+            api_key="test-key",
+            base_url="http://test",
+            model_kwargs={"max_tokens": 1024},
+        )
+        mock_convert.return_value = (params, None, [], [])
+        result = await _build_agent_params(request)
+
+    assert result.model_cfg.temperature == 0.2
+    assert result.model_cfg.model_kwargs == {"max_tokens": 1024, "temperature": 0.2}
+
+
+@pytest.mark.asyncio
+async def test_build_agent_params_keeps_existing_kwargs_without_temperature() -> None:
+    """When the request omits temperature, model_cfg must be left untouched."""
+    from app.api.openai_compat.completions import _build_agent_params
+    from app.api.openai_compat.types import ChatCompletionRequest
+    from app.core.types import ModelConfig
+
+    request = ChatCompletionRequest(
+        model="default",
+        messages=[{"role": "user", "content": "hello"}],
+    )
+
+    with (
+        patch(
+            "app.services.agent.params.convert_to_general_agent_params",
+            new_callable=AsyncMock,
+        ) as mock_convert,
+    ):
+        params = MagicMock()
+        original_cfg = ModelConfig(
+            model="test-model",
+            api_key="test-key",
+            base_url="http://test",
+            model_kwargs={"max_tokens": 1024},
+        )
+        params.model_cfg = original_cfg
+        mock_convert.return_value = (params, None, [], [])
+        result = await _build_agent_params(request)
+
+    assert result.model_cfg is original_cfg
+    assert result.model_cfg.model_kwargs == {"max_tokens": 1024}
+
+
+@pytest.mark.asyncio
 async def test_completions_unauthorized(client: AsyncClient):
     """Missing auth should return 401."""
     resp = await client.post(

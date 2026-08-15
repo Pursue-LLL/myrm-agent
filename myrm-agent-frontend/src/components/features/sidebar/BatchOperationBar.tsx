@@ -8,9 +8,9 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { batchMoveChats } from '@/services/projects';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
+import { triggerDownload } from '@/lib/utils/fileUtils';
 import {
   batchExportAsZip,
-  downloadBlob,
   type BatchExportFormat,
   type BatchExportProgress,
 } from '@/lib/utils/batchExport';
@@ -95,7 +95,7 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
           }
 
           const date = new Date().toISOString().slice(0, 10);
-          downloadBlob(blob, `myrm-export-${date}.zip`);
+          triggerDownload(blob, `myrm-export-${date}.zip`);
 
           let msg = t('chat.batch.exportComplete', { exported: result.exported });
           if (result.skipped > 0 || result.failed > 0) {

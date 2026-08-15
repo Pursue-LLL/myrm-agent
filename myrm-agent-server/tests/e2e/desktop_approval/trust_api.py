@@ -109,24 +109,24 @@ def fetch_first_desktop_dref_from_local_capture() -> str | None:
     backend = MacOSBackend()
     preferred_roles = {"text", "statictext", "axtextarea", "scrollarea"}
     strategies: tuple[tuple[str, str | None], ...] = (
-        ("window_title", "TextEdit"),
+        ("target", "TextEdit"),
         ("foreground", None),
         ("full_screen", None),
     )
 
-    for scope, window_title in strategies:
+    for scope, app_name in strategies:
         try:
-            meta, refs = capture_snapshot(backend, scope, window_title)
+            meta, refs = capture_snapshot(backend, scope, app_name)
         except OSError as exc:
             progress(
                 "local AX capture failed "
-                f"scope={scope} window={window_title!r}: {exc}"
+                f"scope={scope} app={app_name!r}: {exc}"
             )
             continue
         except Exception as exc:
             progress(
                 "local AX capture failed "
-                f"scope={scope} window={window_title!r}: {type(exc).__name__}: {exc}"
+                f"scope={scope} app={app_name!r}: {type(exc).__name__}: {exc}"
             )
             continue
 

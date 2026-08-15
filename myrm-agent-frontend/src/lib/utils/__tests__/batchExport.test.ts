@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { batchExportAsZip, downloadBlob, type BatchExportProgress } from '../batchExport';
-import { downloadBlob as chatExportDownloadBlob, type ExportData } from '../chatExport';
+import { batchExportAsZip, type BatchExportProgress } from '../batchExport';
+import { type ExportData } from '../chatExport';
 
 vi.mock('@/services/chat', () => ({
   exportChat: vi.fn(),
@@ -184,11 +184,5 @@ describe('batchExportAsZip', () => {
 
     expect(result.exported).toBe(1);
     expect(result.failed).toBe(0);
-  });
-});
-
-describe('downloadBlob re-export', () => {
-  it('should be the same function as chatExport.downloadBlob', () => {
-    expect(downloadBlob).toBe(chatExportDownloadBlob);
   });
 });

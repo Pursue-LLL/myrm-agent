@@ -47,7 +47,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `ConnectWizardDialog.tsx` | 组件 | 外部 AI 工具 Connect Wizard：Myrm Agent Profile 选择器 + 外部工具 profile 选择 → 生成 MCP 配置（token 携带 agent_id 作用域）→ doctor 验证 → revoke 管理 | ✅ |
+| `ConnectWizardDialog.tsx` | 组件 | 外部 AI 工具 Connect Wizard：Myrm Agent Profile 选择器 + 外部工具 profile 选择 → 生成 MCP 配置（token 携带 agent_id 作用域）→ Agent Plugins bundle 生成/逐文件与整体 zip 下载 → doctor 验证 → revoke 管理 | ✅ |
 | `MemoryArchiveRestoreDialog.tsx` | 组件 | 记忆归档批量恢复确认对话框 | ✅ |
 | `MemoryClearAllDialog.tsx` | 组件 | 清空全部记忆二次确认 | ✅ |
 | `MemoryCreateDialog.tsx` | 组件 | 手动创建记忆对话框 | ✅ |

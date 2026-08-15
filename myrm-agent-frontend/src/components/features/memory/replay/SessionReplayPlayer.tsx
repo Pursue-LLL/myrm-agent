@@ -105,8 +105,14 @@ async function loadAllMessages(sessionId: string): Promise<Message[]> {
 
 const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }) => {
   const t = useTranslations('settings.sessionAnalytics.replay');
-  const storeMessages = useChatStore((state) =>
-    state.chatId === sessionId ? state.messages.filter((m) => m.chatId === sessionId) : [],
+  // Selectors must return stable references: an inline `.filter()` inside the
+  // selector allocates a fresh array each render, which makes useSyncExternalStore
+  // re-render forever ("Maximum update depth exceeded") once chatId matches.
+  const activeChatId = useChatStore((state) => state.chatId);
+  const chatMessages = useChatStore((state) => state.messages);
+  const storeMessages = useMemo(
+    () => (activeChatId === sessionId ? chatMessages.filter((m) => m.chatId === sessionId) : []),
+    [activeChatId, sessionId, chatMessages],
   );
 
   const [remoteMessages, setRemoteMessages] = useState<Message[]>([]);

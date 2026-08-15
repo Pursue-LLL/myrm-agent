@@ -1,7 +1,7 @@
 'use client';
 
 import { type ElementType, memo, useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Cable,
   Copy,
@@ -41,7 +41,11 @@ import {
 } from '@/components/primitives/alert-dialog';
 import { toast } from '@/hooks/shared/useToast';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
-import { resolveDoctorMessageKey } from '@/lib/i18n/connectDoctor';
+import {
+  formatDoctorRelativeTime,
+  resolveDoctorMessageKey,
+  resolveDoctorSeverity,
+} from '@/lib/i18n/connectDoctor';
 import { cn } from '@/lib/utils';
 import SettingsSection from '../SettingsSection';
 import {
@@ -76,6 +80,7 @@ const AGENT_ICONS: Record<string, { icon: ElementType; color: string }> = {
 
 const ConnectSection = memo(() => {
   const t = useTranslations('connectWizard');
+  const locale = useLocale();
   const [connectors, setConnectors] = useState<ConnectorStatus[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -111,12 +116,12 @@ const ConnectSection = memo(() => {
         setConfigDialog(config);
         await fetchStatus();
       } catch {
-        toast.error('Failed to generate config');
+        toast.error(t('generateFailed'));
       } finally {
         setAction(profileId, 'idle');
       }
     },
-    [fetchStatus],
+    [fetchStatus, t],
   );
 
   const handleDoctor = useCallback(
@@ -125,14 +130,22 @@ const ConnectSection = memo(() => {
       try {
         const result = await runConnectDoctor(profileId);
         const message = t(resolveDoctorMessageKey(result.detail, result.healthy));
-        if (result.healthy) {
+        const severity = resolveDoctorSeverity(result.detail, result.healthy);
+        if (severity === 'ok') {
           toast.success(message);
+        } else if (severity === 'warn') {
+          toast.warning(message);
         } else {
-          toast.error(message);
+          toast.error(message, {
+            action: {
+              label: t('regenerate'),
+              onClick: () => setRegenerateTarget(profileId),
+            },
+          });
         }
         await fetchStatus();
       } catch {
-        toast.error(t('doctorUnhealthy'));
+        toast.error(t('doctorFailed'));
       } finally {
         setAction(profileId, 'idle');
       }
@@ -148,7 +161,7 @@ const ConnectSection = memo(() => {
         toast.success(t('revoked'));
         await fetchStatus();
       } catch {
-        toast.error('Failed to revoke');
+        toast.error(t('revokeFailed'));
       } finally {
         setAction(profileId, 'idle');
         setRevokeTarget(null);
@@ -234,11 +247,44 @@ const ConnectSection = memo(() => {
                   </Badge>
                 </div>
 
-                {connector.connected_at && (
-                  <p className="text-[11px] text-muted-foreground/60">
-                    {new Date(connector.connected_at).toLocaleDateString()}
-                  </p>
-                )}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground/60">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        'h-1.5 w-1.5 rounded-full',
+                        connector.doctor_ok
+                          ? 'bg-emerald-500'
+                          : connector.last_doctor_at
+                            ? 'bg-red-500'
+                            : 'bg-muted-foreground/40',
+                      )}
+                    />
+                    {t(
+                      connector.doctor_ok
+                        ? 'doctorStatusOk'
+                        : connector.last_doctor_at
+                          ? 'doctorStatusFail'
+                          : 'doctorStatusUnknown',
+                    )}
+                  </span>
+                  {connector.last_doctor_at && (
+                    <span>
+                      {t('doctorLastChecked', {
+                        time: formatDoctorRelativeTime(connector.last_doctor_at, locale),
+                      })}
+                    </span>
+                  )}
+                  {connector.agent_id && connector.agent_id !== 'default' && (
+                    <span className="inline-flex items-center gap-1 rounded bg-secondary/60 px-1.5 py-0.5 font-medium">
+                      {connector.agent_id}
+                    </span>
+                  )}
+                  {connector.connected_at && (
+                    <span>
+                      {new Date(connector.connected_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex flex-wrap gap-1.5 mt-auto pt-1">
                   {!isConnected && !isConfigured && (

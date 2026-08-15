@@ -103,16 +103,36 @@ def _trace_dialog_probe_js(tool_names: list[str]) -> str:
 
 # Clicks the "Enter Replay" button inside the trace dialog (any locale).
 # Reports the exact button text that was clicked so a wrong-target click is visible.
+# On failure it dumps the dialog inventory + button list + page error state so a
+# disappearing Enter-Replay button (dialog closed / page crashed / trace loading)
+# is diagnosable instead of an opaque timeout.
 _ENTER_REPLAY_JS = """(() => {
   const dialogs = Array.from(document.querySelectorAll('.fixed.inset-0'));
   const dialog = dialogs.find((d) =>
-    /执行回放|執行回放|Execution Trace|Execution Replay/.test(d.innerText || ''),
+    /执行回放|執行回放|Execution Trace|Execution Replay|执行轨迹/.test(d.innerText || ''),
   );
   const scope = dialog || document.body;
   const btn = Array.from(scope.querySelectorAll('button')).find((b) =>
     /播放录像|播放錄像|Enter Replay|进入回放|進入回放/.test((b.textContent || '').trim()),
   );
-  if (!btn) return { ready: false, reason: 'no-replay-button' };
+  if (!btn) {
+    const bodyText = document.body?.innerText || '';
+    return {
+      ready: false,
+      reason: 'no-replay-button',
+      hasDialog: Boolean(dialog),
+      dialogCount: dialogs.length,
+      dialogText: dialogs
+        .map((d) => (d.innerText || '').slice(0, 150))
+        .slice(0, 3),
+      buttons: Array.from(scope.querySelectorAll('button'))
+        .map((b) => (b.textContent || '').trim().slice(0, 40))
+        .slice(0, 25),
+      hasLoadingText: /加载中|Loading|加载/.test(bodyText),
+      bodyErr: /应用出错了/.test(bodyText),
+      bodyText: bodyText.slice(0, 200),
+    };
+  }
   btn.click();
   return {
     ready: true,

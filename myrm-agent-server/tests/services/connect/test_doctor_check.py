@@ -13,6 +13,8 @@ from app.services.connect.doctor_check import (
     DOCTOR_CONFIG_FILE_MISSING,
     DOCTOR_ENTRY_MISSING,
     DOCTOR_FILE_UNREADABLE,
+    DOCTOR_TOKEN_ENV,
+    DOCTOR_TOKEN_MISSING,
     DOCTOR_TOKEN_MISMATCH,
     DOCTOR_VERIFIED,
     hash_token,
@@ -127,13 +129,37 @@ class TestVerifyConnectorConfig:
         assert verdict.healthy is False
         assert verdict.detail == DOCTOR_TOKEN_MISMATCH
 
-    def test_entry_without_bearer_token_is_mismatch(self, tmp_path: Path):
+    def test_entry_without_authorization_is_token_missing(self, tmp_path: Path):
         config_file = tmp_path / "mcp.json"
         _write_json(config_file, {"mcpServers": {"myrm-memory": {"headers": {}}}})
         verdict = _verify(config_file)
         assert verdict is not None
         assert verdict.healthy is False
-        assert verdict.detail == DOCTOR_TOKEN_MISMATCH
+        assert verdict.detail == DOCTOR_TOKEN_MISSING
+
+    def test_missing_authorization_header_is_token_missing(self, tmp_path: Path):
+        config_file = tmp_path / "mcp.json"
+        _write_json(config_file, {"mcpServers": {"myrm-memory": {"headers": {"X-Custom": "1"}}}})
+        verdict = _verify(config_file)
+        assert verdict is not None
+        assert verdict.healthy is False
+        assert verdict.detail == DOCTOR_TOKEN_MISSING
+
+    def test_env_var_token_is_token_env(self, tmp_path: Path):
+        config_file = tmp_path / "mcp.json"
+        _write_json(config_file, {"mcpServers": {"myrm-memory": _entry("${MYRM_MCP_TOKEN}")}})
+        verdict = _verify(config_file)
+        assert verdict is not None
+        assert verdict.healthy is False
+        assert verdict.detail == DOCTOR_TOKEN_ENV
+
+    def test_env_var_vscode_syntax_is_token_env(self, tmp_path: Path):
+        config_file = tmp_path / "mcp.json"
+        _write_json(config_file, {"mcpServers": {"myrm-memory": _entry("${env:MYRM_MCP_TOKEN}")}})
+        verdict = _verify(config_file)
+        assert verdict is not None
+        assert verdict.healthy is False
+        assert verdict.detail == DOCTOR_TOKEN_ENV
 
     def test_relative_path_is_resolved_from_cwd(self, tmp_path: Path, monkeypatch):
         config_file = tmp_path / "mcp.json"

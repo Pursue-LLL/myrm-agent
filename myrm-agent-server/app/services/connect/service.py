@@ -209,7 +209,6 @@ class ConnectService:
             status=ConnectorStatus.CONFIGURED,
             token_hash=hash_token(token),
             agent_id=normalized_agent_id,
-            connected_at=datetime.now(UTC),
         )
         self._save_state()
 
@@ -250,7 +249,6 @@ class ConnectService:
             status=ConnectorStatus.CONFIGURED,
             token_hash=hash_token(token),
             agent_id=normalized,
-            connected_at=datetime.now(UTC),
         )
         self._save_state()
         return build_agent_plugin_bundle(
@@ -264,6 +262,9 @@ class ConnectService:
         verified directly (``myrm-memory`` entry + token match). In sandbox mode
         the config lives on the user's machine, so only token validity is
         reported and the limitation is surfaced through the detail code.
+
+        The check only records ``doctor_ok``/``last_doctor_at``; the lifecycle
+        ``status`` is left untouched (it is driven by generate/mark_ready/revoke).
         """
         if profile_id not in self._states:
             return DoctorResult(healthy=False, detail=DOCTOR_UNKNOWN)
@@ -287,9 +288,15 @@ class ConnectService:
             healthy = bool(state.token_hash) and state.status != ConnectorStatus.MISSING
             detail = DOCTOR_TOKEN_VALID if healthy else DOCTOR_UNKNOWN
 
+        # A doctor result describes config/token health only; it must not promote
+        # the lifecycle status (READY is set by mark_ready on real MCP traffic).
         state.doctor_ok = healthy
-        if healthy:
-            state.status = ConnectorStatus.READY
+        if not healthy:
+            logger.warning(
+                "Connector doctor check failed: profile=%s detail=%s",
+                profile_id,
+                detail,
+            )
         self._save_state()
         return DoctorResult(healthy=healthy, detail=detail)
 
@@ -308,7 +315,8 @@ class ConnectService:
         """Mark a connector as ready on its first successful MCP request.
 
         ``doctor_ok`` reflects only the last doctor check result, not the mere
-        existence of an MCP call.
+        existence of an MCP call. ``connected_at`` records the first real
+        connection time, kept separate from config-generation time.
         """
         if profile_id not in self._states:
             return
@@ -316,6 +324,8 @@ class ConnectService:
         if state.status == ConnectorStatus.READY:
             return
         state.status = ConnectorStatus.READY
+        if state.connected_at is None:
+            state.connected_at = datetime.now(UTC)
         self._save_state()
 
     @staticmethod

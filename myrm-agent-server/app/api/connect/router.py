@@ -89,6 +89,7 @@ class ConnectorStatusResponse(BaseModel):
     agent_id: str
     doctor_ok: bool
     connected_at: str | None
+    last_doctor_at: str | None
 
 
 @router.get("/connect/profiles")
@@ -193,6 +194,7 @@ async def list_connector_status() -> list[ConnectorStatusResponse]:
             agent_id=s.agent_id,
             doctor_ok=s.doctor_ok,
             connected_at=s.connected_at.isoformat() if s.connected_at else None,
+            last_doctor_at=s.last_doctor_at.isoformat() if s.last_doctor_at else None,
         )
         for s in states
     ]

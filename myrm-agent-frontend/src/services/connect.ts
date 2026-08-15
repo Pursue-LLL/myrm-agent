@@ -52,6 +52,7 @@ export interface ConnectorStatus {
   agent_id: string;
   doctor_ok: boolean;
   connected_at: string | null;
+  last_doctor_at: string | null;
 }
 
 export interface AgentPluginBundleResponse {

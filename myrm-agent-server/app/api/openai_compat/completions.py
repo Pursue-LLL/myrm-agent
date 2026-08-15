@@ -112,7 +112,19 @@ async def _build_agent_params(
     params, _, _, _archive_restore_results = await convert_to_general_agent_params(agent_request, chat_history)
 
     if request.temperature is not None and params.model_cfg:
-        params.model_cfg = params.model_cfg.model_copy(update={"temperature": request.temperature})
+        # Dual-channel write: model_kwargs.temperature is consumed by the main
+        # agent path (llm_manager.get_llm_from_config expands **model_kwargs),
+        # while the top-level field feeds the subagent resolver (resolver.py:118)
+        # and mirrors the harness LLMConfig contract.
+        model_cfg = params.model_cfg
+        merged_kwargs = dict(model_cfg.model_kwargs or {})
+        merged_kwargs["temperature"] = request.temperature
+        params.model_cfg = model_cfg.model_copy(
+            update={
+                "temperature": request.temperature,
+                "model_kwargs": merged_kwargs,
+            }
+        )
 
     return params
 

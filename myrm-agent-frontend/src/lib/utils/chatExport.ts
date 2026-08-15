@@ -1,12 +1,15 @@
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { sanitizeFilename, triggerDownload } from '@/lib/utils/fileUtils';
 import type { Message, Source } from '@/store/chat/types';
 /**
  * [INPUT] 聊天详情页与聊天列表传入的导出数据；Message 用于单条消息导出。
+ *         fileUtils::sanitizeFilename (POS: 通用文件工具 — 文件名非法字符清理)；
+ *         fileUtils::triggerDownload (POS: 通用文件工具 — 浏览器 Blob 下载)。
  * [OUTPUT] ExportMessage, ExportChat, ExportData, formatChatAsMarkdown, formatChatAsJson,
  *          downloadAsMarkdown, downloadAsJson, downloadAsHtml, copyAsMarkdown, printChat,
  *          downloadMessageAsMarkdown, downloadMessageAsDocx, downloadMessageAsHtml, downloadMessageAsImage,
- *          downloadBlob, sanitizeFilename, downloadFile.
- * [POS] 聊天导出数据与文件生成工具（聊天级 + 单条消息级 + 打印 + 通用下载）。
+ *          downloadFile.
+ * [POS] 聊天导出数据与文件生成工具（聊天级 + 单条消息级 + 打印）。
  */
 export interface ExportMessage {
   role: string;
@@ -64,11 +67,6 @@ export interface ExportData {
 }
 
 const VISIBLE_ROLES = new Set(['user', 'assistant']);
-
-export function sanitizeFilename(name: string): string {
-  // eslint-disable-next-line no-control-regex
-  return name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || 'Untitled';
-}
 
 function buildFilename(title: string | null, ext: string): string {
   const safe = sanitizeFilename(title || 'Untitled');
@@ -170,7 +168,7 @@ export function formatChatAsMarkdown(data: ExportData): string {
         );
         for (const tc of turnCalls) {
           const mark = tc.success ? '+' : 'x';
-          const dur = tc.durationMs != null ? ` ${formatDuration(tc.durationMs)}` : '';
+          const dur = tc.durationMs !== null ? ` ${formatDuration(tc.durationMs)}` : '';
           const args = tc.argsSummary ? `(${tc.argsSummary})` : '';
           lines.push(`- [${mark}] ${tc.name}${args}${dur}`);
         }
@@ -202,19 +200,8 @@ export function formatChatAsJson(data: ExportData): string {
   );
 }
 
-export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
 export function downloadFile(content: string, filename: string, mimeType: string): void {
-  downloadBlob(new Blob([content], { type: mimeType }), filename);
+  triggerDownload(new Blob([content], { type: mimeType }), filename);
 }
 
 export function downloadAsMarkdown(data: ExportData): void {
@@ -339,7 +326,7 @@ export async function downloadMessageAsDocx(message: Message, includeReasoning: 
   const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown), 'light', 'en');
   const { toDocx } = await import('docshift');
   const docxBlob = await toDocx(html);
-  downloadBlob(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
+  triggerDownload(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
 }
 
 export async function downloadMessageAsImage(element: HTMLElement, message: Message): Promise<void> {
@@ -355,7 +342,7 @@ export async function downloadMessageAsImage(element: HTMLElement, message: Mess
         reject(new Error('Failed to create image blob'));
         return;
       }
-      downloadBlob(blob, buildFilename(extractMessageTitle(message.content), 'png'));
+      triggerDownload(blob, buildFilename(extractMessageTitle(message.content), 'png'));
       resolve();
     }, 'image/png');
   });

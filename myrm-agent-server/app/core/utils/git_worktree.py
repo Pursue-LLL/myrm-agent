@@ -6,6 +6,7 @@
 [OUTPUT]
 - _GIT_ENV: C-locale git environment for subprocess calls.
 - _get_merge_lock: Per-base_dir merge lock shared across kanban/sandbox merges.
+- _worktree_is_dirty: Fail-closed dirty check for a worktree.
 - _git_identity: Per-repo ``-c user.name/-c user.email`` overrides for missing identity.
 - _ensure_worktree_excluded: Add a worktree directory name to .git/info/exclude.
 - _git_worktree_add: Create a worktree (exclude + ``git worktree add --force -B``).
@@ -140,8 +141,11 @@ def _ensure_worktree_excluded(base_dir: str, dir_name: str) -> None:
         prefix = "\n" if current and not current.endswith("\n") else ""
         with open(exclude_path, "a", encoding="utf-8") as f:
             f.write(f"{prefix}{line}\n")
-    except Exception:
-        pass
+    except Exception as exc:
+        # Exclude failure only pollutes git status; never blocks worktree use.
+        logger.debug(
+            "Failed to exclude %s/ in %s: %s", dir_name, base_dir, exc
+        )
 
 
 async def _git_worktree_add(
@@ -286,21 +290,28 @@ async def _merge_branch_into_current(
     non-conflict failures.  Callers decide how to surface the result (user
     message vs task event).
     """
-    identity = await _git_identity(base_dir)
-    result = await asyncio.to_thread(
-        subprocess.run,
-        ["git", *identity, "merge", "--no-ff", branch, "-m", merge_message],
-        cwd=base_dir,
-        capture_output=True,
-        text=True,
-        timeout=60,
-        env=_GIT_ENV,
-    )
-    if result.returncode == 0:
-        return True, [], ""
-    conflicts = await _collect_conflict_files(base_dir)
-    await _abort_merge(base_dir)
-    return False, conflicts, result.stderr.strip()
+    try:
+        identity = await _git_identity(base_dir)
+        result = await asyncio.to_thread(
+            subprocess.run,
+            ["git", *identity, "merge", "--no-ff", branch, "-m", merge_message],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=_GIT_ENV,
+        )
+        if result.returncode == 0:
+            return True, [], ""
+        conflicts = await _collect_conflict_files(base_dir)
+        await _abort_merge(base_dir)
+        return False, conflicts, result.stderr.strip()
+    except Exception as exc:
+        # Any git failure (missing binary, timeout, corrupt repo) must still
+        # roll the merge back so the repo stays usable for later merges.
+        logger.warning("Merge of %s in %s failed: %s", branch, base_dir, exc)
+        await _abort_merge(base_dir)
+        return False, [], ""
 
 
 async def _collect_conflict_files(base_dir: str) -> list[str]:

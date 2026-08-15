@@ -155,6 +155,15 @@ class TestConnectStatusAPI:
             assert "label" in item
             assert "status" in item
             assert "doctor_ok" in item
+            assert "last_doctor_at" in item
+
+    def test_status_last_doctor_at_after_doctor(self, client: TestClient):
+        client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "cursor"})
+        client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "cursor"})
+        response = client.get(f"{API_PREFIX}/connect/status")
+        item = next(i for i in response.json() if i["profile_id"] == "cursor")
+        assert item["last_doctor_at"] is not None
+        assert item["connected_at"] is None
 
 
 class TestAgentPluginAPI:

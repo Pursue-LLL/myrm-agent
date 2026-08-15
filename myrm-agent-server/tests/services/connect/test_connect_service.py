@@ -103,6 +103,16 @@ class TestConnectorState:
         assert state.doctor_ok is False
 
     @pytest.mark.asyncio
+    async def test_connected_at_set_on_first_ready_not_generate(self, service: ConnectService):
+        """connected_at records first real connection, not config generation."""
+        await service.generate_config("cursor")
+        state = service.get_connector_status("cursor")
+        assert state.connected_at is None
+        service.mark_ready("cursor")
+        state = service.get_connector_status("cursor")
+        assert state.connected_at is not None
+
+    @pytest.mark.asyncio
     async def test_mark_ready_noop_when_already_ready(self, service: ConnectService):
         await service.generate_config("cursor")
         service.mark_ready("cursor")
@@ -165,8 +175,11 @@ class TestDoctor:
         assert result.healthy is True
         assert result.detail == "token_valid"
         state = service.get_connector_status("cursor")
-        assert state.status == ConnectorStatus.READY
+        # doctor must not promote the lifecycle status: READY is set only by
+        # mark_ready on real MCP traffic.
+        assert state.status == ConnectorStatus.CONFIGURED
         assert state.doctor_ok is True
+        assert state.last_doctor_at is not None
 
     @pytest.mark.asyncio
     async def test_doctor_local_verified_config(self, service: ConnectService):

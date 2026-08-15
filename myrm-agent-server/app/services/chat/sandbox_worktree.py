@@ -1,6 +1,6 @@
 """[INPUT]
 - app.services.chat.chat_service::ChatService (POS: Chat metadata persistence)
-- app.core.utils.git_worktree (POS: 共享 git worktree 命令基础设施与错误类型——per-base_dir merge 锁、git identity 兜底、auto-commit、冲突文件收集、merge abort、dirty 检测、WorktreeCreateError/WorktreeErrorReason/_classify_git_error)
+- app.core.utils.git_worktree (POS: 共享 git worktree 命令基础设施与错误类型——worktree add/remove/分支删除/merge 组合、per-base_dir merge 锁、git identity 兜底、auto-commit、dirty 检测、WorktreeCreateError/WorktreeErrorReason/_classify_git_error)
 
 [OUTPUT]
 - create_sandbox_worktree: Create an isolated git worktree for a chat sandbox session.

@@ -12,7 +12,10 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.agent.file_snapshot import FileSnapshotProtocol
 from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
-from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpointStorage
+from myrm_agent_harness.agent.sub_agents.checkpoint.saver import (
+    CheckpointCorruptedError,
+    SubagentCheckpointStorage,
+)
 
 from ._snapshot_notify import notify_agent_of_restore
 from .schemas import (
@@ -159,6 +162,11 @@ async def resume_from_checkpoint(request: CheckpointResumeRequest) -> Checkpoint
             messages_count=len(checkpoint.messages),
             checkpoint_data=checkpoint_data,
         )
+    except CheckpointCorruptedError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Checkpoint {request.task_id} is corrupted and cannot be resumed",
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
@@ -169,6 +177,10 @@ async def resume_from_checkpoint(request: CheckpointResumeRequest) -> Checkpoint
 async def delete_checkpoint(task_id: str) -> dict[str, str]:
     """Delete saved checkpoint.
 
+    Corrupted checkpoints are also deletable — they carry no recoverable
+    state, so the user should be able to discard them instead of being
+    blocked by a 500.
+
     Args:
         task_id: Task ID to delete
 
@@ -176,8 +188,13 @@ async def delete_checkpoint(task_id: str) -> dict[str, str]:
         Delete status
     """
     try:
-        # Check if checkpoint exists
-        checkpoint = await _checkpoint_storage.load(task_id)
+        try:
+            checkpoint = await _checkpoint_storage.load(task_id)
+        except CheckpointCorruptedError:
+            # Corrupted file carries no recoverable state; delete it directly
+            # instead of failing with an error the user cannot clear.
+            await _checkpoint_storage.delete(task_id)
+            return {"status": "deleted", "task_id": task_id}
         if not checkpoint:
             raise HTTPException(status_code=404, detail=f"Checkpoint not found: {task_id}")
 

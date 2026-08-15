@@ -6,6 +6,8 @@ LangGraph checkpoint 管理 HTTP 层。上级文档：[../_ARCH.md](../_ARCH.md)
 
 文件快照读写统一走 harness `create_file_snapshot_store()`（git 环境→ShadowGit bare repo、无 git→LocalFile fallback），与 `SnapshotInterceptor` 同源，避免"写 shadow git、读 local"断链。`POST /file-snapshot/create` 以 `SnapshotTrigger.MANUAL` 创建用户手动版本点（快照面板「创建版本」入口）。
 
+损坏的 subagent checkpoint：`resume` 返回 400（而非 500），`delete` 容错删除损坏文件——异常类型 `CheckpointCorruptedError` 由 harness `saver.load` 抛出，router 捕获映射。
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |

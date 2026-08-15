@@ -1,12 +1,13 @@
 import { exportChat } from '@/services/chat';
-import { formatChatAsMarkdown, formatChatAsJson, sanitizeFilename, type ExportData } from './chatExport';
+import { formatChatAsMarkdown, formatChatAsJson, type ExportData } from './chatExport';
+import { sanitizeFilename } from './fileUtils';
 
 /**
  * [INPUT] services/chat::exportChat (POS: 聊天 API 请求层) — 单聊天导出接口；
- *         chatExport (POS: 聊天导出数据与文件生成工具) — 格式化 + sanitizeFilename；
+ *         chatExport (POS: 聊天导出数据与文件生成工具) — 格式化；
+ *         fileUtils::sanitizeFilename (POS: 通用文件工具 — 文件名非法字符清理)；
  *         jszip (external) — ZIP 打包；调用方传入 chatId[] + 格式 + 进度/取消回调。
- * [OUTPUT] batchExportAsZip, BatchExportFormat, BatchExportProgress, BatchExportResult;
- *          re-exports downloadBlob from chatExport.
+ * [OUTPUT] batchExportAsZip, BatchExportFormat, BatchExportProgress, BatchExportResult.
  * [POS] 批量导出编排器。3 并发 + 1 次重试调用 exportChat，按日期归档为 DEFLATE ZIP。
  */
 
@@ -151,5 +152,3 @@ export async function batchExportAsZip(
 
   return { blob, result: { exported, skipped, failed } };
 }
-
-export { downloadBlob } from './chatExport';

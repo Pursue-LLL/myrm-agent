@@ -8,6 +8,7 @@
  * - fetchFileAsBase64DataURL: 文件 URL → base64 data URL。
  * - partitionFilesByType / isXxxFile / getFileExtension / getMimeType: 扩展名分类与 MIME 推断。
  * - computeFileHash: Blob/File SHA-256 哈希。
+ * - sanitizeFilename: 文件名非法字符清理（空名回退 Untitled）。
  * - buildZipFromFiles: 「路径 → 内容」字典 → DEFLATE zip Blob。
  * - triggerDownload: 触发浏览器下载 Blob。
  *
@@ -173,6 +174,14 @@ export const isTextFile = (fileExtension: string): boolean => {
 export const getFileExtension = (fileName: string): string => {
   return fileName.split('.').pop()?.toLowerCase() || '';
 };
+
+/**
+ * 清理文件名中的非法字符（跨平台保留字符与控制字符），空名回退为 Untitled。
+ */
+export function sanitizeFilename(name: string): string {
+  // eslint-disable-next-line no-control-regex
+  return name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || 'Untitled';
+}
 
 /**
  * 将「路径 → 内容」字典打包为 DEFLATE zip Blob。

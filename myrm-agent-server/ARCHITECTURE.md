@@ -211,7 +211,7 @@ Server 与闭源 `myrm-agent-harness` 的分层边界：
 
 ### 0.1 统一本地存储架构 (Unified Local Storage)
 
-无论是 `local` 还是 `sandbox` 模式，Server 业务层默认使用 `LocalStorageBackend`（沙箱模式下指向 Control Plane 挂载的 Volume/PVC）。主路径不依赖 S3；`aioboto3` 仅用于可选远程备份（`app/services/memory/backup_remote.py` lazy import）及沙箱存储适配，未配置 S3 时不加载。
+无论是 `local` 还是 `sandbox` 模式，Server 业务层默认使用 `LocalStorageBackend`（沙箱模式下指向 Control Plane 挂载的 Volume/PVC）。主路径不依赖 S3；`aioboto3` 仅用于可选远程备份（`app/services/memory/backup/backup_remote.py` lazy import）及沙箱存储适配，未配置 S3 时不加载。
 
 **持久化分层（Agent-in-Sandbox）**：
 
@@ -257,14 +257,14 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 
 借鉴 Hermes 的灵活记忆理念但保留 OpenClaw 式边界控制，Server 产品层提供 Shared Context：
 
-- **产品层治理**：`app/services/memory/shared_context.py` 管理共享上下文、agent/channel/cron/conversation/task 绑定和写入提案；Harness 只接收 `shared:<context_id>` namespace，不感知 team 概念。
+- **产品层治理**：`app/services/memory/shared_context/shared_context.py` 管理共享上下文、agent/channel/cron/conversation/task 绑定和写入提案；Harness 只接收 `shared:<context_id>` namespace，不感知 team 概念。
 - **运行时解析**：Web、Channel、Cron、Eval 入口在创建 Agent 前解析 Shared Context 绑定，通过 `memory_shared_context_ids` 下传给 GeneralAgent，再由 memory adapter 追加到 recall namespaces。
 - **写入安全**：共享记忆默认走 proposal_required 流程，批准后由 `SharedContextProposalMaterializer` 幂等写入对应 shared namespace，并携带 proposal/source 审计元数据；私有记忆仍写入 agent/channel/conversation/task 边界，避免共享上下文污染个人记忆。
 - **隐式反馈纠错**：`callbacks.py::make_correction_propagation_callback` 在会话结束时通过两阶段管道检测用户纠正信号（Stage 1: regex 快速筛 → Stage 2: LLM 隐式矛盾检测），由 `strategies/implicit_feedback.py` 生成结构化 `CorrectionProposal`（add/update/delete），双目标路由：①Agent 个人记忆 → `PendingMemory` Governance 队列（HITL 审批）；②绑定的 SharedContext → 写入提案（policy `correction_auto_approve` 控制自动物化）。以 `chat_id:content_hash` 作为 proposal source_id 实现幂等 dedup。实现"Agent 从对话信号自我纠错，纠正一个 Agent 所有 Agent 同步学习"。
 - **Goal 完成决策归档**：`goal_registry.py::ServerGoalManager._consolidate_decisions_on_completion` 在 Goal COMPLETE 时从 `planner_` 前缀 Planner 存储读取 `DecisionRecord`，通过 `_resolve_shared_context_ids_for_goal`（agent_id + web_chat + conversation_id）解析绑定，为 SharedContext 创建 `goal_completion` 写入提案（同 goal_id 幂等 dedup）；当 policy 的 `goal_completion_auto_approve=true` 时由 `SharedContextProposalMaterializer` 自动物化并推送 `memory_operation` toast，否则进入 Proposal Inbox；失败时发布 `goal_completion_consolidation_failed` event。实现跨 Agent 架构决策持久共享。
-- **历史证据提升**：`app/services/memory/shared_context_history.py` 复用 ChatService 的 FTS5 会话搜索，把用户选中的历史消息转换为可审批写入提案，而不是直接污染共享记忆。
+- **历史证据提升**：`app/services/memory/shared_context/shared_context_history.py` 复用 ChatService 的 FTS5 会话搜索，把用户选中的历史消息转换为可审批写入提案，而不是直接污染共享记忆。
 - **历史会话召回**：`app/services/chat/conversation_search_service.py` 实现 Harness `ConversationSearchProtocol`，按当前 `chat_id` 排除本会话，并用 Server scope policy 和 `agent_id` 做硬过滤/排序加权；FTS5 命中来自消息段索引并同时带出 `compacted_summary`，空查询返回最近会话列表，semantic 路径必须经 Server 索引 hydration 后才返回可核验 snippet/source_ref，并与 FTS/recent/消息级历史搜索共享 active、excluded、scope/source/fork lineage 过滤。
-- **外部记忆导入治理**：`app/services/memory/import_sessions.py` 持久化 dry-run 审查会话、payload hash、过期时间、normalized data 和 plan hash；确认导入只接受 `dry_run_id` 并校验计划一致性，写入时追加 `import_batch_id/import_source/import_payload_hash/import_item_id` 元数据，并把实际写入 id 映射为 item-level transaction ledger。服务端记录 profile 导入前后 revision snapshot，确认后自动运行内容安全 Memory Doctor 并回写迁移来源；回滚前提供 dry-run 摘要和 profile revision 覆盖风险提示，确认后先持久化 rollback journal，再按 `dry_run_id` 或 `import_batch_id` 删除本批次 semantic/episodic/conversation/procedural 记忆并恢复 profile，启动预热会恢复未完成回滚，回滚响应返回 deleted/missing/forbidden/failed refs 和完整性状态，已完成审查会话按保留窗口清理。Command Center 通过 adapter registry 展示 native-json/agentmemory 等来源状态、最近导入批次、自动诊断状态、导入审查清理指标、导入后验证建议和回滚预演入口，metadata-only plane summary 暴露导入回滚健康计数供控制平面读取。
+- **外部记忆导入治理**：`app/services/memory/imports/import_sessions.py` 持久化 dry-run 审查会话、payload hash、过期时间、normalized data 和 plan hash；确认导入只接受 `dry_run_id` 并校验计划一致性，写入时追加 `import_batch_id/import_source/import_payload_hash/import_item_id` 元数据，并把实际写入 id 映射为 item-level transaction ledger。服务端记录 profile 导入前后 revision snapshot，确认后自动运行内容安全 Memory Doctor 并回写迁移来源；回滚前提供 dry-run 摘要和 profile revision 覆盖风险提示，确认后先持久化 rollback journal，再按 `dry_run_id` 或 `import_batch_id` 删除本批次 semantic/episodic/conversation/procedural 记忆并恢复 profile，启动预热会恢复未完成回滚，回滚响应返回 deleted/missing/forbidden/failed refs 和完整性状态，已完成审查会话按保留窗口清理。Command Center 通过 adapter registry 展示 native-json/agentmemory 等来源状态、最近导入批次、自动诊断状态、导入审查清理指标、导入后验证建议和回滚预演入口，metadata-only plane summary 暴露导入回滚健康计数供控制平面读取。
 
 ### 0.6 全域动作空间与准确度引擎 (Global Action Space & Decision Accuracy Engine)
 

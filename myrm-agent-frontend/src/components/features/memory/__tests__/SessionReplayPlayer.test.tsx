@@ -18,13 +18,17 @@ vi.mock('@/services/chat', () => ({
   }),
 }));
 
+let mockChatState: { chatId: string | null; messages: Array<Record<string, unknown>> } = {
+  chatId: null,
+  messages: [],
+};
+
 vi.mock('@/store/useChatStore', () => ({
-  default: (selector: (state: unknown) => unknown) =>
-    selector({ chatId: null, messages: [] }),
+  default: (selector: (state: unknown) => unknown) => selector(mockChatState),
 }));
 
 vi.mock('@/components/features/memory/replay/ReplayMessageBubble', () => ({
-  default: () => null,
+  default: ({ message }: { message: { content: string } }) => <div>{message.content}</div>,
 }));
 
 import SessionReplayPlayer from '@/components/features/memory/replay/SessionReplayPlayer';
@@ -146,5 +150,63 @@ describe('SessionReplayPlayer security labels', () => {
     expect(await screen.findByText('securityLabels')).toBeInTheDocument();
     expect(screen.getByText('DENY')).toBeInTheDocument();
     expect(screen.getByText('destructive path blocked')).toBeInTheDocument();
+  });
+});
+
+describe('SessionReplayPlayer store selector stability', () => {
+  it('renders only this chat messages when chatId matches sessionId (no infinite loop)', async () => {
+    mockChatState = {
+      chatId: 'sess-1',
+      messages: [
+        {
+          messageId: 'm1',
+          chatId: 'sess-1',
+          role: 'user',
+          content: 'run pwd',
+          createdAt: new Date(1000),
+        },
+        {
+          messageId: 'm2',
+          chatId: 'sess-1',
+          role: 'assistant',
+          content: 'OK done',
+          createdAt: new Date(2000),
+        },
+        {
+          messageId: 'm3',
+          chatId: 'other-chat',
+          role: 'user',
+          content: 'unrelated chat message',
+          createdAt: new Date(1500),
+        },
+      ],
+    };
+    render(<SessionReplayPlayer sessionId="sess-1" trace={baseTrace()} />);
+
+    // The user message appears in both the chat column and the inspector once
+    // the scrubber reaches it, so a multi-match is the expected outcome. The
+    // assistant turn lives in the future of the timeline and is not visible at
+    // the initial scrub position.
+    expect((await screen.findAllByText('run pwd')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('unrelated chat message')).not.toBeInTheDocument();
+  });
+
+  it('keeps a stable empty list when chatId does not match sessionId', async () => {
+    mockChatState = {
+      chatId: 'sess-other',
+      messages: [
+        {
+          messageId: 'm1',
+          chatId: 'sess-other',
+          role: 'user',
+          content: 'other chat message',
+          createdAt: new Date(1000),
+        },
+      ],
+    };
+    render(<SessionReplayPlayer sessionId="sess-1" trace={baseTrace()} />);
+
+    expect(await screen.findByText('bash')).toBeInTheDocument();
+    expect(screen.queryByText('other chat message')).not.toBeInTheDocument();
   });
 });

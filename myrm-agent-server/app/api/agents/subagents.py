@@ -4,7 +4,7 @@
 - services.agent.gateway::get_agent_gateway (POS: active agent session registry for streaming runs)
 - services.chat.chat_service::ChatService (POS: workspace dir for teammate mailbox hydrate)
 - sub_agents.session_tree::merge_active_subagent_children, cancel_active_children_for_session (POS: ACTIVE_SUBAGENTS registry SSOT)
-- sub_agents.checkpoint.saver::SubagentCheckpointStorage (POS: interrupted subagent checkpoint persistence)
+- sub_agents.checkpoint.saver::SubagentCheckpointStorage, CheckpointCorruptedError (POS: interrupted subagent checkpoint persistence)
 - coordination.mailbox::list_teammate_history, group_history_by_task (POS: P2P teammate message history)
 
 [OUTPUT]
@@ -14,7 +14,6 @@ GET list / POST cancel-all / POST steer / POST cancel / POST resume for /chats/{
 Server HTTP facade for Task Tray observability and subagent control; delegates registry merge/cancel to harness session_tree.
 """
 
-import asyncio
 import logging
 from typing import Annotated
 
@@ -24,7 +23,10 @@ from myrm_agent_harness.agent.coordination.mailbox import (
     group_history_by_task,
     list_teammate_history,
 )
-from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpointStorage
+from myrm_agent_harness.agent.sub_agents.checkpoint.saver import (
+    CheckpointCorruptedError,
+    SubagentCheckpointStorage,
+)
 from myrm_agent_harness.agent.sub_agents.manager import ACTIVE_SUBAGENTS
 
 from app.core.utils.response_utils import error_response, success_response
@@ -247,8 +249,19 @@ async def resume_subagent(
         )
 
     try:
-        asyncio.create_task(agent.subagent_manager.resume_from_checkpoint(task_id))
+        # Await the resume so failures (e.g. corrupted checkpoint) are
+        # surfaced to the client instead of being swallowed by a detached task.
+        await agent.subagent_manager.resume_from_checkpoint(task_id)
         return success_response(data={"resumed": True, "task_id": task_id})
+    except CheckpointCorruptedError as e:
+        logger.error("Failed to resume subagent %s: checkpoint corrupted", task_id)
+        return error_response(
+            message=f"Checkpoint for {task_id} is corrupted and cannot be resumed.",
+            status_code=400,
+        )
+    except ValueError as e:
+        logger.error("Failed to resume subagent %s: %s", task_id, e)
+        return error_response(message=str(e), status_code=404)
     except Exception:
         logger.exception("Failed to resume subagent %s", task_id)
         return error_response(message=f"Failed to resume subagent {task_id}", status_code=500)

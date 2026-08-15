@@ -23,8 +23,8 @@ import {
 } from '@/services/connect';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { countProviderTrees } from '@/services/memory/integration';
-import { getFileExtension, getMimeType, triggerDownload, buildZipFromFiles } from '@/lib/utils/fileUtils';
-import { resolveDoctorMessageKey } from '@/lib/i18n/connectDoctor';
+import { getFileExtension, getMimeType, triggerDownload, buildZipFromFiles, sanitizeFilename } from '@/lib/utils/fileUtils';
+import { resolveDoctorMessageKey, resolveDoctorSeverity, type DoctorSeverity } from '@/lib/i18n/connectDoctor';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -39,6 +39,12 @@ interface DoctorOutcome {
   healthy: boolean;
   detail: string;
 }
+
+const DOCTOR_BOX_CLASSES: Record<DoctorSeverity, string> = {
+  ok: 'border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400',
+  warn: 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+  error: 'border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400',
+};
 
 export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogProps) {
   const locale = useLocale();
@@ -179,13 +185,16 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     setDownloadingBundle(true);
     try {
       const blob = await buildZipFromFiles(pluginResult.files);
-      triggerDownload(blob, 'myrm-memory.zip');
+      const agentName = agents.find((agent) => agent.id === pluginResult.agent_id)?.name;
+      const safeAgentName = agentName ? sanitizeFilename(agentName).slice(0, 64) : '';
+      const zipName = safeAgentName ? `myrm-memory-${safeAgentName}.zip` : 'myrm-memory.zip';
+      triggerDownload(blob, zipName);
     } catch {
       toast.error(t('downloadBundleFailed'));
     } finally {
       setDownloadingBundle(false);
     }
-  }, [pluginResult, downloadingBundle, t]);
+  }, [pluginResult, agents, downloadingBundle, t]);
 
   const handleCopyPluginToken = useCallback(async () => {
     if (!pluginResult) {return;}
@@ -433,9 +442,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
               <div
                 className={cn(
                   'rounded-lg border p-3 text-xs leading-relaxed',
-                  doctorResult.healthy
-                    ? 'border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400'
-                    : 'border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400',
+                  DOCTOR_BOX_CLASSES[resolveDoctorSeverity(doctorResult.detail, doctorResult.healthy)],
                 )}
               >
                 {t(resolveDoctorMessageKey(doctorResult.detail, doctorResult.healthy))}
@@ -533,9 +540,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
               <div
                 className={cn(
                   'rounded-lg border p-3 text-xs leading-relaxed',
-                  doctorResult.healthy
-                    ? 'border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400'
-                    : 'border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400',
+                  DOCTOR_BOX_CLASSES[resolveDoctorSeverity(doctorResult.detail, doctorResult.healthy)],
                 )}
               >
                 {t(resolveDoctorMessageKey(doctorResult.detail, doctorResult.healthy))}
