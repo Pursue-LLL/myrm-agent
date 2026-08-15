@@ -19,7 +19,7 @@ from myrm_agent_harness.toolkits.cron.types import CronJob, CronJobPatch, JobSta
 
 from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 from app.core.cron.adapters.setup import get_cron_manager
-from app.services.migration.hermes_cron_converter import (
+from .hermes_cron_converter import (
     HermesCronMigrationJobSpec,
     HermesCronMigrationPlan,
 )
