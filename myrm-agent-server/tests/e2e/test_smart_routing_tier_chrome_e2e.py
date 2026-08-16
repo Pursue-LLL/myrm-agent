@@ -25,6 +25,7 @@ if str(_LIB) not in sys.path:
 from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
     config_write_mutex,
+    ensure_e2e_yolo_mode,
     fetch_config_value,
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -230,13 +231,43 @@ _TIER_BADGE_JS = """(() => {
   return { found: labels.length > 0, labels: labels.slice(0, 5) };
 })()"""
 
+_USAGE_PROBE_JS = """(() => {
+  const store = window.__myrmChatStore?.getState?.();
+  const msgs = store?.messages || [];
+  for (let i = msgs.length - 1; i >= 0; i -= 1) {
+    const msg = msgs[i];
+    if (msg.role !== 'assistant' && msg.type !== 'assistant') continue;
+    return {
+      ok: true,
+      hasUsage: !!msg.usage,
+      hasTokenEconomics: !!msg.tokenEconomics,
+      usageKeys: Object.keys(msg.usage || {}),
+      routingTier: msg.routingTier || null,
+    };
+  }
+  return { ok: false, err: 'no assistant message' };
+})()"""
+
 _HOVER_TOKEN_BTN_JS = """(() => {
-  const btn = Array.from(document.querySelectorAll('button')).find((b) => {
+  const candidates = Array.from(document.querySelectorAll('button')).filter((b) => {
     const label = b.getAttribute('aria-label') || '';
-    return /token|context/i.test(label);
+    if (/token|context|usage|tokens|上下文|用量/i.test(label)) return true;
+    const cls = b.className || '';
+    return /text-xs.*tabular-nums|TokenUsage|tokens/i.test(cls);
   });
+  // TokenUsageDisplay trigger carries the "{n}% 上下文已用" aria-label (i18n)
+  // or "{n} tokens" — match any of those forms. Fall back to the single inline
+  // tabular-nums button if the label probe misses.
+  const btn =
+    candidates[0] ||
+    Array.from(document.querySelectorAll('button')).find((b) =>
+      /inline-flex.*tabular-nums/.test(b.className || '')
+    );
   if (!btn) return { ok: false, err: 'no token button' };
-  const opts = { bubbles: true, cancelable: true };
+  const opts = { bubbles: true, cancelable: true, pointerType: 'mouse' };
+  // Radix Tooltip opens on `pointermove` (not pointerover/mouseover), so emit
+  // that too — synthetic pointerType 'mouse' satisfies its touch check.
+  btn.dispatchEvent(new PointerEvent('pointermove', opts));
   btn.dispatchEvent(new PointerEvent('pointerover', opts));
   btn.dispatchEvent(new MouseEvent('mouseover', opts));
   btn.dispatchEvent(new MouseEvent('mouseenter', opts));
@@ -496,6 +527,11 @@ async def test_smart_routing_tier_surfaced_in_webui(
             _configure_smart_routing_providers(api_url, verify=True)
             if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=60.0):
                 pytest.fail("Provider readiness failed after smart-routing seed")
+            # The standard-tier turn drives real agentic tool use (the debug
+            # prompt makes the agent inspect the workspace). An unattended E2E
+            # must not block on HITL approval dialogs — pin autonomous YOLO on
+            # the private runtime before any turn, mirroring sibling chrome E2E.
+            ensure_e2e_yolo_mode(api_url=api_url)
 
             async def run_flow(chat: McpChatSession) -> None:
                 ui_base = _base_url()
@@ -580,6 +616,21 @@ async def test_smart_routing_tier_surfaced_in_webui(
                 ), standard_state
 
                 # 档位 badge 位于 token 用量 tooltip 内（默认隐藏）——hover 触发后轮询可见。
+                usage_probe = await chat.evaluate(
+                    _USAGE_PROBE_JS,
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
+                probe_state = (
+                    usage_probe
+                    if isinstance(usage_probe, dict)
+                    else json.loads(str(usage_probe))
+                )
+                print(
+                    "[E2E_USAGE_PROBE] "
+                    + json.dumps(probe_state, indent=2, default=str),
+                    file=sys.stderr,
+                    flush=True,
+                )
                 hover = await chat.evaluate(
                     _HOVER_TOKEN_BTN_JS,
                     intent=EvaluateIntent.AGENT_SUBMIT,
