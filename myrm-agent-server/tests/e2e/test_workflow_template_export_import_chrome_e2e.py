@@ -18,6 +18,7 @@ from cdp_chat.support import (  # noqa: E402
     get_e2e_api_url,
     wait_e2e_provider_ready,
 )
+from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_ui_url,
@@ -362,7 +363,7 @@ def _wait_absent_with_diagnostics(
             pass
         raise AssertionError(
             f"Browser state did not become ready: {json.dumps(diagnostic, indent=2, ensure_ascii=False)}"
-        )
+        ) from None
 
 
 def _run_export_import_roundtrip(*, api_base: str) -> None:
@@ -425,9 +426,9 @@ def _run_export_import_roundtrip(*, api_base: str) -> None:
         assert isinstance(refreshed, dict)
         assert refreshed.get("ok") is True, f"Refresh click failed: {refreshed}"
 
-        absent = _wait_absent_with_diagnostics(
-            client, page, page_url=page_url, api_base=api_base
-        )
+        # Diagnostics are used only on failure (the helper raises); the success
+        # return value is intentionally ignored here.
+        _wait_absent_with_diagnostics(client, page, page_url=page_url, api_base=api_base)
 
         imported = client.evaluate(
             page,

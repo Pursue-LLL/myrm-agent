@@ -20,8 +20,8 @@ import asyncio
 import base64
 import io
 import json
-import os
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -189,7 +189,7 @@ async def _await_assistant_reply(
     *,
     timeout_sec: float = _TURN_WAIT_SEC,
 ) -> dict[str, object]:
-    deadline = time_monotonic = __import__("time").monotonic() + timeout_sec
+    deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {"ready": False}
     while True:
         heartbeat_once()
