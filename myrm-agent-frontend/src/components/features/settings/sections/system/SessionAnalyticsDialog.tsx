@@ -31,23 +31,23 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
         if (err instanceof Error) {
           const message = err.message.toLowerCase();
           if (message.includes('not found') || message.includes('404')) {
-            setError('Session not found or has been deleted');
+            setError(t('sessionNotFound'));
           } else if (message.includes('access denied') || message.includes('403') || message.includes('forbidden')) {
-            setError('Access denied: You do not have permission to view this session');
+            setError(t('accessDenied'));
           } else if (message.includes('500') || message.includes('internal')) {
-            setError('Server error: Please try again later');
+            setError(t('serverError'));
           } else {
             setError(err.message);
           }
         } else {
-          setError('Failed to load session analytics');
+          setError(t('loadFailed'));
         }
       } finally {
         setLoading(false);
       }
     };
     loadData();
-  }, [sessionId]);
+  }, [sessionId, t]);
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
@@ -84,7 +84,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
         <div className="bg-background border border-border rounded-lg p-8 max-w-4xl w-full mx-4">
           <div className="flex items-center gap-2 text-destructive">
             <IconAlertCircle className="w-5 h-5" />
-            <span>{error || 'Session not found'}</span>
+            <span>{error || t('sessionNotFound')}</span>
           </div>
           <button
             onClick={onClose}
@@ -111,7 +111,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
         {/* Header */}
         <div className="sticky top-0 bg-background border-b border-border p-6 flex items-start justify-between">
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-foreground">{data.title || 'Untitled Session'}</h2>
+            <h2 className="text-xl font-bold text-foreground">{data.title || t('untitledSession')}</h2>
             <p className="text-sm text-muted-foreground mt-1">
               {data.action_mode} • {data.created_at ? new Date(data.created_at).toLocaleString() : 'N/A'}
             </p>
@@ -119,7 +119,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
           <button
             onClick={onClose}
             className="shrink-0 p-2 hover:bg-muted rounded-full transition-colors"
-            aria-label="Close"
+            aria-label={t('close')}
           >
             <IconX className="w-5 h-5" />
           </button>
@@ -146,7 +146,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
               icon={IconChart}
               label={t('tokens')}
               value={formatTokenCount(data.totalTokens)}
-              subValue={`${(data.cacheHitRate * 100).toFixed(1)}% cached`}
+              subValue={`${(data.cacheHitRate * 100).toFixed(1)}% ${t('cached')}`}
               colorClass="bg-purple-500/10 text-purple-500"
             />
             <StatCard
@@ -301,7 +301,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                 <IconShieldAlert className="h-4 w-4 text-amber-500" />
-                {t('securityAudit', { default: 'Security Audit' })}
+                {t('securityAudit')}
               </h3>
               <div className="space-y-2">
                 {Object.entries(data.security_audit.breakdown as Record<string, number>).map(([kind, count]) => (
