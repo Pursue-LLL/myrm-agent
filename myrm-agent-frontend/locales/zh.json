@@ -11718,10 +11718,11 @@
       "browser_session": "管理浏览器会话（创建/销毁）"
     },
     "schedule": {
-      "once": "一次",
-      "onceAt": "在 {time} 执行一次",
+      "title": "周期",
+      "once": "仅一次",
+      "onceAt": "{time} 执行一次",
       "everyMinutes": "每 {count} 分钟",
-      "dailyAt": "每天 {time}",
+      "dailyAt": "每日 {time}",
       "weekdaysAt": "工作日 {time}",
       "weekendsAt": "周末 {time}",
       "weekdayListAt": "{days} {time}"
@@ -11844,7 +11845,6 @@
     "taskCreated": "定时任务已创建",
     "taskUpdated": "定时任务已更新",
     "taskName": "任务",
-    "schedule": "周期",
     "success": "成功",
     "openDashboard": "管理任务",
     "auditDone": "完成",

@@ -11639,6 +11639,16 @@
       "browser_download": "ブラウザ経由でファイルをダウンロード",
       "browser_session": "ブラウザセッションを管理（作成/破棄）"
     },
+    "schedule": {
+      "title": "スケジュール",
+      "once": "1回",
+      "onceAt": "{time} に1回",
+      "everyMinutes": "{count} 分ごと",
+      "dailyAt": "毎日 {time}",
+      "weekdaysAt": "平日 {time}",
+      "weekendsAt": "週末 {time}",
+      "weekdayListAt": "{days} {time}"
+    },
     "preset": {
       "everyHour": "毎時",
       "daily8am": "毎日 8:00",
@@ -11731,7 +11741,6 @@
     "taskCreated": "スケジュールタスクを作成しました",
     "taskUpdated": "スケジュールタスクを更新しました",
     "taskName": "タスク",
-    "schedule": "スケジュール",
     "success": "成功",
     "openDashboard": "管理タスク",
     "triggersLabel": "トリガー",

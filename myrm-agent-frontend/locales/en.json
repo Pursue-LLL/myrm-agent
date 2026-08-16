@@ -11718,9 +11718,10 @@
       "browser_session": "Manage browser sessions (create/destroy)"
     },
     "schedule": {
+      "title": "Schedule",
       "once": "Once",
       "onceAt": "Once at {time}",
-      "everyMinutes": "Every {count} min",
+      "everyMinutes": "Every {count} minutes",
       "dailyAt": "Daily at {time}",
       "weekdaysAt": "Weekdays at {time}",
       "weekendsAt": "Weekends at {time}",
@@ -11844,7 +11845,6 @@
     "taskCreated": "Scheduled Task Created",
     "taskUpdated": "Scheduled Task Updated",
     "taskName": "Task",
-    "schedule": "Schedule",
     "success": "Success",
     "openDashboard": "Manage Tasks",
     "auditDone": "Done",

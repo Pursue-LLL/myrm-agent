@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `cron-blueprints.ts` | 数据/逻辑 | 蓝图 catalog 自 API `/cron/blueprints` 加载（含 slot `optional`；无离线 fallback）；`buildBlueprintCreatePayload` 仅走 `POST /blueprints/fill` SSOT，并透传 fill 返回的 `job_defaults`（job_type/session_target/monitor/failure_alert/pre_condition）；`buildScheduleFromSlots` 仅用于 preview；`blueprintSnakeToCamel`/`resolveBlueprint*Key` i18n 键映射、`loadBlueprints()` | ✅ |
+| `cron-blueprints.ts` | 数据/逻辑 | 蓝图 catalog 自 API `/cron/blueprints` 加载（含 slot `optional`；无离线 fallback）；`buildBlueprintCreatePayload` 仅走 `POST /blueprints/fill` SSOT，并透传 fill 返回的 `job_defaults`（job_type/session_target/monitor/failure_alert/pre_condition）；`buildScheduleFromSlots` 仅用于 preview；`blueprintSnakeToCamel`/`resolveBlueprint*Key` i18n 键映射、`loadBlueprints()`；`humanizeSchedule(schedule, t, locale)` schedule 预览纯函数（注入 `t`+`locale`，复用 `cron.schedule.*` keys 与 `blueprint.day*` 星期 keys；once 分支走 locale-aware `formatTime`，SSR/CSR 一致） | ✅ |
 | `BlueprintCatalog.tsx` | 组件 | 模板卡片网格（API catalog + 加载失败重试；`useLocale()` 展示 title/description，slot 标签走 locale JSON） | ✅ |
 | `BlueprintInlineFill.tsx` | 组件 | 内联模板填写表单（`useLocale()` 解析 API 标题；CronJobCreateDialog 内使用），含 delivery channel 选择；周期调度时展示 `CronDeployModeNotice` | ✅ |
 | `BlueprintFillDialog.tsx` | 组件 | 模板参数填写弹窗；创建成功后展示审计 + pause gate | ✅ |

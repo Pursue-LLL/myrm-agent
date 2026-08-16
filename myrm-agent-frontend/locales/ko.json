@@ -11407,6 +11407,16 @@
       "browser_download": "브라우저를 통해 파일을 다운로드합니다",
       "browser_session": "브라우저 세션을 관리합니다 (생성/삭제)"
     },
+    "schedule": {
+      "title": "일정",
+      "once": "한 번",
+      "onceAt": "{time}에 한 번",
+      "everyMinutes": "{count}분마다",
+      "dailyAt": "매일 {time}",
+      "weekdaysAt": "평일 {time}",
+      "weekendsAt": "주말 {time}",
+      "weekdayListAt": "{days} {time}"
+    },
     "preset": {
       "everyHour": "매시간",
       "daily8am": "매일 8:00",
@@ -11475,7 +11485,6 @@
     "taskCreated": "예약 작업이 생성되었습니다",
     "taskUpdated": "예약 작업이 업데이트되었습니다",
     "taskName": "작업",
-    "schedule": "일정",
     "success": "성공",
     "openDashboard": "작업 관리",
     "deleteContextFromWarning": "다음 작업이 이 작업의 출력을 참조합니다: {names}. 삭제 후 컨텍스트 데이터가 손실됩니다.",

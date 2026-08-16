@@ -47,7 +47,7 @@ export const CronJobSystemCard = memo<{ result: CronJobResult }>(({ result }) =>
         <InfoRow icon={<Timer className="h-3.5 w-3.5" />} label={t('taskName')}>
           {result.name}
         </InfoRow>
-        <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} label={t('schedule')}>
+        <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} label={t('schedule.title')}>
           <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{result.schedule}</code>
         </InfoRow>
         <InfoRow icon={<Clock className="h-3.5 w-3.5" />} label={t('nextRun')}>

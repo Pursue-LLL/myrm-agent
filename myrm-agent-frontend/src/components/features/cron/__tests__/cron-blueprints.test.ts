@@ -93,45 +93,74 @@ describe('cron-blueprints', () => {
   });
 
   describe('humanizeSchedule', () => {
+    const locale = 'en-US';
+    const t = vi.fn(
+      (key: string, values?: Record<string, string | number>): string => {
+        const map: Record<string, string | number> = values ?? {};
+        switch (key) {
+          case 'schedule.once': return 'Once';
+          case 'schedule.onceAt': return `Once at ${map.time}`;
+          case 'schedule.everyMinutes': return `Every ${map.count} min`;
+          case 'schedule.dailyAt': return `Daily at ${map.time}`;
+          case 'schedule.weekdaysAt': return `Weekdays at ${map.time}`;
+          case 'schedule.weekendsAt': return `Weekends at ${map.time}`;
+          case 'schedule.weekdayListAt': return `${map.days} at ${map.time}`;
+          case 'blueprint.daySun': return 'Sunday';
+          case 'blueprint.dayMon': return 'Monday';
+          case 'blueprint.dayTue': return 'Tuesday';
+          case 'blueprint.dayWed': return 'Wednesday';
+          case 'blueprint.dayThu': return 'Thursday';
+          case 'blueprint.dayFri': return 'Friday';
+          case 'blueprint.daySat': return 'Saturday';
+          default: return key;
+        }
+      },
+    );
+
     it('returns "Daily at HH:MM" for everyday cron', () => {
-      expect(humanizeSchedule({ kind: 'cron', expr: '0 8 * * *' })).toBe('Daily at 08:00');
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 8 * * *' }, t, locale)).toBe('Daily at 08:00');
+      expect(t).toHaveBeenCalledWith('schedule.dailyAt', { time: '08:00' });
     });
 
     it('returns "Weekdays at HH:MM" for weekday cron', () => {
-      expect(humanizeSchedule({ kind: 'cron', expr: '30 9 * * 1-5' })).toBe('Weekdays at 09:30');
+      expect(humanizeSchedule({ kind: 'cron', expr: '30 9 * * 1-5' }, t, locale)).toBe('Weekdays at 09:30');
+      expect(t).toHaveBeenCalledWith('schedule.weekdaysAt', { time: '09:30' });
     });
 
     it('returns "Weekends at HH:MM" for weekend cron', () => {
-      expect(humanizeSchedule({ kind: 'cron', expr: '0 10 * * 0,6' })).toBe('Weekends at 10:00');
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 10 * * 0,6' }, t, locale)).toBe('Weekends at 10:00');
+      expect(t).toHaveBeenCalledWith('schedule.weekendsAt', { time: '10:00' });
     });
 
-    it('returns specific day names for single day cron', () => {
-      const result = humanizeSchedule({ kind: 'cron', expr: '0 18 * * 5' });
-      expect(result).toBe('Fri at 18:00');
+    it('reuses blueprint.day* weekday keys for single day cron', () => {
+      const result = humanizeSchedule({ kind: 'cron', expr: '0 18 * * 5' }, t, locale);
+      expect(result).toBe('Friday at 18:00');
+      expect(t).toHaveBeenCalledWith('blueprint.dayFri');
+      expect(t).toHaveBeenCalledWith('schedule.weekdayListAt', { days: 'Friday', time: '18:00' });
     });
 
-    it('returns formatted date for once schedule', () => {
-      const result = humanizeSchedule({ kind: 'once', run_at: '2026-06-17T08:00:00Z' });
-      expect(result).toContain('2026');
+    it('reuses blueprint.day* weekday keys for multi-day cron', () => {
+      const result = humanizeSchedule({ kind: 'cron', expr: '0 9 * * 1,3,5' }, t, locale);
+      expect(result).toBe('Monday, Wednesday, Friday at 09:00');
+      expect(t).toHaveBeenCalledWith('schedule.weekdayListAt', { days: 'Monday, Wednesday, Friday', time: '09:00' });
+    });
+
+    it('uses locale-aware formatTime for once schedule', () => {
+      const result = humanizeSchedule({ kind: 'once', run_at: '2026-06-17T08:00:00Z' }, t, locale);
+      expect(result).toContain('Once at ');
     });
 
     it('returns interval description', () => {
-      const result = humanizeSchedule({ kind: 'interval', interval_ms: 3_600_000 });
-      expect(result).toBe('Every 60 min');
+      expect(humanizeSchedule({ kind: 'interval', interval_ms: 3_600_000 }, t, locale)).toBe('Every 60 min');
+      expect(t).toHaveBeenCalledWith('schedule.everyMinutes', { count: 60 });
     });
 
     it('returns empty string for missing expr', () => {
-      expect(humanizeSchedule({ kind: 'cron' })).toBe('');
-    });
-
-    it('handles multi-day cron', () => {
-      const result = humanizeSchedule({ kind: 'cron', expr: '0 9 * * 1,3,5' });
-      expect(result).toBe('Mon, Wed, Fri at 09:00');
+      expect(humanizeSchedule({ kind: 'cron' }, t, locale)).toBe('');
     });
 
     it('handles malformed short expr gracefully', () => {
-      const result = humanizeSchedule({ kind: 'cron', expr: '0 8' });
-      expect(result).toBe('0 8');
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 8' }, t, locale)).toBe('0 8');
     });
   });
 

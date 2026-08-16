@@ -11640,10 +11640,11 @@
       "browser_session": "管理瀏覽器會話（建立/銷燬）"
     },
     "schedule": {
-      "once": "一次",
-      "onceAt": "於 {time} 執行一次",
+      "title": "週期",
+      "once": "僅一次",
+      "onceAt": "{time} 執行一次",
       "everyMinutes": "每 {count} 分鐘",
-      "dailyAt": "每天 {time}",
+      "dailyAt": "每日 {time}",
       "weekdaysAt": "工作日 {time}",
       "weekendsAt": "週末 {time}",
       "weekdayListAt": "{days} {time}"
@@ -11740,7 +11741,6 @@
     "taskCreated": "定時任務已建立",
     "taskUpdated": "定時任務已更新",
     "taskName": "任務",
-    "schedule": "週期",
     "success": "成功",
     "openDashboard": "管理任務",
     "triggersLabel": "觸發器",

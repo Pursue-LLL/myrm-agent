@@ -11407,6 +11407,16 @@
       "browser_download": "Laden Sie Dateien über den Browser herunter",
       "browser_session": "Browsersitzungen verwalten (erstellen/zerstören)"
     },
+    "schedule": {
+      "title": "Zeitplan",
+      "once": "Einmalig",
+      "onceAt": "Einmalig um {time}",
+      "everyMinutes": "Alle {count} Minuten",
+      "dailyAt": "Täglich um {time}",
+      "weekdaysAt": "Werktags um {time}",
+      "weekendsAt": "Am Wochenende um {time}",
+      "weekdayListAt": "{days} um {time}"
+    },
     "preset": {
       "everyHour": "Stündlich",
       "daily8am": "Täglich 8:00",
@@ -11475,7 +11485,6 @@
     "taskCreated": "Geplante Aufgabe erstellt",
     "taskUpdated": "Geplante Aufgabe aktualisiert",
     "taskName": "Aufgabe",
-    "schedule": "Zeitplan",
     "success": "Erfolg",
     "openDashboard": "Aufgaben verwalten",
     "deleteContextFromWarning": "Die folgenden Aufgaben verweisen auf die Ausgabe dieser Aufgabe: {names}. Nach dem Löschen gehen die Kontextdaten verloren.",
