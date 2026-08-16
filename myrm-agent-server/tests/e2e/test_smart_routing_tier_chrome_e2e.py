@@ -75,7 +75,20 @@ _ARM_SSE_RECORDER_JS = """(() => {
   const orig = window.__MYRM_E2E_RECORD_SSE__;
   if (typeof orig !== 'function') return { ok: false, err: 'no frontend recorder' };
   window.__MYRM_E2E_RECORD_SSE__ = (type, messageId, data) => {
-    events.push({ type, messageId: messageId ?? null, data });
+    const rec = { type, messageId: messageId ?? null };
+    if (data !== undefined) rec.data = data;
+    if (type === 'routing_decision') {
+      const store = window.__myrmChatStore?.getState?.();
+      rec.assistantCount = (store?.messages || []).filter((m) => m.role === 'assistant').length;
+      rec.snapshot = (store?.messages || []).slice(-2).map((m) => ({ role: m.role, id: m.messageId, tier: m.routingTier ?? null }));
+      const after = (ms, id) => setTimeout(() => {
+        const s = window.__myrmChatStore?.getState?.();
+        rec.post = { ms, msgs: (s?.messages || []).slice(-2).map((m) => ({ role: m.role, id: m.messageId, tier: m.routingTier ?? null, keys: Object.keys(m) })) };;
+      }, ms);
+      after(0, id);
+      after(1000, id);
+    }
+    events.push(rec);
     if (orig) orig(type, messageId, data);
   };
   return { ok: true, captured: 0 };
