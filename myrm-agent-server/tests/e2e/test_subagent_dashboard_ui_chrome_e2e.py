@@ -1625,50 +1625,57 @@ def _run_textarea_send_body(chat_id: str, ui_url: str) -> None:
         assert sent.get("ok") is True, f"Textarea send failed: {sent}"
 
         # 真实用户可见结果：user 消息已在 store，assistant 开始流式回复。
-        replied = wait_for_state(
-            client,
-            page,
-            """(() => {
-              const store = window.__myrmChatStore?.getState?.();
-              const msgs = store?.messages ?? [];
-              const userSeen = msgs.some(
-                (m) => m.role === 'user'
-                  && String(m.content || m.text || '').includes('只回复 OK'),
-              );
-              const assistant = msgs.some(
-                (m) => (m.role === 'assistant' || m.type === 'assistant')
-                  && String(m.content || m.text || '').trim().length > 0,
-              );
-              return {
-                ready: userSeen && assistant,
-                userSeen,
-                assistantSeen: assistant,
-                msgCount: msgs.length,
-              };
-            })()""",
-            timeout_sec=180.0,
-        )
-        if not replied.get("ready"):
-            more_diag = client.evaluate(
+        try:
+            replied = wait_for_state(
+                client,
                 page,
                 """(() => {
                   const store = window.__myrmChatStore?.getState?.();
                   const msgs = store?.messages ?? [];
+                  const userSeen = msgs.some(
+                    (m) => m.role === 'user'
+                      && String(m.content || m.text || '').includes('只回复 OK'),
+                  );
+                  const assistant = msgs.some(
+                    (m) => (m.role === 'assistant' || m.type === 'assistant')
+                      && String(m.content || m.text || '').trim().length > 0,
+                  );
                   return {
-                    netRecords: window.__MYRM_E2E_NET_RECORDS__?.slice(-8) ?? [],
-                    roles: msgs.map((m) => ({
-                      role: m.role,
-                      type: m.type,
-                      contentLen: String(m.content || m.text || '').length,
-                      progressSteps: (m.progressSteps ?? []).length,
-                    })),
-                    lastMsgPreview: msgs
-                      .slice(-2)
-                      .map((m) => String(m.content || m.text || '').slice(0, 120)),
+                    ready: userSeen && assistant,
+                    userSeen,
+                    assistantSeen: assistant,
+                    msgCount: msgs.length,
                   };
                 })()""",
-                timeout_sec=15.0,
+                timeout_sec=180.0,
             )
-            print("DIAG_TEXTAREA_REPLY_FAILED=" + json.dumps(replied, default=str))
-            print("DIAG_TEXTAREA_NET_AND_MSGS=" + json.dumps(more_diag, default=str))
+        except AssertionError:
+            try:
+                more_diag = client.evaluate(
+                    page,
+                    """(() => {
+                      const store = window.__myrmChatStore?.getState?.();
+                      const msgs = store?.messages ?? [];
+                      return {
+                        netRecords: window.__MYRM_E2E_NET_RECORDS__?.slice(-8) ?? [],
+                        recordsLen: (window.__MYRM_E2E_NET_RECORDS__ ?? []).length,
+                        roles: msgs.map((m) => ({
+                          role: m.role,
+                          type: m.type,
+                          contentLen: String(m.content || m.text || '').length,
+                          status: m.status ?? null,
+                          progressSteps: (m.progressSteps ?? []).length,
+                          error: m.error ?? null,
+                        })),
+                        lastMsgPreview: msgs
+                          .slice(-2)
+                          .map((m) => String(m.content || m.text || '').slice(0, 160)),
+                      };
+                    })()""",
+                    timeout_sec=15.0,
+                )
+                print("DIAG_TEXTAREA_NET_AND_MSGS=" + json.dumps(more_diag, default=str))
+            except Exception as exc:  # noqa: BLE001 - diagnostics must not mask the root failure
+                print(f"DIAG_TEXTAREA_DIAG_FAILED={exc!r}")
+            raise
         assert replied.get("ready") is True, f"Chat reply missing after textarea send: {replied}"

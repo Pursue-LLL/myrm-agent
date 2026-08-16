@@ -29,7 +29,7 @@ import { useSkillStore } from '@/store/skill';
 import useConfigStore from '@/store/useConfigStore';
 import { guardSearchServiceConfigured } from '@/store/config/searchService';
 import type { SearchServiceConfigItem } from '@/store/config/types';
-import type { DefaultModelConfig, ProviderConfig } from '@/store/config/providerTypes';
+import type { DefaultModelConfig, ProviderConfig, CustomModelInfo } from '@/store/config/providerTypes';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import useDesktopInspectorStore, {
   selectScopedDesktopViewData,
@@ -168,9 +168,11 @@ type E2eProviderConfigBody = {
   value?: {
     providers?: ProviderConfig[];
     defaultModelConfig?: DefaultModelConfig;
+    customModelInfo?: Record<string, CustomModelInfo>;
   };
   providers?: ProviderConfig[];
   defaultModelConfig?: DefaultModelConfig;
+  customModelInfo?: Record<string, CustomModelInfo>;
 };
 
 /**
@@ -209,6 +211,22 @@ async function initProvidersForE2e(opts?: E2eChatSessionOpts): Promise<void> {
     );
     if (shouldRunPrepareAutomationSend(preserveActionMode)) {
       prepareAutomationSend();
+    }
+    // E2E 权威刷新：并行测试直接通过 API seed 后端 config（PRIVATE runtime 复用 /
+    // 热 attach 复用页面时 ConfigSyncManager 会话缓存不感知），若前端 provider
+    // store 停留在 seed 前快照，发送将不带 light_model_selection 导致后端不路由
+    //（routing_decision 缺失 / routingTier=None 现场失败）。因此 E2E 发送前
+    // 一律以 /api/v1/config/providers 为准刷新 store，不信任本会话陈旧缓存。
+    try {
+      const body = await fetchE2eProviderConfigBody();
+      useProviderStore.setState((current) => ({
+        providers: Array.isArray(body.providers) ? body.providers : current.providers,
+        defaultModelConfig: body.defaultModelConfig ?? current.defaultModelConfig,
+        customModelInfo: body.customModelInfo ?? current.customModelInfo ?? {},
+        isInitialized: true,
+      }));
+    } catch {
+      // 后端暂不可达时保留现状，走原有 probe/retry 路径
     }
     const { actionMode, agentConfig } = useChatStore.getState();
     if (isE2eProviderSendReady(actionMode, agentConfig)) {

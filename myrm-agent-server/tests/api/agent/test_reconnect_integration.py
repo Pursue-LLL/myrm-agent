@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
+from app.services.agent.execution_cache.prewarm.types import TurnPrewarmJoinResult
 from tests.api.agent.utils import get_lite_model_selection
 
 
@@ -27,6 +28,28 @@ def _extract_last_event_id(chunks: list[str]) -> str | None:
             if line.startswith("id:"):
                 return line[3:].strip()
     return None
+
+
+def _skip_prewarm_coordinator():
+    """Return a coordinator stub whose join_for_turn always skips.
+
+    The reconnect test mocks AgentFactory.create_general_agent with a
+    MagicMock; the real prewarm coordinator would serialize that mock into an
+    execution fingerprint and crash, and prewarm itself is not the target of
+    this test. Stubbing join_for_turn keeps prewarm out of the turn body.
+    """
+    stub = MagicMock()
+    stub.join_for_turn = AsyncMock(
+        return_value=TurnPrewarmJoinResult(
+            preview=None,
+            snapshot=None,
+            brief_status={"state": "skipped", "reason": "test-stub"},
+            prewarm_hit=False,
+            prewarm_ms=None,
+            still_warming=False,
+        )
+    )
+    return stub
 
 
 async def _collect_stream_text(
@@ -94,6 +117,10 @@ async def test_agent_stream_disconnect_and_reconnect(app) -> None:
             patch(
                 "app.services.chat.conversation_recall_index_service.ConversationRecallIndexService.append_message",
                 new=AsyncMock(),
+            ),
+            patch(
+                "app.services.agent.execution_cache.prewarm.coordinator.get_turn_prewarm_coordinator",
+                return_value=_skip_prewarm_coordinator(),
             ),
         ):
             async with httpx.AsyncClient(
@@ -205,6 +232,10 @@ async def test_agent_stream_early_busy_skips_second_persist(app) -> None:
             patch(
                 "app.services.chat.conversation_recall_index_service.ConversationRecallIndexService.append_message",
                 new=AsyncMock(),
+            ),
+            patch(
+                "app.services.agent.execution_cache.prewarm.coordinator.get_turn_prewarm_coordinator",
+                return_value=_skip_prewarm_coordinator(),
             ),
         ):
             async with httpx.AsyncClient(

@@ -19,6 +19,49 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       | undefined;
     const tier = routingData?.tier;
     const modelTier = routingData?.model_tier;
+    if (typeof window !== 'undefined') {
+      const afterPush = () => {
+        try {
+          const st = H.useChatStore.getState();
+          const msgs = st.messages ?? [];
+          return {
+            msgCount: msgs.length,
+            last: msgs
+              .slice(-2)
+              .map((m) => ({
+                role: m.role,
+                id: m.messageId,
+                tier: m.routingTier ?? null,
+                keys: Object.keys(m),
+              })),
+          };
+        } catch {
+          return { err: 'read-store-failed' };
+        }
+      };
+      const diag = {
+        tier,
+        modelTier,
+        added,
+        mid: data.messageId,
+        at: Date.now(),
+        after0: afterPush(),
+        after500: (() => {
+          const snap = afterPush();
+          setTimeout(() => {
+            const late = afterPush();
+            const arr = (window as unknown as { __MYRM_ROUTING_DIAG__?: unknown[] }).__MYRM_ROUTING_DIAG__ ?? [];
+            arr.push({ stage: 'after500', ...late });
+            (window as unknown as { __MYRM_ROUTING_DIAG__?: unknown[] }).__MYRM_ROUTING_DIAG__ = arr;
+          }, 500);
+          return snap;
+        })(),
+      };
+      const diagArr = (window as unknown as { __MYRM_ROUTING_DIAG__?: unknown[] }).__MYRM_ROUTING_DIAG__ ?? [];
+      diagArr.push(diag);
+      (window as unknown as { __MYRM_ROUTING_DIAG__?: unknown[] }).__MYRM_ROUTING_DIAG__ = diagArr;
+      console.warn('[MYRM_ROUTING_DIAG]', JSON.stringify(diag));
+    }
     if (tier || modelTier) {
       if (!added) {
         actions.setMessages((state) => {

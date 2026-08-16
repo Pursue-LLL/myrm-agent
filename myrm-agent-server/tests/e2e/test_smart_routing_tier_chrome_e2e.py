@@ -77,17 +77,6 @@ _ARM_SSE_RECORDER_JS = """(() => {
   window.__MYRM_E2E_RECORD_SSE__ = (type, messageId, data) => {
     const rec = { type, messageId: messageId ?? null };
     if (data !== undefined) rec.data = data;
-    if (type === 'routing_decision') {
-      const store = window.__myrmChatStore?.getState?.();
-      rec.assistantCount = (store?.messages || []).filter((m) => m.role === 'assistant').length;
-      rec.snapshot = (store?.messages || []).slice(-2).map((m) => ({ role: m.role, id: m.messageId, tier: m.routingTier ?? null }));
-      const after = (ms, id) => setTimeout(() => {
-        const s = window.__myrmChatStore?.getState?.();
-        rec.post = { ms, msgs: (s?.messages || []).slice(-2).map((m) => ({ role: m.role, id: m.messageId, tier: m.routingTier ?? null, keys: Object.keys(m) })) };;
-      }, ms);
-      after(0, id);
-      after(1000, id);
-    }
     events.push(rec);
     if (orig) orig(type, messageId, data);
   };
@@ -252,6 +241,15 @@ async def _dump_sse_log(chat: McpChatSession) -> None:
             print(f"[E2E_SSE_LOG] {ev}", file=sys.stderr, flush=True)
     except Exception as exc:  # pragma: no cover - diagnostic only
         print(f"[E2E_SSE_LOG] failed: {exc}", file=sys.stderr, flush=True)
+    try:
+        diag_raw = await chat.evaluate(
+            """(() => (window.__MYRM_ROUTING_DIAG__ ?? []).slice(-10))()""",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        diag = diag_raw if isinstance(diag_raw, list) else []
+        print(f"[E2E_ROUTING_DIAG] {diag}", file=sys.stderr, flush=True)
+    except Exception as exc:  # pragma: no cover - diagnostic only
+        print(f"[E2E_ROUTING_DIAG] failed: {exc}", file=sys.stderr, flush=True)
 
 
 def _dump_backend_routing_log(api_url: str) -> None:
