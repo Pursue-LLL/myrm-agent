@@ -62,6 +62,15 @@ _LATEST_ASSISTANT_JS = """(() => {
   const store = window.__myrmChatStore?.getState?.();
   const msgs = store?.messages || [];
   const roles = msgs.map((m) => m.role || m.type || '?');
+  const all = msgs.map((m, i) => ({
+    i,
+    role: m.role || m.type || '?',
+    tier: m.routingTier || null,
+    modelTier: m.modelTier || null,
+    model: m.modelName || m.model || null,
+    msgId: m.messageId || m.id || null,
+    content: String(m.content || m.text || '').slice(0, 40),
+  }));
   for (let i = msgs.length - 1; i >= 0; i -= 1) {
     const msg = msgs[i];
     if (msg.role !== 'assistant' && msg.type !== 'assistant') continue;
@@ -72,6 +81,7 @@ _LATEST_ASSISTANT_JS = """(() => {
       content: String(msg.content || msg.text || '').slice(0, 100),
       msg_count: msgs.length,
       roles: roles.slice(-5),
+      all: all.slice(-8),
     };
   }
   return {
@@ -79,6 +89,7 @@ _LATEST_ASSISTANT_JS = """(() => {
     msg_count: msgs.length,
     roles: roles.slice(-5),
     storePresent: !!window.__myrmChatStore,
+    all: all.slice(-8),
   };
 })()"""
 
@@ -103,9 +114,7 @@ _HOVER_TOKEN_BTN_JS = """(() => {
 })()"""
 
 
-def _configure_smart_routing_providers(
-    api_url: str, *, verify: bool = False
-) -> dict[str, object]:
+def _configure_smart_routing_providers(api_url: str, *, verify: bool = False) -> dict[str, object]:
     secrets = load_test_secrets()
     basic_model = secrets.basic_model
     lite_model = secrets.lite_model
@@ -172,22 +181,15 @@ def _configure_smart_routing_providers(
     return merged
 
 
-def _assert_routing_seed_effective(
-    api_url: str, lite_provider_id: str, lite_model_id: str
-) -> None:
+def _assert_routing_seed_effective(api_url: str, lite_provider_id: str, lite_model_id: str) -> None:
     recheck = fetch_config_value("providers", api_url=api_url)
     dmc = recheck.get("defaultModelConfig")
     assert isinstance(dmc, dict), recheck
     routing_cfg = dmc.get("routingConfig")
     assert isinstance(routing_cfg, dict) and routing_cfg.get("enabled") is True, recheck
-    light_primary = (
-        routing_cfg.get("lightModel", {}).get("primary") if isinstance(routing_cfg, dict) else None
-    )
+    light_primary = routing_cfg.get("lightModel", {}).get("primary") if isinstance(routing_cfg, dict) else None
     assert isinstance(light_primary, dict), recheck
-    assert (
-        light_primary.get("providerId") == lite_provider_id
-        and light_primary.get("model") == lite_model_id
-    ), recheck
+    assert light_primary.get("providerId") == lite_provider_id and light_primary.get("model") == lite_model_id, recheck
 
 
 def _base_url() -> str:
@@ -232,8 +234,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
     api_url = get_e2e_api_url()
     if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=120.0):
         pytest.fail(
-            "Provider config not ready for live smart-routing E2E — run via "
-            "./myrm test -m chrome_e2e after ./myrm ready --chrome"
+            "Provider config not ready for live smart-routing E2E — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
         )
 
     backup = fetch_config_value("providers", api_url=api_url)
@@ -259,9 +260,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
                 _PIN_BASIC_PRIMARY_JS,
                 intent=EvaluateIntent.AGENT_SUBMIT,
             )
-            pin_state = (
-                pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
-            )
+            pin_state = pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
             assert pin_state.get("ok") is True, pin_state
             selection = pin_state.get("selection")
             assert isinstance(selection, dict), pin_state
@@ -271,11 +270,10 @@ async def test_smart_routing_tier_surfaced_in_webui(
                 SIMPLE_PROMPT,
                 SIMPLE_PROMPT,
             )
-            chat_id = str(
-                send_result.get("started", {}).get("chatId")
-                or send_result.get("submit", {}).get("chatId")
-                or ""
-            ).strip() or None
+            chat_id = (
+                str(send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or "").strip()
+                or None
+            )
 
             simple_state = await _wait_tier(chat, "simple")
             assert simple_state.get("routingTier") == "simple", simple_state
@@ -307,9 +305,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
                     _TIER_BADGE_JS,
                     intent=EvaluateIntent.SYNC_PROBE,
                 )
-                badge_state = (
-                    badge if isinstance(badge, dict) else json.loads(str(badge))
-                )
+                badge_state = badge if isinstance(badge, dict) else json.loads(str(badge))
                 if badge_state.get("found") is True:
                     break
                 await asyncio.sleep(0.5)
@@ -317,9 +313,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
 
             resolved_chat_id = chat_id
             if not resolved_chat_id:
-                after = await chat.main_state(
-                    DEBUG_PROMPT, intent=EvaluateIntent.BRIDGE_POLL
-                )
+                after = await chat.main_state(DEBUG_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
                 href = str(after.get("url") or "")
                 resolved_chat_id = chat_id_from_path(href.split("?", 1)[0])
             if resolved_chat_id:

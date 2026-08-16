@@ -16,14 +16,7 @@ def test_empty_body_returns_empty() -> None:
 
 
 def test_unchecked_checkbox_lines_are_extracted() -> None:
-    body = (
-        "**Goal**\n"
-        "Deliver a report.\n"
-        "\n"
-        "**Acceptance criteria**\n"
-        "- [ ] Covers at least 5 competitors\n"
-        "- [ ] Sources are linked\n"
-    )
+    body = "**Goal**\nDeliver a report.\n\n**Acceptance criteria**\n- [ ] Covers at least 5 competitors\n- [ ] Sources are linked\n"
     assert parse_markdown_criteria(body) == [
         {"type": "semantic", "criteria": "Covers at least 5 competitors"},
         {"type": "semantic", "criteria": "Sources are linked"},
@@ -41,11 +34,7 @@ def test_checked_checkbox_lines_are_extracted_too() -> None:
 
 
 def test_bold_and_numbered_prefixes_tolerated() -> None:
-    body = (
-        "1. [ ] Numbered line\n"
-        "- [ ] **Bold text inside checklist**\n"
-        "  1. [X] Nested checked line\n"
-    )
+    body = "1. [ ] Numbered line\n- [ ] **Bold text inside checklist**\n  1. [X] Nested checked line\n"
     assert parse_markdown_criteria(body) == [
         {"type": "semantic", "criteria": "Numbered line"},
         {"type": "semantic", "criteria": "**Bold text inside checklist**"},
@@ -54,12 +43,7 @@ def test_bold_and_numbered_prefixes_tolerated() -> None:
 
 
 def test_non_checklist_lines_ignored() -> None:
-    body = (
-        "not a checklist\n"
-        "- just a list bullet (no checkbox)\n"
-        "**Approach**\n"
-        "- [ ] The only real criterion\n"
-    )
+    body = "not a checklist\n- just a list bullet (no checkbox)\n**Approach**\n- [ ] The only real criterion\n"
     assert parse_markdown_criteria(body) == [
         {"type": "semantic", "criteria": "The only real criterion"}
     ]
@@ -108,10 +92,7 @@ def test_section_only_extracts_acceptance_checklist() -> None:
 
 
 def test_section_with_inline_heading_description() -> None:
-    body = (
-        "**Acceptance criteria** — checklist of concrete conditions\n"
-        "- [ ] Ship it\n"
-    )
+    body = "**Acceptance criteria** — checklist of concrete conditions\n- [ ] Ship it\n"
     assert parse_markdown_criteria(body) == [
         {"type": "semantic", "criteria": "Ship it"}
     ]
@@ -125,12 +106,7 @@ def test_section_zh_heading() -> None:
 
 
 def test_no_acceptance_heading_falls_back_to_global_scan() -> None:
-    body = (
-        "**Goal**\n"
-        "Do the thing.\n\n"
-        "- [ ] Item A\n"
-        "- [ ] Item B\n"
-    )
+    body = "**Goal**\nDo the thing.\n\n- [ ] Item A\n- [ ] Item B\n"
     assert parse_markdown_criteria(body) == [
         {"type": "semantic", "criteria": "Item A"},
         {"type": "semantic", "criteria": "Item B"},

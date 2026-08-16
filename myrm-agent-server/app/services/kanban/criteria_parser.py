@@ -10,11 +10,16 @@ The output schema mirrors the established text→criteria pattern in
 Kanban on the same ``{"type": "semantic", "criteria": ...}`` shape.
 
 [INPUT]
-- raw markdown body from ``SpecifyOutcome.new_body`` / ``DecomposeChildSpec.body``
+- myrm_agent_harness.toolkits.kanban.protocols::SpecifyOutcome.new_body (POS: LLM 细化产物正文)
+- myrm_agent_harness.toolkits.kanban.protocols::DecomposeChildSpec.body (POS: LLM 子任务规范正文)
 
 [OUTPUT]
 - parse_markdown_criteria: ``list[dict[str, str]]`` of semantic criteria.
 - attach_completion_criteria: attach parsed criteria to task metadata dict.
+
+[POS]
+Kanban 验收标准解析层。把 LLM 生成的 markdown 验收清单转成
+``completion_criteria`` 结构化 schema，供 CompletionVerifier 与 goal-mode 消费。
 
 Note: the checklist is the natural-language acceptance contract written by the
 LLM. We intentionally emit ``semantic`` (never ``shell``) — converting free-text
@@ -30,7 +35,9 @@ _CHECKLIST_RE = re.compile(r"^\s*(?:[-*]|\.{0,3}\d+[.)])\s*\[([ xX])\]\s*(.+)$")
 
 # Markdown section headings (bold ``**Title**`` or ATX ``# Title``), optionally
 # followed by inline text on the same line (``**Goal** — one sentence``).
-_HEADING_RE = re.compile(r"^\s*(?:\*{1,3}\s*[^*]+\*{1,3}|#{1,6}\s+.+)\s*(?:[—-]?\s*.*)?$")
+_HEADING_RE = re.compile(
+    r"^\s*(?:\*{1,3}\s*[^*]+\*{1,3}|#{1,6}\s+.+)\s*(?:[—-]?\s*.*)?$"
+)
 
 # Acceptance-criteria heading, EN/ZH. Anchored case-insensitively so LLMs
 # writing ``**acceptance criteria**`` / ``**验收条件**`` / ``**验收标准**``
