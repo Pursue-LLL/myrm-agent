@@ -31,13 +31,13 @@ _DISABLED_SERVER = "e2e-disabled-srv"
 
 # Radix TabsTrigger switches on onMouseDown (button 0), not onClick — a plain
 # .click() never changes the tab. Dispatch the full pointer/mouse sequence a real
-# user produces so context.onValueChange fires.
-_CLICK_TAB_JS = """(value) => {
+# user produces so context.onValueChange fires. Matches all locales of the tab.
+_CLICK_TAB_JS = """() => {
   const tab = Array.from(document.querySelectorAll('[role="tab"]')).find((t) => {
     const text = (t.textContent || '').trim();
-    return text.startsWith(value) || text.includes(value);
+    return /^(Installed|已安装|已安裝)(\\d*)$/.test(text);
   });
-  if (!tab) return { ok: false, err: 'tab-not-found: ' + value };
+  if (!tab) return { ok: false, err: 'installed-tab-not-found' };
   const opts = {
     bubbles: true,
     cancelable: true,
@@ -67,14 +67,14 @@ _INSTALLED_TAB_READY_JS = """(() => {
 # subtab on non-sandbox deployments is "Discover"), so switch tabs first.
 _MANAGER_AVAILABLE_JS = """(() => {
   const btn = Array.from(document.querySelectorAll('button[title]')).find(
-    (el) => /Manage Plugins|管理插件/.test(el.getAttribute('title') || ''),
+    (el) => /Manage Plugins|管理插件|插件管理/.test(el.getAttribute('title') || ''),
   );
   return { ready: !!btn, err: 'manager-button-not-found' };
 })()"""
 
 _OPEN_MANAGER_JS = """(() => {
   const btn = Array.from(document.querySelectorAll('button[title]')).find(
-    (el) => /Manage Plugins|管理插件/.test(el.getAttribute('title') || ''),
+    (el) => /Manage Plugins|管理插件|插件管理/.test(el.getAttribute('title') || ''),
   );
   if (!btn) return { ok: false, err: 'manager-button-not-found' };
   btn.click();
@@ -84,14 +84,14 @@ _OPEN_MANAGER_JS = """(() => {
 _DIALOG_READY_JS = """(() => {
   const dialog = Array.from(document.querySelectorAll('[role="dialog"]')).find((node) => {
     const text = node.textContent || '';
-    return /Manage Plugins|管理插件/.test(text);
+    return /Manage Plugins|管理插件|插件管理/.test(text);
   });
   if (!dialog) return { ready: false, err: 'manager-dialog-not-found', text: (document.body?.innerText || '').slice(0, 1200) };
   const text = dialog.textContent || '';
   return {
     ready: /e2e-plugin/.test(text),
     hasEnabled: text.includes('e2e-enabled-srv') && /Active|已启用/.test(text),
-    hasDisabled: text.includes('e2e-disabled-srv') && /Disabled|已禁用/.test(text),
+    hasDisabled: text.includes('e2e-disabled-srv') && /Disabled|已禁用|未启用/.test(text),
     dialogText: text.slice(0, 1500),
   };
 })()"""
@@ -99,7 +99,7 @@ _DIALOG_READY_JS = """(() => {
 _DIALOG_SERVER_BADGES_JS = """(() => {
   const dialog = Array.from(document.querySelectorAll('[role="dialog"]')).find((node) => {
     const text = node.textContent || '';
-    return /Manage Plugins|管理插件/.test(text);
+    return /Manage Plugins|管理插件|插件管理/.test(text);
   });
   if (!dialog) return { ready: false, err: 'manager-dialog-not-found' };
   const text = dialog.textContent || '';
@@ -188,7 +188,7 @@ def test_plugin_manager_shows_mcp_server_enabled_badges() -> None:
         tab_ready = wait_for_state(client, page, _INSTALLED_TAB_READY_JS, timeout_sec=90.0)
         assert tab_ready.get("ready") is True, tab_ready
 
-        clicked = client.evaluate(page, f"({_CLICK_TAB_JS})('已安装')", timeout_sec=20.0)
+        clicked = client.evaluate(page, f"({_CLICK_TAB_JS})()", timeout_sec=20.0)
         assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
 
         manager_ready = wait_for_state(client, page, _MANAGER_AVAILABLE_JS, timeout_sec=60.0)

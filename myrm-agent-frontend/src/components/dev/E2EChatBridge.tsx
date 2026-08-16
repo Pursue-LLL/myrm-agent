@@ -17,7 +17,7 @@
  */
 import { useLayoutEffect } from 'react';
 import { flushSync } from 'react-dom';
-import { getModelSelection } from '@/store/chat/messageRequest';
+import { getModelSelection, getLightModelSelection } from '@/store/chat/messageRequest';
 import { AgentBusyError, executeStreamWithRetry } from '@/store/chat/streamConsumer';
 import useChatStore from '@/store/useChatStore';
 import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
@@ -793,6 +793,7 @@ export default function E2EChatBridge() {
         const { isInitialized, providers, defaultModelConfig } = useProviderStore.getState();
         const { actionMode, agentConfig, chatId, currentSessionMessageId } = useChatStore.getState();
         const selection = getModelSelection(actionMode, agentConfig);
+        const lightSelection = getLightModelSelection(agentConfig);
         return {
           isInitialized,
           actionMode,
@@ -803,6 +804,16 @@ export default function E2EChatBridge() {
           primary: defaultModelConfig?.baseModel?.primary ?? null,
           agentModelSelection: agentConfig?.modelSelection ?? null,
           selection: selection ? { providerId: selection.providerId, model: selection.model } : null,
+          routing: {
+            agentHasRouting: Boolean(agentConfig?.routingConfig),
+            agentRoutingEnabled: agentConfig?.routingConfig?.enabled ?? null,
+            dmcHasRouting: Boolean(defaultModelConfig?.routingConfig),
+            dmcRoutingEnabled: defaultModelConfig?.routingConfig?.enabled ?? null,
+            dmcLightPrimary: defaultModelConfig?.routingConfig?.lightModel?.primary ?? null,
+            lightSelection: lightSelection
+              ? { providerId: lightSelection.providerId, model: lightSelection.model }
+              : null,
+          },
         };
       },
       ensureChatSession: async (opts?: E2eChatSessionOpts) => {

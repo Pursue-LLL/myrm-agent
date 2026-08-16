@@ -58,6 +58,15 @@ _PIN_BASIC_PRIMARY_JS = """(async () => {
   return { ok: true, selection: sel };
 })()"""
 
+_GET_LIGHT_SELECTION_JS = """(() => {
+  try {
+    const debug = window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null;
+    return { ok: true, debug };
+  } catch (err) {
+    return { ok: false, err: String(err) };
+  }
+})()"""
+
 _LATEST_ASSISTANT_JS = """(() => {
   const store = window.__myrmChatStore?.getState?.();
   const msgs = store?.messages || [];
@@ -77,11 +86,14 @@ _LATEST_ASSISTANT_JS = """(() => {
     return {
       ready: true,
       routingTier: msg.routingTier || null,
+      modelTier: msg.modelTier || null,
       modelName: msg.modelName || msg.model || null,
       content: String(msg.content || msg.text || '').slice(0, 100),
       msg_count: msgs.length,
       roles: roles.slice(-5),
       all: all.slice(-8),
+      keys: Object.keys(msg),
+      meta: msg.metadata ?? null,
     };
   }
   return {
@@ -196,8 +208,48 @@ def _base_url() -> str:
     return get_e2e_ui_url().rstrip("/")
 
 
+def _dump_backend_routing_log(api_url: str) -> None:
+    """Dump backend routing evidence (routing_decision / routing_tier / route_task)."""
+    try:
+        from cdp_chat.ui import backend_log_path
+
+        path = backend_log_path(api_url=api_url)
+        if not path.exists():
+            print(f"[E2E_ROUTING_LOG] no backend log at {path}", file=sys.stderr, flush=True)
+            return
+        size = path.stat().st_size
+        with path.open("r", encoding="utf-8", errors="replace") as fh:
+            fh.seek(max(0, size - 600_000))
+            tail = fh.read()
+        lines = [
+            line
+            for line in tail.splitlines()
+            if any(
+                kw in line
+                for kw in (
+                    "routing_decision",
+                    "routing_tier",
+                    "route_task",
+                    "ROUTING_DECISION",
+                    "routing",
+                    "smart_routing",
+                )
+            )
+        ]
+        print(
+            f"[E2E_ROUTING_LOG] path={path} matched={len(lines)}",
+            file=sys.stderr,
+            flush=True,
+        )
+        for line in lines[-40:]:
+            print(f"[E2E_ROUTING_LOG] {line}", file=sys.stderr, flush=True)
+    except Exception as exc:  # pragma: no cover - diagnostic only
+        print(f"[E2E_ROUTING_LOG] failed to dump: {exc}", file=sys.stderr, flush=True)
+
+
 async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
     deadline = time.monotonic() + TURN_WAIT_SEC
+    last_state: dict[str, object] = {}
     while time.monotonic() < deadline:
         raw = await chat.evaluate(
             _LATEST_ASSISTANT_JS,
@@ -206,6 +258,7 @@ async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
         state = raw if isinstance(raw, dict) else json.loads(str(raw))
         bridge = await chat._bridge_turn_snapshot()
         streaming = isinstance(bridge, dict) and bridge.get("isStreaming") is True
+        last_state = state
         if (
             state.get("ready") is True
             and state.get("routingTier") == expected
@@ -214,7 +267,7 @@ async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
         ):
             return state
         await asyncio.sleep(0.5)
-    return state  # type: ignore[return-value]
+    return last_state  # type: ignore[return-value]
 
 
 @pytest.mark.chrome_e2e(
@@ -265,6 +318,15 @@ async def test_smart_routing_tier_surfaced_in_webui(
             selection = pin_state.get("selection")
             assert isinstance(selection, dict), pin_state
             assert str(selection.get("model") or ""), pin_state
+            light_probe = await chat.evaluate(
+                _GET_LIGHT_SELECTION_JS,
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
+            print(
+                f"[E2E_LIGHT_SELECTION] {light_probe}",
+                file=sys.stderr,
+                flush=True,
+            )
 
             send_result = await chat.send_message(
                 SIMPLE_PROMPT,
@@ -276,6 +338,8 @@ async def test_smart_routing_tier_surfaced_in_webui(
             )
 
             simple_state = await _wait_tier(chat, "simple")
+            if simple_state.get("routingTier") != "simple":
+                _dump_backend_routing_log(api_url)
             assert simple_state.get("routingTier") == "simple", simple_state
             heartbeat_once()
 
@@ -289,6 +353,8 @@ async def test_smart_routing_tier_surfaced_in_webui(
                 DEBUG_PROMPT,
             )
             standard_state = await _wait_tier(chat, "standard")
+            if standard_state.get("routingTier") != "standard":
+                _dump_backend_routing_log(api_url)
             assert standard_state.get("routingTier") == "standard", standard_state
 
             # 档位 badge 位于 token 用量 tooltip 内（默认隐藏）——hover 触发后轮询可见。
