@@ -65,7 +65,6 @@ def parse_markdown_criteria(body: str | None) -> list[dict[str, str]]:
     lines = body.splitlines()
     acceptance_idx = _find_acceptance_section(lines)
 
-    criteria: list[dict[str, str]] = []
     if acceptance_idx is None:
         # No acceptance heading: backward-compatible global scan.
         return _collect_criteria(lines, 0, len(lines))
