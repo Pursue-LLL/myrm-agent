@@ -81,7 +81,8 @@ async def resolve_idle_compact_after_seconds(
         from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
         resolved = await get_agent_profile_resolver().resolve(agent_id)
-        engine_params = resolved.engine_params
+        if resolved is not None:
+            engine_params = resolved.engine_params
     if request_engine_params:
         engine_params = {**(engine_params or {}), **request_engine_params}
     return parse_idle_compact_after_seconds(engine_params)

@@ -11419,6 +11419,8 @@
     "statusPaused": "已暫停",
     "statusCompleted": "已完成",
     "overdue": "待執行",
+    "overdueBannerLocal": "原訂於 {time} 執行但未執行。可能是主機休眠或 Myrm 未執行。將於下一個預定時間再次執行。",
+    "overdueBannerCloud": "{time} 的執行已延遲。雲端排程器將很快執行它。",
     "timeSeconds": "{value}秒",
     "timeMinutes": "{value}分鐘",
     "timeHours": "{value}小時",

@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -67,11 +68,13 @@ def test_run_agent_stream_facade_lazy_import():
         print("LAZY_OK")
         """
     )
+    server_root = Path(__file__).resolve().parents[4]
     result = subprocess.run(
         [sys.executable, "-c", probe],
         capture_output=True,
         text=True,
         timeout=120,
+        cwd=server_root,
     )
     assert result.returncode == 0, f"stderr: {result.stderr}"
     assert "LAZY_OK" in result.stdout

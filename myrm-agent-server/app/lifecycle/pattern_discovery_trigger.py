@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, cast
 from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperationStatus
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
+    from myrm_agent_harness.toolkits.llms import ChatLiteLLM
     from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import PatternReport
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ async def record_pattern_discovery_event(report: PatternReport) -> None:
     from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
     pattern_count = len(report.patterns)
-    summary = f"Pattern discovery: found {pattern_count} behavioral pattern(s) ({report.duration_ms:.0f}ms)"
+    summary = f"Pattern discovery: identified {pattern_count} new behavioral pattern(s)."
 
     try:
         async with get_session() as db:

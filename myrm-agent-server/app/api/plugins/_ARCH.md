@@ -9,7 +9,7 @@ Agent Plugins 1.0.0 导入 HTTP 层：`preview`（解析 ZIP + 组件级预览�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Plugin import API module | ✅ |
-| `import_.py` | 模块 | `POST /plugins/import/preview` + `POST /plugins/import/confirm`；multipart 上传 → 持久化会话 → 落盘；归档安全错误输出结构化 `detail={message,error_code}` 供前端 i18n；`GET /plugins/import/installed`（已导入插件列表）+ `DELETE /plugins/import/{plugin_name}`（插件卸载） | ✅ |
+| `import_.py` | 模块 | `POST /plugins/import/preview` + `POST /plugins/import/confirm`；multipart 上传 → 持久化会话 → 落盘；归档安全错误输出结构化 `detail={message,error_code}` 供前端 i18n；`GET /plugins/import/installed`（已导入插件列表，含 `server_meta` 每 server `{name, enabled}` 状态）+ `DELETE /plugins/import/{plugin_name}`（插件卸载） | ✅ |
 
 ## 设计原则
 

@@ -70,9 +70,28 @@ def test_live_direct_delegate_pong_via_force_delegate(
     client: TestClient,
     mock_load_user_configs,
 ) -> None:
-    """Direct delegate via force_delegate_agent uses UserConfig agent name (claude-code)."""
+    """Direct delegate via force_delegate_agent uses UserConfig agent name (claude-code).
+
+    Requires a locally authenticated external CLI (claude code login or
+    ANTHROPIC_API_KEY); unauthenticated environments skip rather than fail.
+    """
     claude_path = shutil.which("claude")
     assert claude_path is not None
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        import subprocess as _sp
+
+        try:
+            auth = _sp.run(
+                [claude_path, "auth", "status"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        except Exception:
+            auth = None
+        logged_in = bool(auth and auth.returncode == 0 and '"loggedIn": true' in auth.stdout)
+        if not logged_in:
+            pytest.skip("claude CLI not authenticated; skipping live delegate E2E")
     configs = _build_mock_user_configs()
     configs.external_agents_dict = {
         "agents": [
@@ -80,7 +99,7 @@ def test_live_direct_delegate_pong_via_force_delegate(
                 "name": "claude-code",
                 "type": "cli",
                 "command": claude_path,
-                "args": ["--output-format", "stream-json", "-p"],
+                "args": ["--output-format", "stream-json", "-p", "--verbose"],
                 "enabled": True,
             }
         ]

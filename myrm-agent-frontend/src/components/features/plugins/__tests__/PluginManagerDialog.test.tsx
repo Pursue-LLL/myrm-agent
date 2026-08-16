@@ -33,7 +33,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }));
 
-const mockToast = vi.fn();
+const mockToast = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/shared/useToast', () => ({
   toast: mockToast,
 }));

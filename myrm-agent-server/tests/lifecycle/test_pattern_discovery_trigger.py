@@ -6,8 +6,18 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pydantic import BaseModel
 
 from app.lifecycle import pattern_discovery_trigger
+
+
+class _Pattern(BaseModel):
+    title: str
+    description: str
+    evidence_summary: str
+    durability: str
+    confidence: float
+    actionable_suggestion: str
 
 
 def _make_report(*, skipped: bool = False, pattern_count: int = 1) -> SimpleNamespace:
@@ -20,7 +30,7 @@ def _make_report(*, skipped: bool = False, pattern_count: int = 1) -> SimpleName
             duration_ms=10.0,
         )
     patterns = [
-        SimpleNamespace(
+        _Pattern(
             title=f"Pattern {i}",
             description="description",
             evidence_summary="evidence",
@@ -235,3 +245,52 @@ class TestRunPatternDiscoveryOnce:
             "skipped": True,
             "reason": "memory system not yet mature enough",
         }
+
+
+class TestRecordPatternDiscoveryEvent:
+    @pytest.mark.asyncio
+    async def test_summary_is_user_readable_without_duration(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The ledger summary must not leak duration_ms to the toC timeline."""
+        record_event = AsyncMock()
+        session = AsyncMock()
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=False)
+
+        monkeypatch.setattr(
+            "app.database.connection.get_session",
+            lambda: session,
+        )
+        monkeypatch.setattr(
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
+            lambda db: SimpleNamespace(record_event=record_event),
+        )
+
+        report = _make_report(pattern_count=2)
+        await pattern_discovery_trigger.record_pattern_discovery_event(report)
+
+        record_event.assert_awaited_once()
+        kwargs = record_event.await_args.kwargs
+        assert kwargs["summary"] == "Pattern discovery: identified 2 new behavioral pattern(s)."
+        assert "ms" not in kwargs["summary"]
+        assert kwargs["metadata"]["duration_ms"] == 100
+        assert kwargs["metadata"]["pattern_count"] == 2
+        assert kwargs["source"] == "pattern_discovery"
+
+    @pytest.mark.asyncio
+    async def test_summary_uses_singular_count(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        record_event = AsyncMock()
+        session = AsyncMock()
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=False)
+
+        monkeypatch.setattr("app.database.connection.get_session", lambda: session)
+        monkeypatch.setattr(
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
+            lambda db: SimpleNamespace(record_event=record_event),
+        )
+
+        report = _make_report(pattern_count=1)
+        await pattern_discovery_trigger.record_pattern_discovery_event(report)
+
+        kwargs = record_event.await_args.kwargs
+        assert kwargs["summary"] == "Pattern discovery: identified 1 new behavioral pattern(s)."

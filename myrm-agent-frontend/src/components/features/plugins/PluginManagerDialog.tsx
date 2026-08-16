@@ -173,8 +173,8 @@ const PluginManagerDialog = memo(
                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
                             {plugin.servers.length === 0 ? (
                               <p className="text-xs text-muted-foreground">{t('empty.servers')}</p>
-                            ) : (
-                              plugin.server_meta?.map((server) => (
+                            ) : plugin.server_meta?.length ? (
+                              plugin.server_meta.map((server) => (
                                 <span
                                   key={server.name}
                                   className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-1.5 py-0.5 text-xs"
@@ -211,6 +211,10 @@ const PluginManagerDialog = memo(
                                   )}
                                 </span>
                               ))
+                            ) : (
+                              <p className="text-xs text-muted-foreground break-all">
+                                {plugin.servers.join(', ')}
+                              </p>
                             )}
                           </div>
                         </div>

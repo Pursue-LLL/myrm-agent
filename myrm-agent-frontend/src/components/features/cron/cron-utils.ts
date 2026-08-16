@@ -49,6 +49,24 @@ export function statusBorderColor(job: CronJob): string {
   return 'border-l-muted-foreground/40';
 }
 
+/** A recurring active job is considered overdue when its next run slot has passed by this margin. */
+export const CRON_OVERDUE_THRESHOLD_MS = 10 * 60_000;
+
+/**
+ * True when an active recurring job missed its scheduled slot.
+ *
+ * While the server runs, its scheduler keeps ticking (watchdog ≤ 30s) and claims due
+ * jobs almost immediately, so an overdue window mainly appears when the scheduler is
+ * not running — host asleep, service closed, or the server is otherwise unavailable.
+ * One-time jobs are excluded because they have no recurring expectation.
+ */
+export function isCronOverdue(job: CronJob, nowMs = Date.now()): boolean {
+  if (job.status !== 'active') {return false;}
+  if (job.schedule?.kind === 'once') {return false;}
+  if (!job.next_run_at) {return false;}
+  return nowMs - new Date(job.next_run_at).getTime() > CRON_OVERDUE_THRESHOLD_MS;
+}
+
 export function computeStats(jobs: CronJob[]) {
   const userJobs = jobs.filter((j) => !isSystemJob(j));
   let active = 0;
