@@ -197,7 +197,11 @@ def test_wiki_concept_detail_source_jump() -> None:
                 (el) => /词条管理|Concepts|概念管理/.test((el.textContent || '').trim()),
               );
               if (!tab) return { ok: false, reason: 'no-tab' };
-              tab.click();
+              // Radix Tabs triggers need the full pointer sequence under
+              // real-browser hydration; a bare .click() can be swallowed.
+              for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+                tab.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+              }
               return { ok: true };
             })()""",
             timeout_sec=15.0,
