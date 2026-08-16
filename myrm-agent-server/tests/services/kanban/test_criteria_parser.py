@@ -84,6 +84,76 @@ def test_schema_shape_is_semantic_dict() -> None:
 
 
 # ---------------------------------------------------------------------------
+# section-aware parsing (acceptance-criteria heading)
+# ---------------------------------------------------------------------------
+
+
+def test_section_only_extracts_acceptance_checklist() -> None:
+    body = (
+        "**Goal**\n"
+        "Deliver a report.\n\n"
+        "**Approach**\n"
+        "- [ ] Set up environment (process step, must be ignored)\n"
+        "- [ ] Write tests (process step, must be ignored)\n\n"
+        "**Acceptance criteria**\n"
+        "- [ ] Covers at least 5 competitors\n"
+        "- [ ] Sources are linked\n\n"
+        "**Out of scope**\n"
+        "- [ ] Deployment (must be ignored)\n"
+    )
+    assert parse_markdown_criteria(body) == [
+        {"type": "semantic", "criteria": "Covers at least 5 competitors"},
+        {"type": "semantic", "criteria": "Sources are linked"},
+    ]
+
+
+def test_section_with_inline_heading_description() -> None:
+    body = (
+        "**Acceptance criteria** — checklist of concrete conditions\n"
+        "- [ ] Ship it\n"
+    )
+    assert parse_markdown_criteria(body) == [
+        {"type": "semantic", "criteria": "Ship it"}
+    ]
+
+
+def test_section_zh_heading() -> None:
+    body = "**验收条件**\n- [ ] 覆盖至少 5 家竞品\n"
+    assert parse_markdown_criteria(body) == [
+        {"type": "semantic", "criteria": "覆盖至少 5 家竞品"}
+    ]
+
+
+def test_no_acceptance_heading_falls_back_to_global_scan() -> None:
+    body = (
+        "**Goal**\n"
+        "Do the thing.\n\n"
+        "- [ ] Item A\n"
+        "- [ ] Item B\n"
+    )
+    assert parse_markdown_criteria(body) == [
+        {"type": "semantic", "criteria": "Item A"},
+        {"type": "semantic", "criteria": "Item B"},
+    ]
+
+
+def test_acceptance_section_in_middle_stops_at_next_heading() -> None:
+    body = (
+        "**Approach**\n"
+        "- [ ] Setup step (ignored)\n\n"
+        "**Acceptance criteria**\n"
+        "- [ ] Accept A\n"
+        "- [ ] Accept B\n\n"
+        "**Out of scope**\n"
+        "- [ ] Not in scope (ignored)\n"
+    )
+    assert parse_markdown_criteria(body) == [
+        {"type": "semantic", "criteria": "Accept A"},
+        {"type": "semantic", "criteria": "Accept B"},
+    ]
+
+
+# ---------------------------------------------------------------------------
 # attach_completion_criteria
 # ---------------------------------------------------------------------------
 

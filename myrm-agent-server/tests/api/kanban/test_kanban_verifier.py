@@ -15,6 +15,7 @@ from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 from app.core.kanban.verifier import (
     KanbanCompletionVerifier,
     _parse_criteria,
+    _trim_result_for_judge,
 )
 from app.core.utils.chat_utils import parse_judge_json
 
@@ -480,3 +481,27 @@ class TestKanbanCompletionVerifier:
         verifier = KanbanCompletionVerifier()
         result = await verifier.verify(task, "done")
         assert result.passed is True
+
+
+# --------------- _trim_result_for_judge tests ---------------
+
+
+class TestTrimResultForJudge:
+    def test_short_result_passthrough(self) -> None:
+        assert _trim_result_for_judge("short") == "short"
+        assert _trim_result_for_judge("x" * 3000) == "x" * 3000
+
+    def test_long_result_keeps_head_and_tail(self) -> None:
+        long = "A" * 2200 + "B" * 1200
+        trimmed = _trim_result_for_judge(long)
+        assert trimmed.startswith("A" * 2000)
+        assert trimmed.endswith("B" * 1000)
+        assert "[truncated" in trimmed
+
+    def test_long_result_marks_omitted_count(self) -> None:
+        long = "x" * 4000
+        trimmed = _trim_result_for_judge(long)
+        assert "[truncated 1000 chars]" in trimmed
+
+    def test_empty_result(self) -> None:
+        assert _trim_result_for_judge("") == ""

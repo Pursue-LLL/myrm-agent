@@ -38,6 +38,13 @@ ENV_MONO_STARTED: Final[str] = "MYRM_E2E_MONO_STARTED_MONOTONIC"
 ENV_PROGRESS_AT: Final[str] = "MYRM_E2E_WALL_PROGRESS_AT_MONOTONIC"
 ENV_WALL_PHASE: Final[str] = "MYRM_E2E_WALL_PHASE"
 
+# dev_gate.session.TERMINAL_STATES 的字符串镜像：并发 complete_bootstrap_phase
+# 可能已把 coordinator session 推到终态（TEARDOWN→SUCCEEDED/FAILED/CANCELLED），
+# 此时本地 BODY seal 不再必要，应静默返回而非误报（见 _transition_dev_gate_to_body）。
+_DEV_GATE_TERMINAL_STATES: Final[frozenset[str]] = frozenset(
+    {"SUCCEEDED", "FAILED", "CANCELLED"}
+)
+
 _LEGACY_PHASE_ALIASES: Final[dict[str, SessionPhase]] = {
     "admission": "admit",
     "signoff": "admit",
@@ -388,6 +395,11 @@ def _transition_dev_gate_to_body(*, current_node: str) -> None:
             session = response.get("session") if isinstance(response, dict) else None
             state = str(session.get("state", "")) if isinstance(session, dict) else ""
     if state != "BODY" or not isinstance(session, dict):
+        if state in _DEV_GATE_TERMINAL_STATES:
+            # 并发 complete_bootstrap_phase（pytest fixture + post_cdp_bootstrap）
+            # 可能已把 session 直接推到终态（TEARDOWN→SUCCEEDED/FAILED/CANCELLED）。
+            # 本地 wall phase 独立运行，BODY seal 不再必要——静默返回避免误报。
+            return
         raise RuntimeError(
             f"E2E_DEV_GATE_BODY_TRANSITION: expected BODY, got {state or 'UNKNOWN'}"
         )

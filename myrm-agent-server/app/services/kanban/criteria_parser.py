@@ -28,11 +28,30 @@ import re
 
 _CHECKLIST_RE = re.compile(r"^\s*(?:[-*]|\.{0,3}\d+[.)])\s*\[([ xX])\]\s*(.+)$")
 
+# Markdown section headings (bold ``**Title**`` or ATX ``# Title``), optionally
+# followed by inline text on the same line (``**Goal** — one sentence``).
+_HEADING_RE = re.compile(r"^\s*(?:\*{1,3}\s*[^*]+\*{1,3}|#{1,6}\s+.+)\s*(?:[—-]?\s*.*)?$")
+
+# Acceptance-criteria heading, EN/ZH. Anchored case-insensitively so LLMs
+# writing ``**acceptance criteria**`` / ``**验收条件**`` / ``**验收标准**``
+# all match.
+_ACCEPTANCE_RE = re.compile(
+    r"^\s*(?:\*{1,3}\s*)?(?:acceptance\s*criteria|验收条件|验收标准)\s*(?:\*{1,3})?\s*(?:[—-]?\s*.*)?$",
+    re.IGNORECASE,
+)
+
 _MAX_CRITERIA = 6
 
 
 def parse_markdown_criteria(body: str | None) -> list[dict[str, str]]:
     """Extract ``- [ ]``/``- [x]`` checklist lines from markdown *body*.
+
+    When the body has an explicit ``**Acceptance criteria**`` (or ``验收条件`` /
+    ``验收标准``) heading, only checklist lines *inside that section* are taken —
+    process-style checklists the LLM may write under ``**Approach**`` are
+    excluded so they cannot become bogus acceptance gates. If no acceptance
+    heading is found, every checklist line is returned (backward-compatible
+    fallback).
 
     Returns a list of ``{"type": "semantic", "criteria": "<line>"}`` dicts.
     Blank or whitespace-only lines are skipped. Lines are capped at
@@ -43,9 +62,41 @@ def parse_markdown_criteria(body: str | None) -> list[dict[str, str]]:
     if not body:
         return []
 
+    lines = body.splitlines()
+    acceptance_idx = _find_acceptance_section(lines)
+
     criteria: list[dict[str, str]] = []
-    for line in body.splitlines():
-        match = _CHECKLIST_RE.match(line)
+    if acceptance_idx is None:
+        # No acceptance heading: backward-compatible global scan.
+        return _collect_criteria(lines, 0, len(lines))
+
+    # Section mode: only the checklist between the acceptance heading and the
+    # next markdown heading (or end of body).
+    end = len(lines)
+    for i in range(acceptance_idx + 1, len(lines)):
+        if _HEADING_RE.match(lines[i]):
+            end = i
+            break
+    return _collect_criteria(lines, acceptance_idx + 1, end)
+
+
+def _find_acceptance_section(lines: list[str]) -> int | None:
+    """Return the index of the acceptance-criteria heading, or None."""
+    for i, line in enumerate(lines):
+        if _HEADING_RE.match(line) and _ACCEPTANCE_RE.match(line):
+            return i
+    return None
+
+
+def _collect_criteria(
+    lines: list[str],
+    start: int,
+    end: int,
+) -> list[dict[str, str]]:
+    """Collect checklist lines in ``lines[start:end]`` into semantic criteria."""
+    criteria: list[dict[str, str]] = []
+    for i in range(start, end):
+        match = _CHECKLIST_RE.match(lines[i])
         if match is None:
             continue
         text = match.group(2).strip()

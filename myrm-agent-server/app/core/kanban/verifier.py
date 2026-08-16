@@ -37,6 +37,23 @@ from app.core.utils.chat_utils import extract_litellm_answer_text, parse_judge_j
 
 logger = logging.getLogger(__name__)
 
+# Budget for the judge's view of the agent result. Long outputs are sampled
+# from both ends — the head carries execution context while the tail usually
+# holds final confirmations (test results, produced files) that would be lost
+# by a head-only slice.
+_JUDGE_RESULT_BUDGET = 3000
+_JUDGE_RESULT_HEAD = 2000
+_JUDGE_RESULT_TAIL = 1000
+
+
+def _trim_result_for_judge(result: str) -> str:
+    """Sample *result* for the judge, keeping head + tail context."""
+    if len(result) <= _JUDGE_RESULT_BUDGET:
+        return result
+    head = result[:_JUDGE_RESULT_HEAD]
+    tail = result[-_JUDGE_RESULT_TAIL:]
+    return f"{head}\n...[truncated {len(result) - _JUDGE_RESULT_HEAD - _JUDGE_RESULT_TAIL} chars]...\n{tail}"
+
 
 def _parse_criteria(
     raw: object,
@@ -146,7 +163,7 @@ class KanbanCompletionVerifier:
             "Reply ONLY with JSON: "
             '{"done": true/false, "reason": "one-sentence rationale"}'
         )
-        user_content = f"Agent's result:\n{result[:3000]}"
+        user_content = f"Agent's result:\n{_trim_result_for_judge(result)}"
 
         try:
             llm_kwargs = await build_platform_litellm_kwargs()
