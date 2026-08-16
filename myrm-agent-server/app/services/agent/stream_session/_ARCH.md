@@ -6,7 +6,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `orchestrator.py` | 核心 | 流式会话主编排：校验 → **`try_reserve` → E1 early `StreamingResponse`**（`orchestrator_turn_body.launch_early_buffered_stream`）；busy → `agent_busy_streaming_response`；`finally` release 预占 | ✅ |
+| `orchestrator.py` | 核心 | 流式会话主编排：校验（含 **HITL pending approval gate**：非 resume 新 run 且有 `count_pending_for_chat`>0 时返回 `agent_busy_streaming_response`）→ **`try_reserve` → E1 early `StreamingResponse`**（`orchestrator_turn_body.launch_early_buffered_stream`）；busy → `agent_busy_streaming_response`；`finally` release 预占 | ✅ |
 | `orchestrator_turn_body.py` | 核心 | E1 后台 turn：**先提交 user row** → `run_pre_reply_compact_with_sse` → load history → prewarm → **`pump_to_buffer`**；`_background_turn` 入口绑定 harness `session_lock.set_current_chat_id(request.chat_id)`（否则 SnapshotObserver 快照以 `"default"` 落盘，revert API 按真实 chat_id 查询永远为空），finally `reset` + 调 `gateway.release_if_reserved_only(chat_id)` 清理未接管预占；multiplexed → JSON accepted；校验失败 → buffer error SSE | ✅ |
 | `pre_reply_compact_sse.py` | 核心 | Web pre-reply idle compact SSE 生命周期（active → gate → completed/failure；gate exception → failure SSE；复用 frontend `context_compaction` progress steps） | ✅ |
 | `stream_session_types.py` | 核心 | `AgentStreamSession` 数据类与断连宽限常量；承载流式会话起点时钟与端到端 TTFT 采样值（`stream_started_at_monotonic` / `stream_ttft_ms`）；`pre_reply_compact_result` + `pre_reply_compact_sse_sent` 供 pump 去重 SSE | ✅ |

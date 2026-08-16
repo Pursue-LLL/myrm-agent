@@ -1734,7 +1734,7 @@ else
     fail "Too many vanilla chrome-devtools-mcp processes (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor windows using Agent browser MCP"
   fi
   if [[ "${VANILLA_MCP_COUNT}" -eq 1 ]]; then
-    echo "CHROME_E2E_WARN: vanilla chrome-devtools-mcp detected — Agent MCP should use --auto-connect; E2E uses ./myrm ready --chrome" >&2
+    echo "CHROME_E2E_WARN: vanilla chrome-devtools-mcp detected — Agent MCP must use ChromeAgent :9410 (./myrm doctor --mcp-isolation --strict-live); E2E uses ./myrm ready --chrome" >&2
   fi
 fi
 

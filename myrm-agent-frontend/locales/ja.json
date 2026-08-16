@@ -6128,6 +6128,11 @@
         "badges": {
           "bundled": "同梱ファイルあり"
         },
+        "serverState": {
+          "enabled": "有効",
+          "disabled": "無効",
+          "disabledHint": "使用する前に MCP 設定でこの MCP サーバーを有効にしてください"
+        },
         "actions": {
           "refresh": "更新",
           "close": "閉じる",

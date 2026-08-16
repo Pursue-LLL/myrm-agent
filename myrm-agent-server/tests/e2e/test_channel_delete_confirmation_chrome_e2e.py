@@ -47,49 +47,13 @@ from tests.support.chrome_mcp_e2e import (
 _CHANNELS_PATH = "/settings/channels"
 _INSTANCES_ENDPOINT = "/api/v1/channels/manage/instances"
 
-# Navigate to settings → channels and select the WeChat channel card.
-_NAV_TO_WECHAT_JS = """(() => {
-  try {
-    window.resizeTo(1280, 900);
-  } catch {
-    // ignore
-  }
-  try {
-    sessionStorage.setItem('migration_discovery_dismissed', 'true');
-    sessionStorage.setItem('competitor_migration_dismissed', 'true');
-    localStorage.setItem('myrm-selected-channel', 'wechat');
-  } catch {
-    // ignore
-  }
-  if (!location.pathname.includes('/settings/channels')) {
-    location.href = '/settings/channels';
-    return { ready: false, navigating: true, pathname: location.pathname };
-  }
-  const item = document.querySelector('[data-testid="channel-list-item-wechat"]');
-  if (item) {
-    item.click();
-  }
-  const delBtn = document.querySelector('[aria-label="delete-wechat"]');
-  const body = document.body.innerText || '';
-  return {
-    ready: !!delBtn,
-    hasDeleteBtn: !!delBtn,
-    hasCard: !!item,
-    hasAuthToken: !!localStorage.getItem('auth_token'),
-    width: window.innerWidth,
-    bodyLen: body.length,
-    hasNoChannel: body.includes('wechatNoChannel'),
-    bodySnippet: body.slice(0, 800),
-  };
-})()"""
 
-# Navigate to settings → channels and select the Feishu channel card.
+# Navigate to settings → channels and select a channel card by its list-item
+# test id, then drive the primary delete button aria-label. Both desktop mounts
+# (right-hand panel + in-list detail) share one instances store, so the probe
+# only needs the visible primary-card delete button to be present.
 def _nav_to_channel_js(channel_type: str) -> str:
-    """Navigate to settings → channels and select the requested channel card.
-
-    Reuses the same UX path as ``_NAV_TO_WECHAT_JS`` but parameterized by the
-    channel card test id and primary delete-button ``aria-label``.
-    """
+    """Return a probe that navigates to the requested channel card and reports the primary delete button."""
     return f"""(() => {{
   try {{
     window.resizeTo(1280, 900);
@@ -126,7 +90,7 @@ def _nav_to_channel_js(channel_type: str) -> str:
 }})()"""
 
 
-_NAV_TO_FEISHU_JS = _nav_to_channel_js("feishu")
+_NAV_TO_WECHAT_JS = _nav_to_channel_js("wechat")
 
 
 # Click the primary card delete button to open the confirmation dialog.
@@ -287,7 +251,10 @@ def _status_diagnostics(api_url: str) -> dict[str, object]:
         if isinstance(statuses, list):
             diag["statusCount"] = len(statuses)
             diag["statusNames"] = [s.get("name") for s in statuses if isinstance(s, dict)]
-            wechat = next((s for s in statuses if isinstance(s, dict) and s.get("name") == "wechat"), None)
+            wechat = next(
+                (s for s in statuses if isinstance(s, dict) and s.get("name") == "wechat"),
+                None,
+            )
             diag["wechatStatus"] = wechat
         else:
             diag["statusRaw"] = statuses
@@ -304,11 +271,6 @@ def _status_diagnostics(api_url: str) -> dict[str, object]:
 def _wechat_toggle(api_url: str, enabled: bool) -> None:
     """Enable/disable the primary WeChat channel via the real toggle API."""
     _channel_toggle(api_url, "wechat", enabled)
-
-
-def _feishu_toggle(api_url: str, enabled: bool) -> None:
-    """Enable/disable the primary Feishu channel via the real toggle API."""
-    _channel_toggle(api_url, "feishu", enabled)
 
 
 def _channel_toggle(api_url: str, channel_type: str, enabled: bool) -> None:
@@ -363,7 +325,10 @@ def _seed_instance(api_url: str, channel_type: str) -> dict[str, str]:
     assert isinstance(created, dict), created
     instance_id = str(created.get("instanceId") or "")
     assert instance_id, created
-    return {"instanceId": instance_id, "channelName": str(created.get("channelName") or "")}
+    return {
+        "instanceId": instance_id,
+        "channelName": str(created.get("channelName") or ""),
+    }
 
 
 def _delete_instance_via_api(api_url: str, instance_id: str) -> None:
@@ -378,11 +343,6 @@ def _delete_instance_via_api(api_url: str, instance_id: str) -> None:
 def _wechat_instances(api_url: str) -> list[dict[str, object]]:
     """Return the current WeChat instances from the real backend."""
     return _channel_instances(api_url, "wechat")
-
-
-def _feishu_instances(api_url: str) -> list[dict[str, object]]:
-    """Return the current Feishu instances from the real backend."""
-    return _channel_instances(api_url, "feishu")
 
 
 def _channel_instances(api_url: str, channel_type: str) -> list[dict[str, object]]:
@@ -488,9 +448,18 @@ def test_wechat_delete_confirmation_flows() -> None:
     seeded: dict[str, str] | None = None
     try:
         # ── Flow 1: primary WeChat card delete confirmation (logout) ──
-        with open_settings_subroute(_CHANNELS_PATH, timeout_ms=120_000) as (client, page):
+        with open_settings_subroute(_CHANNELS_PATH, timeout_ms=120_000) as (
+            client,
+            page,
+        ):
             dismiss_blocking_modals(client, page, recover_url=channels_url)
-            nav = wait_for_state(client, page, _NAV_TO_WECHAT_JS, timeout_sec=120.0, page_url=channels_url)
+            nav = wait_for_state(
+                client,
+                page,
+                _NAV_TO_WECHAT_JS,
+                timeout_sec=120.0,
+                page_url=channels_url,
+            )
             if nav.get("ready") is not True:
                 nav["backendDiag"] = diag
             assert nav.get("ready") is True, nav
@@ -503,7 +472,13 @@ def test_wechat_delete_confirmation_flows() -> None:
 
             canceled = client.evaluate(page, _CANCEL_DIALOG_JS, timeout_sec=30.0)
             assert isinstance(canceled, dict) and canceled.get("ok") is True, canceled
-            kept = wait_for_state(client, page, _DIALOG_CLOSED_KEEPING_JS, timeout_sec=30.0, page_url=channels_url)
+            kept = wait_for_state(
+                client,
+                page,
+                _DIALOG_CLOSED_KEEPING_JS,
+                timeout_sec=30.0,
+                page_url=channels_url,
+            )
             assert kept.get("ready") is True, kept
 
             # Re-open and confirm: dialog closes after the real logout API call.
@@ -526,9 +501,18 @@ def test_wechat_delete_confirmation_flows() -> None:
         # ── Flow 2: extra WeChat instance delete confirmation ──
         seeded = _seed_wechat_instance(api_url)
         instance_id = seeded["instanceId"]
-        with open_settings_subroute(_CHANNELS_PATH, timeout_ms=120_000) as (client, page):
+        with open_settings_subroute(_CHANNELS_PATH, timeout_ms=120_000) as (
+            client,
+            page,
+        ):
             dismiss_blocking_modals(client, page, recover_url=channels_url)
-            nav2 = wait_for_state(client, page, _NAV_TO_WECHAT_JS, timeout_sec=120.0, page_url=channels_url)
+            nav2 = wait_for_state(
+                client,
+                page,
+                _NAV_TO_WECHAT_JS,
+                timeout_sec=120.0,
+                page_url=channels_url,
+            )
             if nav2.get("ready") is not True:
                 nav2["backendDiag"] = diag
             assert nav2.get("ready") is True, nav2
@@ -549,10 +533,7 @@ def test_wechat_delete_confirmation_flows() -> None:
             # so a mismatch here explains why the setInstances filter misses.
             try:
                 fetch_probe = client.evaluate(page, _instances_fetch_probe_js(), timeout_sec=30.0)
-                print(
-                    f"[channel-e2e] Flow2 page-context instances fetch: "
-                    f"{json.dumps(fetch_probe, ensure_ascii=False)}"
-                )
+                print(f"[channel-e2e] Flow2 page-context instances fetch: {json.dumps(fetch_probe, ensure_ascii=False)}")
                 sys.stdout.flush()
             except (RuntimeError, TimeoutError, OSError) as exc:
                 print(f"[channel-e2e] Flow2 page-context fetch failed: {str(exc)[:300]}")
@@ -610,9 +591,7 @@ def test_wechat_delete_confirmation_flows() -> None:
             assert gone.get("ready") is True, gone
 
             # The instance is really gone from the backend too.
-            assert all(
-                i.get("instanceId") != instance_id for i in _wechat_instances(api_url)
-            )
+            assert all(i.get("instanceId") != instance_id for i in _wechat_instances(api_url))
 
         # ── Flow 3: delete failure keeps the confirm dialog open ──
         # A concurrent removal (out-of-band API delete) makes the UI confirm hit
@@ -620,9 +599,18 @@ def test_wechat_delete_confirmation_flows() -> None:
         # toast and can retry or cancel.
         seeded = _seed_wechat_instance(api_url)
         instance3 = seeded["instanceId"]
-        with open_settings_subroute(_CHANNELS_PATH, timeout_ms=120_000) as (client, page):
+        with open_settings_subroute(_CHANNELS_PATH, timeout_ms=120_000) as (
+            client,
+            page,
+        ):
             dismiss_blocking_modals(client, page, recover_url=channels_url)
-            nav3 = wait_for_state(client, page, _NAV_TO_WECHAT_JS, timeout_sec=120.0, page_url=channels_url)
+            nav3 = wait_for_state(
+                client,
+                page,
+                _NAV_TO_WECHAT_JS,
+                timeout_sec=120.0,
+                page_url=channels_url,
+            )
             assert nav3.get("ready") is True, nav3
 
             extra3 = wait_for_state(
@@ -684,7 +672,13 @@ def test_wechat_delete_confirmation_flows() -> None:
                         closed[probe_name] = {"evaluateErr": str(exc)[:300]}
                 print(f"[channel-e2e] Flow3 closed diagnostics: {json.dumps(closed, ensure_ascii=False)}")
                 sys.stdout.flush()
-            assert closed.get("ready") is True, closed
+        assert closed.get("ready") is True, closed
+        # ── Flow 4 (Feishu multi-app) — covered by unit tests, not E2E ──
+        # FeishuChannel.__init__ hard-requires app_id + app_secret, so a Feishu
+        # extra instance cannot be seeded through POST /instances without real
+        # app credentials. Feishu multi-app delete confirmation is therefore
+        # covered by FeishuMultiAppSection.test.tsx (mocked deleteChannelInstance)
+        # while the real-browser ConfirmDialog path is exercised via WeChat flows.
     finally:
         if seeded:
             _delete_instance_via_api(api_url, seeded["instanceId"])

@@ -6148,6 +6148,11 @@
         "badges": {
           "bundled": "含打包文件"
         },
+        "serverState": {
+          "enabled": "已启用",
+          "disabled": "未启用",
+          "disabledHint": "请在 MCP 设置中启用该 MCP 服务器后再使用"
+        },
         "actions": {
           "refresh": "刷新",
           "close": "关闭",

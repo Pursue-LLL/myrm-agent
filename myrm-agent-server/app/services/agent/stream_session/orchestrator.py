@@ -55,6 +55,30 @@ _ACTION_MODE_FEATURE_GATE: dict[str, str] = {
 _GATEWAY_MAX_INPUT_CHARS: int = 360_000
 
 
+async def _count_pending_approvals(chat_id: str) -> int:
+    """Return the number of pending HITL approvals for a chat.
+
+    Used by the gateway to reject new runs while the previous turn is waiting
+    on human approval, so queued messages do not trample the pending collector
+    or block an eventual approval resume behind chat-level mutual exclusion.
+
+    Fails open: if the approval store cannot be reached the run is allowed to
+    proceed, because the gate is an ordering enhancement and must never become
+    a single point of failure for normal messages.
+    """
+    try:
+        from app.services.approvals.registry import ApprovalRegistry
+
+        return await ApprovalRegistry.count_pending_for_chat(chat_id)
+    except Exception as exc:
+        logger.warning(
+            "Pending approval gate skipped (approval store unavailable): chat_id=%s err=%s",
+            chat_id,
+            exc,
+        )
+        return 0
+
+
 def _reject_legacy_consensus_request(request: AgentRequest) -> JSONResponse | None:
     """Reject removed consensus action_mode with a clear migration hint."""
     if request.action_mode != "consensus":
@@ -140,6 +164,16 @@ async def run_agent_stream(
         except ArchiveRestoreRequestError as exc:
             await _record_terminal_failure_if_needed("archive_restore_invalid")
             return archive_restore_error_response(exc)
+
+        if request.chat_id:
+            pending_count = await _count_pending_approvals(request.chat_id)
+            if pending_count > 0:
+                logger.info(
+                    "Gateway rejected new run while HITL approvals pending: chat_id=%s pending=%d",
+                    request.chat_id,
+                    pending_count,
+                )
+                return agent_busy_streaming_response(request.message_id)
 
     session_reservation = ChatSessionReservation()
     try:

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cursor Agent MCP isolation doctor (§25.8) — daily Chrome auto-connect contract.
+# Cursor Agent MCP isolation doctor (§25.8) — ChromeAgent :9410 contract (not E2E :9333).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

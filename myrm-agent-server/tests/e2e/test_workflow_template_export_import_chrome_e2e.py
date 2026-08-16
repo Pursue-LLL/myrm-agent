@@ -387,16 +387,12 @@ def _run_export_import_roundtrip(*, api_base: str) -> None:
             if ready.get("ready") is True and ready.get("hasLibraryRoot") is True:
                 break
             if attempt < 2:
-                reload_mcp_page(
-                    client, page, target_url=page_url, timeout_ms=120_000
-                )
+                reload_mcp_page(client, page, target_url=page_url, timeout_ms=120_000)
         assert ready.get("ready") is True, json.dumps(
             ready, indent=2, ensure_ascii=False
         )
         if ready.get("hasLibraryRoot") is not True:
-            reload_mcp_page(
-                client, page, target_url=page_url, timeout_ms=120_000
-            )
+            reload_mcp_page(client, page, target_url=page_url, timeout_ms=120_000)
             dom_ready = wait_for_state(
                 client,
                 page,
@@ -428,7 +424,9 @@ def _run_export_import_roundtrip(*, api_base: str) -> None:
 
         # Diagnostics are used only on failure (the helper raises); the success
         # return value is intentionally ignored here.
-        _wait_absent_with_diagnostics(client, page, page_url=page_url, api_base=api_base)
+        _wait_absent_with_diagnostics(
+            client, page, page_url=page_url, api_base=api_base
+        )
 
         imported = client.evaluate(
             page,

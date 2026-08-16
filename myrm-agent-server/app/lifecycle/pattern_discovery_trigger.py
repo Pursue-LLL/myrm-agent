@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.toolkits.memory.strategies.pattern_discovery (POS: Cross-cycle pattern discovery)
 - app.lifecycle.memory_guardian_ops::create_guardian_memory_manager (POS: guardian 上下文 MemoryManager 工厂)
+- app.services.agent.platform_config::build_platform_litellm_kwargs (POS: WebUI 默认对话模型）
 - app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
 
 [OUTPUT]
@@ -13,23 +14,57 @@
 [POS]
 行为模式发现触发器。管理 Pattern Discovery 的定时执行和手动触发，
 将结果写入 operation_ledger 以供 Command Center 时间线和 Evolution Digest 展示。
+用 WebUI 默认对话模型构造分析 LLM（guardian 上下文 MemoryManager 本身无 LLM，
+pattern discovery 的 LLM 依赖独立于维护预算策略）。
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperationStatus
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
     from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import PatternReport
 
 logger = logging.getLogger(__name__)
 
 
+async def _build_platform_llm() -> ChatLiteLLM | None:
+    """Construct a chat model from the WebUI default model for analysis.
+
+    Returns ``None`` when the default model is not configured or unreachable
+    so callers can skip gracefully instead of raising. Never falls back to
+    process environment variables (platform config is the only source).
+    """
+    from myrm_agent_harness.toolkits.llms import ChatLiteLLM  # type: ignore[attr-defined]
+
+    from app.services.agent.platform_config import build_platform_litellm_kwargs
+
+    try:
+        kwargs = await build_platform_litellm_kwargs()
+        model = cast(str | None, kwargs.get("model"))
+        api_key = cast(str | None, kwargs.get("api_key"))
+        if not model or not api_key:
+            logger.info("Pattern discovery: skipped (WebUI default model not configured)")
+            return None
+        return ChatLiteLLM(
+            model=model,
+            api_key=api_key,
+            api_base=cast(str | None, kwargs.get("api_base")),
+            temperature=0,
+            max_tokens=4096,
+            request_timeout=120.0,
+        )
+    except Exception as exc:
+        logger.warning("Pattern discovery: failed to build platform LLM (non-fatal): %s", exc)
+        return None
+
+
 async def run_pattern_discovery_cycle() -> None:
-    """Execute a pattern discovery pass using the consolidation LLM.
+    """Execute a pattern discovery pass using the WebUI default model.
 
     Runs independently of maintenance — the harness-layer strategy handles
     gate checks (memory count >= 50, consolidation count >= 3) and returns
@@ -45,12 +80,12 @@ async def run_pattern_discovery_cycle() -> None:
 
         from app.lifecycle.memory_guardian_ops import create_guardian_memory_manager
 
-        manager = await create_guardian_memory_manager()
-        if manager.consolidation_llm is None:
-            logger.debug("Pattern discovery: skipped (no consolidation LLM)")
+        llm = await _build_platform_llm()
+        if llm is None:
             return
 
-        report = await run_pattern_discovery(manager, manager.consolidation_llm)
+        manager = await create_guardian_memory_manager()
+        report = await run_pattern_discovery(manager, llm)
         if report.skipped:
             logger.info("Pattern discovery: skipped (%s)", report.skip_reason)
         elif report.has_patterns:
@@ -109,11 +144,12 @@ async def run_pattern_discovery_once() -> dict[str, object]:
 
         from app.lifecycle.memory_guardian_ops import create_guardian_memory_manager
 
-        manager = await create_guardian_memory_manager()
-        if manager.consolidation_llm is None:
-            return {"triggered": True, "skipped": True, "reason": "no consolidation LLM configured"}
+        llm = await _build_platform_llm()
+        if llm is None:
+            return {"triggered": True, "skipped": True, "reason": "no platform default model configured"}
 
-        report = await run_pattern_discovery(manager, manager.consolidation_llm)
+        manager = await create_guardian_memory_manager()
+        report = await run_pattern_discovery(manager, llm)
         if report.skipped:
             return {"triggered": True, "skipped": True, "reason": report.skip_reason}
 

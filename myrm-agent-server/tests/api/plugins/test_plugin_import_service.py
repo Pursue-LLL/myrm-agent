@@ -1222,6 +1222,7 @@ class TestListAndUninstallPlugins:
                                     "plugin_name": "demo-plugin",
                                     "plugin_root": "/x",
                                 },
+                                "enabled": True,
                             },
                             {"name": "user-mcp", "command": "/keep"},
                         ]
@@ -1243,6 +1244,10 @@ class TestListAndUninstallPlugins:
             {
                 "name": "demo-plugin",
                 "servers": ["pdf-server", "remote"],
+                "server_meta": [
+                    {"name": "pdf-server", "enabled": False},
+                    {"name": "remote", "enabled": True},
+                ],
                 "has_bundled_files": True,
             }
         ]

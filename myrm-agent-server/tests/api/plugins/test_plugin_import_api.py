@@ -497,8 +497,21 @@ def test_list_installed_plugins(client: TestClient) -> None:
             "app.services.plugins.import_service.list_installed_plugins",
             new=AsyncMock(
                 return_value=[
-                    {"name": "demo-plugin", "servers": ["pdf-server"], "has_bundled_files": True},
-                    {"name": "other-plugin", "servers": ["srv-a", "srv-b"], "has_bundled_files": False},
+                    {
+                        "name": "demo-plugin",
+                        "servers": ["pdf-server"],
+                        "server_meta": [{"name": "pdf-server", "enabled": False}],
+                        "has_bundled_files": True,
+                    },
+                    {
+                        "name": "other-plugin",
+                        "servers": ["srv-a", "srv-b"],
+                        "server_meta": [
+                            {"name": "srv-a", "enabled": True},
+                            {"name": "srv-b", "enabled": False},
+                        ],
+                        "has_bundled_files": False,
+                    },
                 ]
             ),
         ),
@@ -508,8 +521,21 @@ def test_list_installed_plugins(client: TestClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body == [
-        {"name": "demo-plugin", "servers": ["pdf-server"], "has_bundled_files": True},
-        {"name": "other-plugin", "servers": ["srv-a", "srv-b"], "has_bundled_files": False},
+        {
+            "name": "demo-plugin",
+            "servers": ["pdf-server"],
+            "server_meta": [{"name": "pdf-server", "enabled": False}],
+            "has_bundled_files": True,
+        },
+        {
+            "name": "other-plugin",
+            "servers": ["srv-a", "srv-b"],
+            "server_meta": [
+                {"name": "srv-a", "enabled": True},
+                {"name": "srv-b", "enabled": False},
+            ],
+            "has_bundled_files": False,
+        },
     ]
 
 

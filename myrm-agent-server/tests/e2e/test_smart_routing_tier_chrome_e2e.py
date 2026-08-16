@@ -103,7 +103,9 @@ _HOVER_TOKEN_BTN_JS = """(() => {
 })()"""
 
 
-def _configure_smart_routing_providers(api_url: str) -> dict[str, object]:
+def _configure_smart_routing_providers(
+    api_url: str, *, verify: bool = False
+) -> dict[str, object]:
     secrets = load_test_secrets()
     basic_model = secrets.basic_model
     lite_model = secrets.lite_model
@@ -165,7 +167,27 @@ def _configure_smart_routing_providers(api_url: str) -> dict[str, object]:
         "customModelInfo": current.get("customModelInfo") or {},
     }
     put_config_value("providers", merged, api_url=api_url)
+    if verify:
+        _assert_routing_seed_effective(api_url, lite_provider_id, lite_model_id)
     return merged
+
+
+def _assert_routing_seed_effective(
+    api_url: str, lite_provider_id: str, lite_model_id: str
+) -> None:
+    recheck = fetch_config_value("providers", api_url=api_url)
+    dmc = recheck.get("defaultModelConfig")
+    assert isinstance(dmc, dict), recheck
+    routing_cfg = dmc.get("routingConfig")
+    assert isinstance(routing_cfg, dict) and routing_cfg.get("enabled") is True, recheck
+    light_primary = (
+        routing_cfg.get("lightModel", {}).get("primary") if isinstance(routing_cfg, dict) else None
+    )
+    assert isinstance(light_primary, dict), recheck
+    assert (
+        light_primary.get("providerId") == lite_provider_id
+        and light_primary.get("model") == lite_model_id
+    ), recheck
 
 
 def _base_url() -> str:
@@ -221,7 +243,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
             pytest.fail("Provider readiness failed after smart-routing seed")
 
         async def re_seed() -> None:
-            _configure_smart_routing_providers(api_url)
+            _configure_smart_routing_providers(api_url, verify=True)
             if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=30.0):
                 pytest.fail("Provider readiness failed on re-seed (parallel overwrite)")
 
@@ -248,7 +270,6 @@ async def test_smart_routing_tier_surfaced_in_webui(
             send_result = await chat.send_message(
                 SIMPLE_PROMPT,
                 SIMPLE_PROMPT,
-                skip_model_sync=True,
             )
             chat_id = str(
                 send_result.get("started", {}).get("chatId")
@@ -268,7 +289,6 @@ async def test_smart_routing_tier_surfaced_in_webui(
             await chat.send_message(
                 DEBUG_PROMPT,
                 DEBUG_PROMPT,
-                skip_model_sync=True,
             )
             standard_state = await _wait_tier(chat, "standard")
             assert standard_state.get("routingTier") == "standard", standard_state

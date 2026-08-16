@@ -6148,6 +6148,11 @@
         "badges": {
           "bundled": "Bundled files"
         },
+        "serverState": {
+          "enabled": "Active",
+          "disabled": "Disabled",
+          "disabledHint": "Enable this MCP server in MCP Settings before using it"
+        },
         "actions": {
           "refresh": "Refresh",
           "close": "Close",

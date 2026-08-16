@@ -35,7 +35,9 @@ def test_live_execution_cache_reuses_unit_for_same_chat(
 
     asyncio.run(close_execution_cache_for_chat_all_agents(chat_id))
 
-    caplog.set_level(logging.DEBUG, logger="app.services.agent.execution_cache.registry")
+    caplog.set_level(
+        logging.DEBUG, logger="app.services.agent.execution_cache.registry"
+    )
 
     for _turn in range(2):
         payload: dict[str, object] = {

@@ -431,16 +431,16 @@ async def list_installed_plugins() -> list[dict[str, object]]:
     """List plugins with at least one imported MCP server entry.
 
     Groups global mcpServers entries by their provenance ``plugin_name`` marker
-    (see ``_server_to_config_dict``) and reports the bound server names per
-    plugin. Entries without a plugin marker (user-configured servers) are not
-    listed here.
+    (see ``_server_to_config_dict``) and reports the bound server names, plus
+    each server's current ``enabled`` state, per plugin. Entries without a
+    plugin marker (user-configured servers) are not listed here.
     """
     from app.services.config.service import config_service
 
     from ._mcp_persist import _load_persisted_mcp_configs
 
     entries = await _load_persisted_mcp_configs(config_service)
-    by_plugin: dict[str, list[str]] = {}
+    by_plugin: dict[str, list[dict[str, object]]] = {}
     for cfg in entries:
         name = str(cfg.get("name", "")).strip()
         extra = cfg.get("extra_params")
@@ -451,15 +451,24 @@ async def list_installed_plugins() -> list[dict[str, object]]:
                 plugin_name = raw
         if not plugin_name or not name:
             continue
-        by_plugin.setdefault(plugin_name, []).append(name)
+        by_plugin.setdefault(plugin_name, []).append(
+            {
+                "name": name,
+                "enabled": False if cfg.get("enabled") is not True else True,
+            }
+        )
 
     return [
         {
             "name": plugin_name,
-            "servers": sorted(server_names),
+            "servers": sorted(str(item["name"]) for item in server_infos),
+            "server_meta": sorted(
+                server_infos,
+                key=lambda item: str(item["name"]),
+            ),
             "has_bundled_files": _plugin_dir_exists(plugin_name),
         }
-        for plugin_name, server_names in sorted(by_plugin.items())
+        for plugin_name, server_infos in sorted(by_plugin.items())
     ]
 
 

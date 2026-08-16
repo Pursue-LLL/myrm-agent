@@ -5998,6 +5998,11 @@
         "badges": {
           "bundled": "Gebündelte Dateien"
         },
+        "serverState": {
+          "enabled": "Aktiv",
+          "disabled": "Deaktiviert",
+          "disabledHint": "Aktivieren Sie diesen MCP-Server vor der Verwendung in den MCP-Einstellungen"
+        },
         "actions": {
           "refresh": "Aktualisieren",
           "close": "Schließen",

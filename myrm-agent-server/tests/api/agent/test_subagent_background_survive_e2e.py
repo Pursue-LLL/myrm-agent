@@ -22,8 +22,8 @@ from tests.api.agent.utils import build_approval_resume_value, get_model_selecti
 # 与 chrome_e2e 的 _DELEGATE_QUERY 保持一致的强提示模板：确保 LLM 走原生
 # Function Calling 调用 delegate_task_tool，并显式传 timeout 覆盖
 # bash_code_execute_tool 默认 60s 上限。
-def _delegate_query(sleep_sec: int, timeout_sec: int = 180) -> str:
-    return (
+def _delegate_query(sleep_sec: int, timeout_sec: int = 180, *, await_child: bool = True) -> str:
+    base = (
         "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，wait 设为 false。"
         "子智能体的任务：调用 bash_code_execute_tool 执行命令 "
         f"`sleep {sleep_sec}`，关键要求：run_in_background 必须为 false（前台运行），"
@@ -33,6 +33,12 @@ def _delegate_query(sleep_sec: int, timeout_sec: int = 180) -> str:
         "注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，"
         "绝对不要在文本中输出 XML 格式的工具调用！"
     )
+    if not await_child:
+        base += (
+            "另外：你只需创建该子智能体并立即结束当前任务即可，绝不要轮询、等待子智能体完成，"
+            "也不要调用 subagent_control_tool。子智能体会在后台继续运行，其结果稍后可见。"
+        )
+    return base
 
 
 _BASH_WORKER_PRESET = {
@@ -110,7 +116,7 @@ def test_background_subagent_survives_parent_stream_end(client: TestClient) -> N
 
     chat_id = str(uuid.uuid4())
     request_payload: dict[str, object] = {
-        "query": _delegate_query(120),
+        "query": _delegate_query(120, await_child=False),
         "chatId": chat_id,
         "messageId": f"bg-survive-{uuid.uuid4().hex[:12]}",
         "modelSelection": get_model_selection(),
@@ -129,9 +135,10 @@ def test_background_subagent_survives_parent_stream_end(client: TestClient) -> N
             f"Agent stream still pending HITL after auto-approve: {collected[-5:]!r}"
         )
 
-    # 父流结束后立即查询子代理列表：bash_worker 必须仍 running。
+    # 父流结束后立即查询子代理列表：bash_worker 必须仍存活（running 或 completed）。
+    # wait=false 语义是「不被 cleanup_run 取消」——completed 也是存活证据；绝对不允许 failed/cancelled。
     deadline = time.monotonic() + 30.0
-    running_rows: list[dict[str, object]] = []
+    alive_rows: list[dict[str, object]] = []
     last_payload: object = None
     while time.monotonic() < deadline:
         list_resp = client.get(f"/api/v1/chats/{chat_id}/subagents")
@@ -139,22 +146,22 @@ def test_background_subagent_survives_parent_stream_end(client: TestClient) -> N
         last_payload = payload
         data = payload.get("data") if isinstance(payload, dict) else None
         if isinstance(data, list):
-            running_rows = [
+            alive_rows = [
                 row
                 for row in data
-                if isinstance(row, dict) and row.get("status") == "running"
+                if isinstance(row, dict) and row.get("status") in ("running", "completed")
             ]
-            if running_rows:
+            if alive_rows:
                 break
         time.sleep(2.0)
 
-    assert running_rows, (
+    assert alive_rows, (
         "后台子代理在父 agent-stream 结束后被取消（cleanup_run 误 cancel wait=false 子代理）。"
         f"subagents={last_payload!r}"
     )
 
     # 清理：取消所有后台子代理，避免残留进程。
-    for row in running_rows:
+    for row in alive_rows:
         task_id = row.get("task_id")
         if isinstance(task_id, str) and task_id:
             client.post(f"/api/v1/chats/{chat_id}/subagents/{task_id}/cancel")

@@ -245,11 +245,19 @@ async def confirm_plugin_import(
     return PluginImportConfirmResponse(**result)
 
 
+class InstalledServerInfo(BaseModel):
+    """One imported MCP server belonging to a plugin."""
+
+    name: str
+    enabled: bool = False
+
+
 class InstalledPluginResponse(BaseModel):
     """One installed plugin (provenance-grouped from global mcpServers entries)."""
 
     name: str
     servers: list[str] = Field(default_factory=list)
+    server_meta: list[InstalledServerInfo] = Field(default_factory=list)
     has_bundled_files: bool = False
 
 

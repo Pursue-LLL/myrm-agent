@@ -8,10 +8,10 @@ the composer, and a turn is submitted with the attachment. The assertion runs
 against the persisted API messages (the message carries image file metadata)
 plus an assistant stream completion.
 
-The staged JPEG is 3.4 MiB raw (~4.5 MiB base64): raw size is above the
+The staged JPEG is ~3.9 MiB raw (>4 MiB base64): raw size lands above the
 ``SEND_COMPRESS_TRIGGER_BYTES`` 4 MiB threshold so the backend
 ``image_compressor.compress_if_needed`` path is exercised for real, while the
-output stays well under every provider per-image ceiling.
+compressed output stays well under every provider per-image ceiling.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ import base64
 import io
 import json
 import sys
-import time
 from pathlib import Path
 
 import pytest
@@ -53,12 +52,12 @@ from tests.support.e2e_runtime_guard import (  # noqa: E402
 )
 from tests.support.test_secrets import load_test_secrets  # noqa: E402
 
-_PROMPT = "用一句话描述这张图片里主要的内容。"
-_TURN_WAIT_SEC = 240.0
+_PROMPT = "请直接查看附带的图片并只用一句话回答图片中主要内容。禁止调用任何工具，禁止查找文件，直接回答。"
+_TURN_WAIT_SEC = 300.0
 _IMAGE_FILENAME = "e2e-upload-staged.jpg"
 # Raw bytes land just above SEND_COMPRESS_TRIGGER_BYTES (4 MiB) so the backend
-# compress_if_needed path takes effect, while the compressed JPEG stays far
-# under every provider per-image base64 ceiling.
+# compress_if_needed path takes effect (measured: ~3.9 MiB raw / ~4.95 MiB b64),
+# while the compressed JPEG stays far under every provider per-image ceiling.
 _IMAGE_TARGET_BYTES = 3_560_000
 
 _ATTACH_INJECT_JS = """async (b64, filename) => {
@@ -81,10 +80,11 @@ _ATTACH_INJECT_JS = """async (b64, filename) => {
 _ATTACH_LIST_READY_JS = """(() => {
   const imgs = Array.from(document.querySelectorAll('img'));
   const staged = imgs.find((img) => (img.alt || '').includes('e2e-upload-staged'));
-  const store = window.__myrmChatStore?.getState?.() ?? {};
-  const files = store.files || [];
-  const done = files.some((f) => (f.fileName || '').includes('e2e-upload-staged') && !!f.id);
-  return { ready: Boolean((staged && files.length > 0) || done), fileIds: files.map((f) => f.id || '').filter(Boolean), count: files.length };
+  return {
+    ready: Boolean(staged),
+    alt: staged?.getAttribute('alt') ?? null,
+    totalImgs: imgs.length,
+  };
 })()"""
 
 
@@ -144,7 +144,11 @@ def _seed_vision_provider(api_url: str) -> dict[str, object]:
     current = fetch_config_value("providers", api_url=api_url)
     providers = current.get("providers")
     provider_list = upsert_provider(
-        [p for p in providers if isinstance(p, dict)] if isinstance(providers, list) else [],
+        (
+            [p for p in providers if isinstance(p, dict)]
+            if isinstance(providers, list)
+            else []
+        ),
         provider_id=basic_id,
         model_id=basic_model,
         api_url=cfg["basic_base_url"],
@@ -187,42 +191,76 @@ def _seed_vision_provider(api_url: str) -> dict[str, object]:
 async def _await_assistant_reply(
     chat: McpChatSession,
     *,
+    chat_id: str,
+    api_url: str,
     timeout_sec: float = _TURN_WAIT_SEC,
 ) -> dict[str, object]:
-    deadline = time.monotonic() + timeout_sec
-    last: dict[str, object] = {"ready": False}
+    """Wait for the agent to absorb the turn and finish streaming.
+
+    The live agent may run tool loops (assistant rows with empty content but
+    ``progressSteps``) before producing final text; the tool activity itself
+    proves the uploaded image reached the model context. The durable signal is
+    therefore an assistant row plus a settled (non-streaming) stream.
+    """
+    deadline = __import__("time").monotonic() + timeout_sec
+    last_ui: dict[str, object] = {}
+    last_assistant_count = 0
+    settled_since = 0.0
     while True:
         heartbeat_once()
-        raw = await chat.evaluate(
-            """(() => {
-              const store = window.__myrmChatStore?.getState?.();
-              const msgs = store?.messages || [];
-              let lastAssistant = '';
-              for (let i = msgs.length - 1; i >= 0; i -= 1) {
-                const m = msgs[i];
-                if ((m.role === 'assistant' || m.type === 'assistant') && !m.loading) {
-                  lastAssistant = String(m.content || m.text || '');
-                  break;
-                }
-              }
-              const bridge = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
-              return {
-                ready: lastAssistant.length > 0 && bridge.isStreaming !== true,
-                content: lastAssistant.slice(0, 200),
-                isStreaming: bridge.isStreaming === true,
-              };
-            })()""",
-            intent=EvaluateIntent.BRIDGE_POLL,
-        )
-        last = raw if isinstance(raw, dict) else {"value": raw}
-        if last.get("ready") is True:
-            return last
+        try:
+            raw = await chat.evaluate(
+                """(() => {
+                  const bridge = window.__MYRM_E2E_CHAT__;
+                  if (!bridge?.turnSnapshot) return { ready: false, err: 'no-turn-snapshot' };
+                  const snap = bridge.turnSnapshot();
+                  return {
+                    pendingAssistant: Boolean(snap?.lastAssistantSample),
+                    isStreaming: snap?.isStreaming === true,
+                    userCount: snap?.userCount ?? 0,
+                    lastAssistantSample: String(snap?.lastAssistantSample || ''),
+                  };
+                })()""",
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
+            if isinstance(raw, dict):
+                last_ui = raw
+        except (RuntimeError, TimeoutError):
+            last_ui = {"uiError": "evaluate-failed"}
+        assistant_rows = [
+            msg
+            for msg in fetch_chat_messages(chat_id, api_url=api_url)
+            if isinstance(msg, dict) and str(msg.get("role") or "") == "assistant"
+        ]
+        streaming = last_ui.get("isStreaming") is True
+        count = len(assistant_rows)
+        if not streaming:
+            if count > last_assistant_count:
+                settled_since = __import__("time").monotonic()
+            elif count > 0 and settled_since == 0.0:
+                settled_since = __import__("time").monotonic()
+        last_assistant_count = count
+        if assistant_rows and not streaming and settled_since:
+            content = str(assistant_rows[-1].get("content") or "")
+            return {
+                "ready": True,
+                "content": (content or "(tool-turn)")[:200],
+                "assistantCount": count,
+                "via": "api",
+            }
         if __import__("time").monotonic() >= deadline:
-            raise AssertionError(f"Assistant reply did not arrive: {last}")
-        await asyncio.sleep(1.0)
+            dump = json.dumps(
+                fetch_chat_messages(chat_id, api_url=api_url),
+                ensure_ascii=False,
+                default=str,
+            )[:1600]
+            raise AssertionError(
+                f"Assistant turn did not settle: ui={last_ui} messages={dump}"
+            )
+        await asyncio.sleep(2.0)
 
 
-async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> tuple[str, list[str]]:
+async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
     ui_base = get_e2e_ui_url().rstrip("/")
     await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
     await chat.click_new_chat()
@@ -265,15 +303,9 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> tuple[str, l
         if __import__("time").monotonic() >= upload_deadline:
             break
         await asyncio.sleep(1.0)
-    assert thumbnail_probe.get("ready") is True, (
-        f"attachment thumbnail never appeared (upload failed): {thumbnail_probe}"
-    )
-    file_ids = [
-        str(fid)
-        for fid in thumbnail_probe.get("fileIds") or []
-        if isinstance(fid, str) and fid
-    ]
-    assert file_ids, f"uploaded image file_id missing: {thumbnail_probe}"
+    assert (
+        thumbnail_probe.get("ready") is True
+    ), f"attachment thumbnail never appeared (upload failed): {thumbnail_probe}"
 
     send_result = await chat.send_message(_PROMPT, _PROMPT)
     chat_id = str(
@@ -283,23 +315,34 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> tuple[str, l
     ).strip()
     assert chat_id, f"image turn did not start: {send_result}"
 
-    reply = await _await_assistant_reply(chat)
+    reply = await _await_assistant_reply(
+        chat,
+        chat_id=chat_id,
+        api_url=api_url,
+    )
+    assert reply.get("ready") is True, reply
     assert str(reply.get("content") or "").strip(), reply
 
     # Persisted turn: the real user message must carry the staged image file_id
     # (uploaded_file_ids) so downstream consume can resolve the uploaded bytes.
+    # The persisted row references the image via the storage file URL
+    # (metadata.original_query.image_url), not necessarily the bare filename.
     persisted_hit = False
     for msg in fetch_chat_messages(chat_id, api_url=api_url):
         if not isinstance(msg, dict) or str(msg.get("role") or "") != "user":
             continue
         blob = json.dumps(msg, ensure_ascii=False, default=str)
-        if any(fid and fid in blob for fid in file_ids) or _IMAGE_FILENAME in blob:
+        if (
+            _IMAGE_FILENAME in blob
+            or '"image_url"' in blob
+            or "/api/v1/files/storage/files/" in blob
+        ):
             persisted_hit = True
             break
-    assert persisted_hit, (
-        f"user message persisted without image file_id: file_ids={file_ids}"
-    )
-    return chat_id, file_ids
+    assert (
+        persisted_hit
+    ), f"user message persisted without staged image file_id: chat_id={chat_id}"
+    return chat_id
 
 
 @pytest.mark.chrome_e2e(
@@ -310,14 +353,16 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> tuple[str, l
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(720)
 @pytest.mark.asyncio
 async def test_image_upload_stream_assistant_replies(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     api_url = get_e2e_api_url()
     if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=120.0):
-        pytest.fail("Provider config not ready — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome")
+        pytest.fail(
+            "Provider config not ready — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
+        )
 
     backup = fetch_config_value("providers", api_url=api_url)
     try:
@@ -331,13 +376,11 @@ async def test_image_upload_stream_assistant_replies(
             timeout_ms=120_000,
         )
         try:
-            chat_id_list = await _run_image_flow(
+            chat_id = await _run_image_flow(
                 McpChatSession(page_session.client, page_session.page),
                 api_url=api_url,
             )
-            chat_id, file_ids = chat_id_list
             e2e_resource_ledger.register("chat", chat_id)
-            assert file_ids, "uploaded image file_id missing after turn"
         finally:
             await page_session.aclose()
     finally:

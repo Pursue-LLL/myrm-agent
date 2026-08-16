@@ -127,11 +127,19 @@ Organize files by moving them into subdirectories based on their extension.
 
     logger.info("DERIVED evolution result: %s", new_skill is not None)
     if new_skill:
-        logger.info("Evolved content length: %d -> %d", len(original_content), len(new_skill.proposed_content))
-        assert new_skill.proposed_content != original_content, "Evolved content should differ from original"
+        logger.info(
+            "Evolved content length: %d -> %d",
+            len(original_content),
+            len(new_skill.proposed_content),
+        )
+        assert (
+            new_skill.proposed_content != original_content
+        ), "Evolved content should differ from original"
         assert new_skill.evolution_type == EvolutionType.DERIVED
     else:
-        logger.warning("LLM returned None for DERIVED evolution (may be model-specific)")
+        logger.warning(
+            "LLM returned None for DERIVED evolution (may be model-specific)"
+        )
 
     await evolution.close()
 
@@ -233,6 +241,8 @@ Parse CSV files. Currently has a bug where it doesn't handle quoted fields corre
         assert evolved.content != buggy_content
         logger.info("FIX evolution succeeded: v%d created", evolved.lineage.version)
     else:
-        logger.warning("FIX evolution may not have produced a new version (model-dependent)")
+        logger.warning(
+            "FIX evolution may not have produced a new version (model-dependent)"
+        )
 
     await evolution.close()

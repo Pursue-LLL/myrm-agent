@@ -6128,6 +6128,11 @@
         "badges": {
           "bundled": "含打包檔案"
         },
+        "serverState": {
+          "enabled": "已啟用",
+          "disabled": "未啟用",
+          "disabledHint": "請先在 MCP 設定中啟用此 MCP 伺服器再使用"
+        },
         "actions": {
           "refresh": "重新整理",
           "close": "關閉",

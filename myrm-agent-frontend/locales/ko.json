@@ -5998,6 +5998,11 @@
         "badges": {
           "bundled": "번들 파일 포함"
         },
+        "serverState": {
+          "enabled": "활성화됨",
+          "disabled": "비활성화됨",
+          "disabledHint": "사용 전에 MCP 설정에서 이 MCP 서버를 활성화하세요"
+        },
         "actions": {
           "refresh": "새로 고침",
           "close": "닫기",

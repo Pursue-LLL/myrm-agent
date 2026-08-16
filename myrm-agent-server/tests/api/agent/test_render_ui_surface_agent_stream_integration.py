@@ -65,7 +65,9 @@ def test_agent_stream_web_surface_mounts_render_ui_tools(client: TestClient) -> 
 
 @pytest.mark.e2e
 @_AGENT_STREAM_TEST_TIMEOUT
-def test_agent_stream_headless_surface_omits_render_ui_tools(client: TestClient) -> None:
+def test_agent_stream_headless_surface_omits_render_ui_tools(
+    client: TestClient,
+) -> None:
     events = _collect_agent_stream(client, _base_payload(client_surface="headless"))
     check_e2e_errors(events)
 

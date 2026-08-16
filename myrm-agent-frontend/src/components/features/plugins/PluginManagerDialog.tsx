@@ -40,7 +40,13 @@ interface PluginManagerDialogProps {
 interface InstalledPlugin {
   name: string;
   servers: string[];
+  server_meta?: InstalledServerInfo[];
   has_bundled_files: boolean;
+}
+
+interface InstalledServerInfo {
+  name: string;
+  enabled: boolean;
 }
 
 interface UninstallResult {
@@ -164,9 +170,49 @@ const PluginManagerDialog = memo(
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1 break-all">
-                            {plugin.servers.join(', ') || t('empty.servers')}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            {plugin.servers.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">{t('empty.servers')}</p>
+                            ) : (
+                              plugin.server_meta?.map((server) => (
+                                <span
+                                  key={server.name}
+                                  className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-1.5 py-0.5 text-xs"
+                                >
+                                  <span
+                                    aria-hidden
+                                    className={`inline-block w-1.5 h-1.5 rounded-full ${
+                                      server.enabled
+                                        ? 'bg-emerald-500'
+                                        : 'bg-amber-500'
+                                    }`}
+                                  />
+                                  <span className="text-muted-foreground break-all">
+                                    {server.name}
+                                  </span>
+                                  <span
+                                    className={
+                                      server.enabled
+                                        ? 'text-emerald-600'
+                                        : 'text-amber-600'
+                                    }
+                                  >
+                                    {server.enabled
+                                      ? t('serverState.enabled')
+                                      : t('serverState.disabled')}
+                                  </span>
+                                  {!server.enabled && (
+                                    <span
+                                      title={t('serverState.disabledHint')}
+                                      className="cursor-help text-amber-600/80"
+                                    >
+                                      <IconAlertTriangle className="w-3 h-3" />
+                                    </span>
+                                  )}
+                                </span>
+                              ))
+                            )}
+                          </div>
                         </div>
                         <Button
                           variant="ghost"

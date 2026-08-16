@@ -10,7 +10,9 @@ from fastapi.testclient import TestClient
 from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
 
-def _collect_agent_stream(client: TestClient, payload: dict[str, object]) -> list[dict[str, object]]:
+def _collect_agent_stream(
+    client: TestClient, payload: dict[str, object]
+) -> list[dict[str, object]]:
     collected: list[dict[str, object]] = []
     with client.stream("POST", "/api/v1/agents/agent-stream", json=payload) as response:
         assert response.status_code == 200, response.text
@@ -89,7 +91,9 @@ def test_agent_stream_incognito_excludes_memory_tools(client: TestClient) -> Non
 
 
 @pytest.mark.e2e
-def test_agent_stream_memory_off_ignores_conversation_search_flag(client: TestClient) -> None:
+def test_agent_stream_memory_off_ignores_conversation_search_flag(
+    client: TestClient,
+) -> None:
     """enable_memory=false: conversation_search must not bind even if flag is true."""
     payload = {
         "query": "Reply with the word OK only.",
@@ -109,7 +113,9 @@ def test_agent_stream_memory_off_ignores_conversation_search_flag(client: TestCl
 
 
 @pytest.mark.e2e
-def test_agent_stream_opt_in_enables_sessions_corpus_on_memory_search(client: TestClient) -> None:
+def test_agent_stream_opt_in_enables_sessions_corpus_on_memory_search(
+    client: TestClient,
+) -> None:
     """enable_conversation_search=true must expose sessions corpus via memory_search_tool."""
     payload = {
         "query": "Reply with the word OK only.",
@@ -124,13 +130,17 @@ def test_agent_stream_opt_in_enables_sessions_corpus_on_memory_search(client: Te
     events = _collect_agent_stream(client, payload)
     check_e2e_errors(events)
     blob = _stream_blob(events)
-    assert "memory_search_tool" in blob, "opt-in must bind memory_search_tool in Turn1 tools"
+    assert (
+        "memory_search_tool" in blob
+    ), "opt-in must bind memory_search_tool in Turn1 tools"
     assert "corpus=sessions" in blob or "sessions" in blob
     assert "conversation_search_tool" not in blob
 
 
 @pytest.mark.e2e
-def test_agent_stream_enable_memory_false_skips_memory_and_conversation_search(client: TestClient) -> None:
+def test_agent_stream_enable_memory_false_skips_memory_and_conversation_search(
+    client: TestClient,
+) -> None:
     """enable_memory=false: no memory tools and no conversation_search invocation."""
     payload = {
         "query": "Reply with the word OK only.",
@@ -153,7 +163,9 @@ def test_agent_stream_enable_memory_false_skips_memory_and_conversation_search(c
 
 
 @pytest.mark.e2e
-def test_agent_stream_simple_query_does_not_invoke_sessions_corpus(client: TestClient) -> None:
+def test_agent_stream_simple_query_does_not_invoke_sessions_corpus(
+    client: TestClient,
+) -> None:
     """Default opt-out: trivial query must not invoke sessions corpus search."""
     payload = {
         "query": "Reply with the word OK only.",
@@ -209,7 +221,9 @@ def test_agent_stream_multi_turn_continue_topic(client: TestClient) -> None:
 
 
 @pytest.mark.e2e
-def test_agent_stream_conversation_search_passphrase_recovery(client: TestClient) -> None:
+def test_agent_stream_conversation_search_passphrase_recovery(
+    client: TestClient,
+) -> None:
     """Multi-turn with opt-in: passphrase recoverable via chat_history or conversation_search."""
     import uuid
 
