@@ -86,7 +86,31 @@ export const loadMessages = async (
   actions: ChatActionsMethods,
   options?: LoadMessagesOptions,
 ): Promise<void> => {
+  if (typeof window !== 'undefined' && (window as any).__MYRM_LOADMSGS_CLOCK__ !== undefined) {
+    try {
+      const cutoff = (window as any).__MYRM_LOADMSGS_CLOCK__;
+      // Diagnostic probe (temp): log any loadMessages within the clock window —
+      // mid-stream or not — so a stale reload that drops store-injected state
+      // (routingTier) always leaves a caller stack.
+      const st = useChatStore.getState();
+      if (Date.now() < cutoff) {
+        console.warn('[MYRM_LOADMSGS] loadMessages fired!', {
+          chatId,
+          loading: st.loading,
+          currentSessionMessageId: st.currentSessionMessageId,
+          msgCount: (st.messages ?? []).length,
+        });
+        console.warn('[MYRM_LOADMSGS] stack:', new Error('loadMessages caller').stack);
+      }
+    } catch {
+      /* diagnostic only */
+    }
+  }
   const preserveInstantSessionConfig = options?.preserveInstantSessionConfig ?? false;
+  // Snapshot whether a live turn was streaming when this load started. If so,
+  // the DB snapshot may not have persisted the in-flight assistant message
+  // (SSE-injected routingTier etc.), so we merge instead of replacing below.
+  const activeStreamAtStart = useChatStore.getState().currentSessionMessageId ?? null;
   try {
     actions.setMessages((state) => {
       state.loading = true;
@@ -133,7 +157,35 @@ export const loadMessages = async (
 
     actions.setMessages((state) => {
       if (state.chatId === chatId) {
-        state.messages = messages;
+        if (activeStreamAtStart) {
+          // A live turn was streaming when this load started: the DB snapshot
+          // may still lack the in-flight assistant message. Keep any local
+          // assistant that is absent from the DB (or merge its store-injected
+          // fields over the DB row) so routingTier / modelTier are never lost
+          // by a stale refresh.
+          const dbById = new Map(messages.map((m) => [m.messageId, m]));
+          const merged = messages.map((dbMsg) => {
+            if (dbMsg.role === 'assistant') {
+              const local = state.messages.find((m) => m.messageId === dbMsg.messageId);
+              if (local) {
+                return { ...dbMsg, ...local };
+              }
+            }
+            return dbMsg;
+          });
+          for (const local of state.messages) {
+            if (
+              !dbById.has(local.messageId) &&
+              local.role === 'assistant' &&
+              (local.routingTier !== undefined || local.modelTier !== undefined)
+            ) {
+              merged.push(local);
+            }
+          }
+          state.messages = merged;
+        } else {
+          state.messages = messages;
+        }
         const isIncognito = chatData.chat.is_incognito || false;
         state.incognitoMode = isIncognito;
         if (!preserveInstantSessionConfig) {
@@ -396,7 +448,7 @@ export interface InitializeChatOptions {
  */
 export const initializeChat = (
   id: string | undefined,
-  state: { messages: Message[]; chatId?: string },
+  state: { messages: Message[]; chatId?: string; loading?: boolean; currentSessionMessageId?: string | null },
   actions: ChatActionsMethods,
   options?: InitializeChatOptions,
 ): void => {
@@ -436,6 +488,14 @@ export const initializeChat = (
     abortCurrentUpload();
 
     if (options?.forceReload && state.chatId === id) {
+      // A live turn (loading && currentSessionMessageId) is streaming
+      // store-injected state such as routingTier; forceReload would clear the
+      // store and rebuild from a DB snapshot that has not persisted the
+      // assistant message yet, silently dropping the tier. Refuse the reload
+      // while an active turn is in flight — the stream finalizes the store.
+      if (state.loading === true && state.currentSessionMessageId) {
+        return;
+      }
       actions.setMessages((draft) => {
         draft.messages = [];
         draft.isMessagesLoaded = false;

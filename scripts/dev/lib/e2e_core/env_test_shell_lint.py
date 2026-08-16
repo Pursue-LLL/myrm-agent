@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-_ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+_ASSIGNMENT_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
 
 
 def validate_env_test_shell_safe(path: Path) -> list[str]:
@@ -29,11 +29,28 @@ def validate_env_test_shell_safe(path: Path) -> list[str]:
             continue
         if line.startswith("export "):
             line = line.removeprefix("export ").lstrip()
-        if _ASSIGNMENT_RE.match(line):
+        match = _ASSIGNMENT_RE.match(line)
+        if not match:
+            errors.append(
+                f"{path.name}:{line_no}: not a comment or KEY=VALUE assignment: {raw!r}"
+            )
             continue
-        errors.append(
-            f"{path.name}:{line_no}: not a comment or KEY=VALUE assignment: {raw!r}"
+        value = match.group(2).strip()
+        if not value:
+            continue
+        # A fully-quoted value ('x' or "x") sources safely. Anything else that
+        # contains whitespace splits into words on `source` — e.g. a model id
+        # like `OpenCode Go Pool` becomes `BASIC_MODEL=openai-like/OpenCode`
+        # followed by executing `Go Pool` as a command (BUG-DG-2026-08-16-001).
+        fully_quoted = (value.startswith('"') and value.endswith('"')) or (
+            value.startswith("'") and value.endswith("'")
         )
+        if not fully_quoted and any(ch.isspace() for ch in value):
+            errors.append(
+                f"{path.name}:{line_no}: value contains unquoted whitespace — "
+                f"`source` would split it into words and execute the tail as a "
+                f"command; quote the value: {raw!r}"
+            )
     return errors
 
 

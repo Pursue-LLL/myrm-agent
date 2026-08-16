@@ -868,8 +868,13 @@ export default function E2EChatBridge() {
         prepareAutomationSend();
         flushSync(() => {
           const state = useChatStore.getState();
+          // `state.loading` must NOT force a reload: a live turn is streaming
+          // store-injected state (routingTier / modelTier from SSE), and a
+          // forceReload would clear the store and rebuild it from a DB snapshot
+          // that has not yet persisted the assistant message — losing the tier.
+          // attachToChat below polls until `loading` clears instead.
           const needsForcedReload =
-            state.chatId === id && (state.notFound || state.loadError || !state.isMessagesLoaded || state.loading);
+            state.chatId === id && (state.notFound || state.loadError || !state.isMessagesLoaded);
           if (needsForcedReload) {
             useChatStore.setState({
               notFound: false,
@@ -1145,6 +1150,9 @@ export default function E2EChatBridge() {
         return {
           chatId: state.chatId?.trim() || null,
           userCount: users.length,
+          lastAssistantRoutingTier: lastAssistant?.routingTier ?? null,
+          lastAssistantModelTier: lastAssistant?.modelTier ?? null,
+          lastAssistantKeys: lastAssistant ? Object.keys(lastAssistant) : [],
           isStreaming: Boolean(state.loading || state.abortController),
           hasOk: /\bOK\b/i.test(assistantText),
           hasDone: /\bDONE\b/i.test(assistantText),

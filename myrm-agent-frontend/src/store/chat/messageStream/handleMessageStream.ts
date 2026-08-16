@@ -14,11 +14,12 @@
 
 import type { Source, File, AgentStreamEvent } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState } from './types';
-import type { StreamCtx } from './streamContext';
+import type { StreamCtx, TurnMeta } from './streamContext';
 import { done } from './streamContext';
 import { STREAM_EVENT_HANDLERS } from './handlers';
 
 export type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from './types';
+export type { TurnMeta } from './streamContext';
 
 export const handleMessageStream = async (
   data: AgentStreamEvent,
@@ -29,9 +30,11 @@ export const handleMessageStream = async (
   state: StreamHandlerState,
   actions: StreamHandlerActions,
   _files: File[] = [],
+  meta?: TurnMeta,
 ): Promise<{
   added: boolean;
   recievedMessage: string;
+  meta?: TurnMeta;
 }> => {
   if (data && typeof data === 'object' && 'type' in data && typeof data.type === 'string') {
     const recorder = (window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string, messageId?: string | null, data?: unknown) => void }).__MYRM_E2E_RECORD_SSE__;
@@ -60,6 +63,7 @@ export const handleMessageStream = async (
     state,
     actions,
     files: _files,
+    meta,
   };
 
   for (const handler of STREAM_EVENT_HANDLERS) {

@@ -85,7 +85,12 @@ _ACTIVATE_DEDUP_TAB_JS = """(() => {
     return { ok: false, reason: 'missing_tab' };
   }
   if (tab.getAttribute('data-state') !== 'active') {
-    tab.click();
+    // Radix Tabs triggers need the full pointer sequence under real-browser
+    // hydration (see test_pattern_digest_panel_chrome_e2e.py); a bare .click()
+    // is swallowed before React attaches listeners.
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+      tab.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+    }
   }
   return {
     ok: true,

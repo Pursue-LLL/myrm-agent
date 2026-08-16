@@ -20,7 +20,7 @@
 | `CronAdvancedEditors.tsx` | 组件 | 高级选项折叠区（timeout/retry/concurrency） | ✅ |
 | `CronDeliveryEditors.tsx` | 组件 | 投递渠道（email/webhook/push）配置编辑器 | ✅ |
 | `CronJobAuditPanel.tsx` | 组件 | Hermes 六字段 Cron 创建审计 + Confirm 门禁（聊天/创建弹窗/详情页复用） | ✅ |
-| `CronJobCard.tsx` | 核心 | 单条 Cron 任务卡片（状态/上次运行/下次运行/快捷操作）；active 周期任务若 next_run 超期 10min 显示 overdue 诚实警示条（本地=本机休眠/未运行 Myrm 原因；云端=调度顺延）；`last_run_at` 以相对时间旁注展示（error/skipped 状态着色，Tooltip 显示完整时间与状态），曝光"看似活跃实则静默失败" | ✅ |
+| `CronJobCard.tsx` | 核心 | 单条 Cron 任务卡片（状态/上次运行/下次运行/快捷操作）；active 周期任务若 next_run 超期 10min 显示 overdue 诚实警示条（本地=本机休眠/未运行 Myrm 原因；云端=调度顺延）；`last_run_at` 以相对时间旁注展示（error/skipped 状态着色，Tooltip 显示完整时间与状态），曝光"看似活跃实则静默失败"；卡片可键盘访问（Enter/Space 打开，role=button + tabIndex） | ✅ |
 | `CronJobCreateDialog.tsx` | 组件 | 创建弹窗（Template/Custom；Agent 模式可选 **trust_latch** DW 模板 + ArgsDialog；创建成功后展示审计面板）；Custom 流周期调度时展示 `CronDeployModeNotice` 部署感知提示条 | ✅ |
 | `CronDeployModeNotice.tsx` | 组件 | 部署感知提示条（复用 `hooks/shared/useDeployMode`，零网络请求）：本地/tauri=本机执行前提 checklist + 休眠抑制说明；sandbox=7×24 云端执行卖点；mode 加载中不渲染 | ✅ |
 | `CronWorkflowTemplateBinding.tsx` | 组件 | Cron 卡片/详情展示绑定的 DW 模板名、args 与 Library 链接；invalid 绑定 amber Badge | ✅ |
@@ -38,7 +38,7 @@
 | `EditorToggle.tsx` | 辅助 | Simple/Advanced 编辑器模式切换 | ✅ |
 | `GlobalRunHistory.tsx` | 组件 | 全局 Cron 运行历史聚合视图 | ✅ |
 | `WebhookGuide.tsx` | 组件 | Webhook 触发接入说明与示例 | ✅ |
-| `cron-utils.ts` | 辅助 | Cron 表达式解析、格式化与校验纯函数；`isCronOverdue`（active 周期任务 `now - next_run_at > 10min` 判定错过，供卡片逾期警示）；`formatRelativeTime`（ISO → 相对时间 `3h ago`，超 30 天回退短日期，供 last-run 旁注） | ✅ |
+| `cron-utils.ts` | 辅助 | Cron 表达式解析、格式化与校验纯函数；`isCronOverdue`（active 周期任务错过 `max(misfire_grace_seconds, 10min)` 判定，与后端 `is_past_misfire_grace` 口径对齐，供卡片逾期警示）；`formatRelativeTime`（ISO → 本地化相对时间 `3h ago`，复用 `common.relativeDate` keys，超 7 天回退短日期，供 last-run 旁注）；`formatTime(iso, locale)`（locale-aware 完整时间，SSR/CSR 一致） | ✅ |
 
 ## 依赖
 

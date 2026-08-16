@@ -77,6 +77,8 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
             createdAt: new Date(),
             completionStatus: data.completion_status === 'budget_blocked' ? 'budget_blocked' : undefined,
             memoryBriefStatus: data.memory_brief_status,
+            routingTier: ctx.meta?.routingTier,
+            modelTier: ctx.meta?.modelTier,
           });
           messageIndex = state.messages.length - 1;
         }

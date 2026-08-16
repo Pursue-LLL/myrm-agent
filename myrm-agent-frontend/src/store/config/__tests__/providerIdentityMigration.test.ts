@@ -119,3 +119,32 @@ describe('migrateProvidersBundle legacy providerType', () => {
     expect(migrated.providers[0]?.routingProfile).toBe('openai');
   });
 });
+
+describe('migrateRouting partial/incomplete routingConfig', () => {
+  it('does not throw when routingConfig lacks lightModel/reasoningModel slots', () => {
+    const migrated = migrateDefaultModelConfig({
+      baseModel: { primary: null, fallback: null },
+      liteModel: { primary: null, fallback: null },
+      fastModeModel: null,
+      routingConfig: { enabled: true } as never,
+    });
+
+    expect(migrated.routingConfig?.enabled).toBe(true);
+    expect(migrated.routingConfig?.lightModel).toBeUndefined();
+  });
+
+  it('does not throw when routingConfig slot is null', () => {
+    const migrated = migrateDefaultModelConfig({
+      baseModel: { primary: null, fallback: null },
+      liteModel: { primary: null, fallback: null },
+      fastModeModel: null,
+      routingConfig: {
+        enabled: true,
+        lightModel: null,
+        reasoningModel: null,
+      } as never,
+    });
+
+    expect(migrated.routingConfig?.lightModel).toBeNull();
+  });
+});

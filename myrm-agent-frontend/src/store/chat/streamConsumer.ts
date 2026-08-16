@@ -15,6 +15,7 @@ import { consumeMigrationBoundProjectId, syncChatSidebarProjectId } from '@/lib/
 import { releaseTurnInspectorControls } from '@/lib/inspector/releaseTurnInspectorControls';
 import { parseSseEnvelope } from './schema';
 import { handleMessageStream, StreamHandlerState, StreamHandlerActions } from './messageStreamHandler';
+import type { TurnMeta } from './messageStream/handleMessageStream';
 import { ChatActionsState, ChatActionsMethods, createMessageRequest } from './messageRequest';
 import {
   type AgentStreamEvent,
@@ -467,6 +468,9 @@ export async function consumeStream(
     scheduler,
   };
 
+  let turnMeta: TurnMeta = {};
+  let meta: TurnMeta | undefined;
+
   const streamActions: StreamHandlerActions = {
     setMessages: (updater) => {
       actions.setMessages((state) => updater(state));
@@ -564,7 +568,7 @@ export async function consumeStream(
               } catch (eventError) {
                 console.warn('onBusinessEvent callback failed:', eventError);
               }
-              ({ added, recievedMessage } = await handleMessageStream(
+              ({ added, recievedMessage, meta } = await handleMessageStream(
                 event,
                 input,
                 undefined,
@@ -573,7 +577,9 @@ export async function consumeStream(
                 streamState,
                 streamActions,
                 state.files,
+                turnMeta,
               ));
+              if (meta) {turnMeta = meta;}
               if (options?.untilApprovalQueued && useToolApprovalStore.getState().queue.length > 0) {
                 stoppedEarly = true;
                 break;

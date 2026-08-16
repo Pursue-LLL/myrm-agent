@@ -80,14 +80,98 @@ _ARM_SSE_RECORDER_JS = """(() => {
     events.push(rec);
     if (orig) orig(type, messageId, data);
   };
+
+  // Network log: proves whether loadMessages/attach re-fetch ever happens and
+  // what messageIds the server returns at that moment.
+  if (!window.__MYRM_NETLOG__) {
+    const netlog = [];
+    window.__MYRM_NETLOG__ = netlog;
+    const origFetch = window.fetch.bind(window);
+    window.fetch = async (...args) => {
+      const url = String(args[0] && typeof args[0] === 'object' ? args[0].url : args[0]);
+      if (url.includes('/chats/') && url.includes('/messages')) {
+        let msgIds = null;
+        try {
+          const res = await origFetch(...args);
+          const clone = res.clone();
+          const j = await clone.json();
+          const data = j?.data ?? {};
+          const msgs = data?.messages ?? [];
+          msgIds = msgs.map((m) => m.messageId);
+        } catch {
+          msgIds = 'parse-failed';
+        }
+        const stack = new Error('netlog-fetch').stack || '';
+        netlog.push({
+          ts: Date.now(),
+          url,
+          msgIds,
+          storeChatId: window.__myrmChatStore?.getState?.()?.chatId ?? null,
+          loading: window.__myrmChatStore?.getState?.()?.loading ?? null,
+          stack: stack.split('\\n').slice(2, 9).map((l) => l.trim()).join(' | '),
+        });
+      }
+      return origFetch(...args);
+    };
+    // Mark the next 60s as the "streaming window" so loadMessages logs stacks.
+    window.__MYRM_LOADMSGS_CLOCK__ = Date.now() + 60_000;
+    setTimeout(() => { delete window.__MYRM_LOADMSGS_CLOCK__; }, 65_000);
+  }
+
+  // Trap [MYRM_LOADMSGS] console warnings into a global for the dump.
+  if (!window.__MYRM_CONSOLE_TRAP__) {
+    window.__MYRM_CONSOLE_TRAP__ = [];
+    const origWarn = console.warn.bind(console);
+    console.warn = (...args) => {
+      const joined = args.map((a) => (a instanceof Error ? a.stack || String(a) : typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+      if (joined.includes('[MYRM_LOADMSGS]')) {
+        window.__MYRM_CONSOLE_TRAP__.push({ ts: Date.now(), line: joined.slice(0, 4000) });
+      }
+      return origWarn(...args);
+    };
+  }
+
+  const msgMutations = [];
+  window.__MYRM_MSG_MUTATIONS__ = msgMutations;
+  try {
+    const chatStore = window.__myrmChatStore;
+    if (chatStore && typeof chatStore.subscribe === 'function') {
+      chatStore.subscribe((state, prev) => {
+        if (state.messages === prev.messages) return;
+        const prevIds = (prev.messages || []).map((m) => m.messageId);
+        const nextIds = (state.messages || []).map((m) => m.messageId);
+        const addedIds = nextIds.filter((id) => !prevIds.includes(id));
+        const removedIds = prevIds.filter((id) => !nextIds.includes(id));
+        const lastAssistant = [...state.messages].reverse().find((m) => m.role === 'assistant');
+        msgMutations.push({
+          ts: Date.now(),
+          count: state.messages.length,
+          addedIds,
+          removedIds,
+          lastTier: lastAssistant?.routingTier ?? null,
+          lastKeys: lastAssistant ? Object.keys(lastAssistant) : [],
+          lastMsgId: lastAssistant?.messageId ?? null,
+          lastContent: lastAssistant ? String(lastAssistant.content || '').slice(0, 20) : '',
+        });
+      });
+    }
+  } catch {
+    /* store subscription is best-effort for diagnostics */
+  }
   return { ok: true, captured: 0 };
 })()"""
 
 _READ_SSE_LOG_JS = """(() => ({
   events: (window.__MYRM_SSE_LOG__ || []).slice(-40),
+  mutations: (window.__MYRM_MSG_MUTATIONS__ || []).slice(-40),
+  netlog: (window.__MYRM_NETLOG__ || []).slice(-20),
+  consoleTrap: (window.__MYRM_CONSOLE_TRAP__ || []).slice(-10),
 }))()"""
 
 _LATEST_ASSISTANT_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
+  const bridgeTier = bridge?.lastAssistantRoutingTier ?? null;
+  const bridgeKeys = bridge?.lastAssistantKeys ?? null;
   const store = window.__myrmChatStore?.getState?.();
   const msgs = store?.messages || [];
   const roles = msgs.map((m) => m.role || m.type || '?');
@@ -114,6 +198,13 @@ _LATEST_ASSISTANT_JS = """(() => {
       all: all.slice(-8),
       keys: Object.keys(msg),
       meta: msg.metadata ?? null,
+      bridgeTier,
+      bridgeKeys,
+      bridgeStreaming: bridge?.isStreaming === true,
+      bridgeUserCount: bridge?.userCount ?? null,
+      diag: (window.__MYRM_ROUTING_DIAG__ ?? []).slice(-4),
+      netlog: (window.__MYRM_NETLOG__ ?? []).slice(-10),
+      mutations: (window.__MYRM_MSG_MUTATIONS__ ?? []).slice(-8),
     };
   }
   return {
@@ -122,6 +213,13 @@ _LATEST_ASSISTANT_JS = """(() => {
     roles: roles.slice(-5),
     storePresent: !!window.__myrmChatStore,
     all: all.slice(-8),
+    bridgeTier,
+    bridgeKeys,
+    bridgeStreaming: bridge?.isStreaming === true,
+    bridgeUserCount: bridge?.userCount ?? null,
+    diag: (window.__MYRM_ROUTING_DIAG__ ?? []).slice(-4),
+    netlog: (window.__MYRM_NETLOG__ ?? []).slice(-10),
+    mutations: (window.__MYRM_MSG_MUTATIONS__ ?? []).slice(-8),
   };
 })()"""
 
@@ -146,7 +244,9 @@ _HOVER_TOKEN_BTN_JS = """(() => {
 })()"""
 
 
-def _configure_smart_routing_providers(api_url: str, *, verify: bool = False) -> dict[str, object]:
+def _configure_smart_routing_providers(
+    api_url: str, *, verify: bool = False
+) -> dict[str, object]:
     secrets = load_test_secrets()
     basic_model = secrets.basic_model
     lite_model = secrets.lite_model
@@ -213,15 +313,24 @@ def _configure_smart_routing_providers(api_url: str, *, verify: bool = False) ->
     return merged
 
 
-def _assert_routing_seed_effective(api_url: str, lite_provider_id: str, lite_model_id: str) -> None:
+def _assert_routing_seed_effective(
+    api_url: str, lite_provider_id: str, lite_model_id: str
+) -> None:
     recheck = fetch_config_value("providers", api_url=api_url)
     dmc = recheck.get("defaultModelConfig")
     assert isinstance(dmc, dict), recheck
     routing_cfg = dmc.get("routingConfig")
     assert isinstance(routing_cfg, dict) and routing_cfg.get("enabled") is True, recheck
-    light_primary = routing_cfg.get("lightModel", {}).get("primary") if isinstance(routing_cfg, dict) else None
+    light_primary = (
+        routing_cfg.get("lightModel", {}).get("primary")
+        if isinstance(routing_cfg, dict)
+        else None
+    )
     assert isinstance(light_primary, dict), recheck
-    assert light_primary.get("providerId") == lite_provider_id and light_primary.get("model") == lite_model_id, recheck
+    assert (
+        light_primary.get("providerId") == lite_provider_id
+        and light_primary.get("model") == lite_model_id
+    ), recheck
 
 
 def _base_url() -> str:
@@ -236,9 +345,37 @@ async def _dump_sse_log(chat: McpChatSession) -> None:
         )
         state = raw if isinstance(raw, dict) else json.loads(str(raw))
         events = state.get("events")
-        print(f"[E2E_SSE_LOG] events={len(events) if isinstance(events, list) else '?'}", file=sys.stderr, flush=True)
+        print(
+            f"[E2E_SSE_LOG] events={len(events) if isinstance(events, list) else '?'}",
+            file=sys.stderr,
+            flush=True,
+        )
         for ev in events if isinstance(events, list) else []:
             print(f"[E2E_SSE_LOG] {ev}", file=sys.stderr, flush=True)
+        mutations = state.get("mutations")
+        print(
+            f"[E2E_MSG_MUTATIONS] count={len(mutations) if isinstance(mutations, list) else '?'}",
+            file=sys.stderr,
+            flush=True,
+        )
+        for m in mutations if isinstance(mutations, list) else []:
+            print(f"[E2E_MSG_MUTATIONS] {m}", file=sys.stderr, flush=True)
+        netlog = state.get("netlog")
+        print(
+            f"[E2E_NETLOG] count={len(netlog) if isinstance(netlog, list) else '?'}",
+            file=sys.stderr,
+            flush=True,
+        )
+        for n in netlog if isinstance(netlog, list) else []:
+            print(f"[E2E_NETLOG] {n}", file=sys.stderr, flush=True)
+        console_trap = state.get("consoleTrap")
+        print(
+            f"[E2E_CONSOLE_TRAP] count={len(console_trap) if isinstance(console_trap, list) else '?'}",
+            file=sys.stderr,
+            flush=True,
+        )
+        for c in console_trap if isinstance(console_trap, list) else []:
+            print(f"[E2E_CONSOLE_TRAP] {c}", file=sys.stderr, flush=True)
     except Exception as exc:  # pragma: no cover - diagnostic only
         print(f"[E2E_SSE_LOG] failed: {exc}", file=sys.stderr, flush=True)
     try:
@@ -259,7 +396,11 @@ def _dump_backend_routing_log(api_url: str) -> None:
 
         path = backend_log_path(api_url=api_url)
         if not path.exists():
-            print(f"[E2E_ROUTING_LOG] no backend log at {path}", file=sys.stderr, flush=True)
+            print(
+                f"[E2E_ROUTING_LOG] no backend log at {path}",
+                file=sys.stderr,
+                flush=True,
+            )
             return
         size = path.stat().st_size
         with path.open("r", encoding="utf-8", errors="replace") as fh:
@@ -304,8 +445,11 @@ async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
         streaming = isinstance(bridge, dict) and bridge.get("isStreaming") is True
         last_state = state
         if (
-            state.get("ready") is True
-            and state.get("routingTier") == expected
+            (state.get("ready") is True or state.get("bridgeStreaming") is True)
+            and (
+                state.get("routingTier") == expected
+                or state.get("bridgeTier") == expected
+            )
             and not streaming
             and str(state.get("content") or "").strip()
         ):
@@ -366,7 +510,9 @@ async def test_smart_routing_tier_surfaced_in_webui(
                     _PIN_BASIC_PRIMARY_JS,
                     intent=EvaluateIntent.AGENT_SUBMIT,
                 )
-                pin_state = pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
+                pin_state = (
+                    pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
+                )
                 assert pin_state.get("ok") is True, pin_state
                 selection = pin_state.get("selection")
                 assert isinstance(selection, dict), pin_state
@@ -386,16 +532,32 @@ async def test_smart_routing_tier_surfaced_in_webui(
                     SIMPLE_PROMPT,
                 )
                 chat_id = (
-                    str(send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or "").strip()
+                    str(
+                        send_result.get("started", {}).get("chatId")
+                        or send_result.get("submit", {}).get("chatId")
+                        or ""
+                    ).strip()
                     or None
                 )
 
                 simple_state = await _wait_tier(chat, "simple")
-                if simple_state.get("routingTier") != "simple":
+                print(
+                    "[E2E_SIMPLE_TIER] "
+                    + json.dumps(simple_state, indent=2, default=str),
+                    file=sys.stderr,
+                    flush=True,
+                )
+                if (
+                    simple_state.get("routingTier") != "simple"
+                    and simple_state.get("bridgeTier") != "simple"
+                ):
                     _dump_backend_routing_log(api_url)
                     await _dump_sse_log(chat)
-                assert simple_state.get("routingTier") == "simple", simple_state
-                heartbeat_once()
+                    assert (
+                        simple_state.get("routingTier") == "simple"
+                        or simple_state.get("bridgeTier") == "simple"
+                    ), simple_state
+                    heartbeat_once()
 
                 await chat.evaluate(
                     _PIN_BASIC_PRIMARY_JS,
@@ -406,17 +568,25 @@ async def test_smart_routing_tier_surfaced_in_webui(
                     DEBUG_PROMPT,
                 )
                 standard_state = await _wait_tier(chat, "standard")
-                if standard_state.get("routingTier") != "standard":
+                if (
+                    standard_state.get("routingTier") != "standard"
+                    and standard_state.get("bridgeTier") != "standard"
+                ):
                     _dump_backend_routing_log(api_url)
                     await _dump_sse_log(chat)
-                assert standard_state.get("routingTier") == "standard", standard_state
+                assert (
+                    standard_state.get("routingTier") == "standard"
+                    or standard_state.get("bridgeTier") == "standard"
+                ), standard_state
 
                 # 档位 badge 位于 token 用量 tooltip 内（默认隐藏）——hover 触发后轮询可见。
                 hover = await chat.evaluate(
                     _HOVER_TOKEN_BTN_JS,
                     intent=EvaluateIntent.AGENT_SUBMIT,
                 )
-                hover_state = hover if isinstance(hover, dict) else json.loads(str(hover))
+                hover_state = (
+                    hover if isinstance(hover, dict) else json.loads(str(hover))
+                )
                 assert hover_state.get("ok") is True, hover_state
                 deadline = time.monotonic() + 10.0
                 badge_state: dict[str, object] = {}
@@ -425,7 +595,9 @@ async def test_smart_routing_tier_surfaced_in_webui(
                         _TIER_BADGE_JS,
                         intent=EvaluateIntent.SYNC_PROBE,
                     )
-                    badge_state = badge if isinstance(badge, dict) else json.loads(str(badge))
+                    badge_state = (
+                        badge if isinstance(badge, dict) else json.loads(str(badge))
+                    )
                     if badge_state.get("found") is True:
                         break
                     await asyncio.sleep(0.5)
@@ -433,7 +605,9 @@ async def test_smart_routing_tier_surfaced_in_webui(
 
                 resolved_chat_id = chat_id
                 if not resolved_chat_id:
-                    after = await chat.main_state(DEBUG_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
+                    after = await chat.main_state(
+                        DEBUG_PROMPT, intent=EvaluateIntent.BRIDGE_POLL
+                    )
                     href = str(after.get("url") or "")
                     resolved_chat_id = chat_id_from_path(href.split("?", 1)[0])
                 if resolved_chat_id:

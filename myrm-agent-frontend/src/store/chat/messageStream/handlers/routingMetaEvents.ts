@@ -63,6 +63,11 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       console.warn('[MYRM_ROUTING_DIAG]', JSON.stringify(diag));
     }
     if (tier || modelTier) {
+      ctx.meta = {
+        ...(ctx.meta ?? {}),
+        ...(tier ? { routingTier: tier } : {}),
+        ...(modelTier ? { modelTier } : {}),
+      };
       if (!added) {
         actions.setMessages((state) => {
           state.messages.push({

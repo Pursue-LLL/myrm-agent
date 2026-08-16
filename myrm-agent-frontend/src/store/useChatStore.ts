@@ -924,7 +924,12 @@ const useChatStore = create<ChatState>()(
           scheduleAutoSave: get().scheduleAutoSave,
           setInputMessage: (message: string) => set({ inputMessage: message }),
         };
-        initializeChat(id, { messages: state.messages, chatId: state.chatId }, actions, options);
+        initializeChat(
+          id,
+          { messages: state.messages, chatId: state.chatId, loading: state.loading, currentSessionMessageId: state.currentSessionMessageId },
+          actions,
+          options,
+        );
       },
 
       // 分页聊天历史管理

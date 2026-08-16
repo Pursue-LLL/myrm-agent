@@ -37,7 +37,7 @@ import { toast } from 'sonner';
 import type { CronJob } from '@/services/cron';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { updateCronJob, duplicateCronJob } from '@/services/cron';
-import { formatNextRun, formatRelativeTime, isCronOverdue, statusBorderColor, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
+import { formatNextRun, formatRelativeTime, formatTime, isCronOverdue, statusBorderColor, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
 import useCronStore from '@/store/useCronStore';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
@@ -109,10 +109,12 @@ function ThreadBadge({ chatId, t }: { chatId?: string; t: (key: string) => strin
 
 const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) => {
   const t = useTranslations('cron');
+  const tCommon = useTranslations('common');
+  const locale = useLocale();
   const deployMode = useDeployMode();
   const isCloud = deployMode.isSandbox && !deployMode.isLocal && !deployMode.isLoading;
   const overdue = isCronOverdue(job);
-  const overdueTime = overdue && job.next_run_at ? new Date(job.next_run_at).toLocaleString() : null;
+  const overdueTime = overdue && job.next_run_at ? formatTime(job.next_run_at, locale) : null;
   const lastRunColor =
     job.last_status === 'error'
       ? 'text-rose-600 dark:text-rose-400'
@@ -224,7 +226,12 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
   }, [duplicating, job, fetchJobs, t]);
 
   return (
+    // Card is clickable but contains nested action buttons, so a real <button>
+    // wrapper is invalid HTML; role="button" is the accessible equivalent.
+    /* oxlint-disable jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons */
     <div
+      role="button"
+      tabIndex={0}
       className={cn(
         'flex items-start gap-3 rounded-lg border border-l-[3px] bg-card px-3 py-2.5',
         'hover:bg-accent/40 cursor-pointer transition-colors',
@@ -232,6 +239,12 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
       )}
       onClick={() => {
         if (!suppressNavRef.current) {onSelect(job);}
+      }}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !suppressNavRef.current) {
+          e.preventDefault();
+          onSelect(job);
+        }
       }}
     >
       <div className="mt-0.5 shrink-0">
@@ -425,7 +438,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                {t('expiresAtLabel')}: {new Date(job.expires_at).toLocaleString()}
+                {t('expiresAtLabel')}: {formatTime(job.expires_at, locale)}
               </TooltipContent>
             </Tooltip>
           )}
@@ -451,7 +464,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
               <TooltipTrigger asChild>
                 <span className={cn('inline-flex items-center gap-0.5 cursor-default', lastRunColor)}>
                   <History className="h-3 w-3" />
-                  {t('lastRunLabel')}: {formatRelativeTime(job.last_run_at)}
+                  {t('lastRunLabel')}: {formatRelativeTime(job.last_run_at, tCommon, locale)}
                 </span>
               </TooltipTrigger>
               <TooltipContent>
@@ -461,14 +474,18 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
                     {' · '}
                   </span>
                 )}
-                {t('lastRunTooltip', { time: new Date(job.last_run_at).toLocaleString() })}
+                {t('lastRunTooltip', { time: formatTime(job.last_run_at, locale) })}
               </TooltipContent>
             </Tooltip>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+      <div
+        role="presentation"
+        className="flex items-center gap-0.5 shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

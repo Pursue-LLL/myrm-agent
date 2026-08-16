@@ -13,9 +13,15 @@
 import type { Source, File, AgentStreamEvent } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState } from './types';
 
+export type TurnMeta = {
+  routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex';
+  modelTier?: 'weak' | 'medium';
+};
+
 export type StreamTurn = {
   added: boolean;
   recievedMessage: string;
+  meta?: TurnMeta;
 };
 
 export type StreamCtx = {
@@ -27,8 +33,9 @@ export type StreamCtx = {
   state: StreamHandlerState;
   actions: StreamHandlerActions;
   files: File[];
+  meta?: TurnMeta;
 };
 
 export function done(ctx: StreamCtx): StreamTurn {
-  return { added: ctx.added, recievedMessage: ctx.recievedMessage };
+  return { added: ctx.added, recievedMessage: ctx.recievedMessage, meta: ctx.meta };
 }

@@ -21,9 +21,16 @@ import { splitTagsInput } from './wikiSectionUtils';
 
 function findConceptNodeId(nodes: TreeNode[], conceptPath: string): string | null {
   const normalized = conceptPath.replace(/\\/g, '/').replace(/^\//, '').replace(/\.md$/i, '');
+  // Wiki concept paths are persisted in sanitized (lowercase) form, while
+  // callers may reference the original mixed-case path (e.g. chat-compound
+  // concept names). Compare case-insensitively so highlight/deep-link resolves.
+  const normalizedLower = normalized.toLowerCase();
   for (const node of nodes) {
     const nodeId = node.id.replace(/\\/g, '/');
-    if (!node.is_dir && (nodeId === normalized || nodeId.endsWith(`/${normalized}`))) {
+    if (
+      !node.is_dir &&
+      (nodeId.toLowerCase() === normalizedLower || nodeId.toLowerCase().endsWith(`/${normalizedLower}`))
+    ) {
       return node.id;
     }
     if (node.children?.length) {

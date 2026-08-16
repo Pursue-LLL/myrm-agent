@@ -132,9 +132,22 @@ def _provider_cfg() -> dict[str, str]:
 def _seed_vision_provider(api_url: str) -> dict[str, object]:
     """Upsert BASIC provider + mark the base model vision-capable (real image turn).
 
-    The attach gate uses ``supports_vision`` from the frontend model info; the
-    backend ``enrich_model_capabilities`` merges ``customModelInfo`` before the
-    stream. Seeding both keeps the real flow identical to a vision-capable model.
+    Reproduces the state a real user produces in the WebUI ModelService dialog:
+    the user ticks "vision capable" (ModelInfoCard.handleSave →
+    ``setModelInfo(providerId, model, {supports_vision: true})``), which persists
+    ``customModelInfo["<providerId>/<model>"]``. Two separate consumers read it:
+
+    * frontend attach gate ``useProviderStore.getModelInfo`` looks up
+      ``customModelInfo["<providerId>/<model>"]`` to decide whether to toast
+      "vision not configured" (soft gate: upload still proceeds), and
+    * backend ``enrich_model_capabilities`` → ``_lookup_custom_model_info`` falls
+      back from an exact key to a bare model name before consulting litellm.
+
+    Writing the same ``<providerId>/<model>`` key keeps the E2E flow byte-for-byte
+    identical to a user who enabled vision in the UI. MiniMax-M3 also reports
+    ``supports_vision: true`` from litellm itself, so the backend would accept
+    the image either way; the customModelInfo entry additionally silences the
+    frontend soft-gate toast.
     """
     cfg = _provider_cfg()
     basic_id = infer_provider_id(cfg["basic_model"])
@@ -177,8 +190,8 @@ def _seed_vision_provider(api_url: str) -> dict[str, object]:
         "temperature": 0.7,
     }
     custom_info = dict(current.get("customModelInfo") or {})
-    custom_info[basic_model] = {"supports_vision": True}
-    custom_info[lite_model] = {"supports_vision": True}
+    custom_info[f"{basic_id}/{basic_model}"] = {"supports_vision": True}
+    custom_info[f"{lite_id}/{lite_model}"] = {"supports_vision": True}
     merged = {
         **current,
         "providers": provider_list,

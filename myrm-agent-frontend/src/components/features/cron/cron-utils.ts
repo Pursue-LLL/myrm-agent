@@ -39,24 +39,35 @@ export function formatDuration(ms: number): string {
   return `${(ms / 60_000).toFixed(1)}m`;
 }
 
-export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleString();
+export function formatTime(iso: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(iso));
 }
 
-/** Render an ISO timestamp as a compact relative time (e.g. "3h ago").
+/** Render an ISO timestamp as a compact, localized relative time (e.g. "3h ago").
  *
- * Falls back to a short localized date when the timestamp is older than 30 days
- * to avoid meaningless "999d ago" noise in list summaries.
+ * Uses the shared common.relativeDate keys. Falls back to a short month/day
+ * date after a week to avoid meaningless "999d ago" noise in list summaries.
  */
-export function formatRelativeTime(iso: string, nowMs = Date.now()): string {
+export function formatRelativeTime(
+  iso: string,
+  t: (key: string, values?: Record<string, number>) => string,
+  locale: string,
+  nowMs = Date.now(),
+): string {
   const then = new Date(iso).getTime();
-  const diffMs = nowMs - then;
   if (Number.isNaN(then)) {return '';}
-  if (diffMs < 60_000) {return 'just now';}
-  if (diffMs < 3_600_000) {return `${Math.floor(diffMs / 60_000)}m ago`;}
-  if (diffMs < 86_400_000) {return `${Math.floor(diffMs / 3_600_000)}h ago`;}
-  if (diffMs < 30 * 86_400_000) {return `${Math.floor(diffMs / 86_400_000)}d ago`;}
-  return new Date(iso).toLocaleDateString();
+  const diffMs = nowMs - then;
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) {return t('relativeDate.justNow');}
+  if (minutes < 60) {return t('relativeDate.minutesAgo', { count: minutes });}
+  const hours = Math.floor(diffMs / 3_600_000);
+  if (hours < 24) {return t('relativeDate.hoursAgo', { count: hours });}
+  const days = Math.floor(diffMs / 86_400_000);
+  if (days < 7) {return t('relativeDate.daysAgo', { count: days });}
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(then);
 }
 
 export function statusBorderColor(job: CronJob): string {
@@ -65,7 +76,11 @@ export function statusBorderColor(job: CronJob): string {
   return 'border-l-muted-foreground/40';
 }
 
-/** A recurring active job is considered overdue when its next run slot has passed by this margin. */
+/**
+ * A recurring active job is considered overdue only after this base margin, so the
+ * alert never fires within the scheduler's normal tick latency. The effective
+ * threshold is `max(misfire_grace_seconds, BASE_MARGIN)` — see isCronOverdue.
+ */
 export const CRON_OVERDUE_THRESHOLD_MS = 10 * 60_000;
 
 /**
@@ -74,13 +89,21 @@ export const CRON_OVERDUE_THRESHOLD_MS = 10 * 60_000;
  * While the server runs, its scheduler keeps ticking (watchdog ≤ 30s) and claims due
  * jobs almost immediately, so an overdue window mainly appears when the scheduler is
  * not running — host asleep, service closed, or the server is otherwise unavailable.
+ *
+ * The effective threshold is the larger of the job's `misfire_grace_seconds` and the
+ * base `CRON_OVERDUE_THRESHOLD_MS` margin. Tying it to the configured grace keeps the
+ * alert in sync with the backend `is_past_misfire_grace` (a job inside its grace window
+ * is still replayable on startup recovery, so it must not be reported as missed);
+ * the base margin keeps the alert from firing during normal tick latency.
  * One-time jobs are excluded because they have no recurring expectation.
  */
 export function isCronOverdue(job: CronJob, nowMs = Date.now()): boolean {
   if (job.status !== 'active') {return false;}
   if (job.schedule?.kind === 'once') {return false;}
   if (!job.next_run_at) {return false;}
-  return nowMs - new Date(job.next_run_at).getTime() > CRON_OVERDUE_THRESHOLD_MS;
+  const graceMs = Math.max(job.misfire_grace_seconds, 0) * 1000;
+  const thresholdMs = Math.max(graceMs, CRON_OVERDUE_THRESHOLD_MS);
+  return nowMs - new Date(job.next_run_at).getTime() > thresholdMs;
 }
 
 export function computeStats(jobs: CronJob[]) {

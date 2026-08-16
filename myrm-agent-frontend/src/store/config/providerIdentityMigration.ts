@@ -46,7 +46,8 @@ function migrateSelection(sel: SingleModelSelection | null): SingleModelSelectio
   return nextId === sel.providerId ? sel : { ...sel, providerId: nextId };
 }
 
-function migrateModelSlot(slot: ModelSlot): ModelSlot {
+function migrateModelSlot(slot: ModelSlot | null | undefined): ModelSlot | null {
+  if (!slot) {return null;}
   return {
     ...slot,
     primary: migrateSelection(slot.primary),
@@ -58,8 +59,8 @@ function migrateRouting(cfg: RoutingConfig | null): RoutingConfig | null {
   if (!cfg) {return null;}
   return {
     enabled: cfg.enabled,
-    lightModel: migrateModelSlot(cfg.lightModel),
-    reasoningModel: migrateModelSlot(cfg.reasoningModel),
+    lightModel: migrateModelSlot(cfg.lightModel) ?? cfg.lightModel,
+    reasoningModel: migrateModelSlot(cfg.reasoningModel) ?? cfg.reasoningModel,
   };
 }
 
@@ -77,8 +78,8 @@ function migrateVisionFallbackModel(
 export function migrateDefaultModelConfig(config: DefaultModelConfig): DefaultModelConfig {
   return {
     ...config,
-    baseModel: migrateModelSlot(config.baseModel),
-    liteModel: migrateModelSlot(config.liteModel),
+    baseModel: migrateModelSlot(config.baseModel) ?? config.baseModel,
+    liteModel: migrateModelSlot(config.liteModel) ?? config.liteModel,
     fastModeModel: config.fastModeModel ? migrateModelSlot(config.fastModeModel) : null,
     routingConfig: migrateRouting(config.routingConfig),
     visionFallbackModel: migrateVisionFallbackModel(config.visionFallbackModel),

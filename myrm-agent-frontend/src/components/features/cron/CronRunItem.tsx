@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { ChevronDown, ChevronUp, Cpu, Send, CircleX, Coins, ShieldAlert, ShieldCheck, Zap, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { CronRun } from '@/services/cron';
@@ -30,6 +30,7 @@ function hasSecurityDenial(run: CronRun): boolean {
 
 const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const t = useTranslations('cron');
+  const locale = useLocale();
   const [expanded, setExpanded] = useState(false);
   const isOk = run.status === 'ok';
   const isSkipped = run.status === 'skipped';
@@ -184,7 +185,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
           )}
 
           <span className="text-xs text-muted-foreground">{formatDuration(run.duration_ms)}</span>
-          <span className="text-xs text-muted-foreground">{formatTime(run.started_at)}</span>
+          <span className="text-xs text-muted-foreground">{formatTime(run.started_at, locale)}</span>
 
           {run.usage_total_tokens != null && run.usage_total_tokens > 0 && (
             <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">

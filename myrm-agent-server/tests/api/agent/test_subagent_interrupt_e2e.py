@@ -1,3 +1,13 @@
+"""
+In-process TestClient variant of the subagent HITL approval flow.
+
+NOTE: approval events emitted by a *subagent* flow through the server's AppEventBus,
+which is not bridged into a single-process TestClient stream, so this suite can only
+observe "message_end without approval_required" and short-circuits (auto-deny on
+timeout). The authoritative live coverage for subagent approve / allow-always / edit
+resume lives in ``tests/e2e/test_subagent_interrupt_live_e2e.py`` (real SHPOIB
+agent-stream over HTTP, same product code path a WebUI user exercises).
+"""
 import json
 import os
 import uuid
@@ -19,7 +29,11 @@ def get_test_request(query: str, chat_id: str, message_id: str, resume_value=Non
         "actionMode": "general",
         "ephemeralSubagents": {
             "test_bash": {
-                "system_prompt": "You are a bash execution worker.",
+                "system_prompt": (
+                    "You are a bash execution worker. When given a shell command, "
+                    "you MUST call the bash_code_execute_tool tool with the exact command "
+                    "as-is (never replace paths or emit placeholders), then report the output."
+                ),
                 "tools": ["bash_code_execute_tool"],
             }
         },
@@ -27,6 +41,20 @@ def get_test_request(query: str, chat_id: str, message_id: str, resume_value=Non
     if resume_value is not None:
         req["resumeValue"] = {"decisions": resume_value}
     return req
+
+
+def _completed_without_approval(collected_events: list[dict[str, object]]) -> bool:
+    """True when a round streamed subagent_start then finished (message_end) with no approval event.
+
+    This means the delegate/child ran to completion instead of suspending for HITL —
+    continuing to resume would only produce a spurious 'already resolved' error.
+    """
+    has_message_end = any(d.get("type") == "message_end" for d in collected_events)
+    if not has_message_end:
+        return False
+    return not any(
+        d.get("type") in ("approval_required", "tool_approval_request") for d in collected_events
+    )
 
 
 @pytest.mark.e2e
@@ -46,7 +74,14 @@ def test_subagent_interrupt_and_resume(client: TestClient):
     # NOTE: `rm -rf` is NOT a SAFE command (risk=UNKNOWN) → engine returns ASK → triggers approval.
     # wait=true forces delegate_task_tool's PENDING_APPROVAL loop, so the subagent's approval
     # propagates to the parent agent as a subagent_approval interrupt.
-    query = "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，并且必须将 wait 参数设置为 true（同步等待子任务完成，不要异步）。让它执行一条bash命令: `rm -rf /tmp/myrm_e2e_interrupt_del`。注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，绝对不要在文本中输出 XML 格式的工具调用！"
+    query = (
+        "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，"
+        "并且必须将 wait 参数设置为 true（同步等待子任务完成，不要异步）。"
+        "子智能体必须调用 bash_code_execute_tool 工具实际执行这条命令（一字不改，禁止替换路径、"
+        "禁止输出占位符、禁止只用文本描述而不调用工具）：`rm -rf /tmp/myrm_e2e_interrupt_del`。"
+        "注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，"
+        "绝对不要在文本中输出 XML 格式的工具调用！"
+    )
 
     req = get_test_request(query, chat_id, message_id)
 
@@ -90,6 +125,13 @@ def test_subagent_interrupt_and_resume(client: TestClient):
                     pass
 
         check_e2e_errors(collected_events)
+
+        if _completed_without_approval(collected_events):
+            pytest.fail(
+                "Agent stream completed without any approval event — "
+                "subagent bash did not suspend for HITL. Check security_config "
+                "inheritance (auto_mode_enabled) and that the LLM actually invoked bash_code_execute_tool."
+            )
 
         if action_type == "subagent_approval":
             break
@@ -164,7 +206,9 @@ def test_subagent_interrupt_resume_with_allow_always(client: TestClient):
     query = (
         "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，"
         "并且必须将 wait 参数设置为 true（同步等待子任务完成，不要异步）。"
-        "让它执行一条bash命令: `rm -rf /tmp/myrm_e2e_interrupt_allow_always`。注意：必须使用原生函数调用。"
+        "子智能体必须调用 bash_code_execute_tool 工具实际执行这条命令（一字不改，禁止替换路径、"
+        "禁止输出占位符、禁止只用文本描述而不调用工具）：`rm -rf /tmp/myrm_e2e_interrupt_allow_always`。"
+        "注意：必须使用原生函数调用。"
     )
 
     approval_payload = None
@@ -192,6 +236,13 @@ def test_subagent_interrupt_resume_with_allow_always(client: TestClient):
                     pass
 
         check_e2e_errors(collected_events)
+
+        if _completed_without_approval(collected_events):
+            pytest.fail(
+                "Agent stream completed without any approval event — "
+                "subagent bash did not suspend for HITL. Check security_config "
+                "inheritance (auto_mode_enabled) and that the LLM actually invoked bash_code_execute_tool."
+            )
 
         if action_type == "subagent_approval":
             break
@@ -263,7 +314,9 @@ def test_subagent_interrupt_resume_with_edit(client: TestClient):
     query = (
         "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，"
         "并且必须将 wait 参数设置为 true（同步等待子任务完成，不要异步）。"
-        "让它执行一条bash命令: `rm -rf /tmp/myrm_e2e_interrupt_edit`。注意：必须使用原生函数调用。"
+        "子智能体必须调用 bash_code_execute_tool 工具实际执行这条命令（一字不改，禁止替换路径、"
+        "禁止输出占位符、禁止只用文本描述而不调用工具）：`rm -rf /tmp/myrm_e2e_interrupt_edit`。"
+        "注意：必须使用原生函数调用。"
     )
 
     approval_payload = None
@@ -291,6 +344,13 @@ def test_subagent_interrupt_resume_with_edit(client: TestClient):
                     pass
 
         check_e2e_errors(collected_events)
+
+        if _completed_without_approval(collected_events):
+            pytest.fail(
+                "Agent stream completed without any approval event — "
+                "subagent bash did not suspend for HITL. Check security_config "
+                "inheritance (auto_mode_enabled) and that the LLM actually invoked bash_code_execute_tool."
+            )
 
         if action_type == "subagent_approval":
             break
