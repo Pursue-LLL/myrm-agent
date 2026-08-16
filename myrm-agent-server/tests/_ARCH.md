@@ -159,6 +159,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/stream_session/test_migration_readiness_preflight.py` | 模块 | migration readiness live preflight：`from_readiness` SSE + async `resolve_and_build_*`（warning→/settings/mcp） |
 | `services/agent/stream_session/test_migration_readiness_anchor_live_fallback.py` | 模块 | finalize 缺 preflight live 时再 resolve；resolve 失败不落 stale anchor |
 | `api/memory/test_import_readiness_recheck_api.py` | 模块 | `POST /memory/import/readiness-recheck` HTTP 集成测（200/404） |
+| `api/memory/test_pattern_discovery_api_integration.py` | 模块 | Pattern discovery API 真实 DB 集成（`@pytest.mark.integration`，关键路径禁 mock）：`POST /trigger-pattern-discovery` 无 WebUI 默认模型时真实 `build_platform_litellm_kwargs` 读库 → 优雅 skipped（死路径修复验证）；harness 结果注入时真实 ledger 落库 + `GET /pattern-discoveries` 读回（summary 用户可读、无 `duration_ms` 泄漏）；skipped report 不落库 |
 | `services/agent/stream_session/test_migration_readiness_anchor.py` | 模块 | migration readiness 首轮结果归类单测（success/failed/no_output） |
 | `services/agent/stream_session/test_migration_bound_project.py` | 模块 | migration vault bind 同窗 handoff：`persist` 后 `move_chat_to_project`；已有 project / resume 跳过 |
 | `services/agent/stream_session/test_orchestrator_turn_body_e1.py` | 模块 | E1 early buffered stream 形状（SSE/JSON）+ `_background_turn` 绑定 harness `session_lock` chat_id（快照以真实 chat_id 落盘的关键前置） |

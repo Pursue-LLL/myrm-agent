@@ -87,13 +87,14 @@ async def estimate_idle_compact_request_overhead(agent_id: str | None) -> int:
     from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
     resolved = await get_agent_profile_resolver().resolve(agent_id)
-    if resolved.system_prompt:
-        overhead += get_token_count(resolved.system_prompt)
-    tool_count = len(resolved.enabled_builtin_tools)
-    overhead += min(
-        tool_count * TOOL_OVERHEAD_TOKENS_PER_BUILTIN, MAX_TOOL_OVERHEAD_TOKENS
-    )
-    overhead += min(len(resolved.mcp_ids) * 600, 12_000)
+    if resolved is not None:
+        if resolved.system_prompt:
+            overhead += get_token_count(resolved.system_prompt)
+        tool_count = len(resolved.enabled_builtin_tools)
+        overhead += min(
+            tool_count * TOOL_OVERHEAD_TOKENS_PER_BUILTIN, MAX_TOOL_OVERHEAD_TOKENS
+        )
+        overhead += min(len(resolved.mcp_ids) * 600, 12_000)
     return overhead
 
 

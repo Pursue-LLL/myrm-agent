@@ -20,7 +20,7 @@ class _Pattern(BaseModel):
     actionable_suggestion: str
 
 
-def _make_report(*, skipped: bool = False, pattern_count: int = 1) -> SimpleNamespace:
+def _make_report(*, skipped: bool = False, pattern_count: int = 1, no_patterns: bool = False) -> SimpleNamespace:
     if skipped:
         return SimpleNamespace(
             skipped=True,
@@ -43,8 +43,8 @@ def _make_report(*, skipped: bool = False, pattern_count: int = 1) -> SimpleName
     return SimpleNamespace(
         skipped=False,
         skip_reason=None,
-        has_patterns=True,
-        patterns=patterns,
+        has_patterns=not no_patterns,
+        patterns=[] if no_patterns else patterns,
         memory_count=120,
         insight_count=5,
         duration_ms=100.0,
@@ -151,6 +151,27 @@ class TestRunPatternDiscoveryCycle:
         record_event.assert_awaited_once_with(report)
 
     @pytest.mark.asyncio
+    async def test_skips_record_when_no_patterns(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        llm = MagicMock()
+        monkeypatch.setattr(pattern_discovery_trigger, "_build_platform_llm", AsyncMock(return_value=llm))
+        manager = AsyncMock()
+        monkeypatch.setattr(
+            "app.lifecycle.memory_guardian_ops.create_guardian_memory_manager",
+            AsyncMock(return_value=manager),
+        )
+        report = _make_report(no_patterns=True)
+        monkeypatch.setattr(
+            "myrm_agent_harness.toolkits.memory.strategies.pattern_discovery.run_pattern_discovery",
+            AsyncMock(return_value=report),
+        )
+        record_event = AsyncMock()
+        monkeypatch.setattr(pattern_discovery_trigger, "record_pattern_discovery_event", record_event)
+
+        await pattern_discovery_trigger.run_pattern_discovery_cycle()
+
+        record_event.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_skips_when_harness_gate_not_ready(self, monkeypatch: pytest.MonkeyPatch) -> None:
         llm = MagicMock()
         monkeypatch.setattr(pattern_discovery_trigger, "_build_platform_llm", AsyncMock(return_value=llm))
@@ -222,6 +243,30 @@ class TestRunPatternDiscoveryOnce:
             "meta_observation": "User tends to plan work on weekday mornings.",
         }
         record_event.assert_awaited_once_with(report)
+
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_no_patterns(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        llm = MagicMock()
+        monkeypatch.setattr(pattern_discovery_trigger, "_build_platform_llm", AsyncMock(return_value=llm))
+        manager = AsyncMock()
+        monkeypatch.setattr(
+            "app.lifecycle.memory_guardian_ops.create_guardian_memory_manager",
+            AsyncMock(return_value=manager),
+        )
+        report = _make_report(no_patterns=True)
+        monkeypatch.setattr(
+            "myrm_agent_harness.toolkits.memory.strategies.pattern_discovery.run_pattern_discovery",
+            AsyncMock(return_value=report),
+        )
+        record_event = AsyncMock()
+        monkeypatch.setattr(pattern_discovery_trigger, "record_pattern_discovery_event", record_event)
+
+        result = await pattern_discovery_trigger.run_pattern_discovery_once()
+
+        assert result["triggered"] is True
+        assert result["skipped"] is False
+        assert result["pattern_count"] == 0
+        record_event.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_returns_skip_reason_when_gate_not_ready(self, monkeypatch: pytest.MonkeyPatch) -> None:

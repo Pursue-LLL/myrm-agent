@@ -355,21 +355,21 @@ const PluginImportDialog = memo(
           <ScrollArea className="flex-1 px-6 bg-muted/10">
             <div className="py-6 space-y-6">
               {!file ? (
-                <div
+                <label
                   className={cn(
-                    'border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors bg-background',
+                    'block cursor-pointer rounded-xl border-2 border-dashed p-12 text-center transition-colors bg-background',
                     isDragging && 'border-primary bg-primary/5',
                     parseError && 'border-destructive bg-destructive/5',
                     !isDragging && !parseError && 'border-muted-foreground/25 hover:border-primary/50',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   )}
                   {...dragHandlers}
-                  onClick={() => fileInputRef.current?.click()}
                 >
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept=".zip"
-                    className="hidden"
+                    className="sr-only"
                     onChange={(e) => {
                       if (e.target.files?.length) {handleFilesSelected(e.target.files);}
                     }}
@@ -388,7 +388,10 @@ const PluginImportDialog = memo(
                   <p className="text-base font-medium">
                     {isParsing ? t('upload.parsing') : t('upload.dropHint')}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-2">{t('upload.formatHint')}</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {t('upload.keyboardHint')}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">{t('upload.formatHint')}</p>
 
                   {parseError && (
                     <Alert variant="destructive" className="mt-6 text-left inline-block">
@@ -397,7 +400,7 @@ const PluginImportDialog = memo(
                       <AlertDescription>{parseError}</AlertDescription>
                     </Alert>
                   )}
-                </div>
+                </label>
               ) : preview ? (
                 <div className="space-y-6">
                   {/* Plugin card */}

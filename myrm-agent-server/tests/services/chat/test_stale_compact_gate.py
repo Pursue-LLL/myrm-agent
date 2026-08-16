@@ -43,6 +43,17 @@ async def test_resolve_idle_compact_after_seconds_merges_request_override() -> N
 
 
 @pytest.mark.asyncio
+async def test_resolve_idle_compact_after_seconds_handles_unresolved_profile() -> None:
+    """resolve() returning None (agent missing) must not raise AttributeError."""
+    with patch(
+        "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
+    ) as mock_get_resolver:
+        mock_get_resolver.return_value.resolve = AsyncMock(return_value=None)
+        seconds = await resolve_idle_compact_after_seconds("missing-agent")
+        assert seconds == 0
+
+
+@pytest.mark.asyncio
 async def test_gate_skips_when_disabled() -> None:
     result = await maybe_compact_stale_chat_before_turn(
         AsyncMock(),

@@ -14,6 +14,7 @@ import useConfigStore from '@/store/useConfigStore';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { buildBlueprintCreatePayload, humanizeSchedule, type CronBlueprint } from './cron-blueprints';
 import { IM_CHANNELS, toApiChannel } from './CronDeliveryEditors';
+import CronDeployModeNotice from './CronDeployModeNotice';
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { ApiError } from '@/lib/api';
@@ -169,6 +170,8 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
           {humanizeSchedule(previewSchedule)}
         </p>
       </div>
+
+      {previewSchedule.kind !== 'once' && <CronDeployModeNotice />}
 
       {connectedChannels.length > 0 && (
         <div className="space-y-1.5">

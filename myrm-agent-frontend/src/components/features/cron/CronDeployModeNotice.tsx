@@ -1,12 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Cloud, Laptop, MoonStar } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { apiRequest } from '@/lib/api';
-
-export type DeployMode = 'local' | 'tauri' | 'sandbox';
+import { useDeployMode } from '@/hooks/shared/useDeployMode';
 
 /**
  * Deploy-mode aware notice for recurring cron creation flows.
@@ -15,33 +12,15 @@ export type DeployMode = 'local' | 'tauri' | 'sandbox';
  *   service running; sleep is auto-inhibited only while a job executes).
  * - sandbox (cloud-hosted): surfaces the 24/7 cloud execution benefit.
  *
- * The notice stays hidden until the mode is known (and on network failure) so it
- * never guesses a misleading mode.
+ * Stays hidden while the mode is still loading so it never flashes a wrong hint.
  */
 export default function CronDeployModeNotice() {
   const t = useTranslations('cron');
-  const [mode, setMode] = useState<DeployMode | null>(null);
+  const { isLocal, isSandbox, isLoading } = useDeployMode();
 
-  useEffect(() => {
-    let cancelled = false;
-    apiRequest<{ deploy_mode: string }>('/health/info')
-      .then((info) => {
-        if (!cancelled) {
-          const value = info.deploy_mode as DeployMode;
-          setMode(value === 'sandbox' || value === 'local' || value === 'tauri' ? value : 'local');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {setMode(null);}
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  if (isLoading) {return null;}
 
-  if (!mode) {return null;}
-
-  const isCloud = mode === 'sandbox';
+  const isCloud = isSandbox && !isLocal;
 
   return (
     <div

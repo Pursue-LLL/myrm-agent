@@ -32,6 +32,7 @@ import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import BlueprintCatalog from './BlueprintCatalog';
 import BlueprintInlineFill from './BlueprintInlineFill';
+import CronDeployModeNotice from './CronDeployModeNotice';
 import { CRON_PRESETS, type CronBlueprint } from './cron-blueprints';
 import type { CronJob } from '@/services/cron.types';
 import { prepareJobForSettingsAudit, canDismissSettingsAuditFlow } from '@/lib/cron/cronCreateAuditGate';
@@ -676,6 +677,8 @@ export default function CronJobCreateDialog({
               </div>
             </div>
           )}
+
+          {scheduleKind !== 'once' && <CronDeployModeNotice />}
 
           {/* Session Mode — only for recurring agent schedules */}
           {uiMode === 'agent' && scheduleKind !== 'once' && (

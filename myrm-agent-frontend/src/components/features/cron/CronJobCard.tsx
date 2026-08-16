@@ -36,7 +36,7 @@ import { toast } from 'sonner';
 import type { CronJob } from '@/services/cron';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { updateCronJob, duplicateCronJob } from '@/services/cron';
-import { formatNextRun, statusBorderColor, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
+import { formatNextRun, isCronOverdue, statusBorderColor, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
 import useCronStore from '@/store/useCronStore';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
@@ -45,6 +45,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { getLiteLLMModelName } from '@/store/config/providerTypes';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
 import { CronWorkflowTemplateBadge } from './CronWorkflowTemplateBinding';
+import { useDeployMode } from '@/hooks/shared/useDeployMode';
 
 interface CronJobCardProps {
   job: CronJob;
@@ -107,6 +108,10 @@ function ThreadBadge({ chatId, t }: { chatId?: string; t: (key: string) => strin
 
 const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) => {
   const t = useTranslations('cron');
+  const deployMode = useDeployMode();
+  const isCloud = deployMode.isSandbox && !deployMode.isLocal && !deployMode.isLoading;
+  const overdue = isCronOverdue(job);
+  const overdueTime = overdue && job.next_run_at ? new Date(job.next_run_at).toLocaleString() : null;
   const { pauseJob, resumeJob, triggerJob, fetchJobs, jobs: allJobs } = useCronStore();
   const { providers, defaultModelConfig } = useProviderStore(
     useShallow((s) => ({
@@ -161,7 +166,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
     if (job.status === 'active') {return true;}
     if (job.status === 'completed') {return false;}
     if (job.expires_at && new Date(job.expires_at).getTime() <= Date.now()) {return false;}
-    if (job.max_fires != null && job.fire_count >= job.max_fires) {return false;}
+    if (job.max_fires !== null && job.max_fires !== undefined && job.fire_count >= job.max_fires) {return false;}
     return true;
   }, [job.status, job.expires_at, job.max_fires, job.fire_count]);
 
@@ -251,6 +256,17 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
           )}
         </div>
 
+        {overdue && overdueTime && (
+          <div className="mt-1.5 flex items-start gap-1.5 rounded-md border border-amber-500/25 bg-amber-500/5 px-2 py-1.5 text-[11px] leading-snug text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+            <span>
+              {isCloud
+                ? t('overdueBannerCloud', { time: overdueTime })
+                : t('overdueBannerLocal', { time: overdueTime })}
+            </span>
+          </div>
+        )}
+
         {job.prompt && <p className="text-xs text-muted-foreground mt-0.5 truncate">{job.prompt}</p>}
 
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
@@ -331,7 +347,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
               </TooltipContent>
             </Tooltip>
           )}
-          {job.max_fires != null && (
+          {typeof job.max_fires === 'number' && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-flex items-center gap-0.5 text-orange-600 dark:text-orange-400">

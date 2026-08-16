@@ -6081,6 +6081,7 @@
         "title": "Import Agent Plugin",
         "subtitle": "Import a plugin package from the agent-plugins.org ecosystem (plugin.json + skills + mcp.json) with automatic security scanning.",
         "upload": {
+          "keyboardHint": "Press Enter or click this area to choose a plugin ZIP file",
           "dropHint": "Drop plugin ZIP here or click to upload",
           "parsing": "Parsing & scanning...",
           "formatHint": "Supports the Agent Plugins 1.0.0 standard, up to 20MB per file.",

@@ -5931,6 +5931,7 @@
         "title": "Agent-Plugin importieren",
         "subtitle": "Importieren Sie Plugin-Pakete aus dem agent-plugins.org-Ökosystem (plugin.json + skills + mcp.json) mit automatischem Sicherheits-Scan.",
         "upload": {
+          "keyboardHint": "Drücken Sie die Eingabetaste oder klicken Sie auf diesen Bereich, um eine Plugin-ZIP-Datei auszuwählen",
           "dropHint": "Plugin-ZIP hierher ziehen oder klicken zum Hochladen",
           "parsing": "Sicher entpacken und analysieren...",
           "formatHint": "Unterstützt den Agent-Plugins-1.0.0-Standard, max. 20 MB pro Datei.",

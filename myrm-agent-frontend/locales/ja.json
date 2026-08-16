@@ -6061,6 +6061,7 @@
         "title": "Agent プラグインをインポート",
         "subtitle": "agent-plugins.org エコシステムのプラグインパッケージ（plugin.json + skills + mcp.json）を自動セキュリティスキャン付きでインポートします。",
         "upload": {
+          "keyboardHint": "Enter キーを押すか、この領域をクリックしてプラグイン ZIP ファイルを選択",
           "dropHint": "プラグイン ZIP をここにドロップ、またはクリックしてアップロード",
           "parsing": "安全に展開・分析中...",
           "formatHint": "Agent Plugins 1.0.0 標準形式に対応、1 ファイル最大 20MB。",

@@ -6081,6 +6081,7 @@
         "title": "导入 Agent 插件",
         "subtitle": "从 agent-plugins.org 生态导入插件包（plugin.json + skills + mcp.json），自动安全扫描。",
         "upload": {
+          "keyboardHint": "按回车键或点击此区域以选择插件 ZIP 文件",
           "dropHint": "拖拽插件 ZIP 包到此处，或点击上传",
           "parsing": "正在安全解压并分析...",
           "formatHint": "支持 Agent Plugins 1.0.0 标准格式，单个文件不超过 20MB。",

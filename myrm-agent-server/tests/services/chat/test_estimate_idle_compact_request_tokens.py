@@ -82,6 +82,21 @@ async def test_estimate_idle_compact_request_tokens_without_summary() -> None:
 
 
 @pytest.mark.asyncio
+async def test_estimate_idle_compact_request_overhead_handles_unresolved_profile() -> None:
+    """Overhead estimation with missing agent profile must not raise AttributeError."""
+    from app.services.chat.compact.idle_estimate import (
+        estimate_idle_compact_request_overhead,
+    )
+
+    with patch(
+        "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
+    ) as mock_get_resolver:
+        mock_get_resolver.return_value.resolve = AsyncMock(return_value=None)
+        overhead = await estimate_idle_compact_request_overhead("missing-agent")
+    assert overhead == 8_000  # DEFAULT_TOOL_SCHEMA_TOKEN_RESERVE alone, no crash
+
+
+@pytest.mark.asyncio
 async def test_gate_compacts_when_summary_pushes_tokens_above_floor() -> None:
     """Regression: tail-only estimate would skip; summary-inclusive estimate must compact."""
     db = AsyncMock()

@@ -5931,6 +5931,7 @@
         "title": "Agent 플러그인 가져오기",
         "subtitle": "agent-plugins.org 생태계의 플러그인 패키지(plugin.json + skills + mcp.json)를 자동 보안 스캔과 함께 가져옵니다.",
         "upload": {
+          "keyboardHint": "Enter 키를 누르거나 이 영역을 클릭하여 플러그인 ZIP 파일을 선택하세요",
           "dropHint": "플러그인 ZIP을 여기에 끌어놓거나 클릭하여 업로드",
           "parsing": "안전하게 압축 해제 및 분석 중...",
           "formatHint": "Agent Plugins 1.0.0 표준 형식 지원, 파일당 최대 20MB.",

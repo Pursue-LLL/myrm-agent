@@ -73,7 +73,8 @@ def test_live_direct_delegate_pong_via_force_delegate(
     """Direct delegate via force_delegate_agent uses UserConfig agent name (claude-code).
 
     Requires a locally authenticated external CLI (claude code login or
-    ANTHROPIC_API_KEY); unauthenticated environments skip rather than fail.
+    ANTHROPIC_API_KEY); unauthenticated or credential-broken environments are
+    probed and skipped rather than failing on a live 401.
     """
     claude_path = shutil.which("claude")
     assert claude_path is not None
@@ -92,6 +93,23 @@ def test_live_direct_delegate_pong_via_force_delegate(
         logged_in = bool(auth and auth.returncode == 0 and '"loggedIn": true' in auth.stdout)
         if not logged_in:
             pytest.skip("claude CLI not authenticated; skipping live delegate E2E")
+        # loggedIn=true 但凭证实际失效（oauth token 过期等）会让真实调用 401。
+        # 做一次轻量 probe：能返回文本才算可用，否则跳过而非红失败。
+        try:
+            probe = _sp.run(
+                [claude_path, "-p", "reply with the single word PONG", "--output-format", "text"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        except Exception:
+            probe = None
+        if probe is None or probe.returncode != 0 or "PONG" not in (probe.stdout or "").upper():
+            stderr_tail = (probe.stderr if probe is not None and probe.stderr else "")[:120]
+            pytest.skip(
+                "claude CLI credentials broken (auth status loggedIn but live call fails); "
+                f"rc={probe.returncode if probe else 'n/a'} stderr={stderr_tail!r}"
+            )
     configs = _build_mock_user_configs()
     configs.external_agents_dict = {
         "agents": [

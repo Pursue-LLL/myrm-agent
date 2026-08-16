@@ -282,14 +282,33 @@ def test_background_subagent_completed_observable_after_parent_stream_end(
     chat_id = str(uuid.uuid4())
     _run_background_delegate(client, chat_id, sleep_sec=60, timeout_sec=90)
 
-    running_rows = _wait_running_subagents(client, chat_id)
-    assert running_rows, "父流结束后台子代理未 running"
-    task_id = str(running_rows[0].get("task_id") or "")
-    assert task_id
+    # sleep 60 的子代理可能在父流消费期间已完成（LLM 回合时长不定）——
+    # 「存活」= running 或 completed 皆可；仅 failed/cancelled 才是失败。
+    deadline = time.monotonic() + 60.0
+    task_id = ""
+    last_payload: object = None
+    while time.monotonic() < deadline and not task_id:
+        payload = client.get(f"/api/v1/chats/{chat_id}/subagents").json()
+        last_payload = payload
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if isinstance(data, list):
+            alive_rows = [
+                row
+                for row in data
+                if isinstance(row, dict) and row.get("status") in ("running", "completed")
+            ]
+            if alive_rows:
+                task_id = str(alive_rows[0].get("task_id") or "")
+        if not task_id:
+            time.sleep(2.0)
+    assert task_id, (
+        "后台子代理在父 agent-stream 结束后既非 running 也非 completed"
+        f"（cleanup_run 误取消 wait=false 子代理）: {last_payload!r}"
+    )
 
     deadline = time.monotonic() + 90.0
     completed_seen = False
-    last_payload: object = None
+    last_payload = None
     while time.monotonic() < deadline:
         payload = client.get(f"/api/v1/chats/{chat_id}/subagents").json()
         last_payload = payload

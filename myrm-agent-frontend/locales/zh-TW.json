@@ -6061,6 +6061,7 @@
         "title": "匯入 Agent 外掛程式",
         "subtitle": "從 agent-plugins.org 生態系統匯入外掛程式套件（plugin.json + skills + mcp.json），自動安全掃描。",
         "upload": {
+          "keyboardHint": "按 Enter 鍵或點擊此區域以選擇外掛程式 ZIP 檔案",
           "dropHint": "拖曳外掛程式 ZIP 至此處，或點擊上傳",
           "parsing": "正在安全解壓並分析...",
           "formatHint": "支援 Agent Plugins 1.0.0 標準格式，單一檔案不超過 20MB。",
@@ -11712,6 +11713,9 @@
     "createSessionSelectChat": "選擇要繫結的對話...",
     "createSubmit": "建立任務",
     "createSuccess": "任務建立成功",
+    "deployCloudNotice": "在雲端沙箱中 7×24 執行——即使本機已關機，任務照常執行。",
+    "deployLocalNotice": "在本機執行：請保持主機開機連網，並保持 Myrm 執行，才會按計畫觸發。",
+    "deployLocalSleepHint": "系統休眠僅在任務執行期間被自動抑制，兩次執行之間不會。",
     "estMonthlyExecutions": "預估 {count}",
     "estHighFrequencyWarning": "高頻任務可能產生較高成本，建議降低頻率。",
     "estDefaultModel": "將使用預設模型：{provider}/{model}",
