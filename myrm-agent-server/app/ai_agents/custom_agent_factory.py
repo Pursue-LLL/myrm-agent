@@ -33,10 +33,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, cast
 
-from myrm_agent_harness.agent.sub_agents.checkpointer import (
-    get_subagent_checkpointer,
-)
-from myrm_agent_harness.api import AgentRuntimeSpec
+from myrm_agent_harness.api import AgentRuntimeSpec, get_subagent_checkpointer
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel

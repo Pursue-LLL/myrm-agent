@@ -588,6 +588,11 @@ async def test_chat_share_real_conversation_via_ui() -> None:
         await chat.send_message(prompt, prompt)
         heartbeat_once()
         after = await chat.wait_turn_done(prompt, timeout_sec=240.0)
+        print(
+            "E2E_DIAG_WAIT_TURN_DONE: "
+            f"{json.dumps({k: after.get(k) for k in ('chatId', 'okViaApi', 'okViaBridge', 'okViaGoal', 'okInMain', 'okInAssistant')}, ensure_ascii=False)}",
+            flush=True,
+        )
         chat_id = str(after.get("chatId") or "").strip()
         if not chat_id:
             chat_id = str(chat_id_from_path(str(after.get("path") or "")) or "").strip()

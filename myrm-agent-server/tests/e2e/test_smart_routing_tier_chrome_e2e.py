@@ -73,9 +73,10 @@ _ARM_SSE_RECORDER_JS = """(() => {
   const events = [];
   window.__MYRM_SSE_LOG__ = events;
   const orig = window.__MYRM_E2E_RECORD_SSE__;
-  window.__MYRM_E2E_RECORD_SSE__ = (type, messageId) => {
-    events.push({ type, messageId: messageId ?? null });
-    if (orig) orig(type, messageId);
+  if (typeof orig !== 'function') return { ok: false, err: 'no frontend recorder' };
+  window.__MYRM_E2E_RECORD_SSE__ = (type, messageId, data) => {
+    events.push({ type, messageId: messageId ?? null, data });
+    if (orig) orig(type, messageId, data);
   };
   return { ok: true, captured: 0 };
 })()"""

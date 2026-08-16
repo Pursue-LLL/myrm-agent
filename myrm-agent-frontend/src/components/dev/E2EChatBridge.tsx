@@ -704,16 +704,22 @@ async function submitAndObserveTurn(
   }
 }
 
+export type SseEventRecorder = (
+  type: string,
+  messageId?: string | null,
+  data?: unknown,
+) => void;
+
 export default function E2EChatBridge() {
   useLayoutEffect(() => {
     if (!isLocalDevHost()) {return;}
 
-    const sseEvents: Array<{ type: string; messageId: string | null }> = [];
+    const sseEvents: Array<{ type: string; messageId: string | null; data?: unknown }> = [];
     let sseCaptureMessageId: string | null = null;
     let sseCaptureLocked = false;
     (
-      window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string, messageId?: string | null) => void }
-    ).__MYRM_E2E_RECORD_SSE__ = (type: string, messageId?: string | null) => {
+      window as Window & { __MYRM_E2E_RECORD_SSE__?: SseEventRecorder }
+    ).__MYRM_E2E_RECORD_SSE__ = (type: string, messageId?: string | null, data?: unknown) => {
       if (sseCaptureLocked) {
         const normalizedId = typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
         if (type !== 'capability_gap' || !normalizedId) {
@@ -729,6 +735,7 @@ export default function E2EChatBridge() {
       sseEvents.push({
         type,
         messageId: normalizedId,
+        data,
       });
       if (sseEvents.length > 64) {
         sseEvents.splice(0, sseEvents.length - 64);
