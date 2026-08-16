@@ -14,7 +14,8 @@ server-layer store / event-bus / dispatcher.
 - _build_agent_roster: Internal roster helper for the decompose prompt (not exported).
 - run_decompose_task: Preview a decomposition without persistence.
 - run_apply_decompose: Persist children atomically from a cached preview.
-  Child tasks inherit the parent's ``model_override`` (and ``source_chat_id``).
+  Child tasks inherit the parent's ``model_override`` (and ``source_chat_id``),
+  and receive ``completion_criteria`` parsed from their LLM-written body.
 - run_apply_no_fanout: Persist a fanout=false result as Specify (TRIAGE→READY).
 
 [POS]
@@ -39,31 +40,11 @@ from myrm_agent_harness.toolkits.kanban.types import (
 )
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
-from app.services.kanban.criteria_parser import parse_markdown_criteria
+from app.services.kanban.criteria_parser import attach_completion_criteria
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_AGENT_ID = "default"
-
-
-def _merge_child_criteria(
-    base_metadata: dict[str, object] | None,
-    body: str,
-) -> dict[str, object] | None:
-    """Attach parsed semantic criteria to a child task's metadata patch.
-
-    Returns a new dict so the shared ``child_metadata`` base is never mutated.
-    A user-provided ``completion_criteria`` already present in the inherited
-    metadata wins over the LLM-derived checklist.
-    """
-    if "completion_criteria" in (base_metadata or {}):
-        return base_metadata
-    criteria = parse_markdown_criteria(body)
-    if not criteria:
-        return base_metadata
-    merged = dict(base_metadata) if base_metadata else {}
-    merged["completion_criteria"] = criteria
-    return merged
 
 
 class _DispatcherWaker(Protocol):
@@ -170,7 +151,7 @@ async def run_apply_decompose(
             completion_tokens=completion_tokens,
         )
 
-    child_metadata = inherit_source_chat_metadata(task.metadata)
+    child_metadata = inherit_source_chat_metadata(task.metadata) or {}
 
     child_ids: list[str] = []
     for spec in children:
@@ -188,7 +169,7 @@ async def run_apply_decompose(
             depends_on=depends_on or None,
             extra_skill_ids=list(spec.extra_skill_ids) or None,
             model_override=task.model_override,
-            metadata_patch=_merge_child_criteria(child_metadata, spec.body),
+            metadata_patch=attach_completion_criteria(child_metadata, spec.body) or None,
         )
         child_ids.append(child.task_id)
 
@@ -274,9 +255,7 @@ async def run_apply_no_fanout(
     task.metadata = task.metadata or {}
     task.metadata["original_title"] = original_title
     task.metadata["original_description"] = original_desc
-    criteria = parse_markdown_criteria(new_body)
-    if criteria and "completion_criteria" not in task.metadata:
-        task.metadata["completion_criteria"] = criteria
+    task.metadata = attach_completion_criteria(task.metadata, new_body)
     task.status = TaskStatus.READY
     await store.save_task(task)
 

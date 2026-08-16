@@ -47,12 +47,12 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 | `kanban_attach_handler.py` | ✅ 核心 | Worker `kanban_attach` 回调：workspace 路径（相对路径与 `/workspace/...` 抽象路径按 resolve_workspace 基准解析，适配 worktree 隔离）+ HTTPS URL（SSRF guard）→ files vault + task attachment_ids | ✅ |
 | `decompose/` | ✅ 子包 | 分解域（聚合出口见其 `__init__.py`） | - |
 | ├─ `decomposer.py` | ✅ 核心 | PlatformTaskDecomposer（LiteLLM + WebUI config） | ✅ |
-| └─ `orchestrator.py` | ✅ 核心 | TRIAGE→子任务图编排；子任务继承父任务 `source_chat_id` 与 `model_override`，不继承 `require_approval`（审批门禁作用于聚合交付物） | ✅ |
+| └─ `orchestrator.py` | ✅ 核心 | TRIAGE→子任务图编排；子任务继承父任务 `source_chat_id` 与 `model_override`，不继承 `require_approval`（审批门禁作用于聚合交付物）；子任务按 body 提取 `completion_criteria` | ✅ |
 | `specify/` | ✅ 子包 | 规范化域（聚合出口见其 `__init__.py`） | - |
 | ├─ `specifier.py` | ✅ 核心 | PlatformTaskSpecifier | ✅ |
 | └─ `orchestrator.py` | ✅ 核心 | TRIAGE→spec 编排（`SPECIFY_ALL_MAX_CONCURRENT`、批扫） | ✅ |
 | `llm_utils.py` | ✅ 核心 | LLM 辅助工具（specify/decompose 共用） | ✅ |
-| `criteria_parser.py` | ✅ 核心 | Markdown `- [ ]` checklist → `completion_criteria` semantic 数组（specify/decompose apply 时提取，schema 对齐 goal_handler `_parse_im_goal_text`） | ❌ |
+| `criteria_parser.py` | ✅ 核心 | Markdown `- [ ]` checklist → `completion_criteria` semantic 数组；`parse_markdown_criteria` 提取 + `attach_completion_criteria` 安全附加（不覆盖用户已有 criteria，纯函数不原地修改；specify/decompose apply 时使用，schema 对齐 goal_handler `_parse_im_goal_text`） | ❌ |
 | `task_attachment_ids.py` | ✅ 核心 | 任务附件 ID 持久化 | ❌ |
 | `gc.py` | ✅ 核心 | KanbanGCService 自动垃圾回收 | ✅ |
 

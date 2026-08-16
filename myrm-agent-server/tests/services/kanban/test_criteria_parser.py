@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from app.services.kanban.criteria_parser import _MAX_CRITERIA, parse_markdown_criteria
+from app.services.kanban.criteria_parser import (
+    _MAX_CRITERIA,
+    attach_completion_criteria,
+    parse_markdown_criteria,
+)
 
 
 def test_empty_body_returns_empty() -> None:
@@ -77,3 +81,40 @@ def test_schema_shape_is_semantic_dict() -> None:
     assert parsed == [{"type": "semantic", "criteria": "Ship it"}]
     for item in parsed:
         assert set(item) == {"type", "criteria"}
+
+
+# ---------------------------------------------------------------------------
+# attach_completion_criteria
+# ---------------------------------------------------------------------------
+
+
+def test_attach_returns_merged_copy_with_criteria() -> None:
+    meta = {"source_chat_id": "c1"}
+    result = attach_completion_criteria(meta, "- [ ] Item A\n- [ ] Item B")
+    assert result["completion_criteria"] == [
+        {"type": "semantic", "criteria": "Item A"},
+        {"type": "semantic", "criteria": "Item B"},
+    ]
+    # original dict untouched
+    assert "completion_criteria" not in meta
+    assert result["source_chat_id"] == "c1"
+
+
+def test_attach_does_not_mutate_input() -> None:
+    meta: dict[str, object] = {}
+    attach_completion_criteria(meta, "- [ ] X")
+    assert meta == {}
+
+
+def test_attach_keeps_existing_criteria() -> None:
+    meta: dict[str, object] = {"completion_criteria": "user text"}
+    result = attach_completion_criteria(meta, "- [ ] LLM item")
+    assert result is meta
+    assert result["completion_criteria"] == "user text"
+
+
+def test_attach_skips_when_no_checklist() -> None:
+    meta: dict[str, object] = {"source_chat_id": "c1"}
+    result = attach_completion_criteria(meta, "no checklist here")
+    assert result is meta
+    assert "completion_criteria" not in result

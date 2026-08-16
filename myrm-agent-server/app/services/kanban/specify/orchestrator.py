@@ -35,7 +35,7 @@ from myrm_agent_harness.toolkits.kanban.types import (
 )
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
-from app.services.kanban.criteria_parser import parse_markdown_criteria
+from app.services.kanban.criteria_parser import attach_completion_criteria
 
 SPECIFY_ALL_MAX_CONCURRENT: int = 3
 
@@ -84,10 +84,7 @@ async def _persist_spec(
     meta.setdefault("original_title", original_title)
     if original_description:
         meta.setdefault("original_description", original_description)
-    criteria = parse_markdown_criteria(new_body)
-    if criteria and "completion_criteria" not in meta:
-        meta["completion_criteria"] = criteria
-    task.metadata = meta
+    task.metadata = attach_completion_criteria(meta, new_body)
 
     deps_met = await store.are_dependencies_met(task.task_id)
     task.status = TaskStatus.READY if deps_met else TaskStatus.BACKLOG

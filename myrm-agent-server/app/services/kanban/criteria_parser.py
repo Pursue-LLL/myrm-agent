@@ -14,6 +14,7 @@ Kanban on the same ``{"type": "semantic", "criteria": ...}`` shape.
 
 [OUTPUT]
 - parse_markdown_criteria: ``list[dict[str, str]]`` of semantic criteria.
+- attach_completion_criteria: attach parsed criteria to task metadata dict.
 
 Note: the checklist is the natural-language acceptance contract written by the
 LLM. We intentionally emit ``semantic`` (never ``shell``) — converting free-text
@@ -54,3 +55,23 @@ def parse_markdown_criteria(body: str | None) -> list[dict[str, str]]:
         if len(criteria) >= _MAX_CRITERIA:
             break
     return criteria
+
+
+def attach_completion_criteria(
+    metadata: dict[str, object],
+    body: str | None,
+) -> dict[str, object]:
+    """Return *metadata* with parsed ``completion_criteria`` attached.
+
+    Pure function — never mutates the input dict. A user-provided
+    ``completion_criteria`` already present in *metadata* always wins over the
+    LLM-derived checklist, and an empty parse result leaves metadata untouched.
+    """
+    if "completion_criteria" in metadata:
+        return metadata
+    criteria = parse_markdown_criteria(body)
+    if not criteria:
+        return metadata
+    merged = dict(metadata)
+    merged["completion_criteria"] = criteria
+    return merged

@@ -61,7 +61,7 @@ return a single-task spec instead (same effect as "specify"):
     "fanout": false,
     "rationale": "<one sentence>",
     "title": "<tightened title, imperative voice, <= 80 chars>",
-    "body":  "<concrete spec: Goal / Approach / Acceptance criteria / Out-of-scope>",
+    "body":  "<concrete spec: Goal / Approach / Acceptance criteria (as a \\"- [ ]\\" checklist) / Out-of-scope>",
     "assignee": "<profile name from the roster, or null for default>"
   }
 
