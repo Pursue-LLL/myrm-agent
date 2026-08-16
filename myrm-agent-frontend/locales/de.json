@@ -3066,7 +3066,8 @@
         },
         "source": {
           "backgroundReview": "Hintergrundprüfung",
-          "manualEvolution": "Manuelle Evolution"
+          "manualEvolution": "Manuelle Evolution",
+          "memoryExtraction": "Speicherextraktion"
         },
         "confidence": "Konfidenz {value}%",
         "testPassed": "Validierung bestanden",
@@ -7162,6 +7163,9 @@
     "agentBrowse": "Agent-Browsing",
     "agentBrowsePrompt": "Bitte öffne und analysiere diesen Link im Browser: {url}",
     "relativeDate": {
+      "justNow": "Gerade eben",
+      "minutesAgo": "vor {count} Min.",
+      "hoursAgo": "vor {count} Std.",
       "today": "Heute",
       "yesterday": "Gestern",
       "daysAgo": "vor {count} T.",
@@ -9842,7 +9846,10 @@
         "openclaw": "OpenClaw",
         "cursor_rules": "Cursor Rules",
         "codex": "Codex",
-        "unknown": "Unbekannte Quelle"
+        "unknown": "Unbekannte Quelle",
+        "mem0": "Mem0",
+        "chatgpt": "ChatGPT",
+        "claude": "Claude"
       },
       "statuses": {
         "ready": "Jedes erkannte Element ist zugeordnet und bereit zum Import.",

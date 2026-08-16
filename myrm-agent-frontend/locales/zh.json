@@ -3384,7 +3384,8 @@
         },
         "source": {
           "backgroundReview": "后台复盘",
-          "manualEvolution": "手动优化"
+          "manualEvolution": "手动优化",
+          "memoryExtraction": "记忆提取"
         },
         "confidence": "置信度 {value}%",
         "testPassed": "验证通过",
@@ -7454,6 +7455,9 @@
     "agentBrowse": "Agent浏览",
     "agentBrowsePrompt": "请在浏览器中打开并分析这个链接: {url}",
     "relativeDate": {
+      "justNow": "刚刚",
+      "minutesAgo": "{count}分钟前",
+      "hoursAgo": "{count}小时前",
       "today": "今天",
       "yesterday": "昨天",
       "daysAgo": "{count}天前",
@@ -10006,7 +10010,10 @@
         "openclaw": "OpenClaw",
         "cursor_rules": "Cursor Rules",
         "codex": "Codex",
-        "unknown": "未知来源"
+        "unknown": "未知来源",
+        "mem0": "Mem0",
+        "chatgpt": "ChatGPT",
+        "claude": "Claude"
       },
       "statuses": {
         "ready": "所有可识别项目都已映射，可安全导入。",

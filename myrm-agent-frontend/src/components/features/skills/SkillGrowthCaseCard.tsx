@@ -89,7 +89,11 @@ export default function SkillGrowthCaseCard({
   const isMobile = useIsMobile();
   const statusStyle = STATUS_STYLES[item.status];
   const statusLabel = t(`status.${item.status}` as Parameters<typeof t>[0]);
-  const sourceLabel = item.source === 'draft' ? t('source.backgroundReview') : t('source.manualEvolution');
+  const sourceLabel = item.source === 'evolution'
+    ? t('source.manualEvolution')
+    : item.growthType === 'semantic_memory'
+      ? t('source.memoryExtraction')
+      : t('source.backgroundReview');
   const createdAt = useMemo(() => new Date(item.createdAt).toLocaleString(), [item.createdAt]);
   const showReviewActions = item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
   const approveLabel = item.status === 'APPLY_FAILED' ? t('actions.retryApply') : t('actions.approve');

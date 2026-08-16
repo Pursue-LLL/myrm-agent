@@ -3364,7 +3364,8 @@
         },
         "source": {
           "backgroundReview": "バックグラウンドレビュー",
-          "manualEvolution": "手動最適化"
+          "manualEvolution": "手動最適化",
+          "memoryExtraction": "記憶抽出"
         },
         "confidence": "信頼度 {value}%",
         "testPassed": "検証合格",
@@ -7376,6 +7377,9 @@
     "agentBrowse": "Agentで閲覧",
     "agentBrowsePrompt": "ブラウザでこのリンクを開いて分析してください: {url}",
     "relativeDate": {
+      "justNow": "たった今",
+      "minutesAgo": "{count}分前",
+      "hoursAgo": "{count}時間前",
       "today": "今日",
       "yesterday": "昨日",
       "daysAgo": "{count}日前",
@@ -9925,7 +9929,10 @@
         "openclaw": "OpenClaw",
         "cursor_rules": "Cursor Rules",
         "codex": "Codex",
-        "unknown": "不明なソース"
+        "unknown": "不明なソース",
+        "mem0": "Mem0",
+        "chatgpt": "ChatGPT",
+        "claude": "Claude"
       },
       "statuses": {
         "ready": "すべての認識済み項目がマッピングされ、インポート可能です。",

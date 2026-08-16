@@ -3364,7 +3364,8 @@
         },
         "source": {
           "backgroundReview": "後臺覆盤",
-          "manualEvolution": "手動最佳化"
+          "manualEvolution": "手動最佳化",
+          "memoryExtraction": "記憶提取"
         },
         "confidence": "置信度 {value}%",
         "testPassed": "驗證透過",
@@ -7411,6 +7412,9 @@
       "selectExportFolder": "選擇匯出目錄"
     },
     "relativeDate": {
+      "justNow": "剛剛",
+      "minutesAgo": "{count}分鐘前",
+      "hoursAgo": "{count}小時前",
       "today": "今天",
       "yesterday": "昨天",
       "daysAgo": "{count}天前",
@@ -9928,7 +9932,10 @@
         "openclaw": "OpenClaw",
         "cursor_rules": "Cursor Rules",
         "codex": "Codex",
-        "unknown": "未知來源"
+        "unknown": "未知來源",
+        "mem0": "Mem0",
+        "chatgpt": "ChatGPT",
+        "claude": "Claude"
       },
       "statuses": {
         "ready": "所有可識別專案都已對映，可安全匯入。",
