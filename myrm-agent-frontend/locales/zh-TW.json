@@ -11639,6 +11639,15 @@
       "browser_download": "透過瀏覽器下載檔案",
       "browser_session": "管理瀏覽器會話（建立/銷燬）"
     },
+    "schedule": {
+      "once": "一次",
+      "onceAt": "於 {time} 執行一次",
+      "everyMinutes": "每 {count} 分鐘",
+      "dailyAt": "每天 {time}",
+      "weekdaysAt": "工作日 {time}",
+      "weekendsAt": "週末 {time}",
+      "weekdayListAt": "{days} {time}"
+    },
     "preset": {
       "everyHour": "每小時",
       "daily8am": "每天 8:00",

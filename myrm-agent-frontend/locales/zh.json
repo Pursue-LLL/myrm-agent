@@ -11717,6 +11717,15 @@
       "browser_download": "通过浏览器下载文件",
       "browser_session": "管理浏览器会话（创建/销毁）"
     },
+    "schedule": {
+      "once": "一次",
+      "onceAt": "在 {time} 执行一次",
+      "everyMinutes": "每 {count} 分钟",
+      "dailyAt": "每天 {time}",
+      "weekdaysAt": "工作日 {time}",
+      "weekendsAt": "周末 {time}",
+      "weekdayListAt": "{days} {time}"
+    },
     "preset": {
       "everyHour": "每小时",
       "daily8am": "每天 8:00",

@@ -163,7 +163,6 @@ def test_wiki_concept_detail_source_jump() -> None:
     prepare_e2e_ui_session(api_url)
 
     concept_name, source_chat = _seed_provenance_concept(api_url)
-    short_name = concept_name.rsplit("/", 1)[-1]
 
     warm_ui_route("/settings/wiki")
     wiki_page_url = (
@@ -208,35 +207,15 @@ def test_wiki_concept_detail_source_jump() -> None:
         )
         assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
 
-        select = None
-        select_deadline = time.monotonic() + 30.0
-        while time.monotonic() < select_deadline:
-            select = client.evaluate(
-                page,
-                f"""(() => {{
-                  const target = {short_name!r};
-                  const labels = [...document.querySelectorAll('span, div')].filter(
-                    (el) => el.textContent === target && el.children.length === 0,
-                  );
-                  for (const el of labels) {{
-                    const clickable = el.closest('[role="treeitem"]') || el;
-                    clickable.click();
-                    return {{ ok: true, clicked: true }};
-                  }}
-                  return {{ ok: false, clicked: false, target }};
-                }})()""",
-                timeout_sec=15.0,
-            )
-            if isinstance(select, dict) and select.get("ok") is True:
-                break
-            time.sleep(1.0)
-        assert isinstance(select, dict), select
-        assert select.get("ok") is True, select
+        # The concept is deep-linked via ?conceptPath, so the concepts tree auto
+        # expands the ancestor folders and loads the detail panel. Wait for the
+        # detail panel (Source conversation link) instead of locating the leaf in
+        # the collapsed tree DOM.
         link_state = wait_for_state(
             client,
             page,
             _PROVENANCE_LINK_JS,
-            timeout_sec=30.0,
+            timeout_sec=60.0,
         )
         assert isinstance(link_state, dict), link_state
         assert link_state.get("ok") is True, link_state

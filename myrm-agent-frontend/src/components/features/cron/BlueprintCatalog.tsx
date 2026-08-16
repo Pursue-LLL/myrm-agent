@@ -68,7 +68,7 @@ export default function BlueprintCatalog({ onSelect, maxItems }: BlueprintCatalo
         const defaultSchedule = bp.buildSchedule(
           Object.fromEntries(bp.slots.map((s) => [s.name, s.default])),
         );
-        const scheduleText = humanizeSchedule(defaultSchedule);
+        const scheduleText = humanizeSchedule(defaultSchedule, t, locale);
 
         return (
           <button

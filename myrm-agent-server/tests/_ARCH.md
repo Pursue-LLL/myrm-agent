@@ -184,6 +184,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/kanban/test_in_review_api.py` | 模块 | IN_REVIEW 审批 API（approve/reject 转换、守卫、pending_review 通知 payload 含 board_id） |
 | `platform_utils/sandbox/_ARCH.md` | 模块 | `platform_utils/sandbox` 业务逻辑回归（platform provider seed 14 例 + tool gateway merge），见子目录清单 |
 | `services/agent/test_evolution_trigger_guard.py` | 模块 | `trigger_skill_evolution` 守卫单测（同 chat 在飞任务去重、普通对话 tool_steps<3 门槛跳过、DW `conversation_text` 绕过门槛） |
+| `services/agent/test_evolution_engine_task.py` | 模块 | `_run_evolution_task` 后台任务执行路径单测（短历史跳过、历史拼接、DW 文本跳过 DB、无 proposal 早退、approval+broadcast 全链、异常兜底日志） |
 | `services/memory/test_import_mem0.py` | 模块 | mem0 import adapter 单测（memories/results 双键识别、字段映射、tag 过滤、空/非法 drop、auto-detect、dry-run roundtrip） |
 
 ---

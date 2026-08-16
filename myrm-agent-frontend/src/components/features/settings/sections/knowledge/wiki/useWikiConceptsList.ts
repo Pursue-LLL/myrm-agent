@@ -136,6 +136,12 @@ export function useWikiConceptsList(options?: {
       return;
     }
     lastHighlightedConceptRef.current = highlight;
+    // Deep-link navigation must reveal the target in the tree: expand every
+    // ancestor directory so the highlighted leaf is visible and selectable.
+    const segments = nodeId.split('/');
+    for (let i = 1; i < segments.length; i++) {
+      treeRef.current?.open(segments.slice(0, i).join('/'));
+    }
     void handleSelectConcept(nodeId);
   }, [options?.highlightConceptPath, isLoading, treeData]);
 

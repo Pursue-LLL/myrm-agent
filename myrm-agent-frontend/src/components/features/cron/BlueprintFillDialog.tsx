@@ -255,7 +255,7 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
           <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
             <p className="text-xs text-muted-foreground">
               <Sparkles className="h-3 w-3 inline mr-1" />
-              {humanizeSchedule(previewSchedule)}
+              {humanizeSchedule(previewSchedule, t, locale)}
             </p>
           </div>
 

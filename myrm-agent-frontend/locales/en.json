@@ -11717,6 +11717,15 @@
       "browser_download": "Download files through browser",
       "browser_session": "Manage browser sessions (create/destroy)"
     },
+    "schedule": {
+      "once": "Once",
+      "onceAt": "Once at {time}",
+      "everyMinutes": "Every {count} min",
+      "dailyAt": "Daily at {time}",
+      "weekdaysAt": "Weekdays at {time}",
+      "weekendsAt": "Weekends at {time}",
+      "weekdayListAt": "{days} at {time}"
+    },
     "preset": {
       "everyHour": "Every hour",
       "daily8am": "Daily 8:00 AM",

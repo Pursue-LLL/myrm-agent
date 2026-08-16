@@ -2,6 +2,10 @@ import type { BlueprintDef, BlueprintFillResponse, CreateCronJobRequest, CronSch
 import { fillBlueprint, listBlueprints } from '@/services/cron';
 import type { LucideIcon } from 'lucide-react';
 import { Sun, ClipboardList, Bell, Newspaper, Moon, Sparkles, Activity, Eye, CheckSquare, BookOpen, Radio } from 'lucide-react';
+import { formatTime } from './cron-utils';
+
+/** Locale-aware translation function compatible with next-intl `useTranslations`. */
+export type ScheduleT = (key: string, values?: Record<string, string | number>) => string;
 
 // ==================== Types ====================
 
@@ -238,36 +242,46 @@ function timeToCronWithWeekdays(time: string, weekdays: string): string {
 }
 
 const WEEKDAY_KEYS: Record<string, string> = {
-  '0': 'Sun',
-  '1': 'Mon',
-  '2': 'Tue',
-  '3': 'Wed',
-  '4': 'Thu',
-  '5': 'Fri',
-  '6': 'Sat',
+  '0': 'daySun',
+  '1': 'dayMon',
+  '2': 'dayTue',
+  '3': 'dayWed',
+  '4': 'dayThu',
+  '5': 'dayFri',
+  '6': 'daySat',
 };
 
-export function humanizeSchedule(schedule: CronSchedule): string {
+/**
+ * Humanize a schedule for preview text, e.g. "Daily at 08:00", "Weekdays at 09:30",
+ * "Mon, Wed at 09:00", "Every 60 min", or "Once at <localized time>".
+ *
+ * All copy resolves through the `cron` namespace (`schedule.*` keys); weekday names
+ * reuse the existing `blueprint.day*` keys. Locale is threaded through so the once
+ * branch renders consistently between SSR and CSR.
+ */
+export function humanizeSchedule(schedule: CronSchedule, t: ScheduleT, locale: string): string {
   if (schedule.kind === 'once') {
-    return schedule.run_at ? new Date(schedule.run_at).toLocaleString() : 'Once';
+    return schedule.run_at
+      ? t('schedule.onceAt', { time: formatTime(schedule.run_at, locale) })
+      : t('schedule.once');
   }
   if (schedule.kind === 'interval') {
     const mins = (schedule.interval_ms ?? 0) / 60_000;
-    return `Every ${mins} min`;
+    return t('schedule.everyMinutes', { count: mins });
   }
   if (!schedule.expr) {return '';}
   const parts = schedule.expr.trim().split(/\s+/);
   if (parts.length < 5) {return schedule.expr;}
   const [min, hour, , , dow] = parts;
   const time = `${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
-  if (dow === '*') {return `Daily at ${time}`;}
-  if (dow === '1-5') {return `Weekdays at ${time}`;}
-  if (dow === '0,6') {return `Weekends at ${time}`;}
+  if (dow === '*') {return t('schedule.dailyAt', { time });}
+  if (dow === '1-5') {return t('schedule.weekdaysAt', { time });}
+  if (dow === '0,6') {return t('schedule.weekendsAt', { time });}
   const dayNames = dow
     .split(',')
-    .map((d) => WEEKDAY_KEYS[d] ?? d)
+    .map((d) => t(`blueprint.${WEEKDAY_KEYS[d] ?? d}`))
     .join(', ');
-  return `${dayNames} at ${time}`;
+  return t('schedule.weekdayListAt', { days: dayNames, time });
 }
 
 // ==================== Cron Presets ====================
