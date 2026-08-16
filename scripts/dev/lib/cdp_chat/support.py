@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import fcntl
 import json
 import os
 import re
@@ -10,7 +12,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -505,8 +507,14 @@ def _e2e_api_urlopen(
     *,
     timeout_sec: float,
     max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
+    no_retry_statuses: frozenset[int] = frozenset(),
 ) -> object:
-    """Retry loopback E2E API reads on transient socket/timeouts under parallel load."""
+    """Retry loopback E2E API reads on transient socket/timeouts under parallel load.
+
+    `no_retry_statuses` disables the blanket HTTP retry for specific status codes
+    (e.g. 409 optimistic-lock conflicts): the caller owns the retry policy and
+    must re-read the server version before each re-put.
+    """
     _validate_loopback_http_url(req.full_url)
     last_error: BaseException | None = None
     for attempt in range(max_attempts):
@@ -514,7 +522,10 @@ def _e2e_api_urlopen(
             return urllib.request.urlopen(req, timeout=timeout_sec)
         except urllib.error.HTTPError as exc:
             last_error = exc
-            if exc.code in {409, 423, 500, 503} and attempt + 1 < max_attempts:
+            retriable = (
+                exc.code in {409, 423, 500, 503} and exc.code not in no_retry_statuses
+            )
+            if retriable and attempt + 1 < max_attempts:
                 time.sleep(_E2E_API_REQUEST_BACKOFF_SEC * (attempt + 1))
                 continue
             raise
@@ -825,9 +836,7 @@ def wait_e2e_provider_ready(
     )
 
 
-GOAL_PERSISTED_STATUSES = frozenset(
-    {"active", "budget_limited", "complete", "paused"}
-)
+GOAL_PERSISTED_STATUSES = frozenset({"active", "budget_limited", "complete", "paused"})
 
 
 def is_persisted_e2e_goal(goal: dict[str, object] | None) -> bool:
@@ -1648,6 +1657,47 @@ def chat_messages_have_ok(
     return bool(_AGENT_TURN_DONE_RE.search(content))
 
 
+_CONFIG_MUTEX_DIR = Path("/tmp/myrm-e2e-config-mutex")
+_CONFIG_MUTEX_WAIT_SEC = float(
+    os.environ.get("MYRM_E2E_CONFIG_MUTEX_WAIT_SEC", "120").strip() or "120"
+)
+
+
+@contextlib.contextmanager
+def config_write_mutex(
+    config_key: str, *, wait_sec: float | None = None
+) -> Iterator[None]:
+    """Serialize read-modify-write of a global config key across parallel tests.
+
+    The providers config is a single global key shared by every chrome_e2e
+    session. Even with optimistic-lock PUTs (R2), concurrent tests can still
+    overwrite each other's seed between their read and their put. A per-key
+    advisory flock scopes the whole "read → merge → put → verify → restore"
+    window to one writer. `wait_sec` bounds how long a peer test may hold it;
+    exceeding the bound is an honest serialization failure, not a silent retry.
+    """
+    _CONFIG_MUTEX_DIR.mkdir(parents=True, exist_ok=True)
+    lock_path = _CONFIG_MUTEX_DIR / f"{config_key}.lock"
+    resolved_wait = wait_sec if wait_sec is not None else _CONFIG_MUTEX_WAIT_SEC
+    with lock_path.open("a+", encoding="utf-8") as handle:
+        deadline = time.monotonic() + resolved_wait
+        while True:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(
+                        f"E2E_CONFIG_MUTEX_TIMEOUT: '{config_key}' held by a peer "
+                        f"beyond {resolved_wait:.0f}s — serialize or reconcile writers"
+                    ) from None
+                time.sleep(0.25)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 def _config_http_json(
     method: str,
     path: str,
@@ -1656,6 +1706,7 @@ def _config_http_json(
     api_url: str | None = None,
     timeout_sec: float = 10.0,
     max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
+    no_retry_statuses: frozenset[int] = frozenset(),
 ) -> dict[str, object]:
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     data = json.dumps(body).encode("utf-8") if body is not None else None
@@ -1666,7 +1717,10 @@ def _config_http_json(
         method=method,
     )
     with _e2e_api_urlopen(
-        req, timeout_sec=timeout_sec, max_attempts=max_attempts
+        req,
+        timeout_sec=timeout_sec,
+        max_attempts=max_attempts,
+        no_retry_statuses=no_retry_statuses,
     ) as resp:
         raw = resp.read()
         if not raw:
@@ -1675,9 +1729,14 @@ def _config_http_json(
         return payload if isinstance(payload, dict) else {"value": payload}
 
 
-def fetch_config_value(
+def fetch_config_record(
     config_key: str, *, api_url: str | None = None
 ) -> dict[str, object]:
+    """Fetch the full config record (value + version + updatedAt + deviceId).
+
+    The `version` is the optimistic-lock token used by `put_config_value` to
+    detect concurrent writers; last-write-wins PUTs are the R2 root cause.
+    """
     base_timeout = 15.0 if os.environ.get("E2E_SIGNOFF", "").strip() == "1" else 10.0
     timeout_sec = e2e_parallel_config_api_timeout_sec(base_timeout)
     attempts = _E2E_API_REQUEST_ATTEMPTS
@@ -1693,7 +1752,13 @@ def fetch_config_value(
         timeout_sec=timeout_sec,
         max_attempts=attempts,
     )
-    value = payload.get("value")
+    return payload if isinstance(payload, dict) else {}
+
+
+def fetch_config_value(
+    config_key: str, *, api_url: str | None = None
+) -> dict[str, object]:
+    value = fetch_config_record(config_key, api_url=api_url).get("value")
     return value if isinstance(value, dict) else {}
 
 
@@ -1702,16 +1767,43 @@ def put_config_value(
     value: dict[str, object],
     *,
     api_url: str | None = None,
+    max_conflict_retries: int = 5,
 ) -> None:
-    # PUT may block under parallel chrome_e2e on shared :8080 — longer timeout + retries.
-    _config_http_json(
-        "PUT",
-        f"/api/v1/config/{config_key}",
-        {"deviceId": "web", "value": value},
-        api_url=api_url,
-        timeout_sec=30.0,
-        max_attempts=5,
-    )
+    """Write a config with an optimistic-lock (expectedVersion) and bounded retry.
+
+    Reads the current server version, PUTs with `expectedVersion`, and on a 409
+    conflict re-reads and retries (≤ max_conflict_retries). Still conflicting =>
+    fail-fast with the surviving peer's version, so a caller never silently
+    overwrites a concurrent writer's seed (R2).
+    """
+    peer_version: str | None = None
+    for attempt in range(max_conflict_retries):
+        record = fetch_config_record(config_key, api_url=api_url)
+        version = str(record.get("version") or "0")
+        try:
+            _config_http_json(
+                "PUT",
+                f"/api/v1/config/{config_key}",
+                {"deviceId": "web", "value": value, "expectedVersion": version},
+                api_url=api_url,
+                timeout_sec=30.0,
+                max_attempts=5,
+                no_retry_statuses=frozenset({409}),
+            )
+            return
+        except urllib.error.HTTPError as exc:
+            if exc.code != 409:
+                raise
+            peer_version = version
+            if attempt + 1 < max_conflict_retries:
+                time.sleep(_E2E_API_REQUEST_BACKOFF_SEC * (attempt + 1))
+                continue
+            raise RuntimeError(
+                f"E2E config optimistic-lock exhausted for '{config_key}': "
+                f"{max_conflict_retries} conflicts with peer version={peer_version!r}; "
+                "a parallel test is mutating the same global config — serialize "
+                "writers (E2E_CONFIG_MUTEX) or reconcile the shared seed"
+            ) from exc
 
 
 def wait_e2e_backend_ready(
@@ -2823,7 +2915,9 @@ def _private_runtime_backend_log(api_url: str | None) -> Path | None:
         return None
     override = os.getenv("MYRM_ISOLATED_ROOT", "").strip()
     isolated_root = (
-        Path(override).resolve() if override else real_user_home() / ".local/state/myrm-isolated"
+        Path(override).resolve()
+        if override
+        else real_user_home() / ".local/state/myrm-isolated"
     )
     registry = isolated_root / "registry.json"
     if not registry.is_file():

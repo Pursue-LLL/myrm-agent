@@ -31,6 +31,7 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
+    config_write_mutex,
     fetch_chat_messages,
     fetch_config_value,
     get_e2e_api_url,
@@ -366,23 +367,25 @@ async def test_image_upload_stream_assistant_replies(
 
     backup = fetch_config_value("providers", api_url=api_url)
     try:
-        _seed_vision_provider(api_url)
-        if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=60.0):
-            pytest.fail("Provider readiness failed after vision seed")
+        # R2: vision provider seed must stay authoritative for the whole flow.
+        with config_write_mutex("providers", wait_sec=900.0):
+            _seed_vision_provider(api_url)
+            if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=60.0):
+                pytest.fail("Provider readiness failed after vision seed")
 
-        page_session = await open_mcp_page_async(
-            get_e2e_ui_url().rstrip("/"),
-            request_timeout_sec=180.0,
-            timeout_ms=120_000,
-        )
-        try:
-            chat_id = await _run_image_flow(
-                McpChatSession(page_session.client, page_session.page),
-                api_url=api_url,
+            page_session = await open_mcp_page_async(
+                get_e2e_ui_url().rstrip("/"),
+                request_timeout_sec=180.0,
+                timeout_ms=120_000,
             )
-            e2e_resource_ledger.register("chat", chat_id)
-        finally:
-            await page_session.aclose()
+            try:
+                chat_id = await _run_image_flow(
+                    McpChatSession(page_session.client, page_session.page),
+                    api_url=api_url,
+                )
+                e2e_resource_ledger.register("chat", chat_id)
+            finally:
+                await page_session.aclose()
     finally:
         if isinstance(backup, dict) and backup:
             put_config_value("providers", backup, api_url=api_url)

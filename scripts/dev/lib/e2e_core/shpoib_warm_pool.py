@@ -131,7 +131,13 @@ def _fetch_health_payload(api_base: str) -> dict[str, object] | None:
             if not (200 <= resp.status < 300):
                 return None
             payload = json.loads(resp.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, ValueError):
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        OSError,
+        json.JSONDecodeError,
+        ValueError,
+    ):
         return None
     return payload if isinstance(payload, dict) else None
 
@@ -341,7 +347,9 @@ def maintain_warm_pool(*, target_size: int | None = None) -> int:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
-def try_borrow_warm_backend(*, borrower_pid: int | None = None) -> WarmBorrowResult | None:
+def try_borrow_warm_backend(
+    *, borrower_pid: int | None = None
+) -> WarmBorrowResult | None:
     """Borrow a ready warm backend for pytest SHPOIB bootstrap, if available."""
     if os.environ.get("MYRM_E2E_SHPOIB_WARM_POOL", "1").strip() in {"0", "false", "no"}:
         return None
@@ -400,6 +408,10 @@ def try_borrow_warm_backend(*, borrower_pid: int | None = None) -> WarmBorrowRes
                     "MYRM_PRIVATE_BACKEND": "1",
                     "MYRM_E2E_SHPOIB": "1",
                     "MYRM_E2E_WARM_POOL_BORROW": "1",
+                    # Borrowed backends are warm-period seeded; the borrow
+                    # contract resets providers to the borrower's authoritative
+                    # env so a reused backend never serves a peer's seed (R2).
+                    "MYRM_E2E_FORCE_MODEL_SEED": "1",
                 }
                 print(
                     f"E2E_SHPOIB_WARM_POOL_BORROW: runtime={runtime_id} api={api_base}",
@@ -445,7 +457,9 @@ def warm_pool_snapshot() -> dict[str, object]:
     _prune_stale(registry, now=time.time())
     ready = _count_ready(registry)
     borrowed = sum(
-        1 for record in registry["backends"].values() if record.get("state") == "borrowed"
+        1
+        for record in registry["backends"].values()
+        if record.get("state") == "borrowed"
     )
     return {
         "readyCount": ready,

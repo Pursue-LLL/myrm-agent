@@ -1,5 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useSubagentStore, isNodeOvertime, type SubagentNode } from '../useSubagentStore';
+
+vi.mock('@/lib/api', () => ({
+  fetchWithTimeout: vi.fn(),
+}));
+
+import { fetchWithTimeout } from '@/lib/api';
+const mockFetchWithTimeout = vi.mocked(fetchWithTimeout);
 
 function makeNode(overrides: Partial<SubagentNode> = {}): SubagentNode {
   return {
@@ -180,5 +187,47 @@ describe('setNodes terminal-state protection', () => {
     const node = useSubagentStore.getState().nodes['t1'];
     expect(node.status).toBe('cancelled');
     expect(node.last_tool).toBe('bash');
+  });
+});
+
+describe('fetchSubagents', () => {
+  beforeEach(() => {
+    useSubagentStore.getState().clear();
+    mockFetchWithTimeout.mockReset();
+  });
+
+  it('hydrates store nodes from the subagents API', async () => {
+    const nodes = [makeNode({ task_id: 't-api', status: 'completed', progress: 100 })];
+    mockFetchWithTimeout.mockResolvedValue({
+      json: vi.fn().mockResolvedValue({ data: nodes }),
+    } as unknown as Response);
+
+    await useSubagentStore.getState().fetchSubagents('chat-1');
+
+    expect(mockFetchWithTimeout).toHaveBeenCalledWith('/chats/chat-1/subagents');
+    expect(useSubagentStore.getState().nodes['t-api']).toBeDefined();
+    expect(useSubagentStore.getState().nodes['t-api'].status).toBe('completed');
+  });
+
+  it('ignores non-array data payloads', async () => {
+    mockFetchWithTimeout.mockResolvedValue({
+      json: vi.fn().mockResolvedValue({ data: {} }),
+    } as unknown as Response);
+
+    await useSubagentStore.getState().fetchSubagents('chat-2');
+
+    expect(Object.keys(useSubagentStore.getState().nodes)).toHaveLength(0);
+  });
+
+  it('does nothing without a chat id', async () => {
+    await useSubagentStore.getState().fetchSubagents('');
+
+    expect(mockFetchWithTimeout).not.toHaveBeenCalled();
+  });
+
+  it('survives API failure without throwing', async () => {
+    mockFetchWithTimeout.mockRejectedValue(new Error('network down'));
+
+    await expect(useSubagentStore.getState().fetchSubagents('chat-3')).resolves.toBeUndefined();
   });
 });

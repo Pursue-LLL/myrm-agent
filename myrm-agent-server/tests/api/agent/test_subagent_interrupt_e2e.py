@@ -44,7 +44,9 @@ def test_subagent_interrupt_and_resume(client: TestClient):
     # This query instructs the general agent to spawn a subagent, which then executes a bash command.
     # Bash code execution is typically a high-risk operation that requires user approval (ASK).
     # NOTE: `rm -rf` is NOT a SAFE command (risk=UNKNOWN) → engine returns ASK → triggers approval.
-    query = "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，让它执行一条bash命令: `rm -rf /tmp/myrm_e2e_interrupt_del`。注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，绝对不要在文本中输出 XML 格式的工具调用！"
+    # wait=true forces delegate_task_tool's PENDING_APPROVAL loop, so the subagent's approval
+    # propagates to the parent agent as a subagent_approval interrupt.
+    query = "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，并且必须将 wait 参数设置为 true（同步等待子任务完成，不要异步）。让它执行一条bash命令: `rm -rf /tmp/myrm_e2e_interrupt_del`。注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，绝对不要在文本中输出 XML 格式的工具调用！"
 
     req = get_test_request(query, chat_id, message_id)
 
@@ -161,6 +163,7 @@ def test_subagent_interrupt_resume_with_allow_always(client: TestClient):
     message_id = str(uuid.uuid4())
     query = (
         "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，"
+        "并且必须将 wait 参数设置为 true（同步等待子任务完成，不要异步）。"
         "让它执行一条bash命令: `rm -rf /tmp/myrm_e2e_interrupt_allow_always`。注意：必须使用原生函数调用。"
     )
 
@@ -259,6 +262,7 @@ def test_subagent_interrupt_resume_with_edit(client: TestClient):
     message_id = str(uuid.uuid4())
     query = (
         "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，"
+        "并且必须将 wait 参数设置为 true（同步等待子任务完成，不要异步）。"
         "让它执行一条bash命令: `rm -rf /tmp/myrm_e2e_interrupt_edit`。注意：必须使用原生函数调用。"
     )
 

@@ -24,6 +24,7 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
+    config_write_mutex,
     fetch_config_value,
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -298,6 +299,11 @@ async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
         ):
             return state
         await asyncio.sleep(0.5)
+    print(
+        "[E2E_STORE_STATE] " + json.dumps(last_state, indent=2, default=str),
+        file=sys.stderr,
+        flush=True,
+    )
     return last_state  # type: ignore[return-value]
 
 
@@ -323,114 +329,113 @@ async def test_smart_routing_tier_surfaced_in_webui(
 
     backup = fetch_config_value("providers", api_url=api_url)
     try:
-        _configure_smart_routing_providers(api_url)
-        if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=60.0):
-            pytest.fail("Provider readiness failed after smart-routing seed")
-
-        async def re_seed() -> None:
+        # R2: the global providers config is shared by every chrome_e2e session.
+        # The whole "seed → verify → run flow" window must hold the per-key
+        # mutex so a parallel peer cannot overwrite our routing seed mid-flow.
+        # This replaces the fragile re-seed-before-every-send mitigation.
+        # The wait window mirrors the session-queue ceiling so a peer that is
+        # mid-flow simply serializes; it never times out under normal parallel
+        # load. Timeout is an honest serialization failure (log + fail-fast).
+        with config_write_mutex("providers", wait_sec=900.0):
             _configure_smart_routing_providers(api_url, verify=True)
-            if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=30.0):
-                pytest.fail("Provider readiness failed on re-seed (parallel overwrite)")
+            if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=60.0):
+                pytest.fail("Provider readiness failed after smart-routing seed")
 
-        async def run_flow(chat: McpChatSession) -> None:
-            ui_base = _base_url()
-            await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
-            await chat.click_new_chat()
-            await chat.evaluate(
-                _ARM_SSE_RECORDER_JS,
-                intent=EvaluateIntent.AGENT_SUBMIT,
-            )
+            async def run_flow(chat: McpChatSession) -> None:
+                ui_base = _base_url()
+                await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
+                await chat.click_new_chat()
+                await chat.evaluate(
+                    _ARM_SSE_RECORDER_JS,
+                    intent=EvaluateIntent.AGENT_SUBMIT,
+                )
 
-            # 并行 chrome_e2e 会改写共享 config——每次发送前重 seed + pin 权威 baseModel，
-            # 确保 store 里的模型选择始终来自本测试的合法 seed。
-            await re_seed()
-            pin_raw = await chat.evaluate(
-                _PIN_BASIC_PRIMARY_JS,
-                intent=EvaluateIntent.AGENT_SUBMIT,
-            )
-            pin_state = pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
-            assert pin_state.get("ok") is True, pin_state
-            selection = pin_state.get("selection")
-            assert isinstance(selection, dict), pin_state
-            assert str(selection.get("model") or ""), pin_state
-            light_probe = await chat.evaluate(
-                _GET_LIGHT_SELECTION_JS,
-                intent=EvaluateIntent.SYNC_PROBE,
-            )
-            print(
-                f"[E2E_LIGHT_SELECTION] {light_probe}",
-                file=sys.stderr,
-                flush=True,
-            )
-
-            send_result = await chat.send_message(
-                SIMPLE_PROMPT,
-                SIMPLE_PROMPT,
-            )
-            chat_id = (
-                str(send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or "").strip()
-                or None
-            )
-
-            simple_state = await _wait_tier(chat, "simple")
-            if simple_state.get("routingTier") != "simple":
-                _dump_backend_routing_log(api_url)
-                await _dump_sse_log(chat)
-            assert simple_state.get("routingTier") == "simple", simple_state
-            heartbeat_once()
-
-            await re_seed()
-            await chat.evaluate(
-                _PIN_BASIC_PRIMARY_JS,
-                intent=EvaluateIntent.AGENT_SUBMIT,
-            )
-            await chat.send_message(
-                DEBUG_PROMPT,
-                DEBUG_PROMPT,
-            )
-            standard_state = await _wait_tier(chat, "standard")
-            if standard_state.get("routingTier") != "standard":
-                _dump_backend_routing_log(api_url)
-                await _dump_sse_log(chat)
-            assert standard_state.get("routingTier") == "standard", standard_state
-
-            # 档位 badge 位于 token 用量 tooltip 内（默认隐藏）——hover 触发后轮询可见。
-            hover = await chat.evaluate(
-                _HOVER_TOKEN_BTN_JS,
-                intent=EvaluateIntent.AGENT_SUBMIT,
-            )
-            hover_state = hover if isinstance(hover, dict) else json.loads(str(hover))
-            assert hover_state.get("ok") is True, hover_state
-            deadline = time.monotonic() + 10.0
-            badge_state: dict[str, object] = {}
-            while time.monotonic() < deadline:
-                badge = await chat.evaluate(
-                    _TIER_BADGE_JS,
+                pin_raw = await chat.evaluate(
+                    _PIN_BASIC_PRIMARY_JS,
+                    intent=EvaluateIntent.AGENT_SUBMIT,
+                )
+                pin_state = pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
+                assert pin_state.get("ok") is True, pin_state
+                selection = pin_state.get("selection")
+                assert isinstance(selection, dict), pin_state
+                assert str(selection.get("model") or ""), pin_state
+                light_probe = await chat.evaluate(
+                    _GET_LIGHT_SELECTION_JS,
                     intent=EvaluateIntent.SYNC_PROBE,
                 )
-                badge_state = badge if isinstance(badge, dict) else json.loads(str(badge))
-                if badge_state.get("found") is True:
-                    break
-                await asyncio.sleep(0.5)
-            assert badge_state.get("found") is True, badge_state
+                print(
+                    f"[E2E_LIGHT_SELECTION] {light_probe}",
+                    file=sys.stderr,
+                    flush=True,
+                )
 
-            resolved_chat_id = chat_id
-            if not resolved_chat_id:
-                after = await chat.main_state(DEBUG_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
-                href = str(after.get("url") or "")
-                resolved_chat_id = chat_id_from_path(href.split("?", 1)[0])
-            if resolved_chat_id:
-                e2e_resource_ledger.register("chat", resolved_chat_id)
+                send_result = await chat.send_message(
+                    SIMPLE_PROMPT,
+                    SIMPLE_PROMPT,
+                )
+                chat_id = (
+                    str(send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or "").strip()
+                    or None
+                )
 
-        page_session = await open_mcp_page_async(
-            _base_url(),
-            request_timeout_sec=180.0,
-            timeout_ms=120_000,
-        )
-        try:
-            await run_flow(McpChatSession(page_session.client, page_session.page))
-        finally:
-            await page_session.aclose()
+                simple_state = await _wait_tier(chat, "simple")
+                if simple_state.get("routingTier") != "simple":
+                    _dump_backend_routing_log(api_url)
+                    await _dump_sse_log(chat)
+                assert simple_state.get("routingTier") == "simple", simple_state
+                heartbeat_once()
+
+                await chat.evaluate(
+                    _PIN_BASIC_PRIMARY_JS,
+                    intent=EvaluateIntent.AGENT_SUBMIT,
+                )
+                await chat.send_message(
+                    DEBUG_PROMPT,
+                    DEBUG_PROMPT,
+                )
+                standard_state = await _wait_tier(chat, "standard")
+                if standard_state.get("routingTier") != "standard":
+                    _dump_backend_routing_log(api_url)
+                    await _dump_sse_log(chat)
+                assert standard_state.get("routingTier") == "standard", standard_state
+
+                # 档位 badge 位于 token 用量 tooltip 内（默认隐藏）——hover 触发后轮询可见。
+                hover = await chat.evaluate(
+                    _HOVER_TOKEN_BTN_JS,
+                    intent=EvaluateIntent.AGENT_SUBMIT,
+                )
+                hover_state = hover if isinstance(hover, dict) else json.loads(str(hover))
+                assert hover_state.get("ok") is True, hover_state
+                deadline = time.monotonic() + 10.0
+                badge_state: dict[str, object] = {}
+                while time.monotonic() < deadline:
+                    badge = await chat.evaluate(
+                        _TIER_BADGE_JS,
+                        intent=EvaluateIntent.SYNC_PROBE,
+                    )
+                    badge_state = badge if isinstance(badge, dict) else json.loads(str(badge))
+                    if badge_state.get("found") is True:
+                        break
+                    await asyncio.sleep(0.5)
+                assert badge_state.get("found") is True, badge_state
+
+                resolved_chat_id = chat_id
+                if not resolved_chat_id:
+                    after = await chat.main_state(DEBUG_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
+                    href = str(after.get("url") or "")
+                    resolved_chat_id = chat_id_from_path(href.split("?", 1)[0])
+                if resolved_chat_id:
+                    e2e_resource_ledger.register("chat", resolved_chat_id)
+
+            page_session = await open_mcp_page_async(
+                _base_url(),
+                request_timeout_sec=180.0,
+                timeout_ms=120_000,
+            )
+            try:
+                await run_flow(McpChatSession(page_session.client, page_session.page))
+            finally:
+                await page_session.aclose()
     finally:
         if isinstance(backup, dict) and backup:
             put_config_value("providers", backup, api_url=api_url)

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { fetchWithTimeout } from '@/lib/api';
 import { mergeTeammateEntries, normalizeTeammateEntry } from '@/lib/utils/teammateMessage';
 
 export type SubagentStatus =
@@ -135,6 +136,7 @@ export interface SubagentStore {
   dismissStale: (taskId: string) => void;
   completeNode: (taskId: string, status: SubagentStatus, error?: string) => void;
   setNodes: (nodes: SubagentNode[]) => void;
+  fetchSubagents: (chatId: string) => Promise<void>;
   appendTeammateMessage: (entry: TeammateMessageEntry) => void;
   appendStream: (taskId: string, entry: StreamEntry) => void;
   setFissionBatch: (
@@ -150,7 +152,7 @@ export interface SubagentStore {
   clear: () => void;
 }
 
-export const useSubagentStore = create<SubagentStore>((set) => ({
+export const useSubagentStore = create<SubagentStore>((set, get) => ({
   nodes: {},
   fissionBatch: null,
   fissionTopology: null,
@@ -278,6 +280,19 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
       });
       return { nodes: map };
     }),
+
+  fetchSubagents: async (chatId) => {
+    if (!chatId) {return;}
+    try {
+      const res = await fetchWithTimeout(`/chats/${chatId}/subagents`);
+      const json = (await res.json()) as { data?: unknown };
+      if (Array.isArray(json.data)) {
+        get().setNodes(json.data as SubagentNode[]);
+      }
+    } catch (error) {
+      console.error('fetchSubagents failed', error);
+    }
+  },
 
   appendTeammateMessage: (entry) =>
     set((state) => {

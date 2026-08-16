@@ -237,7 +237,17 @@ _LAST_ASSISTANT_TEXT_JS = """(() => {
   const el = els[els.length - 1];
   if (!el) return { ready: false, reason: 'no-message-element' };
   const text = (el.innerText || '').trim();
-  if (!text) return { ready: false, reason: 'empty-message-text' };
+  if (!text) {
+    const snapshot = els.map((n) => ({
+      id: (n.getAttribute('data-message-id') || '').slice(0, 24),
+      cls: (n.className || '').toString().slice(0, 60),
+      testid: n.getAttribute('data-testid') || '',
+      hasAssistant: !!n.closest('[data-test-id="assistant-message"]'),
+      text: (n.innerText || '').slice(0, 60),
+      childCount: n.children.length,
+    }));
+    return { ready: false, reason: 'empty-message-text', count: els.length, snapshot };
+  }
   return { ready: true, text };
 })()"""
 
