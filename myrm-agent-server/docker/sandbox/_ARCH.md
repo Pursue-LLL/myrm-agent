@@ -1,7 +1,7 @@
 
 # docker/sandbox 模块架构
 
-Skill 执行沙箱 Docker 镜像。Python 3.14 + Node 20 + Bun；uv + `uv.lock` 锁定依赖；非 root、ReadonlyRootfs、CapDrop ALL。
+Skill 执行沙箱 Docker 镜像。Python 3.14 + Node 20 + Bun；uv + `uv.lock` 锁定依赖；非 root、ReadonlyRootfs、CapDrop ALL；`tini` 为 PID-1（`ENTRYPOINT ["/usr/bin/tini","-g","--"]` + `USER sandbox`，同 uid 收割/转发，最小权限）。
 
 ## 构建与验证
 

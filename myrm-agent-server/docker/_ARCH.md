@@ -19,6 +19,11 @@ Server 容器构建与运行时入口。`Dockerfile` 从 PyPI 安装钉死版本
 
 云托管运行时镜像由 CP 契约 `DEFAULT_AGENT_SERVER_IMAGE` 指向 `Dockerfile.official` 产物；Skill 沙箱镜像由 `sandbox/Dockerfile` 独立构建；`docker-compose.yaml` 不含 agent 镜像 profile。
 
+**PID-1 治理（tini）**：三个 Dockerfile 均以 `/usr/bin/tini -g --` 作为容器 PID-1（`ENTRYPOINT`）：
+- `Dockerfile` / `Dockerfile.official`：`tini -g -- /app/entrypoint.sh`，`-g` 让 tini 转发信号到整个进程组（配合 `entrypoint.sh` 内 Xvfb/VNC 等长驻子进程优雅退出）；`entrypoint.sh` 依 `$UID` 走 `gosu`（root 本地）或 `exec "$@"`（`USER myrm`）分支。
+- `sandbox/Dockerfile`：`tini -g --` + `USER sandbox`，tini 以非 root 运行（同 uid 收割/转发，最小权限）。
+- 云托管容器由 CP 契约以 `Entrypoint: ["/usr/bin/tini","-g","--","/bin/sh","-c"]` 覆盖镜像 ENTRYPOINT（root init shell → `runuser -u myrm` 降权）；`CapAdd` 含 `KILL`（runuser 降权后 tini 向 uid≠0 子进程转发信号所需）。
+
 构建上下文为 **myrm-agent 仓库根**（含 `myrm-agent-server/` 与 `shared/`，与 `docker-compose.yaml` backend build `context: ..` 一致）：
 
 ```bash
