@@ -13,7 +13,6 @@ JSON output parsing and PatternReport assembly are fully real.
 from __future__ import annotations
 
 import os
-import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -112,7 +111,12 @@ async def test_pattern_discovery_with_real_llm_produces_patterns() -> None:
 
     assert report.skipped is False, report.skip_reason
     assert report.memory_count >= 50
-    assert any(p.confidence >= 0.5 for p in report.patterns) or report.patterns
+    assert len(report.patterns) > 0, "real LLM should surface at least one behavioral pattern"
+    first = report.patterns[0]
+    assert first.title.strip()
+    assert first.description.strip()
+    assert first.evidence_summary.strip()
+    assert first.confidence >= 0.5
 
 
 @pytest.mark.skipif(
