@@ -6,20 +6,6 @@
  * - @/lib/desktop/permissionDeepLink (POS: 桌面权限引导深链 SSOT)
  *
  * [OUTPUT]
- * - CuPermissionInline: Agent 配置面板内 computer_use 权限探测条（ granted / missing / error ）
- *
- * [POS]
- * BuiltinToolsPanel 子组件。本地模式启用 computer_use 时展示 OS 权限状态与设置入口。
- */
-
-'use client';
-
-/**
- * [INPUT]
- * - @/lib/api::apiRequest (POS: 前端统一请求入口)
- * - @/lib/desktop/permissionDeepLink (POS: 桌面权限引导深链 SSOT)
- *
- * [OUTPUT]
  * - CuPermissionInline: Agent 配置面板内 computer_use 权限探测条（granted / missing / error）
  *
  * [POS]
