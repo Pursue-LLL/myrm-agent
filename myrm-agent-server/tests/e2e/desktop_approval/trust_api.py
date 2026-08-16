@@ -500,7 +500,8 @@ def clear_persisted_desktop_approvals() -> None:
         progress(f"trusted apps clear skipped: {exc}")
 
 
-def desktop_accessibility_granted() -> bool:
+def desktop_permissions() -> dict[str, object]:
+    """Return the full /webui/desktop/permissions payload (or {} on transport error)."""
     url = f"{get_e2e_api_url()}/webui/desktop/permissions"
     try:
         request = urllib.request.Request(  # noqa: S310 - validated in _e2e_api_urlopen
@@ -513,8 +514,10 @@ def desktop_accessibility_granted() -> bool:
         ) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except OSError:
-        return False
-    return bool(payload.get("accessibility"))
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    return payload
 
 
 def desktop_trust_revoke_testid(trust_key: str) -> str:

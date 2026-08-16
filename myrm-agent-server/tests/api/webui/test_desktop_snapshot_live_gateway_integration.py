@@ -116,7 +116,8 @@ async def test_live_gateway_desktop_snapshot_api_returns_som_nth(
     element_count = _preflight_ax_elements()
     if element_count < 0:
         pytest.skip(
-            "osascript cannot enumerate AX tree (grant Accessibility to Terminal/Cursor)"
+            "AX not available to this process (grant Accessibility to "
+            "/usr/bin/osascript and the backend host, then restart backend)"
         )
     if element_count == 0:
         pytest.skip(

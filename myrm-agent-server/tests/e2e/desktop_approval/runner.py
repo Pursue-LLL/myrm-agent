@@ -39,7 +39,7 @@ from tests.e2e.desktop_approval.infra_retry import (
 from tests.e2e.desktop_approval.textedit_fixture import hide_textedit_fixture
 from tests.e2e.desktop_approval.trust_api import (
     clear_persisted_desktop_approvals,
-    desktop_accessibility_granted,
+    desktop_permissions,
 )
 from tests.e2e.desktop_approval.turn_flow import run_approval_attempt
 from tests.support.chrome_mcp_e2e import OpenMcpPageSession, open_mcp_page_async
@@ -58,11 +58,19 @@ async def run_desktop_approval_chrome_e2e(
             "Provider config not ready for live E2E — run via ./myrm test -m chrome_e2e "
             f"after ./myrm ready --chrome (readiness={readiness})"
         )
-    if not desktop_accessibility_granted():
+    perms = desktop_permissions()
+    if not perms.get("accessibility") or not perms.get("screen_recording"):
+        missing: list[str] = []
+        if not perms.get("accessibility"):
+            missing.append("Accessibility")
+        if not perms.get("screen_recording"):
+            missing.append("Screen Recording")
         pytest.fail(
-            "macOS Accessibility permission is not granted for the backend — "
-            "open System Settings → Privacy & Security → Accessibility and allow Cursor/Terminal, "
-            "then retry after ./myrm restart --chrome"
+            "macOS desktop permissions missing for the backend: "
+            f"{', '.join(missing)}. "
+            "Open System Settings → Privacy & Security → grant the missing "
+            "capabilities to the terminal/IDE hosting the backend (and to "
+            "/usr/bin/osascript), then retry after ./myrm restart"
         )
 
     progress("clear persisted desktop approvals")
