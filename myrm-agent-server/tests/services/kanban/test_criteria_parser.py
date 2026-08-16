@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.services.kanban.criteria_parser import _MAX_CRITERIA, parse_markdown_criteria
 
 
