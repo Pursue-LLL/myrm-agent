@@ -6,9 +6,25 @@ import type { SessionAnalytics } from '@/services/statistics';
 
 import SessionAnalyticsDialog from '../SessionAnalyticsDialog';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string): string => key,
-}));
+vi.mock('next-intl', () => {
+  const modeKeys: Record<string, string> = {
+    fast: 'Fast Search',
+    agent: 'AI Agent',
+    deep_research: 'Deep Research',
+  };
+  return {
+    useTranslations: (namespace?: string) => {
+      if (namespace === 'mode') {
+        const t = (key: string): string => modeKeys[key] ?? key;
+        t.has = (key: string): boolean => key in modeKeys;
+        return t;
+      }
+      const t = (key: string): string => key;
+      t.has = (key: string): boolean => true;
+      return t;
+    },
+  };
+});
 
 vi.mock('@/services/statistics', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/statistics')>();
@@ -119,5 +135,21 @@ describe('SessionAnalyticsDialog', () => {
 
     await waitFor(() => expect(screen.getByText('duration')).toBeInTheDocument());
     expect(screen.queryByText('responseSpeed')).not.toBeInTheDocument();
+  });
+
+  it('localizes known action mode via mode namespace', async () => {
+    getSessionAnalyticsMock.mockResolvedValue({ ...BASE_ANALYTICS, action_mode: 'deep_research' });
+
+    render(<SessionAnalyticsDialog sessionId="s1" onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText(/Deep Research/)).toBeInTheDocument());
+  });
+
+  it('falls back to raw action mode value for unknown modes', async () => {
+    getSessionAnalyticsMock.mockResolvedValue({ ...BASE_ANALYTICS, action_mode: 'future_custom_mode' });
+
+    render(<SessionAnalyticsDialog sessionId="s1" onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText(/future_custom_mode/)).toBeInTheDocument());
   });
 });

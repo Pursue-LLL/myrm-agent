@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   IconChat,
   IconChart,
@@ -23,6 +24,7 @@ interface ModelBreakdownItemProps {
 
 const ModelBreakdownItem = memo<ModelBreakdownItemProps>(
   ({ model, data, totalTokens, t, timeRange, onSelectSession }) => {
+    const tm = useTranslations('mode');
     const [expanded, setExpanded] = useState(false);
     const [sessions, setSessions] = useState<ModelSessionItem[]>([]);
     const [loading, setLoading] = useState(false);
@@ -51,11 +53,12 @@ const ModelBreakdownItem = memo<ModelBreakdownItemProps>(
 
     return (
       <div className="p-3 rounded-lg bg-background/40 border border-border/30 space-y-2 transition-all">
-        <div
-          className="flex items-center justify-between gap-2 cursor-pointer select-none group"
+        <button
+          type="button"
+          className="w-full flex items-center justify-between gap-2 cursor-pointer select-none group bg-transparent border-0 p-0 text-left"
           onClick={() => setExpanded(!expanded)}
-          role="button"
-          tabIndex={0}
+          aria-expanded={expanded}
+          aria-label={expanded ? t('hideSessions') : t('showSessions')}
           title={expanded ? t('hideSessions') : t('showSessions')}
         >
           <div className="flex-1 min-w-0">
@@ -70,7 +73,7 @@ const ModelBreakdownItem = memo<ModelBreakdownItemProps>(
               )}
             </div>
             <div className="text-[10px] text-muted-foreground mt-0.5">
-              {data.calls} {t('calls')} · {formatTokenCount(data.totalTokens)} tokens
+              {data.calls} {t('calls')} · {formatTokenCount(data.totalTokens)} {t('tokens')}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -79,7 +82,7 @@ const ModelBreakdownItem = memo<ModelBreakdownItemProps>(
             </div>
             <span className="text-[10px] tabular-nums text-muted-foreground w-8 text-right">{pct}%</span>
           </div>
-        </div>
+        </button>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 text-[10px] pt-1.5 border-t border-border/20">
           <div className="flex justify-between">
@@ -147,7 +150,7 @@ const ModelBreakdownItem = memo<ModelBreakdownItemProps>(
                         <td className="py-2 px-2 max-w-[120px] sm:max-w-[180px] truncate">
                           <div className="font-medium text-foreground truncate">{item.title}</div>
                           <div className="text-[8px] text-muted-foreground/60 mt-0.5 flex items-center gap-1">
-                            <span className="capitalize">{item.actionMode}</span>
+                            <span className="capitalize">{tm.has(item.actionMode) ? tm(item.actionMode) : item.actionMode}</span>
                             <span>·</span>
                             <span>{item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleDateString() : ''}</span>
                           </div>

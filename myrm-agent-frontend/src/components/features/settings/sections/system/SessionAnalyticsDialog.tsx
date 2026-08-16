@@ -16,6 +16,7 @@ interface SessionAnalyticsDialogProps {
 
 const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, onClose }) => {
   const t = useTranslations('settings.sessionAnalytics');
+  const tm = useTranslations('mode');
   const [data, setData] = useState<SessionAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +114,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
           <div className="flex-1">
             <h2 className="text-xl font-bold text-foreground">{data.title || t('untitledSession')}</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {data.action_mode} • {data.created_at ? new Date(data.created_at).toLocaleString() : 'N/A'}
+              {tm.has(data.action_mode) ? tm(data.action_mode) : data.action_mode} • {data.created_at ? new Date(data.created_at).toLocaleString() : 'N/A'}
             </p>
           </div>
           <button
