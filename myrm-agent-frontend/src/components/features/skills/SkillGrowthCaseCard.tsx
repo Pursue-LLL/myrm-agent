@@ -204,9 +204,11 @@ export default function SkillGrowthCaseCard({
             <Badge variant="secondary" className="text-[11px]">
               {sourceLabel}
             </Badge>
-            <Badge variant="outline" className="text-[11px]">
-              {item.growthType}
-            </Badge>
+            {item.growthType !== 'semantic_memory' && (
+              <Badge variant="outline" className="text-[11px]">
+                {item.growthType}
+              </Badge>
+            )}
             {item.impactedDependents.length > 0 && (
               <Badge
                 variant="outline"
