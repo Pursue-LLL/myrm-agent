@@ -67,6 +67,22 @@ _GET_LIGHT_SELECTION_JS = """(() => {
   }
 })()"""
 
+_ARM_SSE_RECORDER_JS = """(() => {
+  if (window.__MYRM_SSE_LOG__) return { ok: true, already: true };
+  const events = [];
+  window.__MYRM_SSE_LOG__ = events;
+  const orig = window.__MYRM_E2E_RECORD_SSE__;
+  window.__MYRM_E2E_RECORD_SSE__ = (type, messageId) => {
+    events.push({ type, messageId: messageId ?? null });
+    if (orig) orig(type, messageId);
+  };
+  return { ok: true, captured: 0 };
+})()"""
+
+_READ_SSE_LOG_JS = """(() => ({
+  events: (window.__MYRM_SSE_LOG__ || []).slice(-40),
+}))()"""
+
 _LATEST_ASSISTANT_JS = """(() => {
   const store = window.__myrmChatStore?.getState?.();
   const msgs = store?.messages || [];
@@ -208,6 +224,21 @@ def _base_url() -> str:
     return get_e2e_ui_url().rstrip("/")
 
 
+async def _dump_sse_log(chat: McpChatSession) -> None:
+    try:
+        raw = await chat.evaluate(
+            _READ_SSE_LOG_JS,
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        state = raw if isinstance(raw, dict) else json.loads(str(raw))
+        events = state.get("events")
+        print(f"[E2E_SSE_LOG] events={len(events) if isinstance(events, list) else '?'}", file=sys.stderr, flush=True)
+        for ev in events if isinstance(events, list) else []:
+            print(f"[E2E_SSE_LOG] {ev}", file=sys.stderr, flush=True)
+    except Exception as exc:  # pragma: no cover - diagnostic only
+        print(f"[E2E_SSE_LOG] failed: {exc}", file=sys.stderr, flush=True)
+
+
 def _dump_backend_routing_log(api_url: str) -> None:
     """Dump backend routing evidence (routing_decision / routing_tier / route_task)."""
     try:
@@ -305,6 +336,10 @@ async def test_smart_routing_tier_surfaced_in_webui(
             ui_base = _base_url()
             await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
             await chat.click_new_chat()
+            await chat.evaluate(
+                _ARM_SSE_RECORDER_JS,
+                intent=EvaluateIntent.AGENT_SUBMIT,
+            )
 
             # 并行 chrome_e2e 会改写共享 config——每次发送前重 seed + pin 权威 baseModel，
             # 确保 store 里的模型选择始终来自本测试的合法 seed。
@@ -340,6 +375,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
             simple_state = await _wait_tier(chat, "simple")
             if simple_state.get("routingTier") != "simple":
                 _dump_backend_routing_log(api_url)
+                await _dump_sse_log(chat)
             assert simple_state.get("routingTier") == "simple", simple_state
             heartbeat_once()
 
@@ -355,6 +391,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
             standard_state = await _wait_tier(chat, "standard")
             if standard_state.get("routingTier") != "standard":
                 _dump_backend_routing_log(api_url)
+                await _dump_sse_log(chat)
             assert standard_state.get("routingTier") == "standard", standard_state
 
             # 档位 badge 位于 token 用量 tooltip 内（默认隐藏）——hover 触发后轮询可见。
