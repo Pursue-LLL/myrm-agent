@@ -121,13 +121,16 @@ def dry_run_mem0(payload: dict[str, object]) -> MemoryImportDryRunResult:
 
 
 def is_mem0_payload(payload: dict[str, object]) -> bool:
-    """Detect Mem0 data payload by source tag or structure."""
+    """Detect Mem0 data payload by source tag or structure.
+
+    ``memories`` is the primary key; detection accepts the whole list
+    (see :func:`dry_run_mem0` skips malformed items) so a leading junk entry
+    does not misroute the batch to ``unknown``.
+    """
 
     if payload.get("_source") == "mem0":
         return True
     memories = payload.get("memories")
     if isinstance(memories, list) and memories:
-        first = memories[0]
-        if isinstance(first, dict) and "memory" in first:
-            return True
+        return any(isinstance(item, dict) and "memory" in item for item in memories)
     return False

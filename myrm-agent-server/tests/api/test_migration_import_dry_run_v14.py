@@ -246,3 +246,65 @@ class TestSourceImportDryRunApi:
         assert "small diffs" in (body.get("instruction_preview_persona") or "").lower() or (
             body.get("instruction_total_chars", 0) > 0
         )
+
+    def test_mem0_dry_run_maps_flat_memories(self, client: TestClient) -> None:
+        """Mem0 export (memories/results) is auto-detected to the mem0 adapter."""
+        payload = {
+            "source": "auto",
+            "payload": {
+                "memories": [
+                    {
+                        "memory": "Prefers launchpad-style features",
+                        "tags": ["product", "taste"],
+                        "metadata": {"user_id": "u-1"},
+                    },
+                    {
+                        "memory": "Uses dark mode",
+                        "tags": ["ui"],
+                        "importance": 0.5,
+                    },
+                ]
+            },
+            "migration": {
+                "include_episodic": True,
+                "apply_global_instructions": True,
+            },
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "mem0"
+        assert result["summary"]["status"] == "ready"
+        assert result["summary"]["mapped_items"] == 2
+        assert result["summary"]["unmapped_items"] == 0
+        mapping_buckets = {m["source_bucket"] for m in result["mappings"]}
+        assert "memories" in mapping_buckets
+
+    def test_mem0_dry_run_drops_invalid_items(self, client: TestClient) -> None:
+        """Non-dict / empty entries are skipped and mapped_items only counts valid rows."""
+        payload = {
+            "source": "auto",
+            "payload": {
+                "memories": [
+                    "not-a-dict",
+                    {},
+                    {"memory": "", "tags": []},
+                    {"memory": "Valid entry"},
+                ]
+            },
+            "migration": {
+                "include_episodic": True,
+                "apply_global_instructions": True,
+            },
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "mem0"
+        assert result["summary"]["status"] == "warning"  # 1 mapped / 3 dropped → partial import
+        assert result["summary"]["mapped_items"] == 1
+        assert result["summary"]["unmapped_items"] == 3
+        mapping_buckets = {m["source_bucket"] for m in result["mappings"]}
+        assert "memories" in mapping_buckets

@@ -47,6 +47,15 @@ class TestMem0PayloadDetection:
         assert is_mem0_payload({"memories": [{"text": "no memory key"}]}) is False
         assert is_mem0_payload({}) is False
 
+    def test_detects_when_leading_item_is_junk(self) -> None:
+        """A malformed leading entry must not misroute the batch to unknown."""
+        assert (
+            is_mem0_payload(
+                {"memories": ["not-a-dict", {"memory": "valid"}]},
+            )
+            is True
+        )
+
     def test_auto_detect_dispatches_to_mem0(self) -> None:
         result = build_memory_import_dry_run(_mem0_payload())
         assert result.summary.source == "mem0"
