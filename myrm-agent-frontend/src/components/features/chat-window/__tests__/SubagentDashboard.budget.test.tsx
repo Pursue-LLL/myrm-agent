@@ -39,6 +39,7 @@ let mockSubagentState = {
   completeNode: vi.fn(),
   clear: vi.fn(),
   dismissOvertime: vi.fn(),
+  fetchSubagents: vi.fn(),
 };
 
 vi.mock('@/store/useChatStore', () => ({
@@ -88,6 +89,7 @@ describe('SubagentDashboard budget display', () => {
       completeNode: vi.fn(),
       clear: vi.fn(),
       dismissOvertime: vi.fn(),
+      fetchSubagents: vi.fn(),
     };
     mockFetchWithTimeout.mockResolvedValue({
       ok: true,

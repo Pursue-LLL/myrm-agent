@@ -238,6 +238,7 @@ _LAST_ASSISTANT_TEXT_JS = """(() => {
   if (!el) return { ready: false, reason: 'no-message-element' };
   const text = (el.innerText || '').trim();
   if (!text) {
+    const bridge = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
     const snapshot = els.map((n) => ({
       id: (n.getAttribute('data-message-id') || '').slice(0, 24),
       cls: (n.className || '').toString().slice(0, 60),
@@ -246,7 +247,19 @@ _LAST_ASSISTANT_TEXT_JS = """(() => {
       text: (n.innerText || '').slice(0, 60),
       childCount: n.children.length,
     }));
-    return { ready: false, reason: 'empty-message-text', count: els.length, snapshot };
+    return {
+      ready: false,
+      reason: 'empty-message-text',
+      count: els.length,
+      snapshot,
+      bridge: {
+        hasBridge: !!bridge,
+        isStreaming: bridge?.isStreaming ?? null,
+        userCount: bridge?.userCount ?? null,
+        lastAssistantSample: bridge?.lastAssistantSample ?? null,
+        hasCompletionSignal: bridge?.hasCompletionSignal ?? null,
+      },
+    };
   }
   return { ready: true, text };
 })()"""
@@ -571,10 +584,7 @@ async def test_chat_share_real_conversation_via_ui() -> None:
         # The LIVE-turn completion contract requires the assistant's final text
         # to contain an OK/DONE marker (main_state.okInAssistant), so the prompt
         # demands an "OK" prefix; "SUNSHINE" is our content-verification token.
-        prompt = (
-            "【E2E 分享真实对话】请用一句中文介绍你自己，"
-            "回答必须以 OK 开头，并且必须包含 SUNSHINE 字样，不超过 80 字。"
-        )
+        prompt = "【E2E 分享真实对话】请用一句中文介绍你自己，回答必须以 OK 开头，并且必须包含 SUNSHINE 字样，不超过 80 字。"
         await chat.send_message(prompt, prompt)
         heartbeat_once()
         after = await chat.wait_turn_done(prompt, timeout_sec=240.0)

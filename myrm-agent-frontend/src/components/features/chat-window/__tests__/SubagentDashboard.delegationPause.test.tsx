@@ -27,6 +27,7 @@ let mockSubagentState = {
   completeNode: vi.fn(),
   clear: vi.fn(),
   dismissOvertime: vi.fn(),
+  fetchSubagents: vi.fn(),
 };
 
 vi.mock('@/store/useChatStore', () => ({
@@ -73,6 +74,7 @@ describe('SubagentDashboard delegation pause flow', () => {
       completeNode: vi.fn(),
       clear: vi.fn(),
       dismissOvertime: vi.fn(),
+      fetchSubagents: vi.fn(),
     };
     mockFetchWithTimeout.mockImplementation(async (url: string, init?: RequestInit) => {
       if (typeof url === 'string' && url.endsWith('/delegation/status')) {

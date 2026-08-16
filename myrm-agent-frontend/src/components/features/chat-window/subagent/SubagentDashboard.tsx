@@ -178,19 +178,6 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
 
   const runningCount = useMemo(() => Object.values(nodes).filter((n) => n.status === 'running').length, [nodes]);
 
-  const fetchSubagents = useCallback(async () => {
-    if (!chatId) {return;}
-    try {
-      const res = await fetchWithTimeout(`/chats/${chatId}/subagents`);
-      const json = await res.json();
-      if (json.data && Array.isArray(json.data)) {
-        useSubagentStore.getState().setNodes(json.data);
-      }
-    } catch (e) {
-      console.error(t('fetchFailed'), e);
-    }
-  }, [chatId, t]);
-
   const fetchDelegationPauseStatus = useCallback(async () => {
     if (!chatId) {return;}
     try {
@@ -262,7 +249,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
         useSubagentStore.getState().setNodes(customEvent.detail.tree);
         return;
       }
-      void fetchSubagents();
+      void useSubagentStore.getState().fetchSubagents(chatId);
     };
     const handleTeammateEvent = (event: Event) => {
       const customEvent = event as CustomEvent<{
@@ -280,7 +267,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
       window.removeEventListener('subagents_updated', handleSseEvent);
       window.removeEventListener('teammate_message', handleTeammateEvent);
     };
-  }, [chatId, fetchSubagents]);
+  }, [chatId]);
 
   useEffect(() => {
     if (!chatId) {return;}
@@ -289,20 +276,20 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
 
   useEffect(() => {
     if (!chatId) {return;}
-    void fetchSubagents();
+    void useSubagentStore.getState().fetchSubagents(chatId);
     const poll = window.setInterval(() => {
       if (Object.keys(useSubagentStore.getState().nodes).length > 0) {
         window.clearInterval(poll);
         return;
       }
-      void fetchSubagents();
+      void useSubagentStore.getState().fetchSubagents(chatId);
     }, 2000);
     const stopPoll = window.setTimeout(() => window.clearInterval(poll), 30_000);
     return () => {
       window.clearInterval(poll);
       window.clearTimeout(stopPoll);
     };
-  }, [chatId, open, fetchSubagents]);
+  }, [chatId, open]);
 
   if (treeNodes.length === 0 && !(fissionBatch && fissionBatch.total > 0)) {return null;}
 
