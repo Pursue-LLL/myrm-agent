@@ -5165,6 +5165,10 @@
       "yes": "是",
       "no": "否",
       "performance": "效能表現",
+      "tokenTtftAvg": "首字延遲平均值",
+      "p95": "P95",
+      "tps": "吞吐量",
+      "avgLatency": "平均延遲",
       "contextHealth": {
         "title": "上下文健康",
         "description": "展示上下文壓縮穩定性與提示詞快取命中表現。/ Shows compaction stability and prompt cache reuse health.",

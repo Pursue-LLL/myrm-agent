@@ -4689,6 +4689,10 @@
       "yes": "Ja",
       "no": "Nein",
       "performance": "Leistung",
+      "tokenTtftAvg": "Ø TTFT",
+      "p95": "P95",
+      "tps": "TPS",
+      "avgLatency": "Ø Latenz",
       "contextHealth": {
         "title": "Kontext-Gesundheit",
         "description": "Zeigt Kompaktionsstabilität und Wiederverwendungsrate des Prompt-Cache.",

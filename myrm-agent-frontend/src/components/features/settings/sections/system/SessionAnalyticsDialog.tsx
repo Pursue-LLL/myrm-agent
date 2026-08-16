@@ -166,7 +166,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground font-medium">TTFT Avg</span>
+                    <span className="text-xs text-muted-foreground font-medium">{t('tokenTtftAvg')}</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-xl font-bold tabular-nums text-foreground">
@@ -177,7 +177,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
                 </div>
                 <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground font-medium">P95</span>
+                    <span className="text-xs text-muted-foreground font-medium">{t('p95')}</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-xl font-bold tabular-nums text-foreground">
@@ -188,7 +188,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
                 </div>
                 <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground font-medium">TPS</span>
+                    <span className="text-xs text-muted-foreground font-medium">{t('tps')}</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-xl font-bold tabular-nums text-foreground">
@@ -199,7 +199,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
                 </div>
                 <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground font-medium">Avg Latency</span>
+                    <span className="text-xs text-muted-foreground font-medium">{t('avgLatency')}</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-xl font-bold tabular-nums text-foreground">
@@ -287,8 +287,8 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
                   >
                     <span className="text-sm font-medium text-foreground">{tool.tool_name}</span>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>{tool.call_count} calls</span>
-                      <span>{Math.round(tool.total_duration_ms)}ms total</span>
+                      <span>{tool.call_count} {t('calls')}</span>
+                      <span>{Math.round(tool.total_duration_ms)}ms {t('total')}</span>
                     </div>
                   </div>
                 ))}

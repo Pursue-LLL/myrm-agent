@@ -5428,6 +5428,10 @@
       "yes": "Yes",
       "no": "No",
       "performance": "Performance",
+      "tokenTtftAvg": "TTFT Avg",
+      "p95": "P95",
+      "tps": "TPS",
+      "avgLatency": "Avg Latency",
       "contextHealth": {
         "title": "Context Health",
         "description": "Shows compaction stability and prompt cache reuse health.",

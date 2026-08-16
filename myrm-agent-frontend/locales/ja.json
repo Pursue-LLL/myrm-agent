@@ -5124,6 +5124,10 @@
       "yes": "はい",
       "no": "いいえ",
       "performance": "パフォーマンス",
+      "tokenTtftAvg": "初回トークン遅延の平均",
+      "p95": "P95",
+      "tps": "TPS",
+      "avgLatency": "平均レイテンシー",
       "contextHealth": {
         "title": "コンテキストヘルス",
         "description": "コンパクションの安定性とプロンプトキャッシュ再利用の健全性を表示します。",

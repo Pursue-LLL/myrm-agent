@@ -4689,6 +4689,10 @@
       "yes": "예",
       "no": "아니요",
       "performance": "성능",
+      "tokenTtftAvg": "평균 TTFT",
+      "p95": "P95",
+      "tps": "TPS",
+      "avgLatency": "평균 지연 시간",
       "contextHealth": {
         "title": "컨텍스트 상태",
         "description": "압축 안정성과 프롬프트 캐시 재사용 상태를 보여줍니다.",
