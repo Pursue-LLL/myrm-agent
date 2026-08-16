@@ -11247,6 +11247,8 @@
     "viewOutput": "전체 출력 보기",
     "refresh": "새로고침",
     "nextRun": "다음 실행",
+    "lastRunLabel": "마지막 실행",
+    "lastRunTooltip": "실행 시각 {time}",
     "createdAt": "생성 시각",
     "interval": "매 {value}",
     "noModel": "모델이 구성되지 않음",

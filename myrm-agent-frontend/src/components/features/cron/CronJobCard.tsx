@@ -27,6 +27,7 @@ import {
   Zap,
   Link2,
   MessageCircle,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -36,7 +37,7 @@ import { toast } from 'sonner';
 import type { CronJob } from '@/services/cron';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { updateCronJob, duplicateCronJob } from '@/services/cron';
-import { formatNextRun, isCronOverdue, statusBorderColor, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
+import { formatNextRun, formatRelativeTime, isCronOverdue, statusBorderColor, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
 import useCronStore from '@/store/useCronStore';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
@@ -112,6 +113,12 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
   const isCloud = deployMode.isSandbox && !deployMode.isLocal && !deployMode.isLoading;
   const overdue = isCronOverdue(job);
   const overdueTime = overdue && job.next_run_at ? new Date(job.next_run_at).toLocaleString() : null;
+  const lastRunColor =
+    job.last_status === 'error'
+      ? 'text-rose-600 dark:text-rose-400'
+      : job.last_status === 'skipped'
+        ? 'text-amber-600 dark:text-amber-400'
+        : 'text-muted-foreground';
   const { pauseJob, resumeJob, triggerJob, fetchJobs, jobs: allJobs } = useCronStore();
   const { providers, defaultModelConfig } = useProviderStore(
     useShallow((s) => ({
@@ -438,6 +445,25 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
               <Clock className="h-3 w-3" />
               {formatNextRun(job.next_run_at, t)}
             </span>
+          )}
+          {job.last_run_at && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className={cn('inline-flex items-center gap-0.5 cursor-default', lastRunColor)}>
+                  <History className="h-3 w-3" />
+                  {t('lastRunLabel')}: {formatRelativeTime(job.last_run_at)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {job.last_status && job.last_status !== 'ok' && (
+                  <span className="mr-1 font-medium">
+                    {t(job.last_status === 'error' ? 'runError' : 'runSkipped')}
+                    {' · '}
+                  </span>
+                )}
+                {t('lastRunTooltip', { time: new Date(job.last_run_at).toLocaleString() })}
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       </div>

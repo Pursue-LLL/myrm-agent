@@ -90,7 +90,6 @@ async def run_desktop_approval_chrome_e2e(
             try:
                 return await asyncio.wait_for(awaitable, timeout=timeout_sec)
             except asyncio.TimeoutError as exc:
-                await asyncio.to_thread(chat._client.abandon_inflight_requests)
                 raise TimeoutError(
                     "retry reset evaluate wall-timeout "
                     f"step={label} timeout={timeout_sec:.0f}s"
@@ -155,8 +154,8 @@ async def run_desktop_approval_chrome_e2e(
                     )
                 else:
                     await _retry_reset_step(
-                        "recover_mux_transport",
-                        asyncio.to_thread(chat._client.recover_mux_transport),
+                        "reset_after_orphan",
+                        asyncio.to_thread(chat._client.reset_after_orphan),
                         timeout_sec=40.0,
                     )
                 try:
@@ -263,7 +262,7 @@ async def run_desktop_approval_chrome_e2e(
                     reason="signoff desktop page transport heal reopen",
                 )
             else:
-                await asyncio.to_thread(page_session.client.recover_mux_transport)
+                await asyncio.to_thread(page_session.client.reset_after_orphan)
             await asyncio.sleep(2.0)
             await page_session.aclose()
             page_session = await _open_chat_page()

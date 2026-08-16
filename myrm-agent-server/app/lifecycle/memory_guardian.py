@@ -318,6 +318,15 @@ async def run_memory_guardian_once(*, mode: Literal["safe", "force"] = "safe") -
         return {"triggered": True, "mode": mode, "applied": False, "error": str(exc)}
 
 
+def _pattern_discovery_due(*, now: float, last: float, interval_hours: float = _PATTERN_DISCOVERY_INTERVAL_HOURS) -> bool:
+    """Return True when `interval_hours` have elapsed since the last discovery.
+
+    Extracted from the guardian loop so the weekly trigger policy is unit-testable
+    without driving the infinite background loop.
+    """
+    return (now - last) / 3600 >= interval_hours
+
+
 async def _run_pattern_discovery_cycle() -> None:
     """Delegate to pattern_discovery_trigger module."""
     from app.lifecycle.pattern_discovery_trigger import run_pattern_discovery_cycle
@@ -401,8 +410,7 @@ async def start_memory_guardian_scheduler() -> None:
                     interval_hours = intervals.healthy_hours
 
                 now = time.time()
-                pattern_elapsed_h = (now - _last_pattern_discovery) / 3600
-                if pattern_elapsed_h >= _PATTERN_DISCOVERY_INTERVAL_HOURS:
+                if _pattern_discovery_due(now=now, last=_last_pattern_discovery):
                     await _run_pattern_discovery_cycle()
                     _last_pattern_discovery = now
 

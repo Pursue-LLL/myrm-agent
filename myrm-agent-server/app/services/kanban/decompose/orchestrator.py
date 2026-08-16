@@ -39,10 +39,31 @@ from myrm_agent_harness.toolkits.kanban.types import (
 )
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
+from app.services.kanban.criteria_parser import parse_markdown_criteria
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_AGENT_ID = "default"
+
+
+def _merge_child_criteria(
+    base_metadata: dict[str, object] | None,
+    body: str,
+) -> dict[str, object] | None:
+    """Attach parsed semantic criteria to a child task's metadata patch.
+
+    Returns a new dict so the shared ``child_metadata`` base is never mutated.
+    A user-provided ``completion_criteria`` already present in the inherited
+    metadata wins over the LLM-derived checklist.
+    """
+    if "completion_criteria" in (base_metadata or {}):
+        return base_metadata
+    criteria = parse_markdown_criteria(body)
+    if not criteria:
+        return base_metadata
+    merged = dict(base_metadata) if base_metadata else {}
+    merged["completion_criteria"] = criteria
+    return merged
 
 
 class _DispatcherWaker(Protocol):
@@ -167,7 +188,7 @@ async def run_apply_decompose(
             depends_on=depends_on or None,
             extra_skill_ids=list(spec.extra_skill_ids) or None,
             model_override=task.model_override,
-            metadata_patch=child_metadata,
+            metadata_patch=_merge_child_criteria(child_metadata, spec.body),
         )
         child_ids.append(child.task_id)
 
@@ -253,6 +274,9 @@ async def run_apply_no_fanout(
     task.metadata = task.metadata or {}
     task.metadata["original_title"] = original_title
     task.metadata["original_description"] = original_desc
+    criteria = parse_markdown_criteria(new_body)
+    if criteria and "completion_criteria" not in task.metadata:
+        task.metadata["completion_criteria"] = criteria
     task.status = TaskStatus.READY
     await store.save_task(task)
 

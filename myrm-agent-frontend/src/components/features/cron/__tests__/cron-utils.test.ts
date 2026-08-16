@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CRON_OVERDUE_THRESHOLD_MS, isCronOverdue } from '../cron-utils';
+import { CRON_OVERDUE_THRESHOLD_MS, formatRelativeTime, isCronOverdue } from '../cron-utils';
 import type { CronJob } from '@/services/cron.types';
 
 function makeJob(overrides: Partial<CronJob>): CronJob {
@@ -64,5 +64,34 @@ describe('isCronOverdue', () => {
 
   it('无 next_run_at → false', () => {
     expect(isCronOverdue(makeJob({ next_run_at: undefined }), now)).toBe(false);
+  });
+});
+
+describe('formatRelativeTime', () => {
+  const now = Date.parse('2026-01-10T12:00:00Z');
+
+  it('不到 1 分钟 → just now', () => {
+    expect(formatRelativeTime(new Date(now - 30_000).toISOString(), now)).toBe('just now');
+  });
+
+  it('分钟级 → Xm ago', () => {
+    expect(formatRelativeTime(new Date(now - 3 * 60_000).toISOString(), now)).toBe('3m ago');
+  });
+
+  it('小时级 → Xh ago', () => {
+    expect(formatRelativeTime(new Date(now - 5 * 3_600_000).toISOString(), now)).toBe('5h ago');
+  });
+
+  it('天级 → Xd ago', () => {
+    expect(formatRelativeTime(new Date(now - 3 * 86_400_000).toISOString(), now)).toBe('3d ago');
+  });
+
+  it('超过 30 天 → 回退为短日期', () => {
+    const old = new Date(now - 40 * 86_400_000).toISOString();
+    expect(formatRelativeTime(old, now)).toBe(new Date(old).toLocaleDateString());
+  });
+
+  it('非法时间戳 → 空字符串', () => {
+    expect(formatRelativeTime('not-a-date', now)).toBe('');
   });
 });

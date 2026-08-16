@@ -194,11 +194,11 @@ def _queue_timeout_error_data(
         ]
         if len(holders) > 3:
             extra = len(holders) - 3
-            names.append(
-                f"等 {extra} 个会话" if lang == "zh" else f"+{extra} more"
-            )
+            names.append(f"等 {extra} 个会话" if lang == "zh" else f"+{extra} more")
         holder_summary = (
-            f" 当前占用：{'、'.join(names)}。" if lang == "zh" else f" Held by: {', '.join(names)}."
+            f" 当前占用：{'、'.join(names)}。"
+            if lang == "zh"
+            else f" Held by: {', '.join(names)}."
         )
 
     if exc.reason == "memory_pressure":
@@ -273,6 +273,7 @@ async def yield_stream_exception_chunks(
         error_msg = str(exc)
         if "Resume failed" in error_msg or "context overflow" in error_msg:
             session.had_fatal_error = True
+            session.collector.mark_stream_completion_error()
             logger.error("Resume validation failed: %s", error_msg)
             if session.request.chat_id:
                 try:
@@ -300,6 +301,7 @@ async def yield_stream_exception_chunks(
         )
     elif isinstance(exc, AgentQueueTimeout):
         session.had_fatal_error = True
+        session.collector.mark_stream_completion_error()
         logger.warning(
             "Agent queue timeout: message_id=%s reason=%s holders=%d",
             session.params.message_id,
@@ -327,6 +329,7 @@ async def yield_stream_exception_chunks(
         )
     elif isinstance(exc, AgentExecutionTimeout):
         session.had_fatal_error = True
+        session.collector.mark_stream_completion_error()
         yield error_sse("Request timed out.", session.params.message_id)
         await _record_turn_capability_failed_once(
             session,
@@ -374,6 +377,7 @@ async def yield_stream_exception_chunks(
         yield SSEEnvelope.from_any(busy_event).to_sse_chunk()
     elif isinstance(exc, ConfigIncompleteError):
         session.had_fatal_error = True
+        session.collector.mark_stream_completion_error()
         raw_locale = session.params.locale or "en"
         base_locale = raw_locale.split("-")[0].lower()
         user_message = (
@@ -397,6 +401,7 @@ async def yield_stream_exception_chunks(
         )
     elif isinstance(exc, MyrmLLMError):
         session.had_fatal_error = True
+        session.collector.mark_stream_completion_error()
         logger.error("Agent LLM error: %s", exc)
         lang = session.params.locale or "en"
         from app.core.errors.llm_errors import generate_recovery_actions
@@ -428,6 +433,7 @@ async def yield_stream_exception_chunks(
         )
     else:
         session.had_fatal_error = True
+        session.collector.mark_stream_completion_error()
         logger.error("Agent stream error: %s", exc, exc_info=True)
         yield error_sse("Agent execution error", session.params.message_id)
         await _record_turn_capability_failed_once(
@@ -554,7 +560,12 @@ async def finalize_agent_stream_session(
     clarification_sched_needed = _clarification_timeout_needed(session, clarification)
     directory_sched_needed = _directory_timeout_needed(session, clarification)
 
-    if approval.value and session.request.chat_id and not clarification_sched_needed and not directory_sched_needed:
+    if (
+        approval.value
+        and session.request.chat_id
+        and not clarification_sched_needed
+        and not directory_sched_needed
+    ):
         schedule_approval_timeout(
             chat_id=session.request.chat_id,
             timeout_info=approval.value,

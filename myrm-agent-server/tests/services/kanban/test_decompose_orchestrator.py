@@ -146,3 +146,77 @@ async def test_non_triage_task_rejected() -> None:
     )
     assert not outcome.ok
     assert outcome.reason == "race_lost"
+
+
+@pytest.mark.asyncio
+async def test_child_checklist_parsed_into_metadata_patch() -> None:
+    """LLM-derived - [ ] checklist on a child body becomes completion_criteria."""
+    store = _make_store(_triage_task())
+    add_calls: list[dict[str, object]] = []
+
+    async def add_task_fn(**kwargs: object) -> KanbanTask:
+        add_calls.append(kwargs)
+        return _make_child(f"c{len(add_calls)}")
+
+    body = (
+        "**Goal**\nDo the thing.\n\n"
+        "**Acceptance criteria**\n"
+        "- [ ] Item A\n"
+        "- [ ] Item B\n"
+    )
+    outcome = await run_apply_decompose(
+        "root-1",
+        children=[
+            DecomposeChildSpec(title="T1", body=body),
+            DecomposeChildSpec(title="T2", body="No checklist"),
+        ],
+        rationale="split",
+        prompt_tokens=None,
+        completion_tokens=None,
+        store=store,
+        add_task_fn=add_task_fn,
+        wake_dispatcher=AsyncMock(),
+        publish_event=AsyncMock(),
+    )
+    assert outcome.ok
+    assert add_calls[0]["metadata_patch"]["completion_criteria"] == [
+        {"type": "semantic", "criteria": "Item A"},
+        {"type": "semantic", "criteria": "Item B"},
+    ]
+    # No checklist -> no metadata patch at all (None), keeping inherited
+    # metadata semantics unchanged.
+    assert add_calls[1]["metadata_patch"] is None
+
+
+@pytest.mark.asyncio
+async def test_child_with_source_chat_keeps_metadata_plus_criteria() -> None:
+    """When inherited metadata exists, parsed criteria merge alongside it."""
+    store = _make_store(_triage_task())
+    add_calls: list[dict[str, object]] = []
+
+    async def add_task_fn(**kwargs: object) -> KanbanTask:
+        add_calls.append(kwargs)
+        return _make_child("c1")
+
+    # Simulate a parent carrying source_chat metadata (the only field
+    # inherit_source_chat_metadata copies).
+    parent = _triage_task()
+    parent.metadata = {"source_chat_id": "chat-123"}
+    store.get_task.return_value = parent
+
+    outcome = await run_apply_decompose(
+        "root-1",
+        children=[DecomposeChildSpec(title="T1", body="- [ ] Item A\n")],
+        rationale="split",
+        prompt_tokens=None,
+        completion_tokens=None,
+        store=store,
+        add_task_fn=add_task_fn,
+        wake_dispatcher=AsyncMock(),
+        publish_event=AsyncMock(),
+    )
+    assert outcome.ok
+    patch = add_calls[0]["metadata_patch"]
+    assert patch is not None
+    assert patch["source_chat_id"] == "chat-123"
+    assert patch["completion_criteria"] == [{"type": "semantic", "criteria": "Item A"}]

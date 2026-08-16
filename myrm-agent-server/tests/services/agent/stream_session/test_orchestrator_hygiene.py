@@ -88,7 +88,9 @@ def test_run_agent_stream_facade_signature_matches_orchestrator():
     """
     import inspect
 
-    from app.services.agent.stream_session.orchestrator import run_agent_stream as orchestrator_run
+    from app.services.agent.stream_session.orchestrator import (
+        run_agent_stream as orchestrator_run,
+    )
 
     facade_sig = inspect.signature(run_agent_stream)
     orchestrator_sig = inspect.signature(orchestrator_run)
@@ -96,15 +98,23 @@ def test_run_agent_stream_facade_signature_matches_orchestrator():
 
 
 @pytest.mark.asyncio
-async def test_run_agent_stream_hygiene_block(mock_request, mock_http_request, monkeypatch):
+async def test_run_agent_stream_hygiene_block(
+    mock_request, mock_http_request, monkeypatch
+):
     """Test that gateway blocks massive text payloads."""
     # Create a payload of 360,001 characters
     massive_text = "A" * 360001
     mock_request.query = massive_text
 
     # Mock try_stream_reconnect and prevalidate_archive_restore_actions
-    monkeypatch.setattr("app.services.agent.stream_session.orchestrator.try_stream_reconnect", AsyncMock(return_value=None))
-    monkeypatch.setattr("app.services.agent.stream_session.orchestrator.check_stream_risk", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        "app.services.agent.stream_session.orchestrator.try_stream_reconnect",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        "app.services.agent.stream_session.orchestrator.check_stream_risk",
+        AsyncMock(return_value=None),
+    )
 
     response = await run_agent_stream(mock_request, mock_http_request)
 

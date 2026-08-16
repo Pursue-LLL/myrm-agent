@@ -51,7 +51,8 @@ Rules:
     DESCRIPTION (not just the name). When nothing matches well, use null
     and the system will route to the default_assignee.
   - Each child task body is what a fresh worker will read with no other
-    context — be specific about goal, approach, and acceptance criteria.
+    context — be specific about goal and approach, and end with an
+    "Acceptance criteria" checklist where every line starts with "- [ ]".
 
 When the task is genuinely a single unit of work (no useful decomposition),
 return a single-task spec instead (same effect as "specify"):
@@ -97,7 +98,7 @@ SYSTEM_PROMPT_ZH = """你是多智能体看板的任务分解器 (Kanban Decompo
   - 优先并行。两个独立的任务不要设置依赖。
   - 2-6 个子任务为宜。不要创建 20 个碎片任务，也不要塞进 1 个。
   - 按智能体描述匹配，不匹配则 assignee 设为 null。
-  - 每个子任务 body 要完整，让全新的 worker 无需其他上下文即可执行。
+  - 每个子任务 body 要完整，让全新的 worker 无需其他上下文即可执行；写明目标与方案后，结尾必须附「验收条件」清单，每行以 "- [ ]" 开头。
 
 如果任务是不可拆分的单体工作，返回规范化后的单任务（等同于 specify）：
 

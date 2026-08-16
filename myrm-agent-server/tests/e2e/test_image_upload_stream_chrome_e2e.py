@@ -262,7 +262,7 @@ async def _await_assistant_reply(
 
 async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
     ui_base = get_e2e_ui_url().rstrip("/")
-    await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
+    await chat.bootstrap(ui_base, navigate=False, timeout_sec=120.0)
     await chat.click_new_chat()
 
     pin_raw = await chat.evaluate(
@@ -289,7 +289,7 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
     assert isinstance(injected, dict) and injected.get("ok") is True, injected
 
     thumbnail_probe: dict[str, object] = {}
-    upload_deadline = __import__("time").monotonic() + 120.0
+    upload_deadline = __import__("time").monotonic() + 90.0
     while True:
         heartbeat_once()
         probe = await chat.evaluate(
@@ -353,7 +353,7 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(720)
+@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_image_upload_stream_assistant_replies(
     e2e_resource_ledger: E2EResourceLedger,

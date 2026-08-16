@@ -327,3 +327,70 @@ class TestRunSpecifyAllTriage:
         assert not result[0].ok
         assert result[1].ok
         assert set(call_log) == {"t1", "t2"}
+
+
+# ---------------------------------------------------------------------------
+# completion_criteria extraction from markdown checklist
+# ---------------------------------------------------------------------------
+
+
+class TestSpecPersistsCompletionCriteria:
+    @pytest.mark.asyncio
+    async def test_checklist_parsed_into_completion_criteria(self) -> None:
+        task = _triage_task()
+        store = _mock_store(task)
+        body = (
+            "**Goal**\n"
+            "Deliver report.\n\n"
+            "**Acceptance criteria**\n"
+            "- [ ] Cover at least 5 competitors\n"
+            "- [ ] Link data sources\n"
+        )
+        outcome = await run_apply_spec(
+            "t1",
+            new_title="Report",
+            new_body=body,
+            store=store,
+            wake_dispatcher=_noop_wake,
+            publish_event=_noop_publish,
+        )
+        assert outcome.ok
+        saved = store.save_task.call_args[0][0]
+        assert saved.metadata["completion_criteria"] == [
+            {"type": "semantic", "criteria": "Cover at least 5 competitors"},
+            {"type": "semantic", "criteria": "Link data sources"},
+        ]
+
+    @pytest.mark.asyncio
+    async def test_no_checklist_leaves_completion_criteria_absent(self) -> None:
+        task = _triage_task()
+        store = _mock_store(task)
+        outcome = await run_apply_spec(
+            "t1",
+            new_title="Report",
+            new_body="**Goal**\nNo checklist here.",
+            store=store,
+            wake_dispatcher=_noop_wake,
+            publish_event=_noop_publish,
+        )
+        assert outcome.ok
+        saved = store.save_task.call_args[0][0]
+        assert "completion_criteria" not in saved.metadata
+
+    @pytest.mark.asyncio
+    async def test_existing_criteria_not_overwritten_by_spec(self) -> None:
+        task = _triage_task()
+        task.metadata = {"completion_criteria": "user-provided criterion"}
+        store = _mock_store(task)
+        body = "**Acceptance criteria**\n- [ ] LLM-derived criterion\n"
+        outcome = await run_apply_spec(
+            "t1",
+            new_title="Report",
+            new_body=body,
+            store=store,
+            wake_dispatcher=_noop_wake,
+            publish_event=_noop_publish,
+        )
+        assert outcome.ok
+        saved = store.save_task.call_args[0][0]
+        assert saved.metadata["completion_criteria"] == "user-provided criterion"

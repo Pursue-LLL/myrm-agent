@@ -11473,6 +11473,8 @@
     "executionSteps": "執行步驟",
     "refresh": "重新整理",
     "nextRun": "下次執行",
+    "lastRunLabel": "上次執行",
+    "lastRunTooltip": "執行時間 {time}",
     "createdAt": "建立於",
     "interval": "每 {value}",
     "noModel": "未配置模型",

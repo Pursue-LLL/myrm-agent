@@ -3,6 +3,11 @@
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask } from '@/services/kanban';
 import {
+  completionCriteriaToText,
+  KANBAN_SOURCE_CHAT_METADATA_KEY,
+  hasKanbanCompletionIntent,
+} from '@/services/kanban';
+import {
   APPROVAL_EDITABLE_STATUSES,
   PRIORITY_STYLES,
   TIMEOUT_PRESETS,
@@ -15,7 +20,6 @@ import type { KanbanModelOption } from './KanbanInlineAddForm';
 import { Clock, ExternalLink, User } from 'lucide-react';
 import Link from 'next/link';
 import type { AgentListItem } from '@/services/agent';
-import { KANBAN_SOURCE_CHAT_METADATA_KEY, hasKanbanCompletionIntent } from '@/services/kanban';
 import { buildKanbanBoardDeepLink } from '@/lib/kanban/kanbanChatBoard';
 
 interface TaskDetailsSectionProps {
@@ -414,7 +418,7 @@ export function TaskDetailsSection({
           <div
             className="rounded border border-primary/20 bg-primary/5 px-2 py-1.5 cursor-pointer hover:border-primary/40 transition-colors group/criteria"
             onClick={() => {
-              setCriteriaText(task.completion_criteria ?? '');
+              setCriteriaText(completionCriteriaToText(task.completion_criteria));
               setEditingCriteria(true);
             }}
           >
@@ -426,7 +430,7 @@ export function TaskDetailsSection({
                 {t('editCriteria')}
               </span>
             </div>
-            <KanbanMarkdown className="text-foreground/80 mt-0.5">{task.completion_criteria}</KanbanMarkdown>
+            <KanbanMarkdown className="text-foreground/80 mt-0.5">{completionCriteriaToText(task.completion_criteria)}</KanbanMarkdown>
           </div>
         ) : (
           <button

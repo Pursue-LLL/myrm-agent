@@ -52,6 +52,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 | ├─ `specifier.py` | ✅ 核心 | PlatformTaskSpecifier | ✅ |
 | └─ `orchestrator.py` | ✅ 核心 | TRIAGE→spec 编排（`SPECIFY_ALL_MAX_CONCURRENT`、批扫） | ✅ |
 | `llm_utils.py` | ✅ 核心 | LLM 辅助工具（specify/decompose 共用） | ✅ |
+| `criteria_parser.py` | ✅ 核心 | Markdown `- [ ]` checklist → `completion_criteria` semantic 数组（specify/decompose apply 时提取，schema 对齐 goal_handler `_parse_im_goal_text`） | ❌ |
 | `task_attachment_ids.py` | ✅ 核心 | 任务附件 ID 持久化 | ❌ |
 | `gc.py` | ✅ 核心 | KanbanGCService 自动垃圾回收 | ✅ |
 

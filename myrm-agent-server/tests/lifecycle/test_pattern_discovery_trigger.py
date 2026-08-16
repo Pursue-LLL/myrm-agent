@@ -339,3 +339,65 @@ class TestRecordPatternDiscoveryEvent:
 
         kwargs = record_event.await_args.kwargs
         assert kwargs["summary"] == "Pattern discovery: identified 1 new behavioral pattern(s)."
+
+    @pytest.mark.asyncio
+    async def test_record_failure_is_non_fatal(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A ledger write failure must not raise out of the record helper."""
+        session = AsyncMock()
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=False)
+
+        async def _raise(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("ledger down")
+
+        ledger = AsyncMock()
+        ledger.record_event = _raise
+
+        monkeypatch.setattr("app.database.connection.get_session", lambda: session)
+        monkeypatch.setattr(
+            "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
+            lambda db: ledger,
+        )
+
+        report = _make_report(pattern_count=2)
+        await pattern_discovery_trigger.record_pattern_discovery_event(report)
+
+
+class TestRunPatternDiscoveryOnceErrorPath:
+    @pytest.mark.asyncio
+    async def test_returns_error_when_unexpected_exception(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Top-level failures surface as an error payload, not a raise."""
+        monkeypatch.setattr(
+            pattern_discovery_trigger,
+            "_build_platform_llm",
+            AsyncMock(side_effect=RuntimeError("boom")),
+        )
+
+        result = await pattern_discovery_trigger.run_pattern_discovery_once()
+
+        assert result == {"triggered": True, "error": "boom"}
+
+
+class TestRunPatternDiscoveryCycleRecordFailure:
+    @pytest.mark.asyncio
+    async def test_record_failure_does_not_break_cycle(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A ledger write failure must not propagate out of the scheduled cycle."""
+        llm = MagicMock()
+        monkeypatch.setattr(pattern_discovery_trigger, "_build_platform_llm", AsyncMock(return_value=llm))
+        manager = AsyncMock()
+        monkeypatch.setattr(
+            "app.lifecycle.memory_guardian_ops.create_guardian_memory_manager",
+            AsyncMock(return_value=manager),
+        )
+        report = _make_report(pattern_count=2)
+        monkeypatch.setattr(
+            "myrm_agent_harness.toolkits.memory.strategies.pattern_discovery.run_pattern_discovery",
+            AsyncMock(return_value=report),
+        )
+        monkeypatch.setattr(
+            pattern_discovery_trigger,
+            "record_pattern_discovery_event",
+            AsyncMock(side_effect=RuntimeError("ledger down")),
+        )
+
+        await pattern_discovery_trigger.run_pattern_discovery_cycle()

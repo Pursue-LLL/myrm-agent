@@ -293,7 +293,14 @@ def _merge_tasks_step(
     }
     if isinstance(tool_call_id, str) and tool_call_id.strip():
         new_fields["tool_call_id"] = tool_call_id.strip()
-    for key in ("reason", "status", "error", "error_hint", "error_category", "fault_side"):
+    for key in (
+        "reason",
+        "status",
+        "error",
+        "error_hint",
+        "error_category",
+        "fault_side",
+    ):
         value = event.get(key)
         if value is not None:
             new_fields[key] = value
@@ -434,6 +441,16 @@ class StreamContentCollector:
     def message_id(self) -> str | None:
         """The messageId of the assistant message being collected."""
         return self._message_id
+
+    def mark_stream_completion_error(self) -> None:
+        """Mark the persisted turn as errored (no message_end ever arrives).
+
+        When the stream dies on a fatal exception the normal ``message_end``
+        event (which carries ``completion_status``) never fires; this lets the
+        finalize path persist ``completionStatus=error`` so API consumers stop
+        treating the turn as still streaming.
+        """
+        self._completion_status = "error"
 
     def cleanup(self) -> None:
         """Remove from active collectors registry."""

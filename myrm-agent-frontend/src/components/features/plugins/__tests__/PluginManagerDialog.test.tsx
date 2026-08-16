@@ -118,6 +118,10 @@ describe('PluginManagerDialog', () => {
     expect(screen.getByText('Active')).toBeInTheDocument();
     // bundled badge
     expect(screen.getByText('Bundled files')).toBeInTheDocument();
+    // disabled server carries the disabledHint guidance as its native title
+    const disabledHint = screen.getByTitle('Enable this MCP server in MCP Settings before using it');
+    expect(disabledHint).toBeInTheDocument();
+    expect(disabledHint).toHaveClass('cursor-help');
   });
 
   it('falls back to plain server names when server_meta is absent', async () => {

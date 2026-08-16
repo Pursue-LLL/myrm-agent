@@ -11247,6 +11247,8 @@
     "viewOutput": "Vollständige Ausgabe anzeigen",
     "refresh": "Aktualisieren",
     "nextRun": "Nächster Lauf",
+    "lastRunLabel": "Letzter Lauf",
+    "lastRunTooltip": "Ausgeführt um {time}",
     "createdAt": "Erstellt",
     "interval": "Jeden {value}",
     "noModel": "Kein Modell konfiguriert",

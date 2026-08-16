@@ -11551,6 +11551,8 @@
     "executionSteps": "Execution Steps",
     "refresh": "Refresh",
     "nextRun": "Next Run",
+    "lastRunLabel": "Last run",
+    "lastRunTooltip": "Ran at {time}",
     "createdAt": "Created",
     "interval": "Every {value}",
     "noModel": "No model configured",

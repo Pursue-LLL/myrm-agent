@@ -54,6 +54,39 @@ export interface AttachmentInfo {
   url: string;
 }
 
+export interface CompletionCriterion {
+  type: string;
+  criteria?: string;
+  command?: string;
+  timeout_seconds?: number;
+}
+
+export type CompletionCriteria = string | CompletionCriterion[] | null;
+
+/** Render completion_criteria as a markdown-friendly string.
+ *
+ * Plain-string criteria are returned verbatim; structured arrays are expanded
+ * to a ``- item`` checklist so the existing markdown view stays usable.
+ */
+export function completionCriteriaToText(value: CompletionCriteria | undefined): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === 'string') {
+          return `- ${item}`;
+        }
+        const text = item.criteria ?? item.command ?? '';
+        return text ? `- ${text}` : null;
+      })
+      .filter((line): line is string => Boolean(line))
+      .join('\n');
+  }
+  return '';
+}
+
 export interface KanbanTask {
   task_id: string;
   board_id: string;
@@ -83,7 +116,7 @@ export interface KanbanTask {
   goal_mode?: boolean;
   goal_max_turns?: number | null;
   require_approval?: boolean;
-  completion_criteria?: string | null;
+  completion_criteria?: CompletionCriteria;
   dep_count: number;
   children_total: number;
   children_done: number;
@@ -193,7 +226,7 @@ export async function createTask(
     depends_on?: string[];
     extra_skill_ids?: string[];
     attachment_ids?: string[];
-    completion_criteria?: string;
+    completion_criteria?: CompletionCriteria;
     max_runtime_seconds?: number;
     goal_mode?: boolean;
     goal_max_turns?: number;
@@ -221,7 +254,7 @@ export async function updateTask(
     extra_skill_ids?: string[];
     attachment_ids?: string[];
     max_runtime_seconds?: number | null;
-    completion_criteria?: string | null;
+    completion_criteria?: CompletionCriteria;
     require_approval?: boolean;
     result?: string;
     metadata?: Record<string, unknown>;

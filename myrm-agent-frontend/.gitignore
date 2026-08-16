@@ -13,6 +13,9 @@
 # testing
 /coverage
 .benchmarks
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 # next.js
 /.next/
 /.next-isolated-*/

@@ -99,7 +99,6 @@ async def _signoff_mux_recover_lightweight(
     """R288: signoff must not call recover_mux_transport (eats session recovery budget)."""
     progress(f"R288 signoff lightweight mux recover: {reason}")
     await asyncio.to_thread(_signoff_mux_attach_restart, reason)
-    await asyncio.to_thread(chat._client.abandon_inflight_requests)
     await _await_with_wall_timeout(
         chat.ensure_e2e_api_base_binding(),
         timeout_sec=20.0,
@@ -125,7 +124,9 @@ def _wait_mux_transport_turn_sync(*, current_node: str) -> None:
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
     from browser_orchestrator import wait_for_operation_credit  # noqa: PLC0415
-    from e2e_core.mux_transport_queue import _FORCE_CHAT_SHELL_BLOCKING_NODE  # noqa: PLC0415
+    from e2e_core.mux_transport_queue import (
+        _FORCE_CHAT_SHELL_BLOCKING_NODE,
+    )  # noqa: PLC0415
     from mux.transport_supervisor import mux_upstream_wait_cap  # noqa: PLC0415
 
     from tests.support.chrome_mcp_e2e import _parallel_open_page_peer_count
@@ -1073,7 +1074,7 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
                 )
             else:
                 try:
-                    await asyncio.to_thread(chat._client.recover_mux_transport)
+                    await asyncio.to_thread(chat._client.reset_after_orphan)
                 except (RuntimeError, TimeoutError, OSError) as recover_exc:
                     progress(
                         f"force chat shell recover skipped (non-fatal): {recover_exc}"
@@ -1097,9 +1098,7 @@ async def _ensure_signoff_chat_surface_after_open(chat: McpChatSession) -> None:
     for attempt in range(1, attempts + 1):
         try:
             await _await_with_wall_timeout(
-                chat.wait_shell_ready(
-                    timeout_sec=shell_timeout, require_bridge=False
-                ),
+                chat.wait_shell_ready(timeout_sec=shell_timeout, require_bridge=False),
                 timeout_sec=shell_timeout,
                 label="R287 signoff shell ready",
             )

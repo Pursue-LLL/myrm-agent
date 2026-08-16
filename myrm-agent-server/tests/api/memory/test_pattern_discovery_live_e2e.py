@@ -58,7 +58,9 @@ def _make_mature_manager() -> AsyncMock:
             tags=["unresolved"],
         ),
         SemanticMemory(
-            content=("user asks for a short summary every time a long thread grows beyond 20 messages"),
+            content=(
+                "user asks for a short summary every time a long thread grows beyond 20 messages"
+            ),
             tags=["communication"],
         ),
     ]
@@ -73,9 +75,13 @@ def _make_mature_manager() -> AsyncMock:
     for i, mem in enumerate(memories):
         mem.created_at = datetime.now(UTC) - timedelta(days=i)
 
-    manager.count_memories = AsyncMock(side_effect=lambda mt: 60 if str(mt) == "semantic" else 0)
+    manager.count_memories = AsyncMock(
+        side_effect=lambda mt: 60 if str(mt) == "semantic" else 0
+    )
     manager.list_memories = AsyncMock(return_value=memories)
-    manager.get_profile_attribute = AsyncMock(side_effect=lambda key: "5" if "consolidation" in key else None)
+    manager.get_profile_attribute = AsyncMock(
+        side_effect=lambda key: "5" if "consolidation" in key else None
+    )
     manager.set_profile_attribute = AsyncMock()
     manager.search = AsyncMock(
         return_value=[
@@ -109,9 +115,27 @@ async def test_pattern_discovery_with_real_llm_produces_patterns() -> None:
 
     report = await run_pattern_discovery(_make_mature_manager(), llm)
 
+    if report.skipped:
+        reason = report.skip_reason.lower()
+        if any(
+            kw.lower() in reason
+            for kw in (
+                "rate limit",
+                "quota",
+                "authentication",
+                "authorization",
+                "connection",
+                "timeout",
+            )
+        ):
+            pytest.skip(f"Environment/LLM transient issue: {report.skip_reason[:160]}")
+        pytest.fail(f"Pattern discovery unexpectedly skipped: {report.skip_reason}")
+
     assert report.skipped is False, report.skip_reason
     assert report.memory_count >= 50
-    assert len(report.patterns) > 0, "real LLM should surface at least one behavioral pattern"
+    assert (
+        len(report.patterns) > 0
+    ), "real LLM should surface at least one behavioral pattern"
     first = report.patterns[0]
     assert first.title.strip()
     assert first.description.strip()

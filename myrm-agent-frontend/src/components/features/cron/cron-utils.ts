@@ -43,6 +43,22 @@ export function formatTime(iso: string): string {
   return new Date(iso).toLocaleString();
 }
 
+/** Render an ISO timestamp as a compact relative time (e.g. "3h ago").
+ *
+ * Falls back to a short localized date when the timestamp is older than 30 days
+ * to avoid meaningless "999d ago" noise in list summaries.
+ */
+export function formatRelativeTime(iso: string, nowMs = Date.now()): string {
+  const then = new Date(iso).getTime();
+  const diffMs = nowMs - then;
+  if (Number.isNaN(then)) {return '';}
+  if (diffMs < 60_000) {return 'just now';}
+  if (diffMs < 3_600_000) {return `${Math.floor(diffMs / 60_000)}m ago`;}
+  if (diffMs < 86_400_000) {return `${Math.floor(diffMs / 3_600_000)}h ago`;}
+  if (diffMs < 30 * 86_400_000) {return `${Math.floor(diffMs / 86_400_000)}d ago`;}
+  return new Date(iso).toLocaleDateString();
+}
+
 export function statusBorderColor(job: CronJob): string {
   if (job.consecutive_failures > 0 || job.last_status === 'error') {return 'border-l-destructive';}
   if (job.status === 'active') {return 'border-l-green-500';}

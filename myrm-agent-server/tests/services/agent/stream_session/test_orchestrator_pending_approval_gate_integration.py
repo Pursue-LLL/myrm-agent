@@ -25,7 +25,12 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.database.models.approval import ApprovalRecord
 from app.services.agent.gateway import AgentBusyError
@@ -47,7 +52,9 @@ async def _registry_db(tmp_path: Path):
     _engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
     _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
     async with _engine.begin() as conn:
-        await conn.run_sync(lambda sync_conn: ApprovalRecord.__table__.create(sync_conn))
+        await conn.run_sync(
+            lambda sync_conn: ApprovalRecord.__table__.create(sync_conn)
+        )
     yield
     await _engine.dispose()
     _engine = None

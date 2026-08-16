@@ -11551,6 +11551,8 @@
     "executionSteps": "执行步骤",
     "refresh": "刷新",
     "nextRun": "下次执行",
+    "lastRunLabel": "上次执行",
+    "lastRunTooltip": "执行时间 {time}",
     "createdAt": "创建于",
     "interval": "每 {value}",
     "noModel": "未配置模型",
