@@ -189,9 +189,7 @@ def _real_send_chat_message(
         })()""",
         timeout_sec=10.0,
     )
-    assert (
-        isinstance(draft_cleared, dict) and draft_cleared.get("ok") is True
-    ), f"Failed to clear drafts: {draft_cleared}"
+    assert isinstance(draft_cleared, dict) and draft_cleared.get("ok") is True, f"Failed to clear drafts: {draft_cleared}"
     typed = _type_chat_input_text(client, page, query)
     assert typed.get("ok") is True, f"Type into chat input failed: {typed}"
     send_ready = wait_for_state(
@@ -244,9 +242,7 @@ def _real_send_chat_message(
         })()""",
         timeout_sec=10.0,
     )
-    assert (
-        isinstance(net_hooked, dict) and net_hooked.get("ok") is True
-    ), f"Failed to hook fetch: {net_hooked}"
+    assert isinstance(net_hooked, dict) and net_hooked.get("ok") is True, f"Failed to hook fetch: {net_hooked}"
     clicked = client.evaluate(
         page,
         """(() => {
@@ -300,9 +296,7 @@ def _real_send_chat_message(
         )
         print("DIAG_SEND_CLEAR_FAILED=" + json.dumps(diag, default=str))
         raise
-    assert (
-        cleared.get("ready") is True
-    ), f"Chat input did not clear after send: {cleared}"
+    assert cleared.get("ready") is True, f"Chat input did not clear after send: {cleared}"
     eph_status = client.evaluate(
         page,
         """(() => {
@@ -323,17 +317,11 @@ def _wait_subagent_status(
     """Poll the subagents API until the given task_id reaches the target status."""
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
-        payload = http_json(
-            "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
-        )
+        payload = http_json("GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents")
         data = payload.get("data") if isinstance(payload, dict) else None
         if isinstance(data, list):
             for row in data:
-                if (
-                    isinstance(row, dict)
-                    and row.get("task_id") == task_id
-                    and row.get("status") == status
-                ):
+                if isinstance(row, dict) and row.get("task_id") == task_id and row.get("status") == status:
                     return row
         time.sleep(2.0)
     return None
@@ -371,9 +359,7 @@ def _wait_subagent_store_status(
         }})()""",
         timeout_sec=timeout_sec + 10.0,
     )
-    assert (
-        synced.get("ready") is True
-    ), f"Subagent store did not reach status={status!r}: {synced}"
+    assert synced.get("ready") is True, f"Subagent store did not reach status={status!r}: {synced}"
     return synced
 
 
@@ -473,9 +459,7 @@ def _wait_running_subagent_task_id(
     deadline = time.monotonic() + timeout_sec
     last_payload: object = None
     while time.monotonic() < deadline:
-        payload = http_json(
-            "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
-        )
+        payload = http_json("GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents")
         last_payload = payload
         task_id = _resolve_running_subagent_task_id(client, page, chat_id)
         if task_id:
@@ -484,9 +468,7 @@ def _wait_running_subagent_task_id(
     raise AssertionError(f"No running subagent after real send: api={last_payload!r}")
 
 
-def _open_dashboard_seeded(
-    client, page, chat_id: str, rows: list[dict[str, object]]
-) -> None:
+def _open_dashboard_seeded(client, page, chat_id: str, rows: list[dict[str, object]]) -> None:
     _open_subagent_dashboard(client, page, chat_id, fallback_rows=rows)
     seeded = client.evaluate(
         page,
@@ -506,9 +488,7 @@ def _wait_running_row(chat_id: str, timeout_sec: float = 240.0) -> dict[str, obj
     deadline = time.monotonic() + timeout_sec
     last: object = {}
     while time.monotonic() < deadline:
-        payload = http_json(
-            "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
-        )
+        payload = http_json("GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents")
         last = payload
         data = payload.get("data") if isinstance(payload, dict) else None
         if isinstance(data, list):
@@ -599,9 +579,7 @@ def test_subagent_dashboard_sort_reorders_tree(light_chat: dict[str, object]) ->
                 }})()""",
                 timeout_sec=15.0,
             )
-            assert (
-                order.get("ready") is True
-            ), f"Sort {sort_value} expected {ids} got {order}"
+            assert order.get("ready") is True, f"Sort {sort_value} expected {ids} got {order}"
 
 
 @pytest.mark.chrome_e2e(
@@ -683,9 +661,7 @@ def test_subagent_dashboard_stop_all_confirms_and_cancels(
                 })()""",
                 timeout_sec=30.0,
             )
-            assert (
-                stop_all.get("hasBtn") is True
-            ), f"Stop-all button missing: {stop_all}"
+            assert stop_all.get("hasBtn") is True, f"Stop-all button missing: {stop_all}"
             clicked = client.evaluate(
                 page,
                 """(() => {
@@ -706,9 +682,7 @@ def test_subagent_dashboard_stop_all_confirms_and_cancels(
                 })()""",
                 timeout_sec=15.0,
             )
-            assert (
-                dialog.get("hasDialog") is True
-            ), f"Stop-all confirm dialog missing: {dialog}"
+            assert dialog.get("hasDialog") is True, f"Stop-all confirm dialog missing: {dialog}"
             confirmed = client.evaluate(
                 page,
                 """(() => {
@@ -736,40 +710,18 @@ def test_subagent_dashboard_stop_all_confirms_and_cancels(
                 })()""",
                 timeout_sec=30.0,
             )
-            assert (
-                cancelled.get("ready") is True
-            ), f"Stop-all did not cancel all running nodes: {cancelled}"
-            api_payload = http_json(
-                "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
-            )
+            assert cancelled.get("ready") is True, f"Stop-all did not cancel all running nodes: {cancelled}"
+            api_payload = http_json("GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents")
             data = api_payload.get("data") if isinstance(api_payload, dict) else None
-            rows_after = (
-                [row for row in data if isinstance(row, dict)]
-                if isinstance(data, list)
-                else []
-            )
+            rows_after = [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
             deadline_cancel = time.monotonic() + 90.0
-            while time.monotonic() < deadline_cancel and any(
-                row.get("status") == "running" for row in rows_after
-            ):
+            while time.monotonic() < deadline_cancel and any(row.get("status") == "running" for row in rows_after):
                 time.sleep(3.0)
-                api_payload = http_json(
-                    "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
-                )
-                data = (
-                    api_payload.get("data") if isinstance(api_payload, dict) else None
-                )
-                rows_after = (
-                    [row for row in data if isinstance(row, dict)]
-                    if isinstance(data, list)
-                    else []
-                )
-            running_after = [
-                row for row in rows_after if row.get("status") == "running"
-            ]
-            assert (
-                not running_after
-            ), f"Real subagent still running after stop-all: {running_after}"
+                api_payload = http_json("GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents")
+                data = api_payload.get("data") if isinstance(api_payload, dict) else None
+                rows_after = [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
+            running_after = [row for row in rows_after if row.get("status") == "running"]
+            assert not running_after, f"Real subagent still running after stop-all: {running_after}"
         finally:
             if spawn.poll() is None:
                 spawn.terminate()
@@ -845,9 +797,7 @@ def test_subagent_dashboard_teammate_messages_render(
             })()""",
             timeout_sec=30.0,
         )
-        assert (
-            rendered.get("ready") is True
-        ), f"Teammate messages not rendered: {rendered}"
+        assert rendered.get("ready") is True, f"Teammate messages not rendered: {rendered}"
 
 
 @pytest.mark.chrome_e2e(
@@ -1052,9 +1002,7 @@ def test_subagent_dashboard_tree_expand_collapse_children(
             })()""",
             timeout_sec=30.0,
         )
-        assert (
-            expanded.get("ready") is True
-        ), f"Children not expanded by default: {expanded}"
+        assert expanded.get("ready") is True, f"Children not expanded by default: {expanded}"
         collapsed = client.evaluate(
             page,
             """(() => {
@@ -1103,9 +1051,7 @@ def test_subagent_dashboard_tree_expand_collapse_children(
             })()""",
             timeout_sec=15.0,
         )
-        assert (
-            restored.get("ready") is True
-        ), f"Expand did not restore children: {restored}"
+        assert restored.get("ready") is True, f"Expand did not restore children: {restored}"
 
 
 @pytest.mark.chrome_e2e(
@@ -1180,9 +1126,7 @@ def test_subagent_dashboard_completed_failed_states_and_header_summary(
             timeout_sec=30.0,
         )
         assert rendered.get("ready") is True, f"State nodes not rendered: {rendered}"
-        assert (
-            rendered.get("hasGreenCheck") is True
-        ), f"Completed icon missing: {rendered}"
+        assert rendered.get("hasGreenCheck") is True, f"Completed icon missing: {rendered}"
         assert rendered.get("hasRedX") is True, f"Failed icon missing: {rendered}"
 
 
@@ -1205,10 +1149,7 @@ def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel(
     page (no navigation that would disconnect it), and the subagent dashboard renders its
     trigger automatically via its own 2s fetchSubagents poll once a running row appears.
     """
-    if (
-        not os.environ.get("BASIC_API_KEY", "").strip()
-        or not os.environ.get("BASIC_MODEL", "").strip()
-    ):
+    if not os.environ.get("BASIC_API_KEY", "").strip() or not os.environ.get("BASIC_MODEL", "").strip():
         pytest.skip("BASIC_API_KEY and BASIC_MODEL are required")
     chat_id = str(light_chat.get("chatId") or "")
     assert chat_id
@@ -1265,16 +1206,12 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
             }})()""",
             timeout_sec=90.0,
         )
-        assert (
-            attach_result.get("ready") is True
-        ), f"attachToChat failed: {attach_result}"
+        assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
         # Bridge send carries ephemeralSubagents explicitly (same submit path as WebUI
         # agentConfig panel). Chat-level ephemeral_subagents fallback is covered by
         # converter unit/integration tests; LIVE parallel load makes pure textarea
         # send flaky when the model skips delegate_task_tool.
-        sent = _bridge_send_delegate_query(
-            client, page, _DELEGATE_QUERY, timeout_sec=360.0
-        )
+        sent = _bridge_send_delegate_query(client, page, _DELEGATE_QUERY, timeout_sec=360.0)
         assert sent.get("ok") is True, f"Delegate send failed: {sent}"
         eph_status = sent.get("eph_status")
         # 真实用户路径：agentConfig 未注入 ephemeral（发送 payload 不含 ephemeral_subagents），
@@ -1286,31 +1223,18 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
         deadline = time.monotonic() + 300.0
         last_payload: object = None
         while time.monotonic() < deadline:
-            payload = http_json(
-                "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
-            )
+            payload = http_json("GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents")
             last_payload = payload
             data = payload.get("data") if isinstance(payload, dict) else None
             if isinstance(data, list):
-                running = [
-                    row
-                    for row in data
-                    if isinstance(row, dict) and row.get("status") == "running"
-                ]
+                running = [row for row in data if isinstance(row, dict) and row.get("status") == "running"]
                 if running:
                     task_id = str(running[0].get("task_id") or "")
                     break
             time.sleep(2.0)
-        assert task_id, (
-            f"No running subagent after front-end send: {last_payload!r} "
-            f"eph_status={eph_status!r} sent={sent!r}"
-        )
-        api_snapshot = http_json(
-            "GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents"
-        )
-        print(
-            "DIAG_SUBAGENTS_AFTER_SEND=" + json.dumps(api_snapshot, default=str)[:800]
-        )
+        assert task_id, f"No running subagent after front-end send: {last_payload!r} eph_status={eph_status!r} sent={sent!r}"
+        api_snapshot = http_json("GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents")
+        print("DIAG_SUBAGENTS_AFTER_SEND=" + json.dumps(api_snapshot, default=str)[:800])
 
         # 真实场景：用户切走/刷新页面后重新回到 chat，dashboard 必须通过前端的
         # fetchSubagents 轮询（无任何 store 注入）从 API 恢复出 running 子agent，
@@ -1329,9 +1253,7 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
             }})()""",
             timeout_sec=120.0,
         )
-        assert (
-            reattached.get("ready") is True
-        ), f"Re-attach after reload failed: {reattached}"
+        assert reattached.get("ready") is True, f"Re-attach after reload failed: {reattached}"
         _pin_direct_sse(client, page)
         _trigger_fetch_subagents(client, page, chat_id)
         restored = wait_for_state(
@@ -1350,9 +1272,7 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
             })()""",
             timeout_sec=120.0,
         )
-        assert (
-            restored.get("ready") is True
-        ), f"Dashboard did not restore running subagent after reload: {restored}"
+        assert restored.get("ready") is True, f"Dashboard did not restore running subagent after reload: {restored}"
         # 点击展开 panel（Sheet 内容默认未挂载），cancel 按钮才可见。
         trigger_seen = wait_for_state(
             client,
@@ -1367,9 +1287,7 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
             })()""",
             timeout_sec=90.0,
         )
-        assert (
-            trigger_seen.get("ready") is True
-        ), f"Dashboard trigger missing after reload: {trigger_seen}"
+        assert trigger_seen.get("ready") is True, f"Dashboard trigger missing after reload: {trigger_seen}"
         opened = client.evaluate(
             page,
             """(() => {
@@ -1463,9 +1381,7 @@ def _run_full_flow_body(chat_id: str, ui_url: str) -> None:
             "cancelled",
             timeout_sec=120.0,
         )
-        assert (
-            store_status.get("ready") is True
-        ), f"Store did not mark cancelled: {store_status}"
+        assert store_status.get("ready") is True, f"Store did not mark cancelled: {store_status}"
 
 
 # 自然完成场景：委派一个 sleep 3 的短任务，子agent 自己跑完后进入 completed，
@@ -1495,10 +1411,7 @@ def test_subagent_dashboard_frontend_subagent_completes_flow_chrome_e2e(
     by itself (bash `sleep 3`), and the dashboard renders the completed node from the
     API without any store injection.
     """
-    if (
-        not os.environ.get("BASIC_API_KEY", "").strip()
-        or not os.environ.get("BASIC_MODEL", "").strip()
-    ):
+    if not os.environ.get("BASIC_API_KEY", "").strip() or not os.environ.get("BASIC_MODEL", "").strip():
         pytest.skip("BASIC_API_KEY and BASIC_MODEL are required")
     chat_id = str(light_chat.get("chatId") or "")
     assert chat_id
@@ -1551,25 +1464,14 @@ def _run_completed_flow_body(chat_id: str, ui_url: str) -> None:
             }})()""",
             timeout_sec=90.0,
         )
-        assert (
-            attach_result.get("ready") is True
-        ), f"attachToChat failed: {attach_result}"
-        sent = _bridge_send_delegate_query(
-            client, page, _COMPLETE_QUERY, timeout_sec=360.0
-        )
+        assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
+        sent = _bridge_send_delegate_query(client, page, _COMPLETE_QUERY, timeout_sec=360.0)
         assert sent.get("ok") is True, f"Bridge delegate send failed: {sent}"
-        print(
-            "DIAG_EPH_STATUS_COMPLETE_SEND="
-            + json.dumps(sent.get("eph_status"), default=str)
-        )
+        print("DIAG_EPH_STATUS_COMPLETE_SEND=" + json.dumps(sent.get("eph_status"), default=str))
 
-        task_id = _wait_running_subagent_task_id(
-            client, page, chat_id, timeout_sec=300.0
-        )
+        task_id = _wait_running_subagent_task_id(client, page, chat_id, timeout_sec=300.0)
 
-        completed_row = _wait_subagent_status(
-            chat_id, task_id, "completed", timeout_sec=240.0
-        )
+        completed_row = _wait_subagent_status(chat_id, task_id, "completed", timeout_sec=240.0)
         print("DIAG_COMPLETED_ROW=" + json.dumps(completed_row, default=str)[:600])
         assert completed_row is not None, (
             f"Subagent {task_id!r} never reached completed via API: "
@@ -1597,9 +1499,7 @@ def _run_completed_flow_body(chat_id: str, ui_url: str) -> None:
             })()""",
             timeout_sec=60.0,
         )
-        assert (
-            trigger_seen.get("ready") is True
-        ), f"Dashboard trigger missing: {trigger_seen}"
+        assert trigger_seen.get("ready") is True, f"Dashboard trigger missing: {trigger_seen}"
         opened = client.evaluate(
             page,
             """(() => {
@@ -1639,9 +1539,7 @@ def _run_completed_flow_body(chat_id: str, ui_url: str) -> None:
             }})()""",
             timeout_sec=60.0,
         )
-        assert (
-            rendered.get("ready") is True
-        ), f"Dashboard did not render completed subagent: {rendered}"
+        assert rendered.get("ready") is True, f"Dashboard did not render completed subagent: {rendered}"
 
 
 # 真实用户操作路径：纯 textarea 输入 + 点击发送按钮（非 bridge sendChatMessage）。
@@ -1667,10 +1565,7 @@ def test_subagent_dashboard_chat_textarea_real_user_send(
     与 full_flow（bridge sendChatMessage）互补：本测试覆盖纯 textarea 输入 + 发送
     按钮路径，确保真实用户打字发送时消息能提交进 agent stream 管线。
     """
-    if (
-        not os.environ.get("BASIC_API_KEY", "").strip()
-        or not os.environ.get("BASIC_MODEL", "").strip()
-    ):
+    if not os.environ.get("BASIC_API_KEY", "").strip() or not os.environ.get("BASIC_MODEL", "").strip():
         pytest.skip("BASIC_API_KEY and BASIC_MODEL are required")
     chat_id = str(light_chat.get("chatId") or "")
     assert chat_id
@@ -1724,9 +1619,7 @@ def _run_textarea_send_body(chat_id: str, ui_url: str) -> None:
             }})()""",
             timeout_sec=90.0,
         )
-        assert (
-            attach_result.get("ready") is True
-        ), f"attachToChat failed: {attach_result}"
+        assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
 
         sent = _real_send_chat_message(client, page, _TEXTAREA_OK_QUERY)
         assert sent.get("ok") is True, f"Textarea send failed: {sent}"
@@ -1755,6 +1648,27 @@ def _run_textarea_send_body(chat_id: str, ui_url: str) -> None:
             })()""",
             timeout_sec=180.0,
         )
-        assert (
-            replied.get("ready") is True
-        ), f"Chat reply missing after textarea send: {replied}"
+        if not replied.get("ready"):
+            more_diag = client.evaluate(
+                page,
+                """(() => {
+                  const store = window.__myrmChatStore?.getState?.();
+                  const msgs = store?.messages ?? [];
+                  return {
+                    netRecords: window.__MYRM_E2E_NET_RECORDS__?.slice(-8) ?? [],
+                    roles: msgs.map((m) => ({
+                      role: m.role,
+                      type: m.type,
+                      contentLen: String(m.content || m.text || '').length,
+                      progressSteps: (m.progressSteps ?? []).length,
+                    })),
+                    lastMsgPreview: msgs
+                      .slice(-2)
+                      .map((m) => String(m.content || m.text || '').slice(0, 120)),
+                  };
+                })()""",
+                timeout_sec=15.0,
+            )
+            print("DIAG_TEXTAREA_REPLY_FAILED=" + json.dumps(replied, default=str))
+            print("DIAG_TEXTAREA_NET_AND_MSGS=" + json.dumps(more_diag, default=str))
+        assert replied.get("ready") is True, f"Chat reply missing after textarea send: {replied}"
