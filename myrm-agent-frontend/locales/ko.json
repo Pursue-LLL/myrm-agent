@@ -8790,8 +8790,7 @@
       "post_hook_blocked": "실행 후 차단됨",
       "tool_cancelled": "취소됨",
       "guardrail_blocked": "안전 차단됨",
-      "benchmark_blocked": "평가 콘텐츠 차단",
-      "skill_usage_guard": "스킬 사용법 안내"
+      "benchmark_blocked": "평가 콘텐츠 차단"
     },
     "categoryStageLabels": {
       "thinking": "사고 중",
@@ -15137,7 +15136,13 @@
       "timeline": "타임라인",
       "empty": "이 날의 활동이 없습니다",
       "error": "일일 저널을 불러오지 못했습니다",
-      "retry": "재시도"
+      "retry": "재시도",
+      "typeLabels": {
+        "session": "세션",
+        "approval": "승인",
+        "cron": "예약",
+        "kanban": "칸반"
+      }
     },
     "timeRange": {
       "7d": "7일",

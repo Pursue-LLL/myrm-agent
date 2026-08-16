@@ -9022,8 +9022,7 @@
       "post_hook_blocked": "実行後に制限",
       "tool_cancelled": "キャンセル",
       "guardrail_blocked": "安全制限",
-      "benchmark_blocked": "ベンチマーク遮断",
-      "skill_usage_guard": "スキル使用方法の案内"
+      "benchmark_blocked": "ベンチマーク遮断"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
@@ -14613,7 +14612,13 @@
       "timeline": "タイムライン",
       "empty": "この日のアクティビティはありません",
       "error": "日記の読み込みに失敗しました",
-      "retry": "再試行"
+      "retry": "再試行",
+      "typeLabels": {
+        "session": "セッション",
+        "approval": "承認",
+        "cron": "定期",
+        "kanban": "カンバン"
+      }
     },
     "dailyWrap": {
       "title": "デイリーダイジェスト",

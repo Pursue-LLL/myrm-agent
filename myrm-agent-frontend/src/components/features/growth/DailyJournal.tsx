@@ -41,14 +41,14 @@ interface TypeStyle {
   icon: LucideIcon;
   text: string;
   bg: string;
-  label: string;
+  labelKey: string;
 }
 
 const TYPE_CONFIG: Record<string, TypeStyle> = {
-  session: { icon: MessageSquare, text: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Session' },
-  approval: { icon: ShieldCheck, text: 'text-amber-500', bg: 'bg-amber-500/10', label: 'Approval' },
-  cron_run: { icon: Timer, text: 'text-green-500', bg: 'bg-green-500/10', label: 'Cron' },
-  kanban: { icon: Workflow, text: 'text-purple-500', bg: 'bg-purple-500/10', label: 'Kanban' },
+  session: { icon: MessageSquare, text: 'text-blue-500', bg: 'bg-blue-500/10', labelKey: 'typeLabels.session' },
+  approval: { icon: ShieldCheck, text: 'text-amber-500', bg: 'bg-amber-500/10', labelKey: 'typeLabels.approval' },
+  cron_run: { icon: Timer, text: 'text-green-500', bg: 'bg-green-500/10', labelKey: 'typeLabels.cron' },
+  kanban: { icon: Workflow, text: 'text-purple-500', bg: 'bg-purple-500/10', labelKey: 'typeLabels.kanban' },
 };
 
 export default function DailyJournal() {
@@ -191,6 +191,8 @@ function KpiMini({ label, value }: { label: string; value: string | number }) {
 }
 
 function TimelineRow({ item }: { item: DailyJournalTimelineItem }) {
+  const t = useTranslations('growthDashboard.dailyJournal');
+  const tm = useTranslations('mode');
   const cfg = TYPE_CONFIG[item.type] || TYPE_CONFIG.session;
   const Icon = cfg.icon;
 
@@ -204,14 +206,18 @@ function TimelineRow({ item }: { item: DailyJournalTimelineItem }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm text-foreground truncate">{item.title}</p>
-        {item.type === 'session' && item.detail?.tokens != null && (
+        {item.type === 'session' && item.detail?.tokens !== null && item.detail?.tokens !== undefined && (
           <p className="text-xs text-muted-foreground">
-            {Number(item.detail.tokens).toLocaleString()} tokens · {String(item.detail.action_mode || '')}
+            {Number(item.detail.tokens).toLocaleString()} {t('tokens')} ·{' '}
+            {(() => {
+              const actionMode = String(item.detail.action_mode || '');
+              return tm.has(actionMode) ? tm(actionMode) : actionMode;
+            })()}
           </p>
         )}
       </div>
       <Badge variant="outline" className="text-[10px] shrink-0">
-        {cfg.label}
+        {t(cfg.labelKey)}
       </Badge>
     </div>
   );

@@ -9022,8 +9022,7 @@
       "post_hook_blocked": "執行後攔截",
       "tool_cancelled": "已取消",
       "guardrail_blocked": "安全攔截",
-      "benchmark_blocked": "評測內容攔截",
-      "skill_usage_guard": "技能用法已重新導向"
+      "benchmark_blocked": "評測內容攔截"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
@@ -14588,7 +14587,13 @@
       "timeline": "時間線",
       "empty": "當天無活動記錄",
       "error": "載入每日日誌失敗",
-      "retry": "重試"
+      "retry": "重試",
+      "typeLabels": {
+        "session": "會話",
+        "approval": "審批",
+        "cron": "定時",
+        "kanban": "看板"
+      }
     },
     "dailyWrap": {
       "title": "今日戰報",

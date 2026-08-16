@@ -9122,8 +9122,7 @@
       "post_hook_blocked": "Blocked After Run",
       "tool_cancelled": "Cancelled",
       "guardrail_blocked": "Safety Blocked",
-      "benchmark_blocked": "Benchmark Blocked",
-      "skill_usage_guard": "Skill Usage Redirected"
+      "benchmark_blocked": "Benchmark Blocked"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",
@@ -14691,7 +14690,13 @@
       "timeline": "Timeline",
       "empty": "No activity on this day",
       "error": "Failed to load daily journal",
-      "retry": "Retry"
+      "retry": "Retry",
+      "typeLabels": {
+        "session": "Session",
+        "approval": "Approval",
+        "cron": "Cron",
+        "kanban": "Kanban"
+      }
     },
     "dailyWrap": {
       "title": "Daily Wrap",

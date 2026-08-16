@@ -8790,8 +8790,7 @@
       "post_hook_blocked": "Nach Ausführung blockiert",
       "tool_cancelled": "Abgesagt",
       "guardrail_blocked": "Sicherheit blockiert",
-      "benchmark_blocked": "Benchmark gesperrt",
-      "skill_usage_guard": "Skill-Anleitung umgeleitet"
+      "benchmark_blocked": "Benchmark gesperrt"
     },
     "categoryStageLabels": {
       "thinking": "Denken",
@@ -15137,7 +15136,13 @@
       "timeline": "Zeitleiste",
       "empty": "An diesem Tag keine Aktivität",
       "error": "Das Laden des Tagesjournals ist fehlgeschlagen",
-      "retry": "Wiederholen"
+      "retry": "Wiederholen",
+      "typeLabels": {
+        "session": "Sitzung",
+        "approval": "Freigabe",
+        "cron": "Geplant",
+        "kanban": "Tafel"
+      }
     },
     "timeRange": {
       "7d": "7T",

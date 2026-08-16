@@ -9122,8 +9122,7 @@
       "post_hook_blocked": "执行后拦截",
       "tool_cancelled": "已取消",
       "guardrail_blocked": "安全拦截",
-      "benchmark_blocked": "评测内容拦截",
-      "skill_usage_guard": "技能用法已重定向"
+      "benchmark_blocked": "评测内容拦截"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
@@ -14666,7 +14665,13 @@
       "timeline": "时间线",
       "empty": "当天无活动记录",
       "error": "加载每日日志失败",
-      "retry": "重试"
+      "retry": "重试",
+      "typeLabels": {
+        "session": "会话",
+        "approval": "审批",
+        "cron": "定时",
+        "kanban": "看板"
+      }
     },
     "dailyWrap": {
       "title": "今日战报",
