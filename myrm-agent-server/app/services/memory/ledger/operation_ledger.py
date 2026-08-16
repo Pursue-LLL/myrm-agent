@@ -35,7 +35,6 @@ from app.database.models.memory import (
 )
 from app.services.memory.ledger.guardian_policy import MemoryGuardianPolicy
 from app.services.memory.ledger.operation_ledger_guardian import (
-    _resolve_guardian_digest_window,
     as_aware,
     guardian_guard_alert_thresholds,
 )
@@ -402,5 +401,4 @@ def _coerce_metadata(value: dict[str, object] | None) -> JsonObject:
 __all__ = [
     "MemoryOperationLedgerService",
     "guardian_guard_alert_thresholds",
-    "_resolve_guardian_digest_window",
 ]

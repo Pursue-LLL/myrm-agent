@@ -632,7 +632,7 @@ def test_web_render_ui_form_query_preflight_no_gap_unit_parity() -> None:
     assert event is None
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @_AGENT_STREAM_TEST_TIMEOUT
 def test_agent_stream_emits_web_search_config_gap_sse(
     client: TestClient,
@@ -836,7 +836,7 @@ async def _seed_migration_readiness_batch_for_stream() -> str:
         return confirm.import_batch_id
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @_AGENT_STREAM_TEST_TIMEOUT
 def test_agent_stream_migration_readiness_gap_does_not_block_assistant(
     client: TestClient,
@@ -892,7 +892,7 @@ def test_agent_stream_migration_readiness_gap_does_not_block_assistant(
     )
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @_AGENT_STREAM_TEST_TIMEOUT
 def test_agent_stream_accepts_enabled_builtin_tools_without_error(
     client: TestClient,
@@ -915,7 +915,7 @@ def test_agent_stream_accepts_enabled_builtin_tools_without_error(
     assert events
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @_AGENT_STREAM_TEST_TIMEOUT
 def test_agent_stream_default_builtin_tools_persist_togglable_only(
     client: TestClient,
@@ -967,7 +967,7 @@ def test_agent_stream_default_builtin_tools_persist_togglable_only(
         ), f"baseline {tool_id!r} must not appear in persisted snapshot"
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @_AGENT_STREAM_TEST_TIMEOUT
 def test_agent_stream_tools_snapshot_includes_builtin_tool_id(
     client: TestClient,

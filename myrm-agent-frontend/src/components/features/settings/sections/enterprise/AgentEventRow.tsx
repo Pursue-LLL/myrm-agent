@@ -51,7 +51,7 @@ const TONE_STYLES: Record<AgentEventTone, { label: string; className: string }> 
 
 function eventTone(type: string): AgentEventTone {
   if (type === 'security_audit') {return 'security';}
-  if (type === 'tool_approval_request' || type.startsWith('approval')) {return 'approval';}
+  if (type.includes('approval')) {return 'approval';}
   if (type.startsWith('session')) {return 'session';}
   if (/error|failure|failed|cancelled|timeout|denied|rejected|interruption|exhausted|aborted/i.test(type)) {
     return 'error';

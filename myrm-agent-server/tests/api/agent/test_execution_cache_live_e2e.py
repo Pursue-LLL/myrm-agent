@@ -20,7 +20,6 @@ from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
 
 @pytest.mark.e2e
-@pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("LITE_API_KEY") and not os.environ.get("BASIC_API_KEY"),
     reason="Live E2E requires LITE_API_KEY or BASIC_API_KEY",

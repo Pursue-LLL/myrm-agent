@@ -94,7 +94,7 @@ def _stream_with_auto_approve(
     return collected
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.skipif(
     not os.environ.get("BASIC_API_KEY"),
     reason="E2E test requires BASIC_API_KEY environment variable",
@@ -202,7 +202,7 @@ def _wait_running_subagents(
     return running_rows
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.skipif(
     not os.environ.get("BASIC_API_KEY"),
     reason="E2E test requires BASIC_API_KEY environment variable",
@@ -262,7 +262,7 @@ def test_background_subagent_cancelled_by_cancel_all_after_parent_stream_end(
     ), f"cancel-all 后后台子代理 {task_id} 未进入终态/消失: {last_payload!r}"
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.skipif(
     not os.environ.get("BASIC_API_KEY"),
     reason="E2E test requires BASIC_API_KEY environment variable",

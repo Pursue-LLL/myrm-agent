@@ -115,6 +115,26 @@ def _parent_chat_id(parent_agent: object) -> str | None:
     return chat_id if isinstance(chat_id, str) and chat_id else None
 
 
+def _inherit_parent_security_config(parent_agent: object) -> object | None:
+    """Inherit the parent agent's SecurityConfig for the child SkillAgent.
+
+    Mirrors the framework's bare-BaseAgent child path (builder.build_child_agent)
+    so delegated SkillAgents share the same security posture (approval policies,
+    capabilities, path policy) as the parent. Returns None when the parent has no
+    runtime config (e.g. SimpleNamespace in unit tests) so callers fall back to
+    framework fail-closed defaults.
+    """
+    config = getattr(parent_agent, "config", None)
+    if config is None:
+        return None
+    security_config = getattr(config, "security_config", None)
+    if security_config is None:
+        logger.warning(
+            "[subagent] parent_agent.config.security_config is None — child will fall back to fail-closed defaults"
+        )
+    return security_config
+
+
 def _parent_memory_search_flags(parent_agent: object) -> tuple[bool, bool]:
     """Mirror GeneralAgent MemorySearchPolicy gates from the parent runtime agent."""
     incognito = bool(getattr(parent_agent, "incognito_mode", False))
@@ -528,12 +548,15 @@ class CustomAgentFactory:
             apply_profile_output_suffixes,
         )
 
-        system_prompt = apply_profile_output_suffixes(
-            system_prompt,
-            personality_style=None,
-            engine_params=engine_params,
-            agent_id=self._agent_id,
-        ) or system_prompt
+        system_prompt = (
+            apply_profile_output_suffixes(
+                system_prompt,
+                personality_style=None,
+                engine_params=engine_params,
+                agent_id=self._agent_id,
+            )
+            or system_prompt
+        )
 
         mcp_servers = list(self._cached_mcp_configs)
         if mcp_servers:
@@ -556,6 +579,7 @@ class CustomAgentFactory:
             engine_params=engine_params,
             mcp_surface_mode=mcp_surface_mode,
             max_iterations=max_iterations,
+            security_config=_inherit_parent_security_config(parent_agent),
         )
 
         enabled_builtin = getattr(profile, "enabled_builtin_tools", ())
@@ -670,6 +694,7 @@ class EphemeralAgentFactory:
             skill_ids=[],
             mcp_servers=[],
             max_iterations=config.max_turns,
+            security_config=_inherit_parent_security_config(parent_agent),
         )
 
         raw_builtin = self._metadata.get("enabled_builtin_tools")

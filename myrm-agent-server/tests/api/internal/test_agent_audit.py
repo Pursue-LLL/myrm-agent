@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import time
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -9,6 +11,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from app.api.internal import agent_audit as agent_audit_module
 from app.api.internal.agent_audit import router as agent_audit_router
 
 
@@ -306,6 +309,117 @@ async def test_agent_audit_counts_security_deny_decisions(
     # 2 security_audit 事件（会话级），但 deny 决策 3 个（DENY/PII_REDACTED/CRON_DENY）
     assert data["security_event_total"] == 2
     assert data["security_deny_total"] == 3
+
+
+@pytest.mark.asyncio
+async def test_agent_audit_real_jsonl_full_pipeline(
+    audit_app: FastAPI, event_log_dir: Path
+) -> None:
+    """真实 event-log 全链路：真实 JSONL 写入 → 真实 harness FileEventLogBackend → deny 计数。
+
+    关键路径禁 mock：仅 patch 配置指向临时日志目录；事件经 harness 真实序列化落盘。
+    """
+    now = time.time()
+    lines = [
+        json.dumps(
+            {
+                "seq": 1,
+                "ts": round(now, 3),
+                "type": "security_audit",
+                "sid": "sess-a",
+                "data": {
+                    "decisions": [
+                        {"decision": "ALLOW", "reason": "benign"},
+                        {"decision": "DENY", "reason": "blocked"},
+                        {"decision": "PII_REDACTED", "reason": "pii"},
+                    ]
+                },
+            },
+            ensure_ascii=False,
+        ),
+        json.dumps(
+            {
+                "seq": 2,
+                "ts": round(now - 1, 3),
+                "type": "tool_start",
+                "sid": "sess-a",
+                "data": {"tool_name": "bash"},
+            },
+            ensure_ascii=False,
+        ),
+        json.dumps(
+            {
+                "seq": 1,
+                "ts": round(now - 2, 3),
+                "type": "security_audit",
+                "sid": "sess-b",
+                "data": {"decisions": [{"decision": "ALLOW"}]},
+            },
+            ensure_ascii=False,
+        ),
+    ]
+    (event_log_dir / "sess-a.jsonl").write_text(
+        "\n".join(lines[:2]) + "\n", encoding="utf-8"
+    )
+    # 第二个会话单独一个文件，验证 get_all_session_ids 扫描到两个会话。
+    (event_log_dir / "sess-b.jsonl").write_text(lines[2] + "\n", encoding="utf-8")
+
+    with patch.object(
+        agent_audit_module.settings.database, "event_log_dir", str(event_log_dir)
+    ):
+        transport = ASGITransport(app=audit_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/api/admin/agent-audit/events?hours=24&limit=50")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    # 3 条真实事件（跨 2 会话），按 ts 倒序
+    assert data["total"] == 3
+    assert [e["ts"] for e in data["events"]] == sorted(
+        [e["ts"] for e in data["events"]], reverse=True
+    )
+    assert data["tool_call_total"] == 1
+    # 2 条 security_audit 会话事件，其中 deny 决策 2 个（DENY/PII_REDACTED）
+    assert data["security_event_total"] == 2
+    assert data["security_deny_total"] == 2
+    # 视图字段完整（sess-a 的 DENY 决策数据原样透出）
+    first = data["events"][0]
+    assert first["sid"] == "sess-a"
+    assert first["type"] == "security_audit"
+    assert first["data"]["decisions"][1]["decision"] == "DENY"
+
+
+@pytest.mark.asyncio
+async def test_agent_audit_real_jsonl_hours_window_filters_old_events(
+    audit_app: FastAPI, event_log_dir: Path
+) -> None:
+    """真实 JSONL：不超过 hours 时间窗的事件被过滤，计数基于窗口内数据。"""
+    now = time.time()
+    # 两天前的事件（超过 24h 窗口）
+    stale = json.dumps(
+        {
+            "seq": 1,
+            "ts": round(now - 48 * 3600, 3),
+            "type": "tool_start",
+            "sid": "sess-old",
+            "data": {"tool_name": "bash"},
+        },
+        ensure_ascii=False,
+    )
+    (event_log_dir / "sess-old.jsonl").write_text(stale + "\n", encoding="utf-8")
+
+    with patch.object(
+        agent_audit_module.settings.database, "event_log_dir", str(event_log_dir)
+    ):
+        transport = ASGITransport(app=audit_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/api/admin/agent-audit/events?hours=24")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 0
+    assert data["tool_call_total"] == 0
+    assert data["events"] == []
 
 
 @pytest.mark.asyncio

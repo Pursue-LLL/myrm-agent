@@ -45,7 +45,7 @@ def _invoked_tool_names(events: list[dict[str, object]]) -> set[str]:
     return names
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_enable_memory_completes(client: TestClient) -> None:
     """Full agent-stream with enable_memory must complete without error."""
     payload = {
@@ -62,7 +62,7 @@ def test_agent_stream_enable_memory_completes(client: TestClient) -> None:
     assert events, "expected at least one SSE event"
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_incognito_excludes_memory_tools(client: TestClient) -> None:
     """Incognito: no memory tools in stream (even when globally enabled)."""
     payload = {
@@ -88,7 +88,7 @@ def test_agent_stream_incognito_excludes_memory_tools(client: TestClient) -> Non
     assert "conversation_search_tool" not in blob
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_memory_off_ignores_conversation_search_flag(client: TestClient) -> None:
     """enable_memory=false: conversation_search must not bind even if flag is true."""
     payload = {
@@ -108,7 +108,7 @@ def test_agent_stream_memory_off_ignores_conversation_search_flag(client: TestCl
     assert "memory_search_tool" not in blob
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_opt_in_enables_sessions_corpus_on_memory_search(client: TestClient) -> None:
     """enable_conversation_search=true must expose sessions corpus via memory_search_tool."""
     payload = {
@@ -129,7 +129,7 @@ def test_agent_stream_opt_in_enables_sessions_corpus_on_memory_search(client: Te
     assert "conversation_search_tool" not in blob
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_enable_memory_false_skips_memory_and_conversation_search(client: TestClient) -> None:
     """enable_memory=false: no memory tools and no conversation_search invocation."""
     payload = {
@@ -152,7 +152,7 @@ def test_agent_stream_enable_memory_false_skips_memory_and_conversation_search(c
     }, f"memory off should not invoke memory/conversation tools; invoked={sorted(invoked)}"
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_simple_query_does_not_invoke_sessions_corpus(client: TestClient) -> None:
     """Default opt-out: trivial query must not invoke sessions corpus search."""
     payload = {
@@ -171,7 +171,7 @@ def test_agent_stream_simple_query_does_not_invoke_sessions_corpus(client: TestC
     # Opt-out: model may still call memory_search with default corpus=memory; sessions corpus is ACL-blocked.
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_multi_turn_continue_topic(client: TestClient) -> None:
     """Two-turn chat: continue prior topic via chat_history should complete."""
     model_selection = get_model_selection()
@@ -208,7 +208,7 @@ def test_agent_stream_multi_turn_continue_topic(client: TestClient) -> None:
     assert "BLUEFISH" in blob2.upper() or "bluefish" in blob2.lower()
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_conversation_search_passphrase_recovery(client: TestClient) -> None:
     """Multi-turn with opt-in: passphrase recoverable via chat_history or conversation_search."""
     import uuid

@@ -5,7 +5,9 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.api.agent.utils import get_model_selection
+from tests.api.agent.utils import check_e2e_errors, get_model_selection
+
+_MAX_RESUME_ROUNDS = 8
 
 
 def get_test_request(query: str, chat_id: str, message_id: str, resume_value=None):
@@ -15,7 +17,12 @@ def get_test_request(query: str, chat_id: str, message_id: str, resume_value=Non
         "messageId": message_id,
         "modelSelection": get_model_selection(),
         "actionMode": "general",
-        "ephemeralSubagents": {"test_bash": {"system_prompt": "You are a bash execution worker.", "tools": ["bash_code_execute_tool"]}},
+        "ephemeralSubagents": {
+            "test_bash": {
+                "system_prompt": "You are a bash execution worker.",
+                "tools": ["bash_code_execute_tool"],
+            }
+        },
     }
     if resume_value is not None:
         req["resumeValue"] = {"decisions": resume_value}
@@ -47,7 +54,7 @@ def test_subagent_interrupt_and_resume(client: TestClient):
     print(f"🚀 发起主查询: {query}")
 
     resume_value = None
-    while True:
+    for _round in range(_MAX_RESUME_ROUNDS):
         req = get_test_request(query, chat_id, message_id, resume_value)
         with client.stream("POST", "/api/v1/agents/agent-stream", json=req) as response:
             if response.status_code != 200:
@@ -62,13 +69,17 @@ def test_subagent_interrupt_and_resume(client: TestClient):
                     continue
                 try:
                     data = json.loads(line[6:])
+                    if not isinstance(data, dict):
+                        continue
                     collected_events.append(data)
                     event_type = data.get("type", "unknown")
                     print(f"  🔍 Received event: {event_type}")
                     if event_type == "approval_required":
                         approval_payload = data.get("data", {})
                         action_type = approval_payload.get("action_type")
-                        print(f"  ✅ 拦截到 approval_required 事件！ action_type={action_type}")
+                        print(
+                            f"  ✅ 拦截到 approval_required 事件！ action_type={action_type}"
+                        )
                         break
                     elif event_type == "message":
                         content = data.get("data", "")
@@ -77,20 +88,35 @@ def test_subagent_interrupt_and_resume(client: TestClient):
                 except json.JSONDecodeError:
                     pass
 
+        check_e2e_errors(collected_events)
+
         if action_type == "subagent_approval":
             break
         elif action_type is None or action_type == "tool_approval":
             # Auto-approve the main agent's tool call (like delegate_task_tool)
             print("  🔄 自动同意主智能体的工具调用...")
-            resume_value = [{"type": "approve", "feedback": "Auto-approve delegate_task_tool"}]
+            resume_value = [
+                {"type": "approve", "feedback": "Auto-approve delegate_task_tool"}
+            ]
             query = ""  # Clear query for resume request
             message_id = str(uuid.uuid4())  # Prevent cancellation registry collision
         else:
             break
+    else:
+        pytest.fail(
+            f"No approval_required event after {_MAX_RESUME_ROUNDS} rounds. "
+            "Possible causes: security_config missing (auto-approve), delegate never spawned, or approval already resolved."
+        )
 
-    assert approval_payload is not None, "Expected approval_required event to be emitted by the Subagent's action"
-    assert approval_payload.get("action_type") == "subagent_approval", "action_type must be subagent_approval"
-    assert "subagent_task_id" in approval_payload, "subagent_task_id must be present in the payload"
+    assert (
+        approval_payload is not None
+    ), "Expected approval_required event to be emitted by the Subagent's action"
+    assert (
+        approval_payload.get("action_type") == "subagent_approval"
+    ), "action_type must be subagent_approval"
+    assert (
+        "subagent_task_id" in approval_payload
+    ), "subagent_task_id must be present in the payload"
 
     # Now simulate the user clicking "Approve" on the frontend PolymorphicApprovalCard
     resume_value = [{"type": "approve", "feedback": "Looks good from E2E test"}]
@@ -100,7 +126,9 @@ def test_subagent_interrupt_and_resume(client: TestClient):
     print("\n🔄 模拟用户同意，Resume 主智能体")
 
     resume_events = []
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_req) as response:
+    with client.stream(
+        "POST", "/api/v1/agents/agent-stream", json=resume_req
+    ) as response:
         assert response.status_code == 200
         for line in response.iter_lines():
             print(f"  RAW LINE: {repr(line)}")
@@ -108,6 +136,8 @@ def test_subagent_interrupt_and_resume(client: TestClient):
                 continue
             try:
                 data = json.loads(line[6:])
+                if not isinstance(data, dict):
+                    continue
                 resume_events.append(data)
                 event_type = data.get("type", "unknown")
                 if event_type == "message":
@@ -124,12 +154,14 @@ def test_subagent_interrupt_and_resume(client: TestClient):
 
     # Check if the subagent successfully executed the command
     full_answer = "".join(
-        d.get("data", "") for d in resume_events if d.get("type") == "message" and isinstance(d.get("data"), str)
+        d.get("data", "")
+        for d in resume_events
+        if d.get("type") == "message" and isinstance(d.get("data"), str)
     )
     print(f"\n📝 最终回答: {full_answer}")
-    assert "hello_from_subagent" in full_answer.lower() or len(full_answer) > 0, (
-        "Agent should incorporate the subagent's execution result"
-    )
+    assert (
+        "hello_from_subagent" in full_answer.lower() or len(full_answer) > 0
+    ), "Agent should incorporate the subagent's execution result"
     print("\n🎉 端到端 Subagent 中断与恢复测试通过！")
 
 
@@ -150,16 +182,20 @@ def test_subagent_interrupt_resume_with_allow_always(client: TestClient):
     approval_payload = None
     resume_value = None
 
-    while True:
+    for _round in range(_MAX_RESUME_ROUNDS):
         req = get_test_request(query, chat_id, message_id, resume_value)
         with client.stream("POST", "/api/v1/agents/agent-stream", json=req) as response:
             assert response.status_code == 200
             action_type = None
+            collected_events = []
             for line in response.iter_lines():
                 if not line or not line.startswith("data: "):
                     continue
                 try:
                     data = json.loads(line[6:])
+                    if not isinstance(data, dict):
+                        continue
+                    collected_events.append(data)
                     if data.get("type") == "approval_required":
                         approval_payload = data.get("data", {})
                         action_type = approval_payload.get("action_type")
@@ -167,14 +203,23 @@ def test_subagent_interrupt_resume_with_allow_always(client: TestClient):
                 except json.JSONDecodeError:
                     pass
 
+        check_e2e_errors(collected_events)
+
         if action_type == "subagent_approval":
             break
         if action_type is None or action_type == "tool_approval":
-            resume_value = [{"type": "approve", "feedback": "Auto-approve delegate_task_tool"}]
+            resume_value = [
+                {"type": "approve", "feedback": "Auto-approve delegate_task_tool"}
+            ]
             query = ""
             message_id = str(uuid.uuid4())
         else:
             break
+    else:
+        pytest.fail(
+            f"No approval_required event after {_MAX_RESUME_ROUNDS} rounds "
+            "(security_config missing / auto-approve / delegate never spawned)."
+        )
 
     assert approval_payload is not None
     assert approval_payload.get("action_type") == "subagent_approval"
@@ -190,20 +235,24 @@ def test_subagent_interrupt_resume_with_allow_always(client: TestClient):
     resume_req = get_test_request("", chat_id, message_id, resume_value)
 
     resume_events = []
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_req) as response:
+    with client.stream(
+        "POST", "/api/v1/agents/agent-stream", json=resume_req
+    ) as response:
         assert response.status_code == 200
         for line in response.iter_lines():
             if not line or not line.startswith("data: "):
                 continue
             try:
                 data = json.loads(line[6:])
+                if not isinstance(data, dict):
+                    continue
                 resume_events.append(data)
             except json.JSONDecodeError:
                 pass
 
-    assert any(d.get("type") == "message_end" for d in resume_events), (
-        "Agent should complete after allow_always resume"
-    )
+    assert any(
+        d.get("type") == "message_end" for d in resume_events
+    ), "Agent should complete after allow_always resume"
 
 
 def _extract_subagent_tool_args(approval_payload: dict) -> dict[str, object]:
@@ -237,16 +286,20 @@ def test_subagent_interrupt_resume_with_edit(client: TestClient):
     approval_payload = None
     resume_value = None
 
-    while True:
+    for _round in range(_MAX_RESUME_ROUNDS):
         req = get_test_request(query, chat_id, message_id, resume_value)
         with client.stream("POST", "/api/v1/agents/agent-stream", json=req) as response:
             assert response.status_code == 200
             action_type = None
+            collected_events = []
             for line in response.iter_lines():
                 if not line or not line.startswith("data: "):
                     continue
                 try:
                     data = json.loads(line[6:])
+                    if not isinstance(data, dict):
+                        continue
+                    collected_events.append(data)
                     if data.get("type") == "approval_required":
                         approval_payload = data.get("data", {})
                         action_type = approval_payload.get("action_type")
@@ -254,14 +307,23 @@ def test_subagent_interrupt_resume_with_edit(client: TestClient):
                 except json.JSONDecodeError:
                     pass
 
+        check_e2e_errors(collected_events)
+
         if action_type == "subagent_approval":
             break
         if action_type is None or action_type == "tool_approval":
-            resume_value = [{"type": "approve", "feedback": "Auto-approve delegate_task_tool"}]
+            resume_value = [
+                {"type": "approve", "feedback": "Auto-approve delegate_task_tool"}
+            ]
             query = ""
             message_id = str(uuid.uuid4())
         else:
             break
+    else:
+        pytest.fail(
+            f"No approval_required event after {_MAX_RESUME_ROUNDS} rounds "
+            "(security_config missing / auto-approve / delegate never spawned)."
+        )
 
     assert approval_payload is not None
     assert approval_payload.get("action_type") == "subagent_approval"
@@ -289,21 +351,27 @@ def test_subagent_interrupt_resume_with_edit(client: TestClient):
     resume_req = get_test_request("", chat_id, message_id, resume_value)
 
     resume_events = []
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_req) as response:
+    with client.stream(
+        "POST", "/api/v1/agents/agent-stream", json=resume_req
+    ) as response:
         assert response.status_code == 200
         for line in response.iter_lines():
             if not line or not line.startswith("data: "):
                 continue
             try:
                 data = json.loads(line[6:])
+                if not isinstance(data, dict):
+                    continue
                 resume_events.append(data)
             except json.JSONDecodeError:
                 pass
 
-    assert any(d.get("type") == "message_end" for d in resume_events), (
-        "Agent should complete after edit resume"
-    )
+    assert any(
+        d.get("type") == "message_end" for d in resume_events
+    ), "Agent should complete after edit resume"
     full_answer = "".join(
-        d.get("data", "") for d in resume_events if d.get("type") == "message" and isinstance(d.get("data"), str)
+        d.get("data", "")
+        for d in resume_events
+        if d.get("type") == "message" and isinstance(d.get("data"), str)
     )
     assert "edited_e2e_ok" in full_answer.lower() or len(full_answer) > 0

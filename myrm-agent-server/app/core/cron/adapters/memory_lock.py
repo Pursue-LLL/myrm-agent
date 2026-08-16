@@ -74,7 +74,3 @@ class CrossProcessCronLock:
                 logger.info(f"Cron file lock released: {name}")
             except Exception as e:
                 logger.error(f"Error releasing cron file lock {name}: {e}")
-
-
-# Keep alias for backward compatibility
-MemoryCronLock = CrossProcessCronLock

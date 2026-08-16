@@ -98,11 +98,11 @@ const EnterpriseMembersTab = memo(() => {
       setMembers(membersData);
       setLogs(logsData);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load org data');
+      setError(e instanceof Error ? e.message : t('loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -117,7 +117,7 @@ const EnterpriseMembersTab = memo(() => {
       setNewMemberEmail('');
       await loadData();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to add member');
+      toast.error(e instanceof Error ? e.message : t('addMemberFailed'));
     }
   }, [orgId, newMemberEmail, newMemberRole, t, loadData]);
 
@@ -130,7 +130,7 @@ const EnterpriseMembersTab = memo(() => {
         setRemoveUserId('');
         await loadData();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Failed to remove member');
+        toast.error(e instanceof Error ? e.message : t('removeMemberFailed'));
       }
     },
     [orgId, t, loadData]
@@ -145,7 +145,7 @@ const EnterpriseMembersTab = memo(() => {
       setOffboardUserId('');
       await loadData();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Offboarding failed');
+      toast.error(e instanceof Error ? e.message : t('offboardFailed'));
     }
   }, [orgId, offboardUserId, t, loadData]);
 
@@ -159,7 +159,7 @@ const EnterpriseMembersTab = memo(() => {
       setTransferTargetId('');
       await loadData();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Transfer failed');
+      toast.error(e instanceof Error ? e.message : t('transferFailed'));
     }
   }, [orgId, transferSourceId, transferTargetId, t, loadData]);
 
@@ -172,7 +172,7 @@ const EnterpriseMembersTab = memo(() => {
       setUnlinkUserId('');
       await loadData();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to unlink OAuth');
+      toast.error(e instanceof Error ? e.message : t('unlinkOauthFailed'));
     }
   }, [orgId, unlinkUserId, t, loadData]);
 
@@ -192,7 +192,8 @@ const EnterpriseMembersTab = memo(() => {
       <SettingsSection title={t('title')} description={t('description')}>
         <div className="text-center py-8 text-muted-foreground">
           <Building2 className="mx-auto mb-3 h-10 w-10 opacity-40" />
-          <p className="text-sm">{t('notAvailable')}</p>
+          <p className="text-sm">{t('loadFailed')}</p>
+          {error !== t('loadFailed') && <p className="mt-1 text-xs break-all">{error}</p>}
         </div>
       </SettingsSection>
     );

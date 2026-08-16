@@ -62,10 +62,10 @@ def _collect_sse_events_via_requests(query: str) -> list[dict]:
     return events
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.skipif(
     not os.environ.get("BASIC_API_KEY"),
-    reason="Integration test requires BASIC_API_KEY environment variable",
+    reason="E2E test requires BASIC_API_KEY environment variable",
 )
 def test_live_message_end_sse_chain() -> None:
     """Real HTTP SSE: MESSAGE_END fields and wu_consumed absence in tauri mode.
@@ -125,10 +125,10 @@ def test_live_message_end_sse_chain() -> None:
     ), f"Neither 'usage' nor 'token_economics' in MESSAGE_END: {list(end.keys())}"
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.skipif(
     not os.environ.get("BASIC_API_KEY"),
-    reason="Integration test requires BASIC_API_KEY environment variable",
+    reason="E2E test requires BASIC_API_KEY environment variable",
 )
 def test_live_message_end_has_usage_field() -> None:
     """Real HTTP SSE: MESSAGE_END should include usage (token counts)."""

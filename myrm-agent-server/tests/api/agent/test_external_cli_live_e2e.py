@@ -38,7 +38,6 @@ def _delegate_stream_started(events: list[dict[str, object]]) -> bool:
 
 
 @pytest.mark.e2e
-@pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("LITE_API_KEY") and not os.environ.get("BASIC_API_KEY"),
     reason="Live E2E requires LITE_API_KEY or BASIC_API_KEY",
@@ -62,7 +61,6 @@ def test_live_agent_stream_pong_reply_ok(client: TestClient) -> None:
 
 
 @pytest.mark.e2e
-@pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("LITE_API_KEY") and not os.environ.get("BASIC_API_KEY"),
     reason="Live E2E requires LITE_API_KEY or BASIC_API_KEY",

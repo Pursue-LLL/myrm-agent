@@ -48,7 +48,7 @@ def _assert_no_allowed_tools_gateway_error(events: list[dict[str, object]]) -> N
             )
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_minimax_no_allowed_tools_gateway_error(
     client: TestClient,
 ) -> None:
@@ -68,7 +68,7 @@ def test_agent_stream_minimax_no_allowed_tools_gateway_error(
     assert events, "expected at least one SSE event"
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_readonly_intent_no_allowed_tools_gateway_error(
     client: TestClient,
 ) -> None:

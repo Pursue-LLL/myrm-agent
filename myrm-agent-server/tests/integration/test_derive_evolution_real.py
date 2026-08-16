@@ -78,7 +78,7 @@ def real_llm():
 
 
 @pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.skipif(not _has_real_api_key(), reason="BASIC_API_KEY not configured")
 async def test_derive_evolution_real_llm(temp_workspace, real_llm):
     """Test DERIVED evolution with real LLM generates meaningful changes."""
@@ -137,7 +137,7 @@ Organize files by moving them into subdirectories based on their extension.
 
 
 @pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.skipif(not _has_real_api_key(), reason="BASIC_API_KEY not configured")
 async def test_intent_context_injection_real(temp_workspace, real_llm):
     """Test that task_intent ContextVar is properly injected into execution records."""
@@ -172,7 +172,7 @@ async def test_intent_context_injection_real(temp_workspace, real_llm):
 
 
 @pytest.mark.asyncio
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.skipif(not _has_real_api_key(), reason="BASIC_API_KEY not configured")
 async def test_fix_evolution_real_llm(temp_workspace, real_llm):
     """Test FIX evolution with real LLM when skill has consecutive failures."""

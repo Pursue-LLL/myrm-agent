@@ -110,7 +110,7 @@ function auditRoutes(failedSandboxes: string[] = []): Route[] {
             user_id: 'user-12345678901234567890',
             user_display: 'alice@acme.com',
             data: {
-              count: 1,
+              count: 2,
               decisions: [
                 {
                   tool_call_id: 'call-1',
@@ -118,6 +118,13 @@ function auditRoutes(failedSandboxes: string[] = []): Route[] {
                   reason: 'benign fetch',
                   tainted: false,
                   ts: 1755000003,
+                },
+                {
+                  tool_call_id: 'call-2',
+                  decision: 'DENY',
+                  reason: 'blocked by policy',
+                  tainted: true,
+                  ts: 1755000004,
                 },
               ],
             },
@@ -139,8 +146,11 @@ describe('AgentAuditView', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     render(<AgentAuditView />);
+    // agentTitle is rendered by the skeleton shell too; wait for a marker that
+    // only exists once the audit data has rendered (KPI section) so the
+    // subsequent data assertions cannot race the async load under heavy load.
     await waitFor(() => {
-      expect(screen.getByText(/^agentTitle/)).toBeInTheDocument();
+      expect(screen.getByText('agentTotalEvents')).toBeInTheDocument();
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -170,7 +180,7 @@ describe('AgentAuditView', () => {
     expect(screen.getByText('sandbox-9')).toBeInTheDocument();
   });
 
-  it('classifies tool_failure as error and tool_approval_request as approval', async () => {
+  it('classifies tool_failure as error and approval-type events as approval', async () => {
     const routes: Route[] = [
       { method: 'GET', url: '/api/enterprise/org/me', body: ORG_BODY },
       {
@@ -201,6 +211,15 @@ describe('AgentAuditView', () => {
               user_id: 'user-1',
               data: { tool_name: 'bash', tool_call_id: 'call-2' },
             },
+            {
+              seq: 12,
+              ts: 1755000002,
+              type: 'desktop_control_approval_request',
+              sid: 'session-abc',
+              sandbox_id: 'sandbox-1',
+              user_id: 'user-1',
+              data: { tool_name: 'desktop_control' },
+            },
           ],
         },
       },
@@ -211,7 +230,7 @@ describe('AgentAuditView', () => {
     await waitFor(() => {
       expect(screen.getByText(/^toneError/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/^toneApproval/)).toBeInTheDocument();
+    expect(screen.getAllByText(/^toneApproval/)).toHaveLength(2);
   });
 
   it('renders member badges and the total hint for aggregated events', async () => {
@@ -245,6 +264,13 @@ describe('AgentAuditView', () => {
     expect(screen.getByText(/^agentSecurityDecisions/)).toBeInTheDocument();
     expect(screen.getByText('ALLOW')).toBeInTheDocument();
     expect(screen.getByText('benign fetch')).toBeInTheDocument();
+    // DENY decisions (BLOCK/DENY/REDACT/LEAK) must render highlighted red.
+    const denyText = screen.getByText('DENY');
+    expect(denyText).toBeInTheDocument();
+    expect(screen.getByText('blocked by policy')).toBeInTheDocument();
+    const denyCard = denyText.closest('div.rounded-md');
+    expect(denyCard?.className).toContain('border-rose-500/25');
+    expect(denyCard?.className).toContain('bg-rose-500/5');
   });
 
   it('renders empty state when there are no events', async () => {
@@ -396,5 +422,67 @@ describe('AgentAuditView', () => {
 
     expect(screen.queryByText('5')).toBeNull();
     expect(screen.getAllByText('99').length).toBeGreaterThan(0);
+  });
+
+  it('does not paint security blocks red when the deny total is zero', async () => {
+    const routes: Route[] = [
+      { method: 'GET', url: '/api/enterprise/org/me', body: ORG_BODY },
+      {
+        method: 'GET',
+        url: '/api/enterprise/org/org-1/agent-audit/events',
+        body: {
+          total: 0,
+          tool_call_total: 0,
+          security_event_total: 0,
+          security_deny_total: 0,
+          scanned_sandboxes: 1,
+          failed_sandboxes: [],
+          events: [],
+        },
+      },
+    ];
+    vi.stubGlobal('fetch', mockFetchRoutes(routes));
+    render(<AgentAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByText('agentSecurityBlocks')).toBeInTheDocument();
+    });
+
+    const label = screen.getByText('agentSecurityBlocks');
+    const card = label.closest('div.rounded-lg');
+    const value = card?.querySelector('.text-2xl.font-bold');
+    expect(value).not.toBeNull();
+    expect(value?.className).not.toContain('text-red-600');
+  });
+
+  it('paints security blocks red when the deny total is above zero', async () => {
+    const routes: Route[] = [
+      { method: 'GET', url: '/api/enterprise/org/me', body: ORG_BODY },
+      {
+        method: 'GET',
+        url: '/api/enterprise/org/org-1/agent-audit/events',
+        body: {
+          total: 1,
+          tool_call_total: 0,
+          security_event_total: 1,
+          security_deny_total: 3,
+          scanned_sandboxes: 1,
+          failed_sandboxes: [],
+          events: [],
+        },
+      },
+    ];
+    vi.stubGlobal('fetch', mockFetchRoutes(routes));
+    render(<AgentAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByText('agentSecurityBlocks')).toBeInTheDocument();
+    });
+
+    const label = screen.getByText('agentSecurityBlocks');
+    const card = label.closest('div.rounded-lg');
+    const value = card?.querySelector('.text-2xl.font-bold');
+    expect(value?.textContent).toBe('3');
+    expect(value?.className).toContain('text-red-600');
   });
 });

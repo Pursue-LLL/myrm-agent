@@ -1527,8 +1527,20 @@ class ChromeMcpClient:
                   const el = document.activeElement;
                   if (!el) throw new Error('no active element for type_text');
                   if ('value' in el) {{
-                    el.value = {escaped};
+                    const proto =
+                      el instanceof HTMLTextAreaElement
+                        ? HTMLTextAreaElement.prototype
+                        : el instanceof HTMLSelectElement
+                          ? HTMLSelectElement.prototype
+                          : HTMLInputElement.prototype;
+                    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+                    if (setter) {{
+                      setter.call(el, {escaped});
+                    }} else {{
+                      el.value = {escaped};
+                    }}
                     el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
                     return {{ ok: true }};
                   }}
                   throw new Error('active element is not typeable');

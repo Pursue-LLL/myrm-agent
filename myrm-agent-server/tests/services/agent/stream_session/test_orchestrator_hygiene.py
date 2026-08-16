@@ -42,6 +42,56 @@ def mock_http_request():
     return http_req
 
 
+def test_run_agent_stream_facade_lazy_import():
+    """The package facade must not eagerly load the orchestrator module.
+
+    Importing the facade is the hot path during service startup; the
+    orchestrator drags in a heavy dependency chain (qdrant etc.), so it is
+    deliberately lazy-imported on first call. This guards that contract so a
+    future refactor cannot silently regress startup time.
+
+    The check runs in a fresh subprocess interpreter: reloading the package
+    in-process would re-trigger module-level prometheus Counter registration.
+    """
+    import subprocess
+    import sys
+    import textwrap
+
+    probe = textwrap.dedent(
+        """
+        import sys
+        import app.services.agent.stream_session as facade
+        orchestrator = "app.services.agent.stream_session.orchestrator"
+        assert orchestrator not in sys.modules, "facade eagerly loaded orchestrator"
+        assert facade.run_agent_stream.__module__ == "app.services.agent.stream_session"
+        print("LAZY_OK")
+        """
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+    assert "LAZY_OK" in result.stdout
+
+
+def test_run_agent_stream_facade_signature_matches_orchestrator():
+    """The facade must expose the exact signature of the orchestrator impl.
+
+    This is the regression guard for the precise-typing fix: a drift between
+    facade and implementation would let a wrong-typed call slip through.
+    """
+    import inspect
+
+    from app.services.agent.stream_session.orchestrator import run_agent_stream as orchestrator_run
+
+    facade_sig = inspect.signature(run_agent_stream)
+    orchestrator_sig = inspect.signature(orchestrator_run)
+    assert facade_sig == orchestrator_sig
+
+
 @pytest.mark.asyncio
 async def test_run_agent_stream_hygiene_block(mock_request, mock_http_request, monkeypatch):
     """Test that gateway blocks massive text payloads."""

@@ -51,7 +51,7 @@ def _stop_on_tools_snapshot(
     return event.get("type") == "tools_snapshot"
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.timeout(180)
 def test_agent_stream_tools_snapshot_semantic_layer_slugs(
     client: TestClient,

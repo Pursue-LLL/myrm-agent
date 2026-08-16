@@ -16,7 +16,9 @@ import httpx
 import pytest
 from httpx import ASGITransport
 from myrm_agent_harness.toolkits.computer_use.backends.macos import _check_accessibility
-from myrm_agent_harness.toolkits.computer_use.desktop_session import create_desktop_session
+from myrm_agent_harness.toolkits.computer_use.desktop_session import (
+    create_desktop_session,
+)
 
 from app.services.agent.gateway import ActiveSessionInfo, AgentGateway, GatewayConfig
 from tests.support.minimal_app import build_minimal_app
@@ -81,7 +83,11 @@ def _preflight_ax_elements() -> int:
 
 def _gateway_with_live_session() -> tuple[AgentGateway, object]:
     session = create_desktop_session()
-    gateway = AgentGateway(GatewayConfig(max_global=4, max_per_user=2, queue_timeout=30.0, execution_timeout=300.0))
+    gateway = AgentGateway(
+        GatewayConfig(
+            max_global=4, max_per_user=2, queue_timeout=30.0, execution_timeout=300.0
+        )
+    )
 
     class _AgentWithDesktop:
         def __init__(self) -> None:
@@ -157,10 +163,14 @@ async def test_live_gateway_desktop_snapshot_api_returns_som_nth(
         )
 
     interactive = [
-        ref for ref in refs.values() if isinstance(ref, dict) and ref.get("role") in _INTERACTIVE_ROLES
+        ref
+        for ref in refs.values()
+        if isinstance(ref, dict) and ref.get("role") in _INTERACTIVE_ROLES
     ]
     if not interactive:
-        pytest.fail(f"No interactive refs among {len(refs)} nodes (app={data.get('app_name')!r})")
+        pytest.fail(
+            f"No interactive refs among {len(refs)} nodes (app={data.get('app_name')!r})"
+        )
 
     missing_nth = [ref.get("role") for ref in interactive if ref.get("nth") is None]
     assert not missing_nth, f"interactive refs missing nth: {missing_nth[:8]}"

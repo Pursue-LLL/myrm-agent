@@ -16,7 +16,7 @@ const AgentAuditView = memo(() => {
   const [orgId, setOrgId] = useState('');
   const [data, setData] = useState<OrgAgentAuditResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ title: string; detail?: string } | null>(null);
   const [hours, setHours] = useState<number>(24);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const requestSeqRef = useRef(0);
@@ -32,9 +32,9 @@ const AgentAuditView = memo(() => {
         setError(null);
       } catch (e) {
         if (seq !== requestSeqRef.current) {return;}
-        const message = e instanceof Error ? e.message : t('agentLoadFailed');
-        setError(message);
-        toast.error(message);
+        const detail = e instanceof Error ? e.message : undefined;
+        setError({ title: t('agentLoadFailed'), detail });
+        toast.error(detail ?? t('agentLoadFailed'));
       } finally {
         if (seq === requestSeqRef.current) {setLoading(false);}
       }
@@ -50,9 +50,10 @@ const AgentAuditView = memo(() => {
         if (cancelled) {return;}
         setOrgId(org.id);
         await loadData(org.id, 24);
-      } catch {
+      } catch (e) {
         if (cancelled) {return;}
-        setError(t('agentOrgLoadFailed'));
+        const detail = e instanceof Error ? e.message : undefined;
+        setError({ title: t('agentOrgLoadFailed'), detail });
         setLoading(false);
       }
     })();
@@ -125,8 +126,8 @@ const AgentAuditView = memo(() => {
           <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-xs text-red-700 dark:text-red-400">
             <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium">{t('agentLoadFailed')}</p>
-              <p className="mt-0.5 break-all">{error}</p>
+              <p className="font-medium">{error.title}</p>
+              {error.detail && <p className="mt-0.5 break-all">{error.detail}</p>}
             </div>
           </div>
         )}

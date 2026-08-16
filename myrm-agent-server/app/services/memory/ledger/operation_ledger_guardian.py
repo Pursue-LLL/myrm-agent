@@ -312,7 +312,3 @@ async def guardian_guard_alert_snapshot(
         "thresholds": thresholds,
         "last_occurred_at": latest_occurred_at.isoformat() if latest_occurred_at else None,
     }
-
-
-# Backward-compatible private aliases for tests and monkeypatch hooks.
-_resolve_guardian_digest_window = resolve_guardian_digest_window

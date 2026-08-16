@@ -63,7 +63,7 @@ def _external_cli_payload(chat_id: str, *, include_external_cli: bool) -> dict[s
     }
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_external_cli_off_excludes_delegate_tool(client: TestClient) -> None:
     """Writer-style profile without external_cli must not mount delegate_to_agent_tool Turn1."""
     chat_id = f"test_ext_cli_off_{uuid.uuid4().hex[:8]}"
@@ -75,7 +75,7 @@ def test_agent_stream_external_cli_off_excludes_delegate_tool(client: TestClient
         assert "delegate_to_agent_tool" not in tool_names
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @patch(
     "app.ai_agents.general_agent.external_agents._resolve_external_agent_cfgs",
     new=AsyncMock(
@@ -95,7 +95,7 @@ def test_agent_stream_external_cli_on_mounts_delegate_when_backends_exist(
         assert "delegate_to_agent_tool" in tool_names
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_agent_stream_external_cli_on_skips_delegate_without_backends(
     client: TestClient,
 ) -> None:

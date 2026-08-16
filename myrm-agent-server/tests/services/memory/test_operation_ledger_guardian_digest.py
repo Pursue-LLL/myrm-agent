@@ -11,9 +11,9 @@ from app.database.models.memory import MemoryHealthSnapshotModel, MemoryOperatio
 from app.services.memory.ledger.guardian_policy import MemoryGuardianPolicy
 from app.services.memory.ledger.operation_ledger import (
     MemoryOperationLedgerService,
-    _resolve_guardian_digest_window,
     guardian_guard_alert_thresholds,
 )
+from app.services.memory.ledger.operation_ledger_guardian import resolve_guardian_digest_window
 
 
 class _FakeExecuteResult:
@@ -165,7 +165,7 @@ def test_resolve_guardian_digest_window_for_overnight_quiet_window() -> None:
         quiet_window_end_hour=6,
         timezone_offset_minutes=0,
     )
-    start, end, mode = _resolve_guardian_digest_window(
+    start, end, mode = resolve_guardian_digest_window(
         policy=policy,
         now_utc=datetime(2026, 1, 3, 3, 0, tzinfo=UTC),
     )
@@ -182,7 +182,7 @@ def test_resolve_guardian_digest_window_for_regular_quiet_window() -> None:
         quiet_window_end_hour=5,
         timezone_offset_minutes=0,
     )
-    start, end, mode = _resolve_guardian_digest_window(
+    start, end, mode = resolve_guardian_digest_window(
         policy=policy,
         now_utc=datetime(2026, 1, 3, 8, 0, tzinfo=UTC),
     )
@@ -196,7 +196,7 @@ def test_resolve_guardian_digest_window_falls_back_to_rolling_24h() -> None:
     policy = MemoryGuardianPolicy(quiet_window_enabled=False, timezone_offset_minutes=0)
     now_utc = datetime(2026, 1, 3, 10, 0, tzinfo=UTC)
 
-    start, end, mode = _resolve_guardian_digest_window(policy=policy, now_utc=now_utc)
+    start, end, mode = resolve_guardian_digest_window(policy=policy, now_utc=now_utc)
 
     assert mode == "rolling_24h"
     assert start == datetime(2026, 1, 2, 10, 0, tzinfo=UTC)

@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.tasks::{Task, TaskStore, TaskStatus, TaskError} (POS: Queue protocol + persistence contract)
-- app/tasks/executors/*::_TaskExecutor impl (POS: Task-type specific execution capability)
+- app/tasks/executors/*::TaskExecutor impl (POS: Task-type specific execution capability)
 - TaskEventCallback (POS: Task status propagation bridge to SSE/event bus layer)
 
 [OUTPUT]
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 type TaskEventCallback = Callable[[str, TaskStatus, dict[str, object] | None], Coroutine[object, object, None]]
 
 
-class _TaskExecutor(Protocol):
+class TaskExecutor(Protocol):
     def can_execute(self, task_type: str) -> bool: ...
 
     async def execute(self, task: Task) -> object: ...
@@ -56,13 +56,13 @@ class TaskWorker:
     def __init__(
         self,
         store: TaskStore,
-        executors: list[_TaskExecutor],
+        executors: list[TaskExecutor],
         max_concurrency: int = 3,
         worker_id: str = "worker-1",
         on_status_change: TaskEventCallback | None = None,
     ) -> None:
         self._store = store
-        self._executors: dict[_TaskExecutor, _TaskExecutor] = {e: e for e in executors}
+        self._executors: dict[TaskExecutor, TaskExecutor] = {e: e for e in executors}
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._worker_id = worker_id
         self._running = False
@@ -367,7 +367,7 @@ class TaskWorker:
         self._safe_counter_inc(task_failed_total, task_type=task.task_type, error_type=error.error_type)
         self._observe_duration(task, TaskStatus.FAILED)
 
-    def _find_executor(self, task_type: str) -> _TaskExecutor | None:
+    def _find_executor(self, task_type: str) -> TaskExecutor | None:
         """Find executor that can handle task type."""
         for executor in self._executors:
             if executor.can_execute(task_type):
@@ -391,4 +391,4 @@ class TaskWorker:
         return ErrorRecoverability.TRANSIENT
 
 
-__all__ = ["TaskEventCallback", "TaskWorker"]
+__all__ = ["TaskEventCallback", "TaskExecutor", "TaskWorker"]

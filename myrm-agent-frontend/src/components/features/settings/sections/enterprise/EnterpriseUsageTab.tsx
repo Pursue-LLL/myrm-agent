@@ -58,11 +58,11 @@ const EnterpriseUsageTab = memo(() => {
       setSummary(usageData);
       setBudget(budgetData);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to load usage data');
+      toast.error(e instanceof Error ? e.message : t('loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -78,7 +78,7 @@ const EnterpriseUsageTab = memo(() => {
       setShowBudgetDialog(false);
       toast.success(t('budgetSaved'));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to save budget');
+      toast.error(e instanceof Error ? e.message : t('saveFailed'));
     }
   }, [orgId, budgetInput, thresholdInput, t]);
 

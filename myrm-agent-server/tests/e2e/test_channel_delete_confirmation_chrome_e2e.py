@@ -83,6 +83,52 @@ _NAV_TO_WECHAT_JS = """(() => {
   };
 })()"""
 
+# Navigate to settings → channels and select the Feishu channel card.
+def _nav_to_channel_js(channel_type: str) -> str:
+    """Navigate to settings → channels and select the requested channel card.
+
+    Reuses the same UX path as ``_NAV_TO_WECHAT_JS`` but parameterized by the
+    channel card test id and primary delete-button ``aria-label``.
+    """
+    return f"""(() => {{
+  try {{
+    window.resizeTo(1280, 900);
+  }} catch {{
+    // ignore
+  }}
+  try {{
+    sessionStorage.setItem('migration_discovery_dismissed', 'true');
+    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    localStorage.setItem('myrm-selected-channel', '{channel_type}');
+  }} catch {{
+    // ignore
+  }}
+  if (!location.pathname.includes('/settings/channels')) {{
+    location.href = '/settings/channels';
+    return {{ ready: false, navigating: true, pathname: location.pathname }};
+  }}
+  const item = document.querySelector('[data-testid="channel-list-item-{channel_type}"]');
+  if (item) {{
+    item.click();
+  }}
+  const delBtn = document.querySelector('[aria-label="delete-{channel_type}"]');
+  const body = document.body.innerText || '';
+  return {{
+    ready: !!delBtn,
+    hasDeleteBtn: !!delBtn,
+    hasCard: !!item,
+    hasAuthToken: !!localStorage.getItem('auth_token'),
+    width: window.innerWidth,
+    bodyLen: body.length,
+    hasNoChannel: body.includes('{channel_type}NoChannel'),
+    bodySnippet: body.slice(0, 800),
+  }};
+}})()"""
+
+
+_NAV_TO_FEISHU_JS = _nav_to_channel_js("feishu")
+
+
 # Click the primary card delete button to open the confirmation dialog.
 _OPEN_DELETE_DIALOG_JS = """(() => {
   const delBtn = document.querySelector('[aria-label="delete-wechat"]');
@@ -101,6 +147,24 @@ _DIALOG_OPEN_STATE_JS = """(() => {
     ready: !!confirm && !!cancel,
     hasConfirm: !!confirm,
     hasCancel: !!cancel,
+    bodyLen: (document.body?.innerText || '').length,
+    bodySnippet: (document.body.innerText || '').slice(0, 300),
+  };
+})()"""
+
+# The dialog is open AND the in-flight confirm request has settled, i.e. both
+# buttons are clickable again. ConfirmDialog keeps the dialog open on failure
+# and only releases isLoading in the finally block; clicking Cancel while the
+# button is disabled is a no-op, which is what Flow 3 must avoid.
+_DIALOG_STAYS_OPEN_JS = """(() => {
+  const confirm = document.querySelector('[data-testid="confirm-dialog-confirm"]');
+  const cancel = document.querySelector('[data-testid="confirm-dialog-cancel"]');
+  return {
+    ready: !!confirm && !!cancel && !confirm.disabled && !cancel.disabled,
+    hasConfirm: !!confirm,
+    hasCancel: !!cancel,
+    confirmDisabled: confirm ? confirm.disabled : null,
+    cancelDisabled: cancel ? cancel.disabled : null,
     bodyLen: (document.body?.innerText || '').length,
     bodySnippet: (document.body.innerText || '').slice(0, 300),
   };
@@ -132,6 +196,7 @@ _DIALOG_CLOSED_AFTER_CONFIRM_JS = """(() => {
 _CANCEL_DIALOG_JS = """(() => {
   const cancel = document.querySelector('[data-testid="confirm-dialog-cancel"]');
   if (!cancel) return { ok: false, err: 'cancel-not-found' };
+  if (cancel.disabled) return { ok: false, err: 'cancel-disabled' };
   cancel.click();
   return { ok: true };
 })()"""
@@ -144,10 +209,10 @@ _CONFIRM_DIALOG_JS = """(() => {
 })()"""
 
 
-def _extra_instance_probe_js(instance_id: str) -> str:
+def _extra_instance_probe_js(instance_id: str, channel_type: str = "wechat") -> str:
     """Return a probe that detects the extra-instance card delete button."""
     return f"""(() => {{
-  const delBtn = document.querySelector('[aria-label="delete-wechat_{instance_id}"]');
+  const delBtn = document.querySelector('[aria-label="delete-{channel_type}_{instance_id}"]');
   return {{
     ready: !!delBtn,
     hasDeleteBtn: !!delBtn,
@@ -157,17 +222,24 @@ def _extra_instance_probe_js(instance_id: str) -> str:
 }})()"""
 
 
-def _extra_instance_open_js(instance_id: str) -> str:
-    """Return a probe that clicks the extra-instance card delete button."""
+def _extra_instance_open_js(instance_id: str, channel_type: str = "wechat") -> str:
+    """Return a probe that clicks the extra-instance card delete button.
+
+    Desktop mounts the config card twice (right-hand panel + in-list detail).
+    We click the LAST matching button — the visible right-hand panel one — to
+    drive the real user path. Both cards share one store, so the dialog belongs
+    to the visible card.
+    """
     return f"""(() => {{
-  const delBtn = document.querySelector('[aria-label="delete-wechat_{instance_id}"]');
-  if (!delBtn) return {{ ok: false, err: 'delete-btn-not-found' }};
+  const btns = document.querySelectorAll('[aria-label="delete-{channel_type}_{instance_id}"]');
+  if (btns.length === 0) return {{ ok: false, err: 'delete-btn-not-found' }};
+  const delBtn = btns[btns.length - 1];
   delBtn.click();
-  return {{ ok: true }};
+  return {{ ok: true, count: btns.length }};
 }})()"""
 
 
-def _extra_instance_gone_js(instance_id: str) -> str:
+def _extra_instance_gone_js(instance_id: str, channel_type: str = "wechat") -> str:
     """Return a probe that confirms the extra-instance card is gone.
 
     Also reports whether the confirm dialog is still open so a timeout can be
@@ -175,7 +247,7 @@ def _extra_instance_gone_js(instance_id: str) -> str:
     successful DELETE that the UI failed to re-render (dialog closed).
     """
     return f"""(() => {{
-  const delBtn = document.querySelector('[aria-label="delete-wechat_{instance_id}"]');
+  const delBtn = document.querySelector('[aria-label="delete-{channel_type}_{instance_id}"]');
   const confirm = document.querySelector('[data-testid="confirm-dialog-confirm"]');
   const cancel = document.querySelector('[data-testid="confirm-dialog-cancel"]');
   return {{
@@ -188,12 +260,12 @@ def _extra_instance_gone_js(instance_id: str) -> str:
 }})()"""
 
 
-def _extra_instance_dialog_closed_js(instance_id: str) -> str:
+def _extra_instance_dialog_closed_js(instance_id: str, channel_type: str = "wechat") -> str:
     """Probe: the confirm dialog is closed but the (stale) extra-instance card remains."""
     return f"""(() => {{
   const confirm = document.querySelector('[data-testid="confirm-dialog-confirm"]');
-  const delBtn = document.querySelector('[aria-label="delete-wechat_{instance_id}"]');
-  const primaryBtn = document.querySelector('[aria-label="delete-wechat"]');
+  const delBtn = document.querySelector('[aria-label="delete-{channel_type}_{instance_id}"]');
+  const primaryBtn = document.querySelector('[aria-label="delete-{channel_type}"]');
   return {{
     ready: !confirm && !!delBtn,
     dialogClosed: !confirm,
@@ -231,11 +303,39 @@ def _status_diagnostics(api_url: str) -> dict[str, object]:
 
 def _wechat_toggle(api_url: str, enabled: bool) -> None:
     """Enable/disable the primary WeChat channel via the real toggle API."""
+    _channel_toggle(api_url, "wechat", enabled)
+
+
+def _feishu_toggle(api_url: str, enabled: bool) -> None:
+    """Enable/disable the primary Feishu channel via the real toggle API."""
+    _channel_toggle(api_url, "feishu", enabled)
+
+
+def _channel_toggle(api_url: str, channel_type: str, enabled: bool) -> None:
+    """Enable/disable a primary channel via the generic toggle API."""
     http_json(
         "PATCH",
-        f"{api_url}/api/v1/channels/manage/wechat/toggle",
+        f"{api_url}/api/v1/channels/manage/{channel_type}/toggle",
         {"enabled": enabled},
     )
+
+
+def _ensure_channel_enabled(api_url: str, channel_type: str) -> bool:
+    """Toggle a primary channel on so its config card renders.
+
+    Robustness guard: when the channel is persisted as disabled its whole
+    configuration panel (delete button included) is hidden by design.
+    Returns True when the channel had to be enabled (caller should restore).
+    """
+    statuses = http_json("GET", f"{api_url}/api/v1/channels/manage/status")
+    entry = next(
+        (s for s in statuses if isinstance(s, dict) and s.get("name") == channel_type),
+        None,
+    )
+    if entry and entry.get("status") != "disabled":
+        return False
+    _channel_toggle(api_url, channel_type, True)
+    return True
 
 
 def _ensure_wechat_enabled(api_url: str) -> bool:
@@ -245,23 +345,20 @@ def _ensure_wechat_enabled(api_url: str) -> bool:
     configuration panel (delete button included) is hidden by design.
     Returns True when the channel had to be enabled (caller should restore).
     """
-    statuses = http_json("GET", f"{api_url}/api/v1/channels/manage/status")
-    wechat = next(
-        (s for s in statuses if isinstance(s, dict) and s.get("name") == "wechat"),
-        None,
-    )
-    if wechat and wechat.get("status") != "disabled":
-        return False
-    _wechat_toggle(api_url, True)
-    return True
+    return _ensure_channel_enabled(api_url, "wechat")
 
 
 def _seed_wechat_instance(api_url: str) -> dict[str, str]:
     """Create a WeChat extra instance through the real instances API."""
+    return _seed_instance(api_url, "wechat")
+
+
+def _seed_instance(api_url: str, channel_type: str) -> dict[str, str]:
+    """Create an extra instance of any channel type through the real instances API."""
     created = http_json(
         "POST",
         f"{api_url}{_INSTANCES_ENDPOINT}",
-        {"channelType": "wechat", "displayName": "E2E Instance"},
+        {"channelType": channel_type, "displayName": "E2E Instance"},
     )
     assert isinstance(created, dict), created
     instance_id = str(created.get("instanceId") or "")
@@ -280,56 +377,66 @@ def _delete_instance_via_api(api_url: str, instance_id: str) -> None:
 
 def _wechat_instances(api_url: str) -> list[dict[str, object]]:
     """Return the current WeChat instances from the real backend."""
-    listed = http_json("GET", f"{api_url}{_INSTANCES_ENDPOINT}?channel_type=wechat")
+    return _channel_instances(api_url, "wechat")
+
+
+def _feishu_instances(api_url: str) -> list[dict[str, object]]:
+    """Return the current Feishu instances from the real backend."""
+    return _channel_instances(api_url, "feishu")
+
+
+def _channel_instances(api_url: str, channel_type: str) -> list[dict[str, object]]:
+    """Return the current instances of a channel type from the real backend."""
+    listed = http_json("GET", f"{api_url}{_INSTANCES_ENDPOINT}?channel_type={channel_type}")
     assert isinstance(listed, list), listed
     return [i for i in listed if isinstance(i, dict)]
 
 
-def _instances_fetch_probe_js() -> str:
+def _instances_fetch_probe_js(channel_type: str = "wechat") -> str:
     """Fetch the real instances API from the page context (same auth as the app).
 
     Uses the E2E runtime apiBase when present (PRIVATE mode), matching exactly
     what ``apiRequest`` resolves, so the response is what the frontend state is
     seeded from.
     """
-    return """(() => {
+    return f"""(() => {{
   const token = localStorage.getItem('auth_token') || '';
   const runtimeBase = ((window.__MYRM_E2E_RUNTIME__?.apiBase ?? window.__MYRM_E2E_API_BASE__) || '').replace(/\\/+$/, '');
   const url = runtimeBase
-    ? `${runtimeBase}/api/v1/channels/manage/instances?channel_type=wechat`
-    : '/api/v1/channels/manage/instances?channel_type=wechat';
+    ? `${{runtimeBase}}/api/v1/channels/manage/instances?channel_type={channel_type}`
+    : '/api/v1/channels/manage/instances?channel_type={channel_type}';
   const xhr = new XMLHttpRequest();
-  try {
+  try {{
     xhr.open('GET', url, false);
-    if (token) {
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    }
+    if (token) {{
+      xhr.setRequestHeader('Authorization', `Bearer ${{token}}`);
+    }}
     xhr.send();
-    return {
+    return {{
       runtimeBase,
       status: xhr.status,
       bodyLen: (xhr.responseText || '').length,
       body: (xhr.responseText || '').slice(0, 2500),
-    };
-  } catch (err) {
-    return { runtimeBase, err: String(err) };
-  }
-})()"""
+    }};
+  }} catch (err) {{
+    return {{ runtimeBase, err: String(err) }};
+  }}
+}})()"""
 
 
-def _instance_ui_probe_js(instance_id: str) -> str:
+def _instance_ui_probe_js(instance_id: str, channel_type: str = "wechat") -> str:
     """Probe the extra-instance card: is its delete button / dialog still present?
 
     Also attributes each delete button to its container so we can tell whether a
     stale card lives in the responsive in-list detail (``lg:hidden``) or in the
     right-hand settings panel (``hidden lg:block``) — both mount a full
-    ``WeChatConfigCard`` on desktop.
+    config card on desktop.
     """
     return f"""(() => {{
   const confirm = document.querySelector('[data-testid="confirm-dialog-confirm"]');
   const cancel = document.querySelector('[data-testid="confirm-dialog-cancel"]');
-  const cards = Array.from(document.querySelectorAll('[aria-label^="delete-wechat_"]')).map((b) => b.getAttribute('aria-label'));
-  const delBtns = Array.from(document.querySelectorAll('[aria-label="delete-wechat_{instance_id}"]'));
+  const cards = Array.from(document.querySelectorAll('[aria-label^="delete-{channel_type}_"]')).map((b) => b.getAttribute('aria-label'));
+  const delBtns = Array.from(document.querySelectorAll('[aria-label="delete-{channel_type}_{instance_id}"]'));
   const btnContexts = delBtns.map((b) => {{
     let el = b;
     let inListDetail = false;
@@ -342,7 +449,7 @@ def _instance_ui_probe_js(instance_id: str) -> str:
     }}
     return {{ inListDetail, inSidePanel }};
   }});
-  const primaryBtn = document.querySelector('[aria-label="delete-wechat"]');
+  const primaryBtn = document.querySelector('[aria-label="delete-{channel_type}"]');
   const noChannel = document.body.innerText || '';
   return {{
     hasDeleteBtn: delBtns.length > 0,
@@ -351,7 +458,7 @@ def _instance_ui_probe_js(instance_id: str) -> str:
     dialogOpen: !!confirm && !!cancel,
     deleteBtns: cards,
     hasPrimaryBtn: !!primaryBtn,
-    showsNoChannel: noChannel.includes('wechatNoChannel') || noChannel.includes('not configured') || noChannel.includes('未配置'),
+    showsNoChannel: noChannel.includes('{channel_type}NoChannel') || noChannel.includes('not configured') || noChannel.includes('未配置'),
     bodyLen: (document.body?.innerText || '').length,
     viewportWidth: window.innerWidth,
     navType: performance.getEntriesByType('navigation')[0]?.type || 'navigate',
@@ -539,12 +646,13 @@ def test_wechat_delete_confirmation_flows() -> None:
             confirmed = client.evaluate(page, _CONFIRM_DIALOG_JS, timeout_sec=30.0)
             assert isinstance(confirmed, dict) and confirmed.get("ok") is True, confirmed
             # On failure the dialog must stay open (ConfirmDialog catches and
-            # keeps it), so the user can retry or cancel.
+            # keeps it) and the confirm request must settle (buttons re-enabled),
+            # so the user can retry or cancel.
             still_open = wait_for_state(
                 client,
                 page,
-                _DIALOG_OPEN_STATE_JS,
-                timeout_sec=30.0,
+                _DIALOG_STAYS_OPEN_JS,
+                timeout_sec=45.0,
                 page_url=channels_url,
             )
             assert still_open.get("ready") is True, still_open

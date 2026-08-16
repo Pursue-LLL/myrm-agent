@@ -691,6 +691,25 @@ async def build_general_agent(
         agent_wrapper.engine_params
     )
 
+    security_ext = SecurityPolicyExtension(
+        privacy_enabled=agent_wrapper.privacy_enabled,
+        privacy_s2_action=agent_wrapper.privacy_s2_action,
+        privacy_s3_action=agent_wrapper.privacy_s3_action,
+        privacy_custom_keywords_s2=agent_wrapper.privacy_custom_keywords_s2,
+        privacy_custom_keywords_s3=agent_wrapper.privacy_custom_keywords_s3,
+        privacy_custom_patterns_s2=agent_wrapper.privacy_custom_patterns_s2,
+        privacy_custom_patterns_s3=agent_wrapper.privacy_custom_patterns_s3,
+        privacy_sensitive_tools_s2=agent_wrapper.privacy_sensitive_tools_s2,
+        privacy_sensitive_tools_s3=agent_wrapper.privacy_sensitive_tools_s3,
+        privacy_deep_scan=agent_wrapper.privacy_deep_scan,
+        plan_confirm_enabled=agent_wrapper.enable_plan_confirm,
+        channel_name=agent_wrapper.channel_name,
+        security_config_raw=agent_wrapper.security_config_raw,
+        agent_security_raw=agent_wrapper.agent_security_raw,
+        declared_capabilities=agent_wrapper.declared_capabilities,
+        declared_allowed_roots=agent_wrapper.declared_allowed_roots,
+    )
+
     spec = AgentRuntimeSpec(
         agent_id=agent_wrapper.agent_id,
         name=agent_wrapper.agent_id or "default",
@@ -707,7 +726,7 @@ async def build_general_agent(
         unattended=getattr(agent_wrapper, "unattended_mode", False),
         locale=agent_wrapper.locale,
         channel_name=agent_wrapper.channel_name,
-        security_config=None,
+        security_config=security_ext._build_security_config(),
         engine_params=normalized_engine_params,
         mcp_surface_mode=mcp_surface_mode,
     )
@@ -849,24 +868,6 @@ async def build_general_agent(
     )
 
     # 9.5 Register extensions (subagent tools, security, memory)
-    security_ext = SecurityPolicyExtension(
-        privacy_enabled=agent_wrapper.privacy_enabled,
-        privacy_s2_action=agent_wrapper.privacy_s2_action,
-        privacy_s3_action=agent_wrapper.privacy_s3_action,
-        privacy_custom_keywords_s2=agent_wrapper.privacy_custom_keywords_s2,
-        privacy_custom_keywords_s3=agent_wrapper.privacy_custom_keywords_s3,
-        privacy_custom_patterns_s2=agent_wrapper.privacy_custom_patterns_s2,
-        privacy_custom_patterns_s3=agent_wrapper.privacy_custom_patterns_s3,
-        privacy_sensitive_tools_s2=agent_wrapper.privacy_sensitive_tools_s2,
-        privacy_sensitive_tools_s3=agent_wrapper.privacy_sensitive_tools_s3,
-        privacy_deep_scan=agent_wrapper.privacy_deep_scan,
-        plan_confirm_enabled=agent_wrapper.enable_plan_confirm,
-        channel_name=agent_wrapper.channel_name,
-        security_config_raw=agent_wrapper.security_config_raw,
-        agent_security_raw=agent_wrapper.agent_security_raw,
-        declared_capabilities=agent_wrapper.declared_capabilities,
-        declared_allowed_roots=agent_wrapper.declared_allowed_roots,
-    )
     extensions: list[AgentExtension] = [
         memory_ext,
         pre_compact_ext,

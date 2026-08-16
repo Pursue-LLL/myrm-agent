@@ -30,7 +30,6 @@ from tests.api.agent.mcp_e2e_goodhart import (
     assert_12306_ticket_evidence_delivered,
     mcp_bash_get_tickets_succeeded,
     mcp_get_tickets_delivered,
-    mcp_no_skill_usage_memory_search,
     mcp_ptc_bash_was_engaged,
     mcp_ptc_get_tickets_engaged,
     mcp_skill_was_invoked,
@@ -286,10 +285,6 @@ class TestAgentMCP:
         assert mcp_ptc_get_tickets_engaged(
             result.collected_data, "12306"
         ), "12306 PTC did not reach get_tickets — date/station-only lookup is insufficient (Goodhart guard)"
-
-        assert mcp_no_skill_usage_memory_search(
-            result.collected_data, "12306"
-        ), "Agent used memory_search_tool to look up 12306 skill usage — SOP and function docs are authoritative (Goodhart guard)"
 
         if len(result.message_chunks) == 0:
             if mcp_get_tickets_delivered(

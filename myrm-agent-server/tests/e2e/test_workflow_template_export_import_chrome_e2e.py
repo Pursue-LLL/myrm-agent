@@ -123,9 +123,11 @@ _LIBRARY_READY_JS = f"""(async () => {{
 
 _LIBRARY_ABSENT_JS = f"""(() => {{
   const text = document.body?.innerText || '';
+  const idx = text.indexOf('{_TEMPLATE_ID}');
   return {{
     ready: !text.includes('{_TEMPLATE_ID}'),
     hasTemplate: text.includes('{_TEMPLATE_ID}'),
+    snippet: text.slice(Math.max(0, idx - 200), idx + 200),
   }};
 }})()"""
 
@@ -172,9 +174,12 @@ _CLICK_EXPORT_JS = f"""(() => {{
 }})()"""
 
 _IMPORT_BUNDLE_JS = """async (bundleJson) => {
-  const input = document.querySelector('input[type="file"][accept*="json"]');
+  const library = document.querySelector('[data-testid="workflow-template-library"]');
+  const input = library
+    ? library.querySelector('input[type="file"][accept*="json"]')
+    : document.querySelector('input[type="file"][accept*="json"]');
   if (!input) {
-    return { ok: false, err: 'file-input-missing' };
+    return { ok: false, err: 'file-input-missing', scoped: !!library };
   }
   const file = new File([bundleJson], 'e2e-export-import.myrm-workflow.json', {
     type: 'application/json',
@@ -184,19 +189,33 @@ _IMPORT_BUNDLE_JS = """async (bundleJson) => {
   input.files = transfer.files;
   input.dispatchEvent(new Event('input', { bubbles: true }));
   input.dispatchEvent(new Event('change', { bubbles: true }));
-  return { ok: true };
+  return { ok: true, scoped: !!library };
 }"""
 
 _CLICK_REFRESH_JS = """(() => {
-  const buttons = [...document.querySelectorAll('button')];
-  const refreshBtn = buttons.find((btn) =>
-    /Refresh|刷新|重新整理|更新/i.test((btn.textContent || '').trim()),
-  );
+  const library = document.querySelector('[data-testid="workflow-template-library"]');
+  const scope = library ? [library] : [...document.querySelectorAll('button')].map((b) => b.parentElement || b);
+  const buttons = [...scope].flatMap((root) => [...root.querySelectorAll('button')]);
+  const text = (b) => (b.textContent || '').trim();
+  const unique = [...new Set(buttons)];
+  const exact =
+    unique.find((btn) => text(btn) === '刷新') ||
+    unique.find((btn) => text(btn) === 'Refresh') ||
+    unique.find((btn) => text(btn) === '重新整理');
+  const fuzzy = unique.filter((btn) => /刷新|Refresh|重新整理/.test(text(btn)));
+  const refreshBtn = exact || (fuzzy.length === 1 ? fuzzy[0] : null);
   if (!refreshBtn || refreshBtn.disabled) {
-    return { ok: false, err: 'refresh-button-missing-or-disabled' };
+    return {
+      ok: false,
+      err: 'refresh-button-missing-or-disabled',
+      disabled: refreshBtn ? refreshBtn.disabled : null,
+      text: refreshBtn ? text(refreshBtn) : null,
+      fuzzyCount: fuzzy.length,
+      scoped: !!library,
+    };
   }
   refreshBtn.click();
-  return { ok: true };
+  return { ok: true, text: text(refreshBtn), scoped: !!library };
 })()"""
 
 
@@ -260,6 +279,92 @@ def _force_mux_heal_before_retry() -> None:
     time.sleep(2.0)
 
 
+_LIBRARY_RELOAD_READY_JS = f"""(() => {{
+  const lib = document.querySelector('[data-testid="workflow-template-library"]');
+  const text = document.body?.innerText || '';
+  const input = lib?.querySelector('input[type="file"][accept*="json"]');
+  return {{
+    ready: !!lib && !!input && !text.includes('{_TEMPLATE_ID}'),
+    hasLibraryRoot: !!lib,
+    hasImportInput: !!input,
+    hasTemplate: text.includes('{_TEMPLATE_ID}'),
+  }};
+}})()"""
+
+
+def _wait_absent_with_diagnostics(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    page_url: str,
+    api_base: str,
+) -> dict[str, object]:
+    """Wait for template to disappear from UI; on timeout, gather API diagnostics.
+
+    If the backend confirms deletion but the UI list is stale, force a second
+    refresh cycle, then a hard reload (which remounts the section and re-fetches
+    from the backend) before failing.
+    """
+    try:
+        return wait_for_state(
+            client,
+            page,
+            _LIBRARY_ABSENT_JS,
+            timeout_sec=60.0,
+            page_url=page_url,
+            blank_heal_mode="direct",
+        )
+    except (RuntimeError, TimeoutError, AssertionError, OSError):
+        diagnostic: dict[str, object] = {}
+        try:
+            listed = http_json("GET", f"{api_base}/api/v1/workflow-templates")
+            template_ids = [
+                item.get("templateId") or item.get("template_id")
+                for item in listed.get("templates", [])
+                if isinstance(item, dict)
+            ]
+            diagnostic["apiTemplates"] = template_ids
+            diagnostic["apiHasTemplate"] = _TEMPLATE_ID in template_ids
+        except (RuntimeError, TimeoutError, OSError, ValueError) as exc:
+            diagnostic["apiError"] = str(exc)
+        if diagnostic.get("apiHasTemplate") is False:
+            refreshed = client.evaluate(page, _CLICK_REFRESH_JS, timeout_sec=15.0)
+            if isinstance(refreshed, dict) and refreshed.get("ok") is True:
+                try:
+                    absent = wait_for_state(
+                        client,
+                        page,
+                        _LIBRARY_ABSENT_JS,
+                        timeout_sec=30.0,
+                        page_url=page_url,
+                        blank_heal_mode="direct",
+                    )
+                    if absent.get("ready") is True:
+                        return absent
+                except (RuntimeError, TimeoutError, AssertionError, OSError):
+                    pass
+        # Backend confirms deletion but the UI list stays stale. A hard reload
+        # remounts the section and re-fetches from the backend — wait for the
+        # section shell, the hidden import input, and the absence of the template.
+        try:
+            reload_mcp_page(client, page, target_url=page_url, timeout_ms=60_000)
+            reloaded = wait_for_state(
+                client,
+                page,
+                _LIBRARY_RELOAD_READY_JS,
+                timeout_sec=45.0,
+                page_url=page_url,
+                blank_heal_mode="direct",
+            )
+            if reloaded.get("ready") is True:
+                return reloaded
+        except (RuntimeError, TimeoutError, OSError, AssertionError):
+            pass
+        raise AssertionError(
+            f"Browser state did not become ready: {json.dumps(diagnostic, indent=2, ensure_ascii=False)}"
+        )
+
+
 def _run_export_import_roundtrip(*, api_base: str) -> None:
     subroute = "/settings/skills?sub=workflowTemplates"
     ui_base = get_e2e_ui_url().rstrip("/")
@@ -314,21 +419,14 @@ def _run_export_import_roundtrip(*, api_base: str) -> None:
         assert isinstance(bundle_json, str) and _MARKER in bundle_json, exported
 
         _delete_template(api_base)
+        _verify_template_listed(api_base, expect_absent=True)
 
         refreshed = client.evaluate(page, _CLICK_REFRESH_JS, timeout_sec=15.0)
         assert isinstance(refreshed, dict)
         assert refreshed.get("ok") is True, f"Refresh click failed: {refreshed}"
 
-        absent = wait_for_state(
-            client,
-            page,
-            _LIBRARY_ABSENT_JS,
-            timeout_sec=60.0,
-            page_url=page_url,
-            blank_heal_mode="direct",
-        )
-        assert absent.get("ready") is True, json.dumps(
-            absent, indent=2, ensure_ascii=False
+        absent = _wait_absent_with_diagnostics(
+            client, page, page_url=page_url, api_base=api_base
         )
 
         imported = client.evaluate(

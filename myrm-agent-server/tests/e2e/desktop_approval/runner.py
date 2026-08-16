@@ -146,7 +146,9 @@ async def run_desktop_approval_chrome_e2e(
                         _signoff_mux_recover_lightweight,
                     )
 
-                    progress("R288 signoff skip recover_mux_transport on allow-once retry")
+                    progress(
+                        "R288 signoff skip recover_mux_transport on allow-once retry"
+                    )
                     await _signoff_mux_recover_lightweight(
                         chat,
                         reason="signoff desktop allow-once internal retry",
@@ -253,7 +255,9 @@ async def run_desktop_approval_chrome_e2e(
                     _signoff_mux_recover_lightweight,
                 )
 
-                progress("R288 signoff skip recover_mux_transport on page transport heal")
+                progress(
+                    "R288 signoff skip recover_mux_transport on page transport heal"
+                )
                 await _signoff_mux_recover_lightweight(
                     chat,
                     reason="signoff desktop page transport heal reopen",

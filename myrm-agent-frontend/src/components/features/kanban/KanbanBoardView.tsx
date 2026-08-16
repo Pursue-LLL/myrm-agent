@@ -232,6 +232,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
 
   useEffect(() => {
     setSelectedTaskIds([]);
+    resetAddForm();
   }, [board.board_id]);
 
   useEffect(() => {

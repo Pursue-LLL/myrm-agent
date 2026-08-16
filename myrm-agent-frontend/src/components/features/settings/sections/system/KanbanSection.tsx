@@ -239,7 +239,13 @@ export default function KanbanSection() {
   }, [editingBoard, editName, editDesc, editMaxConcurrent, editDefaultWorkdir, fetchBoards, t]);
 
   if (selectedBoard) {
-    return <KanbanBoardView board={selectedBoard} onBack={() => selectBoard(null)} />;
+    return (
+      <KanbanBoardView
+        key={selectedBoard.board_id}
+        board={selectedBoard}
+        onBack={() => selectBoard(null)}
+      />
+    );
   }
 
   return (

@@ -61,12 +61,12 @@ const EnterpriseAuditTab = memo(() => {
         setStats(statsData);
         setEvents(logsData.events);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Failed to load audit data');
+        toast.error(e instanceof Error ? e.message : t('loadFailed'));
       } finally {
         setLoading(false);
       }
     },
-    [hours],
+    [hours, t],
   );
 
   useEffect(() => {
@@ -85,7 +85,7 @@ const EnterpriseAuditTab = memo(() => {
         URL.revokeObjectURL(url);
         toast.success(t('exportSuccess'));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Export failed');
+        toast.error(e instanceof Error ? e.message : t('exportFailed'));
       }
     },
     [filters, t],
