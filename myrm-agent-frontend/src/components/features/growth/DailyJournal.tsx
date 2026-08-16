@@ -195,6 +195,8 @@ function TimelineRow({ item }: { item: DailyJournalTimelineItem }) {
   const tm = useTranslations('mode');
   const cfg = TYPE_CONFIG[item.type] || TYPE_CONFIG.session;
   const Icon = cfg.icon;
+  const rawMode = String(item.detail.action_mode || '');
+  const modeLabel = tm.has(rawMode) ? tm(rawMode) : rawMode;
 
   return (
     <div className="flex items-start gap-3 py-2 px-1 rounded-md hover:bg-muted/50 transition-colors">
@@ -208,11 +210,7 @@ function TimelineRow({ item }: { item: DailyJournalTimelineItem }) {
         <p className="text-sm text-foreground truncate">{item.title}</p>
         {item.type === 'session' && item.detail?.tokens !== null && item.detail?.tokens !== undefined && (
           <p className="text-xs text-muted-foreground">
-            {Number(item.detail.tokens).toLocaleString()} {t('tokens')} ·{' '}
-            {(() => {
-              const actionMode = String(item.detail.action_mode || '');
-              return tm.has(actionMode) ? tm(actionMode) : actionMode;
-            })()}
+            {Number(item.detail.tokens).toLocaleString()} {t('tokens')} · {modeLabel}
           </p>
         )}
       </div>
