@@ -9,6 +9,7 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `MemorySection.tsx` | 核心 | 记忆 Settings 主面板：提取/会话搜索/预压缩等 toggle 与 Guardian | ✅ |
+| `BrandStudioSettingsSection.tsx` | 组件 | Settings 品牌风格入口（委托 `brand-studio/BrandStudioSection`） | ✅ |
 | `MemoryCenterSection.tsx` | 组件 | 记忆中心入口聚合（子路由切换） | ✅ |
 | `MemoryGuardianCard.tsx` | 组件 | 记忆 Guardian 状态卡片 | ✅ |
 | `MemoryGuardianDigestPanel.tsx` | 组件 | 记忆 Guardian 每日摘要面板 | ✅ |

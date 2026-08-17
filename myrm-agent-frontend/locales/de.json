@@ -121,6 +121,7 @@
       "toolQuality": "Ausführungsqualität",
       "eval": "Auswertung",
       "memory": "Speicherverwaltung",
+      "brandStudio": "Markenstil",
       "channelRouting": "Kanal-Routing",
       "openaiApi": "API Access",
       "integrationMemory": "Integrationsspeicher",
@@ -10309,6 +10310,52 @@
       "bind": "Der freigegebene Kontext konnte nicht gebunden werden",
       "unbind": "Die Bindung des freigegebenen Kontexts konnte nicht aufgehoben werden"
     }
+  },
+  "brandStudio": {
+    "title": "Markenstil",
+    "subtitle": "Definiere die Markenidentität – Farben, Schrift, Ton und Regeln. Die KI wendet sie auf alles an, was sie erstellt.",
+    "previewTitle": "Markenvorschau",
+    "previewDescription": "Eine Live-Vorschau der Marke. Farben werden in der App-Palette angezeigt.",
+    "previewEmpty": "Füge unten Markendetails hinzu, um eine Live-Vorschau zu sehen.",
+    "previewFallbackName": "Markenname",
+    "previewFallbackTagline": "Ein Slogan für die Marke",
+    "previewFallbackFont": "Systemschrift",
+    "previewFont": "Schrift: {font}",
+    "previewPrimary": "Primär",
+    "previewSecondary": "Sekundär",
+    "previewAccent": "Akzent",
+    "fieldsTitle": "Markendetails",
+    "fieldsDescription": "Fülle die Felder unten aus. Leere Felder werden beim Speichern übersprungen.",
+    "fields": {
+      "name": "Markenname",
+      "tagline": "Slogan",
+      "primary_color": "Primärfarbe",
+      "secondary_color": "Sekundärfarbe",
+      "accent_color": "Akzentfarbe",
+      "font": "Bevorzugte Schrift",
+      "tone": "Ton & Stimme",
+      "taboos": "Was zu vermeiden ist"
+    },
+    "placeholders": {
+      "name": "z.B. Aurora Studio",
+      "tagline": "Ein kurzer Satz, der die Marke beschreibt",
+      "primary_color": "#6C5CE7",
+      "secondary_color": "#1E1B4B",
+      "accent_color": "#10B981",
+      "font": "z.B. Inter, Source Han Sans",
+      "tone": "z.B. Professionell, warm, prägnant",
+      "taboos": "z.B. Kein Humor, keine dunklen Farben, keine Emojis"
+    },
+    "errors": {
+      "required": "Dieses Feld ist erforderlich",
+      "invalidHex": "Gib eine gültige Hex-Farbe ein, z.B. #6C5CE7"
+    },
+    "save": "Markenstil speichern",
+    "saving": "Speichern…",
+    "saveSuccess": "Markenstil gespeichert. Die KI wird ihn künftig berücksichtigen.",
+    "invalidFields": "Bitte korrigiere die markierten Felder, bevor gespeichert wird.",
+    "reset": "Leeren",
+    "loading": "Markenstil wird geladen…"
   },
   "memoryCitations": {
     "button": "Belege {count}",

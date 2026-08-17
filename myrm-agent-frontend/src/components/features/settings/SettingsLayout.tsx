@@ -94,6 +94,10 @@ const SystemCenterSection = dynamic(() => import('./sections/system/SystemCenter
 const EnterpriseOrgSection = dynamic(() => import('./sections/enterprise/EnterpriseOrgSection'), {
   loading: () => <SettingsSkeleton />,
 });
+const BrandStudioSettingsSection = dynamic(
+  () => import('./sections/knowledge/BrandStudioSettingsSection'),
+  { loading: () => <SettingsSkeleton /> },
+);
 
 /**
  * SettingsLayout - 配置页面布局组件
@@ -128,6 +132,7 @@ const BASE_TABS: SettingsTab[] = [
   'credentials',
   'wiki',
   'memory',
+  'brand-studio',
   'cron',
   'kanban',
   'checkpoint',
@@ -197,6 +202,7 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   extensionBridge: ExtensionBridgeSection,
   wiki: WikiSection,
   memory: MemoryCenterSection,
+  'brand-studio': BrandStudioSettingsSection,
   'memory-backup': MemoryCenterSection,
   'memory-cloud-backup': MemoryCenterSection,
   'memory-migration': MemoryCenterSection,

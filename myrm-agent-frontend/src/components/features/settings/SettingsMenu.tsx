@@ -83,6 +83,7 @@ export type SettingsTab =
   | 'usageStatistics'
   | 'experimentalFeatures'
   | 'memory'
+  | 'brand-studio'
   | 'memory-backup'
   | 'memory-cloud-backup'
   | 'memory-migration'
@@ -126,6 +127,7 @@ const menuItems: MenuItem[] = [
   // 知识与数据
   { id: 'wiki', icon: BookOpen, labelKey: 'wiki', group: 'knowledge' },
   { id: 'memory', icon: Brain, labelKey: 'memory', group: 'knowledge' },
+  { id: 'brand-studio', icon: Palette, labelKey: 'brandStudio', group: 'knowledge' },
 
   // 通信与集成
   { id: 'integrationCatalog', icon: Plug, labelKey: 'integrationCatalog', group: 'integration' },

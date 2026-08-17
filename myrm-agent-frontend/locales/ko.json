@@ -121,6 +121,7 @@
       "toolQuality": "실행 품질",
       "eval": "평가",
       "memory": "메모리 관리",
+      "brandStudio": "브랜드 스타일",
       "channelRouting": "채널 라우팅",
       "openaiApi": "에이전트 API",
       "integrationMemory": "통합 메모리",
@@ -10309,6 +10310,52 @@
       "bind": "공유 컨텍스트 바인딩에 실패했습니다",
       "unbind": "공유 컨텍스트 해제에 실패했습니다"
     }
+  },
+  "brandStudio": {
+    "title": "브랜드 스타일",
+    "subtitle": "브랜드 정체성(색상, 글꼴, 톤, 규칙)을 정의하세요. AI가 생성하는 모든 콘텐츠에 이를 적용합니다.",
+    "previewTitle": "브랜드 미리보기",
+    "previewDescription": "브랜드가 어떻게 보이는지 라이브 미리보기입니다. 색상은 앱 팔레트로 표시됩니다.",
+    "previewEmpty": "아래에 브랜드 정보를 추가하면 라이브 미리보기가 표시됩니다.",
+    "previewFallbackName": "내 브랜드",
+    "previewFallbackTagline": "브랜드 태그라인",
+    "previewFallbackFont": "시스템 글꼴",
+    "previewFont": "글꼴: {font}",
+    "previewPrimary": "기본",
+    "previewSecondary": "보조",
+    "previewAccent": "강조",
+    "fieldsTitle": "브랜드 정보",
+    "fieldsDescription": "아래 필드를 입력하세요. 빈 필드는 저장 시 건너뜁니다.",
+    "fields": {
+      "name": "브랜드 이름",
+      "tagline": "태그라인",
+      "primary_color": "기본 색상",
+      "secondary_color": "보조 색상",
+      "accent_color": "강조 색상",
+      "font": "선호 글꼴",
+      "tone": "톤과 어조",
+      "taboos": "피해야 할 내용"
+    },
+    "placeholders": {
+      "name": "예: Aurora Studio",
+      "tagline": "브랜드를 한마디로 설명하는 문구",
+      "primary_color": "#6C5CE7",
+      "secondary_color": "#1E1B4B",
+      "accent_color": "#10B981",
+      "font": "예: Inter, Source Han Sans",
+      "tone": "예: 전문적, 따뜻함, 간결",
+      "taboos": "예: 유머 사용 금지, 어두운 색 금지, 이모지 금지"
+    },
+    "errors": {
+      "required": "이 필드는 필수입니다",
+      "invalidHex": "유효한 16진수 색상을 입력하세요(예: #6C5CE7)"
+    },
+    "save": "브랜드 스타일 저장",
+    "saving": "저장 중…",
+    "saveSuccess": "브랜드 스타일이 저장되었습니다. AI가 이후에 이를 적용합니다.",
+    "invalidFields": "저장하기 전에 강조 표시된 필드를 수정하세요.",
+    "reset": "지우기",
+    "loading": "브랜드 스타일을 불러오는 중…"
   },
   "memoryCitations": {
     "button": "근거 {count}",

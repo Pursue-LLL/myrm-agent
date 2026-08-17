@@ -286,6 +286,7 @@
       "credentials": "憑據管理",
       "wiki": "Wiki 知識庫",
       "memory": "記憶管理",
+      "brandStudio": "品牌風格",
       "mediaGeneration": "媒體生成",
       "commands": "斜槓命令",
       "cron": "定時任務",
@@ -10533,6 +10534,52 @@
       "bind": "繫結共享上下文失敗",
       "unbind": "解綁共享上下文失敗"
     }
+  },
+  "brandStudio": {
+    "title": "品牌風格",
+    "subtitle": "定義你的品牌形象——配色、字型、語氣與規則。你的 AI 會為你建立的內容遵循它。",
+    "previewTitle": "品牌預覽",
+    "previewDescription": "品牌外觀的即時預覽，顏色會以應用程式調色盤顯示。",
+    "previewEmpty": "在下方填寫品牌資訊後即可看到即時預覽。",
+    "previewFallbackName": "你的品牌",
+    "previewFallbackTagline": "一句品牌標語",
+    "previewFallbackFont": "系統字型",
+    "previewFont": "字型：{font}",
+    "previewPrimary": "主色",
+    "previewSecondary": "輔色",
+    "previewAccent": "強調色",
+    "fieldsTitle": "品牌資訊",
+    "fieldsDescription": "填寫以下欄位，儲存時為空的欄位會被略過。",
+    "fields": {
+      "name": "品牌名稱",
+      "tagline": "標語",
+      "primary_color": "主色",
+      "secondary_color": "輔色",
+      "accent_color": "強調色",
+      "font": "偏好字型",
+      "tone": "語氣與風格",
+      "taboos": "應避免的內容"
+    },
+    "placeholders": {
+      "name": "例如：Aurora Studio",
+      "tagline": "一句描述你品牌的短語",
+      "primary_color": "#6C5CE7",
+      "secondary_color": "#1E1B4B",
+      "accent_color": "#10B981",
+      "font": "例如：Inter、思源黑體",
+      "tone": "例如：專業、溫暖、簡潔",
+      "taboos": "例如：不使用幽默、不用深色、不用表情符號"
+    },
+    "errors": {
+      "required": "此欄位為必填",
+      "invalidHex": "請輸入有效的十六進位顏色，例如 #6C5CE7"
+    },
+    "save": "儲存品牌風格",
+    "saving": "儲存中…",
+    "saveSuccess": "品牌風格已儲存，你的 AI 將據此為你建立內容。",
+    "invalidFields": "請先修正標紅的欄位再儲存。",
+    "reset": "清空",
+    "loading": "正在載入你的品牌風格…"
   },
   "memoryCitations": {
     "button": "依據 {count}",

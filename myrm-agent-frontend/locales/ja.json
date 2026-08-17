@@ -286,6 +286,7 @@
       "credentials": "認証情報",
       "wiki": "Wiki ナレッジベース",
       "memory": "メモリ管理",
+      "brandStudio": "ブランドスタイル",
       "mediaGeneration": "メディア生成",
       "commands": "スラッシュコマンド",
       "cron": "スケジュールタスク",
@@ -10533,6 +10534,52 @@
       "bind": "共有コンテキストのバインドに失敗しました",
       "unbind": "共有コンテキストの解除に失敗しました"
     }
+  },
+  "brandStudio": {
+    "title": "ブランドスタイル",
+    "subtitle": "ブランドのアイデンティティ（配色・フォント・トーン・ルール）を定義します。AI は作成するすべてのコンテンツにこれを適用します。",
+    "previewTitle": "ブランドプレビュー",
+    "previewDescription": "ブランドの見た目のライブプレビューです。色はアプリのパレットで表示されます。",
+    "previewEmpty": "以下にブランド情報を追加するとライブプレビューが表示されます。",
+    "previewFallbackName": "あなたのブランド",
+    "previewFallbackTagline": "ブランドのタグライン",
+    "previewFallbackFont": "システムフォント",
+    "previewFont": "フォント: {font}",
+    "previewPrimary": "プライマリ",
+    "previewSecondary": "セカンダリ",
+    "previewAccent": "アクセント",
+    "fieldsTitle": "ブランド情報",
+    "fieldsDescription": "以下の項目を入力してください。空の項目は保存時にスキップされます。",
+    "fields": {
+      "name": "ブランド名",
+      "tagline": "タグライン",
+      "primary_color": "プライマリカラー",
+      "secondary_color": "セカンダリカラー",
+      "accent_color": "アクセントカラー",
+      "font": "推奨フォント",
+      "tone": "トーンと口調",
+      "taboos": "避けるべき内容"
+    },
+    "placeholders": {
+      "name": "例：Aurora Studio",
+      "tagline": "ブランドを一言で表すフレーズ",
+      "primary_color": "#6C5CE7",
+      "secondary_color": "#1E1B4B",
+      "accent_color": "#10B981",
+      "font": "例：Inter、Source Han Sans",
+      "tone": "例：プロフェッショナル、親しみやすい、簡潔",
+      "taboos": "例：ユーモア不使用、暗色不使用、絵文字不使用"
+    },
+    "errors": {
+      "required": "この項目は必須です",
+      "invalidHex": "有効な16進カラーを入力してください（例：#6C5CE7）"
+    },
+    "save": "ブランドスタイルを保存",
+    "saving": "保存中…",
+    "saveSuccess": "ブランドスタイルを保存しました。今後 AI はこれを適用します。",
+    "invalidFields": "保存前にハイライトされた項目を修正してください。",
+    "reset": "クリア",
+    "loading": "ブランドスタイルを読み込み中…"
   },
   "memoryCitations": {
     "button": "証拠 {count}",

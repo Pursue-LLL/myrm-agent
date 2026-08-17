@@ -309,6 +309,7 @@
       "credentials": "凭据管理",
       "wiki": "Wiki 知识库",
       "memory": "记忆管理",
+      "brandStudio": "品牌风格",
       "mediaGeneration": "媒体生成",
       "commands": "斜杠命令",
       "cron": "定时任务",
@@ -10611,6 +10612,52 @@
       "bind": "绑定共享上下文失败",
       "unbind": "解绑共享上下文失败"
     }
+  },
+  "brandStudio": {
+    "title": "品牌风格",
+    "subtitle": "定义你的品牌形象——配色、字体、语气与规则。你的 AI 会在为你创建的所有内容中遵循它。",
+    "previewTitle": "品牌预览",
+    "previewDescription": "品牌外观的实时预览，颜色会以应用调色板展示。",
+    "previewEmpty": "在下方填写品牌信息后即可看到实时预览。",
+    "previewFallbackName": "你的品牌",
+    "previewFallbackTagline": "一句品牌标语",
+    "previewFallbackFont": "系统字体",
+    "previewFont": "字体：{font}",
+    "previewPrimary": "主色",
+    "previewSecondary": "辅色",
+    "previewAccent": "强调色",
+    "fieldsTitle": "品牌信息",
+    "fieldsDescription": "填写以下字段，保存时为空字段会被跳过。",
+    "fields": {
+      "name": "品牌名称",
+      "tagline": "标语",
+      "primary_color": "主色",
+      "secondary_color": "辅色",
+      "accent_color": "强调色",
+      "font": "偏好字体",
+      "tone": "语气与风格",
+      "taboos": "应避免的内容"
+    },
+    "placeholders": {
+      "name": "例如：极光工作室",
+      "tagline": "一句描述你品牌的短语",
+      "primary_color": "#6C5CE7",
+      "secondary_color": "#1E1B4B",
+      "accent_color": "#10B981",
+      "font": "例如：思源黑体、Inter",
+      "tone": "例如：专业、温暖、简洁",
+      "taboos": "例如：不使用幽默、不用深色、不用表情"
+    },
+    "errors": {
+      "required": "此字段为必填",
+      "invalidHex": "请输入有效的十六进制颜色，例如 #6C5CE7"
+    },
+    "save": "保存品牌风格",
+    "saving": "保存中…",
+    "saveSuccess": "品牌风格已保存，你的 AI 将据此为你创建内容。",
+    "invalidFields": "请先修正标红的字段再保存。",
+    "reset": "清空",
+    "loading": "正在加载你的品牌风格…"
   },
   "memoryCitations": {
     "button": "依据 {count}",

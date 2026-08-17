@@ -309,6 +309,7 @@
       "credentials": "Credentials",
       "wiki": "Wiki",
       "memory": "Memory Management",
+      "brandStudio": "Brand Style",
       "mediaGeneration": "Media Generation",
       "commands": "Slash Commands",
       "cron": "Scheduled Tasks",
@@ -10611,6 +10612,52 @@
       "bind": "Failed to bind Shared Context",
       "unbind": "Failed to unbind Shared Context"
     }
+  },
+  "brandStudio": {
+    "title": "Brand Style",
+    "subtitle": "Define your brand identity — colors, font, tone, and rules. Your AI applies it to everything it creates for you.",
+    "previewTitle": "Brand Preview",
+    "previewDescription": "A live preview of how your brand looks. Colors are shown in the app palette.",
+    "previewEmpty": "Add brand details below to see a live preview.",
+    "previewFallbackName": "Your Brand",
+    "previewFallbackTagline": "A tagline for your brand",
+    "previewFallbackFont": "System font",
+    "previewFont": "Font: {font}",
+    "previewPrimary": "Primary",
+    "previewSecondary": "Secondary",
+    "previewAccent": "Accent",
+    "fieldsTitle": "Brand Details",
+    "fieldsDescription": "Fill in the fields below. Empty fields are skipped when saving.",
+    "fields": {
+      "name": "Brand name",
+      "tagline": "Tagline",
+      "primary_color": "Primary color",
+      "secondary_color": "Secondary color",
+      "accent_color": "Accent color",
+      "font": "Preferred font",
+      "tone": "Tone & voice",
+      "taboos": "What to avoid"
+    },
+    "placeholders": {
+      "name": "e.g. Aurora Studio",
+      "tagline": "A short phrase describing your brand",
+      "primary_color": "#6C5CE7",
+      "secondary_color": "#1E1B4B",
+      "accent_color": "#10B981",
+      "font": "e.g. Inter, Source Han Sans",
+      "tone": "e.g. Professional, warm, concise",
+      "taboos": "e.g. No humor, no dark colors, no emojis"
+    },
+    "errors": {
+      "required": "This field is required",
+      "invalidHex": "Enter a valid hex color, e.g. #6C5CE7"
+    },
+    "save": "Save brand style",
+    "saving": "Saving…",
+    "saveSuccess": "Brand style saved. Your AI will follow it going forward.",
+    "invalidFields": "Please fix the highlighted fields before saving.",
+    "reset": "Clear",
+    "loading": "Loading your brand style…"
   },
   "memoryCitations": {
     "button": "Evidence {count}",
