@@ -32,7 +32,6 @@ from cdp_chat.support import (  # noqa: E402
     wait_e2e_provider_ready,
 )
 
-from tests.support.e2e_runtime_guard import heartbeat_once  # noqa: E402
 from tests.support.hitl_live_e2e import pin_and_verify_hitl_mode  # noqa: E402
 from tests.support.subagent_hitl_stream import (  # noqa: E402
     run_interrupt_flow,
