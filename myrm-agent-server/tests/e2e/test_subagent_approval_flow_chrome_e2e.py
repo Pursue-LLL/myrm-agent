@@ -194,11 +194,20 @@ async def _prepare_live_chat(
     *,
     api_url: str,
     agent_id: str,
+    chat_id: str,
     ui_base: str,
 ) -> str:
-    await chat.click_new_chat()
-    # open_mcp_page already sealed owned_page_ready; full ensure_chat_surface can
-    # stall 10+ min under parallel Chrome load while HTTP kickoff waits on LLM.
+    """Chat already seeded via API and opened at /{chat_id} — bind bridge only."""
+    _ = ui_base
+    path_probe = await chat.evaluate(
+        "(() => ({ path: location.pathname }))()",
+        intent=EvaluateIntent.SYNC_PROBE,
+    )
+    current_path = (
+        str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
+    )
+    if current_path != f"/{chat_id}":
+        await chat.navigate_to_chat(chat_id, get_e2e_ui_url().rstrip("/"), timeout_sec=90.0)
     ensured = await chat.evaluate(
         """(() => {
           const bridge = window.__MYRM_E2E_CHAT__;
@@ -209,9 +218,15 @@ async def _prepare_live_chat(
     )
     if not isinstance(ensured, dict) or ensured.get("ok") is not True:
         raise RuntimeError(f"ensureChatSession failed: {ensured!r}")
-    chat_id = str(await chat.bridge_chat_id() or "").strip()
-    if not chat_id:
-        raise RuntimeError("Expected client chat id after new chat")
+    bound_chat_id = str(await chat.bridge_chat_id() or "").strip()
+    if bound_chat_id and bound_chat_id != chat_id:
+        raise RuntimeError(
+            f"Bridge chat id mismatch: expected={chat_id!r} got={bound_chat_id!r}"
+        )
+    return chat_id
+
+
+def _seed_chat_via_api(api_url: str, agent_id: str, chat_id: str) -> None:
     http_json(
         "POST",
         f"{api_url.rstrip('/')}/api/v1/chats/",
@@ -223,7 +238,6 @@ async def _prepare_live_chat(
             "messages": [],
         },
     )
-    return chat_id
 
 
 async def _http_kickoff_subagent_approval(
@@ -266,22 +280,26 @@ async def _recover_hitl_in_browser(
 async def _run_approval_flow(
     chat: McpChatSession,
     agent_id: str,
+    chat_id: str,
     *,
     api_url: str,
     ui_base: str,
     sent_marker: dict[str, bool],
 ) -> str:
     pin_and_verify_hitl_mode(api_url)
-    chat_id = await _prepare_live_chat(
-        chat, api_url=api_url, agent_id=agent_id, ui_base=ui_base
+    resolved_chat_id = await _prepare_live_chat(
+        chat,
+        api_url=api_url,
+        agent_id=agent_id,
+        chat_id=chat_id,
+        ui_base=ui_base,
     )
     await ensure_e2e_hitl_mode_in_browser(chat)
     await _assert_stream_binding(chat, expected_api=api_url)
 
     sent_marker["sent"] = True
-    await _http_kickoff_subagent_approval(api_url, chat_id, agent_id)
-    await _recover_hitl_in_browser(chat, chat_id)
-    resolved_chat_id = chat_id
+    await _http_kickoff_subagent_approval(api_url, resolved_chat_id, agent_id)
+    await _recover_hitl_in_browser(chat, resolved_chat_id)
 
     # Stay on the streaming tab — mid-stream Page.navigate drops SSE approval events.
     path_probe = await chat.evaluate(
@@ -336,7 +354,7 @@ def _pin_hitl_before(_chrome_e2e_item_runtime: object | None) -> None:
     yield
 
 
-@pytest.mark.e2e_search_policy("hydrate_private")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -358,20 +376,22 @@ async def test_subagent_approval_flow_approve_resumes_chrome_e2e(
     agent_id = _create_delegating_agent(api_base)
     e2e_resource_ledger.register("agent", agent_id)
 
-    agent_url = f"{ui_base}/?agentId={agent_id}"
+    chat_id = str(uuid.uuid4())
+    _seed_chat_via_api(api_base, agent_id, chat_id)
+    chat_url = f"{ui_base}/{chat_id}?agentId={agent_id}"
     last_error = ""
-    chat_id = ""
     sent_marker: dict[str, bool] = {"sent": False}
     for attempt in range(1, _MAX_CHAT_ATTEMPTS + 1):
         heartbeat_once()
         try:
-            with open_mcp_page(agent_url, timeout_ms=120_000) as (client, page):
+            with open_mcp_page(chat_url, timeout_ms=120_000) as (client, page):
                 chat = McpChatSession(client, page)
-                await chat.bootstrap(agent_url, timeout_sec=180.0)
+                await chat.bootstrap(chat_url, timeout_sec=180.0)
                 await _apply_runtime_bootstrap(chat)
                 chat_id = await _run_approval_flow(
                     chat,
                     agent_id,
+                    chat_id,
                     api_url=api_base,
                     ui_base=ui_base,
                     sent_marker=sent_marker,
