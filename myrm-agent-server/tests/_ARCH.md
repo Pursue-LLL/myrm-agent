@@ -27,6 +27,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
 | `e2e/test_migration_readiness_gap_chrome_e2e.py` | 模块 | migration post-import readiness gap（LIVE×3 SHPOIB：`mcp_warning` · `provider_critical` · `diagnostic_critical` 各独立 `::test_*` · R139 禁 batch） |
+| `e2e/test_mem0_import_review_chrome_e2e.py` | 模块 | mem0 export 真实 UI 导入 Chrome E2E（SHARED+NAMESPACE_WRITE×1：/settings/memory file picker 上传 mem0 `memories` JSON → 前端 POST dry-run → server auto-detect=mem0 → review dialog 渲染翻译后 `sources.mem0`（C1 无 raw key 泄漏）+ `memories` 映射桶；**停在 confirm 前不写真实记忆**，写路径由 unit/API 覆盖） |
 | `e2e/test_mcp_reload_confirm_chrome_e2e.py` | 模块 | MCP Settings reload 确认 Chrome E2E（READ×1 SHPOIB 单会话：toggle cancel/confirm · delete · import JSON · add/save → `GET /config/mcpServers` 断言） |
 | `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×14：看板渲染 + source_chat 深链过滤 + Drawer 附件 + Chat 成功卡片→看板 + stats bar running N/M + ready 排队 badge ±（占满显示/未满不显示）+ 多 ready 同时排队 badge + 真实执行排队释放闭环 + 队列按序释放 badge 递减 + model_override UI 建卡 / 抽屉徽章编辑清除 + 技能选择器 UI 建卡（真实技能集，picker 搜索选择 → extra_skill_ids 持久化）+ 抽屉技能编辑保存（chips → 编辑态 → picker 增选 → 保存 → 退出编辑态且持久化）） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |

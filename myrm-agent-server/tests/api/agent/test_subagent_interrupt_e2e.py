@@ -246,7 +246,10 @@ def test_subagent_interrupt_resume_with_allow_always(client: TestClient):
                     if not isinstance(data, dict):
                         continue
                     collected_events.append(data)
-                    if data.get("type") in ("approval_required", "tool_approval_request"):
+                    if data.get("type") in (
+                        "approval_required",
+                        "tool_approval_request",
+                    ):
                         approval_payload = data.get("data", {})
                         action_type = approval_payload.get("action_type")
                         break
@@ -360,7 +363,10 @@ def test_subagent_interrupt_resume_with_edit(client: TestClient):
                     if not isinstance(data, dict):
                         continue
                     collected_events.append(data)
-                    if data.get("type") in ("approval_required", "tool_approval_request"):
+                    if data.get("type") in (
+                        "approval_required",
+                        "tool_approval_request",
+                    ):
                         approval_payload = data.get("data", {})
                         action_type = approval_payload.get("action_type")
                         break

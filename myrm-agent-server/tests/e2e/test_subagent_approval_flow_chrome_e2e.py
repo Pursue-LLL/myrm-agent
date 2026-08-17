@@ -77,6 +77,16 @@ _AGENT_SYSTEM_PROMPT = (
     "The subagent has only bash_code_execute_tool. Report the subagent's result when it finishes."
 )
 
+_EPHEMERAL_SUBAGENTS: dict[str, dict[str, object]] = {
+    "test_bash": {
+        "system_prompt": (
+            "You are a bash execution worker. When given a shell command, "
+            "call bash_code_execute_tool with the exact command as-is."
+        ),
+        "tools": ["bash_code_execute_tool"],
+    }
+}
+
 _SUBAGENT_READY_JS = """(() => {
   const layout = document.querySelector('[data-testid="app-layout"]');
   const input = document.querySelector('[data-chat-input]');
@@ -143,13 +153,6 @@ def _create_delegating_agent(api_url: str) -> str:
         "system_prompt": _AGENT_SYSTEM_PROMPT,
         "skill_ids": [],
         "mcp_ids": [],
-        "enabled_builtin_tools": ["code_execute", "subagent"],
-        "ephemeral_subagents": {
-            "test_bash": {
-                "system_prompt": "You are a bash execution worker.",
-                "tools": ["bash_code_execute_tool"],
-            }
-        },
         "security_overrides": {"yoloModeEnabled": False, "autoModeEnabled": False},
     }
     with httpx.Client(base_url=api_url, timeout=60.0) as client:
@@ -165,6 +168,22 @@ def _create_delegating_agent(api_url: str) -> str:
     )
     assert isinstance(agent_id, str) and agent_id
     return agent_id
+
+
+def _create_chat_with_subagents(api_url: str, agent_id: str) -> str:
+    chat_id = str(uuid.uuid4())
+    http_json(
+        "POST",
+        f"{api_url.rstrip('/')}/api/v1/chats/",
+        {
+            "chat_id": chat_id,
+            "agent_id": agent_id,
+            "action_mode": "general",
+            "ephemeral_subagents": _EPHEMERAL_SUBAGENTS,
+            "messages": [],
+        },
+    )
+    return chat_id
 
 
 async def _assert_stream_binding(chat: McpChatSession, *, expected_api: str) -> None:
@@ -214,11 +233,12 @@ async def _wait_for_approval_ui(
 async def _run_approval_flow(
     chat: McpChatSession,
     agent_id: str,
+    chat_id: str,
     *,
     api_url: str,
     ui_base: str,
 ) -> str:
-    agent_url = f"{ui_base}/?agentId={agent_id}"
+    agent_url = f"{ui_base}/{chat_id}?agentId={agent_id}"
     await chat.bootstrap(agent_url, timeout_sec=120.0)
     _pin_and_verify_hitl_mode(api_url)
     await ensure_e2e_hitl_mode_in_browser(chat)
@@ -234,28 +254,13 @@ async def _run_approval_flow(
     ) is True, f"Workspace stream not ready: {workspace_ready!r}; api={api_url}"
 
     send_result = await chat.send_message(_USER_PROMPT, _USER_PROMPT)
-    chat_id_hint = str(
-        send_result.get("started", {}).get("chatId")
-        or send_result.get("submit", {}).get("chatId")
-        or ""
-    ).strip()
-
     started = await chat.wait_stream_started(
-        _USER_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
+        _USER_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id
     )
-    chat_id = chat_id_hint or str(started.get("chatId") or "").strip() or None
-    if not chat_id:
-        after_start = await chat.main_state(
-            _USER_PROMPT, intent=EvaluateIntent.BRIDGE_POLL
-        )
-        chat_id = (
-            chat_id_from_path(str(after_start.get("path") or ""))
-            or str(after_start.get("bridgeChatId") or "").strip()
-            or None
-        )
-    assert (
-        chat_id
-    ), f"Expected chat id after stream start: started={started}; send={send_result}"
+    resolved_chat_id = str(started.get("chatId") or chat_id).strip()
+    assert resolved_chat_id, (
+        f"Expected chat id after stream start: started={started}; send={send_result}"
+    )
 
     # Stay on the streaming tab — mid-stream Page.navigate drops SSE approval events.
     path_probe = await chat.evaluate(
@@ -265,8 +270,8 @@ async def _run_approval_flow(
     current_path = (
         str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
     )
-    if current_path != f"/{chat_id}":
-        await chat.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+    if current_path != f"/{resolved_chat_id}":
+        await chat.navigate_to_chat(resolved_chat_id, ui_base, timeout_sec=90.0)
 
     approval = await _wait_for_approval_ui(chat, api_url=api_url)
     assert approval.get("queueLen") is not None

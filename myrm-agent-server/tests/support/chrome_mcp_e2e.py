@@ -2295,9 +2295,7 @@ class _OrchestratorSharedUiChat:
             raise RuntimeError(f"E2E API base inject failed: {probe.get('err', probe)}")
 
     async def ensure_react_e2e_bridge(self, *, timeout_sec: float = 90.0) -> None:
-        from e2e_core.shared_ui_session import _bootstrap_hot_path_reused
-
-        resolved_timeout = 120.0 if _bootstrap_hot_path_reused() else timeout_sec
+        resolved_timeout = _ensure_react_e2e_bridge_timeout_sec(timeout_sec)
         await asyncio.to_thread(
             wait_for_react_e2e_bridge,
             self.client,
