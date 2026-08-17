@@ -18,6 +18,7 @@
 
 - `@/services/memory` — `getMemories` / `createMemory` / `deleteMemory` / `Memory` / `CreateMemoryRequest` 类型
 - `@/components/primitives/*` — Card / Input / Textarea / Label / Button
+- `@/components/features/app-shell/confirm-dialog` — `ConfirmDialog`（清空表单前二次确认）
 - `@/components/features/icons/PremiumIcons` — 图标
 - 父模块 [`settings/sections/knowledge/_ARCH.md`](../../settings/sections/knowledge/_ARCH.md)
 
@@ -25,4 +26,5 @@
 
 - 品牌字段 key 统一以 `brand_` 前缀（见 `brandSchema.ts`），避免与普通 profile 记忆冲突。
 - 存储即 profile 记忆：保存时对空字段执行删除，非空字段执行 upsert；agent 会话首帧稳定注入。
+- 「清空表单」是破坏性操作（清空后保存会删除已配置的品牌字段），通过 `ConfirmDialog`（destructive）二次确认，防止误删。
 - 界面文案仅面向终端用户，不泄漏 `brand_*` / profile / stable 层等技术细节。

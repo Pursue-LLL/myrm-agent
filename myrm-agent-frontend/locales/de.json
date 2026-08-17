@@ -10355,7 +10355,10 @@
     "saveSuccess": "Markenstil gespeichert. Die KI wird ihn künftig berücksichtigen.",
     "invalidFields": "Bitte korrigiere die markierten Felder, bevor gespeichert wird.",
     "reset": "Leeren",
-    "loading": "Markenstil wird geladen…"
+    "loading": "Markenstil wird geladen…",
+    "cancel": "Abbrechen",
+    "resetConfirmTitle": "Markenstil leeren?",
+    "resetConfirmDescription": "Das Leeren des Formulars entfernt alle gespeicherten Markenstil-Felder. Dies kann nach dem Speichern nicht rückgängig gemacht werden."
   },
   "memoryCitations": {
     "button": "Belege {count}",

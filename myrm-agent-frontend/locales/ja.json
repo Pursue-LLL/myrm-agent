@@ -10579,7 +10579,10 @@
     "saveSuccess": "ブランドスタイルを保存しました。今後 AI はこれを適用します。",
     "invalidFields": "保存前にハイライトされた項目を修正してください。",
     "reset": "クリア",
-    "loading": "ブランドスタイルを読み込み中…"
+    "loading": "ブランドスタイルを読み込み中…",
+    "cancel": "キャンセル",
+    "resetConfirmTitle": "ブランドスタイルをクリアしますか？",
+    "resetConfirmDescription": "フォームをクリアすると、保存されたブランドスタイルのすべての項目が削除されます。保存後は元に戻せません。"
   },
   "memoryCitations": {
     "button": "証拠 {count}",

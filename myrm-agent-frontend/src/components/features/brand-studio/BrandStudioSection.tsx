@@ -27,6 +27,7 @@ import {
   type BrandFieldKey,
   type BrandValues,
 } from './brandSchema';
+import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { IconPalette, IconTrash } from '@/components/features/icons/PremiumIcons';
 
 interface RowState {
@@ -65,6 +66,7 @@ const BrandStudioSection = () => {
   const [rows, setRows] = useState<RowState[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const loadBrandEntries = useCallback(async () => {
     setLoading(true);
@@ -205,10 +207,22 @@ const BrandStudioSection = () => {
           <IconPalette className="h-4 w-4" />
           {saving ? t('saving') : t('save')}
         </Button>
-        <Button variant="outline" onClick={resetForm} className="gap-1.5">
-          <IconTrash className="h-4 w-4" />
-          {t('reset')}
-        </Button>
+        <ConfirmDialog
+          open={showResetConfirm}
+          onOpenChange={setShowResetConfirm}
+          title={t('resetConfirmTitle')}
+          description={t('resetConfirmDescription')}
+          confirmText={t('reset')}
+          cancelText={t('cancel')}
+          variant="destructive"
+          onConfirm={resetForm}
+          trigger={
+            <Button variant="outline" className="gap-1.5">
+              <IconTrash className="h-4 w-4" />
+              {t('reset')}
+            </Button>
+          }
+        />
       </div>
     </div>
   );

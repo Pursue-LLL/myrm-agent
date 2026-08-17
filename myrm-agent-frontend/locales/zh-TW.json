@@ -10579,7 +10579,10 @@
     "saveSuccess": "品牌風格已儲存，你的 AI 將據此為你建立內容。",
     "invalidFields": "請先修正標紅的欄位再儲存。",
     "reset": "清空",
-    "loading": "正在載入你的品牌風格…"
+    "loading": "正在載入你的品牌風格…",
+    "cancel": "取消",
+    "resetConfirmTitle": "要清除品牌風格嗎？",
+    "resetConfirmDescription": "清除表單將刪除所有已儲存的品牌風格欄位，儲存後無法復原。"
   },
   "memoryCitations": {
     "button": "依據 {count}",

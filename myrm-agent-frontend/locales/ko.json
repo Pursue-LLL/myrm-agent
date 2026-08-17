@@ -10355,7 +10355,10 @@
     "saveSuccess": "브랜드 스타일이 저장되었습니다. AI가 이후에 이를 적용합니다.",
     "invalidFields": "저장하기 전에 강조 표시된 필드를 수정하세요.",
     "reset": "지우기",
-    "loading": "브랜드 스타일을 불러오는 중…"
+    "loading": "브랜드 스타일을 불러오는 중…",
+    "cancel": "취소",
+    "resetConfirmTitle": "브랜드 스타일을 지우시겠습니까?",
+    "resetConfirmDescription": "양식을 지우면 저장된 모든 브랜드 스타일 필드가 삭제됩니다. 저장 후에는 되돌릴 수 없습니다."
   },
   "memoryCitations": {
     "button": "근거 {count}",

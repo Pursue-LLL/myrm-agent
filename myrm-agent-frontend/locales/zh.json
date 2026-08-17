@@ -10657,6 +10657,9 @@
     "saveSuccess": "品牌风格已保存，你的 AI 将据此为你创建内容。",
     "invalidFields": "请先修正标红的字段再保存。",
     "reset": "清空",
+    "cancel": "取消",
+    "resetConfirmTitle": "要清空品牌风格吗？",
+    "resetConfirmDescription": "清空表单将删除全部已保存的品牌风格字段，保存后不可撤销。",
     "loading": "正在加载你的品牌风格…"
   },
   "memoryCitations": {

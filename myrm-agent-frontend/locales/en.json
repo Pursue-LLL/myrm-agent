@@ -10657,6 +10657,9 @@
     "saveSuccess": "Brand style saved. Your AI will follow it going forward.",
     "invalidFields": "Please fix the highlighted fields before saving.",
     "reset": "Clear",
+    "cancel": "Cancel",
+    "resetConfirmTitle": "Clear brand style?",
+    "resetConfirmDescription": "Clearing the form will remove all saved brand style fields. This cannot be undone after you save.",
     "loading": "Loading your brand style…"
   },
   "memoryCitations": {
