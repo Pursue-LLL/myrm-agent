@@ -285,9 +285,9 @@ async def _fetch_thread_parent(channel_id: str, thread_ts: str) -> ReplyContext 
 
 | Channel | Reply Field | API Fetch? | Media Support | Sender/Timestamp |
 |---------|-------------|-----------|---------------|------------------|
-| WeCom | `quote` dict | ❌ | 7 types + mixed | ❌ (not in payload) |
+| WeCom | `quote` dict | ❌ | 7 types + mixed | ✅ name (via contact API) |
 | Telegram | `reply_to_message` | ❌ | 6 types | ✅ Full user object + date |
-| Feishu | `parent_id` | ✅ | 4 types | ⚠️ sender_id only (name=None) |
+| Feishu | `parent_id` | ✅ | 4 types | ✅ name (via contact API) |
 | Discord | `reference.resolved` | ❌ | Attachments + embeds | ✅ author + created_at |
 | Slack | `thread_ts` | ✅ | Files (all types) | ✅ user + ts + **name (via users.info)** |
 | WhatsApp | `quotedMessage` | ❌ | Text + media | ⚠️ via Baileys bridge |
