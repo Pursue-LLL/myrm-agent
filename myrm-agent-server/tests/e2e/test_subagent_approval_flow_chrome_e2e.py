@@ -46,7 +46,6 @@ from cdp_chat.support import (  # noqa: E402
     shared_hot_e2e_api_base,
     wait_e2e_provider_ready,
 )
-from cdp_chat.ui import chat_id_from_path  # noqa: E402
 from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate.contract import EvaluateIntent  # noqa: E402
 
@@ -300,7 +299,7 @@ async def _run_approval_flow(
             or "deleted" in assistant_sample
             or "rm" in assistant_sample.lower()
         ):
-            return chat_id
+            return resolved_chat_id
         await asyncio.sleep(2.0)
     raise AssertionError(
         f"Agent did not reply after approval within 180s: {last_snap!r}"
@@ -334,6 +333,8 @@ async def test_subagent_approval_flow_approve_resumes_chrome_e2e(
     ui_base = "http://127.0.0.1:3000"
     agent_id = _create_delegating_agent(api_base)
     e2e_resource_ledger.register("agent", agent_id)
+    seeded_chat_id = _create_chat_with_subagents(api_base, agent_id)
+    e2e_resource_ledger.register("chat", seeded_chat_id)
 
     client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
@@ -346,12 +347,16 @@ async def test_subagent_approval_flow_approve_resumes_chrome_e2e(
             try:
                 page = await asyncio.to_thread(
                     client.new_page,
-                    f"{ui_base}/?agentId={agent_id}",
+                    f"{ui_base}/{seeded_chat_id}?agentId={agent_id}",
                     timeout_ms=120_000,
                 )
                 chat = McpChatSession(client, page)
                 chat_id = await _run_approval_flow(
-                    chat, agent_id, api_url=api_base, ui_base=ui_base
+                    chat,
+                    agent_id,
+                    seeded_chat_id,
+                    api_url=api_base,
+                    ui_base=ui_base,
                 )
                 e2e_resource_ledger.register("chat", chat_id)
                 break
