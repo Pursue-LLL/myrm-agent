@@ -32,9 +32,6 @@ class HttpWebhookProvider:
             return False, str(exc)
         return True, "Webhook URL validated."
 
-    def _build_zip(self, files: dict[str, PublishFile]) -> bytes:
-        return build_provider_zip(files)
-
     async def publish(
         self,
         *,
@@ -68,7 +65,7 @@ class HttpWebhookProvider:
                 status="ERROR",
                 error="URL validation failed",
             )
-        zip_bytes = self._build_zip(files)
+        zip_bytes = build_provider_zip(files)
         headers: dict[str, str] = {}
         auth_header = credentials.get("auth_header")
         auth_value = credentials.get("auth_value")

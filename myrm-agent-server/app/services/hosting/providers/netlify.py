@@ -33,9 +33,6 @@ class NetlifyHostingProvider:
             return False, f"Netlify API error: {response.text[:200]}"
         return True, "Netlify credentials valid."
 
-    def _build_zip(self, files: dict[str, PublishFile]) -> bytes:
-        return build_provider_zip(files)
-
     async def publish(
         self,
         *,
@@ -57,7 +54,7 @@ class NetlifyHostingProvider:
                 status="ERROR",
                 error="Netlify access_token and site_id are required.",
             )
-        zip_bytes = self._build_zip(files)
+        zip_bytes = build_provider_zip(files)
         headers = {"Authorization": f"Bearer {token.strip()}"}
         url = f"https://api.netlify.com/api/v1/sites/{site_id}/deploys"
         async with httpx.AsyncClient(follow_redirects=False) as client:

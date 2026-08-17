@@ -33,9 +33,6 @@ class CloudflarePagesProvider:
             return False, f"Cloudflare API error: {response.text[:200]}"
         return True, "Cloudflare credentials valid."
 
-    def _build_zip(self, files: dict[str, PublishFile]) -> bytes:
-        return build_provider_zip(files)
-
     async def publish(
         self,
         *,
@@ -58,7 +55,7 @@ class CloudflarePagesProvider:
                 status="ERROR",
                 error="Cloudflare api_token and account_id are required.",
             )
-        zip_bytes = self._build_zip(files)
+        zip_bytes = build_provider_zip(files)
         headers = {"Authorization": f"Bearer {token.strip()}"}
         base = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/pages/projects"
         async with httpx.AsyncClient(follow_redirects=False) as client:
