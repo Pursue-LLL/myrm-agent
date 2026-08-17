@@ -10,9 +10,10 @@ high-risk shell command:
    Approve like a real user.
 4. The subagent resumes, completes, and the main agent replies with the execution result.
 
-This closes the coverage gap left by ``test_subagent_interrupt_e2e.py`` (in-process
-TestClient cannot bridge the approval event) and by ``test_subagent_dashboard_ui_chrome_e2e.py``
-(which seeds YOLO to skip HITL entirely).
+This complements ``test_subagent_interrupt_e2e.py`` (in-process TestClient stream) and
+``test_subagent_interrupt_live_e2e.py`` (live HTTP SHPOIB) by exercising the real WebUI
+click path on PolymorphicApprovalCard. ``test_subagent_dashboard_ui_chrome_e2e.py`` seeds
+YOLO to skip HITL entirely.
 
 Formal run::
 
@@ -38,27 +39,22 @@ from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
     STREAM_API_BINDING_JS,
     WAIT_WORKSPACE_STREAM_JS,
-    ensure_e2e_hitl_mode,
+    e2e_runtime_bootstrap_apply_js,
     ensure_e2e_hitl_mode_in_browser,
-    ensure_e2e_onboarding_complete,
-    fetch_config_value,
     get_e2e_api_url,
-    shared_hot_e2e_api_base,
     wait_e2e_provider_ready,
 )
-from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate.contract import EvaluateIntent  # noqa: E402
 
-from tests.support.chrome_allowlist_live_e2e import (
-    _APPROVAL_VISIBLE_JS,
-)
 from tests.support.chrome_mcp_e2e import (
+    get_e2e_ui_url,
     guarded_httpx_request,
     http_json,
+    open_mcp_page,
 )
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
+from tests.support.hitl_live_e2e import pin_and_verify_hitl_mode
 
-_BASH_TOOL = "bash_code_execute_tool"
 _APPROVAL_WAIT_SEC = 300.0
 _MAX_CHAT_ATTEMPTS = 2
 
@@ -86,20 +82,15 @@ _EPHEMERAL_SUBAGENTS: dict[str, dict[str, object]] = {
     }
 }
 
-_SUBAGENT_READY_JS = """(() => {
-  const layout = document.querySelector('[data-testid="app-layout"]');
-  const input = document.querySelector('[data-chat-input]');
-  const fiberKey = input
-    ? Object.keys(input).find((k) => k.startsWith('__reactFiber$'))
-    : null;
-  return {
-    href: location.href,
-    ready: !!input && !!window.__MYRM_E2E_CHAT__?.handleSubmit,
-    hasLayout: !!layout,
-    hasInput: !!input,
-    clientHydrated: !!fiberKey,
-    hasBridge: !!window.__MYRM_E2E_CHAT__,
-  };
+_SUBAGENT_APPROVAL_VISIBLE_JS = """(() => {
+  const approvalSnap = window.__MYRM_E2E_CHAT__?.toolApprovalSnapshot?.() ?? {};
+  const queueLen = Number(approvalSnap.queueLen ?? 0);
+  const buttons = Array.from(document.querySelectorAll('button'));
+  const hasApprove = buttons.some((btn) => /Approve|批准/.test((btn.textContent || '').trim()));
+  const text = document.body?.innerText || '';
+  const hasShell = /bash_code_execute_tool|Shell|shell|rm\\s+-rf/i.test(text);
+  const ready = hasApprove && (hasShell || queueLen > 0);
+  return { ready, queueLen, hasApprove, hasShell, sample: text.slice(0, 900) };
 })()"""
 
 _CLICK_APPROVE_JS = """(() => {
@@ -112,34 +103,6 @@ _CLICK_APPROVE_JS = """(() => {
   approve.click();
   return { ok: true, label: (approve.textContent || '').trim() };
 })()"""
-
-
-def _hitl_probe(api_url: str) -> dict[str, object]:
-    from cdp_chat.support import _e2e_api_get_json
-
-    probe = _e2e_api_get_json(
-        f"{api_url.rstrip('/')}/api/v1/security/allowlist/test/hitl-probe",
-        timeout_sec=15.0,
-    )
-    return probe if isinstance(probe, dict) else {}
-
-
-def _pin_and_verify_hitl_mode(api_url: str) -> None:
-    ensure_e2e_hitl_mode(api_url=api_url)
-    targets: list[str] = [api_url.rstrip("/")]
-    shared = shared_hot_e2e_api_base()
-    if shared not in targets:
-        targets.append(shared)
-    for target in targets:
-        ensure_e2e_onboarding_complete(api_url=target)
-        cfg = fetch_config_value("securityConfig", api_url=target)
-        if cfg.get("yoloModeEnabled") or cfg.get("yolo_mode_enabled"):
-            raise AssertionError(f"LIVE E2E requires YOLO off on {target}; got {cfg!r}")
-        probe = _hitl_probe(target)
-        if probe.get("yolo") or probe.get("expects_ask") is not True:
-            raise AssertionError(
-                f"LIVE E2E HITL probe failed on {target}: {probe!r}; cfg={cfg!r}"
-            )
 
 
 def _create_delegating_agent(api_url: str) -> str:
@@ -167,22 +130,6 @@ def _create_delegating_agent(api_url: str) -> str:
     )
     assert isinstance(agent_id, str) and agent_id
     return agent_id
-
-
-def _create_chat_with_subagents(api_url: str, agent_id: str) -> str:
-    chat_id = str(uuid.uuid4())
-    http_json(
-        "POST",
-        f"{api_url.rstrip('/')}/api/v1/chats/",
-        {
-            "chat_id": chat_id,
-            "agent_id": agent_id,
-            "action_mode": "general",
-            "ephemeral_subagents": _EPHEMERAL_SUBAGENTS,
-            "messages": [],
-        },
-    )
-    return chat_id
 
 
 async def _assert_stream_binding(chat: McpChatSession, *, expected_api: str) -> None:
@@ -214,7 +161,7 @@ async def _wait_for_approval_ui(
         heartbeat_once()
         await chat.dismiss_modals()
         raw = await chat.evaluate(
-            _APPROVAL_VISIBLE_JS, intent=EvaluateIntent.BRIDGE_POLL
+            _SUBAGENT_APPROVAL_VISIBLE_JS, intent=EvaluateIntent.BRIDGE_POLL
         )
         value = raw
         if isinstance(value, dict) and "ready" in value:
@@ -229,37 +176,85 @@ async def _wait_for_approval_ui(
     )
 
 
+async def _apply_runtime_bootstrap(chat: McpChatSession) -> None:
+    bootstrap_js = e2e_runtime_bootstrap_apply_js()
+    if not bootstrap_js:
+        await chat.ensure_e2e_api_base_binding()
+        return
+    result = await chat.evaluate(bootstrap_js, intent=EvaluateIntent.AGENT_SUBMIT)
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        raise RuntimeError(f"E2E runtime bootstrap failed: {result}")
+
+
+async def _prepare_live_chat(
+    chat: McpChatSession,
+    *,
+    api_url: str,
+    agent_id: str,
+    ui_base: str,
+) -> str:
+    await chat.click_new_chat()
+    await chat.ensure_chat_surface(ui_base)
+    ensured = await chat.evaluate(
+        """(() => {
+          const bridge = window.__MYRM_E2E_CHAT__;
+          if (!bridge?.ensureChatSession) return { ok: false, err: 'no ensureChatSession' };
+          return Promise.resolve(bridge.ensureChatSession()).then(() => ({ ok: true }));
+        })()""",
+        intent=EvaluateIntent.ROUTE_ATTACH,
+    )
+    if not isinstance(ensured, dict) or ensured.get("ok") is not True:
+        raise RuntimeError(f"ensureChatSession failed: {ensured!r}")
+    chat_id = str(await chat.bridge_chat_id() or "").strip()
+    if not chat_id:
+        raise RuntimeError("Expected client chat id after new chat")
+    http_json(
+        "POST",
+        f"{api_url.rstrip('/')}/api/v1/chats/",
+        {
+            "chat_id": chat_id,
+            "agent_id": agent_id,
+            "action_mode": "general",
+            "ephemeral_subagents": _EPHEMERAL_SUBAGENTS,
+            "messages": [],
+        },
+    )
+    return chat_id
+
+
 async def _run_approval_flow(
     chat: McpChatSession,
     agent_id: str,
-    chat_id: str,
     *,
     api_url: str,
     ui_base: str,
+    sent_marker: dict[str, bool],
 ) -> str:
-    agent_url = f"{ui_base}/{chat_id}?agentId={agent_id}"
-    await chat.bootstrap(agent_url, timeout_sec=120.0)
-    _pin_and_verify_hitl_mode(api_url)
+    pin_and_verify_hitl_mode(api_url)
+    chat_id = await _prepare_live_chat(
+        chat, api_url=api_url, agent_id=agent_id, ui_base=ui_base
+    )
     await ensure_e2e_hitl_mode_in_browser(chat)
     await _assert_stream_binding(chat, expected_api=api_url)
 
     workspace_ready = await chat.evaluate(
         WAIT_WORKSPACE_STREAM_JS,
         intent=EvaluateIntent.AGENT_SUBMIT,
-        timeout_sec=45.0,
+        recv_timeout=45.0,
     )
     assert (workspace_ready or {}).get(
         "ok"
     ) is True, f"Workspace stream not ready: {workspace_ready!r}; api={api_url}"
 
+    sent_marker["sent"] = True
     send_result = await chat.send_message(_USER_PROMPT, _USER_PROMPT)
     started = await chat.wait_stream_started(
         _USER_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id
     )
     resolved_chat_id = str(started.get("chatId") or chat_id).strip()
-    assert resolved_chat_id, (
-        f"Expected chat id after stream start: started={started}; send={send_result}"
-    )
+    assert (
+        resolved_chat_id
+    ), f"Expected chat id after stream start: started={started}; send={send_result}"
 
     # Stay on the streaming tab — mid-stream Page.navigate drops SSE approval events.
     path_probe = await chat.evaluate(
@@ -270,6 +265,7 @@ async def _run_approval_flow(
         str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
     )
     if current_path != f"/{resolved_chat_id}":
+        ui_base = get_e2e_ui_url().rstrip("/")
         await chat.navigate_to_chat(resolved_chat_id, ui_base, timeout_sec=90.0)
 
     approval = await _wait_for_approval_ui(chat, api_url=api_url)
@@ -309,10 +305,11 @@ async def _run_approval_flow(
 @pytest.fixture(autouse=True)
 def _pin_hitl_before(_chrome_e2e_item_runtime: object | None) -> None:
     api_base = get_e2e_api_url()
-    _pin_and_verify_hitl_mode(api_base)
+    pin_and_verify_hitl_mode(api_base)
     yield
 
 
+@pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -329,52 +326,46 @@ async def test_subagent_approval_flow_approve_resumes_chrome_e2e(
         )
 
     api_base = get_e2e_api_url()
-    _pin_and_verify_hitl_mode(api_base)
-    ui_base = "http://127.0.0.1:3000"
+    pin_and_verify_hitl_mode(api_base)
+    ui_base = get_e2e_ui_url().rstrip("/")
     agent_id = _create_delegating_agent(api_base)
     e2e_resource_ledger.register("agent", agent_id)
-    seeded_chat_id = _create_chat_with_subagents(api_base, agent_id)
-    e2e_resource_ledger.register("chat", seeded_chat_id)
 
-    client = ChromeMcpClient(request_timeout_sec=180.0)
-    await asyncio.to_thread(client.start)
-    try:
-        page: McpPage | None = None
-        last_error = ""
-        chat_id = ""
-        for attempt in range(1, _MAX_CHAT_ATTEMPTS + 1):
-            heartbeat_once()
-            try:
-                page = await asyncio.to_thread(
-                    client.new_page,
-                    f"{ui_base}/{seeded_chat_id}?agentId={agent_id}",
-                    timeout_ms=120_000,
-                )
+    agent_url = f"{ui_base}/?agentId={agent_id}"
+    last_error = ""
+    chat_id = ""
+    sent_marker: dict[str, bool] = {"sent": False}
+    for attempt in range(1, _MAX_CHAT_ATTEMPTS + 1):
+        heartbeat_once()
+        try:
+            with open_mcp_page(agent_url, timeout_ms=120_000) as (client, page):
                 chat = McpChatSession(client, page)
+                await chat.bootstrap(agent_url, timeout_sec=180.0)
+                await _apply_runtime_bootstrap(chat)
                 chat_id = await _run_approval_flow(
                     chat,
                     agent_id,
-                    seeded_chat_id,
                     api_url=api_base,
                     ui_base=ui_base,
+                    sent_marker=sent_marker,
                 )
-                e2e_resource_ledger.register("chat", chat_id)
-                break
-            except (AssertionError, RuntimeError, TimeoutError) as exc:
-                last_error = str(exc)
-                if attempt >= _MAX_CHAT_ATTEMPTS:
-                    raise
-                await asyncio.sleep(2.0)
-        else:
-            pytest.fail(last_error or "subagent approval flow failed")
-        assert chat_id
+            e2e_resource_ledger.register("chat", chat_id)
+            break
+        except (AssertionError, RuntimeError, TimeoutError) as exc:
+            last_error = str(exc)
+            if sent_marker.get("sent"):
+                raise
+            if attempt >= _MAX_CHAT_ATTEMPTS:
+                raise
+            await asyncio.sleep(2.0)
+    else:
+        pytest.fail(last_error or "subagent approval flow failed")
+    assert chat_id
 
-        # Final API-level evidence: subagent completed after approval.
-        rows = http_json("GET", f"{api_base}/api/v1/chats/{chat_id}/subagents")
-        data = rows.get("data") if isinstance(rows, dict) else None
-        assert isinstance(data, list), rows
-        assert any(
-            isinstance(row, dict) and row.get("status") == "completed" for row in data
-        ), f"No completed subagent after approval: {rows}"
-    finally:
-        client.close()
+    # Final API-level evidence: subagent completed after approval.
+    rows = http_json("GET", f"{api_base}/api/v1/chats/{chat_id}/subagents")
+    data = rows.get("data") if isinstance(rows, dict) else None
+    assert isinstance(data, list), rows
+    assert any(
+        isinstance(row, dict) and row.get("status") == "completed" for row in data
+    ), f"No completed subagent after approval: {rows}"

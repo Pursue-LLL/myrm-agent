@@ -11190,7 +11190,6 @@
     "title": "Geplante Aufgaben",
     "loading": "Laden...",
     "empty": "Noch keine geplanten Aufgaben",
-    "once": "Einmalig",
     "cancel": "Stornieren",
     "trigger": "Jetzt ausführen",
     "pause": "Pausieren",
@@ -11257,7 +11256,6 @@
     "lastRunLabel": "Letzter Lauf",
     "lastRunTooltip": "Ausgeführt um {time}",
     "createdAt": "Erstellt",
-    "interval": "Jeden {value}",
     "noModel": "Kein Modell konfiguriert",
     "tabJobs": "Aufgaben",
     "tabAllRuns": "Alle Läufe",
@@ -11550,6 +11548,13 @@
       "stopped": "Scheduler gestoppt",
       "lastTick": "Letzter Tick",
       "errors": "Fehleranzahl"
+    },
+    "schedulerBanner": {
+      "degradedTitle": "Geplante Aufgaben können verzögert werden",
+      "degradedDescription": "Der Aufgabenplaner läuft, ist aber beeinträchtigt. Geplante Aufgaben werden möglicherweise nicht pünktlich ausgeführt.",
+      "stoppedTitle": "Geplante Aufgaben werden nicht ausgeführt",
+      "stoppedDescription": "Der Aufgabenplaner ist gestoppt. Geplante Aufgaben werden erst wieder ausgeführt, wenn er sich erholt.",
+      "viewCron": "Geplante Aufgaben anzeigen"
     },
     "blueprint": {
       "quickStart": "Schnellstart mit Vorlage",

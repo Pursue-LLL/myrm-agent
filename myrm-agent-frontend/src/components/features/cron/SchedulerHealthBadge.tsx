@@ -1,19 +1,26 @@
 'use client';
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+/**
+ * [INPUT]
+ * - `@/lib/cron/schedulerHealth` (`subscribeSchedulerHealth`, `getCachedSchedulerHealth`)
+ * - `next-intl` (`cron.schedulerStatus`)
+ *
+ * [OUTPUT]
+ * - `SchedulerHealthBadge`: Cron list header scheduler liveness dot + tooltip
+ *
+ * [POS]
+ * Cron settings page inline scheduler health indicator; poll shared with AppLayout banner.
+ */
+
+import { memo, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
-import { apiRequest } from '@/lib/api';
+import {
+  getCachedSchedulerHealth,
+  subscribeSchedulerHealth,
+  type SchedulerHealth,
+} from '@/lib/cron/schedulerHealth';
 import { cn } from '@/lib/utils/classnameUtils';
-
-interface SchedulerHealth {
-  status: 'green' | 'yellow' | 'red';
-  running: boolean;
-  last_tick_at: string | null;
-  tick_errors: number;
-  last_tick_age_seconds: number | null;
-  has_timer: boolean;
-}
 
 const STATUS_CONFIG = {
   green: { dot: 'bg-emerald-500', label: 'running', pulse: true },
@@ -21,37 +28,11 @@ const STATUS_CONFIG = {
   red: { dot: 'bg-red-500', label: 'stopped', pulse: false },
 } as const;
 
-const POLL_INTERVAL_MS = 30_000;
-
 const SchedulerHealthBadge = memo(function SchedulerHealthBadge() {
   const t = useTranslations('cron');
-  const [health, setHealth] = useState<SchedulerHealth | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [health, setHealth] = useState<SchedulerHealth | null>(() => getCachedSchedulerHealth());
 
-  const poll = useCallback(async () => {
-    if (document.hidden) {return;}
-    try {
-      const res = await apiRequest<SchedulerHealth>('/cron/scheduler/health');
-      if (res) {setHealth(res);}
-    } catch {
-      setHealth({ status: 'red', running: false, last_tick_at: null, tick_errors: 0, last_tick_age_seconds: null, has_timer: false });
-    }
-  }, []);
-
-  useEffect(() => {
-    poll();
-    intervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
-
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {poll();}
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-
-    return () => {
-      if (intervalRef.current) {clearInterval(intervalRef.current);}
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [poll]);
+  useEffect(() => subscribeSchedulerHealth(setHealth), []);
 
   if (!health) {return null;}
 

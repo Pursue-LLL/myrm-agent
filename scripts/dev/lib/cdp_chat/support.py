@@ -1920,6 +1920,8 @@ def _hitl_security_payload(current: dict[str, object]) -> dict[str, object]:
         "planConfirmEnabled": False,
         "domainHitlEnabled": False,
         "approvalTimeoutBehavior": "deny",
+        "approvalTimeoutSeconds": 900,
+        "approval_timeout_seconds": 900,
         "permissions": {
             "shell_exec": "ask",
             "code_interpreter": "ask",

@@ -22,6 +22,7 @@ import CrashRecoveryDialog from '@/components/features/app-shell/crash-recovery-
 import LocalBackendUnavailableBanner, {
   ConfigReadinessDegradedBanner,
 } from '@/components/features/app-shell/local-backend-unavailable-banner';
+import CronSchedulerHealthBanner from '@/components/features/app-shell/cron-scheduler-health-banner';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { useProgressionStore } from '@/store/useProgressionStore';
 import { useWuBalanceWatcher } from '@/hooks/billing/useWuBalanceWatcher';
@@ -172,6 +173,7 @@ function AppLayout({
           )}
         >
           <LocalBackendUnavailableBanner />
+          <CronSchedulerHealthBanner />
           <ConfigReadinessDegradedBanner
             visible={configReadinessDegraded && !dismissedReadinessDegraded}
             onRetry={onRetryConfigReadiness}

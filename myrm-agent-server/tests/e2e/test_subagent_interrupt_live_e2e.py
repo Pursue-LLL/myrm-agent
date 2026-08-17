@@ -1,10 +1,10 @@
 """Live HTTP E2E: subagent high-risk bash approval interrupt → approve/allow-always/edit resume.
 
 Replaces the in-process ``TestClient`` variant (``tests/api/agent/test_subagent_interrupt_e2e.py``)
-whose approval events cannot bridge the subagent -> parent stream in a single-process
-TestClient. This version talks to the real SHPOIB agent-stream over HTTP, where the
-approval middleware + ``ApprovalRegistry`` are fully wired, so the ``approval_required``
-interrupt is observable and resumable exactly as a real WebUI user would experience it.
+for SHPOIB private-runtime coverage. This version talks to the real agent-stream over HTTP, where
+the approval middleware + ``ApprovalRegistry`` are fully wired, so the
+``tool_approval_request`` / ``approval_required`` interrupt (``action_type=subagent_approval``)
+is observable and resumable exactly as a real WebUI user would experience it.
 
 Formal run::
 
@@ -34,17 +34,84 @@ from cdp_chat.support import (  # noqa: E402
     wait_e2e_provider_ready,
 )
 
+from tests.api.agent.utils import get_model_selection  # noqa: E402
 from tests.support.e2e_runtime_guard import heartbeat_once  # noqa: E402
+from tests.support.hitl_live_e2e import pin_and_verify_hitl_mode  # noqa: E402
 
-_MAX_RESUME_ROUNDS = 6
+_MAX_RESUME_ROUNDS = 8
 _STREAM_TIMEOUT_SEC = 300.0
+_APPROVAL_EVENT_TYPES = frozenset({"approval_required", "tool_approval_request"})
 
 _DELEGATE_QUERY_TMPL = (
     "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，"
     "并且必须将 wait 参数设置为 true（同步等待子任务完成，不要异步）。"
-    "让它执行一条bash命令: `rm -rf {target_dir}`。"
-    "注意：必须使用原生函数调用（Native Tool Calling / Function Calling），绝对不要在文本中输出 XML 格式的工具调用！"
+    "子智能体必须调用 bash_code_execute_tool 工具实际执行这条命令（一字不改，禁止替换路径、"
+    "禁止输出占位符、禁止只用文本描述而不调用工具）：`rm -rf {target_dir}`。"
+    "注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，"
+    "绝对不要在文本中输出 XML 格式的工具调用！"
 )
+
+_SUBAGENT_SYSTEM_PROMPT = (
+    "You are a bash execution worker. When given a shell command, "
+    "you MUST call the bash_code_execute_tool tool with the exact command "
+    "as-is (never replace paths or emit placeholders), then report the output."
+)
+
+_AGENT_SYSTEM_PROMPT = (
+    "You are a helpful agent. When the user asks you to delegate a bash task to a subagent, "
+    "use delegate_task_tool with agent_type='test_bash' and wait=true. "
+    "The subagent has only bash_code_execute_tool. Report the subagent's result when it finishes."
+)
+
+_EPHEMERAL_SUBAGENTS: dict[str, dict[str, object]] = {
+    "test_bash": {
+        "system_prompt": _SUBAGENT_SYSTEM_PROMPT,
+        "tools": ["bash_code_execute_tool"],
+    }
+}
+
+
+def _create_delegating_agent(client: httpx.Client, api_base: str) -> str:
+    suffix = uuid.uuid4().hex[:8]
+    payload = {
+        "name": f"Subagent Interrupt LIVE {suffix}",
+        "description": "Chrome LIVE HTTP E2E for subagent bash HITL",
+        "system_prompt": _AGENT_SYSTEM_PROMPT,
+        "skill_ids": [],
+        "mcp_ids": [],
+        "security_overrides": {"yoloModeEnabled": False, "autoModeEnabled": False},
+    }
+    resp = client.post(f"{api_base.rstrip('/')}/api/v1/user-agents", json=payload)
+    resp.raise_for_status()
+    body = resp.json()
+    agent_id = (
+        body.get("data", {}).get("id")
+        if isinstance(body.get("data"), dict)
+        else body.get("id")
+    )
+    if not isinstance(agent_id, str) or not agent_id:
+        raise AssertionError(f"Failed to create delegating agent: {body!r}")
+    return agent_id
+
+
+def _seed_chat(
+    client: httpx.Client,
+    api_base: str,
+    *,
+    agent_id: str,
+    chat_id: str,
+) -> None:
+    resp = client.post(
+        f"{api_base.rstrip('/')}/api/v1/chats/",
+        json={
+            "chat_id": chat_id,
+            "agent_id": agent_id,
+            "action_mode": "general",
+            "ephemeral_subagents": _EPHEMERAL_SUBAGENTS,
+            "messages": [],
+        },
+    )
+    resp.raise_for_status()
 
 
 def _build_request(
@@ -52,19 +119,18 @@ def _build_request(
     message_id: str,
     query: str,
     *,
+    agent_id: str,
     resume_value: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     req: dict[str, object] = {
         "query": query,
         "chatId": chat_id,
         "messageId": message_id,
+        "agentId": agent_id,
+        "modelSelection": get_model_selection(),
         "actionMode": "general",
-        "ephemeralSubagents": {
-            "test_bash": {
-                "system_prompt": "You are a bash execution worker.",
-                "tools": ["bash_code_execute_tool"],
-            }
-        },
+        "securityPreset": "hitl",
+        "ephemeralSubagents": _EPHEMERAL_SUBAGENTS,
     }
     if resume_value is not None:
         req["resumeValue"] = {"decisions": resume_value}
@@ -98,7 +164,7 @@ def _consume_stream(
                 continue
             events.append(event)
             event_type = event.get("type")
-            if event_type == "approval_required":
+            if event_type in _APPROVAL_EVENT_TYPES:
                 data = event.get("data")
                 if isinstance(data, dict):
                     action_type = data.get("action_type")
@@ -109,9 +175,16 @@ def _consume_stream(
     return action_type, events, errors
 
 
+def _completed_without_approval(events: list[dict[str, object]]) -> bool:
+    has_message_end = any(e.get("type") == "message_end" for e in events)
+    if not has_message_end:
+        return False
+    return not any(e.get("type") in _APPROVAL_EVENT_TYPES for e in events)
+
+
 def _extract_subagent_tool_args(events: list[dict[str, object]]) -> dict[str, object]:
     for event in events:
-        if event.get("type") != "approval_required":
+        if event.get("type") not in _APPROVAL_EVENT_TYPES:
             continue
         data = event.get("data")
         if not isinstance(data, dict):
@@ -136,10 +209,13 @@ def _run_interrupt_flow(
     chat_id: str,
     target_dir: str,
     *,
+    agent_id: str,
     resume_decision_factory: Callable[
         [list[dict[str, object]]], list[dict[str, object]]
     ],
 ) -> None:
+    pin_and_verify_hitl_mode(api_base)
+    _seed_chat(client, api_base, agent_id=agent_id, chat_id=chat_id)
     message_id = str(uuid.uuid4())
     query = _DELEGATE_QUERY_TMPL.format(target_dir=target_dir)
     resume_value: list[dict[str, object]] | None = None
@@ -147,8 +223,18 @@ def _run_interrupt_flow(
 
     for _round in range(_MAX_RESUME_ROUNDS):
         heartbeat_once()
-        payload = _build_request(chat_id, message_id, query, resume_value=resume_value)
+        payload = _build_request(
+            chat_id, message_id, query, agent_id=agent_id, resume_value=resume_value
+        )
         action_type, events, errors = _consume_stream(client, api_base, payload)
+
+        if _completed_without_approval(events):
+            raise AssertionError(
+                "Agent stream completed without any approval event — "
+                "subagent bash did not suspend for HITL. Check security_config "
+                "inheritance (auto_mode_enabled) and that the LLM invoked bash_code_execute_tool. "
+                f"event_types={[e.get('type') for e in events]}"
+            )
 
         if action_type == "subagent_approval":
             approval_seen = True
@@ -180,7 +266,7 @@ def _run_interrupt_flow(
 
     # The final resume turn must complete.
     heartbeat_once()
-    payload = _build_request(chat_id, message_id, "", resume_value=resume_value)
+    payload = _build_request(chat_id, message_id, "", agent_id=agent_id, resume_value=resume_value)
     _action_type, resume_events, resume_errors = _consume_stream(
         client, api_base, payload
     )
@@ -205,6 +291,13 @@ def _new_client(api_base: str) -> httpx.Client:
     return httpx.Client(base_url=api_base, timeout=60.0)
 
 
+@pytest.fixture(autouse=True)
+def _pin_hitl_before_stream(_chrome_e2e_item_runtime: object | None) -> Iterator[None]:
+    _ = _chrome_e2e_item_runtime
+    pin_and_verify_hitl_mode(get_e2e_api_url())
+    yield
+
+
 @pytest.fixture
 def _live_client(_chrome_e2e_item_runtime: object | None) -> Iterator[httpx.Client]:
     """Bind SHPOIB private runtime before probing provider readiness."""
@@ -216,6 +309,11 @@ def _live_client(_chrome_e2e_item_runtime: object | None) -> Iterator[httpx.Clie
     ensure_e2e_hitl_mode(api_url=api_base)
 
 
+@pytest.fixture
+def _delegating_agent_id(_live_client: httpx.Client) -> str:
+    return _create_delegating_agent(_live_client, get_e2e_api_url())
+
+
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -223,7 +321,9 @@ def _live_client(_chrome_e2e_item_runtime: object | None) -> Iterator[httpx.Clie
     private_reason="live_shpoib",
 )
 @pytest.mark.timeout(600)
-def test_subagent_interrupt_live_approve(_live_client: httpx.Client) -> None:
+def test_subagent_interrupt_live_approve(
+    _live_client: httpx.Client, _delegating_agent_id: str
+) -> None:
     """Subagent bash approval interrupt → user approves → subagent resumes & completes."""
     chat_id = str(uuid.uuid4())
     target_dir = f"/tmp/myrm_live_interrupt_approve_{uuid.uuid4().hex[:6]}"
@@ -236,6 +336,7 @@ def test_subagent_interrupt_live_approve(_live_client: httpx.Client) -> None:
         get_e2e_api_url(),
         chat_id,
         target_dir,
+        agent_id=_delegating_agent_id,
         resume_decision_factory=_decision,
     )
 
@@ -247,7 +348,9 @@ def test_subagent_interrupt_live_approve(_live_client: httpx.Client) -> None:
     private_reason="live_shpoib",
 )
 @pytest.mark.timeout(600)
-def test_subagent_interrupt_live_allow_always(_live_client: httpx.Client) -> None:
+def test_subagent_interrupt_live_allow_always(
+    _live_client: httpx.Client, _delegating_agent_id: str
+) -> None:
     """Subagent approval resume accepts extensions.allowAlways (Drawer always-allow path)."""
     chat_id = str(uuid.uuid4())
     target_dir = f"/tmp/myrm_live_interrupt_always_{uuid.uuid4().hex[:6]}"
@@ -266,6 +369,7 @@ def test_subagent_interrupt_live_allow_always(_live_client: httpx.Client) -> Non
         get_e2e_api_url(),
         chat_id,
         target_dir,
+        agent_id=_delegating_agent_id,
         resume_decision_factory=_decision,
     )
 
@@ -277,7 +381,9 @@ def test_subagent_interrupt_live_allow_always(_live_client: httpx.Client) -> Non
     private_reason="live_shpoib",
 )
 @pytest.mark.timeout(600)
-def test_subagent_interrupt_live_edit(_live_client: httpx.Client) -> None:
+def test_subagent_interrupt_live_edit(
+    _live_client: httpx.Client, _delegating_agent_id: str
+) -> None:
     """Subagent approval resume accepts edit decisions with merged shell args."""
     chat_id = str(uuid.uuid4())
     target_dir = f"/tmp/myrm_live_interrupt_edit_{uuid.uuid4().hex[:6]}"
@@ -303,6 +409,7 @@ def test_subagent_interrupt_live_edit(_live_client: httpx.Client) -> None:
         get_e2e_api_url(),
         chat_id,
         target_dir,
+        agent_id=_delegating_agent_id,
         resume_decision_factory=_decision,
     )
 
@@ -314,7 +421,9 @@ def test_subagent_interrupt_live_edit(_live_client: httpx.Client) -> None:
     private_reason="live_shpoib",
 )
 @pytest.mark.timeout(600)
-def test_subagent_interrupt_live_reject(_live_client: httpx.Client) -> None:
+def test_subagent_interrupt_live_reject(
+    _live_client: httpx.Client, _delegating_agent_id: str
+) -> None:
     """Subagent approval reject → command is NOT executed; agent completes after resume."""
     chat_id = str(uuid.uuid4())
     target_dir = f"/tmp/myrm_live_interrupt_reject_{uuid.uuid4().hex[:6]}"
@@ -327,5 +436,6 @@ def test_subagent_interrupt_live_reject(_live_client: httpx.Client) -> None:
         get_e2e_api_url(),
         chat_id,
         target_dir,
+        agent_id=_delegating_agent_id,
         resume_decision_factory=_decision,
     )

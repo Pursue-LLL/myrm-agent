@@ -70,6 +70,7 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
       if (uploadResults.uploaded_count === 0 || !uploadResults.files) {return;}
 
       const newFiles = uploadResults.files.map((file) => ({
+        id: file.fileId,
         fileName: file.fileName,
         fileExtension: file.fileName.split('.').pop() || '',
         fileUrl: file.fileUrl,

@@ -11414,7 +11414,6 @@
     "title": "スケジュールタスク",
     "loading": "読み込み中...",
     "empty": "スケジュールタスクはまだありません",
-    "once": "一回性",
     "cancel": "キャンセル",
     "trigger": "今すぐ実行",
     "pause": "一時停止",
@@ -11483,7 +11482,6 @@
     "lastRunLabel": "前回実行",
     "lastRunTooltip": "実行日時 {time}",
     "createdAt": "作成日時",
-    "interval": "毎 {value}",
     "noModel": "未設定モデル",
     "tabJobs": "ジョブ",
     "tabAllRuns": "すべて実行記録",
@@ -11781,6 +11779,13 @@
       "stopped": "スケジューラー停止",
       "lastTick": "最終チック",
       "errors": "エラー回数"
+    },
+    "schedulerBanner": {
+      "degradedTitle": "スケジュールタスクの実行が遅れる可能性があります",
+      "degradedDescription": "タスクスケジューラーは動作していますが異常があります。スケジュールタスクが定時に実行されない場合があります。",
+      "stoppedTitle": "スケジュールタスクは実行されていません",
+      "stoppedDescription": "タスクスケジューラーが停止しています。復旧するまでスケジュールタスクは実行されません。",
+      "viewCron": "スケジュールタスクを表示"
     },
     "blueprint": {
       "quickStart": "テンプレートからクイックスタート",

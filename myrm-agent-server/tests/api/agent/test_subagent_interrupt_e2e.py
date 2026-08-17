@@ -1,12 +1,12 @@
 """
 In-process TestClient variant of the subagent HITL approval flow.
 
-NOTE: approval events emitted by a *subagent* flow through the server's AppEventBus,
-which is not bridged into a single-process TestClient stream, so this suite can only
-observe "message_end without approval_required" and short-circuits (auto-deny on
-timeout). The authoritative live coverage for subagent approve / allow-always / edit
-resume lives in ``tests/e2e/test_subagent_interrupt_live_e2e.py`` (real SHPOIB
-agent-stream over HTTP, same product code path a WebUI user exercises).
+Exercises delegate → subagent bash → ``tool_approval_request`` (``action_type=subagent_approval``)
+→ approve/allow-always/edit resume over a single-process TestClient stream.
+
+Authoritative WebUI coverage (real Chrome clicks on PolymorphicApprovalCard) lives in
+``tests/e2e/test_subagent_approval_flow_chrome_e2e.py`` and
+``tests/e2e/test_subagent_interrupt_live_e2e.py`` (live SHPOIB agent-stream over HTTP).
 """
 
 import json

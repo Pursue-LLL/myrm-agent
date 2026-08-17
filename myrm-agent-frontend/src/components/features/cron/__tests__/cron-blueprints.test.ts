@@ -164,8 +164,8 @@ describe('cron-blueprints', () => {
     });
 
     it('falls back to raw expression for unmappable dow range', () => {
-      expect(humanizeSchedule({ kind: 'cron', expr: '0 9 * * 1-3' }, t, locale)).toBe('1-3 at 09:00');
-      expect(humanizeSchedule({ kind: 'cron', expr: '0 9 * * 7' }, t, locale)).toBe('7 at 09:00');
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 9 * * 1-3' }, t, locale)).toBe('0 9 * * 1-3');
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 9 * * 7' }, t, locale)).toBe('0 9 * * 7');
     });
 
     it('returns raw expression when day-of-month is constrained (monthly)', () => {

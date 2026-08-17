@@ -63,66 +63,86 @@ _SETTINGS_MODELS_SHELL_STATE = """(() => {
   }
 })()"""
 
-_FETCH_MODELS_JS = """(async () => {
-  try {
+def _fetch_models_js(*, local_pool: bool) -> str:
+    success_expr = (
+        "text.includes('deepseek-v4-flash')"
+        if local_pool
+        else "text.includes('deepseek-v4-flash') && text.includes('minimax-m3')"
+    )
+    provider_checks = (
+        "['OpenCode Go', 'OpenAI-Like', 'OpenAI', 'openai-like', 'Compatible', '兼容']"
+        if local_pool
+        else "['OpenCode Go']"
+    )
+    return f"""(async () => {{
+  try {{
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const providerLabels = Array.from(document.querySelectorAll('[aria-label]'))
       .map((el) => el.getAttribute('aria-label') || '')
       .filter((label) => label.length > 0);
-    const provider = Array.from(document.querySelectorAll('[aria-label]')).find((el) =>
-      (el.getAttribute('aria-label') || '').includes('OpenCode Go'),
-    );
-    if (!provider) {
-      return {
+    const patterns = {provider_checks};
+    const provider = Array.from(document.querySelectorAll('[aria-label]')).find((el) => {{
+      const label = el.getAttribute('aria-label') || '';
+      return patterns.some((pattern) => label.includes(pattern));
+    }});
+    if (!provider) {{
+      return {{
         ok: false,
         step: 'provider_not_found',
         providerLabels: providerLabels.slice(0, 16),
         pathname: location.pathname,
-      };
-    }
+      }};
+    }}
     provider.click();
     await sleep(800);
     const fetchBtn = Array.from(document.querySelectorAll('button')).find((btn) =>
       /获取模型|Get Models|Get models/i.test(btn.textContent || ''),
     );
-    if (!fetchBtn) {
-      return {
+    if (!fetchBtn) {{
+      return {{
         ok: false,
         step: 'fetch_button_not_found',
         providerLabels: providerLabels.slice(0, 16),
         pathname: location.pathname,
-      };
-    }
+      }};
+    }}
     fetchBtn.click();
-    for (let attempt = 0; attempt < 40; attempt += 1) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {{
       await sleep(500);
       const text = document.body.innerText || '';
-      if (text.includes('deepseek-v4-flash') && text.includes('minimax-m3')) {
-        return { ok: true, step: 'models_loaded', attempt };
-      }
-      if (/apiFetchFailed|不支持获取模型|does not support fetching model/i.test(text)) {
-        return { ok: false, step: 'fetch_failed', snippet: text.slice(0, 400) };
-      }
-    }
-    return {
+      if ({success_expr}) {{
+        return {{ ok: true, step: 'models_loaded', attempt }};
+      }}
+      if (/apiFetchFailed|不支持获取模型|does not support fetching model/i.test(text)) {{
+        return {{ ok: false, step: 'fetch_failed', snippet: text.slice(0, 400) }};
+      }}
+    }}
+    return {{
       ok: false,
       step: 'timeout_waiting_models',
       snippet: (document.body.innerText || '').slice(0, 400),
-    };
-  } catch (err) {
-    return { ok: false, step: 'js_exception', err: String(err) };
-  }
-})()"""
+    }};
+  }} catch (err) {{
+    return {{ ok: false, step: 'js_exception', err: String(err) }};
+  }}
+}})()"""
+
+
+def _is_opencode_go_base_url(base_url: str) -> bool:
+    """OpenCode Go direct zen endpoint or local dev pool proxy."""
+    normalized = base_url.strip().lower()
+    return "opencode.ai" in normalized or "localhost:20128" in normalized
 
 
 def _require_opencode_go_config() -> None:
     base_url = resolve_test_env("BASIC_BASE_URL", "")
     api_key = resolve_test_env("BASIC_API_KEY", "")
     model = resolve_test_env("BASIC_MODEL", "")
-    if not api_key or "opencode.ai" not in base_url:
+    lite_model = resolve_test_env("LITE_MODEL", "")
+    if not api_key or not _is_opencode_go_base_url(base_url):
         pytest.skip("OpenCode Go not configured in .env.test")
-    if _EXPECTED_MODEL not in model:
-        pytest.skip(f"BASIC_MODEL must include {_EXPECTED_MODEL} for this E2E")
+    if _EXPECTED_MODEL not in model and _EXPECTED_MODEL not in lite_model:
+        pytest.skip(f"BASIC_MODEL or LITE_MODEL must include {_EXPECTED_MODEL} for this E2E")
 
 
 @pytest.mark.chrome_e2e(
@@ -161,9 +181,11 @@ def test_opencode_go_settings_fetch_models_dialog(
                     raise
         assert state.get("ready") is True, state
         heartbeat_once()
+        base_url = resolve_test_env("BASIC_BASE_URL", "")
+        local_pool = "localhost:20128" in base_url.strip().lower()
         result = client.evaluate(
             page,
-            _FETCH_MODELS_JS,
+            _fetch_models_js(local_pool=local_pool),
             timeout_sec=120.0,
             await_promise=True,
         )

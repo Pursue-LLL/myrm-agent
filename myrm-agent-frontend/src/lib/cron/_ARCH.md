@@ -10,6 +10,7 @@ Cron 相关纯函数：Hermes 六字段审计快照、Settings 创建 pause/conf
 |------|------|------|-------|
 | `buildCronAuditFields.ts` | 核心 | 六字段 audit 快照 + localStorage confirm | ✅ |
 | `cronCreateAuditGate.ts` | 核心 | Settings audit policy + pause/resume gate | ✅ |
+| `schedulerHealth.ts` | 核心 | `GET /cron/scheduler/health` single-flight fetch + subscribe；backend 未就绪时 skip poll；Badge 与 AppLayout banner 共用 | ✅ |
 | `__tests__/` | 测试 | vitest 单元测试 | 内联 |
 
 ## 依赖

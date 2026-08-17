@@ -11190,7 +11190,6 @@
     "title": "예약 작업",
     "loading": "로딩 중...",
     "empty": "아직 예약 작업이 없습니다",
-    "once": "일회성",
     "cancel": "취소",
     "trigger": "지금 실행",
     "pause": "일시 중지",
@@ -11257,7 +11256,6 @@
     "lastRunLabel": "마지막 실행",
     "lastRunTooltip": "실행 시각 {time}",
     "createdAt": "생성 시각",
-    "interval": "매 {value}",
     "noModel": "모델이 구성되지 않음",
     "tabJobs": "작업",
     "tabAllRuns": "전체 실행",
@@ -11550,6 +11548,13 @@
       "stopped": "스케줄러 중지됨",
       "lastTick": "마지막 틱",
       "errors": "오류 횟수"
+    },
+    "schedulerBanner": {
+      "degradedTitle": "예약 작업 실행이 지연될 수 있습니다",
+      "degradedDescription": "작업 스케줄러가 이상 상태입니다. 예약된 작업이 제때 실행되지 않을 수 있습니다.",
+      "stoppedTitle": "예약 작업이 실행되지 않습니다",
+      "stoppedDescription": "작업 스케줄러가 중지되었습니다. 복구될 때까지 예약 작업은 실행되지 않습니다.",
+      "viewCron": "예약 작업 보기"
     },
     "blueprint": {
       "quickStart": "템플릿으로 빠르게 시작",

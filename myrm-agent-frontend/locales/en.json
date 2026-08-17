@@ -11492,7 +11492,6 @@
     "title": "Scheduled Tasks",
     "loading": "Loading...",
     "empty": "No scheduled tasks yet",
-    "once": "One-time",
     "cancel": "Cancel",
     "trigger": "Run Now",
     "pause": "Pause",
@@ -11561,7 +11560,6 @@
     "lastRunLabel": "Last run",
     "lastRunTooltip": "Ran at {time}",
     "createdAt": "Created",
-    "interval": "Every {value}",
     "noModel": "No model configured",
     "tabJobs": "Jobs",
     "tabAllRuns": "All Runs",
@@ -11913,6 +11911,13 @@
       "stopped": "Scheduler Stopped",
       "lastTick": "Last tick",
       "errors": "Tick errors"
+    },
+    "schedulerBanner": {
+      "degradedTitle": "Scheduled tasks may be delayed",
+      "degradedDescription": "The task scheduler is running but degraded. Your scheduled tasks may not run on time.",
+      "stoppedTitle": "Scheduled tasks are not running",
+      "stoppedDescription": "The task scheduler has stopped. None of your scheduled tasks will run until it recovers.",
+      "viewCron": "View scheduled tasks"
     },
     "blueprint": {
       "quickStart": "Quick Start from Template",

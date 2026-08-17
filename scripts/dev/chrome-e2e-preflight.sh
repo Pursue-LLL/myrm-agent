@@ -239,8 +239,16 @@ assert_env_test_shell_safe(Path('${SERVER_DIR}/.env.test'))
     parallel_leases="$(_parallel_attach_active_leases)"
     export MYRM_E2E_PARALLEL_ACTIVE_LEASES="${parallel_leases}"
     if [[ "${parallel_leases}" -gt 0 ]] && _shared_stack_endpoints_ok; then
-      flock_wait_sec="${MYRM_E2E_MODEL_SEED_FLOCK_WAIT_SEC:-8}"
-      max_attempts="${MYRM_E2E_MODEL_SEED_PARALLEL_RETRIES:-2}"
+      if [[ "${MYRM_PRIVATE_BACKEND:-0}" == "1" ]] \
+        || [[ "${MYRM_E2E_PRIVATE_BACKEND:-0}" == "1" ]]; then
+        # SHPOIB private backends are fail-closed on seed failure; parallel
+        # attach must not collapse retries to the shared-stack R214 budget.
+        flock_wait_sec="${MYRM_E2E_MODEL_SEED_FLOCK_WAIT_SEC:-30}"
+        max_attempts="${MYRM_E2E_MODEL_SEED_RETRIES:-5}"
+      else
+        flock_wait_sec="${MYRM_E2E_MODEL_SEED_FLOCK_WAIT_SEC:-8}"
+        max_attempts="${MYRM_E2E_MODEL_SEED_PARALLEL_RETRIES:-2}"
+      fi
     fi
     for attempt in $(seq 1 "${max_attempts}"); do
       _admit_poll_touch "CHROME_E2E_MODEL_SEED"

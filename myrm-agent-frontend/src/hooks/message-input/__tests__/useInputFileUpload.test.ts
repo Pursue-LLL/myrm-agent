@@ -169,6 +169,26 @@ describe('useInputFileUpload', () => {
       expect(mockUploadFiles).toHaveBeenCalledWith([pdf], expect.anything());
     });
 
+    it('maps uploaded fileId onto ChatFile.id for uploaded_file_ids', async () => {
+      mockUploadFiles.mockResolvedValue({
+        uploaded_count: 1,
+        files: [{ fileId: 'fid-abc', fileName: 'photo.jpg', fileUrl: '/f/photo.jpg' }],
+      });
+      const setFiles = vi.fn<(files: UploadParams['files']) => void>();
+      const { result } = renderHook(() =>
+        useInputFileUpload({ ...defaultParams, setFiles }),
+      );
+      const img = new File(['x'], 'photo.jpg', { type: 'image/jpeg' });
+
+      await act(async () => {
+        await result.current.handleDroppedFiles([img]);
+      });
+
+      expect(setFiles).toHaveBeenCalledWith([
+        expect.objectContaining({ id: 'fid-abc', fileName: 'photo.jpg' }),
+      ]);
+    });
+
     it('should not preventDefault when clipboard has only text (no files)', async () => {
       const { result } = renderHook(() => useInputFileUpload(defaultParams));
       const event = createClipboardEventWithTextOnly();

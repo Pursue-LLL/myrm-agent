@@ -8,20 +8,20 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `cron-blueprints.ts` | 数据/逻辑 | 蓝图 catalog 自 API `/cron/blueprints` 加载（含 slot `optional`；无离线 fallback）；`buildBlueprintCreatePayload` 仅走 `POST /blueprints/fill` SSOT，并透传 fill 返回的 `job_defaults`（job_type/session_target/monitor/failure_alert/pre_condition）；`buildScheduleFromSlots` 仅用于 preview；`blueprintSnakeToCamel`/`resolveBlueprint*Key` i18n 键映射、`loadBlueprints()`；`humanizeSchedule(schedule, t, locale)` schedule 预览纯函数（注入 `t`+`locale`，复用 `cron.schedule.*` keys 与 `blueprint.day*` 星期 keys；once 分支走 locale-aware `formatTime`，SSR/CSR 一致；只解释 day-of-week 自由（dom/mon=`*`）的 cadence，dom/mon 约束的 monthly/yearly、dow range 及非 5 字段表达式（seconds/year 形式）回退原始片段，防误导与 i18n key 泄漏） | ✅ |
+| `cron-blueprints.ts` | 数据/逻辑 | 蓝图 catalog 自 API `/cron/blueprints` 加载（含 slot `optional`；无离线 fallback）；`buildBlueprintCreatePayload` 仅走 `POST /blueprints/fill` SSOT，并透传 fill 返回的 `job_defaults`（job_type/session_target/monitor/failure_alert/pre_condition）；`buildScheduleFromSlots` 仅用于 preview；`blueprintSnakeToCamel`/`resolveBlueprint*Key` i18n 键映射、`loadBlueprints()`；`humanizeSchedule(schedule, t, locale)` schedule 预览纯函数（注入 `t`+`locale`，复用 `cron.schedule.*` keys 与 `blueprint.day*` 星期 keys；once 分支走 locale-aware `formatTime`，SSR/CSR 一致；只解释 day-of-week 自由（dom/mon=`*`）的 cadence，dom/mon 约束的 monthly/yearly、dow range 及非 5 字段表达式（seconds/year 形式）回退完整原始 expr，防误导与 i18n key 泄漏） | ✅ |
 | `BlueprintCatalog.tsx` | 组件 | 模板卡片网格（API catalog + 加载失败重试；`useLocale()` 展示 title/description，slot 标签走 locale JSON） | ✅ |
 | `BlueprintInlineFill.tsx` | 组件 | 内联模板填写表单（`useLocale()` 解析 API 标题；CronJobCreateDialog 内使用），含 delivery channel 选择；周期调度时展示 `CronDeployModeNotice` | ✅ |
 | `BlueprintFillDialog.tsx` | 组件 | 模板参数填写弹窗；创建成功后展示审计 + pause gate | ✅ |
 | `CronAcceptanceCriteriaEditor.tsx` | 组件 | 任务详情 acceptance_criteria PATCH 编辑 | ✅ |
-| `cronCreateAuditGate.ts`（lib/cron） | 辅助 | Settings 创建 audit policy + pause/resume 门禁 | ✅ |
+| `cronCreateAuditGate.ts`（[`lib/cron/`](../../../lib/cron/_ARCH.md)） | 辅助 | Settings 创建 audit policy + pause/resume 门禁；同目录 `buildCronAuditFields.ts` 提供六字段 audit 快照 | ✅ |
 | `ActiveHoursEditor.tsx` | 组件 | 活跃时段（active hours）可视化编辑器 | ✅ |
 | `AllowedRootsEditor.tsx` | 组件 | Cron 允许工作目录 roots 列表编辑 | ✅ |
 | `CapabilityEditor.tsx` | 组件 | Cron Agent 执行策略：能力围栏 + 内置工具范围（preset 与 server blueprints SSOT 对齐；cap/tool 预设 research/devops/webOnly/full 均双写 caps+tools；devops 含 code_interpreter_tool；六语 i18n） | ✅ |
 | `CronAdvancedEditors.tsx` | 组件 | 高级选项折叠区（timeout/retry/concurrency） | ✅ |
 | `CronDeliveryEditors.tsx` | 组件 | 投递渠道（email/webhook/push）配置编辑器 | ✅ |
 | `CronJobAuditPanel.tsx` | 组件 | Hermes 六字段 Cron 创建审计 + Confirm 门禁（聊天/创建弹窗/详情页复用） | ✅ |
-| `CronJobCard.tsx` | 核心 | 单条 Cron 任务卡片（状态/上次运行/下次运行/快捷操作）；`ScheduleLabel` 统一 humanize 展示（interval/once/cron 全走 i18n，cron 复用 `humanizeSchedule`，六语）；active 周期任务若 next_run 超期 10min 显示 overdue 诚实警示条（本地=本机休眠/未运行 Myrm 原因；云端=调度顺延）；`last_run_at` 以相对时间旁注展示（error/skipped 状态着色，Tooltip 显示完整时间与状态），曝光"看似活跃实则静默失败"；卡片可键盘访问（Enter/Space 打开，role=button + tabIndex） | ✅ |
-| `CronJobCreateDialog.tsx` | 组件 | 创建弹窗（Template/Custom；Agent 模式可选 **trust_latch** DW 模板 + ArgsDialog；创建成功后展示审计面板）；Custom 流周期调度时展示 `CronDeployModeNotice` 部署感知提示条 | ✅ |
+| `CronJobCard.tsx` | 核心 | 单条 Cron 任务卡片（状态/上次运行/下次运行/快捷操作）；`ScheduleLabel` 全委托 `humanizeSchedule`（cron/interval/once 与 blueprint 预览同一 SSOT，六语）；active 周期任务若 next_run 超期 10min 显示 overdue 诚实警示条（本地=本机休眠/未运行 Myrm 原因；云端=调度顺延）；`last_run_at` 以相对时间旁注展示（error/skipped 状态着色，Tooltip 显示完整时间与状态），曝光"看似活跃实则静默失败"；卡片可键盘访问（Enter/Space 打开，role=button + tabIndex） | ✅ |
+| `CronJobCreateDialog.tsx` | 组件 | 创建弹窗（Template/Custom；Agent 模式可选 **trust_latch** DW 模板 + ArgsDialog；创建成功后展示审计面板）；Custom 流 schedule 输入下方 live preview 委托 `humanizeSchedule`（与 Blueprint/列表卡片同一 SSOT）；周期调度时展示 `CronDeployModeNotice` 部署感知提示条 | ✅ |
 | `CronDeployModeNotice.tsx` | 组件 | 部署感知提示条（复用 `hooks/shared/useDeployMode`，零网络请求）：本地/tauri=本机执行前提 checklist + 休眠抑制说明；sandbox=7×24 云端执行卖点；mode 加载中不渲染 | ✅ |
 | `CronWorkflowTemplateBinding.tsx` | 组件 | Cron 卡片/详情展示绑定的 DW 模板名、args 与 Library 链接；invalid 绑定 amber Badge | ✅ |
 | `WorkflowTemplateEditor.tsx` | 组件 | Cron 详情编辑 workflow 模板绑定与 args（PATCH + ArgsDialog）；server display_name 驱动 missing 警告 + 解除绑定 | ✅ |
@@ -31,9 +31,11 @@
 | `CronRunHistory.tsx` | 组件 | 单任务详情：六字段审计 + 运行历史 + per-job 编辑器 + Shared Context 绑定 | ✅ |
 | `CronRunItem.tsx` | 组件 | 单次运行记录行（状态/耗时/log 链接），含 `monitor_contract_error` 显式提示与连续失败次数展示（badge + 展开告警） | ✅ |
 | `CronStatsBar.tsx` | 组件 | 任务统计摘要条（成功/失败/活跃数） | ✅ |
-| `SchedulerHealthBadge.tsx` | 组件 | 调度器存活状态 Badge（绿/黄/红），30s 轮询 GET /cron/scheduler/health | ✅ |
-| `CronTriggerEditor.tsx` | 组件 | Cron 触发器编辑（Webhook/Event/System） | ✅ |
+| `SchedulerHealthBadge.tsx` | 组件 | 调度器存活状态 Badge（绿/黄/红）；poll 委托 [`lib/cron/schedulerHealth.ts`](../../../lib/cron/schedulerHealth.ts) 与 AppLayout banner 共用 single-flight | ✅ |
+| `CronTriggerEditor.tsx` | 组件 | Cron 触发器编辑（Webhook/Event/Stream/Poll）；组合 `StreamTriggerSection` 与 `PollTriggerSection` 子表单 | ✅ |
 | `CronTriggerWebhookDisplay.tsx` | 组件 | Webhook URL/Secret/cURL 展示与复制 | ✅ |
+| `PollTriggerSection.tsx` | 组件 | Poll 触发器草稿表单（URL + JSON path + interval），由 `CronTriggerEditor` 引用 | ✅ |
+| `StreamTriggerSection.tsx` | 组件 | Stream 触发器草稿表单（WS/SSE URL + filter），由 `CronTriggerEditor` 引用 | ✅ |
 | `CronUsageStats.tsx` | 组件 | Cron 配额/用量统计图表 | ✅ |
 | `EditorToggle.tsx` | 辅助 | Simple/Advanced 编辑器模式切换 | ✅ |
 | `GlobalRunHistory.tsx` | 组件 | 全局 Cron 运行历史聚合视图 | ✅ |
@@ -43,4 +45,6 @@
 ## 依赖
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`
+- [`lib/cron/`](../../../lib/cron/_ARCH.md) — 审计字段与 Settings 创建门禁纯函数
+- [`lib/utils/cronEstimate.ts`](../../../lib/utils/cronEstimate.ts) — 创建弹窗月度执行频率估算（`CronJobCreateDialog`）
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)

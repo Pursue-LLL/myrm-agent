@@ -33,7 +33,7 @@ import ChannelIcon from '@/components/features/settings/sections/integration/cha
 import BlueprintCatalog from './BlueprintCatalog';
 import BlueprintInlineFill from './BlueprintInlineFill';
 import CronDeployModeNotice from './CronDeployModeNotice';
-import { CRON_PRESETS, type CronBlueprint } from './cron-blueprints';
+import { CRON_PRESETS, humanizeSchedule, type CronBlueprint } from './cron-blueprints';
 import type { CronJob } from '@/services/cron.types';
 import { prepareJobForSettingsAudit, canDismissSettingsAuditFlow } from '@/lib/cron/cronCreateAuditGate';
 import { CronJobAuditPanel } from './CronJobAuditPanel';
@@ -641,6 +641,15 @@ export default function CronJobCreateDialog({
                 onChange={(e) => setOnceAt(e.target.value)}
                 className="h-8 text-sm"
               />
+            )}
+
+            {schedule && (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                <p className="text-xs text-muted-foreground">
+                  <Sparkles className="h-3 w-3 inline mr-1" />
+                  {humanizeSchedule(schedule, t, locale)}
+                </p>
+              </div>
             )}
           </div>
 

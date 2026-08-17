@@ -11414,7 +11414,6 @@
     "title": "定時任務",
     "loading": "載入中...",
     "empty": "暫無定時任務",
-    "once": "一次性",
     "cancel": "取消",
     "trigger": "立即執行",
     "pause": "暫停",
@@ -11483,7 +11482,6 @@
     "lastRunLabel": "上次執行",
     "lastRunTooltip": "執行時間 {time}",
     "createdAt": "建立於",
-    "interval": "每 {value}",
     "noModel": "未配置模型",
     "tabJobs": "任務列表",
     "tabAllRuns": "全部執行記錄",
@@ -11781,6 +11779,13 @@
       "stopped": "排程器已停止",
       "lastTick": "上次心跳",
       "errors": "錯誤次數"
+    },
+    "schedulerBanner": {
+      "degradedTitle": "定時任務可能延遲執行",
+      "degradedDescription": "任務排程器運行異常，您的定時任務可能無法按時執行。",
+      "stoppedTitle": "定時任務已停止運行",
+      "stoppedDescription": "任務排程器已停止，所有定時任務都不會執行，直到排程器恢復。",
+      "viewCron": "查看定時任務"
     },
     "blueprint": {
       "quickStart": "從模板快速建立",

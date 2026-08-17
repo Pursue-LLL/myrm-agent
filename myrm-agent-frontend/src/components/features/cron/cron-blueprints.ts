@@ -276,8 +276,7 @@ export function humanizeSchedule(schedule: CronSchedule, t: ScheduleT, locale: s
   // Cron expressions with anything other than the standard 5 fields (e.g. a
   // 6/7-field form with seconds or year) have positional meaning we do not
   // model — humanizing by destructuring the first five would silently drop
-  // fields and mislead. Fall back to the raw expression, mirroring the
-  // competitor (Hermes describeCronExpression) policy.
+  // fields and mislead. Fall back to the raw expression.
   if (parts.length !== 5) {return schedule.expr;}
   const [min, hour, dom, mon, dow] = parts;
   const time = `${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
@@ -292,9 +291,9 @@ export function humanizeSchedule(schedule: CronSchedule, t: ScheduleT, locale: s
     .split(',')
     .map((d) => WEEKDAY_KEYS[d] ?? '');
   // If any day-of-week segment uses an expression form we cannot map (e.g. a range
-  // like `1-3`), fall back to the raw expression fragment instead of leaking an
-  // i18n key through t().
-  if (dayKeys.some((k) => !k)) {return `${dow} at ${time}`;}
+  // like `1-3`), fall back to the full cron expression — partial fragments would
+  // drop fields and may embed untranslated glue words.
+  if (dayKeys.some((k) => !k)) {return schedule.expr;}
   const dayNames = dayKeys.map((k) => t(`blueprint.${k}`)).join(', ');
   return t('schedule.weekdayListAt', { days: dayNames, time });
 }

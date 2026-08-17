@@ -24,7 +24,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `AppLayout.tsx` | 主布局：三模式路由映射、侧栏 + 内容区；`LocalBackendUnavailableBanner` + `ConfigReadinessDegradedBanner` |
+| `AppLayout.tsx` | 主布局：三模式路由映射、侧栏 + 内容区；`LocalBackendUnavailableBanner` + `CronSchedulerHealthBanner` + `ConfigReadinessDegradedBanner` |
 | `useAppLayoutState.ts` | AppLayout 状态/effect 逻辑（响应式、Tab 路由、侧栏宽度） |
 | `MobileSidebarDrawer.tsx` | 移动端滑出式 NavBar + ContentSidebar |
 | `NavBar.tsx` | 侧栏导航，三模式 Tab（Chat / Work / Projects）+ 快捷入口 |

@@ -11492,7 +11492,6 @@
     "title": "定时任务",
     "loading": "加载中...",
     "empty": "暂无定时任务",
-    "once": "一次性",
     "cancel": "取消",
     "trigger": "立即执行",
     "pause": "暂停",
@@ -11561,7 +11560,6 @@
     "lastRunLabel": "上次执行",
     "lastRunTooltip": "执行时间 {time}",
     "createdAt": "创建于",
-    "interval": "每 {value}",
     "noModel": "未配置模型",
     "tabJobs": "任务列表",
     "tabAllRuns": "全部执行记录",
@@ -11913,6 +11911,13 @@
       "stopped": "调度器已停止",
       "lastTick": "上次心跳",
       "errors": "错误次数"
+    },
+    "schedulerBanner": {
+      "degradedTitle": "定时任务可能延迟执行",
+      "degradedDescription": "任务调度器运行异常，您的定时任务可能无法按时执行。",
+      "stoppedTitle": "定时任务已停止运行",
+      "stoppedDescription": "任务调度器已停止，所有定时任务都不会执行，直到调度器恢复。",
+      "viewCron": "查看定时任务"
     },
     "blueprint": {
       "quickStart": "从模板快速创建",

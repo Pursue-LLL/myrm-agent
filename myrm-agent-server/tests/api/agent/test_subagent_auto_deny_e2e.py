@@ -29,8 +29,13 @@ def get_test_request(query: str, chat_id: str, message_id: str):
 )
 def test_subagent_auto_deny_high_risk(client: TestClient):
     """
-    Test that a subagent's high-risk operation is auto-denied because subagents
-    do not support HITL interrupt.
+    Regression guard: a subagent high-risk bash attempt must not silently succeed.
+
+    With shared checkpointer + parent interrupt propagation, regular subagents suspend
+    for HITL instead of global auto-deny. This test still asserts the stream surfaces
+    deny/error/rejection keywords when the child cannot complete the risky command
+    without an explicit approval path (e.g. delegate never reaches bash, or fallback
+    auto-deny for shadow/no-task_id contexts).
     """
     chat_id = str(uuid.uuid4())
     message_id = str(uuid.uuid4())
