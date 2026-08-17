@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
 import httpx
@@ -75,7 +76,10 @@ class CloudflarePagesProvider:
                         status="ERROR",
                         error=f"Cloudflare project create failed: {create_resp.text[:300]}",
                     )
-                project_ref = str(create_resp.json().get("result", {}).get("name", project_name))
+                try:
+                    project_ref = str(create_resp.json().get("result", {}).get("name", project_name))
+                except json.JSONDecodeError:
+                    project_ref = project_name
             else:
                 project_ref = existing_project_ref
             deploy_url = f"{base}/{project_ref}/deployments"
@@ -94,7 +98,17 @@ class CloudflarePagesProvider:
                 status="ERROR",
                 error=f"Cloudflare deploy failed: {response.text[:300]}",
             )
-        payload = response.json().get("result", {})
+        try:
+            payload = response.json().get("result", {})
+        except json.JSONDecodeError:
+            return PublicationResult(
+                success=False,
+                url="",
+                publication_id="",
+                project_ref=project_ref,
+                status="ERROR",
+                error=f"Cloudflare deploy returned non-JSON response: {response.text[:300]}",
+            )
         deployment_id = str(payload.get("id", ""))
         url = str(payload.get("url") or payload.get("aliases", [""])[0] if payload.get("aliases") else "")
         if url and not url.startswith("http"):

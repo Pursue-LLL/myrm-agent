@@ -96,6 +96,41 @@ async def test_netlify_test_connection_success() -> None:
 
 
 @pytest.mark.asyncio
+async def test_netlify_publish_non_json_response() -> None:
+    provider = NetlifyHostingProvider()
+    target = HostingTarget(
+        id="netlify-1",
+        name="Netlify",
+        provider_type="netlify",
+        config={"site_id": "site_123"},
+        is_default=False,
+    )
+    files = {"index.html": PublishFile(path="index.html", content="<html/>")}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(200, text="<html>Gateway error page</html>", request=request)
+        return httpx.Response(404, request=request)
+
+    transport = httpx.MockTransport(handler)
+    with patch(
+        "app.services.hosting.providers.netlify.httpx.AsyncClient",
+        return_value=httpx.AsyncClient(transport=transport, follow_redirects=False),
+    ):
+        result = await provider.publish(
+            target=target,
+            credentials={"access_token": "nl_tok"},
+            artifact_id="art-1",
+            artifact_name="demo",
+            files=files,
+            existing_project_ref=None,
+        )
+
+    assert result.success is False
+    assert "non-JSON" in result.error
+
+
+@pytest.mark.asyncio
 async def test_netlify_publish_missing_credentials() -> None:
     provider = NetlifyHostingProvider()
     target = HostingTarget(id="n1", name="N", provider_type="netlify", config={}, is_default=False)

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
 import httpx
@@ -73,7 +74,17 @@ class NetlifyHostingProvider:
                 status="ERROR",
                 error=f"Netlify deploy failed: {response.text[:300]}",
             )
-        payload = response.json()
+        try:
+            payload = response.json()
+        except json.JSONDecodeError:
+            return PublicationResult(
+                success=False,
+                url="",
+                publication_id="",
+                project_ref=site_id,
+                status="ERROR",
+                error=f"Netlify deploy returned non-JSON response: {response.text[:300]}",
+            )
         deploy_id = str(payload.get("id", ""))
         deploy_url = str(payload.get("ssl_url") or payload.get("url") or "")
         return PublicationResult(

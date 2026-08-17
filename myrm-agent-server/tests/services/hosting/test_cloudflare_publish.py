@@ -140,6 +140,41 @@ async def test_cloudflare_publish_reuses_existing_project() -> None:
 
 
 @pytest.mark.asyncio
+async def test_cloudflare_publish_non_json_deploy_response() -> None:
+    provider = CloudflarePagesProvider()
+    target = HostingTarget(
+        id="cf-1",
+        name="CF",
+        provider_type="cloudflare_pages",
+        config={"account_id": "acc_1"},
+        is_default=False,
+    )
+    files = {"index.html": PublishFile(path="index.html", content="<html/>")}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and "/deployments" in request.url.path:
+            return httpx.Response(200, text="<html>Gateway error page</html>", request=request)
+        return httpx.Response(404, request=request)
+
+    transport = httpx.MockTransport(handler)
+    with patch(
+        "app.services.hosting.providers.cloudflare_pages.httpx.AsyncClient",
+        return_value=httpx.AsyncClient(transport=transport, follow_redirects=False),
+    ):
+        result = await provider.publish(
+            target=target,
+            credentials={"api_token": "cf_tok"},
+            artifact_id="art-1",
+            artifact_name="Demo",
+            files=files,
+            existing_project_ref="existing",
+        )
+
+    assert result.success is False
+    assert "non-JSON" in result.error
+
+
+@pytest.mark.asyncio
 async def test_cloudflare_poll_status_failure_stage() -> None:
     provider = CloudflarePagesProvider()
     target = HostingTarget(
