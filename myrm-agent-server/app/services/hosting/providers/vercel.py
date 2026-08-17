@@ -9,7 +9,7 @@ import logging
 
 from app.services.hosting.packager import PublishFile
 from app.services.hosting.types import HostingTarget, PublicationResult
-from app.services.hosting.vercel_client import VercelClient
+from app.services.hosting.providers.vercel_client import VercelClient
 
 logger = logging.getLogger(__name__)
 

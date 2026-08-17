@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from app.services.hosting.packager import PublishFile
-from app.services.hosting.vercel_client import VercelClient
+from app.services.hosting.providers.vercel_client import VercelClient
 
 
 @pytest.fixture

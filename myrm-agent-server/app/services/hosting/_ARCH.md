@@ -21,9 +21,8 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 | `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — publish/share 共用 |
 | `preflight.py` | ✅ 核心 | 发布前门禁 |
 | `ssrf_guard.py` | ✅ 核心 | Webhook URL SSRF 校验 |
-| `vercel_client.py` | ✅ 核心 | Vercel API v13 客户端 |
 | `agent_publish_tool.py` | ✅ 核心 | Agent LangChain tool factory；conditional mount（hosting 已配置时加载）；复用 `orchestrator.publish_artifact_to_target` |
-| `providers/*.py` | ✅ 核心 | 四平台 HostingProvider 实现 |
+| `providers/*.py` | ✅ 核心 | 四平台 HostingProvider 实现（`vercel_client.py` 为 Vercel provider 私有 API 客户端，同域内） |
 
 ---
 
