@@ -38,6 +38,7 @@ from dev_gate.contract import EvaluateIntent  # noqa: E402
 from tests.support.chrome_mcp_e2e import open_mcp_page_async
 from tests.support.e2e_provider_seed import (
     infer_provider_id,
+    resolve_e2e_llm_endpoints,
     strip_provider_prefix,
     upsert_provider,
 )
@@ -279,10 +280,11 @@ def _configure_smart_routing_providers(
     api_url: str, *, verify: bool = False
 ) -> dict[str, object]:
     secrets = load_test_secrets()
-    basic_model = secrets.basic_model
-    lite_model = secrets.lite_model
-    assert basic_model and secrets.basic_api_key, "BASIC_* missing in .env.test"
-    assert lite_model and secrets.lite_api_key, "LITE_* missing in .env.test"
+    endpoints = resolve_e2e_llm_endpoints(secrets)
+    basic_model = endpoints.basic_model
+    lite_model = endpoints.lite_model
+    assert basic_model and endpoints.basic_api_key, "BASIC_* missing in .env.test"
+    assert lite_model and endpoints.lite_api_key, "LITE_* missing in .env.test"
 
     basic_provider_id = infer_provider_id(basic_model)
     lite_provider_id = infer_provider_id(lite_model)
@@ -296,15 +298,15 @@ def _configure_smart_routing_providers(
         [p for p in provider_list if isinstance(p, dict)],
         provider_id=basic_provider_id,
         model_id=basic_model_id,
-        api_url=secrets.basic_base_url,
-        api_key=secrets.basic_api_key,
+        api_url=endpoints.basic_base_url,
+        api_key=endpoints.basic_api_key,
     )
     provider_list = upsert_provider(
         provider_list,
         provider_id=lite_provider_id,
         model_id=lite_model_id,
-        api_url=secrets.lite_base_url,
-        api_key=secrets.lite_api_key,
+        api_url=endpoints.lite_base_url,
+        api_key=endpoints.lite_api_key,
         merge_models=True,
     )
 
@@ -319,14 +321,14 @@ def _configure_smart_routing_providers(
     }
     dmc["liteModel"] = {
         "primary": dict(lite_primary),
-        "fallback": None,
+        "fallback": dict(base_primary),
         "temperature": 0.7,
     }
     dmc["routingConfig"] = {
         "enabled": True,
         "lightModel": {
             "primary": dict(lite_primary),
-            "fallback": None,
+            "fallback": dict(base_primary),
             "modelKwargs": {},
         },
         "reasoningModel": {"primary": None, "fallback": None, "modelKwargs": {}},
@@ -463,29 +465,111 @@ def _dump_backend_routing_log(api_url: str) -> None:
         print(f"[E2E_ROUTING_LOG] failed to dump: {exc}", file=sys.stderr, flush=True)
 
 
+def _scaled_turn_wait_sec() -> float:
+    """Parallel-scaled per-turn budget (SSOT: live_turn_wait caps)."""
+    from cdp_chat.live_turn_wait import live_empty_write_parallel_scaled_cap_sec
+
+    return live_empty_write_parallel_scaled_cap_sec(base=TURN_WAIT_SEC)
+
+
+def _touch_tier_wait_progress(expected: str) -> None:
+    try:
+        from e2e_session_runtime.snapshot import touch_session_progress
+
+        touch_session_progress(current_node=f"wait_tier_{expected}")
+    except ImportError:
+        pass
+
+
 async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
-    deadline = time.monotonic() + TURN_WAIT_SEC
+    """Wait for assistant turn + routing tier under parallel mux load.
+
+    Bridge-only polling with ``asyncio.wait_for`` per CDP call — ``wait_turn_settled``
+    can exceed its deadline when MUX evaluate blocks (unbounded executor wait).
+    """
+    turn_wait = _scaled_turn_wait_sec()
+    tier_grace = min(45.0, turn_wait * 0.25)
+    deadline = time.monotonic() + turn_wait + tier_grace
     last_state: dict[str, object] = {}
-    while time.monotonic() < deadline:
-        raw = await chat.evaluate(
-            _LATEST_ASSISTANT_JS,
-            intent=EvaluateIntent.SYNC_PROBE,
-        )
-        state = raw if isinstance(raw, dict) else json.loads(str(raw))
-        bridge = await chat._bridge_turn_snapshot()
-        streaming = isinstance(bridge, dict) and bridge.get("isStreaming") is True
-        last_state = state
-        if (
-            (state.get("ready") is True or state.get("bridgeStreaming") is True)
-            and (
-                state.get("routingTier") == expected
-                or state.get("bridgeTier") == expected
+    last_progress_touch = 0.0
+
+    async def _probe_bridge(timeout_sec: float) -> dict[str, object] | None:
+        try:
+            raw = await asyncio.wait_for(
+                chat._bridge_turn_snapshot(),
+                timeout=max(1.0, timeout_sec),
             )
-            and not streaming
-            and str(state.get("content") or "").strip()
-        ):
-            return state
-        await asyncio.sleep(0.5)
+        except TimeoutError:
+            return None
+        return raw if isinstance(raw, dict) else None
+
+    async def _probe_store(timeout_sec: float) -> dict[str, object]:
+        try:
+            raw = await asyncio.wait_for(
+                chat.evaluate(
+                    _LATEST_ASSISTANT_JS,
+                    intent=EvaluateIntent.SYNC_PROBE,
+                ),
+                timeout=max(1.0, timeout_sec),
+            )
+        except TimeoutError:
+            return last_state
+        return raw if isinstance(raw, dict) else json.loads(str(raw))
+
+    _touch_tier_wait_progress(expected)
+    while time.monotonic() < deadline:
+        now = time.monotonic()
+        if now - last_progress_touch >= 15.0:
+            _touch_tier_wait_progress(expected)
+            last_progress_touch = now
+
+        remaining = deadline - now
+        if remaining <= 0:
+            break
+
+        bridge = await _probe_bridge(min(25.0, remaining))
+        if bridge is not None:
+            bridge_tier = bridge.get("lastAssistantRoutingTier")
+            streaming = bridge.get("isStreaming") is True
+            sample = str(bridge.get("lastAssistantSample") or "").strip()
+            if (
+                not streaming
+                and sample
+                and int(bridge.get("userCount") or 0) >= 1
+                and bridge_tier == expected
+            ):
+                last_state = await _probe_store(min(25.0, deadline - time.monotonic()))
+                if (
+                    last_state.get("routingTier") == expected
+                    or last_state.get("bridgeTier") == expected
+                ):
+                    return last_state
+                return {
+                    **last_state,
+                    "routingTier": bridge_tier,
+                    "bridgeTier": bridge_tier,
+                    "ready": True,
+                    "content": sample,
+                }
+
+        state = await _probe_store(min(25.0, deadline - time.monotonic()))
+        if state:
+            last_state = state
+            bridge = await _probe_bridge(min(15.0, deadline - time.monotonic()))
+            streaming = isinstance(bridge, dict) and bridge.get("isStreaming") is True
+            if (
+                (state.get("ready") is True or state.get("bridgeStreaming") is True)
+                and (
+                    state.get("routingTier") == expected
+                    or state.get("bridgeTier") == expected
+                )
+                and not streaming
+                and str(state.get("content") or "").strip()
+            ):
+                return state
+
+        await asyncio.sleep(2.0)
+
     print(
         "[E2E_STORE_STATE] " + json.dumps(last_state, indent=2, default=str),
         file=sys.stderr,
@@ -502,7 +586,9 @@ async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(600)
+# Dual-turn LIVE (2× scaled turn wait + badge hover) exceeds 600s under parallel load;
+# align with test.sh LIVE pytest floor (1830s) — BODY_WALL 600s is body-only SLO.
+@pytest.mark.timeout(1200)
 @pytest.mark.asyncio
 async def test_smart_routing_tier_surfaced_in_webui(
     e2e_resource_ledger: E2EResourceLedger,

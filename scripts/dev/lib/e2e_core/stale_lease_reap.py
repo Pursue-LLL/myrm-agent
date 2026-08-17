@@ -61,6 +61,10 @@ def _process_has_desktop_soak_env(pid: int) -> bool:
     return "MYRM_E2E_DESKTOP_SOAK=1" in _process_ps_environ(pid)
 
 
+def _process_has_hitl_multi_round_env(pid: int) -> bool:
+    return "MYRM_E2E_HITL_MULTI_ROUND=1" in _process_ps_environ(pid)
+
+
 def _process_env_value(pid: int, key: str) -> str | None:
     prefix = f"{key}="
     for token in _process_ps_environ(pid).split():
@@ -123,12 +127,21 @@ def _pytest_timeout_sec_for_pid(pid: int) -> int | None:
     return int(match.group(1))
 
 
-def _body_wall_cap_for_pid(pid: int) -> float:
+def _body_wall_cap_for_pid(pid: int, *, test_id: str | None = None) -> float:
     """BODY hung-reap cap aligned with resolve_budget_policy SSOT (incl. batch BODY sec)."""
     if _process_has_desktop_soak_env(pid):
         pytest_cap = _pytest_timeout_sec_for_pid(pid)
         if pytest_cap is not None:
             return float(pytest_cap)
+    from dev_gate.contract import (  # noqa: PLC0415
+        LIVE_AGENT_HITL_MULTI_ROUND_BODY_WALL_CLOCK_SEC,
+        hitl_multi_round_chrome_e2e_test_id,
+    )
+
+    if hitl_multi_round_chrome_e2e_test_id(test_id) or _process_has_hitl_multi_round_env(
+        pid
+    ):
+        return float(LIVE_AGENT_HITL_MULTI_ROUND_BODY_WALL_CLOCK_SEC)
     if not _process_has_signoff_env(pid):
         try:
             from mux.transport_supervisor import live_agent_body_wall_cap_sec
@@ -220,7 +233,7 @@ def _hung_reason_for_row(
                     E2E_BODY_WALL_EXCEEDED_TOKEN,
                 )  # noqa: PLC0415
 
-                body_cap = _body_wall_cap_for_pid(row.pid)
+                body_cap = _body_wall_cap_for_pid(row.pid, test_id=row.test_id)
                 if body_elapsed_hard >= body_cap:
                     return (
                         f"{E2E_BODY_WALL_EXCEEDED_TOKEN}: "
@@ -284,7 +297,7 @@ def _hung_reason_for_row(
         if body_elapsed is not None:
             from dev_gate.contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
 
-            body_cap = _body_wall_cap_for_pid(row.pid)
+            body_cap = _body_wall_cap_for_pid(row.pid, test_id=row.test_id)
             if body_elapsed >= body_cap:
                 return (
                     f"{E2E_BODY_WALL_EXCEEDED_TOKEN}: "
@@ -588,7 +601,7 @@ def _body_wall_exceeded_reason(row: LiveE2ESessionRow) -> str | None:
         return None
     from dev_gate.contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
 
-    body_cap = _body_wall_cap_for_pid(row.pid)
+    body_cap = _body_wall_cap_for_pid(row.pid, test_id=row.test_id)
     if float(body_elapsed) >= body_cap:
         return (
             f"{E2E_BODY_WALL_EXCEEDED_TOKEN}: "
@@ -644,7 +657,7 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
             return None
         # 普通 node 在 body 阶段仍 defer 到 BODY wall（body 预算内 node 卡死
         # 不判 hung，与 Phase C defer 语义冲突时以 BODY 总时长为准）。
-        if elapsed_f < _body_wall_cap_for_pid(row.pid):
+        if elapsed_f < _body_wall_cap_for_pid(row.pid, test_id=row.test_id):
             return None
     if wall == "bootstrap":
         from dev_gate.contract import (  # noqa: PLC0415
@@ -868,7 +881,7 @@ def _session_row_is_healthy_body(row: LiveE2ESessionRow) -> bool:
     if snapshot is None:
         return False
     body_elapsed = body_elapsed_from_snapshot(snapshot)
-    body_cap = _body_wall_cap_for_pid(row.pid)
+    body_cap = _body_wall_cap_for_pid(row.pid, test_id=row.test_id)
     if body_elapsed is None or body_elapsed >= body_cap:
         return False
     if node_stuck_reason_from_snapshot(snapshot) is not None:
@@ -1030,7 +1043,7 @@ def _past_body_wall_cap(row: LiveE2ESessionRow, reason: str) -> bool:
     """True when hung reason exceeds per-process BODY wall SSOT."""
     from dev_gate.contract import E2E_BODY_WALL_EXCEEDED_TOKEN  # noqa: PLC0415
 
-    cap = _body_wall_cap_for_pid(row.pid)
+    cap = _body_wall_cap_for_pid(row.pid, test_id=row.test_id)
     if E2E_BODY_WALL_EXCEEDED_TOKEN in reason:
         body_elapsed = _elapsed_sec_from_reason(reason, prefix="body_elapsed")
         return body_elapsed is not None and body_elapsed >= cap

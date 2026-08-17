@@ -1,4 +1,7 @@
-"""Validate that live E2E tests own an active immutable-wave lease."""
+"""@input: e2e_core.resource_ledger::E2EResourceLedger (POS: E2E 资源账本), e2e_session_runtime.heartbeat (POS: 统一 session heartbeat), e2e_core.runtime_identity (POS: stack-scoped runtime id SSOT)
+@output: assert_e2e_runtime_guard(), assert_chrome_attach_health(), E2EResourceLedger re-export, lease heartbeat context managers
+@pos: [T] LIVE Chrome E2E runtime guard — immutable-wave lease validation and Chrome mux/CDP attach health fail-fast.
+"""
 
 from __future__ import annotations
 
@@ -58,7 +61,10 @@ def e2e_lease_heartbeat_loop(
     *, interval_sec: float = _E2E_HEARTBEAT_INTERVAL_SEC
 ) -> Iterator[None]:
     """Background heartbeat for long-running live E2E tests."""
-    from e2e_session_runtime.heartbeat import heartbeat_once, pytest_should_spawn_heartbeat_loop
+    from e2e_session_runtime.heartbeat import (
+        heartbeat_once,
+        pytest_should_spawn_heartbeat_loop,
+    )
 
     heartbeat_once()
     if not pytest_should_spawn_heartbeat_loop():
@@ -131,9 +137,10 @@ def _runtime_drift_heal_allowed() -> bool:
 
 def _signoff_runtime_drift_sync_allowed() -> bool:
     """Signoff/desktop soak may sync lease runtimeId in pytest fixture setup."""
-    return os.environ.get("E2E_SIGNOFF", "").strip() == "1" or os.environ.get(
-        "MYRM_E2E_DESKTOP_SOAK", ""
-    ).strip() == "1"
+    return (
+        os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+        or os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() == "1"
+    )
 
 
 def _sync_signoff_runtime_drift(*, lease_id: str) -> str | None:
@@ -520,7 +527,7 @@ def assert_chrome_attach_health() -> None:
         / "dev"
         / "lib"
         / "e2e_core"
-        / "e2e_core.runtime_identity.py"
+        / "runtime_identity.py"
     )
     ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
     api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")

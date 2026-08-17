@@ -8,7 +8,7 @@ Dev Gate 协调层：session 注册、lease/credit、launch-check、cleanup.seal
 
 | 文件 | 职责 |
 |------|------|
-| `contract.py` | 超时、token、pytest floor SSOT |
+| `contract.py` | 超时、token、pytest floor SSOT；`chrome_e2e_skips_attach_health_reprobe`（含 `MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH` burst lane） |
 | `session.py` | ExecutionMode / AccessScope / 状态机 |
 | `store.py` | SQLite WAL registry + event journal |
 | `coordinator.py` | Unix socket 协调器 serve loop |

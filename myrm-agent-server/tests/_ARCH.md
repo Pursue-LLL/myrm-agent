@@ -11,7 +11,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `conftest.py` | 核心 | 进程级 `.env` + [T] secrets bootstrap、隔离 workspace、`test_secrets` session fixture、integration/e2e 路径每测后 `reset_global_browser_pool_for_tests()`、session 结束 + `@chrome_e2e` timeout 时 `reset_database_engine()` + `reap_chrome_e2e_session_hygiene()` + `shutdown_cached_memory_managers()`、浏览器进程树 cleanup（`tests/support/browser_process_cleanup`）；`@pytest.mark.chrome_e2e` 三维 profile + **PRIVATE 必填 `private_reason`**（与 `scripts/dev/e2e_session/profile.py` 对齐） |
 | `support/browser_process_cleanup.py` | 辅助 | pytest 进程树内 browser 自动化子进程 teardown |
 | `support/test_browser_process_cleanup.py` | 单元 | browser_process_cleanup 单测（100% 覆盖） |
-| `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`） |
+| `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`）；可选 `E2E_DIRECT_OPENCODE_API_KEY` 供 `resolve_e2e_llm_endpoints` 在 OmniRoute 不可用时 fallback |
+| `support/e2e_provider_seed.py` | 辅助 | LIVE E2E provider seed SSOT：`resolve_e2e_llm_endpoints`（gateway `/models` + chat 鉴权 preflight · direct OpenCode fallback）、`seed_live_e2e_providers`、`build_e2e_model_selection`、`upsert_provider` |
+| `support/test_e2e_provider_seed.py` | 单元 | `resolve_e2e_llm_endpoints` keep/fallback 契约 |
+| `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
 | `support/feature_flags.py` | 辅助 | `seed_voice_interaction_flags()`，供 `tests/api/voice`、`tests/api/stt` conftest autouse |
@@ -55,6 +58,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `ai_agents/test_conversation_search_opt_in_integration.py` | 模块 | conversation-search opt-in 与 tool_setup 绑定集成 |
 | `e2e/test_theme_marketplace_gallery_chrome_e2e.py` | 模块 | Theme Studio Gallery 免费安装 Chrome MCP smoke（READ×1：CP seed→acquire→download→install-from-marketplace） |
 | `e2e/test_subagent_dashboard_chrome_e2e.py` | 模块 | Subagent Dashboard Chrome MCP E2E（LIVE×6：cancel running、delegation pause toggle、SSE token/model 展示、budget used/limit、canvas 拓扑渲染 + 点击定位回树、fission 拓扑合并渲染） |
+| `e2e/test_subagent_interrupt_live_e2e.py` | 模块 | Subagent bash HITL interrupt LIVE×4（PRIVATE+HTTP SHPOIB：`MYRM_E2E_API_ONLY` + `MYRM_E2E_HITL_MULTI_ROUND=1` BODY cap 900s；`builtin-general` + LITE 直连 model（非 auto router）+ `securityPreset:hitl` + `bash_worker` JIT；round wall 600s；`@e2e_search_policy("empty")`；approve/allow-always/edit/reject 四路径；`tests/support/subagent_hitl_stream.py`） |
+| `e2e/test_subagent_approval_flow_chrome_e2e.py` | 模块 | Subagent bash HITL approval Chrome LIVE×1（`builtin-general` + `bash_worker`；API kickoff `run_until_subagent_approval` → WebUI `recoverHitlStream` + **多轮** PolymorphicApprovalCard Approve（`subagent_approval` 后再点 bash `tool_approval`）→ `/subagents` status=completed；`turnSnapshot` 在 HTTP kickoff 路径可能空白，以 API 轮询为准；`MYRM_E2E_HITL_MULTI_ROUND=1`；`@e2e_search_policy("empty")`） |
+| `support/subagent_hitl_stream.py` | 辅助 | 共享 HTTP agent-stream helper（subagent HITL kickoff / interrupt flow；stderr `SUBAGENT_HITL_STREAM` 进度） |
+| `support/hitl_live_e2e.py` | 辅助 | LIVE HITL pin + hitl-probe 校验（YOLO off · approval timeout ≥300s） |
 | `api/eval/test_memory_ab_live_integration.py` | 模块 | Memory A/B Live 集成（`@pytest.mark.e2e`）：真实 embedding probe + WBBench office 真实下载构建 + 双臂真实 LLM 执行 + `memory_tool_calls` 报告 + 临时记忆卷清理（关键路径禁 mock；执行 case 数受限） |
 | `e2e/test_memory_ab_chrome_e2e.py` | 模块 | Memory A/B Chrome E2E（READ×1 + NAMESPACE_WRITE×2）：WBBench 卡片 Memory A/B 入口 + 确认对话框取消（READ）；预置双报告渲染双臂矩阵 + Run History 表（per-arm pass-rate + `memory_tool_calls`）+ 点击历史 View 加载（NAMESPACE_WRITE）；真实 run 启动（SSE running + header Stop）+ Stop abort 清理（NAMESPACE_WRITE，run 前置配本地 embedding 端点并还原 retrieval 配置，不依赖外部 embedding 账户配额） |
 | `e2e/test_memory_ab_model_disclosure_chrome_e2e.py` | 模块 | Memory A/B 模型披露 Chrome E2E（PRIVATE+LIVE）：config API 配置 providers + 本地 embedding 端点 → Eval Lab Sources 卡片 limit=1 真实 Memory A/B 双臂 run → 历史表断言 Agent Model / Judge Model 列披露（本地 embedding 端点为产品支持的自托管用法，避免外部账户配额依赖） |

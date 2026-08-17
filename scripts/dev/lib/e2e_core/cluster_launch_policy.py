@@ -129,9 +129,11 @@ def cluster_fail_fast_suppressed_for_active_test(row: dict[str, object]) -> bool
         if _process_has_desktop_soak_env(authority.pid):
             body_elapsed = authority.body_elapsed_sec
             if body_elapsed is not None and body_elapsed >= _body_wall_cap_for_pid(
-                authority.pid
+                authority.pid, test_id=authority.test_id
             ):
-                body_cap = _body_wall_cap_for_pid(authority.pid)
+                body_cap = _body_wall_cap_for_pid(
+                    authority.pid, test_id=authority.test_id
+                )
                 reason = (
                     f"{E2E_BODY_WALL_EXCEEDED_TOKEN}: "
                     f"body_elapsed={int(body_elapsed)}s>={int(body_cap)}s"
@@ -147,9 +149,11 @@ def cluster_fail_fast_suppressed_for_active_test(row: dict[str, object]) -> bool
     if _process_has_desktop_soak_env(session_row.pid):
         body_elapsed = session_row.body_elapsed_sec
         if body_elapsed is not None and body_elapsed >= _body_wall_cap_for_pid(
-            session_row.pid
+            session_row.pid, test_id=session_row.test_id
         ):
-            body_cap = _body_wall_cap_for_pid(session_row.pid)
+            body_cap = _body_wall_cap_for_pid(
+                session_row.pid, test_id=session_row.test_id
+            )
             reason = (
                 f"{E2E_BODY_WALL_EXCEEDED_TOKEN}: "
                 f"body_elapsed={int(body_elapsed)}s>={int(body_cap)}s"

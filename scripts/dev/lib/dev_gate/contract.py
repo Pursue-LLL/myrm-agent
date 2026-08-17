@@ -9,6 +9,7 @@ BENIGN_CLEANUP_TOKENS: 清理阶段可忽略的错误子串元组
 PAGE_OWNERSHIP_ERROR_TOKENS: page ownership 错误子串元组
 MUX_* / LIVE_* 系列常量: 物理工作池、超时、pytest floor 等 SSOT
 chrome_e2e_skips_shared_*: 按 lane/shpoib 判断是否跳过共享资源排队
+chrome_e2e_skips_attach_health_reprobe: test.sh bootstrap 已验 attach 时跳过 pytest fixture reprobe（含 MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH burst lane）
 is_e2e_signoff_runtime / resolve_e2e_wall_profile / E2E_SIGNOFF_* phase budgets: R62 four-phase lifecycle SSOT
 SIGNOFF_PYTEST_SAFE_BUFFER_SEC / clarify_skip_api_wait_sec: signoff outer kill · pytest body 600s · clarify wait 90s
 apply_chrome_e2e_pytest_timeout_args: dev floor 或 signoff ceiling 模式
@@ -194,6 +195,24 @@ MUX_UPSTREAM_POLL_SEC: Final[int] = 15
 LIVE_SINGLE_TEST_WALL_CLOCK_SEC: Final[int] = 600
 # LIVE_AGENT body phase aligns with @pytest.mark.timeout(600) on chrome_e2e LIVE tests.
 LIVE_AGENT_BODY_WALL_CLOCK_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+# Multi-round HITL LIVE (delegate → subagent bash → subagent_approval → resume) exceeds 600s
+# with real LLM; hung-reap cap when MYRM_E2E_HITL_MULTI_ROUND=1 (test.sh SSOT).
+LIVE_AGENT_HITL_MULTI_ROUND_BODY_WALL_CLOCK_SEC: Final[int] = 900
+
+_HITL_MULTI_ROUND_TEST_ID_MARKERS: Final[tuple[str, ...]] = (
+    "test_subagent_interrupt_live_e2e",
+    "test_subagent_approval_flow_chrome_e2e",
+)
+
+
+def hitl_multi_round_chrome_e2e_test_id(test_id: str | None) -> bool:
+    """True for multi-round subagent HITL LIVE chrome_e2e (BODY cap 900s SSOT)."""
+    if not test_id:
+        return False
+    normalized = test_id.replace("\\", "/")
+    return any(marker in normalized for marker in _HITL_MULTI_ROUND_TEST_ID_MARKERS)
+
+
 # R62: signoff four-phase budgets (ADMIT/BOOTSTRAP independent from BODY 600s).
 E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC: Final[int] = 300
 E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV: Final[int] = 180
@@ -1132,7 +1151,10 @@ def admit_semantic_node_stall_cap_sec(
 def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
     """R170 SSOT: hung-reap / open_mcp NODE_STUCK cap (import fresh after reload)."""
     try:
-        from e2e_core.stall_guard import is_transport_stall_node, transport_stall_cap_sec
+        from e2e_core.stall_guard import (
+            is_transport_stall_node,
+            transport_stall_cap_sec,
+        )
     except ImportError:
         return float(NODE_STUCK_FAIL_FAST_SEC)
     transport = transport_stall_cap_sec()
@@ -1198,7 +1220,10 @@ def dev_bootstrap_wall_cap_for_hung_reap(*, lane: str, shpoib: bool) -> float:
     bootstrap_sec = float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
     normalized_lane = lane.strip().upper()
     try:
-        from mux.transport_supervisor import bootstrap_wall_cap_sec, mux_upstream_wait_cap
+        from mux.transport_supervisor import (
+            bootstrap_wall_cap_sec,
+            mux_upstream_wait_cap,
+        )
 
         if boot_mux_body_transport_gate_required():
             bootstrap_sec = float(bootstrap_wall_cap_sec(pessimistic=True))
@@ -1767,6 +1792,8 @@ def chrome_e2e_skips_attach_health_reprobe(
     api_only: bool = False,
 ) -> bool:
     """True when test.sh bootstrap already verified Chrome attach — skip pytest fixture reprobe."""
+    if os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1":
+        return True
     return chrome_attach or api_only
 
 

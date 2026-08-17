@@ -50,37 +50,46 @@ from dev_gate.contract import EvaluateIntent  # noqa: E402
 from tests.support.chrome_allowlist_live_e2e import _RECOVER_HITL_JS
 from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
-    guarded_httpx_request,
     http_json,
     open_mcp_page,
 )
+from tests.support.e2e_provider_seed import seed_live_e2e_providers
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 from tests.support.hitl_live_e2e import pin_and_verify_hitl_mode
 from tests.support.subagent_hitl_stream import run_until_subagent_approval
 
 _APPROVAL_WAIT_SEC = 300.0
+_POST_APPROVE_WAIT_SEC = 300.0
 _MAX_CHAT_ATTEMPTS = 2
 
-# UNKNOWN-risk command (rm -rf) so the engine asks instead of auto-allowing.
+_BUILTIN_AGENT_ID = "builtin-general"
+_SUBAGENT_TYPE = "bash_worker"
 _TARGET_DIR = "/tmp/myrm_e2e_subagent_approval"
 _USER_PROMPT = (
-    f"请使用 delegate_task_tool 创建一个 test_bash 子智能体（wait=true 同步等待），"
-    f"让它执行 bash_code_execute_tool 命令：`rm -rf {_TARGET_DIR}`。"
-    "执行完成后立即汇报结果并结束，不要做其它操作。"
+    "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 "
+    f"'{_SUBAGENT_TYPE}'，"
+    "并且必须将 wait 参数设置为 true（同步等待子任务完成，不要异步）。"
+    f"子智能体必须调用 bash_code_execute_tool 对目录 {_TARGET_DIR} 执行递归强制删除"
+    "（禁止替换路径、禁止输出占位符、禁止只用文本描述而不调用工具）。"
+    "注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，"
+    "绝对不要在文本中输出 XML 格式的工具调用！"
 )
 
 _AGENT_SYSTEM_PROMPT = (
     "You are a helpful agent. When the user asks you to delegate a bash task to a subagent, "
-    "use delegate_task_tool with agent_type='test_bash' and wait=true. "
+    f"use delegate_task_tool with agent_type='{_SUBAGENT_TYPE}' and wait=true. "
     "The subagent has only bash_code_execute_tool. Report the subagent's result when it finishes."
 )
 
+_SUBAGENT_SYSTEM_PROMPT = (
+    "You are a bash execution worker. When asked to recursively delete a directory, "
+    "you MUST call bash_code_execute_tool with the exact shell command "
+    "'rm -rf <path>' (never replace paths or emit placeholders), then report the output."
+)
+
 _EPHEMERAL_SUBAGENTS: dict[str, dict[str, object]] = {
-    "test_bash": {
-        "system_prompt": (
-            "You are a bash execution worker. When given a shell command, "
-            "call bash_code_execute_tool with the exact command as-is."
-        ),
+    _SUBAGENT_TYPE: {
+        "system_prompt": _SUBAGENT_SYSTEM_PROMPT,
         "tools": ["bash_code_execute_tool"],
     }
 }
@@ -108,31 +117,18 @@ _CLICK_APPROVE_JS = """(() => {
 })()"""
 
 
-def _create_delegating_agent(api_url: str) -> str:
-    import httpx
-
-    suffix = uuid.uuid4().hex[:8]
-    payload = {
-        "name": f"Subagent Approval LIVE {suffix}",
-        "description": "Chrome LIVE E2E for subagent high-risk bash approval",
-        "system_prompt": _AGENT_SYSTEM_PROMPT,
-        "skill_ids": [],
-        "mcp_ids": [],
-        "security_overrides": {"yoloModeEnabled": False, "autoModeEnabled": False},
-    }
-    with httpx.Client(base_url=api_url, timeout=60.0) as client:
-        resp = guarded_httpx_request(
-            client, "POST", f"{api_url}/api/v1/user-agents", json=payload, timeout=60.0
-        )
-        resp.raise_for_status()
-    body = resp.json()
-    agent_id = (
-        body.get("data", {}).get("id")
-        if isinstance(body.get("data"), dict)
-        else body.get("id")
+def _seed_chat_via_api(api_url: str, chat_id: str) -> None:
+    http_json(
+        "POST",
+        f"{api_url.rstrip('/')}/api/v1/chats/",
+        {
+            "chat_id": chat_id,
+            "agent_id": _BUILTIN_AGENT_ID,
+            "action_mode": "general",
+            "ephemeral_subagents": _EPHEMERAL_SUBAGENTS,
+            "messages": [],
+        },
     )
-    assert isinstance(agent_id, str) and agent_id
-    return agent_id
 
 
 async def _assert_stream_binding(chat: McpChatSession, *, expected_api: str) -> None:
@@ -226,20 +222,6 @@ async def _prepare_live_chat(
     return chat_id
 
 
-def _seed_chat_via_api(api_url: str, agent_id: str, chat_id: str) -> None:
-    http_json(
-        "POST",
-        f"{api_url.rstrip('/')}/api/v1/chats/",
-        {
-            "chat_id": chat_id,
-            "agent_id": agent_id,
-            "action_mode": "general",
-            "ephemeral_subagents": _EPHEMERAL_SUBAGENTS,
-            "messages": [],
-        },
-    )
-
-
 async def _http_kickoff_subagent_approval(
     api_url: str,
     chat_id: str,
@@ -260,6 +242,78 @@ async def _http_kickoff_subagent_approval(
             )
 
     await asyncio.to_thread(_kickoff)
+
+
+def _poll_subagent_status(
+    api_url: str,
+    chat_id: str,
+) -> tuple[str, list[dict[str, object]]]:
+    rows = http_json(
+        "GET", f"{api_url.rstrip('/')}/api/v1/chats/{chat_id}/subagents"
+    )
+    data = rows.get("data") if isinstance(rows, dict) else None
+    if not isinstance(data, list):
+        return "unknown", []
+    completed = [
+        row for row in data if isinstance(row, dict) and row.get("status") == "completed"
+    ]
+    if completed:
+        return "completed", completed
+    terminal = [
+        row
+        for row in data
+        if isinstance(row, dict)
+        and row.get("status") in ("cancelled", "failed", "error")
+    ]
+    if terminal:
+        return "terminal", terminal
+    return "pending", [row for row in data if isinstance(row, dict)]
+
+
+async def _click_approve_if_visible(chat: McpChatSession) -> bool:
+    raw = await chat.evaluate(
+        _SUBAGENT_APPROVAL_VISIBLE_JS, intent=EvaluateIntent.BRIDGE_POLL
+    )
+    visible = raw if isinstance(raw, dict) else {}
+    if visible.get("hasApprove") is not True:
+        return False
+    if visible.get("ready") is not True and int(visible.get("queueLen") or 0) <= 0:
+        return False
+    click = await chat.evaluate(_CLICK_APPROVE_JS, intent=EvaluateIntent.SYNC_PROBE)
+    return isinstance(click, dict) and click.get("ok") is True
+
+
+async def _wait_for_subagent_completed_via_api(
+    api_url: str,
+    chat_id: str,
+    chat: McpChatSession,
+    *,
+    timeout_sec: float = _POST_APPROVE_WAIT_SEC,
+) -> list[dict[str, object]]:
+    """Poll subagents + click further Approve cards (subagent_approval then bash tool_approval)."""
+    deadline = time.monotonic() + timeout_sec
+    last: object = None
+    last_recover = 0.0
+    while time.monotonic() < deadline:
+        heartbeat_once()
+        if await _click_approve_if_visible(chat):
+            await asyncio.sleep(2.0)
+        state, rows = _poll_subagent_status(api_url, chat_id)
+        last = rows
+        if state == "completed":
+            return rows
+        if state == "terminal":
+            raise AssertionError(
+                f"Subagent reached terminal state before completion: {rows!r}"
+            )
+        now = time.monotonic()
+        if now - last_recover >= 15.0:
+            await _recover_hitl_in_browser(chat, chat_id)
+            last_recover = now
+        await asyncio.sleep(2.0)
+    raise AssertionError(
+        f"No completed subagent within {timeout_sec}s after WebUI approve: {last!r}"
+    )
 
 
 async def _recover_hitl_in_browser(
@@ -322,29 +376,14 @@ async def _run_approval_flow(
     click = await chat.evaluate(_CLICK_APPROVE_JS, intent=EvaluateIntent.SYNC_PROBE)
     assert isinstance(click, dict) and click.get("ok") is True, click
 
-    # After approval the subagent resumes and completes; the main agent replies.
-    deadline = time.monotonic() + 180.0
-    last_snap: dict[str, object] = {}
-    while time.monotonic() < deadline:
-        heartbeat_once()
-        raw = await chat.evaluate(
-            "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {})()",
-            intent=EvaluateIntent.BRIDGE_POLL,
-        )
-        snap = raw if isinstance(raw, dict) else {}
-        last_snap = snap
-        assistant_sample = str(snap.get("lastAssistantSample") or "")
-        if assistant_sample and (
-            "执行" in assistant_sample
-            or "完成" in assistant_sample
-            or "deleted" in assistant_sample
-            or "rm" in assistant_sample.lower()
-        ):
-            return resolved_chat_id
-        await asyncio.sleep(2.0)
-    raise AssertionError(
-        f"Agent did not reply after approval within 180s: {last_snap!r}"
+    # Resume stream may need multiple WebUI approves (subagent_approval + bash tool_approval).
+    await _wait_for_subagent_completed_via_api(
+        api_url,
+        resolved_chat_id,
+        chat,
+        timeout_sec=_POST_APPROVE_WAIT_SEC,
     )
+    return resolved_chat_id
 
 
 @pytest.fixture(autouse=True)
@@ -371,14 +410,13 @@ async def test_subagent_approval_flow_approve_resumes_chrome_e2e(
         )
 
     api_base = get_e2e_api_url()
+    seed_live_e2e_providers(api_base)
     pin_and_verify_hitl_mode(api_base)
     ui_base = get_e2e_ui_url().rstrip("/")
-    agent_id = _create_delegating_agent(api_base)
-    e2e_resource_ledger.register("agent", agent_id)
 
     chat_id = str(uuid.uuid4())
-    _seed_chat_via_api(api_base, agent_id, chat_id)
-    chat_url = f"{ui_base}/{chat_id}?agentId={agent_id}"
+    _seed_chat_via_api(api_base, chat_id)
+    chat_url = f"{ui_base}/{chat_id}?agentId={_BUILTIN_AGENT_ID}"
     last_error = ""
     sent_marker: dict[str, bool] = {"sent": False}
     for attempt in range(1, _MAX_CHAT_ATTEMPTS + 1):
@@ -390,7 +428,7 @@ async def test_subagent_approval_flow_approve_resumes_chrome_e2e(
                 await _apply_runtime_bootstrap(chat)
                 chat_id = await _run_approval_flow(
                     chat,
-                    agent_id,
+                    _BUILTIN_AGENT_ID,
                     chat_id,
                     api_url=api_base,
                     ui_base=ui_base,

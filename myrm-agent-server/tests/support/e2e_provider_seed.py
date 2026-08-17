@@ -1,13 +1,156 @@
-"""Shared E2E provider-seed helpers for LIVE Chrome E2E tests.
-
-Kept in tests/support so the failover and memory-AB disclosure E2E tests share
-one upsert implementation — .env.test model/SSOT changes are applied in a
-single place instead of drifting across duplicated copies.
+"""@input: urllib (stdlib), tests.support.test_secrets::TestSecrets (POS: [T] secrets loader)
+@output: ResolvedE2ELlmEndpoints, resolve_e2e_llm_endpoints(), probe_openai_compatible_base(), probe_llm_api_key(), upsert_provider(), infer_provider_id(), strip_provider_prefix()
+@pos: [T] Shared LIVE Chrome E2E provider-seed SSOT — single upsert + LLM endpoint resolve with gateway probe and direct OpenCode fallback.
 """
 
 from __future__ import annotations
 
+import json
+import sys
+import urllib.error
+import urllib.request
+from dataclasses import dataclass
+
+from tests.support.test_secrets import TestSecrets, load_test_secrets
+
 NONEXISTENT_MODEL_ID = "__e2e_nonexistent_model__"
+
+_DIRECT_OPENCODE_BASE = "https://opencode.ai/zen/go/v1"
+_DIRECT_OPENCODE_MODEL = "openai-like/deepseek-v4-flash"
+_LOCAL_GATEWAY_HOST = "localhost:20128"
+
+
+@dataclass(frozen=True)
+class ResolvedE2ELlmEndpoints:
+    basic_base_url: str
+    basic_model: str
+    basic_api_key: str
+    lite_base_url: str
+    lite_model: str
+    lite_api_key: str
+    used_fallback: bool
+
+
+def probe_openai_compatible_base(base_url: str, *, timeout_sec: float = 3.0) -> bool:
+    """Return True when ``GET {base_url}/models`` responds with HTTP 200."""
+    url = f"{base_url.rstrip('/')}/models"
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+            return int(resp.status) == 200
+    except (urllib.error.URLError, TimeoutError, ValueError, OSError):
+        return False
+
+
+def probe_llm_api_key(
+    base_url: str,
+    api_key: str,
+    model: str,
+    *,
+    timeout_sec: float = 8.0,
+) -> bool:
+    """Return True when a minimal chat completion succeeds (auth + routing)."""
+    model_id = model.split("/", 1)[1] if "/" in model else model
+    payload = json.dumps(
+        {
+            "model": model_id,
+            "messages": [{"role": "user", "content": "hi"}],
+            "max_tokens": 1,
+        }
+    ).encode("utf-8")
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    try:
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+            return int(resp.status) == 200
+    except (urllib.error.URLError, TimeoutError, ValueError, OSError):
+        return False
+
+
+def resolve_e2e_llm_endpoints(
+    secrets: TestSecrets | None = None,
+) -> ResolvedE2ELlmEndpoints:
+    """Resolve LIVE E2E LLM endpoints, falling back when the local OmniRoute gateway is down."""
+    resolved = secrets or load_test_secrets()
+    basic_url = resolved.basic_base_url
+    lite_url = resolved.lite_base_url or basic_url
+    basic_model = resolved.basic_model
+    lite_model = resolved.lite_model or basic_model
+    basic_key = resolved.basic_api_key
+    lite_key = resolved.lite_api_key or basic_key
+
+    uses_local_gateway = (
+        _LOCAL_GATEWAY_HOST in basic_url or _LOCAL_GATEWAY_HOST in lite_url
+    )
+    gateway_reachable = (
+        probe_openai_compatible_base(basic_url) if uses_local_gateway else False
+    )
+    gateway_auth_ok = (
+        probe_llm_api_key(basic_url, basic_key, basic_model)
+        if gateway_reachable
+        else False
+    )
+    if uses_local_gateway and gateway_reachable and gateway_auth_ok:
+        return ResolvedE2ELlmEndpoints(
+            basic_base_url=basic_url,
+            basic_model=basic_model,
+            basic_api_key=basic_key,
+            lite_base_url=lite_url,
+            lite_model=lite_model,
+            lite_api_key=lite_key,
+            used_fallback=False,
+        )
+    if uses_local_gateway and (not gateway_reachable or not gateway_auth_ok):
+        direct_key = resolved.get("E2E_DIRECT_OPENCODE_API_KEY")
+        if not direct_key:
+            raise RuntimeError(
+                "localhost:20128 unreachable or gateway key rejected, and "
+                "E2E_DIRECT_OPENCODE_API_KEY missing in .env.test"
+            )
+        if not probe_llm_api_key(
+            _DIRECT_OPENCODE_BASE, direct_key, _DIRECT_OPENCODE_MODEL
+        ):
+            raise RuntimeError(
+                "E2E LLM preflight failed: gateway unavailable/invalid and "
+                "direct OpenCode endpoint rejected E2E_DIRECT_OPENCODE_API_KEY"
+            )
+        reason = (
+            "gateway key rejected"
+            if gateway_reachable and not gateway_auth_ok
+            else f"{_LOCAL_GATEWAY_HOST} unreachable"
+        )
+        print(
+            f"[E2E_LLM_PROXY_FALLBACK] {reason}; using direct OpenCode Go endpoint",
+            file=sys.stderr,
+            flush=True,
+        )
+        return ResolvedE2ELlmEndpoints(
+            basic_base_url=_DIRECT_OPENCODE_BASE,
+            basic_model=_DIRECT_OPENCODE_MODEL,
+            basic_api_key=direct_key,
+            lite_base_url=_DIRECT_OPENCODE_BASE,
+            lite_model=_DIRECT_OPENCODE_MODEL,
+            lite_api_key=direct_key,
+            used_fallback=True,
+        )
+
+    return ResolvedE2ELlmEndpoints(
+        basic_base_url=basic_url,
+        basic_model=basic_model,
+        basic_api_key=basic_key,
+        lite_base_url=lite_url,
+        lite_model=lite_model,
+        lite_api_key=lite_key,
+        used_fallback=False,
+    )
 
 
 def strip_provider_prefix(model: str) -> str:
@@ -73,3 +216,71 @@ def upsert_provider(
     if not replaced:
         merged.append(entry)
     return merged
+
+
+def build_e2e_model_selection(*, use_lite: bool = True) -> dict[str, object]:
+    """Model selection for LIVE agent-stream using gateway probe + OpenCode fallback."""
+    from tests.api.agent.utils import _convert_litellm_model
+
+    endpoints = resolve_e2e_llm_endpoints()
+    raw_model = endpoints.lite_model if use_lite else endpoints.basic_model
+    base_url = endpoints.lite_base_url if use_lite else endpoints.basic_base_url
+    return {
+        "providerId": infer_provider_id(raw_model),
+        "model": _convert_litellm_model(raw_model),
+        "baseUrl": base_url,
+    }
+
+
+def seed_live_e2e_providers(api_url: str) -> ResolvedE2ELlmEndpoints:
+    """Seed WebUI providers/defaultModelConfig for LIVE SHPOIB with working LLM endpoints."""
+    from cdp_chat.support import fetch_config_value, put_config_value
+
+    endpoints = resolve_e2e_llm_endpoints()
+    basic_provider_id = infer_provider_id(endpoints.basic_model)
+    lite_provider_id = infer_provider_id(endpoints.lite_model)
+    basic_model_id = strip_provider_prefix(endpoints.basic_model)
+    lite_model_id = strip_provider_prefix(endpoints.lite_model)
+
+    current = fetch_config_value("providers", api_url=api_url)
+    provider_list = current.get("providers")
+    providers = provider_list if isinstance(provider_list, list) else []
+    providers = upsert_provider(
+        [p for p in providers if isinstance(p, dict)],
+        provider_id=basic_provider_id,
+        model_id=basic_model_id,
+        api_url=endpoints.basic_base_url,
+        api_key=endpoints.basic_api_key,
+    )
+    providers = upsert_provider(
+        providers,
+        provider_id=lite_provider_id,
+        model_id=lite_model_id,
+        api_url=endpoints.lite_base_url,
+        api_key=endpoints.lite_api_key,
+        merge_models=True,
+    )
+
+    dmc = dict(current.get("defaultModelConfig") or {})
+    base_primary = {"providerId": basic_provider_id, "model": basic_model_id}
+    lite_primary = {"providerId": lite_provider_id, "model": lite_model_id}
+    dmc["baseModel"] = {
+        "primary": base_primary,
+        "fallback": dict(lite_primary),
+        "temperature": 0.7,
+        "modelKwargs": {},
+    }
+    dmc["liteModel"] = {
+        "primary": dict(lite_primary),
+        "fallback": dict(base_primary),
+        "temperature": 0.7,
+    }
+
+    merged: dict[str, object] = {
+        **current,
+        "providers": providers,
+        "defaultModelConfig": dmc,
+        "customModelInfo": current.get("customModelInfo") or {},
+    }
+    put_config_value("providers", merged, api_url=api_url)
+    return endpoints
