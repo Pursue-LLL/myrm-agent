@@ -5,13 +5,12 @@
 
 from __future__ import annotations
 
-import io
 import logging
-import zipfile
 
 import httpx
 
 from app.services.hosting.packager import PublishFile
+from app.services.hosting.providers._archive import build_provider_zip
 from app.services.hosting.types import HostingTarget, PublicationResult
 
 logger = logging.getLogger(__name__)
@@ -35,16 +34,7 @@ class NetlifyHostingProvider:
         return True, "Netlify credentials valid."
 
     def _build_zip(self, files: dict[str, PublishFile]) -> bytes:
-        buffer = io.BytesIO()
-        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-            for path, publish_file in files.items():
-                if publish_file.encoding == "base64":
-                    import base64
-
-                    archive.writestr(path, base64.b64decode(publish_file.content))
-                else:
-                    archive.writestr(path, publish_file.content)
-        return buffer.getvalue()
+        return build_provider_zip(files)
 
     async def publish(
         self,
