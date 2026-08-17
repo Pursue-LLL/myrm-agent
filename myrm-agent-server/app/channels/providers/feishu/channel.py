@@ -62,6 +62,7 @@ from .cards import (
 )
 from .models import FeishuCardEvent, FeishuWebhookPayload
 from .parser import FeishuInboundEvent, extract_message_text, parse_inbound_event
+from .user_resolver import FeishuUserResolver
 
 if TYPE_CHECKING:
     from .ws_transport import FeishuWSTransport
@@ -179,6 +180,7 @@ class FeishuChannel(BaseChannel):
         self._verification_token = verification_token
         self._apply_bot_policy(bot_policy)
         self._client = FeishuClient(app_id, app_secret, use_lark=use_lark)
+        self._user_resolver = FeishuUserResolver(self._client)
         self._ws_transport: FeishuWSTransport | None = None  # lazy import
         self._streaming_seq: dict[str, int] = {}
         self._streaming_card_ids: dict[str, str] = {}
@@ -432,6 +434,7 @@ class FeishuChannel(BaseChannel):
                     message_id=parsed.message_id,
                     thread_id=parsed.root_id,
                     reply_to=reply_to,
+                    sender_name=await self._resolve_sender_name(parsed.sender_id),
                     metadata={
                         "message_id": parsed.message_id,
                         "msg_type": parsed.msg_type,
@@ -760,11 +763,25 @@ class FeishuChannel(BaseChannel):
                 content=content,
                 media=tuple(media_list),
                 sender_id=sender_id,
-                sender_name=None,
+                sender_name=await self._resolve_sender_name(sender_id),
                 timestamp=timestamp,
             )
         except Exception:
             logger.debug("Failed to fetch reply context for %s", parent_id)
+            return None
+
+    async def _resolve_sender_name(self, sender_id: str | None) -> str | None:
+        """Resolve a Feishu sender's display name via contact API (fail-open).
+
+        Returns None when the ID is missing, resolution fails, or the user
+        cannot be found — callers fall back to the opaque open_id.
+        """
+        if not sender_id:
+            return None
+        try:
+            return await self._user_resolver.resolve_user(sender_id)
+        except Exception:
+            logger.debug("Failed to resolve Feishu sender name for %s", sender_id)
             return None
 
     async def _resolve_inbound_media(

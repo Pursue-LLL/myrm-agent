@@ -32,6 +32,7 @@ import time
 import httpx
 from myrm_agent_harness.utils.coercion import parse_float
 
+from app.channels.providers.feishu.sdk._contact import FeishuContactMixin
 from app.channels.providers.feishu.sdk._documents import FeishuDocumentsMixin
 from app.channels.providers.feishu.sdk._messaging import FeishuMessagingMixin
 from app.channels.providers.feishu.sdk.exceptions import FeishuAuthError
@@ -57,7 +58,7 @@ _TOKEN_REFRESH_BUFFER = 300
 _MAX_DOWNLOAD_BYTES = 200 * 1024 * 1024  # 200 MB cap for forwarded media
 
 
-class FeishuClient(FeishuMessagingMixin, FeishuDocumentsMixin):
+class FeishuClient(FeishuMessagingMixin, FeishuDocumentsMixin, FeishuContactMixin):
     """Async client for Feishu OpenAPI with auto-refreshing token.
 
     Uses a shared httpx.AsyncClient for connection pooling.

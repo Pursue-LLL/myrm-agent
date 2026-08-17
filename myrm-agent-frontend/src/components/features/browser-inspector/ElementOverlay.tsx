@@ -65,8 +65,11 @@ const ElementOverlay: React.FC<ElementOverlayProps> = ({
         const bbox = info.bbox!;
         const isSelected = refId === selectedRefId;
 
-        const left = bbox.x * scaleX;
-        const top = bbox.y * scaleY;
+        // 使用视口相对坐标（与后端视口截图同源）；desktop 无 viewport 字段时回退绝对坐标
+        const originX = bbox.viewport_x ?? bbox.x;
+        const originY = bbox.viewport_y ?? bbox.y;
+        const left = originX * scaleX;
+        const top = originY * scaleY;
         const width = bbox.width * scaleX;
         const height = bbox.height * scaleY;
 

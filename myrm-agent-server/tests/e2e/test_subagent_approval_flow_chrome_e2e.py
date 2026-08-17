@@ -203,7 +203,9 @@ async def _prepare_live_chat(
         str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
     )
     if current_path != f"/{chat_id}":
-        await chat.navigate_to_chat(chat_id, get_e2e_ui_url().rstrip("/"), timeout_sec=90.0)
+        await chat.navigate_to_chat(
+            chat_id, get_e2e_ui_url().rstrip("/"), timeout_sec=90.0
+        )
     ensured = await chat.evaluate(
         """(() => {
           const bridge = window.__MYRM_E2E_CHAT__;
@@ -248,14 +250,14 @@ def _poll_subagent_status(
     api_url: str,
     chat_id: str,
 ) -> tuple[str, list[dict[str, object]]]:
-    rows = http_json(
-        "GET", f"{api_url.rstrip('/')}/api/v1/chats/{chat_id}/subagents"
-    )
+    rows = http_json("GET", f"{api_url.rstrip('/')}/api/v1/chats/{chat_id}/subagents")
     data = rows.get("data") if isinstance(rows, dict) else None
     if not isinstance(data, list):
         return "unknown", []
     completed = [
-        row for row in data if isinstance(row, dict) and row.get("status") == "completed"
+        row
+        for row in data
+        if isinstance(row, dict) and row.get("status") == "completed"
     ]
     if completed:
         return "completed", completed

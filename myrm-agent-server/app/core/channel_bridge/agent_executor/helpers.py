@@ -90,6 +90,7 @@ def _format_reply_context(reply_to: ReplyContext) -> str:
     from myrm_agent_harness.agent.security.detection.content_boundary import sanitize
 
     sender = reply_to.sender_name or reply_to.sender_id or "someone"
+    sender = sanitize(sender)
     content = reply_to.content.strip() if reply_to.content else ""
 
     if content:
@@ -110,7 +111,7 @@ def _format_group_context_section(context_messages: tuple[ContextEntry, ...], us
     """Accumulate recent group snippets plus the trigger message (sanitized)."""
     from myrm_agent_harness.agent.security.detection.content_boundary import sanitize
 
-    lines = [f"{e.sender_name or e.sender_id}: {sanitize(e.content)}" for e in context_messages]
+    lines = [f"{sanitize(e.sender_name) if e.sender_name else e.sender_id}: {sanitize(e.content)}" for e in context_messages]
     context_block = "\n".join(lines)
     return f"[Recent group chat messages for context]\n{context_block}\n---\n{user_trigger_line}"
 

@@ -37,6 +37,7 @@ import useDesktopInspectorStore, {
 import useBrowserInspectorStore, {
   selectScopedBrowserViewData,
 } from '@/store/useBrowserInspectorStore';
+import type { BrowserRefInfo } from '@/store/chat/types';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
 import type { ActionMode, AgentConfig, BuiltinToolId, GoalStatusPayload, ToolSnapshotItem } from '@/store/chat/types';
@@ -1831,7 +1832,10 @@ export default function E2EChatBridge() {
           updatedAt: store.viewData?.updatedAt ?? null,
         };
       },
-      simulateBrowserViewUpdate: async (chatId: string) => {
+      simulateBrowserViewUpdate: async (
+        chatId: string,
+        refs: Record<string, BrowserRefInfo> = {},
+      ) => {
         const normalizedChatId = chatId.trim();
         if (!normalizedChatId) {
           return { ok: false as const, reason: 'empty-chat-id' };
@@ -1848,7 +1852,7 @@ export default function E2EChatBridge() {
             data: {
               screenshot_base64: 'e2e-blvc-screenshot',
               mime_type: 'image/jpeg',
-              refs: {},
+              refs,
               page_url: 'https://e2e.example/blcv',
               page_title: 'BLCV E2E',
               viewport_width: 1280,
@@ -1882,6 +1886,9 @@ export default function E2EChatBridge() {
           recievedMessage: '',
           files: [],
         });
+        if (Object.keys(refs).length > 0) {
+          useBrowserInspectorStore.getState().setMode('inspect');
+        }
         return { ok: true as const, chatId: normalizedChatId };
       },
       simulateBrowserToolStart: async (chatId: string, toolName = 'browser_navigate_tool') => {

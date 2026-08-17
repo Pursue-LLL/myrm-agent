@@ -17,5 +17,6 @@
 | `models.py` | 模块 | Pydantic models for Feishu/Lark event subscription webhook payloads. | ✅ |
 | `parser.py` | 模块 | Feishu inbound message parser. Converts Feishu event JSON to structured data. Supports post rich-text -> Markdown, @mention detection, and image/media key extra | ✅ |
 | `registration.py` | 模块 | Channel provider utility. Encapsulates the Feishu device-code registration flow for automated bot app provisioning. Used by server-layer endpoints. | ✅ |
+| `user_resolver.py` | 模块 | Feishu user resolver using contact API with LRU+TTL caching. Resolves sender display names for group chat context. | ✅ |
 | `webhook_utils.py` | 模块 | Feishu Webhook utility functions for signature verification and metadata extraction. No full FeishuChannel instantiation needed. Suitable for control planes and | ✅ |
 | `ws_transport.py` | 模块 | Feishu WebSocket transport — long-lived connection via lark-oapi SDK. | ✅ |

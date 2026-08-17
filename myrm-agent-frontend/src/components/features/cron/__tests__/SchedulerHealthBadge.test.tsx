@@ -9,8 +9,10 @@ vi.mock('@/components/primitives/tooltip', () => ({
   TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
   useLocale: () => 'ja-JP',
 }));
 

@@ -30,6 +30,7 @@ from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelAuthError, ChannelSendError
 from app.channels.providers.wecom.crypto import WeComCrypto
+from app.channels.providers.wecom.user_resolver import WeComUserResolver
 from app.channels.rendering.renderer import render
 from app.channels.security.errors import WebhookResponseError
 from app.channels.types import (
@@ -115,6 +116,7 @@ class WeComChannel(BaseChannel):
         self._access_token: str = ""
         self._token_expires_at: float = 0.0
         self._token_lock = asyncio.Lock()
+        self._user_resolver = WeComUserResolver(self)
 
     # ── Lifecycle ──────────────────────────────────────────────
 
@@ -475,7 +477,22 @@ class WeComChannel(BaseChannel):
             media=tuple(media_list),
             metadata=metadata,
             message_id=msg_id or "",
+            sender_name=await self._resolve_sender_name(from_user),
         )
+
+    async def _resolve_sender_name(self, sender_id: str) -> str | None:
+        """Resolve a WeCom sender's display name via contact API (fail-open).
+
+        Returns None when the ID is missing, resolution fails, or the user
+        cannot be found — callers fall back to the opaque userid.
+        """
+        if not sender_id:
+            return None
+        try:
+            return await self._user_resolver.resolve_user(sender_id)
+        except Exception:
+            logger.debug("Failed to resolve WeCom sender name for %s", sender_id)
+            return None
 
     async def _download_inbound_media(self, media_id: str, media_type: MediaType) -> MediaAttachment | None:
         """Download inbound media from WeCom /media/get API and save to temp file."""
@@ -549,6 +566,32 @@ class WeComChannel(BaseChannel):
             if isinstance(exc, ChannelSendError):
                 raise
             raise ChannelSendError(f"WeCom send exception: {exc}", channel=self.name) from exc
+
+    async def api_get_user(self, user_id: str) -> dict[str, object] | None:
+        """Fetch a WeCom user's contact info by userid.
+
+        Returns the user object (with ``name``) or None on failure.
+        """
+        if not user_id:
+            return None
+        await self._ensure_token()
+        try:
+            resp = await self._http.get(
+                f"{_API_BASE}/user/get",
+                params={"access_token": self._access_token, "userid": user_id},
+                timeout=10.0,
+            )
+            if resp.status_code >= 400:
+                logger.debug("WeCom user/get failed: HTTP %d", resp.status_code)
+                return None
+            data = resp.json()
+            if data.get("errcode", 0) != 0:
+                logger.debug("WeCom user/get error: %s", data.get("errmsg"))
+                return None
+            return data
+        except Exception as exc:
+            logger.debug("WeCom user/get exception: %s", exc)
+            return None
 
     # ── OAuth token management (with asyncio.Lock) ────────────
 

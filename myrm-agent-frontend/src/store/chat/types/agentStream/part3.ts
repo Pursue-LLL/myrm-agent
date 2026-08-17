@@ -69,8 +69,8 @@ export interface BrowserRefInfo {
     height: number;
     centerX: number;
     centerY: number;
-    viewport_x: number;
-    viewport_y: number;
+    viewport_x?: number;
+    viewport_y?: number;
     viewport_width: number;
     viewport_height: number;
   } | null;

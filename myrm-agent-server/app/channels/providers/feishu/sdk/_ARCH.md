@@ -9,6 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Package init for feishu SDK. Re-exports the public API surface. | ✅ |
+| `_contact.py` | 模块 | Mixin that adds contact-domain API methods to FeishuClient: user info lookup by open_id. | ✅ |
 | `_documents.py` | 模块 | Mixin that adds document-level API methods to FeishuClient: Drive meta, comments, wiki lookup, CardKit streaming, Bitable records, Docx blocks, and media download. | ✅ |
 | `_messaging.py` | 模块 | Mixin that adds IM messaging, reactions, and media methods to FeishuClient. | ✅ |
 | `client.py` | 模块 | Standalone Feishu OpenAPI client. Usable by any module that needs Feishu API access (channels, etc.). | ✅ |

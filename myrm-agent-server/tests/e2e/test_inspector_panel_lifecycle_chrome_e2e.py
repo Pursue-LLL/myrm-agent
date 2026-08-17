@@ -86,9 +86,31 @@ _SIMULATE_BROWSER_CONTROL_JS = """(() => {
   }
   const chatId = bridge?.turnSnapshot?.()?.chatId ?? '';
   if (!chatId) return { ok: false, err: 'no-chat-id' };
+  // A scrolled-page element: absolute y=500 but viewport y=200. The overlay must
+  // use the viewport-relative coordinate so it aligns with the viewport screenshot.
+  const refs = {
+    addToCart: {
+      role: 'button',
+      name: 'Add to cart',
+      nth: 1,
+      position: null,
+      bbox: {
+        x: 100,
+        y: 500,
+        width: 80,
+        height: 32,
+        centerX: 140,
+        centerY: 516,
+        viewport_x: 100,
+        viewport_y: 200,
+        viewport_width: 1280,
+        viewport_height: 720,
+      },
+    },
+  };
   return (async () => {
     const start = await bridge.simulateBrowserToolStart(chatId, 'browser_navigate_tool');
-    const view = await bridge.simulateBrowserViewUpdate(chatId);
+    const view = await bridge.simulateBrowserViewUpdate(chatId, refs);
     return { ok: start?.ok === true && view?.ok === true, chatId };
   })();
 })()"""
@@ -98,6 +120,19 @@ _BROWSER_ACTIVE_JS = """(() => {
   return {
     ready: !!snap && snap.isOpen === true && snap.isBrowserActive === true && snap.hasScreenshot === true,
     snap,
+  };
+})()"""
+
+_OVERLAY_GEOMETRY_JS = """(() => {
+  const btn = document.querySelector('button[aria-label^="Select element addToCart"]');
+  if (!btn) return { ready: false, reason: 'no-overlay-button' };
+  const style = window.getComputedStyle(btn);
+  return {
+    ready: true,
+    left: style.left,
+    top: style.top,
+    width: style.width,
+    height: style.height,
   };
 })()"""
 
@@ -220,6 +255,18 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
             await asyncio.sleep(0.5)
         raise AssertionError(f"Browser inspector panel did not engage: {json.dumps(last, ensure_ascii=False)}")
 
+    async def _wait_overlay_geometry(chat: McpChatSession, *, timeout_sec: float = 30.0) -> dict[str, object]:
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            heartbeat_once()
+            raw = await chat.evaluate(_OVERLAY_GEOMETRY_JS, intent=EvaluateIntent.BRIDGE_POLL)
+            last = raw if isinstance(raw, dict) else {"value": raw}
+            if last.get("ready") is True:
+                return last
+            await asyncio.sleep(0.5)
+        raise AssertionError(f"Overlay geometry not ready: {json.dumps(last, ensure_ascii=False)}")
+
     async def _wait_desktop_open(chat: McpChatSession, *, timeout_sec: float = 30.0) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
@@ -298,6 +345,15 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
 
         engaged = await _wait_browser_engaged(chat)
         assert engaged.get("ready") is True, engaged
+
+        # --- Phase 1b: overlay geometry must use viewport-relative coordinates ---
+        geometry = await _wait_overlay_geometry(chat)
+        assert geometry.get("ready") is True, geometry
+        # scale = 1 (image == viewport): viewport_y (200) is used, not absolute y (500).
+        assert geometry.get("left") == "100px", geometry
+        assert geometry.get("top") == "200px", geometry
+        assert geometry.get("width") == "80px", geometry
+        assert geometry.get("height") == "32px", geometry
 
         # --- Phase 2: manually opened desktop panel (no engagement) ---
         computer_use = await chat.evaluate(_ENSURE_COMPUTER_USE_JS, intent=EvaluateIntent.AGENT_SUBMIT)

@@ -12,3 +12,4 @@
 | `aibot_channel.py` | 模块 | WeCom AI Bot channel: WebSocket long-lived connection, no public IP required, native streaming replies. Supports message/event callbacks, welcome messages, temp | ✅ |
 | `channel.py` | 模块 | WeCom self-built app channel: AES encrypted callbacks, multimedia send/receive, @mention detection, OAuth token management. | ✅ |
 | `crypto.py` | 模块 | WeCom message encryption/decryption. Implements AES-CBC + PKCS7 padding + SHA1 signature verification for Webhook callback message security. | ✅ |
+| `user_resolver.py` | 模块 | WeCom user resolver using contact API with LRU+TTL caching. Resolves sender display names for group chat context. | ✅ |
