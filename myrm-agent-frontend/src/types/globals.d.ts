@@ -246,6 +246,7 @@ interface Window {
     simulateBrowserViewUpdate?: (
       chatId: string,
       refs?: Record<string, import('@/store/chat/types').BrowserRefInfo>,
+      screenshotBase64?: string,
     ) => Promise<{ ok: true; chatId: string } | { ok: false; reason: string }>;
     simulateBrowserToolStart?: (
       chatId: string,

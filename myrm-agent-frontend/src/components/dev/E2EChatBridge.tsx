@@ -1835,6 +1835,7 @@ export default function E2EChatBridge() {
       simulateBrowserViewUpdate: async (
         chatId: string,
         refs: Record<string, BrowserRefInfo> = {},
+        screenshotBase64 = 'e2e-blvc-screenshot',
       ) => {
         const normalizedChatId = chatId.trim();
         if (!normalizedChatId) {
@@ -1850,8 +1851,8 @@ export default function E2EChatBridge() {
             type: AgentEventType.BROWSER_VIEW_UPDATE,
             messageId,
             data: {
-              screenshot_base64: 'e2e-blvc-screenshot',
-              mime_type: 'image/jpeg',
+              screenshot_base64: screenshotBase64,
+              mime_type: 'image/png',
               refs,
               page_url: 'https://e2e.example/blcv',
               page_title: 'BLCV E2E',

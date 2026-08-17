@@ -49,7 +49,10 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     http_json,
     open_mcp_page,
 )
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once  # noqa: E402
+from tests.support.e2e_runtime_guard import (
+    E2EResourceLedger,
+    heartbeat_once,
+)  # noqa: E402
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 _MAX_CHAT_ATTEMPTS = 3
@@ -110,7 +113,7 @@ _SIMULATE_BROWSER_CONTROL_JS = """(() => {
   };
   return (async () => {
     const start = await bridge.simulateBrowserToolStart(chatId, 'browser_navigate_tool');
-    const view = await bridge.simulateBrowserViewUpdate(chatId, refs);
+    const view = await bridge.simulateBrowserViewUpdate(chatId, refs, _E2E_PNG_1280x720);
     return { ok: start?.ok === true && view?.ok === true, chatId };
   })();
 })()"""
@@ -123,16 +126,32 @@ _BROWSER_ACTIVE_JS = """(() => {
   };
 })()"""
 
+# Overlay geometry is scale-invariant: the container scales the screenshot to fit,
+# so we assert normalized ratios (left/viewportWidth, top/viewportHeight, etc.)
+# rather than absolute pixels. The overlay must use viewport_y (200) not absolute y (500).
 _OVERLAY_GEOMETRY_JS = """(() => {
   const btn = document.querySelector('button[aria-label^="Select element addToCart"]');
   if (!btn) return { ready: false, reason: 'no-overlay-button' };
   const style = window.getComputedStyle(btn);
+  const parse = (v) => parseFloat(v);
+  const left = parse(style.left);
+  const top = parse(style.top);
+  const width = parse(style.width);
+  const height = parse(style.height);
+  if (!(left > 0 && top > 0 && width > 0 && height > 0)) {
+    return { ready: false, reason: 'zero-geometry', left, top, width, height };
+  }
   return {
     ready: true,
-    left: style.left,
-    top: style.top,
-    width: style.width,
-    height: style.height,
+    // viewport-relative ratios (viewport 1280x720)
+    leftRatio: left / 1280,
+    topRatio: top / 720,
+    widthRatio: width / 1280,
+    heightRatio: height / 720,
+    left,
+    top,
+    width,
+    height,
   };
 })()"""
 
@@ -231,55 +250,79 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
     agent_id = _create_inspector_live_agent(api_base)
     e2e_resource_ledger.register("agent", agent_id)
 
-    async def _wait_agent_applied(chat: McpChatSession, *, timeout_sec: float = 90.0) -> None:
+    async def _wait_agent_applied(
+        chat: McpChatSession, *, timeout_sec: float = 90.0
+    ) -> None:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(_AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
+            raw = await chat.evaluate(
+                _AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
+            )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return
             await asyncio.sleep(1.0)
         raise AssertionError(f"E2E chat bridge not ready after loading agent: {last}")
 
-    async def _wait_browser_engaged(chat: McpChatSession, *, timeout_sec: float = 60.0) -> dict[str, object]:
+    async def _wait_browser_engaged(
+        chat: McpChatSession, *, timeout_sec: float = 60.0
+    ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(_BROWSER_ACTIVE_JS, intent=EvaluateIntent.BRIDGE_POLL)
+            raw = await chat.evaluate(
+                _BROWSER_ACTIVE_JS, intent=EvaluateIntent.BRIDGE_POLL
+            )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
             await asyncio.sleep(0.5)
-        raise AssertionError(f"Browser inspector panel did not engage: {json.dumps(last, ensure_ascii=False)}")
+        raise AssertionError(
+            f"Browser inspector panel did not engage: {json.dumps(last, ensure_ascii=False)}"
+        )
 
-    async def _wait_overlay_geometry(chat: McpChatSession, *, timeout_sec: float = 30.0) -> dict[str, object]:
+    async def _wait_overlay_geometry(
+        chat: McpChatSession, *, timeout_sec: float = 30.0
+    ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(_OVERLAY_GEOMETRY_JS, intent=EvaluateIntent.BRIDGE_POLL)
+            raw = await chat.evaluate(
+                _OVERLAY_GEOMETRY_JS, intent=EvaluateIntent.BRIDGE_POLL
+            )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
             await asyncio.sleep(0.5)
-        raise AssertionError(f"Overlay geometry not ready: {json.dumps(last, ensure_ascii=False)}")
+        raise AssertionError(
+            f"Overlay geometry not ready: {json.dumps(last, ensure_ascii=False)}"
+        )
 
-    async def _wait_desktop_open(chat: McpChatSession, *, timeout_sec: float = 30.0) -> dict[str, object]:
+    async def _wait_desktop_open(
+        chat: McpChatSession, *, timeout_sec: float = 30.0
+    ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(_DESKTOP_OPEN_JS, intent=EvaluateIntent.BRIDGE_POLL)
+            raw = await chat.evaluate(
+                _DESKTOP_OPEN_JS, intent=EvaluateIntent.BRIDGE_POLL
+            )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
             await asyncio.sleep(0.5)
-        raise AssertionError(f"Desktop panel did not open manually: {json.dumps(last, ensure_ascii=False)}")
+        raise AssertionError(
+            f"Desktop panel did not open manually: {json.dumps(last, ensure_ascii=False)}"
+        )
 
-    async def _wait_turn_done(chat: McpChatSession, *, timeout_sec: float = 300.0) -> dict[str, object]:
+    async def _wait_turn_done(
+        chat: McpChatSession, *, timeout_sec: float = 300.0
+    ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
@@ -293,14 +336,20 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
             ):
                 return last
             await asyncio.sleep(1.5)
-        raise AssertionError(f"Live OK turn did not complete: {json.dumps(last, ensure_ascii=False)}")
+        raise AssertionError(
+            f"Live OK turn did not complete: {json.dumps(last, ensure_ascii=False)}"
+        )
 
-    async def _wait_browser_released(chat: McpChatSession, *, timeout_sec: float = 60.0) -> dict[str, object]:
+    async def _wait_browser_released(
+        chat: McpChatSession, *, timeout_sec: float = 60.0
+    ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(_BROWSER_RELEASED_JS, intent=EvaluateIntent.BRIDGE_POLL)
+            raw = await chat.evaluate(
+                _BROWSER_RELEASED_JS, intent=EvaluateIntent.BRIDGE_POLL
+            )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
@@ -309,12 +358,16 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
             f"Browser inspector was not released on turn end: {json.dumps(last, ensure_ascii=False)}"
         )
 
-    async def _wait_desktop_preserved(chat: McpChatSession, *, timeout_sec: float = 30.0) -> dict[str, object]:
+    async def _wait_desktop_preserved(
+        chat: McpChatSession, *, timeout_sec: float = 30.0
+    ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(_DESKTOP_PRESERVED_JS, intent=EvaluateIntent.BRIDGE_POLL)
+            raw = await chat.evaluate(
+                _DESKTOP_PRESERVED_JS, intent=EvaluateIntent.BRIDGE_POLL
+            )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
@@ -331,7 +384,9 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
         assert isinstance(pinned, dict) and pinned.get("ok") is True, pinned
         assert isinstance(pinned.get("pinned"), dict), pinned
 
-        ensured = await chat.evaluate(_ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH)
+        ensured = await chat.evaluate(
+            _ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH
+        )
         assert isinstance(ensured, dict) and ensured.get("ok") is True, ensured
 
         chat_id = str((await chat.bridge_chat_id()) or "").strip()
@@ -356,8 +411,12 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
         assert geometry.get("height") == "32px", geometry
 
         # --- Phase 2: manually opened desktop panel (no engagement) ---
-        computer_use = await chat.evaluate(_ENSURE_COMPUTER_USE_JS, intent=EvaluateIntent.AGENT_SUBMIT)
-        assert isinstance(computer_use, dict) and computer_use.get("ok") is True, computer_use
+        computer_use = await chat.evaluate(
+            _ENSURE_COMPUTER_USE_JS, intent=EvaluateIntent.AGENT_SUBMIT
+        )
+        assert (
+            isinstance(computer_use, dict) and computer_use.get("ok") is True
+        ), computer_use
         desktop = await _wait_desktop_open(chat)
         assert desktop.get("ready") is True, desktop
 
@@ -372,7 +431,9 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
             _REPLY_OK_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
         )
         resolved_chat_id = chat_id_hint or str(started.get("chatId") or "").strip()
-        assert resolved_chat_id, f"Expected chat id after stream start: started={started}; send={send_result}"
+        assert (
+            resolved_chat_id
+        ), f"Expected chat id after stream start: started={started}; send={send_result}"
 
         done = await _wait_turn_done(chat, timeout_sec=300.0)
         assert done.get("hasDone") is True, done

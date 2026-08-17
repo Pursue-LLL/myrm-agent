@@ -107,11 +107,16 @@ def _format_reply_context(reply_to: ReplyContext) -> str:
     return "".join(parts)
 
 
-def _format_group_context_section(context_messages: tuple[ContextEntry, ...], user_trigger_line: str) -> str:
+def _format_group_context_section(
+    context_messages: tuple[ContextEntry, ...], user_trigger_line: str
+) -> str:
     """Accumulate recent group snippets plus the trigger message (sanitized)."""
     from myrm_agent_harness.agent.security.detection.content_boundary import sanitize
 
-    lines = [f"{sanitize(e.sender_name) if e.sender_name else e.sender_id}: {sanitize(e.content)}" for e in context_messages]
+    lines = [
+        f"{sanitize(e.sender_name) if e.sender_name else e.sender_id}: {sanitize(e.content)}"
+        for e in context_messages
+    ]
     context_block = "\n".join(lines)
     return f"[Recent group chat messages for context]\n{context_block}\n---\n{user_trigger_line}"
 
@@ -173,7 +178,9 @@ def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, obj
     else:
         body = user_text
 
-    text = prepend_plain_banner(channel_label=msg.channel, ingress_label=ingress, body=body)
+    text = prepend_plain_banner(
+        channel_label=msg.channel, ingress_label=ingress, body=body
+    )
 
     if isinstance(msg.metadata, dict):
         doc_blocks = msg.metadata.get("document_text_blocks")
@@ -191,9 +198,13 @@ def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, obj
         if isinstance(contact_cards, list) and contact_cards:
             from app.channels.media.contact_enrichment import format_contact_text
 
-            card_lines = [format_contact_text(c) for c in contact_cards if isinstance(c, dict)]
+            card_lines = [
+                format_contact_text(c) for c in contact_cards if isinstance(c, dict)
+            ]
             if card_lines:
-                header = "[Shared Contact]" if len(card_lines) == 1 else "[Shared Contacts]"
+                header = (
+                    "[Shared Contact]" if len(card_lines) == 1 else "[Shared Contacts]"
+                )
                 text = f"{text}\n\n{header}\n" + "\n".join(card_lines)
 
         if meta is not None and meta.get("is_forwarded"):
@@ -201,7 +212,9 @@ def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, obj
             if fwd_ctx:
                 text = f"{text}\n\n{fwd_ctx}"
 
-    image_data_list = msg.metadata.get("image_data_list") if isinstance(msg.metadata, dict) else None
+    image_data_list = (
+        msg.metadata.get("image_data_list") if isinstance(msg.metadata, dict) else None
+    )
     if not image_data_list or not isinstance(image_data_list, list):
         return text
 

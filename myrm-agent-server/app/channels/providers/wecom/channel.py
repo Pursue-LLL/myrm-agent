@@ -211,7 +211,9 @@ class WeComChannel(BaseChannel):
 
         try:
             encrypted = WeComCrypto.extract_encrypted_from_xml(body.decode("utf-8"))
-            if not self._crypto.verify_signature(msg_sig, timestamp_str, nonce, encrypted):
+            if not self._crypto.verify_signature(
+                msg_sig, timestamp_str, nonce, encrypted
+            ):
                 trace_id = getattr(request.state, "_webhook_trace_id", "")
                 raise WebhookResponseError(
                     status_code=403,
@@ -232,7 +234,9 @@ class WeComChannel(BaseChannel):
                 trace_id=trace_id,
             ) from exc
 
-    def verify_url(self, msg_signature: str, timestamp: str, nonce: str, echostr: str) -> str:
+    def verify_url(
+        self, msg_signature: str, timestamp: str, nonce: str, echostr: str
+    ) -> str:
         """Verify WeCom callback URL registration.
 
         Decrypts echostr and returns plaintext for the verification handshake.
@@ -262,7 +266,9 @@ class WeComChannel(BaseChannel):
         if self._crypto and msg_signature:
             try:
                 encrypted = WeComCrypto.extract_encrypted_from_xml(raw_xml)
-                if not self._crypto.verify_signature(msg_signature, timestamp, nonce, encrypted):
+                if not self._crypto.verify_signature(
+                    msg_signature, timestamp, nonce, encrypted
+                ):
                     logger.warning("WeCom signature verification failed")
                     return
                 raw_xml = self._crypto.decrypt(encrypted)
@@ -313,7 +319,9 @@ class WeComChannel(BaseChannel):
                     ) from exc
         return None
 
-    async def send_placeholder(self, chat_id: str, text: str, *, thread_id: str | None = None) -> str | None:
+    async def send_placeholder(
+        self, chat_id: str, text: str, *, thread_id: str | None = None
+    ) -> str | None:
         await self._ensure_token()
         try:
             await self._api_send(chat_id, "text", {"content": text})
@@ -344,7 +352,9 @@ class WeComChannel(BaseChannel):
                 timeout_seconds=_UPLOAD_TIMEOUT,
                 max_size_bytes=MAX_FORWARD_DOWNLOAD_BYTES,
             )
-            downloader = MediaDownloader(http_client=self._http, enable_default_cache=True)
+            downloader = MediaDownloader(
+                http_client=self._http, enable_default_cache=True
+            )
             result = await downloader.download(attachment.url, config=config)
             if result.success and result.data:
                 media_data = result.data
@@ -353,7 +363,10 @@ class WeComChannel(BaseChannel):
             return
 
         wecom_type = self._media_type_to_wecom(attachment.media_type)
-        filename = attachment.filename or f"file.{self._media_extension(attachment.media_type)}"
+        filename = (
+            attachment.filename
+            or f"file.{self._media_extension(attachment.media_type)}"
+        )
         mime = attachment.mime_type or "application/octet-stream"
 
         media_id = await self._upload_media(wecom_type, media_data, filename, mime)
@@ -365,7 +378,9 @@ class WeComChannel(BaseChannel):
         except ChannelSendError as exc:
             logger.debug("WeCom media send failed: %s", exc)
 
-    async def _upload_media(self, media_type: str, data: bytes, filename: str, mime_type: str) -> str | None:
+    async def _upload_media(
+        self, media_type: str, data: bytes, filename: str, mime_type: str
+    ) -> str | None:
         """Upload media to WeCom and return media_id."""
         await self._ensure_token()
         try:
@@ -382,7 +397,11 @@ class WeComChannel(BaseChannel):
                 return None
             media_id = body.get("media_id")
             if not media_id:
-                logger.debug("WeCom media upload failed: errcode=%s, errmsg=%s", body.get("errcode"), body.get("errmsg"))
+                logger.debug(
+                    "WeCom media upload failed: errcode=%s, errmsg=%s",
+                    body.get("errcode"),
+                    body.get("errmsg"),
+                )
                 return None
             return str(media_id)
         except Exception as exc:
@@ -406,7 +425,9 @@ class WeComChannel(BaseChannel):
             media_type = _MSG_TYPE_TO_MEDIA[msg_type]
             if msg_type == "image":
                 pic_url = root.findtext("PicUrl", "")
-                media_list.append(MediaAttachment(media_type=media_type, url=pic_url or None))
+                media_list.append(
+                    MediaAttachment(media_type=media_type, url=pic_url or None)
+                )
             else:
                 media_id = root.findtext("MediaId", "")
                 attachment = await self._download_inbound_media(media_id, media_type)
@@ -416,7 +437,11 @@ class WeComChannel(BaseChannel):
             lat = root.findtext("Location_X", "")
             lng = root.findtext("Location_Y", "")
             label = root.findtext("Label", "")
-            content = f"[Location] {label} ({lat}, {lng})" if label else f"[Location] ({lat}, {lng})"
+            content = (
+                f"[Location] {label} ({lat}, {lng})"
+                if label
+                else f"[Location] ({lat}, {lng})"
+            )
         elif msg_type == "link":
             title = root.findtext("Title", "")
             url = root.findtext("Url", "")
@@ -437,7 +462,9 @@ class WeComChannel(BaseChannel):
             # Try to extract media if present in WeCom AI Bot appmsg
             media_id = root.findtext("MediaId", "")
             if media_id:
-                attachment = await self._download_inbound_media(media_id, MediaType.DOCUMENT)
+                attachment = await self._download_inbound_media(
+                    media_id, MediaType.DOCUMENT
+                )
                 if attachment:
                     media_list.append(attachment)
         elif msg_type == "event":
@@ -494,7 +521,9 @@ class WeComChannel(BaseChannel):
             logger.debug("Failed to resolve WeCom sender name for %s", sender_id)
             return None
 
-    async def _download_inbound_media(self, media_id: str, media_type: MediaType) -> MediaAttachment | None:
+    async def _download_inbound_media(
+        self, media_id: str, media_type: MediaType
+    ) -> MediaAttachment | None:
         """Download inbound media from WeCom /media/get API and save to temp file."""
         if not media_id:
             return MediaAttachment(media_type=media_type)
@@ -517,7 +546,9 @@ class WeComChannel(BaseChannel):
 
             ext = self._media_extension(media_type)
             suffix = f".{ext}"
-            tmp = tempfile.NamedTemporaryFile(prefix="wecom_", suffix=suffix, delete=False)
+            tmp = tempfile.NamedTemporaryFile(
+                prefix="wecom_", suffix=suffix, delete=False
+            )
             tmp.write(resp.content)
             tmp.close()
 
@@ -537,7 +568,9 @@ class WeComChannel(BaseChannel):
             return False
         return f"@{self._agent_id}" in content or "@all" in content.lower()
 
-    async def _api_send(self, user_id: str, msg_type: str, body: dict[str, str]) -> bool:
+    async def _api_send(
+        self, user_id: str, msg_type: str, body: dict[str, str]
+    ) -> bool:
         """Send a message via WeCom message/send API. Raises ChannelSendError on failure."""
         payload: dict[str, str | int | dict[str, str]] = {
             "touser": user_id,
@@ -553,19 +586,28 @@ class WeComChannel(BaseChannel):
                 timeout=_SEND_TIMEOUT,
             )
             if resp.status_code >= 400:
-                raise ChannelSendError(f"WeCom send failed: HTTP {resp.status_code}", channel=self.name)
+                raise ChannelSendError(
+                    f"WeCom send failed: HTTP {resp.status_code}", channel=self.name
+                )
             try:
                 data = resp.json()
             except (ValueError, KeyError) as parse_exc:
-                raise ChannelSendError("WeCom send: non-JSON response", channel=self.name) from parse_exc
+                raise ChannelSendError(
+                    "WeCom send: non-JSON response", channel=self.name
+                ) from parse_exc
             errcode = data.get("errcode", 0)
             if errcode != 0:
-                raise ChannelSendError(f"WeCom send error: {data.get('errmsg')} (errcode={errcode})", channel=self.name)
+                raise ChannelSendError(
+                    f"WeCom send error: {data.get('errmsg')} (errcode={errcode})",
+                    channel=self.name,
+                )
             return True
         except Exception as exc:
             if isinstance(exc, ChannelSendError):
                 raise
-            raise ChannelSendError(f"WeCom send exception: {exc}", channel=self.name) from exc
+            raise ChannelSendError(
+                f"WeCom send exception: {exc}", channel=self.name
+            ) from exc
 
     async def api_get_user(self, user_id: str) -> dict[str, object] | None:
         """Fetch a WeCom user's contact info by userid.
