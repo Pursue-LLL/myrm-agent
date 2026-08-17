@@ -51,6 +51,8 @@ if [[ ! -L "${CURRENT_DIR}" ]] || [[ ! -f "${CURRENT_DIR}/pipe-cdp-proxy.mjs" ]]
 fi
 
 if chrome_agent_launchagent_loaded; then
+  chrome_agent_assert_profile_available_for_cdp \
+    || fail "profile locked by login Chrome — see MYRM_CHROME_AGENT_FAIL above"
   echo "MYRM_CHROME_AGENT_DAEMON: restarting LaunchAgent ${CHROME_AGENT_LABEL}..." >&2
   chrome_agent_launchagent_start
   chrome_agent_wait_health \
@@ -82,6 +84,9 @@ fi
 
 NODE_BIN="${MYRM_NODE_BIN:-$(command -v node || true)}"
 [[ -n "${NODE_BIN}" && -x "${NODE_BIN}" ]] || fail "node not found — set MYRM_NODE_BIN"
+
+chrome_agent_assert_profile_available_for_cdp \
+  || fail "profile locked by login Chrome — see MYRM_CHROME_AGENT_FAIL above"
 
 mkdir -p "$(dirname "${PID_FILE}")" "$(dirname "${LOG_FILE}")" "$(chrome_agent_data_dir)"
 

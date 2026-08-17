@@ -261,6 +261,37 @@ chrome_agent_wait_health() {
   return 1
 }
 
+# Chrome allows one live process per user-data-dir (SingletonLock). OAuth login
+# opens a non-CDP window on the same profile; starting pipe-proxy before that
+# window closes makes CDP Chrome exit immediately (see chrome-agent-proxy.log).
+chrome_agent_profile_lock_pid() {
+  local data_dir lock_link lock_name pid
+  data_dir="$(chrome_agent_data_dir)"
+  lock_link="${data_dir}/SingletonLock"
+  [[ -L "${lock_link}" ]] || return 1
+  lock_name="$(readlink "${lock_link}")"
+  pid="${lock_name##*-}"
+  [[ "${pid}" =~ ^[0-9]+$ ]] || return 1
+  kill -0 "${pid}" 2>/dev/null || return 1
+  printf '%s' "${pid}"
+}
+
+chrome_agent_pid_uses_cdp_pipe() {
+  local pid="$1"
+  ps -p "${pid}" -ww -o args= 2>/dev/null | grep -q 'remote-debugging-pipe'
+}
+
+chrome_agent_assert_profile_available_for_cdp() {
+  local pid
+  pid="$(chrome_agent_profile_lock_pid || true)"
+  [[ -z "${pid}" ]] && return 0
+  if chrome_agent_pid_uses_cdp_pipe "${pid}"; then
+    return 0
+  fi
+  echo "MYRM_CHROME_AGENT_FAIL: login Chrome still holds profile (pid=${pid}) — finish X login, Cmd+W close the ChromeAgent window, then run: ./myrm ready --chrome-agent --daemon" >&2
+  return 1
+}
+
 # Reject proxies pointing outside the machine-level install (stale repo paths).
 chrome_agent_plist_points_to_install() {
   local plist
