@@ -8,8 +8,8 @@ from __future__ import annotations
 import logging
 
 from app.services.hosting.packager import PublishFile
-from app.services.hosting.types import HostingTarget, PublicationResult
 from app.services.hosting.providers.vercel_client import VercelClient
+from app.services.hosting.types import HostingTarget, PublicationResult
 
 logger = logging.getLogger(__name__)
 
