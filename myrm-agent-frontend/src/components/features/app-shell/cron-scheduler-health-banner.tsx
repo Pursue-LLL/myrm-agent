@@ -40,11 +40,6 @@ export function getCronSchedulerBannerDismissedStatus(): DismissedSchedulerStatu
   }
 }
 
-/** @deprecated Use getCronSchedulerBannerDismissedStatus */
-export function isCronSchedulerBannerDismissed(): boolean {
-  return getCronSchedulerBannerDismissedStatus() !== null;
-}
-
 export function dismissCronSchedulerBanner(status: DismissedSchedulerStatus): void {
   try {
     sessionStorage.setItem(DISMISS_STORAGE_KEY, status);

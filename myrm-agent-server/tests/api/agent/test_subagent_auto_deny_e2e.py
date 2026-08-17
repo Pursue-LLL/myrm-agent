@@ -16,7 +16,10 @@ def get_test_request(query: str, chat_id: str, message_id: str):
         "modelSelection": get_model_selection(),
         "actionMode": "general",
         "ephemeral_subagents": {
-            "test_bash": {"system_prompt": "You are a bash execution worker.", "tools": ["bash_code_execute_tool"]}
+            "test_bash": {
+                "system_prompt": "You are a bash execution worker.",
+                "tools": ["bash_code_execute_tool"],
+            }
         },
     }
     return req

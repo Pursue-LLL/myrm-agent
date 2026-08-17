@@ -28,7 +28,7 @@
 | `auth-initializer.tsx` | 组件 | 启动时 auth store  hydration 与路由守卫 | ✅ |
 | `boot-screen.tsx` | 组件 | 冷启动屏；local 模式下轮询后端健康，失败时展示 health-aware `common.configLoadError` hint | ✅ |
 | `local-backend-unavailable-banner.tsx` | 组件 | `LocalBackendUnavailableBanner`：后端未就绪告警（E2E tab 等私 Backend 绑定后再探活）；`ConfigReadinessDegradedBanner`：readiness 降级非阻塞告警 | ✅ |
-| `cron-scheduler-health-banner.tsx` | 组件 | `CronSchedulerHealthBanner`：scheduler health red/yellow 时 AppLayout 顶栏告警（session dismiss；Cron 页隐藏因 Badge 已覆盖）；poll 委托 `lib/cron/schedulerHealth` | ✅ |
+| `cron-scheduler-health-banner.tsx` | 组件 | `CronSchedulerHealthBanner`：scheduler health red/yellow 时 AppLayout 顶栏告警（按 severity session dismiss；yellow dismiss 后 red 仍 re-show；Cron 页隐藏因 Badge 已覆盖）；poll 委托 `lib/cron/schedulerHealth` | ✅ |
 | `capability-icons.tsx` | 辅助 | 模型能力图标行（Vision/ToolCalling/Reasoning/Audio/Video 5 种布尔能力） | ✅ |
 | `command-palette.tsx` | 组件 | Slash 命令面板 UI（Cursor 风格弹出面板，分组展示系统行为/技能/用户命令，含 argsHint 参数提示） | ✅ |
 | `search-dialog.tsx` | 组件 | Cmd+K 历史消息搜索；跳转高亮 + **引用到 composer**（跨会话 `@chat:` chip）；**同会话 cite** 时 info toast（`search.citeSameChat`）；E2E 测点：`data-search-trigger` / `data-search-input` / `data-cite-to-composer` | ✅ |

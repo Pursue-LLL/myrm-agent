@@ -46,6 +46,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/voice/test_voice_memory_context.py` | 模块 | Voice memory ACL SSOT 单元 + policy 矩阵 |
 | `api/voice/test_voice_memory_acl_api_integration.py` | 模块 | Voice memory ACL HTTP 集成（realtime/gemini token enum + tool-exec flags，ACL 路径 unmocked） |
 | `e2e/test_background_tasks_panel_chrome_e2e.py` | 模块 | Background Tasks Panel Chrome MCP E2E（READ×5 SHPOIB：打开 Panel、failed/running seed、UI cancel、`vault_log` drawer、`success` finish toast；`data-testid=background-task-cancel` / `background-task-view-vault-log`） |
+| `e2e/test_cron_observability_chrome_e2e.py` | 模块 | Cron observability Chrome MCP E2E（READ×1 anti-mux 单会话：settings/cron banner 隐藏 · SchedulerHealthBadge · Custom create preview · Chat banner 随 health 显隐；须 `-m chrome_e2e`） |
 | `e2e/test_background_shell_live_agent_chrome_e2e.py` | 模块 | Background shell LIVE×1 SHPOIB（`lane=LIVE_AGENT`，默认 `private_backend=True`）：自然语言 user turn + `bash_code_execute_tool` stream（HITL 时 `decisions[]` approve resume）；5× stream retry + REST 20s probe + 3× chat retry；`finally` teardown cancel |
 | `e2e/test_skill_marketplace_live_agent_chrome_e2e.py` | 模块 | Skill marketplace LIVE×1 SHPOIB：`skill_market_tool` 经 agent-stream 真实 LLM 调用断言；UI toggle 见 READ `test_skill_mount_builtin_gate_chrome_e2e` |
 | `e2e/test_revert_files_live_agent_chrome_e2e.py` | 模块 | RevertFiles LIVE×1 SHPOIB：真实 LLM 回合 `file_edit_tool` 修改 workspace 文件 → SnapshotObserver 记录快照 → 页面刷新 hydrate `requestMessageId`（`r-` 前缀）→ probe 与 `RevertFiles` 同一解析（`requestMessageId \|\| messageId`）→ 真实 UI 回退并断言文件恢复 seed 内容 |

@@ -31,7 +31,7 @@
 | `CronRunHistory.tsx` | 组件 | 单任务详情：六字段审计 + 运行历史 + per-job 编辑器 + Shared Context 绑定 | ✅ |
 | `CronRunItem.tsx` | 组件 | 单次运行记录行（状态/耗时/log 链接），含 `monitor_contract_error` 显式提示与连续失败次数展示（badge + 展开告警） | ✅ |
 | `CronStatsBar.tsx` | 组件 | 任务统计摘要条（成功/失败/活跃数） | ✅ |
-| `SchedulerHealthBadge.tsx` | 组件 | 调度器存活状态 Badge（绿/黄/红）；poll 委托 [`lib/cron/schedulerHealth.ts`](../../../lib/cron/schedulerHealth.ts) 与 AppLayout banner 共用 single-flight | ✅ |
+| `SchedulerHealthBadge.tsx` | 组件 | 调度器存活状态 Badge（绿/黄/红）；Tooltip last_tick 走 `formatTime(iso, locale)` 与 Card SSOT 一致；poll 委托 [`lib/cron/schedulerHealth.ts`](../../../lib/cron/schedulerHealth.ts) 与 AppLayout banner 共用 single-flight | ✅ |
 | `CronTriggerEditor.tsx` | 组件 | Cron 触发器编辑（Webhook/Event/Stream/Poll）；组合 `StreamTriggerSection` 与 `PollTriggerSection` 子表单 | ✅ |
 | `CronTriggerWebhookDisplay.tsx` | 组件 | Webhook URL/Secret/cURL 展示与复制 | ✅ |
 | `PollTriggerSection.tsx` | 组件 | Poll 触发器草稿表单（URL + JSON path + interval），由 `CronTriggerEditor` 引用 | ✅ |

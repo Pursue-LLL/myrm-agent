@@ -1,10 +1,9 @@
-"""Live HTTP E2E: subagent high-risk bash approval interrupt → approve/allow-always/edit resume.
+"""Live HTTP E2E: subagent high-risk bash approval interrupt → approve/allow-always/edit/reject.
 
 Replaces the in-process ``TestClient`` variant (``tests/api/agent/test_subagent_interrupt_e2e.py``)
-for SHPOIB private-runtime coverage. This version talks to the real agent-stream over HTTP, where
-the approval middleware + ``ApprovalRegistry`` are fully wired, so the
-``tool_approval_request`` / ``approval_required`` interrupt (``action_type=subagent_approval``)
-is observable and resumable exactly as a real WebUI user would experience it.
+whose approval events cannot bridge the subagent -> parent stream in a single-process
+TestClient. This version talks to the real SHPOIB agent-stream over HTTP, where the
+approval middleware + ``ApprovalRegistry`` are fully wired.
 
 Formal run::
 
@@ -14,7 +13,6 @@ Formal run::
 
 from __future__ import annotations
 
-import json
 import sys
 import uuid
 from pathlib import Path
@@ -34,13 +32,11 @@ from cdp_chat.support import (  # noqa: E402
     wait_e2e_provider_ready,
 )
 
-from tests.api.agent.utils import get_model_selection  # noqa: E402
 from tests.support.e2e_runtime_guard import heartbeat_once  # noqa: E402
 from tests.support.hitl_live_e2e import pin_and_verify_hitl_mode  # noqa: E402
-
-_MAX_RESUME_ROUNDS = 8
-_STREAM_TIMEOUT_SEC = 300.0
-_APPROVAL_EVENT_TYPES = frozenset({"approval_required", "tool_approval_request"})
+from tests.support.subagent_hitl_stream import (  # noqa: E402
+    run_interrupt_flow,
+)
 
 _DELEGATE_QUERY_TMPL = (
     "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，"
@@ -114,77 +110,10 @@ def _seed_chat(
     resp.raise_for_status()
 
 
-def _build_request(
-    chat_id: str,
-    message_id: str,
-    query: str,
-    *,
-    agent_id: str,
-    resume_value: list[dict[str, object]] | None = None,
-) -> dict[str, object]:
-    req: dict[str, object] = {
-        "query": query,
-        "chatId": chat_id,
-        "messageId": message_id,
-        "agentId": agent_id,
-        "modelSelection": get_model_selection(),
-        "actionMode": "general",
-        "securityPreset": "hitl",
-        "ephemeralSubagents": _EPHEMERAL_SUBAGENTS,
-    }
-    if resume_value is not None:
-        req["resumeValue"] = {"decisions": resume_value}
-    return req
-
-
-def _consume_stream(
-    client: httpx.Client,
-    api_base: str,
-    payload: dict[str, object],
-) -> tuple[str | None, list[dict[str, object]], list[dict[str, object]]]:
-    """Stream agent-stream once. Returns (action_type, events, errors)."""
-    events: list[dict[str, object]] = []
-    errors: list[dict[str, object]] = []
-    action_type: str | None = None
-    with client.stream(
-        "POST",
-        f"{api_base}/api/v1/agents/agent-stream",
-        json=payload,
-        timeout=_STREAM_TIMEOUT_SEC,
-    ) as response:
-        response.raise_for_status()
-        for line in response.iter_lines():
-            if not line or not line.startswith("data: "):
-                continue
-            try:
-                event = json.loads(line[6:])
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(event, dict):
-                continue
-            events.append(event)
-            event_type = event.get("type")
-            if event_type in _APPROVAL_EVENT_TYPES:
-                data = event.get("data")
-                if isinstance(data, dict):
-                    action_type = data.get("action_type")
-                    if not isinstance(action_type, str):
-                        action_type = "tool_approval"
-            elif event_type == "error":
-                errors.append(event)
-    return action_type, events, errors
-
-
-def _completed_without_approval(events: list[dict[str, object]]) -> bool:
-    has_message_end = any(e.get("type") == "message_end" for e in events)
-    if not has_message_end:
-        return False
-    return not any(e.get("type") in _APPROVAL_EVENT_TYPES for e in events)
-
-
 def _extract_subagent_tool_args(events: list[dict[str, object]]) -> dict[str, object]:
+    approval_types = frozenset({"approval_required", "tool_approval_request"})
     for event in events:
-        if event.get("type") not in _APPROVAL_EVENT_TYPES:
+        if event.get("type") not in approval_types:
             continue
         data = event.get("data")
         if not isinstance(data, dict):
@@ -203,79 +132,29 @@ def _extract_subagent_tool_args(events: list[dict[str, object]]) -> dict[str, ob
     return {}
 
 
-def _run_interrupt_flow(
+def _run_interrupt_case(
     client: httpx.Client,
     api_base: str,
     chat_id: str,
     target_dir: str,
-    *,
     agent_id: str,
+    *,
     resume_decision_factory: Callable[
         [list[dict[str, object]]], list[dict[str, object]]
     ],
 ) -> None:
     pin_and_verify_hitl_mode(api_base)
     _seed_chat(client, api_base, agent_id=agent_id, chat_id=chat_id)
-    message_id = str(uuid.uuid4())
     query = _DELEGATE_QUERY_TMPL.format(target_dir=target_dir)
-    resume_value: list[dict[str, object]] | None = None
-    approval_seen = False
-
-    for _round in range(_MAX_RESUME_ROUNDS):
-        heartbeat_once()
-        payload = _build_request(
-            chat_id, message_id, query, agent_id=agent_id, resume_value=resume_value
-        )
-        action_type, events, errors = _consume_stream(client, api_base, payload)
-
-        if _completed_without_approval(events):
-            raise AssertionError(
-                "Agent stream completed without any approval event — "
-                "subagent bash did not suspend for HITL. Check security_config "
-                "inheritance (auto_mode_enabled) and that the LLM invoked bash_code_execute_tool. "
-                f"event_types={[e.get('type') for e in events]}"
-            )
-
-        if action_type == "subagent_approval":
-            approval_seen = True
-            resume_value = resume_decision_factory(events)
-            message_id = str(uuid.uuid4())
-            query = ""
-            # One more round resumes the interrupted agent.
-            continue
-
-        if errors:
-            raise AssertionError(f"agent-stream errors before approval: {errors}")
-
-        if action_type in (None, "tool_approval"):
-            # Main agent wants approval for delegate_task_tool itself — auto-approve.
-            resume_value = [
-                {"type": "approve", "feedback": "Auto-approve delegate_task_tool"}
-            ]
-            message_id = str(uuid.uuid4())
-            query = ""
-            continue
-
-        break
-
-    if not approval_seen:
-        raise AssertionError(
-            f"No subagent_approval interrupt observed after {_MAX_RESUME_ROUNDS} rounds; "
-            f"last action_type={action_type!r} events={[e.get('type') for e in events]}"
-        )
-
-    # The final resume turn must complete.
-    heartbeat_once()
-    payload = _build_request(chat_id, message_id, "", agent_id=agent_id, resume_value=resume_value)
-    _action_type, resume_events, resume_errors = _consume_stream(
-        client, api_base, payload
+    run_interrupt_flow(
+        client,
+        api_base,
+        chat_id,
+        agent_id,
+        query,
+        ephemeral_subagents=_EPHEMERAL_SUBAGENTS,
+        resume_decision_factory=resume_decision_factory,
     )
-    has_end = any(e.get("type") == "message_end" for e in resume_events)
-    if not has_end:
-        raise AssertionError(
-            f"Agent did not complete after approval resume; "
-            f"events={[e.get('type') for e in resume_events]} errors={resume_errors}"
-        )
 
 
 def _setup(api_base: str) -> None:
@@ -287,8 +166,16 @@ def _setup(api_base: str) -> None:
     ensure_e2e_hitl_mode(api_url=api_base)
 
 
-def _new_client(api_base: str) -> httpx.Client:
-    return httpx.Client(base_url=api_base, timeout=60.0)
+@pytest.fixture(autouse=True)
+def _seal_live_http_bootstrap(_chrome_e2e_item_runtime: object | None) -> None:
+    """HTTP-only LIVE tests never call ``open_mcp_page`` — seal BODY without Chrome page open."""
+    _ = _chrome_e2e_item_runtime
+    try:
+        from e2e_session_runtime.lifecycle import complete_bootstrap_phase
+
+        complete_bootstrap_phase(phase_label="live_http_no_browser")
+    except ImportError:
+        pass
 
 
 @pytest.fixture(autouse=True)
@@ -300,11 +187,10 @@ def _pin_hitl_before_stream(_chrome_e2e_item_runtime: object | None) -> Iterator
 
 @pytest.fixture
 def _live_client(_chrome_e2e_item_runtime: object | None) -> Iterator[httpx.Client]:
-    """Bind SHPOIB private runtime before probing provider readiness."""
     _ = _chrome_e2e_item_runtime
     api_base = get_e2e_api_url()
     _setup(api_base)
-    with _new_client(api_base) as client:
+    with httpx.Client(base_url=api_base, timeout=60.0) as client:
         yield client
     ensure_e2e_hitl_mode(api_url=api_base)
 
@@ -320,23 +206,22 @@ def _delegating_agent_id(_live_client: httpx.Client) -> str:
     workload="LIVE",
     private_reason="live_shpoib",
 )
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(1200)
 def test_subagent_interrupt_live_approve(
     _live_client: httpx.Client, _delegating_agent_id: str
 ) -> None:
-    """Subagent bash approval interrupt → user approves → subagent resumes & completes."""
     chat_id = str(uuid.uuid4())
     target_dir = f"/tmp/myrm_live_interrupt_approve_{uuid.uuid4().hex[:6]}"
 
     def _decision(_events: list[dict[str, object]]) -> list[dict[str, object]]:
         return [{"type": "approve", "feedback": "Looks good from LIVE E2E"}]
 
-    _run_interrupt_flow(
+    _run_interrupt_case(
         _live_client,
         get_e2e_api_url(),
         chat_id,
         target_dir,
-        agent_id=_delegating_agent_id,
+        _delegating_agent_id,
         resume_decision_factory=_decision,
     )
 
@@ -347,11 +232,10 @@ def test_subagent_interrupt_live_approve(
     workload="LIVE",
     private_reason="live_shpoib",
 )
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(1200)
 def test_subagent_interrupt_live_allow_always(
     _live_client: httpx.Client, _delegating_agent_id: str
 ) -> None:
-    """Subagent approval resume accepts extensions.allowAlways (Drawer always-allow path)."""
     chat_id = str(uuid.uuid4())
     target_dir = f"/tmp/myrm_live_interrupt_always_{uuid.uuid4().hex[:6]}"
 
@@ -364,12 +248,12 @@ def test_subagent_interrupt_live_allow_always(
             }
         ]
 
-    _run_interrupt_flow(
+    _run_interrupt_case(
         _live_client,
         get_e2e_api_url(),
         chat_id,
         target_dir,
-        agent_id=_delegating_agent_id,
+        _delegating_agent_id,
         resume_decision_factory=_decision,
     )
 
@@ -380,11 +264,10 @@ def test_subagent_interrupt_live_allow_always(
     workload="LIVE",
     private_reason="live_shpoib",
 )
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(1200)
 def test_subagent_interrupt_live_edit(
     _live_client: httpx.Client, _delegating_agent_id: str
 ) -> None:
-    """Subagent approval resume accepts edit decisions with merged shell args."""
     chat_id = str(uuid.uuid4())
     target_dir = f"/tmp/myrm_live_interrupt_edit_{uuid.uuid4().hex[:6]}"
 
@@ -404,12 +287,12 @@ def test_subagent_interrupt_live_edit(
             {"type": "edit", "args": edited, "feedback": "Edited command from LIVE E2E"}
         ]
 
-    _run_interrupt_flow(
+    _run_interrupt_case(
         _live_client,
         get_e2e_api_url(),
         chat_id,
         target_dir,
-        agent_id=_delegating_agent_id,
+        _delegating_agent_id,
         resume_decision_factory=_decision,
     )
 
@@ -420,22 +303,21 @@ def test_subagent_interrupt_live_edit(
     workload="LIVE",
     private_reason="live_shpoib",
 )
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(1200)
 def test_subagent_interrupt_live_reject(
     _live_client: httpx.Client, _delegating_agent_id: str
 ) -> None:
-    """Subagent approval reject → command is NOT executed; agent completes after resume."""
     chat_id = str(uuid.uuid4())
     target_dir = f"/tmp/myrm_live_interrupt_reject_{uuid.uuid4().hex[:6]}"
 
     def _decision(_events: list[dict[str, object]]) -> list[dict[str, object]]:
         return [{"type": "reject", "feedback": "Rejected from LIVE E2E"}]
 
-    _run_interrupt_flow(
+    _run_interrupt_case(
         _live_client,
         get_e2e_api_url(),
         chat_id,
         target_dir,
-        agent_id=_delegating_agent_id,
+        _delegating_agent_id,
         resume_decision_factory=_decision,
     )

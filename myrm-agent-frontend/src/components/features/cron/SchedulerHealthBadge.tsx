@@ -4,6 +4,7 @@
  * [INPUT]
  * - `@/lib/cron/schedulerHealth` (`subscribeSchedulerHealth`, `getCachedSchedulerHealth`)
  * - `next-intl` (`cron.schedulerStatus`)
+ * - `./cron-utils` (`formatTime`)
  *
  * [OUTPUT]
  * - `SchedulerHealthBadge`: Cron list header scheduler liveness dot + tooltip
@@ -13,13 +14,14 @@
  */
 
 import { memo, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import {
   getCachedSchedulerHealth,
   subscribeSchedulerHealth,
   type SchedulerHealth,
 } from '@/lib/cron/schedulerHealth';
+import { formatTime } from './cron-utils';
 import { cn } from '@/lib/utils/classnameUtils';
 
 const STATUS_CONFIG = {
@@ -30,6 +32,7 @@ const STATUS_CONFIG = {
 
 const SchedulerHealthBadge = memo(function SchedulerHealthBadge() {
   const t = useTranslations('cron');
+  const locale = useLocale();
   const [health, setHealth] = useState<SchedulerHealth | null>(() => getCachedSchedulerHealth());
 
   useEffect(() => subscribeSchedulerHealth(setHealth), []);
@@ -49,7 +52,7 @@ const SchedulerHealthBadge = memo(function SchedulerHealthBadge() {
       <TooltipContent side="bottom" className="text-xs space-y-0.5">
         {health.last_tick_at && (
           <p>
-            {t('schedulerStatus.lastTick')}: {new Date(health.last_tick_at).toLocaleTimeString()}
+            {t('schedulerStatus.lastTick')}: {formatTime(health.last_tick_at, locale)}
           </p>
         )}
         {health.tick_errors > 0 && (

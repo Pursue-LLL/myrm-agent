@@ -24,11 +24,13 @@ Formal run::
 from __future__ import annotations
 
 import asyncio
+import json
 import sys
 import time
 import uuid
 from pathlib import Path
 
+import httpx
 import pytest
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
@@ -38,7 +40,6 @@ if str(_LIB) not in sys.path:
 from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
     STREAM_API_BINDING_JS,
-    WAIT_WORKSPACE_STREAM_JS,
     e2e_runtime_bootstrap_apply_js,
     ensure_e2e_hitl_mode_in_browser,
     get_e2e_api_url,
@@ -46,6 +47,7 @@ from cdp_chat.support import (  # noqa: E402
 )
 from dev_gate.contract import EvaluateIntent  # noqa: E402
 
+from tests.support.chrome_allowlist_live_e2e import _RECOVER_HITL_JS
 from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
     guarded_httpx_request,
@@ -54,6 +56,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 from tests.support.hitl_live_e2e import pin_and_verify_hitl_mode
+from tests.support.subagent_hitl_stream import run_until_subagent_approval
 
 _APPROVAL_WAIT_SEC = 300.0
 _MAX_CHAT_ATTEMPTS = 2
@@ -194,7 +197,8 @@ async def _prepare_live_chat(
     ui_base: str,
 ) -> str:
     await chat.click_new_chat()
-    await chat.ensure_chat_surface(ui_base)
+    # open_mcp_page already sealed owned_page_ready; full ensure_chat_surface can
+    # stall 10+ min under parallel Chrome load while HTTP kickoff waits on LLM.
     ensured = await chat.evaluate(
         """(() => {
           const bridge = window.__MYRM_E2E_CHAT__;
@@ -222,6 +226,43 @@ async def _prepare_live_chat(
     return chat_id
 
 
+async def _http_kickoff_subagent_approval(
+    api_url: str,
+    chat_id: str,
+    agent_id: str,
+) -> None:
+    """Start delegate+subagent via HTTP until subagent_approval (same as dashboard prepare)."""
+    pin_and_verify_hitl_mode(api_url)
+
+    def _kickoff() -> None:
+        with httpx.Client(base_url=api_url, timeout=300.0) as client:
+            run_until_subagent_approval(
+                client,
+                api_url,
+                chat_id,
+                agent_id,
+                _USER_PROMPT,
+                ephemeral_subagents=_EPHEMERAL_SUBAGENTS,
+            )
+
+    await asyncio.to_thread(_kickoff)
+
+
+async def _recover_hitl_in_browser(
+    chat: McpChatSession, chat_id: str
+) -> dict[str, object]:
+    chat_id_json = json.dumps(chat_id)
+    raw = await chat.evaluate(
+        f"({_RECOVER_HITL_JS})({chat_id_json})",
+        intent=EvaluateIntent.AGENT_SUBMIT,
+        recv_timeout=30.0,
+    )
+    result = raw if isinstance(raw, dict) else {"raw": raw}
+    if result.get("ok") is not True and not result.get("timedOut"):
+        raise RuntimeError(f"recoverHitlStream failed: {result!r}")
+    return result
+
+
 async def _run_approval_flow(
     chat: McpChatSession,
     agent_id: str,
@@ -237,24 +278,10 @@ async def _run_approval_flow(
     await ensure_e2e_hitl_mode_in_browser(chat)
     await _assert_stream_binding(chat, expected_api=api_url)
 
-    workspace_ready = await chat.evaluate(
-        WAIT_WORKSPACE_STREAM_JS,
-        intent=EvaluateIntent.AGENT_SUBMIT,
-        recv_timeout=45.0,
-    )
-    assert (workspace_ready or {}).get(
-        "ok"
-    ) is True, f"Workspace stream not ready: {workspace_ready!r}; api={api_url}"
-
     sent_marker["sent"] = True
-    send_result = await chat.send_message(_USER_PROMPT, _USER_PROMPT)
-    started = await chat.wait_stream_started(
-        _USER_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id
-    )
-    resolved_chat_id = str(started.get("chatId") or chat_id).strip()
-    assert (
-        resolved_chat_id
-    ), f"Expected chat id after stream start: started={started}; send={send_result}"
+    await _http_kickoff_subagent_approval(api_url, chat_id, agent_id)
+    await _recover_hitl_in_browser(chat, chat_id)
+    resolved_chat_id = chat_id
 
     # Stay on the streaming tab — mid-stream Page.navigate drops SSE approval events.
     path_probe = await chat.evaluate(
