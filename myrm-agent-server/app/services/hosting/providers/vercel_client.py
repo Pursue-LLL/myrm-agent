@@ -3,12 +3,13 @@
 [INPUT]
 - httpx (POS: Async HTTP client)
 - tenacity (POS: Retry with exponential backoff)
+- app.services.hosting.packager::PublishFile (POS: 可部署文件的统一数据结构)
 
 [OUTPUT]
 - VercelClient: deploy static files and poll deployment status
 
 [POS]
-Third-party hosting integration for artifact one-click deployment.
+Vercel hosting provider 的私有 API 客户端，封装 Vercel v13 部署与状态轮询。
 """
 
 import json
