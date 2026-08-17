@@ -35,11 +35,13 @@ interface RowState {
   error: string | null;
 }
 
-function createRows(entries: BrandEntry[], empty: boolean): RowState[] {
-  if (!empty && entries.length > 0) {
-    return entries.map((entry) => ({ field: entry.field, value: entry.value, error: null }));
-  }
-  return BRAND_FIELD_KEYS.map((field) => ({ field, value: '', error: null }));
+function createRows(entries: BrandEntry[]): RowState[] {
+  const byField = new Map(entries.map((e) => [e.field, e.value]));
+  return BRAND_FIELD_KEYS.map((field) => ({
+    field,
+    value: byField.get(field) ?? '',
+    error: null,
+  }));
 }
 
 function buildPatch(rows: RowState[]): { toSave: Record<string, string>; toDelete: string[] } {
@@ -69,7 +71,9 @@ const BrandStudioSection = () => {
     try {
       const response = await getMemories({ type: 'profile', page: 1, pageSize: 100, sortOrder: 'asc' });
       const brandMemories = response.items.filter((m: Memory) => isBrandProfileKey(m.key));
-      setRows(createRows(toBrandEntries(brandMemories), brandMemories.length === 0));
+      setRows(createRows(toBrandEntries(brandMemories)));
+    } catch {
+      setRows(createRows([]));
     } finally {
       setLoading(false);
     }
@@ -136,7 +140,7 @@ const BrandStudioSection = () => {
   }, [rows, validateAll, loadBrandEntries, t]);
 
   const resetForm = useCallback(() => {
-    setRows(createRows([], true));
+      setRows(createRows([]));
   }, []);
 
   return (
@@ -172,6 +176,7 @@ const BrandStudioSection = () => {
                   <ColorField
                     value={row.value}
                     error={row.error}
+                    ariaLabel={t(`fields.${row.field}`)}
                     onChange={(value) => updateRow(row.field, value)}
                   />
                 ) : isLongTextField(row.field) ? (
@@ -212,13 +217,14 @@ const BrandStudioSection = () => {
 function ColorField({
   value,
   error,
+  ariaLabel,
   onChange,
 }: {
   value: string;
   error: string | null;
+  ariaLabel: string;
   onChange: (value: string) => void;
 }) {
-  const t = useTranslations('brandStudio');
   return (
     <div className="flex items-center gap-2">
       <span
@@ -235,7 +241,7 @@ function ColorField({
           value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#000000'}
           onChange={(e) => onChange(e.target.value)}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-          aria-label={t('fields.primary_color')}
+          aria-label={ariaLabel}
         />
       </span>
       <Input
