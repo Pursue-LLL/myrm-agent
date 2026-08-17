@@ -70,11 +70,6 @@ export function extractBrandValues(
 
 const HEX_COLOR_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
-export interface BrandFieldError {
-  field: BrandFieldKey;
-  message: string;
-}
-
 /**
  * Validate a single brand field value. Returns an error message or null.
  * Color fields require a valid hex; text fields require non-empty value.
