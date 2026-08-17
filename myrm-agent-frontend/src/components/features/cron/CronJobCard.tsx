@@ -38,6 +38,7 @@ import type { CronJob } from '@/services/cron';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { updateCronJob, duplicateCronJob } from '@/services/cron';
 import { formatNextRun, formatRelativeTime, formatTime, isCronOverdue, statusBorderColor, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
+import { humanizeSchedule, type ScheduleT } from './cron-blueprints';
 import useCronStore from '@/store/useCronStore';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
@@ -60,17 +61,11 @@ function parseLiteLLM(model: string): { providerId: string; model: string } {
   return { providerId: 'openai', model };
 }
 
-function ScheduleLabel({ job, t }: { job: CronJob; t: (key: string, values?: Record<string, string>) => string }) {
+function ScheduleLabel({ job, t, locale }: { job: CronJob; t: ScheduleT; locale: string }) {
   const s = job.schedule;
-  if (s.kind === 'cron') {return <span className="font-mono">{s.expr}</span>;}
-  if (s.kind === 'interval' && s.interval_ms) {
-    const sec = Math.round(s.interval_ms / 1000);
-    const label =
-      sec < 60 ? t('timeSeconds', { value: String(sec) }) : t('timeMinutes', { value: String(Math.round(sec / 60)) });
-    return <span>{t('interval', { value: label })}</span>;
-  }
-  if (s.kind === 'once') {return <span>{t('once')}</span>;}
-  return null;
+  if (!s) {return null;}
+  const label = humanizeSchedule(s, t, locale);
+  return label ? <span>{label}</span> : null;
 }
 
 function AgentLabel({ agentId }: { agentId?: string | null }) {
@@ -305,7 +300,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
               onSelect={handleModelChange}
             />
           )}
-          <ScheduleLabel job={job} t={t} />
+          <ScheduleLabel job={job} t={t} locale={locale} />
           <AgentLabel agentId={job.agent_id} />
           <CronWorkflowTemplateBadge job={job} />
           {job.session_target === 'main' && <ThreadBadge chatId={job.chat_id} t={t} />}

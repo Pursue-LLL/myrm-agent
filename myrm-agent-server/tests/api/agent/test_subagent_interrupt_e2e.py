@@ -114,11 +114,11 @@ def test_subagent_interrupt_and_resume(client: TestClient):
                     collected_events.append(data)
                     event_type = data.get("type", "unknown")
                     print(f"  🔍 Received event: {event_type}")
-                    if event_type == "approval_required":
+                    if event_type in ("approval_required", "tool_approval_request"):
                         approval_payload = data.get("data", {})
                         action_type = approval_payload.get("action_type")
                         print(
-                            f"  ✅ 拦截到 approval_required 事件！ action_type={action_type}"
+                            f"  ✅ 拦截到 {event_type} 事件！ action_type={action_type}"
                         )
                         break
                     elif event_type == "message":
@@ -246,7 +246,7 @@ def test_subagent_interrupt_resume_with_allow_always(client: TestClient):
                     if not isinstance(data, dict):
                         continue
                     collected_events.append(data)
-                    if data.get("type") == "approval_required":
+                    if data.get("type") in ("approval_required", "tool_approval_request"):
                         approval_payload = data.get("data", {})
                         action_type = approval_payload.get("action_type")
                         break
@@ -360,7 +360,7 @@ def test_subagent_interrupt_resume_with_edit(client: TestClient):
                     if not isinstance(data, dict):
                         continue
                     collected_events.append(data)
-                    if data.get("type") == "approval_required":
+                    if data.get("type") in ("approval_required", "tool_approval_request"):
                         approval_payload = data.get("data", {})
                         action_type = approval_payload.get("action_type")
                         break

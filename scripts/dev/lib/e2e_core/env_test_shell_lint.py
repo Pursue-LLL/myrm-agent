@@ -23,7 +23,9 @@ def validate_env_test_shell_safe(path: Path) -> list[str]:
     if not path.is_file():
         return [f"missing file: {path}"]
     errors: list[str] = []
-    for line_no, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for line_no, raw in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue

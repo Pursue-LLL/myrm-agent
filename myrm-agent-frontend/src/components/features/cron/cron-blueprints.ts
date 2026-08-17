@@ -217,8 +217,10 @@ export async function buildBlueprintCreatePayload(
     ...(typeof filled.timeout_seconds === 'number' ? { timeout_seconds: filled.timeout_seconds } : {}),
     ...(filled.monitor_config ? { monitor_config: filled.monitor_config } : {}),
     ...(filled.failure_alert ? { failure_alert: filled.failure_alert } : {}),
-    ...(filled.pre_condition_script != null ? { pre_condition_script: filled.pre_condition_script } : {}),
-    ...(filled.command != null ? { command: filled.command } : {}),
+    ...(filled.pre_condition_script !== null && filled.pre_condition_script !== undefined
+      ? { pre_condition_script: filled.pre_condition_script }
+      : {}),
+    ...(filled.command !== null && filled.command !== undefined ? { command: filled.command } : {}),
     ...(delivery && delivery.channel !== 'chat' ? { delivery } : {}),
   };
 }
@@ -271,16 +273,29 @@ export function humanizeSchedule(schedule: CronSchedule, t: ScheduleT, locale: s
   }
   if (!schedule.expr) {return '';}
   const parts = schedule.expr.trim().split(/\s+/);
-  if (parts.length < 5) {return schedule.expr;}
-  const [min, hour, , , dow] = parts;
+  // Cron expressions with anything other than the standard 5 fields (e.g. a
+  // 6/7-field form with seconds or year) have positional meaning we do not
+  // model — humanizing by destructuring the first five would silently drop
+  // fields and mislead. Fall back to the raw expression, mirroring the
+  // competitor (Hermes describeCronExpression) policy.
+  if (parts.length !== 5) {return schedule.expr;}
+  const [min, hour, dom, mon, dow] = parts;
   const time = `${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
+  // Only interpret the day-of-week position when the date fields are unrestricted —
+  // a constrained day-of-month/month (e.g. monthly `0 9 1 * *`, yearly) is not a
+  // daily/weekday/weekend cadence and must not be mislabeled as one.
+  if (dom !== '*' || mon !== '*') {return schedule.expr;}
   if (dow === '*') {return t('schedule.dailyAt', { time });}
   if (dow === '1-5') {return t('schedule.weekdaysAt', { time });}
   if (dow === '0,6') {return t('schedule.weekendsAt', { time });}
-  const dayNames = dow
+  const dayKeys = dow
     .split(',')
-    .map((d) => t(`blueprint.${WEEKDAY_KEYS[d] ?? d}`))
-    .join(', ');
+    .map((d) => WEEKDAY_KEYS[d] ?? '');
+  // If any day-of-week segment uses an expression form we cannot map (e.g. a range
+  // like `1-3`), fall back to the raw expression fragment instead of leaking an
+  // i18n key through t().
+  if (dayKeys.some((k) => !k)) {return `${dow} at ${time}`;}
+  const dayNames = dayKeys.map((k) => t(`blueprint.${k}`)).join(', ');
   return t('schedule.weekdayListAt', { days: dayNames, time });
 }
 

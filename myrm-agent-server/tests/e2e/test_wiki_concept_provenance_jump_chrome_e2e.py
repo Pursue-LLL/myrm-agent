@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 import sys
-import time
 import urllib.parse
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -76,7 +75,9 @@ def _seed_compound_chat(
     return chat_id, user_id, assistant_id
 
 
-def _compound_post(api_url: str, *, chat_id: str, message_id: str, concept_name: str) -> dict[str, object]:
+def _compound_post(
+    api_url: str, *, chat_id: str, message_id: str, concept_name: str
+) -> dict[str, object]:
     payload = http_json(
         "POST",
         f"{api_url.rstrip('/')}/api/v1/wiki/compound",
@@ -140,13 +141,45 @@ _CONCEPTS_TAB_READY_JS = """(() => {
 })()"""
 
 _PROVENANCE_LINK_JS = """(() => {
-  const panel = [...document.querySelectorAll('a')].find(
-    (a) => (a.textContent || '').trim() === 'Source conversation',
-  );
-  if (!panel) {
-    return { ok: false, reason: 'no-source-chat-link' };
+  // i18n: locale may be zh (来源对话 / 來源對話) or en (Source conversation).
+  const srcLabels = ['Source conversation', '来源对话', '來源對話'];
+  const panel = [...document.querySelectorAll('a')].find((a) => {
+    const text = (a.textContent || '').trim();
+    return srcLabels.some((label) => text === label);
+  });
+  if (panel) {
+    return { ready: true, ok: true, href: panel.getAttribute('href') };
   }
-  return { ok: true, href: panel.getAttribute('href') };
+  const titleEl = [...document.querySelectorAll('span')].find(
+    (el) => (el.textContent || '').startsWith('chatcompounds/'),
+  );
+  const treeLeaves = [...document.querySelectorAll('[role="treeitem"]')]
+    .filter((el) => !el.querySelector('[role="treeitem"]'))
+    .map((el) => (el.textContent || '').trim().slice(0, 30));
+  const allText = document.body?.innerText || '';
+  const headerText = (() => {
+    // WikiConceptDetailPanel header sits near the concept title span.
+    const titleSpan = [...document.querySelectorAll('span')].find(
+      (el) => (el.textContent || '').startsWith('chatcompounds/'),
+    );
+    return titleSpan?.parentElement?.parentElement?.innerText?.slice(0, 200) ?? null;
+  })();
+  const allLinks = [...document.querySelectorAll('a')]
+    .map((a) => (a.textContent || '').trim().slice(0, 40))
+    .filter(Boolean)
+    .slice(0, 20);
+  const proseLen = [...document.querySelectorAll('.prose')].length;
+  return {
+    ok: false,
+    reason: 'no-source-chat-link',
+    conceptTitle: titleEl ? titleEl.textContent?.slice(0, 60) ?? null : null,
+    headerText,
+    treeLeaves,
+    proseLen,
+    allLinks,
+    bodyLen: allText.length,
+    tail: allText.slice(-700),
+  };
 })()"""
 
 
@@ -201,11 +234,29 @@ def test_wiki_concept_detail_source_jump() -> None:
               for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
                 tab.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
               }
-              return { ok: true };
+              return { ok: true, active: tab.getAttribute('data-state') === 'active' };
             })()""",
             timeout_sec=15.0,
         )
         assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
+
+        # Wait for the concepts tab to be truly active and the tree to mount.
+        concepts_state = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
+              const tab = shell && [...shell.querySelectorAll('[role="tab"]')].find(
+                (el) => /词条管理|Concepts|概念管理/.test((el.textContent || '').trim()),
+              );
+              const active = tab?.getAttribute('data-state') === 'active';
+              const treeItems = document.querySelectorAll('[role="treeitem"]').length;
+              return { ready: active && treeItems > 0, active, treeItems };
+            })()""",
+            timeout_sec=60.0,
+        )
+        assert isinstance(concepts_state, dict), concepts_state
+        assert concepts_state.get("ready") is True, concepts_state
 
         # The concept is deep-linked via ?conceptPath, so the concepts tree auto
         # expands the ancestor folders and loads the detail panel. Wait for the
@@ -220,7 +271,7 @@ def test_wiki_concept_detail_source_jump() -> None:
         assert isinstance(link_state, dict), link_state
         assert link_state.get("ok") is True, link_state
         href = str(link_state.get("href") or "")
-        assert href.startswith(f"/{source_chat}"), (
-            f"expected deep link under /{source_chat}, got {href!r}"
-        )
+        assert href.startswith(
+            f"/{source_chat}"
+        ), f"expected deep link under /{source_chat}, got {href!r}"
         assert "highlight=" in href, f"expected message-level ?highlight, got {href!r}"

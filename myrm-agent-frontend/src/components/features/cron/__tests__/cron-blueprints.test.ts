@@ -162,6 +162,36 @@ describe('cron-blueprints', () => {
     it('handles malformed short expr gracefully', () => {
       expect(humanizeSchedule({ kind: 'cron', expr: '0 8' }, t, locale)).toBe('0 8');
     });
+
+    it('falls back to raw expression for unmappable dow range', () => {
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 9 * * 1-3' }, t, locale)).toBe('1-3 at 09:00');
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 9 * * 7' }, t, locale)).toBe('7 at 09:00');
+    });
+
+    it('returns raw expression when day-of-month is constrained (monthly)', () => {
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 9 1 * *' }, t, locale)).toBe('0 9 1 * *');
+    });
+
+    it('returns raw expression when month is constrained (yearly)', () => {
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 9 1 1 *' }, t, locale)).toBe('0 9 1 1 *');
+    });
+
+    it('returns raw expression for 6-field cron (seconds form)', () => {
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 0 9 * * *' }, t, locale)).toBe('0 0 9 * * *');
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 30 9 * * 1-5' }, t, locale)).toBe('0 30 9 * * 1-5');
+    });
+
+    it('returns raw expression for 7-field cron (year form)', () => {
+      expect(humanizeSchedule({ kind: 'cron', expr: '0 9 * * * 2027' }, t, locale)).toBe('0 9 * * * 2027');
+    });
+
+    it('handles fractional interval', () => {
+      expect(humanizeSchedule({ kind: 'interval', interval_ms: 90_000 }, t, locale)).toBe('Every 1.5 min');
+    });
+
+    it('returns Once for once schedule without run_at', () => {
+      expect(humanizeSchedule({ kind: 'once' }, t, locale)).toBe('Once');
+    });
   });
 
   describe('CRON_PRESETS', () => {

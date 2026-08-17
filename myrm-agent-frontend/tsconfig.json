@@ -51,7 +51,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-isolated-chrome-test_chat_share_lifecycle_via_ui-673bfb4b-39184-10a0551c/types/**/*.ts",
-    ".next-isolated-chrome-test_chat_share_lifecycle_via_ui-673bfb4b-39184-10a0551c/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_chat_share_lifecycle_via_ui-673bfb4b-39184-10a0551c/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_smart_routing_tier_surfaced_in_webu-f9742513-62698-67834db1/types/**/*.ts",
+    ".next-isolated-chrome-test_smart_routing_tier_surfaced_in_webu-f9742513-62698-67834db1/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

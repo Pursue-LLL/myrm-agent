@@ -67,7 +67,9 @@ def claude_fixture(tmp_path: Path) -> Path:
     (root / "settings.json").write_text('{"model": "claude-sonnet"}', encoding="utf-8")
     skills = root / "skills" / "review"
     skills.mkdir(parents=True)
-    (skills / "SKILL.md").write_text("---\nname: review\n---\nReview code", encoding="utf-8")
+    (skills / "SKILL.md").write_text(
+        "---\nname: review\n---\nReview code", encoding="utf-8"
+    )
     return root
 
 
@@ -76,7 +78,10 @@ class TestSourceImportDryRunApi:
     def _local_mode(self) -> None:
         with (
             patch("app.api.migration.discovery.is_local_mode", return_value=True),
-            patch("app.services.migration.source.source_payload_loader.is_local_mode", return_value=True),
+            patch(
+                "app.services.migration.source.source_payload_loader.is_local_mode",
+                return_value=True,
+            ),
         ):
             yield  # type: ignore[misc]
 
@@ -104,7 +109,10 @@ class TestSourceImportDryRunApi:
         assert body["result"]["summary"]["mapped_items"] >= 2
         lanes = {lane["lane"]: lane for lane in body["migration_lanes"]}
         assert "memory" in lanes
-        assert "episodic" not in lanes["memory"]["detail"] or "mapped" in lanes["memory"]["detail"]
+        assert (
+            "episodic" not in lanes["memory"]["detail"]
+            or "mapped" in lanes["memory"]["detail"]
+        )
         mapping_buckets = {m["source_bucket"] for m in body["result"]["mappings"]}
         assert "openclaw_sessions" in mapping_buckets
 
@@ -158,13 +166,17 @@ class TestSourceImportDryRunApi:
         assert "unsupported_source" not in body["result"]["warnings"]
 
         te = body.get("token_economics")
-        assert te is not None, "token_economics must be present when competitor has skills"
+        assert (
+            te is not None
+        ), "token_economics must be present when competitor has skills"
         assert te["skill_count"] == 1
         assert te["source_tokens_per_turn"] == 500
         assert te["myrm_tokens_per_turn"] == 30
         assert te["savings_percent"] == 94.0
 
-    def test_cursor_discovery_payload_not_in_wizard(self, client: TestClient, tmp_path: Path) -> None:
+    def test_cursor_discovery_payload_not_in_wizard(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
         """Cursor is Memory Center manual import (cursor_rules), not wizard discovery."""
         root = tmp_path / ".cursor"
         root.mkdir()
@@ -190,7 +202,9 @@ class TestSourceImportDryRunApi:
         root.mkdir(parents=True)
         (root / "AGENTS.md").write_text("You are a DevOps engineer.", encoding="utf-8")
         (root / "settings.json").write_text(
-            json.dumps({"defaultProvider": "anthropic", "defaultModel": "claude-4-sonnet"}),
+            json.dumps(
+                {"defaultProvider": "anthropic", "defaultModel": "claude-4-sonnet"}
+            ),
             encoding="utf-8",
         )
         (root / "auth.json").write_text(
@@ -199,14 +213,22 @@ class TestSourceImportDryRunApi:
         )
         sessions_dir = root / "sessions"
         sessions_dir.mkdir()
-        header = json.dumps({
-            "type": "session", "version": 3, "id": "s1",
-            "timestamp": "2025-07-01T12:00:00Z", "cwd": "/tmp",
-        })
-        entry = json.dumps({
-            "id": "e1", "type": "message",
-            "message": {"role": "user", "content": "Deploy to production"},
-        })
+        header = json.dumps(
+            {
+                "type": "session",
+                "version": 3,
+                "id": "s1",
+                "timestamp": "2025-07-01T12:00:00Z",
+                "cwd": "/tmp",
+            }
+        )
+        entry = json.dumps(
+            {
+                "id": "e1",
+                "type": "message",
+                "message": {"role": "user", "content": "Deploy to production"},
+            }
+        )
         (sessions_dir / "s1.jsonl").write_text(f"{header}\n{entry}", encoding="utf-8")
         skill_dir = root / "skills" / "ci"
         skill_dir.mkdir(parents=True)
@@ -229,7 +251,9 @@ class TestSourceImportDryRunApi:
         coverage_labels = {item["label"] for item in body.get("coverage_items", [])}
         assert "api_keys_manual" in coverage_labels
 
-    def test_codex_dry_run_instruction_lane(self, client: TestClient, tmp_path: Path) -> None:
+    def test_codex_dry_run_instruction_lane(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
         root = tmp_path / ".codex"
         root.mkdir()
         (root / "instructions.md").write_text("Prefer small diffs.", encoding="utf-8")
@@ -243,9 +267,9 @@ class TestSourceImportDryRunApi:
         resp = client.post("/api/v1/memory/import/dry-run", json=payload)
         assert resp.status_code == 200
         body = resp.json()
-        assert "small diffs" in (body.get("instruction_preview_persona") or "").lower() or (
-            body.get("instruction_total_chars", 0) > 0
-        )
+        assert "small diffs" in (
+            body.get("instruction_preview_persona") or ""
+        ).lower() or (body.get("instruction_total_chars", 0) > 0)
 
     def test_mem0_dry_run_maps_flat_memories(self, client: TestClient) -> None:
         """Mem0 export (memories/results) is auto-detected to the mem0 adapter."""
@@ -303,7 +327,9 @@ class TestSourceImportDryRunApi:
         body = resp.json()
         result = body["result"]
         assert result["summary"]["source"] == "mem0"
-        assert result["summary"]["status"] == "warning"  # 1 mapped / 3 dropped → partial import
+        assert (
+            result["summary"]["status"] == "warning"
+        )  # 1 mapped / 3 dropped → partial import
         assert result["summary"]["mapped_items"] == 1
         assert result["summary"]["unmapped_items"] == 3
         mapping_buckets = {m["source_bucket"] for m in result["mappings"]}

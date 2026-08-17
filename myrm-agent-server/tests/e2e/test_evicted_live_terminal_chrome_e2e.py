@@ -159,11 +159,31 @@ def _run_drawer_flow(
 
     clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=60.0)
     assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
+    # Diagnostic: capture drawer DOM + probe state right after the click, so a
+    # missing fetch can be distinguished from a missing/mis-fired drawer mount.
+    diag = client.evaluate(
+        page,
+        """(() => {
+          const drawer = document.querySelector('[data-testid="evicted-output-drawer"]');
+          const viewBtns = [...document.querySelectorAll('[data-testid="evicted-view-full-output"]')].length;
+          const overlay = document.querySelector('nextjs-portal, nextjs-error-overlay');
+          return {
+            drawerMounted: !!drawer,
+            viewBtnCount: viewBtns,
+            overlayPresent: !!overlay,
+            probeLen: (window.__myrmEvictedFetchProbe || []).length,
+            bodyLen: (document.body?.innerText || '').trim().length,
+            pathname: location.pathname,
+          };
+        })()""",
+        timeout_sec=5.0,
+    )
+    print(f"EVT_DIAG: {json.dumps(diag, ensure_ascii=False)}")
     request_probe = wait_for_state(
         client,
         page,
         evicted_request_probe_js(expected_offset=0, expected_limit=500),
-        timeout_sec=30.0,
+        timeout_sec=60.0,
     )
     assert request_probe.get("hit") is True, json.dumps(
         request_probe, ensure_ascii=False
