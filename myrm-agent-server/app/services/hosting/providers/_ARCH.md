@@ -14,7 +14,6 @@
 | `cloudflare_pages.py` | Provider | Cloudflare Pages 部署 |
 | `netlify.py` | Provider | Netlify 部署 |
 | `http_webhook.py` | Provider | 通用 HTTP Webhook 回调（含 SSRF 防护） |
-| `_archive.py` | Provider 共享工具 | `build_provider_zip` 供多 provider 复用（归档打包） |
 
 ## 依赖关系
 
