@@ -16,8 +16,7 @@
 
 ## 依赖
 
-- `@/store/memory` — `useMemoryStore`（`createMemory` / `deleteMemory` / `fetchMemories`）
-- `@/services/memory` — `Memory` / `CreateMemoryRequest` 类型
+- `@/services/memory` — `getMemories` / `createMemory` / `deleteMemory` / `Memory` / `CreateMemoryRequest` 类型
 - `@/components/primitives/*` — Card / Input / Textarea / Label / Button
 - `@/components/features/icons/PremiumIcons` — 图标
 - 父模块 [`settings/sections/knowledge/_ARCH.md`](../../settings/sections/knowledge/_ARCH.md)

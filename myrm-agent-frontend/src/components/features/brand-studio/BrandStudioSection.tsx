@@ -9,8 +9,12 @@ import { Input } from '@/components/primitives/input';
 import { Textarea } from '@/components/primitives/textarea';
 import { Label } from '@/components/primitives/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
-import { useMemoryStore } from '@/store/memory';
-import type { Memory } from '@/services/memory';
+import {
+  getMemories,
+  createMemory as apiCreateMemory,
+  deleteMemory as apiDeleteMemory,
+  type Memory,
+} from '@/services/memory';
 import {
   BRAND_FIELD_KEYS,
   brandProfileKey,
@@ -24,8 +28,6 @@ import {
   type BrandValues,
 } from './brandSchema';
 import { IconPalette, IconTrash } from '@/components/features/icons/PremiumIcons';
-
-const EMPTY_VALUES: BrandValues = {};
 
 interface RowState {
   field: BrandFieldKey;
@@ -57,7 +59,6 @@ function buildPatch(rows: RowState[]): { toSave: Record<string, string>; toDelet
 
 const BrandStudioSection = () => {
   const t = useTranslations('brandStudio');
-  const { fetchMemories, createMemory, deleteMemory } = useMemoryStore();
 
   const [rows, setRows] = useState<RowState[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,14 +67,13 @@ const BrandStudioSection = () => {
   const loadBrandEntries = useCallback(async () => {
     setLoading(true);
     try {
-      await fetchMemories(1);
-      const all = useMemoryStore.getState().memories;
-      const brandMemories = all.filter((m: Memory) => isBrandProfileKey(m.key));
+      const response = await getMemories({ type: 'profile', page: 1, pageSize: 100, sortOrder: 'asc' });
+      const brandMemories = response.items.filter((m: Memory) => isBrandProfileKey(m.key));
       setRows(createRows(toBrandEntries(brandMemories), brandMemories.length === 0));
     } finally {
       setLoading(false);
     }
-  }, [fetchMemories]);
+  }, []);
 
   useEffect(() => {
     void loadBrandEntries();
@@ -96,16 +96,15 @@ const BrandStudioSection = () => {
 
   const validateAll = useCallback((): boolean => {
     let valid = true;
-    setRows((prev) =>
-      prev.map((r) => {
-        if (!r.value.trim()) {return r;}
-        const error = validateBrandField(r.field, r.value);
-        if (error) {valid = false;}
-        return { ...r, error };
-      }),
-    );
+    const next = rows.map((r) => {
+      if (!r.value.trim()) {return r;}
+      const error = validateBrandField(r.field, r.value);
+      if (error) {valid = false;}
+      return { ...r, error };
+    });
+    setRows(next);
     return valid;
-  }, []);
+  }, [rows]);
 
   const handleSave = useCallback(async () => {
     if (!validateAll()) {
@@ -116,10 +115,10 @@ const BrandStudioSection = () => {
     try {
       const { toSave, toDelete } = buildPatch(rows);
       for (const key of toDelete) {
-        await deleteMemory(key, 'profile').catch(() => undefined);
+        await apiDeleteMemory(key, 'profile').catch(() => undefined);
       }
       for (const [key, value] of Object.entries(toSave)) {
-        await createMemory({
+        await apiCreateMemory({
           memory_type: 'profile',
           content: `${key}: ${value}`,
           key,
@@ -134,7 +133,7 @@ const BrandStudioSection = () => {
     } finally {
       setSaving(false);
     }
-  }, [rows, validateAll, createMemory, deleteMemory, loadBrandEntries, t]);
+  }, [rows, validateAll, loadBrandEntries, t]);
 
   const resetForm = useCallback(() => {
     setRows(createRows([], true));
