@@ -140,7 +140,7 @@ const BrandStudioSection = () => {
   }, [rows, validateAll, loadBrandEntries, t]);
 
   const resetForm = useCallback(() => {
-      setRows(createRows([]));
+    setRows(createRows([]));
   }, []);
 
   return (
