@@ -18,7 +18,7 @@ import json
 import sys
 import uuid
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Iterator
 
 import httpx
 import pytest
@@ -205,8 +205,10 @@ def _new_client(api_base: str) -> httpx.Client:
     return httpx.Client(base_url=api_base, timeout=60.0)
 
 
-@pytest.fixture(scope="module")
-def _live_client() -> httpx.Client:
+@pytest.fixture
+def _live_client(_chrome_e2e_item_runtime: object | None) -> Iterator[httpx.Client]:
+    """Bind SHPOIB private runtime before probing provider readiness."""
+    _ = _chrome_e2e_item_runtime
     api_base = get_e2e_api_url()
     _setup(api_base)
     with _new_client(api_base) as client:

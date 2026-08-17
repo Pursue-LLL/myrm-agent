@@ -2357,7 +2357,7 @@ def _ensure_orchestrator_shared_ui_session(
             _run_coroutine_any_loop(
                 lambda: maybe_apply_shared_ui_session_contract(
                     chat,
-                    timeout_sec=120.0,
+                    timeout_sec=_orchestrator_shared_ui_contract_timeout_sec(),
                 )
             )
             return
@@ -2670,6 +2670,46 @@ def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
         )
     except (OSError, subprocess.TimeoutExpired):
         pass
+
+
+def _ensure_react_e2e_bridge_timeout_sec(requested: float) -> float:
+    """Hot-path reused shells need extra bridge budget under parallel SHPOIB mux pressure."""
+    from e2e_core.shared_ui_session import (
+        _bootstrap_hot_path_reused,
+        _parallel_bridge_ready_cap_sec,
+        _resolve_bridge_ready_timeout_sec,
+    )
+
+    if _bootstrap_hot_path_reused():
+        try:
+            from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+
+            if parallel_shared_ui_hydrate_queue_enabled():
+                return _resolve_bridge_ready_timeout_sec(
+                    _parallel_bridge_ready_cap_sec()
+                )
+        except ImportError:
+            pass
+        return 120.0
+    return requested
+
+
+def _orchestrator_shared_ui_contract_timeout_sec() -> float:
+    """Orchestrator open_page contract: parallel lanes get full bridge cap (180s)."""
+    from e2e_core.shared_ui_session import (
+        _parallel_bridge_ready_cap_sec,
+        _resolve_bridge_ready_timeout_sec,
+    )
+
+    request = 120.0
+    try:
+        from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
+
+        if parallel_shared_ui_hydrate_queue_enabled():
+            request = _parallel_bridge_ready_cap_sec()
+    except ImportError:
+        pass
+    return _resolve_bridge_ready_timeout_sec(request)
 
 
 def _react_bridge_wait_timeout_sec(requested: float) -> float:
