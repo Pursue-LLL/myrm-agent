@@ -6,6 +6,7 @@
 [OUTPUT]
 - wiki_ingest_event_bus: broadcast hub for scoped ingest snapshots
 - build_wiki_ingest_snapshot: queue stats + compile_run DTO for SSE payloads
+- build_wiki_tree_fingerprint: vault tree fingerprint (raw stale + queue stats + concepts stat) for change detection
 - publish_wiki_ingest_snapshot: push snapshot to subscribers for an agent scope
 - prepare_snapshot: invalidates structural lint stats cache when vault tree fingerprint changes
 
@@ -50,8 +51,37 @@ def build_wiki_tree_fingerprint(archiver: MemoryToWikiArchiver) -> str:
         "last_compile_time": summary.last_compile_time,
         "processing": stats.get("processing", 0),
         "stale_count": len(stale_paths),
+        "concepts": _concepts_tree_fingerprint(archiver._structure),
     }
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def _concepts_tree_fingerprint(structure: object) -> str:
+    """Return a compact stat-based fingerprint of the local writable concepts tree.
+
+    Uses mtime_ns + size (no content reads) so Agent edits to compiled pages are
+    detected by the SSE poll without paying content-hash IO. Only the local
+    writable tree is fingerprinted; public read-only mounts are excluded because
+    they are never written by the agent.
+    """
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    if not isinstance(structure, WikiStructure):
+        return ""
+    concepts_dir = structure.concepts_dir
+    if not concepts_dir.exists():
+        return ""
+    entries: list[str] = []
+    for path in structure.list_concepts():
+        if not path.is_relative_to(concepts_dir):
+            continue
+        try:
+            stat = path.stat()
+        except OSError:
+            continue
+        rel = path.relative_to(concepts_dir).as_posix()
+        entries.append(f"{rel}:{stat.st_mtime_ns}:{stat.st_size}")
+    return "|".join(entries)
 
 
 def build_wiki_ingest_snapshot(

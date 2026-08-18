@@ -40,7 +40,13 @@ async def test_cloudflare_test_connection_success() -> None:
 @pytest.mark.asyncio
 async def test_cloudflare_test_connection_missing_token() -> None:
     provider = CloudflarePagesProvider()
-    target = HostingTarget(id="cf", name="CF", provider_type="cloudflare_pages", config={"account_id": "a"}, is_default=False)
+    target = HostingTarget(
+        id="cf",
+        name="CF",
+        provider_type="cloudflare_pages",
+        config={"account_id": "a"},
+        is_default=False,
+    )
     ok, message = await provider.test_connection(target, {})
     assert ok is False
     assert "token" in message.lower()
@@ -58,14 +64,20 @@ async def test_cloudflare_publish_creates_project_and_deploys() -> None:
     )
     files = {
         "index.html": PublishFile(path="index.html", content="<html/>"),
-        "logo.png": PublishFile(path="logo.png", content=base64.b64encode(b"\x89PNG").decode(), encoding="base64"),
+        "logo.png": PublishFile(
+            path="logo.png",
+            content=base64.b64encode(b"\x89PNG").decode(),
+            encoding="base64",
+        ),
     }
     calls: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(request.method + " " + request.url.path)
         if request.method == "POST" and request.url.path.endswith("/pages/projects"):
-            return httpx.Response(200, json={"result": {"name": "demo-site"}}, request=request)
+            return httpx.Response(
+                200, json={"result": {"name": "demo-site"}}, request=request
+            )
         if request.method == "POST" and "/deployments" in request.url.path:
             return httpx.Response(
                 200,
@@ -116,7 +128,13 @@ async def test_cloudflare_publish_reuses_existing_project() -> None:
         if request.method == "POST" and "/deployments" in request.url.path:
             return httpx.Response(
                 200,
-                json={"result": {"id": "dep_2", "aliases": ["existing.pages.dev"], "latest_stage": {"status": "success"}}},
+                json={
+                    "result": {
+                        "id": "dep_2",
+                        "aliases": ["existing.pages.dev"],
+                        "latest_stage": {"status": "success"},
+                    }
+                },
                 request=request,
             )
         return httpx.Response(404, request=request)
@@ -153,7 +171,9 @@ async def test_cloudflare_publish_non_json_deploy_response() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "POST" and "/deployments" in request.url.path:
-            return httpx.Response(200, text="<html>Gateway error page</html>", request=request)
+            return httpx.Response(
+                200, text="<html>Gateway error page</html>", request=request
+            )
         return httpx.Response(404, request=request)
 
     transport = httpx.MockTransport(handler)
@@ -188,7 +208,12 @@ async def test_cloudflare_poll_status_failure_stage() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
-            json={"result": {"latest_stage": {"status": "failure"}, "url": "fail.pages.dev"}},
+            json={
+                "result": {
+                    "latest_stage": {"status": "failure"},
+                    "url": "fail.pages.dev",
+                }
+            },
             request=request,
         )
 

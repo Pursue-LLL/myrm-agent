@@ -404,11 +404,14 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
         # --- Phase 1b: overlay geometry must use viewport-relative coordinates ---
         geometry = await _wait_overlay_geometry(chat)
         assert geometry.get("ready") is True, geometry
-        # scale = 1 (image == viewport): viewport_y (200) is used, not absolute y (500).
-        assert geometry.get("left") == "100px", geometry
-        assert geometry.get("top") == "200px", geometry
-        assert geometry.get("width") == "80px", geometry
-        assert geometry.get("height") == "32px", geometry
+        # Scale-invariant ratios: the container scales the screenshot to fit, so we
+        # assert normalized ratios (left/viewportWidth, top/viewportHeight, ...).
+        # The overlay must use viewport_y (200) not absolute y (500): topRatio must
+        # be 200/720 ≈ 0.278, NOT 500/720 ≈ 0.694.
+        assert abs(geometry.get("leftRatio", -1) - 100 / 1280) < 0.01, geometry
+        assert abs(geometry.get("topRatio", -1) - 200 / 720) < 0.01, geometry
+        assert abs(geometry.get("widthRatio", -1) - 80 / 1280) < 0.01, geometry
+        assert abs(geometry.get("heightRatio", -1) - 32 / 720) < 0.01, geometry
 
         # --- Phase 2: manually opened desktop panel (no engagement) ---
         computer_use = await chat.evaluate(

@@ -34,5 +34,5 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | `clip/` | 核心 | Browser extension clip — `form.py` 8MB cap · `runner.py` async jobs → harness `publish_clip_ingress` · post-write ingest SSE；见 [`clip/_ARCH.md`](clip/_ARCH.md) | ✅ |
 | `wiki_query_intent.py` | 辅助 | Chat Wiki Knowledge Lane 确定性准入闸门（`should_use_wiki_knowledge_lane`） | ✅ |
 | `asset_index_service.py` | 核心 | Obsidian wiki/assets vision caption 索引；`build_vision_fallback_engine_from_providers` 有序视觉链；import 后 `schedule_wiki_asset_index` 后台运行并在完成后 publish ingest snapshot；compile/maintain 同步 `run_wiki_asset_index` | ✅ |
-| `ingest_events.py` | 核心 | Wiki ingest SSE event bus；scope refcount 单 poll；best-effort publish；queue/compile snapshot；snapshot stats 含 **`synthesis_pending_count`**；**tree_sync_required** / **stats_refresh_required** 信号 → FE REST 刷新 | ✅ |
+| `ingest_events.py` | 核心 | Wiki ingest SSE event bus；scope refcount 单 poll；best-effort publish；queue/compile snapshot；snapshot stats 含 **`synthesis_pending_count`**；**tree_sync_required** / **stats_refresh_required** 信号 → FE REST 刷新；指纹并入本地可写 `concepts/` 编译页 stat（mtime_ns+size），Agent 编辑词条 → UI 自动刷新 | ✅ |
 | `source_sync/` | 核心 | Gmail/GDrive/RSS 确定性 pull → `publish_raw` + compile enqueue + post-sync dedup scan；Integration mirror；Cron router；闭包：HTML2Markdown、Cron hygiene、sync state、Second Brain Gmail 默认 | ✅ |

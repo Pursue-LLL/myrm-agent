@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 class CloudflarePagesProvider:
     provider_type = "cloudflare_pages"
 
-    async def test_connection(self, target: HostingTarget, credentials: dict[str, object]) -> tuple[bool, str]:
+    async def test_connection(
+        self, target: HostingTarget, credentials: dict[str, object]
+    ) -> tuple[bool, str]:
         token = credentials.get("api_token")
         account_id = target.config.get("account_id")
         if not isinstance(token, str) or not token.strip():
@@ -29,7 +31,9 @@ class CloudflarePagesProvider:
             return False, "Cloudflare account_id is required in target config."
         url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}"
         async with httpx.AsyncClient(follow_redirects=False) as client:
-            response = await client.get(url, headers={"Authorization": f"Bearer {token.strip()}"}, timeout=20.0)
+            response = await client.get(
+                url, headers={"Authorization": f"Bearer {token.strip()}"}, timeout=20.0
+            )
         if response.status_code >= 400:
             return False, f"Cloudflare API error: {response.text[:200]}"
         return True, "Cloudflare credentials valid."
@@ -46,7 +50,10 @@ class CloudflarePagesProvider:
     ) -> PublicationResult:
         token = credentials.get("api_token")
         account_id = target.config.get("account_id")
-        project_name = target.config.get("project_name") or artifact_name.lower().replace(" ", "-")[:50]
+        project_name = (
+            target.config.get("project_name")
+            or artifact_name.lower().replace(" ", "-")[:50]
+        )
         if not isinstance(token, str) or not token.strip() or not account_id:
             return PublicationResult(
                 success=False,
@@ -58,7 +65,9 @@ class CloudflarePagesProvider:
             )
         zip_bytes = build_provider_zip(files)
         headers = {"Authorization": f"Bearer {token.strip()}"}
-        base = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/pages/projects"
+        base = (
+            f"https://api.cloudflare.com/client/v4/accounts/{account_id}/pages/projects"
+        )
         async with httpx.AsyncClient(follow_redirects=False) as client:
             if not existing_project_ref:
                 create_resp = await client.post(
@@ -77,7 +86,9 @@ class CloudflarePagesProvider:
                         error=f"Cloudflare project create failed: {create_resp.text[:300]}",
                     )
                 try:
-                    project_ref = str(create_resp.json().get("result", {}).get("name", project_name))
+                    project_ref = str(
+                        create_resp.json().get("result", {}).get("name", project_name)
+                    )
                 except json.JSONDecodeError:
                     project_ref = project_name
             else:
@@ -110,7 +121,11 @@ class CloudflarePagesProvider:
                 error=f"Cloudflare deploy returned non-JSON response: {response.text[:300]}",
             )
         deployment_id = str(payload.get("id", ""))
-        url = str(payload.get("url") or payload.get("aliases", [""])[0] if payload.get("aliases") else "")
+        url = str(
+            payload.get("url") or payload.get("aliases", [""])[0]
+            if payload.get("aliases")
+            else ""
+        )
         if url and not url.startswith("http"):
             url = f"https://{url}"
         return PublicationResult(
@@ -132,7 +147,13 @@ class CloudflarePagesProvider:
         token = credentials.get("api_token")
         account_id = target.config.get("account_id")
         project_name = project_ref or target.config.get("project_name")
-        if not isinstance(token, str) or not token.strip() or not account_id or not project_name or not publication_id:
+        if (
+            not isinstance(token, str)
+            or not token.strip()
+            or not account_id
+            or not project_name
+            or not publication_id
+        ):
             return {"status": "ERROR", "error": "Missing Cloudflare poll context"}
         url = (
             f"https://api.cloudflare.com/client/v4/accounts/{account_id}/pages/projects/"

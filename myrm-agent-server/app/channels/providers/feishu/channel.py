@@ -495,6 +495,7 @@ class FeishuChannel(BaseChannel):
                         chat_id=chat_id,
                         is_group=False,
                         mentioned=False,
+                        sender_name=await self._resolve_sender_name(sender_id),
                         metadata=metadata,
                     )
                     await self._emit_inbound(inbound)
@@ -546,6 +547,7 @@ class FeishuChannel(BaseChannel):
             chat_id=sender_id,
             is_group=False,
             mentioned=True,
+            sender_name=await self._resolve_sender_name(sender_id),
             message_id=message_id,
             metadata={"reaction": True, "target_message_id": message_id},
         )

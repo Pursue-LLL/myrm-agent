@@ -19,7 +19,12 @@ async def test_deploy_success(vercel_client):
     # Mock httpx.AsyncClient.post
     mock_response = AsyncMock()
     mock_response.status_code = 200
-    mock_response.json = lambda: {"id": "dep_123", "url": "test.vercel.app", "projectId": "prj_456", "readyState": "READY"}
+    mock_response.json = lambda: {
+        "id": "dep_123",
+        "url": "test.vercel.app",
+        "projectId": "prj_456",
+        "readyState": "READY",
+    }
 
     with patch("httpx.AsyncClient.post", return_value=mock_response):
         result = await vercel_client.deploy("test-project", files)
@@ -75,7 +80,9 @@ async def test_deploy_failure_with_retry(vercel_client):
     files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
 
     # Simulate network error
-    with patch("httpx.AsyncClient.post", side_effect=httpx.RequestError("Network error")):
+    with patch(
+        "httpx.AsyncClient.post", side_effect=httpx.RequestError("Network error")
+    ):
         with pytest.raises(httpx.RequestError):
             await vercel_client.deploy("test-project", files)
 
@@ -84,7 +91,11 @@ async def test_deploy_failure_with_retry(vercel_client):
 async def test_get_deployment_status_success(vercel_client):
     mock_response = AsyncMock()
     mock_response.status_code = 200
-    mock_response.json = lambda: {"id": "dep_123", "url": "test.vercel.app", "readyState": "READY"}
+    mock_response.json = lambda: {
+        "id": "dep_123",
+        "url": "test.vercel.app",
+        "readyState": "READY",
+    }
 
     with patch("httpx.AsyncClient.get", return_value=mock_response):
         result = await vercel_client.get_deployment_status("dep_123")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,6 +11,7 @@ from myrm_agent_harness.toolkits.wiki.pipeline.resilience import CompileRunSnaps
 
 from app.services.wiki.ingest_events import (
     WikiIngestEventBus,
+    _concepts_tree_fingerprint,
     build_wiki_tree_fingerprint,
     publish_wiki_ingest_snapshot,
 )
@@ -158,6 +160,10 @@ def test_build_wiki_tree_fingerprint_tracks_stale_and_queue_stats() -> None:
             "myrm_agent_harness.toolkits.wiki.maintenance.stale_summary.collect_stale_raw_path_set",
             return_value=frozenset({"raw/a.md", "raw/b.md"}),
         ),
+        patch(
+            "app.services.wiki.ingest_events._concepts_tree_fingerprint",
+            return_value="concepts-fp",
+        ),
     ):
         fingerprint = build_wiki_tree_fingerprint(mock_archiver)
 
@@ -165,6 +171,75 @@ def test_build_wiki_tree_fingerprint_tracks_stale_and_queue_stats() -> None:
     assert '"failed":4' in fingerprint
     assert '"stale_count":2' in fingerprint
     assert "2026-07-28T00:00:00+00:00" in fingerprint
+    assert '"concepts":"concepts-fp"' in fingerprint
+
+
+def test_concepts_tree_fingerprint_tracks_compiled_page_changes(tmp_path: Path) -> None:
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    structure = WikiStructure(tmp_path)
+    structure.ensure_structure()
+    concept = structure.get_concept_file_path("research/react-hooks")
+    concept.write_text("# React Hooks\n\nCompiled truth.", encoding="utf-8")
+
+    first = _concepts_tree_fingerprint(structure)
+    assert first != ""
+
+    concept.write_text("# React Hooks\n\nUpdated compiled truth.", encoding="utf-8")
+    second = _concepts_tree_fingerprint(structure)
+    assert second != first
+
+
+def test_concepts_tree_fingerprint_excludes_sidecar_and_public_mounts(tmp_path: Path) -> None:
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    public_dir = tmp_path / "public"
+    structure = WikiStructure(tmp_path, public_dirs=[public_dir])
+    structure.ensure_structure()
+
+    concept = structure.get_concept_file_path("research/react-hooks")
+    concept.write_text("# React Hooks\n\nCompiled truth.", encoding="utf-8")
+
+    abstract, overview = structure.get_directory_sidecar_paths("research")
+    abstract.write_text("# Abstract", encoding="utf-8")
+    overview.write_text("# Overview", encoding="utf-8")
+
+    public_concept = public_dir / "wiki" / "concepts" / "public-page.md"
+    public_concept.parent.mkdir(parents=True, exist_ok=True)
+    public_concept.write_text("# Public", encoding="utf-8")
+
+    fingerprint = _concepts_tree_fingerprint(structure)
+    assert "react-hooks" in fingerprint
+    assert ".abstract" not in fingerprint
+    assert ".overview" not in fingerprint
+    assert "public-page" not in fingerprint
+
+
+def test_concepts_tree_fingerprint_handles_missing_dir_and_non_structure() -> None:
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    structure = WikiStructure("/nonexistent/path")
+    assert _concepts_tree_fingerprint(structure) == ""
+
+    assert _concepts_tree_fingerprint(object()) == ""
+
+
+def test_concepts_tree_fingerprint_tracks_add_and_delete(tmp_path: Path) -> None:
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    structure = WikiStructure(tmp_path)
+    structure.ensure_structure()
+    concept = structure.get_concept_file_path("research/react-hooks")
+    concept.write_text("# React Hooks", encoding="utf-8")
+
+    base = _concepts_tree_fingerprint(structure)
+
+    added = structure.get_concept_file_path("research/new-topic")
+    added.write_text("# New Topic", encoding="utf-8")
+    assert _concepts_tree_fingerprint(structure) != base
+
+    added.unlink()
+    assert _concepts_tree_fingerprint(structure) == base
 
 
 @pytest.mark.asyncio

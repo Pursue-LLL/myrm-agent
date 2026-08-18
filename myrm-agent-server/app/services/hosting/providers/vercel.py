@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 def sanitize_vercel_project_name(artifact_name: str, artifact_id: str) -> str:
-    project_name = "".join(c if c.isalnum() or c == "-" else "-" for c in artifact_name.lower())
+    project_name = "".join(
+        c if c.isalnum() or c == "-" else "-" for c in artifact_name.lower()
+    )
     if not project_name:
         project_name = f"myrm-artifact-{artifact_id[:8]}"
     return project_name
@@ -24,7 +26,9 @@ def sanitize_vercel_project_name(artifact_name: str, artifact_id: str) -> str:
 class VercelHostingProvider:
     provider_type = "vercel"
 
-    async def test_connection(self, target: HostingTarget, credentials: dict[str, object]) -> tuple[bool, str]:
+    async def test_connection(
+        self, target: HostingTarget, credentials: dict[str, object]
+    ) -> tuple[bool, str]:
         token = credentials.get("token")
         if not isinstance(token, str) or not token.strip():
             return False, "Vercel token is required."
