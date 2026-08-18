@@ -285,7 +285,7 @@ async def _fetch_thread_parent(channel_id: str, thread_ts: str) -> ReplyContext 
 
 | Channel | Reply Field | API Fetch? | Media Support | Sender/Timestamp |
 |---------|-------------|-----------|---------------|------------------|
-| WeCom | `quote` dict | ❌ | 7 types + mixed | ✅ name (via contact API) |
+| WeCom | `quote` dict | ❌ | 7 types + mixed | ⚠️ quote: sender 缺失 (AI Bot 无 corp 凭据) / 主消息: ✅ via contact API (自建应用) |
 | Telegram | `reply_to_message` | ❌ | 6 types | ✅ Full user object + date |
 | Feishu | `parent_id` | ✅ | 4 types | ✅ name (via contact API) |
 | Discord | `reference.resolved` | ❌ | Attachments + embeds | ✅ author + created_at |

@@ -1410,11 +1410,11 @@ class TestSlackThreadAutoReply:
             assert msg2 is not None
             assert msg2.mentioned is True
 
-        # Verify 2 API calls (parent fetch + users.info on first event, all cached on second)
-        # First event: 1 conversations.history + 1 users.info = 2 calls
-        # Second event: both cached = 0 calls
-        # Total: 2 calls
-        assert mock_post.call_count == 2
+        # Verify 3 API calls
+        # First event: 1 conversations.history + 2 users.info (U_USER sender + U_BOT parent) = 3 calls
+        # Second event: all cached = 0 calls
+        # Total: 3 calls
+        assert mock_post.call_count == 3
 
     @pytest.mark.asyncio
     async def test_thread_reply_cache_ttl_expired(self) -> None:
@@ -1461,11 +1461,11 @@ class TestSlackThreadAutoReply:
             }
             await ch._parse_message_event(event2)
 
-        # Verify 3 API calls
-        # First event: 1 conversations.history + 1 users.info = 2 calls
+        # Verify 4 API calls
+        # First event: 1 conversations.history + 2 users.info (U_USER sender + U_BOT parent) = 3 calls
         # Second event (after TTL): 1 conversations.history (expired) + 0 users.info (still valid, 1h TTL) = 1 call
-        # Total: 3 calls
-        assert mock_post.call_count == 3
+        # Total: 4 calls
+        assert mock_post.call_count == 4
 
     @pytest.mark.asyncio
     async def test_thread_reply_lru_eviction(self) -> None:
@@ -1539,8 +1539,9 @@ class TestSlackThreadAutoReply:
             assert msg2 is not None
             assert msg2.mentioned is False
 
-        # Verify only 1 API call (cache hit on second, even for None result)
-        assert mock_post.call_count == 1
+        # Verify 2 API calls (conversations.history + users.info for U_USER sender)
+        # Second event: both cached = 0 calls
+        assert mock_post.call_count == 2
 
     @pytest.mark.asyncio
     async def test_thread_reply_sender_name_resolved(self) -> None:
@@ -1596,8 +1597,8 @@ class TestSlackThreadAutoReply:
             assert msg.reply_to.sender_id == "U_PARENT"
             assert msg.reply_to.sender_name == "Parent User"  # Resolved via UserResolver!
 
-        # Verify 2 API calls: conversations.history + users.info
-        assert mock_post.call_count == 2
+        # Verify 3 API calls: conversations.history + users.info (U_PARENT) + users.info (U_REPLY sender)
+        assert mock_post.call_count == 3
 
     @pytest.mark.asyncio
     async def test_thread_reply_sender_name_none_on_api_failure(self) -> None:
@@ -1643,5 +1644,5 @@ class TestSlackThreadAutoReply:
             assert msg.reply_to.sender_id == "U_PARENT"
             assert msg.reply_to.sender_name is None  # API failed, no name available
 
-        # Verify 2 API calls: conversations.history + users.info (failed)
-        assert mock_post.call_count == 2
+        # Verify 3 API calls: conversations.history + users.info (U_PARENT, failed) + users.info (U_REPLY sender)
+        assert mock_post.call_count == 3

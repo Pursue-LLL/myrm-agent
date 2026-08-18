@@ -17,7 +17,9 @@ from app.services.wiki.ingest_events import (
 )
 
 
-def _snapshot(*, pending: int = 0, processing: int = 0, failed: int = 0) -> dict[str, object]:
+def _snapshot(
+    *, pending: int = 0, processing: int = 0, failed: int = 0
+) -> dict[str, object]:
     return {
         "agent_id": None,
         "stats": {
@@ -58,7 +60,12 @@ async def test_emit_marks_sync_required_when_subscriber_queue_full() -> None:
     assert queue.qsize() == 1
     payload = queue.get_nowait()
     assert payload.get("sync_required") is True
-    assert payload["stats"] == {"pending": 2, "processing": 0, "completed": 0, "failed": 0}
+    assert payload["stats"] == {
+        "pending": 2,
+        "processing": 0,
+        "completed": 0,
+        "failed": 0,
+    }
 
 
 @pytest.mark.asyncio
@@ -190,7 +197,9 @@ def test_concepts_tree_fingerprint_tracks_compiled_page_changes(tmp_path: Path) 
     assert second != first
 
 
-def test_concepts_tree_fingerprint_excludes_sidecar_and_public_mounts(tmp_path: Path) -> None:
+def test_concepts_tree_fingerprint_excludes_sidecar_and_public_mounts(
+    tmp_path: Path,
+) -> None:
     from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
     public_dir = tmp_path / "public"

@@ -700,6 +700,13 @@ class SlackChannel(BaseChannel):
             with contextlib.suppress(ValueError, TypeError):
                 sent_at = float(ts)
 
+        sender_name = None
+        if user_id:
+            try:
+                sender_name = await self._user_resolver.resolve_user(user_id)
+            except Exception:
+                logger.debug("Failed to resolve Slack sender name for %s", user_id)
+
         return self._build_inbound(
             sender_id=user_id,
             content=content,
@@ -712,6 +719,7 @@ class SlackChannel(BaseChannel):
             reply_to_id=str(thread_ts) if thread_ts else None,
             reply_to=reply_to,
             thread_id=str(thread_ts) if thread_ts else None,
+            sender_name=sender_name,
             metadata=metadata,
             message_id=ts,
         )

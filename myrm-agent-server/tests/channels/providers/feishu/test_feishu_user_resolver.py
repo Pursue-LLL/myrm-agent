@@ -90,6 +90,35 @@ class TestFeishuUserResolver:
         assert result is None
 
     @pytest.mark.asyncio
+    async def test_resolve_user_blank_name_falls_back_to_en_name(self, resolver, mock_feishu_client):
+        """Blank/whitespace name falls back to en_name."""
+        mock_feishu_client.get_user.return_value = {"name": "   ", "en_name": "Alice"}
+
+        result = await resolver.resolve_user("ou_abc")
+
+        assert result == "Alice"
+
+    @pytest.mark.asyncio
+    async def test_resolve_user_non_string_name_ignored(self, resolver, mock_feishu_client):
+        """Non-string name is ignored (falls back to en_name)."""
+        mock_feishu_client.get_user.return_value = {"name": 123, "en_name": "Alice"}
+
+        result = await resolver.resolve_user("ou_abc")
+
+        assert result == "Alice"
+
+    @pytest.mark.asyncio
+    async def test_resolve_user_all_blank_returns_none(self, resolver, mock_feishu_client):
+        """When both name and en_name are blank, returns None (negative cache)."""
+        mock_feishu_client.get_user.return_value = {"name": "  ", "en_name": ""}
+
+        result = await resolver.resolve_user("ou_abc")
+
+        assert result is None
+        cached = await resolver._cache.get("ou_abc")
+        assert cached is None
+
+    @pytest.mark.asyncio
     async def test_resolve_batch(self, resolver, mock_feishu_client):
         """Test batch resolution."""
         mock_feishu_client.get_user.side_effect = [

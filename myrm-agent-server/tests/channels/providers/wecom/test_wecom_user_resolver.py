@@ -90,6 +90,35 @@ class TestWeComUserResolver:
         assert result is None
 
     @pytest.mark.asyncio
+    async def test_resolve_user_blank_name_falls_back_to_alias(self, resolver, mock_wecom_channel):
+        """Blank/whitespace name falls back to alias."""
+        mock_wecom_channel.api_get_user.return_value = {"name": "   ", "alias": "zs"}
+
+        result = await resolver.resolve_user("zhangsan")
+
+        assert result == "zs"
+
+    @pytest.mark.asyncio
+    async def test_resolve_user_non_string_name_ignored(self, resolver, mock_wecom_channel):
+        """Non-string name is ignored (falls back to alias)."""
+        mock_wecom_channel.api_get_user.return_value = {"name": 123, "alias": "zs"}
+
+        result = await resolver.resolve_user("zhangsan")
+
+        assert result == "zs"
+
+    @pytest.mark.asyncio
+    async def test_resolve_user_all_blank_returns_none(self, resolver, mock_wecom_channel):
+        """When both name and alias are blank, returns None (negative cache)."""
+        mock_wecom_channel.api_get_user.return_value = {"name": "  ", "alias": ""}
+
+        result = await resolver.resolve_user("zhangsan")
+
+        assert result is None
+        cached = await resolver._cache.get("zhangsan")
+        assert cached is None
+
+    @pytest.mark.asyncio
     async def test_resolve_batch(self, resolver, mock_wecom_channel):
         """Test batch resolution."""
         mock_wecom_channel.api_get_user.side_effect = [

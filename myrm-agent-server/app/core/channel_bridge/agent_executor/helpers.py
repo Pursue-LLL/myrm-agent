@@ -114,7 +114,7 @@ def _format_group_context_section(
     from myrm_agent_harness.agent.security.detection.content_boundary import sanitize
 
     lines = [
-        f"{sanitize(e.sender_name) if e.sender_name else e.sender_id}: {sanitize(e.content)}"
+        f"{sanitize(e.sender_name) if e.sender_name else sanitize(e.sender_id)}: {sanitize(e.content)}"
         for e in context_messages
     ]
     context_block = "\n".join(lines)
@@ -142,7 +142,7 @@ def _format_forwarded_email_context(meta: dict[str, object], user_content: str) 
     ):
         val = meta.get(key)
         if isinstance(val, str) and val.strip():
-            parts.append(f"{label}: {val.strip()}")
+            parts.append(f"{label}: {sanitize(val.strip())}")
 
     fwd_body = meta.get("forwarded_body")
     if isinstance(fwd_body, str) and fwd_body.strip():

@@ -42,12 +42,19 @@ def _make_channel() -> FeishuChannel:
 
 
 def _mock_client(ch: FeishuChannel, bot_open_id: str = "") -> AsyncMock:
-    """Replace the channel's FeishuClient with a mock."""
+    """Replace the channel's FeishuClient with a mock.
+
+    Also redirects the user resolver's API client to the mock so that
+    sender-name resolution (main messages, card actions, reactions) never
+    issues real network calls during tests.
+    """
     mock = AsyncMock(spec=FeishuClient)
     mock.bot_open_id = bot_open_id
     mock.is_configured = True
     mock._get_http.return_value = AsyncMock(spec=httpx.AsyncClient)
+    mock.get_user.return_value = None
     ch._client = mock
+    ch._user_resolver._api = mock
     return mock
 
 

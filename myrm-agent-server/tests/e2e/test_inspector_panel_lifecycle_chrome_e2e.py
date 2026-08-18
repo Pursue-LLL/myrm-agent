@@ -22,11 +22,14 @@ on the real frontend store and DOM state.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import os
+import struct
 import sys
 import time
 import uuid
+import zlib
 from pathlib import Path
 
 import pytest
@@ -59,6 +62,31 @@ _MAX_CHAT_ATTEMPTS = 3
 
 _REPLY_OK_PROMPT = "Reply with the single word OK. Do not call any tools."
 
+
+def _build_png_base64(width: int = 1280, height: int = 720) -> str:
+    """Build a tiny solid-color PNG (base64) large enough for the browser
+    screenshot <img> to decode and expose naturalWidth/naturalHeight."""
+    import struct as _struct
+    import zlib as _zlib
+
+    def _chunk(tag: bytes, data: bytes) -> bytes:
+        return (
+            _struct.pack(">I", len(data))
+            + tag
+            + data
+            + _struct.pack(">I", _zlib.crc32(tag + data) & 0xFFFFFFFF)
+        )
+
+    ihdr = _struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    raw = b"".join(b"\x00" + b"\x80\x80\x80" * width for _ in range(height))
+    png = (
+        b"\x89PNG\r\n\x1a\n"
+        + _chunk(b"IHDR", ihdr)
+        + _chunk(b"IDAT", _zlib.compress(raw))
+        + _chunk(b"IEND", b"")
+    )
+    return base64.b64encode(png).decode()
+
 _AGENT_READY_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
   const debug = bridge?.debugProviderState?.() ?? {};
@@ -82,22 +110,22 @@ _ENSURE_CHAT_SESSION_JS = """(() => {
   return bridge.ensureChatSession().then(() => ({ ok: true }));
 })()"""
 
-_SIMULATE_BROWSER_CONTROL_JS = """(() => {
+_SIMULATE_BROWSER_CONTROL_JS = """(() => {{
   const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.simulateBrowserToolStart || !bridge?.simulateBrowserViewUpdate) {
-    return { ok: false, err: 'no-browser-simulate' };
-  }
+  if (!bridge?.simulateBrowserToolStart || !bridge?.simulateBrowserViewUpdate) {{
+    return {{ ok: false, err: 'no-browser-simulate' }};
+  }}
   const chatId = bridge?.turnSnapshot?.()?.chatId ?? '';
-  if (!chatId) return { ok: false, err: 'no-chat-id' };
+  if (!chatId) return {{ ok: false, err: 'no-chat-id' }};
   // A scrolled-page element: absolute y=500 but viewport y=200. The overlay must
   // use the viewport-relative coordinate so it aligns with the viewport screenshot.
-  const refs = {
-    addToCart: {
+  const refs = {{
+    addToCart: {{
       role: 'button',
       name: 'Add to cart',
       nth: 1,
       position: null,
-      bbox: {
+      bbox: {{
         x: 100,
         y: 500,
         width: 80,
@@ -108,15 +136,15 @@ _SIMULATE_BROWSER_CONTROL_JS = """(() => {
         viewport_y: 200,
         viewport_width: 1280,
         viewport_height: 720,
-      },
-    },
-  };
-  return (async () => {
+      }},
+    }},
+  }};
+  return (async () => {{
     const start = await bridge.simulateBrowserToolStart(chatId, 'browser_navigate_tool');
-    const view = await bridge.simulateBrowserViewUpdate(chatId, refs, _E2E_PNG_1280x720);
-    return { ok: start?.ok === true && view?.ok === true, chatId };
-  })();
-})()"""
+    const view = await bridge.simulateBrowserViewUpdate(chatId, refs, '{png}');
+    return {{ ok: start?.ok === true && view?.ok === true, chatId }};
+  }})();
+}})()""".format(png=_build_png_base64())
 
 _BROWSER_ACTIVE_JS = """(() => {
   const snap = window.__MYRM_E2E_CHAT__?.getBrowserInspectorSnapshot?.() ?? null;
@@ -127,8 +155,10 @@ _BROWSER_ACTIVE_JS = """(() => {
 })()"""
 
 # Overlay geometry is scale-invariant: the container scales the screenshot to fit,
-# so we assert normalized ratios (left/viewportWidth, top/viewportHeight, etc.)
-# rather than absolute pixels. The overlay must use viewport_y (200) not absolute y (500).
+# so absolute pixels are scaled by the same factor. We assert RATIOS that cancel
+# the scale: top/left must equal viewport_y/viewport_x (200/100=2), NOT absolute
+# y/x (500/100=5); height/width must equal 32/80=0.4. This proves the overlay uses
+# viewport-relative coordinates.
 _OVERLAY_GEOMETRY_JS = """(() => {
   const btn = document.querySelector('button[aria-label^="Select element addToCart"]');
   if (!btn) return { ready: false, reason: 'no-overlay-button' };
@@ -143,11 +173,8 @@ _OVERLAY_GEOMETRY_JS = """(() => {
   }
   return {
     ready: true,
-    // viewport-relative ratios (viewport 1280x720)
-    leftRatio: left / 1280,
-    topRatio: top / 720,
-    widthRatio: width / 1280,
-    heightRatio: height / 720,
+    topLeftRatio: top / left,
+    heightWidthRatio: height / width,
     left,
     top,
     width,
@@ -404,14 +431,11 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
         # --- Phase 1b: overlay geometry must use viewport-relative coordinates ---
         geometry = await _wait_overlay_geometry(chat)
         assert geometry.get("ready") is True, geometry
-        # Scale-invariant ratios: the container scales the screenshot to fit, so we
-        # assert normalized ratios (left/viewportWidth, top/viewportHeight, ...).
-        # The overlay must use viewport_y (200) not absolute y (500): topRatio must
-        # be 200/720 ≈ 0.278, NOT 500/720 ≈ 0.694.
-        assert abs(geometry.get("leftRatio", -1) - 100 / 1280) < 0.01, geometry
-        assert abs(geometry.get("topRatio", -1) - 200 / 720) < 0.01, geometry
-        assert abs(geometry.get("widthRatio", -1) - 80 / 1280) < 0.01, geometry
-        assert abs(geometry.get("heightRatio", -1) - 32 / 720) < 0.01, geometry
+        # Scale-invariant ratio assertions: top/left must equal viewport_y/viewport_x
+        # (200/100=2). If the buggy absolute coordinates were used, top/left would be
+        # 500/100=5. height/width must equal 32/80=0.4.
+        assert abs(geometry.get("topLeftRatio", -1) - 2.0) < 0.05, geometry
+        assert abs(geometry.get("heightWidthRatio", -1) - 0.4) < 0.05, geometry
 
         # --- Phase 2: manually opened desktop panel (no engagement) ---
         computer_use = await chat.evaluate(
