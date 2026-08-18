@@ -25,11 +25,9 @@ import asyncio
 import base64
 import json
 import os
-import struct
 import sys
 import time
 import uuid
-import zlib
 from pathlib import Path
 
 import pytest
