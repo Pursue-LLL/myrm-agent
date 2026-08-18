@@ -27,3 +27,8 @@ Enables users to visually select page elements and send natural language instruc
 - `messageStream/handlers/toolLifecycleEvents.ts`: On `browser_*` TOOL_START, sets browser active and opens panel only when stream `chatId` matches foreground chat; no TOOL_END REST re-fetch
 - `BrowserLiveView.tsx` / `BrowserInspectorToggle.tsx`: Render scoped view via `selectScopedBrowserViewData`; close panel on **chat switch only** (`useClosePanelOnChatSwitch`) — not on stale `sourceChatId` while foreground TOOL_START opens panel
 - `GET /api/v1/webui/browser/snapshot?chat_id=`: REST manual refresh scoped to active chat
+
+## Coordinate System
+
+- Browser engaged views render a **viewport screenshot**; `ElementOverlay` frames derive from **viewport-relative** bounding boxes (`bbox.viewport_x/viewport_y`), so highlights stay aligned with elements on scrolled pages where absolute DOM positions differ from the visible viewport.
+- Desktop automation elements carry no viewport fields — `ElementOverlay` falls back to absolute coordinates (`bbox.x/y`) for those.
