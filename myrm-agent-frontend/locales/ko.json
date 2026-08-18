@@ -8424,6 +8424,10 @@
       "memory": {
         "title": "메모리 관리 센터",
         "description": "장기 메모리, 백업, 보관 정책을 관리합니다"
+      },
+      "brand-studio": {
+        "title": "브랜드 스타일",
+        "description": "브랜드 정체성(색상, 글꼴, 톤, 규칙)을 정의하세요. AI가 생성하는 모든 콘텐츠에 이를 적용합니다."
       }
     },
     "landingPageTitle": "Myrm - 당신의 AI 업무 파트너",

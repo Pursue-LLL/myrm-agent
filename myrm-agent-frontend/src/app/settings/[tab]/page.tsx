@@ -27,6 +27,7 @@ const VALID_TABS = [
   'credentials',
   'wiki',
   'memory',
+  'brand-studio',
   'cron',
   'kanban',
   'checkpoint',

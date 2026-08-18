@@ -8424,6 +8424,10 @@
       "memory": {
         "title": "Speicherverwaltungszentrum",
         "description": "Langzeitspeicher, Backups und Archivierungsrichtlinien verwalten"
+      },
+      "brand-studio": {
+        "title": "Markenstil",
+        "description": "Definiere die Markenidentität – Farben, Schrift, Ton und Regeln. Die KI wendet sie auf alles an, was sie erstellt."
       }
     },
     "landingPageTitle": "Myrm - Ihr KI-Arbeitspartner",

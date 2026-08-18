@@ -8734,6 +8734,10 @@
       "wiki": {
         "title": "Wiki 知识库",
         "description": "AI自动维护的结构化知识库，随对话持续成长"
+      },
+      "brand-studio": {
+        "title": "品牌风格",
+        "description": "定义你的品牌形象——配色、字体、语气与规则。你的 AI 会在为你创建的所有内容中遵循它。"
       }
     }
   },

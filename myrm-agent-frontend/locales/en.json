@@ -8734,6 +8734,10 @@
       "wiki": {
         "title": "Wiki Knowledge Base",
         "description": "AI-maintained structured knowledge base that grows with conversations"
+      },
+      "brand-studio": {
+        "title": "Brand Style",
+        "description": "Define your brand identity — colors, font, tone, and rules. Your AI applies it to everything it creates."
       }
     }
   },
