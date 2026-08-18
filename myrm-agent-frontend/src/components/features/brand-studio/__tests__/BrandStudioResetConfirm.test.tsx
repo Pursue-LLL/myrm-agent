@@ -103,4 +103,20 @@ describe('BrandStudioSection reset confirmation', () => {
       expect(mockDeleteMemory).toHaveBeenCalledWith('brand_name', 'profile');
     });
   });
+
+  it('disables the clear trigger when the form has no brand value', async () => {
+    mockGetMemories.mockResolvedValue({ ...baseResponse, items: [] });
+    const user = userEvent.setup();
+    render(<BrandStudioSection />);
+
+    await waitFor(() => {
+      expect(mockGetMemories).toHaveBeenCalledTimes(1);
+    });
+
+    const clearButton = screen.getByRole('button', { name: /reset/i });
+    expect(clearButton).toBeDisabled();
+    // No dialog can be opened from a disabled trigger.
+    await user.click(clearButton);
+    expect(screen.queryByTestId('confirm-dialog-confirm')).not.toBeInTheDocument();
+  });
 });

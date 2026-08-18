@@ -217,7 +217,7 @@ const BrandStudioSection = () => {
           variant="destructive"
           onConfirm={resetForm}
           trigger={
-            <Button variant="outline" className="gap-1.5">
+            <Button variant="outline" className="gap-1.5" disabled={!hasValue}>
               <IconTrash className="h-4 w-4" />
               {t('reset')}
             </Button>
