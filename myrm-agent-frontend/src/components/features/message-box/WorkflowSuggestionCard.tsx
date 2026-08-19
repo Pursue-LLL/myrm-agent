@@ -17,33 +17,12 @@ import React, { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
 import { cn } from '@/lib/utils';
+import { IconWorkflow } from '@/components/features/icons/PremiumIcons';
 
 interface WorkflowSuggestionCardProps {
   messageId: string;
   status: 'suggested' | 'accepted' | 'dismissed';
 }
-
-const WorkflowIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    xmlns="http://www.w3.org/2000/svg"
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="2" y="9" width="6" height="6" rx="1.5" />
-    <rect x="16" y="3" width="6" height="6" rx="1.5" />
-    <rect x="16" y="15" width="6" height="6" rx="1.5" />
-    <path d="M8 12h4" />
-    <path d="M12 12v-6h4" />
-    <path d="M12 12v6h4" />
-  </svg>
-);
 
 const WorkflowSuggestionCard = ({ messageId, status }: WorkflowSuggestionCardProps) => {
   const t = useTranslations('chat.workflowSuggestion');
@@ -51,9 +30,9 @@ const WorkflowSuggestionCard = ({ messageId, status }: WorkflowSuggestionCardPro
 
   const handleActivate = useCallback(() => {
     useChatStore.setState((state) => {
-      const idx = state.messages.findIndex((m) => m.messageId === messageId && m.role === 'assistant');
-      if (idx !== -1 && state.messages[idx].workflowSuggestion) {
-        state.messages[idx].workflowSuggestion!.status = 'accepted';
+      const msg = state.messages.find((m) => m.messageId === messageId && m.role === 'assistant');
+      if (msg?.workflowSuggestion) {
+        msg.workflowSuggestion.status = 'accepted';
       }
     });
     useChatStore.getState().setIsWorkflowMode(true);
@@ -62,9 +41,9 @@ const WorkflowSuggestionCard = ({ messageId, status }: WorkflowSuggestionCardPro
   const handleDismiss = useCallback(() => {
     setDismissed(true);
     useChatStore.setState((state) => {
-      const idx = state.messages.findIndex((m) => m.messageId === messageId && m.role === 'assistant');
-      if (idx !== -1 && state.messages[idx].workflowSuggestion) {
-        state.messages[idx].workflowSuggestion!.status = 'dismissed';
+      const msg = state.messages.find((m) => m.messageId === messageId && m.role === 'assistant');
+      if (msg?.workflowSuggestion) {
+        msg.workflowSuggestion.status = 'dismissed';
       }
     });
   }, [messageId]);
@@ -74,7 +53,7 @@ const WorkflowSuggestionCard = ({ messageId, status }: WorkflowSuggestionCardPro
   if (status === 'accepted') {
     return (
       <div className="mb-2 flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
-        <WorkflowIcon className="shrink-0 text-primary" />
+        <IconWorkflow className="shrink-0 text-primary" />
         <span className="text-primary/80 font-medium">{t('activated')}</span>
       </div>
     );
@@ -82,7 +61,7 @@ const WorkflowSuggestionCard = ({ messageId, status }: WorkflowSuggestionCardPro
 
   return (
     <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 dark:border-amber-400/20 dark:bg-amber-500/10">
-      <WorkflowIcon className="shrink-0 text-amber-600 dark:text-amber-400" />
+      <IconWorkflow className="shrink-0 text-amber-600 dark:text-amber-400" />
       <span className="min-w-0 flex-1 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
         {t('hint')}
       </span>

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Shared uv sync flags for OSS dev setup and Desktop release bundles.
 # Installs all optional extras except GPL/heavy bundles excluded from commercial Desktop.
+# wechat-formatter (MIT) stays included — only omit for minimal server-only installs.
 # See myrm-agent-server/pyproject.toml and scripts/ci/desktop-release/sync-server-venv.sh.
 
 SERVER_UV_SYNC_FLAGS=(

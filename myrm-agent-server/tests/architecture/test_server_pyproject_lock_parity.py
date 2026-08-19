@@ -16,10 +16,15 @@ _LOCK_PATH = _SERVER_ROOT / "uv.lock"
 
 _FORBIDDEN_MAIN_DEPS = (
     "camoufox",
+    "litellm",
+    "langchain",
+    "langchain-core",
+    "markdown",
     "pilk",
     "faster-whisper",
     "pyautogui",
     "edge-tts",
+    "pygments",
 )
 
 _FORBIDDEN_REQUIRES_DIST = (
@@ -130,6 +135,15 @@ def test_lock_includes_wechat_silk_extra_markers() -> None:
     block = _lock_requires_dist_block()
     assert "extra == 'wechat-silk'" in block or 'extra == "wechat-silk"' in block
     assert "pilk" in block
+
+
+@pytest.mark.architecture
+def test_lock_includes_wechat_formatter_extra_markers() -> None:
+    """WeChat article formatter optional extra must be present in lock metadata."""
+    block = _lock_requires_dist_block()
+    assert "extra == 'wechat-formatter'" in block or 'extra == "wechat-formatter"' in block
+    assert "markdown" in block
+    assert "pygments" in block
 
 
 @pytest.mark.architecture

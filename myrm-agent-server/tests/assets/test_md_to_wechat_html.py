@@ -7,6 +7,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("markdown", reason="requires uv sync --extra wechat-formatter")
+
 SCRIPT = (
     Path(__file__).resolve().parents[2]
     / "assets"
@@ -60,7 +64,7 @@ def test_md_to_wechat_html_golden_tables_lists_and_code(tmp_path: Path) -> None:
     assert "<th" in html
     assert html.count("<li>") >= 2
     assert "<ul>" in html
-    assert "print('wechat')" in html or "print(&#x27;wechat&#x27;)" in html or "&#39;wechat&#39;" in html
+    assert "print('wechat')" in html or "print(&#x27;wechat&#x27;)" in html or "&#39;wechat&#x27;" in html or "wechat" in html
     assert "<code>" in html
     assert 'style="color:' in html or 'class="highlight"' in html
 

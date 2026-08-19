@@ -25,6 +25,11 @@ contract:
 
 Convert workspace Markdown into WeChat Official Account HTML. The output is meant for **preview in WebUI** and **manual push to the WeChat draft box** (HITL).
 
+## Prerequisites
+
+- **Python packages** (syntax highlighting + tables): `uv sync --extra wechat-formatter` (included in `--all-extras`).
+- **WeChat Official Account** credentials (AppID/AppSecret) in Settings.
+
 ## Bash execution contract
 
 When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
@@ -50,10 +55,8 @@ If the skill assets path differs in the sandbox, locate the script under `assets
 - Preserve relative image paths in Markdown (`![](./images/foo.png)`); the draft API uploads them to WeChat CDN.
 - Do **not** auto-publish to WeChat; publishing requires explicit user confirmation in the UI.
 - For cover image: ensure at least one local image in the article, or the user must provide a cover when pushing the draft.
-- Requires **WeChat Official Account** credentials (AppID/AppSecret) configured in Settings.
 
 ## Output quality
-
 - Headings, paragraphs, blockquotes, code blocks, tables, and images use **inline `style=` attributes** on block tags for WeChat draft/mp rendering; preview CSS is generated from the same style map in `<head><style>`.
 - Code blocks use Pygments via `codehilite` with inline token colors (`noclasses`) for WeChat draft compatibility.
 - Keep the source `.md` as SSOT; HTML is a derived artifact only.

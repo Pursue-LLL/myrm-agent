@@ -234,6 +234,11 @@ def convert_markdown_to_wechat_html(source: Path, output: Path) -> None:
         except Exception:
             body = _convert_basic(text)
     else:
+        print(
+            "WARNING: markdown/pygments not installed; using basic converter. "
+            "Install: uv sync --extra wechat-formatter",
+            file=sys.stderr,
+        )
         body = _convert_basic(text)
 
     body = _inject_block_inline_styles(body)

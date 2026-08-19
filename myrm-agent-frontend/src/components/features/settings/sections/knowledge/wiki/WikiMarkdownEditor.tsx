@@ -9,7 +9,8 @@ import MarkdownContent from '@/components/features/message-box/MarkdownContent';
 import { LazyMonacoEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 import { cn } from '@/lib/utils/classnameUtils';
-import type { editor, Monaco } from 'monaco-editor';
+import type { editor } from 'monaco-editor';
+import type { Monaco } from '@monaco-editor/react';
 
 interface WikiMarkdownEditorProps {
   value: string;
