@@ -35,12 +35,12 @@ from tests.support.evicted_drawer_selectors import (
     TERMINAL_PREVIEW_JS as _TERMINAL_PREVIEW_JS,
 )
 from tests.support.evicted_drawer_selectors import (
-    WAIT_PROGRESS_UI_DOM_JS as _WAIT_PROGRESS_UI_DOM_JS,
-)
-from tests.support.evicted_drawer_selectors import (
     VIEW_FULL_STDERR_TESTID,
     drawer_mount_wait_js,
     drawer_ready_js,
+)
+from tests.support.evicted_drawer_selectors import (
+    WAIT_PROGRESS_UI_DOM_JS as _WAIT_PROGRESS_UI_DOM_JS,
 )
 
 _FIXTURE_ANSWER = "UECD evicted output E2E fixture answer."

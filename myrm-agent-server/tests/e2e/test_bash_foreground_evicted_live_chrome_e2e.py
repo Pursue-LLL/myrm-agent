@@ -44,13 +44,13 @@ from tests.support.evicted_drawer_selectors import (  # noqa: E402
     CLEAR_RESOURCE_TIMINGS_JS as _CLEAR_RESOURCE_TIMINGS_JS,
 )
 from tests.support.evicted_drawer_selectors import (
+    DRAWER_MOUNT_WAIT_JS as _DRAWER_MOUNT_WAIT_JS,
+)
+from tests.support.evicted_drawer_selectors import (
     EXPAND_PROGRESS_PANEL_JS as _EXPAND_PROGRESS_PANEL_JS,
 )
 from tests.support.evicted_drawer_selectors import (
     TERMINAL_PREVIEW_JS as _TERMINAL_PREVIEW_JS,
-)
-from tests.support.evicted_drawer_selectors import (
-    DRAWER_MOUNT_WAIT_JS as _DRAWER_MOUNT_WAIT_JS,
 )
 from tests.support.evicted_drawer_selectors import (
     VIEW_FULL_OUTPUT_JS as _VIEW_FULL_OUTPUT_JS,
