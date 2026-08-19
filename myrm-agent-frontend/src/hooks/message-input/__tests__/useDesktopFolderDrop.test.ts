@@ -6,6 +6,20 @@ import * as chatService from '@/services/chat';
 import * as sessionAccessRefresh from '@/lib/sessionAccessRefresh';
 import useChatStore from '@/store/useChatStore';
 
+const mockToast = vi.hoisted(() => ({
+  warning: vi.fn(),
+  error: vi.fn(),
+  success: vi.fn(),
+  info: vi.fn(),
+}));
+vi.mock('@/lib/utils/toast', () => ({ toast: mockToast }));
+vi.mock('sonner', () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
+}));
+
 vi.mock('@/lib/tauri', () => ({
   isTauriEnvironment: vi.fn(),
   listenTauriEvent: vi.fn(),
@@ -17,13 +31,6 @@ vi.mock('@/services/chat', () => ({
 
 vi.mock('@/lib/sessionAccessRefresh', () => ({
   refreshSessionAccessRoots: vi.fn(),
-}));
-
-vi.mock('sonner', () => ({
-  toast: {
-    error: vi.fn(),
-    success: vi.fn(),
-  },
 }));
 
 describe('normalizeDesktopPath', () => {
@@ -56,7 +63,7 @@ describe('useDesktopFolderDrop', () => {
   });
 
   it('does not register Tauri listeners if not in Tauri environment', () => {
-    vi.mocked(tauriLib.isTauriEnvironment).mockReturnValue(false);
+    (tauriLib.isTauriEnvironment as unknown as { mockReturnValue: (v: boolean) => void }).mockReturnValue(false);
 
     renderHook(() => useDesktopFolderDrop());
 
@@ -64,9 +71,9 @@ describe('useDesktopFolderDrop', () => {
   });
 
   it('registers Tauri drag-drop listeners when in Tauri environment', async () => {
-    vi.mocked(tauriLib.isTauriEnvironment).mockReturnValue(true);
+    (tauriLib.isTauriEnvironment as unknown as { mockReturnValue: (v: boolean) => void }).mockReturnValue(true);
     const unlistenMock = vi.fn();
-    vi.mocked(tauriLib.listenTauriEvent).mockResolvedValue(unlistenMock);
+    (tauriLib.listenTauriEvent as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(unlistenMock);
 
     const { unmount } = renderHook(() => useDesktopFolderDrop());
 
@@ -79,8 +86,8 @@ describe('useDesktopFolderDrop', () => {
   });
 
   it('grants session access root and refreshes store on dropped paths', async () => {
-    vi.mocked(tauriLib.isTauriEnvironment).mockReturnValue(true);
-    vi.mocked(chatService.grantSessionAccessRoot).mockResolvedValue({
+    (tauriLib.isTauriEnvironment as unknown as { mockReturnValue: (v: boolean) => void }).mockReturnValue(true);
+    (chatService.grantSessionAccessRoot as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue({
       session_access_roots: [
         { path: '/Users/test/workspace', writable: true, source: 'desktop_drag_drop' },
       ],

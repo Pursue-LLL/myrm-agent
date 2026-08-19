@@ -40,6 +40,10 @@ class TestLINEChannelBase(ChannelTestBase):
 def _make_channel() -> tuple[LINEChannel, list[InboundMessage]]:
     ch = LINEChannel(channel_access_token="test-token", channel_secret="test-secret")
     ch.allow_policy = AllowPolicy(group_policy=ChatPolicy.ALLOW)
+    # Redirect the user resolver's API client to a mock so sender-name
+    # resolution never issues real network calls during tests.
+    ch._user_resolver._api = AsyncMock()
+    ch._user_resolver._api.get_user_profile.return_value = {}
     received: list[InboundMessage] = []
 
     async def _handler(msg: InboundMessage) -> None:
@@ -137,6 +141,27 @@ class TestInboundText:
         assert msg.sender_id == "U1234"
         assert msg.chat_id == "U1234"
         assert msg.is_group is False
+
+    @pytest.mark.asyncio
+    async def test_sender_name_resolved(self) -> None:
+        ch, received = _make_channel()
+        ch._user_resolver._api.get_user_profile.return_value = {
+            "userId": "U1234",
+            "displayName": "Alice",
+        }
+        body = _make_event(text="hi")
+        await ch.handle_webhook(body)
+        assert len(received) == 1
+        assert received[0].sender_name == "Alice"
+
+    @pytest.mark.asyncio
+    async def test_sender_name_none_on_api_failure(self) -> None:
+        ch, received = _make_channel()
+        ch._user_resolver._api.get_user_profile.side_effect = RuntimeError("boom")
+        body = _make_event(text="hi")
+        await ch.handle_webhook(body)
+        assert len(received) == 1
+        assert received[0].sender_name is None
 
     @pytest.mark.asyncio
     async def test_group_text_message(self) -> None:
@@ -369,6 +394,28 @@ class TestPostbackHandling:
         await ch.handle_webhook(body)
         assert len(received) == 1
         assert received[0].content == "action=buy&item=123"
+
+    @pytest.mark.asyncio
+    async def test_postback_sender_name_resolved(self) -> None:
+        ch, received = _make_channel()
+        ch._user_resolver._api.get_user_profile.return_value = {
+            "userId": "U1234",
+            "displayName": "Bob",
+        }
+        body = {
+            "events": [
+                {
+                    "type": "postback",
+                    "replyToken": "rt-pb",
+                    "source": {"type": "user", "userId": "U1234"},
+                    "postback": {"data": "action=buy&item=123"},
+                    "timestamp": 1700000000000,
+                },
+            ],
+        }
+        await ch.handle_webhook(body)
+        assert len(received) == 1
+        assert received[0].sender_name == "Bob"
 
     @pytest.mark.asyncio
     async def test_empty_postback_filtered(self) -> None:
@@ -980,6 +1027,28 @@ class TestLineClient:
         client._http.get.return_value = resp
 
         result = await client.get_bot_info()
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_get_user_profile_success(self) -> None:
+        client = _mock_line_client()
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {"userId": "U1", "displayName": "Alice"}
+        client._http.get.return_value = resp
+
+        result = await client.get_user_profile("U1")
+        assert result == {"userId": "U1", "displayName": "Alice"}
+        client._http.get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_user_profile_failure(self) -> None:
+        client = _mock_line_client()
+        resp = MagicMock()
+        resp.status_code = 404
+        client._http.get.return_value = resp
+
+        result = await client.get_user_profile("U1")
         assert result == {}
 
     @pytest.mark.asyncio

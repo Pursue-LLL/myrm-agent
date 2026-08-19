@@ -5,8 +5,8 @@ when they exceeded the delivery threshold. Provides line-range reading and
 graceful expiration handling.
 
 [INPUT]
-- myrm_agent_harness.agent.context_management.infra.evicted (POS: paginated evicted file I/O)
-- myrm_agent_harness.agent.context_management.infra.evicted::normalize_delivery_chat_id (POS: UECD delivery SSOT)
+- myrm_agent_harness.api.hooks::read_evicted_line_range (POS: paginated evicted file I/O)
+- myrm_agent_harness.api.hooks::normalize_delivery_chat_id (POS: UECD delivery SSOT)
 - myrm_agent_harness.api.hooks::EVICTED_BASENAME_PATTERN (POS: spill filename validation)
 
 [OUTPUT]
@@ -22,11 +22,11 @@ import os
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.agent.context_management.infra.evicted import (
+from myrm_agent_harness.api.hooks import (
+    EVICTED_BASENAME_PATTERN,
     normalize_delivery_chat_id,
     read_evicted_line_range,
 )
-from myrm_agent_harness.api.hooks import EVICTED_BASENAME_PATTERN
 
 from app.config.deploy_mode import is_local_mode
 

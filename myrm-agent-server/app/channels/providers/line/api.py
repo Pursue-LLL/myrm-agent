@@ -1,7 +1,7 @@
 """LINE Messaging API HTTP client.
 
 Encapsulates all HTTP interactions with the LINE Messaging API:
-reply/push messaging, bot info, health check, typing indicator.
+reply/push messaging, bot info, user profile, health check, typing indicator.
 
 [INPUT]
 - .helpers::_API_BASE, (POS: Stateless helper functions extracted from orchestrator.py to keep the main orchestrator class focused on state machine logic.)
@@ -58,6 +58,24 @@ class LineClient:
         if resp.status_code == 200:
             return True, ""
         return False, f"Bot Info API returned {resp.status_code}"
+
+    async def get_user_profile(self, user_id: str) -> dict[str, str]:
+        """Fetch a user's profile. Returns dict with userId, displayName.
+
+        Uses the LINE Get Profile API (``/v2/bot/profile/{userId}``), which
+        requires only the channel access token — no extra scopes.
+        """
+        resp = await self._http.get(
+            f"{_API_BASE}/profile/{user_id}",
+            timeout=_HEALTH_TIMEOUT,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return {
+                "userId": data.get("userId", ""),
+                "displayName": data.get("displayName", ""),
+            }
+        return {}
 
     async def reply(
         self,

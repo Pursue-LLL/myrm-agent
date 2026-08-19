@@ -2,5 +2,6 @@
 
 from .channel import LINEChannel
 from .helpers import _ReplyToken
+from .user_resolver import LINEUserResolver
 
-__all__ = ["LINEChannel", "_ReplyToken"]
+__all__ = ["LINEChannel", "LINEUserResolver", "_ReplyToken"]

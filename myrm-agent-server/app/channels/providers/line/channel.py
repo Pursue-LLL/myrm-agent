@@ -40,6 +40,7 @@ from app.channels.providers.line.helpers import (
     _Source,
     resolve_chat_id,
 )
+from app.channels.providers.line.user_resolver import LINEUserResolver
 from app.channels.rendering.renderer import render
 from app.channels.types import (
     ChannelCapabilities,
@@ -96,6 +97,7 @@ class LINEChannel(BaseChannel):
         self._token = channel_access_token
         self._secret = channel_secret
         self._api = LineClient(channel_access_token)
+        self._user_resolver = LINEUserResolver(self._api)
         self._bot_user_id = ""
         self._bot_display_name = ""
         self._reply_tokens: dict[str, _ReplyToken] = {}
@@ -411,6 +413,7 @@ class LINEChannel(BaseChannel):
                 media=tuple(media_list),
                 metadata=metadata,
                 message_id=msg_id,
+                sender_name=await self._resolve_sender_name(sender_id),
             )
         )
 
@@ -442,8 +445,23 @@ class LINEChannel(BaseChannel):
                 is_group=is_group,
                 mentioned=False,
                 metadata=metadata,
+                sender_name=await self._resolve_sender_name(sender_id),
             )
         )
+
+    async def _resolve_sender_name(self, sender_id: str | None) -> str | None:
+        """Resolve a LINE sender's display name via Get Profile API (fail-open).
+
+        Returns None when the ID is missing, resolution fails, or the user
+        cannot be found — callers fall back to the opaque user ID.
+        """
+        if not sender_id:
+            return None
+        try:
+            return await self._user_resolver.resolve_user(sender_id)
+        except Exception:
+            logger.debug("Failed to resolve LINE sender name for %s", sender_id)
+            return None
 
     def _handle_lifecycle(self, event: _Event) -> None:
         etype = event.get("type", "")

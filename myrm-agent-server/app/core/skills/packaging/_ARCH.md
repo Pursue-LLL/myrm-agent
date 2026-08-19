@@ -15,6 +15,6 @@ Server 层技能打包 Facade：调用 PyPI `myrm-agent-harness` 的 `SkillPacke
 
 | 文件 | 地位 | 职责| I/O/P |
 |------|------|------|-------|
-| `__init__.py` | ✅ 核心 | `SkillPackagingService` 服务暴露，包装 Harness 打包能力，集成脱敏引擎与 eval_cases/version 同步 | — |
+| `__init__.py` | ✅ 核心 | `SkillPackagingService` 服务暴露，包装 Harness 打包能力（支持 Agent Plugins 1.0.0 与 Raw Skill 格式导出），集成脱敏引擎与 eval_cases/version 同步 | — |
 | `_helpers.py` | 辅助 | `_load_evolution_record` / `_sync_skill_md_version` 内部辅助函数 | — |
 | `_models.py` | 类型 | `PackageResult` / `UnpackResult` 打包/解包结果数据类 | — |
