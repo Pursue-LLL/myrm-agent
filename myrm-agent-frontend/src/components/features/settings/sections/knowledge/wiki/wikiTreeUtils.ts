@@ -70,6 +70,11 @@ export function extractSourceMessageIdFromFrontmatter(proposedContent: string): 
   return _extractFrontmatterScalar(proposedContent, 'source_message');
 }
 
+/** Strip a leading YAML frontmatter block so it is not rendered as body text. */
+export function stripYamlFrontmatter(content: string): string {
+  return content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+}
+
 function _extractFrontmatterScalar(content: string, key: string): string | null {
   const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   const block = fmMatch?.[1] ?? '';

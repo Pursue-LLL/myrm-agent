@@ -215,7 +215,10 @@ def orchestrator_socket_timeout_cap_sec() -> float:
     now = time.monotonic()
     if _socket_timeout_cap_cache is not None:
         cached_at, cached_key, cached = _socket_timeout_cap_cache
-        if cached_key == cache_key and now - cached_at < _SOCKET_TIMEOUT_CAP_CACHE_TTL_SEC:
+        if (
+            cached_key == cache_key
+            and now - cached_at < _SOCKET_TIMEOUT_CAP_CACHE_TTL_SEC
+        ):
             return cached
     queue_headroom = 15.0 * float(max(0, burst_lanes - 1))
     cap = wall + _ORCHESTRATOR_SCHEDULER_GRACE_SEC + queue_headroom
@@ -527,9 +530,7 @@ class BrowserOrchestratorClient:
             contexts=result.get("contexts", 0),
             scheduler=result.get("scheduler", {}),
             recovery=result.get("recovery", {}),
-            capabilities=[
-                str(cap) for cap in result.get("capabilities", [])
-            ],
+            capabilities=[str(cap) for cap in result.get("capabilities", [])],
         )
 
     def set_effective_credits(self, credits: int) -> int:
@@ -562,6 +563,14 @@ class BrowserOrchestratorClient:
         except (OSError, TimeoutError, RuntimeError):
             return False
 
+    def reset_failure_latch_if_idle(self) -> dict[str, object]:
+        """UBDP-H §27.6: clear FAILED latch when daemon owns no contexts/ops."""
+        return self._request(
+            "admin/resetFailureLatch",
+            {},
+            allow_daemon_recovery=False,
+        )
+
     def _request(
         self,
         method: str,
@@ -582,9 +591,7 @@ class BrowserOrchestratorClient:
             self._recover_daemon_generation()
             return self._request_raw(payload, req_id)
 
-    def _request_raw(
-        self, payload: str, req_id: int
-    ) -> dict[str, object]:
+    def _request_raw(self, payload: str, req_id: int) -> dict[str, object]:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.settimeout(self._connect_timeout_sec)
         try:

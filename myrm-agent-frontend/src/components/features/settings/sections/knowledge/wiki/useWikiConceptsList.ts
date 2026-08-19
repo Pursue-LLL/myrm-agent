@@ -45,6 +45,16 @@ function findConceptNodeId(nodes: TreeNode[], conceptPath: string): string | nul
 
 export type WikiEditTab = 'truth' | 'timeline' | 'metadata' | 'advanced';
 
+type DiscardPending = 'select' | 'cancel';
+
+interface EditBaseline {
+  content: string;
+  compiledTruth: string;
+  timelineAppend: string;
+  tags: string;
+  aliases: string;
+}
+
 export interface DeleteTarget {
   name: string;
   isDir: boolean;
@@ -76,6 +86,9 @@ export function useWikiConceptsList(options?: {
   const [editContentHash, setEditContentHash] = useState<string | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [editBaseline, setEditBaseline] = useState<EditBaseline | null>(null);
+  const [discardPending, setDiscardPending] = useState<DiscardPending | null>(null);
+  const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'rename'>('create');
@@ -104,19 +117,76 @@ export function useWikiConceptsList(options?: {
     setSelectedConcept(null);
     setIsEditing(false);
     setEditContent('');
+    setEditBaseline(null);
+    setDiscardPending(null);
+    setPendingSelectId(null);
     setTreeData([]);
     lastHighlightedConceptRef.current = null;
     void fetchTree();
   }, [fetchTree, options?.treeSyncNonce, agentScopeId]);
 
-  const handleSelectConcept = async (id: string) => {
-    try {
-      const data = await wikiService.getConcept(id, agentScopeId);
-      setSelectedConcept(data);
-      setIsEditing(false);
-    } catch {
-      toast.error(t('loadFailed'));
+  const hasUnsavedEdits = Boolean(
+    editBaseline &&
+      (editContent !== editBaseline.content ||
+        editCompiledTruth !== editBaseline.compiledTruth ||
+        editTimelineAppend !== editBaseline.timelineAppend ||
+        editTags !== editBaseline.tags ||
+        editAliases !== editBaseline.aliases),
+  );
+
+  const handleSelectConcept = useCallback(
+    async (id: string) => {
+      try {
+        const data = await wikiService.getConcept(id, agentScopeId);
+        setSelectedConcept(data);
+        setIsEditing(false);
+        setEditBaseline(null);
+      } catch {
+        toast.error(t('loadFailed'));
+      }
+    },
+    [agentScopeId, t],
+  );
+
+  const requestSelectConcept = useCallback(
+    async (id: string) => {
+      if (isEditing && hasUnsavedEdits) {
+        setPendingSelectId(id);
+        setDiscardPending('select');
+        return;
+      }
+      await handleSelectConcept(id);
+    },
+    [isEditing, hasUnsavedEdits, handleSelectConcept],
+  );
+
+  const requestCancelEdit = () => {
+    if (hasUnsavedEdits) {
+      setDiscardPending('cancel');
+      return;
     }
+    setIsEditing(false);
+    setEditBaseline(null);
+  };
+
+  const confirmDiscard = () => {
+    const pending = discardPending;
+    const selectId = pendingSelectId;
+    setDiscardPending(null);
+    setPendingSelectId(null);
+    setEditBaseline(null);
+    if (pending === 'cancel') {
+      setIsEditing(false);
+      return;
+    }
+    if (pending === 'select' && selectId) {
+      void handleSelectConcept(selectId);
+    }
+  };
+
+  const cancelDiscard = () => {
+    setDiscardPending(null);
+    setPendingSelectId(null);
   };
 
   useEffect(() => {
@@ -136,7 +206,7 @@ export function useWikiConceptsList(options?: {
       return;
     }
     lastHighlightedConceptRef.current = highlight;
-    void handleSelectConcept(nodeId);
+    void requestSelectConcept(nodeId);
     // Deep-link navigation should also reveal the target in the tree. Expand
     // every ancestor directory (best-effort) so the highlighted leaf is
     // visibly selected after the detail panel loads.
@@ -148,7 +218,7 @@ export function useWikiConceptsList(options?: {
         // Tree may not have mounted at highlight time — selection still works.
       }
     }
-  }, [options?.highlightConceptPath, isLoading, treeData]);
+  }, [options?.highlightConceptPath, isLoading, treeData, requestSelectConcept, t]);
 
   const handleMove = async ({ dragIds, parentId }: { dragIds: string[]; parentId: string | null; index: number }) => {
     const sourceId = dragIds[0];
@@ -226,6 +296,13 @@ export function useWikiConceptsList(options?: {
       setEditTags((sections?.tags ?? []).join(', '));
       setEditAliases((sections?.aliases ?? []).join(', '));
       setEditContentHash(selectedConcept.content_hash);
+      setEditBaseline({
+        content: selectedConcept.content,
+        compiledTruth: sections?.compiled_truth ?? '',
+        timelineAppend: '',
+        tags: (sections?.tags ?? []).join(', '),
+        aliases: (sections?.aliases ?? []).join(', '),
+      });
       setEditTab('truth');
       setIsEditing(true);
     }
@@ -304,6 +381,7 @@ export function useWikiConceptsList(options?: {
         setEditTimelineAppend('');
       }
       setIsEditing(false);
+      setEditBaseline(null);
       toast.success(t('updateSuccess'));
       onVaultMutated?.();
     } catch (error) {
@@ -377,7 +455,12 @@ export function useWikiConceptsList(options?: {
     deleteTarget,
     setDeleteTarget,
     treeRef,
-    handleSelectConcept,
+    requestSelectConcept,
+    requestCancelEdit,
+    confirmDiscard,
+    cancelDiscard,
+    hasUnsavedEdits,
+    discardDialogOpen: discardPending !== null,
     handleMove,
     handleCreateFolder,
     handleRename,

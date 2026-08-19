@@ -2453,7 +2453,14 @@
         "resumeFailed": "コンパイルの再開に失敗しました",
         "viewQueue": "キューを表示"
       },
+      "editor": {
+        "edit": "編集",
+        "preview": "プレビュー"
+      },
       "concepts": {
+        "discard": "破棄",
+        "discardUnsavedTitle": "未保存の変更を破棄しますか？",
+        "discardUnsavedDescription": "未保存の編集があります。このまま離れると変更は破棄されます。",
         "title": "概念リスト",
         "description": "ナレッジコンセプトを検索・管理します",
         "searchPlaceholder": "概念を検索...",
@@ -8656,6 +8663,10 @@
       "wiki": {
         "title": "Wikiナレッジベース",
         "description": "AIが自動管理する構造化ナレッジベース、会話とともに成長"
+      },
+      "brand-studio": {
+        "title": "ブランドスタジオ",
+        "description": "配色、フォント、トーンとルールでブランドを定義します。AIは作成するすべてのコンテンツでこれに従います。"
       }
     }
   },

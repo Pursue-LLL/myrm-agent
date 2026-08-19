@@ -11,9 +11,11 @@ import { IconCheckCircle, IconCheck, IconX, IconClock, IconEdit } from '@/compon
 import { wikiService, PendingEdit } from '@/services/wikiService';
 import { ApiError } from '@/lib/api';
 import { WikiScopeChip } from './WikiScopeChip';
+import { WikiMarkdownEditor } from './wiki/WikiMarkdownEditor';
 import {
   extractSourceChatIdFromFrontmatter,
   extractSourceMessageIdFromFrontmatter,
+  stripYamlFrontmatter,
 } from './wiki/wikiTreeUtils';
 
 interface WikiPendingEditsProps {
@@ -273,16 +275,17 @@ export function WikiPendingEdits({
                     )}
                   </div>
                 </div>
-                <div className="p-4 bg-muted/10 text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
+                <div className="p-4 flex flex-col min-h-[420px]">
                   {editingId === edit.id ? (
-                    <textarea
-                      className="w-full min-h-[300px] p-3 rounded-full border bg-background text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+                    <WikiMarkdownEditor
                       value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      spellCheck={false}
+                      onChange={setEditContent}
+                      previewTransform={stripYamlFrontmatter}
+                      messageIdSuffix={`pending-${edit.id}`}
+                      className="flex-1"
                     />
                   ) : (
-                    edit.proposed_content
+                    <div className="text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">{edit.proposed_content}</div>
                   )}
                 </div>
               </div>

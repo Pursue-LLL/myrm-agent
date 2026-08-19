@@ -91,7 +91,9 @@ class CoordinatorService:
         desktop_capacity: int | None = None,
     ) -> None:
         self.store = store
-        capacity_provider = None if private_capacity is not None else private_capacity_credits
+        capacity_provider = (
+            None if private_capacity is not None else private_capacity_credits
+        )
         self.private_controller = PrivateResourceController(
             store,
             capacity_credits=(
@@ -485,7 +487,9 @@ class CoordinatorService:
             failure_token=_optional_text(request, "failure_token"),
             pytest_evidence_hash=_optional_text(request, "pytest_evidence_hash"),
         )
-        from e2e_core.idle_hygiene_scheduler import run_idle_tab_hygiene_if_safe  # noqa: PLC0415
+        from e2e_core.idle_hygiene_scheduler import (
+            run_idle_tab_hygiene_if_safe,
+        )  # noqa: PLC0415
 
         hygiene = run_idle_tab_hygiene_if_safe(trigger="coordinator_teardown_finish")
         return {"session": record.to_dict(), "idle_tab_hygiene": hygiene}
@@ -761,6 +765,25 @@ class _BackgroundReaper:
                 maybe_reap_hung_chrome_e2e_pytest()
                 maybe_reap_epoch_drift_stale_sessions()
                 maybe_reap_orphan_shared_backends()
+            except Exception:
+                pass
+            try:
+                from e2e_core.plane_health import (  # noqa: PLC0415
+                    PlaneHealthState,
+                    converge_plane_if_idle,
+                    plane_health_snapshot,
+                    reap_stale_plane_artifacts,
+                )
+
+                reap_stale_plane_artifacts()
+                snap = plane_health_snapshot()
+                if (
+                    snap.wave_leases == 0
+                    and snap.cluster_active == 0
+                    and snap.state
+                    in {PlaneHealthState.STALE, PlaneHealthState.FAILED_LATCHED}
+                ):
+                    converge_plane_if_idle()
             except Exception:
                 pass
             try:

@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.channels.types::InboundMessage, ReplyContext (POS: Ingress messages from providers or Control Plane.)
-- agent.security.detection.content_boundary.sanitize (POS: Untrusted text folding.)
+- myrm_agent_harness.agent.security.detection.content_boundary::sanitize (POS: Content boundary defense core. Five-layer defense-in-depth (Unicode folding, structural framing strip, marker sanitization, random boundaries, pattern detection) for prompt injection prevention.)
 - app.core.utils.delivery_provenance::prepend_plain_banner, ingress_from_channel_metadata (POS: Shared LLM-visible delivery banners.)
 
 [OUTPUT]
@@ -89,8 +89,8 @@ def _format_reply_context(reply_to: ReplyContext) -> str:
     """
     from myrm_agent_harness.agent.security.detection.content_boundary import sanitize
 
-    sender = reply_to.sender_name or reply_to.sender_id or "someone"
-    sender = sanitize(sender)
+    sender_raw = reply_to.sender_name or reply_to.sender_id or "someone"
+    sender = sanitize(sender_raw).strip() or "someone"
     content = reply_to.content.strip() if reply_to.content else ""
 
     if content:
@@ -110,14 +110,27 @@ def _format_reply_context(reply_to: ReplyContext) -> str:
 def _format_group_context_section(
     context_messages: tuple[ContextEntry, ...], user_trigger_line: str
 ) -> str:
-    """Accumulate recent group snippets plus the trigger message (sanitized)."""
+    """Accumulate recent group snippets plus the trigger message (sanitized).
+
+    Each line is prefixed with the resolved sender (name if present, else the
+    raw ID, else "unknown") so the LLM can still attribute statements when
+    sender metadata is entirely absent — never emit a bare ``: content`` line.
+    Entries with blank content (media-only messages) are skipped. If no entry
+    survives sanitization, the trigger line is returned without a context block.
+    """
     from myrm_agent_harness.agent.security.detection.content_boundary import sanitize
 
-    lines = [
-        f"{sanitize(e.sender_name) if e.sender_name else sanitize(e.sender_id)}: {sanitize(e.content)}"
-        for e in context_messages
-    ]
+    lines = []
+    for e in context_messages:
+        content = sanitize(e.content).strip()
+        if not content:
+            continue
+        sender_raw = e.sender_name or e.sender_id or "unknown"
+        sender = sanitize(sender_raw).strip() or "unknown"
+        lines.append(f"{sender}: {content}")
     context_block = "\n".join(lines)
+    if not context_block:
+        return user_trigger_line
     return f"[Recent group chat messages for context]\n{context_block}\n---\n{user_trigger_line}"
 
 

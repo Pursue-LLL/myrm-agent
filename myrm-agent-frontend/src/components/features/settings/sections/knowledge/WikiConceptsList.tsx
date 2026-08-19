@@ -48,7 +48,6 @@ export function WikiConceptsList({
     isLoading,
     selectedConcept,
     isEditing,
-    setIsEditing,
     editTab,
     setEditTab,
     editContent,
@@ -74,7 +73,12 @@ export function WikiConceptsList({
     deleteTarget,
     setDeleteTarget,
     treeRef,
-    handleSelectConcept,
+    requestSelectConcept,
+    requestCancelEdit,
+    confirmDiscard,
+    cancelDiscard,
+    hasUnsavedEdits,
+    discardDialogOpen,
     handleMove,
     handleCreateFolder,
     handleRename,
@@ -139,7 +143,7 @@ export function WikiConceptsList({
               selectedConcept={selectedConcept}
               isDeleting={isDeleting}
               onMove={handleMove}
-              onSelectConcept={handleSelectConcept}
+              onSelectConcept={requestSelectConcept}
               onRename={handleRename}
               onDelete={handleDeleteRequest}
             />
@@ -159,7 +163,7 @@ export function WikiConceptsList({
         editAliases={editAliases}
         isSaving={isSaving}
         onEdit={handleEdit}
-        onCancelEdit={() => setIsEditing(false)}
+        onCancelEdit={requestCancelEdit}
         onSave={handleSave}
         onEditTabChange={setEditTab}
         onEditContentChange={setEditContent}
@@ -226,6 +230,19 @@ export function WikiConceptsList({
           <AlertDialogFooter>
             <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => void confirmDelete()}>{t('delete')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={discardDialogOpen} onOpenChange={(open) => !open && cancelDiscard()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('discardUnsavedTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('discardUnsavedDescription')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDiscard}>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard}>{t('discard')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

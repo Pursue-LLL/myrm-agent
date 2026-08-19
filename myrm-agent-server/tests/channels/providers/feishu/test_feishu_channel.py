@@ -297,8 +297,10 @@ class TestLifecycle:
         mock.ensure_token.return_value = "tok"
         mock.fetch_bot_info.return_value = "ou_bot"
 
-        await ch.start()
+        with patch.object(ch, "_start_ws_transport", new_callable=AsyncMock) as mock_ws:
+            await ch.start()
         assert ch.status == ChannelStatus.RUNNING
+        mock_ws.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_start_failure(self) -> None:

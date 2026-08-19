@@ -61,7 +61,11 @@ class ChromeE2eReadinessVerdict:
 def _status_for_next_action(next_action: str, *, ctx_blocked: bool) -> ReadinessStatus:
     if next_action in ("FAIL_FAST",):
         return "FAIL"
-    if next_action == "OBSERVABILITY_UNKNOWN":
+    if next_action in (
+        "OBSERVABILITY_UNKNOWN",
+        "PLANE_DEGRADED",
+        "PLANE_DEGRADED_DEFER",
+    ):
         return "WAIT"
     if next_action in ("READY", "PARALLEL_OK", "OPERATION_BACKPRESSURE"):
         return "READY"
@@ -101,6 +105,12 @@ def _reason_for_verdict(*, next_action: str, ctx: E2eApiContext) -> str:
         return (
             "cluster observability incomplete (muxSnapshot or parallel snapshot unavailable); "
             "do not infer idle from active_test_count=0"
+        )
+    if next_action in {"PLANE_DEGRADED", "PLANE_DEGRADED_DEFER"}:
+        return (
+            "browser data plane not observable after auto-converge; "
+            "read dataPlane.agentRule — do not wait for peer; "
+            "wave idle: ./myrm restart --chrome if converge failed"
         )
     if next_action == "FAIL_FAST":
         return (
@@ -147,10 +157,7 @@ def _launch_allowed(*, next_action: str, ctx: E2eApiContext) -> bool:
     if next_action == "PRIVATE_EPOCH_REQUIRED":
         return True
     # R298: SHPOIB PRIVATE tests seed isolated backend in bootstrap — shared epoch block is OK.
-    if (
-        next_action == "SHPOIB_OR_VERIFY_API"
-        and _shpoib_launch_bypass_enabled()
-    ):
+    if next_action == "SHPOIB_OR_VERIFY_API" and _shpoib_launch_bypass_enabled():
         return True
     if ctx.blocked:
         return False
@@ -255,6 +262,35 @@ def _build_readiness_verdict() -> ChromeE2eReadinessVerdict:
     )
 
     ctx = resolve_e2e_api_context()
+    epoch_match_flag = _shared_epoch_match(ctx)
+    plane_snap = None
+    plane_auto_converge = os.environ.get("MYRM_PLANE_AUTO_CONVERGE", "1").strip() != "0"
+    try:
+        from e2e_core.plane_health import (
+            ensure_plane_before_probe,
+            plane_next_action_for_snapshot,
+        )
+
+        plane_snap = ensure_plane_before_probe(
+            allow_converge=plane_auto_converge,
+            epoch_match=epoch_match_flag,
+            drift_pending=bool(ctx.drift_pending),
+        )
+        plane_action = plane_next_action_for_snapshot(plane_snap)
+        if plane_action == "PLANE_DEGRADED":
+            return ChromeE2eReadinessVerdict(
+                status="WAIT",
+                token="WAIT:PLANE_DEGRADED",
+                reason=plane_snap.agent_rule,
+                next_action="PLANE_DEGRADED",
+                launch_allowed=False,
+                attach_allowed=True,
+                ready_chrome_full=False,
+                blocked=ctx.blocked,
+                epoch_match=epoch_match_flag,
+            )
+    except ImportError:
+        pass
     (
         browser_orchestrator,
         orchestrator_observability,
@@ -327,7 +363,10 @@ def resolve_chrome_e2e_readiness_stable(
     attempts = max(1, int(max_attempts))
     verdict = resolve_chrome_e2e_readiness()
     for attempt in range(1, attempts):
-        if verdict.next_action != "OBSERVABILITY_UNKNOWN":
+        if verdict.next_action not in {
+            "OBSERVABILITY_UNKNOWN",
+            "PLANE_DEGRADED",
+        }:
             return verdict
         sys.stderr.write(
             f"E2E_OBSERVABILITY_RETRY: attempt={attempt + 1}/{attempts} "

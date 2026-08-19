@@ -85,6 +85,7 @@ def _build_png_base64(width: int = 1280, height: int = 720) -> str:
     )
     return base64.b64encode(png).decode()
 
+
 _AGENT_READY_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
   const debug = bridge?.debugProviderState?.() ?? {};
@@ -142,7 +143,9 @@ _SIMULATE_BROWSER_CONTROL_JS = """(() => {{
     const view = await bridge.simulateBrowserViewUpdate(chatId, refs, '{png}');
     return {{ ok: start?.ok === true && view?.ok === true, chatId }};
   }})();
-}})()""".format(png=_build_png_base64())
+}})()""".format(
+    png=_build_png_base64()
+)
 
 _BROWSER_ACTIVE_JS = """(() => {
   const snap = window.__MYRM_E2E_CHAT__?.getBrowserInspectorSnapshot?.() ?? null;

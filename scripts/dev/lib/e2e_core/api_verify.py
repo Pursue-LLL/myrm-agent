@@ -1198,6 +1198,23 @@ def _context_to_dict(
             **resolved_parallel,
             "parallel_observability_mismatch": True,
         }
+    ctx = resolve_e2e_api_context()
+    epoch_match_flag = _shared_epoch_match(ctx)
+    plane_auto_converge = os.environ.get("MYRM_PLANE_AUTO_CONVERGE", "1").strip() != "0"
+    plane_snap = None
+    try:
+        from e2e_core.plane_health import (
+            ensure_plane_before_probe,
+            plane_next_action_for_snapshot,
+        )
+
+        plane_snap = ensure_plane_before_probe(
+            allow_converge=plane_auto_converge,
+            epoch_match=epoch_match_flag,
+            drift_pending=bool(ctx.drift_pending),
+        )
+    except ImportError:
+        pass
     browser_orchestrator_payload: dict[str, object] = {"health": "UNKNOWN"}
     orchestrator_obs: dict[str, object] = {}
     browser_orchestrator_payload, orchestrator_obs = _load_orchestrator_observability()
@@ -1217,6 +1234,28 @@ def _context_to_dict(
     payload["candidates"] = [_candidate_to_dict(item) for item in ctx.candidates]
     payload["verify_epoch_match"] = ctx.epoch_match
     payload["epoch_match"] = _shared_epoch_match(ctx)
+    try:
+        from e2e_core.plane_health import plane_health_snapshot
+
+        if plane_snap is None:
+            plane_snap = plane_health_snapshot(
+                epoch_match=bool(payload.get("epoch_match")),
+                drift_pending=bool(ctx.drift_pending),
+            )
+        payload["dataPlane"] = {
+            "state": plane_snap.state.value,
+            "muxDaemonCount": plane_snap.mux_daemon_count,
+            "orchestratorState": plane_snap.orchestrator_state,
+            "orchestratorHealth": plane_snap.orchestrator_health,
+            "waveLeases": plane_snap.wave_leases,
+            "clusterActive": plane_snap.cluster_active,
+            "convergeAction": plane_snap.converge_action,
+            "agentRule": plane_snap.agent_rule,
+        }
+        if plane_snap.state.value in {"STALE", "FAILED_LATCHED"}:
+            payload["agent_rule"] = plane_snap.agent_rule
+    except ImportError:
+        pass
     payload["verifyTarget"] = ctx.verify_api_base
     payload.update(resolved_mux)
     payload["parallelSnapshot"] = resolved_parallel
@@ -1368,7 +1407,26 @@ def _context_to_dict(
         active_tests=active_tests,
         mux_fields=resolved_mux,
     )
+    if plane_snap is not None:
+        try:
+            from e2e_core.plane_health import plane_next_action_for_snapshot
+
+            plane_action = plane_next_action_for_snapshot(plane_snap)
+            if plane_action is not None and next_action in {
+                "OBSERVABILITY_UNKNOWN",
+                "PLANE_DEGRADED",
+                "PLANE_DEGRADED_DEFER",
+            }:
+                next_action = plane_action
+        except ImportError:
+            pass
     payload["next_action"] = next_action
+    if next_action in {"PLANE_DEGRADED", "PLANE_DEGRADED_DEFER"}:
+        payload["agent_rule"] = (
+            plane_snap.agent_rule
+            if plane_snap is not None
+            else payload.get("agent_rule", ctx.agent_rule)
+        )
     if next_action == "OBSERVABILITY_UNKNOWN":
         payload["agent_rule"] = (
             f"{payload.get('agent_rule', ctx.agent_rule)} "

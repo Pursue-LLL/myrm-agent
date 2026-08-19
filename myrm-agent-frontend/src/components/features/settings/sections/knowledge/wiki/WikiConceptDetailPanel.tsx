@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/primitives/card';
 import { Input } from '@/components/primitives/input';
 import { IconBook, IconEdit, IconLoader, IconSave, IconX } from '@/components/features/icons/PremiumIcons';
 import MarkdownContent from '@/components/features/message-box/MarkdownContent';
+import { WikiMarkdownEditor } from './WikiMarkdownEditor';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { Concept } from '@/services/wikiService';
 import type { WikiEditTab } from './useWikiConceptsList';
@@ -129,7 +130,7 @@ export function WikiConceptDetailPanel({
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto p-4 min-h-0 space-y-6">
             {isEditing ? (
-              <div className="space-y-4 h-full flex flex-col min-h-[280px]">
+              <div className="space-y-4 h-full flex flex-col min-h-[420px]">
                 <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
                   {EDIT_TABS.map((tab) => (
                     <Button
@@ -145,11 +146,13 @@ export function WikiConceptDetailPanel({
                 </div>
 
                 {editTab === 'truth' && (
-                  <textarea
-                    className="w-full flex-1 min-h-[240px] p-4 font-mono text-sm bg-background border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                  <WikiMarkdownEditor
                     value={editCompiledTruth}
-                    onChange={(e) => onEditCompiledTruthChange(e.target.value)}
+                    onChange={onEditCompiledTruthChange}
                     placeholder={t('editTruthPlaceholder')}
+                    messageIdSuffix="truth"
+                    onSaveShortcut={() => { if (!isSaving) {onSave();} }}
+                    className="flex-1"
                   />
                 )}
 
@@ -197,13 +200,15 @@ export function WikiConceptDetailPanel({
                 )}
 
                 {editTab === 'advanced' && (
-                  <div className="space-y-3">
+                  <div className="space-y-3 flex-1 min-h-0 flex flex-col">
                     <p className="text-xs text-amber-700 dark:text-amber-300">{t('editAdvancedWarning')}</p>
-                    <textarea
-                      className="w-full flex-1 min-h-[240px] p-4 font-mono text-sm bg-background border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                    <WikiMarkdownEditor
                       value={editContent}
-                      onChange={(e) => onEditContentChange(e.target.value)}
+                      onChange={onEditContentChange}
                       placeholder={t('editPlaceholder')}
+                      messageIdSuffix="advanced"
+                      onSaveShortcut={() => { if (!isSaving) {onSave();} }}
+                      className="flex-1"
                     />
                   </div>
                 )}

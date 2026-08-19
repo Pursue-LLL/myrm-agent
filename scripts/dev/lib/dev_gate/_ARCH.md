@@ -11,7 +11,7 @@ Dev Gate 协调层：session 注册、lease/credit、launch-check、cleanup.seal
 | `contract.py` | 超时、token、pytest floor SSOT；`chrome_e2e_skips_attach_health_reprobe`（含 `MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH` burst lane） |
 | `session.py` | ExecutionMode / AccessScope / 状态机 |
 | `store.py` | SQLite WAL registry + event journal |
-| `coordinator.py` | Unix socket 协调器 serve loop |
+| `coordinator.py` | Unix socket 协调器 serve loop；background maintenance tick 含 hung-reap + idle `plane_health.converge_plane_if_idle` |
 | `cli.py` | submit/finish/reap 客户端 |
 | `status.py` | e2e-context registry 快照 |
 | `async_queue.py` | 异步写入队列 |

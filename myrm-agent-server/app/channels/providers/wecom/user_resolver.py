@@ -2,7 +2,7 @@
 
 [INPUT]
 - channels.core.user_resolver::UserResolverCache (POS: Generic user resolver protocol and cache implementation. Protocol-first framework design supporting Slack/Feishu/Discord platform extensions with unified username resolution and caching.)
-- channels.providers.wecom.channel::WeComChannel (POS: WeCom self-built app channel. Provides token management and HTTP client for contact API calls.)
+- channels.providers.wecom.channel::WeComChannel (POS: WeCom self-built app channel: AES encrypted callbacks, multimedia send/receive, @mention detection, OAuth token management.)
 
 [OUTPUT]
 - WeComUserResolver: WeCom-specific user resolver with LRU+TTL caching

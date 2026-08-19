@@ -2664,7 +2664,14 @@
         "resumeFailed": "Failed to resume compile",
         "viewQueue": "View queue"
       },
+      "editor": {
+        "edit": "Edit",
+        "preview": "Preview"
+      },
       "concepts": {
+        "discard": "Discard",
+        "discardUnsavedTitle": "Discard unsaved changes?",
+        "discardUnsavedDescription": "You have unsaved edits. Leaving will discard them.",
         "title": "Concept List",
         "description": "Search and manage your knowledge concepts",
         "searchPlaceholder": "Search concepts...",

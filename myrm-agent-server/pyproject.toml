@@ -13,20 +13,20 @@ requires-python = ">=3.13,<3.14"  # Limit to 3.13 to avoid apscheduler dependenc
 dependencies = [
   # --- Web 框架 ---
   "fastapi>=0.141.1",         # Web API 框架 (54 文件)
-  "uvicorn>=0.52.1",          # ASGI 服务器，本地单进程模式 (run.py)
+  "uvicorn>=0.52.3",          # ASGI 服务器，本地单进程模式 (run.py)
   # --- 数据与配置 ---
   "pydantic>=2.13.4",          # 数据模型/Schema 校验 (48 文件)
-  "pydantic-settings>=2.14.2", # 统一配置管理 (BaseSettings + .env)
+  "pydantic-settings>=2.15.0", # 统一配置管理 (BaseSettings + .env)
   "PyYAML>=6.0.3",             # YAML 解析配置 (配置迁移)
   "markdown>=3.10.3",             # WeChat article MD→HTML (wechat-article-formatter)
-  "pygments>=2.20.0",            # codehilite syntax highlighting (wechat-article-formatter)
+  "pygments>=2.21.0",            # codehilite syntax highlighting (wechat-article-formatter)
   # --- HTTP & I/O ---
   "httpx>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   "watchdog>=6.0.0", # Workspace vault file change detection (file_watch_service.py)
   # --- AI & LLM ---
-  "litellm>=1.95.0",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
-  "langchain>=1.3.14",      # Agent 工具/链定义 (70+ 文件)
-  "langchain-core>=1.5.3", # 消息类型/BaseTool (70+ 文件)
+  "litellm>=1.97.0",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
+  "langchain>=1.3.15",      # Agent 工具/链定义 (70+ 文件)
+  "langchain-core>=1.5.6", # 消息类型/BaseTool (70+ 文件)
   # --- Agent 框架 (PyPI wheel + compiled-core 平台包；见 docker/read_harness_pypi_spec.py) ---
   "myrm-agent-harness[browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,compiled-core,computer-use]==0.1.0rc5",
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
@@ -34,10 +34,10 @@ dependencies = [
   # --- 图片处理 ---
   "pillow>=12.3.0",    # 图片处理/压缩 (qrcode + media/service)
   # --- 数据库 ---
-  "sqlalchemy>=2.0.51", # ORM 框架，SQLite (170+ 文件)
+  "sqlalchemy>=2.0.52", # ORM 框架，SQLite (170+ 文件)
   # --- 工具库 ---
   "nanoid>=2.0.0", # 唯一 ID 生成 (9 文件)
-  "filelock>=3.32.2", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
+  "filelock>=3.32.3", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
   # --- 安全与展示 ---
   "keyring>=25.7.0",    # OS 原生密钥链 (macOS Keychain / Linux secret-service / Windows Credential Manager)
   "qrcode>=8.2",        # 二维码生成 (WebUI 模式)
@@ -48,26 +48,26 @@ dependencies = [
   "PyNaCl>=1.6.2",                # Curve25519 + NaCl box (remote_access E2EE)
   # --- 事件循环 ---
   "uvloop>=0.22.1; sys_platform != 'win32'", # 高性能事件循环 (uvicorn_runner.py)
-  "orjson>=3.11.9",                     # 高性能 JSON (sse_helpers + streaming + login)
+  "orjson>=3.12.0",                     # 高性能 JSON (sse_helpers + streaming + login)
   "wakepy>=1.0.0",                      # 阻止系统休眠 (power/manager.py)
   "psutil>=7.2.2",                      # 系统监控 (server_lock + health + power)
   "fluent-runtime>=0.4.0",             # i18n Fluent 引擎 (channels/i18n/engine.py)
   "websockets>=17.0.1",                   # WebSocket 通信 (11+ channels/voice)
   "aioboto3>=15.5.0",                   # AWS S3 异步客户端 (备份 + sandbox/storage)
   "tenacity>=9.1.4", # Vercel deploy retries (vercel_client.py)
-  "pywebpush>=2.3.0", # Web Push (VAPID) notifications (core/web_push/)
+  "pywebpush>=2.4.0", # Web Push (VAPID) notifications (core/web_push/)
 ]
 
 [project.optional-dependencies]
 # Discord + Feishu SDKs (app/channels/providers/discord/, feishu/); GUI lazy-install or --extra channels-sdk
 channels-sdk = [
   "discord-py[voice]>=2.7.1",
-  "lark-oapi>=1.7.1",
+  "lark-oapi>=1.7.2",
 ]
 # Matrix channel (app/channels/providers/matrix/); SOCKS via auth.py + aiohttp-socks
 matrix = [
   "mautrix>=0.21.1",
-  "aiohttp-socks>=0.11.0",
+  "aiohttp-socks>=0.12.0",
 ]
 matrix-e2ee = [
   "mautrix[encryption]>=0.21.1",
@@ -99,8 +99,8 @@ prerelease = "allow"
 environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
 override-dependencies = [
   "click>=8.4.2",
-  "patchright>=1.61.2",
-  "openai>=2.53.0",
+  "patchright>=1.62.1",
+  "openai>=3.2.0",
   "aiohttp>=3.13.5",
   "opentelemetry-semantic-conventions>=0.61b0",
   "websockets>=16.0",
@@ -119,18 +119,18 @@ override-dependencies = [
 [dependency-groups]
 dev = [
   "pytest>=9.1.1",
-  "ruff>=0.16.1",
+  "ruff>=0.16.3",
   "pytest-asyncio>=1.4.0",
   "myrm-agent-harness[browser]", # 浏览器测试依赖
-  "langchain-openai>=1.4.1",     # LLM 集成测试依赖
+  "langchain-openai>=1.5.1",     # LLM 集成测试依赖
   "pytest-cov>=7.1.0",
   "pytest-benchmark>=5.2.3",
   "pytest-xdist>=3.8.0",         # 并行测试执行
-  "pytest-timeout>=2.4.0",       # 测试超时保护
-  "mypy>=2.3.0",
+  "pytest-timeout>=2.5.0",       # 测试超时保护
+  "mypy>=2.3.1",
   "pyright>=1.1.411",
-  "blockbuster>=1.5.26",
-  "jsonschema>=4.23.0",          # Agent Plugins 官方 schema 契约校验（tests/fixtures/agent_plugins/）
+  "blockbuster>=1.5.27",
+  "jsonschema>=4.26.0",          # Agent Plugins 官方 schema 契约校验（tests/fixtures/agent_plugins/）
 ]
 
 # Sandbox 沙箱模式专属依赖（全部为延迟导入或 CLI 工具，本地模式不安装也不影响启动）
@@ -138,7 +138,7 @@ sandbox = [
   # --- 系统监控 ---
   "prometheus-fastapi-instrumentator>=8.1.0", # FastAPI Prometheus instrumentation (prometheus_setup.py)
   # --- ASGI 服务器 ---
-  "granian>=2.8.0", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
+  "granian>=2.8.1", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
 ]
 
 [tool.ruff]

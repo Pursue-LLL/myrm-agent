@@ -2453,7 +2453,14 @@
         "resumeFailed": "恢復編譯失敗",
         "viewQueue": "查看佇列"
       },
+      "editor": {
+        "edit": "編輯",
+        "preview": "預覽"
+      },
       "concepts": {
+        "discard": "捨棄",
+        "discardUnsavedTitle": "捨棄未儲存的變更？",
+        "discardUnsavedDescription": "目前有未儲存的修改，離開將捨棄這些變更。",
         "title": "概念列表",
         "description": "搜尋和管理您的知識概念",
         "searchPlaceholder": "搜尋概念...",
@@ -8656,6 +8663,10 @@
       "wiki": {
         "title": "Wiki 知識庫",
         "description": "AI自動維護的結構化知識庫，隨對話持續成長"
+      },
+      "brand-studio": {
+        "title": "品牌風格",
+        "description": "定義你的品牌形象——配色、字體、語氣與規則。你的 AI 會在為你建立的所有內容中遵循它。"
       }
     }
   },

@@ -16,18 +16,23 @@ tools, memory, security).
 - task_runner.profile::resolve_agent_profile (POS: Agent profile resolution.)
 
 [OUTPUT]
-- KanbanTaskRunner: Concrete TaskRunner with goal-mode support.
+- KanbanTaskRunner: Concrete TaskRunner with goal-mode support and per-workspace
+  write serialization.
 
 [POS]
 Server-layer TaskRunner that executes kanban tasks through the agent pipeline.
-Supports goal-mode for autonomous multi-turn execution via GoalProvider injection.
+Supports goal-mode for autonomous multi-turn execution via GoalProvider injection,
+and serializes agent writes to shared workspace directories to prevent concurrent
+file corruption.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.api import KanbanStore
@@ -70,6 +75,9 @@ _DEFAULT_TIMEOUT_SECONDS = 600
 _BACKGROUND_TASK_TIMEOUT_SECONDS = 3600
 _CHANNEL_NAME = "kanban"
 
+_WAIT_NOTE_EN = "Waiting for another task to finish using this working directory…"
+_WAIT_NOTE_ZH = "正在等待其他任务释放此工作目录…"
+
 __all__ = ["KanbanTaskRunner", "_ResolvedProfile", "_classify_content_type"]
 
 
@@ -89,6 +97,7 @@ class KanbanTaskRunner:
     ) -> None:
         self._store = store
         self._timeout_seconds = timeout_seconds
+        self._workspace_locks: dict[str, asyncio.Lock] = {}
 
     async def run(self, task: KanbanTask) -> tuple[bool, str]:
         context = await build_task_context(self._store, task.task_id)
@@ -111,40 +120,41 @@ class KanbanTaskRunner:
 
         self._register_background_tokens(task)
         t0 = time.monotonic()
-        try:
-            result = await asyncio.wait_for(
-                self._execute_agent(
-                    task,
-                    query_input,
-                    profile,
-                    workspace_root,
-                    goal_provider=goal_provider,
-                ),
-                timeout=effective_timeout,
-            )
-            if goal_provider:
-                result = await self._map_goal_outcome(task, goal_provider, result)
-            return await self._resolve_run_outcome(task.task_id, result)
-        except asyncio.TimeoutError:
-            elapsed = time.monotonic() - t0
-            logger.warning(
-                "Kanban task %s timed out after %.0fs (limit %ds)",
-                task.task_id[:8],
-                elapsed,
-                effective_timeout,
-            )
-            raise TaskTimeoutError(
-                task_id=task.task_id,
-                elapsed_seconds=elapsed,
-                limit_seconds=effective_timeout,
-            ) from None
-        except Exception as exc:
-            logger.warning("Kanban task %s failed: %s", task.task_id[:8], exc)
-            return False, str(exc)
-        finally:
-            self._unregister_background_tokens(task)
-            if goal_provider:
-                GoalRegistry.unregister(f"kanban:{task.task_id}")
+        async with self._workspace_lock(task, workspace_root):
+            try:
+                result = await asyncio.wait_for(
+                    self._execute_agent(
+                        task,
+                        query_input,
+                        profile,
+                        workspace_root,
+                        goal_provider=goal_provider,
+                    ),
+                    timeout=effective_timeout,
+                )
+                if goal_provider:
+                    result = await self._map_goal_outcome(task, goal_provider, result)
+                return await self._resolve_run_outcome(task.task_id, result)
+            except asyncio.TimeoutError:
+                elapsed = time.monotonic() - t0
+                logger.warning(
+                    "Kanban task %s timed out after %.0fs (limit %ds)",
+                    task.task_id[:8],
+                    elapsed,
+                    effective_timeout,
+                )
+                raise TaskTimeoutError(
+                    task_id=task.task_id,
+                    elapsed_seconds=elapsed,
+                    limit_seconds=effective_timeout,
+                ) from None
+            except Exception as exc:
+                logger.warning("Kanban task %s failed: %s", task.task_id[:8], exc)
+                return False, str(exc)
+            finally:
+                self._unregister_background_tokens(task)
+                if goal_provider:
+                    GoalRegistry.unregister(f"kanban:{task.task_id}")
 
     @staticmethod
     def _augment_context(
@@ -204,6 +214,61 @@ class KanbanTaskRunner:
             logger.debug(
                 "Could not unregister background tokens for %s", task.task_id[:8]
             )
+
+    @asynccontextmanager
+    async def _workspace_lock(
+        self,
+        task: KanbanTask,
+        workspace_root: str | None,
+    ):
+        """Serialize agent writes to a shared workspace directory.
+
+        Tasks without a resolved workspace (``None``) skip locking entirely, as
+        there is no shared directory to corrupt. Worktree-backed tasks already
+        resolve to per-task unique paths, so they never contend here.
+        """
+        if not workspace_root:
+            yield
+            return
+        key = os.path.realpath(workspace_root)
+        lock = self._workspace_locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._workspace_locks[key] = lock
+
+        if lock.locked():
+            note = await self._wait_note()
+            try:
+                await self._store.update_heartbeat(task.task_id, note=note)
+            except Exception:
+                logger.debug(
+                    "Could not write wait note for %s", task.task_id[:8]
+                )
+
+        await lock.acquire()
+        try:
+            yield
+        finally:
+            lock.release()
+            if not lock.locked():
+                self._workspace_locks.pop(key, None)
+
+    async def _wait_note(self) -> str:
+        """Pick a locale-appropriate wait note for the blocked task."""
+        try:
+            from app.core.channel_bridge.config_loader import load_user_configs
+            from app.core.agent.tool_description_locale import (
+                resolve_agent_params_locale,
+            )
+
+            user_cfgs = await load_user_configs()
+            locale = resolve_agent_params_locale(
+                personal_settings=user_cfgs.personal_settings_dict or {},
+                channel=_CHANNEL_NAME,
+            )
+        except Exception:
+            locale = "en"
+        return _WAIT_NOTE_ZH if locale.startswith("zh") else _WAIT_NOTE_EN
 
     async def cleanup_worktree(self, task: KanbanTask) -> bool:
         return await cleanup_worktree(self._store, task)

@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from app.channels.types import ContextEntry, InboundMessage, MediaAttachment, MediaType, ReplyContext
+from app.channels.types import (
+    ContextEntry,
+    InboundMessage,
+    MediaAttachment,
+    MediaType,
+    ReplyContext,
+)
 from app.core.channel_bridge.agent_executor.helpers import (
     _format_forwarded_email_context,
     _format_reply_context,
@@ -81,7 +87,10 @@ def test_build_channel_inbound_query_multimodal_with_images() -> None:
         mentioned=False,
         metadata={
             "image_data_list": [
-                {"data_url": "data:image/jpeg;base64,/9j/abc", "mime_type": "image/jpeg"},
+                {
+                    "data_url": "data:image/jpeg;base64,/9j/abc",
+                    "mime_type": "image/jpeg",
+                },
             ]
         },
     )
@@ -230,6 +239,14 @@ def test_format_reply_context_falls_back_to_someone() -> None:
     assert "[Replying to someone]" in result
 
 
+def test_format_reply_context_blank_sender_falls_back_to_someone() -> None:
+    """Whitespace-only sender_name (empty display name) falls back to 'someone'."""
+    reply = ReplyContext(message_id="m1", content="test", sender_name="   ")
+    result = _format_reply_context(reply)
+    assert "[Replying to someone]" in result
+    assert "[Replying to   ]" not in result
+
+
 def test_format_reply_context_sanitizes_injected_sender() -> None:
     """A reply sender carrying injection markers is neutralized."""
     reply = ReplyContext(
@@ -255,13 +272,17 @@ def test_format_reply_context_with_media_hint() -> None:
         MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg"),
         MediaAttachment(media_type=MediaType.DOCUMENT, url="https://example.com/f.pdf"),
     )
-    reply = ReplyContext(message_id="m1", content="check this", sender_name="Carol", media=media)
+    reply = ReplyContext(
+        message_id="m1", content="check this", sender_name="Carol", media=media
+    )
     result = _format_reply_context(reply)
     assert "[2 attachment(s)]" in result
 
 
 def test_format_reply_context_media_only_no_content() -> None:
-    media = (MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg"),)
+    media = (
+        MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg"),
+    )
     reply = ReplyContext(message_id="m1", content="", sender_name="Dave", media=media)
     result = _format_reply_context(reply)
     assert "[Replying to Dave]" in result
@@ -271,7 +292,9 @@ def test_format_reply_context_media_only_no_content() -> None:
 
 def test_build_channel_inbound_query_with_reply_to() -> None:
     """reply_to is injected as a disambiguation prefix before the user's message."""
-    reply = ReplyContext(message_id="m1", content="Tomorrow is sunny", sender_name="Myrm-Bot")
+    reply = ReplyContext(
+        message_id="m1", content="Tomorrow is sunny", sender_name="Myrm-Bot"
+    )
     msg = InboundMessage(
         channel="telegram",
         sender_id="u1",
@@ -320,7 +343,9 @@ def test_build_channel_inbound_query_reply_to_none_unchanged() -> None:
 
 def test_build_channel_inbound_query_reply_to_with_group_context() -> None:
     """reply_to + group context both appear in the correct order."""
-    reply = ReplyContext(message_id="m1", content="meeting cancelled", sender_name="Manager")
+    reply = ReplyContext(
+        message_id="m1", content="meeting cancelled", sender_name="Manager"
+    )
     ctx = (ContextEntry(sender_id="coworker", content="got it", timestamp=1.0),)
     msg = InboundMessage(
         channel="feishu",
@@ -345,7 +370,9 @@ def test_build_channel_inbound_query_reply_to_with_group_context() -> None:
 
 def test_build_channel_inbound_query_reply_to_with_images() -> None:
     """reply_to + multimodal (images) produces correct multimodal output."""
-    reply = ReplyContext(message_id="m1", content="see this chart", sender_name="Analyst")
+    reply = ReplyContext(
+        message_id="m1", content="see this chart", sender_name="Analyst"
+    )
     msg = InboundMessage(
         channel="discord",
         sender_id="u1",
@@ -356,7 +383,11 @@ def test_build_channel_inbound_query_reply_to_with_images() -> None:
         user_id="u1",
         is_group=False,
         mentioned=False,
-        metadata={"image_data_list": [{"data_url": "data:image/png;base64,abc", "mime_type": "image/png"}]},
+        metadata={
+            "image_data_list": [
+                {"data_url": "data:image/png;base64,abc", "mime_type": "image/png"}
+            ]
+        },
         reply_to=reply,
     )
     out = build_channel_inbound_query(msg)
@@ -372,7 +403,11 @@ def test_build_channel_inbound_query_reply_to_with_images() -> None:
 
 def test_group_context_uses_sender_name_when_available() -> None:
     """When sender_name is set, context formatting uses it instead of sender_id."""
-    ctx = (ContextEntry(sender_id="ou_xxxx", content="use Redis", timestamp=1.0, sender_name="Alice"),)
+    ctx = (
+        ContextEntry(
+            sender_id="ou_xxxx", content="use Redis", timestamp=1.0, sender_name="Alice"
+        ),
+    )
     msg = InboundMessage(
         channel="feishu",
         sender_id="u1",
@@ -413,7 +448,9 @@ def test_group_context_falls_back_to_sender_id() -> None:
 
 def test_group_context_empty_sender_name_falls_back() -> None:
     """Empty string sender_name falls back to sender_id (falsy in Python)."""
-    ctx = (ContextEntry(sender_id="U999", content="test", timestamp=1.0, sender_name=""),)
+    ctx = (
+        ContextEntry(sender_id="U999", content="test", timestamp=1.0, sender_name=""),
+    )
     msg = InboundMessage(
         channel="telegram",
         sender_id="u1",
@@ -428,16 +465,118 @@ def test_group_context_empty_sender_name_falls_back() -> None:
         metadata={},
     )
     out = build_channel_inbound_query(msg)
-    assert "U999: " in out
-    assert ": test" in out
+    assert "U999: test" in out
+
+
+def test_group_context_unknown_sender_when_all_metadata_absent() -> None:
+    """Bare contexts with no name/ID render "unknown" instead of a dangling colon."""
+    ctx = (ContextEntry(sender_id="", content="hello", timestamp=1.0),)
+    msg = InboundMessage(
+        channel="feishu",
+        sender_id="u1",
+        content="reply",
+        sent_at=2.0,
+        sent_timezone="UTC",
+        chat_id="group-9",
+        user_id="u1",
+        is_group=True,
+        mentioned=True,
+        context_messages=ctx,
+        metadata={},
+    )
+    out = build_channel_inbound_query(msg)
+    assert "unknown: hello" in out
+    assert "\n: hello" not in out
+
+
+def test_group_context_skips_empty_content() -> None:
+    """Entries with blank content (e.g. media-only messages) are skipped, not rendered as empty lines."""
+    ctx = (
+        ContextEntry(sender_id="U1", content="", timestamp=1.0, sender_name="Alice"),
+        ContextEntry(sender_id="U2", content="   ", timestamp=2.0, sender_name="Bob"),
+        ContextEntry(
+            sender_id="U3", content="real message", timestamp=3.0, sender_name="Carol"
+        ),
+    )
+    msg = InboundMessage(
+        channel="feishu",
+        sender_id="u1",
+        content="reply",
+        sent_at=4.0,
+        sent_timezone="UTC",
+        chat_id="group-10",
+        user_id="u1",
+        is_group=True,
+        mentioned=True,
+        context_messages=ctx,
+        metadata={},
+    )
+    out = build_channel_inbound_query(msg)
+    assert "Alice: " not in out
+    assert "Bob: " not in out
+    assert "Carol: real message" in out
+    assert "reply" in out
+
+
+def test_group_context_skips_content_fully_sanitized() -> None:
+    """Entries whose content is fully stripped by sanitize are skipped."""
+    ctx = (
+        ContextEntry(sender_id="U1", content="```", timestamp=1.0, sender_name="Alice"),
+        ContextEntry(
+            sender_id="U2", content="keep me", timestamp=2.0, sender_name="Bob"
+        ),
+    )
+    msg = InboundMessage(
+        channel="feishu",
+        sender_id="u1",
+        content="reply",
+        sent_at=3.0,
+        sent_timezone="UTC",
+        chat_id="group-11",
+        user_id="u1",
+        is_group=True,
+        mentioned=True,
+        context_messages=ctx,
+        metadata={},
+    )
+    out = build_channel_inbound_query(msg)
+    assert "Alice: " not in out
+    assert "Bob: keep me" in out
+
+
+def test_group_context_all_filtered_returns_trigger_line() -> None:
+    """When every entry is filtered out, only the trigger line is returned."""
+    ctx = (
+        ContextEntry(sender_id="U1", content="", timestamp=1.0, sender_name="Alice"),
+    )
+    msg = InboundMessage(
+        channel="feishu",
+        sender_id="u1",
+        content="trigger-text",
+        sent_at=2.0,
+        sent_timezone="UTC",
+        chat_id="group-12",
+        user_id="u1",
+        is_group=True,
+        mentioned=True,
+        context_messages=ctx,
+        metadata={},
+    )
+    out = build_channel_inbound_query(msg)
+    assert "Recent group chat messages" not in out
+    assert "trigger-text" in out
 
 
 def test_group_context_mixed_sender_names() -> None:
     """Mixed: some entries have sender_name, some don't."""
     ctx = (
-        ContextEntry(sender_id="ou_aaa", content="idea A", timestamp=1.0, sender_name="Alice"),
+        ContextEntry(
+            sender_id="ou_aaa", content="idea A", timestamp=1.0, sender_name="Alice"
+        ),
         ContextEntry(sender_id="ou_bbb", content="idea B", timestamp=2.0),
-        ContextEntry(sender_id="ou_ccc", content="idea C", timestamp=3.0, sender_name="Charlie"),
+        ContextEntry(
+            sender_id="ou_ccc", content="idea C", timestamp=3.0, sender_name="Charlie"
+        ),
     )
     msg = InboundMessage(
         channel="feishu",

@@ -1820,7 +1820,14 @@
         "queue": "큐",
         "duplicateReview": "중복 검토"
       },
+      "editor": {
+        "edit": "편집",
+        "preview": "미리보기"
+      },
       "concepts": {
+        "discard": "폐기",
+        "discardUnsavedTitle": "저장하지 않은 변경 사항을 폐기하시겠습니까?",
+        "discardUnsavedDescription": "저장하지 않은 편집 내용이 있습니다. 이대로 나가면 변경 사항이 삭제됩니다.",
         "title": "개념 목록",
         "searchPlaceholder": "개념 검색...",
         "noResults": "개념을 찾을 수 없습니다",

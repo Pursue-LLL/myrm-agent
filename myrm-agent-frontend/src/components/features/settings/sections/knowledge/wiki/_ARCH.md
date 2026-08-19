@@ -2,7 +2,7 @@
 
 ## Overview
 
-Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览；**四标签窄写编辑**（Compiled Truth / Timeline / Metadata / Advanced）；SaveToWiki 复用文件夹选择树。
+Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览；**四标签窄写编辑**（Compiled Truth / Timeline / Metadata / Advanced）；**分屏实时预览编辑器**（Monaco 源码 + MarkdownContent 渲染）；SaveToWiki 复用文件夹选择树。
 
 ## File Index
 
@@ -10,7 +10,8 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 | ------------------------------- | ---- | --------------------------------------------------------- | ----- |
 | useWikiConceptsList.ts          | Core | 词条树状态 + **apply 窄写** 保存编排；`if_match` 来自 `content_hash`；save/delete 后 `onVaultMutated` 刷新 Overview stats | ✅    |
 | WikiConceptTree.tsx             | UI   | react-arborist 管理树；`ingest_status` amber 点标示关联源过期 | ✅    |
-| WikiConceptDetailPanel.tsx      | UI   | 预览 + **四标签编辑** + 结构化 claims 展示（`lib/wiki/claimStatusDisplay` badge）；来源对话消息级/会话级跳转 | ✅    |
+| WikiConceptDetailPanel.tsx      | UI   | 预览 + **四标签编辑**（truth/advanced 用分屏实时预览编辑器）+ 结构化 claims 展示（`lib/wiki/claimStatusDisplay` badge）；来源对话消息级/会话级跳转 | ✅    |
+| WikiMarkdownEditor.tsx          | UI   | **分屏实时预览编辑器**：Monaco 源码（懒加载）+ MarkdownContent 实时渲染；`useDeferredValue` 防抖、受控写回保光标、Cmd/Ctrl+S、移动端编辑/预览 Tab | ✅    |
 | WikiRawSourceTree.tsx           | UI   | Overview raw 目录树；三色 ingest 点；Settings 侧 forget raw（reason dialog） | ✅    |
 | WikiFolderSelectTree.tsx        | UI   | 仅文件夹的选择树（Create/SaveToWiki 复用）                | ✅    |
 | ../WikiHealthIssuesSection.tsx  | UI   | Overview 健康报告：lint issues + duplicate/synthesis 快捷入口 | ✅    |
@@ -44,6 +45,8 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 - 新建 folder：Dialog 内显式父目录树选择
 - SaveToWiki：提交 Pending 待审核；同名 pending 草稿由 harness 覆盖；chat caller 禁止直发 publish
 - Settings 保存：并发冲突 `pageConflict` toast；Timeline duplicate `timelineDuplicateSkipped`
+- Settings 编辑：切换词条/取消编辑时若有未保存修改，弹「放弃未保存更改」确认（`discardUnsaved*`），避免静默丢稿
+- Settings 编辑：切换词条/取消编辑时若有未保存修改，弹「放弃未保存更改」确认（`discardUnsaved*`），避免静默丢稿
 - Settings Advanced：整页 replace 前内联警告文案（settings caller only）
 - Batch import：首次默认 skip 冲突；`conflict_paths` 非空时弹出 `WikiImportConflictDialog` 可 supersede 重试
 - Batch import 安全：`security_blocked_paths` / `security_redacted_paths` 非空时弹出 `WikiImportSecurityDialog`

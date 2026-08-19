@@ -2664,7 +2664,14 @@
         "resumeFailed": "恢复编译失败",
         "viewQueue": "查看队列"
       },
+      "editor": {
+        "edit": "编辑",
+        "preview": "预览"
+      },
       "concepts": {
+        "discard": "放弃",
+        "discardUnsavedTitle": "放弃未保存的更改？",
+        "discardUnsavedDescription": "当前有未保存的修改，离开将丢弃这些更改。",
         "title": "概念列表",
         "description": "搜索和管理您的知识概念",
         "searchPlaceholder": "搜索概念...",

@@ -153,6 +153,23 @@ print(
 " 2>/dev/null || echo 0
 }
 
+_ensure_plane_before_attach() {
+  PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from e2e_core.plane_health import ensure_plane_before_probe, PlaneHealthState
+snap = ensure_plane_before_probe()
+if snap.state.value != PlaneHealthState.OBSERVABLE.value:
+    print(
+        f'CHROME_E2E_PLANE: state={snap.state.value} rule={snap.agent_rule}',
+        file=sys.stderr,
+        flush=True,
+    )
+    sys.exit(1)
+" || fail "browser data plane not observable — run ./myrm restart --chrome when wave idle (verify-api does not heal mux/orch/shared :8080)"
+}
+
 _attach_health_require_args() {
   if [[ "${E2E_SIGNOFF:-}" == "1" ]]; then
     echo "--require-signoff-stream-ready"
@@ -160,10 +177,7 @@ _attach_health_require_args() {
   fi
   local active_leases
   active_leases="$(_parallel_attach_active_leases)"
-  # R150/R289: registry peer count can lag wave leases during parallel ADMIT.
-  if [[ "${active_leases}" -le 0 && "${E2E_SIGNOFF:-}" != "1" ]]; then
-    active_leases=1
-  fi
+  # R032/UBDP-H: use real wave leases only — never fake active_leases=1 when idle.
   # R290: parallel attach with live UI/API — signoff-stream gate (no frontendEpoch SMP defer).
   if [[ "${active_leases}" -gt 0 ]] && _shared_stack_endpoints_ok; then
     echo "--require-signoff-stream-ready"
@@ -381,17 +395,18 @@ _wait_attach_endpoints_under_parallel_load() {
   [[ -n "${initial_errors}" ]] || return 0
   local active_leases wait_sec poll_sec waited errors heal_during_wait=0 ui_heal_during_wait=0
   active_leases="$(_parallel_attach_active_leases)"
-  # R150: never fast-fail ui=unreachable when attach errors exist — wave lease count can lag registry under parallel ADMIT.
-  # R200-C: signoff with true zero peers uses solo attach wait (no synthetic lease=1 → 660s ADMIT burn).
-  if [[ "${active_leases}" -le 0 && "${E2E_SIGNOFF:-}" != "1" ]]; then
-    active_leases=1
-    echo "CHROME_E2E_ATTACH: registry peer count=0 — minimum parallel ADMIT attach wait (R150)" >&2
-  fi
-
+  # UBDP-5: wave idle — no synthetic lease (R150 retired); cap endpoint wait separately.
   _bootstrap_attach_begin "${active_leases}"
-  local bootstrap_budget
   bootstrap_budget="$(_bootstrap_attach_remaining_sec)"
   wait_sec="${bootstrap_budget}"
+  if [[ "${active_leases}" -le 0 && "${E2E_SIGNOFF:-}" != "1" ]]; then
+    local idle_cap="${MYRM_CHROME_E2E_IDLE_ATTACH_WAIT_SEC:-10}"
+    [[ "${idle_cap}" =~ ^[0-9]+$ && "${idle_cap}" -gt 0 ]] || idle_cap=10
+    if [[ "${wait_sec}" -gt "${idle_cap}" ]]; then
+      wait_sec="${idle_cap}"
+    fi
+    echo "CHROME_E2E_ATTACH: wave idle endpoint wait cap=${wait_sec}s (UBDP-5)" >&2
+  fi
   poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
   [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
   local wait_started=$SECONDS
@@ -603,7 +618,7 @@ _attach_epoch_pin_fast_path() {
     export E2E_API_BASE="${SHARED_API_BASE}"
     return 1
   fi
-  fail "epoch pin attach did not become ready within ${wait_sec}s — run ./myrm verify-api --ensure-backend"
+  fail "epoch pin attach did not become ready within ${wait_sec}s — wave idle: ./myrm restart --chrome; parallel: wait for drift apply (verify-api does not heal shared :8080)"
 }
 
 _maybe_reseal_auth_template_after_attach() {
@@ -690,6 +705,7 @@ _attach_fast_path() {
     _maybe_reseal_auth_template_after_attach
     return 0
   fi
+  _ensure_plane_before_attach
   require_ready="$(_attach_health_require_args)"
   poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
   active_leases="$(_parallel_attach_active_leases)"
@@ -727,7 +743,7 @@ print(int(elapsed_wall_sec()))
     if [[ "${active_leases}" -gt 0 ]]; then
       echo "epoch drift attach cap ${drift_cap}s exceeded (${active_leases} active leases defer shared reload) — keep this session; retry attach after leases drain; do not stop other pytest"
     else
-      echo "epoch drift attach cap ${drift_cap}s exceeded with no active leases — run ./myrm verify-api --ensure-backend when wave idle; do not stop other pytest"
+      echo "epoch drift attach cap ${drift_cap}s exceeded with no active leases — run ./myrm restart --chrome when wave idle (plane STALE/mux=0: verify-api does not heal shared or mux); do not stop other pytest"
     fi
   }
   if _attach_drift_cap_exceeded; then

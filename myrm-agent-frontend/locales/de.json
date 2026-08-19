@@ -1820,7 +1820,14 @@
         "queue": "Warteschlange",
         "duplicateReview": "Duplikatprüfung"
       },
+      "editor": {
+        "edit": "Bearbeiten",
+        "preview": "Vorschau"
+      },
       "concepts": {
+        "discard": "Verwerfen",
+        "discardUnsavedTitle": "Nicht gespeicherte Änderungen verwerfen?",
+        "discardUnsavedDescription": "Sie haben nicht gespeicherte Änderungen. Das Verlassen verwirft sie.",
         "title": "Konzeptliste",
         "searchPlaceholder": "Suchkonzepte...",
         "noResults": "Keine Konzepte gefunden",
