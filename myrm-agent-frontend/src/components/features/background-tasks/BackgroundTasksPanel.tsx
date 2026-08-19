@@ -29,6 +29,7 @@ import {
   POLL_FAST_MS,
   POLL_SLOW_MS,
 } from './backgroundTasksPanel.constants';
+import EvictedDrawerSuspenseFallback from '@/components/features/message-box/progress-steps/renderers/EvictedDrawerSuspenseFallback';
 
 const EvictedOutputDrawer = lazy(
   () => import('@/components/features/message-box/progress-steps/renderers/EvictedOutputDrawer'),
@@ -397,7 +398,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
     </Popover>
 
     {vaultLogDrawer && (
-      <Suspense fallback={null}>
+      <Suspense fallback={<EvictedDrawerSuspenseFallback />}>
         <EvictedOutputDrawer
           filename={vaultLogDrawer.filename}
           chatId={vaultLogDrawer.chatId}

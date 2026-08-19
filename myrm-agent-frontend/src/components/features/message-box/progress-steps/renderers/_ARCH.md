@@ -9,5 +9,6 @@
 | `FilePathRenderer.tsx` / `URLItemsRenderer.tsx` | 路径与链接 |
 | `SourcesRenderer.tsx` / `QueryItemsRenderer.tsx` / `TextItemsRenderer.tsx` | 检索与文本块 |
 | `SkillSelectRenderer.tsx` | 技能选择步骤 |
-| `EvictedOutputDrawer.tsx` | UECD 超长输出抽屉：分页 `GET /files/evicted?offset&limit=500`；404 → expired UX（`data-testid=evicted-output-expired`）；**当前页**搜索/复制（跨页搜索需翻页）；移动/桌面响应式 |
+| `EvictedOutputDrawer.tsx` | UECD 超长输出抽屉：分页 `GET /files/evicted?offset&limit=500`；404 → expired UX；`storageTruncated` prop 或 API `storage_truncated` → 顶栏 amber 警告；**当前页**搜索/复制 |
+| `EvictedDrawerSuspenseFallback.tsx` | EvictedOutputDrawer lazy 加载 Suspense 占位（LiveTerminal / BackgroundTasksPanel 共用） |
 | `sizeFormatUtils.ts` | 共享字节大小格式化（`formatStoredSize`，LiveTerminal/EvictedOutputDrawer 共用） |

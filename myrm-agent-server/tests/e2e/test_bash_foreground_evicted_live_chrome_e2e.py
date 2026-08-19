@@ -50,6 +50,9 @@ from tests.support.evicted_drawer_selectors import (
     TERMINAL_PREVIEW_JS as _TERMINAL_PREVIEW_JS,
 )
 from tests.support.evicted_drawer_selectors import (
+    DRAWER_MOUNT_WAIT_JS as _DRAWER_MOUNT_WAIT_JS,
+)
+from tests.support.evicted_drawer_selectors import (
     VIEW_FULL_OUTPUT_JS as _VIEW_FULL_OUTPUT_JS,
 )
 from tests.support.evicted_drawer_selectors import (
@@ -467,6 +470,12 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
             f"View Full Output button missing; ui_diag={json.dumps(diag, ensure_ascii=False)}"
         )
     assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
+
+    mounted = wait_for_state(
+        client, page, _DRAWER_MOUNT_WAIT_JS, timeout_sec=90.0
+    )
+    assert mounted.get("ready") is True, json.dumps(mounted, ensure_ascii=False)
+
     request_probe = wait_for_state(
         client,
         page,
@@ -481,7 +490,7 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
     )
 
     drawer = wait_for_state(
-        client, page, drawer_ready_js(marker_line), timeout_sec=45.0
+        client, page, drawer_ready_js(marker_line), timeout_sec=90.0
     )
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 

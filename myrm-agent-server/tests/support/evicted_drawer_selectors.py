@@ -5,8 +5,9 @@
 
 [OUTPUT]
 - WAIT_PROGRESS_UI_DOM_JS, EXPAND_PROGRESS_PANEL_JS
-- TERMINAL_PREVIEW_JS, VIEW_FULL_OUTPUT_JS
-- drawer_ready_js, drawer_expired_js, evicted_request_probe_js
+- TERMINAL_PREVIEW_JS, VIEW_FULL_OUTPUT_JS, DRAWER_MOUNT_WAIT_JS
+- drawer_mount_wait_js, drawer_ready_js, drawer_expired_js, evicted_request_probe_js
+- VIEW_FULL_STDERR_TESTID
 
 [POS]
 SSOT selector/probe snippets for UECD READ/A1 Chrome E2E tests.
@@ -62,6 +63,31 @@ VIEW_FULL_OUTPUT_JS = f"""(() => {{
   btn.click();
   return {{ ready: true, clicked: true }};
 }})()"""
+
+_VIEW_FULL_STDERR_TESTID = "evicted-view-full-stderr-output"
+VIEW_FULL_STDERR_TESTID = _VIEW_FULL_STDERR_TESTID
+
+
+def drawer_mount_wait_js(*, view_full_testid: str | None = None) -> str:
+    """Poll until EvictedOutputDrawer mounts; re-click the view-full button if needed."""
+    btn_testid = view_full_testid or _VIEW_FULL_TESTID
+    return f"""(() => {{
+  const drawer = document.querySelector('[data-testid="{_DRAWER_TESTID}"]');
+  if (drawer instanceof HTMLElement) {{
+    return {{ ready: true, hasDrawer: true }};
+  }}
+  const btn = document.querySelector('[data-testid="{btn_testid}"]');
+  if (btn instanceof HTMLElement) {{
+    btn.click();
+    return {{ ready: false, reason: 'drawer-mount-pending', retriedClick: true }};
+  }}
+  return {{ ready: false, reason: 'drawer-and-button-missing' }};
+}})()"""
+
+
+# Lazy-loaded EvictedOutputDrawer (React.lazy + Suspense) may mount after the
+# first click; poll with optional re-click until the drawer DOM exists.
+DRAWER_MOUNT_WAIT_JS = drawer_mount_wait_js()
 
 CLEAR_RESOURCE_TIMINGS_JS = """(() => {
   try {

@@ -270,6 +270,7 @@ export async function downloadSkill(
   skillId: string,
   applyRedactions: boolean = false,
   ignoredRedactions: Record<string, number[]> = {},
+  exportFormat: 'agent_plugin' | 'raw_skill' = 'agent_plugin',
 ): Promise<{ blob: Blob; filename: string | null }> {
   const response = await fetchWithTimeout(`${SKILLS_API_PREFIX}/${skillId}/export`, {
     method: 'POST',
@@ -280,6 +281,7 @@ export async function downloadSkill(
     body: JSON.stringify({
       apply_redactions: applyRedactions,
       ignored_redactions: ignoredRedactions,
+      export_format: exportFormat,
     }),
   });
 

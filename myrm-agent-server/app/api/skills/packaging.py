@@ -56,6 +56,7 @@ async def preview_skill_package(
 class ExportSkillRequest(BaseModel):
     apply_redactions: bool = False
     ignored_redactions: dict[str, list[int]] | None = None
+    export_format: str = "agent_plugin"  # "agent_plugin" | "raw_skill"
 
 
 @router.post("/{skill_id}/export")
@@ -67,13 +68,16 @@ async def export_skill(
 
     Args:
         skill_id: Skill ID
-        request: Export options including redaction preferences
+        request: Export options including redaction preferences and format
 
     Returns:
         ZIP file
     """
     result = await skill_packaging_service.package_skill(
-        skill_id, apply_redactions=request.apply_redactions, ignored_redactions=request.ignored_redactions
+        skill_id,
+        apply_redactions=request.apply_redactions,
+        ignored_redactions=request.ignored_redactions,
+        export_format=request.export_format,
     )
 
     if not result.success:

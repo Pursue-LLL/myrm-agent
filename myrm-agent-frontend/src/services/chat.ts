@@ -211,6 +211,25 @@ export const retryChatMemoryExtract = async (
   });
 };
 
+export const grantSessionAccessRoot = async (
+  chatId: string,
+  path: string,
+  writable: boolean = true,
+  label?: string,
+): Promise<{
+  session_access_roots: Array<{
+    path: string;
+    writable: boolean;
+    label?: string;
+    source?: string;
+  }>;
+}> => {
+  return apiRequest(`/chats/${chatId}/session-access-roots`, {
+    method: 'POST',
+    body: JSON.stringify({ path, writable, label }),
+  });
+};
+
 export const revokeSessionAccessRoot = async (
   chatId: string,
   path: string,

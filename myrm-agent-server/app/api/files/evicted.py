@@ -5,12 +5,12 @@ when they exceeded the delivery threshold. Provides line-range reading and
 graceful expiration handling.
 
 [INPUT]
-- myrm_agent_harness.agent.context_management.infra.evicted_reader (POS: paginated evicted file I/O)
-- myrm_agent_harness.agent.context_management.infra.evicted_content::normalize_delivery_chat_id (POS: UECD delivery SSOT)
+- myrm_agent_harness.agent.context_management.infra.evicted (POS: paginated evicted file I/O)
+- myrm_agent_harness.agent.context_management.infra.evicted::normalize_delivery_chat_id (POS: UECD delivery SSOT)
 - myrm_agent_harness.api.hooks::EVICTED_BASENAME_PATTERN (POS: spill filename validation)
 
 [OUTPUT]
-- GET /evicted: paginated line-range read (default limit 500)
+- GET /evicted: paginated line-range read (default limit 500); returns storage_truncated when disk cap applies
 
 [POS]
 Evicted tool output reader endpoint. Allows GUI users to view full tool outputs
@@ -22,10 +22,8 @@ import os
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.agent.context_management.infra.evicted_content import (
+from myrm_agent_harness.agent.context_management.infra.evicted import (
     normalize_delivery_chat_id,
-)
-from myrm_agent_harness.agent.context_management.infra.evicted_reader import (
     read_evicted_line_range,
 )
 from myrm_agent_harness.api.hooks import EVICTED_BASENAME_PATTERN
@@ -180,13 +178,17 @@ async def read_evicted_output(
             offset=offset,
             limit=limit,
         )
-        return {
+        response: dict[str, object] = {
             "content": page.content,
             "total_lines": page.total_lines,
             "stored_chars": page.stored_chars,
             "offset": page.offset,
             "limit": page.limit,
+            "storage_truncated": page.storage_truncated,
         }
+        if page.storage_truncated and page.original_chars is not None:
+            response["original_chars"] = page.original_chars
+        return response
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except OSError as exc:

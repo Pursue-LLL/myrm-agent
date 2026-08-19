@@ -68,6 +68,13 @@ fi
 
 MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$(real_user_home)/.local/state/cdmcp-mux}"
 MUX_SOCKET="${CDMCP_MUX_SOCKET:-${MUX_STATE_DIR}/cdmcp-mux.sock}"
+if [[ -f "${SCRIPT_DIR}/lib/mux/health.py" ]]; then
+  reap_json="$(PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux/health.py" reap 2>/dev/null || true)"
+  if [[ -n "${reap_json}" ]] && echo "${reap_json}" | grep -q '"reaped": true'; then
+    ok "mux zombie reaped before doctor probe"
+  fi
+fi
 if [[ -f "${SCRIPT_DIR}/lib/mux/responsive_probe.py" ]]; then
   if PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
     "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux/responsive_probe.py" \

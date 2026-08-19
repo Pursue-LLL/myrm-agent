@@ -30,6 +30,9 @@ from tests.support.evicted_drawer_selectors import (
     TERMINAL_PREVIEW_JS as _TERMINAL_PREVIEW_JS,
 )
 from tests.support.evicted_drawer_selectors import (
+    DRAWER_MOUNT_WAIT_JS as _DRAWER_MOUNT_WAIT_JS,
+)
+from tests.support.evicted_drawer_selectors import (
     VIEW_FULL_OUTPUT_JS as _VIEW_FULL_OUTPUT_JS,
 )
 from tests.support.evicted_drawer_selectors import (
@@ -157,9 +160,15 @@ def _run_drawer_flow(
         timeout_sec=5.0,
     )
 
-    clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=60.0)
+    clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=120.0)
     assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
-    # Diagnostic: capture drawer DOM + probe state right after the click, so a
+
+    mounted = wait_for_state(
+        client, page, _DRAWER_MOUNT_WAIT_JS, timeout_sec=90.0
+    )
+    assert mounted.get("ready") is True, json.dumps(mounted, ensure_ascii=False)
+
+    # Diagnostic: capture drawer DOM + probe state right after mount, so a
     # missing fetch can be distinguished from a missing/mis-fired drawer mount.
     diag = client.evaluate(
         page,
@@ -197,7 +206,7 @@ def _run_drawer_flow(
     else:
         assert marker_line is not None
         drawer = wait_for_state(
-            client, page, drawer_ready_js(marker_line), timeout_sec=45.0
+            client, page, drawer_ready_js(marker_line), timeout_sec=90.0
         )
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 

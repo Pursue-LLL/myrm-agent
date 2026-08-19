@@ -97,6 +97,9 @@ def _owned_mux_socket_pids(socket_path: str) -> set[int]:
 
 
 def _mux_daemon_alive(*, state_dir: Path, socket_path: str) -> bool:
+    normalized = _normalize_socket_path(socket_path)
+    if not normalized or not os.path.exists(normalized):
+        return False
     pid = _read_daemon_pid(state_dir)
     if pid is not None and _process_alive(pid):
         return True

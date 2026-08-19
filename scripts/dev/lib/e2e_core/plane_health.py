@@ -192,6 +192,25 @@ def reap_stale_plane_artifacts() -> ReapReceipt:
     orchestrator_recycled = False
     details: list[str] = []
 
+    try:
+        from mux.health import (
+            MuxDaemonState,
+            evaluate_mux_health,
+            reap_unhealthy_mux_daemon,
+        )
+
+        verdict = evaluate_mux_health()
+        if verdict.state in {
+            MuxDaemonState.ZOMBIE_ALIVE_NO_SOCKET,
+            MuxDaemonState.CORRUPT_PID,
+        }:
+            zombie_receipt = reap_unhealthy_mux_daemon(verdict=verdict)
+            if zombie_receipt.reaped:
+                mux_pid_removed = True
+                details.append(f"mux_zombie_reaped={zombie_receipt.detail}")
+    except ImportError:
+        pass
+
     mux_dir = _mux_state_dir()
     pid_path = mux_dir / "daemon.pid"
     socket_path = mux_dir / "cdmcp-mux.sock"

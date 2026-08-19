@@ -1316,14 +1316,11 @@ _mux_attach_timeout_restart_allowed() {
 }
 
 _mux_parallel_load_blocks_global_restart() {
-  # P0-A: fail-closed — if detection fails (non-numeric), block restart to protect peers
-  local contexts active_leases
-  contexts="$(_mux_context_count 2>/dev/null || echo unknown)"
-  [[ ! "${contexts}" =~ ^[0-9]+$ ]] && return 0
-  [[ "${contexts}" -gt 0 ]] && return 0
-  active_leases="$(_mux_parallel_active_leases 2>/dev/null || echo unknown)"
-  [[ ! "${active_leases}" =~ ^[0-9]+$ ]] && return 0
-  [[ "${active_leases}" -gt 0 ]] && return 0
+  # UBDP-6: health SSOT — unhealthy mux always allows restart; only HEALTHY+parallel blocks.
+  if PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" "${PREFLIGHT_PY}" \
+    "${SCRIPT_DIR}/lib/mux/health.py" restart-blocked 2>/dev/null; then
+    return 0
+  fi
   return 1
 }
 
@@ -1549,6 +1546,11 @@ _heal_mux_under_parallel_attach_load() {
 
 _heal_mux_request_timeout_drift() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
+  # UBDP-6: reap zombie mux (alive pid without socket) before heal/restart decisions.
+  if PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" "${PREFLIGHT_PY}" \
+    "${SCRIPT_DIR}/lib/mux/health.py" reap >/dev/null 2>&1; then
+    :
+  fi
   local active_leases
   active_leases="$(_mux_parallel_active_leases)"
   if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then

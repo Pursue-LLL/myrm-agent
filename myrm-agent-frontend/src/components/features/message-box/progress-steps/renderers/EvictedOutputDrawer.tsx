@@ -12,6 +12,7 @@ interface EvictedOutputDrawerProps {
   filename: string;
   chatId: string;
   onClose: () => void;
+  storageTruncated?: boolean;
 }
 
 type LoadState = 'loading' | 'ready' | 'expired' | 'error';
@@ -48,11 +49,17 @@ function buildEvictedPageUrl(
   return `${getApiBaseUrl()}/files/evicted?${params.toString()}`;
 }
 
-const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, chatId, onClose }) => {
+const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({
+  filename,
+  chatId,
+  onClose,
+  storageTruncated: storageTruncatedProp,
+}) => {
   const t = useTranslations('progressSteps.evictedOutput');
   const [pageContent, setPageContent] = useState('');
   const [totalLines, setTotalLines] = useState(0);
   const [storedChars, setStoredChars] = useState(0);
+  const [storageTruncatedFromApi, setStorageTruncatedFromApi] = useState(false);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [pageLoading, setPageLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -102,6 +109,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
           content?: string;
           total_lines?: number;
           stored_chars?: number;
+          storage_truncated?: boolean;
         };
 
         setPageContent(data.content || '');
@@ -110,6 +118,9 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
         }
         if (typeof data.stored_chars === 'number') {
           setStoredChars(data.stored_chars);
+        }
+        if (data.storage_truncated === true) {
+          setStorageTruncatedFromApi(true);
         }
         setLoadState('ready');
       } catch (err) {
@@ -270,6 +281,8 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
     }
   }, [allMatchIndices, jumpToMatch]);
 
+  const showStorageTruncated = storageTruncatedProp === true || storageTruncatedFromApi;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -327,6 +340,15 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
             </button>
           </div>
         </div>
+
+        {showStorageTruncated && (
+          <div
+            data-testid="evicted-output-storage-truncated"
+            className="px-4 py-2 border-b border-amber-500/20 bg-amber-500/5"
+          >
+            <span className="text-[11px] text-amber-500/90">{t('storageTruncated')}</span>
+          </div>
+        )}
 
         {/* Search bar */}
         {searchVisible && (

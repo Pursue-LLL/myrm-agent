@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - bootstrap_session_access_roots / persist_chat_session_access_roots
+- grant_chat_session_access_root
 - revoke_chat_session_access_root
 - apply_directory_resume_grant
 - is_directory_grant_allowed_for_deployment
@@ -107,6 +108,40 @@ async def persist_chat_session_access_roots(
         chat_id,
         {"session_access_roots": access_roots_to_json(effective)},
     )
+
+
+async def grant_chat_session_access_root(
+    chat_id: str,
+    raw_path: str,
+    *,
+    writable: bool = True,
+    label: str = "",
+    source: str = "desktop_drag_drop",
+    workspace_dir: str | None = None,
+    sandbox_active: bool = False,
+) -> tuple[AccessRoot, ...]:
+    """Add one session access root and persist to chat record."""
+    from app.services.chat.chat_service import ChatService
+
+    chat = await ChatService.get_chat_metadata(chat_id)
+    if chat is None:
+        return ()
+
+    persisted = access_roots_from_json(chat.session_access_roots)
+    set_session_access_roots(persisted)
+
+    policy = _default_path_policy()
+    _apply_validated_grant(
+        raw_path,
+        writable=writable,
+        source=source,
+        workspace_dir=workspace_dir,
+        sandbox_active=sandbox_active,
+        policy=policy,
+    )
+    updated = get_session_access_roots()
+    await persist_chat_session_access_roots(chat_id, updated)
+    return updated
 
 
 async def revoke_chat_session_access_root(

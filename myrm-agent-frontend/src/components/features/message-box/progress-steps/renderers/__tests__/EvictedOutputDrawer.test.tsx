@@ -314,6 +314,45 @@ describe('EvictedOutputDrawer', () => {
     });
   });
 
+  describe('storage cap banner', () => {
+    it('shows banner when storageTruncated prop is true', async () => {
+      const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
+      render(
+        <EvictedOutputDrawer
+          filename="test.log"
+          chatId="chat-1"
+          onClose={onClose}
+          storageTruncated
+        />,
+      );
+      await waitFor(() => expect(screen.getByText(/line 1 output/)).toBeInTheDocument());
+      expect(screen.getByTestId('evicted-output-storage-truncated')).toBeInTheDocument();
+      expect(screen.getByText('Storage capped; file may be incomplete')).toBeInTheDocument();
+    });
+
+    it('shows banner when API returns storage_truncated', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            content: MOCK_CONTENT,
+            total_lines: 20,
+            stored_chars: MOCK_CONTENT.length,
+            storage_truncated: true,
+            offset: 0,
+            limit: 500,
+          }),
+      });
+      const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
+      render(
+        <EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />,
+      );
+      await waitFor(() =>
+        expect(screen.getByTestId('evicted-output-storage-truncated')).toBeInTheDocument(),
+      );
+    });
+  });
+
   describe('copy functionality', () => {
     it('copies content to clipboard on click', async () => {
       const writeText = vi.fn().mockResolvedValue(undefined);

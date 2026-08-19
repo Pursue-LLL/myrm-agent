@@ -127,6 +127,45 @@ def packaging_service() -> SkillPackagingService:
     return SkillPackagingService(skills_svc=_FakeSkillsService(skill, files))
 
 
+async def test_export_as_agent_plugin_and_raw_skill(
+    packaging_service: SkillPackagingService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record = _make_record("demo_skill", EVAL_CASES)
+    monkeypatch.setattr(
+        "app.core.skills.packaging._load_evolution_record",
+        lambda skill_name: record,
+    )
+
+    # 1. 测试 Agent Plugins 1.0.0 导出 (默认)
+    plugin_result: PackageResult = await packaging_service.package_skill(
+        "demo_skill", export_format="agent_plugin"
+    )
+    assert plugin_result.success
+    assert plugin_result.filename == "demo-skill_v3.zip"
+    assert plugin_result.zip_content is not None
+
+    with zipfile.ZipFile(io.BytesIO(plugin_result.zip_content), "r") as zf:
+        names = zf.namelist()
+        assert "demo-skill/plugin.json" in names
+        assert "demo-skill/skills/demo-skill/SKILL.md" in names
+        assert f"demo-skill/skills/demo-skill/{EVALS_FILE}" in names
+        assert "demo-skill/skills/demo-skill/helper.py" in names
+
+    # 2. 测试 raw_skill 导出
+    raw_result: PackageResult = await packaging_service.package_skill(
+        "demo_skill", export_format="raw_skill"
+    )
+    assert raw_result.success
+    assert raw_result.filename == "demo_skill_v3.zip"
+    assert raw_result.zip_content is not None
+
+    with zipfile.ZipFile(io.BytesIO(raw_result.zip_content), "r") as zf:
+        names = zf.namelist()
+        assert "demo_skill/SKILL.md" in names
+        assert f"demo_skill/{EVALS_FILE}" in names
+
+
 async def test_export_includes_evals_json(
     packaging_service: SkillPackagingService,
     monkeypatch: pytest.MonkeyPatch,
@@ -137,7 +176,9 @@ async def test_export_includes_evals_json(
         lambda skill_name: record,
     )
 
-    result: PackageResult = await packaging_service.package_skill("demo_skill")
+    result: PackageResult = await packaging_service.package_skill(
+        "demo_skill", export_format="raw_skill"
+    )
 
     assert result.success
     assert result.eval_cases_count == 1
@@ -167,7 +208,9 @@ async def test_export_syncs_frontmatter_version_when_present(
         lambda skill_name: record,
     )
 
-    result: PackageResult = await packaging_service.package_skill("demo_skill")
+    result: PackageResult = await packaging_service.package_skill(
+        "demo_skill", export_format="raw_skill"
+    )
 
     assert result.success
     assert result.eval_cases_count == 0
@@ -189,7 +232,9 @@ async def test_export_without_evolution_record_keeps_default_version(
         lambda skill_name: None,
     )
 
-    result: PackageResult = await packaging_service.package_skill("demo_skill")
+    result: PackageResult = await packaging_service.package_skill(
+        "demo_skill", export_format="raw_skill"
+    )
 
     assert result.success
     assert result.eval_cases_count == 0
@@ -225,7 +270,9 @@ async def test_export_ignores_user_evals_json_file(
         b'{"schema_version":999,"evals":[]}'
     )
 
-    result: PackageResult = await packaging_service.package_skill("demo_skill")
+    result: PackageResult = await packaging_service.package_skill(
+        "demo_skill", export_format="raw_skill"
+    )
 
     assert result.success
     assert result.zip_content is not None
@@ -459,7 +506,9 @@ async def test_evals_json_auto_redaction(
         lambda skill_name: record,
     )
 
-    result: PackageResult = await packaging_service.package_skill("demo_skill")
+    result: PackageResult = await packaging_service.package_skill(
+        "demo_skill", export_format="raw_skill"
+    )
 
     assert result.success
     assert result.eval_cases_count == 1

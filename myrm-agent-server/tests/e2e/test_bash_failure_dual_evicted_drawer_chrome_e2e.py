@@ -38,6 +38,8 @@ from tests.support.evicted_drawer_selectors import (
     WAIT_PROGRESS_UI_DOM_JS as _WAIT_PROGRESS_UI_DOM_JS,
 )
 from tests.support.evicted_drawer_selectors import (
+    VIEW_FULL_STDERR_TESTID,
+    drawer_mount_wait_js,
     drawer_ready_js,
 )
 
@@ -152,8 +154,21 @@ def _wait_fixture_assistant_via_api(
     )
 
 
-def _assert_drawer_reads(client: ChromeMcpClient, page: McpPage, marker: str) -> None:
-    drawer = wait_for_state(client, page, drawer_ready_js(marker), timeout_sec=45.0)
+def _assert_drawer_reads(
+    client: ChromeMcpClient,
+    page: McpPage,
+    marker: str,
+    *,
+    view_full_testid: str | None = None,
+) -> None:
+    mounted = wait_for_state(
+        client,
+        page,
+        drawer_mount_wait_js(view_full_testid=view_full_testid),
+        timeout_sec=90.0,
+    )
+    assert mounted.get("ready") is True, json.dumps(mounted, ensure_ascii=False)
+    drawer = wait_for_state(client, page, drawer_ready_js(marker), timeout_sec=90.0)
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 
 
@@ -252,4 +267,6 @@ def test_failed_bash_dual_evicted_drawers_read_stdout_and_stderr() -> None:
         assert stderr_clicked.get("clicked") is True, json.dumps(
             stderr_clicked, ensure_ascii=False
         )
-        _assert_drawer_reads(client, page, marker_stderr)
+        _assert_drawer_reads(
+            client, page, marker_stderr, view_full_testid=VIEW_FULL_STDERR_TESTID
+        )

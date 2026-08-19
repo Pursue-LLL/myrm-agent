@@ -108,6 +108,33 @@ _DISMISS_MIGRATION_JS = """(() => {
 })()"""
 
 
+def _concepts_tab_present_js() -> str:
+    return """(() => {
+      const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
+      const tabs = [...(shell?.querySelectorAll('[role="tab"]') ?? [])].map(
+        (el) => (el.textContent || '').trim(),
+      );
+      return {
+        ready: tabs.some((t) => /词条管理|Concepts|概念管理/.test(t)),
+        tabs,
+      };
+    })()"""
+
+
+def _click_concepts_tab_js() -> str:
+    return """(() => {
+      const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
+      const tab = shell && [...shell.querySelectorAll('[role="tab"]')].find(
+        (el) => /词条管理|Concepts|概念管理/.test((el.textContent || '').trim()),
+      );
+      if (!tab) return { ok: false, reason: 'no-tab' };
+      for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+        tab.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+      }
+      return { ok: true, active: tab.getAttribute('data-state') === 'active' };
+    })()"""
+
+
 def _concepts_active_state() -> str:
     return """(() => {
       const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
@@ -169,16 +196,6 @@ def _focus_monaco_js() -> str:
     })()"""
 
 
-def _preview_state_js() -> str:
-    return """(() => {
-      const prose = document.querySelector('.prose');
-      return {
-        ready: !!prose,
-        text: prose ? (prose.textContent || '') : '',
-      };
-    })()"""
-
-
 def _preview_contains_js(text: str) -> str:
     return f"""(() => {{
       const prose = document.querySelector('.prose');
@@ -216,8 +233,17 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         dismiss_blocking_modals(client, page, recover_url=wiki_page_url)
 
-        # Concepts tab active + detail panel edit button ready.
-        wait_for_state(client, page, _concepts_active_state(), timeout_sec=60.0)
+        # Wait for the Concepts tab to mount, then click it (Radix Tabs needs
+        # the full pointer sequence under real-browser hydration).
+        wait_for_state(client, page, _concepts_tab_present_js(), timeout_sec=60.0)
+        clicked_tab = client.evaluate(page, _click_concepts_tab_js(), timeout_sec=15.0)
+        assert isinstance(clicked_tab, dict) and clicked_tab.get("ok") is True, clicked_tab
+
+        # Concepts tab active + concept tree mounted.
+        concepts = wait_for_state(client, page, _concepts_active_state(), timeout_sec=60.0)
+        assert isinstance(concepts, dict) and concepts.get("ready") is True, concepts
+
+        # Detail panel edit button ready (deep-link selects the concept).
         edit_ready = wait_for_state(client, page, _detail_edit_ready_js(), timeout_sec=60.0)
         assert edit_ready.get("ready") is True, edit_ready
 
@@ -247,12 +273,3 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
             timeout_sec=30.0,
         )
         assert isinstance(preview, dict) and preview.get("ready") is True, preview
-
-
-def _preview_contains_js(text: str) -> str:
-    return f"""(() => {{
-      const prose = document.querySelector('.prose');
-      if (!prose) return {{ ready: false, text: '' }};
-      const text = prose.textContent || '';
-      return {{ ready: text.includes({text!r}), text: text.slice(-120) }};
-    }})()"""

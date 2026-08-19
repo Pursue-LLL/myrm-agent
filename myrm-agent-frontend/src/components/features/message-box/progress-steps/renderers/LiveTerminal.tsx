@@ -7,6 +7,7 @@ import useChatStore from '@/store/useChatStore';
 
 import { getLineTone, TONE_CLASSES } from './lineToneUtils';
 import { formatStoredSize } from './sizeFormatUtils';
+import EvictedDrawerSuspenseFallback from './EvictedDrawerSuspenseFallback';
 
 const EvictedOutputDrawer = lazy(() => import('./EvictedOutputDrawer'));
 
@@ -188,20 +189,22 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
           </div>
         </div>
         {evictedFileRef && drawerOpen && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<EvictedDrawerSuspenseFallback />}>
             <EvictedOutputDrawer
               filename={evictedFileRef}
               chatId={chatId || ''}
               onClose={() => setDrawerOpen(false)}
+              storageTruncated={evictedStorageTruncated}
             />
           </Suspense>
         )}
         {evictedStderrFileRef && stderrDrawerOpen && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<EvictedDrawerSuspenseFallback />}>
             <EvictedOutputDrawer
               filename={evictedStderrFileRef}
               chatId={chatId || ''}
               onClose={() => setStderrDrawerOpen(false)}
+              storageTruncated={evictedStderrStorageTruncated}
             />
           </Suspense>
         )}
@@ -300,20 +303,22 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
       </div>
 
       {evictedFileRef && drawerOpen && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<EvictedDrawerSuspenseFallback />}>
           <EvictedOutputDrawer
             filename={evictedFileRef}
             chatId={chatId || ''}
             onClose={() => setDrawerOpen(false)}
+            storageTruncated={evictedStorageTruncated}
           />
         </Suspense>
       )}
       {evictedStderrFileRef && stderrDrawerOpen && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<EvictedDrawerSuspenseFallback />}>
           <EvictedOutputDrawer
             filename={evictedStderrFileRef}
             chatId={chatId || ''}
             onClose={() => setStderrDrawerOpen(false)}
+            storageTruncated={evictedStderrStorageTruncated}
           />
         </Suspense>
       )}

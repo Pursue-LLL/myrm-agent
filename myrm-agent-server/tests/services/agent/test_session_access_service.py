@@ -288,6 +288,54 @@ async def test_revoke_chat_session_access_root_persists(
 
 
 @pytest.mark.asyncio
+async def test_grant_chat_session_access_root_direct(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    target = tmp_path / "drag-drop-folder"
+    target.mkdir()
+
+    class _FakeChat:
+        session_access_roots = []
+
+    async def _fake_get_chat(_chat_id: str) -> _FakeChat:
+        return _FakeChat()
+
+    captured: dict[str, object] = {}
+
+    async def _fake_update(chat_id: str, updates: dict[str, object]) -> None:
+        captured["chat_id"] = chat_id
+        captured["updates"] = updates
+
+    monkeypatch.setattr(
+        "app.services.chat.chat_service.ChatService.get_chat_metadata",
+        _fake_get_chat,
+    )
+    monkeypatch.setattr(
+        "app.services.chat.chat_service.ChatService.update_chat_fields",
+        _fake_update,
+    )
+
+    from app.services.agent.session_access_service import grant_chat_session_access_root
+
+    updated = await grant_chat_session_access_root(
+        "chat-drag-drop",
+        str(target),
+        writable=True,
+        label="my-folder",
+        workspace_dir=str(workspace),
+    )
+
+    assert len(updated) == 1
+    assert updated[0].path == os.path.realpath(str(target))
+    assert updated[0].writable is True
+    assert captured["chat_id"] == "chat-drag-drop"
+    persisted = captured["updates"]["session_access_roots"]
+    assert isinstance(persisted, list)
+    assert len(persisted) == 1
+    assert persisted[0]["path"] == os.path.realpath(str(target))
+
+
+@pytest.mark.asyncio
 async def test_orchestrator_resume_grant_path_persists_via_service(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,

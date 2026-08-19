@@ -569,6 +569,24 @@ async def update_session_skills(
         raise internal_error(operation="Update session skills", exception=e) from e
 
 
+class GrantSessionAccessRootRequest(BaseModel):
+    """Grant one session-scoped directory access root."""
+
+    path: str = Field(
+        ...,
+        description="Absolute or workspace-relative directory path to grant",
+        min_length=1,
+    )
+    writable: bool = Field(
+        default=True,
+        description="Whether write access is granted",
+    )
+    label: str | None = Field(
+        default=None,
+        description="Optional display label for this grant",
+    )
+
+
 class RevokeSessionAccessRootRequest(BaseModel):
     """Revoke one session-scoped directory grant."""
 
@@ -577,6 +595,47 @@ class RevokeSessionAccessRootRequest(BaseModel):
         description="Absolute or workspace-relative directory path to revoke",
         min_length=1,
     )
+
+
+@router.post("/{chat_id}/session-access-roots", response_model=StandardSuccessResponse)
+async def grant_session_access_root_endpoint(
+    chat_id: str,
+    body: GrantSessionAccessRootRequest,
+) -> JSONResponse:
+    """Grant one directory root for this chat session (e.g. from desktop drag-and-drop)."""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        from app.services.chat.effective_workspace import (
+            resolve_effective_chat_workspace,
+        )
+
+        workspace_dir = await resolve_effective_chat_workspace(
+            chat,
+            jit_fallback=False,
+        )
+
+        from app.services.agent.session_access_service import (
+            access_roots_to_json,
+            grant_chat_session_access_root,
+        )
+
+        updated = await grant_chat_session_access_root(
+            chat_id,
+            body.path.strip(),
+            writable=body.writable,
+            label=body.label.strip() if body.label else "",
+            workspace_dir=workspace_dir,
+        )
+        return success_response(
+            data={"session_access_roots": access_roots_to_json(updated)}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Grant session access root", exception=e) from e
 
 
 @router.patch("/{chat_id}/session-access-roots", response_model=StandardSuccessResponse)

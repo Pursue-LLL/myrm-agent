@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from myrm_agent_harness.agent.context_management.infra.evicted_content import (
+from myrm_agent_harness.agent.context_management.infra.evicted import (
     EVICTED_BASENAME_PATTERN,
     normalize_delivery_chat_id,
     write_evicted_content_sync,

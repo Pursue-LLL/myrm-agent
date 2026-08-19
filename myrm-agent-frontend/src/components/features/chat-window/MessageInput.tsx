@@ -56,6 +56,7 @@ import { useTranslations } from 'next-intl';
 import { useMessageInput } from '@/hooks/message-input/useMessageInput';
 import { useDragDrop } from '@/hooks/ui/useDragDrop';
 import { usePriorChatComposerDrop } from '@/hooks/chat/usePriorChatComposerDrop';
+import { useDesktopFolderDrop } from '@/hooks/message-input/useDesktopFolderDrop';
 import { LinkDetectionDialog } from './LinkDetectionDialog';
 import { MobileActionSheet } from './mobile/MobileActionSheet';
 import { useMobileSheetEntries } from './mobile/useMobileSheetEntries';
@@ -309,6 +310,10 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     disabled: dropDisabled,
   });
 
+  const { isDraggingOver: isDesktopFolderDragging } = useDesktopFolderDrop({
+    disabled: dropDisabled,
+  });
+
   const mergedDragHandlers = React.useMemo(
     () => ({
       onDragEnter: (event: React.DragEvent) => {
@@ -331,7 +336,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     [fileDragHandlers, sessionDragHandlers],
   );
 
-  const isDragging = isFileDragging || isSessionDragging;
+  const isDragging = isFileDragging || isSessionDragging || isDesktopFolderDragging;
 
   return (
     <>

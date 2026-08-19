@@ -64,6 +64,7 @@ class SkillPackagingService:
         preview_only: bool = False,
         apply_redactions: bool = False,
         ignored_redactions: dict[str, list[int]] | None = None,
+        export_format: str = "agent_plugin",
     ) -> PackageResult:
         """从 Server 的 SkillsService 获取并打包已注册的技能
 
@@ -72,6 +73,7 @@ class SkillPackagingService:
             preview_only: 如果为 True，仅返回脱敏预览结果，不实际生成 ZIP
             apply_redactions: 如果为 True，将脱敏后的内容写入 ZIP；否则写入原始内容（用户确认无误或忽略警告）
             ignored_redactions: 字典，key 为文件名，value 为该文件中需要忽略脱敏的匹配项索引列表
+            export_format: 导出格式，"agent_plugin" (Agent Plugins 1.0.0 规范，默认) 或 "raw_skill" (单技能结构)
         """
         ignored_redactions = ignored_redactions or {}
         try:
@@ -159,10 +161,29 @@ class SkillPackagingService:
                     eval_cases_count=eval_cases_count,
                 )
 
-            # Actual packaging
-            pack_result = self._packer.package_files(
-                skill.name, skill.version or "1.0.0", file_contents
-            )
+            # Actual packaging: 根据 export_format 选择打包规范
+            version_str = str(lineage_version) if lineage_version is not None else (skill.version or "1.0.0")
+            if export_format == "raw_skill":
+                pack_result = self._packer.package_files(
+                    skill.name, version_str, file_contents
+                )
+            else:
+                extra_ext = None
+                if eval_cases_count > 0:
+                    extra_ext = {
+                        "ai.myrm.evals": {
+                            "evalCasesCount": eval_cases_count,
+                            "hasEvalsSnapshot": True,
+                        }
+                    }
+                pack_result = self._packer.package_as_agent_plugin(
+                    skill_name=skill.name,
+                    version=version_str,
+                    file_contents=file_contents,
+                    description=getattr(skill, "description", None),
+                    keywords=getattr(skill, "tags", None),
+                    extra_extensions=extra_ext,
+                )
 
             # Wrap the harness result to include redaction info
             return PackageResult(
