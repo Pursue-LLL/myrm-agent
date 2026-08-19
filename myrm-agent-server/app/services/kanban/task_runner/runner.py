@@ -256,10 +256,10 @@ class KanbanTaskRunner:
     async def _wait_note(self) -> str:
         """Pick a locale-appropriate wait note for the blocked task."""
         try:
-            from app.core.channel_bridge.config_loader import load_user_configs
             from app.core.agent.tool_description_locale import (
                 resolve_agent_params_locale,
             )
+            from app.core.channel_bridge.config_loader import load_user_configs
 
             user_cfgs = await load_user_configs()
             locale = resolve_agent_params_locale(
