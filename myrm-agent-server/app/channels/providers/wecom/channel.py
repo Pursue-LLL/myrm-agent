@@ -320,14 +320,17 @@ class WeComChannel(BaseChannel):
         return None
 
     async def send_placeholder(
-        self, chat_id: str, text: str, *, thread_id: str | None = None
+        self,
+        chat_id: str,
+        text: str,
+        *,
+        thread_id: str | None = None,
     ) -> str | None:
-        await self._ensure_token()
-        try:
-            await self._api_send(chat_id, "text", {"content": text})
-            return "sent"
-        except ChannelSendError:
-            return None
+        """WeCom self-built apps do not support editing plain messages.
+
+        Returns None to disable placeholder sending and avoid leaving orphan messages.
+        """
+        return None
 
     # ── Media upload + send ───────────────────────────────────
 

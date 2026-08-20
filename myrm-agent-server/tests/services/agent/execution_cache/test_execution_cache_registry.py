@@ -135,17 +135,41 @@ async def test_guard_turn_serializes_same_scope() -> None:
 
 
 @pytest.mark.asyncio
-async def test_refresh_unit_updates_cached_entry() -> None:
-    registry = ChatAgentExecutionCache(idle_seconds=3600.0)
+async def test_idle_reclaim_evicts_stale_units_and_increments_count() -> None:
+    registry = ChatAgentExecutionCache(idle_seconds=0.01)
+    units: list[BuiltExecutionUnit] = []
 
     async def build_unit() -> BuiltExecutionUnit:
-        return _make_unit("original")
+        unit = _make_unit()
+        units.append(unit)
+        return unit
 
-    first = await registry.acquire("chat-1:default", "fp-a", build_unit)
-    refreshed = _make_unit("refreshed")
-    await registry.refresh_unit("chat-1:default", refreshed)
-    second = await registry.acquire("chat-1:default", "fp-a", build_unit)
+    unit1 = await registry.acquire("chat-1:default", "fp-a", build_unit)
+    assert registry.warm_entry_count == 1
+    assert registry.reclaimed_count == 0
 
-    assert second is refreshed
-    assert second is not first
-    first.skill_agent.close.assert_not_called()
+    await asyncio.sleep(0.03)
+    # Trigger evict manually or via acquire
+    async with registry._lock:
+        await registry._evict_idle_unlocked()
+
+    assert registry.warm_entry_count == 0
+    assert registry.reclaimed_count == 1
+    unit1.skill_agent.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_idle_reclaim_disabled_when_idle_seconds_zero() -> None:
+    registry = ChatAgentExecutionCache(idle_seconds=0.0)
+
+    async def build_unit() -> BuiltExecutionUnit:
+        return _make_unit()
+
+    await registry.acquire("chat-1:default", "fp-a", build_unit)
+    await asyncio.sleep(0.01)
+    async with registry._lock:
+        await registry._evict_idle_unlocked()
+
+    assert registry.warm_entry_count == 1
+    assert registry.reclaimed_count == 0
+

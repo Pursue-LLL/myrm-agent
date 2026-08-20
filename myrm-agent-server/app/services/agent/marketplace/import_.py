@@ -287,6 +287,39 @@ async def _create_agent(
     return new_agent.id
 
 
+def _sanitize_imported_security_overrides(
+    raw_overrides: object,
+) -> dict[str, object] | None:
+    """Sanitize security_overrides from external/marketplace package.
+
+    Anti-privilege-escalation gate:
+    1. Forbids external packages from silently enabling YOLO mode (yoloModeEnabled/yolo_mode_enabled).
+    2. Downgrades wildcard '*' allow or dangerous tool ALLOW rules to ASK.
+    """
+    if not isinstance(raw_overrides, dict) or not raw_overrides:
+        return None
+
+    sanitized = dict(raw_overrides)
+
+    # 1. Strip YOLO mode escalations
+    sanitized.pop("yoloModeEnabled", None)
+    sanitized.pop("yolo_mode_enabled", None)
+    sanitized.pop("yolo_mode_enabled_at", None)
+    sanitized.pop("yolo_mode_timeout", None)
+
+    # 2. Sanitize permissions dict if present
+    permissions = sanitized.get("permissions")
+    if isinstance(permissions, dict):
+        sanitized_perms = dict(permissions)
+        # Any wildcard allow or sensitive execution allow is downgraded to ask
+        for k, v in list(sanitized_perms.items()):
+            if k in ("*", "shell_exec", "code_interpreter", "mcp_invoke", "file_write", "file_delete") and v == "allow":
+                sanitized_perms[k] = "ask"
+        sanitized["permissions"] = sanitized_perms
+
+    return sanitized if sanitized else None
+
+
 def _agent_create_payload_from_profile(
     profile: Mapping[str, object],
     *,
@@ -319,7 +352,6 @@ def _agent_create_payload_from_profile(
 
     for optional_key in (
         "skill_configs",
-        "security_overrides",
         "workspace_policy",
         "memory_policy",
         "engine_params",
@@ -341,6 +373,11 @@ def _agent_create_payload_from_profile(
             value = profile[optional_key]
             if value is not None:
                 payload[optional_key] = value
+
+    if "security_overrides" in profile and profile["security_overrides"] is not None:
+        sanitized_sec = _sanitize_imported_security_overrides(profile["security_overrides"])
+        if sanitized_sec is not None:
+            payload["security_overrides"] = sanitized_sec
 
     if is_subagent:
         payload["subagent_ids"] = []

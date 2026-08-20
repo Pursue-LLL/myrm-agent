@@ -103,3 +103,86 @@ async def complete_discovery_adoption(
         allowlist_appended=True,
         agent_id=context_agent_id,
     )
+
+
+async def remove_skill_from_all_agents(
+    catalog_skill_id: str,
+) -> int:
+    """Remove a skill ID from all Agent profiles' explicit allowlists (orphan cleanup)."""
+    skill_id = catalog_skill_id.strip()
+    if not skill_id:
+        return 0
+
+    config = await skills_service.user_config.get_config()
+    install_roots = _legacy_install_roots(config.local_skill_paths)
+    target_canonical = normalize_local_skill_id(skill_id, install_roots)
+
+    agents = await AgentService.get_all_agents()
+    cleaned_count = 0
+
+    for agent in agents:
+        existing = _profile_explicit_skill_ids(agent)
+        if not existing:
+            continue
+
+        retained: list[str] = []
+        changed = False
+        for sid in existing:
+            if normalize_local_skill_id(sid, install_roots) == target_canonical:
+                changed = True
+            else:
+                retained.append(sid)
+
+        if changed:
+            outcome = await AgentService.update_agent(
+                agent.id,
+                AgentUpdate(skill_ids=retained),
+            )
+            if outcome is not None:
+                cleaned_count += 1
+                logger.info(
+                    "Cleaned uninstalled skill %s from agent %s allowlist",
+                    target_canonical,
+                    agent.id,
+                )
+
+    return cleaned_count
+
+
+async def sync_skill_to_agents(
+    catalog_skill_id: str,
+    target_agent_ids: list[str],
+) -> dict[str, bool]:
+    """Sync a skill ID into multiple Agent profiles' explicit allowlists."""
+    skill_id = catalog_skill_id.strip()
+    if not skill_id or not target_agent_ids:
+        return {}
+
+    config = await skills_service.user_config.get_config()
+    install_roots = _legacy_install_roots(config.local_skill_paths)
+    normalized_new = normalize_local_skill_id(skill_id, install_roots)
+
+    results: dict[str, bool] = {}
+    for agent_id in target_agent_ids:
+        agent = await AgentService.get_agent_by_id(agent_id.strip())
+        if agent is None:
+            results[agent_id] = False
+            continue
+
+        existing = _profile_explicit_skill_ids(agent)
+        normalized_existing = {
+            normalize_local_skill_id(sid, install_roots) for sid in existing
+        }
+        if normalized_new in normalized_existing:
+            results[agent_id] = True
+            continue
+
+        merged: list[str] = [*existing, skill_id]
+        outcome = await AgentService.update_agent(
+            agent_id.strip(),
+            AgentUpdate(skill_ids=merged),
+        )
+        results[agent_id] = outcome is not None
+
+    return results
+

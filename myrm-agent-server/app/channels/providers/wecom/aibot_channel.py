@@ -264,18 +264,35 @@ class WeComAiBotChannel(BaseChannel):
         message_id: str,
         msg: OutboundMessage,
     ) -> None:
-        """Finalize a streaming message with the full content."""
+        """Finalize a streaming message with the full content, handling multi-chunk pagination."""
         state = self._active_streams.pop(message_id, None)
 
         chunks = render(msg, self.render_style)
-        final_content = "\n".join(chunks) if chunks else msg.content
+        if not chunks:
+            chunks = [msg.content] if msg.content else []
+
+        first_chunk = chunks[0] if chunks else ""
+        overflow_chunks = chunks[1:] if len(chunks) > 1 else []
 
         if not state:
-            await self._send_proactive_msg(chat_id, final_content)
+            # No active stream; send everything via proactive message
+            for chunk in chunks:
+                if chunk:
+                    await self._send_proactive_msg(chat_id, chunk)
         elif state.is_force_closed:
-            await self._send_respond_msg(state.req_id, final_content, finish=True)
+            # Stream was closed by sentinel; deliver first chunk via respond_msg, rest proactive
+            await self._send_respond_msg(state.req_id, first_chunk, finish=True)
+            for chunk in overflow_chunks:
+                if chunk:
+                    await self._send_proactive_msg(chat_id, chunk)
         elif self._ws:
-            await self._send_respond_msg(state.req_id, final_content, finish=True, stream_id=message_id)
+            # Active stream; morph first chunk in place, send remaining chunks proactively
+            await self._send_respond_msg(
+                state.req_id, first_chunk, finish=True, stream_id=message_id
+            )
+            for chunk in overflow_chunks:
+                if chunk:
+                    await self._send_proactive_msg(chat_id, chunk)
 
     # ── WebSocket session ─────────────────────────────────────
 
@@ -306,7 +323,9 @@ class WeComAiBotChannel(BaseChannel):
             finally:
                 self._set_connected(False)
                 self._ws = None
-                self._active_streams.clear()
+                # Mark active streams as force closed instead of clearing, allowing graceful completion via proactive delivery
+                for stream_state in self._active_streams.values():
+                    stream_state.is_force_closed = True
                 if self._heartbeat_task:
                     self._heartbeat_task.cancel()
                     self._heartbeat_task = None

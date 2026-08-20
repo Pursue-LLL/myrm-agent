@@ -1,4 +1,15 @@
 {
+  "emptyState": {
+    "defaultTitle": "Keine Daten",
+    "defaultDescription": "Diese Liste ist derzeit leer oder es wurden noch keine Elemente generiert",
+    "noSearchResult": "Keine Treffer gefunden",
+    "noSearchResultDesc": "Versuchen Sie, Ihre Suchanfrage anzupassen oder Filter zu löschen",
+    "clearFilter": "Filter zurücksetzen",
+    "retry": "Wiederholen",
+    "refresh": "Aktualisieren",
+    "loadFailed": "Laden fehlgeschlagen",
+    "loadFailedDesc": "Bitte überprüfen Sie Ihre Netzwerkverbindung oder versuchen Sie es später erneut"
+  },
   "commands": {
     "palette": {
       "noCommands": "Noch keine Befehle",
@@ -3632,6 +3643,12 @@
         "appshotPrivacyBlacklistDesc": "Für Apps in dieser Liste wird die Bildschirmaufnahme blockiert, um sensible Daten zu schützen",
         "appshotAddAppPlaceholder": "App-Namen eingeben...",
         "appshotAddApp": "Hinzufügen",
+        "idleReclaim": "Automatische Freigabe inaktiver Ressourcen",
+        "idleReclaimDesc": "Gibt Hintergrundbrowser und Cache nach einer Phase der Inaktivität automatisch frei, um Arbeitsspeicher zu sparen",
+        "idleReclaim15m": "15 Minuten",
+        "idleReclaim30m": "30 Minuten (Empfohlen)",
+        "idleReclaim1h": "1 Stunde",
+        "idleReclaimNever": "Nie freigeben",
         "enableRemoteWebDevHint": "Präferenz gespeichert. Starten Sie das Frontend mit bun run dev:lan und speichern Sie die Einstellungen, damit Telefone das LAN URL verwenden können.",
         "webuiPort": "WebUI-Port (Next.js)",
         "webuiPortDesc": "Primäre Portbenutzer werden im Browser geöffnet",
@@ -6145,7 +6162,13 @@
       "expand": "Konfigurationspanel ausklappen",
       "tooltipLine1": "Fähigkeiten konfigurieren oder gespeicherte Agenten verwenden",
       "tooltipLine2": "Entfalten Sie Ihre Kreativität, um leistungsstarke KI-Agenten zu bauen!",
-      "welcomeMessage": "Konfigurieren Sie Fähigkeiten für Ihren intelligenten Agenten oder verwenden Sie gespeicherte Agenten. Entfalten Sie Ihre Kreativität, um leistungsstarke KI-Agenten zu bauen!"
+      "welcomeMessage": "Konfigurieren Sie Fähigkeiten für Ihren intelligenten Agenten oder verwenden Sie gespeicherte Agenten. Entfalten Sie Ihre Kreativität, um leistungsstarke KI-Agenten zu bauen!",
+      "switchAgent": "Agent wechseln",
+      "builtinPresets": "Integrierte Voreinstellungen",
+      "customAgents": "Meine Agenten",
+      "openConfigPanel": "Detaillierte Konfiguration...",
+      "manageAgents": "Agenten-Verwaltung...",
+      "switchSuccess": "Agent gewechselt"
     },
     "list": "Agentenliste",
     "create": "Agent erstellen",

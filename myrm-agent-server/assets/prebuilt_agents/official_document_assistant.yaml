@@ -48,4 +48,3 @@ suggestion_prompts:
   - "帮我写一份会议纪要"
 prebuilt_skill_ids:
   - "office-document"
-  - "vision-toolkit"

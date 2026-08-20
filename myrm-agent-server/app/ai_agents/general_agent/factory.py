@@ -78,13 +78,18 @@ async def build_general_agent(
     )
     from .llm_factory import apply_lite_managed_fallback, create_agent_llms
 
-    llm, agent_wrapper._lite_llm, fallback_llm, safety_fallback_llm = (
-        await create_agent_llms(
-            agent_wrapper.model_cfg,
-            agent_wrapper.lite_model_cfg,
-            agent_wrapper.fallback_model_cfg,
-            agent_wrapper.safety_fallback_model_cfg,
-        )
+    (
+        llm,
+        agent_wrapper._lite_llm,
+        fallback_llm,
+        safety_fallback_llm,
+        stream_fallback_llms,
+    ) = await create_agent_llms(
+        agent_wrapper.model_cfg,
+        agent_wrapper.lite_model_cfg,
+        agent_wrapper.fallback_model_cfg,
+        agent_wrapper.safety_fallback_model_cfg,
+        fallback_model_cfgs=getattr(agent_wrapper, "fallback_model_cfgs", None),
     )
 
     privacy_routing_cfg = build_privacy_routing_config(
@@ -174,7 +179,6 @@ async def build_general_agent(
     agent_wrapper._task_user_id = user_id or "default"
     agent_wrapper._setup_search_and_basic_tools(tools)
     agent_wrapper._setup_clarification_tools(tools)
-    agent_wrapper._setup_session_access_tools(tools)
 
     from app.services.context.context_assembly import ContextAssemblyService
 
@@ -203,9 +207,6 @@ async def build_general_agent(
 
     if _should_setup_computer_use_tools(agent_wrapper.enable_computer_use):
         agent_wrapper._setup_computer_use_tools(tools)
-
-    if runtime_skill_ids and "vision-toolkit" in runtime_skill_ids:
-        agent_wrapper._setup_vision_toolkit_tools(tools)
 
     if agent_wrapper.enable_kanban:
         await _setup_kanban_tools(agent_wrapper, tools)

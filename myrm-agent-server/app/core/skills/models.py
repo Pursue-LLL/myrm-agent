@@ -88,6 +88,9 @@ class Skill:
     has_upstream_update: bool = False
     """True when upstream changed but user-modified content was preserved during sync."""
 
+    installed_from: dict[str, object] | None = None
+    """Provenance tracking for installed skills (e.g. source, origin_url, version, installed_at)."""
+
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -123,6 +126,7 @@ class Skill:
             "usage_stats": self.usage_stats,
             "origin_hash": self.origin_hash,
             "has_upstream_update": self.has_upstream_update,
+            "installed_from": self.installed_from,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
@@ -135,6 +139,7 @@ class Skill:
         skill_id: str,
         skill_type: SkillType,
         category: str | None = None,
+        installed_from: dict[str, object] | None = None,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
     ) -> Skill:
@@ -174,6 +179,7 @@ class Skill:
                 if hasattr(meta, "usage_stats") and meta.usage_stats
                 else None
             ),
+            installed_from=installed_from,
             created_at=created_at or now,
             updated_at=updated_at or now,
         )
@@ -229,6 +235,7 @@ class Skill:
             usage_stats=_coerce_usage_stats(data.get("usage_stats")),
             origin_hash=_opt_str(data.get("origin_hash")),
             has_upstream_update=bool(data.get("has_upstream_update", False)),
+            installed_from=_coerce_usage_stats(data.get("installed_from")),
             created_at=_parse_datetime(data.get("created_at")),
             updated_at=_parse_datetime(data.get("updated_at")),
         )

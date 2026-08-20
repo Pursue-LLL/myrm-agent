@@ -29,6 +29,10 @@ from app.channels.routing.router_constants import (
 )
 from app.channels.routing.router_host import RouterStreamHost
 from app.channels.routing.router_keys import routing_session_key
+from app.channels.routing.router_stream_scrubber import (
+    normalize_progress_stage,
+    scrub_thinking_content,
+)
 from app.channels.routing.router_stream_throttle import (
     should_skip_throttled_placeholder_edit,
 )
@@ -113,8 +117,9 @@ class RouterStreamMixin:
                 reassurance_state["last_activity"] = time.monotonic()
 
                 if isinstance(event, ProgressUpdate):
+                    cleaned_label = normalize_progress_stage(event.label)
                     reassurance_state["step_count"] = int(reassurance_state["step_count"]) + 1
-                    reassurance_state["current_stage"] = event.label
+                    reassurance_state["current_stage"] = cleaned_label
                     await self._mark_deferred_placeholder_activity(stream_state_key)
                     if event.quick_replies:
                         approval_mid = await self._send_interactive_progress(msg, chat_id, event)
@@ -127,7 +132,7 @@ class RouterStreamMixin:
 
                     new_ts = await self._try_throttled_edit(
                         self._resolve_live_placeholder_id(state_key),
-                        event.label,
+                        cleaned_label,
                         last_progress_at,
                         _MIN_PROGRESS_INTERVAL,
                         msg.channel,
@@ -141,16 +146,23 @@ class RouterStreamMixin:
                     if should_fallback_to_new_message:
                         continue
 
+                    cleaned_text, is_thinking = scrub_thinking_content(event.text)
+                    if is_thinking and not cleaned_text:
+                        # LLM is producing thinking tokens; keep a clean thinking placeholder stage
+                        display_text = "💭 深度思考中..."
+                    else:
+                        display_text = cleaned_text or event.text
+
                     with trace_context(
                         "myrm.channels.stream",
                         "stream_update",
                         {
                             "session_key": metrics_key,
                             "trace_id": trace_id,
-                            "content_length": len(event.text),
+                            "content_length": len(display_text),
                         },
                     ) as span:
-                        decision = self._stream_coordinator.should_send_update(metrics_key, event.text, is_final=False)
+                        decision = self._stream_coordinator.should_send_update(metrics_key, display_text, is_final=False)
                         self._stream_metrics.record_decision(metrics_key, decision.reason)
                         span.set_attribute("decision.should_send", decision.should_send)
                         span.set_attribute("decision.reason", decision.reason)
@@ -177,11 +189,11 @@ class RouterStreamMixin:
 
                         self._session_rate_limiter.record_update(metrics_key)
 
-                        progress_info = self._progress_estimator.estimate_progress(metrics_key, len(event.text))
-                        display_text = event.text
-                        if progress_info and progress_info.percentage < 95:
+                        progress_info = self._progress_estimator.estimate_progress(metrics_key, len(display_text))
+                        final_display_text = display_text
+                        if progress_info and progress_info.percentage < 95 and not is_thinking:
                             remaining_str = f" (~{progress_info.remaining_seconds}s left)" if progress_info.remaining_seconds else ""
-                            display_text = f"{event.text}\n\n[{progress_info.percentage}%{remaining_str}]"
+                            final_display_text = f"{display_text}\n\n[{progress_info.percentage}%{remaining_str}]"
                             span.set_attribute("progress.percentage", progress_info.percentage)
 
                         span.add_event("api_call_start")
@@ -190,16 +202,16 @@ class RouterStreamMixin:
                             msg.channel,
                             chat_id,
                             live_placeholder,
-                            display_text,
+                            final_display_text,
                             metrics_key,
-                            len(event.text),
+                            len(display_text),
                             msg=msg,
                         )
                         span.add_event("api_call_end", {"success": success})
                         span.set_attribute("api.success", success)
 
                         is_first = last_stream_at == 0.0
-                        self._stream_metrics.record_edit(metrics_key, len(event.text), success, is_first=is_first)
+                        self._stream_metrics.record_edit(metrics_key, len(display_text), success, is_first=is_first)
 
                         if success:
                             last_stream_at = time.monotonic()

@@ -556,13 +556,10 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               placeholder={
                 inputHistory.ghostText
                   ? inputHistory.ghostText
-                  : isUploadingPaste
-                    ? chatT('input.uploadingImage')
-                    : loading
-                      ? chatT('queue.placeholder')
-                      : chatT('input.placeholder')
+                  : loading
+                    ? chatT('queue.placeholder')
+                    : chatT('input.placeholder')
               }
-              readOnly={isUploadingPaste}
             />
             {/* 操作栏 */}
             <div className="flex flex-row items-center justify-between mt-4 gap-2">

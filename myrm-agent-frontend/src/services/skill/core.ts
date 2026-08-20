@@ -806,3 +806,26 @@ export async function removeCustomSource(url: string): Promise<{ removed: boolea
     method: 'DELETE',
   });
 }
+
+// --- Skill Pool Cross-Agent Sync ---
+
+export interface SkillPoolSyncResponse {
+  success: boolean;
+  skill_id: string;
+  synced_agents: string[];
+  failed_agents: string[];
+}
+
+export async function syncSkillPoolToAgents(
+  skillId: string,
+  targetAgentIds: string[],
+): Promise<SkillPoolSyncResponse> {
+  return apiRequest<SkillPoolSyncResponse>(`${SKILLS_API_PREFIX}/discovery/pool/sync`, {
+    method: 'POST',
+    body: JSON.stringify({
+      skill_id: skillId,
+      target_agent_ids: targetAgentIds,
+    }),
+  });
+}
+

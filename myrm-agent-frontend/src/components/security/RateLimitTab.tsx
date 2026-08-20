@@ -1,7 +1,9 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Activity, CheckCircle } from 'lucide-react';
+import { Activity } from 'lucide-react';
+import { IconCheckCircle } from '@/components/features/icons/PremiumIcons';
+import { EmptyState } from '@/components/primitives/empty-state';
 import type { RateLimitStatus } from './types';
 
 interface RateLimitTabProps {
@@ -25,10 +27,12 @@ export function RateLimitTab({ rateLimitData, rateLimitLive }: RateLimitTabProps
       </div>
 
       {rateLimitData.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
-          <p>{t('noRateLimits')}</p>
-        </div>
+        <EmptyState
+          variant="dashed"
+          icon={IconCheckCircle}
+          title={t('noRateLimits')}
+          className="my-4"
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">

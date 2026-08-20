@@ -458,6 +458,50 @@ class TestExtractVisionFallbackModelConfigs:
         assert len(engine.fallback_configs) == 1
         assert engine.fallback_configs[0].model == "openai/gpt-4o-mini"
 
+    def test_extract_slot_fallback_chain_ordered_and_resilient(self) -> None:
+        from app.core.channel_bridge.config_parsers import extract_slot_fallback_chain
+
+        providers_dict = {
+            "providers": [
+                {
+                    "id": "openai",
+                    "isEnabled": True,
+                    "providerType": "openai",
+                    "apiUrl": "https://api.openai.com/v1",
+                    "apiKey": "sk-1",
+                    "enabledModels": ["gpt-4o"],
+                },
+                {
+                    "id": "anthropic",
+                    "isEnabled": False,  # Disabled provider should be skipped
+                    "providerType": "anthropic",
+                    "apiKey": "sk-2",
+                    "enabledModels": ["claude-3-5-sonnet"],
+                },
+                {
+                    "id": "deepseek",
+                    "isEnabled": True,
+                    "providerType": "deepseek",
+                    "apiUrl": "https://api.deepseek.com/v1",
+                    "apiKey": "sk-3",
+                    "enabledModels": ["deepseek-chat"],
+                },
+            ],
+        }
+
+        slot = {
+            "fallbacks": [
+                {"providerId": "openai", "model": "gpt-4o"},
+                {"providerId": "anthropic", "model": "claude-3-5-sonnet"},
+                {"providerId": "deepseek", "model": "deepseek-chat"},
+            ]
+        }
+
+        configs = extract_slot_fallback_chain(slot, providers_dict)
+        assert len(configs) == 2
+        assert configs[0].model == "openai/gpt-4o"
+        assert configs[1].model == "deepseek/deepseek-chat"
+
 
 @pytest.mark.asyncio
 async def test_verify_search_config_live_skips_e2e_probe_key() -> None:

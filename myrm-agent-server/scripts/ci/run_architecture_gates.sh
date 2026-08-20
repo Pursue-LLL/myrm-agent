@@ -58,6 +58,12 @@ _run_ruff() {
   fi
 }
 
+_run_profile_capability_gate() {
+  local py="${SERVER_ROOT}/.venv/bin/python"
+  [[ -x "${py}" ]] || py="python3"
+  "${py}" "${SERVER_ROOT}/scripts/ci/check_profile_capability_escalation.py"
+}
+
 _run_prometheus_rules_semantic_check() {
   if ! command -v promtool >/dev/null 2>&1; then
     echo "ERROR: promtool is required for architecture gates (Prometheus rules semantic checks)." >&2
@@ -69,6 +75,7 @@ _run_prometheus_rules_semantic_check() {
 myrm_ci_install_server_deps --reuse-venv
 _run_fractal_docs
 _run_md_refs
+_run_profile_capability_gate
 _run_ruff
 _run_prometheus_rules_semantic_check
 _run_pytest

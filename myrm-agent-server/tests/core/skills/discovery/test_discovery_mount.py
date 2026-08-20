@@ -68,7 +68,11 @@ async def test_maybe_mount_after_install_enables_prebuilt() -> None:
             "app.services.agent.agent_service.AgentService.update_agent",
             new=AsyncMock(),
         ) as update_agent,
+        patch(
+            "app.services.event.app_event_bus.get_event_bus",
+        ) as mock_get_bus,
     ):
+        mock_bus = mock_get_bus.return_value
         result = await maybe_mount_after_install(
             install_result,
             agent_id="builtin-general",
@@ -78,6 +82,11 @@ async def test_maybe_mount_after_install_enables_prebuilt() -> None:
     ensure_enabled.assert_awaited_once_with("official-skill")
     get_agent.assert_not_called()
     update_agent.assert_not_called()
+    assert mock_bus.publish.called
+    published_event = mock_bus.publish.call_args[0][0]
+    assert published_event.event_type.value == "skill_pool_updated"
+    assert published_event.data["action"] == "install"
+    assert published_event.data["skill_id"] == "official-skill"
     assert result is not None
     assert result.mounted is True
     assert result.already_mounted is False
@@ -217,7 +226,9 @@ async def test_market_service_install_does_not_auto_enable_catalog() -> None:
 async def test_enable_after_install_included_in_empty_runtime_allowlist(
     tmp_path: Path,
 ) -> None:
-    from myrm_agent_harness.backends.skills.local_skill_id import local_skill_id_from_path
+    from myrm_agent_harness.backends.skills.local_skill_id import (
+        local_skill_id_from_path,
+    )
 
     from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
     from app.core.skills.models import UserSkillConfig

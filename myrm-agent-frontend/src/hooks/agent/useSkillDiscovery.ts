@@ -4,7 +4,7 @@
  * 封装搜索、预览和安装外部技能的逻辑。
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { ApiError } from '@/lib/api';
 import type { DiscoverySearchResult, DiscoveryPreviewResponse, DiscoveryInstallResponse } from '@/services/skill';
 import {
@@ -162,6 +162,58 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
 
   const clearPreview = useCallback(() => {
     setPreviewResult(null);
+  }, []);
+
+  useEffect(() => {
+    const handleSkillPoolUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ action?: string; skill_id?: string; uninstalled_skills?: string[] }>;
+      const detail = customEvent.detail;
+      if (!detail) {return;}
+
+      if (detail.action === 'uninstall') {
+        const uninstalled = new Set([
+          detail.skill_id,
+          ...(detail.uninstalled_skills ?? []),
+        ].filter(Boolean));
+
+        setResults((prev) =>
+          prev.map((r) => {
+            if (
+              (r.installed_skill_id && uninstalled.has(r.installed_skill_id)) ||
+              uninstalled.has(r.id) ||
+              uninstalled.has(r.name)
+            ) {
+              return {
+                ...r,
+                installed_version: null,
+                installed_skill_id: null,
+              };
+            }
+            return r;
+          }),
+        );
+      } else if (detail.action === 'install') {
+        if (detail.skill_id) {
+          setResults((prev) =>
+            prev.map((r) => {
+              if (r.id === detail.skill_id || r.name === detail.skill_id) {
+                return {
+                  ...r,
+                  installed_skill_id: detail.skill_id,
+                  installed_version: r.version || '1.0.0',
+                };
+              }
+              return r;
+            }),
+          );
+        }
+      }
+    };
+
+    window.addEventListener('skill_pool_updated', handleSkillPoolUpdated);
+    return () => {
+      window.removeEventListener('skill_pool_updated', handleSkillPoolUpdated);
+    };
   }, []);
 
   return {

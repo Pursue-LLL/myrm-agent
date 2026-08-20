@@ -65,13 +65,79 @@ class DLQDiagnostic(DiagnosticProtocol):
             )
 
 
+class ExecutionCacheDiagnostic(DiagnosticProtocol):
+    """Execution cache and memory footprint diagnostic probe."""
+
+    async def check_health(self) -> HealthReport:
+        try:
+            import os
+            from app.services.agent.execution_cache import get_execution_cache
+
+            rss_mb: float | None = None
+            try:
+                import psutil
+                process = psutil.Process(os.getpid())
+                rss_mb = round(process.memory_info().rss / (1024 * 1024), 1)
+            except Exception:
+                try:
+                    import resource
+                    # ru_maxrss is in KB on Linux, bytes on macOS
+                    usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+                    import sys
+                    scale = 1024.0 * 1024.0 if sys.platform == "darwin" else 1024.0
+                    rss_mb = round(usage / scale, 1)
+                except Exception:
+                    pass
+
+            cache = get_execution_cache()
+            idle_s = getattr(cache, "idle_seconds", 1800.0)
+            warm_units = getattr(cache, "warm_entry_count", 0)
+            reclaimed = getattr(cache, "reclaimed_count", 0)
+
+            detail_parts = [
+                f"Idle timeout: {idle_s:.0f}s" if idle_s > 0 else "Idle reclaim disabled",
+                f"Warm units: {warm_units}",
+                f"Reclaimed: {reclaimed}",
+            ]
+            if rss_mb is not None:
+                detail_parts.insert(0, f"Process RSS: {rss_mb} MB")
+
+            meta: dict[str, object] = {
+                "idle_timeout_seconds": idle_s,
+                "warm_entry_count": warm_units,
+                "reclaimed_count": reclaimed,
+            }
+            if rss_mb is not None:
+                meta["process_rss_mb"] = rss_mb
+
+            return HealthReport(
+                component_name="ExecutionCache",
+                status="pass",
+                code="OK_EXECUTION_CACHE_ACTIVE",
+                meta_data=meta,
+                message=f"Execution cache active ({rss_mb} MB RSS, {warm_units} warm units)"
+                if rss_mb is not None
+                else f"Execution cache active ({warm_units} warm units)",
+                detail=", ".join(detail_parts),
+            )
+        except Exception as e:
+            logger.warning("ExecutionCache health check failed: %s", e)
+            return HealthReport(
+                component_name="ExecutionCache",
+                status="pass",
+                code="WARN_EXECUTION_CACHE_DEGRADED",
+                message="Execution cache is running in degraded mode.",
+                detail=str(e),
+            )
+
+
 class ServerDiagnosticsManager:
     """Manages and executes all Server-level business diagnostics."""
 
     def __init__(self) -> None:
         self._probes: list[DiagnosticProtocol] = [
             DLQDiagnostic(),
-            # Future probes (e.g., Connection Pools, Token Limiters) can be added here
+            ExecutionCacheDiagnostic(),
         ]
 
     async def run_all(self) -> Sequence[HealthReport]:

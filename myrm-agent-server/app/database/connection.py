@@ -100,6 +100,29 @@ async def init_database() -> None:
         logger.error("Index creation failed: %s", e)
         raise
 
+    # Fail-closed Schema Gate: Verify database version satisfies runtime expectations
+    from app.database.migrations import MIGRATION_STATEMENTS
+    from myrm_agent_harness.utils.db.sqlite import (
+        StorageCapabilities,
+        validate_schema_gate_async,
+    )
+
+    if MIGRATION_STATEMENTS:
+        latest_expected_version = len(MIGRATION_STATEMENTS)
+        server_caps = StorageCapabilities(
+            schema_version=latest_expected_version,
+            min_compatible_version=1,
+            supports_atomic_batch=True,
+            supports_concurrent_readers=True,
+            is_persistent=True,
+        )
+        async with engine.connect() as conn:
+            raw_conn = await conn.get_raw_connection()
+            db_api_conn = raw_conn.driver_connection
+            if db_api_conn is not None and hasattr(db_api_conn, "execute"):
+                # Under aiosqlite / sqlite3 driver
+                await validate_schema_gate_async(db_api_conn, server_caps)
+
 
 __all__ = [
     "get_database_engine",

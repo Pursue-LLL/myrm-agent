@@ -14,7 +14,7 @@ agent 事件 SSOT 为 harness JSONL event-log（`FileEventLogBackend`），云�
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `app_event_bus.py` | ✅ 核心 | AppEventType / AppEvent / ServerEventBus / get_event_bus 单例（含 `WORKSPACE_FILE_CHANGED`、`RUN_DIGEST_UPDATED`） | ✅ |
+| `app_event_bus.py` | ✅ 核心 | AppEventType / AppEvent / ServerEventBus / get_event_bus 单例（含 `WORKSPACE_FILE_CHANGED`、`RUN_DIGEST_UPDATED`、`SKILL_POOL_UPDATED`） | ✅ |
 
 ---
 

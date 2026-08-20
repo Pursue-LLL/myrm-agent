@@ -1,4 +1,15 @@
 {
+  "emptyState": {
+    "defaultTitle": "No Data",
+    "defaultDescription": "This list is currently empty or no items have been generated yet",
+    "noSearchResult": "No Matches Found",
+    "noSearchResultDesc": "Try adjusting your search query or clearing the active filters",
+    "clearFilter": "Clear Filters",
+    "retry": "Retry",
+    "refresh": "Refresh",
+    "loadFailed": "Failed to Load",
+    "loadFailedDesc": "Please check your network connection or try again later"
+  },
   "Goal": {
     "branchSwitchedStashed": "Switched to branch {branch}. Active goal stashed.",
     "branchSwitchedRestored": "Switched to branch {branch}. Goal restored.",
@@ -4793,6 +4804,12 @@
         "appshotPrivacyBlacklistDesc": "Apps in this list will be blocked from screen capture to protect sensitive data",
         "appshotAddAppPlaceholder": "Enter app name...",
         "appshotAddApp": "Add",
+        "idleReclaim": "Idle Heavy Resource Reclaim",
+        "idleReclaimDesc": "Automatically release background browser instances and execution caches after inactivity to save memory",
+        "idleReclaim15m": "15 minutes",
+        "idleReclaim30m": "30 minutes (Recommended)",
+        "idleReclaim1h": "1 hour",
+        "idleReclaimNever": "Never",
         "enableWebUI": "Enable WebUI Mode",
         "enableWebUIDesc": "Access the app via browser on local network",
         "enableRemote": "Enable Remote Access",
@@ -6423,7 +6440,13 @@
       "expand": "Expand configuration panel",
       "tooltipLine1": "Configure capabilities or use saved agents",
       "tooltipLine2": "Unleash your creativity to build powerful AI agents!",
-      "welcomeMessage": "Configure capabilities for your intelligent agent or use saved agents. Unleash your creativity to build powerful AI agents!"
+      "welcomeMessage": "Configure capabilities for your intelligent agent or use saved agents. Unleash your creativity to build powerful AI agents!",
+      "switchAgent": "Switch Agent",
+      "builtinPresets": "Built-in Presets",
+      "customAgents": "My Agents",
+      "openConfigPanel": "Detailed Configuration...",
+      "manageAgents": "Manage Agents Hub...",
+      "switchSuccess": "Agent switched"
     },
     "readiness": {
       "warning": "Some configurations need attention",
@@ -14737,10 +14760,60 @@
     },
     "tabs": {
       "overview": "Overview",
+      "timeline": "Learning Timeline",
       "evolution": "Evolution Digest",
       "graph": "Knowledge Graph",
       "trends": "Skill Trends",
       "daily": "Daily Review"
+    },
+    "learningTimeline": {
+      "title": "Learning & Evolution Stream",
+      "description": "Unified chronological stream of factual, preference, procedural memories and skill evolution records with inline governance.",
+      "filterAll": "All Streams",
+      "filterMemories": "Memories Only",
+      "filterSkills": "Skills Only",
+      "filterFact": "Facts",
+      "filterPreference": "Preferences",
+      "filterProcedural": "Procedures",
+      "filterEpisodic": "Episodic",
+      "filterEvolution": "Evolutions",
+      "filterDraft": "Skill Drafts",
+      "days7": "Last 7 Days",
+      "days30": "Last 30 Days",
+      "days90": "Last 90 Days",
+      "editMemory": "Edit Memory",
+      "archiveSkill": "Archive Skill",
+      "unarchiveSkill": "Restore Skill",
+      "deleteMemory": "Delete Memory",
+      "deleteConfirm": "Are you sure you want to delete this memory permanently?",
+      "archiveConfirm": "Are you sure you want to archive this skill? It will be disabled from tool routing.",
+      "unarchiveConfirm": "Restore and re-enable this skill?",
+      "contentLabel": "Content / Rule",
+      "reasoningLabel": "Reasoning & Context",
+      "importanceLabel": "Importance Level",
+      "userLockedBadge": "User Curated (Model Locked)",
+      "agentOrigin": "Agent: {agent}",
+      "confidenceLabel": "Confidence",
+      "saveChanges": "Save Changes",
+      "cancel": "Cancel",
+      "loading": "Loading learning timeline...",
+      "loadMore": "Load More Nodes",
+      "noMore": "All nodes loaded",
+      "empty": {
+        "title": "No Learning Footprints Yet",
+        "description": "As the agent interacts, learns facts, preferences, and evolves skills, they will appear chronologically here with full governance."
+      },
+      "stats": {
+        "totalNodes": "{count} total nodes",
+        "userEditedCount": "{count} curated"
+      },
+      "toast": {
+        "updateSuccess": "Memory updated successfully",
+        "deleteSuccess": "Memory deleted",
+        "archiveSuccess": "Skill archived successfully",
+        "unarchiveSuccess": "Skill restored successfully",
+        "actionFailed": "Action failed: {error}"
+      }
     },
     "knowledgeGraph": {
       "title": "Knowledge Graph",

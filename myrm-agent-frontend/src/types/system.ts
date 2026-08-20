@@ -46,6 +46,9 @@ export interface SystemConfig {
 
   /** 自定义数据存储目录（为 undefined 时 Server 使用默认 ~/.myrm） */
   customDataDir?: string;
+
+  /** 会话空闲重资源回收超时时间（秒，0 表示禁用） */
+  idleReclaimTimeoutSeconds?: number;
 }
 
 /** 默认系统配置 */
@@ -63,6 +66,7 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   appshotExcludedApps: ['微信', 'WeChat', '1Password', 'Bitwarden', 'KeePassXC', 'LastPass'],
   lockedUseEnabled: false,
   voicePttShortcut: 'CommandOrControl+Shift+V',
+  idleReclaimTimeoutSeconds: 1800,
 };
 
 /** 当前运行模式 */

@@ -23,7 +23,9 @@ use uuid::Uuid;
 
 use crate::runtime::port::is_port_in_use;
 use crate::runtime::setup_token::SetupTokenState;
+use crate::runtime::survivor_diag::{diagnose_and_reclaim_port, SurvivorDiagResult};
 use crate::runtime::TOXIC_ENV_VARS;
+use crate::utils::process_tree::kill_process_tree;
 
 const BACKEND_HEALTH_POLL_INTERVAL: Duration = Duration::from_millis(500);
 const BACKEND_HEALTH_MAX_ATTEMPTS: u32 = 60;
@@ -69,10 +71,26 @@ pub async fn start_backend_with_config(
     }
 
     if is_port_in_use(&config.host, config.port) {
-        return Err(format!(
-            "Port {}:{} is already in use. Please close the conflicting process or change the port in settings.",
-            config.host, config.port
-        ));
+        println!("⚠️  Port {}:{} in use, diagnosing potential survivor processes...", config.host, config.port);
+        match diagnose_and_reclaim_port(&config.host, config.port).await {
+            SurvivorDiagResult::SelfSurvivorReclaimed { pid, process_name } => {
+                println!("✅ Self survivor {} (PID: {}) reclaimed, proceeding with startup", process_name, pid);
+            }
+            SurvivorDiagResult::ForeignConflict { pid, process_name } => {
+                return Err(format!(
+                    "Port {}:{} is in use by foreign process {} (PID: {}). Please close it or change port in settings.",
+                    config.host, config.port, process_name, pid
+                ));
+            }
+            SurvivorDiagResult::UnknownConflict | SurvivorDiagResult::Clean => {
+                if is_port_in_use(&config.host, config.port) {
+                    return Err(format!(
+                        "Port {}:{} is already in use. Please close the conflicting process or change the port in settings.",
+                        config.host, config.port
+                    ));
+                }
+            }
+        }
     }
 
     let is_dev = cfg!(debug_assertions);
@@ -252,9 +270,11 @@ pub fn stop_backend(backend: State<'_, PythonBackend>) -> Result<String, String>
     let mut process_guard = backend.process.lock().unwrap();
 
     if let Some(mut child) = process_guard.take() {
+        let pid = child.id();
+        kill_process_tree(pid);
         match child.kill() {
             Ok(_) => {
-                println!("Backend process killed");
+                println!("Backend process tree killed (root PID: {})", pid);
                 Ok("Backend stopped successfully".to_string())
             }
             Err(e) => Err(format!("Failed to stop backend: {}", e)),

@@ -160,6 +160,10 @@ export interface File {
   localPath?: string; // Tauri 模式：本地绝对路径
   fileType: 'uploaded' | 'local_path';
   contentHash?: string; // SHA-256 内容哈希，用于同会话去重
+  status?: 'uploading' | 'ready' | 'error'; // 媒体上传状态（延迟处理流水线）
+  previewUrl?: string; // 乐观本地预览 URL (URL.createObjectURL)
+  uploadPercent?: number; // 上传进度百分比 (0~100)
+  tempId?: string; // 临时客户端唯一标识
 }
 
 export interface ClarificationOption {

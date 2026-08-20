@@ -12,6 +12,8 @@ import {
 } from '@/components/features/icons/PremiumIcons';
 import SettingsSection from '../SettingsSection';
 import { Button } from '@/components/primitives/button';
+import { EmptyState } from '@/components/primitives/empty-state';
+import { CardGridSkeleton } from '@/components/primitives/skeleton-templates';
 import { getToolStability, type ToolStabilityAnalytics } from '@/services/statistics';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -140,11 +142,7 @@ export default function ToolStabilitySection() {
         )}
 
         {loading && !data && !error && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-24 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
-            ))}
-          </div>
+          <CardGridSkeleton count={5} columns={3} className="my-2" />
         )}
 
         {data && (
@@ -181,9 +179,13 @@ export default function ToolStabilitySection() {
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-foreground">{t('tableTitle')}</h3>
               {tableRows.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-6 text-center border border-dashed border-border/60 rounded-xl">
-                  {t('noData')}
-                </p>
+                <EmptyState
+                  variant="dashed"
+                  icon={IconActivity}
+                  title={t('noData')}
+                  description={t('description')}
+                  className="my-2"
+                />
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-border/50 bg-background/40">
                   <table className="w-full min-w-[640px] text-sm text-left">

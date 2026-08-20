@@ -12,7 +12,7 @@
 | `ClarificationInput.tsx` | 组件 | 结构化澄清表单（多题/多选/开放题）；选项提交 `option.id`，展示 `label`；resume 与 legacy clarify API 双路径 | ✅ |
 | `ConsensusMetaDisplay.tsx` | 组件 | MoA 元数据摘要 tooltip（模型数/聚合器/耗时） | ✅ |
 | `ConsensusThinkingPanel.tsx` | 组件 | MoA 多模型思考面板：渐进式展示每个参考模型的状态、耗时、输出摘要（可折叠/展开） | ✅ |
-| `DirectoryApprovalInput.tsx` | 组件 | `request_directory_tool` HITL 卡片：路径输入 + Tauri 原生 picker / Web `DirectoryBrowsePopover` + grant/deny resume；grant 后 `refreshSessionAccessRoots`（optimistic） | ✅ |
+| `DirectoryApprovalInput.tsx` | 组件 | 目录授权与动态提权卡片：路径输入 + Tauri 原生 picker / Web `DirectoryBrowsePopover` + grant/deny resume；grant 后 `refreshSessionAccessRoots`（optimistic） | ✅ |
 | `DirectoryBrowsePopover.tsx` | 组件 | Web/Local 目录浏览 Popover（server `browseDirectories` API）；最近路径 localStorage；供 directory grant 与 workspace 绑定复用同一 browse 模式 | ✅ |
 | `ContextUsageIndicator.tsx` | 组件 | Token 用量环 + 策略状态点 + MiniPanel（压缩/focus/Pin CRUD/Fork 新话题） | ✅ |
 | `CronJobSystemCard.tsx` | 组件 | Cron 系统消息卡片（创建/更新摘要 + 内嵌 CronJobAuditPanel） | ✅ |

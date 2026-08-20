@@ -610,3 +610,45 @@ async def test_install_reports_allowlist_append_error_when_update_fails(
     assert body["mounted"] is True
     assert body["allowlist_appended"] is False
     assert body["allowlist_append_error"]
+
+
+@pytest.mark.asyncio
+async def test_uninstall_triggers_event_bus_broadcast(
+    discovery_client: TestClient,
+    storage: LocalStorageBackend,
+) -> None:
+    from unittest.mock import MagicMock
+    from app.services.event.app_event_bus import get_event_bus
+
+    uninstall_result = SkillInstallResult(
+        success=True,
+        skill_name="test-skill",
+        skill_id="local::test-skill",
+        installed_skills=["test-skill"],
+    )
+
+    mock_bus = MagicMock()
+    with (
+        patch.object(
+            market_service._base,
+            "uninstall",
+            new=AsyncMock(return_value=uninstall_result),
+        ),
+        patch(
+            "app.services.event.app_event_bus.get_event_bus",
+            return_value=mock_bus,
+        ),
+        patch("app.api.skills.discovery._audit_skill_action"),
+    ):
+        response = discovery_client.post(
+            "/api/v1/skills/discovery/uninstall",
+            json={"skill_id": "local::test-skill", "force": True},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert mock_bus.publish.called
+    event = mock_bus.publish.call_args[0][0]
+    assert event.event_type.value == "skill_pool_updated"
+    assert event.data["action"] == "uninstall"
+    assert event.data["skill_id"] == "local::test-skill"

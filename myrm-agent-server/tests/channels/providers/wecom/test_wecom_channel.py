@@ -487,18 +487,9 @@ class TestWeComSend:
                 await ch.send(msg)
 
     @pytest.mark.asyncio
-    async def test_send_placeholder(self) -> None:
+    async def test_send_placeholder_disabled_for_self_built(self) -> None:
         ch = _make_channel()
-        send_resp = _ok_json()
-        with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=send_resp):
-            result = await ch.send_placeholder("user1", "Thinking...")
-        assert result == "sent"
-
-    @pytest.mark.asyncio
-    async def test_send_placeholder_failure(self) -> None:
-        ch = _make_channel()
-        with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=_err_json(400)):
-            result = await ch.send_placeholder("user1", "Thinking...")
+        result = await ch.send_placeholder("user1", "Thinking...")
         assert result is None
 
 

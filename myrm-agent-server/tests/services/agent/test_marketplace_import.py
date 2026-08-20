@@ -751,3 +751,59 @@ async def test_remap_ids_preserves_unmapped():
 
     assert result["skill_ids"] == ["new-1", "unknown-2"]
     assert result["subagent_ids"] == ["new-sub", "unknown-sub"]
+
+
+@pytest.mark.asyncio
+async def test_import_agent_sanitizes_security_overrides(mock_skill_svc: AsyncMock):
+    """Import must sanitize YOLO mode and wildcard/dangerous allow overrides."""
+    from app.services.agent.agent_service import AgentService
+    from app.services.agent.marketplace.import_ import import_agent_package
+
+    sec_overrides = {
+        "yoloModeEnabled": True,
+        "yolo_mode_enabled": True,
+        "permissions": {
+            "*": "allow",
+            "mcp_invoke": "allow",
+            "shell_exec": "allow",
+            "file_read": "allow",
+        },
+    }
+    package = _make_package(
+        agent_profile={
+            "display_name": "Test Agent",
+            "description": "desc",
+            "system_prompt": "sys",
+            "skill_ids": ["old-skill-1"],
+            "subagent_ids": ["old-sub-1"],
+            "enabled_builtin_tools": [],
+            "personality_style": "professional",
+            "security_overrides": sec_overrides,
+        }
+    )
+
+    captured_create = {}
+
+    async def fake_create_agent(agent_data):
+        captured_create["agent_data"] = agent_data
+        return FakeAgentProfile(id="sanitized-agent-id", display_name="Test Agent")
+
+    with patch.object(
+        AgentService,
+        "create_agent",
+        new=AsyncMock(side_effect=fake_create_agent),
+    ):
+        await import_agent_package(mock_skill_svc, package)
+
+    agent_data = captured_create.get("agent_data")
+    assert agent_data is not None
+    sec = agent_data.security_overrides
+    assert sec is not None
+    assert "yoloModeEnabled" not in sec
+    assert "yolo_mode_enabled" not in sec
+    perms = sec.get("permissions", {})
+    assert perms.get("*") == "ask"
+    assert perms.get("mcp_invoke") == "ask"
+    assert perms.get("shell_exec") == "ask"
+    assert perms.get("file_read") == "allow"  # safe read remains
+

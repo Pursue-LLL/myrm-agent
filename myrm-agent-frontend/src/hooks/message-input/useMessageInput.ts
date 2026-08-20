@@ -410,6 +410,25 @@ export const useMessageInput = () => {
       }
     }
 
+    // 提交排队安全门禁：等待处于 uploading 状态的媒体就绪 (最长等待 30 秒)
+    const currentStoreFiles = useChatStore.getState().files;
+    const pendingUploads = currentStoreFiles.filter((f) => f.status === 'uploading');
+    if (pendingUploads.length > 0) {
+      const start = Date.now();
+      while (Date.now() - start < 30000) {
+        const checkFiles = useChatStore.getState().files;
+        const stillUploading = checkFiles.some((f) => f.status === 'uploading');
+        if (!stillUploading) {break;}
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      const finalFiles = useChatStore.getState().files;
+      const failed = finalFiles.some((f) => f.status === 'error');
+      if (failed) {
+        toast.error(t('uploadError') || 'Upload failed');
+        return false;
+      }
+    }
+
     const { actionMode } = useChatStore.getState();
 
     const quota = await validateMessageQuota(inputMessage.trim().length, files.length > 0, actionMode);
@@ -417,7 +436,7 @@ export const useMessageInput = () => {
       return false;
     }
     return true;
-  }, [inputMessage, files, actionMode, validateMessageQuota]);
+  }, [inputMessage, files, actionMode, validateMessageQuota, t]);
 
   // 获取并清理脏状态的 Artifacts，用于注入到消息中
   const _injectDirtyArtifacts = useCallback((message: string): string => {
@@ -535,7 +554,8 @@ export const useMessageInput = () => {
         recordTurnSelectionSubmitted('queue_submit', effectiveTurnSelection);
         recordTurnQueueEnqueued('queue_submit', effectiveTurnSelection);
       }
-      enqueue(injectedText, files, archiveRestoreActions, effectiveTurnSelection);
+      const latestFiles = useChatStore.getState().files;
+      enqueue(injectedText, latestFiles, archiveRestoreActions, effectiveTurnSelection);
       toast.info(t('queue.added'));
     },
     [
@@ -654,7 +674,8 @@ export const useMessageInput = () => {
       })
       .catch((error) => {
         if (error && error.name === 'AgentBusyError') {
-          enqueue(finalMessage, files, archiveRestoreActions, currentTurnSelection);
+          const latestFiles = useChatStore.getState().files;
+          enqueue(finalMessage, latestFiles, archiveRestoreActions, currentTurnSelection);
           if (currentTurnSelection) {
             recordTurnCapabilityBusyRequeued('direct', turnCapabilityContextKey);
             recordTurnQueueEnqueued('busy_requeue', currentTurnSelection);

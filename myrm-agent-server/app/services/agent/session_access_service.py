@@ -195,8 +195,6 @@ def is_directory_grant_allowed_for_deployment(
     """Gate directory grants by deployment mode (cloud volume vs local desktop)."""
     from myrm_agent_harness.agent.security.path_security import is_dangerous_path
 
-    if sandbox_active:
-        return False
     if is_dangerous_path(grant_path):
         return False
     if not _is_cloud_volume_deployment():

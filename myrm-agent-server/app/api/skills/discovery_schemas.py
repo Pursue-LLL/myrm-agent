@@ -157,3 +157,15 @@ class CustomSourceProbeResponse(BaseModel):
     reachable: bool
     skill_count: int
     url: str
+
+
+class SkillPoolSyncRequest(BaseModel):
+    skill_id: str
+    target_agent_ids: list[str]
+
+
+class SkillPoolSyncResponse(BaseModel):
+    success: bool
+    skill_id: str
+    synced_agents: list[str]
+    failed_agents: list[str] = []

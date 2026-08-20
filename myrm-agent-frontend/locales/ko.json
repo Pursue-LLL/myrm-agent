@@ -1,4 +1,15 @@
 {
+  "emptyState": {
+    "defaultTitle": "데이터 없음",
+    "defaultDescription": "현재 목록이 비어 있거나 아직 생성된 콘텐츠가 없습니다",
+    "noSearchResult": "일치하는 항목 없음",
+    "noSearchResultDesc": "검색어를 조정하거나 필터를 초기화해 보세요",
+    "clearFilter": "필터 초기화",
+    "retry": "다시 시도",
+    "refresh": "새로고침",
+    "loadFailed": "데이터 로드 실패",
+    "loadFailedDesc": "네트워크 연결을 확인하거나 잠시 후 다시 시도해 주세요"
+  },
   "commands": {
     "palette": {
       "noCommands": "아직 명령이 없습니다",
@@ -3632,6 +3643,12 @@
         "appshotPrivacyBlacklistDesc": "이 목록의 앱은 민감 데이터를 보호하기 위해 화면 캡처에서 차단됩니다",
         "appshotAddAppPlaceholder": "앱 이름 입력...",
         "appshotAddApp": "추가",
+        "idleReclaim": "유휴 무거운 리소스 자동 회수",
+        "idleReclaimDesc": "비활성 상태가 지속되면 백그라운드 브라우저와 캐시를 자동 해제하여 메모리를 절약합니다",
+        "idleReclaim15m": "15분",
+        "idleReclaim30m": "30분 (권장)",
+        "idleReclaim1h": "1시간",
+        "idleReclaimNever": "해제 안 함",
         "enableRemoteWebDevHint": "기본 설정이 저장되었습니다. bun run dev:lan 으로 프런트엔드를 시작하고 설정을 저장하면 휴대폰에서 LAN URL을 사용할 수 있습니다.",
         "webuiPort": "WebUI 포트 (Next.js)",
         "webuiPortDesc": "사용자가 브라우저에서 여는 기본 포트",
@@ -6145,7 +6162,13 @@
       "expand": "구성 패널 펼치기",
       "tooltipLine1": "역량을 구성하거나 저장된 에이전트를 사용하세요",
       "tooltipLine2": "창의력을 발휘해 강력한 AI 에이전트를 만들어 보세요!",
-      "welcomeMessage": "지능형 에이전트의 역량을 구성하거나 저장된 에이전트를 사용하세요. 창의력을 발휘해 강력한 AI 에이전트를 만들어 보세요!"
+      "welcomeMessage": "지능형 에이전트의 역량을 구성하거나 저장된 에이전트를 사용하세요. 창의력을 발휘해 강력한 AI 에이전트를 만들어 보세요!",
+      "switchAgent": "에이전트 전환",
+      "builtinPresets": "사전 설정",
+      "customAgents": "내 에이전트",
+      "openConfigPanel": "상세 구성 및 미세 조정...",
+      "manageAgents": "에이전트 관리 허브...",
+      "switchSuccess": "에이전트가 전환되었습니다"
     },
     "list": "에이전트 목록",
     "create": "에이전트 생성",

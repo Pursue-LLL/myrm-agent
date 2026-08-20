@@ -170,6 +170,25 @@ _BENCHMARK_PAIRS: list[_BenchmarkPair] = [
         memory_type=MemoryType.SEMANTIC,
         language="zh",
     ),
+    # -------------------------------------------------------------------------
+    # Long-document Head vs Tail penetration probes (Citadel-aligned verification)
+    # -------------------------------------------------------------------------
+    _BenchmarkPair(
+        case_id="longdoc_head_zh",
+        category="longdoc_penetration",
+        content="diagnostic benchmark {run_id} 知识库总纲：2026微服务治理体系核心设计原则包含可观测性与服务网格",
+        query="2026微服务治理体系 核心设计原则 总纲 {run_id}",
+        memory_type=MemoryType.SEMANTIC,
+        language="zh",
+    ),
+    _BenchmarkPair(
+        case_id="longdoc_tail_zh",
+        category="longdoc_penetration",
+        content="diagnostic benchmark {run_id} 知识库深层规范附录D：跨机房订单分表强制采用 user_id % 128 路由算法，禁止自增全局锁",
+        query="跨机房订单分表 路由算法 附录D {run_id}",
+        memory_type=MemoryType.SEMANTIC,
+        language="zh",
+    ),
 ]
 
 
@@ -250,6 +269,7 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
                 f"Golden recall benchmark: {summary.passed_count}/{summary.case_count} cases passed; "
                 f"recall@5={summary.recall_at_k:.2f}, ndcg@5={summary.ndcg_at_k:.2f}, "
                 f"mrr={summary.mrr_score:.2f}, precision@5={summary.precision_at_k:.2f}, "
+                f"duplicate_rate={summary.duplicate_rate:.2f}, distinct_sources={summary.distinct_source_ratio:.2f}, "
                 f"latency_p50={summary.latency_p50_ms:.0f}ms, latency_p95={summary.latency_p95_ms:.0f}ms. "
                 f"Categories: {categories_hit}."
             )
@@ -259,7 +279,7 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
                 label="Golden recall benchmark",
                 status=summary.status,
                 evidence=evidence,
-                impact="Synthetic recall checks verify that memory write-then-retrieve works across 8 categories and 2 languages.",
+                impact="Synthetic recall checks verify that memory write-then-retrieve works across 9 categories, long-doc penetration, and 2 languages.",
                 next_action="No action required."
                 if summary.status == "ready"
                 else "Review retrieval trace, vector index, and embedding configuration, then rerun diagnostics.",
@@ -272,6 +292,8 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
                     ndcg_at_k=summary.ndcg_at_k,
                     mrr_score=summary.mrr_score,
                     precision_at_k=summary.precision_at_k,
+                    duplicate_rate=summary.duplicate_rate,
+                    distinct_source_ratio=summary.distinct_source_ratio,
                     latency_p50_ms=summary.latency_p50_ms,
                     latency_p95_ms=summary.latency_p95_ms,
                     top_k=5,
@@ -344,16 +366,24 @@ async def _run_case(
     matching_ranks = [idx + 1 for idx, memory_id in enumerate(hit_ids) if memory_id in case.expected_memory_ids]
     best_rank = min(matching_ranks) if matching_ranks else None
     score = 1.0 / best_rank if best_rank else 0.0
+
+    # Calculate distinct sources and collapse statistics
+    distinct_sources = len({getattr(r, "id", None) or getattr(r, "source_path", None) for r in results})
+    duplicate_count = max(0, len(results) - distinct_sources)
+
     return MemoryRecallBenchmarkResult(
         case_id=case.id,
         category=category,
         expected_found=best_rank is not None,
         best_rank=best_rank,
+        effective_rank=best_rank,
         top_k=case.top_k,
         hit_count=len(results),
+        distinct_source_count=distinct_sources,
+        duplicate_chunk_count=duplicate_count,
         score=round(score, 4),
         latency_ms=latency_ms,
-        evidence=f"case={case.id}; hit_count={len(results)}; best_rank={best_rank or 0}; latency={latency_ms}ms.",
+        evidence=f"case={case.id}; hit_count={len(results)}; best_rank={best_rank or 0}; distinct={distinct_sources}; latency={latency_ms}ms.",
     )
 
 

@@ -25,6 +25,7 @@
 | `auth.rs` | 核心 | macOS 提权修复隔离属性 | — |
 | `quarantine.rs` | 核心 | com.apple.quarantine 扫描与静默修复 | — |
 | `updater_safety.rs` | 核心 | 启动期 OTA pubkey 占位符强校验 | ✅ |
+| `process_tree.rs` | 核心 | 跨平台进程树递归销毁与 Windows Job Object 管理 | ✅ |
 
 ## 依赖
 

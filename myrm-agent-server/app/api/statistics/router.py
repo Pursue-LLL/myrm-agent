@@ -11,6 +11,7 @@ from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLo
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.statistics.learning_timeline import router as learning_timeline_router
 from app.api.statistics.rate_limits import router as rate_limits_router
 from app.api.statistics.session_analytics import router as session_router
 from app.api.statistics.session_model_sessions import router as model_sessions_router
@@ -34,6 +35,7 @@ router.include_router(session_router)
 router.include_router(session_trace_router)
 router.include_router(model_sessions_router)
 router.include_router(rate_limits_router)
+router.include_router(learning_timeline_router)
 logger = logging.getLogger(__name__)
 
 

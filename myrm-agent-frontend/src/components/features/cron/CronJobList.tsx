@@ -7,6 +7,8 @@ import { Search, Timer, RefreshCw, Plus, Sparkles } from 'lucide-react';
 import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { Skeleton } from '@/components/primitives/skeleton';
+import { EmptyState as StandardEmptyState } from '@/components/primitives/empty-state';
+import { ListSkeleton } from '@/components/primitives/skeleton-templates';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { toast } from 'sonner';
 import useCronStore from '@/store/useCronStore';
@@ -27,20 +29,7 @@ interface CronJobListProps {
 }
 
 function JobListSkeleton() {
-  return (
-    <div className="space-y-2">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="flex items-start gap-3 rounded-lg border px-3 py-2.5">
-          <Skeleton className="h-4 w-4 mt-0.5 rounded" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-3 w-2/3" />
-            <Skeleton className="h-3 w-1/4" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  return <ListSkeleton count={3} />;
 }
 
 function EmptyState({ t, onSelectBlueprint }: { t: (key: string) => string; onSelectBlueprint: (bp: CronBlueprint) => void }) {

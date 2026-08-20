@@ -680,3 +680,96 @@ export async function regenerateDailyWrap(date: string): Promise<DailyWrapData> 
     method: 'POST',
   });
 }
+
+// ── Learning Timeline (Unified Memory + Skill Stream) ───────────────
+
+export type TimelineNodeKind =
+  | 'fact_memory'
+  | 'preference_memory'
+  | 'procedural_memory'
+  | 'episodic_memory'
+  | 'skill_evolution'
+  | 'skill_draft';
+
+export interface LearningTimelineItem {
+  id: string;
+  kind: TimelineNodeKind;
+  title: string;
+  content: string;
+  created_at: string;
+  agent_id: string | null;
+  confidence: number;
+  importance: number;
+  is_user_edited: boolean;
+  source_chat_id: string | null;
+  status: string;
+  metadata: Record<string, string | number | boolean>;
+}
+
+export interface LearningTimelineResponse {
+  items: LearningTimelineItem[];
+  total_count: number;
+  has_more: boolean;
+  next_cursor: string | null;
+}
+
+export interface TimelineMemoryUpdateRequest {
+  content?: string;
+  importance?: number;
+  reasoning?: string;
+  application?: string;
+  tags?: string[];
+}
+
+export interface TimelineSkillArchiveResponse {
+  skill_id: string;
+  is_active: boolean;
+  message: string;
+}
+
+export async function getLearningTimeline(params?: {
+  days?: number;
+  agent_id?: string;
+  kind_filter?: string;
+  limit?: number;
+  cursor?: string;
+}): Promise<LearningTimelineResponse> {
+  const query = new URLSearchParams();
+  if (params?.days) {query.set('days', String(params.days));}
+  if (params?.agent_id) {query.set('agent_id', params.agent_id);}
+  if (params?.kind_filter) {query.set('kind_filter', params.kind_filter);}
+  if (params?.limit) {query.set('limit', String(params.limit));}
+  if (params?.cursor) {query.set('cursor', params.cursor);}
+  const qs = query.toString();
+  return apiRequest<LearningTimelineResponse>(`/statistics/learning-timeline${qs ? `?${qs}` : ''}`);
+}
+
+export async function updateTimelineMemory(
+  memoryType: string,
+  memoryId: string,
+  body: TimelineMemoryUpdateRequest,
+): Promise<unknown> {
+  return apiRequest(`/statistics/learning-timeline/memory/${encodeURIComponent(memoryType)}/${encodeURIComponent(memoryId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteTimelineMemory(memoryId: string, memoryType: string): Promise<{ deleted: boolean; memory_id: string }> {
+  return apiRequest<{ deleted: boolean; memory_id: string }>(
+    `/statistics/learning-timeline/memory/${encodeURIComponent(memoryId)}?memory_type=${encodeURIComponent(memoryType)}`,
+    {
+      method: 'DELETE',
+    },
+  );
+}
+
+export async function archiveTimelineSkill(skillId: string, active = false): Promise<TimelineSkillArchiveResponse> {
+  return apiRequest<TimelineSkillArchiveResponse>(
+    `/statistics/learning-timeline/skill/${encodeURIComponent(skillId)}/archive?active=${active}`,
+    {
+      method: 'POST',
+    },
+  );
+}
+

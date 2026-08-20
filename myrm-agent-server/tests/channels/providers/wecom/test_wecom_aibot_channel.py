@@ -464,6 +464,42 @@ class TestPlaceholderStreaming:
         assert "Final answer" in sent_data["body"]["stream"]["content"]
         assert "sid_2" not in ch._active_streams
 
+    @pytest.mark.asyncio
+    async def test_edit_placeholder_message_overflow_chunks(self) -> None:
+        ch = _make_channel()
+        mock_ws = AsyncMock()
+        ch._ws = mock_ws
+        ch._active_streams["sid_overflow"] = WeComStreamState(
+            stream_id="sid_overflow", chat_id="chat1", req_id="req_overflow"
+        )
+
+        # Mock render to return multiple chunks
+        from unittest.mock import patch
+        with patch("app.channels.providers.wecom.aibot_channel.render", return_value=["Chunk 1", "Chunk 2", "Chunk 3"]):
+            msg = OutboundMessage(
+                channel="wecom_aibot",
+                recipient_id="chat1",
+                content="Long text",
+                user_id="u1",
+            )
+            await ch.edit_placeholder_message("chat1", "sid_overflow", msg)
+
+        # First chunk should finish stream via aibot_respond_msg
+        # Remaining chunks should be sent proactively via aibot_send_msg
+        assert mock_ws.send.call_count == 3
+        first_call = json.loads(mock_ws.send.call_args_list[0][0][0])
+        assert first_call["cmd"] == "aibot_respond_msg"
+        assert first_call["body"]["stream"]["content"] == "Chunk 1"
+        assert first_call["body"]["stream"]["finish"] is True
+
+        second_call = json.loads(mock_ws.send.call_args_list[1][0][0])
+        assert second_call["cmd"] == "aibot_send_msg"
+        assert second_call["body"]["text"]["content"] == "Chunk 2"
+
+        third_call = json.loads(mock_ws.send.call_args_list[2][0][0])
+        assert third_call["cmd"] == "aibot_send_msg"
+        assert third_call["body"]["text"]["content"] == "Chunk 3"
+
 
 # ── Frame Dispatch ────────────────────────────────────────────
 

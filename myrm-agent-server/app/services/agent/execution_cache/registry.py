@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import gc
 import logging
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -24,11 +25,12 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import TypeAlias
 
+from app.config.settings import settings
 from app.services.agent.execution_cache.types import BuiltExecutionUnit
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_IDLE_SECONDS = 600.0
+_DEFAULT_IDLE_SECONDS = 1800.0
 _IDLE_REAPER_MAX_INTERVAL_SECONDS = 60.0
 
 BuildUnitFn: TypeAlias = Callable[[], Awaitable[BuiltExecutionUnit]]
@@ -44,14 +46,37 @@ class _CacheEntry:
 class ChatAgentExecutionCache:
     """Keeps one BuiltExecutionUnit per chat scope while the conversation stays active."""
 
-    def __init__(self, *, idle_seconds: float = _DEFAULT_IDLE_SECONDS) -> None:
-        self._idle_seconds = idle_seconds
+    def __init__(self, *, idle_seconds: float | None = None) -> None:
+        self._idle_seconds = (
+            idle_seconds
+            if idle_seconds is not None
+            else getattr(
+                getattr(settings, "execution_cache", None),
+                "idle_reclaim_timeout_seconds",
+                _DEFAULT_IDLE_SECONDS,
+            )
+        )
         self._entries: dict[str, _CacheEntry] = {}
         self._turn_locks: dict[str, asyncio.Lock] = {}
         self._lock = asyncio.Lock()
         self._idle_reaper_task: asyncio.Task[None] | None = None
+        self._reclaimed_count = 0
+
+    @property
+    def idle_seconds(self) -> float:
+        return self._idle_seconds
+
+    @property
+    def warm_entry_count(self) -> int:
+        return len(self._entries)
+
+    @property
+    def reclaimed_count(self) -> int:
+        return self._reclaimed_count
 
     def _ensure_idle_reaper(self) -> None:
+        if self._idle_seconds <= 0:
+            return
         if self._idle_reaper_task is not None and not self._idle_reaper_task.done():
             return
         self._idle_reaper_task = asyncio.create_task(
@@ -192,8 +217,10 @@ class ChatAgentExecutionCache:
                 await reaper
 
     async def _evict_idle_unlocked(self) -> None:
+        if self._idle_seconds <= 0:
+            return
         now = time.monotonic()
-        stale = [
+        stale_keys = [
             scope_key
             for scope_key, entry in self._entries.items()
             if now - entry.last_used > self._idle_seconds
@@ -202,11 +229,34 @@ class ChatAgentExecutionCache:
                 and turn_lock.locked()
             )
         ]
-        for scope_key in stale:
-            entry = self._entries.pop(scope_key)
-            self._turn_locks.pop(scope_key, None)
-            await entry.unit.teardown()
-            logger.info("execution_cache_evicted_idle scope=%s idle_s=%.0f", scope_key, self._idle_seconds)
+        evicted_entries: list[tuple[str, _CacheEntry]] = []
+        for scope_key in stale_keys:
+            entry = self._entries.pop(scope_key, None)
+            if entry is not None:
+                self._turn_locks.pop(scope_key, None)
+                evicted_entries.append((scope_key, entry))
+
+        if not evicted_entries:
+            return
+
+        for scope_key, entry in evicted_entries:
+            try:
+                await entry.unit.teardown()
+                self._reclaimed_count += 1
+                logger.info(
+                    "execution_cache_evicted_idle scope=%s idle_s=%.0f",
+                    scope_key,
+                    self._idle_seconds,
+                )
+            except Exception:
+                logger.warning(
+                    "execution_cache_evict_teardown_failed scope=%s",
+                    scope_key,
+                    exc_info=True,
+                )
+
+        # Trigger garbage collection to reclaim memory back to OS
+        gc.collect()
 
 
 _registry: ChatAgentExecutionCache | None = None

@@ -1,4 +1,15 @@
 {
+  "emptyState": {
+    "defaultTitle": "データがありません",
+    "defaultDescription": "リストが空であるか、まだコンテンツが生成されていません",
+    "noSearchResult": "一致する項目が見つかりません",
+    "noSearchResultDesc": "検索キーワードを調整するか、フィルターを解除してください",
+    "clearFilter": "フィルターをクリア",
+    "retry": "再試行",
+    "refresh": "更新",
+    "loadFailed": "データの読み込みに失敗しました",
+    "loadFailedDesc": "ネットワーク接続を確認するか、しばらくしてから再試行してください"
+  },
   "Goal": {
     "branchSwitchedStashed": "{branch} ブランチに切り替えました。実行中のゴールをスタッシュしました。",
     "branchSwitchedRestored": "{branch} ブランチに切り替えました。ゴールを復元しました。",
@@ -4489,6 +4500,12 @@
         "appshotPrivacyBlacklistDesc": "リスト内のアプリがフォアグラウンドのとき、機密データを守るためスクリーンショットがブロックされます",
         "appshotAddAppPlaceholder": "アプリ名を入力...",
         "appshotAddApp": "追加",
+        "idleReclaim": "アイドル時の重リソース自動解放",
+        "idleReclaimDesc": "無操作状態が一定時間続いた後、バックグラウンドのブラウザとキャッシュを自動解放してメモリを節約します",
+        "idleReclaim15m": "15分",
+        "idleReclaim30m": "30分（推奨）",
+        "idleReclaim1h": "1時間",
+        "idleReclaimNever": "解放しない",
         "enableWebUI": "WebUI モードを有効化",
         "enableWebUIDesc": "ローカルネットワーク内のブラウザからアプリにアクセス",
         "enableRemote": "リモートアクセスを有効化",
@@ -6345,7 +6362,13 @@
       "expand": "展開設定パネル",
       "tooltipLine1": "機能を設定するか、保存済みのエージェントを使用します",
       "tooltipLine2": "想像力を発揮してパワフルな AI エージェントを構築しましょう！",
-      "welcomeMessage": "スマートエージェントの機能を設定するか、保存済みのエージェントを使用してください。想像力を発揮して、強力な AI エージェントを作りましょう！"
+      "welcomeMessage": "スマートエージェントの機能を設定するか、保存済みのエージェントを使用してください。想像力を発揮して、強力な AI エージェントを作りましょう！",
+      "switchAgent": "エージェントを切り替え",
+      "builtinPresets": "プリセット",
+      "customAgents": "マイエージェント",
+      "openConfigPanel": "詳細設定と微調整...",
+      "manageAgents": "エージェント管理ハブ...",
+      "switchSuccess": "エージェントを切り替えました"
     },
     "list": "エージェントリスト",
     "create": "エージェントを作成",

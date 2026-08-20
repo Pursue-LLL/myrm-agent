@@ -14,6 +14,7 @@ import {
   Sparkles,
   Network,
   BarChart3,
+  GitCommit,
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
@@ -25,6 +26,7 @@ import { showApiError } from '@/lib/api';
 import ActivityHeatmap from './ActivityHeatmap';
 import DailyJournal from './DailyJournal';
 import HealthRadar from './HealthRadar';
+import LearningTimeline from './LearningTimeline';
 import PatternDigestPanel from './PatternDigestPanel';
 import SkillEventList from './SkillEventList';
 import SkillTrendChart from './SkillTrendChart';
@@ -165,6 +167,10 @@ export default function GrowthDashboard() {
       <Tabs defaultValue="overview" className="w-full">
         <TabsList>
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
+          <TabsTrigger value="timeline" className="gap-1.5">
+            <GitCommit className="h-3.5 w-3.5" />
+            {t('tabs.timeline')}
+          </TabsTrigger>
           <TabsTrigger value="evolution" className="gap-1.5">
             <Sparkles className="h-3.5 w-3.5" />
             {t('tabs.evolution')}
@@ -179,6 +185,18 @@ export default function GrowthDashboard() {
           </TabsTrigger>
           <TabsTrigger value="daily">{t('tabs.daily')}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="timeline" className="mt-4">
+          <Card>
+            <CardHeader className="pb-2 px-4 pt-4 md:px-6 md:pt-5">
+              <CardTitle className="text-base font-semibold">{t('learningTimeline.title')}</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('learningTimeline.description')}</p>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 md:px-6 md:pb-5">
+              <LearningTimeline />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="evolution" className="mt-4">
           <PatternDigestPanel />

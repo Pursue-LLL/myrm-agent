@@ -42,6 +42,7 @@ const PASSTHROUGH_EVENTS: ReadonlySet<string> = new Set([
   'budget_updated',
   'channel_status_updated',
   'skill_quality_updated',
+  'skill_pool_updated',
   'goal:branch_switched',
 ]);
 
@@ -596,6 +597,22 @@ export function useGlobalEvents(): void {
         window.dispatchEvent(
           new CustomEvent(MANAGED_POLICY_UPDATED_EVENT, { detail: payload.data }),
         );
+      } else if (payload.type === 'skill_pool_updated') {
+        const skillId = String(payload.data.skill_id ?? '');
+        if (debouncedRefetches.current['skill_pool_updated']) {
+          clearTimeout(debouncedRefetches.current['skill_pool_updated']);
+        }
+        debouncedRefetches.current['skill_pool_updated'] = setTimeout(() => {
+          import('@/store/skill/useSkillStore')
+            .then((mod) => {
+              const store = mod.default.getState();
+              store.fetchLocalSkills();
+              store.fetchUserSkillConfig(true);
+            })
+            .catch(() => {});
+          delete debouncedRefetches.current['skill_pool_updated'];
+        }, 300);
+        window.dispatchEvent(new CustomEvent('skill_pool_updated', { detail: payload.data }));
       }
     }
 

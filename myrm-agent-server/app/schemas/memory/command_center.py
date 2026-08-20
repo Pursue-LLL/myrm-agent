@@ -276,6 +276,8 @@ class MemoryCommandBenchmarkSummary(BaseModel):
     ndcg_at_k: float = 0.0
     mrr_score: float = 0.0
     precision_at_k: float = 0.0
+    duplicate_rate: float = 0.0
+    distinct_source_ratio: float = 1.0
     latency_p50_ms: float = 0.0
     latency_p95_ms: float = 0.0
     top_k: int = 5

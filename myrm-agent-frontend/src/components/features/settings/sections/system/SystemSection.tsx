@@ -493,6 +493,26 @@ const SystemSection = memo(() => {
 
           <div className="h-px bg-white/5" />
 
+          {/* 会话空闲重资源回收 */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-foreground">{t('config.idleReclaim')}</label>
+              <p className="text-xs text-muted-foreground">{t('config.idleReclaimDesc')}</p>
+            </div>
+            <select
+              value={localConfig.idleReclaimTimeoutSeconds ?? 1800}
+              onChange={(e) => handleChange('idleReclaimTimeoutSeconds', Number.parseInt(e.target.value) || 0)}
+              className="px-3 py-1.5 bg-black/20 border border-white/10 rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+            >
+              <option value={900}>{t('config.idleReclaim15m')}</option>
+              <option value={1800}>{t('config.idleReclaim30m')}</option>
+              <option value={3600}>{t('config.idleReclaim1h')}</option>
+              <option value={0}>{t('config.idleReclaimNever')}</option>
+            </select>
+          </div>
+
+          <div className="h-px bg-white/5" />
+
           {/* 启用 WebUI 模式 */}
           <div className="flex items-center justify-between">
             <div className="space-y-1">

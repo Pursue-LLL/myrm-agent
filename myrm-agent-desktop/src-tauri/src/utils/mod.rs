@@ -11,6 +11,7 @@
 
 pub mod auth;
 pub mod power;
+pub mod process_tree;
 pub mod quarantine;
 pub mod screen_lock;
 pub mod updater_safety;

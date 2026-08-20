@@ -1,4 +1,15 @@
 {
+  "emptyState": {
+    "defaultTitle": "暫無資料",
+    "defaultDescription": "當前列表為空或尚未生成任何內容",
+    "noSearchResult": "未找到符合項",
+    "noSearchResultDesc": "請嘗試調整搜尋關鍵詞或清除篩選條件",
+    "clearFilter": "清除篩選",
+    "retry": "重試",
+    "refresh": "重新整理",
+    "loadFailed": "載入資料失敗",
+    "loadFailedDesc": "請檢查網路連線或稍後重試"
+  },
   "Goal": {
     "branchSwitchedStashed": "已切換至 {branch} 分支。自動掛起原目標。",
     "branchSwitchedRestored": "已切換至 {branch} 分支。自動恢復目標記憶。",
@@ -4489,6 +4500,12 @@
         "appshotPrivacyBlacklistDesc": "黑名單中的應用在前臺時，截圖將被阻止以保護敏感資料",
         "appshotAddAppPlaceholder": "輸入應用名稱...",
         "appshotAddApp": "新增",
+        "idleReclaim": "空閒重資源自動釋放",
+        "idleReclaimDesc": "無互動達到設定時間後，自動釋放後臺瀏覽器與執行快取以降低記憶體佔用",
+        "idleReclaim15m": "15 分鐘",
+        "idleReclaim30m": "30 分鐘（推薦）",
+        "idleReclaim1h": "1 小時",
+        "idleReclaimNever": "從不釋放",
         "enableWebUI": "啟用 WebUI 模式",
         "enableWebUIDesc": "在區域網內透過瀏覽器訪問應用",
         "enableRemote": "啟用遠端訪問",
@@ -6345,7 +6362,13 @@
       "expand": "展開配置面板",
       "tooltipLine1": "為智慧代理配置能力或使用已儲存的智慧體",
       "tooltipLine2": "盡情發揮想象力，建立強大的智慧代理吧~",
-      "welcomeMessage": "你可以為智慧代理配置能力或使用已儲存的智慧體，盡情發揮你的想象力建立強大的智慧代理吧~"
+      "welcomeMessage": "你可以為智慧代理配置能力或使用已儲存的智慧體，盡情發揮你的想象力建立強大的智慧代理吧~",
+      "switchAgent": "切換智慧體",
+      "builtinPresets": "預置專家",
+      "customAgents": "我的智慧體",
+      "openConfigPanel": "詳細配置與微調...",
+      "manageAgents": "管理智慧體中心...",
+      "switchSuccess": "已切換智慧體"
     },
     "list": "智慧體列表",
     "create": "建立智慧體",

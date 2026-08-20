@@ -12,7 +12,7 @@
 | `useAgentName.ts` | agent_id → 本地化显示名（内置 agent 走 `getBuiltinAgentName`） |
 | `useCLIAgent.ts` | 外部 CLI agent |
 | `useAgentReadiness.ts` | Per-agent readiness SWR hook (5min polling) |
-| `useSkillDiscovery.ts` | 技能发现 |
+| `useSkillDiscovery.ts` | 技能发现、预览、安装、卸载及 `skill_pool_updated` 实时热同步 |
 | `config-panel/` | 配置变更检测与 save handler | [_ARCH.md](config-panel/_ARCH.md) |
 
 消费者：`chat-window/agent-config-panel/`、Settings ai-core、kanban。

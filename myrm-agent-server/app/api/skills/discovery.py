@@ -37,6 +37,8 @@ from app.api.skills.discovery_schemas import (
     SkillInstallFromUrlRequest,
     SkillInstallRequest,
     SkillInstallResponse,
+    SkillPoolSyncRequest,
+    SkillPoolSyncResponse,
     SkillPreviewRequest,
     SkillPreviewResponse,
     SkillSearchResponse,
@@ -405,7 +407,16 @@ async def uninstall_skill(
                 get_event_bus,
             )
 
+            from app.core.skills.discovery.adopt import remove_skill_from_all_agents
+
             await skills_service.user_config.disable_local_skill(request.skill_id)
+            cleaned_agents_count = await remove_skill_from_all_agents(request.skill_id)
+            if cleaned_agents_count > 0:
+                logger.info(
+                    "Cleaned uninstalled skill %s from %d agent(s)",
+                    request.skill_id,
+                    cleaned_agents_count,
+                )
             bump_skill_config_version()
             get_event_bus().publish(
                 AppEvent(
@@ -414,6 +425,7 @@ async def uninstall_skill(
                         "action": "uninstall",
                         "skill_id": request.skill_id,
                         "uninstalled_skills": list(result.installed_skills),
+                        "cleaned_agents_count": cleaned_agents_count,
                     },
                 )
             )
@@ -551,3 +563,53 @@ async def remove_custom_source_endpoint(
     market_service._base.unregister_source(source_name)
 
     return {"removed": True}
+
+
+# ---------------------------------------------------------------------------
+# Skill Pool Cross-Agent Sync
+# ---------------------------------------------------------------------------
+
+
+@router.post("/pool/sync", response_model=SkillPoolSyncResponse)
+async def sync_skill_pool(
+    request: SkillPoolSyncRequest,
+) -> SkillPoolSyncResponse:
+    """Sync a skill into multiple Agent profiles' explicit allowlists."""
+    from app.core.skills.config_version import bump_skill_config_version
+    from app.core.skills.discovery.adopt import sync_skill_to_agents
+    from app.services.event.app_event_bus import (
+        AppEvent,
+        AppEventType,
+        get_event_bus,
+    )
+
+    results = await sync_skill_to_agents(
+        request.skill_id,
+        request.target_agent_ids,
+    )
+    synced = [aid for aid, success in results.items() if success]
+    failed = [aid for aid, success in results.items() if not success]
+
+    if synced:
+        bump_skill_config_version()
+        try:
+            get_event_bus().publish(
+                AppEvent(
+                    event_type=AppEventType.SKILL_POOL_UPDATED,
+                    data={
+                        "action": "sync",
+                        "skill_id": request.skill_id,
+                        "synced_agents": synced,
+                    },
+                )
+            )
+        except Exception as exc:
+            logger.warning("Failed to broadcast SKILL_POOL_UPDATED on sync: %s", exc)
+
+    return SkillPoolSyncResponse(
+        success=bool(synced),
+        skill_id=request.skill_id,
+        synced_agents=synced,
+        failed_agents=failed,
+    )
+

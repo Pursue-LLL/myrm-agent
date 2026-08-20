@@ -116,6 +116,9 @@ export interface Skill {
   /** True when upstream has a newer version but user modifications were preserved */
   has_upstream_update: boolean;
 
+  /** Provenance tracking for installed skills (e.g. source, url, version, installed_at) */
+  installed_from?: Record<string, unknown> | null;
+
   usage_stats?: {
     call_count: number;
     success_count: number;

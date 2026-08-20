@@ -73,10 +73,12 @@ pub async fn get_current_mode(config_manager: State<'_, ConfigManager>) -> Resul
     })
 }
 
-/// 重启应用
+/// 重启应用（先触发受控优雅停机与进程树排空，确保零文件锁与端口释放）
 #[tauri::command]
 pub async fn restart_app(app: tauri::AppHandle) -> Result<(), String> {
-    println!("🔄 Restarting application...");
+    println!("🔄 Gracefully stopping sidecars before restart...");
+    crate::app::lifecycle::graceful_shutdown(app.clone()).await;
+    println!("🔄 Relaunching application...");
     app.restart();
 }
 

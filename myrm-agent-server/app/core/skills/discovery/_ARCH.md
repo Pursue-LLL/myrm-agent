@@ -13,7 +13,7 @@
 |------|------|
 | `__init__.py` | 子域聚合出口：导出 adopt/mount/autoupdate 公共 API。 |
 | `adopt.py` | 显式 allowlist 场景安装后自动采纳：`complete_discovery_adoption`（append skill_id）。 |
-| `mount.py` | 安装/更新后 catalog enable 入口：`maybe_mount_after_install`/`resolve_mount_skill_id`/`DEFAULT_MOUNT_AGENT_ID`，返回 `SkillMountResult`。 |
+| `mount.py` | 安装/更新后 catalog enable 入口：`maybe_mount_after_install`/`resolve_mount_skill_id`/`DEFAULT_MOUNT_AGENT_ID`，触发 `SKILL_POOL_UPDATED` 广播，返回 `SkillMountResult`。 |
 | `autoupdate.py` | 上游版本检测与更新检查：`get_update_checker`。 |
 
 ---

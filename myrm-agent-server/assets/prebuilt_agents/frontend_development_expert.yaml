@@ -43,4 +43,3 @@ suggestion_prompts:
   - "帮我重构这个组件，当前不支持移动端且缺少无障碍访问支持。"
 prebuilt_skill_ids:
   - "frontend-development"
-  - "vision-toolkit"

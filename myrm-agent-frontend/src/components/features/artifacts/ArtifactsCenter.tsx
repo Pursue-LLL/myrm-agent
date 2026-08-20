@@ -10,6 +10,8 @@ import {
   IconDownload,
   IconEye,
 } from '@/components/features/icons/PremiumIcons';
+import { EmptyState } from '@/components/primitives/empty-state';
+import { ListDetailSkeleton } from '@/components/primitives/skeleton-templates';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS, zhCN } from 'date-fns/locale';
 
@@ -83,11 +85,7 @@ export const ArtifactsCenter: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse w-8 h-8 bg-primary/20 rounded-full" />
-      </div>
-    );
+    return <ListDetailSkeleton className="h-[520px]" />;
   }
 
   return (
@@ -113,9 +111,14 @@ export const ArtifactsCenter: React.FC = () => {
             </div>
           ))}
           {artifacts.length === 0 && (
-            <div className="text-sm text-muted-foreground text-center py-8">
-              {t('empty', { defaultMessage: '暂无工件资产' })}
-            </div>
+            <EmptyState
+              variant="compact"
+              icon={IconFileText}
+              title={t('empty', { defaultMessage: '暂无工件资产' })}
+              description={t('emptyDesc', {
+                defaultMessage: '智能体在对话中生成的报告、图表、代码将自动归档在此',
+              })}
+            />
           )}
         </div>
       </div>

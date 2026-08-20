@@ -127,7 +127,7 @@
 - **预处理**：`app/core/utils/chat_utils.py` — `_process_image_item` / `_process_video_item` + SSE `vision_backend`
 - **Agent 运行时**：`GeneralAgent._build_runtime_context` 注入 `video_fallback_model_cfgs` + `supports_video` → harness `file_read_tool` / `video_reader`
 - **探活**：`POST /api/v1/config/vision-health` · `POST /api/v1/config/video-health`
-- **Harness 引擎**：`myrm-agent-harness/toolkits/llms/vision/` — fallback / video / agent tools（EXTENDED · `vision-toolkit` skill）
+- **Harness 引擎**：`myrm-agent-harness/toolkits/llms/vision/` — fallback / video 分析与多模态降级基础设施（`file_read_tool` 多模态直读与自适应降级）
 
 ### 代码智能（外部 MCP 集成）
 

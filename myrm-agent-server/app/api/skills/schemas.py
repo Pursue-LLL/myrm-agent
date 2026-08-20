@@ -88,6 +88,7 @@ class SkillResponse(BaseModel):
     required_permissions: list[str] = []
     config_schema: dict[str, object] | None = None
     has_upstream_update: bool = False
+    installed_from: dict[str, object] | None = None
 
     traps: list[dict[str, object]] = []
     verification_steps: list[dict[str, object]] = []
@@ -332,6 +333,7 @@ def skill_to_response(skill: Skill) -> SkillResponse:
         required_permissions=skill.required_permissions,
         config_schema=skill.config_schema,
         has_upstream_update=skill.has_upstream_update,
+        installed_from=skill.installed_from,
         traps=traps,
         verification_steps=verification_steps,
         eval_cases=eval_cases,

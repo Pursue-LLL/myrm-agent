@@ -706,19 +706,15 @@ def extract_fallback_model_configs(
     if not isinstance(providers, list):
         return None, None
 
-    base_fallback = _resolve_slot_fallback(
-        default_model_cfg.get("baseModel"), providers
+    base_fallbacks = extract_slot_fallback_chain(
+        default_model_cfg.get("baseModel"), providers_dict
     )
-    lite_fallback = _resolve_slot_fallback(
-        default_model_cfg.get("liteModel"), providers
+    lite_fallbacks = extract_slot_fallback_chain(
+        default_model_cfg.get("liteModel"), providers_dict
     )
 
-    from app.core.channel_bridge.model_resolver import enrich_model_context_window
-
-    if base_fallback:
-        base_fallback = enrich_model_context_window(base_fallback, providers_dict)
-    if lite_fallback:
-        lite_fallback = enrich_model_context_window(lite_fallback, providers_dict)
+    base_fallback = base_fallbacks[0] if base_fallbacks else None
+    lite_fallback = lite_fallbacks[0] if lite_fallbacks else None
     return base_fallback, lite_fallback
 
 
@@ -935,17 +931,83 @@ def extract_active_search_config(
     )
 
 
+def extract_slot_fallback_chain(
+    slot: object,
+    providers_dict: dict[str, object] | None,
+) -> list["ModelConfig"]:
+    """Resolve the ordered fallback selections within a ModelSlot to ModelConfig list."""
+    from app.core.channel_bridge.model_resolver import enrich_model_context_window
+    from app.core.types import ModelConfig
+
+    if not isinstance(slot, dict) or not providers_dict:
+        return []
+
+    providers = providers_dict.get("providers")
+    if not isinstance(providers, list):
+        return []
+
+    # Support both list `fallbacks` and legacy single `fallback`
+    raw_fallbacks: list[dict[str, object]] = []
+    if isinstance(slot.get("fallbacks"), list):
+        for item in slot["fallbacks"]:
+            if isinstance(item, dict):
+                raw_fallbacks.append(item)
+    elif isinstance(slot.get("fallback"), dict):
+        raw_fallbacks.append(slot["fallback"])
+
+    configs: list[ModelConfig] = []
+    seen: set[tuple[str, str | None]] = set()
+
+    for fb in raw_fallbacks:
+        provider_id = str(fb.get("providerId", ""))
+        model = str(fb.get("model", ""))
+        if not provider_id or not model:
+            continue
+
+        provider = next(
+            (
+                p
+                for p in providers
+                if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
+            ),
+            None,
+        )
+        if not provider:
+            continue
+
+        api_key = _extract_active_key(provider)
+        if not api_key:
+            continue
+
+        ptype = str(provider.get("providerType", "")) or None
+        full_model = _to_litellm_model(provider_id, model, ptype)
+        api_url = str(provider.get("apiUrl", "")) or None
+        cfg = ModelConfig(model=full_model, api_key=api_key, base_url=api_url)
+        cfg = enrich_model_context_window(cfg, providers_dict)
+        _append_unique_model_config(configs, seen, cfg)
+
+    return configs
+
+
 def _resolve_slot_fallback(
     slot: object,
     providers: list[dict[str, object]],
 ) -> "ModelConfig | None":
-    """Resolve the fallback selection within a ModelSlot to a ModelConfig."""
+    """Resolve the primary fallback selection within a ModelSlot to a ModelConfig."""
     from app.core.types import ModelConfig
 
     if not isinstance(slot, dict):
         return None
 
-    fallback = slot.get("fallback")
+    # Check fallbacks list first, fallback to single fallback
+    fallback = None
+    if isinstance(slot.get("fallbacks"), list) and slot["fallbacks"]:
+        first = slot["fallbacks"][0]
+        if isinstance(first, dict):
+            fallback = first
+    if fallback is None and isinstance(slot.get("fallback"), dict):
+        fallback = slot["fallback"]
+
     if not isinstance(fallback, dict):
         return None
 

@@ -175,3 +175,45 @@ class TestSkillDiscoveryE2E:
         assert install_data["skill_name"] == "code-review-plugin"
         assert install_data["installed_skills"] == ["code-review", "git-lint"]
         assert install_data["declared_mcp_servers"] == ["sqlite-srv"]
+
+    def test_uninstall_broadcasts_skill_pool_updated(
+        self, client: TestClient, monkeypatch
+    ):
+        """Test uninstalling a skill broadcasts SKILL_POOL_UPDATED event."""
+        from unittest.mock import AsyncMock, MagicMock
+        from myrm_agent_harness.backends.skills.market_protocols import (
+            SkillInstallResult,
+        )
+
+        uninstall_res = SkillInstallResult(
+            success=True,
+            skill_name="code-review-plugin",
+            skill_id="local::code-review-plugin",
+            installed_skills=["code-review", "git-lint"],
+        )
+        monkeypatch.setattr(
+            "app.api.skills.discovery.market_service.uninstall",
+            AsyncMock(return_value=uninstall_res),
+        )
+        monkeypatch.setattr(
+            "app.core.skills.store.service.skills_service.user_config.disable_local_skill",
+            AsyncMock(),
+        )
+
+        mock_bus = MagicMock()
+        monkeypatch.setattr(
+            "app.services.event.app_event_bus.get_event_bus", lambda: mock_bus
+        )
+
+        res = client.post(
+            "/api/v1/skills/discovery/uninstall",
+            json={"skill_id": "local::code-review-plugin", "force": True},
+        )
+        assert res.status_code == 200
+        assert res.json()["success"] is True
+        assert mock_bus.publish.called
+        event = mock_bus.publish.call_args[0][0]
+        assert event.event_type.value == "skill_pool_updated"
+        assert event.data["action"] == "uninstall"
+        assert event.data["skill_id"] == "local::code-review-plugin"
+        assert event.data["uninstalled_skills"] == ["code-review", "git-lint"]

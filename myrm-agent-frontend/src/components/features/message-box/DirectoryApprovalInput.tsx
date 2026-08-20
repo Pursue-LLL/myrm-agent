@@ -8,7 +8,7 @@
  * - ./DirectoryBrowsePopover (POS: Web 目录浏览 Popover)
  *
  * [OUTPUT]
- * - DirectoryApprovalInput: request_directory_tool HITL 审批 UI
+ * - DirectoryApprovalInput: 目录权限动态提权与 HITL 审批 UI 卡片
  *
  * [POS]
  * Chat 内嵌目录授权卡片；grant/deny 经 LangGraph interrupt resume 回传 server。

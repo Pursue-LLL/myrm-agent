@@ -30,7 +30,7 @@ async def test_create_agent_llms_returns_stream_fallback_when_managed() -> None:
     ) as get_llm:
         get_llm.side_effect = [mock_main, mock_lite, mock_fallback]
 
-        main_llm, lite_llm, stream_fallback, safety = await create_agent_llms(
+        main_llm, lite_llm, stream_fallback, safety, stream_fallbacks = await create_agent_llms(
             main_cfg,
             main_cfg,
             fallback_cfg,
@@ -40,6 +40,7 @@ async def test_create_agent_llms_returns_stream_fallback_when_managed() -> None:
     assert isinstance(main_llm, ManagedLLM)
     assert lite_llm is mock_lite
     assert stream_fallback is mock_fallback
+    assert stream_fallbacks == [mock_fallback]
     assert safety is None
 
 
@@ -55,7 +56,7 @@ async def test_create_agent_llms_no_fallback_returns_none_stream_slot() -> None:
     ) as get_llm:
         get_llm.side_effect = [mock_main, mock_lite]
 
-        main_llm, _lite, stream_fallback, _safety = await create_agent_llms(
+        main_llm, _lite, stream_fallback, _safety, stream_fallbacks = await create_agent_llms(
             main_cfg,
             main_cfg,
             None,
@@ -64,6 +65,7 @@ async def test_create_agent_llms_no_fallback_returns_none_stream_slot() -> None:
 
     assert main_llm is mock_main
     assert stream_fallback is None
+    assert stream_fallbacks is None
 
 
 @pytest.mark.asyncio
@@ -137,3 +139,37 @@ async def test_apply_lite_managed_fallback_uses_effective_cfg_after_downgrade() 
 
     assert isinstance(wrapped, ManagedLLM)
     assert wrapped._main_model_name == main_cfg.model
+
+
+@pytest.mark.asyncio
+async def test_create_agent_llms_with_multiple_fallbacks() -> None:
+    main_cfg = _cfg("openai/main-model")
+    fb1_cfg = _cfg("openai/fallback-1")
+    fb2_cfg = _cfg("openai/fallback-2")
+    mock_main = MagicMock(spec=BaseChatModel)
+    mock_lite = MagicMock(spec=BaseChatModel)
+    mock_fb1 = MagicMock(spec=BaseChatModel)
+    mock_fb2 = MagicMock(spec=BaseChatModel)
+
+    with patch(
+        "app.ai_agents.general_agent.llm_factory.llm_manager.get_llm_from_config",
+        new_callable=AsyncMock,
+    ) as get_llm:
+        get_llm.side_effect = [mock_main, mock_lite, mock_fb1, mock_fb2]
+
+        main_llm, lite_llm, stream_fallback, safety, stream_fallbacks = (
+            await create_agent_llms(
+                main_cfg,
+                main_cfg,
+                None,
+                None,
+                fallback_model_cfgs=[fb1_cfg, fb2_cfg],
+            )
+        )
+
+    assert isinstance(main_llm, ManagedLLM)
+    assert lite_llm is mock_lite
+    assert stream_fallback is mock_fb1
+    assert stream_fallbacks == [mock_fb1, mock_fb2]
+    assert safety is None
+

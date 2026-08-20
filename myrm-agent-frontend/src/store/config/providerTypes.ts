@@ -452,10 +452,11 @@ export interface CustomModelInfo {
   extraParams?: Record<string, unknown>;
 }
 
-// 模型槽位：主模型 + 可选备用模型
+// 模型槽位：主模型 + 可选备用模型 / 有序备用链
 export interface ModelSlot {
   primary: SingleModelSelection | null;
   fallback: SingleModelSelection | null;
+  fallbacks?: SingleModelSelection[];
   temperature?: number;
   modelKwargs?: Record<string, unknown>;
 }

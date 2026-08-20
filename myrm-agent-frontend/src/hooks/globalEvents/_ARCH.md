@@ -4,7 +4,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `useGlobalEvents.ts` | SSE 订阅、审批/预算/后台任务/`managed_policy_updated`/`run_digest_updated` 等全局事件编排；`voice_background_task_done` 时 dispatch `voice-bg-done` 供语音播报 |
+| `useGlobalEvents.ts` | SSE 订阅、审批/预算/后台任务/`managed_policy_updated`/`run_digest_updated`/`skill_pool_updated` 等全局事件编排；`voice_background_task_done` 时 dispatch `voice-bg-done` 供语音播报 |
 | `memoryOperationToasts.ts` | 记忆 CRUD toast |
 | `locatorHealedToast.tsx` | 浏览器 locator 自愈通知 |
 | `messageDeadLetteredToast.ts` | 消息死信告警 |

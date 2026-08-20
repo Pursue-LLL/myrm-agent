@@ -20,9 +20,10 @@ mod appshot;
 mod inline_input;
 mod theme_package_open;
 pub mod nextjs_frontend;
-mod port;
+pub mod port;
 pub mod python_backend;
 pub mod setup_token;
+pub mod survivor_diag;
 pub mod watchdog;
 
 pub use agent_runner::{bootstrap_agent_runner, resolve_agent_runner_path};

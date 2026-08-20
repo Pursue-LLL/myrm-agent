@@ -502,6 +502,19 @@ class MemoryBriefStatusTelemetrySettings(BaseSettings):
     allowed_phases: str = "stream,persist"
 
 
+class ExecutionCacheSettings(BaseSettings):
+    """[O] Chat agent execution unit cache & idle reclaim settings."""
+
+    model_config = SettingsConfigDict(env_prefix="EXECUTION_CACHE_")
+
+    idle_reclaim_timeout_seconds: float = Field(
+        default=1800.0,
+        validation_alias="MYRM_EXECUTION_CACHE_IDLE_SECONDS",
+        description="[O] Idle timeout before cached agent execution units and heavy resources are reclaimed (0 = disable auto-reclaim)",
+    )
+    max_reaper_interval_seconds: float = 60.0
+
+
 class MemoryGuardianGuardTelemetrySettings(BaseSettings):
     """[S] Guardian guard-unavailable telemetry batching tunables."""
 
@@ -614,6 +627,7 @@ class AppSettings(BaseSettings):
     memory_guardian_guard_telemetry: MemoryGuardianGuardTelemetrySettings = (
         MemoryGuardianGuardTelemetrySettings()
     )
+    execution_cache: ExecutionCacheSettings = ExecutionCacheSettings()
 
     @field_validator("port")
     @classmethod

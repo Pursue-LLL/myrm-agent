@@ -159,10 +159,12 @@ impl SidecarManager {
 
     pub fn stop(&mut self) -> Result<(), String> {
         if let Some(mut process) = self.process.take() {
+            let pid = process.id();
+            crate::utils::process_tree::kill_process_tree(pid);
             process
                 .kill()
                 .map_err(|e| format!("Failed to kill sidecar: {}", e))?;
-            println!("🛑 Sidecar stopped");
+            println!("🛑 Sidecar process tree stopped (root PID: {})", pid);
         }
         self.stdin = None;
         Ok(())

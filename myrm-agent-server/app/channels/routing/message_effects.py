@@ -168,7 +168,7 @@ class MessageEffects:
     ) -> str | None:
         """Send a 'thinking...' placeholder message. Returns message_id or None."""
         ch = self._bus.get_channel(channel)
-        if not ch:
+        if not ch or not ch.capabilities.edit:
             return None
         placeholder_text = get_text(msg, "placeholder_thinking") if msg is not None else channel_t(None, "placeholder_thinking")
         try:

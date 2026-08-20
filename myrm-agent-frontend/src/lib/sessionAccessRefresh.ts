@@ -8,7 +8,7 @@
  * - refreshSessionAccessRoots: 从 chat detail 刷新 store 中的 sessionAccessRoots（SSOT）
  *
  * [POS]
- * 会话目录 grant/revoke 后 FE store 与 DB 对齐的单一刷新入口；path-ASK 与 request_directory HITL 共用。
+ * 会话目录 grant/revoke 后 FE store 与 DB 对齐的单一刷新入口；path-ASK 动态提权与目录授权共用。
  */
 
 import { getChatDetail } from '@/services/chat';

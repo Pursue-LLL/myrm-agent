@@ -134,6 +134,14 @@ def _load_skill_from_dir(
         except Exception as e:
             logger.debug("Failed to load .stats.json for '%s': %s", skill_dir.name, e)
 
+    installed_from: dict[str, object] | None = None
+    origin_file = skill_dir / "origin.json"
+    if origin_file.exists():
+        try:
+            installed_from = json.loads(origin_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.debug("Failed to load origin.json for '%s': %s", skill_dir.name, e)
+
     skill_id = compute_local_skill_id(skill_dir)
 
     category = frontmatter.category
@@ -151,6 +159,7 @@ def _load_skill_from_dir(
         skill_id=skill_id,
         skill_type=skill_type,
         category=category,
+        installed_from=installed_from,
         created_at=created_at,
         updated_at=updated_at,
     )

@@ -1,4 +1,15 @@
 {
+  "emptyState": {
+    "defaultTitle": "暂无数据",
+    "defaultDescription": "当前列表为空或尚未生成任何内容",
+    "noSearchResult": "未找到匹配项",
+    "noSearchResultDesc": "请尝试调整搜索关键词或清除筛选条件",
+    "clearFilter": "清除筛选",
+    "retry": "重试",
+    "refresh": "刷新",
+    "loadFailed": "加载数据失败",
+    "loadFailedDesc": "请检查网络连接或稍后重试"
+  },
   "Goal": {
     "branchSwitchedStashed": "已切换至 {branch} 分支。自动挂起原目标。",
     "branchSwitchedRestored": "已切换至 {branch} 分支。自动恢复目标记忆。",
@@ -4793,6 +4804,12 @@
         "appshotPrivacyBlacklistDesc": "黑名单中的应用在前台时，截屏将被阻止以保护敏感数据",
         "appshotAddAppPlaceholder": "输入应用名称...",
         "appshotAddApp": "添加",
+        "idleReclaim": "空闲重资源自动释放",
+        "idleReclaimDesc": "无交互达到设定时间后，自动释放后台浏览器与执行缓存以降低内存占用",
+        "idleReclaim15m": "15 分钟",
+        "idleReclaim30m": "30 分钟（推荐）",
+        "idleReclaim1h": "1 小时",
+        "idleReclaimNever": "从不释放",
         "enableWebUI": "启用 WebUI 模式",
         "enableWebUIDesc": "在局域网内通过浏览器访问应用",
         "enableRemote": "启用远程访问",
@@ -6423,7 +6440,13 @@
       "expand": "展开配置面板",
       "tooltipLine1": "为智能代理配置能力或使用已保存的智能体",
       "tooltipLine2": "尽情发挥想象力，创建强大的智能代理吧~",
-      "welcomeMessage": "你可以为智能代理配置能力或使用已保存的智能体，尽情发挥你的想象力创建强大的智能代理吧~"
+      "welcomeMessage": "你可以为智能代理配置能力或使用已保存的智能体，尽情发挥你的想象力创建强大的智能代理吧~",
+      "switchAgent": "切换智能体",
+      "builtinPresets": "预置专家",
+      "customAgents": "我的智能体",
+      "openConfigPanel": "详细配置与微调...",
+      "manageAgents": "管理智能体中心...",
+      "switchSuccess": "已切换智能体"
     },
     "readiness": {
       "warning": "部分配置需要注意",
@@ -14712,10 +14735,60 @@
     },
     "tabs": {
       "overview": "总览",
+      "timeline": "学习时间线",
       "evolution": "进化复盘",
       "graph": "知识图谱",
       "trends": "技能趋势",
       "daily": "每日回顾"
+    },
+    "learningTimeline": {
+      "title": "记忆与技能学习时间线",
+      "description": "统一按时间轴汇聚事实、偏好、经验流程记忆与技能演化流，提供行内修改与治理能力。",
+      "filterAll": "全部流",
+      "filterMemories": "仅记忆",
+      "filterSkills": "仅技能",
+      "filterFact": "事实记忆",
+      "filterPreference": "偏好记忆",
+      "filterProcedural": "流程经验",
+      "filterEpisodic": "情景片段",
+      "filterEvolution": "技能进化",
+      "filterDraft": "技能草稿",
+      "days7": "近 7 天",
+      "days30": "近 30 天",
+      "days90": "近 90 天",
+      "editMemory": "编辑记忆",
+      "archiveSkill": "归档技能",
+      "unarchiveSkill": "恢复技能",
+      "deleteMemory": "删除记忆",
+      "deleteConfirm": "确定要永久删除该条记忆吗？",
+      "archiveConfirm": "确定归档该技能？归档后模型工具路由将不再调用此技能。",
+      "unarchiveConfirm": "确定恢复并重新启用该技能？",
+      "contentLabel": "核心内容 / 规则",
+      "reasoningLabel": "推演背景与上下文",
+      "importanceLabel": "重要度等级",
+      "userLockedBadge": "用户人工校准 (锁定免覆盖)",
+      "agentOrigin": "智能体: {agent}",
+      "confidenceLabel": "置信度",
+      "saveChanges": "保存修改",
+      "cancel": "取消",
+      "loading": "正在加载学习时间线...",
+      "loadMore": "加载更多节点",
+      "noMore": "已加载全部节点",
+      "empty": {
+        "title": "暂无学习成长足迹",
+        "description": "当智能体在对话中习得事实、记录偏好或自动沉淀技能时，会按时间序列在此清晰展现并支持人工治理。"
+      },
+      "stats": {
+        "totalNodes": "共 {count} 个学习节点",
+        "userEditedCount": "{count} 条人工校准"
+      },
+      "toast": {
+        "updateSuccess": "记忆更新成功",
+        "deleteSuccess": "记忆已删除",
+        "archiveSuccess": "技能已归档",
+        "unarchiveSuccess": "技能已恢复启用",
+        "actionFailed": "操作失败: {error}"
+      }
     },
     "knowledgeGraph": {
       "title": "知识图谱",

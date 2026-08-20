@@ -28,6 +28,7 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js/Agent Runne
 | `agent_runner.rs` | 核心 | Agent Runner 路径解析与事件桥接 | ✅ |
 | `setup_token.rs` | 核心 | WebUI Remote Setup Token IPC | — |
 | `port.rs` | 工具 | 端口占用检测 | — |
+| `survivor_diag.rs` | 核心 | 端口幸存者诊断与安全 Re-kill 自愈回收 | ✅ |
 | `inline_input.rs` | 核心 | Inline Input 全局快捷键与 paste_back | ✅ |
 | `appshot/` | 核心 | Appshot 截屏、Voice PTT、窗口 toggle | ✅ |
 

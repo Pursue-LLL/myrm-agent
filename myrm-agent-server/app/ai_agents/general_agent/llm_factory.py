@@ -46,10 +46,11 @@ async def create_agent_llms(
     lite_model_cfg: ModelConfig | None,
     fallback_model_cfg: ModelConfig | None,
     safety_fallback_model_cfg: ModelConfig | None = None,
-) -> tuple[BaseChatModel, BaseChatModel, BaseChatModel | None, BaseChatModel | None]:
+    fallback_model_cfgs: list[ModelConfig] | None = None,
+) -> tuple[BaseChatModel, BaseChatModel, BaseChatModel | None, BaseChatModel | None, list[BaseChatModel] | None]:
     """创建 Agent 所需的 LLM 实例，集成智能降级管理。
 
-    如果提供 fallback_model_cfg，将创建 ManagedLLM 包装器，自动提供：
+    如果提供 fallback_model_cfg 或 fallback_model_cfgs，将创建 ManagedLLM 包装器，自动提供：
     - 冷却期机制（避免重复调用失败的模型）
     - 错误驱动探测（自动尝试恢复到主模型）
     - 场景感知选择（根据场景选择最优模型）
@@ -57,17 +58,12 @@ async def create_agent_llms(
     Args:
         model_cfg: 主模型配置
         lite_model_cfg: 过滤/摘要模型配置（None 时复用主模型）
-        fallback_model_cfg: 备用主模型配置（None 时无备用）
+        fallback_model_cfg: 备用主模型配置（单个）
+        safety_fallback_model_cfg: 安全拦截备用模型
+        fallback_model_cfgs: 有序备用主模型配置列表（多级）
 
     Returns:
-        (main_llm, lite_llm, stream_fallback_llm, safety_fallback_llm)
-        - main_llm: ManagedLLM（如果有 fallback）或原始 LLM
-        - lite_llm: 过滤/摘要模型（lite fallback 由 apply_lite_managed_fallback 在 downgrade 后包装）
-        - stream_fallback_llm: 供 StreamExecutor graph rebuild；与 ManagedLLM 内嵌 fallback 相同实例
-        - safety_fallback_llm: 安全拦截备用模型
-
-    Raises:
-        ValueError: 主模型或过滤模型创建失败
+        (main_llm, lite_llm, stream_fallback_llm, safety_fallback_llm, stream_fallback_llms)
     """
     # 1. 创建主模型
     try:
@@ -127,37 +123,53 @@ async def create_agent_llms(
             )
 
     # 4. 创建备用主模型并集成 ModelFallbackManager
-    if fallback_model_cfg is not None:
-        try:
-            fallback_api_keys = getattr(fallback_model_cfg, "api_keys", None)
-            raw_fallback_llm = await llm_manager.get_llm_from_config(
-                fallback_model_cfg, api_keys=fallback_api_keys
-            )
-            logger.info("Fallback model: %s", fallback_model_cfg.model)
+    effective_fallbacks: list[ModelConfig] = []
+    if fallback_model_cfgs:
+        effective_fallbacks = list(fallback_model_cfgs)
+    elif fallback_model_cfg is not None:
+        effective_fallbacks = [fallback_model_cfg]
 
+    if effective_fallbacks:
+        from myrm_agent_harness.toolkits.llms.fallback.managed_llm import FallbackModel
+
+        raw_fallback_llms: list[BaseChatModel] = []
+        fallback_models_for_manager: list[FallbackModel] = []
+
+        for fb_cfg in effective_fallbacks:
+            try:
+                fb_api_keys = getattr(fb_cfg, "api_keys", None)
+                fb_llm = await llm_manager.get_llm_from_config(
+                    fb_cfg, api_keys=fb_api_keys
+                )
+                raw_fallback_llms.append(fb_llm)
+                fallback_models_for_manager.append(
+                    FallbackModel(
+                        llm=fb_llm,
+                        name=fb_cfg.model,
+                    )
+                )
+                logger.info("Fallback candidate model: %s", fb_cfg.model)
+            except Exception as e:
+                logger.warning(
+                    f"Failed to create fallback candidate LLM '{fb_cfg.model}': {e}, skipping node"
+                )
+
+        if fallback_models_for_manager:
+            first_fallback_llm = raw_fallback_llms[0]
             managed_llm = ManagedLLM(
                 main_llm=raw_main_llm,
-                fallback_llm=raw_fallback_llm,
+                fallback_models=fallback_models_for_manager,
                 main_model_name=model_cfg.model,
-                fallback_model_name=fallback_model_cfg.model,
                 scenario=ScenarioType.BALANCED,
             )
             logger.info(
-                "ModelFallbackManager active: main=%s, fallback=%s",
+                "ModelFallbackManager active: main=%s, %d fallback candidate(s)",
                 model_cfg.model,
-                fallback_model_cfg.model,
+                len(fallback_models_for_manager),
             )
+            return managed_llm, lite_llm, first_fallback_llm, safety_fallback_llm, raw_fallback_llms
 
-            # ManagedLLM handles agenerate/SSE; stream_fallback_llm feeds StreamExecutor._astream rebuild.
-            return managed_llm, lite_llm, raw_fallback_llm, safety_fallback_llm
-
-        except Exception as e:
-            logger.warning(
-                f"Failed to create fallback LLM: {e}, proceeding without failover"
-            )
-            return raw_main_llm, lite_llm, None, safety_fallback_llm
-
-    return raw_main_llm, lite_llm, None, safety_fallback_llm
+    return raw_main_llm, lite_llm, None, safety_fallback_llm, None
 
 
 async def apply_lite_managed_fallback(

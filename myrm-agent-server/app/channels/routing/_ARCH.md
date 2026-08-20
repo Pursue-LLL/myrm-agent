@@ -139,6 +139,7 @@ deadlocks when an agent execution hangs without crashing.
 | router_keys.py | Core | ``routing_session_key`` builds ``f"{channel}:{peer_id}"`` for DM/group peer maps | — |
 | router_models.py | Core | Data models referenced by AgentRouter in router.py and commands/ (_ActiveTask with steering_token, `requester_id` for reaction approval auth, `locale` for stuck watchdog i18n, ReactionPolicy, etc.) | — |
 | router_stream.py | Core | RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance; includes edit-in-place heartbeat loop for long-task silence detection (sends once, then edits the same message with elapsed time). | — |
+| router_stream_scrubber.py | Core | Stream content and progress scrubbing utilities: filters `<think>` tags and normalizes raw tool executions into user-friendly Stage descriptions. | ✅ |
 | router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | ✅ |
 | session_gate.py | Core | Sits between Router's consume loop and the per-message handler. Supports optional `on_busy_ack` callback (30s debounce) for immediate user feedback when messages are queued or dropped. | ✅ |
 | session_rate_limiter.py | Core | Session-level rate limiting for single-instance self-protection. | ✅ |
