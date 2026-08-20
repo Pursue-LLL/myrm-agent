@@ -72,6 +72,7 @@ class TestSkillDiscoveryE2E:
     def test_search_and_install_agent_plugin_discovery_e2e(self, client: TestClient, monkeypatch: pytest.MonkeyPatch):
         """E2E test verifying Agent Plugin discovery search and installation response schemas."""
         from unittest.mock import AsyncMock
+
         from myrm_agent_harness.agent.skills.market.service import EnrichedSearchResult
         from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult, SkillSearchResult
 
@@ -109,13 +110,23 @@ class TestSkillDiscoveryE2E:
         assert item["package_type"] == "agent_plugin"
         assert "review" in item["keywords"]
 
-        # 2. Test install returns installed_skills
+        # 2. Test search with package_type filter
+        res_filtered = client.get("/api/v1/skills/discovery/search?q=code-review&package_type=skill")
+        assert res_filtered.status_code == 200
+        assert res_filtered.json()["total"] == 0
+
+        res_plugin_filtered = client.get("/api/v1/skills/discovery/search?q=code-review&package_type=agent_plugin")
+        assert res_plugin_filtered.status_code == 200
+        assert res_plugin_filtered.json()["total"] == 1
+
+        # 3. Test install returns installed_skills and declared_mcp_servers
         install_res = SkillInstallResult(
             success=True,
             skill_name="code-review-plugin",
             skill_id="local::code-review-plugin",
             installed_path="/tmp/skills/code-review-plugin",
             installed_skills=["code-review", "git-lint"],
+            declared_mcp_servers=["sqlite-srv"],
         )
         monkeypatch.setattr(
             "app.core.skills.marketplace.market_service.market_service.install",
@@ -131,4 +142,5 @@ class TestSkillDiscoveryE2E:
         assert install_data["success"] is True
         assert install_data["skill_name"] == "code-review-plugin"
         assert install_data["installed_skills"] == ["code-review", "git-lint"]
+        assert install_data["declared_mcp_servers"] == ["sqlite-srv"]
 

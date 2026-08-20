@@ -13,7 +13,6 @@ with deterministic path ordering (for KV Cache stability) and permission labels.
 
 from __future__ import annotations
 
-import ast
 from pathlib import Path
 
 
