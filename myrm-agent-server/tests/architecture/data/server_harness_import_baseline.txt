@@ -74,8 +74,6 @@ myrm_agent_harness.agent.meta_tools.interaction.update_ui_data_tool
 myrm_agent_harness.agent.meta_tools.mount_policy
 myrm_agent_harness.agent.meta_tools.progress.schemas
 myrm_agent_harness.agent.meta_tools.progress.storage
-myrm_agent_harness.agent.meta_tools.session_access.request_directory
-myrm_agent_harness.agent.meta_tools.session_access.request_directory_tool
 myrm_agent_harness.agent.meta_tools.skills.manage
 myrm_agent_harness.agent.meta_tools.skills.market
 myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine
@@ -350,6 +348,7 @@ myrm_agent_harness.toolkits.llms.errors.classifier
 myrm_agent_harness.toolkits.llms.errors.resilient
 myrm_agent_harness.toolkits.llms.fallback
 myrm_agent_harness.toolkits.llms.fallback.health_check
+myrm_agent_harness.toolkits.llms.fallback.managed_llm
 myrm_agent_harness.toolkits.llms.image
 myrm_agent_harness.toolkits.llms.image.async_image_engine
 myrm_agent_harness.toolkits.llms.image.image_engine

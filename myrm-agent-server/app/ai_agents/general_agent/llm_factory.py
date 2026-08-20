@@ -122,7 +122,7 @@ async def create_agent_llms(
         effective_fallbacks = [fallback_model_cfg]
 
     if effective_fallbacks:
-        from myrm_agent_harness.toolkits.llms.fallback.managed_llm import FallbackModel
+        from myrm_agent_harness.toolkits.llms.fallback import FallbackModel
 
         raw_fallback_llms: list[BaseChatModel] = []
         fallback_models_for_manager: list[FallbackModel] = []

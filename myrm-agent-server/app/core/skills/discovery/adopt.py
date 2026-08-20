@@ -113,7 +113,7 @@ async def remove_skill_from_all_agents(
     install_roots = _legacy_install_roots(config.local_skill_paths)
     target_canonical = normalize_local_skill_id(skill_id, install_roots)
 
-    agents = await AgentService.get_all_agents()
+    agents, _ = await AgentService.get_agent_list(page=1, page_size=1000)
     cleaned_count = 0
 
     for agent in agents:

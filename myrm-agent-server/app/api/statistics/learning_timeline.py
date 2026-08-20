@@ -270,7 +270,7 @@ async def update_timeline_memory_item(
         item = memory_to_item(updated, mem_type)
         return success_response(data=item.model_dump())
     except Exception as e:
-        raise not_found_error("Memory", memory_id) from e
+        raise not_found_error(f"Memory {memory_id}") from e
 
 
 @router.delete("/learning-timeline/memory/{memory_id}")
@@ -284,9 +284,9 @@ async def delete_timeline_memory_item(
     try:
         deleted = await manager.delete_memory(mem_type, memory_id)
         if not deleted:
-            raise not_found_error("Memory", memory_id)
+            raise not_found_error(f"Memory {memory_id}")
         await _record_memory_event(
-            kind=MemoryOperationKind.DELETE,
+            kind=MemoryOperationKind.FORGET,
             summary="Timeline memory deleted manually.",
             memory_id=memory_id,
             memory_type=mem_type.value,
@@ -295,7 +295,7 @@ async def delete_timeline_memory_item(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise
-        raise not_found_error("Memory", memory_id) from e
+        raise not_found_error(f"Memory {memory_id}") from e
 
 
 @router.post("/learning-timeline/skill/{skill_id}/archive")
@@ -307,7 +307,7 @@ async def archive_timeline_skill_item(
     try:
         updated = await skills_service.update_skill(skill_id, is_active=active)
         if not updated:
-            raise not_found_error("Skill", skill_id)
+            raise not_found_error(f"Skill {skill_id}")
         status_msg = "Skill enabled" if active else "Skill archived"
         return success_response(
             data=TimelineSkillArchiveResponse(
@@ -319,4 +319,4 @@ async def archive_timeline_skill_item(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise
-        raise not_found_error("Skill", skill_id) from e
+        raise not_found_error(f"Skill {skill_id}") from e
